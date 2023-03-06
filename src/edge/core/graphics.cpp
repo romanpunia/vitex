@@ -293,7 +293,7 @@ namespace Edge
 		Compute::Matrix4x4 PoseBuffer::GetOffset(PoseNode* Node)
 		{
 			ED_ASSERT(Node != nullptr, Compute::Matrix4x4::Identity(), "node should be set");
-			return Compute::Matrix4x4::Create(Node->Position, Node->Rotation);
+			return Compute::Matrix4x4::Create(Node->Position, Node->Rotation.GetEuler());
 		}
 		PoseNode* PoseBuffer::GetNode(int64_t Index)
 		{

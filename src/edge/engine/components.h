@@ -338,7 +338,7 @@ namespace Edge
 				Compute::Vector2 Position;
 
 			public:
-				Compute::Vector2 Direction = Compute::Vector2(-1.0f, 1.0f);
+				Compute::Vector2 Direction = Compute::Vector2(1.0f, 1.0f);
 				Graphics::KeyMap Rotate;
 				float Sensivity;
 

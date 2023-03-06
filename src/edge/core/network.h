@@ -514,6 +514,7 @@ namespace Edge
 			RemoteHost Hostname;
 			int64_t Timeout;
 			bool AutoEncrypt;
+			bool IsAsync;
 
 		public:
 			SocketClient(int64_t RequestTimeout) noexcept;

@@ -655,9 +655,9 @@ namespace Edge
 			Vector4 Row22() const;
 			Vector4 Row33() const;
 			Vector4 Row44() const;
-			Vector3 Up(bool ViewSpace) const;
-			Vector3 Right(bool ViewSpace) const;
-			Vector3 Forward(bool ViewSpace) const;
+			Vector3 Up() const;
+			Vector3 Right() const;
+			Vector3 Forward() const;
 			Vector3 Rotation() const;
 			Vector3 Position() const;
 			Vector3 Scale() const;
@@ -685,7 +685,7 @@ namespace Edge
 			static Matrix4x4 Create(const Vector3& Position, const Vector3& Scale, const Vector3& Rotation);
 			static Matrix4x4 Create(const Vector3& Position, const Vector3& Rotation);
 			static Matrix4x4 CreateRotation(const Vector3& Rotation);
-			static Matrix4x4 CreateOrigin(const Vector3& Position, const Vector3& Rotation);
+			static Matrix4x4 CreateView(const Vector3& Position, const Vector3& Rotation);
 			static Matrix4x4 CreateLookAt(CubeFace Face, const Vector3& Position);
 			static Matrix4x4 CreateRotation(const Vector3& Forward, const Vector3& Up, const Vector3& Right);
 			static Matrix4x4 Identity()
@@ -731,6 +731,8 @@ namespace Edge
 			Vector3 GetEuler() const;
 			float Dot(const Quaternion& r) const;
 			float Length() const;
+			bool operator ==(const Quaternion& V) const;
+			bool operator !=(const Quaternion& V) const;
 
 			static Quaternion CreateEulerRotation(const Vector3& Euler);
 			static Quaternion CreateRotation(const Matrix4x4& Transform);
@@ -827,7 +829,7 @@ namespace Edge
 		struct ED_OUT AnimatorKey
 		{
 			Compute::Vector3 Position = 0.0f;
-			Compute::Vector3 Rotation = 0.0f;
+			Compute::Quaternion Rotation;
 			Compute::Vector3 Scale = 1.0f;
 			float Time = 1.0f;
 		};
@@ -1775,9 +1777,9 @@ namespace Edge
 			const Vector3& GetPosition() const;
 			const Vector3& GetRotation() const;
 			const Vector3& GetScale() const;
-			Vector3 Forward(bool ViewSpace = false) const;
-			Vector3 Right(bool ViewSpace = false) const;
-			Vector3 Up(bool ViewSpace = false) const;
+			Vector3 Forward() const;
+			Vector3 Right() const;
+			Vector3 Up() const;
 			Spacing& GetSpacing();
 			Spacing& GetSpacing(Positioning Space);
 			Transform* GetRoot() const;

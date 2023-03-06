@@ -1664,23 +1664,23 @@ namespace Edge
 
 					State.Duration = Clip->Duration;
 					State.Rate = Clip->Rate * NextKey.Time;
-					State.Time = Compute::Mathf::Min(State.Time + State.Rate * Time->GetStep() / State.Duration, State.Duration);
+					State.Time = State.GetTimeline(Time);
 
+					float T = State.GetProgress();
 					for (auto&& Pose : Instance->Skeleton.Pose)
 					{
 						Compute::AnimatorKey* Prev = &PrevKey.Pose[(size_t)Pose.first];
 						Compute::AnimatorKey* Next = &NextKey.Pose[(size_t)Pose.first];
 						Compute::AnimatorKey* Set = &Current.Pose[(size_t)Pose.first];
-						float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
 
 						Set->Position = Prev->Position.Lerp(Next->Position, T);
 						Pose.second.Position = Set->Position;
 
-						Set->Rotation = Prev->Rotation.aLerp(Next->Rotation, T);
+						Set->Rotation = Prev->Rotation.sLerp(Next->Rotation, T);
 						Pose.second.Rotation = Set->Rotation;
 					}
 
-					if (State.Time >= State.Duration)
+					if (State.GetProgressTotal() >= 1.0f)
 					{
 						if ((size_t)State.Frame + 1 >= Clip->Keys.size())
 						{
@@ -1695,14 +1695,14 @@ namespace Edge
 							State.Frame++;
 					}
 				}
-				else if (State.Time < State.Duration)
+				else if (State.GetProgressTotal() < 1.0f)
 				{
 					Compute::SkinAnimatorKey* Key = (IsExists(State.Clip, State.Frame) ? GetFrame(State.Clip, State.Frame) : nullptr);
 					if (!Key)
 						Key = &Bind;
 
-					State.Time = Compute::Mathf::Min(State.Time + State.Rate * Time->GetStep() / State.Duration, State.Duration);
-					float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
+					State.Time = State.GetTimeline(Time);
+					float T = State.GetProgress();
 
 					for (auto&& Pose : Instance->Skeleton.Pose)
 					{
@@ -1710,7 +1710,7 @@ namespace Edge
 						Compute::AnimatorKey* Next = &Key->Pose[(size_t)Pose.first];
 
 						Pose.second.Position = Prev->Position.Lerp(Next->Position, T);
-						Pose.second.Rotation = Prev->Rotation.aLerp(Next->Rotation, T);
+						Pose.second.Rotation = Prev->Rotation.sLerp(Next->Rotation, T);
 					}
 				}
 				else
@@ -1744,17 +1744,20 @@ namespace Edge
 			void SkinAnimator::LoadAnimation(const std::string& Path, const std::function<void(bool)>& Callback)
 			{
 				auto* Scene = Parent->GetScene();
-				Scene->LoadResource<Core::Schema>(this, Path, [this, Scene, Path, Callback](Core::Schema* Result)
+				Scene->LoadResource<Engine::SkinAnimation>(this, Path, [this, Scene, Path, Callback](Engine::SkinAnimation* Result)
 				{
-					ClearAnimation();
-					if (Series::Unpack(Result, &Clips))
+					bool IsSuccess = Result != nullptr && Result->IsValid();
+					if (IsSuccess)
+					{
 						Reference = Scene->AsResourcePath(Path);
+						Clips = Result->GetClips();
+					}
 					else
-						Reference.clear();
+						ClearAnimation();
 
 					ED_RELEASE(Result);
 					if (Callback)
-						Callback(!Reference.empty());
+						Callback(IsSuccess);
 				});
 			}
 			void SkinAnimator::GetPose(Compute::SkinAnimatorKey* Result)
@@ -1917,14 +1920,18 @@ namespace Edge
 
 					State.Duration = Clip->Duration;
 					State.Rate = Clip->Rate * NextKey.Time;
-					State.Time = Compute::Mathf::Min(State.Time + State.Rate * Time->GetStep() / State.Duration, State.Duration);
+					State.Time = State.GetTimeline(Time);
 
-					float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
-					Transform->SetPosition(Current.Position = PrevKey.Position.Lerp(NextKey.Position, T));
-					Transform->SetRotation(Current.Rotation = PrevKey.Rotation.aLerp(NextKey.Rotation, T));
-					Transform->SetScale(Current.Scale = PrevKey.Scale.Lerp(NextKey.Scale, T));
+					float T = State.GetProgress();
+					Current.Position = PrevKey.Position.Lerp(NextKey.Position, T);
+					Current.Rotation = PrevKey.Rotation.Lerp(NextKey.Rotation, T);
+					Current.Scale = PrevKey.Scale.Lerp(NextKey.Scale, T);
 
-					if (State.Time >= State.Duration)
+					Transform->SetPosition(Current.Position);
+					Transform->SetRotation(Current.Rotation.GetEuler());
+					Transform->SetScale(Current.Scale);
+
+					if (State.GetProgressTotal() >= 1.0f)
 					{
 						if ((size_t)State.Frame + 1 >= Clip->Keys.size())
 						{
@@ -1939,7 +1946,7 @@ namespace Edge
 							State.Frame++;
 					}
 				}
-				else if (State.Time < State.Duration)
+				else if (State.GetProgressTotal() < 1.0f)
 				{
 					Compute::AnimatorKey* Key = (IsExists(State.Clip, State.Frame) ? GetFrame(State.Clip, State.Frame) : nullptr);
 					if (!Key)
@@ -1948,11 +1955,11 @@ namespace Edge
 					if (State.Paused)
 						return;
 
-					State.Time = Compute::Mathf::Min(State.Time + State.Rate * Time->GetStep() / State.Duration, State.Duration);
-					float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
+					State.Time = State.GetTimeline(Time);
+					float T = State.GetProgress();
 
 					Transform->SetPosition(Current.Position.Lerp(Key->Position, T));
-					Transform->SetRotation(Current.Rotation.aLerp(Key->Rotation, T));
+					Transform->SetRotation(Current.Rotation.Lerp(Key->Rotation, T).GetEuler());
 					Transform->SetScale(Current.Scale.Lerp(Key->Scale, T));
 				}
 				else
@@ -1967,14 +1974,14 @@ namespace Edge
 				Scene->LoadResource<Core::Schema>(this, Path, [this, Scene, Path, Callback](Core::Schema* Result)
 				{
 					ClearAnimation();
-				if (Series::Unpack(Result, &Clips))
-					Reference = Scene->AsResourcePath(Path);
-				else
-					Reference.clear();
+					if (Series::Unpack(Result, &Clips))
+						Reference = Scene->AsResourcePath(Path);
+					else
+						Reference.clear();
 
-				ED_RELEASE(Result);
-				if (Callback)
-					Callback(!Reference.empty());
+					ED_RELEASE(Result);
+					if (Callback)
+						Callback(!Reference.empty());
 				});
 			}
 			void KeyAnimator::GetPose(Compute::AnimatorKey* Result)
@@ -2058,7 +2065,7 @@ namespace Edge
 					Key = &Bind;
 
 				auto& Space = Parent->GetTransform()->GetSpacing();
-				return Space.Position == Key->Position && Space.Rotation == Key->Rotation && Space.Scale == Key->Scale;
+				return Space.Position == Key->Position && Space.Rotation == Key->Rotation.GetEuler() && Space.Scale == Key->Scale;
 			}
 			bool KeyAnimator::IsExists(int64_t Clip)
 			{
@@ -2365,24 +2372,23 @@ namespace Edge
 				if (!Activity)
 					return;
 
-				bool ViewSpace = (Parent->GetComponent<Camera>() != nullptr);
 				auto* Transform = Parent->GetTransform();
 				Compute::Vector3 NewVelocity;
 
 				if (Activity->IsKeyDown(Forward))
-					NewVelocity += Transform->Forward(ViewSpace);
+					NewVelocity += Transform->Forward();
 				else if (Activity->IsKeyDown(Backward))
-					NewVelocity -= Transform->Forward(ViewSpace);
+					NewVelocity -= Transform->Forward();
 
 				if (Activity->IsKeyDown(Right))
-					NewVelocity += Transform->Right(ViewSpace);
+					NewVelocity += Transform->Right();
 				else if (Activity->IsKeyDown(Left))
-					NewVelocity -= Transform->Right(ViewSpace);
+					NewVelocity -= Transform->Right();
 
 				if (Activity->IsKeyDown(Up))
-					NewVelocity += Transform->Up(ViewSpace);
+					NewVelocity += Transform->Up();
 				else if (Activity->IsKeyDown(Down))
-					NewVelocity -= Transform->Up(ViewSpace);
+					NewVelocity -= Transform->Up();
 
 				float Step = Time->GetStep();
 				if (NewVelocity.Length() > 0.001f)
@@ -2763,7 +2769,7 @@ namespace Edge
 				if (Transform->IsDirty())
 				{
 					auto& Space = Transform->GetSpacing(Compute::Positioning::Global);
-					View = Compute::Matrix4x4::CreateOrigin(Space.Position, Space.Rotation);
+					View = Compute::Matrix4x4::CreateView(Space.Position, Space.Rotation);
 				}
 				Projection = Compute::Matrix4x4::CreatePerspective(Cutoff, 1, 0.1f, Shadow.Distance);
 			}
@@ -3415,7 +3421,7 @@ namespace Edge
 			Compute::Matrix4x4 Camera::GetView()
 			{
 				auto& Space = Parent->GetTransform()->GetSpacing(Compute::Positioning::Global);
-				return Compute::Matrix4x4::CreateOrigin(Space.Position, Space.Rotation);
+				return Compute::Matrix4x4::CreateView(Space.Position, Space.Rotation);
 			}
 			Compute::Frustum8C Camera::GetFrustum8C()
 			{

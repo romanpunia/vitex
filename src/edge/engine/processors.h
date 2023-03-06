@@ -43,10 +43,15 @@ namespace Edge
 				GenBoundingBoxes = 0x80000000l
 			};
 
-			inline MeshOpt operator |(MeshOpt A, MeshOpt B)
+			constexpr inline MeshOpt operator |(MeshOpt A, MeshOpt B)
 			{
 				return static_cast<MeshOpt>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
 			}
+
+			enum class MeshPreset : uint64_t
+			{
+				Default = (uint64_t)(MeshOpt::FlipWindingOrder | MeshOpt::CalcTangentSpace | MeshOpt::GenSmoothNormals | MeshOpt::JoinIdenticalVertices | MeshOpt::ImproveCacheLocality | MeshOpt::LimitBoneWeights | MeshOpt::RemoveRedundantMaterials | MeshOpt::SplitLargeMeshes | MeshOpt::Triangulate | MeshOpt::GenUVCoords | MeshOpt::SortByPType | MeshOpt::RemoveDegenerates | MeshOpt::RemoveInvalidData | MeshOpt::RemoveInstances | MeshOpt::ValidateDataStructure | MeshOpt::OptimizeMeshes | MeshOpt::TransformUVCoords)
+			};
 
 			struct ED_OUT MeshBlob
 			{
@@ -142,7 +147,7 @@ namespace Edge
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 
 			public:
-				static Core::Unique<Core::Schema> Import(Core::Stream* Stream, uint64_t Opts = (uint64_t)(MeshOpt::CalcTangentSpace | MeshOpt::GenSmoothNormals | MeshOpt::JoinIdenticalVertices | MeshOpt::ImproveCacheLocality | MeshOpt::LimitBoneWeights | MeshOpt::RemoveRedundantMaterials | MeshOpt::SplitLargeMeshes | MeshOpt::Triangulate | MeshOpt::GenUVCoords | MeshOpt::SortByPType | MeshOpt::RemoveDegenerates | MeshOpt::RemoveInvalidData | MeshOpt::RemoveInstances | MeshOpt::ValidateDataStructure | MeshOpt::OptimizeMeshes | MeshOpt::TransformUVCoords));
+				static Core::Unique<Core::Schema> Import(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
 
 			private:
 				static void ProcessNode(void* Scene, void* Node, MeshInfo* Info, const Compute::Matrix4x4& Global);
@@ -162,9 +167,19 @@ namespace Edge
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
+			};
+
+			class ED_OUT SkinAnimation final : public Processor
+			{
+			public:
+				SkinAnimation(ContentManager* Manager);
+				~SkinAnimation() override;
+				void Free(AssetCache* Asset) override;
+				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 
 			public:
-				static Core::Schema* ImportAnimation(const std::string& Path, uint64_t Opts = (uint64_t)(MeshOpt::CalcTangentSpace | MeshOpt::GenSmoothNormals | MeshOpt::JoinIdenticalVertices | MeshOpt::ImproveCacheLocality | MeshOpt::LimitBoneWeights | MeshOpt::RemoveRedundantMaterials | MeshOpt::SplitLargeMeshes | MeshOpt::Triangulate | MeshOpt::GenUVCoords | MeshOpt::SortByPType | MeshOpt::RemoveDegenerates | MeshOpt::RemoveInvalidData | MeshOpt::RemoveInstances | MeshOpt::ValidateDataStructure | MeshOpt::OptimizeMeshes | MeshOpt::TransformUVCoords));
+				static Core::Schema* Import(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
 
 			private:
 				static void ProcessNode(void* Scene, void* Node, std::unordered_map<std::string, MeshNode>* Joints, int64_t& Index);

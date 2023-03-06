@@ -109,6 +109,27 @@ namespace Edge
 			return Size;
 		}
 
+		float AnimatorState::GetTimeline(Core::Timer* Timing)const
+		{
+			return Compute::Mathf::Min(Time + Rate * Timing->GetStep(), GetSecondsDuration());
+		}
+		float AnimatorState::GetSecondsDuration() const
+		{
+			return Duration / Rate;
+		}
+		float AnimatorState::GetProgressTotal() const
+		{
+			return Time / GetSecondsDuration();
+		}
+		float AnimatorState::GetProgress() const
+		{
+			return Compute::Mathf::Min(Time / GetSecondsDuration(), 1.0f);
+		}
+		bool AnimatorState::IsPlaying() const
+		{
+			return !Paused && Frame >= 0 && Clip >= 0;
+		}
+
 		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Fov, float _Ratio, float _Near, float _Far, RenderCulling _Type)
 		{
 			Set(_View, _Projection, _Position, -_View.Rotation(), _Fov, _Ratio, _Near, _Far, _Type);
@@ -199,6 +220,14 @@ namespace Edge
 			V->SetAttribute("z", Core::Var::Number(Value.Z));
 		}
 		void Series::Pack(Core::Schema* V, const Compute::Vector4& Value)
+		{
+			ED_ASSERT_V(V != nullptr, "schema should be set");
+			V->SetAttribute("x", Core::Var::Number(Value.X));
+			V->SetAttribute("y", Core::Var::Number(Value.Y));
+			V->SetAttribute("z", Core::Var::Number(Value.Z));
+			V->SetAttribute("w", Core::Var::Number(Value.W));
+		}
+		void Series::Pack(Core::Schema* V, const Compute::Quaternion& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("x", Core::Var::Number(Value.X));
@@ -603,6 +632,7 @@ namespace Edge
 				Stream << It.Rotation.X << " ";
 				Stream << It.Rotation.Y << " ";
 				Stream << It.Rotation.Z << " ";
+				Stream << It.Rotation.W << " ";
 				Stream << It.Scale.X << " ";
 				Stream << It.Scale.Y << " ";
 				Stream << It.Scale.Z << " ";
@@ -823,6 +853,18 @@ namespace Edge
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::Vector4* O)
+		{
+			ED_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
+				return false;
+
+			O->X = (float)V->GetVar("[x]").GetNumber();
+			O->Y = (float)V->GetVar("[y]").GetNumber();
+			O->Z = (float)V->GetVar("[z]").GetNumber();
+			O->W = (float)V->GetVar("[w]").GetNumber();
+			return true;
+		}
+		bool Series::Unpack(Core::Schema* V, Compute::Quaternion* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1475,7 +1517,7 @@ namespace Edge
 
 			for (auto& It : *O)
 			{
-				Stream >> It.Position.X >> It.Position.Y >> It.Position.Z >> It.Rotation.X >> It.Rotation.Y >> It.Rotation.Z;
+				Stream >> It.Position.X >> It.Position.Y >> It.Position.Z >> It.Rotation.X >> It.Rotation.Y >> It.Rotation.Z >> It.Rotation.W;
 				Stream >> It.Scale.X >> It.Scale.Y >> It.Scale.Z >> It.Time;
 			}
 
@@ -1692,6 +1734,20 @@ namespace Edge
 		{
 			for (auto& Value : Values)
 				Wait(Value);
+		}
+
+		SkinAnimation::SkinAnimation(Core::Schema* Data) noexcept
+		{
+			ED_ASSERT_V(Data != nullptr, "animation data should be set");
+			Valid = Series::Unpack(Data, &Clips);
+		}
+		const std::vector<Compute::SkinAnimatorClip>& SkinAnimation::GetClips()
+		{
+			return Clips;
+		}
+		bool SkinAnimation::IsValid()
+		{
+			return Valid;
 		}
 
 		Material::Material(SceneGraph* NewScene) noexcept : DiffuseMap(nullptr), NormalMap(nullptr), MetallicMap(nullptr), RoughnessMap(nullptr), HeightMap(nullptr), OcclusionMap(nullptr), EmissionMap(nullptr), Scene(NewScene), Slot(0)
@@ -5232,7 +5288,7 @@ namespace Edge
 
 			return Processor->Deserialize(Stream, It->second + Docker->second->Offset, Map);
 		}
-		void* ContentManager::Load(Processor* Processor, const std::string& Path,const Core::VariantArgs& Map)
+		void* ContentManager::Load(Processor* Processor, const std::string& Path, const Core::VariantArgs& Map)
 		{
 			if (Path.empty())
 				return nullptr;
@@ -5252,6 +5308,12 @@ namespace Edge
 			{
 				Mutex.lock();
 				File = Core::OS::Path::Resolve(File, Environment);
+				if (Core::OS::File::IsExists(File.c_str()))
+				{
+					std::string Subpath = Environment + File;
+					if (Core::OS::File::IsExists(Subpath.c_str()))
+						File = Subpath;
+				}
 				Mutex.unlock();
 
 				if (File.empty())
@@ -5802,22 +5864,22 @@ namespace Edge
 			if (Control.Usage & (size_t)ApplicationSet::ContentSet)
 			{
 				if (!Content)
-				{
 					Content = new ContentManager(nullptr);
-					Content->AddProcessor<Processors::Asset, Engine::AssetFile>();
-					Content->AddProcessor<Processors::Material, Engine::Material>();
-					Content->AddProcessor<Processors::SceneGraph, Engine::SceneGraph>();
-					Content->AddProcessor<Processors::AudioClip, Audio::AudioClip>();
-					Content->AddProcessor<Processors::Texture2D, Graphics::Texture2D>();
-					Content->AddProcessor<Processors::Shader, Graphics::Shader>();
-					Content->AddProcessor<Processors::Model, Graphics::Model>();
-					Content->AddProcessor<Processors::SkinModel, Graphics::SkinModel>();
-					Content->AddProcessor<Processors::Schema, Core::Schema>();
-					Content->AddProcessor<Processors::Server, Network::HTTP::Server>();
-					Content->AddProcessor<Processors::HullShape, Compute::HullShape>();
-				}
 
+				Content->AddProcessor<Processors::Asset, Engine::AssetFile>();
+				Content->AddProcessor<Processors::Material, Engine::Material>();
+				Content->AddProcessor<Processors::SceneGraph, Engine::SceneGraph>();
+				Content->AddProcessor<Processors::AudioClip, Audio::AudioClip>();
+				Content->AddProcessor<Processors::Texture2D, Graphics::Texture2D>();
+				Content->AddProcessor<Processors::Shader, Graphics::Shader>();
+				Content->AddProcessor<Processors::Model, Graphics::Model>();
+				Content->AddProcessor<Processors::SkinModel, Graphics::SkinModel>();
+				Content->AddProcessor<Processors::SkinAnimation, Engine::SkinAnimation>();
+				Content->AddProcessor<Processors::Schema, Core::Schema>();
+				Content->AddProcessor<Processors::Server, Network::HTTP::Server>();
+				Content->AddProcessor<Processors::HullShape, Compute::HullShape>();
 				Content->SetEnvironment(Control.Environment.empty() ? Core::OS::Directory::Get() + Control.Directory : Control.Environment + Control.Directory);
+				
 				if (!Control.Preferences.empty())
 				{
 					std::string Path = Core::OS::Path::Resolve(Control.Preferences, Content->GetEnvironment());
@@ -5972,6 +6034,9 @@ namespace Edge
 			if (Control.Usage & (size_t)ApplicationSet::ScriptSet)
 				ScriptHook();
 
+			Core::Schedule* Queue = Core::Schedule::Get();
+			Queue->SetImmediate(false);
+
 			Initialize();
 			if (State == ApplicationState::Terminated)
 				return ExitCode != 0 ? ExitCode : ED_EXIT_JUMP + 6;
@@ -5996,8 +6061,6 @@ namespace Edge
 			Policy.Parallel = Control.Parallel;
 			Policy.Ping = Control.Daemon ? std::bind(&Application::Status, this) : (Core::ActivityCallback)nullptr;
 			Policy.SetThreads(Control.Threads);
-
-			Core::Schedule* Queue = Core::Schedule::Get();
 			Queue->Start(Policy);
 
 			if (Activity != nullptr)

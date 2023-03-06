@@ -2202,26 +2202,17 @@ namespace Edge
 		{
 			return Vector4(Row[12], Row[13], Row[14], Row[15]);
 		}
-		Vector3 Matrix4x4::Up(bool ViewSpace) const
+		Vector3 Matrix4x4::Up() const
 		{
-			if (ViewSpace)
-				return Vector3(Row[4], Row[5], -Row[6]);
-			else
-				return Vector3(Row[4], Row[5], Row[6]);
+			return Vector3(Row[4], Row[5], Row[6]);
 		}
-		Vector3 Matrix4x4::Right(bool ViewSpace) const
+		Vector3 Matrix4x4::Right() const
 		{
-			if (ViewSpace)
-				return Vector3(Row[0], -Row[1], -Row[2]);
-			else
-				return Vector3(Row[0], Row[1], Row[2]);
+			return Vector3(Row[0], Row[1], Row[2]);
 		}
-		Vector3 Matrix4x4::Forward(bool ViewSpace) const
+		Vector3 Matrix4x4::Forward() const
 		{
-			if (ViewSpace)
-				return Vector3(Row[8], Row[9], -Row[10]);
-			else
-				return Vector3(Row[8], Row[9], Row[10]);
+			return Vector3(Row[8], Row[9], Row[10]);
 		}
 		Matrix4x4 Matrix4x4::Inv() const
 		{
@@ -2626,14 +2617,14 @@ namespace Edge
 		{
 			return Matrix4x4::CreateRotation(Rotation) * Matrix4x4::CreateTranslation(Position);
 		}
-		Matrix4x4 Matrix4x4::CreateOrigin(const Vector3& Position, const Vector3& Rotation)
+		Matrix4x4 Matrix4x4::CreateView(const Vector3& Position, const Vector3& Rotation)
 		{
-			Matrix4x4 Result =
-				Matrix4x4::CreateTranslation(-Position) *
-				Matrix4x4::CreateRotationY(-Rotation.Y) *
-				Matrix4x4::CreateRotationX(-Rotation.X);
-
-			return Result;
+			return
+				Matrix4x4::CreateTranslation(Position.InvY()) *
+				Matrix4x4::CreateRotationY(Rotation.Y) *
+				Matrix4x4::CreateRotationX(-Rotation.X) *
+				Matrix4x4::CreateScale(Vector3(-1.0f, 1.0f, 1.0f)) *
+				Matrix4x4::CreateRotationZ(Rotation.Z);
 		}
 		Matrix4x4 Matrix4x4::CreateLookAt(const Vector3& Position, const Vector3& Target, const Vector3& Up)
 		{
@@ -3215,6 +3206,14 @@ namespace Edge
 #else
 			return Geometric::FastSqrt(X * X + Y * Y + Z * Z + W * W);
 #endif
+		}
+		bool Quaternion::operator ==(const Quaternion& V) const
+		{
+			return X == V.X && Y == V.Y && Z == V.Z && W == V.W;
+		}
+		bool Quaternion::operator !=(const Quaternion& V) const
+		{
+			return !(*this == V);
 		}
 
 		RandomVector2::RandomVector2() noexcept : Min(0), Max(1), Intensity(false), Accuracy(1)
@@ -8527,7 +8526,7 @@ namespace Edge
 		}
 		void Geometric::TexCoordRhToLh(std::vector<Vertex>& Vertices)
 		{
-			if (!LeftHanded)
+			if (LeftHanded)
 				return;
 
 			for (auto& Item : Vertices)
@@ -8535,7 +8534,7 @@ namespace Edge
 		}
 		void Geometric::TexCoordRhToLh(std::vector<SkinVertex>& Vertices)
 		{
-			if (!LeftHanded)
+			if (LeftHanded)
 				return;
 
 			for (auto& Item : Vertices)
@@ -8543,7 +8542,7 @@ namespace Edge
 		}
 		void Geometric::TexCoordRhToLh(std::vector<ShapeVertex>& Vertices)
 		{
-			if (!LeftHanded)
+			if (LeftHanded)
 				return;
 
 			for (auto& Item : Vertices)
@@ -8634,7 +8633,7 @@ namespace Edge
 
 			Vector4 Eye = Vector4(Tmp.X - 1.0f, 1.0f - Tmp.Y, 1.0f, 1.0f) * InvProjection;
 			Eye = (Vector4(Eye.X, Eye.Y, 1.0f, 0.0f) * InvView).sNormalize();
-			return Ray(Origin, Vector3(Eye.X, Eye.Y, Eye.Z));
+			return Ray(Origin.InvX().InvZ(), Vector3(Eye.X, Eye.Y, Eye.Z));
 		}
 		bool Geometric::CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale, Vector3* Hit)
 		{
@@ -9821,29 +9820,29 @@ namespace Edge
 		{
 			return Global.Scale;
 		}
-		Vector3 Transform::Forward(bool ViewSpace) const
+		Vector3 Transform::Forward() const
 		{
 			ED_ASSERT(!Root || Local != nullptr, 0, "corrupted root transform");
 			if (Root != nullptr)
-				return Local->Offset.Forward(ViewSpace);
+				return Local->Offset.Forward();
 
-			return Global.Offset.Forward(ViewSpace);
+			return Global.Offset.Forward();
 		}
-		Vector3 Transform::Right(bool ViewSpace) const
+		Vector3 Transform::Right() const
 		{
 			ED_ASSERT(!Root || Local != nullptr, 0, "corrupted root transform");
 			if (Root != nullptr)
-				return Local->Offset.Right(ViewSpace);
+				return Local->Offset.Right();
 
-			return Global.Offset.Right(ViewSpace);
+			return Global.Offset.Right();
 		}
-		Vector3 Transform::Up(bool ViewSpace) const
+		Vector3 Transform::Up() const
 		{
 			ED_ASSERT(!Root || Local != nullptr, 0, "corrupted root transform");
 			if (Root != nullptr)
-				return Local->Offset.Up(ViewSpace);
+				return Local->Offset.Up();
 
-			return Global.Offset.Up(ViewSpace);
+			return Global.Offset.Up();
 		}
 		Transform::Spacing& Transform::GetSpacing()
 		{

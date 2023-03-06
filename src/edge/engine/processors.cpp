@@ -885,6 +885,7 @@ namespace Edge
 					auto* Sub = Object->Meshes.back();
 					Series::Unpack(Mesh->Find("name"), &Sub->Name);
 					Series::Unpack(Mesh->Find("world"), &Sub->World);
+					Sub->World = Object->Root * Sub->World;
 				}
 
 				Content->Cache(this, Stream->GetSource(), Object);
@@ -945,10 +946,20 @@ namespace Edge
 				if (Info.PZ > Max)
 					Max = Info.PZ;
 
+				Compute::Matrix4x4 CRoot = ToMatrix(Scene->mRootNode->mTransformation.Inverse()).Transpose();
+				Compute::Vector4 CMax = Compute::Vector4(Info.PX, Info.PY, Info.PZ, 1.0).Transform(CRoot).SetW(Max);
+				Compute::Vector4 CMin = Compute::Vector4(Info.NX, Info.NY, Info.NZ, 1.0).Transform(CRoot).SetW(Min);
+				if (CMax.X < CMin.X)
+					std::swap(CMax.X, CMin.X);
+				if (CMax.Y < CMin.Y)
+					std::swap(CMax.Y, CMin.Y);
+				if (CMax.Z < CMin.Z)
+					std::swap(CMax.Z, CMin.Z);
+
 				Series::Pack(Schema->Set("options"), Opts);
-				Series::Pack(Schema->Set("root"), ToMatrix(Scene->mRootNode->mTransformation.Inverse()).Transpose());
-				Series::Pack(Schema->Set("max"), Compute::Vector4(Info.PX, Info.PY, Info.PZ, Max));
-				Series::Pack(Schema->Set("min"), Compute::Vector4(Info.NX, Info.NY, Info.NZ, Min));
+				Series::Pack(Schema->Set("root"), CRoot);
+				Series::Pack(Schema->Set("max"), CMax);
+				Series::Pack(Schema->Set("min"), CMin);
 				Series::Pack(Schema->Set("joints", Core::Var::Array()), Joints);
 
 				Core::Schema* Meshes = Schema->Set("meshes", Core::Var::Array());
@@ -1166,17 +1177,29 @@ namespace Edge
 			void* SkinModel::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());
-				if (!Schema)
+				std::string& Path = Stream->GetSource();
+				Core::Parser Location(&Path);
+				Core::Schema* Data = nullptr;
+
+				if (!Location.EndsWith(".xml") && !Location.EndsWith(".json") && !Location.EndsWith(".jsonb") && !Location.EndsWith(".xml.gz") && !Location.EndsWith(".json.gz") && !Location.EndsWith(".jsonb.gz"))
+				{
+					auto* Base = (Processors::Model*)Content->GetProcessor<Graphics::Model>();
+					if (Base != nullptr)
+						Data = Base->Import(Stream);
+				}
+				else
+					Data = Content->Load<Core::Schema>(Path);
+
+				if (!Data)
 					return nullptr;
 
 				auto Object = new Graphics::SkinModel();
-				Series::Unpack(Schema->Find("root"), &Object->Root);
-				Series::Unpack(Schema->Find("max"), &Object->Max);
-				Series::Unpack(Schema->Find("min"), &Object->Min);
-				Series::Unpack(Schema->Find("joints"), &Object->Joints);
+				Series::Unpack(Data->Find("root"), &Object->Root);
+				Series::Unpack(Data->Find("max"), &Object->Max);
+				Series::Unpack(Data->Find("min"), &Object->Min);
+				Series::Unpack(Data->Find("joints"), &Object->Joints);
 
-				std::vector<Core::Schema*> Meshes = Schema->FetchCollection("meshes.mesh");
+				std::vector<Core::Schema*> Meshes = Data->FetchCollection("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
 					Graphics::SkinMeshBuffer::Desc I;
@@ -1185,13 +1208,13 @@ namespace Edge
 
 					if (!Series::Unpack(Mesh->Find("indices"), &I.Indices))
 					{
-						ED_RELEASE(Schema);
+						ED_RELEASE(Data);
 						return nullptr;
 					}
 
 					if (!Series::Unpack(Mesh->Find("vertices"), &I.Elements))
 					{
-						ED_RELEASE(Schema);
+						ED_RELEASE(Data);
 						return nullptr;
 					}
 
@@ -1205,20 +1228,70 @@ namespace Edge
 					auto* Sub = Object->Meshes.back();
 					Series::Unpack(Mesh->Find("name"), &Sub->Name);
 					Series::Unpack(Mesh->Find("world"), &Sub->World);
+					Sub->World = Object->Root * Sub->World;
 				}
 
 				Content->Cache(this, Stream->GetSource(), Object);
 				Object->AddRef();
 
-				ED_RELEASE(Schema);
+				ED_RELEASE(Data);
 				return (void*)Object;
 			}
-			Core::Schema* SkinModel::ImportAnimation(const std::string& Path, uint64_t Opts)
+
+			SkinAnimation::SkinAnimation(ContentManager* Manager) : Processor(Manager)
+			{
+			}
+			SkinAnimation::~SkinAnimation()
+			{
+			}
+			void SkinAnimation::Free(AssetCache* Asset)
+			{
+				ED_ASSERT_V(Asset != nullptr, "asset should be set");
+				ED_RELEASE((Engine::SkinAnimation*)Asset->Resource);
+				Asset->Resource = nullptr;
+			}
+			void* SkinAnimation::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			{
+				ED_ASSERT(Asset != nullptr, nullptr, "asset should be set");
+				ED_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
+
+				((Engine::SkinAnimation*)Asset->Resource)->AddRef();
+				return Asset->Resource;
+			}
+			void* SkinAnimation::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			{
+				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				std::string& Path = Stream->GetSource();
+				Core::Parser Location(&Path);
+				Core::Schema* Data = nullptr;
+
+				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
+					Data = Content->Load<Core::Schema>(Path);
+				else
+					Data = Import(Stream);
+
+				if (!Data)
+					return nullptr;
+
+				auto Object = new Engine::SkinAnimation(Data);
+				Content->Cache(this, Stream->GetSource(), Object);
+				Object->AddRef();
+
+				return (void*)Object;
+			}
+			Core::Schema* SkinAnimation::Import(Core::Stream* Stream, uint64_t Opts)
 			{
 #ifdef ED_HAS_ASSIMP
-				Assimp::Importer Importer;
+				std::vector<char> Data;
+				Stream->ReadAll([&Data](char* Buffer, size_t Size)
+				{
+					Data.reserve(Data.size() + Size);
+					for (size_t i = 0; i < Size; i++)
+						Data.push_back(Buffer[i]);
+				});
 
-				auto* Scene = Importer.ReadFile(Path, (unsigned int)Opts);
+				Assimp::Importer Importer;
+				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (unsigned int)Opts, Core::OS::Path::GetExtension(Stream->GetSource().c_str()));
 				if (!Scene)
 				{
 					ED_ERR("[engine] cannot import mesh animation because %s", Importer.GetErrorString());
@@ -1278,7 +1351,7 @@ namespace Edge
 							aiQuaternion Q1 = Channel->mRotationKeys[k].mValue;
 							Compute::Quaternion Q2(Q1.x, Q1.y, Q1.z, Q1.w);
 
-							Keys[(size_t)It->second.Index].Rotation = Q2.GetEuler().rLerp();
+							Keys[(size_t)It->second.Index].Rotation = Q2;
 						}
 
 						for (size_t k = 0; k < (size_t)Channel->mNumScalingKeys; k++)
@@ -1303,7 +1376,7 @@ namespace Edge
 				return nullptr;
 #endif
 			}
-			void SkinModel::ProcessNode(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints, int64_t& Id)
+			void SkinAnimation::ProcessNode(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints, int64_t& Id)
 			{
 #ifdef ED_HAS_ASSIMP
 				auto* Scene = (aiScene*)Scene_;
@@ -1329,7 +1402,7 @@ namespace Edge
 					ProcessNode(Scene, Node->mChildren[n], Joints, Id);
 #endif
 			}
-			void SkinModel::ProcessHeirarchy(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints)
+			void SkinAnimation::ProcessHeirarchy(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints)
 			{
 #ifdef ED_HAS_ASSIMP
 				auto* Scene = (aiScene*)Scene_;
@@ -1343,7 +1416,7 @@ namespace Edge
 					ProcessHeirarchy(Scene, Node->mChildren[i], Joints);
 #endif
 			}
-			void SkinModel::ProcessKeys(std::vector<Compute::AnimatorKey>* Keys, std::unordered_map<std::string, MeshNode>* Joints)
+			void SkinAnimation::ProcessKeys(std::vector<Compute::AnimatorKey>* Keys, std::unordered_map<std::string, MeshNode>* Joints)
 			{
 				if (Keys->size() < Joints->size())
 				{

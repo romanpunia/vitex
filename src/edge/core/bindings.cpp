@@ -36,6 +36,7 @@
 #define TYPENAME_RECTANGLE "rectangle"
 #define TYPENAME_VIEWPORT "viewport"
 #define TYPENAME_ANIMATORKEY "animator_key"
+#define TYPENAME_SKINANIMATORCLIP "skin_animator_clip"
 #define TYPENAME_PHYSICSHULLSHAPE "physics_hull_shape"
 #define TYPENAME_FILEENTRY "file_entry"
 #define TYPENAME_REGEXMATCH "regex_match"
@@ -52,6 +53,7 @@
 #define TYPENAME_MODEL "model"
 #define TYPENAME_SKINMODEL "skin_model"
 #define TYPENAME_GRAPHICSDEVICE "graphics_device"
+#define TYPENAME_SKINANIMATION "skin_animation"
 #define TYPENAME_ASSETFILE "asset_file"
 #define TYPENAME_MATERIAL "material"
 #define TYPENAME_COMPONENT "base_component"
@@ -5471,6 +5473,7 @@ namespace Edge
 					Content->AddProcessor(new Engine::Processors::Shader(Content), ED_HASH(TYPENAME_SHADER));
 					Content->AddProcessor(new Engine::Processors::Model(Content), ED_HASH(TYPENAME_MODEL));
 					Content->AddProcessor(new Engine::Processors::SkinModel(Content), ED_HASH(TYPENAME_SKINMODEL));
+					Content->AddProcessor(new Engine::Processors::SkinAnimation(Content), ED_HASH(TYPENAME_SKINANIMATION));
 					Content->AddProcessor(new Engine::Processors::Schema(Content), ED_HASH(TYPENAME_SCHEMA));
 					Content->AddProcessor(new Engine::Processors::Server(Content), ED_HASH(TYPENAME_HTTPSERVER));
 					Content->AddProcessor(new Engine::Processors::HullShape(Content), ED_HASH(TYPENAME_PHYSICSHULLSHAPE));
@@ -7539,6 +7542,12 @@ namespace Edge
 			void ViewerDestructor(Engine::Viewer& Base)
 			{
 				ED_RELEASE(Base.Renderer);
+			}
+
+			Array* SkinAnimationGetClips(Engine::SkinAnimation* Base)
+			{
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_SKINANIMATORCLIP ">@");
+				return Array::Compose<Compute::SkinAnimatorClip>(Type.GetTypeInfo(), Base->GetClips());
 			}
 
 			size_t SparseIndexGetSize(Engine::SparseIndex& Base)
@@ -9878,9 +9887,9 @@ namespace Edge
 				VMatrix4x4.SetMethod("vector4 row22() const", &Compute::Matrix4x4::Row22);
 				VMatrix4x4.SetMethod("vector4 row33() const", &Compute::Matrix4x4::Row33);
 				VMatrix4x4.SetMethod("vector4 row44() const", &Compute::Matrix4x4::Row44);
-				VMatrix4x4.SetMethod("vector3 up(bool) const", &Compute::Matrix4x4::Up);
-				VMatrix4x4.SetMethod("vector3 right(bool) const", &Compute::Matrix4x4::Right);
-				VMatrix4x4.SetMethod("vector3 forward(bool) const", &Compute::Matrix4x4::Forward);
+				VMatrix4x4.SetMethod("vector3 up() const", &Compute::Matrix4x4::Up);
+				VMatrix4x4.SetMethod("vector3 right() const", &Compute::Matrix4x4::Right);
+				VMatrix4x4.SetMethod("vector3 forward() const", &Compute::Matrix4x4::Forward);
 				VMatrix4x4.SetMethod("vector3 rotation() const", &Compute::Matrix4x4::Rotation);
 				VMatrix4x4.SetMethod("vector3 position() const", &Compute::Matrix4x4::Position);
 				VMatrix4x4.SetMethod("vector3 scale() const", &Compute::Matrix4x4::Scale);
@@ -9902,7 +9911,7 @@ namespace Edge
 				Engine->SetFunction("matrix4x4 create_rotation_x(float)", &Compute::Matrix4x4::CreateRotationX);
 				Engine->SetFunction("matrix4x4 create_rotation_y(float)", &Compute::Matrix4x4::CreateRotationY);
 				Engine->SetFunction("matrix4x4 create_rotation_z(float)", &Compute::Matrix4x4::CreateRotationZ);
-				Engine->SetFunction("matrix4x4 create_origin(const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::CreateOrigin);
+				Engine->SetFunction("matrix4x4 create_view(const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::CreateView);
 				Engine->SetFunction("matrix4x4 create_scale(const vector3 &in)", &Compute::Matrix4x4::CreateScale);
 				Engine->SetFunction("matrix4x4 create_translated_scale(const vector3& in, const vector3 &in)", &Compute::Matrix4x4::CreateTranslatedScale);
 				Engine->SetFunction("matrix4x4 create_translation(const vector3& in)", &Compute::Matrix4x4::CreateTranslation);
@@ -10039,7 +10048,7 @@ namespace Edge
 
 				TypeClass VAnimatorKey = Engine->SetPod<Compute::AnimatorKey>("animator_key");
 				VAnimatorKey.SetProperty<Compute::AnimatorKey>("vector3 position", &Compute::AnimatorKey::Position);
-				VAnimatorKey.SetProperty<Compute::AnimatorKey>("vector3 rotation", &Compute::AnimatorKey::Rotation);
+				VAnimatorKey.SetProperty<Compute::AnimatorKey>("quaternion rotation", &Compute::AnimatorKey::Rotation);
 				VAnimatorKey.SetProperty<Compute::AnimatorKey>("vector3 scale", &Compute::AnimatorKey::Scale);
 				VAnimatorKey.SetProperty<Compute::AnimatorKey>("float time", &Compute::AnimatorKey::Time);
 				VAnimatorKey.SetConstructor<Compute::AnimatorKey>("void f()");
@@ -10487,9 +10496,9 @@ namespace Edge
 				VTransform.SetMethod("const vector3& get_position() const", &Compute::Transform::GetPosition);
 				VTransform.SetMethod("const vector3& get_rotation() const", &Compute::Transform::GetRotation);
 				VTransform.SetMethod("const vector3& get_scale() const", &Compute::Transform::GetScale);
-				VTransform.SetMethod("vector3 forward(bool = false) const", &Compute::Transform::Forward);
-				VTransform.SetMethod("vector3 right(bool = false) const", &Compute::Transform::Right);
-				VTransform.SetMethod("vector3 up(bool = false) const", &Compute::Transform::Up);
+				VTransform.SetMethod("vector3 forward() const", &Compute::Transform::Forward);
+				VTransform.SetMethod("vector3 right() const", &Compute::Transform::Right);
+				VTransform.SetMethod("vector3 up() const", &Compute::Transform::Up);
 				VTransform.SetMethod<Compute::Transform, Compute::Transform::Spacing&>("transform_spacing& get_spacing()", &Compute::Transform::GetSpacing);
 				VTransform.SetMethod<Compute::Transform, Compute::Transform::Spacing&, Compute::Positioning>("transform_spacing& get_spacing(positioning)", &Compute::Transform::GetSpacing);
 				VTransform.SetMethod("transform@+ get_root() const", &Compute::Transform::GetRoot);
@@ -12307,13 +12316,13 @@ namespace Edge
 				VRenderTargetBlendState.SetConstructor<Graphics::RenderTargetBlendState>("void f()");
 
 				TypeClass VPoseNode = Engine->SetPod<Graphics::PoseNode>("pose_node");
-				VPoseNode.SetProperty<Graphics::PoseNode>("vector3 Position", &Graphics::PoseNode::Position);
-				VPoseNode.SetProperty<Graphics::PoseNode>("vector3 Rotation", &Graphics::PoseNode::Rotation);
+				VPoseNode.SetProperty<Graphics::PoseNode>("vector3 position", &Graphics::PoseNode::Position);
+				VPoseNode.SetProperty<Graphics::PoseNode>("quaternion rotation", &Graphics::PoseNode::Rotation);
 				VPoseNode.SetConstructor<Graphics::PoseNode>("void f()");
 
 				TypeClass VAnimationBuffer = Engine->SetPod<Graphics::AnimationBuffer>("animation_buffer");
 				VAnimationBuffer.SetProperty<Graphics::AnimationBuffer>("vector3 padding", &Graphics::AnimationBuffer::Padding);
-				VAnimationBuffer.SetProperty<Graphics::AnimationBuffer>("float Animated", &Graphics::AnimationBuffer::Animated);
+				VAnimationBuffer.SetProperty<Graphics::AnimationBuffer>("float animated", &Graphics::AnimationBuffer::Animated);
 				VAnimationBuffer.SetConstructor<Graphics::AnimationBuffer>("void f()");
 				VAnimationBuffer.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "matrix4x4&", "usize", &AnimationBufferGetOffsets);
 				VAnimationBuffer.SetOperatorEx(Operators::Index, (uint32_t)Position::Const, "const matrix4x4&", "usize", &AnimationBufferGetOffsets);
@@ -13487,6 +13496,10 @@ namespace Edge
 				VAnimatorState.SetProperty<Engine::AnimatorState>("int64 frame", &Engine::AnimatorState::Frame);
 				VAnimatorState.SetProperty<Engine::AnimatorState>("int64 clip", &Engine::AnimatorState::Clip);
 				VAnimatorState.SetConstructor<Engine::AnimatorState>("void f()");
+				VAnimatorState.SetMethod("float get_timeline(clock_timer@+) const", &Engine::AnimatorState::GetTimeline);
+				VAnimatorState.SetMethod("float get_seconds_duration() const", &Engine::AnimatorState::GetSecondsDuration);
+				VAnimatorState.SetMethod("float get_progress() const", &Engine::AnimatorState::GetProgress);
+				VAnimatorState.SetMethod("bool is_playing() const", &Engine::AnimatorState::IsPlaying);
 
 				TypeClass VSpawnerProperties = Engine->SetPod<Engine::SpawnerProperties>("spawner_properties");
 				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("random_vector4 diffusion", &Engine::SpawnerProperties::Diffusion);
@@ -13543,6 +13556,11 @@ namespace Edge
 				VSubsurface.SetProperty<Engine::Subsurface>("float height", &Engine::Subsurface::Height);
 				VSubsurface.SetConstructor<Engine::Subsurface>("void f()");
 
+				RefClass VSkinAnimation = Engine->SetClass<Engine::SkinAnimation>("skin_animation", false);
+				VSkinAnimation.SetConstructor<Engine::SkinAnimation, Core::Schema*>("skin_animation@ f(schema@+)");
+				VSkinAnimation.SetMethodEx("array<skin_animator_clip>@+ get_clips() const", &SkinAnimationGetClips);
+				VSkinAnimation.SetMethod("bool is_valid() const", &Engine::SkinAnimation::IsValid);
+
 				static const char Material[] = "material";
 				RefClass VSceneGraph = Engine->SetClass<Engine::SceneGraph>("scene_graph", true);
 				VMaterial.SetProperty<Engine::Material>("subsurface surface", &Engine::Material::Surface);
@@ -13597,6 +13615,7 @@ namespace Edge
 				Engine->SetFunction<void(Core::Schema*, const Compute::Vector2&)>("void pack(schema@+, const vector2 &in)", &Engine::Series::Pack);
 				Engine->SetFunction<void(Core::Schema*, const Compute::Vector3&)>("void pack(schema@+, const vector3 &in)", &Engine::Series::Pack);
 				Engine->SetFunction<void(Core::Schema*, const Compute::Vector4&)>("void pack(schema@+, const vector4 &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Compute::Vector4&)>("void pack(schema@+, const quaternion &in)", &Engine::Series::Pack);
 				Engine->SetFunction<void(Core::Schema*, const Compute::Matrix4x4&)>("void pack(schema@+, const matrix4x4 &in)", &Engine::Series::Pack);
 				Engine->SetFunction<void(Core::Schema*, const Engine::Attenuation&)>("void pack(schema@+, const attenuation &in)", &Engine::Series::Pack);
 				Engine->SetFunction<void(Core::Schema*, const Engine::AnimatorState&)>("void pack(schema@+, const animator_state &in)", &Engine::Series::Pack);
@@ -13621,6 +13640,7 @@ namespace Edge
 				Engine->SetFunction<bool(Core::Schema*, Compute::Vector2*)>("bool unpack(schema@+, vector2 &out)", &Engine::Series::Unpack);
 				Engine->SetFunction<bool(Core::Schema*, Compute::Vector3*)>("bool unpack(schema@+, vector3 &out)", &Engine::Series::Unpack);
 				Engine->SetFunction<bool(Core::Schema*, Compute::Vector4*)>("bool unpack(schema@+, vector4 &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Compute::Vector4*)>("bool unpack(schema@+, quaternion &out)", &Engine::Series::Unpack);
 				Engine->SetFunction<bool(Core::Schema*, Compute::Matrix4x4*)>("bool unpack(schema@+, matrix4x4 &out)", &Engine::Series::Unpack);
 				Engine->SetFunction<bool(Core::Schema*, Engine::Attenuation*)>("bool unpack(schema@+, attenuation &out)", &Engine::Series::Unpack);
 				Engine->SetFunction<bool(Core::Schema*, Engine::AnimatorState*)>("bool unpack(schema@+, animator_state &out)", &Engine::Series::Unpack);

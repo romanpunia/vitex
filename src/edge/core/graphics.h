@@ -851,7 +851,7 @@ namespace Edge
 		struct ED_OUT PoseNode
 		{
 			Compute::Vector3 Position;
-			Compute::Vector3 Rotation;
+			Compute::Quaternion Rotation;
 		};
 
 		struct ED_OUT AnimationBuffer

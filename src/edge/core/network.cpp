@@ -2687,9 +2687,8 @@ namespace Edge
 			return Backlog;
 		}
 
-		SocketClient::SocketClient(int64_t RequestTimeout) noexcept : Context(nullptr), Timeout(RequestTimeout), AutoEncrypt(true)
+		SocketClient::SocketClient(int64_t RequestTimeout) noexcept : Context(nullptr), Timeout(RequestTimeout), AutoEncrypt(true), IsAsync(false)
 		{
-			Multiplexer::SetActive(true);
 			Stream.UserData = this;
 		}
 		SocketClient::~SocketClient() noexcept
@@ -2706,14 +2705,20 @@ namespace Edge
 				Context = nullptr;
 			}
 #endif
-			Multiplexer::SetActive(false);
+			if (IsAsync)
+				Multiplexer::SetActive(false);
 		}
 		Core::Promise<int> SocketClient::Connect(RemoteHost* Source, bool Async)
 		{
 			ED_ASSERT(Source != nullptr && !Source->Hostname.empty(), Core::Promise<int>(-2), "address should be set");
 			ED_ASSERT(!Stream.IsValid(), Core::Promise<int>(-2), "stream should not be connected");
 
+			if (!Async && IsAsync)
+				Multiplexer::SetActive(false);
+
 			Stage("dns resolve");
+			IsAsync = Async;
+
 			if (!OnResolveHost(Source))
 			{
 				Error("cannot resolve host %s:%i", Source->Hostname.c_str(), (int)Source->Port);
@@ -2792,6 +2797,7 @@ namespace Edge
 
 			if (Async)
 			{
+				Multiplexer::SetActive(true);
 				Core::Cotask<SocketAddress*>([this]()
 				{
 					return DNS::FindAddressFromName(Hostname.Hostname, std::to_string(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);

@@ -259,6 +259,12 @@ namespace Edge
 			float Time = 0.0f;
 			int64_t Frame = -1;
 			int64_t Clip = -1;
+
+			float GetTimeline(Core::Timer* Time) const;
+			float GetSecondsDuration() const;
+			float GetProgressTotal() const;
+			float GetProgress() const;
+			bool IsPlaying() const;
 		};
 
 		struct ED_OUT SpawnerProperties
@@ -341,6 +347,7 @@ namespace Edge
 			static void Pack(Core::Schema* V, const Compute::Vector2& Value);
 			static void Pack(Core::Schema* V, const Compute::Vector3& Value);
 			static void Pack(Core::Schema* V, const Compute::Vector4& Value);
+			static void Pack(Core::Schema* V, const Compute::Quaternion& Value);
 			static void Pack(Core::Schema* V, const Compute::Matrix4x4& Value);
 			static void Pack(Core::Schema* V, const Attenuation& Value);
 			static void Pack(Core::Schema* V, const AnimatorState& Value);
@@ -390,6 +397,7 @@ namespace Edge
 			static bool Unpack(Core::Schema* V, Compute::Vector2* O);
 			static bool Unpack(Core::Schema* V, Compute::Vector3* O);
 			static bool Unpack(Core::Schema* V, Compute::Vector4* O);
+			static bool Unpack(Core::Schema* V, Compute::Quaternion* O);
 			static bool Unpack(Core::Schema* V, Compute::Matrix4x4* O);
 			static bool Unpack(Core::Schema* V, Attenuation* O);
 			static bool Unpack(Core::Schema* V, AnimatorState* O);
@@ -505,6 +513,19 @@ namespace Edge
 
 				return Tasks;
 			}
+		};
+
+		class ED_OUT SkinAnimation final : public Core::Reference<SkinAnimation>
+		{
+		private:
+			std::vector<Compute::SkinAnimatorClip> Clips;
+			bool Valid;
+
+		public:
+			SkinAnimation(Core::Schema* Data) noexcept;
+			~SkinAnimation() = default;
+			const std::vector<Compute::SkinAnimatorClip>& GetClips();
+			bool IsValid();
 		};
 
 		class ED_OUT Material final : public Core::Reference<Material>

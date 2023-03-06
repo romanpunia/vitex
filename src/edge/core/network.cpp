@@ -2029,7 +2029,7 @@ namespace Edge
 		}
 		SocketListener::~SocketListener() noexcept
 		{
-			ED_RELEASE(Base);
+			ED_CLEAR(Base);
 		}
 
 		SocketRouter::~SocketRouter() noexcept
@@ -2060,7 +2060,8 @@ namespace Edge
 
 		SocketConnection::~SocketConnection() noexcept
 		{
-			ED_RELEASE(Stream);
+			ED_CLEAR(Stream);
+			ED_CLEAR(Host);
 		}
 		bool SocketConnection::Finish()
 		{
@@ -2617,6 +2618,7 @@ namespace Edge
 		}
 		SocketConnection* SocketServer::Pop(SocketListener* Host)
 		{
+			ED_ASSERT(Host != nullptr, nullptr, "host should be set");
 			SocketConnection* Result = nullptr;
 			if (!Inactive.empty())
 			{
@@ -2645,8 +2647,10 @@ namespace Edge
 				Sync.unlock();
 			}
 
-			Result->Host = Host;
+			ED_RELEASE(Result->Host);
 			Result->Info.KeepAlive = (Router->KeepAliveMaxCount > 0 ? Router->KeepAliveMaxCount - 1 : 0);
+			Result->Host = Host;
+			Result->Host->AddRef();
 
 			return Result;
 		}
@@ -2658,9 +2662,17 @@ namespace Edge
 		{
 			return new SocketRouter();
 		}
-		std::unordered_set<SocketConnection*>* SocketServer::GetClients()
+		const std::unordered_set<SocketConnection*>& SocketServer::GetActiveClients()
 		{
-			return &Active;
+			return Active;
+		}
+		const std::unordered_set<SocketConnection*>& SocketServer::GetPooledClients()
+		{
+			return Inactive;
+		}
+		const std::vector<SocketListener*>& SocketServer::GetListeners()
+		{
+			return Listeners;
 		}
 		ServerState SocketServer::GetState() const
 		{

@@ -477,7 +477,9 @@ namespace Edge
 			size_t GetBacklog() const;
 			ServerState GetState() const;
 			SocketRouter* GetRouter();
-			std::unordered_set<SocketConnection*>* GetClients();
+			const std::unordered_set<SocketConnection*>& GetActiveClients();
+			const std::unordered_set<SocketConnection*>& GetPooledClients();
+			const std::vector<SocketListener*>& GetListeners();
 
 		protected:
 			virtual bool OnConfigure(SocketRouter* New);

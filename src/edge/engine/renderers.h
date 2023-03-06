@@ -45,7 +45,7 @@ namespace Edge
 				size_t RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
-				ED_COMPONENT("soft-body-renderer");
+				ED_COMPONENT("soft_body_renderer");
 			};
 
 			class ED_OUT Model final : public GeometryRenderer<Components::Model, Graphics::MeshBuffer, Graphics::RenderBuffer::Instance>
@@ -83,7 +83,7 @@ namespace Edge
 				size_t RenderDepthCubicBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
-				ED_COMPONENT("model-renderer");
+				ED_COMPONENT("model_renderer");
 			};
 
 			class ED_OUT Skin final : public GeometryRenderer<Components::Skin>
@@ -120,7 +120,7 @@ namespace Edge
 				size_t RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
-				ED_COMPONENT("skin-renderer");
+				ED_COMPONENT("skin_renderer");
 			};
 
 			class ED_OUT Emitter final : public GeometryRenderer<Components::Emitter>
@@ -161,7 +161,7 @@ namespace Edge
 				size_t RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
-				ED_COMPONENT("emitter-renderer");
+				ED_COMPONENT("emitter_renderer");
 			};
 
 			class ED_OUT Decal final : public GeometryRenderer<Components::Decal>
@@ -180,7 +180,7 @@ namespace Edge
 				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
 
 			public:
-				ED_COMPONENT("decal-renderer");
+				ED_COMPONENT("decal_renderer");
 			};
 
 			class ED_OUT Lighting final : public Renderer
@@ -417,7 +417,7 @@ namespace Edge
 				static void SetVoxelBuffer(RenderSystem* System, Graphics::Shader* Src, unsigned int Slot);
 
 			public:
-				ED_COMPONENT("lighting-renderer");
+				ED_COMPONENT("lighting_renderer");
 			};
 
 			class ED_OUT Transparency final : public Renderer
@@ -447,7 +447,7 @@ namespace Edge
 				size_t RenderPass(Core::Timer* Time) override;
 
 			public:
-				ED_COMPONENT("transparency-renderer");
+				ED_COMPONENT("transparency_renderer");
 			};
 
 			class ED_OUT SSR final : public EffectRenderer
@@ -487,7 +487,7 @@ namespace Edge
 				void RenderEffect(Core::Timer * Time) override;
 
 			public:
-				ED_COMPONENT("ssr-renderer");
+				ED_COMPONENT("ssr_renderer");
 			};
 
 			class ED_OUT SSGI final : public EffectRenderer
@@ -546,7 +546,7 @@ namespace Edge
 				void ResizeEffect() override;
 
 			public:
-				ED_COMPONENT("ssgi-renderer");
+				ED_COMPONENT("ssgi_renderer");
 			};
 
 			class ED_OUT SSAO final : public EffectRenderer
@@ -588,7 +588,7 @@ namespace Edge
 				void RenderEffect(Core::Timer * Time) override;
 
 			public:
-				ED_COMPONENT("ssao-renderer");
+				ED_COMPONENT("ssao_renderer");
 			};
 
 			class ED_OUT DoF final : public EffectRenderer
@@ -629,7 +629,7 @@ namespace Edge
 				void FocusAtNearestTarget(float Step);
 
 			public:
-				ED_COMPONENT("dof-renderer");
+				ED_COMPONENT("dof_renderer");
 			};
 
 			class ED_OUT MotionBlur final : public EffectRenderer
@@ -662,7 +662,7 @@ namespace Edge
 				void RenderEffect(Core::Timer * Time) override;
 
 			public:
-				ED_COMPONENT("motionblur-renderer");
+				ED_COMPONENT("motion_blur_renderer");
 			};
 
 			class ED_OUT Bloom final : public EffectRenderer
@@ -699,7 +699,7 @@ namespace Edge
 				void RenderEffect(Core::Timer * Time) override;
 
 			public:
-				ED_COMPONENT("bloom-renderer");
+				ED_COMPONENT("bloom_renderer");
 			};
 
 			class ED_OUT Tone final : public EffectRenderer
@@ -762,7 +762,7 @@ namespace Edge
 				void SetLUTSize(size_t Size);
 
 			public:
-				ED_COMPONENT("tone-renderer");
+				ED_COMPONENT("tone_renderer");
 			};
 
 			class ED_OUT Glitch final : public EffectRenderer
@@ -793,7 +793,7 @@ namespace Edge
 				void RenderEffect(Core::Timer * Time) override;
 
 			public:
-				ED_COMPONENT("glitch-renderer");
+				ED_COMPONENT("glitch_renderer");
 			};
 
 			class ED_OUT UserInterface final : public Renderer
@@ -810,7 +810,7 @@ namespace Edge
 				GUI::Context* GetContext();
 
 			public:
-				ED_COMPONENT("user-interface-renderer");
+				ED_COMPONENT("user_interface_renderer");
 			};
 		}
 	}

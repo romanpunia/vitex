@@ -8681,9 +8681,9 @@ namespace Edge
 		}
 		WebToken::~WebToken() noexcept
 		{
-			ED_RELEASE(Header);
-			ED_RELEASE(Payload);
-			ED_RELEASE(Token);
+			ED_CLEAR(Header);
+			ED_CLEAR(Payload);
+			ED_CLEAR(Token);
 		}
 		void WebToken::Unsign()
 		{

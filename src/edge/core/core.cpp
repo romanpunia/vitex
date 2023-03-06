@@ -9912,18 +9912,7 @@ namespace Edge
 		}
 		Schema::~Schema() noexcept
 		{
-			if (Parent != nullptr && Parent->Nodes != nullptr)
-			{
-				for (auto It = Parent->Nodes->begin(); It != Parent->Nodes->end(); ++It)
-				{
-					if (*It == this)
-					{
-						Parent->Nodes->erase(It);
-						break;
-					}
-				}
-			}
-
+			Unlink();
 			Clear();
 		}
 		std::unordered_map<std::string, size_t> Schema::GetNames() const
@@ -10358,6 +10347,28 @@ namespace Edge
 		{
 			Allocate();
 			Nodes->reserve(Size);
+		}
+		void Schema::Unlink()
+		{
+			if (!Parent)
+				return;
+
+			if (!Parent->Nodes)
+			{
+				Parent = nullptr;
+				return;
+			}
+
+			for (auto It = Parent->Nodes->begin(); It != Parent->Nodes->end(); ++It)
+			{
+				if (*It == this)
+				{
+					Parent->Nodes->erase(It);
+					break;
+				}
+			}
+
+			Parent = nullptr;
 		}
 		void Schema::Clear()
 		{

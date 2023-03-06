@@ -192,7 +192,7 @@ namespace Edge
 				Core::Schema* Shaping = Node->Set("shape");
 				if (Instance->GetCollisionShapeType() == Compute::Shape::Convex_Hull)
 				{
-					std::string Path = Scene->FindResource<Compute::HullShape>(Hull);
+					std::string Path = Scene->FindResourceId<Compute::HullShape>(Hull);
 					if (Path.empty())
 					{
 						std::vector<Compute::Vector3> Vertices = Scene->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
@@ -563,7 +563,7 @@ namespace Edge
 				{
 					if (Instance->GetCollisionShapeType() == Compute::Shape::Convex_Hull)
 					{
-						std::string Path = Parent->GetScene()->FindResource<Compute::HullShape>(Hull);
+						std::string Path = Parent->GetScene()->FindResourceId<Compute::HullShape>(Hull);
 						if (!Path.empty())
 							Series::Pack(Node->Set("shape")->Set("path"), Path);
 					}
@@ -1277,7 +1277,7 @@ namespace Edge
 			{
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 
-				Series::Pack(Node->Set("model"), Parent->GetScene()->FindResource<Graphics::Model>(Instance));
+				Series::Pack(Node->Set("model"), Parent->GetScene()->FindResourceId<Graphics::Model>(Instance));
 				Series::Pack(Node->Set("texcoord"), TexCoord);
 				Series::Pack(Node->Set("category"), (uint32_t)GetCategory());
 				Series::Pack(Node->Set("static"), Static);
@@ -1396,7 +1396,7 @@ namespace Edge
 			{
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 
-				Series::Pack(Node->Set("skin-model"), Parent->GetScene()->FindResource<Graphics::SkinModel>(Instance));
+				Series::Pack(Node->Set("skin-model"), Parent->GetScene()->FindResourceId<Graphics::SkinModel>(Instance));
 				Series::Pack(Node->Set("texcoord"), TexCoord);
 				Series::Pack(Node->Set("category"), (uint32_t)GetCategory());
 				Series::Pack(Node->Set("static"), Static);
@@ -2335,7 +2335,7 @@ namespace Edge
 				{
 					auto* Transform = Parent->GetTransform();
 					Compute::Vector2 Next = (Cursor - Position) * Sensivity;
-					Transform->Rotate(Compute::Vector3(Next.Y, Next.X));
+					Transform->Rotate(Compute::Vector3(Next.Y, Next.X) * Direction);
 
 					const Compute::Vector3& Rotation = Transform->GetRotation();
 					Transform->SetRotation(Rotation.SetX(Compute::Mathf::Clamp(Rotation.X, -1.57079632679f, 1.57079632679f)));
@@ -2495,17 +2495,14 @@ namespace Edge
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Core::Schema* Effects = Node->Set("effects", Core::Var::Array());
-				for (auto* Effect : *Source->GetEffects())
+				for (auto* Effect : Source->GetEffects())
 				{
-					if (!Effect)
-						continue;
-
 					Core::Schema* Element = Effects->Set("effect");
 					Series::Pack(Element->Set("id"), Effect->GetId());
 					Effect->Serialize(Element->Set("metadata"));
 				}
 
-				Series::Pack(Node->Set("audio-clip"), Parent->GetScene()->FindResource<Audio::AudioClip>(Source->GetClip()));
+				Series::Pack(Node->Set("audio-clip"), Parent->GetScene()->FindResourceId<Audio::AudioClip>(Source->GetClip()));
 				Series::Pack(Node->Set("velocity"), Sync.Velocity);
 				Series::Pack(Node->Set("direction"), Sync.Direction);
 				Series::Pack(Node->Set("rolloff"), Sync.Rolloff);
@@ -2550,11 +2547,8 @@ namespace Edge
 				Target->Source->SetClip(Source->GetClip());
 				Target->Sync = Sync;
 
-				for (auto* Effect : *Source->GetEffects())
-				{
-					if (Effect != nullptr)
-						Target->Source->AddEffect(Effect->Copy());
-				}
+				for (auto* Effect : Source->GetEffects())
+					Target->Source->AddEffect(Effect->Copy());
 
 				return Target;
 			}
@@ -3036,15 +3030,15 @@ namespace Edge
 				auto* Scene = Parent->GetScene();
 				if (!DiffuseMap)
 				{
-					Series::Pack(Node->Set("diffuse-map-px"), Scene->FindResource<Graphics::Texture2D>(DiffuseMapX[0]));
-					Series::Pack(Node->Set("diffuse-map-nx"), Scene->FindResource<Graphics::Texture2D>(DiffuseMapX[1]));
-					Series::Pack(Node->Set("diffuse-map-py"), Scene->FindResource<Graphics::Texture2D>(DiffuseMapY[0]));
-					Series::Pack(Node->Set("diffuse-map-ny"), Scene->FindResource<Graphics::Texture2D>(DiffuseMapY[1]));
-					Series::Pack(Node->Set("diffuse-map-pz"), Scene->FindResource<Graphics::Texture2D>(DiffuseMapZ[0]));
-					Series::Pack(Node->Set("diffuse-map-nz"), Scene->FindResource<Graphics::Texture2D>(DiffuseMapZ[1]));
+					Series::Pack(Node->Set("diffuse-map-px"), Scene->FindResourceId<Graphics::Texture2D>(DiffuseMapX[0]));
+					Series::Pack(Node->Set("diffuse-map-nx"), Scene->FindResourceId<Graphics::Texture2D>(DiffuseMapX[1]));
+					Series::Pack(Node->Set("diffuse-map-py"), Scene->FindResourceId<Graphics::Texture2D>(DiffuseMapY[0]));
+					Series::Pack(Node->Set("diffuse-map-ny"), Scene->FindResourceId<Graphics::Texture2D>(DiffuseMapY[1]));
+					Series::Pack(Node->Set("diffuse-map-pz"), Scene->FindResourceId<Graphics::Texture2D>(DiffuseMapZ[0]));
+					Series::Pack(Node->Set("diffuse-map-nz"), Scene->FindResourceId<Graphics::Texture2D>(DiffuseMapZ[1]));
 				}
 				else
-					Series::Pack(Node->Set("diffuse-map"), Scene->FindResource<Graphics::Texture2D>(DiffuseMap));
+					Series::Pack(Node->Set("diffuse-map"), Scene->FindResourceId<Graphics::Texture2D>(DiffuseMap));
 
 				std::vector<Compute::Matrix4x4> Views;
 				for (int64_t i = 0; i < 6; i++)

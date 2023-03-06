@@ -555,9 +555,7 @@ namespace Edge
 		}
 		AudioSource::~AudioSource() noexcept
 		{
-			for (auto* Effect : Effects)
-				ED_RELEASE(Effect);
-
+			RemoveEffects();
 			ED_RELEASE(Clip);
 #ifdef ED_HAS_OPENAL
 			AudioContext::Lock();
@@ -602,6 +600,12 @@ namespace Edge
 			}
 
 			return false;
+		}
+		void AudioSource::RemoveEffects()
+		{
+			for (auto* Effect : Effects)
+				ED_RELEASE(Effect);
+			Effects.clear();
 		}
 		void AudioSource::SetClip(AudioClip* NewClip)
 		{
@@ -741,9 +745,9 @@ namespace Edge
 		{
 			return Instance;
 		}
-		std::vector<AudioEffect*>* AudioSource::GetEffects()
+		const std::vector<AudioEffect*>& AudioSource::GetEffects() const
 		{
-			return &Effects;
+			return Effects;
 		}
 
 		AudioDevice::AudioDevice() noexcept

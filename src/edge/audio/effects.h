@@ -50,7 +50,7 @@ namespace Edge
 				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
-				ED_COMPONENT("reverb-effect");
+				ED_COMPONENT("reverb_effect");
 			};
 
 			class ED_OUT Chorus final : public AudioEffect
@@ -72,7 +72,7 @@ namespace Edge
 				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
-				ED_COMPONENT("chorus-effect");
+				ED_COMPONENT("chorus_effect");
 			};
 
 			class ED_OUT Distortion final : public AudioEffect
@@ -93,7 +93,7 @@ namespace Edge
 				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
-				ED_COMPONENT("distortion-effect");
+				ED_COMPONENT("distortion_effect");
 			};
 
 			class ED_OUT Echo final : public AudioEffect
@@ -114,7 +114,7 @@ namespace Edge
 				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
-				ED_COMPONENT("echo-effect");
+				ED_COMPONENT("echo_effect");
 			};
 
 			class ED_OUT Flanger final : public AudioEffect
@@ -136,7 +136,7 @@ namespace Edge
 				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
-				ED_COMPONENT("flanger-effect");
+				ED_COMPONENT("flanger_effect");
 			};
 
 			class ED_OUT FrequencyShifter final : public AudioEffect
@@ -155,7 +155,7 @@ namespace Edge
 				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
-				ED_COMPONENT("frequency-shifter-effect");
+				ED_COMPONENT("frequency_shifter_effect");
 			};
 
 			class ED_OUT VocalMorpher final : public AudioEffect
@@ -177,7 +177,7 @@ namespace Edge
 				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
-				ED_COMPONENT("vocal-morpher-effect");
+				ED_COMPONENT("vocal_morpher_effect");
 			};
 
 			class ED_OUT PitchShifter final : public AudioEffect
@@ -195,7 +195,7 @@ namespace Edge
 				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
-				ED_COMPONENT("pitch-shifter-effect");
+				ED_COMPONENT("pitch_shifter_effect");
 			};
 
 			class ED_OUT RingModulator final : public AudioEffect
@@ -214,7 +214,7 @@ namespace Edge
 				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
-				ED_COMPONENT("ring-modulator-effect");
+				ED_COMPONENT("ring_modulator_effect");
 			};
 
 			class ED_OUT Autowah final : public AudioEffect
@@ -234,7 +234,7 @@ namespace Edge
 				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
-				ED_COMPONENT("autowah-effect");
+				ED_COMPONENT("autowah_effect");
 			};
 
 			class ED_OUT Compressor final : public AudioEffect
@@ -248,7 +248,7 @@ namespace Edge
 				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
-				ED_COMPONENT("compressor-effect");
+				ED_COMPONENT("compressor_effect");
 			};
 
 			class ED_OUT Equalizer final : public AudioEffect
@@ -274,7 +274,7 @@ namespace Edge
 				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
-				ED_COMPONENT("equalizer-effect");
+				ED_COMPONENT("equalizer_effect");
 			};
 		}
 	}

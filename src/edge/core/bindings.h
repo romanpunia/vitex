@@ -27,6 +27,57 @@ namespace Edge
 
 			class Array;
 
+			class ED_OUT_TS Registry
+			{
+			public:
+				static bool LoadCTypes(VirtualMachine* VM);
+				static bool LoadAny(VirtualMachine* VM);
+				static bool LoadArray(VirtualMachine* VM);
+				static bool LoadComplex(VirtualMachine* VM);
+				static bool LoadMap(VirtualMachine* VM);
+				static bool LoadGrid(VirtualMachine* VM);
+				static bool LoadRef(VirtualMachine* VM);
+				static bool LoadWeakRef(VirtualMachine* VM);
+				static bool LoadMath(VirtualMachine* VM);
+				static bool LoadString(VirtualMachine* VM);
+				static bool LoadException(VirtualMachine* VM);
+				static bool LoadMutex(VirtualMachine* VM);
+				static bool LoadThread(VirtualMachine* VM);
+				static bool LoadRandom(VirtualMachine* VM);
+				static bool LoadPromise(VirtualMachine* VM);
+				static bool LoadFormat(VirtualMachine* Engine);
+				static bool LoadDecimal(VirtualMachine* Engine);
+				static bool LoadVariant(VirtualMachine* Engine);
+				static bool LoadTimestamp(VirtualMachine* Engine);
+				static bool LoadConsole(VirtualMachine* Engine);
+				static bool LoadSchema(VirtualMachine* Engine);
+				static bool LoadClockTimer(VirtualMachine* Engine);
+				static bool LoadFileSystem(VirtualMachine* Engine);
+				static bool LoadOS(VirtualMachine* Engine);
+				static bool LoadSchedule(VirtualMachine* Engine);
+				static bool LoadVertices(VirtualMachine* Engine);
+				static bool LoadVectors(VirtualMachine* Engine);
+				static bool LoadShapes(VirtualMachine* Engine);
+				static bool LoadKeyFrames(VirtualMachine* Engine);
+				static bool LoadRegex(VirtualMachine* Engine);
+				static bool LoadCrypto(VirtualMachine* Engine);
+				static bool LoadGeometric(VirtualMachine* Engine);
+				static bool LoadPreprocessor(VirtualMachine* Engine);
+				static bool LoadPhysics(VirtualMachine* Engine);
+				static bool LoadAudio(VirtualMachine* Engine);
+				static bool LoadActivity(VirtualMachine* Engine);
+				static bool LoadGraphics(VirtualMachine* Engine);
+				static bool LoadNetwork(VirtualMachine* Engine);
+				static bool LoadVM(VirtualMachine* Engine);
+				static bool LoadEngine(VirtualMachine* Engine);
+				static bool LoadComponents(VirtualMachine* Engine);
+				static bool LoadRenderers(VirtualMachine* Engine);
+				static bool LoadUiModel(VirtualMachine* Engine);
+				static bool LoadUiControl(VirtualMachine* Engine);
+				static bool LoadUiContext(VirtualMachine* Engine);
+				static bool Release();
+			};
+
 			class ED_OUT TypeCache
 			{
 			public:
@@ -105,24 +156,6 @@ namespace Edge
 				static Array* Split(const std::string& delim, const std::string& str);
 				static std::string Join(const Array& array, const std::string& delim);
 				static char ToChar(const std::string& Symbol);
-			};
-
-			class ED_OUT Mutex
-			{
-			private:
-				std::mutex Base;
-				int Ref;
-
-			public:
-				Mutex() noexcept;
-				void AddRef();
-				void Release();
-				bool TryLock();
-				void Lock();
-				void Unlock();
-
-			public:
-				static Mutex* Factory();
 			};
 
 			class ED_OUT Math
@@ -600,63 +633,6 @@ namespace Edge
 				}
 			};
 
-			class ED_OUT Grid
-			{
-			public:
-				struct SBuffer
-				{
-					size_t Width;
-					size_t Height;
-					unsigned char Data[1];
-				};
-
-			protected:
-				mutable int RefCount;
-				mutable bool GCFlag;
-				asITypeInfo* ObjType;
-				SBuffer* Buffer;
-				int ElementSize;
-				int SubTypeId;
-
-			public:
-				void AddRef() const;
-				void Release() const;
-				asITypeInfo* GetGridObjectType() const;
-				int GetGridTypeId() const;
-				int GetElementTypeId() const;
-				size_t GetWidth() const;
-				size_t GetHeight() const;
-				void Resize(size_t Width, size_t Height);
-				void* At(size_t X, size_t Y);
-				const void* At(size_t X, size_t Y) const;
-				void  SetValue(size_t X, size_t Y, void* Value);
-				int GetRefCount();
-				void SetFlag();
-				bool GetFlag();
-				void EnumReferences(asIScriptEngine* Engine);
-				void ReleaseAllHandles(asIScriptEngine* Engine);
-
-			protected:
-				Grid(asITypeInfo* T, void* InitBuf) noexcept;
-				Grid(size_t W, size_t H, asITypeInfo* T) noexcept;
-				Grid(size_t W, size_t H, void* DefVal, asITypeInfo* T) noexcept;
-				~Grid() noexcept;
-				bool CheckMaxSize(size_t X, size_t Y);
-				void CreateBuffer(SBuffer** Buf, size_t W, size_t H);
-				void DeleteBuffer(SBuffer* Buf);
-				void Construct(SBuffer* Buf);
-				void Destruct(SBuffer* Buf);
-				void SetValue(SBuffer* Buf, size_t X, size_t Y, void* Value);
-				void* At(SBuffer* Buf, size_t X, size_t Y);
-
-			public:
-				static Core::Unique<Grid> Create(asITypeInfo* T);
-				static Core::Unique<Grid> Create(asITypeInfo* T, size_t Width, size_t Height);
-				static Core::Unique<Grid> Create(asITypeInfo* T, size_t Width, size_t Height, void* DefaultValue);
-				static Core::Unique<Grid> Create(asITypeInfo* T, void* ListBuffer);
-				static bool TemplateCallback(asITypeInfo* TI, bool& DontGarbageCollect);
-			};
-
 			class ED_OUT Ref
 			{
 			protected:
@@ -718,97 +694,6 @@ namespace Edge
 				static void Construct2(asITypeInfo* type, void* ref, void* mem);
 				static void Destruct(WeakRef* obj);
 				static bool TemplateCallback(asITypeInfo* TI, bool&);
-			};
-
-			class ED_OUT Complex
-			{
-			public:
-				float R;
-				float I;
-
-			public:
-				Complex() noexcept;
-				Complex(const Complex& Other) noexcept;
-				Complex(float R, float I = 0) noexcept;
-				Complex& operator= (const Complex& Other) noexcept;
-				Complex& operator+= (const Complex& Other);
-				Complex& operator-= (const Complex& Other);
-				Complex& operator*= (const Complex& Other);
-				Complex& operator/= (const Complex& Other);
-				float Length() const;
-				float SquaredLength() const;
-				Complex GetRI() const;
-				void SetRI(const Complex& In);
-				Complex GetIR() const;
-				void SetIR(const Complex& In);
-				bool operator== (const Complex& Other) const;
-				bool operator!= (const Complex& Other) const;
-				Complex operator+ (const Complex& Other) const;
-				Complex operator- (const Complex& Other) const;
-				Complex operator* (const Complex& Other) const;
-				Complex operator/ (const Complex& Other) const;
-
-			public:
-				static void DefaultConstructor(Complex* self);
-				static void CopyConstructor(const Complex& other, Complex* self);
-				static void ConvConstructor(float r, Complex* self);
-				static void InitConstructor(float r, float i, Complex* self);
-				static void ListConstructor(float* list, Complex* self);
-			};
-
-			class ED_OUT Thread
-			{
-			private:
-				static int ContextUD;
-				static int EngineListUD;
-
-			private:
-				struct
-				{
-					std::vector<Any*> Queue;
-					std::condition_variable CV;
-					std::mutex Mutex;
-				} Pipe[2];
-
-			private:
-				std::condition_variable CV;
-				std::thread Procedure;
-				std::mutex Mutex;
-				asIScriptFunction* Function;
-				VirtualMachine* VM;
-				ImmediateContext* Context;
-				bool GCFlag;
-				int Ref;
-
-			public:
-				Thread(asIScriptEngine* Engine, asIScriptFunction* Function) noexcept;
-				void EnumReferences(asIScriptEngine* Engine);
-				void SetGCFlag();
-				void ReleaseReferences(asIScriptEngine* Engine);
-				void AddRef();
-				void Release();
-				void Suspend();
-				void Resume();
-				void Push(void* Ref, int TypeId);
-				bool Pop(void* Ref, int TypeId);
-				bool Pop(void* Ref, int TypeId, uint64_t Timeout);
-				bool IsActive();
-				bool Start();
-				bool GetGCFlag();
-				int GetRefCount();
-				int Join(uint64_t Timeout);
-				int Join();
-				std::string GetId() const;
-
-			private:
-				void Routine();
-
-			public:
-				static void Create(asIScriptGeneric* Generic);
-				static Thread* GetThread();
-				static std::string GetThreadId();
-				static void ThreadSleep(uint64_t Mills);
-				static void ThreadSuspend();
 			};
 
 			class ED_OUT Random
@@ -931,6 +816,172 @@ namespace Edge
 					}
 				};
 			};
+#ifdef ED_HAS_BINDINGS
+			class ED_OUT Mutex
+			{
+			private:
+				std::mutex Base;
+				int Ref;
+
+			public:
+				Mutex() noexcept;
+				void AddRef();
+				void Release();
+				bool TryLock();
+				void Lock();
+				void Unlock();
+
+			public:
+				static Mutex* Factory();
+			};
+
+			class ED_OUT Grid
+			{
+			public:
+				struct SBuffer
+				{
+					size_t Width;
+					size_t Height;
+					unsigned char Data[1];
+				};
+
+			protected:
+				mutable int RefCount;
+				mutable bool GCFlag;
+				asITypeInfo* ObjType;
+				SBuffer* Buffer;
+				int ElementSize;
+				int SubTypeId;
+
+			public:
+				void AddRef() const;
+				void Release() const;
+				asITypeInfo* GetGridObjectType() const;
+				int GetGridTypeId() const;
+				int GetElementTypeId() const;
+				size_t GetWidth() const;
+				size_t GetHeight() const;
+				void Resize(size_t Width, size_t Height);
+				void* At(size_t X, size_t Y);
+				const void* At(size_t X, size_t Y) const;
+				void  SetValue(size_t X, size_t Y, void* Value);
+				int GetRefCount();
+				void SetFlag();
+				bool GetFlag();
+				void EnumReferences(asIScriptEngine* Engine);
+				void ReleaseAllHandles(asIScriptEngine* Engine);
+
+			protected:
+				Grid(asITypeInfo* T, void* InitBuf) noexcept;
+				Grid(size_t W, size_t H, asITypeInfo* T) noexcept;
+				Grid(size_t W, size_t H, void* DefVal, asITypeInfo* T) noexcept;
+				~Grid() noexcept;
+				bool CheckMaxSize(size_t X, size_t Y);
+				void CreateBuffer(SBuffer** Buf, size_t W, size_t H);
+				void DeleteBuffer(SBuffer* Buf);
+				void Construct(SBuffer* Buf);
+				void Destruct(SBuffer* Buf);
+				void SetValue(SBuffer* Buf, size_t X, size_t Y, void* Value);
+				void* At(SBuffer* Buf, size_t X, size_t Y);
+
+			public:
+				static Core::Unique<Grid> Create(asITypeInfo* T);
+				static Core::Unique<Grid> Create(asITypeInfo* T, size_t Width, size_t Height);
+				static Core::Unique<Grid> Create(asITypeInfo* T, size_t Width, size_t Height, void* DefaultValue);
+				static Core::Unique<Grid> Create(asITypeInfo* T, void* ListBuffer);
+				static bool TemplateCallback(asITypeInfo* TI, bool& DontGarbageCollect);
+			};
+
+			class ED_OUT Complex
+			{
+			public:
+				float R;
+				float I;
+
+			public:
+				Complex() noexcept;
+				Complex(const Complex& Other) noexcept;
+				Complex(float R, float I = 0) noexcept;
+				Complex& operator= (const Complex& Other) noexcept;
+				Complex& operator+= (const Complex& Other);
+				Complex& operator-= (const Complex& Other);
+				Complex& operator*= (const Complex& Other);
+				Complex& operator/= (const Complex& Other);
+				float Length() const;
+				float SquaredLength() const;
+				Complex GetRI() const;
+				void SetRI(const Complex& In);
+				Complex GetIR() const;
+				void SetIR(const Complex& In);
+				bool operator== (const Complex& Other) const;
+				bool operator!= (const Complex& Other) const;
+				Complex operator+ (const Complex& Other) const;
+				Complex operator- (const Complex& Other) const;
+				Complex operator* (const Complex& Other) const;
+				Complex operator/ (const Complex& Other) const;
+
+			public:
+				static void DefaultConstructor(Complex* self);
+				static void CopyConstructor(const Complex& other, Complex* self);
+				static void ConvConstructor(float r, Complex* self);
+				static void InitConstructor(float r, float i, Complex* self);
+				static void ListConstructor(float* list, Complex* self);
+			};
+
+			class ED_OUT Thread
+			{
+			private:
+				static int ContextUD;
+				static int EngineListUD;
+
+			private:
+				struct
+				{
+					std::vector<Any*> Queue;
+					std::condition_variable CV;
+					std::mutex Mutex;
+				} Pipe[2];
+
+			private:
+				std::condition_variable CV;
+				std::thread Procedure;
+				std::mutex Mutex;
+				asIScriptFunction* Function;
+				VirtualMachine* VM;
+				ImmediateContext* Context;
+				bool GCFlag;
+				int Ref;
+
+			public:
+				Thread(asIScriptEngine* Engine, asIScriptFunction* Function) noexcept;
+				void EnumReferences(asIScriptEngine* Engine);
+				void SetGCFlag();
+				void ReleaseReferences(asIScriptEngine* Engine);
+				void AddRef();
+				void Release();
+				void Suspend();
+				void Resume();
+				void Push(void* Ref, int TypeId);
+				bool Pop(void* Ref, int TypeId);
+				bool Pop(void* Ref, int TypeId, uint64_t Timeout);
+				bool IsActive();
+				bool Start();
+				bool GetGCFlag();
+				int GetRefCount();
+				int Join(uint64_t Timeout);
+				int Join();
+				std::string GetId() const;
+
+			private:
+				void Routine();
+
+			public:
+				static void Create(asIScriptGeneric* Generic);
+				static Thread* GetThread();
+				static std::string GetThreadId();
+				static void ThreadSleep(uint64_t Mills);
+				static void ThreadSuspend();
+			};
 
 			class ED_OUT Format final : public Core::Reference<Format>
 			{
@@ -952,6 +1003,41 @@ namespace Edge
 				static void FormatJSON(VirtualMachine* VM, Core::Parser& Result, void* Ref, int TypeId);
 			};
 
+			class ED_OUT Application final : public Engine::Application
+			{
+			public:
+				asIScriptFunction* OnScriptHook = nullptr;
+				asIScriptFunction* OnKeyEvent = nullptr;
+				asIScriptFunction* OnInputEvent = nullptr;
+				asIScriptFunction* OnWheelEvent = nullptr;
+				asIScriptFunction* OnWindowEvent = nullptr;
+				asIScriptFunction* OnCloseEvent = nullptr;
+				asIScriptFunction* OnComposeEvent = nullptr;
+				asIScriptFunction* OnDispatch = nullptr;
+				asIScriptFunction* OnPublish = nullptr;
+				asIScriptFunction* OnInitialize = nullptr;
+				asIScriptFunction* OnGetGUI = nullptr;
+				ImmediateContext* Context;
+
+			public:
+				Application(Desc& I) noexcept;
+				~Application() noexcept override;
+				void ScriptHook() override;
+				void KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed) override;
+				void InputEvent(char* Buffer, size_t Length) override;
+				void WheelEvent(int X, int Y, bool Normal) override;
+				void WindowEvent(Graphics::WindowState NewState, int X, int Y) override;
+				void CloseEvent() override;
+				void ComposeEvent() override;
+				void Dispatch(Core::Timer* Time) override;
+				void Publish(Core::Timer* Time) override;
+				void Initialize() override;
+				Engine::GUI::Context* GetGUI() const override;
+
+			public:
+				static bool WantsRestart(int ExitCode);
+			};
+
 			class ED_OUT ModelListener : public Core::Reference<ModelListener>
 			{
 			private:
@@ -963,58 +1049,12 @@ namespace Edge
 				ModelListener(asIScriptFunction* NewCallback) noexcept;
 				ModelListener(const std::string& FunctionName) noexcept;
 				~ModelListener() noexcept;
+				asIScriptFunction* GetCallback();
 
 			private:
 				Engine::GUI::EventCallback Bind(asIScriptFunction* Callback);
 			};
-
-			class ED_OUT_TS Registry
-			{
-			public:
-				static bool LoadCTypes(VirtualMachine* VM);
-				static bool LoadAny(VirtualMachine* VM);
-				static bool LoadArray(VirtualMachine* VM);
-				static bool LoadComplex(VirtualMachine* VM);
-				static bool LoadMap(VirtualMachine* VM);
-				static bool LoadGrid(VirtualMachine* VM);
-				static bool LoadRef(VirtualMachine* VM);
-				static bool LoadWeakRef(VirtualMachine* VM);
-				static bool LoadMath(VirtualMachine* VM);
-				static bool LoadString(VirtualMachine* VM);
-				static bool LoadException(VirtualMachine* VM);
-				static bool LoadMutex(VirtualMachine* VM);
-				static bool LoadThread(VirtualMachine* VM);
-				static bool LoadRandom(VirtualMachine* VM);
-				static bool LoadPromise(VirtualMachine* VM);
-				static bool LoadFormat(VirtualMachine* Engine);
-				static bool LoadDecimal(VirtualMachine* Engine);
-				static bool LoadVariant(VirtualMachine* Engine);
-				static bool LoadTimestamp(VirtualMachine* Engine);
-				static bool LoadConsole(VirtualMachine* Engine);
-				static bool LoadSchema(VirtualMachine* Engine);
-				static bool LoadTickClock(VirtualMachine* Engine);
-				static bool LoadFileSystem(VirtualMachine* Engine);
-				static bool LoadOS(VirtualMachine* Engine);
-				static bool LoadSchedule(VirtualMachine* Engine);
-				static bool LoadVertices(VirtualMachine* Engine);
-				static bool LoadVectors(VirtualMachine* Engine);
-				static bool LoadShapes(VirtualMachine* Engine);
-				static bool LoadKeyFrames(VirtualMachine* Engine);
-				static bool LoadRegex(VirtualMachine* Engine);
-				static bool LoadCrypto(VirtualMachine* Engine);
-				static bool LoadGeometric(VirtualMachine* Engine);
-				static bool LoadPreprocessor(VirtualMachine* Engine);
-				static bool LoadPhysics(VirtualMachine* Engine);
-				static bool LoadAudio(VirtualMachine* Engine);
-				static bool LoadActivity(VirtualMachine* Engine);
-				static bool LoadGraphics(VirtualMachine* Engine);
-				static bool LoadNetwork(VirtualMachine* Engine);
-				static bool LoadEngine(VirtualMachine* Engine);
-				static bool LoadUiModel(VirtualMachine* Engine);
-				static bool LoadUiControl(VirtualMachine* Engine);
-				static bool LoadUiContext(VirtualMachine* Engine);
-				static bool Release();
-			};
+#endif
 		}
 	}
 }

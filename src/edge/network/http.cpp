@@ -6344,6 +6344,8 @@ namespace Edge
 				}
 
 				Response.Content.Prepare(Response.GetHeader("Content-Length"));
+				Response.Content.Data.clear();
+
 				ED_RELEASE(Parser);
 				return Success(0);
 			}

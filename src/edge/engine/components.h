@@ -49,7 +49,7 @@ namespace Edge
 				void DeserializeBody(Core::Schema* Node);
 
 			public:
-				ED_COMPONENT("soft-body");
+				ED_COMPONENT("soft_body_component");
 			};
 
 			class ED_OUT RigidBody final : public Component
@@ -82,7 +82,7 @@ namespace Edge
 				void DeserializeBody(Core::Schema* Node);
 
 			public:
-				ED_COMPONENT("rigid-body");
+				ED_COMPONENT("rigid_body_component");
 			};
 
 			class ED_OUT SliderConstraint final : public Component
@@ -103,7 +103,7 @@ namespace Edge
 				Entity* GetConnection() const;
 
 			public:
-				ED_COMPONENT("slider-constraint");
+				ED_COMPONENT("slider_constraint_component");
 			};
 
 			class ED_OUT Acceleration final : public Component
@@ -129,7 +129,7 @@ namespace Edge
 				Compute::RigidBody* GetBody() const;
 
 			public:
-				ED_COMPONENT("acceleration");
+				ED_COMPONENT("acceleration_component");
 			};
 
 			class ED_OUT Model final : public Drawable
@@ -152,7 +152,7 @@ namespace Edge
 				Graphics::Model* GetDrawable();
 
 			public:
-				ED_COMPONENT("model");
+				ED_COMPONENT("model_component");
 			};
 
 			class ED_OUT Skin final : public Drawable
@@ -177,7 +177,7 @@ namespace Edge
 				Graphics::SkinModel* GetDrawable();
 
 			public:
-				ED_COMPONENT("skin");
+				ED_COMPONENT("skin_component");
 			};
 
 			class ED_OUT Emitter final : public Drawable
@@ -202,7 +202,7 @@ namespace Edge
 				Graphics::InstanceBuffer* GetBuffer();
 
 			public:
-				ED_COMPONENT("emitter");
+				ED_COMPONENT("emitter_component");
 			};
 
 			class ED_OUT Decal final : public Drawable
@@ -218,7 +218,7 @@ namespace Edge
 				Core::Unique<Component> Copy(Entity * New) const override;
 
 			public:
-				ED_COMPONENT("decal");
+				ED_COMPONENT("decal_component");
 			};
 
 			class ED_OUT SkinAnimator final : public Component
@@ -260,7 +260,7 @@ namespace Edge
 				bool IsPosed(int64_t Clip, int64_t Frame);
 
 			public:
-				ED_COMPONENT("skin-animator");
+				ED_COMPONENT("skin_animator_component");
 			};
 
 			class ED_OUT KeyAnimator final : public Component
@@ -297,7 +297,7 @@ namespace Edge
 				bool IsPosed(int64_t Clip, int64_t Frame);
 
 			public:
-				ED_COMPONENT("key-animator");
+				ED_COMPONENT("key_animator_component");
 			};
 
 			class ED_OUT EmitterAnimator final : public Component
@@ -329,7 +329,7 @@ namespace Edge
 				void FastSynchronization(float Step);
 
 			public:
-				ED_COMPONENT("emitter-animator");
+				ED_COMPONENT("emitter_animator_component");
 			};
 
 			class ED_OUT FreeLook final : public Component
@@ -338,6 +338,7 @@ namespace Edge
 				Compute::Vector2 Position;
 
 			public:
+				Compute::Vector2 Direction = Compute::Vector2(-1.0f, 1.0f);
 				Graphics::KeyMap Rotate;
 				float Sensivity;
 
@@ -347,7 +348,7 @@ namespace Edge
 				Core::Unique<Component> Copy(Entity * New) const override;
 
 			public:
-				ED_COMPONENT("free-look");
+				ED_COMPONENT("free_look_component");
 			};
 
 			class ED_OUT Fly final : public Component
@@ -356,7 +357,7 @@ namespace Edge
 				Compute::Vector3 Velocity;
 
 			public:
-				struct
+				struct MoveInfo
 				{
 					Compute::Vector3 Axis = Compute::Vector3(1.0f, 1.0f, -1.0f);
 					float Faster = 320.3f;
@@ -384,7 +385,7 @@ namespace Edge
 				Compute::Vector3 GetSpeed(Graphics::Activity* Activity);
 
 			public:
-				ED_COMPONENT("fly");
+				ED_COMPONENT("fly_component");
 			};
 
 			class ED_OUT AudioSource final : public Component
@@ -406,7 +407,7 @@ namespace Edge
 				Audio::AudioSync& GetSync();
 
 			public:
-				ED_COMPONENT("audio-source");
+				ED_COMPONENT("audio_source_component");
 			};
 
 			class ED_OUT AudioListener final : public Component
@@ -427,13 +428,13 @@ namespace Edge
 				Core::Unique<Component> Copy(Entity* New) const override;
 
 			public:
-				ED_COMPONENT("audio-listener");
+				ED_COMPONENT("audio_listener_component");
 			};
 
 			class ED_OUT PointLight final : public Component
 			{
 			public:
-				struct
+				struct ShadowInfo
 				{
 					float Softness = 1.0f;
 					float Distance = 100.0f;
@@ -466,13 +467,13 @@ namespace Edge
 				const Attenuation& GetSize();
 
 			public:
-				ED_COMPONENT("point-light");
+				ED_COMPONENT("point_light_component");
 			};
 
 			class ED_OUT SpotLight final : public Component
 			{
 			public:
-				struct
+				struct ShadowInfo
 				{
 					float Softness = 1.0f;
 					float Distance = 100.0f;
@@ -507,13 +508,13 @@ namespace Edge
 				const Attenuation& GetSize();
 
 			public:
-				ED_COMPONENT("spot-light");
+				ED_COMPONENT("spot_light_component");
 			};
 
 			class ED_OUT LineLight final : public Component
 			{
 			public:
-				struct
+				struct SkyInfo
 				{
 					Compute::Vector3 RlhEmission = Compute::Vector3(0.0000055f, 0.000013f, 0.0000224f);
 					Compute::Vector3 MieEmission = 0.000021f;
@@ -525,7 +526,7 @@ namespace Edge
 					float Intensity = 7.0f;
 				} Sky;
 
-				struct
+				struct ShadowInfo
 				{
 					float Distance[6] = { 25.0f, 50.0f, 100.0f, 175.0f, 250.0f, 325.0f };
 					float Softness = 1.0f;
@@ -553,7 +554,7 @@ namespace Edge
 				void GenerateOrigin();
 
 			public:
-				ED_COMPONENT("line-light");
+				ED_COMPONENT("line_light_component");
 			};
 
 			class ED_OUT SurfaceLight final : public Component
@@ -604,7 +605,7 @@ namespace Edge
 				Graphics::Texture2D* GetDiffuseMap();
 
 			public:
-				ED_COMPONENT("surface-light");
+				ED_COMPONENT("surface_light_component");
 			};
 
 			class ED_OUT Illuminator final : public Component
@@ -634,7 +635,7 @@ namespace Edge
 				Core::Unique<Component> Copy(Entity* New) const override;
 
 			public:
-				ED_COMPONENT("illuminator");
+				ED_COMPONENT("illuminator_component");
 			};
 
 			class ED_OUT Camera final : public Component
@@ -687,7 +688,7 @@ namespace Edge
 				bool RayTest(const Compute::Ray& Ray, const Compute::Matrix4x4& World, Compute::Vector3* Hit = nullptr);
 
 			public:
-				ED_COMPONENT("camera");
+				ED_COMPONENT("camera_component");
 			};
 
 			class ED_OUT Scriptable final : public Component
@@ -865,7 +866,7 @@ namespace Edge
 				void Unprotect();
 
 			public:
-				ED_COMPONENT("scriptable");
+				ED_COMPONENT("scriptable_component");
 			};
 		}
 	}

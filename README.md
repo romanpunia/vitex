@@ -123,7 +123,8 @@ There are two basic rules of memory ownership:
 + Pointer wrapper to work directly with raw pointers
 + Strings with pointer conversion support to work with C char arrays
 + Debugger interface
-+ Standard library + bindings (WIP)
++ Standard library
++ Edge bindings (WIP 70%)
 #### Graphics
 + Window (activity) system
 + Input detection (keyboard, cursor, controller, joystick, multi-touch)
@@ -272,7 +273,7 @@ These **will not** alter any interfaces but all related functions will return **
 + **ED_USE_FCTX** will enable internal fcontext implementation for coroutines, defaults to true
 + **ED_USE_BULLET3** will enable built-in Bullet3 library and physics interfaces, defaults to true
 + **ED_USE_RMLUI** will enable built-in RmlUi library and gui interfaces, defaults to true
-+ **ED_USE_BINDINGS** will enable script bindings otherwise will only leave string, array and ptr implementations, defaults to true
++ **ED_USE_BINDINGS** will enable full script bindings otherwise only essentials will be used to reduce lib size, defaults to true
 
 ## Static dependencies
 * [bullet3](https://github.com/bulletphysics/bullet3)
@@ -307,4 +308,4 @@ These are recommended to be installed, but are not required to.
 Edge is licensed under the MIT license
 
 ## Known Issues
-Script interface covers only these modules for now: Core, Compute, Audio, Network, Graphics, Engine/GUI.
+Script interface covers only these modules for now: Core, Compute, Audio, Network, Graphics, Engine, GUI, Components, Renderers.

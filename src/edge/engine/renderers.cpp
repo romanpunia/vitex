@@ -1027,7 +1027,7 @@ namespace Edge
 			{
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 
-				Series::Pack(Node->Set("sky-map"), System->GetScene()->FindResource<Graphics::Texture2D>(SkyBase));
+				Series::Pack(Node->Set("sky-map"), System->GetScene()->FindResourceId<Graphics::Texture2D>(SkyBase));
 				Series::Pack(Node->Set("high-emission"), AmbientLight.HighEmission);
 				Series::Pack(Node->Set("low-emission"), AmbientLight.LowEmission);
 				Series::Pack(Node->Set("sky-emission"), AmbientLight.SkyEmission);

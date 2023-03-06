@@ -877,11 +877,43 @@ namespace Edge
 
 				return Result;
 			}
+			template <typename T>
+			int SetEnumRefsEx(void(*Value)(T*, asIScriptEngine*))
+			{
+				asSFuncPtr* EnumRefs = Bridge::Function<void(*)(T*, asIScriptEngine*)>(Value);
+				int Result = SetBehaviourAddress("void f(int &in)", Behaviours::ENUMREFS, EnumRefs, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&EnumRefs);
+
+				return Result;
+			}
+			template <typename T>
+			int SetReleaseRefsEx(void(*Value)(T*, asIScriptEngine*))
+			{
+				asSFuncPtr* ReleaseRefs = Bridge::Function<void(*)(T*, asIScriptEngine*)>(Value);
+				int Result = SetBehaviourAddress("void f(int &in)", Behaviours::RELEASEREFS, ReleaseRefs, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&ReleaseRefs);
+
+				return Result;
+			}
 			template <typename T, typename R>
 			int SetProperty(const char* Decl, R T::* Value)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				return SetPropertyAddress(Decl, (int)reinterpret_cast<size_t>(&(((T*)0)->*Value)));
+			}
+			template <typename T, typename R>
+			int SetPropertyArray(const char* Decl, R T::* Value, size_t ElementsCount)
+			{
+				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				for (size_t i = 0; i < ElementsCount; i++)
+				{
+					std::string ElementDecl = Decl + std::to_string(i);
+					int R = SetPropertyAddress(ElementDecl.c_str(), (int)reinterpret_cast<size_t>(&(((T*)0)->*Value)) + (int)(sizeof(R) * i));
+					if (R < 0)
+						return R;
+				}
+
+				return 0;
 			}
 			template <typename T>
 			int SetPropertyStatic(const char* Decl, T* Value)
@@ -1069,6 +1101,20 @@ namespace Edge
 
 				return Result;
 			}
+			template <typename T, typename To>
+			void SetDynamicCast(const char* ToDecl, bool Implicit = false)
+			{
+				auto Type = Implicit ? Operators::ImplCast : Operators::Cast;
+				SetOperatorEx(Type, 0, ToDecl, "", &BaseClass::DynamicCastFunction<T, To>);
+				SetOperatorEx(Type, (uint32_t)Position::Const, ToDecl, "", &BaseClass::DynamicCastFunction<T, To>);
+			}
+
+		private:
+			template <typename T, typename To>
+			static To* DynamicCastFunction(T* Base)
+			{
+				return dynamic_cast<To*>(Base);
+			}
 		};
 
 		struct ED_OUT RefClass : public BaseClass
@@ -1119,6 +1165,46 @@ namespace Edge
 
 				return Result;
 			}
+			template <typename T, const char* TypeName, typename... Args>
+			int SetGcConstructor(const char* Decl)
+			{
+				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				asSFuncPtr* Functor = Bridge::Function(&Bridge::GetManagedCall<T, TypeName, Args...>);
+				int Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::CDECLF);
+				FunctionFactory::ReleaseFunctor(&Functor);
+
+				return Result;
+			}
+			template <typename T, const char* TypeName, asIScriptGeneric*>
+			int SetGcConstructor(const char* Decl)
+			{
+				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetManagedCall<T, TypeName, asIScriptGeneric*>);
+				int Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::GENERIC);
+				FunctionFactory::ReleaseFunctor(&Functor);
+
+				return Result;
+			}
+			template <typename T, const char* TypeName>
+			int SetGcConstructorList(const char* Decl)
+			{
+				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetManagedListCall<T, TypeName>);
+				int Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
+				FunctionFactory::ReleaseFunctor(&Functor);
+
+				return Result;
+			}
+			template <typename T, const char* TypeName>
+			int SetGcConstructorListEx(const char* Decl, void(*Value)(asIScriptGeneric*))
+			{
+				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				asSFuncPtr* Functor = Bridge::FunctionGeneric(Value);
+				int Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
+				FunctionFactory::ReleaseFunctor(&Functor);
+
+				return Result;
+			}
 			template <typename F>
 			int SetAddRef()
 			{
@@ -1139,6 +1225,36 @@ namespace Edge
 
 				return Result;
 			}
+			template <typename F>
+			int SetMarkRef()
+			{
+				auto FactoryPtr = &RefClass::GcMarkRef<F>;
+				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
+				int Result = SetBehaviourAddress("void f()", Behaviours::SETGCFLAG, Release, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&Release);
+
+				return Result;
+			}
+			template <typename F>
+			int SetIsMarkedRef()
+			{
+				auto FactoryPtr = &RefClass::GcIsMarkedRef<F>;
+				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
+				int Result = SetBehaviourAddress("bool f()", Behaviours::GETGCFLAG, Release, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&Release);
+
+				return Result;
+			}
+			template <typename F>
+			int SetRefCount()
+			{
+				auto FactoryPtr = &RefClass::GcGetRefCount<F>;
+				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
+				int Result = SetBehaviourAddress("int f()", Behaviours::GETREFCOUNT, Release, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&Release);
+
+				return Result;
+			}
 
 		private:
 			template <typename U>
@@ -1150,6 +1266,21 @@ namespace Edge
 			static void GcRelease(U* Base)
 			{
 				Base->Release();
+			}
+			template <typename U>
+			static void GcMarkRef(U* Base)
+			{
+				Base->MarkRef();
+			}
+			template <typename U>
+			static bool GcIsMarkedRef(U* Base)
+			{
+				return Base->IsMarkedRef();
+			}
+			template <typename U>
+			static int GcGetRefCount(U* Base)
+			{
+				return (int)Base->GetRefCount();
 			}
 		};
 
@@ -1696,12 +1827,19 @@ namespace Edge
 				return SetPropertyAddress(Decl, (void*)Value);
 			}
 			template <typename T>
-			RefClass SetClass(const char* Name)
+			RefClass SetClass(const char* Name, bool GC)
 			{
 				ED_ASSERT(Name != nullptr, RefClass(nullptr, "", -1), "name should be set");
-				RefClass Class = SetClassAddress(Name, (size_t)ObjectBehaviours::REF);
+				RefClass Class = SetClassAddress(Name, GC ? (size_t)ObjectBehaviours::REF | (size_t)ObjectBehaviours::GC : (size_t)ObjectBehaviours::REF);
 				Class.SetAddRef<T>();
 				Class.SetRelease<T>();
+
+				if (GC)
+				{
+					Class.SetMarkRef<T>();
+					Class.SetIsMarkedRef<T>();
+					Class.SetRefCount<T>();
+				}
 
 				return Class;
 			}

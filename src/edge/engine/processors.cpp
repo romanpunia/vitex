@@ -226,31 +226,31 @@ namespace Edge
 				Core::Schema* Data = Core::Var::Set::Object();
 				Data->Key = "material";
 
-				AssetCache* Asset = Content->Find<Graphics::Texture2D>(Object->GetDiffuseMap());
+				AssetCache* Asset = Content->FindCache<Graphics::Texture2D>(Object->GetDiffuseMap());
 				if (Asset != nullptr)
 					Series::Pack(Data->Set("diffuse-map"), Asset->Path);
 
-				Asset = Content->Find<Graphics::Texture2D>(Object->GetNormalMap());
+				Asset = Content->FindCache<Graphics::Texture2D>(Object->GetNormalMap());
 				if (Asset != nullptr)
 					Series::Pack(Data->Set("normal-map"), Asset->Path);
 
-				Asset = Content->Find<Graphics::Texture2D>(Object->GetMetallicMap());
+				Asset = Content->FindCache<Graphics::Texture2D>(Object->GetMetallicMap());
 				if (Asset != nullptr)
 					Series::Pack(Data->Set("metallic-map"), Asset->Path);
 
-				Asset = Content->Find<Graphics::Texture2D>(Object->GetRoughnessMap());
+				Asset = Content->FindCache<Graphics::Texture2D>(Object->GetRoughnessMap());
 				if (Asset != nullptr)
 					Series::Pack(Data->Set("roughness-map"), Asset->Path);
 
-				Asset = Content->Find<Graphics::Texture2D>(Object->GetHeightMap());
+				Asset = Content->FindCache<Graphics::Texture2D>(Object->GetHeightMap());
 				if (Asset != nullptr)
 					Series::Pack(Data->Set("height-map"), Asset->Path);
 
-				Asset = Content->Find<Graphics::Texture2D>(Object->GetOcclusionMap());
+				Asset = Content->FindCache<Graphics::Texture2D>(Object->GetOcclusionMap());
 				if (Asset != nullptr)
 					Series::Pack(Data->Set("occlusion-map"), Asset->Path);
 
-				Asset = Content->Find<Graphics::Texture2D>(Object->GetEmissionMap());
+				Asset = Content->FindCache<Graphics::Texture2D>(Object->GetEmissionMap());
 				if (Asset != nullptr)
 					Series::Pack(Data->Set("emission-map"), Asset->Path);
 
@@ -521,7 +521,7 @@ namespace Edge
 						continue;
 
 					std::string Path;
-					AssetCache* Asset = Content->Find<Engine::Material>(Material);
+					AssetCache* Asset = Content->FindCache<Engine::Material>(Material);
 					if (!Asset)
 						Path.assign("./materials/" + Material->GetName() + "_" + Compute::Codec::HexEncode(Compute::Crypto::RandomBytes(6)));
 					else

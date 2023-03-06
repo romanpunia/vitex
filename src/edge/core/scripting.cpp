@@ -1275,12 +1275,12 @@ namespace Edge
 					if (Right)
 						return "";
 
-					return Core::Form("%s opCast()%s", Out, Const ? " const" : "");
+					return Core::Form("%s opCast(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::ImplCast:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opImplCast()%s", Out, Const ? " const" : "");
+					return Core::Form("%s opImplCast(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				default:
 					return "";
 			}
@@ -2347,7 +2347,7 @@ namespace Edge
 			std::string Trace = Core::OS::GetStackTrace(Skips, MaxFrames).append("\n");
 			ED_ASSERT(Context != nullptr, Trace, "context should be set");
 
-			std::string ThreadId = Bindings::Thread::GetThreadId();
+			std::string ThreadId = Core::OS::Process::GetThreadId(std::this_thread::get_id());
 			std::stringstream Stream;
 			Stream << "vm stack trace (most recent call last)" << (!ThreadId.empty() ? " in thread " : ":\n");
 			if (!ThreadId.empty())
@@ -4056,7 +4056,7 @@ namespace Edge
 			Engine->AddSubmodule("std/console", { "std/format" }, Bindings::Registry::LoadConsole);
 			Engine->AddSubmodule("std/schema", { "std/array", "std/string", "std/map", "std/variant" }, Bindings::Registry::LoadSchema);
 			Engine->AddSubmodule("std/schedule", { "std/ctypes" }, Bindings::Registry::LoadSchedule);
-			Engine->AddSubmodule("std/tick_clock", { }, Bindings::Registry::LoadTickClock);
+			Engine->AddSubmodule("std/clock_timer", { }, Bindings::Registry::LoadClockTimer);
 			Engine->AddSubmodule("std/file_system", { "std/string" }, Bindings::Registry::LoadFileSystem);
 			Engine->AddSubmodule("std/os", { "std/file_system", "std/array" }, Bindings::Registry::LoadOS);
 			Engine->AddSubmodule("std/vertices", { }, Bindings::Registry::LoadVertices);
@@ -4072,10 +4072,13 @@ namespace Edge
 			Engine->AddSubmodule("std/activity", { "std/string", "std/vectors" }, Bindings::Registry::LoadActivity);
 			Engine->AddSubmodule("std/graphics", { "std/activity", "std/string", "std/vectors", "std/vertices", "std/shapes", "std/key_frames" }, Bindings::Registry::LoadGraphics);
 			Engine->AddSubmodule("std/network", { "std/string", "std/array", "std/map" }, Bindings::Registry::LoadNetwork);
-			Engine->AddSubmodule("std/engine", { "std/schema", "std/key_frames", "std/file_system", "std/graphics" }, Bindings::Registry::LoadEngine);
-			Engine->AddSubmodule("std/engine/gui/control", { "std/vectors", "std/schema", "std/array" }, Bindings::Registry::LoadUiControl);
-			Engine->AddSubmodule("std/engine/gui/model", { "std/engine/gui/control", }, Bindings::Registry::LoadUiModel);
-			Engine->AddSubmodule("std/engine/gui/context", { "std/engine/gui/model" }, Bindings::Registry::LoadUiContext);
+			Engine->AddSubmodule("std/vm", { "std/string" }, Bindings::Registry::LoadVM);
+			Engine->AddSubmodule("std/gui/control", { "std/vectors", "std/schema", "std/array" }, Bindings::Registry::LoadUiControl);
+			Engine->AddSubmodule("std/gui/model", { "std/gui/control", }, Bindings::Registry::LoadUiModel);
+			Engine->AddSubmodule("std/gui/context", { "std/gui/model" }, Bindings::Registry::LoadUiContext);
+			Engine->AddSubmodule("std/engine", { "std/schema", "std/key_frames", "std/file_system", "std/graphics", "std/audio", "std/physics", "std/clock_timer", "std/vm", "std/gui/context" }, Bindings::Registry::LoadEngine);
+			Engine->AddSubmodule("std/components", { "std/engine" }, Bindings::Registry::LoadComponents);
+			Engine->AddSubmodule("std/renderers", { "std/engine" }, Bindings::Registry::LoadRenderers);
 			Engine->AddSubmodule("std", { }, nullptr);
 		}
 		size_t VirtualMachine::GetDefaultAccessMask()

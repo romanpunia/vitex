@@ -1,7 +1,6 @@
 #ifndef ED_AUDIO_H
 #define ED_AUDIO_H
 #include "compute.h"
-#define ED_COMPONENT_IS(Source, Name) (Source->GetId() == ED_HASH(Name))
 #define ED_COMPONENT_ROOT(Name) \
 virtual const char* GetName() { return Name; } \
 virtual uint64_t GetId() { static uint64_t V = ED_HASH(Name); return V; } \
@@ -174,7 +173,7 @@ namespace Edge
 			bool CreateLocked(const std::function<bool()>& Callback);
 
 		public:
-			ED_COMPONENT_ROOT("audio-filter");
+			ED_COMPONENT_ROOT("base_audio_filter");
 		};
 
 		class ED_OUT AudioEffect : public Core::Reference<AudioEffect>
@@ -209,7 +208,7 @@ namespace Edge
 			bool Unbind();
 
 		public:
-			ED_COMPONENT_ROOT("audio-effect");
+			ED_COMPONENT_ROOT("base_audio_effect");
 		};
 
 		class ED_OUT AudioClip final : public Core::Reference<AudioClip>
@@ -242,6 +241,7 @@ namespace Edge
 			int64_t AddEffect(AudioEffect* Effect);
 			bool RemoveEffect(size_t EffectId);
 			bool RemoveEffectById(uint64_t EffectId);
+			void RemoveEffects();
 			void SetClip(AudioClip* Clip);
 			void Synchronize(AudioSync* Sync, const Compute::Vector3& Position);
 			void Reset();
@@ -253,7 +253,7 @@ namespace Edge
 			AudioClip* GetClip() const;
 			AudioEffect* GetEffect(uint64_t Section) const;
 			unsigned int GetInstance() const;
-			std::vector<AudioEffect*>* GetEffects();
+			const std::vector<AudioEffect*>& GetEffects() const;
 
 		public:
 			template <typename T>

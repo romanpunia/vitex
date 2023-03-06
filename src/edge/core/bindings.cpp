@@ -1,5 +1,8 @@
 #include "bindings.h"
 #include "network.h"
+#include "../engine/processors.h"
+#include "../engine/components.h"
+#include "../engine/renderers.h"
 #include <new>
 #include <assert.h>
 #include <string.h>
@@ -32,15 +35,30 @@
 #define TYPENAME_JOINT "joint"
 #define TYPENAME_RECTANGLE "rectangle"
 #define TYPENAME_VIEWPORT "viewport"
-#define TYPENAME_MESHBUFFER "mesh_buffer"
-#define TYPENAME_SKINMESHBUFFER "skin_mesh_buffer"
 #define TYPENAME_ANIMATORKEY "animator_key"
+#define TYPENAME_PHYSICSHULLSHAPE "physics_hull_shape"
 #define TYPENAME_FILEENTRY "file_entry"
 #define TYPENAME_REGEXMATCH "regex_match"
 #define TYPENAME_INPUTLAYOUTATTRIBUTE "input_layout_attribute"
 #define TYPENAME_REMOTEHOST "remote_host"
 #define TYPENAME_SOCKETCERTIFICATE "socket_certificate"
+#define TYPENAME_AUDIOCLIP "audio_clip"
+#define TYPENAME_ELEMENTBUFFER "element_buffer"
+#define TYPENAME_MESHBUFFER "mesh_buffer"
+#define TYPENAME_SKINMESHBUFFER "skin_mesh_buffer"
+#define TYPENAME_INSTANCEBUFFER "instance_buffer"
+#define TYPENAME_TEXTURE2D "texture_2d"
+#define TYPENAME_SHADER "shader"
+#define TYPENAME_MODEL "model"
+#define TYPENAME_SKINMODEL "skin_model"
+#define TYPENAME_GRAPHICSDEVICE "graphics_device"
+#define TYPENAME_ASSETFILE "asset_file"
+#define TYPENAME_MATERIAL "material"
+#define TYPENAME_COMPONENT "base_component"
+#define TYPENAME_ENTITY "scene_entity"
+#define TYPENAME_SCENEGRAPH "scene_graph"
 #define TYPENAME_ELEMENTNODE "ui_element"
+#define TYPENAME_HTTPSERVER "http_server"
 
 namespace
 {
@@ -130,11 +148,44 @@ namespace Edge
 	{
 		namespace Bindings
 		{
-			template <typename T, typename V>
-			void PopulateComponent(V& Base)
+			void PointerToHandleCast(void* From, void** To, int TypeId)
 			{
-				Base.SetMethod("uptr@ get_name() const", &T::GetName);
-				Base.SetMethod("uint64 get_id() const", &T::GetId);
+				if (!(TypeId & asTYPEID_OBJHANDLE))
+					return;
+
+				if (!(TypeId & asTYPEID_MASK_OBJECT))
+					return;
+
+				*To = From;
+			}
+			void HandleToHandleCast(void* From, void** To, int TypeId)
+			{
+				if (!(TypeId & asTYPEID_OBJHANDLE))
+					return;
+
+				if (!(TypeId & asTYPEID_MASK_OBJECT))
+					return;
+
+				asIScriptContext* Context = asGetActiveContext();
+				if (!Context)
+					return;
+
+				asIScriptEngine* Engine = Context->GetEngine();
+				if (!Engine)
+					return;
+
+				asITypeInfo* TypeInfo = Engine->GetTypeInfoById(TypeId);
+				Engine->RefCastObject(From, TypeInfo, TypeInfo, To);
+			}
+			void* HandleToPointerCast(void* From, int TypeId)
+			{
+				if (!(TypeId & asTYPEID_OBJHANDLE))
+					return nullptr;
+
+				if (!(TypeId & asTYPEID_MASK_OBJECT))
+					return nullptr;
+
+				return *reinterpret_cast<void**>(From);
 			}
 
 			Core::Mapping<std::unordered_map<uint64_t, std::pair<std::string, int>>>* Names = nullptr;
@@ -491,16 +542,16 @@ namespace Edge
 			double String::FloatStore(const std::string& Value, size_t* ByteCount)
 			{
 				char* End;
-	#if !defined(_WIN32_WCE) && !defined(ANDROID) && !defined(__psp2__)
+#if !defined(_WIN32_WCE) && !defined(ANDROID) && !defined(__psp2__)
 				char* Temp = setlocale(LC_NUMERIC, 0);
 				std::string Base = Temp ? Temp : "C";
 				setlocale(LC_NUMERIC, "C");
-	#endif
+#endif
 
 				double res = strtod(Value.c_str(), &End);
-	#if !defined(_WIN32_WCE) && !defined(ANDROID) && !defined(__psp2__)
+#if !defined(_WIN32_WCE) && !defined(ANDROID) && !defined(__psp2__)
 				setlocale(LC_NUMERIC, Base.c_str());
-	#endif
+#endif
 				if (ByteCount)
 					*ByteCount = size_t(size_t(End - Value.c_str()));
 
@@ -614,48 +665,6 @@ namespace Edge
 			char String::ToChar(const std::string& Symbol)
 			{
 				return Symbol.empty() ? '\0' : Symbol[0];
-			}
-
-			Mutex::Mutex() noexcept : Ref(1)
-			{
-			}
-			void Mutex::Release()
-			{
-				if (asAtomicDec(Ref) <= 0)
-				{
-					this->~Mutex();
-					asFreeMem((void*)this);
-				}
-			}
-			void Mutex::AddRef()
-			{
-				asAtomicInc(Ref);
-			}
-			bool Mutex::TryLock()
-			{
-				return Base.try_lock();
-			}
-			void Mutex::Lock()
-			{
-				Base.lock();
-			}
-			void Mutex::Unlock()
-			{
-				Base.unlock();
-			}
-			Mutex* Mutex::Factory()
-			{
-				void* Data = asAllocMem(sizeof(Mutex));
-				if (!Data)
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context != nullptr)
-						Context->SetException("Out of memory");
-
-					return nullptr;
-				}
-
-				return new(Data) Mutex();
 			}
 
 			float Math::FpFromIEEE(uint32_t Raw)
@@ -1481,7 +1490,7 @@ namespace Edge
 				{
 					switch (SubTypeId)
 					{
-	#define COMPARE(T) *((T*)A) < *((T*)B)
+#define COMPARE(T) *((T*)A) < *((T*)B)
 						case asTYPEID_BOOL: return COMPARE(bool);
 						case asTYPEID_INT8: return COMPARE(signed char);
 						case asTYPEID_UINT8: return COMPARE(unsigned char);
@@ -1492,7 +1501,7 @@ namespace Edge
 						case asTYPEID_FLOAT: return COMPARE(float);
 						case asTYPEID_DOUBLE: return COMPARE(double);
 						default: return COMPARE(signed int);
-	#undef COMPARE
+#undef COMPARE
 					}
 				}
 				else
@@ -1599,7 +1608,7 @@ namespace Edge
 				{
 					switch (SubTypeId)
 					{
-	#define COMPARE(T) *((T*)A) == *((T*)B)
+#define COMPARE(T) *((T*)A) == *((T*)B)
 						case asTYPEID_BOOL: return COMPARE(bool);
 						case asTYPEID_INT8: return COMPARE(signed char);
 						case asTYPEID_UINT8: return COMPARE(unsigned char);
@@ -1610,7 +1619,7 @@ namespace Edge
 						case asTYPEID_FLOAT: return COMPARE(float);
 						case asTYPEID_DOUBLE: return COMPARE(double);
 						default: return COMPARE(signed int);
-	#undef COMPARE
+#undef COMPARE
 					}
 				}
 				else
@@ -2986,6 +2995,1106 @@ namespace Edge
 				return Value;
 			}
 
+			Ref::Ref() noexcept : Type(0), Pointer(nullptr)
+			{
+			}
+			Ref::Ref(const Ref& Other) noexcept : Type(Other.Type), Pointer(Other.Pointer)
+			{
+				AddRefHandle();
+			}
+			Ref::Ref(void* RefPtr, asITypeInfo* _Type) noexcept : Type(_Type), Pointer(RefPtr)
+			{
+				AddRefHandle();
+			}
+			Ref::Ref(void* RefPtr, int TypeId) noexcept : Type(0), Pointer(nullptr)
+			{
+				Assign(RefPtr, TypeId);
+			}
+			Ref::~Ref() noexcept
+			{
+				ReleaseHandle();
+			}
+			void Ref::ReleaseHandle()
+			{
+				if (Pointer && Type)
+				{
+					asIScriptEngine* Engine = Type->GetEngine();
+					Engine->ReleaseScriptObject(Pointer, Type);
+					Engine->Release();
+					Pointer = nullptr;
+					Type = 0;
+				}
+			}
+			void Ref::AddRefHandle()
+			{
+				if (Pointer && Type)
+				{
+					asIScriptEngine* Engine = Type->GetEngine();
+					Engine->AddRefScriptObject(Pointer, Type);
+					Engine->AddRef();
+				}
+			}
+			Ref& Ref::operator =(const Ref& Other) noexcept
+			{
+				Set(Other.Pointer, Other.Type);
+				return *this;
+			}
+			void Ref::Set(void* RefPtr, asITypeInfo* _Type)
+			{
+				if (Pointer == RefPtr)
+					return;
+
+				ReleaseHandle();
+				Pointer = RefPtr;
+				Type = _Type;
+				AddRefHandle();
+			}
+			void* Ref::GetRef()
+			{
+				return Pointer;
+			}
+			asITypeInfo* Ref::GetType() const
+			{
+				return Type;
+			}
+			int Ref::GetTypeId() const
+			{
+				if (Type == 0) return 0;
+
+				return Type->GetTypeId() | asTYPEID_OBJHANDLE;
+			}
+			Ref& Ref::Assign(void* RefPtr, int TypeId)
+			{
+				if (TypeId == 0)
+				{
+					Set(0, 0);
+					return *this;
+				}
+
+				if (TypeId & asTYPEID_OBJHANDLE)
+				{
+					RefPtr = *(void**)RefPtr;
+					TypeId &= ~asTYPEID_OBJHANDLE;
+				}
+
+				asIScriptContext* Context = asGetActiveContext();
+				asIScriptEngine* Engine = Context->GetEngine();
+				asITypeInfo* Info = Engine->GetTypeInfoById(TypeId);
+
+				if (Info && strcmp(Info->GetName(), TYPENAME_REF) == 0)
+				{
+					Ref* Result = (Ref*)RefPtr;
+					RefPtr = Result->Pointer;
+					Info = Result->Type;
+				}
+
+				Set(RefPtr, Info);
+				return *this;
+			}
+			bool Ref::operator==(const Ref& Other) const
+			{
+				if (Pointer == Other.Pointer && Type == Other.Type)
+					return true;
+
+				return false;
+			}
+			bool Ref::operator!=(const Ref& Other) const
+			{
+				return !(*this == Other);
+			}
+			bool Ref::Equals(void* RefPtr, int TypeId) const
+			{
+				if (TypeId == 0)
+					RefPtr = 0;
+
+				if (TypeId & asTYPEID_OBJHANDLE)
+				{
+					void** Sub = (void**)RefPtr;
+					if (!Sub)
+						return false;
+
+					RefPtr = *Sub;
+					TypeId &= ~asTYPEID_OBJHANDLE;
+				}
+
+				if (RefPtr == Pointer)
+					return true;
+
+				return false;
+			}
+			void Ref::Cast(void** OutRef, int TypeId)
+			{
+				if (Type == 0)
+				{
+					*OutRef = 0;
+					return;
+				}
+
+				ED_ASSERT_V(TypeId & asTYPEID_OBJHANDLE, "type should be object handle");
+				TypeId &= ~asTYPEID_OBJHANDLE;
+
+				asIScriptEngine* Engine = Type->GetEngine();
+				asITypeInfo* Info = Engine->GetTypeInfoById(TypeId);
+				*OutRef = 0;
+
+				Engine->RefCastObject(Pointer, Type, Info, OutRef);
+			}
+			void Ref::EnumReferences(asIScriptEngine* _Engine)
+			{
+				if (Pointer)
+					_Engine->GCEnumCallback(Pointer);
+
+				if (Type)
+					_Engine->GCEnumCallback(Type);
+			}
+			void Ref::ReleaseReferences(asIScriptEngine* _Engine)
+			{
+				Set(0, 0);
+			}
+			void Ref::Construct(Ref* Base)
+			{
+				new(Base) Ref();
+			}
+			void Ref::Construct(Ref* Base, const Ref& Other)
+			{
+				new(Base) Ref(Other);
+			}
+			void Ref::Construct(Ref* Base, void* RefPtr, int TypeId)
+			{
+				new(Base) Ref(RefPtr, TypeId);
+			}
+			void Ref::Destruct(Ref* Base)
+			{
+				Base->~Ref();
+			}
+
+			WeakRef::WeakRef(asITypeInfo* _Type) noexcept
+			{
+				Ref = 0;
+				Type = _Type;
+				Type->AddRef();
+				WeakRefFlag = 0;
+			}
+			WeakRef::WeakRef(const WeakRef& Other) noexcept
+			{
+				Ref = Other.Ref;
+				Type = Other.Type;
+				Type->AddRef();
+				WeakRefFlag = Other.WeakRefFlag;
+				if (WeakRefFlag)
+					WeakRefFlag->AddRef();
+			}
+			WeakRef::WeakRef(void* RefPtr, asITypeInfo* _Type) noexcept
+			{
+				if (!_Type || !(strcmp(_Type->GetName(), TYPENAME_WEAKREF) == 0 || strcmp(_Type->GetName(), TYPENAME_CONSTWEAKREF) == 0))
+					return;
+
+				Ref = RefPtr;
+				Type = _Type;
+				Type->AddRef();
+
+				WeakRefFlag = Type->GetEngine()->GetWeakRefFlagOfScriptObject(Ref, Type->GetSubType());
+				if (WeakRefFlag)
+					WeakRefFlag->AddRef();
+			}
+			WeakRef::~WeakRef() noexcept
+			{
+				if (Type)
+					Type->Release();
+
+				if (WeakRefFlag)
+					WeakRefFlag->Release();
+			}
+			WeakRef& WeakRef::operator =(const WeakRef& Other) noexcept
+			{
+				if (Ref == Other.Ref && WeakRefFlag == Other.WeakRefFlag)
+					return *this;
+
+				if (Type != Other.Type)
+				{
+					if (!(strcmp(Type->GetName(), TYPENAME_CONSTWEAKREF) == 0 && strcmp(Other.Type->GetName(), TYPENAME_WEAKREF) == 0 && Type->GetSubType() == Other.Type->GetSubType()))
+						return *this;
+				}
+
+				Ref = Other.Ref;
+				if (WeakRefFlag)
+					WeakRefFlag->Release();
+
+				WeakRefFlag = Other.WeakRefFlag;
+				if (WeakRefFlag)
+					WeakRefFlag->AddRef();
+
+				return *this;
+			}
+			WeakRef& WeakRef::Set(void* newRef)
+			{
+				if (WeakRefFlag)
+					WeakRefFlag->Release();
+
+				Ref = newRef;
+				if (newRef)
+				{
+					WeakRefFlag = Type->GetEngine()->GetWeakRefFlagOfScriptObject(newRef, Type->GetSubType());
+					WeakRefFlag->AddRef();
+				}
+				else
+					WeakRefFlag = 0;
+
+				Type->GetEngine()->ReleaseScriptObject(newRef, Type->GetSubType());
+				return *this;
+			}
+			asITypeInfo* WeakRef::GetRefType() const
+			{
+				return Type->GetSubType();
+			}
+			bool WeakRef::operator==(const WeakRef& Other) const
+			{
+				if (Ref == Other.Ref &&
+					WeakRefFlag == Other.WeakRefFlag &&
+					Type == Other.Type)
+					return true;
+
+				return false;
+			}
+			bool WeakRef::operator!=(const WeakRef& Other) const
+			{
+				return !(*this == Other);
+			}
+			void* WeakRef::Get() const
+			{
+				if (Ref == 0 || WeakRefFlag == 0)
+					return 0;
+
+				WeakRefFlag->Lock();
+				if (!WeakRefFlag->Get())
+				{
+					Type->GetEngine()->AddRefScriptObject(Ref, Type->GetSubType());
+					WeakRefFlag->Unlock();
+					return Ref;
+				}
+				WeakRefFlag->Unlock();
+
+				return 0;
+			}
+			bool WeakRef::Equals(void* RefPtr) const
+			{
+				if (Ref != RefPtr)
+					return false;
+
+				asILockableSharedBool* flag = Type->GetEngine()->GetWeakRefFlagOfScriptObject(RefPtr, Type->GetSubType());
+				if (WeakRefFlag != flag)
+					return false;
+
+				return true;
+			}
+			void WeakRef::Construct(asITypeInfo* Type, void* Memory)
+			{
+				new(Memory) WeakRef(Type);
+			}
+			void WeakRef::Construct2(asITypeInfo* Type, void* RefPtr, void* Memory)
+			{
+				new(Memory) WeakRef(RefPtr, Type);
+				asIScriptContext* Context = asGetActiveContext();
+				if (Context && Context->GetState() == asEXECUTION_EXCEPTION)
+					reinterpret_cast<WeakRef*>(Memory)->~WeakRef();
+			}
+			void WeakRef::Destruct(WeakRef* Obj)
+			{
+				Obj->~WeakRef();
+			}
+			bool WeakRef::TemplateCallback(asITypeInfo* Info, bool&)
+			{
+				asITypeInfo* SubType = Info->GetSubType();
+				if (SubType == 0)
+					return false;
+
+				if (!(SubType->GetFlags() & asOBJ_REF))
+					return false;
+
+				if (Info->GetSubTypeId() & asTYPEID_OBJHANDLE)
+					return false;
+
+				size_t cnt = SubType->GetBehaviourCount();
+				for (size_t n = 0; n < cnt; n++)
+				{
+					asEBehaviours Beh;
+					SubType->GetBehaviourByIndex((int)n, &Beh);
+					if (Beh == asBEHAVE_GET_WEAKREF_FLAG)
+						return true;
+				}
+
+				Info->GetEngine()->WriteMessage(TYPENAME_WEAKREF, 0, 0, asMSGTYPE_ERROR, "The subtype doesn't support weak references");
+				return false;
+			}
+
+			std::string Random::Getb(uint64_t Size)
+			{
+				return Compute::Codec::HexEncode(Compute::Crypto::RandomBytes((size_t)Size)).substr(0, (size_t)Size);
+			}
+			double Random::Betweend(double Min, double Max)
+			{
+				return Compute::Mathd::Random(Min, Max);
+			}
+			double Random::Magd()
+			{
+				return Compute::Mathd::RandomMag();
+			}
+			double Random::Getd()
+			{
+				return Compute::Mathd::Random();
+			}
+			float Random::Betweenf(float Min, float Max)
+			{
+				return Compute::Mathf::Random(Min, Max);
+			}
+			float Random::Magf()
+			{
+				return Compute::Mathf::RandomMag();
+			}
+			float Random::Getf()
+			{
+				return Compute::Mathf::Random();
+			}
+			uint64_t Random::Betweeni(uint64_t Min, uint64_t Max)
+			{
+				return Compute::Math<uint64_t>::Random(Min, Max);
+			}
+
+			Promise::Promise(asIScriptContext* _Base, bool IsRef) noexcept : Context(ImmediateContext::Get(_Base)), Future(nullptr), Ref(1), Pending(false), Flag(false)
+			{
+				if (!Context)
+					return;
+
+				Context->AddRef();
+				Engine = Context->GetVM()->GetEngine();
+				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(IsRef ? "ref_promise" : "promise"));
+			}
+			void Promise::Release()
+			{
+				Flag = false;
+				if (asAtomicDec(Ref) <= 0)
+				{
+					ReleaseReferences(nullptr);
+					this->~Promise();
+					asFreeMem((void*)this);
+				}
+			}
+			void Promise::AddRef()
+			{
+				Flag = false;
+				asAtomicInc(Ref);
+			}
+			void Promise::EnumReferences(asIScriptEngine* Engine)
+			{
+				if (Future != nullptr)
+					Engine->GCEnumCallback(Future);
+			}
+			void Promise::ReleaseReferences(asIScriptEngine*)
+			{
+				if (Future != nullptr)
+				{
+					Future->Release();
+					Future = nullptr;
+				}
+
+				if (Context != nullptr)
+				{
+					Context->Release();
+					Context = nullptr;
+				}
+			}
+			void Promise::SetGCFlag()
+			{
+				Flag = true;
+			}
+			bool Promise::GetGCFlag()
+			{
+				return Flag;
+			}
+			int Promise::GetRefCount()
+			{
+				return Ref;
+			}
+			int Promise::Notify()
+			{
+				Update.lock();
+				if (Context->GetState() == Activation::ACTIVE)
+				{
+					Update.unlock();
+					return Core::Schedule::Get()->SetTask(std::bind(&Promise::Notify, this), Core::Difficulty::Light);
+				}
+
+				Update.unlock();
+				Context->Execute();
+				Release();
+
+				return 0;
+			}
+			int Promise::Set(void* _Ref, int TypeId)
+			{
+				Update.lock();
+				if (Future != nullptr)
+					Future->Release();
+
+				Future = new(asAllocMem(sizeof(Any))) Any(_Ref, TypeId, Engine);
+				if (TypeId & asTYPEID_OBJHANDLE)
+					Engine->ReleaseScriptObject(*(void**)_Ref, Engine->GetTypeInfoById(TypeId));
+
+				if (!Pending)
+				{
+					Update.unlock();
+					return 0;
+				}
+
+				Pending = false;
+				if (Context->GetUserData(PromiseUD) == (void*)this)
+					Context->SetUserData(nullptr, PromiseUD);
+
+				if (Context->GetState() == Activation::ACTIVE)
+				{
+					Update.unlock();
+					return Core::Schedule::Get()->SetTask(std::bind(&Promise::Notify, this), Core::Difficulty::Light);
+				}
+
+				Update.unlock();
+				Context->Execute();
+				Release();
+
+				return 0;
+			}
+			int Promise::Set(void* _Ref, const char* TypeName)
+			{
+				return Set(_Ref, Engine->GetTypeIdByDecl(TypeName));
+			}
+			bool Promise::To(void* _Ref, int TypeId)
+			{
+				if (!Future)
+					return false;
+
+				return Future->Retrieve(_Ref, TypeId);
+			}
+			void* Promise::GetHandle()
+			{
+				if (!Future)
+					return nullptr;
+
+				int TypeId = Future->GetTypeId();
+				if (TypeId & asTYPEID_OBJHANDLE)
+					return Future->Value.ValueObj;
+
+				Context->SetException("object cannot be safely retrieved by reference type promise");
+				return nullptr;
+			}
+			void* Promise::GetValue()
+			{
+				if (!Future)
+					return nullptr;
+
+				int TypeId = Future->GetTypeId();
+				if (TypeId & asTYPEID_MASK_OBJECT)
+					return Future->Value.ValueObj;
+				else if (TypeId <= asTYPEID_DOUBLE || TypeId & asTYPEID_MASK_SEQNBR)
+					return &Future->Value.ValueInt;
+
+				if (TypeId & asTYPEID_OBJHANDLE)
+					Context->SetException("object cannot be safely retrieved by value type promise");
+				else
+					Context->SetException("retrieve this object explicitly");
+
+				return nullptr;
+			}
+			Promise* Promise::Create()
+			{
+				return new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext(), false);
+			}
+			Promise* Promise::CreateRef()
+			{
+				return new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext(), true);
+			}
+			Promise* Promise::JumpIf(Promise* Base)
+			{
+				Base->Update.lock();
+				if (!Base->Future && Base->Context != nullptr)
+				{
+					Base->AddRef();
+					Base->Pending = true;
+					Base->Context->SetUserData(Base, PromiseUD);
+					Base->Context->Suspend();
+				}
+				Base->Update.unlock();
+				return Base;
+			}
+			std::string Promise::GetStatus(ImmediateContext* Context)
+			{
+				ED_ASSERT(Context != nullptr, std::string(), "context should be set");
+
+				std::string Result;
+				switch (Context->GetState())
+				{
+					case Activation::FINISHED:
+						Result = "FIN";
+						break;
+					case Activation::SUSPENDED:
+						Result = "SUSP";
+						break;
+					case Activation::ABORTED:
+						Result = "ABRT";
+						break;
+					case Activation::EXCEPTION:
+						Result = "EXCE";
+						break;
+					case Activation::PREPARED:
+						Result = "PREP";
+						break;
+					case Activation::ACTIVE:
+						Result = "ACTV";
+						break;
+					case Activation::ERR:
+						Result = "ERR";
+						break;
+					default:
+						Result = "INIT";
+						break;
+				}
+
+				Promise* Base = (Promise*)Context->GetUserData(PromiseUD);
+				if (Base != nullptr)
+				{
+					const char* Format = " in pending promise on 0x%" PRIXPTR " %s";
+					if (Base->Future != nullptr)
+						Result += Core::Form(Format, (uintptr_t)Base, "that was fulfilled").R();
+					else
+						Result += Core::Form(Format, (uintptr_t)Base, "that was not fulfilled").R();
+				}
+
+				return Result;
+			}
+			int Promise::PromiseUD = 559;
+
+			Core::Decimal DecimalNegate(Core::Decimal& Base)
+			{
+				return -Base;
+			}
+			Core::Decimal& DecimalMulEq(Core::Decimal& Base, const Core::Decimal& V)
+			{
+				Base *= V;
+				return Base;
+			}
+			Core::Decimal& DecimalDivEq(Core::Decimal& Base, const Core::Decimal& V)
+			{
+				Base /= V;
+				return Base;
+			}
+			Core::Decimal& DecimalAddEq(Core::Decimal& Base, const Core::Decimal& V)
+			{
+				Base += V;
+				return Base;
+			}
+			Core::Decimal& DecimalSubEq(Core::Decimal& Base, const Core::Decimal& V)
+			{
+				Base -= V;
+				return Base;
+			}
+			Core::Decimal& DecimalPP(Core::Decimal& Base)
+			{
+				Base++;
+				return Base;
+			}
+			Core::Decimal& DecimalMM(Core::Decimal& Base)
+			{
+				Base--;
+				return Base;
+			}
+			bool DecimalEq(Core::Decimal& Base, const Core::Decimal& Right)
+			{
+				return Base == Right;
+			}
+			int DecimalCmp(Core::Decimal& Base, const Core::Decimal& Right)
+			{
+				if (Base == Right)
+					return 0;
+
+				return Base > Right ? 1 : -1;
+			}
+			Core::Decimal DecimalAdd(const Core::Decimal& Left, const Core::Decimal& Right)
+			{
+				return Left + Right;
+			}
+			Core::Decimal DecimalSub(const Core::Decimal& Left, const Core::Decimal& Right)
+			{
+				return Left - Right;
+			}
+			Core::Decimal DecimalMul(const Core::Decimal& Left, const Core::Decimal& Right)
+			{
+				return Left * Right;
+			}
+			Core::Decimal DecimalDiv(const Core::Decimal& Left, const Core::Decimal& Right)
+			{
+				return Left / Right;
+			}
+			Core::Decimal DecimalPer(const Core::Decimal& Left, const Core::Decimal& Right)
+			{
+				return Left % Right;
+			}
+
+			Core::DateTime& DateTimeAddEq(Core::DateTime& Base, const Core::DateTime& V)
+			{
+				Base += V;
+				return Base;
+			}
+			Core::DateTime& DateTimeSubEq(Core::DateTime& Base, const Core::DateTime& V)
+			{
+				Base -= V;
+				return Base;
+			}
+			Core::DateTime& DateTimeSet(Core::DateTime& Base, const Core::DateTime& V)
+			{
+				Base = V;
+				return Base;
+			}
+			bool DateTimeEq(Core::DateTime& Base, const Core::DateTime& Right)
+			{
+				return Base == Right;
+			}
+			int DateTimeCmp(Core::DateTime& Base, const Core::DateTime& Right)
+			{
+				if (Base == Right)
+					return 0;
+
+				return Base > Right ? 1 : -1;
+			}
+			Core::DateTime DateTimeAdd(const Core::DateTime& Left, const Core::DateTime& Right)
+			{
+				return Left + Right;
+			}
+			Core::DateTime DateTimeSub(const Core::DateTime& Left, const Core::DateTime& Right)
+			{
+				return Left - Right;
+			}
+
+			size_t VariantGetSize(Core::Variant& Base)
+			{
+				return Base.GetSize();
+			}
+			bool VariantEquals(Core::Variant& Base, const Core::Variant& Other)
+			{
+				return Base == Other;
+			}
+			bool VariantImplCast(Core::Variant& Base)
+			{
+				return Base;
+			}
+
+			void SchemaNotifyAllReferences(Core::Schema* Base, asIScriptEngine* Engine, asITypeInfo* Type)
+			{
+				Engine->NotifyGarbageCollectorOfNewObject(Base, Type);
+				for (auto* Item : Base->GetChilds())
+					SchemaNotifyAllReferences(Item, Engine, Type);
+			}
+			Core::Schema* SchemaInit(Core::Schema* Base)
+			{
+				return Base;
+			}
+			Core::Schema* SchemaConstructBuffer(unsigned char* Buffer)
+			{
+				if (!Buffer)
+					return nullptr;
+
+				Core::Schema* Result = Core::Var::Set::Object();
+				asIScriptContext* Context = asGetActiveContext();
+				asIScriptEngine* VM = Context->GetEngine();
+				asUINT Length = *(asUINT*)Buffer;
+				Buffer += 4;
+
+				while (Length--)
+				{
+					if (asPWORD(Buffer) & 0x3)
+						Buffer += 4 - (asPWORD(Buffer) & 0x3);
+
+					std::string Name = *(std::string*)Buffer;
+					Buffer += sizeof(std::string);
+
+					int TypeId = *(int*)Buffer;
+					Buffer += sizeof(int);
+
+					void* Ref = (void*)Buffer;
+					if (TypeId >= asTYPEID_BOOL && TypeId <= asTYPEID_DOUBLE)
+					{
+						switch (TypeId)
+						{
+							case asTYPEID_BOOL:
+								Result->Set(Name, Core::Var::Boolean(*(bool*)Ref));
+								break;
+							case asTYPEID_INT8:
+								Result->Set(Name, Core::Var::Integer(*(char*)Ref));
+								break;
+							case asTYPEID_INT16:
+								Result->Set(Name, Core::Var::Integer(*(short*)Ref));
+								break;
+							case asTYPEID_INT32:
+								Result->Set(Name, Core::Var::Integer(*(int*)Ref));
+								break;
+							case asTYPEID_UINT8:
+								Result->Set(Name, Core::Var::Integer(*(unsigned char*)Ref));
+								break;
+							case asTYPEID_UINT16:
+								Result->Set(Name, Core::Var::Integer(*(unsigned short*)Ref));
+								break;
+							case asTYPEID_UINT32:
+								Result->Set(Name, Core::Var::Integer(*(unsigned int*)Ref));
+								break;
+							case asTYPEID_INT64:
+							case asTYPEID_UINT64:
+								Result->Set(Name, Core::Var::Integer(*(asINT64*)Ref));
+								break;
+							case asTYPEID_FLOAT:
+								Result->Set(Name, Core::Var::Number(*(float*)Ref));
+								break;
+							case asTYPEID_DOUBLE:
+								Result->Set(Name, Core::Var::Number(*(double*)Ref));
+								break;
+						}
+					}
+					else
+					{
+						asITypeInfo* Type = VM->GetTypeInfoById(TypeId);
+						if ((TypeId & asTYPEID_MASK_OBJECT) && !(TypeId & asTYPEID_OBJHANDLE) && (Type && Type->GetFlags() & asOBJ_REF))
+							Ref = *(void**)Ref;
+
+						if (TypeId & asTYPEID_OBJHANDLE)
+							Ref = *(void**)Ref;
+
+						if (VirtualMachine::Get(VM)->IsNullable(TypeId) || !Ref)
+						{
+							Result->Set(Name, Core::Var::Null());
+						}
+						else if (Type && !strcmp(TYPENAME_SCHEMA, Type->GetName()))
+						{
+							Core::Schema* Base = (Core::Schema*)Ref;
+							if (Base->GetParent() != Result)
+								Base->AddRef();
+
+							Result->Set(Name, Base);
+						}
+						else if (Type && !strcmp(TYPENAME_STRING, Type->GetName()))
+							Result->Set(Name, Core::Var::String(*(std::string*)Ref));
+						else if (Type && !strcmp(TYPENAME_DECIMAL, Type->GetName()))
+							Result->Set(Name, Core::Var::Decimal(*(Core::Decimal*)Ref));
+					}
+
+					if (TypeId & asTYPEID_MASK_OBJECT)
+					{
+						asITypeInfo* ti = VM->GetTypeInfoById(TypeId);
+						if (ti->GetFlags() & asOBJ_VALUE)
+							Buffer += ti->GetSize();
+						else
+							Buffer += sizeof(void*);
+					}
+					else if (TypeId == 0)
+					{
+						ED_WARN("[memerr] use nullptr instead of null for initialization lists");
+						Buffer += sizeof(void*);
+					}
+					else
+						Buffer += VM->GetSizeOfPrimitiveType(TypeId);
+				}
+
+				return Result;
+			}
+			void SchemaConstruct(asIScriptGeneric* Generic)
+			{
+				asIScriptEngine* Engine = Generic->GetEngine();
+				unsigned char* Buffer = (unsigned char*)Generic->GetArgAddress(0);
+				Core::Schema* New = SchemaConstructBuffer(Buffer);
+				SchemaNotifyAllReferences(New, Engine, Engine->GetTypeInfoByName(TYPENAME_SCHEMA));
+				*(Core::Schema**)Generic->GetAddressOfReturnLocation() = New;
+			}
+			Core::Schema* SchemaGetIndex(Core::Schema* Base, const std::string& Name)
+			{
+				Core::Schema* Result = Base->Fetch(Name);
+				if (Result != nullptr)
+					return Result;
+
+				return Base->Set(Name, Core::Var::Undefined());
+			}
+			Core::Schema* SchemaGetIndexOffset(Core::Schema* Base, size_t Offset)
+			{
+				return Base->Get(Offset);
+			}
+			Core::Schema* SchemaSet(Core::Schema* Base, const std::string& Name, Core::Schema* Value)
+			{
+				if (Value != nullptr && Value->GetParent() != Base)
+					Value->AddRef();
+
+				return Base->Set(Name, Value);
+			}
+			Core::Schema* SchemaPush(Core::Schema* Base, Core::Schema* Value)
+			{
+				if (Value != nullptr)
+					Value->AddRef();
+
+				return Base->Push(Value);
+			}
+			Core::Schema* SchemaFirst(Core::Schema* Base)
+			{
+				auto& Childs = Base->GetChilds();
+				return Childs.empty() ? nullptr : Childs.front();
+			}
+			Core::Schema* SchemaLast(Core::Schema* Base)
+			{
+				auto& Childs = Base->GetChilds();
+				return Childs.empty() ? nullptr : Childs.back();
+			}
+			Core::Variant SchemaFirstVar(Core::Schema* Base)
+			{
+				auto& Childs = Base->GetChilds();
+				return Childs.empty() ? Core::Var::Undefined() : Childs.front()->Value;
+			}
+			Core::Variant SchemaLastVar(Core::Schema* Base)
+			{
+				auto& Childs = Base->GetChilds();
+				return Childs.empty() ? Core::Var::Undefined() : Childs.back()->Value;
+			}
+			Array* SchemaGetCollection(Core::Schema* Base, const std::string& Name, bool Deep)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+					return nullptr;
+
+				VirtualMachine* VM = Context->GetVM();
+				if (!VM)
+					return nullptr;
+
+				std::vector<Core::Schema*> Nodes = Base->FetchCollection(Name, Deep);
+				for (auto& Node : Nodes)
+					Node->AddRef();
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_SCHEMA "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Nodes);
+			}
+			Array* SchemaGetChilds(Core::Schema* Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+					return nullptr;
+
+				VirtualMachine* VM = Context->GetVM();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_SCHEMA "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Base->GetChilds());
+			}
+			Array* SchemaGetAttributes(Core::Schema* Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+					return nullptr;
+
+				VirtualMachine* VM = Context->GetVM();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_SCHEMA "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Base->GetAttributes());
+			}
+			Map* SchemaGetNames(Core::Schema* Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+					return nullptr;
+
+				VirtualMachine* VM = Context->GetVM();
+				if (!VM)
+					return nullptr;
+
+				std::unordered_map<std::string, size_t> Mapping = Base->GetNames();
+				Map* Map = Map::Create(VM->GetEngine());
+
+				for (auto& Item : Mapping)
+				{
+					int64_t Index = (int64_t)Item.second;
+					Map->Set(Item.first, &Index, (int)TypeId::INT64);
+				}
+
+				return Map;
+			}
+			size_t SchemaGetSize(Core::Schema* Base)
+			{
+				return Base->Size();
+			}
+			std::string SchemaToJSON(Core::Schema* Base)
+			{
+				std::string Stream;
+				Core::Schema::ConvertToJSON(Base, [&Stream](Core::VarForm, const char* Buffer, size_t Length)
+				{
+					if (Buffer != nullptr && Length > 0)
+						Stream.append(Buffer, Length);
+				});
+
+				return Stream;
+			}
+			std::string SchemaToXML(Core::Schema* Base)
+			{
+				std::string Stream;
+				Core::Schema::ConvertToXML(Base, [&Stream](Core::VarForm, const char* Buffer, size_t Length)
+				{
+					if (Buffer != nullptr && Length > 0)
+						Stream.append(Buffer, Length);
+				});
+
+				return Stream;
+			}
+			std::string SchemaToString(Core::Schema* Base)
+			{
+				switch (Base->Value.GetType())
+				{
+					case Core::VarType::Null:
+					case Core::VarType::Undefined:
+					case Core::VarType::Object:
+					case Core::VarType::Array:
+					case Core::VarType::Pointer:
+						break;
+					case Core::VarType::String:
+					case Core::VarType::Binary:
+						return Base->Value.GetBlob();
+					case Core::VarType::Integer:
+						return std::to_string(Base->Value.GetInteger());
+					case Core::VarType::Number:
+						return std::to_string(Base->Value.GetNumber());
+					case Core::VarType::Decimal:
+						return Base->Value.GetDecimal().ToString();
+					case Core::VarType::Boolean:
+						return Base->Value.GetBoolean() ? "1" : "0";
+				}
+
+				return "";
+			}
+			std::string SchemaToBinary(Core::Schema* Base)
+			{
+				return Base->Value.GetBlob();
+			}
+			int64_t SchemaToInteger(Core::Schema* Base)
+			{
+				return Base->Value.GetInteger();
+			}
+			double SchemaToNumber(Core::Schema* Base)
+			{
+				return Base->Value.GetNumber();
+			}
+			Core::Decimal SchemaToDecimal(Core::Schema* Base)
+			{
+				return Base->Value.GetDecimal();
+			}
+			bool SchemaToBoolean(Core::Schema* Base)
+			{
+				return Base->Value.GetBoolean();
+			}
+			Core::Schema* SchemaFromJSON(const std::string& Value)
+			{
+				return Core::Schema::ConvertFromJSON(Value.c_str(), Value.size());
+			}
+			Core::Schema* SchemaFromXML(const std::string& Value)
+			{
+				return Core::Schema::ConvertFromXML(Value.c_str());
+			}
+			Core::Schema* SchemaImport(const std::string& Value)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				return VM->ImportJSON(Value);
+			}
+			Core::Schema* SchemaCopyAssign(Core::Schema* Base, const Core::Variant& Other)
+			{
+				Base->Value = Other;
+				return Base;
+			}
+			bool SchemaEquals(Core::Schema* Base, Core::Schema* Other)
+			{
+				if (Other != nullptr)
+					return Base->Value == Other->Value;
+
+				Core::VarType Type = Base->Value.GetType();
+				return (Type == Core::VarType::Null || Type == Core::VarType::Undefined);
+			}
+			void SchemaEnumRefs(Core::Schema* Base, asIScriptEngine* Engine)
+			{
+				Engine->GCEnumCallback(Base->GetParent());
+				for (auto* Item : Base->GetChilds())
+				{
+					Engine->GCEnumCallback(Item);
+					SchemaEnumRefs(Item, Engine);
+				}
+			}
+#ifdef ED_HAS_BINDINGS
+			template <typename T>
+			std::string GetComponentName(T* Base)
+			{
+				return Base->GetName();
+			}
+			template <typename T>
+			void PopulateComponent(RefClass& Class)
+			{
+				Class.SetMethodEx("string get_name() const", &GetComponentName<T>);
+				Class.SetMethod("uint64 get_id() const", &T::GetId);
+			}
+			Core::VariantArgs ToVariantKeys(Core::Schema* Args)
+			{
+				Core::VariantArgs Keys;
+				if (!Args || Args->IsEmpty())
+					return Keys;
+
+				Keys.reserve(Args->Size());
+				for (auto* Item : Args->GetChilds())
+					Keys[Item->Key] = Item->Value;
+
+				return Keys;
+			}
+
+			Mutex::Mutex() noexcept : Ref(1)
+			{
+			}
+			void Mutex::Release()
+			{
+				if (asAtomicDec(Ref) <= 0)
+				{
+					this->~Mutex();
+					asFreeMem((void*)this);
+				}
+			}
+			void Mutex::AddRef()
+			{
+				asAtomicInc(Ref);
+			}
+			bool Mutex::TryLock()
+			{
+				return Base.try_lock();
+			}
+			void Mutex::Lock()
+			{
+				Base.lock();
+			}
+			void Mutex::Unlock()
+			{
+				Base.unlock();
+			}
+			Mutex* Mutex::Factory()
+			{
+				void* Data = asAllocMem(sizeof(Mutex));
+				if (!Data)
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context != nullptr)
+						Context->SetException("Out of memory");
+
+					return nullptr;
+				}
+
+				return new(Data) Mutex();
+			}
+
 			Grid::Grid(asITypeInfo* Info, void* BufferPtr) noexcept
 			{
 				RefCount = 1;
@@ -3534,338 +4643,6 @@ namespace Edge
 				return true;
 			}
 
-			Ref::Ref() noexcept : Type(0), Pointer(nullptr)
-			{
-			}
-			Ref::Ref(const Ref& Other) noexcept : Type(Other.Type), Pointer(Other.Pointer)
-			{
-				AddRefHandle();
-			}
-			Ref::Ref(void* RefPtr, asITypeInfo* _Type) noexcept : Type(_Type), Pointer(RefPtr)
-			{
-				AddRefHandle();
-			}
-			Ref::Ref(void* RefPtr, int TypeId) noexcept : Type(0), Pointer(nullptr)
-			{
-				Assign(RefPtr, TypeId);
-			}
-			Ref::~Ref() noexcept
-			{
-				ReleaseHandle();
-			}
-			void Ref::ReleaseHandle()
-			{
-				if (Pointer && Type)
-				{
-					asIScriptEngine* Engine = Type->GetEngine();
-					Engine->ReleaseScriptObject(Pointer, Type);
-					Engine->Release();
-					Pointer = nullptr;
-					Type = 0;
-				}
-			}
-			void Ref::AddRefHandle()
-			{
-				if (Pointer && Type)
-				{
-					asIScriptEngine* Engine = Type->GetEngine();
-					Engine->AddRefScriptObject(Pointer, Type);
-					Engine->AddRef();
-				}
-			}
-			Ref& Ref::operator =(const Ref& Other) noexcept
-			{
-				Set(Other.Pointer, Other.Type);
-				return *this;
-			}
-			void Ref::Set(void* RefPtr, asITypeInfo* _Type)
-			{
-				if (Pointer == RefPtr)
-					return;
-
-				ReleaseHandle();
-				Pointer = RefPtr;
-				Type = _Type;
-				AddRefHandle();
-			}
-			void* Ref::GetRef()
-			{
-				return Pointer;
-			}
-			asITypeInfo* Ref::GetType() const
-			{
-				return Type;
-			}
-			int Ref::GetTypeId() const
-			{
-				if (Type == 0) return 0;
-
-				return Type->GetTypeId() | asTYPEID_OBJHANDLE;
-			}
-			Ref& Ref::Assign(void* RefPtr, int TypeId)
-			{
-				if (TypeId == 0)
-				{
-					Set(0, 0);
-					return *this;
-				}
-
-				if (TypeId & asTYPEID_OBJHANDLE)
-				{
-					RefPtr = *(void**)RefPtr;
-					TypeId &= ~asTYPEID_OBJHANDLE;
-				}
-
-				asIScriptContext* Context = asGetActiveContext();
-				asIScriptEngine* Engine = Context->GetEngine();
-				asITypeInfo* Info = Engine->GetTypeInfoById(TypeId);
-
-				if (Info && strcmp(Info->GetName(), TYPENAME_REF) == 0)
-				{
-					Ref* Result = (Ref*)RefPtr;
-					RefPtr = Result->Pointer;
-					Info = Result->Type;
-				}
-
-				Set(RefPtr, Info);
-				return *this;
-			}
-			bool Ref::operator==(const Ref& Other) const
-			{
-				if (Pointer == Other.Pointer && Type == Other.Type)
-					return true;
-
-				return false;
-			}
-			bool Ref::operator!=(const Ref& Other) const
-			{
-				return !(*this == Other);
-			}
-			bool Ref::Equals(void* RefPtr, int TypeId) const
-			{
-				if (TypeId == 0)
-					RefPtr = 0;
-
-				if (TypeId & asTYPEID_OBJHANDLE)
-				{
-					void** Sub = (void**)RefPtr;
-					if (!Sub)
-						return false;
-
-					RefPtr = *Sub;
-					TypeId &= ~asTYPEID_OBJHANDLE;
-				}
-
-				if (RefPtr == Pointer)
-					return true;
-
-				return false;
-			}
-			void Ref::Cast(void** OutRef, int TypeId)
-			{
-				if (Type == 0)
-				{
-					*OutRef = 0;
-					return;
-				}
-
-				ED_ASSERT_V(TypeId & asTYPEID_OBJHANDLE, "type should be object handle");
-				TypeId &= ~asTYPEID_OBJHANDLE;
-
-				asIScriptEngine* Engine = Type->GetEngine();
-				asITypeInfo* Info = Engine->GetTypeInfoById(TypeId);
-				*OutRef = 0;
-
-				Engine->RefCastObject(Pointer, Type, Info, OutRef);
-			}
-			void Ref::EnumReferences(asIScriptEngine* _Engine)
-			{
-				if (Pointer)
-					_Engine->GCEnumCallback(Pointer);
-
-				if (Type)
-					_Engine->GCEnumCallback(Type);
-			}
-			void Ref::ReleaseReferences(asIScriptEngine* _Engine)
-			{
-				Set(0, 0);
-			}
-			void Ref::Construct(Ref* Base)
-			{
-				new(Base) Ref();
-			}
-			void Ref::Construct(Ref* Base, const Ref& Other)
-			{
-				new(Base) Ref(Other);
-			}
-			void Ref::Construct(Ref* Base, void* RefPtr, int TypeId)
-			{
-				new(Base) Ref(RefPtr, TypeId);
-			}
-			void Ref::Destruct(Ref* Base)
-			{
-				Base->~Ref();
-			}
-
-			WeakRef::WeakRef(asITypeInfo* _Type) noexcept
-			{
-				Ref = 0;
-				Type = _Type;
-				Type->AddRef();
-				WeakRefFlag = 0;
-			}
-			WeakRef::WeakRef(const WeakRef& Other) noexcept
-			{
-				Ref = Other.Ref;
-				Type = Other.Type;
-				Type->AddRef();
-				WeakRefFlag = Other.WeakRefFlag;
-				if (WeakRefFlag)
-					WeakRefFlag->AddRef();
-			}
-			WeakRef::WeakRef(void* RefPtr, asITypeInfo* _Type) noexcept
-			{
-				if (!_Type || !(strcmp(_Type->GetName(), TYPENAME_WEAKREF) == 0 || strcmp(_Type->GetName(), TYPENAME_CONSTWEAKREF) == 0))
-					return;
-
-				Ref = RefPtr;
-				Type = _Type;
-				Type->AddRef();
-
-				WeakRefFlag = Type->GetEngine()->GetWeakRefFlagOfScriptObject(Ref, Type->GetSubType());
-				if (WeakRefFlag)
-					WeakRefFlag->AddRef();
-			}
-			WeakRef::~WeakRef() noexcept
-			{
-				if (Type)
-					Type->Release();
-
-				if (WeakRefFlag)
-					WeakRefFlag->Release();
-			}
-			WeakRef& WeakRef::operator =(const WeakRef& Other) noexcept
-			{
-				if (Ref == Other.Ref && WeakRefFlag == Other.WeakRefFlag)
-					return *this;
-
-				if (Type != Other.Type)
-				{
-					if (!(strcmp(Type->GetName(), TYPENAME_CONSTWEAKREF) == 0 && strcmp(Other.Type->GetName(), TYPENAME_WEAKREF) == 0 && Type->GetSubType() == Other.Type->GetSubType()))
-						return *this;
-				}
-
-				Ref = Other.Ref;
-				if (WeakRefFlag)
-					WeakRefFlag->Release();
-
-				WeakRefFlag = Other.WeakRefFlag;
-				if (WeakRefFlag)
-					WeakRefFlag->AddRef();
-
-				return *this;
-			}
-			WeakRef& WeakRef::Set(void* newRef)
-			{
-				if (WeakRefFlag)
-					WeakRefFlag->Release();
-
-				Ref = newRef;
-				if (newRef)
-				{
-					WeakRefFlag = Type->GetEngine()->GetWeakRefFlagOfScriptObject(newRef, Type->GetSubType());
-					WeakRefFlag->AddRef();
-				}
-				else
-					WeakRefFlag = 0;
-
-				Type->GetEngine()->ReleaseScriptObject(newRef, Type->GetSubType());
-				return *this;
-			}
-			asITypeInfo* WeakRef::GetRefType() const
-			{
-				return Type->GetSubType();
-			}
-			bool WeakRef::operator==(const WeakRef& Other) const
-			{
-				if (Ref == Other.Ref &&
-					WeakRefFlag == Other.WeakRefFlag &&
-					Type == Other.Type)
-					return true;
-
-				return false;
-			}
-			bool WeakRef::operator!=(const WeakRef& Other) const
-			{
-				return !(*this == Other);
-			}
-			void* WeakRef::Get() const
-			{
-				if (Ref == 0 || WeakRefFlag == 0)
-					return 0;
-
-				WeakRefFlag->Lock();
-				if (!WeakRefFlag->Get())
-				{
-					Type->GetEngine()->AddRefScriptObject(Ref, Type->GetSubType());
-					WeakRefFlag->Unlock();
-					return Ref;
-				}
-				WeakRefFlag->Unlock();
-
-				return 0;
-			}
-			bool WeakRef::Equals(void* RefPtr) const
-			{
-				if (Ref != RefPtr)
-					return false;
-
-				asILockableSharedBool* flag = Type->GetEngine()->GetWeakRefFlagOfScriptObject(RefPtr, Type->GetSubType());
-				if (WeakRefFlag != flag)
-					return false;
-
-				return true;
-			}
-			void WeakRef::Construct(asITypeInfo* Type, void* Memory)
-			{
-				new(Memory) WeakRef(Type);
-			}
-			void WeakRef::Construct2(asITypeInfo* Type, void* RefPtr, void* Memory)
-			{
-				new(Memory) WeakRef(RefPtr, Type);
-				asIScriptContext* Context = asGetActiveContext();
-				if (Context && Context->GetState() == asEXECUTION_EXCEPTION)
-					reinterpret_cast<WeakRef*>(Memory)->~WeakRef();
-			}
-			void WeakRef::Destruct(WeakRef* Obj)
-			{
-				Obj->~WeakRef();
-			}
-			bool WeakRef::TemplateCallback(asITypeInfo* Info, bool&)
-			{
-				asITypeInfo* SubType = Info->GetSubType();
-				if (SubType == 0)
-					return false;
-
-				if (!(SubType->GetFlags() & asOBJ_REF))
-					return false;
-
-				if (Info->GetSubTypeId() & asTYPEID_OBJHANDLE)
-					return false;
-
-				size_t cnt = SubType->GetBehaviourCount();
-				for (size_t n = 0; n < cnt; n++)
-				{
-					asEBehaviours Beh;
-					SubType->GetBehaviourByIndex((int)n, &Beh);
-					if (Beh == asBEHAVE_GET_WEAKREF_FLAG)
-						return true;
-				}
-
-				Info->GetEngine()->WriteMessage(TYPENAME_WEAKREF, 0, 0, asMSGTYPE_ERROR, "The subtype doesn't support weak references");
-				return false;
-			}
-
 			Complex::Complex() noexcept
 			{
 				R = 0;
@@ -3981,39 +4758,6 @@ namespace Edge
 			void Complex::ListConstructor(float* InitList, Complex* Base)
 			{
 				new(Base) Complex(InitList[0], InitList[1]);
-			}
-
-			std::string Random::Getb(uint64_t Size)
-			{
-				return Compute::Codec::HexEncode(Compute::Crypto::RandomBytes((size_t)Size)).substr(0, (size_t)Size);
-			}
-			double Random::Betweend(double Min, double Max)
-			{
-				return Compute::Mathd::Random(Min, Max);
-			}
-			double Random::Magd()
-			{
-				return Compute::Mathd::RandomMag();
-			}
-			double Random::Getd()
-			{
-				return Compute::Mathd::Random();
-			}
-			float Random::Betweenf(float Min, float Max)
-			{
-				return Compute::Mathf::Random(Min, Max);
-			}
-			float Random::Magf()
-			{
-				return Compute::Mathf::RandomMag();
-			}
-			float Random::Getf()
-			{
-				return Compute::Mathf::Random();
-			}
-			uint64_t Random::Betweeni(uint64_t Min, uint64_t Max)
-			{
-				return Compute::Math<uint64_t>::Random(Min, Max);
 			}
 
 			Thread::Thread(asIScriptEngine* Engine, asIScriptFunction* Func) noexcept : Function(Func), VM(VirtualMachine::Get(Engine)), Context(nullptr), GCFlag(false), Ref(1)
@@ -4316,318 +5060,6 @@ namespace Edge
 			int Thread::ContextUD = 550;
 			int Thread::EngineListUD = 551;
 
-			Promise::Promise(asIScriptContext* _Base, bool IsRef) noexcept : Context(ImmediateContext::Get(_Base)), Future(nullptr), Ref(1), Pending(false), Flag(false)
-			{
-				if (!Context)
-					return;
-
-				Context->AddRef();
-				Engine = Context->GetVM()->GetEngine();
-				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(IsRef ? "ref_promise" : "promise"));
-			}
-			void Promise::Release()
-			{
-				Flag = false;
-				if (asAtomicDec(Ref) <= 0)
-				{
-					ReleaseReferences(nullptr);
-					this->~Promise();
-					asFreeMem((void*)this);
-				}
-			}
-			void Promise::AddRef()
-			{
-				Flag = false;
-				asAtomicInc(Ref);
-			}
-			void Promise::EnumReferences(asIScriptEngine* Engine)
-			{
-				if (Future != nullptr)
-					Engine->GCEnumCallback(Future);
-			}
-			void Promise::ReleaseReferences(asIScriptEngine*)
-			{
-				if (Future != nullptr)
-				{
-					Future->Release();
-					Future = nullptr;
-				}
-
-				if (Context != nullptr)
-				{
-					Context->Release();
-					Context = nullptr;
-				}
-			}
-			void Promise::SetGCFlag()
-			{
-				Flag = true;
-			}
-			bool Promise::GetGCFlag()
-			{
-				return Flag;
-			}
-			int Promise::GetRefCount()
-			{
-				return Ref;
-			}
-			int Promise::Notify()
-			{
-				Update.lock();
-				if (Context->GetState() == Activation::ACTIVE)
-				{
-					Update.unlock();
-					return Core::Schedule::Get()->SetTask(std::bind(&Promise::Notify, this), Core::Difficulty::Light);
-				}
-
-				Update.unlock();
-				Context->Execute();
-				Release();
-
-				return 0;
-			}
-			int Promise::Set(void* _Ref, int TypeId)
-			{
-				Update.lock();
-				if (Future != nullptr)
-					Future->Release();
-
-				Future = new(asAllocMem(sizeof(Any))) Any(_Ref, TypeId, Engine);
-				if (TypeId & asTYPEID_OBJHANDLE)
-					Engine->ReleaseScriptObject(*(void**)_Ref, Engine->GetTypeInfoById(TypeId));
-
-				if (!Pending)
-				{
-					Update.unlock();
-					return 0;
-				}
-
-				Pending = false;
-				if (Context->GetUserData(PromiseUD) == (void*)this)
-					Context->SetUserData(nullptr, PromiseUD);
-
-				if (Context->GetState() == Activation::ACTIVE)
-				{
-					Update.unlock();
-					return Core::Schedule::Get()->SetTask(std::bind(&Promise::Notify, this), Core::Difficulty::Light);
-				}
-
-				Update.unlock();
-				Context->Execute();
-				Release();
-
-				return 0;
-			}
-			int Promise::Set(void* _Ref, const char* TypeName)
-			{
-				return Set(_Ref, Engine->GetTypeIdByDecl(TypeName));
-			}
-			bool Promise::To(void* _Ref, int TypeId)
-			{
-				if (!Future)
-					return false;
-
-				return Future->Retrieve(_Ref, TypeId);
-			}
-			void* Promise::GetHandle()
-			{
-				if (!Future)
-					return nullptr;
-
-				int TypeId = Future->GetTypeId();
-				if (TypeId & asTYPEID_OBJHANDLE)
-					return Future->Value.ValueObj;
-
-				Context->SetException("object cannot be safely retrieved by reference type promise");
-				return nullptr;
-			}
-			void* Promise::GetValue()
-			{
-				if (!Future)
-					return nullptr;
-
-				int TypeId = Future->GetTypeId();
-				if (TypeId & asTYPEID_MASK_OBJECT)
-					return Future->Value.ValueObj;
-				else if (TypeId <= asTYPEID_DOUBLE || TypeId & asTYPEID_MASK_SEQNBR)
-					return &Future->Value.ValueInt;
-
-				if (TypeId & asTYPEID_OBJHANDLE)
-					Context->SetException("object cannot be safely retrieved by value type promise");
-				else
-					Context->SetException("retrieve this object explicitly");
-
-				return nullptr;
-			}
-			Promise* Promise::Create()
-			{
-				return new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext(), false);
-			}
-			Promise* Promise::CreateRef()
-			{
-				return new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext(), true);
-			}
-			Promise* Promise::JumpIf(Promise* Base)
-			{
-				Base->Update.lock();
-				if (!Base->Future && Base->Context != nullptr)
-				{
-					Base->AddRef();
-					Base->Pending = true;
-					Base->Context->SetUserData(Base, PromiseUD);
-					Base->Context->Suspend();
-				}
-				Base->Update.unlock();
-				return Base;
-			}
-			std::string Promise::GetStatus(ImmediateContext* Context)
-			{
-				ED_ASSERT(Context != nullptr, std::string(), "context should be set");
-
-				std::string Result;
-				switch (Context->GetState())
-				{
-					case Activation::FINISHED:
-						Result = "FIN";
-						break;
-					case Activation::SUSPENDED:
-						Result = "SUSP";
-						break;
-					case Activation::ABORTED:
-						Result = "ABRT";
-						break;
-					case Activation::EXCEPTION:
-						Result = "EXCE";
-						break;
-					case Activation::PREPARED:
-						Result = "PREP";
-						break;
-					case Activation::ACTIVE:
-						Result = "ACTV";
-						break;
-					case Activation::ERR:
-						Result = "ERR";
-						break;
-					default:
-						Result = "INIT";
-						break;
-				}
-
-				Promise* Base = (Promise*)Context->GetUserData(PromiseUD);
-				if (Base != nullptr)
-				{
-					const char* Format = " in pending promise on 0x%" PRIXPTR " %s";
-					if (Base->Future != nullptr)
-						Result += Core::Form(Format, (uintptr_t)Base, "that was fulfilled").R();
-					else
-						Result += Core::Form(Format, (uintptr_t)Base, "that was not fulfilled").R();
-				}
-
-				return Result;
-			}
-			int Promise::PromiseUD = 559;
-
-			Core::Decimal DecimalNegate(Core::Decimal& Base)
-			{
-				return -Base;
-			}
-			Core::Decimal& DecimalMulEq(Core::Decimal& Base, const Core::Decimal& V)
-			{
-				Base *= V;
-				return Base;
-			}
-			Core::Decimal& DecimalDivEq(Core::Decimal& Base, const Core::Decimal& V)
-			{
-				Base /= V;
-				return Base;
-			}
-			Core::Decimal& DecimalAddEq(Core::Decimal& Base, const Core::Decimal& V)
-			{
-				Base += V;
-				return Base;
-			}
-			Core::Decimal& DecimalSubEq(Core::Decimal& Base, const Core::Decimal& V)
-			{
-				Base -= V;
-				return Base;
-			}
-			Core::Decimal& DecimalPP(Core::Decimal& Base)
-			{
-				Base++;
-				return Base;
-			}
-			Core::Decimal& DecimalMM(Core::Decimal& Base)
-			{
-				Base--;
-				return Base;
-			}
-			bool DecimalEq(Core::Decimal& Base, const Core::Decimal& Right)
-			{
-				return Base == Right;
-			}
-			int DecimalCmp(Core::Decimal& Base, const Core::Decimal& Right)
-			{
-				if (Base == Right)
-					return 0;
-
-				return Base > Right ? 1 : -1;
-			}
-			Core::Decimal DecimalAdd(const Core::Decimal& Left, const Core::Decimal& Right)
-			{
-				return Left + Right;
-			}
-			Core::Decimal DecimalSub(const Core::Decimal& Left, const Core::Decimal& Right)
-			{
-				return Left - Right;
-			}
-			Core::Decimal DecimalMul(const Core::Decimal& Left, const Core::Decimal& Right)
-			{
-				return Left * Right;
-			}
-			Core::Decimal DecimalDiv(const Core::Decimal& Left, const Core::Decimal& Right)
-			{
-				return Left / Right;
-			}
-			Core::Decimal DecimalPer(const Core::Decimal& Left, const Core::Decimal& Right)
-			{
-				return Left % Right;
-			}
-
-			Core::DateTime& DateTimeAddEq(Core::DateTime& Base, const Core::DateTime& V)
-			{
-				Base += V;
-				return Base;
-			}
-			Core::DateTime& DateTimeSubEq(Core::DateTime& Base, const Core::DateTime& V)
-			{
-				Base -= V;
-				return Base;
-			}
-			Core::DateTime& DateTimeSet(Core::DateTime& Base, const Core::DateTime& V)
-			{
-				Base = V;
-				return Base;
-			}
-			bool DateTimeEq(Core::DateTime& Base, const Core::DateTime& Right)
-			{
-				return Base == Right;
-			}
-			int DateTimeCmp(Core::DateTime& Base, const Core::DateTime& Right)
-			{
-				if (Base == Right)
-					return 0;
-
-				return Base > Right ? 1 : -1;
-			}
-			Core::DateTime DateTimeAdd(const Core::DateTime& Left, const Core::DateTime& Right)
-			{
-				return Left + Right;
-			}
-			Core::DateTime DateTimeSub(const Core::DateTime& Left, const Core::DateTime& Right)
-			{
-				return Left - Right;
-			}
-
 			void ConsoleTrace(Core::Console* Base, uint32_t Frames)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
@@ -4639,345 +5071,6 @@ namespace Edge
 			void ConsoleGetSize(Core::Console* Base, uint32_t& X, uint32_t& Y)
 			{
 				Base->GetSize(&X, &Y);
-			}
-
-			size_t VariantGetSize(Core::Variant& Base)
-			{
-				return Base.GetSize();
-			}
-			bool VariantEquals(Core::Variant& Base, const Core::Variant& Other)
-			{
-				return Base == Other;
-			}
-			bool VariantImplCast(Core::Variant& Base)
-			{
-				return Base;
-			}
-
-			Core::Schema* SchemaInit(Core::Schema* Base)
-			{
-				return Base;
-			}
-			Core::Schema* SchemaConstructBuffer(unsigned char* Buffer)
-			{
-				if (!Buffer)
-					return nullptr;
-
-				Core::Schema* Result = Core::Var::Set::Object();
-				asIScriptContext* Context = asGetActiveContext();
-				asIScriptEngine* VM = Context->GetEngine();
-				asUINT Length = *(asUINT*)Buffer;
-				Buffer += 4;
-
-				while (Length--)
-				{
-					if (asPWORD(Buffer) & 0x3)
-						Buffer += 4 - (asPWORD(Buffer) & 0x3);
-
-					std::string Name = *(std::string*)Buffer;
-					Buffer += sizeof(std::string);
-
-					int TypeId = *(int*)Buffer;
-					Buffer += sizeof(int);
-
-					void* Ref = (void*)Buffer;
-					if (TypeId >= asTYPEID_BOOL && TypeId <= asTYPEID_DOUBLE)
-					{
-						switch (TypeId)
-						{
-							case asTYPEID_BOOL:
-								Result->Set(Name, Core::Var::Boolean(*(bool*)Ref));
-								break;
-							case asTYPEID_INT8:
-								Result->Set(Name, Core::Var::Integer(*(char*)Ref));
-								break;
-							case asTYPEID_INT16:
-								Result->Set(Name, Core::Var::Integer(*(short*)Ref));
-								break;
-							case asTYPEID_INT32:
-								Result->Set(Name, Core::Var::Integer(*(int*)Ref));
-								break;
-							case asTYPEID_UINT8:
-								Result->Set(Name, Core::Var::Integer(*(unsigned char*)Ref));
-								break;
-							case asTYPEID_UINT16:
-								Result->Set(Name, Core::Var::Integer(*(unsigned short*)Ref));
-								break;
-							case asTYPEID_UINT32:
-								Result->Set(Name, Core::Var::Integer(*(unsigned int*)Ref));
-								break;
-							case asTYPEID_INT64:
-							case asTYPEID_UINT64:
-								Result->Set(Name, Core::Var::Integer(*(asINT64*)Ref));
-								break;
-							case asTYPEID_FLOAT:
-								Result->Set(Name, Core::Var::Number(*(float*)Ref));
-								break;
-							case asTYPEID_DOUBLE:
-								Result->Set(Name, Core::Var::Number(*(double*)Ref));
-								break;
-						}
-					}
-					else
-					{
-						asITypeInfo* Type = VM->GetTypeInfoById(TypeId);
-						if ((TypeId & asTYPEID_MASK_OBJECT) && !(TypeId & asTYPEID_OBJHANDLE) && (Type && Type->GetFlags() & asOBJ_REF))
-							Ref = *(void**)Ref;
-
-						if (TypeId & asTYPEID_OBJHANDLE)
-							Ref = *(void**)Ref;
-
-						if (VirtualMachine::Get(VM)->IsNullable(TypeId) || !Ref)
-						{
-							Result->Set(Name, Core::Var::Null());
-						}
-						else if (Type && !strcmp(TYPENAME_SCHEMA, Type->GetName()))
-						{
-							Core::Schema* Base = (Core::Schema*)Ref;
-							if (Base->GetParent() != Result)
-								Base->AddRef();
-
-							Result->Set(Name, Base);
-						}
-						else if (Type && !strcmp(TYPENAME_STRING, Type->GetName()))
-							Result->Set(Name, Core::Var::String(*(std::string*)Ref));
-						else if (Type && !strcmp(TYPENAME_DECIMAL, Type->GetName()))
-							Result->Set(Name, Core::Var::Decimal(*(Core::Decimal*)Ref));
-					}
-
-					if (TypeId & asTYPEID_MASK_OBJECT)
-					{
-						asITypeInfo* ti = VM->GetTypeInfoById(TypeId);
-						if (ti->GetFlags() & asOBJ_VALUE)
-							Buffer += ti->GetSize();
-						else
-							Buffer += sizeof(void*);
-					}
-					else if (TypeId == 0)
-					{
-						ED_WARN("[memerr] use nullptr instead of null for initialization lists");
-						Buffer += sizeof(void*);
-					}
-					else
-						Buffer += VM->GetSizeOfPrimitiveType(TypeId);
-				}
-
-				return Result;
-			}
-			void SchemaConstruct(asIScriptGeneric* Generic)
-			{
-				unsigned char* Buffer = (unsigned char*)Generic->GetArgAddress(0);
-				*(Core::Schema**)Generic->GetAddressOfReturnLocation() = SchemaConstructBuffer(Buffer);
-			}
-			Core::Schema* SchemaGetIndex(Core::Schema* Base, const std::string& Name)
-			{
-				Core::Schema* Result = Base->Fetch(Name);
-				if (Result != nullptr)
-					return Result;
-
-				return Base->Set(Name, Core::Var::Undefined());
-			}
-			Core::Schema* SchemaGetIndexOffset(Core::Schema* Base, size_t Offset)
-			{
-				return Base->Get(Offset);
-			}
-			Core::Schema* SchemaSet(Core::Schema* Base, const std::string& Name, Core::Schema* Value)
-			{
-				if (Value != nullptr && Value->GetParent() != Base)
-					Value->AddRef();
-
-				return Base->Set(Name, Value);
-			}
-			Core::Schema* SchemaPush(Core::Schema* Base, Core::Schema* Value)
-			{
-				if (Value != nullptr)
-					Value->AddRef();
-
-				return Base->Push(Value);
-			}
-			Core::Schema* SchemaFirst(Core::Schema* Base)
-			{
-				auto& Childs = Base->GetChilds();
-				return Childs.empty() ? nullptr : Childs.front();
-			}
-			Core::Schema* SchemaLast(Core::Schema* Base)
-			{
-				auto& Childs = Base->GetChilds();
-				return Childs.empty() ? nullptr : Childs.back();
-			}
-			Core::Variant SchemaFirstVar(Core::Schema* Base)
-			{
-				auto& Childs = Base->GetChilds();
-				return Childs.empty() ? Core::Var::Undefined() : Childs.front()->Value;
-			}
-			Core::Variant SchemaLastVar(Core::Schema* Base)
-			{
-				auto& Childs = Base->GetChilds();
-				return Childs.empty() ? Core::Var::Undefined() : Childs.back()->Value;
-			}
-			Array* SchemaGetCollection(Core::Schema* Base, const std::string& Name, bool Deep)
-			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
-					return nullptr;
-
-				VirtualMachine* VM = Context->GetVM();
-				if (!VM)
-					return nullptr;
-
-				std::vector<Core::Schema*> Nodes = Base->FetchCollection(Name, Deep);
-				for (auto& Node : Nodes)
-					Node->AddRef();
-
-				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_SCHEMA "@>@");
-				return Array::Compose(Type.GetTypeInfo(), Nodes);
-			}
-			Array* SchemaGetChilds(Core::Schema* Base)
-			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
-					return nullptr;
-
-				VirtualMachine* VM = Context->GetVM();
-				if (!VM)
-					return nullptr;
-
-				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_SCHEMA "@>@");
-				return Array::Compose(Type.GetTypeInfo(), Base->GetChilds());
-			}
-			Array* SchemaGetAttributes(Core::Schema* Base)
-			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
-					return nullptr;
-
-				VirtualMachine* VM = Context->GetVM();
-				if (!VM)
-					return nullptr;
-
-				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_SCHEMA "@>@");
-				return Array::Compose(Type.GetTypeInfo(), Base->GetAttributes());
-			}
-			Map* SchemaGetNames(Core::Schema* Base)
-			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
-					return nullptr;
-
-				VirtualMachine* VM = Context->GetVM();
-				if (!VM)
-					return nullptr;
-
-				std::unordered_map<std::string, size_t> Mapping = Base->GetNames();
-				Map* Map = Map::Create(VM->GetEngine());
-
-				for (auto& Item : Mapping)
-				{
-					int64_t Index = (int64_t)Item.second;
-					Map->Set(Item.first, &Index, (int)TypeId::INT64);
-				}
-
-				return Map;
-			}
-			size_t SchemaGetSize(Core::Schema* Base)
-			{
-				return Base->Size();
-			}
-			std::string SchemaToJSON(Core::Schema* Base)
-			{
-				std::string Stream;
-				Core::Schema::ConvertToJSON(Base, [&Stream](Core::VarForm, const char* Buffer, size_t Length)
-				{
-					if (Buffer != nullptr && Length > 0)
-					Stream.append(Buffer, Length);
-				});
-
-				return Stream;
-			}
-			std::string SchemaToXML(Core::Schema* Base)
-			{
-				std::string Stream;
-				Core::Schema::ConvertToXML(Base, [&Stream](Core::VarForm, const char* Buffer, size_t Length)
-				{
-					if (Buffer != nullptr && Length > 0)
-					Stream.append(Buffer, Length);
-				});
-
-				return Stream;
-			}
-			std::string SchemaToString(Core::Schema* Base)
-			{
-				switch (Base->Value.GetType())
-				{
-					case Core::VarType::Null:
-					case Core::VarType::Undefined:
-					case Core::VarType::Object:
-					case Core::VarType::Array:
-					case Core::VarType::Pointer:
-						break;
-					case Core::VarType::String:
-					case Core::VarType::Binary:
-						return Base->Value.GetBlob();
-					case Core::VarType::Integer:
-						return std::to_string(Base->Value.GetInteger());
-					case Core::VarType::Number:
-						return std::to_string(Base->Value.GetNumber());
-					case Core::VarType::Decimal:
-						return Base->Value.GetDecimal().ToString();
-					case Core::VarType::Boolean:
-						return Base->Value.GetBoolean() ? "1" : "0";
-				}
-
-				return "";
-			}
-			std::string SchemaToBinary(Core::Schema* Base)
-			{
-				return Base->Value.GetBlob();
-			}
-			int64_t SchemaToInteger(Core::Schema* Base)
-			{
-				return Base->Value.GetInteger();
-			}
-			double SchemaToNumber(Core::Schema* Base)
-			{
-				return Base->Value.GetNumber();
-			}
-			Core::Decimal SchemaToDecimal(Core::Schema* Base)
-			{
-				return Base->Value.GetDecimal();
-			}
-			bool SchemaToBoolean(Core::Schema* Base)
-			{
-				return Base->Value.GetBoolean();
-			}
-			Core::Schema* SchemaFromJSON(const std::string& Value)
-			{
-				return Core::Schema::ConvertFromJSON(Value.c_str(), Value.size());
-			}
-			Core::Schema* SchemaFromXML(const std::string& Value)
-			{
-				return Core::Schema::ConvertFromXML(Value.c_str());
-			}
-			Core::Schema* SchemaImport(const std::string& Value)
-			{
-				VirtualMachine* VM = VirtualMachine::Get();
-				if (!VM)
-					return nullptr;
-
-				return VM->ImportJSON(Value);
-			}
-			Core::Schema* SchemaCopyAssign(Core::Schema* Base, const Core::Variant& Other)
-			{
-				Base->Value = Other;
-				return Base;
-			}
-			bool SchemaEquals(Core::Schema* Base, Core::Schema* Other)
-			{
-				if (Other != nullptr)
-					return Base->Value == Other->Value;
-
-				Core::VarType Type = Base->Value.GetType();
-				return (Type == Core::VarType::Null || Type == Core::VarType::Undefined);
 			}
 
 			Format::Format() noexcept
@@ -5359,6 +5452,156 @@ namespace Edge
 				}
 			}
 
+			Application::Application(Desc& I) noexcept : Engine::Application(&I), Context(ImmediateContext::Get())
+			{
+				ED_ASSERT_V(Context != nullptr, "virtual machine should be present at this level");
+				Context->AddRef();
+
+				if (I.Usage & (size_t)Engine::ApplicationSet::ScriptSet)
+					VM = Context->GetVM();
+
+				if (I.Usage & (size_t)Engine::ApplicationSet::ContentSet)
+				{
+					Content = new Engine::ContentManager(nullptr);
+					Content->AddProcessor(new Engine::Processors::Asset(Content), ED_HASH(TYPENAME_ASSETFILE));
+					Content->AddProcessor(new Engine::Processors::Material(Content), ED_HASH(TYPENAME_MATERIAL));
+					Content->AddProcessor(new Engine::Processors::SceneGraph(Content), ED_HASH(TYPENAME_SCENEGRAPH));
+					Content->AddProcessor(new Engine::Processors::AudioClip(Content), ED_HASH(TYPENAME_AUDIOCLIP));
+					Content->AddProcessor(new Engine::Processors::Texture2D(Content), ED_HASH(TYPENAME_TEXTURE2D));
+					Content->AddProcessor(new Engine::Processors::Shader(Content), ED_HASH(TYPENAME_SHADER));
+					Content->AddProcessor(new Engine::Processors::Model(Content), ED_HASH(TYPENAME_MODEL));
+					Content->AddProcessor(new Engine::Processors::SkinModel(Content), ED_HASH(TYPENAME_SKINMODEL));
+					Content->AddProcessor(new Engine::Processors::Schema(Content), ED_HASH(TYPENAME_SCHEMA));
+					Content->AddProcessor(new Engine::Processors::Server(Content), ED_HASH(TYPENAME_HTTPSERVER));
+					Content->AddProcessor(new Engine::Processors::HullShape(Content), ED_HASH(TYPENAME_PHYSICSHULLSHAPE));
+				}
+			}
+			Application::~Application() noexcept
+			{
+				VM = nullptr;
+				ED_CLEAR(OnScriptHook);
+				ED_CLEAR(OnKeyEvent);
+				ED_CLEAR(OnInputEvent);
+				ED_CLEAR(OnWheelEvent);
+				ED_CLEAR(OnWindowEvent);
+				ED_CLEAR(OnCloseEvent);
+				ED_CLEAR(OnComposeEvent);
+				ED_CLEAR(OnDispatch);
+				ED_CLEAR(OnPublish);
+				ED_CLEAR(OnInitialize);
+				ED_CLEAR(OnGetGUI);
+				ED_CLEAR(Context);
+			}
+			void Application::ScriptHook()
+			{
+				if (!OnScriptHook)
+					return;
+
+				Context->TryExecute(true, OnScriptHook, nullptr).Wait();
+			}
+			void Application::KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
+			{
+				if (!OnKeyEvent)
+					return;
+
+				Context->TryExecute(true, OnKeyEvent, [Key, Mod, Virtual, Repeat, Pressed](ImmediateContext* Context)
+				{
+					Context->SetArg32(0, (int)Key);
+					Context->SetArg32(1, (int)Mod);
+					Context->SetArg32(2, Virtual);
+					Context->SetArg32(3, Repeat);
+					Context->SetArg8(4, (unsigned char)Pressed);
+				}).Wait();
+			}
+			void Application::InputEvent(char* Buffer, size_t Length)
+			{
+				if (!OnInputEvent)
+					return;
+
+				std::string Text(Buffer, Length);
+				Context->TryExecute(true, OnInputEvent, [Text](ImmediateContext* Context)
+				{
+					Context->SetArgObject(0, (void*)&Text);
+				}).Wait();
+			}
+			void Application::WheelEvent(int X, int Y, bool Normal)
+			{
+				if (!OnWheelEvent)
+					return;
+
+				Context->TryExecute(true, OnWheelEvent, [X, Y, Normal](ImmediateContext* Context)
+				{
+					Context->SetArg32(0, X);
+					Context->SetArg32(1, Y);
+					Context->SetArg8(2, (unsigned char)Normal);
+				}).Wait();
+			}
+			void Application::WindowEvent(Graphics::WindowState NewState, int X, int Y)
+			{
+				if (!OnWindowEvent)
+					return;
+
+				Context->TryExecute(true, OnWindowEvent, [NewState, X, Y](ImmediateContext* Context)
+				{
+					Context->SetArg32(0, (int)NewState);
+					Context->SetArg32(1, X);
+					Context->SetArg32(2, Y);
+				}).Wait();
+			}
+			void Application::CloseEvent()
+			{
+				if (!OnCloseEvent)
+					return;
+
+				Context->TryExecute(true, OnCloseEvent, nullptr).Wait();
+			}
+			void Application::ComposeEvent()
+			{
+				if (!OnComposeEvent)
+					return;
+
+				Context->TryExecute(true, OnComposeEvent, nullptr).Wait();
+			}
+			void Application::Dispatch(Core::Timer* Time)
+			{
+				if (!OnDispatch)
+					return;
+
+				Context->TryExecute(true, OnDispatch, [Time](ImmediateContext* Context)
+				{
+					Context->SetArgObject(0, (void*)Time);
+				}).Wait();
+			}
+			void Application::Publish(Core::Timer* Time)
+			{
+				if (!OnPublish)
+					return;
+
+				Context->TryExecute(true, OnPublish, [Time](ImmediateContext* Context)
+				{
+					Context->SetArgObject(0, (void*)Time);
+				}).Wait();
+			}
+			void Application::Initialize()
+			{
+				if (!OnInitialize)
+					return;
+
+				Context->TryExecute(true, OnInitialize, nullptr).Wait();
+			}
+			Engine::GUI::Context* Application::GetGUI() const
+			{
+				if (!OnGetGUI)
+					return Engine::Application::GetGUI();
+
+				Context->TryExecute(true, OnGetGUI, nullptr).Wait();
+				return Context->GetReturnObject<Engine::GUI::Context>();
+			}
+			bool Application::WantsRestart(int ExitCode)
+			{
+				return ExitCode == ED_EXIT_RESTART;
+			}
+
 			bool StreamOpen(Core::Stream* Base, const std::string& Path, Core::FileMode Mode)
 			{
 				return Base->Open(Path.c_str(), Mode);
@@ -5377,18 +5620,6 @@ namespace Edge
 			size_t StreamWrite(Core::Stream* Base, const std::string& Data)
 			{
 				return Base->Write(Data.data(), Data.size());
-			}
-			Core::FileStream* StreamToFileStream(Core::Stream* Base)
-			{
-				return dynamic_cast<Core::FileStream*>(Base);
-			}
-			Core::GzStream* StreamToGzStream(Core::Stream* Base)
-			{
-				return dynamic_cast<Core::GzStream*>(Base);
-			}
-			Core::WebStream* StreamToWebStream(Core::Stream* Base)
-			{
-				return dynamic_cast<Core::WebStream*>(Base);
 			}
 
 			bool FileStreamOpen(Core::FileStream* Base, const std::string& Path, Core::FileMode Mode)
@@ -5410,10 +5641,6 @@ namespace Edge
 			{
 				return Base->Write(Data.data(), Data.size());
 			}
-			Core::Stream* FileStreamToStream(Core::FileStream* Base)
-			{
-				return dynamic_cast<Core::Stream*>(Base);
-			}
 
 			bool GzStreamOpen(Core::GzStream* Base, const std::string& Path, Core::FileMode Mode)
 			{
@@ -5433,10 +5660,6 @@ namespace Edge
 			size_t GzStreamWrite(Core::GzStream* Base, const std::string& Data)
 			{
 				return Base->Write(Data.data(), Data.size());
-			}
-			Core::Stream* GzStreamToStream(Core::GzStream* Base)
-			{
-				return dynamic_cast<Core::Stream*>(Base);
 			}
 
 			bool WebStreamOpen(Core::WebStream* Base, const std::string& Path, Core::FileMode Mode)
@@ -5458,11 +5681,7 @@ namespace Edge
 			{
 				return Base->Write(Data.data(), Data.size());
 			}
-			Core::Stream* WebStreamToStream(Core::WebStream* Base)
-			{
-				return dynamic_cast<Core::Stream*>(Base);
-			}
-			
+
 			Core::TaskId ScheduleSetInterval(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback, Core::Difficulty Type)
 			{
 				if (!Callback)
@@ -6190,47 +6409,6 @@ namespace Edge
 				return Array::Compose(Type.GetTypeInfo(), Result);
 			}
 
-			Compute::PConstraint* ConstraintToPConstraint(Compute::Constraint* Base)
-			{
-				return dynamic_cast<Compute::PConstraint*>(Base);
-			}
-			Compute::HConstraint* ConstraintToHConstraint(Compute::Constraint* Base)
-			{
-				return dynamic_cast<Compute::HConstraint*>(Base);
-			}
-			Compute::SConstraint* ConstraintToSConstraint(Compute::Constraint* Base)
-			{
-				return dynamic_cast<Compute::SConstraint*>(Base);
-			}
-			Compute::CTConstraint* ConstraintToCTConstraint(Compute::Constraint* Base)
-			{
-				return dynamic_cast<Compute::CTConstraint*>(Base);
-			}
-			Compute::DF6Constraint* ConstraintToDF6Constraint(Compute::Constraint* Base)
-			{
-				return dynamic_cast<Compute::DF6Constraint*>(Base);
-			}
-			Compute::Constraint* PConstraintToConstraint(Compute::PConstraint* Base)
-			{
-				return dynamic_cast<Compute::Constraint*>(Base);
-			}
-			Compute::Constraint* HConstraintToConstraint(Compute::HConstraint* Base)
-			{
-				return dynamic_cast<Compute::Constraint*>(Base);
-			}
-			Compute::Constraint* SConstraintToConstraint(Compute::SConstraint* Base)
-			{
-				return dynamic_cast<Compute::Constraint*>(Base);
-			}
-			Compute::Constraint* CTConstraintToConstraint(Compute::CTConstraint* Base)
-			{
-				return dynamic_cast<Compute::Constraint*>(Base);
-			}
-			Compute::Constraint* DF6ConstraintToConstraint(Compute::DF6Constraint* Base)
-			{
-				return dynamic_cast<Compute::Constraint*>(Base);
-			}
-
 			btCollisionShape* SimulatorCreateConvexHullSkinVertex(Compute::Simulator* Base, Array* Data)
 			{
 				auto Value = Array::Decompose<Compute::SkinVertex>(Data);
@@ -6793,39 +6971,6 @@ namespace Edge
 				return Array::Compose(Type.GetTypeInfo(), Base->GetArray());
 			}
 
-			Graphics::RenderTarget2D* RenderTargetToRenderTarget2D(Graphics::RenderTarget* Base)
-			{
-				return dynamic_cast<Graphics::RenderTarget2D*>(Base);
-			}
-			Graphics::RenderTargetCube* RenderTargetToRenderTargetCube(Graphics::RenderTarget* Base)
-			{
-				return dynamic_cast<Graphics::RenderTargetCube*>(Base);
-			}
-			Graphics::MultiRenderTarget2D* RenderTargetToMultiRenderTarget2D(Graphics::RenderTarget* Base)
-			{
-				return dynamic_cast<Graphics::MultiRenderTarget2D*>(Base);
-			}
-			Graphics::MultiRenderTargetCube* RenderTargetToMultiRenderTargetCube(Graphics::RenderTarget* Base)
-			{
-				return dynamic_cast<Graphics::MultiRenderTargetCube*>(Base);
-			}
-			Graphics::RenderTarget* RenderTarget2DToRenderTarget(Graphics::RenderTarget* Base)
-			{
-				return dynamic_cast<Graphics::RenderTarget*>(Base);
-			}
-			Graphics::RenderTarget* RenderTargetCubeToRenderTarget(Graphics::RenderTargetCube* Base)
-			{
-				return dynamic_cast<Graphics::RenderTarget*>(Base);
-			}
-			Graphics::RenderTarget* MultiRenderTarget2DToRenderTarget(Graphics::MultiRenderTarget2D* Base)
-			{
-				return dynamic_cast<Graphics::RenderTarget*>(Base);
-			}
-			Graphics::RenderTarget* MultiRenderTargetCubeToRenderTarget(Graphics::MultiRenderTargetCube* Base)
-			{
-				return dynamic_cast<Graphics::RenderTarget*>(Base);
-			}
-
 			void MultiRenderTarget2DDescSetFormatMode(Graphics::MultiRenderTarget2D::Desc& Base, size_t Index, Graphics::Format Mode)
 			{
 				Base.FormatMode[Index % 8] = Mode;
@@ -6939,6 +7084,24 @@ namespace Edge
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_RECTANGLE ">@");
 				return Array::Compose(Type.GetTypeInfo(), Rects);
 			}
+			Graphics::MeshBuffer* GraphicsDeviceCreateMeshBuffer(Graphics::GraphicsDevice* Base, const Graphics::MeshBuffer::Desc& Desc)
+			{
+				auto* Result = Base->CreateMeshBuffer(Desc);
+				FunctionFactory::AtomicNotifyGC(TYPENAME_MESHBUFFER, Result);
+				return Result;
+			}
+			Graphics::SkinMeshBuffer* GraphicsDeviceCreateSkinMeshBuffer(Graphics::GraphicsDevice* Base, const Graphics::SkinMeshBuffer::Desc& Desc)
+			{
+				auto* Result = Base->CreateSkinMeshBuffer(Desc);
+				FunctionFactory::AtomicNotifyGC(TYPENAME_SKINMESHBUFFER, Result);
+				return Result;
+			}
+			Graphics::InstanceBuffer* GraphicsDeviceCreateInstanceBuffer(Graphics::GraphicsDevice* Base, const Graphics::InstanceBuffer::Desc& Desc)
+			{
+				auto* Result = Base->CreateInstanceBuffer(Desc);
+				FunctionFactory::AtomicNotifyGC(TYPENAME_INSTANCEBUFFER, Result);
+				return Result;
+			}
 			Graphics::TextureCube* GraphicsDeviceCreateTextureCube(Graphics::GraphicsDevice* Base, Array* Data)
 			{
 				std::vector<Graphics::Texture2D*> Buffer = Array::Decompose<Graphics::Texture2D*>(Data);
@@ -7003,6 +7166,12 @@ namespace Edge
 			{
 				Graphics::Texture2D* Result = nullptr;
 				Base->CopyBackBufferNoAA(&Result);
+				return Result;
+			}
+			Graphics::GraphicsDevice* GraphicsDeviceCreate(Graphics::GraphicsDevice::Desc& Desc)
+			{
+				auto* Result = Graphics::GraphicsDevice::Create(Desc);
+				FunctionFactory::AtomicNotifyGC(TYPENAME_GRAPHICSDEVICE, Result);
 				return Result;
 			}
 
@@ -7301,6 +7470,50 @@ namespace Edge
 				return Base->Error(Code, "%s", Message.c_str());
 			}
 
+			template <typename T>
+			void PopulateAudioFilterBase(RefClass& Class, bool BaseCast = true)
+			{
+				if (BaseCast)
+					Class.SetOperatorEx(Operators::Cast, 0, "void", "?&out", &HandleToHandleCast);
+
+				Class.SetMethod("void synchronize()", &T::Synchronize);
+				Class.SetMethod("void deserialize(schema@+)", &T::Deserialize);
+				Class.SetMethod("void serialize(schema@+)", &T::Serialize);
+				Class.SetMethod("base_audio_filter@ copy()", &T::Copy);
+				Class.SetMethod("audio_source@+ get_source()", &T::GetSource);
+				PopulateComponent<T>(Class);
+			}
+			template <typename T, typename... Args>
+			void PopulateAudioFilterInterface(RefClass& Class, const char* Constructor)
+			{
+				Class.SetConstructor<T, Args...>(Constructor);
+				Class.SetDynamicCast<T, Audio::AudioFilter>("base_audio_filter@+", true);
+				PopulateAudioFilterBase<T>(Class, false);
+			}
+
+			template <typename T>
+			void PopulateAudioEffectBase(RefClass& Class, bool BaseCast = true)
+			{
+				if (BaseCast)
+					Class.SetOperatorEx(Operators::Cast, 0, "void", "?&out", &HandleToHandleCast);
+
+				Class.SetMethod("void synchronize()", &T::Synchronize);
+				Class.SetMethod("void deserialize(schema@+)", &T::Deserialize);
+				Class.SetMethod("void serialize(schema@+)", &T::Serialize);
+				Class.SetMethodEx("bool set_filter(base_audio_filter@+)", &AudioEffectSetFilter);
+				Class.SetMethod("base_audio_effect@ copy()", &T::Copy);
+				Class.SetMethod("audio_source@+ get_filter()", &T::GetFilter);
+				Class.SetMethod("audio_source@+ get_source()", &T::GetSource);
+				PopulateComponent<T>(Class);
+			}
+			template <typename T, typename... Args>
+			void PopulateAudioEffectInterface(RefClass& Class, const char* Constructor)
+			{
+				Class.SetConstructor<T, Args...>(Constructor);
+				Class.SetDynamicCast<T, Audio::AudioEffect>("base_audio_effect@+", true);
+				PopulateAudioEffectBase<T>(Class, false);
+			}
+
 			void EventSetArgs(Engine::Event& Base, Map* Data)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_MAP "<" TYPENAME_VARIANT ">@");
@@ -7326,6 +7539,643 @@ namespace Edge
 			void ViewerDestructor(Engine::Viewer& Base)
 			{
 				ED_RELEASE(Base.Renderer);
+			}
+
+			size_t SparseIndexGetSize(Engine::SparseIndex& Base)
+			{
+				return Base.Data.Size();
+			}
+			Engine::Component* SparseIndexGetData(Engine::SparseIndex& Base, size_t Index)
+			{
+				if (Index >= Base.Data.Size())
+					return nullptr;
+
+				return Base.Data[Index];
+			}
+
+			template <typename T>
+			void* ProcessorDuplicate(T* Base, Engine::AssetCache* Cache, Core::Schema* Args)
+			{
+				return Base->Duplicate(Cache, ToVariantKeys(Args));
+			}
+			template <typename T>
+			void* ProcessorDeserialize(T* Base, Core::Stream* Stream, size_t Offset, Core::Schema* Args)
+			{
+				return Base->Deserialize(Stream, Offset, ToVariantKeys(Args));
+			}
+			template <typename T>
+			bool ProcessorSerialize(T* Base, Core::Stream* Stream, void* Instance, Core::Schema* Args)
+			{
+				return Base->Serialize(Stream, Instance, ToVariantKeys(Args));
+			}
+			template <typename T>
+			void PopulateProcessorBase(RefClass& Class, bool BaseCast = true)
+			{
+				if (BaseCast)
+					Class.SetOperatorEx(Operators::Cast, 0, "void", "?&out", &HandleToHandleCast);
+
+				Class.SetMethod("void free(uptr@)", &Engine::Processor::Free);
+				Class.SetMethodEx("uptr@ duplicate(uptr@, schema@+)", &ProcessorDuplicate<T>);
+				Class.SetMethodEx("uptr@ deserialize(base_stream@+, usize, schema@+)", &ProcessorDeserialize<T>);
+				Class.SetMethodEx("bool serialize(base_stream@+, uptr@, schema@+)", &ProcessorSerialize<T>);
+				Class.SetMethod("content_manager@+ get_content() const", &Engine::Processor::GetContent);
+			}
+			template <typename T, typename... Args>
+			void PopulateProcessorInterface(RefClass& Class, const char* Constructor)
+			{
+				Class.SetConstructor<T, Args...>(Constructor);
+				Class.SetDynamicCast<T, Engine::Processor>("base_processor@+", true);
+				PopulateProcessorBase<T>(Class, false);
+			}
+
+			template <typename T>
+			void ComponentMessage(T* Base, const std::string& Name, Core::Schema* Args)
+			{
+				return Base->Message(Name, ToVariantKeys(Args));
+			}
+			template <typename T>
+			void PopulateComponentBase(RefClass& Class, bool BaseCast = true)
+			{
+				if (BaseCast)
+					Class.SetOperatorEx(Operators::Cast, 0, "void", "?&out", &HandleToHandleCast);
+
+				Class.SetMethod("void serialize(schema@+)", &Engine::Component::Serialize);
+				Class.SetMethod("void deserialize(schema@+)", &Engine::Component::Deserialize);
+				Class.SetMethod("void activate(base_component@+)", &Engine::Component::Activate);
+				Class.SetMethod("void deactivate()", &Engine::Component::Deactivate);
+				Class.SetMethod("void synchronize(clock_timer@+)", &Engine::Component::Synchronize);
+				Class.SetMethod("void animate(clock_timer@+)", &Engine::Component::Animate);
+				Class.SetMethod("void update(clock_timer@+)", &Engine::Component::Update);
+				Class.SetMethodEx("void message(const string &in, schema@+)", &ComponentMessage<T>);
+				Class.SetMethod("void movement()", &Engine::Component::Movement);
+				Class.SetMethod("usize get_unit_bounds(vector3 &out, vector3 &out) const", &Engine::Component::GetUnitBounds);
+				Class.SetMethod("float get_visibility(const viewer &in, float) const", &Engine::Component::GetVisibility);
+				Class.SetMethod("base_component@+ copy(scene_entity@+) const", &Engine::Component::Copy);
+				Class.SetMethod("scene_entity@+ get_entity() const", &Engine::Component::GetEntity);
+				Class.SetMethod("void set_active(bool)", &Engine::Component::SetActive);
+				Class.SetMethod("bool is_drawable() const", &Engine::Component::IsDrawable);
+				Class.SetMethod("bool is_cullable() const", &Engine::Component::IsCullable);
+				Class.SetMethod("bool is_active() const", &Engine::Component::IsActive);
+				PopulateComponent<T>(Class);
+			};
+			template <typename T, typename... Args>
+			void PopulateComponentInterface(RefClass& Class, const char* Constructor)
+			{
+				Class.SetConstructor<T, Args...>(Constructor);
+				Class.SetDynamicCast<T, Engine::Component>("base_component@+", true);
+				PopulateComponentBase<T>(Class, false);
+			};
+
+			void EntityRemoveComponent(Engine::Entity* Base, Engine::Component* Source)
+			{
+				if (Source != nullptr)
+					Base->RemoveComponent(Source->GetId());
+			}
+			void EntityRemoveComponentById(Engine::Entity* Base, uint64_t Id)
+			{
+				Base->RemoveComponent(Id);
+			}
+			Engine::Component* EntityAddComponent(Engine::Entity* Base, Engine::Component* Source)
+			{
+				if (!Source)
+					return nullptr;
+
+				return Base->AddComponent(Source);
+			}
+			Engine::Component* EntityGetComponentById(Engine::Entity* Base, uint64_t Id)
+			{
+				return Base->GetComponent(Id);
+			}
+			Array* EntityGetComponents(Engine::Entity* Base)
+			{
+				std::vector<Engine::Component*> Components;
+				Components.reserve(Base->GetComponentsCount());
+
+				for (auto& Item : *Base)
+					Components.push_back(Item.second);
+
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_COMPONENT "@>@");
+				return Array::Compose<Engine::Component*>(Type.GetTypeInfo(), Components);
+			}
+
+			template <typename T>
+			void PopulateDrawableBase(RefClass & Class)
+			{
+				Class.SetProperty<Engine::Drawable>("float overlapping", &Engine::Drawable::Overlapping);
+				Class.SetProperty<Engine::Drawable>("bool static", &Engine::Drawable::Static);
+				Class.SetMethod("bool set_category(geo_category)", &Engine::Drawable::SetCategory);
+				Class.SetMethod<Engine::Drawable, bool, void*, Engine::Material*>("bool set_material(uptr@, material@+)", &Engine::Drawable::SetMaterial);
+				Class.SetMethod<Engine::Drawable, bool, Engine::Material*>("bool set_material(material@+)", &Engine::Drawable::SetMaterial);
+				Class.SetMethod("geo_category get_category() const", &Engine::Drawable::GetCategory);
+				Class.SetMethod<Engine::Drawable, int64_t, void*>("int64 get_slot(uptr@)", &Engine::Drawable::GetSlot);
+				Class.SetMethod<Engine::Drawable, int64_t>("int64 get_slot()", &Engine::Drawable::GetSlot);
+				Class.SetMethod<Engine::Drawable, Engine::Material*, void*>("material@+ get_material(uptr@)", &Engine::Drawable::GetMaterial);
+				Class.SetMethod<Engine::Drawable, Engine::Material*>("material@+ get_material()", &Engine::Drawable::GetMaterial);
+				PopulateComponentBase<T>(Class, false);
+			}
+			template <typename T, typename... Args>
+			void PopulateDrawableInterface(RefClass& Class, const char* Constructor)
+			{
+				Class.SetConstructor<T, Args...>(Constructor);
+				Class.SetDynamicCast<T, Engine::Component>("base_component@+", true);
+				PopulateDrawableBase<T>(Class);
+			}
+
+			template <typename T>
+			void PopulateRendererBase(RefClass& Class, bool BaseCast = true)
+			{
+				if (BaseCast)
+					Class.SetOperatorEx(Operators::Cast, 0, "void", "?&out", &HandleToHandleCast);
+
+				Class.SetProperty<Engine::Renderer>("bool active", &Engine::Renderer::Active);
+				Class.SetMethod("void serialize(schema@+)", &Engine::Renderer::Serialize);
+				Class.SetMethod("void deserialize(schema@+)", &Engine::Renderer::Deserialize);
+				Class.SetMethod("void clear_culling()", &Engine::Renderer::ClearCulling);
+				Class.SetMethod("void resize_buffers()", &Engine::Renderer::ResizeBuffers);
+				Class.SetMethod("void activate()", &Engine::Renderer::Activate);
+				Class.SetMethod("void deactivate()", &Engine::Renderer::Deactivate);
+				Class.SetMethod("void begin_pass()", &Engine::Renderer::BeginPass);
+				Class.SetMethod("void end_pass()", &Engine::Renderer::EndPass);
+				Class.SetMethod("bool has_category(geo_category)", &Engine::Renderer::HasCategory);
+				Class.SetMethod("usize render_pass(clock_timer@+)", &Engine::Renderer::RenderPass);
+				Class.SetMethod("void set_renderer(render_system@+)", &Engine::Renderer::SetRenderer);
+				Class.SetMethod("render_system@+ get_renderer() const", &Engine::Renderer::GetRenderer);
+				PopulateComponent<T>(Class);
+			}
+			template <typename T, typename... Args>
+			void PopulateRendererInterface(RefClass& Class, const char* Constructor)
+			{
+				Class.SetConstructor<T, Args...>(Constructor);
+				Class.SetDynamicCast<T, Engine::Renderer>("base_renderer@+", true);
+				PopulateRendererBase<T>(Class, false);
+			}
+
+			void RenderSystemRestoreViewBuffer(Engine::RenderSystem* Base)
+			{
+				Base->RestoreViewBuffer(nullptr);
+			}
+			void RenderSystemMoveRenderer(Engine::RenderSystem* Base, Engine::Renderer* Source, size_t Offset)
+			{
+				if (Source != nullptr)
+					Base->MoveRenderer(Source->GetId(), Offset);
+			}
+			void RenderSystemRemoveRenderer(Engine::RenderSystem* Base, Engine::Renderer* Source)
+			{
+				if (Source != nullptr)
+					Base->RemoveRenderer(Source->GetId());
+			}
+			void RenderSystemFreeBuffers1(Engine::RenderSystem* Base, const std::string& Name, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
+			{
+				Graphics::ElementBuffer* Buffers[2];
+				Buffers[0] = Buffer1;
+				Buffers[1] = Buffer2;
+				Base->FreeBuffers(Name, Buffers);
+			}
+			void RenderSystemFreeBuffers2(Engine::RenderSystem* Base, const std::string& Name, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
+			{
+				Graphics::ElementBuffer* Buffers[2];
+				Buffers[0] = Buffer1;
+				Buffers[1] = Buffer2;
+				Base->FreeBuffers(Buffers);
+			}
+			Array* RenderSystemCompileBuffers(Engine::RenderSystem* Base, const std::string& Name, size_t ElementSize, size_t ElementsCount)
+			{
+				std::vector<Graphics::ElementBuffer*> Buffers;
+				Buffers.push_back(nullptr);
+				Buffers.push_back(nullptr);
+
+				if (!Base->CompileBuffers(Buffers.data(), Name, ElementSize, ElementsCount))
+					return nullptr;
+
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTBUFFER "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Buffers);
+			}
+			bool RenderSystemAddRenderer(Engine::RenderSystem* Base, Engine::Renderer* Source)
+			{
+				if (!Source)
+					return false;
+
+				return Base->AddRenderer(Source) != nullptr;
+			}
+			Engine::Renderer* RenderSystemGetRenderer(Engine::RenderSystem* Base, uint64_t Id)
+			{
+				return Base->GetRenderer(Id);
+			}
+			Engine::Renderer* RenderSystemGetRendererByIndex(Engine::RenderSystem* Base, size_t Index)
+			{
+				auto& Data = Base->GetRenderers();
+				if (Index >= Data.size())
+					return nullptr;
+
+				return Data[Index];
+			}
+			size_t RenderSystemGetRenderersCount(Engine::RenderSystem* Base)
+			{
+				return Base->GetRenderers().size();
+			}
+			void RenderSystemQueryAsync(Engine::RenderSystem* Base, uint64_t Id, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Callback || !Context)
+					return;
+
+				Base->QueryBasicAsync(Id, [Context, Callback](Engine::Component* Item)
+				{
+					Context->TryExecute(true, Callback, [Item](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, (void*)Item);
+					}).Wait();
+				});
+			}
+
+			Array* PrimitiveCacheCompile(Engine::PrimitiveCache* Base, const std::string& Name, size_t ElementSize, size_t ElementsCount)
+			{
+				std::vector<Graphics::ElementBuffer*> Buffers;
+				Buffers.push_back(nullptr);
+				Buffers.push_back(nullptr);
+
+				if (!Base->Compile(Buffers.data(), Name, ElementSize, ElementsCount))
+					return nullptr;
+
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTBUFFER "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Buffers);
+			}
+			Array* PrimitiveCacheGet(Engine::PrimitiveCache* Base, const std::string& Name)
+			{
+				std::vector<Graphics::ElementBuffer*> Buffers;
+				Buffers.push_back(nullptr);
+				Buffers.push_back(nullptr);
+
+				if (!Base->Get(Buffers.data(), Name))
+					return nullptr;
+
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTBUFFER "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Buffers);
+			}
+			bool PrimitiveCacheFree(Engine::PrimitiveCache* Base, const std::string& Name, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
+			{
+				Graphics::ElementBuffer* Buffers[2];
+				Buffers[0] = Buffer1;
+				Buffers[1] = Buffer2;
+				return Base->Free(Name, Buffers);
+			}
+			std::string PrimitiveCacheFind(Engine::PrimitiveCache* Base, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
+			{
+				Graphics::ElementBuffer* Buffers[2];
+				Buffers[0] = Buffer1;
+				Buffers[1] = Buffer2;
+				return Base->Find(Buffers);
+			}
+			Array* PrimitiveCacheGetSphereBuffers(Engine::PrimitiveCache* Base)
+			{
+				std::vector<Graphics::ElementBuffer*> Buffers;
+				Buffers.push_back(nullptr);
+				Buffers.push_back(nullptr);
+				Base->GetSphereBuffers(Buffers.data());
+
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTBUFFER "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Buffers);
+			}
+			Array* PrimitiveCacheGetCubeBuffers(Engine::PrimitiveCache* Base)
+			{
+				std::vector<Graphics::ElementBuffer*> Buffers;
+				Buffers.push_back(nullptr);
+				Buffers.push_back(nullptr);
+				Base->GetCubeBuffers(Buffers.data());
+
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTBUFFER "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Buffers);
+			}
+			Array* PrimitiveCacheGetBoxBuffers(Engine::PrimitiveCache* Base)
+			{
+				std::vector<Graphics::ElementBuffer*> Buffers;
+				Buffers.push_back(nullptr);
+				Buffers.push_back(nullptr);
+				Base->GetBoxBuffers(Buffers.data());
+
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTBUFFER "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Buffers);
+			}
+			Array* PrimitiveCacheGetSkinBoxBuffers(Engine::PrimitiveCache* Base)
+			{
+				std::vector<Graphics::ElementBuffer*> Buffers;
+				Buffers.push_back(nullptr);
+				Buffers.push_back(nullptr);
+				Base->GetSkinBoxBuffers(Buffers.data());
+
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTBUFFER "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Buffers);
+			}
+
+			void* ContentManagerLoad(Engine::ContentManager* Base, Engine::Processor* Source, const std::string& Path, Core::Schema* Args)
+			{
+				return Base->Load(Source, Path, ToVariantKeys(Args));
+			}
+			bool ContentManagerSave(Engine::ContentManager* Base, Engine::Processor* Source, const std::string& Path, void* Object, Core::Schema* Args)
+			{
+				return Base->Save(Source, Path, Object, ToVariantKeys(Args));
+			}
+			void ContentManagerLoadAsync2(Engine::ContentManager* Base, Engine::Processor* Source, const std::string& Path, Core::Schema* Args, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context || !Callback)
+					return;
+
+				Callback->AddRef();
+				Context->AddRef();
+				Base->LoadAsync(Source, Path, ToVariantKeys(Args)).Await([Context, Callback](void*&& Object)
+				{
+					Context->TryExecute(false, Callback, [Object](ImmediateContext* Context)
+					{
+						Context->SetArgAddress(0, Object);
+					}).Await([Context, Callback](int&&)
+					{
+						Callback->Release();
+						Context->Release();
+					});
+				});
+			}
+			void ContentManagerLoadAsync1(Engine::ContentManager* Base, Engine::Processor* Source, const std::string& Path, asIScriptFunction* Callback)
+			{
+				ContentManagerLoadAsync2(Base, Source, Path, nullptr, Callback);
+			}
+			void ContentManagerSaveAsync2(Engine::ContentManager* Base, Engine::Processor* Source, const std::string& Path, void* Object, Core::Schema* Args, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context || !Callback)
+					return;
+
+				Callback->AddRef();
+				Context->AddRef();
+				Base->SaveAsync(Source, Path, Object, ToVariantKeys(Args)).Await([Context, Callback](bool&& Success)
+				{
+					Context->TryExecute(false, Callback, [Success](ImmediateContext* Context)
+					{
+						Context->SetArg8(0, Success);
+					}).Await([Context, Callback](int&&)
+					{
+						Callback->Release();
+						Context->Release();
+					});
+				});
+			}
+			void ContentManagerSaveAsync1(Engine::ContentManager* Base, Engine::Processor* Source, const std::string& Path, void* Object, asIScriptFunction* Callback)
+			{
+				ContentManagerSaveAsync2(Base, Source, Path, Object, nullptr, Callback);
+			}
+			bool ContentManagerFindCache1(Engine::ContentManager* Base, Engine::Processor* Source, Engine::AssetCache& Output, const std::string& Path)
+			{
+				auto* Cache = Base->FindCache(Source, Path);
+				if (!Cache)
+					return false;
+
+				Output = *Cache;
+				return true;
+			}
+			bool ContentManagerFindCache2(Engine::ContentManager* Base, Engine::Processor* Source, Engine::AssetCache& Output, void* Object)
+			{
+				auto* Cache = Base->FindCache(Source, Object);
+				if (!Cache)
+					return false;
+
+				Output = *Cache;
+				return true;
+			}
+			Engine::Processor* ContentManagerAddProcessor(Engine::ContentManager* Base, Engine::Processor* Source, uint64_t Id)
+			{
+				if (!Source)
+					return nullptr;
+
+				return Base->AddProcessor(Source, Id);
+			}
+
+			Engine::SceneGraph::Desc::Dependencies& SceneGraphSharedDescCopy(Engine::SceneGraph::Desc::Dependencies& Base, Engine::SceneGraph::Desc::Dependencies& Other)
+			{
+				if (&Base == &Other)
+					return Base;
+
+				ED_RELEASE(Base.Device);
+				ED_RELEASE(Base.Activity);
+				ED_RELEASE(Base.VM);
+				ED_RELEASE(Base.Content);
+				ED_RELEASE(Base.Primitives);
+				ED_RELEASE(Base.Shaders);
+				Base = Other;
+				ED_ASSIGN(Base.Device, Other.Device);
+				ED_ASSIGN(Base.Activity, Other.Activity);
+				ED_ASSIGN(Base.VM, Other.VM);
+				ED_ASSIGN(Base.Content, Other.Content);
+				ED_ASSIGN(Base.Primitives, Other.Primitives);
+				ED_ASSIGN(Base.Shaders, Other.Shaders);
+
+				return Base;
+			}
+			void SceneGraphSharedDescDestructor(Engine::SceneGraph::Desc::Dependencies& Base)
+			{
+				ED_RELEASE(Base.Device);
+				ED_RELEASE(Base.Activity);
+				ED_RELEASE(Base.VM);
+				ED_RELEASE(Base.Content);
+				ED_RELEASE(Base.Primitives);
+				ED_RELEASE(Base.Shaders);
+			}
+
+			void SceneGraphRayTest(Engine::SceneGraph* Base, uint64_t Id, const Compute::Ray& Ray, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context || !Callback)
+					return;
+
+				Base->RayTest(Id, Ray, [Context, Callback](Engine::Component* Source, const Compute::Vector3& Where)
+				{
+					Context->TryExecute(true, Callback, [&Source, &Where](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, (void*)Source);
+						Context->SetArgObject(1, (void*)&Where);
+					}).Wait();
+					return (bool)Context->GetReturnByte();
+				});
+			}
+			void SceneGraphMutate1(Engine::SceneGraph* Base, Engine::Entity* Source, Engine::Entity* Child, const std::string& Name)
+			{
+				Base->Mutate(Source, Child, Name.c_str());
+			}
+			void SceneGraphMutate2(Engine::SceneGraph* Base, Engine::Entity* Source, const std::string& Name)
+			{
+				Base->Mutate(Source, Name.c_str());
+			}
+			void SceneGraphMutate3(Engine::SceneGraph* Base, Engine::Component* Source, const std::string& Name)
+			{
+				Base->Mutate(Source, Name.c_str());
+			}
+			void SceneGraphMutate4(Engine::SceneGraph* Base, Engine::Material* Source, const std::string& Name)
+			{
+				Base->Mutate(Source, Name.c_str());
+			}
+			void SceneGraphTransaction(Engine::SceneGraph* Base, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context || !Callback)
+					return;
+
+				Context->AddRef();
+				Callback->AddRef();
+				Base->Transaction([Context, Callback]()
+				{
+					Context->TryExecute(false, Callback, nullptr).Await([Context, Callback](int&&)
+					{
+						Context->Release();
+						Callback->Release();
+					});
+				});
+			}
+			void SceneGraphPushEvent1(Engine::SceneGraph* Base, const std::string& Name, Core::Schema* Args, bool Propagate)
+			{
+				Base->PushEvent(Name, ToVariantKeys(Args), Propagate);
+			}
+			void SceneGraphPushEvent2(Engine::SceneGraph* Base, const std::string& Name, Core::Schema* Args, Engine::Component* Source)
+			{
+				Base->PushEvent(Name, ToVariantKeys(Args), Source);
+			}
+			void SceneGraphPushEvent3(Engine::SceneGraph* Base, const std::string& Name, Core::Schema* Args, Engine::Entity* Source)
+			{
+				Base->PushEvent(Name, ToVariantKeys(Args), Source);
+			}
+			void* SceneGraphSetListener(Engine::SceneGraph* Base, const std::string& Name, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context || !Callback)
+					return nullptr;
+
+				return Base->SetListener(Name, [Context, Callback](const std::string& Name, Core::VariantArgs& BaseArgs)
+				{
+					Core::Schema* Args = Core::Var::Set::Object();
+					Args->Reserve(BaseArgs.size());
+					for (auto& Item : BaseArgs)
+						Args->Set(Item.first, Item.second);
+
+					Callback->AddRef();
+					Context->AddRef();
+					Context->TryExecute(false, Callback, [Name, Args](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, (void*)&Name);
+						Context->SetArgObject(1, (void*)Args);
+					}).Await([Context, Callback, Args](int&&)
+					{
+						Context->Release();
+						Callback->Release();
+						ED_RELEASE(Args);
+					});
+				});
+			}
+			void SceneGraphLoadResource(Engine::SceneGraph* Base, uint64_t Id, Engine::Component* Source, const std::string& Path, Core::Schema* Args, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context || !Callback)
+					return;
+
+				Context->AddRef();
+				Callback->AddRef();
+				Base->LoadResource(Id, Source, Path, ToVariantKeys(Args), [Context, Callback](void* Resource)
+				{
+					Context->TryExecute(false, Callback, [Resource](ImmediateContext* Context)
+					{
+						Context->SetArgAddress(0, Resource);
+					}).Await([Context, Callback](int&&)
+					{
+						Context->Release();
+						Callback->Release();
+					});
+				});
+			}
+			Array* SceneGraphGetComponents(Engine::SceneGraph* Base, uint64_t Id)
+			{
+				auto& Data = Base->GetComponents(Id);
+				std::vector<Engine::Component*> Output;
+				Output.reserve(Data.Size());
+
+				for (auto* Next : Data)
+					Output.push_back(Next);
+
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_COMPONENT "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Output);
+			}
+			Array* SceneGraphGetActors(Engine::SceneGraph* Base, Engine::ActorType Source)
+			{
+				auto& Data = Base->GetActors(Source);
+				std::vector<Engine::Component*> Output;
+				Output.reserve(Data.Size());
+
+				for (auto* Next : Data)
+					Output.push_back(Next);
+
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_COMPONENT "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Output);
+			}
+			Array* SceneGraphCloneEntityAsArray(Engine::SceneGraph* Base, Engine::Entity* Source)
+			{
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ENTITY "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Base->CloneEntityAsArray(Source));
+			}
+			Array* SceneGraphQueryByParent(Engine::SceneGraph* Base, Engine::Entity* Source)
+			{
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ENTITY "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Base->QueryByParent(Source));
+			}
+			Array* SceneGraphQueryByName(Engine::SceneGraph* Base, const std::string& Source)
+			{
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ENTITY "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Base->QueryByName(Source));
+			}
+			Array* SceneGraphQueryByPosition(Engine::SceneGraph* Base, uint64_t Id, const Compute::Vector3& Position, float Radius)
+			{
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_COMPONENT "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Base->QueryByPosition(Id, Position, Radius));
+			}
+			Array* SceneGraphQueryByArea(Engine::SceneGraph* Base, uint64_t Id, const Compute::Vector3& Min, const Compute::Vector3& Max)
+			{
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_COMPONENT "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Base->QueryByArea(Id, Min, Max));
+			}
+			Array* SceneGraphQueryByRay(Engine::SceneGraph* Base, uint64_t Id, const Compute::Ray& Ray)
+			{
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_COMPONENT "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Base->QueryByRay(Id, Ray));
+			}
+			Array* SceneGraphQueryByMatch(Engine::SceneGraph* Base, uint64_t Id, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context || !Callback)
+					return nullptr;
+
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_COMPONENT "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Base->QueryByMatch(Id, [Context, Callback](const Compute::Bounding& Source)
+				{
+					Context->TryExecute(true, Callback, [&Source](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, (void*)&Source);
+					}).Wait();
+					return (bool)Context->GetReturnByte();
+				}));
+			}
+
+			Application::CacheInfo& ApplicationCacheInfoCopy(Application::CacheInfo& Base, Application::CacheInfo& Other)
+			{
+				if (&Base == &Other)
+					return Base;
+
+				ED_RELEASE(Base.Primitives);
+				ED_RELEASE(Base.Shaders);
+				Base = Other;
+				ED_ASSIGN(Base.Primitives, Other.Primitives);
+				ED_ASSIGN(Base.Shaders, Other.Shaders);
+
+				return Base;
+			}
+			void ApplicationCacheInfoDestructor(Application::CacheInfo& Base)
+			{
+				ED_RELEASE(Base.Primitives);
+				ED_RELEASE(Base.Shaders);
 			}
 
 			bool IElementDispatchEvent(Engine::GUI::IElement& Base, const std::string& Name, Core::Schema* Args)
@@ -7489,12 +8339,13 @@ namespace Edge
 			}
 			ModelListener::~ModelListener() noexcept
 			{
-				if (Source != nullptr)
-					Source->Release();
-
-				if (Context != nullptr)
-					Context->Release();
-				ED_RELEASE(Base);
+				ED_CLEAR(Source);
+				ED_CLEAR(Context);
+				ED_CLEAR(Base);
+			}
+			asIScriptFunction* ModelListener::GetCallback()
+			{
+				return Source;
 			}
 			Engine::GUI::EventCallback ModelListener::Bind(asIScriptFunction* Callback)
 			{
@@ -7527,6 +8378,94 @@ namespace Edge
 				};
 			}
 
+			void ComponentsSoftBodyLoad(Engine::Components::SoftBody* Base, const std::string& Path, float Ant, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Context->AddRef();
+					Callback->AddRef();
+				}
+
+				Base->Load(Path, Ant, [Context, Callback]()
+				{
+					if (!Context || !Callback)
+						return;
+
+					Context->TryExecute(false, Callback, nullptr).Await([Context, Callback](int&&)
+					{
+						Callback->Release();
+						Context->Release();
+					});
+				});
+			}
+
+			void ComponentsRigidBodyLoad(Engine::Components::RigidBody* Base, const std::string& Path, float Mass, float Ant, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Context->AddRef();
+					Callback->AddRef();
+				}
+
+				Base->Load(Path, Mass, Ant, [Context, Callback]()
+				{
+					if (!Context || !Callback)
+						return;
+
+					Context->TryExecute(false, Callback, nullptr).Await([Context, Callback](int&&)
+					{
+						Callback->Release();
+						Context->Release();
+					});
+				});
+			}
+
+			void ComponentsSkinAnimatorLoadAnimation(Engine::Components::SkinAnimator* Base, const std::string& Path, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Context->AddRef();
+					Callback->AddRef();
+				}
+
+				Base->LoadAnimation(Path, [Context, Callback](bool)
+				{
+					if (!Context || !Callback)
+						return;
+
+					Context->TryExecute(false, Callback, nullptr).Await([Context, Callback](int&&)
+					{
+						Callback->Release();
+						Context->Release();
+					});
+				});
+			}
+
+			void ComponentsKeyAnimatorLoadAnimation(Engine::Components::KeyAnimator* Base, const std::string& Path, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Context->AddRef();
+					Callback->AddRef();
+				}
+
+				Base->LoadAnimation(Path, [Context, Callback](bool)
+				{
+					if (!Context || !Callback)
+						return;
+
+					Context->TryExecute(false, Callback, nullptr).Await([Context, Callback](int&&)
+					{
+						Callback->Release();
+						Context->Release();
+					});
+				});
+			}
+#endif
 			bool Registry::LoadCTypes(VirtualMachine* VM)
 			{
 				ED_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
@@ -7536,12 +8475,16 @@ namespace Edge
 #else
 				Engine->RegisterTypedef("usize", "uint32");
 #endif
-				return Engine->RegisterObjectType("uptr", 0, asOBJ_REF | asOBJ_NOCOUNT) >= 0;
+				RefClass VPointer(VM, "uptr", Engine->RegisterObjectType("uptr", 0, asOBJ_REF | asOBJ_NOCOUNT));
+				Engine->RegisterObjectMethod("uptr", "void opCast(?&out)", asFUNCTIONPR(PointerToHandleCast, (void*, void**, int), void), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterGlobalFunction("uptr@ to_ptr(?&in)", asFUNCTION(HandleToPointerCast), asCALL_CDECL);
+
+				return true;
 			}
 			bool Registry::LoadAny(VirtualMachine* VM)
 			{
-#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
+
 				asIScriptEngine* Engine = VM->GetEngine();
 				Engine->RegisterObjectType("any", sizeof(Any), asOBJ_REF | asOBJ_GC);
 				Engine->RegisterObjectBehaviour("any", asBEHAVE_FACTORY, "any@ f()", asFUNCTION(Any::Factory1), asCALL_GENERIC);
@@ -7558,15 +8501,13 @@ namespace Edge
 				Engine->RegisterObjectMethod("any", "any &opAssign(any&in)", asFUNCTION(Any::Assignment), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("any", "void store(?&in)", asMETHODPR(Any, Store, (void*, int), void), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("any", "bool retrieve(?&out)", asMETHODPR(Any, Retrieve, (void*, int) const, bool), asCALL_THISCALL);
+
 				return true;
-#else
-				ED_ASSERT(false, false, "<any> is not loaded");
-				return false;
-#endif
 			}
 			bool Registry::LoadArray(VirtualMachine* VM)
 			{
 				ED_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
+
 				asIScriptEngine* Engine = VM->GetEngine();
 				Engine->SetTypeInfoUserDataCleanupCallback(Array::CleanupTypeInfoCache, ARRAY_CACHE);
 				Engine->RegisterObjectType("array<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
@@ -7610,6 +8551,7 @@ namespace Edge
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Array, EnumReferences), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Array, ReleaseAllHandles), asCALL_THISCALL);
 				Engine->RegisterDefaultArrayType("array<T>");
+
 				return true;
 			}
 			bool Registry::LoadComplex(VirtualMachine* VM)
@@ -7647,7 +8589,6 @@ namespace Edge
 			}
 			bool Registry::LoadMap(VirtualMachine* VM)
 			{
-#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
 				Engine->RegisterObjectType("map_key", sizeof(MapKey), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_GC | asGetTypeTraits<MapKey>());
@@ -7690,10 +8631,6 @@ namespace Edge
 
 				Map::Setup(Engine);
 				return true;
-#else
-				ED_ASSERT(false, false, "<map> is not loaded");
-				return false;
-#endif
 			}
 			bool Registry::LoadGrid(VirtualMachine* VM)
 			{
@@ -7729,7 +8666,6 @@ namespace Edge
 			}
 			bool Registry::LoadRef(VirtualMachine* VM)
 			{
-#ifdef ED_HAS_BINDINGS
 				asIScriptEngine* Engine = VM->GetEngine();
 				if (!Engine)
 					return false;
@@ -7747,14 +8683,9 @@ namespace Edge
 				Engine->RegisterObjectMethod("ref", "bool opEquals(const ref &in) const", asMETHODPR(Ref, operator==, (const Ref&) const, bool), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("ref", "bool opEquals(const ?&in) const", asMETHODPR(Ref, Equals, (void*, int) const, bool), asCALL_THISCALL);
 				return true;
-#else
-				ED_ASSERT(false, false, "<ref> is not loaded");
-				return false;
-#endif
 			}
 			bool Registry::LoadWeakRef(VirtualMachine* VM)
 			{
-#ifdef ED_HAS_BINDINGS
 				asIScriptEngine* Engine = VM->GetEngine();
 				if (!Engine)
 					return false;
@@ -7785,15 +8716,11 @@ namespace Edge
 				Engine->RegisterObjectMethod("const_weak_ref<T>", "bool opEquals(const T@+) const", asMETHOD(WeakRef, Equals), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("const_weak_ref<T>", "const_weak_ref<T> &opHndlAssign(const weak_ref<T> &in)", asMETHOD(WeakRef, operator=), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("const_weak_ref<T>", "bool opEquals(const weak_ref<T> &in) const", asMETHODPR(WeakRef, operator==, (const WeakRef&) const, bool), asCALL_THISCALL);
+				
 				return true;
-#else
-				ED_ASSERT(false, false, "<weak_ref> is not loaded");
-				return false;
-#endif
 			}
 			bool Registry::LoadMath(VirtualMachine* VM)
 			{
-#ifdef ED_HAS_BINDINGS
 				asIScriptEngine* Engine = VM->GetEngine();
 				if (!Engine)
 					return false;
@@ -7840,10 +8767,6 @@ namespace Edge
 				Engine->RegisterGlobalFunction("float floor(float)", asFUNCTIONPR(Compute::Mathf::Floor, (float), float), asCALL_CDECL);
 				
 				return true;
-#else
-				ED_ASSERT(false, false, "<math> is not loaded");
-				return false;
-#endif
 			}
 			bool Registry::LoadString(VirtualMachine* VM)
 			{
@@ -7900,10 +8823,7 @@ namespace Edge
 				Engine->RegisterObjectMethod("string", "string to_lower() const", asFUNCTION(String::ToLower), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "string to_upper() const", asFUNCTION(String::ToUpper), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "string reverse() const", asFUNCTION(String::Reverse), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "uptr@ get_pointer() const", asFUNCTION(String::ToPtr), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "uptr@ opImplCast()", asFUNCTION(String::ToPtr), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "uptr@ opImplCast() const", asFUNCTION(String::ToPtr), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "uptr@ opImplConv() const", asFUNCTION(String::ToPtr), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "uptr@ get_ptr() const", asFUNCTION(String::ToPtr), asCALL_CDECL_OBJLAST);
 				Engine->RegisterGlobalFunction("int64 to_int(const string &in, usize = 10, usize &out = 0)", asFUNCTION(String::IntStore), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("uint64 to_uint(const string &in, usize = 10, usize &out = 0)", asFUNCTION(String::UIntStore), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("double to_float(const string &in, usize &out = 0)", asFUNCTION(String::FloatStore), asCALL_CDECL);
@@ -7926,11 +8846,13 @@ namespace Edge
 			bool Registry::LoadException(VirtualMachine* VM)
 			{
 				ED_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
+
 				asIScriptEngine* Engine = VM->GetEngine();
 				VM->BeginNamespace("exception");
 				Engine->RegisterGlobalFunction("void throw(const string &in = \"\")", asFUNCTION(Exception::Throw), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string unwrap()", asFUNCTION(Exception::GetException), asCALL_CDECL);
 				VM->EndNamespace();
+
 				return true;
 			}
 			bool Registry::LoadMutex(VirtualMachine* VM)
@@ -7991,8 +8913,8 @@ namespace Edge
 			}
 			bool Registry::LoadRandom(VirtualMachine* VM)
 			{
-#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
+
 				VM->BeginNamespace("random");
 				VM->SetFunction("string bytes(uint64)", &Random::Getb);
 				VM->SetFunction("double betweend(double, double)", &Random::Betweend);
@@ -8005,14 +8927,9 @@ namespace Edge
 				VM->EndNamespace();
 
 				return true;
-#else
-				ED_ASSERT(false, false, "<random> is not loaded");
-				return false;
-#endif
 			}
 			bool Registry::LoadPromise(VirtualMachine* VM)
 			{
-#ifdef ED_HAS_BINDINGS
 				asIScriptEngine* Engine = VM->GetEngine();
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 
@@ -8039,16 +8956,12 @@ namespace Edge
 				Engine->RegisterObjectMethod("ref_promise<T>", "T@+ await()", asMETHOD(Promise, GetHandle), asCALL_THISCALL);
 
 				return true;
-#else
-				ED_ASSERT(false, false, "<promise> is not loaded");
-				return false;
-#endif
 			}
 			bool Registry::LoadFormat(VirtualMachine* Engine)
 			{
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
-				RefClass VFormat = Engine->SetClass<Format>("format");
+				RefClass VFormat = Engine->SetClass<Format>("format", false);
 				VFormat.SetConstructor<Format>("format@ f()");
 				VFormat.SetConstructorList<Format>("format@ f(int &in) {repeat ?}");
 				VFormat.SetMethodStatic("string to_json(const ? &in)", &Format::JSON);
@@ -8061,8 +8974,8 @@ namespace Edge
 			}
 			bool Registry::LoadDecimal(VirtualMachine* Engine)
 			{
-#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+
 				TypeClass VDecimal = Engine->SetStructTrivial<Core::Decimal>("decimal");
 				VDecimal.SetConstructor<Core::Decimal>("void f()");
 				VDecimal.SetConstructor<Core::Decimal, int32_t>("void f(int)");
@@ -8103,14 +9016,9 @@ namespace Edge
 				VDecimal.SetMethodStatic("decimal nan()", &Core::Decimal::NaN);
 
 				return true;
-#else
-				ED_ASSERT(false, false, "<decimal> is not loaded");
-				return false;
-#endif
 			}
 			bool Registry::LoadVariant(VirtualMachine* Engine)
 			{
-#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				Enumeration VVarType = Engine->SetEnum("var_type");
 				VVarType.SetValue("null_t", (int)Core::VarType::Null);
@@ -8159,14 +9067,9 @@ namespace Edge
 				Engine->EndNamespace();
 
 				return true;
-#else
-				ED_ASSERT(false, false, "<variant> is not loaded");
-				return false;
-#endif
 			}
 			bool Registry::LoadTimestamp(VirtualMachine* Engine)
 			{
-#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				TypeClass VDateTime = Engine->SetStructTrivial<Core::DateTime>("timestamp");
 				VDateTime.SetConstructor<Core::DateTime>("void f()");
@@ -8220,10 +9123,6 @@ namespace Edge
 				VDateTime.SetMethodStatic<std::string, int64_t>("string get_time(int64)", &Core::DateTime::FetchWebDateTime);
 
 				return true;
-#else
-				ED_ASSERT(false, false, "<timestamp> is not loaded");
-				return false;
-#endif
 			}
 			bool Registry::LoadConsole(VirtualMachine* Engine)
 			{
@@ -8247,7 +9146,7 @@ namespace Edge
 				VStdColor.SetValue("yellow", (int)Core::StdColor::Yellow);
 				VStdColor.SetValue("white", (int)Core::StdColor::White);
 
-				RefClass VConsole = Engine->SetClass<Core::Console>("console");
+				RefClass VConsole = Engine->SetClass<Core::Console>("console", false);
 				VConsole.SetMethod("void begin()", &Core::Console::Begin);
 				VConsole.SetMethod("void end()", &Core::Console::End);
 				VConsole.SetMethod("void hide()", &Core::Console::Hide);
@@ -8279,13 +9178,14 @@ namespace Edge
 			}
 			bool Registry::LoadSchema(VirtualMachine* Engine)
 			{
-#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
-				RefClass VSchema = Engine->SetClass<Core::Schema>("schema");
+
+				static const char Schema[] = "schema";
+				RefClass VSchema = Engine->SetClass<Core::Schema>("schema", true);
 				VSchema.SetProperty<Core::Schema>("string key", &Core::Schema::Key);
 				VSchema.SetProperty<Core::Schema>("variant value", &Core::Schema::Value);
-				VSchema.SetConstructor<Core::Schema, const Core::Variant&>("schema@ f(const variant &in)");
-				VSchema.SetConstructorListEx<Core::Schema>("schema@ f(int &in) { repeat { string, ? } }", &SchemaConstruct);
+				VSchema.SetGcConstructor<Core::Schema, Schema, const Core::Variant&>("schema@ f(const variant &in)");
+				VSchema.SetGcConstructorListEx<Core::Schema, Schema>("schema@ f(int &in) { repeat { string, ? } }", &SchemaConstruct);
 				VSchema.SetMethod<Core::Schema, Core::Variant, size_t>("variant getVar(usize) const", &Core::Schema::GetVar);
 				VSchema.SetMethod<Core::Schema, Core::Variant, const std::string&>("variant get_var(const string &in) const", &Core::Schema::GetVar);
 				VSchema.SetMethod("schema@+ get_parent() const", &Core::Schema::GetParent);
@@ -8305,6 +9205,7 @@ namespace Edge
 				VSchema.SetMethod("bool is_saved() const", &Core::Schema::IsAttribute);
 				VSchema.SetMethod("string get_name() const", &Core::Schema::GetName);
 				VSchema.SetMethod("void join(schema@+)", &Core::Schema::Join);
+				VSchema.SetMethod("void unlink()", &Core::Schema::Unlink);
 				VSchema.SetMethod("void clear()", &Core::Schema::Clear);
 				VSchema.SetMethod("void save()", &Core::Schema::Save);
 				VSchema.SetMethodEx("variant first_var() const", &SchemaFirstVar);
@@ -8333,6 +9234,12 @@ namespace Edge
 				VSchema.SetOperatorEx(Operators::Equals, (uint32_t)(Position::Left | Position::Const), "bool", "schema@+", &SchemaEquals);
 				VSchema.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "schema@+", "const string &in", &SchemaGetIndex);
 				VSchema.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "schema@+", "usize", &SchemaGetIndexOffset);
+				VSchema.SetEnumRefsEx<Core::Schema>(&SchemaEnumRefs);
+				VSchema.SetReleaseRefsEx<Core::Schema>([](Core::Schema* Base, asIScriptEngine*)
+				{
+					Base->Unlink();
+					Base->Clear();
+				});
 
 				Engine->BeginNamespace("var::set");
 				Engine->SetFunction("schema@ auto_t(const string &in, bool = false)", &Core::Var::Auto);
@@ -8352,18 +9259,14 @@ namespace Edge
 				Engine->EndNamespace();
 
 				return true;
-#else
-				ED_ASSERT(false, false, "<schema> is not loaded");
-				return false;
-#endif
 			}
-			bool Registry::LoadTickClock(VirtualMachine* Engine)
+			bool Registry::LoadClockTimer(VirtualMachine* Engine)
 			{
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 
-				RefClass VTimer = Engine->SetClass<Core::Timer>("tick_clock");
-				VTimer.SetConstructor<Core::Timer>("tick_clock@ f()");
+				RefClass VTimer = Engine->SetClass<Core::Timer>("clock_timer", false);
+				VTimer.SetConstructor<Core::Timer>("clock_timer@ f()");
 				VTimer.SetMethod("void set_fixed_frames(float)", &Core::Timer::SetFixedFrames);
 				VTimer.SetMethod("void begin()", &Core::Timer::Begin);
 				VTimer.SetMethod("void finish()", &Core::Timer::Finish);
@@ -8378,7 +9281,7 @@ namespace Edge
 
 				return true;
 #else
-				ED_ASSERT(false, false, "<tick_clock> is not loaded");
+				ED_ASSERT(false, false, "<clock_timer> is not loaded");
 				return false;
 #endif
 			}
@@ -8429,7 +9332,7 @@ namespace Edge
 				VFileEntry.SetProperty("bool is_directory", &Core::FileEntry::IsDirectory);
 				VFileEntry.SetProperty("bool is_exists", &Core::FileEntry::IsExists);
 
-				RefClass VStream = Engine->SetClass<Core::Stream>("base_stream");
+				RefClass VStream = Engine->SetClass<Core::Stream>("base_stream", false);
 				VStream.SetMethod("void clear()", &Core::Stream::Clear);
 				VStream.SetMethod("bool close()", &Core::Stream::Close);
 				VStream.SetMethod("bool seek(file_seek, int64)", &Core::Stream::Seek);
@@ -8442,7 +9345,7 @@ namespace Edge
 				VStream.SetMethodEx("usize write(const string &in)", &StreamWrite);
 				VStream.SetMethodEx("string read(usize)", &StreamRead);
 
-				RefClass VFileStream = Engine->SetClass<Core::FileStream>("file_stream");
+				RefClass VFileStream = Engine->SetClass<Core::FileStream>("file_stream", false);
 				VFileStream.SetConstructor<Core::FileStream>("file_stream@ f()");
 				VFileStream.SetMethod("void clear()", &Core::FileStream::Clear);
 				VFileStream.SetMethod("bool close()", &Core::FileStream::Close);
@@ -8456,7 +9359,7 @@ namespace Edge
 				VFileStream.SetMethodEx("usize write(const string &in)", &FileStreamWrite);
 				VFileStream.SetMethodEx("string read(usize)", &FileStreamRead);
 
-				RefClass VGzStream = Engine->SetClass<Core::GzStream>("gz_stream");
+				RefClass VGzStream = Engine->SetClass<Core::GzStream>("gz_stream", false);
 				VGzStream.SetConstructor<Core::GzStream>("gz_stream@ f()");
 				VGzStream.SetMethod("void clear()", &Core::GzStream::Clear);
 				VGzStream.SetMethod("bool close()", &Core::GzStream::Close);
@@ -8470,7 +9373,7 @@ namespace Edge
 				VGzStream.SetMethodEx("usize write(const string &in)", &GzStreamWrite);
 				VGzStream.SetMethodEx("string read(usize)", &GzStreamRead);
 
-				RefClass VWebStream = Engine->SetClass<Core::WebStream>("web_stream");
+				RefClass VWebStream = Engine->SetClass<Core::WebStream>("web_stream", false);
 				VWebStream.SetConstructor<Core::WebStream, bool>("web_stream@ f(bool)");
 				VWebStream.SetMethod("void clear()", &Core::WebStream::Clear);
 				VWebStream.SetMethod("bool close()", &Core::WebStream::Close);
@@ -8484,18 +9387,12 @@ namespace Edge
 				VWebStream.SetMethodEx("usize write(const string &in)", &WebStreamWrite);
 				VWebStream.SetMethodEx("string read(usize)", &WebStreamRead);
 
-				VStream.SetOperatorEx(Operators::Cast, 0, "file_stream@+", "", &StreamToFileStream);
-				VStream.SetOperatorEx(Operators::Cast, 0, "web_stream@+", "", &StreamToWebStream);
-				VStream.SetOperatorEx(Operators::Cast, 0, "gz_stream@+", "", &StreamToGzStream);
-				VStream.SetOperatorEx(Operators::Cast, (uint32_t)Position::Const, "file_stream@+", "", &StreamToFileStream);
-				VStream.SetOperatorEx(Operators::Cast, (uint32_t)Position::Const, "web_stream@+", "", &StreamToWebStream);
-				VStream.SetOperatorEx(Operators::Cast, (uint32_t)Position::Const, "gz_stream@+", "", &StreamToGzStream);
-				VFileStream.SetOperatorEx(Operators::ImplCast, 0, "base_stream@+", "", &FileStreamToStream);
-				VFileStream.SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "base_stream@+", "", &FileStreamToStream);
-				VGzStream.SetOperatorEx(Operators::ImplCast, 0, "base_stream@+", "", &GzStreamToStream);
-				VGzStream.SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "base_stream@+", "", &GzStreamToStream);
-				VWebStream.SetOperatorEx(Operators::ImplCast, 0, "base_stream@+", "", &WebStreamToStream);
-				VWebStream.SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "base_stream@+", "", &WebStreamToStream);
+				VStream.SetDynamicCast<Core::Stream, Core::FileStream>("file_stream@+");
+				VStream.SetDynamicCast<Core::Stream, Core::GzStream>("gz_stream@+");
+				VStream.SetDynamicCast<Core::Stream, Core::WebStream>("web_stream@+");
+				VFileStream.SetDynamicCast<Core::FileStream, Core::Stream>("base_stream@+", true);
+				VGzStream.SetDynamicCast<Core::GzStream, Core::Stream>("base_stream@+", true);
+				VWebStream.SetDynamicCast<Core::WebStream, Core::Stream>("base_stream@+", true);
 
 				return true;
 #else
@@ -8639,7 +9536,7 @@ namespace Edge
 				VDesc.SetConstructor<Core::Schedule::Desc>("void f()");
 				VDesc.SetMethod("void set_threads(usize)", &Core::Schedule::Desc::SetThreads);
 
-				RefClass VSchedule = Engine->SetClass<Core::Schedule>("schedule");
+				RefClass VSchedule = Engine->SetClass<Core::Schedule>("schedule", false);
 				VSchedule.SetFunctionDef("void task_event()");
 				VSchedule.SetMethodEx("task_id set_interval(uint64, task_event@+, difficulty = difficulty::light)", &ScheduleSetInterval);
 				VSchedule.SetMethodEx("task_id set_timeout(uint64, task_event@+, difficulty = difficulty::light)", &ScheduleSetTimeout);
@@ -9285,15 +10182,16 @@ namespace Edge
 				VPrivateKey.SetMethod("usize size() const", &Compute::PrivateKey::Clear);
 				VPrivateKey.SetMethodStatic<Compute::PrivateKey, const std::string&>("private_key get_plain(const string &in)", &Compute::PrivateKey::GetPlain);
 
-				RefClass VWebToken = Engine->SetClass<Compute::WebToken>("web_token");
+				static const char WebToken[] = "web_token";
+				RefClass VWebToken = Engine->SetClass<Compute::WebToken>("web_token", true);
 				VWebToken.SetProperty<Compute::WebToken>("schema@ header", &Compute::WebToken::Header);
 				VWebToken.SetProperty<Compute::WebToken>("schema@ payload", &Compute::WebToken::Payload);
 				VWebToken.SetProperty<Compute::WebToken>("schema@ token", &Compute::WebToken::Token);
 				VWebToken.SetProperty<Compute::WebToken>("string refresher", &Compute::WebToken::Refresher);
 				VWebToken.SetProperty<Compute::WebToken>("string signature", &Compute::WebToken::Signature);
 				VWebToken.SetProperty<Compute::WebToken>("string data", &Compute::WebToken::Data);
-				VWebToken.SetConstructor<Compute::WebToken>("web_token@ f()");
-				VWebToken.SetConstructor<Compute::WebToken, const std::string&, const std::string&, int64_t>("web_token@ f(const string &in, const string &in, int64)");
+				VWebToken.SetGcConstructor<Compute::WebToken, WebToken>("web_token@ f()");
+				VWebToken.SetGcConstructor<Compute::WebToken, WebToken, const std::string&, const std::string&, int64_t>("web_token@ f(const string &in, const string &in, int64)");
 				VWebToken.SetMethod("void unsign()", &Compute::WebToken::Unsign);
 				VWebToken.SetMethod("void set_algorithm(const string &in)", &Compute::WebToken::SetAlgorithm);
 				VWebToken.SetMethod("void set_type(const string &in)", &Compute::WebToken::SetType);
@@ -9309,6 +10207,16 @@ namespace Edge
 				VWebToken.SetMethod("string get_refresh_token(const private_key &in, const private_key &in)", &Compute::WebToken::GetRefreshToken);
 				VWebToken.SetMethod("bool is_valid()", &Compute::WebToken::IsValid);
 				VWebToken.SetMethodEx("void set_audience(array<string>@+)", &WebTokenSetAudience);
+				VWebToken.SetEnumRefsEx<Compute::WebToken>([](Compute::WebToken* Base, asIScriptEngine* Engine)
+				{
+					Engine->GCEnumCallback(Base->Header);
+					Engine->GCEnumCallback(Base->Payload);
+					Engine->GCEnumCallback(Base->Token);
+				});
+				VWebToken.SetReleaseRefsEx<Compute::WebToken>([](Compute::WebToken* Base, asIScriptEngine*)
+				{
+					Base->~WebToken();
+				});
 
 				Engine->BeginNamespace("ciphers");
 				Engine->SetFunction("uptr@ des_ecb()", &Compute::Ciphers::DES_ECB);
@@ -9546,7 +10454,7 @@ namespace Edge
 				VSpacing.SetProperty<Compute::Transform::Spacing>("vector3 scale", &Compute::Transform::Spacing::Scale);
 				VSpacing.SetConstructor<Compute::Transform::Spacing>("void f()");
 
-				RefClass VTransform = Engine->SetClass<Compute::Transform>("transform");
+				RefClass VTransform = Engine->SetClass<Compute::Transform>("transform", false);
 				VTransform.SetProperty<Compute::Transform>("uptr@ user_data", &Compute::Transform::UserData);
 				VTransform.SetConstructor<Compute::Transform, void*>("transform@ f(uptr@)");
 				VTransform.SetMethod("void synchronize()", &Compute::Transform::Synchronize);
@@ -9618,7 +10526,7 @@ namespace Edge
 				VCosmos.SetMethod("float get_volume_ratio() const", &Compute::Cosmos::GetVolumeRatio);
 				VCosmos.SetMethod("bool is_null(usize) const", &Compute::Cosmos::IsNull);
 				VCosmos.SetMethod("bool is_empty() const", &Compute::Cosmos::IsEmpty);
-				VCosmos.SetMethodEx("void query_index()", &CosmosQueryIndex);
+				VCosmos.SetMethodEx("void query_index(cosmos_query_overlaps@, cosmos_query_match@)", &CosmosQueryIndex);
 
 				Engine->BeginNamespace("geometric");
 				Engine->SetFunction("bool is_cube_in_frustum(const matrix4x4 &in, float)", &Compute::Geometric::IsCubeInFrustum);
@@ -9675,7 +10583,7 @@ namespace Edge
 				VDesc.SetProperty<Compute::Preprocessor::Desc>("bool Conditions", &Compute::Preprocessor::Desc::Conditions);
 				VDesc.SetConstructor<Compute::Preprocessor::Desc>("void f()");
 
-				RefClass VPreprocessor = Engine->SetClass<Compute::Preprocessor>("preprocessor");
+				RefClass VPreprocessor = Engine->SetClass<Compute::Preprocessor>("preprocessor", false);
 				VPreprocessor.SetFunctionDef("bool proc_include_event(preprocessor@+, const include_result &in, string &out)");
 				VPreprocessor.SetFunctionDef("bool proc_pragma_event(preprocessor@+, const string &in, array<string>@+)");
 				VPreprocessor.SetConstructor<Compute::Preprocessor>("preprocessor@ f(uptr@)");
@@ -9700,7 +10608,7 @@ namespace Edge
 			{
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
-				RefClass VSimulator = Engine->SetClass<Compute::Simulator>("physics_simulator");
+				RefClass VSimulator = Engine->SetClass<Compute::Simulator>("physics_simulator", false);
 				
 				Enumeration VShape = Engine->SetEnum("physics_shape");
 				VShape.SetValue("box", (int)Compute::Shape::Box);
@@ -9783,7 +10691,7 @@ namespace Edge
 				VRotator.SetValue("zxy", (int)Compute::Rotator::ZXY);
 				VRotator.SetValue("zyx", (int)Compute::Rotator::ZYX);
 
-				RefClass VHullShape = Engine->SetClass<Compute::HullShape>("physics_hull_shape");
+				RefClass VHullShape = Engine->SetClass<Compute::HullShape>("physics_hull_shape", false);
 				VHullShape.SetProperty<Compute::HullShape>("uptr@ shape", &Compute::HullShape::Shape);
 				VHullShape.SetConstructor<Compute::HullShape>("physics_hull_shape@ f()");
 				VHullShape.SetMethodEx("void set_vertices(array<vertex>@+)", &HullShapeSetVertices);
@@ -9800,7 +10708,7 @@ namespace Edge
 				VRigidBodyDesc.SetProperty<Compute::RigidBody::Desc>("vector3 scale", &Compute::RigidBody::Desc::Scale);
 				VRigidBodyDesc.SetConstructor<Compute::RigidBody::Desc>("void f()");
 
-				RefClass VRigidBody = Engine->SetClass<Compute::RigidBody>("physics_rigidbody");
+				RefClass VRigidBody = Engine->SetClass<Compute::RigidBody>("physics_rigidbody", false);
 				VRigidBody.SetMethod("physics_rigidbody@ copy()", &Compute::RigidBody::Copy);
 				VRigidBody.SetMethod<Compute::RigidBody, void, const Compute::Vector3&>("void push(const vector3 &in)", &Compute::RigidBody::Push);
 				VRigidBody.SetMethod<Compute::RigidBody, void, const Compute::Vector3&, const Compute::Vector3&>("void push(const vector3 &in, const vector3 &in)", &Compute::RigidBody::Push);
@@ -9963,7 +10871,7 @@ namespace Edge
 				VSoftBodyDesc.SetProperty<Compute::SoftBody::Desc>("vector3 scale", &Compute::SoftBody::SoftBody::Desc::Scale);
 				VSoftBodyDesc.SetConstructor<Compute::SoftBody::Desc>("void f()");
 
-				RefClass VSoftBody = Engine->SetClass<Compute::SoftBody>("physics_softbody");
+				RefClass VSoftBody = Engine->SetClass<Compute::SoftBody>("physics_softbody", false);
 				TypeClass VSoftBodyRayCast = Engine->SetPod<Compute::SoftBody::RayCast>("physics_softbody_raycast");
 				VSoftBodyRayCast.SetProperty<Compute::SoftBody::RayCast>("physics_softbody@ body", &Compute::SoftBody::RayCast::Body);
 				VSoftBodyRayCast.SetProperty<Compute::SoftBody::RayCast>("physics_soft_feature feature", &Compute::SoftBody::RayCast::Feature);
@@ -10058,7 +10966,7 @@ namespace Edge
 				VSoftBody.SetMethod("physics_softbody_desc& get_initial_state()", &Compute::SoftBody::GetInitialState);
 				VSoftBody.SetMethod("physics_simulator@+ get_simulator() const", &Compute::SoftBody::GetSimulator);
 
-				RefClass VConstraint = Engine->SetClass<Compute::Constraint>("physics_constraint");
+				RefClass VConstraint = Engine->SetClass<Compute::Constraint>("physics_constraint", false);
 				VConstraint.SetMethod("physics_constraint@ copy() const", &Compute::Constraint::Copy);
 				VConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::Constraint::GetSimulator);
 				VConstraint.SetMethod("uptr@ get() const", &Compute::Constraint::Get);
@@ -10079,7 +10987,7 @@ namespace Edge
 				VPConstraintDesc.SetProperty<Compute::PConstraint::Desc>("bool collisions", &Compute::PConstraint::Desc::Collisions);
 				VPConstraintDesc.SetConstructor<Compute::PConstraint::Desc>("void f()");
 
-				RefClass VPConstraint = Engine->SetClass<Compute::PConstraint>("physics_pconstraint");
+				RefClass VPConstraint = Engine->SetClass<Compute::PConstraint>("physics_pconstraint", false);
 				VPConstraint.SetMethod("physics_pconstraint@ copy() const", &Compute::PConstraint::Copy);
 				VPConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::PConstraint::GetSimulator);
 				VPConstraint.SetMethod("uptr@ get() const", &Compute::PConstraint::Get);
@@ -10104,7 +11012,7 @@ namespace Edge
 				VHConstraintDesc.SetProperty<Compute::HConstraint::Desc>("bool collisions", &Compute::HConstraint::Desc::Collisions);
 				VPConstraintDesc.SetConstructor<Compute::HConstraint::Desc>("void f()");
 
-				RefClass VHConstraint = Engine->SetClass<Compute::HConstraint>("physics_hconstraint");
+				RefClass VHConstraint = Engine->SetClass<Compute::HConstraint>("physics_hconstraint", false);
 				VHConstraint.SetMethod("physics_hconstraint@ copy() const", &Compute::HConstraint::Copy);
 				VHConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::HConstraint::GetSimulator);
 				VHConstraint.SetMethod("uptr@ get() const", &Compute::HConstraint::Get);
@@ -10153,7 +11061,7 @@ namespace Edge
 				VSConstraintDesc.SetProperty<Compute::SConstraint::Desc>("bool collisions", &Compute::SConstraint::Desc::Collisions);
 				VSConstraintDesc.SetConstructor<Compute::SConstraint::Desc>("void f()");
 
-				RefClass VSConstraint = Engine->SetClass<Compute::SConstraint>("physics_sconstraint");
+				RefClass VSConstraint = Engine->SetClass<Compute::SConstraint>("physics_sconstraint", false);
 				VSConstraint.SetMethod("physics_sconstraint@ copy() const", &Compute::SConstraint::Copy);
 				VSConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::SConstraint::GetSimulator);
 				VSConstraint.SetMethod("uptr@ get() const", &Compute::SConstraint::Get);
@@ -10229,7 +11137,7 @@ namespace Edge
 				VCTConstraintDesc.SetProperty<Compute::CTConstraint::Desc>("bool collisions", &Compute::CTConstraint::Desc::Collisions);
 				VCTConstraintDesc.SetConstructor<Compute::CTConstraint::Desc>("void f()");
 
-				RefClass VCTConstraint = Engine->SetClass<Compute::CTConstraint>("physics_ctconstraint");
+				RefClass VCTConstraint = Engine->SetClass<Compute::CTConstraint>("physics_ctconstraint", false);
 				VCTConstraint.SetMethod("physics_ctconstraint@ copy() const", &Compute::CTConstraint::Copy);
 				VCTConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::CTConstraint::GetSimulator);
 				VCTConstraint.SetMethod("uptr@ get() const", &Compute::CTConstraint::Get);
@@ -10280,7 +11188,7 @@ namespace Edge
 				VDF6ConstraintDesc.SetProperty<Compute::DF6Constraint::Desc>("bool collisions", &Compute::DF6Constraint::Desc::Collisions);
 				VDF6ConstraintDesc.SetConstructor<Compute::DF6Constraint::Desc>("void f()");
 
-				RefClass VDF6Constraint = Engine->SetClass<Compute::DF6Constraint>("physics_df6constraint");
+				RefClass VDF6Constraint = Engine->SetClass<Compute::DF6Constraint>("physics_df6constraint", false);
 				VDF6Constraint.SetMethod("physics_df6constraint@ copy() const", &Compute::DF6Constraint::Copy);
 				VDF6Constraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::DF6Constraint::GetSimulator);
 				VDF6Constraint.SetMethod("uptr@ get() const", &Compute::DF6Constraint::Get);
@@ -10393,21 +11301,16 @@ namespace Edge
 				VSimulator.SetMethod("bool has_softbody_support() const", &Compute::Simulator::HasSoftBodySupport);
 				VSimulator.SetMethod("int get_contact_manifold_count() const", &Compute::Simulator::GetContactManifoldCount);
 
-				VConstraint.SetOperatorEx(Operators::Cast, 0, "physics_pconstraint@+", "", &ConstraintToPConstraint);
-				VConstraint.SetOperatorEx(Operators::Cast, 0, "physics_hconstraint@+", "", &ConstraintToHConstraint);
-				VConstraint.SetOperatorEx(Operators::Cast, 0, "physics_sconstraint@+", "", &ConstraintToSConstraint);
-				VConstraint.SetOperatorEx(Operators::Cast, 0, "physics_ctconstraint@+", "", &ConstraintToCTConstraint);
-				VConstraint.SetOperatorEx(Operators::Cast, 0, "physics_df6constraint@+", "", &ConstraintToDF6Constraint);
-				VPConstraint.SetOperatorEx(Operators::ImplCast, 0, "physics_constraint@+", "", &PConstraintToConstraint);
-				VPConstraint.SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "physics_constraint@+", "", &PConstraintToConstraint);
-				VHConstraint.SetOperatorEx(Operators::ImplCast, 0, "physics_constraint@+", "", &HConstraintToConstraint);
-				VHConstraint.SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "physics_constraint@+", "", &HConstraintToConstraint);
-				VSConstraint.SetOperatorEx(Operators::ImplCast, 0, "physics_constraint@+", "", &SConstraintToConstraint);
-				VSConstraint.SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "physics_constraint@+", "", &SConstraintToConstraint);
-				VCTConstraint.SetOperatorEx(Operators::ImplCast, 0, "physics_constraint@+", "", &CTConstraintToConstraint);
-				VCTConstraint.SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "physics_constraint@+", "", &CTConstraintToConstraint);
-				VDF6Constraint.SetOperatorEx(Operators::ImplCast, 0, "physics_constraint@+", "", &DF6ConstraintToConstraint);
-				VDF6Constraint.SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "physics_constraint@+", "", &DF6ConstraintToConstraint);
+				VConstraint.SetDynamicCast<Compute::Constraint, Compute::PConstraint>("physics_pconstraint@+");
+				VConstraint.SetDynamicCast<Compute::Constraint, Compute::HConstraint>("physics_hconstraint@+");
+				VConstraint.SetDynamicCast<Compute::Constraint, Compute::SConstraint>("physics_sconstraint@+");
+				VConstraint.SetDynamicCast<Compute::Constraint, Compute::CTConstraint>("physics_ctconstraint@+");
+				VConstraint.SetDynamicCast<Compute::Constraint, Compute::DF6Constraint>("physics_df6constraint@+");
+				VPConstraint.SetDynamicCast<Compute::PConstraint, Compute::Constraint>("physics_constraint@+", true);
+				VHConstraint.SetDynamicCast<Compute::HConstraint, Compute::Constraint>("physics_constraint@+", true);
+				VSConstraint.SetDynamicCast<Compute::SConstraint, Compute::Constraint>("physics_constraint@+", true);
+				VCTConstraint.SetDynamicCast<Compute::CTConstraint, Compute::Constraint>("physics_constraint@+", true);
+				VDF6Constraint.SetDynamicCast<Compute::DF6Constraint, Compute::Constraint>("physics_constraint@+", true);
 
 				return true;
 #else
@@ -10529,34 +11432,23 @@ namespace Edge
 				Engine->SetFunction("void get_listener_data_1i(sound_ex, int32 &out)", Audio::AudioContext::GetListenerData1I);
 				Engine->EndNamespace();
 
-				RefClass VAudioSource = Engine->SetClass<Audio::AudioSource>("audio_source");
-				RefClass VAudioFilter = Engine->SetClass<Audio::AudioFilter>("audio_filter");
-				VAudioFilter.SetMethod("void synchronize()", &Audio::AudioFilter::Synchronize);
-				VAudioFilter.SetMethod("void deserialize(schema@+)", &Audio::AudioFilter::Deserialize);
-				VAudioFilter.SetMethod("void serialize(schema@+)", &Audio::AudioFilter::Serialize);
-				VAudioFilter.SetMethod("audio_filter@ copy()", &Audio::AudioFilter::Copy);
-				VAudioFilter.SetMethod("audio_source@+ get_source()", &Audio::AudioFilter::GetSource);
-				PopulateComponent<Audio::AudioFilter>(VAudioFilter);
+				RefClass VAudioSource = Engine->SetClass<Audio::AudioSource>("audio_source", true);
+				RefClass VAudioFilter = Engine->SetClass<Audio::AudioFilter>("base_audio_filter", false);
+				PopulateAudioFilterBase<Audio::AudioFilter>(VAudioFilter);
 
-				RefClass VAudioEffect = Engine->SetClass<Audio::AudioEffect>("audio_effect");
-				VAudioEffect.SetMethod("void synchronize()", &Audio::AudioEffect::Synchronize);
-				VAudioEffect.SetMethod("void deserialize(schema@+)", &Audio::AudioEffect::Deserialize);
-				VAudioEffect.SetMethod("void serialize(schema@+)", &Audio::AudioEffect::Serialize);
-				VAudioEffect.SetMethodEx("bool set_filter(audio_filter@+)", &AudioEffectSetFilter);
-				VAudioEffect.SetMethod("audio_effect@ copy()", &Audio::AudioEffect::Copy);
-				VAudioEffect.SetMethod("audio_source@+ get_filter()", &Audio::AudioEffect::GetFilter);
-				VAudioEffect.SetMethod("audio_source@+ get_source()", &Audio::AudioEffect::GetSource);
-				PopulateComponent<Audio::AudioEffect>(VAudioEffect);
+				RefClass VAudioEffect = Engine->SetClass<Audio::AudioEffect>("base_audio_effect", false);
+				PopulateAudioEffectBase<Audio::AudioEffect>(VAudioEffect);
 
-				RefClass VAudioClip = Engine->SetClass<Audio::AudioClip>("audio_clip");
+				RefClass VAudioClip = Engine->SetClass<Audio::AudioClip>("audio_clip", false);
 				VAudioClip.SetConstructor<Audio::AudioClip, int, int>("audio_clip@ f(int, int)");
 				VAudioClip.SetMethod("float length() const", &Audio::AudioClip::Length);
 				VAudioClip.SetMethod("bool is_mono() const", &Audio::AudioClip::IsMono);
 				VAudioClip.SetMethod("uint32 get_buffer() const", &Audio::AudioClip::GetBuffer);
 				VAudioClip.SetMethod("int32 get_format() const", &Audio::AudioClip::GetFormat);
 
-				VAudioSource.SetConstructor<Audio::AudioSource>("audio_source@ f()");
-				VAudioSource.SetMethod("int64 add_effect(audio_effect@+)", &Audio::AudioSource::AddEffect);
+				static const char AudioSource[] = "audio_source";
+				VAudioSource.SetGcConstructor<Audio::AudioSource, AudioSource>("audio_source@ f()");
+				VAudioSource.SetMethod("int64 add_effect(base_audio_effect@+)", &Audio::AudioSource::AddEffect);
 				VAudioSource.SetMethod("bool remove_effect(usize)", &Audio::AudioSource::RemoveEffect);
 				VAudioSource.SetMethod("bool remove_effect_by_id(uint64)", &Audio::AudioSource::RemoveEffectById);
 				VAudioSource.SetMethod("void set_clip(audio_clip@+)", &Audio::AudioSource::SetClip);
@@ -10569,9 +11461,18 @@ namespace Edge
 				VAudioSource.SetMethod("usize get_effects_count() const", &Audio::AudioSource::GetEffectsCount);
 				VAudioSource.SetMethod("uint32 get_instance() const", &Audio::AudioSource::GetInstance);
 				VAudioSource.SetMethod("audio_clip@+ get_clip() const", &Audio::AudioSource::GetClip);
-				VAudioSource.SetMethod<Audio::AudioSource, Audio::AudioEffect*, uint64_t>("audio_effect@+ get_effect(uint64) const", &Audio::AudioSource::GetEffect);
+				VAudioSource.SetMethod<Audio::AudioSource, Audio::AudioEffect*, uint64_t>("base_audio_effect@+ get_effect(uint64) const", &Audio::AudioSource::GetEffect);
+				VAudioSource.SetEnumRefsEx<Audio::AudioSource>([](Audio::AudioSource* Base, asIScriptEngine* Engine)
+				{
+					for (auto* Item : Base->GetEffects())
+						Engine->GCEnumCallback(Item);
+				});
+				VAudioSource.SetReleaseRefsEx<Audio::AudioSource>([](Audio::AudioSource* Base, asIScriptEngine*)
+				{
+					Base->RemoveEffects();
+				});
 
-				RefClass VAudioDevice = Engine->SetClass<Audio::AudioDevice>("audio_device");
+				RefClass VAudioDevice = Engine->SetClass<Audio::AudioDevice>("audio_device", false);
 				VAudioDevice.SetConstructor<Audio::AudioDevice>("audio_device@ f()");
 				VAudioDevice.SetMethod("void offset(audio_source@+, float &out, bool)", &Audio::AudioDevice::Offset);
 				VAudioDevice.SetMethod("void velocity(audio_source@+, vector3 &out, bool)", &Audio::AudioDevice::Velocity);
@@ -10589,6 +11490,8 @@ namespace Edge
 				VAudioDevice.SetMethod("void set_distance_model(sound_distance_model)", &Audio::AudioDevice::SetDistanceModel);
 				VAudioDevice.SetMethod("void set_exception_codes(int32 &out, int32 &out) const", &Audio::AudioDevice::GetExceptionCodes);
 				VAudioDevice.SetMethod("bool is_valid() const", &Audio::AudioDevice::IsValid);
+
+				Engine->SetFunction("uint64 component_id(const string &in)", &Core::OS::File::GetCheckSum);
 
 				return true;
 #else
@@ -10955,7 +11858,7 @@ namespace Edge
 				VViewport.SetProperty<Graphics::Viewport>("float max_depth", &Graphics::Viewport::MaxDepth);
 				VViewport.SetConstructor<Graphics::Viewport>("void f()");
 
-				RefClass VActivity = Engine->SetClass<Graphics::Activity>("activity");
+				RefClass VActivity = Engine->SetClass<Graphics::Activity>("activity", false);
 				TypeClass VAlert = Engine->SetStructTrivial<Graphics::Alert>("activity_alert");
 				VAlert.SetFunctionDef("void alert_event(int)");
 				VAlert.SetConstructor<Graphics::Alert, Graphics::Activity*>("void f(activity@+)");
@@ -11445,7 +12348,7 @@ namespace Edge
 				VViewBuffer.SetProperty<Graphics::ViewBuffer>("float near", &Graphics::ViewBuffer::Near);
 				VViewBuffer.SetConstructor<Graphics::ViewBuffer>("void f()");
 
-				RefClass VSkinModel = Engine->SetClass<Graphics::SkinModel>("skin_model");
+				RefClass VSkinModel = Engine->SetClass<Graphics::SkinModel>("skin_model", true);
 				TypeClass VPoseBuffer = Engine->SetStructTrivial<Graphics::PoseBuffer>("pose_buffer");
 				VPoseBuffer.SetMethod("bool set_pose(skin_model@+)", &Graphics::PoseBuffer::SetPose);
 				VPoseBuffer.SetMethodEx("array<animator_key>@ get_pose(skin_model@+)", &PoseBufferGetPose);
@@ -11454,7 +12357,7 @@ namespace Edge
 				VPoseBuffer.SetMethodEx("pose_node& get_node(usize)", &PoseBufferGetNode);
 				VPoseBuffer.SetConstructor<Graphics::PoseBuffer>("void f()");
 
-				RefClass VSurface = Engine->SetClass<Graphics::Surface>("surface_handle");
+				RefClass VSurface = Engine->SetClass<Graphics::Surface>("surface_handle", false);
 				VSurface.SetConstructor<Graphics::Surface>("surface_handle@ f()");
 				VSurface.SetConstructor<Graphics::Surface, SDL_Surface*>("surface_handle@ f(uptr@)");
 				VSurface.SetMethod("void set_handle(uptr@)", &Graphics::Surface::SetHandle);
@@ -11483,7 +12386,7 @@ namespace Edge
 				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("bool stencil_enable", &Graphics::DepthStencilState::Desc::StencilEnable);
 				VDepthStencilStateDesc.SetConstructor<Graphics::DepthStencilState::Desc>("void f()");
 
-				RefClass VDepthStencilState = Engine->SetClass<Graphics::DepthStencilState>("depth_stencil_state");
+				RefClass VDepthStencilState = Engine->SetClass<Graphics::DepthStencilState>("depth_stencil_state", false);
 				VDepthStencilState.SetMethod("uptr@ get_resource() const", &Graphics::DepthStencilState::GetResource);
 				VDepthStencilState.SetMethod("depth_stencil_state_desc get_state() const", &Graphics::DepthStencilState::GetState);
 
@@ -11500,7 +12403,7 @@ namespace Edge
 				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("bool antialiased_line_enable", &Graphics::RasterizerState::Desc::AntialiasedLineEnable);
 				VRasterizerStateDesc.SetConstructor<Graphics::RasterizerState::Desc>("void f()");
 
-				RefClass VRasterizerState = Engine->SetClass<Graphics::RasterizerState>("rasterizer_state");
+				RefClass VRasterizerState = Engine->SetClass<Graphics::RasterizerState>("rasterizer_state", false);
 				VRasterizerState.SetMethod("uptr@ get_resource() const", &Graphics::RasterizerState::GetResource);
 				VRasterizerState.SetMethod("rasterizer_state_desc get_state() const", &Graphics::RasterizerState::GetState);
 
@@ -11511,7 +12414,7 @@ namespace Edge
 				VBlendStateDesc.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "render_target_blend_state&", "usize", &BlendStateDescGetRenderTarget);
 				VBlendStateDesc.SetOperatorEx(Operators::Index, (uint32_t)Position::Const, "const render_target_blend_state&", "usize", &BlendStateDescGetRenderTarget);
 
-				RefClass VBlendState = Engine->SetClass<Graphics::BlendState>("blend_state");
+				RefClass VBlendState = Engine->SetClass<Graphics::BlendState>("blend_state", false);
 				VBlendState.SetMethod("uptr@ get_resource() const", &Graphics::BlendState::GetResource);
 				VBlendState.SetMethod("blend_state_desc get_state() const", &Graphics::BlendState::GetState);
 
@@ -11529,7 +12432,7 @@ namespace Edge
 				VSamplerStateDesc.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "float&", "usize", &SamplerStateDescGetBorderColor);
 				VSamplerStateDesc.SetOperatorEx(Operators::Index, (uint32_t)Position::Const, "const float&", "usize", &SamplerStateDescGetBorderColor);
 
-				RefClass VSamplerState = Engine->SetClass<Graphics::SamplerState>("sampler_state");
+				RefClass VSamplerState = Engine->SetClass<Graphics::SamplerState>("sampler_state", false);
 				VSamplerState.SetMethod("uptr@ get_resource() const", &Graphics::SamplerState::GetResource);
 				VSamplerState.SetMethod("sampler_state_desc get_state() const", &Graphics::SamplerState::GetState);
 
@@ -11543,7 +12446,7 @@ namespace Edge
 				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("bool per_vertex", &Graphics::InputLayout::Attribute::PerVertex);
 				VInputLayoutAttribute.SetConstructor<Graphics::InputLayout::Attribute>("void f()");
 
-				RefClass VShader = Engine->SetClass<Graphics::Shader>("shader");
+				RefClass VShader = Engine->SetClass<Graphics::Shader>("shader", false);
 				VShader.SetMethod("bool is_valid() const", &Graphics::Shader::IsValid);
 
 				TypeClass VInputLayoutDesc = Engine->SetStruct<Graphics::InputLayout::Desc>("input_layout_desc");
@@ -11553,7 +12456,7 @@ namespace Edge
 				VInputLayoutDesc.SetDestructorStatic("void f()", &InputLayoutDescDestructor);
 				VInputLayoutDesc.SetMethodEx("void set_attributes(array<input_layout_attribute>@+)", &InputLayoutDescSetAttributes);
 
-				RefClass VInputLayout = Engine->SetClass<Graphics::InputLayout>("input_layout");
+				RefClass VInputLayout = Engine->SetClass<Graphics::InputLayout>("input_layout", false);
 				VInputLayout.SetMethod("uptr@ get_resource() const", &Graphics::InputLayout::GetResource);
 				VInputLayout.SetMethodEx("array<input_layout_attribute>@ get_attributes() const", &InputLayoutGetAttributes);
 
@@ -11576,7 +12479,7 @@ namespace Edge
 				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("bool writable", &Graphics::ElementBuffer::Desc::Writable);
 				VElementBufferDesc.SetConstructor<Graphics::ElementBuffer::Desc>("void f()");
 
-				RefClass VElementBuffer = Engine->SetClass<Graphics::ElementBuffer>("element_buffer");
+				RefClass VElementBuffer = Engine->SetClass<Graphics::ElementBuffer>("element_buffer", false);
 				VElementBuffer.SetMethod("uptr@ get_resource() const", &Graphics::ElementBuffer::GetResource);
 				VElementBuffer.SetMethod("usize get_elements() const", &Graphics::ElementBuffer::GetElements);
 				VElementBuffer.SetMethod("usize get_stride() const", &Graphics::ElementBuffer::GetStride);
@@ -11588,11 +12491,20 @@ namespace Edge
 				VMeshBufferDesc.SetMethodEx("void set_elements(array<vertex>@+)", &MeshBufferDescSetElements);
 				VMeshBufferDesc.SetMethodEx("void set_indices(array<int>@+)", &MeshBufferDescSetIndices);
 
-				RefClass VMeshBuffer = Engine->SetClass<Graphics::MeshBuffer>("mesh_buffer");
+				RefClass VMeshBuffer = Engine->SetClass<Graphics::MeshBuffer>("mesh_buffer", true);
 				VMeshBuffer.SetProperty<Graphics::MeshBuffer>("matrix4x4 world", &Graphics::MeshBuffer::World);
 				VMeshBuffer.SetProperty<Graphics::MeshBuffer>("string name", &Graphics::MeshBuffer::Name);
 				VMeshBuffer.SetMethod("element_buffer@+ get_vertex_buffer() const", &Graphics::MeshBuffer::GetVertexBuffer);
 				VMeshBuffer.SetMethod("element_buffer@+ get_index_buffer() const", &Graphics::MeshBuffer::GetIndexBuffer);
+				VMeshBuffer.SetEnumRefsEx<Graphics::MeshBuffer>([](Graphics::MeshBuffer* Base, asIScriptEngine* Engine)
+				{
+					Engine->GCEnumCallback(Base->GetVertexBuffer());
+					Engine->GCEnumCallback(Base->GetIndexBuffer());
+				});
+				VMeshBuffer.SetReleaseRefsEx<Graphics::MeshBuffer>([](Graphics::MeshBuffer* Base, asIScriptEngine*)
+				{
+					Base->~MeshBuffer();
+				});
 
 				TypeClass VSkinMeshBufferDesc = Engine->SetStructTrivial<Graphics::SkinMeshBuffer::Desc>("skin_mesh_buffer_desc");
 				VSkinMeshBufferDesc.SetProperty<Graphics::SkinMeshBuffer::Desc>("cpu_access access_flags", &Graphics::SkinMeshBuffer::Desc::AccessFlags);
@@ -11601,13 +12513,22 @@ namespace Edge
 				VSkinMeshBufferDesc.SetMethodEx("void set_elements(array<vertex>@+)", &SkinMeshBufferDescSetElements);
 				VSkinMeshBufferDesc.SetMethodEx("void set_indices(array<int>@+)", &SkinMeshBufferDescSetIndices);
 
-				RefClass VSkinMeshBuffer = Engine->SetClass<Graphics::SkinMeshBuffer>("skin_mesh_buffer");
+				RefClass VSkinMeshBuffer = Engine->SetClass<Graphics::SkinMeshBuffer>("skin_mesh_buffer", true);
 				VSkinMeshBuffer.SetProperty<Graphics::SkinMeshBuffer>("matrix4x4 world", &Graphics::SkinMeshBuffer::World);
 				VSkinMeshBuffer.SetProperty<Graphics::SkinMeshBuffer>("string name", &Graphics::SkinMeshBuffer::Name);
 				VSkinMeshBuffer.SetMethod("element_buffer@+ get_vertex_buffer() const", &Graphics::SkinMeshBuffer::GetVertexBuffer);
 				VSkinMeshBuffer.SetMethod("element_buffer@+ get_index_buffer() const", &Graphics::SkinMeshBuffer::GetIndexBuffer);
+				VSkinMeshBuffer.SetEnumRefsEx<Graphics::SkinMeshBuffer>([](Graphics::SkinMeshBuffer* Base, asIScriptEngine* Engine)
+				{
+					Engine->GCEnumCallback(Base->GetVertexBuffer());
+					Engine->GCEnumCallback(Base->GetIndexBuffer());
+				});
+				VSkinMeshBuffer.SetReleaseRefsEx<Graphics::SkinMeshBuffer>([](Graphics::SkinMeshBuffer* Base, asIScriptEngine*)
+				{
+					Base->~SkinMeshBuffer();
+				});
 
-				RefClass VGraphicsDevice = Engine->SetClass<Graphics::GraphicsDevice>("graphics_device");
+				RefClass VGraphicsDevice = Engine->SetClass<Graphics::GraphicsDevice>("graphics_device", true);
 				TypeClass VInstanceBufferDesc = Engine->SetStruct<Graphics::InstanceBuffer::Desc>("instance_buffer_desc");
 				VInstanceBufferDesc.SetProperty<Graphics::InstanceBuffer::Desc>("graphics_device@ device", &Graphics::InstanceBuffer::Desc::Device);
 				VInstanceBufferDesc.SetProperty<Graphics::InstanceBuffer::Desc>("uint32 element_width", &Graphics::InstanceBuffer::Desc::ElementWidth);
@@ -11616,12 +12537,20 @@ namespace Edge
 				VInstanceBufferDesc.SetOperatorCopyStatic(&InstanceBufferDescCopy);
 				VInstanceBufferDesc.SetDestructorStatic("void f()", &InstanceBufferDescDestructor);
 
-				RefClass VInstanceBuffer = Engine->SetClass<Graphics::InstanceBuffer>("instance_buffer");
+				RefClass VInstanceBuffer = Engine->SetClass<Graphics::InstanceBuffer>("instance_buffer", true);
 				VInstanceBuffer.SetMethodEx("void set_array(array<element_vertex>@+)", &InstanceBufferSetArray);
 				VInstanceBuffer.SetMethodEx("array<element_vertex>@ get_array() const", &InstanceBufferGetArray);
 				VInstanceBuffer.SetMethod("element_buffer@+ get_elements() const", &Graphics::InstanceBuffer::GetElements);
 				VInstanceBuffer.SetMethod("graphics_device@+ get_device() const", &Graphics::InstanceBuffer::GetDevice);
 				VInstanceBuffer.SetMethod("usize get_element_limit() const", &Graphics::InstanceBuffer::GetElementLimit);
+				VInstanceBuffer.SetEnumRefsEx<Graphics::InstanceBuffer>([](Graphics::InstanceBuffer* Base, asIScriptEngine* Engine)
+				{
+					Engine->GCEnumCallback(Base->GetElements());
+				});
+				VInstanceBuffer.SetReleaseRefsEx<Graphics::InstanceBuffer>([](Graphics::InstanceBuffer* Base, asIScriptEngine*)
+				{
+					Base->~InstanceBuffer();
+				});
 
 				TypeClass VTexture2DDesc = Engine->SetPod<Graphics::Texture2D::Desc>("texture_2d_desc");
 				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("cpu_access access_flags", &Graphics::Texture2D::Desc::AccessFlags);
@@ -11638,7 +12567,7 @@ namespace Edge
 				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("bool writable", &Graphics::Texture2D::Desc::Writable);
 				VTexture2DDesc.SetConstructor<Graphics::Texture2D::Desc>("void f()");
 
-				RefClass VTexture2D = Engine->SetClass<Graphics::Texture2D>("texture_2d");
+				RefClass VTexture2D = Engine->SetClass<Graphics::Texture2D>("texture_2d", false);
 				VTexture2D.SetMethod("uptr@ get_resource() const", &Graphics::Texture2D::GetResource);
 				VTexture2D.SetMethod("cpu_access get_access_flags() const", &Graphics::Texture2D::GetAccessFlags);
 				VTexture2D.SetMethod("surface_format get_format_mode() const", &Graphics::Texture2D::GetFormatMode);
@@ -11660,7 +12589,7 @@ namespace Edge
 				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("bool writable", &Graphics::Texture3D::Desc::Writable);
 				VTexture3DDesc.SetConstructor<Graphics::Texture3D::Desc>("void f()");
 
-				RefClass VTexture3D = Engine->SetClass<Graphics::Texture3D>("texture_3d");
+				RefClass VTexture3D = Engine->SetClass<Graphics::Texture3D>("texture_3d", false);
 				VTexture3D.SetMethod("uptr@ get_resource() const", &Graphics::Texture3D::GetResource);
 				VTexture3D.SetMethod("cpu_access get_access_flags() const", &Graphics::Texture3D::GetAccessFlags);
 				VTexture3D.SetMethod("surface_format get_format_mode() const", &Graphics::Texture3D::GetFormatMode);
@@ -11682,7 +12611,7 @@ namespace Edge
 				VTextureCubeDesc.SetProperty<Graphics::TextureCube::Desc>("bool writable", &Graphics::TextureCube::Desc::Writable);
 				VTextureCubeDesc.SetConstructor<Graphics::TextureCube::Desc>("void f()");
 
-				RefClass VTextureCube = Engine->SetClass<Graphics::TextureCube>("texture_cube");
+				RefClass VTextureCube = Engine->SetClass<Graphics::TextureCube>("texture_cube", false);
 				VTextureCube.SetMethod("uptr@ get_resource() const", &Graphics::TextureCube::GetResource);
 				VTextureCube.SetMethod("cpu_access get_access_flags() const", &Graphics::TextureCube::GetAccessFlags);
 				VTextureCube.SetMethod("surface_format get_format_mode() const", &Graphics::TextureCube::GetFormatMode);
@@ -11699,7 +12628,7 @@ namespace Edge
 				VDepthTarget2DDesc.SetProperty<Graphics::DepthTarget2D::Desc>("uint32 height", &Graphics::DepthTarget2D::Desc::Height);
 				VDepthTarget2DDesc.SetConstructor<Graphics::DepthTarget2D::Desc>("void f()");
 
-				RefClass VDepthTarget2D = Engine->SetClass<Graphics::DepthTarget2D>("depth_target_2d");
+				RefClass VDepthTarget2D = Engine->SetClass<Graphics::DepthTarget2D>("depth_target_2d", false);
 				VDepthTarget2D.SetMethod("uptr@ get_resource() const", &Graphics::DepthTarget2D::GetResource);
 				VDepthTarget2D.SetMethod("uint32 get_width() const", &Graphics::DepthTarget2D::GetWidth);
 				VDepthTarget2D.SetMethod("uint32 get_height() const", &Graphics::DepthTarget2D::GetHeight);
@@ -11713,14 +12642,14 @@ namespace Edge
 				VDepthTargetCubeDesc.SetProperty<Graphics::DepthTargetCube::Desc>("uint32 size", &Graphics::DepthTargetCube::Desc::Size);
 				VDepthTargetCubeDesc.SetConstructor<Graphics::DepthTargetCube::Desc>("void f()");
 
-				RefClass VDepthTargetCube = Engine->SetClass<Graphics::DepthTargetCube>("depth_target_cube");
+				RefClass VDepthTargetCube = Engine->SetClass<Graphics::DepthTargetCube>("depth_target_cube", false);
 				VDepthTargetCube.SetMethod("uptr@ get_resource() const", &Graphics::DepthTargetCube::GetResource);
 				VDepthTargetCube.SetMethod("uint32 get_width() const", &Graphics::DepthTargetCube::GetWidth);
 				VDepthTargetCube.SetMethod("uint32 get_height() const", &Graphics::DepthTargetCube::GetHeight);
 				VDepthTargetCube.SetMethod("texture_2d@+ get_target() const", &Graphics::DepthTargetCube::GetTarget);
 				VDepthTargetCube.SetMethod("const viewport& get_viewport() const", &Graphics::DepthTargetCube::GetViewport);
 
-				RefClass VRenderTarget = Engine->SetClass<Graphics::RenderTarget>("render_target");
+				RefClass VRenderTarget = Engine->SetClass<Graphics::RenderTarget>("render_target", false);
 				VRenderTarget.SetMethod("uptr@ get_target_buffer() const", &Graphics::RenderTarget::GetTargetBuffer);
 				VRenderTarget.SetMethod("uptr@ get_depth_buffer() const", &Graphics::RenderTarget::GetDepthBuffer);
 				VRenderTarget.SetMethod("uint32 get_width() const", &Graphics::RenderTarget::GetWidth);
@@ -11744,7 +12673,7 @@ namespace Edge
 				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("bool depth_stencil", &Graphics::RenderTarget2D::Desc::DepthStencil);
 				VRenderTarget2DDesc.SetConstructor<Graphics::RenderTarget2D::Desc>("void f()");
 
-				RefClass VRenderTarget2D = Engine->SetClass<Graphics::RenderTarget2D>("render_target_2d");
+				RefClass VRenderTarget2D = Engine->SetClass<Graphics::RenderTarget2D>("render_target_2d", false);
 				VRenderTarget2D.SetMethod("uptr@ get_target_buffer() const", &Graphics::RenderTarget2D::GetTargetBuffer);
 				VRenderTarget2D.SetMethod("uptr@ get_depth_buffer() const", &Graphics::RenderTarget2D::GetDepthBuffer);
 				VRenderTarget2D.SetMethod("uint32 get_width() const", &Graphics::RenderTarget2D::GetWidth);
@@ -11769,7 +12698,7 @@ namespace Edge
 				VMultiRenderTarget2DDesc.SetConstructor<Graphics::MultiRenderTarget2D::Desc>("void f()");
 				VMultiRenderTarget2DDesc.SetMethodEx("void set_format_mode(usize, surface_format)", &MultiRenderTarget2DDescSetFormatMode);
 
-				RefClass VMultiRenderTarget2D = Engine->SetClass<Graphics::MultiRenderTarget2D>("multi_render_target_2d");
+				RefClass VMultiRenderTarget2D = Engine->SetClass<Graphics::MultiRenderTarget2D>("multi_render_target_2d", false);
 				VMultiRenderTarget2D.SetMethod("uptr@ get_target_buffer() const", &Graphics::MultiRenderTarget2D::GetTargetBuffer);
 				VMultiRenderTarget2D.SetMethod("uptr@ get_depth_buffer() const", &Graphics::MultiRenderTarget2D::GetDepthBuffer);
 				VMultiRenderTarget2D.SetMethod("uint32 get_width() const", &Graphics::MultiRenderTarget2D::GetWidth);
@@ -11792,7 +12721,7 @@ namespace Edge
 				VRenderTargetCubeDesc.SetProperty<Graphics::RenderTargetCube::Desc>("bool depth_stencil", &Graphics::RenderTargetCube::Desc::DepthStencil);
 				VRenderTargetCubeDesc.SetConstructor<Graphics::RenderTargetCube::Desc>("void f()");
 
-				RefClass VRenderTargetCube = Engine->SetClass<Graphics::RenderTargetCube>("render_target_cube");
+				RefClass VRenderTargetCube = Engine->SetClass<Graphics::RenderTargetCube>("render_target_cube", false);
 				VRenderTargetCube.SetMethod("uptr@ get_target_buffer() const", &Graphics::RenderTargetCube::GetTargetBuffer);
 				VRenderTargetCube.SetMethod("uptr@ get_depth_buffer() const", &Graphics::RenderTargetCube::GetDepthBuffer);
 				VRenderTargetCube.SetMethod("uint32 get_width() const", &Graphics::RenderTargetCube::GetWidth);
@@ -11816,7 +12745,7 @@ namespace Edge
 				VMultiRenderTargetCubeDesc.SetConstructor<Graphics::MultiRenderTargetCube::Desc>("void f()");
 				VMultiRenderTargetCubeDesc.SetMethodEx("void set_format_mode(usize, surface_format)", &MultiRenderTargetCubeDescSetFormatMode);
 
-				RefClass VMultiRenderTargetCube = Engine->SetClass<Graphics::MultiRenderTargetCube>("multi_render_target_cube");
+				RefClass VMultiRenderTargetCube = Engine->SetClass<Graphics::MultiRenderTargetCube>("multi_render_target_cube", false);
 				VMultiRenderTargetCube.SetMethod("uptr@ get_target_buffer() const", &Graphics::MultiRenderTargetCube::GetTargetBuffer);
 				VMultiRenderTargetCube.SetMethod("uptr@ get_depth_buffer() const", &Graphics::MultiRenderTargetCube::GetDepthBuffer);
 				VMultiRenderTargetCube.SetMethod("uint32 get_width() const", &Graphics::MultiRenderTargetCube::GetWidth);
@@ -11828,23 +12757,6 @@ namespace Edge
 				VMultiRenderTargetCube.SetMethod("const viewport& get_viewport() const", &Graphics::MultiRenderTargetCube::GetViewport);
 				VMultiRenderTargetCube.SetMethod("texture_cube@+ get_target(uint32) const", &Graphics::MultiRenderTargetCube::GetTarget);
 
-				VRenderTarget.SetOperatorEx(Operators::Cast, 0, "render_target_2d@+", "", &RenderTargetToRenderTarget2D);
-				VRenderTarget.SetOperatorEx(Operators::Cast, 0, "render_target_cube@+", "", &RenderTargetToRenderTargetCube);
-				VRenderTarget.SetOperatorEx(Operators::Cast, 0, "multi_render_target_2d@+", "", &RenderTargetToMultiRenderTarget2D);
-				VRenderTarget.SetOperatorEx(Operators::Cast, 0, "multi_render_target_cube@+", "", &RenderTargetToMultiRenderTargetCube);
-				VRenderTarget.SetOperatorEx(Operators::Cast, (uint32_t)Position::Const, "render_target_2d@+", "", &RenderTargetToRenderTarget2D);
-				VRenderTarget.SetOperatorEx(Operators::Cast, (uint32_t)Position::Const, "render_target_cube@+", "", &RenderTargetToRenderTargetCube);
-				VRenderTarget.SetOperatorEx(Operators::Cast, (uint32_t)Position::Const, "multi_render_target_2d@+", "", &RenderTargetToMultiRenderTarget2D);
-				VRenderTarget.SetOperatorEx(Operators::Cast, (uint32_t)Position::Const, "multi_render_target_cube@+", "", &RenderTargetToMultiRenderTargetCube);
-				VRenderTarget2D.SetOperatorEx(Operators::Cast, 0, "render_target@+", "", &RenderTarget2DToRenderTarget);
-				VRenderTargetCube.SetOperatorEx(Operators::Cast, 0, "render_target@+", "", &RenderTargetCubeToRenderTarget);
-				VMultiRenderTarget2D.SetOperatorEx(Operators::Cast, 0, "render_target@+", "", &MultiRenderTarget2DToRenderTarget);
-				VMultiRenderTargetCube.SetOperatorEx(Operators::Cast, 0, "render_target@+", "", &MultiRenderTargetCubeToRenderTarget);
-				VRenderTarget2D.SetOperatorEx(Operators::Cast, (uint32_t)Position::Const, "render_target@+", "", &RenderTarget2DToRenderTarget);
-				VRenderTargetCube.SetOperatorEx(Operators::Cast, (uint32_t)Position::Const, "render_target@+", "", &RenderTargetCubeToRenderTarget);
-				VMultiRenderTarget2D.SetOperatorEx(Operators::Cast, (uint32_t)Position::Const, "render_target@+", "", &MultiRenderTarget2DToRenderTarget);
-				VMultiRenderTargetCube.SetOperatorEx(Operators::Cast, (uint32_t)Position::Const, "render_target@+", "", &MultiRenderTargetCubeToRenderTarget);
-
 				TypeClass VCubemapDesc = Engine->SetStruct<Graphics::Cubemap::Desc>("cubemap_desc");
 				VCubemapDesc.SetProperty<Graphics::Cubemap::Desc>("render_target@ source", &Graphics::Cubemap::Desc::Source);
 				VCubemapDesc.SetProperty<Graphics::Cubemap::Desc>("uint32 target", &Graphics::Cubemap::Desc::Target);
@@ -11854,7 +12766,7 @@ namespace Edge
 				VCubemapDesc.SetOperatorCopyStatic(&CubemapDescCopy);
 				VCubemapDesc.SetDestructorStatic("void f()", &CubemapDescDestructor);
 
-				RefClass VCubemap = Engine->SetClass<Graphics::Cubemap>("cubemap");
+				RefClass VCubemap = Engine->SetClass<Graphics::Cubemap>("cubemap", false);
 				VCubemap.SetMethod("bool is_valid() const", &Graphics::Cubemap::IsValid);
 
 				TypeClass VQueryDesc = Engine->SetPod<Graphics::Query::Desc>("visibility_query_desc");
@@ -11862,7 +12774,7 @@ namespace Edge
 				VQueryDesc.SetProperty<Graphics::Query::Desc>("bool auto_pass", &Graphics::Query::Desc::AutoPass);
 				VQueryDesc.SetConstructor<Graphics::Query::Desc>("void f()");
 
-				RefClass VQuery = Engine->SetClass<Graphics::Query>("visibility_query");
+				RefClass VQuery = Engine->SetClass<Graphics::Query>("visibility_query", false);
 				VQuery.SetMethod("uptr@ get_resource() const", &Graphics::Query::GetResource);
 
 				TypeClass VGraphicsDeviceDesc = Engine->SetStruct<Graphics::GraphicsDevice::Desc>("graphics_device_desc");
@@ -11999,9 +12911,9 @@ namespace Edge
 				VGraphicsDevice.SetMethod("input_layout@ create_input_layout(const input_layout_desc &in)", &Graphics::GraphicsDevice::CreateInputLayout);
 				VGraphicsDevice.SetMethod("shader@ create_shader(const shader_desc &in)", &Graphics::GraphicsDevice::CreateShader);
 				VGraphicsDevice.SetMethod("element_buffer@ create_element_buffer(const element_buffer_desc &in)", &Graphics::GraphicsDevice::CreateElementBuffer);
-				VGraphicsDevice.SetMethod("mesh_buffer@ create_mesh_buffer(const mesh_buffer_desc &in)", &Graphics::GraphicsDevice::CreateMeshBuffer);
-				VGraphicsDevice.SetMethod("skin_mesh_buffer@ create_skin_mesh_buffer(const skin_mesh_buffer_desc &in)", &Graphics::GraphicsDevice::CreateSkinMeshBuffer);
-				VGraphicsDevice.SetMethod("instance_buffer@ create_instance_buffer(const instance_buffer_desc &in)", &Graphics::GraphicsDevice::CreateInstanceBuffer);
+				VGraphicsDevice.SetMethodEx("mesh_buffer@ create_mesh_buffer(const mesh_buffer_desc &in)", &GraphicsDeviceCreateMeshBuffer);
+				VGraphicsDevice.SetMethodEx("skin_mesh_buffer@ create_skin_mesh_buffer(const skin_mesh_buffer_desc &in)", &GraphicsDeviceCreateSkinMeshBuffer);
+				VGraphicsDevice.SetMethodEx("instance_buffer@ create_instance_buffer(const instance_buffer_desc &in)", &GraphicsDeviceCreateInstanceBuffer);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, Graphics::Texture2D*>("texture_2d@ create_texture_2d()", &Graphics::GraphicsDevice::CreateTexture2D);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, Graphics::Texture2D*, const Graphics::Texture2D::Desc&>("texture_2d@ create_texture_2d(const texture_2d_desc &in)", &Graphics::GraphicsDevice::CreateTexture2D);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, Graphics::Texture3D*>("texture_3d@ create_texture_3d()", &Graphics::GraphicsDevice::CreateTexture3D);
@@ -12047,27 +12959,77 @@ namespace Edge
 				VGraphicsDevice.SetMethod("uint32 get_mip_level(uint32, uint32) const", &Graphics::GraphicsDevice::GetMipLevel);
 				VGraphicsDevice.SetMethod("vsync get_vsync_mode() const", &Graphics::GraphicsDevice::GetVSyncMode);
 				VGraphicsDevice.SetMethod("bool is_debug() const", &Graphics::GraphicsDevice::IsDebug);
-				VGraphicsDevice.SetMethodStatic("graphics_device@ create(graphics_device_desc &in)", &Graphics::GraphicsDevice::Create);
+				VGraphicsDevice.SetMethodStatic("graphics_device@ create(graphics_device_desc &in)", &GraphicsDeviceCreate);
+				VGraphicsDevice.SetEnumRefsEx<Graphics::GraphicsDevice>([](Graphics::GraphicsDevice* Base, asIScriptEngine* Engine)
+				{
+					Engine->GCEnumCallback(Base->GetRenderTarget());
+					Engine->GCEnumCallback(Base->GetBasicEffect());
 
-				RefClass VModel = Engine->SetClass<Graphics::Model>("model");
+					for (auto& Item : Base->GetDepthStencilStates())
+						Engine->GCEnumCallback(Item.second);
+
+					for (auto& Item : Base->GetRasterizerStates())
+						Engine->GCEnumCallback(Item.second);
+
+					for (auto& Item : Base->GetBlendStates())
+						Engine->GCEnumCallback(Item.second);
+
+					for (auto& Item : Base->GetSamplerStates())
+						Engine->GCEnumCallback(Item.second);
+
+					for (auto& Item : Base->GetInputLayouts())
+						Engine->GCEnumCallback(Item.second);
+				});
+				VGraphicsDevice.SetReleaseRefsEx<Graphics::GraphicsDevice>([](Graphics::GraphicsDevice* Base, asIScriptEngine*) { });
+
+				static const char Model[] = "model";
+				RefClass VModel = Engine->SetClass<Graphics::Model>("model", true);
 				VModel.SetProperty<Graphics::Model>("matrix4x4 root", &Graphics::Model::Root);
 				VModel.SetProperty<Graphics::Model>("vector4 max", &Graphics::Model::Max);
 				VModel.SetProperty<Graphics::Model>("vector4 min", &Graphics::Model::Min);
-				VModel.SetConstructor<Graphics::Model>("model@ f()");
+				VModel.SetGcConstructor<Graphics::Model, Model>("model@ f()");
 				VModel.SetMethod("mesh_buffer@+ find_mesh(const string &in) const", &Graphics::Model::FindMesh);
 				VModel.SetMethodEx("array<mesh_buffer@>@ get_meshes() const", &ModelGetMeshes);
 				VModel.SetMethodEx("void set_meshes(array<mesh_buffer@>@+)", &ModelSetMeshes);
+				VModel.SetEnumRefsEx<Graphics::Model>([](Graphics::Model* Base, asIScriptEngine* Engine)
+				{
+					for (auto* Item : Base->Meshes)
+						Engine->GCEnumCallback(Item);
+				});
+				VModel.SetReleaseRefsEx<Graphics::Model>([](Graphics::Model* Base, asIScriptEngine*)
+				{
+					Base->Cleanup();
+				});
 
+				static const char SkinModel[] = "skin_model";
 				VSkinModel.SetProperty<Graphics::SkinModel>("matrix4x4 root", &Graphics::SkinModel::Root);
 				VSkinModel.SetProperty<Graphics::SkinModel>("vector4 max", &Graphics::SkinModel::Max);
 				VSkinModel.SetProperty<Graphics::SkinModel>("vector4 min", &Graphics::SkinModel::Min);
-				VSkinModel.SetConstructor<Graphics::SkinModel>("skin_model@ f()");
+				VSkinModel.SetGcConstructor<Graphics::SkinModel, SkinModel>("skin_model@ f()");
 				VSkinModel.SetMethod<Graphics::SkinModel, void, Graphics::PoseBuffer*>("void compute_pose(pose_buffer &out) const", &Graphics::SkinModel::ComputePose);
 				VSkinModel.SetMethod("skin_mesh_buffer@+ find_mesh(const string &in) const", &Graphics::SkinModel::FindMesh);
 				VSkinModel.SetMethodEx("array<skin_mesh_buffer@>@ get_meshes() const", &SkinModelGetMeshes);
 				VSkinModel.SetMethodEx("void set_meshes(array<skin_mesh_buffer@>@+)", &SkinModelSetMeshes);
 				VSkinModel.SetMethodEx("array<joint>@ get_joints() const", &SkinModelGetJoints);
 				VSkinModel.SetMethodEx("void set_joints(array<joint>@+)", &SkinModelSetJoints);
+				VSkinModel.SetEnumRefsEx<Graphics::SkinModel>([](Graphics::SkinModel* Base, asIScriptEngine* Engine)
+				{
+					for (auto* Item : Base->Meshes)
+						Engine->GCEnumCallback(Item);
+				});
+				VSkinModel.SetReleaseRefsEx<Graphics::SkinModel>([](Graphics::SkinModel* Base, asIScriptEngine*)
+				{
+					Base->Cleanup();
+				});
+
+				VRenderTarget.SetDynamicCast<Graphics::RenderTarget, Graphics::RenderTarget2D>("render_target_2d@+");
+				VRenderTarget.SetDynamicCast<Graphics::RenderTarget, Graphics::RenderTargetCube>("render_target_cube@+");
+				VRenderTarget.SetDynamicCast<Graphics::RenderTarget, Graphics::MultiRenderTarget2D>("multi_render_target_2d@+");
+				VRenderTarget.SetDynamicCast<Graphics::RenderTarget, Graphics::MultiRenderTargetCube>("multi_render_target_cube@+");
+				VRenderTarget2D.SetDynamicCast<Graphics::RenderTarget2D, Graphics::RenderTarget>("render_target@+", true);
+				VMultiRenderTarget2D.SetDynamicCast<Graphics::MultiRenderTarget2D, Graphics::RenderTarget>("render_target@+", true);
+				VRenderTargetCube.SetDynamicCast<Graphics::RenderTargetCube, Graphics::RenderTarget>("render_target@+", true);
+				VMultiRenderTargetCube.SetDynamicCast<Graphics::MultiRenderTargetCube, Graphics::RenderTarget>("render_target@+", true);
 
 				return true;
 #else
@@ -12161,7 +13123,7 @@ namespace Edge
 				VDataFrame.SetProperty<Network::DataFrame>("bool close", &Network::DataFrame::Close);
 				VDataFrame.SetConstructor<Network::DataFrame>("void f()");
 
-				RefClass VSocket = Engine->SetClass<Network::Socket>("socket");
+				RefClass VSocket = Engine->SetClass<Network::Socket>("socket", false);
 				TypeClass VEpollFd = Engine->SetStruct<Network::EpollFd>("epoll_fd");
 				VEpollFd.SetProperty<Network::EpollFd>("socket@ base", &Network::EpollFd::Base);
 				VEpollFd.SetProperty<Network::EpollFd>("bool readable", &Network::EpollFd::Readable);
@@ -12181,7 +13143,7 @@ namespace Edge
 				VEpollHandle.SetMethod("bool remove(socket@+, bool, bool)", &Network::EpollHandle::Remove);
 				VEpollHandle.SetMethodEx("int wait(array<epoll_fd>@+, uint64)", &EpollHandleWait);
 
-				RefClass VSocketAddress = Engine->SetClass<Network::SocketAddress>("socket_address");
+				RefClass VSocketAddress = Engine->SetClass<Network::SocketAddress>("socket_address", false);
 				VSocketAddress.SetConstructor<Network::SocketAddress, addrinfo*, addrinfo*>("socket_address@ f(uptr@, uptr@)");
 				VSocketAddress.SetMethod("bool is_usable() const", &Network::SocketAddress::IsUsable);
 				VSocketAddress.SetMethod("uptr@ get() const", &Network::SocketAddress::Get);
@@ -12280,14 +13242,23 @@ namespace Edge
 				Engine->SetFunction<std::string(addrinfo*)>("string get_address(uptr@)", &Network::Multiplexer::GetAddress);
 				Engine->EndNamespace();
 
-				RefClass VSocketListener = Engine->SetClass<Network::SocketListener>("socket_listener");
+				static const char SocketListener[] = "socket_listener";
+				RefClass VSocketListener = Engine->SetClass<Network::SocketListener>("socket_listener", true);
 				VSocketListener.SetProperty<Network::SocketListener>("string name", &Network::SocketListener::Name);
 				VSocketListener.SetProperty<Network::SocketListener>("remote_host hostname", &Network::SocketListener::Hostname);
 				VSocketListener.SetProperty<Network::SocketListener>("socket_address@ source", &Network::SocketListener::Source);
 				VSocketListener.SetProperty<Network::SocketListener>("socket@ base", &Network::SocketListener::Base);
-				VSocketListener.SetConstructor<Network::SocketListener, const std::string&, const Network::RemoteHost&, Network::SocketAddress*>("socket_listener@ f(const string &in, const remote_host &in, socket_address@+)");
+				VSocketListener.SetGcConstructor<Network::SocketListener, SocketListener, const std::string&, const Network::RemoteHost&, Network::SocketAddress*>("socket_listener@ f(const string &in, const remote_host &in, socket_address@+)");
+				VSocketListener.SetEnumRefsEx<Network::SocketListener>([](Network::SocketListener* Base, asIScriptEngine* Engine)
+				{
+					Engine->GCEnumCallback(Base->Base);
+				});
+				VSocketListener.SetReleaseRefsEx<Network::SocketListener>([](Network::SocketListener* Base, asIScriptEngine*)
+				{
+					Base->~SocketListener();
+				});
 
-				RefClass VSocketRouter = Engine->SetClass<Network::SocketRouter>("socket_router");
+				RefClass VSocketRouter = Engine->SetClass<Network::SocketRouter>("socket_router", false);
 				VSocketRouter.SetProperty<Network::SocketRouter>("usize payload_max_length", &Network::SocketRouter::PayloadMaxLength);
 				VSocketRouter.SetProperty<Network::SocketRouter>("usize backlog_queue", &Network::SocketRouter::BacklogQueue);
 				VSocketRouter.SetProperty<Network::SocketRouter>("usize socket_timeout", &Network::SocketRouter::SocketTimeout);
@@ -12303,11 +13274,12 @@ namespace Edge
 				VSocketRouter.SetMethodEx("void set_certificates(map@ data)", &SocketRouterSetCertificates);
 				VSocketRouter.SetMethodEx("map@ get_certificates() const", &SocketRouterGetCertificates);
 
-				RefClass VSocketConnection = Engine->SetClass<Network::SocketConnection>("socket_connection");
+				static const char SocketConnection[] = "socket_connection";
+				RefClass VSocketConnection = Engine->SetClass<Network::SocketConnection>("socket_connection", true);
 				VSocketConnection.SetProperty<Network::SocketConnection>("socket@ stream", &Network::SocketConnection::Stream);
 				VSocketConnection.SetProperty<Network::SocketConnection>("socket_listener@ host", &Network::SocketConnection::Host);
 				VSocketConnection.SetProperty<Network::SocketConnection>("socket_data_frame info", &Network::SocketConnection::Info);
-				VSocketConnection.SetConstructor<Network::SocketConnection>("socket_connection@ f()");
+				VSocketConnection.SetGcConstructor<Network::SocketConnection, SocketConnection>("socket_connection@ f()");
 				VSocketConnection.SetMethodEx("string get_remote_address() const", &SocketConnectionGetRemoteAddress);
 				VSocketConnection.SetMethod("void reset(bool)", &Network::SocketConnection::Reset);
 				VSocketConnection.SetMethod<Network::SocketConnection, bool>("bool finish()", &Network::SocketConnection::Finish);
@@ -12315,9 +13287,19 @@ namespace Edge
 				VSocketConnection.SetMethodEx("bool error(int, const string &in)", &SocketConnectionError);
 				VSocketConnection.SetMethod("bool encryption_info(socket_certificate &out)", &Network::SocketConnection::EncryptionInfo);
 				VSocketConnection.SetMethod("bool stop()", &Network::SocketConnection::Break);
+				VSocketConnection.SetEnumRefsEx<Network::SocketConnection>([](Network::SocketConnection* Base, asIScriptEngine* Engine)
+				{
+					Engine->GCEnumCallback(Base->Stream);
+					Engine->GCEnumCallback(Base->Host);
+				});
+				VSocketConnection.SetReleaseRefsEx<Network::SocketConnection>([](Network::SocketConnection* Base, asIScriptEngine*)
+				{
+					Base->~SocketConnection();
+				});
 
-				RefClass VSocketServer = Engine->SetClass<Network::SocketServer>("socket_server");
-				VSocketServer.SetConstructor<Network::SocketServer>("socket_server@ f()");
+				static const char SocketServer[] = "socket_server";
+				RefClass VSocketServer = Engine->SetClass<Network::SocketServer>("socket_server", true);
+				VSocketServer.SetGcConstructor<Network::SocketServer, SocketServer>("socket_server@ f()");
 				VSocketServer.SetMethod("void set_router(socket_router@+)", &Network::SocketServer::SetRouter);
 				VSocketServer.SetMethod("void set_backlog(usize)", &Network::SocketServer::SetBacklog);
 				VSocketServer.SetMethod("void lock()", &Network::SocketServer::Lock);
@@ -12328,8 +13310,21 @@ namespace Edge
 				VSocketServer.SetMethod("usize get_backlog() const", &Network::SocketServer::GetBacklog);
 				VSocketServer.SetMethod("server_state get_state() const", &Network::SocketServer::GetState);
 				VSocketServer.SetMethod("socket_router@+ get_router() const", &Network::SocketServer::GetRouter);
+				VSocketServer.SetEnumRefsEx<Network::SocketServer>([](Network::SocketServer* Base, asIScriptEngine* Engine)
+				{
+					Engine->GCEnumCallback(Base->GetRouter());
+					for (auto* Item : Base->GetActiveClients())
+						Engine->GCEnumCallback(Item);
 
-				RefClass VSocketClient = Engine->SetClass<Network::SocketClient>("socket_client");
+					for (auto* Item : Base->GetPooledClients())
+						Engine->GCEnumCallback(Item);
+				});
+				VSocketServer.SetReleaseRefsEx<Network::SocketServer>([](Network::SocketServer* Base, asIScriptEngine*)
+				{
+					Base->~SocketServer();
+				});
+
+				RefClass VSocketClient = Engine->SetClass<Network::SocketClient>("socket_client", false);
 				VSocketClient.SetConstructor<Network::SocketClient, int64_t>("socket_client@ f(int64)");
 				VSocketClient.SetMethodEx("promise<int>@ connect(remote_host &in)", &ED_PROMISIFY(Network::SocketClient::Connect, TypeId::INT32));
 				VSocketClient.SetMethodEx("promise<int>@ close()", &ED_PROMISIFY(Network::SocketClient::Close, TypeId::INT32));
@@ -12338,6 +13333,20 @@ namespace Edge
 				return true;
 #else
 				ED_ASSERT(false, false, "<network> is not loaded");
+				return false;
+#endif
+			}
+			bool Registry::LoadVM(VirtualMachine* Engine)
+			{
+#ifdef ED_HAS_BINDINGS
+				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+
+				RefClass VVirtualMachine = Engine->SetClass<VirtualMachine>("virtual_machine", false);
+
+				/* TODO: register bindings for <vm> module */
+				return true;
+#else
+				ED_ASSERT(false, false, "<vm> is not loaded");
 				return false;
 #endif
 			}
@@ -12354,75 +13363,75 @@ namespace Edge
 				VApplicationSet.SetValue("network_set", (int)Engine::ApplicationSet::NetworkSet);
 
 				Enumeration VApplicationState = Engine->SetEnum("application_state");
-				VApplicationState.SetValue("terminated", (int)Engine::ApplicationState::Terminated);
-				VApplicationState.SetValue("staging", (int)Engine::ApplicationState::Staging);
-				VApplicationState.SetValue("active", (int)Engine::ApplicationState::Active);
-				VApplicationState.SetValue("restart", (int)Engine::ApplicationState::Restart);
+				VApplicationState.SetValue("terminated_t", (int)Engine::ApplicationState::Terminated);
+				VApplicationState.SetValue("staging_t", (int)Engine::ApplicationState::Staging);
+				VApplicationState.SetValue("active_t", (int)Engine::ApplicationState::Active);
+				VApplicationState.SetValue("restart_t", (int)Engine::ApplicationState::Restart);
 
 				Enumeration VRenderOpt = Engine->SetEnum("render_opt");
-				VRenderOpt.SetValue("none", (int)Engine::RenderOpt::None);
-				VRenderOpt.SetValue("transparent", (int)Engine::RenderOpt::Transparent);
-				VRenderOpt.SetValue("static", (int)Engine::RenderOpt::Static);
-				VRenderOpt.SetValue("additive", (int)Engine::RenderOpt::Additive);
+				VRenderOpt.SetValue("none_t", (int)Engine::RenderOpt::None);
+				VRenderOpt.SetValue("transparent_t", (int)Engine::RenderOpt::Transparent);
+				VRenderOpt.SetValue("static_t", (int)Engine::RenderOpt::Static);
+				VRenderOpt.SetValue("additive_t", (int)Engine::RenderOpt::Additive);
 
 				Enumeration VRenderCulling = Engine->SetEnum("render_culling");
-				VRenderCulling.SetValue("linear", (int)Engine::RenderCulling::Linear);
-				VRenderCulling.SetValue("cubic", (int)Engine::RenderCulling::Cubic);
-				VRenderCulling.SetValue("disable", (int)Engine::RenderCulling::Disable);
+				VRenderCulling.SetValue("linear_t", (int)Engine::RenderCulling::Linear);
+				VRenderCulling.SetValue("cubic_t", (int)Engine::RenderCulling::Cubic);
+				VRenderCulling.SetValue("disable_t", (int)Engine::RenderCulling::Disable);
 
 				Enumeration VRenderState = Engine->SetEnum("render_state");
-				VRenderState.SetValue("geometry_result", (int)Engine::RenderState::Geometry_Result);
-				VRenderState.SetValue("geometry_voxels", (int)Engine::RenderState::Geometry_Voxels);
-				VRenderState.SetValue("depth_linear", (int)Engine::RenderState::Depth_Linear);
-				VRenderState.SetValue("depth_cubic", (int)Engine::RenderState::Depth_Cubic);
+				VRenderState.SetValue("geometry_result_t", (int)Engine::RenderState::Geometry_Result);
+				VRenderState.SetValue("geometry_voxels_t", (int)Engine::RenderState::Geometry_Voxels);
+				VRenderState.SetValue("depth_linear_t", (int)Engine::RenderState::Depth_Linear);
+				VRenderState.SetValue("depth_cubic_t", (int)Engine::RenderState::Depth_Cubic);
 
 				Enumeration VGeoCategory = Engine->SetEnum("geo_category");
-				VGeoCategory.SetValue("opaque", (int)Engine::GeoCategory::Opaque);
-				VGeoCategory.SetValue("transparent", (int)Engine::GeoCategory::Transparent);
-				VGeoCategory.SetValue("additive", (int)Engine::GeoCategory::Additive);
-				VGeoCategory.SetValue("count", (int)Engine::GeoCategory::Count);
+				VGeoCategory.SetValue("opaque_t", (int)Engine::GeoCategory::Opaque);
+				VGeoCategory.SetValue("transparent_t", (int)Engine::GeoCategory::Transparent);
+				VGeoCategory.SetValue("additive_t", (int)Engine::GeoCategory::Additive);
+				VGeoCategory.SetValue("count_t", (int)Engine::GeoCategory::Count);
 
 				Enumeration VBufferType = Engine->SetEnum("buffer_type");
-				VBufferType.SetValue("index", (int)Engine::BufferType::Index);
-				VBufferType.SetValue("vertex", (int)Engine::BufferType::Vertex);
+				VBufferType.SetValue("index_t", (int)Engine::BufferType::Index);
+				VBufferType.SetValue("vertex_t", (int)Engine::BufferType::Vertex);
 
 				Enumeration VTargetType = Engine->SetEnum("target_type");
-				VTargetType.SetValue("main", (int)Engine::TargetType::Main);
-				VTargetType.SetValue("secondary", (int)Engine::TargetType::Secondary);
-				VTargetType.SetValue("count", (int)Engine::TargetType::Count);
+				VTargetType.SetValue("main_t", (int)Engine::TargetType::Main);
+				VTargetType.SetValue("secondary_t", (int)Engine::TargetType::Secondary);
+				VTargetType.SetValue("count_t", (int)Engine::TargetType::Count);
 
 				Enumeration VVoxelType = Engine->SetEnum("voxel_type");
-				VVoxelType.SetValue("diffuse", (int)Engine::VoxelType::Diffuse);
-				VVoxelType.SetValue("normal", (int)Engine::VoxelType::Normal);
-				VVoxelType.SetValue("surface", (int)Engine::VoxelType::Surface);
+				VVoxelType.SetValue("diffuse_t", (int)Engine::VoxelType::Diffuse);
+				VVoxelType.SetValue("normal_t", (int)Engine::VoxelType::Normal);
+				VVoxelType.SetValue("surface_t", (int)Engine::VoxelType::Surface);
 
 				Enumeration VEventTarget = Engine->SetEnum("event_target");
-				VEventTarget.SetValue("scene", (int)Engine::EventTarget::Scene);
-				VEventTarget.SetValue("entity", (int)Engine::EventTarget::Entity);
-				VEventTarget.SetValue("component", (int)Engine::EventTarget::Component);
-				VEventTarget.SetValue("listener", (int)Engine::EventTarget::Listener);
+				VEventTarget.SetValue("scene_target", (int)Engine::EventTarget::Scene);
+				VEventTarget.SetValue("entity_target", (int)Engine::EventTarget::Entity);
+				VEventTarget.SetValue("component_target", (int)Engine::EventTarget::Component);
+				VEventTarget.SetValue("listener_target", (int)Engine::EventTarget::Listener);
 
 				Enumeration VActorSet = Engine->SetEnum("actor_set");
-				VActorSet.SetValue("none", (int)Engine::ActorSet::None);
-				VActorSet.SetValue("update", (int)Engine::ActorSet::Update);
-				VActorSet.SetValue("synchronize", (int)Engine::ActorSet::Synchronize);
-				VActorSet.SetValue("animate", (int)Engine::ActorSet::Animate);
-				VActorSet.SetValue("message", (int)Engine::ActorSet::Message);
-				VActorSet.SetValue("cullable", (int)Engine::ActorSet::Cullable);
-				VActorSet.SetValue("drawable", (int)Engine::ActorSet::Drawable);
+				VActorSet.SetValue("none_t", (int)Engine::ActorSet::None);
+				VActorSet.SetValue("update_t", (int)Engine::ActorSet::Update);
+				VActorSet.SetValue("synchronize_t", (int)Engine::ActorSet::Synchronize);
+				VActorSet.SetValue("animate_t", (int)Engine::ActorSet::Animate);
+				VActorSet.SetValue("message_t", (int)Engine::ActorSet::Message);
+				VActorSet.SetValue("cullable_t", (int)Engine::ActorSet::Cullable);
+				VActorSet.SetValue("drawable_t", (int)Engine::ActorSet::Drawable);
 
 				Enumeration VActorType = Engine->SetEnum("actor_type");
-				VActorType.SetValue("update", (int)Engine::ActorType::Update);
-				VActorType.SetValue("synchronize", (int)Engine::ActorType::Synchronize);
-				VActorType.SetValue("animate", (int)Engine::ActorType::Animate);
-				VActorType.SetValue("message", (int)Engine::ActorType::Message);
-				VActorType.SetValue("count", (int)Engine::ActorType::Count);
+				VActorType.SetValue("update_t", (int)Engine::ActorType::Update);
+				VActorType.SetValue("synchronize_t", (int)Engine::ActorType::Synchronize);
+				VActorType.SetValue("animate_t", (int)Engine::ActorType::Animate);
+				VActorType.SetValue("message_t", (int)Engine::ActorType::Message);
+				VActorType.SetValue("count_t", (int)Engine::ActorType::Count);
 
 				Enumeration VComposerTag = Engine->SetEnum("composer_tag");
-				VComposerTag.SetValue("component", (int)Engine::ComposerTag::Component);
-				VComposerTag.SetValue("renderer", (int)Engine::ComposerTag::Renderer);
-				VComposerTag.SetValue("effect", (int)Engine::ComposerTag::Effect);
-				VComposerTag.SetValue("filter", (int)Engine::ComposerTag::Filter);
+				VComposerTag.SetValue("component_t", (int)Engine::ComposerTag::Component);
+				VComposerTag.SetValue("renderer_t", (int)Engine::ComposerTag::Renderer);
+				VComposerTag.SetValue("effect_t", (int)Engine::ComposerTag::Effect);
+				VComposerTag.SetValue("filter_t", (int)Engine::ComposerTag::Filter);
 
 				TypeClass VTicker = Engine->SetStructTrivial<Engine::Ticker>("clock_ticker");
 				VTicker.SetProperty<Engine::Ticker>("float delay", &Engine::Ticker::Delay);
@@ -12436,10 +13445,10 @@ namespace Edge
 				VEvent.SetMethodEx("void set_args(map@+)", &EventSetArgs);
 				VEvent.SetMethodEx("map@ get_args() const", &EventGetArgs);
 
-				RefClass VMaterial = Engine->SetClass<Engine::Material>("material");
+				RefClass VMaterial = Engine->SetClass<Engine::Material>("material", true);
 				TypeClass VBatchData = Engine->SetStructTrivial<Engine::BatchData>("batch_data");
 				VBatchData.SetProperty<Engine::BatchData>("element_buffer@ instances_buffer", &Engine::BatchData::InstanceBuffer);
-				VBatchData.SetProperty<Engine::BatchData>("uptr@ GeometryBuffer", &Engine::BatchData::GeometryBuffer);
+				VBatchData.SetProperty<Engine::BatchData>("uptr@ geometry_buffer", &Engine::BatchData::GeometryBuffer);
 				VBatchData.SetProperty<Engine::BatchData>("material@ batch_material", &Engine::BatchData::BatchMaterial);
 				VBatchData.SetProperty<Engine::BatchData>("usize instances_count", &Engine::BatchData::InstancesCount);
 				VBatchData.SetConstructor<Engine::BatchData>("void f()");
@@ -12456,12 +13465,12 @@ namespace Edge
 				VAssetArchive.SetProperty<Engine::AssetArchive>("usize offset", &Engine::AssetArchive::Offset);
 				VAssetArchive.SetConstructor<Engine::AssetArchive>("void f()");
 
-				RefClass VAssetFile = Engine->SetClass<Engine::AssetFile>("asset_file");
+				RefClass VAssetFile = Engine->SetClass<Engine::AssetFile>("asset_file", false);
 				VAssetFile.SetConstructor<Engine::AssetFile, char*, size_t>("asset_file@ f(uptr@, usize)");
 				VAssetFile.SetMethod("uptr@ get_buffer() const", &Engine::AssetFile::GetBuffer);
 				VAssetFile.SetMethod("usize get_size() const", &Engine::AssetFile::GetSize);
 
-				TypeClass VVisibilityQuery = Engine->SetPod<Engine::VisibilityQuery>("visibility_query");
+				TypeClass VVisibilityQuery = Engine->SetPod<Engine::VisibilityQuery>("scene_visibility_query");
 				VVisibilityQuery.SetProperty<Engine::VisibilityQuery>("geo_category category", &Engine::VisibilityQuery::Category);
 				VVisibilityQuery.SetProperty<Engine::VisibilityQuery>("bool boundary_visible", &Engine::VisibilityQuery::BoundaryVisible);
 				VVisibilityQuery.SetProperty<Engine::VisibilityQuery>("bool query_pixels", &Engine::VisibilityQuery::QueryPixels);
@@ -12489,10 +13498,10 @@ namespace Edge
 				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("int32 iterations", &Engine::SpawnerProperties::Iterations);
 				VSpawnerProperties.SetConstructor<Engine::SpawnerProperties>("void f()");
 
-				RefClass VRenderSystem = Engine->SetClass<Engine::RenderSystem>("render_system");
+				RefClass VRenderSystem = Engine->SetClass<Engine::RenderSystem>("render_system", true);
 				TypeClass VViewer = Engine->SetStruct<Engine::Viewer>("viewer");
 				VViewer.SetProperty<Engine::Viewer>("render_system@ renderer", &Engine::Viewer::Renderer);
-				VViewer.SetProperty<Engine::Viewer>("render_culling Culling", &Engine::Viewer::Culling);
+				VViewer.SetProperty<Engine::Viewer>("render_culling culling", &Engine::Viewer::Culling);
 				VViewer.SetProperty<Engine::Viewer>("matrix4x4 inv_view_projection", &Engine::Viewer::InvViewProjection);
 				VViewer.SetProperty<Engine::Viewer>("matrix4x4 view_projection", &Engine::Viewer::ViewProjection);
 				VViewer.SetProperty<Engine::Viewer>("matrix4x4 projection", &Engine::Viewer::Projection);
@@ -12504,6 +13513,7 @@ namespace Edge
 				VViewer.SetProperty<Engine::Viewer>("float near_plane", &Engine::Viewer::NearPlane);
 				VViewer.SetProperty<Engine::Viewer>("float ratio", &Engine::Viewer::Ratio);
 				VViewer.SetProperty<Engine::Viewer>("float fov", &Engine::Viewer::Fov);
+				VViewer.SetConstructor<Engine::Viewer>("void f()");
 				VViewer.SetOperatorCopyStatic(&ViewerCopy);
 				VViewer.SetDestructorStatic("void f()", &ViewerDestructor);
 				VViewer.SetMethod<Engine::Viewer, void, const Compute::Matrix4x4&, const Compute::Matrix4x4&, const Compute::Vector3&, float, float, float, float, Engine::RenderCulling>("void set(const matrix4x4 &in, const matrix4x4 &in, const vector3 &in, float, float, float, float, render_culling)", &Engine::Viewer::Set);
@@ -12532,10 +13542,11 @@ namespace Edge
 				VSubsurface.SetProperty<Engine::Subsurface>("float height", &Engine::Subsurface::Height);
 				VSubsurface.SetConstructor<Engine::Subsurface>("void f()");
 
-				RefClass VSceneGraph = Engine->SetClass<Engine::SceneGraph>("scene_graph");
+				static const char Material[] = "material";
+				RefClass VSceneGraph = Engine->SetClass<Engine::SceneGraph>("scene_graph", true);
 				VMaterial.SetProperty<Engine::Material>("subsurface surface", &Engine::Material::Surface);
 				VMaterial.SetProperty<Engine::Material>("usize slot", &Engine::Material::Slot);
-				VMaterial.SetConstructor<Engine::Material, Engine::SceneGraph*>("material@ f(scene_graph@+)");
+				VMaterial.SetGcConstructor<Engine::Material, Material, Engine::SceneGraph*>("material@ f(scene_graph@+)");
 				VMaterial.SetMethod("void set_name(const string &in)", &Engine::Material::SetName);
 				VMaterial.SetMethod("const string& get_name(const string &in)", &Engine::Material::GetName);
 				VMaterial.SetMethod("void set_diffuse_map(texture_2d@+)", &Engine::Material::SetDiffuseMap);
@@ -12553,11 +13564,1182 @@ namespace Edge
 				VMaterial.SetMethod("void set_emission_map(texture_2d@+)", &Engine::Material::SetEmissionMap);
 				VMaterial.SetMethod("texture_2d@+ get_emission_map() const", &Engine::Material::GetEmissionMap);
 				VMaterial.SetMethod("scene_graph@+ get_scene() const", &Engine::Material::GetScene);
+				VMaterial.SetEnumRefsEx<Engine::Material>([](Engine::Material* Base, asIScriptEngine* Engine)
+				{
+					Engine->GCEnumCallback(Base->GetDiffuseMap());
+					Engine->GCEnumCallback(Base->GetNormalMap());
+					Engine->GCEnumCallback(Base->GetMetallicMap());
+					Engine->GCEnumCallback(Base->GetRoughnessMap());
+					Engine->GCEnumCallback(Base->GetHeightMap());
+					Engine->GCEnumCallback(Base->GetEmissionMap());
+				});
+				VMaterial.SetReleaseRefsEx<Engine::Material>([](Engine::Material* Base, asIScriptEngine*)
+				{
+					Base->~Material();
+				});
 
-				// TODO: bind other <engine> interfaces
+				RefClass VComponent = Engine->SetClass<Engine::Component>("base_component", false);
+				TypeClass VSparseIndex = Engine->SetStructTrivial<Engine::SparseIndex>("sparse_index");
+				VSparseIndex.SetProperty<Engine::SparseIndex>("cosmos index", &Engine::SparseIndex::Index);
+				VSparseIndex.SetMethodEx("usize size() const", &SparseIndexGetSize);
+				VSparseIndex.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "base_component@+", "usize", &SparseIndexGetData);
+				VSparseIndex.SetConstructor<Engine::SparseIndex>("void f()");
+
+				Engine->BeginNamespace("content_series");
+				Engine->SetFunction<void(Core::Schema*, bool)>("void pack(schema@+, bool)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, int)>("void pack(schema@+, int32)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, unsigned int)>("void pack(schema@+, uint32)", &Engine::Series::Pack);;
+				Engine->SetFunction<void(Core::Schema*, float)>("void pack(schema@+, float)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, double)>("void pack(schema@+, double)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, int64_t)>("void pack(schema@+, int64)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, unsigned long long)>("void pack(schema@+, uint64)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Compute::Vector2&)>("void pack(schema@+, const vector2 &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Compute::Vector3&)>("void pack(schema@+, const vector3 &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Compute::Vector4&)>("void pack(schema@+, const vector4 &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Compute::Matrix4x4&)>("void pack(schema@+, const matrix4x4 &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Engine::Attenuation&)>("void pack(schema@+, const attenuation &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Engine::AnimatorState&)>("void pack(schema@+, const animator_state &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Engine::SpawnerProperties&)>("void pack(schema@+, const spawner_properties &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Compute::SkinAnimatorKey&)>("void pack(schema@+, const skin_animator_key &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Compute::SkinAnimatorClip&)>("void pack(schema@+, const skin_animator_clip &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Compute::KeyAnimatorClip&)>("void pack(schema@+, const key_animator_clip &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Compute::AnimatorKey&)>("void pack(schema@+, const animator_key &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Compute::ElementVertex&)>("void pack(schema@+, const element_vertex &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Compute::Joint&)>("void pack(schema@+, const joint &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Compute::Vertex&)>("void pack(schema@+, const vertex &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Compute::SkinVertex&)>("void pack(schema@+, const skin_vertex &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Engine::Ticker&)>("void pack(schema@+, const clock_ticker &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const std::string&)>("void pack(schema@+, const string &in)", &Engine::Series::Pack);
+				Engine->SetFunction<bool(Core::Schema*, bool*)>("bool unpack(schema@+, bool &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, int*)>("bool unpack(schema@+, int32 &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, unsigned int*)>("bool unpack(schema@+, uint32 &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, float*)>("bool unpack(schema@+, float &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, double*)>("bool unpack(schema@+, double &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, int64_t*)>("bool unpack(schema@+, int64 &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, unsigned long long*)>("bool unpack(schema@+, uint64 &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Compute::Vector2*)>("bool unpack(schema@+, vector2 &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Compute::Vector3*)>("bool unpack(schema@+, vector3 &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Compute::Vector4*)>("bool unpack(schema@+, vector4 &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Compute::Matrix4x4*)>("bool unpack(schema@+, matrix4x4 &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Engine::Attenuation*)>("bool unpack(schema@+, attenuation &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Engine::AnimatorState*)>("bool unpack(schema@+, animator_state &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Engine::SpawnerProperties*)>("bool unpack(schema@+, spawner_properties &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Compute::SkinAnimatorKey*)>("bool unpack(schema@+, skin_animator_key &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Compute::SkinAnimatorClip*)>("bool unpack(schema@+, skin_animator_clip &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Compute::KeyAnimatorClip*)>("bool unpack(schema@+, key_animator_clip &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Compute::AnimatorKey*)>("bool unpack(schema@+, animator_key &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Compute::ElementVertex*)>("bool unpack(schema@+, element_vertex &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Compute::Joint*)>("bool unpack(schema@+, joint &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Compute::Vertex*)>("bool unpack(schema@+, vertex &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Compute::SkinVertex*)>("bool unpack(schema@+, skin_vertex &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Engine::Ticker*)>("bool unpack(schema@+, clock_ticker &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, std::string*)>("bool unpack(schema@+, string &out)", &Engine::Series::Unpack);
+				Engine->EndNamespace();
+
+				RefClass VContentManager = Engine->SetClass<Engine::ContentManager>("content_manager", true);
+				RefClass VProcessor = Engine->SetClass<Engine::Processor>("base_processor", false);
+				PopulateProcessorBase<Engine::Processor>(VProcessor);
+
+				RefClass VEntity = Engine->SetClass<Engine::Entity>("scene_entity", true);
+				PopulateComponentBase<Engine::Component>(VComponent);
+
+				VEntity.SetMethod("void set_name(const string &in)", &Engine::Entity::SetName);
+				VEntity.SetMethod("void set_root(scene_entity@+)", &Engine::Entity::SetRoot);
+				VEntity.SetMethod("void update_bounds()", &Engine::Entity::UpdateBounds);
+				VEntity.SetMethod("void remove_childs()", &Engine::Entity::RemoveChilds);
+				VEntity.SetMethodEx("void remove_component(base_component@+)", &EntityRemoveComponent);
+				VEntity.SetMethodEx("void remove_component(uint64)", &EntityRemoveComponentById);
+				VEntity.SetMethodEx("base_component@+ add_component(base_component@+)", &EntityAddComponent);
+				VEntity.SetMethodEx("base_component@+ get_component(uint64) const", &EntityGetComponentById);
+				VEntity.SetMethodEx("array<base_component@>@ get_components() const", &EntityGetComponents);
+				VEntity.SetMethod("scene_graph@+ get_scene() const", &Engine::Entity::GetScene);
+				VEntity.SetMethod("scene_entity@+ get_parent() const", &Engine::Entity::GetParent);
+				VEntity.SetMethod("scene_entity@+ get_child(usize) const", &Engine::Entity::GetChild);
+				VEntity.SetMethod("transform@+ get_transform() const", &Engine::Entity::GetTransform);
+				VEntity.SetMethod("const matrix4x4& get_box() const", &Engine::Entity::GetBox);
+				VEntity.SetMethod("const vector3& get_min() const", &Engine::Entity::GetMin);
+				VEntity.SetMethod("const vector3& get_max() const", &Engine::Entity::GetMax);
+				VEntity.SetMethod("const string& get_name() const", &Engine::Entity::GetName);
+				VEntity.SetMethod("usize get_components_count() const", &Engine::Entity::GetComponentsCount);
+				VEntity.SetMethod("usize get_childs_count() const", &Engine::Entity::GetComponentsCount);
+				VEntity.SetMethod("float get_visibility(const viewer &in) const", &Engine::Entity::GetVisibility);
+				VEntity.SetMethod("float is_active() const", &Engine::Entity::IsActive);
+				VEntity.SetMethod("vector3 get_radius3() const", &Engine::Entity::GetRadius3);
+				VEntity.SetMethod("float get_radius() const", &Engine::Entity::GetRadius);
+				VEntity.SetEnumRefsEx<Engine::Entity>([](Engine::Entity* Base, asIScriptEngine* Engine)
+				{
+					for (auto& Item : *Base)
+						Engine->GCEnumCallback(Item.second);
+				});
+				VEntity.SetReleaseRefsEx<Engine::Entity>([](Engine::Entity* Base, asIScriptEngine*) { });
+
+				RefClass VDrawable = Engine->SetClass<Engine::Drawable>("drawable_component", false);
+				PopulateDrawableBase<Engine::Drawable>(VDrawable);
+
+				RefClass VRenderer = Engine->SetClass<Engine::Renderer>("base_renderer", false);
+				PopulateRendererBase<Engine::Renderer>(VRenderer);
+
+				TypeClass VRsState = Engine->SetPod<Engine::RenderSystem::RsState>("rs_state");
+				VRsState.SetMethod("bool is_state(render_state) const", &Engine::RenderSystem::RsState::Is);
+				VRsState.SetMethod("bool is_set(render_opt) const", &Engine::RenderSystem::RsState::IsSet);
+				VRsState.SetMethod("bool is_top() const", &Engine::RenderSystem::RsState::IsTop);
+				VRsState.SetMethod("bool is_subpass() const", &Engine::RenderSystem::RsState::IsSubpass);
+				VRsState.SetMethod("render_opt get_opts() const", &Engine::RenderSystem::RsState::GetOpts);
+				VRsState.SetMethod("render_state get_state() const", &Engine::RenderSystem::RsState::Get);
+
+				static const char RenderSystem[] = "render_system";
+				RefClass VPrimitiveCache = Engine->SetClass<Engine::Renderer>("primitive_cache", true);
+				VRenderSystem.SetFunctionDef("void overlapping_result(base_component@+)");
+				VRenderSystem.SetProperty<Engine::RenderSystem>("rs_state state", &Engine::RenderSystem::State);
+				VRenderSystem.SetProperty<Engine::RenderSystem>("viewer view", &Engine::RenderSystem::View);
+				VRenderSystem.SetProperty<Engine::RenderSystem>("usize max_queries", &Engine::RenderSystem::MaxQueries);
+				VRenderSystem.SetProperty<Engine::RenderSystem>("usize occlusion_skips", &Engine::RenderSystem::OcclusionSkips);
+				VRenderSystem.SetProperty<Engine::RenderSystem>("usize occluder_skips", &Engine::RenderSystem::OccluderSkips);
+				VRenderSystem.SetProperty<Engine::RenderSystem>("usize occludee_skips", &Engine::RenderSystem::OccludeeSkips);
+				VRenderSystem.SetProperty<Engine::RenderSystem>("float overflow_visibility", &Engine::RenderSystem::OverflowVisibility);
+				VRenderSystem.SetProperty<Engine::RenderSystem>("float threshold", &Engine::RenderSystem::Threshold);
+				VRenderSystem.SetProperty<Engine::RenderSystem>("bool occlusion_culling", &Engine::RenderSystem::OcclusionCulling);
+				VRenderSystem.SetProperty<Engine::RenderSystem>("bool precise_culling", &Engine::RenderSystem::PreciseCulling);
+				VRenderSystem.SetGcConstructor<Engine::RenderSystem, RenderSystem, Engine::SceneGraph*, Engine::Component*>("render_system@ f(scene_graph@+, base_component@+)");
+				VRenderSystem.SetMethod("void set_view(const matrix4x4 &in, const matrix4x4 &in, const vector3 &in, float, float, float, float, render_culling)", &Engine::RenderSystem::SetView);
+				VRenderSystem.SetMethod("void clear_culling()", &Engine::RenderSystem::ClearCulling);
+				VRenderSystem.SetMethodEx("void restore_view_buffer()", &RenderSystemRestoreViewBuffer);
+				VRenderSystem.SetMethod("void restore_view_buffer(viewer &out)", &Engine::RenderSystem::RestoreViewBuffer);
+				VRenderSystem.SetMethod<Engine::RenderSystem, void, Engine::Renderer*>("void remount(base_renderer@+)", &Engine::RenderSystem::Remount);
+				VRenderSystem.SetMethod<Engine::RenderSystem, void>("void remount()", &Engine::RenderSystem::Remount);
+				VRenderSystem.SetMethod("void mount()", &Engine::RenderSystem::Mount);
+				VRenderSystem.SetMethod("void unmount()", &Engine::RenderSystem::Unmount);
+				VRenderSystem.SetMethod("void move_renderer(uint64, usize)", &Engine::RenderSystem::MoveRenderer);
+				VRenderSystem.SetMethod<Engine::RenderSystem, void, uint64_t>("void remove_renderer(uint64)", &Engine::RenderSystem::RemoveRenderer);
+				VRenderSystem.SetMethodEx("void move_renderer(base_renderer@+, usize)", &RenderSystemMoveRenderer);
+				VRenderSystem.SetMethodEx("void remove_renderer(base_renderer@+, usize)", &RenderSystemRemoveRenderer);
+				VRenderSystem.SetMethod("void restore_output()", &Engine::RenderSystem::RestoreOutput);
+				VRenderSystem.SetMethod<Engine::RenderSystem, void, const std::string&, Graphics::Shader*>("void free_shader(const string &in, shader@+)", &Engine::RenderSystem::FreeShader);
+				VRenderSystem.SetMethod<Engine::RenderSystem, void, Graphics::Shader*>("void free_shader(shader@+)", &Engine::RenderSystem::FreeShader);
+				VRenderSystem.SetMethodEx("void free_buffers(const string &in, element_buffer@+, element_buffer@+)", &RenderSystemFreeBuffers1);
+				VRenderSystem.SetMethodEx("void free_buffers(element_buffer@+, element_buffer@+)", &RenderSystemFreeBuffers2);
+				VRenderSystem.SetMethod("void clear_materials()", &Engine::RenderSystem::ClearMaterials);
+				VRenderSystem.SetMethod("void fetch_visibility(base_component@+, scene_visibility_query &out)", &Engine::RenderSystem::FetchVisibility);
+				VRenderSystem.SetMethod("usize render(clock_timer@+, render_state, render_opt)", &Engine::RenderSystem::Render);
+				VRenderSystem.SetMethod("bool try_instance(material@+, render_buffer_instance &out)", &Engine::RenderSystem::TryInstance);
+				VRenderSystem.SetMethod("bool try_geometry(material@+, bool)", &Engine::RenderSystem::TryGeometry);
+				VRenderSystem.SetMethod("bool has_category(geo_category)", &Engine::RenderSystem::HasCategory);
+				VRenderSystem.SetMethod<Engine::RenderSystem, Graphics::Shader*, Graphics::Shader::Desc&, size_t>("shader@+ compile_shader(shader_desc &in, usize = 0)", &Engine::RenderSystem::CompileShader);
+				VRenderSystem.SetMethod<Engine::RenderSystem, Graphics::Shader*, const std::string&, size_t>("shader@+ compile_shader(const string &in, usize = 0)", &Engine::RenderSystem::CompileShader);
+				VRenderSystem.SetMethodEx("array<element_buffer@>@ compile_buffers(const string &in, usize, usize)", &RenderSystemCompileBuffers);
+				VRenderSystem.SetMethodEx("bool add_renderer(base_renderer@+)", &RenderSystemAddRenderer);
+				VRenderSystem.SetMethodEx("base_renderer@+ get_renderer(uint64) const", &RenderSystemGetRenderer);
+				VRenderSystem.SetMethodEx("base_renderer@+ get_renderer_by_index(usize) const", &RenderSystemGetRendererByIndex);
+				VRenderSystem.SetMethodEx("usize get_renderers_count() const", &RenderSystemGetRenderersCount);
+				VRenderSystem.SetMethod<Engine::RenderSystem, bool, uint64_t, size_t&>("bool get_offset(uint64, usize &out) const", &Engine::RenderSystem::GetOffset);
+				VRenderSystem.SetMethod("multi_render_target_2d@+ get_mrt(target_type)", &Engine::RenderSystem::GetMRT);
+				VRenderSystem.SetMethod("render_target_2d@+ get_rt(target_type)", &Engine::RenderSystem::GetRT);
+				VRenderSystem.SetMethod("graphics_device@+ get_device()", &Engine::RenderSystem::GetDevice);
+				VRenderSystem.SetMethod("primitive_cache@+ get_primitives()", &Engine::RenderSystem::GetPrimitives);
+				VRenderSystem.SetMethod("scene_graph@+ get_scene()", &Engine::RenderSystem::GetScene);
+				VRenderSystem.SetMethod("base_component@+ get_component()", &Engine::RenderSystem::GetComponent);
+				VRenderSystem.SetMethodEx("void query_async(uint64, overlapping_result@)", &RenderSystemQueryAsync);
+				VRenderSystem.SetEnumRefsEx<Engine::RenderSystem>([](Engine::RenderSystem* Base, asIScriptEngine* Engine)
+				{
+					for (auto* Item : Base->GetRenderers())
+						Engine->GCEnumCallback(Item);
+				});
+				VRenderSystem.SetReleaseRefsEx<Engine::RenderSystem>([](Engine::RenderSystem* Base, asIScriptEngine*)
+				{
+					Base->RemoveRenderers();
+				});
+
+				static const char ShaderCache[] = "shader_cache";
+				RefClass VShaderCache = Engine->SetClass<Engine::ShaderCache>("shader_cache", true);
+				VShaderCache.SetGcConstructor<Engine::ShaderCache, ShaderCache, Graphics::GraphicsDevice*>("shader_cache@ f()");
+				VShaderCache.SetMethod("shader@+ compile(const string &in, const shader_desc &in, usize = 0)", &Engine::ShaderCache::Compile);
+				VShaderCache.SetMethod("shader@+ get(const string &in)", &Engine::ShaderCache::Get);
+				VShaderCache.SetMethod("string find(shader@+)", &Engine::ShaderCache::Find);
+				VShaderCache.SetMethod("bool has(const string &in)", &Engine::ShaderCache::Has);
+				VShaderCache.SetMethod("bool free(const string &in, shader@+ = null)", &Engine::ShaderCache::Free);
+				VShaderCache.SetMethod("void clear_cache()", &Engine::ShaderCache::ClearCache);
+				VShaderCache.SetEnumRefsEx<Engine::ShaderCache>([](Engine::ShaderCache* Base, asIScriptEngine* Engine)
+				{
+					for (auto& Item : Base->GetCaches())
+						Engine->GCEnumCallback(Item.second.Shader);
+				});
+				VShaderCache.SetReleaseRefsEx<Engine::ShaderCache>([](Engine::ShaderCache* Base, asIScriptEngine*)
+				{
+					Base->ClearCache();
+				});
+
+				static const char PrimitiveCache[] = "primitive_cache";
+				VPrimitiveCache.SetGcConstructor<Engine::PrimitiveCache, PrimitiveCache, Graphics::GraphicsDevice*>("primitive_cache@ f()");
+				VPrimitiveCache.SetMethodEx("array<element_buffer@>@ compile(const string &in, usize, usize)", &PrimitiveCacheCompile);
+				VPrimitiveCache.SetMethodEx("array<element_buffer@>@ get(const string &in) const", &PrimitiveCacheGet);
+				VPrimitiveCache.SetMethod("bool has(const string &in) const", &Engine::PrimitiveCache::Has);
+				VPrimitiveCache.SetMethodEx("bool free(const string &in, element_buffer@+, element_buffer@+)", &PrimitiveCacheFree);
+				VPrimitiveCache.SetMethodEx("string find(element_buffer@+, element_buffer@+) const", &PrimitiveCacheFind);
+				VPrimitiveCache.SetMethod("element_buffer@+ get_quad() const", &Engine::PrimitiveCache::GetQuad);
+				VPrimitiveCache.SetMethod("element_buffer@+ get_sphere(buffer_type) const", &Engine::PrimitiveCache::GetSphere);
+				VPrimitiveCache.SetMethod("element_buffer@+ get_cube(buffer_type) const", &Engine::PrimitiveCache::GetCube);
+				VPrimitiveCache.SetMethod("element_buffer@+ get_box(buffer_type) const", &Engine::PrimitiveCache::GetBox);
+				VPrimitiveCache.SetMethod("element_buffer@+ get_skin_box(buffer_type) const", &Engine::PrimitiveCache::GetSkinBox);
+				VPrimitiveCache.SetMethodEx("array<element_buffer@>@ get_sphere_buffers() const", &PrimitiveCacheGetSphereBuffers);
+				VPrimitiveCache.SetMethodEx("array<element_buffer@>@ get_cube_buffers() const", &PrimitiveCacheGetCubeBuffers);
+				VPrimitiveCache.SetMethodEx("array<element_buffer@>@ get_box_buffers() const", &PrimitiveCacheGetBoxBuffers);
+				VPrimitiveCache.SetMethodEx("array<element_buffer@>@ get_skin_box_buffers() const", &PrimitiveCacheGetSkinBoxBuffers);
+				VPrimitiveCache.SetMethod("void clear_cache()", &Engine::PrimitiveCache::ClearCache);
+				VPrimitiveCache.SetEnumRefsEx<Engine::PrimitiveCache>([](Engine::PrimitiveCache* Base, asIScriptEngine* Engine)
+				{
+					Engine->GCEnumCallback(Base->GetSphere(Engine::BufferType::Vertex));
+					Engine->GCEnumCallback(Base->GetSphere(Engine::BufferType::Index));
+					Engine->GCEnumCallback(Base->GetCube(Engine::BufferType::Vertex));
+					Engine->GCEnumCallback(Base->GetCube(Engine::BufferType::Index));
+					Engine->GCEnumCallback(Base->GetBox(Engine::BufferType::Vertex));
+					Engine->GCEnumCallback(Base->GetBox(Engine::BufferType::Index));
+					Engine->GCEnumCallback(Base->GetSkinBox(Engine::BufferType::Vertex));
+					Engine->GCEnumCallback(Base->GetSkinBox(Engine::BufferType::Index));
+					Engine->GCEnumCallback(Base->GetQuad());
+
+					for (auto& Item : Base->GetCaches())
+					{
+						Engine->GCEnumCallback(Item.second.Buffers[0]);
+						Engine->GCEnumCallback(Item.second.Buffers[1]);
+					}
+				});
+				VPrimitiveCache.SetReleaseRefsEx<Engine::PrimitiveCache>([](Engine::PrimitiveCache* Base, asIScriptEngine*)
+				{
+					Base->ClearCache();
+				});
+
+				static const char ContentManager[] = "content_manager";
+				VContentManager.SetFunctionDef("void load_callback(uptr@)");
+				VContentManager.SetFunctionDef("void save_callback(bool)");
+				VContentManager.SetGcConstructor<Engine::ContentManager, ContentManager, Graphics::GraphicsDevice*>("content_manager@ f()");
+				VContentManager.SetMethod("void clear_cache()", &Engine::ContentManager::ClearCache);
+				VContentManager.SetMethod("void clear_dockers()", &Engine::ContentManager::ClearDockers);
+				VContentManager.SetMethod("void clear_streams()", &Engine::ContentManager::ClearStreams);
+				VContentManager.SetMethod("void clear_processors()", &Engine::ContentManager::ClearProcessors);
+				VContentManager.SetMethod("void clear_path(const string &in)", &Engine::ContentManager::ClearPath);
+				VContentManager.SetMethod("void set_environment(const string &in)", &Engine::ContentManager::SetEnvironment);
+				VContentManager.SetMethod("void set_device(graphics_device@+)", &Engine::ContentManager::SetDevice);
+				VContentManager.SetMethodEx("uptr@ load(base_processor@+, const string &in, schema@+ = null)", &ContentManagerLoad);
+				VContentManager.SetMethodEx("bool save(base_processor@+, const string &in, uptr@, schema@+ = null)", &ContentManagerSave);
+				VContentManager.SetMethodEx("void load_async(base_processor@+, const string &in, load_callback@)", &ContentManagerLoadAsync1);
+				VContentManager.SetMethodEx("void load_async(base_processor@+, const string &in, schema@+, load_callback@)", &ContentManagerLoadAsync2);
+				VContentManager.SetMethodEx("void save_async(base_processor@+, const string &in, uptr@, save_callback@)", &ContentManagerSaveAsync1);
+				VContentManager.SetMethodEx("void save_async(base_processor@+, const string &in, uptr@, schema@+, save_callback@)", &ContentManagerSaveAsync2);
+				VContentManager.SetMethodEx("bool find_cache_info(base_processor@+, asset_cache &out, const string &in)", &ContentManagerFindCache1);
+				VContentManager.SetMethodEx("bool find_cache_info(base_processor@+, asset_cache &out, uptr@)", &ContentManagerFindCache2);
+				VContentManager.SetMethod<Engine::ContentManager, Engine::AssetCache*, Engine::Processor*, const std::string&>("uptr@ find_cache(base_processor@+, const string &in)", &Engine::ContentManager::FindCache);
+				VContentManager.SetMethod<Engine::ContentManager, Engine::AssetCache*, Engine::Processor*, void*>("uptr@ find_cache(base_processor@+, uptr@)", &Engine::ContentManager::FindCache);
+				VContentManager.SetMethodEx("base_processor@+ add_processor(base_processor@+, uint64)", &ContentManagerAddProcessor);
+				VContentManager.SetMethod<Engine::ContentManager, Engine::Processor*, uint64_t>("base_processor@+ get_processor(uint64)", &Engine::ContentManager::GetProcessor);
+				VContentManager.SetMethod<Engine::ContentManager, bool, uint64_t>("bool remove_processor(uint64)", &Engine::ContentManager::RemoveProcessor);
+				VContentManager.SetMethod("bool import_fs(const string &in)", &Engine::ContentManager::Import);
+				VContentManager.SetMethod("bool export_fs(const string &in, const string &in, const string &in = \"\")", &Engine::ContentManager::Export);
+				VContentManager.SetMethod("bool cache(base_processor@+, const string &in, uptr@)", &Engine::ContentManager::Cache);
+				VContentManager.SetMethod("bool is_busy() const", &Engine::ContentManager::IsBusy);
+				VContentManager.SetMethod("graphics_device@+ get_device() const", &Engine::ContentManager::GetDevice);
+				VContentManager.SetMethod("const string& get_environment() const", &Engine::ContentManager::GetEnvironment);
+				VContentManager.SetEnumRefsEx<Engine::ContentManager>([](Engine::ContentManager* Base, asIScriptEngine* Engine)
+				{
+					for (auto& Item : Base->GetProcessors())
+						Engine->GCEnumCallback(Item.second);
+				});
+				VContentManager.SetReleaseRefsEx<Engine::ContentManager>([](Engine::ContentManager* Base, asIScriptEngine*)
+				{
+					Base->ClearProcessors();
+				});
+
+				static const char AppData[] = "app_data";
+				RefClass VAppData = Engine->SetClass<Engine::AppData>("app_data", true);
+				VAppData.SetGcConstructor<Engine::AppData, AppData, Engine::ContentManager*, const std::string&>("app_data@ f(content_manager@+, const string &in)");
+				VAppData.SetMethod("void migrate(const string &in)", &Engine::AppData::Migrate);
+				VAppData.SetMethod("void set_key(const string &in, schema@+)", &Engine::AppData::SetKey);
+				VAppData.SetMethod("void set_text(const string &in, const string &in)", &Engine::AppData::SetText);
+				VAppData.SetMethod("schema@+ get_key(const string &in)", &Engine::AppData::GetKey);
+				VAppData.SetMethod("string get_text(const string &in)", &Engine::AppData::GetText);
+				VAppData.SetMethod("bool has(const string &in)", &Engine::AppData::Has);
+				VAppData.SetEnumRefsEx<Engine::AppData>([](Engine::AppData* Base, asIScriptEngine* Engine)
+				{
+					Engine->GCEnumCallback(Base->GetSnapshot());
+				});
+				VAppData.SetReleaseRefsEx<Engine::AppData>([](Engine::AppData* Base, asIScriptEngine*)
+				{
+					Base->~AppData();
+				});
+
+				TypeClass VSceneGraphSharedDesc = Engine->SetStruct<Engine::SceneGraph::Desc>("scene_graph_shared_desc");
+				VSceneGraphSharedDesc.SetProperty<Engine::SceneGraph::Desc::Dependencies>("graphics_device@ device", &Engine::SceneGraph::Desc::Dependencies::Device);
+				VSceneGraphSharedDesc.SetProperty<Engine::SceneGraph::Desc::Dependencies>("activity@ window", &Engine::SceneGraph::Desc::Dependencies::Activity);
+				VSceneGraphSharedDesc.SetProperty<Engine::SceneGraph::Desc::Dependencies>("virtual_machine@ vm", &Engine::SceneGraph::Desc::Dependencies::VM);
+				VSceneGraphSharedDesc.SetProperty<Engine::SceneGraph::Desc::Dependencies>("content_manager@ content", &Engine::SceneGraph::Desc::Dependencies::Content);
+				VSceneGraphSharedDesc.SetProperty<Engine::SceneGraph::Desc::Dependencies>("primitive_cache@ primitives", &Engine::SceneGraph::Desc::Dependencies::Primitives);
+				VSceneGraphSharedDesc.SetProperty<Engine::SceneGraph::Desc::Dependencies>("shader_cache@ shaders", &Engine::SceneGraph::Desc::Dependencies::Shaders);
+				VSceneGraphSharedDesc.SetConstructor<Engine::SceneGraph::Desc::Dependencies>("void f()");
+				VSceneGraphSharedDesc.SetOperatorCopyStatic(&SceneGraphSharedDescCopy);
+				VSceneGraphSharedDesc.SetDestructorStatic("void f()", &SceneGraphSharedDescDestructor);
+
+				RefClass VApplication = Engine->SetClass<Application>("application", true);
+				TypeClass VSceneGraphDesc = Engine->SetStructTrivial<Engine::SceneGraph::Desc>("scene_graph_desc");
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("scene_graph_shared_desc shared", &Engine::SceneGraph::Desc::Shared);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("physics_simulator_desc simulator", &Engine::SceneGraph::Desc::Simulator);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("usize start_materials", &Engine::SceneGraph::Desc::StartMaterials);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("usize start_entities", &Engine::SceneGraph::Desc::StartEntities);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("usize start_components", &Engine::SceneGraph::Desc::StartComponents);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("usize grow_margin", &Engine::SceneGraph::Desc::GrowMargin);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("usize max_updates", &Engine::SceneGraph::Desc::MaxUpdates);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("usize points_size", &Engine::SceneGraph::Desc::PointsSize);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("usize points_max", &Engine::SceneGraph::Desc::PointsMax);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("usize spots_size", &Engine::SceneGraph::Desc::SpotsSize);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("usize spots_max", &Engine::SceneGraph::Desc::SpotsMax);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("usize lines_size", &Engine::SceneGraph::Desc::LinesSize);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("usize lines_max", &Engine::SceneGraph::Desc::LinesMax);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("usize voxels_size", &Engine::SceneGraph::Desc::VoxelsSize);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("usize voxels_max", &Engine::SceneGraph::Desc::VoxelsMax);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("usize voxels_mips", &Engine::SceneGraph::Desc::VoxelsMips);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("double grow_rate", &Engine::SceneGraph::Desc::GrowRate);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("float render_quality", &Engine::SceneGraph::Desc::RenderQuality);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("bool enable_hdr", &Engine::SceneGraph::Desc::EnableHDR);
+				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("bool mutations", &Engine::SceneGraph::Desc::Mutations);
+				VSceneGraphDesc.SetConstructor<Engine::SceneGraph::Desc>("void f()");
+				VSceneGraphDesc.SetMethodStatic("scene_graph_desc get(application@+)", &Engine::SceneGraph::Desc::Get);
+
+				TypeClass VSceneGraphStatistics = Engine->SetPod<Engine::SceneGraph::SgStatistics>("scene_graph_statistics");
+				VSceneGraphStatistics.SetProperty<Engine::SceneGraph::SgStatistics>("usize instances", &Engine::SceneGraph::SgStatistics::Instances);
+				VSceneGraphStatistics.SetProperty<Engine::SceneGraph::SgStatistics>("usize draw_calls", &Engine::SceneGraph::SgStatistics::DrawCalls);
+
+				static const char SceneGraph[] = "scene_graph";
+				VSceneGraph.SetGcConstructor<Engine::SceneGraph, SceneGraph, const Engine::SceneGraph::Desc&>("scene_graph@ f(const scene_graph_desc &in)");
+				VSceneGraph.SetFunctionDef("bool ray_test_callback(base_component@+, const vector3 &in)");
+				VSceneGraph.SetFunctionDef("void transaction_callback()");
+				VSceneGraph.SetFunctionDef("void event_callback(const string &in, schema@+)");
+				VSceneGraph.SetFunctionDef("void match_callback(const bounding &in)");
+				VSceneGraph.SetFunctionDef("void resource_callback(uptr@)");
+				VSceneGraph.SetMethod("void configure(const scene_graph_desc &in)", &Engine::SceneGraph::Configure);
+				VSceneGraph.SetMethod("void actualize()", &Engine::SceneGraph::Actualize);
+				VSceneGraph.SetMethod("void resize_buffers()", &Engine::SceneGraph::ResizeBuffers);
+				VSceneGraph.SetMethod("void submit()", &Engine::SceneGraph::Submit);
+				VSceneGraph.SetMethod("void dispatch(clock_timer@+)", &Engine::SceneGraph::Dispatch);
+				VSceneGraph.SetMethod("void publish(clock_timer@+)", &Engine::SceneGraph::Publish);
+				VSceneGraph.SetMethod("void delete_material(material@+)", &Engine::SceneGraph::DeleteMaterial);
+				VSceneGraph.SetMethod("void remove_entity(scene_entity@+)", &Engine::SceneGraph::RemoveEntity);
+				VSceneGraph.SetMethod("void delete_entity(scene_entity@+)", &Engine::SceneGraph::DeleteEntity);
+				VSceneGraph.SetMethod("void set_camera(scene_entity@+)", &Engine::SceneGraph::SetCamera);
+				VSceneGraph.SetMethodEx("void ray_test(uint64, const ray &in, ray_test_callback@)", &SceneGraphRayTest);
+				VSceneGraph.SetMethod("void script_hook(const string &in = \"main\")", &Engine::SceneGraph::ScriptHook);
+				VSceneGraph.SetMethod("void set_active(bool)", &Engine::SceneGraph::SetActive);
+				VSceneGraph.SetMethod("void set_mrt(target_type, bool)", &Engine::SceneGraph::SetMRT);
+				VSceneGraph.SetMethod("void set_rt(target_type, bool)", &Engine::SceneGraph::SetRT);
+				VSceneGraph.SetMethod("void swap_mrt(target_type, multi_render_target_2d@+)", &Engine::SceneGraph::SwapMRT);
+				VSceneGraph.SetMethod("void swap_rt(target_type, render_target_2d@+)", &Engine::SceneGraph::SwapRT);
+				VSceneGraph.SetMethod("void clear_mrt(target_type, bool, bool)", &Engine::SceneGraph::ClearMRT);
+				VSceneGraph.SetMethod("void clear_rt(target_type, bool, bool)", &Engine::SceneGraph::ClearRT);
+				VSceneGraph.SetMethodEx("void mutate(scene_entity@+, scene_entity@+, const string &in)", &SceneGraphMutate1);
+				VSceneGraph.SetMethodEx("void mutate(scene_entity@+, const string &in)", &SceneGraphMutate2);
+				VSceneGraph.SetMethodEx("void mutate(base_component@+, const string &in)", &SceneGraphMutate3);
+				VSceneGraph.SetMethodEx("void mutate(material@+, const string &in)", &SceneGraphMutate4);
+				VSceneGraph.SetMethodEx("void transaction(transaction_callback@)", &SceneGraphTransaction);
+				VSceneGraph.SetMethod("void clear_culling()", &Engine::SceneGraph::ClearCulling);
+				VSceneGraph.SetMethodEx("bool push_event(const string &in, schema@+, bool)", &SceneGraphPushEvent1);
+				VSceneGraph.SetMethodEx("bool push_event(const string &in, schema@+, base_component@+)", &SceneGraphPushEvent2);
+				VSceneGraph.SetMethodEx("bool push_event(const string &in, schema@+, scene_entity@+)", &SceneGraphPushEvent3);
+				VSceneGraph.SetMethodEx("uptr@ set_listener(const string &in, event_callback@+)", &SceneGraphSetListener);
+				VSceneGraph.SetMethod("bool clear_listener(const string &in, uptr@)", &Engine::SceneGraph::ClearListener);
+				VSceneGraph.SetMethod<Engine::SceneGraph, bool, Engine::Material*>("bool add_material(material@+)", &Engine::SceneGraph::AddMaterial);
+				VSceneGraph.SetMethod<Engine::SceneGraph, Engine::Material*>("material@+ add_material()", &Engine::SceneGraph::AddMaterial);
+				VSceneGraph.SetMethodEx("void load_resource(uint64, base_component@+, const string &in, schema@+, resource_callback@)", &SceneGraphLoadResource);
+				VSceneGraph.SetMethod<Engine::SceneGraph, std::string, uint64_t, void*>("string find_resource_id(uint64, uptr@)", &Engine::SceneGraph::FindResourceId);
+				VSceneGraph.SetMethod("material@+ clone_material(material@+)", &Engine::SceneGraph::CloneMaterial);
+				VSceneGraph.SetMethod("scene_entity@+ get_entity(usize) const", &Engine::SceneGraph::GetEntity);
+				VSceneGraph.SetMethod("scene_entity@+ get_last_entity() const", &Engine::SceneGraph::GetLastEntity);
+				VSceneGraph.SetMethod("scene_entity@+ get_camera_entity() const", &Engine::SceneGraph::GetCameraEntity);
+				VSceneGraph.SetMethod("base_component@+ get_component(uint64, usize) const", &Engine::SceneGraph::GetComponent);
+				VSceneGraph.SetMethod("base_component@+ get_camera() const", &Engine::SceneGraph::GetCamera);
+				VSceneGraph.SetMethod("render_system@+ get_renderer() const", &Engine::SceneGraph::GetRenderer);
+				VSceneGraph.SetMethod("viewer get_camera_viewer() const", &Engine::SceneGraph::GetCameraViewer);
+				VSceneGraph.SetMethod<Engine::SceneGraph, Engine::Material*, const std::string&>("material@+ get_material(const string &in) const", &Engine::SceneGraph::GetMaterial);
+				VSceneGraph.SetMethod<Engine::SceneGraph, Engine::Material*, size_t>("material@+ get_material(usize) const", &Engine::SceneGraph::GetMaterial);
+				VSceneGraph.SetMethod<Engine::SceneGraph, Engine::SparseIndex&, uint64_t>("sparse_index& get_storage(uint64) const", &Engine::SceneGraph::GetStorage);
+				VSceneGraph.SetMethodEx("array<base_component@>@ get_components(uint64) const", &SceneGraphGetComponents);
+				VSceneGraph.SetMethodEx("array<base_component@>@ get_actors(actor_type) const", &SceneGraphGetActors);
+				VSceneGraph.SetMethod("render_target_2d_desc get_desc_rt() const", &Engine::SceneGraph::GetDescRT);
+				VSceneGraph.SetMethod("multi_render_target_2d_desc get_desc_mrt() const", &Engine::SceneGraph::GetDescMRT);
+				VSceneGraph.SetMethod("surface_format get_format_mrt(uint32) const", &Engine::SceneGraph::GetFormatMRT);
+				VSceneGraph.SetMethodEx("array<scene_entity@>@ clone_entity_as_array(scene_entity@+)", &SceneGraphCloneEntityAsArray);
+				VSceneGraph.SetMethodEx("array<scene_entity@>@ query_by_parent(scene_entity@+) const", &SceneGraphQueryByParent);
+				VSceneGraph.SetMethodEx("array<scene_entity@>@ query_by_name(const string &in) const", &SceneGraphQueryByName);
+				VSceneGraph.SetMethodEx("array<base_component@>@ query_by_position(uint64, const vector3 &in, float) const", &SceneGraphQueryByPosition);
+				VSceneGraph.SetMethodEx("array<base_component@>@ query_by_area(uint64, const vector3 &in, const vector3 &in) const", &SceneGraphQueryByArea);
+				VSceneGraph.SetMethodEx("array<base_component@>@ query_by_ray(uint64, const ray &in) const", &SceneGraphQueryByRay);
+				VSceneGraph.SetMethodEx("array<base_component@>@ query_by_match(uint64, match_callback@) const", &SceneGraphQueryByMatch);
+				VSceneGraph.SetMethod("string as_resource_path(const string &in) const", &Engine::SceneGraph::AsResourcePath);
+				VSceneGraph.SetMethod<Engine::SceneGraph, Engine::Entity*>("scene_entity@+ add_entity()", &Engine::SceneGraph::AddEntity);
+				VSceneGraph.SetMethod("scene_entity@+ clone_entity(scene_entity@+)", &Engine::SceneGraph::CloneEntity);
+				VSceneGraph.SetMethod<Engine::SceneGraph, bool, Engine::Entity*>("bool add_entity(scene_entity@+)", &Engine::SceneGraph::AddEntity);
+				VSceneGraph.SetMethod("bool is_active() const", &Engine::SceneGraph::IsActive);
+				VSceneGraph.SetMethod("bool is_left_handed() const", &Engine::SceneGraph::IsLeftHanded);
+				VSceneGraph.SetMethod("bool is_indexed() const", &Engine::SceneGraph::IsIndexed);
+				VSceneGraph.SetMethod("bool is_busy() const", &Engine::SceneGraph::IsBusy);
+				VSceneGraph.SetMethod("usize get_materials_count() const", &Engine::SceneGraph::GetMaterialsCount);
+				VSceneGraph.SetMethod("usize get_entities_count() const", &Engine::SceneGraph::GetEntitiesCount);
+				VSceneGraph.SetMethod("usize get_components_count(uint64) const", &Engine::SceneGraph::GetComponentsCount);
+				VSceneGraph.SetMethod<Engine::SceneGraph, bool, Engine::Entity*>("bool has_entity(scene_entity@+) const", &Engine::SceneGraph::HasEntity);
+				VSceneGraph.SetMethod<Engine::SceneGraph, bool, size_t>("bool has_entity(usize) const", &Engine::SceneGraph::HasEntity);
+				VSceneGraph.SetMethod("multi_render_target_2d@+ get_mrt() const", &Engine::SceneGraph::GetMRT);
+				VSceneGraph.SetMethod("render_target_2d@+ get_rt() const", &Engine::SceneGraph::GetRT);
+				VSceneGraph.SetMethod("element_buffer@+ get_structure() const", &Engine::SceneGraph::GetStructure);
+				VSceneGraph.SetMethod("graphics_device@+ get_device() const", &Engine::SceneGraph::GetDevice);
+				VSceneGraph.SetMethod("physics_simulator@+ get_simulator() const", &Engine::SceneGraph::GetSimulator);
+				VSceneGraph.SetMethod("activity@+ get_activity() const", &Engine::SceneGraph::GetActivity);
+				VSceneGraph.SetMethod("shader_cache@+ get_shaders() const", &Engine::SceneGraph::GetShaders);
+				VSceneGraph.SetMethod("primitive_cache@+ get_primitives() const", &Engine::SceneGraph::GetPrimitives);
+				VSceneGraph.SetMethod("scene_graph_desc& get_conf()", &Engine::SceneGraph::GetConf);
+				VSceneGraph.SetEnumRefsEx<Engine::SceneGraph>([](Engine::SceneGraph* Base, asIScriptEngine* Engine)
+				{
+					auto& Conf = Base->GetConf();
+					Engine->GCEnumCallback(Conf.Shared.Shaders);
+					Engine->GCEnumCallback(Conf.Shared.Primitives);
+					Engine->GCEnumCallback(Conf.Shared.Content);
+					Engine->GCEnumCallback(Conf.Shared.Device);
+					Engine->GCEnumCallback(Conf.Shared.Activity);
+					Engine->GCEnumCallback(Conf.Shared.VM);
+
+					size_t Materials = Base->GetMaterialsCount();
+					for (size_t i = 0; i < Materials; i++)
+						Engine->GCEnumCallback(Base->GetMaterial(i));
+
+					size_t Entities = Base->GetEntitiesCount();
+					for (size_t i = 0; i < Entities; i++)
+						Engine->GCEnumCallback(Base->GetEntity(i));
+
+					for (auto& Item : Base->GetRegistry())
+					{
+						for (auto* Next : Item.second->Data)
+							Engine->GCEnumCallback(Next);
+					}
+				});
+				VSceneGraph.SetReleaseRefsEx<Engine::SceneGraph>([](Engine::SceneGraph* Base, asIScriptEngine*) { });
+
+				TypeClass VApplicationFrameInfo = Engine->SetStructTrivial<Application::Desc::FramesInfo>("application_frame_info");
+				VApplicationFrameInfo.SetProperty<Application::Desc::FramesInfo>("float stable", &Application::Desc::FramesInfo::Stable);
+				VApplicationFrameInfo.SetProperty<Application::Desc::FramesInfo>("float limit", &Application::Desc::FramesInfo::Limit);
+				VApplicationFrameInfo.SetConstructor<Application::Desc::FramesInfo>("void f()");
+
+				TypeClass VApplicationCacheInfo = Engine->SetStruct<Application::CacheInfo>("application_cache_info");
+				VApplicationCacheInfo.SetProperty<Application::CacheInfo>("shader_cache@ shaders", &Application::CacheInfo::Shaders);
+				VApplicationCacheInfo.SetProperty<Application::CacheInfo>("primitive_cache@ primitives", &Application::CacheInfo::Primitives);
+				VApplicationCacheInfo.SetConstructor<Application::CacheInfo>("void f()");
+				VApplicationCacheInfo.SetOperatorCopyStatic(&ApplicationCacheInfoCopy);
+				VApplicationCacheInfo.SetDestructorStatic("void f()", &ApplicationCacheInfoDestructor);
+
+				TypeClass VApplicationDesc = Engine->SetStructTrivial<Application::Desc>("application_desc");
+				VApplicationDesc.SetProperty<Application::Desc>("application_frame_info framerate", &Application::Desc::Framerate);
+				VApplicationDesc.SetProperty<Application::Desc>("graphics_device_desc graphics", &Application::Desc::GraphicsDevice);
+				VApplicationDesc.SetProperty<Application::Desc>("activity_desc window", &Application::Desc::Activity);
+				VApplicationDesc.SetProperty<Application::Desc>("string preferences", &Application::Desc::Preferences);
+				VApplicationDesc.SetProperty<Application::Desc>("string environment", &Application::Desc::Environment);
+				VApplicationDesc.SetProperty<Application::Desc>("string directory", &Application::Desc::Directory);
+				VApplicationDesc.SetProperty<Application::Desc>("usize stack", &Application::Desc::Stack);
+				VApplicationDesc.SetProperty<Application::Desc>("usize polling_timeout", &Application::Desc::PollingTimeout);
+				VApplicationDesc.SetProperty<Application::Desc>("usize polling_events", &Application::Desc::PollingEvents);
+				VApplicationDesc.SetProperty<Application::Desc>("usize coroutines", &Application::Desc::Coroutines);
+				VApplicationDesc.SetProperty<Application::Desc>("usize threads", &Application::Desc::Threads);
+				VApplicationDesc.SetProperty<Application::Desc>("usize usage", &Application::Desc::Usage);
+				VApplicationDesc.SetProperty<Application::Desc>("bool daemon", &Application::Desc::Daemon);
+				VApplicationDesc.SetProperty<Application::Desc>("bool parallel", &Application::Desc::Parallel);
+				VApplicationDesc.SetProperty<Application::Desc>("bool cursor", &Application::Desc::Cursor);
+				VApplicationDesc.SetConstructor<Application::Desc>("void f()");
+
+				static const char ApplicationName[] = "application";
+				VApplication.SetFunctionDef("void script_hook_callback()");
+				VApplication.SetFunctionDef("void key_event_callback(key_code, key_mod, int32, int32, bool)");
+				VApplication.SetFunctionDef("void input_event_callback(const string &in)");
+				VApplication.SetFunctionDef("void wheel_event_callback(int, int, bool)");
+				VApplication.SetFunctionDef("void window_event_callback(window_state, int, int)");
+				VApplication.SetFunctionDef("void close_event_callback()");
+				VApplication.SetFunctionDef("void compose_event_callback()");
+				VApplication.SetFunctionDef("void dispatch_callback(clock_timer@+)");
+				VApplication.SetFunctionDef("void publish_callback(clock_timer@+)");
+				VApplication.SetFunctionDef("void initialize_callback()");
+				VApplication.SetFunctionDef("gui_context@ fetch_gui_callback()");
+				VApplication.SetProperty<Application>("application_cache_info cache", &Application::Cache);
+				VApplication.SetProperty<Application>("audio_device@ audio", &Application::Audio);
+				VApplication.SetProperty<Application>("graphics_device@ renderer", &Application::Renderer);
+				VApplication.SetProperty<Application>("activity@ window", &Application::Activity);
+				VApplication.SetProperty<Application>("virtual_machine@ vm", &Application::VM);
+				VApplication.SetProperty<Application>("content_manager@ content", &Application::Content);
+				VApplication.SetProperty<Application>("app_data@ database", &Application::Database);
+				VApplication.SetProperty<Application>("scene_graph@ scene", &Application::Scene);
+				VApplication.SetProperty<Application>("application_desc control", &Application::Control);
+				VApplication.SetProperty<Application>("script_hook_callback@ script_hook", &Application::OnScriptHook);
+				VApplication.SetProperty<Application>("key_event_callback@ key_event", &Application::OnKeyEvent);
+				VApplication.SetProperty<Application>("input_event_callback@ input_event", &Application::OnInputEvent);
+				VApplication.SetProperty<Application>("wheel_event_callback@ wheel_event", &Application::OnWheelEvent);
+				VApplication.SetProperty<Application>("window_event_callback@ window_event", &Application::OnWindowEvent);
+				VApplication.SetProperty<Application>("close_event_callback@ close_event", &Application::OnCloseEvent);
+				VApplication.SetProperty<Application>("compose_event_callback@ compose_event", &Application::OnComposeEvent);
+				VApplication.SetProperty<Application>("dispatch_callback@ dispatch", &Application::OnDispatch);
+				VApplication.SetProperty<Application>("publish_callback@ publish", &Application::OnPublish);
+				VApplication.SetProperty<Application>("initialize_callback@ initialize", &Application::OnInitialize);
+				VApplication.SetProperty<Application>("fetch_gui_callback@ fetch_gui", &Application::OnGetGUI);
+				VApplication.SetGcConstructor<Application, ApplicationName, Application::Desc&>("application@ f(application_desc &in)");
+				VApplication.SetMethod("int start()", &Application::Start);
+				VApplication.SetMethod("int restart()", &Application::Restart);
+				VApplication.SetMethod("void stop(int = 0)", &Application::Stop);
+				VApplication.SetMethod("application_state get_state() const", &Application::GetState);
+				VApplication.SetMethodStatic("application@+ get()", &Application::Get);
+				VApplication.SetMethodStatic("bool wants_restart(int)", &Application::WantsRestart);
+				VApplication.SetEnumRefsEx<Application>([](Application* Base, asIScriptEngine* Engine)
+				{
+					Engine->GCEnumCallback(Base->Audio);
+					Engine->GCEnumCallback(Base->Renderer);
+					Engine->GCEnumCallback(Base->Activity);
+					Engine->GCEnumCallback(Base->VM);
+					Engine->GCEnumCallback(Base->Content);
+					Engine->GCEnumCallback(Base->Database);
+					Engine->GCEnumCallback(Base->Scene);
+					Engine->GCEnumCallback(Base->OnScriptHook);
+					Engine->GCEnumCallback(Base->OnKeyEvent);
+					Engine->GCEnumCallback(Base->OnInputEvent);
+					Engine->GCEnumCallback(Base->OnWheelEvent);
+					Engine->GCEnumCallback(Base->OnWindowEvent);
+					Engine->GCEnumCallback(Base->OnCloseEvent);
+					Engine->GCEnumCallback(Base->OnComposeEvent);
+					Engine->GCEnumCallback(Base->OnDispatch);
+					Engine->GCEnumCallback(Base->OnPublish);
+					Engine->GCEnumCallback(Base->OnInitialize);
+					Engine->GCEnumCallback(Base->OnGetGUI);
+				});
+				VApplication.SetReleaseRefsEx<Application>([](Application* Base, asIScriptEngine*)
+				{
+					Base->~Application();
+				});
+
 				return true;
 #else
 				ED_ASSERT(false, false, "<engine> is not loaded");
+				return false;
+#endif
+			}
+			bool Registry::LoadComponents(VirtualMachine* Engine)
+			{
+#ifdef ED_HAS_BINDINGS
+				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+				Engine->SetFunctionDef("void component_resource_event()");
+
+				RefClass VSoftBody = Engine->SetClass<Engine::Components::SoftBody>("soft_body_component", false);
+				VSoftBody.SetProperty<Engine::Components::SoftBody>("vector2 texcoord", &Engine::Components::SoftBody::TexCoord);
+				VSoftBody.SetProperty<Engine::Components::SoftBody>("bool kinematic", &Engine::Components::SoftBody::Kinematic);
+				VSoftBody.SetProperty<Engine::Components::SoftBody>("bool manage", &Engine::Components::SoftBody::Manage);
+				VSoftBody.SetMethodEx("void load(const string &in, float, component_resource_event@ = null)", &ComponentsSoftBodyLoad);
+				VSoftBody.SetMethod<Engine::Components::SoftBody, void, Compute::HullShape*, float>("void load(physics_hull_shape@+, float)", &Engine::Components::SoftBody::Load);
+				VSoftBody.SetMethod("void load_ellipsoid(const physics_softbody_desc_cv_sconvex &in, float)", &Engine::Components::SoftBody::LoadEllipsoid);
+				VSoftBody.SetMethod("void load_patch(const physics_softbody_desc_cv_spatch &in, float)", &Engine::Components::SoftBody::LoadPatch);
+				VSoftBody.SetMethod("void load_rope(const physics_softbody_desc_cv_srope &in, float)", &Engine::Components::SoftBody::LoadRope);
+				VSoftBody.SetMethod("void fill(graphics_device@+, element_buffer@+, element_buffer@+)", &Engine::Components::SoftBody::Fill);
+				VSoftBody.SetMethod("void regenerate()", &Engine::Components::SoftBody::Regenerate);
+				VSoftBody.SetMethod("void clear()", &Engine::Components::SoftBody::Clear);
+				VSoftBody.SetMethod<Engine::Components::SoftBody, void, const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&>("void set_transform(const vector3 &in, const vector3 &in, const vector3 &in)", &Engine::Components::SoftBody::SetTransform);
+				VSoftBody.SetMethod<Engine::Components::SoftBody, void, bool>("void set_transform(bool)", &Engine::Components::SoftBody::SetTransform);
+				VSoftBody.SetMethod("physics_softbody@+ get_body() const", &Engine::Components::SoftBody::GetBody);
+				PopulateDrawableInterface<Engine::Components::SoftBody, Engine::Entity*>(VSoftBody, "soft_body_component@+ f(scene_entity@+)");
+
+				RefClass VRigidBody = Engine->SetClass<Engine::Components::RigidBody>("rigid_body_component", false);
+				VRigidBody.SetProperty<Engine::Components::RigidBody>("bool kinematic", &Engine::Components::RigidBody::Kinematic);
+				VRigidBody.SetProperty<Engine::Components::RigidBody>("bool manage", &Engine::Components::RigidBody::Manage);
+				VRigidBody.SetMethodEx("void load(const string &in, float, float, component_resource_event@ = null)", &ComponentsRigidBodyLoad);
+				VRigidBody.SetMethod<Engine::Components::RigidBody, void, btCollisionShape*, float, float>("void load(uptr@, float, float)", &Engine::Components::RigidBody::Load);
+				VRigidBody.SetMethod("void clear()", &Engine::Components::RigidBody::Clear);
+				VRigidBody.SetMethod("void set_mass(float)", &Engine::Components::RigidBody::SetMass);
+				VRigidBody.SetMethod<Engine::Components::RigidBody, void, const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&>("void set_transform(const vector3 &in, const vector3 &in, const vector3 &in)", &Engine::Components::RigidBody::SetTransform);
+				VRigidBody.SetMethod<Engine::Components::RigidBody, void, bool>("void set_transform(bool)", &Engine::Components::RigidBody::SetTransform);
+				VRigidBody.SetMethod("physics_rigidbody@+ get_body() const", &Engine::Components::RigidBody::GetBody);
+				PopulateComponentInterface<Engine::Components::RigidBody, Engine::Entity*>(VRigidBody, "rigid_body_component@+ f(scene_entity@+)");
+
+				RefClass VSliderConstraint = Engine->SetClass<Engine::Components::SliderConstraint>("slider_constraint_component", false);
+				VSliderConstraint.SetMethod("void load(scene_entity@+, bool, bool)", &Engine::Components::SliderConstraint::Load);
+				VSliderConstraint.SetMethod("void clear()", &Engine::Components::SliderConstraint::Clear);
+				VSliderConstraint.SetMethod("physics_rigidbody@+ get_constraint() const", &Engine::Components::SliderConstraint::GetConstraint);
+				VSliderConstraint.SetMethod("scene_entity@+ get_connection() const", &Engine::Components::SliderConstraint::GetConnection);
+				PopulateComponentInterface<Engine::Components::SliderConstraint, Engine::Entity*>(VSliderConstraint, "slider_constraint_component@+ f(scene_entity@+)");
+
+				RefClass VAcceleration = Engine->SetClass<Engine::Components::Acceleration>("acceleration_component", false);
+				VAcceleration.SetProperty<Engine::Components::Acceleration>("vector3 amplitude_velocity", &Engine::Components::Acceleration::AmplitudeVelocity);
+				VAcceleration.SetProperty<Engine::Components::Acceleration>("vector3 amplitude_torque", &Engine::Components::Acceleration::AmplitudeTorque);
+				VAcceleration.SetProperty<Engine::Components::Acceleration>("vector3 constant_velocity", &Engine::Components::Acceleration::ConstantVelocity);
+				VAcceleration.SetProperty<Engine::Components::Acceleration>("vector3 constant_torque", &Engine::Components::Acceleration::ConstantTorque);
+				VAcceleration.SetProperty<Engine::Components::Acceleration>("vector3 constant_center", &Engine::Components::Acceleration::ConstantCenter);
+				VAcceleration.SetProperty<Engine::Components::Acceleration>("bool kinematic", &Engine::Components::Acceleration::Kinematic);
+				VAcceleration.SetMethod("rigid_body_component@+ get_body() const", &Engine::Components::Acceleration::GetBody);
+				PopulateComponentInterface<Engine::Components::Acceleration, Engine::Entity*>(VAcceleration, "acceleration_component@+ f(scene_entity@+)");
+
+				RefClass VModel = Engine->SetClass<Engine::Components::Model>("model_component", false);
+				VModel.SetProperty<Engine::Components::Model>("vector2 texcoord", &Engine::Components::Model::TexCoord);
+				VModel.SetMethod("void set_drawable(model@+)", &Engine::Components::Model::SetDrawable);
+				VModel.SetMethod("model@+ get_drawable() const", &Engine::Components::Model::GetDrawable);
+				PopulateDrawableInterface<Engine::Components::Model, Engine::Entity*>(VModel, "model_component@+ f(scene_entity@+)");
+
+				RefClass VSkin = Engine->SetClass<Engine::Components::Skin>("skin_component", false);
+				VSkin.SetProperty<Engine::Components::Skin>("vector2 texcoord", &Engine::Components::Skin::TexCoord);
+				VSkin.SetProperty<Engine::Components::Skin>("pose_buffer skeleton", &Engine::Components::Skin::Skeleton);
+				VSkin.SetMethod("void set_drawable(skin_model@+)", &Engine::Components::Skin::SetDrawable);
+				VSkin.SetMethod("skin_model@+ get_drawable() const", &Engine::Components::Skin::GetDrawable);
+				PopulateDrawableInterface<Engine::Components::Skin, Engine::Entity*>(VSkin, "skin_component@+ f(scene_entity@+)");
+
+				RefClass VEmitter = Engine->SetClass<Engine::Components::Emitter>("emitter_component", false);
+				VEmitter.SetProperty<Engine::Components::Emitter>("vector3 min", &Engine::Components::Emitter::Min);
+				VEmitter.SetProperty<Engine::Components::Emitter>("vector3 max", &Engine::Components::Emitter::Max);
+				VEmitter.SetProperty<Engine::Components::Emitter>("bool connected", &Engine::Components::Emitter::Connected);
+				VEmitter.SetProperty<Engine::Components::Emitter>("bool quad_based", &Engine::Components::Emitter::QuadBased);
+				VEmitter.SetMethod("instance_buffer@+ get_buffer() const", &Engine::Components::Emitter::GetBuffer);
+				PopulateDrawableInterface<Engine::Components::Emitter, Engine::Entity*>(VEmitter, "emitter_component@+ f(scene_entity@+)");
+
+				RefClass VDecal = Engine->SetClass<Engine::Components::Decal>("decal_component", false);
+				VDecal.SetProperty<Engine::Components::Decal>("vector2 texcoord", &Engine::Components::Decal::TexCoord);
+				PopulateDrawableInterface<Engine::Components::Decal, Engine::Entity*>(VDecal, "decal_component@+ f(scene_entity@+)");
+
+				RefClass VSkinAnimator = Engine->SetClass<Engine::Components::SkinAnimator>("skin_animator_component", false);
+				VSkinAnimator.SetProperty<Engine::Components::SkinAnimator>("skin_animator_key current", &Engine::Components::SkinAnimator::Current);
+				VSkinAnimator.SetProperty<Engine::Components::SkinAnimator>("skin_animator_key bind", &Engine::Components::SkinAnimator::Bind);
+				VSkinAnimator.SetProperty<Engine::Components::SkinAnimator>("skin_animator_key default_pose", &Engine::Components::SkinAnimator::Default);
+				VSkinAnimator.SetProperty<Engine::Components::SkinAnimator>("animator_state state", &Engine::Components::SkinAnimator::State);
+				VSkinAnimator.SetMethodEx("void load_animation(const string &in, component_resource_event@ = null)", &ComponentsSkinAnimatorLoadAnimation);
+				VSkinAnimator.SetMethod("void get_pose(skin_animator_key &out)", &Engine::Components::SkinAnimator::GetPose);
+				VSkinAnimator.SetMethod("void clear_animation()", &Engine::Components::SkinAnimator::ClearAnimation);
+				VSkinAnimator.SetMethod("void play(int64 = -1, int64 = -1)", &Engine::Components::SkinAnimator::Play);
+				VSkinAnimator.SetMethod("void pause()", &Engine::Components::SkinAnimator::Pause);
+				VSkinAnimator.SetMethod("void stop()", &Engine::Components::SkinAnimator::Stop);
+				VSkinAnimator.SetMethod<Engine::Components::SkinAnimator, bool, int64_t>("bool is_exists(int64) const", &Engine::Components::SkinAnimator::IsExists);
+				VSkinAnimator.SetMethod<Engine::Components::SkinAnimator, bool, int64_t, int64_t>("bool is_exists(int64, int64) const", &Engine::Components::SkinAnimator::IsExists);
+				VSkinAnimator.SetMethod("skin_animator_key& get_frame(int64, int64) const", &Engine::Components::SkinAnimator::GetFrame);
+				VSkinAnimator.SetMethod("skin_component@+ get_skin() const", &Engine::Components::SkinAnimator::GetSkin);
+				VSkinAnimator.SetMethod("string get_path() const", &Engine::Components::SkinAnimator::GetPath);
+				PopulateComponentInterface<Engine::Components::SkinAnimator, Engine::Entity*>(VSkinAnimator, "skin_animator_component@+ f(scene_entity@+)");
+
+				RefClass VKeyAnimator = Engine->SetClass<Engine::Components::KeyAnimator>("key_animator_component", false);
+				VKeyAnimator.SetProperty<Engine::Components::KeyAnimator>("animator_key current", &Engine::Components::KeyAnimator::Current);
+				VKeyAnimator.SetProperty<Engine::Components::KeyAnimator>("animator_key bind", &Engine::Components::KeyAnimator::Bind);
+				VKeyAnimator.SetProperty<Engine::Components::KeyAnimator>("animator_state state", &Engine::Components::KeyAnimator::State);
+				VKeyAnimator.SetMethodEx("void load_animation(const string &in, component_resource_event@ = null)", &ComponentsKeyAnimatorLoadAnimation);
+				VKeyAnimator.SetMethod("void get_pose(skin_animator_key &out)", &Engine::Components::KeyAnimator::GetPose);
+				VKeyAnimator.SetMethod("void clear_animation()", &Engine::Components::KeyAnimator::ClearAnimation);
+				VKeyAnimator.SetMethod("void play(int64 = -1, int64 = -1)", &Engine::Components::KeyAnimator::Play);
+				VKeyAnimator.SetMethod("void pause()", &Engine::Components::KeyAnimator::Pause);
+				VKeyAnimator.SetMethod("void stop()", &Engine::Components::KeyAnimator::Stop);
+				VKeyAnimator.SetMethod<Engine::Components::KeyAnimator, bool, int64_t>("bool is_exists(int64) const", &Engine::Components::KeyAnimator::IsExists);
+				VKeyAnimator.SetMethod<Engine::Components::KeyAnimator, bool, int64_t, int64_t>("bool is_exists(int64, int64) const", &Engine::Components::KeyAnimator::IsExists);
+				VKeyAnimator.SetMethod("animator_key& get_frame(int64, int64) const", &Engine::Components::KeyAnimator::GetFrame);
+				VKeyAnimator.SetMethod("string get_path() const", &Engine::Components::KeyAnimator::GetPath);
+				PopulateComponentInterface<Engine::Components::KeyAnimator, Engine::Entity*>(VKeyAnimator, "key_animator_component@+ f(scene_entity@+)");
+
+				RefClass VEmitterAnimator = Engine->SetClass<Engine::Components::EmitterAnimator>("emitter_animator_component", false);
+				VEmitterAnimator.SetProperty<Engine::Components::EmitterAnimator>("vector4 diffuse", &Engine::Components::EmitterAnimator::Diffuse);
+				VEmitterAnimator.SetProperty<Engine::Components::EmitterAnimator>("vector3 position", &Engine::Components::EmitterAnimator::Position);
+				VEmitterAnimator.SetProperty<Engine::Components::EmitterAnimator>("vector3 velocity", &Engine::Components::EmitterAnimator::Velocity);
+				VEmitterAnimator.SetProperty<Engine::Components::EmitterAnimator>("spawner_properties spawner", &Engine::Components::EmitterAnimator::Spawner);
+				VEmitterAnimator.SetProperty<Engine::Components::EmitterAnimator>("float rotation_speed", &Engine::Components::EmitterAnimator::RotationSpeed);
+				VEmitterAnimator.SetProperty<Engine::Components::EmitterAnimator>("float scale_speed", &Engine::Components::EmitterAnimator::ScaleSpeed);
+				VEmitterAnimator.SetProperty<Engine::Components::EmitterAnimator>("float noise", &Engine::Components::EmitterAnimator::Noise);
+				VEmitterAnimator.SetProperty<Engine::Components::EmitterAnimator>("bool simulate", &Engine::Components::EmitterAnimator::Simulate);
+				VEmitterAnimator.SetMethod("emitter_component@+ get_emitter() const", &Engine::Components::EmitterAnimator::GetEmitter);
+				PopulateComponentInterface<Engine::Components::EmitterAnimator, Engine::Entity*>(VEmitterAnimator, "emitter_animator_component@+ f(scene_entity@+)");
+
+				RefClass VFreeLook = Engine->SetClass<Engine::Components::FreeLook>("free_look_component", false);
+				VFreeLook.SetProperty<Engine::Components::FreeLook>("vector2 direction", &Engine::Components::FreeLook::Direction);
+				VFreeLook.SetProperty<Engine::Components::FreeLook>("key_map rotate", &Engine::Components::FreeLook::Rotate);
+				VFreeLook.SetProperty<Engine::Components::FreeLook>("float sensivity", &Engine::Components::FreeLook::Sensivity);
+				PopulateComponentInterface<Engine::Components::FreeLook, Engine::Entity*>(VFreeLook, "free_look_component@+ f(scene_entity@+)");
+
+				TypeClass VFlyMoveInfo = Engine->SetPod<Engine::Components::Fly::MoveInfo>("fly_move_info");
+				VFlyMoveInfo.SetProperty<Engine::Components::Fly::MoveInfo>("vector3 axis", &Engine::Components::Fly::MoveInfo::Axis);
+				VFlyMoveInfo.SetProperty<Engine::Components::Fly::MoveInfo>("float faster", &Engine::Components::Fly::MoveInfo::Faster);
+				VFlyMoveInfo.SetProperty<Engine::Components::Fly::MoveInfo>("float normal", &Engine::Components::Fly::MoveInfo::Normal);
+				VFlyMoveInfo.SetProperty<Engine::Components::Fly::MoveInfo>("float slower", &Engine::Components::Fly::MoveInfo::Slower);
+				VFlyMoveInfo.SetProperty<Engine::Components::Fly::MoveInfo>("float fading", &Engine::Components::Fly::MoveInfo::Fading);
+
+				RefClass VFly = Engine->SetClass<Engine::Components::Fly>("fly_component", false);
+				VFly.SetProperty<Engine::Components::Fly>("fly_move_info moving", &Engine::Components::Fly::Moving);
+				VFly.SetProperty<Engine::Components::Fly>("key_map forward", &Engine::Components::Fly::Forward);
+				VFly.SetProperty<Engine::Components::Fly>("key_map backward", &Engine::Components::Fly::Backward);
+				VFly.SetProperty<Engine::Components::Fly>("key_map right", &Engine::Components::Fly::Right);
+				VFly.SetProperty<Engine::Components::Fly>("key_map left", &Engine::Components::Fly::Left);
+				VFly.SetProperty<Engine::Components::Fly>("key_map up", &Engine::Components::Fly::Up);
+				VFly.SetProperty<Engine::Components::Fly>("key_map down", &Engine::Components::Fly::Down);
+				VFly.SetProperty<Engine::Components::Fly>("key_map fast", &Engine::Components::Fly::Fast);
+				VFly.SetProperty<Engine::Components::Fly>("key_map slow", &Engine::Components::Fly::Slow);
+				PopulateComponentInterface<Engine::Components::Fly, Engine::Entity*>(VFly, "fly_component@+ f(scene_entity@+)");
+
+				RefClass VAudioSource = Engine->SetClass<Engine::Components::AudioSource>("audio_source_component", false);
+				VAudioSource.SetMethod("void apply_playing_position()", &Engine::Components::AudioSource::ApplyPlayingPosition);
+				VAudioSource.SetMethod("audio_source@+ get_source() const", &Engine::Components::AudioSource::GetSource);
+				VAudioSource.SetMethod("audio_sync& get_sync()", &Engine::Components::AudioSource::GetSync);
+				PopulateComponentInterface<Engine::Components::AudioSource, Engine::Entity*>(VAudioSource, "audio_source_component@+ f(scene_entity@+)");
+
+				RefClass VAudioListener = Engine->SetClass<Engine::Components::AudioListener>("audio_listener_component", false);
+				VAudioListener.SetProperty<Engine::Components::AudioListener>("float gain", &Engine::Components::AudioListener::Gain);
+				PopulateComponentInterface<Engine::Components::AudioListener, Engine::Entity*>(VAudioListener, "audio_listener_component@+ f(scene_entity@+)");
+
+				TypeClass PointLightShadowInfo = Engine->SetPod<Engine::Components::PointLight::ShadowInfo>("point_light_shadow_info");
+				PointLightShadowInfo.SetProperty<Engine::Components::PointLight::ShadowInfo>("float softness", &Engine::Components::PointLight::ShadowInfo::Softness);
+				PointLightShadowInfo.SetProperty<Engine::Components::PointLight::ShadowInfo>("float distance", &Engine::Components::PointLight::ShadowInfo::Distance);
+				PointLightShadowInfo.SetProperty<Engine::Components::PointLight::ShadowInfo>("float bias", &Engine::Components::PointLight::ShadowInfo::Bias);
+				PointLightShadowInfo.SetProperty<Engine::Components::PointLight::ShadowInfo>("uint32 iterations", &Engine::Components::PointLight::ShadowInfo::Iterations);
+				PointLightShadowInfo.SetProperty<Engine::Components::PointLight::ShadowInfo>("bool enabled", &Engine::Components::PointLight::ShadowInfo::Enabled);
+
+				RefClass VPointLight = Engine->SetClass<Engine::Components::PointLight>("point_light_component", false);
+				VPointLight.SetProperty<Engine::Components::PointLight>("point_light_shadow_info shadow", &Engine::Components::PointLight::Shadow);
+				VPointLight.SetProperty<Engine::Components::PointLight>("matrix4x4 view", &Engine::Components::PointLight::View);
+				VPointLight.SetProperty<Engine::Components::PointLight>("matrix4x4 projection", &Engine::Components::PointLight::Projection);
+				VPointLight.SetProperty<Engine::Components::PointLight>("vector3 diffuse", &Engine::Components::PointLight::Diffuse);
+				VPointLight.SetProperty<Engine::Components::PointLight>("float emission", &Engine::Components::PointLight::Emission);
+				VPointLight.SetProperty<Engine::Components::PointLight>("float disperse", &Engine::Components::PointLight::Disperse);
+				VPointLight.SetMethod("void generate_origin()", &Engine::Components::PointLight::GenerateOrigin);
+				VPointLight.SetMethod("void set_size(const attenuation &in)", &Engine::Components::PointLight::SetSize);
+				VPointLight.SetMethod("const attenuation& get_size() const", &Engine::Components::PointLight::SetSize);
+				PopulateComponentInterface<Engine::Components::PointLight, Engine::Entity*>(VPointLight, "point_light_component@+ f(scene_entity@+)");
+
+				TypeClass SpotLightShadowInfo = Engine->SetPod<Engine::Components::SpotLight::ShadowInfo>("spot_light_shadow_info");
+				SpotLightShadowInfo.SetProperty<Engine::Components::SpotLight::ShadowInfo>("float softness", &Engine::Components::SpotLight::ShadowInfo::Softness);
+				SpotLightShadowInfo.SetProperty<Engine::Components::SpotLight::ShadowInfo>("float distance", &Engine::Components::SpotLight::ShadowInfo::Distance);
+				SpotLightShadowInfo.SetProperty<Engine::Components::SpotLight::ShadowInfo>("float bias", &Engine::Components::SpotLight::ShadowInfo::Bias);
+				SpotLightShadowInfo.SetProperty<Engine::Components::SpotLight::ShadowInfo>("uint32 iterations", &Engine::Components::SpotLight::ShadowInfo::Iterations);
+				SpotLightShadowInfo.SetProperty<Engine::Components::SpotLight::ShadowInfo>("bool enabled", &Engine::Components::SpotLight::ShadowInfo::Enabled);
+
+				RefClass VSpotLight = Engine->SetClass<Engine::Components::SpotLight>("spot_light_component", false);
+				VSpotLight.SetProperty<Engine::Components::SpotLight>("spot_light_shadow_info shadow", &Engine::Components::SpotLight::Shadow);
+				VSpotLight.SetProperty<Engine::Components::SpotLight>("matrix4x4 view", &Engine::Components::SpotLight::View);
+				VSpotLight.SetProperty<Engine::Components::SpotLight>("matrix4x4 projection", &Engine::Components::SpotLight::Projection);
+				VSpotLight.SetProperty<Engine::Components::SpotLight>("vector3 diffuse", &Engine::Components::SpotLight::Diffuse);
+				VSpotLight.SetProperty<Engine::Components::SpotLight>("float emission", &Engine::Components::SpotLight::Emission);
+				VSpotLight.SetProperty<Engine::Components::SpotLight>("float cutoff", &Engine::Components::SpotLight::Cutoff);
+				VSpotLight.SetProperty<Engine::Components::SpotLight>("float disperse", &Engine::Components::SpotLight::Disperse);
+				VSpotLight.SetMethod("void generate_origin()", &Engine::Components::SpotLight::GenerateOrigin);
+				VSpotLight.SetMethod("void set_size(const attenuation &in)", &Engine::Components::SpotLight::SetSize);
+				VSpotLight.SetMethod("const attenuation& get_size() const", &Engine::Components::SpotLight::SetSize);
+				PopulateComponentInterface<Engine::Components::SpotLight, Engine::Entity*>(VSpotLight, "spot_light_component@+ f(scene_entity@+)");
+
+				TypeClass LineLightSkyInfo = Engine->SetPod<Engine::Components::LineLight::SkyInfo>("line_light_sky_info");
+				LineLightSkyInfo.SetProperty<Engine::Components::LineLight::SkyInfo>("vector3 elh_emission", &Engine::Components::LineLight::SkyInfo::RlhEmission);
+				LineLightSkyInfo.SetProperty<Engine::Components::LineLight::SkyInfo>("vector3 mie_emission", &Engine::Components::LineLight::SkyInfo::MieEmission);
+				LineLightSkyInfo.SetProperty<Engine::Components::LineLight::SkyInfo>("float rlh_height", &Engine::Components::LineLight::SkyInfo::RlhHeight);
+				LineLightSkyInfo.SetProperty<Engine::Components::LineLight::SkyInfo>("float mie_height", &Engine::Components::LineLight::SkyInfo::MieHeight);
+				LineLightSkyInfo.SetProperty<Engine::Components::LineLight::SkyInfo>("float mie_direction", &Engine::Components::LineLight::SkyInfo::MieDirection);
+				LineLightSkyInfo.SetProperty<Engine::Components::LineLight::SkyInfo>("float inner_radius", &Engine::Components::LineLight::SkyInfo::InnerRadius);
+				LineLightSkyInfo.SetProperty<Engine::Components::LineLight::SkyInfo>("float outer_radius", &Engine::Components::LineLight::SkyInfo::OuterRadius);
+				LineLightSkyInfo.SetProperty<Engine::Components::LineLight::SkyInfo>("float intensity", &Engine::Components::LineLight::SkyInfo::Intensity);
+
+				TypeClass LineLightShadowInfo = Engine->SetPod<Engine::Components::LineLight::ShadowInfo>("line_light_shadow_info");
+				LineLightShadowInfo.SetPropertyArray<Engine::Components::LineLight::ShadowInfo>("float distance", &Engine::Components::LineLight::ShadowInfo::Distance, 6);
+				LineLightShadowInfo.SetProperty<Engine::Components::LineLight::ShadowInfo>("float softness", &Engine::Components::LineLight::ShadowInfo::Softness);
+				LineLightShadowInfo.SetProperty<Engine::Components::LineLight::ShadowInfo>("float bias", &Engine::Components::LineLight::ShadowInfo::Bias);
+				LineLightShadowInfo.SetProperty<Engine::Components::LineLight::ShadowInfo>("float near", &Engine::Components::LineLight::ShadowInfo::Near);
+				LineLightShadowInfo.SetProperty<Engine::Components::LineLight::ShadowInfo>("float far", &Engine::Components::LineLight::ShadowInfo::Far);
+				LineLightShadowInfo.SetProperty<Engine::Components::LineLight::ShadowInfo>("uint32 iterations", &Engine::Components::LineLight::ShadowInfo::Iterations);
+				LineLightShadowInfo.SetProperty<Engine::Components::LineLight::ShadowInfo>("uint32 cascades", &Engine::Components::LineLight::ShadowInfo::Cascades);
+				LineLightShadowInfo.SetProperty<Engine::Components::LineLight::ShadowInfo>("bool enabled", &Engine::Components::LineLight::ShadowInfo::Enabled);
+
+				RefClass VLineLight = Engine->SetClass<Engine::Components::LineLight>("line_light_component", false);
+				VLineLight.SetProperty<Engine::Components::LineLight>("line_light_sky_info shadow", &Engine::Components::LineLight::Sky);
+				VLineLight.SetProperty<Engine::Components::LineLight>("line_light_shadow_info view", &Engine::Components::LineLight::Shadow);
+				VLineLight.SetPropertyArray<Engine::Components::LineLight>("matrix4x4 projection", &Engine::Components::LineLight::Projection, 6);
+				VLineLight.SetPropertyArray<Engine::Components::LineLight>("matrix4x4 view", &Engine::Components::LineLight::View, 6);
+				VLineLight.SetProperty<Engine::Components::LineLight>("vector3 diffuse", &Engine::Components::LineLight::Diffuse);
+				VLineLight.SetProperty<Engine::Components::LineLight>("float emission", &Engine::Components::LineLight::Emission);
+				VLineLight.SetMethod("void generate_origin()", &Engine::Components::LineLight::GenerateOrigin);
+				PopulateComponentInterface<Engine::Components::LineLight, Engine::Entity*>(VLineLight, "line_light_component@+ f(scene_entity@+)");
+
+				RefClass VSurfaceLight = Engine->SetClass<Engine::Components::SurfaceLight>("surface_light_component", false);
+				VSurfaceLight.SetPropertyArray<Engine::Components::SurfaceLight>("matrix4x4 view", &Engine::Components::SurfaceLight::View, 6);
+				VSurfaceLight.SetProperty<Engine::Components::SurfaceLight>("matrix4x4 projection", &Engine::Components::SurfaceLight::Projection);
+				VSurfaceLight.SetProperty<Engine::Components::SurfaceLight>("vector3 offset", &Engine::Components::SurfaceLight::Offset);
+				VSurfaceLight.SetProperty<Engine::Components::SurfaceLight>("vector3 diffuse", &Engine::Components::SurfaceLight::Diffuse);
+				VSurfaceLight.SetProperty<Engine::Components::SurfaceLight>("clock_ticker tick", &Engine::Components::SurfaceLight::Tick);
+				VSurfaceLight.SetProperty<Engine::Components::SurfaceLight>("float emission", &Engine::Components::SurfaceLight::Emission);
+				VSurfaceLight.SetProperty<Engine::Components::SurfaceLight>("float infinity", &Engine::Components::SurfaceLight::Infinity);
+				VSurfaceLight.SetProperty<Engine::Components::SurfaceLight>("bool parallax", &Engine::Components::SurfaceLight::Parallax);
+				VSurfaceLight.SetProperty<Engine::Components::SurfaceLight>("bool locked", &Engine::Components::SurfaceLight::Locked);
+				VSurfaceLight.SetProperty<Engine::Components::SurfaceLight>("bool static_mask", &Engine::Components::SurfaceLight::StaticMask);
+				VSurfaceLight.SetMethod("void set_probe_cache(texture_cube@+)", &Engine::Components::SurfaceLight::SetProbeCache);
+				VSurfaceLight.SetMethod("void set_size(const attenuation &in)", &Engine::Components::SurfaceLight::SetSize);
+				VSurfaceLight.SetMethod<Engine::Components::SurfaceLight, bool, Graphics::Texture2D*>("void set_diffuse_map(texture_2d@+)", &Engine::Components::SurfaceLight::SetDiffuseMap);
+				VSurfaceLight.SetMethod("bool is_image_based() const", &Engine::Components::SurfaceLight::IsImageBased);
+				VSurfaceLight.SetMethod("const attenuation& get_size() const", &Engine::Components::SurfaceLight::GetSize);
+				VSurfaceLight.SetMethod("texture_cube@+ get_probe_cache() const", &Engine::Components::SurfaceLight::GetProbeCache);
+				VSurfaceLight.SetMethod("texture_2d@+ get_diffuse_map_xp() const", &Engine::Components::SurfaceLight::GetDiffuseMapXP);
+				VSurfaceLight.SetMethod("texture_2d@+ get_diffuse_map_xn() const", &Engine::Components::SurfaceLight::GetDiffuseMapXN);
+				VSurfaceLight.SetMethod("texture_2d@+ get_diffuse_map_yp() const", &Engine::Components::SurfaceLight::GetDiffuseMapYP);
+				VSurfaceLight.SetMethod("texture_2d@+ get_diffuse_map_yn() const", &Engine::Components::SurfaceLight::GetDiffuseMapYN);
+				VSurfaceLight.SetMethod("texture_2d@+ get_diffuse_map_zp() const", &Engine::Components::SurfaceLight::GetDiffuseMapZP);
+				VSurfaceLight.SetMethod("texture_2d@+ get_diffuse_map_zn() const", &Engine::Components::SurfaceLight::GetDiffuseMapZN);
+				VSurfaceLight.SetMethod("texture_2d@+ get_diffuse_map() const", &Engine::Components::SurfaceLight::GetDiffuseMap);
+				PopulateComponentInterface<Engine::Components::SurfaceLight, Engine::Entity*>(VSurfaceLight, "surface_light_component@+ f(scene_entity@+)");
+
+				RefClass VIlluminator = Engine->SetClass<Engine::Components::Illuminator>("illuminator_component", false);
+				VIlluminator.SetProperty<Engine::Components::Illuminator>("clock_ticker inside", &Engine::Components::Illuminator::Inside);
+				VIlluminator.SetProperty<Engine::Components::Illuminator>("clock_ticker outside", &Engine::Components::Illuminator::Outside);
+				VIlluminator.SetProperty<Engine::Components::Illuminator>("float ray_step", &Engine::Components::Illuminator::RayStep);
+				VIlluminator.SetProperty<Engine::Components::Illuminator>("float max_steps", &Engine::Components::Illuminator::MaxSteps);
+				VIlluminator.SetProperty<Engine::Components::Illuminator>("float distance", &Engine::Components::Illuminator::Distance);
+				VIlluminator.SetProperty<Engine::Components::Illuminator>("float radiance", &Engine::Components::Illuminator::Radiance);
+				VIlluminator.SetProperty<Engine::Components::Illuminator>("float length", &Engine::Components::Illuminator::Length);
+				VIlluminator.SetProperty<Engine::Components::Illuminator>("float margin", &Engine::Components::Illuminator::Margin);
+				VIlluminator.SetProperty<Engine::Components::Illuminator>("float offset", &Engine::Components::Illuminator::Offset);
+				VIlluminator.SetProperty<Engine::Components::Illuminator>("float angle", &Engine::Components::Illuminator::Angle);
+				VIlluminator.SetProperty<Engine::Components::Illuminator>("float occlusion", &Engine::Components::Illuminator::Occlusion);
+				VIlluminator.SetProperty<Engine::Components::Illuminator>("float specular", &Engine::Components::Illuminator::Specular);
+				VIlluminator.SetProperty<Engine::Components::Illuminator>("float bleeding", &Engine::Components::Illuminator::Bleeding);
+				VIlluminator.SetProperty<Engine::Components::Illuminator>("bool regenerate", &Engine::Components::Illuminator::Regenerate);
+				PopulateComponentInterface<Engine::Components::Illuminator, Engine::Entity*>(VIlluminator, "illuminator_component@+ f(scene_entity@+)");
+
+				Enumeration VCameraProjection = Engine->SetEnum("camera_projection");
+				VCameraProjection.SetValue("perspective", (int)Engine::Components::Camera::ProjectionMode::Perspective);
+				VCameraProjection.SetValue("orthographic", (int)Engine::Components::Camera::ProjectionMode::Orthographic);
+
+				RefClass VCamera = Engine->SetClass<Engine::Components::Camera>("camera_component", false);
+				VCamera.SetProperty<Engine::Components::Camera>("camera_projection mode", &Engine::Components::Camera::Mode);
+				VCamera.SetProperty<Engine::Components::Camera>("float near_plane", &Engine::Components::Camera::NearPlane);
+				VCamera.SetProperty<Engine::Components::Camera>("float far_plane", &Engine::Components::Camera::FarPlane);
+				VCamera.SetProperty<Engine::Components::Camera>("float width", &Engine::Components::Camera::Width);
+				VCamera.SetProperty<Engine::Components::Camera>("float height", &Engine::Components::Camera::Height);
+				VCamera.SetProperty<Engine::Components::Camera>("float field_of_view", &Engine::Components::Camera::FieldOfView);
+				VCamera.SetMethod<Engine::Components::Camera, void, Engine::Viewer*>("void get_viewer(viewer &out)", &Engine::Components::Camera::GetViewer);
+				VCamera.SetMethod("void resize_buffers()", &Engine::Components::Camera::ResizeBuffers);
+				VCamera.SetMethod<Engine::Components::Camera, Engine::Viewer&>("viewer& get_viewer()", &Engine::Components::Camera::GetViewer);
+				VCamera.SetMethod("render_system@+ get_renderer() const", &Engine::Components::Camera::GetRenderer);
+				VCamera.SetMethod("matrix4x4 get_projection() const", &Engine::Components::Camera::GetProjection);
+				VCamera.SetMethod("matrix4x4 get_view_projection() const", &Engine::Components::Camera::GetViewProjection);
+				VCamera.SetMethod("matrix4x4 get_view() const", &Engine::Components::Camera::GetView);
+				VCamera.SetMethod("vector3 get_view_position() const", &Engine::Components::Camera::GetViewPosition);
+				VCamera.SetMethod("frustum_8c get_frustum_8c() const", &Engine::Components::Camera::GetFrustum8C);
+				VCamera.SetMethod("frustum_6p get_frustum_6p() const", &Engine::Components::Camera::GetFrustum6P);
+				VCamera.SetMethod("ray get_screen_ray(const vector2 &in) const", &Engine::Components::Camera::GetScreenRay);
+				VCamera.SetMethod("ray get_cursor_ray() const", &Engine::Components::Camera::GetCursorRay);
+				VCamera.SetMethod("float get_distance(scene_entity@+) const", &Engine::Components::Camera::GetDistance);
+				VCamera.SetMethod("float get_width() const", &Engine::Components::Camera::GetWidth);
+				VCamera.SetMethod("float get_height() const", &Engine::Components::Camera::GetHeight);
+				VCamera.SetMethod("float get_aspect() const", &Engine::Components::Camera::GetAspect);
+				VCamera.SetMethod<Engine::Components::Camera, bool, const Compute::Ray&, Engine::Entity*, Compute::Vector3*>("bool ray_test(const ray &in, scene_entity@+, vector3 &out)", &Engine::Components::Camera::RayTest);
+				VCamera.SetMethod<Engine::Components::Camera, bool, const Compute::Ray&, const Compute::Matrix4x4&, Compute::Vector3*>("bool ray_test(const ray &in, const matrix4x4 &in, vector3 &out)", &Engine::Components::Camera::RayTest);
+				PopulateComponentInterface<Engine::Components::Camera, Engine::Entity*>(VCamera, "camera_component@+ f(scene_entity@+)");
+
+				RefClass VScriptable = Engine->SetClass<Engine::Components::Scriptable>("scriptable_component", false);
+				PopulateComponentInterface<Engine::Components::Scriptable, Engine::Entity*>(VScriptable, "scriptable_component@+ f(scene_entity@+)");
+
+				return true;
+#else
+				ED_ASSERT(false, false, "<components> is not loaded");
+				return false;
+#endif
+			}
+			bool Registry::LoadRenderers(VirtualMachine* Engine)
+			{
+#ifdef ED_HAS_BINDINGS
+				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+
+				RefClass VSoftBody = Engine->SetClass<Engine::Renderers::SoftBody>("soft_body_renderer", false);
+				PopulateRendererInterface<Engine::Renderers::SoftBody, Engine::RenderSystem*>(VSoftBody, "soft_body_renderer@+ f(render_system@+)");
+
+				RefClass VModel = Engine->SetClass<Engine::Renderers::Model>("model_renderer", false);
+				PopulateRendererInterface<Engine::Renderers::Model, Engine::RenderSystem*>(VModel, "model_renderer@+ f(render_system@+)");
+
+				RefClass VSkin = Engine->SetClass<Engine::Renderers::Skin>("skin_renderer", false);
+				PopulateRendererInterface<Engine::Renderers::Skin, Engine::RenderSystem*>(VSkin, "skin_renderer@+ f(render_system@+)");
+
+				RefClass VEmitter = Engine->SetClass<Engine::Renderers::Emitter>("emitter_renderer", false);
+				PopulateRendererInterface<Engine::Renderers::Emitter, Engine::RenderSystem*>(VEmitter, "emitter_renderer@+ f(render_system@+)");
+
+				RefClass VDecal = Engine->SetClass<Engine::Renderers::Decal>("decal_renderer", false);
+				PopulateRendererInterface<Engine::Renderers::Decal, Engine::RenderSystem*>(VDecal, "decal_renderer@+ f(render_system@+)");
+
+				TypeClass VLightingISurfaceLight = Engine->SetPod<Engine::Renderers::Lighting::ISurfaceLight>("lighting_surface_light");
+				VLightingISurfaceLight.SetProperty<Engine::Renderers::Lighting::ISurfaceLight>("matrix4x4 world", &Engine::Renderers::Lighting::ISurfaceLight::Transform);
+				VLightingISurfaceLight.SetProperty<Engine::Renderers::Lighting::ISurfaceLight>("vector3 position", &Engine::Renderers::Lighting::ISurfaceLight::Position);
+				VLightingISurfaceLight.SetProperty<Engine::Renderers::Lighting::ISurfaceLight>("float range", &Engine::Renderers::Lighting::ISurfaceLight::Range);
+				VLightingISurfaceLight.SetProperty<Engine::Renderers::Lighting::ISurfaceLight>("vector3 lighting", &Engine::Renderers::Lighting::ISurfaceLight::Lighting);
+				VLightingISurfaceLight.SetProperty<Engine::Renderers::Lighting::ISurfaceLight>("float mips", &Engine::Renderers::Lighting::ISurfaceLight::Mips);
+				VLightingISurfaceLight.SetProperty<Engine::Renderers::Lighting::ISurfaceLight>("vector3 scale", &Engine::Renderers::Lighting::ISurfaceLight::Scale);
+				VLightingISurfaceLight.SetProperty<Engine::Renderers::Lighting::ISurfaceLight>("float parallax", &Engine::Renderers::Lighting::ISurfaceLight::Parallax);
+				VLightingISurfaceLight.SetProperty<Engine::Renderers::Lighting::ISurfaceLight>("vector3 attenuations", &Engine::Renderers::Lighting::ISurfaceLight::Attenuation);
+				VLightingISurfaceLight.SetProperty<Engine::Renderers::Lighting::ISurfaceLight>("float infinity", &Engine::Renderers::Lighting::ISurfaceLight::Infinity);
+
+				TypeClass VLightingIPointLight = Engine->SetPod<Engine::Renderers::Lighting::IPointLight>("lighting_point_light");
+				VLightingIPointLight.SetProperty<Engine::Renderers::Lighting::IPointLight>("matrix4x4 world", &Engine::Renderers::Lighting::IPointLight::Transform);
+				VLightingIPointLight.SetProperty<Engine::Renderers::Lighting::IPointLight>("vector4 attenuations", &Engine::Renderers::Lighting::IPointLight::Attenuation);
+				VLightingIPointLight.SetProperty<Engine::Renderers::Lighting::IPointLight>("vector3 position", &Engine::Renderers::Lighting::IPointLight::Position);
+				VLightingIPointLight.SetProperty<Engine::Renderers::Lighting::IPointLight>("float range", &Engine::Renderers::Lighting::IPointLight::Range);
+				VLightingIPointLight.SetProperty<Engine::Renderers::Lighting::IPointLight>("vector3 lighting", &Engine::Renderers::Lighting::IPointLight::Lighting);
+				VLightingIPointLight.SetProperty<Engine::Renderers::Lighting::IPointLight>("float distance", &Engine::Renderers::Lighting::IPointLight::Distance);
+				VLightingIPointLight.SetProperty<Engine::Renderers::Lighting::IPointLight>("float umbra", &Engine::Renderers::Lighting::IPointLight::Umbra);
+				VLightingIPointLight.SetProperty<Engine::Renderers::Lighting::IPointLight>("float softness", &Engine::Renderers::Lighting::IPointLight::Softness);
+				VLightingIPointLight.SetProperty<Engine::Renderers::Lighting::IPointLight>("float bias", &Engine::Renderers::Lighting::IPointLight::Bias);
+				VLightingIPointLight.SetProperty<Engine::Renderers::Lighting::IPointLight>("float iterations", &Engine::Renderers::Lighting::IPointLight::Iterations);
+
+				TypeClass VLightingISpotLight = Engine->SetPod<Engine::Renderers::Lighting::ISpotLight>("lighting_spot_light");
+				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("matrix4x4 world", &Engine::Renderers::Lighting::ISpotLight::Transform);
+				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("matrix4x4 view_projection", &Engine::Renderers::Lighting::ISpotLight::ViewProjection);
+				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("vector4 attenuations", &Engine::Renderers::Lighting::ISpotLight::Attenuation);
+				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("vector3 direction", &Engine::Renderers::Lighting::ISpotLight::Direction);
+				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("float cutoff", &Engine::Renderers::Lighting::ISpotLight::Cutoff);
+				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("vector3 position", &Engine::Renderers::Lighting::ISpotLight::Position);
+				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("float range", &Engine::Renderers::Lighting::ISpotLight::Range);
+				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("vector3 lighting", &Engine::Renderers::Lighting::ISpotLight::Lighting);
+				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("float softness", &Engine::Renderers::Lighting::ISpotLight::Softness);
+				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("float bias", &Engine::Renderers::Lighting::ISpotLight::Bias);
+				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("float iterations", &Engine::Renderers::Lighting::ISpotLight::Iterations);
+				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("float umbra", &Engine::Renderers::Lighting::ISpotLight::Umbra);
+				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("float padding", &Engine::Renderers::Lighting::ISpotLight::Padding);
+
+				TypeClass VLightingILineLight = Engine->SetPod<Engine::Renderers::Lighting::ILineLight>("lighting_line_light");
+				VLightingILineLight.SetPropertyArray<Engine::Renderers::Lighting::ILineLight>("matrix4x4 view_projection", &Engine::Renderers::Lighting::ILineLight::ViewProjection, 6);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("matrix4x4 sky_offset", &Engine::Renderers::Lighting::ILineLight::SkyOffset);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("vector3 rlh_emission", &Engine::Renderers::Lighting::ILineLight::RlhEmission);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("float rlh_height", &Engine::Renderers::Lighting::ILineLight::RlhHeight);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("vector3 mie_emission", &Engine::Renderers::Lighting::ILineLight::MieEmission);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("float mie_height", &Engine::Renderers::Lighting::ILineLight::MieHeight);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("vector3 lighting", &Engine::Renderers::Lighting::ILineLight::Lighting);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("float softness", &Engine::Renderers::Lighting::ILineLight::Softness);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("vector3 position", &Engine::Renderers::Lighting::ILineLight::Position);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("float cascades", &Engine::Renderers::Lighting::ILineLight::Cascades);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("vector2 padding", &Engine::Renderers::Lighting::ILineLight::Padding);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("float bias", &Engine::Renderers::Lighting::ILineLight::Bias);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("float iterations", &Engine::Renderers::Lighting::ILineLight::Iterations);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("float scatter_intensity", &Engine::Renderers::Lighting::ILineLight::ScatterIntensity);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("float planet_radius", &Engine::Renderers::Lighting::ILineLight::PlanetRadius);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("float atmosphere_radius", &Engine::Renderers::Lighting::ILineLight::AtmosphereRadius);
+				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("float mie_direction", &Engine::Renderers::Lighting::ILineLight::MieDirection);
+
+				TypeClass VLightingIAmbientLight = Engine->SetPod<Engine::Renderers::Lighting::IAmbientLight>("lighting_ambient_light");
+				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("matrix4x4 sky_offset", &Engine::Renderers::Lighting::IAmbientLight::SkyOffset);
+				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("vector3 high_emission", &Engine::Renderers::Lighting::IAmbientLight::HighEmission);
+				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("float sky_emission", &Engine::Renderers::Lighting::IAmbientLight::SkyEmission);
+				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("vector3 low_emission", &Engine::Renderers::Lighting::IAmbientLight::LowEmission);
+				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("float light_emission", &Engine::Renderers::Lighting::IAmbientLight::LightEmission);
+				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("vector3 sky_color", &Engine::Renderers::Lighting::IAmbientLight::SkyColor);
+				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("float fog_far_off", &Engine::Renderers::Lighting::IAmbientLight::FogFarOff);
+				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("vector3 fog_color", &Engine::Renderers::Lighting::IAmbientLight::FogColor);
+				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("float fog_near_off", &Engine::Renderers::Lighting::IAmbientLight::FogNearOff);
+				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("vector3 fog_far", &Engine::Renderers::Lighting::IAmbientLight::FogFar);
+				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("float fog_amount", &Engine::Renderers::Lighting::IAmbientLight::FogAmount);
+				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("vector3 fog_near", &Engine::Renderers::Lighting::IAmbientLight::FogNear);
+				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("float recursive", &Engine::Renderers::Lighting::IAmbientLight::Recursive);
+
+				TypeClass VLightingIVoxelBuffer = Engine->SetPod<Engine::Renderers::Lighting::IVoxelBuffer>("lighting_voxel_buffer");
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("matrix4x4 world", &Engine::Renderers::Lighting::IVoxelBuffer::Transform);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("vector3 center", &Engine::Renderers::Lighting::IVoxelBuffer::Center);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("float ray_step", &Engine::Renderers::Lighting::IVoxelBuffer::RayStep);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("vector3 size", &Engine::Renderers::Lighting::IVoxelBuffer::Size);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("float mips", &Engine::Renderers::Lighting::IVoxelBuffer::Mips);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("vector3 scale", &Engine::Renderers::Lighting::IVoxelBuffer::Scale);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("float max_steps", &Engine::Renderers::Lighting::IVoxelBuffer::MaxSteps);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("vector3 lights", &Engine::Renderers::Lighting::IVoxelBuffer::Lights);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("float radiance", &Engine::Renderers::Lighting::IVoxelBuffer::Radiance);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("float margin", &Engine::Renderers::Lighting::IVoxelBuffer::Margin);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("float offset", &Engine::Renderers::Lighting::IVoxelBuffer::Offset);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("float angle", &Engine::Renderers::Lighting::IVoxelBuffer::Angle);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("float length", &Engine::Renderers::Lighting::IVoxelBuffer::Length);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("float distance", &Engine::Renderers::Lighting::IVoxelBuffer::Distance);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("float occlusion", &Engine::Renderers::Lighting::IVoxelBuffer::Occlusion);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("float specular", &Engine::Renderers::Lighting::IVoxelBuffer::Specular);
+				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("float bleeding", &Engine::Renderers::Lighting::IVoxelBuffer::Bleeding);
+
+				RefClass VLighting = Engine->SetClass<Engine::Renderers::Lighting>("lighting_renderer", false);
+				VLighting.SetProperty<Engine::Renderers::Lighting>("lighting_ambient_light ambient_light", &Engine::Renderers::Lighting::AmbientLight);
+				VLighting.SetProperty<Engine::Renderers::Lighting>("lighting_voxel_buffer voxel_buffer", &Engine::Renderers::Lighting::VoxelBuffer);
+				VLighting.SetProperty<Engine::Renderers::Lighting>("bool enable_gi", &Engine::Renderers::Lighting::EnableGI);
+				VLighting.SetMethod("void set_sky_map(texture_2d@+)", &Engine::Renderers::Lighting::SetSkyMap);
+				VLighting.SetMethod("void set_surface_buffer_size(usize)", &Engine::Renderers::Lighting::SetSurfaceBufferSize);
+				VLighting.SetMethod("texture_cube@+ get_sky_map() const", &Engine::Renderers::Lighting::GetSkyMap);
+				VLighting.SetMethod("texture_2d@+ get_sky_base() const", &Engine::Renderers::Lighting::GetSkyBase);
+				PopulateRendererInterface<Engine::Renderers::Lighting, Engine::RenderSystem*>(VLighting, "lighting_renderer@+ f(render_system@+)");
+
+				TypeClass VTransparencyRenderConstant = Engine->SetPod<Engine::Renderers::Transparency::RenderConstant>("transparency_render_constant");
+				VTransparencyRenderConstant.SetProperty<Engine::Renderers::Transparency::RenderConstant>("vector3 padding", &Engine::Renderers::Transparency::RenderConstant::Padding);
+				VTransparencyRenderConstant.SetProperty<Engine::Renderers::Transparency::RenderConstant>("float mips", &Engine::Renderers::Transparency::RenderConstant::Mips);
+
+				RefClass VTransparency = Engine->SetClass<Engine::Renderers::Transparency>("transparency_renderer", false);
+				VTransparency.SetProperty<Engine::Renderers::Transparency>("transparency_render_constant render_data", &Engine::Renderers::Transparency::RenderData);
+				PopulateRendererInterface<Engine::Renderers::Transparency, Engine::RenderSystem*>(VTransparency, "transparency_renderer@+ f(render_system@+)");
+
+				TypeClass VSSRReflectanceBuffer = Engine->SetPod<Engine::Renderers::SSR::ReflectanceBuffer>("ssr_reflectance_buffer");
+				VSSRReflectanceBuffer.SetProperty<Engine::Renderers::SSR::ReflectanceBuffer>("float samples", &Engine::Renderers::SSR::ReflectanceBuffer::Samples);
+				VSSRReflectanceBuffer.SetProperty<Engine::Renderers::SSR::ReflectanceBuffer>("float padding", &Engine::Renderers::SSR::ReflectanceBuffer::Padding);
+				VSSRReflectanceBuffer.SetProperty<Engine::Renderers::SSR::ReflectanceBuffer>("float intensity", &Engine::Renderers::SSR::ReflectanceBuffer::Intensity);
+				VSSRReflectanceBuffer.SetProperty<Engine::Renderers::SSR::ReflectanceBuffer>("float distance", &Engine::Renderers::SSR::ReflectanceBuffer::Distance);
+
+				TypeClass VSSRGlossBuffer = Engine->SetPod<Engine::Renderers::SSR::GlossBuffer>("ssr_gloss_buffer");
+				VSSRGlossBuffer.SetProperty<Engine::Renderers::SSR::GlossBuffer>("float padding", &Engine::Renderers::SSR::GlossBuffer::Padding);
+				VSSRGlossBuffer.SetProperty<Engine::Renderers::SSR::GlossBuffer>("float deadzone", &Engine::Renderers::SSR::GlossBuffer::Deadzone);
+				VSSRGlossBuffer.SetProperty<Engine::Renderers::SSR::GlossBuffer>("float mips", &Engine::Renderers::SSR::GlossBuffer::Mips);
+				VSSRGlossBuffer.SetProperty<Engine::Renderers::SSR::GlossBuffer>("float cutoff", &Engine::Renderers::SSR::GlossBuffer::Cutoff);
+				VSSRGlossBuffer.SetPropertyArray<Engine::Renderers::SSR::GlossBuffer>("float texel", &Engine::Renderers::SSR::GlossBuffer::Texel, 2);
+				VSSRGlossBuffer.SetProperty<Engine::Renderers::SSR::GlossBuffer>("float samples", &Engine::Renderers::SSR::GlossBuffer::Samples);
+				VSSRGlossBuffer.SetProperty<Engine::Renderers::SSR::GlossBuffer>("float blur", &Engine::Renderers::SSR::GlossBuffer::Blur);
+
+				RefClass VSSR = Engine->SetClass<Engine::Renderers::SSR>("ssr_renderer", false);
+				VSSR.SetProperty<Engine::Renderers::SSR>("ssr_reflectance_buffer reflectance", &Engine::Renderers::SSR::Reflectance);
+				VSSR.SetProperty<Engine::Renderers::SSR>("ssr_gloss_buffer gloss", &Engine::Renderers::SSR::Gloss);
+				PopulateRendererInterface<Engine::Renderers::SSR, Engine::RenderSystem*>(VSSR, "ssr_renderer@+ f(render_system@+)");
+
+				TypeClass VSSGIStochasticBuffer = Engine->SetPod<Engine::Renderers::SSGI::StochasticBuffer>("ssgi_stochastic_buffer");
+				VSSGIStochasticBuffer.SetPropertyArray<Engine::Renderers::SSGI::StochasticBuffer>("float texel", &Engine::Renderers::SSGI::StochasticBuffer::Texel, 2);
+				VSSGIStochasticBuffer.SetProperty<Engine::Renderers::SSGI::StochasticBuffer>("float frame_id", &Engine::Renderers::SSGI::StochasticBuffer::FrameId);
+				VSSGIStochasticBuffer.SetProperty<Engine::Renderers::SSGI::StochasticBuffer>("float padding", &Engine::Renderers::SSGI::StochasticBuffer::Padding);
+				
+				TypeClass VSSGIIndirectionBuffer = Engine->SetPod<Engine::Renderers::SSGI::IndirectionBuffer>("ssgi_indirection_buffer");
+				VSSGIIndirectionBuffer.SetPropertyArray<Engine::Renderers::SSGI::IndirectionBuffer>("float random", &Engine::Renderers::SSGI::IndirectionBuffer::Random, 2);
+				VSSGIIndirectionBuffer.SetProperty<Engine::Renderers::SSGI::IndirectionBuffer>("float samples", &Engine::Renderers::SSGI::IndirectionBuffer::Samples);
+				VSSGIIndirectionBuffer.SetProperty<Engine::Renderers::SSGI::IndirectionBuffer>("float distance", &Engine::Renderers::SSGI::IndirectionBuffer::Distance);
+				VSSGIIndirectionBuffer.SetProperty<Engine::Renderers::SSGI::IndirectionBuffer>("float initial", &Engine::Renderers::SSGI::IndirectionBuffer::Initial);
+				VSSGIIndirectionBuffer.SetProperty<Engine::Renderers::SSGI::IndirectionBuffer>("float cutoff", &Engine::Renderers::SSGI::IndirectionBuffer::Cutoff);
+				VSSGIIndirectionBuffer.SetProperty<Engine::Renderers::SSGI::IndirectionBuffer>("float attenuations", &Engine::Renderers::SSGI::IndirectionBuffer::Attenuation);
+				VSSGIIndirectionBuffer.SetProperty<Engine::Renderers::SSGI::IndirectionBuffer>("float swing", &Engine::Renderers::SSGI::IndirectionBuffer::Swing);
+				VSSGIIndirectionBuffer.SetPropertyArray<Engine::Renderers::SSGI::IndirectionBuffer>("float padding", &Engine::Renderers::SSGI::IndirectionBuffer::Padding, 3);
+				VSSGIIndirectionBuffer.SetProperty<Engine::Renderers::SSGI::IndirectionBuffer>("float bias", &Engine::Renderers::SSGI::IndirectionBuffer::Bias);
+
+				TypeClass VSSGIDenoiseBuffer = Engine->SetPod<Engine::Renderers::SSGI::DenoiseBuffer>("ssgi_denoise_buffer");
+				VSSGIDenoiseBuffer.SetPropertyArray<Engine::Renderers::SSGI::DenoiseBuffer>("float padding", &Engine::Renderers::SSGI::DenoiseBuffer::Padding, 3);
+				VSSGIDenoiseBuffer.SetProperty<Engine::Renderers::SSGI::DenoiseBuffer>("float cutoff", &Engine::Renderers::SSGI::DenoiseBuffer::Cutoff);
+				VSSGIDenoiseBuffer.SetPropertyArray<Engine::Renderers::SSGI::DenoiseBuffer>("float texel", &Engine::Renderers::SSGI::DenoiseBuffer::Texel, 2);
+				VSSGIDenoiseBuffer.SetProperty<Engine::Renderers::SSGI::DenoiseBuffer>("float samples", &Engine::Renderers::SSGI::DenoiseBuffer::Samples);
+				VSSGIDenoiseBuffer.SetProperty<Engine::Renderers::SSGI::DenoiseBuffer>("float blur", &Engine::Renderers::SSGI::DenoiseBuffer::Blur);
+
+				RefClass VSSGI = Engine->SetClass<Engine::Renderers::SSGI>("ssgi_renderer", false);
+				VSSGI.SetProperty<Engine::Renderers::SSGI>("ssgi_stochastic_buffer stochastic", &Engine::Renderers::SSGI::Stochastic);
+				VSSGI.SetProperty<Engine::Renderers::SSGI>("ssgi_indirection_buffer indirection", &Engine::Renderers::SSGI::Indirection);
+				VSSGI.SetProperty<Engine::Renderers::SSGI>("ssgi_denoise_buffer denoise", &Engine::Renderers::SSGI::Indirection);
+				VSSGI.SetProperty<Engine::Renderers::SSGI>("uint32 bounces", &Engine::Renderers::SSGI::Bounces);
+				PopulateRendererInterface<Engine::Renderers::SSGI, Engine::RenderSystem*>(VSSGI, "ssgi_renderer@+ f(render_system@+)");
+
+				TypeClass VSSAOShadingBuffer = Engine->SetPod<Engine::Renderers::SSAO::ShadingBuffer>("ssao_shading_buffer");
+				VSSAOShadingBuffer.SetProperty<Engine::Renderers::SSAO::ShadingBuffer>("float samples", &Engine::Renderers::SSAO::ShadingBuffer::Samples);
+				VSSAOShadingBuffer.SetProperty<Engine::Renderers::SSAO::ShadingBuffer>("float intensity", &Engine::Renderers::SSAO::ShadingBuffer::Intensity);
+				VSSAOShadingBuffer.SetProperty<Engine::Renderers::SSAO::ShadingBuffer>("float scale", &Engine::Renderers::SSAO::ShadingBuffer::Scale);
+				VSSAOShadingBuffer.SetProperty<Engine::Renderers::SSAO::ShadingBuffer>("float bias", &Engine::Renderers::SSAO::ShadingBuffer::Bias);
+				VSSAOShadingBuffer.SetProperty<Engine::Renderers::SSAO::ShadingBuffer>("float radius", &Engine::Renderers::SSAO::ShadingBuffer::Radius);
+				VSSAOShadingBuffer.SetProperty<Engine::Renderers::SSAO::ShadingBuffer>("float distance", &Engine::Renderers::SSAO::ShadingBuffer::Distance);
+				VSSAOShadingBuffer.SetProperty<Engine::Renderers::SSAO::ShadingBuffer>("float fade", &Engine::Renderers::SSAO::ShadingBuffer::Fade);
+				VSSAOShadingBuffer.SetProperty<Engine::Renderers::SSAO::ShadingBuffer>("float padding", &Engine::Renderers::SSAO::ShadingBuffer::Padding);
+
+				TypeClass VSSAOFiboBuffer = Engine->SetPod<Engine::Renderers::SSAO::FiboBuffer>("ssao_fibo_buffer");
+				VSSAOFiboBuffer.SetPropertyArray<Engine::Renderers::SSAO::FiboBuffer>("float padding", &Engine::Renderers::SSAO::FiboBuffer::Padding, 3);
+				VSSAOFiboBuffer.SetProperty<Engine::Renderers::SSAO::FiboBuffer>("float power", &Engine::Renderers::SSAO::FiboBuffer::Power);
+				VSSAOFiboBuffer.SetPropertyArray<Engine::Renderers::SSAO::FiboBuffer>("float texel", &Engine::Renderers::SSAO::FiboBuffer::Texel, 2);
+				VSSAOFiboBuffer.SetProperty<Engine::Renderers::SSAO::FiboBuffer>("float samples", &Engine::Renderers::SSAO::FiboBuffer::Samples);
+				VSSAOFiboBuffer.SetProperty<Engine::Renderers::SSAO::FiboBuffer>("float blur", &Engine::Renderers::SSAO::FiboBuffer::Blur);
+
+				RefClass VSSAO = Engine->SetClass<Engine::Renderers::SSAO>("ssao_renderer", false);
+				VSSAO.SetProperty<Engine::Renderers::SSAO>("ssao_shading_buffer shading", &Engine::Renderers::SSAO::Shading);
+				VSSAO.SetProperty<Engine::Renderers::SSAO>("ssao_fibo_buffer fibo", &Engine::Renderers::SSAO::Fibo);
+				PopulateRendererInterface<Engine::Renderers::SSAO, Engine::RenderSystem*>(VSSAO, "ssao_renderer@+ f(render_system@+)");
+
+				TypeClass VDoFFocusBuffer = Engine->SetPod<Engine::Renderers::DoF::FocusBuffer>("dof_focus_buffer");
+				VDoFFocusBuffer.SetPropertyArray<Engine::Renderers::DoF::FocusBuffer>("float texel", &Engine::Renderers::DoF::FocusBuffer::Texel, 2);
+				VDoFFocusBuffer.SetProperty<Engine::Renderers::DoF::FocusBuffer>("float radius", &Engine::Renderers::DoF::FocusBuffer::Radius);
+				VDoFFocusBuffer.SetProperty<Engine::Renderers::DoF::FocusBuffer>("float bokeh", &Engine::Renderers::DoF::FocusBuffer::Bokeh);
+				VDoFFocusBuffer.SetPropertyArray<Engine::Renderers::DoF::FocusBuffer>("float padding", &Engine::Renderers::DoF::FocusBuffer::Padding, 3);
+				VDoFFocusBuffer.SetProperty<Engine::Renderers::DoF::FocusBuffer>("float scale", &Engine::Renderers::DoF::FocusBuffer::Scale);
+				VDoFFocusBuffer.SetProperty<Engine::Renderers::DoF::FocusBuffer>("float near_distance", &Engine::Renderers::DoF::FocusBuffer::NearDistance);
+				VDoFFocusBuffer.SetProperty<Engine::Renderers::DoF::FocusBuffer>("float near_range", &Engine::Renderers::DoF::FocusBuffer::NearRange);
+				VDoFFocusBuffer.SetProperty<Engine::Renderers::DoF::FocusBuffer>("float far_distance", &Engine::Renderers::DoF::FocusBuffer::FarDistance);
+				VDoFFocusBuffer.SetProperty<Engine::Renderers::DoF::FocusBuffer>("float far_range", &Engine::Renderers::DoF::FocusBuffer::FarRange);
+
+				RefClass VDoF = Engine->SetClass<Engine::Renderers::DoF>("dof_renderer", false);
+				VDoF.SetProperty<Engine::Renderers::DoF>("dof_focus_buffer focus", &Engine::Renderers::DoF::Focus);
+				VDoF.SetProperty<Engine::Renderers::DoF>("float distance", &Engine::Renderers::DoF::Distance);
+				VDoF.SetProperty<Engine::Renderers::DoF>("float radius", &Engine::Renderers::DoF::Radius);
+				VDoF.SetProperty<Engine::Renderers::DoF>("float time", &Engine::Renderers::DoF::Time);
+				VDoF.SetMethod("void focus_at_nearest_target(float)", &Engine::Renderers::DoF::FocusAtNearestTarget);
+				PopulateRendererInterface<Engine::Renderers::DoF, Engine::RenderSystem*>(VDoF, "dof_renderer@+ f(render_system@+)");
+
+				TypeClass VMotionBlurVelocityBuffer = Engine->SetPod<Engine::Renderers::MotionBlur::VelocityBuffer>("motion_blur_velocity_buffer");
+				VMotionBlurVelocityBuffer.SetProperty<Engine::Renderers::MotionBlur::VelocityBuffer>("matrix4x4 last_view_projection", &Engine::Renderers::MotionBlur::VelocityBuffer::LastViewProjection);
+
+				TypeClass VMotionBlurMotionBuffer = Engine->SetPod<Engine::Renderers::MotionBlur::MotionBuffer>("motion_blur_motion_buffer");
+				VMotionBlurMotionBuffer.SetProperty<Engine::Renderers::MotionBlur::MotionBuffer>("float samples", &Engine::Renderers::MotionBlur::MotionBuffer::Samples);
+				VMotionBlurMotionBuffer.SetProperty<Engine::Renderers::MotionBlur::MotionBuffer>("float blur", &Engine::Renderers::MotionBlur::MotionBuffer::Blur);
+				VMotionBlurMotionBuffer.SetProperty<Engine::Renderers::MotionBlur::MotionBuffer>("float motion", &Engine::Renderers::MotionBlur::MotionBuffer::Motion);
+				VMotionBlurMotionBuffer.SetProperty<Engine::Renderers::MotionBlur::MotionBuffer>("float padding", &Engine::Renderers::MotionBlur::MotionBuffer::Padding);
+
+				RefClass VMotionBlur = Engine->SetClass<Engine::Renderers::MotionBlur>("motion_blur_renderer", false);
+				VMotionBlur.SetProperty<Engine::Renderers::MotionBlur>("motion_blur_velocity_buffer velocity", &Engine::Renderers::MotionBlur::Velocity);
+				VMotionBlur.SetProperty<Engine::Renderers::MotionBlur>("motion_blur_motion_buffer motion", &Engine::Renderers::MotionBlur::Motion);
+				PopulateRendererInterface<Engine::Renderers::MotionBlur, Engine::RenderSystem*>(VMotionBlur, "motion_blur_renderer@+ f(render_system@+)");
+
+				TypeClass VBloomExtractionBuffer = Engine->SetPod<Engine::Renderers::Bloom::ExtractionBuffer>("bloom_extraction_buffer");
+				VBloomExtractionBuffer.SetPropertyArray<Engine::Renderers::Bloom::ExtractionBuffer>("float padding", &Engine::Renderers::Bloom::ExtractionBuffer::Padding, 2);
+				VBloomExtractionBuffer.SetProperty<Engine::Renderers::Bloom::ExtractionBuffer>("float intensity", &Engine::Renderers::Bloom::ExtractionBuffer::Intensity);
+				VBloomExtractionBuffer.SetProperty<Engine::Renderers::Bloom::ExtractionBuffer>("float threshold", &Engine::Renderers::Bloom::ExtractionBuffer::Threshold);
+
+				TypeClass VBloomFiboBuffer = Engine->SetPod<Engine::Renderers::Bloom::FiboBuffer>("bloom_fibo_buffer");
+				VBloomFiboBuffer.SetPropertyArray<Engine::Renderers::Bloom::FiboBuffer>("float padding", &Engine::Renderers::Bloom::FiboBuffer::Padding, 3);
+				VBloomFiboBuffer.SetProperty<Engine::Renderers::Bloom::FiboBuffer>("float power", &Engine::Renderers::Bloom::FiboBuffer::Power);
+				VBloomFiboBuffer.SetPropertyArray<Engine::Renderers::Bloom::FiboBuffer>("float texel", &Engine::Renderers::Bloom::FiboBuffer::Texel, 2);
+				VBloomFiboBuffer.SetProperty<Engine::Renderers::Bloom::FiboBuffer>("float samples", &Engine::Renderers::Bloom::FiboBuffer::Samples);
+				VBloomFiboBuffer.SetProperty<Engine::Renderers::Bloom::FiboBuffer>("float blur", &Engine::Renderers::Bloom::FiboBuffer::Blur);
+
+				RefClass VBloom = Engine->SetClass<Engine::Renderers::Bloom>("bloom_renderer", false);
+				VBloom.SetProperty<Engine::Renderers::Bloom>("bloom_extraction_buffer extraction", &Engine::Renderers::Bloom::Extraction);
+				VBloom.SetProperty<Engine::Renderers::Bloom>("bloom_fibo_buffer fibo", &Engine::Renderers::Bloom::Fibo);
+				PopulateRendererInterface<Engine::Renderers::Bloom, Engine::RenderSystem*>(VBloom, "bloom_renderer@+ f(render_system@+)");
+
+				TypeClass VToneLuminanceBuffer = Engine->SetPod<Engine::Renderers::Tone::LuminanceBuffer>("tone_luminance_buffer");
+				VToneLuminanceBuffer.SetPropertyArray<Engine::Renderers::Tone::LuminanceBuffer>("float texel", &Engine::Renderers::Tone::LuminanceBuffer::Texel, 2);
+				VToneLuminanceBuffer.SetProperty<Engine::Renderers::Tone::LuminanceBuffer>("float mips", &Engine::Renderers::Tone::LuminanceBuffer::Mips);
+				VToneLuminanceBuffer.SetProperty<Engine::Renderers::Tone::LuminanceBuffer>("float time", &Engine::Renderers::Tone::LuminanceBuffer::Time);
+
+				TypeClass VToneMappingBuffer = Engine->SetPod<Engine::Renderers::Tone::MappingBuffer>("tone_mapping_buffer");
+				VToneMappingBuffer.SetPropertyArray<Engine::Renderers::Tone::MappingBuffer>("float padding", &Engine::Renderers::Tone::MappingBuffer::Padding, 2);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float grayscale", &Engine::Renderers::Tone::MappingBuffer::Grayscale);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float aces", &Engine::Renderers::Tone::MappingBuffer::ACES);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float filmic", &Engine::Renderers::Tone::MappingBuffer::Filmic);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float lottes", &Engine::Renderers::Tone::MappingBuffer::Lottes);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float reinhard", &Engine::Renderers::Tone::MappingBuffer::Reinhard);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float reinhard2", &Engine::Renderers::Tone::MappingBuffer::Reinhard2);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float unreal", &Engine::Renderers::Tone::MappingBuffer::Unreal);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float uchimura", &Engine::Renderers::Tone::MappingBuffer::Uchimura);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float ubrightness", &Engine::Renderers::Tone::MappingBuffer::UBrightness);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float ucontrast", &Engine::Renderers::Tone::MappingBuffer::UContrast);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float ustart", &Engine::Renderers::Tone::MappingBuffer::UStart);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float ulength", &Engine::Renderers::Tone::MappingBuffer::ULength);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float ublack", &Engine::Renderers::Tone::MappingBuffer::UBlack);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float upedestal", &Engine::Renderers::Tone::MappingBuffer::UPedestal);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float exposure", &Engine::Renderers::Tone::MappingBuffer::Exposure);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float eintensity", &Engine::Renderers::Tone::MappingBuffer::EIntensity);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float egamma", &Engine::Renderers::Tone::MappingBuffer::EGamma);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float adaptation", &Engine::Renderers::Tone::MappingBuffer::Adaptation);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float ahray", &Engine::Renderers::Tone::MappingBuffer::AGray);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float awhite", &Engine::Renderers::Tone::MappingBuffer::AWhite);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float ablack", &Engine::Renderers::Tone::MappingBuffer::ABlack);
+				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float aspeed", &Engine::Renderers::Tone::MappingBuffer::ASpeed);
+
+				RefClass VTone = Engine->SetClass<Engine::Renderers::Tone>("tone_renderer", false);
+				VTone.SetProperty<Engine::Renderers::Tone>("tone_luminance_buffer luminance", &Engine::Renderers::Tone::Luminance);
+				VTone.SetProperty<Engine::Renderers::Tone>("tone_mapping_buffer mapping", &Engine::Renderers::Tone::Mapping);
+				PopulateRendererInterface<Engine::Renderers::Tone, Engine::RenderSystem*>(VTone, "tone_renderer@+ f(render_system@+)");
+
+				TypeClass VGlitchDistortionBuffer = Engine->SetPod<Engine::Renderers::Glitch::DistortionBuffer>("glitch_distortion_buffer");
+				VGlitchDistortionBuffer.SetProperty<Engine::Renderers::Glitch::DistortionBuffer>("float scan_line_jitter_displacement", &Engine::Renderers::Glitch::DistortionBuffer::ScanLineJitterDisplacement);
+				VGlitchDistortionBuffer.SetProperty<Engine::Renderers::Glitch::DistortionBuffer>("float scan_line_jitter_threshold", &Engine::Renderers::Glitch::DistortionBuffer::ScanLineJitterThreshold);
+				VGlitchDistortionBuffer.SetProperty<Engine::Renderers::Glitch::DistortionBuffer>("float vertical_jump_amount", &Engine::Renderers::Glitch::DistortionBuffer::VerticalJumpAmount);
+				VGlitchDistortionBuffer.SetProperty<Engine::Renderers::Glitch::DistortionBuffer>("float vertical_jump_time", &Engine::Renderers::Glitch::DistortionBuffer::VerticalJumpTime);
+				VGlitchDistortionBuffer.SetProperty<Engine::Renderers::Glitch::DistortionBuffer>("float color_drift_amount", &Engine::Renderers::Glitch::DistortionBuffer::ColorDriftAmount);
+				VGlitchDistortionBuffer.SetProperty<Engine::Renderers::Glitch::DistortionBuffer>("float color_drift_time", &Engine::Renderers::Glitch::DistortionBuffer::ColorDriftTime);
+				VGlitchDistortionBuffer.SetProperty<Engine::Renderers::Glitch::DistortionBuffer>("float horizontal_shake", &Engine::Renderers::Glitch::DistortionBuffer::HorizontalShake);
+				VGlitchDistortionBuffer.SetProperty<Engine::Renderers::Glitch::DistortionBuffer>("float elapsed_time", &Engine::Renderers::Glitch::DistortionBuffer::ElapsedTime);
+
+				RefClass VGlitch = Engine->SetClass<Engine::Renderers::Glitch>("glitch_renderer", false);
+				VGlitch.SetProperty<Engine::Renderers::Glitch>("glitch_distortion_buffer distortion", &Engine::Renderers::Glitch::Distortion);
+				VGlitch.SetProperty<Engine::Renderers::Glitch>("float scan_line_jitter", &Engine::Renderers::Glitch::ScanLineJitter);
+				VGlitch.SetProperty<Engine::Renderers::Glitch>("float vertical_jump", &Engine::Renderers::Glitch::VerticalJump);
+				VGlitch.SetProperty<Engine::Renderers::Glitch>("float horizontal_shake", &Engine::Renderers::Glitch::HorizontalShake);
+				VGlitch.SetProperty<Engine::Renderers::Glitch>("float color_drift", &Engine::Renderers::Glitch::ColorDrift);
+				PopulateRendererInterface<Engine::Renderers::Glitch, Engine::RenderSystem*>(VGlitch, "glitch_renderer@+ f(render_system@+)");
+
+				RefClass VUserInterface = Engine->SetClass<Engine::Renderers::UserInterface>("gui_renderer", false);
+				VUserInterface.SetMethod("gui_context@+ get_context() const", &Engine::Renderers::UserInterface::GetContext);
+				PopulateRendererInterface<Engine::Renderers::UserInterface, Engine::RenderSystem*>(VUserInterface, "gui_renderer@+ f(render_system@+)");
+
+				return true;
+#else
+				ED_ASSERT(false, false, "<renderers> is not loaded");
 				return false;
 #endif
 			}
@@ -12577,7 +14759,7 @@ namespace Edge
 				TypeClass VElement = Engine->SetStructTrivial<Engine::GUI::IElement>("ui_element");
 				TypeClass VDocument = Engine->SetStructTrivial<Engine::GUI::IElementDocument>("ui_document");
 				TypeClass VEvent = Engine->SetStructTrivial<Engine::GUI::IEvent>("ui_event");
-				RefClass VListener = Engine->SetClass<ModelListener>("ui_listener");
+				RefClass VListener = Engine->SetClass<ModelListener>("ui_listener", true);
 				Engine->SetFunctionDef("void model_listener_event(ui_event &in)");
 
 				VModalFlag.SetValue("none", (int)Engine::GUI::ModalFlag::None);
@@ -12618,8 +14800,17 @@ namespace Edge
 				VEvent.SetMethod("uptr@ get_event() const", &Engine::GUI::IEvent::GetEvent);
 				VEvent.SetMethod("bool is_valid() const", &Engine::GUI::IEvent::IsValid);
 
-				VListener.SetConstructor<ModelListener, asIScriptFunction*>("ui_listener@ f(model_listener_event@)");
-				VListener.SetConstructor<ModelListener, const std::string&>("ui_listener@ f(const string &in)");
+				static const char ModelListenerName[] = "ui_listener";
+				VListener.SetGcConstructor<ModelListener, ModelListenerName, asIScriptFunction*>("ui_listener@ f(model_listener_event@)");
+				VListener.SetGcConstructor<ModelListener, ModelListenerName, const std::string&>("ui_listener@ f(const string &in)");
+				VListener.SetEnumRefsEx<ModelListener>([](ModelListener* Base, asIScriptEngine* Engine)
+				{
+					Engine->GCEnumCallback(Base->GetCallback());
+				});
+				VListener.SetReleaseRefsEx<ModelListener>([](ModelListener* Base, asIScriptEngine*)
+				{
+					Base->~ModelListener();
+				});
 
 				VArea.SetValue("margin", (int)Engine::GUI::Area::Margin);
 				VArea.SetValue("border", (int)Engine::GUI::Area::Border);
@@ -12895,7 +15086,7 @@ namespace Edge
 
 				return true;
 #else
-				ED_ASSERT(false, false, "<engine/gui/control> is not loaded");
+				ED_ASSERT(false, false, "<gui/control> is not loaded");
 				return false;
 #endif
 			}
@@ -12905,7 +15096,7 @@ namespace Edge
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				Engine->SetFunctionDef("void ui_data_event(ui_event &in, array<variant>@+)");
 
-				RefClass VModel = Engine->SetClass<Engine::GUI::DataModel>("ui_model");
+				RefClass VModel = Engine->SetClass<Engine::GUI::DataModel>("ui_model", false);
 				VModel.SetMethodEx("bool set(const string &in, schema@+)", &DataModelSet);
 				VModel.SetMethodEx("bool set_var(const string &in, const variant &in)", &DataModelSetVar);
 				VModel.SetMethodEx("bool set_string(const string &in, const string &in)", &DataModelSetString);
@@ -12939,7 +15130,7 @@ namespace Edge
 
 				return true;
 #else
-				ED_ASSERT(false, false, "<engine/gui/model> is not loaded");
+				ED_ASSERT(false, false, "<gui/model> is not loaded");
 				return false;
 #endif
 			}
@@ -12947,7 +15138,8 @@ namespace Edge
 			{
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
-				RefClass VContext = Engine->SetClass<Engine::GUI::Context>("gui_context");
+
+				RefClass VContext = Engine->SetClass<Engine::GUI::Context>("gui_context", false);
 				VContext.SetMethod("void set_documents_base_tag(const string &in)", &Engine::GUI::Context::SetDocumentsBaseTag);
 				VContext.SetMethod("void clear_styles()", &Engine::GUI::Context::ClearStyles);
 				VContext.SetMethod("bool clear_documents()", &Engine::GUI::Context::ClearDocuments);
@@ -12977,7 +15169,7 @@ namespace Edge
 				VContext.SetMethod("ui_element get_focus_element()", &Engine::GUI::Context::GetFocusElement);
 				VContext.SetMethod("ui_element get_root_element()", &Engine::GUI::Context::GetRootElement);
 				VContext.SetMethodEx("ui_element get_element_at_point(const vector2 &in)", &ContextGetFocusElement);
-				VContext.SetMethod("void pull_Document_to_front(const ui_document &in)", &Engine::GUI::Context::PullDocumentToFront);
+				VContext.SetMethod("void pull_document_to_front(const ui_document &in)", &Engine::GUI::Context::PullDocumentToFront);
 				VContext.SetMethod("void push_document_to_back(const ui_document &in)", &Engine::GUI::Context::PushDocumentToBack);
 				VContext.SetMethod("void unfocus_document(const ui_document &in)", &Engine::GUI::Context::UnfocusDocument);
 				VContext.SetMethod("void add_event_listener(const string &in, ui_listener@+, bool = false)", &Engine::GUI::Context::AddEventListener);
@@ -12985,12 +15177,12 @@ namespace Edge
 				VContext.SetMethod("bool is_mouse_interacting()", &Engine::GUI::Context::IsMouseInteracting);
 				VContext.SetMethod("bool get_active_clip_region(vector2 &out, vector2 &out)", &Engine::GUI::Context::GetActiveClipRegion);
 				VContext.SetMethod("void set_active_clip_region(const vector2 &in, const vector2 &in)", &Engine::GUI::Context::SetActiveClipRegion);
-				VContext.SetMethod("ui_model@ set_model(const string &in)", &Engine::GUI::Context::SetDataModel);
-				VContext.SetMethod("ui_model@ get_model(const string &in)", &Engine::GUI::Context::GetDataModel);
+				VContext.SetMethod("ui_model@+ set_model(const string &in)", &Engine::GUI::Context::SetDataModel);
+				VContext.SetMethod("ui_model@+ get_model(const string &in)", &Engine::GUI::Context::GetDataModel);
 
 				return true;
 #else
-				ED_ASSERT(false, false, "<engine/gui/context> is not loaded");
+				ED_ASSERT(false, false, "<gui/context> is not loaded");
 				return false;
 #endif
 			}

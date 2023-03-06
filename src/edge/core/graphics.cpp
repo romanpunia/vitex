@@ -459,8 +459,8 @@ namespace Edge
 		}
 		MeshBuffer::~MeshBuffer() noexcept
 		{
-			ED_RELEASE(VertexBuffer);
-			ED_RELEASE(IndexBuffer);
+			ED_CLEAR(VertexBuffer);
+			ED_CLEAR(IndexBuffer);
 		}
 		ElementBuffer* MeshBuffer::GetVertexBuffer() const
 		{
@@ -476,8 +476,8 @@ namespace Edge
 		}
 		SkinMeshBuffer::~SkinMeshBuffer() noexcept
 		{
-			ED_RELEASE(VertexBuffer);
-			ED_RELEASE(IndexBuffer);
+			ED_CLEAR(VertexBuffer);
+			ED_CLEAR(IndexBuffer);
 		}
 		ElementBuffer* SkinMeshBuffer::GetVertexBuffer() const
 		{
@@ -500,7 +500,7 @@ namespace Edge
 		}
 		InstanceBuffer::~InstanceBuffer() noexcept
 		{
-			ED_RELEASE(Elements);
+			ED_CLEAR(Elements);
 		}
 		std::vector<Compute::ElementVertex>& InstanceBuffer::GetArray()
 		{
@@ -1600,6 +1600,26 @@ namespace Edge
 		ShaderModel GraphicsDevice::GetShaderModel() const
 		{
 			return ShaderGen;
+		}
+		const std::unordered_map<std::string, DepthStencilState*>& GraphicsDevice::GetDepthStencilStates() const
+		{
+			return DepthStencilStates;
+		}
+		const std::unordered_map<std::string, RasterizerState*>& GraphicsDevice::GetRasterizerStates() const
+		{
+			return RasterizerStates;
+		}
+		const std::unordered_map<std::string, BlendState*>& GraphicsDevice::GetBlendStates() const
+		{
+			return BlendStates;
+		}
+		const std::unordered_map<std::string, SamplerState*>& GraphicsDevice::GetSamplerStates() const
+		{
+			return SamplerStates;
+		}
+		const std::unordered_map<std::string, InputLayout*>& GraphicsDevice::GetInputLayouts() const
+		{
+			return InputLayouts;
 		}
 		DepthStencilState* GraphicsDevice::GetDepthStencilState(const std::string& Name)
 		{
@@ -3490,8 +3510,13 @@ namespace Edge
 		}
 		Model::~Model() noexcept
 		{
+			Cleanup();
+		}
+		void Model::Cleanup()
+		{
 			for (auto* Item : Meshes)
 				ED_RELEASE(Item);
+			Meshes.clear();
 		}
 		MeshBuffer* Model::FindMesh(const std::string& Name)
 		{
@@ -3509,8 +3534,13 @@ namespace Edge
 		}
 		SkinModel::~SkinModel() noexcept
 		{
+			Cleanup();
+		}
+		void SkinModel::Cleanup()
+		{
 			for (auto* Item : Meshes)
 				ED_RELEASE(Item);
+			Meshes.clear();
 		}
 		void SkinModel::ComputePose(PoseBuffer* Map)
 		{

@@ -607,7 +607,7 @@ namespace Edge
 			virtual ~Component() noexcept;
 
 		public:
-			ED_COMPONENT_ROOT("component");
+			ED_COMPONENT_ROOT("base_component");
 		};
 
 		class ED_OUT Entity final : public Core::Reference<Entity>
@@ -654,7 +654,6 @@ namespace Edge
 			const Compute::Vector3& GetMin() const;
 			const Compute::Vector3& GetMax() const;
 			const std::string& GetName() const;
-			std::string GetSystemName() const;
 			size_t GetChildsCount() const;
 			float GetVisibility(const Viewer& Base) const;
 			bool IsActive() const;
@@ -684,9 +683,7 @@ namespace Edge
 			template <typename In>
 			In* AddComponent()
 			{
-				Component* Component = new In(this);
-				Component->Active = true;
-				return (In*)AddComponent(Component);
+				return (In*)AddComponent(new In(this));
 			}
 			template <typename In>
 			In* GetComponent()
@@ -726,7 +723,7 @@ namespace Edge
 			virtual Core::Unique<Component> Copy(Entity* New) const override = 0;
 			bool SetCategory(GeoCategory NewCategory);
 			bool SetMaterial(void* Instance, Material* Value);
-			bool SetMaterialAll(Material* Value);
+			bool SetMaterial(Material* Value);
 			GeoCategory GetCategory() const;
 			int64_t GetSlot(void* Surface);
 			int64_t GetSlot();
@@ -735,7 +732,7 @@ namespace Edge
 			const std::unordered_map<void*, Material*>& GetMaterials();
 
 		public:
-			ED_COMPONENT("drawable");
+			ED_COMPONENT("drawable_component");
 		};
 
 		class ED_OUT Renderer : public Core::Reference<Renderer>
@@ -760,12 +757,12 @@ namespace Edge
 			virtual void BeginPass();
 			virtual void EndPass();
 			virtual bool HasCategory(GeoCategory Category);
-			virtual size_t RenderPass(Core::Timer* Time);
+			virtual size_t RenderPass(Core::Timer* Time) = 0;
 			void SetRenderer(RenderSystem* NewSystem);
 			RenderSystem* GetRenderer() const;
 
 		public:
-			ED_COMPONENT_ROOT("renderer");
+			ED_COMPONENT_ROOT("base_renderer");
 		};
 
 		class ED_OUT RenderSystem final : public Core::Reference<RenderSystem>
@@ -837,6 +834,7 @@ namespace Edge
 			~RenderSystem() noexcept;
 			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Fov, float Ratio, float Near, float Far, RenderCulling Type);
 			void ClearCulling();
+			void RemoveRenderers();
 			void RestoreViewBuffer(Viewer* View);
 			void Remount(Renderer* Target);
 			void Remount();
@@ -860,7 +858,7 @@ namespace Edge
 			bool CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount);
 			Renderer* AddRenderer(Core::Unique<Renderer> In);
 			Renderer* GetRenderer(uint64_t Id);
-			int64_t GetOffset(uint64_t Id) const;
+			bool GetOffset(uint64_t Id, size_t& Offset) const;
 			std::vector<Renderer*>& GetRenderers();
 			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type) const;
 			Graphics::RenderTarget2D* GetRT(TargetType Type) const;
@@ -900,6 +898,29 @@ namespace Edge
 			}
 
 		public:
+			template <typename MatchFunction>
+			void QueryBasicAsync(uint64_t Id, MatchFunction&& Callback)
+			{
+				auto& Storage = GetStorageWrapper(Id);
+				switch (View.Culling)
+				{
+					case RenderCulling::Linear:
+					{
+						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Frustum.OverlapsAABB(Bounds); };
+						DispatchQuery<Component, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
+						break;
+					}
+					case RenderCulling::Cubic:
+					{
+						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Bounds.Overlaps(Bounds); };
+						DispatchQuery<Component, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
+						break;
+					}
+					default:
+						std::for_each(Storage.Data.Begin(), Storage.Data.End(), std::move(Callback));
+						break;
+				}
+			}
 			template <typename T, typename MatchFunction>
 			void QueryAsync(MatchFunction&& Callback)
 			{
@@ -941,13 +962,17 @@ namespace Edge
 			template <typename In>
 			int64_t GetOffset()
 			{
-				return GetOffset(In::GetTypeId());
+				size_t Offset = 0;
+				if (!GetOffset(In::GetTypeId(), Offset))
+					return -1;
+
+				return (int64_t)Offset;
 			}
 		};
 
 		class ED_OUT_TS ShaderCache final : public Core::Reference<ShaderCache>
 		{
-		private:
+		public:
 			struct SCache
 			{
 				Graphics::Shader* Shader;
@@ -965,6 +990,7 @@ namespace Edge
 			Graphics::Shader* Compile(const std::string& Name, const Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Graphics::Shader* Get(const std::string& Name);
 			std::string Find(Graphics::Shader* Shader);
+			const std::unordered_map<std::string, SCache>& GetCaches() const;
 			bool Has(const std::string& Name);
 			bool Free(const std::string& Name, Graphics::Shader* Shader = nullptr);
 			void ClearCache();
@@ -972,7 +998,7 @@ namespace Edge
 
 		class ED_OUT_TS PrimitiveCache final : public Core::Reference<PrimitiveCache>
 		{
-		private:
+		public:
 			struct SCache
 			{
 				Graphics::ElementBuffer* Buffers[2];
@@ -1002,6 +1028,7 @@ namespace Edge
 			Graphics::ElementBuffer* GetCube(BufferType Type);
 			Graphics::ElementBuffer* GetBox(BufferType Type);
 			Graphics::ElementBuffer* GetSkinBox(BufferType Type);
+			const std::unordered_map<std::string, SCache>& GetCaches() const;
 			void GetSphereBuffers(Graphics::ElementBuffer** Result);
 			void GetCubeBuffers(Graphics::ElementBuffer** Result);
 			void GetBoxBuffers(Graphics::ElementBuffer** Result);
@@ -1014,7 +1041,7 @@ namespace Edge
 		private:
 			std::unordered_map<std::string, std::unordered_map<Processor*, AssetCache*>> Assets;
 			std::unordered_map<std::string, AssetArchive*> Dockers;
-			std::unordered_map<int64_t, Processor*> Processors;
+			std::unordered_map<uint64_t, Processor*> Processors;
 			std::unordered_map<Core::Stream*, size_t> Streams;
 			Graphics::GraphicsDevice* Device;
 			std::string Environment, Base;
@@ -1024,11 +1051,23 @@ namespace Edge
 		public:
 			ContentManager(Graphics::GraphicsDevice* NewDevice) noexcept;
 			~ContentManager() noexcept;
-			void InvalidateDockers();
-			void InvalidateCache();
-			void InvalidatePath(const std::string& Path);
+			void ClearCache();
+			void ClearDockers();
+			void ClearStreams();
+			void ClearProcessors();
+			void ClearPath(const std::string& Path);
 			void SetEnvironment(const std::string& Path);
 			void SetDevice(Graphics::GraphicsDevice* NewDevice);
+			void* Load(Processor* Processor, const std::string& Path, const Core::VariantArgs& Keys);
+			bool Save(Processor* Processor, const std::string& Path, void* Object, const Core::VariantArgs& Keys);
+			Core::Promise<void*> LoadAsync(Processor* Processor, const std::string& Path, const Core::VariantArgs& Keys);
+			Core::Promise<bool> SaveAsync(Processor* Processor, const std::string& Path, void* Object, const Core::VariantArgs& Keys);
+			Processor* AddProcessor(Processor* Value, uint64_t Id);
+			Processor* GetProcessor(uint64_t Id);
+			AssetCache* FindCache(Processor* Target, const std::string& Path);
+			AssetCache* FindCache(Processor* Target, void* Resource);
+			const std::unordered_map<uint64_t, Processor*>& GetProcessors() const;
+			bool RemoveProcessor(uint64_t Id);
 			bool Import(const std::string& Path);
 			bool Export(const std::string& Path, const std::string& Directory, const std::string& Name = "");
 			bool Cache(Processor* Root, const std::string& Path, void* Resource);
@@ -1036,108 +1075,63 @@ namespace Edge
 			Graphics::GraphicsDevice* GetDevice() const;
 			const std::string& GetEnvironment() const;
 
+		private:
+			void* LoadDockerized(Processor* Processor, const std::string& Path, const Core::VariantArgs& Keys);
+			void Enqueue();
+			void Dequeue();
+
 		public:
 			template <typename T>
 			Core::Unique<T> Load(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
-				return (T*)LoadForward(Path, GetProcessor<T>(), Keys);
+				return (T*)Load(GetProcessor<T>(), Path, Keys);
 			}
 			template <typename T>
 			Core::Promise<Core::Unique<T>> LoadAsync(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
-				Enqueue();
-				return Core::Cotask<T*>([this, Path, Keys]()
+				return LoadAsync(GetProcessor<T>(), Path, Keys).Then<T*>([](void*&& Result)
 				{
-					T* Result = (T*)LoadForward(Path, GetProcessor<T>(), Keys);
-					Dequeue();
-
-					return Result;
+					return (T*)Result;
 				});
 			}
 			template <typename T>
 			bool Save(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
-				return SaveForward(Path, GetProcessor<T>(), Object, Keys);
+				return Save(GetProcessor<T>(), Path, Object, Keys);
 			}
 			template <typename T>
 			Core::Promise<bool> SaveAsync(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
-				Enqueue();
-				return Core::Cotask<bool>([this, Path, Object, Keys]()
+				return SaveAsync(GetProcessor<T>(), Path, (void*)Object, Keys).Then<T*>([](void*&& Result)
 				{
-					bool Result = SaveForward(Path, GetProcessor<T>(), Object, Keys);
-					Dequeue();
-
-					return Result;
+					return (T*)Result;
 				});
 			}
 			template <typename T>
 			bool RemoveProcessor()
 			{
-				Mutex.lock();
-				auto It = Processors.find(typeid(T).hash_code());
-				if (It == Processors.end())
-				{
-					Mutex.unlock();
-					return false;
-				}
-
-				ED_RELEASE(It->second);
-				Processors.erase(It);
-				Mutex.unlock();
-				return true;
+				return RemoveProcessor(typeid(T).hash_code());
 			}
 			template <typename V, typename T>
 			V* AddProcessor()
 			{
-				Mutex.lock();
-				V* Instance = new V(this);
-				auto It = Processors.find(typeid(T).hash_code());
-				if (It != Processors.end())
-				{
-					ED_RELEASE(It->second);
-					It->second = Instance;
-				}
-				else
-					Processors[typeid(T).hash_code()] = Instance;
-
-				Mutex.unlock();
-				return Instance;
+				return (V*)AddProcessor(new V(this), typeid(T).hash_code());
 			}
 			template <typename T>
 			Processor* GetProcessor()
 			{
-				Mutex.lock();
-				auto It = Processors.find(typeid(T).hash_code());
-				if (It != Processors.end())
-				{
-					Mutex.unlock();
-					return It->second;
-				}
-
-				Mutex.unlock();
-				return nullptr;
+				return GetProcessor(typeid(T).hash_code());
 			}
 			template <typename T>
-			AssetCache* Find(const std::string& Path)
+			AssetCache* FindCache(const std::string& Path)
 			{
-				return Find(GetProcessor<T>(), Path);
+				return FindCache(GetProcessor<T>(), Path);
 			}
 			template <typename T>
-			AssetCache* Find(void* Resource)
+			AssetCache* FindCache(void* Resource)
 			{
-				return Find(GetProcessor<T>(), Resource);
+				return FindCache(GetProcessor<T>(), Resource);
 			}
-
-		private:
-			void Enqueue();
-			void Dequeue();
-			void* LoadForward(const std::string& Path, Processor* Processor, const Core::VariantArgs& Keys);
-			void* LoadStreaming(const std::string& Path, Processor* Processor, const Core::VariantArgs& Keys);
-			bool SaveForward(const std::string& Path, Processor* Processor, void* Object, const Core::VariantArgs& Keys);
-			AssetCache* Find(Processor* Target, const std::string& Path);
-			AssetCache* Find(Processor* Target, void* Resource);
-			bool HasAnyPointToDispatch();
 		};
 
 		class ED_OUT_TS AppData final : public Core::Reference<AppData>
@@ -1157,6 +1151,7 @@ namespace Edge
 			Core::Unique<Core::Schema> GetKey(const std::string& Name);
 			std::string GetText(const std::string& Name);
 			bool Has(const std::string& Name);
+			Core::Schema* GetSnapshot() const;
 
 		private:
 			bool ReadAppData(const std::string& Path);
@@ -1174,7 +1169,7 @@ namespace Edge
 		public:
 			struct ED_OUT Desc
 			{
-				struct
+				struct Dependencies
 				{
 					Graphics::GraphicsDevice* Device = nullptr;
 					Graphics::Activity* Activity = nullptr;
@@ -1182,13 +1177,12 @@ namespace Edge
 					ContentManager* Content = nullptr;
 					PrimitiveCache* Primitives = nullptr;
 					ShaderCache* Shaders = nullptr;
-					bool Parallel = true;
 				} Shared;
 
 				Compute::Simulator::Desc Simulator;
 				size_t StartMaterials = 1ll << 8;
-				size_t StartEntities = 1ll << 12;
-				size_t StartComponents = 1ll << 13;
+				size_t StartEntities = 1ll << 8;
+				size_t StartComponents = 1ll << 8;
 				size_t GrowMargin = 128;
 				size_t MaxUpdates = 256;
 				size_t PointsSize = 256;
@@ -1205,6 +1199,8 @@ namespace Edge
 				bool EnableHDR = false;
 				bool Mutations = false;
 
+				void AddRef();
+				void Release();
 				static Desc Get(Application* Base);
 			};
 
@@ -1246,7 +1242,7 @@ namespace Edge
 			Desc Conf;
 
 		public:
-			struct
+			struct SgStatistics
 			{
 				size_t Instances = 0;
 				size_t DrawCalls = 0;
@@ -1269,7 +1265,7 @@ namespace Edge
 			void DeleteEntity(Core::Unique<Entity> Entity);
 			void SetCamera(Entity* Camera);
 			void RayTest(uint64_t Section, const Compute::Ray& Origin, const RayCallback& Callback);
-			void ScriptHook(const std::string& Name = "Main");
+			void ScriptHook(const std::string& Name = "main");
 			void SetActive(bool Enabled);
 			void SetMRT(TargetType Type, bool Clear);
 			void SetRT(TargetType Type, bool Clear);
@@ -1295,12 +1291,14 @@ namespace Edge
 			MessageCallback* SetListener(const std::string& Event, MessageCallback&& Callback);
 			bool ClearListener(const std::string& Event, MessageCallback* Id);
 			bool AddMaterial(Core::Unique<Material> Base);
+			void LoadResource(uint64_t Id, Component* Context, const std::string& Path, const Core::VariantArgs& Keys, const std::function<void(void*)>& Callback);
+			std::string FindResourceId(uint64_t Id, void* Resource);
 			Material* AddMaterial();
 			Material* CloneMaterial(Material* Base);
 			Entity* GetEntity(size_t Entity);
 			Entity* GetLastEntity();
 			Entity* GetCameraEntity();
-			Component* GetComponent(size_t Component, uint64_t Section);
+			Component* GetComponent(uint64_t Section, size_t Component);
 			Component* GetCamera();
 			RenderSystem* GetRenderer();
 			Viewer GetCameraViewer() const;
@@ -1317,11 +1315,13 @@ namespace Edge
 			std::vector<Entity*> QueryByName(const std::string& Name) const;
 			std::vector<Component*> QueryByPosition(uint64_t Section, const Compute::Vector3& Position, float Radius);
 			std::vector<Component*> QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max);
+			std::vector<Component*> QueryByMatch(uint64_t Section, std::function<bool(const Compute::Bounding&)>&& MatchCallback);
 			std::vector<std::pair<Component*, Compute::Vector3>> QueryByRay(uint64_t Section, const Compute::Ray& Origin);
 			std::vector<CubicDepthMap*>& GetPointsMapping();
 			std::vector<LinearDepthMap*>& GetSpotsMapping();
 			std::vector<CascadedDepthMap*>& GetLinesMapping();
 			std::vector<VoxelMapping>& GetVoxelsMapping();
+			const std::unordered_map<uint64_t, SparseIndex*>& GetRegistry() const;
 			std::string AsResourcePath(const std::string& Path);
 			Entity* AddEntity();
 			Entity* CloneEntity(Entity* Value);
@@ -1418,49 +1418,16 @@ namespace Edge
 			template <typename T>
 			void LoadResource(Component* Context, const std::string& Path, const Core::VariantArgs& Keys, const std::function<void(T*)>& Callback)
 			{
-				ED_ASSERT_V(Conf.Shared.Content != nullptr, "content manager should be set");
-				ED_ASSERT_V(Context != nullptr, "component calling this function should be set");
-				ED_ASSERT_V(Callback != nullptr, "callback should be set");
-
-				LoadComponent(Context);
-				Conf.Shared.Content->LoadAsync<T>(Path, Keys).Await([this, Context, Callback](T*&& Result)
+				LoadResource((uint64_t)typeid(T).hash_code(), Context, Path, Keys, [Callback](void* Object)
 				{
-					if (UnloadComponent(Context))
-						Transaction([Callback, Result]() { Callback(Result); });
+					if (Callback)
+						Callback((T*)Object);
 				});
 			}
 			template <typename T>
-			std::string FindResource(T* Resource)
+			std::string FindResourceId(T* Resource)
 			{
-				AssetCache* Cache = Conf.Shared.Content->Find<T>(Resource);
-				return Cache != nullptr ? AsResourcePath(Cache->Path) : std::string();
-			}
-			template <typename T>
-			size_t GetEntitiesCount()
-			{
-				return GetComponents(T::GetTypeId())->Count();
-			}
-			template <typename T>
-			Entity* GetLastEntity()
-			{
-				auto* Array = GetComponents(T::GetTypeId());
-				if (Array->Empty())
-					return nullptr;
-
-				Component* Value = GetComponent(Array->Count() - 1, T::GetTypeId());
-				if (Value != nullptr)
-					return Value->Parent;
-
-				return nullptr;
-			}
-			template <typename T>
-			Entity* GetEntity()
-			{
-				Component* Value = GetComponent(0, T::GetTypeId());
-				if (Value != nullptr)
-					return Value->Parent;
-
-				return nullptr;
+				return FindResourceId(typeid(T).hash_code(), (void*)Resource);
 			}
 			template <typename T>
 			SparseIndex& GetStorage()
@@ -1472,20 +1439,6 @@ namespace Edge
 			{
 				return GetComponents(T::GetTypeId());
 			}
-			template <typename T>
-			T* GetComponent()
-			{
-				return (T*)GetComponent(0, T::GetTypeId());
-			}
-			template <typename T>
-			T* GetLastComponent()
-			{
-				auto* Array = GetComponents(T::GetTypeId());
-				if (Array->Empty())
-					return nullptr;
-
-				return (T*)GetComponent(Array->Count() - 1, T::GetTypeId());
-			}
 		};
 
 		class ED_OUT Application : public Core::Reference<Application>
@@ -1493,7 +1446,7 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				struct
+				struct FramesInfo
 				{
 					float Stable = 120.0f;
 					float Limit = 0.0f;
@@ -1522,7 +1475,7 @@ namespace Edge
 			};
 
 		public:
-			struct
+			struct CacheInfo
 			{
 				ShaderCache* Shaders = nullptr;
 				PrimitiveCache* Primitives = nullptr;
@@ -1550,7 +1503,7 @@ namespace Edge
 			virtual ~Application() noexcept;
 			virtual void ScriptHook();
 			virtual void KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed);
-			virtual void InputEvent(char* Buffer, int Length);
+			virtual void InputEvent(char* Buffer, size_t Length);
 			virtual void WheelEvent(int X, int Y, bool Normal);
 			virtual void WindowEvent(Graphics::WindowState NewState, int X, int Y);
 			virtual void CloseEvent();
@@ -1594,7 +1547,6 @@ namespace Edge
 			}
 
 		public:
-			static Core::Schedule* Queue();
 			static Application* Get();
 		};
 
@@ -2249,7 +2201,7 @@ namespace Edge
 			}
 
 		public:
-			ED_COMPONENT("geometry-renderer");
+			ED_COMPONENT("geometry_renderer");
 		};
 
 		class ED_OUT EffectRenderer : public Renderer
@@ -2292,7 +2244,7 @@ namespace Edge
 			Graphics::Shader* CompileEffect(const std::string& SectionName, size_t BufferSize = 0);
 
 		public:
-			ED_COMPONENT("effect-renderer");
+			ED_COMPONENT("effect_renderer");
 		};
 	}
 }

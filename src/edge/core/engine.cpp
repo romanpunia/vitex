@@ -1744,13 +1744,13 @@ namespace Edge
 		}
 		Material::~Material() noexcept
 		{
-			ED_RELEASE(DiffuseMap);
-			ED_RELEASE(NormalMap);
-			ED_RELEASE(MetallicMap);
-			ED_RELEASE(RoughnessMap);
-			ED_RELEASE(HeightMap);
-			ED_RELEASE(OcclusionMap);
-			ED_RELEASE(EmissionMap);
+			ED_CLEAR(DiffuseMap);
+			ED_CLEAR(NormalMap);
+			ED_CLEAR(MetallicMap);
+			ED_CLEAR(RoughnessMap);
+			ED_CLEAR(HeightMap);
+			ED_CLEAR(OcclusionMap);
+			ED_CLEAR(EmissionMap);
 		}
 		void Material::SetName(const std::string& Value)
 		{
@@ -1856,7 +1856,7 @@ namespace Edge
 			return Content;
 		}
 
-		Component::Component(Entity* Reference, ActorSet Rule) noexcept : Parent(Reference), Set((size_t)Rule), Indexed(false), Active(false)
+		Component::Component(Entity* Reference, ActorSet Rule) noexcept : Parent(Reference), Set((size_t)Rule), Indexed(false), Active(true)
 		{
 			ED_ASSERT_V(Reference != nullptr, "entity should be set");
 		}
@@ -2099,22 +2099,6 @@ namespace Edge
 		{
 			return Type.Name;
 		}
-		std::string Entity::GetSystemName() const
-		{
-			std::string Result;
-			for (auto& Item : Type.Components)
-			{
-				Result.append(Item.second->GetName());
-				Result.append(", ");
-			}
-
-			if (!Result.empty())
-				Result = "[" + Result.substr(0, Result.size() - 2) + "] " + Type.Name;
-			else
-				Result = Type.Name;
-
-			return Result;
-		}
 		float Entity::GetVisibility(const Viewer& Base) const
 		{
 			float Distance = Transform->GetPosition().Distance(Base.Position);
@@ -2200,7 +2184,7 @@ namespace Edge
 
 			return true;
 		}
-		bool Drawable::SetMaterialAll(Material* Value)
+		bool Drawable::SetMaterial(Material* Value)
 		{
 			if (!Complex)
 			{
@@ -2316,14 +2300,7 @@ namespace Edge
 		}
 		RenderSystem::~RenderSystem() noexcept
 		{
-			for (auto& Next : Renderers)
-			{
-				if (!Next)
-					continue;
-
-				Next->Deactivate();
-				ED_RELEASE(Next);
-			}
+			RemoveRenderers();
 		}
 		void RenderSystem::SetView(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Fov, float _Ratio, float _Near, float _Far, RenderCulling _Type)
 		{
@@ -2335,6 +2312,15 @@ namespace Edge
 			for (auto& Next : Renderers)
 				Next->ClearCulling();
 			Scene->ClearCulling();
+		}
+		void RenderSystem::RemoveRenderers()
+		{
+			for (auto& Next : Renderers)
+			{
+				Next->Deactivate();
+				ED_RELEASE(Next);
+			}
+			Renderers.clear();
 		}
 		void RenderSystem::RestoreViewBuffer(Viewer* Buffer)
 		{
@@ -2688,15 +2674,18 @@ namespace Edge
 
 			return nullptr;
 		}
-		int64_t RenderSystem::GetOffset(uint64_t Id) const
+		bool RenderSystem::GetOffset(uint64_t Id, size_t& Offset) const
 		{
 			for (size_t i = 0; i < Renderers.size(); i++)
 			{
 				if (Renderers[i]->GetId() == Id)
-					return (int64_t)i;
+				{
+					Offset = i;
+					return true;
+				}
 			}
 
-			return -1;
+			return false;
 		}
 		std::vector<Renderer*>& RenderSystem::GetRenderers()
 		{
@@ -2796,6 +2785,10 @@ namespace Edge
 
 			Safe.unlock();
 			return std::string();
+		}
+		const std::unordered_map<std::string, ShaderCache::SCache>& ShaderCache::GetCaches() const
+		{
+			return Cache;
 		}
 		bool ShaderCache::Has(const std::string& Name)
 		{
@@ -3350,6 +3343,10 @@ namespace Edge
 
 			return nullptr;
 		}
+		const std::unordered_map<std::string, PrimitiveCache::SCache>& PrimitiveCache::GetCaches() const
+		{
+			return Cache;
+		}
 		void PrimitiveCache::GetSphereBuffers(Graphics::ElementBuffer** Result)
 		{
 			ED_ASSERT_V(Result != nullptr, "result should be set");
@@ -3405,13 +3402,82 @@ namespace Edge
 			Storage.Reserve((size_t)Size);
 		}
 
+		void SceneGraph::Desc::AddRef()
+		{
+			if (Shared.Shaders != nullptr)
+				Shared.Shaders->AddRef();
+
+			if (Shared.Primitives != nullptr)
+				Shared.Primitives->AddRef();
+
+			if (Shared.Content != nullptr)
+				Shared.Content->AddRef();
+
+			if (Shared.Device != nullptr)
+				Shared.Device->AddRef();
+
+			if (Shared.Activity != nullptr)
+				Shared.Activity->AddRef();
+
+			if (Shared.VM != nullptr)
+				Shared.VM->AddRef();
+		}
+		void SceneGraph::Desc::Release()
+		{
+			if (Shared.Shaders != nullptr)
+			{
+				bool Cleanup = Shared.Shaders->GetRefCount() == 1;
+				Shared.Shaders->Release();
+				if (Cleanup)
+					Shared.Shaders = nullptr;
+			}
+
+			if (Shared.Primitives != nullptr)
+			{
+				bool Cleanup = Shared.Primitives->GetRefCount() == 1;
+				Shared.Primitives->Release();
+				if (Cleanup)
+					Shared.Primitives = nullptr;
+			}
+
+			if (Shared.Content != nullptr)
+			{
+				bool Cleanup = Shared.Content->GetRefCount() == 1;
+				Shared.Content->Release();
+				if (Cleanup)
+					Shared.Content = nullptr;
+			}
+
+			if (Shared.Device != nullptr)
+			{
+				bool Cleanup = Shared.Device->GetRefCount() == 1;
+				Shared.Device->Release();
+				if (Cleanup)
+					Shared.Device = nullptr;
+			}
+
+			if (Shared.Activity != nullptr)
+			{
+				bool Cleanup = Shared.Activity->GetRefCount() == 1;
+				Shared.Activity->Release();
+				if (Cleanup)
+					Shared.Activity = nullptr;
+			}
+
+			if (Shared.VM != nullptr)
+			{
+				bool Cleanup = Shared.VM->GetRefCount() == 1;
+				Shared.VM->Release();
+				if (Cleanup)
+					Shared.VM = nullptr;
+			}
+		}
 		SceneGraph::Desc SceneGraph::Desc::Get(Application* Base)
 		{
 			SceneGraph::Desc I;
 			if (!Base)
 				return I;
 
-			I.Shared.Parallel = Base->Control.Parallel;
 			I.Shared.Shaders = Base->Cache.Shaders;
 			I.Shared.Primitives = Base->Cache.Primitives;
 			I.Shared.Content = Base->Content;
@@ -3447,7 +3513,8 @@ namespace Edge
 			Display.Sampler = nullptr;
 			Display.Layout = nullptr;
 
-			Configure(I);
+			Conf.AddRef();
+			Configure(Conf);
 			ScriptHook();
 		}
 		SceneGraph::~SceneGraph() noexcept
@@ -3455,37 +3522,44 @@ namespace Edge
 			ED_MEASURE(ED_TIMING_MAX);
 			StepTransactions();
 
-			auto Source = std::move(Listeners);
-			for (auto& Item : Source)
+			for (auto& Item : Listeners)
 			{
 				for (auto* Listener : Item.second)
 					ED_DELETE(function, Listener);
+				Item.second.clear();
 			}
+			Listeners.clear();
 
 			auto Begin1 = Entities.Begin(), End1 = Entities.End();
 			for (auto It = Begin1; It != End1; ++It)
 				ED_RELEASE(*It);
+			Entities.Clear();
 
 			auto Begin2 = Materials.Begin(), End2 = Materials.End();
 			for (auto It = Begin2; It != End2; ++It)
 				ED_RELEASE(*It);
+			Materials.Clear();
 
 			for (auto& Sparse : Registry)
 				ED_DELETE(SparseIndex, Sparse.second);
+			Registry.clear();
 
-			ED_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Diffuse]);
-			ED_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Normal]);
-			ED_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Surface]);
-			ED_RELEASE(Display.Merger);
+			ED_CLEAR(Display.VoxelBuffers[(size_t)VoxelType::Diffuse]);
+			ED_CLEAR(Display.VoxelBuffers[(size_t)VoxelType::Normal]);
+			ED_CLEAR(Display.VoxelBuffers[(size_t)VoxelType::Surface]);
+			ED_CLEAR(Display.Merger);
 
 			for (auto& Item : Display.Voxels)
 				ED_RELEASE(Item.first);
+			Display.Voxels.clear();
 
 			for (auto* Item : Display.Points)
 				ED_RELEASE(Item);
+			Display.Points.clear();
 
 			for (auto* Item : Display.Spots)
 				ED_RELEASE(Item);
+			Display.Spots.clear();
 
 			for (auto& Item : Display.Lines)
 			{
@@ -3496,15 +3570,17 @@ namespace Edge
 					ED_DELETE(vector, Item);
 				}
 			}
+			Display.Lines.clear();
 
 			for (size_t i = 0; i < (size_t)TargetType::Count; i++)
 			{
-				ED_RELEASE(Display.MRT[i]);
-				ED_RELEASE(Display.RT[i]);
+				ED_CLEAR(Display.MRT[i]);
+				ED_CLEAR(Display.RT[i]);
 			}
 
-			ED_RELEASE(Display.MaterialBuffer);
-			ED_RELEASE(Simulator);
+			ED_CLEAR(Display.MaterialBuffer);
+			ED_CLEAR(Simulator);
+			Conf.Release();
 		}
 		void SceneGraph::Configure(const Desc& NewConf)
 		{
@@ -3517,7 +3593,10 @@ namespace Edge
 				Display.Blend = Device->GetBlendState("overwrite");
 				Display.Sampler = Device->GetSamplerState("trilinear-x16");
 				Display.Layout = Device->GetInputLayout("shape-vertex");
+
+				Conf.Release();
 				Conf = NewConf;
+				Conf.AddRef();
 
 				Materials.Reserve(Conf.StartMaterials);
 				Entities.Reserve(Conf.StartEntities);
@@ -4205,6 +4284,24 @@ namespace Edge
 
 			return true;
 		}
+		void SceneGraph::LoadResource(uint64_t Id, Component* Context, const std::string& Path, const Core::VariantArgs& Keys, const std::function<void(void*)>& Callback)
+		{
+			ED_ASSERT_V(Conf.Shared.Content != nullptr, "content manager should be set");
+			ED_ASSERT_V(Context != nullptr, "component calling this function should be set");
+			ED_ASSERT_V(Callback != nullptr, "callback should be set");
+
+			LoadComponent(Context);
+			Conf.Shared.Content->LoadAsync(Conf.Shared.Content->GetProcessor(Id), Path, Keys).Await([this, Context, Callback](void*&& Result)
+			{
+				if (UnloadComponent(Context))
+					Transaction([Callback, Result]() { Callback(Result); });
+			});
+		}
+		std::string SceneGraph::FindResourceId(uint64_t Id, void* Resource)
+		{
+			AssetCache* Cache = Conf.Shared.Content->FindCache(Conf.Shared.Content->GetProcessor(Id), Resource);
+			return Cache != nullptr ? AsResourcePath(Cache->Path) : std::string();
+		}
 		bool SceneGraph::IsLeftHanded() const
 		{
 			return Conf.Shared.Device->IsLeftHanded();
@@ -4604,7 +4701,7 @@ namespace Edge
 			if (Base != nullptr)
 				return Base;
 
-			Base = GetComponent<Components::Camera>();
+			Base = GetComponent(Components::Camera::GetTypeId(), 0);
 			if (!Base || !Base->Active)
 			{
 				Entity* Next = new Entity(this);
@@ -4623,7 +4720,7 @@ namespace Edge
 
 			return Base;
 		}
-		Component* SceneGraph::GetComponent(size_t Component, uint64_t Section)
+		Component* SceneGraph::GetComponent(uint64_t Section, size_t Component)
 		{
 			auto& Array = GetComponents(Section);
 			if (Component >= Array.Size())
@@ -4849,6 +4946,16 @@ namespace Edge
 
 			return Result;
 		}
+		std::vector<Component*> SceneGraph::QueryByMatch(uint64_t Section, std::function<bool(const Compute::Bounding&)>&& MatchCallback)
+		{
+			std::vector<Component*> Result;
+			Compute::Cosmos::Iterator Context;
+			auto& Storage = GetStorage(Section);
+			auto Enqueue = [&Result](Component* Item) { Result.push_back(Item); };
+			Storage.Index.QueryIndex<Component>(Context, std::move(MatchCallback), std::move(Enqueue));
+
+			return Result;
+		}
 		std::vector<std::pair<Component*, Compute::Vector3>> SceneGraph::QueryByRay(uint64_t Section, const Compute::Ray& Origin)
 		{
 			typedef std::pair<Component*, Compute::Vector3> RayHit;
@@ -4896,6 +5003,10 @@ namespace Edge
 		std::vector<VoxelMapping>& SceneGraph::GetVoxelsMapping()
 		{
 			return Display.Voxels;
+		}
+		const std::unordered_map<uint64_t, SparseIndex*>& SceneGraph::GetRegistry() const
+		{
+			return Registry;
 		}
 		std::string SceneGraph::AsResourcePath(const std::string& Path)
 		{
@@ -5007,25 +5118,12 @@ namespace Edge
 		}
 		ContentManager::~ContentManager() noexcept
 		{
-			InvalidateCache();
-			InvalidateDockers();
-
-			for (auto It = Streams.begin(); It != Streams.end(); ++It)
-				ED_RELEASE(It->first);
-
-			for (auto It = Processors.begin(); It != Processors.end(); ++It)
-				ED_RELEASE(It->second);
+			ClearCache();
+			ClearDockers();
+			ClearStreams();
+			ClearProcessors();
 		}
-		void ContentManager::InvalidateDockers()
-		{
-			Mutex.lock();
-			for (auto It = Dockers.begin(); It != Dockers.end(); ++It)
-				ED_DELETE(AssetArchive, It->second);
-
-			Dockers.clear();
-			Mutex.unlock();
-		}
-		void ContentManager::InvalidateCache()
+		void ContentManager::ClearCache()
 		{
 			Mutex.lock();
 			for (auto& Entries : Assets)
@@ -5047,7 +5145,32 @@ namespace Edge
 			Assets.clear();
 			Mutex.unlock();
 		}
-		void ContentManager::InvalidatePath(const std::string& Path)
+		void ContentManager::ClearDockers()
+		{
+			Mutex.lock();
+			for (auto It = Dockers.begin(); It != Dockers.end(); ++It)
+				ED_DELETE(AssetArchive, It->second);
+
+			Dockers.clear();
+			Mutex.unlock();
+		}
+		void ContentManager::ClearStreams()
+		{
+			Mutex.lock();
+			for (auto It = Streams.begin(); It != Streams.end(); ++It)
+				ED_RELEASE(It->first);
+			Streams.clear();
+			Mutex.unlock();
+		}
+		void ContentManager::ClearProcessors()
+		{
+			Mutex.lock();
+			for (auto It = Processors.begin(); It != Processors.end(); ++It)
+				ED_RELEASE(It->second);
+			Processors.clear();
+			Mutex.unlock();
+		}
+		void ContentManager::ClearPath(const std::string& Path)
 		{
 			std::string File = Core::OS::Path::Resolve(Path, Environment);
 			if (File.empty())
@@ -5071,49 +5194,7 @@ namespace Edge
 		{
 			Device = NewDevice;
 		}
-		void* ContentManager::LoadForward(const std::string& Path, Processor* Processor, const Core::VariantArgs& Map)
-		{
-			if (Path.empty())
-				return nullptr;
-
-			if (!Processor)
-			{
-				ED_ERR("[engine] file processor for \"%s\" wasn't found", Path.c_str());
-				return nullptr;
-			}
-
-			void* Object = LoadStreaming(Path, Processor, Map);
-			if (Object != nullptr)
-				return Object;
-
-			std::string File = Path;
-			if (!Core::OS::Path::IsRemote(File.c_str()))
-			{
-				Mutex.lock();
-				File = Core::OS::Path::Resolve(File, Environment);
-				Mutex.unlock();
-
-				if (File.empty())
-				{
-					ED_ERR("[engine] file \"%s\" wasn't found", Path.c_str());
-					return nullptr;
-				}
-			}
-
-			AssetCache* Asset = Find(Processor, File);
-			if (Asset != nullptr)
-				return Processor->Duplicate(Asset, Map);
-
-			auto* Stream = Core::OS::File::Open(File, Core::FileMode::Binary_Read_Only);
-			if (!Stream)
-				return nullptr;
-
-			Object = Processor->Deserialize(Stream, 0, Map);
-			ED_RELEASE(Stream);
-
-			return Object;
-		}
-		void* ContentManager::LoadStreaming(const std::string& Path, Processor* Processor, const Core::VariantArgs& Map)
+		void* ContentManager::LoadDockerized(Processor* Processor, const std::string& Path, const Core::VariantArgs& Map)
 		{
 			if (Path.empty())
 				return nullptr;
@@ -5130,7 +5211,7 @@ namespace Edge
 			}
 			Mutex.unlock();
 
-			AssetCache* Asset = Find(Processor, File.R());
+			AssetCache* Asset = FindCache(Processor, File.R());
 			if (Asset != nullptr)
 				return Processor->Duplicate(Asset, Map);
 
@@ -5151,7 +5232,49 @@ namespace Edge
 
 			return Processor->Deserialize(Stream, It->second + Docker->second->Offset, Map);
 		}
-		bool ContentManager::SaveForward(const std::string& Path, Processor* Processor, void* Object, const Core::VariantArgs& Map)
+		void* ContentManager::Load(Processor* Processor, const std::string& Path,const Core::VariantArgs& Map)
+		{
+			if (Path.empty())
+				return nullptr;
+
+			if (!Processor)
+			{
+				ED_ERR("[engine] file processor for \"%s\" wasn't found", Path.c_str());
+				return nullptr;
+			}
+
+			void* Object = LoadDockerized(Processor, Path, Map);
+			if (Object != nullptr)
+				return Object;
+
+			std::string File = Path;
+			if (!Core::OS::Path::IsRemote(File.c_str()))
+			{
+				Mutex.lock();
+				File = Core::OS::Path::Resolve(File, Environment);
+				Mutex.unlock();
+
+				if (File.empty())
+				{
+					ED_ERR("[engine] file \"%s\" wasn't found", Path.c_str());
+					return nullptr;
+				}
+			}
+
+			AssetCache* Asset = FindCache(Processor, File);
+			if (Asset != nullptr)
+				return Processor->Duplicate(Asset, Map);
+
+			auto* Stream = Core::OS::File::Open(File, Core::FileMode::Binary_Read_Only);
+			if (!Stream)
+				return nullptr;
+
+			Object = Processor->Deserialize(Stream, 0, Map);
+			ED_RELEASE(Stream);
+
+			return Object;
+		}
+		bool ContentManager::Save(Processor* Processor, const std::string& Path, void* Object, const Core::VariantArgs& Map)
 		{
 			ED_ASSERT(Object != nullptr, false, "object should be set");
 			if (Path.empty())
@@ -5189,6 +5312,71 @@ namespace Edge
 			ED_RELEASE(Stream);
 
 			return Result;
+		}
+		Core::Promise<void*> ContentManager::LoadAsync(Processor* Processor, const std::string& Path, const Core::VariantArgs& Keys)
+		{
+			Enqueue();
+			return Core::Cotask<void*>([this, Processor, Path, Keys]()
+			{
+				void* Result = Load(Processor, Path, Keys);
+				Dequeue();
+
+				return Result;
+			});
+		}
+		Core::Promise<bool> ContentManager::SaveAsync(Processor* Processor, const std::string& Path, void* Object, const Core::VariantArgs& Keys)
+		{
+			Enqueue();
+			return Core::Cotask<bool>([this, Processor, Path, Object, Keys]()
+			{
+				bool Result = Save(Processor, Path, Object, Keys);
+				Dequeue();
+
+				return Result;
+			});
+		}
+		Processor* ContentManager::AddProcessor(Processor* Value, uint64_t Id)
+		{
+			Mutex.lock();
+			auto It = Processors.find(Id);
+			if (It != Processors.end())
+			{
+				ED_RELEASE(It->second);
+				It->second = Value;
+			}
+			else
+				Processors[Id] = Value;
+
+			Mutex.unlock();
+			return Value;
+		}
+		Processor* ContentManager::GetProcessor(uint64_t Id)
+		{
+			Mutex.lock();
+			auto It = Processors.find(Id);
+			if (It != Processors.end())
+			{
+				Mutex.unlock();
+				return It->second;
+			}
+
+			Mutex.unlock();
+			return nullptr;
+		}
+		bool ContentManager::RemoveProcessor(uint64_t Id)
+		{
+			Mutex.lock();
+			auto It = Processors.find(Id);
+			if (It == Processors.end())
+			{
+				Mutex.unlock();
+				return false;
+			}
+
+			ED_RELEASE(It->second);
+			Processors.erase(It);
+			Mutex.unlock();
+			return true;
 		}
 		bool ContentManager::Import(const std::string& Path)
 		{
@@ -5347,7 +5535,7 @@ namespace Edge
 		}
 		bool ContentManager::Cache(Processor* Root, const std::string& Path, void* Resource)
 		{
-			if (Find(Root, Path) != nullptr)
+			if (FindCache(Root, Path) != nullptr)
 				return false;
 
 			Mutex.lock();
@@ -5360,21 +5548,6 @@ namespace Edge
 			Mutex.unlock();
 
 			return true;
-		}
-		bool ContentManager::HasAnyPointToDispatch()
-		{
-			auto* App = Application::Get();
-			if (!App || App->Content != this)
-				return true;
-
-			if (!Application::Queue()->CanEnqueue())
-				return false;
-
-			auto State = App->GetState();
-			if (State == ApplicationState::Staging || State == ApplicationState::Active)
-				return true;
-
-			return false;
 		}
 		bool ContentManager::IsBusy()
 		{
@@ -5395,7 +5568,11 @@ namespace Edge
 			--Queue;
 			Mutex.unlock();
 		}
-		AssetCache* ContentManager::Find(Processor* Target, const std::string& Path)
+		const std::unordered_map<uint64_t, Processor*>& ContentManager::GetProcessors() const
+		{
+			return Processors;
+		}
+		AssetCache* ContentManager::FindCache(Processor* Target, const std::string& Path)
 		{
 			Mutex.lock();
 			auto It = Assets.find(Core::Parser(Path).Replace('\\', '/').Replace(Environment, "./").R());
@@ -5412,7 +5589,7 @@ namespace Edge
 			Mutex.unlock();
 			return nullptr;
 		}
-		AssetCache* ContentManager::Find(Processor* Target, void* Resource)
+		AssetCache* ContentManager::FindCache(Processor* Target, void* Resource)
 		{
 			Mutex.lock();
 			for (auto& It : Assets)
@@ -5447,7 +5624,7 @@ namespace Edge
 		}
 		AppData::~AppData() noexcept
 		{
-			ED_RELEASE(Data);
+			ED_CLEAR(Data);
 		}
 		void AppData::Migrate(const std::string& Next)
 		{
@@ -5553,153 +5730,14 @@ namespace Edge
 
 			return Content->Save<Core::Schema>(Next, Data, Args);
 		}
+		Core::Schema* AppData::GetSnapshot() const
+		{
+			return Data;
+		}
 
 		Application::Application(Desc* I) noexcept : Control(I ? *I : Desc())
 		{
 			ED_ASSERT_V(I != nullptr, "desc should be set");
-			Host = this;
-
-			if (I->Usage & (size_t)ApplicationSet::ContentSet)
-			{
-				Content = new ContentManager(nullptr);
-				Content->AddProcessor<Processors::Asset, Engine::AssetFile>();
-				Content->AddProcessor<Processors::Material, Engine::Material>();
-				Content->AddProcessor<Processors::SceneGraph, Engine::SceneGraph>();
-				Content->AddProcessor<Processors::AudioClip, Audio::AudioClip>();
-				Content->AddProcessor<Processors::Texture2D, Graphics::Texture2D>();
-				Content->AddProcessor<Processors::Shader, Graphics::Shader>();
-				Content->AddProcessor<Processors::Model, Graphics::Model>();
-				Content->AddProcessor<Processors::SkinModel, Graphics::SkinModel>();
-				Content->AddProcessor<Processors::Schema, Core::Schema>();
-				Content->AddProcessor<Processors::Server, Network::HTTP::Server>();
-				Content->AddProcessor<Processors::HullShape, Compute::HullShape>();
-				Content->SetEnvironment(I->Environment.empty() ? Core::OS::Directory::Get() + I->Directory : I->Environment + I->Directory);
-
-				if (!I->Preferences.empty())
-				{
-					std::string Path = Core::OS::Path::Resolve(I->Preferences, Content->GetEnvironment());
-					Database = new AppData(Content, Path);
-				}
-			}
-#ifdef ED_HAS_SDL2
-			if (I->Usage & (size_t)ApplicationSet::ActivitySet)
-			{
-				if (!I->Activity.Width || !I->Activity.Height)
-				{
-					SDL_DisplayMode Display;
-					SDL_GetCurrentDisplayMode(0, &Display);
-					I->Activity.Width = (unsigned int)(Display.w / 1.1);
-					I->Activity.Height = (unsigned int)(Display.h / 1.2);
-				}
-
-				if (I->Activity.Width > 0 && I->Activity.Height > 0)
-				{
-					bool Maximized = I->Activity.Maximized;
-					I->Activity.AllowGraphics = (I->Usage & (size_t)ApplicationSet::GraphicsSet);
-					I->Activity.Maximized = false;
-
-					Activity = new Graphics::Activity(I->Activity);
-					if (I->Activity.AllowGraphics)
-					{
-						if (!I->GraphicsDevice.BufferWidth)
-							I->GraphicsDevice.BufferWidth = I->Activity.Width;
-
-						if (!I->GraphicsDevice.BufferHeight)
-							I->GraphicsDevice.BufferHeight = I->Activity.Height;
-
-						I->GraphicsDevice.Window = Activity;
-						if (Content != nullptr && !I->GraphicsDevice.CacheDirectory.empty())
-							I->GraphicsDevice.CacheDirectory = Core::OS::Path::ResolveDirectory(I->GraphicsDevice.CacheDirectory, Content->GetEnvironment());
-
-						Renderer = Graphics::GraphicsDevice::Create(I->GraphicsDevice);
-						if (!Renderer || !Renderer->IsValid())
-						{
-							ED_ERR("[engine] graphics device cannot be created");
-							return;
-						}
-
-						Compute::Geometric::SetLeftHanded(Renderer->IsLeftHanded());
-						if (Content != nullptr)
-							Content->SetDevice(Renderer);
-
-						Cache.Shaders = new ShaderCache(Renderer);
-						Cache.Primitives = new PrimitiveCache(Renderer);
-					}
-					else if (!Activity->GetHandle())
-					{
-						ED_ERR("[engine] cannot create activity instance");
-						return;
-					}
-
-					Activity->UserPointer = this;
-					Activity->SetCursorVisibility(I->Cursor);
-					Activity->Callbacks.KeyState = [this](Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
-					{
-#ifdef ED_USE_RMLUI
-						GUI::Context* GUI = GetGUI();
-						if (GUI != nullptr)
-							GUI->EmitKey(Key, Mod, Virtual, Repeat, Pressed);
-#endif
-						KeyEvent(Key, Mod, Virtual, Repeat, Pressed);
-					};
-					Activity->Callbacks.Input = [this](char* Buffer, int Length)
-					{
-#ifdef ED_USE_RMLUI
-						GUI::Context* GUI = GetGUI();
-						if (GUI != nullptr)
-							GUI->EmitInput(Buffer, Length);
-#endif
-						InputEvent(Buffer, Length);
-					};
-					Activity->Callbacks.CursorWheelState = [this](int X, int Y, bool Normal)
-					{
-#ifdef ED_USE_RMLUI
-						GUI::Context* GUI = GetGUI();
-						if (GUI != nullptr)
-							GUI->EmitWheel(X, Y, Normal, Activity->GetKeyModState());
-#endif
-						WheelEvent(X, Y, Normal);
-					};
-					Activity->Callbacks.WindowStateChange = [this](Graphics::WindowState NewState, int X, int Y)
-					{
-#ifdef ED_USE_RMLUI
-						if (NewState == Graphics::WindowState::Resize)
-						{
-							GUI::Context* GUI = GetGUI();
-							if (GUI != nullptr)
-								GUI->EmitResize(X, Y);
-						}
-#endif
-						WindowEvent(NewState, X, Y);
-					};
-					I->Activity.Maximized = Maximized;
-				}
-				else
-					ED_ERR("[engine] cannot detect display to create activity");
-			}
-#endif
-			if (I->Usage & (size_t)ApplicationSet::AudioSet)
-			{
-				Audio = new Audio::AudioDevice();
-				if (!Audio->IsValid())
-				{
-					ED_ERR("[engine] audio device cannot be created");
-					return;
-				}
-			}
-
-			if (I->Usage & (size_t)ApplicationSet::ScriptSet)
-				VM = new Scripting::VirtualMachine();
-#ifdef ED_USE_RMLUI
-			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
-			{
-				GUI::Subsystem::SetMetadata(Activity, Content, nullptr);
-				GUI::Subsystem::SetVirtualMachine(VM);
-			}
-#endif
-			if (I->Usage & (size_t)ApplicationSet::NetworkSet)
-				Network::Multiplexer::Create(I->PollingTimeout, I->PollingEvents);
-
 			State = ApplicationState::Staging;
 		}
 		Application::~Application() noexcept
@@ -5707,18 +5745,18 @@ namespace Edge
 			if (Renderer != nullptr)
 				Renderer->FlushState();
 
-			ED_RELEASE(Scene);
-			ED_RELEASE(VM);
-			ED_RELEASE(Audio);
+			ED_CLEAR(Scene);
+			ED_CLEAR(VM);
+			ED_CLEAR(Audio);
 #ifdef ED_USE_RMLUI
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
 				Engine::GUI::Subsystem::Release();
 #endif
-			ED_RELEASE(Cache.Shaders);
-			ED_RELEASE(Cache.Primitives);
-			ED_RELEASE(Content);
-			ED_RELEASE(Renderer);
-			ED_RELEASE(Activity);
+			ED_CLEAR(Cache.Shaders);
+			ED_CLEAR(Cache.Primitives);
+			ED_CLEAR(Content);
+			ED_CLEAR(Renderer);
+			ED_CLEAR(Activity);
 
 			if (Control.Usage & (size_t)ApplicationSet::NetworkSet)
 				Network::Multiplexer::Release();
@@ -5731,7 +5769,7 @@ namespace Edge
 		void Application::KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
 		{
 		}
-		void Application::InputEvent(char* Buffer, int Length)
+		void Application::InputEvent(char* Buffer, size_t Length)
 		{
 		}
 		void Application::WheelEvent(int X, int Y, bool Normal)
@@ -5757,41 +5795,186 @@ namespace Edge
 		}
 		int Application::Start()
 		{
+			Host = this;
 			ComposeEvent();
 			Compose();
 
-			if (Control.Usage & (size_t)ApplicationSet::ActivitySet && !Activity)
+			if (Control.Usage & (size_t)ApplicationSet::ContentSet)
 			{
-				ED_ERR("[engine] activity was not found");
-				return ED_EXIT_JUMP + 1;
+				if (!Content)
+				{
+					Content = new ContentManager(nullptr);
+					Content->AddProcessor<Processors::Asset, Engine::AssetFile>();
+					Content->AddProcessor<Processors::Material, Engine::Material>();
+					Content->AddProcessor<Processors::SceneGraph, Engine::SceneGraph>();
+					Content->AddProcessor<Processors::AudioClip, Audio::AudioClip>();
+					Content->AddProcessor<Processors::Texture2D, Graphics::Texture2D>();
+					Content->AddProcessor<Processors::Shader, Graphics::Shader>();
+					Content->AddProcessor<Processors::Model, Graphics::Model>();
+					Content->AddProcessor<Processors::SkinModel, Graphics::SkinModel>();
+					Content->AddProcessor<Processors::Schema, Core::Schema>();
+					Content->AddProcessor<Processors::Server, Network::HTTP::Server>();
+					Content->AddProcessor<Processors::HullShape, Compute::HullShape>();
+				}
+
+				Content->SetEnvironment(Control.Environment.empty() ? Core::OS::Directory::Get() + Control.Directory : Control.Environment + Control.Directory);
+				if (!Control.Preferences.empty())
+				{
+					std::string Path = Core::OS::Path::Resolve(Control.Preferences, Content->GetEnvironment());
+					if (!Database)
+						Database = new AppData(Content, Path);
+				}
 			}
 
-			if (Control.Usage & (size_t)ApplicationSet::GraphicsSet && !Renderer)
+			if (Control.Usage & (size_t)ApplicationSet::ActivitySet)
 			{
-				ED_ERR("[engine] graphics device was not found");
-				return ED_EXIT_JUMP + 2;
+#ifdef ED_HAS_SDL2
+				if (!Control.Activity.Width || !Control.Activity.Height)
+				{
+					SDL_DisplayMode Display;
+					SDL_GetCurrentDisplayMode(0, &Display);
+					Control.Activity.Width = (unsigned int)(Display.w / 1.1);
+					Control.Activity.Height = (unsigned int)(Display.h / 1.2);
+				}
+
+				if (Control.Activity.Width > 0 && Control.Activity.Height > 0)
+				{
+					bool Maximized = Control.Activity.Maximized;
+					Control.Activity.AllowGraphics = (Control.Usage & (size_t)ApplicationSet::GraphicsSet);
+					Control.Activity.Maximized = false;
+
+					if (!Activity)
+						Activity = new Graphics::Activity(Control.Activity);
+
+					if (Control.Activity.AllowGraphics)
+					{
+						if (!Control.GraphicsDevice.BufferWidth)
+							Control.GraphicsDevice.BufferWidth = Control.Activity.Width;
+
+						if (!Control.GraphicsDevice.BufferHeight)
+							Control.GraphicsDevice.BufferHeight = Control.Activity.Height;
+
+						Control.GraphicsDevice.Window = Activity;
+						if (Content != nullptr && !Control.GraphicsDevice.CacheDirectory.empty())
+							Control.GraphicsDevice.CacheDirectory = Core::OS::Path::ResolveDirectory(Control.GraphicsDevice.CacheDirectory, Content->GetEnvironment());
+
+						if (Renderer != nullptr)
+						{
+							ED_ERR("[engine] graphics device cannot be pre-initialized");
+							return ED_EXIT_JUMP + 1;
+						}
+
+						Renderer = Graphics::GraphicsDevice::Create(Control.GraphicsDevice);
+						if (!Renderer || !Renderer->IsValid())
+						{
+							ED_ERR("[engine] graphics device cannot be created");
+							return ED_EXIT_JUMP + 2;
+						}
+
+						Compute::Geometric::SetLeftHanded(Renderer->IsLeftHanded());
+						if (Content != nullptr)
+							Content->SetDevice(Renderer);
+
+						if (!Cache.Shaders)
+							Cache.Shaders = new ShaderCache(Renderer);
+
+						if (!Cache.Primitives)
+							Cache.Primitives = new PrimitiveCache(Renderer);
+					}
+					else if (!Activity->GetHandle())
+					{
+						ED_ERR("[engine] cannot create activity instance");
+						return ED_EXIT_JUMP + 3;
+					}
+
+					Activity->UserPointer = this;
+					Activity->SetCursorVisibility(Control.Cursor);
+					Activity->Callbacks.KeyState = [this](Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
+					{
+#ifdef ED_USE_RMLUI
+						GUI::Context* GUI = GetGUI();
+						if (GUI != nullptr)
+							GUI->EmitKey(Key, Mod, Virtual, Repeat, Pressed);
+#endif
+						KeyEvent(Key, Mod, Virtual, Repeat, Pressed);
+					};
+					Activity->Callbacks.Input = [this](char* Buffer, int Length)
+					{
+						if (!Buffer)
+							return;
+#ifdef ED_USE_RMLUI
+						GUI::Context* GUI = GetGUI();
+						if (GUI != nullptr)
+							GUI->EmitInput(Buffer, Length);
+#endif
+						InputEvent(Buffer, Length < 0 ? strlen(Buffer) : (size_t)Length);
+					};
+					Activity->Callbacks.CursorWheelState = [this](int X, int Y, bool Normal)
+					{
+#ifdef ED_USE_RMLUI
+						GUI::Context* GUI = GetGUI();
+						if (GUI != nullptr)
+							GUI->EmitWheel(X, Y, Normal, Activity->GetKeyModState());
+#endif
+						WheelEvent(X, Y, Normal);
+					};
+					Activity->Callbacks.WindowStateChange = [this](Graphics::WindowState NewState, int X, int Y)
+					{
+#ifdef ED_USE_RMLUI
+						if (NewState == Graphics::WindowState::Resize)
+						{
+							GUI::Context* GUI = GetGUI();
+							if (GUI != nullptr)
+								GUI->EmitResize(X, Y);
+						}
+#endif
+						WindowEvent(NewState, X, Y);
+					};
+					Control.Activity.Maximized = Maximized;
+				}
+				else
+				{
+					ED_ERR("[engine] cannot detect display to create activity");
+					return ED_EXIT_JUMP + 4;
+				}
+#endif
 			}
 
-			if (Control.Usage & (size_t)ApplicationSet::AudioSet && !Audio)
+			if (Control.Usage & (size_t)ApplicationSet::AudioSet)
 			{
-				ED_ERR("[engine] audio device was not found");
-				return ED_EXIT_JUMP + 3;
+				if (!Audio)
+					Audio = new Audio::AudioDevice();
+
+				if (!Audio->IsValid())
+				{
+					ED_ERR("[engine] audio device cannot be created");
+					return ED_EXIT_JUMP + 5;
+				}
 			}
 
 			if (Control.Usage & (size_t)ApplicationSet::ScriptSet)
 			{
 				if (!VM)
-				{
-					ED_ERR("[engine] vm was not found");
-					return ED_EXIT_JUMP + 4;
-				}
-				else
-					ScriptHook();
+					VM = new Scripting::VirtualMachine();
 			}
+
+			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
+			{
+#ifdef ED_USE_RMLUI
+				GUI::Subsystem::SetMetadata(Activity, Content, nullptr);
+				GUI::Subsystem::SetVirtualMachine(VM);
+#endif
+			}
+
+			if (Control.Usage & (size_t)ApplicationSet::NetworkSet)
+				Network::Multiplexer::Create(Control.PollingTimeout, Control.PollingEvents);
+
+			if (Control.Usage & (size_t)ApplicationSet::ScriptSet)
+				ScriptHook();
 
 			Initialize();
 			if (State == ApplicationState::Terminated)
-				return ExitCode != 0 ? ExitCode : ED_EXIT_JUMP + 5;
+				return ExitCode != 0 ? ExitCode : ED_EXIT_JUMP + 6;
 
 			State = ApplicationState::Active;
 			if (!Control.Threads)
@@ -5993,10 +6176,6 @@ namespace Edge
 			Core::Composer::Push<Audio::Filters::Lowpass>(AsFilter);
 			Core::Composer::Push<Audio::Filters::Bandpass>(AsFilter);
 			Core::Composer::Push<Audio::Filters::Highpass>(AsFilter);
-		}
-		Core::Schedule* Application::Queue()
-		{
-			return Core::Schedule::Get();
 		}
 		Application* Application::Get()
 		{

@@ -1359,16 +1359,25 @@ namespace Edge
 			{
 				return (void*)ED_MALLOC(T, Size);
 			}
+			bool IsMarkedRef() const noexcept
+			{
+				return (bool)(__vcnt.load() & 0x80000000);
+			}
 			uint32_t GetRefCount() const noexcept
 			{
-				return __vcnt.load();
+				return __vcnt.load() & 0x7FFFFFFF;
+			}
+			void MarkRef() noexcept
+			{
+				__vcnt |= 0x80000000;
 			}
 			void AddRef() noexcept
 			{
-				++__vcnt;
+				__vcnt = (__vcnt.load() & 0x7FFFFFFF) + 1;
 			}
 			void Release() noexcept
 			{
+				__vcnt &= 0x7FFFFFFF;
 				ED_ASSERT_V(__vcnt > 0, "[mem] address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
 				if (!--__vcnt)
 					delete (T*)this;
@@ -1735,6 +1744,7 @@ namespace Edge
 			std::string GetName() const;
 			void Join(Schema* Other, bool Copy = true, bool Fast = true);
 			void Reserve(size_t Size);
+			void Unlink();
 			void Clear();
 			void Save();
 

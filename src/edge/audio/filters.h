@@ -29,7 +29,7 @@ namespace Edge
 				Core::Unique<AudioFilter> Copy() const override;
 
 			public:
-				ED_COMPONENT("lowpass-filter");
+				ED_COMPONENT("lowpass_filter");
 			};
 
 			class ED_OUT Highpass final : public AudioFilter
@@ -47,7 +47,7 @@ namespace Edge
 				Core::Unique<AudioFilter> Copy() const override;
 
 			public:
-				ED_COMPONENT("highpass-filter");
+				ED_COMPONENT("highpass_filter");
 			};
 
 			class ED_OUT Bandpass final : public AudioFilter
@@ -66,7 +66,7 @@ namespace Edge
 				Core::Unique<AudioFilter> Copy() const override;
 
 			public:
-				ED_COMPONENT("bandpass-filter");
+				ED_COMPONENT("bandpass_filter");
 			};
 		}
 	}

@@ -1814,6 +1814,11 @@ namespace Edge
 			bool GetSection(const std::string& Name, Shader::Desc* Result);
 			bool IsLeftHanded() const;
 			std::string GetShaderMain(ShaderType Type) const;
+			const std::unordered_map<std::string, DepthStencilState*>& GetDepthStencilStates() const;
+			const std::unordered_map<std::string, RasterizerState*>& GetRasterizerStates() const;
+			const std::unordered_map<std::string, BlendState*>& GetBlendStates() const;
+			const std::unordered_map<std::string, SamplerState*>& GetSamplerStates() const;
+			const std::unordered_map<std::string, InputLayout*>& GetInputLayouts() const;
 			DepthStencilState* GetDepthStencilState(const std::string& Name);
 			BlendState* GetBlendState(const std::string& Name);
 			RasterizerState* GetRasterizerState(const std::string& Name);
@@ -1985,6 +1990,7 @@ namespace Edge
 		public:
 			Model() noexcept;
 			~Model() noexcept;
+			void Cleanup();
 			MeshBuffer* FindMesh(const std::string& Name);
 		};
 
@@ -2001,6 +2007,7 @@ namespace Edge
 			SkinModel() noexcept;
 			~SkinModel() noexcept;
 			void ComputePose(PoseBuffer* Map);
+			void Cleanup();
 			SkinMeshBuffer* FindMesh(const std::string& Name);
 			Compute::Joint* FindJoint(const std::string& Name, Compute::Joint* Root = nullptr);
 			Compute::Joint* FindJoint(int64_t Index, Compute::Joint* Root = nullptr);

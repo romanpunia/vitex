@@ -1089,9 +1089,13 @@ namespace Edge
 			template <typename T>
 			Core::Promise<Core::Unique<T>> LoadAsync(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
-				return LoadAsync(GetProcessor<T>(), Path, Keys).Then<typename T*>([](void*&& Result) -> T*
+				Enqueue();
+				return Core::Cotask<T*>([this, Path, Keys]()
 				{
-					return (T*)Result;
+					T* Result = (T*)Load(GetProcessor<T>(), Path, Keys);
+					Dequeue();
+
+					return Result;
 				});
 			}
 			template <typename T>

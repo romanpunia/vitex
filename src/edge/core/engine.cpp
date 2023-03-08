@@ -196,7 +196,7 @@ namespace Edge
 			ED_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("n", Core::Var::Number(Value));
 		}
-		void Series::Pack(Core::Schema* V, uint64_t Value)
+		void Series::Pack(Core::Schema* V, unsigned long long Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
@@ -822,7 +822,7 @@ namespace Edge
 			*O = V->GetVar("[i]").GetInteger();
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, uint64_t* O)
+		bool Series::Unpack(Core::Schema* V, unsigned long long* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)

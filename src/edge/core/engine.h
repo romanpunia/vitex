@@ -343,7 +343,7 @@ namespace Edge
 			static void Pack(Core::Schema* V, double Value);
 			static void Pack(Core::Schema* V, int64_t Value);
 			static void Pack(Core::Schema* V, long double Value);
-			static void Pack(Core::Schema* V, uint64_t Value);
+			static void Pack(Core::Schema* V, unsigned long long Value);
 			static void Pack(Core::Schema* V, const char* Value);
 			static void Pack(Core::Schema* V, const Compute::Vector2& Value);
 			static void Pack(Core::Schema* V, const Compute::Vector3& Value);
@@ -394,7 +394,7 @@ namespace Edge
 			static bool Unpack(Core::Schema* V, double* O);
 			static bool Unpack(Core::Schema* V, int64_t* O);
 			static bool Unpack(Core::Schema* V, long double* O);
-			static bool Unpack(Core::Schema* V, uint64_t* O);
+			static bool Unpack(Core::Schema* V, unsigned long long* O);
 			static bool Unpack(Core::Schema* V, Compute::Vector2* O);
 			static bool Unpack(Core::Schema* V, Compute::Vector3* O);
 			static bool Unpack(Core::Schema* V, Compute::Vector4* O);

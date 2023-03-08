@@ -9755,6 +9755,7 @@ namespace Edge
 				VVector3.SetMethod("vector3 abs() const", &Compute::Vector3::Abs);
 				VVector3.SetMethod("vector3 radians() const", &Compute::Vector3::Radians);
 				VVector3.SetMethod("vector3 degrees() const", &Compute::Vector3::Degrees);
+				VVector3.SetMethod("vector3 view_space() const", &Compute::Vector3::ViewSpace);
 				VVector3.SetMethod("vector2 xy() const", &Compute::Vector3::XY);
 				VVector3.SetMethod("vector3 xyz() const", &Compute::Vector3::XYZ);
 				VVector3.SetMethod<Compute::Vector3, Compute::Vector3, float>("vector3 mul(float) const", &Compute::Vector3::Mul);
@@ -9829,6 +9830,7 @@ namespace Edge
 				VVector4.SetMethod("vector4 abs() const", &Compute::Vector4::Abs);
 				VVector4.SetMethod("vector4 radians() const", &Compute::Vector4::Radians);
 				VVector4.SetMethod("vector4 degrees() const", &Compute::Vector4::Degrees);
+				VVector4.SetMethod("vector4 view_space() const", &Compute::Vector4::ViewSpace);
 				VVector4.SetMethod("vector2 xy() const", &Compute::Vector4::XY);
 				VVector4.SetMethod("vector3 xyz() const", &Compute::Vector4::XYZ);
 				VVector4.SetMethod("vector4 xyzw() const", &Compute::Vector4::XYZW);
@@ -12128,7 +12130,7 @@ namespace Edge
 				VResourceBind.SetValue("unordered_access", (int)Graphics::ResourceBind::Unordered_Access);
 
 				Enumeration VCPUAccess = Engine->SetEnum("cpu_access");
-				VCPUAccess.SetValue("invalid", (int)Graphics::CPUAccess::Invalid);
+				VCPUAccess.SetValue("none", (int)Graphics::CPUAccess::None);
 				VCPUAccess.SetValue("write", (int)Graphics::CPUAccess::Write);
 				VCPUAccess.SetValue("read", (int)Graphics::CPUAccess::Read);
 
@@ -13383,6 +13385,7 @@ namespace Edge
 				VRenderOpt.SetValue("transparent_t", (int)Engine::RenderOpt::Transparent);
 				VRenderOpt.SetValue("static_t", (int)Engine::RenderOpt::Static);
 				VRenderOpt.SetValue("additive_t", (int)Engine::RenderOpt::Additive);
+				VRenderOpt.SetValue("backfaces_t", (int)Engine::RenderOpt::Backfaces);
 
 				Enumeration VRenderCulling = Engine->SetEnum("render_culling");
 				VRenderCulling.SetValue("linear_t", (int)Engine::RenderCulling::Linear);

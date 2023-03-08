@@ -839,6 +839,10 @@ namespace Edge
 		{
 			return (*this) * Mathf::Rad2Deg();
 		}
+		Vector3 Vector3::ViewSpace() const
+		{
+			return InvX().InvZ();
+		}
 		Vector2 Vector3::XY() const
 		{
 			return Vector2(X, Y);
@@ -1330,6 +1334,10 @@ namespace Edge
 		Vector4 Vector4::Degrees() const
 		{
 			return (*this) * Mathf::Rad2Deg();
+		}
+		Vector4 Vector4::ViewSpace() const
+		{
+			return InvX().InvZ();
 		}
 		Vector2 Vector4::XY() const
 		{
@@ -2620,7 +2628,7 @@ namespace Edge
 		Matrix4x4 Matrix4x4::CreateView(const Vector3& Position, const Vector3& Rotation)
 		{
 			return
-				Matrix4x4::CreateTranslation(Position.InvY()) *
+				Matrix4x4::CreateTranslation(-Position) *
 				Matrix4x4::CreateRotationY(Rotation.Y) *
 				Matrix4x4::CreateRotationX(-Rotation.X) *
 				Matrix4x4::CreateScale(Vector3(-1.0f, 1.0f, 1.0f)) *
@@ -8633,7 +8641,7 @@ namespace Edge
 
 			Vector4 Eye = Vector4(Tmp.X - 1.0f, 1.0f - Tmp.Y, 1.0f, 1.0f) * InvProjection;
 			Eye = (Vector4(Eye.X, Eye.Y, 1.0f, 0.0f) * InvView).sNormalize();
-			return Ray(Origin.InvX().InvZ(), Vector3(Eye.X, Eye.Y, Eye.Z));
+			return Ray(Origin, Vector3(Eye.X, Eye.Y, Eye.Z));
 		}
 		bool Geometric::CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale, Vector3* Hit)
 		{

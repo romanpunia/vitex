@@ -20,16 +20,17 @@ VOutput vs_main(VInput V)
 {
 	VOutput Result = (VOutput)0;
 	Result.Position = float4(V.Position, 1.0);
-	Result.TexCoord.xy = V.TexCoord;
+	Result.TexCoord = Result.Position;
 
 	return Result;
 }
 
 float4 ps_main(VOutput V) : SV_TARGET0
 {
-	Fragment Frag = GetFragment(V.TexCoord.xy);
+    float2 UV = GetTexCoord(V.TexCoord);
+	Fragment Frag = GetFragment(UV);
 	Material Mat = Materials[Frag.Material];
-	float3 Normal = GetNormal(V.TexCoord.xy);
+	float3 Normal = GetNormal(UV);
 	float Roughness = GetRoughness(Frag, Mat);
 	float Power = Roughness < Deadzone ? 0.0 : Roughness;
 	float Force = Blur * Power;
@@ -39,11 +40,11 @@ float4 ps_main(VOutput V) : SV_TARGET0
 
 	[loop] for (float i = 0; i < Count; i++)
 	{
-		float2 TexCoord = V.TexCoord.xy + float2(0, FiboDisk[i].x) * Texel * Force;
-		[branch] if (dot(GetNormal(TexCoord), Normal) < Cutoff)
+		float2 T = UV + float2(0, Gaussian[i].x) * Texel * Force;
+		[branch] if (dot(GetNormal(T), Normal) < Cutoff)
 			continue;
 
-		Blurring += Image.SampleLevel(Sampler, TexCoord, 0).xyz;
+		Blurring += Image.SampleLevel(Sampler, T, 0).xyz;
 		Iterations++;
 	}
 

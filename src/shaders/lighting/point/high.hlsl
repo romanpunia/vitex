@@ -22,7 +22,7 @@ float GetPenumbra(float3 D, float L)
 	float Length = 0.0;
 	[unroll] for (float i = 0; i < 16; i++)
 	{
-		float3 TexCoord = D + SampleDisk[i] / Softness;
+		float3 TexCoord = D + SampleDisk[i] * (i / 64.0) / Softness;
 		float S1 = DepthMap.SampleLevel(DepthSampler, TexCoord, 0).x;
 		float S2 = DepthMapGreater.SampleCmpLevelZero(DepthGreaterSampler, TexCoord, L);
 		Length += S1 * S2;

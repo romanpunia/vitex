@@ -429,6 +429,7 @@ namespace Edge
 			Vector3 Abs() const;
 			Vector3 Radians() const;
 			Vector3 Degrees() const;
+			Vector3 ViewSpace() const;
 			Vector2 XY() const;
 			Vector3 XYZ() const;
 			Vector4 XYZW() const;
@@ -542,6 +543,7 @@ namespace Edge
 			Vector4 Abs() const;
 			Vector4 Radians() const;
 			Vector4 Degrees() const;
+			Vector4 ViewSpace() const;
 			Vector2 XY() const;
 			Vector3 XYZ() const;
 			Vector4 XYZW() const;

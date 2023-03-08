@@ -749,8 +749,8 @@ namespace Edge
 				I.Data = (void*)Resource;
 				I.Width = (unsigned int)Width;
 				I.Height = (unsigned int)Height;
-				I.RowPitch = (Width * 32 + 7) / 8;
-				I.DepthPitch = I.RowPitch * Height;
+				I.RowPitch = Device->GetRowPitch(I.Width);
+				I.DepthPitch = Device->GetDepthPitch(I.RowPitch, I.Height);
 				I.MipLevels = Device->GetMipLevel(I.Width, I.Height);
 
 				Graphics::Texture2D* Object = ProcessRendererJob<Graphics::Texture2D>(Device, [&I](Graphics::GraphicsDevice* Device)

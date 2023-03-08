@@ -1944,7 +1944,7 @@ namespace Edge
 				F.MiscFlags = ResourceMisc::None;
 				F.FormatMode = Format::R8G8B8A8_Unorm;
 				F.Usage = ResourceUsage::Default;
-				F.AccessFlags = CPUAccess::Invalid;
+				F.AccessFlags = CPUAccess::None;
 				F.BindFlags = ResourceBind::Render_Target | ResourceBind::Shader_Input;
 				F.RenderSurface = (void*)BackBuffer;
 
@@ -2108,7 +2108,7 @@ namespace Edge
 			void D3D11Device::ImTexture(Texture2D* In)
 			{
 				ViewResource = In;
-				Direct.Padding.Z = 1;
+				Direct.Padding.Z = (In != nullptr);
 			}
 			void D3D11Device::ImColor(float X, float Y, float Z, float W)
 			{

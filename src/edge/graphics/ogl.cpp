@@ -229,6 +229,23 @@ namespace Edge
 			}
 			OGLShader::~OGLShader()
 			{
+				for (auto& Program : Programs)
+				{
+					auto* Device = Program.second;
+					auto It = Device->Register.Programs.begin();
+					while (It != Device->Register.Programs.end())
+					{
+						if (It->second == Program.first)
+						{
+							Device->Register.Programs.erase(It);
+							It = Device->Register.Programs.begin();
+						}
+						else
+							++It;
+					}
+					glDeleteProgram(Program.first);
+				}
+
 				glDeleteShader(VertexShader);
 				glDeleteShader(PixelShader);
 				glDeleteShader(GeometryShader);
@@ -246,6 +263,26 @@ namespace Edge
 			}
 			OGLElementBuffer::~OGLElementBuffer()
 			{
+				for (auto& Link : Bindings)
+				{
+					auto* Layout = Link.second;
+					if (Layout->DynamicResource == Link.first)
+						Layout->DynamicResource = GL_NONE;
+
+					auto It = Layout->Layouts.begin();
+					while (It != Layout->Layouts.end())
+					{
+						if (It->second == Link.first)
+						{
+							Layout->Layouts.erase(It);
+							It = Layout->Layouts.begin();
+						}
+						else
+							++It;
+					}
+					glDeleteVertexArrays(1, &Link.first);
+				}
+
 				glDeleteBuffers(1, &Resource);
 			}
 			void* OGLElementBuffer::GetResource() const
@@ -568,6 +605,7 @@ namespace Edge
 				{
 					glEnable(GL_DEBUG_OUTPUT);
 					glDebugMessageCallback(DebugMessage, nullptr);
+					glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
 				}
 
 				CreateConstantBuffer(&ConstantBuffer[0], sizeof(AnimationBuffer));
@@ -961,6 +999,14 @@ namespace Edge
 					glDeleteProgram(Program);
 					Program = GL_NONE;
 				}
+				else
+				{
+					for (auto* Base : Register.Shaders)
+					{
+						if (Base != nullptr)
+							Base->Programs[Program] = this;
+					}
+				}
 
 				Register.Programs[Name] = Program;
 			}
@@ -1035,30 +1081,34 @@ namespace Edge
 				if (!Count || !HasBuffers || !Register.Layout)
 					return (void)glBindVertexArray(0);
 
+				GLuint Buffer = GL_NONE;
 				if (!DynamicLinkage)
 				{
 					std::string Hash = OGLInputLayout::GetLayoutHash(IResources, Count);
 					auto It = Register.Layout->Layouts.find(Hash);
 					if (It == Register.Layout->Layouts.end())
 					{
-						GLuint Buffer;
 						glGenVertexArrays(1, &Buffer);
 						glBindVertexArray(Buffer);
 						Register.Layout->Layouts[Hash] = Buffer;
 						DynamicLinkage = true;
 					}
 					else
-						glBindVertexArray(It->second);
-
-					if (!DynamicLinkage)
-						return;
+						Buffer = It->second;
 				}
 				else
 				{
 					if (Register.Layout->DynamicResource == GL_NONE)
+					{
 						glGenVertexArrays(1, &Register.Layout->DynamicResource);
-					glBindVertexArray(Register.Layout->DynamicResource);
+						DynamicLinkage = true;
+					}
+					Buffer = Register.Layout->DynamicResource;
 				}
+
+				glBindVertexArray(Buffer);
+				if (!DynamicLinkage)
+					return;
 
 				ED_ASSERT_V(Count <= Register.Layout->VertexLayout.size(), "too many vertex buffers are being bound: %llu out of %llu", (uint64_t)Count, (uint64_t)Register.Layout->VertexLayout.size());
 				for (unsigned int i = 0; i < Count; i++)
@@ -1067,6 +1117,7 @@ namespace Edge
 					if (!IResource)
 						continue;
 
+					IResource->Bindings[Buffer] = Register.Layout;
 					glBindBuffer(GL_ARRAY_BUFFER, IResource->Resource);
 					for (auto& Attribute : Register.Layout->VertexLayout[i])
 						Attribute(IResource->Stride);
@@ -1376,8 +1427,8 @@ namespace Edge
 				GLint Size;
 				glGetBufferParameteriv(IResource->Flags, GL_BUFFER_SIZE, &Size);
 				Map->Pointer = glMapBuffer(IResource->Flags, OGLDevice::GetResourceMap(Mode));
-				Map->RowPitch = Size;
-				Map->DepthPitch = 1;
+				Map->RowPitch = GetRowPitch(1, (unsigned int)Size);
+				Map->DepthPitch = GetDepthPitch(Map->RowPitch, 1);
 
 				return Map->Pointer != nullptr;
 			}
@@ -1559,11 +1610,21 @@ namespace Edge
 			}
 			void OGLDevice::ClearDepth(DepthTarget2D* Resource)
 			{
-				glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+				ED_ASSERT_V(Resource != nullptr, "resource should be set");
+				OGLDepthTarget2D* IResource = (OGLDepthTarget2D*)Resource;
+				if (IResource->HasStencilBuffer)
+					glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+				else
+					glClear(GL_DEPTH_BUFFER_BIT);
 			}
 			void OGLDevice::ClearDepth(DepthTargetCube* Resource)
 			{
-				glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+				ED_ASSERT_V(Resource != nullptr, "resource should be set");
+				OGLDepthTargetCube* IResource = (OGLDepthTargetCube*)Resource;
+				if (IResource->HasStencilBuffer)
+					glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+				else
+					glClear(GL_DEPTH_BUFFER_BIT);
 			}
 			void OGLDevice::ClearDepth(Graphics::RenderTarget* Resource)
 			{
@@ -1657,8 +1718,8 @@ namespace Edge
 					Texture2D::Desc F;
 					F.Width = (unsigned int)Width;
 					F.Height = (unsigned int)Height;
-					F.RowPitch = (Width * 32 + 7) / 8;
-					F.DepthPitch = F.RowPitch * Height;
+					F.RowPitch = GetRowPitch(F.Width);
+					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
 					F.MipLevels = GetMipLevel(F.Width, F.Height);
 					*Result = (OGLTexture2D*)CreateTexture2D(F);
 				}
@@ -1711,8 +1772,8 @@ namespace Edge
 					Texture2D::Desc F;
 					F.Width = (unsigned int)Width;
 					F.Height = (unsigned int)Height;
-					F.RowPitch = (Width * 32 + 7) / 8;
-					F.DepthPitch = F.RowPitch * Height;
+					F.RowPitch = GetRowPitch(F.Width);
+					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
 					F.MipLevels = GetMipLevel(F.Width, F.Height);
 					*Result = (OGLTexture2D*)CreateTexture2D(F);
 				}
@@ -1742,8 +1803,8 @@ namespace Edge
 					Texture2D::Desc F;
 					F.Width = (unsigned int)Width;
 					F.Height = (unsigned int)Height;
-					F.RowPitch = (Width * 32 + 7) / 8;
-					F.DepthPitch = F.RowPitch * Height;
+					F.RowPitch = GetRowPitch(F.Width);
+					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
 					F.MipLevels = GetMipLevel(F.Width, F.Height);
 					*Result = (OGLTexture2D*)CreateTexture2D(F);
 				}
@@ -1771,8 +1832,8 @@ namespace Edge
 					Texture2D::Desc F;
 					F.Width = (unsigned int)Width;
 					F.Height = (unsigned int)Height;
-					F.RowPitch = (Width * 32 + 7) / 8;
-					F.DepthPitch = F.RowPitch * Height;
+					F.RowPitch = GetRowPitch(F.Width);
+					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
 					F.MipLevels = GetMipLevel(F.Width, F.Height);
 					*Result = (OGLTexture2D*)CreateTexture2D(F);
 				}
@@ -2019,7 +2080,7 @@ namespace Edge
 				F.MiscFlags = ResourceMisc::None;
 				F.FormatMode = Format::R8G8B8A8_Unorm;
 				F.Usage = ResourceUsage::Default;
-				F.AccessFlags = CPUAccess::Invalid;
+				F.AccessFlags = CPUAccess::None;
 				F.BindFlags = ResourceBind::Render_Target | ResourceBind::Shader_Input;
 				F.RenderSurface = (void*)this;
 
@@ -2245,11 +2306,11 @@ namespace Edge
 				if (Elements.size() > MaxElements && !CreateDirectBuffer(Elements.size()))
 					return false;
 
-				GLint LastVAO = 0, LastVBO = 0;
+				GLint LastVAO = GL_NONE, LastVBO = GL_NONE, LastSampler = GL_NONE;
 				glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &LastVAO);
 				glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &LastVBO);
 
-				GLint LastProgram = 0, LastTexture = GL_NONE;
+				GLint LastProgram = GL_NONE, LastTexture = GL_NONE;
 				glGetIntegerv(GL_CURRENT_PROGRAM, &LastProgram);
 
 				glBindBuffer(GL_ARRAY_BUFFER, Immediate.VertexBuffer);
@@ -2257,17 +2318,21 @@ namespace Edge
 				memcpy(Data, Elements.data(), (size_t)Elements.size() * sizeof(Vertex));
 				glUnmapBuffer(GL_ARRAY_BUFFER);
 
+				const GLuint ImageSlot = 1;
 				glBindBuffer(GL_ARRAY_BUFFER, LastVBO);
 				glUseProgram(Immediate.Program);
 				glUniformMatrix4fv(0, 1, GL_FALSE, (const GLfloat*)&Direct.Transform.Row);
-				glUniform4fARB(1, Direct.Padding.X, Direct.Padding.Y, Direct.Padding.Z, Direct.Padding.W);
-				glActiveTexture(GL_TEXTURE1);
+				glUniform4fARB(2, Direct.Padding.X, Direct.Padding.Y, Direct.Padding.Z, Direct.Padding.W);	
+				glActiveTexture(GL_TEXTURE0 + ImageSlot);
+				glGetIntegerv(GL_SAMPLER_BINDING, &LastSampler);
 				glGetIntegerv(GL_TEXTURE_BINDING_2D, &LastTexture);
 				glBindTexture(GL_TEXTURE_2D, IResource ? IResource->Resource : GL_NONE);
+				glBindSampler(ImageSlot, Immediate.Sampler);
 				glBindVertexArray(Immediate.VertexArray);
 				glDrawArrays(GetPrimitiveTopologyDraw(Primitives), 0, (GLsizei)Elements.size());
 				glBindVertexArray(LastVAO);
 				glUseProgram(LastProgram);
+				glBindSampler(ImageSlot, LastSampler);
 				glBindTexture(GL_TEXTURE_2D, LastTexture);
 
 				return true;
@@ -2955,14 +3020,15 @@ namespace Edge
 				DepthStencil->Width = I.Width;
 				DepthStencil->Height = I.Height;
 				DepthStencil->Resource = Result->DepthTexture;
+				Result->HasStencilBuffer = (I.FormatMode != Format::D16_Unorm && I.FormatMode != Format::D32_Float);
 				Result->Resource = DepthStencil;
 
 				glGenFramebuffers(1, &Result->FrameBuffer);
 				glBindFramebuffer(GL_FRAMEBUFFER, Result->FrameBuffer);
-				if (I.FormatMode == Format::D16_Unorm || I.FormatMode == Format::D32_Float)
-					glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Result->DepthTexture, 0);
-				else
+				if (Result->HasStencilBuffer)
 					glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, Result->DepthTexture, 0);
+				else
+					glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Result->DepthTexture, 0);
 				glBindFramebuffer(GL_FRAMEBUFFER, GL_NONE);
 				glBindTexture(GL_TEXTURE_2D, GL_NONE);
 
@@ -3007,14 +3073,15 @@ namespace Edge
 				DepthStencil->Width = I.Size;
 				DepthStencil->Height = I.Size;
 				DepthStencil->Resource = Result->DepthTexture;
+				Result->HasStencilBuffer = (I.FormatMode != Format::D16_Unorm && I.FormatMode != Format::D32_Float);
 				Result->Resource = DepthStencil;
 
 				glGenFramebuffers(1, &Result->FrameBuffer);
 				glBindFramebuffer(GL_FRAMEBUFFER, Result->FrameBuffer);
-				if (I.FormatMode == Format::D16_Unorm || I.FormatMode == Format::D32_Float)
-					glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Result->DepthTexture, 0);
-				else
+				if (Result->HasStencilBuffer)
 					glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, Result->DepthTexture, 0);
+				else
+					glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Result->DepthTexture, 0);
 				glBindFramebuffer(GL_FRAMEBUFFER, GL_NONE);
 				glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
 
@@ -3082,15 +3149,8 @@ namespace Edge
 
 					glGenFramebuffers(1, &Result->FrameBuffer.Buffer);
 					glBindFramebuffer(GL_FRAMEBUFFER, Result->FrameBuffer.Buffer);
-					if (I.FormatMode != Format::D16_Unorm && I.FormatMode != Format::D32_Float && I.FormatMode != Format::D24_Unorm_S8_Uint)
-					{
-						glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, Result->FrameBuffer.Texture[0], 0);
-						glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, Result->DepthTexture, 0);
-					}
-					else if (I.FormatMode == Format::D16_Unorm || I.FormatMode == Format::D32_Float)
-						glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Result->FrameBuffer.Texture[0], 0);
-					else
-						glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, Result->FrameBuffer.Texture[0], 0);
+					glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, Result->FrameBuffer.Texture[0], 0);
+					glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, Result->DepthTexture, 0);
 					glBindFramebuffer(GL_FRAMEBUFFER, GL_NONE);
 					glBindTexture(GL_TEXTURE_2D, GL_NONE);
 				}
@@ -3246,26 +3306,19 @@ namespace Edge
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + 4, 0, GL_DEPTH24_STENCIL8, I.Size, I.Size, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0);
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + 5, 0, GL_DEPTH24_STENCIL8, I.Size, I.Size, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0);
 
-				OGLTexture2D* Subbase = (OGLTexture2D*)CreateTexture2D();
-				Subbase->FormatMode = Format::D24_Unorm_S8_Uint;
-				Subbase->Format = GL_DEPTH24_STENCIL8;
-				Subbase->MipLevels = 0;
-				Subbase->Resource = Result->DepthTexture;
-				Subbase->Width = I.Size;
-				Subbase->Height = I.Size;
-				Result->DepthStencil = Subbase;
+				OGLTexture2D* DepthStencil = (OGLTexture2D*)CreateTexture2D();
+				DepthStencil->FormatMode = Format::D24_Unorm_S8_Uint;
+				DepthStencil->Format = GL_DEPTH24_STENCIL8;
+				DepthStencil->MipLevels = 0;
+				DepthStencil->Resource = Result->DepthTexture;
+				DepthStencil->Width = I.Size;
+				DepthStencil->Height = I.Size;
+				Result->DepthStencil = DepthStencil;
 
 				glGenFramebuffers(1, &Result->FrameBuffer.Buffer);
 				glBindFramebuffer(GL_FRAMEBUFFER, Result->FrameBuffer.Buffer);
-				if (I.FormatMode != Format::D16_Unorm && I.FormatMode != Format::D32_Float && I.FormatMode != Format::D24_Unorm_S8_Uint)
-				{
-					glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, Result->FrameBuffer.Texture[0], 0);
-					glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, Result->DepthTexture, 0);
-				}
-				else if (I.FormatMode == Format::D16_Unorm || I.FormatMode == Format::D32_Float)
-					glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Result->FrameBuffer.Texture[0], 0);
-				else
-					glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, Result->FrameBuffer.Texture[0], 0);
+				glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, Result->FrameBuffer.Texture[0], 0);
+				glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, Result->DepthTexture, 0);
 				glBindFramebuffer(GL_FRAMEBUFFER, GL_NONE);
 				glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
 
@@ -3456,16 +3509,23 @@ namespace Edge
 			}
 			bool OGLDevice::CreateDirectBuffer(size_t Size)
 			{
-				MaxElements = Size;
+				MaxElements = Size + 1;
 				SetInputLayout(nullptr);
 				SetVertexBuffers(nullptr, 0);
 				SetIndexBuffer(nullptr, Format::Unknown);
 
 				GLint StatusCode;
+				if (!Immediate.Sampler)
+				{
+					OGLSamplerState* State = (OGLSamplerState*)GetSamplerState("trilinear-x16");
+					if (State != nullptr)
+						Immediate.Sampler = State->Resource;
+				}
+
 				if (Immediate.VertexShader == GL_NONE)
 				{
 					static const char* VertexShaderCode = OGL_INLINE(
-						layout(location = 0) uniform mat4 Transform;
+					layout(location = 0) uniform mat4 Transform;
 
 					layout(location = 0) in vec3 iPosition;
 					layout(location = 1) in vec2 iTexCoord;
@@ -3506,8 +3566,8 @@ namespace Edge
 				if (Immediate.PixelShader == GL_NONE)
 				{
 					static const char* PixelShaderCode = OGL_INLINE(
-						layout(binding = 1) uniform sampler2D Diffuse;
-					layout(location = 1) uniform vec4 Padding;
+					layout(binding = 1) uniform sampler2D Diffuse;
+					layout(location = 2) uniform vec4 Padding;
 
 					in vec2 oTexCoord;
 					in vec4 oColor;
@@ -3517,7 +3577,7 @@ namespace Edge
 					void main()
 					{
 						if (Padding.z > 0)
-							oResult = oColor * texture2D(Diffuse, oTexCoord + Padding.xy) * Padding.w;
+							oResult = oColor * textureLod(Diffuse, oTexCoord + Padding.xy, 0.0) * Padding.w;
 						else
 							oResult = oColor * Padding.w;
 					});
@@ -3567,10 +3627,6 @@ namespace Edge
 
 						return false;
 					}
-
-					glUseProgram(Immediate.Program);
-					glUniform1iARB(2, 0);
-					glUseProgram(0);
 				}
 
 				if (Immediate.VertexArray != GL_NONE)
@@ -3675,7 +3731,7 @@ namespace Edge
 						{
 							case Edge::Graphics::CPUAccess::Read:
 								return GL_STATIC_READ;
-							case Edge::Graphics::CPUAccess::Invalid:
+							case Edge::Graphics::CPUAccess::None:
 							case Edge::Graphics::CPUAccess::Write:
 							default:
 								return GL_STATIC_DRAW;
@@ -3687,7 +3743,7 @@ namespace Edge
 						{
 							case Edge::Graphics::CPUAccess::Read:
 								return GL_DYNAMIC_READ;
-							case Edge::Graphics::CPUAccess::Invalid:
+							case Edge::Graphics::CPUAccess::None:
 							case Edge::Graphics::CPUAccess::Write:
 							default:
 								return GL_DYNAMIC_DRAW;
@@ -4237,7 +4293,8 @@ namespace Edge
 			}
 			void OGLDevice::DebugMessage(GLenum Source, GLenum Type, GLuint Id, GLenum Severity, GLsizei Length, const GLchar* Message, const void* Data)
 			{
-				if (Type == GL_DEBUG_TYPE_PERFORMANCE)
+				static const GLuint NullTextureCannotBeSampled = 131204;
+				if (Id == NullTextureCannotBeSampled)
 					return;
 
 				const char* _Source, * _Type;

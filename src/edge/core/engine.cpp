@@ -196,7 +196,7 @@ namespace Edge
 			ED_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("n", Core::Var::Number(Value));
 		}
-		void Series::Pack(Core::Schema* V, unsigned long long Value)
+		void Series::Pack(Core::Schema* V, uint64_t Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
@@ -822,13 +822,13 @@ namespace Edge
 			*O = V->GetVar("[i]").GetInteger();
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, unsigned long long* O)
+		bool Series::Unpack(Core::Schema* V, uint64_t* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			*O = (unsigned long long)V->GetVar("[i]").GetInteger();
+			*O = (uint64_t)V->GetVar("[i]").GetInteger();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::Vector2* O)
@@ -2054,8 +2054,8 @@ namespace Edge
 
 			if (!Index)
 			{
-				Snapshot.Min = -0.5f;
-				Snapshot.Max = 0.5f;
+				Snapshot.Min = -1.0f;
+				Snapshot.Max = 1.0f;
 			}
 
 			Transform->GetBounds(Snapshot.Box, Snapshot.Min, Snapshot.Max);
@@ -3057,7 +3057,7 @@ namespace Edge
 			Compute::Geometric::TexCoordRhToLh(Elements);
 
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess::Invalid;
+			F.AccessFlags = Graphics::CPUAccess::None;
 			F.Usage = Graphics::ResourceUsage::Default;
 			F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 			F.ElementCount = 6;
@@ -3098,7 +3098,7 @@ namespace Edge
 				};
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.AccessFlags = Graphics::CPUAccess::None;
 				F.Usage = Graphics::ResourceUsage::Default;
 				F.BindFlags = Graphics::ResourceBind::Index_Buffer;
 				F.ElementCount = (unsigned int)Indices.size();
@@ -3134,7 +3134,7 @@ namespace Edge
 				};
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.AccessFlags = Graphics::CPUAccess::None;
 				F.Usage = Graphics::ResourceUsage::Default;
 				F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 				F.ElementCount = (unsigned int)Elements.size();
@@ -3172,7 +3172,7 @@ namespace Edge
 				};
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.AccessFlags = Graphics::CPUAccess::None;
 				F.Usage = Graphics::ResourceUsage::Default;
 				F.BindFlags = Graphics::ResourceBind::Index_Buffer;
 				F.ElementCount = (unsigned int)Indices.size();
@@ -3189,35 +3189,35 @@ namespace Edge
 			{
 				std::vector<Compute::ShapeVertex> Elements
 				{
-					{ -1, 1, 1, 0.875, -0.5 },
-					{ 1, -1, 1, 0.625, -0.75 },
-					{ 1, 1, 1, 0.625, -0.5 },
-					{ 1, -1, 1, 0.625, -0.75 },
-					{ -1, -1, -1, 0.375, -1 },
-					{ 1, -1, -1, 0.375, -0.75 },
-					{ -1, -1, 1, 0.625, -0 },
-					{ -1, 1, -1, 0.375, -0.25 },
-					{ -1, -1, -1, 0.375, -0 },
-					{ 1, 1, -1, 0.375, -0.5 },
-					{ -1, -1, -1, 0.125, -0.75 },
-					{ -1, 1, -1, 0.125, -0.5 },
-					{ 1, 1, 1, 0.625, -0.5 },
-					{ 1, -1, -1, 0.375, -0.75 },
-					{ 1, 1, -1, 0.375, -0.5 },
-					{ -1, 1, 1, 0.625, -0.25 },
-					{ 1, 1, -1, 0.375, -0.5 },
-					{ -1, 1, -1, 0.375, -0.25 },
-					{ -1, -1, 1, 0.875, -0.75 },
-					{ -1, -1, 1, 0.625, -1 },
-					{ -1, 1, 1, 0.625, -0.25 },
-					{ 1, -1, -1, 0.375, -0.75 },
-					{ 1, -1, 1, 0.625, -0.75 },
-					{ 1, 1, 1, 0.625, -0.5 }
+					{ 1, 1, 1, 0.875, -0.5 },
+					{ -1, -1, 1, 0.625, -0.75 },
+					{ -1, 1, 1, 0.625, -0.5 },
+					{ -1, -1, 1, 0.625, -0.75 },
+					{ 1, -1, -1, 0.375, -1 },
+					{ -1, -1, -1, 0.375, -0.75 },
+					{ 1, -1, 1, 0.625, -0 },
+					{ 1, 1, -1, 0.375, -0.25 },
+					{ 1, -1, -1, 0.375, -0 },
+					{ -1, 1, -1, 0.375, -0.5 },
+					{ 1, -1, -1, 0.125, -0.75 },
+					{ 1, 1, -1, 0.125, -0.5 },
+					{ -1, 1, 1, 0.625, -0.5 },
+					{ -1, -1, -1, 0.375, -0.75 },
+					{ -1, 1, -1, 0.375, -0.5 },
+					{ 1, 1, 1, 0.625, -0.25 },
+					{ -1, 1, -1, 0.375, -0.5 },
+					{ 1, 1, -1, 0.375, -0.25 },
+					{ 1, -1, 1, 0.875, -0.75 },
+					{ 1, -1, 1, 0.625, -1 },
+					{ 1, 1, 1, 0.625, -0.25 },
+					{ -1, -1, -1, 0.375, -0.75 },
+					{ -1, -1, 1, 0.625, -0.75 },
+					{ -1, 1, 1, 0.625, -0.5 }
 				};
 				Compute::Geometric::TexCoordRhToLh(Elements);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.AccessFlags = Graphics::CPUAccess::None;
 				F.Usage = Graphics::ResourceUsage::Default;
 				F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 				F.ElementCount = (unsigned int)Elements.size();
@@ -3255,7 +3255,7 @@ namespace Edge
 				};
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.AccessFlags = Graphics::CPUAccess::None;
 				F.Usage = Graphics::ResourceUsage::Default;
 				F.BindFlags = Graphics::ResourceBind::Index_Buffer;
 				F.ElementCount = (unsigned int)Indices.size();
@@ -3300,7 +3300,7 @@ namespace Edge
 				Compute::Geometric::TexCoordRhToLh(Elements);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.AccessFlags = Graphics::CPUAccess::None;
 				F.Usage = Graphics::ResourceUsage::Default;
 				F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 				F.ElementCount = (unsigned int)Elements.size();
@@ -3338,7 +3338,7 @@ namespace Edge
 				};
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.AccessFlags = Graphics::CPUAccess::None;
 				F.Usage = Graphics::ResourceUsage::Default;
 				F.BindFlags = Graphics::ResourceBind::Index_Buffer;
 				F.ElementCount = (unsigned int)Indices.size();
@@ -3383,7 +3383,7 @@ namespace Edge
 				Compute::Geometric::TexCoordRhToLh(Elements);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.AccessFlags = Graphics::CPUAccess::None;
 				F.Usage = Graphics::ResourceUsage::Default;
 				F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 				F.ElementCount = (unsigned int)Elements.size();
@@ -5311,6 +5311,8 @@ namespace Edge
 				if (Core::OS::File::IsExists(File.c_str()))
 				{
 					std::string Subpath = Environment + File;
+					Subpath = Core::OS::Path::Resolve(Subpath.c_str());
+
 					if (Core::OS::File::IsExists(Subpath.c_str()))
 						File = Subpath;
 				}
@@ -6255,7 +6257,9 @@ namespace Edge
 			DepthStencil = Device->GetDepthStencilState("none");
 			Rasterizer = Device->GetRasterizerState("cull-back");
 			Blend = Device->GetBlendState("overwrite-opaque");
-			Sampler = Device->GetSamplerState("trilinear-x16");
+			SamplerWrap = Device->GetSamplerState("trilinear-x16");
+			SamplerClamp = Device->GetSamplerState("trilinear-x16-clamp");
+			SamplerMirror = Device->GetSamplerState("trilinear-x16-mirror");
 			Layout = Device->GetInputLayout("shape-vertex");
 		}
 		EffectRenderer::~EffectRenderer() noexcept
@@ -6331,9 +6335,15 @@ namespace Edge
 			Graphics::Texture2D** Merger = System->GetMerger();
 
 			if (Swap != nullptr && Output != Swap)
+			{
+				Device->SetTexture2D(nullptr, 5, ED_PS);
 				Device->SetTexture2D(Swap->GetTarget(), 5, ED_PS);
+			}
 			else if (Merger != nullptr)
+			{
+				Device->SetTexture2D(nullptr, 5, ED_PS);
 				Device->SetTexture2D(*Merger, 5, ED_PS);
+			}
 
 			Device->SetShader(Effect, ED_VS | ED_PS);
 			if (Buffer != nullptr)
@@ -6364,9 +6374,15 @@ namespace Edge
 			Graphics::Texture2D** Merger = System->GetMerger();
 
 			if (Swap != nullptr && Output != Swap)
+			{
+				Device->SetTexture2D(nullptr, 5, ED_PS);
 				Device->SetTexture2D(Swap->GetTarget(), 5, ED_PS);
+			}
 			else if (Merger != nullptr)
+			{
+				Device->SetTexture2D(nullptr, 5, ED_PS);
 				Device->SetTexture2D(*Merger, 5, ED_PS);
+			}
 
 			Device->SetShader(Effect, ED_VS | ED_PS);
 			if (Buffer != nullptr)
@@ -6400,6 +6416,21 @@ namespace Edge
 		}
 		void EffectRenderer::RenderEffect(Core::Timer* Time)
 		{
+		}
+		void EffectRenderer::SampleWrap()
+		{
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Device->SetSamplerState(SamplerWrap, 1, MaxSlot, ED_PS);
+		}
+		void EffectRenderer::SampleClamp()
+		{
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Device->SetSamplerState(SamplerClamp, 1, MaxSlot, ED_PS);
+		}
+		void EffectRenderer::SampleMirror()
+		{
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Device->SetSamplerState(SamplerMirror, 1, MaxSlot, ED_PS);
 		}
 		void EffectRenderer::GenerateMips()
 		{
@@ -6436,7 +6467,7 @@ namespace Edge
 			Device->SetRasterizerState(Rasterizer);
 			Device->SetInputLayout(Layout);
 			Device->SetTarget(Output, 0, 0, 0, 0);
-			Device->SetSamplerState(Sampler, 1, MaxSlot, ED_PS);
+			Device->SetSamplerState(SamplerWrap, 1, MaxSlot, ED_PS);
 			Device->SetTexture2D(Input->GetTarget(0), 1, ED_PS);
 			Device->SetTexture2D(Input->GetTarget(1), 2, ED_PS);
 			Device->SetTexture2D(Input->GetTarget(2), 3, ED_PS);

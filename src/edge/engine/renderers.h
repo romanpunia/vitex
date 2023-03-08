@@ -578,7 +578,7 @@ namespace Edge
 					float Power = 1.000f;
 					float Texel[2] = { 1.0f, 1.0f };
 					float Samples = 14.000f;
-					float Blur = 64.000f;
+					float Blur = 8.000f;
 				} Fibo;
 
 			public:

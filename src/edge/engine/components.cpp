@@ -254,6 +254,8 @@ namespace Edge
 				Instance = Scene->GetSimulator()->CreateRigidBody(I, Parent->GetTransform());
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
+
+				GetEntity()->GetTransform()->MakeDirty();
 			}
 			void RigidBody::Load(const std::string& Path, float Mass, float Anticipation, const std::function<void()>& Callback)
 			{
@@ -266,6 +268,7 @@ namespace Edge
 					else
 						Clear();
 
+					GetEntity()->GetTransform()->MakeDirty();
 					if (Callback)
 						Callback();
 				});
@@ -668,6 +671,7 @@ namespace Edge
 
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
+				GetEntity()->GetTransform()->MakeDirty();
 			}
 			void SoftBody::Load(const std::string& Path, float Anticipation, const std::function<void()>& Callback)
 			{
@@ -678,6 +682,7 @@ namespace Edge
 					else
 						Clear();
 
+					GetEntity()->GetTransform()->MakeDirty();
 					if (Callback)
 						Callback();
 				});
@@ -1270,6 +1275,8 @@ namespace Edge
 							}
 						}
 					}
+
+					GetEntity()->GetTransform()->MakeDirty();
 					Node->Release();
 				});
 			}
@@ -1389,6 +1396,8 @@ namespace Edge
 							}
 						}
 					}
+
+					GetEntity()->GetTransform()->MakeDirty();
 					Node->Release();
 				});
 			}
@@ -1755,6 +1764,7 @@ namespace Edge
 					else
 						ClearAnimation();
 
+					GetEntity()->GetTransform()->MakeDirty();
 					ED_RELEASE(Result);
 					if (Callback)
 						Callback(IsSuccess);
@@ -1979,6 +1989,7 @@ namespace Edge
 					else
 						Reference.clear();
 
+					GetEntity()->GetTransform()->MakeDirty();
 					ED_RELEASE(Result);
 					if (Callback)
 						Callback(!Reference.empty());
@@ -2202,7 +2213,7 @@ namespace Edge
 				float MinX = 0.0f, MaxX = 0.0f;
 				float MinY = 0.0f, MaxY = 0.0f;
 				float MinZ = 0.0f, MaxZ = 0.0f;
-				float Accelerate = Velocity.Length();
+				float Accelerate = Velocity.X != 0.0f || Velocity.Y != 0.0f || Velocity.Z != 0.0f ? Velocity.Length() : 0.0f;
 				auto Begin = Array.begin();
 				auto End = Array.end();
 
@@ -2212,20 +2223,16 @@ namespace Edge
 					Compute::Vector3 NextNoise = Spawner.Noise.Generate() / Noise;
 					Compute::Vector3 NextPosition(It->PositionX, It->PositionY, It->PositionZ);
 					Compute::Vector4 NextDiffuse(It->ColorX, It->ColorY, It->ColorZ, It->ColorW);
+					NextVelocity -= (NextVelocity * Velocity) * Step;
 					NextPosition += (NextVelocity + Position + NextNoise) * Step;
 					NextDiffuse += Diffuse * Step;
+					memcpy(&It->VelocityX, &NextVelocity, sizeof(float) * 3);
 					memcpy(&It->PositionX, &NextPosition, sizeof(float) * 3);
 					memcpy(&It->ColorX, &NextDiffuse, sizeof(float) * 4);
 					It->Rotation += (It->Angular + RotationSpeed) * Step;
 					It->Scale += ScaleSpeed * Step;
 
-					if (Accelerate > 0.0f)
-					{
-						NextVelocity -= (NextVelocity / Velocity) * Step;
-						memcpy(&It->VelocityX, &NextVelocity, sizeof(float) * 3);
-					}
-
-					if (It->ColorW > 0.0f && It->Scale > 0.0f)
+					if (It->ColorW > 0.001f && It->Scale > 0.001f)
 					{
 						if (It->PositionX < MinX)
 							MinX = It->PositionX;
@@ -2244,7 +2251,11 @@ namespace Edge
 						++It;
 					}
 					else
+					{
 						It = Array.erase(It);
+						Begin = Array.begin();
+						End = Array.end();
+					}
 				}
 
 				Base->Min = Compute::Vector3(MinX, MinY, MinZ);
@@ -2256,7 +2267,7 @@ namespace Edge
 				float MinX = 0.0f, MaxX = 0.0f;
 				float MinY = 0.0f, MaxY = 0.0f;
 				float MinZ = 0.0f, MaxZ = 0.0f;
-				float Accelerate = Velocity.Length();
+				float Accelerate = Velocity.X != 0.0f || Velocity.Y != 0.0f || Velocity.Z != 0.0f ? Velocity.Length() : 0.0f;
 				auto Begin = Array.begin();
 				auto End = Array.end();
 
@@ -2265,20 +2276,16 @@ namespace Edge
 					Compute::Vector3 NextVelocity(It->VelocityX, It->VelocityY, It->VelocityZ);
 					Compute::Vector3 NextPosition(It->PositionX, It->PositionY, It->PositionZ);
 					Compute::Vector4 NextDiffuse(It->ColorX, It->ColorY, It->ColorZ, It->ColorW);
+					NextVelocity -= (NextVelocity * Velocity) * Step;
 					NextPosition += (NextVelocity + Position) * Step;
 					NextDiffuse += Diffuse * Step;
+					memcpy(&It->VelocityX, &NextVelocity, sizeof(float) * 3);
 					memcpy(&It->PositionX, &NextPosition, sizeof(float) * 3);
 					memcpy(&It->ColorX, &NextDiffuse, sizeof(float) * 4);
 					It->Rotation += (It->Angular + RotationSpeed) * Step;
 					It->Scale += ScaleSpeed * Step;
 
-					if (Accelerate > 0.0f)
-					{
-						NextVelocity -= (NextVelocity / Velocity) * Step;
-						memcpy(&It->VelocityX, &NextVelocity, sizeof(float) * 3);
-					}
-
-					if (It->ColorW > 0.0f && It->Scale > 0.0f)
+					if (It->ColorW > 0.001f && It->Scale > 0.001f)
 					{
 						if (It->PositionX < MinX)
 							MinX = It->PositionX;
@@ -2297,7 +2304,11 @@ namespace Edge
 						++It;
 					}
 					else
+					{
 						It = Array.erase(It);
+						Begin = Array.begin();
+						End = Array.end();
+					}
 				}
 
 				Base->Min = Compute::Vector3(MinX, MinY, MinZ);
@@ -2376,19 +2387,19 @@ namespace Edge
 				Compute::Vector3 NewVelocity;
 
 				if (Activity->IsKeyDown(Forward))
-					NewVelocity += Transform->Forward();
+					NewVelocity += Transform->Forward().ViewSpace();
 				else if (Activity->IsKeyDown(Backward))
-					NewVelocity -= Transform->Forward();
+					NewVelocity -= Transform->Forward().ViewSpace();
 
 				if (Activity->IsKeyDown(Right))
-					NewVelocity += Transform->Right();
+					NewVelocity += Transform->Right().ViewSpace();
 				else if (Activity->IsKeyDown(Left))
-					NewVelocity -= Transform->Right();
+					NewVelocity -= Transform->Right().ViewSpace();
 
 				if (Activity->IsKeyDown(Up))
-					NewVelocity += Transform->Up();
+					NewVelocity += Transform->Up().ViewSpace();
 				else if (Activity->IsKeyDown(Down))
-					NewVelocity -= Transform->Up();
+					NewVelocity -= Transform->Up().ViewSpace();
 
 				float Step = Time->GetStep();
 				if (NewVelocity.Length() > 0.001f)
@@ -2493,6 +2504,7 @@ namespace Edge
 
 					ApplyPlayingPosition();
 					Synchronize(nullptr);
+					GetEntity()->GetTransform()->MakeDirty();
 					Node->Release();
 				});
 			}
@@ -2682,8 +2694,7 @@ namespace Edge
 			void PointLight::GenerateOrigin()
 			{
 				auto* Transform = Parent->GetTransform();
-				if (Transform->IsDirty())
-					View = Compute::Matrix4x4::CreateTranslation(Transform->GetPosition());
+				View = Compute::Matrix4x4::CreateTranslation(Transform->GetPosition());
 				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, Shadow.Distance);
 			}
 			void PointLight::SetSize(const Attenuation& Value)
@@ -2696,7 +2707,7 @@ namespace Edge
 				return Size;
 			}
 
-			SpotLight::SpotLight(Entity* Ref) : Component(Ref, ActorSet::Synchronize)
+			SpotLight::SpotLight(Entity* Ref) : Component(Ref, ActorSet::Cullable | ActorSet::Synchronize)
 			{
 			}
 			void SpotLight::Deserialize(Core::Schema* Node)
@@ -2766,11 +2777,8 @@ namespace Edge
 			void SpotLight::GenerateOrigin()
 			{
 				auto* Transform = Parent->GetTransform();
-				if (Transform->IsDirty())
-				{
-					auto& Space = Transform->GetSpacing(Compute::Positioning::Global);
-					View = Compute::Matrix4x4::CreateView(Space.Position, Space.Rotation);
-				}
+				auto& Space = Transform->GetSpacing(Compute::Positioning::Global);
+				View = Compute::Matrix4x4::CreateView(Space.Position, Space.Rotation.InvY());
 				Projection = Compute::Matrix4x4::CreatePerspective(Cutoff, 1, 0.1f, Shadow.Distance);
 			}
 			void SpotLight::SetSize(const Attenuation& Value)

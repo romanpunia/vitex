@@ -30,7 +30,7 @@ float4 ps_main(VOutput V) : SV_TARGET0
 
 	[loop] for (float i = 1.0; i < Samples; ++i)
 	{
-		float2 T = TexCoord + Velocity * FiboDisk[i] * Blur;
+		float2 T = TexCoord + Velocity * Gaussian[i] * Blur;
 		Result += GetDiffuse(T, 0).xyz;
 	}
 

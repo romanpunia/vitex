@@ -30,7 +30,7 @@ float ps_main(VOutput V) : SV_TARGET0
 {
 	float Result = 0.0;
 	[unroll] for (float i = 0; i < 16.0; i++)
-		Result += GetAvg(V.TexCoord.xy + FiboDisk[i] * Texel);
+		Result += GetAvg(V.TexCoord.xy + Gaussian[i] * Texel);
 	
 	float Subresult = LUT.Sample(Sampler, V.TexCoord.xy).r;
 	return Subresult + (Result / 4.0 - Subresult) * (1.0 - exp(-Time));

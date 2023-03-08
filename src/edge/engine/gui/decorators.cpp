@@ -220,7 +220,7 @@ namespace Edge
 				Elements[5] = { Rml::Vector2f(1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 0) };
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.AccessFlags = Graphics::CPUAccess::None;
 				F.Usage = Graphics::ResourceUsage::Default;
 				F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 				F.ElementCount = 6;
@@ -277,7 +277,7 @@ namespace Edge
 				Elements[5] = { Rml::Vector2f(1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 0) };
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.AccessFlags = Graphics::CPUAccess::None;
 				F.Usage = Graphics::ResourceUsage::Default;
 				F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 				F.ElementCount = 6;

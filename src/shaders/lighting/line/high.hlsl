@@ -68,7 +68,7 @@ float4 ps_main(VOutput V) : SV_TARGET0
 		A.RlhHeight = RlhHeight;
 		A.MieHeight = MieHeight;
 		A.MieG = MieDirection;
-		return float4(GetAtmosphere(TexCoord, SkyOffset, float3(0, 6372e3, 0), Position, A), 1.0);
+		return float4(GetAtmosphere(TexCoord, SkyOffset, float3(0, 6372e3, 0), float3(-Position.x, Position.y, Position.z), A), 1.0);
 	}
 	
 	Material Mat = Materials[Frag.Material];

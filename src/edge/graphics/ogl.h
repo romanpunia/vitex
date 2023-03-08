@@ -81,6 +81,7 @@ namespace Edge
 			class OGLInputLayout final : public InputLayout
 			{
 				friend OGLDevice;
+				friend OGLElementBuffer;
 
 			public:
 				std::unordered_map<size_t, std::vector<std::function<void(size_t)>>> VertexLayout;
@@ -104,6 +105,7 @@ namespace Edge
 				bool Compiled;
 
 			public:
+				std::unordered_map<GLuint, OGLDevice*> Programs;
 				GLuint VertexShader = GL_NONE;
 				GLuint PixelShader = GL_NONE;
 				GLuint GeometryShader = GL_NONE;
@@ -124,6 +126,7 @@ namespace Edge
 				friend OGLDevice;
 
 			private:
+				std::unordered_map<GLuint, OGLInputLayout*> Bindings;
 				GLuint Resource = GL_NONE;
 				GLenum Flags = GL_NONE;
 
@@ -212,6 +215,7 @@ namespace Edge
 			public:
 				GLuint FrameBuffer = GL_NONE;
 				GLuint DepthTexture = GL_NONE;
+				bool HasStencilBuffer = false;
 
 			public:
 				OGLDepthTarget2D(const Desc& I);
@@ -228,6 +232,7 @@ namespace Edge
 			public:
 				GLuint FrameBuffer = GL_NONE;
 				GLuint DepthTexture = GL_NONE;
+				bool HasStencilBuffer = false;
 
 			public:
 				OGLDepthTargetCube(const Desc& I);
@@ -244,6 +249,7 @@ namespace Edge
 			public:
 				OGLFrameBuffer FrameBuffer;
 				GLuint DepthTexture = GL_NONE;
+				bool HasStencilBuffer = false;
 
 			public:
 				OGLRenderTarget2D(const Desc& I);
@@ -278,6 +284,7 @@ namespace Edge
 			public:
 				OGLFrameBuffer FrameBuffer;
 				GLuint DepthTexture = GL_NONE;
+				bool HasStencilBuffer = false;
 
 			public:
 				OGLRenderTargetCube(const Desc& I);
@@ -339,6 +346,8 @@ namespace Edge
 
 			class OGLDevice final : public GraphicsDevice
 			{
+				friend OGLShader;
+
 			private:
 				struct
 				{
@@ -347,6 +356,7 @@ namespace Edge
 					GLuint Program = GL_NONE;
 					GLuint VertexBuffer = GL_NONE;
 					GLuint VertexArray = GL_NONE;
+					GLuint Sampler = GL_NONE;
 				} Immediate;
 
 				struct

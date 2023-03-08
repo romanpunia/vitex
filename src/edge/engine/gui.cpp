@@ -108,7 +108,7 @@ namespace Edge
 					Result->Texture = (Graphics::Texture2D*)Handle;
 
 					Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-					F.AccessFlags = Graphics::CPUAccess::Invalid;
+					F.AccessFlags = Graphics::CPUAccess::None;
 					F.Usage = Graphics::ResourceUsage::Default;
 					F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 					F.ElementCount = (unsigned int)VerticesCount;
@@ -117,14 +117,14 @@ namespace Edge
 					Result->VertexBuffer = Device->CreateElementBuffer(F);
 
 					F = Graphics::ElementBuffer::Desc();
-					F.AccessFlags = Graphics::CPUAccess::Invalid;
+					F.AccessFlags = Graphics::CPUAccess::None;
 					F.Usage = Graphics::ResourceUsage::Default;
 					F.BindFlags = Graphics::ResourceBind::Index_Buffer;
 					F.ElementCount = (unsigned int)IndicesCount;
-					F.ElementWidth = sizeof(int);
+					F.ElementWidth = sizeof(unsigned int);
 					F.Elements = (void*)Indices;
 					Result->IndexBuffer = Device->CreateElementBuffer(F);
-
+					
 					return (Rml::CompiledGeometryHandle)Result;
 				}
 				void RenderCompiledGeometry(Rml::CompiledGeometryHandle Handle, const Rml::Vector2f& Translation) override
@@ -139,8 +139,8 @@ namespace Edge
 					else
 						Device->Render.Transform = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Ortho;
 
-					Device->SetTexture2D(Buffer->Texture, 1, ED_PS);
 					Device->SetShader(Shader, ED_VS | ED_PS);
+					Device->SetTexture2D(Buffer->Texture, 1, ED_PS);
 					Device->SetVertexBuffer(Buffer->VertexBuffer);
 					Device->SetIndexBuffer(Buffer->IndexBuffer, Graphics::Format::R32_Uint);
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
@@ -241,15 +241,12 @@ namespace Edge
 					ED_ASSERT(Source != nullptr, false, "source should be set");
 
 					Graphics::Texture2D::Desc F = Graphics::Texture2D::Desc();
-					F.FormatMode = Graphics::Format::R8G8B8A8_Unorm;
-					F.Usage = Graphics::ResourceUsage::Default;
-					F.BindFlags = Graphics::ResourceBind::Shader_Input;
+					F.Data = (void*)Source;
 					F.Width = (unsigned int)SourceDimensions.x;
 					F.Height = (unsigned int)SourceDimensions.y;
+					F.RowPitch = Device->GetRowPitch(F.Width);
+					F.DepthPitch = Device->GetDepthPitch(F.RowPitch, F.Height);
 					F.MipLevels = 1;
-					F.Data = (void*)Source;
-					F.RowPitch = (unsigned int)SourceDimensions.x * 4;
-					F.DepthPitch = 0;
 
 					Graphics::Texture2D* Result = Device->CreateTexture2D(F);
 					if (!Result)

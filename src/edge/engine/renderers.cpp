@@ -393,7 +393,7 @@ namespace Edge
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetRasterizerState(System->State.IsSet(RenderOpt::Backfaces) ? FrontRasterizer : BackRasterizer);
 				Device->SetInputLayout(Layout[1]);
 				Device->SetSamplerState(Sampler, 1, 1, ED_PS);
 				Device->SetShader(Shaders.Depth.Linear, ED_VS | ED_PS);
@@ -416,7 +416,7 @@ namespace Edge
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetRasterizerState(System->State.IsSet(RenderOpt::Backfaces) ? FrontRasterizer : BackRasterizer);
 				Device->SetInputLayout(Layout[1]);
 				Device->SetSamplerState(Sampler, 1, 1, ED_PS);
 				Device->SetShader(Shaders.Depth.Cubic, ED_VS | ED_PS | ED_GS);
@@ -626,7 +626,7 @@ namespace Edge
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetRasterizerState(System->State.IsSet(RenderOpt::Backfaces) ? FrontRasterizer : BackRasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 1, 1, ED_PS);
 				Device->SetShader(Shaders.Depth.Linear, ED_VS | ED_PS);
@@ -670,7 +670,7 @@ namespace Edge
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetRasterizerState(System->State.IsSet(RenderOpt::Backfaces) ? FrontRasterizer : BackRasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 1, 1, ED_PS);
 				Device->SetShader(Shaders.Depth.Linear, ED_VS | ED_PS | ED_GS);
@@ -1255,7 +1255,7 @@ namespace Edge
 					State.Device->SetTarget(Target);
 					State.Device->ClearDepth(Target);
 					System->SetView(Light->View, Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), Light->Cutoff, 1.0f, 0.1f, Light->Shadow.Distance, RenderCulling::Linear);
-					System->Render(Time, RenderState::Depth_Linear, RenderOpt::None);
+					System->Render(Time, RenderState::Depth_Linear, RenderOpt::Backfaces);
 				}
 			}
 			void Lighting::RenderLineShadowMaps(Core::Timer* Time)
@@ -2055,8 +2055,10 @@ namespace Edge
 				Gloss.Texel[1] = 1.0f / GetHeight();
 
 				RenderMerge(Shaders.Reflectance, &Reflectance);
+				SampleClamp();
 				RenderMerge(Shaders.Gloss[0], &Gloss, 2);
 				RenderMerge(Shaders.Gloss[1], nullptr, 2);
+				SampleWrap();
 				RenderResult(Shaders.Additive);
 			}
 
@@ -2127,8 +2129,10 @@ namespace Edge
 					if (i + 1 < Bounces)
 						RenderCopyLast(EmissionMap);
 				}
+				SampleClamp();
 				RenderMerge(Shaders.Denoise[0], &Denoise, 3);
 				RenderMerge(Shaders.Denoise[1], nullptr, 3);
+				SampleWrap();
 				RenderResult(Shaders.Additive);
 				Indirection.Distance = Distance;
 				Indirection.Swing = Swing;
@@ -2187,8 +2191,10 @@ namespace Edge
 				Fibo.Texel[1] = 1.0f / GetHeight();
 
 				RenderMerge(Shaders.Shading, &Shading);
+				SampleClamp();
 				RenderMerge(Shaders.Fibo[0], &Fibo, 2);
 				RenderMerge(Shaders.Fibo[1], nullptr, 2);
+				SampleWrap();
 				RenderResult(Shaders.Multiply);
 			}
 
@@ -2347,8 +2353,10 @@ namespace Edge
 				Fibo.Texel[1] = 1.0f / GetHeight();
 
 				RenderMerge(Shaders.Bloom, &Extraction);
+				SampleClamp();
 				RenderMerge(Shaders.Fibo[0], &Fibo, 3);
 				RenderMerge(Shaders.Fibo[1], nullptr, 3);
+				SampleWrap();
 				RenderResult(Shaders.Additive);
 			}
 

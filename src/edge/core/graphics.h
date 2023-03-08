@@ -506,7 +506,7 @@ namespace Edge
 
 		enum class CPUAccess
 		{
-			Invalid = 0,
+			None = 0,
 			Write = 0x10000L,
 			Read = 0x20000L
 		};
@@ -1105,7 +1105,7 @@ namespace Edge
 				unsigned int StructureByteStride = 0;
 				unsigned int ElementWidth = 0;
 				unsigned int ElementCount = 0;
-				CPUAccess AccessFlags = CPUAccess::Invalid;
+				CPUAccess AccessFlags = CPUAccess::None;
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = ResourceBind::Vertex_Buffer;
 				ResourceMisc MiscFlags = ResourceMisc::None;
@@ -1133,7 +1133,7 @@ namespace Edge
 			{
 				std::vector<Compute::Vertex> Elements;
 				std::vector<int> Indices;
-				CPUAccess AccessFlags = CPUAccess::Invalid;
+				CPUAccess AccessFlags = CPUAccess::None;
 				ResourceUsage Usage = ResourceUsage::Default;
 			};
 
@@ -1162,7 +1162,7 @@ namespace Edge
 			{
 				std::vector<Compute::SkinVertex> Elements;
 				std::vector<int> Indices;
-				CPUAccess AccessFlags = CPUAccess::Invalid;
+				CPUAccess AccessFlags = CPUAccess::None;
 				ResourceUsage Usage = ResourceUsage::Default;
 			};
 
@@ -1218,7 +1218,7 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess::Invalid;
+				CPUAccess AccessFlags = CPUAccess::None;
 				Format FormatMode = Format::R8G8B8A8_Unorm;
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = ResourceBind::Shader_Input;
@@ -1259,7 +1259,7 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess::Invalid;
+				CPUAccess AccessFlags = CPUAccess::None;
 				Format FormatMode = Format::R8G8B8A8_Unorm;
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = ResourceBind::Shader_Input;
@@ -1299,7 +1299,7 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess::Invalid;
+				CPUAccess AccessFlags = CPUAccess::None;
 				Format FormatMode = Format::R8G8B8A8_Unorm;
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = ResourceBind::Shader_Input;
@@ -1337,7 +1337,7 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess::Invalid;
+				CPUAccess AccessFlags = CPUAccess::None;
 				ResourceUsage Usage = ResourceUsage::Default;
 				Format FormatMode = Format::D24_Unorm_S8_Uint;
 				unsigned int Width = 512;
@@ -1365,7 +1365,7 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess::Invalid;
+				CPUAccess AccessFlags = CPUAccess::None;
 				ResourceUsage Usage = ResourceUsage::Default;
 				Format FormatMode = Format::D24_Unorm_S8_Uint;
 				unsigned int Size = 512;
@@ -1414,7 +1414,7 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess::Invalid;
+				CPUAccess AccessFlags = CPUAccess::None;
 				Format FormatMode = Format::R8G8B8A8_Unorm;
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = (ResourceBind)(ResourceBind::Render_Target | ResourceBind::Shader_Input);
@@ -1449,7 +1449,7 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess::Invalid;
+				CPUAccess AccessFlags = CPUAccess::None;
 				SurfaceTarget Target = SurfaceTarget::T0;
 				Format FormatMode[8] = { Format::R8G8B8A8_Unorm, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown };
 				ResourceUsage Usage = ResourceUsage::Default;
@@ -1485,7 +1485,7 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess::Invalid;
+				CPUAccess AccessFlags = CPUAccess::None;
 				Format FormatMode = Format::R8G8B8A8_Unorm;
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = (ResourceBind)(ResourceBind::Render_Target | ResourceBind::Shader_Input);
@@ -1518,7 +1518,7 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess::Invalid;
+				CPUAccess AccessFlags = CPUAccess::None;
 				SurfaceTarget Target = SurfaceTarget::T0;
 				Format FormatMode[8] = { Format::R8G8B8A8_Unorm, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown };
 				ResourceUsage Usage = ResourceUsage::Default;
@@ -1637,6 +1637,7 @@ namespace Edge
 			std::unordered_map<std::string, InputLayout*> InputLayouts;
 			std::unordered_map<std::string, Section*> Sections;
 			std::queue<RenderThreadCallback> Queue;
+			std::thread::id RenderThread;
 			PrimitiveTopology Primitives;
 			ShaderModel ShaderGen;
 			Texture2D* ViewResource = nullptr;
@@ -1830,6 +1831,8 @@ namespace Edge
 			RenderBackend GetBackend() const;
 			unsigned int GetPresentFlags() const;
 			unsigned int GetCompileFlags() const;
+			unsigned int GetRowPitch(unsigned int Width, unsigned int ElementSize = sizeof(unsigned char) * 4) const;
+			unsigned int GetDepthPitch(unsigned int RowPitch, unsigned int Height) const;
 			unsigned int GetMipLevel(unsigned int Width, unsigned int Height) const;
 			VSync GetVSyncMode() const;
 			bool IsDebug() const;

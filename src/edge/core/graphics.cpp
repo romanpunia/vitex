@@ -526,7 +526,7 @@ namespace Edge
 			MipLevels = 1;
 			FormatMode = Format::Unknown;
 			Usage = ResourceUsage::Default;
-			AccessFlags = CPUAccess::Invalid;
+			AccessFlags = CPUAccess::None;
 		}
 		Texture2D::Texture2D(const Desc& I) noexcept
 		{
@@ -570,7 +570,7 @@ namespace Edge
 			MipLevels = 1;
 			FormatMode = Format::Unknown;
 			Usage = ResourceUsage::Default;
-			AccessFlags = CPUAccess::Invalid;
+			AccessFlags = CPUAccess::None;
 		}
 		CPUAccess Texture3D::GetAccessFlags() const
 		{
@@ -608,7 +608,7 @@ namespace Edge
 			MipLevels = 1;
 			FormatMode = Format::Unknown;
 			Usage = ResourceUsage::Default;
-			AccessFlags = CPUAccess::Invalid;
+			AccessFlags = CPUAccess::None;
 		}
 		TextureCube::TextureCube(const Desc& I) noexcept
 		{
@@ -818,6 +818,7 @@ namespace Edge
 
 		GraphicsDevice::GraphicsDevice(const Desc& I) noexcept : Primitives(PrimitiveTopology::Triangle_List), ShaderGen(ShaderModel::Invalid), ViewResource(nullptr), PresentFlags(I.PresentationFlags), CompileFlags(I.CompilationFlags), VSyncMode(I.VSyncMode), MaxElements(1), Backend(I.Backend), ShaderCache(I.ShaderCache), Debug(I.Debug)
 		{
+			RenderThread = std::this_thread::get_id();
 			if (!I.CacheDirectory.empty())
 			{
 				Caches = Core::OS::Path::ResolveDirectory(I.CacheDirectory.c_str());
@@ -859,12 +860,18 @@ namespace Edge
 		void GraphicsDevice::Enqueue(RenderThreadCallback&& Callback)
 		{
 			ED_ASSERT_V(Callback != nullptr, "callback should be set");
-			Mutex.lock();
-			Queue.emplace(Callback);
-			Mutex.unlock();
+			if (RenderThread != std::this_thread::get_id())
+			{
+				Mutex.lock();
+				Queue.emplace(Callback);
+				Mutex.unlock();
+			}
+			else
+				Callback(this);
 		}
 		void GraphicsDevice::DispatchQueue()
 		{
+			RenderThread = std::this_thread::get_id();
 			if (Queue.empty())
 				return;
 
@@ -1015,10 +1022,17 @@ namespace Edge
 			Sampler.MaxLOD = std::numeric_limits<float>::max();
 			SamplerStates["trilinear-x16"] = CreateSamplerState(Sampler);
 
-			Sampler.Filter = PixelFilter::Min_Mag_Mip_Linear;
+			Sampler.AddressU = TextureAddress::Mirror;
+			Sampler.AddressV = TextureAddress::Mirror;
+			Sampler.AddressW = TextureAddress::Mirror;
+			SamplerStates["trilinear-x16-mirror"] = CreateSamplerState(Sampler);
+
 			Sampler.AddressU = TextureAddress::Clamp;
 			Sampler.AddressV = TextureAddress::Clamp;
 			Sampler.AddressW = TextureAddress::Clamp;
+			SamplerStates["trilinear-x16-clamp"] = CreateSamplerState(Sampler);
+
+			Sampler.Filter = PixelFilter::Min_Mag_Mip_Linear;
 			SamplerStates["linear"] = CreateSamplerState(Sampler);
 
 			Sampler.Filter = PixelFilter::Min_Mag_Mip_Point;
@@ -1499,6 +1513,14 @@ namespace Edge
 		bool GraphicsDevice::IsLeftHanded() const
 		{
 			return Backend == RenderBackend::D3D11;
+		}
+		unsigned int GraphicsDevice::GetRowPitch(unsigned int Width, unsigned int ElementSize) const
+		{
+			return Width * ElementSize;
+		}
+		unsigned int GraphicsDevice::GetDepthPitch(unsigned int RowPitch, unsigned int Height) const
+		{
+			return RowPitch * Height;
 		}
 		unsigned int GraphicsDevice::GetMipLevel(unsigned int Width, unsigned int Height) const
 		{

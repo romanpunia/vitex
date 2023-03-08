@@ -78,7 +78,8 @@ namespace Edge
 			None = 0,
 			Transparent = 1,
 			Static = 2,
-			Additive = 4
+			Additive = 4,
+			Backfaces = 8
 		};
 
 		enum class RenderCulling
@@ -342,7 +343,7 @@ namespace Edge
 			static void Pack(Core::Schema* V, double Value);
 			static void Pack(Core::Schema* V, int64_t Value);
 			static void Pack(Core::Schema* V, long double Value);
-			static void Pack(Core::Schema* V, unsigned long long Value);
+			static void Pack(Core::Schema* V, uint64_t Value);
 			static void Pack(Core::Schema* V, const char* Value);
 			static void Pack(Core::Schema* V, const Compute::Vector2& Value);
 			static void Pack(Core::Schema* V, const Compute::Vector3& Value);
@@ -393,7 +394,7 @@ namespace Edge
 			static bool Unpack(Core::Schema* V, double* O);
 			static bool Unpack(Core::Schema* V, int64_t* O);
 			static bool Unpack(Core::Schema* V, long double* O);
-			static bool Unpack(Core::Schema* V, unsigned long long* O);
+			static bool Unpack(Core::Schema* V, uint64_t* O);
 			static bool Unpack(Core::Schema* V, Compute::Vector2* O);
 			static bool Unpack(Core::Schema* V, Compute::Vector3* O);
 			static bool Unpack(Core::Schema* V, Compute::Vector4* O);
@@ -2233,7 +2234,9 @@ namespace Edge
 			Graphics::DepthStencilState* DepthStencil;
 			Graphics::RasterizerState* Rasterizer;
 			Graphics::BlendState* Blend;
-			Graphics::SamplerState* Sampler;
+			Graphics::SamplerState* SamplerWrap;
+			Graphics::SamplerState* SamplerClamp;
+			Graphics::SamplerState* SamplerMirror;
 			Graphics::InputLayout* Layout;
 			Graphics::RenderTarget2D* Output;
 			Graphics::RenderTarget2D* Swap;
@@ -2260,6 +2263,9 @@ namespace Edge
 			void RenderMerge(Graphics::Shader* Effect, void* Buffer = nullptr, size_t Count = 1);
 			void RenderResult(Graphics::Shader* Effect, void* Buffer = nullptr);
 			void RenderResult();
+			void SampleWrap();
+			void SampleClamp();
+			void SampleMirror();
 			void GenerateMips();
 			Graphics::Shader* GetEffect(const std::string& Name);
 			Graphics::Shader* CompileEffect(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);

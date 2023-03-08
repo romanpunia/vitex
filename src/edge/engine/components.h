@@ -308,7 +308,7 @@ namespace Edge
 			public:
 				Compute::Vector4 Diffuse;
 				Compute::Vector3 Position;
-				Compute::Vector3 Velocity;
+				Compute::Vector3 Velocity = 1.0f;
 				SpawnerProperties Spawner;
 				float RotationSpeed = 0.0f;
 				float ScaleSpeed = 0.0f;

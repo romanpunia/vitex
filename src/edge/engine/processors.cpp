@@ -738,8 +738,6 @@ namespace Edge
 				});
 
 				int Width, Height, Channels;
-				stbi_set_flip_vertically_on_load(ED_LEFT_HANDED ? 0 : 1);
-
 				unsigned char* Resource = stbi_load_from_memory((const unsigned char*)Data.data(), (int)Data.size(), &Width, &Height, &Channels, STBI_rgb_alpha);
 				if (!Resource)
 					return nullptr;
@@ -875,9 +873,7 @@ namespace Edge
 						return nullptr;
 					}
 
-					auto* Device = Content->GetDevice();
-					Compute::Geometric::TexCoordRhToLh(I.Elements);
-					Object->Meshes.push_back(ProcessRendererJob<Graphics::MeshBuffer>(Device, [&I](Graphics::GraphicsDevice* Device)
+					Object->Meshes.push_back(ProcessRendererJob<Graphics::MeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
 					{
 						return Device->CreateMeshBuffer(I);
 					}));
@@ -1219,7 +1215,6 @@ namespace Edge
 					}
 
 					auto* Device = Content->GetDevice();
-					Compute::Geometric::TexCoordRhToLh(I.Elements);
 					Object->Meshes.push_back(ProcessRendererJob<Graphics::SkinMeshBuffer>(Device, [&I](Graphics::GraphicsDevice* Device)
 					{
 						return Device->CreateSkinMeshBuffer(I);

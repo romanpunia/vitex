@@ -3132,6 +3132,7 @@ namespace Edge
 					{ Z, -X, N },
 					{ -Z, -X, N }
 				};
+				Compute::Geometric::TexCoordRhToLh(Elements);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::None;
@@ -5904,21 +5905,18 @@ namespace Edge
 				if (Control.Activity.Width > 0 && Control.Activity.Height > 0)
 				{
 					bool Maximized = Control.Activity.Maximized;
-					Control.Activity.AllowGraphics = (Control.Usage & (size_t)ApplicationSet::GraphicsSet);
+					Control.Activity.GPUAsRenderer = (Control.Usage & (size_t)ApplicationSet::GraphicsSet);
 					Control.Activity.Maximized = false;
 
 					if (!Activity)
 						Activity = new Graphics::Activity(Control.Activity);
 
-					if (Control.Activity.AllowGraphics)
+					if (Control.Activity.GPUAsRenderer)
 					{
-						if (!Control.GraphicsDevice.BufferWidth)
-							Control.GraphicsDevice.BufferWidth = Control.Activity.Width;
-
-						if (!Control.GraphicsDevice.BufferHeight)
-							Control.GraphicsDevice.BufferHeight = Control.Activity.Height;
-
+						Control.GraphicsDevice.BufferWidth = Control.Activity.Width;
+						Control.GraphicsDevice.BufferHeight = Control.Activity.Height;
 						Control.GraphicsDevice.Window = Activity;
+
 						if (Content != nullptr && !Control.GraphicsDevice.CacheDirectory.empty())
 							Control.GraphicsDevice.CacheDirectory = Core::OS::Path::ResolveDirectory(Control.GraphicsDevice.CacheDirectory, Content->GetEnvironment());
 
@@ -6077,27 +6075,28 @@ namespace Edge
 			{
 				while (State == ApplicationState::Active)
 				{
-					Activity->Dispatch();
-
+					bool Focused = Activity->Dispatch();
 					Time->Begin();
 					Dispatch(Time);
 
 					Time->Finish();
-					Publish(Time);
+					if (Focused)
+						Publish(Time);
 				}
 			}
 			else if (Activity != nullptr && !Control.Parallel)
 			{
 				while (State == ApplicationState::Active)
 				{
-					Activity->Dispatch();
+					bool Focused = Activity->Dispatch();
 					Queue->Dispatch();
 
 					Time->Begin();
 					Dispatch(Time);
 
 					Time->Finish();
-					Publish(Time);
+					if (Focused)
+						Publish(Time);
 				}
 			}
 			else if (!Activity && Control.Parallel)

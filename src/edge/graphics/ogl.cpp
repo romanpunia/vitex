@@ -4,6 +4,12 @@
 #undef DirectColor
 #endif
 #ifdef ED_HAS_GL
+#define SHADER_VERTEX ".text.vertex.gz"
+#define SHADER_PIXEL ".text.pixel.gz"
+#define SHADER_GEOMETRY ".text.geometry.gz"
+#define SHADER_COMPUTE ".text.compute.gz"
+#define SHADER_HULL ".text.hull.gz"
+#define SHADER_DOMAIN ".text.domain.gz"
 #define REG_EXCHANGE(Name, Value) { if (Register.Name == Value) return; Register.Name = Value; }
 #define REG_EXCHANGE_T2(Name, Value1, Value2) { if (std::get<0>(Register.Name) == Value1 && std::get<1>(Register.Name) == Value2) return; Register.Name = std::make_tuple(Value1, Value2); }
 #define REG_EXCHANGE_T3(Name, Value1, Value2, Value3) { if (std::get<0>(Register.Name) == Value1 && std::get<1>(Register.Name) == Value2 && std::get<2>(Register.Name) == Value3) return; Register.Name = std::make_tuple(Value1, Value2, Value3); }
@@ -550,8 +556,13 @@ namespace Edge
 
 			OGLDevice::OGLDevice(const Desc& I) : GraphicsDevice(I), ShaderVersion(nullptr), Window(I.Window), Context(nullptr)
 			{
-				ED_ASSERT_V(Window != nullptr, "OpenGL device cannot be created without a window");
 #ifdef ED_HAS_SDL2
+				if (!Window)
+				{
+					ED_ASSERT_V(VirtualWindow != nullptr, "cannot initialize virtual activity for device");
+					Window = VirtualWindow;
+				}
+
 				int X, Y, Z, W;
 				GetBackBufferSize(I.BufferFormat, &X, &Y, &Z, &W);
 				SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -577,24 +588,9 @@ namespace Edge
 					return;
 				}
 
-				SDL_GL_MakeCurrent(Window->GetHandle(), Context);
-				switch (VSyncMode)
-				{
-					case VSync::Off:
-						SDL_GL_SetSwapInterval(0);
-						break;
-					case VSync::Frequency_X1:
-						SDL_GL_SetSwapInterval(1);
-						break;
-					case VSync::Frequency_X2:
-					case VSync::Frequency_X3:
-					case VSync::Frequency_X4:
-						if (SDL_GL_SetSwapInterval(-1) == -1)
-							SDL_GL_SetSwapInterval(1);
-						break;
-				}
+				SetAsCurrentDevice();
 #endif
-				const GLenum ErrorCode = glewInit();
+				static const GLenum ErrorCode = glewInit();
 				if (ErrorCode != GLEW_OK)
 				{
 					ED_ERR("[glew] %s", (const char*)glewGetErrorString(ErrorCode));
@@ -650,6 +646,27 @@ namespace Edge
 #ifdef ED_HAS_SDL2
 				if (Context != nullptr)
 					SDL_GL_DeleteContext(Context);
+#endif
+			}
+			void OGLDevice::SetAsCurrentDevice()
+			{
+#ifdef ED_HAS_SDL2
+				SDL_GL_MakeCurrent(Window->GetHandle(), Context);
+				switch (VSyncMode)
+				{
+					case VSync::Off:
+						SDL_GL_SetSwapInterval(0);
+						break;
+					case VSync::Frequency_X1:
+						SDL_GL_SetSwapInterval(1);
+						break;
+					case VSync::Frequency_X2:
+					case VSync::Frequency_X3:
+					case VSync::Frequency_X4:
+						if (SDL_GL_SetSwapInterval(-1) == -1)
+							SDL_GL_SetSwapInterval(1);
+						break;
+				}
 #endif
 			}
 			void OGLDevice::SetConstantBuffers()
@@ -1431,6 +1448,150 @@ namespace Edge
 				Map->DepthPitch = GetDepthPitch(Map->RowPitch, 1);
 
 				return Map->Pointer != nullptr;
+			}
+			bool OGLDevice::Map(Texture2D* Resource, ResourceMap Mode, MappedSubresource* Map)
+			{
+				ED_ASSERT(Resource != nullptr, false, "resource should be set");
+				ED_ASSERT(Map != nullptr, false, "map should be set");
+
+				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
+				GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
+				GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight();
+				GLuint Size = GetFormatSize(IResource->FormatMode);
+
+				bool Read = Mode == ResourceMap::Read || Mode == ResourceMap::Read_Write;
+				bool Write = Mode == ResourceMap::Write || Mode == ResourceMap::Write_Discard || Mode == ResourceMap::Write_No_Overwrite;
+
+				if (Read && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Read))
+					return false;
+
+				if (Write && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write))
+					return false;
+
+				Map->Pointer = ED_MALLOC(char, Width * Height * Size);
+				Map->RowPitch = GetRowPitch(Width);
+				Map->DepthPitch = GetDepthPitch(Map->RowPitch, Height);
+
+				if (Map->Pointer != nullptr && Read)
+				{
+					glBindTexture(GL_TEXTURE_2D, IResource->Resource);
+					glGetTexImage(GL_TEXTURE_2D, 0, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
+				}
+
+				return Map->Pointer != nullptr;
+			}
+			bool OGLDevice::Map(Texture3D* Resource, ResourceMap Mode, MappedSubresource* Map)
+			{
+				ED_ASSERT(Resource != nullptr, false, "resource should be set");
+				ED_ASSERT(Map != nullptr, false, "map should be set");
+
+				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
+				GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
+				GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight(), Depth = IResource->GetDepth();
+				GLuint Size = GetFormatSize(IResource->FormatMode);
+
+				bool Read = Mode == ResourceMap::Read || Mode == ResourceMap::Read_Write;
+				bool Write = Mode == ResourceMap::Write || Mode == ResourceMap::Write_Discard || Mode == ResourceMap::Write_No_Overwrite;
+
+				if (Read && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Read))
+					return false;
+
+				if (Write && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write))
+					return false;
+
+				Map->Pointer = ED_MALLOC(char, Width * Height * Depth * Size);
+				Map->RowPitch = GetRowPitch(Width);
+				Map->DepthPitch = GetDepthPitch(Map->RowPitch, Height * Depth);
+
+				if (Map->Pointer != nullptr && Read)
+				{
+					glBindTexture(GL_TEXTURE_3D, IResource->Resource);
+					glGetTexImage(GL_TEXTURE_3D, 0, IResource->Format, GL_UNSIGNED_BYTE, Map->Pointer);
+				}
+
+				return Map->Pointer != nullptr;
+			}
+			bool OGLDevice::Map(TextureCube* Resource, ResourceMap Mode, MappedSubresource* Map)
+			{
+				ED_ASSERT(Resource != nullptr, false, "resource should be set");
+				ED_ASSERT(Map != nullptr, false, "map should be set");
+
+				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
+				GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
+				GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight(), Depth = 6;
+				GLuint Size = GetFormatSize(IResource->FormatMode);
+
+				bool Read = Mode == ResourceMap::Read || Mode == ResourceMap::Read_Write;
+				bool Write = Mode == ResourceMap::Write || Mode == ResourceMap::Write_Discard || Mode == ResourceMap::Write_No_Overwrite;
+
+				if (Read && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Read))
+					return false;
+
+				if (Write && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write))
+					return false;
+
+				Map->Pointer = ED_MALLOC(char, Width * Height * Depth * Size);
+				Map->RowPitch = GetRowPitch(Width);
+				Map->DepthPitch = GetDepthPitch(Map->RowPitch, Height * Depth);
+
+				if (Map->Pointer != nullptr && Read)
+				{
+					glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->Resource);
+					glGetTexImage(GL_TEXTURE_CUBE_MAP, 0, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
+				}
+
+				return Map->Pointer != nullptr;
+			}
+			bool OGLDevice::Unmap(Texture2D* Resource, MappedSubresource* Map)
+			{
+				ED_ASSERT(Resource != nullptr, false, "resource should be set");
+				ED_ASSERT(Map != nullptr, false, "map should be set");
+
+				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
+				if ((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write)
+				{
+					GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
+					GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight();
+					glBindTexture(GL_TEXTURE_2D, IResource->Resource);
+					glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, Width, Height, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
+				}
+
+				ED_FREE(Map->Pointer);
+				return true;
+			}
+			bool OGLDevice::Unmap(Texture3D* Resource, MappedSubresource* Map)
+			{
+				ED_ASSERT(Resource != nullptr, false, "resource should be set");
+				ED_ASSERT(Map != nullptr, false, "map should be set");
+
+				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
+				if ((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write)
+				{
+					GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
+					GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight(), Depth = IResource->GetDepth();
+					glBindTexture(GL_TEXTURE_3D, IResource->Resource);
+					glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
+				}
+
+				ED_FREE(Map->Pointer);
+				return true;
+			}
+			bool OGLDevice::Unmap(TextureCube* Resource, MappedSubresource* Map)
+			{
+				ED_ASSERT(Resource != nullptr, false, "resource should be set");
+				ED_ASSERT(Map != nullptr, false, "map should be set");
+
+				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
+				if ((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write)
+				{
+					GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
+					GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight(), Depth = 6;
+					glBindTexture(GL_TEXTURE_3D, IResource->Resource);
+					glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
+				}
+
+				ED_FREE(Map->Pointer);
+				return true;
 			}
 			bool OGLDevice::Unmap(ElementBuffer* Resource, MappedSubresource* Map)
 			{
@@ -2282,7 +2443,7 @@ namespace Edge
 				ED_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
 				auto& Element = Elements.front();
 				Element.TX = X;
-				Element.TY = Y;
+				Element.TY = 1.0f - Y;
 			}
 			void OGLDevice::ImTexCoordOffset(float X, float Y)
 			{
@@ -2294,7 +2455,7 @@ namespace Edge
 				ED_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
 				auto& Element = Elements.front();
 				Element.PX = X;
-				Element.PY = Y;
+				Element.PY = -Y;
 				Element.PZ = Z;
 			}
 			bool OGLDevice::ImEnd()
@@ -2402,7 +2563,7 @@ namespace Edge
 				std::string VertexEntry = GetShaderMain(ShaderType::Vertex);
 				if (F.Data.find(VertexEntry) != std::string::npos)
 				{
-					std::string Stage = Name + ".vtx", Bytecode;
+					std::string Stage = Name + SHADER_VERTEX, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[ogl] transpile %s vertex shader source", Stage.c_str());
@@ -2444,7 +2605,7 @@ namespace Edge
 				std::string PixelEntry = GetShaderMain(ShaderType::Pixel);
 				if (F.Data.find(PixelEntry) != std::string::npos)
 				{
-					std::string Stage = Name + ".pxl", Bytecode;
+					std::string Stage = Name + SHADER_PIXEL, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[ogl] transpile %s pixel shader source", Stage.c_str());
@@ -2486,7 +2647,7 @@ namespace Edge
 				std::string GeometryEntry = GetShaderMain(ShaderType::Geometry);
 				if (F.Data.find(GeometryEntry) != std::string::npos)
 				{
-					std::string Stage = Name + ".geo", Bytecode;
+					std::string Stage = Name + SHADER_GEOMETRY, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[ogl] transpile %s geometry shader source", Stage.c_str());
@@ -2528,7 +2689,7 @@ namespace Edge
 				std::string ComputeEntry = GetShaderMain(ShaderType::Compute);
 				if (F.Data.find(ComputeEntry) != std::string::npos)
 				{
-					std::string Stage = Name + ".cmp", Bytecode;
+					std::string Stage = Name + SHADER_COMPUTE, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[ogl] transpile %s compute shader source", Stage.c_str());
@@ -2570,7 +2731,7 @@ namespace Edge
 				std::string HullEntry = GetShaderMain(ShaderType::Hull);
 				if (F.Data.find(HullEntry) != std::string::npos)
 				{
-					std::string Stage = Name + ".hlc", Bytecode;
+					std::string Stage = Name + SHADER_HULL, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[ogl] transpile %s hull shader source", Stage.c_str());
@@ -2612,7 +2773,7 @@ namespace Edge
 				std::string DomainEntry = GetShaderMain(ShaderType::Domain);
 				if (F.Data.find(DomainEntry) != std::string::npos)
 				{
-					std::string Stage = Name + ".dmn", Bytecode;
+					std::string Stage = Name + SHADER_DOMAIN, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[ogl] transpile %s domain shader source", Stage.c_str());

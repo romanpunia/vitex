@@ -1568,16 +1568,7 @@ namespace Edge
 			static bool HasOBBIntersected(Transform* BoxR0, Transform* BoxR1);
 			static bool HasAABBIntersected(Transform* BoxR0, Transform* BoxR1);
 			static void FlipIndexWindingOrder(std::vector<int>& Indices);
-			static void ComputeInfluenceNormals(std::vector<SkinVertex>& Vertices);
-			static void ComputeInfluenceNormalsArray(SkinVertex* Vertices, size_t Count);
-			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal);
-			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent);
 			static void MatrixRhToLh(Compute::Matrix4x4* Matrix);
-			static void VertexRhToLh(std::vector<Vertex>& Vertices, std::vector<int>& Indices);
-			static void VertexRhToLh(std::vector<SkinVertex>& Vertices, std::vector<int>& Indices);
-			static void TexCoordRhToLh(std::vector<Vertex>& Vertices);
-			static void TexCoordRhToLh(std::vector<SkinVertex>& Vertices);
-			static void TexCoordRhToLh(std::vector<ShapeVertex>& Vertices);
 			static void SetLeftHanded(bool IsLeftHanded);
 			static std::vector<int> CreateTriangleStrip(TriangleStrip::Desc& Desc, const std::vector<int>& Indices);
 			static std::vector<int> CreateTriangleList(const std::vector<int>& Indices);
@@ -1589,6 +1580,17 @@ namespace Edge
 			static float FastInvSqrt(float Value);
 			static float FastSqrt(float Value);
 			static float AabbVolume(const Vector3& Min, const Vector3& Max);
+
+		public:
+			template <typename T>
+			static void TexCoordRhToLh(std::vector<T>& Vertices, bool Always = false)
+			{
+				if (IsLeftHanded() || Always)
+					return;
+
+				for (auto& Item : Vertices)
+					Item.TexCoordY = 1.0f - Item.TexCoordY;
+			}
 		};
 
 		class ED_OUT_TS Regex

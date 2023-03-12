@@ -372,6 +372,7 @@ namespace Edge
 			public:
 				D3D11Device(const Desc& I);
 				~D3D11Device() override;
+				void SetAsCurrentDevice() override;
 				void SetConstantBuffers() override;
 				void SetShaderModel(ShaderModel Model) override;
 				void SetBlendState(BlendState* State) override;
@@ -408,6 +409,12 @@ namespace Edge
 				void FlushTexture(unsigned int Slot, unsigned int Count, unsigned int Type) override;
 				void FlushState() override;
 				bool Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) override;
+				bool Map(Texture2D* Resource, ResourceMap Mode, MappedSubresource* Map) override;
+				bool Map(Texture3D* Resource, ResourceMap Mode, MappedSubresource* Map) override;
+				bool Map(TextureCube* Resource, ResourceMap Mode, MappedSubresource* Map) override;
+				bool Unmap(Texture2D* Resource, MappedSubresource* Map) override;
+				bool Unmap(Texture3D* Resource, MappedSubresource* Map) override;
+				bool Unmap(TextureCube* Resource, MappedSubresource* Map) override;
 				bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) override;
 				bool UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size) override;
 				bool UpdateBuffer(Shader* Resource, const void* Data) override;

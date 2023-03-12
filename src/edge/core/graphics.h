@@ -10,6 +10,7 @@
 #define ED_CS (unsigned int)Edge::Graphics::ShaderType::Compute
 #define ED_HS (unsigned int)Edge::Graphics::ShaderType::Hull
 #define ED_DS (unsigned int)Edge::Graphics::ShaderType::Domain
+#define ED_WINDOW_SIZE 128
 #define ED_MAX_UNITS 32
 
 struct SDL_SysWMinfo;
@@ -750,6 +751,8 @@ namespace Edge
 
 		class Shader;
 
+		class Texture2D;
+
 		class GraphicsDevice;
 
 		class Activity;
@@ -821,9 +824,9 @@ namespace Edge
 
 		struct ED_OUT MappedSubresource
 		{
-			void* Pointer;
-			unsigned int RowPitch;
-			unsigned int DepthPitch;
+			void* Pointer = nullptr;
+			unsigned int RowPitch = 0;
+			unsigned int DepthPitch = 0;
 		};
 
 		struct ED_OUT Viewport
@@ -1226,8 +1229,8 @@ namespace Edge
 				void* Data = nullptr;
 				unsigned int RowPitch = 0;
 				unsigned int DepthPitch = 0;
-				unsigned int Width = 512;
-				unsigned int Height = 512;
+				unsigned int Width = ED_WINDOW_SIZE;
+				unsigned int Height = ED_WINDOW_SIZE;
 				int MipLevels = 1;
 				bool Writable = false;
 			};
@@ -1236,6 +1239,7 @@ namespace Edge
 			CPUAccess AccessFlags;
 			Format FormatMode;
 			ResourceUsage Usage;
+			ResourceBind Binding;
 			unsigned int Width, Height;
 			unsigned int MipLevels;
 
@@ -1249,6 +1253,7 @@ namespace Edge
 			CPUAccess GetAccessFlags() const;
 			Format GetFormatMode() const;
 			ResourceUsage GetUsage() const;
+			ResourceBind GetBinding() const;
 			unsigned int GetWidth() const;
 			unsigned int GetHeight() const;
 			unsigned int GetMipLevels() const;
@@ -1264,8 +1269,8 @@ namespace Edge
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = ResourceBind::Shader_Input;
 				ResourceMisc MiscFlags = ResourceMisc::None;
-				unsigned int Width = 512;
-				unsigned int Height = 512;
+				unsigned int Width = ED_WINDOW_SIZE;
+				unsigned int Height = ED_WINDOW_SIZE;
 				unsigned int Depth = 1;
 				int MipLevels = 1;
 				bool Writable = false;
@@ -1275,6 +1280,7 @@ namespace Edge
 			CPUAccess AccessFlags;
 			Format FormatMode;
 			ResourceUsage Usage;
+			ResourceBind Binding;
 			unsigned int Width, Height;
 			unsigned int MipLevels;
 			unsigned int Depth;
@@ -1288,6 +1294,7 @@ namespace Edge
 			CPUAccess GetAccessFlags() const;
 			Format GetFormatMode() const;
 			ResourceUsage GetUsage() const;
+			ResourceBind GetBinding() const;
 			unsigned int GetWidth() const;
 			unsigned int GetHeight() const;
 			unsigned int GetDepth() const;
@@ -1304,8 +1311,8 @@ namespace Edge
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = ResourceBind::Shader_Input;
 				ResourceMisc MiscFlags = ResourceMisc::Texture_Cube;
-				unsigned int Width = 128;
-				unsigned int Height = 128;
+				unsigned int Width = ED_WINDOW_SIZE;
+				unsigned int Height = ED_WINDOW_SIZE;
 				int MipLevels = 1;
 				bool Writable = false;
 			};
@@ -1314,6 +1321,7 @@ namespace Edge
 			CPUAccess AccessFlags;
 			Format FormatMode;
 			ResourceUsage Usage;
+			ResourceBind Binding;
 			unsigned int Width, Height;
 			unsigned int MipLevels;
 
@@ -1327,6 +1335,7 @@ namespace Edge
 			CPUAccess GetAccessFlags() const;
 			Format GetFormatMode() const;
 			ResourceUsage GetUsage() const;
+			ResourceBind GetBinding() const;
 			unsigned int GetWidth() const;
 			unsigned int GetHeight() const;
 			unsigned int GetMipLevels() const;
@@ -1340,8 +1349,8 @@ namespace Edge
 				CPUAccess AccessFlags = CPUAccess::None;
 				ResourceUsage Usage = ResourceUsage::Default;
 				Format FormatMode = Format::D24_Unorm_S8_Uint;
-				unsigned int Width = 512;
-				unsigned int Height = 512;
+				unsigned int Width = ED_WINDOW_SIZE;
+				unsigned int Height = ED_WINDOW_SIZE;
 			};
 
 		protected:
@@ -1420,8 +1429,8 @@ namespace Edge
 				ResourceBind BindFlags = (ResourceBind)(ResourceBind::Render_Target | ResourceBind::Shader_Input);
 				ResourceMisc MiscFlags = ResourceMisc::None;
 				void* RenderSurface = nullptr;
-				unsigned int Width = 512;
-				unsigned int Height = 512;
+				unsigned int Width = ED_WINDOW_SIZE;
+				unsigned int Height = ED_WINDOW_SIZE;
 				unsigned int MipLevels = 1;
 				bool DepthStencil = true;
 			};
@@ -1455,8 +1464,8 @@ namespace Edge
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = (ResourceBind)(ResourceBind::Render_Target | ResourceBind::Shader_Input);
 				ResourceMisc MiscFlags = ResourceMisc::None;
-				unsigned int Width = 512;
-				unsigned int Height = 512;
+				unsigned int Width = ED_WINDOW_SIZE;
+				unsigned int Height = ED_WINDOW_SIZE;
 				unsigned int MipLevels = 1;
 				bool DepthStencil = true;
 			};
@@ -1611,15 +1620,15 @@ namespace Edge
 				ShaderModel ShaderMode = ShaderModel::Auto;
 				Format BufferFormat = Format::R8G8B8A8_Unorm;
 				VSync VSyncMode = VSync::Frequency_X1;
-				std::string CacheDirectory = "./assembly";
+				std::string CacheDirectory = "./shaders";
 				int IsWindowed = 1;
 				bool ShaderCache = true;
 				bool Debug = false;
 				unsigned int PresentationFlags = 0;
 				unsigned int CompilationFlags = (unsigned int)(ShaderCompile::Enable_Strictness | ShaderCompile::Optimization_Level3 | ShaderCompile::Matrix_Row_Major);
 				unsigned int CreationFlags = 0;
-				unsigned int BufferWidth = 0;
-				unsigned int BufferHeight = 0;
+				unsigned int BufferWidth = ED_WINDOW_SIZE;
+				unsigned int BufferHeight = ED_WINDOW_SIZE;
 				Activity* Window = nullptr;
 			};
 
@@ -1643,6 +1652,7 @@ namespace Edge
 			Texture2D* ViewResource = nullptr;
 			RenderTarget2D* RenderTarget = nullptr;
 			Shader* BasicEffect = nullptr;
+			Activity* VirtualWindow = nullptr;
 			unsigned int PresentFlags = 0;
 			unsigned int CompileFlags = 0;
 			VSync VSyncMode = VSync::Frequency_X1;
@@ -1666,6 +1676,7 @@ namespace Edge
 
 		public:
 			virtual ~GraphicsDevice() noexcept;
+			virtual void SetAsCurrentDevice() = 0;
 			virtual void SetConstantBuffers() = 0;
 			virtual void SetShaderModel(ShaderModel Model) = 0;
 			virtual void SetBlendState(BlendState* State) = 0;
@@ -1702,6 +1713,12 @@ namespace Edge
 			virtual void FlushTexture(unsigned int Slot, unsigned int Count, unsigned int Type) = 0;
 			virtual void FlushState() = 0;
 			virtual bool Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
+			virtual bool Map(Texture2D* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
+			virtual bool Map(Texture3D* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
+			virtual bool Map(TextureCube* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
+			virtual bool Unmap(Texture2D* Resource, MappedSubresource* Map) = 0;
+			virtual bool Unmap(Texture3D* Resource, MappedSubresource* Map) = 0;
+			virtual bool Unmap(TextureCube* Resource, MappedSubresource* Map) = 0;
 			virtual bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) = 0;
 			virtual bool UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size) = 0;
 			virtual bool UpdateBuffer(Shader* Resource, const void* Data) = 0;
@@ -1820,6 +1837,7 @@ namespace Edge
 			const std::unordered_map<std::string, BlendState*>& GetBlendStates() const;
 			const std::unordered_map<std::string, SamplerState*>& GetSamplerStates() const;
 			const std::unordered_map<std::string, InputLayout*>& GetInputLayouts() const;
+			Core::Unique<Surface> CreateSurface(Texture2D* Base);
 			DepthStencilState* GetDepthStencilState(const std::string& Name);
 			BlendState* GetBlendState(const std::string& Name);
 			RasterizerState* GetRasterizerState(const std::string& Name);
@@ -1829,6 +1847,7 @@ namespace Edge
 			RenderTarget2D* GetRenderTarget();
 			Shader* GetBasicEffect();
 			RenderBackend GetBackend() const;
+			unsigned int GetFormatSize(Format Mode) const;
 			unsigned int GetPresentFlags() const;
 			unsigned int GetCompileFlags() const;
 			unsigned int GetRowPitch(unsigned int Width, unsigned int ElementSize = sizeof(unsigned char) * 4) const;
@@ -1849,6 +1868,7 @@ namespace Edge
 
 		public:
 			static GraphicsDevice* Create(Desc& I);
+			static void CompileBuiltinShaders(const std::vector<GraphicsDevice*>& Devices);
 		};
 
 		class ED_OUT Activity final : public Core::Reference<Activity>
@@ -1860,6 +1880,7 @@ namespace Edge
 				unsigned int Width = 0;
 				unsigned int Height = 0;
 				unsigned int X = 0, Y = 0;
+				unsigned int InactiveSleepMs = 66;
 				bool Fullscreen = false;
 				bool Hidden = true;
 				bool Borderless = false;
@@ -1869,9 +1890,9 @@ namespace Edge
 				bool Centered = false;
 				bool FreePosition = false;
 				bool Focused = false;
-				bool AllowHighDPI = true;
-				bool AllowStalls = true;
-				bool AllowGraphics = false;
+				bool RenderEvenIfInactive = false;
+				bool GPUAsRenderer = true;
+				bool HighDPI = true;
 			};
 
 			struct
@@ -1911,6 +1932,7 @@ namespace Edge
 		private:
 			SDL_Cursor* Cursors[(size_t)DisplayCursor::Count];
 			SDL_Window* Handle;
+			SDL_Surface* Favicon;
 			Desc Options;
 			bool Keys[2][1024];
 			int Command, CX, CY;

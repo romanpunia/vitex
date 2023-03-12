@@ -521,12 +521,13 @@ namespace Edge
 
 		Texture2D::Texture2D() noexcept
 		{
-			Width = 512;
-			Height = 512;
+			Width = ED_WINDOW_SIZE;
+			Height = ED_WINDOW_SIZE;
 			MipLevels = 1;
 			FormatMode = Format::Unknown;
 			Usage = ResourceUsage::Default;
 			AccessFlags = CPUAccess::None;
+			Binding = ResourceBind::Shader_Input;
 		}
 		Texture2D::Texture2D(const Desc& I) noexcept
 		{
@@ -536,6 +537,7 @@ namespace Edge
 			FormatMode = I.FormatMode;
 			Usage = I.Usage;
 			AccessFlags = I.AccessFlags;
+			Binding = I.BindFlags;
 		}
 		CPUAccess Texture2D::GetAccessFlags() const
 		{
@@ -548,6 +550,10 @@ namespace Edge
 		ResourceUsage Texture2D::GetUsage() const
 		{
 			return Usage;
+		}
+		ResourceBind Texture2D::GetBinding() const
+		{
+			return Binding;
 		}
 		unsigned int Texture2D::GetWidth() const
 		{
@@ -564,13 +570,14 @@ namespace Edge
 
 		Texture3D::Texture3D()
 		{
-			Width = 512;
-			Height = 512;
+			Width = ED_WINDOW_SIZE;
+			Height = ED_WINDOW_SIZE;
 			Depth = 1;
 			MipLevels = 1;
 			FormatMode = Format::Unknown;
 			Usage = ResourceUsage::Default;
 			AccessFlags = CPUAccess::None;
+			Binding = ResourceBind::Shader_Input;
 		}
 		CPUAccess Texture3D::GetAccessFlags() const
 		{
@@ -583,6 +590,10 @@ namespace Edge
 		ResourceUsage Texture3D::GetUsage() const
 		{
 			return Usage;
+		}
+		ResourceBind Texture3D::GetBinding() const
+		{
+			return Binding;
 		}
 		unsigned int Texture3D::GetWidth() const
 		{
@@ -603,12 +614,13 @@ namespace Edge
 
 		TextureCube::TextureCube() noexcept
 		{
-			Width = 512;
-			Height = 512;
+			Width = ED_WINDOW_SIZE;
+			Height = ED_WINDOW_SIZE;
 			MipLevels = 1;
 			FormatMode = Format::Unknown;
 			Usage = ResourceUsage::Default;
 			AccessFlags = CPUAccess::None;
+			Binding = ResourceBind::Shader_Input;
 		}
 		TextureCube::TextureCube(const Desc& I) noexcept
 		{
@@ -618,6 +630,7 @@ namespace Edge
 			FormatMode = I.FormatMode;
 			Usage = I.Usage;
 			AccessFlags = I.AccessFlags;
+			Binding = I.BindFlags;
 		}
 		CPUAccess TextureCube::GetAccessFlags() const
 		{
@@ -630,6 +643,10 @@ namespace Edge
 		ResourceUsage TextureCube::GetUsage() const
 		{
 			return Usage;
+		}
+		ResourceBind TextureCube::GetBinding() const
+		{
+			return Binding;
 		}
 		unsigned int TextureCube::GetWidth() const
 		{
@@ -644,7 +661,7 @@ namespace Edge
 			return MipLevels;
 		}
 
-		DepthTarget2D::DepthTarget2D(const Desc& I) noexcept : Resource(nullptr), Viewarea({ 0, 0, 512, 512, 0, 1 })
+		DepthTarget2D::DepthTarget2D(const Desc& I) noexcept : Resource(nullptr), Viewarea({ 0, 0, ED_WINDOW_SIZE, ED_WINDOW_SIZE, 0, 1 })
 		{
 		}
 		DepthTarget2D::~DepthTarget2D() noexcept
@@ -660,7 +677,7 @@ namespace Edge
 			return Viewarea;
 		}
 
-		DepthTargetCube::DepthTargetCube(const Desc& I) noexcept : Resource(nullptr), Viewarea({ 0, 0, 512, 512, 0, 1 })
+		DepthTargetCube::DepthTargetCube(const Desc& I) noexcept : Resource(nullptr), Viewarea({ 0, 0, ED_WINDOW_SIZE, ED_WINDOW_SIZE, 0, 1 })
 		{
 		}
 		DepthTargetCube::~DepthTargetCube() noexcept
@@ -676,7 +693,7 @@ namespace Edge
 			return Viewarea;
 		}
 
-		RenderTarget::RenderTarget() noexcept : DepthStencil(nullptr), Viewarea({ 0, 0, 512, 512, 0, 1 })
+		RenderTarget::RenderTarget() noexcept : DepthStencil(nullptr), Viewarea({ 0, 0, ED_WINDOW_SIZE, ED_WINDOW_SIZE, 0, 1 })
 		{
 		}
 		RenderTarget::~RenderTarget() noexcept
@@ -826,6 +843,18 @@ namespace Edge
 					Caches.clear();
 			}
 
+			if (!I.Window)
+			{
+				Activity::Desc Init;
+				Init.Title = "activity.virtual.hidden";
+				Init.Hidden = true;
+				Init.Borderless = true;
+				Init.Width = 128;
+				Init.Height = 128;
+
+				VirtualWindow = new Activity(Init);
+			}
+
 			CreateSections();
 		}
 		GraphicsDevice::~GraphicsDevice() noexcept
@@ -833,6 +862,8 @@ namespace Edge
 			ReleaseProxy();
 			for (auto It = Sections.begin(); It != Sections.end(); It++)
 				ED_DELETE(Section, It->second);
+
+			ED_CLEAR(VirtualWindow);
 			Sections.clear();
 		}
 		void GraphicsDevice::SetVertexBuffer(ElementBuffer* Resource)
@@ -1534,6 +1565,70 @@ namespace Edge
 
 			return MipLevels;
 		}
+		unsigned int GraphicsDevice::GetFormatSize(Format Mode) const
+		{
+			switch (Mode)
+			{
+				case Format::A8_Unorm:
+				case Format::R1_Unorm:
+				case Format::R8_Sint:
+				case Format::R8_Snorm:
+				case Format::R8_Uint:
+				case Format::R8_Unorm:
+					return 1;
+				case Format::D16_Unorm:
+				case Format::R16_Float:
+				case Format::R16_Sint:
+				case Format::R16_Snorm:
+				case Format::R16_Uint:
+				case Format::R16_Unorm:
+				case Format::R8G8_Sint:
+				case Format::R8G8_Snorm:
+				case Format::R8G8_Uint:
+				case Format::R8G8_Unorm:
+					return 2;
+				case Format::D24_Unorm_S8_Uint:
+				case Format::D32_Float:
+				case Format::R10G10B10A2_Uint:
+				case Format::R10G10B10A2_Unorm:
+				case Format::R11G11B10_Float:
+				case Format::R16G16_Float:
+				case Format::R16G16_Sint:
+				case Format::R16G16_Snorm:
+				case Format::R16G16_Uint:
+				case Format::R16G16_Unorm:
+				case Format::R32_Float:
+				case Format::R32_Sint:
+				case Format::R32_Uint:
+				case Format::R8G8B8A8_Sint:
+				case Format::R8G8B8A8_Snorm:
+				case Format::R8G8B8A8_Uint:
+				case Format::R8G8B8A8_Unorm:
+				case Format::R8G8B8A8_Unorm_SRGB:
+				case Format::R8G8_B8G8_Unorm:
+				case Format::R9G9B9E5_Share_Dexp:
+					return 4;
+				case Format::R16G16B16A16_Float:
+				case Format::R16G16B16A16_Sint:
+				case Format::R16G16B16A16_Snorm:
+				case Format::R16G16B16A16_Uint:
+				case Format::R16G16B16A16_Unorm:
+				case Format::R32G32_Float:
+				case Format::R32G32_Sint:
+				case Format::R32G32_Uint:
+					return 8;
+				case Format::R32G32B32A32_Float:
+				case Format::R32G32B32A32_Sint:
+				case Format::R32G32B32A32_Uint:
+					return 16;
+				case Format::R32G32B32_Float:
+				case Format::R32G32B32_Sint:
+				case Format::R32G32B32_Uint:
+					return 12;
+				default:
+					return 0;
+			}
+		}
 		unsigned int GraphicsDevice::GetPresentFlags() const
 		{
 			return PresentFlags;
@@ -1584,20 +1679,20 @@ namespace Edge
 					break;
 			}
 
-			std::string Prefix;
+			std::string Postfix;
 			switch (Backend)
 			{
 				case Edge::Graphics::RenderBackend::D3D11:
-					Prefix = "hlsl.";
+					Postfix = ".hlsl";
 					break;
 				case Edge::Graphics::RenderBackend::OGL:
-					Prefix = "glsl.";
+					Postfix = ".glsl";
 					break;
                 default:
                     break;
 			}
 
-			return Prefix + Compute::Crypto::Hash(Compute::Digests::MD5(), Result) + ".sasm";
+			return Compute::Crypto::Hash(Compute::Digests::MD5(), Result) + Postfix;
 		}
 		std::string GraphicsDevice::GetShaderMain(ShaderType Type) const
 		{
@@ -1642,6 +1737,73 @@ namespace Edge
 		const std::unordered_map<std::string, InputLayout*>& GraphicsDevice::GetInputLayouts() const
 		{
 			return InputLayouts;
+		}
+		Surface* GraphicsDevice::CreateSurface(Texture2D* Base)
+		{
+			ED_ASSERT(Base != nullptr, nullptr, "texture should be set");
+#ifdef ED_HAS_SDL2
+			int Width = (int)Base->GetWidth();
+			int Height = (int)Base->GetHeight();
+			int BytesPerPixel = GetFormatSize(Base->GetFormatMode());
+			int BitsPerPixel = BytesPerPixel * 8;
+
+			Texture2D::Desc Desc;
+			Desc.AccessFlags = CPUAccess::Read;
+			Desc.Usage = ResourceUsage::Staging;
+			Desc.BindFlags = (ResourceBind)0;
+			Desc.FormatMode = Base->GetFormatMode();
+			Desc.Width = Base->GetWidth();
+			Desc.Height = Base->GetHeight();
+			Desc.MipLevels = Base->GetMipLevels();
+
+			Texture2D* Copy = CreateTexture2D(Desc);
+			if (!CopyTexture2D(Base, &Copy))
+			{
+				ED_ERR("[graphics] cannot copy temporary texture 2d for reading");
+				ED_RELEASE(Copy);
+				return nullptr;
+			}
+
+			MappedSubresource Data;
+			if (!Map(Copy, ResourceMap::Read, &Data))
+			{
+				ED_ERR("[graphics] cannot map temporary texture 2d");
+				ED_RELEASE(Copy);
+				return nullptr;
+			}
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+			const Uint32 R = 0xff000000;
+			const Uint32 G = 0x00ff0000;
+			const Uint32 B = 0x0000ff00;
+			const Uint32 A = 0x000000ff;
+#else
+			const Uint32 R = 0x000000ff;
+			const Uint32 G = 0x0000ff00;
+			const Uint32 B = 0x00ff0000;
+			const Uint32 A = 0xff000000;
+#endif
+			SDL_Surface* Handle = SDL_CreateRGBSurface(0, Width, Height, BitsPerPixel, R, G, B, A);
+			if (Handle != nullptr)
+			{
+				SDL_SetSurfaceBlendMode(Handle, SDL_BlendMode::SDL_BLENDMODE_BLEND);
+				SDL_LockSurface(Handle);
+				memcpy(Handle->pixels, Data.Pointer, Width * Height * BytesPerPixel);
+				SDL_UnlockSurface(Handle);
+			}
+
+			Unmap(Copy, &Data);
+			ED_RELEASE(Copy);
+
+			if (!Handle)
+			{
+				ED_ERR("[graphics] cannot create surface from texture 2d");
+				return nullptr;
+			}
+
+			return new Surface(Handle);
+#else
+			return nullptr;
+#endif
 		}
 		DepthStencilState* GraphicsDevice::GetDepthStencilState(const std::string& Name)
 		{
@@ -1713,8 +1875,44 @@ namespace Edge
 			ED_ERR("[graphics] backend was not found");
 			return nullptr;
 		}
+		void GraphicsDevice::CompileBuiltinShaders(const std::vector<GraphicsDevice*>& Devices)
+		{
+			auto GetDeviceName = [](GraphicsDevice* Device) -> const char*
+			{
+				switch (Device->GetBackend())
+				{
+					case RenderBackend::D3D11:
+						return "d3d11";
+					case RenderBackend::OGL:
+						return "opengl";
+					default:
+						return "unknown";
+				}
+			};
 
-		Activity::Activity(const Desc& I) noexcept : Handle(nullptr), Options(I), Command(0), CX(0), CY(0), Message(this)
+			for (auto* Device : Devices)
+			{
+				if (!Device)
+					continue;
+
+				Device->SetAsCurrentDevice();
+				for (auto& Section : Device->Sections)
+				{
+					Shader::Desc Desc;
+					if (Device->GetSection(Section.first, &Desc))
+					{
+						Shader* Result = Device->CreateShader(Desc);
+						if (Result != nullptr)
+							ED_INFO("[graphics] OK compile %s %s shader", GetDeviceName(Device), Section.first.c_str());
+						else
+							ED_ERR("[graphics] cannot compile %s %s shader", GetDeviceName(Device), Section.first.c_str());
+						ED_RELEASE(Result);
+					}
+				}
+			}
+		}
+
+		Activity::Activity(const Desc& I) noexcept : Handle(nullptr), Favicon(nullptr), Options(I), Command(0), CX(0), CY(0), Message(this)
 		{
 #ifdef ED_HAS_SDL2
 			Cursors[(size_t)DisplayCursor::Arrow] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
@@ -1732,7 +1930,7 @@ namespace Edge
 #endif
 			memset(Keys[0], 0, sizeof(Keys[0]));
 			memset(Keys[1], 0, sizeof(Keys[1]));
-			if (!I.AllowGraphics)
+			if (!I.GPUAsRenderer)
 				BuildLayer(RenderBackend::None);
 		}
 		Activity::~Activity() noexcept
@@ -1916,7 +2114,7 @@ namespace Edge
 			if (Options.Focused)
 				Flags |= SDL_WINDOW_INPUT_GRABBED;
 
-			if (Options.AllowHighDPI)
+			if (Options.HighDPI)
 				Flags |= SDL_WINDOW_ALLOW_HIGHDPI;
 
 			if (Options.Centered)
@@ -2007,8 +2205,10 @@ namespace Edge
 		{
 #ifdef ED_HAS_SDL2
 			ED_ASSERT_V(Handle != nullptr, "activity should be initialized");
-			ED_ASSERT_V(Icon != nullptr, "icon should be set");
-			SDL_SetWindowIcon(Handle, (SDL_Surface*)Icon->GetResource());
+			if (!Favicon)
+				Favicon = SDL_GetWindowSurface(Handle);
+
+			SDL_SetWindowIcon(Handle, Icon ? (SDL_Surface*)Icon->GetResource() : Favicon);
 #endif
 		}
 		void Activity::Load(SDL_SysWMinfo* Base)
@@ -2421,15 +2621,15 @@ namespace Edge
 				}
 			}
 
-			if (!Options.AllowStalls)
+			if (Options.RenderEvenIfInactive)
 				return true;
 
 			Uint32 Flags = SDL_GetWindowFlags(Handle);
 			if (Flags & SDL_WINDOW_MAXIMIZED || Flags & SDL_WINDOW_INPUT_FOCUS || Flags & SDL_WINDOW_MOUSE_FOCUS)
 				return true;
 
-			std::this_thread::sleep_for(std::chrono::milliseconds(66));
-			return true;
+			std::this_thread::sleep_for(std::chrono::milliseconds(Options.InactiveSleepMs));
+			return false;
 #else
 			return false;
 #endif

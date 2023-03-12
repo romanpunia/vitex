@@ -7177,6 +7177,10 @@ namespace Edge
 				FunctionFactory::AtomicNotifyGC(TYPENAME_GRAPHICSDEVICE, Result);
 				return Result;
 			}
+			void GraphicsDeviceCompileBuiltinShaders(Array* Devices)
+			{
+				Graphics::GraphicsDevice::CompileBuiltinShaders(Array::Decompose<Graphics::GraphicsDevice*>(Devices));
+			}
 
 			Array* ModelGetMeshes(Graphics::Model* Base)
 			{
@@ -10552,8 +10556,6 @@ namespace Edge
 				Engine->SetFunction("bool has_sb_intersected(transform@+, transform@+)", &Compute::Geometric::HasSBIntersected);
 				Engine->SetFunction("bool has_obb_intersected(transform@+, transform@+)", &Compute::Geometric::HasOBBIntersected);
 				Engine->SetFunction("bool has_aabb_intersected(transform@+, transform@+)", &Compute::Geometric::HasAABBIntersected);
-				Engine->SetFunction<void(const Compute::SkinVertex&, const Compute::SkinVertex&, const Compute::SkinVertex&, Compute::Vector3&, Compute::Vector3&)>("void compute_influence_tangent_bitangent(const skin_vertex &in, const skin_vertex &in, const skin_vertex &in, vector3 &in, vector3 &in)", &Compute::Geometric::ComputeInfluenceTangentBitangent);
-				Engine->SetFunction<void(const Compute::SkinVertex&, const Compute::SkinVertex&, const Compute::SkinVertex&, Compute::Vector3&, Compute::Vector3&, Compute::Vector3&)>("void compute_influence_tangent_bitangent(const skin_vertex &in, const skin_vertex &in, const skin_vertex &in, vector3 &in, vector3 &in, vector3 &in)", &Compute::Geometric::ComputeInfluenceTangentBitangent);
 				Engine->SetFunction("void matrix_rh_to_lh(matrix4x4 &out)", &Compute::Geometric::MatrixRhToLh);
 				Engine->SetFunction("void set_left_handed(bool)", &Compute::Geometric::SetLeftHanded);
 				Engine->SetFunction("ray create_cursor_ray(const vector3 &in, const vector2 &in, const vector2 &in, const matrix4x4 &in, const matrix4x4 &in)", &Compute::Geometric::CreateCursorRay);
@@ -11878,12 +11880,25 @@ namespace Edge
 				VAlert.SetMethod("void button(alert_confirm, const string &in, int32)", &Graphics::Alert::Button);
 				VAlert.SetMethodEx("void result(alert_event@+)", &AlertResult);
 
+				RefClass VSurface = Engine->SetClass<Graphics::Surface>("activity_surface", false);
+				VSurface.SetConstructor<Graphics::Surface>("activity_surface@ f()");
+				VSurface.SetConstructor<Graphics::Surface, SDL_Surface*>("activity_surface@ f(uptr@)");
+				VSurface.SetMethod("void set_handle(uptr@)", &Graphics::Surface::SetHandle);
+				VSurface.SetMethod("void lock()", &Graphics::Surface::Lock);
+				VSurface.SetMethod("void unlock()", &Graphics::Surface::Unlock);
+				VSurface.SetMethod("int get_width()", &Graphics::Surface::GetWidth);
+				VSurface.SetMethod("int get_height()", &Graphics::Surface::GetHeight);
+				VSurface.SetMethod("int get_pitch()", &Graphics::Surface::GetPitch);
+				VSurface.SetMethod("uptr@ get_pixels()", &Graphics::Surface::GetPixels);
+				VSurface.SetMethod("uptr@ get_resource()", &Graphics::Surface::GetResource);
+
 				TypeClass VActivityDesc = Engine->SetPod<Graphics::Activity::Desc>("activity_desc");
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("string title", &Graphics::Activity::Desc::Title);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("uint32 width", &Graphics::Activity::Desc::Width);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("uint32 height", &Graphics::Activity::Desc::Height);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("uint32 x", &Graphics::Activity::Desc::X);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("uint32 y", &Graphics::Activity::Desc::Y);
+				VActivityDesc.SetProperty<Graphics::Activity::Desc>("uint32 inactive_sleep_ms", &Graphics::Activity::Desc::InactiveSleepMs);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("bool fullscreen", &Graphics::Activity::Desc::Fullscreen);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("bool hidden", &Graphics::Activity::Desc::Hidden);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("bool borderless", &Graphics::Activity::Desc::Borderless);
@@ -11893,9 +11908,9 @@ namespace Edge
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("bool centered", &Graphics::Activity::Desc::Centered);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("bool free_position", &Graphics::Activity::Desc::FreePosition);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("bool focused", &Graphics::Activity::Desc::Focused);
-				VActivityDesc.SetProperty<Graphics::Activity::Desc>("bool allow_high_dpi", &Graphics::Activity::Desc::AllowHighDPI);
-				VActivityDesc.SetProperty<Graphics::Activity::Desc>("bool allow_stalls", &Graphics::Activity::Desc::AllowStalls);
-				VActivityDesc.SetProperty<Graphics::Activity::Desc>("bool allow_graphics", &Graphics::Activity::Desc::AllowGraphics);
+				VActivityDesc.SetProperty<Graphics::Activity::Desc>("bool render_even_if_inactive", &Graphics::Activity::Desc::RenderEvenIfInactive);
+				VActivityDesc.SetProperty<Graphics::Activity::Desc>("bool gpu_as_renderer", &Graphics::Activity::Desc::GPUAsRenderer);
+				VActivityDesc.SetProperty<Graphics::Activity::Desc>("bool high_dpi", &Graphics::Activity::Desc::HighDPI);
 				VActivityDesc.SetConstructor<Graphics::Activity::Desc>("void f()");
 
 				VActivity.SetProperty<Graphics::Activity>("activity_alert message", &Graphics::Activity::Message);
@@ -11953,6 +11968,7 @@ namespace Edge
 				VActivity.SetMethod("void set_grabbing(bool)", &Graphics::Activity::SetGrabbing);
 				VActivity.SetMethod("void set_fullscreen(bool)", &Graphics::Activity::SetFullscreen);
 				VActivity.SetMethod("void set_borderless(bool)", &Graphics::Activity::SetBorderless);
+				VActivity.SetMethod("void set_icon(activity_surface@+)", &Graphics::Activity::SetIcon);
 				VActivity.SetMethodEx("void set_title(const string &in)", &ActivitySetTitle);
 				VActivity.SetMethod("void set_screen_keyboard(bool)", &Graphics::Activity::SetScreenKeyboard);
 				VActivity.SetMethod("void build_layer(render_backend)", &Graphics::Activity::BuildLayer);
@@ -12584,6 +12600,7 @@ namespace Edge
 				VTexture2D.SetMethod("cpu_access get_access_flags() const", &Graphics::Texture2D::GetAccessFlags);
 				VTexture2D.SetMethod("surface_format get_format_mode() const", &Graphics::Texture2D::GetFormatMode);
 				VTexture2D.SetMethod("resource_usage get_usage() const", &Graphics::Texture2D::GetUsage);
+				VTexture2D.SetMethod("resource_bind get_binding() const", &Graphics::Texture2D::GetBinding);
 				VTexture2D.SetMethod("uint32 get_width() const", &Graphics::Texture2D::GetWidth);
 				VTexture2D.SetMethod("uint32 get_height() const", &Graphics::Texture2D::GetHeight);
 				VTexture2D.SetMethod("uint32 get_mip_levels() const", &Graphics::Texture2D::GetMipLevels);
@@ -12606,6 +12623,7 @@ namespace Edge
 				VTexture3D.SetMethod("cpu_access get_access_flags() const", &Graphics::Texture3D::GetAccessFlags);
 				VTexture3D.SetMethod("surface_format get_format_mode() const", &Graphics::Texture3D::GetFormatMode);
 				VTexture3D.SetMethod("resource_usage get_usage() const", &Graphics::Texture3D::GetUsage);
+				VTexture3D.SetMethod("resource_bind get_binding() const", &Graphics::Texture3D::GetBinding);
 				VTexture3D.SetMethod("uint32 get_width() const", &Graphics::Texture3D::GetWidth);
 				VTexture3D.SetMethod("uint32 get_height() const", &Graphics::Texture3D::GetHeight);
 				VTexture3D.SetMethod("uint32 get_depth() const", &Graphics::Texture3D::GetDepth);
@@ -12628,6 +12646,7 @@ namespace Edge
 				VTextureCube.SetMethod("cpu_access get_access_flags() const", &Graphics::TextureCube::GetAccessFlags);
 				VTextureCube.SetMethod("surface_format get_format_mode() const", &Graphics::TextureCube::GetFormatMode);
 				VTextureCube.SetMethod("resource_usage get_usage() const", &Graphics::TextureCube::GetUsage);
+				VTextureCube.SetMethod("resource_bind get_binding() const", &Graphics::TextureCube::GetBinding);
 				VTextureCube.SetMethod("uint32 get_width() const", &Graphics::TextureCube::GetWidth);
 				VTextureCube.SetMethod("uint32 get_height() const", &Graphics::TextureCube::GetHeight);
 				VTextureCube.SetMethod("uint32 get_mip_levels() const", &Graphics::TextureCube::GetMipLevels);
@@ -12811,6 +12830,7 @@ namespace Edge
 				VGraphicsDevice.SetProperty<Graphics::GraphicsDevice>("render_buffer render", &Graphics::GraphicsDevice::Render);
 				VGraphicsDevice.SetProperty<Graphics::GraphicsDevice>("view_buffer view", &Graphics::GraphicsDevice::View);
 				VGraphicsDevice.SetProperty<Graphics::GraphicsDevice>("animation_buffer animation", &Graphics::GraphicsDevice::Animation);
+				VGraphicsDevice.SetMethod("void set_as_current_device()", &Graphics::GraphicsDevice::SetAsCurrentDevice);
 				VGraphicsDevice.SetMethod("void set_constant_buffers()", &Graphics::GraphicsDevice::SetConstantBuffers);
 				VGraphicsDevice.SetMethod("void set_shader_model(shader_model)", &Graphics::GraphicsDevice::SetShaderModel);
 				VGraphicsDevice.SetMethod("void set_blend_state(blend_state@+)", &Graphics::GraphicsDevice::SetBlendState);
@@ -12846,8 +12866,14 @@ namespace Edge
 				VGraphicsDevice.SetMethod("void set_primitive_topology(primitive_topology)", &Graphics::GraphicsDevice::SetPrimitiveTopology);
 				VGraphicsDevice.SetMethod("void flush_texture(uint32, uint32, uint32)", &Graphics::GraphicsDevice::FlushTexture);
 				VGraphicsDevice.SetMethod("void flush_state()", &Graphics::GraphicsDevice::FlushState);
-				VGraphicsDevice.SetMethod("bool map(element_buffer@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
-				VGraphicsDevice.SetMethod("bool mnmap(element_buffer@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::ElementBuffer*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool map(element_buffer@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture2D*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool map(texture_2d@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture3D*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool map(texture_3d@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::TextureCube*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool map(texture_cube@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture2D*, Graphics::MappedSubresource*>("bool unmap(texture_2d@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture3D*, Graphics::MappedSubresource*>("bool unmap(texture_3d@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::TextureCube*, Graphics::MappedSubresource*>("bool unmap(texture_cube@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::ElementBuffer*, Graphics::MappedSubresource*>("bool unmap(element_buffer@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::ElementBuffer*, void*, size_t>("bool update_buffer(element_buffer@+, uptr@, usize)", &Graphics::GraphicsDevice::UpdateBuffer);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Shader*, const void*>("bool update_buffer(shader@+, uptr@)", &Graphics::GraphicsDevice::UpdateBuffer);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::MeshBuffer*, Compute::Vertex*>("bool update_buffer(mesh_buffer@+, uptr@ Data)", &Graphics::GraphicsDevice::UpdateBuffer);
@@ -12942,6 +12968,7 @@ namespace Edge
 				VGraphicsDevice.SetMethod("multi_render_target_cube@ create_multi_render_target_cube(const multi_render_target_cube_desc &in)", &Graphics::GraphicsDevice::CreateMultiRenderTargetCube);
 				VGraphicsDevice.SetMethod("cubemap@ create_cubemap(const cubemap_desc &in)", &Graphics::GraphicsDevice::CreateCubemap);
 				VGraphicsDevice.SetMethod("visibility_query@ create_query(const visibility_query_desc &in)", &Graphics::GraphicsDevice::CreateQuery);
+				VGraphicsDevice.SetMethod("activity_surface@ create_surface(texture_2d@+)", &Graphics::GraphicsDevice::CreateSurface);
 				VGraphicsDevice.SetMethod("primitive_topology get_primitive_topology() const", &Graphics::GraphicsDevice::GetPrimitiveTopology);
 				VGraphicsDevice.SetMethod("shader_model get_supported_shader_model()  const", &Graphics::GraphicsDevice::GetSupportedShaderModel);
 				VGraphicsDevice.SetMethod("uptr@ get_device() const", &Graphics::GraphicsDevice::GetDevice);
@@ -12966,12 +12993,14 @@ namespace Edge
 				VGraphicsDevice.SetMethod("render_target_2d@+ get_render_target()", &Graphics::GraphicsDevice::GetRenderTarget);
 				VGraphicsDevice.SetMethod("shader@+ get_basic_effect()", &Graphics::GraphicsDevice::GetBasicEffect);
 				VGraphicsDevice.SetMethod("render_backend get_backend() const", &Graphics::GraphicsDevice::GetBackend);
+				VGraphicsDevice.SetMethod("uint32 get_format_size(surface_format) const", &Graphics::GraphicsDevice::GetFormatSize);
 				VGraphicsDevice.SetMethod("uint32 get_present_flags() const", &Graphics::GraphicsDevice::GetPresentFlags);
 				VGraphicsDevice.SetMethod("uint32 get_compile_flags() const", &Graphics::GraphicsDevice::GetCompileFlags);
 				VGraphicsDevice.SetMethod("uint32 get_mip_level(uint32, uint32) const", &Graphics::GraphicsDevice::GetMipLevel);
 				VGraphicsDevice.SetMethod("vsync get_vsync_mode() const", &Graphics::GraphicsDevice::GetVSyncMode);
 				VGraphicsDevice.SetMethod("bool is_debug() const", &Graphics::GraphicsDevice::IsDebug);
 				VGraphicsDevice.SetMethodStatic("graphics_device@ create(graphics_device_desc &in)", &GraphicsDeviceCreate);
+				VGraphicsDevice.SetMethodStatic("void compile_buildin_shaders(array<graphics_device@>@+)", &GraphicsDeviceCompileBuiltinShaders);
 				VGraphicsDevice.SetEnumRefsEx<Graphics::GraphicsDevice>([](Graphics::GraphicsDevice* Base, asIScriptEngine* Engine)
 				{
 					Engine->GCEnumCallback(Base->GetRenderTarget());

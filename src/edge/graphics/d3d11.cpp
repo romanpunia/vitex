@@ -3,6 +3,12 @@
 #include <SDL2/SDL_syswm.h>
 #endif
 #ifdef ED_MICROSOFT
+#define SHADER_VERTEX ".asm.vertex.gz"
+#define SHADER_PIXEL ".asm.pixel.gz"
+#define SHADER_GEOMETRY ".asm.geometry.gz"
+#define SHADER_COMPUTE ".asm.compute.gz"
+#define SHADER_HULL ".asm.hull.gz"
+#define SHADER_DOMAIN ".asm.domain.gz"
 #define REG_EXCHANGE(Name, Value) { if (Register.Name == Value) return; Register.Name = Value; }
 #define REG_EXCHANGE_T2(Name, Value1, Value2) { if (std::get<0>(Register.Name) == Value1 && std::get<1>(Register.Name) == Value2) return; Register.Name = std::make_tuple(Value1, Value2); }
 #define REG_EXCHANGE_T3(Name, Value1, Value2, Value3) { if (std::get<0>(Register.Name) == Value1 && std::get<1>(Register.Name) == Value2 && std::get<2>(Register.Name) == Value3) return; Register.Name = std::make_tuple(Value1, Value2, Value3); }
@@ -502,10 +508,17 @@ namespace Edge
 
 			D3D11Device::D3D11Device(const Desc& I) : GraphicsDevice(I), ImmediateContext(nullptr), Context(nullptr), SwapChain(nullptr), FeatureLevel(D3D_FEATURE_LEVEL_11_0), DriverType(D3D_DRIVER_TYPE_HARDWARE)
 			{
-				if (I.Window != nullptr && !I.Window->GetHandle())
+				Activity* Window = I.Window;
+				if (!Window)
 				{
-					I.Window->BuildLayer(Backend);
-					if (!I.Window->GetHandle())
+					ED_ASSERT_V(VirtualWindow != nullptr, "cannot initialize virtual activity for device");
+					Window = VirtualWindow;
+				}
+
+				if (!Window->GetHandle())
+				{
+					Window->BuildLayer(Backend);
+					if (!Window->GetHandle())
 						return;
 				}
 
@@ -534,10 +547,10 @@ namespace Edge
 				SwapChainResource.Flags = 0;
 				SwapChainResource.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 #if defined(ED_MICROSOFT) && defined(ED_HAS_SDL2)
-				if (I.Window != nullptr)
+				if (Window != nullptr)
 				{
 					SDL_SysWMinfo Info;
-					I.Window->Load(&Info);
+					Window->Load(&Info);
 					SwapChainResource.OutputWindow = (HWND)Info.info.win.window;
 				}
 #endif
@@ -594,6 +607,9 @@ namespace Edge
 				}
 
 				D3D_RELEASE(Context);
+			}
+			void D3D11Device::SetAsCurrentDevice()
+			{
 			}
 			void D3D11Device::SetConstantBuffers()
 			{
@@ -1212,6 +1228,78 @@ namespace Edge
 				Map->Pointer = MappedResource.pData;
 				Map->RowPitch = MappedResource.RowPitch;
 				Map->DepthPitch = MappedResource.DepthPitch;
+				return true;
+			}
+			bool D3D11Device::Map(Texture2D* Resource, ResourceMap Mode, MappedSubresource* Map)
+			{
+				ED_ASSERT(Resource != nullptr, false, "resource should be set");
+				ED_ASSERT(Map != nullptr, false, "map should be set");
+
+				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
+				D3D11_MAPPED_SUBRESOURCE MappedResource;
+				if (ImmediateContext->Map(IResource->View, 0, (D3D11_MAP)Mode, 0, &MappedResource) != S_OK)
+					return false;
+
+				Map->Pointer = MappedResource.pData;
+				Map->RowPitch = MappedResource.RowPitch;
+				Map->DepthPitch = MappedResource.DepthPitch;
+				return true;
+			}
+			bool D3D11Device::Map(Texture3D* Resource, ResourceMap Mode, MappedSubresource* Map)
+			{
+				ED_ASSERT(Resource != nullptr, false, "resource should be set");
+				ED_ASSERT(Map != nullptr, false, "map should be set");
+
+				D3D11Texture3D* IResource = (D3D11Texture3D*)Resource;
+				D3D11_MAPPED_SUBRESOURCE MappedResource;
+				if (ImmediateContext->Map(IResource->View, 0, (D3D11_MAP)Mode, 0, &MappedResource) != S_OK)
+					return false;
+
+				Map->Pointer = MappedResource.pData;
+				Map->RowPitch = MappedResource.RowPitch;
+				Map->DepthPitch = MappedResource.DepthPitch;
+				return true;
+			}
+			bool D3D11Device::Map(TextureCube* Resource, ResourceMap Mode, MappedSubresource* Map)
+			{
+				ED_ASSERT(Resource != nullptr, false, "resource should be set");
+				ED_ASSERT(Map != nullptr, false, "map should be set");
+
+				D3D11TextureCube* IResource = (D3D11TextureCube*)Resource;
+				D3D11_MAPPED_SUBRESOURCE MappedResource;
+				if (ImmediateContext->Map(IResource->View, 0, (D3D11_MAP)Mode, 0, &MappedResource) != S_OK)
+					return false;
+
+				Map->Pointer = MappedResource.pData;
+				Map->RowPitch = MappedResource.RowPitch;
+				Map->DepthPitch = MappedResource.DepthPitch;
+				return true;
+			}
+			bool D3D11Device::Unmap(Texture2D* Resource, MappedSubresource* Map)
+			{
+				ED_ASSERT(Resource != nullptr, false, "resource should be set");
+				ED_ASSERT(Map != nullptr, false, "map should be set");
+
+				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
+				ImmediateContext->Unmap(IResource->View, 0);
+				return true;
+			}
+			bool D3D11Device::Unmap(Texture3D* Resource, MappedSubresource* Map)
+			{
+				ED_ASSERT(Resource != nullptr, false, "resource should be set");
+				ED_ASSERT(Map != nullptr, false, "map should be set");
+
+				D3D11Texture3D* IResource = (D3D11Texture3D*)Resource;
+				ImmediateContext->Unmap(IResource->View, 0);
+				return true;
+			}
+			bool D3D11Device::Unmap(TextureCube* Resource, MappedSubresource* Map)
+			{
+				ED_ASSERT(Resource != nullptr, false, "resource should be set");
+				ED_ASSERT(Map != nullptr, false, "map should be set");
+
+				D3D11TextureCube* IResource = (D3D11TextureCube*)Resource;
+				ImmediateContext->Unmap(IResource->View, 0);
 				return true;
 			}
 			bool D3D11Device::Unmap(ElementBuffer* Resource, MappedSubresource* Map)
@@ -1972,6 +2060,10 @@ namespace Edge
 				IResource->Height = Description.Height;
 				IResource->MipLevels = Description.MipLevels;
 				IResource->AccessFlags = (CPUAccess)Description.CPUAccessFlags;
+				IResource->Binding = (ResourceBind)Description.BindFlags;
+
+				if (!((uint32_t)IResource->Binding & (uint32_t)ResourceBind::Shader_Input))
+					return true;
 
 				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
 				ZeroMemory(&SRV, sizeof(SRV));
@@ -2001,6 +2093,10 @@ namespace Edge
 				IResource->Height = Description.Height;
 				IResource->MipLevels = Description.MipLevels;
 				IResource->AccessFlags = (CPUAccess)Description.CPUAccessFlags;
+				IResource->Binding = (ResourceBind)Description.BindFlags;
+
+				if (!((uint32_t)IResource->Binding & (uint32_t)ResourceBind::Shader_Input))
+					return true;
 
 				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
 				ZeroMemory(&SRV, sizeof(SRV));
@@ -2360,7 +2456,7 @@ namespace Edge
 				std::string VertexEntry = GetShaderMain(ShaderType::Vertex);
 				if (F.Data.find(VertexEntry) != std::string::npos)
 				{
-					std::string Stage = Name + ".vtx", Bytecode;
+					std::string Stage = Name + SHADER_VERTEX, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[d3d11] compile %s vertex shader source", Stage.c_str());
@@ -2406,7 +2502,7 @@ namespace Edge
 				std::string PixelEntry = GetShaderMain(ShaderType::Pixel);
 				if (F.Data.find(PixelEntry) != std::string::npos)
 				{
-					std::string Stage = Name + ".pxl", Bytecode;
+					std::string Stage = Name + SHADER_PIXEL, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[d3d11] compile %s pixel shader source", Stage.c_str());
@@ -2446,7 +2542,7 @@ namespace Edge
 				std::string GeometryEntry = GetShaderMain(ShaderType::Geometry);
 				if (F.Data.find(GeometryEntry) != std::string::npos)
 				{
-					std::string Stage = Name + ".geo", Bytecode;
+					std::string Stage = Name + SHADER_GEOMETRY, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[d3d11] compile %s geometry shader source", Stage.c_str());
@@ -2486,7 +2582,7 @@ namespace Edge
 				std::string ComputeEntry = GetShaderMain(ShaderType::Compute);
 				if (F.Data.find(ComputeEntry) != std::string::npos)
 				{
-					std::string Stage = Name + ".cmp", Bytecode;
+					std::string Stage = Name + SHADER_COMPUTE, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[d3d11] compile %s compute shader source", Stage.c_str());
@@ -2526,7 +2622,7 @@ namespace Edge
 				std::string HullEntry = GetShaderMain(ShaderType::Hull);
 				if (F.Data.find(HullEntry) != std::string::npos)
 				{
-					std::string Stage = Name + ".hlc", Bytecode;
+					std::string Stage = Name + SHADER_HULL, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[d3d11] compile %s hull shader source", Stage.c_str());
@@ -2566,7 +2662,7 @@ namespace Edge
 				std::string DomainEntry = GetShaderMain(ShaderType::Domain);
 				if (F.Data.find(DomainEntry) != std::string::npos)
 				{
-					std::string Stage = Name + ".dmn", Bytecode;
+					std::string Stage = Name + SHADER_DOMAIN, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[d3d11] compile %s domain shader source", Stage.c_str());
@@ -3286,6 +3382,7 @@ namespace Edge
 				Target->Height = Description.Height;
 				Target->MipLevels = Description.MipLevels;
 				Target->AccessFlags = (CPUAccess)Description.CPUAccessFlags;
+				Target->Binding = (ResourceBind)Description.BindFlags;
 
 				return Result;
 			}
@@ -3837,8 +3934,9 @@ namespace Edge
 				IResource->Height = Description.Height;
 				IResource->MipLevels = Description.MipLevels;
 				IResource->AccessFlags = (CPUAccess)Description.CPUAccessFlags;
+				IResource->Binding = (ResourceBind)Description.BindFlags;
 
-				if (IResource->Resource != nullptr)
+				if (IResource->Resource != nullptr || !((uint32_t)IResource->Binding & (uint32_t)ResourceBind::Shader_Input))
 					return true;
 
 				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
@@ -3902,8 +4000,9 @@ namespace Edge
 				IResource->Height = Description.Height;
 				IResource->MipLevels = Description.MipLevels;
 				IResource->AccessFlags = (CPUAccess)Description.CPUAccessFlags;
+				IResource->Binding = (ResourceBind)Description.BindFlags;
 
-				if (IResource->Resource != nullptr)
+				if (IResource->Resource != nullptr || !((uint32_t)IResource->Binding & (uint32_t)ResourceBind::Shader_Input))
 					return true;
 
 				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;

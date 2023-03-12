@@ -1,8 +1,8 @@
 #ifndef EDGE_H
 #define EDGE_H
 #define ED_MAJOR_VERSION 17
-#define ED_MINOR_VERSION 16
-#define ED_PATCH_LEVEL 66
+#define ED_MINOR_VERSION 17
+#define ED_PATCH_LEVEL 67
 #define ED_VERSION(X, Y, Z) ((X) * 1000 + (Y) * 100 + (Z))
 #define ED_AT_LEAST(X, Y, Z) (ED_VERSION(ED_MAJOR_VERSION, ED_MINOR_VERSION, ED_PATCH_LEVEL) >= ED_VERSION(X, Y, Z))
 #include "core/core.h"

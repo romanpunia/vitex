@@ -52,7 +52,11 @@ void ps_main(VOutput V)
 {
 	float4 Color = float4(Materials[ob_MaterialId].Diffuse, 1.0);
 	[branch] if (ob_Diffuse > 0)
+	{
 		Color *= GetDiffuse(V.TexCoord);
+		if (Color.w < 0.001)
+			discard;
+	}
 
 	float3 Normal = V.Normal;
 	[branch] if (ob_Normal > 0)

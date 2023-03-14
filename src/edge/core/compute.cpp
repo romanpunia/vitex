@@ -202,9 +202,9 @@ namespace Edge
 		{
 #ifdef ED_USE_SIMD
 			LOD_FV2(_r1);
-			return Geometric::FastSqrt(horizontal_add(square(_r1)));
+			return std::sqrt(horizontal_add(square(_r1)));
 #else
-			return Geometric::FastSqrt(X * X + Y * Y);
+			return std::sqrt(X * X + Y * Y);
 #endif
 		}
 		float Vector2::Sum() const
@@ -650,9 +650,9 @@ namespace Edge
 		{
 #ifdef ED_USE_SIMD
 			LOD_FV3(_r1);
-			return Geometric::FastSqrt(horizontal_add(square(_r1)));
+			return sqrt(horizontal_add(square(_r1)));
 #else
-			return Geometric::FastSqrt(X * X + Y * Y + Z * Z);
+			return std::sqrt(X * X + Y * Y + Z * Z);
 #endif
 		}
 		float Vector3::Sum() const
@@ -745,7 +745,7 @@ namespace Edge
 		}
 		Vector3 Vector3::Direction() const
 		{
-			return Matrix4x4::CreateLookAt(0, *this, Vector3::Up()).Rotation();
+			return Matrix4x4::CreateLookAt(0, *this, Vector3::Up()).RotationEuler();
 		}
 		Vector3 Vector3::Inv() const
 		{
@@ -1167,9 +1167,9 @@ namespace Edge
 		{
 #ifdef ED_USE_SIMD
 			LOD_FV4(_r1);
-			return Geometric::FastSqrt(horizontal_add(square(_r1)));
+			return std::sqrt(horizontal_add(square(_r1)));
 #else
-			return Geometric::FastSqrt(X * X + Y * Y + Z * Z + W * W);
+			return std::sqrt(X * X + Y * Y + Z * Z + W * W);
 #endif
 		}
 		float Vector4::Sum() const
@@ -2323,26 +2323,41 @@ namespace Edge
 				Vector4(Row[3], Row[7], Row[11], Row[15]));
 #endif
 		}
-		Vector3 Matrix4x4::Rotation() const
+		Quaternion Matrix4x4::RotationQuaternion() const
 		{
-#ifdef ED_USE_SIMD
-			float X = -atan2(-Row[6], Row[10]);
-			float sX = sin(X), cX = cos(X);
-			LOD_AV2(_r1, Row[0], Row[1]);
-			LOD_AV2(_r2, Row[4], Row[8]);
-			LOD_AV2(_r3, Row[5], Row[9]);
-			LOD_AV2(_r4, cX, sX);
+			Vector3 Scaling[3] =
+			{
+				Vector3(Row[0], Row[1], Row[2]),
+				Vector3(Row[4], Row[5], Row[6]),
+				Vector3(Row[8], Row[9], Row[10])
+			};
 
-			return Vector3(X,
-				-atan2(Row[2], Geometric::FastSqrt(horizontal_add(square(_r1)))),
-				-atan2(horizontal_add(_r4 * _r2), horizontal_add(_r4 * _r3)));
-#else
-			float X = -atan2(-Row[6], Row[10]);
-			float sX = sin(X), cX = cos(X);
-			return Vector3(X,
-				-atan2(Row[2], Geometric::FastSqrt(Row[0] * Row[0] + Row[1] * Row[1])),
-				-atan2(cX * Row[4] + sX * Row[8], cX * Row[5] + sX * Row[9]));
-#endif
+			Vector3 Scale = { Scaling[0].Length(), Scaling[1].Length(), Scaling[2].Length() };
+			if (Determinant() < 0)
+				Scale = -Scale;
+
+			if (Scale.X)
+				Scaling[0] /= Scale.X;
+
+			if (Scale.Y)
+				Scaling[1] /= Scale.Y;
+
+			if (Scale.Z)
+				Scaling[2] /= Scale.Z;
+
+			Matrix4x4 Rotated =
+			{
+				Scaling[0].X, Scaling[1].X, Scaling[2].X, 0.0f,
+				Scaling[0].Y, Scaling[1].Y, Scaling[2].Y, 0.0f,
+				Scaling[0].Z, Scaling[1].Z, Scaling[2].Z, 0.0f,
+				0.0f, 0.0f, 0.0f, 1.0f
+			};
+
+			return Quaternion(Rotated);
+		}
+		Vector3 Matrix4x4::RotationEuler() const
+		{
+			return RotationQuaternion().GetEuler();
 		}
 		Vector3 Matrix4x4::Position() const
 		{
@@ -2350,7 +2365,17 @@ namespace Edge
 		}
 		Vector3 Matrix4x4::Scale() const
 		{
-			return Vector3(Row[0], Row[5], Row[10]);
+			Vector3 Scale =
+			{
+				Vector3(Row[0], Row[1], Row[2]).Length(),
+				Vector3(Row[4], Row[5], Row[6]).Length(),
+				Vector3(Row[8], Row[9], Row[10]).Length()
+			};
+			
+			if (Determinant() < 0)
+				Scale = -Scale;
+
+			return Scale;
 		}
 		Matrix4x4 Matrix4x4::SetScale(const Vector3& Value) const
 		{
@@ -2488,6 +2513,15 @@ namespace Edge
 				Row[2] + Row[6] + Row[10] + Row[14],
 				Row[3] + Row[7] + Row[11] + Row[15]);
 #endif
+		}
+		float Matrix4x4::Determinant() const
+		{
+			return Row[0] * Row[5] * Row[10] * Row[15] - Row[0] * Row[5] * Row[11] * Row[14] + Row[0] * Row[6] * Row[11] * Row[13] - Row[0] * Row[6] * Row[9] * Row[15]
+				+ Row[0] * Row[7] * Row[9] * Row[14] - Row[0] * Row[7] * Row[10] * Row[13] - Row[1] * Row[6] * Row[11] * Row[12] + Row[1] * Row[6] * Row[8] * Row[15]
+				- Row[1] * Row[7] * Row[8] * Row[14] + Row[1] * Row[7] * Row[10] * Row[12] - Row[1] * Row[4] * Row[10] * Row[15] + Row[1] * Row[4] * Row[11] * Row[14]
+				+ Row[2] * Row[7] * Row[8] * Row[13] - Row[2] * Row[7] * Row[9] * Row[12] + Row[2] * Row[4] * Row[9] * Row[15] - Row[2] * Row[4] * Row[11] * Row[13]
+				+ Row[2] * Row[5] * Row[11] * Row[12] - Row[2] * Row[5] * Row[8] * Row[15] - Row[3] * Row[4] * Row[9] * Row[14] + Row[3] * Row[4] * Row[10] * Row[13]
+				- Row[3] * Row[5] * Row[10] * Row[12] + Row[3] * Row[5] * Row[8] * Row[14] - Row[3] * Row[6] * Row[8] * Row[13] + Row[3] * Row[6] * Row[9] * Row[12];
 		}
 		void Matrix4x4::Identify()
 		{
@@ -2790,103 +2824,39 @@ namespace Edge
 		}
 		void Quaternion::SetMatrix(const Matrix4x4& Value)
 		{
-#ifdef ED_USE_SIMD
-			LOD_AV3(_r1, Value[0], Value[5], Value[9]);
-			float T = horizontal_add(_r1);
-			if (T <= 0.0f)
+			float T = Value.Row[0] + Value.Row[5] + Value.Row[10];
+			if (T > 0.0f)
 			{
-				if (Value[0] > Value[5] && Value[0] > Value[9])
-				{
-					LOD_AV4(_r2, 1.0f, Value[0], -Value[5], -Value[9]);
-					LOD_AV4(_r3, 0.25f, Value[4], Value[7], Value[6]);
-					LOD_AV4(_r4, 0.0f, Value[1], Value[2], -Value[8]);
-					float F = 0.5f / Geometric::FastSqrt(horizontal_add(_r2));
-					_r3 += _r4;
-					_r3 *= F;
-					_r3.store((float*)this);
-					X = 0.25f / F;
-				}
-				else if (Value[5] > Value[9])
-				{
-					LOD_AV4(_r2, 1.0f, Value[5], -Value[0], -Value[9]);
-					LOD_AV4(_r3, Value[4], 0.25f, Value[8], Value[7]);
-					LOD_AV4(_r4, Value[1], 0.0f, Value[6], -Value[2]);
-					float F = 0.5f / Geometric::FastSqrt(horizontal_add(_r2));
-					_r3 += _r4;
-					_r3 *= F;
-					_r3.store((float*)this);
-					Y = 0.25f / F;
-				}
-				else
-				{
-					LOD_AV4(_r2, 1.0f, Value[9], -Value[0], -Value[5]);
-					LOD_AV4(_r3, Value[7], Value[6], 0.25f, Value[1]);
-					LOD_AV4(_r4, Value[2], Value[8], 0.0f, -Value[4]);
-					float F = 0.5f / Geometric::FastSqrt(horizontal_add(_r2));
-					_r3 += _r4;
-					_r3 *= F;
-					_r3.store((float*)this);
-					Z = 0.25f / F;
-				}
+				float S = std::sqrt(1 + T) * 2.0f;
+				X = (Value.Row[9] - Value.Row[6]) / S;
+				Y = (Value.Row[2] - Value.Row[8]) / S;
+				Z = (Value.Row[4] - Value.Row[1]) / S;
+				W = 0.25f * S;
+			}
+			else if (Value.Row[0] > Value.Row[5] && Value.Row[0] > Value.Row[10])
+			{
+				float S = std::sqrt(1.0f + Value.Row[0] - Value.Row[5] - Value.Row[10]) * 2.0f;
+				X = 0.25f * S;
+				Y = (Value.Row[4] + Value.Row[1]) / S;
+				Z = (Value.Row[2] + Value.Row[8]) / S;
+				W = (Value.Row[9] - Value.Row[6]) / S;
+			}
+			else if (Value.Row[5] > Value.Row[10])
+			{
+				float S = std::sqrt(1.0f + Value.Row[5] - Value.Row[0] - Value.Row[10]) * 2.0f;
+				X = (Value.Row[4] + Value.Row[1]) / S;
+				Y = 0.25f * S;
+				Z = (Value.Row[9] + Value.Row[6]) / S;
+				W = (Value.Row[2] - Value.Row[8]) / S;
 			}
 			else
 			{
-				LOD_AV4(_r2, 0.0f, Value[8], Value[2], Value[4]);
-				LOD_AV4(_r3, 0.0f, Value[6], Value[7], Value[1]);
-				float F = 0.5f / Geometric::FastSqrt(T + 1.0f);
-				_r3 -= _r2;
-				_r3 *= F;
-				_r3.store((float*)this);
-				X = 0.25f / F;
+				float S = std::sqrt(1.0f + Value.Row[10] - Value.Row[0] - Value.Row[5]) * 2.0f;
+				X = (Value.Row[2] + Value.Row[8]) / S;
+				Y = (Value.Row[9] + Value.Row[6]) / S;
+				Z = 0.25f * S;
+				W = (Value.Row[4] - Value.Row[1]) / S;
 			}
-
-			LOD_FV4(_r4);
-			_r4 /= Geometric::FastSqrt(horizontal_add(square(_r4)));
-			_r4.store((float*)this);
-#else
-			float T = Value[0] + Value[5] + Value[9];
-			if (T <= 0.0f)
-			{
-				if (Value[0] > Value[5] && Value[0] > Value[9])
-				{
-					float F = 2.0f * Geometric::FastSqrt(1.0f + Value[0] - Value[5] - Value[9]);
-					X = 0.25f * F;
-					Y = (Value[4] + Value[1]) / F;
-					Z = (Value[7] + Value[2]) / F;
-					W = (Value[6] - Value[8]) / F;
-				}
-				else if (Value[5] > Value[9])
-				{
-					float F = 2.0f * Geometric::FastSqrt(1.0f + Value[5] - Value[0] - Value[9]);
-					X = (Value[4] + Value[1]) / F;
-					Y = 0.25f * F;
-					Z = (Value[8] + Value[6]) / F;
-					W = (Value[7] - Value[2]) / F;
-				}
-				else
-				{
-					float F = 2.0f * Geometric::FastSqrt(1.0f + Value[9] - Value[0] - Value[5]);
-					X = (Value[7] + Value[2]) / F;
-					Y = (Value[6] + Value[8]) / F;
-					Z = 0.25f * F;
-					W = (Value[1] - Value[4]) / F;
-				}
-			}
-			else
-			{
-				float F = 0.5f / Geometric::FastSqrt(T + 1.0f);
-				X = 0.25f / F;
-				Y = (Value[6] - Value[8]) * F;
-				Z = (Value[7] - Value[2]) * F;
-				W = (Value[1] - Value[4]) * F;
-			}
-
-			float F = Geometric::FastSqrt(X * X + Y * Y + Z * Z + W * W);
-			X /= F;
-			Y /= F;
-			Z /= F;
-			W /= F;
-#endif
 		}
 		void Quaternion::Set(const Quaternion& Value)
 		{
@@ -3145,7 +3115,15 @@ namespace Edge
 		}
 		Matrix4x4 Quaternion::GetMatrix() const
 		{
-			return Matrix4x4::CreateRotation(Forward(), Up(), Right());
+			Matrix4x4 Result =
+			{
+				1.0f - 2.0f * (Y * Y + Z * Z), 2.0f * (X * Y + Z * W), 2.0f * (X * Z - Y * W), 0.0f,
+				2.0f * (X * Y - Z * W), 1.0f - 2.0f * (X * X + Z * Z), 2.0f * (Y * Z + X * W), 0.0f,
+				2.0f * (X * Z + Y * W), 2.0f * (Y * Z - X * W), 1.0f - 2.0f * (X * X + Y * Y), 0.0f,
+				0.0f, 0.0f, 0.0f, 1.0f
+			};
+
+			return Result;
 		}
 		Vector3 Quaternion::GetEuler() const
 		{
@@ -3210,9 +3188,9 @@ namespace Edge
 		{
 #ifdef ED_USE_SIMD
 			LOD_FV4(_r1);
-			return Geometric::FastSqrt(horizontal_add(square(_r1)));
+			return std::sqrt(horizontal_add(square(_r1)));
 #else
-			return Geometric::FastSqrt(X * X + Y * Y + Z * Z + W * W);
+			return std::sqrt(X * X + Y * Y + Z * Z + W * W);
 #endif
 		}
 		bool Quaternion::operator ==(const Quaternion& V) const
@@ -9328,7 +9306,7 @@ namespace Edge
 			{
 				Local->Offset = Matrix4x4::Create(Local->Position, Local->Rotation) * Root->GetBiasUnscaled();
 				Global.Position = Local->Offset.Position();
-				Global.Rotation = Local->Offset.Rotation();
+				Global.Rotation = Local->Offset.RotationEuler();
 				Global.Scale = (Scaling ? Local->Scale : Local->Scale * Root->Global.Scale);
 				Temporary = Matrix4x4::CreateScale(Global.Scale) * Local->Offset;
 			}
@@ -9372,7 +9350,7 @@ namespace Edge
 			{
 				Where.Offset = Matrix4x4::Create(Where.Position, Where.Rotation) * Root->GetBiasUnscaled().Inv();
 				Where.Position = Where.Offset.Position();
-				Where.Rotation = Where.Offset.Rotation();
+				Where.Rotation = Where.Offset.RotationEuler();
 				Where.Scale = (Scaling ? Where.Scale : Where.Scale / Root->Global.Scale);
 			}
 		}
@@ -9382,7 +9360,7 @@ namespace Edge
 			{
 				Where.Offset = Matrix4x4::Create(Where.Position, Where.Rotation) * Root->GetBiasUnscaled();
 				Where.Position = Where.Offset.Position();
-				Where.Rotation = Where.Offset.Rotation();
+				Where.Rotation = Where.Offset.RotationEuler();
 				Where.Scale = (Scaling ? Where.Scale : Where.Scale * Root->Global.Scale);
 			}
 		}
@@ -9393,7 +9371,7 @@ namespace Edge
 			{
 				Where.Offset = Matrix4x4::Create(Local->Position, Local->Rotation) * Root->GetBiasUnscaled();
 				Where.Position = Where.Offset.Position();
-				Where.Rotation = Where.Offset.Rotation();
+				Where.Rotation = Where.Offset.RotationEuler();
 				Where.Scale = (Scaling ? Local->Scale : Local->Scale * Root->Global.Scale);
 			}
 			else if (&Where != &Global)

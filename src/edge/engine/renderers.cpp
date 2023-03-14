@@ -283,7 +283,7 @@ namespace Edge
 					Material* Source = Base->GetMaterial(Mesh);
 					if (System->TryInstance(Source, Data))
 					{
-						Data.World = Mesh->World * World;
+						Data.World = Mesh->Transform * World;
 						Data.Transform = Data.World * System->View.ViewProjection;
 						Batch.Emplace(Mesh, Source, Data, Chunk);
 					}
@@ -314,7 +314,7 @@ namespace Edge
 						auto& World = Base->GetEntity()->GetBox();
 						for (auto* Mesh : Drawable->Meshes)
 						{
-							Device->Render.World = Mesh->World * World;
+							Device->Render.World = Mesh->Transform * World;
 							Device->Render.Transform = Device->Render.World * View.ViewProjection;
 							Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 							Device->DrawIndexed(Mesh);
@@ -489,16 +489,17 @@ namespace Edge
 						if (!CullingBegin(Base))
 							continue;
 
-						Device->Animation.Animated = (float)!Base->GetDrawable()->Joints.empty();
-						if (Device->Animation.Animated > 0)
-							memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
-						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 
 						auto& World = Base->GetEntity()->GetBox();
+						Device->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
+
 						for (auto* Mesh : Drawable->Meshes)
 						{
-							Device->Render.World = Mesh->World * World;
+							auto& Matrices = Base->Skeleton.Matrices[Mesh];
+							memcpy(Device->Animation.Offsets, Matrices.Data, sizeof(Matrices.Data));
+							Device->Render.World = Mesh->Transform * World;
 							Device->Render.Transform = Device->Render.World * View.ViewProjection;
+							Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 							Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 							Device->DrawIndexed(Mesh);
 						}
@@ -554,22 +555,20 @@ namespace Edge
 					if (!Drawable || (Static && !Base->Static))
 						continue;
 
-					Device->Render.TexCoord = Base->TexCoord;
-					Device->Animation.Animated = (float)!Base->GetDrawable()->Joints.empty();
-
-					if (Device->Animation.Animated > 0)
-						memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
-
 					auto& World = Base->GetEntity()->GetBox();
-					Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
+					Device->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
+					Device->Render.TexCoord = Base->TexCoord;
 
 					for (auto* Mesh : Drawable->Meshes)
 					{
 						if (!System->TryGeometry(Base->GetMaterial(Mesh), true))
 							continue;
 
-						Device->Render.World = Mesh->World * World;
+						auto& Matrices = Base->Skeleton.Matrices[Mesh];
+						memcpy(Device->Animation.Offsets, Matrices.Data, sizeof(Matrices.Data));
+						Device->Render.World = Mesh->Transform * World;
 						Device->Render.Transform = Device->Render.World * System->View.ViewProjection;
+						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -595,21 +594,18 @@ namespace Edge
 					if (!Base->Static || !Drawable)
 						continue;
 
-					Device->Render.TexCoord = Base->TexCoord;
-					Device->Animation.Animated = (float)!Base->GetDrawable()->Joints.empty();
-
-					if (Device->Animation.Animated > 0)
-						memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
-
 					auto& World = Base->GetEntity()->GetBox();
-					Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
+					Device->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
 
 					for (auto* Mesh : Drawable->Meshes)
 					{
 						if (!System->TryGeometry(Base->GetMaterial(Mesh), true))
 							continue;
 
-						Device->Render.Transform = Device->Render.World = Mesh->World * World;
+						auto& Matrices = Base->Skeleton.Matrices[Mesh];
+						memcpy(Device->Animation.Offsets, Matrices.Data, sizeof(Matrices.Data));
+						Device->Render.Transform = Device->Render.World = Mesh->Transform * World;
+						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -638,22 +634,20 @@ namespace Edge
 					if (!Drawable)
 						continue;
 
-					Device->Render.TexCoord = Base->TexCoord;
-					Device->Animation.Animated = (float)!Base->GetDrawable()->Joints.empty();
-
-					if (Device->Animation.Animated > 0)
-						memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
-
 					auto& World = Base->GetEntity()->GetBox();
-					Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
+					Device->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
+					Device->Render.TexCoord = Base->TexCoord;
 
 					for (auto* Mesh : Drawable->Meshes)
 					{
 						if (!System->TryGeometry(Base->GetMaterial(Mesh), true))
 							continue;
 
-						Device->Render.World = Mesh->World * World;
+						auto& Matrices = Base->Skeleton.Matrices[Mesh];
+						memcpy(Device->Animation.Offsets, Matrices.Data, sizeof(Matrices.Data));
+						Device->Render.World = Mesh->Transform * World;
 						Device->Render.Transform = Device->Render.World * System->View.ViewProjection;
+						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -684,21 +678,19 @@ namespace Edge
 					if (!Drawable)
 						continue;
 
-					Device->Render.TexCoord = Base->TexCoord;
-					Device->Animation.Animated = (float)!Base->GetDrawable()->Joints.empty();
-
-					if (Device->Animation.Animated > 0)
-						memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
-
 					auto& World = Base->GetEntity()->GetBox();
-					Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
+					Device->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
+					Device->Render.TexCoord = Base->TexCoord;
 
 					for (auto* Mesh : Drawable->Meshes)
 					{
 						if (!System->TryGeometry(Base->GetMaterial(Mesh), true))
 							continue;
 
-						Device->Render.World = Mesh->World * World;
+						auto& Matrices = Base->Skeleton.Matrices[Mesh];
+						memcpy(Device->Animation.Offsets, Matrices.Data, sizeof(Matrices.Data));
+						Device->Render.World = Mesh->Transform * World;
+						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}

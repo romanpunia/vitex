@@ -40,7 +40,11 @@ float4 ps_main(VOutput V) : SV_TARGET0
 {
 	float4 Color = float4(Materials[ob_MaterialId].Diffuse * V.Color.xyz, V.Color.w);
 	[branch] if (ob_Diffuse > 0)
+	{
 		Color *= GetDiffuse(V.TexCoord);
+		if (Color.w < 0.001)
+			discard;
+	}
 
 	return Color;
 };

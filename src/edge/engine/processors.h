@@ -50,31 +50,48 @@ namespace Edge
 
 			enum class MeshPreset : uint64_t
 			{
-				Default = (uint64_t)(MeshOpt::FlipWindingOrder | MeshOpt::CalcTangentSpace | MeshOpt::GenSmoothNormals | MeshOpt::JoinIdenticalVertices | MeshOpt::ImproveCacheLocality | MeshOpt::LimitBoneWeights | MeshOpt::RemoveRedundantMaterials | MeshOpt::SplitLargeMeshes | MeshOpt::Triangulate | MeshOpt::GenUVCoords | MeshOpt::SortByPType | MeshOpt::RemoveDegenerates | MeshOpt::RemoveInvalidData | MeshOpt::RemoveInstances | MeshOpt::ValidateDataStructure | MeshOpt::OptimizeMeshes | MeshOpt::TransformUVCoords)
+				Default = (uint64_t)(MeshOpt::FlipWindingOrder | MeshOpt::Triangulate | MeshOpt::ValidateDataStructure)
 			};
 
-			struct ED_OUT MeshBlob
+			struct MeshBone
 			{
+				size_t Index;
+				Compute::AnimatorKey Default;
+			};
+
+			struct MeshJoint
+			{
+				Compute::Matrix4x4 Local;
+				size_t Index;
+				bool Linking;
+			};
+
+			struct MeshBlob
+			{
+				std::unordered_map<size_t, size_t> JointIndices;
 				std::vector<Compute::SkinVertex> Vertices;
-				std::vector<int> Indices;
+				std::vector<int32_t> Indices;
 				std::string Name;
-				Compute::Matrix4x4 World;
-			};
-
-			struct ED_OUT MeshInfo
-			{
-				std::vector<std::pair<int64_t, Compute::Joint>> Joints;
-				std::vector<MeshBlob> Meshes;
-				float PX = 0, PY = 0, PZ = 0;
-				float NX = 0, NY = 0, NZ = 0;
-				unsigned int Weights = 0;
-				bool Flip = false, Inv = false;
-			};
-
-			struct ED_OUT MeshNode
-			{
 				Compute::Matrix4x4 Transform;
-				int64_t Index = -1;
+				size_t LocalIndex = 0;
+			};
+
+			struct ModelInfo
+			{
+				std::unordered_map<std::string, MeshJoint> JointOffsets;
+				std::vector<MeshBlob> Meshes;
+				Compute::Matrix4x4 Transform;
+				Compute::Joint Skeleton;
+				Compute::Vector3 Min, Max;
+				float Low = 0.0f, High = 0.0f;
+				size_t GlobalIndex = 0;
+			};
+
+			struct ModelChannel
+			{
+				std::unordered_map<float, Compute::Vector3> Positions;
+				std::unordered_map<float, Compute::Vector3> Scales;
+				std::unordered_map<float, Compute::Quaternion> Rotations;
 			};
 
 			class ED_OUT Asset final : public Processor
@@ -148,12 +165,7 @@ namespace Edge
 
 			public:
 				static Core::Unique<Core::Schema> Import(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
-
-			private:
-				static void ProcessNode(void* Scene, void* Node, MeshInfo* Info, const Compute::Matrix4x4& Global);
-				static void ProcessMesh(void* Scene, void* Mesh, MeshInfo* Info, const Compute::Matrix4x4& Global);
-				static void ProcessHeirarchy(void* Scene, void* Node, MeshInfo* Info, Compute::Joint* Parent);
-				static std::vector<std::pair<int64_t, Compute::Joint>>::iterator FindJoint(std::vector<std::pair<int64_t, Compute::Joint>>& Joints, const std::string& Name);
+				static ModelInfo ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
 			};
 
 			class ED_OUT SkinModel final : public Processor
@@ -180,11 +192,7 @@ namespace Edge
 
 			public:
 				static Core::Schema* Import(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
-
-			private:
-				static void ProcessNode(void* Scene, void* Node, std::unordered_map<std::string, MeshNode>* Joints, int64_t& Index);
-				static void ProcessHeirarchy(void* Scene, void* Node, std::unordered_map<std::string, MeshNode>* Joints);
-				static void ProcessKeys(std::vector<Compute::AnimatorKey>* Keys, std::unordered_map<std::string, MeshNode>* Joints);
+				static std::vector<Compute::SkinAnimatorClip> ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
 			};
 
 			class ED_OUT Schema final : public Processor

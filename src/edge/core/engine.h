@@ -353,10 +353,9 @@ namespace Edge
 			static void Pack(Core::Schema* V, const Attenuation& Value);
 			static void Pack(Core::Schema* V, const AnimatorState& Value);
 			static void Pack(Core::Schema* V, const SpawnerProperties& Value);
-			static void Pack(Core::Schema* V, const Compute::SkinAnimatorKey& Value);
-			static void Pack(Core::Schema* V, const Compute::SkinAnimatorClip& Value);
 			static void Pack(Core::Schema* V, const Compute::KeyAnimatorClip& Value);
 			static void Pack(Core::Schema* V, const Compute::AnimatorKey& Value);
+			static void Pack(Core::Schema* V, const Compute::SkinAnimatorKey& Value);
 			static void Pack(Core::Schema* V, const Compute::ElementVertex& Value);
 			static void Pack(Core::Schema* V, const Compute::Joint& Value);
 			static void Pack(Core::Schema* V, const Compute::Vertex& Value);
@@ -377,7 +376,6 @@ namespace Edge
 			static void Pack(Core::Schema* V, const std::vector<Compute::Matrix4x4>& Value);
 			static void Pack(Core::Schema* V, const std::vector<AnimatorState>& Value);
 			static void Pack(Core::Schema* V, const std::vector<SpawnerProperties>& Value);
-			static void Pack(Core::Schema* V, const std::vector<Compute::SkinAnimatorClip>& Value);
 			static void Pack(Core::Schema* V, const std::vector<Compute::KeyAnimatorClip>& Value);
 			static void Pack(Core::Schema* V, const std::vector<Compute::AnimatorKey>& Value);
 			static void Pack(Core::Schema* V, const std::vector<Compute::ElementVertex>& Value);
@@ -386,6 +384,7 @@ namespace Edge
 			static void Pack(Core::Schema* V, const std::vector<Compute::SkinVertex>& Value);
 			static void Pack(Core::Schema* V, const std::vector<Ticker>& Value);
 			static void Pack(Core::Schema* V, const std::vector<std::string>& Value);
+			static void Pack(Core::Schema* V, const std::unordered_map<size_t, size_t>& Value);
 			static bool Unpack(Core::Schema* V, bool* O);
 			static bool Unpack(Core::Schema* V, int* O);
 			static bool Unpack(Core::Schema* V, unsigned int* O);
@@ -403,10 +402,9 @@ namespace Edge
 			static bool Unpack(Core::Schema* V, Attenuation* O);
 			static bool Unpack(Core::Schema* V, AnimatorState* O);
 			static bool Unpack(Core::Schema* V, SpawnerProperties* O);
-			static bool Unpack(Core::Schema* V, Compute::SkinAnimatorKey* O);
-			static bool Unpack(Core::Schema* V, Compute::SkinAnimatorClip* O);
 			static bool Unpack(Core::Schema* V, Compute::KeyAnimatorClip* O);
 			static bool Unpack(Core::Schema* V, Compute::AnimatorKey* O);
+			static bool Unpack(Core::Schema* V, Compute::SkinAnimatorKey* O);
 			static bool Unpack(Core::Schema* V, Compute::ElementVertex* O);
 			static bool Unpack(Core::Schema* V, Compute::Joint* O);
 			static bool Unpack(Core::Schema* V, Compute::Vertex* O);
@@ -427,7 +425,6 @@ namespace Edge
 			static bool Unpack(Core::Schema* V, std::vector<Compute::Matrix4x4>* O);
 			static bool Unpack(Core::Schema* V, std::vector<AnimatorState>* O);
 			static bool Unpack(Core::Schema* V, std::vector<SpawnerProperties>* O);
-			static bool Unpack(Core::Schema* V, std::vector<Compute::SkinAnimatorClip>* O);
 			static bool Unpack(Core::Schema* V, std::vector<Compute::KeyAnimatorClip>* O);
 			static bool Unpack(Core::Schema* V, std::vector<Compute::AnimatorKey>* O);
 			static bool Unpack(Core::Schema* V, std::vector<Compute::ElementVertex>* O);
@@ -436,6 +433,7 @@ namespace Edge
 			static bool Unpack(Core::Schema* V, std::vector<Compute::SkinVertex>* O);
 			static bool Unpack(Core::Schema* V, std::vector<Ticker>* O);
 			static bool Unpack(Core::Schema* V, std::vector<std::string>* O);
+			static bool Unpack(Core::Schema* V, std::unordered_map<size_t, size_t>* O);
 		};
 
 		class ED_OUT_TS Parallel
@@ -520,10 +518,9 @@ namespace Edge
 		{
 		private:
 			std::vector<Compute::SkinAnimatorClip> Clips;
-			bool Valid;
 
 		public:
-			SkinAnimation(Core::Schema* Data) noexcept;
+			SkinAnimation(std::vector<Compute::SkinAnimatorClip>&& Data) noexcept;
 			~SkinAnimation() = default;
 			const std::vector<Compute::SkinAnimatorClip>& GetClips();
 			bool IsValid();
@@ -1092,7 +1089,7 @@ namespace Edge
 			bool RemoveProcessor(uint64_t Id);
 			bool Import(const std::string& Path);
 			bool Export(const std::string& Path, const std::string& Directory, const std::string& Name = "");
-			bool Cache(Processor* Root, const std::string& Path, void* Resource);
+			void* TryToCache(Processor* Root, const std::string& Path, void* Resource);
 			bool IsBusy();
 			Graphics::GraphicsDevice* GetDevice() const;
 			const std::string& GetEnvironment() const;

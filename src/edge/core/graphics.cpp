@@ -250,58 +250,26 @@ namespace Edge
 		{
 		}
 
-		void PoseBuffer::SetJointPose(Compute::Joint* Root)
+		void PoseBuffer::Fill(SkinModel* Model)
 		{
-			ED_ASSERT_V(Root != nullptr, "root should be set");
-			auto& Node = Pose[Root->Index];
-			Node.Position = Root->Transform.Position();
-			Node.Rotation = Root->Transform.Rotation();
+			ED_ASSERT_V(Model != nullptr, "model should be set");
+			Offsets.clear();
+			Matrices.clear();
 
-			for (auto&& Child : Root->Childs)
-				SetJointPose(&Child);
+			Fill(Model->Skeleton);
+			for (auto& Mesh : Model->Meshes)
+				Matrices.insert(std::make_pair(Mesh, PoseMatrices()));
 		}
-		void PoseBuffer::GetJointPose(Compute::Joint* Root, std::vector<Compute::AnimatorKey>* Result)
+		void PoseBuffer::Fill(Compute::Joint& Next)
 		{
-			ED_ASSERT_V(Root != nullptr, "root should be set");
-			ED_ASSERT_V(Result != nullptr, "result should be set");
+			auto& Data = Offsets[Next.Index];
+			Data.Default.Position = Next.Global.Position();
+			Data.Default.Rotation = Next.Global.RotationQuaternion();
+			Data.Default.Scale = Next.Global.Scale();
+			Data.Offset = Data.Frame = Data.Default;
 
-			Compute::AnimatorKey* Key = &Result->at((size_t)Root->Index);
-			Key->Position = Root->Transform.Position();
-			Key->Rotation = Root->Transform.Rotation();
-
-			for (auto&& Child : Root->Childs)
-				GetJointPose(&Child, Result);
-		}
-		bool PoseBuffer::SetPose(SkinModel* Model)
-		{
-			ED_ASSERT(Model != nullptr, false, "model should be set");
-			for (auto&& Child : Model->Joints)
-				SetJointPose(&Child);
-
-			return true;
-		}
-		bool PoseBuffer::GetPose(SkinModel* Model, std::vector<Compute::AnimatorKey>* Result)
-		{
-			ED_ASSERT(Model != nullptr, false, "model should be set");
-			ED_ASSERT(Result != nullptr, false, "result should be set");
-
-			for (auto&& Child : Model->Joints)
-				GetJointPose(&Child, Result);
-
-			return true;
-		}
-		Compute::Matrix4x4 PoseBuffer::GetOffset(PoseNode* Node)
-		{
-			ED_ASSERT(Node != nullptr, Compute::Matrix4x4::Identity(), "node should be set");
-			return Compute::Matrix4x4::Create(Node->Position, Node->Rotation.GetEuler());
-		}
-		PoseNode* PoseBuffer::GetNode(int64_t Index)
-		{
-			auto It = Pose.find(Index);
-			if (It != Pose.end())
-				return &It->second;
-
-			return nullptr;
+			for (auto& Child : Next.Childs)
+				Fill(Child);
 		}
 
 		Surface::Surface() noexcept : Handle(nullptr)
@@ -3758,36 +3726,84 @@ namespace Edge
 		{
 			Cleanup();
 		}
+		bool SkinModel::FindJoint(const std::string& Name, Compute::Joint* Base)
+		{
+			if (!Base)
+				Base = &Skeleton;
+
+			if (Base->Name == Name)
+				return Base;
+
+			for (auto&& Child : Base->Childs)
+			{
+				if (Child.Name == Name)
+				{
+					Base = &Child;
+					return true;
+				}
+
+				Compute::Joint* Result = &Child;
+				if (FindJoint(Name, Result))
+					return true;
+			}
+
+			return nullptr;
+		}
+		bool SkinModel::FindJoint(size_t Index, Compute::Joint* Base)
+		{
+			if (!Base)
+				Base = &Skeleton;
+
+			if (Base->Index == Index)
+				return true;
+
+			for (auto&& Child : Base->Childs)
+			{
+				if (Child.Index == Index)
+				{
+					Base = &Child;
+					return true;
+				}
+
+				Compute::Joint* Result = &Child;
+				if (FindJoint(Index, Result))
+					return true;
+			}
+
+			return false;
+		}
+		void SkinModel::Synchronize(PoseBuffer* Map)
+		{
+			ED_ASSERT_V(Map != nullptr, "pose buffer should be set");
+			ED_MEASURE(ED_TIMING_ATOM);
+
+			for (auto& Mesh : Meshes)
+				Map->Matrices[Mesh];
+
+			Synchronize(Map, Skeleton, Transform);
+		}
+		void SkinModel::Synchronize(PoseBuffer* Map, Compute::Joint& Next, const Compute::Matrix4x4& ParentOffset)
+		{
+			auto& Node = Map->Offsets[Next.Index].Offset;
+			auto LocalOffset = Compute::Matrix4x4::CreateScale(Node.Scale) * Node.Rotation.GetMatrix() * Compute::Matrix4x4::CreateTranslation(Node.Position);
+			auto GlobalOffset = LocalOffset * ParentOffset;
+			auto FinalOffset = Next.Local * GlobalOffset * InvTransform;
+
+			for (auto& Matrices : Map->Matrices)
+			{
+				auto Index = Matrices.first->Joints.find(Next.Index);
+				if (Index != Matrices.first->Joints.end() && Index->second <= ED_MAX_JOINTS)
+					Matrices.second.Data[Index->second] = FinalOffset;
+			}
+
+			for (auto& Child : Next.Childs)
+				Synchronize(Map, Child, GlobalOffset);
+		}
 		void SkinModel::Cleanup()
 		{
 			for (auto* Item : Meshes)
 				ED_RELEASE(Item);
 			Meshes.clear();
-		}
-		void SkinModel::ComputePose(PoseBuffer* Map)
-		{
-			ED_ASSERT_V(Map != nullptr, "pose buffer should be set");
-			ED_MEASURE(ED_TIMING_ATOM);
-
-			if (Map->Pose.empty())
-				Map->SetPose(this);
-
-			for (auto& Child : Joints)
-				ComputePose(Map, &Child, Compute::Matrix4x4::Identity());
-		}
-		void SkinModel::ComputePose(PoseBuffer* Map, Compute::Joint* Base, const Compute::Matrix4x4& World)
-		{
-			ED_ASSERT_V(Map != nullptr, "pose buffer should be set");
-			ED_ASSERT_V(Base != nullptr, "base should be set");
-
-			PoseNode* Node = Map->GetNode(Base->Index);
-			Compute::Matrix4x4 Offset = (Node ? Map->GetOffset(Node) * World : World);
-
-			if (Base->Index >= 0 && Base->Index < 96)
-				Map->Transform[Base->Index] = Base->BindShape * Offset * Root;
-
-			for (auto& Child : Base->Childs)
-				ComputePose(Map, &Child, Offset);
 		}
 		SkinMeshBuffer* SkinModel::FindMesh(const std::string& Name)
 		{
@@ -3795,70 +3811,6 @@ namespace Edge
 			{
 				if (It->Name == Name)
 					return It;
-			}
-
-			return nullptr;
-		}
-		Compute::Joint* SkinModel::FindJoint(const std::string& Name, Compute::Joint* Base)
-		{
-			if (Base != nullptr)
-			{
-				if (Base->Name == Name)
-					return Base;
-
-				for (auto&& Child : Base->Childs)
-				{
-					if (Child.Name == Name)
-						return &Child;
-
-					Compute::Joint* Result = FindJoint(Name, &Child);
-					if (Result != nullptr)
-						return Result;
-				}
-			}
-			else
-			{
-				for (auto&& Child : Joints)
-				{
-					if (Child.Name == Name)
-						return &Child;
-
-					Compute::Joint* Result = FindJoint(Name, &Child);
-					if (Result != nullptr)
-						return Result;
-				}
-			}
-
-			return nullptr;
-		}
-		Compute::Joint* SkinModel::FindJoint(int64_t Index, Compute::Joint* Base)
-		{
-			if (Base != nullptr)
-			{
-				if (Base->Index == Index)
-					return Base;
-
-				for (auto&& Child : Base->Childs)
-				{
-					if (Child.Index == Index)
-						return &Child;
-
-					Compute::Joint* Result = FindJoint(Index, &Child);
-					if (Result != nullptr)
-						return Result;
-				}
-			}
-			else
-			{
-				for (auto&& Child : Joints)
-				{
-					if (Child.Index == Index)
-						return &Child;
-
-					Compute::Joint* Result = FindJoint(Index, &Child);
-					if (Result != nullptr)
-						return Result;
-				}
 			}
 
 			return nullptr;

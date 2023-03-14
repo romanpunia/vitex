@@ -66,11 +66,546 @@ namespace Edge
 		namespace Processors
 		{
 #ifdef ED_HAS_ASSIMP
-			Compute::Matrix4x4 ToMatrix(const aiMatrix4x4& Root)
+			Compute::Matrix4x4 FromAssimpMatrix(const aiMatrix4x4& Root)
 			{
-				return Compute::Matrix4x4(Root.a1, Root.a2, Root.a3, Root.a4, Root.b1, Root.b2, Root.b3, Root.b4, Root.c1, Root.c2, Root.c3, Root.c4, Root.d1, Root.d2, Root.d3, Root.d4);
+				return Compute::Matrix4x4(
+					Root.a1, Root.a2, Root.a3, Root.a4,
+					Root.b1, Root.b2, Root.b3, Root.b4,
+					Root.c1, Root.c2, Root.c3, Root.c4,
+					Root.d1, Root.d2, Root.d3, Root.d4).Transpose();
+			}
+			std::string GetMeshName(const std::string& Name, ModelInfo* Info)
+			{
+				if (Name.empty())
+					return Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(8)).substr(0, 8);
+				
+				std::string Result = Name;
+				for (auto&& Data : Info->Meshes)
+				{
+					if (Data.Name == Result)
+						Result += '_';
+				}
+
+				return Result;
+			}
+			std::string GetJointName(const std::string& BaseName, ModelInfo* Info, MeshBlob* Blob)
+			{
+				if (!BaseName.empty())
+					return BaseName;
+
+				std::string Name = BaseName + '?';
+				while (Info->JointOffsets.find(Name) != Info->JointOffsets.end())
+					Name += '?';
+
+				return Name;
+			}
+			bool GetKeyFromTime(std::vector<Compute::AnimatorKey>& Keys, float Time, Compute::AnimatorKey& Result)
+			{
+				for (auto& Key : Keys)
+				{
+					if (Key.Time == Time)
+					{
+						Result = Key;
+						return true;
+					}
+					
+					if (Key.Time < Time)
+						Result = Key;
+				}
+
+				return false;
+			}
+			void UpdateSceneBounds(ModelInfo* Info)
+			{
+				if (Info->Min.X < Info->Low)
+					Info->Low = Info->Min.X;
+
+				if (Info->Min.Y < Info->Low)
+					Info->Low = Info->Min.Y;
+
+				if (Info->Min.Z < Info->Low)
+					Info->Low = Info->Min.Z;
+
+				if (Info->Max.X > Info->High)
+					Info->High = Info->Max.X;
+
+				if (Info->Max.Y > Info->High)
+					Info->High = Info->Max.Y;
+
+				if (Info->Max.Z > Info->High)
+					Info->High = Info->Max.Z;
+			}
+			void UpdateSceneBounds(ModelInfo* Info, const Compute::SkinVertex& Element)
+			{
+				if (Element.PositionX > Info->Max.X)
+					Info->Max.X = Element.PositionX;
+				else if (Element.PositionX < Info->Min.X)
+					Info->Min.X = Element.PositionX;
+
+				if (Element.PositionY > Info->Max.Y)
+					Info->Max.Y = Element.PositionY;
+				else if (Element.PositionY < Info->Min.Y)
+					Info->Min.Y = Element.PositionY;
+
+				if (Element.PositionZ > Info->Max.Z)
+					Info->Max.Z = Element.PositionZ;
+				else if (Element.PositionZ < Info->Min.Z)
+					Info->Min.Z = Element.PositionZ;
+			}
+			bool FillSceneSkeleton(ModelInfo* Info, aiNode* Node, Compute::Joint* Top)
+			{
+				std::string Name = Node->mName.C_Str();
+				auto It = Info->JointOffsets.find(Name);
+				if (It == Info->JointOffsets.end())
+				{
+					if (Top != nullptr)
+					{
+						auto& Global = Info->JointOffsets[Name];
+						Global.Index = Info->GlobalIndex++;
+						Global.Linking = true;
+
+						It = Info->JointOffsets.find(Name);
+						goto AddLinkingJoint;
+					}
+
+					for (unsigned int i = 0; i < Node->mNumChildren; i++)
+					{
+						auto& Next = Node->mChildren[i];
+						if (FillSceneSkeleton(Info, Next, Top))
+							return true;
+					}
+
+					return false;
+				}
+
+				if (Top != nullptr)
+				{
+				AddLinkingJoint:
+					auto& Next = Top->Childs.emplace_back();
+					Top = &Next;
+				}
+				else
+					Top = &Info->Skeleton;
+
+				Top->Global = FromAssimpMatrix(Node->mTransformation);
+				Top->Local = It->second.Local;
+				Top->Index = It->second.Index;
+				Top->Name = Name;
+
+				for (unsigned int i = 0; i < Node->mNumChildren; i++)
+				{
+					auto& Next = Node->mChildren[i];
+					FillSceneSkeleton(Info, Next, Top);
+				}
+
+				return true;
+			}
+			void FillSceneGeometry(ModelInfo* Info, MeshBlob* Blob, aiMesh* Mesh)
+			{
+				Blob->Vertices.reserve((size_t)Mesh->mNumVertices);
+				for (unsigned int v = 0; v < Mesh->mNumVertices; v++)
+				{
+					auto& Vertex = Mesh->mVertices[v];
+					Compute::SkinVertex Next = { Vertex.x, Vertex.y, Vertex.z, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 };
+					UpdateSceneBounds(Info, Next);
+
+					if (Mesh->HasNormals())
+					{
+						auto& Normal = Mesh->mNormals[v];
+						Next.NormalX = Normal.x;
+						Next.NormalY = Normal.y;
+						Next.NormalZ = Normal.z;
+					}
+
+					if (Mesh->HasTextureCoords(0))
+					{
+						auto& TexCoord = Mesh->mTextureCoords[0][v];
+						Next.TexCoordX = TexCoord.x;
+						Next.TexCoordY = -TexCoord.y;
+					}
+
+					if (Mesh->HasTangentsAndBitangents())
+					{
+						auto& Tangent = Mesh->mTangents[v];
+						Next.TangentX = Tangent.x;
+						Next.TangentY = Tangent.y;
+						Next.TangentZ = Tangent.z;
+
+						auto& Bitangent = Mesh->mBitangents[v];
+						Next.BitangentX = Bitangent.x;
+						Next.BitangentY = Bitangent.y;
+						Next.BitangentZ = Bitangent.z;
+					}
+
+					Blob->Vertices.push_back(Next);
+				}
+
+				for (unsigned int f = 0; f < Mesh->mNumFaces; f++)
+				{
+					auto* Face = &Mesh->mFaces[f];
+					Blob->Indices.reserve(Blob->Indices.size() + (size_t)Face->mNumIndices);
+					for (unsigned int i = 0; i < Face->mNumIndices; i++)
+						Blob->Indices.push_back(Face->mIndices[i]);
+				}
+			}
+			void FillSceneJoints(ModelInfo* Info, MeshBlob* Blob, aiMesh* Mesh)
+			{
+				for (unsigned int i = 0; i < Mesh->mNumBones; i++)
+				{
+					auto& Bone = Mesh->mBones[i];
+					auto Name = GetJointName(Bone->mName.C_Str(), Info, Blob);
+
+					auto Global = Info->JointOffsets.find(Name);
+					if (Global == Info->JointOffsets.end())
+					{
+						auto& Next = Info->JointOffsets[Name];
+						Next.Local = FromAssimpMatrix(Bone->mOffsetMatrix);
+						Next.Index = Info->GlobalIndex++;
+						Next.Linking = false;
+						Global = Info->JointOffsets.find(Name);
+					}
+
+					auto& Local = Blob->JointIndices[Global->second.Index];
+					Local = Blob->LocalIndex++;
+
+					for (unsigned int j = 0; j < Bone->mNumWeights; j++)
+					{
+						auto& Weight = Bone->mWeights[j];
+						auto& Vertex = Blob->Vertices[Weight.mVertexId];
+						if (Vertex.JointIndex0 == -1.0f)
+						{
+							Vertex.JointIndex0 = (float)Local;
+							Vertex.JointBias0 = Weight.mWeight;
+						}
+						else if (Vertex.JointIndex1 == -1.0f)
+						{
+							Vertex.JointIndex1 = (float)Local;
+							Vertex.JointBias1 = Weight.mWeight;
+						}
+						else if (Vertex.JointIndex2 == -1.0f)
+						{
+							Vertex.JointIndex2 = (float)Local;
+							Vertex.JointBias2 = Weight.mWeight;
+						}
+						else if (Vertex.JointIndex3 == -1.0f)
+						{
+							Vertex.JointIndex3 = (float)Local;
+							Vertex.JointBias3 = Weight.mWeight;
+						}
+					}
+				}
+			}
+			void FillSceneGeometries(ModelInfo* Info, const aiScene* Scene, aiNode* Node, const aiMatrix4x4& ParentTransform)
+			{
+				aiMatrix4x4 Transform = ParentTransform * Node->mTransformation;
+				Info->Meshes.reserve(Info->Meshes.size() + (size_t)Node->mNumMeshes);
+				if (Node == Scene->mRootNode)
+					Info->Transform = FromAssimpMatrix(Scene->mRootNode->mTransformation).Inv();
+
+				for (unsigned int n = 0; n < Node->mNumMeshes; n++)
+				{
+					MeshBlob& Blob = Info->Meshes.emplace_back();
+					auto& Geometry = Scene->mMeshes[Node->mMeshes[n]];
+					Blob.Name = GetMeshName(Geometry->mName.C_Str(), Info);
+					Blob.Transform = FromAssimpMatrix(ParentTransform);
+
+					FillSceneGeometry(Info, &Blob, Geometry);
+					FillSceneJoints(Info, &Blob, Geometry);
+					UpdateSceneBounds(Info);
+				}
+
+				for (unsigned int n = 0; n < Node->mNumChildren; n++)
+				{
+					auto& Next = Node->mChildren[n];
+					FillSceneGeometries(Info, Scene, Next, ParentTransform);
+				}
+			}
+			void FillSceneSkeletons(ModelInfo* Info, const aiScene* Scene)
+			{
+				FillSceneSkeleton(Info, Scene->mRootNode, nullptr);
+				for (auto& Blob : Info->Meshes)
+				{
+					for (auto& Vertex : Blob.Vertices)
+					{
+						float Weight = 0.0f;
+						if (Vertex.JointBias0 > 0.0f)
+							Weight += Vertex.JointBias0;
+						if (Vertex.JointBias1 > 0.0f)
+							Weight += Vertex.JointBias1;
+						if (Vertex.JointBias2 > 0.0f)
+							Weight += Vertex.JointBias2;
+						if (Vertex.JointBias3 > 0.0f)
+							Weight += Vertex.JointBias3;
+
+						if (!Weight)
+							continue;
+
+						if (Vertex.JointBias0 > 0.0f)
+							Vertex.JointBias0 /= Weight;
+						if (Vertex.JointBias1 > 0.0f)
+							Vertex.JointBias1 /= Weight;
+						if (Vertex.JointBias2 > 0.0f)
+							Vertex.JointBias2 /= Weight;
+						if (Vertex.JointBias3 > 0.0f)
+							Vertex.JointBias3 /= Weight;
+					}
+				}
+			}
+			void FillSceneChannel(aiNodeAnim* Channel, ModelChannel& Target)
+			{
+				Target.Positions.reserve((size_t)Channel->mNumPositionKeys);
+				for (unsigned int k = 0; k < Channel->mNumPositionKeys; k++)
+				{
+					aiVectorKey& Key = Channel->mPositionKeys[k];
+					Target.Positions[Key.mTime] = Compute::Vector3(Key.mValue.x, Key.mValue.y, Key.mValue.z);
+				}
+
+				Target.Scales.reserve((size_t)Channel->mNumScalingKeys);
+				for (unsigned int k = 0; k < Channel->mNumScalingKeys; k++)
+				{
+					aiVectorKey& Key = Channel->mScalingKeys[k];
+					Target.Scales[Key.mTime] = Compute::Vector3(Key.mValue.x, Key.mValue.y, Key.mValue.z);
+				}
+
+				Target.Rotations.reserve((size_t)Channel->mNumRotationKeys);
+				for (unsigned int k = 0; k < Channel->mNumRotationKeys; k++)
+				{
+					aiQuatKey& Key = Channel->mRotationKeys[k];
+					Target.Rotations[Key.mTime] = Compute::Quaternion(Key.mValue.x, Key.mValue.y, Key.mValue.z, Key.mValue.w);
+				}
+			}
+			void FillSceneTimeline(const std::unordered_set<float>& Timings, std::vector<float>& Timeline)
+			{
+				Timeline.reserve(Timings.size());
+				for (auto& Time : Timings)
+					Timeline.push_back(Time);
+
+				ED_SORT(Timeline.begin(), Timeline.end(), [](float A, float B)
+				{
+					return A < B;
+				});
+			}
+			void FillSceneKeys(ModelChannel& Info, std::vector<Compute::AnimatorKey>& Keys)
+			{
+				std::unordered_set<float> Timings;
+				Timings.reserve(Keys.size());
+
+				float FirstPosition = std::numeric_limits<float>::max();
+				for (auto& Item : Info.Positions)
+				{
+					Timings.insert(Item.first);
+					if (Item.first < FirstPosition)
+						FirstPosition = Item.first;
+				}
+
+				float FirstScale = std::numeric_limits<float>::max();
+				for (auto& Item : Info.Scales)
+				{
+					Timings.insert(Item.first);
+					if (Item.first < FirstScale)
+						FirstScale = Item.first;
+				}
+
+				float FirstRotation = std::numeric_limits<float>::max();
+				for (auto& Item : Info.Rotations)
+				{
+					Timings.insert(Item.first);
+					if (Item.first < FirstRotation)
+						FirstRotation = Item.first;
+				}
+
+				std::vector<float> Timeline;
+				Compute::Vector3 LastPosition = (Info.Positions.empty() ? Compute::Vector3::Zero() : Info.Positions[FirstPosition]);
+				Compute::Vector3 LastScale = (Info.Scales.empty() ? Compute::Vector3::One() : Info.Scales[FirstScale]);
+				Compute::Quaternion LastRotation = (Info.Rotations.empty() ? Compute::Quaternion() : Info.Rotations[FirstRotation]);
+				FillSceneTimeline(Timings, Timeline);
+				Keys.resize(Timings.size());
+
+				size_t Index = 0;
+				for (auto& Time : Timeline)
+				{
+					auto& Target = Keys[Index++];
+					Target.Position = LastPosition;
+					Target.Scale = LastScale;
+					Target.Rotation = LastRotation;
+					Target.Time = Time;
+
+					auto Position = Info.Positions.find(Time);
+					if (Position != Info.Positions.end())
+					{
+						Target.Position = Position->second;
+						LastPosition = Target.Position;
+					}
+
+					auto Scale = Info.Scales.find(Time);
+					if (Scale != Info.Scales.end())
+					{
+						Target.Scale = Scale->second;
+						LastScale = Target.Scale;
+					}
+
+					auto Rotation = Info.Rotations.find(Time);
+					if (Rotation != Info.Rotations.end())
+					{
+						Target.Rotation = Rotation->second;
+						LastRotation = Target.Rotation;
+					}
+				}
+			}
+			void FillSceneClip(Compute::SkinAnimatorClip& Clip, std::unordered_map<std::string, MeshBone>& Indices, std::unordered_map<std::string, std::vector<Compute::AnimatorKey>>& Channels)
+			{
+				std::unordered_set<float> Timings;
+				for (auto& Channel : Channels)
+				{
+					Timings.reserve(Channel.second.size());
+					for (auto& Key : Channel.second)
+						Timings.insert(Key.Time);
+				}
+
+				std::vector<float> Timeline;
+				FillSceneTimeline(Timings, Timeline);
+
+				for (auto& Time : Timeline)
+				{
+					auto& Key = Clip.Keys.emplace_back();
+					Key.Pose.resize(Indices.size());
+					Key.Time = Time;
+
+					for (auto& Index : Indices)
+					{
+						auto& Pose = Key.Pose[Index.second.Index];
+						Pose.Position = Index.second.Default.Position;
+						Pose.Scale = Index.second.Default.Scale;
+						Pose.Rotation = Index.second.Default.Rotation;
+						Pose.Time = Time;
+					}
+
+					for (auto& Channel : Channels)
+					{
+						auto Index = Indices.find(Channel.first);
+						if (Index == Indices.end())
+							continue;
+
+						auto& Next = Key.Pose[Index->second.Index];
+						if (GetKeyFromTime(Channel.second, Time, Next))
+							Next.Time = Time;
+					}
+				}
+			}
+			void FillSceneJointIndices(const aiScene* Scene, aiNode* Node, std::unordered_map<std::string, MeshBone>& Indices, size_t& Index)
+			{
+				for (unsigned int n = 0; n < Node->mNumMeshes; n++)
+				{
+					auto& Mesh = Scene->mMeshes[Node->mMeshes[n]];
+					for (unsigned int i = 0; i < Mesh->mNumBones; i++)
+					{
+						auto& Bone = Mesh->mBones[i];
+						auto Joint = Indices.find(Bone->mName.C_Str());
+						if (Joint == Indices.end())
+							Indices[Bone->mName.C_Str()].Index = Index++;
+					}
+				}
+
+				for (unsigned int n = 0; n < Node->mNumChildren; n++)
+				{
+					auto& Next = Node->mChildren[n];
+					FillSceneJointIndices(Scene, Next, Indices, Index);
+				}
+			}
+			bool FillSceneJointDefaults(aiNode* Node, std::unordered_map<std::string, MeshBone>& Indices, size_t& Index, bool InSkeleton)
+			{
+				std::string Name = Node->mName.C_Str();
+				auto It = Indices.find(Name);
+				if (It == Indices.end())
+				{
+					if (InSkeleton)
+					{
+						auto& Joint = Indices[Name];
+						Joint.Index = Index++;
+						It = Indices.find(Name);
+						goto AddLinkingJoint;
+					}
+
+					for (unsigned int i = 0; i < Node->mNumChildren; i++)
+					{
+						auto& Next = Node->mChildren[i];
+						if (FillSceneJointDefaults(Next, Indices, Index, InSkeleton))
+							return true;
+					}
+
+					return false;
+				}
+
+			AddLinkingJoint:
+				auto Offset = FromAssimpMatrix(Node->mTransformation);
+				It->second.Default.Position = Offset.Position();
+				It->second.Default.Scale = Offset.Scale();
+				It->second.Default.Rotation = Offset.RotationQuaternion();
+
+				for (unsigned int i = 0; i < Node->mNumChildren; i++)
+				{
+					auto& Next = Node->mChildren[i];
+					FillSceneJointDefaults(Next, Indices, Index, true);
+				}
+
+				return true;
+			}
+			void FillSceneAnimations(std::vector<Compute::SkinAnimatorClip>* Info, const aiScene* Scene)
+			{
+				std::unordered_map<std::string, MeshBone> Indices; size_t Index = 0;
+				FillSceneJointIndices(Scene, Scene->mRootNode, Indices, Index);
+				FillSceneJointDefaults(Scene->mRootNode, Indices, Index, false);
+
+				Info->reserve((size_t)Scene->mNumAnimations);
+				for (unsigned int i = 0; i < Scene->mNumAnimations; i++)
+				{
+					aiAnimation* Animation = Scene->mAnimations[i];
+					auto& Clip = Info->emplace_back();
+					Clip.Name = Animation->mName.C_Str();
+					Clip.Duration = (float)Animation->mDuration;
+					Clip.Rate = Compute::Mathf::Max(0.01f, (float)Animation->mTicksPerSecond);
+
+					std::unordered_map<std::string, std::vector<Compute::AnimatorKey>> Channels;
+					for (unsigned int j = 0; j < Animation->mNumChannels; j++)
+					{
+						auto& Channel = Animation->mChannels[j];
+						auto& Frames = Channels[Channel->mNodeName.C_Str()];
+
+						ModelChannel Target;
+						FillSceneChannel(Channel, Target);
+						FillSceneKeys(Target, Frames);
+					}
+					FillSceneClip(Clip, Indices, Channels);
+				}
 			}
 #endif
+			std::vector<Compute::Vertex> SkinVerticesToVertices(const std::vector<Compute::SkinVertex>& Data)
+			{
+				std::vector<Compute::Vertex> Result;
+				Result.resize(Data.size());
+
+				for (size_t i = 0; i < Data.size(); i++)
+				{
+					auto& From = Data[i];
+					auto& To = Result[i];
+					To.PositionX = From.PositionX;
+					To.PositionY = From.PositionY;
+					To.PositionZ = From.PositionZ;
+					To.TexCoordX = From.TexCoordX;
+					To.TexCoordY = From.TexCoordY;
+					To.NormalX = From.NormalX;
+					To.NormalY = From.NormalY;
+					To.NormalZ = From.NormalZ;
+					To.TangentX = From.TangentX;
+					To.TangentY = From.TangentY;
+					To.TangentZ = From.TangentZ;
+					To.BitangentX = From.BitangentX;
+					To.BitangentY = From.BitangentY;
+					To.BitangentZ = From.BitangentZ;
+				}
+
+				return Result;
+			}
 			template <typename T>
 			T* ProcessRendererJob(Graphics::GraphicsDevice* Device, std::function<T*(Graphics::GraphicsDevice*)>&& Callback)
 			{
@@ -210,11 +745,16 @@ namespace Edge
 				Series::Unpack(Data->Get("bias"), &Object->Surface.Bias);
 				Series::Unpack(Data->Get("name"), &Name);
 				Object->SetName(Name);
-
 				ED_RELEASE(Data);
-				Content->Cache(this, Stream->GetSource(), Object);
-				Object->AddRef();
 
+				auto* Existing = (Engine::Material*)Content->TryToCache(this, Stream->GetSource(), Object);
+				if (Existing != nullptr)
+				{
+					ED_RELEASE(Object);
+					Object = Existing;
+				}
+
+				Object->AddRef();
 				return Object;
 			}
 			bool Material::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
@@ -288,11 +828,11 @@ namespace Edge
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				ED_ASSERT(I.Shared.Device != nullptr, nullptr, "graphics device should be set");
 
-				Core::Schema* Schema = Content->Load<Core::Schema>(Stream->GetSource());
-				if (!Schema)
+				Core::Schema* Blob = Content->Load<Core::Schema>(Stream->GetSource());
+				if (!Blob)
 					return nullptr;
 
-				Core::Schema* Metadata = Schema->Find("metadata");
+				Core::Schema* Metadata = Blob->Find("metadata");
 				if (Metadata != nullptr)
 				{
 					Core::Schema* Simulator = Metadata->Find("simulator");
@@ -337,7 +877,7 @@ namespace Edge
 				if (IsActive != Args.end())
 					Object->SetActive(IsActive->second.GetBoolean());
 
-				Core::Schema* Materials = Schema->Find("materials");
+				Core::Schema* Materials = Blob->Find("materials");
 				if (Materials != nullptr)
 				{
 					std::vector<Core::Schema*> Collection = Materials->FindCollection("material");
@@ -356,7 +896,7 @@ namespace Edge
 					}
 				}
 
-				Core::Schema* Entities = Schema->Find("entities");
+				Core::Schema* Entities = Blob->Find("entities");
 				if (Entities != nullptr)
 				{
 					std::vector<Core::Schema*> Collection = Entities->FindCollection("entity");
@@ -449,7 +989,7 @@ namespace Edge
 					}
 				}
 
-				ED_RELEASE(Schema);
+				ED_RELEASE(Blob);
 				Object->Snapshot = nullptr;
 				Object->Actualize();
 
@@ -481,11 +1021,11 @@ namespace Edge
 				Object->MakeSnapshot(&Snapshot);
 				Object->Snapshot = &Snapshot;
 
-				Core::Schema* Schema = Core::Var::Set::Object();
-				Schema->Key = "scene";
+				Core::Schema* Blob = Core::Var::Set::Object();
+				Blob->Key = "scene";
 
 				auto& Conf = Object->GetConf();
-				Core::Schema* Metadata = Schema->Set("metadata");
+				Core::Schema* Metadata = Blob->Set("metadata");
 				Series::Pack(Metadata->Set("materials"), Conf.StartMaterials);
 				Series::Pack(Metadata->Set("entities"), Conf.StartEntities);
 				Series::Pack(Metadata->Set("components"), Conf.StartComponents);
@@ -513,7 +1053,7 @@ namespace Edge
 				Series::Pack(Simulator->Set("water-normal"), fSimulator->GetWaterNormal());
 				Series::Pack(Simulator->Set("gravity"), fSimulator->GetGravity());
 
-				Core::Schema* Materials = Schema->Set("materials", Core::Var::Array());
+				Core::Schema* Materials = Blob->Set("materials", Core::Var::Array());
 				for (size_t i = 0; i < Object->GetMaterialsCount(); i++)
 				{
 					Engine::Material* Material = Object->GetMaterial(i);
@@ -538,7 +1078,7 @@ namespace Edge
 					}
 				}
 
-				Core::Schema* Entities = Schema->Set("entities", Core::Var::Array());
+				Core::Schema* Entities = Blob->Set("entities", Core::Var::Array());
 				for (size_t i = 0; i < Object->GetEntitiesCount(); i++)
 				{
 					Entity* Ref = Object->GetEntity(i);
@@ -585,8 +1125,8 @@ namespace Edge
 				}
 
 				Object->Snapshot = nullptr;
-				Content->Save<Core::Schema>(Stream->GetSource(), Schema, Args);
-				ED_RELEASE(Schema);
+				Content->Save<Core::Schema>(Stream->GetSource(), Blob, Args);
+				ED_RELEASE(Blob);
 
 				return true;
 			}
@@ -661,9 +1201,14 @@ namespace Edge
 				Audio::AudioContext::SetBufferData(Object->GetBuffer(), (int)Format, (const void*)WavSamples, (int)WavCount, (int)WavInfo.freq);
 				SDL_FreeWAV(WavSamples);
 
-				Content->Cache(this, Stream->GetSource(), Object);
-				Object->AddRef();
+				auto* Existing = (Audio::AudioClip*)Content->TryToCache(this, Stream->GetSource(), Object);
+				if (Existing != nullptr)
+				{
+					ED_RELEASE(Object);
+					Object = Existing;
+				}
 
+				Object->AddRef();
 				return Object;
 #else
 				return nullptr;
@@ -700,9 +1245,14 @@ namespace Edge
 				Audio::AudioContext::SetBufferData(Object->GetBuffer(), (int)Format, (const void*)Buffer, Samples * sizeof(short) * Channels, (int)SampleRate);
 				ED_FREE(Buffer);
 
-				Content->Cache(this, Stream->GetSource(), Object);
-				Object->AddRef();
+				auto* Existing = (Audio::AudioClip*)Content->TryToCache(this, Stream->GetSource(), Object);
+				if (Existing != nullptr)
+				{
+					ED_RELEASE(Object);
+					Object = Existing;
+				}
 
+				Object->AddRef();
 				return Object;
 			}
 
@@ -760,10 +1310,15 @@ namespace Edge
 				if (!Object)
 					return nullptr;
 
-				Content->Cache(this, Stream->GetSource(), Object);
-				Object->AddRef();
+				auto* Existing = (Graphics::Texture2D*)Content->TryToCache(this, Stream->GetSource(), Object);
+				if (Existing != nullptr)
+				{
+					ED_RELEASE(Object);
+					Object = Existing;
+				}
 
-				return (void*)Object;
+				Object->AddRef();
+				return Object;
 			}
 
 			Shader::Shader(ContentManager* Manager) : Processor(Manager)
@@ -808,9 +1363,14 @@ namespace Edge
 				if (!Object)
 					return nullptr;
 
-				Content->Cache(this, Stream->GetSource(), Object);
-				Object->AddRef();
+				auto* Existing = (Graphics::Shader*)Content->TryToCache(this, Stream->GetSource(), Object);
+				if (Existing != nullptr)
+				{
+					ED_RELEASE(Object);
+					Object = Existing;
+				}
 
+				Object->AddRef();
 				return Object;
 			}
 
@@ -837,61 +1397,125 @@ namespace Edge
 			void* Model::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				Graphics::Model* Object = nullptr;
 				std::string& Path = Stream->GetSource();
 				Core::Parser Location(&Path);
-				Core::Schema* Data = nullptr;
 
 				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
-					Data = Content->Load<Core::Schema>(Path);
-				else
-					Data = Import(Stream);
-
-				if (!Data)
-					return nullptr;
-
-				auto Object = new Graphics::Model();
-				Series::Unpack(Data->Find("root"), &Object->Root);
-				Series::Unpack(Data->Find("max"), &Object->Max);
-				Series::Unpack(Data->Find("min"), &Object->Min);
-
-				std::vector<Core::Schema*> Meshes = Data->FetchCollection("meshes.mesh");
-				for (auto&& Mesh : Meshes)
 				{
-					Graphics::MeshBuffer::Desc I;
-					I.AccessFlags = Options.AccessFlags;
-					I.Usage = Options.Usage;
-
-					if (!Series::Unpack(Mesh->Find("indices"), &I.Indices))
-					{
-						ED_RELEASE(Data);
+					Core::Schema* Data = Content->Load<Core::Schema>(Path);
+					if (!Data)
 						return nullptr;
-					}
 
-					if (!Series::Unpack(Mesh->Find("vertices"), &I.Elements))
+					Object = new Graphics::Model();
+					Series::Unpack(Data->Get("min"), &Object->Min);
+					Series::Unpack(Data->Get("max"), &Object->Max);
+
+					auto* Meshes = Data->Get("meshes");
+					if (Meshes != nullptr)
 					{
-						ED_RELEASE(Data);
+						Object->Meshes.reserve(Meshes->Size());
+						for (auto& Mesh : Meshes->GetChilds())
+						{
+							Graphics::MeshBuffer::Desc I;
+							I.AccessFlags = Options.AccessFlags;
+							I.Usage = Options.Usage;
+
+							if (!Series::Unpack(Mesh->Get("indices"), &I.Indices))
+							{
+								ED_RELEASE(Data);
+								return nullptr;
+							}
+
+							if (!Series::Unpack(Mesh->Get("vertices"), &I.Elements))
+							{
+								ED_RELEASE(Data);
+								return nullptr;
+							}
+
+							auto* Next = Object->Meshes.emplace_back(ProcessRendererJob<Graphics::MeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
+							{
+								return Device->CreateMeshBuffer(I);
+							}));
+
+							ED_ASSERT(Next != nullptr, Object, "mesh should be initializable");
+							Series::Unpack(Mesh->Get("name"), &Next->Name);
+							Series::Unpack(Mesh->Get("transform"), &Next->Transform);
+						}
+					}
+					ED_RELEASE(Data);
+				}
+				else
+				{
+					ModelInfo Data = ImportForImmediateUse(Stream);
+					if (Data.Meshes.empty())
 						return nullptr;
-					}
 
-					Object->Meshes.push_back(ProcessRendererJob<Graphics::MeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
+					Object = new Graphics::Model();
+					Object->Meshes.reserve(Data.Meshes.size());
+					Object->Min = Data.Min;
+					Object->Max = Data.Max;
+
+					for (auto& Mesh : Data.Meshes)
 					{
-						return Device->CreateMeshBuffer(I);
-					}));
+						Graphics::MeshBuffer::Desc I;
+						I.AccessFlags = Options.AccessFlags;
+						I.Usage = Options.Usage;
+						I.Indices = std::move(Mesh.Indices);
+						I.Elements = SkinVerticesToVertices(Mesh.Vertices);
 
-					auto* Sub = Object->Meshes.back();
-					Series::Unpack(Mesh->Find("name"), &Sub->Name);
-					Series::Unpack(Mesh->Find("world"), &Sub->World);
-					Sub->World = Object->Root * Sub->World;
+						auto* Next = Object->Meshes.emplace_back(ProcessRendererJob<Graphics::MeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
+						{
+							return Device->CreateMeshBuffer(I);
+						}));
+
+						ED_ASSERT(Next != nullptr, Object, "mesh should be initializable");
+						Next->Name = Mesh.Name;
+						Next->Transform = Mesh.Transform;
+					}
 				}
 
-				Content->Cache(this, Stream->GetSource(), Object);
-				Object->AddRef();
-				ED_RELEASE(Data);
+				auto* Existing = (Graphics::Model*)Content->TryToCache(this, Stream->GetSource(), Object);
+				if (Existing != nullptr)
+				{
+					ED_RELEASE(Object);
+					Object = Existing;
+				}
 
-				return (void*)Object;
+				Object->AddRef();
+				return Object;
 			}
 			Core::Schema* Model::Import(Core::Stream* Stream, uint64_t Opts)
 			{
+				ModelInfo Info = ImportForImmediateUse(Stream, Opts);
+				if (Info.Meshes.empty() && Info.JointOffsets.empty())
+					return nullptr;
+
+				auto* Blob = Core::Var::Set::Object();
+				Blob->Key = "model";
+
+				Series::Pack(Blob->Set("options"), Opts);
+				Series::Pack(Blob->Set("inv-transform"), Info.Transform);
+				Series::Pack(Blob->Set("min"), Info.Min.XYZW().SetW(Info.Low));
+				Series::Pack(Blob->Set("max"), Info.Max.XYZW().SetW(Info.High));
+				Series::Pack(Blob->Set("skeleton"), Info.Skeleton);
+
+				Core::Schema* Meshes = Blob->Set("meshes", Core::Var::Array());
+				for (auto&& It : Info.Meshes)
+				{
+					Core::Schema* Mesh = Meshes->Set("mesh");
+					Series::Pack(Mesh->Set("name"), It.Name);
+					Series::Pack(Mesh->Set("transform"), It.Transform);
+					Series::Pack(Mesh->Set("vertices"), It.Vertices);
+					Series::Pack(Mesh->Set("indices"), It.Indices);
+					Series::Pack(Mesh->Set("joints"), It.JointIndices);
+				}
+
+				return Blob;
+			}
+			ModelInfo Model::ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts)
+			{
+				ModelInfo Info;
 #ifdef ED_HAS_ASSIMP
 				std::vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
@@ -906,250 +1530,15 @@ namespace Edge
 				if (!Scene)
 				{
 					ED_ERR("[engine] cannot import mesh\n\t%s", Importer.GetErrorString());
-					return nullptr;
+					return Info;
 				}
 
-				MeshInfo Info;
-				ProcessNode((void*)Scene, (void*)Scene->mRootNode, &Info, Compute::Matrix4x4::Identity());
-				ProcessHeirarchy((void*)Scene, (void*)Scene->mRootNode, &Info, nullptr);
-
-				std::vector<Compute::Joint> Joints;
-				for (auto&& It : Info.Joints)
-				{
-					if (It.first == -1)
-						Joints.push_back(It.second);
-				}
-
-				auto* Schema = Core::Var::Set::Object();
-				Schema->Key = "model";
-
-				float Min = 0, Max = 0;
-				if (Info.NX < Min)
-					Min = Info.NX;
-
-				if (Info.NY < Min)
-					Min = Info.NY;
-
-				if (Info.NZ < Min)
-					Min = Info.NZ;
-
-				if (Info.PX > Max)
-					Max = Info.PX;
-
-				if (Info.PY > Max)
-					Max = Info.PY;
-
-				if (Info.PZ > Max)
-					Max = Info.PZ;
-
-				Compute::Matrix4x4 CRoot = ToMatrix(Scene->mRootNode->mTransformation.Inverse()).Transpose();
-				Compute::Vector4 CMax = Compute::Vector4(Info.PX, Info.PY, Info.PZ, 1.0).Transform(CRoot).SetW(Max);
-				Compute::Vector4 CMin = Compute::Vector4(Info.NX, Info.NY, Info.NZ, 1.0).Transform(CRoot).SetW(Min);
-				if (CMax.X < CMin.X)
-					std::swap(CMax.X, CMin.X);
-				if (CMax.Y < CMin.Y)
-					std::swap(CMax.Y, CMin.Y);
-				if (CMax.Z < CMin.Z)
-					std::swap(CMax.Z, CMin.Z);
-
-				Series::Pack(Schema->Set("options"), Opts);
-				Series::Pack(Schema->Set("root"), CRoot);
-				Series::Pack(Schema->Set("max"), CMax);
-				Series::Pack(Schema->Set("min"), CMin);
-				Series::Pack(Schema->Set("joints", Core::Var::Array()), Joints);
-
-				Core::Schema* Meshes = Schema->Set("meshes", Core::Var::Array());
-				for (auto&& It : Info.Meshes)
-				{
-					Core::Schema* Mesh = Meshes->Set("mesh");
-					Series::Pack(Mesh->Set("name"), It.Name);
-					Series::Pack(Mesh->Set("world"), It.World);
-					Series::Pack(Mesh->Set("vertices"), It.Vertices);
-					Series::Pack(Mesh->Set("indices"), It.Indices);
-				}
-
-				return Schema;
-#else
-				return nullptr;
+				FillSceneGeometries(&Info, Scene, Scene->mRootNode, Scene->mRootNode->mTransformation);
+				FillSceneSkeletons(&Info, Scene);
 #endif
+				return Info;
 			}
-			void Model::ProcessNode(void* Scene_, void* Node_, MeshInfo* Info, const Compute::Matrix4x4& Global)
-			{
-#ifdef ED_HAS_ASSIMP
-				auto* Scene = (aiScene*)Scene_;
-				auto* Node = (aiNode*)Node_;
-				Compute::Matrix4x4 World = ToMatrix(Node->mTransformation).Transpose() * Global;
-
-				for (unsigned int n = 0; n < Node->mNumMeshes; n++)
-					ProcessMesh(Scene, Scene->mMeshes[Node->mMeshes[n]], Info, World);
-
-				for (unsigned int n = 0; n < Node->mNumChildren; n++)
-					ProcessNode(Scene, Node->mChildren[n], Info, World);
-#endif
-			}
-			void Model::ProcessMesh(void*, void* Mesh_, MeshInfo* Info, const Compute::Matrix4x4& Global)
-			{
-#ifdef ED_HAS_ASSIMP
-				auto* Mesh = (aiMesh*)Mesh_;
-
-				MeshBlob Blob;
-				Blob.Name = Mesh->mName.C_Str();
-				Blob.World = Global;
-				if (!Blob.Name.empty())
-				{
-					for (auto&& MeshData : Info->Meshes)
-					{
-						if (MeshData.Name == Blob.Name)
-							Blob.Name += '_';
-					}
-				}
-				else
-					Blob.Name = Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(8)).substr(0, 8);
-
-				for (unsigned int v = 0; v < Mesh->mNumVertices; v++)
-				{
-					Compute::SkinVertex Element = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 };
-
-					auto& Vertex = Mesh->mVertices[v];
-					Element.PositionX = Vertex.x;
-					Element.PositionY = Vertex.y;
-					Element.PositionZ = Vertex.z;
-
-					if (Element.PositionX > Info->PX)
-						Info->PX = Element.PositionX;
-					else if (Element.PositionX < Info->NX)
-						Info->NX = Element.PositionX;
-
-					if (Element.PositionY > Info->PY)
-						Info->PY = Element.PositionY;
-					else if (Element.PositionY < Info->NY)
-						Info->NY = Element.PositionY;
-
-					if (Element.PositionZ > Info->PZ)
-						Info->PZ = Element.PositionZ;
-					else if (Element.PositionZ < Info->NZ)
-						Info->NZ = Element.PositionZ;
-
-					if (Mesh->HasNormals())
-					{
-						auto& Normal = Mesh->mNormals[v];
-						Element.NormalX = Normal.x;
-						Element.NormalY = Normal.y;
-						Element.NormalZ = Normal.z;
-					}
-
-					if (Mesh->HasTextureCoords(0))
-					{
-						auto& TexCoord = Mesh->mTextureCoords[0][v];
-						Element.TexCoordX = TexCoord.x;
-						Element.TexCoordY = -TexCoord.y;
-					}
-
-					if (Mesh->HasTangentsAndBitangents())
-					{
-						auto& Tangent = Mesh->mTangents[v];
-						Element.TangentX = Tangent.x;
-						Element.TangentY = Tangent.y;
-						Element.TangentZ = Tangent.z;
-
-						auto& Bitangent = Mesh->mBitangents[v];
-						Element.BitangentX = Bitangent.x;
-						Element.BitangentY = Bitangent.y;
-						Element.BitangentZ = Bitangent.z;
-					}
-
-					Blob.Vertices.push_back(Element);
-				}
-
-				for (unsigned int f = 0; f < Mesh->mNumFaces; f++)
-				{
-					auto* Face = &Mesh->mFaces[f];
-					for (unsigned int i = 0; i < Face->mNumIndices; i++)
-						Blob.Indices.push_back(Face->mIndices[i]);
-				}
-
-				for (unsigned int j = 0; j < Mesh->mNumBones; j++)
-				{
-					auto& Joint = Mesh->mBones[j];
-					int64_t Index = 0;
-
-					auto It = FindJoint(Info->Joints, Joint->mName.C_Str());
-					if (It == Info->Joints.end())
-					{
-						Compute::Joint Element;
-						Element.Name = Joint->mName.C_Str();
-						Element.BindShape = ToMatrix(Joint->mOffsetMatrix).Transpose();
-						Element.Index = Info->Weights;
-						Index = Info->Weights;
-						Info->Weights++;
-						Info->Joints.emplace_back(std::make_pair(Index, Element));
-					}
-					else
-						Index = It->first;
-
-					for (unsigned int w = 0; w < Joint->mNumWeights; w++)
-					{
-						auto& Element = Blob.Vertices[Joint->mWeights[w].mVertexId];
-						if (Element.JointIndex0 == -1.0f)
-						{
-							Element.JointIndex0 = (float)Index;
-							Element.JointBias0 = Joint->mWeights[w].mWeight;
-						}
-						else if (Element.JointIndex1 == -1.0f)
-						{
-							Element.JointIndex1 = (float)Index;
-							Element.JointBias1 = Joint->mWeights[w].mWeight;
-						}
-						else if (Element.JointIndex2 == -1.0f)
-						{
-							Element.JointIndex2 = (float)Index;
-							Element.JointBias2 = Joint->mWeights[w].mWeight;
-						}
-						else if (Element.JointIndex3 == -1.0f)
-						{
-							Element.JointIndex3 = (float)Index;
-							Element.JointBias3 = Joint->mWeights[w].mWeight;
-						}
-					}
-				}
-
-				Info->Meshes.emplace_back(Blob);
-#endif
-			}
-			void Model::ProcessHeirarchy(void* Scene_, void* Node_, MeshInfo* Info, Compute::Joint* Parent)
-			{
-#ifdef ED_HAS_ASSIMP
-				auto* Scene = (aiScene*)Scene_;
-				auto* Node = (aiNode*)Node_;
-				auto It = FindJoint(Info->Joints, Node->mName.C_Str());
-
-				if (It != Info->Joints.end())
-				{
-					It->second.Transform = ToMatrix(Node->mTransformation).Transpose();
-					It->first = -1;
-				}
-
-				for (int64_t i = 0; i < Node->mNumChildren; i++)
-					ProcessHeirarchy(Scene, Node->mChildren[i], Info, It == Info->Joints.end() ? Parent : &It->second);
-
-				if (Parent != nullptr && It != Info->Joints.end())
-				{
-					Parent->Childs.push_back(It->second);
-					It->first = Parent->Index;
-				}
-#endif
-			}
-			std::vector<std::pair<int64_t, Compute::Joint>>::iterator Model::FindJoint(std::vector<std::pair<int64_t, Compute::Joint>>& Joints, const std::string& Name)
-			{
-				for (auto It = Joints.begin(); It != Joints.end(); ++It)
-				{
-					if (It->second.Name == Name)
-						return It;
-				}
-
-				return Joints.end();
-			}
-
+			
 			SkinModel::SkinModel(ContentManager* Manager) : Processor(Manager)
 			{
 			}
@@ -1173,64 +1562,100 @@ namespace Edge
 			void* SkinModel::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				Graphics::SkinModel* Object = nullptr;
 				std::string& Path = Stream->GetSource();
 				Core::Parser Location(&Path);
-				Core::Schema* Data = nullptr;
 
-				if (!Location.EndsWith(".xml") && !Location.EndsWith(".json") && !Location.EndsWith(".jsonb") && !Location.EndsWith(".xml.gz") && !Location.EndsWith(".json.gz") && !Location.EndsWith(".jsonb.gz"))
+				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
 				{
-					auto* Base = (Processors::Model*)Content->GetProcessor<Graphics::Model>();
-					if (Base != nullptr)
-						Data = Base->Import(Stream);
+					Core::Schema* Data = Content->Load<Core::Schema>(Path);
+					if (!Data)
+						return nullptr;
+
+					Object = new Graphics::SkinModel();
+					Series::Unpack(Data->Get("inv-transform"), &Object->InvTransform);
+					Series::Unpack(Data->Get("min"), &Object->Min);
+					Series::Unpack(Data->Get("max"), &Object->Max);
+					Series::Unpack(Data->Get("skeleton"), &Object->Skeleton);
+					Object->Transform = Object->InvTransform.Inv();
+
+					auto* Meshes = Data->Get("meshes");
+					if (Meshes != nullptr)
+					{
+						Object->Meshes.reserve(Meshes->Size());
+						for (auto& Mesh : Meshes->GetChilds())
+						{
+							Graphics::SkinMeshBuffer::Desc I;
+							I.AccessFlags = Options.AccessFlags;
+							I.Usage = Options.Usage;
+
+							if (!Series::Unpack(Mesh->Get("indices"), &I.Indices))
+							{
+								ED_RELEASE(Data);
+								return nullptr;
+							}
+
+							if (!Series::Unpack(Mesh->Get("vertices"), &I.Elements))
+							{
+								ED_RELEASE(Data);
+								return nullptr;
+							}
+
+							auto* Next = Object->Meshes.emplace_back(ProcessRendererJob<Graphics::SkinMeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
+							{
+								return Device->CreateSkinMeshBuffer(I);
+							}));
+
+							ED_ASSERT(Next != nullptr, Object, "mesh should be initializable");
+							Series::Unpack(Mesh->Get("name"), &Next->Name);
+							Series::Unpack(Mesh->Get("transform"), &Next->Transform);
+							Series::Unpack(Mesh->Get("joints"), &Next->Joints);
+						}
+					}
+					ED_RELEASE(Data);
 				}
 				else
-					Data = Content->Load<Core::Schema>(Path);
-
-				if (!Data)
-					return nullptr;
-
-				auto Object = new Graphics::SkinModel();
-				Series::Unpack(Data->Find("root"), &Object->Root);
-				Series::Unpack(Data->Find("max"), &Object->Max);
-				Series::Unpack(Data->Find("min"), &Object->Min);
-				Series::Unpack(Data->Find("joints"), &Object->Joints);
-
-				std::vector<Core::Schema*> Meshes = Data->FetchCollection("meshes.mesh");
-				for (auto&& Mesh : Meshes)
 				{
-					Graphics::SkinMeshBuffer::Desc I;
-					I.AccessFlags = Options.AccessFlags;
-					I.Usage = Options.Usage;
-
-					if (!Series::Unpack(Mesh->Find("indices"), &I.Indices))
-					{
-						ED_RELEASE(Data);
+					ModelInfo Data = Model::ImportForImmediateUse(Stream);
+					if (Data.Meshes.empty())
 						return nullptr;
-					}
 
-					if (!Series::Unpack(Mesh->Find("vertices"), &I.Elements))
+					Object = new Graphics::SkinModel();
+					Object->Meshes.reserve(Data.Meshes.size());
+					Object->InvTransform = Data.Transform;
+					Object->Min = Data.Min;
+					Object->Max = Data.Max;
+					Object->Skeleton = std::move(Data.Skeleton);
+
+					for (auto& Mesh : Data.Meshes)
 					{
-						ED_RELEASE(Data);
-						return nullptr;
+						Graphics::SkinMeshBuffer::Desc I;
+						I.AccessFlags = Options.AccessFlags;
+						I.Usage = Options.Usage;
+						I.Indices = std::move(Mesh.Indices);
+						I.Elements = std::move(Mesh.Vertices);
+
+						auto* Next = Object->Meshes.emplace_back(ProcessRendererJob<Graphics::SkinMeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
+						{
+							return Device->CreateSkinMeshBuffer(I);
+						}));
+
+						ED_ASSERT(Next != nullptr, Object, "mesh should be initializable");
+						Next->Name = Mesh.Name;
+						Next->Transform = Mesh.Transform;
+						Next->Joints = std::move(Mesh.JointIndices);
 					}
-
-					auto* Device = Content->GetDevice();
-					Object->Meshes.push_back(ProcessRendererJob<Graphics::SkinMeshBuffer>(Device, [&I](Graphics::GraphicsDevice* Device)
-					{
-						return Device->CreateSkinMeshBuffer(I);
-					}));
-
-					auto* Sub = Object->Meshes.back();
-					Series::Unpack(Mesh->Find("name"), &Sub->Name);
-					Series::Unpack(Mesh->Find("world"), &Sub->World);
-					Sub->World = Object->Root * Sub->World;
 				}
 
-				Content->Cache(this, Stream->GetSource(), Object);
-				Object->AddRef();
+				auto* Existing = (Graphics::SkinModel*)Content->TryToCache(this, Stream->GetSource(), Object);
+				if (Existing != nullptr)
+				{
+					ED_RELEASE(Object);
+					Object = Existing;
+				}
 
-				ED_RELEASE(Data);
-				return (void*)Object;
+				Object->AddRef();
+				return Object;
 			}
 
 			SkinAnimation::SkinAnimation(ContentManager* Manager) : Processor(Manager)
@@ -1256,26 +1681,108 @@ namespace Edge
 			void* SkinAnimation::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				std::vector<Compute::SkinAnimatorClip> Clips;
 				std::string& Path = Stream->GetSource();
 				Core::Parser Location(&Path);
-				Core::Schema* Data = nullptr;
 
 				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
-					Data = Content->Load<Core::Schema>(Path);
-				else
-					Data = Import(Stream);
+				{
+					Core::Schema* Data = Content->Load<Core::Schema>(Path);
+					if (!Data)
+						return nullptr;
 
-				if (!Data)
+					Clips.reserve(Data->Size());
+					for (auto& Item : Data->GetChilds())
+					{
+						auto& Clip = Clips.emplace_back();
+						Series::Unpack(Item->Get("name"), &Clip.Name);
+						Series::Unpack(Item->Get("duration"), &Clip.Duration);
+						Series::Unpack(Item->Get("rate"), &Clip.Rate);
+
+						auto* Keys = Item->Get("keys");
+						if (Keys != nullptr)
+						{
+							Clip.Keys.reserve(Keys->Size());
+							for (auto& Key : Keys->GetChilds())
+							{
+								auto& Pose = Clip.Keys.emplace_back();
+								Series::Unpack(Key, &Pose.Time);
+
+								size_t ArrayOffset = 0;
+								for (auto& Orientation : Key->GetChilds())
+								{
+									if (!ArrayOffset++)
+										continue;
+
+									auto& Value = Pose.Pose.emplace_back();
+									Series::Unpack(Orientation->Get("position"), &Value.Position);
+									Series::Unpack(Orientation->Get("scale"), &Value.Scale);
+									Series::Unpack(Orientation->Get("rotation"), &Value.Rotation);
+									Series::Unpack(Orientation->Get("time"), &Value.Time);
+								}
+							}
+						}
+					}
+					ED_RELEASE(Data);
+				}
+				else
+					Clips = ImportForImmediateUse(Stream);
+
+				if (Clips.empty())
 					return nullptr;
 
-				auto Object = new Engine::SkinAnimation(Data);
-				Content->Cache(this, Stream->GetSource(), Object);
-				Object->AddRef();
+				auto* Object = new Engine::SkinAnimation(std::move(Clips));
+				auto* Existing = (Engine::SkinAnimation*)Content->TryToCache(this, Stream->GetSource(), Object);
+				if (Existing != nullptr)
+				{
+					ED_RELEASE(Object);
+					Object = Existing;
+				}
 
-				return (void*)Object;
+				Object->AddRef();
+				return Object;
 			}
 			Core::Schema* SkinAnimation::Import(Core::Stream* Stream, uint64_t Opts)
 			{
+				std::vector<Compute::SkinAnimatorClip> Info = ImportForImmediateUse(Stream, Opts);
+				if (Info.empty())
+					return nullptr;
+
+				auto* Blob = Core::Var::Set::Array();
+				Blob->Key = "animation";
+
+				for (auto& Clip : Info)
+				{
+					auto* Item = Blob->Push(Core::Var::Set::Object());
+					Series::Pack(Item->Set("name"), Clip.Name);
+					Series::Pack(Item->Set("duration"), Clip.Duration);
+					Series::Pack(Item->Set("rate"), Clip.Rate);
+
+					auto* Keys = Item->Set("keys", Core::Var::Set::Array());
+					Keys->Reserve(Clip.Keys.size());
+
+					for (auto& Key : Clip.Keys)
+					{
+						auto* Pose = Keys->Set("pose", Core::Var::Set::Array());
+						Pose->Reserve(Key.Pose.size() + 1);
+						Series::Pack(Pose, Key.Time);
+
+						for (auto& Orientation : Key.Pose)
+						{
+							auto* Value = Pose->Set("key", Core::Var::Set::Object());
+							Series::Pack(Value->Set("position"), Orientation.Position);
+							Series::Pack(Value->Set("scale"), Orientation.Scale);
+							Series::Pack(Value->Set("rotation"), Orientation.Rotation);
+							Series::Pack(Value->Set("time"), Orientation.Time);
+						}
+					}
+				}
+
+				return Blob;
+			}
+			std::vector<Compute::SkinAnimatorClip> SkinAnimation::ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts)
+			{
+				std::vector<Compute::SkinAnimatorClip> Info;
 #ifdef ED_HAS_ASSIMP
 				std::vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
@@ -1290,140 +1797,12 @@ namespace Edge
 				if (!Scene)
 				{
 					ED_ERR("[engine] cannot import mesh animation because %s", Importer.GetErrorString());
-					return nullptr;
+					return Info;
 				}
 
-				std::unordered_map<std::string, MeshNode> Joints;
-				int64_t Index = 0;
-				ProcessNode((void*)Scene, (void*)Scene->mRootNode, &Joints, Index);
-				ProcessHeirarchy((void*)Scene, (void*)Scene->mRootNode, &Joints);
-
-				std::vector<Compute::SkinAnimatorClip> Clips;
-				Clips.resize((size_t)Scene->mNumAnimations);
-
-				for (size_t i = 0; i < (size_t)Scene->mNumAnimations; i++)
-				{
-					aiAnimation* Animation = Scene->mAnimations[i];
-					Compute::SkinAnimatorClip* Clip = &Clips[i];
-					Clip->Name = Animation->mName.C_Str();
-					Clip->Duration = (float)Animation->mDuration;
-
-					if (Animation->mTicksPerSecond > 0.0f)
-						Clip->Rate = (float)Animation->mTicksPerSecond;
-
-					for (int64_t j = 0; j < Animation->mNumChannels; j++)
-					{
-						auto* Channel = Animation->mChannels[j];
-						auto It = Joints.find(Channel->mNodeName.C_Str());
-						if (It == Joints.end())
-							continue;
-
-						if (Clip->Keys.size() < Channel->mNumPositionKeys)
-							Clip->Keys.resize(Channel->mNumPositionKeys);
-
-						if (Clip->Keys.size() < Channel->mNumRotationKeys)
-							Clip->Keys.resize(Channel->mNumRotationKeys);
-
-						if (Clip->Keys.size() < Channel->mNumScalingKeys)
-							Clip->Keys.resize(Channel->mNumScalingKeys);
-
-						for (size_t k = 0; k < (size_t)Channel->mNumPositionKeys; k++)
-						{
-							auto& Keys = Clip->Keys[k].Pose;
-							ProcessKeys(&Keys, &Joints);
-
-							aiVector3D& V = Channel->mPositionKeys[k].mValue;
-							Keys[(size_t)It->second.Index].Position.X = V.x;
-							Keys[(size_t)It->second.Index].Position.Y = V.y;
-							Keys[(size_t)It->second.Index].Position.Z = V.z;
-						}
-
-						for (size_t k = 0; k < (size_t)Channel->mNumRotationKeys; k++)
-						{
-							auto& Keys = Clip->Keys[k].Pose;
-							ProcessKeys(&Keys, &Joints);
-
-							aiQuaternion Q1 = Channel->mRotationKeys[k].mValue;
-							Compute::Quaternion Q2(Q1.x, Q1.y, Q1.z, Q1.w);
-
-							Keys[(size_t)It->second.Index].Rotation = Q2;
-						}
-
-						for (size_t k = 0; k < (size_t)Channel->mNumScalingKeys; k++)
-						{
-							auto& Keys = Clip->Keys[k].Pose;
-							ProcessKeys(&Keys, &Joints);
-
-							aiVector3D& V = Channel->mScalingKeys[k].mValue;
-							Keys[(size_t)It->second.Index].Scale.X = V.x;
-							Keys[(size_t)It->second.Index].Scale.Y = V.y;
-							Keys[(size_t)It->second.Index].Scale.Z = V.z;
-						}
-					}
-				}
-
-				auto* Schema = Core::Var::Set::Object();
-				Schema->Key = "animation";
-
-				Series::Pack(Schema, Clips);
-				return Schema;
-#else
-				return nullptr;
+				FillSceneAnimations(&Info, Scene);
 #endif
-			}
-			void SkinAnimation::ProcessNode(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints, int64_t& Id)
-			{
-#ifdef ED_HAS_ASSIMP
-				auto* Scene = (aiScene*)Scene_;
-				auto* Node = (aiNode*)Node_;
-
-				for (unsigned int n = 0; n < Node->mNumMeshes; n++)
-				{
-					auto* Mesh = Scene->mMeshes[Node->mMeshes[n]];
-					for (unsigned int j = 0; j < Mesh->mNumBones; j++)
-					{
-						auto& Joint = Mesh->mBones[j];
-						auto It = Joints->find(Joint->mName.C_Str());
-						if (It == Joints->end())
-						{
-							MeshNode Element;
-							Element.Index = Id++;
-							Joints->insert(std::make_pair(Joint->mName.C_Str(), Element));
-						}
-					}
-				}
-
-				for (unsigned int n = 0; n < Node->mNumChildren; n++)
-					ProcessNode(Scene, Node->mChildren[n], Joints, Id);
-#endif
-			}
-			void SkinAnimation::ProcessHeirarchy(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints)
-			{
-#ifdef ED_HAS_ASSIMP
-				auto* Scene = (aiScene*)Scene_;
-				auto* Node = (aiNode*)Node_;
-				auto It = Joints->find(Node->mName.C_Str());
-
-				if (It != Joints->end())
-					It->second.Transform = ToMatrix(Node->mTransformation).Transpose();
-
-				for (int64_t i = 0; i < Node->mNumChildren; i++)
-					ProcessHeirarchy(Scene, Node->mChildren[i], Joints);
-#endif
-			}
-			void SkinAnimation::ProcessKeys(std::vector<Compute::AnimatorKey>* Keys, std::unordered_map<std::string, MeshNode>* Joints)
-			{
-				if (Keys->size() < Joints->size())
-				{
-					Keys->resize(Joints->size());
-					for (auto It = Joints->begin(); It != Joints->end(); ++It)
-					{
-						auto* Key = &Keys->at((size_t)It->second.Index);
-						Key->Position = It->second.Transform.Position();
-						Key->Rotation = It->second.Transform.Rotation();
-						Key->Scale = It->second.Transform.Scale();
-					}
-				}
+				return Info;
 			}
 
 			Schema::Schema(ContentManager* Manager) : Processor(Manager)
@@ -1541,7 +1920,7 @@ namespace Edge
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				std::string N = Network::Multiplexer::GetLocalAddress();
 				std::string D = Core::OS::Path::GetDirectory(Stream->GetSource().c_str());
-				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());
+				auto* Blob = Content->Load<Core::Schema>(Stream->GetSource());
 				auto* Router = new Network::HTTP::MapRouter();
 				auto* Object = new Network::HTTP::Server();
 
@@ -1549,15 +1928,15 @@ namespace Edge
 				if (App != nullptr)
 					Router->VM = App->VM;
 
-				if (Schema == nullptr)
+				if (Blob == nullptr)
 				{
 					ED_RELEASE(Router);
 					return (void*)Object;
 				}
 				else if (Callback)
-					Callback((void*)Object, Schema);
+					Callback((void*)Object, Blob);
 
-				Core::Schema* Config = Schema->Find("netstat");
+				Core::Schema* Config = Blob->Find("netstat");
 				if (Config != nullptr)
 				{
 					if (Series::Unpack(Config->Fetch("module-root"), &Router->ModuleRoot))
@@ -1585,7 +1964,7 @@ namespace Edge
 						Router->EnableNoDelay = false;
 				}
 
-				std::vector<Core::Schema*> Certificates = Schema->FindCollection("certificate", true);
+				std::vector<Core::Schema*> Certificates = Blob->FindCollection("certificate", true);
 				for (auto&& It : Certificates)
 				{
 					std::string Name;
@@ -1626,7 +2005,7 @@ namespace Edge
 					Core::Parser(&Cert->Chain).Eval(N, D).R();
 				}
 
-				std::vector<Core::Schema*> Listeners = Schema->FindCollection("listen", true);
+				std::vector<Core::Schema*> Listeners = Blob->FindCollection("listen", true);
 				for (auto&& It : Listeners)
 				{
 					std::string Name;
@@ -1645,7 +2024,7 @@ namespace Edge
 						Host->Secure = false;
 				}
 
-				std::vector<Core::Schema*> Sites = Schema->FindCollection("site", true);
+				std::vector<Core::Schema*> Sites = Blob->FindCollection("site", true);
 				for (auto&& It : Sites)
 				{
 					std::string Name = "*";
@@ -1927,7 +2306,7 @@ namespace Edge
 				else
 					Object->SetRouter(Router);
 
-				ED_RELEASE(Schema);
+				ED_RELEASE(Blob);
 				return (void*)Object;
 			}
 
@@ -1957,31 +2336,31 @@ namespace Edge
 			void* HullShape::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());
-				if (!Schema)
+				auto* Data = Content->Load<Core::Schema>(Stream->GetSource());
+				if (!Data)
 					return nullptr;
 
 				Compute::HullShape* Object = new Compute::HullShape();
-				std::vector<Core::Schema*> Meshes = Schema->FetchCollection("meshes.mesh");
+				std::vector<Core::Schema*> Meshes = Data->FetchCollection("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
 					if (!Series::Unpack(Mesh->Find("indices"), &Object->Indices))
 					{
-						ED_RELEASE(Schema);
+						ED_RELEASE(Data);
 						ED_RELEASE(Object);
 						return nullptr;
 					}
 
 					if (!Series::Unpack(Mesh->Find("vertices"), &Object->Vertices))
 					{
-						ED_RELEASE(Schema);
+						ED_RELEASE(Data);
 						ED_RELEASE(Object);
 						return nullptr;
 					}
 				}
 
 				Object->Shape = Compute::Simulator::CreateHullShape(Object->Vertices);
-				ED_RELEASE(Schema);
+				ED_RELEASE(Data);
 
 				if (!Object->Shape)
 				{
@@ -1989,10 +2368,15 @@ namespace Edge
 					return nullptr;
 				}
 
-				Content->Cache(this, Stream->GetSource(), Object);
-				Object->AddRef();
+				auto* Existing = (Compute::HullShape*)Content->TryToCache(this, Stream->GetSource(), Object);
+				if (Existing != nullptr)
+				{
+					ED_RELEASE(Object);
+					Object = Existing;
+				}
 
-				return (void*)Object;
+				Object->AddRef();
+				return Object;
 			}
 		}
 	}

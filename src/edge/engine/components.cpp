@@ -268,7 +268,6 @@ namespace Edge
 					else
 						Clear();
 
-					GetEntity()->GetTransform()->MakeDirty();
 					if (Callback)
 						Callback();
 				});
@@ -682,7 +681,6 @@ namespace Edge
 					else
 						Clear();
 
-					GetEntity()->GetTransform()->MakeDirty();
 					if (Callback)
 						Callback();
 				});
@@ -1262,6 +1260,7 @@ namespace Edge
 				{
 					ED_RELEASE(Instance);
 					Instance = NewInstance;
+
 					if (Instance != nullptr)
 					{
 						for (auto&& Material : Node->FetchCollection("materials.material"))
@@ -1276,7 +1275,6 @@ namespace Edge
 						}
 					}
 
-					GetEntity()->GetTransform()->MakeDirty();
 					Node->Release();
 				});
 			}
@@ -1313,6 +1311,15 @@ namespace Edge
 				for (auto* Item : Instance->Meshes)
 					Materials[(void*)Item] = nullptr;
 			}
+			void Model::SetMaterialFor(const std::string& Name, Material* Value)
+			{
+				if (!Instance)
+					return;
+
+				auto* Mesh = Instance->FindMesh(Name);
+				if (Mesh != nullptr)
+					Materials[(void*)Mesh] = Value;
+			}
 			float Model::GetVisibility(const Viewer& View, float Distance) const
 			{
 				return Instance ? Component::GetVisibility(View, Distance) : 0.0f;
@@ -1343,6 +1350,17 @@ namespace Edge
 			{
 				return Instance;
 			}
+			Material* Model::GetMaterialFor(const std::string& Name)
+			{
+				if (!Instance)
+					return nullptr;
+
+				auto* Mesh = Instance->FindMesh(Name);
+				if (!Mesh)
+					return nullptr;
+
+				return Materials[(void*)Mesh];
+			}
 
 			Skin::Skin(Entity* Ref) : Drawable(Ref, ActorSet::Synchronize, Skin::GetTypeId(), true)
 			{
@@ -1372,8 +1390,10 @@ namespace Edge
 				{
 					ED_RELEASE(Instance);
 					Instance = NewInstance;
+
 					if (Instance != nullptr)
 					{
+						Skeleton.Fill(Instance);
 						for (auto&& Material : Node->FetchCollection("materials.material"))
 						{
 							std::string Name; size_t Slot = 0;
@@ -1384,20 +1404,8 @@ namespace Edge
 									Materials[Surface] = Scene->GetMaterial(Slot);
 							}
 						}
-
-						for (auto&& Pose : Node->FetchCollection("poses.pose"))
-						{
-							int64_t Index;
-							if (Series::Unpack(Pose->Find("index"), &Index))
-							{
-								auto& Offset = Skeleton.Pose[Index];
-								Series::Unpack(Pose->Find("position"), &Offset.Position);
-								Series::Unpack(Pose->Find("rotation"), &Offset.Rotation);
-							}
-						}
 					}
 
-					GetEntity()->GetTransform()->MakeDirty();
 					Node->Release();
 				});
 			}
@@ -1422,20 +1430,11 @@ namespace Edge
 							Series::Pack(Material->Set("slot"), Slot.second->Slot);
 					}
 				}
-
-				Core::Schema* Poses = Node->Set("poses", Core::Var::Array());
-				for (auto&& Pose : Skeleton.Pose)
-				{
-					Core::Schema* Value = Poses->Set("pose");
-					Series::Pack(Value->Set("index"), Pose.first);
-					Series::Pack(Value->Set("position"), Pose.second.Position);
-					Series::Pack(Value->Set("rotation"), Pose.second.Rotation);
-				}
 			}
 			void Skin::Synchronize(Core::Timer* Time)
 			{
 				if (Instance != nullptr)
-					Instance->ComputePose(&Skeleton);
+					Instance->Synchronize(&Skeleton);
 			}
 			void Skin::SetDrawable(Graphics::SkinModel* Drawable)
 			{
@@ -1444,8 +1443,18 @@ namespace Edge
 				if (!Instance)
 					return;
 
+				Skeleton.Fill(Instance);
 				for (auto* Item : Instance->Meshes)
 					Materials[(void*)Item] = nullptr;
+			}
+			void Skin::SetMaterialFor(const std::string& Name, Material* Value)
+			{
+				if (!Instance)
+					return;
+
+				auto* Mesh = Instance->FindMesh(Name);
+				if (Mesh != nullptr)
+					Materials[(void*)Mesh] = Value;
 			}
 			float Skin::GetVisibility(const Viewer& View, float Distance) const
 			{
@@ -1466,8 +1475,7 @@ namespace Edge
 				Target->SetCategory(GetCategory());
 				Target->Instance = Instance;
 				Target->Materials = Materials;
-				Target->Skeleton.Pose = Skeleton.Pose;
-				memcpy(Target->Skeleton.Transform, Skeleton.Transform, sizeof(Skeleton.Transform));
+				Target->Skeleton = Skeleton;
 
 				if (Target->Instance != nullptr)
 					Target->Instance->AddRef();
@@ -1477,6 +1485,17 @@ namespace Edge
 			Graphics::SkinModel* Skin::GetDrawable()
 			{
 				return Instance;
+			}
+			Material* Skin::GetMaterialFor(const std::string& Name)
+			{
+				if (!Instance)
+					return nullptr;
+
+				auto* Mesh = Instance->FindMesh(Name);
+				if (!Mesh)
+					return nullptr;
+
+				return Materials[(void*)Mesh];
 			}
 
 			Emitter::Emitter(Entity* Ref) : Drawable(Ref, ActorSet::None, Emitter::GetTypeId(), false)
@@ -1615,37 +1634,26 @@ namespace Edge
 
 			SkinAnimator::SkinAnimator(Entity* Ref) : Component(Ref, ActorSet::Animate)
 			{
-				Current.Pose.resize(96);
-				Bind.Pose.resize(96);
-				Default.Pose.resize(96);
-			}
-			SkinAnimator::~SkinAnimator()
-			{
 			}
 			void SkinAnimator::Deserialize(Core::Schema* Node)
 			{
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 				Series::Unpack(Node->Find("state"), &State);
-				Series::Unpack(Node->Find("bind"), &Bind);
-				Series::Unpack(Node->Find("current"), &Current);
 
 				std::string Path;
-				if (!Series::Unpack(Node->Find("path"), &Path) || Path.empty())
-					Series::Unpack(Node->Find("animation"), &Clips);
-				else
-					LoadAnimation(Path, nullptr);
+				if (!Series::Unpack(Node->Find("path"), &Path))
+					return;
+
+				Parent->GetScene()->LoadResource<Engine::SkinAnimation>(this, Path, [this](Engine::SkinAnimation* Result)
+				{
+					Animation = Result;
+				});
 			}
 			void SkinAnimator::Serialize(Core::Schema* Node)
 			{
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 				Series::Pack(Node->Set("state"), State);
-				Series::Pack(Node->Set("bind"), Bind);
-				Series::Pack(Node->Set("current"), Current);
-
-				if (!Reference.empty())
-					Series::Pack(Node->Set("path"), Reference);
-				else
-					Series::Pack(Node->Set("animation"), Clips);
+				Series::Pack(Node->Set("path"), Parent->GetScene()->FindResourceId<SkinAnimation>(Animation));
 			}
 			void SkinAnimator::Activate(Component* New)
 			{
@@ -1653,49 +1661,49 @@ namespace Edge
 				if (Base != nullptr && Base->GetDrawable() != nullptr)
 				{
 					Instance = Base;
-					Instance->Skeleton.GetPose(Instance->GetDrawable(), &Default.Pose);
+					SetActive(true);
 				}
 				else
+				{
 					Instance = nullptr;
-
-				SetActive(Instance != nullptr);
+					SetActive(false);
+				}
 			}
 			void SkinAnimator::Animate(Core::Timer* Time)
 			{
+				if (!Animation || State.Paused)
+					return;
+
+				auto& Clips = Animation->GetClips();
 				if (!State.Blended)
 				{
-					if (State.Paused || State.Clip < 0 || State.Clip >= (int64_t)Clips.size() || State.Frame < 0 || State.Frame >= (int64_t)Clips[(size_t)State.Clip].Keys.size())
+					if (State.Clip < 0 || State.Clip >= (int64_t)Clips.size() || State.Frame < 0 || State.Frame >= (int64_t)Clips[(size_t)State.Clip].Keys.size())
 						return;
 
-					Compute::SkinAnimatorClip* Clip = &Clips[(size_t)State.Clip];
-					auto& NextKey = Clip->Keys[(size_t)State.Frame + 1 >= Clip->Keys.size() ? 0 : (size_t)State.Frame + 1];
-					auto& PrevKey = Clip->Keys[(size_t)State.Frame];
-
-					State.Duration = Clip->Duration;
-					State.Rate = Clip->Rate * NextKey.Time;
+					auto& Clip = Clips[(size_t)State.Clip];
+					auto& NextKey = Clip.Keys[(size_t)State.Frame + 1 >= Clip.Keys.size() ? 0 : (size_t)State.Frame + 1];
+					auto& PrevKey = Clip.Keys[(size_t)State.Frame];
+					State.Duration = Clip.Duration;
+					State.Rate = Clip.Rate;
 					State.Time = State.GetTimeline(Time);
 
 					float T = State.GetProgress();
-					for (auto&& Pose : Instance->Skeleton.Pose)
+					for (auto&& Pose : Instance->Skeleton.Offsets)
 					{
-						Compute::AnimatorKey* Prev = &PrevKey.Pose[(size_t)Pose.first];
-						Compute::AnimatorKey* Next = &NextKey.Pose[(size_t)Pose.first];
-						Compute::AnimatorKey* Set = &Current.Pose[(size_t)Pose.first];
-
-						Set->Position = Prev->Position.Lerp(Next->Position, T);
-						Pose.second.Position = Set->Position;
-
-						Set->Rotation = Prev->Rotation.sLerp(Next->Rotation, T);
-						Pose.second.Rotation = Set->Rotation;
+						auto& Prev = PrevKey.Pose[Pose.first];
+						auto& Next = NextKey.Pose[Pose.first];
+						Pose.second.Frame.Position = Prev.Position.Lerp(Next.Position, T);
+						Pose.second.Frame.Scale = Prev.Scale.Lerp(Next.Scale, T);
+						Pose.second.Frame.Rotation = Prev.Rotation.sLerp(Next.Rotation, T);
+						Pose.second.Offset = Pose.second.Frame;
 					}
 
 					if (State.GetProgressTotal() >= 1.0f)
 					{
-						if ((size_t)State.Frame + 1 >= Clip->Keys.size())
+						if (State.Frame + 1 >= (int64_t)Clip.Keys.size())
 						{
 							if (!State.Looped)
 								BlendAnimation(-1, -1);
-
 							State.Frame = -1;
 						}
 
@@ -1706,20 +1714,25 @@ namespace Edge
 				}
 				else if (State.GetProgressTotal() < 1.0f)
 				{
-					Compute::SkinAnimatorKey* Key = (IsExists(State.Clip, State.Frame) ? GetFrame(State.Clip, State.Frame) : nullptr);
-					if (!Key)
-						Key = &Bind;
-
+					auto* Keys = (IsExists(State.Clip, State.Frame) ? GetFrame(State.Clip, State.Frame) : nullptr);
 					State.Time = State.GetTimeline(Time);
 					float T = State.GetProgress();
 
-					for (auto&& Pose : Instance->Skeleton.Pose)
+					for (auto&& Pose : Instance->Skeleton.Offsets)
 					{
-						Compute::AnimatorKey* Prev = &Current.Pose[(size_t)Pose.first];
-						Compute::AnimatorKey* Next = &Key->Pose[(size_t)Pose.first];
-
-						Pose.second.Position = Prev->Position.Lerp(Next->Position, T);
-						Pose.second.Rotation = Prev->Rotation.sLerp(Next->Rotation, T);
+						if (Keys != nullptr)
+						{
+							auto& Next = Keys->Pose[Pose.first];
+							Pose.second.Offset.Position = Pose.second.Frame.Position.Lerp(Next.Position, T);
+							Pose.second.Offset.Scale = Pose.second.Frame.Scale.Lerp(Next.Scale, T);
+							Pose.second.Offset.Rotation = Pose.second.Frame.Rotation.sLerp(Next.Rotation, T);
+						}
+						else
+						{
+							Pose.second.Offset.Position = Pose.second.Frame.Position.Lerp(Pose.second.Default.Position, T);
+							Pose.second.Offset.Scale = Pose.second.Frame.Scale.Lerp(Pose.second.Default.Scale, T);
+							Pose.second.Offset.Rotation = Pose.second.Frame.Rotation.sLerp(Pose.second.Default.Rotation, T);
+						}
 					}
 				}
 				else
@@ -1728,69 +1741,48 @@ namespace Edge
 					State.Time = 0.0f;
 				}
 			}
-			void SkinAnimator::BlendAnimation(int64_t Clip, int64_t Frame_)
+			void SkinAnimator::SetAnimation(SkinAnimation* New)
+			{
+				Animation = New;
+			}
+			void SkinAnimator::BlendAnimation(int64_t Clip, int64_t Frame)
 			{
 				State.Blended = true;
 				State.Time = 0.0f;
-				State.Frame = Frame_;
+				State.Frame = Frame;
 				State.Clip = Clip;
 
-				if (State.Clip >= 0 && (size_t)State.Clip < Clips.size())
+				if (Animation != nullptr)
 				{
-					Compute::SkinAnimatorClip* CurrentClip = &Clips[(size_t)State.Clip];
-					if (State.Frame < 0 || (size_t)State.Frame >= CurrentClip->Keys.size())
-						State.Frame = -1;
-
-					if (State.Duration <= 0.0f)
+					auto& Clips = Animation->GetClips();
+					if (State.Clip >= 0 && (size_t)State.Clip < Clips.size())
 					{
-						State.Duration = CurrentClip->Duration;
-						State.Rate = CurrentClip->Rate;
+						auto& Next = Clips[(size_t)State.Clip];
+						if (State.Frame < 0 || (size_t)State.Frame >= Next.Keys.size())
+							State.Frame = -1;
+
+						if (State.Duration <= 0.0f)
+						{
+							State.Duration = Next.Duration;
+							State.Rate = Next.Rate;
+						}
 					}
+					else
+						State.Clip = -1;
 				}
 				else
 					State.Clip = -1;
 			}
-			void SkinAnimator::LoadAnimation(const std::string& Path, const std::function<void(bool)>& Callback)
+			void SkinAnimator::SaveBindingState()
 			{
-				auto* Scene = Parent->GetScene();
-				Scene->LoadResource<Engine::SkinAnimation>(this, Path, [this, Scene, Path, Callback](Engine::SkinAnimation* Result)
+				for (auto&& Pose : Instance->Skeleton.Offsets)
 				{
-					bool IsSuccess = Result != nullptr && Result->IsValid();
-					if (IsSuccess)
-					{
-						Reference = Scene->AsResourcePath(Path);
-						Clips = Result->GetClips();
-					}
-					else
-						ClearAnimation();
-
-					GetEntity()->GetTransform()->MakeDirty();
-					ED_RELEASE(Result);
-					if (Callback)
-						Callback(IsSuccess);
-				});
-			}
-			void SkinAnimator::GetPose(Compute::SkinAnimatorKey* Result)
-			{
-				ED_ASSERT_V(Result != nullptr, "result should be set");
-				Result->Pose.resize(Default.Pose.size());
-				Result->Time = Default.Time;
-
-				for (auto&& Pose : Instance->Skeleton.Pose)
-				{
-					Compute::AnimatorKey* Frame = &Result->Pose[(size_t)Pose.first];
-					Frame->Position = Pose.second.Position;
-					Frame->Rotation = Pose.second.Rotation;
+					Pose.second.Frame = Pose.second.Default;
+					Pose.second.Offset = Pose.second.Frame;
 				}
-			}
-			void SkinAnimator::ClearAnimation()
-			{
-				Reference.clear();
-				Clips.clear();
 			}
 			void SkinAnimator::Stop()
 			{
-				Bind = Default;
 				State.Paused = false;
 				BlendAnimation(-1, -1);
 			}
@@ -1798,7 +1790,7 @@ namespace Edge
 			{
 				State.Paused = true;
 			}
-			void SkinAnimator::Play(int64_t Clip, int64_t Frame_)
+			void SkinAnimator::Play(int64_t Clip, int64_t Frame)
 			{
 				if (State.Paused)
 				{
@@ -1807,44 +1799,37 @@ namespace Edge
 				}
 
 				State.Time = 0.0f;
-				State.Frame = (Frame_ == -1 ? 0 : Frame_);
+				State.Frame = (Frame == -1 ? 0 : Frame);
 				State.Clip = (Clip == -1 ? 0 : Clip);
 
 				if (!IsExists(State.Clip, State.Frame))
 					return;
 
-				if (State.Clip >= 0 && (size_t)State.Clip < Clips.size())
+				if (Animation != nullptr)
 				{
-					Compute::SkinAnimatorClip* CurrentClip = &Clips[(size_t)State.Clip];
-					if (State.Frame < 0 || (size_t)State.Frame >= CurrentClip->Keys.size())
-						State.Frame = -1;
+					auto& Clips = Animation->GetClips();
+					if (State.Clip >= 0 && (size_t)State.Clip < Clips.size())
+					{
+						auto& Next = Clips[(size_t)State.Clip];
+						if (State.Frame < 0 || (size_t)State.Frame >= Next.Keys.size())
+							State.Frame = -1;
+					}
+					else
+						State.Clip = -1;
 				}
 				else
 					State.Clip = -1;
 
-				GetPose(&Bind);
-				Current = Bind;
-
-				if (!IsPosed(State.Clip, State.Frame))
+				SaveBindingState();
+				if (State.GetProgress() < 1.0f)
 					BlendAnimation(State.Clip, State.Frame);
-			}
-			bool SkinAnimator::IsPosed(int64_t Clip, int64_t Frame_)
-			{
-				Compute::SkinAnimatorKey* Key = (IsExists(Clip, Frame_) ? GetFrame(Clip, Frame_) : nullptr);
-				if (!Key)
-					Key = &Bind;
-
-				for (auto&& Pose : Instance->Skeleton.Pose)
-				{
-					Compute::AnimatorKey* Frame = &Key->Pose[(size_t)Pose.first];
-					if (Pose.second.Position != Frame->Position || Pose.second.Rotation != Frame->Rotation)
-						return false;
-				}
-
-				return true;
 			}
 			bool SkinAnimator::IsExists(int64_t Clip)
 			{
+				if (!Animation)
+					return false;
+
+				auto& Clips = Animation->GetClips();
 				return Clip >= 0 && (size_t)Clip < Clips.size();
 			}
 			bool SkinAnimator::IsExists(int64_t Clip, int64_t Frame)
@@ -1852,33 +1837,65 @@ namespace Edge
 				if (!IsExists(Clip))
 					return false;
 
+				auto& Clips = Animation->GetClips();
 				return Frame >= 0 && (size_t)Frame < Clips[(size_t)Clip].Keys.size();
 			}
-			Compute::SkinAnimatorKey* SkinAnimator::GetFrame(int64_t Clip, int64_t Frame)
+			const Compute::SkinAnimatorKey* SkinAnimator::GetFrame(int64_t Clip, int64_t Frame)
 			{
+				ED_ASSERT(Animation != nullptr, nullptr, "animation should be set");
+				auto& Clips = Animation->GetClips();
 				ED_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), nullptr, "clip index outside of range");
 				ED_ASSERT(Frame >= 0 && (size_t)Frame < Clips[(size_t)Clip].Keys.size(), nullptr, "frame index outside of range");
 
 				return &Clips[(size_t)Clip].Keys[(size_t)Frame];
 			}
-			std::vector<Compute::SkinAnimatorKey>* SkinAnimator::GetClip(int64_t Clip)
+			const std::vector<Compute::SkinAnimatorKey>* SkinAnimator::GetClip(int64_t Clip)
 			{
+				ED_ASSERT(Animation != nullptr, nullptr, "animation should be set");
+				auto& Clips = Animation->GetClips();
 				ED_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), nullptr, "clip index outside of range");
 				return &Clips[(size_t)Clip].Keys;
 			}
-			std::string SkinAnimator::GetPath()
+			std::string SkinAnimator::GetPath() const
 			{
-				return Reference;
+				return Parent->GetScene()->FindResourceId<SkinAnimation>(Animation);
 			}
 			Component* SkinAnimator::Copy(Entity* New) const
 			{
 				SkinAnimator* Target = new SkinAnimator(New);
-				Target->Clips = Clips;
+				Target->Animation = Animation;
 				Target->State = State;
-				Target->Bind = Bind;
-				Target->Current = Current;
+
+				if (Animation != nullptr)
+					Animation->AddRef();
 
 				return Target;
+			}
+			int64_t SkinAnimator::GetClipByName(const std::string& Name) const
+			{
+				if (!Animation)
+					return -1;
+
+				size_t Index = 0;
+				for (auto& Item : Animation->GetClips())
+				{
+					if (Item.Name == Name)
+						return (int64_t)Index;
+					Index++;
+				}
+
+				return -1;
+			}
+			size_t SkinAnimator::GetClipsCount() const
+			{
+				if (!Animation)
+					return 0;
+
+				return Animation->GetClips().size();
+			}
+			SkinAnimation* SkinAnimator::GetAnimation() const
+			{
+				return Animation;
 			}
 			Skin* SkinAnimator::GetSkin() const
 			{
@@ -1895,8 +1912,8 @@ namespace Edge
 			{
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 				Series::Unpack(Node->Find("state"), &State);
-				Series::Unpack(Node->Find("bind"), &Bind);
-				Series::Unpack(Node->Find("current"), &Current);
+				Series::Unpack(Node->Find("offset"), &Offset);
+				Series::Unpack(Node->Find("default"), &Default);
 
 				std::string Path;
 				if (!Series::Unpack(Node->Find("path"), &Path) || Path.empty())
@@ -1908,8 +1925,8 @@ namespace Edge
 			{
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 				Series::Pack(Node->Set("state"), State);
-				Series::Pack(Node->Set("bind"), Bind);
-				Series::Pack(Node->Set("current"), Current);
+				Series::Pack(Node->Set("offset"), Offset);
+				Series::Pack(Node->Set("default"), Default);
 
 				if (Reference.empty())
 					Series::Pack(Node->Set("animation"), Clips);
@@ -1919,35 +1936,36 @@ namespace Edge
 			void KeyAnimator::Animate(Core::Timer* Time)
 			{
 				auto* Transform = Parent->GetTransform();
+				if (State.Paused)
+					return;
+
 				if (!State.Blended)
 				{
-					if (State.Paused || State.Clip < 0 || (size_t)State.Clip >= Clips.size() || State.Frame < 0 || (size_t)State.Frame >= Clips[(size_t)State.Clip].Keys.size())
+					if (State.Clip < 0 || (size_t)State.Clip >= Clips.size() || State.Frame < 0 || (size_t)State.Frame >= Clips[(size_t)State.Clip].Keys.size())
 						return;
 
-					Compute::KeyAnimatorClip* Clip = &Clips[(size_t)State.Clip];
-					Compute::AnimatorKey& NextKey = Clip->Keys[(size_t)State.Frame + 1 >= Clip->Keys.size() ? 0 : (size_t)State.Frame + 1];
-					Compute::AnimatorKey& PrevKey = Clip->Keys[(size_t)State.Frame];
-
-					State.Duration = Clip->Duration;
-					State.Rate = Clip->Rate * NextKey.Time;
+					auto& Clip = Clips[(size_t)State.Clip];
+					auto& NextKey = Clip.Keys[(size_t)State.Frame + 1 >= Clip.Keys.size() ? 0 : (size_t)State.Frame + 1];
+					auto& PrevKey = Clip.Keys[(size_t)State.Frame];
+					State.Duration = Clip.Duration;
+					State.Rate = Clip.Rate * NextKey.Time;
 					State.Time = State.GetTimeline(Time);
 
 					float T = State.GetProgress();
-					Current.Position = PrevKey.Position.Lerp(NextKey.Position, T);
-					Current.Rotation = PrevKey.Rotation.Lerp(NextKey.Rotation, T);
-					Current.Scale = PrevKey.Scale.Lerp(NextKey.Scale, T);
+					Offset.Position = PrevKey.Position.Lerp(NextKey.Position, T);
+					Offset.Rotation = PrevKey.Rotation.Lerp(NextKey.Rotation, T);
+					Offset.Scale = PrevKey.Scale.Lerp(NextKey.Scale, T);
 
-					Transform->SetPosition(Current.Position);
-					Transform->SetRotation(Current.Rotation.GetEuler());
-					Transform->SetScale(Current.Scale);
+					Transform->SetPosition(Offset.Position);
+					Transform->SetRotation(Offset.Rotation.GetEuler());
+					Transform->SetScale(Offset.Scale);
 
 					if (State.GetProgressTotal() >= 1.0f)
 					{
-						if ((size_t)State.Frame + 1 >= Clip->Keys.size())
+						if (State.Frame + 1 >= (int64_t)Clip.Keys.size())
 						{
 							if (!State.Looped)
 								BlendAnimation(-1, -1);
-
 							State.Frame = -1;
 						}
 
@@ -1958,19 +1976,15 @@ namespace Edge
 				}
 				else if (State.GetProgressTotal() < 1.0f)
 				{
-					Compute::AnimatorKey* Key = (IsExists(State.Clip, State.Frame) ? GetFrame(State.Clip, State.Frame) : nullptr);
-					if (!Key)
-						Key = &Bind;
-
-					if (State.Paused)
-						return;
+					auto* Next = (IsExists(State.Clip, State.Frame) ? GetFrame(State.Clip, State.Frame) : nullptr);
+					if (!Next)
+						Next = &Default;
 
 					State.Time = State.GetTimeline(Time);
 					float T = State.GetProgress();
-
-					Transform->SetPosition(Current.Position.Lerp(Key->Position, T));
-					Transform->SetRotation(Current.Rotation.Lerp(Key->Rotation, T).GetEuler());
-					Transform->SetScale(Current.Scale.Lerp(Key->Scale, T));
+					Transform->SetPosition(Offset.Position.Lerp(Next->Position, T));
+					Transform->SetRotation(Offset.Rotation.Lerp(Next->Rotation, T).GetEuler());
+					Transform->SetScale(Offset.Scale.Lerp(Next->Scale, T));
 				}
 				else
 				{
@@ -1989,40 +2003,39 @@ namespace Edge
 					else
 						Reference.clear();
 
-					GetEntity()->GetTransform()->MakeDirty();
 					ED_RELEASE(Result);
 					if (Callback)
 						Callback(!Reference.empty());
 				});
-			}
-			void KeyAnimator::GetPose(Compute::AnimatorKey* Result)
-			{
-				ED_ASSERT_V(Result != nullptr, "result should be set");
-				auto& Space = Parent->GetTransform()->GetSpacing();
-				Result->Position = Space.Position;
-				Result->Rotation = Space.Rotation;
-				Result->Scale = Space.Scale;
 			}
 			void KeyAnimator::ClearAnimation()
 			{
 				Reference.clear();
 				Clips.clear();
 			}
-			void KeyAnimator::BlendAnimation(int64_t Clip, int64_t Frame_)
+			void KeyAnimator::BlendAnimation(int64_t Clip, int64_t Frame)
 			{
 				State.Blended = true;
 				State.Time = 0.0f;
-				State.Frame = Frame_;
+				State.Frame = Frame;
 				State.Clip = Clip;
 
 				if (State.Clip >= 0 && (size_t)State.Clip < Clips.size())
 				{
-					Compute::KeyAnimatorClip* CurrentClip = &Clips[(size_t)State.Clip];
-					if (State.Frame < 0 || (size_t)State.Frame >= CurrentClip->Keys.size())
+					auto& Next = Clips[(size_t)State.Clip];
+					if (State.Frame < 0 || (size_t)State.Frame >= Next.Keys.size())
 						State.Frame = -1;
 				}
 				else
 					State.Clip = -1;
+			}
+			void KeyAnimator::SaveBindingState()
+			{
+				auto& Space = Parent->GetTransform()->GetSpacing();
+				Default.Position = Space.Position;
+				Default.Rotation = Space.Rotation;
+				Default.Scale = Space.Scale;
+				Offset = Default;
 			}
 			void KeyAnimator::Stop()
 			{
@@ -2033,7 +2046,7 @@ namespace Edge
 			{
 				State.Paused = true;
 			}
-			void KeyAnimator::Play(int64_t Clip, int64_t Frame_)
+			void KeyAnimator::Play(int64_t Clip, int64_t Frame)
 			{
 				if (State.Paused)
 				{
@@ -2042,7 +2055,7 @@ namespace Edge
 				}
 
 				State.Time = 0.0f;
-				State.Frame = (Frame_ == -1 ? 0 : Frame_);
+				State.Frame = (Frame == -1 ? 0 : Frame);
 				State.Clip = (Clip == -1 ? 0 : Clip);
 
 				if (!IsExists(State.Clip, State.Frame))
@@ -2050,33 +2063,22 @@ namespace Edge
 
 				if (State.Clip >= 0 && (size_t)State.Clip < Clips.size())
 				{
-					Compute::KeyAnimatorClip* CurrentClip = &Clips[(size_t)State.Clip];
-					if (State.Frame < 0 || (size_t)State.Frame >= CurrentClip->Keys.size())
+					auto& Next = Clips[(size_t)State.Clip];
+					if (State.Frame < 0 || (size_t)State.Frame >= Next.Keys.size())
 						State.Frame = -1;
 
 					if (State.Duration <= 0.0f)
 					{
-						State.Duration = CurrentClip->Duration;
-						State.Rate = CurrentClip->Rate;
+						State.Duration = Next.Duration;
+						State.Rate = Next.Rate;
 					}
 				}
 				else
 					State.Clip = -1;
 
-				GetPose(&Bind);
-				Current = Bind;
-
-				if (!IsPosed(State.Clip, State.Frame))
+				SaveBindingState();
+				if (State.GetProgress() < 1.0f)
 					BlendAnimation(State.Clip, State.Frame);
-			}
-			bool KeyAnimator::IsPosed(int64_t Clip, int64_t Frame_)
-			{
-				Compute::AnimatorKey* Key = (IsExists(Clip, Frame_) ? GetFrame(Clip, Frame_) : nullptr);
-				if (!Key)
-					Key = &Bind;
-
-				auto& Space = Parent->GetTransform()->GetSpacing();
-				return Space.Position == Key->Position && Space.Rotation == Key->Rotation.GetEuler() && Space.Scale == Key->Scale;
 			}
 			bool KeyAnimator::IsExists(int64_t Clip)
 			{
@@ -2110,8 +2112,8 @@ namespace Edge
 				KeyAnimator* Target = new KeyAnimator(New);
 				Target->Clips = Clips;
 				Target->State = State;
-				Target->Bind = Bind;
-				Target->Current = Current;
+				Target->Default = Default;
+				Target->Offset = Offset;
 
 				return Target;
 			}
@@ -2504,7 +2506,6 @@ namespace Edge
 
 					ApplyPlayingPosition();
 					Synchronize(nullptr);
-					GetEntity()->GetTransform()->MakeDirty();
 					Node->Release();
 				});
 			}

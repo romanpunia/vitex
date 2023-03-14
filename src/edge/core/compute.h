@@ -51,6 +51,8 @@ namespace Edge
 
 		struct Matrix4x4;
 
+		struct Quaternion;
+
 		struct Vector2;
 
 		struct Vector3;
@@ -660,12 +662,14 @@ namespace Edge
 			Vector3 Up() const;
 			Vector3 Right() const;
 			Vector3 Forward() const;
-			Vector3 Rotation() const;
+			Quaternion RotationQuaternion() const;
+			Vector3 RotationEuler() const;
 			Vector3 Position() const;
 			Vector3 Scale() const;
 			Vector2 XY() const;
 			Vector3 XYZ() const;
 			Vector4 XYZW() const;
+			float Determinant() const;
 			void Identify();
 			void Set(const Matrix4x4& Value);
 
@@ -692,7 +696,11 @@ namespace Edge
 			static Matrix4x4 CreateRotation(const Vector3& Forward, const Vector3& Up, const Vector3& Right);
 			static Matrix4x4 Identity()
 			{
-				return Matrix4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+				return Matrix4x4(
+					1, 0, 0, 0,
+					0, 1, 0, 0,
+					0, 0, 1, 0,
+					0, 0, 0, 1);
 			};
 		};
 
@@ -823,9 +831,9 @@ namespace Edge
 		{
 			std::vector<Joint> Childs;
 			std::string Name;
-			Matrix4x4 Transform;
-			Matrix4x4 BindShape;
-			int64_t Index = -1;
+			Matrix4x4 Global;
+			Matrix4x4 Local;
+			size_t Index;
 		};
 
 		struct ED_OUT AnimatorKey
@@ -839,7 +847,7 @@ namespace Edge
 		struct ED_OUT SkinAnimatorKey
 		{
 			std::vector<AnimatorKey> Pose;
-			float Time = 1.0f;
+			float Time;
 		};
 
 		struct ED_OUT SkinAnimatorClip

@@ -11,6 +11,7 @@
 #define ED_HS (unsigned int)Edge::Graphics::ShaderType::Hull
 #define ED_DS (unsigned int)Edge::Graphics::ShaderType::Domain
 #define ED_WINDOW_SIZE 128
+#define ED_MAX_JOINTS 96
 #define ED_MAX_UNITS 32
 
 struct SDL_SysWMinfo;
@@ -753,9 +754,13 @@ namespace Edge
 
 		class Texture2D;
 
+		class SkinMeshBuffer;
+
 		class GraphicsDevice;
 
 		class Activity;
+
+		class SkinModel;
 
 		typedef std::function<void(AppState)> AppStateChangeCallback;
 		typedef std::function<void(WindowState, int, int)> WindowStateChangeCallback;
@@ -851,15 +856,9 @@ namespace Edge
 			bool BlendEnable;
 		};
 
-		struct ED_OUT PoseNode
-		{
-			Compute::Vector3 Position;
-			Compute::Quaternion Rotation;
-		};
-
 		struct ED_OUT AnimationBuffer
 		{
-			Compute::Matrix4x4 Offsets[96];
+			Compute::Matrix4x4 Offsets[ED_MAX_JOINTS];
 			Compute::Vector3 Padding;
 			float Animated = 0.0f;
 		};
@@ -898,19 +897,32 @@ namespace Edge
 			float Near = 0.1f;
 		};
 
+		struct ED_OUT PoseNode
+		{
+			Compute::Vector3 Position;
+			Compute::Vector3 Scale = Compute::Vector3::One();
+			Compute::Quaternion Rotation;
+		};
+
+		struct ED_OUT PoseData
+		{
+			PoseNode Frame;
+			PoseNode Offset;
+			PoseNode Default;
+		};
+
+		struct ED_OUT PoseMatrices
+		{
+			Compute::Matrix4x4 Data[ED_MAX_JOINTS];
+		};
+
 		struct ED_OUT PoseBuffer
 		{
-			std::unordered_map<int64_t, PoseNode> Pose;
-			Compute::Matrix4x4 Transform[96];
+			std::unordered_map<SkinMeshBuffer*, PoseMatrices> Matrices;
+			std::unordered_map<size_t, PoseData> Offsets;
 
-			bool SetPose(class SkinModel* Model);
-			bool GetPose(class SkinModel* Model, std::vector<Compute::AnimatorKey>* Result);
-			Compute::Matrix4x4 GetOffset(PoseNode* Node);
-			PoseNode* GetNode(int64_t Index);
-
-		private:
-			void SetJointPose(Compute::Joint* Root);
-			void GetJointPose(Compute::Joint* Root, std::vector<Compute::AnimatorKey>* Result);
+			void Fill(SkinModel* Mesh);
+			void Fill(Compute::Joint& Next);
 		};
 
 		class ED_OUT Surface : public Core::Reference<Surface>
@@ -1145,7 +1157,7 @@ namespace Edge
 			ElementBuffer* IndexBuffer;
 
 		public:
-			Compute::Matrix4x4 World;
+			Compute::Matrix4x4 Transform;
 			std::string Name;
 
 		protected:
@@ -1174,7 +1186,8 @@ namespace Edge
 			ElementBuffer* IndexBuffer;
 
 		public:
-			Compute::Matrix4x4 World;
+			Compute::Matrix4x4 Transform;
+			std::unordered_map<size_t, size_t> Joints;
 			std::string Name;
 
 		protected:
@@ -2008,7 +2021,6 @@ namespace Edge
 		{
 		public:
 			std::vector<MeshBuffer*> Meshes;
-			Compute::Matrix4x4 Root;
 			Compute::Vector4 Max;
 			Compute::Vector4 Min;
 
@@ -2023,22 +2035,23 @@ namespace Edge
 		{
 		public:
 			std::vector<SkinMeshBuffer*> Meshes;
-			std::vector<Compute::Joint> Joints;
-			Compute::Matrix4x4 Root;
+			Compute::Joint Skeleton;
+			Compute::Matrix4x4 InvTransform;
+			Compute::Matrix4x4 Transform;
 			Compute::Vector4 Max;
 			Compute::Vector4 Min;
 
 		public:
 			SkinModel() noexcept;
 			~SkinModel() noexcept;
-			void ComputePose(PoseBuffer* Map);
+			bool FindJoint(const std::string& Name, Compute::Joint* Output);
+			bool FindJoint(size_t Index, Compute::Joint* Output);
+			void Synchronize(PoseBuffer* Map);
 			void Cleanup();
 			SkinMeshBuffer* FindMesh(const std::string& Name);
-			Compute::Joint* FindJoint(const std::string& Name, Compute::Joint* Root = nullptr);
-			Compute::Joint* FindJoint(int64_t Index, Compute::Joint* Root = nullptr);
 
 		private:
-			void ComputePose(PoseBuffer* Map, Compute::Joint* Root, const Compute::Matrix4x4& World);
+			void Synchronize(PoseBuffer* Map, Compute::Joint& Next, const Compute::Matrix4x4& ParentOffset);
 		};
 	}
 }

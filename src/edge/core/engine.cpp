@@ -132,7 +132,7 @@ namespace Edge
 
 		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Fov, float _Ratio, float _Near, float _Far, RenderCulling _Type)
 		{
-			Set(_View, _Projection, _Position, -_View.Rotation(), _Fov, _Ratio, _Near, _Far, _Type);
+			Set(_View, _Projection, _Position, -_View.RotationEuler(), _Fov, _Ratio, _Near, _Far, _Type);
 		}
 		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, const Compute::Vector3& _Rotation, float _Fov, float _Ratio, float _Near, float _Far, RenderCulling _Type)
 		{
@@ -321,23 +321,6 @@ namespace Edge
 			Series::Pack(Velocity->Set("min"), Value.Velocity.Min);
 			Series::Pack(Velocity->Set("max"), Value.Velocity.Max);
 		}
-		void Series::Pack(Core::Schema* V, const Compute::SkinAnimatorKey& Value)
-		{
-			ED_ASSERT_V(V != nullptr, "schema should be set");
-			Series::Pack(V->Set("pose"), Value.Pose);
-			Series::Pack(V->Set("time"), Value.Time);
-		}
-		void Series::Pack(Core::Schema* V, const Compute::SkinAnimatorClip& Value)
-		{
-			ED_ASSERT_V(V != nullptr, "schema should be set");
-			Series::Pack(V->Set("name"), Value.Name);
-			Series::Pack(V->Set("duration"), Value.Duration);
-			Series::Pack(V->Set("rate"), Value.Rate);
-
-			Core::Schema* Array = V->Set("frames", Core::Var::Array());
-			for (auto&& It : Value.Keys)
-				Series::Pack(Array->Set("frame"), It);
-		}
 		void Series::Pack(Core::Schema* V, const Compute::KeyAnimatorClip& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
@@ -352,6 +335,12 @@ namespace Edge
 			Series::Pack(V->Set("position"), Value.Position);
 			Series::Pack(V->Set("rotation"), Value.Rotation);
 			Series::Pack(V->Set("scale"), Value.Scale);
+			Series::Pack(V->Set("time"), Value.Time);
+		}
+		void Series::Pack(Core::Schema* V, const Compute::SkinAnimatorKey& Value)
+		{
+			ED_ASSERT_V(V != nullptr, "schema should be set");
+			Series::Pack(V->Set("pose"), Value.Pose);
 			Series::Pack(V->Set("time"), Value.Time);
 		}
 		void Series::Pack(Core::Schema* V, const Compute::ElementVertex& Value)
@@ -420,8 +409,8 @@ namespace Edge
 			ED_ASSERT_V(V != nullptr, "schema should be set");
 			Series::Pack(V->Set("index"), Value.Index);
 			Series::Pack(V->Set("name"), Value.Name);
-			Series::Pack(V->Set("transform"), Value.Transform);
-			Series::Pack(V->Set("bind-shape"), Value.BindShape);
+			Series::Pack(V->Set("global"), Value.Global);
+			Series::Pack(V->Set("local"), Value.Local);
 
 			Core::Schema* Joints = V->Set("childs", Core::Var::Array());
 			for (auto& It : Value.Childs)
@@ -606,13 +595,6 @@ namespace Edge
 			V->Set("sp-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<Compute::SkinAnimatorClip>& Value)
-		{
-			ED_ASSERT_V(V != nullptr, "schema should be set");
-			Core::Schema* Array = V->Set("clips", Core::Var::Array());
-			for (auto&& It : Value)
-				Series::Pack(Array->Set("clip"), It);
-		}
 		void Series::Pack(Core::Schema* V, const std::vector<Compute::KeyAnimatorClip>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
@@ -748,6 +730,16 @@ namespace Edge
 			for (auto&& It : Value)
 				Array->Set("s", Core::Var::String(It));
 
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+		}
+		void Series::Pack(Core::Schema* V, const std::unordered_map<size_t, size_t>& Value)
+		{
+			ED_ASSERT_V(V != nullptr, "schema should be set");
+			std::stringstream Stream;
+			for (auto&& It : Value)
+				Stream << (uint64_t)It.first << " " << (uint64_t)It.second << " ";
+
+			V->Set("gl-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		bool Series::Unpack(Core::Schema* V, bool* O)
@@ -979,36 +971,6 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, Compute::SkinAnimatorKey* O)
-		{
-			ED_ASSERT(O != nullptr, false, "output should be set");
-			if (!V)
-				return false;
-
-			Series::Unpack(V->Get("pose"), &O->Pose);
-			Series::Unpack(V->Get("time"), &O->Time);
-
-			return true;
-		}
-		bool Series::Unpack(Core::Schema* V, Compute::SkinAnimatorClip* O)
-		{
-			ED_ASSERT(O != nullptr, false, "output should be set");
-			if (!V)
-				return false;
-
-			Series::Unpack(V->Get("name"), &O->Name);
-			Series::Unpack(V->Get("duration"), &O->Duration);
-			Series::Unpack(V->Get("rate"), &O->Rate);
-
-			std::vector<Core::Schema*> Frames = V->FetchCollection("frames.frame", false);
-			for (auto&& It : Frames)
-			{
-				O->Keys.emplace_back();
-				Series::Unpack(It, &O->Keys.back());
-			}
-
-			return true;
-		}
 		bool Series::Unpack(Core::Schema* V, Compute::KeyAnimatorClip* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
@@ -1033,6 +995,17 @@ namespace Edge
 			Series::Unpack(V->Get("time"), &O->Time);
 			return true;
 		}
+		bool Series::Unpack(Core::Schema* V, Compute::SkinAnimatorKey* O)
+		{
+			ED_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
+				return false;
+
+			Series::Unpack(V->Get("pose"), &O->Pose);
+			Series::Unpack(V->Get("time"), &O->Time);
+
+			return true;
+		}
 		bool Series::Unpack(Core::Schema* V, Compute::Joint* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
@@ -1041,8 +1014,8 @@ namespace Edge
 
 			Series::Unpack(V->Get("index"), &O->Index);
 			Series::Unpack(V->Get("name"), &O->Name);
-			Series::Unpack(V->Get("transform"), &O->Transform);
-			Series::Unpack(V->Get("bind-shape"), &O->BindShape);
+			Series::Unpack(V->Get("global"), &O->Global);
+			Series::Unpack(V->Get("local"), &O->Local);
 
 			std::vector<Core::Schema*> Joints = V->FetchCollection("childs.joint", false);
 			for (auto& It : Joints)
@@ -1471,21 +1444,6 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<Compute::SkinAnimatorClip>* O)
-		{
-			ED_ASSERT(O != nullptr, false, "output should be set");
-			if (!V)
-				return false;
-
-			std::vector<Core::Schema*> Frames = V->FetchCollection("clips.clip", false);
-			for (auto&& It : Frames)
-			{
-				O->push_back(Compute::SkinAnimatorClip());
-				Series::Unpack(It, &O->back());
-			}
-
-			return true;
-		}
 		bool Series::Unpack(Core::Schema* V, std::vector<Compute::KeyAnimatorClip>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
@@ -1692,6 +1650,31 @@ namespace Edge
 
 			return true;
 		}
+		bool Series::Unpack(Core::Schema* V, std::unordered_map<size_t, size_t>* O)
+		{
+			ED_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
+				return false;
+
+			std::string Array(V->GetVar("gl-array").GetBlob());
+			int64_t Size = V->GetVar("size").GetInteger();
+			if (Array.empty() || !Size)
+				return false;
+
+			std::stringstream Stream(Array);
+			O->reserve((size_t)Size);
+
+			for (size_t i = 0; i < (size_t)Size; i++)
+			{
+				uint64_t GlobalIndex = 0;
+				uint64_t LocalIndex = 0;
+				Stream >> GlobalIndex;
+				Stream >> LocalIndex;
+				(*O)[GlobalIndex] = LocalIndex;
+			}
+
+			return true;
+		}
 
 		Parallel::Task Parallel::Enqueue(const Core::TaskCallback& Callback)
 		{
@@ -1736,10 +1719,8 @@ namespace Edge
 				Wait(Value);
 		}
 
-		SkinAnimation::SkinAnimation(Core::Schema* Data) noexcept
+		SkinAnimation::SkinAnimation(std::vector<Compute::SkinAnimatorClip>&& Data) noexcept : Clips(std::move(Data))
 		{
-			ED_ASSERT_V(Data != nullptr, "animation data should be set");
-			Valid = Series::Unpack(Data, &Clips);
 		}
 		const std::vector<Compute::SkinAnimatorClip>& SkinAnimation::GetClips()
 		{
@@ -1747,7 +1728,7 @@ namespace Edge
 		}
 		bool SkinAnimation::IsValid()
 		{
-			return Valid;
+			return !Clips.empty();
 		}
 
 		Material::Material(SceneGraph* NewScene) noexcept : DiffuseMap(nullptr), NormalMap(nullptr), MetallicMap(nullptr), RoughnessMap(nullptr), HeightMap(nullptr), OcclusionMap(nullptr), EmissionMap(nullptr), Scene(NewScene), Slot(0)
@@ -4350,8 +4331,14 @@ namespace Edge
 			LoadComponent(Context);
 			Conf.Shared.Content->LoadAsync(Conf.Shared.Content->GetProcessor(Id), Path, Keys).Await([this, Context, Callback](void*&& Result)
 			{
-				if (UnloadComponent(Context))
-					Transaction([Callback, Result]() { Callback(Result); });
+				if (!UnloadComponent(Context))
+					return;
+
+				Transaction([Context, Callback, Result]()
+				{
+					Callback(Result);
+					Context->Parent->Transform->MakeDirty();
+				});
 			});
 		}
 		std::string SceneGraph::FindResourceId(uint64_t Id, void* Resource)
@@ -5598,21 +5585,23 @@ namespace Edge
 
 			return true;
 		}
-		bool ContentManager::Cache(Processor* Root, const std::string& Path, void* Resource)
+		void* ContentManager::TryToCache(Processor* Root, const std::string& Path, void* Resource)
 		{
-			if (FindCache(Root, Path) != nullptr)
-				return false;
+			std::string Target = Core::Parser(Path).Replace('\\', '/').Replace(Environment, "./").R();
+			std::unique_lock<std::mutex> Unique(Mutex);
+			auto& Entries = Assets[Target];
+			auto& Entry = Entries[Root];
+			void* Existing = nullptr;
 
-			Mutex.lock();
+			if (Entry != nullptr)
+				return Entry->Resource;
+
 			AssetCache* Asset = ED_NEW(AssetCache);
-			Asset->Path = Core::Parser(Path).Replace('\\', '/').Replace(Environment, "./").R();
+			Asset->Path = Target;
 			Asset->Resource = Resource;
+			Entry = Asset;
 
-			auto& Entries = Assets[Asset->Path];
-			Entries[Root] = Asset;
-			Mutex.unlock();
-
-			return true;
+			return nullptr;
 		}
 		bool ContentManager::IsBusy()
 		{
@@ -5639,6 +5628,9 @@ namespace Edge
 		}
 		AssetCache* ContentManager::FindCache(Processor* Target, const std::string& Path)
 		{
+			if (Path.empty())
+				return nullptr;
+
 			Mutex.lock();
 			auto It = Assets.find(Core::Parser(Path).Replace('\\', '/').Replace(Environment, "./").R());
 			if (It != Assets.end())
@@ -5656,6 +5648,9 @@ namespace Edge
 		}
 		AssetCache* ContentManager::FindCache(Processor* Target, void* Resource)
 		{
+			if (!Resource)
+				return nullptr;
+
 			Mutex.lock();
 			for (auto& It : Assets)
 			{

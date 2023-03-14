@@ -32,8 +32,12 @@ GBuffer ps_main(VOutput V)
 	
 	float4 Color = float4(Mat.Diffuse, 1.0);
 	[branch] if (V.OB_Diffuse > 0)
+	{
 		Color *= GetDiffuse(Coord);
-
+		if (Color.w < 0.001)
+			discard;
+	}
+	
 	float3 Normal = V.Normal;
 	[branch] if (V.OB_Normal > 0)
 		Normal = GetNormal(Coord, V.Normal, V.Tangent, V.Bitangent);

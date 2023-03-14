@@ -149,7 +149,9 @@ namespace Edge
 				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				Core::Unique<Component> Copy(Entity* New) const override;
 				void SetDrawable(Core::Unique<Graphics::Model> Drawable);
+				void SetMaterialFor(const std::string& Name, Material* Value);
 				Graphics::Model* GetDrawable();
+				Material* GetMaterialFor(const std::string& Name);
 
 			public:
 				ED_COMPONENT("model_component");
@@ -174,7 +176,9 @@ namespace Edge
 				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				Core::Unique<Component> Copy(Entity* New) const override;
 				void SetDrawable(Core::Unique<Graphics::SkinModel> Drawable);
+				void SetMaterialFor(const std::string& Name, Material* Value);
 				Graphics::SkinModel* GetDrawable();
+				Material* GetMaterialFor(const std::string& Name);
 
 			public:
 				ED_COMPONENT("skin_component");
@@ -224,40 +228,37 @@ namespace Edge
 			class ED_OUT SkinAnimator final : public Component
 			{
 			private:
-				Skin * Instance = nullptr;
-				std::string Reference;
+				Skin* Instance = nullptr;
+				SkinAnimation* Animation = nullptr;
 
 			public:
-				std::vector<Compute::SkinAnimatorClip> Clips;
-				Compute::SkinAnimatorKey Current;
-				Compute::SkinAnimatorKey Bind;
-				Compute::SkinAnimatorKey Default;
 				AnimatorState State;
 
 			public:
 				SkinAnimator(Entity* Ref);
-				~SkinAnimator() override;
+				~SkinAnimator() override = default;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) override;
 				void Activate(Component* New) override;
 				void Animate(Core::Timer* Time) override;
 				Core::Unique<Component> Copy(Entity* New) const override;
-				void LoadAnimation(const std::string& Path, const std::function<void(bool)>& Callback = nullptr);
-				void GetPose(Compute::SkinAnimatorKey* Result);
-				void ClearAnimation();
+				void SetAnimation(SkinAnimation* New);
 				void Play(int64_t Clip = -1, int64_t Frame = -1);
 				void Pause();
 				void Stop();
 				bool IsExists(int64_t Clip);
 				bool IsExists(int64_t Clip, int64_t Frame);
-				Compute::SkinAnimatorKey* GetFrame(int64_t Clip, int64_t Frame);
-				std::vector<Compute::SkinAnimatorKey>* GetClip(int64_t Clip);
+				const Compute::SkinAnimatorKey* GetFrame(int64_t Clip, int64_t Frame);
+				const std::vector<Compute::SkinAnimatorKey>* GetClip(int64_t Clip);
+				int64_t GetClipByName(const std::string& Name) const;
+				size_t GetClipsCount() const;
 				Skin* GetSkin() const;
-				std::string GetPath();
+				SkinAnimation* GetAnimation() const;
+				std::string GetPath() const;
 
 			private:
 				void BlendAnimation(int64_t Clip, int64_t Frame);
-				bool IsPosed(int64_t Clip, int64_t Frame);
+				void SaveBindingState();
 
 			public:
 				ED_COMPONENT("skin_animator_component");
@@ -270,7 +271,8 @@ namespace Edge
 
 			public:
 				std::vector<Compute::KeyAnimatorClip> Clips;
-				Compute::AnimatorKey Current, Bind;
+				Compute::AnimatorKey Offset;
+				Compute::AnimatorKey Default;
 				AnimatorState State;
 
 			public:
@@ -281,7 +283,6 @@ namespace Edge
 				void Animate(Core::Timer* Time) override;
 				Core::Unique<Component> Copy(Entity* New) const override;
 				void LoadAnimation(const std::string& Path, const std::function<void(bool)>& Callback = nullptr);
-				void GetPose(Compute::AnimatorKey* Result);
 				void ClearAnimation();
 				void Play(int64_t Clip = -1, int64_t Frame = -1);
 				void Pause();
@@ -294,7 +295,7 @@ namespace Edge
 
 			private:
 				void BlendAnimation(int64_t Clip, int64_t Frame);
-				bool IsPosed(int64_t Clip, int64_t Frame);
+				void SaveBindingState();
 
 			public:
 				ED_COMPONENT("key_animator_component");

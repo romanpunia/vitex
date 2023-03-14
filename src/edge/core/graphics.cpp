@@ -3747,7 +3747,7 @@ namespace Edge
 					return true;
 			}
 
-			return nullptr;
+			return false;
 		}
 		bool SkinModel::FindJoint(size_t Index, Compute::Joint* Base)
 		{

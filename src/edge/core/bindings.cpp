@@ -9977,16 +9977,16 @@ namespace Edge
 				VBounding.SetMethod("bool overlaps(const bounding &in) const", &Compute::Bounding::Overlaps);
 
 				TypeClass VRay = Engine->SetPod<Compute::Ray>("ray");
-				VBounding.SetProperty<Compute::Ray>("vector3 origin", &Compute::Ray::Origin);
-				VBounding.SetProperty<Compute::Ray>("vector3 direction", &Compute::Ray::Direction);
-				VBounding.SetConstructor<Compute::Ray>("void f()");
-				VBounding.SetConstructor<Compute::Ray, const Compute::Vector3&, const Compute::Vector3&>("void f(const vector3 &in, const vector3 &in)");
-				VBounding.SetMethod("vector3 get_point(float) const", &Compute::Ray::GetPoint);
-				VBounding.SetMethod("bool intersects_plane(const vector3 &in, float) const", &Compute::Ray::IntersectsPlane);
-				VBounding.SetMethod("bool intersects_sphere(const vector3 &in, float, bool = true) const", &Compute::Ray::IntersectsSphere);
-				VBounding.SetMethod("bool intersects_aabb_at(const vector3 &in, const vector3 &in, vector3 &out) const", &Compute::Ray::IntersectsAABBAt);
-				VBounding.SetMethod("bool intersects_aabb(const vector3 &in, const vector3 &in, vector3 &out) const", &Compute::Ray::IntersectsAABB);
-				VBounding.SetMethod("bool intersects_obb(const matrix4x4 &in, vector3 &out) const", &Compute::Ray::IntersectsOBB);
+				VRay.SetProperty<Compute::Ray>("vector3 origin", &Compute::Ray::Origin);
+				VRay.SetProperty<Compute::Ray>("vector3 direction", &Compute::Ray::Direction);
+				VRay.SetConstructor<Compute::Ray>("void f()");
+				VRay.SetConstructor<Compute::Ray, const Compute::Vector3&, const Compute::Vector3&>("void f(const vector3 &in, const vector3 &in)");
+				VRay.SetMethod("vector3 get_point(float) const", &Compute::Ray::GetPoint);
+				VRay.SetMethod("bool intersects_plane(const vector3 &in, float) const", &Compute::Ray::IntersectsPlane);
+				VRay.SetMethod("bool intersects_sphere(const vector3 &in, float, bool = true) const", &Compute::Ray::IntersectsSphere);
+				VRay.SetMethod("bool intersects_aabb_at(const vector3 &in, const vector3 &in, vector3 &out) const", &Compute::Ray::IntersectsAABBAt);
+				VRay.SetMethod("bool intersects_aabb(const vector3 &in, const vector3 &in, vector3 &out) const", &Compute::Ray::IntersectsAABB);
+				VRay.SetMethod("bool intersects_obb(const matrix4x4 &in, vector3 &out) const", &Compute::Ray::IntersectsOBB);
 
 				TypeClass VFrustum8C = Engine->SetPod<Compute::Frustum8C>("frustum_8c");
 				VFrustum8C.SetConstructor<Compute::Frustum8C>("void f()");
@@ -14159,8 +14159,8 @@ namespace Edge
 				VSoftBody.SetProperty<Engine::Components::SoftBody>("vector2 texcoord", &Engine::Components::SoftBody::TexCoord);
 				VSoftBody.SetProperty<Engine::Components::SoftBody>("bool kinematic", &Engine::Components::SoftBody::Kinematic);
 				VSoftBody.SetProperty<Engine::Components::SoftBody>("bool manage", &Engine::Components::SoftBody::Manage);
-				VSoftBody.SetMethodEx("void load(const string &in, float, component_resource_event@ = null)", &ComponentsSoftBodyLoad);
-				VSoftBody.SetMethod<Engine::Components::SoftBody, void, Compute::HullShape*, float>("void load(physics_hull_shape@+, float)", &Engine::Components::SoftBody::Load);
+				VSoftBody.SetMethodEx("void load(const string &in, float = 0.0f, component_resource_event@ = null)", &ComponentsSoftBodyLoad);
+				VSoftBody.SetMethod<Engine::Components::SoftBody, void, Compute::HullShape*, float>("void load(physics_hull_shape@+, float = 0.0f)", &Engine::Components::SoftBody::Load);
 				VSoftBody.SetMethod("void load_ellipsoid(const physics_softbody_desc_cv_sconvex &in, float)", &Engine::Components::SoftBody::LoadEllipsoid);
 				VSoftBody.SetMethod("void load_patch(const physics_softbody_desc_cv_spatch &in, float)", &Engine::Components::SoftBody::LoadPatch);
 				VSoftBody.SetMethod("void load_rope(const physics_softbody_desc_cv_srope &in, float)", &Engine::Components::SoftBody::LoadRope);
@@ -14175,8 +14175,8 @@ namespace Edge
 				RefClass VRigidBody = Engine->SetClass<Engine::Components::RigidBody>("rigid_body_component", false);
 				VRigidBody.SetProperty<Engine::Components::RigidBody>("bool kinematic", &Engine::Components::RigidBody::Kinematic);
 				VRigidBody.SetProperty<Engine::Components::RigidBody>("bool manage", &Engine::Components::RigidBody::Manage);
-				VRigidBody.SetMethodEx("void load(const string &in, float, float, component_resource_event@ = null)", &ComponentsRigidBodyLoad);
-				VRigidBody.SetMethod<Engine::Components::RigidBody, void, btCollisionShape*, float, float>("void load(uptr@, float, float)", &Engine::Components::RigidBody::Load);
+				VRigidBody.SetMethodEx("void load(const string &in, float, float = 0.0f, component_resource_event@ = null)", &ComponentsRigidBodyLoad);
+				VRigidBody.SetMethod<Engine::Components::RigidBody, void, btCollisionShape*, float, float>("void load(uptr@, float, float = 0.0f)", &Engine::Components::RigidBody::Load);
 				VRigidBody.SetMethod("void clear()", &Engine::Components::RigidBody::Clear);
 				VRigidBody.SetMethod("void set_mass(float)", &Engine::Components::RigidBody::SetMass);
 				VRigidBody.SetMethod<Engine::Components::RigidBody, void, const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&>("void set_transform(const vector3 &in, const vector3 &in, const vector3 &in)", &Engine::Components::RigidBody::SetTransform);
@@ -14368,8 +14368,8 @@ namespace Edge
 				LineLightShadowInfo.SetProperty<Engine::Components::LineLight::ShadowInfo>("bool enabled", &Engine::Components::LineLight::ShadowInfo::Enabled);
 
 				RefClass VLineLight = Engine->SetClass<Engine::Components::LineLight>("line_light_component", false);
-				VLineLight.SetProperty<Engine::Components::LineLight>("line_light_sky_info shadow", &Engine::Components::LineLight::Sky);
-				VLineLight.SetProperty<Engine::Components::LineLight>("line_light_shadow_info view", &Engine::Components::LineLight::Shadow);
+				VLineLight.SetProperty<Engine::Components::LineLight>("line_light_sky_info sky", &Engine::Components::LineLight::Sky);
+				VLineLight.SetProperty<Engine::Components::LineLight>("line_light_shadow_info shadow", &Engine::Components::LineLight::Shadow);
 				VLineLight.SetPropertyArray<Engine::Components::LineLight>("matrix4x4 projection", &Engine::Components::LineLight::Projection, 6);
 				VLineLight.SetPropertyArray<Engine::Components::LineLight>("matrix4x4 view", &Engine::Components::LineLight::View, 6);
 				VLineLight.SetProperty<Engine::Components::LineLight>("vector3 diffuse", &Engine::Components::LineLight::Diffuse);

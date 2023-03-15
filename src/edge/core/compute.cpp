@@ -841,7 +841,7 @@ namespace Edge
 		}
 		Vector3 Vector3::ViewSpace() const
 		{
-			return InvX().InvZ();
+			return InvZ();
 		}
 		Vector2 Vector3::XY() const
 		{
@@ -1337,7 +1337,7 @@ namespace Edge
 		}
 		Vector4 Vector4::ViewSpace() const
 		{
-			return InvX().InvZ();
+			return InvZ();
 		}
 		Vector2 Vector4::XY() const
 		{
@@ -2212,15 +2212,15 @@ namespace Edge
 		}
 		Vector3 Matrix4x4::Up() const
 		{
-			return Vector3(Row[4], Row[5], Row[6]);
+			return Vector3(-Row[4], Row[5], Row[6]);
 		}
 		Vector3 Matrix4x4::Right() const
 		{
-			return Vector3(Row[0], Row[1], Row[2]);
+			return Vector3(-Row[0], Row[1], Row[2]);
 		}
 		Vector3 Matrix4x4::Forward() const
 		{
-			return Vector3(Row[8], Row[9], Row[10]);
+			return Vector3(-Row[8], Row[9], Row[10]);
 		}
 		Matrix4x4 Matrix4x4::Inv() const
 		{

@@ -50,7 +50,7 @@ namespace Edge
 
 			enum class MeshPreset : uint64_t
 			{
-				Default = (uint64_t)(MeshOpt::FlipWindingOrder | MeshOpt::Triangulate | MeshOpt::ValidateDataStructure)
+				Default = (uint64_t)(MeshOpt::FlipWindingOrder | MeshOpt::Triangulate | MeshOpt::CalcTangentSpace | MeshOpt::ValidateDataStructure)
 			};
 
 			struct MeshBone

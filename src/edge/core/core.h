@@ -460,16 +460,10 @@ namespace Edge
 			friend Var;
 
 		private:
-			struct String
-			{
-				char* Buffer;
-				uint32_t Size;
-			};
-
-		private:
 			union Tag
 			{
-				char* Data;
+				char String[32];
+				char* Pointer;
 				int64_t Integer;
 				double Number;
 				bool Boolean;
@@ -477,6 +471,7 @@ namespace Edge
 
 		private:
 			VarType Type;
+			uint32_t Size;
 
 		public:
 			Variant() noexcept;
@@ -509,8 +504,11 @@ namespace Edge
 			Variant(VarType NewType) noexcept;
 			bool Same(const Variant& Value) const;
 			void Copy(const Variant& Other);
-			void Copy(Variant&& Other);
+			void Move(Variant&& Other);
 			void Free();
+
+		private:
+			static size_t GetMaxSmallStringSize();
 		};
 
 		struct ED_OUT FileState

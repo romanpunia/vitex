@@ -1738,13 +1738,13 @@ namespace Edge
 			return Value + '0';
 		}
 
-		Variant::Variant() noexcept : Type(VarType::Undefined)
+		Variant::Variant() noexcept : Type(VarType::Undefined), Size(0)
 		{
-			Value.Data = nullptr;
+			Value.Pointer = nullptr;
 		}
-		Variant::Variant(VarType NewType) noexcept : Type(NewType)
+		Variant::Variant(VarType NewType) noexcept : Type(NewType), Size(0)
 		{
-			Value.Data = nullptr;
+			Value.Pointer = nullptr;
 		}
 		Variant::Variant(const Variant& Other) noexcept
 		{
@@ -1752,7 +1752,7 @@ namespace Edge
 		}
 		Variant::Variant(Variant&& Other) noexcept
 		{
-			Copy(std::move(Other));
+			Move(std::move(Other));
 		}
 		Variant::~Variant() noexcept
 		{
@@ -1795,13 +1795,13 @@ namespace Edge
 
 				if (Text == "true")
 				{
-					Copy(Var::Boolean(true));
+					Move(Var::Boolean(true));
 					return true;
 				}
 
 				if (Text == "false")
 				{
-					Copy(Var::Boolean(false));
+					Move(Var::Boolean(false));
 					return true;
 				}
 
@@ -1809,11 +1809,11 @@ namespace Edge
 				if (Buffer.HasNumber())
 				{
 					if (Buffer.HasDecimal())
-						Copy(Var::DecimalString(Buffer.R()));
+						Move(Var::DecimalString(Buffer.R()));
 					else if (Buffer.HasInteger())
-						Copy(Var::Integer(Buffer.ToInt64()));
+						Move(Var::Integer(Buffer.ToInt64()));
 					else
-						Copy(Var::Number(Buffer.ToDouble()));
+						Move(Var::Number(Buffer.ToDouble()));
 
 					return true;
 				}
@@ -1821,11 +1821,11 @@ namespace Edge
 
 			if (Text.size() > 2 && Text.front() == PREFIX_BINARY[0] && Text.back() == PREFIX_BINARY[0])
 			{
-				Copy(Var::Binary(Compute::Codec::Bep45Decode(std::string(Text.substr(1).c_str(), Text.size() - 2))));
+				Move(Var::Binary(Compute::Codec::Bep45Decode(std::string(Text.substr(1).c_str(), Text.size() - 2))));
 				return true;
 			}
 
-			Copy(Var::String(Text));
+			Move(Var::String(Text));
 			return true;
 		}
 		std::string Variant::Serialize() const
@@ -1848,7 +1848,7 @@ namespace Edge
 					return PREFIX_BINARY + Compute::Codec::Bep45Encode(std::string(GetString(), GetSize())) + PREFIX_BINARY;
 				case VarType::Decimal:
 				{
-					auto* Data = ((Decimal*)Value.Data);
+					auto* Data = ((Decimal*)Value.Pointer);
 					if (Data->IsNaN())
 						return PREFIX_ENUM "null" PREFIX_ENUM;
 
@@ -1867,10 +1867,10 @@ namespace Edge
 		std::string Variant::GetBlob() const
 		{
 			if (Type == VarType::String || Type == VarType::Binary)
-				return std::string(((String*)Value.Data)->Buffer, (size_t)((String*)Value.Data)->Size);
+				return std::string(GetString(), Size);
 
 			if (Type == VarType::Decimal)
-				return ((Decimal*)Value.Data)->ToString();
+				return ((Decimal*)Value.Pointer)->ToString();
 
 			if (Type == VarType::Integer)
 				return std::to_string(GetInteger());
@@ -1886,7 +1886,7 @@ namespace Edge
 		Decimal Variant::GetDecimal() const
 		{
 			if (Type == VarType::Decimal)
-				return *(Decimal*)Value.Data;
+				return *(Decimal*)Value.Pointer;
 
 			if (Type == VarType::Integer)
 				return Decimal(std::to_string(Value.Integer));
@@ -1905,7 +1905,7 @@ namespace Edge
 		void* Variant::GetPointer() const
 		{
 			if (Type == VarType::Pointer)
-				return (void*)Value.Data;
+				return (void*)Value.Pointer;
 
 			return nullptr;
 		}
@@ -1914,14 +1914,11 @@ namespace Edge
 			if (Type != VarType::String && Type != VarType::Binary)
 				return nullptr;
 
-			return (const char*)((String*)Value.Data)->Buffer;
+			return Size <= GetMaxSmallStringSize() ? Value.String : Value.Pointer;
 		}
 		unsigned char* Variant::GetBinary() const
 		{
-			if (Type != VarType::String && Type != VarType::Binary)
-				return nullptr;
-
-			return (unsigned char*)((String*)Value.Data)->Buffer;
+			return (unsigned char*)GetString();
 		}
 		int64_t Variant::GetInteger() const
 		{
@@ -1932,7 +1929,7 @@ namespace Edge
 				return (int64_t)Value.Number;
 
 			if (Type == VarType::Decimal)
-				return (int64_t)((Decimal*)Value.Data)->ToDouble();
+				return (int64_t)((Decimal*)Value.Pointer)->ToDouble();
 
 			if (Type == VarType::Boolean)
 				return Value.Boolean ? 1 : 0;
@@ -1951,7 +1948,7 @@ namespace Edge
 				return (double)Value.Integer;
 
 			if (Type == VarType::Decimal)
-				return ((Decimal*)Value.Data)->ToDouble();
+				return ((Decimal*)Value.Pointer)->ToDouble();
 
 			if (Type == VarType::Boolean)
 				return Value.Boolean ? 1.0 : 0.0;
@@ -1973,7 +1970,7 @@ namespace Edge
 				return Value.Integer > 0;
 
 			if (Type == VarType::Decimal)
-				return ((Decimal*)Value.Data)->ToDouble() > 0.0;
+				return ((Decimal*)Value.Pointer)->ToDouble() > 0.0;
 
 			return GetSize() > 0;
 		}
@@ -1994,9 +1991,9 @@ namespace Edge
 					return sizeof(void*);
 				case VarType::String:
 				case VarType::Binary:
-					return (size_t)((String*)Value.Data)->Size;
+					return Size;
 				case VarType::Decimal:
-					return ((Decimal*)Value.Data)->Size();
+					return ((Decimal*)Value.Pointer)->Size();
 				case VarType::Integer:
 					return sizeof(int64_t);
 				case VarType::Number:
@@ -2025,7 +2022,7 @@ namespace Edge
 		Variant& Variant::operator= (Variant&& Other) noexcept
 		{
 			Free();
-			Copy(std::move(Other));
+			Move(std::move(Other));
 
 			return *this;
 		}
@@ -2057,12 +2054,12 @@ namespace Edge
 				case VarType::Array:
 					return false;
 				case VarType::Pointer:
-					return Value.Data == nullptr;
+					return Value.Pointer == nullptr;
 				case VarType::String:
 				case VarType::Binary:
-					return ((String*)Value.Data)->Size == 0;
+					return Size == 0;
 				case VarType::Decimal:
-					return ((Decimal*)Value.Data)->ToDouble() == 0.0;
+					return ((Decimal*)Value.Pointer)->ToDouble() == 0.0;
 				case VarType::Integer:
 					return Value.Integer == 0;
 				case VarType::Number:
@@ -2104,7 +2101,7 @@ namespace Edge
 					return strncmp(Src1, Src2, sizeof(char) * Size) == 0;
 				}
 				case VarType::Decimal:
-					return (*(Decimal*)Value.Data) == (*(Decimal*)Other.Value.Data);
+					return (*(Decimal*)Value.Pointer) == (*(Decimal*)Other.Value.Pointer);
 				case VarType::Integer:
 					return GetInteger() == Other.GetInteger();
 				case VarType::Number:
@@ -2118,34 +2115,32 @@ namespace Edge
 		void Variant::Copy(const Variant& Other)
 		{
 			Type = Other.Type;
+			Size = Other.Size;
+
 			switch (Type)
 			{
 				case VarType::Null:
 				case VarType::Undefined:
 				case VarType::Object:
 				case VarType::Array:
-					Value.Data = nullptr;
+					Value.Pointer = nullptr;
 					break;
 				case VarType::Pointer:
-					Value.Data = Other.Value.Data;
+					Value.Pointer = Other.Value.Pointer;
 					break;
 				case VarType::String:
 				case VarType::Binary:
 				{
-					String* From = (String*)Other.Value.Data;
-					String* Buffer = ED_MALLOC(String, sizeof(String));
-					Buffer->Buffer = ED_MALLOC(char, sizeof(char) * ((size_t)From->Size + 1));
-					Buffer->Size = From->Size;
-
-					memcpy(Buffer->Buffer, From->Buffer, sizeof(char) * (size_t)From->Size);
-					Buffer->Buffer[Buffer->Size] = '\0';
-					Value.Data = (char*)Buffer;
+					size_t StringSize = sizeof(char) * (Size + 1);
+					if (Size > GetMaxSmallStringSize())
+						Value.Pointer = ED_MALLOC(char, StringSize);
+					memcpy((void*)GetString(), Other.GetString(), StringSize);
 					break;
 				}
 				case VarType::Decimal:
 				{
-					Decimal* From = (Decimal*)Other.Value.Data;
-					Value.Data = (char*)ED_NEW(Decimal, *From);
+					Decimal* From = (Decimal*)Other.Value.Pointer;
+					Value.Pointer = (char*)ED_NEW(Decimal, *From);
 					break;
 				}
 				case VarType::Integer:
@@ -2158,14 +2153,14 @@ namespace Edge
 					Value.Boolean = Other.Value.Boolean;
 					break;
 				default:
-					Value.Data = nullptr;
+					Value.Pointer = nullptr;
 					break;
 			}
 		}
-		void Variant::Copy(Variant&& Other)
+		void Variant::Move(Variant&& Other)
 		{
 			Type = Other.Type;
-			Other.Type = VarType::Undefined;
+			Size = Other.Size;
 
 			switch (Type)
 			{
@@ -2174,11 +2169,17 @@ namespace Edge
 				case VarType::Object:
 				case VarType::Array:
 				case VarType::Pointer:
+				case VarType::Decimal:
+					Value.Pointer = Other.Value.Pointer;
+					Other.Value.Pointer = nullptr;
+					break;
 				case VarType::String:
 				case VarType::Binary:
-				case VarType::Decimal:
-					Value.Data = Other.Value.Data;
-					Other.Value.Data = nullptr;
+					if (Size <= GetMaxSmallStringSize())
+						memcpy((void*)GetString(), Other.GetString(), sizeof(char) * (Size + 1));
+					else
+						Value.Pointer = Other.Value.Pointer;
+					Other.Value.Pointer = nullptr;
 					break;
 				case VarType::Integer:
 					Value.Integer = Other.Value.Integer;
@@ -2192,39 +2193,44 @@ namespace Edge
 				default:
 					break;
 			}
+
+			Other.Type = VarType::Undefined;
+			Other.Size = 0;
 		}
 		void Variant::Free()
 		{
 			switch (Type)
 			{
 				case VarType::Pointer:
-					Value.Data = nullptr;
+					Value.Pointer = nullptr;
 					break;
 				case VarType::String:
 				case VarType::Binary:
 				{
-					if (!Value.Data)
+					if (!Value.Pointer || Size <= GetMaxSmallStringSize())
 						break;
 
-					String* Buffer = (String*)Value.Data;
-					ED_FREE(Buffer->Buffer);
-					ED_FREE(Value.Data);
-					Value.Data = nullptr;
+					ED_FREE(Value.Pointer);
+					Value.Pointer = nullptr;
 					break;
 				}
 				case VarType::Decimal:
 				{
-					if (!Value.Data)
+					if (!Value.Pointer)
 						break;
 
-					Decimal* Buffer = (Decimal*)Value.Data;
+					Decimal* Buffer = (Decimal*)Value.Pointer;
 					ED_DELETE(Decimal, Buffer);
-					Value.Data = nullptr;
+					Value.Pointer = nullptr;
 					break;
 				}
 				default:
 					break;
 			}
+		}
+		size_t Variant::GetMaxSmallStringSize()
+		{
+			return sizeof(Tag::String) - 1;
 		}
 
 		Timeout::Timeout(const SeqTaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept : Expires(NewTimeout), Callback(NewCallback), Type(NewType), Id(NewId), Invocations(0), Alive(NewAlive)
@@ -5268,48 +5274,32 @@ namespace Edge
 				return Null();
 
 			Variant Result(VarType::Pointer);
-			Result.Value.Data = (char*)Value;
+			Result.Value.Pointer = (char*)Value;
 			return Result;
 		}
 		Variant Var::String(const std::string& Value)
 		{
-			Variant::String* Buffer = ED_MALLOC(Variant::String, sizeof(Variant::String));
-			Buffer->Size = (uint32_t)Value.size();
-			Buffer->Buffer = ED_MALLOC(char, sizeof(char) * (size_t)(Buffer->Size + 1));
-
-			memcpy(Buffer->Buffer, Value.c_str(), sizeof(char) * (size_t)Buffer->Size);
-			Buffer->Buffer[(size_t)Buffer->Size] = '\0';
-
-			Variant Result(VarType::String);
-			Result.Value.Data = (char*)Buffer;
-			return Result;
+			return String(Value.c_str(), Value.size());
 		}
 		Variant Var::String(const char* Value, size_t Size)
 		{
 			ED_ASSERT(Value != nullptr, Null(), "value should be set");
-			Variant::String* Buffer = ED_MALLOC(Variant::String, sizeof(Variant::String));
-			Buffer->Size = (uint32_t)Size;
-			Buffer->Buffer = ED_MALLOC(char, sizeof(char) * (size_t)(Buffer->Size + 1));
-
-			memcpy(Buffer->Buffer, Value, sizeof(char) * (size_t)Buffer->Size);
-			Buffer->Buffer[(size_t)Buffer->Size] = '\0';
-
 			Variant Result(VarType::String);
-			Result.Value.Data = (char*)Buffer;
+			Result.Size = Size;
+
+			size_t StringSize = sizeof(char) * (Result.Size + 1);
+			if (Result.Size > Variant::GetMaxSmallStringSize())
+				Result.Value.Pointer = ED_MALLOC(char, StringSize);
+
+			char* Data = (char*)Result.GetString();
+			memcpy(Data, Value, StringSize - sizeof(char));
+			Data[StringSize - 1] = '\0';
+
 			return Result;
 		}
 		Variant Var::Binary(const std::string& Value)
 		{
-			Variant::String* Buffer = ED_MALLOC(Variant::String, sizeof(Variant::String));
-			Buffer->Size = (uint32_t)Value.size();
-			Buffer->Buffer = ED_MALLOC(char, sizeof(char) * (size_t)(Buffer->Size + 1));
-
-			memcpy(Buffer->Buffer, Value.c_str(), sizeof(char) * (size_t)Buffer->Size);
-			Buffer->Buffer[(size_t)Buffer->Size] = '\0';
-
-			Variant Result(VarType::Binary);
-			Result.Value.Data = (char*)Buffer;
-			return Result;
+			return Binary(Value.c_str(), Value.size());
 		}
 		Variant Var::Binary(const unsigned char* Value, size_t Size)
 		{
@@ -5318,15 +5308,17 @@ namespace Edge
 		Variant Var::Binary(const char* Value, size_t Size)
 		{
 			ED_ASSERT(Value != nullptr, Null(), "value should be set");
-			Variant::String* Buffer = ED_MALLOC(Variant::String, sizeof(Variant::String));
-			Buffer->Size = (uint32_t)Size;
-			Buffer->Buffer = ED_MALLOC(char, sizeof(char) * (size_t)(Buffer->Size + 1));
-
-			memcpy(Buffer->Buffer, Value, sizeof(char) * (size_t)Buffer->Size);
-			Buffer->Buffer[(size_t)Buffer->Size] = '\0';
-
 			Variant Result(VarType::Binary);
-			Result.Value.Data = (char*)Buffer;
+			Result.Size = Size;
+
+			size_t StringSize = sizeof(char) * (Result.Size + 1);
+			if (Result.Size > Variant::GetMaxSmallStringSize())
+				Result.Value.Pointer = ED_MALLOC(char, StringSize);
+
+			char* Data = (char*)Result.GetString();
+			memcpy(Data, Value, StringSize - sizeof(char));
+			Data[StringSize - 1] = '\0';
+
 			return Result;
 		}
 		Variant Var::Integer(int64_t Value)
@@ -5345,21 +5337,21 @@ namespace Edge
 		{
 			BigNumber* Buffer = ED_NEW(BigNumber, Value);
 			Variant Result(VarType::Decimal);
-			Result.Value.Data = (char*)Buffer;
+			Result.Value.Pointer = (char*)Buffer;
 			return Result;
 		}
 		Variant Var::Decimal(BigNumber&& Value)
 		{
 			BigNumber* Buffer = ED_NEW(BigNumber, std::move(Value));
 			Variant Result(VarType::Decimal);
-			Result.Value.Data = (char*)Buffer;
+			Result.Value.Pointer = (char*)Buffer;
 			return Result;
 		}
 		Variant Var::DecimalString(const std::string& Value)
 		{
 			BigNumber* Buffer = ED_NEW(BigNumber, Value);
 			Variant Result(VarType::Decimal);
-			Result.Value.Data = (char*)Buffer;
+			Result.Value.Pointer = (char*)Buffer;
 			return Result;
 		}
 		Variant Var::Boolean(bool Value)
@@ -11121,7 +11113,7 @@ namespace Edge
 				}
 				case VarType::Decimal:
 				{
-					std::string Number = ((Decimal*)Current->Value.Value.Data)->ToString();
+					std::string Number = ((Decimal*)Current->Value.Value.Pointer)->ToString();
 					uint16_t Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint16_t)Number.size());
 					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint16_t));
 					Callback(VarForm::Dummy, Number.c_str(), (size_t)Size * sizeof(char));

@@ -14592,10 +14592,15 @@ namespace Edge
 							if (--Brackets < 0)
 								break;
 						}
-						else if (V == ';')
-							break;
 						else if (V == '(')
 							++Brackets;
+						else if (V == ';')
+							break;
+						else if (Brackets == 0)
+						{
+							if (!isalnum(V) && V != '.' && V != ' ' && V != '_')
+								break;
+						}
 						End++;
 					}
 

@@ -788,7 +788,7 @@ namespace Edge
 					template <uint64_t Ref>
 					static Promise* Decl(T* Base, Args... Data)
 					{
-						Promise* Future = Promise::CreateRef();
+						Promise* Future = Promise::Create();
 						int Id = TypeCache::GetTypeId(Ref);
 						((Base->*F)(Data...)).Await([Future, Id](R&& Result)
 						{
@@ -816,7 +816,7 @@ namespace Edge
 					template <uint64_t TypeRef>
 					static Promise* Decl(Args... Data)
 					{
-						Promise* Future = Promise::CreateRef();
+						Promise* Future = Promise::Create();
 						int TypeId = TypeCache::GetTypeId(TypeRef);
 						((*F)(Data...)).Await([Future, TypeId](R&& Result)
 						{

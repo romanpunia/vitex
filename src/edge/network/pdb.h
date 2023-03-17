@@ -496,6 +496,7 @@ namespace Edge
 			private:
 				Core::Promise<Cursor> Future;
 				std::vector<char> Command;
+				std::chrono::microseconds Time;
 				SessionId Session;
 				OnResult Callback;
 				Cursor Result;
@@ -508,6 +509,7 @@ namespace Edge
 				Cursor&& GetResult();
 				const std::vector<char>& GetCommand() const;
 				SessionId GetSession() const;
+				uint64_t GetTiming() const;
 				bool IsPending() const;
 			};
 

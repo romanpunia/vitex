@@ -37,12 +37,13 @@ namespace Edge
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
+				auto Time = Core::Schedule::GetClock();
 				bool Result = Function(Base, Data..., &Error);
 				if (!Result && Error.code != 0)
 					ED_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
 
 				if (Result || Error.code == 0)
-					ED_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR, (uintptr_t)Base);
+					ED_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR " (%llu ms)", (uintptr_t)Base, (uint64_t)((Core::Schedule::GetClock() - Time).count() / 1000));
 
 				return Result;
 			}
@@ -56,12 +57,13 @@ namespace Edge
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
+				auto Time = Core::Schedule::GetClock();
 				TCursor* Result = Function(Base, Data...);
 				if (!Result || mongoc_cursor_error(Result, &Error))
 					ED_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
 					
 				if (Result || Error.code == 0)
-					ED_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR, (uintptr_t)Base);
+					ED_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR " (%llu ms)", (uintptr_t)Base, (uint64_t)((Core::Schedule::GetClock() - Time).count() / 1000));
 				
 				return Result;
 			}

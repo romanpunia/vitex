@@ -1512,7 +1512,7 @@ namespace Edge
 				return Current != nullptr;
 			}
 
-			Request::Request(const std::string& Commands, Caching Status) : Command(Commands.begin(), Commands.end()), Session(0), Result(nullptr, Status), Options(0)
+			Request::Request(const std::string& Commands, Caching Status) : Command(Commands.begin(), Commands.end()), Time(Core::Schedule::GetClock()), Session(0), Result(nullptr, Status), Options(0)
 			{
 				Command.emplace_back('\0');
 			}
@@ -1537,6 +1537,10 @@ namespace Edge
 			SessionId Request::GetSession() const
 			{
 				return Session;
+			}
+			uint64_t Request::GetTiming() const
+			{
+				return (uint64_t)((Core::Schedule::GetClock() - Time).count() / 1000);
 			}
 			bool Request::IsPending() const
 			{
@@ -2284,7 +2288,7 @@ namespace Edge
 
 							if (!Results.IsError())
 							{
-								ED_DEBUG("[pq] OK execute on 0x%" PRIXPTR, (uintptr_t)Source);
+								ED_DEBUG("[pq] OK execute on 0x%" PRIXPTR " (%llu ms)", (uintptr_t)Source, Item->GetTiming());
 								TryUnassign(Source, Item);
 							}
 

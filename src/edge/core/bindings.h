@@ -808,10 +808,10 @@ namespace Edge
 						Promise* Future = Promise::Create();
 						((*F)(Data...)).Await([Future](R&& Result)
 						{
-							Future->Set((void*)&Result, (int)TypeId);
+							Future->Store((void*)&Result, (int)TypeId);
 						});
 
-						return JumpIf(Future);
+						return Future;
 					}
 					template <uint64_t TypeRef>
 					static Promise* Decl(Args... Data)
@@ -820,10 +820,10 @@ namespace Edge
 						int TypeId = TypeCache::GetTypeId(TypeRef);
 						((*F)(Data...)).Await([Future, TypeId](R&& Result)
 						{
-							Future->Set((void*)&Result, TypeId);
+							Future->Store((void*)&Result, TypeId);
 						});
 
-						return JumpIf(Future);
+						return Future;
 					}
 				};
 			};

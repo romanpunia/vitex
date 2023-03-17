@@ -185,6 +185,14 @@ namespace Edge
 {
 	namespace Scripting
 	{
+		static bool GenerateSourceCode(Compute::Preprocessor* Base, const std::string& Path, std::string& Buffer)
+		{
+			if (!Base->Process(Path, Buffer))
+				return false;
+
+			return Bindings::Registry::MakePostprocess(Buffer);
+		}
+
 		int FunctionFactory::AtomicNotifyGC(const char* TypeName, void* Object)
 		{
 			ED_ASSERT(TypeName != nullptr, -1, "typename should be set");
@@ -1635,10 +1643,10 @@ namespace Edge
 			ED_ASSERT_V(VM != nullptr, "engine should be set");
 
 			Processor = new Compute::Preprocessor();
-			Processor->SetIncludeCallback([this](Compute::Preprocessor* C, const Compute::IncludeResult& File, std::string* Out)
+			Processor->SetIncludeCallback([this](Compute::Preprocessor* Processor, const Compute::IncludeResult& File, std::string* Out)
 			{
 				ED_ASSERT(VM != nullptr, false, "engine should be set");
-				if (Include && Include(C, File, Out))
+				if (Include && Include(Processor, File, Out))
 					return true;
 
 				if (File.Module.empty() || !Scope)
@@ -1651,15 +1659,15 @@ namespace Edge
 				if (!VM->ImportFile(File.Module, &Buffer))
 					return false;
 
-				if (!C->Process(File.Module, Buffer))
+				if (!GenerateSourceCode(Processor, File.Module, Buffer))
 					return false;
 
 				return Scope->AddScriptSection(File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0;
 			});
-			Processor->SetPragmaCallback([this](Compute::Preprocessor* C, const std::string& Name, const std::vector<std::string>& Args)
+			Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const std::string& Name, const std::vector<std::string>& Args)
 			{
 				ED_ASSERT(VM != nullptr, false, "engine should be set");
-				if (Pragma && Pragma(C, Name, Args))
+				if (Pragma && Pragma(Processor, Name, Args))
 					return true;
 
 				if (Name == "compile" && Args.size() == 2)
@@ -1932,7 +1940,7 @@ namespace Edge
 			}
 
 			std::string Buffer = Core::OS::File::ReadAsString(Source);
-			if (!Processor->Process(Source, Buffer))
+			if (!GenerateSourceCode(Processor, Source, Buffer))
 				return asINVALID_DECLARATION;
 
 			int R = Scope->AddScriptSection(Source.c_str(), Buffer.c_str(), Buffer.size());
@@ -1950,7 +1958,7 @@ namespace Edge
 				return 0;
 
 			std::string Buffer(Data);
-			if (!Processor->Process(Name, Buffer))
+			if (!GenerateSourceCode(Processor, Name, Buffer))
 				return asINVALID_DECLARATION;
 
 			int R = Scope->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
@@ -1968,7 +1976,7 @@ namespace Edge
 				return 0;
 
 			std::string Buffer(Data, Size);
-			if (!Processor->Process(Name, Buffer))
+			if (!GenerateSourceCode(Processor, Name, Buffer))
 				return asINVALID_DECLARATION;
 
 			int R = Scope->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
@@ -2630,7 +2638,9 @@ namespace Edge
 		const char* ImmediateContext::GetPropertyName(unsigned int Index, unsigned int StackLevel)
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
-			return Context->GetVarName(Index, StackLevel);
+			const char* Name = nullptr;
+			Context->GetVar(Index, StackLevel, &Name);
+			return Name;
 		}
 		const char* ImmediateContext::GetPropertyDecl(unsigned int Index, unsigned int StackLevel, bool IncludeNamespace)
 		{
@@ -2640,7 +2650,9 @@ namespace Edge
 		int ImmediateContext::GetPropertyTypeId(unsigned int Index, unsigned int StackLevel)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
-			return Context->GetVarTypeId(Index, StackLevel);
+			int TypeId = -1;
+			Context->GetVar(Index, StackLevel, nullptr, &TypeId);
+			return TypeId;
 		}
 		void* ImmediateContext::GetAddressOfProperty(unsigned int Index, unsigned int StackLevel)
 		{
@@ -4038,7 +4050,6 @@ namespace Edge
 			Engine->AddSubmodule("std/any", { }, Bindings::Registry::LoadAny);
 			Engine->AddSubmodule("std/array", { "std/ctypes" }, Bindings::Registry::LoadArray);
 			Engine->AddSubmodule("std/complex", { }, Bindings::Registry::LoadComplex);
-			Engine->AddSubmodule("std/grid", { "std/ctypes" }, Bindings::Registry::LoadGrid);
 			Engine->AddSubmodule("std/ref", { }, Bindings::Registry::LoadRef);
 			Engine->AddSubmodule("std/weak_ref", { }, Bindings::Registry::LoadWeakRef);
 			Engine->AddSubmodule("std/math", { }, Bindings::Registry::LoadMath);
@@ -4210,10 +4221,11 @@ namespace Edge
 			{
 				for (asUINT n = Function->GetVarCount(); n-- > 0;)
 				{
-					if (Base->IsVarInScope(n) && Name == Base->GetVarName(n))
+					const char* VarName = 0;
+					Base->GetVar(n, 0, &VarName, &TypeId);
+					if (Base->IsVarInScope(n) && VarName != 0 && Name == VarName)
 					{
 						Pointer = Base->GetAddressOfVar(n);
-						TypeId = Base->GetVarTypeId(n);
 						break;
 					}
 				}
@@ -4329,7 +4341,11 @@ namespace Edge
 			for (asUINT n = 0; n < Function->GetVarCount(); n++)
 			{
 				if (Base->IsVarInScope(n))
-					Stream << Function->GetVarDecl(n) << " = " << ToString(Base->GetAddressOfVar(n), Base->GetVarTypeId(n), 3, VirtualMachine::Get(Base->GetEngine())) << std::endl;
+				{
+					int TypeId;
+					Base->GetVar(n, 0, 0, &TypeId);
+					Stream << Function->GetVarDecl(n) << " = " << ToString(Base->GetAddressOfVar(n), TypeId, 3, VirtualMachine::Get(Base->GetEngine())) << std::endl;
+				}
 			}
 			Output(Stream.str());
 		}

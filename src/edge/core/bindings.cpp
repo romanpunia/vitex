@@ -26,6 +26,7 @@
 #define TYPENAME_REF "ref"
 #define TYPENAME_WEAKREF "weak_ref"
 #define TYPENAME_CONSTWEAKREF "const_weak_ref"
+#define TYPENAME_PROMISE "promise"
 #define TYPENAME_SCHEMA "schema"
 #define TYPENAME_DECIMAL "decimal"
 #define TYPENAME_VARIANT "variant"
@@ -390,7 +391,7 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context != nullptr)
-						Context->SetException("Out of range");
+						Context->SetException("out of range");
 
 					return 0;
 				}
@@ -727,36 +728,18 @@ namespace Edge
 				return Message;
 			}
 
-			Any::Any(asIScriptEngine* _Engine) noexcept
+			Any::Any(asIScriptEngine* _Engine) noexcept : RefCount(1), GCFlag(false), Engine(_Engine) 
 			{
-				Engine = _Engine;
-				RefCount = 1;
-				GCFlag = false;
 				Value.TypeId = 0;
 				Value.ValueInt = 0;
-
 				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_ANY));
 			}
-			Any::Any(void* Ref, int RefTypeId, asIScriptEngine* _Engine) noexcept
+			Any::Any(void* Ref, int RefTypeId, asIScriptEngine* _Engine) noexcept : Any(_Engine)
 			{
-				Engine = _Engine;
-				RefCount = 1;
-				GCFlag = false;
-				Value.TypeId = 0;
-				Value.ValueInt = 0;
-
-				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_ANY));
 				Store(Ref, RefTypeId);
 			}
-			Any::Any(const Any& Other) noexcept
+			Any::Any(const Any& Other) noexcept : Any(Other.Engine)
 			{
-				Engine = Other.Engine;
-				RefCount = 1;
-				GCFlag = false;
-				Value.TypeId = 0;
-				Value.ValueInt = 0;
-
-				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_ANY));
 				if ((Other.Value.TypeId & asTYPEID_MASK_OBJECT))
 				{
 					asITypeInfo* Info = Engine->GetTypeInfoById(Other.Value.TypeId);
@@ -789,8 +772,8 @@ namespace Edge
 				}
 
 				FreeObject();
-
 				Value.TypeId = Other.Value.TypeId;
+
 				if (Value.TypeId & asTYPEID_OBJHANDLE)
 				{
 					Value.ValueObj = Other.Value.ValueObj;
@@ -821,8 +804,8 @@ namespace Edge
 				}
 
 				FreeObject();
-
 				Value.TypeId = RefTypeId;
+
 				if (Value.TypeId & asTYPEID_OBJHANDLE)
 				{
 					Value.ValueObj = *(void**)Ref;
@@ -835,7 +818,6 @@ namespace Edge
 				else
 				{
 					Value.ValueInt = 0;
-
 					int Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
 					memcpy(&Value.ValueInt, Ref, Size);
 				}
@@ -868,7 +850,6 @@ namespace Edge
 				{
 					int Size1 = Engine->GetSizeOfPrimitiveType(Value.TypeId);
 					int Size2 = Engine->GetSizeOfPrimitiveType(RefTypeId);
-
 					if (Size1 == Size2)
 					{
 						memcpy(Ref, &Value.ValueInt, Size1);
@@ -907,7 +888,7 @@ namespace Edge
 						Engine->ForwardGCEnumReferences(Value.ValueObj, SubType);
 
 					asITypeInfo* T = InEngine->GetTypeInfoById(Value.TypeId);
-					if (T)
+					if (T != nullptr)
 						InEngine->GCEnumCallback(T);
 				}
 			}
@@ -992,24 +973,10 @@ namespace Edge
 				return *Self = *Other;
 			}
 
-			Array& Array::operator=(const Array& Other) noexcept
-			{
-				if (&Other != this && Other.GetArrayObjectType() == GetArrayObjectType())
-				{
-					Resize(Other.Buffer->NumElements);
-					CopyBuffer(Buffer, Other.Buffer);
-				}
-
-				return *this;
-			}
-			Array::Array(asITypeInfo* Info, void* BufferPtr) noexcept
+			Array::Array(asITypeInfo* Info, void* BufferPtr) noexcept : RefCount(1), GCFlag(false), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
 				ED_ASSERT_V(Info && std::string(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
-				RefCount = 1;
-				GCFlag = false;
-				ObjType = Info;
 				ObjType->AddRef();
-				Buffer = 0;
 				Precache();
 
 				asIScriptEngine* Engine = Info->GetEngine();
@@ -1018,58 +985,53 @@ namespace Edge
 				else
 					ElementSize = Engine->GetSizeOfPrimitiveType(SubTypeId);
 
-				size_t length = *(size_t*)BufferPtr;
-				if (!CheckMaxSize(length))
+				size_t Length = *(asUINT*)BufferPtr;
+				if (!CheckMaxSize(Length))
 					return;
 
 				if ((Info->GetSubTypeId() & asTYPEID_MASK_OBJECT) == 0)
 				{
-					CreateBuffer(&Buffer, length);
-					if (length > 0)
-						memcpy(At(0), (((size_t*)BufferPtr) + 1), (size_t)length * (size_t)ElementSize);
+					CreateBuffer(&Buffer, Length);
+					if (Length > 0)
+						memcpy(At(0), (((asUINT*)BufferPtr) + 1), (size_t)Length * (size_t)ElementSize);
 				}
 				else if (Info->GetSubTypeId() & asTYPEID_OBJHANDLE)
 				{
-					CreateBuffer(&Buffer, length);
-					if (length > 0)
-						memcpy(At(0), (((size_t*)BufferPtr) + 1), (size_t)length * (size_t)ElementSize);
+					CreateBuffer(&Buffer, Length);
+					if (Length > 0)
+						memcpy(At(0), (((asUINT*)BufferPtr) + 1), (size_t)Length * (size_t)ElementSize);
 
-					memset((((size_t*)BufferPtr) + 1), 0, (size_t)length * (size_t)ElementSize);
+					memset((((asUINT*)BufferPtr) + 1), 0, (size_t)Length * (size_t)ElementSize);
 				}
 				else if (Info->GetSubType()->GetFlags() & asOBJ_REF)
 				{
 					SubTypeId |= asTYPEID_OBJHANDLE;
-					CreateBuffer(&Buffer, length);
+					CreateBuffer(&Buffer, Length);
 					SubTypeId &= ~asTYPEID_OBJHANDLE;
 
-					if (length > 0)
-						memcpy(Buffer->Data, (((size_t*)BufferPtr) + 1), (size_t)length * (size_t)ElementSize);
+					if (Length > 0)
+						memcpy(Buffer->Data, (((asUINT*)BufferPtr) + 1), (size_t)Length * (size_t)ElementSize);
 
-					memset((((size_t*)BufferPtr) + 1), 0, (size_t)length * (size_t)ElementSize);
+					memset((((asUINT*)BufferPtr) + 1), 0, (size_t)Length * (size_t)ElementSize);
 				}
 				else
 				{
-					CreateBuffer(&Buffer, length);
-					for (size_t n = 0; n < length; n++)
+					CreateBuffer(&Buffer, Length);
+					for (size_t n = 0; n < Length; n++)
 					{
-						void* Obj = At(n);
-						unsigned char* srcObj = (unsigned char*)BufferPtr;
-						srcObj += 4 + n * Info->GetSubType()->GetSize();
-						Engine->AssignScriptObject(Obj, srcObj, Info->GetSubType());
+						unsigned char* SourceObj = (unsigned char*)BufferPtr;
+						SourceObj += 4 + n * Info->GetSubType()->GetSize();
+						Engine->AssignScriptObject(At(n), SourceObj, Info->GetSubType());
 					}
 				}
 
 				if (ObjType->GetFlags() & asOBJ_GC)
 					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 			}
-			Array::Array(size_t length, asITypeInfo* Info) noexcept
+			Array::Array(size_t Length, asITypeInfo* Info) noexcept : RefCount(1), GCFlag(false), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
 				ED_ASSERT_V(Info && std::string(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
-				RefCount = 1;
-				GCFlag = false;
-				ObjType = Info;
 				ObjType->AddRef();
-				Buffer = 0;
 				Precache();
 
 				if (SubTypeId & asTYPEID_MASK_OBJECT)
@@ -1077,20 +1039,17 @@ namespace Edge
 				else
 					ElementSize = ObjType->GetEngine()->GetSizeOfPrimitiveType(SubTypeId);
 
-				if (!CheckMaxSize(length))
+				if (!CheckMaxSize(Length))
 					return;
 
-				CreateBuffer(&Buffer, length);
+				CreateBuffer(&Buffer, Length);
 				if (ObjType->GetFlags() & asOBJ_GC)
 					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 			}
-			Array::Array(const Array& Other) noexcept
+			Array::Array(const Array& Other) noexcept : RefCount(1), GCFlag(false), ObjType(Other.ObjType), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
-				RefCount = 1;
-				GCFlag = false;
-				ObjType = Other.ObjType;
+				ED_ASSERT_V(ObjType && std::string(ObjType->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
-				Buffer = 0;
 				Precache();
 
 				ElementSize = Other.ElementSize;
@@ -1100,14 +1059,10 @@ namespace Edge
 				CreateBuffer(&Buffer, 0);
 				*this = Other;
 			}
-			Array::Array(size_t Length, void* DefaultValue, asITypeInfo* Info) noexcept
+			Array::Array(size_t Length, void* DefaultValue, asITypeInfo* Info) noexcept : RefCount(1), GCFlag(false), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
 				ED_ASSERT_V(Info && std::string(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
-				RefCount = 1;
-				GCFlag = false;
-				ObjType = Info;
 				ObjType->AddRef();
-				Buffer = 0;
 				Precache();
 
 				if (SubTypeId & asTYPEID_MASK_OBJECT)
@@ -1125,6 +1080,26 @@ namespace Edge
 				for (size_t i = 0; i < GetSize(); i++)
 					SetValue(i, DefaultValue);
 			}
+			Array::~Array() noexcept
+			{
+				if (Buffer)
+				{
+					DeleteBuffer(Buffer);
+					Buffer = nullptr;
+				}
+				if (ObjType)
+					ObjType->Release();
+			}
+			Array& Array::operator=(const Array& Other) noexcept
+			{
+				if (&Other != this && Other.GetArrayObjectType() == GetArrayObjectType())
+				{
+					Resize(Other.Buffer->NumElements);
+					CopyBuffer(Buffer, Other.Buffer);
+				}
+
+				return *this;
+			}
 			void Array::SetValue(size_t Index, void* Value)
 			{
 				void* Ptr = At(Index);
@@ -1141,32 +1116,14 @@ namespace Edge
 					if (Swap)
 						ObjType->GetEngine()->ReleaseScriptObject(Swap, ObjType->GetSubType());
 				}
-				else if (SubTypeId == asTYPEID_BOOL ||
-					SubTypeId == asTYPEID_INT8 ||
-					SubTypeId == asTYPEID_UINT8)
+				else if (SubTypeId == asTYPEID_BOOL || SubTypeId == asTYPEID_INT8 || SubTypeId == asTYPEID_UINT8)
 					*(char*)Ptr = *(char*)Value;
-				else if (SubTypeId == asTYPEID_INT16 ||
-					SubTypeId == asTYPEID_UINT16)
+				else if (SubTypeId == asTYPEID_INT16 || SubTypeId == asTYPEID_UINT16)
 					*(short*)Ptr = *(short*)Value;
-				else if (SubTypeId == asTYPEID_INT32 ||
-					SubTypeId == asTYPEID_UINT32 ||
-					SubTypeId == asTYPEID_FLOAT ||
-					SubTypeId > asTYPEID_DOUBLE)
+				else if (SubTypeId == asTYPEID_INT32 || SubTypeId == asTYPEID_UINT32 || SubTypeId == asTYPEID_FLOAT || SubTypeId > asTYPEID_DOUBLE)
 					*(int*)Ptr = *(int*)Value;
-				else if (SubTypeId == asTYPEID_INT64 ||
-					SubTypeId == asTYPEID_UINT64 ||
-					SubTypeId == asTYPEID_DOUBLE)
+				else if (SubTypeId == asTYPEID_INT64 || SubTypeId == asTYPEID_UINT64 || SubTypeId == asTYPEID_DOUBLE)
 					*(double*)Ptr = *(double*)Value;
-			}
-			Array::~Array() noexcept
-			{
-				if (Buffer)
-				{
-					DeleteBuffer(Buffer);
-					Buffer = 0;
-				}
-				if (ObjType)
-					ObjType->Release();
 			}
 			size_t Array::GetSize() const
 			{
@@ -1194,7 +1151,7 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context)
-						Context->SetException("Out of memory");
+						Context->SetException("out of memory");
 					return;
 				}
 
@@ -1218,7 +1175,7 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context)
-						Context->SetException("Index out of bounds");
+						Context->SetException("index out of bounds");
 					return;
 				}
 
@@ -1235,6 +1192,7 @@ namespace Edge
 				{
 					if (-Delta > (int)Buffer->NumElements)
 						Delta = -(int)Buffer->NumElements;
+
 					if (Where > Buffer->NumElements + Delta)
 						Where = Buffer->NumElements + Delta;
 				}
@@ -1263,7 +1221,7 @@ namespace Edge
 					{
 						asIScriptContext* Context = asGetActiveContext();
 						if (Context)
-							Context->SetException("Out of memory");
+							Context->SetException("out of memory");
 						return;
 					}
 
@@ -1294,16 +1252,14 @@ namespace Edge
 				if (ElementSize > 0)
 					MaxSize /= (size_t)ElementSize;
 
-				if (NumElements > MaxSize)
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("Too large array size");
+				if (NumElements <= MaxSize)
+					return true;
 
-					return false;
-				}
+				asIScriptContext* Context = asGetActiveContext();
+				if (Context)
+					Context->SetException("too large array size");
 
-				return true;
+				return false;
 			}
 			asITypeInfo* Array::GetArrayObjectType() const
 			{
@@ -1323,12 +1279,13 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context)
-						Context->SetException("Index out of bounds");
-					return;
+						Context->SetException("index out of bounds");
 				}
-
-				Resize(1, Index);
-				SetValue(Index, Value);
+				else
+				{
+					Resize(1, Index);
+					SetValue(Index, Value);
+				}
 			}
 			void Array::InsertAt(size_t Index, const Array& Array)
 			{
@@ -1336,7 +1293,7 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context)
-						Context->SetException("Index out of bounds");
+						Context->SetException("index out of bounds");
 					return;
 				}
 
@@ -1344,12 +1301,12 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context)
-						Context->SetException("Mismatching array types");
+						Context->SetException("mismatching array types");
 					return;
 				}
 
-				size_t elements = Array.GetSize();
-				Resize((int)elements, Index);
+				size_t NewSize = Array.GetSize();
+				Resize((int)NewSize, Index);
 
 				if (&Array != this)
 				{
@@ -1367,7 +1324,7 @@ namespace Edge
 						SetValue(Index + i, Value);
 					}
 
-					for (size_t i = Index + elements, k = 0; i < Array.GetSize(); i++, k++)
+					for (size_t i = Index + NewSize, k = 0; i < Array.GetSize(); i++, k++)
 					{
 						void* Value = const_cast<void*>(Array.At(i));
 						SetValue(Index + Index + k, Value);
@@ -1384,11 +1341,10 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context)
-						Context->SetException("Index out of bounds");
-					return;
+						Context->SetException("index out of bounds");
 				}
-
-				Resize(-1, Index);
+				else
+					Resize(-1, Index);
 			}
 			void Array::RemoveLast()
 			{
@@ -1400,14 +1356,14 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context)
-						Context->SetException("Index out of bounds");
-					return 0;
-				}
+						Context->SetException("index out of bounds");
 
-				if ((SubTypeId & asTYPEID_MASK_OBJECT) && !(SubTypeId & asTYPEID_OBJHANDLE))
+					return nullptr;
+				}
+				else if ((SubTypeId & asTYPEID_MASK_OBJECT) && !(SubTypeId & asTYPEID_OBJHANDLE))
 					return *(void**)(Buffer->Data + (size_t)ElementSize * Index);
-				else
-					return Buffer->Data + (size_t)ElementSize * Index;
+
+				return Buffer->Data + (size_t)ElementSize * Index;
 			}
 			void* Array::At(size_t Index)
 			{
@@ -1430,7 +1386,7 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context)
-						Context->SetException("Out of memory");
+						Context->SetException("out of memory");
 				}
 			}
 			void Array::DeleteBuffer(SBuffer* BufferPtr)
@@ -1838,7 +1794,7 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context)
-						Context->SetException("Index out of bounds");
+						Context->SetException("index out of bounds");
 
 					return;
 				}
@@ -1903,7 +1859,7 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context)
-						Context->SetException("Index out of bounds");
+						Context->SetException("index out of bounds");
 
 					return;
 				}
@@ -2031,7 +1987,7 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context)
-						Context->SetException("Out of memory");
+						Context->SetException("out of memory");
 
 					asReleaseExclusiveLock();
 					return;
@@ -2174,7 +2130,7 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context)
-						Context->SetException("Out of memory");
+						Context->SetException("out of memory");
 
 					return 0;
 				}
@@ -2189,7 +2145,7 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context)
-						Context->SetException("Out of memory");
+						Context->SetException("out of memory");
 
 					return 0;
 				}
@@ -2204,7 +2160,7 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context)
-						Context->SetException("Out of memory");
+						Context->SetException("out of memory");
 
 					return 0;
 				}
@@ -2310,15 +2266,12 @@ namespace Edge
 				return true;
 			}
 
-			MapKey::MapKey() noexcept
+			MapKey::MapKey() noexcept : TypeId(0)
 			{
 				ValueObj = 0;
-				TypeId = 0;
 			}
-			MapKey::MapKey(asIScriptEngine* Engine, void* Value, int _TypeId) noexcept
+			MapKey::MapKey(asIScriptEngine* Engine, void* Value, int _TypeId) noexcept : MapKey()
 			{
-				ValueObj = 0;
-				TypeId = 0;
 				Set(Engine, Value, _TypeId);
 			}
 			MapKey::~MapKey() noexcept
@@ -2364,7 +2317,7 @@ namespace Edge
 					{
 						asIScriptContext* Context = asGetActiveContext();
 						if (Context)
-							Context->SetException("Cannot create copy of object");
+							Context->SetException("cannot create copy of object");
 					}
 				}
 				else
@@ -2450,15 +2403,15 @@ namespace Edge
 						}
 						else if (TypeId == asTYPEID_BOOL)
 						{
-							char localValue;
-							memcpy(&localValue, &ValueInt, sizeof(char));
-							*(as_int64_t*)Value = localValue ? 1 : 0;
+							char LocalValue;
+							memcpy(&LocalValue, &ValueInt, sizeof(char));
+							*(as_int64_t*)Value = LocalValue ? 1 : 0;
 						}
 						else if (TypeId > asTYPEID_DOUBLE && (TypeId & asTYPEID_MASK_OBJECT) == 0)
 						{
-							int localValue;
-							memcpy(&localValue, &ValueInt, sizeof(int));
-							*(as_int64_t*)Value = localValue;
+							int LocalValue;
+							memcpy(&LocalValue, &ValueInt, sizeof(int));
+							*(as_int64_t*)Value = LocalValue;
 						}
 						else
 						{
@@ -2480,15 +2433,15 @@ namespace Edge
 						}
 						else if (TypeId == asTYPEID_BOOL)
 						{
-							char localValue;
-							memcpy(&localValue, &ValueInt, sizeof(char));
-							*(int*)Value = localValue ? 1 : 0;
+							char LocalValue;
+							memcpy(&LocalValue, &ValueInt, sizeof(char));
+							*(int*)Value = LocalValue ? 1 : 0;
 						}
 						else if (TypeId > asTYPEID_DOUBLE && (TypeId & asTYPEID_MASK_OBJECT) == 0)
 						{
-							int localValue;
-							memcpy(&localValue, &ValueInt, sizeof(int));
-							*(int*)Value = localValue;
+							int LocalValue;
+							memcpy(&LocalValue, &ValueInt, sizeof(int));
+							*(int*)Value = LocalValue;
 						}
 						else
 						{
@@ -2577,7 +2530,7 @@ namespace Edge
 			{
 				Init(_Engine);
 			}
-			Map::Map(unsigned char* buffer) noexcept
+			Map::Map(unsigned char* Buffer) noexcept
 			{
 				asIScriptContext* Context = asGetActiveContext();
 				Init(Context->GetEngine());
@@ -2585,92 +2538,92 @@ namespace Edge
 				Map::SCache& Cache = *reinterpret_cast<Map::SCache*>(Engine->GetUserData(MAP_CACHE));
 				bool keyAsRef = Cache.KeyType->GetFlags() & asOBJ_REF ? true : false;
 
-				size_t length = *(size_t*)buffer;
-				buffer += 4;
+				size_t Length = *(asUINT*)Buffer;
+				Buffer += 4;
 
-				while (length--)
+				while (Length--)
 				{
-					if (asPWORD(buffer) & 0x3)
-						buffer += 4 - (asPWORD(buffer) & 0x3);
+					if (asPWORD(Buffer) & 0x3)
+						Buffer += 4 - (asPWORD(Buffer) & 0x3);
 
-					std::string name;
+					std::string Name;
 					if (keyAsRef)
 					{
-						name = **(std::string**)buffer;
-						buffer += sizeof(std::string*);
+						Name = **(std::string**)Buffer;
+						Buffer += sizeof(std::string*);
 					}
 					else
 					{
-						name = *(std::string*)buffer;
-						buffer += sizeof(std::string);
+						Name = *(std::string*)Buffer;
+						Buffer += sizeof(std::string);
 					}
 
-					int TypeId = *(int*)buffer;
-					buffer += sizeof(int);
+					int TypeId = *(int*)Buffer;
+					Buffer += sizeof(int);
 
-					void* RefPtr = (void*)buffer;
+					void* RefPtr = (void*)Buffer;
 					if (TypeId >= asTYPEID_INT8 && TypeId <= asTYPEID_DOUBLE)
 					{
-						as_int64_t i64;
-						double D;
+						as_int64_t Integer64;
+						double Double64;
 
 						switch (TypeId)
 						{
 							case asTYPEID_INT8:
-								i64 = *(char*)RefPtr;
+								Integer64 = *(char*)RefPtr;
 								break;
 							case asTYPEID_INT16:
-								i64 = *(short*)RefPtr;
+								Integer64 = *(short*)RefPtr;
 								break;
 							case asTYPEID_INT32:
-								i64 = *(int*)RefPtr;
+								Integer64 = *(int*)RefPtr;
 								break;
 							case asTYPEID_UINT8:
-								i64 = *(unsigned char*)RefPtr;
+								Integer64 = *(unsigned char*)RefPtr;
 								break;
 							case asTYPEID_UINT16:
-								i64 = *(unsigned short*)RefPtr;
+								Integer64 = *(unsigned short*)RefPtr;
 								break;
 							case asTYPEID_UINT32:
-								i64 = *(unsigned int*)RefPtr;
+								Integer64 = *(unsigned int*)RefPtr;
 								break;
 							case asTYPEID_INT64:
 							case asTYPEID_UINT64:
-								i64 = *(as_int64_t*)RefPtr;
+								Integer64 = *(as_int64_t*)RefPtr;
 								break;
 							case asTYPEID_FLOAT:
-								D = *(float*)RefPtr;
+								Double64 = *(float*)RefPtr;
 								break;
 							case asTYPEID_DOUBLE:
-								D = *(double*)RefPtr;
+								Double64 = *(double*)RefPtr;
 								break;
 						}
 
 						if (TypeId >= asTYPEID_FLOAT)
-							Set(name, &D, asTYPEID_DOUBLE);
+							Set(Name, &Double64, asTYPEID_DOUBLE);
 						else
-							Set(name, &i64, asTYPEID_INT64);
+							Set(Name, &Integer64, asTYPEID_INT64);
 					}
 					else
 					{
 						if ((TypeId & asTYPEID_MASK_OBJECT) && !(TypeId & asTYPEID_OBJHANDLE) && (Engine->GetTypeInfoById(TypeId)->GetFlags() & asOBJ_REF))
 							RefPtr = *(void**)RefPtr;
 
-						Set(name, RefPtr, VirtualMachine::Get(Engine)->IsNullable(TypeId) ? 0 : TypeId);
+						Set(Name, RefPtr, VirtualMachine::Get(Engine)->IsNullable(TypeId) ? 0 : TypeId);
 					}
 
 					if (TypeId & asTYPEID_MASK_OBJECT)
 					{
 						asITypeInfo* Info = Engine->GetTypeInfoById(TypeId);
 						if (Info->GetFlags() & asOBJ_VALUE)
-							buffer += Info->GetSize();
+							Buffer += Info->GetSize();
 						else
-							buffer += sizeof(void*);
+							Buffer += sizeof(void*);
 					}
 					else if (TypeId == 0)
-						buffer += sizeof(void*);
+						Buffer += sizeof(void*);
 					else
-						buffer += Engine->GetSizeOfPrimitiveType(TypeId);
+						Buffer += Engine->GetSizeOfPrimitiveType(TypeId);
 				}
 			}
 			Map::Map(const Map& Other) noexcept
@@ -2852,7 +2805,6 @@ namespace Edge
 			{
 				for (auto It = Dict.begin(); It != Dict.end(); ++It)
 					It->second.FreeValue(Engine);
-
 				Dict.clear();
 			}
 			Array* Map::GetKeys() const
@@ -2861,13 +2813,10 @@ namespace Edge
 				asITypeInfo* Info = Cache->ArrayType;
 
 				Array* Array = Array::Create(Info, size_t(Dict.size()));
-				long Current = -1;
+				size_t Current = 0;
 
 				for (auto It = Dict.begin(); It != Dict.end(); ++It)
-				{
-					Current++;
-					*(std::string*)Array->At((unsigned int)Current) = It->first;
-				}
+					*(std::string*)Array->At(Current++) = It->first;
 
 				return Array;
 			}
@@ -2895,11 +2844,11 @@ namespace Edge
 				new(Obj) Map(buffer);
 				return Obj;
 			}
-			void Map::Init(asIScriptEngine* e)
+			void Map::Init(asIScriptEngine* Engine_)
 			{
 				RefCount = 1;
 				GCFlag = false;
-				Engine = e;
+				Engine = Engine_;
 
 				Map::SCache* Cache = reinterpret_cast<Map::SCache*>(Engine->GetUserData(MAP_CACHE));
 				Engine->NotifyGarbageCollectorOfNewObject(this, Cache->DictType);
@@ -2923,14 +2872,14 @@ namespace Edge
 					Cache->KeyType = Engine->GetTypeInfoByDecl(TYPENAME_STRING);
 				}
 			}
-			void Map::Factory(asIScriptGeneric* gen)
+			void Map::Factory(asIScriptGeneric* Generic)
 			{
-				*(Map**)gen->GetAddressOfReturnLocation() = Map::Create(gen->GetEngine());
+				*(Map**)Generic->GetAddressOfReturnLocation() = Map::Create(Generic->GetEngine());
 			}
-			void Map::ListFactory(asIScriptGeneric* gen)
+			void Map::ListFactory(asIScriptGeneric* Generic)
 			{
-				unsigned char* buffer = (unsigned char*)gen->GetArgAddress(0);
-				*(Map**)gen->GetAddressOfReturnLocation() = Map::Create(buffer);
+				unsigned char* buffer = (unsigned char*)Generic->GetArgAddress(0);
+				*(Map**)Generic->GetAddressOfReturnLocation() = Map::Create(buffer);
 			}
 			void Map::KeyConstruct(void* Memory)
 			{
@@ -2944,6 +2893,7 @@ namespace Edge
 					asIScriptEngine* Engine = Context->GetEngine();
 					Obj->FreeValue(Engine);
 				}
+
 				Obj->~MapKey();
 			}
 			MapKey& Map::KeyopAssign(void* RefPtr, int TypeId, MapKey* Obj)
@@ -2954,6 +2904,7 @@ namespace Edge
 					asIScriptEngine* Engine = Context->GetEngine();
 					Obj->Set(Engine, RefPtr, TypeId);
 				}
+
 				return *Obj;
 			}
 			MapKey& Map::KeyopAssign(const MapKey& Other, MapKey* Obj)
@@ -3061,7 +3012,8 @@ namespace Edge
 			}
 			int Ref::GetTypeId() const
 			{
-				if (Type == 0) return 0;
+				if (Type == 0)
+					return 0;
 
 				return Type->GetTypeId() | asTYPEID_OBJHANDLE;
 			}
@@ -3095,10 +3047,7 @@ namespace Edge
 			}
 			bool Ref::operator==(const Ref& Other) const
 			{
-				if (Pointer == Other.Pointer && Type == Other.Type)
-					return true;
-
-				return false;
+				return Pointer == Other.Pointer && Type == Other.Type;
 			}
 			bool Ref::operator!=(const Ref& Other) const
 			{
@@ -3170,12 +3119,10 @@ namespace Edge
 				Base->~Ref();
 			}
 
-			WeakRef::WeakRef(asITypeInfo* _Type) noexcept
+			WeakRef::WeakRef(asITypeInfo* _Type) noexcept : WeakRefFlag(nullptr), Type(_Type), Ref(nullptr)
 			{
-				Ref = 0;
-				Type = _Type;
+				ED_ASSERT_V(Type != nullptr, "type should be set");
 				Type->AddRef();
-				WeakRefFlag = 0;
 			}
 			WeakRef::WeakRef(const WeakRef& Other) noexcept
 			{
@@ -3228,21 +3175,21 @@ namespace Edge
 
 				return *this;
 			}
-			WeakRef& WeakRef::Set(void* newRef)
+			WeakRef& WeakRef::Set(void* NewRef)
 			{
 				if (WeakRefFlag)
 					WeakRefFlag->Release();
 
-				Ref = newRef;
-				if (newRef)
+				Ref = NewRef;
+				if (NewRef)
 				{
-					WeakRefFlag = Type->GetEngine()->GetWeakRefFlagOfScriptObject(newRef, Type->GetSubType());
+					WeakRefFlag = Type->GetEngine()->GetWeakRefFlagOfScriptObject(NewRef, Type->GetSubType());
 					WeakRefFlag->AddRef();
 				}
 				else
 					WeakRefFlag = 0;
 
-				Type->GetEngine()->ReleaseScriptObject(newRef, Type->GetSubType());
+				Type->GetEngine()->ReleaseScriptObject(NewRef, Type->GetSubType());
 				return *this;
 			}
 			asITypeInfo* WeakRef::GetRefType() const
@@ -3316,8 +3263,8 @@ namespace Edge
 				if (Info->GetSubTypeId() & asTYPEID_OBJHANDLE)
 					return false;
 
-				size_t cnt = SubType->GetBehaviourCount();
-				for (size_t n = 0; n < cnt; n++)
+				size_t Count = SubType->GetBehaviourCount();
+				for (size_t n = 0; n < Count; n++)
 				{
 					asEBehaviours Beh;
 					SubType->GetBehaviourByIndex((int)n, &Beh);
@@ -3362,14 +3309,14 @@ namespace Edge
 				return Compute::Math<uint64_t>::Random(Min, Max);
 			}
 
-			Promise::Promise(asIScriptContext* _Base, bool IsRef) noexcept : Context(ImmediateContext::Get(_Base)), Future(nullptr), Ref(1), Pending(false), Flag(false)
+			Promise::Promise(asIScriptContext* _Base) noexcept : Engine(nullptr), Context(ImmediateContext::Get(_Base)), Future(nullptr), Ref(1), Pending(false), Flag(false)
 			{
 				if (!Context)
 					return;
 
 				Context->AddRef();
 				Engine = Context->GetVM()->GetEngine();
-				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(IsRef ? "ref_promise" : "promise"));
+				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_PROMISE));
 			}
 			void Promise::Release()
 			{
@@ -3417,114 +3364,90 @@ namespace Edge
 			{
 				return Ref;
 			}
-			int Promise::Notify()
+			void Promise::Store(void* _Ref, int TypeId)
 			{
 				Update.lock();
-				if (Context->GetState() == Activation::ACTIVE)
+				if (!Future)
 				{
-					Update.unlock();
-					return Core::Schedule::Get()->SetTask(std::bind(&Promise::Notify, this), Core::Difficulty::Light);
+					Future = new(asAllocMem(sizeof(Any))) Any(_Ref, TypeId, Engine);
+					if (TypeId & asTYPEID_OBJHANDLE)
+						Engine->ReleaseScriptObject(*(void**)_Ref, Engine->GetTypeInfoById(TypeId));
+
+					if (Pending)
+					{
+						Pending = false;
+						if (Context->GetUserData(PromiseUD) == (void*)this)
+							Context->SetUserData(nullptr, PromiseUD);
+
+						bool WantsResume = (Context->GetState() != Activation::ACTIVE);
+						Update.unlock();
+						if (WantsResume)
+						{
+							Promise* Base = this;
+							Core::Schedule::Get()->SetTask([Base]()
+							{
+								Base->Context->Execute();
+								Base->Release();
+							}, Core::Difficulty::Light);
+						}
+						else
+							Release();
+					}
+					else
+						Update.unlock();
 				}
+				else
+				{
+					asIScriptContext* ThisContext = asGetActiveContext();
+					if (!ThisContext)
+						ThisContext = Context->GetContext();
 
-				Update.unlock();
-				Context->Execute();
-				Release();
-
-				return 0;
+					ThisContext->SetException("promise is already fulfilled");
+					Update.unlock();
+				}
 			}
-			int Promise::Set(void* _Ref, int TypeId)
+			void Promise::Store(void* _Ref, const char* TypeName)
 			{
-				Update.lock();
-				if (Future != nullptr)
-					Future->Release();
-
-				Future = new(asAllocMem(sizeof(Any))) Any(_Ref, TypeId, Engine);
-				if (TypeId & asTYPEID_OBJHANDLE)
-					Engine->ReleaseScriptObject(*(void**)_Ref, Engine->GetTypeInfoById(TypeId));
-
-				if (!Pending)
-				{
-					Update.unlock();
-					return 0;
-				}
-
-				Pending = false;
-				if (Context->GetUserData(PromiseUD) == (void*)this)
-					Context->SetUserData(nullptr, PromiseUD);
-
-				if (Context->GetState() == Activation::ACTIVE)
-				{
-					Update.unlock();
-					return Core::Schedule::Get()->SetTask(std::bind(&Promise::Notify, this), Core::Difficulty::Light);
-				}
-
-				Update.unlock();
-				Context->Execute();
-				Release();
-
-				return 0;
+				Store(_Ref, Engine->GetTypeIdByDecl(TypeName));
 			}
-			int Promise::Set(void* _Ref, const char* TypeName)
-			{
-				return Set(_Ref, Engine->GetTypeIdByDecl(TypeName));
-			}
-			bool Promise::To(void* _Ref, int TypeId)
+			bool Promise::Retrieve(void* _Ref, int TypeId)
 			{
 				if (!Future)
 					return false;
 
 				return Future->Retrieve(_Ref, TypeId);
 			}
-			void* Promise::GetHandle()
+			void* Promise::Retrieve()
 			{
 				if (!Future)
 					return nullptr;
 
 				int TypeId = Future->GetTypeId();
 				if (TypeId & asTYPEID_OBJHANDLE)
-					return Future->Value.ValueObj;
-
-				Context->SetException("object cannot be safely retrieved by reference type promise");
-				return nullptr;
-			}
-			void* Promise::GetValue()
-			{
-				if (!Future)
-					return nullptr;
-
-				int TypeId = Future->GetTypeId();
-				if (TypeId & asTYPEID_MASK_OBJECT)
+					return &Future->Value.ValueObj;
+				else if (TypeId & asTYPEID_MASK_OBJECT)
 					return Future->Value.ValueObj;
 				else if (TypeId <= asTYPEID_DOUBLE || TypeId & asTYPEID_MASK_SEQNBR)
 					return &Future->Value.ValueInt;
 
-				if (TypeId & asTYPEID_OBJHANDLE)
-					Context->SetException("object cannot be safely retrieved by value type promise");
-				else
-					Context->SetException("retrieve this object explicitly");
-
 				return nullptr;
+			}
+			Promise* Promise::YieldIf()
+			{
+				Update.lock();
+				if (!Future && Context != nullptr)
+				{
+					AddRef();
+					Pending = true;
+					Context->SetUserData(this, PromiseUD);
+					Context->Suspend();
+				}
+				Update.unlock();
+				return this;
 			}
 			Promise* Promise::Create()
 			{
-				return new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext(), false);
-			}
-			Promise* Promise::CreateRef()
-			{
-				return new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext(), true);
-			}
-			Promise* Promise::JumpIf(Promise* Base)
-			{
-				Base->Update.lock();
-				if (!Base->Future && Base->Context != nullptr)
-				{
-					Base->AddRef();
-					Base->Pending = true;
-					Base->Context->SetUserData(Base, PromiseUD);
-					Base->Context->Suspend();
-				}
-				Base->Update.unlock();
-				return Base;
+				return new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext());
 			}
 			std::string Promise::GetStatus(ImmediateContext* Context)
 			{
@@ -3705,7 +3628,7 @@ namespace Edge
 				Core::Schema* Result = Core::Var::Set::Object();
 				asIScriptContext* Context = asGetActiveContext();
 				asIScriptEngine* VM = Context->GetEngine();
-				asUINT Length = *(asUINT*)Buffer;
+				size_t Length = *(asUINT*)Buffer;
 				Buffer += 4;
 
 				while (Length--)
@@ -3786,9 +3709,9 @@ namespace Edge
 
 					if (TypeId & asTYPEID_MASK_OBJECT)
 					{
-						asITypeInfo* ti = VM->GetTypeInfoById(TypeId);
-						if (ti->GetFlags() & asOBJ_VALUE)
-							Buffer += ti->GetSize();
+						asITypeInfo* T = VM->GetTypeInfoById(TypeId);
+						if (T->GetFlags() & asOBJ_VALUE)
+							Buffer += T->GetSize();
 						else
 							Buffer += sizeof(void*);
 					}
@@ -4089,560 +4012,12 @@ namespace Edge
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context != nullptr)
-						Context->SetException("Out of memory");
+						Context->SetException("out of memory");
 
 					return nullptr;
 				}
 
 				return new(Data) Mutex();
-			}
-
-			Grid::Grid(asITypeInfo* Info, void* BufferPtr) noexcept
-			{
-				RefCount = 1;
-				GCFlag = false;
-				ObjType = Info;
-				ObjType->AddRef();
-				Buffer = 0;
-				SubTypeId = ObjType->GetSubTypeId();
-
-				asIScriptEngine* Engine = Info->GetEngine();
-				if (SubTypeId & asTYPEID_MASK_OBJECT)
-					ElementSize = sizeof(asPWORD);
-				else
-					ElementSize = Engine->GetSizeOfPrimitiveType(SubTypeId);
-
-				size_t Height = *(size_t*)BufferPtr;
-				size_t Width = Height ? *(size_t*)((char*)(BufferPtr)+4) : 0;
-
-				if (!CheckMaxSize(Width, Height))
-					return;
-
-				BufferPtr = (size_t*)(BufferPtr)+1;
-				if ((Info->GetSubTypeId() & asTYPEID_MASK_OBJECT) == 0)
-				{
-					CreateBuffer(&Buffer, Width, Height);
-					for (size_t y = 0; y < Height; y++)
-					{
-						BufferPtr = (size_t*)(BufferPtr)+1;
-						if (Width > 0)
-							memcpy(At(0, y), BufferPtr, (size_t)Width * (size_t)ElementSize);
-
-						BufferPtr = (char*)(BufferPtr)+Width * (size_t)ElementSize;
-						if (asPWORD(BufferPtr) & 0x3)
-							BufferPtr = (char*)(BufferPtr)+4 - (asPWORD(BufferPtr) & 0x3);
-					}
-				}
-				else if (Info->GetSubTypeId() & asTYPEID_OBJHANDLE)
-				{
-					CreateBuffer(&Buffer, Width, Height);
-					for (size_t y = 0; y < Height; y++)
-					{
-						BufferPtr = (size_t*)(BufferPtr)+1;
-						if (Width > 0)
-							memcpy(At(0, y), BufferPtr, (size_t)Width * (size_t)ElementSize);
-
-						memset(BufferPtr, 0, (size_t)Width * (size_t)ElementSize);
-						BufferPtr = (char*)(BufferPtr)+Width * (size_t)ElementSize;
-
-						if (asPWORD(BufferPtr) & 0x3)
-							BufferPtr = (char*)(BufferPtr)+4 - (asPWORD(BufferPtr) & 0x3);
-					}
-				}
-				else if (Info->GetSubType()->GetFlags() & asOBJ_REF)
-				{
-					SubTypeId |= asTYPEID_OBJHANDLE;
-					CreateBuffer(&Buffer, Width, Height);
-					SubTypeId &= ~asTYPEID_OBJHANDLE;
-
-					for (size_t y = 0; y < Height; y++)
-					{
-						BufferPtr = (size_t*)(BufferPtr)+1;
-						if (Width > 0)
-							memcpy(At(0, y), BufferPtr, (size_t)Width * (size_t)ElementSize);
-
-						memset(BufferPtr, 0, (size_t)Width * (size_t)ElementSize);
-						BufferPtr = (char*)(BufferPtr)+Width * (size_t)ElementSize;
-
-						if (asPWORD(BufferPtr) & 0x3)
-							BufferPtr = (char*)(BufferPtr)+4 - (asPWORD(BufferPtr) & 0x3);
-					}
-				}
-				else
-				{
-					CreateBuffer(&Buffer, Width, Height);
-
-					asITypeInfo* SubType = Info->GetSubType();
-					size_t SubTypeSize = SubType->GetSize();
-					for (size_t y = 0; y < Height; y++)
-					{
-						BufferPtr = (size_t*)(BufferPtr)+1;
-						for (size_t x = 0; x < Width; x++)
-						{
-							void* Obj = At(x, y);
-							unsigned char* srcObj = (unsigned char*)(BufferPtr)+x * SubTypeSize;
-							Engine->AssignScriptObject(Obj, srcObj, SubType);
-						}
-
-						BufferPtr = (char*)(BufferPtr)+Width * SubTypeSize;
-						if (asPWORD(BufferPtr) & 0x3)
-							BufferPtr = (char*)(BufferPtr)+4 - (asPWORD(BufferPtr) & 0x3);
-					}
-				}
-
-				if (ObjType->GetFlags() & asOBJ_GC)
-					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
-			}
-			Grid::Grid(size_t Width, size_t Height, asITypeInfo* Info) noexcept
-			{
-				RefCount = 1;
-				GCFlag = false;
-				ObjType = Info;
-				ObjType->AddRef();
-				Buffer = 0;
-				SubTypeId = ObjType->GetSubTypeId();
-
-				if (SubTypeId & asTYPEID_MASK_OBJECT)
-					ElementSize = sizeof(asPWORD);
-				else
-					ElementSize = ObjType->GetEngine()->GetSizeOfPrimitiveType(SubTypeId);
-
-				if (!CheckMaxSize(Width, Height))
-					return;
-
-				CreateBuffer(&Buffer, Width, Height);
-				if (ObjType->GetFlags() & asOBJ_GC)
-					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
-			}
-			void Grid::Resize(size_t Width, size_t Height)
-			{
-				if (!CheckMaxSize(Width, Height))
-					return;
-
-				SBuffer* TempBuffer = 0;
-				CreateBuffer(&TempBuffer, Width, Height);
-				if (TempBuffer == 0)
-					return;
-
-				if (Buffer)
-				{
-					size_t W = Width > Buffer->Width ? Buffer->Width : Width;
-					size_t H = Height > Buffer->Height ? Buffer->Height : Height;
-					for (size_t y = 0; y < H; y++)
-					{
-						for (size_t x = 0; x < W; x++)
-							SetValue(TempBuffer, x, y, At(Buffer, x, y));
-					}
-
-					DeleteBuffer(Buffer);
-				}
-
-				Buffer = TempBuffer;
-			}
-			Grid::Grid(size_t Width, size_t Height, void* DefaultValue, asITypeInfo* Info) noexcept
-			{
-				RefCount = 1;
-				GCFlag = false;
-				ObjType = Info;
-				ObjType->AddRef();
-				Buffer = 0;
-				SubTypeId = ObjType->GetSubTypeId();
-
-				if (SubTypeId & asTYPEID_MASK_OBJECT)
-					ElementSize = sizeof(asPWORD);
-				else
-					ElementSize = ObjType->GetEngine()->GetSizeOfPrimitiveType(SubTypeId);
-
-				if (!CheckMaxSize(Width, Height))
-					return;
-
-				CreateBuffer(&Buffer, Width, Height);
-				if (ObjType->GetFlags() & asOBJ_GC)
-					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
-
-				for (size_t y = 0; y < GetHeight(); y++)
-				{
-					for (size_t x = 0; x < GetWidth(); x++)
-						SetValue(x, y, DefaultValue);
-				}
-			}
-			void Grid::SetValue(size_t x, size_t y, void* Value)
-			{
-				SetValue(Buffer, x, y, Value);
-			}
-			void Grid::SetValue(SBuffer* BufferPtr, size_t x, size_t y, void* Value)
-			{
-				void* Ptr = At(BufferPtr, x, y);
-				if (Ptr == 0)
-					return;
-
-				if ((SubTypeId & ~asTYPEID_MASK_SEQNBR) && !(SubTypeId & asTYPEID_OBJHANDLE))
-					ObjType->GetEngine()->AssignScriptObject(Ptr, Value, ObjType->GetSubType());
-				else if (SubTypeId & asTYPEID_OBJHANDLE)
-				{
-					void* Swap = *(void**)Ptr;
-					*(void**)Ptr = *(void**)Value;
-					ObjType->GetEngine()->AddRefScriptObject(*(void**)Value, ObjType->GetSubType());
-					if (Swap)
-						ObjType->GetEngine()->ReleaseScriptObject(Swap, ObjType->GetSubType());
-				}
-				else if (SubTypeId == asTYPEID_BOOL ||
-					SubTypeId == asTYPEID_INT8 ||
-					SubTypeId == asTYPEID_UINT8)
-					*(char*)Ptr = *(char*)Value;
-				else if (SubTypeId == asTYPEID_INT16 ||
-					SubTypeId == asTYPEID_UINT16)
-					*(short*)Ptr = *(short*)Value;
-				else if (SubTypeId == asTYPEID_INT32 ||
-					SubTypeId == asTYPEID_UINT32 ||
-					SubTypeId == asTYPEID_FLOAT ||
-					SubTypeId > asTYPEID_DOUBLE)
-					*(int*)Ptr = *(int*)Value;
-				else if (SubTypeId == asTYPEID_INT64 ||
-					SubTypeId == asTYPEID_UINT64 ||
-					SubTypeId == asTYPEID_DOUBLE)
-					*(double*)Ptr = *(double*)Value;
-			}
-			Grid::~Grid() noexcept
-			{
-				if (Buffer)
-				{
-					DeleteBuffer(Buffer);
-					Buffer = 0;
-				}
-
-				if (ObjType)
-					ObjType->Release();
-			}
-			size_t Grid::GetWidth() const
-			{
-				if (Buffer)
-					return Buffer->Width;
-
-				return 0;
-			}
-			size_t Grid::GetHeight() const
-			{
-				if (Buffer)
-					return Buffer->Height;
-
-				return 0;
-			}
-			bool Grid::CheckMaxSize(size_t Width, size_t Height)
-			{
-				size_t MaxSize = 0xFFFFFFFFul - sizeof(SBuffer) + 1;
-				if (ElementSize > 0)
-					MaxSize /= (size_t)ElementSize;
-
-				as_uint64_t NumElements = (as_uint64_t)Width * (as_uint64_t)Height;
-				if ((NumElements >> 32) || NumElements > (as_uint64_t)MaxSize)
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("Too large grid Size");
-
-					return false;
-				}
-				return true;
-			}
-			asITypeInfo* Grid::GetGridObjectType() const
-			{
-				return ObjType;
-			}
-			int Grid::GetGridTypeId() const
-			{
-				return ObjType->GetTypeId();
-			}
-			int Grid::GetElementTypeId() const
-			{
-				return SubTypeId;
-			}
-			void* Grid::At(size_t x, size_t y)
-			{
-				return At(Buffer, x, y);
-			}
-			void* Grid::At(SBuffer* BufferPtr, size_t x, size_t y)
-			{
-				if (BufferPtr == 0 || x >= BufferPtr->Width || y >= BufferPtr->Height)
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("Index out of bounds");
-					return 0;
-				}
-
-				size_t Index = x + y * BufferPtr->Width;
-				if ((SubTypeId & asTYPEID_MASK_OBJECT) && !(SubTypeId & asTYPEID_OBJHANDLE))
-					return *(void**)(BufferPtr->Data + (size_t)ElementSize * Index);
-
-				return BufferPtr->Data + (size_t)ElementSize * Index;
-			}
-			const void* Grid::At(size_t x, size_t y) const
-			{
-				return const_cast<Grid*>(this)->At(const_cast<SBuffer*>(Buffer), x, y);
-			}
-			void Grid::CreateBuffer(SBuffer** BufferPtr, size_t W, size_t H)
-			{
-				size_t NumElements = W * H;
-				*BufferPtr = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + (size_t)ElementSize * (size_t)NumElements));
-
-				if (*BufferPtr)
-				{
-					(*BufferPtr)->Width = W;
-					(*BufferPtr)->Height = H;
-					Construct(*BufferPtr);
-				}
-				else
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("Out of memory");
-				}
-			}
-			void Grid::DeleteBuffer(SBuffer* BufferPtr)
-			{
-				ED_ASSERT_V(BufferPtr, "buffer should be set");
-				Destruct(BufferPtr);
-				asFreeMem(BufferPtr);
-			}
-			void Grid::Construct(SBuffer* BufferPtr)
-			{
-				ED_ASSERT_V(BufferPtr, "buffer should be set");
-				if (SubTypeId & asTYPEID_OBJHANDLE)
-				{
-					void* D = (void*)(BufferPtr->Data);
-					memset(D, 0, (BufferPtr->Width * BufferPtr->Height) * sizeof(void*));
-				}
-				else if (SubTypeId & asTYPEID_MASK_OBJECT)
-				{
-					void** Max = (void**)(BufferPtr->Data + (BufferPtr->Width * BufferPtr->Height) * sizeof(void*));
-					void** D = (void**)(BufferPtr->Data);
-
-					asIScriptEngine* Engine = ObjType->GetEngine();
-					asITypeInfo* SubType = ObjType->GetSubType();
-
-					for (; D < Max; D++)
-					{
-						*D = (void*)Engine->CreateScriptObject(SubType);
-						if (*D == 0)
-						{
-							memset(D, 0, sizeof(void*) * (Max - D));
-							return;
-						}
-					}
-				}
-			}
-			void Grid::Destruct(SBuffer* BufferPtr)
-			{
-				ED_ASSERT_V(BufferPtr, "buffer should be set");
-				if (SubTypeId & asTYPEID_MASK_OBJECT)
-				{
-					asIScriptEngine* Engine = ObjType->GetEngine();
-					void** Max = (void**)(BufferPtr->Data + (BufferPtr->Width * BufferPtr->Height) * sizeof(void*));
-					void** D = (void**)(BufferPtr->Data);
-
-					for (; D < Max; D++)
-					{
-						if (*D)
-							Engine->ReleaseScriptObject(*D, ObjType->GetSubType());
-					}
-				}
-			}
-			void Grid::EnumReferences(asIScriptEngine* Engine)
-			{
-				if (Buffer == 0)
-					return;
-
-				if (SubTypeId & asTYPEID_MASK_OBJECT)
-				{
-					size_t NumElements = Buffer->Width * Buffer->Height;
-					void** D = (void**)Buffer->Data;
-					asITypeInfo* SubType = Engine->GetTypeInfoById(SubTypeId);
-
-					if ((SubType->GetFlags() & asOBJ_REF))
-					{
-						for (size_t n = 0; n < NumElements; n++)
-						{
-							if (D[n])
-								Engine->GCEnumCallback(D[n]);
-						}
-					}
-					else if ((SubType->GetFlags() & asOBJ_VALUE) && (SubType->GetFlags() & asOBJ_GC))
-					{
-						for (size_t n = 0; n < NumElements; n++)
-						{
-							if (D[n])
-								Engine->ForwardGCEnumReferences(D[n], SubType);
-						}
-					}
-				}
-			}
-			void Grid::ReleaseAllHandles(asIScriptEngine*)
-			{
-				if (Buffer == 0)
-					return;
-
-				DeleteBuffer(Buffer);
-				Buffer = 0;
-			}
-			void Grid::AddRef() const
-			{
-				GCFlag = false;
-				asAtomicInc(RefCount);
-			}
-			void Grid::Release() const
-			{
-				GCFlag = false;
-				if (asAtomicDec(RefCount) == 0)
-				{
-					this->~Grid();
-					asFreeMem(const_cast<Grid*>(this));
-				}
-			}
-			int Grid::GetRefCount()
-			{
-				return RefCount;
-			}
-			void Grid::SetFlag()
-			{
-				GCFlag = true;
-			}
-			bool Grid::GetFlag()
-			{
-				return GCFlag;
-			}
-			Grid* Grid::Create(asITypeInfo* Info)
-			{
-				return Grid::Create(Info, 0, 0);
-			}
-			Grid* Grid::Create(asITypeInfo* Info, size_t W, size_t H)
-			{
-				void* Memory = asAllocMem(sizeof(Grid));
-				if (Memory == 0)
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("Out of memory");
-
-					return 0;
-				}
-
-				Grid* a = new(Memory) Grid(W, H, Info);
-				return a;
-			}
-			Grid* Grid::Create(asITypeInfo* Info, void* InitList)
-			{
-				void* Memory = asAllocMem(sizeof(Grid));
-				if (Memory == 0)
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("Out of memory");
-
-					return 0;
-				}
-
-				Grid* a = new(Memory) Grid(Info, InitList);
-				return a;
-			}
-			Grid* Grid::Create(asITypeInfo* Info, size_t W, size_t H, void* DefaultValue)
-			{
-				void* Memory = asAllocMem(sizeof(Grid));
-				if (Memory == 0)
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("Out of memory");
-
-					return 0;
-				}
-
-				Grid* a = new(Memory) Grid(W, H, DefaultValue, Info);
-				return a;
-			}
-			bool Grid::TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect)
-			{
-				int TypeId = Info->GetSubTypeId();
-				if (TypeId == asTYPEID_VOID)
-					return false;
-
-				asIScriptEngine* Engine = Info->GetEngine();
-				if ((TypeId & asTYPEID_MASK_OBJECT) && !(TypeId & asTYPEID_OBJHANDLE))
-				{
-					asITypeInfo* SubType = Engine->GetTypeInfoById(TypeId);
-					asDWORD Flags = SubType->GetFlags();
-
-					if ((Flags & asOBJ_VALUE) && !(Flags & asOBJ_POD))
-					{
-						bool Found = false;
-						for (size_t n = 0; n < SubType->GetBehaviourCount(); n++)
-						{
-							asEBehaviours Beh;
-							asIScriptFunction* Function = SubType->GetBehaviourByIndex((int)n, &Beh);
-							if (Beh != asBEHAVE_CONSTRUCT)
-								continue;
-
-							if (Function->GetParamCount() == 0)
-							{
-								Found = true;
-								break;
-							}
-						}
-
-						if (!Found)
-						{
-							Engine->WriteMessage(TYPENAME_ARRAY, 0, 0, asMSGTYPE_ERROR, "The subtype has no default constructor");
-							return false;
-						}
-					}
-					else if ((Flags & asOBJ_REF))
-					{
-						bool Found = false;
-						if (!Engine->GetEngineProperty(asEP_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE))
-						{
-							for (size_t n = 0; n < SubType->GetFactoryCount(); n++)
-							{
-								asIScriptFunction* Function = SubType->GetFactoryByIndex((int)n);
-								if (Function->GetParamCount() == 0)
-								{
-									Found = true;
-									break;
-								}
-							}
-						}
-
-						if (!Found)
-						{
-							Engine->WriteMessage(TYPENAME_ARRAY, 0, 0, asMSGTYPE_ERROR, "The subtype has no default factory");
-							return false;
-						}
-					}
-
-					if (!(Flags & asOBJ_GC))
-						DontGarbageCollect = true;
-				}
-				else if (!(TypeId & asTYPEID_OBJHANDLE))
-				{
-					DontGarbageCollect = true;
-				}
-				else
-				{
-					asITypeInfo* SubType = Engine->GetTypeInfoById(TypeId);
-					asDWORD Flags = SubType->GetFlags();
-
-					if (!(Flags & asOBJ_GC))
-					{
-						if ((Flags & asOBJ_SCRIPT_OBJECT))
-						{
-							if ((Flags & asOBJ_NOINHERIT))
-								DontGarbageCollect = true;
-						}
-						else
-							DontGarbageCollect = true;
-					}
-				}
-
-				return true;
 			}
 
 			Complex::Complex() noexcept
@@ -5186,20 +4561,13 @@ namespace Edge
 				if (TypeId < (int)TypeId::BOOL || TypeId >(int)TypeId::DOUBLE)
 				{
 					TypeInfo Type = VM->GetTypeInfoById(TypeId);
-					if (!Ref)
+					if (!Ref || VM->IsNullable(TypeId))
 					{
 						Result.Append("null");
 						return;
 					}
 
-					if (VM->IsNullable(TypeId))
-					{
-						if (TypeId == 0)
-							ED_WARN("[memerr] use nullptr instead of null for initialization lists");
-
-						Result.Append("null");
-					}
-					else if (TypeInfo::IsScriptObject(TypeId))
+					if (TypeInfo::IsScriptObject(TypeId))
 					{
 						ScriptObject VObject = *(asIScriptObject**)Ref;
 						Core::Parser Decl;
@@ -8617,38 +7985,6 @@ namespace Edge
 				Map::Setup(Engine);
 				return true;
 			}
-			bool Registry::LoadGrid(VirtualMachine* VM)
-			{
-#ifdef ED_HAS_BINDINGS
-				asIScriptEngine* Engine = VM->GetEngine();
-				if (!Engine)
-					return false;
-
-				Engine->RegisterObjectType("grid<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
-				Engine->RegisterObjectBehaviour("grid<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Grid::TemplateCallback), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("grid<T>", asBEHAVE_FACTORY, "grid<T>@ f(int&in)", asFUNCTIONPR(Grid::Create, (asITypeInfo*), Grid*), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("grid<T>", asBEHAVE_FACTORY, "grid<T>@ f(int&in, usize, usize)", asFUNCTIONPR(Grid::Create, (asITypeInfo*, size_t, size_t), Grid*), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("grid<T>", asBEHAVE_FACTORY, "grid<T>@ f(int&in, usize, usize, const T &in)", asFUNCTIONPR(Grid::Create, (asITypeInfo*, size_t, size_t, void*), Grid*), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("grid<T>", asBEHAVE_LIST_FACTORY, "grid<T>@ f(int&in Type, int&in InitList) {repeat {repeat_same T}}", asFUNCTIONPR(Grid::Create, (asITypeInfo*, void*), Grid*), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("grid<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(Grid, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("grid<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(Grid, Release), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("grid<T>", "T &opIndex(usize, usize)", asMETHODPR(Grid, At, (size_t, size_t), void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("grid<T>", "const T &opIndex(usize, usize) const", asMETHODPR(Grid, At, (size_t, size_t) const, const void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("grid<T>", "void resize(usize, usize)", asMETHODPR(Grid, Resize, (size_t, size_t), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("grid<T>", "usize width() const", asMETHOD(Grid, GetWidth), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("grid<T>", "usize height() const", asMETHOD(Grid, GetHeight), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("grid<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Grid, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("grid<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Grid, SetFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("grid<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Grid, GetFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("grid<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Grid, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("grid<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Grid, ReleaseAllHandles), asCALL_THISCALL);
-
-				return true;
-#else
-				ED_ASSERT(false, false, "<grid> is not loaded");
-				return false;
-#endif
-			}
 			bool Registry::LoadRef(VirtualMachine* VM)
 			{
 				asIScriptEngine* Engine = VM->GetEngine();
@@ -8927,18 +8263,9 @@ namespace Edge
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Promise, GetRefCount), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Promise, EnumReferences), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Promise, ReleaseReferences), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise<T>", "bool retrieve(?&out)", asMETHODPR(Promise, To, (void*, int), bool), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise<T>", "T& await()", asMETHOD(Promise, GetValue), asCALL_THISCALL);
-				Engine->RegisterObjectType("ref_promise<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
-				Engine->RegisterObjectBehaviour("ref_promise<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Array::TemplateCallback), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("ref_promise<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(Promise, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("ref_promise<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(Promise, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("ref_promise<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Promise, SetGCFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("ref_promise<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Promise, GetGCFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("ref_promise<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Promise, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("ref_promise<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Promise, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("ref_promise<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Promise, ReleaseReferences), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("ref_promise<T>", "T@+ await()", asMETHOD(Promise, GetHandle), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise<T>", "void wrap(?&in)", asMETHODPR(Promise, Store, (void*, int), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise<T>", "T& unwrap()", asMETHODPR(Promise, Retrieve, (), void*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise<T>", "promise<T>@+ yield()", asMETHOD(Promise, YieldIf), asCALL_THISCALL);
 
 				return true;
 			}
@@ -15216,6 +14543,73 @@ namespace Edge
 				ED_ASSERT(false, false, "<gui/context> is not loaded");
 				return false;
 #endif
+			}
+			bool Registry::MakePostprocess(std::string& Code)
+			{
+				const char Match[] = "co_await ";
+				size_t MatchSize = sizeof(Match) - 1;
+				size_t Offset = 0;
+
+				while (Offset < Code.size())
+				{
+					char U = Code[Offset];
+					if (U != '\"' && U != '\'')
+					{
+						if (Code.size() - Offset < MatchSize || memcmp(Code.c_str() + Offset, Match, MatchSize) != 0)
+						{
+							++Offset;
+							continue;
+						}
+					}
+					else
+					{
+						++Offset;
+						while (Offset < Code.size())
+						{
+							if (Code[Offset++] == U)
+								break;
+						}
+
+						continue;
+					}
+
+					size_t Start = Offset + MatchSize;
+					while (Start < Code.size())
+					{
+						char& V = Code[Start];
+						if (!isspace(V))
+							break;
+						++Start;
+					}
+
+					int32_t Brackets = 0;
+					size_t End = Start;
+					while (End < Code.size())
+					{
+						char& V = Code[End];
+						if (V == ')')
+						{
+							if (--Brackets < 0)
+								break;
+						}
+						else if (V == ';')
+							break;
+						else if (V == '(')
+							++Brackets;
+						End++;
+					}
+
+					if (End - Start > 0)
+					{
+						std::string Expression = Code.substr(Start, End - Start) + ".yield().unwrap()";
+						Core::Parser(&Code).ReplacePart(Offset, End, Expression);
+						Offset += Expression.size();
+					}
+					else
+						Offset = End;
+				}
+
+				return true;
 			}
 			bool Registry::Release()
 			{

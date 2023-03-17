@@ -35,7 +35,6 @@ namespace Edge
 				static bool LoadArray(VirtualMachine* VM);
 				static bool LoadComplex(VirtualMachine* VM);
 				static bool LoadMap(VirtualMachine* VM);
-				static bool LoadGrid(VirtualMachine* VM);
 				static bool LoadRef(VirtualMachine* VM);
 				static bool LoadWeakRef(VirtualMachine* VM);
 				static bool LoadMath(VirtualMachine* VM);
@@ -75,6 +74,7 @@ namespace Edge
 				static bool LoadUiModel(VirtualMachine* Engine);
 				static bool LoadUiControl(VirtualMachine* Engine);
 				static bool LoadUiContext(VirtualMachine* Engine);
+				static bool MakePostprocess(std::string& Code);
 				static bool Release();
 			};
 
@@ -725,10 +725,8 @@ namespace Edge
 				bool Pending;
 				bool Flag;
 
-			private:
-				Promise(asIScriptContext* Base, bool IsRef) noexcept;
-
 			public:
+				Promise(asIScriptContext* Base) noexcept;
 				void EnumReferences(asIScriptEngine* Engine);
 				void ReleaseReferences(asIScriptEngine* Engine);
 				void AddRef();
@@ -736,22 +734,35 @@ namespace Edge
 				void SetGCFlag();
 				bool GetGCFlag();
 				int GetRefCount();
-				int Set(void* Ref, int TypeId);
-				int Set(void* Ref, const char* TypeId);
-				bool To(void* fRef, int TypeId);
-				void* GetHandle();
-				void* GetValue();
-
-			private:
-				int Notify();
+				void Store(void* Ref, int TypeId);
+				void Store(void* Ref, const char* TypeId);
+				bool Retrieve(void* fRef, int TypeId);
+				void* Retrieve();
+				Promise* YieldIf();
 
 			public:
+				static Core::Unique<Promise> Create();
 				static std::string GetStatus(ImmediateContext* Context);
 
-			private:
-				static Core::Unique<Promise> Create();
-				static Core::Unique<Promise> CreateRef();
-				static Promise* JumpIf(Promise* Base);
+			public:
+				template <typename T>
+				static Core::Unique<Promise> Compose(Core::Promise<T>&& Value, TypeId Id)
+				{
+					Promise* Future = Promise::Create();
+					Value.Await([Future, Id](T&& Result)
+					{
+						Future->Store((void*)&Result, (int)Id);
+					});
+
+					return Future;
+				}
+				template <typename T>
+				static Core::Unique<Promise> Compose(Core::Promise<T>&& Value, const char* TypeName)
+				{
+					VirtualMachine* Engine = VirtualMachine::Get();
+					ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+					return Compose<T>(std::move(Value), Engine->GetTypeIdByDecl(TypeName));
+				}
 
 			public:
 				template <typename T, T>
@@ -763,28 +774,28 @@ namespace Edge
 				template <typename T, typename R, typename ...Args, Core::Promise<R>(T::* F)(Args...)>
 				struct Ify<Core::Promise<R>(T::*)(Args...), F>
 				{
-					template <TypeId TypeId>
+					template <TypeId Id>
 					static Promise* Id(T* Base, Args... Data)
 					{
 						Promise* Future = Promise::Create();
 						((Base->*F)(Data...)).Await([Future](R&& Result)
 						{
-							Future->Set((void*)&Result, (int)TypeId);
+							Future->Store((void*)&Result, (int)Id);
 						});
 
-						return JumpIf(Future);
+						return Future;
 					}
-					template <uint64_t TypeRef>
+					template <uint64_t Ref>
 					static Promise* Decl(T* Base, Args... Data)
 					{
 						Promise* Future = Promise::CreateRef();
-						int TypeId = TypeCache::GetTypeId(TypeRef);
-						((Base->*F)(Data...)).Await([Future, TypeId](R&& Result)
+						int Id = TypeCache::GetTypeId(Ref);
+						((Base->*F)(Data...)).Await([Future, Id](R&& Result)
 						{
-							Future->Set((void*)&Result, TypeId);
+							Future->Store((void*)&Result, Id);
 						});
 
-						return JumpIf(Future);
+						return Future;
 					}
 				};
 
@@ -833,63 +844,6 @@ namespace Edge
 
 			public:
 				static Mutex* Factory();
-			};
-
-			class ED_OUT Grid
-			{
-			public:
-				struct SBuffer
-				{
-					size_t Width;
-					size_t Height;
-					unsigned char Data[1];
-				};
-
-			protected:
-				mutable int RefCount;
-				mutable bool GCFlag;
-				asITypeInfo* ObjType;
-				SBuffer* Buffer;
-				int ElementSize;
-				int SubTypeId;
-
-			public:
-				void AddRef() const;
-				void Release() const;
-				asITypeInfo* GetGridObjectType() const;
-				int GetGridTypeId() const;
-				int GetElementTypeId() const;
-				size_t GetWidth() const;
-				size_t GetHeight() const;
-				void Resize(size_t Width, size_t Height);
-				void* At(size_t X, size_t Y);
-				const void* At(size_t X, size_t Y) const;
-				void  SetValue(size_t X, size_t Y, void* Value);
-				int GetRefCount();
-				void SetFlag();
-				bool GetFlag();
-				void EnumReferences(asIScriptEngine* Engine);
-				void ReleaseAllHandles(asIScriptEngine* Engine);
-
-			protected:
-				Grid(asITypeInfo* T, void* InitBuf) noexcept;
-				Grid(size_t W, size_t H, asITypeInfo* T) noexcept;
-				Grid(size_t W, size_t H, void* DefVal, asITypeInfo* T) noexcept;
-				~Grid() noexcept;
-				bool CheckMaxSize(size_t X, size_t Y);
-				void CreateBuffer(SBuffer** Buf, size_t W, size_t H);
-				void DeleteBuffer(SBuffer* Buf);
-				void Construct(SBuffer* Buf);
-				void Destruct(SBuffer* Buf);
-				void SetValue(SBuffer* Buf, size_t X, size_t Y, void* Value);
-				void* At(SBuffer* Buf, size_t X, size_t Y);
-
-			public:
-				static Core::Unique<Grid> Create(asITypeInfo* T);
-				static Core::Unique<Grid> Create(asITypeInfo* T, size_t Width, size_t Height);
-				static Core::Unique<Grid> Create(asITypeInfo* T, size_t Width, size_t Height, void* DefaultValue);
-				static Core::Unique<Grid> Create(asITypeInfo* T, void* ListBuffer);
-				static bool TemplateCallback(asITypeInfo* TI, bool& DontGarbageCollect);
 			};
 
 			class ED_OUT Complex

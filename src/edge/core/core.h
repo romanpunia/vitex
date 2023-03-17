@@ -184,6 +184,7 @@ typedef socklen_t socket_size_t;
 #define ED_ASSIGN(FromPtr, ToPtr) { (FromPtr) = ToPtr; if (FromPtr != nullptr) (FromPtr)->AddRef(); }
 #define ED_REASSIGN(FromPtr, ToPtr) { ED_RELEASE(FromPtr); (FromPtr) = ToPtr; if (FromPtr != nullptr) (FromPtr)->AddRef(); }
 #define ED_HASH(Name) Edge::Core::OS::File::GetCheckSum(Name)
+#define ED_STRINGIFY(Text) #Text
 #define ED_TIMING_ATOM (1)
 #define ED_TIMING_FRAME (5)
 #define ED_TIMING_CORE (16)

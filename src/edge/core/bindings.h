@@ -774,22 +774,22 @@ namespace Edge
 				template <typename T, typename R, typename ...Args, Core::Promise<R>(T::* F)(Args...)>
 				struct Ify<Core::Promise<R>(T::*)(Args...), F>
 				{
-					template <TypeId Id>
+					template <TypeId TypeID>
 					static Promise* Id(T* Base, Args... Data)
 					{
 						Promise* Future = Promise::Create();
 						((Base->*F)(Data...)).Await([Future](R&& Result)
 						{
-							Future->Store((void*)&Result, (int)Id);
+							Future->Store((void*)&Result, (int)TypeID);
 						});
 
 						return Future;
 					}
-					template <uint64_t Ref>
+					template <uint64_t TypeRef>
 					static Promise* Decl(T* Base, Args... Data)
 					{
 						Promise* Future = Promise::Create();
-						int Id = TypeCache::GetTypeId(Ref);
+						int Id = TypeCache::GetTypeId(TypeRef);
 						((Base->*F)(Data...)).Await([Future, Id](R&& Result)
 						{
 							Future->Store((void*)&Result, Id);
@@ -802,13 +802,13 @@ namespace Edge
 				template <typename R, typename ...Args, Core::Promise<R>(*F)(Args...)>
 				struct IfyStatic<Core::Promise<R>(*)(Args...), F>
 				{
-					template <TypeId TypeId>
+					template <TypeId TypeID>
 					static Promise* Id(Args... Data)
 					{
 						Promise* Future = Promise::Create();
 						((*F)(Data...)).Await([Future](R&& Result)
 						{
-							Future->Store((void*)&Result, (int)TypeId);
+							Future->Store((void*)&Result, (int)TypeID);
 						});
 
 						return Future;

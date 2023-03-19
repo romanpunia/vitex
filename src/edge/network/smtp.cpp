@@ -298,8 +298,8 @@ namespace Edge
 							PasswordLength = 16;
 						}
 
-						unsigned char IPad[65] = { 0 };
-						unsigned char OPad[65] = { 0 };
+						unsigned char IPad[65] = { };
+						unsigned char OPad[65] = { };
 						memcpy(IPad, UserPassword, (size_t)PasswordLength);
 						memcpy(OPad, UserPassword, (size_t)PasswordLength);
 
@@ -732,7 +732,7 @@ namespace Edge
 
 				It.Length -= Size;
 				if (!It.Length)
-					ED_CLOSE(AttachmentFile);
+					Core::OS::File::Close(AttachmentFile);
 
 				bool SendNext = (!It.Length);
 				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, SendNext](SocketPoll Event)

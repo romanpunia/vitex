@@ -1,5 +1,4 @@
 #include "mdb.h"
-#include <inttypes.h>
 extern "C"
 {
 #ifdef ED_HAS_MONGOC
@@ -43,7 +42,7 @@ namespace Edge
 					ED_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
 
 				if (Result || Error.code == 0)
-					ED_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR " (%llu ms)", (uintptr_t)Base, (uint64_t)((Core::Schedule::GetClock() - Time).count() / 1000));
+					ED_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Base, (uint64_t)((Core::Schedule::GetClock() - Time).count() / 1000));
 
 				return Result;
 			}
@@ -63,7 +62,7 @@ namespace Edge
 					ED_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
 					
 				if (Result || Error.code == 0)
-					ED_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR " (%llu ms)", (uintptr_t)Base, (uint64_t)((Core::Schedule::GetClock() - Time).count() / 1000));
+					ED_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Base, (uint64_t)((Core::Schedule::GetClock() - Time).count() / 1000));
 				
 				return Result;
 			}
@@ -488,7 +487,7 @@ namespace Edge
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
 				char Data[64];
-				snprintf(Data, 64, "%lld", Value);
+				snprintf(Data, 64, "%" PRId64 "", Value);
 
 				bson_decimal128_t Decimal;
 				bson_decimal128_from_string(Data, &Decimal);
@@ -3723,7 +3722,7 @@ namespace Edge
 				}
 
 				if (Count > 0)
-					ED_DEBUG("[pq] OK load %llu parsed query templates", (uint64_t)Count);
+					ED_DEBUG("[pq] OK load %" PRIu64 " parsed query templates", (uint64_t)Count);
 
 				return Count > 0;
 			}
@@ -3753,7 +3752,7 @@ namespace Edge
 					}
 				}
 
-				ED_DEBUG("[pq] OK save %llu parsed query templates", (uint64_t)Queries->Map.size());
+				ED_DEBUG("[pq] OK save %" PRIu64 " parsed query templates", (uint64_t)Queries->Map.size());
 				return Result;
 			}
 			Document Driver::GetQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once)

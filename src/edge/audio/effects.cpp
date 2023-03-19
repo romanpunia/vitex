@@ -108,7 +108,7 @@ namespace Edge
 				AudioFilter* Target = Core::Composer::Create<AudioFilter>(Id);
 				if (!Target)
 				{
-					ED_WARN("[audio] filter with id %llu cannot be created", Id);
+					ED_WARN("[audio] filter with id %" PRIu64 " cannot be created", Id);
 					return nullptr;
 				}
 

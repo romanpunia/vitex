@@ -1266,7 +1266,7 @@ namespace Edge
 				return;
 
 			socket_t OutFd = INVALID_SOCKET;
-			char OutAddr[INET6_ADDRSTRLEN] = { 0 };
+			char OutAddr[INET6_ADDRSTRLEN] = { };
 			char* RemoteAddr = (WithAddress ? OutAddr : nullptr);
 
 			while (Accept(&OutFd, RemoteAddr) == 0)
@@ -1422,7 +1422,7 @@ namespace Edge
 					Multiplexer::WhenWriteable(this, [this, TempBuffer, Stream, Offset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (Packet::IsDone(Event))
-						SendFileAsync(Stream, Offset, Size, std::move(Callback), ++TempBuffer);
+							SendFileAsync(Stream, Offset, Size, std::move(Callback), ++TempBuffer);
 						else if (Callback)
 							Callback(Event);
 					});

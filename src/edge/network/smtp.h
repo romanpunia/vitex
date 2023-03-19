@@ -49,7 +49,7 @@ namespace Edge
 				bool Authenticate = true;
 				bool NoNotification = false;
 				bool AllowHTML = false;
-				char RemoteAddress[48] = { 0 };
+				char RemoteAddress[48] = { };
 			};
 
 			class ED_OUT Client final : public SocketClient

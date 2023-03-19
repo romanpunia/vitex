@@ -335,7 +335,7 @@ namespace Edge
 					return;
 
 				std::string BackTrace = OS::GetMeasureTrace();
-				ED_WARN("[stall] operation took %llu ms (%llu us), back trace %s", Delta / 1000, Delta, BackTrace.c_str());
+				ED_WARN("[stall] operation took %" PRIu64 " ms (%" PRIu64 " us), back trace %s", Delta / 1000, Delta, BackTrace.c_str());
 			}
 		};
 #endif
@@ -2889,7 +2889,7 @@ namespace Edge
 		{
 			static const char* MonthNames[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
-			char Name[32] = { 0 };
+			char Name[32] = { };
 			int Second, Minute, Hour, Day, Year;
 			if (sscanf(Date, "%d/%3s/%d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6 && sscanf(Date, "%d %3s %d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6 && sscanf(Date, "%*3s, %d %3s %d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6 && sscanf(Date, "%d-%3s-%d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6)
 				return 0;
@@ -5412,7 +5412,7 @@ namespace Edge
 				{
 					char Date[64];
 					GetDateTime(It->second.Time, Date, sizeof(Date));
-					OS::Log(4, It->second.Line, It->second.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%llu bytes) at %s()", It->first, Date, It->second.TypeName.c_str(), (uint64_t)It->second.Size, It->second.Function);
+					OS::Log(4, It->second.Line, It->second.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", It->first, Date, It->second.TypeName.c_str(), (uint64_t)It->second.Size, It->second.Function);
 				}
 				OS::SetLogActive(IsLogActive);
 			}
@@ -5426,12 +5426,12 @@ namespace Edge
 				for (auto& Item : Buffers)
 					TotalMemory += Item.second.Size;
 
-				ED_DEBUG("[mem] %llu addresses are still used (%llu bytes)", (uint64_t)Buffers.size(), (uint64_t)TotalMemory);
+				ED_DEBUG("[mem] %" PRIu64 " addresses are still used (%" PRIu64 " bytes)", (uint64_t)Buffers.size(), (uint64_t)TotalMemory);
 				for (auto& Item : Buffers)
 				{
 					char Date[64];
 					GetDateTime(Item.second.Time, Date, sizeof(Date));
-					OS::Log(4, Item.second.Line, Item.second.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%llu bytes) at %s()", Item.first, Date, Item.second.TypeName.c_str(), (uint64_t)Item.second.Size, Item.second.Function);
+					OS::Log(4, Item.second.Line, Item.second.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", Item.first, Date, Item.second.TypeName.c_str(), (uint64_t)Item.second.Size, Item.second.Function);
 				}
 				OS::SetLogActive(IsLogActive);
 			}
@@ -5467,7 +5467,7 @@ namespace Edge
 		void* Mem::QueryMalloc(size_t Size, int Line, const char* Source, const char* Function, const char* TypeName) noexcept
 		{
 			void* Result = (OnAlloc ? OnAlloc(Size) : malloc(Size));
-			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to malloc %llu bytes", (uint64_t)Size);
+			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
 
 			Queue.lock();
 			Buffers[Result] = { TypeName ? TypeName : "void", Function ? Function : __func__, Source ? Source : __FILE__, Line > 0 ? Line : __LINE__, time(nullptr), Size, true };
@@ -5481,7 +5481,7 @@ namespace Edge
 				return Malloc(Size);
 
 			void* Result = (OnRealloc ? OnRealloc(Ptr, Size) : realloc(Ptr, Size));
-			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to realloc %llu bytes", (uint64_t)Size);
+			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to realloc %" PRIu64 " bytes", (uint64_t)Size);
 
 			Queue.lock();
 			Buffers[Result] = { TypeName ? TypeName : "void", Function ? Function : __func__, Source ? Source : __FILE__, Line > 0 ? Line : __LINE__, time(nullptr), Size, true };
@@ -5501,7 +5501,7 @@ namespace Edge
 		void* Mem::QueryMalloc(size_t Size) noexcept
 		{
 			void* Result = (OnAlloc ? OnAlloc(Size) : malloc(Size));
-			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to malloc %llu bytes", (uint64_t)Size);
+			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
 			return Result;
 		}
 		void* Mem::QueryRealloc(void* Ptr, size_t Size) noexcept
@@ -5510,7 +5510,7 @@ namespace Edge
 				return Malloc(Size);
 
 			void* Result = (OnRealloc ? OnRealloc(Ptr, Size) : realloc(Ptr, Size));
-			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to realloc %llu bytes", (uint64_t)Size);
+			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to realloc %" PRIu64 " bytes", (uint64_t)Size);
 			return Result;
 		}
 #endif
@@ -6120,7 +6120,7 @@ namespace Edge
 		{
 			if (Resource != nullptr)
 			{
-				ED_CLOSE(Resource);
+				OS::File::Close(Resource);
 				Resource = nullptr;
 			}
 
@@ -6223,7 +6223,7 @@ namespace Edge
 			Close();
 			if (!Path.empty())
 			{
-				ED_CLOSE((FILE*)OS::File::Open(Path.c_str(), "w"));
+				OS::File::Close(OS::File::Open(Path.c_str(), "w"));
 				Open(Path.c_str(), FileMode::Binary_Write_Only);
 			}
 		}
@@ -7154,31 +7154,23 @@ namespace Edge
 		{
 			ED_MEASURE(ED_TIMING_IO);
 #ifndef ED_HAS_SDL2
-			char Buffer[ED_MAX_PATH + 1] = { 0 };
+			char Buffer[ED_MAX_PATH + 1] = { };
 #ifdef ED_MICROSOFT
-			GetModuleFileNameA(nullptr, Buffer, ED_MAX_PATH);
-
-			std::string Result = Path::GetDirectory(Buffer);
-			memcpy(Buffer, Result.c_str(), sizeof(char) * Result.size());
-
-			if (Result.size() < ED_MAX_PATH)
-				Buffer[Result.size()] = '\0';
-#elif defined ED_UNIX
-			if (!getcwd(Buffer, ED_MAX_PATH))
+			if (GetModuleFileNameA(nullptr, Buffer, ED_MAX_PATH) == 0)
+				return std::string();
+#else
+			if (!getcwd(Buffer, sizeof(Buffer)))
 				return std::string();
 #endif
-			size_t Length = strlen(Buffer);
-			if (Length > 0 && Buffer[Length - 1] != '/' && Buffer[Length - 1] != '\\')
-			{
-				Buffer[Length] = '/';
-				Length++;
-			}
+			std::string Result = Path::GetDirectory(Buffer);
+			if (!Result.empty() && Result.back() != '/' && Result.back() != '\\')
+				Result += ED_PATH_SPLIT;
 
-			return std::string(Buffer, Length);
+			return Result;
 #else
-			char* Base = SDL_GetBasePath();
-			std::string Result = Base;
-			SDL_free(Base);
+			char* Buffer = SDL_GetBasePath();
+			std::string Result = Buffer;
+			SDL_free(Buffer);
 
 			return Result;
 #endif
@@ -7320,6 +7312,12 @@ namespace Edge
 			ED_MEASURE(ED_TIMING_IO);
 			return IsPathExists(OS::Path::Resolve(Path).c_str());
 		}
+		void OS::File::Close(void* Stream)
+		{
+			ED_ASSERT_V(Stream != nullptr, "stream should be set");
+			ED_DEBUG("[io] close fs %i", ED_FILENO((FILE*)Stream));
+			fclose((FILE*)Stream);
+		}
 		int OS::File::Compare(const std::string& FirstPath, const std::string& SecondPath)
 		{
 			ED_ASSERT(!FirstPath.empty(), -1, "first path should not be empty");
@@ -7340,7 +7338,7 @@ namespace Edge
 			FILE* Second = (FILE*)Open(SecondPath.c_str(), "rb");
 			if (!Second)
 			{
-				ED_CLOSE(First);
+				OS::File::Close(First);
 				return -1;
 			}
 
@@ -7367,8 +7365,8 @@ namespace Edge
 					Diff = -1;
 			} while (Diff == 0);
 
-			ED_CLOSE(First);
-			ED_CLOSE(Second);
+			OS::File::Close(First);
+			OS::File::Close(Second);
 			return Diff;
 		}
 		size_t OS::File::Join(const std::string& To, const std::vector<std::string>& Paths)
@@ -7436,13 +7434,13 @@ namespace Edge
 			Parser::ConvertToWide(Mode, strlen(Mode), Type, 20);
 
 			FILE* Stream = _wfopen(Buffer, Type);
-			ED_DEBUG("[io] open fs %s %s", Mode, Path);
+			ED_DEBUG("[io] open fs %i %s %s", ED_FILENO(Stream), Mode, Path);
 			return (void*)Stream;
 #else
 			FILE* Stream = fopen(Path, Mode);
 			if (Stream != nullptr)
 				fcntl(ED_FILENO(Stream), F_SETFD, FD_CLOEXEC);
-			ED_DEBUG("[io] open fs %s %s", Mode, Path);
+			ED_DEBUG("[io] open fs %i %s %s", ED_FILENO(Stream), Mode, Path);
 			return (void*)Stream;
 #endif
 		}
@@ -7626,20 +7624,15 @@ namespace Edge
 		{
 			ED_ASSERT(Path != nullptr, std::string(), "path should be set");
 			ED_MEASURE(ED_TIMING_IO);
+			char Buffer[ED_BIG_CHUNK_SIZE] = { };
 #ifdef ED_MICROSOFT
-			char Buffer[ED_BIG_CHUNK_SIZE] = { 0 };
 			if (GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr) == 0)
 				return Path;
-
-			return Buffer;
-#elif defined ED_UNIX
-			char Buffer[ED_BIG_CHUNK_SIZE] = { 0 };
+#else
 			if (!realpath(Path, Buffer))
 				return Path;
-
-			return Buffer;
 #endif
-			return Path;
+			return Buffer;
 		}
 		std::string OS::Path::Resolve(const std::string& Path, const std::string& Directory)
 		{
@@ -7764,7 +7757,7 @@ namespace Edge
 		bool OS::Net::GetETag(char* Buffer, size_t Length, int64_t LastModified, size_t ContentLength)
 		{
 			ED_ASSERT(Buffer != nullptr && Length > 0, false, "buffer should be set and size should be greater than Zero");
-			snprintf(Buffer, Length, "\"%lx.%llu\"", (unsigned long)LastModified, (uint64_t)ContentLength);
+			snprintf(Buffer, Length, "\"%lx.%" PRIu64 "\"", (unsigned long)LastModified, (uint64_t)ContentLength);
 			return true;
 		}
 		socket_t OS::Net::GetFd(FILE* Stream)
@@ -10030,7 +10023,7 @@ namespace Edge
 		}
 		Schema* Schema::GetAttribute(const std::string& Name) const
 		{
-			return Get("[" + Name + "]");
+			return Get(':' + Name);
 		}
 		Variant Schema::FetchVar(const std::string& fKey, bool Deep) const
 		{
@@ -10055,6 +10048,10 @@ namespace Edge
 				return Var::Undefined();
 
 			return Result->Value;
+		}
+		Variant Schema::GetAttributeVar(const std::string& Key) const
+		{
+			return GetVar(':' + Key);
 		}
 		Schema* Schema::Get(size_t Index) const
 		{
@@ -10165,11 +10162,11 @@ namespace Edge
 		}
 		Schema* Schema::SetAttribute(const std::string& Name, const Variant& fValue)
 		{
-			return Set("[" + Name + "]", fValue);
+			return Set(':' + Name, fValue);
 		}
 		Schema* Schema::SetAttribute(const std::string& Name, Variant&& fValue)
 		{
-			return Set("[" + Name + "]", std::move(fValue));
+			return Set(':' + Name, std::move(fValue));
 		}
 		Schema* Schema::Push(const Variant& Base)
 		{
@@ -10273,7 +10270,7 @@ namespace Edge
 			if (Key.size() < 2)
 				return false;
 
-			return (Key.front() == '[' && Key.back() == ']');
+			return Key.front() == ':';
 		}
 		bool Schema::IsSaved() const
 		{
@@ -10873,7 +10870,7 @@ namespace Edge
 			if (Version != JSONB_VERSION)
 			{
 				if (Assert)
-					ED_ERR("[jsonb] version %llu is not valid", Version);
+					ED_ERR("[jsonb] version %" PRIu64 " is not valid", Version);
 
 				return nullptr;
 			}

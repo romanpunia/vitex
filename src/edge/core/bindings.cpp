@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <sstream>
-#include <inttypes.h>
 #include <angelscript.h>
 #ifndef __psp2__
 #include <locale.h>
@@ -4680,7 +4679,7 @@ namespace Edge
 							Result.fAppend("%u", *(unsigned int*)Ref);
 							break;
 						case (int)TypeId::UINT64:
-							Result.fAppend("%llu", *(uint64_t*)Ref);
+							Result.fAppend("%" PRIu64, *(uint64_t*)Ref);
 							break;
 						case (int)TypeId::FLOAT:
 							Result.fAppend("%f", *(float*)Ref);
@@ -4810,7 +4809,7 @@ namespace Edge
 							Result.fAppend("%u", *(unsigned int*)Ref);
 							break;
 						case (int)TypeId::UINT64:
-							Result.fAppend("%llu", *(uint64_t*)Ref);
+							Result.fAppend("%" PRIu64, *(uint64_t*)Ref);
 							break;
 						case (int)TypeId::FLOAT:
 							Result.fAppend("%f", *(float*)Ref);
@@ -8500,6 +8499,7 @@ namespace Edge
 				VSchema.SetGcConstructorListEx<Core::Schema, Schema>("schema@ f(int &in) { repeat { string, ? } }", &SchemaConstruct);
 				VSchema.SetMethod<Core::Schema, Core::Variant, size_t>("variant getVar(usize) const", &Core::Schema::GetVar);
 				VSchema.SetMethod<Core::Schema, Core::Variant, const std::string&>("variant get_var(const string &in) const", &Core::Schema::GetVar);
+				VSchema.SetMethod<Core::Schema, Core::Variant, const std::string&>("variant get_attribute_var(const string &in) const", &Core::Schema::GetAttributeVar);
 				VSchema.SetMethod("schema@+ get_parent() const", &Core::Schema::GetParent);
 				VSchema.SetMethod("schema@+ get_attribute(const string &in) const", &Core::Schema::GetAttribute);
 				VSchema.SetMethod<Core::Schema, Core::Schema*, size_t>("schema@+ get(usize) const", &Core::Schema::Get);

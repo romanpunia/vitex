@@ -129,7 +129,6 @@ typedef socklen_t socket_size_t;
 #define ED_MEASURE(Threshold) ((void)0)
 #define ED_MEASURE_LOOP() ((void)0)
 #define ED_AWAIT(Value) Edge::Core::Coawait(Value)
-#define ED_CLOSE(Stream) fclose(Stream)
 #define ED_WATCH(Ptr, Label) ((void)0)
 #define ED_WATCH_AT(Ptr, Function, Label) ((void)0)
 #define ED_UNWATCH(Ptr) ((void)0)
@@ -166,7 +165,6 @@ typedef socklen_t socket_size_t;
 #define ED_MEASURE(Threshold) auto ED_MEASURE_PREPARE(__LINE__) = Edge::Core::OS::Measure(__FILE__, __func__, __LINE__, Threshold)
 #define ED_MEASURE_LOOP() Edge::Core::OS::MeasureLoop()
 #define ED_AWAIT(Value) Edge::Core::Coawait(Value, __func__, #Value)
-#define ED_CLOSE(Stream) { ED_DEBUG("[io] close fs %i", (int)ED_FILENO(Stream)); fclose(Stream); }
 #define ED_WATCH(Ptr, Label) Edge::Core::Mem::Watch(Ptr, __LINE__, __FILE__, __func__, Label)
 #define ED_WATCH_AT(Ptr, Function, Label) Edge::Core::Mem::Watch(Ptr, __LINE__, __FILE__, Function, Label)
 #define ED_UNWATCH(Ptr) Edge::Core::Mem::Unwatch(Ptr)
@@ -1067,6 +1065,7 @@ namespace Edge
 				static bool Move(const char* From, const char* To);
 				static bool Remove(const char* Path);
 				static bool IsExists(const char* Path);
+				static void Close(Unique<void> Stream);
 				static int Compare(const std::string& FirstPath, const std::string& SecondPath);
 				static size_t Join(const std::string& To, const std::vector<std::string>& Paths);
 				static uint64_t GetCheckSum(const std::string& Data);
@@ -1380,6 +1379,72 @@ namespace Edge
 				ED_ASSERT_V(__vcnt > 0, "[mem] address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
 				if (!--__vcnt)
 					delete (T*)this;
+			}
+		};
+
+		template <typename T>
+		class ED_OUT_TS UPtr
+		{
+		private:
+			T* Pointer;
+
+		public:
+			UPtr(T* NewPointer) noexcept : Pointer(NewPointer)
+			{
+			}
+			UPtr(const UPtr& Other) noexcept = delete;
+			UPtr(UPtr&& Other) noexcept : Pointer(Other.Pointer)
+			{
+				Other.Pointer = nullptr;
+			}
+			~UPtr()
+			{
+				Cleanup<T>();
+			}
+			UPtr& operator= (const UPtr& Other) noexcept = delete;
+			UPtr& operator= (UPtr&& Other) noexcept
+			{
+				if (this == &Other)
+					return *this;
+
+				Cleanup<T>();
+				Pointer = Other.Pointer;
+				Other.Pointer = nullptr;
+				return *this;
+			}
+			T* operator-> ()
+			{
+				ED_ASSERT(Pointer != nullptr, nullptr, "null pointer access");
+				return Pointer;
+			}
+			operator T* ()
+			{
+				return Pointer;
+			}
+			Unique<T> Reset()
+			{
+				T* Result = Pointer;
+				Pointer = nullptr;
+				return Result;
+			}
+
+		private:
+			template <typename Q>
+			inline typename std::enable_if<std::is_trivially_default_constructible<Q>::value && !std::is_base_of<Reference<Q>, Q>::value, void>::type Cleanup()
+			{
+				ED_FREE(Pointer);
+				Pointer = nullptr;
+			}
+			template <typename Q>
+			inline typename std::enable_if<!std::is_trivially_default_constructible<Q>::value && !std::is_base_of<Reference<Q>, Q>::value, void>::type Cleanup()
+			{
+				ED_DELETE(T, Pointer);
+				Pointer = nullptr;
+			}
+			template <typename Q>
+			inline typename std::enable_if<!std::is_trivially_default_constructible<Q>::value && std::is_base_of<Reference<Q>, Q>::value, void>::type Cleanup()
+			{
+				ED_CLEAR(Pointer);
 			}
 		};
 
@@ -1718,6 +1783,7 @@ namespace Edge
 			Variant FetchVar(const std::string& Key, bool Deep = false) const;
 			Variant GetVar(size_t Index) const;
 			Variant GetVar(const std::string& Key) const;
+			Variant GetAttributeVar(const std::string& Key) const;
 			Schema* GetParent() const;
 			Schema* GetAttribute(const std::string& Key) const;
 			Schema* Get(size_t Index) const;
@@ -2747,7 +2813,7 @@ namespace Edge
 			{
 				int64_t Diff = (Schedule::GetClock() - Time).count();
 				if (Diff > ED_TIMING_HANG * 1000)
-					ED_WARN("[stall] async operation took %llu ms (%llu us)\t\nwhere: %s\n\texpression: %s\n\texpected: %llu ms at most", Diff / 1000, Diff, Function, Expression, (uint64_t)ED_TIMING_HANG);
+					ED_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us)\t\nwhere: %s\n\texpression: %s\n\texpected: %" PRIu64 " ms at most", Diff / 1000, Diff, Function, Expression, (uint64_t)ED_TIMING_HANG);
 				ED_UNWATCH((void*)&Future);
 			}
 #endif

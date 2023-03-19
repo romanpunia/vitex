@@ -962,8 +962,8 @@ namespace Edge
 				ED_ASSERT_V(Count <= ED_MAX_UNITS, "slot should be less than or equal to %i", (int)ED_MAX_UNITS);
 
 				static ID3D11Buffer* IBuffers[ED_MAX_UNITS] = { nullptr };
-				static unsigned int Strides[ED_MAX_UNITS] = { 0 };
-				static unsigned int Offsets[ED_MAX_UNITS] = { 0 };
+				static unsigned int Strides[ED_MAX_UNITS] = { };
+				static unsigned int Offsets[ED_MAX_UNITS] = { };
 
 				for (unsigned int i = 0; i < Count; i++)
 				{

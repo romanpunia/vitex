@@ -1,6 +1,5 @@
 #include "scripting.h"
 #include "bindings.h"
-#include <inttypes.h>
 #include <iostream>
 #include <sstream>
 #ifndef ANGELSCRIPT_H 

@@ -1127,7 +1127,7 @@ namespace Edge
 				if (!DynamicLinkage)
 					return;
 
-				ED_ASSERT_V(Count <= Register.Layout->VertexLayout.size(), "too many vertex buffers are being bound: %llu out of %llu", (uint64_t)Count, (uint64_t)Register.Layout->VertexLayout.size());
+				ED_ASSERT_V(Count <= Register.Layout->VertexLayout.size(), "too many vertex buffers are being bound: %" PRIu64 " out of %" PRIu64, (uint64_t)Count, (uint64_t)Register.Layout->VertexLayout.size());
 				for (unsigned int i = 0; i < Count; i++)
 				{
 					OGLElementBuffer* IResource = IResources[i];

@@ -748,7 +748,7 @@ namespace Edge
 			if (!V)
 				return false;
 
-			*O = V->GetVar("[b]").GetBoolean();
+			*O = V->GetAttributeVar("b").GetBoolean();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, int* O)
@@ -757,7 +757,7 @@ namespace Edge
 			if (!V)
 				return false;
 
-			*O = (int)V->GetVar("[i]").GetInteger();
+			*O = (int)V->GetAttributeVar("i").GetInteger();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, unsigned int* O)
@@ -766,7 +766,7 @@ namespace Edge
 			if (!V)
 				return false;
 
-			*O = (unsigned int)V->GetVar("[i]").GetInteger();
+			*O = (unsigned int)V->GetAttributeVar("i").GetInteger();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, unsigned long* O)
@@ -775,7 +775,7 @@ namespace Edge
 			if (!V)
 				return false;
 
-			*O = (unsigned long)V->GetVar("[i]").GetInteger();
+			*O = (unsigned long)V->GetAttributeVar("i").GetInteger();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, float* O)
@@ -784,7 +784,7 @@ namespace Edge
 			if (!V)
 				return false;
 
-			*O = (float)V->GetVar("[n]").GetNumber();
+			*O = (float)V->GetAttributeVar("n").GetNumber();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, double* O)
@@ -793,7 +793,7 @@ namespace Edge
 			if (!V)
 				return false;
 
-			*O = (int)V->GetVar("[n]").GetNumber();
+			*O = (int)V->GetAttributeVar("n").GetNumber();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, long double* O)
@@ -802,7 +802,7 @@ namespace Edge
 			if (!V)
 				return false;
 
-			*O = V->GetVar("[n]").GetNumber();
+			*O = V->GetAttributeVar("n").GetNumber();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, int64_t* O)
@@ -811,7 +811,7 @@ namespace Edge
 			if (!V)
 				return false;
 
-			*O = V->GetVar("[i]").GetInteger();
+			*O = V->GetAttributeVar("i").GetInteger();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, unsigned long long* O)
@@ -820,7 +820,7 @@ namespace Edge
 			if (!V)
 				return false;
 
-			*O = (uint64_t)V->GetVar("[i]").GetInteger();
+			*O = (uint64_t)V->GetAttributeVar("i").GetInteger();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::Vector2* O)
@@ -829,8 +829,8 @@ namespace Edge
 			if (!V)
 				return false;
 
-			O->X = (float)V->GetVar("[x]").GetNumber();
-			O->Y = (float)V->GetVar("[y]").GetNumber();
+			O->X = (float)V->GetAttributeVar("x").GetNumber();
+			O->Y = (float)V->GetAttributeVar("y").GetNumber();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::Vector3* O)
@@ -839,9 +839,9 @@ namespace Edge
 			if (!V)
 				return false;
 
-			O->X = (float)V->GetVar("[x]").GetNumber();
-			O->Y = (float)V->GetVar("[y]").GetNumber();
-			O->Z = (float)V->GetVar("[z]").GetNumber();
+			O->X = (float)V->GetAttributeVar("x").GetNumber();
+			O->Y = (float)V->GetAttributeVar("y").GetNumber();
+			O->Z = (float)V->GetAttributeVar("z").GetNumber();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::Vector4* O)
@@ -850,10 +850,10 @@ namespace Edge
 			if (!V)
 				return false;
 
-			O->X = (float)V->GetVar("[x]").GetNumber();
-			O->Y = (float)V->GetVar("[y]").GetNumber();
-			O->Z = (float)V->GetVar("[z]").GetNumber();
-			O->W = (float)V->GetVar("[w]").GetNumber();
+			O->X = (float)V->GetAttributeVar("x").GetNumber();
+			O->Y = (float)V->GetAttributeVar("y").GetNumber();
+			O->Z = (float)V->GetAttributeVar("z").GetNumber();
+			O->W = (float)V->GetAttributeVar("w").GetNumber();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::Quaternion* O)
@@ -862,10 +862,10 @@ namespace Edge
 			if (!V)
 				return false;
 
-			O->X = (float)V->GetVar("[x]").GetNumber();
-			O->Y = (float)V->GetVar("[y]").GetNumber();
-			O->Z = (float)V->GetVar("[z]").GetNumber();
-			O->W = (float)V->GetVar("[w]").GetNumber();
+			O->X = (float)V->GetAttributeVar("x").GetNumber();
+			O->Y = (float)V->GetAttributeVar("y").GetNumber();
+			O->Z = (float)V->GetAttributeVar("z").GetNumber();
+			O->W = (float)V->GetAttributeVar("w").GetNumber();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::Matrix4x4* O)
@@ -874,22 +874,22 @@ namespace Edge
 			if (!V)
 				return false;
 
-			O->Row[0] = (float)V->GetVar("[m11]").GetNumber();
-			O->Row[1] = (float)V->GetVar("[m12]").GetNumber();
-			O->Row[2] = (float)V->GetVar("[m13]").GetNumber();
-			O->Row[3] = (float)V->GetVar("[m14]").GetNumber();
-			O->Row[4] = (float)V->GetVar("[m21]").GetNumber();
-			O->Row[5] = (float)V->GetVar("[m22]").GetNumber();
-			O->Row[6] = (float)V->GetVar("[m23]").GetNumber();
-			O->Row[7] = (float)V->GetVar("[m24]").GetNumber();
-			O->Row[8] = (float)V->GetVar("[m31]").GetNumber();
-			O->Row[9] = (float)V->GetVar("[m32]").GetNumber();
-			O->Row[10] = (float)V->GetVar("[m33]").GetNumber();
-			O->Row[11] = (float)V->GetVar("[m34]").GetNumber();
-			O->Row[12] = (float)V->GetVar("[m41]").GetNumber();
-			O->Row[13] = (float)V->GetVar("[m42]").GetNumber();
-			O->Row[14] = (float)V->GetVar("[m43]").GetNumber();
-			O->Row[15] = (float)V->GetVar("[m44]").GetNumber();
+			O->Row[0] = (float)V->GetAttributeVar("m11").GetNumber();
+			O->Row[1] = (float)V->GetAttributeVar("m12").GetNumber();
+			O->Row[2] = (float)V->GetAttributeVar("m13").GetNumber();
+			O->Row[3] = (float)V->GetAttributeVar("m14").GetNumber();
+			O->Row[4] = (float)V->GetAttributeVar("m21").GetNumber();
+			O->Row[5] = (float)V->GetAttributeVar("m22").GetNumber();
+			O->Row[6] = (float)V->GetAttributeVar("m23").GetNumber();
+			O->Row[7] = (float)V->GetAttributeVar("m24").GetNumber();
+			O->Row[8] = (float)V->GetAttributeVar("m31").GetNumber();
+			O->Row[9] = (float)V->GetAttributeVar("m32").GetNumber();
+			O->Row[10] = (float)V->GetAttributeVar("m33").GetNumber();
+			O->Row[11] = (float)V->GetAttributeVar("m34").GetNumber();
+			O->Row[12] = (float)V->GetAttributeVar("m41").GetNumber();
+			O->Row[13] = (float)V->GetAttributeVar("m42").GetNumber();
+			O->Row[14] = (float)V->GetAttributeVar("m43").GetNumber();
+			O->Row[15] = (float)V->GetAttributeVar("m44").GetNumber();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, Attenuation* O)
@@ -1032,19 +1032,19 @@ namespace Edge
 			if (!V)
 				return false;
 
-			O->PositionX = (float)V->GetVar("[px]").GetNumber();
-			O->PositionY = (float)V->GetVar("[py]").GetNumber();
-			O->PositionZ = (float)V->GetVar("[pz]").GetNumber();
-			O->VelocityX = (float)V->GetVar("[vx]").GetNumber();
-			O->VelocityY = (float)V->GetVar("[vy]").GetNumber();
-			O->VelocityZ = (float)V->GetVar("[vz]").GetNumber();
-			O->ColorX = (float)V->GetVar("[cx]").GetNumber();
-			O->ColorY = (float)V->GetVar("[cy]").GetNumber();
-			O->ColorZ = (float)V->GetVar("[cz]").GetNumber();
-			O->ColorW = (float)V->GetVar("[cw]").GetNumber();
-			O->Angular = (float)V->GetVar("[a]").GetNumber();
-			O->Scale = (float)V->GetVar("[s]").GetNumber();
-			O->Rotation = (float)V->GetVar("[r]").GetNumber();
+			O->PositionX = (float)V->GetAttributeVar("px").GetNumber();
+			O->PositionY = (float)V->GetAttributeVar("py").GetNumber();
+			O->PositionZ = (float)V->GetAttributeVar("pz").GetNumber();
+			O->VelocityX = (float)V->GetAttributeVar("vx").GetNumber();
+			O->VelocityY = (float)V->GetAttributeVar("vy").GetNumber();
+			O->VelocityZ = (float)V->GetAttributeVar("vz").GetNumber();
+			O->ColorX = (float)V->GetAttributeVar("cx").GetNumber();
+			O->ColorY = (float)V->GetAttributeVar("cy").GetNumber();
+			O->ColorZ = (float)V->GetAttributeVar("cz").GetNumber();
+			O->ColorW = (float)V->GetAttributeVar("cw").GetNumber();
+			O->Angular = (float)V->GetAttributeVar("a").GetNumber();
+			O->Scale = (float)V->GetAttributeVar("s").GetNumber();
+			O->Rotation = (float)V->GetAttributeVar("r").GetNumber();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::Vertex* O)
@@ -1053,20 +1053,20 @@ namespace Edge
 			if (!V)
 				return false;
 
-			O->PositionX = (float)V->GetVar("[px]").GetNumber();
-			O->PositionY = (float)V->GetVar("[py]").GetNumber();
-			O->PositionZ = (float)V->GetVar("[pz]").GetNumber();
-			O->TexCoordX = (float)V->GetVar("[tx]").GetNumber();
-			O->TexCoordY = (float)V->GetVar("[ty]").GetNumber();
-			O->NormalX = (float)V->GetVar("[nx]").GetNumber();
-			O->NormalY = (float)V->GetVar("[ny]").GetNumber();
-			O->NormalZ = (float)V->GetVar("[nz]").GetNumber();
-			O->TangentX = (float)V->GetVar("[tnx]").GetNumber();
-			O->TangentY = (float)V->GetVar("[tny]").GetNumber();
-			O->TangentZ = (float)V->GetVar("[tnz]").GetNumber();
-			O->BitangentX = (float)V->GetVar("[btx]").GetNumber();
-			O->BitangentY = (float)V->GetVar("[bty]").GetNumber();
-			O->BitangentZ = (float)V->GetVar("[btz]").GetNumber();
+			O->PositionX = (float)V->GetAttributeVar("px").GetNumber();
+			O->PositionY = (float)V->GetAttributeVar("py").GetNumber();
+			O->PositionZ = (float)V->GetAttributeVar("pz").GetNumber();
+			O->TexCoordX = (float)V->GetAttributeVar("tx").GetNumber();
+			O->TexCoordY = (float)V->GetAttributeVar("ty").GetNumber();
+			O->NormalX = (float)V->GetAttributeVar("nx").GetNumber();
+			O->NormalY = (float)V->GetAttributeVar("ny").GetNumber();
+			O->NormalZ = (float)V->GetAttributeVar("nz").GetNumber();
+			O->TangentX = (float)V->GetAttributeVar("tnx").GetNumber();
+			O->TangentY = (float)V->GetAttributeVar("tny").GetNumber();
+			O->TangentZ = (float)V->GetAttributeVar("tnz").GetNumber();
+			O->BitangentX = (float)V->GetAttributeVar("btx").GetNumber();
+			O->BitangentY = (float)V->GetAttributeVar("bty").GetNumber();
+			O->BitangentZ = (float)V->GetAttributeVar("btz").GetNumber();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::SkinVertex* O)
@@ -1075,28 +1075,28 @@ namespace Edge
 			if (!V)
 				return false;
 
-			O->PositionX = (float)V->GetVar("[px]").GetNumber();
-			O->PositionY = (float)V->GetVar("[py]").GetNumber();
-			O->PositionZ = (float)V->GetVar("[pz]").GetNumber();
-			O->TexCoordX = (float)V->GetVar("[tx]").GetNumber();
-			O->TexCoordY = (float)V->GetVar("[ty]").GetNumber();
-			O->NormalX = (float)V->GetVar("[nx]").GetNumber();
-			O->NormalY = (float)V->GetVar("[ny]").GetNumber();
-			O->NormalZ = (float)V->GetVar("[nz]").GetNumber();
-			O->TangentX = (float)V->GetVar("[tnx]").GetNumber();
-			O->TangentY = (float)V->GetVar("[tny]").GetNumber();
-			O->TangentZ = (float)V->GetVar("[tnz]").GetNumber();
-			O->BitangentX = (float)V->GetVar("[btx]").GetNumber();
-			O->BitangentY = (float)V->GetVar("[bty]").GetNumber();
-			O->BitangentZ = (float)V->GetVar("[btz]").GetNumber();
-			O->JointIndex0 = (float)V->GetVar("[ji0]").GetNumber();
-			O->JointIndex1 = (float)V->GetVar("[ji1]").GetNumber();
-			O->JointIndex2 = (float)V->GetVar("[ji2]").GetNumber();
-			O->JointIndex3 = (float)V->GetVar("[ji3]").GetNumber();
-			O->JointBias0 = (float)V->GetVar("[jb0]").GetNumber();
-			O->JointBias1 = (float)V->GetVar("[jb1]").GetNumber();
-			O->JointBias2 = (float)V->GetVar("[jb2]").GetNumber();
-			O->JointBias3 = (float)V->GetVar("[jb3]").GetNumber();
+			O->PositionX = (float)V->GetAttributeVar("px").GetNumber();
+			O->PositionY = (float)V->GetAttributeVar("py").GetNumber();
+			O->PositionZ = (float)V->GetAttributeVar("pz").GetNumber();
+			O->TexCoordX = (float)V->GetAttributeVar("tx").GetNumber();
+			O->TexCoordY = (float)V->GetAttributeVar("ty").GetNumber();
+			O->NormalX = (float)V->GetAttributeVar("nx").GetNumber();
+			O->NormalY = (float)V->GetAttributeVar("ny").GetNumber();
+			O->NormalZ = (float)V->GetAttributeVar("nz").GetNumber();
+			O->TangentX = (float)V->GetAttributeVar("tnx").GetNumber();
+			O->TangentY = (float)V->GetAttributeVar("tny").GetNumber();
+			O->TangentZ = (float)V->GetAttributeVar("tnz").GetNumber();
+			O->BitangentX = (float)V->GetAttributeVar("btx").GetNumber();
+			O->BitangentY = (float)V->GetAttributeVar("bty").GetNumber();
+			O->BitangentZ = (float)V->GetAttributeVar("btz").GetNumber();
+			O->JointIndex0 = (float)V->GetAttributeVar("ji0").GetNumber();
+			O->JointIndex1 = (float)V->GetAttributeVar("ji1").GetNumber();
+			O->JointIndex2 = (float)V->GetAttributeVar("ji2").GetNumber();
+			O->JointIndex3 = (float)V->GetAttributeVar("ji3").GetNumber();
+			O->JointBias0 = (float)V->GetAttributeVar("jb0").GetNumber();
+			O->JointBias1 = (float)V->GetAttributeVar("jb1").GetNumber();
+			O->JointBias2 = (float)V->GetAttributeVar("jb2").GetNumber();
+			O->JointBias3 = (float)V->GetAttributeVar("jb3").GetNumber();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, Ticker* O)
@@ -1105,7 +1105,7 @@ namespace Edge
 			if (!V)
 				return false;
 
-			O->Delay = (float)V->GetVar("[delay]").GetNumber();
+			O->Delay = (float)V->GetAttributeVar("delay").GetNumber();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, std::string* O)
@@ -1114,7 +1114,7 @@ namespace Edge
 			if (!V)
 				return false;
 
-			*O = V->GetVar("[s]").GetBlob();
+			*O = V->GetAttributeVar("s").GetBlob();
 			return true;
 		}
 		bool Series::Unpack(Core::Schema* V, std::vector<bool>* O)
@@ -5156,8 +5156,10 @@ namespace Edge
 			return Conf;
 		}
 
-		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) noexcept : Device(NewDevice), Base(Core::OS::Path::ResolveDirectory(Core::OS::Directory::Get().c_str())), Queue(0)
+		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) noexcept : Device(NewDevice), Queue(0)
 		{
+			std::string Directory = Core::OS::Directory::Get();
+			Base = Core::OS::Path::ResolveDirectory(Directory.c_str());
 			SetEnvironment(Base);
 		}
 		ContentManager::~ContentManager() noexcept

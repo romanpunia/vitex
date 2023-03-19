@@ -1,5 +1,4 @@
 #include "pdb.h"
-#include <inttypes.h>
 #ifdef ED_HAS_POSTGRESQL
 #include <libpq-fe.h>
 #endif
@@ -1952,7 +1951,7 @@ namespace Edge
 
 				Future.Set(Cursor());
 				ED_RELEASE(Next);
-				ED_ASSERT(false, Future, "[pq] transaction %llu does not exist", (void*)Session);
+				ED_ASSERT(false, Future, "[pq] transaction %" PRIu64 " does not exist", (void*)Session);
 #endif
 				return Future;
 			}
@@ -2288,7 +2287,7 @@ namespace Edge
 
 							if (!Results.IsError())
 							{
-								ED_DEBUG("[pq] OK execute on 0x%" PRIXPTR " (%llu ms)", (uintptr_t)Source, Item->GetTiming());
+								ED_DEBUG("[pq] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Source, Item->GetTiming());
 								TryUnassign(Source, Item);
 							}
 
@@ -2610,7 +2609,7 @@ namespace Edge
 				}
 
 				if (Count > 0)
-					ED_DEBUG("[pq] OK load %llu parsed query templates", (uint64_t)Count);
+					ED_DEBUG("[pq] OK load %" PRIu64 " parsed query templates", (uint64_t)Count);
 
 				return Count > 0;
 			}
@@ -2640,7 +2639,7 @@ namespace Edge
 					}
 				}
 
-				ED_DEBUG("[pq] OK save %llu parsed query templates", (uint64_t)Queries->Map.size());
+				ED_DEBUG("[pq] OK save %" PRIu64 " parsed query templates", (uint64_t)Queries->Map.size());
 				return Result;
 			}
 			std::string Driver::Emplace(Cluster* Base, const std::string& SQL, Core::SchemaList* Map, bool Once)
@@ -2659,7 +2658,7 @@ namespace Edge
 				{
 					if (Next >= Map->size())
 					{
-						ED_ERR("[pq] emplace query %.64s\n\texpects: at least %llu args", SQL.c_str(), (uint64_t)(Next)+1);
+						ED_ERR("[pq] emplace query %.64s\n\texpects: at least %" PRIu64 " args", SQL.c_str(), (uint64_t)(Next)+1);
 						break;
 					}
 

@@ -437,7 +437,7 @@ namespace Edge
 		public:
 			Socket* Stream = nullptr;
 			SocketListener* Host = nullptr;
-			char RemoteAddress[48] = { 0 };
+			char RemoteAddress[48] = { };
 			DataFrame Info;
 
 		public:

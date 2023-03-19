@@ -812,6 +812,7 @@ namespace Edge
 				static bool ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, size_t Range);
 				static bool ProcessResourceCache(Connection* Base);
 				static bool ProcessFile(Connection* Base, size_t ContentLength, size_t Range);
+				static bool ProcessFileStream(Connection* Base, FILE* Stream, size_t ContentLength, size_t Range);
 				static bool ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, size_t ContentLength);
 				static bool ProcessFileCompress(Connection* Base, size_t ContentLength, size_t Range, bool Gzip);
 				static bool ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, size_t ContentLength);
@@ -851,7 +852,7 @@ namespace Edge
 				Core::Promise<bool> Future;
 
             public:
-                char RemoteAddress[48] = { 0 };
+                char RemoteAddress[48] = { };
                 
 			public:
 				Client(int64_t ReadTimeout);

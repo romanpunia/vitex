@@ -972,7 +972,7 @@ namespace Edge
 								Component* Target = Core::Composer::Create<Component>(Id, Entity);
 								if (!Entity->AddComponent(Target))
 								{
-									ED_WARN("[engine] component with id %llu cannot be created", Id);
+									ED_WARN("[engine] component with id %" PRIu64 " cannot be created", Id);
 									continue;
 								}
 

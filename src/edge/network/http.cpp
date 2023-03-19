@@ -1,6 +1,5 @@
 #include "http.h"
 #include "../core/bindings.h"
-#include <inttypes.h>
 #ifdef ED_MICROSOFT
 #include <WS2tcpip.h>
 #include <io.h>
@@ -1585,7 +1584,7 @@ namespace Edge
 						if (fwrite(Buffer, 1, Recv, File) == Recv)
 							return true;
 
-						ED_CLOSE(File);
+						Core::OS::File::Close(File);
 						if (Callback)
 							Callback(nullptr);
 
@@ -1604,7 +1603,7 @@ namespace Edge
 						if (Callback)
 							Callback(nullptr);
 
-						ED_CLOSE(File);
+						Core::OS::File::Close(File);
 						return false;
 					}
 
@@ -1711,7 +1710,7 @@ namespace Edge
 						if (Route && Route->Callbacks.Headers)
 							Route->Callbacks.Headers(this, &Content);
 
-						Content.fAppend("Date: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\nContent-Length: %llu\r\n%s\r\n%s", Date, Util::ConnectionResolve(this).c_str(), Route ? Route->CharSet.c_str() : "utf-8", (uint64_t)strlen(Buffer), Auth.c_str(), Buffer);
+						Content.fAppend("Date: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\nContent-Length: %" PRIu64 "\r\n%s\r\n%s", Date, Util::ConnectionResolve(this).c_str(), Route ? Route->CharSet.c_str() : "utf-8", (uint64_t)strlen(Buffer), Auth.c_str(), Buffer);
 					}
 					else
 					{
@@ -1855,7 +1854,7 @@ namespace Edge
 					}
 
 					if (!Response.GetHeader("Content-Length"))
-						Chunked.fAppend("Content-Length: %llu\r\n", (uint64_t)Response.Content.Data.size());
+						Chunked.fAppend("Content-Length: %" PRIu64 "\r\n", (uint64_t)Response.Content.Data.size());
 				}
 				else if (!Response.GetHeader("Content-Length"))
 					Chunked.Append("Content-Length: 0\r\n", 19);
@@ -2261,7 +2260,7 @@ namespace Edge
 						fwrite(Buffer, Size, 1, Stream);
 				});
 
-				ED_CLOSE(Stream);
+				Core::OS::File::Close(Stream);
 				return true;
 			}
 			bool Session::Read(Connection* Base)
@@ -2276,21 +2275,21 @@ namespace Edge
 				fseek(Stream, 0, SEEK_END);
 				if (ftell(Stream) == 0)
 				{
-					ED_CLOSE(Stream);
+					Core::OS::File::Close(Stream);
 					return false;
 				}
 
 				fseek(Stream, 0, SEEK_SET);
 				if (fread(&SessionExpires, 1, sizeof(int64_t), Stream) != sizeof(int64_t))
 				{
-					ED_CLOSE(Stream);
+					Core::OS::File::Close(Stream);
 					return false;
 				}
 
 				if (SessionExpires <= time(nullptr))
 				{
 					SessionId.clear();
-					ED_CLOSE(Stream);
+					Core::OS::File::Close(Stream);
 
 					if (!Core::OS::File::Remove(Schema.c_str()))
 						ED_ERR("[http] session file %s cannot be deleted", Schema.c_str());
@@ -2313,7 +2312,7 @@ namespace Edge
 					Query = V;
 				}
 
-				ED_CLOSE(Stream);
+				Core::OS::File::Close(Stream);
 				return true;
 			}
 			std::string& Session::FindSessionId(Connection* Base)
@@ -3981,7 +3980,7 @@ namespace Edge
 				if (!Base->Route->StaticFileMaxAge)
 					return ConstructHeadUncache(Base, Buffer);
 
-				Buffer->fAppend("Cache-Control: max-age=%llu\r\n", Base->Route->StaticFileMaxAge);
+				Buffer->fAppend("Cache-Control: max-age=%" PRIu64 "\r\n", Base->Route->StaticFileMaxAge);
 			}
 			void Paths::ConstructHeadUncache(Connection* Base, Core::Parser* Buffer)
 			{
@@ -4194,7 +4193,7 @@ namespace Edge
 
 				if (Parser->Frame.Stream != nullptr)
 				{
-					ED_CLOSE(Parser->Frame.Stream);
+					Core::OS::File::Close(Parser->Frame.Stream);
 					Parser->Frame.Stream = nullptr;
 					return false;
 				}
@@ -4229,7 +4228,7 @@ namespace Edge
 				if (Parser->Frame.Ignore || !Parser->Frame.Stream || !Parser->Frame.Request)
 					return true;
 
-				ED_CLOSE(Parser->Frame.Stream);
+				Core::OS::File::Close(Parser->Frame.Stream);
 				Parser->Frame.Stream = nullptr;
 				Parser->Frame.Request->Content.Resources.push_back(Parser->Frame.Source);
 
@@ -4372,7 +4371,7 @@ namespace Edge
 				ED_ASSERT(Range1 != nullptr, 0, "range 1 should be set");
 				ED_ASSERT(Range2 != nullptr, 0, "range 2 should be set");
 
-				return sscanf(ContentRange, "bytes=%lld-%lld", Range1, Range2);
+				return sscanf(ContentRange, "bytes=%" PRId64 "-%" PRId64, Range1, Range2);
 			}
 			std::string Parsing::ParseMultipartDataBoundary()
 			{
@@ -4767,13 +4766,13 @@ namespace Edge
 						Base->Response.StatusCode = 206;
 #ifdef ED_MICROSOFT
 					if (_lseeki64(ED_FILENO(Stream), Range1, SEEK_SET) != 0)
-						return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
+						return Base->Error(416, "Invalid content range offset (%" PRId64 ") was specified.", Range1);
 #elif defined(ED_APPLE)
 					if (fseek(Stream, Range1, SEEK_SET) != 0)
-						return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
+						return Base->Error(416, "Invalid content range offset (%" PRId64 ") was specified.", Range1);
 #else
 					if (lseek64(ED_FILENO(Stream), Range1, SEEK_SET) != 0)
-						return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
+						return Base->Error(416, "Invalid content range offset (%" PRId64 ") was specified.", Range1);
 #endif
 				}
 				else
@@ -4794,7 +4793,7 @@ namespace Edge
 						Core::Parser Content;
 						Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
 
-						ED_CLOSE(Stream);
+						Core::OS::File::Close(Stream);
 						if (Base->Route->Callbacks.Headers)
 							Base->Route->Callbacks.Headers(Base, nullptr);
 
@@ -4809,11 +4808,11 @@ namespace Edge
 					}
 					else if (Packet::IsError(Event))
 					{
-						ED_CLOSE(Stream);
+						Core::OS::File::Close(Stream);
 						return Base->Break();
 					}
 					else if (Packet::IsSkip(Event))
-						ED_CLOSE(Stream);
+						Core::OS::File::Close(Stream);
 
 					return true;
 				});
@@ -5035,7 +5034,7 @@ namespace Edge
 					}
 				}
 #endif
-				Content.fAppend("Content-Length: %llu\r\n\r\n", (uint64_t)Base->Response.Content.Data.size());
+				Content.fAppend("Content-Length: %" PRIu64 "\r\n\r\n", (uint64_t)Base->Response.Content.Data.size());
 				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
@@ -5064,7 +5063,7 @@ namespace Edge
 				int64_t Range1 = 0, Range2 = 0, Count = 0;
 				int64_t ContentLength = (int64_t)Base->Resource.Size;
 
-				char ContentRange[128] = { 0 };
+				char ContentRange[128] = { };
 				if (Range != nullptr && (Count = Parsing::ParseContentRange(Range, &Range1, &Range2)) > 0 && Range1 >= 0 && Range2 >= 0)
 				{
 					if (Count == 2)
@@ -5072,7 +5071,7 @@ namespace Edge
 					else
 						ContentLength -= Range1;
 
-					snprintf(ContentRange, sizeof(ContentRange), "Content-Range: bytes %lld-%lld/%lld\r\n", Range1, Range1 + ContentLength - 1, (int64_t)Base->Resource.Size);
+					snprintf(ContentRange, sizeof(ContentRange), "Content-Range: bytes %" PRId64 "-%" PRId64 "/%" PRId64 "\r\n", Range1, Range1 + ContentLength - 1, (int64_t)Base->Resource.Size);
 					StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error ? Base->Response.StatusCode : 206));
 				}
 #ifdef ED_HAS_ZLIB
@@ -5121,7 +5120,7 @@ namespace Edge
 				Content.fAppend("Accept-Ranges: bytes\r\n"
 					"Last-Modified: %s\r\nEtag: %s\r\n"
 					"Content-Type: %s; charset=%s\r\n"
-					"Content-Length: %lld\r\n"
+					"Content-Length: %" PRId64 "\r\n"
 					"%s%s\r\n", LastModified, ETag, ContentType, Base->Route->CharSet.c_str(), ContentLength, Util::ConnectionResolve(Base).c_str(), ContentRange);
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
@@ -5274,42 +5273,46 @@ namespace Edge
 
                 if (Base->Route->AllowSendFile)
                 {
-                    int64_t Result = Base->Stream->SendFileAsync(Stream, Range, ContentLength, [Base, Stream](SocketPoll Event)
+                    int64_t Result = Base->Stream->SendFileAsync(Stream, Range, ContentLength, [Base, Stream, ContentLength, Range](SocketPoll Event)
                     {
                         if (Packet::IsDone(Event))
                         {
-                            ED_CLOSE(Stream);
+                            Core::OS::File::Close(Stream);
                             Base->Finish();
                         }
                         else if (Packet::IsError(Event))
-                        {
-                            ED_CLOSE(Stream);
-                            Base->Break();
-                        }
+							ProcessFileStream(Base, Stream, ContentLength, Range);
                         else if (Packet::IsSkip(Event))
-                            ED_CLOSE(Stream);
+                            Core::OS::File::Close(Stream);
                     });
                     
                     if (Result != -3)
                         return true;
                 }
+
+				return ProcessFileStream(Base, Stream, ContentLength, Range);
+			}
+			bool Logical::ProcessFileStream(Connection* Base, FILE* Stream, size_t ContentLength, size_t Range)
+			{
+				ED_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				ED_ASSERT(Stream != nullptr, false, "stream should be set");
 #ifdef ED_MICROSOFT
 				if (Range > 0 && _lseeki64(ED_FILENO(Stream), Range, SEEK_SET) == -1)
 				{
-					ED_CLOSE(Stream);
-					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
+					Core::OS::File::Close(Stream);
+					return Base->Error(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
 				}
 #elif defined(ED_APPLE)
 				if (Range > 0 && fseek(Stream, Range, SEEK_SET) == -1)
 				{
-					ED_CLOSE(Stream);
-					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
+					Core::OS::File::Close(Stream);
+					return Base->Error(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
 				}
 #else
 				if (Range > 0 && lseek64(ED_FILENO(Stream), Range, SEEK_SET) == -1)
 				{
-					ED_CLOSE(Stream);
-					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
+					Core::OS::File::Close(Stream);
+					return Base->Error(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
 				}
 #endif
                 return ProcessFileChunk(Base, Base->Root, Stream, ContentLength);
@@ -5325,7 +5328,7 @@ namespace Edge
 				if (!ContentLength || Router->State != ServerState::Working)
 				{
 				Cleanup:
-					ED_CLOSE(Stream);
+					Core::OS::File::Close(Stream);
 					if (Router->State != ServerState::Working)
 						return Base->Break();
 
@@ -5348,11 +5351,11 @@ namespace Edge
 					}
 					else if (Packet::IsError(Event))
 					{
-						ED_CLOSE(Stream);
+						Core::OS::File::Close(Stream);
 						Base->Break();
 					}
 					else if (Packet::IsSkip(Event))
-                        ED_CLOSE(Stream);
+                        Core::OS::File::Close(Stream);
 				});
                 
                 if (Result >= 0 && false)
@@ -5405,20 +5408,20 @@ namespace Edge
 #ifdef ED_MICROSOFT
 				if (Range > 0 && _lseeki64(ED_FILENO(Stream), Range, SEEK_SET) == -1)
 				{
-					ED_CLOSE(Stream);
-					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
+					Core::OS::File::Close(Stream);
+					return Base->Error(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
 				}
 #elif defined(ED_APPLE)
 				if (Range > 0 && fseek(Stream, Range, SEEK_SET) == -1)
 				{
-					ED_CLOSE(Stream);
-					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
+					Core::OS::File::Close(Stream);
+					return Base->Error(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
 				}
 #else
 				if (Range > 0 && lseek64(ED_FILENO(Stream), Range, SEEK_SET) == -1)
 				{
-					ED_CLOSE(Stream);
-					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
+					Core::OS::File::Close(Stream);
+					return Base->Error(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
 				}
 #endif
 #ifdef ED_HAS_ZLIB
@@ -5430,14 +5433,14 @@ namespace Edge
 
 				if (deflateInit2(ZStream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? MAX_WBITS + 16 : MAX_WBITS), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) != Z_OK)
 				{
-					ED_CLOSE(Stream);
+					Core::OS::File::Close(Stream);
 					ED_FREE(ZStream);
 					return Base->Break();
 				}
 
 				return ProcessFileCompressChunk(Base, Server, Stream, ZStream, ContentLength);
 #else
-				ED_CLOSE(Stream);
+				Core::OS::File::Close(Stream);
 				return Base->Error(500, "Cannot process gzip stream.");
 #endif
 			}
@@ -5448,7 +5451,7 @@ namespace Edge
 				ED_ASSERT(Stream != nullptr, false, "stream should be set");
 				ED_ASSERT(CStream != nullptr, false, "cstream should be set");
 #ifdef ED_HAS_ZLIB
-#define FREE_STREAMING { ED_CLOSE(Stream); deflateEnd(ZStream); ED_FREE(ZStream); }
+#define FREE_STREAMING { Core::OS::File::Close(Stream); deflateEnd(ZStream); ED_FREE(ZStream); }
 				z_stream* ZStream = (z_stream*)CStream;
             Retry:
                 char Buffer[ED_BIG_CHUNK_SIZE + GZ_HEADER_SIZE], Deflate[ED_BIG_CHUNK_SIZE];
@@ -5571,13 +5574,13 @@ namespace Edge
 
 						if (fread(Buffer, 1, (size_t)Size, Stream) != (size_t)Size)
 						{
-							ED_CLOSE(Stream);
+							Core::OS::File::Close(Stream);
 							ED_FREE(Buffer);
 							return (void)Base->Error(500, "Gateway resource stream exception.");
 						}
 
 						Buffer[Size] = '\0';
-						ED_CLOSE(Stream);
+						Core::OS::File::Close(Stream);
 					}
 
 					Core::Schedule::Get()->SetTask([Base, Compiler, Buffer, Size]()

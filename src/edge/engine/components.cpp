@@ -2488,7 +2488,7 @@ namespace Edge
 						Audio::AudioEffect* Target = Core::Composer::Create<Audio::AudioEffect>(Id);
 						if (!Target)
 						{
-							ED_WARN("[engine] audio effect with id %llu cannot be created", Id);
+							ED_WARN("[engine] audio effect with id %" PRIu64 " cannot be created", Id);
 							continue;
 						}
 
@@ -3336,7 +3336,7 @@ namespace Edge
 					Engine::Renderer* Target = Core::Composer::Create<Engine::Renderer>(Id, Renderer);
 					if (!Renderer->AddRenderer(Target))
 					{
-						ED_WARN("[engine] cannot create renderer with id %llu", Id);
+						ED_WARN("[engine] cannot create renderer with id %" PRIu64, Id);
 						continue;
 					}
 

@@ -89,7 +89,7 @@ namespace Edge
 				uint64_t High;
 				uint64_t Low;
 				double Number;
-				unsigned char ObjectId[12] = { 0 };
+				unsigned char ObjectId[12] = { };
 				bool Boolean;
 				bool IsValid;
 

@@ -5067,13 +5067,13 @@ namespace Edge
 		char* MD5Hasher::HexDigest() const
 		{
 			ED_ASSERT(Finalized, nullptr, "md5 hash should be finalized");
-			char* Output = ED_MALLOC(char, sizeof(char) * 33);
-			memset((void*)Output, 0, 33);
-			for (int i = 0; i < 16; i++)
-				snprintf(Output + i * 2, 2, "%02x", Digest[i]);
-			Output[32] = '\0';
+			char* Data = ED_MALLOC(char, sizeof(char) * 48);
+			memset(Data, 0, sizeof(char) * 48);
 
-			return Output;
+			for (size_t i = 0; i < 16; i++)
+				snprintf(Data + i * 2, 4, "%02x", (unsigned int)Digest[i]);
+
+			return Data;
 		}
 		unsigned char* MD5Hasher::RawDigest() const
 		{
@@ -5087,10 +5087,11 @@ namespace Edge
 		std::string MD5Hasher::ToHex() const
 		{
 			ED_ASSERT(Finalized, std::string(), "md5 hash should be finalized");
-			char Data[33];
-			for (int i = 0; i < 16; i++)
-				snprintf(Data + i * 2, 2, "%02x", Digest[i]);
-			Data[32] = 0;
+			char Data[48];
+			memset(Data, 0, sizeof(Data));
+
+			for (size_t i = 0; i < 16; i++)
+				snprintf(Data + i * 2, 4, "%02x", (unsigned int)Digest[i]);
 
 			return Data;
 		}

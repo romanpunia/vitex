@@ -4054,7 +4054,7 @@ namespace Edge
 			Engine->AddSubmodule("std/math", { }, Bindings::Registry::LoadMath);
 			Engine->AddSubmodule("std/string", { "std/array" }, Bindings::Registry::LoadString);
 			Engine->AddSubmodule("std/random", { "std/string" }, Bindings::Registry::LoadRandom);
-			Engine->AddSubmodule("std/map", { "std/array", "std/string" }, Bindings::Registry::LoadMap);
+			Engine->AddSubmodule("std/dictionary", { "std/array", "std/string" }, Bindings::Registry::LoadDictionary);
 			Engine->AddSubmodule("std/exception", { "std/string" }, Bindings::Registry::LoadException);
 			Engine->AddSubmodule("std/mutex", { }, Bindings::Registry::LoadMutex);
 			Engine->AddSubmodule("std/thread", { "std/any", "std/string" }, Bindings::Registry::LoadThread);
@@ -4064,7 +4064,7 @@ namespace Edge
 			Engine->AddSubmodule("std/variant", { "std/string", "std/decimal" }, Bindings::Registry::LoadVariant);
 			Engine->AddSubmodule("std/timestamp", { "std/string" }, Bindings::Registry::LoadTimestamp);
 			Engine->AddSubmodule("std/console", { "std/format" }, Bindings::Registry::LoadConsole);
-			Engine->AddSubmodule("std/schema", { "std/array", "std/string", "std/map", "std/variant" }, Bindings::Registry::LoadSchema);
+			Engine->AddSubmodule("std/schema", { "std/array", "std/string", "std/dictionary", "std/variant" }, Bindings::Registry::LoadSchema);
 			Engine->AddSubmodule("std/schedule", { "std/ctypes" }, Bindings::Registry::LoadSchedule);
 			Engine->AddSubmodule("std/clock_timer", { }, Bindings::Registry::LoadClockTimer);
 			Engine->AddSubmodule("std/file_system", { "std/string" }, Bindings::Registry::LoadFileSystem);
@@ -4081,7 +4081,7 @@ namespace Edge
 			Engine->AddSubmodule("std/audio", { "std/string", "std/vectors" }, Bindings::Registry::LoadAudio);
 			Engine->AddSubmodule("std/activity", { "std/string", "std/vectors" }, Bindings::Registry::LoadActivity);
 			Engine->AddSubmodule("std/graphics", { "std/activity", "std/string", "std/vectors", "std/vertices", "std/shapes", "std/key_frames" }, Bindings::Registry::LoadGraphics);
-			Engine->AddSubmodule("std/network", { "std/string", "std/array", "std/map" }, Bindings::Registry::LoadNetwork);
+			Engine->AddSubmodule("std/network", { "std/string", "std/array", "std/dictionary" }, Bindings::Registry::LoadNetwork);
 			Engine->AddSubmodule("std/vm", { "std/string" }, Bindings::Registry::LoadVM);
 			Engine->AddSubmodule("std/gui/control", { "std/vectors", "std/schema", "std/array" }, Bindings::Registry::LoadUiControl);
 			Engine->AddSubmodule("std/gui/model", { "std/gui/control", }, Bindings::Registry::LoadUiModel);

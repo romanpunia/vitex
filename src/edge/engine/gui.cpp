@@ -3529,7 +3529,7 @@ namespace Edge
 			void Context::EmitKey(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
 			{
 #ifdef ED_USE_RMLUI
-				if (Key == Graphics::KeyCode::CURSORLEFT)
+				if (Key == Graphics::KeyCode::CursorLeft)
 				{
 					if (Pressed)
 					{
@@ -3542,7 +3542,7 @@ namespace Edge
 							Inputs.Cursor = true;
 					}
 				}
-				else if (Key == Graphics::KeyCode::CURSORRIGHT)
+				else if (Key == Graphics::KeyCode::CursorRight)
 				{
 					if (Pressed)
 					{
@@ -3555,7 +3555,7 @@ namespace Edge
 							Inputs.Cursor = true;
 					}
 				}
-				else if (Key == Graphics::KeyCode::CURSORMIDDLE)
+				else if (Key == Graphics::KeyCode::CursorMiddle)
 				{
 					if (Pressed)
 					{
@@ -4297,7 +4297,7 @@ namespace Edge
 				using namespace Rml::Input;
 				switch (Key)
 				{
-					case Graphics::KeyCode::SPACE:
+					case Graphics::KeyCode::Space:
 						return KI_SPACE;
 					case Graphics::KeyCode::D0:
 						return KI_0;
@@ -4371,89 +4371,89 @@ namespace Edge
 						return KI_Y;
 					case Graphics::KeyCode::Z:
 						return KI_Z;
-					case Graphics::KeyCode::SEMICOLON:
+					case Graphics::KeyCode::Semicolon:
 						return KI_OEM_1;
-					case Graphics::KeyCode::COMMA:
+					case Graphics::KeyCode::Comma:
 						return KI_OEM_COMMA;
-					case Graphics::KeyCode::MINUS:
+					case Graphics::KeyCode::Minus:
 						return KI_OEM_MINUS;
-					case Graphics::KeyCode::PERIOD:
+					case Graphics::KeyCode::Period:
 						return KI_OEM_PERIOD;
-					case Graphics::KeyCode::SLASH:
+					case Graphics::KeyCode::Slash:
 						return KI_OEM_2;
-					case Graphics::KeyCode::LEFTBRACKET:
+					case Graphics::KeyCode::LeftBracket:
 						return KI_OEM_4;
-					case Graphics::KeyCode::BACKSLASH:
+					case Graphics::KeyCode::Backslash:
 						return KI_OEM_5;
-					case Graphics::KeyCode::RIGHTBRACKET:
+					case Graphics::KeyCode::RightBracket:
 						return KI_OEM_6;
-					case Graphics::KeyCode::KP_0:
+					case Graphics::KeyCode::Kp0:
 						return KI_NUMPAD0;
-					case Graphics::KeyCode::KP_1:
+					case Graphics::KeyCode::Kp1:
 						return KI_NUMPAD1;
-					case Graphics::KeyCode::KP_2:
+					case Graphics::KeyCode::Kp2:
 						return KI_NUMPAD2;
-					case Graphics::KeyCode::KP_3:
+					case Graphics::KeyCode::Kp3:
 						return KI_NUMPAD3;
-					case Graphics::KeyCode::KP_4:
+					case Graphics::KeyCode::Kp4:
 						return KI_NUMPAD4;
-					case Graphics::KeyCode::KP_5:
+					case Graphics::KeyCode::Kp5:
 						return KI_NUMPAD5;
-					case Graphics::KeyCode::KP_6:
+					case Graphics::KeyCode::Kp6:
 						return KI_NUMPAD6;
-					case Graphics::KeyCode::KP_7:
+					case Graphics::KeyCode::Kp7:
 						return KI_NUMPAD7;
-					case Graphics::KeyCode::KP_8:
+					case Graphics::KeyCode::Kp8:
 						return KI_NUMPAD8;
-					case Graphics::KeyCode::KP_9:
+					case Graphics::KeyCode::Kp9:
 						return KI_NUMPAD9;
-					case Graphics::KeyCode::KP_ENTER:
+					case Graphics::KeyCode::KpEnter:
 						return KI_NUMPADENTER;
-					case Graphics::KeyCode::KP_MULTIPLY:
+					case Graphics::KeyCode::KpMultiply:
 						return KI_MULTIPLY;
-					case Graphics::KeyCode::KP_PLUS:
+					case Graphics::KeyCode::KpPlus:
 						return KI_ADD;
-					case Graphics::KeyCode::KP_MINUS:
+					case Graphics::KeyCode::KpMinus:
 						return KI_SUBTRACT;
-					case Graphics::KeyCode::KP_PERIOD:
+					case Graphics::KeyCode::KpPeriod:
 						return KI_DECIMAL;
-					case Graphics::KeyCode::KP_DIVIDE:
+					case Graphics::KeyCode::KpDivide:
 						return KI_DIVIDE;
-					case Graphics::KeyCode::KP_EQUALS:
+					case Graphics::KeyCode::KpEquals:
 						return KI_OEM_NEC_EQUAL;
-					case Graphics::KeyCode::BACKSPACE:
+					case Graphics::KeyCode::Backspace:
 						return KI_BACK;
-					case Graphics::KeyCode::TAB:
+					case Graphics::KeyCode::Tab:
 						return KI_TAB;
-					case Graphics::KeyCode::CLEAR:
+					case Graphics::KeyCode::Clear:
 						return KI_CLEAR;
-					case Graphics::KeyCode::RETURN:
+					case Graphics::KeyCode::Return:
 						return KI_RETURN;
-					case Graphics::KeyCode::PAUSE:
+					case Graphics::KeyCode::Pause:
 						return KI_PAUSE;
-					case Graphics::KeyCode::CAPSLOCK:
+					case Graphics::KeyCode::Capslock:
 						return KI_CAPITAL;
-					case Graphics::KeyCode::PAGEUP:
+					case Graphics::KeyCode::PageUp:
 						return KI_PRIOR;
-					case Graphics::KeyCode::PAGEDOWN:
+					case Graphics::KeyCode::PageDown:
 						return KI_NEXT;
-					case Graphics::KeyCode::END:
+					case Graphics::KeyCode::End:
 						return KI_END;
-					case Graphics::KeyCode::HOME:
+					case Graphics::KeyCode::Home:
 						return KI_HOME;
-					case Graphics::KeyCode::LEFT:
+					case Graphics::KeyCode::Left:
 						return KI_LEFT;
-					case Graphics::KeyCode::UP:
+					case Graphics::KeyCode::Up:
 						return KI_UP;
-					case Graphics::KeyCode::RIGHT:
+					case Graphics::KeyCode::Right:
 						return KI_RIGHT;
-					case Graphics::KeyCode::DOWN:
+					case Graphics::KeyCode::Down:
 						return KI_DOWN;
-					case Graphics::KeyCode::INSERT:
+					case Graphics::KeyCode::Insert:
 						return KI_INSERT;
-					case Graphics::KeyCode::DELETEKEY:
+					case Graphics::KeyCode::Delete:
 						return KI_DELETE;
-					case Graphics::KeyCode::HELP:
+					case Graphics::KeyCode::Help:
 						return KI_HELP;
 					case Graphics::KeyCode::F1:
 						return KI_F1;
@@ -4485,25 +4485,25 @@ namespace Edge
 						return KI_F14;
 					case Graphics::KeyCode::F15:
 						return KI_F15;
-					case Graphics::KeyCode::NUMLOCKCLEAR:
+					case Graphics::KeyCode::NumLockClear:
 						return KI_NUMLOCK;
-					case Graphics::KeyCode::SCROLLLOCK:
+					case Graphics::KeyCode::ScrollLock:
 						return KI_SCROLL;
-					case Graphics::KeyCode::LSHIFT:
+					case Graphics::KeyCode::LeftShift:
 						return KI_LSHIFT;
-					case Graphics::KeyCode::RSHIFT:
+					case Graphics::KeyCode::RightShift:
 						return KI_RSHIFT;
-					case Graphics::KeyCode::LCTRL:
+					case Graphics::KeyCode::LeftControl:
 						return KI_LCONTROL;
-					case Graphics::KeyCode::RCTRL:
+					case Graphics::KeyCode::RightControl:
 						return KI_RCONTROL;
-					case Graphics::KeyCode::LALT:
+					case Graphics::KeyCode::LeftAlt:
 						return KI_LMENU;
-					case Graphics::KeyCode::RALT:
+					case Graphics::KeyCode::RightAlt:
 						return KI_RMENU;
-					case Graphics::KeyCode::LGUI:
+					case Graphics::KeyCode::LeftGUI:
 						return KI_LMETA;
-					case Graphics::KeyCode::RGUI:
+					case Graphics::KeyCode::RightGUI:
 						return KI_RMETA;
 					default:
 						return KI_UNKNOWN;
@@ -4516,13 +4516,13 @@ namespace Edge
 			{
 #ifdef ED_USE_RMLUI
 				int Result = 0;
-				if ((size_t)Mod & (size_t)Graphics::KeyMod::CTRL)
+				if ((size_t)Mod & (size_t)Graphics::KeyMod::Control)
 					Result |= Rml::Input::KM_CTRL;
 
-				if ((size_t)Mod & (size_t)Graphics::KeyMod::SHIFT)
+				if ((size_t)Mod & (size_t)Graphics::KeyMod::Shift)
 					Result |= Rml::Input::KM_SHIFT;
 
-				if ((size_t)Mod & (size_t)Graphics::KeyMod::ALT)
+				if ((size_t)Mod & (size_t)Graphics::KeyMod::Alt)
 					Result |= Rml::Input::KM_ALT;
 
 				return Result;

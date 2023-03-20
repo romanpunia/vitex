@@ -2335,7 +2335,7 @@ namespace Edge
 				return Base;
 			}
 
-			FreeLook::FreeLook(Entity* Ref) : Component(Ref, ActorSet::Update), Rotate(Graphics::KeyCode::CURSORRIGHT), Sensivity(0.005f)
+			FreeLook::FreeLook(Entity* Ref) : Component(Ref, ActorSet::Update), Rotate(Graphics::KeyCode::CursorRight), Sensivity(0.005f)
 			{
 			}
 			void FreeLook::Update(Core::Timer* Time)
@@ -3789,10 +3789,10 @@ namespace Edge
 					if (Invoke == InvokeType::Typeless)
 						return;
 
-					Scripting::Bindings::Map* Map = Scripting::Bindings::Map::Create(Compiler->GetVM()->GetEngine());
+					Scripting::Bindings::Dictionary* Map = Scripting::Bindings::Dictionary::Create(Compiler->GetVM()->GetEngine());
 					if (Map != nullptr)
 					{
-						int TypeId = Compiler->GetVM()->GetTypeIdByDecl("Variant");
+						int TypeId = Compiler->GetVM()->GetTypeIdByDecl("variant");
 						for (auto& Item : Args)
 						{
 							Core::Variant Next = std::move(Item.second);

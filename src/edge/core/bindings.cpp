@@ -18,7 +18,7 @@
 #define MAP_CACHE 1003
 #define TYPENAME_ARRAY "array"
 #define TYPENAME_STRING "string"
-#define TYPENAME_MAP "map"
+#define TYPENAME_DICTIONARY "dictionary"
 #define TYPENAME_ANY "any"
 #define TYPENAME_CLOSURE "closure"
 #define TYPENAME_THREAD "thread"
@@ -730,7 +730,7 @@ namespace Edge
 			Any::Any(asIScriptEngine* _Engine) noexcept : RefCount(1), GCFlag(false), Engine(_Engine) 
 			{
 				Value.TypeId = 0;
-				Value.ValueInt = 0;
+				Value.Integer = 0;
 				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_ANY));
 			}
 			Any::Any(void* Ref, int RefTypeId, asIScriptEngine* _Engine) noexcept : Any(_Engine)
@@ -749,13 +749,13 @@ namespace Edge
 				Value.TypeId = Other.Value.TypeId;
 				if (Value.TypeId & asTYPEID_OBJHANDLE)
 				{
-					Value.ValueObj = Other.Value.ValueObj;
-					Engine->AddRefScriptObject(Value.ValueObj, Engine->GetTypeInfoById(Value.TypeId));
+					Value.Object = Other.Value.Object;
+					Engine->AddRefScriptObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 				}
 				else if (Value.TypeId & asTYPEID_MASK_OBJECT)
-					Value.ValueObj = Engine->CreateScriptObjectCopy(Other.Value.ValueObj, Engine->GetTypeInfoById(Value.TypeId));
+					Value.Object = Engine->CreateScriptObjectCopy(Other.Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 				else
-					Value.ValueInt = Other.Value.ValueInt;
+					Value.Integer = Other.Value.Integer;
 			}
 			Any::~Any() noexcept
 			{
@@ -775,13 +775,13 @@ namespace Edge
 
 				if (Value.TypeId & asTYPEID_OBJHANDLE)
 				{
-					Value.ValueObj = Other.Value.ValueObj;
-					Engine->AddRefScriptObject(Value.ValueObj, Engine->GetTypeInfoById(Value.TypeId));
+					Value.Object = Other.Value.Object;
+					Engine->AddRefScriptObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 				}
 				else if (Value.TypeId & asTYPEID_MASK_OBJECT)
-					Value.ValueObj = Engine->CreateScriptObjectCopy(Other.Value.ValueObj, Engine->GetTypeInfoById(Value.TypeId));
+					Value.Object = Engine->CreateScriptObjectCopy(Other.Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 				else
-					Value.ValueInt = Other.Value.ValueInt;
+					Value.Integer = Other.Value.Integer;
 
 				return *this;
 			}
@@ -807,18 +807,18 @@ namespace Edge
 
 				if (Value.TypeId & asTYPEID_OBJHANDLE)
 				{
-					Value.ValueObj = *(void**)Ref;
-					Engine->AddRefScriptObject(Value.ValueObj, Engine->GetTypeInfoById(Value.TypeId));
+					Value.Object = *(void**)Ref;
+					Engine->AddRefScriptObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 				}
 				else if (Value.TypeId & asTYPEID_MASK_OBJECT)
 				{
-					Value.ValueObj = Engine->CreateScriptObjectCopy(Ref, Engine->GetTypeInfoById(Value.TypeId));
+					Value.Object = Engine->CreateScriptObjectCopy(Ref, Engine->GetTypeInfoById(Value.TypeId));
 				}
 				else
 				{
-					Value.ValueInt = 0;
+					Value.Integer = 0;
 					int Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
-					memcpy(&Value.ValueInt, Ref, Size);
+					memcpy(&Value.Integer, Ref, Size);
 				}
 			}
 			bool Any::Retrieve(void* Ref, int RefTypeId) const
@@ -830,7 +830,7 @@ namespace Edge
 						if ((Value.TypeId & asTYPEID_HANDLETOCONST) && !(RefTypeId & asTYPEID_HANDLETOCONST))
 							return false;
 
-						Engine->RefCastObject(Value.ValueObj, Engine->GetTypeInfoById(Value.TypeId), Engine->GetTypeInfoById(RefTypeId), reinterpret_cast<void**>(Ref));
+						Engine->RefCastObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId), Engine->GetTypeInfoById(RefTypeId), reinterpret_cast<void**>(Ref));
 						if (*(asPWORD*)Ref == 0)
 							return false;
 
@@ -841,7 +841,7 @@ namespace Edge
 				{
 					if (Value.TypeId == RefTypeId)
 					{
-						Engine->AssignScriptObject(Ref, Value.ValueObj, Engine->GetTypeInfoById(Value.TypeId));
+						Engine->AssignScriptObject(Ref, Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 						return true;
 					}
 				}
@@ -851,7 +851,7 @@ namespace Edge
 					int Size2 = Engine->GetSizeOfPrimitiveType(RefTypeId);
 					if (Size1 == Size2)
 					{
-						memcpy(Ref, &Value.ValueInt, Size1);
+						memcpy(Ref, &Value.Integer, Size1);
 						return true;
 					}
 				}
@@ -867,24 +867,24 @@ namespace Edge
 				if (Value.TypeId & asTYPEID_MASK_OBJECT)
 				{
 					asITypeInfo* T = Engine->GetTypeInfoById(Value.TypeId);
-					Engine->ReleaseScriptObject(Value.ValueObj, T);
+					Engine->ReleaseScriptObject(Value.Object, T);
 
 					if (T)
 						T->Release();
 
-					Value.ValueObj = 0;
+					Value.Object = 0;
 					Value.TypeId = 0;
 				}
 			}
 			void Any::EnumReferences(asIScriptEngine* InEngine)
 			{
-				if (Value.ValueObj && (Value.TypeId & asTYPEID_MASK_OBJECT))
+				if (Value.Object && (Value.TypeId & asTYPEID_MASK_OBJECT))
 				{
 					asITypeInfo* SubType = Engine->GetTypeInfoById(Value.TypeId);
 					if ((SubType->GetFlags() & asOBJ_REF))
-						InEngine->GCEnumCallback(Value.ValueObj);
+						InEngine->GCEnumCallback(Value.Object);
 					else if ((SubType->GetFlags() & asOBJ_VALUE) && (SubType->GetFlags() & asOBJ_GC))
-						Engine->ForwardGCEnumReferences(Value.ValueObj, SubType);
+						Engine->ForwardGCEnumReferences(Value.Object, SubType);
 
 					asITypeInfo* T = InEngine->GetTypeInfoById(Value.TypeId);
 					if (T != nullptr)
@@ -2265,54 +2265,52 @@ namespace Edge
 				return true;
 			}
 
-			MapKey::MapKey() noexcept : TypeId(0)
+			Storable::Storable() noexcept
 			{
-				ValueObj = 0;
 			}
-			MapKey::MapKey(asIScriptEngine* Engine, void* Value, int _TypeId) noexcept : MapKey()
+			Storable::Storable(asIScriptEngine* Engine, void* Value, int _TypeId) noexcept
 			{
 				Set(Engine, Value, _TypeId);
 			}
-			MapKey::~MapKey() noexcept
+			Storable::~Storable() noexcept
 			{
-				if (ValueObj && TypeId)
+				if (Value.Object && Value.TypeId)
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context != nullptr)
 						FreeValue(Context->GetEngine());
 				}
 			}
-			void MapKey::FreeValue(asIScriptEngine* Engine)
+			void Storable::FreeValue(asIScriptEngine* Engine)
 			{
-				if (TypeId & asTYPEID_MASK_OBJECT)
+				if (Value.TypeId & asTYPEID_MASK_OBJECT)
 				{
-					Engine->ReleaseScriptObject(ValueObj, Engine->GetTypeInfoById(TypeId));
-					ValueObj = 0;
-					TypeId = 0;
+					Engine->ReleaseScriptObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId));
+					Value.Clean();
 				}
 			}
-			void MapKey::EnumReferences(asIScriptEngine* _Engine)
+			void Storable::EnumReferences(asIScriptEngine* _Engine)
 			{
-				if (ValueObj)
-					_Engine->GCEnumCallback(ValueObj);
+				if (Value.Object != nullptr)
+					_Engine->GCEnumCallback(Value.Object);
 
-				if (TypeId)
-					_Engine->GCEnumCallback(_Engine->GetTypeInfoById(TypeId));
+				if (Value.TypeId)
+					_Engine->GCEnumCallback(_Engine->GetTypeInfoById(Value.TypeId));
 			}
-			void MapKey::Set(asIScriptEngine* Engine, void* Value, int _TypeId)
+			void Storable::Set(asIScriptEngine* Engine, void* Pointer, int _TypeId)
 			{
 				FreeValue(Engine);
-				TypeId = _TypeId;
+				Value.TypeId = _TypeId;
 
-				if (TypeId & asTYPEID_OBJHANDLE)
+				if (Value.TypeId & asTYPEID_OBJHANDLE)
 				{
-					ValueObj = *(void**)Value;
-					Engine->AddRefScriptObject(ValueObj, Engine->GetTypeInfoById(TypeId));
+					Value.Object = *(void**)Pointer;
+					Engine->AddRefScriptObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 				}
-				else if (TypeId & asTYPEID_MASK_OBJECT)
+				else if (Value.TypeId & asTYPEID_MASK_OBJECT)
 				{
-					ValueObj = Engine->CreateScriptObjectCopy(Value, Engine->GetTypeInfoById(TypeId));
-					if (ValueObj == 0)
+					Value.Object = Engine->CreateScriptObjectCopy(Pointer, Engine->GetTypeInfoById(Value.TypeId));
+					if (Value.Object == 0)
 					{
 						asIScriptContext* Context = asGetActiveContext();
 						if (Context)
@@ -2321,74 +2319,74 @@ namespace Edge
 				}
 				else
 				{
-					int Size = Engine->GetSizeOfPrimitiveType(TypeId);
-					memcpy(&ValueInt, Value, Size);
+					int Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
+					memcpy(&Value.Integer, Pointer, Size);
 				}
 			}
-			void MapKey::Set(asIScriptEngine* Engine, MapKey& Value)
+			void Storable::Set(asIScriptEngine* Engine, Storable& Other)
 			{
-				if (Value.TypeId & asTYPEID_OBJHANDLE)
-					Set(Engine, (void*)&Value.ValueObj, Value.TypeId);
-				else if (Value.TypeId & asTYPEID_MASK_OBJECT)
-					Set(Engine, (void*)Value.ValueObj, Value.TypeId);
+				if (Other.Value.TypeId & asTYPEID_OBJHANDLE)
+					Set(Engine, (void*)&Other.Value.Object, Other.Value.TypeId);
+				else if (Other.Value.TypeId & asTYPEID_MASK_OBJECT)
+					Set(Engine, (void*)Other.Value.Object, Other.Value.TypeId);
 				else
-					Set(Engine, (void*)&Value.ValueInt, Value.TypeId);
+					Set(Engine, (void*)&Other.Value.Integer, Other.Value.TypeId);
 			}
-			bool MapKey::Get(asIScriptEngine* Engine, void* Value, int _TypeId) const
+			bool Storable::Get(asIScriptEngine* Engine, void* Pointer, int _TypeId) const
 			{
 				if (_TypeId & asTYPEID_OBJHANDLE)
 				{
 					if ((_TypeId & asTYPEID_MASK_OBJECT))
 					{
-						if ((TypeId & asTYPEID_HANDLETOCONST) && !(_TypeId & asTYPEID_HANDLETOCONST))
+						if ((Value.TypeId & asTYPEID_HANDLETOCONST) && !(_TypeId & asTYPEID_HANDLETOCONST))
 							return false;
 
-						Engine->RefCastObject(ValueObj, Engine->GetTypeInfoById(TypeId), Engine->GetTypeInfoById(_TypeId), reinterpret_cast<void**>(Value));
+						Engine->RefCastObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId), Engine->GetTypeInfoById(_TypeId), reinterpret_cast<void**>(Pointer));
 						return true;
 					}
 				}
 				else if (_TypeId & asTYPEID_MASK_OBJECT)
 				{
 					bool isCompatible = false;
-					if ((TypeId & ~(asTYPEID_OBJHANDLE | asTYPEID_HANDLETOCONST)) == _TypeId && ValueObj != 0)
+					if ((Value.TypeId & ~(asTYPEID_OBJHANDLE | asTYPEID_HANDLETOCONST)) == _TypeId && Value.Object != 0)
 						isCompatible = true;
 
 					if (isCompatible)
 					{
-						Engine->AssignScriptObject(Value, ValueObj, Engine->GetTypeInfoById(TypeId));
+						Engine->AssignScriptObject(Pointer, Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 						return true;
 					}
 				}
 				else
 				{
-					if (TypeId == _TypeId)
+					if (Value.TypeId == _TypeId)
 					{
 						int Size = Engine->GetSizeOfPrimitiveType(_TypeId);
-						memcpy(Value, &ValueInt, Size);
+						memcpy(Pointer, &Value.Integer, Size);
 						return true;
 					}
 
 					if (_TypeId == asTYPEID_DOUBLE)
 					{
-						if (TypeId == asTYPEID_INT64)
+						if (Value.TypeId == asTYPEID_INT64)
 						{
-							*(double*)Value = double(ValueInt);
+							*(double*)Pointer = double(Value.Integer);
 						}
-						else if (TypeId == asTYPEID_BOOL)
+						else if (Value.TypeId == asTYPEID_BOOL)
 						{
-							char localValue;
-							memcpy(&localValue, &ValueInt, sizeof(char));
-							*(double*)Value = localValue ? 1.0 : 0.0;
+							char Local;
+							memcpy(&Local, &Value.Integer, sizeof(char));
+							*(double*)Pointer = Local ? 1.0 : 0.0;
 						}
-						else if (TypeId > asTYPEID_DOUBLE && (TypeId & asTYPEID_MASK_OBJECT) == 0)
+						else if (Value.TypeId > asTYPEID_DOUBLE && (Value.TypeId & asTYPEID_MASK_OBJECT) == 0)
 						{
-							int localValue;
-							memcpy(&localValue, &ValueInt, sizeof(int));
-							*(double*)Value = double(localValue);
+							int Local;
+							memcpy(&Local, &Value.Integer, sizeof(int));
+							*(double*)Pointer = double(Local);
 						}
 						else
 						{
-							*(double*)Value = 0;
+							*(double*)Pointer = 0;
 							return false;
 						}
 
@@ -2396,55 +2394,55 @@ namespace Edge
 					}
 					else if (_TypeId == asTYPEID_INT64)
 					{
-						if (TypeId == asTYPEID_DOUBLE)
+						if (Value.TypeId == asTYPEID_DOUBLE)
 						{
-							*(as_int64_t*)Value = as_int64_t(ValueFlt);
+							*(as_int64_t*)Pointer = as_int64_t(Value.Number);
 						}
-						else if (TypeId == asTYPEID_BOOL)
+						else if (Value.TypeId == asTYPEID_BOOL)
 						{
-							char LocalValue;
-							memcpy(&LocalValue, &ValueInt, sizeof(char));
-							*(as_int64_t*)Value = LocalValue ? 1 : 0;
+							char Local;
+							memcpy(&Local, &Value.Integer, sizeof(char));
+							*(as_int64_t*)Pointer = Local ? 1 : 0;
 						}
-						else if (TypeId > asTYPEID_DOUBLE && (TypeId & asTYPEID_MASK_OBJECT) == 0)
+						else if (Value.TypeId > asTYPEID_DOUBLE && (Value.TypeId & asTYPEID_MASK_OBJECT) == 0)
 						{
-							int LocalValue;
-							memcpy(&LocalValue, &ValueInt, sizeof(int));
-							*(as_int64_t*)Value = LocalValue;
+							int Local;
+							memcpy(&Local, &Value.Integer, sizeof(int));
+							*(as_int64_t*)Pointer = Local;
 						}
 						else
 						{
-							*(as_int64_t*)Value = 0;
+							*(as_int64_t*)Pointer = 0;
 							return false;
 						}
 
 						return true;
 					}
-					else if (_TypeId > asTYPEID_DOUBLE && (TypeId & asTYPEID_MASK_OBJECT) == 0)
+					else if (_TypeId > asTYPEID_DOUBLE && (Value.TypeId & asTYPEID_MASK_OBJECT) == 0)
 					{
-						if (TypeId == asTYPEID_DOUBLE)
+						if (Value.TypeId == asTYPEID_DOUBLE)
 						{
-							*(int*)Value = int(ValueFlt);
+							*(int*)Pointer = int(Value.Number);
 						}
-						else if (TypeId == asTYPEID_INT64)
+						else if (Value.TypeId == asTYPEID_INT64)
 						{
-							*(int*)Value = int(ValueInt);
+							*(int*)Pointer = int(Value.Integer);
 						}
-						else if (TypeId == asTYPEID_BOOL)
+						else if (Value.TypeId == asTYPEID_BOOL)
 						{
-							char LocalValue;
-							memcpy(&LocalValue, &ValueInt, sizeof(char));
-							*(int*)Value = LocalValue ? 1 : 0;
+							char Local;
+							memcpy(&Local, &Value.Integer, sizeof(char));
+							*(int*)Pointer = Local ? 1 : 0;
 						}
-						else if (TypeId > asTYPEID_DOUBLE && (TypeId & asTYPEID_MASK_OBJECT) == 0)
+						else if (Value.TypeId > asTYPEID_DOUBLE && (Value.TypeId & asTYPEID_MASK_OBJECT) == 0)
 						{
-							int LocalValue;
-							memcpy(&LocalValue, &ValueInt, sizeof(int));
-							*(int*)Value = LocalValue;
+							int Local;
+							memcpy(&Local, &Value.Integer, sizeof(int));
+							*(int*)Pointer = Local;
 						}
 						else
 						{
-							*(int*)Value = 0;
+							*(int*)Pointer = 0;
 							return false;
 						}
 
@@ -2452,19 +2450,19 @@ namespace Edge
 					}
 					else if (_TypeId == asTYPEID_BOOL)
 					{
-						if (TypeId & asTYPEID_OBJHANDLE)
+						if (Value.TypeId & asTYPEID_OBJHANDLE)
 						{
-							*(bool*)Value = ValueObj ? true : false;
+							*(bool*)Pointer = Value.Object ? true : false;
 						}
-						else if (TypeId & asTYPEID_MASK_OBJECT)
+						else if (Value.TypeId & asTYPEID_MASK_OBJECT)
 						{
-							*(bool*)Value = true;
+							*(bool*)Pointer = true;
 						}
 						else
 						{
 							as_uint64_t Zero = 0;
-							int Size = Engine->GetSizeOfPrimitiveType(TypeId);
-							*(bool*)Value = memcmp(&ValueInt, &Zero, Size) == 0 ? false : true;
+							int Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
+							*(bool*)Pointer = memcmp(&Value.Integer, &Zero, Size) == 0 ? false : true;
 						}
 
 						return true;
@@ -2473,68 +2471,68 @@ namespace Edge
 
 				return false;
 			}
-			const void* MapKey::GetAddressOfValue() const
+			const void* Storable::GetAddressOfValue() const
 			{
-				if ((TypeId & asTYPEID_MASK_OBJECT) && !(TypeId & asTYPEID_OBJHANDLE))
-					return ValueObj;
+				if ((Value.TypeId & asTYPEID_MASK_OBJECT) && !(Value.TypeId & asTYPEID_OBJHANDLE))
+					return Value.Object;
 
-				return reinterpret_cast<const void*>(&ValueObj);
+				return reinterpret_cast<const void*>(&Value.Object);
 			}
-			int MapKey::GetTypeId() const
+			int Storable::GetTypeId() const
 			{
-				return TypeId;
+				return Value.TypeId;
 			}
 
-			Map::LocalIterator::LocalIterator(const Map& Dict, InternalMap::const_iterator It) noexcept : It(It), Dict(Dict)
+			Dictionary::LocalIterator::LocalIterator(const Dictionary& From, InternalMap::const_iterator It) noexcept : It(It), Base(From)
 			{
 			}
-			void Map::LocalIterator::operator++()
+			void Dictionary::LocalIterator::operator++()
 			{
 				++It;
 			}
-			void Map::LocalIterator::operator++(int)
+			void Dictionary::LocalIterator::operator++(int)
 			{
 				++It;
 			}
-			Map::LocalIterator& Map::LocalIterator::operator*()
+			Dictionary::LocalIterator& Dictionary::LocalIterator::operator*()
 			{
 				return *this;
 			}
-			bool Map::LocalIterator::operator==(const LocalIterator& Other) const
+			bool Dictionary::LocalIterator::operator==(const LocalIterator& Other) const
 			{
 				return It == Other.It;
 			}
-			bool Map::LocalIterator::operator!=(const LocalIterator& Other) const
+			bool Dictionary::LocalIterator::operator!=(const LocalIterator& Other) const
 			{
 				return It != Other.It;
 			}
-			const std::string& Map::LocalIterator::GetKey() const
+			const std::string& Dictionary::LocalIterator::GetKey() const
 			{
 				return It->first;
 			}
-			int Map::LocalIterator::GetTypeId() const
+			int Dictionary::LocalIterator::GetTypeId() const
 			{
-				return It->second.TypeId;
+				return It->second.Value.TypeId;
 			}
-			bool Map::LocalIterator::GetValue(void* Value, int TypeId) const
+			bool Dictionary::LocalIterator::GetValue(void* Pointer, int TypeId) const
 			{
-				return It->second.Get(Dict.Engine, Value, TypeId);
+				return It->second.Get(Base.Engine, Pointer, TypeId);
 			}
-			const void* Map::LocalIterator::GetAddressOfValue() const
+			const void* Dictionary::LocalIterator::GetAddressOfValue() const
 			{
 				return It->second.GetAddressOfValue();
 			}
 
-			Map::Map(asIScriptEngine* _Engine) noexcept
+			Dictionary::Dictionary(asIScriptEngine* _Engine) noexcept
 			{
 				Init(_Engine);
 			}
-			Map::Map(unsigned char* Buffer) noexcept
+			Dictionary::Dictionary(unsigned char* Buffer) noexcept
 			{
 				asIScriptContext* Context = asGetActiveContext();
 				Init(Context->GetEngine());
 
-				Map::SCache& Cache = *reinterpret_cast<Map::SCache*>(Engine->GetUserData(MAP_CACHE));
+				Dictionary::SCache& Cache = *reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(MAP_CACHE));
 				bool keyAsRef = Cache.KeyType->GetFlags() & asOBJ_REF ? true : false;
 
 				size_t Length = *(asUINT*)Buffer;
@@ -2625,120 +2623,120 @@ namespace Edge
 						Buffer += Engine->GetSizeOfPrimitiveType(TypeId);
 				}
 			}
-			Map::Map(const Map& Other) noexcept
+			Dictionary::Dictionary(const Dictionary& Other) noexcept
 			{
 				Init(Other.Engine);
-				for (auto It = Other.Dict.begin(); It != Other.Dict.end(); ++It)
+				for (auto It = Other.Data.begin(); It != Other.Data.end(); ++It)
 				{
 					auto& Key = It->second;
-					if (Key.TypeId & asTYPEID_OBJHANDLE)
-						Set(It->first, (void*)&Key.ValueObj, Key.TypeId);
-					else if (Key.TypeId & asTYPEID_MASK_OBJECT)
-						Set(It->first, (void*)Key.ValueObj, Key.TypeId);
+					if (Key.Value.TypeId & asTYPEID_OBJHANDLE)
+						Set(It->first, (void*)&Key.Value.Object, Key.Value.TypeId);
+					else if (Key.Value.TypeId & asTYPEID_MASK_OBJECT)
+						Set(It->first, (void*)Key.Value.Object, Key.Value.TypeId);
 					else
-						Set(It->first, (void*)&Key.ValueInt, Key.TypeId);
+						Set(It->first, (void*)&Key.Value.Integer, Key.Value.TypeId);
 				}
 			}
-			Map::~Map() noexcept
+			Dictionary::~Dictionary() noexcept
 			{
 				DeleteAll();
 			}
-			void Map::AddRef() const
+			void Dictionary::AddRef() const
 			{
 				GCFlag = false;
 				asAtomicInc(RefCount);
 			}
-			void Map::Release() const
+			void Dictionary::Release() const
 			{
 				GCFlag = false;
 				if (asAtomicDec(RefCount) == 0)
 				{
-					this->~Map();
-					asFreeMem(const_cast<Map*>(this));
+					this->~Dictionary();
+					asFreeMem(const_cast<Dictionary*>(this));
 				}
 			}
-			int Map::GetRefCount()
+			int Dictionary::GetRefCount()
 			{
 				return RefCount;
 			}
-			void Map::SetGCFlag()
+			void Dictionary::SetGCFlag()
 			{
 				GCFlag = true;
 			}
-			bool Map::GetGCFlag()
+			bool Dictionary::GetGCFlag()
 			{
 				return GCFlag;
 			}
-			void Map::EnumReferences(asIScriptEngine* _Engine)
+			void Dictionary::EnumReferences(asIScriptEngine* _Engine)
 			{
-				for (auto It = Dict.begin(); It != Dict.end(); ++It)
+				for (auto It = Data.begin(); It != Data.end(); ++It)
 				{
 					auto& Key = It->second;
-					if (Key.TypeId & asTYPEID_MASK_OBJECT)
+					if (Key.Value.TypeId & asTYPEID_MASK_OBJECT)
 					{
-						asITypeInfo* SubType = Engine->GetTypeInfoById(Key.TypeId);
+						asITypeInfo* SubType = Engine->GetTypeInfoById(Key.Value.TypeId);
 						if ((SubType->GetFlags() & asOBJ_VALUE) && (SubType->GetFlags() & asOBJ_GC))
-							Engine->ForwardGCEnumReferences(Key.ValueObj, SubType);
+							Engine->ForwardGCEnumReferences(Key.Value.Object, SubType);
 						else
-							_Engine->GCEnumCallback(Key.ValueObj);
+							_Engine->GCEnumCallback(Key.Value.Object);
 					}
 				}
 			}
-			void Map::ReleaseAllReferences(asIScriptEngine*)
+			void Dictionary::ReleaseAllReferences(asIScriptEngine*)
 			{
 				DeleteAll();
 			}
-			Map& Map::operator =(const Map& Other) noexcept
+			Dictionary& Dictionary::operator =(const Dictionary& Other) noexcept
 			{
 				DeleteAll();
-				for (auto It = Other.Dict.begin(); It != Other.Dict.end(); ++It)
+				for (auto It = Other.Data.begin(); It != Other.Data.end(); ++It)
 				{
 					auto& Key = It->second;
-					if (Key.TypeId & asTYPEID_OBJHANDLE)
-						Set(It->first, (void*)&Key.ValueObj, Key.TypeId);
-					else if (Key.TypeId & asTYPEID_MASK_OBJECT)
-						Set(It->first, (void*)Key.ValueObj, Key.TypeId);
+					if (Key.Value.TypeId & asTYPEID_OBJHANDLE)
+						Set(It->first, (void*)&Key.Value.Object, Key.Value.TypeId);
+					else if (Key.Value.TypeId & asTYPEID_MASK_OBJECT)
+						Set(It->first, (void*)Key.Value.Object, Key.Value.TypeId);
 					else
-						Set(It->first, (void*)&Key.ValueInt, Key.TypeId);
+						Set(It->first, (void*)&Key.Value.Integer, Key.Value.TypeId);
 				}
 
 				return *this;
 			}
-			MapKey* Map::operator[](const std::string& Key)
+			Storable* Dictionary::operator[](const std::string& Key)
 			{
-				return &Dict[Key];
+				return &Data[Key];
 			}
-			const MapKey* Map::operator[](const std::string& Key) const
+			const Storable* Dictionary::operator[](const std::string& Key) const
 			{
-				auto It = Dict.find(Key);
-				if (It != Dict.end())
+				auto It = Data.find(Key);
+				if (It != Data.end())
 					return &It->second;
 
 				asIScriptContext* Context = asGetActiveContext();
 				if (Context)
-					Context->SetException("Invalid access to non-existing Value");
+					Context->SetException("invalid access to non-existing value");
 
 				return 0;
 			}
-			void Map::Set(const std::string& Key, void* Value, int TypeId)
+			void Dictionary::Set(const std::string& Key, void* Value, int TypeId)
 			{
-				auto It = Dict.find(Key);
-				if (It == Dict.end())
-					It = Dict.insert(InternalMap::value_type(Key, MapKey())).first;
+				auto It = Data.find(Key);
+				if (It == Data.end())
+					It = Data.insert(InternalMap::value_type(Key, Storable())).first;
 
 				It->second.Set(Engine, Value, TypeId);
 			}
-			bool Map::Get(const std::string& Key, void* Value, int TypeId) const
+			bool Dictionary::Get(const std::string& Key, void* Value, int TypeId) const
 			{
-				auto It = Dict.find(Key);
-				if (It != Dict.end())
+				auto It = Data.find(Key);
+				if (It != Data.end())
 					return It->second.Get(Engine, Value, TypeId);
 
 				return false;
 			}
-			bool Map::GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const
+			bool Dictionary::GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const
 			{
-				if (Index >= Dict.size())
+				if (Index >= Data.size())
 					return false;
 
 				auto It = Begin();
@@ -2761,130 +2759,130 @@ namespace Edge
 
 				return true;
 			}
-			int Map::GetTypeId(const std::string& Key) const
+			int Dictionary::GetTypeId(const std::string& Key) const
 			{
-				auto It = Dict.find(Key);
-				if (It != Dict.end())
-					return It->second.TypeId;
+				auto It = Data.find(Key);
+				if (It != Data.end())
+					return It->second.Value.TypeId;
 
 				return -1;
 			}
-			bool Map::Exists(const std::string& Key) const
+			bool Dictionary::Exists(const std::string& Key) const
 			{
-				auto It = Dict.find(Key);
-				if (It != Dict.end())
+				auto It = Data.find(Key);
+				if (It != Data.end())
 					return true;
 
 				return false;
 			}
-			bool Map::IsEmpty() const
+			bool Dictionary::IsEmpty() const
 			{
-				if (Dict.size() == 0)
+				if (Data.size() == 0)
 					return true;
 
 				return false;
 			}
-			size_t Map::GetSize() const
+			size_t Dictionary::GetSize() const
 			{
-				return size_t(Dict.size());
+				return size_t(Data.size());
 			}
-			bool Map::Delete(const std::string& Key)
+			bool Dictionary::Delete(const std::string& Key)
 			{
-				auto It = Dict.find(Key);
-				if (It != Dict.end())
+				auto It = Data.find(Key);
+				if (It != Data.end())
 				{
 					It->second.FreeValue(Engine);
-					Dict.erase(It);
+					Data.erase(It);
 					return true;
 				}
 
 				return false;
 			}
-			void Map::DeleteAll()
+			void Dictionary::DeleteAll()
 			{
-				for (auto It = Dict.begin(); It != Dict.end(); ++It)
+				for (auto It = Data.begin(); It != Data.end(); ++It)
 					It->second.FreeValue(Engine);
-				Dict.clear();
+				Data.clear();
 			}
-			Array* Map::GetKeys() const
+			Array* Dictionary::GetKeys() const
 			{
-				Map::SCache* Cache = reinterpret_cast<Map::SCache*>(Engine->GetUserData(MAP_CACHE));
+				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(MAP_CACHE));
 				asITypeInfo* Info = Cache->ArrayType;
 
-				Array* Array = Array::Create(Info, size_t(Dict.size()));
+				Array* Array = Array::Create(Info, size_t(Data.size()));
 				size_t Current = 0;
 
-				for (auto It = Dict.begin(); It != Dict.end(); ++It)
+				for (auto It = Data.begin(); It != Data.end(); ++It)
 					*(std::string*)Array->At(Current++) = It->first;
 
 				return Array;
 			}
-			Map::LocalIterator Map::Begin() const
+			Dictionary::LocalIterator Dictionary::Begin() const
 			{
-				return LocalIterator(*this, Dict.begin());
+				return LocalIterator(*this, Data.begin());
 			}
-			Map::LocalIterator Map::End() const
+			Dictionary::LocalIterator Dictionary::End() const
 			{
-				return LocalIterator(*this, Dict.end());
+				return LocalIterator(*this, Data.end());
 			}
-			Map::LocalIterator Map::Find(const std::string& Key) const
+			Dictionary::LocalIterator Dictionary::Find(const std::string& Key) const
 			{
-				return LocalIterator(*this, Dict.find(Key));
+				return LocalIterator(*this, Data.find(Key));
 			}
-			Map* Map::Create(asIScriptEngine* Engine)
+			Dictionary* Dictionary::Create(asIScriptEngine* Engine)
 			{
-				Map* Obj = (Map*)asAllocMem(sizeof(Map));
-				new(Obj) Map(Engine);
+				Dictionary* Obj = (Dictionary*)asAllocMem(sizeof(Dictionary));
+				new(Obj) Dictionary(Engine);
 				return Obj;
 			}
-			Map* Map::Create(unsigned char* buffer)
+			Dictionary* Dictionary::Create(unsigned char* buffer)
 			{
-				Map* Obj = (Map*)asAllocMem(sizeof(Map));
-				new(Obj) Map(buffer);
+				Dictionary* Obj = (Dictionary*)asAllocMem(sizeof(Dictionary));
+				new(Obj) Dictionary(buffer);
 				return Obj;
 			}
-			void Map::Init(asIScriptEngine* Engine_)
+			void Dictionary::Init(asIScriptEngine* Engine_)
 			{
 				RefCount = 1;
 				GCFlag = false;
 				Engine = Engine_;
 
-				Map::SCache* Cache = reinterpret_cast<Map::SCache*>(Engine->GetUserData(MAP_CACHE));
-				Engine->NotifyGarbageCollectorOfNewObject(this, Cache->DictType);
+				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(MAP_CACHE));
+				Engine->NotifyGarbageCollectorOfNewObject(this, Cache->DictionaryType);
 			}
-			void Map::Cleanup(asIScriptEngine* Engine)
+			void Dictionary::Cleanup(asIScriptEngine* Engine)
 			{
-				Map::SCache* Cache = reinterpret_cast<Map::SCache*>(Engine->GetUserData(MAP_CACHE));
+				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(MAP_CACHE));
 				ED_DELETE(SCache, Cache);
 			}
-			void Map::Setup(asIScriptEngine* Engine)
+			void Dictionary::Setup(asIScriptEngine* Engine)
 			{
-				Map::SCache* Cache = reinterpret_cast<Map::SCache*>(Engine->GetUserData(MAP_CACHE));
+				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(MAP_CACHE));
 				if (Cache == 0)
 				{
-					Cache = ED_NEW(Map::SCache);
+					Cache = ED_NEW(Dictionary::SCache);
 					Engine->SetUserData(Cache, MAP_CACHE);
 					Engine->SetEngineUserDataCleanupCallback(Cleanup, MAP_CACHE);
 
-					Cache->DictType = Engine->GetTypeInfoByName(TYPENAME_MAP);
+					Cache->DictionaryType = Engine->GetTypeInfoByName(TYPENAME_DICTIONARY);
 					Cache->ArrayType = Engine->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">");
 					Cache->KeyType = Engine->GetTypeInfoByDecl(TYPENAME_STRING);
 				}
 			}
-			void Map::Factory(asIScriptGeneric* Generic)
+			void Dictionary::Factory(asIScriptGeneric* Generic)
 			{
-				*(Map**)Generic->GetAddressOfReturnLocation() = Map::Create(Generic->GetEngine());
+				*(Dictionary**)Generic->GetAddressOfReturnLocation() = Dictionary::Create(Generic->GetEngine());
 			}
-			void Map::ListFactory(asIScriptGeneric* Generic)
+			void Dictionary::ListFactory(asIScriptGeneric* Generic)
 			{
 				unsigned char* buffer = (unsigned char*)Generic->GetArgAddress(0);
-				*(Map**)Generic->GetAddressOfReturnLocation() = Map::Create(buffer);
+				*(Dictionary**)Generic->GetAddressOfReturnLocation() = Dictionary::Create(buffer);
 			}
-			void Map::KeyConstruct(void* Memory)
+			void Dictionary::KeyConstruct(void* Memory)
 			{
-				new(Memory) MapKey();
+				new(Memory) Storable();
 			}
-			void Map::KeyDestruct(MapKey* Obj)
+			void Dictionary::KeyDestruct(Storable* Obj)
 			{
 				asIScriptContext* Context = asGetActiveContext();
 				if (Context)
@@ -2893,9 +2891,9 @@ namespace Edge
 					Obj->FreeValue(Engine);
 				}
 
-				Obj->~MapKey();
+				Obj->~Storable();
 			}
-			MapKey& Map::KeyopAssign(void* RefPtr, int TypeId, MapKey* Obj)
+			Storable& Dictionary::KeyopAssign(void* RefPtr, int TypeId, Storable* Obj)
 			{
 				asIScriptContext* Context = asGetActiveContext();
 				if (Context)
@@ -2906,26 +2904,26 @@ namespace Edge
 
 				return *Obj;
 			}
-			MapKey& Map::KeyopAssign(const MapKey& Other, MapKey* Obj)
+			Storable& Dictionary::KeyopAssign(const Storable& Other, Storable* Obj)
 			{
 				asIScriptContext* Context = asGetActiveContext();
 				if (Context)
 				{
 					asIScriptEngine* Engine = Context->GetEngine();
-					Obj->Set(Engine, const_cast<MapKey&>(Other));
+					Obj->Set(Engine, const_cast<Storable&>(Other));
 				}
 
 				return *Obj;
 			}
-			MapKey& Map::KeyopAssign(double Value, MapKey* Obj)
+			Storable& Dictionary::KeyopAssign(double Value, Storable* Obj)
 			{
 				return KeyopAssign(&Value, asTYPEID_DOUBLE, Obj);
 			}
-			MapKey& Map::KeyopAssign(as_int64_t Value, MapKey* Obj)
+			Storable& Dictionary::KeyopAssign(as_int64_t Value, Storable* Obj)
 			{
-				return Map::KeyopAssign(&Value, asTYPEID_INT64, Obj);
+				return Dictionary::KeyopAssign(&Value, asTYPEID_INT64, Obj);
 			}
-			void Map::KeyopCast(void* RefPtr, int TypeId, MapKey* Obj)
+			void Dictionary::KeyopCast(void* RefPtr, int TypeId, Storable* Obj)
 			{
 				asIScriptContext* Context = asGetActiveContext();
 				if (Context)
@@ -2934,13 +2932,13 @@ namespace Edge
 					Obj->Get(Engine, RefPtr, TypeId);
 				}
 			}
-			as_int64_t Map::KeyopConvInt(MapKey* Obj)
+			as_int64_t Dictionary::KeyopConvInt(Storable* Obj)
 			{
 				as_int64_t Value;
 				KeyopCast(&Value, asTYPEID_INT64, Obj);
 				return Value;
 			}
-			double Map::KeyopConvDouble(MapKey* Obj)
+			double Dictionary::KeyopConvDouble(Storable* Obj)
 			{
 				double Value;
 				KeyopCast(&Value, asTYPEID_DOUBLE, Obj);
@@ -3423,11 +3421,11 @@ namespace Edge
 
 				int TypeId = Future->GetTypeId();
 				if (TypeId & asTYPEID_OBJHANDLE)
-					return &Future->Value.ValueObj;
+					return &Future->Value.Object;
 				else if (TypeId & asTYPEID_MASK_OBJECT)
-					return Future->Value.ValueObj;
+					return Future->Value.Object;
 				else if (TypeId <= asTYPEID_DOUBLE || TypeId & asTYPEID_MASK_SEQNBR)
-					return &Future->Value.ValueInt;
+					return &Future->Value.Integer;
 
 				return nullptr;
 			}
@@ -3822,7 +3820,7 @@ namespace Edge
 				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_SCHEMA "@>@");
 				return Array::Compose(Type.GetTypeInfo(), Base->GetAttributes());
 			}
-			Map* SchemaGetNames(Core::Schema* Base)
+			Dictionary* SchemaGetNames(Core::Schema* Base)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context)
@@ -3833,7 +3831,7 @@ namespace Edge
 					return nullptr;
 
 				std::unordered_map<std::string, size_t> Mapping = Base->GetNames();
-				Map* Map = Map::Create(VM->GetEngine());
+				Dictionary* Map = Dictionary::Create(VM->GetEngine());
 
 				for (auto& Item : Mapping)
 				{
@@ -4586,9 +4584,9 @@ namespace Edge
 						else
 							Result.Append("{}");
 					}
-					else if (strcmp(Type.GetName(), TYPENAME_MAP) == 0)
+					else if (strcmp(Type.GetName(), TYPENAME_DICTIONARY) == 0)
 					{
-						Map* Base = *(Map**)Ref;
+						Dictionary* Base = *(Dictionary**)Ref;
 						Core::Parser Decl; std::string Name;
 
 						Offset += '\t';
@@ -4724,9 +4722,9 @@ namespace Edge
 						else
 							Result.Append("{}");
 					}
-					else if (strcmp(Type.GetName(), TYPENAME_MAP) == 0)
+					else if (strcmp(Type.GetName(), TYPENAME_DICTIONARY) == 0)
 					{
-						Map* Base = (Map*)Object;
+						Dictionary* Base = (Dictionary*)Object;
 						Core::Parser Decl; std::string Name;
 
 						for (unsigned int i = 0; i < Base->GetSize(); i++)
@@ -6570,10 +6568,10 @@ namespace Edge
 				Base->Meshes = Array::Decompose<Graphics::SkinMeshBuffer*>(Data);
 			}
 
-			Map* LocationGetQuery(Network::Location& Base)
+			Dictionary* LocationGetQuery(Network::Location& Base)
 			{
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_MAP "<" TYPENAME_STRING ">@");
-				return Map::Compose<std::string>(Type.GetTypeId(), Base.Query);
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_STRING ">@");
+				return Dictionary::Compose<std::string>(Type.GetTypeId(), Base.Query);
 			}
 
 			int SocketAccept1(Network::Socket* Base, Network::Socket* Fd, std::string& Address)
@@ -6807,25 +6805,25 @@ namespace Edge
 				});
 			}
 			
-			void SocketRouterSetListeners(Network::SocketRouter* Base, Map* Data)
+			void SocketRouterSetListeners(Network::SocketRouter* Base, Dictionary* Data)
 			{
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_MAP "<" TYPENAME_REMOTEHOST ">@");
-				Base->Listeners = Map::Decompose<Network::RemoteHost>(Type.GetTypeId(), Data);
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_REMOTEHOST ">@");
+				Base->Listeners = Dictionary::Decompose<Network::RemoteHost>(Type.GetTypeId(), Data);
 			}
-			Map* SocketRouterGetListeners(Network::SocketRouter* Base)
+			Dictionary* SocketRouterGetListeners(Network::SocketRouter* Base)
 			{
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_MAP "<" TYPENAME_REMOTEHOST ">@");
-				return Map::Compose<Network::RemoteHost>(Type.GetTypeId(), Base->Listeners);
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_REMOTEHOST ">@");
+				return Dictionary::Compose<Network::RemoteHost>(Type.GetTypeId(), Base->Listeners);
 			}
-			void SocketRouterSetCertificates(Network::SocketRouter* Base, Map* Data)
+			void SocketRouterSetCertificates(Network::SocketRouter* Base, Dictionary* Data)
 			{
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_MAP "<" TYPENAME_SOCKETCERTIFICATE ">@");
-				Base->Certificates = Map::Decompose<Network::SocketCertificate>(Type.GetTypeId(), Data);
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_SOCKETCERTIFICATE ">@");
+				Base->Certificates = Dictionary::Decompose<Network::SocketCertificate>(Type.GetTypeId(), Data);
 			}
-			Map* SocketRouterGetCertificates(Network::SocketRouter* Base)
+			Dictionary* SocketRouterGetCertificates(Network::SocketRouter* Base)
 			{
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_MAP "<" TYPENAME_SOCKETCERTIFICATE ">@");
-				return Map::Compose<Network::SocketCertificate>(Type.GetTypeId(), Base->Certificates);
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_SOCKETCERTIFICATE ">@");
+				return Dictionary::Compose<Network::SocketCertificate>(Type.GetTypeId(), Base->Certificates);
 			}
 
 			std::string SocketConnectionGetRemoteAddress(Network::SocketConnection* Base)
@@ -6881,15 +6879,15 @@ namespace Edge
 				PopulateAudioEffectBase<T>(Class, false);
 			}
 
-			void EventSetArgs(Engine::Event& Base, Map* Data)
+			void EventSetArgs(Engine::Event& Base, Dictionary* Data)
 			{
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_MAP "<" TYPENAME_VARIANT ">@");
-				Base.Args = Map::Decompose<Core::Variant>(Type.GetTypeId(), Data);
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_VARIANT ">@");
+				Base.Args = Dictionary::Decompose<Core::Variant>(Type.GetTypeId(), Data);
 			}
-			Map* EventGetArgs(Engine::Event& Base)
+			Dictionary* EventGetArgs(Engine::Event& Base)
 			{
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_MAP "<" TYPENAME_VARIANT ">@");
-				return Map::Compose<Core::Variant>(Type.GetTypeId(), Base.Args);
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_VARIANT ">@");
+				return Dictionary::Compose<Core::Variant>(Type.GetTypeId(), Base.Args);
 			}
 
 			Engine::Viewer& ViewerCopy(Engine::Viewer& Base, Engine::Viewer& Other)
@@ -7939,49 +7937,49 @@ namespace Edge
 				return false;
 #endif
 			}
-			bool Registry::LoadMap(VirtualMachine* VM)
+			bool Registry::LoadDictionary(VirtualMachine* VM)
 			{
 				ED_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
-				Engine->RegisterObjectType("map_key", sizeof(MapKey), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_GC | asGetTypeTraits<MapKey>());
-				Engine->RegisterObjectBehaviour("map_key", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(Map::KeyConstruct), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("map_key", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(Map::KeyDestruct), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("map_key", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(MapKey, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("map_key", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(MapKey, FreeValue), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("map_key", "map_key &opAssign(const map_key &in)", asFUNCTIONPR(Map::KeyopAssign, (const MapKey&, MapKey*), MapKey&), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("map_key", "map_key &opHndlAssign(const ?&in)", asFUNCTIONPR(Map::KeyopAssign, (void*, int, MapKey*), MapKey&), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("map_key", "map_key &opHndlAssign(const map_key &in)", asFUNCTIONPR(Map::KeyopAssign, (const MapKey&, MapKey*), MapKey&), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("map_key", "map_key &opAssign(const ?&in)", asFUNCTIONPR(Map::KeyopAssign, (void*, int, MapKey*), MapKey&), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("map_key", "map_key &opAssign(double)", asFUNCTIONPR(Map::KeyopAssign, (double, MapKey*), MapKey&), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("map_key", "map_key &opAssign(int64)", asFUNCTIONPR(Map::KeyopAssign, (as_int64_t, MapKey*), MapKey&), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("map_key", "void opCast(?&out)", asFUNCTIONPR(Map::KeyopCast, (void*, int, MapKey*), void), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("map_key", "void opConv(?&out)", asFUNCTIONPR(Map::KeyopCast, (void*, int, MapKey*), void), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("map_key", "int64 opConv()", asFUNCTIONPR(Map::KeyopConvInt, (MapKey*), as_int64_t), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("map_key", "double opConv()", asFUNCTIONPR(Map::KeyopConvDouble, (MapKey*), double), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectType("storable", sizeof(Storable), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_GC | asGetTypeTraits<Storable>());
+				Engine->RegisterObjectBehaviour("storable", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(Dictionary::KeyConstruct), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("storable", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(Dictionary::KeyDestruct), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("storable", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Storable, EnumReferences), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("storable", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Storable, FreeValue), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("storable", "storable &opAssign(const storable &in)", asFUNCTIONPR(Dictionary::KeyopAssign, (const Storable&, Storable*), Storable&), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("storable", "storable &opHndlAssign(const ?&in)", asFUNCTIONPR(Dictionary::KeyopAssign, (void*, int, Storable*), Storable&), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("storable", "storable &opHndlAssign(const storable &in)", asFUNCTIONPR(Dictionary::KeyopAssign, (const Storable&, Storable*), Storable&), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("storable", "storable &opAssign(const ?&in)", asFUNCTIONPR(Dictionary::KeyopAssign, (void*, int, Storable*), Storable&), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("storable", "storable &opAssign(double)", asFUNCTIONPR(Dictionary::KeyopAssign, (double, Storable*), Storable&), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("storable", "storable &opAssign(int64)", asFUNCTIONPR(Dictionary::KeyopAssign, (as_int64_t, Storable*), Storable&), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("storable", "void opCast(?&out)", asFUNCTIONPR(Dictionary::KeyopCast, (void*, int, Storable*), void), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("storable", "void opConv(?&out)", asFUNCTIONPR(Dictionary::KeyopCast, (void*, int, Storable*), void), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("storable", "int64 opConv()", asFUNCTIONPR(Dictionary::KeyopConvInt, (Storable*), as_int64_t), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("storable", "double opConv()", asFUNCTIONPR(Dictionary::KeyopConvDouble, (Storable*), double), asCALL_CDECL_OBJLAST);
 
-				Engine->RegisterObjectType("map", sizeof(Map), asOBJ_REF | asOBJ_GC);
-				Engine->RegisterObjectBehaviour("map", asBEHAVE_FACTORY, "map@ f()", asFUNCTION(Map::Factory), asCALL_GENERIC);
-				Engine->RegisterObjectBehaviour("map", asBEHAVE_LIST_FACTORY, "map @f(int &in) {repeat {string, ?}}", asFUNCTION(Map::ListFactory), asCALL_GENERIC);
-				Engine->RegisterObjectBehaviour("map", asBEHAVE_ADDREF, "void f()", asMETHOD(Map, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("map", asBEHAVE_RELEASE, "void f()", asMETHOD(Map, Release), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("map", "map &opAssign(const map &in)", asMETHODPR(Map, operator=, (const Map&), Map&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("map", "void set(const string &in, const ?&in)", asMETHODPR(Map, Set, (const std::string&, void*, int), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("map", "bool get(const string &in, ?&out) const", asMETHODPR(Map, Get, (const std::string&, void*, int) const, bool), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("map", "bool exists(const string &in) const", asMETHOD(Map, Exists), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("map", "bool empty() const", asMETHOD(Map, IsEmpty), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("map", "usize size() const", asMETHOD(Map, GetSize), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("map", "bool delete(const string &in)", asMETHOD(Map, Delete), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("map", "void delete_all()", asMETHOD(Map, DeleteAll), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("map", "array<string>@ get_keys() const", asMETHOD(Map, GetKeys), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("map", "map_key &opIndex(const string &in)", asMETHODPR(Map, operator[], (const std::string&), MapKey*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("map", "const map_key &opIndex(const string &in) const", asMETHODPR(Map, operator[], (const std::string&) const, const MapKey*), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("map", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Map, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("map", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Map, SetGCFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("map", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Map, GetGCFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("map", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Map, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("map", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Map, ReleaseAllReferences), asCALL_THISCALL);
+				Engine->RegisterObjectType("dictionary", sizeof(Dictionary), asOBJ_REF | asOBJ_GC);
+				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_FACTORY, "dictionary@ f()", asFUNCTION(Dictionary::Factory), asCALL_GENERIC);
+				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_LIST_FACTORY, "dictionary @f(int &in) {repeat {string, ?}}", asFUNCTION(Dictionary::ListFactory), asCALL_GENERIC);
+				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_ADDREF, "void f()", asMETHOD(Dictionary, AddRef), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_RELEASE, "void f()", asMETHOD(Dictionary, Release), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "dictionary &opAssign(const dictionary &in)", asMETHODPR(Dictionary, operator=, (const Dictionary&), Dictionary&), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "void set(const string &in, const ?&in)", asMETHODPR(Dictionary, Set, (const std::string&, void*, int), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "bool get(const string &in, ?&out) const", asMETHODPR(Dictionary, Get, (const std::string&, void*, int) const, bool), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "bool exists(const string &in) const", asMETHOD(Dictionary, Exists), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "bool empty() const", asMETHOD(Dictionary, IsEmpty), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "usize size() const", asMETHOD(Dictionary, GetSize), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "bool delete(const string &in)", asMETHOD(Dictionary, Delete), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "void delete_all()", asMETHOD(Dictionary, DeleteAll), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "array<string>@ get_keys() const", asMETHOD(Dictionary, GetKeys), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "storable &opIndex(const string &in)", asMETHODPR(Dictionary, operator[], (const std::string&), Storable*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "const storable &opIndex(const string &in) const", asMETHODPR(Dictionary, operator[], (const std::string&) const, const Storable*), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Dictionary, GetRefCount), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Dictionary, SetGCFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Dictionary, GetGCFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Dictionary, EnumReferences), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Dictionary, ReleaseAllReferences), asCALL_THISCALL);
 
-				Map::Setup(Engine);
+				Dictionary::Setup(Engine);
 				return true;
 			}
 			bool Registry::LoadRef(VirtualMachine* VM)
@@ -8529,7 +8527,7 @@ namespace Edge
 				VSchema.SetMethodEx("array<schema@>@ get_collection(const string &in, bool = false) const", &SchemaGetCollection);
 				VSchema.SetMethodEx("array<schema@>@ get_attributes() const", &SchemaGetAttributes);
 				VSchema.SetMethodEx("array<schema@>@ get_childs() const", &SchemaGetChilds);
-				VSchema.SetMethodEx("map@ get_names() const", &SchemaGetNames);
+				VSchema.SetMethodEx("dictionary@ get_names() const", &SchemaGetNames);
 				VSchema.SetMethodEx("usize size() const", &SchemaGetSize);
 				VSchema.SetMethodEx("string to_json() const", &SchemaToJSON);
 				VSchema.SetMethodEx("string to_xml() const", &SchemaToXML);
@@ -10842,273 +10840,273 @@ namespace Edge
 				VWindowState.SetValue("close", (int)Graphics::WindowState::Close);
 
 				Enumeration VKeyCode = Engine->SetEnum("key_code");
-				VKeyCode.SetValue("A", (int)Graphics::KeyCode::A);
-				VKeyCode.SetValue("B", (int)Graphics::KeyCode::B);
-				VKeyCode.SetValue("C", (int)Graphics::KeyCode::C);
-				VKeyCode.SetValue("D", (int)Graphics::KeyCode::D);
-				VKeyCode.SetValue("E", (int)Graphics::KeyCode::E);
-				VKeyCode.SetValue("F", (int)Graphics::KeyCode::F);
-				VKeyCode.SetValue("G", (int)Graphics::KeyCode::G);
-				VKeyCode.SetValue("H", (int)Graphics::KeyCode::H);
-				VKeyCode.SetValue("I", (int)Graphics::KeyCode::I);
-				VKeyCode.SetValue("J", (int)Graphics::KeyCode::J);
-				VKeyCode.SetValue("K", (int)Graphics::KeyCode::K);
-				VKeyCode.SetValue("L", (int)Graphics::KeyCode::L);
-				VKeyCode.SetValue("M", (int)Graphics::KeyCode::M);
-				VKeyCode.SetValue("N", (int)Graphics::KeyCode::N);
-				VKeyCode.SetValue("O", (int)Graphics::KeyCode::O);
-				VKeyCode.SetValue("P", (int)Graphics::KeyCode::P);
-				VKeyCode.SetValue("Q", (int)Graphics::KeyCode::Q);
-				VKeyCode.SetValue("R", (int)Graphics::KeyCode::R);
-				VKeyCode.SetValue("S", (int)Graphics::KeyCode::S);
-				VKeyCode.SetValue("T", (int)Graphics::KeyCode::T);
-				VKeyCode.SetValue("U", (int)Graphics::KeyCode::U);
-				VKeyCode.SetValue("V", (int)Graphics::KeyCode::V);
-				VKeyCode.SetValue("W", (int)Graphics::KeyCode::W);
-				VKeyCode.SetValue("X", (int)Graphics::KeyCode::X);
-				VKeyCode.SetValue("Y", (int)Graphics::KeyCode::Y);
-				VKeyCode.SetValue("Z", (int)Graphics::KeyCode::Z);
-				VKeyCode.SetValue("D1", (int)Graphics::KeyCode::D1);
-				VKeyCode.SetValue("D2", (int)Graphics::KeyCode::D2);
-				VKeyCode.SetValue("D3", (int)Graphics::KeyCode::D3);
-				VKeyCode.SetValue("D4", (int)Graphics::KeyCode::D4);
-				VKeyCode.SetValue("D5", (int)Graphics::KeyCode::D5);
-				VKeyCode.SetValue("D6", (int)Graphics::KeyCode::D6);
-				VKeyCode.SetValue("D7", (int)Graphics::KeyCode::D7);
-				VKeyCode.SetValue("D8", (int)Graphics::KeyCode::D8);
-				VKeyCode.SetValue("D9", (int)Graphics::KeyCode::D9);
-				VKeyCode.SetValue("D0", (int)Graphics::KeyCode::D0);
-				VKeyCode.SetValue("RETURN", (int)Graphics::KeyCode::RETURN);
-				VKeyCode.SetValue("ESCAPE", (int)Graphics::KeyCode::ESCAPE);
-				VKeyCode.SetValue("BACKSPACE", (int)Graphics::KeyCode::BACKSPACE);
-				VKeyCode.SetValue("TAB", (int)Graphics::KeyCode::TAB);
-				VKeyCode.SetValue("SPACE", (int)Graphics::KeyCode::SPACE);
-				VKeyCode.SetValue("MINUS", (int)Graphics::KeyCode::MINUS);
-				VKeyCode.SetValue("EQUALS", (int)Graphics::KeyCode::EQUALS);
-				VKeyCode.SetValue("LEFTBRACKET", (int)Graphics::KeyCode::LEFTBRACKET);
-				VKeyCode.SetValue("RIGHTBRACKET", (int)Graphics::KeyCode::RIGHTBRACKET);
-				VKeyCode.SetValue("BACKSLASH", (int)Graphics::KeyCode::BACKSLASH);
-				VKeyCode.SetValue("NONUSHASH", (int)Graphics::KeyCode::NONUSHASH);
-				VKeyCode.SetValue("SEMICOLON", (int)Graphics::KeyCode::SEMICOLON);
-				VKeyCode.SetValue("APOSTROPHE", (int)Graphics::KeyCode::APOSTROPHE);
-				VKeyCode.SetValue("GRAVE", (int)Graphics::KeyCode::GRAVE);
-				VKeyCode.SetValue("COMMA", (int)Graphics::KeyCode::COMMA);
-				VKeyCode.SetValue("PERIOD", (int)Graphics::KeyCode::PERIOD);
-				VKeyCode.SetValue("SLASH", (int)Graphics::KeyCode::SLASH);
-				VKeyCode.SetValue("CAPSLOCK", (int)Graphics::KeyCode::CAPSLOCK);
-				VKeyCode.SetValue("F1", (int)Graphics::KeyCode::F1);
-				VKeyCode.SetValue("F2", (int)Graphics::KeyCode::F2);
-				VKeyCode.SetValue("F3", (int)Graphics::KeyCode::F3);
-				VKeyCode.SetValue("F4", (int)Graphics::KeyCode::F4);
-				VKeyCode.SetValue("F5", (int)Graphics::KeyCode::F5);
-				VKeyCode.SetValue("F6", (int)Graphics::KeyCode::F6);
-				VKeyCode.SetValue("F7", (int)Graphics::KeyCode::F7);
-				VKeyCode.SetValue("F8", (int)Graphics::KeyCode::F8);
-				VKeyCode.SetValue("F9", (int)Graphics::KeyCode::F9);
-				VKeyCode.SetValue("F10", (int)Graphics::KeyCode::F10);
-				VKeyCode.SetValue("F11", (int)Graphics::KeyCode::F11);
-				VKeyCode.SetValue("F12", (int)Graphics::KeyCode::F12);
-				VKeyCode.SetValue("PRINTSCREEN", (int)Graphics::KeyCode::PRINTSCREEN);
-				VKeyCode.SetValue("SCROLLLOCK", (int)Graphics::KeyCode::SCROLLLOCK);
-				VKeyCode.SetValue("PAUSE", (int)Graphics::KeyCode::PAUSE);
-				VKeyCode.SetValue("INSERT", (int)Graphics::KeyCode::INSERT);
-				VKeyCode.SetValue("HOME", (int)Graphics::KeyCode::HOME);
-				VKeyCode.SetValue("PAGEUP", (int)Graphics::KeyCode::PAGEUP);
-				VKeyCode.SetValue("DELETEKEY", (int)Graphics::KeyCode::DELETEKEY);
-				VKeyCode.SetValue("END", (int)Graphics::KeyCode::END);
-				VKeyCode.SetValue("PAGEDOWN", (int)Graphics::KeyCode::PAGEDOWN);
-				VKeyCode.SetValue("RIGHT", (int)Graphics::KeyCode::RIGHT);
-				VKeyCode.SetValue("LEFT", (int)Graphics::KeyCode::LEFT);
-				VKeyCode.SetValue("DOWN", (int)Graphics::KeyCode::DOWN);
-				VKeyCode.SetValue("UP", (int)Graphics::KeyCode::UP);
-				VKeyCode.SetValue("NUMLOCKCLEAR", (int)Graphics::KeyCode::NUMLOCKCLEAR);
-				VKeyCode.SetValue("KP_DIVIDE", (int)Graphics::KeyCode::KP_DIVIDE);
-				VKeyCode.SetValue("KP_MULTIPLY", (int)Graphics::KeyCode::KP_MULTIPLY);
-				VKeyCode.SetValue("KP_MINUS", (int)Graphics::KeyCode::KP_MINUS);
-				VKeyCode.SetValue("KP_PLUS", (int)Graphics::KeyCode::KP_PLUS);
-				VKeyCode.SetValue("KP_ENTER", (int)Graphics::KeyCode::KP_ENTER);
-				VKeyCode.SetValue("KP_1", (int)Graphics::KeyCode::KP_1);
-				VKeyCode.SetValue("KP_2", (int)Graphics::KeyCode::KP_2);
-				VKeyCode.SetValue("KP_3", (int)Graphics::KeyCode::KP_3);
-				VKeyCode.SetValue("KP_4", (int)Graphics::KeyCode::KP_4);
-				VKeyCode.SetValue("KP_5", (int)Graphics::KeyCode::KP_5);
-				VKeyCode.SetValue("KP_6", (int)Graphics::KeyCode::KP_6);
-				VKeyCode.SetValue("KP_7", (int)Graphics::KeyCode::KP_7);
-				VKeyCode.SetValue("KP_8", (int)Graphics::KeyCode::KP_8);
-				VKeyCode.SetValue("KP_9", (int)Graphics::KeyCode::KP_9);
-				VKeyCode.SetValue("KP_0", (int)Graphics::KeyCode::KP_0);
-				VKeyCode.SetValue("KP_PERIOD", (int)Graphics::KeyCode::KP_PERIOD);
-				VKeyCode.SetValue("NONUSBACKSLASH", (int)Graphics::KeyCode::NONUSBACKSLASH);
-				VKeyCode.SetValue("APPLICATION", (int)Graphics::KeyCode::APPLICATION);
-				VKeyCode.SetValue("POWER", (int)Graphics::KeyCode::POWER);
-				VKeyCode.SetValue("KP_EQUALS", (int)Graphics::KeyCode::KP_EQUALS);
-				VKeyCode.SetValue("F13", (int)Graphics::KeyCode::F13);
-				VKeyCode.SetValue("F14", (int)Graphics::KeyCode::F14);
-				VKeyCode.SetValue("F15", (int)Graphics::KeyCode::F15);
-				VKeyCode.SetValue("F16", (int)Graphics::KeyCode::F16);
-				VKeyCode.SetValue("F17", (int)Graphics::KeyCode::F17);
-				VKeyCode.SetValue("F18", (int)Graphics::KeyCode::F18);
-				VKeyCode.SetValue("F19", (int)Graphics::KeyCode::F19);
-				VKeyCode.SetValue("F20", (int)Graphics::KeyCode::F20);
-				VKeyCode.SetValue("F21", (int)Graphics::KeyCode::F21);
-				VKeyCode.SetValue("F22", (int)Graphics::KeyCode::F22);
-				VKeyCode.SetValue("F23", (int)Graphics::KeyCode::F23);
-				VKeyCode.SetValue("F24", (int)Graphics::KeyCode::F24);
-				VKeyCode.SetValue("EXECUTE", (int)Graphics::KeyCode::EXECUTE);
-				VKeyCode.SetValue("HELP", (int)Graphics::KeyCode::HELP);
-				VKeyCode.SetValue("MENU", (int)Graphics::KeyCode::MENU);
-				VKeyCode.SetValue("SELECT", (int)Graphics::KeyCode::SELECT);
-				VKeyCode.SetValue("STOP", (int)Graphics::KeyCode::STOP);
-				VKeyCode.SetValue("AGAIN", (int)Graphics::KeyCode::AGAIN);
-				VKeyCode.SetValue("UNDO", (int)Graphics::KeyCode::UNDO);
-				VKeyCode.SetValue("CUT", (int)Graphics::KeyCode::CUT);
-				VKeyCode.SetValue("COPY", (int)Graphics::KeyCode::COPY);
-				VKeyCode.SetValue("PASTE", (int)Graphics::KeyCode::PASTE);
-				VKeyCode.SetValue("FIND", (int)Graphics::KeyCode::FIND);
-				VKeyCode.SetValue("MUTE", (int)Graphics::KeyCode::MUTE);
-				VKeyCode.SetValue("VOLUMEUP", (int)Graphics::KeyCode::VOLUMEUP);
-				VKeyCode.SetValue("VOLUMEDOWN", (int)Graphics::KeyCode::VOLUMEDOWN);
-				VKeyCode.SetValue("KP_COMMA", (int)Graphics::KeyCode::KP_COMMA);
-				VKeyCode.SetValue("KP_EQUALSAS400", (int)Graphics::KeyCode::KP_EQUALSAS400);
-				VKeyCode.SetValue("INTERNATIONAL1", (int)Graphics::KeyCode::INTERNATIONAL1);
-				VKeyCode.SetValue("INTERNATIONAL2", (int)Graphics::KeyCode::INTERNATIONAL2);
-				VKeyCode.SetValue("INTERNATIONAL3", (int)Graphics::KeyCode::INTERNATIONAL3);
-				VKeyCode.SetValue("INTERNATIONAL4", (int)Graphics::KeyCode::INTERNATIONAL4);
-				VKeyCode.SetValue("INTERNATIONAL5", (int)Graphics::KeyCode::INTERNATIONAL5);
-				VKeyCode.SetValue("INTERNATIONAL6", (int)Graphics::KeyCode::INTERNATIONAL6);
-				VKeyCode.SetValue("INTERNATIONAL7", (int)Graphics::KeyCode::INTERNATIONAL7);
-				VKeyCode.SetValue("INTERNATIONAL8", (int)Graphics::KeyCode::INTERNATIONAL8);
-				VKeyCode.SetValue("INTERNATIONAL9", (int)Graphics::KeyCode::INTERNATIONAL9);
-				VKeyCode.SetValue("LANG1", (int)Graphics::KeyCode::LANG1);
-				VKeyCode.SetValue("LANG2", (int)Graphics::KeyCode::LANG2);
-				VKeyCode.SetValue("LANG3", (int)Graphics::KeyCode::LANG3);
-				VKeyCode.SetValue("LANG4", (int)Graphics::KeyCode::LANG4);
-				VKeyCode.SetValue("LANG5", (int)Graphics::KeyCode::LANG5);
-				VKeyCode.SetValue("LANG6", (int)Graphics::KeyCode::LANG6);
-				VKeyCode.SetValue("LANG7", (int)Graphics::KeyCode::LANG7);
-				VKeyCode.SetValue("LANG8", (int)Graphics::KeyCode::LANG8);
-				VKeyCode.SetValue("LANG9", (int)Graphics::KeyCode::LANG9);
-				VKeyCode.SetValue("ALTERASE", (int)Graphics::KeyCode::ALTERASE);
-				VKeyCode.SetValue("SYSREQ", (int)Graphics::KeyCode::SYSREQ);
-				VKeyCode.SetValue("CANCEL", (int)Graphics::KeyCode::CANCEL);
-				VKeyCode.SetValue("CLEAR", (int)Graphics::KeyCode::CLEAR);
-				VKeyCode.SetValue("PRIOR", (int)Graphics::KeyCode::PRIOR);
-				VKeyCode.SetValue("RETURN2", (int)Graphics::KeyCode::RETURN2);
-				VKeyCode.SetValue("SEPARATOR", (int)Graphics::KeyCode::SEPARATOR);
-				VKeyCode.SetValue("OUTKEY", (int)Graphics::KeyCode::OUTKEY);
-				VKeyCode.SetValue("OPER", (int)Graphics::KeyCode::OPER);
-				VKeyCode.SetValue("CLEARAGAIN", (int)Graphics::KeyCode::CLEARAGAIN);
-				VKeyCode.SetValue("CRSEL", (int)Graphics::KeyCode::CRSEL);
-				VKeyCode.SetValue("EXSEL", (int)Graphics::KeyCode::EXSEL);
-				VKeyCode.SetValue("KP_00", (int)Graphics::KeyCode::KP_00);
-				VKeyCode.SetValue("KP_000", (int)Graphics::KeyCode::KP_000);
-				VKeyCode.SetValue("THOUSANDSSEPARATOR", (int)Graphics::KeyCode::THOUSANDSSEPARATOR);
-				VKeyCode.SetValue("DECIMALSEPARATOR", (int)Graphics::KeyCode::DECIMALSEPARATOR);
-				VKeyCode.SetValue("CURRENCYUNIT", (int)Graphics::KeyCode::CURRENCYUNIT);
-				VKeyCode.SetValue("CURRENCYSUBUNIT", (int)Graphics::KeyCode::CURRENCYSUBUNIT);
-				VKeyCode.SetValue("KP_LEFTPAREN", (int)Graphics::KeyCode::KP_LEFTPAREN);
-				VKeyCode.SetValue("KP_RIGHTPAREN", (int)Graphics::KeyCode::KP_RIGHTPAREN);
-				VKeyCode.SetValue("KP_LEFTBRACE", (int)Graphics::KeyCode::KP_LEFTBRACE);
-				VKeyCode.SetValue("KP_RIGHTBRACE", (int)Graphics::KeyCode::KP_RIGHTBRACE);
-				VKeyCode.SetValue("KP_TAB", (int)Graphics::KeyCode::KP_TAB);
-				VKeyCode.SetValue("KP_BACKSPACE", (int)Graphics::KeyCode::KP_BACKSPACE);
-				VKeyCode.SetValue("KP_A", (int)Graphics::KeyCode::KP_A);
-				VKeyCode.SetValue("KP_B", (int)Graphics::KeyCode::KP_B);
-				VKeyCode.SetValue("KP_C", (int)Graphics::KeyCode::KP_C);
-				VKeyCode.SetValue("KP_D", (int)Graphics::KeyCode::KP_D);
-				VKeyCode.SetValue("KP_E", (int)Graphics::KeyCode::KP_E);
-				VKeyCode.SetValue("KP_F", (int)Graphics::KeyCode::KP_F);
-				VKeyCode.SetValue("KP_XOR", (int)Graphics::KeyCode::KP_XOR);
-				VKeyCode.SetValue("KP_POWER", (int)Graphics::KeyCode::KP_POWER);
-				VKeyCode.SetValue("KP_PERCENT", (int)Graphics::KeyCode::KP_PERCENT);
-				VKeyCode.SetValue("KP_LESS", (int)Graphics::KeyCode::KP_LESS);
-				VKeyCode.SetValue("KP_GREATER", (int)Graphics::KeyCode::KP_GREATER);
-				VKeyCode.SetValue("KP_AMPERSAND", (int)Graphics::KeyCode::KP_AMPERSAND);
-				VKeyCode.SetValue("KP_DBLAMPERSAND", (int)Graphics::KeyCode::KP_DBLAMPERSAND);
-				VKeyCode.SetValue("KP_VERTICALBAR", (int)Graphics::KeyCode::KP_VERTICALBAR);
-				VKeyCode.SetValue("KP_DBLVERTICALBAR", (int)Graphics::KeyCode::KP_DBLVERTICALBAR);
-				VKeyCode.SetValue("KP_COLON", (int)Graphics::KeyCode::KP_COLON);
-				VKeyCode.SetValue("KP_HASH", (int)Graphics::KeyCode::KP_HASH);
-				VKeyCode.SetValue("KP_SPACE", (int)Graphics::KeyCode::KP_SPACE);
-				VKeyCode.SetValue("KP_AT", (int)Graphics::KeyCode::KP_AT);
-				VKeyCode.SetValue("KP_EXCLAM", (int)Graphics::KeyCode::KP_EXCLAM);
-				VKeyCode.SetValue("KP_MEMSTORE", (int)Graphics::KeyCode::KP_MEMSTORE);
-				VKeyCode.SetValue("KP_MEMRECALL", (int)Graphics::KeyCode::KP_MEMRECALL);
-				VKeyCode.SetValue("KP_MEMCLEAR", (int)Graphics::KeyCode::KP_MEMCLEAR);
-				VKeyCode.SetValue("KP_MEMADD", (int)Graphics::KeyCode::KP_MEMADD);
-				VKeyCode.SetValue("KP_MEMSUBTRACT", (int)Graphics::KeyCode::KP_MEMSUBTRACT);
-				VKeyCode.SetValue("KP_MEMMULTIPLY", (int)Graphics::KeyCode::KP_MEMMULTIPLY);
-				VKeyCode.SetValue("KP_MEMDIVIDE", (int)Graphics::KeyCode::KP_MEMDIVIDE);
-				VKeyCode.SetValue("KP_PLUSMINUS", (int)Graphics::KeyCode::KP_PLUSMINUS);
-				VKeyCode.SetValue("KP_CLEAR", (int)Graphics::KeyCode::KP_CLEAR);
-				VKeyCode.SetValue("KP_CLEARENTRY", (int)Graphics::KeyCode::KP_CLEARENTRY);
-				VKeyCode.SetValue("KP_BINARY", (int)Graphics::KeyCode::KP_BINARY);
-				VKeyCode.SetValue("KP_OCTAL", (int)Graphics::KeyCode::KP_OCTAL);
-				VKeyCode.SetValue("KP_DECIMAL", (int)Graphics::KeyCode::KP_DECIMAL);
-				VKeyCode.SetValue("KP_HEXADECIMAL", (int)Graphics::KeyCode::KP_HEXADECIMAL);
-				VKeyCode.SetValue("LCTRL", (int)Graphics::KeyCode::LCTRL);
-				VKeyCode.SetValue("LSHIFT", (int)Graphics::KeyCode::LSHIFT);
-				VKeyCode.SetValue("LALT", (int)Graphics::KeyCode::LALT);
-				VKeyCode.SetValue("LGUI", (int)Graphics::KeyCode::LGUI);
-				VKeyCode.SetValue("RCTRL", (int)Graphics::KeyCode::RCTRL);
-				VKeyCode.SetValue("RSHIFT", (int)Graphics::KeyCode::RSHIFT);
-				VKeyCode.SetValue("RALT", (int)Graphics::KeyCode::RALT);
-				VKeyCode.SetValue("RGUI", (int)Graphics::KeyCode::RGUI);
-				VKeyCode.SetValue("MODE", (int)Graphics::KeyCode::MODE);
-				VKeyCode.SetValue("AUDIONEXT", (int)Graphics::KeyCode::AUDIONEXT);
-				VKeyCode.SetValue("AUDIOPREV", (int)Graphics::KeyCode::AUDIOPREV);
-				VKeyCode.SetValue("AUDIOSTOP", (int)Graphics::KeyCode::AUDIOSTOP);
-				VKeyCode.SetValue("AUDIOPLAY", (int)Graphics::KeyCode::AUDIOPLAY);
-				VKeyCode.SetValue("AUDIOMUTE", (int)Graphics::KeyCode::AUDIOMUTE);
-				VKeyCode.SetValue("MEDIASELECT", (int)Graphics::KeyCode::MEDIASELECT);
-				VKeyCode.SetValue("WWW", (int)Graphics::KeyCode::WWW);
-				VKeyCode.SetValue("MAIL", (int)Graphics::KeyCode::MAIL);
-				VKeyCode.SetValue("CALCULATOR", (int)Graphics::KeyCode::CALCULATOR);
-				VKeyCode.SetValue("COMPUTER", (int)Graphics::KeyCode::COMPUTER);
-				VKeyCode.SetValue("AC_SEARCH", (int)Graphics::KeyCode::AC_SEARCH);
-				VKeyCode.SetValue("AC_HOME", (int)Graphics::KeyCode::AC_HOME);
-				VKeyCode.SetValue("AC_BACK", (int)Graphics::KeyCode::AC_BACK);
-				VKeyCode.SetValue("AC_FORWARD", (int)Graphics::KeyCode::AC_FORWARD);
-				VKeyCode.SetValue("AC_STOP", (int)Graphics::KeyCode::AC_STOP);
-				VKeyCode.SetValue("AC_REFRESH", (int)Graphics::KeyCode::AC_REFRESH);
-				VKeyCode.SetValue("AC_BOOKMARKS", (int)Graphics::KeyCode::AC_BOOKMARKS);
-				VKeyCode.SetValue("BRIGHTNESSDOWN", (int)Graphics::KeyCode::BRIGHTNESSDOWN);
-				VKeyCode.SetValue("BRIGHTNESSUP", (int)Graphics::KeyCode::BRIGHTNESSUP);
-				VKeyCode.SetValue("DISPLAYSWITCH", (int)Graphics::KeyCode::DISPLAYSWITCH);
-				VKeyCode.SetValue("KBDILLUMTOGGLE", (int)Graphics::KeyCode::KBDILLUMTOGGLE);
-				VKeyCode.SetValue("KBDILLUMDOWN", (int)Graphics::KeyCode::KBDILLUMDOWN);
-				VKeyCode.SetValue("KBDILLUMUP", (int)Graphics::KeyCode::KBDILLUMUP);
-				VKeyCode.SetValue("EJECT", (int)Graphics::KeyCode::EJECT);
-				VKeyCode.SetValue("SLEEP", (int)Graphics::KeyCode::SLEEP);
-				VKeyCode.SetValue("APP1", (int)Graphics::KeyCode::APP1);
-				VKeyCode.SetValue("APP2", (int)Graphics::KeyCode::APP2);
-				VKeyCode.SetValue("AUDIOREWIND", (int)Graphics::KeyCode::AUDIOREWIND);
-				VKeyCode.SetValue("AUDIOFASTFORWARD", (int)Graphics::KeyCode::AUDIOFASTFORWARD);
-				VKeyCode.SetValue("CURSORLEFT", (int)Graphics::KeyCode::CURSORLEFT);
-				VKeyCode.SetValue("CURSORMIDDLE", (int)Graphics::KeyCode::CURSORMIDDLE);
-				VKeyCode.SetValue("CURSORRIGHT", (int)Graphics::KeyCode::CURSORRIGHT);
-				VKeyCode.SetValue("CURSORX1", (int)Graphics::KeyCode::CURSORX1);
-				VKeyCode.SetValue("CURSORX2", (int)Graphics::KeyCode::CURSORX2);
+				VKeyCode.SetValue("a", (int)Graphics::KeyCode::A);
+				VKeyCode.SetValue("b", (int)Graphics::KeyCode::B);
+				VKeyCode.SetValue("c", (int)Graphics::KeyCode::C);
+				VKeyCode.SetValue("d", (int)Graphics::KeyCode::D);
+				VKeyCode.SetValue("e", (int)Graphics::KeyCode::E);
+				VKeyCode.SetValue("f", (int)Graphics::KeyCode::F);
+				VKeyCode.SetValue("g", (int)Graphics::KeyCode::G);
+				VKeyCode.SetValue("h", (int)Graphics::KeyCode::H);
+				VKeyCode.SetValue("i", (int)Graphics::KeyCode::I);
+				VKeyCode.SetValue("j", (int)Graphics::KeyCode::J);
+				VKeyCode.SetValue("k", (int)Graphics::KeyCode::K);
+				VKeyCode.SetValue("l", (int)Graphics::KeyCode::L);
+				VKeyCode.SetValue("m", (int)Graphics::KeyCode::M);
+				VKeyCode.SetValue("n", (int)Graphics::KeyCode::N);
+				VKeyCode.SetValue("o", (int)Graphics::KeyCode::O);
+				VKeyCode.SetValue("p", (int)Graphics::KeyCode::P);
+				VKeyCode.SetValue("q", (int)Graphics::KeyCode::Q);
+				VKeyCode.SetValue("r", (int)Graphics::KeyCode::R);
+				VKeyCode.SetValue("s", (int)Graphics::KeyCode::S);
+				VKeyCode.SetValue("t", (int)Graphics::KeyCode::T);
+				VKeyCode.SetValue("u", (int)Graphics::KeyCode::U);
+				VKeyCode.SetValue("v", (int)Graphics::KeyCode::V);
+				VKeyCode.SetValue("w", (int)Graphics::KeyCode::W);
+				VKeyCode.SetValue("x", (int)Graphics::KeyCode::X);
+				VKeyCode.SetValue("y", (int)Graphics::KeyCode::Y);
+				VKeyCode.SetValue("z", (int)Graphics::KeyCode::Z);
+				VKeyCode.SetValue("d1", (int)Graphics::KeyCode::D1);
+				VKeyCode.SetValue("d2", (int)Graphics::KeyCode::D2);
+				VKeyCode.SetValue("d3", (int)Graphics::KeyCode::D3);
+				VKeyCode.SetValue("d4", (int)Graphics::KeyCode::D4);
+				VKeyCode.SetValue("d5", (int)Graphics::KeyCode::D5);
+				VKeyCode.SetValue("d6", (int)Graphics::KeyCode::D6);
+				VKeyCode.SetValue("d7", (int)Graphics::KeyCode::D7);
+				VKeyCode.SetValue("d8", (int)Graphics::KeyCode::D8);
+				VKeyCode.SetValue("d9", (int)Graphics::KeyCode::D9);
+				VKeyCode.SetValue("d0", (int)Graphics::KeyCode::D0);
+				VKeyCode.SetValue("returns", (int)Graphics::KeyCode::Return);
+				VKeyCode.SetValue("escape", (int)Graphics::KeyCode::Escape);
+				VKeyCode.SetValue("backspace", (int)Graphics::KeyCode::Backspace);
+				VKeyCode.SetValue("tab", (int)Graphics::KeyCode::Tab);
+				VKeyCode.SetValue("space", (int)Graphics::KeyCode::Space);
+				VKeyCode.SetValue("minus", (int)Graphics::KeyCode::Minus);
+				VKeyCode.SetValue("equals", (int)Graphics::KeyCode::Equals);
+				VKeyCode.SetValue("left_bracket", (int)Graphics::KeyCode::LeftBracket);
+				VKeyCode.SetValue("right_bracket", (int)Graphics::KeyCode::RightBracket);
+				VKeyCode.SetValue("backslash", (int)Graphics::KeyCode::Backslash);
+				VKeyCode.SetValue("non_us_hash", (int)Graphics::KeyCode::NonUsHash);
+				VKeyCode.SetValue("semicolon", (int)Graphics::KeyCode::Semicolon);
+				VKeyCode.SetValue("apostrophe", (int)Graphics::KeyCode::Apostrophe);
+				VKeyCode.SetValue("grave", (int)Graphics::KeyCode::Grave);
+				VKeyCode.SetValue("comma", (int)Graphics::KeyCode::Comma);
+				VKeyCode.SetValue("period", (int)Graphics::KeyCode::Period);
+				VKeyCode.SetValue("slash", (int)Graphics::KeyCode::Slash);
+				VKeyCode.SetValue("capslock", (int)Graphics::KeyCode::Capslock);
+				VKeyCode.SetValue("f1", (int)Graphics::KeyCode::F1);
+				VKeyCode.SetValue("f2", (int)Graphics::KeyCode::F2);
+				VKeyCode.SetValue("f3", (int)Graphics::KeyCode::F3);
+				VKeyCode.SetValue("f4", (int)Graphics::KeyCode::F4);
+				VKeyCode.SetValue("f5", (int)Graphics::KeyCode::F5);
+				VKeyCode.SetValue("f6", (int)Graphics::KeyCode::F6);
+				VKeyCode.SetValue("f7", (int)Graphics::KeyCode::F7);
+				VKeyCode.SetValue("f8", (int)Graphics::KeyCode::F8);
+				VKeyCode.SetValue("f9", (int)Graphics::KeyCode::F9);
+				VKeyCode.SetValue("f10", (int)Graphics::KeyCode::F10);
+				VKeyCode.SetValue("f11", (int)Graphics::KeyCode::F11);
+				VKeyCode.SetValue("f12", (int)Graphics::KeyCode::F12);
+				VKeyCode.SetValue("print_screen", (int)Graphics::KeyCode::PrintScreen);
+				VKeyCode.SetValue("scroll_lock", (int)Graphics::KeyCode::ScrollLock);
+				VKeyCode.SetValue("pause", (int)Graphics::KeyCode::Pause);
+				VKeyCode.SetValue("insert", (int)Graphics::KeyCode::Insert);
+				VKeyCode.SetValue("home", (int)Graphics::KeyCode::Home);
+				VKeyCode.SetValue("page_up", (int)Graphics::KeyCode::PageUp);
+				VKeyCode.SetValue("delete", (int)Graphics::KeyCode::Delete);
+				VKeyCode.SetValue("end", (int)Graphics::KeyCode::End);
+				VKeyCode.SetValue("page_down", (int)Graphics::KeyCode::PageDown);
+				VKeyCode.SetValue("right", (int)Graphics::KeyCode::Right);
+				VKeyCode.SetValue("left", (int)Graphics::KeyCode::Left);
+				VKeyCode.SetValue("down", (int)Graphics::KeyCode::Down);
+				VKeyCode.SetValue("up", (int)Graphics::KeyCode::Up);
+				VKeyCode.SetValue("num_lock_clear", (int)Graphics::KeyCode::NumLockClear);
+				VKeyCode.SetValue("kp_divide", (int)Graphics::KeyCode::KpDivide);
+				VKeyCode.SetValue("kp_multiply", (int)Graphics::KeyCode::KpMultiply);
+				VKeyCode.SetValue("kp_minus", (int)Graphics::KeyCode::KpMinus);
+				VKeyCode.SetValue("kp_plus", (int)Graphics::KeyCode::KpPlus);
+				VKeyCode.SetValue("kp_enter", (int)Graphics::KeyCode::KpEnter);
+				VKeyCode.SetValue("kp_1", (int)Graphics::KeyCode::Kp1);
+				VKeyCode.SetValue("kp_2", (int)Graphics::KeyCode::Kp2);
+				VKeyCode.SetValue("kp_3", (int)Graphics::KeyCode::Kp3);
+				VKeyCode.SetValue("kp_4", (int)Graphics::KeyCode::Kp4);
+				VKeyCode.SetValue("kp_5", (int)Graphics::KeyCode::Kp5);
+				VKeyCode.SetValue("kp_6", (int)Graphics::KeyCode::Kp6);
+				VKeyCode.SetValue("kp_7", (int)Graphics::KeyCode::Kp7);
+				VKeyCode.SetValue("kp_8", (int)Graphics::KeyCode::Kp8);
+				VKeyCode.SetValue("kp_9", (int)Graphics::KeyCode::Kp9);
+				VKeyCode.SetValue("kp_0", (int)Graphics::KeyCode::Kp0);
+				VKeyCode.SetValue("kp_period", (int)Graphics::KeyCode::KpPeriod);
+				VKeyCode.SetValue("non_us_backslash", (int)Graphics::KeyCode::NonUsBackslash);
+				VKeyCode.SetValue("app0", (int)Graphics::KeyCode::App0);
+				VKeyCode.SetValue("power", (int)Graphics::KeyCode::Power);
+				VKeyCode.SetValue("kp_equals", (int)Graphics::KeyCode::KpEquals);
+				VKeyCode.SetValue("f13", (int)Graphics::KeyCode::F13);
+				VKeyCode.SetValue("f14", (int)Graphics::KeyCode::F14);
+				VKeyCode.SetValue("f15", (int)Graphics::KeyCode::F15);
+				VKeyCode.SetValue("f16", (int)Graphics::KeyCode::F16);
+				VKeyCode.SetValue("f17", (int)Graphics::KeyCode::F17);
+				VKeyCode.SetValue("f18", (int)Graphics::KeyCode::F18);
+				VKeyCode.SetValue("f19", (int)Graphics::KeyCode::F19);
+				VKeyCode.SetValue("f20", (int)Graphics::KeyCode::F20);
+				VKeyCode.SetValue("f21", (int)Graphics::KeyCode::F21);
+				VKeyCode.SetValue("f22", (int)Graphics::KeyCode::F22);
+				VKeyCode.SetValue("f23", (int)Graphics::KeyCode::F23);
+				VKeyCode.SetValue("f24", (int)Graphics::KeyCode::F24);
+				VKeyCode.SetValue("execute", (int)Graphics::KeyCode::Execute);
+				VKeyCode.SetValue("help", (int)Graphics::KeyCode::Help);
+				VKeyCode.SetValue("menu", (int)Graphics::KeyCode::Menu);
+				VKeyCode.SetValue("select", (int)Graphics::KeyCode::Select);
+				VKeyCode.SetValue("stop", (int)Graphics::KeyCode::Stop);
+				VKeyCode.SetValue("again", (int)Graphics::KeyCode::Again);
+				VKeyCode.SetValue("undo", (int)Graphics::KeyCode::Undo);
+				VKeyCode.SetValue("cut", (int)Graphics::KeyCode::Cut);
+				VKeyCode.SetValue("copy", (int)Graphics::KeyCode::Copy);
+				VKeyCode.SetValue("paste", (int)Graphics::KeyCode::Paste);
+				VKeyCode.SetValue("find", (int)Graphics::KeyCode::Find);
+				VKeyCode.SetValue("mute", (int)Graphics::KeyCode::Mute);
+				VKeyCode.SetValue("volume_up", (int)Graphics::KeyCode::VolumeUp);
+				VKeyCode.SetValue("volume_down", (int)Graphics::KeyCode::VolumeDown);
+				VKeyCode.SetValue("kp_comma", (int)Graphics::KeyCode::KpComma);
+				VKeyCode.SetValue("kp_equals_as_400", (int)Graphics::KeyCode::KpEqualsAs400);
+				VKeyCode.SetValue("international1", (int)Graphics::KeyCode::International1);
+				VKeyCode.SetValue("international2", (int)Graphics::KeyCode::International2);
+				VKeyCode.SetValue("international3", (int)Graphics::KeyCode::International3);
+				VKeyCode.SetValue("international4", (int)Graphics::KeyCode::International4);
+				VKeyCode.SetValue("international5", (int)Graphics::KeyCode::International5);
+				VKeyCode.SetValue("international6", (int)Graphics::KeyCode::International6);
+				VKeyCode.SetValue("international7", (int)Graphics::KeyCode::International7);
+				VKeyCode.SetValue("international8", (int)Graphics::KeyCode::International8);
+				VKeyCode.SetValue("international9", (int)Graphics::KeyCode::International9);
+				VKeyCode.SetValue("lang1", (int)Graphics::KeyCode::Lang1);
+				VKeyCode.SetValue("lang2", (int)Graphics::KeyCode::Lang2);
+				VKeyCode.SetValue("lang3", (int)Graphics::KeyCode::Lang3);
+				VKeyCode.SetValue("lang4", (int)Graphics::KeyCode::Lang4);
+				VKeyCode.SetValue("lang5", (int)Graphics::KeyCode::Lang5);
+				VKeyCode.SetValue("lang6", (int)Graphics::KeyCode::Lang6);
+				VKeyCode.SetValue("lang7", (int)Graphics::KeyCode::Lang7);
+				VKeyCode.SetValue("lang8", (int)Graphics::KeyCode::Lang8);
+				VKeyCode.SetValue("lang9", (int)Graphics::KeyCode::Lang9);
+				VKeyCode.SetValue("alterase", (int)Graphics::KeyCode::Alterase);
+				VKeyCode.SetValue("sys_req", (int)Graphics::KeyCode::SysReq);
+				VKeyCode.SetValue("cancel", (int)Graphics::KeyCode::Cancel);
+				VKeyCode.SetValue("clear", (int)Graphics::KeyCode::Clear);
+				VKeyCode.SetValue("prior", (int)Graphics::KeyCode::Prior);
+				VKeyCode.SetValue("return2", (int)Graphics::KeyCode::Return2);
+				VKeyCode.SetValue("separator", (int)Graphics::KeyCode::Separator);
+				VKeyCode.SetValue("output", (int)Graphics::KeyCode::Output);
+				VKeyCode.SetValue("operation", (int)Graphics::KeyCode::Operation);
+				VKeyCode.SetValue("clear_again", (int)Graphics::KeyCode::ClearAgain);
+				VKeyCode.SetValue("cr_select", (int)Graphics::KeyCode::CrSelect);
+				VKeyCode.SetValue("ex_select", (int)Graphics::KeyCode::ExSelect);
+				VKeyCode.SetValue("kp_00", (int)Graphics::KeyCode::Kp00);
+				VKeyCode.SetValue("kp_000", (int)Graphics::KeyCode::Kp000);
+				VKeyCode.SetValue("thousands_separator", (int)Graphics::KeyCode::ThousandsSeparator);
+				VKeyCode.SetValue("decimals_separator", (int)Graphics::KeyCode::DecimalsSeparator);
+				VKeyCode.SetValue("currency_unit", (int)Graphics::KeyCode::CurrencyUnit);
+				VKeyCode.SetValue("currency_subunit", (int)Graphics::KeyCode::CurrencySubunit);
+				VKeyCode.SetValue("kp_left_paren", (int)Graphics::KeyCode::KpLeftParen);
+				VKeyCode.SetValue("kp_right_paren", (int)Graphics::KeyCode::KpRightParen);
+				VKeyCode.SetValue("kp_left_brace", (int)Graphics::KeyCode::KpLeftBrace);
+				VKeyCode.SetValue("kp_right_brace", (int)Graphics::KeyCode::KpRightBrace);
+				VKeyCode.SetValue("kp_tab", (int)Graphics::KeyCode::KpTab);
+				VKeyCode.SetValue("kp_backspace", (int)Graphics::KeyCode::KpBackspace);
+				VKeyCode.SetValue("kp_a", (int)Graphics::KeyCode::KpA);
+				VKeyCode.SetValue("kp_b", (int)Graphics::KeyCode::KpB);
+				VKeyCode.SetValue("kp_c", (int)Graphics::KeyCode::KpC);
+				VKeyCode.SetValue("kp_d", (int)Graphics::KeyCode::KpD);
+				VKeyCode.SetValue("kp_e", (int)Graphics::KeyCode::KpE);
+				VKeyCode.SetValue("kp_f", (int)Graphics::KeyCode::KpF);
+				VKeyCode.SetValue("kp_xor", (int)Graphics::KeyCode::KpXOR);
+				VKeyCode.SetValue("kp_power", (int)Graphics::KeyCode::KpPower);
+				VKeyCode.SetValue("kp_percent", (int)Graphics::KeyCode::KpPercent);
+				VKeyCode.SetValue("kp_less", (int)Graphics::KeyCode::KpLess);
+				VKeyCode.SetValue("kp_greater", (int)Graphics::KeyCode::KpGreater);
+				VKeyCode.SetValue("kp_ampersand", (int)Graphics::KeyCode::KpAmpersand);
+				VKeyCode.SetValue("kp_dbl_ampersand", (int)Graphics::KeyCode::KpDBLAmpersand);
+				VKeyCode.SetValue("kp_vertical_bar", (int)Graphics::KeyCode::KpVerticalBar);
+				VKeyCode.SetValue("kp_dbl_vertical_bar", (int)Graphics::KeyCode::KpDBLVerticalBar);
+				VKeyCode.SetValue("kp_colon", (int)Graphics::KeyCode::KpColon);
+				VKeyCode.SetValue("kp_hash", (int)Graphics::KeyCode::KpHash);
+				VKeyCode.SetValue("kp_space", (int)Graphics::KeyCode::KpSpace);
+				VKeyCode.SetValue("kp_at", (int)Graphics::KeyCode::KpAt);
+				VKeyCode.SetValue("kp_exclaim", (int)Graphics::KeyCode::KpExclaim);
+				VKeyCode.SetValue("kp_mem_store", (int)Graphics::KeyCode::KpMemStore);
+				VKeyCode.SetValue("kp_mem_recall", (int)Graphics::KeyCode::KpMemRecall);
+				VKeyCode.SetValue("kp_mem_clear", (int)Graphics::KeyCode::KpMemClear);
+				VKeyCode.SetValue("kp_mem_add", (int)Graphics::KeyCode::KpMemAdd);
+				VKeyCode.SetValue("kp_mem_subtract", (int)Graphics::KeyCode::KpMemSubtract);
+				VKeyCode.SetValue("kp_mem_multiply", (int)Graphics::KeyCode::KpMemMultiply);
+				VKeyCode.SetValue("kp_mem_divide", (int)Graphics::KeyCode::KpMemDivide);
+				VKeyCode.SetValue("kp_plus_minus", (int)Graphics::KeyCode::KpPlusMinus);
+				VKeyCode.SetValue("kp_clear", (int)Graphics::KeyCode::KpClear);
+				VKeyCode.SetValue("kp_clear_entry", (int)Graphics::KeyCode::KpClearEntry);
+				VKeyCode.SetValue("kp_binary", (int)Graphics::KeyCode::KpBinary);
+				VKeyCode.SetValue("kp_octal", (int)Graphics::KeyCode::KpOctal);
+				VKeyCode.SetValue("kp_decimal", (int)Graphics::KeyCode::KpDecimal);
+				VKeyCode.SetValue("kp_hexadecimal", (int)Graphics::KeyCode::KpHexadecimal);
+				VKeyCode.SetValue("left_control", (int)Graphics::KeyCode::LeftControl);
+				VKeyCode.SetValue("left_shift", (int)Graphics::KeyCode::LeftShift);
+				VKeyCode.SetValue("left_alt", (int)Graphics::KeyCode::LeftAlt);
+				VKeyCode.SetValue("left_gui", (int)Graphics::KeyCode::LeftGUI);
+				VKeyCode.SetValue("right_control", (int)Graphics::KeyCode::RightControl);
+				VKeyCode.SetValue("right_shift", (int)Graphics::KeyCode::RightShift);
+				VKeyCode.SetValue("right_alt", (int)Graphics::KeyCode::RightAlt);
+				VKeyCode.SetValue("right_gui", (int)Graphics::KeyCode::RightGUI);
+				VKeyCode.SetValue("mode", (int)Graphics::KeyCode::Mode);
+				VKeyCode.SetValue("audio_next", (int)Graphics::KeyCode::AudioNext);
+				VKeyCode.SetValue("audio_prev", (int)Graphics::KeyCode::AudioPrev);
+				VKeyCode.SetValue("audio_stop", (int)Graphics::KeyCode::AudioStop);
+				VKeyCode.SetValue("audio_play", (int)Graphics::KeyCode::AudioPlay);
+				VKeyCode.SetValue("audio_mute", (int)Graphics::KeyCode::AudioMute);
+				VKeyCode.SetValue("media_select", (int)Graphics::KeyCode::MediaSelect);
+				VKeyCode.SetValue("www", (int)Graphics::KeyCode::WWW);
+				VKeyCode.SetValue("mail", (int)Graphics::KeyCode::Mail);
+				VKeyCode.SetValue("calculator", (int)Graphics::KeyCode::Calculator);
+				VKeyCode.SetValue("computer", (int)Graphics::KeyCode::Computer);
+				VKeyCode.SetValue("ac_search", (int)Graphics::KeyCode::AcSearch);
+				VKeyCode.SetValue("ac_home", (int)Graphics::KeyCode::AcHome);
+				VKeyCode.SetValue("ac_back", (int)Graphics::KeyCode::AcBack);
+				VKeyCode.SetValue("ac_forward", (int)Graphics::KeyCode::AcForward);
+				VKeyCode.SetValue("ac_stop", (int)Graphics::KeyCode::AcStop);
+				VKeyCode.SetValue("ac_refresh", (int)Graphics::KeyCode::AcRefresh);
+				VKeyCode.SetValue("ac_bookmarks", (int)Graphics::KeyCode::AcBookmarks);
+				VKeyCode.SetValue("brightness_down", (int)Graphics::KeyCode::BrightnessDown);
+				VKeyCode.SetValue("brightness_up", (int)Graphics::KeyCode::BrightnessUp);
+				VKeyCode.SetValue("display_switch", (int)Graphics::KeyCode::DisplaySwitch);
+				VKeyCode.SetValue("kb_illum_toggle", (int)Graphics::KeyCode::KbIllumToggle);
+				VKeyCode.SetValue("kb_illum_down", (int)Graphics::KeyCode::KbIllumDown);
+				VKeyCode.SetValue("kb_illum_up", (int)Graphics::KeyCode::KbIllumUp);
+				VKeyCode.SetValue("eject", (int)Graphics::KeyCode::Eject);
+				VKeyCode.SetValue("sleep", (int)Graphics::KeyCode::Sleep);
+				VKeyCode.SetValue("app1", (int)Graphics::KeyCode::App1);
+				VKeyCode.SetValue("app2", (int)Graphics::KeyCode::App2);
+				VKeyCode.SetValue("audio_rewind", (int)Graphics::KeyCode::AudioRewind);
+				VKeyCode.SetValue("audio_fast_forward", (int)Graphics::KeyCode::AudioFastForward);
+				VKeyCode.SetValue("cursor_left", (int)Graphics::KeyCode::CursorLeft);
+				VKeyCode.SetValue("cursor_middle", (int)Graphics::KeyCode::CursorMiddle);
+				VKeyCode.SetValue("cursor_right", (int)Graphics::KeyCode::CursorRight);
+				VKeyCode.SetValue("cursor_x1", (int)Graphics::KeyCode::CursorX1);
+				VKeyCode.SetValue("cursor_x2", (int)Graphics::KeyCode::CursorX2);
 				VKeyCode.SetValue("none", (int)Graphics::KeyCode::None);
 
 				Enumeration VKeyMod = Engine->SetEnum("key_mod");
 				VKeyMod.SetValue("none", (int)Graphics::KeyMod::None);
-				VKeyMod.SetValue("LSHIFT", (int)Graphics::KeyMod::LSHIFT);
-				VKeyMod.SetValue("RSHIFT", (int)Graphics::KeyMod::RSHIFT);
-				VKeyMod.SetValue("LCTRL", (int)Graphics::KeyMod::LCTRL);
-				VKeyMod.SetValue("RCTRL", (int)Graphics::KeyMod::RCTRL);
-				VKeyMod.SetValue("LALT", (int)Graphics::KeyMod::LALT);
-				VKeyMod.SetValue("RALT", (int)Graphics::KeyMod::RALT);
-				VKeyMod.SetValue("LGUI", (int)Graphics::KeyMod::LGUI);
-				VKeyMod.SetValue("RGUI", (int)Graphics::KeyMod::RGUI);
-				VKeyMod.SetValue("NUM", (int)Graphics::KeyMod::NUM);
-				VKeyMod.SetValue("CAPS", (int)Graphics::KeyMod::CAPS);
-				VKeyMod.SetValue("MODE", (int)Graphics::KeyMod::MODE);
-				VKeyMod.SetValue("RESERVED", (int)Graphics::KeyMod::RESERVED);
-				VKeyMod.SetValue("SHIFT", (int)Graphics::KeyMod::SHIFT);
-				VKeyMod.SetValue("CTRL", (int)Graphics::KeyMod::CTRL);
-				VKeyMod.SetValue("ALT", (int)Graphics::KeyMod::ALT);
-				VKeyMod.SetValue("GUI", (int)Graphics::KeyMod::GUI);
+				VKeyMod.SetValue("left_shift", (int)Graphics::KeyMod::LeftShift);
+				VKeyMod.SetValue("right_shift", (int)Graphics::KeyMod::RightShift);
+				VKeyMod.SetValue("left_control", (int)Graphics::KeyMod::LeftControl);
+				VKeyMod.SetValue("right_control", (int)Graphics::KeyMod::RightControl);
+				VKeyMod.SetValue("left_alt", (int)Graphics::KeyMod::LeftAlt);
+				VKeyMod.SetValue("right_alt", (int)Graphics::KeyMod::RightAlt);
+				VKeyMod.SetValue("left_gui", (int)Graphics::KeyMod::LeftGUI);
+				VKeyMod.SetValue("right_gui", (int)Graphics::KeyMod::RightGUI);
+				VKeyMod.SetValue("num", (int)Graphics::KeyMod::Num);
+				VKeyMod.SetValue("caps", (int)Graphics::KeyMod::Caps);
+				VKeyMod.SetValue("mode", (int)Graphics::KeyMod::Mode);
+				VKeyMod.SetValue("reserved", (int)Graphics::KeyMod::Reserved);
+				VKeyMod.SetValue("shift", (int)Graphics::KeyMod::Shift);
+				VKeyMod.SetValue("control", (int)Graphics::KeyMod::Control);
+				VKeyMod.SetValue("alt", (int)Graphics::KeyMod::Alt);
+				VKeyMod.SetValue("gui", (int)Graphics::KeyMod::GUI);
 
 				Enumeration VAlertType = Engine->SetEnum("alert_type");
 				VAlertType.SetValue("none", (int)Graphics::AlertType::None);
@@ -12173,10 +12171,10 @@ namespace Edge
 				VGraphicsDevice.SetMethod("void set_primitive_topology(primitive_topology)", &Graphics::GraphicsDevice::SetPrimitiveTopology);
 				VGraphicsDevice.SetMethod("void flush_texture(uint32, uint32, uint32)", &Graphics::GraphicsDevice::FlushTexture);
 				VGraphicsDevice.SetMethod("void flush_state()", &Graphics::GraphicsDevice::FlushState);
-				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::ElementBuffer*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool map(element_buffer@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
-				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture2D*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool map(texture_2d@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
-				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture3D*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool map(texture_3d@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
-				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::TextureCube*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool map(texture_cube@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::ElementBuffer*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool dictionary(element_buffer@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture2D*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool dictionary(texture_2d@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture3D*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool dictionary(texture_3d@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::TextureCube*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool dictionary(texture_cube@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture2D*, Graphics::MappedSubresource*>("bool unmap(texture_2d@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture3D*, Graphics::MappedSubresource*>("bool unmap(texture_3d@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::TextureCube*, Graphics::MappedSubresource*>("bool unmap(texture_cube@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
@@ -12443,7 +12441,7 @@ namespace Edge
 				VLocation.SetProperty<Network::Location>("string path", &Network::Location::Path);
 				VLocation.SetProperty<Network::Location>("int32 port", &Network::Location::Port);
 				VLocation.SetConstructor<Network::Location, const std::string&>("void f(const string &in)");
-				VLocation.SetMethodEx("map@ get_query() const", &LocationGetQuery);
+				VLocation.SetMethodEx("dictionary@ get_query() const", &LocationGetQuery);
 
 				TypeClass VCertificate = Engine->SetStructTrivial<Network::Certificate>("certificate");
 				VCertificate.SetProperty<Network::Certificate>("string subject", &Network::Certificate::Subject);
@@ -12617,10 +12615,10 @@ namespace Edge
 				VSocketRouter.SetConstructor<Network::SocketRouter>("socket_router@ f()");
 				VSocketRouter.SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string&, int, bool>("remote_host& listen(const string &in, int, bool = false)", &Network::SocketRouter::Listen);
 				VSocketRouter.SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string&, const std::string&, int, bool>("remote_host& listen(const string &in, const string &in, int, bool = false)", &Network::SocketRouter::Listen);
-				VSocketRouter.SetMethodEx("void set_listeners(map@ data)", &SocketRouterSetListeners);
-				VSocketRouter.SetMethodEx("map@ get_listeners() const", &SocketRouterGetListeners);
-				VSocketRouter.SetMethodEx("void set_certificates(map@ data)", &SocketRouterSetCertificates);
-				VSocketRouter.SetMethodEx("map@ get_certificates() const", &SocketRouterGetCertificates);
+				VSocketRouter.SetMethodEx("void set_listeners(dictionary@ data)", &SocketRouterSetListeners);
+				VSocketRouter.SetMethodEx("dictionary@ get_listeners() const", &SocketRouterGetListeners);
+				VSocketRouter.SetMethodEx("void set_certificates(dictionary@ data)", &SocketRouterSetCertificates);
+				VSocketRouter.SetMethodEx("dictionary@ get_certificates() const", &SocketRouterGetCertificates);
 
 				static const char SocketConnection[] = "socket_connection";
 				RefClass VSocketConnection = Engine->SetClass<Network::SocketConnection>("socket_connection", true);
@@ -12791,8 +12789,8 @@ namespace Edge
 				TypeClass VEvent = Engine->SetStructTrivial<Engine::Event>("scene_event");
 				VEvent.SetProperty<Engine::Event>("string name", &Engine::Event::Name);
 				VEvent.SetConstructor<Engine::Event, const std::string&>("void f(const string &in)");
-				VEvent.SetMethodEx("void set_args(map@+)", &EventSetArgs);
-				VEvent.SetMethodEx("map@ get_args() const", &EventGetArgs);
+				VEvent.SetMethodEx("void set_args(dictionary@+)", &EventSetArgs);
+				VEvent.SetMethodEx("dictionary@ get_args() const", &EventGetArgs);
 
 				RefClass VMaterial = Engine->SetClass<Engine::Material>("material", true);
 				TypeClass VBatchData = Engine->SetStructTrivial<Engine::BatchData>("batch_data");

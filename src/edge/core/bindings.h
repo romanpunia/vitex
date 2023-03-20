@@ -27,6 +27,30 @@ namespace Edge
 
 			class Array;
 
+			struct ED_OUT Dynamic
+			{
+				union
+				{
+					as_int64_t Integer;
+					double Number;
+					void* Object;
+				};
+
+				int TypeId;
+
+				Dynamic() : TypeId(0)
+				{
+					Clean();
+				}
+				void Clean()
+				{
+					TypeId = 0;
+					Object = nullptr;
+					Number = 0.0;
+					Integer = 0;
+				}
+			};
+
 			class ED_OUT_TS Registry
 			{
 			public:
@@ -34,7 +58,7 @@ namespace Edge
 				static bool LoadAny(VirtualMachine* VM);
 				static bool LoadArray(VirtualMachine* VM);
 				static bool LoadComplex(VirtualMachine* VM);
-				static bool LoadMap(VirtualMachine* VM);
+				static bool LoadDictionary(VirtualMachine* VM);
 				static bool LoadRef(VirtualMachine* VM);
 				static bool LoadWeakRef(VirtualMachine* VM);
 				static bool LoadMath(VirtualMachine* VM);
@@ -174,22 +198,10 @@ namespace Edge
 				friend Promise;
 
 			protected:
-				struct ValueStruct
-				{
-					union
-					{
-						as_int64_t ValueInt;
-						double ValueFlt;
-						void* ValueObj;
-					};
-					int TypeId;
-				};
-
-			protected:
 				mutable int RefCount;
 				mutable bool GCFlag;
 				asIScriptEngine* Engine;
-				ValueStruct Value;
+				Dynamic Value;
 
 			public:
 				Any(asIScriptEngine* Engine) noexcept;
@@ -462,47 +474,41 @@ namespace Edge
 				};
 			};
 
-			class ED_OUT MapKey
+			class ED_OUT Storable
 			{
 			protected:
-				friend class Map;
+				friend class Dictionary;
 
 			protected:
-				union
-				{
-					as_int64_t ValueInt;
-					double ValueFlt;
-					void* ValueObj;
-				};
-				int TypeId;
+				Dynamic Value;
 
 			public:
-				MapKey() noexcept;
-				MapKey(asIScriptEngine* Engine, void* Value, int TypeId) noexcept;
-				~MapKey() noexcept;
-				void Set(asIScriptEngine* Engine, void* Value, int TypeId);
-				void Set(asIScriptEngine* Engine, MapKey& Value);
-				bool Get(asIScriptEngine* Engine, void* Value, int TypeId) const;
+				Storable() noexcept;
+				Storable(asIScriptEngine* Engine, void* Pointer, int TypeId) noexcept;
+				~Storable() noexcept;
+				void Set(asIScriptEngine* Engine, void* Pointer, int TypeId);
+				void Set(asIScriptEngine* Engine, Storable& Other);
+				bool Get(asIScriptEngine* Engine, void* Pointer, int TypeId) const;
 				const void* GetAddressOfValue() const;
 				int GetTypeId() const;
 				void FreeValue(asIScriptEngine* Engine);
 				void EnumReferences(asIScriptEngine* Engine);
 			};
 
-			class ED_OUT Map
+			class ED_OUT Dictionary
 			{
 			public:
-				typedef std::unordered_map<std::string, MapKey> InternalMap;
+				typedef std::unordered_map<std::string, Storable> InternalMap;
 
 			public:
 				class LocalIterator
 				{
 				protected:
-					friend class Map;
+					friend class Dictionary;
 
 				protected:
 					InternalMap::const_iterator It;
-					const Map& Dict;
+					const Dictionary& Base;
 
 				public:
 					void operator++();
@@ -517,7 +523,7 @@ namespace Edge
 
 				protected:
 					LocalIterator() noexcept;
-					LocalIterator(const Map& Dict, InternalMap::const_iterator It) noexcept;
+					LocalIterator(const Dictionary& From, InternalMap::const_iterator It) noexcept;
 					LocalIterator& operator= (const LocalIterator&) noexcept
 					{
 						return *this;
@@ -526,7 +532,7 @@ namespace Edge
 
 				struct SCache
 				{
-					asITypeInfo* DictType;
+					asITypeInfo* DictionaryType;
 					asITypeInfo* ArrayType;
 					asITypeInfo* KeyType;
 				};
@@ -535,17 +541,17 @@ namespace Edge
 				asIScriptEngine* Engine;
 				mutable int RefCount;
 				mutable bool GCFlag;
-				InternalMap Dict;
+				InternalMap Data;
 
 			public:
 				void AddRef() const;
 				void Release() const;
-				Map& operator= (const Map& Other) noexcept;
+				Dictionary& operator= (const Dictionary& Other) noexcept;
 				void Set(const std::string& Key, void* Value, int TypeId);
 				bool Get(const std::string& Key, void* Value, int TypeId) const;
 				bool GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const;
-				MapKey* operator[](const std::string& Key);
-				const MapKey* operator[](const std::string& Key) const;
+				Storable* operator[](const std::string& Key);
+				const Storable* operator[](const std::string& Key) const;
 				int GetTypeId(const std::string& Key) const;
 				bool Exists(const std::string& Key) const;
 				bool IsEmpty() const;
@@ -563,42 +569,42 @@ namespace Edge
 				void ReleaseAllReferences(asIScriptEngine* Engine);
 
 			protected:
-				Map(asIScriptEngine* Engine) noexcept;
-				Map(unsigned char* Buffer) noexcept;
-				Map(const Map&) noexcept;
-				~Map() noexcept;
+				Dictionary(asIScriptEngine* Engine) noexcept;
+				Dictionary(unsigned char* Buffer) noexcept;
+				Dictionary(const Dictionary&) noexcept;
+				~Dictionary() noexcept;
 				void Init(asIScriptEngine* Engine);
 
 			public:
-				static Core::Unique<Map> Create(asIScriptEngine* Engine);
-				static Core::Unique<Map> Create(unsigned char* Buffer);
+				static Core::Unique<Dictionary> Create(asIScriptEngine* Engine);
+				static Core::Unique<Dictionary> Create(unsigned char* Buffer);
 				static void Cleanup(asIScriptEngine* engine);
 				static void Setup(asIScriptEngine* engine);
 				static void Factory(asIScriptGeneric* gen);
 				static void ListFactory(asIScriptGeneric* gen);
 				static void KeyConstruct(void* mem);
-				static void KeyDestruct(MapKey* obj);
-				static MapKey& KeyopAssign(void* ref, int typeId, MapKey* obj);
-				static MapKey& KeyopAssign(const MapKey& other, MapKey* obj);
-				static MapKey& KeyopAssign(double val, MapKey* obj);
-				static MapKey& KeyopAssign(as_int64_t val, MapKey* obj);
-				static void KeyopCast(void* ref, int typeId, MapKey* obj);
-				static as_int64_t KeyopConvInt(MapKey* obj);
-				static double KeyopConvDouble(MapKey* obj);
+				static void KeyDestruct(Storable* obj);
+				static Storable& KeyopAssign(void* ref, int typeId, Storable* obj);
+				static Storable& KeyopAssign(const Storable& other, Storable* obj);
+				static Storable& KeyopAssign(double val, Storable* obj);
+				static Storable& KeyopAssign(as_int64_t val, Storable* obj);
+				static void KeyopCast(void* ref, int typeId, Storable* obj);
+				static as_int64_t KeyopConvInt(Storable* obj);
+				static double KeyopConvDouble(Storable* obj);
 
 			public:
 				template <typename T>
-				static Map* Compose(int TypeId, const std::unordered_map<std::string, T>& Objects)
+				static Dictionary* Compose(int TypeId, const std::unordered_map<std::string, T>& Objects)
 				{
 					auto* Engine = VirtualMachine::Get();
-					Map* Data = Create(Engine ? Engine->GetEngine() : nullptr);
+					Dictionary* Data = Create(Engine ? Engine->GetEngine() : nullptr);
 					for (auto& Item : Objects)
 						Data->Set(Item.first, (void*)&Item.second, TypeId);
 
 					return Data;
 				}
 				template <typename T>
-				static typename std::enable_if<std::is_pointer<T>::value, std::unordered_map<std::string, T>>::type Decompose(int TypeId, Map* Array)
+				static typename std::enable_if<std::is_pointer<T>::value, std::unordered_map<std::string, T>>::type Decompose(int TypeId, Dictionary* Array)
 				{
 					std::unordered_map<std::string, T> Result;
 					Result.reserve(Array->GetSize());
@@ -615,7 +621,7 @@ namespace Edge
 					return Result;
 				}
 				template <typename T>
-				static typename std::enable_if<!std::is_pointer<T>::value, std::unordered_map<std::string, T>>::type Decompose(int TypeId, Map* Array)
+				static typename std::enable_if<!std::is_pointer<T>::value, std::unordered_map<std::string, T>>::type Decompose(int TypeId, Dictionary* Array)
 				{
 					std::unordered_map<std::string, T> Result;
 					Result.reserve(Array->GetSize());

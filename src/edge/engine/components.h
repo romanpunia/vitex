@@ -372,10 +372,10 @@ namespace Edge
 				Graphics::KeyMap Backward = Graphics::KeyCode::S;
 				Graphics::KeyMap Right = Graphics::KeyCode::D;
 				Graphics::KeyMap Left = Graphics::KeyCode::A;
-				Graphics::KeyMap Up = Graphics::KeyCode::SPACE;
+				Graphics::KeyMap Up = Graphics::KeyCode::Space;
 				Graphics::KeyMap Down = Graphics::KeyCode::Z;
-				Graphics::KeyMap Fast = Graphics::KeyCode::LSHIFT;
-				Graphics::KeyMap Slow = Graphics::KeyCode::LCTRL;
+				Graphics::KeyMap Fast = Graphics::KeyCode::LeftShift;
+				Graphics::KeyMap Slow = Graphics::KeyCode::LeftControl;
 
 			public:
 				Fly(Entity* Ref);

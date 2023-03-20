@@ -2340,55 +2340,55 @@ namespace Edge
 						{
 							case SDL_BUTTON_LEFT:
 								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CURSORLEFT, (KeyMod)SDL_GetModState(), (int)KeyCode::CURSORLEFT, (int)Event.button.clicks, true);
+									Callbacks.KeyState(KeyCode::CursorLeft, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorLeft, (int)Event.button.clicks, true);
 
 								if (Mapping.Enabled && !Mapping.Mapped)
 								{
-									Mapping.Key.Key = KeyCode::CURSORLEFT;
+									Mapping.Key.Key = KeyCode::CursorLeft;
 									Mapping.Mapped = true;
 									Mapping.Captured = false;
 								}
 								break;
 							case SDL_BUTTON_MIDDLE:
 								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CURSORMIDDLE, (KeyMod)SDL_GetModState(), (int)KeyCode::CURSORMIDDLE, (int)Event.button.clicks, true);
+									Callbacks.KeyState(KeyCode::CursorMiddle, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorMiddle, (int)Event.button.clicks, true);
 
 								if (Mapping.Enabled && !Mapping.Mapped)
 								{
-									Mapping.Key.Key = KeyCode::CURSORMIDDLE;
+									Mapping.Key.Key = KeyCode::CursorMiddle;
 									Mapping.Mapped = true;
 									Mapping.Captured = false;
 								}
 								break;
 							case SDL_BUTTON_RIGHT:
 								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CURSORRIGHT, (KeyMod)SDL_GetModState(), (int)KeyCode::CURSORRIGHT, (int)Event.button.clicks, true);
+									Callbacks.KeyState(KeyCode::CursorRight, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorRight, (int)Event.button.clicks, true);
 
 								if (Mapping.Enabled && !Mapping.Mapped)
 								{
-									Mapping.Key.Key = KeyCode::CURSORRIGHT;
+									Mapping.Key.Key = KeyCode::CursorRight;
 									Mapping.Mapped = true;
 									Mapping.Captured = false;
 								}
 								break;
 							case SDL_BUTTON_X1:
 								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CURSORX1, (KeyMod)SDL_GetModState(), (int)KeyCode::CURSORX1, (int)Event.button.clicks, true);
+									Callbacks.KeyState(KeyCode::CursorX1, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorX1, (int)Event.button.clicks, true);
 
 								if (Mapping.Enabled && !Mapping.Mapped)
 								{
-									Mapping.Key.Key = KeyCode::CURSORX1;
+									Mapping.Key.Key = KeyCode::CursorX1;
 									Mapping.Mapped = true;
 									Mapping.Captured = false;
 								}
 								break;
 							case SDL_BUTTON_X2:
 								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CURSORX2, (KeyMod)SDL_GetModState(), (int)KeyCode::CURSORX2, (int)Event.button.clicks, true);
+									Callbacks.KeyState(KeyCode::CursorX2, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorX2, (int)Event.button.clicks, true);
 
 								if (Mapping.Enabled && !Mapping.Mapped)
 								{
-									Mapping.Key.Key = KeyCode::CURSORX2;
+									Mapping.Key.Key = KeyCode::CursorX2;
 									Mapping.Mapped = true;
 									Mapping.Captured = false;
 								}
@@ -2400,9 +2400,9 @@ namespace Edge
 						{
 							case SDL_BUTTON_LEFT:
 								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CURSORLEFT, (KeyMod)SDL_GetModState(), (int)KeyCode::CURSORLEFT, (int)Event.button.clicks, false);
+									Callbacks.KeyState(KeyCode::CursorLeft, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorLeft, (int)Event.button.clicks, false);
 
-								if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode::CURSORLEFT)
+								if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode::CursorLeft)
 								{
 									Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 									Mapping.Captured = true;
@@ -2410,9 +2410,9 @@ namespace Edge
 								break;
 							case SDL_BUTTON_MIDDLE:
 								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CURSORMIDDLE, (KeyMod)SDL_GetModState(), (int)KeyCode::CURSORMIDDLE, (int)Event.button.clicks, false);
+									Callbacks.KeyState(KeyCode::CursorMiddle, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorMiddle, (int)Event.button.clicks, false);
 
-								if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode::CURSORMIDDLE)
+								if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode::CursorMiddle)
 								{
 									Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 									Mapping.Captured = true;
@@ -2420,9 +2420,9 @@ namespace Edge
 								break;
 							case SDL_BUTTON_RIGHT:
 								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CURSORRIGHT, (KeyMod)SDL_GetModState(), (int)KeyCode::CURSORRIGHT, (int)Event.button.clicks, false);
+									Callbacks.KeyState(KeyCode::CursorRight, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorRight, (int)Event.button.clicks, false);
 
-								if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode::CURSORRIGHT)
+								if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode::CursorRight)
 								{
 									Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 									Mapping.Captured = true;
@@ -2430,9 +2430,9 @@ namespace Edge
 								break;
 							case SDL_BUTTON_X1:
 								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CURSORX1, (KeyMod)SDL_GetModState(), (int)KeyCode::CURSORX1, (int)Event.button.clicks, false);
+									Callbacks.KeyState(KeyCode::CursorX1, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorX1, (int)Event.button.clicks, false);
 
-								if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode::CURSORX1)
+								if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode::CursorX1)
 								{
 									Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 									Mapping.Captured = true;
@@ -2440,9 +2440,9 @@ namespace Edge
 								break;
 							case SDL_BUTTON_X2:
 								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CURSORX2, (KeyMod)SDL_GetModState(), (int)KeyCode::CURSORX2, (int)Event.button.clicks, false);
+									Callbacks.KeyState(KeyCode::CursorX2, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorX2, (int)Event.button.clicks, false);
 
-								if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode::CURSORX2)
+								if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode::CursorX2)
 								{
 									Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 									Mapping.Captured = true;
@@ -2926,11 +2926,11 @@ namespace Edge
 				Keys[0][i] = Map[i] > 0;
 
 			Uint32 State = SDL_GetMouseState(nullptr, nullptr);
-			Keys[0][(size_t)KeyCode::CURSORLEFT] = (State & SDL_BUTTON(SDL_BUTTON_LEFT));
-			Keys[0][(size_t)KeyCode::CURSORMIDDLE] = (State & SDL_BUTTON(SDL_BUTTON_MIDDLE));
-			Keys[0][(size_t)KeyCode::CURSORRIGHT] = (State & SDL_BUTTON(SDL_BUTTON_RIGHT));
-			Keys[0][(size_t)KeyCode::CURSORX1] = (State & SDL_BUTTON(SDL_BUTTON_X1));
-			Keys[0][(size_t)KeyCode::CURSORX2] = (State & SDL_BUTTON(SDL_BUTTON_X2));
+			Keys[0][(size_t)KeyCode::CursorLeft] = (State & SDL_BUTTON(SDL_BUTTON_LEFT));
+			Keys[0][(size_t)KeyCode::CursorMiddle] = (State & SDL_BUTTON(SDL_BUTTON_MIDDLE));
+			Keys[0][(size_t)KeyCode::CursorRight] = (State & SDL_BUTTON(SDL_BUTTON_RIGHT));
+			Keys[0][(size_t)KeyCode::CursorX1] = (State & SDL_BUTTON(SDL_BUTTON_X1));
+			Keys[0][(size_t)KeyCode::CursorX2] = (State & SDL_BUTTON(SDL_BUTTON_X2));
 #endif
 			return Keys[0];
 		}
@@ -2999,37 +2999,37 @@ namespace Edge
 				case KeyCode::Z:
 					Name = "Z";
 					break;
-				case KeyCode::RETURN:
+				case KeyCode::Return:
 					Name = "Return";
 					break;
-				case KeyCode::ESCAPE:
+				case KeyCode::Escape:
 					Name = "Escape";
 					break;
-				case KeyCode::LEFTBRACKET:
+				case KeyCode::LeftBracket:
 					Name = "Left Bracket";
 					break;
-				case KeyCode::RIGHTBRACKET:
-					Name = "Rigth Bracket";
+				case KeyCode::RightBracket:
+					Name = "Right Bracket";
 					break;
-				case KeyCode::BACKSLASH:
+				case KeyCode::Backslash:
 					Name = "Backslash";
 					break;
-				case KeyCode::NONUSHASH:
-					Name = "Nonuslash";
+				case KeyCode::NonUsHash:
+					Name = "Non-US Hash";
 					break;
-				case KeyCode::SEMICOLON:
+				case KeyCode::Semicolon:
 					Name = "Semicolon";
 					break;
-				case KeyCode::APOSTROPHE:
+				case KeyCode::Apostrophe:
 					Name = "Apostrophe";
 					break;
-				case KeyCode::GRAVE:
+				case KeyCode::Grave:
 					Name = "Grave";
 					break;
-				case KeyCode::SLASH:
+				case KeyCode::Slash:
 					Name = "Slash";
 					break;
-				case KeyCode::CAPSLOCK:
+				case KeyCode::Capslock:
 					Name = "Caps Lock";
 					break;
 				case KeyCode::F1:
@@ -3068,116 +3068,116 @@ namespace Edge
 				case KeyCode::F12:
 					Name = "F12";
 					break;
-				case KeyCode::PRINTSCREEN:
+				case KeyCode::PrintScreen:
 					Name = "Print Screen";
 					break;
-				case KeyCode::SCROLLLOCK:
+				case KeyCode::ScrollLock:
 					Name = "Scroll Lock";
 					break;
-				case KeyCode::PAUSE:
+				case KeyCode::Pause:
 					Name = "Pause";
 					break;
-				case KeyCode::INSERT:
+				case KeyCode::Insert:
 					Name = "Insert";
 					break;
-				case KeyCode::HOME:
+				case KeyCode::Home:
 					Name = "Home";
 					break;
-				case KeyCode::PAGEUP:
+				case KeyCode::PageUp:
 					Name = "Page Up";
 					break;
-				case KeyCode::DELETEKEY:
+				case KeyCode::Delete:
 					Name = "Delete";
 					break;
-				case KeyCode::END:
+				case KeyCode::End:
 					Name = "End";
 					break;
-				case KeyCode::PAGEDOWN:
+				case KeyCode::PageDown:
 					Name = "Page Down";
 					break;
-				case KeyCode::RIGHT:
+				case KeyCode::Right:
 					Name = "Right";
 					break;
-				case KeyCode::LEFT:
+				case KeyCode::Left:
 					Name = "Left";
 					break;
-				case KeyCode::DOWN:
+				case KeyCode::Down:
 					Name = "Down";
 					break;
-				case KeyCode::UP:
+				case KeyCode::Up:
 					Name = "Up";
 					break;
-				case KeyCode::NUMLOCKCLEAR:
+				case KeyCode::NumLockClear:
 					Name = "Numlock Clear";
 					break;
-				case KeyCode::KP_DIVIDE:
+				case KeyCode::KpDivide:
 					Name = "Divide";
 					break;
-				case KeyCode::KP_MULTIPLY:
+				case KeyCode::KpMultiply:
 					Name = "Multiply";
 					break;
-				case KeyCode::MINUS:
-				case KeyCode::KP_MINUS:
+				case KeyCode::Minus:
+				case KeyCode::KpMinus:
 					Name = "Minus";
 					break;
-				case KeyCode::KP_PLUS:
+				case KeyCode::KpPlus:
 					Name = "Plus";
 					break;
-				case KeyCode::KP_ENTER:
+				case KeyCode::KpEnter:
 					Name = "Enter";
 					break;
 				case KeyCode::D1:
-				case KeyCode::KP_1:
+				case KeyCode::Kp1:
 					Name = "1";
 					break;
 				case KeyCode::D2:
-				case KeyCode::KP_2:
+				case KeyCode::Kp2:
 					Name = "2";
 					break;
 				case KeyCode::D3:
-				case KeyCode::KP_3:
+				case KeyCode::Kp3:
 					Name = "3";
 					break;
 				case KeyCode::D4:
-				case KeyCode::KP_4:
+				case KeyCode::Kp4:
 					Name = "4";
 					break;
 				case KeyCode::D5:
-				case KeyCode::KP_5:
+				case KeyCode::Kp5:
 					Name = "5";
 					break;
 				case KeyCode::D6:
-				case KeyCode::KP_6:
+				case KeyCode::Kp6:
 					Name = "6";
 					break;
 				case KeyCode::D7:
-				case KeyCode::KP_7:
+				case KeyCode::Kp7:
 					Name = "7";
 					break;
 				case KeyCode::D8:
-				case KeyCode::KP_8:
+				case KeyCode::Kp8:
 					Name = "8";
 					break;
 				case KeyCode::D9:
-				case KeyCode::KP_9:
+				case KeyCode::Kp9:
 					Name = "9";
 					break;
 				case KeyCode::D0:
-				case KeyCode::KP_0:
+				case KeyCode::Kp0:
 					Name = "0";
 					break;
-				case KeyCode::PERIOD:
-				case KeyCode::KP_PERIOD:
+				case KeyCode::Period:
+				case KeyCode::KpPeriod:
 					Name = "Period";
 					break;
-				case KeyCode::NONUSBACKSLASH:
-					Name = "Nonus Backslash";
+				case KeyCode::NonUsBackslash:
+					Name = "Non-US Backslash";
 					break;
-				case KeyCode::APPLICATION:
+				case KeyCode::App0:
 					Name = "Application";
 					break;
-				case KeyCode::EQUALS:
-				case KeyCode::KP_EQUALS:
+				case KeyCode::Equals:
+				case KeyCode::KpEquals:
 					Name = "Equals";
 					break;
 				case KeyCode::F13:
@@ -3216,418 +3216,418 @@ namespace Edge
 				case KeyCode::F24:
 					Name = "F24";
 					break;
-				case KeyCode::EXECUTE:
+				case KeyCode::Execute:
 					Name = "Execute";
 					break;
-				case KeyCode::HELP:
+				case KeyCode::Help:
 					Name = "Help";
 					break;
-				case KeyCode::MENU:
+				case KeyCode::Menu:
 					Name = "Menu";
 					break;
-				case KeyCode::SELECT:
+				case KeyCode::Select:
 					Name = "Select";
 					break;
-				case KeyCode::STOP:
+				case KeyCode::Stop:
 					Name = "Stop";
 					break;
-				case KeyCode::AGAIN:
+				case KeyCode::Again:
 					Name = "Again";
 					break;
-				case KeyCode::UNDO:
+				case KeyCode::Undo:
 					Name = "Undo";
 					break;
-				case KeyCode::CUT:
+				case KeyCode::Cut:
 					Name = "Cut";
 					break;
-				case KeyCode::COPY:
+				case KeyCode::Copy:
 					Name = "Copy";
 					break;
-				case KeyCode::PASTE:
+				case KeyCode::Paste:
 					Name = "Paste";
 					break;
-				case KeyCode::FIND:
+				case KeyCode::Find:
 					Name = "Find";
 					break;
-				case KeyCode::MUTE:
+				case KeyCode::Mute:
 					Name = "Mute";
 					break;
-				case KeyCode::VOLUMEUP:
+				case KeyCode::VolumeUp:
 					Name = "Volume Up";
 					break;
-				case KeyCode::VOLUMEDOWN:
+				case KeyCode::VolumeDown:
 					Name = "Volume Down";
 					break;
-				case KeyCode::COMMA:
-				case KeyCode::KP_COMMA:
+				case KeyCode::Comma:
+				case KeyCode::KpComma:
 					Name = "Comma";
 					break;
-				case KeyCode::KP_EQUALSAS400:
+				case KeyCode::KpEqualsAs400:
 					Name = "Equals As 400";
 					break;
-				case KeyCode::INTERNATIONAL1:
+				case KeyCode::International1:
 					Name = "International 1";
 					break;
-				case KeyCode::INTERNATIONAL2:
+				case KeyCode::International2:
 					Name = "International 2";
 					break;
-				case KeyCode::INTERNATIONAL3:
+				case KeyCode::International3:
 					Name = "International 3";
 					break;
-				case KeyCode::INTERNATIONAL4:
+				case KeyCode::International4:
 					Name = "International 4";
 					break;
-				case KeyCode::INTERNATIONAL5:
+				case KeyCode::International5:
 					Name = "International 5";
 					break;
-				case KeyCode::INTERNATIONAL6:
+				case KeyCode::International6:
 					Name = "International 6";
 					break;
-				case KeyCode::INTERNATIONAL7:
+				case KeyCode::International7:
 					Name = "International 7";
 					break;
-				case KeyCode::INTERNATIONAL8:
+				case KeyCode::International8:
 					Name = "International 8";
 					break;
-				case KeyCode::INTERNATIONAL9:
+				case KeyCode::International9:
 					Name = "International 9";
 					break;
-				case KeyCode::LANG1:
+				case KeyCode::Lang1:
 					Name = "Lang 1";
 					break;
-				case KeyCode::LANG2:
+				case KeyCode::Lang2:
 					Name = "Lang 2";
 					break;
-				case KeyCode::LANG3:
+				case KeyCode::Lang3:
 					Name = "Lang 3";
 					break;
-				case KeyCode::LANG4:
+				case KeyCode::Lang4:
 					Name = "Lang 4";
 					break;
-				case KeyCode::LANG5:
+				case KeyCode::Lang5:
 					Name = "Lang 5";
 					break;
-				case KeyCode::LANG6:
+				case KeyCode::Lang6:
 					Name = "Lang 6";
 					break;
-				case KeyCode::LANG7:
+				case KeyCode::Lang7:
 					Name = "Lang 7";
 					break;
-				case KeyCode::LANG8:
+				case KeyCode::Lang8:
 					Name = "Lang 8";
 					break;
-				case KeyCode::LANG9:
+				case KeyCode::Lang9:
 					Name = "Lang 9";
 					break;
-				case KeyCode::ALTERASE:
-					Name = "Alter Rase";
+				case KeyCode::Alterase:
+					Name = "Alterase";
 					break;
-				case KeyCode::SYSREQ:
-					Name = "Sys Req";
+				case KeyCode::SysReq:
+					Name = "System Request";
 					break;
-				case KeyCode::CANCEL:
+				case KeyCode::Cancel:
 					Name = "Cancel";
 					break;
-				case KeyCode::PRIOR:
+				case KeyCode::Prior:
 					Name = "Prior";
 					break;
-				case KeyCode::RETURN2:
+				case KeyCode::Return2:
 					Name = "Return 2";
 					break;
-				case KeyCode::SEPARATOR:
+				case KeyCode::Separator:
 					Name = "Separator";
 					break;
-				case KeyCode::OUTKEY:
-					Name = "Out";
+				case KeyCode::Output:
+					Name = "Output";
 					break;
-				case KeyCode::OPER:
-					Name = "Oper";
+				case KeyCode::Operation:
+					Name = "Operation";
 					break;
-				case KeyCode::CLEARAGAIN:
+				case KeyCode::ClearAgain:
 					Name = "Clear Again";
 					break;
-				case KeyCode::CRSEL:
-					Name = "CR Sel";
+				case KeyCode::CrSelect:
+					Name = "CR Select";
 					break;
-				case KeyCode::EXSEL:
-					Name = "EX Sel";
+				case KeyCode::ExSelect:
+					Name = "EX Select";
 					break;
-				case KeyCode::KP_00:
+				case KeyCode::Kp00:
 					Name = "00";
 					break;
-				case KeyCode::KP_000:
+				case KeyCode::Kp000:
 					Name = "000";
 					break;
-				case KeyCode::THOUSANDSSEPARATOR:
+				case KeyCode::ThousandsSeparator:
 					Name = "Thousands Separator";
 					break;
-				case KeyCode::DECIMALSEPARATOR:
+				case KeyCode::DecimalsSeparator:
 					Name = "Decimal Separator";
 					break;
-				case KeyCode::CURRENCYUNIT:
+				case KeyCode::CurrencyUnit:
 					Name = "Currency Unit";
 					break;
-				case KeyCode::CURRENCYSUBUNIT:
+				case KeyCode::CurrencySubunit:
 					Name = "Currency Subunit";
 					break;
-				case KeyCode::KP_LEFTPAREN:
+				case KeyCode::KpLeftParen:
 					Name = "Left Parent";
 					break;
-				case KeyCode::KP_RIGHTPAREN:
-					Name = "Right Paren";
+				case KeyCode::KpRightParen:
+					Name = "Right Parent";
 					break;
-				case KeyCode::KP_LEFTBRACE:
+				case KeyCode::KpLeftBrace:
 					Name = "Left Brace";
 					break;
-				case KeyCode::KP_RIGHTBRACE:
+				case KeyCode::KpRightBrace:
 					Name = "Right Brace";
 					break;
-				case KeyCode::TAB:
-				case KeyCode::KP_TAB:
+				case KeyCode::Tab:
+				case KeyCode::KpTab:
 					Name = "Tab";
 					break;
-				case KeyCode::BACKSPACE:
-				case KeyCode::KP_BACKSPACE:
+				case KeyCode::Backspace:
+				case KeyCode::KpBackspace:
 					Name = "Backspace";
 					break;
 				case KeyCode::A:
-				case KeyCode::KP_A:
+				case KeyCode::KpA:
 					Name = "A";
 					break;
 				case KeyCode::B:
-				case KeyCode::KP_B:
+				case KeyCode::KpB:
 					Name = "B";
 					break;
 				case KeyCode::C:
-				case KeyCode::KP_C:
+				case KeyCode::KpC:
 					Name = "C";
 					break;
 				case KeyCode::D:
-				case KeyCode::KP_D:
+				case KeyCode::KpD:
 					Name = "D";
 					break;
 				case KeyCode::E:
-				case KeyCode::KP_E:
+				case KeyCode::KpE:
 					Name = "E";
 					break;
 				case KeyCode::F:
-				case KeyCode::KP_F:
+				case KeyCode::KpF:
 					Name = "F";
 					break;
-				case KeyCode::KP_XOR:
+				case KeyCode::KpXOR:
 					Name = "Xor";
 					break;
-				case KeyCode::POWER:
-				case KeyCode::KP_POWER:
+				case KeyCode::Power:
+				case KeyCode::KpPower:
 					Name = "Power";
 					break;
-				case KeyCode::KP_PERCENT:
+				case KeyCode::KpPercent:
 					Name = "Percent";
 					break;
-				case KeyCode::KP_LESS:
+				case KeyCode::KpLess:
 					Name = "Less";
 					break;
-				case KeyCode::KP_GREATER:
+				case KeyCode::KpGreater:
 					Name = "Greater";
 					break;
-				case KeyCode::KP_AMPERSAND:
+				case KeyCode::KpAmpersand:
 					Name = "Ampersand";
 					break;
-				case KeyCode::KP_DBLAMPERSAND:
+				case KeyCode::KpDBLAmpersand:
 					Name = "DBL Ampersand";
 					break;
-				case KeyCode::KP_VERTICALBAR:
+				case KeyCode::KpVerticalBar:
 					Name = "Vertical Bar";
 					break;
-				case KeyCode::KP_DBLVERTICALBAR:
+				case KeyCode::KpDBLVerticalBar:
 					Name = "OBL Vertical Bar";
 					break;
-				case KeyCode::KP_COLON:
+				case KeyCode::KpColon:
 					Name = "Colon";
 					break;
-				case KeyCode::KP_HASH:
+				case KeyCode::KpHash:
 					Name = "Hash";
 					break;
-				case KeyCode::SPACE:
-				case KeyCode::KP_SPACE:
+				case KeyCode::Space:
+				case KeyCode::KpSpace:
 					Name = "Space";
 					break;
-				case KeyCode::KP_AT:
+				case KeyCode::KpAt:
 					Name = "At";
 					break;
-				case KeyCode::KP_EXCLAM:
+				case KeyCode::KpExclaim:
 					Name = "Exclam";
 					break;
-				case KeyCode::KP_MEMSTORE:
+				case KeyCode::KpMemStore:
 					Name = "Mem Store";
 					break;
-				case KeyCode::KP_MEMRECALL:
+				case KeyCode::KpMemRecall:
 					Name = "Mem Recall";
 					break;
-				case KeyCode::KP_MEMCLEAR:
+				case KeyCode::KpMemClear:
 					Name = "Mem Clear";
 					break;
-				case KeyCode::KP_MEMADD:
+				case KeyCode::KpMemAdd:
 					Name = "Mem Add";
 					break;
-				case KeyCode::KP_MEMSUBTRACT:
+				case KeyCode::KpMemSubtract:
 					Name = "Mem Subtract";
 					break;
-				case KeyCode::KP_MEMMULTIPLY:
+				case KeyCode::KpMemMultiply:
 					Name = "Mem Multiply";
 					break;
-				case KeyCode::KP_MEMDIVIDE:
+				case KeyCode::KpMemDivide:
 					Name = "Mem Divide";
 					break;
-				case KeyCode::KP_PLUSMINUS:
+				case KeyCode::KpPlusMinus:
 					Name = "Plus-Minus";
 					break;
-				case KeyCode::CLEAR:
-				case KeyCode::KP_CLEAR:
+				case KeyCode::Clear:
+				case KeyCode::KpClear:
 					Name = "Clear";
 					break;
-				case KeyCode::KP_CLEARENTRY:
+				case KeyCode::KpClearEntry:
 					Name = "Clear Entry";
 					break;
-				case KeyCode::KP_BINARY:
+				case KeyCode::KpBinary:
 					Name = "Binary";
 					break;
-				case KeyCode::KP_OCTAL:
+				case KeyCode::KpOctal:
 					Name = "Octal";
 					break;
-				case KeyCode::KP_DECIMAL:
+				case KeyCode::KpDecimal:
 					Name = "Decimal";
 					break;
-				case KeyCode::KP_HEXADECIMAL:
+				case KeyCode::KpHexadecimal:
 					Name = "Hexadecimal";
 					break;
-				case KeyCode::LCTRL:
+				case KeyCode::LeftControl:
 					Name = "Left CTRL";
 					break;
-				case KeyCode::LSHIFT:
+				case KeyCode::LeftShift:
 					Name = "Left Shift";
 					break;
-				case KeyCode::LALT:
+				case KeyCode::LeftAlt:
 					Name = "Left Alt";
 					break;
-				case KeyCode::LGUI:
+				case KeyCode::LeftGUI:
 					Name = "Left GUI";
 					break;
-				case KeyCode::RCTRL:
+				case KeyCode::RightControl:
 					Name = "Right CTRL";
 					break;
-				case KeyCode::RSHIFT:
+				case KeyCode::RightShift:
 					Name = "Right Shift";
 					break;
-				case KeyCode::RALT:
+				case KeyCode::RightAlt:
 					Name = "Right Alt";
 					break;
-				case KeyCode::RGUI:
+				case KeyCode::RightGUI:
 					Name = "Right GUI";
 					break;
-				case KeyCode::MODE:
+				case KeyCode::Mode:
 					Name = "Mode";
 					break;
-				case KeyCode::AUDIONEXT:
+				case KeyCode::AudioNext:
 					Name = "Audio Next";
 					break;
-				case KeyCode::AUDIOPREV:
+				case KeyCode::AudioPrev:
 					Name = "Audio Prev";
 					break;
-				case KeyCode::AUDIOSTOP:
+				case KeyCode::AudioStop:
 					Name = "Audio Stop";
 					break;
-				case KeyCode::AUDIOPLAY:
+				case KeyCode::AudioPlay:
 					Name = "Audio Play";
 					break;
-				case KeyCode::AUDIOMUTE:
+				case KeyCode::AudioMute:
 					Name = "Audio Mute";
 					break;
-				case KeyCode::MEDIASELECT:
+				case KeyCode::MediaSelect:
 					Name = "Media Select";
 					break;
 				case KeyCode::WWW:
 					Name = "WWW";
 					break;
-				case KeyCode::MAIL:
+				case KeyCode::Mail:
 					Name = "Mail";
 					break;
-				case KeyCode::CALCULATOR:
+				case KeyCode::Calculator:
 					Name = "Calculator";
 					break;
-				case KeyCode::COMPUTER:
+				case KeyCode::Computer:
 					Name = "Computer";
 					break;
-				case KeyCode::AC_SEARCH:
+				case KeyCode::AcSearch:
 					Name = "AC Search";
 					break;
-				case KeyCode::AC_HOME:
+				case KeyCode::AcHome:
 					Name = "AC Home";
 					break;
-				case KeyCode::AC_BACK:
+				case KeyCode::AcBack:
 					Name = "AC Back";
 					break;
-				case KeyCode::AC_FORWARD:
+				case KeyCode::AcForward:
 					Name = "AC Forward";
 					break;
-				case KeyCode::AC_STOP:
+				case KeyCode::AcStop:
 					Name = "AC Stop";
 					break;
-				case KeyCode::AC_REFRESH:
+				case KeyCode::AcRefresh:
 					Name = "AC Refresh";
 					break;
-				case KeyCode::AC_BOOKMARKS:
+				case KeyCode::AcBookmarks:
 					Name = "AC Bookmarks";
 					break;
-				case KeyCode::BRIGHTNESSDOWN:
+				case KeyCode::BrightnessDown:
 					Name = "Brigthness Down";
 					break;
-				case KeyCode::BRIGHTNESSUP:
+				case KeyCode::BrightnessUp:
 					Name = "Brigthness Up";
 					break;
-				case KeyCode::DISPLAYSWITCH:
+				case KeyCode::DisplaySwitch:
 					Name = "Display Switch";
 					break;
-				case KeyCode::KBDILLUMTOGGLE:
+				case KeyCode::KbIllumToggle:
 					Name = "Dillum Toggle";
 					break;
-				case KeyCode::KBDILLUMDOWN:
+				case KeyCode::KbIllumDown:
 					Name = "Dillum Down";
 					break;
-				case KeyCode::KBDILLUMUP:
+				case KeyCode::KbIllumUp:
 					Name = "Dillum Up";
 					break;
-				case KeyCode::EJECT:
+				case KeyCode::Eject:
 					Name = "Eject";
 					break;
-				case KeyCode::SLEEP:
+				case KeyCode::Sleep:
 					Name = "Sleep";
 					break;
-				case KeyCode::APP1:
+				case KeyCode::App1:
 					Name = "App 1";
 					break;
-				case KeyCode::APP2:
+				case KeyCode::App2:
 					Name = "App 2";
 					break;
-				case KeyCode::AUDIOREWIND:
+				case KeyCode::AudioRewind:
 					Name = "Audio Rewind";
 					break;
-				case KeyCode::AUDIOFASTFORWARD:
+				case KeyCode::AudioFastForward:
 					Name = "Audio Fast Forward";
 					break;
-				case KeyCode::CURSORLEFT:
+				case KeyCode::CursorLeft:
 					Name = "Cursor Left";
 					break;
-				case KeyCode::CURSORMIDDLE:
+				case KeyCode::CursorMiddle:
 					Name = "Cursor Middle";
 					break;
-				case KeyCode::CURSORRIGHT:
+				case KeyCode::CursorRight:
 					Name = "Cursor Right";
 					break;
-				case KeyCode::CURSORX1:
+				case KeyCode::CursorX1:
 					Name = "Cursor X1";
 					break;
-				case KeyCode::CURSORX2:
+				case KeyCode::CursorX2:
 					Name = "Cursor X2";
 					break;
 				default:
@@ -3642,46 +3642,46 @@ namespace Edge
 			const char* Name;
 			switch (Code)
 			{
-				case KeyMod::LSHIFT:
+				case KeyMod::LeftShift:
 					Name = "Left Shift";
 					break;
-				case KeyMod::RSHIFT:
+				case KeyMod::RightShift:
 					Name = "Right Shift";
 					break;
-				case KeyMod::LCTRL:
+				case KeyMod::LeftControl:
 					Name = "Left Ctrl";
 					break;
-				case KeyMod::RCTRL:
+				case KeyMod::RightControl:
 					Name = "Right Ctrl";
 					break;
-				case KeyMod::LALT:
+				case KeyMod::LeftAlt:
 					Name = "Left Alt";
 					break;
-				case KeyMod::RALT:
+				case KeyMod::RightAlt:
 					Name = "Right Alt";
 					break;
-				case KeyMod::LGUI:
+				case KeyMod::LeftGUI:
 					Name = "Left Gui";
 					break;
-				case KeyMod::RGUI:
+				case KeyMod::RightGUI:
 					Name = "Right Gui";
 					break;
-				case KeyMod::NUM:
+				case KeyMod::Num:
 					Name = "Num-lock";
 					break;
-				case KeyMod::CAPS:
+				case KeyMod::Caps:
 					Name = "Caps-lock";
 					break;
-				case KeyMod::MODE:
+				case KeyMod::Mode:
 					Name = "Mode";
 					break;
-				case KeyMod::SHIFT:
+				case KeyMod::Shift:
 					Name = "Shift";
 					break;
-				case KeyMod::CTRL:
+				case KeyMod::Control:
 					Name = "Ctrl";
 					break;
-				case KeyMod::ALT:
+				case KeyMod::Alt:
 					Name = "Alt";
 					break;
 				case KeyMod::GUI:

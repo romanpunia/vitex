@@ -251,7 +251,8 @@ You can look at [Lynx's CMakeLists.txt](https://github.com/romanpunia/lynx/blob/
 
 ## Building options
 There are several build options for this project.
-+ **ED_MSG_DEBUG** to allow verbose logs, defaults to false
++ **ED_MSG_TRACE** to allow tracing logs (very verbose), defaults to false
++ **ED_MSG_DEBUG** to allow debug logs (op. details), defaults to false
 + **ED_MSG_INFO** to allow informational logs, defaults to true
 + **ED_MSG_WARN** to allow warning logs, defaults to true
 + **ED_MSG_ERROR** to allow error logs, defaults to true

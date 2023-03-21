@@ -358,7 +358,7 @@ namespace Edge
 		{
 			ED_ASSERT(Handle != INVALID_EPOLL, false, "epoll should be initialized");
 			ED_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, false, "socket should be set and valid");
-
+			ED_TRACE("[net] epoll add fd %i %s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
 #ifdef ED_APPLE
 			struct kevent Event;
 			int Result1 = 1;
@@ -394,7 +394,7 @@ namespace Edge
 		{
 			ED_ASSERT(Handle != INVALID_EPOLL, false, "epoll should be initialized");
 			ED_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, false, "socket should be set and valid");
-
+			ED_TRACE("[net] epoll update fd %i %s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
 #ifdef ED_APPLE
 			struct kevent Event;
 			int Result1 = 1;
@@ -430,7 +430,7 @@ namespace Edge
 		{
 			ED_ASSERT(Handle != INVALID_EPOLL, false, "epoll should be initialized");
 			ED_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, false, "socket should be set and valid");
-
+			ED_TRACE("[net] epoll remove fd %i %s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
 #ifdef ED_APPLE
 			struct kevent Event;
 			int Result1 = 1;
@@ -465,6 +465,7 @@ namespace Edge
 		int EpollHandle::Wait(EpollFd* Data, size_t DataSize, uint64_t Timeout)
 		{
 			ED_ASSERT(ArraySize <= DataSize, -1, "epollfd array should be less than or equal to internal events buffer");
+			ED_TRACE("[net] epoll wait %i fds (%" PRIu64 " ms)", (int)DataSize, Timeout);
 #ifdef ED_APPLE
 			struct timespec Wait;
 			Wait.tv_sec = (int)Timeout / 1000;
@@ -496,11 +497,13 @@ namespace Edge
 #endif
 			}
 
+			ED_TRACE("[net] epoll recv %i events", (int)Offset);
 			return Count;
 		}
 
 		void DNS::Release()
 		{
+			ED_TRACE("[dns] cleanup cache");
 			Exclusive.lock();
 			if (Names != nullptr)
 			{
@@ -704,6 +707,7 @@ namespace Edge
 		int Utils::Poll(pollfd* Fd, int FdCount, int Timeout)
 		{
 			ED_ASSERT(Fd != nullptr, -1, "poll should be set");
+			ED_TRACE("[net] poll %i fds (%i ms)", FdCount, Timeout);
 #if defined(ED_MICROSOFT)
 			return WSAPoll(Fd, FdCount, Timeout);
 #else
@@ -713,6 +717,7 @@ namespace Edge
 		int Utils::Poll(PollFd* Fd, int FdCount, int Timeout)
 		{
 			ED_ASSERT(Fd != nullptr, -1, "poll should be set");
+			ED_TRACE("[net] poll %i fds (%i ms)", FdCount, Timeout);
 			std::vector<pollfd> Fds;
 			Fds.resize(FdCount);
 
@@ -782,6 +787,7 @@ namespace Edge
 		void Multiplexer::Create(uint64_t DispatchTimeout, size_t MaxEvents)
 		{
 			ED_ASSERT_V(MaxEvents > 0, "array size should be greater than zero");
+			ED_TRACE("[net] initialize multiplexer (%" PRIu64 " events)", (uint64_t)MaxEvents);
 			ED_DELETE(EpollHandle, Handle);
 
 			using Map = Core::Mapping<std::map<std::chrono::microseconds, Socket*>>;
@@ -797,6 +803,7 @@ namespace Edge
 		}
 		void Multiplexer::Release()
 		{
+			ED_TRACE("[net] free multiplexer");
 			if (Timeouts != nullptr)
 			{
 				ED_DELETE(Mapping, Timeouts);
@@ -1165,6 +1172,7 @@ namespace Edge
 			ED_ASSERT(Info != nullptr, std::string(), "address info should be set");
 			char Buffer[INET6_ADDRSTRLEN];
 			inet_ntop(Info->ai_family, GetAddressStorage(Info->ai_addr), Buffer, sizeof(Buffer));
+			ED_TRACE("[net] inet ntop addrinfo 0x%" PRIXPTR ": %s", (void*)Info, Buffer);
 			return Buffer;
 		}
 		std::string Multiplexer::GetAddress(sockaddr* Info)
@@ -1172,11 +1180,13 @@ namespace Edge
 			ED_ASSERT(Info != nullptr, std::string(), "socket address should be set");
 			char Buffer[INET6_ADDRSTRLEN];
 			inet_ntop(Info->sa_family, GetAddressStorage(Info), Buffer, sizeof(Buffer));
+			ED_TRACE("[net] inet ntop sockaddr 0x%" PRIXPTR ": %s", (void*)Info, Buffer);
 			return Buffer;
 		}
 		int Multiplexer::GetAddressFamily(const char* Address)
 		{
 			ED_ASSERT(Address != nullptr, AF_UNSPEC, "address should be set");
+			ED_TRACE("[net] fetch addr family %s", Address);
 
 			struct addrinfo Hints;
 			memset(&Hints, 0, sizeof(Hints));
@@ -1248,7 +1258,10 @@ namespace Edge
 			socket_size_t Length = sizeof(sockaddr);
 			*OutFd = accept(Fd, &Address, &Length);
 			if (*OutFd == INVALID_SOCKET)
+			{
+				ED_TRACE("[net] fd %i: not acceptable", (int)Fd);
 				return -1;
+			}
 
 			ED_DEBUG("[net] accept fd %i on %i fd", (int)*OutFd, (int)Fd);
 			if (OutAddr != nullptr)
@@ -1263,19 +1276,19 @@ namespace Edge
 			bool Success = Multiplexer::WhenReadable(this, [this, WithAddress, Callback = std::move(Callback)](SocketPoll Event) mutable
 			{
 				if (!Packet::IsDone(Event))
-				return;
+					return;
 
-			socket_t OutFd = INVALID_SOCKET;
-			char OutAddr[INET6_ADDRSTRLEN] = { };
-			char* RemoteAddr = (WithAddress ? OutAddr : nullptr);
+				socket_t OutFd = INVALID_SOCKET;
+				char OutAddr[INET6_ADDRSTRLEN] = { };
+				char* RemoteAddr = (WithAddress ? OutAddr : nullptr);
 
-			while (Accept(&OutFd, RemoteAddr) == 0)
-			{
-				if (!Callback(OutFd, RemoteAddr))
-					break;
-			}
+				while (Accept(&OutFd, RemoteAddr) == 0)
+				{
+					if (!Callback(OutFd, RemoteAddr))
+						break;
+				}
 
-			AcceptAsync(WithAddress, std::move(Callback));
+				AcceptAsync(WithAddress, std::move(Callback));
 			});
 
 			return Success ? 0 : -1;
@@ -1288,6 +1301,7 @@ namespace Edge
 #ifdef ED_HAS_OPENSSL
 			if (Device != nullptr)
 			{
+				ED_TRACE("[net] fd %i free ssl device", (int)Fd);
 				SSL_free(Device);
 				Device = nullptr;
 			}
@@ -1295,19 +1309,25 @@ namespace Edge
 			int Error = 1;
 			socklen_t Size = sizeof(Error);
 			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
+			ED_TRACE("[net] fd %i fetch errors: %i", (int)Fd, Error);
 
 			if (Gracefully)
 			{
+				ED_TRACE("[net] fd %i graceful shutdown", (int)Fd);
 				ED_MEASURE(ED_TIMING_NET);
 				int Timeout = 100;
 				SetBlocking(true);
 				SetSocket(SO_RCVTIMEO, &Timeout, sizeof(int));
 				shutdown(Fd, SD_SEND);
+
 				while (recv(Fd, (char*)&Error, 1, 0) > 0)
 					ED_MEASURE_LOOP();
 			}
 			else
+			{
+				ED_TRACE("[net] fd %i shutdown", (int)Fd);
 				shutdown(Fd, SD_SEND);
+			}
 
 			closesocket(Fd);
 			ED_DEBUG("[net] sock fd %i closed", (int)Fd);
@@ -1328,6 +1348,7 @@ namespace Edge
 #ifdef ED_HAS_OPENSSL
 			if (Device != nullptr)
 			{
+				ED_TRACE("[net] fd %i free ssl device", (int)Fd);
 				SSL_free(Device);
 				Device = nullptr;
 			}
@@ -1336,11 +1357,16 @@ namespace Edge
 			socklen_t Size = sizeof(Error);
 			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
 			shutdown(Fd, SD_SEND);
+			ED_TRACE("[net] fd %i fetch errors: %i", (int)Fd, Error);
 
 			if (Gracefully)
+			{
+				ED_TRACE("[net] fd %i graceful shutdown", (int)Fd);
 				return TryCloseAsync(std::move(Callback), true);
+			}
 
 			closesocket(Fd);
+			ED_TRACE("[net] fd %i shutdown", (int)Fd);
 			ED_DEBUG("[net] sock fd %i closed", (int)Fd);
 			Fd = INVALID_SOCKET;
 
@@ -1387,6 +1413,7 @@ namespace Edge
 			ED_ASSERT(Offset >= 0, -1, "offset should be set and positive");
 			ED_ASSERT(Size > 0, -1, "size should be set and greater than zero");
 			ED_MEASURE(ED_TIMING_NET);
+			ED_TRACE("[net] fd %i sendfile %" PRId64 " off, %" PRId64 " bytes", (int)Fd, Offset, Size);
 #ifdef ED_APPLE
 			off_t Seek = (off_t)Offset, Length = (off_t)Size;
 			int64_t Value = (int64_t)sendfile(ED_FILENO(Stream), Fd, Seek, &Length, nullptr, 0);
@@ -1452,6 +1479,7 @@ namespace Edge
 		{
 			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			ED_MEASURE(ED_TIMING_NET);
+			ED_TRACE("[net] fd %i write %i bytes", (int)Fd, Size);
 #ifdef ED_HAS_OPENSSL
 			if (Device != nullptr)
 			{
@@ -1473,7 +1501,6 @@ namespace Edge
 		int Socket::WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer, size_t TempOffset)
 		{
 			ED_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
-
 			size_t Payload = Size;
 			size_t Written = 0;
 
@@ -1531,6 +1558,7 @@ namespace Edge
 			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			ED_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
 			ED_MEASURE(ED_TIMING_NET);
+			ED_TRACE("[net] fd %i read %i bytes", (int)Fd, Size);
 #ifdef ED_HAS_OPENSSL
 			if (Device != nullptr)
 			{
@@ -1824,6 +1852,7 @@ namespace Edge
 		{
 #ifdef ED_HAS_OPENSSL
 			ED_MEASURE(ED_TIMING_NET);
+			ED_TRACE("[net] fd %i create ssl device on %s", (int)Fd, Hostname);
 			if (Device != nullptr)
 				SSL_free(Device);
 
@@ -1856,6 +1885,7 @@ namespace Edge
 		int Socket::ClearEvents(bool Gracefully)
 		{
 			ED_MEASURE(ED_TIMING_NET);
+			ED_TRACE("[net] fd %i clear events %s", (int)Fd, Gracefully ? "gracefully" : "forcefully");
 			if (Gracefully)
 				Multiplexer::CancelEvents(this, SocketPoll::Reset);
 			else
@@ -1865,12 +1895,14 @@ namespace Edge
 		int Socket::MigrateTo(socket_t NewFd, bool Gracefully)
 		{
 			ED_MEASURE(ED_TIMING_NET);
+			ED_TRACE("[net] migrate fd %i to fd %i", (int)Fd, (int)NewFd);
 			int Result = Gracefully ? ClearEvents(false) : 0;
 			Fd = NewFd;
 			return Result;
 		}
 		int Socket::SetCloseOnExec()
 		{
+			ED_TRACE("[net] fd %i setopt: cloexec", (int)Fd);
 #if defined(_WIN32)
 			return 0;
 #else
@@ -1883,18 +1915,22 @@ namespace Edge
 			Linger.l_onoff = (Timeout >= 0 ? 1 : 0);
 			Linger.l_linger = Timeout;
 
+			ED_TRACE("[net] fd %i setopt: timewait %i", (int)Fd, Timeout);
 			return setsockopt(Fd, SOL_SOCKET, SO_LINGER, (char*)&Linger, sizeof(Linger));
 		}
 		int Socket::SetSocket(int Option, void* Value, int Size)
 		{
+			ED_TRACE("[net] fd %i setsockopt: opt%i %i bytes", (int)Fd, Option, Size);
 			return ::setsockopt(Fd, SOL_SOCKET, Option, (const char*)Value, Size);
 		}
 		int Socket::SetAny(int Level, int Option, void* Value, int Size)
 		{
+			ED_TRACE("[net] fd %i setopt: l%i opt%i %i bytes", (int)Fd, Level, Option, Size);
 			return ::setsockopt(Fd, Level, Option, (const char*)Value, Size);
 		}
 		int Socket::SetAnyFlag(int Level, int Option, int Value)
 		{
+			ED_TRACE("[net] fd %i setopt: l%i opt%i %i", (int)Fd, Level, Option, Value);
 			return SetAny(Level, Option, (void*)&Value, sizeof(int));
 		}
 		int Socket::SetSocketFlag(int Option, int Value)
@@ -1903,6 +1939,7 @@ namespace Edge
 		}
 		int Socket::SetBlocking(bool Enabled)
 		{
+			ED_TRACE("[net] fd %i setopt: blocking %s", (int)Fd, Enabled ? "on" : "off");
 #ifdef ED_MICROSOFT
 			unsigned long Mode = (Enabled ? 0 : 1);
 			return ioctlsocket(Fd, (long)FIONBIO, &Mode);
@@ -1925,6 +1962,7 @@ namespace Edge
 		}
 		int Socket::SetTimeout(int Timeout)
 		{
+			ED_TRACE("[net] fd %i setopt: rwtimeout %i", (int)Fd, Timeout);
 #ifdef ED_MICROSOFT
 			DWORD Time = (DWORD)Timeout;
 #else
@@ -2018,7 +2056,10 @@ namespace Edge
 			{
 				char Buffer[NI_MAXHOST];
 				if (!getnameinfo((struct sockaddr*)&Address, Size, Buffer, sizeof(Buffer), nullptr, 0, NI_NUMERICHOST))
+				{
+					ED_TRACE("[net] fd %i remote address: %s", (int)Fd, Buffer);
 					return Buffer;
+				}
 			}
 
 			return std::string();

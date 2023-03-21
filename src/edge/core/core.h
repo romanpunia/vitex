@@ -104,23 +104,28 @@ typedef int socket_t;
 typedef socklen_t socket_size_t;
 #endif
 #ifdef NDEBUG
+#if ED_DLEVEL >= 5
+#define ED_TRACE(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Trace, 0, nullptr, Format, ##__VA_ARGS__)
+#else
+#define ED_TRACE(Format, ...) ((void)0)
+#endif
 #if ED_DLEVEL >= 4
-#define ED_DEBUG(Format, ...) Edge::Core::OS::Log(4, 0, nullptr, Format, ##__VA_ARGS__)
+#define ED_DEBUG(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Debug, 0, nullptr, Format, ##__VA_ARGS__)
 #else
 #define ED_DEBUG(Format, ...) ((void)0)
 #endif
 #if ED_DLEVEL >= 3
-#define ED_INFO(Format, ...) Edge::Core::OS::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
+#define ED_INFO(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Info, 0, nullptr, Format, ##__VA_ARGS__)
 #else
 #define ED_INFO(Format, ...) ((void)0)
 #endif
 #if ED_DLEVEL >= 2
-#define ED_WARN(Format, ...) Edge::Core::OS::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
+#define ED_WARN(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Warning, 0, nullptr, Format, ##__VA_ARGS__)
 #else
 #define ED_WARN(Format, ...) ((void)0)
 #endif
 #if ED_DLEVEL >= 1
-#define ED_ERR(Format, ...) Edge::Core::OS::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
+#define ED_ERR(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Error, 0, nullptr, Format, ##__VA_ARGS__)
 #else
 #define ED_ERR(Format, ...) ((void)0)
 #endif
@@ -136,23 +141,28 @@ typedef socklen_t socket_size_t;
 #define ED_REALLOC(Ptr, Type, Size) (Type*)Edge::Core::Mem::QueryRealloc(Ptr, Size)
 #define ED_NEW(Type, ...) new((void*)ED_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
 #else
+#if ED_DLEVEL >= 5
+#define ED_TRACE(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Trace, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#else
+#define ED_TRACE(Format, ...) ((void)0)
+#endif
 #if ED_DLEVEL >= 4
-#define ED_DEBUG(Format, ...) Edge::Core::OS::Log(4, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#define ED_DEBUG(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Debug, __LINE__, __FILE__, Format, ##__VA_ARGS__)
 #else
 #define ED_DEBUG(Format, ...) ((void)0)
 #endif
 #if ED_DLEVEL >= 3
-#define ED_INFO(Format, ...) Edge::Core::OS::Log(3, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#define ED_INFO(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Info, __LINE__, __FILE__, Format, ##__VA_ARGS__)
 #else
 #define ED_INFO(Format, ...) ((void)0)
 #endif
 #if ED_DLEVEL >= 2
-#define ED_WARN(Format, ...) Edge::Core::OS::Log(2, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#define ED_WARN(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Warning, __LINE__, __FILE__, Format, ##__VA_ARGS__)
 #else
 #define ED_WARN(Format, ...) ((void)0)
 #endif
 #if ED_DLEVEL >= 1
-#define ED_ERR(Format, ...) Edge::Core::OS::Log(1, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#define ED_ERR(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Error, __LINE__, __FILE__, Format, ##__VA_ARGS__)
 #define ED_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Edge::Core::OS::Assert(true, __LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); return Returnable; }
 #define ED_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Edge::Core::OS::Assert(true, __LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); return; }
 #else
@@ -309,6 +319,15 @@ namespace Edge
 			Heavy,
 			Clock,
 			Count
+		};
+
+		enum class LogLevel
+		{
+			Error = 1,
+			Warning = 2,
+			Info = 3,
+			Debug = 4,
+			Trace = 5
 		};
 
 		template <typename T>

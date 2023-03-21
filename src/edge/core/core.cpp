@@ -5376,6 +5376,7 @@ namespace Edge
 		void Mem::Watch(void* Ptr, int Line, const char* Source, const char* Function, const char* TypeName)
 		{
 #ifndef NDEBUG
+			ED_TRACE("[mem] watch address 0x%" PRIXPTR " as %s", Ptr, TypeName ? TypeName : "void");
 			Queue.lock();
 			auto It = Buffers.find(Ptr);
 			ED_ASSERT_V(It == Buffers.end() || !It->second.Owns, "cannot watch memory that is already being tracked");
@@ -5386,6 +5387,7 @@ namespace Edge
 		void Mem::Unwatch(void* Ptr)
 		{
 #ifndef NDEBUG
+			ED_TRACE("[mem] unwatch address 0x%" PRIXPTR, Ptr);
 			Queue.lock();
 			auto It = Buffers.find(Ptr);
 			if (It != Buffers.end())
@@ -5400,6 +5402,7 @@ namespace Edge
 		{
 #ifndef NDEBUG
 #if ED_DLEVEL >= 4
+			ED_TRACE("[mem] dump internal memory state on 0x%" PRIXPTR, Ptr);
 			Queue.lock();
 			if (Ptr != nullptr)
 			{
@@ -5447,8 +5450,11 @@ namespace Edge
 			Queue.lock();
 			auto It = Buffers.find(Ptr);
 			ED_ASSERT_V(It != Buffers.end() && It->second.Owns, "cannot free memory that was not allocated by this allocator");
+			ED_TRACE("[mem] free %" PRIu64 " bytes at 0x%" PRIXPTR, (uint64_t)It->second.Size, Ptr);
 			Buffers.erase(It);
 			Queue.unlock();
+#else
+			ED_TRACE("[mem] free address at 0x%" PRIXPTR, Ptr);
 #endif
 			if (OnFree)
 				OnFree(Ptr);
@@ -5468,6 +5474,7 @@ namespace Edge
 		{
 			void* Result = (OnAlloc ? OnAlloc(Size) : malloc(Size));
 			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
+			ED_TRACE("[mem] allocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, Result, TypeName ? TypeName : "void");
 
 			Queue.lock();
 			Buffers[Result] = { TypeName ? TypeName : "void", Function ? Function : __func__, Source ? Source : __FILE__, Line > 0 ? Line : __LINE__, time(nullptr), Size, true };
@@ -5482,6 +5489,7 @@ namespace Edge
 
 			void* Result = (OnRealloc ? OnRealloc(Ptr, Size) : realloc(Ptr, Size));
 			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to realloc %" PRIu64 " bytes", (uint64_t)Size);
+			ED_TRACE("[mem] reallocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, Result, TypeName ? TypeName : "void");
 
 			Queue.lock();
 			Buffers[Result] = { TypeName ? TypeName : "void", Function ? Function : __func__, Source ? Source : __FILE__, Line > 0 ? Line : __LINE__, time(nullptr), Size, true };
@@ -5502,6 +5510,7 @@ namespace Edge
 		{
 			void* Result = (OnAlloc ? OnAlloc(Size) : malloc(Size));
 			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
+			ED_TRACE("[mem] allocate %" PRIu64 " bytes at %" PRIXPTR, (uint64_t)Size, Result);
 			return Result;
 		}
 		void* Mem::QueryRealloc(void* Ptr, size_t Size) noexcept
@@ -5511,6 +5520,7 @@ namespace Edge
 
 			void* Result = (OnRealloc ? OnRealloc(Ptr, Size) : realloc(Ptr, Size));
 			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to realloc %" PRIu64 " bytes", (uint64_t)Size);
+			ED_TRACE("[mem] reallocate %" PRIu64 " bytes at %" PRIXPTR, (uint64_t)Size, Result);
 			return Result;
 		}
 #endif
@@ -5530,6 +5540,7 @@ namespace Edge
 		bool Composer::Pop(const std::string& Hash)
 		{
 			ED_ASSERT(Factory != nullptr, false, "composer should be initialized");
+			ED_TRACE("[composer] pop %s", Hash.c_str());
 
 			auto It = Factory->Map.find(ED_HASH(Hash));
 			if (It == Factory->Map.end())
@@ -5551,6 +5562,7 @@ namespace Edge
 
 			if (Factory->Map.find(TypeId) == Factory->Map.end())
 				Factory->Map[TypeId] = std::make_pair(Tag, Callback);
+			ED_TRACE("[composer] push type %" PRIu64 " tagged as %" PRIu64, TypeId, Tag);
 		}
 		void* Composer::Find(uint64_t TypeId)
 		{
@@ -5609,6 +5621,7 @@ namespace Edge
 #ifdef ED_MICROSOFT
 			ED_ASSERT_V(Present, "console should be shown at least once to be hidden");
 			::ShowWindow(::GetConsoleWindow(), SW_HIDE);
+			ED_TRACE("[console] hide window");
 #endif
 		}
 		void Console::Show()
@@ -5631,8 +5644,11 @@ namespace Edge
 			CONSOLE_SCREEN_BUFFER_INFO ScreenBuffer;
 			SetConsoleCtrlHandler(ConsoleEventHandler, true);
 
-			if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &ScreenBuffer))
+			HANDLE Base = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (GetConsoleScreenBufferInfo(Base, &ScreenBuffer))
 				Attributes = ScreenBuffer.wAttributes;
+
+			ED_TRACE("[console] allocate window 0x%" PRIXPTR, (void*)Base);
 #else
 			if (Present)
 				return;
@@ -6016,6 +6032,7 @@ namespace Edge
 		size_t Stream::ReadAll(const std::function<void(char*, size_t)>& Callback)
 		{
 			ED_ASSERT(Callback != nullptr, 0, "callback should be set");
+			ED_TRACE("[io] read all bytes on fd %i", GetFd());
 
 			char Buffer[ED_CHUNK_SIZE];
 			size_t Size = 0, Total = 0;
@@ -6063,7 +6080,9 @@ namespace Edge
 		}
 		void FileStream::Clear()
 		{
+			ED_TRACE("[io] fs %i clear", GetFd());
 			Close();
+
 			if (!Path.empty())
 				Resource = (FILE*)OS::File::Open(Path.c_str(), "w");
 		}
@@ -6134,10 +6153,13 @@ namespace Edge
 			switch (Mode)
 			{
 				case FileSeek::Begin:
+					ED_TRACE("[io] seek fs %i begin %" PRId64, GetFd(), Offset);
 					return fseek(Resource, (long)Offset, SEEK_SET) == 0;
 				case FileSeek::Current:
+					ED_TRACE("[io] seek fs %i move %" PRId64, GetFd(), Offset);
 					return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
 				case FileSeek::End:
+					ED_TRACE("[io] seek fs %i end %" PRId64, GetFd(), Offset);
 					return fseek(Resource, (long)Offset, SEEK_END) == 0;
 				default:
 					return false;
@@ -6147,12 +6169,14 @@ namespace Edge
 		{
 			ED_ASSERT(Resource != nullptr, false, "file should be opened");
 			ED_MEASURE(ED_TIMING_IO);
+			ED_TRACE("[io] seek fs %i move %" PRId64, GetFd(), Offset);
 			return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
 		}
 		int FileStream::Flush()
 		{
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 			ED_MEASURE(ED_TIMING_IO);
+			ED_TRACE("[io] flush fs %i", GetFd());
 			return fflush(Resource);
 		}
 		size_t FileStream::ReadAny(const char* Format, ...)
@@ -6166,6 +6190,7 @@ namespace Edge
 			size_t R = (size_t)vfscanf(Resource, Format, Args);
 			va_end(Args);
 
+			ED_TRACE("[io] fs %i scan %i bytes", GetFd(), (int)R);
 			return R;
 		}
 		size_t FileStream::Read(char* Data, size_t Length)
@@ -6173,6 +6198,7 @@ namespace Edge
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 			ED_ASSERT(Data != nullptr, false, "data should be set");
 			ED_MEASURE(ED_TIMING_IO);
+			ED_TRACE("[io] fs %i read %i bytes", GetFd(), (int)Length);
 			return fread(Data, 1, Length, Resource);
 		}
 		size_t FileStream::WriteAny(const char* Format, ...)
@@ -6186,6 +6212,7 @@ namespace Edge
 			size_t R = (size_t)vfprintf(Resource, Format, Args);
 			va_end(Args);
 
+			ED_TRACE("[io] fs %i print %i bytes", GetFd(), (int)R);
 			return R;
 		}
 		size_t FileStream::Write(const char* Data, size_t Length)
@@ -6193,12 +6220,14 @@ namespace Edge
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 			ED_ASSERT(Data != nullptr, false, "data should be set");
 			ED_MEASURE(ED_TIMING_IO);
+			ED_TRACE("[io] fs %i write %i bytes", GetFd(), (int)Length);
 			return fwrite(Data, 1, Length, Resource);
 		}
 		size_t FileStream::Tell()
 		{
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 			ED_MEASURE(ED_TIMING_IO);
+			ED_TRACE("[io] fs %i tell", GetFd());
 			return ftell(Resource);
 		}
 		int FileStream::GetFd() const
@@ -6220,7 +6249,9 @@ namespace Edge
 		}
 		void GzStream::Clear()
 		{
+			ED_TRACE("[gz] fs %i clear", GetFd());
 			Close();
+
 			if (!Path.empty())
 			{
 				OS::File::Close(OS::File::Open(Path.c_str(), "w"));
@@ -6286,8 +6317,10 @@ namespace Edge
 			switch (Mode)
 			{
 				case FileSeek::Begin:
+					ED_TRACE("[gz] seek fs %i begin %" PRId64, GetFd(), Offset);
 					return gzseek((gzFile)Resource, (long)Offset, SEEK_SET) == 0;
 				case FileSeek::Current:
+					ED_TRACE("[gz] seek fs %i move %" PRId64, GetFd(), Offset);
 					return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
 				case FileSeek::End:
 					ED_ASSERT(false, false, "gz seek from end is not supported");
@@ -6301,6 +6334,7 @@ namespace Edge
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef ED_HAS_ZLIB
 			ED_MEASURE(ED_TIMING_IO);
+			ED_TRACE("[gz] seek fs %i move %" PRId64, GetFd(), Offset);
 			return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
 #else
 			return false;
@@ -6327,6 +6361,7 @@ namespace Edge
 			ED_ASSERT(Data != nullptr, 0, "data should be set");
 #ifdef ED_HAS_ZLIB
 			ED_MEASURE(ED_TIMING_IO);
+			ED_TRACE("[gz] fs %i read %i bytes", GetFd(), (int)Length);
 			return gzread((gzFile)Resource, Data, (unsigned int)Length);
 #else
 			return 0;
@@ -6347,6 +6382,7 @@ namespace Edge
 #endif
 			va_end(Args);
 
+			ED_TRACE("[gz] fs %i print %i bytes", GetFd(), (int)R);
 			return R;
 		}
 		size_t GzStream::Write(const char* Data, size_t Length)
@@ -6355,6 +6391,7 @@ namespace Edge
 			ED_ASSERT(Data != nullptr, 0, "data should be set");
 #ifdef ED_HAS_ZLIB
 			ED_MEASURE(ED_TIMING_IO);
+			ED_TRACE("[gz] fs %i write %i bytes", GetFd(), (int)Length);
 			return gzwrite((gzFile)Resource, Data, (unsigned int)Length);
 #else
 			return 0;
@@ -6365,6 +6402,7 @@ namespace Edge
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef ED_HAS_ZLIB
 			ED_MEASURE(ED_TIMING_IO);
+			ED_TRACE("[gz] fs %i tell", GetFd());
 			return gztell((gzFile)Resource);
 #else
 			return 0;
@@ -6479,9 +6517,11 @@ namespace Edge
 			switch (Mode)
 			{
 				case FileSeek::Begin:
+					ED_TRACE("[http] seek fd %i begin %" PRId64, GetFd(), (int)NewOffset);
 					Offset = NewOffset;
 					return true;
 				case FileSeek::Current:
+					ED_TRACE("[http] seek fd %i move %" PRId64, GetFd(), (int)NewOffset);
 					if (NewOffset < 0)
 					{
 						size_t Pointer = (size_t)(-NewOffset);
@@ -6498,6 +6538,7 @@ namespace Edge
 						Offset += NewOffset;
 					return true;
 				case FileSeek::End:
+					ED_TRACE("[http] seek fd %i end %" PRId64, GetFd(), (int)NewOffset);
 					Offset = Size - NewOffset;
 					return true;
 			}
@@ -6524,6 +6565,7 @@ namespace Edge
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 			ED_ASSERT(Data != nullptr, 0, "data should be set");
 			ED_ASSERT(Length > 0, 0, "length should be greater than zero");
+			ED_TRACE("[http] fd %i read %i bytes", GetFd(), (int)Length);
 
 			size_t Result = 0;
 			if (Offset + Length > Chunk.size() && (Chunk.size() < Size || !Size))
@@ -6556,6 +6598,7 @@ namespace Edge
 		}
 		size_t WebStream::Tell()
 		{
+			ED_TRACE("[http] fd %i tell", GetFd());
 			return (size_t)Offset;
 		}
 		int WebStream::GetFd() const
@@ -6904,6 +6947,7 @@ namespace Edge
 		void OS::Directory::Set(const char* Path)
 		{
 			ED_ASSERT_V(Path != nullptr, "path should be set");
+			ED_TRACE("[io] set working dir %s", Path);
 #ifdef ED_MICROSOFT
 			if (!SetCurrentDirectoryA(Path))
 				ED_ERR("[io] couldn't set current directory");
@@ -6921,6 +6965,7 @@ namespace Edge
 		{
 			ED_ASSERT(Entries != nullptr, false, "entries should be set");
 			ED_MEASURE(ED_TIMING_IO);
+			ED_TRACE("[io] scan dir %s", Path.c_str());
 
 			FileEntry Entry;
 #if defined(ED_MICROSOFT)
@@ -7143,6 +7188,7 @@ namespace Edge
 		{
 			ED_ASSERT(Path != nullptr, false, "path should be set");
 			ED_MEASURE(ED_TIMING_IO);
+			ED_TRACE("[io] check path %s", Path);
 
 			struct stat Buffer;
 			if (stat(Path::Resolve(Path).c_str(), &Buffer) != 0)
@@ -7166,17 +7212,20 @@ namespace Edge
 			if (!Result.empty() && Result.back() != '/' && Result.back() != '\\')
 				Result += ED_PATH_SPLIT;
 
+			ED_TRACE("[io] fetch working dir %s", Result.c_str());
 			return Result;
 #else
 			char* Buffer = SDL_GetBasePath();
 			std::string Result = Buffer;
 			SDL_free(Buffer);
 
+			ED_TRACE("[io] fetch working dir %s", Result.c_str());
 			return Result;
 #endif
 		}
 		std::vector<std::string> OS::Directory::GetMounts()
 		{
+			ED_TRACE("[io] fetch mount points");
 			std::vector<std::string> Output;
 #ifdef ED_MICROSOFT
 			DWORD DriveMask = GetLogicalDrives();
@@ -7210,7 +7259,10 @@ namespace Edge
 
 			WIN32_FILE_ATTRIBUTE_DATA Info;
 			if (GetFileAttributesExW(Buffer, GetFileExInfoStandard, &Info) == 0)
+			{
+				ED_TRACE("[io] stat %s: non-existant", Path.c_str());
 				return false;
+			}
 
 			Resource->Size = MAKEUQUAD(Info.nFileSizeLow, Info.nFileSizeHigh);
 			Resource->LastModified = SYS2UNIX_TIME(Info.ftLastWriteTime.dwLowDateTime, Info.ftLastWriteTime.dwHighDateTime);
@@ -7219,6 +7271,8 @@ namespace Edge
 				Resource->LastModified = Resource->CreationTime;
 
 			Resource->IsDirectory = Info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
+			ED_TRACE("[io] stat %s: %s %" PRIu64 " bytes", Path.c_str(), Resource->IsDirectory ? "dir" : "file", (uint64_t)Resource->Size);
+
 			if (Resource->IsDirectory)
 			{
 				Resource->IsExists = true;
@@ -7240,7 +7294,7 @@ namespace Edge
 			struct stat State;
 			if (stat(Path.c_str(), &State) != 0)
 			{
-				Resource->IsExists = true;
+				ED_TRACE("[io] stat %s: non-existant", Path.c_str());
 				return false;
 			}
 
@@ -7250,7 +7304,9 @@ namespace Edge
 			Resource->Size = (size_t)(State.st_size);
 			Resource->LastModified = State.st_mtime;
 			Resource->IsDirectory = S_ISDIR(State.st_mode);
+			Resource->IsExists = true;
 
+			ED_TRACE("[io] stat %s: %s %" PRIu64 " bytes", Path.c_str(), Resource->IsDirectory ? "dir" : "file", (uint64_t)Resource->Size);
 			return true;
 #endif
 		}
@@ -7310,6 +7366,7 @@ namespace Edge
 		{
 			ED_ASSERT(Path != nullptr, false, "path should be set");
 			ED_MEASURE(ED_TIMING_IO);
+			ED_TRACE("[io] check path %s", Path);
 			return IsPathExists(OS::Path::Resolve(Path).c_str());
 		}
 		void OS::File::Close(void* Stream)
@@ -7325,6 +7382,7 @@ namespace Edge
 
 			size_t Size1 = GetProperties(FirstPath.c_str()).Size;
 			size_t Size2 = GetProperties(SecondPath.c_str()).Size;
+			ED_TRACE("[io] compare paths { %s (%" PRIu64 "), %s (%" PRIu64 ") }", FirstPath.c_str(), Size1, SecondPath.c_str(), Size2);
 
 			if (Size1 > Size2)
 				return 1;
@@ -7373,6 +7431,7 @@ namespace Edge
 		{
 			ED_ASSERT(!To.empty(), 0, "to should not be empty");
 			ED_ASSERT(!Paths.empty(), 0, "paths to join should not be empty");
+			ED_TRACE("[io] join %i path to %s", (int)Paths.size(), To.c_str());
 
 			Stream* Target = Open(To, FileMode::Binary_Write_Only);
 			if (!Target)
@@ -7408,7 +7467,10 @@ namespace Edge
 			ED_MEASURE(ED_TIMING_IO);
 
 			if (stat(Path, &Buffer) != 0)
+			{
+				ED_TRACE("[io] stat %s: non-existant", Path);
 				return State;
+			}
 
 			State.Exists = true;
 			State.Size = Buffer.st_size;
@@ -7422,6 +7484,7 @@ namespace Edge
 			State.LastPermissionChange = Buffer.st_ctime;
 			State.LastModified = Buffer.st_mtime;
 
+			ED_TRACE("[io] stat %s: %" PRIu64 " bytes", Path, (uint64_t)State.Size);
 			return State;
 		}
 		void* OS::File::Open(const char* Path, const char* Mode)
@@ -7440,6 +7503,7 @@ namespace Edge
 			FILE* Stream = fopen(Path, Mode);
 			if (Stream != nullptr)
 				fcntl(ED_FILENO(Stream), F_SETFD, FD_CLOEXEC);
+
 			ED_DEBUG("[io] open fs %i %s %s", ED_FILENO(Stream), Mode, Path);
 			return (void*)Stream;
 #endif
@@ -7505,6 +7569,7 @@ namespace Edge
 		{
 			ED_ASSERT(!To.empty(), nullptr, "to should not be empty");
 			ED_ASSERT(!Paths.empty(), nullptr, "paths to join should not be empty");
+			ED_TRACE("[io] open join %i path to %s", (int)Paths.size(), To.c_str());
 
 			Stream* Target = Open(To, FileMode::Binary_Write_Only);
 			if (!Target)
@@ -7537,6 +7602,8 @@ namespace Edge
 		{
 			ED_ASSERT(Stream != nullptr, nullptr, "path should be set");
 			ED_MEASURE(ED_TIMING_IO);
+			ED_TRACE("[io] fd %i read-all", Stream->GetFd());
+
 			size_t Size = Stream->GetSize();
 			if (Size > 0)
 			{
@@ -7627,11 +7694,18 @@ namespace Edge
 			char Buffer[ED_BIG_CHUNK_SIZE] = { };
 #ifdef ED_MICROSOFT
 			if (GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr) == 0)
+			{
+				ED_TRACE("[io] resolve %s path: non-existant", Path);
 				return Path;
+			}
 #else
 			if (!realpath(Path, Buffer))
+			{
+				ED_TRACE("[io] resolve %s path: non-existant", Path);
 				return Path;
+			}
 #endif
+			ED_TRACE("[io] resolve %s path: %s", Path, Buffer);
 			return Buffer;
 		}
 		std::string OS::Path::Resolve(const std::string& Path, const std::string& Directory)
@@ -7785,7 +7859,6 @@ namespace Edge
 		int OS::Process::Execute(const char* Format, ...)
 		{
 			ED_ASSERT(Format != nullptr, -1, "format should be set");
-
 			char Buffer[ED_BIG_CHUNK_SIZE];
 			va_list Args;
 			va_start(Args, Format);
@@ -7796,7 +7869,7 @@ namespace Edge
 #endif
 			va_end(Args);
 
-			ED_DEBUG("[io] execute command\n\t%s", Buffer);
+			ED_DEBUG("[os] execute command\n\t%s", Buffer);
 			return system(Buffer);
 		}
 		bool OS::Process::Spawn(const std::string& Path, const std::vector<std::string>& Params, ChildProcess* Child)
@@ -7806,7 +7879,7 @@ namespace Edge
 			HANDLE Job = CreateJobObject(nullptr, nullptr);
 			if (Job == nullptr)
 			{
-				ED_ERR("[io] cannot create job object for process");
+				ED_ERR("[os] cannot create job object for process");
 				return false;
 			}
 
@@ -7814,7 +7887,7 @@ namespace Edge
 			Info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 			if (SetInformationJobObject(Job, JobObjectExtendedLimitInformation, &Info, sizeof(Info)) == 0)
 			{
-				ED_ERR("[io] cannot set job object for process");
+				ED_ERR("[os] cannot set job object for process");
 				return false;
 			}
 
@@ -7837,11 +7910,11 @@ namespace Edge
 
 			if (!CreateProcessA(Exe.Get(), Args.Value(), nullptr, nullptr, TRUE, CREATE_BREAKAWAY_FROM_JOB | HIGH_PRIORITY_CLASS, nullptr, nullptr, &StartupInfo, &Process))
 			{
-				ED_ERR("[io] cannot spawn process %s", Exe.Get());
+				ED_ERR("[os] cannot spawn process %s", Exe.Get());
 				return false;
 			}
 
-			ED_DEBUG("[io] spawn process %i on %s", (int)GetProcessId(Process.hProcess), Path.c_str());
+			ED_DEBUG("[os] spawn process %i on %s", (int)GetProcessId(Process.hProcess), Path.c_str());
 			AssignProcessToJobObject(Job, Process.hProcess);
 			if (Child != nullptr && !Child->Valid)
 			{
@@ -7855,7 +7928,7 @@ namespace Edge
 #else
 			if (!File::IsExists(Path.c_str()))
 			{
-				ED_ERR("[io] cannot spawn process %s (file does not exists)", Path.c_str());
+				ED_ERR("[os] cannot spawn process %s (file does not exists)", Path.c_str());
 				return false;
 			}
 
@@ -7872,7 +7945,7 @@ namespace Edge
 			}
 			else if (Child != nullptr)
 			{
-				ED_DEBUG("[io] spawn process %i on %s", (int)ProcessId, Path.c_str());
+				ED_DEBUG("[os] spawn process %i on %s", (int)ProcessId, Path.c_str());
 				Child->Process = ProcessId;
 				Child->Valid = (ProcessId > 0);
 			}
@@ -7884,8 +7957,9 @@ namespace Edge
 		{
 			ED_ASSERT(Process != nullptr && Process->Valid, false, "process should be set and be valid");
 #ifdef ED_MICROSOFT
+			ED_TRACE("[os] await process %s", (int)GetProcessId(Process->Process));
 			WaitForSingleObject(Process->Process, INFINITE);
-			ED_DEBUG("[io] close process %s", (int)GetProcessId(Process->Process));
+			ED_DEBUG("[os] close process %s", (int)GetProcessId(Process->Process));
 
 			if (ExitCode != nullptr)
 			{
@@ -7900,9 +7974,10 @@ namespace Edge
 			}
 #else
 			int Status;
+			ED_TRACE("[os] await process %s", (int)GetProcessId(Process->Process));
 			waitpid(Process->Process, &Status, 0);
 
-			ED_DEBUG("[io] close process %s", (int)Process->Process);
+			ED_DEBUG("[os] close process %s", (int)Process->Process);
 			if (ExitCode != nullptr)
 				*ExitCode = WEXITSTATUS(Status);
 #endif
@@ -7915,18 +7990,21 @@ namespace Edge
 #ifdef ED_MICROSOFT
 			if (Child->Process != nullptr)
 			{
+				ED_TRACE("[os] free process handle 0x%" PRIXPTR, (void*)Child->Process);
 				CloseHandle((HANDLE)Child->Process);
 				Child->Process = nullptr;
 			}
 
 			if (Child->Thread != nullptr)
 			{
+				ED_TRACE("[os] free process thread 0x%" PRIXPTR, (void*)Child->Process);
 				CloseHandle((HANDLE)Child->Thread);
 				Child->Thread = nullptr;
 			}
 
 			if (Child->Job != nullptr)
 			{
+				ED_TRACE("[os] free process job 0x%" PRIXPTR, (void*)Child->Process);
 				CloseHandle((HANDLE)Child->Job);
 				Child->Job = nullptr;
 			}
@@ -8037,7 +8115,7 @@ namespace Edge
 				LocalFree(Display);
 
 				if (!Text.empty())
-					ED_ERR("[io] symload error: %s", Text.c_str());
+					ED_ERR("[dlerr] %s", Text.c_str());
 			}
 
 			return Result;
@@ -8047,7 +8125,7 @@ namespace Edge
 			{
 				const char* Text = dlerror();
 				if (Text != nullptr)
-					ED_ERR("[io] symload error: %s", Text);
+					ED_ERR("[dlerr] %s", Text);
 			}
 
 			return Result;
@@ -8059,6 +8137,7 @@ namespace Edge
 		{
 			ED_ASSERT(Handle != nullptr, false, "handle should be set");
 			ED_MEASURE(ED_TIMING_IO);
+			ED_DEBUG("[dl] unload library 0x%" PRIXPTR, Handle);
 #ifdef ED_MICROSOFT
 			return (FreeLibrary((HMODULE)Handle) != 0);
 #elif defined(ED_UNIX)
@@ -8070,10 +8149,12 @@ namespace Edge
 
 		bool OS::Input::Text(const std::string& Title, const std::string& Message, const std::string& DefaultInput, std::string* Result)
 		{
+			ED_TRACE("[dg] open input { title: %s, message: %s }", Title.c_str(), Message.c_str());
 			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), DefaultInput.c_str());
 			if (!Data)
 				return false;
 
+			ED_TRACE("[dg] close input: %s", Data ? Data : "NULL");
 			if (Result != nullptr)
 				*Result = Data;
 
@@ -8081,10 +8162,12 @@ namespace Edge
 		}
 		bool OS::Input::Password(const std::string& Title, const std::string& Message, std::string* Result)
 		{
+			ED_TRACE("[dg] open password { title: %s, message: %s }", Title.c_str(), Message.c_str());
 			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), nullptr);
 			if (!Data)
 				return false;
 
+			ED_TRACE("[dg] close password: %s", Data ? Data : "NULL");
 			if (Result != nullptr)
 				*Result = Data;
 
@@ -8097,12 +8180,14 @@ namespace Edge
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
 
+			ED_TRACE("[dg] open save { title: %s, filter: %s }", Title.c_str(), Filter.c_str());
 			const char* Data = tinyfd_saveFileDialog(Title.c_str(), DefaultPath.c_str(), (int)Patterns.size(),
 				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.c_str());
 
 			if (!Data)
 				return false;
 
+			ED_TRACE("[dg] close save: %s", Data ? Data : "NULL");
 			if (Result != nullptr)
 				*Result = Data;
 
@@ -8115,12 +8200,14 @@ namespace Edge
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
 
+			ED_TRACE("[dg] open load { title: %s, filter: %s }", Title.c_str(), Filter.c_str());
 			const char* Data = tinyfd_openFileDialog(Title.c_str(), DefaultPath.c_str(), (int)Patterns.size(),
 				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.c_str(), Multiple);
 
 			if (!Data)
 				return false;
 
+			ED_TRACE("[dg] close load: %s", Data ? Data : "NULL");
 			if (Result != nullptr)
 				*Result = Data;
 
@@ -8128,10 +8215,12 @@ namespace Edge
 		}
 		bool OS::Input::Folder(const std::string& Title, const std::string& DefaultPath, std::string* Result)
 		{
+			ED_TRACE("[dg] open folder { title: %s }", Title.c_str());
 			const char* Data = tinyfd_selectFolderDialog(Title.c_str(), DefaultPath.c_str());
 			if (!Data)
 				return false;
 
+			ED_TRACE("[dg] close folder: %s", Data ? Data : "NULL");
 			if (Result != nullptr)
 				*Result = Data;
 
@@ -8139,11 +8228,13 @@ namespace Edge
 		}
 		bool OS::Input::Color(const std::string& Title, const std::string& DefaultHexRGB, std::string* Result)
 		{
+			ED_TRACE("[dg] open color { title: %s }", Title.c_str());
 			unsigned char RGB[3] = { 0, 0, 0 };
 			const char* Data = tinyfd_colorChooser(Title.c_str(), DefaultHexRGB.c_str(), RGB, RGB);
 			if (!Data)
 				return false;
 
+			ED_TRACE("[dg] close color: %s", Data ? Data : "NULL");
 			if (Result != nullptr)
 				*Result = Data;
 
@@ -8222,29 +8313,33 @@ namespace Edge
 		{
 			switch (Level)
 			{
-				case 1:
+				case (int)LogLevel::Error:
 					return "ERROR";
-				case 2:
+				case (int)LogLevel::Warning:
 					return "WARN";
-				case 3:
+				case (int)LogLevel::Info:
 					return "INFO";
-				case 4:
+				case (int)LogLevel::Debug:
 					return "DEBUG";
+				case (int)LogLevel::Trace:
+					return "TRACE";
 				default:
-					return "INT";
+					return "LOG";
 			}
 		}
 		StdColor OS::Message::GetLevelColor() const
 		{
 			switch (Level)
 			{
-				case 1:
+				case (int)LogLevel::Error:
 					return StdColor::DarkRed;
-				case 2:
+				case (int)LogLevel::Warning:
 					return StdColor::Orange;
-				case 3:
+				case (int)LogLevel::Info:
 					return StdColor::LightBlue;
-				case 4:
+				case (int)LogLevel::Debug:
+					return StdColor::Gray;
+				case (int)LogLevel::Trace:
 					return StdColor::Gray;
 				default:
 					return StdColor::LightGray;
@@ -8266,7 +8361,8 @@ namespace Edge
 			Temp = Stream.str();
 			return Temp;
 		}
-		
+
+		static thread_local bool IgnoreLogging = false;
 		OS::Tick OS::Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS)
 		{
 #ifndef NDEBUG
@@ -8342,7 +8438,7 @@ namespace Edge
 		}
 		void OS::Log(int Level, int Line, const char* Source, const char* Format, ...)
 		{
-			if (!Format || (!Active && !Callback))
+			if (!Format || IgnoreLogging || (!Active && !Callback))
 				return;
 
 			Message Data;
@@ -8350,7 +8446,7 @@ namespace Edge
 			Data.Level = Level;
 			Data.Line = Line;
 			Data.Source = Source ? OS::Path::GetFilename(Source) : "";
-			Data.Pretty = Level != 4;
+			Data.Pretty = Level != (int)LogLevel::Trace;
 			GetDateTime(time(nullptr), Data.Date, sizeof(Data.Date));
 
 			char Buffer[512] = { '\0' };
@@ -8392,6 +8488,7 @@ namespace Edge
 		{
 			if (Callback)
 			{
+				IgnoreLogging = true;
 #ifndef NDEBUG
 				if (!MeasuringDisabled)
 				{
@@ -8402,6 +8499,7 @@ namespace Edge
 #else
 				Callback(Data);
 #endif
+				IgnoreLogging = false;
 			}
 
 			if (Active)
@@ -8503,7 +8601,9 @@ namespace Edge
 				PrettyToken(StdColor::Cyan, "or"),
 				PrettyToken(StdColor::Cyan, "at"),
 				PrettyToken(StdColor::Cyan, "in"),
-				PrettyToken(StdColor::Cyan, "of")
+				PrettyToken(StdColor::Cyan, "of"),
+				PrettyToken(StdColor::Magenta, "query"),
+				PrettyToken(StdColor::Blue, "template"),
 			};
 
 			const char* Text = Buffer;
@@ -8763,9 +8863,11 @@ namespace Edge
 		static thread_local Costate* Cothread = nullptr;
 		Costate::Costate(size_t StackSize) noexcept : Thread(std::this_thread::get_id()), Current(nullptr), Master(ED_NEW(Cocontext)), Size(StackSize)
 		{
+			ED_TRACE("[co] spawn coroutine state 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(Thread).c_str());
 		}
 		Costate::~Costate() noexcept
 		{
+			ED_TRACE("[co] despawn coroutine state 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(Thread).c_str());
 			if (Cothread == this)
 				Cothread = nullptr;
 
@@ -8882,6 +8984,7 @@ namespace Edge
 				Routine->Return();
 				Routine->Return = nullptr;
 			}
+
 			return Routine->Dead > 0 ? -1 : 1;
 		}
 		int Costate::Push(Coroutine* Routine)
@@ -9364,7 +9467,8 @@ namespace Edge
 			ED_ASSERT(!Active, false, "queue should be stopped");
 			ED_ASSERT(NewPolicy.Memory > 0, false, "stack memory should not be zero");
 			ED_ASSERT(NewPolicy.Coroutines > 0, false, "there must be at least one coroutine");
-			
+			ED_TRACE("[schedule] start 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(std::this_thread::get_id()).c_str());
+
 			Policy = NewPolicy;
 			Immediate = false;
 			Active = true;
@@ -9388,6 +9492,7 @@ namespace Edge
 		}
 		bool Schedule::Stop()
 		{
+			ED_TRACE("[schedule] stop 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(std::this_thread::get_id()).c_str());
 			Exclusive.lock();
 			if (!Active && !Terminate)
 			{
@@ -9427,6 +9532,7 @@ namespace Edge
 		}
 		bool Schedule::Wakeup()
 		{
+			ED_TRACE("[schedule] wakeup 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(std::this_thread::get_id()).c_str());
 			TaskCallback Dummy[ED_MAX_EVENTS * 2] = { nullptr };
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
@@ -9451,6 +9557,7 @@ namespace Edge
 				if (ProcessTick((Difficulty)i))
 					++Passes;
 			}
+
 			return Passes > 0;
 		}
 		bool Schedule::ProcessTick(Difficulty Type)

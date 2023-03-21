@@ -3966,12 +3966,15 @@ namespace Edge
 
 		PrivateKey::PrivateKey() noexcept
 		{
+			ED_TRACE("[crypto] init empty private key");
 		}
 		PrivateKey::PrivateKey(std::string&& Text, bool) noexcept : Plain(std::move(Text))
 		{
+			ED_TRACE("[crypto] init plain private key on %" PRIu64 " bytes", (uint64_t)Plain.size());
 		}
 		PrivateKey::PrivateKey(const std::string& Text, bool) noexcept : Plain(Text)
 		{
+			ED_TRACE("[crypto] init plain private key on %" PRIu64 " bytes", (uint64_t)Plain.size());
 		}
 		PrivateKey::PrivateKey(const std::string& Key) noexcept
 		{
@@ -4027,6 +4030,7 @@ namespace Edge
 		void PrivateKey::Secure(const char* Buffer, size_t Size)
 		{
 			ED_ASSERT_V(Buffer != nullptr, "buffer should be set");
+			ED_TRACE("[crypto] secure private key on %" PRIu64 " bytes", (uint64_t)Size);
 			Blocks.reserve(Size);
 			Clear();
 
@@ -4039,6 +4043,7 @@ namespace Edge
 		}
 		void PrivateKey::ExposeToStack(char* Buffer, size_t MaxSize, size_t* OutSize) const
 		{
+			ED_TRACE("[crypto] stack expose private key to 0x%" PRIXPTR, (void*)Buffer);
 			size_t Size;
 			if (Plain.empty())
 			{
@@ -4058,6 +4063,7 @@ namespace Edge
 		}
 		std::string PrivateKey::ExposeToHeap() const
 		{
+			ED_TRACE("[crypto] heap expose private key from 0x%" PRIXPTR, (void*)this);
 			std::string Result;
 			Result.resize(Blocks.size());
 			ExposeToStack(Result.data(), Result.size() + 1);
@@ -4065,6 +4071,7 @@ namespace Edge
 		}
 		void PrivateKey::CopyDistribution(const PrivateKey& Other)
 		{
+			ED_TRACE("[crypto] copy private key from 0x%" PRIXPTR, (void*)&Other);
 			Clear();
 			if (Other.Plain.empty())
 			{
@@ -4905,6 +4912,7 @@ namespace Edge
 
 		MD5Hasher::MD5Hasher() noexcept
 		{
+			ED_TRACE("[crypto] md5 hasher init");
 			memset(Buffer, 0, sizeof(Buffer));
 			memset(Digest, 0, sizeof(Digest));
 			Finalized = false;
@@ -4920,6 +4928,7 @@ namespace Edge
 			ED_ASSERT_V(Output != nullptr && Input != nullptr, "output and input should be set");
 			for (unsigned int i = 0, j = 0; j < Length; i++, j += 4)
 				Output[i] = ((UInt4)Input[j]) | (((UInt4)Input[j + 1]) << 8) | (((UInt4)Input[j + 2]) << 16) | (((UInt4)Input[j + 3]) << 24);
+			ED_TRACE("[crypto] md5 hasher decode to 0x%" PRIXPTR, (void*)Output);
 		}
 		void MD5Hasher::Encode(UInt1* Output, const UInt4* Input, unsigned int Length)
 		{
@@ -4931,10 +4940,12 @@ namespace Edge
 				Output[j + 2] = (Input[i] >> 16) & 0xff;
 				Output[j + 3] = (Input[i] >> 24) & 0xff;
 			}
+			ED_TRACE("[crypto] md5 hasher encode to 0x%" PRIXPTR, (void*)Output);
 		}
 		void MD5Hasher::Transform(const UInt1* Block, unsigned int Length)
 		{
 			ED_ASSERT_V(Block != nullptr, "block should be set");
+			ED_TRACE("[crypto] md5 hasher transform from 0x%" PRIXPTR, (void*)Block);
 			UInt4 A = State[0], B = State[1], C = State[2], D = State[3], X[16];
 			Decode(X, Block, Length);
 
@@ -5020,6 +5031,7 @@ namespace Edge
 		void MD5Hasher::Update(const unsigned char* Input, unsigned int Length, unsigned int BlockSize)
 		{
 			ED_ASSERT_V(Input != nullptr, "input should be set");
+			ED_TRACE("[crypto] md5 hasher update from 0x%" PRIXPTR, (void*)Input);
 			unsigned int Index = Count[0] / 8 % BlockSize;
 			Count[0] += (Length << 3);
 			if (Count[0] < Length << 3)
@@ -5047,6 +5059,7 @@ namespace Edge
 		}
 		void MD5Hasher::Finalize()
 		{
+			ED_TRACE("[crypto] md5 hasher finalize at 0x%" PRIXPTR, (void*)this);
 			static unsigned char Padding[64] = { 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 			if (Finalized)
 				return;
@@ -6971,9 +6984,22 @@ namespace Edge
 #endif
 		}
 
+		const char* Crypto::GetDigestName(Digest Type)
+		{
+			ED_ASSERT(Type != nullptr, "", "digest should be set");
+			const char* Name = EVP_MD_get0_name((EVP_MD*)Type);
+			return Name ? Name : "";
+		}
+		const char* Crypto::GetCipherName(Cipher Type)
+		{
+			ED_ASSERT(Type != nullptr, "", "cipher should be set");
+			const char* Name = EVP_CIPHER_get0_name((EVP_CIPHER*)Type);
+			return Name ? Name : "";
+		}
 		std::string Crypto::RandomBytes(size_t Length)
 		{
 #ifdef ED_HAS_OPENSSL
+			ED_TRACE("[crypto] fill random %" PRIu64 " bytes", (uint64_t)Length);
 			unsigned char* Buffer = ED_MALLOC(unsigned char, sizeof(unsigned char) * Length);
 			if (RAND_bytes(Buffer, (int)Length) != 1)
 				DisplayCryptoLog();
@@ -6994,6 +7020,7 @@ namespace Edge
 		{
 			ED_ASSERT(Type != nullptr, std::string(), "type should be set");
 #ifdef ED_HAS_OPENSSL
+			ED_TRACE("[crypto] %s hash %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Value.size());	
 			EVP_MD* Method = (EVP_MD*)Type;
 			EVP_MD_CTX* Context = EVP_MD_CTX_create();
 			if (!Context)
@@ -7029,6 +7056,7 @@ namespace Edge
 			ED_ASSERT(Type != nullptr, std::string(), "type should be set");
 			ED_ASSERT(Length > 0, std::string(), "length should be greater than zero");
 #ifdef ED_HAS_OPENSSL
+			ED_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
 			auto LocalKey = Key.Expose<ED_CHUNK_SIZE>();
 #if OPENSSL_VERSION_MAJOR >= 3
 			unsigned char Result[EVP_MAX_MD_SIZE];
@@ -7043,6 +7071,7 @@ namespace Edge
 
 			return std::string((const char*)Result, Size);
 #elif OPENSSL_VERSION_NUMBER >= 0x1010000fL
+			ED_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
 			HMAC_CTX* Context = HMAC_CTX_new();
 			if (!Context)
 			{
@@ -7078,6 +7107,7 @@ namespace Edge
 
 			return Output;
 #else
+			ED_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
 			HMAC_CTX Context;
 			HMAC_CTX_init(&Context);
 
@@ -7123,6 +7153,7 @@ namespace Edge
 			ED_ASSERT(Type != nullptr, std::string(), "type should be set");
 			ED_ASSERT(Length > 0, std::string(), "length should be greater than zero");
 #ifdef ED_HAS_OPENSSL
+			ED_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
 			auto LocalKey = Key.Expose<ED_CHUNK_SIZE>();
 			unsigned char Result[EVP_MAX_MD_SIZE];
 			unsigned int Size = sizeof(Result);
@@ -7148,6 +7179,8 @@ namespace Edge
 			ED_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.");
 			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
 			ED_ASSERT(Type != nullptr, std::string(), "type should be set");
+			ED_TRACE("[crypto] %s encrypt%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
+
 			if (!Length)
 				return std::string();
 #ifdef ED_HAS_OPENSSL
@@ -7214,6 +7247,7 @@ namespace Edge
 			ED_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.");
 			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
 			ED_ASSERT(Type != nullptr, std::string(), "type should be set");
+			ED_TRACE("[crypto] %s decrypt%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
 
 			if (!Length)
 				return std::string();
@@ -7376,6 +7410,7 @@ namespace Edge
 		}
 		uint64_t Crypto::CRC32(const std::string& Data)
 		{
+			ED_TRACE("[crypto] crc32 %" PRIu64 " bytes", (uint64_t)Data.size());
 			int64_t Result = 0xFFFFFFFF;
 			int64_t Byte = 0;
 			int64_t Mask = 0;
@@ -7557,6 +7592,7 @@ namespace Edge
 		{
 			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
 			ED_ASSERT(Length > 0, std::string(), "length should be greater than zero");
+			ED_TRACE("[codec] %s encode64 %" PRIu64 " bytes", Padding ? "padded" : "unpadded", (uint64_t)Length);
 
 			std::string Result;
 			unsigned char Row3[3];
@@ -7607,6 +7643,7 @@ namespace Edge
 			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
 			ED_ASSERT(IsAlphabetic != nullptr, std::string(), "callback should be set");
 			ED_ASSERT(Length > 0, std::string(), "length should be greater than zero");
+			ED_TRACE("[codec] decode64 %" PRIu64 " bytes", (uint64_t)Length);
 
 			std::string Result;
 			unsigned char Row4[4];
@@ -7675,6 +7712,7 @@ namespace Edge
 		}
 		std::string Codec::Base45Encode(const std::string& Data)
 		{
+			ED_TRACE("[codec] base45 encode %" PRIu64 " bytes", (uint64_t)Data.size());
 			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
 			std::string Result;
 			size_t Size = Data.size();
@@ -7709,6 +7747,7 @@ namespace Edge
 		}
 		std::string Codec::Base45Decode(const std::string& Data)
 		{
+			ED_TRACE("[codec] base45 decode %" PRIu64 " bytes", (uint64_t)Data.size());
 			static unsigned char CharToInt[256] =
 			{
 				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
@@ -7803,6 +7842,7 @@ namespace Edge
 		std::string Codec::Shuffle(const char* Value, size_t Size, uint64_t Mask)
 		{
 			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
+			ED_TRACE("[codec] shuffle %" PRIu64 " bytes", (uint64_t)Size);
 
 			std::string Result;
 			Result.resize(Size);
@@ -7820,6 +7860,7 @@ namespace Edge
 		std::string Codec::Compress(const std::string& Data, Compression Type)
 		{
 #ifdef ED_HAS_ZLIB
+			ED_TRACE("[codec] compress %" PRIu64 " bytes", (uint64_t)Data.size());
 			uLongf Size = compressBound((uLong)Data.size());
 			Bytef* Buffer = ED_MALLOC(Bytef, Size);
 			if (compress2(Buffer, &Size, (const Bytef*)Data.data(), (uLong)Data.size(), (int)Type) != Z_OK)
@@ -7838,6 +7879,7 @@ namespace Edge
 		std::string Codec::Decompress(const std::string& Data)
 		{
 #ifdef ED_HAS_ZLIB
+			ED_TRACE("[codec] decompress %" PRIu64 " bytes", (uint64_t)Data.size());
 			uLongf TotalSize = (uLongf)Data.size() * 2;
 			while (true)
 			{
@@ -7870,6 +7912,7 @@ namespace Edge
 		{
 			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
 			ED_ASSERT(Size > 0, std::string(), "length should be greater than zero");
+			ED_TRACE("[codec] hex encode %" PRIu64 " bytes", (uint64_t)Size);
 			static const char Hex[17] = "0123456789abcdef";
 
 			std::string Output;
@@ -7892,6 +7935,7 @@ namespace Edge
 		{
 			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
 			ED_ASSERT(Size > 0, std::string(), "length should be greater than zero");
+			ED_TRACE("[codec] hex decode %" PRIu64 " bytes", (uint64_t)Size);
 
 			std::string Output;
 			Output.reserve(Size / 2);
@@ -7917,6 +7961,7 @@ namespace Edge
 		{
 			ED_ASSERT(Text != nullptr, std::string(), "text should be set");
 			ED_ASSERT(Length > 0, std::string(), "length should be greater than zero");
+			ED_TRACE("[codec] uri encode %" PRIu64 " bytes", (uint64_t)Length);
 
 			static const char* Unescape = "._-$,;~()";
 			static const char* Hex = "0123456789abcdef";
@@ -7948,6 +7993,8 @@ namespace Edge
 		{
 			ED_ASSERT(Text != nullptr, std::string(), "text should be set");
 			ED_ASSERT(Length > 0, std::string(), "length should be greater than zero");
+			ED_TRACE("[codec] uri encode %" PRIu64 " bytes", (uint64_t)Length);
+
 			std::string Value;
 			size_t i = 0;
 

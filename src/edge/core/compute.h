@@ -1492,6 +1492,8 @@ namespace Edge
 		class ED_OUT_TS Crypto
 		{
 		public:
+			static const char* GetDigestName(Digest Type);
+			static const char* GetCipherName(Cipher Type);
 			static std::string RandomBytes(size_t Length);
 			static std::string Hash(Digest Type, const std::string& Value);
 			static std::string HashBinary(Digest Type, const std::string& Value);

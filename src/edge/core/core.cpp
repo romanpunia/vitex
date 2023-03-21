@@ -8446,7 +8446,12 @@ namespace Edge
 			Data.Level = Level;
 			Data.Line = Line;
 			Data.Source = Source ? OS::Path::GetFilename(Source) : "";
+#if ED_DLEVEL >= 5
 			Data.Pretty = Level != (int)LogLevel::Trace;
+#else
+
+			Data.Pretty = Level != (int)LogLevel::Debug && Level != (int)LogLevel::Trace;
+#endif
 			GetDateTime(time(nullptr), Data.Date, sizeof(Data.Date));
 
 			char Buffer[512] = { '\0' };

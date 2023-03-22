@@ -58,6 +58,7 @@ namespace Edge
 	{
 		void AudioContext::Create()
 		{
+			ED_TRACE("[audio] initialize audio context");
 			if (!Mutex)
 				Mutex = ED_NEW(std::mutex);
 
@@ -101,6 +102,7 @@ namespace Edge
 		}
 		void AudioContext::Release()
 		{
+			ED_TRACE("[audio] free audio context");
 			ED_DELETE(mutex, Mutex);
 			Mutex = nullptr;
 		}
@@ -117,6 +119,7 @@ namespace Edge
 		void AudioContext::GenerateBuffers(int Count, unsigned int* Buffers)
 		{
 			ED_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			ED_TRACE("[audio] generate %i buffers", Count);
 			Mutex->lock();
 #ifdef ED_HAS_OPENAL
 			alGenBuffers(Count, Buffers);
@@ -360,6 +363,7 @@ namespace Edge
 		AudioFilter::~AudioFilter() noexcept
 		{
 #if defined(ED_HAS_OPENAL) && defined(HAS_EFX)
+			ED_TRACE("[audio] delete %i filter", (int)Filter);
 			AudioContext::Lock();
 			if (alDeleteFilters != nullptr && Filter != AL_FILTER_NULL)
 				alDeleteFilters(1, &Filter);
@@ -379,6 +383,7 @@ namespace Edge
 			if (Callback)
 				Callback();
 			AudioContext::Unlock();
+			ED_TRACE("[audio] generate %i filter", (int)Filter);
 #endif
 			return true;
 		}
@@ -398,6 +403,7 @@ namespace Edge
 		{
 			Unbind();
 #if defined(ED_HAS_OPENAL) && defined(HAS_EFX)
+			ED_TRACE("[audio] delete %i effect", (int)Effect);
 			AudioContext::Lock();
 			if (alDeleteEffects != nullptr && Effect != AL_EFFECT_NULL)
 				alDeleteEffects(1, &Effect);
@@ -430,6 +436,7 @@ namespace Edge
 			if (alAuxiliaryEffectSloti != nullptr && Effect != AL_EFFECT_NULL)
 				alAuxiliaryEffectSloti(Slot, AL_EFFECTSLOT_EFFECT, (ALint)Effect);
 			AudioContext::Unlock();
+			ED_TRACE("[audio] generate %i effect", (int)Effect);
 #endif
 			return true;
 		}
@@ -484,6 +491,7 @@ namespace Edge
 		AudioClip::~AudioClip() noexcept
 		{
 #ifdef ED_HAS_OPENAL
+			ED_TRACE("[audio] delete %i buffer", (int)Buffer);
 			AudioContext::Lock();
 			alDeleteBuffers(1, &Buffer);
 			AudioContext::Unlock();
@@ -551,6 +559,7 @@ namespace Edge
 			alSource3f(Instance, AL_POSITION, 0, 0, 0);
 			alSourcei(Instance, AL_SEC_OFFSET, 0);
 			AudioContext::Unlock();
+			ED_TRACE("[audio] generate %i source", (int)Instance);
 #endif
 		}
 		AudioSource::~AudioSource() noexcept
@@ -558,6 +567,7 @@ namespace Edge
 			RemoveEffects();
 			ED_RELEASE(Clip);
 #ifdef ED_HAS_OPENAL
+			ED_TRACE("[audio] delete %i source", (int)Instance);
 			AudioContext::Lock();
 			alSourceStop(Instance);
 			alSourcei(Instance, AL_BUFFER, 0);
@@ -610,6 +620,7 @@ namespace Edge
 		void AudioSource::SetClip(AudioClip* NewClip)
 		{
 #ifdef ED_HAS_OPENAL
+			ED_TRACE("[audio] set clip %i on %i source", NewClip ? (int)NewClip->GetBuffer() : 0, (int)Instance);
 			AudioContext::Lock();
 			alSourceStop(Instance);
 
@@ -669,6 +680,7 @@ namespace Edge
 		void AudioSource::Reset()
 		{
 #ifdef ED_HAS_OPENAL
+			ED_TRACE("[audio] reset on %i source", (int)Instance);
 			AudioContext::Lock();
 			alSource3f(Instance, AL_DIRECTION, 0, 0, 0);
 			alSourcei(Instance, AL_SOURCE_RELATIVE, 0);
@@ -689,6 +701,7 @@ namespace Edge
 		void AudioSource::Pause()
 		{
 #ifdef ED_HAS_OPENAL
+			ED_TRACE("[audio] pause on %i source", (int)Instance);
 			AudioContext::Lock();
 			alSourcePause(Instance);
 			AudioContext::Unlock();
@@ -697,6 +710,7 @@ namespace Edge
 		void AudioSource::Play()
 		{
 #ifdef ED_HAS_OPENAL
+			ED_TRACE("[audio] play on %i source", (int)Instance);
 			AudioContext::Lock();
 			alSourcePlay(Instance);
 			AudioContext::Unlock();
@@ -705,6 +719,7 @@ namespace Edge
 		void AudioSource::Stop()
 		{
 #ifdef ED_HAS_OPENAL
+			ED_TRACE("[audio] stop on %i source", (int)Instance);
 			AudioContext::Lock();
 			alSourceStop(Instance);
 			AudioContext::Unlock();
@@ -755,6 +770,7 @@ namespace Edge
 #ifdef ED_HAS_OPENAL
 			AudioContext::Lock();
 			Device = (void*)alcOpenDevice(nullptr);
+			ED_TRACE("[audio] open alc device: 0x%" PRIXPTR, (void*)Device);
 			if (!Device)
 			{
 				AudioContext::Unlock();
@@ -768,6 +784,7 @@ namespace Edge
 			}
 
 			Context = (void*)alcCreateContext((ALCdevice*)Device, nullptr);
+			ED_TRACE("[audio] create alc context: 0x%" PRIXPTR, (void*)Context);
 			if (!Context)
 			{
 				AudioContext::Unlock();
@@ -792,6 +809,7 @@ namespace Edge
 			AudioContext::Lock();
 			if (Context != nullptr)
 			{
+				ED_TRACE("[audio] delete alc context: 0x%" PRIXPTR, (void*)Context);
 				alcMakeContextCurrent(nullptr);
 				alcDestroyContext((ALCcontext*)Context);
 				Context = nullptr;
@@ -799,6 +817,7 @@ namespace Edge
 
 			if (Device != nullptr)
 			{
+				ED_TRACE("[audio] close alc context: 0x%" PRIXPTR, (void*)Device);
 				alcCloseDevice((ALCdevice*)Device);
 				Device = nullptr;
 			}

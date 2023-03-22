@@ -665,7 +665,6 @@ namespace Edge
 			void* Material::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-
 				Core::Schema* Data = Content->Load<Core::Schema>(Stream->GetSource());
 				std::string Path;
 
@@ -1067,7 +1066,7 @@ namespace Edge
 					else
 						Path.assign(Asset->Path);
 
-					if (!Core::Parser(&Path).EndsWith(Ext))
+					if (!Core::String(&Path).EndsWith(Ext))
 						Path.append(Ext);
 
 					if (Content->Save<Engine::Material>(Path, Material, Args))
@@ -1153,9 +1152,9 @@ namespace Edge
 			}
 			void* AudioClip::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				if (Core::Parser(&Stream->GetSource()).EndsWith(".wav"))
+				if (Core::String(&Stream->GetSource()).EndsWith(".wav"))
 					return DeserializeWAVE(Stream, Offset, Args);
-				else if (Core::Parser(&Stream->GetSource()).EndsWith(".ogg"))
+				else if (Core::String(&Stream->GetSource()).EndsWith(".ogg"))
 					return DeserializeOGG(Stream, Offset, Args);
 
 				return nullptr;
@@ -1399,7 +1398,7 @@ namespace Edge
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				Graphics::Model* Object = nullptr;
 				std::string& Path = Stream->GetSource();
-				Core::Parser Location(&Path);
+				Core::String Location(&Path);
 
 				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
 				{
@@ -1564,7 +1563,7 @@ namespace Edge
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				Graphics::SkinModel* Object = nullptr;
 				std::string& Path = Stream->GetSource();
-				Core::Parser Location(&Path);
+				Core::String Location(&Path);
 
 				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
 				{
@@ -1683,7 +1682,7 @@ namespace Edge
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				std::vector<Compute::SkinAnimatorClip> Clips;
 				std::string& Path = Stream->GetSource();
-				Core::Parser Location(&Path);
+				Core::String Location(&Path);
 
 				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
 				{
@@ -1940,7 +1939,7 @@ namespace Edge
 				if (Config != nullptr)
 				{
 					if (Series::Unpack(Config->Fetch("module-root"), &Router->ModuleRoot))
-						Core::Parser(&Router->ModuleRoot).Eval(N, D);
+						Core::String(&Router->ModuleRoot).Eval(N, D);
 
 					if (!Series::Unpack(Config->Find("keep-alive"), &Router->KeepAliveMaxCount))
 						Router->KeepAliveMaxCount = 50;
@@ -1971,7 +1970,7 @@ namespace Edge
 					if (!Series::Unpack(It, &Name))
 						Name = "*";
 
-					Network::SocketCertificate* Cert = &Router->Certificates[Core::Parser(&Name).Eval(N, D).R()];
+					Network::SocketCertificate* Cert = &Router->Certificates[Core::String(&Name).Eval(N, D).R()];
 					if (Series::Unpack(It->Find("protocol"), &Name))
 					{
 						if (!strcmp(Name.c_str(), "SSL_V2"))
@@ -2001,8 +2000,8 @@ namespace Edge
 					if (!Series::Unpack(It->Find("chain"), &Cert->Chain))
 						Cert->Chain.clear();
 
-					Core::Parser(&Cert->Key).Eval(N, D).R();
-					Core::Parser(&Cert->Chain).Eval(N, D).R();
+					Core::String(&Cert->Key).Eval(N, D).R();
+					Core::String(&Cert->Chain).Eval(N, D).R();
 				}
 
 				std::vector<Core::Schema*> Listeners = Blob->FindCollection("listen", true);
@@ -2012,11 +2011,11 @@ namespace Edge
 					if (!Series::Unpack(It, &Name))
 						Name = "*";
 
-					Network::RemoteHost* Host = &Router->Listeners[Core::Parser(&Name).Eval(N, D).R()];
+					Network::RemoteHost* Host = &Router->Listeners[Core::String(&Name).Eval(N, D).R()];
 					if (!Series::Unpack(It->Find("hostname"), &Host->Hostname))
 						Host->Hostname = "0.0.0.0";
 
-					Core::Parser(&Host->Hostname).Eval(N, D).R();
+					Core::String(&Host->Hostname).Eval(N, D).R();
 					if (!Series::Unpack(It->Find("port"), &Host->Port))
 						Host->Port = 80;
 
@@ -2030,7 +2029,7 @@ namespace Edge
 					std::string Name = "*";
 					Series::Unpack(It, &Name);
 
-					Network::HTTP::SiteEntry* Site = Router->Site(Core::Parser(&Name).Eval(N, D).Get());
+					Network::HTTP::SiteEntry* Site = Router->Site(Core::String(&Name).Eval(N, D).Get());
 					if (Site == nullptr)
 						continue;
 
@@ -2056,7 +2055,7 @@ namespace Edge
 						Site->Gateway.Session.Cookie.HttpOnly = true;
 
 					if (Series::Unpack(It->Fetch("gateway.session.document-root"), &Site->Gateway.Session.DocumentRoot))
-						Core::Parser(&Site->Gateway.Session.DocumentRoot).Eval(N, D);
+						Core::String(&Site->Gateway.Session.DocumentRoot).Eval(N, D);
 
 					if (!Series::Unpack(It->Fetch("gateway.session.expires"), &Site->Gateway.Session.Expires))
 						Site->Gateway.Session.Expires = 604800;
@@ -2071,7 +2070,7 @@ namespace Edge
 						Site->MaxResources = 5;
 
                     Series::Unpack(It->Find("resource-root"), &Site->ResourceRoot);
-                    Core::Parser(&Site->ResourceRoot).Eval(N, D);
+                    Core::String(&Site->ResourceRoot).Eval(N, D);
 
 					std::unordered_map<std::string, Network::HTTP::RouteEntry*> Aliases;
 					std::vector<Core::Schema*> Groups = It->FindCollection("group", true);
@@ -2185,7 +2184,7 @@ namespace Edge
 								if (Series::Unpack(File, &Pattern))
 								{
 									if (!File->GetAttribute("use"))
-										Core::Parser(&Pattern).Eval(N, D);
+										Core::String(&Pattern).Eval(N, D);
 
 									Route->IndexFiles.push_back(Pattern);
 								}
@@ -2201,7 +2200,7 @@ namespace Edge
 								if (Series::Unpack(File, &Pattern))
 								{
 									if (!File->GetAttribute("use"))
-										Core::Parser(&Pattern).Eval(N, D);
+										Core::String(&Pattern).Eval(N, D);
 
 									Route->TryFiles.push_back(Pattern);
 								}
@@ -2215,7 +2214,7 @@ namespace Edge
 							{
 								Network::HTTP::ErrorFile Source;
 								if (Series::Unpack(File->Find("file"), &Source.Pattern))
-									Core::Parser(&Source.Pattern).Eval(N, D);
+									Core::String(&Source.Pattern).Eval(N, D);
 
 								Series::Unpack(File->Find("status"), &Source.StatusCode);
 								Route->ErrorFiles.push_back(Source);
@@ -2266,7 +2265,7 @@ namespace Edge
 								Route->Compression.MemoryLevel = Compute::Mathi::Clamp(Route->Compression.MemoryLevel, 1, 9);
 
 							if (Series::Unpack(Base->Find("document-root"), &Route->DocumentRoot))
-								Core::Parser(&Route->DocumentRoot).Eval(N, D);
+								Core::String(&Route->DocumentRoot).Eval(N, D);
 
 							Series::Unpack(Base->Find("override"), &Route->Override);
 							Series::Unpack(Base->Fetch("gateway.report-errors"), &Route->Gateway.ReportErrors);
@@ -2320,10 +2319,7 @@ namespace Edge
 			{
 				ED_ASSERT_V(Asset != nullptr, "asset should be set");
 				ED_ASSERT_V(Asset->Resource != nullptr, "instance should be set");
-
-				Compute::HullShape* Shape = (Compute::HullShape*)Asset->Resource;
-				Compute::Simulator::FreeHullShape(Shape->Shape);
-				ED_RELEASE(Shape);
+				ED_RELEASE((Compute::HullShape*)Asset->Resource);
 			}
 			void* HullShape::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
@@ -2340,29 +2336,29 @@ namespace Edge
 				if (!Data)
 					return nullptr;
 
-				Compute::HullShape* Object = new Compute::HullShape();
 				std::vector<Core::Schema*> Meshes = Data->FetchCollection("meshes.mesh");
+				std::vector<Compute::Vertex> Vertices;
+				std::vector<int> Indices;
+
 				for (auto&& Mesh : Meshes)
 				{
-					if (!Series::Unpack(Mesh->Find("indices"), &Object->Indices))
+					if (!Series::Unpack(Mesh->Find("indices"), &Indices))
 					{
 						ED_RELEASE(Data);
-						ED_RELEASE(Object);
 						return nullptr;
 					}
 
-					if (!Series::Unpack(Mesh->Find("vertices"), &Object->Vertices))
+					if (!Series::Unpack(Mesh->Find("vertices"), &Vertices))
 					{
 						ED_RELEASE(Data);
-						ED_RELEASE(Object);
 						return nullptr;
 					}
 				}
 
-				Object->Shape = Compute::Simulator::CreateHullShape(Object->Vertices);
+				Compute::HullShape* Object = new Compute::HullShape(std::move(Vertices), std::move(Indices));
 				ED_RELEASE(Data);
 
-				if (!Object->Shape)
+				if (!Object->GetShape())
 				{
 					ED_RELEASE(Object);
 					return nullptr;

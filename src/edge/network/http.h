@@ -65,7 +65,7 @@ namespace Edge
 			typedef std::function<bool(class Connection*)> SuccessCallback;
 			typedef std::function<bool(class Connection*, SocketPoll, const char*, size_t)> ContentCallback;
 			typedef std::function<bool(class Connection*, struct Credentials*)> AuthorizeCallback;
-			typedef std::function<bool(class Connection*, Core::Parser*)> HeaderCallback;
+			typedef std::function<bool(class Connection*, Core::String*)> HeaderCallback;
 			typedef std::function<bool(class Connection*, Scripting::Compiler*)> CompilerCallback;
 			typedef std::function<bool(struct Resource*)> ResourceCallback;
 			typedef std::function<void(class WebSocketFrame*)> WebSocketCallback;
@@ -744,9 +744,9 @@ namespace Edge
 			{
 			public:
 				static void ConstructPath(Connection* Base);
-				static void ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::Parser* Buffer);
-				static void ConstructHeadCache(Connection* Base, Core::Parser* Buffer);
-				static void ConstructHeadUncache(Connection* Base, Core::Parser* Buffer);
+				static void ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::String* Buffer);
+				static void ConstructHeadCache(Connection* Base, Core::String* Buffer);
+				static void ConstructHeadUncache(Connection* Base, Core::String* Buffer);
 				static bool ConstructRoute(MapRouter* Router, Connection* Base);
 				static bool ConstructDirectoryEntries(Connection* Base, const Core::FileEntry& A, const Core::FileEntry& B);
 				static std::string ConstructContentRange(size_t Offset, size_t Length, size_t ContentLength);

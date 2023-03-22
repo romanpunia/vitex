@@ -132,7 +132,7 @@ namespace Edge
 		Location::Location(const std::string& Src) noexcept : URL(Src), Protocol("file"), Port(-1)
 		{
 			ED_ASSERT_V(!URL.empty(), "url should not be empty");
-			Core::Parser(&URL).Replace('\\', '/');
+			Core::String(&URL).Replace('\\', '/');
 
 			const char* PathBegin = nullptr;
 			const char* HostBegin = strchr(URL.c_str(), ':');
@@ -205,7 +205,7 @@ namespace Edge
 			if (ParametersBegin != nullptr)
 			{
 				const char* ParametersEnd = strchr(++ParametersBegin, '#');
-				Core::Parser Parameters(ParametersBegin, ParametersEnd ? ParametersEnd - ParametersBegin : strlen(ParametersBegin));
+				Core::String Parameters(ParametersBegin, ParametersEnd ? ParametersEnd - ParametersBegin : strlen(ParametersBegin));
 				Path = std::string(PathBegin, ParametersBegin - 1);
 
 				if (!ParametersEnd)
@@ -222,7 +222,7 @@ namespace Edge
 
 				for (auto& Item : Parameters.Split('&'))
 				{
-					std::vector<std::string> KeyValue = Core::Parser(&Item).Split('=');
+					std::vector<std::string> KeyValue = Core::String(&Item).Split('=');
 					KeyValue[0] = Compute::Codec::URIDecode(KeyValue[0]);
 
 					if (KeyValue.size() >= 2)
@@ -521,7 +521,7 @@ namespace Edge
 			ED_MEASURE(ED_TIMING_NET * 3);
 
 			struct sockaddr_storage Storage;
-			int Port = Core::Parser(&Service).ToInt();
+			int Port = Core::String(&Service).ToInt();
 			int Family = Multiplexer::GetAddressFamily(Host.c_str());
 			int Result = -1;
 
@@ -2334,7 +2334,7 @@ namespace Edge
 #ifdef SSL_CTX_set_ecdh_auto
 				SSL_CTX_set_ecdh_auto(It.second.Context, 1);
 #endif
-				std::string ContextId = Compute::Crypto::Hash(Compute::Digests::MD5(), Core::Parser((int64_t)time(nullptr)).R());
+				std::string ContextId = Compute::Crypto::Hash(Compute::Digests::MD5(), Core::String((int64_t)time(nullptr)).R());
 				SSL_CTX_set_session_id_context(It.second.Context, (const unsigned char*)ContextId.c_str(), (unsigned int)ContextId.size());
 
 				if (!It.second.Chain.empty() && !It.second.Key.empty())

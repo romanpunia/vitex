@@ -1671,8 +1671,56 @@ namespace Edge
 			};
 
 		private:
-			std::vector<std::string> Defines;
-			std::vector<std::string> Sets;
+			enum class Controller
+			{
+				StartIf = 0,
+				ElseIf = 1,
+				Else = 2,
+				EndIf = 3
+			};
+
+			enum class Condition
+			{
+				Exists = 1,
+				Equals = 2,
+				Greater = 3,
+				GreaterEquals = 4,
+				Less = 5,
+				LessEquals = 6,
+				Text = 0,
+				NotExists = -1,
+				NotEquals = -2,
+				NotGreater = -3,
+				NotGreaterEquals = -4,
+				NotLess = -5,
+				NotLessEquals = -6,
+			};
+
+			struct Token
+			{
+				std::vector<std::string> Values;
+				std::string Name;
+				size_t Start = 0;
+				size_t End = 0;
+				bool Found = false;
+			};
+
+			struct Conditional
+			{
+				std::vector<Conditional> Childs;
+				std::string Expression;
+				bool Chaining = false;
+				Condition Type = Condition::Text;
+				size_t TokenStart = 0;
+				size_t TokenEnd = 0;
+				size_t TextStart = 0;
+				size_t TextEnd = 0;
+			};
+
+		private:
+			std::unordered_map<std::string, std::pair<Condition, Controller>> ControlFlow;
+			std::unordered_map<std::string, std::string> Defines;
+			std::unordered_set<std::string> Sets;
 			std::string ExpandedPath;
 			ProcIncludeCallback Include;
 			ProcPragmaCallback Pragma;
@@ -1687,25 +1735,28 @@ namespace Edge
 			void SetIncludeCallback(const ProcIncludeCallback& Callback);
 			void SetPragmaCallback(const ProcPragmaCallback& Callback);
 			void SetFeatures(const Desc& Value);
-			void Define(const std::string& Name);
+			void Define(const std::string& Name, const std::string& Value = "1");
 			void Undefine(const std::string& Name);
 			void Clear();
-			bool IsDefined(const char* Name) const;
+			bool IsDefined(const std::string& Name) const;
+			bool IsDefined(const std::string& Name, const std::string& Value) const;
 			bool Process(const std::string& Path, std::string& Buffer);
+			std::string GetDefine(const std::string& Name) const;
 			const std::string& GetCurrentFilePath() const;
 
 		private:
-			bool SaveResult();
+			Token FindNextToken(std::string& Buffer, size_t& Offset);
+			Token FindNextConditionalToken(std::string& Buffer, size_t& Offset);
+			size_t ReplaceToken(Token& Where, std::string& Buffer, const std::string& To);
+			std::vector<Conditional> PrepareConditions(std::string& Buffer, Token& Next, size_t& Offset, bool Top);
+			std::string Evaluate(std::string& Buffer, const std::vector<Conditional>& Conditions);
+			std::pair<std::string, std::string> GetExpressionParts(const std::string& Value);
+			std::pair<std::string, std::string> UnpackExpression(const std::pair<std::string, std::string>& Expression);
+			int SwitchCase(const Conditional& Value);
+			bool ConsumeTokens(const std::string& Path, std::string& Buffer);
 			bool ReturnResult(bool Result, bool WasNested);
-			bool ProcessIncludeDirective(const std::string& Path, Core::Parser& Buffer);
-			bool ProcessPragmaDirective(const std::string& Path, Core::Parser& Buffer);
-			bool ProcessBlockDirective(Core::Parser& Buffer);
-			bool ProcessDefineDirective(Core::Parser& Buffer, size_t Base, size_t& Offset, bool Endless);
-			int FindDefineDirective(Core::Parser& Buffer, size_t& Offset, size_t* Size);
-			int FindBlockDirective(Core::Parser& Buffer, size_t& Offset, bool Nested);
-			int FindBlockNesting(Core::Parser& Buffer, const Core::Parser::Settle& Hash, size_t& Offset, bool Resolved);
-			int FindDirective(Core::Parser& Buffer, const char* V, size_t* Offset, size_t* Base, size_t* Start, size_t* End);
-			bool HasSet(const std::string& Path);
+			bool HasResult(const std::string& Path);
+			bool SaveResult();
 
 		public:
 			static IncludeResult ResolveInclude(const IncludeDesc& Desc);
@@ -1891,14 +1942,19 @@ namespace Edge
 
 		class ED_OUT HullShape final : public Core::Reference<HullShape>
 		{
-		public:
+		private:
 			std::vector<Vertex> Vertices;
 			std::vector<int> Indices;
 			btCollisionShape* Shape;
 
 		public:
-			HullShape() noexcept;
-			~HullShape() noexcept = default;
+			HullShape(std::vector<Vertex>&& NewVertices, std::vector<int>&& Indices) noexcept;
+			HullShape(std::vector<Vertex>&& NewVertices) noexcept;
+			HullShape(btCollisionShape* From) noexcept;
+			~HullShape() noexcept;
+			const std::vector<Vertex>& GetVertices() const;
+			const std::vector<int>& GetIndices() const;
+			btCollisionShape* GetShape() const;
 		};
 
 		class ED_OUT RigidBody final : public Core::Reference<RigidBody>
@@ -2635,10 +2691,7 @@ namespace Edge
 			int GetContactManifoldCount() const;
 
 		public:
-			static void FreeHullShape(btCollisionShape* Shape);
 			static Simulator* Get(btDiscreteDynamicsWorld* From);
-			static Core::Unique<btCollisionShape> CreateHullShape(std::vector<Vertex>& Mesh);
-			static Core::Unique<btCollisionShape> CreateHullShape(btCollisionShape* From);
 		};
 
 		template <typename T>

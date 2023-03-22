@@ -264,7 +264,7 @@ namespace Edge
 					ED_RELEASE(Hull);
 					Hull = NewHull;
 					if (Hull != nullptr)
-						Load(Hull->Shape, Mass, Anticipation);
+						Load(Hull->GetShape(), Mass, Anticipation);
 					else
 						Clear();
 

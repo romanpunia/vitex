@@ -108,7 +108,7 @@ namespace Edge
 				if (!Message || Message[0] == '\0')
 					return;
 
-				Core::Parser Buffer(Message);
+				Core::String Buffer(Message);
 				if (Buffer.Empty())
 					return;
 
@@ -126,7 +126,7 @@ namespace Edge
 				if (!Message || Message[0] == '\0')
 					return;
 
-				Core::Parser Buffer(Message);
+				Core::String Buffer(Message);
 				if (Buffer.Empty())
 					return;
 
@@ -160,7 +160,7 @@ namespace Edge
 				}
 				else if (Data != nullptr && Size > 0)
 				{
-					Core::Parser Result(Data, Size);
+					Core::String Result(Data, Size);
 					Result.Trim();
 
 					if (Result.Empty())
@@ -185,7 +185,7 @@ namespace Edge
 					case OidType::Int4:
 					case OidType::Int8:
 					{
-						Core::Parser Source(Data, (size_t)Size);
+						Core::String Source(Data, (size_t)Size);
 						if (Source.HasInteger())
 							return Core::Var::Integer(Source.ToInt64());
 
@@ -198,7 +198,7 @@ namespace Edge
 						else if (Data[0] == 'f')
 							return Core::Var::Boolean(false);
 
-						Core::Parser Source(Data, (size_t)Size);
+						Core::String Source(Data, (size_t)Size);
 						Source.ToLower();
 
 						bool Value = (Source.R() == "true" || Source.R() == "yes" || Source.R() == "on" || Source.R() == "1");
@@ -207,7 +207,7 @@ namespace Edge
 					case OidType::Float4:
 					case OidType::Float8:
 					{
-						Core::Parser Source(Data, (size_t)Size);
+						Core::String Source(Data, (size_t)Size);
 						if (Source.HasNumber())
 							return Core::Var::Number(Source.ToDouble());
 
@@ -439,7 +439,7 @@ namespace Edge
 									Def += Op;
 							}
 						}
-						else if (!Core::Parser(&Op).HasNumber())
+						else if (!Core::String(&Op).HasNumber())
 						{
 							Def += "?";
 							Map.push_back(Statement);
@@ -1253,7 +1253,7 @@ namespace Edge
 				if (!Count || Count[0] == '\0')
 					return 0;
 
-				Core::Parser Copy(Count);
+				Core::String Copy(Count);
 				if (!Copy.HasInteger())
 					return 0;
 
@@ -1930,7 +1930,7 @@ namespace Edge
 				if (!IsInQueue || Next->Session == 0)
 					return Future;
 
-				std::string Tx = Core::Parser(Command).Trim().ToUpper().R();
+				std::string Tx = Core::String(Command).Trim().ToUpper().R();
 				if (Tx != "COMMIT" && Tx != "ROLLBACK")
 					return Future;
 
@@ -2420,7 +2420,7 @@ namespace Edge
 				std::string Erasable = " \r\n\t\'\"()<>=%&^*/+-,.!?:;";
 				std::string Quotes = "\"'`";
 
-				Core::Parser Base(&Result.Request);
+				Core::String Base(&Result.Request);
 				Base.ReplaceInBetween("/*", "*/", "", false).ReplaceStartsWithEndsOf("--", Lines.c_str(), "");
 				Base.Trim().Compress(Erasable.c_str(), Quotes.c_str());
 
@@ -2452,7 +2452,7 @@ namespace Edge
 					}
 				}
 
-				std::vector<std::pair<std::string, Core::Parser::Settle>> Variables;
+				std::vector<std::pair<std::string, Core::String::Settle>> Variables;
 				for (auto& Item : Base.FindInBetween("$<", ">", Quotes.c_str()))
 				{
 					Item.first += ";escape";
@@ -2517,7 +2517,7 @@ namespace Edge
 				size_t Size = 0;
 				for (auto& File : Entries)
 				{
-					Core::Parser Base(Path + File.Path);
+					Core::String Base(Path + File.Path);
 					if (File.IsDirectory)
 					{
 						AddDirectory(Base.R(), Origin.empty() ? Directory : Origin);
@@ -2648,8 +2648,8 @@ namespace Edge
 					return SQL;
 
 				Connection* Remote = Base->GetConnection();
-				Core::Parser Buffer(SQL);
-				Core::Parser::Settle Set;
+				Core::String Buffer(SQL);
+				Core::String::Settle Set;
 				std::string& Src = Buffer.R();
 				size_t Offset = 0;
 				size_t Next = 0;
@@ -2757,7 +2757,7 @@ namespace Edge
 				size_t Offset = 0;
 				Safe->unlock();
 
-				Core::Parser Result(&Origin.Request);
+				Core::String Result(&Origin.Request);
 				for (auto& Word : Origin.Positions)
 				{
 					auto It = Map->find(Word.Key);
@@ -2809,7 +2809,7 @@ namespace Edge
 
 				if (!Base)
 				{
-					Core::Parser Dest(Src);
+					Core::String Dest(Src);
 					return Dest.Insert('\'', 0).Append('\'').R();
 				}
 

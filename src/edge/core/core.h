@@ -661,7 +661,7 @@ namespace Edge
 			static int64_t ParseWebDate(const char* Date);
 		};
 
-		struct ED_OUT Parser
+		struct ED_OUT String
 		{
 		public:
 			struct Settle
@@ -676,96 +676,96 @@ namespace Edge
 			bool Deletable;
 
 		public:
-			Parser() noexcept;
-			Parser(int Value) noexcept;
-			Parser(unsigned int Value) noexcept;
-			Parser(int64_t Value) noexcept;
-			Parser(uint64_t Value) noexcept;
-			Parser(float Value) noexcept;
-			Parser(double Value) noexcept;
-			Parser(long double Value) noexcept;
-			Parser(const std::string& Buffer) noexcept;
-			Parser(std::string* Buffer) noexcept;
-			Parser(const std::string* Buffer) noexcept;
-			Parser(const char* Buffer) noexcept;
-			Parser(const char* Buffer, size_t Length) noexcept;
-			Parser(Parser&& Value) noexcept;
-			Parser(const Parser& Value) noexcept;
-			~Parser() noexcept;
-			Parser& EscapePrint();
-			Parser& Escape();
-			Parser& Unescape();
-			Parser& Reserve(size_t Count = 1);
-			Parser& Resize(size_t Count);
-			Parser& Resize(size_t Count, char Char);
-			Parser& Clear();
-			Parser& ToUpper();
-			Parser& ToLower();
-			Parser& Clip(size_t Length);
-			Parser& Compress(const char* SpaceIfNotFollowedOrPrecededByOf, const char* NotInBetweenOf, size_t Start = 0U);
-			Parser& ReplaceOf(const char* Chars, const char* To, size_t Start = 0U);
-			Parser& ReplaceNotOf(const char* Chars, const char* To, size_t Start = 0U);
-			Parser& ReplaceGroups(const std::string& FromRegex, const std::string& To);
-			Parser& Replace(const std::string& From, const std::string& To, size_t Start = 0U);
-			Parser& Replace(const char* From, const char* To, size_t Start = 0U);
-			Parser& Replace(const char& From, const char& To, size_t Position = 0U);
-			Parser& Replace(const char& From, const char& To, size_t Position, size_t Count);
-			Parser& ReplacePart(size_t Start, size_t End, const std::string& Value);
-			Parser& ReplacePart(size_t Start, size_t End, const char* Value);
-			Parser& ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const std::string& With, size_t Start = 0U);
-			Parser& ReplaceInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start = 0U);
-			Parser& ReplaceNotInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start = 0U);
-			Parser& ReplaceParts(std::vector<std::pair<std::string, Parser::Settle>>& Inout, const std::string& With, const std::function<char(const std::string&, char, int)>& Surrounding = nullptr);
-			Parser& ReplaceParts(std::vector<Parser::Settle>& Inout, const std::string& With, const std::function<char(char, int)>& Surrounding = nullptr);
-			Parser& RemovePart(size_t Start, size_t End);
-			Parser& Reverse();
-			Parser& Reverse(size_t Start, size_t End);
-			Parser& Substring(size_t Start);
-			Parser& Substring(size_t Start, size_t Count);
-			Parser& Substring(const Parser::Settle& Result);
-			Parser& Splice(size_t Start, size_t End);
-			Parser& Trim();
-			Parser& Fill(const char& Char);
-			Parser& Fill(const char& Char, size_t Count);
-			Parser& Fill(const char& Char, size_t Start, size_t Count);
-			Parser& Assign(const char* Raw);
-			Parser& Assign(const char* Raw, size_t Length);
-			Parser& Assign(const std::string& Raw);
-			Parser& Assign(const std::string& Raw, size_t Start, size_t Count);
-			Parser& Assign(const char* Raw, size_t Start, size_t Count);
-			Parser& Append(const char* Raw);
-			Parser& Append(const char& Char);
-			Parser& Append(const char& Char, size_t Count);
-			Parser& Append(const std::string& Raw);
-			Parser& Append(const char* Raw, size_t Count);
-			Parser& Append(const char* Raw, size_t Start, size_t Count);
-			Parser& Append(const std::string& Raw, size_t Start, size_t Count);
-			Parser& fAppend(const char* Format, ...);
-			Parser& Insert(const std::string& Raw, size_t Position);
-			Parser& Insert(const std::string& Raw, size_t Position, size_t Start, size_t Count);
-			Parser& Insert(const std::string& Raw, size_t Position, size_t Count);
-			Parser& Insert(const char& Char, size_t Position, size_t Count);
-			Parser& Insert(const char& Char, size_t Position);
-			Parser& Erase(size_t Position);
-			Parser& Erase(size_t Position, size_t Count);
-			Parser& EraseOffsets(size_t Start, size_t End);
-			Parser& Eval(const std::string& Net, const std::string& Dir);
-			std::vector<std::pair<std::string, Parser::Settle>> FindInBetween(const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
-			std::vector<std::pair<std::string, Parser::Settle>> FindStartsWithEndsOf(const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
-			Parser::Settle ReverseFind(const std::string& Needle, size_t Offset = 0U) const;
-			Parser::Settle ReverseFind(const char* Needle, size_t Offset = 0U) const;
-			Parser::Settle ReverseFind(const char& Needle, size_t Offset = 0U) const;
-			Parser::Settle ReverseFindUnescaped(const char& Needle, size_t Offset = 0U) const;
-			Parser::Settle ReverseFindOf(const std::string& Needle, size_t Offset = 0U) const;
-			Parser::Settle ReverseFindOf(const char* Needle, size_t Offset = 0U) const;
-			Parser::Settle Find(const std::string& Needle, size_t Offset = 0U) const;
-			Parser::Settle Find(const char* Needle, size_t Offset = 0U) const;
-			Parser::Settle Find(const char& Needle, size_t Offset = 0U) const;
-			Parser::Settle FindUnescaped(const char& Needle, size_t Offset = 0U) const;
-			Parser::Settle FindOf(const std::string& Needle, size_t Offset = 0U) const;
-			Parser::Settle FindOf(const char* Needle, size_t Offset = 0U) const;
-			Parser::Settle FindNotOf(const std::string& Needle, size_t Offset = 0U) const;
-			Parser::Settle FindNotOf(const char* Needle, size_t Offset = 0U) const;
+			String() noexcept;
+			String(int Value) noexcept;
+			String(unsigned int Value) noexcept;
+			String(int64_t Value) noexcept;
+			String(uint64_t Value) noexcept;
+			String(float Value) noexcept;
+			String(double Value) noexcept;
+			String(long double Value) noexcept;
+			String(const std::string& Buffer) noexcept;
+			String(std::string* Buffer) noexcept;
+			String(const std::string* Buffer) noexcept;
+			String(const char* Buffer) noexcept;
+			String(const char* Buffer, size_t Length) noexcept;
+			String(String&& Value) noexcept;
+			String(const String& Value) noexcept;
+			~String() noexcept;
+			String& EscapePrint();
+			String& Escape();
+			String& Unescape();
+			String& Reserve(size_t Count = 1);
+			String& Resize(size_t Count);
+			String& Resize(size_t Count, char Char);
+			String& Clear();
+			String& ToUpper();
+			String& ToLower();
+			String& Clip(size_t Length);
+			String& Compress(const char* SpaceIfNotFollowedOrPrecededByOf, const char* NotInBetweenOf, size_t Start = 0U);
+			String& ReplaceOf(const char* Chars, const char* To, size_t Start = 0U);
+			String& ReplaceNotOf(const char* Chars, const char* To, size_t Start = 0U);
+			String& ReplaceGroups(const std::string& FromRegex, const std::string& To);
+			String& Replace(const std::string& From, const std::string& To, size_t Start = 0U);
+			String& Replace(const char* From, const char* To, size_t Start = 0U);
+			String& Replace(const char& From, const char& To, size_t Position = 0U);
+			String& Replace(const char& From, const char& To, size_t Position, size_t Count);
+			String& ReplacePart(size_t Start, size_t End, const std::string& Value);
+			String& ReplacePart(size_t Start, size_t End, const char* Value);
+			String& ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const std::string& With, size_t Start = 0U);
+			String& ReplaceInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start = 0U);
+			String& ReplaceNotInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start = 0U);
+			String& ReplaceParts(std::vector<std::pair<std::string, String::Settle>>& Inout, const std::string& With, const std::function<char(const std::string&, char, int)>& Surrounding = nullptr);
+			String& ReplaceParts(std::vector<String::Settle>& Inout, const std::string& With, const std::function<char(char, int)>& Surrounding = nullptr);
+			String& RemovePart(size_t Start, size_t End);
+			String& Reverse();
+			String& Reverse(size_t Start, size_t End);
+			String& Substring(size_t Start);
+			String& Substring(size_t Start, size_t Count);
+			String& Substring(const String::Settle& Result);
+			String& Splice(size_t Start, size_t End);
+			String& Trim();
+			String& Fill(const char& Char);
+			String& Fill(const char& Char, size_t Count);
+			String& Fill(const char& Char, size_t Start, size_t Count);
+			String& Assign(const char* Raw);
+			String& Assign(const char* Raw, size_t Length);
+			String& Assign(const std::string& Raw);
+			String& Assign(const std::string& Raw, size_t Start, size_t Count);
+			String& Assign(const char* Raw, size_t Start, size_t Count);
+			String& Append(const char* Raw);
+			String& Append(const char& Char);
+			String& Append(const char& Char, size_t Count);
+			String& Append(const std::string& Raw);
+			String& Append(const char* Raw, size_t Count);
+			String& Append(const char* Raw, size_t Start, size_t Count);
+			String& Append(const std::string& Raw, size_t Start, size_t Count);
+			String& fAppend(const char* Format, ...);
+			String& Insert(const std::string& Raw, size_t Position);
+			String& Insert(const std::string& Raw, size_t Position, size_t Start, size_t Count);
+			String& Insert(const std::string& Raw, size_t Position, size_t Count);
+			String& Insert(const char& Char, size_t Position, size_t Count);
+			String& Insert(const char& Char, size_t Position);
+			String& Erase(size_t Position);
+			String& Erase(size_t Position, size_t Count);
+			String& EraseOffsets(size_t Start, size_t End);
+			String& Eval(const std::string& Net, const std::string& Dir);
+			std::vector<std::pair<std::string, String::Settle>> FindInBetween(const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
+			std::vector<std::pair<std::string, String::Settle>> FindStartsWithEndsOf(const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
+			String::Settle ReverseFind(const std::string& Needle, size_t Offset = 0U) const;
+			String::Settle ReverseFind(const char* Needle, size_t Offset = 0U) const;
+			String::Settle ReverseFind(const char& Needle, size_t Offset = 0U) const;
+			String::Settle ReverseFindUnescaped(const char& Needle, size_t Offset = 0U) const;
+			String::Settle ReverseFindOf(const std::string& Needle, size_t Offset = 0U) const;
+			String::Settle ReverseFindOf(const char* Needle, size_t Offset = 0U) const;
+			String::Settle Find(const std::string& Needle, size_t Offset = 0U) const;
+			String::Settle Find(const char* Needle, size_t Offset = 0U) const;
+			String::Settle Find(const char& Needle, size_t Offset = 0U) const;
+			String::Settle FindUnescaped(const char& Needle, size_t Offset = 0U) const;
+			String::Settle FindOf(const std::string& Needle, size_t Offset = 0U) const;
+			String::Settle FindOf(const char* Needle, size_t Offset = 0U) const;
+			String::Settle FindNotOf(const std::string& Needle, size_t Offset = 0U) const;
+			String::Settle FindNotOf(const char* Needle, size_t Offset = 0U) const;
 			bool IsPrecededBy(size_t At, const char* Of) const;
 			bool IsFollowedBy(size_t At, const char* Of) const;
 			bool StartsWith(const std::string& Value, size_t Offset = 0U) const;
@@ -802,8 +802,8 @@ namespace Edge
 			std::vector<std::string> SplitMax(char With, size_t MaxCount, size_t Start = 0U) const;
 			std::vector<std::string> SplitOf(const char* With, size_t Start = 0U) const;
 			std::vector<std::string> SplitNotOf(const char* With, size_t Start = 0U) const;
-			Parser& operator = (Parser&& New) noexcept;
-			Parser& operator = (const Parser& New) noexcept;
+			String& operator = (String&& New) noexcept;
+			String& operator = (const String& New) noexcept;
 
 		public:
 			static bool IsDigit(char Char);
@@ -967,11 +967,13 @@ namespace Edge
 			static AllocCallback OnAlloc;
 			static ReallocCallback OnRealloc;
 			static FreeCallback OnFree;
+			static bool Trace;
 
 		public:
 			static void SetAlloc(const AllocCallback& Callback);
 			static void SetRealloc(const ReallocCallback& Callback);
 			static void SetFree(const FreeCallback& Callback);
+			static void SetTracing(bool TraceAllocations);
 			static void Watch(void* Ptr, int Line = 0, const char* Source = nullptr, const char* Function = nullptr, const char* TypeName = nullptr);
 			static void Unwatch(void* Ptr);
 			static void Dump(void* Ptr = nullptr);
@@ -1192,10 +1194,10 @@ namespace Edge
                         if (Value.empty())
                             return false;
                         
-                        if (Parser((std::string*)&Value).ToUInt64() > 0)
+                        if (String((std::string*)&Value).ToUInt64() > 0)
                             return true;
                         
-                        Parser Data(Value);
+                        String Data(Value);
                         Data.ToLower();
                         return Data.R() == "on" || Data.R() == "true" || Data.R() == "yes" || Data.R() == "y";
                     }
@@ -1204,10 +1206,10 @@ namespace Edge
                         if (Value.empty())
                             return true;
                         
-                        if (Parser((std::string*)&Value).ToUInt64() > 0)
+                        if (String((std::string*)&Value).ToUInt64() > 0)
                             return false;
                         
-                        Parser Data(Value);
+                        String Data(Value);
                         Data.ToLower();
                         return Data.R() == "off" || Data.R() == "false" || Data.R() == "no" || Data.R() == "n";
                     }
@@ -1821,6 +1823,7 @@ namespace Edge
 			Unique<Schema> Copy() const;
 			bool Rename(const std::string& Name, const std::string& NewName);
 			bool Has(const std::string& Name) const;
+			bool HasAttribute(const std::string& Name) const;
 			bool IsEmpty() const;
 			bool IsAttribute() const;
 			bool IsSaved() const;
@@ -2933,9 +2936,9 @@ namespace Edge
 
 			return State->Suspend();
 		}
-		ED_OUT_TS inline Parser Form(const char* Format, ...) noexcept
+		ED_OUT_TS inline String Form(const char* Format, ...) noexcept
 		{
-			ED_ASSERT(Format != nullptr, Parser(), "format should be set");
+			ED_ASSERT(Format != nullptr, String(), "format should be set");
 
 			va_list Args;
 			va_start(Args, Format);
@@ -2944,7 +2947,7 @@ namespace Edge
 			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 			va_end(Args);
 
-			return Parser(Buffer, Size > ED_BIG_CHUNK_SIZE ? ED_BIG_CHUNK_SIZE : (size_t)Size);
+			return String(Buffer, Size > ED_BIG_CHUNK_SIZE ? ED_BIG_CHUNK_SIZE : (size_t)Size);
 		}
 		template <size_t Size>
 		ED_OUT_TS constexpr uint64_t Shuffle(const char Source[Size]) noexcept

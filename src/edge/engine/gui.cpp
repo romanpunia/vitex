@@ -444,12 +444,12 @@ namespace Edge
 
 					if (Proto1 != "file" && Proto2 == "file")
 					{
-						Core::Parser Buffer(&Result);
+						Core::String Buffer(&Result);
 						if (!Buffer.Assign(Path1).EndsWith('/'))
 							Buffer.Append('/');
 
 						Buffer.Append(Fixed2).Replace("/////", "//");
-						Core::Parser::Settle Idx = Buffer.Find("://");
+						Core::String::Settle Idx = Buffer.Find("://");
 						Buffer.Replace("//", "/", Idx.Found ? Idx.End : 0);
 					}
 					else if (Proto1 == "file" && Proto2 == "file")
@@ -459,7 +459,7 @@ namespace Edge
 							Result = Core::OS::Path::Resolve(Fixed2, Content->GetEnvironment());
 					}
 					else if (Proto1 == "file" && Proto2 != "file")
-						Result = Core::Parser(Path2).Replace("/////", "//").R();
+						Result = Core::String(Path2).Replace("/////", "//").R();
 				}
 				bool LogMessage(Rml::Log::Type Type, const Rml::String& Message) override
 				{
@@ -534,7 +534,7 @@ namespace Edge
 				}
 				std::string GetFixedURL(const std::string& URL, std::string& Proto)
 				{
-					if (!Core::Parser(&URL).Find("://").Found)
+					if (!Core::String(&URL).Find("://").Found)
 					{
 						Proto = "file";
 						return URL;
@@ -599,7 +599,7 @@ namespace Edge
 					ED_ASSERT_V(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
 
 					Scripting::Compiler* Compiler = Scope->Basis->Compiler;
-					if (Compiler->LoadFile(Core::Parser(Path).Replace('|', ':').R()) < 0)
+					if (Compiler->LoadFile(Core::String(Path).Replace('|', ':').R()) < 0)
 						return;
 
 					Compiler->Compile().Await([Scope, Compiler](int&& Status)
@@ -2155,7 +2155,7 @@ namespace Edge
 				ED_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Core::Parser Value(Form->GetValue());
+				Core::String Value(Form->GetValue());
 				if (Value.Empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
@@ -2194,7 +2194,7 @@ namespace Edge
 				ED_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Core::Parser Value(Form->GetValue());
+				Core::String Value(Form->GetValue());
 				if (Value.Empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
@@ -2253,7 +2253,7 @@ namespace Edge
 				ED_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Core::Parser Value(Form->GetValue());
+				Core::String Value(Form->GetValue());
 				if (Value.Empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
@@ -2292,7 +2292,7 @@ namespace Edge
 				ED_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Core::Parser Value(Form->GetValue());
+				Core::String Value(Form->GetValue());
 				if (Value.Empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
@@ -2331,7 +2331,7 @@ namespace Edge
 				ED_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Core::Parser Value(Form->GetValue());
+				Core::String Value(Form->GetValue());
 				if (Value.Empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
@@ -2390,13 +2390,13 @@ namespace Edge
 				ED_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Core::Parser Value(Form->GetValue());
+				Core::String Value(Form->GetValue());
 				if (Value.Empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
 
-					Form->SetValue(Core::Parser::ToString(*Ptr));
+					Form->SetValue(Core::String::ToString(*Ptr));
 					return false;
 				}
 
@@ -2416,7 +2416,7 @@ namespace Edge
 					return true;
 				}
 
-				Form->SetValue(Core::Parser::ToString(*Ptr));
+				Form->SetValue(Core::String::ToString(*Ptr));
 				return false;
 #else
 				return false;
@@ -2444,13 +2444,13 @@ namespace Edge
 				ED_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Core::Parser Value(Form->GetValue());
+				Core::String Value(Form->GetValue());
 				if (Value.Empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
 
-					Form->SetValue(Core::Parser::ToString(*Ptr));
+					Form->SetValue(Core::String::ToString(*Ptr));
 					return false;
 				}
 
@@ -2470,7 +2470,7 @@ namespace Edge
 					return true;
 				}
 
-				Form->SetValue(Core::Parser::ToString(*Ptr));
+				Form->SetValue(Core::String::ToString(*Ptr));
 				return false;
 #else
 				return false;
@@ -2577,7 +2577,7 @@ namespace Edge
 				if (Value.empty())
 					return nullptr;
 
-				Core::Parser Buffer(&Value);
+				Core::String Buffer(&Value);
 				if (!Buffer.HasInteger())
 					return nullptr;
 
@@ -2877,7 +2877,7 @@ namespace Edge
 			}
 			std::string Subsystem::EscapeHTML(const std::string& Text)
 			{
-				return Core::Parser(&Text).Replace("\r\n", "&nbsp;").Replace("\n", "&nbsp;").Replace("<", "&lt;").Replace(">", "&gt;").R();
+				return Core::String(&Text).Replace("\r\n", "&nbsp;").Replace("\n", "&nbsp;").Replace("<", "&lt;").Replace(">", "&gt;").R();
 			}
 			Scripting::VirtualMachine* Subsystem::ScriptInterface = nullptr;
 			ContextInstancer* Subsystem::ContextFactory = nullptr;
@@ -3658,7 +3658,7 @@ namespace Edge
 
 				for (auto* Face : Conf->FindCollection("font-face", true))
 				{
-					std::string Path = Face->GetVar("[path]").GetBlob();
+					std::string Path = Face->GetAttributeVar("path").GetBlob();
 					if (Path.empty())
 					{
 						ED_ERR("[gui] path is required for font face");
@@ -3675,7 +3675,7 @@ namespace Edge
 
 				for (auto* Document : Conf->FindCollection("document", true))
 				{
-					std::string Path = Document->GetVar("[path]").GetBlob();
+					std::string Path = Document->GetAttributeVar("path").GetBlob();
 					if (Path.empty())
 					{
 						ED_ERR("[gui] path is required for document");
@@ -3689,7 +3689,7 @@ namespace Edge
 						Loading = State;
 						return false;
 					}
-					else if (Document->Has("[show]"))
+					else if (Document->HasAttribute("show"))
 						Result.Show();
 				}
 
@@ -3923,7 +3923,7 @@ namespace Edge
 				if (!Preprocess(Path, Data))
 					goto ErrorState;
 
-				Core::Parser URL(Path);
+				Core::String URL(Path);
 				URL.Replace('\\', '/');
 				URL.Insert("file:///", 0);
 
@@ -4242,8 +4242,8 @@ namespace Edge
 			}
 			void Context::Decompose(std::string& Data)
 			{
-				Core::Parser::Settle Result, Start, End;
-				Core::Parser Buffer(&Data);
+				Core::String::Settle Result, Start, End;
+				Core::String Buffer(&Data);
 
 				while (Result.End < Buffer.Size())
 				{

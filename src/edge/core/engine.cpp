@@ -1801,6 +1801,7 @@ namespace Edge
 		}
 		void Material::SetDiffuseMap(Graphics::Texture2D* New)
 		{
+			ED_TRACE("[engine] material %s set diffuse 0x%" PRIXPTR, Name.c_str(), (void*)New);
 			ED_RELEASE(DiffuseMap);
 			DiffuseMap = New;
 		}
@@ -1810,6 +1811,7 @@ namespace Edge
 		}
 		void Material::SetNormalMap(Graphics::Texture2D* New)
 		{
+			ED_TRACE("[engine] material %s set normal 0x%" PRIXPTR, Name.c_str(), (void*)New);
 			ED_RELEASE(NormalMap);
 			NormalMap = New;
 		}
@@ -1819,6 +1821,7 @@ namespace Edge
 		}
 		void Material::SetMetallicMap(Graphics::Texture2D* New)
 		{
+			ED_TRACE("[engine] material %s set metallic 0x%" PRIXPTR, Name.c_str(), (void*)New);
 			ED_RELEASE(MetallicMap);
 			MetallicMap = New;
 		}
@@ -1828,6 +1831,7 @@ namespace Edge
 		}
 		void Material::SetRoughnessMap(Graphics::Texture2D* New)
 		{
+			ED_TRACE("[engine] material %s set roughness 0x%" PRIXPTR, Name.c_str(), (void*)New);
 			ED_RELEASE(RoughnessMap);
 			RoughnessMap = New;
 		}
@@ -1837,6 +1841,7 @@ namespace Edge
 		}
 		void Material::SetHeightMap(Graphics::Texture2D* New)
 		{
+			ED_TRACE("[engine] material %s set height 0x%" PRIXPTR, Name.c_str(), (void*)New);
 			ED_RELEASE(HeightMap);
 			HeightMap = New;
 		}
@@ -1846,6 +1851,7 @@ namespace Edge
 		}
 		void Material::SetOcclusionMap(Graphics::Texture2D* New)
 		{
+			ED_TRACE("[engine] material %s set occlusion 0x%" PRIXPTR, Name.c_str(), (void*)New);
 			ED_RELEASE(OcclusionMap);
 			OcclusionMap = New;
 		}
@@ -1855,6 +1861,7 @@ namespace Edge
 		}
 		void Material::SetEmissionMap(Graphics::Texture2D* New)
 		{
+			ED_TRACE("[engine] material %s set emission 0x%" PRIXPTR, Name.c_str(), (void*)New);
 			ED_RELEASE(EmissionMap);
 			EmissionMap = New;
 		}
@@ -3437,6 +3444,7 @@ namespace Edge
 			double Size = (double)Storage.Capacity();
 			Size *= 1.0 + Grow;
 
+			ED_TRACE("[scene] upgrade buffer 0x%" PRIXPTR " +%" PRIu64 " bytes", (void*)Storage.Get(), (uint64_t)(sizeof(T) * (Size - Storage.Capacity())));
 			Storage.Reserve((size_t)Size);
 		}
 
@@ -3625,6 +3633,7 @@ namespace Edge
 			ED_ASSERT_V(NewConf.Shared.Device != nullptr, "graphics device should be set");
 			Transaction([this, NewConf]()
 			{
+				ED_TRACE("[scene] configure 0x%" PRIXPTR, (void*)this);
 				auto* Device = NewConf.Shared.Device;
 				Display.DepthStencil = Device->GetDepthStencilState("none");
 				Display.Rasterizer = Device->GetRasterizerState("cull-back");
@@ -3667,12 +3676,14 @@ namespace Edge
 		}
 		void SceneGraph::Actualize()
 		{
+			ED_TRACE("[scene] actualize 0x%" PRIXPTR, (void*)this);
 			StepTransactions();
 		}
 		void SceneGraph::ResizeBuffers()
 		{
 			Transaction([this]()
 			{
+				ED_TRACE("[scene] resize buffers 0x%" PRIXPTR, (void*)this);
 				ResizeRenderBuffers();
 				if (!Camera.load())
 					return;
@@ -3836,6 +3847,9 @@ namespace Edge
 		void SceneGraph::StepTransactions()
 		{
 			ED_MEASURE(ED_TIMING_FRAME);
+			if (!Transactions.empty())
+				ED_TRACE("[scene] process %" PRIu64 " transactions on 0x%" PRIXPTR, (uint64_t)Transactions.size(), (void*)this);
+
 			while (!Transactions.empty())
 			{
 				Transactions.front()();
@@ -3911,6 +3925,7 @@ namespace Edge
 		}
 		void SceneGraph::SetCamera(Entity* NewCamera)
 		{
+			ED_TRACE("[scene] set camera 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)NewCamera, (void*)this);
 			if (!NewCamera)
 			{
 				Camera = nullptr;
@@ -3950,6 +3965,7 @@ namespace Edge
 		void SceneGraph::DeleteMaterial(Material* Value)
 		{
 			ED_ASSERT_V(Value != nullptr, "entity should be set");
+			ED_TRACE("[scene] delete material %s on 0x%" PRIXPTR, (void*)Value->Name.c_str(), (void*)this);
 			Mutate(Value, "pop");
 
 			auto Begin = Materials.Begin(), End = Materials.End();
@@ -3971,6 +3987,7 @@ namespace Edge
 		{
 			ED_ASSERT_V(Target != nullptr, "entity should be set");
 			ED_ASSERT_V(Target->Scene == this, "entity be created within this scene");
+			ED_TRACE("[scene] register entity 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Target, (void*)this);
 
 			Target->Active = true;
 			for (auto& Base : Target->Type.Components)
@@ -3983,6 +4000,7 @@ namespace Edge
 		{
 			ED_ASSERT(Target != nullptr, false, "entity should be set");
 			ED_ASSERT(Target->GetScene() == this, false, "entity should be attached to current scene");
+			ED_TRACE("[scene] unregister entity 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Target, (void*)this);
 
 			Component* Viewer = Camera.load();
 			if (Viewer != nullptr && Target == Viewer->Parent)
@@ -4000,6 +4018,7 @@ namespace Edge
 		}
 		void SceneGraph::RegisterComponent(Component* Base, bool Verify)
 		{
+			ED_TRACE("[scene] register component 0x%" PRIXPTR " on 0x%" PRIXPTR "%s", (void*)Base, (void*)this, Verify ? " (with checks)" : "");
 			auto& Storage = GetComponents(Base->GetId());
 			if (!Base->Active)
 			{
@@ -4036,6 +4055,7 @@ namespace Edge
 		}
 		void SceneGraph::UnregisterComponent(Component* Base)
 		{
+			ED_TRACE("[scene] unregister component 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Base, (void*)this);
 			auto& Storage = GetComponents(Base->GetId());
 			if (Base->Active)
 				Base->Deactivate();
@@ -4054,11 +4074,13 @@ namespace Edge
 		{
 			ED_ASSERT_V(Base != nullptr, "component should be set");
 			ED_ASSERT_V(Base->Parent != nullptr && Base->Parent->Scene == this, "component should be tied to this scene");
+			ED_TRACE("[scene] await component 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Base, (void*)this);
 			std::unique_lock<std::mutex> Unique(Exclusive);
 			++Incomplete[Base];
 		}
 		void SceneGraph::UnloadComponentAll(Component* Base)
 		{
+			ED_TRACE("[scene] resolve component 0x%" PRIXPTR " on 0x%" PRIXPTR " fully", (void*)Base, (void*)this);
 			std::unique_lock<std::mutex> Unique(Exclusive);
 			auto It = Incomplete.find(Base);
 			if (It != Incomplete.end())
@@ -4068,18 +4090,22 @@ namespace Edge
 		{
 			std::unique_lock<std::mutex> Unique(Exclusive);
 			auto It = Incomplete.find(Base);
-
 			if (It == Incomplete.end())
 				return false;
-			else if (!--It->second)
-				Incomplete.erase(It);
 			
+			if (!--It->second)
+			{
+				ED_TRACE("[scene] resolve component 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Base, (void*)this);
+				Incomplete.erase(It);
+			}
+
 			return true;
 		}
 		void SceneGraph::CloneEntities(Entity* Instance, std::vector<Entity*>* Array)
 		{
 			ED_ASSERT_V(Instance != nullptr, "entity should be set");
 			ED_ASSERT_V(Array != nullptr, "array should be set");
+			ED_TRACE("[scene] clone entity 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Instance, (void*)this);
 
 			Entity* Clone = CloneEntityInstance(Instance);
 			Array->push_back(Clone);
@@ -4125,6 +4151,7 @@ namespace Edge
 		{
 			Transaction([this, Name]()
 			{
+				ED_TRACE("[scene] script hook call: %s() on 0x%" PRIXPTR, Name.c_str(), (void*)this);
 				auto& Array = GetComponents<Components::Scriptable>();
 				for (auto It = Array.Begin(); It != Array.End(); ++It)
 				{
@@ -4141,6 +4168,7 @@ namespace Edge
 
 			Transaction([this]()
 			{
+				ED_TRACE("[scene] perform activation on 0x%" PRIXPTR, (void*)this);
 				auto Begin = Entities.Begin(), End = Entities.End();
 				for (auto It = Begin; It != End; ++It)
 				{
@@ -4265,6 +4293,8 @@ namespace Edge
 		}
 		MessageCallback* SceneGraph::SetListener(const std::string& EventName, MessageCallback&& Callback)
 		{
+			ED_ASSERT(Callback != nullptr, nullptr, "callback should be set");
+			ED_TRACE("[scene] attach listener %s on 0x%" PRIXPTR, EventName.c_str(), (void*)this);
 			MessageCallback* Id = ED_NEW(MessageCallback, std::move(Callback));
 			std::unique_lock<std::mutex> Unique(Exclusive);
 			Listeners[EventName].insert(Id);
@@ -4275,6 +4305,7 @@ namespace Edge
 		{
 			ED_ASSERT(!EventName.empty(), false, "event name should not be empty");
 			ED_ASSERT(Id != nullptr, false, "callback id should be set");
+			ED_TRACE("[scene] detach listener %s on 0x%" PRIXPTR, EventName.c_str(), (void*)this);
 
 			std::unique_lock<std::mutex> Unique(Exclusive);
 			auto& Source = Listeners[EventName];
@@ -4289,6 +4320,7 @@ namespace Edge
 		}
 		bool SceneGraph::PushEvent(const std::string& EventName, Core::VariantArgs&& Args, bool Propagate)
 		{
+			ED_TRACE("[scene] push %s event %s on 0x%" PRIXPTR, Propagate ? "scene" : "listener", EventName.c_str(), (void*)this);
 			Event Next(EventName, std::move(Args));
 			Next.Args["__vb"] = Core::Var::Integer((int64_t)(Propagate ? EventTarget::Scene : EventTarget::Listener));
 			Next.Args["__vt"] = Core::Var::Pointer((void*)this);
@@ -4300,6 +4332,7 @@ namespace Edge
 		}
 		bool SceneGraph::PushEvent(const std::string& EventName, Core::VariantArgs&& Args, Component* Target)
 		{
+			ED_TRACE("[scene] push component event %s on 0x%" PRIXPTR " for 0x%" PRIXPTR, EventName.c_str(), (void*)this, (void*)Target);
 			ED_ASSERT(Target != nullptr, false, "target should be set");
 			Event Next(EventName, std::move(Args));
 			Next.Args["__vb"] = Core::Var::Integer((int64_t)EventTarget::Component);
@@ -4312,6 +4345,7 @@ namespace Edge
 		}
 		bool SceneGraph::PushEvent(const std::string& EventName, Core::VariantArgs&& Args, Entity* Target)
 		{
+			ED_TRACE("[scene] push entity event %s on 0x%" PRIXPTR " for 0x%" PRIXPTR, EventName.c_str(), (void*)this, (void*)Target);
 			ED_ASSERT(Target != nullptr, false, "target should be set");
 			Event Next(EventName, std::move(Args));
 			Next.Args["__vb"] = Core::Var::Integer((int64_t)EventTarget::Entity);
@@ -4423,6 +4457,7 @@ namespace Edge
 		void SceneGraph::MakeSnapshot(IdxSnapshot* Result)
 		{
 			ED_ASSERT_V(Result != nullptr, "shapshot result should be set");
+			ED_TRACE("[scene] make snapshot on 0x%" PRIXPTR, (void*)this);
 			Result->To.clear();
 			Result->From.clear();
 
@@ -4487,6 +4522,7 @@ namespace Edge
 		}
 		void SceneGraph::GenerateMaterialBuffer()
 		{
+			ED_TRACE("[scene] generate material buffer %" PRIu64 "m on 0x%" PRIXPTR, (uint64_t)Materials.Capacity(), (void*)this);
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 			F.AccessFlags = Graphics::CPUAccess::Write;
 			F.MiscFlags = Graphics::ResourceMisc::Buffer_Structured;
@@ -4503,6 +4539,7 @@ namespace Edge
 		{
 			auto* Device = Conf.Shared.Device;
 			ED_ASSERT_V(Device != nullptr, "graphics device should be set");
+			ED_TRACE("[scene] generate voxel buffers %" PRIu64 "v on 0x%" PRIXPTR, (uint64_t)(Conf.VoxelsSize * Conf.VoxelsSize * Conf.VoxelsSize * 3), (void*)this);
 
 			Conf.VoxelsSize = Conf.VoxelsSize - Conf.VoxelsSize % 8;
 			Conf.VoxelsMips = Device->GetMipLevel((unsigned int)Conf.VoxelsSize, (unsigned int)Conf.VoxelsSize);
@@ -4542,6 +4579,7 @@ namespace Edge
 		{
 			auto* Device = Conf.Shared.Device;
 			ED_ASSERT_V(Device != nullptr, "graphics device should be set");
+			ED_TRACE("[scene] generate depth buffers %" PRIu64 "t on 0x%" PRIXPTR, (uint64_t)(Conf.PointsMax + Conf.SpotsMax + Conf.LinesMax), (void*)this);
 
 			for (auto& Item : Display.Points)
 				ED_CLEAR(Item);
@@ -4590,6 +4628,7 @@ namespace Edge
 		}
 		void SceneGraph::GenerateDepthCascades(CascadedDepthMap** Result, uint32_t Size) const
 		{
+			ED_TRACE("[scene] generate depth cascades %is on 0x%" PRIXPTR, (int)(Size * Size), (void*)this);
 			CascadedDepthMap* Target = (*Result ? *Result : ED_NEW(CascadedDepthMap));
 			for (auto& Item : *Target)
 				ED_RELEASE(Item);
@@ -4719,6 +4758,7 @@ namespace Edge
 			}
 			else
 			{
+				ED_TRACE("[scene] add material %s on 0x%" PRIXPTR, Base->Name.c_str(), (void*)this);
 				Base->Scene = this;
 				Materials.AddIfNotExists(Base);
 				Mutate(Base, "push");
@@ -5055,7 +5095,7 @@ namespace Edge
 		std::string SceneGraph::AsResourcePath(const std::string& Path)
 		{
 			ED_ASSERT(Conf.Shared.Content != nullptr, Path, "content manager should be set");
-			return Core::Parser(Path).Replace(Conf.Shared.Content->GetEnvironment(), "./").Replace('\\', '/').R();
+			return Core::String(Path).Replace(Conf.Shared.Content->GetEnvironment(), "./").Replace('\\', '/').R();
 		}
 		Entity* SceneGraph::AddEntity()
 		{
@@ -5171,6 +5211,7 @@ namespace Edge
 		}
 		void ContentManager::ClearCache()
 		{
+			ED_TRACE("[content] clear cache on 0x%" PRIXPTR, (void*)this);
 			Mutex.lock();
 			for (auto& Entries : Assets)
 			{
@@ -5193,6 +5234,7 @@ namespace Edge
 		}
 		void ContentManager::ClearDockers()
 		{
+			ED_TRACE("[content] clear dockers on 0x%" PRIXPTR, (void*)this);
 			Mutex.lock();
 			for (auto It = Dockers.begin(); It != Dockers.end(); ++It)
 				ED_DELETE(AssetArchive, It->second);
@@ -5202,6 +5244,7 @@ namespace Edge
 		}
 		void ContentManager::ClearStreams()
 		{
+			ED_TRACE("[content] clear streams on 0x%" PRIXPTR, (void*)this);
 			Mutex.lock();
 			for (auto It = Streams.begin(); It != Streams.end(); ++It)
 				ED_RELEASE(It->first);
@@ -5210,6 +5253,7 @@ namespace Edge
 		}
 		void ContentManager::ClearProcessors()
 		{
+			ED_TRACE("[content] clear processors on 0x%" PRIXPTR, (void*)this);
 			Mutex.lock();
 			for (auto It = Processors.begin(); It != Processors.end(); ++It)
 				ED_RELEASE(It->second);
@@ -5218,12 +5262,13 @@ namespace Edge
 		}
 		void ContentManager::ClearPath(const std::string& Path)
 		{
+			ED_TRACE("[content] clear path %s on 0x%" PRIXPTR, Path.c_str(), (void*)this);
 			std::string File = Core::OS::Path::Resolve(Path, Environment);
 			if (File.empty())
 				return;
 
 			Mutex.lock();
-			auto It = Assets.find(Core::Parser(File).Replace('\\', '/').Replace(Environment, "./").R());
+			auto It = Assets.find(Core::String(File).Replace('\\', '/').Replace(Environment, "./").R());
 			if (It != Assets.end())
 				Assets.erase(It);
 			Mutex.unlock();
@@ -5232,7 +5277,7 @@ namespace Edge
 		{
 			Mutex.lock();
 			Environment = Core::OS::Path::ResolveDirectory(Path.c_str());
-			Core::Parser(&Environment).Replace('\\', '/');
+			Core::String(&Environment).Replace('\\', '/');
 			Core::OS::Directory::Set(Environment.c_str());
 			Mutex.unlock();
 		}
@@ -5243,9 +5288,12 @@ namespace Edge
 		void* ContentManager::LoadDockerized(Processor* Processor, const std::string& Path, const Core::VariantArgs& Map)
 		{
 			if (Path.empty())
+			{
+				ED_TRACE("[content] load dockerized: no path provided");
 				return nullptr;
+			}
 
-			Core::Parser File(Path);
+			Core::String File(Path);
 			File.Replace('\\', '/').Replace("./", "");
 
 			Mutex.lock();
@@ -5253,13 +5301,17 @@ namespace Edge
 			if (Docker == Dockers.end() || !Docker->second || !Docker->second->Stream)
 			{
 				Mutex.unlock();
+				ED_TRACE("[content] load dockerized %s: no docker provided", Path.c_str());
 				return nullptr;
 			}
 			Mutex.unlock();
 
 			AssetCache* Asset = FindCache(Processor, File.R());
 			if (Asset != nullptr)
+			{
+				ED_TRACE("[content] load dockerized %s: cached", Path.c_str());
 				return Processor->Duplicate(Asset, Map);
+			}
 
 			Mutex.lock();
 			auto It = Streams.find(Docker->second->Stream);
@@ -5276,12 +5328,16 @@ namespace Edge
 			Stream->GetSource() = File.R();
 			Mutex.unlock();
 
+			ED_TRACE("[content] load dockerized %s", Path.c_str());
 			return Processor->Deserialize(Stream, It->second + Docker->second->Offset, Map);
 		}
 		void* ContentManager::Load(Processor* Processor, const std::string& Path, const Core::VariantArgs& Map)
 		{
 			if (Path.empty())
+			{
+				ED_TRACE("[content] load forward: no path provided");
 				return nullptr;
+			}
 
 			if (!Processor)
 			{
@@ -5291,7 +5347,10 @@ namespace Edge
 
 			void* Object = LoadDockerized(Processor, Path, Map);
 			if (Object != nullptr)
+			{
+				ED_TRACE("[content] load forward %s: 0x%" PRIXPTR, Path.c_str(), Object);
 				return Object;
+			}
 
 			std::string File = Path;
 			if (!Core::OS::Path::IsRemote(File.c_str()))
@@ -5317,13 +5376,20 @@ namespace Edge
 
 			AssetCache* Asset = FindCache(Processor, File);
 			if (Asset != nullptr)
+			{
+				ED_TRACE("[content] load forward %s: cached", Path.c_str());
 				return Processor->Duplicate(Asset, Map);
+			}
 
 			auto* Stream = Core::OS::File::Open(File, Core::FileMode::Binary_Read_Only);
 			if (!Stream)
+			{
+				ED_TRACE("[content] load forward %s: non-existant", Path.c_str());
 				return nullptr;
+			}
 
 			Object = Processor->Deserialize(Stream, 0, Map);
+			ED_TRACE("[content] load forward %s: 0x%" PRIXPTR, Path.c_str(), Object);
 			ED_RELEASE(Stream);
 
 			return Object;
@@ -5332,7 +5398,10 @@ namespace Edge
 		{
 			ED_ASSERT(Object != nullptr, false, "object should be set");
 			if (Path.empty())
+			{
+				ED_TRACE("[content] save forward: no path provided");
 				return false;
+			}
 
 			if (!Processor)
 			{
@@ -5363,6 +5432,7 @@ namespace Edge
 			}
 
 			bool Result = Processor->Serialize(Stream, Object, Map);
+			ED_TRACE("[content] save forward %s: %s", Path.c_str(), Result ? "OK" : "cannot be saved");
 			ED_RELEASE(Stream);
 
 			return Result;
@@ -5536,7 +5606,7 @@ namespace Edge
 					if (!File)
 						continue;
 
-					std::string Path = Core::Parser(Resource).Replace(DirectoryBase, Name).Replace('\\', '/').R();
+					std::string Path = Core::String(Resource).Replace(DirectoryBase, Name).Replace('\\', '/').R();
 					if (Name.empty())
 						Path.assign(Path.substr(1));
 
@@ -5589,7 +5659,8 @@ namespace Edge
 		}
 		void* ContentManager::TryToCache(Processor* Root, const std::string& Path, void* Resource)
 		{
-			std::string Target = Core::Parser(Path).Replace('\\', '/').Replace(Environment, "./").R();
+			ED_TRACE("[content] save 0x%" PRIXPTR " to cache", Resource);
+			std::string Target = Core::String(Path).Replace('\\', '/').Replace(Environment, "./").R();
 			std::unique_lock<std::mutex> Unique(Mutex);
 			auto& Entries = Assets[Target];
 			auto& Entry = Entries[Root];
@@ -5634,7 +5705,7 @@ namespace Edge
 				return nullptr;
 
 			Mutex.lock();
-			auto It = Assets.find(Core::Parser(Path).Replace('\\', '/').Replace(Environment, "./").R());
+			auto It = Assets.find(Core::String(Path).Replace('\\', '/').Replace(Environment, "./").R());
 			if (It != Assets.end())
 			{
 				auto KIt = It->second.find(Target);
@@ -5691,6 +5762,7 @@ namespace Edge
 		void AppData::Migrate(const std::string& Next)
 		{
 			ED_ASSERT_V(!Next.empty(), "path should not be empty");
+			ED_TRACE("[appd] migrate %s to %s", Path.c_str(), Next.c_str());
 
 			Safe.lock();
 			if (Data != nullptr)
@@ -5707,6 +5779,7 @@ namespace Edge
 		}
 		void AppData::SetKey(const std::string& Name, Core::Schema* Value)
 		{
+			ED_TRACE("[appd] set %s = %s", Name.c_str(), Value ? Core::Schema::ToJSON(Value).c_str() : "NULL");
 			Safe.lock();
 			if (!Data)
 				Data = Core::Var::Set::Object();
@@ -5782,7 +5855,7 @@ namespace Edge
 
 			if (TypeId != nullptr)
 			{
-				Type = Core::Parser(TypeId).ToUpper().R();
+				Type = Core::String(TypeId).ToUpper().R();
 				if (Type != "JSON" && Type != "JSONB" && Type != "XML")
 					Type = "JSONB";
 			}

@@ -997,8 +997,9 @@ namespace Edge
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+			ED_TRACE("[vm] register class 0x%" PRIXPTR " funcdef %i bytes", (void*)this, (int)strlen(Decl));
 
-			return Engine->RegisterFuncdef(Decl);;
+			return Engine->RegisterFuncdef(Decl);
 		}
 		int BaseClass::SetOperatorCopyAddress(asSFuncPtr* Value, FunctionCall Type)
 		{
@@ -1008,7 +1009,8 @@ namespace Edge
 			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
-			Core::Parser Decl = Core::Form("%s& opAssign(const %s &in)", Object.c_str(), Object.c_str());
+			Core::String Decl = Core::Form("%s& opAssign(const %s &in)", Object.c_str(), Object.c_str());
+			ED_TRACE("[vm] register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.Size(), (void*)Value);
 			return Engine->RegisterObjectMethod(Object.c_str(), Decl.Get(), *Value, (asECallConvTypes)Type);
 		}
 		int BaseClass::SetBehaviourAddress(const char* Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall Type)
@@ -1019,6 +1021,7 @@ namespace Edge
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+			ED_TRACE("[vm] register class 0x%" PRIXPTR " behaviour funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
 
 			return Engine->RegisterObjectBehaviour(Object.c_str(), (asEBehaviours)Behave, Decl, *Value, (asECallConvTypes)Type);
 		}
@@ -1029,6 +1032,7 @@ namespace Edge
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+			ED_TRACE("[vm] register class 0x%" PRIXPTR " property %i bytes at 0x0+%i", (void*)this, (int)strlen(Decl), Offset);
 
 			return Engine->RegisterObjectProperty(Object.c_str(), Decl, Offset);
 		}
@@ -1037,6 +1041,7 @@ namespace Edge
 			ED_ASSERT(IsValid(), -1, "class should be valid");
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 			ED_ASSERT(Value != nullptr, -1, "value should be set");
+			ED_TRACE("[vm] register class 0x%" PRIXPTR " static property %i bytes at 0x%" PRIXPTR, (void*)this,  (int)strlen(Decl), (void*)Value);
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
@@ -1063,6 +1068,7 @@ namespace Edge
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+			ED_TRACE("[vm] register class 0x%" PRIXPTR " funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
 
 			return Engine->RegisterObjectMethod(Object.c_str(), Decl, *Value, (asECallConvTypes)Type);
 		}
@@ -1074,6 +1080,7 @@ namespace Edge
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+			ED_TRACE("[vm] register class 0x%" PRIXPTR " static funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
 
 			asITypeInfo* Info = Engine->GetTypeInfoByName(Object.c_str());
 			const char* Namespace = Engine->GetDefaultNamespace();
@@ -1091,6 +1098,7 @@ namespace Edge
 			ED_ASSERT(IsValid(), -1, "class should be valid");
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 			ED_ASSERT(Value != nullptr, -1, "value should be set");
+			ED_TRACE("[vm] register class 0x%" PRIXPTR " constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
@@ -1102,6 +1110,7 @@ namespace Edge
 			ED_ASSERT(IsValid(), -1, "class should be valid");
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 			ED_ASSERT(Value != nullptr, -1, "value should be set");
+			ED_TRACE("[vm] register class 0x%" PRIXPTR " list-constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
@@ -1113,6 +1122,7 @@ namespace Edge
 			ED_ASSERT(IsValid(), -1, "class should be valid");
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 			ED_ASSERT(Value != nullptr, -1, "value should be set");
+			ED_TRACE("[vm] register class 0x%" PRIXPTR " destructor funcaddr %i bytes at 0x%" PRIXPTR, (void*)this, (int)strlen(Decl), (void*)Value);
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
@@ -1135,7 +1145,7 @@ namespace Edge
 		{
 			return VM;
 		}
-		Core::Parser BaseClass::GetOperator(Operators Op, const char* Out, const char* Args, bool Const, bool Right)
+		Core::String BaseClass::GetOperator(Operators Op, const char* Out, const char* Args, bool Const, bool Right)
 		{
 			switch (Op)
 			{
@@ -1303,6 +1313,7 @@ namespace Edge
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+			ED_TRACE("[vm] register interface 0x%" PRIXPTR " method %i bytes", (void*)this, (int)strlen(Decl));
 
 			return Engine->RegisterInterfaceMethod(Object.c_str(), Decl);
 		}
@@ -1333,6 +1344,7 @@ namespace Edge
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+			ED_TRACE("[vm] register enum 0x%" PRIXPTR " value %i bytes = %i", (void*)this, (int)strlen(Name), Value);
 
 			return Engine->RegisterEnumValue(Object.c_str(), Name, Value);
 		}
@@ -1672,7 +1684,7 @@ namespace Edge
 				if (Name == "compile" && Args.size() == 2)
 				{
 					const std::string& Key = Args[0];
-					Core::Parser Value(&Args[1]);
+					Core::String Value(&Args[1]);
 
 					size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
 					if (Key == "ALLOW_UNSAFE_REFERENCES")
@@ -1753,7 +1765,7 @@ namespace Edge
 				else if (Name == "modify" && Args.size() == 2)
 				{
 					const std::string& Key = Args[0];
-					Core::Parser Value(&Args[1]);
+					Core::String Value(&Args[1]);
 
 					size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
 					if (Key == "NAME")
@@ -2793,6 +2805,7 @@ namespace Edge
 		{
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+			ED_TRACE("[vm] register funcdef %i bytes", (int)strlen(Decl));
 
 			return Engine->RegisterFuncdef(Decl);
 		}
@@ -2801,6 +2814,7 @@ namespace Edge
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 			ED_ASSERT(Value != nullptr, -1, "value should be set");
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+			ED_TRACE("[vm] register funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)Type, (int)strlen(Decl), (void*)Value);
 
 			return Engine->RegisterGlobalFunction(Decl, *Value, (asECallConvTypes)Type);
 		}
@@ -2809,6 +2823,7 @@ namespace Edge
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 			ED_ASSERT(Value != nullptr, -1, "value should be set");
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+			ED_TRACE("[vm] register global %i bytes at 0x%" PRIXPTR, (int)strlen(Decl), (void*)Value);
 
 			return Engine->RegisterGlobalProperty(Decl, Value);
 		}
@@ -2816,6 +2831,7 @@ namespace Edge
 		{
 			ED_ASSERT(Name != nullptr, TypeInterface(nullptr, "", -1), "name should be set");
 			ED_ASSERT(Engine != nullptr, TypeInterface(nullptr, "", -1), "engine should be set");
+			ED_TRACE("[vm] register interface %i bytes", (int)strlen(Name));
 
 			return TypeInterface(this, Name, Engine->RegisterInterface(Name));
 		}
@@ -2823,6 +2839,7 @@ namespace Edge
 		{
 			ED_ASSERT(Name != nullptr, TypeClass(nullptr, "", -1), "name should be set");
 			ED_ASSERT(Engine != nullptr, TypeClass(nullptr, "", -1), "engine should be set");
+			ED_TRACE("[vm] register struct(%i) %i bytes sizeof %i", (int)Flags, (int)strlen(Name), (int)Size);
 
 			return TypeClass(this, Name, Engine->RegisterObjectType(Name, (asUINT)Size, (asDWORD)Flags));
 		}
@@ -2834,6 +2851,7 @@ namespace Edge
 		{
 			ED_ASSERT(Name != nullptr, RefClass(nullptr, "", -1), "name should be set");
 			ED_ASSERT(Engine != nullptr, RefClass(nullptr, "", -1), "engine should be set");
+			ED_TRACE("[vm] register class(%i) %i bytes", (int)Flags, (int)strlen(Name));
 
 			return RefClass(this, Name, Engine->RegisterObjectType(Name, 0, (asDWORD)Flags));
 		}
@@ -2841,6 +2859,7 @@ namespace Edge
 		{
 			ED_ASSERT(Name != nullptr, Enumeration(nullptr, "", -1), "name should be set");
 			ED_ASSERT(Engine != nullptr, Enumeration(nullptr, "", -1), "engine should be set");
+			ED_TRACE("[vm] register enum %i bytes", (int)strlen(Name));
 
 			return Enumeration(this, Name, Engine->RegisterEnum(Name));
 		}
@@ -3367,7 +3386,7 @@ namespace Edge
 			{
 				std::string Name = Namespace.first;
 				std::string Subname = (Namespace.first.empty() ? "" : Name);
-				auto Offset = Core::Parser(&Name).Find("::");
+				auto Offset = Core::String(&Name).Find("::");
 
 				if (Offset.Found)
 				{
@@ -3379,7 +3398,7 @@ namespace Edge
 					}
 				}
 
-				std::string File = Core::OS::Path::Resolve((Path + Core::Parser(Name).Replace("::", "/").ToLower().R() + ".as").c_str());
+				std::string File = Core::OS::Path::Resolve((Path + Core::String(Name).Replace("::", "/").ToLower().R() + ".as").c_str());
 				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(File.c_str()));
 
 				auto& Source = Groups[Name];
@@ -3561,7 +3580,7 @@ namespace Edge
 			if (Include.Root.empty())
 				return Sync.General.unlock();
 
-			if (!Core::Parser(&Include.Root).EndsOf("/\\"))
+			if (!Core::String(&Include.Root).EndsOf("/\\"))
 				Include.Root.append(1, ED_PATH_SPLIT);
 			Sync.General.unlock();
 		}
@@ -3656,7 +3675,7 @@ namespace Edge
 				Sync.General.lock();
 				for (auto& Item : Modules)
 				{
-					if (Core::Parser(&Item.first).StartsWith(Namespace))
+					if (Core::String(&Item.first).StartsWith(Namespace))
 						Deps.push_back(Item.first);
 				}
 
@@ -3770,6 +3789,7 @@ namespace Edge
 					return false;
 				}
 
+				ED_TRACE("[vm] register global funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)asCALL_CDECL, (int)Decl.size(), (void*)Function);
 				if (Engine->RegisterGlobalFunction(Decl.c_str(), asFUNCTION(Function), asCALL_CDECL) < 0)
 				{
 					if (Assert)
@@ -3851,7 +3871,7 @@ namespace Edge
 			}
 
 			std::string Target = Name;
-			if (Core::Parser(&Target).EndsWith(".as"))
+			if (Core::String(&Target).EndsWith(".as"))
 				Target = Target.substr(0, Target.size() - 3);
 
 			Sync.General.lock();
@@ -3967,12 +3987,12 @@ namespace Edge
 			if (Path.empty())
 				return Path;
 
-			Core::Parser Src(Path);
-			Core::Parser::Settle Start = Src.ReverseFindOf("\\/");
+			Core::String Src(Path);
+			Core::String::Settle Start = Src.ReverseFindOf("\\/");
 			if (Start.Found)
 				Src.Substring(Start.End);
 
-			Core::Parser::Settle End = Src.ReverseFind('.');
+			Core::String::Settle End = Src.ReverseFind('.');
 			if (End.Found)
 				Src.Substring(0, End.End);
 
@@ -4574,7 +4594,7 @@ namespace Edge
 					{
 						std::string File = Command.substr(2, Div - 2);
 						std::string Line = Command.substr(Div + 1);
-						int Number = Core::Parser(&Line).ToInt();
+						int Number = Core::String(&Line).ToInt();
 
 						AddFileBreakPoint(File, Number);
 					}
@@ -4604,7 +4624,7 @@ namespace Edge
 						}
 						else
 						{
-							int NBR = Core::Parser(&BR).ToInt();
+							int NBR = Core::String(&BR).ToInt();
 							if (NBR >= 0 && NBR < (int)BreakPoints.size())
 								BreakPoints.erase(BreakPoints.begin() + NBR);
 

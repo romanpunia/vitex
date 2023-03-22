@@ -248,7 +248,7 @@ namespace Edge
 			}
 			std::string String::Reverse(const std::string& Value)
 			{
-				Core::Parser Result(Value);
+				Core::String Result(Value);
 				Result.Reverse();
 				return Result.R();
 			}
@@ -449,7 +449,7 @@ namespace Edge
 			}
 			std::string String::Replace(const std::string& A, const std::string& B, uint64_t Offset, const std::string& Base)
 			{
-				return Edge::Core::Parser(Base).Replace(A, B, (size_t)Offset).R();
+				return Edge::Core::String(Base).Replace(A, B, (size_t)Offset).R();
 			}
 			as_int64_t String::IntStore(const std::string& Value, size_t Base, size_t* ByteCount)
 			{
@@ -573,11 +573,11 @@ namespace Edge
 			}
 			std::string String::ToLower(const std::string& Symbol)
 			{
-				return Edge::Core::Parser(Symbol).ToLower().R();
+				return Edge::Core::String(Symbol).ToLower().R();
 			}
 			std::string String::ToUpper(const std::string& Symbol)
 			{
-				return Edge::Core::Parser(Symbol).ToUpper().R();
+				return Edge::Core::String(Symbol).ToUpper().R();
 			}
 			std::string String::ToInt8(char Value)
 			{
@@ -4468,7 +4468,7 @@ namespace Edge
 					int TypeId = *(int*)Buffer;
 					Buffer += sizeof(int);
 
-					Core::Parser Result; std::string Offset;
+					Core::String Result; std::string Offset;
 					FormatBuffer(VM, Result, Offset, (void*)Buffer, TypeId);
 					Args.push_back(Result.R()[0] == '\n' ? Result.Substring(1).R() : Result.R());
 
@@ -4492,13 +4492,13 @@ namespace Edge
 				if (!Context)
 					return "{}";
 
-				Core::Parser Result;
+				Core::String Result;
 				FormatJSON(Context->GetVM(), Result, Ref, TypeId);
 				return Result.R();
 			}
 			std::string Format::Form(const std::string& F, const Format& Form)
 			{
-				Core::Parser Buffer = F;
+				Core::String Buffer = F;
 				size_t Offset = 0;
 
 				for (auto& Item : Form.Args)
@@ -4515,7 +4515,7 @@ namespace Edge
 			}
 			void Format::WriteLine(Core::Console* Base, const std::string& F, Format* Form)
 			{
-				Core::Parser Buffer = F;
+				Core::String Buffer = F;
 				size_t Offset = 0;
 
 				if (Form != nullptr)
@@ -4535,7 +4535,7 @@ namespace Edge
 			}
 			void Format::Write(Core::Console* Base, const std::string& F, Format* Form)
 			{
-				Core::Parser Buffer = F;
+				Core::String Buffer = F;
 				size_t Offset = 0;
 
 				if (Form != nullptr)
@@ -4553,7 +4553,7 @@ namespace Edge
 
 				Base->sWrite(Buffer.R());
 			}
-			void Format::FormatBuffer(VirtualMachine* VM, Core::Parser& Result, std::string& Offset, void* Ref, int TypeId)
+			void Format::FormatBuffer(VirtualMachine* VM, Core::String& Result, std::string& Offset, void* Ref, int TypeId)
 			{
 				if (TypeId < (int)TypeId::BOOL || TypeId >(int)TypeId::DOUBLE)
 				{
@@ -4567,7 +4567,7 @@ namespace Edge
 					if (TypeInfo::IsScriptObject(TypeId))
 					{
 						ScriptObject VObject = *(asIScriptObject**)Ref;
-						Core::Parser Decl;
+						Core::String Decl;
 
 						Offset += '\t';
 						for (unsigned int i = 0; i < VObject.GetPropertiesCount(); i++)
@@ -4587,7 +4587,7 @@ namespace Edge
 					else if (strcmp(Type.GetName(), TYPENAME_DICTIONARY) == 0)
 					{
 						Dictionary* Base = *(Dictionary**)Ref;
-						Core::Parser Decl; std::string Name;
+						Core::String Decl; std::string Name;
 
 						Offset += '\t';
 						for (unsigned int i = 0; i < Base->GetSize(); i++)
@@ -4611,7 +4611,7 @@ namespace Edge
 					{
 						Array* Base = *(Array**)Ref;
 						int ArrayTypeId = Base->GetElementTypeId();
-						Core::Parser Decl;
+						Core::String Decl;
 
 						Offset += '\t';
 						for (unsigned int i = 0; i < Base->GetSize(); i++)
@@ -4629,7 +4629,7 @@ namespace Edge
 					}
 					else if (strcmp(Type.GetName(), TYPENAME_STRING) != 0)
 					{
-						Core::Parser Decl;
+						Core::String Decl;
 						Offset += '\t';
 
 						Type.ForEachProperty([&Decl, VM, &Offset, Ref, TypeId](TypeInfo* Base, FunctionInfo* Prop)
@@ -4691,7 +4691,7 @@ namespace Edge
 					}
 				}
 			}
-			void Format::FormatJSON(VirtualMachine* VM, Core::Parser& Result, void* Ref, int TypeId)
+			void Format::FormatJSON(VirtualMachine* VM, Core::String& Result, void* Ref, int TypeId)
 			{
 				if (TypeId < (int)TypeId::BOOL || TypeId >(int)TypeId::DOUBLE)
 				{
@@ -4707,7 +4707,7 @@ namespace Edge
 					if (TypeInfo::IsScriptObject(TypeId))
 					{
 						ScriptObject VObject = (asIScriptObject*)Object;
-						Core::Parser Decl;
+						Core::String Decl;
 
 						for (unsigned int i = 0; i < VObject.GetPropertiesCount(); i++)
 						{
@@ -4725,7 +4725,7 @@ namespace Edge
 					else if (strcmp(Type.GetName(), TYPENAME_DICTIONARY) == 0)
 					{
 						Dictionary* Base = (Dictionary*)Object;
-						Core::Parser Decl; std::string Name;
+						Core::String Decl; std::string Name;
 
 						for (unsigned int i = 0; i < Base->GetSize(); i++)
 						{
@@ -4747,7 +4747,7 @@ namespace Edge
 					{
 						Array* Base = (Array*)Object;
 						int ArrayTypeId = Base->GetElementTypeId();
-						Core::Parser Decl;
+						Core::String Decl;
 
 						for (unsigned int i = 0; i < Base->GetSize(); i++)
 						{
@@ -4762,7 +4762,7 @@ namespace Edge
 					}
 					else if (strcmp(Type.GetName(), TYPENAME_STRING) != 0)
 					{
-						Core::Parser Decl;
+						Core::String Decl;
 						Type.ForEachProperty([&Decl, VM, Ref, TypeId](TypeInfo* Base, FunctionInfo* Prop)
 						{
 							Decl.fAppend("\"%s\":", Prop->Name ? Prop->Name : "");
@@ -5725,23 +5725,15 @@ namespace Edge
 				return Base->IsDefined(Name.c_str());
 			}
 
-			void HullShapeSetVertices(Compute::HullShape* Base, Array* Data)
-			{
-				Base->Vertices = Array::Decompose<Compute::Vertex>(Data);
-			}
-			void HullShapeSetIndices(Compute::HullShape* Base, Array* Data)
-			{
-				Base->Indices = Array::Decompose<int>(Data);
-			}
 			Array* HullShapeGetVertices(Compute::HullShape* Base)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VERTEX ">@");
-				return Array::Compose(Type.GetTypeInfo(), Base->Vertices);
+				return Array::Compose(Type.GetTypeInfo(), Base->GetVertices());
 			}
 			Array* HullShapeGetIndices(Compute::HullShape* Base)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<int>@");
-				return Array::Compose(Type.GetTypeInfo(), Base->Indices);
+				return Array::Compose(Type.GetTypeInfo(), Base->GetIndices());
 			}
 
 			Compute::SoftBody::Desc::CV::SConvex& SoftBodySConvexCopy(Compute::SoftBody::Desc::CV::SConvex& Base, Compute::SoftBody::Desc::CV::SConvex& Other)
@@ -8510,6 +8502,7 @@ namespace Edge
 				VSchema.SetMethod<Core::Schema, Core::Schema*, const std::string&>("schema@+ pop(const string &in)", &Core::Schema::Pop);
 				VSchema.SetMethod("schema@ copy() const", &Core::Schema::Copy);
 				VSchema.SetMethod("bool has(const string &in) const", &Core::Schema::Has);
+				VSchema.SetMethod("bool has_attribute(const string &in) const", &Core::Schema::HasAttribute);
 				VSchema.SetMethod("bool empty() const", &Core::Schema::IsEmpty);
 				VSchema.SetMethod("bool is_attribute() const", &Core::Schema::IsAttribute);
 				VSchema.SetMethod("bool is_saved() const", &Core::Schema::IsAttribute);
@@ -9900,7 +9893,7 @@ namespace Edge
 				VPreprocessor.SetConstructor<Compute::Preprocessor>("preprocessor@ f(uptr@)");
 				VPreprocessor.SetMethod("void set_include_options(const include_desc &in)", &Compute::Preprocessor::SetIncludeOptions);
 				VPreprocessor.SetMethod("void set_features(const preprocessor_desc &in)", &Compute::Preprocessor::SetFeatures);
-				VPreprocessor.SetMethod("void define(const string &in)", &Compute::Preprocessor::Define);
+				VPreprocessor.SetMethod("void define(const string &in, const string &in = \"1\")", &Compute::Preprocessor::Define);
 				VPreprocessor.SetMethod("void undefine(const string &in)", &Compute::Preprocessor::Undefine);
 				VPreprocessor.SetMethod("void clear()", &Compute::Preprocessor::Clear);
 				VPreprocessor.SetMethod("bool process(const string &in, string &out)", &Compute::Preprocessor::Process);
@@ -10003,10 +9996,7 @@ namespace Edge
 				VRotator.SetValue("zyx", (int)Compute::Rotator::ZYX);
 
 				RefClass VHullShape = Engine->SetClass<Compute::HullShape>("physics_hull_shape", false);
-				VHullShape.SetProperty<Compute::HullShape>("uptr@ shape", &Compute::HullShape::Shape);
-				VHullShape.SetConstructor<Compute::HullShape>("physics_hull_shape@ f()");
-				VHullShape.SetMethodEx("void set_vertices(array<vertex>@+)", &HullShapeSetVertices);
-				VHullShape.SetMethodEx("void set_indices(array<int>@+)", &HullShapeSetIndices);
+				VHullShape.SetMethod("uptr@ get_shape()", &Compute::HullShape::GetShape);
 				VHullShape.SetMethodEx("array<vertex>@ get_vertices()", &HullShapeGetVertices);
 				VHullShape.SetMethodEx("array<int>@ get_indices()", &HullShapeGetIndices);
 
@@ -14605,7 +14595,7 @@ namespace Edge
 					if (End - Start > 0)
 					{
 						std::string Expression = Code.substr(Start, End - Start) + ".yield().unwrap()";
-						Core::Parser(&Code).ReplacePart(Offset, End, Expression);
+						Core::String(&Code).ReplacePart(Offset, End, Expression);
 						Offset += Expression.size();
 					}
 					else

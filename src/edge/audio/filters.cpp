@@ -57,6 +57,7 @@ namespace Edge
 		{
 			void FilterContext::Create()
 			{
+				ED_TRACE("[audio] load filter functions");
 #if defined(ED_HAS_OPENAL) && defined(HAS_EFX)
 				LOAD_PROC(LPALGENFILTERS, alGenFilters);
 				LOAD_PROC(LPALDELETEFILTERS, alDeleteFilters);

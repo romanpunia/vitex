@@ -1155,7 +1155,7 @@ namespace Edge
 		}
 		bool GraphicsDevice::AddSection(const std::string& Name, const std::string& Code)
 		{
-			Core::Parser Language(Core::OS::Path::GetExtension(Name.c_str()));
+			Core::String Language(Core::OS::Path::GetExtension(Name.c_str()));
 			Language.Substring(1).Trim().ToLower();
 			RemoveSection(Name);
 
@@ -1344,7 +1344,7 @@ namespace Edge
 					if (HLSL->empty())
 						return true;
 
-					Core::Parser Parser(HLSL);
+					Core::String Parser(HLSL);
 					Parser.ReplaceGroups("layout\\(row_major\\)\\s+", "");
 					Parser.ReplaceGroups("invocations\\s+=\\s+\\d+,\\s+", "");
 

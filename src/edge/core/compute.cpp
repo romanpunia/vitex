@@ -3374,7 +3374,7 @@ namespace Edge
 		}
 		bool RegexSource::IsSimple() const
 		{
-			Core::Parser Tx(&Expression);
+			Core::String Tx(&Expression);
 			return !Tx.FindOf("\\+*?|[]").Found;
 		}
 		void RegexSource::Compile()
@@ -3546,7 +3546,7 @@ namespace Edge
 		}
 		bool Regex::Replace(RegexSource* Value, const std::string& To, std::string& Buffer)
 		{
-			Core::Parser Parser(&Buffer), Emplace;
+			Core::String Parser(&Buffer), Emplace;
 			RegexResult Result;
 			size_t Matches = 0;
 
@@ -7351,7 +7351,7 @@ namespace Edge
 		}
 		WebToken* Crypto::JWTDecode(const std::string& Value, const PrivateKey& Key)
 		{
-			std::vector<std::string> Source = Core::Parser(&Value).Split('.');
+			std::vector<std::string> Source = Core::String(&Value).Split('.');
 			if (Source.size() != 3)
 				return nullptr;
 
@@ -7693,7 +7693,7 @@ namespace Edge
 			static const char From[] = " $%*+-./:";
 			static const char To[] = "abcdefghi";
 
-			Core::Parser Result(Base45Encode(Data));
+			Core::String Result(Base45Encode(Data));
 			for (size_t i = 0; i < sizeof(From) - 1; i++)
 				Result.Replace(From[i], To[i]);
 
@@ -7704,7 +7704,7 @@ namespace Edge
 			static const char From[] = "abcdefghi";
 			static const char To[] = " $%*+-./:";
 
-			Core::Parser Result(Data);
+			Core::String Result(Data);
 			for (size_t i = 0; i < sizeof(From) - 1; i++)
 				Result.Replace(From[i], To[i]);
 
@@ -8422,6 +8422,7 @@ namespace Edge
 		}
 		void Geometric::SetLeftHanded(bool IsLeftHanded)
 		{
+			ED_TRACE("[geometric] set left-handed: %s", IsLeftHanded ? "on" : "off");
 			LeftHanded = IsLeftHanded;
 		}
         std::vector<int> Geometric::CreateTriangleStrip(TriangleStrip::Desc& Desc, const std::vector<int>& Indices)
@@ -8676,6 +8677,33 @@ namespace Edge
 
 		Preprocessor::Preprocessor() noexcept : Nested(false)
 		{
+			std::vector<std::pair<std::string, Condition>> Controls =
+			{
+				std::make_pair(std::string("ifdef"), Condition::Exists),
+				std::make_pair(std::string("ifndef"), Condition::NotExists),
+				std::make_pair(std::string("ifeq"), Condition::Equals),
+				std::make_pair(std::string("ifneq"), Condition::NotEquals),
+				std::make_pair(std::string("ifgt"), Condition::Greater),
+				std::make_pair(std::string("ifngt"), Condition::NotGreater),
+				std::make_pair(std::string("ifgte"), Condition::GreaterEquals),
+				std::make_pair(std::string("ifngte"), Condition::NotGreaterEquals),
+				std::make_pair(std::string("iflt"), Condition::Less),
+				std::make_pair(std::string("ifnlt"), Condition::NotLess),
+				std::make_pair(std::string("iflte"), Condition::LessEquals),
+				std::make_pair(std::string("ifnlte"), Condition::NotLessEquals),
+				std::make_pair(std::string("iflte"), Condition::LessEquals),
+				std::make_pair(std::string("ifnlte"), Condition::NotLessEquals)
+			};
+
+			ControlFlow.reserve(Controls.size() * 2 + 2);
+			ControlFlow["else"] = std::make_pair(Condition::Exists, Controller::Else);
+			ControlFlow["endif"] = std::make_pair(Condition::NotExists, Controller::EndIf);
+
+			for (auto& Item : Controls)
+			{
+				ControlFlow[Item.first] = std::make_pair(Item.second, Controller::StartIf);
+				ControlFlow["el" + Item.first] = std::make_pair(Item.second, Controller::ElseIf);
+			}
 		}
 		void Preprocessor::SetIncludeOptions(const IncludeDesc& NewDesc)
 		{
@@ -8693,21 +8721,15 @@ namespace Edge
 		{
 			Features = F;
 		}
-		void Preprocessor::Define(const std::string& Name)
+		void Preprocessor::Define(const std::string& Name, const std::string& Value)
 		{
-			Undefine(Name);
-			Defines.push_back(Name);
+			ED_TRACE("[proc] on 0x%" PRIXPTR " define %s", (void*)this, Name.c_str());
+			Defines[Name] = Value;
 		}
 		void Preprocessor::Undefine(const std::string& Name)
 		{
-			for (auto It = Defines.begin(); It != Defines.end(); ++It)
-			{
-				if (*It == Name)
-				{
-					Defines.erase(It);
-					return;
-				}
-			}
+			ED_TRACE("[proc] on 0x%" PRIXPTR " undefine %s", (void*)this, Name.c_str());
+			Defines.erase(Name);
 		}
 		void Preprocessor::Clear()
 		{
@@ -8715,16 +8737,19 @@ namespace Edge
 			Sets.clear();
 			ExpandedPath.clear();
 		}
-		bool Preprocessor::IsDefined(const char* Name) const
+		bool Preprocessor::IsDefined(const std::string& Name) const
 		{
-			ED_ASSERT(Name != nullptr, false, "name should be set");
-			for (auto& It : Defines)
-			{
-				if (It == Name)
-					return true;
-			}
+			bool Exists = Defines.count(Name) > 0;
+			ED_TRACE("[proc] on 0x%" PRIXPTR " ifdef %s: %s", (void*)this, Name, Exists ? "yes" : "no");
+			return Exists;
+		}
+		bool Preprocessor::IsDefined(const std::string& Name, const std::string& Value) const
+		{
+			auto It = Defines.find(Name);
+			if (It != Defines.end())
+				return It->second == Value;
 
-			return false;
+			return Value.empty();
 		}
 		bool Preprocessor::Process(const std::string& Path, std::string& Data)
 		{
@@ -8732,40 +8757,25 @@ namespace Edge
 			if (Data.empty())
 				return ReturnResult(false, Nesting);
 
-			if (!Path.empty() && HasSet(Path))
+			if (!Path.empty() && HasResult(Path))
 				return ReturnResult(true, Nesting);
 
-			Core::Parser Buffer(&Data);
-			if (Features.Pragmas && !ProcessPragmaDirective(Path, Buffer))
-				return ReturnResult(false, Nesting);
-
-			if (Features.Conditions && !ProcessBlockDirective(Buffer))
-				return ReturnResult(false, Nesting);
-
+			std::string LastPath = ExpandedPath;
 			ExpandedPath = Path;
-			if (Features.Includes)
-			{
-				if (!Path.empty())
-					Sets.push_back(Path);
+			if (!Path.empty())
+				Sets.insert(Path);
 
-				if (!ProcessIncludeDirective(Path, Buffer))
-					return ReturnResult(false, Nesting);
+			if (!ConsumeTokens(Path, Data))
+			{
+				ExpandedPath = LastPath;
+				return ReturnResult(false, Nesting);
 			}
 
-			size_t Offset;
-			if (Features.Defines && !ProcessDefineDirective(Buffer, 0, Offset, true))
-				return ReturnResult(false, Nesting);
+			Core::String Buffer(&Data);
+			Buffer.Trim().Resize(strlen(Buffer.Get()));
+			ExpandedPath = LastPath;
 
-			Buffer.Trim();
-			Buffer.Resize(strlen(Buffer.Get()));
 			return ReturnResult(true, Nesting);
-		}
-		bool Preprocessor::SaveResult()
-		{
-			bool Nesting = Nested;
-			Nested = true;
-
-			return Nesting;
 		}
 		bool Preprocessor::ReturnResult(bool Result, bool WasNested)
 		{
@@ -8778,383 +8788,495 @@ namespace Edge
 
 			return Result;
 		}
-		bool Preprocessor::ProcessIncludeDirective(const std::string& Path, Core::Parser& Buffer)
+		bool Preprocessor::HasResult(const std::string& Path)
 		{
-			if (Buffer.Empty())
-				return true;
+			return Sets.count(Path) > 0;
+		}
+		bool Preprocessor::SaveResult()
+		{
+			bool Nesting = Nested;
+			Nested = true;
 
-			Core::Parser::Settle Result;
-			while (true)
+			return Nesting;
+		}
+		Preprocessor::Token Preprocessor::FindNextToken(std::string& Buffer, size_t& Offset)
+		{
+			Token Result;
+			while (Offset < Buffer.size())
 			{
-				Result = Buffer.Find("#include", Result.End);
-				if (!Result.Found)
-					return true;
-
-				size_t Start = Result.End;
-				while (Start + 1 < Buffer.Size() && Buffer.R()[Start] != '\"')
-					Start++;
-
-				size_t End = Start + 1;
-				while (End + 1 < Buffer.Size() && Buffer.R()[End] != '\"')
-					End++;
-
-				Start++;
-				if (Start == End)
+				char V = Buffer[Offset];
+				if (V == '#' && Offset + 1 < Buffer.size() && !std::isspace(Buffer[Offset + 1]))
 				{
-					ED_ERR("[preproc] %s: cannot process include directive", Path.c_str());
-					return false;
-				}
-
-				Core::Parser Section(Buffer.Get() + Start, End - Start);
-				Section.Trim();
-				End++;
-
-				FileDesc.Path = Section.R();
-				FileDesc.From = Path;
-
-				IncludeResult File = ResolveInclude(FileDesc);
-				std::string Output;
-
-				if (!HasSet(File.Module))
-				{
-					if (!Include || !Include(this, File, &Output))
+					std::string Value;
+					Result.Start = Offset;
+					while (Offset < Buffer.size())
 					{
-						ED_ERR("[preproc] %s: cannot find \"%s\"", Path.c_str(), Section.Get());
-						return false;
+						char N = Buffer[++Offset];
+						if (std::isspace(N))
+						{
+							Result.Name = Buffer.substr(Result.Start + 1, Offset - Result.Start - 1);
+							break;
+						}
 					}
 
-					bool Failed = (!Output.empty() && !Process(File.Module, Output));
-					ExpandedPath = Path;
-
-					if (Failed)
-						return false;
-				}
-
-				Buffer.ReplacePart(Result.Start, End, Output);
-				Result.End = Result.Start + 1;
-			}
-		}
-		bool Preprocessor::ProcessPragmaDirective(const std::string& Path, Core::Parser& Buffer)
-		{
-			if (Buffer.Empty())
-				return true;
-
-			std::vector<std::string> Args;
-			size_t Offset = 0;
-
-			while (true)
-			{
-				size_t Base, Start, End;
-				int R = FindDirective(Buffer, "#pragma", &Offset, &Base, &Start, &End);
-				if (R < 0)
-				{
-					ED_ERR("[preproc] cannot process pragma directive");
-					return false;
-				}
-				else if (R == 0)
-					return true;
-
-				Core::Parser Value(Buffer.Get() + Start, End - Start);
-				Value.Trim().Replace("  ", " ");
-				Args.clear();
-
-				auto fStart = Value.Find('(');
-				auto fEnd = Value.ReverseFind(')');
-				if (fStart.Found && fEnd.Found)
-				{
-					Core::Parser Params(Value);
-					Params.Substring(fStart.End, fEnd.Start - fStart.End);
-					Params.Trim();
-						
-					std::string& Source = Params.R();
-					size_t Word = 0, Index = 0;
-
-					while (Index <= Source.size())
+					Result.End = Result.Start;
+					while (Result.End < Buffer.size())
 					{
-						char V = Index == Source.size() ? '\0' : Source[Index];
-						if (V == ',' || Index + 1 >= Source.size())
+						char N = Buffer[++Result.End];
+						if (N == '\r' || N == '\n')
 						{
-							Core::Parser Data(Source.substr(Word, Index - Word));
-							Data.Trim();
-
-							if (Data.Size() >= 2 && Data.StartsWith("\"") && Data.EndsWith('\"'))
-								Data.Substring(1, Data.Size() - 2);
-							else if (Data.Size() >= 2 && Data.StartsWith("\"") && Data.EndsWith('\"'))
-								Data.Substring(1, Data.Size() - 2);
-
-							Args.push_back(Data.R());
-							Word = ++Index;
-						}
-						else if (V == '\"' || V == '\'')
-						{
-							while (++Index < Source.size())
+							Value = Buffer.substr(Offset, Result.End - Offset);
+							while (Result.End < Buffer.size())
 							{
-								if (Source[Index] == V && Source[Index - 1] != '\\')
-								{
-									++Index;
+								N = Buffer[++Result.End];
+								if (N != '\r' && N != '\n')
 									break;
+							}
+							break;
+						}
+					}
+
+					Core::String(&Result.Name).Trim();
+					Core::String(&Value).Trim();
+					if (Value.size() >= 2)
+					{
+						size_t Where = Value.find('(');
+						if (Result.Name == "pragma" && Where != std::string::npos && Value.back() == ')')
+						{
+							Result.Values.emplace_back(std::move(Value.substr(0, Where)));
+							Value = Value.substr(Where + 1, Value.size() - Where - 2);
+							Where = 0;
+
+							size_t Last = 0;
+							while (Where < Value.size())
+							{
+								V = Value[Where];
+								if (V == '\"' || V == '\'')
+								{
+									while (Where < Value.size())
+									{
+										char N = Value[++Where];
+										if (N == V)
+											break;
+									}
+
+									if (Where + 1 >= Value.size())
+									{
+										++Where;
+										goto AddValue;
+									}
 								}
+								else if (V == ',' || Where + 1 >= Value.size())
+								{
+								AddValue:
+									std::string Subvalue = Core::String(Value.substr(Last, Where - Last)).Trim().R();
+									if (Subvalue.size() >= 2)
+									{
+										if (Subvalue.front() == '\"' && Subvalue.back() == '\"')
+											Result.Values.emplace_back(std::move(Subvalue.substr(1, Subvalue.size() - 2)));
+										else if (Subvalue.front() == '\'' && Subvalue.back() == '\'')
+											Result.Values.emplace_back(std::move(Subvalue.substr(1, Subvalue.size() - 2)));
+										else if (Subvalue.front() == '<' && Subvalue.back() == '>')
+											Result.Values.emplace_back(std::move(Subvalue.substr(1, Subvalue.size() - 2)));
+										else
+											Result.Values.emplace_back(std::move(Subvalue));
+									}
+									else
+										Result.Values.emplace_back(std::move(Subvalue));
+									Last = Where + 1;
+								}
+								++Where;
 							}
 						}
+						else if (Value.front() == '\"' && Value.back() == '\"')
+							Result.Values.emplace_back(std::move(Value.substr(1, Value.size() - 2)));
+						else if (Value.front() == '\'' && Value.back() == '\'')
+							Result.Values.emplace_back(std::move(Value.substr(1, Value.size() - 2)));
+						else if (Value.front() == '<' && Value.back() == '>')
+							Result.Values.emplace_back(std::move(Value.substr(1, Value.size() - 2)));
 						else
-							++Index;
+							Result.Values.emplace_back(std::move(Value));
+					}
+					else
+						Result.Values.emplace_back(std::move(Value));
+
+					Result.Found = true;
+					break;
+				}
+				else if (V == '\"' || V == '\'')
+				{
+					while (Offset < Buffer.size())
+					{
+						char N = Buffer[++Offset];
+						if (N == V)
+							break;
 					}
 				}
+				++Offset;
+			}
 
-				Value.Substring(0, fStart.Start);
-				if (Pragma && !Pragma(this, Value.R(), Args))
+			return Result;
+		}
+		Preprocessor::Token Preprocessor::FindNextConditionalToken(std::string& Buffer, size_t& Offset)
+		{
+		Retry:
+			Token Next = FindNextToken(Buffer, Offset);
+			if (!Next.Found)
+				return Next;
+
+			if (ControlFlow.find(Next.Name) == ControlFlow.end())
+				goto Retry;
+
+			return Next;
+		}
+		size_t Preprocessor::ReplaceToken(Token& Where, std::string& Buffer, const std::string& To)
+		{
+			Buffer.replace(Buffer.begin() + Where.Start, Buffer.begin() + Where.End, To);
+			return Where.Start;
+		}
+		std::vector<Preprocessor::Conditional> Preprocessor::PrepareConditions(std::string& Buffer, Token& Next, size_t& Offset, bool Top)
+		{
+			std::vector<Conditional> Conditions;
+			size_t ChildEnding = 0;
+
+			do
+			{
+				auto Control = ControlFlow.find(Next.Name);
+				if (!Conditions.empty())
 				{
-					ED_ERR("[preproc] cannot process pragma \"%s\" directive", Value.Get());
-					return false;
+					auto& Last = Conditions.back();
+					if (!Last.TextEnd)
+						Last.TextEnd = Next.Start;
 				}
 
-				Buffer.ReplacePart(Base, End, "");
+				Conditional Block;
+				Block.Type = Control->second.first;
+				Block.Chaining = Control->second.second != Controller::StartIf;
+				Block.Expression = Next.Values.front();
+				Block.TokenStart = Next.Start;
+				Block.TokenEnd = Next.End;
+				Block.TextStart = Next.End;
+
+				if (ChildEnding > 0)
+				{
+					std::string Text = Buffer.substr(ChildEnding, Block.TokenStart - ChildEnding);
+					if (!Text.empty())
+					{
+						Conditional Subblock;
+						Subblock.Expression = Text;
+						Conditions.back().Childs.emplace_back(std::move(Subblock));
+					}
+					ChildEnding = 0;
+				}
+
+				if (Control->second.second == Controller::StartIf)
+				{
+					if (Conditions.empty())
+					{
+						Conditions.emplace_back(std::move(Block));
+						continue;
+					}
+
+					auto& Base = Conditions.back();
+					auto Listing = PrepareConditions(Buffer, Next, Offset, false);
+					if (Listing.empty())
+						return std::vector<Conditional>();
+
+					size_t LastSize = Base.Childs.size();
+					Base.Childs.reserve(LastSize + Listing.size());
+					for (auto& Item : Listing)
+						Base.Childs.push_back(Item);
+
+					ChildEnding = Next.End;
+					if (LastSize > 0)
+						continue;
+
+					std::string Text = Buffer.substr(Base.TokenEnd, Block.TokenStart - Base.TokenEnd);
+					if (!Text.empty())
+					{
+						Conditional Subblock;
+						Subblock.Expression = Text;
+						Base.Childs.insert(Base.Childs.begin() + LastSize, std::move(Subblock));
+					}
+					continue;
+				}
+				else if (Control->second.second == Controller::Else)
+				{
+					Block.Type = (Conditions.empty() ? Condition::Equals : (Condition)(-(int32_t)Conditions.back().Type));
+					if (Conditions.empty())
+					{
+						ED_ERR("[proc] %s: #%s is has no opening #if block", ExpandedPath.c_str(), Next.Name.c_str());
+						return std::vector<Conditional>();
+					}
+
+					Conditions.emplace_back(std::move(Block));
+					continue;
+				}
+				else if (Control->second.second == Controller::ElseIf)
+				{
+					if (Conditions.empty())
+					{
+						ED_ERR("[proc] %s: #%s is has no opening #if block", ExpandedPath.c_str(), Next.Name.c_str());
+						return std::vector<Conditional>();
+					}
+
+					Conditions.emplace_back(std::move(Block));
+					continue;
+				}
+				else if (Control->second.second == Controller::EndIf)
+					break;
+
+				ED_ERR("[proc] %s: #%s is not a valid conditional block", ExpandedPath.c_str(), Next.Name.c_str());
+				return std::vector<Conditional>();
+			} while ((Next = FindNextConditionalToken(Buffer, Offset)).Found);
+
+			return Conditions;
+		}
+		std::string Preprocessor::Evaluate(std::string& Buffer, const std::vector<Conditional>& Conditions)
+		{
+			std::string Result; bool SkipControlFlow = false;
+			for (size_t i = 0; i < Conditions.size(); i++)
+			{
+				auto& Next = Conditions[i];
+				int Case = SwitchCase(Next);
+				if (Case == 1)
+				{
+					if (Next.Childs.empty())
+						Result += Buffer.substr(Next.TextStart, Next.TextEnd - Next.TextStart);
+					else
+						Result += Evaluate(Buffer, Next.Childs);
+
+					while (i + 1 < Conditions.size() && Conditions[i + 1].Chaining)
+						++i;
+				}
+				else if (Case == -1)
+					Result += Next.Expression;
+			}
+
+			return Result;
+		}
+		std::pair<std::string, std::string> Preprocessor::GetExpressionParts(const std::string& Value)
+		{
+			size_t Offset = 0;
+			while (Offset < Value.size())
+			{
+				char V = Value[Offset];
+				if (!std::isspace(V))
+				{
+					++Offset;
+					continue;
+				}
+
+				size_t Count = Offset;
+				while (Offset < Value.size() && std::isspace(Value[++Offset]));
+				std::string Expression = Core::String(Value.substr(Offset)).Trim().R();
+				if (Expression.front() == '\"' && Expression.back() == '\"')
+					Expression = Expression.substr(1, Expression.size() - 2);
+				else if (Expression.front() == '\'' && Expression.back() == '\'')
+					Expression = Expression.substr(1, Expression.size() - 2);
+				else if (Expression.front() == '<' && Expression.back() == '>')
+					Expression = Expression.substr(1, Expression.size() - 2);
+
+				return std::make_pair(Core::String(Value.substr(0, Count)).Trim().R(), Core::String(&Expression).Trim().R());
+			}
+
+			return std::make_pair(Core::String(Value).Trim().R(), std::string());
+		}
+		std::pair<std::string, std::string> Preprocessor::UnpackExpression(const std::pair<std::string, std::string>& Expression)
+		{
+			auto Left = Defines.find(Expression.first);
+			auto Right = Defines.find(Expression.second);
+			return std::make_pair(Left == Defines.end() ? Expression.first : Left->second, Right == Defines.end() ? Expression.second : Right->second);
+		}
+		int Preprocessor::SwitchCase(const Conditional& Value)
+		{
+			if (Value.Expression.empty())
+				return 1;
+
+			switch (Value.Type)
+			{
+				case Condition::Exists:
+					return IsDefined(Value.Expression) ? 1 : 0;
+				case Condition::Equals:
+				{
+					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
+					return IsDefined(Parts.first, Parts.second) ? 1 : 0;
+				}
+				case Condition::Greater:
+				{
+					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
+					Core::String Left(&Parts.first), Right(&Parts.second);
+					return (Left.HasNumber() ? Left.ToDouble() : 0.0) > (Right.HasNumber() ? Right.ToDouble() : 0.0);
+				}
+				case Condition::GreaterEquals:
+				{
+					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
+					Core::String Left(&Parts.first), Right(&Parts.second);
+					return (Left.HasNumber() ? Left.ToDouble() : 0.0) >= (Right.HasNumber() ? Right.ToDouble() : 0.0);
+				}
+				case Condition::Less:
+				{
+					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
+					Core::String Left(&Parts.first), Right(&Parts.second);
+					return (Left.HasNumber() ? Left.ToDouble() : 0.0) < (Right.HasNumber() ? Right.ToDouble() : 0.0);
+				}
+				case Condition::LessEquals:
+				{
+					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
+					Core::String Left(&Parts.first), Right(&Parts.second);
+					return (Left.HasNumber() ? Left.ToDouble() : 0.0) <= (Right.HasNumber() ? Right.ToDouble() : 0.0);
+				}
+				case Condition::NotExists:
+					return !IsDefined(Value.Expression) ? 1 : 0;
+				case Condition::NotEquals:
+				{
+					auto Parts = GetExpressionParts(Value.Expression);
+					return !IsDefined(Parts.first, Parts.second) ? 1 : 0;
+				}
+				case Condition::NotGreater:
+				{
+					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
+					Core::String Left(&Parts.first), Right(&Parts.second);
+					return (Left.HasNumber() ? Left.ToDouble() : 0.0) <= (Right.HasNumber() ? Right.ToDouble() : 0.0);
+				}
+				case Condition::NotGreaterEquals:
+				{
+					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
+					Core::String Left(&Parts.first), Right(&Parts.second);
+					return (Left.HasNumber() ? Left.ToDouble() : 0.0) < (Right.HasNumber() ? Right.ToDouble() : 0.0);
+				}
+				case Condition::NotLess:
+				{
+					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
+					Core::String Left(&Parts.first), Right(&Parts.second);
+					return (Left.HasNumber() ? Left.ToDouble() : 0.0) >= (Right.HasNumber() ? Right.ToDouble() : 0.0);
+				}
+				case Condition::NotLessEquals:
+				{
+					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
+					Core::String Left(&Parts.first), Right(&Parts.second);
+					return (Left.HasNumber() ? Left.ToDouble() : 0.0) > (Right.HasNumber() ? Right.ToDouble() : 0.0);
+				}
+				case Condition::Text:
+				default:
+					return -1;
 			}
 		}
-		bool Preprocessor::ProcessBlockDirective(Core::Parser& Buffer)
+		bool Preprocessor::ConsumeTokens(const std::string& Path, std::string& Buffer)
 		{
-			if (Buffer.Empty())
-				return true;
-
 			size_t Offset = 0;
 			while (true)
 			{
-				int R = FindBlockDirective(Buffer, Offset, false);
-				if (R < 0)
-				{
-					ED_ERR("[preproc] cannot process ifdef/endif directive");
+				auto Next = FindNextToken(Buffer, Offset);
+				if (!Next.Found)
+					break;
+				else if (Next.Values.empty())
 					return false;
-				}
-				else if (R == 0)
-					return true;
-			}
-		}
-		bool Preprocessor::ProcessDefineDirective(Core::Parser& Buffer, size_t Base, size_t& Offset, bool Endless)
-		{
-			if (Buffer.Empty())
-				return true;
 
-			size_t Size = 0;
-			while (Endless || Base < Offset)
-			{
-				int R = FindDefineDirective(Buffer, Base, &Size);
-				if (R < 0)
+				if (Next.Name == "include")
 				{
-					ED_ERR("[preproc] cannot process define directive");
-					return false;
-				}
-				else if (R == 0)
-					return true;
+					if (!Features.Includes)
+					{
+						ED_ERR("[proc] %s: not allowed to include \"%s\"", Path.c_str(), Next.Values.front().c_str());
+						return false;
+					}
 
-				Offset -= Size;
+					FileDesc.Path = Next.Values.front();
+					FileDesc.From = Path;
+
+					IncludeResult File = ResolveInclude(FileDesc);
+					if (HasResult(File.Module))
+					{
+						Offset = ReplaceToken(Next, Buffer, "");
+						continue;
+					}
+
+					std::string Subbuffer;
+					if (!Include || !Include(this, File, &Subbuffer))
+					{
+						ED_ERR("[proc] %s: cannot find \"%s\"", Path.c_str(), Next.Values.front().c_str());
+						return false;
+					}
+
+					ED_TRACE("[proc] on 0x%" PRIXPTR " %sinclude %s", (void*)this, File.IsSystem ? "system " : (File.IsFile ? "file " : ""), File.Module.c_str());
+					if (Subbuffer.empty() || Process(File.Module, Subbuffer))
+					{
+						Offset = ReplaceToken(Next, Buffer, Subbuffer);
+						continue;
+					}
+				}
+				else if (Next.Name == "pragma")
+				{
+					std::string Name = Next.Values.front();
+					Next.Values.erase(Next.Values.begin());
+
+					if (Pragma && !Pragma(this, Name, Next.Values))
+					{
+						ED_ERR("[proc] cannot process pragma \"%s\" directive", Name.c_str());
+						return false;
+					}
+
+					if (!Pragma)
+					{
+						std::string Value = Buffer.substr(Next.Start, Next.End - Next.Start);
+						ED_TRACE("[proc] on 0x%" PRIXPTR " ignore pragma %s", (void*)this, Value.c_str());
+						if (Next.Start > 0 && Buffer[Next.Start - 1] != '\n' && Buffer[Next.Start - 1] != '\r')
+							Value.insert(Value.begin(), '\n');
+						if (!Value.empty() && Value.back() != '\n' && Value.back() != '\r')
+							Value.append(1, '\n');
+
+						Offset = ReplaceToken(Next, Buffer, Value);
+						Offset += Value.size();
+					}
+					else
+					{
+						ED_TRACE("[proc] on 0x%" PRIXPTR " apply pragma %s", (void*)this, Buffer.substr(Next.Start, Next.End - Next.Start).c_str());
+						Offset = ReplaceToken(Next, Buffer, "");
+					}
+					continue;
+				}
+				else if (Next.Name == "define")
+				{
+					auto Values = GetExpressionParts(Next.Values.front());
+					Define(Values.first, Values.second.empty() ? "1" : Values.second);
+					Offset = ReplaceToken(Next, Buffer, "");
+					continue;
+				}
+				else if (Next.Name == "undef")
+				{
+					Undefine(Next.Values.front());
+					Offset = ReplaceToken(Next, Buffer, "");
+					continue;
+				}
+				else if (Next.Name.size() >= 2 && Next.Name[0] == 'i' && Next.Name[1] == 'f' && ControlFlow.find(Next.Name) != ControlFlow.end())
+				{
+					size_t Start = Next.Start;
+					std::vector<Conditional> Conditions = PrepareConditions(Buffer, Next, Offset, true);
+					if (Conditions.empty())
+					{
+						ED_ERR("[proc] %s: #if has no closing #endif block", Path.c_str(), Next.Name.c_str());
+						return false;
+					}
+
+					std::string Result = Evaluate(Buffer, Conditions);
+					Next.Start = Start; Next.End = Offset;
+					Offset = ReplaceToken(Next, Buffer, Result);
+					continue;
+				}
+				
+				ED_ERR("[proc] %s: #%s directive cannot be dispatched", Path.c_str(), Next.Name.c_str());
+				return false;
 			}
 
 			return true;
 		}
-		int Preprocessor::FindDefineDirective(Core::Parser& Buffer, size_t& Offset, size_t* Size)
+		std::string Preprocessor::GetDefine(const std::string& Name) const
 		{
-			size_t Base, Start, End; Offset--;
-			int R = FindDirective(Buffer, "#define", &Offset, &Base, &Start, &End);
-			if (R < 0)
-			{
-				ED_ERR("[preproc] cannot process define directive");
-				return -1;
-			}
-			else if (R == 0)
-				return 0;
+			auto It = Defines.find(Name);
+			if (It != Defines.end())
+				return It->second;
 
-			Core::Parser Value(Buffer.Get() + Start, End - Start);
-			Define(Value.Trim().Replace("  ", " ").R());
-			Buffer.ReplacePart(Base, End, "");
-
-			if (Size != nullptr)
-				*Size = End - Base;
-
-			return 1;
-		}
-		int Preprocessor::FindBlockDirective(Core::Parser& Buffer, size_t& Offset, bool Nested)
-		{
-			size_t B1Start = 0, B1End = 0;
-			size_t B2Start = 0, B2End = 0;
-			size_t Start, End, Base, Size;
-			size_t BaseOffset = Offset;
-			bool Resolved = false, Negate = false;
-
-			int R = FindDirective(Buffer, "#ifdef", &Offset, nullptr, &Start, &End);
-			if (R <= 0)
-			{
-				R = FindDirective(Buffer, "#ifndef", &Offset, nullptr, &Start, &End);
-				if (R < 0)
-				{
-					ED_ERR("[preproc] cannot parse ifdef block directive");
-					return -1;
-				}
-				else if (R == 0)
-					return 0;
-
-				Negate = true;
-			}
-
-			Base = Offset;
-			ProcessDefineDirective(Buffer, BaseOffset, Base, false);
-			Size = Offset - Base;
-			Start -= Size;
-			End -= Size;
-			Offset = Base;
-
-			Core::Parser Name(Buffer.Get() + Start, End - Start);
-			Name.Trim().Replace("  ", " ");
-			Resolved = IsDefined(Name.Get());
-			Start = Offset - 1;
-
-			if (Negate)
-				Resolved = !Resolved;
-
-			if (Name.Get()[0] == '!')
-			{
-				Name.Substring(1);
-				Resolved = !Resolved;
-			}
-
-		ResolveDirective:
-			Core::Parser::Settle Cond = Buffer.Find('#', Offset);
-			R = FindBlockNesting(Buffer, Cond, Offset, B1Start + B1End == 0 ? Resolved : !Resolved);
-			if (R < 0)
-			{
-				ED_ERR("[preproc] cannot find endif directive of %s", Name.Get());
-				return -1;
-			}
-			else if (R == 1)
-			{
-				int C = FindBlockDirective(Buffer, Offset, true);
-				if (C == 0)
-				{
-					ED_ERR("[preproc] cannot process nested ifdef/endif directive of %s", Name.Get());
-					return -1;
-				}
-				else if (C < 0)
-					return -1;
-
-				goto ResolveDirective;
-			}
-			else if (R == 2)
-			{
-				if (B1Start + B1End != 0)
-				{
-					B2Start = B1End + 6;
-					B2End = Cond.Start;
-				}
-				else
-				{
-					B1Start = End;
-					B1End = Offset - 6;
-				}
-			}
-			else if (R == 3)
-			{
-				B1Start = End;
-				B1End = Offset - 5;
-				goto ResolveDirective;
-			}
-			else if (R == 0)
-				goto ResolveDirective;
-
-			if (Resolved)
-			{
-				Core::Parser Section(Buffer.Get() + B1Start, B1End - B1Start);
-				if (B2Start + B2End != 0)
-					Buffer.ReplacePart(Start, B2End + 6, Section.R());
-				else
-					Buffer.ReplacePart(Start, B1End + 6, Section.R());
-				Offset = Start + Section.Size() - 1;
-			}
-			else if (B2Start + B2End != 0)
-			{
-				Core::Parser Section(Buffer.Get() + B2Start, B2End - B2Start);
-				Buffer.ReplacePart(Start, B2End + 6, Section.R());
-				Offset = Start + Section.Size() - 1;
-			}
-			else
-			{
-				Buffer.ReplacePart(Start, B1End + 6, "");
-				Offset = Start;
-			}
-
-			return 1;
-		}
-		int Preprocessor::FindBlockNesting(Core::Parser& Buffer, const Core::Parser::Settle& Hash, size_t& Offset, bool Resolved)
-		{
-			if (!Hash.Found)
-				return -1;
-
-			Offset = Hash.End;
-			if (!Hash.Start)
-				return 0;
-
-			if (Hash.Start + 5 < Buffer.Size() && strncmp(Buffer.Get() + Hash.Start, "#ifdef", 5) == 0)
-			{
-				Offset = Hash.Start;
-				return 1;
-			}
-
-			if (Hash.Start + 5 < Buffer.Size() && strncmp(Buffer.Get() + Hash.Start, "#endif", 5) == 0)
-			{
-				Offset = Hash.End + 5;
-				return 2;
-			}
-
-			if (Hash.Start + 4 < Buffer.Size() && strncmp(Buffer.Get() + Hash.Start, "#else", 5) == 0)
-			{
-				Offset = Hash.End + 4;
-				return 3;
-			}
-
-			if (!Features.Defines || !Resolved)
-				return 0;
-
-			int R = FindDefineDirective(Buffer, Offset, nullptr);
-			return R == 1 ? 0 : R;
-		}
-		int Preprocessor::FindDirective(Core::Parser& Buffer, const char* V, size_t* SOffset, size_t* SBase, size_t* SStart, size_t* SEnd)
-		{
-			auto Result = Buffer.Find(V, SOffset ? *SOffset : 0);
-			if (!Result.Found)
-				return 0;
-
-			size_t Start = Result.End + 1;
-			while (Start + 1 < Buffer.Size() && Buffer.R()[Start] == ' ')
-				Start++;
-
-			size_t End = Start;
-			while (End + 1 < Buffer.Size() && (Buffer.R()[End] != '\n' && Buffer.R()[End] != '\r'))
-				End++;
-
-			if (Start == End)
-				return -1;
-
-			if (SOffset != nullptr)
-				*SOffset = Result.Start + 1;
-
-			if (SBase != nullptr)
-				*SBase = Result.Start;
-
-			if (SStart != nullptr)
-				*SStart = Start;
-
-			if (SEnd != nullptr)
-				*SEnd = End + 1;
-
-			return 1;
-		}
-		bool Preprocessor::HasSet(const std::string& Path)
-		{
-			for (auto& It : Sets)
-			{
-				if (It == Path)
-					return true;
-			}
-
-			return false;
+			return std::string();
 		}
 		const std::string& Preprocessor::GetCurrentFilePath() const
 		{
@@ -9169,11 +9291,11 @@ namespace Edge
 				Base.assign(Core::OS::Directory::Get());
 
 			IncludeResult Result;
-			if (!Core::Parser(Desc.Path).StartsOf("/."))
+			if (!Core::String(Desc.Path).StartsOf("/."))
 			{
 				if (Desc.Root.empty())
 				{
-					Result.Module = Core::Parser(Desc.Path).Replace('\\', '/').R();
+					Result.Module = Core::String(Desc.Path).Replace('\\', '/').R();
 					Result.IsSystem = true;
 					return Result;
 				}
@@ -9203,7 +9325,7 @@ namespace Edge
 					return Result;
 				}
 
-				Result.Module = Core::Parser(Desc.Path).Replace('\\', '/').R();;
+				Result.Module = Core::String(Desc.Path).Replace('\\', '/').R();;
 				Result.IsSystem = true;
 				return Result;
 			}
@@ -10245,8 +10367,77 @@ namespace Edge
 			return Items.empty();
 		}
 
-		HullShape::HullShape() noexcept : Shape(nullptr)
+		HullShape::HullShape(std::vector<Vertex>&& NewVertices, std::vector<int>&& NewIndices) noexcept : Vertices(std::move(NewVertices)), Indices(std::move(NewIndices)), Shape(nullptr)
 		{
+#ifdef ED_USE_BULLET3
+			btConvexHullShape* Hull = (btConvexHullShape*)Shape;
+			for (auto& Item : Vertices)
+				Hull->addPoint(btVector3(Item.PositionX, Item.PositionY, Item.PositionZ), false);
+
+			Hull->recalcLocalAabb();
+			Hull->optimizeConvexHull();
+			Hull->setMargin(0);
+#endif
+		}
+		HullShape::HullShape(std::vector<Vertex>&& NewVertices) noexcept : Vertices(std::move(NewVertices)), Shape(nullptr)
+		{
+#ifdef ED_USE_BULLET3
+			Shape = ED_NEW(btConvexHullShape);
+			btConvexHullShape* Hull = (btConvexHullShape*)Shape;
+			Indices.reserve(Vertices.size());
+
+			for (auto& Item : Vertices)
+			{
+				Hull->addPoint(btVector3(Item.PositionX, Item.PositionY, Item.PositionZ), false);
+				Indices.push_back((int)Indices.size());
+			}
+
+			Hull->recalcLocalAabb();
+			Hull->optimizeConvexHull();
+			Hull->setMargin(0);
+#endif
+		}
+		HullShape::HullShape(btCollisionShape* From) noexcept : Shape(nullptr)
+		{
+#ifdef ED_USE_BULLET3
+			ED_ASSERT_V(From != nullptr, "shape should be set");
+			ED_ASSERT_V(From->getShapeType() == (int)Shape::Convex_Hull, "shape type should be convex hull");
+
+			btConvexHullShape* Hull = ED_NEW(btConvexHullShape);
+			btConvexHullShape* Base = (btConvexHullShape*)From;
+			Vertices.reserve((size_t)Base->getNumPoints());
+			Indices.reserve((size_t)Base->getNumPoints());
+
+			for (size_t i = 0; i < (size_t)Base->getNumPoints(); i++)
+			{
+				auto& Position = *(Base->getUnscaledPoints() + i);
+				Hull->addPoint(Position, false);
+				Vertices.push_back({ Position.x(), Position.y(), Position.z() });
+				Indices.push_back((int)i);
+			}
+
+			Hull->recalcLocalAabb();
+			Hull->optimizeConvexHull();
+			Hull->setMargin(0);
+#endif
+		}
+		HullShape::~HullShape() noexcept
+		{
+#ifdef ED_USE_BULLET3
+			ED_DELETE(btCollisionShape, Shape);
+#endif
+		}
+		const std::vector<Vertex>& HullShape::GetVertices() const
+		{
+			return Vertices;
+		}
+		const std::vector<int>& HullShape::GetIndices() const
+		{
+			return Indices;
+		}
+		btCollisionShape* HullShape::GetShape() const
+		{
+			return Shape;
 		}
 
 		RigidBody::RigidBody(Simulator* Refer, const Desc& I) noexcept : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
@@ -11058,18 +11249,20 @@ namespace Edge
 
 			if (Initial.Shape.Convex.Enabled && Hull != nullptr)
 			{
+				auto& Positions = Hull->GetVertices();
 				std::vector<btScalar> Vertices;
-				Vertices.resize(Hull->Vertices.size() * 3);
+				Vertices.resize(Positions.size() * 3);
 
-				for (size_t i = 0; i < Hull->Vertices.size(); i++)
+				for (size_t i = 0; i < Hull->GetVertices().size(); i++)
 				{
-					Vertex& V = Hull->Vertices[i];
+					const Vertex& V = Positions[i];
 					Vertices[i * 3 + 0] = (btScalar)V.PositionX;
 					Vertices[i * 3 + 1] = (btScalar)V.PositionY;
 					Vertices[i * 3 + 2] = (btScalar)V.PositionZ;
 				}
 
-				Instance = btSoftBodyHelpers::CreateFromTriMesh(Info, Vertices.data(), Hull->Indices.data(), (int)Hull->Indices.size() / 3, false);
+				auto& Indices = Hull->GetIndices();
+				Instance = btSoftBodyHelpers::CreateFromTriMesh(Info, Vertices.data(), Indices.data(), (int)Indices.size() / 3, false);
 			}
 			else if (Initial.Shape.Ellipsoid.Enabled)
 			{
@@ -11251,7 +11444,7 @@ namespace Edge
 			if (Result->size() != Size)
 			{
 				if (Initial.Shape.Convex.Enabled)
-					*Result = Initial.Shape.Convex.Hull->Vertices;
+					*Result = Initial.Shape.Convex.Hull->GetVertices();
 				else
 					Result->resize(Size);
 			}
@@ -13855,6 +14048,7 @@ namespace Edge
 			ED_ASSERT_V(Body->Instance != nullptr, "softbody instance should be set");
 			ED_ASSERT_V(Body->Instance->getWorldArrayIndex() == -1, "softbody should not be attached to other world");
 			ED_ASSERT_V(HasSoftBodySupport(), "softbodies should be supported");
+			ED_TRACE("[sim] on 0x%" PRIXPTR " add soft-body 0x%" PRIXPTR, (void*)this, (void*)Body);
 
 			btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
 			SoftWorld->addSoftBody(Body->Instance);
@@ -13867,6 +14061,7 @@ namespace Edge
 			ED_ASSERT_V(Body->Instance != nullptr, "softbody instance should be set");
 			ED_ASSERT_V(Body->Instance->getWorldArrayIndex() >= 0, "softbody should be attached to world");
 			ED_ASSERT_V(HasSoftBodySupport(), "softbodies should be supported");
+			ED_TRACE("[sim] on 0x%" PRIXPTR " remove soft-body 0x%" PRIXPTR, (void*)this, (void*)Body);
 
 			btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
 			SoftWorld->removeSoftBody(Body->Instance);
@@ -13878,6 +14073,7 @@ namespace Edge
 			ED_ASSERT_V(Body != nullptr, "rigidbody should be set");
 			ED_ASSERT_V(Body->Instance != nullptr, "rigidbody instance should be set");
 			ED_ASSERT_V(Body->Instance->getWorldArrayIndex() == -1, "rigidbody should not be attached to other world");
+			ED_TRACE("[sim] on 0x%" PRIXPTR " add rigid-body 0x%" PRIXPTR, (void*)this, (void*)Body);
 			World->addRigidBody(Body->Instance);
 #endif
 		}
@@ -13887,6 +14083,7 @@ namespace Edge
 			ED_ASSERT_V(Body != nullptr, "rigidbody should be set");
 			ED_ASSERT_V(Body->Instance != nullptr, "rigidbody instance should be set");
 			ED_ASSERT_V(Body->Instance->getWorldArrayIndex() >= 0, "rigidbody should be attached to other world");
+			ED_TRACE("[sim] on 0x%" PRIXPTR " remove rigid-body 0x%" PRIXPTR, (void*)this, (void*)Body);
 			World->removeRigidBody(Body->Instance);
 #endif
 		}
@@ -13895,6 +14092,7 @@ namespace Edge
 #ifdef ED_USE_BULLET3
 			ED_ASSERT_V(Constraint != nullptr, "slider constraint should be set");
 			ED_ASSERT_V(Constraint->Get() != nullptr, "slider constraint instance should be set");
+			ED_TRACE("[sim] on 0x%" PRIXPTR " add constraint 0x%" PRIXPTR, (void*)this, (void*)Constraint);
 			World->addConstraint(Constraint->Get(), !Constraint->HasCollisions());
 #endif
 		}
@@ -13903,12 +14101,14 @@ namespace Edge
 #ifdef ED_USE_BULLET3
 			ED_ASSERT_V(Constraint != nullptr, "slider constraint should be set");
 			ED_ASSERT_V(Constraint->Get() != nullptr, "slider constraint instance should be set");
+			ED_TRACE("[sim] on 0x%" PRIXPTR " remove constraint 0x%" PRIXPTR, (void*)this, (void*)Constraint);
 			World->removeConstraint(Constraint->Get());
 #endif
 		}
 		void Simulator::RemoveAll()
 		{
 #ifdef ED_USE_BULLET3
+			ED_TRACE("[sim] on 0x%" PRIXPTR " remove all collision objects", (void*)this);
 			for (int i = 0; i < World->getNumCollisionObjects(); i++)
 			{
 				btCollisionObject* Object = World->getCollisionObjectArray()[i];
@@ -14059,6 +14259,7 @@ namespace Edge
 		{
 #ifdef ED_USE_BULLET3
 			btCollisionShape* Shape = ED_NEW(btBoxShape, V3_TO_BT(Scale));
+			ED_TRACE("[sim] save cube shape 0x%" PRIXPTR, (void*)Shape);
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
@@ -14072,6 +14273,7 @@ namespace Edge
 		{
 #ifdef ED_USE_BULLET3
 			btCollisionShape* Shape = ED_NEW(btSphereShape, Radius);
+			ED_TRACE("[sim] save sphere shape 0x%" PRIXPTR, (void*)Shape);
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
@@ -14085,6 +14287,7 @@ namespace Edge
 		{
 #ifdef ED_USE_BULLET3
 			btCollisionShape* Shape = ED_NEW(btCapsuleShape, Radius, Height);
+			ED_TRACE("[sim] save capsule shape 0x%" PRIXPTR, (void*)Shape);
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
@@ -14098,6 +14301,7 @@ namespace Edge
 		{
 #ifdef ED_USE_BULLET3
 			btCollisionShape* Shape = ED_NEW(btConeShape, Radius, Height);
+			ED_TRACE("[sim] save cone shape 0x%" PRIXPTR, (void*)Shape);
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
@@ -14111,6 +14315,7 @@ namespace Edge
 		{
 #ifdef ED_USE_BULLET3
 			btCollisionShape* Shape = ED_NEW(btCylinderShape, V3_TO_BT(Scale));
+			ED_TRACE("[sim] save cylinder shape 0x%" PRIXPTR, (void*)Shape);
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
@@ -14131,6 +14336,7 @@ namespace Edge
 			Shape->optimizeConvexHull();
 			Shape->setMargin(0);
 
+			ED_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Shape, (uint64_t)Vertices.size());
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
@@ -14151,6 +14357,7 @@ namespace Edge
 			Shape->optimizeConvexHull();
 			Shape->setMargin(0);
 
+			ED_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Shape, (uint64_t)Vertices.size());
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
@@ -14171,6 +14378,7 @@ namespace Edge
 			Shape->optimizeConvexHull();
 			Shape->setMargin(0);
 
+			ED_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Shape, (uint64_t)Vertices.size());
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
@@ -14191,6 +14399,7 @@ namespace Edge
 			Shape->optimizeConvexHull();
 			Shape->setMargin(0);
 
+			ED_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Shape, (uint64_t)Vertices.size());
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
@@ -14211,6 +14420,7 @@ namespace Edge
 			Shape->optimizeConvexHull();
 			Shape->setMargin(0);
 
+			ED_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Shape, (uint64_t)Vertices.size());
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
@@ -14236,6 +14446,7 @@ namespace Edge
 			Hull->optimizeConvexHull();
 			Hull->setMargin(0);
 
+			ED_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Hull, (uint64_t)Base->getNumPoints());
 			Safe.lock();
 			Shapes[Hull] = 1;
 			Safe.unlock();
@@ -14340,6 +14551,7 @@ namespace Edge
 				if (It->second-- <= 1)
 				{
 					btCollisionShape* Item = (btCollisionShape*)It->first;
+					ED_TRACE("[sim] free shape 0x%" PRIXPTR, (void*)Item);
 					ED_DELETE(btCollisionShape, Item);
 					Shapes.erase(It);
 				}
@@ -14537,12 +14749,6 @@ namespace Edge
 			return 0;
 #endif
 		}
-		void Simulator::FreeHullShape(btCollisionShape* Shape)
-		{
-#ifdef ED_USE_BULLET3
-			ED_DELETE(btCollisionShape, Shape);
-#endif
-		}
 		Simulator* Simulator::Get(btDiscreteDynamicsWorld* From)
 		{
 #ifdef ED_USE_BULLET3
@@ -14550,43 +14756,6 @@ namespace Edge
 				return nullptr;
 
 			return (Simulator*)From->getWorldUserInfo();
-#else
-			return nullptr;
-#endif
-		}
-		btCollisionShape* Simulator::CreateHullShape(std::vector<Vertex>& Vertices)
-		{
-#ifdef ED_USE_BULLET3
-			btConvexHullShape* Shape = ED_NEW(btConvexHullShape);
-			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
-				Shape->addPoint(btVector3(It->PositionX, It->PositionY, It->PositionZ), false);
-
-			Shape->recalcLocalAabb();
-			Shape->optimizeConvexHull();
-			Shape->setMargin(0);
-
-			return Shape;
-#else
-			return nullptr;
-#endif
-		}
-		btCollisionShape* Simulator::CreateHullShape(btCollisionShape* From)
-		{
-#ifdef ED_USE_BULLET3
-			ED_ASSERT(From != nullptr, nullptr, "shape should be set");
-			ED_ASSERT(From->getShapeType() == (int)Shape::Convex_Hull, nullptr, "shape type should be convex hull");
-
-			btConvexHullShape* Hull = ED_NEW(btConvexHullShape);
-			btConvexHullShape* Base = (btConvexHullShape*)From;
-
-			for (size_t i = 0; i < (size_t)Base->getNumPoints(); i++)
-				Hull->addPoint(*(Base->getUnscaledPoints() + i), false);
-
-			Hull->recalcLocalAabb();
-			Hull->optimizeConvexHull();
-			Hull->setMargin(0);
-
-			return Hull;
 #else
 			return nullptr;
 #endif

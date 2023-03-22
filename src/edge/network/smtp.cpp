@@ -341,13 +341,13 @@ namespace Edge
 					return SendRequest(334, "AUTH DIGEST-MD5\r\n", [this, Callback]()
 					{
 						std::string EncodedChallenge = Command.c_str() + 4;
-						Core::Parser DecodedChallenge = Compute::Codec::Base64Decode(EncodedChallenge);
+						Core::String DecodedChallenge = Compute::Codec::Base64Decode(EncodedChallenge);
 
-						Core::Parser::Settle Result1 = DecodedChallenge.Find("nonce");
+						Core::String::Settle Result1 = DecodedChallenge.Find("nonce");
 						if (!Result1.Found)
 							return (void)Error("smtp has delivered bad digest");
 
-						Core::Parser::Settle Result2 = DecodedChallenge.Find("\"", Result1.Start + 7);
+						Core::String::Settle Result2 = DecodedChallenge.Find("\"", Result1.Start + 7);
 						if (!Result2.Found)
 							return (void)Error("smtp has delivered bad digest");
 
@@ -451,7 +451,7 @@ namespace Edge
 						ED_FREE(UserA2A);
 						ED_FREE(UserA2B);
 
-						Core::Parser Content;
+						Core::String Content;
 						if (strstr(Command.c_str(), "charset") != nullptr)
 							Content.fAppend("charset=utf-8,username=\"%s\"", Request.Login.c_str());
 						else
@@ -499,7 +499,7 @@ namespace Edge
 				if (!Request.Attachments.empty())
 					Boundary = Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(64));
                 
-				Core::Parser Content;
+				Core::String Content;
 				Content.fAppend("MAIL FROM: <%s>\r\n", Request.SenderAddress.c_str());
 
 				for (auto& Item : Request.Recipients)
@@ -521,7 +521,7 @@ namespace Edge
 							Pending = (int32_t)Request.Attachments.size();
 							SendRequest(354, "DATA\r\n", [this]()
 							{
-								Core::Parser Content;
+								Core::String Content;
 								Content.fAppend("Date: %s\r\nFrom: ", Core::DateTime::FetchWebDateGMT(time(nullptr)).c_str());
 
 								if (!Request.SenderName.empty())
@@ -635,7 +635,7 @@ namespace Edge
 								{
 									if (Packet::IsDone(Event))
 									{
-										Core::Parser Content;
+										Core::String Content;
 										for (auto& Item : Request.Messages)
 											Content.fAppend("%s\r\n", Item.c_str());
 
@@ -671,7 +671,7 @@ namespace Edge
 				{
 					Stage("smtp request delivery");
 
-					Core::Parser Content;
+					Core::String Content;
 					if (!Request.Attachments.empty())
 						Content.fAppend("\r\n--%s--\r\n", Boundary.c_str());
 
@@ -698,7 +698,7 @@ namespace Edge
 					Name = Name - 1;
 
 				std::string Hash = Core::Form("=?UTF-8?B?%s?=", Compute::Codec::Base64Encode((unsigned char*)Name, Id + 1).c_str()).R();
-				Core::Parser Content;
+				Core::String Content;
 				Content.fAppend("--%s\r\n", Boundary.c_str());
 				Content.fAppend("Content-Type: application/x-msdownload; name=\"%s\"\r\n", Hash.c_str());
 				Content.fAppend("Content-Transfer-Encoding: base64\r\n");

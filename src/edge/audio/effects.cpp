@@ -58,6 +58,7 @@ namespace Edge
 		{
 			void EffectContext::Create()
 			{
+				ED_TRACE("[audio] load effect functions");
 #if defined(ED_HAS_OPENAL) && defined(HAS_EFX)
 				LOAD_PROC(LPALGENFILTERS, alGenFilters);
 				LOAD_PROC(LPALDELETEFILTERS, alDeleteFilters);

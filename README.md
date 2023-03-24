@@ -63,7 +63,7 @@ There are two basic rules of memory ownership:
 + Physics simulator
 + Regular expressions (custom, lightweight)
 + Cryptography and hashes (MD5, SHA1, AES256 and 166 more)
-+ Encoding (HYBI10, Base64, Base64URL, URI)
++ Encoding (Base64, Base64URL, URI and other)
 + Templated math utils
 + Common utils for computations
 + Strong random functions
@@ -117,7 +117,8 @@ There are two basic rules of memory ownership:
 + Template abstraction over virtual machine
 + Support for real threads
 + Compiler with preprocessor from Compute module
-+ Async functions are managed outside script context (looks and feels fully synchronous)
++ Coroutines are supported throughout the script module
++ Generator keyword **co_await** can be used to await and unwrap any promise in non-blocking manner (syntax follows C++20 co_await)
 + Module system to add bindings as include files
 + Symbolic imports to import functions from C/C++ libraries directly to script
 + Pointer wrapper to work directly with raw pointers

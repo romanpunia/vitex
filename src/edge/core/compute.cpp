@@ -8721,10 +8721,86 @@ namespace Edge
 		{
 			Features = F;
 		}
-		void Preprocessor::Define(const std::string& Name, const std::string& Value)
+		bool Preprocessor::Define(const std::string& Expression)
 		{
-			ED_TRACE("[proc] on 0x%" PRIXPTR " define %s", (void*)this, Name.c_str());
-			Defines[Name] = Value;
+			if (Expression.empty())
+			{
+				ED_ERR("[proc] %s: empty macro definition is not allowed", ExpandedPath.c_str());
+				return false;
+			}
+
+			ED_TRACE("[proc] on 0x%" PRIXPTR " define %s", (void*)this, Expression.c_str());
+			std::string Name; size_t NameOffset = 0;
+			while (NameOffset < Expression.size())
+			{
+				char V = Expression[NameOffset++];
+				if ((!std::isalpha(V) && !std::isdigit(V) && V != '_'))
+				{
+					Name = Expression.substr(0, --NameOffset);
+					break;
+				}
+				else if (NameOffset >= Expression.size())
+				{
+					Name = Expression.substr(0, NameOffset);
+					break;
+				}
+			}
+
+			bool EmptyParenthesis = false;
+			if (Name.empty())
+			{
+				ED_ERR("[proc] %s: empty macro definition name is not allowed", ExpandedPath.c_str());
+				return false;
+			}
+
+			Definition Data; size_t TemplateBegin = NameOffset, TemplateEnd = NameOffset + 1;
+			if (TemplateBegin < Expression.size() && Expression[TemplateBegin] == '(')
+			{
+				int32_t Pose = 1;
+				while (TemplateEnd < Expression.size() && Pose > 0)
+				{
+					char V = Expression[TemplateEnd++];
+					if (V == '(')
+						++Pose;
+					else if (V == ')')
+						--Pose;
+				}
+
+				if (Pose < 0)
+				{
+					ED_ERR("[proc] %s: macro definition template parenthesis was closed twice at %s", ExpandedPath.c_str(), Expression.c_str());
+					return false;
+				}
+				else if (Pose > 1)
+				{
+					ED_ERR("[proc] %s: macro definition template parenthesis is not closed at %s", ExpandedPath.c_str(), Expression.c_str());
+					return false;
+				}
+
+				std::string Template = Core::String(Expression.substr(0, TemplateEnd)).Trim().R();
+				if (!ParseArguments(Template, Data.Tokens, false) || Data.Tokens.empty())
+				{
+					ED_ERR("[proc] %s: invalid macro definition at %s", ExpandedPath.c_str(), Template.c_str());
+					return false;
+				}
+
+				Data.Tokens.erase(Data.Tokens.begin());
+				EmptyParenthesis = Data.Tokens.empty();
+			}
+			
+			Core::String(&Name).Trim();
+			if (TemplateEnd < Expression.size())
+				Data.Expansion = Core::String(Expression.substr(TemplateEnd)).Trim().R();
+
+			if (EmptyParenthesis)
+				Name += "()";
+
+			size_t Size = Data.Expansion.size();
+			if (Size > 0)
+				ExpandDefinitions(Data.Expansion, Size);
+			
+			Defines[Name] = std::move(Data);
+			return true;
 		}
 		void Preprocessor::Undefine(const std::string& Name)
 		{
@@ -8747,7 +8823,7 @@ namespace Edge
 		{
 			auto It = Defines.find(Name);
 			if (It != Defines.end())
-				return It->second == Value;
+				return It->second.Expansion == Value;
 
 			return Value.empty();
 		}
@@ -8771,9 +8847,16 @@ namespace Edge
 				return ReturnResult(false, Nesting);
 			}
 
+			size_t Size = Data.size();
+			if (false && !ExpandDefinitions(Data, Size))
+			{
+				ExpandedPath = LastPath;
+				return ReturnResult(false, Nesting);
+			}
+
 			Core::String Buffer(&Data);
-			Buffer.Trim().Resize(strlen(Buffer.Get()));
 			ExpandedPath = LastPath;
+			Buffer.Trim();
 
 			return ReturnResult(true, Nesting);
 		}
@@ -8801,18 +8884,20 @@ namespace Edge
 		}
 		Preprocessor::Token Preprocessor::FindNextToken(std::string& Buffer, size_t& Offset)
 		{
+			bool HasMultilineComments = !Features.MultilineCommentBegin.empty() && !Features.MultilineCommentEnd.empty();
+			bool HasComments = !Features.CommentBegin.empty();
+			bool HasStringLiterals = !Features.StringLiterals.empty();
 			Token Result;
+
 			while (Offset < Buffer.size())
 			{
 				char V = Buffer[Offset];
 				if (V == '#' && Offset + 1 < Buffer.size() && !std::isspace(Buffer[Offset + 1]))
 				{
-					std::string Value;
 					Result.Start = Offset;
 					while (Offset < Buffer.size())
 					{
-						char N = Buffer[++Offset];
-						if (std::isspace(N))
+						if (std::isspace(Buffer[++Offset]))
 						{
 							Result.Name = Buffer.substr(Result.Start + 1, Offset - Result.Start - 1);
 							break;
@@ -8825,7 +8910,7 @@ namespace Edge
 						char N = Buffer[++Result.End];
 						if (N == '\r' || N == '\n')
 						{
-							Value = Buffer.substr(Offset, Result.End - Offset);
+							Result.Value = Buffer.substr(Offset, Result.End - Offset);
 							while (Result.End < Buffer.size())
 							{
 								N = Buffer[++Result.End];
@@ -8837,78 +8922,56 @@ namespace Edge
 					}
 
 					Core::String(&Result.Name).Trim();
-					Core::String(&Value).Trim();
-					if (Value.size() >= 2)
+					Core::String(&Result.Value).Trim();
+					if (Result.Value.size() >= 2)
 					{
-						size_t Where = Value.find('(');
-						if (Result.Name == "pragma" && Where != std::string::npos && Value.back() == ')')
-						{
-							Result.Values.emplace_back(std::move(Value.substr(0, Where)));
-							Value = Value.substr(Where + 1, Value.size() - Where - 2);
-							Where = 0;
-
-							size_t Last = 0;
-							while (Where < Value.size())
-							{
-								V = Value[Where];
-								if (V == '\"' || V == '\'')
-								{
-									while (Where < Value.size())
-									{
-										char N = Value[++Where];
-										if (N == V)
-											break;
-									}
-
-									if (Where + 1 >= Value.size())
-									{
-										++Where;
-										goto AddValue;
-									}
-								}
-								else if (V == ',' || Where + 1 >= Value.size())
-								{
-								AddValue:
-									std::string Subvalue = Core::String(Value.substr(Last, Where - Last)).Trim().R();
-									if (Subvalue.size() >= 2)
-									{
-										if (Subvalue.front() == '\"' && Subvalue.back() == '\"')
-											Result.Values.emplace_back(std::move(Subvalue.substr(1, Subvalue.size() - 2)));
-										else if (Subvalue.front() == '\'' && Subvalue.back() == '\'')
-											Result.Values.emplace_back(std::move(Subvalue.substr(1, Subvalue.size() - 2)));
-										else if (Subvalue.front() == '<' && Subvalue.back() == '>')
-											Result.Values.emplace_back(std::move(Subvalue.substr(1, Subvalue.size() - 2)));
-										else
-											Result.Values.emplace_back(std::move(Subvalue));
-									}
-									else
-										Result.Values.emplace_back(std::move(Subvalue));
-									Last = Where + 1;
-								}
-								++Where;
-							}
-						}
-						else if (Value.front() == '\"' && Value.back() == '\"')
-							Result.Values.emplace_back(std::move(Value.substr(1, Value.size() - 2)));
-						else if (Value.front() == '\'' && Value.back() == '\'')
-							Result.Values.emplace_back(std::move(Value.substr(1, Value.size() - 2)));
-						else if (Value.front() == '<' && Value.back() == '>')
-							Result.Values.emplace_back(std::move(Value.substr(1, Value.size() - 2)));
-						else
-							Result.Values.emplace_back(std::move(Value));
+						if (HasStringLiterals && Result.Value.front() == Result.Value.back() && Features.StringLiterals.find(Result.Value.front()) != std::string::npos)
+							Result.Value = Result.Value.substr(1, Result.Value.size() - 2);
+						else if (Result.Value.front() == '<' && Result.Value.back() == '>')
+							Result.Value = Result.Value.substr(1, Result.Value.size() - 2);
 					}
-					else
-						Result.Values.emplace_back(std::move(Value));
 
 					Result.Found = true;
 					break;
 				}
-				else if (V == '\"' || V == '\'')
+				else if (HasMultilineComments && V == Features.MultilineCommentBegin.front() && Offset + Features.MultilineCommentBegin.size() - 1 < Buffer.size())
 				{
+					if (memcmp(Buffer.c_str() + Offset, Features.MultilineCommentBegin.c_str(), sizeof(char) * Features.MultilineCommentBegin.size()) != 0)
+						goto ParseCommentsOrLiterals;
+
+					Offset += Features.MultilineCommentBegin.size();
+					Offset = Buffer.find(Features.MultilineCommentEnd, Offset);
+					if (Offset == std::string::npos)
+					{
+						Offset = Buffer.size();
+						break;
+					}
+					else
+						Offset += Features.MultilineCommentBegin.size();
+					continue;
+				}
+				
+			ParseCommentsOrLiterals:
+				if (HasComments && V == Features.CommentBegin.front() && Offset + Features.CommentBegin.size() - 1 < Buffer.size())
+				{
+					if (memcmp(Buffer.c_str() + Offset, Features.CommentBegin.c_str(), sizeof(char) * Features.CommentBegin.size()) != 0)
+						goto ParseLiterals;
+
 					while (Offset < Buffer.size())
 					{
 						char N = Buffer[++Offset];
-						if (N == V)
+						if (N == '\r' || N == '\n')
+							break;
+					}
+					continue;
+				}
+
+			ParseLiterals:
+				if (HasStringLiterals && Features.StringLiterals.find(V) != std::string::npos)
+				{
+					while (Offset < Buffer.size())
+					{
+						if (Buffer[++Offset] == V)
 							break;
 					}
 				}
@@ -8931,7 +8994,7 @@ namespace Edge
 		}
 		size_t Preprocessor::ReplaceToken(Token& Where, std::string& Buffer, const std::string& To)
 		{
-			Buffer.replace(Buffer.begin() + Where.Start, Buffer.begin() + Where.End, To);
+			Buffer.replace(Where.Start, Where.End - Where.Start, To);
 			return Where.Start;
 		}
 		std::vector<Preprocessor::Conditional> Preprocessor::PrepareConditions(std::string& Buffer, Token& Next, size_t& Offset, bool Top)
@@ -8952,7 +9015,7 @@ namespace Edge
 				Conditional Block;
 				Block.Type = Control->second.first;
 				Block.Chaining = Control->second.second != Controller::StartIf;
-				Block.Expression = Next.Values.front();
+				Block.Expression = Next.Value;
 				Block.TokenStart = Next.Start;
 				Block.TokenEnd = Next.End;
 				Block.TextStart = Next.End;
@@ -9069,12 +9132,9 @@ namespace Edge
 
 				size_t Count = Offset;
 				while (Offset < Value.size() && std::isspace(Value[++Offset]));
+
 				std::string Expression = Core::String(Value.substr(Offset)).Trim().R();
-				if (Expression.front() == '\"' && Expression.back() == '\"')
-					Expression = Expression.substr(1, Expression.size() - 2);
-				else if (Expression.front() == '\'' && Expression.back() == '\'')
-					Expression = Expression.substr(1, Expression.size() - 2);
-				else if (Expression.front() == '<' && Expression.back() == '>')
+				if (!Features.StringLiterals.empty() && Expression.front() == Expression.back() && Features.StringLiterals.find(Expression.front()) != std::string::npos)
 					Expression = Expression.substr(1, Expression.size() - 2);
 
 				return std::make_pair(Core::String(Value.substr(0, Count)).Trim().R(), Core::String(&Expression).Trim().R());
@@ -9086,7 +9146,7 @@ namespace Edge
 		{
 			auto Left = Defines.find(Expression.first);
 			auto Right = Defines.find(Expression.second);
-			return std::make_pair(Left == Defines.end() ? Expression.first : Left->second, Right == Defines.end() ? Expression.second : Right->second);
+			return std::make_pair(Left == Defines.end() ? Expression.first : Left->second.Expansion, Right == Defines.end() ? Expression.second : Right->second.Expansion);
 		}
 		int Preprocessor::SwitchCase(const Conditional& Value)
 		{
@@ -9162,6 +9222,138 @@ namespace Edge
 					return -1;
 			}
 		}
+		bool Preprocessor::ExpandDefinitions(std::string& Buffer, size_t& Size)
+		{
+			if (!Size)
+				return true;
+
+			std::vector<std::string> Tokens;
+			std::string Copy = Buffer.substr(0, Size);
+			Core::String Formatter(&Copy);
+			Buffer.erase(Buffer.begin(), Buffer.begin() + Size);
+
+			for (auto& Item : Defines)
+			{
+				if (Size < Item.first.size())
+					continue;
+
+				if (Item.second.Tokens.empty())
+				{
+					Formatter.Replace(Item.first, Item.second.Expansion);
+					continue;
+				}
+				else if (Size < Item.first.size() + 1)
+					continue;
+
+				bool Stringify = Item.second.Expansion.find('#') != std::string::npos;
+				size_t TemplateStart, Offset = 0; std::string Needle = Item.first + '(';
+				while ((TemplateStart = Copy.find(Needle, Offset)) != std::string::npos)
+				{
+					int32_t Pose = 1; size_t TemplateEnd = TemplateStart + Needle.size();
+					while (TemplateEnd < Copy.size() && Pose > 0)
+					{
+						char V = Copy[TemplateEnd++];
+						if (V == '(')
+							++Pose;
+						else if (V == ')')
+							--Pose;
+					}
+
+					if (Pose < 0)
+					{
+						ED_ERR("[proc] %s: macro definition expansion parenthesis was closed twice at %" PRIu64, ExpandedPath.c_str(), (uint64_t)TemplateStart);
+						return false;
+					}
+					else if (Pose > 1)
+					{
+						ED_ERR("[proc] %s: macro definition expansion parenthesis is not closed at %" PRIu64, ExpandedPath.c_str(), (uint64_t)TemplateStart);
+						return false;
+					}
+
+					std::string Template = Copy.substr(TemplateStart, TemplateEnd - TemplateStart);
+					Tokens.reserve(Item.second.Tokens.size() + 1);
+					Tokens.clear();
+
+					if (!ParseArguments(Template, Tokens, false) || Tokens.empty())
+					{
+						ED_ERR("[proc] %s: macro definition expansion cannot be parsed at %" PRIu64, ExpandedPath.c_str(), (uint64_t)TemplateStart);
+						return false;
+					}
+
+					if (Tokens.size() - 1 != Item.second.Tokens.size())
+					{
+						ED_ERR("[proc] %s: macro definition expansion uses incorrect number of arguments (%i out of %i) at %" PRIu64, ExpandedPath.c_str(), (int)Tokens.size() - 1, (int)Item.second.Tokens.size(), (uint64_t)TemplateStart);
+						return false;
+					}
+
+					Core::String Body(Item.second.Expansion);
+					for (size_t i = 0; i < Item.second.Tokens.size(); i++)
+					{
+						auto& From = Item.second.Tokens[i];
+						auto& To = Tokens[i + 1];
+						Body.Replace(From, To);
+						
+						if (Stringify)
+							Body.Replace("#" + From, '\"' + To + '\"');
+					}
+					Formatter.ReplacePart(TemplateStart, TemplateEnd, Body.R());
+					Offset = TemplateStart + Body.Size();
+				}
+			}
+
+			Size = Copy.size();
+			Buffer.insert(0, Copy);
+			return true;
+		}
+		bool Preprocessor::ParseArguments(const std::string& Value, std::vector<std::string>& Tokens, bool UnpackLiterals)
+		{
+			size_t Where = Value.find('(');
+			if (Where == std::string::npos || Value.back() != ')')
+				return false;
+
+			std::string Data = Value.substr(Where + 1, Value.size() - Where - 2);
+			Tokens.emplace_back(std::move(Value.substr(0, Where)));
+			Where = 0;
+
+			size_t Last = 0;
+			while (Where < Data.size())
+			{
+				char V = Data[Where];
+				if (V == '\"' || V == '\'')
+				{
+					while (Where < Data.size())
+					{
+						char N = Data[++Where];
+						if (N == V)
+							break;
+					}
+
+					if (Where + 1 >= Data.size())
+					{
+						++Where;
+						goto AddValue;
+					}
+				}
+				else if (V == ',' || Where + 1 >= Data.size())
+				{
+				AddValue:
+					std::string Subvalue = Core::String(Data.substr(Last, Where + 1 >= Data.size() ? std::string::npos : Where - Last)).Trim().R();
+					if (UnpackLiterals && Subvalue.size() >= 2)
+					{
+						if (!Features.StringLiterals.empty() && Subvalue.front() == Subvalue.back() && Features.StringLiterals.find(Subvalue.front()) != std::string::npos)
+							Tokens.emplace_back(std::move(Subvalue.substr(1, Subvalue.size() - 2)));
+						else
+							Tokens.emplace_back(std::move(Subvalue));
+					}
+					else
+						Tokens.emplace_back(std::move(Subvalue));
+					Last = Where + 1;
+				}
+				++Where;
+			}
+
+			return true;
+		}
 		bool Preprocessor::ConsumeTokens(const std::string& Path, std::string& Buffer)
 		{
 			size_t Offset = 0;
@@ -9170,18 +9362,16 @@ namespace Edge
 				auto Next = FindNextToken(Buffer, Offset);
 				if (!Next.Found)
 					break;
-				else if (Next.Values.empty())
-					return false;
 
 				if (Next.Name == "include")
 				{
 					if (!Features.Includes)
 					{
-						ED_ERR("[proc] %s: not allowed to include \"%s\"", Path.c_str(), Next.Values.front().c_str());
+						ED_ERR("[proc] %s: not allowed to include \"%s\"", Path.c_str(), Next.Value.c_str());
 						return false;
 					}
 
-					FileDesc.Path = Next.Values.front();
+					FileDesc.Path = Next.Value;
 					FileDesc.From = Path;
 
 					IncludeResult File = ResolveInclude(FileDesc);
@@ -9194,7 +9384,7 @@ namespace Edge
 					std::string Subbuffer;
 					if (!Include || !Include(this, File, &Subbuffer))
 					{
-						ED_ERR("[proc] %s: cannot find \"%s\"", Path.c_str(), Next.Values.front().c_str());
+						ED_ERR("[proc] %s: cannot find \"%s\"", Path.c_str(), Next.Value.c_str());
 						return false;
 					}
 
@@ -9207,10 +9397,17 @@ namespace Edge
 				}
 				else if (Next.Name == "pragma")
 				{
-					std::string Name = Next.Values.front();
-					Next.Values.erase(Next.Values.begin());
+					std::vector<std::string> Tokens;
+					if (!ParseArguments(Next.Value, Tokens, true) || Tokens.empty())
+					{
+						ED_ERR("[proc] %s: cannot parse pragma definition at %s", Path.c_str(), Next.Value.c_str());
+						return false;
+					}
 
-					if (Pragma && !Pragma(this, Name, Next.Values))
+					std::string Name = Tokens.front();
+					Tokens.erase(Tokens.begin());
+
+					if (Pragma && !Pragma(this, Name, Tokens))
 					{
 						ED_ERR("[proc] cannot process pragma \"%s\" directive", Name.c_str());
 						return false;
@@ -9237,16 +9434,19 @@ namespace Edge
 				}
 				else if (Next.Name == "define")
 				{
-					auto Values = GetExpressionParts(Next.Values.front());
-					Define(Values.first, Values.second.empty() ? "1" : Values.second);
+					Define(Next.Value);
 					Offset = ReplaceToken(Next, Buffer, "");
 					continue;
 				}
 				else if (Next.Name == "undef")
 				{
-					Undefine(Next.Values.front());
+					Undefine(Next.Value);
 					Offset = ReplaceToken(Next, Buffer, "");
-					continue;
+					if (ExpandDefinitions(Buffer, Offset))
+						continue;
+
+					ED_ERR("[proc] %s: #%s cannot expand macro definitions", Path.c_str(), Next.Name.c_str());
+					return false;
 				}
 				else if (Next.Name.size() >= 2 && Next.Name[0] == 'i' && Next.Name[1] == 'f' && ControlFlow.find(Next.Name) != ControlFlow.end())
 				{
@@ -9269,14 +9469,6 @@ namespace Edge
 			}
 
 			return true;
-		}
-		std::string Preprocessor::GetDefine(const std::string& Name) const
-		{
-			auto It = Defines.find(Name);
-			if (It != Defines.end())
-				return It->second;
-
-			return std::string();
 		}
 		const std::string& Preprocessor::GetCurrentFilePath() const
 		{

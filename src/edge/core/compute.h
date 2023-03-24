@@ -1664,6 +1664,10 @@ namespace Edge
 		public:
 			struct Desc
 			{
+				std::string MultilineCommentBegin = "/*";
+				std::string MultilineCommentEnd = "*/";
+				std::string CommentBegin = "//";
+				std::string StringLiterals = "\"'`";
 				bool Pragmas = true;
 				bool Includes = true;
 				bool Defines = true;
@@ -1698,8 +1702,8 @@ namespace Edge
 
 			struct Token
 			{
-				std::vector<std::string> Values;
 				std::string Name;
+				std::string Value;
 				size_t Start = 0;
 				size_t End = 0;
 				bool Found = false;
@@ -1717,9 +1721,15 @@ namespace Edge
 				size_t TextEnd = 0;
 			};
 
+			struct Definition
+			{
+				std::vector<std::string> Tokens;
+				std::string Expansion;
+			};
+
 		private:
 			std::unordered_map<std::string, std::pair<Condition, Controller>> ControlFlow;
-			std::unordered_map<std::string, std::string> Defines;
+			std::unordered_map<std::string, Definition> Defines;
 			std::unordered_set<std::string> Sets;
 			std::string ExpandedPath;
 			ProcIncludeCallback Include;
@@ -1735,13 +1745,12 @@ namespace Edge
 			void SetIncludeCallback(const ProcIncludeCallback& Callback);
 			void SetPragmaCallback(const ProcPragmaCallback& Callback);
 			void SetFeatures(const Desc& Value);
-			void Define(const std::string& Name, const std::string& Value = "1");
+			bool Define(const std::string& Expression);
 			void Undefine(const std::string& Name);
 			void Clear();
 			bool IsDefined(const std::string& Name) const;
 			bool IsDefined(const std::string& Name, const std::string& Value) const;
 			bool Process(const std::string& Path, std::string& Buffer);
-			std::string GetDefine(const std::string& Name) const;
 			const std::string& GetCurrentFilePath() const;
 
 		private:
@@ -1753,6 +1762,8 @@ namespace Edge
 			std::pair<std::string, std::string> GetExpressionParts(const std::string& Value);
 			std::pair<std::string, std::string> UnpackExpression(const std::pair<std::string, std::string>& Expression);
 			int SwitchCase(const Conditional& Value);
+			bool ExpandDefinitions(std::string& Buffer, size_t& Size);
+			bool ParseArguments(const std::string& Value, std::vector<std::string>& Tokens, bool UnpackLiterals);
 			bool ConsumeTokens(const std::string& Path, std::string& Buffer);
 			bool ReturnResult(bool Result, bool WasNested);
 			bool HasResult(const std::string& Path);

@@ -1122,7 +1122,7 @@ namespace Edge
 			{
 				GraphicsDevice* Base = (GraphicsDevice*)Context;
 				if (Base != nullptr && Base->GetBackend() != RenderBackend::None)
-					Base->AddSection(Name, std::string((const char*)Buffer, Size));
+					Base->AddSection(Name, std::string((const char*)Buffer, Size - 1));
 			});
 #else
 			ED_WARN("[graphics] default shader resources were not compiled");

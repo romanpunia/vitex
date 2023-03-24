@@ -69,7 +69,7 @@ There are two basic rules of memory ownership:
 + Strong random functions
 + Collision detection
 + Mesh evaluation
-+ File preprocessor (include, pragma, define, ifdef/ifndef/else/endif)
++ File preprocessor (include, pragma, macros, stringify, define, undef, ifdef/ifeq/ifgt/ifgte/iflt/iflte/ifndef/ifneq/ifngt/ifngte/ifnlt/ifnlte/elif*/else/endif)
 + Transform hierarchy system
 + SIMD optimisations included
 + Cosmos to index arbitrary amount of AABBs (balanced binary-tree index, mostly constant AABB to \<privitive\> intersection queries)

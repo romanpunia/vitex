@@ -9881,10 +9881,13 @@ namespace Edge
 				VIncludeResult.SetConstructor<Compute::IncludeResult>("void f()");
 
 				TypeClass VDesc = Engine->SetPod<Compute::Preprocessor::Desc>("preprocessor_desc");
-				VDesc.SetProperty<Compute::Preprocessor::Desc>("bool Pragmas", &Compute::Preprocessor::Desc::Pragmas);
-				VDesc.SetProperty<Compute::Preprocessor::Desc>("bool Includes", &Compute::Preprocessor::Desc::Includes);
-				VDesc.SetProperty<Compute::Preprocessor::Desc>("bool Defines", &Compute::Preprocessor::Desc::Defines);
-				VDesc.SetProperty<Compute::Preprocessor::Desc>("bool Conditions", &Compute::Preprocessor::Desc::Conditions);
+				VDesc.SetProperty<Compute::Preprocessor::Desc>("string multiline_comment_begin", &Compute::Preprocessor::Desc::MultilineCommentBegin);
+				VDesc.SetProperty<Compute::Preprocessor::Desc>("string multiline_comment_end", &Compute::Preprocessor::Desc::MultilineCommentEnd);
+				VDesc.SetProperty<Compute::Preprocessor::Desc>("string comment_begin", &Compute::Preprocessor::Desc::CommentBegin);
+				VDesc.SetProperty<Compute::Preprocessor::Desc>("bool pragmas", &Compute::Preprocessor::Desc::Pragmas);
+				VDesc.SetProperty<Compute::Preprocessor::Desc>("bool includes", &Compute::Preprocessor::Desc::Includes);
+				VDesc.SetProperty<Compute::Preprocessor::Desc>("bool defines", &Compute::Preprocessor::Desc::Defines);
+				VDesc.SetProperty<Compute::Preprocessor::Desc>("bool conditions", &Compute::Preprocessor::Desc::Conditions);
 				VDesc.SetConstructor<Compute::Preprocessor::Desc>("void f()");
 
 				RefClass VPreprocessor = Engine->SetClass<Compute::Preprocessor>("preprocessor", false);
@@ -9893,7 +9896,7 @@ namespace Edge
 				VPreprocessor.SetConstructor<Compute::Preprocessor>("preprocessor@ f(uptr@)");
 				VPreprocessor.SetMethod("void set_include_options(const include_desc &in)", &Compute::Preprocessor::SetIncludeOptions);
 				VPreprocessor.SetMethod("void set_features(const preprocessor_desc &in)", &Compute::Preprocessor::SetFeatures);
-				VPreprocessor.SetMethod("void define(const string &in, const string &in = \"1\")", &Compute::Preprocessor::Define);
+				VPreprocessor.SetMethod("void define(const string &in)", &Compute::Preprocessor::Define);
 				VPreprocessor.SetMethod("void undefine(const string &in)", &Compute::Preprocessor::Undefine);
 				VPreprocessor.SetMethod("void clear()", &Compute::Preprocessor::Clear);
 				VPreprocessor.SetMethod("bool process(const string &in, string &out)", &Compute::Preprocessor::Process);

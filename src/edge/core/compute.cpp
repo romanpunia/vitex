@@ -6987,14 +6987,22 @@ namespace Edge
 		const char* Crypto::GetDigestName(Digest Type)
 		{
 			ED_ASSERT(Type != nullptr, "", "digest should be set");
-			const char* Name = EVP_MD_get0_name((EVP_MD*)Type);
-			return Name ? Name : "";
+#ifdef EVP_MD_name
+			const char* Name = EVP_MD_name((EVP_MD*)Type);
+			return Name ? Name : "0x?";
+#else
+			return "0x?";
+#endif
 		}
 		const char* Crypto::GetCipherName(Cipher Type)
 		{
 			ED_ASSERT(Type != nullptr, "", "cipher should be set");
-			const char* Name = EVP_CIPHER_get0_name((EVP_CIPHER*)Type);
-			return Name ? Name : "";
+#ifdef EVP_CIPHER_name
+			const char* Name = EVP_CIPHER_name((EVP_CIPHER*)Type);
+			return Name ? Name : "0x?";
+#else
+			return "0x?";
+#endif
 		}
 		std::string Crypto::RandomBytes(size_t Length)
 		{

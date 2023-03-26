@@ -334,7 +334,7 @@ namespace Edge
 				if (Delta <= Threshold)
 					return;
 
-				std::string BackTrace = OS::GetMeasureTrace();
+				std::string BackTrace = OS::Timing::GetMeasureTrace();
 				ED_WARN("[stall] operation took %" PRIu64 " ms (%" PRIu64 " us), back trace %s", Delta / 1000, Delta, BackTrace.c_str());
 			}
 		};
@@ -5364,183 +5364,183 @@ namespace Edge
 			return Result;
 		}
 
-		void Mem::SetAlloc(const AllocCallback& Callback)
+		Allocator::Context::Context() : Source("?.cpp"), Function("?"), TypeName("void"), Line(0)
 		{
-			OnAlloc = Callback;
 		}
-		void Mem::SetRealloc(const ReallocCallback& Callback)
+		Allocator::Context::Context(const char* NewSource, const char* NewFunction, const char* NewTypeName, int NewLine) : Source(NewSource ? NewSource : "?.cpp"), Function(NewFunction ? NewFunction : "?"), TypeName(NewTypeName ? NewTypeName : "void"), Line(NewLine >= 0 ? NewLine : 0)
 		{
-			OnRealloc = Callback;
 		}
-		void Mem::SetFree(const FreeCallback& Callback)
+
+		DebugAllocator::~DebugAllocator()
 		{
-			OnFree = Callback;
+			Dump(nullptr);
 		}
-		void Mem::SetTracing(bool TraceAllocations)
+		void* DebugAllocator::Allocate(Context&& Origin, size_t Size) noexcept
 		{
-			Trace = TraceAllocations;
+			void* Address = malloc(Size);
+			ED_ASSERT(Address != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
+			if (Tracing)
+				ED_TRACE("[mem] allocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, Address, Origin.TypeName);
+
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			Blocks[Address] = { Origin.TypeName, std::move(Origin), time(nullptr), Size, true };
+			return Address;
 		}
-		void Mem::Watch(void* Ptr, int Line, const char* Source, const char* Function, const char* TypeName)
+		void* DebugAllocator::Reallocate(Context&& Origin, void* Address, size_t Size) noexcept
 		{
-#ifndef NDEBUG
-			ED_TRACE("[mem] watch address 0x%" PRIXPTR " as %s", Ptr, TypeName ? TypeName : "void");
-			Queue.lock();
-			auto It = Buffers.find(Ptr);
-			ED_ASSERT_V(It == Buffers.end() || !It->second.Owns, "cannot watch memory that is already being tracked");
-			Buffers[Ptr] = { TypeName ? TypeName : "void", Function ? Function : __func__, Source ? Source : __FILE__, Line > 0 ? Line : __LINE__, time(nullptr), sizeof(void*), false };
-			Queue.unlock();
-#endif
-		}
-		void Mem::Unwatch(void* Ptr)
-		{
-#ifndef NDEBUG
-			ED_TRACE("[mem] unwatch address 0x%" PRIXPTR, Ptr);
-			Queue.lock();
-			auto It = Buffers.find(Ptr);
-			if (It != Buffers.end())
+			void* NewAddress = realloc(Address, Size);
+			ED_ASSERT(NewAddress != nullptr, nullptr, "not enough memory to realloc %" PRIu64 " bytes", (uint64_t)Size);
+			if (Tracing)
+				ED_TRACE("[mem] reallocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, NewAddress, Origin.TypeName);
+
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			Blocks[NewAddress] = { Origin.TypeName, std::move(Origin), time(nullptr), Size, true };
+			if (NewAddress != Address)
 			{
-				ED_ASSERT_V(!It->second.Owns, "cannot unwatch memory that was allocated by this allocator");
-				Buffers.erase(It);
+				auto It = Blocks.find(Address);
+				if (It != Blocks.end())
+					Blocks.erase(It);
 			}
-			Queue.unlock();
-#endif
+
+			return NewAddress;
 		}
-		void Mem::Dump(void* Ptr)
+		void DebugAllocator::Free(void* Address) noexcept
 		{
-#ifndef NDEBUG
-#if ED_DLEVEL >= 4
-			ED_TRACE("[mem] dump internal memory state on 0x%" PRIXPTR, Ptr);
-			Queue.lock();
-			if (Ptr != nullptr)
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			auto It = Blocks.find(Address);
+			ED_ASSERT_V(It != Blocks.end() && It->second.Active, "cannot free memory that was not allocated by this allocator at 0x%" PRIXPTR, Address);		
+			if (Tracing)
+				ED_TRACE("[mem] free %" PRIu64 " bytes at 0x%" PRIXPTR, (uint64_t)It->second.Size, Address);
+			Blocks.erase(It);
+			free(Address);
+		}
+		void DebugAllocator::Watch(Context&& Origin, void* Address) noexcept
+		{
+			if (Tracing)
+				ED_TRACE("[mem] watch address 0x%" PRIXPTR " as %s", Address, Origin.TypeName);
+
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			auto It = Blocks.find(Address);
+
+			ED_ASSERT_V(It == Blocks.end() || !It->second.Active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, Address);
+			Blocks[Address] = { Origin.TypeName, std::move(Origin), time(nullptr), sizeof(void*), false };
+		}
+		void DebugAllocator::Unwatch(void* Address) noexcept
+		{
+			if (Tracing)
+				ED_TRACE("[mem] unwatch address 0x%" PRIXPTR, Address);
+			
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			auto It = Blocks.find(Address);
+
+			ED_ASSERT_V(It != Blocks.end() && !It->second.Active, "address at 0x%" PRIXPTR " cannot be cleared from tracking because it was not allocated by this allocator", Address);
+			Blocks.erase(It);
+		}
+		bool DebugAllocator::IsValid(void* Address) noexcept
+		{
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			auto It = Blocks.find(Address);
+
+			ED_ASSERT(It != Blocks.end(), false, "address at 0x%" PRIXPTR " cannot be used as it was already freed");
+			return It != Blocks.end();
+		}
+		bool DebugAllocator::Dump(void* Address)
+		{
+			ED_TRACE("[mem] dump internal memory state on 0x%" PRIXPTR, Address);
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			if (Address != nullptr)
 			{
 				bool IsLogActive = OS::IsLogActive();
 				if (!IsLogActive)
 					OS::SetLogActive(true);
 
-				auto It = Buffers.find(Ptr);
-				if (It != Buffers.end())
+				auto It = Blocks.find(Address);
+				if (It != Blocks.end())
 				{
 					char Date[64];
 					GetDateTime(It->second.Time, Date, sizeof(Date));
-					OS::Log(4, It->second.Line, It->second.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", It->first, Date, It->second.TypeName.c_str(), (uint64_t)It->second.Size, It->second.Function);
+					OS::Log(4, It->second.Origin.Line, It->second.Origin.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", It->first, Date, It->second.TypeName.c_str(), (uint64_t)It->second.Size, It->second.Origin.Function);
 				}
+
 				OS::SetLogActive(IsLogActive);
+				return It != Blocks.end();
 			}
-			else if (!Buffers.empty())
+			else if (!Blocks.empty())
 			{
 				bool IsLogActive = OS::IsLogActive();
 				if (!IsLogActive)
 					OS::SetLogActive(true);
 
 				size_t TotalMemory = 0;
-				for (auto& Item : Buffers)
+				for (auto& Item : Blocks)
 					TotalMemory += Item.second.Size;
 
-				ED_DEBUG("[mem] %" PRIu64 " addresses are still used (%" PRIu64 " bytes)", (uint64_t)Buffers.size(), (uint64_t)TotalMemory);
-				for (auto& Item : Buffers)
+				ED_DEBUG("[mem] %" PRIu64 " addresses are still used (%" PRIu64 " bytes)", (uint64_t)Blocks.size(), (uint64_t)TotalMemory);
+				for (auto& Item : Blocks)
 				{
 					char Date[64];
 					GetDateTime(Item.second.Time, Date, sizeof(Date));
-					OS::Log(4, Item.second.Line, Item.second.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", Item.first, Date, Item.second.TypeName.c_str(), (uint64_t)Item.second.Size, Item.second.Function);
+					OS::Log(4, Item.second.Origin.Line, Item.second.Origin.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", Item.first, Date, Item.second.TypeName.c_str(), (uint64_t)Item.second.Size, Item.second.Origin.Function);
 				}
+
 				OS::SetLogActive(IsLogActive);
+				return true;
 			}
-			Queue.unlock();
-#endif
-#endif
-		}
-		void Mem::Free(void* Ptr) noexcept
-		{
-			if (!Ptr)
-				return;
-#ifndef NDEBUG
-			Queue.lock();
-			auto It = Buffers.find(Ptr);
-			ED_ASSERT_V(It != Buffers.end() && It->second.Owns, "cannot free memory that was not allocated by this allocator");
-			if (Trace)
-				ED_TRACE("[mem] free %" PRIu64 " bytes at 0x%" PRIXPTR, (uint64_t)It->second.Size, Ptr);
-			Buffers.erase(It);
-			Queue.unlock();
-#else
-			if (Trace)
-				ED_TRACE("[mem] free address at 0x%" PRIXPTR, Ptr);
-#endif
-			if (OnFree)
-				OnFree(Ptr);
-			else
-				free(Ptr);
-		}
-		void* Mem::Malloc(size_t Size) noexcept
-		{
-			return QueryMalloc(Size);
-		}
-		void* Mem::Realloc(void* Ptr, size_t Size) noexcept
-		{
-			return QueryRealloc(Ptr, Size);
-		}
-#ifndef NDEBUG
-		void* Mem::QueryMalloc(size_t Size, int Line, const char* Source, const char* Function, const char* TypeName) noexcept
-		{
-			void* Result = (OnAlloc ? OnAlloc(Size) : malloc(Size));
-			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
-			if (Trace)
-				ED_TRACE("[mem] allocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, Result, TypeName ? TypeName : "void");
 
-			Queue.lock();
-			Buffers[Result] = { TypeName ? TypeName : "void", Function ? Function : __func__, Source ? Source : __FILE__, Line > 0 ? Line : __LINE__, time(nullptr), Size, true };
-			Queue.unlock();
-
-			return Result;
+			return false;
 		}
-		void* Mem::QueryRealloc(void* Ptr, size_t Size, int Line, const char* Source, const char* Function, const char* TypeName) noexcept
+		bool DebugAllocator::FindBlock(void* Address, Block* Output)
 		{
-			if (!Ptr)
-				return Malloc(Size);
+			ED_ASSERT(Address != nullptr, false, "address should not be null");
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			auto It = Blocks.find(Address);
+			if (It == Blocks.end())
+				return false;
 
-			void* Result = (OnRealloc ? OnRealloc(Ptr, Size) : realloc(Ptr, Size));
-			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to realloc %" PRIu64 " bytes", (uint64_t)Size);
-			if (Trace)
-				ED_TRACE("[mem] reallocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, Result, TypeName ? TypeName : "void");
+			if (Output != nullptr)
+				*Output = It->second;
 
-			Queue.lock();
-			Buffers[Result] = { TypeName ? TypeName : "void", Function ? Function : __func__, Source ? Source : __FILE__, Line > 0 ? Line : __LINE__, time(nullptr), Size, true };
-			if (Result != Ptr)
-			{
-				auto It = Buffers.find(Ptr);
-				if (It != Buffers.end())
-					Buffers.erase(It);
-			}
-			Queue.unlock();
-
-			return Result;
+			return true;
 		}
-		std::unordered_map<void*, Mem::MemBuffer> Mem::Buffers;
-		std::recursive_mutex Mem::Queue;
-#else
-		void* Mem::QueryMalloc(size_t Size) noexcept
+		const std::unordered_map<void*, DebugAllocator::Block>& DebugAllocator::GetBlocks() const
 		{
-			void* Result = (OnAlloc ? OnAlloc(Size) : malloc(Size));
-			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
-			if (Trace)
-				ED_TRACE("[mem] allocate %" PRIu64 " bytes at %" PRIXPTR, (uint64_t)Size, Result);
-			return Result;
+			return Blocks;
 		}
-		void* Mem::QueryRealloc(void* Ptr, size_t Size) noexcept
-		{
-			if (!Ptr)
-				return Malloc(Size);
 
-			void* Result = (OnRealloc ? OnRealloc(Ptr, Size) : realloc(Ptr, Size));
-			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to realloc %" PRIu64 " bytes", (uint64_t)Size);
-			if (Trace)
-				ED_TRACE("[mem] reallocate %" PRIu64 " bytes at %" PRIXPTR, (uint64_t)Size, Result);
-			return Result;
+		void* DefaultAllocator::Allocate(Context&& Origin, size_t Size) noexcept
+		{
+			void* Address = malloc(Size);
+			ED_ASSERT(Address != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
+			if (Tracing)
+				ED_TRACE("[mem] allocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, Address, Origin.TypeName);
+			
+			return Address;
 		}
-#endif
-		AllocCallback Mem::OnAlloc;
-		ReallocCallback Mem::OnRealloc;
-		FreeCallback Mem::OnFree;
-		bool Mem::Trace = false;
+		void* DefaultAllocator::Reallocate(Context&& Origin, void* Address, size_t Size) noexcept
+		{
+			void* NewAddress = realloc(Address, Size);
+			ED_ASSERT(NewAddress != nullptr, nullptr, "not enough memory to realloc %" PRIu64 " bytes", (uint64_t)Size);
+			if (Tracing)
+				ED_TRACE("[mem] reallocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, NewAddress, Origin.TypeName);
+
+			return NewAddress;
+		}
+		void DefaultAllocator::Free(void* Address) noexcept
+		{
+			if (Tracing)
+				ED_TRACE("[mem] free at 0x%" PRIXPTR, Address);
+			free(Address);
+		}
+		void DefaultAllocator::Watch(Context&& Origin, void* Address) noexcept
+		{
+		}
+		void DefaultAllocator::Unwatch(void* Address) noexcept
+		{
+		}
+		bool DefaultAllocator::IsValid(void* Address) noexcept
+		{
+			return true;
+		}
 
 		bool Composer::Clear()
 		{
@@ -8258,35 +8258,6 @@ namespace Edge
 		static thread_local std::stack<Measurement> MeasuringTree;
 		static thread_local bool MeasuringDisabled = false;
 #endif
-		OS::Tick::Tick(bool Active) noexcept : IsCounting(Active)
-		{
-		}
-		OS::Tick::Tick(Tick&& Other) noexcept : IsCounting(Other.IsCounting)
-		{
-			Other.IsCounting = false;
-		}
-		OS::Tick::~Tick() noexcept
-		{
-#ifndef NDEBUG
-			if (MeasuringDisabled || !IsCounting)
-				return;
-
-			ED_ASSERT_V(!MeasuringTree.empty(), "debug frame should be set");
-			auto& Next = MeasuringTree.top();
-			Next.NotifyOfOverConsumption();
-			MeasuringTree.pop();
-#endif
-		}
-		OS::Tick& OS::Tick::operator =(Tick&& Other) noexcept
-		{
-			if (&Other == this)
-				return *this;
-
-			IsCounting = Other.IsCounting;
-			Other.IsCounting = false;
-			return *this;
-		}
-
 		int OS::Error::Get()
 		{
 #ifdef ED_MICROSOFT
@@ -8376,15 +8347,42 @@ namespace Edge
 			return Temp;
 		}
 
-		static thread_local bool IgnoreLogging = false;
-		OS::Tick OS::Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS)
+		OS::Timing::Tick::Tick(bool Active) noexcept : IsCounting(Active)
+		{
+		}
+		OS::Timing::Tick::Tick(Tick&& Other) noexcept : IsCounting(Other.IsCounting)
+		{
+			Other.IsCounting = false;
+		}
+		OS::Timing::Tick::~Tick() noexcept
 		{
 #ifndef NDEBUG
-			ED_ASSERT(File != nullptr, OS::Tick(false), "file should be set");
-			ED_ASSERT(Function != nullptr, OS::Tick(false), "function should be set");
-			ED_ASSERT(ThresholdMS > 0 || ThresholdMS == ED_TIMING_INFINITE, OS::Tick(false), "threshold time should be greater than Zero");
+			if (MeasuringDisabled || !IsCounting)
+				return;
+
+			ED_ASSERT_V(!MeasuringTree.empty(), "debug frame should be set");
+			auto& Next = MeasuringTree.top();
+			Next.NotifyOfOverConsumption();
+			MeasuringTree.pop();
+#endif
+		}
+		OS::Timing::Tick& OS::Timing::Tick::operator =(Tick&& Other) noexcept
+		{
+			if (&Other == this)
+				return *this;
+
+			IsCounting = Other.IsCounting;
+			Other.IsCounting = false;
+			return *this;
+		}
+		OS::Timing::Tick OS::Timing::Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS)
+		{
+#ifndef NDEBUG
+			ED_ASSERT(File != nullptr, OS::Timing::Tick(false), "file should be set");
+			ED_ASSERT(Function != nullptr, OS::Timing::Tick(false), "function should be set");
+			ED_ASSERT(ThresholdMS > 0 || ThresholdMS == ED_TIMING_INFINITE, OS::Timing::Tick(false), "threshold time should be greater than Zero");
 			if (MeasuringDisabled)
-				return OS::Tick(false);
+				return OS::Timing::Tick(false);
 
 			Measurement Next;
 			Next.File = File;
@@ -8394,12 +8392,12 @@ namespace Edge
 			Next.Line = Line;
 
 			MeasuringTree.emplace(std::move(Next));
-			return OS::Tick(true);
+			return OS::Timing::Tick(true);
 #else
-			return OS::Tick(false);
+			return OS::Timing::Tick(false);
 #endif
 		}
-		void OS::MeasureLoop()
+		void OS::Timing::MeasureLoop()
 		{
 #ifndef NDEBUG
 			if (!MeasuringDisabled)
@@ -8409,6 +8407,75 @@ namespace Edge
 				Next.NotifyOfOverConsumption();
 			}
 #endif
+		}
+		std::string OS::Timing::GetMeasureTrace()
+		{
+#ifndef NDEBUG
+			auto Source = MeasuringTree;
+			std::stringstream Stream;
+			Stream << "in thread " << std::this_thread::get_id() << ":\n";
+
+			size_t Size = Source.size();
+			for (size_t TraceIdx = Source.size(); TraceIdx > 0; --TraceIdx)
+			{
+				auto& Next = Source.top();
+				Stream << "\t#" << (Size - TraceIdx) + 1 << " source \"" << Next.File << "\", line " << Next.Line << ", in " << Next.Function;
+				if (Next.Id != nullptr)
+					Stream << " (0x" << Next.Id;
+				else
+					Stream << " (nullptr";
+				Stream << "), at most " << Next.Threshold / 1000 << " ms\n";
+				Source.pop();
+			}
+
+			std::string Out(Stream.str());
+			return Out.substr(0, Out.size() - 1);
+#else
+			return std::string();
+#endif
+		}
+
+		static thread_local bool IgnoreLogging = false;
+		void* OS::Malloc(size_t Size) noexcept
+		{
+			return MallocQuery(Size, Allocator::Context());
+		}
+		void* OS::MallocQuery(size_t Size, Allocator::Context&& Origin) noexcept
+		{
+			ED_ASSERT(Memory != nullptr, nullptr, "allocator should be set");
+			ED_ASSERT(Size > 0, nullptr, "cannot allocate zero bytes");
+			return Memory->Allocate(std::move(Origin), Size);
+		}
+		void* OS::Realloc(void* Address, size_t Size) noexcept
+		{
+			return ReallocQuery(Address, Size, Allocator::Context());
+		}
+		void* OS::ReallocQuery(void* Address, size_t Size, Allocator::Context&& Origin) noexcept
+		{
+			ED_ASSERT(Memory != nullptr, nullptr, "allocator should be set");
+			ED_ASSERT(Size > 0, nullptr, "cannot allocate zero bytes");
+			if (!Address)
+				return Memory->Allocate(std::move(Origin), Size);
+
+			return Memory->Reallocate(std::move(Origin), Address, Size);
+		}
+		void OS::Free(void* Address) noexcept
+		{
+			ED_ASSERT_V(Memory != nullptr, "allocator should be set");
+			if (Address != nullptr)
+				Memory->Free(Address);
+		}
+		void OS::Watch(void* Address, Allocator::Context&& Origin) noexcept
+		{
+			ED_ASSERT_V(Memory != nullptr, "allocator should be set");
+			ED_ASSERT_V(Address != nullptr, "address should be set");
+			Memory->Watch(std::move(Origin), Address);
+		}
+		void OS::Unwatch(void* Address) noexcept
+		{
+			ED_ASSERT_V(Memory != nullptr, "allocator should be set");
+			ED_ASSERT_V(Address != nullptr, "address should be set");
+			Memory->Unwatch(Address);
 		}
 		void OS::Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
 		{
@@ -8735,6 +8802,11 @@ namespace Edge
 		{
 			OS::Process::Interrupt();
 		}
+		void OS::SetAllocator(Allocator* NewAllocator)
+		{
+			delete Memory;
+			Memory = NewAllocator;
+		}
 		void OS::SetLogCallback(const std::function<void(Message&)>& _Callback)
 		{
 			Callback = _Callback;
@@ -8751,6 +8823,11 @@ namespace Edge
         {
             Pretty = Enabled;
         }
+		void OS::SetMemoryTracing(bool Enabled)
+		{
+			ED_ASSERT_V(Memory != nullptr, "allocator should be set");
+			Memory->Tracing = Enabled;
+		}
 		bool OS::IsLogActive()
 		{
 			return Active;
@@ -8763,31 +8840,15 @@ namespace Edge
 		{
 			return Pretty;
 		}
-		std::string OS::GetMeasureTrace()
+		bool OS::IsValidAddress(void* Address)
 		{
-#ifndef NDEBUG
-			auto Source = MeasuringTree;
-			std::stringstream Stream;
-			Stream << "in thread " << std::this_thread::get_id() << ":\n";
-
-			size_t Size = Source.size();
-			for (size_t TraceIdx = Source.size(); TraceIdx > 0; --TraceIdx)
-			{
-				auto& Next = Source.top();
-				Stream << "\t#" << (Size - TraceIdx) + 1 << " source \"" << Next.File << "\", line " << Next.Line << ", in " << Next.Function;
-				if (Next.Id != nullptr)
-					Stream << " (0x" << Next.Id;
-				else
-					Stream << " (nullptr";
-				Stream << "), at most " << Next.Threshold / 1000 << " ms\n";
-				Source.pop();
-			}
-
-			std::string Out(Stream.str());
-			return Out.substr(0, Out.size() - 1);
-#else
-			return std::string();
-#endif
+			ED_ASSERT(Memory != nullptr, false, "allocator should be set");
+			ED_ASSERT(Address != nullptr, false, "address should be set");
+			return Memory->IsValid(Address);
+		}
+		Allocator* OS::GetAllocator()
+		{
+			return Memory;
 		}
 		std::string OS::GetStackTrace(size_t Skips, size_t MaxFrames)
 		{
@@ -8799,6 +8860,7 @@ namespace Edge
 		}
 		std::function<void(OS::Message&)> OS::Callback;
 		std::mutex OS::Buffer;
+		Allocator* OS::Memory = nullptr;
 		bool OS::Active = false;
 		bool OS::Deferred = false;
         bool OS::Pretty = true;

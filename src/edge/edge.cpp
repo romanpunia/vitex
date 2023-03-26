@@ -333,6 +333,11 @@ namespace Edge
 			return true;
 
 		Modes = Modules;
+#ifndef NDEBUG
+		Core::OS::SetAllocator(new Core::DebugAllocator());
+#else
+		Core::OS::SetAllocator(new Core::DefaultAllocator());
+#endif
 		if (Modes & (uint64_t)Init::Core)
 		{
 			if (Modes & (uint64_t)Init::Debug)
@@ -501,7 +506,7 @@ namespace Edge
 		if (Modes & (uint64_t)Init::Audio)
 			Audio::AudioContext::Create();
 
-		Scripting::VirtualMachine::SetMemoryFunctions(Core::Mem::Malloc, Core::Mem::Free);
+		Scripting::VirtualMachine::SetMemoryFunctions(Core::OS::Malloc, Core::OS::Free);
 #ifdef ED_HAS_OPENSSL
 		if (Modes & (uint64_t)Init::SSL)
 		{
@@ -599,7 +604,7 @@ namespace Edge
 #ifdef ED_HAS_ASSIMP
 		Assimp::DefaultLogger::kill();
 #endif
-		Core::Mem::Dump();
+		Core::OS::SetAllocator(nullptr);
 		return true;
 	}
 }

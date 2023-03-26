@@ -137,8 +137,8 @@ typedef socklen_t socket_size_t;
 #define ED_WATCH(Ptr, Label) ((void)0)
 #define ED_WATCH_AT(Ptr, Function, Label) ((void)0)
 #define ED_UNWATCH(Ptr) ((void)0)
-#define ED_MALLOC(Type, Size) (Type*)Edge::Core::Mem::QueryMalloc(Size)
-#define ED_REALLOC(Ptr, Type, Size) (Type*)Edge::Core::Mem::QueryRealloc(Ptr, Size)
+#define ED_MALLOC(Type, Size) (Type*)Edge::Core::OS::Malloc(Size)
+#define ED_REALLOC(Ptr, Type, Size) (Type*)Edge::Core::OS::Realloc(Ptr, Size)
 #define ED_NEW(Type, ...) new((void*)ED_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
 #else
 #if ED_DLEVEL >= 5
@@ -172,21 +172,21 @@ typedef socklen_t socket_size_t;
 #endif
 #define ED_MEASURE_START(X) _measure_line_##X
 #define ED_MEASURE_PREPARE(X) ED_MEASURE_START(X)
-#define ED_MEASURE(Threshold) auto ED_MEASURE_PREPARE(__LINE__) = Edge::Core::OS::Measure(__FILE__, __func__, __LINE__, Threshold)
-#define ED_MEASURE_LOOP() Edge::Core::OS::MeasureLoop()
+#define ED_MEASURE(Threshold) auto ED_MEASURE_PREPARE(__LINE__) = Edge::Core::OS::Timing::Measure(__FILE__, __func__, __LINE__, Threshold)
+#define ED_MEASURE_LOOP() Edge::Core::OS::Timing::MeasureLoop()
 #define ED_AWAIT(Value) Edge::Core::Coawait(Value, __func__, #Value)
-#define ED_WATCH(Ptr, Label) Edge::Core::Mem::Watch(Ptr, __LINE__, __FILE__, __func__, Label)
-#define ED_WATCH_AT(Ptr, Function, Label) Edge::Core::Mem::Watch(Ptr, __LINE__, __FILE__, Function, Label)
-#define ED_UNWATCH(Ptr) Edge::Core::Mem::Unwatch(Ptr)
-#define ED_MALLOC(Type, Size) (Type*)Edge::Core::Mem::QueryMalloc(Size, __LINE__, __FILE__, __func__, typeid(Type).name())
-#define ED_REALLOC(Ptr, Type, Size) (Type*)Edge::Core::Mem::QueryRealloc(Ptr, Size, __LINE__, __FILE__, __func__, typeid(Type).name())
+#define ED_WATCH(Ptr, Label) Edge::Core::OS::Watch(Ptr, Edge::Core::Allocator::Context(__FILE__, __func__, Label, __LINE__))
+#define ED_WATCH_AT(Ptr, Function, Label) Edge::Core::OS::Watch(Ptr, Edge::Core::Allocator::Context(__FILE__, Function, Label, __LINE__))
+#define ED_UNWATCH(Ptr) Edge::Core::OS::Unwatch(Ptr)
+#define ED_MALLOC(Type, Size) (Type*)Edge::Core::OS::MallocQuery(Size, Edge::Core::Allocator::Context(__FILE__, __func__, typeid(Type).name(), __LINE__))
+#define ED_REALLOC(Ptr, Type, Size) (Type*)Edge::Core::OS::ReallocQuery(Ptr, Size, Edge::Core::Allocator::Context(__FILE__, __func__, typeid(Type).name(), __LINE__))
 #define ED_NEW(Type, ...) new((void*)ED_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
 #endif
 #ifdef max
 #undef max
 #endif
 #define ED_DELETE(Destructor, Var) { if (Var != nullptr) { (Var)->~Destructor(); ED_FREE((void*)Var); } }
-#define ED_FREE(Ptr) Edge::Core::Mem::Free(Ptr)
+#define ED_FREE(Ptr) Edge::Core::OS::Free(Ptr)
 #define ED_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
 #define ED_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
 #define ED_ASSIGN(FromPtr, ToPtr) { (FromPtr) = ToPtr; if (FromPtr != nullptr) (FromPtr)->AddRef(); }
@@ -342,9 +342,6 @@ namespace Edge
 		typedef std::function<std::string(const std::string&)> SchemaNameCallback;
 		typedef std::function<void(VarForm, const char*, size_t)> SchemaWriteCallback;
 		typedef std::function<bool(char*, size_t)> SchemaReadCallback;
-		typedef std::function<void* (size_t)> AllocCallback;
-		typedef std::function<void* (void*, size_t)> ReallocCallback;
-		typedef std::function<void(void*)> FreeCallback;
 		typedef std::function<bool()> ActivityCallback;
 		typedef uint64_t TaskId;
 		typedef Decimal BigNumber;
@@ -944,51 +941,72 @@ namespace Edge
 			static Variant Boolean(bool Value);
 		};
 
-		class ED_OUT_TS Mem
+		class ED_OUT_TS Allocator
 		{
-#ifndef NDEBUG
-		private:
-			struct MemBuffer
+		public:
+			struct ED_OUT Context
+			{
+				const char* Source;
+				const char* Function;
+				const char* TypeName;
+				int Line;
+
+				Context();
+				Context(const char* NewSource, const char* NewFunction, const char* NewTypeName, int NewLine);
+			};
+
+		public:
+			bool Tracing = false;
+
+		public:
+			virtual ~Allocator() = default;
+			virtual Unique<void> Allocate(Context&& Origin, size_t Size) noexcept = 0;
+			virtual Unique<void> Reallocate(Context&& Origin, Unique<void> Address, size_t Size) noexcept = 0;
+			virtual void Free(Unique<void> Address) noexcept = 0;
+			virtual void Watch(Context&& Origin, void* Address) noexcept = 0;
+			virtual void Unwatch(void* Address) noexcept = 0;
+			virtual bool IsValid(void* Address) noexcept = 0;
+		};
+
+		class ED_OUT_TS DebugAllocator final : public Allocator
+		{
+		public:
+			struct Block
 			{
 				std::string TypeName;
-				const char* Function;
-				const char* Source;
-				int Line;
+				Context Origin;
 				time_t Time;
 				size_t Size;
-				bool Owns;
+				bool Active;
 			};
 
 		private:
-			static std::unordered_map<void*, MemBuffer> Buffers;
-			static std::recursive_mutex Queue;
-#endif
-		private:
-			static AllocCallback OnAlloc;
-			static ReallocCallback OnRealloc;
-			static FreeCallback OnFree;
-			static bool Trace;
+			std::unordered_map<void*, Block> Blocks;
+			std::recursive_mutex Mutex;
 
 		public:
-			static void SetAlloc(const AllocCallback& Callback);
-			static void SetRealloc(const ReallocCallback& Callback);
-			static void SetFree(const FreeCallback& Callback);
-			static void SetTracing(bool TraceAllocations);
-			static void Watch(void* Ptr, int Line = 0, const char* Source = nullptr, const char* Function = nullptr, const char* TypeName = nullptr);
-			static void Unwatch(void* Ptr);
-			static void Dump(void* Ptr = nullptr);
-			static void Free(Unique<void> Ptr) noexcept;
-			static Unique<void> Malloc(size_t Size) noexcept;
-			static Unique<void> Realloc(Unique<void> Ptr, size_t Size) noexcept;
+			~DebugAllocator() override;
+			Unique<void> Allocate(Context&& Origin, size_t Size) noexcept override;
+			Unique<void> Reallocate(Context&& Origin, Unique<void> Address, size_t Size) noexcept override;
+			void Free(Unique<void> Address) noexcept override;
+			void Watch(Context&& Origin, void* Address) noexcept override;
+			void Unwatch(void* Address) noexcept override;
+			bool IsValid(void* Address) noexcept override;
+			bool Dump(void* Address);
+			bool FindBlock(void* Address, Block* Output);
+			const std::unordered_map<void*, Block>& GetBlocks() const;
+		};
 
+		class ED_OUT_TS DefaultAllocator final : public Allocator
+		{
 		public:
-#ifndef NDEBUG
-			static Unique<void> QueryMalloc(size_t Size, int Line = 0, const char* Source = nullptr, const char* Function = nullptr, const char* TypeName = nullptr) noexcept;
-			static Unique<void> QueryRealloc(Unique<void> Ptr, size_t Size, int Line = 0, const char* Source = nullptr, const char* Function = nullptr, const char* TypeName = nullptr) noexcept;
-#else
-			static Unique<void> QueryMalloc(size_t Size) noexcept;
-			static Unique<void> QueryRealloc(Unique<void> Ptr, size_t Size) noexcept;
-#endif
+			~DefaultAllocator() override = default;
+			Unique<void> Allocate(Context&& Origin, size_t Size) noexcept override;
+			Unique<void> Reallocate(Context&& Origin, Unique<void> Address, size_t Size) noexcept override;
+			void Free(Unique<void> Address) noexcept override;
+			void Watch(Context&& Origin, void* Address) noexcept override;
+			void Unwatch(void* Address) noexcept override;
+			bool IsValid(void* Address) noexcept override;
 		};
 
 		class ED_OUT_TS OS
@@ -1252,6 +1270,27 @@ namespace Edge
 				static bool IsError(int Code);
 			};
 
+			class ED_OUT Timing
+			{
+			public:
+				struct ED_OUT Tick
+				{
+					bool IsCounting;
+
+					Tick(bool Active) noexcept;
+					Tick(const Tick& Other) = delete;
+					Tick(Tick&& Other) noexcept;
+					~Tick() noexcept;
+					Tick& operator =(const Tick& Other) = delete;
+					Tick& operator =(Tick&& Other) noexcept;
+				};
+
+			public:
+				static Tick Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS);
+				static void MeasureLoop();
+				static std::string GetMeasureTrace();
+			};
+
 		public:
 			struct ED_OUT Message
 			{
@@ -1270,39 +1309,36 @@ namespace Edge
 				std::string& GetText();
 			};
 
-			struct ED_OUT Tick
-			{
-				bool IsCounting;
-
-				Tick(bool Active) noexcept;
-				Tick(const Tick& Other) = delete;
-				Tick(Tick&& Other) noexcept;
-				~Tick() noexcept;
-				Tick& operator =(const Tick& Other) = delete;
-				Tick& operator =(Tick&& Other) noexcept;
-			};
-
 		private:
 			static std::function<void(Message&)> Callback;
 			static std::mutex Buffer;
+			static Allocator* Memory;
             static bool Pretty;
 			static bool Deferred;
 			static bool Active;
 
 		public:
-			static Tick Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS);
-			static void MeasureLoop();
+			static Unique<void> Malloc(size_t Size) noexcept;
+			static Unique<void> MallocQuery(size_t Size, Allocator::Context&& Origin) noexcept;
+			static Unique<void> Realloc(Unique<void> Address, size_t Size) noexcept;
+			static Unique<void> ReallocQuery(Unique<void> Address, size_t Size, Allocator::Context&& Origin) noexcept;
+			static void Free(Unique<void> Address) noexcept;
+			static void Watch(void* Address, Allocator::Context&& Origin) noexcept;
+			static void Unwatch(void* Address) noexcept;
 			static void Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
 			static void Log(int Level, int Line, const char* Source, const char* Format, ...);
 			static void Pause();
+			static void SetAllocator(Allocator* NewAllocator);
 			static void SetLogCallback(const std::function<void(Message&)>& Callback);
 			static void SetLogActive(bool Enabled);
 			static void SetLogDeferred(bool Enabled);
             static void SetLogPretty(bool Enabled);
+			static void SetMemoryTracing(bool Enabled);
 			static bool IsLogActive();
 			static bool IsLogDeferred();
 			static bool IsLogPretty();
-			static std::string GetMeasureTrace();
+			static bool IsValidAddress(void* Address);
+			static Allocator* GetAllocator();
 			static std::string GetStackTrace(size_t Skips, size_t MaxFrames = 16);
 
 		private:
@@ -1397,7 +1433,7 @@ namespace Edge
 			void Release() noexcept
 			{
 				__vcnt &= 0x7FFFFFFF;
-				ED_ASSERT_V(__vcnt > 0, "[mem] address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
+				ED_ASSERT_V(__vcnt > 0 && OS::IsValidAddress((void*)(T*)this), "[mem] address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
 				if (!--__vcnt)
 					delete (T*)this;
 			}

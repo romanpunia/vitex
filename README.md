@@ -27,7 +27,7 @@ There are two basic rules of memory ownership:
 1. If function accept a pointer argument like **char\*** then it means that it will not delete it, it may only read or modify the contents. If function returns a pointer like **char\*** then this pointer should not be deleted manually; in some cases manual deletion is considered OK (singletons, tree structures like Schema).
 2. If function accept a pointer alias argument like **Edge::Core::Unique\<char\>** then it will delete it now or later (means ownership is lost). If function returns a pointer like **Edge::Core::Unique\<char\>** then this pointer should be deleted manually.
 
-![CMake](https://github.com/romanpunia/edge/workflows/CMake/badge.svg)
+![CMake Ubuntu](https://github.com/romanpunia/edge/workflows/CMake/badge.svg)
 
 ## Features
 #### Core

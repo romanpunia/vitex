@@ -52,6 +52,7 @@ extern "C"
 #include <zlib.h>
 }
 #endif
+#define MEM_TRACE(Format, ...) if (Tracing) ED_TRACE(Format, ##__VA_ARGS__)
 #define PATIENCE 300
 #define MAX_STORE 16
 #define TRIGGER 1024
@@ -5371,7 +5372,7 @@ namespace Edge
 		{
 		}
 
-		DebugAllocator::~DebugAllocator()
+		DebugAllocator::~DebugAllocator() noexcept
 		{
 			Dump(nullptr);
 		}
@@ -5379,45 +5380,25 @@ namespace Edge
 		{
 			void* Address = malloc(Size);
 			ED_ASSERT(Address != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
-			if (Tracing)
-				ED_TRACE("[mem] allocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, Address, Origin.TypeName);
+			MEM_TRACE("[mem] allocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, Address, Origin.TypeName);
 
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			Blocks[Address] = { Origin.TypeName, std::move(Origin), time(nullptr), Size, true };
 			return Address;
 		}
-		void* DebugAllocator::Reallocate(Context&& Origin, void* Address, size_t Size) noexcept
-		{
-			void* NewAddress = realloc(Address, Size);
-			ED_ASSERT(NewAddress != nullptr, nullptr, "not enough memory to realloc %" PRIu64 " bytes", (uint64_t)Size);
-			if (Tracing)
-				ED_TRACE("[mem] reallocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, NewAddress, Origin.TypeName);
-
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			Blocks[NewAddress] = { Origin.TypeName, std::move(Origin), time(nullptr), Size, true };
-			if (NewAddress != Address)
-			{
-				auto It = Blocks.find(Address);
-				if (It != Blocks.end())
-					Blocks.erase(It);
-			}
-
-			return NewAddress;
-		}
 		void DebugAllocator::Free(void* Address) noexcept
 		{
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			auto It = Blocks.find(Address);
-			ED_ASSERT_V(It != Blocks.end() && It->second.Active, "cannot free memory that was not allocated by this allocator at 0x%" PRIXPTR, Address);		
-			if (Tracing)
-				ED_TRACE("[mem] free %" PRIu64 " bytes at 0x%" PRIXPTR, (uint64_t)It->second.Size, Address);
+			ED_ASSERT_V(It != Blocks.end() && It->second.Active, "cannot free memory that was not allocated by this allocator at 0x%" PRIXPTR, Address);
+			MEM_TRACE("[mem] free %" PRIu64 " bytes at 0x%" PRIXPTR, (uint64_t)It->second.Size, Address);
+
 			Blocks.erase(It);
 			free(Address);
 		}
 		void DebugAllocator::Watch(Context&& Origin, void* Address) noexcept
 		{
-			if (Tracing)
-				ED_TRACE("[mem] watch address 0x%" PRIXPTR " as %s", Address, Origin.TypeName);
+			MEM_TRACE("[mem] watch address 0x%" PRIXPTR " as %s", Address, Origin.TypeName);
 
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			auto It = Blocks.find(Address);
@@ -5427,8 +5408,7 @@ namespace Edge
 		}
 		void DebugAllocator::Unwatch(void* Address) noexcept
 		{
-			if (Tracing)
-				ED_TRACE("[mem] unwatch address 0x%" PRIXPTR, Address);
+			MEM_TRACE("[mem] unwatch address 0x%" PRIXPTR, Address);
 			
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			auto It = Blocks.find(Address);
@@ -5511,24 +5491,13 @@ namespace Edge
 		{
 			void* Address = malloc(Size);
 			ED_ASSERT(Address != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
-			if (Tracing)
-				ED_TRACE("[mem] allocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, Address, Origin.TypeName);
+			MEM_TRACE("[mem] allocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, Address, Origin.TypeName);
 			
 			return Address;
 		}
-		void* DefaultAllocator::Reallocate(Context&& Origin, void* Address, size_t Size) noexcept
-		{
-			void* NewAddress = realloc(Address, Size);
-			ED_ASSERT(NewAddress != nullptr, nullptr, "not enough memory to realloc %" PRIu64 " bytes", (uint64_t)Size);
-			if (Tracing)
-				ED_TRACE("[mem] reallocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, NewAddress, Origin.TypeName);
-
-			return NewAddress;
-		}
 		void DefaultAllocator::Free(void* Address) noexcept
 		{
-			if (Tracing)
-				ED_TRACE("[mem] free at 0x%" PRIXPTR, Address);
+			MEM_TRACE("[mem] free at 0x%" PRIXPTR, Address);
 			free(Address);
 		}
 		void DefaultAllocator::Watch(Context&& Origin, void* Address) noexcept
@@ -5540,6 +5509,147 @@ namespace Edge
 		bool DefaultAllocator::IsValid(void* Address) noexcept
 		{
 			return true;
+		}
+
+		PoolAllocator::PoolAllocator(uint64_t MinimalLifeTimeMs, size_t MaxElementsPerAllocation, size_t ElementsReducingBaseBytes, double ElementsReducingFactorRate) : MinimalLifeTime(MinimalLifeTimeMs), ElementsReducingFactor(ElementsReducingFactorRate), ElementsReducingBase(ElementsReducingBaseBytes), ElementsPerAllocation(MaxElementsPerAllocation)
+		{
+			ED_ASSERT_V(ElementsPerAllocation > 0, "elements count per allocation should be greater then zero");
+			ED_ASSERT_V(ElementsReducingFactor > 1.0, "elements reducing factor should be greater then zero");
+			ED_ASSERT_V(ElementsReducingBase > 0, "elements reducing base should be greater then zero");
+		}
+		PoolAllocator::~PoolAllocator() noexcept
+		{
+			for (auto& Page : Pages)
+			{
+				for (auto& Cache : Page.second.Cache)
+				{
+					if (Cache.second.Pool.size() < ElementsPerAllocation)
+						ED_DEBUG("[mem] free %" PRIu64 " bytes of leaked page block at 0x%" PRIXPTR, (uint64_t)Page.first, Cache.first);
+					else
+						MEM_TRACE("[mem] free %" PRIu64 " bytes of page block at 0x%" PRIXPTR, (uint64_t)Page.first, Cache.first);
+					free(Cache.first);
+				}
+				Page.second.Cache.clear();
+			}
+		}
+		void* PoolAllocator::Allocate(Context&& Origin, size_t Size) noexcept
+		{
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			auto& Page = Pages[Size];
+			auto* Cache = GetPageCache(Page);
+			if (!Cache)
+			{
+				Cache = AllocatePageCache(std::move(Origin), Page, Size);
+				if (!Cache)
+					return nullptr;
+			}
+	
+			void* Address = Cache->Pool.front();
+			Cache->Pool.pop();
+
+			auto& Next = Blocks[Address];
+			Next.BaseAddress = Cache->BaseAddress;
+			Next.Size = Size;
+
+			return Address;
+		}
+		void PoolAllocator::Free(void* Address) noexcept
+		{
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			auto Block = Blocks.find(Address);
+			ED_ASSERT_V(Block != Blocks.end(), "address 0x" PRIXPTR " is not a valid address");
+
+			auto& Page = Pages[Block->second.Size];
+			auto Cache = Page.Cache.find(Block->second.BaseAddress);
+			ED_ASSERT_V(Cache != Page.Cache.end(), "address 0x" PRIXPTR " is not a valid address");
+
+			Cache->second.Pool.push(Address);
+			if (Cache->second.Pool.size() >= Cache->second.Capacity)
+			{
+				if (Cache->second.Capacity == 1 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Cache->second.AliveTime > MinimalLifeTime)
+				{
+					MEM_TRACE("[mem] free %" PRIu64 " bytes of page block at 0x%" PRIXPTR, (uint64_t)Block->second.Size, Cache->first);
+					free(Block->second.BaseAddress);
+					Page.Cache.erase(Block->second.BaseAddress);
+				}
+			}
+			Blocks.erase(Block);
+		}
+		void PoolAllocator::Watch(Context&& Origin, void* Address) noexcept
+		{
+		}
+		void PoolAllocator::Unwatch(void* Address) noexcept
+		{
+		}
+		bool PoolAllocator::IsValid(void* Address) noexcept
+		{
+			return true;
+		}
+		PoolAllocator::PageCache* PoolAllocator::AllocatePageCache(Context&& Origin, PageGroup& Page, size_t Size)
+		{
+			size_t PageElements = GetElementsCount(Page, Size);
+			size_t PageSize = Size * PageElements;
+			char* Address = (char*)malloc(PageSize);
+			ED_ASSERT(Address != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)PageSize);
+			MEM_TRACE("[mem] allocate %" PRIu64 " bytes for page block at %" PRIXPTR " as %s", (uint64_t)PageSize, Address, Origin.TypeName);
+
+			if (!Address)
+				return nullptr;
+
+			auto& Cache = Page.Cache[Address];
+			Cache.AliveTime = (int64_t)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			Cache.BaseAddress = Address;
+			Cache.Capacity = PageElements;
+
+			for (size_t i = 0; i < PageElements; i++)
+				Cache.Pool.emplace(Address + Size * i);
+
+			return &Cache;
+		}
+		PoolAllocator::PageCache* PoolAllocator::GetPageCache(PageGroup& Page)
+		{
+			for (auto& Item : Page.Cache)
+			{
+				if (!Item.second.Pool.empty())
+					return &Item.second;
+			}
+
+			return nullptr;
+		}
+		size_t PoolAllocator::GetElementsCount(PageGroup& Page, size_t Size)
+		{
+			double Total = (double)ElementsPerAllocation;
+			double Reducing = (double)Size / (double)ElementsReducingBase;
+			double Frequency = GetFrequency(Page);
+			
+			if (Reducing > 1.0)
+			{
+				Total /= ElementsReducingFactor * Reducing;
+				if (Total < 1.0)
+					Total = 1.0;
+			}
+			else if (Frequency > 1.0)
+				Total *= Frequency;
+
+			return (size_t)Total;
+		}
+		double PoolAllocator::GetFrequency(PageGroup& Page)
+		{
+			if (Pages.size() <= 1)
+				return 1.0;
+
+			double Average = 0.0;
+			for (auto& Item : Pages)
+			{
+				if (&Item.second != &Page)
+					Average += (double)Item.second.Cache.size();
+			}
+
+			Average /= (double)Pages.size() - 1;
+			if (Average < 1.0)
+				Average = 1.0;
+
+			return std::max(1.0, (double)Page.Cache.size() / Average);
 		}
 
 		bool Composer::Clear()
@@ -8438,26 +8548,13 @@ namespace Edge
 		static thread_local bool IgnoreLogging = false;
 		void* OS::Malloc(size_t Size) noexcept
 		{
-			return MallocQuery(Size, Allocator::Context());
+			return MallocDebug(Size, Allocator::Context());
 		}
-		void* OS::MallocQuery(size_t Size, Allocator::Context&& Origin) noexcept
+		void* OS::MallocDebug(size_t Size, Allocator::Context&& Origin) noexcept
 		{
 			ED_ASSERT(Memory != nullptr, nullptr, "allocator should be set");
 			ED_ASSERT(Size > 0, nullptr, "cannot allocate zero bytes");
 			return Memory->Allocate(std::move(Origin), Size);
-		}
-		void* OS::Realloc(void* Address, size_t Size) noexcept
-		{
-			return ReallocQuery(Address, Size, Allocator::Context());
-		}
-		void* OS::ReallocQuery(void* Address, size_t Size, Allocator::Context&& Origin) noexcept
-		{
-			ED_ASSERT(Memory != nullptr, nullptr, "allocator should be set");
-			ED_ASSERT(Size > 0, nullptr, "cannot allocate zero bytes");
-			if (!Address)
-				return Memory->Allocate(std::move(Origin), Size);
-
-			return Memory->Reallocate(std::move(Origin), Address, Size);
 		}
 		void OS::Free(void* Address) noexcept
 		{

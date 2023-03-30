@@ -1,7 +1,7 @@
 #ifndef EDGE_H
 #define EDGE_H
 #define ED_MAJOR_VERSION 18
-#define ED_MINOR_VERSION 20
+#define ED_MINOR_VERSION 21
 #define ED_PATCH_LEVEL 70
 #define ED_VERSION(X, Y, Z) ((X) * 1000 + (Y) * 100 + (Z))
 #define ED_AT_LEAST(X, Y, Z) (ED_VERSION(ED_MAJOR_VERSION, ED_MINOR_VERSION, ED_PATCH_LEVEL) >= ED_VERSION(X, Y, Z))
@@ -51,16 +51,17 @@ namespace Edge
 		static bool HasBullet3();
         static bool HasFContext();
 		static bool HasWindowsEpoll();
-		static int Version();
-		static int DebugLevel();
-		static int Architecture();
-		static const char* Build();
-		static const char* Compiler();
-		static const char* Platform();
-		static std::string Details();
+		static int GetVersion();
+		static int GetDebugLevel();
+		static int GetArchitecture();
+		static std::string GetDetails();
+		static const char* GetBuild();
+		static const char* GetCompiler();
+		static const char* GetPlatform();
+		static Core::Allocator* CreateAllocator();
 	};
 
-	ED_OUT bool Initialize(size_t Modules = (size_t)Preset::App);
+	ED_OUT bool Initialize(size_t Modules = (size_t)Preset::App, Core::Allocator* Allocator = Library::CreateAllocator());
 	ED_OUT bool Uninitialize();
 }
 #endif

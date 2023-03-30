@@ -138,7 +138,6 @@ typedef socklen_t socket_size_t;
 #define ED_WATCH_AT(Ptr, Function, Label) ((void)0)
 #define ED_UNWATCH(Ptr) ((void)0)
 #define ED_MALLOC(Type, Size) (Type*)Edge::Core::OS::Malloc(Size)
-#define ED_REALLOC(Ptr, Type, Size) (Type*)Edge::Core::OS::Realloc(Ptr, Size)
 #define ED_NEW(Type, ...) new((void*)ED_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
 #else
 #if ED_DLEVEL >= 5
@@ -178,8 +177,7 @@ typedef socklen_t socket_size_t;
 #define ED_WATCH(Ptr, Label) Edge::Core::OS::Watch(Ptr, Edge::Core::Allocator::Context(__FILE__, __func__, Label, __LINE__))
 #define ED_WATCH_AT(Ptr, Function, Label) Edge::Core::OS::Watch(Ptr, Edge::Core::Allocator::Context(__FILE__, Function, Label, __LINE__))
 #define ED_UNWATCH(Ptr) Edge::Core::OS::Unwatch(Ptr)
-#define ED_MALLOC(Type, Size) (Type*)Edge::Core::OS::MallocQuery(Size, Edge::Core::Allocator::Context(__FILE__, __func__, typeid(Type).name(), __LINE__))
-#define ED_REALLOC(Ptr, Type, Size) (Type*)Edge::Core::OS::ReallocQuery(Ptr, Size, Edge::Core::Allocator::Context(__FILE__, __func__, typeid(Type).name(), __LINE__))
+#define ED_MALLOC(Type, Size) (Type*)Edge::Core::OS::MallocDebug(Size, Edge::Core::Allocator::Context(__FILE__, __func__, typeid(Type).name(), __LINE__))
 #define ED_NEW(Type, ...) new((void*)ED_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
 #endif
 #ifdef max
@@ -956,12 +954,11 @@ namespace Edge
 			};
 
 		public:
-			bool Tracing = false;
+			bool Tracing = true;
 
 		public:
 			virtual ~Allocator() = default;
 			virtual Unique<void> Allocate(Context&& Origin, size_t Size) noexcept = 0;
-			virtual Unique<void> Reallocate(Context&& Origin, Unique<void> Address, size_t Size) noexcept = 0;
 			virtual void Free(Unique<void> Address) noexcept = 0;
 			virtual void Watch(Context&& Origin, void* Address) noexcept = 0;
 			virtual void Unwatch(void* Address) noexcept = 0;
@@ -985,9 +982,8 @@ namespace Edge
 			std::recursive_mutex Mutex;
 
 		public:
-			~DebugAllocator() override;
+			~DebugAllocator() noexcept override;
 			Unique<void> Allocate(Context&& Origin, size_t Size) noexcept override;
-			Unique<void> Reallocate(Context&& Origin, Unique<void> Address, size_t Size) noexcept override;
 			void Free(Unique<void> Address) noexcept override;
 			void Watch(Context&& Origin, void* Address) noexcept override;
 			void Unwatch(void* Address) noexcept override;
@@ -997,12 +993,58 @@ namespace Edge
 			const std::unordered_map<void*, Block>& GetBlocks() const;
 		};
 
+		class ED_OUT_TS PoolAllocator final : public Allocator
+		{
+		public:
+			struct PageAddress
+			{
+				void* BaseAddress;
+				size_t Size;
+			};
+
+			struct PageCache
+			{
+				 std::queue<void*> Pool;
+				 int64_t AliveTime;
+				 void* BaseAddress;
+				 size_t Capacity;
+			};
+
+			struct PageGroup
+			{
+				std::unordered_map<void*, PageCache> Cache;
+			};
+
+		private:
+			std::unordered_map<size_t, PageGroup> Pages;
+			std::unordered_map<void*, PageAddress> Blocks;
+			std::recursive_mutex Mutex;
+			uint64_t MinimalLifeTime;
+			double ElementsReducingFactor;
+			size_t ElementsReducingBase;
+			size_t ElementsPerAllocation;
+
+		public:
+			PoolAllocator(uint64_t MinimalLifeTimeMs = 2000, size_t MaxElementsPerAllocation = 1024, size_t ElementsReducingBaseBytes = 300, double ElementsReducingFactorRate = 5.0);
+			~PoolAllocator() noexcept override;
+			Unique<void> Allocate(Context && Origin, size_t Size) noexcept override;
+			void Free(Unique<void> Address) noexcept override;
+			void Watch(Context && Origin, void* Address) noexcept override;
+			void Unwatch(void* Address) noexcept override;
+			bool IsValid(void* Address) noexcept override;
+
+		private:
+			PageCache* AllocatePageCache(Context&& Origin, PageGroup& Page, size_t Size);
+			PageCache* GetPageCache(PageGroup& Page);
+			size_t GetElementsCount(PageGroup& Page, size_t Size);
+			double GetFrequency(PageGroup& Page);
+		};
+
 		class ED_OUT_TS DefaultAllocator final : public Allocator
 		{
 		public:
 			~DefaultAllocator() override = default;
 			Unique<void> Allocate(Context&& Origin, size_t Size) noexcept override;
-			Unique<void> Reallocate(Context&& Origin, Unique<void> Address, size_t Size) noexcept override;
 			void Free(Unique<void> Address) noexcept override;
 			void Watch(Context&& Origin, void* Address) noexcept override;
 			void Unwatch(void* Address) noexcept override;
@@ -1319,9 +1361,7 @@ namespace Edge
 
 		public:
 			static Unique<void> Malloc(size_t Size) noexcept;
-			static Unique<void> MallocQuery(size_t Size, Allocator::Context&& Origin) noexcept;
-			static Unique<void> Realloc(Unique<void> Address, size_t Size) noexcept;
-			static Unique<void> ReallocQuery(Unique<void> Address, size_t Size, Allocator::Context&& Origin) noexcept;
+			static Unique<void> MallocDebug(size_t Size, Allocator::Context&& Origin) noexcept;
 			static void Free(Unique<void> Address) noexcept;
 			static void Watch(void* Address, Allocator::Context&& Origin) noexcept;
 			static void Unwatch(void* Address) noexcept;
@@ -1406,7 +1446,7 @@ namespace Edge
 				if (Ptr != nullptr)
 				{
 					auto Handle = (T*)Ptr;
-					ED_ASSERT_V(Handle->__vcnt <= 1, "[mem] address at 0x%" PRIXPTR " is still in use but destructor has been called by delete as %s at %s()", Ptr, typeid(T).name(), __func__);
+					ED_ASSERT_V(Handle->__vcnt <= 1, "address at 0x%" PRIXPTR " is still in use but destructor has been called by delete as %s at %s()", Ptr, typeid(T).name(), __func__);
 					ED_FREE(Ptr);
 				}
 			}
@@ -1433,7 +1473,7 @@ namespace Edge
 			void Release() noexcept
 			{
 				__vcnt &= 0x7FFFFFFF;
-				ED_ASSERT_V(__vcnt > 0 && OS::IsValidAddress((void*)(T*)this), "[mem] address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
+				ED_ASSERT_V(__vcnt > 0 && OS::IsValidAddress((void*)(T*)this), "address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
 				if (!--__vcnt)
 					delete (T*)this;
 			}

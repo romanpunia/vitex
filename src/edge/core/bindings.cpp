@@ -13286,6 +13286,9 @@ namespace Edge
 				VSceneGraph.SetMethodEx("void mutate(material@+, const string &in)", &SceneGraphMutate4);
 				VSceneGraph.SetMethodEx("void transaction(transaction_callback@)", &SceneGraphTransaction);
 				VSceneGraph.SetMethod("void clear_culling()", &Engine::SceneGraph::ClearCulling);
+				VSceneGraph.SetMethod("void reserve_materials(usize)", &Engine::SceneGraph::ReserveMaterials);
+				VSceneGraph.SetMethod("void reserve_entities(usize)", &Engine::SceneGraph::ReserveEntities);
+				VSceneGraph.SetMethod("void reserve_components(uint64, usize)", &Engine::SceneGraph::ReserveComponents);
 				VSceneGraph.SetMethodEx("bool push_event(const string &in, schema@+, bool)", &SceneGraphPushEvent1);
 				VSceneGraph.SetMethodEx("bool push_event(const string &in, schema@+, base_component@+)", &SceneGraphPushEvent2);
 				VSceneGraph.SetMethodEx("bool push_event(const string &in, schema@+, scene_entity@+)", &SceneGraphPushEvent3);

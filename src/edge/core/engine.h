@@ -1303,6 +1303,9 @@ namespace Edge
 			void WatchAll(std::vector<Parallel::Task>&& Awaitables);
 			void AwaitAll();
 			void ClearCulling();
+			void ReserveMaterials(size_t Size);
+			void ReserveEntities(size_t Size);
+			void ReserveComponents(uint64_t Section, size_t Size);
 			void GenerateDepthCascades(Core::Unique<CascadedDepthMap>* Result, uint32_t Size) const;
 			bool GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out);
 			bool PushEvent(const std::string& EventName, Core::VariantArgs&& Args, bool Propagate);

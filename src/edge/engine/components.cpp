@@ -1308,6 +1308,7 @@ namespace Edge
 				if (!Instance)
 					return;
 
+				Instance->AddRef();
 				for (auto* Item : Instance->Meshes)
 					Materials[(void*)Item] = nullptr;
 			}
@@ -1443,6 +1444,7 @@ namespace Edge
 				if (!Instance)
 					return;
 
+				Instance->AddRef();
 				Skeleton.Fill(Instance);
 				for (auto* Item : Instance->Meshes)
 					Materials[(void*)Item] = nullptr;

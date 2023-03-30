@@ -2,9 +2,6 @@
 #include "../graphics/d3d11.h"
 #include "../graphics/ogl.h"
 #include "../graphics/dynamic/shaders.hpp"
-#ifdef ED_MICROSOFT
-#include <dwmapi.h>
-#endif
 #ifdef ED_HAS_SDL2
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
@@ -1918,6 +1915,18 @@ namespace Edge
 		{
 #ifdef ED_HAS_SDL2
 #ifdef ED_MICROSOFT
+			OSVERSIONINFOEX Version;
+			ZeroMemory(&Version, sizeof(OSVERSIONINFOEX));
+			Version.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+#pragma warning(push)
+#pragma warning(disable : 4996)
+			GetVersionEx((LPOSVERSIONINFO)&Version);
+#pragma warning(pop) 
+
+			const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = Version.dwBuildNumber >= 18985 ? 20 : 19;
+			if (Version.dwMajorVersion < 10 || Version.dwBuildNumber < 17763)
+				return;
+
 			HKEY Target;
 			if (RegOpenKeyEx(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", 0, KEY_QUERY_VALUE, &Target) == ERROR_SUCCESS)
 			{
@@ -1939,7 +1948,7 @@ namespace Edge
 							BOOL DarkMode = true;
 							DWM_SetWindowAttribute(WindowHandle, DWMWA_USE_IMMERSIVE_DARK_MODE, &DarkMode, sizeof(DarkMode));
 						}
-						//FreeLibrary(Library);
+						//FreeLibrary(Library); // Needs to be present until app closes otherwise may crash
 					}
 				}
 				RegCloseKey(Target);

@@ -183,15 +183,15 @@ namespace Edge
 		return false;
 #endif
 	}
-	int Library::Version()
+	int Library::GetVersion()
 	{
 		return ED_VERSION(ED_MAJOR_VERSION, ED_MINOR_VERSION, ED_PATCH_LEVEL);
 	}
-	int Library::DebugLevel()
+	int Library::GetDebugLevel()
 	{
 		return ED_DLEVEL;
 	}
-	int Library::Architecture()
+	int Library::GetArchitecture()
 	{
 #ifdef ED_32
 		return 4;
@@ -199,7 +199,56 @@ namespace Edge
 		return 8;
 #endif
 	}
-	const char* Library::Build()
+	std::string Library::GetDetails()
+	{
+		std::vector<std::string> Features;
+		if (HasDirectX())
+			Features.push_back("DirectX");
+		if (HasOpenGL())
+			Features.push_back("OpenGL");
+		if (HasOpenAL())
+			Features.push_back("OpenAL");
+		if (HasOpenSSL())
+			Features.push_back("OpenSSL");
+		if (HasGLEW())
+			Features.push_back("GLEW");
+		if (HasZLib())
+			Features.push_back("ZLib");
+		if (HasAssimp())
+			Features.push_back("Assimp");
+		if (HasMongoDB())
+			Features.push_back("MongoDB");
+		if (HasPostgreSQL())
+			Features.push_back("PostgreSQL");
+		if (HasSDL2())
+			Features.push_back("SDL2");
+		if (HasSIMD())
+			Features.push_back("SIMD");
+		if (HasBullet3())
+			Features.push_back("Bullet3");
+		if (HasRmlUI())
+			Features.push_back("RmlUI");
+		if (HasFContext())
+			Features.push_back("FContext");
+		if (HasWindowsEpoll())
+			Features.push_back("Wepoll");
+
+		std::stringstream Result;
+		Result << "version: " << ED_MAJOR_VERSION << "." << ED_MINOR_VERSION << "." << ED_PATCH_LEVEL << " / " << ED_VERSION(ED_MAJOR_VERSION, ED_MINOR_VERSION, ED_PATCH_LEVEL) << "\n";
+		Result << "platform: " << GetPlatform() << " / " << GetBuild() << "\n";
+		Result << "compiler: " << GetCompiler() << "\n";
+		Result << "features: ";
+
+		for (size_t i = 0; i < Features.size(); i++)
+		{
+			Result << Features[i];
+			if (i < Features.size() - 1)
+				Result << ", ";
+		}
+
+		return Result.str();
+	}
+	const char* Library::GetBuild()
 	{
 #ifndef NDEBUG
 		return "Debug";
@@ -207,7 +256,7 @@ namespace Edge
 		return "Release";
 #endif
 	}
-	const char* Library::Compiler()
+	const char* Library::GetCompiler()
 	{
 #ifdef _MSC_VER
 #ifdef ED_32
@@ -245,7 +294,7 @@ namespace Edge
 #endif
 		return "C/C++ compiler";
 	}
-	const char* Library::Platform()
+	const char* Library::GetPlatform()
 	{
 #ifdef __ANDROID__
 		return "Android";
@@ -276,68 +325,24 @@ namespace Edge
 #endif
 		return "OS with C/C++ support";
 	}
-	std::string Library::Details()
+	Core::Allocator* Library::CreateAllocator()
 	{
-		std::vector<std::string> Features;
-		if (HasDirectX())
-			Features.push_back("DirectX");
-		if (HasOpenGL())
-			Features.push_back("OpenGL");
-		if (HasOpenAL())
-			Features.push_back("OpenAL");
-		if (HasOpenSSL())
-			Features.push_back("OpenSSL");
-		if (HasGLEW())
-			Features.push_back("GLEW");
-		if (HasZLib())
-			Features.push_back("ZLib");
-		if (HasAssimp())
-			Features.push_back("Assimp");
-		if (HasMongoDB())
-			Features.push_back("MongoDB");
-		if (HasPostgreSQL())
-			Features.push_back("PostgreSQL");
-		if (HasSDL2())
-			Features.push_back("SDL2");
-		if (HasSIMD())
-			Features.push_back("SIMD");
-		if (HasBullet3())
-			Features.push_back("Bullet3");
-		if (HasRmlUI())
-			Features.push_back("RmlUI");
-		if (HasFContext())
-			Features.push_back("FContext");
-		if (HasWindowsEpoll())
-			Features.push_back("Wepoll");
-
-		std::stringstream Result;
-		Result << "version: " << ED_MAJOR_VERSION << "." << ED_MINOR_VERSION << "." << ED_PATCH_LEVEL << " / " << ED_VERSION(ED_MAJOR_VERSION, ED_MINOR_VERSION, ED_PATCH_LEVEL) << "\n";
-		Result << "platform: " << Platform() << " / " << Build() << "\n";
-		Result << "compiler: " << Compiler() << "\n";
-		Result << "features: ";
-
-		for (size_t i = 0; i < Features.size(); i++)
-		{
-			Result << Features[i];
-			if (i < Features.size() - 1)
-				Result << ", ";
-		}
-
-		return Result.str();
+#ifndef NDEBUG
+		return new Core::DebugAllocator();
+#else
+		return new Core::DefaultAllocator();
+#endif
 	}
 
-	bool Initialize(size_t Modules)
+	bool Initialize(size_t Modules, Core::Allocator* Allocator)
 	{
 		State++;
 		if (State > 1)
 			return true;
 
+		Core::OS::SetAllocator(Allocator);
 		Modes = Modules;
-#ifndef NDEBUG
-		Core::OS::SetAllocator(new Core::DebugAllocator());
-#else
-		Core::OS::SetAllocator(new Core::DefaultAllocator());
-#endif
+
 		if (Modes & (uint64_t)Init::Core)
 		{
 			if (Modes & (uint64_t)Init::Debug)

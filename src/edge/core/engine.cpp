@@ -1802,8 +1802,7 @@ namespace Edge
 		void Material::SetDiffuseMap(Graphics::Texture2D* New)
 		{
 			ED_TRACE("[engine] material %s set diffuse 0x%" PRIXPTR, Name.c_str(), (void*)New);
-			ED_RELEASE(DiffuseMap);
-			DiffuseMap = New;
+			ED_REASSIGN(DiffuseMap, New);
 		}
 		Graphics::Texture2D* Material::GetDiffuseMap() const
 		{
@@ -1812,8 +1811,7 @@ namespace Edge
 		void Material::SetNormalMap(Graphics::Texture2D* New)
 		{
 			ED_TRACE("[engine] material %s set normal 0x%" PRIXPTR, Name.c_str(), (void*)New);
-			ED_RELEASE(NormalMap);
-			NormalMap = New;
+			ED_REASSIGN(NormalMap, New);
 		}
 		Graphics::Texture2D* Material::GetNormalMap() const
 		{
@@ -1822,8 +1820,7 @@ namespace Edge
 		void Material::SetMetallicMap(Graphics::Texture2D* New)
 		{
 			ED_TRACE("[engine] material %s set metallic 0x%" PRIXPTR, Name.c_str(), (void*)New);
-			ED_RELEASE(MetallicMap);
-			MetallicMap = New;
+			ED_REASSIGN(MetallicMap, New);
 		}
 		Graphics::Texture2D* Material::GetMetallicMap() const
 		{
@@ -1832,8 +1829,7 @@ namespace Edge
 		void Material::SetRoughnessMap(Graphics::Texture2D* New)
 		{
 			ED_TRACE("[engine] material %s set roughness 0x%" PRIXPTR, Name.c_str(), (void*)New);
-			ED_RELEASE(RoughnessMap);
-			RoughnessMap = New;
+			ED_REASSIGN(RoughnessMap, New);
 		}
 		Graphics::Texture2D* Material::GetRoughnessMap() const
 		{
@@ -1842,8 +1838,7 @@ namespace Edge
 		void Material::SetHeightMap(Graphics::Texture2D* New)
 		{
 			ED_TRACE("[engine] material %s set height 0x%" PRIXPTR, Name.c_str(), (void*)New);
-			ED_RELEASE(HeightMap);
-			HeightMap = New;
+			ED_REASSIGN(HeightMap, New);
 		}
 		Graphics::Texture2D* Material::GetHeightMap() const
 		{
@@ -1852,8 +1847,7 @@ namespace Edge
 		void Material::SetOcclusionMap(Graphics::Texture2D* New)
 		{
 			ED_TRACE("[engine] material %s set occlusion 0x%" PRIXPTR, Name.c_str(), (void*)New);
-			ED_RELEASE(OcclusionMap);
-			OcclusionMap = New;
+			ED_REASSIGN(OcclusionMap, New);
 		}
 		Graphics::Texture2D* Material::GetOcclusionMap() const
 		{
@@ -1862,8 +1856,7 @@ namespace Edge
 		void Material::SetEmissionMap(Graphics::Texture2D* New)
 		{
 			ED_TRACE("[engine] material %s set emission 0x%" PRIXPTR, Name.c_str(), (void*)New);
-			ED_RELEASE(EmissionMap);
-			EmissionMap = New;
+			ED_REASSIGN(EmissionMap, New);
 		}
 		Graphics::Texture2D* Material::GetEmissionMap() const
 		{
@@ -2895,15 +2888,6 @@ namespace Edge
 		}
 		PrimitiveCache::~PrimitiveCache() noexcept
 		{
-			ED_RELEASE(Sphere[(size_t)BufferType::Index]);
-			ED_RELEASE(Sphere[(size_t)BufferType::Vertex]);
-			ED_RELEASE(Cube[(size_t)BufferType::Index]);
-			ED_RELEASE(Cube[(size_t)BufferType::Vertex]);
-			ED_RELEASE(Box[(size_t)BufferType::Index]);
-			ED_RELEASE(Box[(size_t)BufferType::Vertex]);
-			ED_RELEASE(SkinBox[(size_t)BufferType::Index]);
-			ED_RELEASE(SkinBox[(size_t)BufferType::Vertex]);
-			ED_RELEASE(Quad);
 			ClearCache();
 		}
 		bool PrimitiveCache::Compile(Graphics::ElementBuffer** Results, const std::string& Name, size_t ElementSize, size_t ElementsCount)
@@ -3426,26 +3410,32 @@ namespace Edge
 			}
 
 			Cache.clear();
-			ED_CLEAR(Sphere[0]);
-			ED_CLEAR(Sphere[1]);
-			ED_CLEAR(Cube[0]);
-			ED_CLEAR(Cube[1]);
-			ED_CLEAR(Box[0]);
-			ED_CLEAR(Box[1]);
-			ED_CLEAR(SkinBox[0]);
-			ED_CLEAR(SkinBox[1]);
+			ED_CLEAR(Sphere[(size_t)BufferType::Index]);
+			ED_CLEAR(Sphere[(size_t)BufferType::Vertex]);
+			ED_CLEAR(Cube[(size_t)BufferType::Index]);
+			ED_CLEAR(Cube[(size_t)BufferType::Vertex]);
+			ED_CLEAR(Box[(size_t)BufferType::Index]);
+			ED_CLEAR(Box[(size_t)BufferType::Vertex]);
+			ED_CLEAR(SkinBox[(size_t)BufferType::Index]);
+			ED_CLEAR(SkinBox[(size_t)BufferType::Vertex]);
 			ED_CLEAR(Quad);
 			Safe.unlock();
 		}
 
 		template <typename T>
-		static void UpgradeBuffer(Core::Pool<T>& Storage, float Grow)
+		static void UpgradeBufferByRate(Core::Pool<T>& Storage, float Grow)
 		{
 			double Size = (double)Storage.Capacity();
 			Size *= 1.0 + Grow;
 
 			ED_TRACE("[scene] upgrade buffer 0x%" PRIXPTR " +%" PRIu64 " bytes", (void*)Storage.Get(), (uint64_t)(sizeof(T) * (Size - Storage.Capacity())));
 			Storage.Reserve((size_t)Size);
+		}
+		template <typename T>
+		static void UpgradeBufferBySize(Core::Pool<T>& Storage, size_t Size)
+		{
+			ED_TRACE("[scene] upgrade buffer 0x%" PRIXPTR " +%" PRIu64 " bytes", (void*)Storage.Get(), (uint64_t)(sizeof(T) * (Size - Storage.Capacity())));
+			Storage.Reserve(Size);
 		}
 
 		void SceneGraph::Desc::AddRef()
@@ -3859,6 +3849,9 @@ namespace Edge
 		void SceneGraph::StepEvents()
 		{
 			ED_MEASURE(ED_TIMING_FRAME);
+			if (!Events.empty())
+				ED_TRACE("[scene] resolve %" PRIu64 " events on 0x%" PRIXPTR, (uint64_t)Events.size(), (void*)this);
+
 			while (!Events.empty())
 			{
 				auto& Source = Events.front();
@@ -4520,6 +4513,30 @@ namespace Edge
 				}
 			}
 		}
+		void SceneGraph::ReserveMaterials(size_t Size)
+		{
+			Transaction([this, Size]()
+			{
+				UpgradeBufferBySize(Materials, Size);
+				GenerateMaterialBuffer();
+			});
+		}
+		void SceneGraph::ReserveEntities(size_t Size)
+		{
+			Transaction([this, Size]()
+			{
+				UpgradeBufferBySize(Dirty, Size);
+				UpgradeBufferBySize(Entities, Size);
+			});
+		}
+		void SceneGraph::ReserveComponents(uint64_t Section, size_t Size)
+		{
+			Transaction([this, Section, Size]()
+			{
+				auto& Storage = GetStorage(Section);
+				UpgradeBufferBySize(Storage.Data, Size);
+			});
+		}
 		void SceneGraph::GenerateMaterialBuffer()
 		{
 			ED_TRACE("[scene] generate material buffer %" PRIu64 "m on 0x%" PRIXPTR, (uint64_t)Materials.Capacity(), (void*)this);
@@ -4693,7 +4710,7 @@ namespace Edge
 				Transaction([this, Base]()
 				{
 					if (Dirty.Size() + Conf.GrowMargin > Dirty.Capacity())
-						UpgradeBuffer(Dirty, (float)Conf.GrowRate);
+						UpgradeBufferByRate(Dirty, (float)Conf.GrowRate);
 					Dirty.Add(Base);
 				});
 			});
@@ -4750,7 +4767,7 @@ namespace Edge
 				{
 					if (Materials.Size() + Conf.GrowMargin > Materials.Capacity())
 					{
-						UpgradeBuffer(Materials, (float)Conf.GrowRate);
+						UpgradeBufferByRate(Materials, (float)Conf.GrowRate);
 						GenerateMaterialBuffer();
 					}
 					AddMaterial(Base);
@@ -4838,7 +4855,7 @@ namespace Edge
 				{
 					SparseIndex* Storage = Registry[Section];
 					if (Storage->Data.Size() + Conf.GrowMargin > Storage->Data.Capacity())
-					    UpgradeBuffer(Storage->Data, (float)Conf.GrowRate);
+						UpgradeBufferByRate(Storage->Data, (float)Conf.GrowRate);
 				});
 			}
 
@@ -4918,7 +4935,7 @@ namespace Edge
 				{
 					auto& Storage = Actors[(size_t)Type];
 					if (Storage.Size() + Conf.GrowMargin > Storage.Capacity())
-						UpgradeBuffer(Storage, (float)Conf.GrowRate);
+						UpgradeBufferByRate(Storage, (float)Conf.GrowRate);
 				});
 			}
 
@@ -5118,7 +5135,7 @@ namespace Edge
 			Transaction([this, Entity]()
 			{
 				if (Entities.Size() + Conf.GrowMargin > Entities.Capacity())
-					UpgradeBuffer(Entities, (float)Conf.GrowRate);
+					UpgradeBufferByRate(Entities, (float)Conf.GrowRate);
 				AddEntity(Entity);
 			});
 

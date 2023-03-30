@@ -1545,6 +1545,181 @@ namespace Edge
 			}
 		};
 
+		template <typename T>
+		class Reactive
+		{
+		public:
+			typedef std::function<void(const T&)> SimpleCallback;
+			typedef std::function<void(const T&, const T&)> ComplexCallback;
+
+		private:
+			std::unordered_map<size_t, ComplexCallback> Listeners;
+			size_t Index;
+
+		private:
+			T Value;
+
+		public:
+			Reactive() : Index(0)
+			{
+			}
+			Reactive(const T& NewValue) noexcept : Index(0), Value(NewValue)
+			{
+			}
+			Reactive(T&& NewValue) noexcept : Index(0), Value(std::move(NewValue))
+			{
+			}
+			Reactive(const Reactive& Other) = delete;
+			Reactive(Reactive&& Other) = default;
+			~Reactive() = default;
+			Reactive& operator= (const T& Other)
+			{
+				Notify(Other);
+				Value = Other;
+				return *this;
+			}
+			Reactive& operator= (T&& Other)
+			{
+				Notify(Other);
+				Value = std::move(Other);
+				return *this;
+			}
+			Reactive& operator= (const Reactive& Other) = delete;
+			Reactive& operator= (Reactive&& Other) = default;
+			operator const T& () const
+			{
+				return Value;
+			}
+			size_t Listen(ComplexCallback&& NewCallback)
+			{
+				size_t Id = Index++;
+				Listeners[Id] = std::move(NewCallback);
+				return Id;
+			}
+			size_t Listen(const ComplexCallback& NewCallback)
+			{
+				size_t Id = Index++;
+				Listeners[Id] = NewCallback;
+				return Id;
+			}
+			size_t Listen(SimpleCallback&& NewCallback)
+			{
+				return Listen([NewCallback = std::move(NewCallback)](const T& New, const T&) { NewCallback(New); });
+			}
+			size_t Listen(const SimpleCallback& NewCallback)
+			{
+				return Listen([NewCallback](const T& New, const T&) { NewCallback(New); });
+			}
+			void Unlisten(size_t Id)
+			{
+				Listeners.erase(Id);
+			}
+			void Notify(const T& Other)
+			{
+				for (auto& Item : Listeners)
+					Item.second(Other, Value);
+			}
+			void Notify()
+			{
+				Notify(Value);
+			}
+
+		public:
+			inline typename std::enable_if<std::is_arithmetic<T>::value || std::is_same<T, std::string>::value || std::is_same<T, std::string>::value, Reactive&>::type operator+= (const T& Other)
+			{
+				T Temp = Value + Other;
+				Notify(Temp);
+				Value = Temp;
+				return *this;
+			}
+		};
+
+		template <typename T>
+		class Reactive<T*>
+		{
+		public:
+			typedef std::function<void(T*)> SimpleCallback;
+			typedef std::function<void(T*, T*)> ComplexCallback;
+
+		private:
+			std::unordered_map<size_t, ComplexCallback> Listeners;
+			size_t Index;
+
+		private:
+			UPtr<T> Value;
+
+		public:
+			Reactive() : Index(0), Value(nullptr)
+			{
+			}
+			Reactive(T* NewValue) noexcept : Index(0), Value(NewValue)
+			{
+			}
+			Reactive(const Reactive& Other) = delete;
+			Reactive(Reactive&& Other) = default;
+			~Reactive() = default;
+			Reactive& operator= (T* Other)
+			{
+				Notify(Other);
+				Value = Other;
+				return *this;
+			}
+			Reactive& operator= (UPtr<T>&& Other)
+			{
+				Notify(Other);
+				Value = std::move(Other);
+				return *this;
+			}
+			Reactive& operator= (const Reactive& Other) = delete;
+			Reactive& operator= (Reactive&& Other) = default;
+			T* operator-> ()
+			{
+				ED_ASSERT(Pointer != nullptr, nullptr, "null pointer access");
+				return Pointer;
+			}
+			operator T* ()
+			{
+				return Value;
+			}
+			Unique<T> Reset()
+			{
+				return Value.Reset();
+			}
+			size_t Listen(ComplexCallback&& NewCallback)
+			{
+				size_t Id = Index++;
+				Listeners[Id] = std::move(NewCallback);
+				return Id;
+			}
+			size_t Listen(const ComplexCallback& NewCallback)
+			{
+				size_t Id = Index++;
+				Listeners[Id] = NewCallback;
+				return Id;
+			}
+			size_t Listen(SimpleCallback&& NewCallback)
+			{
+				return Listen([NewCallback = std::move(NewCallback)](T* New, T*) { NewCallback(New); });
+			}
+			size_t Listen(const SimpleCallback& NewCallback)
+			{
+				return Listen([NewCallback](T* New, T*) { NewCallback(New); });
+			}
+			void Unlisten(size_t Id)
+			{
+				Listeners.erase(Id);
+			}
+			void Notify(T* Other)
+			{
+				for (auto& Item : Listeners)
+					Item.second(Other, Value);
+			}
+			void Notify()
+			{
+				Notify(Value);
+			}
+		};
+
 		class ED_OUT_TS Console final : public Reference<Console>
 		{
 		protected:

@@ -1674,8 +1674,8 @@ namespace Edge
 			Reactive& operator= (Reactive&& Other) = default;
 			T* operator-> ()
 			{
-				ED_ASSERT(Pointer != nullptr, nullptr, "null pointer access");
-				return Pointer;
+				ED_ASSERT(Value != nullptr, nullptr, "null pointer access");
+				return Value;
 			}
 			operator T* ()
 			{

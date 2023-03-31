@@ -5566,7 +5566,7 @@ namespace Edge
 			Cache->second.Pool.push(Address);
 			if (Cache->second.Pool.size() >= Cache->second.Capacity)
 			{
-				if (Cache->second.Capacity == 1 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Cache->second.AliveTime > MinimalLifeTime)
+				if (Cache->second.Capacity == 1 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Cache->second.AliveTime > (int64_t)MinimalLifeTime)
 				{
 					MEM_TRACE("[mem] free %" PRIu64 " bytes of page block at 0x%" PRIXPTR, (uint64_t)Block->second.Size, Cache->first);
 					free(Block->second.BaseAddress);

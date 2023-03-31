@@ -1546,27 +1546,31 @@ namespace Edge
 		};
 
 		template <typename T>
-		class Reactive
+		class ED_OUT_TS Reactive
 		{
 		public:
-			typedef std::function<void(const T&)> SimpleCallback;
-			typedef std::function<void(const T&, const T&)> ComplexCallback;
+			typedef std::function<void(T&)> SimpleSetterCallback;
+			typedef std::function<void(T&, const T&)> ComplexSetterCallback;
+			typedef std::function<T()> SimpleGetterCallback;
+			typedef std::function<T(bool&)> ComplexGetterCallback;
 
 		private:
-			std::unordered_map<size_t, ComplexCallback> Listeners;
+			std::unordered_map<size_t, ComplexSetterCallback> Setters;
+			ComplexGetterCallback Getter;
 			size_t Index;
+			bool IsSet;
 
 		private:
 			T Value;
 
 		public:
-			Reactive() : Index(0)
+			Reactive() : Index(0), IsSet(false)
 			{
 			}
-			Reactive(const T& NewValue) noexcept : Index(0), Value(NewValue)
+			Reactive(const T& NewValue) noexcept : Index(0), IsSet(true), Value(NewValue)
 			{
 			}
-			Reactive(T&& NewValue) noexcept : Index(0), Value(std::move(NewValue))
+			Reactive(T&& NewValue) noexcept : Index(0), IsSet(true), Value(std::move(NewValue))
 			{
 			}
 			Reactive(const Reactive& Other) = delete;
@@ -1574,85 +1578,147 @@ namespace Edge
 			~Reactive() = default;
 			Reactive& operator= (const T& Other)
 			{
-				Notify(Other);
-				Value = Other;
+				SetValue(Other);
 				return *this;
 			}
 			Reactive& operator= (T&& Other)
 			{
-				Notify(Other);
-				Value = std::move(Other);
+				SetValue(std::move(Other));
 				return *this;
 			}
 			Reactive& operator= (const Reactive& Other) = delete;
 			Reactive& operator= (Reactive&& Other) = default;
+			T* operator-> ()
+			{
+				T& Current = GetValue();
+				return &Current;
+			}
 			operator const T& () const
 			{
-				return Value;
+				return GetValue();
 			}
-			size_t Listen(ComplexCallback&& NewCallback)
+			size_t WhenSet(ComplexSetterCallback&& NewCallback)
 			{
 				size_t Id = Index++;
-				Listeners[Id] = std::move(NewCallback);
+				Setters[Id] = std::move(NewCallback);
 				return Id;
 			}
-			size_t Listen(const ComplexCallback& NewCallback)
+			size_t WhenSet(const ComplexSetterCallback& NewCallback)
 			{
 				size_t Id = Index++;
-				Listeners[Id] = NewCallback;
+				Setters[Id] = NewCallback;
 				return Id;
 			}
-			size_t Listen(SimpleCallback&& NewCallback)
+			size_t WhenSet(SimpleSetterCallback&& NewCallback)
 			{
-				return Listen([NewCallback = std::move(NewCallback)](const T& New, const T&) { NewCallback(New); });
+				return WhenSet([NewCallback = std::move(NewCallback)](T& New, const T&) { NewCallback(New); });
 			}
-			size_t Listen(const SimpleCallback& NewCallback)
+			size_t WhenSet(const SimpleSetterCallback& NewCallback)
 			{
-				return Listen([NewCallback](const T& New, const T&) { NewCallback(New); });
+				return WhenSet([NewCallback](T& New, const T&) { NewCallback(New); });
 			}
-			void Unlisten(size_t Id)
+			void WhenGet(ComplexGetterCallback&& NewCallback)
 			{
-				Listeners.erase(Id);
+				Getter = std::move(NewCallback);
+			}
+			void WhenGet(const ComplexGetterCallback& NewCallback)
+			{
+				Getter = NewCallback;
+			}
+			void WhenGet(SimpleGetterCallback&& NewCallback)
+			{
+				Getter = [NewCallback = std::move(NewCallback)](bool& IsSet)->T
+				{
+					IsSet = true;
+					return NewCallback();
+				};
+			}
+			void WhenGet(const SimpleGetterCallback& NewCallback)
+			{
+				Getter = [NewCallback](bool& IsSet) -> T
+				{
+					IsSet = true;
+					return NewCallback();
+				};
+			}
+			void ClearWhenSet(size_t Id)
+			{
+				Setters.erase(Id);
+			}
+			void ClearWhenGet(size_t Id)
+			{
+				Getter = nullptr;
 			}
 			void Notify(const T& Other)
 			{
-				for (auto& Item : Listeners)
-					Item.second(Other, Value);
+				T OldValue = GetValue();
+				Value = Other;
+
+				for (auto& Item : Setters)
+					Item.second(Value, OldValue);
 			}
 			void Notify()
 			{
-				Notify(Value);
+				Notify(GetValue());
 			}
 
 		public:
 			inline typename std::enable_if<std::is_arithmetic<T>::value || std::is_same<T, std::string>::value || std::is_same<T, std::string>::value, Reactive&>::type operator+= (const T& Other)
 			{
-				T Temp = Value + Other;
-				Notify(Temp);
-				Value = Temp;
+				T Temporary = GetValue() + Other;
+				SetValue(std::move(Temporary));
 				return *this;
+			}
+
+		private:
+			void SetValue(const T& Other)
+			{
+				if (&Value == &Other)
+					return;
+
+				Notify(Other);
+				Value = Other;
+			}
+			void SetValue(T&& Other)
+			{
+				if (&Value == &Other)
+					return;
+
+				Notify(Other);
+				Value = std::move(Other);
+			}
+			T& GetValue()
+			{
+				if (!IsSet && Getter)
+					Value = std::move(Getter(IsSet));
+
+				return Value;
 			}
 		};
 
 		template <typename T>
-		class Reactive<T*>
+		class ED_OUT_TS Reactive<T*>
 		{
 		public:
-			typedef std::function<void(T*)> SimpleCallback;
-			typedef std::function<void(T*, T*)> ComplexCallback;
+			typedef std::function<void(T*&)> SimpleSetterCallback;
+			typedef std::function<void(T*&, const T*)> ComplexSetterCallback;
+			typedef std::function<T* ()> SimpleGetterCallback;
+			typedef std::function<T* (bool&)> ComplexGetterCallback;
 
 		private:
-			std::unordered_map<size_t, ComplexCallback> Listeners;
+			std::unordered_map<size_t, ComplexSetterCallback> Setters;
+			ComplexGetterCallback Getter;
 			size_t Index;
+			bool IsSet;
 
 		private:
 			UPtr<T> Value;
 
 		public:
-			Reactive() : Index(0), Value(nullptr)
+			Reactive() : Index(0), IsSet(false), Value(nullptr)
 			{
 			}
-			Reactive(T* NewValue) noexcept : Index(0), Value(NewValue)
+			Reactive(T* NewValue) noexcept : Index(0), IsSet(NewValue != nullptr), Value(NewValue)
 			{
 			}
 			Reactive(const Reactive& Other) = delete;
@@ -1660,63 +1726,118 @@ namespace Edge
 			~Reactive() = default;
 			Reactive& operator= (T* Other)
 			{
-				Notify(Other);
-				Value = Other;
+				SetValue(Other);
 				return *this;
 			}
 			Reactive& operator= (UPtr<T>&& Other)
 			{
-				Notify(Other);
-				Value = std::move(Other);
+				SetValue(std::move(Other));
 				return *this;
 			}
 			Reactive& operator= (const Reactive& Other) = delete;
 			Reactive& operator= (Reactive&& Other) = default;
 			T* operator-> ()
 			{
-				ED_ASSERT(Value != nullptr, nullptr, "null pointer access");
-				return Value;
+				T*& Current = GetValue();
+				ED_ASSERT(Current != nullptr, nullptr, "null pointer access");
+				return Current;
 			}
 			operator T* ()
 			{
-				return Value;
+				return GetValue();
 			}
 			Unique<T> Reset()
 			{
 				return Value.Reset();
 			}
-			size_t Listen(ComplexCallback&& NewCallback)
+			size_t WhenSet(ComplexSetterCallback&& NewCallback)
 			{
 				size_t Id = Index++;
-				Listeners[Id] = std::move(NewCallback);
+				Setters[Id] = std::move(NewCallback);
 				return Id;
 			}
-			size_t Listen(const ComplexCallback& NewCallback)
+			size_t WhenSet(const ComplexSetterCallback& NewCallback)
 			{
 				size_t Id = Index++;
-				Listeners[Id] = NewCallback;
+				Setters[Id] = NewCallback;
 				return Id;
 			}
-			size_t Listen(SimpleCallback&& NewCallback)
+			size_t WhenSet(SimpleSetterCallback&& NewCallback)
 			{
-				return Listen([NewCallback = std::move(NewCallback)](T* New, T*) { NewCallback(New); });
+				return WhenSet([NewCallback = std::move(NewCallback)](T*& New, const T*) { NewCallback(New); });
 			}
-			size_t Listen(const SimpleCallback& NewCallback)
+			size_t WhenSet(const SimpleSetterCallback& NewCallback)
 			{
-				return Listen([NewCallback](T* New, T*) { NewCallback(New); });
+				return WhenSet([NewCallback](T*& New, const T*) { NewCallback(New); });
 			}
-			void Unlisten(size_t Id)
+			void WhenGet(ComplexGetterCallback&& NewCallback)
 			{
-				Listeners.erase(Id);
+				Getter = std::move(NewCallback);
+			}
+			void WhenGet(const ComplexGetterCallback& NewCallback)
+			{
+				Getter = NewCallback;
+			}
+			void WhenGet(SimpleGetterCallback&& NewCallback)
+			{
+				Getter = [NewCallback = std::move(NewCallback)](bool& IsSet)->T
+				{
+					IsSet = true;
+					return NewCallback();
+				};
+			}
+			void WhenGet(const SimpleGetterCallback& NewCallback)
+			{
+				Getter = [NewCallback](bool& IsSet) -> T
+				{
+					IsSet = true;
+					return NewCallback();
+				};
+			}
+			void ClearWhenSet(size_t Id)
+			{
+				Setters.erase(Id);
+			}
+			void ClearWhenGet(size_t Id)
+			{
+				Getter = nullptr;
 			}
 			void Notify(T* Other)
 			{
-				for (auto& Item : Listeners)
-					Item.second(Other, Value);
+				const T* OldValue = GetValue();
+				Value = Other;
+
+				for (auto& Item : Setters)
+					Item.second(Value, OldValue);
 			}
 			void Notify()
 			{
 				Notify(Value);
+			}
+
+		private:
+			void SetValue(T* Other)
+			{
+				if (Value == Other)
+					return;
+
+				Notify(Other);
+				Value = Other;
+			}
+			void SetValue(UPtr<T>&& Other)
+			{
+				if (&Value == &Other)
+					return;
+
+				Notify(Other);
+				Value = std::move(Other);
+			}
+			T*& GetValue()
+			{
+				if (!IsSet && Getter)
+					Value = Getter(IsSet);
+
+				return Value;
 			}
 		};
 

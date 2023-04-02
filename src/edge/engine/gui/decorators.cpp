@@ -9,9 +9,9 @@ namespace Edge
 	{
 		namespace GUI
 		{
-			static void SetWorldViewProjection(Graphics::GraphicsDevice* Device, Rml::Element* Element, const Rml::Vector2f& Position, const Rml::Vector2f& Size, const Compute::Vector2& Mul = 1.0f)
+			static void SetWorldViewProjection(RenderConstants* Constants, Rml::Element* Element, const Rml::Vector2f& Position, const Rml::Vector2f& Size, const Compute::Vector2& Mul = 1.0f)
 			{
-				ED_ASSERT_V(Device != nullptr, "graphics device should be set");
+				ED_ASSERT_V(Constants != nullptr, "graphics device should be set");
 				ED_ASSERT_V(Element != nullptr, "element should be set");
 
 				Compute::Vector3 Scale(Size.x / 2.0f, Size.y / 2.0f);
@@ -22,13 +22,13 @@ namespace Edge
 				if (State != nullptr && State->GetTransform() != nullptr)
 				{
 					Compute::Matrix4x4 View = Subsystem::ToMatrix(State->GetTransform());
-					Device->Render.Transform = Compute::Matrix4x4::CreateTranslatedScale(Offset, Scale + Mul) * View * Ortho;
-					Device->Render.World = (Compute::Matrix4x4::CreateTranslation(Compute::Vector2(Position.x, Position.y)) * View * Ortho).Inv();
+					Constants->Render.Transform = Compute::Matrix4x4::CreateTranslatedScale(Offset, Scale + Mul) * View * Ortho;
+					Constants->Render.World = (Compute::Matrix4x4::CreateTranslation(Compute::Vector2(Position.x, Position.y)) * View * Ortho).Inv();
 				}
 				else
 				{
-					Device->Render.Transform = Compute::Matrix4x4::CreateTranslatedScale(Offset, Scale + Mul) * Ortho;
-					Device->Render.World = (Compute::Matrix4x4::CreateTranslation(Compute::Vector2(Position.x, Position.y)) * Ortho).Inv();
+					Constants->Render.Transform = Compute::Matrix4x4::CreateTranslatedScale(Offset, Scale + Mul) * Ortho;
+					Constants->Render.World = (Compute::Matrix4x4::CreateTranslation(Compute::Vector2(Position.x, Position.y)) * Ortho).Inv();
 				}
 			}
 
@@ -56,9 +56,10 @@ namespace Edge
 				Graphics::ElementBuffer* VertexBuffer;
 				Graphics::Shader* Shader;
 				Graphics::GraphicsDevice* Device;
+				RenderConstants* Constants;
 
 			public:
-				BoxShadowInstancer(Graphics::GraphicsDevice* NewDevice);
+				BoxShadowInstancer(RenderConstants* NewConstants);
 				~BoxShadowInstancer() override;
 				Rml::SharedPtr<Rml::Decorator> InstanceDecorator(const Rml::String& Name, const Rml::PropertyDictionary& Props, const Rml::DecoratorInstancerInterface& Interface) override;
 			}*IBoxShadow = nullptr;
@@ -86,9 +87,10 @@ namespace Edge
 				Graphics::ElementBuffer* VertexBuffer;
 				Graphics::Shader* Shader;
 				Graphics::GraphicsDevice* Device;
+				RenderConstants* Constants;
 
 			public:
-				BoxBlurInstancer(Graphics::GraphicsDevice* NewDevice);
+				BoxBlurInstancer(RenderConstants* NewConstants);
 				~BoxBlurInstancer() override;
 				Rml::SharedPtr<Rml::Decorator> InstanceDecorator(const Rml::String& Name, const Rml::PropertyDictionary& Props, const Rml::DecoratorInstancerInterface& Interface) override;
 			}*IBoxBlur = nullptr;
@@ -134,12 +136,14 @@ namespace Edge
 					IBoxShadow->RenderPass.Radius.Z = Element->GetProperty<float>("border-top-right-radius");
 					IBoxShadow->RenderPass.Radius.W = Element->GetProperty<float>("border-top-left-radius");
 
-					SetWorldViewProjection(Device, Element, Position, Size, Offset.Abs() + Radius + 4096.0f);
+					RenderConstants* Constants = IBoxShadow->Constants;
+					SetWorldViewProjection(Constants, Element, Position, Size, Offset.Abs() + Radius + 4096.0f);
+					Constants->UpdateConstantBuffer(RenderBufferType::Render);
+
 					Device->SetShader(IBoxShadow->Shader, ED_VS | ED_PS);
 					Device->SetBuffer(IBoxShadow->Shader, 3, ED_PS);
 					Device->SetVertexBuffer(IBoxShadow->VertexBuffer);
 					Device->UpdateBuffer(IBoxShadow->Shader, &IBoxShadow->RenderPass);
-					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->Draw((unsigned int)IBoxShadow->VertexBuffer->GetElements(), 0);
 				}
 			};
@@ -188,21 +192,26 @@ namespace Edge
 					IBoxBlur->RenderPass.Radius.Z = Element->GetProperty<float>("border-top-right-radius");
 					IBoxBlur->RenderPass.Radius.W = Element->GetProperty<float>("border-top-left-radius");
 
-					SetWorldViewProjection(Device, Element, Position, Size);
+					RenderConstants* Constants = IBoxBlur->Constants;
+					SetWorldViewProjection(Constants, Element, Position, Size);
+					Constants->UpdateConstantBuffer(RenderBufferType::Render);
+
 					Device->CopyTexture2D(Background, &IBoxBlur->Background);
 					Device->SetTexture2D(IBoxBlur->Background, 1, ED_PS);
 					Device->SetShader(IBoxBlur->Shader, ED_VS | ED_PS);
 					Device->SetBuffer(IBoxBlur->Shader, 3, ED_PS);
 					Device->SetVertexBuffer(IBoxBlur->VertexBuffer);
 					Device->UpdateBuffer(IBoxBlur->Shader, &IBoxBlur->RenderPass);
-					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->Draw((unsigned int)IBoxBlur->VertexBuffer->GetElements(), 0);
 				}
 			};
 
-			BoxShadowInstancer::BoxShadowInstancer(Graphics::GraphicsDevice* NewDevice) : Shader(nullptr), Device(NewDevice)
+			BoxShadowInstancer::BoxShadowInstancer(RenderConstants* NewConstants) : Shader(nullptr), Device(nullptr), Constants(NewConstants)
 			{
-				ED_ASSERT_V(Device != nullptr, "graphics device should be set");
+				ED_ASSERT_V(Constants != nullptr, "render constants should be set");
+				ED_ASSERT_V(Constants->GetDevice() != nullptr, "graphics device should be set");
+				Device = Constants->GetDevice();
+
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
 				if (Device->GetSection("interface/box-shadow", &I))
 				{
@@ -257,9 +266,12 @@ namespace Edge
 					Compute::Vector2(IOffsetX, IOffsetY), ISoftness);
 			}
 
-			BoxBlurInstancer::BoxBlurInstancer(Graphics::GraphicsDevice* NewDevice) : Background(nullptr), Shader(nullptr), Device(NewDevice)
+			BoxBlurInstancer::BoxBlurInstancer(RenderConstants* NewConstants) : Background(nullptr), Shader(nullptr), Device(nullptr), Constants(NewConstants)
 			{
-				ED_ASSERT_V(Device != nullptr, "graphics device should be set");
+				ED_ASSERT_V(Constants != nullptr, "render constants should be set");
+				ED_ASSERT_V(Constants->GetDevice() != nullptr, "graphics device should be set");
+				Device = Constants->GetDevice();
+
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
 				if (Device->GetSection("interface/box-blur", &I))
 				{
@@ -312,18 +324,18 @@ namespace Edge
 				if (IBoxBlur != nullptr)
 					ED_CLEAR(IBoxBlur->Background);
 			}
-			void Subsystem::CreateDecorators(Graphics::GraphicsDevice* Device)
+			void Subsystem::CreateDecorators(RenderConstants* Constants)
 			{
-				ED_ASSERT_V(Device != nullptr, "graphics device should be set");
+				ED_ASSERT_V(Constants != nullptr, "render constants should be set");
 				if (!IBoxShadow)
 				{
-					IBoxShadow = ED_NEW(BoxShadowInstancer, Device);
+					IBoxShadow = ED_NEW(BoxShadowInstancer, Constants);
 					Rml::Factory::RegisterDecoratorInstancer("box-shadow", IBoxShadow);
 				}
 
 				if (!IBoxBlur)
 				{
-					IBoxBlur = ED_NEW(BoxBlurInstancer, Device);
+					IBoxBlur = ED_NEW(BoxBlurInstancer, Constants);
 					Rml::Factory::RegisterDecoratorInstancer("box-blur", IBoxBlur);
 				}
 			}

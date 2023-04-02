@@ -391,7 +391,7 @@ namespace Edge
 			public:
 				static bool Create();
 				static bool Release();
-				static void SetMetadata(Graphics::Activity* Activity, ContentManager* Content, Core::Timer* Time);
+				static void SetMetadata(Graphics::Activity* Activity, RenderConstants* Constants, ContentManager* Content, Core::Timer* Time);
 				static void SetTranslator(const std::string& Name, const TranslationCallback& Callback);
 				static void SetVirtualMachine(Scripting::VirtualMachine* VM);
 				static RenderSubsystem* GetRenderInterface();
@@ -406,7 +406,7 @@ namespace Edge
 
 			private:
 				static void ResizeDecorators(int Width, int Height);
-				static void CreateDecorators(Graphics::GraphicsDevice* Device);
+				static void CreateDecorators(RenderConstants* Constants);
 				static void ReleaseDecorators();
 				static void CreateElements();
 				static void ReleaseElements();

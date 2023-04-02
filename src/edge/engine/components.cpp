@@ -1256,7 +1256,7 @@ namespace Edge
 					Node->AddRef();
 
 				SceneGraph* Scene = Parent->GetScene();
-				Scene->LoadResource<Graphics::Model>(this, Path, [this, Node, Scene](Graphics::Model* NewInstance)
+				Scene->LoadResource<Engine::Model>(this, Path, [this, Node, Scene](Engine::Model* NewInstance)
 				{
 					ED_RELEASE(Instance);
 					Instance = NewInstance;
@@ -1282,7 +1282,7 @@ namespace Edge
 			{
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 
-				Series::Pack(Node->Set("model"), Parent->GetScene()->FindResourceId<Graphics::Model>(Instance));
+				Series::Pack(Node->Set("model"), Parent->GetScene()->FindResourceId<Engine::Model>(Instance));
 				Series::Pack(Node->Set("texcoord"), TexCoord);
 				Series::Pack(Node->Set("category"), (uint32_t)GetCategory());
 				Series::Pack(Node->Set("static"), Static);
@@ -1300,7 +1300,7 @@ namespace Edge
 					}
 				}
 			}
-			void Model::SetDrawable(Graphics::Model* Drawable)
+			void Model::SetDrawable(Engine::Model* Drawable)
 			{
 				ED_RELEASE(Instance);
 				Instance = Drawable;
@@ -1347,7 +1347,7 @@ namespace Edge
 
 				return Target;
 			}
-			Graphics::Model* Model::GetDrawable()
+			Engine::Model* Model::GetDrawable()
 			{
 				return Instance;
 			}
@@ -1387,7 +1387,7 @@ namespace Edge
 					Node->AddRef();
 
 				SceneGraph* Scene = Parent->GetScene();
-				Scene->LoadResource<Graphics::SkinModel>(this, Path, [this, Node, Scene](Graphics::SkinModel* NewInstance)
+				Scene->LoadResource<Engine::SkinModel>(this, Path, [this, Node, Scene](Engine::SkinModel* NewInstance)
 				{
 					ED_RELEASE(Instance);
 					Instance = NewInstance;
@@ -1414,7 +1414,7 @@ namespace Edge
 			{
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 
-				Series::Pack(Node->Set("skin-model"), Parent->GetScene()->FindResourceId<Graphics::SkinModel>(Instance));
+				Series::Pack(Node->Set("skin-model"), Parent->GetScene()->FindResourceId<Engine::SkinModel>(Instance));
 				Series::Pack(Node->Set("texcoord"), TexCoord);
 				Series::Pack(Node->Set("category"), (uint32_t)GetCategory());
 				Series::Pack(Node->Set("static"), Static);
@@ -1437,7 +1437,7 @@ namespace Edge
 				if (Instance != nullptr)
 					Instance->Synchronize(&Skeleton);
 			}
-			void Skin::SetDrawable(Graphics::SkinModel* Drawable)
+			void Skin::SetDrawable(Engine::SkinModel* Drawable)
 			{
 				ED_RELEASE(Instance);
 				Instance = Drawable;
@@ -1484,7 +1484,7 @@ namespace Edge
 
 				return Target;
 			}
-			Graphics::SkinModel* Skin::GetDrawable()
+			Engine::SkinModel* Skin::GetDrawable()
 			{
 				return Instance;
 			}
@@ -1637,6 +1637,10 @@ namespace Edge
 			SkinAnimator::SkinAnimator(Entity* Ref) : Component(Ref, ActorSet::Animate)
 			{
 			}
+			SkinAnimator::~SkinAnimator() noexcept
+			{
+				ED_CLEAR(Animation);
+			}
 			void SkinAnimator::Deserialize(Core::Schema* Node)
 			{
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
@@ -1745,7 +1749,8 @@ namespace Edge
 			}
 			void SkinAnimator::SetAnimation(SkinAnimation* New)
 			{
-				Animation = New;
+				ED_RELEASE(Animation);
+				ED_ASSIGN(Animation, New);
 			}
 			void SkinAnimator::BlendAnimation(int64_t Clip, int64_t Frame)
 			{

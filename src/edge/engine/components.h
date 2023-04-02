@@ -135,7 +135,7 @@ namespace Edge
 			class ED_OUT Model final : public Drawable
 			{
 			protected:
-				Graphics::Model * Instance = nullptr;
+				Engine::Model* Instance = nullptr;
 
 			public:
 				Compute::Vector2 TexCoord = 1.0f;
@@ -148,9 +148,9 @@ namespace Edge
 				float GetVisibility(const Viewer& View, float Distance) const override;
 				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				Core::Unique<Component> Copy(Entity* New) const override;
-				void SetDrawable(Core::Unique<Graphics::Model> Drawable);
+				void SetDrawable(Core::Unique<Engine::Model> Drawable);
 				void SetMaterialFor(const std::string& Name, Material* Value);
-				Graphics::Model* GetDrawable();
+				Engine::Model* GetDrawable();
 				Material* GetMaterialFor(const std::string& Name);
 
 			public:
@@ -160,11 +160,11 @@ namespace Edge
 			class ED_OUT Skin final : public Drawable
 			{
 			protected:
-				Graphics::SkinModel * Instance = nullptr;
+				Engine::SkinModel* Instance = nullptr;
 
 			public:
 				Compute::Vector2 TexCoord = 1.0f;
-				Graphics::PoseBuffer Skeleton;
+				PoseBuffer Skeleton;
 
 			public:
 				Skin(Entity* Ref);
@@ -175,9 +175,9 @@ namespace Edge
 				float GetVisibility(const Viewer& View, float Distance) const override;
 				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				Core::Unique<Component> Copy(Entity* New) const override;
-				void SetDrawable(Core::Unique<Graphics::SkinModel> Drawable);
+				void SetDrawable(Core::Unique<Engine::SkinModel> Drawable);
 				void SetMaterialFor(const std::string& Name, Material* Value);
-				Graphics::SkinModel* GetDrawable();
+				Engine::SkinModel* GetDrawable();
 				Material* GetMaterialFor(const std::string& Name);
 
 			public:
@@ -236,7 +236,7 @@ namespace Edge
 
 			public:
 				SkinAnimator(Entity* Ref);
-				~SkinAnimator() override = default;
+				~SkinAnimator() noexcept override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) override;
 				void Activate(Component* New) override;

@@ -1719,6 +1719,149 @@ namespace Edge
 				Wait(Value);
 		}
 
+		void PoseBuffer::Fill(SkinModel* Model)
+		{
+			ED_ASSERT_V(Model != nullptr, "model should be set");
+			Offsets.clear();
+			Matrices.clear();
+
+			Fill(Model->Skeleton);
+			for (auto& Mesh : Model->Meshes)
+				Matrices.insert(std::make_pair(Mesh, PoseMatrices()));
+		}
+		void PoseBuffer::Fill(Compute::Joint& Next)
+		{
+			auto& Data = Offsets[Next.Index];
+			Data.Default.Position = Next.Global.Position();
+			Data.Default.Rotation = Next.Global.RotationQuaternion();
+			Data.Default.Scale = Next.Global.Scale();
+			Data.Offset = Data.Frame = Data.Default;
+
+			for (auto& Child : Next.Childs)
+				Fill(Child);
+		}
+
+		Model::Model() noexcept
+		{
+		}
+		Model::~Model() noexcept
+		{
+			Cleanup();
+		}
+		void Model::Cleanup()
+		{
+			for (auto* Item : Meshes)
+				ED_RELEASE(Item);
+			Meshes.clear();
+		}
+		Graphics::MeshBuffer* Model::FindMesh(const std::string& Name)
+		{
+			for (auto&& It : Meshes)
+			{
+				if (It->Name == Name)
+					return It;
+			}
+
+			return nullptr;
+		}
+
+		SkinModel::SkinModel() noexcept
+		{
+		}
+		SkinModel::~SkinModel() noexcept
+		{
+			Cleanup();
+		}
+		bool SkinModel::FindJoint(const std::string& Name, Compute::Joint* Base)
+		{
+			if (!Base)
+				Base = &Skeleton;
+
+			if (Base->Name == Name)
+				return Base;
+
+			for (auto&& Child : Base->Childs)
+			{
+				if (Child.Name == Name)
+				{
+					Base = &Child;
+					return true;
+				}
+
+				Compute::Joint* Result = &Child;
+				if (FindJoint(Name, Result))
+					return true;
+			}
+
+			return false;
+		}
+		bool SkinModel::FindJoint(size_t Index, Compute::Joint* Base)
+		{
+			if (!Base)
+				Base = &Skeleton;
+
+			if (Base->Index == Index)
+				return true;
+
+			for (auto&& Child : Base->Childs)
+			{
+				if (Child.Index == Index)
+				{
+					Base = &Child;
+					return true;
+				}
+
+				Compute::Joint* Result = &Child;
+				if (FindJoint(Index, Result))
+					return true;
+			}
+
+			return false;
+		}
+		void SkinModel::Synchronize(PoseBuffer* Map)
+		{
+			ED_ASSERT_V(Map != nullptr, "pose buffer should be set");
+			ED_MEASURE(ED_TIMING_ATOM);
+
+			for (auto& Mesh : Meshes)
+				Map->Matrices[Mesh];
+
+			Synchronize(Map, Skeleton, Transform);
+		}
+		void SkinModel::Synchronize(PoseBuffer* Map, Compute::Joint& Next, const Compute::Matrix4x4& ParentOffset)
+		{
+			auto& Node = Map->Offsets[Next.Index].Offset;
+			auto LocalOffset = Compute::Matrix4x4::CreateScale(Node.Scale) * Node.Rotation.GetMatrix() * Compute::Matrix4x4::CreateTranslation(Node.Position);
+			auto GlobalOffset = LocalOffset * ParentOffset;
+			auto FinalOffset = Next.Local * GlobalOffset * InvTransform;
+
+			for (auto& Matrices : Map->Matrices)
+			{
+				auto Index = Matrices.first->Joints.find(Next.Index);
+				if (Index != Matrices.first->Joints.end() && Index->second <= ED_MAX_JOINTS)
+					Matrices.second.Data[Index->second] = FinalOffset;
+			}
+
+			for (auto& Child : Next.Childs)
+				Synchronize(Map, Child, GlobalOffset);
+		}
+		void SkinModel::Cleanup()
+		{
+			for (auto* Item : Meshes)
+				ED_RELEASE(Item);
+			Meshes.clear();
+		}
+		Graphics::SkinMeshBuffer* SkinModel::FindMesh(const std::string& Name)
+		{
+			for (auto&& It : Meshes)
+			{
+				if (It->Name == Name)
+					return It;
+			}
+
+			return nullptr;
+		}
+
 		SkinAnimation::SkinAnimation(std::vector<Compute::SkinAnimatorClip>&& Data) noexcept : Clips(std::move(Data))
 		{
 		}
@@ -2329,11 +2472,68 @@ namespace Edge
 			return System;
 		}
 
+		RenderConstants::RenderConstants(Graphics::GraphicsDevice* NewDevice) noexcept : Device(NewDevice)
+		{
+			ED_ASSERT_V(Device != nullptr, "graphics device should be set");
+			Graphics::Shader::Desc F = Graphics::Shader::Desc();
+			if (Device->GetSection("geometry/basic/geometry", &F))
+				Binding.BasicEffect = Device->CreateShader(F);
+
+			Graphics::ElementBuffer::Desc Desc;
+			Desc.BindFlags = Graphics::ResourceBind::Constant_Buffer;
+			Desc.ElementCount = 1;
+			Desc.ElementWidth = sizeof(Animation);
+			Binding.Buffers[(size_t)RenderBufferType::Animation] = Device->CreateElementBuffer(Desc);
+			Binding.Pointers[(size_t)RenderBufferType::Animation] = &Animation;
+			Binding.Sizes[(size_t)RenderBufferType::Animation] = sizeof(Animation);
+
+			Desc.ElementWidth = sizeof(Render);
+			Binding.Buffers[(size_t)RenderBufferType::Render] = Device->CreateElementBuffer(Desc);
+			Binding.Pointers[(size_t)RenderBufferType::Render] = &Render;
+			Binding.Sizes[(size_t)RenderBufferType::Render] = sizeof(Render);
+
+			Desc.ElementWidth = sizeof(View);
+			Binding.Buffers[(size_t)RenderBufferType::View] = Device->CreateElementBuffer(Desc);
+			Binding.Pointers[(size_t)RenderBufferType::View] = &View;
+			Binding.Sizes[(size_t)RenderBufferType::View] = sizeof(View);
+
+			SetConstantBuffers();
+		}
+		RenderConstants::~RenderConstants() noexcept
+		{
+			for (size_t i = 0; i < 3; i++)
+				ED_CLEAR(Binding.Buffers[i]);
+			ED_CLEAR(Binding.BasicEffect);
+		}
+		void RenderConstants::SetConstantBuffers()
+		{
+			for (size_t i = 0; i < 3; i++)
+				Device->SetConstantBuffer(Binding.Buffers[i], (uint32_t)i, ED_VS | ED_PS | ED_GS | ED_CS | ED_HS | ED_DS);
+		}
+		void RenderConstants::UpdateConstantBuffer(RenderBufferType Buffer)
+		{
+			Device->UpdateConstantBuffer(Binding.Buffers[(size_t)Buffer], Binding.Pointers[(size_t)Buffer], Binding.Sizes[(size_t)Buffer]);
+		}
+		Graphics::Shader* RenderConstants::GetBasicEffect() const
+		{
+			return Binding.BasicEffect;
+		}
+		Graphics::GraphicsDevice* RenderConstants::GetDevice() const
+		{
+			return Device;
+		}
+		Graphics::ElementBuffer* RenderConstants::GetConstantBuffer(RenderBufferType Buffer) const
+		{
+			return Binding.Buffers[(size_t)Buffer];
+		}
+
 		RenderSystem::RenderSystem(SceneGraph* NewScene, Component* NewComponent) noexcept : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), Owner(NewComponent), MaxQueries(16384), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3), OverflowVisibility(0.0f), Threshold(0.1f), OcclusionCulling(false), PreciseCulling(true)
 		{
 			ED_ASSERT_V(NewScene != nullptr, "scene should be set");
-			ED_ASSERT_V(NewScene->GetDevice() != nullptr, "graphics device should be set");	
+			ED_ASSERT_V(NewScene->GetDevice() != nullptr, "graphics device should be set");
+			ED_ASSERT_V(NewScene->GetConstants() != nullptr, "render constants should be set");
 			Device = NewScene->GetDevice();
+			Constants = NewScene->GetConstants();
 		}
 		RenderSystem::~RenderSystem() noexcept
 		{
@@ -2379,15 +2579,15 @@ namespace Edge
 			else if (View.Culling == RenderCulling::Cubic)
 				Indexing.Bounds = Compute::Bounding(View.Position - View.FarPlane, View.Position + View.FarPlane);
 
-			Device->View.InvViewProj = View.InvViewProjection;
-			Device->View.ViewProj = View.ViewProjection;
-			Device->View.Proj = View.Projection;
-			Device->View.View = View.View;
-			Device->View.Position = View.Position;
-			Device->View.Direction = View.Rotation.dDirection();
-			Device->View.Far = View.FarPlane;
-			Device->View.Near = View.NearPlane;
-			Device->UpdateBuffer(Graphics::RenderBufferType::View);
+			Constants->View.InvViewProj = View.InvViewProjection;
+			Constants->View.ViewProj = View.ViewProjection;
+			Constants->View.Proj = View.Projection;
+			Constants->View.View = View.View;
+			Constants->View.Position = View.Position;
+			Constants->View.Direction = View.Rotation.dDirection();
+			Constants->View.Far = View.FarPlane;
+			Constants->View.Near = View.NearPlane;
+			Constants->UpdateConstantBuffer(RenderBufferType::View);
 		}
 		void RenderSystem::Remount(Renderer* Target)
 		{
@@ -2496,6 +2696,14 @@ namespace Edge
 			ED_RELEASE(Buffers[0]);
 			ED_RELEASE(Buffers[1]);
 		}
+		void RenderSystem::UpdateConstantBuffer(RenderBufferType Buffer)
+		{
+			Constants->UpdateConstantBuffer(Buffer);
+		}
+		Graphics::Shader* RenderSystem::GetBasicEffect() const
+		{
+			return Constants->GetBasicEffect();
+		}
 		void RenderSystem::ClearMaterials()
 		{
 			BaseMaterial = nullptr;
@@ -2555,7 +2763,7 @@ namespace Edge
 
 			return Count;
 		}
-		bool RenderSystem::TryInstance(Material* Next, Graphics::RenderBuffer::Instance& Target)
+		bool RenderSystem::TryInstance(Material* Next, RenderBuffer::Instance& Target)
 		{
 			if (!Next)
 				return false;
@@ -2576,10 +2784,10 @@ namespace Edge
 				return true;
 
 			BaseMaterial = Next;
-			Device->Render.Diffuse = (float)(Next->DiffuseMap != nullptr);
-			Device->Render.Normal = (float)(Next->NormalMap != nullptr);
-			Device->Render.Height = (float)(Next->HeightMap != nullptr);
-			Device->Render.MaterialId = (float)Next->Slot;
+			Constants->Render.Diffuse = (float)(Next->DiffuseMap != nullptr);
+			Constants->Render.Normal = (float)(Next->NormalMap != nullptr);
+			Constants->Render.Height = (float)(Next->HeightMap != nullptr);
+			Constants->Render.MaterialId = (float)Next->Slot;
 
 			if (WithTextures)
 			{
@@ -2743,6 +2951,10 @@ namespace Edge
 		Graphics::Texture2D** RenderSystem::GetMerger()
 		{
 			return Scene->GetMerger();
+		}
+		RenderConstants* RenderSystem::GetConstants() const
+		{
+			return Constants;
 		}
 		PrimitiveCache* RenderSystem::GetPrimitives() const
 		{
@@ -3440,6 +3652,9 @@ namespace Edge
 
 		void SceneGraph::Desc::AddRef()
 		{
+			if (Shared.Constants != nullptr)
+				Shared.Constants->AddRef();
+
 			if (Shared.Shaders != nullptr)
 				Shared.Shaders->AddRef();
 
@@ -3460,6 +3675,14 @@ namespace Edge
 		}
 		void SceneGraph::Desc::Release()
 		{
+			if (Shared.Constants != nullptr)
+			{
+				bool Cleanup = Shared.Constants->GetRefCount() == 1;
+				Shared.Constants->Release();
+				if (Cleanup)
+					Shared.Constants = nullptr;
+			}
+
 			if (Shared.Shaders != nullptr)
 			{
 				bool Cleanup = Shared.Shaders->GetRefCount() == 1;
@@ -3516,6 +3739,7 @@ namespace Edge
 
 			I.Shared.Shaders = Base->Cache.Shaders;
 			I.Shared.Primitives = Base->Cache.Primitives;
+			I.Shared.Constants = Base->Constants;
 			I.Shared.Content = Base->Content;
 			I.Shared.Device = Base->Renderer;
 			I.Shared.Activity = Base->Activity;
@@ -3729,9 +3953,10 @@ namespace Edge
 			auto* Device = Conf.Shared.Device;
 			ED_ASSERT_V(Device != nullptr, "graphics device should be set");
 			ED_ASSERT_V(Conf.Shared.Primitives != nullptr, "primitive cache should be set");
+			Conf.Shared.Constants->Render.TexCoord = 1.0f;
+			Conf.Shared.Constants->Render.Transform.Identify();
+			Conf.Shared.Constants->UpdateConstantBuffer(RenderBufferType::Render);
 
-			Device->Render.TexCoord = 1.0f;
-			Device->Render.Transform.Identify();
 			Device->SetTarget();
 			Device->SetDepthStencilState(Display.DepthStencil);
 			Device->SetBlendState(Display.Blend);
@@ -3739,9 +3964,8 @@ namespace Edge
 			Device->SetInputLayout(Display.Layout);
 			Device->SetSamplerState(Display.Sampler, 1, 1, ED_PS);
 			Device->SetTexture2D(Display.MRT[(size_t)TargetType::Main]->GetTarget(0), 1, ED_PS);
-			Device->SetShader(Device->GetBasicEffect(), ED_VS | ED_PS);
+			Device->SetShader(Conf.Shared.Constants->GetBasicEffect(), ED_VS | ED_PS);
 			Device->SetVertexBuffer(Conf.Shared.Primitives->GetQuad());
-			Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 			Device->Draw(6, 0);
 			Device->SetTexture2D(nullptr, 1, ED_PS);
 			Statistics.DrawCalls++;
@@ -3770,13 +3994,13 @@ namespace Edge
 			Statistics.Instances = 0;
 			Statistics.DrawCalls = 0;
 
-			if (Renderer != nullptr)
-			{
-				FillMaterialBuffers();
-				SetMRT(TargetType::Main, true);
-				Renderer->RestoreViewBuffer(nullptr);
-				Statistics.DrawCalls += Renderer->Render(Time, RenderState::Geometry_Result, RenderOpt::None);
-			}
+			if (!Renderer)
+				return;
+
+			FillMaterialBuffers();
+			SetMRT(TargetType::Main, true);
+			Renderer->RestoreViewBuffer(nullptr);
+			Statistics.DrawCalls += Renderer->Render(Time, RenderState::Geometry_Result, RenderOpt::None);
 		}
 		void SceneGraph::StepSimulate(Core::Timer* Time)
 		{
@@ -5196,6 +5420,10 @@ namespace Edge
 		{
 			return Conf.Shared.Activity;
 		}
+		RenderConstants* SceneGraph::GetConstants() const
+		{
+			return Conf.Shared.Constants;
+		}
 		ShaderCache* SceneGraph::GetShaders() const
 		{
 			return Conf.Shared.Shaders;
@@ -5907,6 +6135,7 @@ namespace Edge
 			ED_CLEAR(Cache.Shaders);
 			ED_CLEAR(Cache.Primitives);
 			ED_CLEAR(Content);
+			ED_CLEAR(Constants);
 			ED_CLEAR(Renderer);
 			ED_CLEAR(Activity);
 
@@ -5956,18 +6185,18 @@ namespace Edge
 				if (!Content)
 					Content = new ContentManager(nullptr);
 
-				Content->AddProcessor<Processors::Asset, Engine::AssetFile>();
-				Content->AddProcessor<Processors::Material, Engine::Material>();
-				Content->AddProcessor<Processors::SceneGraph, Engine::SceneGraph>();
-				Content->AddProcessor<Processors::AudioClip, Audio::AudioClip>();
-				Content->AddProcessor<Processors::Texture2D, Graphics::Texture2D>();
-				Content->AddProcessor<Processors::Shader, Graphics::Shader>();
-				Content->AddProcessor<Processors::Model, Graphics::Model>();
-				Content->AddProcessor<Processors::SkinModel, Graphics::SkinModel>();
-				Content->AddProcessor<Processors::SkinAnimation, Engine::SkinAnimation>();
-				Content->AddProcessor<Processors::Schema, Core::Schema>();
-				Content->AddProcessor<Processors::Server, Network::HTTP::Server>();
-				Content->AddProcessor<Processors::HullShape, Compute::HullShape>();
+				Content->AddProcessor<Processors::AssetProcessor, Engine::AssetFile>();
+				Content->AddProcessor<Processors::MaterialProcessor, Engine::Material>();
+				Content->AddProcessor<Processors::SceneGraphProcessor, Engine::SceneGraph>();
+				Content->AddProcessor<Processors::AudioClipProcessor, Audio::AudioClip>();
+				Content->AddProcessor<Processors::Texture2DProcessor, Graphics::Texture2D>();
+				Content->AddProcessor<Processors::ShaderProcessor, Graphics::Shader>();
+				Content->AddProcessor<Processors::ModelProcessor, Model>();
+				Content->AddProcessor<Processors::SkinModelProcessor, SkinModel>();
+				Content->AddProcessor<Processors::SkinAnimationProcessor, Engine::SkinAnimation>();
+				Content->AddProcessor<Processors::SchemaProcessor, Core::Schema>();
+				Content->AddProcessor<Processors::ServerProcessor, Network::HTTP::Server>();
+				Content->AddProcessor<Processors::HullShapeProcessor, Compute::HullShape>();
 				Content->SetEnvironment(Control.Environment.empty() ? Core::OS::Directory::Get() + Control.Directory : Control.Environment + Control.Directory);
 				
 				if (!Control.Preferences.empty())
@@ -6029,6 +6258,9 @@ namespace Edge
 
 						if (!Cache.Primitives)
 							Cache.Primitives = new PrimitiveCache(Renderer);
+
+						if (!Constants)
+							Constants = new RenderConstants(Renderer);
 					}
 					else if (!Activity->GetHandle())
 					{
@@ -6107,10 +6339,10 @@ namespace Edge
 					VM = new Scripting::VirtualMachine();
 			}
 
-			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
+			if (Activity != nullptr && Renderer != nullptr && Constants != nullptr && Content != nullptr)
 			{
 #ifdef ED_USE_RMLUI
-				GUI::Subsystem::SetMetadata(Activity, Content, nullptr);
+				GUI::Subsystem::SetMetadata(Activity, Constants, Content, nullptr);
 				GUI::Subsystem::SetVirtualMachine(VM);
 #endif
 			}
@@ -6139,8 +6371,8 @@ namespace Edge
 			Time->SetFixedFrames(Control.Framerate.Stable);
 			Time->SetMaxFrames(Control.Framerate.Limit);
 #ifdef ED_USE_RMLUI
-			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
-				GUI::Subsystem::SetMetadata(Activity, Content, Time);
+			if (Activity != nullptr && Renderer != nullptr && Constants != nullptr && Content != nullptr)
+				GUI::Subsystem::SetMetadata(Activity, Constants, Content, Time);
 #endif
 			Core::Schedule::Desc Policy;
 			Policy.Coroutines = Control.Coroutines;
@@ -6493,7 +6725,7 @@ namespace Edge
 			else if (Merger != nullptr)
 				Device->SetTexture2D(*Merger, 1, ED_PS);
 
-			Device->SetShader(Device->GetBasicEffect(), ED_VS | ED_PS);
+			Device->SetShader(System->GetBasicEffect(), ED_VS | ED_PS);
 			Device->Draw(6, 0);
 			Output = System->GetRT(TargetType::Main);
 

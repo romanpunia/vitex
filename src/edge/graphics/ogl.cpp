@@ -604,21 +604,7 @@ namespace Edge
 					glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
 				}
 
-				CreateConstantBuffer(&ConstantBuffer[0], sizeof(AnimationBuffer));
-				Constants[0] = &Animation;
-				ConstantSize[0] = sizeof(Animation);
-
-				CreateConstantBuffer(&ConstantBuffer[1], sizeof(RenderBuffer));
-				Constants[1] = &Render;
-				ConstantSize[1] = sizeof(RenderBuffer);
-
-				CreateConstantBuffer(&ConstantBuffer[2], sizeof(ViewBuffer));
-				Constants[2] = &View;
-				ConstantSize[2] = sizeof(ViewBuffer);
-
 				Register.Programs[GetProgramHash()] = GL_NONE;
-
-				SetConstantBuffers();
 				SetShaderModel(I.ShaderMode == ShaderModel::Auto ? GetSupportedShaderModel() : I.ShaderMode);
 				ResizeBuffers(I.BufferWidth, I.BufferHeight);
 				CreateStates();
@@ -626,10 +612,6 @@ namespace Edge
 				glEnable(GL_TEXTURE_2D);
 				glEnable(GL_TEXTURE_3D);
 				glEnable(GL_TEXTURE_CUBE_MAP);
-
-				Shader::Desc F = Shader::Desc();
-				if (GetSection("geometry/basic/geometry", &F))
-					BasicEffect = CreateShader(F);
 			}
 			OGLDevice::~OGLDevice()
 			{
@@ -642,7 +624,6 @@ namespace Edge
 				glDeleteProgram(Immediate.Program);
 				glDeleteVertexArrays(1, &Immediate.VertexArray);
 				glDeleteBuffers(1, &Immediate.VertexBuffer);
-				glDeleteBuffers(3, ConstantBuffer);
 #ifdef ED_HAS_SDL2
 				if (Context != nullptr)
 					SDL_GL_DeleteContext(Context);
@@ -668,12 +649,6 @@ namespace Edge
 						break;
 				}
 #endif
-			}
-			void OGLDevice::SetConstantBuffers()
-			{
-				glBindBufferBase(GL_UNIFORM_BUFFER, 0, ConstantBuffer[0]);
-				glBindBufferBase(GL_UNIFORM_BUFFER, 1, ConstantBuffer[1]);
-				glBindBufferBase(GL_UNIFORM_BUFFER, 2, ConstantBuffer[2]);
 			}
 			void OGLDevice::SetShaderModel(ShaderModel Model)
 			{
@@ -1057,6 +1032,11 @@ namespace Edge
 			{
 				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
 				SetStructureBuffer(IResource ? IResource->Elements : nullptr, Slot, Type);
+			}
+			void OGLDevice::SetConstantBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
+			{
+				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
+				glBindBufferBase(GL_UNIFORM_BUFFER, Slot, Resource ? ((OGLElementBuffer*)Resource)->Resource : GL_NONE);
 			}
 			void OGLDevice::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
@@ -1601,6 +1581,13 @@ namespace Edge
 				glBindBuffer(IResource->Flags, GL_NONE);
 				return true;
 			}
+			bool OGLDevice::UpdateConstantBuffer(ElementBuffer* Resource, void* Data, size_t Size)
+			{
+				ED_ASSERT(Resource != nullptr, false, "resource should be set");
+				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
+				CopyConstantBuffer(IResource->Resource, Data, Size);
+				return true;
+			}
 			bool OGLDevice::UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size)
 			{
 				ED_ASSERT(Resource != nullptr, false, "resource should be set");
@@ -1656,11 +1643,6 @@ namespace Edge
 				memcpy(Data, IResource->Array.data(), (size_t)IResource->Array.size() * IResource->ElementWidth);
 				glUnmapBuffer(Element->Flags);
 				glBindBuffer(Element->Flags, GL_NONE);
-				return true;
-			}
-			bool OGLDevice::UpdateBuffer(RenderBufferType Buffer)
-			{
-				CopyConstantBuffer(ConstantBuffer[(size_t)Buffer], (void*)Constants[(size_t)Buffer], ConstantSize[(size_t)Buffer]);
 				return true;
 			}
 			bool OGLDevice::UpdateBufferSize(Shader* Resource, size_t Size)
@@ -3666,7 +3648,7 @@ namespace Edge
 			}
 			bool OGLDevice::IsValid() const
 			{
-				return BasicEffect != nullptr;
+				return Context != nullptr;
 			}
 			bool OGLDevice::CreateDirectBuffer(size_t Size)
 			{

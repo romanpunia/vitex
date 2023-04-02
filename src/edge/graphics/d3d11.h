@@ -364,7 +364,6 @@ namespace Edge
 				ID3D11DeviceContext* ImmediateContext;
 				ID3D11Device* Context;
 				IDXGISwapChain* SwapChain;
-				ID3D11Buffer* ConstantBuffer[3];
 				DXGI_SWAP_CHAIN_DESC SwapChainResource;
 				D3D_FEATURE_LEVEL FeatureLevel;
 				D3D_DRIVER_TYPE DriverType;
@@ -373,7 +372,6 @@ namespace Edge
 				D3D11Device(const Desc& I);
 				~D3D11Device() override;
 				void SetAsCurrentDevice() override;
-				void SetConstantBuffers() override;
 				void SetShaderModel(ShaderModel Model) override;
 				void SetBlendState(BlendState* State) override;
 				void SetRasterizerState(RasterizerState* State) override;
@@ -383,6 +381,7 @@ namespace Edge
 				void SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type) override;
 				void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type) override;
+				void SetConstantBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type) override;
@@ -416,12 +415,12 @@ namespace Edge
 				bool Unmap(Texture3D* Resource, MappedSubresource* Map) override;
 				bool Unmap(TextureCube* Resource, MappedSubresource* Map) override;
 				bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) override;
+				bool UpdateConstantBuffer(ElementBuffer* Resource, void* Data, size_t Size) override;
 				bool UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size) override;
 				bool UpdateBuffer(Shader* Resource, const void* Data) override;
 				bool UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) override;
 				bool UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) override;
 				bool UpdateBuffer(InstanceBuffer* Resource) override;
-				bool UpdateBuffer(RenderBufferType Buffer) override;
 				bool UpdateBufferSize(Shader* Resource, size_t Size) override;
 				bool UpdateBufferSize(InstanceBuffer* Resource, size_t Size) override;
 				void ClearBuffer(InstanceBuffer* Resource) override;

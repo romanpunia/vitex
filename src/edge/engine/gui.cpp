@@ -48,6 +48,7 @@ namespace Edge
 				Graphics::Shader* Shader;
 				Graphics::GraphicsDevice* Device;
 				ContentManager* Content;
+				RenderConstants* Constants;
 				Compute::Matrix4x4 Transform;
 				Compute::Matrix4x4 Ortho;
 				bool HasTransform;
@@ -56,7 +57,7 @@ namespace Edge
 				Graphics::Texture2D* Background;
 
 			public:
-				RenderSubsystem() : Rml::RenderInterface(), Device(nullptr), Content(nullptr), HasTransform(false), Background(nullptr)
+				RenderSubsystem() : Rml::RenderInterface(), Device(nullptr), Content(nullptr), Constants(nullptr), HasTransform(false), Background(nullptr)
 				{
 					Shader = nullptr;
 					VertexBuffer = nullptr;
@@ -133,17 +134,17 @@ namespace Edge
 					ED_ASSERT_V(Device != nullptr, "graphics device should be set");
 					ED_ASSERT_V(Buffer != nullptr, "buffer should be set");
 
-					Device->Render.Diffuse = (Buffer->Texture != nullptr ? 1.0f : 0.0f);
+					Constants->Render.Diffuse = (Buffer->Texture != nullptr ? 1.0f : 0.0f);
 					if (HasTransform)
-						Device->Render.Transform = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Transform * Ortho;
+						Constants->Render.Transform = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Transform * Ortho;
 					else
-						Device->Render.Transform = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Ortho;
+						Constants->Render.Transform = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Ortho;
 
+					Constants->UpdateConstantBuffer(RenderBufferType::Render);
 					Device->SetShader(Shader, ED_VS | ED_PS);
 					Device->SetTexture2D(Buffer->Texture, 1, ED_PS);
 					Device->SetVertexBuffer(Buffer->VertexBuffer);
 					Device->SetIndexBuffer(Buffer->IndexBuffer, Graphics::Format::R32_Uint);
-					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->DrawIndexed((unsigned int)Buffer->IndexBuffer->GetElements(), 0, 0);
 				}
 				void ReleaseCompiledGeometry(Rml::CompiledGeometryHandle Handle) override
@@ -212,12 +213,12 @@ namespace Edge
 						Device->Unmap(VertexBuffer, &Subresource);
 					}
 
-					Device->Render.Transform = Transform * Ortho;
+					Constants->Render.Transform = Transform * Ortho;
+					Constants->UpdateConstantBuffer(RenderBufferType::Render);
 					Device->ClearDepth();
 					Device->SetBlendState(ColorlessBlend);
 					Device->SetShader(Shader, ED_VS | ED_PS);
 					Device->SetVertexBuffer(VertexBuffer);
-					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->Draw((unsigned int)VertexBuffer->GetElements(), 0);
 					Device->SetDepthStencilState(ScissorDepthStencil);
 					Device->SetBlendState(AlphaBlend);
@@ -266,14 +267,16 @@ namespace Edge
 					if (HasTransform)
 						Transform = Subsystem::ToMatrix(NewTransform);
 				}
-				void Attach(ContentManager* NewContent)
+				void Attach(RenderConstants* NewConstants, ContentManager* NewContent)
 				{
+					ED_ASSERT_V(NewConstants != nullptr, "render constants should be set");
 					ED_ASSERT_V(NewContent != nullptr, "content manager should be set");
 					ED_ASSERT_V(NewContent->GetDevice() != nullptr, "graphics device should be set");
 
 					ED_CLEAR(VertexBuffer);
 					ED_CLEAR(Shader);
 
+					Constants = NewConstants;
 					Content = NewContent;
 					Device = Content->GetDevice();
 
@@ -2761,7 +2764,7 @@ namespace Edge
 				return false;
 #endif
 			}
-			void Subsystem::SetMetadata(Graphics::Activity* Activity, ContentManager* Content, Core::Timer* Time)
+			void Subsystem::SetMetadata(Graphics::Activity* Activity, RenderConstants* Constants, ContentManager* Content, Core::Timer* Time)
 			{
 #ifdef ED_USE_RMLUI
 				if (State == 0 && !Create())
@@ -2769,11 +2772,11 @@ namespace Edge
 
 				if (RenderInterface != nullptr)
 				{
-					RenderInterface->Attach(Content);
+					RenderInterface->Attach(Constants, Content);
 					if (!HasDecorators && Content && Content->GetDevice())
 					{
 						HasDecorators = true;
-						CreateDecorators(Content->GetDevice());
+						CreateDecorators(Constants);
 					}
 				}
 

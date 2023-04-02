@@ -625,10 +625,10 @@ namespace Edge
 				return Future.get();
 			}
 
-			Asset::Asset(ContentManager* Manager) : Processor(Manager)
+			AssetProcessor::AssetProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Asset::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			void* AssetProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 
@@ -645,16 +645,16 @@ namespace Edge
 				return new AssetFile(Data, Temp.size());
 			}
 
-			Material::Material(ContentManager* Manager) : Processor(Manager)
+			MaterialProcessor::MaterialProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void Material::Free(AssetCache* Asset)
+			void MaterialProcessor::Free(AssetCache* Asset)
 			{
 				ED_ASSERT_V(Asset != nullptr, "asset should be set");
 				ED_RELEASE((Engine::Material*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
-			void* Material::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			void* MaterialProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Asset != nullptr, nullptr, "asset should be set");
 				ED_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
@@ -662,7 +662,7 @@ namespace Edge
 				((Engine::Material*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Material::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			void* MaterialProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				Core::Schema* Data = Content->Load<Core::Schema>(Stream->GetSource());
@@ -677,6 +677,7 @@ namespace Edge
 					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
 					{
 						Object->SetDiffuseMap(NewTexture);
+						ED_RELEASE(NewTexture);
 					});
 				}
 
@@ -685,6 +686,7 @@ namespace Edge
 					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
 					{
 						Object->SetNormalMap(NewTexture);
+						ED_RELEASE(NewTexture);
 					});
 				}
 
@@ -693,6 +695,7 @@ namespace Edge
 					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
 					{
 						Object->SetMetallicMap(NewTexture);
+						ED_RELEASE(NewTexture);
 					});
 				}
 
@@ -701,6 +704,7 @@ namespace Edge
 					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
 					{
 						Object->SetRoughnessMap(NewTexture);
+						ED_RELEASE(NewTexture);
 					});
 				}
 
@@ -709,6 +713,7 @@ namespace Edge
 					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
 					{
 						Object->SetHeightMap(NewTexture);
+						ED_RELEASE(NewTexture);
 					});
 				}
 
@@ -717,6 +722,7 @@ namespace Edge
 					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
 					{
 						Object->SetOcclusionMap(NewTexture);
+						ED_RELEASE(NewTexture);
 					});
 				}
 
@@ -725,6 +731,7 @@ namespace Edge
 					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
 					{
 						Object->SetEmissionMap(NewTexture);
+						ED_RELEASE(NewTexture);
 					});
 				}
 
@@ -756,7 +763,7 @@ namespace Edge
 				Object->AddRef();
 				return Object;
 			}
-			bool Material::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
+			bool MaterialProcessor::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, false, "stream should be set");
 				ED_ASSERT(Instance != nullptr, false, "instance should be set");
@@ -818,10 +825,10 @@ namespace Edge
 				return true;
 			}
 
-			SceneGraph::SceneGraph(ContentManager* Manager) : Processor(Manager)
+			SceneGraphProcessor::SceneGraphProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* SceneGraph::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			void* SceneGraphProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				Engine::SceneGraph::Desc I = Engine::SceneGraph::Desc::Get(Application::Get());
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
@@ -994,7 +1001,7 @@ namespace Edge
 
 				return Object;
 			}
-			bool SceneGraph::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
+			bool SceneGraphProcessor::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, false, "stream should be set");
 				ED_ASSERT(Instance != nullptr, false, "instance should be set");
@@ -1130,19 +1137,19 @@ namespace Edge
 				return true;
 			}
 
-			AudioClip::AudioClip(ContentManager* Manager) : Processor(Manager)
+			AudioClipProcessor::AudioClipProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			AudioClip::~AudioClip()
+			AudioClipProcessor::~AudioClipProcessor()
 			{
 			}
-			void AudioClip::Free(AssetCache* Asset)
+			void AudioClipProcessor::Free(AssetCache* Asset)
 			{
 				ED_ASSERT_V(Asset != nullptr, "asset should be set");
 				ED_RELEASE((Audio::AudioClip*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
-			void* AudioClip::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			void* AudioClipProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Asset != nullptr, nullptr, "asset should be set");
 				ED_ASSERT(Asset->Resource != nullptr, nullptr, "asset resource should be set");
@@ -1150,7 +1157,7 @@ namespace Edge
 				((Audio::AudioClip*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* AudioClip::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			void* AudioClipProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				if (Core::String(&Stream->GetSource()).EndsWith(".wav"))
 					return DeserializeWAVE(Stream, Offset, Args);
@@ -1159,7 +1166,7 @@ namespace Edge
 
 				return nullptr;
 			}
-			void* AudioClip::DeserializeWAVE(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			void* AudioClipProcessor::DeserializeWAVE(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 #ifdef ED_HAS_SDL2
@@ -1213,7 +1220,7 @@ namespace Edge
 				return nullptr;
 #endif
 			}
-			void* AudioClip::DeserializeOGG(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			void* AudioClipProcessor::DeserializeOGG(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				std::vector<char> Data;
@@ -1255,19 +1262,19 @@ namespace Edge
 				return Object;
 			}
 
-			Texture2D::Texture2D(ContentManager* Manager) : Processor(Manager)
+			Texture2DProcessor::Texture2DProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			Texture2D::~Texture2D()
+			Texture2DProcessor::~Texture2DProcessor()
 			{
 			}
-			void Texture2D::Free(AssetCache* Asset)
+			void Texture2DProcessor::Free(AssetCache* Asset)
 			{
 				ED_ASSERT_V(Asset != nullptr, "asset should be set");
 				ED_RELEASE((Graphics::Texture2D*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
-			void* Texture2D::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			void* Texture2DProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Asset != nullptr, nullptr, "asset should be set");
 				ED_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
@@ -1275,7 +1282,7 @@ namespace Edge
 				((Graphics::Texture2D*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Texture2D::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			void* Texture2DProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				std::vector<char> Data;
@@ -1320,19 +1327,19 @@ namespace Edge
 				return Object;
 			}
 
-			Shader::Shader(ContentManager* Manager) : Processor(Manager)
+			ShaderProcessor::ShaderProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			Shader::~Shader()
+			ShaderProcessor::~ShaderProcessor()
 			{
 			}
-			void Shader::Free(AssetCache* Asset)
+			void ShaderProcessor::Free(AssetCache* Asset)
 			{
 				ED_ASSERT_V(Asset != nullptr, "asset should be set");
 				ED_RELEASE((Graphics::Shader*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
-			void* Shader::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			void* ShaderProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Asset != nullptr, nullptr, "asset should be set");
 				ED_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
@@ -1340,7 +1347,7 @@ namespace Edge
 				((Graphics::Shader*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Shader::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			void* ShaderProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				std::string Data;
@@ -1373,30 +1380,30 @@ namespace Edge
 				return Object;
 			}
 
-			Model::Model(ContentManager* Manager) : Processor(Manager)
+			ModelProcessor::ModelProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			Model::~Model()
+			ModelProcessor::~ModelProcessor()
 			{
 			}
-			void Model::Free(AssetCache* Asset)
+			void ModelProcessor::Free(AssetCache* Asset)
 			{
 				ED_ASSERT_V(Asset != nullptr, "asset should be set");
-				ED_RELEASE((Graphics::Model*)Asset->Resource);
+				ED_RELEASE((Model*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
-			void* Model::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			void* ModelProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Asset != nullptr, nullptr, "asset should be set");
 				ED_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
 
-				((Graphics::Model*)Asset->Resource)->AddRef();
+				((Model*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Model::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			void* ModelProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				Graphics::Model* Object = nullptr;
+				Model* Object = nullptr;
 				std::string& Path = Stream->GetSource();
 				Core::String Location(&Path);
 
@@ -1406,7 +1413,7 @@ namespace Edge
 					if (!Data)
 						return nullptr;
 
-					Object = new Graphics::Model();
+					Object = new Model();
 					Series::Unpack(Data->Get("min"), &Object->Min);
 					Series::Unpack(Data->Get("max"), &Object->Max);
 
@@ -1450,7 +1457,7 @@ namespace Edge
 					if (Data.Meshes.empty())
 						return nullptr;
 
-					Object = new Graphics::Model();
+					Object = new Model();
 					Object->Meshes.reserve(Data.Meshes.size());
 					Object->Min = Data.Min;
 					Object->Max = Data.Max;
@@ -1474,7 +1481,7 @@ namespace Edge
 					}
 				}
 
-				auto* Existing = (Graphics::Model*)Content->TryToCache(this, Stream->GetSource(), Object);
+				auto* Existing = (Model*)Content->TryToCache(this, Stream->GetSource(), Object);
 				if (Existing != nullptr)
 				{
 					ED_RELEASE(Object);
@@ -1484,7 +1491,7 @@ namespace Edge
 				Object->AddRef();
 				return Object;
 			}
-			Core::Schema* Model::Import(Core::Stream* Stream, uint64_t Opts)
+			Core::Schema* ModelProcessor::Import(Core::Stream* Stream, uint64_t Opts)
 			{
 				ModelInfo Info = ImportForImmediateUse(Stream, Opts);
 				if (Info.Meshes.empty() && Info.JointOffsets.empty())
@@ -1512,7 +1519,7 @@ namespace Edge
 
 				return Blob;
 			}
-			ModelInfo Model::ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts)
+			ModelInfo ModelProcessor::ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts)
 			{
 				ModelInfo Info;
 #ifdef ED_HAS_ASSIMP
@@ -1538,30 +1545,30 @@ namespace Edge
 				return Info;
 			}
 			
-			SkinModel::SkinModel(ContentManager* Manager) : Processor(Manager)
+			SkinModelProcessor::SkinModelProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			SkinModel::~SkinModel()
+			SkinModelProcessor::~SkinModelProcessor()
 			{
 			}
-			void SkinModel::Free(AssetCache* Asset)
+			void SkinModelProcessor::Free(AssetCache* Asset)
 			{
 				ED_ASSERT_V(Asset != nullptr, "asset should be set");
-				ED_RELEASE((Graphics::SkinModel*)Asset->Resource);
+				ED_RELEASE((SkinModel*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
-			void* SkinModel::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			void* SkinModelProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Asset != nullptr, nullptr, "asset should be set");
 				ED_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
 
-				((Graphics::SkinModel*)Asset->Resource)->AddRef();
+				((SkinModel*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* SkinModel::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			void* SkinModelProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				Graphics::SkinModel* Object = nullptr;
+				SkinModel* Object = nullptr;
 				std::string& Path = Stream->GetSource();
 				Core::String Location(&Path);
 
@@ -1571,7 +1578,7 @@ namespace Edge
 					if (!Data)
 						return nullptr;
 
-					Object = new Graphics::SkinModel();
+					Object = new SkinModel();
 					Series::Unpack(Data->Get("inv-transform"), &Object->InvTransform);
 					Series::Unpack(Data->Get("min"), &Object->Min);
 					Series::Unpack(Data->Get("max"), &Object->Max);
@@ -1615,11 +1622,11 @@ namespace Edge
 				}
 				else
 				{
-					ModelInfo Data = Model::ImportForImmediateUse(Stream);
+					ModelInfo Data = ModelProcessor::ImportForImmediateUse(Stream);
 					if (Data.Meshes.empty())
 						return nullptr;
 
-					Object = new Graphics::SkinModel();
+					Object = new SkinModel();
 					Object->Meshes.reserve(Data.Meshes.size());
 					Object->InvTransform = Data.Transform;
 					Object->Min = Data.Min;
@@ -1646,7 +1653,7 @@ namespace Edge
 					}
 				}
 
-				auto* Existing = (Graphics::SkinModel*)Content->TryToCache(this, Stream->GetSource(), Object);
+				auto* Existing = (SkinModel*)Content->TryToCache(this, Stream->GetSource(), Object);
 				if (Existing != nullptr)
 				{
 					ED_RELEASE(Object);
@@ -1657,19 +1664,19 @@ namespace Edge
 				return Object;
 			}
 
-			SkinAnimation::SkinAnimation(ContentManager* Manager) : Processor(Manager)
+			SkinAnimationProcessor::SkinAnimationProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			SkinAnimation::~SkinAnimation()
+			SkinAnimationProcessor::~SkinAnimationProcessor()
 			{
 			}
-			void SkinAnimation::Free(AssetCache* Asset)
+			void SkinAnimationProcessor::Free(AssetCache* Asset)
 			{
 				ED_ASSERT_V(Asset != nullptr, "asset should be set");
 				ED_RELEASE((Engine::SkinAnimation*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
-			void* SkinAnimation::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			void* SkinAnimationProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Asset != nullptr, nullptr, "asset should be set");
 				ED_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
@@ -1677,7 +1684,7 @@ namespace Edge
 				((Engine::SkinAnimation*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* SkinAnimation::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			void* SkinAnimationProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				std::vector<Compute::SkinAnimatorClip> Clips;
@@ -1741,7 +1748,7 @@ namespace Edge
 				Object->AddRef();
 				return Object;
 			}
-			Core::Schema* SkinAnimation::Import(Core::Stream* Stream, uint64_t Opts)
+			Core::Schema* SkinAnimationProcessor::Import(Core::Stream* Stream, uint64_t Opts)
 			{
 				std::vector<Compute::SkinAnimatorClip> Info = ImportForImmediateUse(Stream, Opts);
 				if (Info.empty())
@@ -1779,7 +1786,7 @@ namespace Edge
 
 				return Blob;
 			}
-			std::vector<Compute::SkinAnimatorClip> SkinAnimation::ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts)
+			std::vector<Compute::SkinAnimatorClip> SkinAnimationProcessor::ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts)
 			{
 				std::vector<Compute::SkinAnimatorClip> Info;
 #ifdef ED_HAS_ASSIMP
@@ -1804,10 +1811,10 @@ namespace Edge
 				return Info;
 			}
 
-			Schema::Schema(ContentManager* Manager) : Processor(Manager)
+			SchemaProcessor::SchemaProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Schema::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			void* SchemaProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				auto* Object = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, size_t Size)
@@ -1831,7 +1838,7 @@ namespace Edge
 
 				return Object;
 			}
-			bool Schema::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
+			bool SchemaProcessor::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
 				auto Type = Args.find("type");
 				ED_ASSERT(Type != Args.end(), false, "type argument should be set");
@@ -1911,10 +1918,10 @@ namespace Edge
 				return true;
 			}
 
-			Server::Server(ContentManager* Manager) : Processor(Manager)
+			ServerProcessor::ServerProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Server::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			void* ServerProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				std::string N = Network::Multiplexer::GetLocalAddress();
@@ -2309,19 +2316,19 @@ namespace Edge
 				return (void*)Object;
 			}
 
-			HullShape::HullShape(ContentManager* Manager) : Processor(Manager)
+			HullShapeProcessor::HullShapeProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			HullShape::~HullShape()
+			HullShapeProcessor::~HullShapeProcessor()
 			{
 			}
-			void HullShape::Free(AssetCache* Asset)
+			void HullShapeProcessor::Free(AssetCache* Asset)
 			{
 				ED_ASSERT_V(Asset != nullptr, "asset should be set");
 				ED_ASSERT_V(Asset->Resource != nullptr, "instance should be set");
 				ED_RELEASE((Compute::HullShape*)Asset->Resource);
 			}
-			void* HullShape::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			void* HullShapeProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Asset != nullptr, nullptr, "asset should be set");
 				ED_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
@@ -2329,7 +2336,7 @@ namespace Edge
 				((Compute::HullShape*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* HullShape::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			void* HullShapeProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				auto* Data = Content->Load<Core::Schema>(Stream->GetSource());

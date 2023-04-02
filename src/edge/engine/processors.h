@@ -94,36 +94,36 @@ namespace Edge
 				std::unordered_map<float, Compute::Quaternion> Rotations;
 			};
 
-			class ED_OUT Asset final : public Processor
+			class ED_OUT AssetProcessor final : public Processor
 			{
 			public:
-				Asset(ContentManager * Manager);
+				AssetProcessor(ContentManager * Manager);
 				void* Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 
-			class ED_OUT Material final : public Processor
+			class ED_OUT MaterialProcessor final : public Processor
 			{
 			public:
-				Material(ContentManager * Manager);
+				MaterialProcessor(ContentManager * Manager);
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 				bool Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
 			};
 
-			class ED_OUT SceneGraph final : public Processor
+			class ED_OUT SceneGraphProcessor final : public Processor
 			{
 			public:
-				SceneGraph(ContentManager * Manager);
+				SceneGraphProcessor(ContentManager * Manager);
 				void* Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 				bool Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
 			};
 
-			class ED_OUT AudioClip final : public Processor
+			class ED_OUT AudioClipProcessor final : public Processor
 			{
 			public:
-				AudioClip(ContentManager * Manager);
-				~AudioClip() override;
+				AudioClipProcessor(ContentManager * Manager);
+				~AudioClipProcessor() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
@@ -131,34 +131,34 @@ namespace Edge
 				Core::Unique<void> DeserializeOGG(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args);
 			};
 
-			class ED_OUT Texture2D final : public Processor
+			class ED_OUT Texture2DProcessor final : public Processor
 			{
 			public:
-				Texture2D(ContentManager * Manager);
-				~Texture2D() override;
+				Texture2DProcessor(ContentManager * Manager);
+				~Texture2DProcessor() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 
-			class ED_OUT Shader final : public Processor
+			class ED_OUT ShaderProcessor final : public Processor
 			{
 			public:
-				Shader(ContentManager * Manager);
-				~Shader() override;
+				ShaderProcessor(ContentManager * Manager);
+				~ShaderProcessor() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 
-			class ED_OUT Model final : public Processor
+			class ED_OUT ModelProcessor final : public Processor
 			{
 			public:
 				Graphics::MeshBuffer::Desc Options;
 
 			public:
-				Model(ContentManager* Manager);
-				~Model() override;
+				ModelProcessor(ContentManager* Manager);
+				~ModelProcessor() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
@@ -168,24 +168,24 @@ namespace Edge
 				static ModelInfo ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
 			};
 
-			class ED_OUT SkinModel final : public Processor
+			class ED_OUT SkinModelProcessor final : public Processor
 			{
 			public:
 				Graphics::SkinMeshBuffer::Desc Options;
 
 			public:
-				SkinModel(ContentManager* Manager);
-				~SkinModel() override;
+				SkinModelProcessor(ContentManager* Manager);
+				~SkinModelProcessor() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 
-			class ED_OUT SkinAnimation final : public Processor
+			class ED_OUT SkinAnimationProcessor final : public Processor
 			{
 			public:
-				SkinAnimation(ContentManager* Manager);
-				~SkinAnimation() override;
+				SkinAnimationProcessor(ContentManager* Manager);
+				~SkinAnimationProcessor() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
@@ -195,29 +195,29 @@ namespace Edge
 				static std::vector<Compute::SkinAnimatorClip> ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
 			};
 
-			class ED_OUT Schema final : public Processor
+			class ED_OUT SchemaProcessor final : public Processor
 			{
 			public:
-				Schema(ContentManager * Manager);
+				SchemaProcessor(ContentManager * Manager);
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 				bool Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
 			};
 
-			class ED_OUT Server final : public Processor
+			class ED_OUT ServerProcessor final : public Processor
 			{
 			public:
 				std::function<void(void*, Core::Schema*)> Callback;
 
 			public:
-				Server(ContentManager* Manager);
+				ServerProcessor(ContentManager* Manager);
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 
-			class ED_OUT HullShape final : public Processor
+			class ED_OUT HullShapeProcessor final : public Processor
 			{
 			public:
-				HullShape(ContentManager * Manager);
-				~HullShape() override;
+				HullShapeProcessor(ContentManager * Manager);
+				~HullShapeProcessor() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;

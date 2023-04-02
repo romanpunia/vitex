@@ -625,7 +625,7 @@ namespace Edge
 			alSourceStop(Instance);
 
 			ED_RELEASE(Clip);
-			Clip = NewClip;
+			ED_ASSIGN(Clip, NewClip);
 
 			if (Clip != nullptr)
 				alSourcei(Instance, AL_BUFFER, Clip->GetBuffer());

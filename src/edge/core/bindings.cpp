@@ -4830,18 +4830,18 @@ namespace Edge
 				if (I.Usage & (size_t)Engine::ApplicationSet::ContentSet)
 				{
 					Content = new Engine::ContentManager(nullptr);
-					Content->AddProcessor(new Engine::Processors::Asset(Content), ED_HASH(TYPENAME_ASSETFILE));
-					Content->AddProcessor(new Engine::Processors::Material(Content), ED_HASH(TYPENAME_MATERIAL));
-					Content->AddProcessor(new Engine::Processors::SceneGraph(Content), ED_HASH(TYPENAME_SCENEGRAPH));
-					Content->AddProcessor(new Engine::Processors::AudioClip(Content), ED_HASH(TYPENAME_AUDIOCLIP));
-					Content->AddProcessor(new Engine::Processors::Texture2D(Content), ED_HASH(TYPENAME_TEXTURE2D));
-					Content->AddProcessor(new Engine::Processors::Shader(Content), ED_HASH(TYPENAME_SHADER));
-					Content->AddProcessor(new Engine::Processors::Model(Content), ED_HASH(TYPENAME_MODEL));
-					Content->AddProcessor(new Engine::Processors::SkinModel(Content), ED_HASH(TYPENAME_SKINMODEL));
-					Content->AddProcessor(new Engine::Processors::SkinAnimation(Content), ED_HASH(TYPENAME_SKINANIMATION));
-					Content->AddProcessor(new Engine::Processors::Schema(Content), ED_HASH(TYPENAME_SCHEMA));
-					Content->AddProcessor(new Engine::Processors::Server(Content), ED_HASH(TYPENAME_HTTPSERVER));
-					Content->AddProcessor(new Engine::Processors::HullShape(Content), ED_HASH(TYPENAME_PHYSICSHULLSHAPE));
+					Content->AddProcessor(new Engine::Processors::AssetProcessor(Content), ED_HASH(TYPENAME_ASSETFILE));
+					Content->AddProcessor(new Engine::Processors::MaterialProcessor(Content), ED_HASH(TYPENAME_MATERIAL));
+					Content->AddProcessor(new Engine::Processors::SceneGraphProcessor(Content), ED_HASH(TYPENAME_SCENEGRAPH));
+					Content->AddProcessor(new Engine::Processors::AudioClipProcessor(Content), ED_HASH(TYPENAME_AUDIOCLIP));
+					Content->AddProcessor(new Engine::Processors::Texture2DProcessor(Content), ED_HASH(TYPENAME_TEXTURE2D));
+					Content->AddProcessor(new Engine::Processors::ShaderProcessor(Content), ED_HASH(TYPENAME_SHADER));
+					Content->AddProcessor(new Engine::Processors::ModelProcessor(Content), ED_HASH(TYPENAME_MODEL));
+					Content->AddProcessor(new Engine::Processors::SkinModelProcessor(Content), ED_HASH(TYPENAME_SKINMODEL));
+					Content->AddProcessor(new Engine::Processors::SkinAnimationProcessor(Content), ED_HASH(TYPENAME_SKINANIMATION));
+					Content->AddProcessor(new Engine::Processors::SchemaProcessor(Content), ED_HASH(TYPENAME_SCHEMA));
+					Content->AddProcessor(new Engine::Processors::ServerProcessor(Content), ED_HASH(TYPENAME_HTTPSERVER));
+					Content->AddProcessor(new Engine::Processors::HullShapeProcessor(Content), ED_HASH(TYPENAME_PHYSICSHULLSHAPE));
 				}
 			}
 			Application::~Application() noexcept
@@ -6217,36 +6217,6 @@ namespace Edge
 					Base->Callbacks.DropText = nullptr;
 			}
 			
-			Compute::Matrix4x4& AnimationBufferGetOffsets(Graphics::AnimationBuffer& Base, size_t Index)
-			{
-				return Base.Offsets[Index % ED_MAX_JOINTS];
-			}
-
-			void PoseBufferSetOffset(Graphics::PoseBuffer& Base, int64_t Index, const Graphics::PoseData& Data)
-			{
-				Base.Offsets[Index] = Data;
-			}
-			void PoseBufferSetMatrix(Graphics::PoseBuffer& Base, Graphics::SkinMeshBuffer* Mesh, size_t Index, const Compute::Matrix4x4& Data)
-			{
-				Base.Matrices[Mesh].Data[Index % ED_MAX_JOINTS] = Data;
-			}
-			Graphics::PoseData& PoseBufferGetOffset(Graphics::PoseBuffer& Base, int64_t Index)
-			{
-				return Base.Offsets[Index];
-			}
-			Compute::Matrix4x4& PoseBufferGetMatrix(Graphics::PoseBuffer& Base, Graphics::SkinMeshBuffer* Mesh, size_t Index)
-			{
-				return Base.Matrices[Mesh].Data[Index % ED_MAX_JOINTS];
-			}
-			size_t PoseBufferGetOffsetsSize(Graphics::PoseBuffer& Base)
-			{
-				return Base.Offsets.size();
-			}
-			size_t PoseBufferGetMatricesSize(Graphics::PoseBuffer& Base, Graphics::SkinMeshBuffer* Mesh)
-			{
-				return ED_MAX_JOINTS;
-			}
-
 			Graphics::RenderTargetBlendState& BlendStateDescGetRenderTarget(Graphics::BlendState::Desc& Base, size_t Index)
 			{
 				return Base.RenderTarget[Index % 8];
@@ -6541,21 +6511,51 @@ namespace Edge
 				Graphics::GraphicsDevice::CompileBuiltinShaders(Array::Decompose<Graphics::GraphicsDevice*>(Devices));
 			}
 
-			Array* ModelGetMeshes(Graphics::Model* Base)
+			Compute::Matrix4x4& AnimationBufferGetOffsets(Engine::AnimationBuffer& Base, size_t Index)
+			{
+				return Base.Offsets[Index % ED_MAX_JOINTS];
+			}
+
+			void PoseBufferSetOffset(Engine::PoseBuffer& Base, int64_t Index, const Engine::PoseData& Data)
+			{
+				Base.Offsets[Index] = Data;
+			}
+			void PoseBufferSetMatrix(Engine::PoseBuffer& Base, Graphics::SkinMeshBuffer* Mesh, size_t Index, const Compute::Matrix4x4& Data)
+			{
+				Base.Matrices[Mesh].Data[Index % ED_MAX_JOINTS] = Data;
+			}
+			Engine::PoseData& PoseBufferGetOffset(Engine::PoseBuffer& Base, int64_t Index)
+			{
+				return Base.Offsets[Index];
+			}
+			Compute::Matrix4x4& PoseBufferGetMatrix(Engine::PoseBuffer& Base, Graphics::SkinMeshBuffer* Mesh, size_t Index)
+			{
+				return Base.Matrices[Mesh].Data[Index % ED_MAX_JOINTS];
+			}
+			size_t PoseBufferGetOffsetsSize(Engine::PoseBuffer& Base)
+			{
+				return Base.Offsets.size();
+			}
+			size_t PoseBufferGetMatricesSize(Engine::PoseBuffer& Base, Graphics::SkinMeshBuffer* Mesh)
+			{
+				return ED_MAX_JOINTS;
+			}
+
+			Array* ModelGetMeshes(Engine::Model* Base)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_MESHBUFFER "@>@");
 				return Array::Compose(Type.GetTypeInfo(), Base->Meshes);
 			}
-			void ModelSetMeshes(Graphics::Model* Base, Array* Data)
+			void ModelSetMeshes(Engine::Model* Base, Array* Data)
 			{
 				Base->Meshes = Array::Decompose<Graphics::MeshBuffer*>(Data);
 			}
-			Array* SkinModelGetMeshes(Graphics::SkinModel* Base)
+			Array* SkinModelGetMeshes(Engine::SkinModel* Base)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_SKINMESHBUFFER "@>@");
 				return Array::Compose(Type.GetTypeInfo(), Base->Meshes);
 			}
-			void SkinModelSetMeshes(Graphics::SkinModel* Base, Array* Data)
+			void SkinModelSetMeshes(Engine::SkinModel* Base, Array* Data)
 			{
 				Base->Meshes = Array::Decompose<Graphics::SkinMeshBuffer*>(Data);
 			}
@@ -11556,11 +11556,6 @@ namespace Edge
 				VShaderCompile.SetValue("reseed_x17", (int)Graphics::ShaderCompile::Reseed_X17);
 				VShaderCompile.SetValue("picky", (int)Graphics::ShaderCompile::Picky);
 
-				Enumeration VRenderBufferType = Engine->SetEnum("render_buffer_type");
-				VRenderBufferType.SetValue("Animation", (int)Graphics::RenderBufferType::Animation);
-				VRenderBufferType.SetValue("Render", (int)Graphics::RenderBufferType::Render);
-				VRenderBufferType.SetValue("View", (int)Graphics::RenderBufferType::View);
-
 				Enumeration VResourceMisc = Engine->SetEnum("resource_misc");
 				VResourceMisc.SetValue("none", (int)Graphics::ResourceMisc::None);
 				VResourceMisc.SetValue("generate_mips", (int)Graphics::ResourceMisc::Generate_Mips);
@@ -11622,67 +11617,6 @@ namespace Edge
 				VRenderTargetBlendState.SetProperty<Graphics::RenderTargetBlendState>("uint8 render_target_write_mask", &Graphics::RenderTargetBlendState::RenderTargetWriteMask);
 				VRenderTargetBlendState.SetProperty<Graphics::RenderTargetBlendState>("bool blend_enable", &Graphics::RenderTargetBlendState::BlendEnable);
 				VRenderTargetBlendState.SetConstructor<Graphics::RenderTargetBlendState>("void f()");
-
-				TypeClass VPoseNode = Engine->SetPod<Graphics::PoseNode>("pose_node");
-				VPoseNode.SetProperty<Graphics::PoseNode>("vector3 position", &Graphics::PoseNode::Position);
-				VPoseNode.SetProperty<Graphics::PoseNode>("vector3 scale", &Graphics::PoseNode::Scale);
-				VPoseNode.SetProperty<Graphics::PoseNode>("quaternion rotation", &Graphics::PoseNode::Rotation);
-				VPoseNode.SetConstructor<Graphics::PoseNode>("void f()");
-
-				TypeClass VPoseData = Engine->SetPod<Graphics::PoseData>("pose_data");
-				VPoseData.SetProperty<Graphics::PoseData>("pose_node frame_pose", &Graphics::PoseData::Frame);
-				VPoseData.SetProperty<Graphics::PoseData>("pose_node offset_pose", &Graphics::PoseData::Offset);
-				VPoseData.SetProperty<Graphics::PoseData>("pose_node default_pose", &Graphics::PoseData::Default);
-				VPoseData.SetConstructor<Graphics::PoseData>("void f()");
-
-				TypeClass VAnimationBuffer = Engine->SetPod<Graphics::AnimationBuffer>("animation_buffer");
-				VAnimationBuffer.SetProperty<Graphics::AnimationBuffer>("vector3 padding", &Graphics::AnimationBuffer::Padding);
-				VAnimationBuffer.SetProperty<Graphics::AnimationBuffer>("float animated", &Graphics::AnimationBuffer::Animated);
-				VAnimationBuffer.SetConstructor<Graphics::AnimationBuffer>("void f()");
-				VAnimationBuffer.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "matrix4x4&", "usize", &AnimationBufferGetOffsets);
-				VAnimationBuffer.SetOperatorEx(Operators::Index, (uint32_t)Position::Const, "const matrix4x4&", "usize", &AnimationBufferGetOffsets);
-
-				TypeClass VRenderBufferInstance = Engine->SetPod<Graphics::RenderBuffer::Instance>("render_buffer_instance");
-				VRenderBufferInstance.SetProperty<Graphics::RenderBuffer::Instance>("matrix4x4 transform", &Graphics::RenderBuffer::Instance::Transform);
-				VRenderBufferInstance.SetProperty<Graphics::RenderBuffer::Instance>("matrix4x4 world", &Graphics::RenderBuffer::Instance::World);
-				VRenderBufferInstance.SetProperty<Graphics::RenderBuffer::Instance>("vector2 texcoord", &Graphics::RenderBuffer::Instance::TexCoord);
-				VRenderBufferInstance.SetProperty<Graphics::RenderBuffer::Instance>("float diffuse", &Graphics::RenderBuffer::Instance::Diffuse);
-				VRenderBufferInstance.SetProperty<Graphics::RenderBuffer::Instance>("float normal", &Graphics::RenderBuffer::Instance::Normal);
-				VRenderBufferInstance.SetProperty<Graphics::RenderBuffer::Instance>("float height", &Graphics::RenderBuffer::Instance::Height);
-				VRenderBufferInstance.SetProperty<Graphics::RenderBuffer::Instance>("float material_id", &Graphics::RenderBuffer::Instance::MaterialId);
-				VRenderBufferInstance.SetConstructor<Graphics::RenderBuffer::Instance>("void f()");
-
-				TypeClass VRenderBuffer = Engine->SetPod<Graphics::RenderBuffer>("render_buffer");
-				VRenderBuffer.SetProperty<Graphics::RenderBuffer>("matrix4x4 transform", &Graphics::RenderBuffer::Transform);
-				VRenderBuffer.SetProperty<Graphics::RenderBuffer>("matrix4x4 world", &Graphics::RenderBuffer::World);
-				VRenderBuffer.SetProperty<Graphics::RenderBuffer>("vector4 texcoord", &Graphics::RenderBuffer::TexCoord);
-				VRenderBuffer.SetProperty<Graphics::RenderBuffer>("float diffuse", &Graphics::RenderBuffer::Diffuse);
-				VRenderBuffer.SetProperty<Graphics::RenderBuffer>("float normal", &Graphics::RenderBuffer::Normal);
-				VRenderBuffer.SetProperty<Graphics::RenderBuffer>("float height", &Graphics::RenderBuffer::Height);
-				VRenderBuffer.SetProperty<Graphics::RenderBuffer>("float material_id", &Graphics::RenderBuffer::MaterialId);
-				VRenderBuffer.SetConstructor<Graphics::RenderBuffer>("void f()");
-
-				TypeClass VViewBuffer = Engine->SetPod<Graphics::ViewBuffer>("view_buffer");
-				VViewBuffer.SetProperty<Graphics::ViewBuffer>("matrix4x4 inv_view_proj", &Graphics::ViewBuffer::InvViewProj);
-				VViewBuffer.SetProperty<Graphics::ViewBuffer>("matrix4x4 view_proj", &Graphics::ViewBuffer::ViewProj);
-				VViewBuffer.SetProperty<Graphics::ViewBuffer>("matrix4x4 proj", &Graphics::ViewBuffer::Proj);
-				VViewBuffer.SetProperty<Graphics::ViewBuffer>("matrix4x4 view", &Graphics::ViewBuffer::View);
-				VViewBuffer.SetProperty<Graphics::ViewBuffer>("vector3 position", &Graphics::ViewBuffer::Position);
-				VViewBuffer.SetProperty<Graphics::ViewBuffer>("float far", &Graphics::ViewBuffer::Far);
-				VViewBuffer.SetProperty<Graphics::ViewBuffer>("vector3 direction", &Graphics::ViewBuffer::Direction);
-				VViewBuffer.SetProperty<Graphics::ViewBuffer>("float near", &Graphics::ViewBuffer::Near);
-				VViewBuffer.SetConstructor<Graphics::ViewBuffer>("void f()");
-
-				RefClass VSkinModel = Engine->SetClass<Graphics::SkinModel>("skin_model", true);
-				RefClass VSkinMeshBuffer = Engine->SetClass<Graphics::SkinMeshBuffer>("skin_mesh_buffer", true);
-				TypeClass VPoseBuffer = Engine->SetStructTrivial<Graphics::PoseBuffer>("pose_buffer");
-				VPoseBuffer.SetMethodEx("void set_offset(int64, const pose_data &in)", &PoseBufferSetOffset);
-				VPoseBuffer.SetMethodEx("void set_matrix(skin_mesh_buffer@+, usize, const matrix4x4 &in)", &PoseBufferSetMatrix);
-				VPoseBuffer.SetMethodEx("pose_data& get_offset(int64)", &PoseBufferGetOffset);
-				VPoseBuffer.SetMethodEx("matrix4x4& get_matrix(skin_mesh_buffer@+, usize)", &PoseBufferGetMatrix);
-				VPoseBuffer.SetMethodEx("usize get_offsets_size()", &PoseBufferGetOffsetsSize);
-				VPoseBuffer.SetMethodEx("usize get_matrices_size(skin_mesh_buffer@+)", &PoseBufferGetMatricesSize);
-				VPoseBuffer.SetConstructor<Graphics::PoseBuffer>("void f()");
 
 				RefClass VSurface = Engine->SetClass<Graphics::Surface>("surface_handle", false);
 				VSurface.SetConstructor<Graphics::Surface>("surface_handle@ f()");
@@ -11840,6 +11774,7 @@ namespace Edge
 				VSkinMeshBufferDesc.SetMethodEx("void set_elements(array<vertex>@+)", &SkinMeshBufferDescSetElements);
 				VSkinMeshBufferDesc.SetMethodEx("void set_indices(array<int>@+)", &SkinMeshBufferDescSetIndices);
 
+				RefClass VSkinMeshBuffer = Engine->SetClass<Graphics::SkinMeshBuffer>("skin_mesh_buffer", true);
 				VSkinMeshBuffer.SetProperty<Graphics::SkinMeshBuffer>("matrix4x4 transform", &Graphics::SkinMeshBuffer::Transform);
 				VSkinMeshBuffer.SetProperty<Graphics::SkinMeshBuffer>("string name", &Graphics::SkinMeshBuffer::Name);
 				VSkinMeshBuffer.SetMethod("element_buffer@+ get_vertex_buffer() const", &Graphics::SkinMeshBuffer::GetVertexBuffer);
@@ -12125,11 +12060,7 @@ namespace Edge
 				VGraphicsDeviceDesc.SetOperatorCopyStatic(&GraphicsDeviceDescCopy);
 				VGraphicsDeviceDesc.SetDestructorStatic("void f()", &GraphicsDeviceDescDestructor);
 
-				VGraphicsDevice.SetProperty<Graphics::GraphicsDevice>("render_buffer render", &Graphics::GraphicsDevice::Render);
-				VGraphicsDevice.SetProperty<Graphics::GraphicsDevice>("view_buffer view", &Graphics::GraphicsDevice::View);
-				VGraphicsDevice.SetProperty<Graphics::GraphicsDevice>("animation_buffer animation", &Graphics::GraphicsDevice::Animation);
 				VGraphicsDevice.SetMethod("void set_as_current_device()", &Graphics::GraphicsDevice::SetAsCurrentDevice);
-				VGraphicsDevice.SetMethod("void set_constant_buffers()", &Graphics::GraphicsDevice::SetConstantBuffers);
 				VGraphicsDevice.SetMethod("void set_shader_model(shader_model)", &Graphics::GraphicsDevice::SetShaderModel);
 				VGraphicsDevice.SetMethod("void set_blend_state(blend_state@+)", &Graphics::GraphicsDevice::SetBlendState);
 				VGraphicsDevice.SetMethod("void set_rasterizer_state(rasterizer_state@+)", &Graphics::GraphicsDevice::SetRasterizerState);
@@ -12139,6 +12070,7 @@ namespace Edge
 				VGraphicsDevice.SetMethod("void set_sampler_state(sampler_state@+, uint32, uint32, uint32)", &Graphics::GraphicsDevice::SetSamplerState);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::Shader*, uint32_t, uint32_t>("void set_buffer(shader@+, uint32, uint32)", &Graphics::GraphicsDevice::SetBuffer);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::InstanceBuffer*, uint32_t, uint32_t>("void set_buffer(instance_buffer@+, uint32, uint32)", &Graphics::GraphicsDevice::SetBuffer);
+				VGraphicsDevice.SetMethod("void set_constant_buffer(element_buffer@+, uint32, uint32)", &Graphics::GraphicsDevice::SetConstantBuffer);
 				VGraphicsDevice.SetMethod("void set_structure_buffer(element_buffer@+, uint32, uint32)", &Graphics::GraphicsDevice::SetStructureBuffer);
 				VGraphicsDevice.SetMethod("void set_texture_2d(texture_2d@+, uint32, uint32)", &Graphics::GraphicsDevice::SetTexture2D);
 				VGraphicsDevice.SetMethod("void set_texture_3d(texture_3d@+, uint32, uint32)", &Graphics::GraphicsDevice::SetTexture3D);
@@ -12172,12 +12104,12 @@ namespace Edge
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture3D*, Graphics::MappedSubresource*>("bool unmap(texture_3d@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::TextureCube*, Graphics::MappedSubresource*>("bool unmap(texture_cube@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::ElementBuffer*, Graphics::MappedSubresource*>("bool unmap(element_buffer@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
+				VGraphicsDevice.SetMethod("bool update_constant_buffer(element_buffer@+, uptr@, usize)", &Graphics::GraphicsDevice::UpdateConstantBuffer);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::ElementBuffer*, void*, size_t>("bool update_buffer(element_buffer@+, uptr@, usize)", &Graphics::GraphicsDevice::UpdateBuffer);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Shader*, const void*>("bool update_buffer(shader@+, uptr@)", &Graphics::GraphicsDevice::UpdateBuffer);
-				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::MeshBuffer*, Compute::Vertex*>("bool update_buffer(mesh_buffer@+, uptr@ Data)", &Graphics::GraphicsDevice::UpdateBuffer);
-				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::SkinMeshBuffer*, Compute::SkinVertex*>("bool update_buffer(skin_mesh_buffer@+, uptr@ Data)", &Graphics::GraphicsDevice::UpdateBuffer);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::MeshBuffer*, Compute::Vertex*>("bool update_buffer(mesh_buffer@+, uptr@)", &Graphics::GraphicsDevice::UpdateBuffer);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::SkinMeshBuffer*, Compute::SkinVertex*>("bool update_buffer(skin_mesh_buffer@+, uptr@)", &Graphics::GraphicsDevice::UpdateBuffer);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::InstanceBuffer*>("bool update_buffer(instance_buffer@+)", &Graphics::GraphicsDevice::UpdateBuffer);
-				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::RenderBufferType>("bool update_buffer(render_buffer_type)", &Graphics::GraphicsDevice::UpdateBuffer);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Shader*, size_t>("bool update_buffer_size(shader@+, usize)", &Graphics::GraphicsDevice::UpdateBufferSize);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::InstanceBuffer*, size_t>("bool update_buffer_size(instance_buffer@+, usize)", &Graphics::GraphicsDevice::UpdateBufferSize);
 				VGraphicsDevice.SetMethod("void clear_buffer(instance_buffer@+)", &Graphics::GraphicsDevice::ClearBuffer);
@@ -12289,7 +12221,6 @@ namespace Edge
 				VGraphicsDevice.SetMethod("input_layout@+ get_input_layout(const string &in)", &Graphics::GraphicsDevice::GetInputLayout);
 				VGraphicsDevice.SetMethod("shader_model get_shader_model() const", &Graphics::GraphicsDevice::GetShaderModel);
 				VGraphicsDevice.SetMethod("render_target_2d@+ get_render_target()", &Graphics::GraphicsDevice::GetRenderTarget);
-				VGraphicsDevice.SetMethod("shader@+ get_basic_effect()", &Graphics::GraphicsDevice::GetBasicEffect);
 				VGraphicsDevice.SetMethod("render_backend get_backend() const", &Graphics::GraphicsDevice::GetBackend);
 				VGraphicsDevice.SetMethod("uint32 get_format_size(surface_format) const", &Graphics::GraphicsDevice::GetFormatSize);
 				VGraphicsDevice.SetMethod("uint32 get_present_flags() const", &Graphics::GraphicsDevice::GetPresentFlags);
@@ -12302,8 +12233,6 @@ namespace Edge
 				VGraphicsDevice.SetEnumRefsEx<Graphics::GraphicsDevice>([](Graphics::GraphicsDevice* Base, asIScriptEngine* Engine)
 				{
 					Engine->GCEnumCallback(Base->GetRenderTarget());
-					Engine->GCEnumCallback(Base->GetBasicEffect());
-
 					for (auto& Item : Base->GetDepthStencilStates())
 						Engine->GCEnumCallback(Item.second);
 
@@ -12320,46 +12249,6 @@ namespace Edge
 						Engine->GCEnumCallback(Item.second);
 				});
 				VGraphicsDevice.SetReleaseRefsEx<Graphics::GraphicsDevice>([](Graphics::GraphicsDevice* Base, asIScriptEngine*) { });
-
-				static const char Model[] = "model";
-				RefClass VModel = Engine->SetClass<Graphics::Model>("model", true);
-				VModel.SetProperty<Graphics::Model>("vector4 max", &Graphics::Model::Max);
-				VModel.SetProperty<Graphics::Model>("vector4 min", &Graphics::Model::Min);
-				VModel.SetGcConstructor<Graphics::Model, Model>("model@ f()");
-				VModel.SetMethod("mesh_buffer@+ find_mesh(const string &in) const", &Graphics::Model::FindMesh);
-				VModel.SetMethodEx("array<mesh_buffer@>@ get_meshes() const", &ModelGetMeshes);
-				VModel.SetMethodEx("void set_meshes(array<mesh_buffer@>@+)", &ModelSetMeshes);
-				VModel.SetEnumRefsEx<Graphics::Model>([](Graphics::Model* Base, asIScriptEngine* Engine)
-				{
-					for (auto* Item : Base->Meshes)
-						Engine->GCEnumCallback(Item);
-				});
-				VModel.SetReleaseRefsEx<Graphics::Model>([](Graphics::Model* Base, asIScriptEngine*)
-				{
-					Base->Cleanup();
-				});
-
-				static const char SkinModel[] = "skin_model";
-				VSkinModel.SetProperty<Graphics::SkinModel>("joint skeleton", &Graphics::SkinModel::Skeleton);
-				VSkinModel.SetProperty<Graphics::SkinModel>("matrix4x4 inv_transform", &Graphics::SkinModel::InvTransform);
-				VSkinModel.SetProperty<Graphics::SkinModel>("matrix4x4 base_transform", &Graphics::SkinModel::Transform);
-				VSkinModel.SetProperty<Graphics::SkinModel>("vector4 max", &Graphics::SkinModel::Max);
-				VSkinModel.SetProperty<Graphics::SkinModel>("vector4 min", &Graphics::SkinModel::Min);
-				VSkinModel.SetGcConstructor<Graphics::SkinModel, SkinModel>("skin_model@ f()");
-				VSkinModel.SetMethod<Graphics::SkinModel, bool, const std::string&, Compute::Joint*>("bool find_joint(const string &in, joint &out) const", &Graphics::SkinModel::FindJoint);
-				VSkinModel.SetMethod<Graphics::SkinModel, bool, size_t, Compute::Joint*>("bool find_joint(usize, joint &out) const", &Graphics::SkinModel::FindJoint);
-				VSkinModel.SetMethod("skin_mesh_buffer@+ find_mesh(const string &in) const", &Graphics::SkinModel::FindMesh);
-				VSkinModel.SetMethodEx("array<skin_mesh_buffer@>@ get_meshes() const", &SkinModelGetMeshes);
-				VSkinModel.SetMethodEx("void set_meshes(array<skin_mesh_buffer@>@+)", &SkinModelSetMeshes);
-				VSkinModel.SetEnumRefsEx<Graphics::SkinModel>([](Graphics::SkinModel* Base, asIScriptEngine* Engine)
-				{
-					for (auto* Item : Base->Meshes)
-						Engine->GCEnumCallback(Item);
-				});
-				VSkinModel.SetReleaseRefsEx<Graphics::SkinModel>([](Graphics::SkinModel* Base, asIScriptEngine*)
-				{
-					Base->Cleanup();
-				});
 
 				VRenderTarget.SetDynamicCast<Graphics::RenderTarget, Graphics::RenderTarget2D>("render_target_2d@+");
 				VRenderTarget.SetDynamicCast<Graphics::RenderTarget, Graphics::RenderTargetCube>("render_target_cube@+");
@@ -12773,6 +12662,71 @@ namespace Edge
 				VComposerTag.SetValue("effect_t", (int)Engine::ComposerTag::Effect);
 				VComposerTag.SetValue("filter_t", (int)Engine::ComposerTag::Filter);
 
+				Enumeration VRenderBufferType = Engine->SetEnum("render_buffer_type");
+				VRenderBufferType.SetValue("Animation", (int)Engine::RenderBufferType::Animation);
+				VRenderBufferType.SetValue("Render", (int)Engine::RenderBufferType::Render);
+				VRenderBufferType.SetValue("View", (int)Engine::RenderBufferType::View);
+
+				TypeClass VPoseNode = Engine->SetPod<Engine::PoseNode>("pose_node");
+				VPoseNode.SetProperty<Engine::PoseNode>("vector3 position", &Engine::PoseNode::Position);
+				VPoseNode.SetProperty<Engine::PoseNode>("vector3 scale", &Engine::PoseNode::Scale);
+				VPoseNode.SetProperty<Engine::PoseNode>("quaternion rotation", &Engine::PoseNode::Rotation);
+				VPoseNode.SetConstructor<Engine::PoseNode>("void f()");
+
+				TypeClass VPoseData = Engine->SetPod<Engine::PoseData>("pose_data");
+				VPoseData.SetProperty<Engine::PoseData>("pose_node frame_pose", &Engine::PoseData::Frame);
+				VPoseData.SetProperty<Engine::PoseData>("pose_node offset_pose", &Engine::PoseData::Offset);
+				VPoseData.SetProperty<Engine::PoseData>("pose_node default_pose", &Engine::PoseData::Default);
+				VPoseData.SetConstructor<Engine::PoseData>("void f()");
+
+				TypeClass VAnimationBuffer = Engine->SetPod<Engine::AnimationBuffer>("animation_buffer");
+				VAnimationBuffer.SetProperty<Engine::AnimationBuffer>("vector3 padding", &Engine::AnimationBuffer::Padding);
+				VAnimationBuffer.SetProperty<Engine::AnimationBuffer>("float animated", &Engine::AnimationBuffer::Animated);
+				VAnimationBuffer.SetConstructor<Engine::AnimationBuffer>("void f()");
+				VAnimationBuffer.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "matrix4x4&", "usize", &AnimationBufferGetOffsets);
+				VAnimationBuffer.SetOperatorEx(Operators::Index, (uint32_t)Position::Const, "const matrix4x4&", "usize", &AnimationBufferGetOffsets);
+
+				TypeClass VRenderBufferInstance = Engine->SetPod<Engine::RenderBuffer::Instance>("render_buffer_instance");
+				VRenderBufferInstance.SetProperty<Engine::RenderBuffer::Instance>("matrix4x4 transform", &Engine::RenderBuffer::Instance::Transform);
+				VRenderBufferInstance.SetProperty<Engine::RenderBuffer::Instance>("matrix4x4 world", &Engine::RenderBuffer::Instance::World);
+				VRenderBufferInstance.SetProperty<Engine::RenderBuffer::Instance>("vector2 texcoord", &Engine::RenderBuffer::Instance::TexCoord);
+				VRenderBufferInstance.SetProperty<Engine::RenderBuffer::Instance>("float diffuse", &Engine::RenderBuffer::Instance::Diffuse);
+				VRenderBufferInstance.SetProperty<Engine::RenderBuffer::Instance>("float normal", &Engine::RenderBuffer::Instance::Normal);
+				VRenderBufferInstance.SetProperty<Engine::RenderBuffer::Instance>("float height", &Engine::RenderBuffer::Instance::Height);
+				VRenderBufferInstance.SetProperty<Engine::RenderBuffer::Instance>("float material_id", &Engine::RenderBuffer::Instance::MaterialId);
+				VRenderBufferInstance.SetConstructor<Engine::RenderBuffer::Instance>("void f()");
+
+				TypeClass VRenderBuffer = Engine->SetPod<Engine::RenderBuffer>("render_buffer");
+				VRenderBuffer.SetProperty<Engine::RenderBuffer>("matrix4x4 transform", &Engine::RenderBuffer::Transform);
+				VRenderBuffer.SetProperty<Engine::RenderBuffer>("matrix4x4 world", &Engine::RenderBuffer::World);
+				VRenderBuffer.SetProperty<Engine::RenderBuffer>("vector4 texcoord", &Engine::RenderBuffer::TexCoord);
+				VRenderBuffer.SetProperty<Engine::RenderBuffer>("float diffuse", &Engine::RenderBuffer::Diffuse);
+				VRenderBuffer.SetProperty<Engine::RenderBuffer>("float normal", &Engine::RenderBuffer::Normal);
+				VRenderBuffer.SetProperty<Engine::RenderBuffer>("float height", &Engine::RenderBuffer::Height);
+				VRenderBuffer.SetProperty<Engine::RenderBuffer>("float material_id", &Engine::RenderBuffer::MaterialId);
+				VRenderBuffer.SetConstructor<Engine::RenderBuffer>("void f()");
+
+				TypeClass VViewBuffer = Engine->SetPod<Engine::ViewBuffer>("view_buffer");
+				VViewBuffer.SetProperty<Engine::ViewBuffer>("matrix4x4 inv_view_proj", &Engine::ViewBuffer::InvViewProj);
+				VViewBuffer.SetProperty<Engine::ViewBuffer>("matrix4x4 view_proj", &Engine::ViewBuffer::ViewProj);
+				VViewBuffer.SetProperty<Engine::ViewBuffer>("matrix4x4 proj", &Engine::ViewBuffer::Proj);
+				VViewBuffer.SetProperty<Engine::ViewBuffer>("matrix4x4 view", &Engine::ViewBuffer::View);
+				VViewBuffer.SetProperty<Engine::ViewBuffer>("vector3 position", &Engine::ViewBuffer::Position);
+				VViewBuffer.SetProperty<Engine::ViewBuffer>("float far", &Engine::ViewBuffer::Far);
+				VViewBuffer.SetProperty<Engine::ViewBuffer>("vector3 direction", &Engine::ViewBuffer::Direction);
+				VViewBuffer.SetProperty<Engine::ViewBuffer>("float near", &Engine::ViewBuffer::Near);
+				VViewBuffer.SetConstructor<Engine::ViewBuffer>("void f()");
+
+				RefClass VSkinModel = Engine->SetClass<Engine::SkinModel>("skin_model", true);
+				TypeClass VPoseBuffer = Engine->SetStructTrivial<Engine::PoseBuffer>("pose_buffer");
+				VPoseBuffer.SetMethodEx("void set_offset(int64, const pose_data &in)", &PoseBufferSetOffset);
+				VPoseBuffer.SetMethodEx("void set_matrix(skin_mesh_buffer@+, usize, const matrix4x4 &in)", &PoseBufferSetMatrix);
+				VPoseBuffer.SetMethodEx("pose_data& get_offset(int64)", &PoseBufferGetOffset);
+				VPoseBuffer.SetMethodEx("matrix4x4& get_matrix(skin_mesh_buffer@+, usize)", &PoseBufferGetMatrix);
+				VPoseBuffer.SetMethodEx("usize get_offsets_size()", &PoseBufferGetOffsetsSize);
+				VPoseBuffer.SetMethodEx("usize get_matrices_size(skin_mesh_buffer@+)", &PoseBufferGetMatricesSize);
+				VPoseBuffer.SetConstructor<Engine::PoseBuffer>("void f()");
+
 				TypeClass VTicker = Engine->SetStructTrivial<Engine::Ticker>("clock_ticker");
 				VTicker.SetProperty<Engine::Ticker>("float delay", &Engine::Ticker::Delay);
 				VTicker.SetConstructor<Engine::Ticker>("void f()");
@@ -12841,6 +12795,17 @@ namespace Edge
 				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("random_float angular", &Engine::SpawnerProperties::Angular);
 				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("int32 iterations", &Engine::SpawnerProperties::Iterations);
 				VSpawnerProperties.SetConstructor<Engine::SpawnerProperties>("void f()");
+
+				RefClass VRenderConstants = Engine->SetClass<Engine::RenderConstants>("render_constants", false);
+				VRenderConstants.SetProperty<Engine::RenderConstants>("animation_buffer animation", &Engine::RenderConstants::Animation);
+				VRenderConstants.SetProperty<Engine::RenderConstants>("render_buffer render", &Engine::RenderConstants::Render);
+				VRenderConstants.SetProperty<Engine::RenderConstants>("view_buffer view", &Engine::RenderConstants::View);
+				VRenderConstants.SetConstructor<Engine::RenderConstants, Graphics::GraphicsDevice*>("render_constants@ f()");
+				VRenderConstants.SetMethod("void set_constant_buffers()", &Engine::RenderConstants::SetConstantBuffers);
+				VRenderConstants.SetMethod("void update_constant_buffer(render_buffer_type)", &Engine::RenderConstants::UpdateConstantBuffer);
+				VRenderConstants.SetMethod("shader@+ get_basic_effect() const", &Engine::RenderConstants::GetBasicEffect);
+				VRenderConstants.SetMethod("graphics_device@+ get_device() const", &Engine::RenderConstants::GetDevice);
+				VRenderConstants.SetMethod("element_buffer@+ get_constant_buffer(render_buffer_type) const", &Engine::RenderConstants::GetConstantBuffer);
 
 				RefClass VRenderSystem = Engine->SetClass<Engine::RenderSystem>("render_system", true);
 				TypeClass VViewer = Engine->SetStruct<Engine::Viewer>("viewer");
@@ -12984,6 +12949,46 @@ namespace Edge
 				Engine->SetFunction<bool(Core::Schema*, std::string*)>("bool unpack(schema@+, string &out)", &Engine::Series::Unpack);
 				Engine->EndNamespace();
 
+				static const char Model[] = "model";
+				RefClass VModel = Engine->SetClass<Engine::Model>("model", true);
+				VModel.SetProperty<Engine::Model>("vector4 max", &Engine::Model::Max);
+				VModel.SetProperty<Engine::Model>("vector4 min", &Engine::Model::Min);
+				VModel.SetGcConstructor<Engine::Model, Model>("model@ f()");
+				VModel.SetMethod("mesh_buffer@+ find_mesh(const string &in) const", &Engine::Model::FindMesh);
+				VModel.SetMethodEx("array<mesh_buffer@>@ get_meshes() const", &ModelGetMeshes);
+				VModel.SetMethodEx("void set_meshes(array<mesh_buffer@>@+)", &ModelSetMeshes);
+				VModel.SetEnumRefsEx<Engine::Model>([](Engine::Model* Base, asIScriptEngine* Engine)
+				{
+					for (auto* Item : Base->Meshes)
+						Engine->GCEnumCallback(Item);
+				});
+				VModel.SetReleaseRefsEx<Engine::Model>([](Engine::Model* Base, asIScriptEngine*)
+				{
+					Base->Cleanup();
+				});
+
+				static const char SkinModel[] = "skin_model";
+				VSkinModel.SetProperty<Engine::SkinModel>("joint skeleton", &Engine::SkinModel::Skeleton);
+				VSkinModel.SetProperty<Engine::SkinModel>("matrix4x4 inv_transform", &Engine::SkinModel::InvTransform);
+				VSkinModel.SetProperty<Engine::SkinModel>("matrix4x4 base_transform", &Engine::SkinModel::Transform);
+				VSkinModel.SetProperty<Engine::SkinModel>("vector4 max", &Engine::SkinModel::Max);
+				VSkinModel.SetProperty<Engine::SkinModel>("vector4 min", &Engine::SkinModel::Min);
+				VSkinModel.SetGcConstructor<Engine::SkinModel, SkinModel>("skin_model@ f()");
+				VSkinModel.SetMethod<Engine::SkinModel, bool, const std::string&, Compute::Joint*>("bool find_joint(const string &in, joint &out) const", &Engine::SkinModel::FindJoint);
+				VSkinModel.SetMethod<Engine::SkinModel, bool, size_t, Compute::Joint*>("bool find_joint(usize, joint &out) const", &Engine::SkinModel::FindJoint);
+				VSkinModel.SetMethod("skin_mesh_buffer@+ find_mesh(const string &in) const", &Engine::SkinModel::FindMesh);
+				VSkinModel.SetMethodEx("array<skin_mesh_buffer@>@ get_meshes() const", &SkinModelGetMeshes);
+				VSkinModel.SetMethodEx("void set_meshes(array<skin_mesh_buffer@>@+)", &SkinModelSetMeshes);
+				VSkinModel.SetEnumRefsEx<Engine::SkinModel>([](Engine::SkinModel* Base, asIScriptEngine* Engine)
+				{
+					for (auto* Item : Base->Meshes)
+						Engine->GCEnumCallback(Item);
+				});
+				VSkinModel.SetReleaseRefsEx<Engine::SkinModel>([](Engine::SkinModel* Base, asIScriptEngine*)
+				{
+					Base->Cleanup();
+				});
+
 				RefClass VContentManager = Engine->SetClass<Engine::ContentManager>("content_manager", true);
 				RefClass VProcessor = Engine->SetClass<Engine::Processor>("base_processor", false);
 				PopulateProcessorBase<Engine::Processor>(VProcessor);
@@ -13066,6 +13071,7 @@ namespace Edge
 				VRenderSystem.SetMethod<Engine::RenderSystem, void, Graphics::Shader*>("void free_shader(shader@+)", &Engine::RenderSystem::FreeShader);
 				VRenderSystem.SetMethodEx("void free_buffers(const string &in, element_buffer@+, element_buffer@+)", &RenderSystemFreeBuffers1);
 				VRenderSystem.SetMethodEx("void free_buffers(element_buffer@+, element_buffer@+)", &RenderSystemFreeBuffers2);
+				VRenderSystem.SetMethod("void update_constant_buffer(render_buffer_type)", &Engine::RenderSystem::UpdateConstantBuffer);
 				VRenderSystem.SetMethod("void clear_materials()", &Engine::RenderSystem::ClearMaterials);
 				VRenderSystem.SetMethod("void fetch_visibility(base_component@+, scene_visibility_query &out)", &Engine::RenderSystem::FetchVisibility);
 				VRenderSystem.SetMethod("usize render(clock_timer@+, render_state, render_opt)", &Engine::RenderSystem::Render);
@@ -13084,6 +13090,8 @@ namespace Edge
 				VRenderSystem.SetMethod("render_target_2d@+ get_rt(target_type)", &Engine::RenderSystem::GetRT);
 				VRenderSystem.SetMethod("graphics_device@+ get_device()", &Engine::RenderSystem::GetDevice);
 				VRenderSystem.SetMethod("primitive_cache@+ get_primitives()", &Engine::RenderSystem::GetPrimitives);
+				VRenderSystem.SetMethod("render_constants@+ get_constants()", &Engine::RenderSystem::GetConstants);
+				VRenderSystem.SetMethod("shader@+ get_basic_effect()", &Engine::RenderSystem::GetBasicEffect);
 				VRenderSystem.SetMethod("scene_graph@+ get_scene()", &Engine::RenderSystem::GetScene);
 				VRenderSystem.SetMethod("base_component@+ get_component()", &Engine::RenderSystem::GetComponent);
 				VRenderSystem.SetMethodEx("void query_async(uint64, overlapping_result@)", &RenderSystemQueryAsync);
@@ -13340,6 +13348,7 @@ namespace Edge
 				VSceneGraph.SetMethod("graphics_device@+ get_device() const", &Engine::SceneGraph::GetDevice);
 				VSceneGraph.SetMethod("physics_simulator@+ get_simulator() const", &Engine::SceneGraph::GetSimulator);
 				VSceneGraph.SetMethod("activity@+ get_activity() const", &Engine::SceneGraph::GetActivity);
+				VSceneGraph.SetMethod("render_constants@+ get_constants() const", &Engine::SceneGraph::GetConstants);
 				VSceneGraph.SetMethod("shader_cache@+ get_shaders() const", &Engine::SceneGraph::GetShaders);
 				VSceneGraph.SetMethod("primitive_cache@+ get_primitives() const", &Engine::SceneGraph::GetPrimitives);
 				VSceneGraph.SetMethod("scene_graph_desc& get_conf()", &Engine::SceneGraph::GetConf);
@@ -13416,6 +13425,7 @@ namespace Edge
 				VApplication.SetProperty<Engine::Application>("graphics_device@ renderer", &Engine::Application::Renderer);
 				VApplication.SetProperty<Engine::Application>("activity@ window", &Engine::Application::Activity);
 				VApplication.SetProperty<Engine::Application>("virtual_machine@ vm", &Engine::Application::VM);
+				VApplication.SetProperty<Engine::Application>("render_constants@ constants", &Engine::Application::Constants);
 				VApplication.SetProperty<Engine::Application>("content_manager@ content", &Engine::Application::Content);
 				VApplication.SetProperty<Engine::Application>("app_data@ database", &Engine::Application::Database);
 				VApplication.SetProperty<Engine::Application>("scene_graph@ scene", &Engine::Application::Scene);

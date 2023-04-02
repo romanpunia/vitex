@@ -381,8 +381,6 @@ namespace Edge
 				const char* ShaderVersion;
 
 			public:
-				GLuint ConstantBuffer[3];
-				size_t ConstantSize[3];
 				Activity* Window;
 				void* Context;
 
@@ -390,7 +388,6 @@ namespace Edge
 				OGLDevice(const Desc& I);
 				~OGLDevice() override;
 				void SetAsCurrentDevice() override;
-				void SetConstantBuffers() override;
 				void SetShaderModel(ShaderModel Model) override;
 				void SetBlendState(BlendState* State) override;
 				void SetRasterizerState(RasterizerState* State) override;
@@ -400,6 +397,7 @@ namespace Edge
 				void SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type) override;
 				void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type) override;
+				void SetConstantBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode) override;
 				void SetVertexBuffers(ElementBuffer** Resources, unsigned int Count, bool DynamicLinkage = false) override;
@@ -433,12 +431,12 @@ namespace Edge
 				bool Unmap(Texture3D* Resource, MappedSubresource* Map) override;
 				bool Unmap(TextureCube* Resource, MappedSubresource* Map) override;
 				bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) override;
+				bool UpdateConstantBuffer(ElementBuffer* Resource, void* Data, size_t Size) override;
 				bool UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size) override;
 				bool UpdateBuffer(Shader* Resource, const void* Data) override;
 				bool UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) override;
 				bool UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) override;
 				bool UpdateBuffer(InstanceBuffer* Resource) override;
-				bool UpdateBuffer(RenderBufferType Buffer) override;
 				bool UpdateBufferSize(Shader* Resource, size_t Size) override;
 				bool UpdateBufferSize(InstanceBuffer* Resource, size_t Size) override;
 				void ClearBuffer(InstanceBuffer* Resource) override;

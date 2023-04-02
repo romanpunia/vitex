@@ -48,7 +48,7 @@ namespace Edge
 				ED_COMPONENT("soft_body_renderer");
 			};
 
-			class ED_OUT Model final : public GeometryRenderer<Components::Model, Graphics::MeshBuffer, Graphics::RenderBuffer::Instance>
+			class ED_OUT Model final : public GeometryRenderer<Components::Model, Graphics::MeshBuffer, RenderBuffer::Instance>
 			{
 			private:
 				struct

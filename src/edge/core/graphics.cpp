@@ -247,28 +247,6 @@ namespace Edge
 		{
 		}
 
-		void PoseBuffer::Fill(SkinModel* Model)
-		{
-			ED_ASSERT_V(Model != nullptr, "model should be set");
-			Offsets.clear();
-			Matrices.clear();
-
-			Fill(Model->Skeleton);
-			for (auto& Mesh : Model->Meshes)
-				Matrices.insert(std::make_pair(Mesh, PoseMatrices()));
-		}
-		void PoseBuffer::Fill(Compute::Joint& Next)
-		{
-			auto& Data = Offsets[Next.Index];
-			Data.Default.Position = Next.Global.Position();
-			Data.Default.Rotation = Next.Global.RotationQuaternion();
-			Data.Default.Scale = Next.Global.Scale();
-			Data.Offset = Data.Frame = Data.Default;
-
-			for (auto& Child : Next.Childs)
-				Fill(Child);
-		}
-
 		Surface::Surface() noexcept : Handle(nullptr)
 		{
 		}
@@ -1146,9 +1124,7 @@ namespace Edge
 			for (auto It = InputLayouts.begin(); It != InputLayouts.end(); It++)
 				ED_RELEASE(It->second);
 			InputLayouts.clear();
-
 			ED_CLEAR(RenderTarget);
-			ED_CLEAR(BasicEffect);
 		}
 		bool GraphicsDevice::AddSection(const std::string& Name, const std::string& Code)
 		{
@@ -1813,10 +1789,6 @@ namespace Edge
 		RenderTarget2D* GraphicsDevice::GetRenderTarget()
 		{
 			return RenderTarget;
-		}
-		Shader* GraphicsDevice::GetBasicEffect()
-		{
-			return BasicEffect;
 		}
 		RenderBackend GraphicsDevice::GetBackend() const
 		{
@@ -3702,127 +3674,6 @@ namespace Edge
 			}
 
 			return Name;
-		}
-
-		Model::Model() noexcept
-		{
-		}
-		Model::~Model() noexcept
-		{
-			Cleanup();
-		}
-		void Model::Cleanup()
-		{
-			for (auto* Item : Meshes)
-				ED_RELEASE(Item);
-			Meshes.clear();
-		}
-		MeshBuffer* Model::FindMesh(const std::string& Name)
-		{
-			for (auto&& It : Meshes)
-			{
-				if (It->Name == Name)
-					return It;
-			}
-
-			return nullptr;
-		}
-
-		SkinModel::SkinModel() noexcept
-		{
-		}
-		SkinModel::~SkinModel() noexcept
-		{
-			Cleanup();
-		}
-		bool SkinModel::FindJoint(const std::string& Name, Compute::Joint* Base)
-		{
-			if (!Base)
-				Base = &Skeleton;
-
-			if (Base->Name == Name)
-				return Base;
-
-			for (auto&& Child : Base->Childs)
-			{
-				if (Child.Name == Name)
-				{
-					Base = &Child;
-					return true;
-				}
-
-				Compute::Joint* Result = &Child;
-				if (FindJoint(Name, Result))
-					return true;
-			}
-
-			return false;
-		}
-		bool SkinModel::FindJoint(size_t Index, Compute::Joint* Base)
-		{
-			if (!Base)
-				Base = &Skeleton;
-
-			if (Base->Index == Index)
-				return true;
-
-			for (auto&& Child : Base->Childs)
-			{
-				if (Child.Index == Index)
-				{
-					Base = &Child;
-					return true;
-				}
-
-				Compute::Joint* Result = &Child;
-				if (FindJoint(Index, Result))
-					return true;
-			}
-
-			return false;
-		}
-		void SkinModel::Synchronize(PoseBuffer* Map)
-		{
-			ED_ASSERT_V(Map != nullptr, "pose buffer should be set");
-			ED_MEASURE(ED_TIMING_ATOM);
-
-			for (auto& Mesh : Meshes)
-				Map->Matrices[Mesh];
-
-			Synchronize(Map, Skeleton, Transform);
-		}
-		void SkinModel::Synchronize(PoseBuffer* Map, Compute::Joint& Next, const Compute::Matrix4x4& ParentOffset)
-		{
-			auto& Node = Map->Offsets[Next.Index].Offset;
-			auto LocalOffset = Compute::Matrix4x4::CreateScale(Node.Scale) * Node.Rotation.GetMatrix() * Compute::Matrix4x4::CreateTranslation(Node.Position);
-			auto GlobalOffset = LocalOffset * ParentOffset;
-			auto FinalOffset = Next.Local * GlobalOffset * InvTransform;
-
-			for (auto& Matrices : Map->Matrices)
-			{
-				auto Index = Matrices.first->Joints.find(Next.Index);
-				if (Index != Matrices.first->Joints.end() && Index->second <= ED_MAX_JOINTS)
-					Matrices.second.Data[Index->second] = FinalOffset;
-			}
-
-			for (auto& Child : Next.Childs)
-				Synchronize(Map, Child, GlobalOffset);
-		}
-		void SkinModel::Cleanup()
-		{
-			for (auto* Item : Meshes)
-				ED_RELEASE(Item);
-			Meshes.clear();
-		}
-		SkinMeshBuffer* SkinModel::FindMesh(const std::string& Name)
-		{
-			for (auto&& It : Meshes)
-			{
-				if (It->Name == Name)
-					return It;
-			}
-
-			return nullptr;
 		}
 	}
 }

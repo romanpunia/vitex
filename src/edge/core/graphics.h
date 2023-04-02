@@ -651,13 +651,6 @@ namespace Edge
 			Picky = 1ll << 18
 		};
 
-		enum class RenderBufferType
-		{
-			Animation,
-			Render,
-			View
-		};
-
 		enum class ResourceMisc
 		{
 			None = 0,
@@ -760,8 +753,6 @@ namespace Edge
 
 		class Activity;
 
-		class SkinModel;
-
 		typedef std::function<void(AppState)> AppStateChangeCallback;
 		typedef std::function<void(WindowState, int, int)> WindowStateChangeCallback;
 		typedef std::function<void(KeyCode, KeyMod, int, int, bool)> KeyStateCallback;
@@ -856,73 +847,9 @@ namespace Edge
 			bool BlendEnable;
 		};
 
-		struct ED_OUT AnimationBuffer
+		struct ED_OUT BasicEffectBuffer
 		{
-			Compute::Matrix4x4 Offsets[ED_MAX_JOINTS];
-			Compute::Vector3 Padding;
-			float Animated = 0.0f;
-		};
 
-		struct ED_OUT RenderBuffer
-		{
-			struct Instance
-			{
-				Compute::Matrix4x4 Transform;
-				Compute::Matrix4x4 World;
-				Compute::Vector2 TexCoord;
-				float Diffuse = 0.0f;
-				float Normal = 0.0f;
-				float Height = 0.0f;
-				float MaterialId = 0.0f;
-			};
-
-			Compute::Matrix4x4 Transform;
-			Compute::Matrix4x4 World;
-			Compute::Vector4 TexCoord;
-			float Diffuse = 0.0f;
-			float Normal = 0.0f;
-			float Height = 0.0f;
-			float MaterialId = 0.0f;
-		};
-
-		struct ED_OUT ViewBuffer
-		{
-			Compute::Matrix4x4 InvViewProj;
-			Compute::Matrix4x4 ViewProj;
-			Compute::Matrix4x4 Proj;
-			Compute::Matrix4x4 View;
-			Compute::Vector3 Position;
-			float Far = 1000.0f;
-			Compute::Vector3 Direction;
-			float Near = 0.1f;
-		};
-
-		struct ED_OUT PoseNode
-		{
-			Compute::Vector3 Position;
-			Compute::Vector3 Scale = Compute::Vector3::One();
-			Compute::Quaternion Rotation;
-		};
-
-		struct ED_OUT PoseData
-		{
-			PoseNode Frame;
-			PoseNode Offset;
-			PoseNode Default;
-		};
-
-		struct ED_OUT PoseMatrices
-		{
-			Compute::Matrix4x4 Data[ED_MAX_JOINTS];
-		};
-
-		struct ED_OUT PoseBuffer
-		{
-			std::unordered_map<SkinMeshBuffer*, PoseMatrices> Matrices;
-			std::unordered_map<size_t, PoseData> Offsets;
-
-			void Fill(SkinModel* Mesh);
-			void Fill(Compute::Joint& Next);
 		};
 
 		class ED_OUT Surface : public Core::Reference<Surface>
@@ -1664,7 +1591,6 @@ namespace Edge
 			ShaderModel ShaderGen;
 			Texture2D* ViewResource = nullptr;
 			RenderTarget2D* RenderTarget = nullptr;
-			Shader* BasicEffect = nullptr;
 			Activity* VirtualWindow = nullptr;
 			unsigned int PresentFlags = 0;
 			unsigned int CompileFlags = 0;
@@ -1679,18 +1605,12 @@ namespace Edge
 			bool ShaderCache;
 			bool Debug;
 
-		public:
-			RenderBuffer Render;
-			ViewBuffer View;
-			AnimationBuffer Animation;
-
 		protected:
 			GraphicsDevice(const Desc& I) noexcept;
 
 		public:
 			virtual ~GraphicsDevice() noexcept;
 			virtual void SetAsCurrentDevice() = 0;
-			virtual void SetConstantBuffers() = 0;
 			virtual void SetShaderModel(ShaderModel Model) = 0;
 			virtual void SetBlendState(BlendState* State) = 0;
 			virtual void SetRasterizerState(RasterizerState* State) = 0;
@@ -1700,6 +1620,7 @@ namespace Edge
 			virtual void SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type) = 0;
 			virtual void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) = 0;
 			virtual void SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type) = 0;
+			virtual void SetConstantBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) = 0;
 			virtual void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) = 0;
 			virtual void SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type) = 0;
 			virtual void SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type) = 0;
@@ -1733,12 +1654,12 @@ namespace Edge
 			virtual bool Unmap(Texture3D* Resource, MappedSubresource* Map) = 0;
 			virtual bool Unmap(TextureCube* Resource, MappedSubresource* Map) = 0;
 			virtual bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) = 0;
+			virtual bool UpdateConstantBuffer(ElementBuffer* Resource, void* Data, size_t Size) = 0;
 			virtual bool UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size) = 0;
 			virtual bool UpdateBuffer(Shader* Resource, const void* Data) = 0;
 			virtual bool UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) = 0;
 			virtual bool UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) = 0;
 			virtual bool UpdateBuffer(InstanceBuffer* Resource) = 0;
-			virtual bool UpdateBuffer(RenderBufferType Buffer) = 0;
 			virtual bool UpdateBufferSize(Shader* Resource, size_t Size) = 0;
 			virtual bool UpdateBufferSize(InstanceBuffer* Resource, size_t Size) = 0;
 			virtual void ClearBuffer(InstanceBuffer* Resource) = 0;
@@ -1858,7 +1779,6 @@ namespace Edge
 			InputLayout* GetInputLayout(const std::string& Name);
 			ShaderModel GetShaderModel() const;
 			RenderTarget2D* GetRenderTarget();
-			Shader* GetBasicEffect();
 			RenderBackend GetBackend() const;
 			unsigned int GetFormatSize(Format Mode) const;
 			unsigned int GetPresentFlags() const;
@@ -2015,43 +1935,6 @@ namespace Edge
 		public:
 			static const char* GetKeyCodeName(KeyCode Code);
 			static const char* GetKeyModName(KeyMod Code);
-		};
-
-		class ED_OUT Model final : public Core::Reference<Model>
-		{
-		public:
-			std::vector<MeshBuffer*> Meshes;
-			Compute::Vector4 Max;
-			Compute::Vector4 Min;
-
-		public:
-			Model() noexcept;
-			~Model() noexcept;
-			void Cleanup();
-			MeshBuffer* FindMesh(const std::string& Name);
-		};
-
-		class ED_OUT SkinModel final : public Core::Reference<SkinModel>
-		{
-		public:
-			std::vector<SkinMeshBuffer*> Meshes;
-			Compute::Joint Skeleton;
-			Compute::Matrix4x4 InvTransform;
-			Compute::Matrix4x4 Transform;
-			Compute::Vector4 Max;
-			Compute::Vector4 Min;
-
-		public:
-			SkinModel() noexcept;
-			~SkinModel() noexcept;
-			bool FindJoint(const std::string& Name, Compute::Joint* Output);
-			bool FindJoint(size_t Index, Compute::Joint* Output);
-			void Synchronize(PoseBuffer* Map);
-			void Cleanup();
-			SkinMeshBuffer* FindMesh(const std::string& Name);
-
-		private:
-			void Synchronize(PoseBuffer* Map, Compute::Joint& Next, const Compute::Matrix4x4& ParentOffset);
 		};
 	}
 }

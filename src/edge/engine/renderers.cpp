@@ -67,9 +67,9 @@ namespace Edge
 							continue;
 
 						Base->Fill(Device, IndexBuffer, VertexBuffer);
-						Device->Render.World.Identify();
-						Device->Render.Transform = Device->Render.World * View.ViewProjection;
-						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+						System->Constants->Render.World.Identify();
+						System->Constants->Render.Transform = System->Constants->Render.World * View.ViewProjection;
+						System->UpdateConstantBuffer(RenderBufferType::Render);
 						Device->SetVertexBuffer(VertexBuffer);
 						Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
 						Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
@@ -87,9 +87,9 @@ namespace Edge
 						if (Base->GetIndices().empty() || !CullingBegin(Base))
 							continue;
 
-						Device->Render.World = Base->GetEntity()->GetBox();
-						Device->Render.Transform = Device->Render.World * View.ViewProjection;
-						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+						System->Constants->Render.World = Base->GetEntity()->GetBox();
+						System->Constants->Render.Transform = System->Constants->Render.World * View.ViewProjection;
+						System->UpdateConstantBuffer(RenderBufferType::Render);
 						Device->DrawIndexed((unsigned int)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
 						CullingEnd();
 
@@ -122,12 +122,12 @@ namespace Edge
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
-					Device->Render.World.Identify();
-					Device->Render.Transform = System->View.ViewProjection;
-					Device->Render.TexCoord = Base->TexCoord;
+					System->Constants->Render.World.Identify();
+					System->Constants->Render.Transform = System->View.ViewProjection;
+					System->Constants->Render.TexCoord = Base->TexCoord;
 					Device->SetVertexBuffer(VertexBuffer);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
-					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+					System->UpdateConstantBuffer(RenderBufferType::Render);
 					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
 					Count++;
 				}
@@ -153,12 +153,12 @@ namespace Edge
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
-					Device->Render.World.Identify();
-					Device->Render.Transform.Identify();
-					Device->Render.TexCoord = Base->TexCoord;
+					System->Constants->Render.World.Identify();
+					System->Constants->Render.Transform.Identify();
+					System->Constants->Render.TexCoord = Base->TexCoord;
 					Device->SetVertexBuffer(VertexBuffer);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
-					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+					System->UpdateConstantBuffer(RenderBufferType::Render);
 					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
 
 					Count++;
@@ -188,10 +188,10 @@ namespace Edge
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
-					Device->Render.World.Identify();
-					Device->Render.Transform = System->View.ViewProjection;
-					Device->Render.TexCoord = Base->TexCoord;
-					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+					System->Constants->Render.World.Identify();
+					System->Constants->Render.Transform = System->View.ViewProjection;
+					System->Constants->Render.TexCoord = Base->TexCoord;
+					System->UpdateConstantBuffer(RenderBufferType::Render);
 					Device->SetVertexBuffer(VertexBuffer);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
 					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
@@ -225,9 +225,9 @@ namespace Edge
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
-					Device->Render.World.Identify();
-					Device->Render.TexCoord = Base->TexCoord;
-					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+					System->Constants->Render.World.Identify();
+					System->Constants->Render.TexCoord = Base->TexCoord;
+					System->UpdateConstantBuffer(RenderBufferType::Render);
 					Device->SetVertexBuffer(VertexBuffer);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
 					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
@@ -274,7 +274,7 @@ namespace Edge
 				if (!Drawable || (!Base->Static && !System->State.IsSet(RenderOpt::Static)))
 					return;
 
-				Graphics::RenderBuffer::Instance Data;
+				RenderBuffer::Instance Data;
 				Data.TexCoord = Base->TexCoord;
 
 				auto& World = Base->GetEntity()->GetBox();
@@ -314,9 +314,9 @@ namespace Edge
 						auto& World = Base->GetEntity()->GetBox();
 						for (auto* Mesh : Drawable->Meshes)
 						{
-							Device->Render.World = Mesh->Transform * World;
-							Device->Render.Transform = Device->Render.World * View.ViewProjection;
-							Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+							System->Constants->Render.World = Mesh->Transform * World;
+							System->Constants->Render.Transform = System->Constants->Render.World * View.ViewProjection;
+							System->UpdateConstantBuffer(RenderBufferType::Render);
 							Device->DrawIndexed(Mesh);
 						}
 						CullingEnd();
@@ -333,9 +333,9 @@ namespace Edge
 						if (!Drawable || Drawable->Meshes.empty() || !CullingBegin(Base))
 							continue;
 
-						Device->Render.World = Base->GetEntity()->GetBox();
-						Device->Render.Transform = Device->Render.World * View.ViewProjection;
-						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+						System->Constants->Render.World = Base->GetEntity()->GetBox();
+						System->Constants->Render.Transform = System->Constants->Render.World * View.ViewProjection;
+						System->UpdateConstantBuffer(RenderBufferType::Render);
 						Device->DrawIndexed((unsigned int)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
 						CullingEnd();
 						Count++;
@@ -491,16 +491,16 @@ namespace Edge
 
 
 						auto& World = Base->GetEntity()->GetBox();
-						Device->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
+						System->Constants->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
 
 						for (auto* Mesh : Drawable->Meshes)
 						{
 							auto& Matrices = Base->Skeleton.Matrices[Mesh];
-							memcpy(Device->Animation.Offsets, Matrices.Data, sizeof(Matrices.Data));
-							Device->Render.World = Mesh->Transform * World;
-							Device->Render.Transform = Device->Render.World * View.ViewProjection;
-							Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
-							Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+							memcpy(System->Constants->Animation.Offsets, Matrices.Data, sizeof(Matrices.Data));
+							System->Constants->Render.World = Mesh->Transform * World;
+							System->Constants->Render.Transform = System->Constants->Render.World * View.ViewProjection;
+							System->UpdateConstantBuffer(RenderBufferType::Animation);
+							System->UpdateConstantBuffer(RenderBufferType::Render);
 							Device->DrawIndexed(Mesh);
 						}
 
@@ -521,11 +521,11 @@ namespace Edge
 						if (!CullingBegin(Base))
 							continue;
 
-						Device->Animation.Animated = (float)false;
-						Device->Render.World = Base->GetEntity()->GetBox();
-						Device->Render.Transform = Device->Render.World * View.ViewProjection;
-						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
-						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+						System->Constants->Animation.Animated = (float)false;
+						System->Constants->Render.World = Base->GetEntity()->GetBox();
+						System->Constants->Render.Transform = System->Constants->Render.World * View.ViewProjection;
+						System->UpdateConstantBuffer(RenderBufferType::Animation);
+						System->UpdateConstantBuffer(RenderBufferType::Render);
 						Device->DrawIndexed((unsigned int)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
 						CullingEnd();
 
@@ -556,8 +556,8 @@ namespace Edge
 						continue;
 
 					auto& World = Base->GetEntity()->GetBox();
-					Device->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
-					Device->Render.TexCoord = Base->TexCoord;
+					System->Constants->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
+					System->Constants->Render.TexCoord = Base->TexCoord;
 
 					for (auto* Mesh : Drawable->Meshes)
 					{
@@ -565,11 +565,11 @@ namespace Edge
 							continue;
 
 						auto& Matrices = Base->Skeleton.Matrices[Mesh];
-						memcpy(Device->Animation.Offsets, Matrices.Data, sizeof(Matrices.Data));
-						Device->Render.World = Mesh->Transform * World;
-						Device->Render.Transform = Device->Render.World * System->View.ViewProjection;
-						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
-						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+						memcpy(System->Constants->Animation.Offsets, Matrices.Data, sizeof(Matrices.Data));
+						System->Constants->Render.World = Mesh->Transform * World;
+						System->Constants->Render.Transform = System->Constants->Render.World * System->View.ViewProjection;
+						System->UpdateConstantBuffer(RenderBufferType::Animation);
+						System->UpdateConstantBuffer(RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
 
@@ -595,7 +595,7 @@ namespace Edge
 						continue;
 
 					auto& World = Base->GetEntity()->GetBox();
-					Device->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
+					System->Constants->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
 
 					for (auto* Mesh : Drawable->Meshes)
 					{
@@ -603,10 +603,10 @@ namespace Edge
 							continue;
 
 						auto& Matrices = Base->Skeleton.Matrices[Mesh];
-						memcpy(Device->Animation.Offsets, Matrices.Data, sizeof(Matrices.Data));
-						Device->Render.Transform = Device->Render.World = Mesh->Transform * World;
-						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
-						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+						memcpy(System->Constants->Animation.Offsets, Matrices.Data, sizeof(Matrices.Data));
+						System->Constants->Render.Transform = System->Constants->Render.World = Mesh->Transform * World;
+						System->UpdateConstantBuffer(RenderBufferType::Animation);
+						System->UpdateConstantBuffer(RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
 
@@ -635,8 +635,8 @@ namespace Edge
 						continue;
 
 					auto& World = Base->GetEntity()->GetBox();
-					Device->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
-					Device->Render.TexCoord = Base->TexCoord;
+					System->Constants->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
+					System->Constants->Render.TexCoord = Base->TexCoord;
 
 					for (auto* Mesh : Drawable->Meshes)
 					{
@@ -644,11 +644,11 @@ namespace Edge
 							continue;
 
 						auto& Matrices = Base->Skeleton.Matrices[Mesh];
-						memcpy(Device->Animation.Offsets, Matrices.Data, sizeof(Matrices.Data));
-						Device->Render.World = Mesh->Transform * World;
-						Device->Render.Transform = Device->Render.World * System->View.ViewProjection;
-						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
-						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+						memcpy(System->Constants->Animation.Offsets, Matrices.Data, sizeof(Matrices.Data));
+						System->Constants->Render.World = Mesh->Transform * World;
+						System->Constants->Render.Transform = System->Constants->Render.World * System->View.ViewProjection;
+						System->UpdateConstantBuffer(RenderBufferType::Animation);
+						System->UpdateConstantBuffer(RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
 
@@ -679,8 +679,8 @@ namespace Edge
 						continue;
 
 					auto& World = Base->GetEntity()->GetBox();
-					Device->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
-					Device->Render.TexCoord = Base->TexCoord;
+					System->Constants->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
+					System->Constants->Render.TexCoord = Base->TexCoord;
 
 					for (auto* Mesh : Drawable->Meshes)
 					{
@@ -688,10 +688,10 @@ namespace Edge
 							continue;
 
 						auto& Matrices = Base->Skeleton.Matrices[Mesh];
-						memcpy(Device->Animation.Offsets, Matrices.Data, sizeof(Matrices.Data));
-						Device->Render.World = Mesh->Transform * World;
-						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
-						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+						memcpy(System->Constants->Animation.Offsets, Matrices.Data, sizeof(Matrices.Data));
+						System->Constants->Render.World = Mesh->Transform * World;
+						System->UpdateConstantBuffer(RenderBufferType::Animation);
+						System->UpdateConstantBuffer(RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
 
@@ -768,16 +768,16 @@ namespace Edge
 					if (!System->TryGeometry(Base->GetMaterial(), true))
 						continue;
 
-					Device->Render.World = View.Projection;
-					Device->Render.Transform = (Base->QuadBased ? View.View : View.ViewProjection);
-					Device->Render.TexCoord = Base->GetEntity()->GetTransform()->Forward();
+					System->Constants->Render.World = View.Projection;
+					System->Constants->Render.Transform = (Base->QuadBased ? View.View : View.ViewProjection);
+					System->Constants->Render.TexCoord = Base->GetEntity()->GetTransform()->Forward();
 					if (Base->Connected)
-						Device->Render.Transform = Base->GetEntity()->GetBox() * Device->Render.Transform;
+						System->Constants->Render.Transform = Base->GetEntity()->GetBox() * System->Constants->Render.Transform;
 
 					Device->SetBuffer(Base->GetBuffer(), 8, ED_VS | ED_PS);
 					Device->SetShader(Base->QuadBased ? BaseShader : nullptr, ED_GS);
 					Device->UpdateBuffer(Base->GetBuffer());
-					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+					System->UpdateConstantBuffer(RenderBufferType::Render);
 					Device->Draw((unsigned int)Base->GetBuffer()->GetArray().size(), 0);
 
 					Count++;
@@ -810,14 +810,14 @@ namespace Edge
 					if (!Base->GetBuffer() || !System->TryGeometry(Base->GetMaterial(), true))
 						continue;
 
-					Device->Render.World = View.Projection;
-					Device->Render.Transform = (Base->QuadBased ? View.View : View.ViewProjection);
+					System->Constants->Render.World = View.Projection;
+					System->Constants->Render.Transform = (Base->QuadBased ? View.View : View.ViewProjection);
 					if (Base->Connected)
-						Device->Render.Transform = Base->GetEntity()->GetBox() * Device->Render.Transform;
+						System->Constants->Render.Transform = Base->GetEntity()->GetBox() * System->Constants->Render.Transform;
 
 					Device->SetBuffer(Base->GetBuffer(), 8, ED_VS | ED_PS);
 					Device->SetShader(Base->QuadBased ? Shaders.Depth.Linear : nullptr, ED_GS);
-					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+					System->UpdateConstantBuffer(RenderBufferType::Render);
 					Device->Draw((unsigned int)Base->GetBuffer()->GetArray().size(), 0);
 
 					Count++;
@@ -858,10 +858,10 @@ namespace Edge
 					if (!Base->GetBuffer() || !System->TryGeometry(Base->GetMaterial(), true))
 						continue;
 
-					Device->Render.World = (Base->Connected ? Base->GetEntity()->GetBox() : Compute::Matrix4x4::Identity());
+					System->Constants->Render.World = (Base->Connected ? Base->GetEntity()->GetBox() : Compute::Matrix4x4::Identity());
 					Device->SetBuffer(Base->GetBuffer(), 8, ED_VS | ED_PS);
 					Device->SetShader(Base->QuadBased ? Shaders.Depth.Quad : Shaders.Depth.Point, ED_VS | ED_PS | ED_GS);
-					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+					System->UpdateConstantBuffer(RenderBufferType::Render);
 					Device->Draw((unsigned int)Base->GetBuffer()->GetArray().size(), 0);
 
 					Count++;
@@ -920,10 +920,10 @@ namespace Edge
 					if ((Static && !Base->Static) || !System->TryGeometry(Base->GetMaterial(), true))
 						continue;
 
-					Device->Render.Transform = Base->GetEntity()->GetBox() * System->View.ViewProjection;
-					Device->Render.World = Device->Render.Transform.Inv();
-					Device->Render.TexCoord = Base->TexCoord;
-					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+					System->Constants->Render.Transform = Base->GetEntity()->GetBox() * System->View.ViewProjection;
+					System->Constants->Render.World = System->Constants->Render.Transform.Inv();
+					System->Constants->Render.TexCoord = Base->TexCoord;
+					System->UpdateConstantBuffer(RenderBufferType::Render);
 					Device->DrawIndexed((unsigned int)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
 					Count++;
 				}
@@ -1544,9 +1544,9 @@ namespace Edge
 			void Lighting::SetSkyMap(Graphics::Texture2D* Cubemap)
 			{
 				ED_RELEASE(SkyBase);
-				SkyBase = Cubemap;
-
+				ED_ASSIGN(SkyBase, Cubemap);
 				ED_CLEAR(SkyMap);
+
 				if (SkyBase != nullptr)
 					SkyMap = System->GetDevice()->CreateTextureCube(SkyBase);
 			}
@@ -1997,7 +1997,7 @@ namespace Edge
 				Device->SetShader(Shader, ED_VS | ED_PS);
 				Device->SetBuffer(Shader, 3, ED_VS | ED_PS);
 				Device->SetVertexBuffer(System->GetPrimitives()->GetQuad());
-				Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+				System->UpdateConstantBuffer(RenderBufferType::Render);
 				Device->Draw(6, 0);
 				Device->FlushTexture(1, 8, ED_PS);
 				System->RestoreOutput();

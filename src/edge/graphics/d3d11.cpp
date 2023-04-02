@@ -522,10 +522,6 @@ namespace Edge
 						return;
 				}
 
-				ConstantBuffer[0] = nullptr;
-				ConstantBuffer[1] = nullptr;
-				ConstantBuffer[2] = nullptr;
-
 				unsigned int CreationFlags = I.CreationFlags | D3D11_CREATE_DEVICE_DISABLE_GPU_TIMEOUT;
 				if (I.Debug)
 					CreationFlags |= D3D11_CREATE_DEVICE_DEBUG;
@@ -560,24 +556,10 @@ namespace Edge
 					return;
 				}
 
-				CreateConstantBuffer(&ConstantBuffer[0], sizeof(AnimationBuffer));
-				Constants[0] = &Animation;
-
-				CreateConstantBuffer(&ConstantBuffer[1], sizeof(RenderBuffer));
-				Constants[1] = &Render;
-
-				CreateConstantBuffer(&ConstantBuffer[2], sizeof(ViewBuffer));
-				Constants[2] = &View;
-
-				SetConstantBuffers();
 				SetShaderModel(I.ShaderMode == ShaderModel::Auto ? GetSupportedShaderModel() : I.ShaderMode);
 				SetPrimitiveTopology(PrimitiveTopology::Triangle_List);
 				ResizeBuffers(I.BufferWidth, I.BufferHeight);
 				CreateStates();
-
-				Shader::Desc F = Shader::Desc();
-				if (GetSection("geometry/basic/geometry", &F))
-					BasicEffect = CreateShader(F);
 			}
 			D3D11Device::~D3D11Device()
 			{
@@ -587,9 +569,6 @@ namespace Edge
 				D3D_RELEASE(Immediate.ConstantBuffer);
 				D3D_RELEASE(Immediate.PixelShader);
 				D3D_RELEASE(Immediate.VertexBuffer);
-				D3D_RELEASE(ConstantBuffer[0]);
-				D3D_RELEASE(ConstantBuffer[1]);
-				D3D_RELEASE(ConstantBuffer[2]);
 				D3D_RELEASE(ImmediateContext);
 				D3D_RELEASE(SwapChain);
 
@@ -610,15 +589,6 @@ namespace Edge
 			}
 			void D3D11Device::SetAsCurrentDevice()
 			{
-			}
-			void D3D11Device::SetConstantBuffers()
-			{
-				ImmediateContext->VSSetConstantBuffers(0, 3, ConstantBuffer);
-				ImmediateContext->PSSetConstantBuffers(0, 3, ConstantBuffer);
-				ImmediateContext->GSSetConstantBuffers(0, 3, ConstantBuffer);
-				ImmediateContext->DSSetConstantBuffers(0, 3, ConstantBuffer);
-				ImmediateContext->HSSetConstantBuffers(0, 3, ConstantBuffer);
-				ImmediateContext->CSSetConstantBuffers(0, 3, ConstantBuffer);
 			}
 			void D3D11Device::SetShaderModel(ShaderModel Model)
 			{
@@ -849,6 +819,29 @@ namespace Edge
 
 				if (Type & (uint32_t)ShaderType::Compute)
 					ImmediateContext->CSSetShaderResources(Slot, 1, &NewState);
+			}
+			void D3D11Device::SetConstantBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
+			{
+				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
+
+				ID3D11Buffer* IBuffer = (Resource ? ((D3D11ElementBuffer*)Resource)->Element : nullptr);
+				if (Type & (uint32_t)ShaderType::Vertex)
+					ImmediateContext->VSSetConstantBuffers(Slot, 1, &IBuffer);
+
+				if (Type & (uint32_t)ShaderType::Pixel)
+					ImmediateContext->PSSetConstantBuffers(Slot, 1, &IBuffer);
+
+				if (Type & (uint32_t)ShaderType::Geometry)
+					ImmediateContext->GSSetConstantBuffers(Slot, 1, &IBuffer);
+
+				if (Type & (uint32_t)ShaderType::Hull)
+					ImmediateContext->HSSetConstantBuffers(Slot, 1, &IBuffer);
+
+				if (Type & (uint32_t)ShaderType::Domain)
+					ImmediateContext->DSSetConstantBuffers(Slot, 1, &IBuffer);
+
+				if (Type & (uint32_t)ShaderType::Compute)
+					ImmediateContext->CSSetConstantBuffers(Slot, 1, &IBuffer);
 			}
 			void D3D11Device::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
@@ -1311,6 +1304,15 @@ namespace Edge
 				ImmediateContext->Unmap(IResource->Element, 0);
 				return true;
 			}
+			bool D3D11Device::UpdateConstantBuffer(ElementBuffer* Resource, void* Data, size_t Size)
+			{
+				ED_ASSERT(Resource != nullptr, false, "resource should be set");
+				ED_ASSERT(Data != nullptr, false, "data should be set");
+
+				D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resource;
+				ImmediateContext->UpdateSubresource(IResource->Element, 0, nullptr, Data, 0, 0);
+				return true;
+			}
 			bool D3D11Device::UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size)
 			{
 				ED_ASSERT(Resource != nullptr, false, "resource should be set");
@@ -1376,11 +1378,6 @@ namespace Edge
 
 				memcpy(MappedResource.pData, IResource->Array.data(), (size_t)IResource->Array.size() * IResource->ElementWidth);
 				ImmediateContext->Unmap(Element->Element, 0);
-				return true;
-			}
-			bool D3D11Device::UpdateBuffer(RenderBufferType fBuffer)
-			{
-				ImmediateContext->UpdateSubresource(ConstantBuffer[(size_t)fBuffer], 0, nullptr, Constants[(size_t)fBuffer], 0, 0);
 				return true;
 			}
 			bool D3D11Device::UpdateBufferSize(Shader* Resource, size_t Size)
@@ -3764,7 +3761,7 @@ namespace Edge
 			}
 			bool D3D11Device::IsValid() const
 			{
-				return BasicEffect != nullptr;
+				return Context != nullptr && ImmediateContext != nullptr;
 			}
 			bool D3D11Device::CreateDirectBuffer(size_t Size)
 			{

@@ -50,6 +50,8 @@ namespace Edge
 
 		class Material;
 
+		class SkinModel;
+
 		enum
 		{
 			MAX_STACK_DEPTH = 4
@@ -159,6 +161,13 @@ namespace Edge
 			Renderer,
 			Effect,
 			Filter
+		};
+
+		enum class RenderBufferType
+		{
+			Animation,
+			Render,
+			View
 		};
 
 		inline ActorSet operator |(ActorSet A, ActorSet B)
@@ -330,6 +339,75 @@ namespace Edge
 		{
 			Core::Pool<Component*> Data;
 			Compute::Cosmos Index;
+		};
+
+		struct ED_OUT AnimationBuffer
+		{
+			Compute::Matrix4x4 Offsets[ED_MAX_JOINTS];
+			Compute::Vector3 Padding;
+			float Animated = 0.0f;
+		};
+
+		struct ED_OUT RenderBuffer
+		{
+			struct Instance
+			{
+				Compute::Matrix4x4 Transform;
+				Compute::Matrix4x4 World;
+				Compute::Vector2 TexCoord;
+				float Diffuse = 0.0f;
+				float Normal = 0.0f;
+				float Height = 0.0f;
+				float MaterialId = 0.0f;
+			};
+
+			Compute::Matrix4x4 Transform;
+			Compute::Matrix4x4 World;
+			Compute::Vector4 TexCoord;
+			float Diffuse = 0.0f;
+			float Normal = 0.0f;
+			float Height = 0.0f;
+			float MaterialId = 0.0f;
+		};
+
+		struct ED_OUT ViewBuffer
+		{
+			Compute::Matrix4x4 InvViewProj;
+			Compute::Matrix4x4 ViewProj;
+			Compute::Matrix4x4 Proj;
+			Compute::Matrix4x4 View;
+			Compute::Vector3 Position;
+			float Far = 1000.0f;
+			Compute::Vector3 Direction;
+			float Near = 0.1f;
+		};
+
+		struct ED_OUT PoseNode
+		{
+			Compute::Vector3 Position;
+			Compute::Vector3 Scale = Compute::Vector3::One();
+			Compute::Quaternion Rotation;
+		};
+
+		struct ED_OUT PoseData
+		{
+			PoseNode Frame;
+			PoseNode Offset;
+			PoseNode Default;
+		};
+
+		struct ED_OUT PoseMatrices
+		{
+			Compute::Matrix4x4 Data[ED_MAX_JOINTS];
+		};
+
+		struct ED_OUT PoseBuffer
+		{
+			std::unordered_map<Graphics::SkinMeshBuffer*, PoseMatrices> Matrices;
+			std::unordered_map<size_t, PoseData> Offsets;
+
+			void Fill(SkinModel* Mesh);
+			void Fill(Compute::Joint& Next);
 		};
 
 		class ED_OUT_TS Series
@@ -512,6 +590,43 @@ namespace Edge
 
 				return Tasks;
 			}
+		};
+
+		class ED_OUT Model final : public Core::Reference<Model>
+		{
+		public:
+			std::vector<Graphics::MeshBuffer*> Meshes;
+			Compute::Vector4 Max;
+			Compute::Vector4 Min;
+
+		public:
+			Model() noexcept;
+			~Model() noexcept;
+			void Cleanup();
+			Graphics::MeshBuffer* FindMesh(const std::string& Name);
+		};
+
+		class ED_OUT SkinModel final : public Core::Reference<SkinModel>
+		{
+		public:
+			std::vector<Graphics::SkinMeshBuffer*> Meshes;
+			Compute::Joint Skeleton;
+			Compute::Matrix4x4 InvTransform;
+			Compute::Matrix4x4 Transform;
+			Compute::Vector4 Max;
+			Compute::Vector4 Min;
+
+		public:
+			SkinModel() noexcept;
+			~SkinModel() noexcept;
+			bool FindJoint(const std::string& Name, Compute::Joint* Output);
+			bool FindJoint(size_t Index, Compute::Joint* Output);
+			void Synchronize(PoseBuffer* Map);
+			void Cleanup();
+			Graphics::SkinMeshBuffer* FindMesh(const std::string& Name);
+
+		private:
+			void Synchronize(PoseBuffer* Map, Compute::Joint& Next, const Compute::Matrix4x4& ParentOffset);
 		};
 
 		class ED_OUT SkinAnimation final : public Core::Reference<SkinAnimation>
@@ -784,6 +899,35 @@ namespace Edge
 			ED_COMPONENT_ROOT("base_renderer");
 		};
 
+		class ED_OUT RenderConstants final : public Core::Reference<RenderConstants>
+		{
+		private:
+			struct
+			{
+				Graphics::ElementBuffer* Buffers[3] = { nullptr };
+				Graphics::Shader* BasicEffect = nullptr;
+				void* Pointers[3] = { nullptr };
+				size_t Sizes[3] = { 0 };
+			} Binding;
+
+		private:
+			Graphics::GraphicsDevice* Device;
+
+		public:
+			AnimationBuffer Animation;
+			RenderBuffer Render;
+			ViewBuffer View;
+
+		public:
+			RenderConstants(Graphics::GraphicsDevice* NewDevice) noexcept;
+			~RenderConstants() noexcept;
+			void SetConstantBuffers();
+			void UpdateConstantBuffer(RenderBufferType Buffer);
+			Graphics::Shader* GetBasicEffect() const;
+			Graphics::GraphicsDevice* GetDevice() const;
+			Graphics::ElementBuffer* GetConstantBuffer(RenderBufferType Buffer) const;
+		};
+
 		class ED_OUT RenderSystem final : public Core::Reference<RenderSystem>
 		{
 		public:
@@ -838,6 +982,7 @@ namespace Edge
 			Component* Owner;
 
 		public:
+			RenderConstants* Constants;
 			Viewer View;
 			size_t MaxQueries;
 			size_t OcclusionSkips;
@@ -866,10 +1011,11 @@ namespace Edge
 			void FreeShader(Graphics::Shader* Shader);
 			void FreeBuffers(const std::string& Name, Graphics::ElementBuffer** Buffers);
 			void FreeBuffers(Graphics::ElementBuffer** Buffers);
+			void UpdateConstantBuffer(RenderBufferType Buffer);
 			void ClearMaterials();
 			void FetchVisibility(Component* Base, VisibilityQuery& Data);
 			size_t Render(Core::Timer* Time, RenderState Stage, RenderOpt Options);
-			bool TryInstance(Material* Next, Graphics::RenderBuffer::Instance& Target);
+			bool TryInstance(Material* Next, RenderBuffer::Instance& Target);
 			bool TryGeometry(Material* Next, bool WithTextures);
 			bool HasCategory(GeoCategory Category);
 			Graphics::Shader* CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
@@ -883,6 +1029,8 @@ namespace Edge
 			Graphics::RenderTarget2D* GetRT(TargetType Type) const;
 			Graphics::Texture2D** GetMerger();
 			Graphics::GraphicsDevice* GetDevice() const;
+			Graphics::Shader* GetBasicEffect() const;
+			RenderConstants* GetConstants() const;
 			PrimitiveCache* GetPrimitives() const;
 			SceneGraph* GetScene() const;
 			Component* GetComponent() const;
@@ -1197,6 +1345,7 @@ namespace Edge
 					ContentManager* Content = nullptr;
 					PrimitiveCache* Primitives = nullptr;
 					ShaderCache* Shaders = nullptr;
+					RenderConstants* Constants = nullptr;
 				} Shared;
 
 				Compute::Simulator::Desc Simulator;
@@ -1365,6 +1514,7 @@ namespace Edge
 			Graphics::GraphicsDevice* GetDevice() const;
 			Compute::Simulator* GetSimulator() const;
 			Graphics::Activity* GetActivity() const;
+			RenderConstants* GetConstants() const;
 			ShaderCache* GetShaders() const;
 			PrimitiveCache* GetPrimitives() const;
 			Desc& GetConf();
@@ -1516,6 +1666,7 @@ namespace Edge
 			Graphics::GraphicsDevice* Renderer = nullptr;
 			Graphics::Activity* Activity = nullptr;
 			Scripting::VirtualMachine* VM = nullptr;
+			RenderConstants* Constants = nullptr;
 			ContentManager* Content = nullptr;
 			AppData* Database = nullptr;
 			SceneGraph* Scene = nullptr;

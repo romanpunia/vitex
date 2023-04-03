@@ -1718,6 +1718,14 @@ namespace Edge
 			for (auto& Value : Values)
 				Wait(Value);
 		}
+		size_t Parallel::GetThreadIndex()
+		{
+			return Core::Schedule::Get()->GetThreadLocalIndex();
+		}
+		size_t Parallel::GetThreads()
+		{
+			return Core::Schedule::Get()->GetThreads(Core::Difficulty::Heavy);
+		}
 
 		void PoseBuffer::Fill(SkinModel* Model)
 		{
@@ -2399,9 +2407,6 @@ namespace Edge
 		}
 		Material* Drawable::GetMaterial(void* Instance)
 		{
-			if (!Complex || Materials.empty())
-				return nullptr;
-
 			if (Materials.size() == 1)
 				return Materials.begin()->second;
 
@@ -2453,7 +2458,7 @@ namespace Edge
 		void Renderer::Deactivate()
 		{
 		}
-		void Renderer::BeginPass()
+		void Renderer::BeginPass(Core::Timer* Time)
 		{
 		}
 		void Renderer::EndPass()
@@ -2527,7 +2532,7 @@ namespace Edge
 			return Binding.Buffers[(size_t)Buffer];
 		}
 
-		RenderSystem::RenderSystem(SceneGraph* NewScene, Component* NewComponent) noexcept : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), Owner(NewComponent), MaxQueries(16384), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3), OverflowVisibility(0.0f), Threshold(0.1f), OcclusionCulling(false), PreciseCulling(true)
+		RenderSystem::RenderSystem(SceneGraph* NewScene, Component* NewComponent) noexcept : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), Owner(NewComponent), MaxQueries(16384), SortingFrequency(2), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3), OverflowVisibility(0.0f), Threshold(0.1f), OcclusionCulling(false), PreciseCulling(true), AllowInputLag(false)
 		{
 			ED_ASSERT_V(NewScene != nullptr, "scene should be set");
 			ED_ASSERT_V(NewScene->GetDevice() != nullptr, "graphics device should be set");
@@ -2742,7 +2747,7 @@ namespace Edge
 			for (auto& Next : Renderers)
 			{
 				if (Next->Active)
-					Next->BeginPass();
+					Next->BeginPass(Time);
 			}
 
 			for (auto& Next : Renderers)
@@ -3991,6 +3996,8 @@ namespace Edge
 
 			auto* Base = (Components::Camera*)Camera.load();
 			auto* Renderer = (Base ? Base->GetRenderer() : nullptr);
+			Statistics.Batching = 0;
+			Statistics.Sorting = 0;
 			Statistics.Instances = 0;
 			Statistics.DrawCalls = 0;
 
@@ -5252,7 +5259,6 @@ namespace Edge
 		}
 		std::vector<Component*> SceneGraph::QueryByPosition(uint64_t Section, const Compute::Vector3& Position, float Radius)
 		{
-
 			return QueryByArea(Section, Position - Radius * 0.5f, Position + Radius * 0.5f);
 		}
 		std::vector<Component*> SceneGraph::QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max)

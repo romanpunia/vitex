@@ -1040,16 +1040,16 @@ namespace Edge
 			{
 				ED_CLEAR(LightingMap);
 			}
-			void Lighting::BeginPass()
+			void Lighting::BeginPass(Core::Timer* Time)
 			{
 				if (System->State.Is(RenderState::Depth_Linear) || System->State.Is(RenderState::Depth_Cubic))
 					return;
 
 				auto& Lines = System->GetScene()->GetComponents<Components::LineLight>();
-				Lights.Illuminators.Push(System);
-				Lights.Surfaces.Push(System);
-				Lights.Points.Push(System);
-				Lights.Spots.Push(System);
+				Lights.Illuminators.Push(Time, System);
+				Lights.Surfaces.Push(Time, System);
+				Lights.Points.Push(Time, System);
+				Lights.Spots.Push(Time, System);
 				Lights.Lines = &Lines;
 			}
 			void Lighting::EndPass()

@@ -524,6 +524,8 @@ namespace Edge
 			static std::vector<Task> EnqueueAll(const std::vector<Core::TaskCallback>& Callbacks);
 			static void Wait(const Task& Value);
 			static void WailAll(const std::vector<Task>& Values);
+			static size_t GetThreadIndex();
+			static size_t GetThreads();
 
 		public:
 			template <typename Iterator, typename Function>
@@ -535,7 +537,7 @@ namespace Edge
 				if (!Size)
 					return Tasks;
 
-				size_t Threads = std::max<size_t>(1, (size_t)Core::Schedule::Get()->GetThreads(Core::Difficulty::Heavy));
+				size_t Threads = std::max<size_t>(1, GetThreads());
 				size_t Step = Size / Threads;
 				size_t Remains = Size % Threads;
 				Tasks.reserve(Threads);
@@ -554,14 +556,13 @@ namespace Edge
 			{
 				std::vector<Task> Tasks;
 				size_t Size = End - Begin;
-
 				if (!Size)
 				{
 					InitCallback((size_t)0);
 					return Tasks;
 				}
 
-				size_t Threads = std::max<size_t>(1, (size_t)Core::Schedule::Get()->GetThreads(Core::Difficulty::Heavy));
+				size_t Threads = std::max<size_t>(1, GetThreads());
 				size_t Step = Size / Threads;
 				size_t Remains = Size % Threads;
 				size_t Remainder = Remains;
@@ -888,7 +889,7 @@ namespace Edge
 			virtual void ResizeBuffers();
 			virtual void Activate();
 			virtual void Deactivate();
-			virtual void BeginPass();
+			virtual void BeginPass(Core::Timer* Time);
 			virtual void EndPass();
 			virtual bool HasCategory(GeoCategory Category);
 			virtual size_t RenderPass(Core::Timer* Time) = 0;
@@ -936,6 +937,7 @@ namespace Edge
 				Compute::Cosmos::Iterator Stack;
 				Compute::Frustum6P Frustum;
 				Compute::Bounding Bounds;
+				std::vector<void*> Queue;
 			} Indexing;
 
 			struct RsState
@@ -985,6 +987,7 @@ namespace Edge
 			RenderConstants* Constants;
 			Viewer View;
 			size_t MaxQueries;
+			size_t SortingFrequency;
 			size_t OcclusionSkips;
 			size_t OccluderSkips;
 			size_t OccludeeSkips;
@@ -992,6 +995,7 @@ namespace Edge
 			float Threshold;
 			bool OcclusionCulling;
 			bool PreciseCulling;
+			bool AllowInputLag;
 
 		public:
 			RenderSystem(SceneGraph* NewScene, Component* NewComponent) noexcept;
@@ -1040,7 +1044,7 @@ namespace Edge
 
 		private:
 			template <typename T, typename OverlapsFunction, typename MatchFunction>
-			void DispatchQuery(Compute::Cosmos& Index, const OverlapsFunction& Overlaps, const MatchFunction& Match)
+			void DispatchQuerySync(Compute::Cosmos& Index, const OverlapsFunction& Overlaps, const MatchFunction& Match)
 			{
 				Indexing.Stack.clear();
 				if (!Index.IsEmpty())
@@ -1063,10 +1067,41 @@ namespace Edge
 					}
 				}
 			}
+			template <typename T, typename OverlapsFunction, typename MatchFunction>
+			void DispatchQueryAsync(Compute::Cosmos& Index, const OverlapsFunction& Overlaps, const MatchFunction& Match)
+			{
+				Indexing.Stack.clear();
+				Indexing.Queue.clear();
+
+				if (!Index.IsEmpty())
+					Indexing.Stack.push_back(Index.GetRoot());
+
+				while (!Indexing.Stack.empty())
+				{
+					auto& Next = Index.GetNode(Indexing.Stack.back());
+					Indexing.Stack.pop_back();
+
+					if (Overlaps(Next.Bounds))
+					{
+						if (!Next.IsLeaf())
+						{
+							Indexing.Stack.push_back(Next.Left);
+							Indexing.Stack.push_back(Next.Right);
+						}
+						else if (Next.Item != nullptr)
+							Indexing.Queue.push_back(Next.Item);
+					}
+				}
+
+				Scene->WatchAll(Parallel::ForEach(Indexing.Queue.begin(), Indexing.Queue.end(), [Match](void* Item)
+				{
+					Match(Parallel::GetThreadIndex(), (T*)Item);
+				}));
+			}
 
 		public:
 			template <typename MatchFunction>
-			void QueryBasicAsync(uint64_t Id, MatchFunction&& Callback)
+			void QueryBasicSync(uint64_t Id, MatchFunction&& Callback)
 			{
 				auto& Storage = GetStorageWrapper(Id);
 				switch (View.Culling)
@@ -1074,13 +1109,13 @@ namespace Edge
 					case RenderCulling::Linear:
 					{
 						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Frustum.OverlapsAABB(Bounds); };
-						DispatchQuery<Component, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
+						DispatchQuerySync<Component, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
 						break;
 					}
 					case RenderCulling::Cubic:
 					{
 						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Bounds.Overlaps(Bounds); };
-						DispatchQuery<Component, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
+						DispatchQuerySync<Component, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
 						break;
 					}
 					default:
@@ -1088,8 +1123,33 @@ namespace Edge
 						break;
 				}
 			}
+			template <typename InitFunction, typename MatchFunction>
+			void QueryBasicAsync(uint64_t Id, InitFunction&& InitCallback, MatchFunction&& ElementCallback)
+			{
+				auto& Storage = GetStorageWrapper(Id);
+				switch (View.Culling)
+				{
+					case RenderCulling::Linear:
+					{
+						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Frustum.OverlapsAABB(Bounds); };
+						InitCallback(Parallel::GetThreads());
+						DispatchQueryAsync<Component, decltype(Overlaps), decltype(ElementCallback)>(Storage.Index, Overlaps, ElementCallback);
+						break;
+					}
+					case RenderCulling::Cubic:
+					{
+						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Bounds.Overlaps(Bounds); };
+						InitCallback(Parallel::GetThreads());
+						DispatchQueryAsync<Component, decltype(Overlaps), decltype(ElementCallback)>(Storage.Index, Overlaps, ElementCallback);
+						break;
+					}
+					default:
+						Scene->WatchAll(Parallel::Distribute(Storage.Data.Begin(), Storage.Data.End(), std::move(InitCallback), std::move(ElementCallback)));
+						break;
+				}
+			}
 			template <typename T, typename MatchFunction>
-			void QueryAsync(MatchFunction&& Callback)
+			void QuerySync(MatchFunction&& Callback)
 			{
 				auto& Storage = GetStorageWrapper(T::GetTypeId());
 				switch (View.Culling)
@@ -1097,17 +1157,42 @@ namespace Edge
 					case RenderCulling::Linear:
 					{
 						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Frustum.OverlapsAABB(Bounds); };
-						DispatchQuery<T, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
+						DispatchQuerySync<T, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
 						break;
 					}
 					case RenderCulling::Cubic:
 					{
 						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Bounds.Overlaps(Bounds); };
-						DispatchQuery<T, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
+						DispatchQuerySync<T, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
 						break;
 					}
 					default:
 						std::for_each(Storage.Data.Begin(), Storage.Data.End(), std::move(Callback));
+						break;
+				}
+			}
+			template <typename T, typename InitFunction, typename MatchFunction>
+			void QueryAsync(InitFunction&& InitCallback, MatchFunction&& ElementCallback)
+			{
+				auto& Storage = GetStorageWrapper(T::GetTypeId());
+				switch (View.Culling)
+				{
+					case RenderCulling::Linear:
+					{
+						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Frustum.OverlapsAABB(Bounds); };
+						InitCallback(Parallel::GetThreads());
+						DispatchQueryAsync<T, decltype(Overlaps), decltype(ElementCallback)>(Storage.Index, Overlaps, ElementCallback);
+						break;
+					}
+					case RenderCulling::Cubic:
+					{
+						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Bounds.Overlaps(Bounds); };
+						InitCallback(Parallel::GetThreads());
+						DispatchQueryAsync<T, decltype(Overlaps), decltype(ElementCallback)>(Storage.Index, Overlaps, ElementCallback);
+						break;
+					}
+					default:
+						Scene->WatchAll(Parallel::Distribute(Storage.Data.Begin(), Storage.Data.End(), std::move(InitCallback), std::move(ElementCallback)));
 						break;
 				}
 			}
@@ -1413,6 +1498,8 @@ namespace Edge
 		public:
 			struct SgStatistics
 			{
+				size_t Batching = 0;
+				size_t Sorting = 0;
 				size_t Instances = 0;
 				size_t DrawCalls = 0;
 			} Statistics;
@@ -1787,9 +1874,9 @@ namespace Edge
 				ED_ASSERT_V(Chunk < Queue.size(), "chunk index is out of range");
 				Queue[Chunk].emplace_back(GetKeyId(Data, Surface), Data, Surface, Params);
 			}
-			void Compile(Graphics::GraphicsDevice* Device)
+			size_t Compile(Graphics::GraphicsDevice* Device)
 			{
-				ED_ASSERT_V(Device != nullptr, "device should be set");
+				ED_ASSERT(Device != nullptr, 0, "device should be set");
 				for (auto& Context : Queue)
 				{
 					for (auto& Item : Context)
@@ -1830,6 +1917,8 @@ namespace Edge
 					else
 						Device->UpdateBuffer(Group->DataBuffer, (void*)Group->Instances.data(), sizeof(Instance) * Group->Instances.size());
 				}
+
+				return Groups.size();
 			}
 
 		private:
@@ -1860,6 +1949,7 @@ namespace Edge
 			typedef BatchingGroup<Geometry, Instance> BatchGroup;
 			typedef BatchingProxy<Geometry, Instance> Batching;
 			typedef std::unordered_map<size_t, BatchGroup*> Groups;
+			typedef std::pair<T*, VisibilityQuery> QueryGroup;
 			typedef std::vector<T*> Storage;
 
 		public:
@@ -1868,6 +1958,7 @@ namespace Edge
 		private:
 			Batching Batchers[Max][(size_t)GeoCategory::Count];
 			Storage Data[Max][(size_t)GeoCategory::Count];
+			std::vector<std::vector<QueryGroup>> Queries;
 			std::queue<BatchGroup*> Cache;
 			size_t Offset;
 
@@ -1911,18 +2002,21 @@ namespace Edge
 			{
 				return Data[Offset > 0 ? Offset - 1 : 0][(size_t)Category];
 			}
-			Storage& Push(RenderSystem* Base, GeoCategory Category = GeoCategory::Opaque)
+			bool Push(Core::Timer* Time, RenderSystem* Base, GeoCategory Category = GeoCategory::Opaque)
 			{
-				ED_ASSERT(Base != nullptr, Data[0][(size_t)Category], "render system should be present");
-				ED_ASSERT(Offset < Max - 1, Data[0][(size_t)Category], "storage heap stack overflow");
+				ED_ASSERT(Base != nullptr, false, "render system should be present");
+				ED_ASSERT(Offset < Max - 1, false, "storage heap stack overflow");
 
 				Storage* Frame = Data[Offset++];
 				if (Base->State.IsSubpass())
+				{
 					Subcull(Base, Frame);
-				else
-					Cullout(Base, Frame);
-
-				return Frame[(size_t)Category];
+					return true;
+				}
+				
+				bool AssumeSorted = (Time->GetFrameIndex() % Base->SortingFrequency != 0);
+				Cullout(Base, Frame, AssumeSorted);
+				return !AssumeSorted;
 			}
 			void Pop()
 			{
@@ -1935,26 +2029,60 @@ namespace Edge
 			}
 
 		private:
-			template<class Q = T>
-			typename std::enable_if<std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top)
+			void Prepare(size_t Threads)
+			{
+				Queries.resize(Threads);
+				for (auto& Queue : Queries)
+					Queue.clear();
+			}
+
+		private:
+			template <typename PushFunction>
+			void Dispatch(PushFunction&& Callback)
+			{
+				for (auto& Queue : Queries)
+					std::for_each(Queue.begin(), Queue.end(), std::move(Callback));
+			}
+			template <class Q = T>
+			typename std::enable_if<std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top, bool AssumeSorted)
 			{
 				ED_MEASURE(ED_TIMING_CORE);
+				if (AssumeSorted)
+				{
+					auto* Scene = System->GetScene();
+					Scene->Statistics.Instances += Culling.size();
+					for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
+						Scene->Statistics.Instances += Top[i].size();
+					return;
+				}
+
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					Top[i].clear();
 				Culling.clear();
 
-				VisibilityQuery Info;
-				System->QueryAsync<T>([this, &System, &Top, &Info](Component* Item)
+				System->QueryAsync<T>([this](size_t Threads)
 				{
+					Prepare(Threads);
+				}, [this, &System](size_t Chunk, Component* Item)
+				{
+					VisibilityQuery Info;
 					System->FetchVisibility(Item, Info);
-					if (Info.BoundaryVisible)
-						Top[(size_t)Info.Category].push_back((T*)Item);
-
-					if (Info.QueryPixels)
-						Culling.push_back((T*)Item);
+					if (Info.BoundaryVisible || Info.QueryPixels)
+						Queries[Chunk].emplace_back(std::make_pair((T*)Item, std::move(Info)));
 				});
 
 				auto* Scene = System->GetScene();
+				Scene->AwaitAll();
+
+				Dispatch([this, Top](QueryGroup& Group)
+				{
+					if (Group.second.BoundaryVisible)
+						Top[(size_t)Group.second.Category].push_back(Group.first);
+
+					if (Group.second.QueryPixels)
+						Culling.push_back(Group.first);
+				});
+
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 				{
 					auto& Array = Top[i];
@@ -1965,6 +2093,7 @@ namespace Edge
 					}));
 				}
 
+				++Scene->Statistics.Sorting;
 				Scene->Statistics.Instances += Culling.size();
 				Scene->Watch(Parallel::Enqueue([this]()
 				{
@@ -1972,41 +2101,68 @@ namespace Edge
 				}));
 				Scene->AwaitAll();
 			}
-			template<class Q = T>
-			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top)
+			template <class Q = T>
+			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top, bool AssumeSorted)
 			{
 				ED_MEASURE(ED_TIMING_CORE);
 				auto& Subframe = Top[(size_t)GeoCategory::Opaque];
-				Subframe.clear();
-
-				VisibilityQuery Info;
-				System->QueryAsync<T>([&System, &Subframe, &Info](Component* Item)
+				if (AssumeSorted)
 				{
+					auto* Scene = System->GetScene();
+					Scene->Statistics.Instances += Subframe.size();
+					return;
+				}
+
+				Subframe.clear();
+				System->QueryAsync<T>([this](size_t Threads)
+				{
+					Prepare(Threads);
+				}, [this, &System](size_t Chunk, Component* Item)
+				{
+					VisibilityQuery Info;
 					System->FetchVisibility(Item, Info);
 					if (Info.BoundaryVisible)
-						Subframe.push_back((T*)Item);
+						Queries[Chunk].emplace_back(std::make_pair((T*)Item, std::move(Info)));
 				});
 
 				auto* Scene = System->GetScene();
+				Scene->AwaitAll();
+
+				Dispatch([&Subframe](QueryGroup& Group)
+				{
+					Subframe.push_back(Group.first);
+				});
+
+				++Scene->Statistics.Sorting;
 				Scene->Statistics.Instances += Subframe.size();
 				ED_SORT(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
 			}
-			template<class Q = T>
+			template <class Q = T>
 			typename std::enable_if<std::is_base_of<Drawable, Q>::value>::type Subcull(RenderSystem* System, Storage* Top)
 			{
 				ED_MEASURE(ED_TIMING_CORE);
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					Top[i].clear();
 
-				VisibilityQuery Info;
-				System->QueryAsync<T>([&System, &Top, &Info](Component* Item)
+				System->QueryAsync<T>([this](size_t Threads)
 				{
+					Prepare(Threads);
+				}, [this, &System](size_t Chunk, Component* Item)
+				{
+					VisibilityQuery Info;
 					System->FetchVisibility(Item, Info);
 					if (Info.BoundaryVisible)
-						Top[(size_t)Info.Category].push_back((T*)Item);
+						Queries[Chunk].emplace_back(std::make_pair((T*)Item, std::move(Info)));
 				});
 
 				auto* Scene = System->GetScene();
+				Scene->AwaitAll();
+
+				Dispatch([Top](QueryGroup& Group)
+				{
+					Top[(size_t)Group.second.Category].push_back(Group.first);
+				});
+
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 				{
 					auto& Array = Top[i];
@@ -2016,23 +2172,36 @@ namespace Edge
 						ED_SORT(Array.begin(), Array.end(), Entity::Sortout<T>);
 					}));
 				}
+
+				++Scene->Statistics.Sorting;
 				Scene->AwaitAll();
 			}
-			template<class Q = T>
+			template <class Q = T>
 			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Subcull(RenderSystem* System, Storage* Top)
 			{
 				auto& Subframe = Top[(size_t)GeoCategory::Opaque];
 				Subframe.clear();
 
-				VisibilityQuery Info;
-				System->QueryAsync<T>([&System, &Subframe, &Info](Component* Item)
+				System->QueryAsync<T>([this](size_t Threads)
 				{
+					Prepare(Threads);
+				}, [this, &System](size_t Chunk, Component* Item)
+				{
+					VisibilityQuery Info;
 					System->FetchVisibility(Item, Info);
 					if (Info.BoundaryVisible)
-						Subframe.push_back((T*)Item);
+						Queries[Chunk].emplace_back(std::make_pair((T*)Item, std::move(Info)));
 				});
 
 				auto* Scene = System->GetScene();
+				Scene->AwaitAll();
+
+				Dispatch([&Subframe](QueryGroup& Group)
+				{
+					Subframe.push_back(Group.first);
+				});
+
+				++Scene->Statistics.Sorting;
 				Scene->Statistics.Instances += Subframe.size();
 				ED_SORT(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
 			}
@@ -2129,25 +2298,30 @@ namespace Edge
 					Inactive.push(Item.second);
 				Active.clear();
 			}
-			void BeginPass() override
+			void BeginPass(Core::Timer* Time) override
 			{
-				Proxy.Push(System);
-				if (Proxy.HasBatching())
+				bool Proceed = Proxy.Push(Time, System);
+				if (!System->AllowInputLag)
+					Proceed = true;
+
+				if (!Proceed || !Proxy.HasBatching())
+					return;
+
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 				{
-					Graphics::GraphicsDevice* Device = System->GetDevice();
-					for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
+					auto& Batcher = Proxy.Batcher((GeoCategory)i);
+					auto& Frame = Proxy.Top((GeoCategory)i);
+					Parallel::WailAll(Parallel::Distribute(Frame.begin(), Frame.end(), [&Batcher](size_t Threads)
 					{
-						auto& Batcher = Proxy.Batcher((GeoCategory)i);
-						auto& Frame = Proxy.Top((GeoCategory)i);
-						Parallel::WailAll(Parallel::Distribute(Frame.begin(), Frame.end(), [&Batcher](size_t Threads)
-						{
-							Batcher.Prepare(Threads);
-						}, [this, &Batcher](size_t Thread, T* Next)
-						{
-							BatchGeometry(Next, Batcher, Thread);
-						}));
-						Batcher.Compile(Device);
-					}
+						Batcher.Prepare(Threads);
+					}, [this, &Batcher](size_t Thread, T* Next)
+					{
+						BatchGeometry(Next, Batcher, Thread);
+					}));
+						
+					auto* Scene = System->GetScene();
+					Scene->Statistics.Batching += Batcher.Compile(Device);
 				}
 			}
 			void EndPass() override

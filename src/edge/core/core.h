@@ -1918,6 +1918,7 @@ namespace Edge
 				Units Begin = Units(0);
 				Units When = Units(0);
 				Units Delta = Units(0);
+				size_t Frame = 0;
 			} Timing;
 
 			struct
@@ -1925,6 +1926,7 @@ namespace Edge
 				Units When = Units(0);
 				Units Delta = Units(0);
 				Units Sum = Units(0);
+				size_t Frame = 0;
 				bool InFrame = false;
 			} Fixed;
 
@@ -1945,6 +1947,8 @@ namespace Edge
 			void Push(const char* Name = nullptr);
 			bool PopIf(float GreaterThan, Capture* Out = nullptr);
 			Capture Pop();
+			size_t GetFrameIndex() const;
+			size_t GetFixedFrameIndex() const;
 			float GetMaxFrames() const;
 			float GetMinStep() const;
 			float GetFrames() const;
@@ -2247,6 +2251,8 @@ namespace Edge
 				std::thread Handle;
 				std::thread::id Id;
 				Difficulty Type = Difficulty::Count;
+				size_t GlobalIndex = 0;
+				size_t LocalIndex = 0;
 				bool Daemon = false;
 			};
 
@@ -2338,9 +2344,16 @@ namespace Edge
 			bool CanEnqueue() const;
 			bool HasTasks(Difficulty Type) const;
 			bool HasAnyTasks() const;
+			size_t GetThreadGlobalIndex();
+			size_t GetThreadLocalIndex();
 			size_t GetTotalThreads() const;
 			size_t GetThreads(Difficulty Type) const;
 			const Desc& GetPolicy() const;
+
+		private:
+			void InitializeThread(size_t GlobalIndex, size_t LocalIndex);
+			size_t UpdateThreadGlobalCounter(int64_t Index);
+			size_t UpdateThreadLocalCounter(int64_t Index);
 
 		private:
 			bool PostDebug(Difficulty Type, ThreadTask State, size_t Tasks);
@@ -2349,7 +2362,7 @@ namespace Edge
 			bool ProcessLoop(Difficulty Type, ThreadPtr* Thread);
 			bool ThreadActive(ThreadPtr* Thread);
 			bool ChunkCleanup();
-			bool PushThread(Difficulty Type, bool IsDaemon);
+			bool PushThread(Difficulty Type, size_t GlobalIndex, size_t LocalIndex, bool IsDaemon);
 			bool PopThread(ThreadPtr* Thread);
 			std::chrono::microseconds GetTimeout(std::chrono::microseconds Clock);
 			TaskId GetTaskId();

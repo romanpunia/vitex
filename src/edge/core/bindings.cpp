@@ -6973,7 +6973,7 @@ namespace Edge
 				Class.SetMethodEx("void message(const string &in, schema@+)", &ComponentMessage<T>);
 				Class.SetMethod("void movement()", &Engine::Component::Movement);
 				Class.SetMethod("usize get_unit_bounds(vector3 &out, vector3 &out) const", &Engine::Component::GetUnitBounds);
-				Class.SetMethod("float get_visibility(const viewer &in, float) const", &Engine::Component::GetVisibility);
+				Class.SetMethod("float get_visibility(const viewer_t &in, float) const", &Engine::Component::GetVisibility);
 				Class.SetMethod("base_component@+ copy(scene_entity@+) const", &Engine::Component::Copy);
 				Class.SetMethod("scene_entity@+ get_entity() const", &Engine::Component::GetEntity);
 				Class.SetMethod("void set_active(bool)", &Engine::Component::SetActive);
@@ -7137,13 +7137,13 @@ namespace Edge
 			{
 				return Base->GetRenderers().size();
 			}
-			void RenderSystemQueryAsync(Engine::RenderSystem* Base, uint64_t Id, asIScriptFunction* Callback)
+			void RenderSystemQuerySync(Engine::RenderSystem* Base, uint64_t Id, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Callback || !Context)
 					return;
 
-				Base->QueryBasicAsync(Id, [Context, Callback](Engine::Component* Item)
+				Base->QueryBasicSync(Id, [Context, Callback](Engine::Component* Item)
 				{
 					Context->TryExecute(true, Callback, [Item](ImmediateContext* Context)
 					{
@@ -8573,6 +8573,8 @@ namespace Edge
 				VTimer.SetMethod("void set_fixed_frames(float)", &Core::Timer::SetFixedFrames);
 				VTimer.SetMethod("void begin()", &Core::Timer::Begin);
 				VTimer.SetMethod("void finish()", &Core::Timer::Finish);
+				VTimer.SetMethod("usize get_frame_index() const", &Core::Timer::GetFrameIndex);
+				VTimer.SetMethod("usize get_fixed_frame_index() const", &Core::Timer::GetFixedFrameIndex);
 				VTimer.SetMethod("float get_max_frames() const", &Core::Timer::GetMaxFrames);
 				VTimer.SetMethod("float get_min_step() const", &Core::Timer::GetMinStep);
 				VTimer.SetMethod("float get_frames() const", &Core::Timer::GetFrames);
@@ -8854,6 +8856,8 @@ namespace Edge
 				VSchedule.SetMethod("bool has_tasks(difficulty) const", &Core::Schedule::HasTasks);
 				VSchedule.SetMethod("bool has_any_tasks() const", &Core::Schedule::HasAnyTasks);
 				VSchedule.SetMethod("usize get_total_threads() const", &Core::Schedule::GetTotalThreads);
+				VSchedule.SetMethod("usize get_thread_global_index()", &Core::Schedule::GetThreadGlobalIndex);
+				VSchedule.SetMethod("usize get_thread_local_index()", &Core::Schedule::GetThreadLocalIndex);
 				VSchedule.SetMethod("usize get_threads(difficulty) const", &Core::Schedule::GetThreads);
 				VSchedule.SetMethod("const schedule_policy& get_policy() const", &Core::Schedule::GetPolicy);
 				VSchedule.SetMethodStatic("schedule@+ get()", &Core::Schedule::Get);
@@ -12808,7 +12812,7 @@ namespace Edge
 				VRenderConstants.SetMethod("element_buffer@+ get_constant_buffer(render_buffer_type) const", &Engine::RenderConstants::GetConstantBuffer);
 
 				RefClass VRenderSystem = Engine->SetClass<Engine::RenderSystem>("render_system", true);
-				TypeClass VViewer = Engine->SetStruct<Engine::Viewer>("viewer");
+				TypeClass VViewer = Engine->SetStruct<Engine::Viewer>("viewer_t");
 				VViewer.SetProperty<Engine::Viewer>("render_system@ renderer", &Engine::Viewer::Renderer);
 				VViewer.SetProperty<Engine::Viewer>("render_culling culling", &Engine::Viewer::Culling);
 				VViewer.SetProperty<Engine::Viewer>("matrix4x4 inv_view_projection", &Engine::Viewer::InvViewProjection);
@@ -13015,7 +13019,7 @@ namespace Edge
 				VEntity.SetMethod("const string& get_name() const", &Engine::Entity::GetName);
 				VEntity.SetMethod("usize get_components_count() const", &Engine::Entity::GetComponentsCount);
 				VEntity.SetMethod("usize get_childs_count() const", &Engine::Entity::GetComponentsCount);
-				VEntity.SetMethod("float get_visibility(const viewer &in) const", &Engine::Entity::GetVisibility);
+				VEntity.SetMethod("float get_visibility(const viewer_t &in) const", &Engine::Entity::GetVisibility);
 				VEntity.SetMethod("float is_active() const", &Engine::Entity::IsActive);
 				VEntity.SetMethod("vector3 get_radius3() const", &Engine::Entity::GetRadius3);
 				VEntity.SetMethod("float get_radius() const", &Engine::Entity::GetRadius);
@@ -13044,8 +13048,9 @@ namespace Edge
 				RefClass VPrimitiveCache = Engine->SetClass<Engine::Renderer>("primitive_cache", true);
 				VRenderSystem.SetFunctionDef("void overlapping_result(base_component@+)");
 				VRenderSystem.SetProperty<Engine::RenderSystem>("rs_state state", &Engine::RenderSystem::State);
-				VRenderSystem.SetProperty<Engine::RenderSystem>("viewer view", &Engine::RenderSystem::View);
+				VRenderSystem.SetProperty<Engine::RenderSystem>("viewer_t view", &Engine::RenderSystem::View);
 				VRenderSystem.SetProperty<Engine::RenderSystem>("usize max_queries", &Engine::RenderSystem::MaxQueries);
+				VRenderSystem.SetProperty<Engine::RenderSystem>("usize sorting_frequency", &Engine::RenderSystem::SortingFrequency);
 				VRenderSystem.SetProperty<Engine::RenderSystem>("usize occlusion_skips", &Engine::RenderSystem::OcclusionSkips);
 				VRenderSystem.SetProperty<Engine::RenderSystem>("usize occluder_skips", &Engine::RenderSystem::OccluderSkips);
 				VRenderSystem.SetProperty<Engine::RenderSystem>("usize occludee_skips", &Engine::RenderSystem::OccludeeSkips);
@@ -13053,11 +13058,12 @@ namespace Edge
 				VRenderSystem.SetProperty<Engine::RenderSystem>("float threshold", &Engine::RenderSystem::Threshold);
 				VRenderSystem.SetProperty<Engine::RenderSystem>("bool occlusion_culling", &Engine::RenderSystem::OcclusionCulling);
 				VRenderSystem.SetProperty<Engine::RenderSystem>("bool precise_culling", &Engine::RenderSystem::PreciseCulling);
+				VRenderSystem.SetProperty<Engine::RenderSystem>("bool allow_input_lag", &Engine::RenderSystem::AllowInputLag);
 				VRenderSystem.SetGcConstructor<Engine::RenderSystem, RenderSystem, Engine::SceneGraph*, Engine::Component*>("render_system@ f(scene_graph@+, base_component@+)");
 				VRenderSystem.SetMethod("void set_view(const matrix4x4 &in, const matrix4x4 &in, const vector3 &in, float, float, float, float, render_culling)", &Engine::RenderSystem::SetView);
 				VRenderSystem.SetMethod("void clear_culling()", &Engine::RenderSystem::ClearCulling);
 				VRenderSystem.SetMethodEx("void restore_view_buffer()", &RenderSystemRestoreViewBuffer);
-				VRenderSystem.SetMethod("void restore_view_buffer(viewer &out)", &Engine::RenderSystem::RestoreViewBuffer);
+				VRenderSystem.SetMethod("void restore_view_buffer(viewer_t &out)", &Engine::RenderSystem::RestoreViewBuffer);
 				VRenderSystem.SetMethod<Engine::RenderSystem, void, Engine::Renderer*>("void remount(base_renderer@+)", &Engine::RenderSystem::Remount);
 				VRenderSystem.SetMethod<Engine::RenderSystem, void>("void remount()", &Engine::RenderSystem::Remount);
 				VRenderSystem.SetMethod("void mount()", &Engine::RenderSystem::Mount);
@@ -13094,7 +13100,7 @@ namespace Edge
 				VRenderSystem.SetMethod("shader@+ get_basic_effect()", &Engine::RenderSystem::GetBasicEffect);
 				VRenderSystem.SetMethod("scene_graph@+ get_scene()", &Engine::RenderSystem::GetScene);
 				VRenderSystem.SetMethod("base_component@+ get_component()", &Engine::RenderSystem::GetComponent);
-				VRenderSystem.SetMethodEx("void query_async(uint64, overlapping_result@)", &RenderSystemQueryAsync);
+				VRenderSystem.SetMethodEx("void query_sync(uint64, overlapping_result@)", &RenderSystemQuerySync);
 				VRenderSystem.SetEnumRefsEx<Engine::RenderSystem>([](Engine::RenderSystem* Base, asIScriptEngine* Engine)
 				{
 					for (auto* Item : Base->GetRenderers())
@@ -13259,6 +13265,8 @@ namespace Edge
 				VSceneGraphDesc.SetMethodStatic("scene_graph_desc get(application@+)", &Engine::SceneGraph::Desc::Get);
 
 				TypeClass VSceneGraphStatistics = Engine->SetPod<Engine::SceneGraph::SgStatistics>("scene_graph_statistics");
+				VSceneGraphStatistics.SetProperty<Engine::SceneGraph::SgStatistics>("usize batching", &Engine::SceneGraph::SgStatistics::Batching);
+				VSceneGraphStatistics.SetProperty<Engine::SceneGraph::SgStatistics>("usize sorting", &Engine::SceneGraph::SgStatistics::Sorting);
 				VSceneGraphStatistics.SetProperty<Engine::SceneGraph::SgStatistics>("usize instances", &Engine::SceneGraph::SgStatistics::Instances);
 				VSceneGraphStatistics.SetProperty<Engine::SceneGraph::SgStatistics>("usize draw_calls", &Engine::SceneGraph::SgStatistics::DrawCalls);
 
@@ -13269,6 +13277,7 @@ namespace Edge
 				VSceneGraph.SetFunctionDef("void event_callback(const string &in, schema@+)");
 				VSceneGraph.SetFunctionDef("void match_callback(const bounding &in)");
 				VSceneGraph.SetFunctionDef("void resource_callback(uptr@)");
+				VSceneGraph.SetProperty("scene_graph_statistics statistics", &Engine::SceneGraph::Statistics);
 				VSceneGraph.SetMethod("void configure(const scene_graph_desc &in)", &Engine::SceneGraph::Configure);
 				VSceneGraph.SetMethod("void actualize()", &Engine::SceneGraph::Actualize);
 				VSceneGraph.SetMethod("void resize_buffers()", &Engine::SceneGraph::ResizeBuffers);
@@ -13313,7 +13322,7 @@ namespace Edge
 				VSceneGraph.SetMethod("base_component@+ get_component(uint64, usize) const", &Engine::SceneGraph::GetComponent);
 				VSceneGraph.SetMethod("base_component@+ get_camera() const", &Engine::SceneGraph::GetCamera);
 				VSceneGraph.SetMethod("render_system@+ get_renderer() const", &Engine::SceneGraph::GetRenderer);
-				VSceneGraph.SetMethod("viewer get_camera_viewer() const", &Engine::SceneGraph::GetCameraViewer);
+				VSceneGraph.SetMethod("viewer_t get_camera_viewer() const", &Engine::SceneGraph::GetCameraViewer);
 				VSceneGraph.SetMethod<Engine::SceneGraph, Engine::Material*, const std::string&>("material@+ get_material(const string &in) const", &Engine::SceneGraph::GetMaterial);
 				VSceneGraph.SetMethod<Engine::SceneGraph, Engine::Material*, size_t>("material@+ get_material(usize) const", &Engine::SceneGraph::GetMaterial);
 				VSceneGraph.SetMethod<Engine::SceneGraph, Engine::SparseIndex&, uint64_t>("sparse_index& get_storage(uint64) const", &Engine::SceneGraph::GetStorage);
@@ -13762,9 +13771,9 @@ namespace Edge
 				VCamera.SetProperty<Engine::Components::Camera>("float width", &Engine::Components::Camera::Width);
 				VCamera.SetProperty<Engine::Components::Camera>("float height", &Engine::Components::Camera::Height);
 				VCamera.SetProperty<Engine::Components::Camera>("float field_of_view", &Engine::Components::Camera::FieldOfView);
-				VCamera.SetMethod<Engine::Components::Camera, void, Engine::Viewer*>("void get_viewer(viewer &out)", &Engine::Components::Camera::GetViewer);
+				VCamera.SetMethod<Engine::Components::Camera, void, Engine::Viewer*>("void get_viewer(viewer_t &out)", &Engine::Components::Camera::GetViewer);
 				VCamera.SetMethod("void resize_buffers()", &Engine::Components::Camera::ResizeBuffers);
-				VCamera.SetMethod<Engine::Components::Camera, Engine::Viewer&>("viewer& get_viewer()", &Engine::Components::Camera::GetViewer);
+				VCamera.SetMethod<Engine::Components::Camera, Engine::Viewer&>("viewer_t& get_viewer()", &Engine::Components::Camera::GetViewer);
 				VCamera.SetMethod("render_system@+ get_renderer() const", &Engine::Components::Camera::GetRenderer);
 				VCamera.SetMethod("matrix4x4 get_projection() const", &Engine::Components::Camera::GetProjection);
 				VCamera.SetMethod("matrix4x4 get_view_projection() const", &Engine::Components::Camera::GetViewProjection);

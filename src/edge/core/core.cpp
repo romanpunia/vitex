@@ -6051,6 +6051,8 @@ namespace Edge
 		{
 			Units Time = Clock();
 			Timing.Delta = Time - Timing.When;
+			++Timing.Frame;
+
 			if (FixedFrames <= 0.0)
 				return;
 
@@ -6061,6 +6063,7 @@ namespace Edge
 				Fixed.Sum = Units(0);
 				Fixed.Delta = Time - Fixed.When;
 				Fixed.When = Time;
+				++Fixed.Frame;
 			}
 		}
 		void Timer::Finish()
@@ -6097,6 +6100,14 @@ namespace Edge
 			Captures.pop();
 
 			return Base;
+		}
+		size_t Timer::GetFrameIndex() const
+		{
+			return Timing.Frame;
+		}
+		size_t Timer::GetFixedFrameIndex() const
+		{
+			return Fixed.Frame;
 		}
 		float Timer::GetMaxFrames() const
 		{
@@ -9652,21 +9663,25 @@ namespace Edge
 			Active = true;
 
 			if (!Policy.Parallel)
+			{
+				InitializeThread(0, 0);
 				return true;
+			}
 
+			size_t Index = 0;
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 				Policy.Threads[i] = std::max<size_t>(Policy.Threads[i], 1);
 
-			for (uint64_t j = 0; j < Policy.Threads[(size_t)Difficulty::Coroutine]; j++)
-				PushThread(Difficulty::Coroutine, false);
+			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Coroutine]; j++)
+				PushThread(Difficulty::Coroutine, Index++, j, false);
 
-			for (uint64_t j = 0; j < Policy.Threads[(size_t)Difficulty::Light]; j++)
-				PushThread(Difficulty::Light, false);
+			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Light]; j++)
+				PushThread(Difficulty::Light, Index++, j, false);
 
-			for (uint64_t j = 0; j < Policy.Threads[(size_t)Difficulty::Heavy]; j++)
-				PushThread(Difficulty::Heavy, false);
+			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Heavy]; j++)
+				PushThread(Difficulty::Heavy, Index++, j, false);
 
-			return PushThread(Difficulty::Clock, Policy.Ping != nullptr);
+			return PushThread(Difficulty::Clock, 0, 0, Policy.Ping != nullptr);
 		}
 		bool Schedule::Stop()
 		{
@@ -9837,6 +9852,7 @@ namespace Edge
 		{
 			auto* Queue = Queues[(size_t)Type];
 			std::string ThreadId = OS::Process::GetThreadId(Thread->Id);
+			InitializeThread(Thread->GlobalIndex, Thread->LocalIndex);
 
 			if (Thread->Daemon)
 				ED_DEBUG("[schedule] acquire thread %s", ThreadId.c_str());
@@ -10022,17 +10038,18 @@ namespace Edge
 			{
 				for (auto* Thread : Threads[i])
 					ED_DELETE(ThreadPtr, Thread);
-
 				Threads[i].clear();
 			}
 
 			return true;
 		}
-		bool Schedule::PushThread(Difficulty Type, bool IsDaemon)
+		bool Schedule::PushThread(Difficulty Type, size_t GlobalIndex, size_t LocalIndex, bool IsDaemon)
 		{
 			ThreadPtr* Thread = ED_NEW(ThreadPtr);
 			Thread->Daemon = IsDaemon;
 			Thread->Type = Type;
+			Thread->GlobalIndex = GlobalIndex;
+			Thread->LocalIndex = LocalIndex;
 
 			if (!Thread->Daemon)
 			{
@@ -10117,6 +10134,33 @@ namespace Edge
 
 			Debug(Data);
 			return true;
+		}
+		void Schedule::InitializeThread(size_t GlobalIndex, size_t LocalIndex)
+		{
+			UpdateThreadGlobalCounter((int64_t)GlobalIndex);
+			UpdateThreadLocalCounter((int64_t)LocalIndex);
+		}
+		size_t Schedule::UpdateThreadGlobalCounter(int64_t NewIndex)
+		{
+			static thread_local size_t Index = (size_t)-1;
+			if (NewIndex != -2)
+				Index = NewIndex;
+			return Index;
+		}
+		size_t Schedule::UpdateThreadLocalCounter(int64_t NewIndex)
+		{
+			static thread_local size_t Index = (size_t)-1;
+			if (NewIndex != -2)
+				Index = NewIndex;
+			return Index;
+		}
+		size_t Schedule::GetThreadGlobalIndex()
+		{
+			return UpdateThreadGlobalCounter(-2);
+		}
+		size_t Schedule::GetThreadLocalIndex()
+		{
+			return UpdateThreadLocalCounter(-2);
 		}
 		size_t Schedule::GetTotalThreads() const
 		{

@@ -380,7 +380,7 @@ namespace Edge
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) override;
 				void ResizeBuffers() override;
-				void BeginPass() override;
+				void BeginPass(Core::Timer* Time) override;
 				void EndPass() override;
 				void SetSkyMap(Graphics::Texture2D* Cubemap);
 				void SetSurfaceBufferSize(size_t Size);

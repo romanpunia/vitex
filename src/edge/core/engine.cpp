@@ -11,37 +11,6 @@
 #undef Complex
 #endif
 
-namespace
-{
-	template <typename T>
-	struct Movable
-	{
-		mutable T value;
-
-		Movable()
-		{
-		}
-		Movable(T&& v) : value(std::move(v))
-		{
-		}
-		Movable(const Movable<T>& rhs) : value(std::move(rhs.value))
-		{
-		}
-		Movable(Movable<T>&& rhs) = default;
-		Movable& operator=(const Movable<T>& rhs) = delete;
-		Movable& operator=(Movable<T>&& rhs) = delete;
-	};
-
-	template <typename T>
-	using AsMovable = Movable<typename std::remove_reference<T>::type>;
-
-	template <typename T>
-	inline AsMovable<T> InterpretAsMove(T&& r)
-	{
-		return AsMovable<T>(std::move(r));
-	}
-}
-
 namespace Edge
 {
 	namespace Engine
@@ -1682,15 +1651,12 @@ namespace Edge
 			auto* Queue = Core::Schedule::Get();
 			if (Queue->GetThreads(Core::Difficulty::Heavy) > 0)
 			{
-				std::promise<void> Promise;
-				std::future<void> Future = Promise.get_future();
-				bool IsQueued = Queue->SetTask([Context = InterpretAsMove(Promise), Callback]() mutable
+				Context<void> Promise; std::future<void> Future = Promise.Get();
+				if (Queue->SetTask([Promise = std::move(Promise), Callback]() mutable
 				{
 					Callback();
-				    Context.value.set_value();
-				});
-
-				if (IsQueued)
+					Promise.Resolve();
+				}))
 					return Future;
 			}
 
@@ -2324,10 +2290,8 @@ namespace Edge
 			return (Max > Radius.Z ? Radius.Z : Max);
 		}
 
-		Drawable::Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash, bool vComplex) noexcept : Component(Ref, Rule | ActorSet::Cullable | ActorSet::Drawable | ActorSet::Message), Category(GeoCategory::Opaque), Source(Hash), Complex(vComplex), Overlapping(1.0f), Static(true)
+		Drawable::Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash) noexcept : Component(Ref, Rule | ActorSet::Cullable | ActorSet::Drawable | ActorSet::Message), Category(GeoCategory::Opaque), Source(Hash), Overlapping(1.0f), Static(true)
 		{
-			if (!Complex)
-				Materials[nullptr] = nullptr;
 		}
 		Drawable::~Drawable() noexcept
 		{
@@ -2351,6 +2315,10 @@ namespace Edge
 		{
 			Overlapping = 1.0f;
 		}
+		void Drawable::ClearMaterials()
+		{
+			Materials.clear();
+		}
 		bool Drawable::SetCategory(GeoCategory NewCategory)
 		{
 			Category = NewCategory;
@@ -2358,12 +2326,6 @@ namespace Edge
 		}
 		bool Drawable::SetMaterial(void* Instance, Material* Value)
 		{
-			if (!Complex)
-			{
-				Materials[nullptr] = Value;
-				return (!Instance);
-			}
-
 			auto It = Materials.find(Instance);
 			if (It == Materials.end())
 				Materials[Instance] = Value;
@@ -2374,11 +2336,8 @@ namespace Edge
 		}
 		bool Drawable::SetMaterial(Material* Value)
 		{
-			if (!Complex)
-			{
-				Materials[nullptr] = Value;
-				return true;
-			}
+			if (Materials.empty())
+				return SetMaterial(nullptr, Value);
 
 			for (auto& Item : Materials)
 				Item.second = Value;
@@ -2392,18 +2351,12 @@ namespace Edge
 		int64_t Drawable::GetSlot(void* Surface)
 		{
 			Material* Base = GetMaterial(Surface);
-			if (Base != nullptr)
-				return (int64_t)Base->Slot;
-
-			return -1;
+			return Base ? (int64_t)Base->Slot : -1;
 		}
 		int64_t Drawable::GetSlot()
 		{
 			Material* Base = GetMaterial();
-			if (Base != nullptr)
-				return (int64_t)Base->Slot;
-
-			return -1;
+			return Base ? (int64_t)Base->Slot : -1;
 		}
 		Material* Drawable::GetMaterial(void* Instance)
 		{
@@ -2418,7 +2371,7 @@ namespace Edge
 		}
 		Material* Drawable::GetMaterial()
 		{
-			if (Complex || Materials.empty())
+			if (Materials.empty())
 				return nullptr;
 
 			return Materials.begin()->second;
@@ -2532,7 +2485,7 @@ namespace Edge
 			return Binding.Buffers[(size_t)Buffer];
 		}
 
-		RenderSystem::RenderSystem(SceneGraph* NewScene, Component* NewComponent) noexcept : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), Owner(NewComponent), MaxQueries(16384), SortingFrequency(2), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3), OverflowVisibility(0.0f), Threshold(0.1f), OcclusionCulling(false), PreciseCulling(true), AllowInputLag(false)
+		RenderSystem::RenderSystem(SceneGraph* NewScene, Component* NewComponent) noexcept : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), Owner(NewComponent), MaxQueries(16384), SortingFrequency(2), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3), OccludeeScaling(1.0f), OverflowVisibility(0.0f), Threshold(0.1f), OcclusionCulling(false), PreciseCulling(true), AllowInputLag(false)
 		{
 			ED_ASSERT_V(NewScene != nullptr, "scene should be set");
 			ED_ASSERT_V(NewScene->GetDevice() != nullptr, "graphics device should be set");
@@ -3096,7 +3049,7 @@ namespace Edge
 			Safe.unlock();
 		}
 
-		PrimitiveCache::PrimitiveCache(Graphics::GraphicsDevice* Ref) noexcept : Device(Ref), Quad(nullptr)
+		PrimitiveCache::PrimitiveCache(Graphics::GraphicsDevice* Ref) noexcept : Device(Ref), Quad(nullptr), BoxModel(nullptr), SkinBoxModel(nullptr)
 		{
 			Sphere[0] = Sphere[1] = nullptr;
 			Cube[0] = Cube[1] = nullptr;
@@ -3228,6 +3181,48 @@ namespace Edge
 			Safe.unlock();
 			return std::string();
 		}
+		Model* PrimitiveCache::GetBoxModel()
+		{
+			if (BoxModel != nullptr)
+				return BoxModel;
+
+			std::unique_lock<std::recursive_mutex> Unique(Safe);
+			if (BoxModel != nullptr)
+				return BoxModel;
+
+			auto* VertexBuffer = GetBox(BufferType::Vertex);
+			if (VertexBuffer != nullptr)
+				VertexBuffer->AddRef();
+
+			auto* IndexBuffer = GetBox(BufferType::Index);
+			if (IndexBuffer != nullptr)
+				IndexBuffer->AddRef();
+
+			BoxModel = new Model();
+			BoxModel->Meshes.push_back(Device->CreateMeshBuffer(VertexBuffer, IndexBuffer));
+			return BoxModel;
+		}
+		SkinModel* PrimitiveCache::GetSkinBoxModel()
+		{
+			if (SkinBoxModel != nullptr)
+				return SkinBoxModel;
+
+			std::unique_lock<std::recursive_mutex> Unique(Safe);
+			if (SkinBoxModel != nullptr)
+				return SkinBoxModel;
+
+			auto* VertexBuffer = GetSkinBox(BufferType::Vertex);
+			if (VertexBuffer != nullptr)
+				VertexBuffer->AddRef();
+
+			auto* IndexBuffer = GetSkinBox(BufferType::Index);
+			if (IndexBuffer != nullptr)
+				IndexBuffer->AddRef();
+
+			SkinBoxModel = new SkinModel();
+			SkinBoxModel->Meshes.push_back(Device->CreateSkinMeshBuffer(VertexBuffer, IndexBuffer));
+			return SkinBoxModel;
+		}
 		Graphics::ElementBuffer* PrimitiveCache::GetQuad()
 		{
 			ED_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
@@ -3253,10 +3248,11 @@ namespace Edge
 			F.ElementWidth = sizeof(Compute::ShapeVertex);
 			F.Elements = &Elements[0];
 
-			Safe.lock();
-			Quad = Device->CreateElementBuffer(F);
-			Safe.unlock();
+			std::unique_lock<std::recursive_mutex> Unique(Safe);
+			if (Quad != nullptr)
+				return Quad;
 
+			Quad = Device->CreateElementBuffer(F);
 			return Quad;
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetSphere(BufferType Type)
@@ -3294,9 +3290,9 @@ namespace Edge
 				F.ElementWidth = sizeof(int);
 				F.Elements = &Indices[0];
 
-				Safe.lock();
-				Sphere[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
-				Safe.unlock();
+				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				if (!Sphere[(size_t)BufferType::Index])
+					Sphere[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
 
 				return Sphere[(size_t)BufferType::Index];
 			}
@@ -3331,9 +3327,9 @@ namespace Edge
 				F.ElementWidth = sizeof(Compute::ShapeVertex);
 				F.Elements = &Elements[0];
 
-				Safe.lock();
-				Sphere[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
-				Safe.unlock();
+				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				if (!Sphere[(size_t)BufferType::Vertex])
+					Sphere[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
 
 				return Sphere[(size_t)BufferType::Vertex];
 			}
@@ -3369,9 +3365,9 @@ namespace Edge
 				F.ElementWidth = sizeof(int);
 				F.Elements = &Indices[0];
 
-				Safe.lock();
-				Cube[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
-				Safe.unlock();
+				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				if (!Cube[(size_t)BufferType::Index])
+					Cube[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
 
 				return Cube[(size_t)BufferType::Index];
 			}
@@ -3414,9 +3410,9 @@ namespace Edge
 				F.ElementWidth = sizeof(Compute::ShapeVertex);
 				F.Elements = &Elements[0];
 
-				Safe.lock();
-				Cube[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
-				Safe.unlock();
+				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				if (!Cube[(size_t)BufferType::Vertex])
+					Cube[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
 
 				return Cube[(size_t)BufferType::Vertex];
 			}
@@ -3452,9 +3448,9 @@ namespace Edge
 				F.ElementWidth = sizeof(int);
 				F.Elements = &Indices[0];
 
-				Safe.lock();
-				Box[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
-				Safe.unlock();
+				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				if (!Box[(size_t)BufferType::Index])
+					Box[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
 
 				return Box[(size_t)BufferType::Index];
 			}
@@ -3497,9 +3493,9 @@ namespace Edge
 				F.ElementWidth = sizeof(Compute::Vertex);
 				F.Elements = &Elements[0];
 
-				Safe.lock();
-				Box[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
-				Safe.unlock();
+				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				if (!Box[(size_t)BufferType::Vertex])
+					Box[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
 
 				return Box[(size_t)BufferType::Vertex];
 			}
@@ -3535,9 +3531,9 @@ namespace Edge
 				F.ElementWidth = sizeof(int);
 				F.Elements = &Indices[0];
 
-				Safe.lock();
-				SkinBox[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
-				Safe.unlock();
+				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				if (!SkinBox[(size_t)BufferType::Index])
+					SkinBox[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
 
 				return SkinBox[(size_t)BufferType::Index];
 			}
@@ -3580,9 +3576,9 @@ namespace Edge
 				F.ElementWidth = sizeof(Compute::SkinVertex);
 				F.Elements = &Elements[0];
 
-				Safe.lock();
-				SkinBox[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
-				Safe.unlock();
+				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				if (!SkinBox[(size_t)BufferType::Vertex])
+					SkinBox[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
 
 				return SkinBox[(size_t)BufferType::Vertex];
 			}
@@ -3627,6 +3623,8 @@ namespace Edge
 			}
 
 			Cache.clear();
+			ED_CLEAR(BoxModel);
+			ED_CLEAR(SkinBoxModel);
 			ED_CLEAR(Sphere[(size_t)BufferType::Index]);
 			ED_CLEAR(Sphere[(size_t)BufferType::Vertex]);
 			ED_CLEAR(Cube[(size_t)BufferType::Index]);
@@ -3777,6 +3775,7 @@ namespace Edge
 			Display.Blend = nullptr;
 			Display.Sampler = nullptr;
 			Display.Layout = nullptr;
+			Loading.Material = nullptr;
 
 			Conf.AddRef();
 			Configure(Conf);
@@ -4050,6 +4049,17 @@ namespace Edge
 					Next->Animate(Time);
 				}));
 			}
+
+			if (!Loading.Material)
+				return;
+
+			Material* Base = Loading.Material;
+			if (Base->GetRefCount() <= 1)
+				return;
+
+			Compute::Vector3 Diffuse = Base->Surface.Diffuse / Loading.Progress;
+			Loading.Progress = sin(Time->GetElapsed()) * 0.2 + 0.8;
+			Base->Surface.Diffuse = Diffuse * Loading.Progress;
 		}
 		void SceneGraph::StepGameplay(Core::Timer* Time)
 		{
@@ -5013,6 +5023,13 @@ namespace Edge
 			}
 
 			return true;
+		}
+		Material* SceneGraph::GetInvalidMaterial()
+		{
+			if (!Loading.Material.load())
+				Loading.Material = AddMaterial();
+
+			return Loading.Material;
 		}
 		Material* SceneGraph::AddMaterial()
 		{

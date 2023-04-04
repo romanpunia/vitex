@@ -6416,15 +6416,39 @@ namespace Edge
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_RECTANGLE ">@");
 				return Array::Compose(Type.GetTypeInfo(), Rects);
 			}
-			Graphics::MeshBuffer* GraphicsDeviceCreateMeshBuffer(Graphics::GraphicsDevice* Base, const Graphics::MeshBuffer::Desc& Desc)
+			Graphics::MeshBuffer* GraphicsDeviceCreateMeshBuffer1(Graphics::GraphicsDevice* Base, const Graphics::MeshBuffer::Desc& Desc)
 			{
 				auto* Result = Base->CreateMeshBuffer(Desc);
 				FunctionFactory::AtomicNotifyGC(TYPENAME_MESHBUFFER, Result);
 				return Result;
 			}
-			Graphics::SkinMeshBuffer* GraphicsDeviceCreateSkinMeshBuffer(Graphics::GraphicsDevice* Base, const Graphics::SkinMeshBuffer::Desc& Desc)
+			Graphics::MeshBuffer* GraphicsDeviceCreateMeshBuffer2(Graphics::GraphicsDevice* Base, Graphics::ElementBuffer* VertexBuffer, Graphics::ElementBuffer* IndexBuffer)
+			{
+				if (VertexBuffer != nullptr)
+					VertexBuffer->AddRef();
+
+				if (IndexBuffer != nullptr)
+					IndexBuffer->AddRef();
+
+				auto* Result = Base->CreateMeshBuffer(VertexBuffer, IndexBuffer);
+				FunctionFactory::AtomicNotifyGC(TYPENAME_MESHBUFFER, Result);
+				return Result;
+			}
+			Graphics::SkinMeshBuffer* GraphicsDeviceCreateSkinMeshBuffer1(Graphics::GraphicsDevice* Base, const Graphics::SkinMeshBuffer::Desc& Desc)
 			{
 				auto* Result = Base->CreateSkinMeshBuffer(Desc);
+				FunctionFactory::AtomicNotifyGC(TYPENAME_SKINMESHBUFFER, Result);
+				return Result;
+			}
+			Graphics::SkinMeshBuffer* GraphicsDeviceCreateSkinMeshBuffer2(Graphics::GraphicsDevice* Base, Graphics::ElementBuffer* VertexBuffer, Graphics::ElementBuffer* IndexBuffer)
+			{
+				if (VertexBuffer != nullptr)
+					VertexBuffer->AddRef();
+
+				if (IndexBuffer != nullptr)
+					IndexBuffer->AddRef();
+
+				auto* Result = Base->CreateSkinMeshBuffer(VertexBuffer, IndexBuffer);
 				FunctionFactory::AtomicNotifyGC(TYPENAME_SKINMESHBUFFER, Result);
 				return Result;
 			}
@@ -7027,6 +7051,7 @@ namespace Edge
 			{
 				Class.SetProperty<Engine::Drawable>("float overlapping", &Engine::Drawable::Overlapping);
 				Class.SetProperty<Engine::Drawable>("bool static", &Engine::Drawable::Static);
+				Class.SetMethod("void clear_materials()", &Engine::Drawable::ClearMaterials);
 				Class.SetMethod("bool set_category(geo_category)", &Engine::Drawable::SetCategory);
 				Class.SetMethod<Engine::Drawable, bool, void*, Engine::Material*>("bool set_material(uptr@, material@+)", &Engine::Drawable::SetMaterial);
 				Class.SetMethod<Engine::Drawable, bool, Engine::Material*>("bool set_material(material@+)", &Engine::Drawable::SetMaterial);
@@ -12183,8 +12208,10 @@ namespace Edge
 				VGraphicsDevice.SetMethod("input_layout@ create_input_layout(const input_layout_desc &in)", &Graphics::GraphicsDevice::CreateInputLayout);
 				VGraphicsDevice.SetMethod("shader@ create_shader(const shader_desc &in)", &Graphics::GraphicsDevice::CreateShader);
 				VGraphicsDevice.SetMethod("element_buffer@ create_element_buffer(const element_buffer_desc &in)", &Graphics::GraphicsDevice::CreateElementBuffer);
-				VGraphicsDevice.SetMethodEx("mesh_buffer@ create_mesh_buffer(const mesh_buffer_desc &in)", &GraphicsDeviceCreateMeshBuffer);
-				VGraphicsDevice.SetMethodEx("skin_mesh_buffer@ create_skin_mesh_buffer(const skin_mesh_buffer_desc &in)", &GraphicsDeviceCreateSkinMeshBuffer);
+				VGraphicsDevice.SetMethodEx("mesh_buffer@ create_mesh_buffer(const mesh_buffer_desc &in)", &GraphicsDeviceCreateMeshBuffer1);
+				VGraphicsDevice.SetMethodEx("mesh_buffer@ create_mesh_buffer(element_buffer@+, element_buffer@+)", &GraphicsDeviceCreateMeshBuffer2);
+				VGraphicsDevice.SetMethodEx("skin_mesh_buffer@ create_skin_mesh_buffer(const skin_mesh_buffer_desc &in)", &GraphicsDeviceCreateSkinMeshBuffer1);
+				VGraphicsDevice.SetMethodEx("skin_mesh_buffer@ create_skin_mesh_buffer(element_buffer@+, element_buffer@+)", &GraphicsDeviceCreateSkinMeshBuffer2);
 				VGraphicsDevice.SetMethodEx("instance_buffer@ create_instance_buffer(const instance_buffer_desc &in)", &GraphicsDeviceCreateInstanceBuffer);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, Graphics::Texture2D*>("texture_2d@ create_texture_2d()", &Graphics::GraphicsDevice::CreateTexture2D);
 				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, Graphics::Texture2D*, const Graphics::Texture2D::Desc&>("texture_2d@ create_texture_2d(const texture_2d_desc &in)", &Graphics::GraphicsDevice::CreateTexture2D);
@@ -13137,6 +13164,8 @@ namespace Edge
 				VPrimitiveCache.SetMethod("bool has(const string &in) const", &Engine::PrimitiveCache::Has);
 				VPrimitiveCache.SetMethodEx("bool free(const string &in, element_buffer@+, element_buffer@+)", &PrimitiveCacheFree);
 				VPrimitiveCache.SetMethodEx("string find(element_buffer@+, element_buffer@+) const", &PrimitiveCacheFind);
+				VPrimitiveCache.SetMethod("model@+ get_box_model() const", &Engine::PrimitiveCache::GetBoxModel);
+				VPrimitiveCache.SetMethod("skin_model@+ get_skin_box_model() const", &Engine::PrimitiveCache::GetSkinBoxModel);
 				VPrimitiveCache.SetMethod("element_buffer@+ get_quad() const", &Engine::PrimitiveCache::GetQuad);
 				VPrimitiveCache.SetMethod("element_buffer@+ get_sphere(buffer_type) const", &Engine::PrimitiveCache::GetSphere);
 				VPrimitiveCache.SetMethod("element_buffer@+ get_cube(buffer_type) const", &Engine::PrimitiveCache::GetCube);
@@ -13311,6 +13340,7 @@ namespace Edge
 				VSceneGraph.SetMethodEx("bool push_event(const string &in, schema@+, scene_entity@+)", &SceneGraphPushEvent3);
 				VSceneGraph.SetMethodEx("uptr@ set_listener(const string &in, event_callback@+)", &SceneGraphSetListener);
 				VSceneGraph.SetMethod("bool clear_listener(const string &in, uptr@)", &Engine::SceneGraph::ClearListener);
+				VSceneGraph.SetMethod("material@+ get_invalid_material()", &Engine::SceneGraph::GetInvalidMaterial);
 				VSceneGraph.SetMethod<Engine::SceneGraph, bool, Engine::Material*>("bool add_material(material@+)", &Engine::SceneGraph::AddMaterial);
 				VSceneGraph.SetMethod<Engine::SceneGraph, Engine::Material*>("material@+ add_material()", &Engine::SceneGraph::AddMaterial);
 				VSceneGraph.SetMethodEx("void load_resource(uint64, base_component@+, const string &in, schema@+, resource_callback@)", &SceneGraphLoadResource);

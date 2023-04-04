@@ -517,6 +517,44 @@ namespace Edge
 		class ED_OUT_TS Parallel
 		{
 		public:
+			template <typename T>
+			struct Context
+			{
+				std::promise<T> Value;
+
+				Context() = default;
+				~Context() = default;
+				Context(const Context&)
+				{
+					ED_ASSERT_V(false, "parallel context cannot be copied, only moved (copy constructor for std::function)");
+				}
+				Context(Context && Other) : Value(std::move(Other.Value))
+				{
+				}
+				Context& operator= (const Context&)
+				{
+					ED_ASSERT(false, *this, "parallel context cannot be copied, only moved (copy operator for std::function)");
+					return *this;
+				}
+				Context& operator= (Context && Other)
+				{
+					if (&Other == this)
+						return *this;
+
+					Value = std::move(Other.Value);
+					return *this;
+				}
+				std::future<T> Get()
+				{
+					return Value.get_future();
+				}
+				void Resolve()
+				{
+					Value.set_value();
+				}
+			};
+
+		public:
 			typedef std::future<void> Task;
 
 		public:
@@ -844,18 +882,18 @@ namespace Edge
 		private:
 			GeoCategory Category;
 			uint64_t Source;
-			bool Complex;
 
 		public:
 			float Overlapping;
 			bool Static;
 
 		public:
-			Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash, bool Complex) noexcept;
+			Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash) noexcept;
 			virtual ~Drawable() noexcept;
 			virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 			virtual void Movement() override;
 			virtual Core::Unique<Component> Copy(Entity* New) const override = 0;
+			void ClearMaterials();
 			bool SetCategory(GeoCategory NewCategory);
 			bool SetMaterial(void* Instance, Material* Value);
 			bool SetMaterial(Material* Value);
@@ -991,6 +1029,7 @@ namespace Edge
 			size_t OcclusionSkips;
 			size_t OccluderSkips;
 			size_t OccludeeSkips;
+			float OccludeeScaling;
 			float OverflowVisibility;
 			float Threshold;
 			bool OcclusionCulling;
@@ -1265,7 +1304,9 @@ namespace Edge
 			Graphics::ElementBuffer* Box[2];
 			Graphics::ElementBuffer* SkinBox[2];
 			Graphics::ElementBuffer* Quad;
-			std::mutex Safe;
+			Model* BoxModel;
+			SkinModel* SkinBoxModel;
+			std::recursive_mutex Safe;
 
 		public:
 			PrimitiveCache(Graphics::GraphicsDevice* Device) noexcept;
@@ -1275,6 +1316,8 @@ namespace Edge
 			bool Has(const std::string& Name);
 			bool Free(const std::string& Name, Graphics::ElementBuffer** Buffers);
 			std::string Find(Graphics::ElementBuffer** Buffer);
+			Model* GetBoxModel();
+			SkinModel* GetSkinBoxModel();
 			Graphics::ElementBuffer* GetQuad();
 			Graphics::ElementBuffer* GetSphere(BufferType Type);
 			Graphics::ElementBuffer* GetCube(BufferType Type);
@@ -1477,6 +1520,12 @@ namespace Edge
 				std::vector<VoxelMapping> Voxels;
 			} Display;
 
+			struct
+			{
+				std::atomic<Material*> Material;
+				float Progress = 1.0f;
+			} Loading;
+
 		protected:
 			std::unordered_map<std::string, std::unordered_set<MessageCallback*>> Listeners;
 			std::unordered_map<uint64_t, std::unordered_set<Component*>> Changes;
@@ -1552,6 +1601,7 @@ namespace Edge
 			bool AddMaterial(Core::Unique<Material> Base);
 			void LoadResource(uint64_t Id, Component* Context, const std::string& Path, const Core::VariantArgs& Keys, const std::function<void(void*)>& Callback);
 			std::string FindResourceId(uint64_t Id, void* Resource);
+			Material* GetInvalidMaterial();
 			Material* AddMaterial();
 			Material* CloneMaterial(Material* Base);
 			Entity* GetEntity(size_t Entity);
@@ -2492,9 +2542,12 @@ namespace Edge
 
 				if (FrameTop[2]++ >= System->OcclusionSkips && !Proxy.Culling.empty())
 				{
+					auto ViewProjection = System->View.ViewProjection;
+					System->View.ViewProjection = Compute::Matrix4x4::CreateScale(System->OccludeeScaling) * ViewProjection;
 					Device->SetDepthStencilState(DepthStencil);
 					Device->SetBlendState(Blend);
 					Count += CullGeometry(System->View, Proxy.Culling);
+					System->View.ViewProjection = ViewProjection;
 				}
 
 				return Count;
@@ -2505,7 +2558,7 @@ namespace Edge
 				if (Skippable[1] && Base->Overlapping < System->Threshold)
 					return false;
 				else if (Skippable[0] && Base->Overlapping >= System->Threshold)
-					return true;
+					return false;
 
 				if (Inactive.empty() && Active.size() >= System->MaxQueries)
 				{

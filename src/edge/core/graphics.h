@@ -1730,7 +1730,9 @@ namespace Edge
 			virtual Core::Unique<Shader> CreateShader(const Shader::Desc& I) = 0;
 			virtual Core::Unique<ElementBuffer> CreateElementBuffer(const ElementBuffer::Desc& I) = 0;
 			virtual Core::Unique<MeshBuffer> CreateMeshBuffer(const MeshBuffer::Desc& I) = 0;
+			virtual Core::Unique<MeshBuffer> CreateMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer) = 0;
 			virtual Core::Unique<SkinMeshBuffer> CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I) = 0;
+			virtual Core::Unique<SkinMeshBuffer> CreateSkinMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer) = 0;
 			virtual Core::Unique<InstanceBuffer> CreateInstanceBuffer(const InstanceBuffer::Desc& I) = 0;
 			virtual Core::Unique<Texture2D> CreateTexture2D() = 0;
 			virtual Core::Unique<Texture2D> CreateTexture2D(const Texture2D::Desc& I) = 0;

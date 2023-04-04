@@ -324,7 +324,7 @@ namespace Edge
 				return Instance;
 			}
 
-			SoftBody::SoftBody(Entity* Ref) : Drawable(Ref, ActorSet::Synchronize, SoftBody::GetTypeId(), false)
+			SoftBody::SoftBody(Entity* Ref) : Drawable(Ref, ActorSet::Synchronize, SoftBody::GetTypeId())
 			{
 			}
 			SoftBody::~SoftBody()
@@ -1232,7 +1232,7 @@ namespace Edge
 				return RigidBody;
 			}
 
-			Model::Model(Entity* Ref) : Drawable(Ref, ActorSet::None, Model::GetTypeId(), true)
+			Model::Model(Entity* Ref) : Drawable(Ref, ActorSet::None, Model::GetTypeId())
 			{
 			}
 			Model::~Model()
@@ -1256,10 +1256,16 @@ namespace Edge
 					Node->AddRef();
 
 				SceneGraph* Scene = Parent->GetScene();
-				Scene->LoadResource<Engine::Model>(this, Path, [this, Node, Scene](Engine::Model* NewInstance)
+				Material* Invalid = Scene->GetInvalidMaterial();
+				Invalid->AddRef();
+
+				SetMaterial(Invalid);
+				Scene->LoadResource<Engine::Model>(this, Path, [this, Node, Scene, Invalid](Engine::Model* NewInstance)
 				{
+					ED_RELEASE(Invalid);
 					ED_RELEASE(Instance);
 					Instance = NewInstance;
+					ClearMaterials();
 
 					if (Instance != nullptr)
 					{
@@ -1304,7 +1310,8 @@ namespace Edge
 			{
 				ED_RELEASE(Instance);
 				Instance = Drawable;
-				Materials.clear();
+				ClearMaterials();
+
 				if (!Instance)
 					return;
 
@@ -1363,7 +1370,7 @@ namespace Edge
 				return Materials[(void*)Mesh];
 			}
 
-			Skin::Skin(Entity* Ref) : Drawable(Ref, ActorSet::Synchronize, Skin::GetTypeId(), true)
+			Skin::Skin(Entity* Ref) : Drawable(Ref, ActorSet::Synchronize, Skin::GetTypeId())
 			{
 			}
 			Skin::~Skin()
@@ -1387,10 +1394,16 @@ namespace Edge
 					Node->AddRef();
 
 				SceneGraph* Scene = Parent->GetScene();
-				Scene->LoadResource<Engine::SkinModel>(this, Path, [this, Node, Scene](Engine::SkinModel* NewInstance)
+				Material* Invalid = Scene->GetInvalidMaterial();
+				Invalid->AddRef();
+
+				SetMaterial(Invalid);
+				Scene->LoadResource<Engine::SkinModel>(this, Path, [this, Node, Scene, Invalid](Engine::SkinModel* NewInstance)
 				{
+					ED_RELEASE(Invalid);
 					ED_RELEASE(Instance);
 					Instance = NewInstance;
+					ClearMaterials();
 
 					if (Instance != nullptr)
 					{
@@ -1441,6 +1454,8 @@ namespace Edge
 			{
 				ED_RELEASE(Instance);
 				Instance = Drawable;
+				ClearMaterials();
+
 				if (!Instance)
 					return;
 
@@ -1500,7 +1515,7 @@ namespace Edge
 				return Materials[(void*)Mesh];
 			}
 
-			Emitter::Emitter(Entity* Ref) : Drawable(Ref, ActorSet::None, Emitter::GetTypeId(), false)
+			Emitter::Emitter(Entity* Ref) : Drawable(Ref, ActorSet::None, Emitter::GetTypeId())
 			{
 			}
 			Emitter::~Emitter()
@@ -1592,7 +1607,7 @@ namespace Edge
 				return Instance;
 			}
 
-			Decal::Decal(Entity* Ref) : Drawable(Ref, ActorSet::None, Decal::GetTypeId(), false)
+			Decal::Decal(Entity* Ref) : Drawable(Ref, ActorSet::None, Decal::GetTypeId())
 			{
 			}
 			void Decal::Deserialize(Core::Schema* Node)
@@ -3331,6 +3346,7 @@ namespace Edge
 				Series::Unpack(Node->Find("occludee-skips"), &Renderer->OccludeeSkips);
 				Series::Unpack(Node->Find("occlusion-skips"), &Renderer->OcclusionSkips);
 				Series::Unpack(Node->Find("occlusion-cull"), &Renderer->OcclusionCulling);
+				Series::Unpack(Node->Find("occludee-scaling"), &Renderer->OccludeeScaling);
 				Series::Unpack(Node->Find("max-queries"), &Renderer->MaxQueries);
 
 				std::vector<Core::Schema*> Renderers = Node->FetchCollection("renderers.renderer");
@@ -3372,6 +3388,7 @@ namespace Edge
 				Series::Pack(Node->Set("occludee-skips"), Renderer->OccludeeSkips);
 				Series::Pack(Node->Set("occlusion-skips"), Renderer->OcclusionSkips);
 				Series::Pack(Node->Set("occlusion-cull"), Renderer->OcclusionCulling);
+				Series::Pack(Node->Set("occludee-scaling"), Renderer->OccludeeScaling);
 				Series::Pack(Node->Set("max-queries"), Renderer->MaxQueries);
 
 				Core::Schema* Renderers = Node->Set("renderers", Core::Var::Array());

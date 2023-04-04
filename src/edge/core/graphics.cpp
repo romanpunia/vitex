@@ -837,7 +837,7 @@ namespace Edge
 			if (RenderThread != std::this_thread::get_id())
 			{
 				Mutex.lock();
-				Queue.emplace(Callback);
+				Queue.emplace(std::move(Callback));
 				Mutex.unlock();
 			}
 			else

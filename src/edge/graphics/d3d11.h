@@ -491,7 +491,9 @@ namespace Edge
 				Core::Unique<Shader> CreateShader(const Shader::Desc& I) override;
 				Core::Unique<ElementBuffer> CreateElementBuffer(const ElementBuffer::Desc& I) override;
 				Core::Unique<MeshBuffer> CreateMeshBuffer(const MeshBuffer::Desc& I) override;
+				Core::Unique<MeshBuffer> CreateMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer) override;
 				Core::Unique<SkinMeshBuffer> CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I) override;
+				Core::Unique<SkinMeshBuffer> CreateSkinMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer) override;
 				Core::Unique<InstanceBuffer> CreateInstanceBuffer(const InstanceBuffer::Desc& I) override;
 				Core::Unique<Texture2D> CreateTexture2D() override;
 				Core::Unique<Texture2D> CreateTexture2D(const Texture2D::Desc& I) override;

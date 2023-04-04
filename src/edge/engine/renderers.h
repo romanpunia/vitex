@@ -82,6 +82,9 @@ namespace Edge
 				size_t RenderDepthLinearBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk) override;
 				size_t RenderDepthCubicBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk, Compute::Matrix4x4* ViewProjection) override;
 
+			private:
+				Engine::Model* GetDrawable(Components::Model* Base);
+
 			public:
 				ED_COMPONENT("model_renderer");
 			};
@@ -118,6 +121,9 @@ namespace Edge
 				size_t RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
 				size_t RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
 				size_t RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection) override;
+
+			private:
+				Engine::SkinModel* GetDrawable(Components::Skin* Base);
 
 			public:
 				ED_COMPONENT("skin_renderer");

@@ -68,7 +68,7 @@ namespace Edge
 
 						Base->Fill(Device, IndexBuffer, VertexBuffer);
 						System->Constants->Render.World.Identify();
-						System->Constants->Render.Transform = System->Constants->Render.World * View.ViewProjection;
+						System->Constants->Render.Transform = View.ViewProjection;
 						System->UpdateConstantBuffer(RenderBufferType::Render);
 						Device->SetVertexBuffer(VertexBuffer);
 						Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
@@ -270,8 +270,8 @@ namespace Edge
 			}
 			void Model::BatchGeometry(Components::Model* Base, GeometryRenderer::Batching& Batch, size_t Chunk)
 			{
-				auto* Drawable = Base->GetDrawable();
-				if (!Drawable || (!Base->Static && !System->State.IsSet(RenderOpt::Static)))
+				auto* Drawable = GetDrawable(Base);
+				if (!Base->Static && !System->State.IsSet(RenderOpt::Static))
 					return;
 
 				RenderBuffer::Instance Data;
@@ -307,10 +307,10 @@ namespace Edge
 				{
 					for (auto* Base : Chunk)
 					{
-						auto* Drawable = Base->GetDrawable();
-						if (!Drawable || Drawable->Meshes.empty() || !CullingBegin(Base))
+						if (!CullingBegin(Base))
 							continue;
 
+						auto* Drawable = GetDrawable(Base);
 						auto& World = Base->GetEntity()->GetBox();
 						for (auto* Mesh : Drawable->Meshes)
 						{
@@ -319,6 +319,7 @@ namespace Edge
 							System->UpdateConstantBuffer(RenderBufferType::Render);
 							Device->DrawIndexed(Mesh);
 						}
+
 						CullingEnd();
 						Count++;
 					}
@@ -329,8 +330,7 @@ namespace Edge
 					Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
 					for (auto* Base : Chunk)
 					{
-						auto* Drawable = Base->GetDrawable();
-						if (!Drawable || Drawable->Meshes.empty() || !CullingBegin(Base))
+						if (!CullingBegin(Base))
 							continue;
 
 						System->Constants->Render.World = Base->GetEntity()->GetBox();
@@ -436,6 +436,14 @@ namespace Edge
 				Device->SetShader(nullptr, ED_GS);
 				return Chunk.size();
 			}
+			Engine::Model* Model::GetDrawable(Components::Model* Base)
+			{
+				auto* Drawable = Base->GetDrawable();
+				if (!Drawable)
+					Drawable = System->GetPrimitives()->GetBoxModel();
+
+				return Drawable;
+			}
 
 			Skin::Skin(Engine::RenderSystem* Lab) : GeometryRenderer(Lab)
 			{
@@ -482,14 +490,10 @@ namespace Edge
 				{
 					for (auto* Base : Chunk)
 					{
-						auto* Drawable = Base->GetDrawable();
-						if (!Drawable || Drawable->Meshes.empty())
-							continue;
-
 						if (!CullingBegin(Base))
 							continue;
 
-
+						auto* Drawable = GetDrawable(Base);
 						auto& World = Base->GetEntity()->GetBox();
 						System->Constants->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
 
@@ -514,10 +518,6 @@ namespace Edge
 					Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
 					for (auto* Base : Chunk)
 					{
-						auto* Drawable = Base->GetDrawable();
-						if (!Drawable || Drawable->Meshes.empty())
-							continue;
-
 						if (!CullingBegin(Base))
 							continue;
 
@@ -528,7 +528,6 @@ namespace Edge
 						System->UpdateConstantBuffer(RenderBufferType::Render);
 						Device->DrawIndexed((unsigned int)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
 						CullingEnd();
-
 						Count++;
 					}
 				}
@@ -551,10 +550,10 @@ namespace Edge
 				size_t Count = 0;
 				for (auto* Base : Chunk)
 				{
-					auto* Drawable = Base->GetDrawable();
-					if (!Drawable || (Static && !Base->Static))
+					if (Static && !Base->Static)
 						continue;
 
+					auto* Drawable = GetDrawable(Base);
 					auto& World = Base->GetEntity()->GetBox();
 					System->Constants->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
 					System->Constants->Render.TexCoord = Base->TexCoord;
@@ -572,7 +571,6 @@ namespace Edge
 						System->UpdateConstantBuffer(RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
-
 					Count++;
 				}
 
@@ -590,10 +588,10 @@ namespace Edge
 				size_t Count = 0;
 				for (auto* Base : Chunk)
 				{
-					auto* Drawable = Base->GetDrawable();
-					if (!Base->Static || !Drawable)
+					if (!Base->Static)
 						continue;
 
+					auto* Drawable = GetDrawable(Base);
 					auto& World = Base->GetEntity()->GetBox();
 					System->Constants->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
 
@@ -609,7 +607,6 @@ namespace Edge
 						System->UpdateConstantBuffer(RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
-
 					Count++;
 				}
 
@@ -630,10 +627,7 @@ namespace Edge
 				size_t Count = 0;
 				for (auto* Base : Chunk)
 				{
-					auto* Drawable = Base->GetDrawable();
-					if (!Drawable)
-						continue;
-
+					auto* Drawable = GetDrawable(Base);
 					auto& World = Base->GetEntity()->GetBox();
 					System->Constants->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
 					System->Constants->Render.TexCoord = Base->TexCoord;
@@ -674,10 +668,7 @@ namespace Edge
 				size_t Count = 0;
 				for (auto* Base : Chunk)
 				{
-					auto* Drawable = Base->GetDrawable();
-					if (!Drawable)
-						continue;
-
+					auto* Drawable = GetDrawable(Base);
 					auto& World = Base->GetEntity()->GetBox();
 					System->Constants->Animation.Animated = (float)!Drawable->Skeleton.Childs.empty();
 					System->Constants->Render.TexCoord = Base->TexCoord;
@@ -701,6 +692,14 @@ namespace Edge
 				Device->SetTexture2D(nullptr, 1, ED_PS);
 				Device->SetShader(nullptr, ED_GS);
 				return Count;
+			}
+			Engine::SkinModel* Skin::GetDrawable(Components::Skin* Base)
+			{
+				auto* Drawable = Base->GetDrawable();
+				if (!Drawable)
+					Drawable = System->GetPrimitives()->GetSkinBoxModel();
+
+				return Drawable;
 			}
 
 			Emitter::Emitter(RenderSystem* Lab) : GeometryRenderer(Lab)
@@ -1152,7 +1151,7 @@ namespace Edge
 
 					Compute::Matrix4x4 Offset = Compute::Matrix4x4::CreateTranslatedScale(VoxelBuffer.Center, VoxelBuffer.Scale);
 					System->SetView(Offset, System->View.Projection, VoxelBuffer.Center, 90.0f, 1.0f, 0.1f, GetDominant(VoxelBuffer.Scale) * 2.0f, RenderCulling::Cubic);
-					System->Render(Time, RenderState::Geometry_Voxels, RenderOpt::None);
+					State.Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Geometry_Voxels, RenderOpt::None);
 					System->RestoreViewBuffer(nullptr);
 
 					State.Device->SetWriteable(Out, 1, 3, false);
@@ -1195,7 +1194,7 @@ namespace Edge
 						Compute::CubeFace Face = (Compute::CubeFace)j;
 						State.Scene->ClearMRT(TargetType::Main, true, true);
 						System->SetView(Light->View[j] = Compute::Matrix4x4::CreateLookAt(Face, Position), Light->Projection, Position, 90.0f, 1.0f, 0.1f, Light->GetSize().Radius, RenderCulling::Linear);
-						System->Render(Time, RenderState::Geometry_Result, Light->StaticMask ? RenderOpt::Static : RenderOpt::None);
+						State.Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Geometry_Result, Light->StaticMask ? RenderOpt::Static : RenderOpt::None);
 						State.Device->CubemapFace(Surfaces.Subresource, Face);
 					}
 
@@ -1225,7 +1224,7 @@ namespace Edge
 					State.Device->SetTarget(Target);
 					State.Device->ClearDepth(Target);
 					System->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), 90.0f, 1.0f, 0.1f, Light->Shadow.Distance, RenderCulling::Cubic);
-					System->Render(Time, RenderState::Depth_Cubic, RenderOpt::None);
+					State.Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Depth_Cubic, RenderOpt::None);
 				}
 			}
 			void Lighting::RenderSpotShadowMaps(Core::Timer* Time)
@@ -1247,12 +1246,12 @@ namespace Edge
 					State.Device->SetTarget(Target);
 					State.Device->ClearDepth(Target);
 					System->SetView(Light->View, Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), Light->Cutoff, 1.0f, 0.1f, Light->Shadow.Distance, RenderCulling::Linear);
-					System->Render(Time, RenderState::Depth_Linear, RenderOpt::Backfaces);
+					State.Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Depth_Linear, RenderOpt::Backfaces);
 				}
 			}
 			void Lighting::RenderLineShadowMaps(Core::Timer* Time)
 			{
-				auto& Buffers = State.Scene->GetLinesMapping(); size_t Counter = 0;
+				auto& Buffers = State.Scene->GetLinesMapping(); size_t Counter = 0;			
 				for (auto It = Lights.Lines->Begin(); It != Lights.Lines->End(); ++It)
 				{
 					auto* Light = (Components::LineLight*)*It;
@@ -1277,7 +1276,7 @@ namespace Edge
 						State.Device->ClearDepth(Cascade);
 
 						System->SetView(Light->View[i], Light->Projection[i], 0.0f, 90.0f, 1.0f, -System->View.FarPlane, System->View.FarPlane, RenderCulling::Disable);
-						System->Render(Time, RenderState::Depth_Linear, RenderOpt::None);
+						State.Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Depth_Linear, RenderOpt::None);
 					}
 				}
 
@@ -1960,7 +1959,7 @@ namespace Edge
 
 				SceneGraph* Scene = System->GetScene();
 				if (System->HasCategory(GeoCategory::Additive))
-					System->Render(Time, RenderState::Geometry_Result, System->State.GetOpts() | RenderOpt::Additive);
+					Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Geometry_Result, System->State.GetOpts() | RenderOpt::Additive);
 
 				if (!System->HasCategory(GeoCategory::Transparent))
 					return 0;
@@ -1973,7 +1972,7 @@ namespace Edge
 
 				Scene->SwapMRT(TargetType::Main, MRT);
 				Scene->SetMRT(TargetType::Main, true);
-				System->Render(Time, RenderState::Geometry_Result, System->State.GetOpts() | RenderOpt::Transparent);
+				Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Geometry_Result, System->State.GetOpts() | RenderOpt::Transparent);
 				Scene->SwapMRT(TargetType::Main, nullptr);
 
 				Device->CopyTarget(MainMRT, 0, RT, 0);

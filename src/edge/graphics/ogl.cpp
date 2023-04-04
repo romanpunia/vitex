@@ -2835,6 +2835,15 @@ namespace Edge
 				Result->IndexBuffer = CreateElementBuffer(F);
 				return Result;
 			}
+			MeshBuffer* OGLDevice::CreateMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer)
+			{
+				ED_ASSERT(VertexBuffer != nullptr, nullptr, "vertex buffer should be set");
+				ED_ASSERT(IndexBuffer != nullptr, nullptr, "index buffer should be set");
+				OGLMeshBuffer* Result = new OGLMeshBuffer(OGLMeshBuffer::Desc());
+				Result->VertexBuffer = VertexBuffer;
+				Result->IndexBuffer = IndexBuffer;
+				return Result;
+			}
 			SkinMeshBuffer* OGLDevice::CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I)
 			{
 				ElementBuffer::Desc F = ElementBuffer::Desc();
@@ -2857,6 +2866,15 @@ namespace Edge
 				F.Elements = (void*)I.Indices.data();
 
 				Result->IndexBuffer = CreateElementBuffer(F);
+				return Result;
+			}
+			SkinMeshBuffer* OGLDevice::CreateSkinMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer)
+			{
+				ED_ASSERT(VertexBuffer != nullptr, nullptr, "vertex buffer should be set");
+				ED_ASSERT(IndexBuffer != nullptr, nullptr, "index buffer should be set");
+				OGLSkinMeshBuffer* Result = new OGLSkinMeshBuffer(OGLSkinMeshBuffer::Desc());
+				Result->VertexBuffer = VertexBuffer;
+				Result->IndexBuffer = IndexBuffer;
 				return Result;
 			}
 			InstanceBuffer* OGLDevice::CreateInstanceBuffer(const InstanceBuffer::Desc& I)

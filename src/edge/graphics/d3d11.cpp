@@ -2780,6 +2780,15 @@ namespace Edge
 				Result->IndexBuffer = CreateElementBuffer(F);
 				return Result;
 			}
+			MeshBuffer* D3D11Device::CreateMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer)
+			{
+				ED_ASSERT(VertexBuffer != nullptr, nullptr, "vertex buffer should be set");
+				ED_ASSERT(IndexBuffer != nullptr, nullptr, "index buffer should be set");
+				D3D11MeshBuffer* Result = new D3D11MeshBuffer(D3D11MeshBuffer::Desc());
+				Result->VertexBuffer = VertexBuffer;
+				Result->IndexBuffer = IndexBuffer;
+				return Result;
+			}
 			SkinMeshBuffer* D3D11Device::CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I)
 			{
 				ElementBuffer::Desc F = ElementBuffer::Desc();
@@ -2802,6 +2811,15 @@ namespace Edge
 				F.Elements = (void*)I.Indices.data();
 
 				Result->IndexBuffer = CreateElementBuffer(F);
+				return Result;
+			}
+			SkinMeshBuffer* D3D11Device::CreateSkinMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer)
+			{
+				ED_ASSERT(VertexBuffer != nullptr, nullptr, "vertex buffer should be set");
+				ED_ASSERT(IndexBuffer != nullptr, nullptr, "index buffer should be set");
+				D3D11SkinMeshBuffer* Result = new D3D11SkinMeshBuffer(D3D11SkinMeshBuffer::Desc());
+				Result->VertexBuffer = VertexBuffer;
+				Result->IndexBuffer = IndexBuffer;
 				return Result;
 			}
 			InstanceBuffer* D3D11Device::CreateInstanceBuffer(const InstanceBuffer::Desc& I)

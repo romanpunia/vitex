@@ -28,37 +28,6 @@ extern "C"
 #include <stb_vorbis.h>
 }
 
-namespace
-{
-	template <typename T>
-	struct Movable
-	{
-		mutable T value;
-
-		Movable()
-		{
-		}
-		Movable(T&& v) : value(std::move(v))
-		{
-		}
-		Movable(const Movable<T>& rhs) : value(std::move(rhs.value))
-		{
-		}
-		Movable(Movable<T>&& rhs) = default;
-		Movable& operator=(const Movable<T>& rhs) = delete;
-		Movable& operator=(Movable<T>&& rhs) = delete;
-	};
-
-	template <typename T>
-	using AsMovable = Movable<typename std::remove_reference<T>::type>;
-
-	template <typename T>
-	inline AsMovable<T> InterpretAsMove(T&& r)
-	{
-		return AsMovable<T>(std::move(r));
-	}
-}
-
 namespace Edge
 {
 	namespace Engine
@@ -609,11 +578,10 @@ namespace Edge
 			template <typename T>
 			T* ProcessRendererJob(Graphics::GraphicsDevice* Device, std::function<T*(Graphics::GraphicsDevice*)>&& Callback)
 			{
-				std::promise<T*> Promise;
-				std::future<T*> Future = Promise.get_future();
-				Graphics::RenderThreadCallback Job = [Context = InterpretAsMove(Promise), Callback = std::move(Callback)](Graphics::GraphicsDevice* Device) mutable
+				Parallel::Context<T*> Promise; std::future<T*> Future = Promise.Get();
+				Graphics::RenderThreadCallback Job = [Promise = std::move(Promise), Callback = std::move(Callback)](Graphics::GraphicsDevice* Device) mutable
 				{
-					Context.value.set_value(Callback(Device));
+					Promise.Value.set_value(Callback(Device));
 				};
 
 				auto* App = Application::Get();

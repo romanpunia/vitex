@@ -1522,7 +1522,7 @@ namespace Edge
 
 			struct
 			{
-				std::atomic<Material*> Material;
+				std::atomic<Material*> Default;
 				float Progress = 1.0f;
 			} Loading;
 

@@ -3775,7 +3775,7 @@ namespace Edge
 			Display.Blend = nullptr;
 			Display.Sampler = nullptr;
 			Display.Layout = nullptr;
-			Loading.Material = nullptr;
+			Loading.Default = nullptr;
 
 			Conf.AddRef();
 			Configure(Conf);
@@ -4050,10 +4050,10 @@ namespace Edge
 				}));
 			}
 
-			if (!Loading.Material)
+			if (!Loading.Default)
 				return;
 
-			Material* Base = Loading.Material;
+			Material* Base = Loading.Default;
 			if (Base->GetRefCount() <= 1)
 				return;
 
@@ -5026,10 +5026,10 @@ namespace Edge
 		}
 		Material* SceneGraph::GetInvalidMaterial()
 		{
-			if (!Loading.Material.load())
-				Loading.Material = AddMaterial();
+			if (!Loading.Default.load())
+				Loading.Default = AddMaterial();
 
-			return Loading.Material;
+			return Loading.Default;
 		}
 		Material* SceneGraph::AddMaterial()
 		{

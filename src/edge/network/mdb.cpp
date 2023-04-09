@@ -2094,7 +2094,7 @@ namespace Edge
 					QueryFlags Flags = QueryFlags::None; Property QFlags;
 					if (Command.GetProperty("flags", &QFlags) && QFlags.Mod == Type::String)
 					{
-						for (auto& Item : Core::String(&QFlags.String).Split(','))
+						for (auto& Item : Core::Stringify(&QFlags.String).Split(','))
 						{
 							if (Item == "tailable-cursor")
 								Flags = Flags | QueryFlags::Tailable_Cursor;
@@ -3550,7 +3550,7 @@ namespace Edge
 				std::string Erasable = " \r\n\t\'\"()<>=%&^*/+-,.!?:;";
 				std::string Quotes = "\"'`";
 
-				Core::String Base(&Result.Request);
+				Core::Stringify Base(&Result.Request);
 				Base.ReplaceInBetween("/*", "*/", "", false);
 				Base.Trim().Compress(Erasable.c_str(), Quotes.c_str());
 
@@ -3582,7 +3582,7 @@ namespace Edge
 					}
 				}
 
-				std::vector<std::pair<std::string, Core::String::Settle>> Variables;
+				std::vector<std::pair<std::string, Core::Stringify::Settle>> Variables;
 				for (auto& Item : Base.FindInBetween("$<", ">", Quotes.c_str()))
 				{
 					Item.first += ";escape";
@@ -3631,7 +3631,7 @@ namespace Edge
 				size_t Size = 0;
 				for (auto& File : Entries)
 				{
-					Core::String Base(Path + File.Path);
+					Core::Stringify Base(Path + File.Path);
 					if (File.IsDirectory)
 					{
 						AddDirectory(Base.R(), Origin.empty() ? Directory : Origin);
@@ -3808,7 +3808,7 @@ namespace Edge
 				size_t Offset = 0;
 				Safe->unlock();
 
-				Core::String Result(&Origin.Request);
+				Core::Stringify Result(&Origin.Request);
 				for (auto& Word : Origin.Positions)
 				{
 					auto It = Map->find(Word.Key);

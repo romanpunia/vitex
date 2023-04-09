@@ -959,8 +959,8 @@ namespace Edge
 				static void Write(Core::Console* Base, const std::string& F, Format* Form);
 
 			private:
-				static void FormatBuffer(VirtualMachine* VM, Core::String& Result, std::string& Offset, void* Ref, int TypeId);
-				static void FormatJSON(VirtualMachine* VM, Core::String& Result, void* Ref, int TypeId);
+				static void FormatBuffer(VirtualMachine* VM, Core::Stringify& Result, std::string& Offset, void* Ref, int TypeId);
+				static void FormatJSON(VirtualMachine* VM, Core::Stringify& Result, void* Ref, int TypeId);
 			};
 
 			class ED_OUT Application final : public Engine::Application

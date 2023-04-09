@@ -1080,6 +1080,7 @@ namespace Edge
 
 		private:
 			SparseIndex& GetStorageWrapper(uint64_t Section);
+			void WatchAll(std::vector<Parallel::Task>&& Tasks);
 
 		private:
 			template <typename T, typename OverlapsFunction, typename MatchFunction>
@@ -1132,7 +1133,7 @@ namespace Edge
 					}
 				}
 
-				Scene->WatchAll(Parallel::ForEach(Indexing.Queue.begin(), Indexing.Queue.end(), [Match](void* Item)
+				WatchAll(Parallel::ForEach(Indexing.Queue.begin(), Indexing.Queue.end(), [Match](void* Item)
 				{
 					Match(Parallel::GetThreadIndex(), (T*)Item);
 				}));
@@ -1183,7 +1184,7 @@ namespace Edge
 						break;
 					}
 					default:
-						Scene->WatchAll(Parallel::Distribute(Storage.Data.Begin(), Storage.Data.End(), std::move(InitCallback), std::move(ElementCallback)));
+						WatchAll(Parallel::Distribute(Storage.Data.Begin(), Storage.Data.End(), std::move(InitCallback), std::move(ElementCallback)));
 						break;
 				}
 			}
@@ -1231,7 +1232,7 @@ namespace Edge
 						break;
 					}
 					default:
-						Scene->WatchAll(Parallel::Distribute(Storage.Data.Begin(), Storage.Data.End(), std::move(InitCallback), std::move(ElementCallback)));
+						WatchAll(Parallel::Distribute(Storage.Data.Begin(), Storage.Data.End(), std::move(InitCallback), std::move(ElementCallback)));
 						break;
 				}
 			}
@@ -2133,23 +2134,32 @@ namespace Edge
 						Culling.push_back(Group.first);
 				});
 
-				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
-				{
-					auto& Array = Top[i];
-					Scene->Statistics.Instances += Array.size();
-					Scene->Watch(Parallel::Enqueue([&Array]()
-					{
-						ED_SORT(Array.begin(), Array.end(), Entity::Sortout<T>);
-					}));
-				}
-
 				++Scene->Statistics.Sorting;
-				Scene->Statistics.Instances += Culling.size();
-				Scene->Watch(Parallel::Enqueue([this]()
+				if (!HasBatching())
 				{
-					ED_SORT(Culling.begin(), Culling.end(), Entity::Sortout<T>);
-				}));
-				Scene->AwaitAll();
+					for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
+					{
+						auto& Array = Top[i];
+						Scene->Statistics.Instances += Array.size();
+						Scene->Watch(Parallel::Enqueue([&Array]()
+						{
+							ED_SORT(Array.begin(), Array.end(), Entity::Sortout<T>);
+						}));
+					}
+
+					Scene->Statistics.Instances += Culling.size();
+					Scene->Watch(Parallel::Enqueue([this]()
+					{
+						ED_SORT(Culling.begin(), Culling.end(), Entity::Sortout<T>);
+					}));
+					Scene->AwaitAll();
+				}
+				else
+				{
+					Scene->Statistics.Instances += Culling.size();
+					for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
+						Scene->Statistics.Instances += Top[i].size();
+				}
 			}
 			template <class Q = T>
 			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top, bool AssumeSorted)
@@ -2185,7 +2195,8 @@ namespace Edge
 
 				++Scene->Statistics.Sorting;
 				Scene->Statistics.Instances += Subframe.size();
-				ED_SORT(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
+				if (!HasBatching())
+					ED_SORT(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
 			}
 			template <class Q = T>
 			typename std::enable_if<std::is_base_of<Drawable, Q>::value>::type Subcull(RenderSystem* System, Storage* Top)
@@ -2213,18 +2224,25 @@ namespace Edge
 					Top[(size_t)Group.second.Category].push_back(Group.first);
 				});
 
-				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
-				{
-					auto& Array = Top[i];
-					Scene->Statistics.Instances += Array.size();
-					Scene->Watch(Parallel::Enqueue([&Array]()
-					{
-						ED_SORT(Array.begin(), Array.end(), Entity::Sortout<T>);
-					}));
-				}
-
 				++Scene->Statistics.Sorting;
-				Scene->AwaitAll();
+				if (!HasBatching())
+				{
+					for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
+					{
+						auto& Array = Top[i];
+						Scene->Statistics.Instances += Array.size();
+						Scene->Watch(Parallel::Enqueue([&Array]()
+						{
+							ED_SORT(Array.begin(), Array.end(), Entity::Sortout<T>);
+						}));
+					}
+					Scene->AwaitAll();
+				}
+				else
+				{
+					for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
+						Scene->Statistics.Instances += Top[i].size();
+				}
 			}
 			template <class Q = T>
 			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Subcull(RenderSystem* System, Storage* Top)
@@ -2253,7 +2271,8 @@ namespace Edge
 
 				++Scene->Statistics.Sorting;
 				Scene->Statistics.Instances += Subframe.size();
-				ED_SORT(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
+				if (!HasBatching())
+					ED_SORT(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
 			}
 		};
 

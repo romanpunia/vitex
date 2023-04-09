@@ -3374,7 +3374,7 @@ namespace Edge
 		}
 		bool RegexSource::IsSimple() const
 		{
-			Core::String Tx(&Expression);
+			Core::Stringify Tx(&Expression);
 			return !Tx.FindOf("\\+*?|[]").Found;
 		}
 		void RegexSource::Compile()
@@ -3546,7 +3546,7 @@ namespace Edge
 		}
 		bool Regex::Replace(RegexSource* Value, const std::string& To, std::string& Buffer)
 		{
-			Core::String Parser(&Buffer), Emplace;
+			Core::Stringify Parser(&Buffer), Emplace;
 			RegexResult Result;
 			size_t Matches = 0;
 
@@ -7359,7 +7359,7 @@ namespace Edge
 		}
 		WebToken* Crypto::JWTDecode(const std::string& Value, const PrivateKey& Key)
 		{
-			std::vector<std::string> Source = Core::String(&Value).Split('.');
+			std::vector<std::string> Source = Core::Stringify(&Value).Split('.');
 			if (Source.size() != 3)
 				return nullptr;
 
@@ -7701,7 +7701,7 @@ namespace Edge
 			static const char From[] = " $%*+-./:";
 			static const char To[] = "abcdefghi";
 
-			Core::String Result(Base45Encode(Data));
+			Core::Stringify Result(Base45Encode(Data));
 			for (size_t i = 0; i < sizeof(From) - 1; i++)
 				Result.Replace(From[i], To[i]);
 
@@ -7712,7 +7712,7 @@ namespace Edge
 			static const char From[] = "abcdefghi";
 			static const char To[] = " $%*+-./:";
 
-			Core::String Result(Data);
+			Core::Stringify Result(Data);
 			for (size_t i = 0; i < sizeof(From) - 1; i++)
 				Result.Replace(From[i], To[i]);
 
@@ -8785,7 +8785,7 @@ namespace Edge
 					return false;
 				}
 
-				std::string Template = Core::String(Expression.substr(0, TemplateEnd)).Trim().R();
+				std::string Template = Core::Stringify(Expression.substr(0, TemplateEnd)).Trim().R();
 				if (!ParseArguments(Template, Data.Tokens, false) || Data.Tokens.empty())
 				{
 					ED_ERR("[proc] %s: invalid macro definition at %s", ExpandedPath.c_str(), Template.c_str());
@@ -8796,9 +8796,9 @@ namespace Edge
 				EmptyParenthesis = Data.Tokens.empty();
 			}
 			
-			Core::String(&Name).Trim();
+			Core::Stringify(&Name).Trim();
 			if (TemplateEnd < Expression.size())
-				Data.Expansion = Core::String(Expression.substr(TemplateEnd)).Trim().R();
+				Data.Expansion = Core::Stringify(Expression.substr(TemplateEnd)).Trim().R();
 
 			if (EmptyParenthesis)
 				Name += "()";
@@ -8862,7 +8862,7 @@ namespace Edge
 				return ReturnResult(false, Nesting);
 			}
 
-			Core::String Buffer(&Data);
+			Core::Stringify Buffer(&Data);
 			ExpandedPath = LastPath;
 			Buffer.Trim();
 
@@ -8929,8 +8929,8 @@ namespace Edge
 						}
 					}
 
-					Core::String(&Result.Name).Trim();
-					Core::String(&Result.Value).Trim();
+					Core::Stringify(&Result.Name).Trim();
+					Core::Stringify(&Result.Value).Trim();
 					if (Result.Value.size() >= 2)
 					{
 						if (HasStringLiterals && Result.Value.front() == Result.Value.back() && Features.StringLiterals.find(Result.Value.front()) != std::string::npos)
@@ -9141,14 +9141,14 @@ namespace Edge
 				size_t Count = Offset;
 				while (Offset < Value.size() && std::isspace(Value[++Offset]));
 
-				std::string Expression = Core::String(Value.substr(Offset)).Trim().R();
+				std::string Expression = Core::Stringify(Value.substr(Offset)).Trim().R();
 				if (!Features.StringLiterals.empty() && Expression.front() == Expression.back() && Features.StringLiterals.find(Expression.front()) != std::string::npos)
 					Expression = Expression.substr(1, Expression.size() - 2);
 
-				return std::make_pair(Core::String(Value.substr(0, Count)).Trim().R(), Core::String(&Expression).Trim().R());
+				return std::make_pair(Core::Stringify(Value.substr(0, Count)).Trim().R(), Core::Stringify(&Expression).Trim().R());
 			}
 
-			return std::make_pair(Core::String(Value).Trim().R(), std::string());
+			return std::make_pair(Core::Stringify(Value).Trim().R(), std::string());
 		}
 		std::pair<std::string, std::string> Preprocessor::UnpackExpression(const std::pair<std::string, std::string>& Expression)
 		{
@@ -9173,25 +9173,25 @@ namespace Edge
 				case Condition::Greater:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::String Left(&Parts.first), Right(&Parts.second);
+					Core::Stringify Left(&Parts.first), Right(&Parts.second);
 					return (Left.HasNumber() ? Left.ToDouble() : 0.0) > (Right.HasNumber() ? Right.ToDouble() : 0.0);
 				}
 				case Condition::GreaterEquals:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::String Left(&Parts.first), Right(&Parts.second);
+					Core::Stringify Left(&Parts.first), Right(&Parts.second);
 					return (Left.HasNumber() ? Left.ToDouble() : 0.0) >= (Right.HasNumber() ? Right.ToDouble() : 0.0);
 				}
 				case Condition::Less:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::String Left(&Parts.first), Right(&Parts.second);
+					Core::Stringify Left(&Parts.first), Right(&Parts.second);
 					return (Left.HasNumber() ? Left.ToDouble() : 0.0) < (Right.HasNumber() ? Right.ToDouble() : 0.0);
 				}
 				case Condition::LessEquals:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::String Left(&Parts.first), Right(&Parts.second);
+					Core::Stringify Left(&Parts.first), Right(&Parts.second);
 					return (Left.HasNumber() ? Left.ToDouble() : 0.0) <= (Right.HasNumber() ? Right.ToDouble() : 0.0);
 				}
 				case Condition::NotExists:
@@ -9204,25 +9204,25 @@ namespace Edge
 				case Condition::NotGreater:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::String Left(&Parts.first), Right(&Parts.second);
+					Core::Stringify Left(&Parts.first), Right(&Parts.second);
 					return (Left.HasNumber() ? Left.ToDouble() : 0.0) <= (Right.HasNumber() ? Right.ToDouble() : 0.0);
 				}
 				case Condition::NotGreaterEquals:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::String Left(&Parts.first), Right(&Parts.second);
+					Core::Stringify Left(&Parts.first), Right(&Parts.second);
 					return (Left.HasNumber() ? Left.ToDouble() : 0.0) < (Right.HasNumber() ? Right.ToDouble() : 0.0);
 				}
 				case Condition::NotLess:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::String Left(&Parts.first), Right(&Parts.second);
+					Core::Stringify Left(&Parts.first), Right(&Parts.second);
 					return (Left.HasNumber() ? Left.ToDouble() : 0.0) >= (Right.HasNumber() ? Right.ToDouble() : 0.0);
 				}
 				case Condition::NotLessEquals:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::String Left(&Parts.first), Right(&Parts.second);
+					Core::Stringify Left(&Parts.first), Right(&Parts.second);
 					return (Left.HasNumber() ? Left.ToDouble() : 0.0) > (Right.HasNumber() ? Right.ToDouble() : 0.0);
 				}
 				case Condition::Text:
@@ -9237,7 +9237,7 @@ namespace Edge
 
 			std::vector<std::string> Tokens;
 			std::string Copy = Buffer.substr(0, Size);
-			Core::String Formatter(&Copy);
+			Core::Stringify Formatter(&Copy);
 			Buffer.erase(Buffer.begin(), Buffer.begin() + Size);
 
 			for (auto& Item : Defines)
@@ -9294,7 +9294,7 @@ namespace Edge
 						return false;
 					}
 
-					Core::String Body(Item.second.Expansion);
+					Core::Stringify Body(Item.second.Expansion);
 					for (size_t i = 0; i < Item.second.Tokens.size(); i++)
 					{
 						auto& From = Item.second.Tokens[i];
@@ -9345,7 +9345,7 @@ namespace Edge
 				else if (V == ',' || Where + 1 >= Data.size())
 				{
 				AddValue:
-					std::string Subvalue = Core::String(Data.substr(Last, Where + 1 >= Data.size() ? std::string::npos : Where - Last)).Trim().R();
+					std::string Subvalue = Core::Stringify(Data.substr(Last, Where + 1 >= Data.size() ? std::string::npos : Where - Last)).Trim().R();
 					if (UnpackLiterals && Subvalue.size() >= 2)
 					{
 						if (!Features.StringLiterals.empty() && Subvalue.front() == Subvalue.back() && Features.StringLiterals.find(Subvalue.front()) != std::string::npos)
@@ -9491,11 +9491,11 @@ namespace Edge
 				Base.assign(Core::OS::Directory::Get());
 
 			IncludeResult Result;
-			if (!Core::String(Desc.Path).StartsOf("/."))
+			if (!Core::Stringify(Desc.Path).StartsOf("/."))
 			{
 				if (Desc.Root.empty())
 				{
-					Result.Module = Core::String(Desc.Path).Replace('\\', '/').R();
+					Result.Module = Core::Stringify(Desc.Path).Replace('\\', '/').R();
 					Result.IsSystem = true;
 					return Result;
 				}
@@ -9525,7 +9525,7 @@ namespace Edge
 					return Result;
 				}
 
-				Result.Module = Core::String(Desc.Path).Replace('\\', '/').R();;
+				Result.Module = Core::Stringify(Desc.Path).Replace('\\', '/').R();;
 				Result.IsSystem = true;
 				return Result;
 			}

@@ -656,7 +656,7 @@ namespace Edge
 			static int64_t ParseWebDate(const char* Date);
 		};
 
-		struct ED_OUT String
+		struct ED_OUT Stringify
 		{
 		public:
 			struct Settle
@@ -671,96 +671,96 @@ namespace Edge
 			bool Deletable;
 
 		public:
-			String() noexcept;
-			String(int Value) noexcept;
-			String(unsigned int Value) noexcept;
-			String(int64_t Value) noexcept;
-			String(uint64_t Value) noexcept;
-			String(float Value) noexcept;
-			String(double Value) noexcept;
-			String(long double Value) noexcept;
-			String(const std::string& Buffer) noexcept;
-			String(std::string* Buffer) noexcept;
-			String(const std::string* Buffer) noexcept;
-			String(const char* Buffer) noexcept;
-			String(const char* Buffer, size_t Length) noexcept;
-			String(String&& Value) noexcept;
-			String(const String& Value) noexcept;
-			~String() noexcept;
-			String& EscapePrint();
-			String& Escape();
-			String& Unescape();
-			String& Reserve(size_t Count = 1);
-			String& Resize(size_t Count);
-			String& Resize(size_t Count, char Char);
-			String& Clear();
-			String& ToUpper();
-			String& ToLower();
-			String& Clip(size_t Length);
-			String& Compress(const char* SpaceIfNotFollowedOrPrecededByOf, const char* NotInBetweenOf, size_t Start = 0U);
-			String& ReplaceOf(const char* Chars, const char* To, size_t Start = 0U);
-			String& ReplaceNotOf(const char* Chars, const char* To, size_t Start = 0U);
-			String& ReplaceGroups(const std::string& FromRegex, const std::string& To);
-			String& Replace(const std::string& From, const std::string& To, size_t Start = 0U);
-			String& Replace(const char* From, const char* To, size_t Start = 0U);
-			String& Replace(const char& From, const char& To, size_t Position = 0U);
-			String& Replace(const char& From, const char& To, size_t Position, size_t Count);
-			String& ReplacePart(size_t Start, size_t End, const std::string& Value);
-			String& ReplacePart(size_t Start, size_t End, const char* Value);
-			String& ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const std::string& With, size_t Start = 0U);
-			String& ReplaceInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start = 0U);
-			String& ReplaceNotInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start = 0U);
-			String& ReplaceParts(std::vector<std::pair<std::string, String::Settle>>& Inout, const std::string& With, const std::function<char(const std::string&, char, int)>& Surrounding = nullptr);
-			String& ReplaceParts(std::vector<String::Settle>& Inout, const std::string& With, const std::function<char(char, int)>& Surrounding = nullptr);
-			String& RemovePart(size_t Start, size_t End);
-			String& Reverse();
-			String& Reverse(size_t Start, size_t End);
-			String& Substring(size_t Start);
-			String& Substring(size_t Start, size_t Count);
-			String& Substring(const String::Settle& Result);
-			String& Splice(size_t Start, size_t End);
-			String& Trim();
-			String& Fill(const char& Char);
-			String& Fill(const char& Char, size_t Count);
-			String& Fill(const char& Char, size_t Start, size_t Count);
-			String& Assign(const char* Raw);
-			String& Assign(const char* Raw, size_t Length);
-			String& Assign(const std::string& Raw);
-			String& Assign(const std::string& Raw, size_t Start, size_t Count);
-			String& Assign(const char* Raw, size_t Start, size_t Count);
-			String& Append(const char* Raw);
-			String& Append(const char& Char);
-			String& Append(const char& Char, size_t Count);
-			String& Append(const std::string& Raw);
-			String& Append(const char* Raw, size_t Count);
-			String& Append(const char* Raw, size_t Start, size_t Count);
-			String& Append(const std::string& Raw, size_t Start, size_t Count);
-			String& fAppend(const char* Format, ...);
-			String& Insert(const std::string& Raw, size_t Position);
-			String& Insert(const std::string& Raw, size_t Position, size_t Start, size_t Count);
-			String& Insert(const std::string& Raw, size_t Position, size_t Count);
-			String& Insert(const char& Char, size_t Position, size_t Count);
-			String& Insert(const char& Char, size_t Position);
-			String& Erase(size_t Position);
-			String& Erase(size_t Position, size_t Count);
-			String& EraseOffsets(size_t Start, size_t End);
-			String& Eval(const std::string& Net, const std::string& Dir);
-			std::vector<std::pair<std::string, String::Settle>> FindInBetween(const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
-			std::vector<std::pair<std::string, String::Settle>> FindStartsWithEndsOf(const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
-			String::Settle ReverseFind(const std::string& Needle, size_t Offset = 0U) const;
-			String::Settle ReverseFind(const char* Needle, size_t Offset = 0U) const;
-			String::Settle ReverseFind(const char& Needle, size_t Offset = 0U) const;
-			String::Settle ReverseFindUnescaped(const char& Needle, size_t Offset = 0U) const;
-			String::Settle ReverseFindOf(const std::string& Needle, size_t Offset = 0U) const;
-			String::Settle ReverseFindOf(const char* Needle, size_t Offset = 0U) const;
-			String::Settle Find(const std::string& Needle, size_t Offset = 0U) const;
-			String::Settle Find(const char* Needle, size_t Offset = 0U) const;
-			String::Settle Find(const char& Needle, size_t Offset = 0U) const;
-			String::Settle FindUnescaped(const char& Needle, size_t Offset = 0U) const;
-			String::Settle FindOf(const std::string& Needle, size_t Offset = 0U) const;
-			String::Settle FindOf(const char* Needle, size_t Offset = 0U) const;
-			String::Settle FindNotOf(const std::string& Needle, size_t Offset = 0U) const;
-			String::Settle FindNotOf(const char* Needle, size_t Offset = 0U) const;
+			Stringify() noexcept;
+			Stringify(int Value) noexcept;
+			Stringify(unsigned int Value) noexcept;
+			Stringify(int64_t Value) noexcept;
+			Stringify(uint64_t Value) noexcept;
+			Stringify(float Value) noexcept;
+			Stringify(double Value) noexcept;
+			Stringify(long double Value) noexcept;
+			Stringify(const std::string& Buffer) noexcept;
+			Stringify(std::string* Buffer) noexcept;
+			Stringify(const std::string* Buffer) noexcept;
+			Stringify(const char* Buffer) noexcept;
+			Stringify(const char* Buffer, size_t Length) noexcept;
+			Stringify(Stringify&& Value) noexcept;
+			Stringify(const Stringify& Value) noexcept;
+			~Stringify() noexcept;
+			Stringify& EscapePrint();
+			Stringify& Escape();
+			Stringify& Unescape();
+			Stringify& Reserve(size_t Count = 1);
+			Stringify& Resize(size_t Count);
+			Stringify& Resize(size_t Count, char Char);
+			Stringify& Clear();
+			Stringify& ToUpper();
+			Stringify& ToLower();
+			Stringify& Clip(size_t Length);
+			Stringify& Compress(const char* SpaceIfNotFollowedOrPrecededByOf, const char* NotInBetweenOf, size_t Start = 0U);
+			Stringify& ReplaceOf(const char* Chars, const char* To, size_t Start = 0U);
+			Stringify& ReplaceNotOf(const char* Chars, const char* To, size_t Start = 0U);
+			Stringify& ReplaceGroups(const std::string& FromRegex, const std::string& To);
+			Stringify& Replace(const std::string& From, const std::string& To, size_t Start = 0U);
+			Stringify& Replace(const char* From, const char* To, size_t Start = 0U);
+			Stringify& Replace(const char& From, const char& To, size_t Position = 0U);
+			Stringify& Replace(const char& From, const char& To, size_t Position, size_t Count);
+			Stringify& ReplacePart(size_t Start, size_t End, const std::string& Value);
+			Stringify& ReplacePart(size_t Start, size_t End, const char* Value);
+			Stringify& ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const std::string& With, size_t Start = 0U);
+			Stringify& ReplaceInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start = 0U);
+			Stringify& ReplaceNotInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start = 0U);
+			Stringify& ReplaceParts(std::vector<std::pair<std::string, Stringify::Settle>>& Inout, const std::string& With, const std::function<char(const std::string&, char, int)>& Surrounding = nullptr);
+			Stringify& ReplaceParts(std::vector<Stringify::Settle>& Inout, const std::string& With, const std::function<char(char, int)>& Surrounding = nullptr);
+			Stringify& RemovePart(size_t Start, size_t End);
+			Stringify& Reverse();
+			Stringify& Reverse(size_t Start, size_t End);
+			Stringify& Substring(size_t Start);
+			Stringify& Substring(size_t Start, size_t Count);
+			Stringify& Substring(const Stringify::Settle& Result);
+			Stringify& Splice(size_t Start, size_t End);
+			Stringify& Trim();
+			Stringify& Fill(const char& Char);
+			Stringify& Fill(const char& Char, size_t Count);
+			Stringify& Fill(const char& Char, size_t Start, size_t Count);
+			Stringify& Assign(const char* Raw);
+			Stringify& Assign(const char* Raw, size_t Length);
+			Stringify& Assign(const std::string& Raw);
+			Stringify& Assign(const std::string& Raw, size_t Start, size_t Count);
+			Stringify& Assign(const char* Raw, size_t Start, size_t Count);
+			Stringify& Append(const char* Raw);
+			Stringify& Append(const char& Char);
+			Stringify& Append(const char& Char, size_t Count);
+			Stringify& Append(const std::string& Raw);
+			Stringify& Append(const char* Raw, size_t Count);
+			Stringify& Append(const char* Raw, size_t Start, size_t Count);
+			Stringify& Append(const std::string& Raw, size_t Start, size_t Count);
+			Stringify& fAppend(const char* Format, ...);
+			Stringify& Insert(const std::string& Raw, size_t Position);
+			Stringify& Insert(const std::string& Raw, size_t Position, size_t Start, size_t Count);
+			Stringify& Insert(const std::string& Raw, size_t Position, size_t Count);
+			Stringify& Insert(const char& Char, size_t Position, size_t Count);
+			Stringify& Insert(const char& Char, size_t Position);
+			Stringify& Erase(size_t Position);
+			Stringify& Erase(size_t Position, size_t Count);
+			Stringify& EraseOffsets(size_t Start, size_t End);
+			Stringify& Eval(const std::string& Net, const std::string& Dir);
+			std::vector<std::pair<std::string, Stringify::Settle>> FindInBetween(const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
+			std::vector<std::pair<std::string, Stringify::Settle>> FindStartsWithEndsOf(const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
+			Stringify::Settle ReverseFind(const std::string& Needle, size_t Offset = 0U) const;
+			Stringify::Settle ReverseFind(const char* Needle, size_t Offset = 0U) const;
+			Stringify::Settle ReverseFind(const char& Needle, size_t Offset = 0U) const;
+			Stringify::Settle ReverseFindUnescaped(const char& Needle, size_t Offset = 0U) const;
+			Stringify::Settle ReverseFindOf(const std::string& Needle, size_t Offset = 0U) const;
+			Stringify::Settle ReverseFindOf(const char* Needle, size_t Offset = 0U) const;
+			Stringify::Settle Find(const std::string& Needle, size_t Offset = 0U) const;
+			Stringify::Settle Find(const char* Needle, size_t Offset = 0U) const;
+			Stringify::Settle Find(const char& Needle, size_t Offset = 0U) const;
+			Stringify::Settle FindUnescaped(const char& Needle, size_t Offset = 0U) const;
+			Stringify::Settle FindOf(const std::string& Needle, size_t Offset = 0U) const;
+			Stringify::Settle FindOf(const char* Needle, size_t Offset = 0U) const;
+			Stringify::Settle FindNotOf(const std::string& Needle, size_t Offset = 0U) const;
+			Stringify::Settle FindNotOf(const char* Needle, size_t Offset = 0U) const;
 			bool IsPrecededBy(size_t At, const char* Of) const;
 			bool IsFollowedBy(size_t At, const char* Of) const;
 			bool StartsWith(const std::string& Value, size_t Offset = 0U) const;
@@ -797,8 +797,8 @@ namespace Edge
 			std::vector<std::string> SplitMax(char With, size_t MaxCount, size_t Start = 0U) const;
 			std::vector<std::string> SplitOf(const char* With, size_t Start = 0U) const;
 			std::vector<std::string> SplitNotOf(const char* With, size_t Start = 0U) const;
-			String& operator = (String&& New) noexcept;
-			String& operator = (const String& New) noexcept;
+			Stringify& operator = (Stringify&& New) noexcept;
+			Stringify& operator = (const Stringify& New) noexcept;
 
 		public:
 			static bool IsDigit(char Char);
@@ -996,28 +996,26 @@ namespace Edge
 		class ED_OUT_TS PoolAllocator final : public Allocator
 		{
 		public:
-			struct PageAddress
-			{
-				void* BaseAddress;
-				size_t Size;
-			};
+			struct PageGroup;
 
 			struct PageCache
 			{
 				 std::queue<void*> Pool;
 				 int64_t AliveTime;
-				 void* BaseAddress;
 				 size_t Capacity;
+				 PageGroup* Page;
+				 void* BaseAddress;
 			};
 
 			struct PageGroup
 			{
-				std::unordered_map<void*, PageCache> Cache;
+				std::unordered_set<PageCache*> Cache;
+				size_t Size;
 			};
 
 		private:
-			std::unordered_map<size_t, PageGroup> Pages;
-			std::unordered_map<void*, PageAddress> Blocks;
+			std::unordered_map<size_t, PageGroup*> Pages;
+			std::unordered_map<void*, PageCache*> Blocks;
 			std::recursive_mutex Mutex;
 			uint64_t MinimalLifeTime;
 			double ElementsReducingFactor;
@@ -1034,10 +1032,13 @@ namespace Edge
 			bool IsValid(void* Address) noexcept override;
 
 		private:
-			PageCache* AllocatePageCache(Context&& Origin, PageGroup& Page, size_t Size);
-			PageCache* GetPageCache(PageGroup& Page);
-			size_t GetElementsCount(PageGroup& Page, size_t Size);
-			double GetFrequency(PageGroup& Page);
+			void DeallocatePageCache(PageCache* Address, bool EraseFromCache);
+			PageCache* AllocatePageCache(Context&& Origin, PageGroup* Page, size_t Size);
+			PageCache* GetPageCache(Context&& Origin, PageGroup* Page, size_t Size);
+			PageGroup* GetPageGroup(size_t Size);
+			int64_t GetClock();
+			size_t GetElementsCount(PageGroup* Page, size_t Size);
+			double GetFrequency(PageGroup* Page);
 		};
 
 		class ED_OUT_TS DefaultAllocator final : public Allocator
@@ -1187,92 +1188,24 @@ namespace Edge
 			class ED_OUT Process
 			{
             public:
-                struct ArgsContext
+                struct ED_OUT ArgsContext
                 {
+				public:
                     std::unordered_map<std::string, std::string> Base;
                     
-                    ArgsContext(int Argc, char** Argv, const std::string& WhenNoValue = "1") noexcept
-                    {
-                        Base = OS::Process::GetArgs(Argc, Argv, WhenNoValue);
-                    }
-                    void ForEach(const std::function<void(const std::string&, const std::string&)>& Callback) const
-                    {
-                        ED_ASSERT_V(Callback != nullptr, "callback should not be empty");
-                        for (auto& Item : Base)
-                            Callback(Item.first, Item.second);
-                    }
-                    bool IsEnabled(const std::string& Option, const std::string& Shortcut = "") const
-                    {
-                        auto It = Base.find(Option);
-                        if (It == Base.end() || !IsTrue(It->second))
-                            return Shortcut.empty() ? false : IsEnabled(Shortcut);
-                            
-                        return true;
-                    }
-                    bool IsDisabled(const std::string& Option, const std::string& Shortcut = "") const
-                    {
-                        auto It = Base.find(Option);
-                        if (It == Base.end())
-                            return Shortcut.empty() ? true : IsDisabled(Shortcut);
-                            
-                        return IsFalse(It->second);
-                    }
-                    bool Has(const std::string& Option, const std::string& Shortcut = "") const
-                    {
-                        if (Base.find(Option) != Base.end())
-                            return true;
-                        
-                        return Shortcut.empty() ? false : Base.find(Shortcut) != Base.end();
-                    }
-                    std::string& Get(const std::string& Option, const std::string& Shortcut = "")
-                    {
-                        if (Base.find(Option) != Base.end())
-                            return Base[Option];
-                        
-                        return Shortcut.empty() ? Base[Option] : Base[Shortcut];
-                    }
-                    std::string& GetIf(const std::string& Option, const std::string& Shortcut, const std::string& WhenEmpty)
-                    {
-                        if (Base.find(Option) != Base.end())
-                            return Base[Option];
-                        
-                        if (!Shortcut.empty() && Base.find(Shortcut) != Base.end())
-                            return Base[Shortcut];
-                        
-                        std::string& Value = Base[Option];
-                        Value = WhenEmpty;
-                        return Value;
-                    }
-                    std::string& GetAppPath()
-                    {
-                        return Get("__path__");
-                    }
+				public:
+					ArgsContext(int Argc, char** Argv, const std::string& WhenNoValue = "1") noexcept;
+					void ForEach(const std::function<void(const std::string&, const std::string&)>& Callback) const;
+					bool IsEnabled(const std::string& Option, const std::string& Shortcut = "") const;
+					bool IsDisabled(const std::string& Option, const std::string& Shortcut = "") const;
+					bool Has(const std::string& Option, const std::string& Shortcut = "") const;
+					std::string& Get(const std::string& Option, const std::string& Shortcut = "");
+					std::string& GetIf(const std::string& Option, const std::string& Shortcut, const std::string& WhenEmpty);
+					std::string& GetAppPath();
                     
                 private:
-                    bool IsTrue(const std::string& Value) const
-                    {
-                        if (Value.empty())
-                            return false;
-                        
-                        if (String((std::string*)&Value).ToUInt64() > 0)
-                            return true;
-                        
-                        String Data(Value);
-                        Data.ToLower();
-                        return Data.R() == "on" || Data.R() == "true" || Data.R() == "yes" || Data.R() == "y";
-                    }
-                    bool IsFalse(const std::string& Value) const
-                    {
-                        if (Value.empty())
-                            return true;
-                        
-                        if (String((std::string*)&Value).ToUInt64() > 0)
-                            return false;
-                        
-                        String Data(Value);
-                        Data.ToLower();
-                        return Data.R() == "off" || Data.R() == "false" || Data.R() == "no" || Data.R() == "n";
-                    }
+					bool IsTrue(const std::string& Value) const;
+					bool IsFalse(const std::string& Value) const;
                 };
                 
 			public:
@@ -3316,23 +3249,20 @@ namespace Edge
 		}
 		ED_OUT_TS inline bool Cosuspend() noexcept
 		{
-			Costate* State = Costate::Get();
-			ED_ASSERT(State != nullptr, false, "cannot call suspend outside coroutine");
-
-			return State->Suspend();
+			ED_ASSERT(Costate::Get() != nullptr, false, "cannot call suspend outside coroutine");
+			return Costate::Get()->Suspend();
 		}
-		ED_OUT_TS inline String Form(const char* Format, ...) noexcept
+		ED_OUT_TS inline Stringify Form(const char* Format, ...) noexcept
 		{
-			ED_ASSERT(Format != nullptr, String(), "format should be set");
+			ED_ASSERT(Format != nullptr, Stringify(), "format should be set");
 
 			va_list Args;
 			va_start(Args, Format);
-
 			char Buffer[ED_BIG_CHUNK_SIZE];
 			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 			va_end(Args);
 
-			return String(Buffer, Size > ED_BIG_CHUNK_SIZE ? ED_BIG_CHUNK_SIZE : (size_t)Size);
+			return Stringify(Buffer, Size > ED_BIG_CHUNK_SIZE ? ED_BIG_CHUNK_SIZE : (size_t)Size);
 		}
 		template <size_t Size>
 		ED_OUT_TS constexpr uint64_t Shuffle(const char Source[Size]) noexcept

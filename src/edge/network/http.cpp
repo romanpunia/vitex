@@ -79,7 +79,7 @@ namespace Edge
 				if (Result.empty())
 					return Result;
 
-				return Core::String(Result).Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\n", "<br>").R();
+				return Core::Stringify(Result).Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\n", "<br>").R();
 			}
 
 			MimeStatic::MimeStatic(const char* Ext, const char* T) : Extension(Ext), Type(T)
@@ -722,14 +722,14 @@ namespace Edge
 
 				HTTP::RouteEntry* From = Base;
 				Compute::RegexResult Result;
-				Core::String Src(Pattern);
+				Core::Stringify Src(Pattern);
 				Src.ToLower();
 
 				for (auto& Group : Groups)
 				{
 					for (auto* Entry : Group->Routes)
 					{
-						Core::String Dest(Entry->URI.GetRegex());
+						Core::Stringify Dest(Entry->URI.GetRegex());
 						Dest.ToLower();
 
 						if (Dest.StartsWith("...") && Dest.EndsWith("..."))
@@ -921,7 +921,7 @@ namespace Edge
 				if (It != Sites.end())
 					return It->second;
 
-				std::string Name = Core::String(Pattern).ToLower().R();
+				std::string Name = Core::Stringify(Pattern).ToLower().R();
 				if (Name.empty())
 					Name = "*";
 
@@ -1095,12 +1095,12 @@ namespace Edge
 				if (Range == nullptr)
 					return std::vector<std::pair<size_t, size_t>>();
 
-				std::vector<std::string> Bases = Core::String(Range).Split(',');
+				std::vector<std::string> Bases = Core::Stringify(Range).Split(',');
 				std::vector<std::pair<size_t, size_t>> Ranges;
 
 				for (auto& Item : Bases)
 				{
-					Core::String::Settle Result = Core::String(&Item).Find('-');
+					Core::Stringify::Settle Result = Core::Stringify(&Item).Find('-');
 					if (!Result.Found)
 						continue;
 
@@ -1162,7 +1162,7 @@ namespace Edge
 			{
 				for (auto& Cookie : Cookies)
 				{
-					if (Core::String::CaseCompare(Cookie.Name.c_str(), Value.Name.c_str()) == 0)
+					if (Core::Stringify::CaseCompare(Cookie.Name.c_str(), Value.Name.c_str()) == 0)
 					{
 						Cookie = Value;
 						return;
@@ -1175,7 +1175,7 @@ namespace Edge
 			{
 				for (auto& Cookie : Cookies)
 				{
-					if (Core::String::CaseCompare(Cookie.Name.c_str(), Value.Name.c_str()) == 0)
+					if (Core::Stringify::CaseCompare(Cookie.Name.c_str(), Value.Name.c_str()) == 0)
 					{
 						Cookie = std::move(Value);
 						return;
@@ -1214,7 +1214,7 @@ namespace Edge
 				for (size_t i = 0; i < Cookies.size(); i++)
 				{
 					Cookie* Result = &Cookies[i];
-					if (!Core::String::CaseCompare(Result->Name.c_str(), Key))
+					if (!Core::Stringify::CaseCompare(Result->Name.c_str(), Key))
 						return Result;
 				}
 
@@ -1394,7 +1394,7 @@ namespace Edge
 				}
 
 				const char* TransferEncoding = Request.GetHeader("Transfer-Encoding");
-				if (!Request.Content.Limited && TransferEncoding && !Core::String::CaseCompare(TransferEncoding, "chunked"))
+				if (!Request.Content.Limited && TransferEncoding && !Core::Stringify::CaseCompare(TransferEncoding, "chunked"))
 				{
 					Parser* Parser = new HTTP::Parser();
 					return Stream->ReadAsync(Root->Router->PayloadMaxLength, [this, Parser, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
@@ -1686,7 +1686,7 @@ namespace Edge
 					}
 
 					const char* StatusText = Util::StatusMessage(Response.StatusCode);
-					Core::String Content;
+					Core::Stringify Content;
 					Content.fAppend("%s %d %s\r\n", Request.Version, Response.StatusCode, StatusText);
 
 					Paths::ConstructHeadUncache(this, &Content);
@@ -1727,7 +1727,7 @@ namespace Edge
 					});
 				}
 
-				Core::String Chunked;
+				Core::Stringify Chunked;
 				std::string Boundary;
 				const char* ContentType;
 				Chunked.fAppend("%s %d %s\r\n", Request.Version, Response.StatusCode, Util::StatusMessage(Response.StatusCode));
@@ -2026,9 +2026,9 @@ namespace Edge
 				if (!Type || URI.empty())
 					return;
 
-				if (!Core::String::CaseCompare(Type, "application/x-www-form-urlencoded"))
+				if (!Core::Stringify::CaseCompare(Type, "application/x-www-form-urlencoded"))
 					DecodeAXWFD(URI);
-				else if (!Core::String::CaseCompare(Type, "application/json"))
+				else if (!Core::Stringify::CaseCompare(Type, "application/json"))
 					DecodeAJSON(URI);
 			}
 			void Query::DecodeAXWFD(const std::string& URI)
@@ -2072,10 +2072,10 @@ namespace Edge
 			{
 				if (Type != nullptr)
 				{
-					if (!Core::String::CaseCompare(Type, "application/x-www-form-urlencoded"))
+					if (!Core::Stringify::CaseCompare(Type, "application/x-www-form-urlencoded"))
 						return EncodeAXWFD();
 
-					if (!Core::String::CaseCompare(Type, "application/json"))
+					if (!Core::Stringify::CaseCompare(Type, "application/json"))
 						return EncodeAJSON();
 				}
 
@@ -2135,7 +2135,7 @@ namespace Edge
 				if (Name->Value && Name->Length > 0)
 				{
 					New->Key.assign(Name->Value, (size_t)Name->Length);
-					if (!Core::String(&New->Key).HasInteger())
+					if (!Core::Stringify(&New->Key).HasInteger())
 						Object->Value = Core::Var::Object();
 					else
 						Object->Value = Core::Var::Array();
@@ -2215,7 +2215,7 @@ namespace Edge
 				if (Name->Value && Name->Length > 0)
 				{
 					Key.assign(Name->Value, (size_t)Name->Length);
-					if (!Core::String(&Key).HasInteger())
+					if (!Core::Stringify(&Key).HasInteger())
 						Base->Value = Core::Var::Object();
 					else
 						Base->Value = Core::Var::Array();
@@ -3632,7 +3632,7 @@ namespace Edge
 					return "Connection: Close\r\n";
 
 				const char* Connection = Base->Request.GetHeader("Connection");
-				if (Connection != nullptr && Core::String::CaseCompare(Connection, "keep-alive"))
+				if (Connection != nullptr && Core::Stringify::CaseCompare(Connection, "keep-alive"))
 				{
 					Base->Info.KeepAlive = 0;
 					return "Connection: Close\r\n";
@@ -3665,7 +3665,7 @@ namespace Edge
 				while (End - Start > 1)
 				{
 					Index = (Start + End) >> 1;
-					if ((Result = Core::String::CaseCompare(Ext, MimeTypes[Index].Extension)) == 0)
+					if ((Result = Core::Stringify::CaseCompare(Ext, MimeTypes[Index].Extension)) == 0)
 						return MimeTypes[Index].Type;
 
 					if (Result < 0)
@@ -3674,14 +3674,14 @@ namespace Edge
 						Start = Index;
 				}
 
-				if (!Core::String::CaseCompare(Ext, MimeTypes[Start].Extension))
+				if (!Core::Stringify::CaseCompare(Ext, MimeTypes[Start].Extension))
 					return MimeTypes[Start].Type;
 
 				if (!Types->empty())
 				{
 					for (auto& Item : *Types)
 					{
-						if (!Core::String::CaseCompare(Ext, Item.Extension.c_str()))
+						if (!Core::Stringify::CaseCompare(Ext, Item.Extension.c_str()))
 							return Item.Type.c_str();
 					}
 				}
@@ -3917,24 +3917,24 @@ namespace Edge
 				if (!Base->Request.Match.Empty())
 				{
 					auto& Match = Base->Request.Match.Get()[0];
-					Base->Request.Path = Base->Route->DocumentRoot + Core::String(Base->Request.Path).RemovePart((size_t)Match.Start, (size_t)Match.End).R();
+					Base->Request.Path = Base->Route->DocumentRoot + Core::Stringify(Base->Request.Path).RemovePart((size_t)Match.Start, (size_t)Match.End).R();
 				}
 				else
 					Base->Request.Path = Base->Route->DocumentRoot + Base->Request.Path;
 
 				Base->Request.Path = Core::OS::Path::Resolve(Base->Request.Path.c_str());
-				if (Core::String(&Base->Request.Path).EndsOf("/\\"))
+				if (Core::Stringify(&Base->Request.Path).EndsOf("/\\"))
 				{
-					if (!Core::String(&Base->Request.URI).EndsOf("/\\"))
+					if (!Core::Stringify(&Base->Request.URI).EndsOf("/\\"))
 						Base->Request.Path.erase(Base->Request.Path.size() - 1, 1);
 				}
-				else if (Core::String(&Base->Request.URI).EndsOf("/\\"))
+				else if (Core::Stringify(&Base->Request.URI).EndsOf("/\\"))
 					Base->Request.Path.append(1, '/');
 
 				if (Base->Route->Site->Callbacks.OnRewriteURL)
 					Base->Route->Site->Callbacks.OnRewriteURL(Base);
 			}
-			void Paths::ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::String* Buffer)
+			void Paths::ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::Stringify* Buffer)
 			{
 				ED_ASSERT_V(Request != nullptr, "connection should be set");
 				ED_ASSERT_V(Response != nullptr, "response should be set");
@@ -3972,7 +3972,7 @@ namespace Edge
 						HttpOnly);
 				}
 			}
-			void Paths::ConstructHeadCache(Connection* Base, Core::String* Buffer)
+			void Paths::ConstructHeadCache(Connection* Base, Core::Stringify* Buffer)
 			{
 				ED_ASSERT_V(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				ED_ASSERT_V(Buffer != nullptr, "buffer should be set");
@@ -3982,7 +3982,7 @@ namespace Edge
 
 				Buffer->fAppend("Cache-Control: max-age=%" PRIu64 "\r\n", Base->Route->StaticFileMaxAge);
 			}
-			void Paths::ConstructHeadUncache(Connection* Base, Core::String* Buffer)
+			void Paths::ConstructHeadUncache(Connection* Base, Core::Stringify* Buffer)
 			{
 				ED_ASSERT_V(Base != nullptr, "connection should be set");
 				ED_ASSERT_V(Buffer != nullptr, "buffer should be set");
@@ -4033,7 +4033,7 @@ namespace Edge
 				{
 					if (!Group->Match.empty())
 					{
-						Core::String URI(&Base->Request.URI);
+						Core::Stringify URI(&Base->Request.URI);
 						if (Group->Mode == RouteMode::Start)
 						{
 							if (!URI.StartsWith(Group->Match))
@@ -4144,18 +4144,18 @@ namespace Edge
 				std::string Value(Data, Length);
 				if (Parser->Frame.Header == "Content-Disposition")
 				{
-					Core::String::Settle Start = Core::String(&Value).Find("name=\"");
+					Core::Stringify::Settle Start = Core::Stringify(&Value).Find("name=\"");
 					if (Start.Found)
 					{
-						Core::String::Settle End = Core::String(&Value).Find('\"', Start.End);
+						Core::Stringify::Settle End = Core::Stringify(&Value).Find('\"', Start.End);
 						if (End.Found)
 							Parser->Frame.Source.Key = Value.substr(Start.End, End.End - Start.End - 1);
 					}
 
-					Start = Core::String(&Value).Find("filename=\"");
+					Start = Core::Stringify(&Value).Find("filename=\"");
 					if (Start.Found)
 					{
-						Core::String::Settle End = Core::String(&Value).Find('\"', Start.End);
+						Core::Stringify::Settle End = Core::Stringify(&Value).Find('\"', Start.End);
 						if (End.Found)
 							Parser->Frame.Source.Name = Value.substr(Start.End, End.End - Start.End - 1);
 					}
@@ -4256,7 +4256,7 @@ namespace Edge
 				if (!Length || Parser->Frame.Ignore || Parser->Frame.Header.empty())
 					return true;
 
-				if (Core::String::CaseCompare(Parser->Frame.Header.c_str(), "cookie") == 0)
+				if (Core::Stringify::CaseCompare(Parser->Frame.Header.c_str(), "cookie") == 0)
 				{
 					std::vector<std::pair<std::string, std::string>> Cookies;
 					const char* Offset = Data;
@@ -4290,9 +4290,9 @@ namespace Edge
 				}
 				else
 				{
-					std::vector<std::string> Keys = Core::String(Data, Length).Split(',');
+					std::vector<std::string> Keys = Core::Stringify(Data, Length).Split(',');
 					for (auto& Item : Keys)
-						Core::String(&Item).Trim();
+						Core::Stringify(&Item).Trim();
 
 					if (Parser->Frame.Request)
 					{
@@ -4463,14 +4463,14 @@ namespace Edge
 				if (!Upgrade)
 					return false;
 
-				if (Core::String::CaseCompare(Upgrade, "websocket") != 0)
+				if (Core::Stringify::CaseCompare(Upgrade, "websocket") != 0)
 					return false;
 
 				const char* Connection = Base->Request.GetHeader("Connection");
 				if (!Connection)
 					return false;
 
-				if (Core::String::CaseCompare(Connection, "upgrade") != 0)
+				if (Core::Stringify::CaseCompare(Connection, "upgrade") != 0)
 					return false;
 
 				return true;
@@ -4519,7 +4519,7 @@ namespace Edge
 					return false;
 
 				std::string Path = Base->Request.Path;
-				if (!Core::String(&Path).EndsOf("/\\"))
+				if (!Core::Stringify(&Path).EndsOf("/\\"))
 				{
 #ifdef ED_MICROSOFT
 					Path.append(1, '\\');
@@ -4581,7 +4581,7 @@ namespace Edge
 				ED_ASSERT(Resource != nullptr, false, "resource should be set");
 
 				const char* CacheControl = Base->Request.GetHeader("Cache-Control");
-				if (CacheControl != nullptr && (!Core::String::CaseCompare("no-cache", CacheControl) || !Core::String::CaseCompare("max-age=0", CacheControl)))
+				if (CacheControl != nullptr && (!Core::Stringify::CaseCompare("no-cache", CacheControl) || !Core::Stringify::CaseCompare("max-age=0", CacheControl)))
 					return true;
 
 				const char* IfNoneMatch = Base->Request.GetHeader("If-None-Match");
@@ -4589,7 +4589,7 @@ namespace Edge
 				{
 					char ETag[64];
 					Core::OS::Net::GetETag(ETag, sizeof(ETag), Resource);
-					if (!Core::String::CaseCompare(ETag, IfNoneMatch))
+					if (!Core::Stringify::CaseCompare(ETag, IfNoneMatch))
 						return false;
 				}
 
@@ -4790,7 +4790,7 @@ namespace Edge
 						char Date[64];
 						Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-						Core::String Content;
+						Core::Stringify Content;
 						Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
 
 						Core::OS::File::Close(Stream);
@@ -4838,7 +4838,7 @@ namespace Edge
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Core::String Content;
+				Core::Stringify Content;
 				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
 
 				if (Base->Route->Callbacks.Headers)
@@ -4876,7 +4876,7 @@ namespace Edge
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Core::String Content;
+				Core::Stringify Content;
 				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%s", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
 
 				if (Base->Route->Callbacks.Headers)
@@ -4897,7 +4897,7 @@ namespace Edge
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Core::String Content;
+				Core::Stringify Content;
 				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sAllow: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
 
 				if (Base->Route && Base->Route->Callbacks.Headers)
@@ -4923,7 +4923,7 @@ namespace Edge
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Core::String Content;
+				Core::Stringify Content;
 				Content.fAppend("%s 200 OK\r\nDate: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Route->CharSet.c_str());
 
 				Paths::ConstructHeadCache(Base, &Content);
@@ -4984,7 +4984,7 @@ namespace Edge
 
 					std::string URI = Compute::Codec::URIEncode(Item.Path);
 					std::string HREF = (Base->Request.URI + ((*(Base->Request.URI.c_str() + 1) != '\0' && Base->Request.URI[Base->Request.URI.size() - 1] != '/') ? "/" : "") + URI);
-					if (Item.IsDirectory && !Core::String(&HREF).EndsOf("/\\"))
+					if (Item.IsDirectory && !Core::Stringify(&HREF).EndsOf("/\\"))
 						HREF.append(1, '/');
 
 					Base->Response.Content.Append("<tr><td><a href=\"" + HREF + "\">" + Item.Path + "</a></td><td>&nbsp;" + dDate + "</td><td>&nbsp;&nbsp;" + dSize + "</td></tr>\n");
@@ -5106,7 +5106,7 @@ namespace Edge
 				char ETag[64];
 				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
-				Core::String Content;
+				Core::Stringify Content;
 				Content.fAppend("%s %d %s\r\n%s%s%sDate: %s\r\n", Base->Request.Version, Base->Response.StatusCode, StatusMessage, CORS1, CORS2, CORS3, Date);
 
 				Paths::ConstructHeadCache(Base, &Content);
@@ -5175,7 +5175,7 @@ namespace Edge
 				char ETag[64];
 				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
-				Core::String Content;
+				Core::Stringify Content;
 				Content.fAppend("%s %d %s\r\n%s%s%sDate: %s\r\n", Base->Request.Version, Base->Response.StatusCode, StatusMessage, CORS1, CORS2, CORS3, Date);
 
 				Paths::ConstructHeadCache(Base, &Content);
@@ -5229,7 +5229,7 @@ namespace Edge
 				char ETag[64];
 				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
-				Core::String Content;
+				Core::Stringify Content;
 				Content.fAppend("%s 304 %s\r\nDate: %s\r\n", Base->Request.Version, HTTP::Util::StatusMessage(304), Date);
 
 				Paths::ConstructHeadCache(Base, &Content);
@@ -5651,7 +5651,7 @@ namespace Edge
 				char Encoded20[20];
 				Compute::Crypto::Sha1Compute(Buffer, (int)strlen(Buffer), Encoded20);
 
-				Core::String Content;
+				Core::Stringify Content;
 				Content.fAppend(
 					"HTTP/1.1 101 Switching Protocols\r\n"
 					"Upgrade: websocket\r\n"
@@ -6025,7 +6025,7 @@ namespace Edge
 				}
                 
 				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
-				if (!Response.Content.Limited && TransferEncoding && !Core::String::CaseCompare(TransferEncoding, "chunked"))
+				if (!Response.Content.Limited && TransferEncoding && !Core::Stringify::CaseCompare(TransferEncoding, "chunked"))
 				{
 					Core::Promise<bool> Result;
 					Parser* Parser = new HTTP::Parser();
@@ -6069,7 +6069,7 @@ namespace Edge
 				else if (!Response.Content.Limited)
 				{
 					const char* Connection = Response.GetHeader("Connection");
-					if (!Connection || Core::String::CaseCompare(Connection, "close"))
+					if (!Connection || Core::Stringify::CaseCompare(Connection, "close"))
 						return Core::Promise<bool>(false);
 
 					Core::Promise<bool> Result;
@@ -6176,7 +6176,7 @@ namespace Edge
 				};
 				Stage("request delivery");
 
-				Core::String Chunked;
+				Core::Stringify Chunked;
 				if (!Request.GetHeader("Host"))
 				{
 					if (Context != nullptr)

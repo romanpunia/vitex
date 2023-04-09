@@ -1009,7 +1009,7 @@ namespace Edge
 			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
-			Core::String Decl = Core::Form("%s& opAssign(const %s &in)", Object.c_str(), Object.c_str());
+			Core::Stringify Decl = Core::Form("%s& opAssign(const %s &in)", Object.c_str(), Object.c_str());
 			ED_TRACE("[vm] register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.Size(), (void*)Value);
 			return Engine->RegisterObjectMethod(Object.c_str(), Decl.Get(), *Value, (asECallConvTypes)Type);
 		}
@@ -1145,7 +1145,7 @@ namespace Edge
 		{
 			return VM;
 		}
-		Core::String BaseClass::GetOperator(Operators Op, const char* Out, const char* Args, bool Const, bool Right)
+		Core::Stringify BaseClass::GetOperator(Operators Op, const char* Out, const char* Args, bool Const, bool Right)
 		{
 			switch (Op)
 			{
@@ -1684,7 +1684,7 @@ namespace Edge
 				if (Name == "compile" && Args.size() == 2)
 				{
 					const std::string& Key = Args[0];
-					Core::String Value(&Args[1]);
+					Core::Stringify Value(&Args[1]);
 
 					size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
 					if (Key == "ALLOW_UNSAFE_REFERENCES")
@@ -1765,7 +1765,7 @@ namespace Edge
 				else if (Name == "modify" && Args.size() == 2)
 				{
 					const std::string& Key = Args[0];
-					Core::String Value(&Args[1]);
+					Core::Stringify Value(&Args[1]);
 
 					size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
 					if (Key == "NAME")
@@ -3386,7 +3386,7 @@ namespace Edge
 			{
 				std::string Name = Namespace.first;
 				std::string Subname = (Namespace.first.empty() ? "" : Name);
-				auto Offset = Core::String(&Name).Find("::");
+				auto Offset = Core::Stringify(&Name).Find("::");
 
 				if (Offset.Found)
 				{
@@ -3398,7 +3398,7 @@ namespace Edge
 					}
 				}
 
-				std::string File = Core::OS::Path::Resolve((Path + Core::String(Name).Replace("::", "/").ToLower().R() + ".as").c_str());
+				std::string File = Core::OS::Path::Resolve((Path + Core::Stringify(Name).Replace("::", "/").ToLower().R() + ".as").c_str());
 				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(File.c_str()));
 
 				auto& Source = Groups[Name];
@@ -3580,7 +3580,7 @@ namespace Edge
 			if (Include.Root.empty())
 				return Sync.General.unlock();
 
-			if (!Core::String(&Include.Root).EndsOf("/\\"))
+			if (!Core::Stringify(&Include.Root).EndsOf("/\\"))
 				Include.Root.append(1, ED_PATH_SPLIT);
 			Sync.General.unlock();
 		}
@@ -3675,7 +3675,7 @@ namespace Edge
 				Sync.General.lock();
 				for (auto& Item : Modules)
 				{
-					if (Core::String(&Item.first).StartsWith(Namespace))
+					if (Core::Stringify(&Item.first).StartsWith(Namespace))
 						Deps.push_back(Item.first);
 				}
 
@@ -3871,7 +3871,7 @@ namespace Edge
 			}
 
 			std::string Target = Name;
-			if (Core::String(&Target).EndsWith(".as"))
+			if (Core::Stringify(&Target).EndsWith(".as"))
 				Target = Target.substr(0, Target.size() - 3);
 
 			Sync.General.lock();
@@ -3987,12 +3987,12 @@ namespace Edge
 			if (Path.empty())
 				return Path;
 
-			Core::String Src(Path);
-			Core::String::Settle Start = Src.ReverseFindOf("\\/");
+			Core::Stringify Src(Path);
+			Core::Stringify::Settle Start = Src.ReverseFindOf("\\/");
 			if (Start.Found)
 				Src.Substring(Start.End);
 
-			Core::String::Settle End = Src.ReverseFind('.');
+			Core::Stringify::Settle End = Src.ReverseFind('.');
 			if (End.Found)
 				Src.Substring(0, End.End);
 
@@ -4594,7 +4594,7 @@ namespace Edge
 					{
 						std::string File = Command.substr(2, Div - 2);
 						std::string Line = Command.substr(Div + 1);
-						int Number = Core::String(&Line).ToInt();
+						int Number = Core::Stringify(&Line).ToInt();
 
 						AddFileBreakPoint(File, Number);
 					}
@@ -4624,7 +4624,7 @@ namespace Edge
 						}
 						else
 						{
-							int NBR = Core::String(&BR).ToInt();
+							int NBR = Core::Stringify(&BR).ToInt();
 							if (NBR >= 0 && NBR < (int)BreakPoints.size())
 								BreakPoints.erase(BreakPoints.begin() + NBR);
 

@@ -2930,6 +2930,10 @@ namespace Edge
 		{
 			return Scene->GetStorage(Section);
 		}
+		void RenderSystem::WatchAll(std::vector<Parallel::Task>&& Tasks)
+		{
+			Scene->WatchAll(std::move(Tasks));
+		}
 
 		ShaderCache::ShaderCache(Graphics::GraphicsDevice* NewDevice) noexcept : Device(NewDevice)
 		{
@@ -4058,7 +4062,7 @@ namespace Edge
 				return;
 
 			Compute::Vector3 Diffuse = Base->Surface.Diffuse / Loading.Progress;
-			Loading.Progress = sin(Time->GetElapsed()) * 0.2 + 0.8;
+			Loading.Progress = sin(Time->GetElapsed()) * 0.2f + 0.8f;
 			Base->Surface.Diffuse = Diffuse * Loading.Progress;
 		}
 		void SceneGraph::StepGameplay(Core::Timer* Time)
@@ -5359,7 +5363,7 @@ namespace Edge
 		std::string SceneGraph::AsResourcePath(const std::string& Path)
 		{
 			ED_ASSERT(Conf.Shared.Content != nullptr, Path, "content manager should be set");
-			return Core::String(Path).Replace(Conf.Shared.Content->GetEnvironment(), "./").Replace('\\', '/').R();
+			return Core::Stringify(Path).Replace(Conf.Shared.Content->GetEnvironment(), "./").Replace('\\', '/').R();
 		}
 		Entity* SceneGraph::AddEntity()
 		{
@@ -5536,7 +5540,7 @@ namespace Edge
 				return;
 
 			Mutex.lock();
-			auto It = Assets.find(Core::String(File).Replace('\\', '/').Replace(Environment, "./").R());
+			auto It = Assets.find(Core::Stringify(File).Replace('\\', '/').Replace(Environment, "./").R());
 			if (It != Assets.end())
 				Assets.erase(It);
 			Mutex.unlock();
@@ -5545,7 +5549,7 @@ namespace Edge
 		{
 			Mutex.lock();
 			Environment = Core::OS::Path::ResolveDirectory(Path.c_str());
-			Core::String(&Environment).Replace('\\', '/');
+			Core::Stringify(&Environment).Replace('\\', '/');
 			Core::OS::Directory::Set(Environment.c_str());
 			Mutex.unlock();
 		}
@@ -5561,7 +5565,7 @@ namespace Edge
 				return nullptr;
 			}
 
-			Core::String File(Path);
+			Core::Stringify File(Path);
 			File.Replace('\\', '/').Replace("./", "");
 
 			Mutex.lock();
@@ -5874,7 +5878,7 @@ namespace Edge
 					if (!File)
 						continue;
 
-					std::string Path = Core::String(Resource).Replace(DirectoryBase, Name).Replace('\\', '/').R();
+					std::string Path = Core::Stringify(Resource).Replace(DirectoryBase, Name).Replace('\\', '/').R();
 					if (Name.empty())
 						Path.assign(Path.substr(1));
 
@@ -5928,7 +5932,7 @@ namespace Edge
 		void* ContentManager::TryToCache(Processor* Root, const std::string& Path, void* Resource)
 		{
 			ED_TRACE("[content] save 0x%" PRIXPTR " to cache", Resource);
-			std::string Target = Core::String(Path).Replace('\\', '/').Replace(Environment, "./").R();
+			std::string Target = Core::Stringify(Path).Replace('\\', '/').Replace(Environment, "./").R();
 			std::unique_lock<std::mutex> Unique(Mutex);
 			auto& Entries = Assets[Target];
 			auto& Entry = Entries[Root];
@@ -5973,7 +5977,7 @@ namespace Edge
 				return nullptr;
 
 			Mutex.lock();
-			auto It = Assets.find(Core::String(Path).Replace('\\', '/').Replace(Environment, "./").R());
+			auto It = Assets.find(Core::Stringify(Path).Replace('\\', '/').Replace(Environment, "./").R());
 			if (It != Assets.end())
 			{
 				auto KIt = It->second.find(Target);
@@ -6123,7 +6127,7 @@ namespace Edge
 
 			if (TypeId != nullptr)
 			{
-				Type = Core::String(TypeId).ToUpper().R();
+				Type = Core::Stringify(TypeId).ToUpper().R();
 				if (Type != "JSON" && Type != "JSONB" && Type != "XML")
 					Type = "JSONB";
 			}

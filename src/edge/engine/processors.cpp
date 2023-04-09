@@ -1041,7 +1041,7 @@ namespace Edge
 					else
 						Path.assign(Asset->Path);
 
-					if (!Core::String(&Path).EndsWith(Ext))
+					if (!Core::Stringify(&Path).EndsWith(Ext))
 						Path.append(Ext);
 
 					if (Content->Save<Engine::Material>(Path, Material, Args))
@@ -1127,9 +1127,9 @@ namespace Edge
 			}
 			void* AudioClipProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				if (Core::String(&Stream->GetSource()).EndsWith(".wav"))
+				if (Core::Stringify(&Stream->GetSource()).EndsWith(".wav"))
 					return DeserializeWAVE(Stream, Offset, Args);
-				else if (Core::String(&Stream->GetSource()).EndsWith(".ogg"))
+				else if (Core::Stringify(&Stream->GetSource()).EndsWith(".ogg"))
 					return DeserializeOGG(Stream, Offset, Args);
 
 				return nullptr;
@@ -1373,7 +1373,7 @@ namespace Edge
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				Model* Object = nullptr;
 				std::string& Path = Stream->GetSource();
-				Core::String Location(&Path);
+				Core::Stringify Location(&Path);
 
 				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
 				{
@@ -1538,7 +1538,7 @@ namespace Edge
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				SkinModel* Object = nullptr;
 				std::string& Path = Stream->GetSource();
-				Core::String Location(&Path);
+				Core::Stringify Location(&Path);
 
 				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
 				{
@@ -1657,7 +1657,7 @@ namespace Edge
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				std::vector<Compute::SkinAnimatorClip> Clips;
 				std::string& Path = Stream->GetSource();
-				Core::String Location(&Path);
+				Core::Stringify Location(&Path);
 
 				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
 				{
@@ -1914,7 +1914,7 @@ namespace Edge
 				if (Config != nullptr)
 				{
 					if (Series::Unpack(Config->Fetch("module-root"), &Router->ModuleRoot))
-						Core::String(&Router->ModuleRoot).Eval(N, D);
+						Core::Stringify(&Router->ModuleRoot).Eval(N, D);
 
 					if (!Series::Unpack(Config->Find("keep-alive"), &Router->KeepAliveMaxCount))
 						Router->KeepAliveMaxCount = 50;
@@ -1945,7 +1945,7 @@ namespace Edge
 					if (!Series::Unpack(It, &Name))
 						Name = "*";
 
-					Network::SocketCertificate* Cert = &Router->Certificates[Core::String(&Name).Eval(N, D).R()];
+					Network::SocketCertificate* Cert = &Router->Certificates[Core::Stringify(&Name).Eval(N, D).R()];
 					if (Series::Unpack(It->Find("protocol"), &Name))
 					{
 						if (!strcmp(Name.c_str(), "SSL_V2"))
@@ -1975,8 +1975,8 @@ namespace Edge
 					if (!Series::Unpack(It->Find("chain"), &Cert->Chain))
 						Cert->Chain.clear();
 
-					Core::String(&Cert->Key).Eval(N, D).R();
-					Core::String(&Cert->Chain).Eval(N, D).R();
+					Core::Stringify(&Cert->Key).Eval(N, D).R();
+					Core::Stringify(&Cert->Chain).Eval(N, D).R();
 				}
 
 				std::vector<Core::Schema*> Listeners = Blob->FindCollection("listen", true);
@@ -1986,11 +1986,11 @@ namespace Edge
 					if (!Series::Unpack(It, &Name))
 						Name = "*";
 
-					Network::RemoteHost* Host = &Router->Listeners[Core::String(&Name).Eval(N, D).R()];
+					Network::RemoteHost* Host = &Router->Listeners[Core::Stringify(&Name).Eval(N, D).R()];
 					if (!Series::Unpack(It->Find("hostname"), &Host->Hostname))
 						Host->Hostname = "0.0.0.0";
 
-					Core::String(&Host->Hostname).Eval(N, D).R();
+					Core::Stringify(&Host->Hostname).Eval(N, D).R();
 					if (!Series::Unpack(It->Find("port"), &Host->Port))
 						Host->Port = 80;
 
@@ -2004,7 +2004,7 @@ namespace Edge
 					std::string Name = "*";
 					Series::Unpack(It, &Name);
 
-					Network::HTTP::SiteEntry* Site = Router->Site(Core::String(&Name).Eval(N, D).Get());
+					Network::HTTP::SiteEntry* Site = Router->Site(Core::Stringify(&Name).Eval(N, D).Get());
 					if (Site == nullptr)
 						continue;
 
@@ -2030,7 +2030,7 @@ namespace Edge
 						Site->Gateway.Session.Cookie.HttpOnly = true;
 
 					if (Series::Unpack(It->Fetch("gateway.session.document-root"), &Site->Gateway.Session.DocumentRoot))
-						Core::String(&Site->Gateway.Session.DocumentRoot).Eval(N, D);
+						Core::Stringify(&Site->Gateway.Session.DocumentRoot).Eval(N, D);
 
 					if (!Series::Unpack(It->Fetch("gateway.session.expires"), &Site->Gateway.Session.Expires))
 						Site->Gateway.Session.Expires = 604800;
@@ -2045,7 +2045,7 @@ namespace Edge
 						Site->MaxResources = 5;
 
                     Series::Unpack(It->Find("resource-root"), &Site->ResourceRoot);
-                    Core::String(&Site->ResourceRoot).Eval(N, D);
+                    Core::Stringify(&Site->ResourceRoot).Eval(N, D);
 
 					std::unordered_map<std::string, Network::HTTP::RouteEntry*> Aliases;
 					std::vector<Core::Schema*> Groups = It->FindCollection("group", true);
@@ -2159,7 +2159,7 @@ namespace Edge
 								if (Series::Unpack(File, &Pattern))
 								{
 									if (!File->GetAttribute("use"))
-										Core::String(&Pattern).Eval(N, D);
+										Core::Stringify(&Pattern).Eval(N, D);
 
 									Route->IndexFiles.push_back(Pattern);
 								}
@@ -2175,7 +2175,7 @@ namespace Edge
 								if (Series::Unpack(File, &Pattern))
 								{
 									if (!File->GetAttribute("use"))
-										Core::String(&Pattern).Eval(N, D);
+										Core::Stringify(&Pattern).Eval(N, D);
 
 									Route->TryFiles.push_back(Pattern);
 								}
@@ -2189,7 +2189,7 @@ namespace Edge
 							{
 								Network::HTTP::ErrorFile Source;
 								if (Series::Unpack(File->Find("file"), &Source.Pattern))
-									Core::String(&Source.Pattern).Eval(N, D);
+									Core::Stringify(&Source.Pattern).Eval(N, D);
 
 								Series::Unpack(File->Find("status"), &Source.StatusCode);
 								Route->ErrorFiles.push_back(Source);
@@ -2240,7 +2240,7 @@ namespace Edge
 								Route->Compression.MemoryLevel = Compute::Mathi::Clamp(Route->Compression.MemoryLevel, 1, 9);
 
 							if (Series::Unpack(Base->Find("document-root"), &Route->DocumentRoot))
-								Core::String(&Route->DocumentRoot).Eval(N, D);
+								Core::Stringify(&Route->DocumentRoot).Eval(N, D);
 
 							Series::Unpack(Base->Find("override"), &Route->Override);
 							Series::Unpack(Base->Fetch("gateway.report-errors"), &Route->Gateway.ReportErrors);

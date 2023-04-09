@@ -856,7 +856,7 @@ namespace Edge
 			VirtualMachine* GetVM() const;
 
 		private:
-			static Core::String GetOperator(Operators Op, const char* Out, const char* Args, bool Const, bool Right);
+			static Core::Stringify GetOperator(Operators Op, const char* Out, const char* Args, bool Const, bool Right);
 
 		public:
 			template <typename T>
@@ -1021,7 +1021,7 @@ namespace Edge
 			int SetOperator(Operators Type, uint32_t Opts, const char* Out, const char* Args, R(T::* Value)(A...))
 			{
 				ED_ASSERT(Out != nullptr, -1, "output should be set");
-				Core::String Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
+				Core::Stringify Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
 
 				ED_ASSERT(!Operator.Empty(), -1, "resulting operator should not be empty");
 				asSFuncPtr* Ptr = Bridge::Method<T, R, A...>(Value);
@@ -1034,7 +1034,7 @@ namespace Edge
 			int SetOperatorEx(Operators Type, uint32_t Opts, const char* Out, const char* Args, R(*Value)(A...))
 			{
 				ED_ASSERT(Out != nullptr, -1, "output should be set");
-				Core::String Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
+				Core::Stringify Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
 
 				ED_ASSERT(!Operator.Empty(), -1, "resulting operator should not be empty");
 				asSFuncPtr* Ptr = Bridge::Function(Value);

@@ -1806,7 +1806,7 @@ namespace Edge
 					return true;
 				}
 
-				String Buffer(&Text);
+				Stringify Buffer(&Text);
 				if (Buffer.HasNumber())
 				{
 					if (Buffer.HasDecimal())
@@ -1936,7 +1936,7 @@ namespace Edge
 				return Value.Boolean ? 1 : 0;
 
 			if (Type == VarType::String)
-				return String(GetString(), GetSize()).ToInt64();
+				return Stringify(GetString(), GetSize()).ToInt64();
 
 			return 0;
 		}
@@ -1955,7 +1955,7 @@ namespace Edge
 				return Value.Boolean ? 1.0 : 0.0;
 
 			if (Type == VarType::String)
-				return String(GetString(), GetSize()).ToDouble();
+				return Stringify(GetString(), GetSize()).ToDouble();
 
 			return 0.0;
 		}
@@ -2362,7 +2362,7 @@ namespace Edge
 			T.tm_mon++;
 			T.tm_year += 1900;
 
-			return String(Value).Replace("{s}", T.tm_sec < 10 ? Form("0%i", T.tm_sec).R() : std::to_string(T.tm_sec)).Replace("{m}", T.tm_min < 10 ? Form("0%i", T.tm_min).R() : std::to_string(T.tm_min)).Replace("{h}", std::to_string(T.tm_hour)).Replace("{D}", std::to_string(T.tm_yday)).Replace("{MD}", T.tm_mday < 10 ? Form("0%i", T.tm_mday).R() : std::to_string(T.tm_mday)).Replace("{WD}", std::to_string(T.tm_wday + 1)).Replace("{M}", T.tm_mon < 10 ? Form("0%i", T.tm_mon).R() : std::to_string(T.tm_mon)).Replace("{Y}", std::to_string(T.tm_year)).R();
+			return Stringify(Value).Replace("{s}", T.tm_sec < 10 ? Form("0%i", T.tm_sec).R() : std::to_string(T.tm_sec)).Replace("{m}", T.tm_min < 10 ? Form("0%i", T.tm_min).R() : std::to_string(T.tm_min)).Replace("{h}", std::to_string(T.tm_hour)).Replace("{D}", std::to_string(T.tm_yday)).Replace("{MD}", T.tm_mday < 10 ? Form("0%i", T.tm_mday).R() : std::to_string(T.tm_mday)).Replace("{WD}", std::to_string(T.tm_wday + 1)).Replace("{M}", T.tm_mon < 10 ? Form("0%i", T.tm_mon).R() : std::to_string(T.tm_mon)).Replace("{Y}", std::to_string(T.tm_year)).R();
 		}
 		std::string DateTime::Iso8601()
 		{
@@ -2921,84 +2921,84 @@ namespace Edge
 			return 0;
 		}
 
-		String::String() noexcept : Deletable(true)
+		Stringify::Stringify() noexcept : Deletable(true)
 		{
 			Base = ED_NEW(std::string);
 		}
-		String::String(int Value) noexcept : Deletable(true)
+		Stringify::Stringify(int Value) noexcept : Deletable(true)
 		{
 			Base = ED_NEW(std::string, std::to_string(Value));
 		}
-		String::String(unsigned int Value) noexcept : Deletable(true)
+		Stringify::Stringify(unsigned int Value) noexcept : Deletable(true)
 		{
 			Base = ED_NEW(std::string, std::to_string(Value));
 		}
-		String::String(int64_t Value) noexcept : Deletable(true)
+		Stringify::Stringify(int64_t Value) noexcept : Deletable(true)
 		{
 			Base = ED_NEW(std::string, std::to_string(Value));
 		}
-		String::String(uint64_t Value) noexcept : Deletable(true)
+		Stringify::Stringify(uint64_t Value) noexcept : Deletable(true)
 		{
 			Base = ED_NEW(std::string, std::to_string(Value));
 		}
-		String::String(float Value) noexcept : Deletable(true)
+		Stringify::Stringify(float Value) noexcept : Deletable(true)
 		{
 			Base = ED_NEW(std::string, std::to_string(Value));
 		}
-		String::String(double Value) noexcept : Deletable(true)
+		Stringify::Stringify(double Value) noexcept : Deletable(true)
 		{
 			Base = ED_NEW(std::string, std::to_string(Value));
 		}
-		String::String(long double Value) noexcept : Deletable(true)
+		Stringify::Stringify(long double Value) noexcept : Deletable(true)
 		{
 			Base = ED_NEW(std::string, std::to_string(Value));
 		}
-		String::String(const std::string& Buffer) noexcept : Deletable(true)
+		Stringify::Stringify(const std::string& Buffer) noexcept : Deletable(true)
 		{
 			Base = ED_NEW(std::string, Buffer);
 		}
-		String::String(std::string* Buffer) noexcept
+		Stringify::Stringify(std::string* Buffer) noexcept
 		{
 			Deletable = (!Buffer);
 			Base = (Deletable ? ED_NEW(std::string) : Buffer);
 		}
-		String::String(const std::string* Buffer) noexcept
+		Stringify::Stringify(const std::string* Buffer) noexcept
 		{
 			Deletable = (!Buffer);
 			Base = (Deletable ? ED_NEW(std::string) : (std::string*)Buffer);
 		}
-		String::String(const char* Buffer) noexcept : Deletable(true)
+		Stringify::Stringify(const char* Buffer) noexcept : Deletable(true)
 		{
 			if (Buffer != nullptr)
 				Base = ED_NEW(std::string, Buffer);
 			else
 				Base = ED_NEW(std::string);
 		}
-		String::String(const char* Buffer, size_t Length) noexcept : Deletable(true)
+		Stringify::Stringify(const char* Buffer, size_t Length) noexcept : Deletable(true)
 		{
 			if (Buffer != nullptr)
 				Base = ED_NEW(std::string, Buffer, Length);
 			else
 				Base = ED_NEW(std::string);
 		}
-		String::String(String&& Value) noexcept : Base(Value.Base), Deletable(Value.Deletable)
+		Stringify::Stringify(Stringify&& Value) noexcept : Base(Value.Base), Deletable(Value.Deletable)
 		{
 			Value.Base = nullptr;
 			Value.Deletable = false;
 		}
-		String::String(const String& Value) noexcept : Deletable(true)
+		Stringify::Stringify(const Stringify& Value) noexcept : Deletable(true)
 		{
 			if (Value.Base != nullptr)
 				Base = ED_NEW(std::string, *Value.Base);
 			else
 				Base = ED_NEW(std::string);
 		}
-		String::~String() noexcept
+		Stringify::~Stringify() noexcept
 		{
 			if (Deletable)
 				ED_DELETE(basic_string, Base);
 		}
-		String& String::EscapePrint()
+		Stringify& Stringify::EscapePrint()
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			for (size_t i = 0; i < Base->size(); i++)
@@ -3023,7 +3023,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Escape()
+		Stringify& Stringify::Escape()
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			for (size_t i = 0; i < Base->size(); i++)
@@ -3057,7 +3057,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Unescape()
+		Stringify& Stringify::Unescape()
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			for (size_t i = 0; i < Base->size(); i++)
@@ -3088,7 +3088,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Reserve(size_t Count)
+		Stringify& Stringify::Reserve(size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Count > 0, *this, "count should be greater than Zero");
@@ -3096,13 +3096,13 @@ namespace Edge
 			Base->reserve(Base->capacity() + Count);
 			return *this;
 		}
-		String& String::Resize(size_t Count)
+		Stringify& Stringify::Resize(size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			Base->resize(Count);
 			return *this;
 		}
-		String& String::Resize(size_t Count, char Char)
+		Stringify& Stringify::Resize(size_t Count, char Char)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Count > 0, *this, "count should be greater than Zero");
@@ -3110,25 +3110,25 @@ namespace Edge
 			Base->resize(Count, Char);
 			return *this;
 		}
-		String& String::Clear()
+		Stringify& Stringify::Clear()
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			Base->clear();
 			return *this;
 		}
-		String& String::ToUpper()
+		Stringify& Stringify::ToUpper()
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			std::transform(Base->begin(), Base->end(), Base->begin(), ::toupper);
 			return *this;
 		}
-		String& String::ToLower()
+		Stringify& Stringify::ToLower()
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			std::transform(Base->begin(), Base->end(), Base->begin(), ::tolower);
 			return *this;
 		}
-		String& String::Clip(size_t Length)
+		Stringify& Stringify::Clip(size_t Length)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Length < Base->size())
@@ -3136,7 +3136,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Compress(const char* Tokenbase, const char* NotInBetweenOf, size_t Start)
+		Stringify& Stringify::Compress(const char* Tokenbase, const char* NotInBetweenOf, size_t Start)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 
@@ -3206,11 +3206,11 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::ReplaceOf(const char* Chars, const char* To, size_t Start)
+		Stringify& Stringify::ReplaceOf(const char* Chars, const char* To, size_t Start)
 		{
 			ED_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, *this, "match list and replacer should not be empty");
 
-			String::Settle Result { };
+			Stringify::Settle Result { };
 			size_t Offset = Start, ToSize = strlen(To);
 			while ((Result = FindOf(Chars, Offset)).Found)
 			{
@@ -3221,11 +3221,11 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::ReplaceNotOf(const char* Chars, const char* To, size_t Start)
+		Stringify& Stringify::ReplaceNotOf(const char* Chars, const char* To, size_t Start)
 		{
 			ED_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, *this, "match list and replacer should not be empty");
 
-			String::Settle Result {};
+			Stringify::Settle Result {};
 			size_t Offset = Start, ToSize = strlen(To);
 			while ((Result = FindNotOf(Chars, Offset)).Found)
 			{
@@ -3236,12 +3236,12 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Replace(const std::string& From, const std::string& To, size_t Start)
+		Stringify& Stringify::Replace(const std::string& From, const std::string& To, size_t Start)
 		{
 			ED_ASSERT(!From.empty(), *this, "match should not be empty");
 
 			size_t Offset = Start;
-			String::Settle Result { };
+			Stringify::Settle Result { };
 
 			while ((Result = Find(From, Offset)).Found)
 			{
@@ -3252,19 +3252,19 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::ReplaceGroups(const std::string& FromRegex, const std::string& To)
+		Stringify& Stringify::ReplaceGroups(const std::string& FromRegex, const std::string& To)
 		{
 			Compute::RegexSource Source('(' + FromRegex + ')');
 			Compute::Regex::Replace(&Source, To, *Base);
 			return *this;
 		}
-		String& String::Replace(const char* From, const char* To, size_t Start)
+		Stringify& Stringify::Replace(const char* From, const char* To, size_t Start)
 		{
 			ED_ASSERT(From != nullptr && To != nullptr, *this, "from and to should not be empty");
 
 			size_t Offset = Start;
 			size_t Size = strlen(To);
-			String::Settle Result { };
+			Stringify::Settle Result { };
 
 			while ((Result = Find(From, Offset)).Found)
 			{
@@ -3275,7 +3275,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Replace(const char& From, const char& To, size_t Position)
+		Stringify& Stringify::Replace(const char& From, const char& To, size_t Position)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			for (size_t i = Position; i < Base->size(); i++)
@@ -3287,7 +3287,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Replace(const char& From, const char& To, size_t Position, size_t Count)
+		Stringify& Stringify::Replace(const char& From, const char& To, size_t Position, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Base->size() >= (Position + Count), *this, "invalid offset");
@@ -3302,11 +3302,11 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::ReplacePart(size_t Start, size_t End, const std::string& Value)
+		Stringify& Stringify::ReplacePart(size_t Start, size_t End, const std::string& Value)
 		{
 			return ReplacePart(Start, End, Value.c_str());
 		}
-		String& String::ReplacePart(size_t Start, size_t End, const char* Value)
+		Stringify& Stringify::ReplacePart(size_t Start, size_t End, const char* Value)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Start < Base->size(), *this, "invalid start");
@@ -3328,7 +3328,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const std::string& With, size_t Start)
+		Stringify& Stringify::ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const std::string& With, size_t Start)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Begins != nullptr && Begins[0] != '\0', *this, "begin should not be empty");
@@ -3377,7 +3377,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::ReplaceInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start)
+		Stringify& Stringify::ReplaceInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Begins != nullptr && Begins[0] != '\0', *this, "begin should not be empty");
@@ -3442,7 +3442,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::ReplaceNotInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start)
+		Stringify& Stringify::ReplaceNotInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Begins != nullptr && Begins[0] != '\0', *this, "begin should not be empty");
@@ -3513,10 +3513,10 @@ namespace Edge
 			Base->replace(Base->begin() + ReplaceAt, Base->end(), With);
 			return *this;
 		}
-		String& String::ReplaceParts(std::vector<std::pair<std::string, String::Settle>>& Inout, const std::string& With, const std::function<char(const std::string&, char, int)>& Surrounding)
+		Stringify& Stringify::ReplaceParts(std::vector<std::pair<std::string, Stringify::Settle>>& Inout, const std::string& With, const std::function<char(const std::string&, char, int)>& Surrounding)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			ED_SORT(Inout.begin(), Inout.end(), [](const std::pair<std::string, String::Settle>& A, const std::pair<std::string, String::Settle>& B)
+			ED_SORT(Inout.begin(), Inout.end(), [](const std::pair<std::string, Stringify::Settle>& A, const std::pair<std::string, Stringify::Settle>& B)
 			{
 				return A.second.Start < B.second.Start;
 			});
@@ -3561,10 +3561,10 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::ReplaceParts(std::vector<String::Settle>& Inout, const std::string& With, const std::function<char(char, int)>& Surrounding)
+		Stringify& Stringify::ReplaceParts(std::vector<Stringify::Settle>& Inout, const std::string& With, const std::function<char(char, int)>& Surrounding)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");	
-			ED_SORT(Inout.begin(), Inout.end(), [](const String::Settle& A, const String::Settle& B)
+			ED_SORT(Inout.begin(), Inout.end(), [](const Stringify::Settle& A, const Stringify::Settle& B)
 			{
 				return A.Start < B.Start;
 			});
@@ -3609,7 +3609,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::RemovePart(size_t Start, size_t End)
+		Stringify& Stringify::RemovePart(size_t Start, size_t End)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Start < Base->size(), *this, "invalid start");
@@ -3630,7 +3630,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Reverse()
+		Stringify& Stringify::Reverse()
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Base->empty())
@@ -3638,7 +3638,7 @@ namespace Edge
 
 			return Reverse(0, Base->size());
 		}
-		String& String::Reverse(size_t Start, size_t End)
+		Stringify& Stringify::Reverse(size_t Start, size_t End)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Base->size() >= 2, *this, "length should be at least 2 chars");
@@ -3649,7 +3649,7 @@ namespace Edge
 			std::reverse(Base->begin() + Start, Base->begin() + End);
 			return *this;
 		}
-		String& String::Substring(size_t Start)
+		Stringify& Stringify::Substring(size_t Start)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Start < Base->size())
@@ -3659,7 +3659,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Substring(size_t Start, size_t Count)
+		Stringify& Stringify::Substring(size_t Start, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Count > 0 && Start < Base->size())
@@ -3669,7 +3669,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Substring(const String::Settle& Result)
+		Stringify& Stringify::Substring(const Stringify::Settle& Result)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Result.Found, *this, "result should be found");
@@ -3688,7 +3688,7 @@ namespace Edge
 			Base->assign(Base->substr(Result.Start, (size_t)(Offset < 0 ? -Offset : Offset)));
 			return *this;
 		}
-		String& String::Splice(size_t Start, size_t End)
+		Stringify& Stringify::Splice(size_t Start, size_t End)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Start < Base->size(), *this, "result start should be less or equal than length - 1");
@@ -3700,7 +3700,7 @@ namespace Edge
 			Base->assign(Base->substr(Start, (size_t)(Offset < 0 ? -Offset : Offset)));
 			return *this;
 		}
-		String& String::Trim()
+		Stringify& Stringify::Trim()
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			Base->erase(Base->begin(), std::find_if(Base->begin(), Base->end(), [](int C) -> int
@@ -3720,7 +3720,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Fill(const char& Char)
+		Stringify& Stringify::Fill(const char& Char)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(!Base->empty(), *this, "length should be greater than Zero");
@@ -3730,7 +3730,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Fill(const char& Char, size_t Count)
+		Stringify& Stringify::Fill(const char& Char, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(!Base->empty(), *this, "length should be greater than Zero");
@@ -3738,7 +3738,7 @@ namespace Edge
 			Base->assign(Count, Char);
 			return *this;
 		}
-		String& String::Fill(const char& Char, size_t Start, size_t Count)
+		Stringify& Stringify::Fill(const char& Char, size_t Start, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(!Base->empty(), *this, "length should be greater than Zero");
@@ -3753,7 +3753,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Assign(const char* Raw)
+		Stringify& Stringify::Assign(const char* Raw)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Raw != nullptr)
@@ -3763,7 +3763,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Assign(const char* Raw, size_t Length)
+		Stringify& Stringify::Assign(const char* Raw, size_t Length)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Raw != nullptr)
@@ -3773,13 +3773,13 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Assign(const std::string& Raw)
+		Stringify& Stringify::Assign(const std::string& Raw)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			Base->assign(Raw);
 			return *this;
 		}
-		String& String::Assign(const std::string& Raw, size_t Start, size_t Count)
+		Stringify& Stringify::Assign(const std::string& Raw, size_t Start, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Start >= Raw.size() || !Count)
@@ -3788,7 +3788,7 @@ namespace Edge
 				Base->assign(Raw.substr(Start, Count));
 			return *this;
 		}
-		String& String::Assign(const char* Raw, size_t Start, size_t Count)
+		Stringify& Stringify::Assign(const char* Raw, size_t Start, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Raw != nullptr, *this, "assign string should be set");
@@ -3796,7 +3796,7 @@ namespace Edge
 			Base->assign(Raw);
 			return Substring(Start, Count);
 		}
-		String& String::Append(const char* Raw)
+		Stringify& Stringify::Append(const char* Raw)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Raw != nullptr, *this, "append string should be set");
@@ -3804,25 +3804,25 @@ namespace Edge
 			Base->append(Raw);
 			return *this;
 		}
-		String& String::Append(const char& Char)
+		Stringify& Stringify::Append(const char& Char)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			Base->append(1, Char);
 			return *this;
 		}
-		String& String::Append(const char& Char, size_t Count)
+		Stringify& Stringify::Append(const char& Char, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			Base->append(Count, Char);
 			return *this;
 		}
-		String& String::Append(const std::string& Raw)
+		Stringify& Stringify::Append(const std::string& Raw)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			Base->append(Raw);
 			return *this;
 		}
-		String& String::Append(const char* Raw, size_t Count)
+		Stringify& Stringify::Append(const char* Raw, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Raw != nullptr, *this, "append string should be set");
@@ -3830,7 +3830,7 @@ namespace Edge
 			Base->append(Raw, Count);
 			return *this;
 		}
-		String& String::Append(const char* Raw, size_t Start, size_t Count)
+		Stringify& Stringify::Append(const char* Raw, size_t Start, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Raw != nullptr, *this, "append string should be set");
@@ -3840,7 +3840,7 @@ namespace Edge
 			Base->append(Raw + Start, Count - Start);
 			return *this;
 		}
-		String& String::Append(const std::string& Raw, size_t Start, size_t Count)
+		Stringify& Stringify::Append(const std::string& Raw, size_t Start, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Count > 0, *this, "count should be greater than Zero");
@@ -3849,7 +3849,7 @@ namespace Edge
 			Base->append(Raw.substr(Start, Count));
 			return *this;
 		}
-		String& String::fAppend(const char* Format, ...)
+		Stringify& Stringify::fAppend(const char* Format, ...)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Format != nullptr, *this, "format should be set");
@@ -3862,7 +3862,7 @@ namespace Edge
 
 			return Append(Buffer, Count);
 		}
-		String& String::Insert(const std::string& Raw, size_t Position)
+		Stringify& Stringify::Insert(const std::string& Raw, size_t Position)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Position >= Base->size())
@@ -3871,7 +3871,7 @@ namespace Edge
 			Base->insert(Position, Raw);
 			return *this;
 		}
-		String& String::Insert(const std::string& Raw, size_t Position, size_t Start, size_t Count)
+		Stringify& Stringify::Insert(const std::string& Raw, size_t Position, size_t Start, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Position >= Base->size())
@@ -3882,7 +3882,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::Insert(const std::string& Raw, size_t Position, size_t Count)
+		Stringify& Stringify::Insert(const std::string& Raw, size_t Position, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Position >= Base->size())
@@ -3894,7 +3894,7 @@ namespace Edge
 			Base->insert(Position, Raw.substr(0, Count));
 			return *this;
 		}
-		String& String::Insert(const char& Char, size_t Position, size_t Count)
+		Stringify& Stringify::Insert(const char& Char, size_t Position, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Position >= Base->size())
@@ -3903,7 +3903,7 @@ namespace Edge
 			Base->insert(Position, Count, Char);
 			return *this;
 		}
-		String& String::Insert(const char& Char, size_t Position)
+		Stringify& Stringify::Insert(const char& Char, size_t Position)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Position >= Base->size())
@@ -3912,25 +3912,25 @@ namespace Edge
 			Base->insert(Base->begin() + Position, Char);
 			return *this;
 		}
-		String& String::Erase(size_t Position)
+		Stringify& Stringify::Erase(size_t Position)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Position < Base->size(), *this, "position should be less than length");
 			Base->erase(Position);
 			return *this;
 		}
-		String& String::Erase(size_t Position, size_t Count)
+		Stringify& Stringify::Erase(size_t Position, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Position < Base->size(), *this, "position should be less than length");
 			Base->erase(Position, Count);
 			return *this;
 		}
-		String& String::EraseOffsets(size_t Start, size_t End)
+		Stringify& Stringify::EraseOffsets(size_t Start, size_t End)
 		{
 			return Erase(Start, End - Start);
 		}
-		String& String::Eval(const std::string& Net, const std::string& Dir)
+		Stringify& Stringify::Eval(const std::string& Net, const std::string& Dir)
 		{
 			if (Base->empty())
 				return *this;
@@ -3957,9 +3957,9 @@ namespace Edge
 
 			return *this;
 		}
-		std::vector<std::pair<std::string, String::Settle>> String::FindInBetween(const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset) const
+		std::vector<std::pair<std::string, Stringify::Settle>> Stringify::FindInBetween(const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset) const
 		{
-			std::vector<std::pair<std::string, String::Settle>> Result;
+			std::vector<std::pair<std::string, Stringify::Settle>> Result;
 			ED_ASSERT(Begins != nullptr && Begins[0] != '\0', Result, "begin should not be empty");
 			ED_ASSERT(Ends != nullptr && Ends[0] != '\0', Result, "end should not be empty");
 
@@ -4027,9 +4027,9 @@ namespace Edge
 
 			return Result;
 		}
-		std::vector<std::pair<std::string, String::Settle>> String::FindStartsWithEndsOf(const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset) const
+		std::vector<std::pair<std::string, Stringify::Settle>> Stringify::FindStartsWithEndsOf(const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset) const
 		{
-			std::vector<std::pair<std::string, String::Settle>> Result;
+			std::vector<std::pair<std::string, Stringify::Settle>> Result;
 			ED_ASSERT(Begins != nullptr && Begins[0] != '\0', Result, "begin should not be empty");
 			ED_ASSERT(EndsOf != nullptr && EndsOf[0] != '\0', Result, "end should not be empty");
 
@@ -4105,9 +4105,9 @@ namespace Edge
 
 			return Result;
 		}
-		String::Settle String::ReverseFind(const std::string& Needle, size_t Offset) const
+		Stringify::Settle Stringify::ReverseFind(const std::string& Needle, size_t Offset) const
 		{
-			ED_ASSERT(Base != nullptr, String::Settle(), "cannot parse without context");
+			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
 
@@ -4127,9 +4127,9 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		String::Settle String::ReverseFind(const char* Needle, size_t Offset) const
+		Stringify::Settle Stringify::ReverseFind(const char* Needle, size_t Offset) const
 		{
-			ED_ASSERT(Base != nullptr, String::Settle(), "cannot parse without context");
+			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
 
@@ -4150,9 +4150,9 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		String::Settle String::ReverseFind(const char& Needle, size_t Offset) const
+		Stringify::Settle Stringify::ReverseFind(const char& Needle, size_t Offset) const
 		{
-			ED_ASSERT(Base != nullptr, String::Settle(), "cannot parse without context");
+			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
 
@@ -4165,9 +4165,9 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		String::Settle String::ReverseFindUnescaped(const char& Needle, size_t Offset) const
+		Stringify::Settle Stringify::ReverseFindUnescaped(const char& Needle, size_t Offset) const
 		{
-			ED_ASSERT(Base != nullptr, String::Settle(), "cannot parse without context");
+			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
 
@@ -4180,9 +4180,9 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		String::Settle String::ReverseFindOf(const std::string& Needle, size_t Offset) const
+		Stringify::Settle Stringify::ReverseFindOf(const std::string& Needle, size_t Offset) const
 		{
-			ED_ASSERT(Base != nullptr, String::Settle(), "cannot parse without context");
+			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
 
@@ -4198,9 +4198,9 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		String::Settle String::ReverseFindOf(const char* Needle, size_t Offset) const
+		Stringify::Settle Stringify::ReverseFindOf(const char* Needle, size_t Offset) const
 		{
-			ED_ASSERT(Base != nullptr, String::Settle(), "cannot parse without context");
+			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
 
@@ -4220,9 +4220,9 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		String::Settle String::Find(const std::string& Needle, size_t Offset) const
+		Stringify::Settle Stringify::Find(const std::string& Needle, size_t Offset) const
 		{
-			ED_ASSERT(Base != nullptr, String::Settle(), "cannot parse without context");
+			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
 
@@ -4233,10 +4233,10 @@ namespace Edge
 			size_t Set = (size_t)(It - Base->c_str());
 			return { Set, Set + Needle.size(), true };
 		}
-		String::Settle String::Find(const char* Needle, size_t Offset) const
+		Stringify::Settle Stringify::Find(const char* Needle, size_t Offset) const
 		{
-			ED_ASSERT(Base != nullptr, String::Settle(), "cannot parse without context");
-			ED_ASSERT(Needle != nullptr, String::Settle(), "needle should be set");
+			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
+			ED_ASSERT(Needle != nullptr, Stringify::Settle(), "needle should be set");
 
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
@@ -4248,9 +4248,9 @@ namespace Edge
 			size_t Set = (size_t)(It - Base->c_str());
 			return { Set, Set + strlen(Needle), true };
 		}
-		String::Settle String::Find(const char& Needle, size_t Offset) const
+		Stringify::Settle Stringify::Find(const char& Needle, size_t Offset) const
 		{
-			ED_ASSERT(Base != nullptr, String::Settle(), "cannot parse without context");
+			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			for (size_t i = Offset; i < Base->size(); i++)
 			{
 				if (Base->at(i) == Needle)
@@ -4259,9 +4259,9 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		String::Settle String::FindUnescaped(const char& Needle, size_t Offset) const
+		Stringify::Settle Stringify::FindUnescaped(const char& Needle, size_t Offset) const
 		{
-			ED_ASSERT(Base != nullptr, String::Settle(), "cannot parse without context");
+			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			for (size_t i = Offset; i < Base->size(); i++)
 			{
 				if (Base->at(i) == Needle && ((int64_t)i - 1 < 0 || Base->at(i - 1) != '\\'))
@@ -4270,9 +4270,9 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		String::Settle String::FindOf(const std::string& Needle, size_t Offset) const
+		Stringify::Settle Stringify::FindOf(const std::string& Needle, size_t Offset) const
 		{
-			ED_ASSERT(Base != nullptr, String::Settle(), "cannot parse without context");
+			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			for (size_t i = Offset; i < Base->size(); i++)
 			{
 				for (char k : Needle)
@@ -4284,10 +4284,10 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		String::Settle String::FindOf(const char* Needle, size_t Offset) const
+		Stringify::Settle Stringify::FindOf(const char* Needle, size_t Offset) const
 		{
-			ED_ASSERT(Base != nullptr, String::Settle(), "cannot parse without context");
-			ED_ASSERT(Needle != nullptr, String::Settle(), "needle should be set");
+			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
+			ED_ASSERT(Needle != nullptr, Stringify::Settle(), "needle should be set");
 
 			size_t Length = strlen(Needle);
 			for (size_t i = Offset; i < Base->size(); i++)
@@ -4301,9 +4301,9 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		String::Settle String::FindNotOf(const std::string& Needle, size_t Offset) const
+		Stringify::Settle Stringify::FindNotOf(const std::string& Needle, size_t Offset) const
 		{
-			ED_ASSERT(Base != nullptr, String::Settle(), "cannot parse without context");
+			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			for (size_t i = Offset; i < Base->size(); i++)
 			{
 				bool Result = false;
@@ -4322,10 +4322,10 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		String::Settle String::FindNotOf(const char* Needle, size_t Offset) const
+		Stringify::Settle Stringify::FindNotOf(const char* Needle, size_t Offset) const
 		{
-			ED_ASSERT(Base != nullptr, String::Settle(), "cannot parse without context");
-			ED_ASSERT(Needle != nullptr, String::Settle(), "needle should be set");
+			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
+			ED_ASSERT(Needle != nullptr, Stringify::Settle(), "needle should be set");
 
 			size_t Length = strlen(Needle);
 			for (size_t i = Offset; i < Base->size(); i++)
@@ -4346,7 +4346,7 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		bool String::IsPrecededBy(size_t At, const char* Of) const
+		bool Stringify::IsPrecededBy(size_t At, const char* Of) const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			ED_ASSERT(Of != nullptr, false, "tokenbase should be set");
@@ -4364,7 +4364,7 @@ namespace Edge
 
 			return false;
 		}
-		bool String::IsFollowedBy(size_t At, const char* Of) const
+		bool Stringify::IsFollowedBy(size_t At, const char* Of) const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			ED_ASSERT(Of != nullptr, false, "tokenbase should be set");
@@ -4382,7 +4382,7 @@ namespace Edge
 
 			return false;
 		}
-		bool String::StartsWith(const std::string& Value, size_t Offset) const
+		bool Stringify::StartsWith(const std::string& Value, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			if (Base->size() < Value.size())
@@ -4396,7 +4396,7 @@ namespace Edge
 
 			return true;
 		}
-		bool String::StartsWith(const char* Value, size_t Offset) const
+		bool Stringify::StartsWith(const char* Value, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			ED_ASSERT(Value != nullptr, false, "value should be set");
@@ -4413,7 +4413,7 @@ namespace Edge
 
 			return true;
 		}
-		bool String::StartsOf(const char* Value, size_t Offset) const
+		bool Stringify::StartsOf(const char* Value, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			ED_ASSERT(Value != nullptr, false, "value should be set");
@@ -4430,7 +4430,7 @@ namespace Edge
 
 			return false;
 		}
-		bool String::StartsNotOf(const char* Value, size_t Offset) const
+		bool Stringify::StartsNotOf(const char* Value, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			ED_ASSERT(Value != nullptr, false, "value should be set");
@@ -4451,7 +4451,7 @@ namespace Edge
 
 			return Result;
 		}
-		bool String::EndsWith(const std::string& Value) const
+		bool Stringify::EndsWith(const std::string& Value) const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			if (Base->empty() || Value.size() > Base->size())
@@ -4459,7 +4459,7 @@ namespace Edge
 
 			return strcmp(Base->c_str() + Base->size() - Value.size(), Value.c_str()) == 0;
 		}
-		bool String::EndsWith(const char* Value) const
+		bool Stringify::EndsWith(const char* Value) const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			ED_ASSERT(Value != nullptr, false, "value should be set");
@@ -4470,12 +4470,12 @@ namespace Edge
 
 			return strcmp(Base->c_str() + Base->size() - Size, Value) == 0;
 		}
-		bool String::EndsWith(const char& Value) const
+		bool Stringify::EndsWith(const char& Value) const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			return !Base->empty() && Base->back() == Value;
 		}
-		bool String::EndsOf(const char* Value) const
+		bool Stringify::EndsOf(const char* Value) const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			ED_ASSERT(Value != nullptr, false, "value should be set");
@@ -4492,7 +4492,7 @@ namespace Edge
 
 			return false;
 		}
-		bool String::EndsNotOf(const char* Value) const
+		bool Stringify::EndsNotOf(const char* Value) const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			ED_ASSERT(Value != nullptr, false, "value should be set");
@@ -4509,12 +4509,12 @@ namespace Edge
 
 			return true;
 		}
-		bool String::Empty() const
+		bool Stringify::Empty() const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			return Base->empty();
 		}
-		bool String::HasInteger() const
+		bool Stringify::HasInteger() const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			if (Base->empty())
@@ -4541,7 +4541,7 @@ namespace Edge
 
 			return true;
 		}
-		bool String::HasNumber() const
+		bool Stringify::HasNumber() const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			if (Base->empty() || (Base->size() == 1 && Base->front() == '.'))
@@ -4576,18 +4576,18 @@ namespace Edge
 
 			return true;
 		}
-		bool String::HasDecimal() const
+		bool Stringify::HasDecimal() const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 
 			auto F = Find('.');
 			if (F.Found)
 			{
-				auto D1 = String(Base->c_str(), F.End - 1);
+				auto D1 = Stringify(Base->c_str(), F.End - 1);
 				if (D1.Empty() || !D1.HasInteger())
 					return false;
 
-				auto D2 = String(Base->c_str() + F.End + 1, Base->size() - F.End - 1);
+				auto D2 = Stringify(Base->c_str() + F.End + 1, Base->size() - F.End - 1);
 				if (D2.Empty() || !D2.HasInteger())
 					return false;
 
@@ -4596,23 +4596,23 @@ namespace Edge
 
 			return HasInteger() && Base->size() >= 19;
 		}
-		bool String::ToBoolean() const
+		bool Stringify::ToBoolean() const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			return !strncmp(Base->c_str(), "true", 4) || !strncmp(Base->c_str(), "1", 1);
 		}
-		bool String::IsDigit(char Char)
+		bool Stringify::IsDigit(char Char)
 		{
 			return Char == '0' || Char == '1' || Char == '2' || Char == '3' || Char == '4' || Char == '5' || Char == '6' || Char == '7' || Char == '8' || Char == '9';
 		}
-		bool String::IsAlphabetic(char Char)
+		bool Stringify::IsAlphabetic(char Char)
 		{
 			if ((int)Char < -1 || (int)Char > 255)
 				return false;
 
 			return std::isalpha(Char) != 0;
 		}
-		int String::CaseCompare(const char* Value1, const char* Value2)
+		int Stringify::CaseCompare(const char* Value1, const char* Value2)
 		{
 			ED_ASSERT(Value1 != nullptr && Value2 != nullptr, 0, "both values should be set");
 
@@ -4624,12 +4624,12 @@ namespace Edge
 
 			return Result;
 		}
-		int String::Match(const char* Pattern, const char* Text)
+		int Stringify::Match(const char* Pattern, const char* Text)
 		{
 			ED_ASSERT(Pattern != nullptr && Text != nullptr, -1, "pattern and text should be set");
 			return Match(Pattern, strlen(Pattern), Text);
 		}
-		int String::Match(const char* Pattern, size_t Length, const char* Text)
+		int Stringify::Match(const char* Pattern, size_t Length, const char* Text)
 		{
 			ED_ASSERT(Pattern != nullptr && Text != nullptr, -1, "pattern and text should be set");
 			const char* Token = (const char*)memchr(Pattern, '|', (size_t)Length);
@@ -4679,77 +4679,77 @@ namespace Edge
 
 			return j;
 		}
-		int String::ToInt() const
+		int Stringify::ToInt() const
 		{
 			ED_ASSERT(Base != nullptr, 0, "cannot parse without context");
 			return (int)strtol(Base->c_str(), nullptr, 10);
 		}
-		long String::ToLong() const
+		long Stringify::ToLong() const
 		{
 			ED_ASSERT(Base != nullptr, 0, "cannot parse without context");
 			return strtol(Base->c_str(), nullptr, 10);
 		}
-		float String::ToFloat() const
+		float Stringify::ToFloat() const
 		{
 			ED_ASSERT(Base != nullptr, 0.0f, "cannot parse without context");
 			return strtof(Base->c_str(), nullptr);
 		}
-		unsigned int String::ToUInt() const
+		unsigned int Stringify::ToUInt() const
 		{
 			ED_ASSERT(Base != nullptr, 0, "cannot parse without context");
 			return (unsigned int)ToULong();
 		}
-		unsigned long String::ToULong() const
+		unsigned long Stringify::ToULong() const
 		{
 			ED_ASSERT(Base != nullptr, 0, "cannot parse without context");
 			return strtoul(Base->c_str(), nullptr, 10);
 		}
-		int64_t String::ToInt64() const
+		int64_t Stringify::ToInt64() const
 		{
 			ED_ASSERT(Base != nullptr, 0, "cannot parse without context");
 			return strtoll(Base->c_str(), nullptr, 10);
 		}
-		double String::ToDouble() const
+		double Stringify::ToDouble() const
 		{
 			ED_ASSERT(Base != nullptr, 0.0, "cannot parse without context");
 			return strtod(Base->c_str(), nullptr);
 		}
-		long double String::ToLDouble() const
+		long double Stringify::ToLDouble() const
 		{
 			ED_ASSERT(Base != nullptr, 0.0, "cannot parse without context");
 			return strtold(Base->c_str(), nullptr);
 		}
-		uint64_t String::ToUInt64() const
+		uint64_t Stringify::ToUInt64() const
 		{
 			ED_ASSERT(Base != nullptr, 0, "cannot parse without context");
 			return strtoull(Base->c_str(), nullptr, 10);
 		}
-		size_t String::Size() const
+		size_t Stringify::Size() const
 		{
 			ED_ASSERT(Base != nullptr, 0, "cannot parse without context");
 			return Base->size();
 		}
-		size_t String::Capacity() const
+		size_t Stringify::Capacity() const
 		{
 			ED_ASSERT(Base != nullptr, 0, "cannot parse without context");
 			return Base->capacity();
 		}
-		char* String::Value() const
+		char* Stringify::Value() const
 		{
 			ED_ASSERT(Base != nullptr, nullptr, "cannot parse without context");
 			return (char*)Base->data();
 		}
-		const char* String::Get() const
+		const char* Stringify::Get() const
 		{
 			ED_ASSERT(Base != nullptr, nullptr, "cannot parse without context");
 			return Base->c_str();
 		}
-		std::string& String::R()
+		std::string& Stringify::R()
 		{
 			ED_ASSERT(Base != nullptr, *Base, "cannot parse without context");
 			return *Base;
 		}
-		std::wstring String::ToWide() const
+		std::wstring Stringify::ToWide() const
 		{
 			ED_ASSERT(Base != nullptr, std::wstring(), "cannot parse without context");
 			std::wstring Output;
@@ -4812,7 +4812,7 @@ namespace Edge
 
 			return Output;
 		}
-		std::vector<std::string> String::Split(const std::string& With, size_t Start) const
+		std::vector<std::string> Stringify::Split(const std::string& With, size_t Start) const
 		{
 			ED_ASSERT(Base != nullptr, std::vector<std::string>(), "cannot parse without context");
 			std::vector<std::string> Output;
@@ -4820,7 +4820,7 @@ namespace Edge
 				return Output;
 
 			size_t Offset = Start;
-			String::Settle Result = Find(With, Offset);
+			Stringify::Settle Result = Find(With, Offset);
 			while (Result.Found)
 			{
 				Output.emplace_back(Base->substr(Offset, Result.Start - Offset));
@@ -4832,7 +4832,7 @@ namespace Edge
 
 			return Output;
 		}
-		std::vector<std::string> String::Split(char With, size_t Start) const
+		std::vector<std::string> Stringify::Split(char With, size_t Start) const
 		{
 			ED_ASSERT(Base != nullptr, std::vector<std::string>(), "cannot parse without context");
 			std::vector<std::string> Output;
@@ -4840,7 +4840,7 @@ namespace Edge
 				return Output;
 
 			size_t Offset = Start;
-			String::Settle Result = Find(With, Start);
+			Stringify::Settle Result = Find(With, Start);
 			while (Result.Found)
 			{
 				Output.emplace_back(Base->substr(Offset, Result.Start - Offset));
@@ -4852,7 +4852,7 @@ namespace Edge
 
 			return Output;
 		}
-		std::vector<std::string> String::SplitMax(char With, size_t Count, size_t Start) const
+		std::vector<std::string> Stringify::SplitMax(char With, size_t Count, size_t Start) const
 		{
 			ED_ASSERT(Base != nullptr, std::vector<std::string>(), "cannot parse without context");
 			std::vector<std::string> Output;
@@ -4860,7 +4860,7 @@ namespace Edge
 				return Output;
 
 			size_t Offset = Start;
-			String::Settle Result = Find(With, Start);
+			Stringify::Settle Result = Find(With, Start);
 			while (Result.Found && Output.size() < Count)
 			{
 				Output.emplace_back(Base->substr(Offset, Result.Start - Offset));
@@ -4872,7 +4872,7 @@ namespace Edge
 
 			return Output;
 		}
-		std::vector<std::string> String::SplitOf(const char* With, size_t Start) const
+		std::vector<std::string> Stringify::SplitOf(const char* With, size_t Start) const
 		{
 			ED_ASSERT(Base != nullptr, std::vector<std::string>(), "cannot parse without context");
 			std::vector<std::string> Output;
@@ -4880,7 +4880,7 @@ namespace Edge
 				return Output;
 
 			size_t Offset = Start;
-			String::Settle Result = FindOf(With, Start);
+			Stringify::Settle Result = FindOf(With, Start);
 			while (Result.Found)
 			{
 				Output.emplace_back(Base->substr(Offset, Result.Start - Offset));
@@ -4892,7 +4892,7 @@ namespace Edge
 
 			return Output;
 		}
-		std::vector<std::string> String::SplitNotOf(const char* With, size_t Start) const
+		std::vector<std::string> Stringify::SplitNotOf(const char* With, size_t Start) const
 		{
 			ED_ASSERT(Base != nullptr, std::vector<std::string>(), "cannot parse without context");
 			std::vector<std::string> Output;
@@ -4900,7 +4900,7 @@ namespace Edge
 				return Output;
 
 			size_t Offset = Start;
-			String::Settle Result = FindNotOf(With, Start);
+			Stringify::Settle Result = FindNotOf(With, Start);
 			while (Result.Found)
 			{
 				Output.emplace_back(Base->substr(Offset, Result.Start - Offset));
@@ -4912,7 +4912,7 @@ namespace Edge
 
 			return Output;
 		}
-		void String::ConvertToWide(const char* Input, size_t InputSize, wchar_t* Output, size_t OutputSize)
+		void Stringify::ConvertToWide(const char* Input, size_t InputSize, wchar_t* Output, size_t OutputSize)
 		{
 			ED_ASSERT_V(Input != nullptr, "input should be set");
 			ED_ASSERT_V(Output != nullptr && OutputSize > 0, "output should be set");
@@ -4977,7 +4977,7 @@ namespace Edge
 			if (Size < OutputSize)
 				Output[Size] = '\0';
 		}
-		String& String::operator= (String&& Value) noexcept
+		Stringify& Stringify::operator= (Stringify&& Value) noexcept
 		{
 			ED_ASSERT(&Value != this, *this, "cannot set to self");
 			if (Deletable)
@@ -4990,7 +4990,7 @@ namespace Edge
 
 			return *this;
 		}
-		String& String::operator= (const String& Value) noexcept
+		Stringify& Stringify::operator= (const Stringify& Value) noexcept
 		{
 			ED_ASSERT(&Value != this, *this, "cannot set to self");
 			if (Deletable)
@@ -5004,7 +5004,7 @@ namespace Edge
 
 			return *this;
 		}
-		std::string String::ToString(float Number)
+		std::string Stringify::ToString(float Number)
 		{
 			std::string Result(std::to_string(Number));
 			Result.erase(Result.find_last_not_of('0') + 1, std::string::npos);
@@ -5013,7 +5013,7 @@ namespace Edge
 
 			return Result;
 		}
-		std::string String::ToString(double Number)
+		std::string Stringify::ToString(double Number)
 		{
 			std::string Result(std::to_string(Number));
 			Result.erase(Result.find_last_not_of('0') + 1, std::string::npos);
@@ -5521,35 +5521,23 @@ namespace Edge
 		{
 			for (auto& Page : Pages)
 			{
-				for (auto& Cache : Page.second.Cache)
-				{
-					if (Cache.second.Pool.size() < ElementsPerAllocation)
-						ED_DEBUG("[mem] free %" PRIu64 " bytes of leaked page block at 0x%" PRIXPTR, (uint64_t)Page.first, Cache.first);
-					else
-						MEM_TRACE("[mem] free %" PRIu64 " bytes of page block at 0x%" PRIXPTR, (uint64_t)Page.first, Cache.first);
-					free(Cache.first);
-				}
-				Page.second.Cache.clear();
+				for (auto* Address : Page.second->Cache)
+					DeallocatePageCache(Address, false);
+				delete Page.second;
 			}
+			Pages.clear();
 		}
 		void* PoolAllocator::Allocate(Context&& Origin, size_t Size) noexcept
 		{
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto& Page = Pages[Size];
-			auto* Cache = GetPageCache(Page);
+			auto* Page = GetPageGroup(Size);
+			auto* Cache = GetPageCache(std::move(Origin), Page, Size);
 			if (!Cache)
-			{
-				Cache = AllocatePageCache(std::move(Origin), Page, Size);
-				if (!Cache)
-					return nullptr;
-			}
+				return nullptr;
 	
 			void* Address = Cache->Pool.front();
+			Blocks[Address] = Cache;
 			Cache->Pool.pop();
-
-			auto& Next = Blocks[Address];
-			Next.BaseAddress = Cache->BaseAddress;
-			Next.Size = Size;
 
 			return Address;
 		}
@@ -5559,21 +5547,15 @@ namespace Edge
 			auto Block = Blocks.find(Address);
 			ED_ASSERT_V(Block != Blocks.end(), "address 0x" PRIXPTR " is not a valid address");
 
-			auto& Page = Pages[Block->second.Size];
-			auto Cache = Page.Cache.find(Block->second.BaseAddress);
-			ED_ASSERT_V(Cache != Page.Cache.end(), "address 0x" PRIXPTR " is not a valid address");
-
-			Cache->second.Pool.push(Address);
-			if (Cache->second.Pool.size() >= Cache->second.Capacity)
-			{
-				if (Cache->second.Capacity == 1 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Cache->second.AliveTime > (int64_t)MinimalLifeTime)
-				{
-					MEM_TRACE("[mem] free %" PRIu64 " bytes of page block at 0x%" PRIXPTR, (uint64_t)Block->second.Size, Cache->first);
-					free(Block->second.BaseAddress);
-					Page.Cache.erase(Block->second.BaseAddress);
-				}
-			}
+			auto* Cache = Block->second;
+			Cache->Pool.push(Address);
 			Blocks.erase(Block);
+
+			if (Cache->Pool.size() < Cache->Capacity)
+				return;
+
+			if (Cache->Capacity == 1 || GetClock() - Cache->AliveTime > (int64_t)MinimalLifeTime)
+				DeallocatePageCache(Cache, true);
 		}
 		void PoolAllocator::Watch(Context&& Origin, void* Address) noexcept
 		{
@@ -5585,7 +5567,16 @@ namespace Edge
 		{
 			return true;
 		}
-		PoolAllocator::PageCache* PoolAllocator::AllocatePageCache(Context&& Origin, PageGroup& Page, size_t Size)
+		void PoolAllocator::DeallocatePageCache(PageCache* Cache, bool EraseFromCache)
+		{
+			MEM_TRACE("[mem] free %" PRIu64 " bytes of page block at 0x%" PRIXPTR, (uint64_t)Cache->Page->Size, Cache->BaseAddress);
+			if (EraseFromCache)
+				Cache->Page->Cache.erase(Cache);
+
+			free(Cache->BaseAddress);
+			delete Cache;
+		}
+		PoolAllocator::PageCache* PoolAllocator::AllocatePageCache(Context&& Origin, PageGroup* Page, size_t Size)
 		{
 			size_t PageElements = GetElementsCount(Page, Size);
 			size_t PageSize = Size * PageElements;
@@ -5596,27 +5587,44 @@ namespace Edge
 			if (!Address)
 				return nullptr;
 
-			auto& Cache = Page.Cache[Address];
-			Cache.AliveTime = (int64_t)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-			Cache.BaseAddress = Address;
-			Cache.Capacity = PageElements;
-
+			auto* Cache = new PageCache();
+			Cache->AliveTime = GetClock();
+			Cache->Capacity = PageElements;
+			Cache->BaseAddress = Address;
+			Cache->Page = Page;
+			
 			for (size_t i = 0; i < PageElements; i++)
-				Cache.Pool.emplace(Address + Size * i);
+				Cache->Pool.emplace(Address + Size * i);
 
-			return &Cache;
+			Page->Cache.insert(Cache);
+			return Cache;
 		}
-		PoolAllocator::PageCache* PoolAllocator::GetPageCache(PageGroup& Page)
+		PoolAllocator::PageCache* PoolAllocator::GetPageCache(Context&& Origin, PageGroup* Page, size_t Size)
 		{
-			for (auto& Item : Page.Cache)
+			for (auto* Address : Page->Cache)
 			{
-				if (!Item.second.Pool.empty())
-					return &Item.second;
+				if (!Address->Pool.empty())
+					return Address;
 			}
 
-			return nullptr;
+			return AllocatePageCache(std::move(Origin), Page, Size);
 		}
-		size_t PoolAllocator::GetElementsCount(PageGroup& Page, size_t Size)
+		PoolAllocator::PageGroup* PoolAllocator::GetPageGroup(size_t Size)
+		{
+			auto*& Page = Pages[Size];
+			if (!Page)
+			{
+				Page = new PageGroup();
+				Page->Size = Size;
+			}
+
+			return Page;
+		}
+		int64_t PoolAllocator::GetClock()
+		{
+			return (int64_t)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		}
+		size_t PoolAllocator::GetElementsCount(PageGroup* Page, size_t Size)
 		{
 			double Total = (double)ElementsPerAllocation;
 			double Reducing = (double)Size / (double)ElementsReducingBase;
@@ -5633,23 +5641,23 @@ namespace Edge
 
 			return (size_t)Total;
 		}
-		double PoolAllocator::GetFrequency(PageGroup& Page)
+		double PoolAllocator::GetFrequency(PageGroup* Page)
 		{
 			if (Pages.size() <= 1)
 				return 1.0;
 
 			double Average = 0.0;
-			for (auto& Item : Pages)
+			for (auto& Next : Pages)
 			{
-				if (&Item.second != &Page)
-					Average += (double)Item.second.Cache.size();
+				if (Next.second != Page)
+					Average += (double)Next.second->Cache.size();
 			}
 
 			Average /= (double)Pages.size() - 1;
 			if (Average < 1.0)
 				Average = 1.0;
 
-			return std::max(1.0, (double)Page.Cache.size() / Average);
+			return std::max(1.0, (double)Page->Cache.size() / Average);
 		}
 
 		bool Composer::Clear()
@@ -6813,6 +6821,87 @@ namespace Edge
 			return (int64_t)Process;
 #endif
 		}
+		
+		OS::Process::ArgsContext::ArgsContext(int Argc, char** Argv, const std::string& WhenNoValue) noexcept
+        {
+            Base = OS::Process::GetArgs(Argc, Argv, WhenNoValue);
+        }
+        void OS::Process::ArgsContext::ForEach(const std::function<void(const std::string&, const std::string&)>& Callback) const
+        {
+            ED_ASSERT_V(Callback != nullptr, "callback should not be empty");
+            for (auto& Item : Base)
+                Callback(Item.first, Item.second);
+        }
+        bool OS::Process::ArgsContext::IsEnabled(const std::string& Option, const std::string& Shortcut) const
+        {
+            auto It = Base.find(Option);
+            if (It == Base.end() || !IsTrue(It->second))
+                return Shortcut.empty() ? false : IsEnabled(Shortcut);
+                            
+            return true;
+        }
+        bool OS::Process::ArgsContext::IsDisabled(const std::string& Option, const std::string& Shortcut) const
+        {
+            auto It = Base.find(Option);
+            if (It == Base.end())
+                return Shortcut.empty() ? true : IsDisabled(Shortcut);
+                            
+            return IsFalse(It->second);
+        }
+        bool OS::Process::ArgsContext::Has(const std::string& Option, const std::string& Shortcut) const
+        {
+            if (Base.find(Option) != Base.end())
+                return true;
+                        
+            return Shortcut.empty() ? false : Base.find(Shortcut) != Base.end();
+        }
+        std::string& OS::Process::ArgsContext::Get(const std::string& Option, const std::string& Shortcut)
+        {
+            if (Base.find(Option) != Base.end())
+                return Base[Option];
+                        
+            return Shortcut.empty() ? Base[Option] : Base[Shortcut];
+        }
+        std::string& OS::Process::ArgsContext::GetIf(const std::string& Option, const std::string& Shortcut, const std::string& WhenEmpty)
+        {
+            if (Base.find(Option) != Base.end())
+                return Base[Option];
+                        
+            if (!Shortcut.empty() && Base.find(Shortcut) != Base.end())
+                return Base[Shortcut];
+                        
+            std::string& Value = Base[Option];
+            Value = WhenEmpty;
+            return Value;
+        }
+        std::string& OS::Process::ArgsContext::GetAppPath()
+        {
+            return Get("__path__");
+        }
+        bool OS::Process::ArgsContext::IsTrue(const std::string& Value) const
+        {
+            if (Value.empty())
+                return false;
+                        
+            if (Stringify((std::string*)&Value).ToUInt64() > 0)
+                return true;
+                        
+			Stringify Data(Value);
+            Data.ToLower();
+            return Data.R() == "on" || Data.R() == "true" || Data.R() == "yes" || Data.R() == "y";
+        }
+        bool OS::Process::ArgsContext::IsFalse(const std::string& Value) const
+        {
+            if (Value.empty())
+                return true;
+                        
+            if (Stringify((std::string*)&Value).ToUInt64() > 0)
+                return false;
+                        
+			Stringify Data(Value);
+            Data.ToLower();
+            return Data.R() == "off" || Data.R() == "false" || Data.R() == "no" || Data.R() == "n";
+        }
 
 		OS::CPU::QuantityInfo OS::CPU::GetQuantityInfo()
 		{
@@ -7117,7 +7206,7 @@ namespace Edge
 			};
 
 			wchar_t Buffer[ED_CHUNK_SIZE];
-			String::ConvertToWide(Path.c_str(), Path.size(), Buffer, ED_CHUNK_SIZE);
+			Stringify::ConvertToWide(Path.c_str(), Path.size(), Buffer, ED_CHUNK_SIZE);
 
 			auto* Value = ED_MALLOC(Directory, sizeof(Directory));
 			DWORD Attributes = GetFileAttributesW(Buffer);
@@ -7179,7 +7268,7 @@ namespace Edge
 			std::string Result = Path::Resolve(Path);
 			Scan(Result, &Entries);
 
-			String R(&Result);
+			Stringify R(&Result);
 			if (!R.EndsOf("/\\"))
 				Result += ED_PATH_SPLIT;
 
@@ -7198,7 +7287,7 @@ namespace Edge
 			ED_DEBUG("[io] create dir %s", Path);
 #ifdef ED_MICROSOFT
 			wchar_t Buffer[ED_CHUNK_SIZE];
-			String::ConvertToWide(Path, strlen(Path), Buffer, ED_CHUNK_SIZE);
+			Stringify::ConvertToWide(Path, strlen(Path), Buffer, ED_CHUNK_SIZE);
 
 			size_t Length = wcslen(Buffer);
 			if (!Length)
@@ -7390,7 +7479,7 @@ namespace Edge
 			Resource->Path = Path;
 #if defined(ED_MICROSOFT)
 			wchar_t Buffer[ED_CHUNK_SIZE];
-			String::ConvertToWide(Path.c_str(), Path.size(), Buffer, ED_CHUNK_SIZE);
+			Stringify::ConvertToWide(Path.c_str(), Path.size(), Buffer, ED_CHUNK_SIZE);
 
 			WIN32_FILE_ATTRIBUTE_DATA Info;
 			if (GetFileAttributesExW(Buffer, GetFileExInfoStandard, &Info) == 0)
@@ -7628,8 +7717,8 @@ namespace Edge
 			ED_ASSERT(Path != nullptr && Mode != nullptr, nullptr, "path and mode should be set");
 #ifdef ED_MICROSOFT
 			wchar_t Buffer[ED_CHUNK_SIZE], Type[20];
-			String::ConvertToWide(Path, strlen(Path), Buffer, ED_CHUNK_SIZE);
-			String::ConvertToWide(Mode, strlen(Mode), Type, 20);
+			Stringify::ConvertToWide(Path, strlen(Path), Buffer, ED_CHUNK_SIZE);
+			Stringify::ConvertToWide(Mode, strlen(Mode), Type, 20);
 
 			FILE* Stream = _wfopen(Buffer, Type);
 			ED_DEBUG("[io] open fs %i %s %s", ED_FILENO(Stream), Mode, Path);
@@ -7649,7 +7738,7 @@ namespace Edge
 			if (URL.Protocol == "file")
 			{
 				Stream* Result = nullptr;
-				if (String(&Path).EndsWith(".gz"))
+				if (Stringify(&Path).EndsWith(".gz"))
 					Result = new GzStream();
 				else
 					Result = new FileStream();
@@ -7683,7 +7772,7 @@ namespace Edge
 			if (Data.Size > UnarchivedMaxSize)
 			{
 				Target = Open(Path, FileMode::Binary_Write_Only);
-				if (String(&Temp).EndsWith(".gz"))
+				if (Stringify(&Temp).EndsWith(".gz"))
 					return Target;
 
 				Stream* Archive = OpenJoin(Temp + ".gz", { Temp });
@@ -7814,7 +7903,7 @@ namespace Edge
 		std::vector<std::string> OS::File::ReadAsArray(const std::string& Path)
 		{
 			std::string Result = ReadAsString(Path);
-			return String(&Result).Split('\n');
+			return Stringify(&Result).Split('\n');
 		}
 
 		bool OS::Path::IsRemote(const char* Path)
@@ -7849,7 +7938,7 @@ namespace Edge
 			if (IsPathExists(Path.c_str()))
 				return Path;
 
-			String PathData(&Path), DirectoryData(&Directory);
+			Stringify PathData(&Path), DirectoryData(&Directory);
 			bool Prefixed = PathData.StartsOf("/\\");
 			bool Relative = !Prefixed && (PathData.StartsWith("./") || PathData.StartsWith(".\\"));
 			bool Postfixed = DirectoryData.EndsOf("/\\");
@@ -7868,7 +7957,7 @@ namespace Edge
 		std::string OS::Path::ResolveDirectory(const char* Path)
 		{
 			std::string Result = Resolve(Path);
-			if (!Result.empty() && !String(&Result).EndsOf("/\\"))
+			if (!Result.empty() && !Stringify(&Result).EndsOf("/\\"))
 				Result.append(1, ED_PATH_SPLIT);
 
 			return Result;
@@ -7876,7 +7965,7 @@ namespace Edge
 		std::string OS::Path::ResolveDirectory(const std::string& Path, const std::string& Directory)
 		{
 			std::string Result = Resolve(Path, Directory);
-			if (!Result.empty() && !String(&Result).EndsOf("/\\"))
+			if (!Result.empty() && !Stringify(&Result).EndsOf("/\\"))
 				Result.append(1, ED_PATH_SPLIT);
 
 			return Result;
@@ -7905,15 +7994,15 @@ namespace Edge
 		{
 			ED_ASSERT(Path != nullptr, std::string(), "path should be set");
 
-			String Buffer(Path);
-			String::Settle Result = Buffer.ReverseFindOf("/\\");
+			Stringify Buffer(Path);
+			Stringify::Settle Result = Buffer.ReverseFindOf("/\\");
 			if (!Result.Found)
 				return Path;
 
 			size_t Size = Buffer.Size();
 			for (size_t i = 0; i < Level; i++)
 			{
-				String::Settle Current = Buffer.ReverseFindOf("/\\", Size - Result.Start);
+				Stringify::Settle Current = Buffer.ReverseFindOf("/\\", Size - Result.Start);
 				if (!Current.Found)
 				{
 					if (Buffer.Splice(0, Result.End).Empty())
@@ -8035,11 +8124,11 @@ namespace Edge
 			PROCESS_INFORMATION Process;
 			ZeroMemory(&Process, sizeof(Process));
 
-			String Exe = Path::Resolve(Path.c_str());
+			Stringify Exe = Path::Resolve(Path.c_str());
 			if (!Exe.EndsWith(".exe"))
 				Exe.Append(".exe");
 
-			String Args = Form("\"%s\"", Exe.Get());
+			Stringify Args = Form("\"%s\"", Exe.Get());
 			for (const auto& Param : Params)
 				Args.Append(' ').Append(Param);
 
@@ -8201,7 +8290,7 @@ namespace Edge
 		void* OS::Symbol::Load(const std::string& Path)
 		{
 			ED_MEASURE(ED_TIMING_IO);
-			String Name(Path);
+			Stringify Name(Path);
 #ifdef ED_MICROSOFT
 			if (Path.empty())
 				return GetModuleHandle(nullptr);
@@ -8310,7 +8399,7 @@ namespace Edge
 		}
 		bool OS::Input::Save(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, std::string* Result)
 		{
-			std::vector<std::string> Sources = String(&Filter).Split(',');
+			std::vector<std::string> Sources = Stringify(&Filter).Split(',');
 			std::vector<char*> Patterns;
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
@@ -8330,7 +8419,7 @@ namespace Edge
 		}
 		bool OS::Input::Open(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, bool Multiple, std::string* Result)
 		{
-			std::vector<std::string> Sources = String(&Filter).Split(',');
+			std::vector<std::string> Sources = Stringify(&Filter).Split(',');
 			std::vector<char*> Patterns;
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
@@ -8401,7 +8490,7 @@ namespace Edge
 			std::string Result(Buffer, Size);
 			LocalFree(Buffer);
 
-			return String(&Result).Replace("\r", "").Replace("\n", "").R();
+			return Stringify(&Result).Replace("\r", "").Replace("\n", "").R();
 #else
 			char* Buffer = strerror(Code);
 			return Buffer ? Buffer : "";
@@ -8808,13 +8897,13 @@ namespace Edge
 			while (Text[Offset] != '\0')
 			{
 				auto& V = Text[Offset];
-				if (String::IsDigit(V))
+				if (Stringify::IsDigit(V))
 				{
 					Log->ColorBegin(StdColor::Yellow);
 					while (Offset < Size)
 					{
 						auto N = std::tolower(Text[Offset]);
-						if (!String::IsDigit(N) && N != '.' && N != 'a' && N != 'b' && N != 'c' && N != 'd' && N != 'e' && N != 'f' && N != 'x')
+						if (!Stringify::IsDigit(N) && N != '.' && N != 'a' && N != 'b' && N != 'c' && N != 'd' && N != 'e' && N != 'f' && N != 'x')
 							break;
 
 						Log->WriteChar(Text[Offset++]);
@@ -8828,7 +8917,7 @@ namespace Edge
 					Log->ColorBegin(StdColor::LightBlue);
 					Log->WriteChar(V);
 
-					while (Offset < Size && (String::IsDigit(Text[++Offset]) || String::IsAlphabetic(Text[Offset]) || Text[Offset] == '-' || Text[Offset] == '_'))
+					while (Offset < Size && (Stringify::IsDigit(Text[++Offset]) || Stringify::IsAlphabetic(Text[Offset]) || Text[Offset] == '-' || Text[Offset] == '_'))
 						Log->WriteChar(Text[Offset]);
 
 					Log->ColorBegin(BaseColor);
@@ -8874,7 +8963,7 @@ namespace Edge
 					Log->ColorBegin(BaseColor);
 					continue;
 				}
-				else if (String::IsAlphabetic(V) && (!Offset || !String::IsAlphabetic(Text[Offset - 1])))
+				else if (Stringify::IsAlphabetic(V) && (!Offset || !Stringify::IsAlphabetic(Text[Offset - 1])))
 				{
 					bool IsMatched = false;
 					for (size_t i = 0; i < sizeof(Tokens) / sizeof(PrettyToken); i++)
@@ -8883,7 +8972,7 @@ namespace Edge
 						if (V != Token.First || Size - Offset < Token.Size)
 							continue;
 
-						if (Offset + Token.Size < Size && String::IsAlphabetic(Text[Offset + Token.Size]))
+						if (Offset + Token.Size < Size && Stringify::IsAlphabetic(Text[Offset + Token.Size]))
 							continue;
 
 						if (memcmp(Text + Offset, Token.Token, Token.Size) == 0)
@@ -8976,7 +9065,7 @@ namespace Edge
 		FileLog::FileLog(const std::string& Root) noexcept : Offset(-1), Time(0), Path(Root)
 		{
 			Source = new FileStream();
-			auto V = String(&Path).Replace('\\', '/').Split('/');
+			auto V = Stringify(&Path).Replace('\\', '/').Split('/');
 			if (!V.empty())
 				Name = V.back();
 		}
@@ -9021,7 +9110,7 @@ namespace Edge
 			if (ValueLength == -1)
 				ValueLength = (int64_t)Value.size();
 
-			auto V = String(&Value).Substring(0, (size_t)ValueLength).Replace("\t", "\n").Replace("\n\n", "\n").Replace("\r", "");
+			auto V = Stringify(&Value).Substring(0, (size_t)ValueLength).Replace("\t", "\n").Replace("\n\n", "\n").Replace("\r", "");
 			ED_FREE(Data);
 
 			if (Value == LastValue)
@@ -10260,7 +10349,7 @@ namespace Edge
 		}
 		std::vector<Schema*> Schema::FetchCollection(const std::string& Notation, bool Deep) const
 		{
-			std::vector<std::string> Names = String(Notation).Split('.');
+			std::vector<std::string> Names = Stringify(Notation).Split('.');
 			if (Names.empty())
 				return std::vector<Schema*>();
 
@@ -10304,7 +10393,7 @@ namespace Edge
 			if (!Nodes)
 				return nullptr;
 
-			Core::String Number(&Name);
+			Core::Stringify Number(&Name);
 			if (Number.HasInteger())
 			{
 				size_t Index = (size_t)Number.ToUInt64();
@@ -10329,7 +10418,7 @@ namespace Edge
 		}
 		Schema* Schema::Fetch(const std::string& Notation, bool Deep) const
 		{
-			std::vector<std::string> Names = String(Notation).Split('.');
+			std::vector<std::string> Names = Stringify(Notation).Split('.');
 			if (Names.empty())
 				return nullptr;
 
@@ -10860,7 +10949,7 @@ namespace Edge
 			if (!Base->Parent && !Base->Value.IsObject())
 			{
 				std::string Value = Base->Value.Serialize();
-				Core::String Safe(&Value);
+				Core::Stringify Safe(&Value);
 				Safe.Escape();
 
 				if (Base->Value.Type != VarType::String && Base->Value.Type != VarType::Binary)
@@ -10905,7 +10994,7 @@ namespace Edge
 				if (!Next->Value.IsObject())
 				{
 					std::string Value = (Next->Value.GetType() == VarType::Undefined ? "null" : Next->Value.Serialize());
-					Core::String Safe(&Value);
+					Core::Stringify Safe(&Value);
 					Safe.Escape();
 
 					if (Array)

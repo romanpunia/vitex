@@ -248,7 +248,7 @@ namespace Edge
 			}
 			std::string String::Reverse(const std::string& Value)
 			{
-				Core::String Result(Value);
+				Core::Stringify Result(Value);
 				Result.Reverse();
 				return Result.R();
 			}
@@ -449,7 +449,7 @@ namespace Edge
 			}
 			std::string String::Replace(const std::string& A, const std::string& B, uint64_t Offset, const std::string& Base)
 			{
-				return Edge::Core::String(Base).Replace(A, B, (size_t)Offset).R();
+				return Edge::Core::Stringify(Base).Replace(A, B, (size_t)Offset).R();
 			}
 			as_int64_t String::IntStore(const std::string& Value, size_t Base, size_t* ByteCount)
 			{
@@ -573,11 +573,11 @@ namespace Edge
 			}
 			std::string String::ToLower(const std::string& Symbol)
 			{
-				return Edge::Core::String(Symbol).ToLower().R();
+				return Edge::Core::Stringify(Symbol).ToLower().R();
 			}
 			std::string String::ToUpper(const std::string& Symbol)
 			{
-				return Edge::Core::String(Symbol).ToUpper().R();
+				return Edge::Core::Stringify(Symbol).ToUpper().R();
 			}
 			std::string String::ToInt8(char Value)
 			{
@@ -4468,7 +4468,7 @@ namespace Edge
 					int TypeId = *(int*)Buffer;
 					Buffer += sizeof(int);
 
-					Core::String Result; std::string Offset;
+					Core::Stringify Result; std::string Offset;
 					FormatBuffer(VM, Result, Offset, (void*)Buffer, TypeId);
 					Args.push_back(Result.R()[0] == '\n' ? Result.Substring(1).R() : Result.R());
 
@@ -4492,13 +4492,13 @@ namespace Edge
 				if (!Context)
 					return "{}";
 
-				Core::String Result;
+				Core::Stringify Result;
 				FormatJSON(Context->GetVM(), Result, Ref, TypeId);
 				return Result.R();
 			}
 			std::string Format::Form(const std::string& F, const Format& Form)
 			{
-				Core::String Buffer = F;
+				Core::Stringify Buffer = F;
 				size_t Offset = 0;
 
 				for (auto& Item : Form.Args)
@@ -4515,7 +4515,7 @@ namespace Edge
 			}
 			void Format::WriteLine(Core::Console* Base, const std::string& F, Format* Form)
 			{
-				Core::String Buffer = F;
+				Core::Stringify Buffer = F;
 				size_t Offset = 0;
 
 				if (Form != nullptr)
@@ -4535,7 +4535,7 @@ namespace Edge
 			}
 			void Format::Write(Core::Console* Base, const std::string& F, Format* Form)
 			{
-				Core::String Buffer = F;
+				Core::Stringify Buffer = F;
 				size_t Offset = 0;
 
 				if (Form != nullptr)
@@ -4553,7 +4553,7 @@ namespace Edge
 
 				Base->sWrite(Buffer.R());
 			}
-			void Format::FormatBuffer(VirtualMachine* VM, Core::String& Result, std::string& Offset, void* Ref, int TypeId)
+			void Format::FormatBuffer(VirtualMachine* VM, Core::Stringify& Result, std::string& Offset, void* Ref, int TypeId)
 			{
 				if (TypeId < (int)TypeId::BOOL || TypeId >(int)TypeId::DOUBLE)
 				{
@@ -4567,7 +4567,7 @@ namespace Edge
 					if (TypeInfo::IsScriptObject(TypeId))
 					{
 						ScriptObject VObject = *(asIScriptObject**)Ref;
-						Core::String Decl;
+						Core::Stringify Decl;
 
 						Offset += '\t';
 						for (unsigned int i = 0; i < VObject.GetPropertiesCount(); i++)
@@ -4587,7 +4587,7 @@ namespace Edge
 					else if (strcmp(Type.GetName(), TYPENAME_DICTIONARY) == 0)
 					{
 						Dictionary* Base = *(Dictionary**)Ref;
-						Core::String Decl; std::string Name;
+						Core::Stringify Decl; std::string Name;
 
 						Offset += '\t';
 						for (unsigned int i = 0; i < Base->GetSize(); i++)
@@ -4611,7 +4611,7 @@ namespace Edge
 					{
 						Array* Base = *(Array**)Ref;
 						int ArrayTypeId = Base->GetElementTypeId();
-						Core::String Decl;
+						Core::Stringify Decl;
 
 						Offset += '\t';
 						for (unsigned int i = 0; i < Base->GetSize(); i++)
@@ -4629,7 +4629,7 @@ namespace Edge
 					}
 					else if (strcmp(Type.GetName(), TYPENAME_STRING) != 0)
 					{
-						Core::String Decl;
+						Core::Stringify Decl;
 						Offset += '\t';
 
 						Type.ForEachProperty([&Decl, VM, &Offset, Ref, TypeId](TypeInfo* Base, FunctionInfo* Prop)
@@ -4691,7 +4691,7 @@ namespace Edge
 					}
 				}
 			}
-			void Format::FormatJSON(VirtualMachine* VM, Core::String& Result, void* Ref, int TypeId)
+			void Format::FormatJSON(VirtualMachine* VM, Core::Stringify& Result, void* Ref, int TypeId)
 			{
 				if (TypeId < (int)TypeId::BOOL || TypeId >(int)TypeId::DOUBLE)
 				{
@@ -4707,7 +4707,7 @@ namespace Edge
 					if (TypeInfo::IsScriptObject(TypeId))
 					{
 						ScriptObject VObject = (asIScriptObject*)Object;
-						Core::String Decl;
+						Core::Stringify Decl;
 
 						for (unsigned int i = 0; i < VObject.GetPropertiesCount(); i++)
 						{
@@ -4725,7 +4725,7 @@ namespace Edge
 					else if (strcmp(Type.GetName(), TYPENAME_DICTIONARY) == 0)
 					{
 						Dictionary* Base = (Dictionary*)Object;
-						Core::String Decl; std::string Name;
+						Core::Stringify Decl; std::string Name;
 
 						for (unsigned int i = 0; i < Base->GetSize(); i++)
 						{
@@ -4747,7 +4747,7 @@ namespace Edge
 					{
 						Array* Base = (Array*)Object;
 						int ArrayTypeId = Base->GetElementTypeId();
-						Core::String Decl;
+						Core::Stringify Decl;
 
 						for (unsigned int i = 0; i < Base->GetSize(); i++)
 						{
@@ -4762,7 +4762,7 @@ namespace Edge
 					}
 					else if (strcmp(Type.GetName(), TYPENAME_STRING) != 0)
 					{
-						Core::String Decl;
+						Core::Stringify Decl;
 						Type.ForEachProperty([&Decl, VM, Ref, TypeId](TypeInfo* Base, FunctionInfo* Prop)
 						{
 							Decl.fAppend("\"%s\":", Prop->Name ? Prop->Name : "");
@@ -14650,7 +14650,7 @@ namespace Edge
 					if (End - Start > 0)
 					{
 						std::string Expression = Code.substr(Start, End - Start) + ".yield().unwrap()";
-						Core::String(&Code).ReplacePart(Offset, End, Expression);
+						Core::Stringify(&Code).ReplacePart(Offset, End, Expression);
 						Offset += Expression.size();
 					}
 					else

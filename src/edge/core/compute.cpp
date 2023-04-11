@@ -10467,6 +10467,7 @@ namespace Edge
 		HullShape::HullShape(Core::Vector<Vertex>&& NewVertices, Core::Vector<int>&& NewIndices) noexcept : Vertices(std::move(NewVertices)), Indices(std::move(NewIndices)), Shape(nullptr)
 		{
 #ifdef ED_USE_BULLET3
+			Shape = ED_NEW(btConvexHullShape);
 			btConvexHullShape* Hull = (btConvexHullShape*)Shape;
 			for (auto& Item : Vertices)
 				Hull->addPoint(btVector3(Item.PositionX, Item.PositionY, Item.PositionZ), false);

@@ -3413,7 +3413,7 @@ namespace Edge
 		template <typename O, typename I>
 		ED_OUT_TS inline O&& Copy(I&& Other)
 		{
-			return Other;
+			return std::move(Other);
 		}
 #endif
 		template <typename T>

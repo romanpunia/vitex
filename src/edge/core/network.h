@@ -88,7 +88,7 @@ namespace Edge
 
 		struct ED_OUT RemoteHost
 		{
-			std::string Hostname;
+			Core::String Hostname;
 			int Port = 0;
 			bool Secure = false;
 		};
@@ -96,18 +96,18 @@ namespace Edge
 		struct ED_OUT Location
 		{
 		public:
-			std::unordered_map<std::string, std::string> Query;
-			std::string URL;
-			std::string Protocol;
-			std::string Username;
-			std::string Password;
-			std::string Hostname;
-			std::string Fragment;
-			std::string Path;
+			Core::UnorderedMap<Core::String, Core::String> Query;
+			Core::String URL;
+			Core::String Protocol;
+			Core::String Username;
+			Core::String Password;
+			Core::String Hostname;
+			Core::String Fragment;
+			Core::String Path;
 			int Port;
 
 		public:
-			Location(const std::string& Src) noexcept;
+			Location(const Core::String& Src) noexcept;
 			Location(const Location& Other) noexcept;
 			Location(Location&& Other) noexcept;
 			Location& operator= (const Location& Other) noexcept;
@@ -116,15 +116,15 @@ namespace Edge
 
 		struct ED_OUT Certificate
 		{
-			std::string Subject;
-			std::string Issuer;
-			std::string Serial;
-			std::string Finger;
+			Core::String Subject;
+			Core::String Issuer;
+			Core::String Serial;
+			Core::String Finger;
 		};
 
 		struct ED_OUT DataFrame
 		{
-			std::string Message;
+			Core::String Message;
 			std::mutex Sync;
 			int64_t Start = 0;
 			int64_t Finish = 0;
@@ -139,9 +139,9 @@ namespace Edge
 		struct ED_OUT SocketCertificate
 		{
 			ssl_ctx_st* Context = nullptr;
-			std::string Key;
-			std::string Chain;
-			std::string Ciphers = "ALL";
+			Core::String Key;
+			Core::String Chain;
+			Core::String Ciphers = "ALL";
 			Secure Protocol = Secure::Any;
 			bool VerifyPeers = true;
 			size_t Depth = 9;
@@ -217,12 +217,12 @@ namespace Edge
 		class ED_OUT_TS DNS
 		{
 		private:
-			static Core::Mapping<std::unordered_map<std::string, std::pair<int64_t, SocketAddress*>>>* Names;
+			static Core::Mapping<Core::UnorderedMap<Core::String, std::pair<int64_t, SocketAddress*>>>* Names;
 			static std::mutex Exclusive;
 
 		public:
-			static std::string FindNameFromAddress(const std::string& Host, const std::string& Service);
-			static SocketAddress* FindAddressFromName(const std::string& Host, const std::string& Service, DNSType DNS, SocketProtocol Proto, SocketType Type);
+			static Core::String FindNameFromAddress(const Core::String& Host, const Core::String& Service);
+			static SocketAddress* FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType DNS, SocketProtocol Proto, SocketType Type);
 			static void Release();
 		};
 
@@ -258,8 +258,8 @@ namespace Edge
 		class ED_OUT_TS Multiplexer
 		{
 		private:
-			static Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Timeouts;
-			static std::vector<EpollFd>* Fds;
+			static Core::Mapping<Core::OrderedMap<std::chrono::microseconds, Socket*>>* Timeouts;
+			static Core::Vector<EpollFd>* Fds;
 			static std::atomic<size_t> Activations;
 			static std::mutex Exclusive;
 			static EpollHandle* Handle;
@@ -280,9 +280,9 @@ namespace Edge
 			static bool IsListening();
 			static bool IsActive();
 			static size_t GetActivations();
-			static std::string GetLocalAddress();
-			static std::string GetAddress(addrinfo* Info);
-			static std::string GetAddress(sockaddr* Info);
+			static Core::String GetLocalAddress();
+			static Core::String GetAddress(addrinfo* Info);
+			static Core::String GetAddress(sockaddr* Info);
 			static int GetAddressFamily(const char* Address);
 
 		private:
@@ -311,7 +311,7 @@ namespace Edge
 			bool IsUsable() const;
 			addrinfo* Get() const;
 			addrinfo* GetAlternatives() const;
-			std::string GetAddress() const;
+			Core::String GetAddress() const;
 		};
 
 		class ED_OUT Socket final : public Core::Reference<Socket>
@@ -386,7 +386,7 @@ namespace Edge
 			bool IsPendingForWrite();
 			bool IsPending();
 			bool IsValid();
-			std::string GetRemoteAddress();
+			Core::String GetRemoteAddress();
 
 		private:
 			int TryCloseAsync(SocketClosedCallback&& Callback, bool KeepTrying);
@@ -402,21 +402,21 @@ namespace Edge
 		class ED_OUT SocketListener final : public Core::Reference<SocketListener>
 		{
 		public:
-			std::string Name;
+			Core::String Name;
 			RemoteHost Hostname;
 			SocketAddress* Source;
 			Socket* Base;
 
 		public:
-			SocketListener(const std::string& NewName, const RemoteHost& NewHost, SocketAddress* NewAddress);
+			SocketListener(const Core::String& NewName, const RemoteHost& NewHost, SocketAddress* NewAddress);
 			~SocketListener() noexcept;
 		};
 
 		class ED_OUT SocketRouter : public Core::Reference<SocketRouter>
 		{
 		public:
-			std::unordered_map<std::string, SocketCertificate> Certificates;
-			std::unordered_map<std::string, RemoteHost> Listeners;
+			Core::UnorderedMap<Core::String, SocketCertificate> Certificates;
+			Core::UnorderedMap<Core::String, RemoteHost> Listeners;
 			size_t PayloadMaxLength = 12582912;
 			size_t BacklogQueue = 20;
 			size_t SocketTimeout = 10000;
@@ -428,8 +428,8 @@ namespace Edge
 		public:
 			SocketRouter() = default;
 			virtual ~SocketRouter() noexcept;
-			RemoteHost& Listen(const std::string& Hostname, int Port, bool Secure = false);
-			RemoteHost& Listen(const std::string& Pattern, const std::string& Hostname, int Port, bool Secure = false);
+			RemoteHost& Listen(const Core::String& Hostname, int Port, bool Secure = false);
+			RemoteHost& Listen(const Core::String& Pattern, const Core::String& Hostname, int Port, bool Secure = false);
 		};
 
 		class ED_OUT SocketConnection : public Core::Reference<SocketConnection>
@@ -456,9 +456,9 @@ namespace Edge
 			friend SocketConnection;
 
 		protected:
-			std::unordered_set<SocketConnection*> Active;
-			std::unordered_set<SocketConnection*> Inactive;
-			std::vector<SocketListener*> Listeners;
+			Core::UnorderedSet<SocketConnection*> Active;
+			Core::UnorderedSet<SocketConnection*> Inactive;
+			Core::Vector<SocketListener*> Listeners;
 			SocketRouter* Router = nullptr;
 			ServerState State = ServerState::Idle;
 			std::mutex Sync;
@@ -477,15 +477,15 @@ namespace Edge
 			size_t GetBacklog() const;
 			ServerState GetState() const;
 			SocketRouter* GetRouter();
-			const std::unordered_set<SocketConnection*>& GetActiveClients();
-			const std::unordered_set<SocketConnection*>& GetPooledClients();
-			const std::vector<SocketListener*>& GetListeners();
+			const Core::UnorderedSet<SocketConnection*>& GetActiveClients();
+			const Core::UnorderedSet<SocketConnection*>& GetPooledClients();
+			const Core::Vector<SocketListener*>& GetListeners();
 
 		protected:
 			virtual bool OnConfigure(SocketRouter* New);
 			virtual bool OnRequestEnded(SocketConnection* Base, bool Check);
 			virtual bool OnRequestBegin(SocketConnection* Base);
-			virtual bool OnStall(std::unordered_set<SocketConnection*>& Base);
+			virtual bool OnStall(Core::UnorderedSet<SocketConnection*>& Base);
 			virtual bool OnListen();
 			virtual bool OnUnlisten();
 			virtual SocketConnection* OnAllocate(SocketListener* Host);
@@ -497,7 +497,7 @@ namespace Edge
 		protected:
 			bool FreeAll();
 			bool Refuse(SocketConnection* Base);
-			bool Accept(SocketListener* Host, socket_t Fd, const std::string& Address);
+			bool Accept(SocketListener* Host, socket_t Fd, const Core::String& Address);
 			bool EncryptThenBegin(SocketConnection* Fd, SocketListener* Host);
 			bool Manage(SocketConnection* Base);
 			void Push(SocketConnection* Base);
@@ -509,7 +509,7 @@ namespace Edge
 		protected:
 			SocketClientCallback Done;
 			ssl_ctx_st* Context;
-			std::string Action;
+			Core::String Action;
 			Socket Stream;
 			RemoteHost Hostname;
 			int64_t Timeout;
@@ -533,7 +533,7 @@ namespace Edge
 
 		protected:
 			void Encrypt(std::function<void(bool)>&& Callback);
-			bool Stage(const std::string& Name);
+			bool Stage(const Core::String& Name);
 			bool Error(const char* Message, ...);
 			bool Success(int Code);
 		};

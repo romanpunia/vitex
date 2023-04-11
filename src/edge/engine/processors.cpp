@@ -3,7 +3,6 @@
 #include "renderers.h"
 #include "../network/http.h"
 #include <stb_vorbis.h>
-#include <sstream>
 #ifdef ED_HAS_OPENAL
 #ifdef ED_AL_AT_OPENAL
 #include <OpenAL/al.h>
@@ -43,12 +42,12 @@ namespace Edge
 					Root.c1, Root.c2, Root.c3, Root.c4,
 					Root.d1, Root.d2, Root.d3, Root.d4).Transpose();
 			}
-			std::string GetMeshName(const std::string& Name, ModelInfo* Info)
+			Core::String GetMeshName(const Core::String& Name, ModelInfo* Info)
 			{
 				if (Name.empty())
 					return Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(8)).substr(0, 8);
 				
-				std::string Result = Name;
+				Core::String Result = Name;
 				for (auto&& Data : Info->Meshes)
 				{
 					if (Data.Name == Result)
@@ -57,18 +56,18 @@ namespace Edge
 
 				return Result;
 			}
-			std::string GetJointName(const std::string& BaseName, ModelInfo* Info, MeshBlob* Blob)
+			Core::String GetJointName(const Core::String& BaseName, ModelInfo* Info, MeshBlob* Blob)
 			{
 				if (!BaseName.empty())
 					return BaseName;
 
-				std::string Name = BaseName + '?';
+				Core::String Name = BaseName + '?';
 				while (Info->JointOffsets.find(Name) != Info->JointOffsets.end())
 					Name += '?';
 
 				return Name;
 			}
-			bool GetKeyFromTime(std::vector<Compute::AnimatorKey>& Keys, float Time, Compute::AnimatorKey& Result)
+			bool GetKeyFromTime(Core::Vector<Compute::AnimatorKey>& Keys, float Time, Compute::AnimatorKey& Result)
 			{
 				for (auto& Key : Keys)
 				{
@@ -123,7 +122,7 @@ namespace Edge
 			}
 			bool FillSceneSkeleton(ModelInfo* Info, aiNode* Node, Compute::Joint* Top)
 			{
-				std::string Name = Node->mName.C_Str();
+				Core::String Name = Node->mName.C_Str();
 				auto It = Info->JointOffsets.find(Name);
 				if (It == Info->JointOffsets.end())
 				{
@@ -150,7 +149,8 @@ namespace Edge
 				if (Top != nullptr)
 				{
 				AddLinkingJoint:
-					auto& Next = Top->Childs.emplace_back();
+					Top->Childs.emplace_back();
+					auto& Next = Top->Childs.back();
 					Top = &Next;
 				}
 				else
@@ -273,7 +273,8 @@ namespace Edge
 
 				for (unsigned int n = 0; n < Node->mNumMeshes; n++)
 				{
-					MeshBlob& Blob = Info->Meshes.emplace_back();
+					Info->Meshes.emplace_back();
+					MeshBlob& Blob = Info->Meshes.back();
 					auto& Geometry = Scene->mMeshes[Node->mMeshes[n]];
 					Blob.Name = GetMeshName(Geometry->mName.C_Str(), Info);
 					Blob.Transform = FromAssimpMatrix(ParentTransform);
@@ -343,7 +344,7 @@ namespace Edge
 					Target.Rotations[Key.mTime] = Compute::Quaternion(Key.mValue.x, Key.mValue.y, Key.mValue.z, Key.mValue.w);
 				}
 			}
-			void FillSceneTimeline(const std::unordered_set<float>& Timings, std::vector<float>& Timeline)
+			void FillSceneTimeline(const Core::UnorderedSet<float>& Timings, Core::Vector<float>& Timeline)
 			{
 				Timeline.reserve(Timings.size());
 				for (auto& Time : Timings)
@@ -354,9 +355,9 @@ namespace Edge
 					return A < B;
 				});
 			}
-			void FillSceneKeys(ModelChannel& Info, std::vector<Compute::AnimatorKey>& Keys)
+			void FillSceneKeys(ModelChannel& Info, Core::Vector<Compute::AnimatorKey>& Keys)
 			{
-				std::unordered_set<float> Timings;
+				Core::UnorderedSet<float> Timings;
 				Timings.reserve(Keys.size());
 
 				float FirstPosition = std::numeric_limits<float>::max();
@@ -383,7 +384,7 @@ namespace Edge
 						FirstRotation = Item.first;
 				}
 
-				std::vector<float> Timeline;
+				Core::Vector<float> Timeline;
 				Compute::Vector3 LastPosition = (Info.Positions.empty() ? Compute::Vector3::Zero() : Info.Positions[FirstPosition]);
 				Compute::Vector3 LastScale = (Info.Scales.empty() ? Compute::Vector3::One() : Info.Scales[FirstScale]);
 				Compute::Quaternion LastRotation = (Info.Rotations.empty() ? Compute::Quaternion() : Info.Rotations[FirstRotation]);
@@ -421,9 +422,9 @@ namespace Edge
 					}
 				}
 			}
-			void FillSceneClip(Compute::SkinAnimatorClip& Clip, std::unordered_map<std::string, MeshBone>& Indices, std::unordered_map<std::string, std::vector<Compute::AnimatorKey>>& Channels)
+			void FillSceneClip(Compute::SkinAnimatorClip& Clip, Core::UnorderedMap<Core::String, MeshBone>& Indices, Core::UnorderedMap<Core::String, Core::Vector<Compute::AnimatorKey>>& Channels)
 			{
-				std::unordered_set<float> Timings;
+				Core::UnorderedSet<float> Timings;
 				for (auto& Channel : Channels)
 				{
 					Timings.reserve(Channel.second.size());
@@ -431,12 +432,13 @@ namespace Edge
 						Timings.insert(Key.Time);
 				}
 
-				std::vector<float> Timeline;
+				Core::Vector<float> Timeline;
 				FillSceneTimeline(Timings, Timeline);
 
 				for (auto& Time : Timeline)
 				{
-					auto& Key = Clip.Keys.emplace_back();
+					Clip.Keys.emplace_back();
+					auto& Key = Clip.Keys.back();
 					Key.Pose.resize(Indices.size());
 					Key.Time = Time;
 
@@ -461,7 +463,7 @@ namespace Edge
 					}
 				}
 			}
-			void FillSceneJointIndices(const aiScene* Scene, aiNode* Node, std::unordered_map<std::string, MeshBone>& Indices, size_t& Index)
+			void FillSceneJointIndices(const aiScene* Scene, aiNode* Node, Core::UnorderedMap<Core::String, MeshBone>& Indices, size_t& Index)
 			{
 				for (unsigned int n = 0; n < Node->mNumMeshes; n++)
 				{
@@ -481,9 +483,9 @@ namespace Edge
 					FillSceneJointIndices(Scene, Next, Indices, Index);
 				}
 			}
-			bool FillSceneJointDefaults(aiNode* Node, std::unordered_map<std::string, MeshBone>& Indices, size_t& Index, bool InSkeleton)
+			bool FillSceneJointDefaults(aiNode* Node, Core::UnorderedMap<Core::String, MeshBone>& Indices, size_t& Index, bool InSkeleton)
 			{
-				std::string Name = Node->mName.C_Str();
+				Core::String Name = Node->mName.C_Str();
 				auto It = Indices.find(Name);
 				if (It == Indices.end())
 				{
@@ -519,9 +521,9 @@ namespace Edge
 
 				return true;
 			}
-			void FillSceneAnimations(std::vector<Compute::SkinAnimatorClip>* Info, const aiScene* Scene)
+			void FillSceneAnimations(Core::Vector<Compute::SkinAnimatorClip>* Info, const aiScene* Scene)
 			{
-				std::unordered_map<std::string, MeshBone> Indices; size_t Index = 0;
+				Core::UnorderedMap<Core::String, MeshBone> Indices; size_t Index = 0;
 				FillSceneJointIndices(Scene, Scene->mRootNode, Indices, Index);
 				FillSceneJointDefaults(Scene->mRootNode, Indices, Index, false);
 
@@ -529,12 +531,14 @@ namespace Edge
 				for (unsigned int i = 0; i < Scene->mNumAnimations; i++)
 				{
 					aiAnimation* Animation = Scene->mAnimations[i];
-					auto& Clip = Info->emplace_back();
+					Info->emplace_back();
+
+					auto& Clip = Info->back();
 					Clip.Name = Animation->mName.C_Str();
 					Clip.Duration = (float)Animation->mDuration;
 					Clip.Rate = Compute::Mathf::Max(0.01f, (float)Animation->mTicksPerSecond);
 
-					std::unordered_map<std::string, std::vector<Compute::AnimatorKey>> Channels;
+					Core::UnorderedMap<Core::String, Core::Vector<Compute::AnimatorKey>> Channels;
 					for (unsigned int j = 0; j < Animation->mNumChannels; j++)
 					{
 						auto& Channel = Animation->mChannels[j];
@@ -548,9 +552,9 @@ namespace Edge
 				}
 			}
 #endif
-			std::vector<Compute::Vertex> SkinVerticesToVertices(const std::vector<Compute::SkinVertex>& Data)
+			Core::Vector<Compute::Vertex> SkinVerticesToVertices(const Core::Vector<Compute::SkinVertex>& Data)
 			{
-				std::vector<Compute::Vertex> Result;
+				Core::Vector<Compute::Vertex> Result;
 				Result.resize(Data.size());
 
 				for (size_t i = 0; i < Data.size(); i++)
@@ -600,7 +604,7 @@ namespace Edge
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 
-				std::vector<char> Temp;
+				Core::Vector<char> Temp;
 				Stream->ReadAll([&Temp](char* Buffer, size_t Size)
 				{
 					Temp.reserve(Temp.size() + Size);
@@ -634,7 +638,7 @@ namespace Edge
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				Core::Schema* Data = Content->Load<Core::Schema>(Stream->GetSource());
-				std::string Path;
+				Core::String Path;
 
 				if (!Data)
 					return nullptr;
@@ -703,7 +707,7 @@ namespace Edge
 					});
 				}
 
-				std::string Name;
+				Core::String Name;
 				Series::Unpack(Data->Get("emission"), &Object->Surface.Emission);
 				Series::Unpack(Data->Get("metallic"), &Object->Surface.Metallic);
 				Series::Unpack(Data->Get("diffuse"), &Object->Surface.Diffuse);
@@ -854,10 +858,10 @@ namespace Edge
 				Core::Schema* Materials = Blob->Find("materials");
 				if (Materials != nullptr)
 				{
-					std::vector<Core::Schema*> Collection = Materials->FindCollection("material");
+					Core::Vector<Core::Schema*> Collection = Materials->FindCollection("material");
 					for (auto& It : Collection)
 					{
-						std::string Path;
+						Core::String Path;
 						if (!Series::Unpack(It, &Path) || Path.empty())
 							continue;
 
@@ -873,7 +877,7 @@ namespace Edge
 				Core::Schema* Entities = Blob->Find("entities");
 				if (Entities != nullptr)
 				{
-					std::vector<Core::Schema*> Collection = Entities->FindCollection("entity");
+					Core::Vector<Core::Schema*> Collection = Entities->FindCollection("entity");
 					for (auto& It : Collection)
 					{
 						Entity* Entity = Object->AddEntity();
@@ -893,7 +897,7 @@ namespace Edge
 						if (!Entity)
 							continue;
 
-						std::string Name;
+						Core::String Name;
 						Series::Unpack(It->Find("name"), &Name);
 						Entity->SetName(Name);
 
@@ -936,7 +940,7 @@ namespace Edge
 						Core::Schema* Components = It->Find("components");
 						if (Components != nullptr)
 						{
-							std::vector<Core::Schema*> Elements = Components->FindCollection("component");
+							Core::Vector<Core::Schema*> Elements = Components->FindCollection("component");
 							for (auto& Element : Elements)
 							{
 								uint64_t Id;
@@ -1034,7 +1038,7 @@ namespace Edge
 					if (!Material)
 						continue;
 
-					std::string Path;
+					Core::String Path;
 					AssetCache* Asset = Content->FindCache<Engine::Material>(Material);
 					if (!Asset)
 						Path.assign("./materials/" + Material->GetName() + "_" + Compute::Codec::HexEncode(Compute::Crypto::RandomBytes(6)));
@@ -1138,7 +1142,7 @@ namespace Edge
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 #ifdef ED_HAS_SDL2
-				std::vector<char> Data;
+				Core::Vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{
 					Data.reserve(Data.size() + Size);
@@ -1191,7 +1195,7 @@ namespace Edge
 			void* AudioClipProcessor::DeserializeOGG(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				std::vector<char> Data;
+				Core::Vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{
 					Data.reserve(Data.size() + Size);
@@ -1253,7 +1257,7 @@ namespace Edge
 			void* Texture2DProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				std::vector<char> Data;
+				Core::Vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{
 					Data.reserve(Data.size() + Size);
@@ -1318,7 +1322,7 @@ namespace Edge
 			void* ShaderProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				std::string Data;
+				Core::String Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{
 					Data.append(Buffer, Size);
@@ -1372,7 +1376,7 @@ namespace Edge
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				Model* Object = nullptr;
-				std::string& Path = Stream->GetSource();
+				Core::String& Path = Stream->GetSource();
 				Core::Stringify Location(&Path);
 
 				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
@@ -1407,12 +1411,14 @@ namespace Edge
 								return nullptr;
 							}
 
-							auto* Next = Object->Meshes.emplace_back(ProcessRendererJob<Graphics::MeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
+							Object->Meshes.emplace_back(ProcessRendererJob<Graphics::MeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
 							{
 								return Device->CreateMeshBuffer(I);
 							}));
 
+							auto* Next = Object->Meshes.back();
 							ED_ASSERT(Next != nullptr, Object, "mesh should be initializable");
+
 							Series::Unpack(Mesh->Get("name"), &Next->Name);
 							Series::Unpack(Mesh->Get("transform"), &Next->Transform);
 						}
@@ -1438,12 +1444,14 @@ namespace Edge
 						I.Indices = std::move(Mesh.Indices);
 						I.Elements = SkinVerticesToVertices(Mesh.Vertices);
 
-						auto* Next = Object->Meshes.emplace_back(ProcessRendererJob<Graphics::MeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
+						Object->Meshes.emplace_back(ProcessRendererJob<Graphics::MeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
 						{
 							return Device->CreateMeshBuffer(I);
 						}));
 
+						auto* Next = Object->Meshes.back();
 						ED_ASSERT(Next != nullptr, Object, "mesh should be initializable");
+
 						Next->Name = Mesh.Name;
 						Next->Transform = Mesh.Transform;
 					}
@@ -1491,7 +1499,7 @@ namespace Edge
 			{
 				ModelInfo Info;
 #ifdef ED_HAS_ASSIMP
-				std::vector<char> Data;
+				Core::Vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{
 					Data.reserve(Data.size() + Size);
@@ -1537,7 +1545,7 @@ namespace Edge
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				SkinModel* Object = nullptr;
-				std::string& Path = Stream->GetSource();
+				Core::String& Path = Stream->GetSource();
 				Core::Stringify Location(&Path);
 
 				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
@@ -1575,12 +1583,14 @@ namespace Edge
 								return nullptr;
 							}
 
-							auto* Next = Object->Meshes.emplace_back(ProcessRendererJob<Graphics::SkinMeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
+							Object->Meshes.emplace_back(ProcessRendererJob<Graphics::SkinMeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
 							{
 								return Device->CreateSkinMeshBuffer(I);
 							}));
 
+							auto* Next = Object->Meshes.back();
 							ED_ASSERT(Next != nullptr, Object, "mesh should be initializable");
+
 							Series::Unpack(Mesh->Get("name"), &Next->Name);
 							Series::Unpack(Mesh->Get("transform"), &Next->Transform);
 							Series::Unpack(Mesh->Get("joints"), &Next->Joints);
@@ -1609,12 +1619,14 @@ namespace Edge
 						I.Indices = std::move(Mesh.Indices);
 						I.Elements = std::move(Mesh.Vertices);
 
-						auto* Next = Object->Meshes.emplace_back(ProcessRendererJob<Graphics::SkinMeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
+						Object->Meshes.emplace_back(ProcessRendererJob<Graphics::SkinMeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
 						{
 							return Device->CreateSkinMeshBuffer(I);
 						}));
 
+						auto* Next = Object->Meshes.back();
 						ED_ASSERT(Next != nullptr, Object, "mesh should be initializable");
+
 						Next->Name = Mesh.Name;
 						Next->Transform = Mesh.Transform;
 						Next->Joints = std::move(Mesh.JointIndices);
@@ -1655,8 +1667,8 @@ namespace Edge
 			void* SkinAnimationProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				std::vector<Compute::SkinAnimatorClip> Clips;
-				std::string& Path = Stream->GetSource();
+				Core::Vector<Compute::SkinAnimatorClip> Clips;
+				Core::String& Path = Stream->GetSource();
 				Core::Stringify Location(&Path);
 
 				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
@@ -1668,7 +1680,8 @@ namespace Edge
 					Clips.reserve(Data->Size());
 					for (auto& Item : Data->GetChilds())
 					{
-						auto& Clip = Clips.emplace_back();
+						Clips.emplace_back();
+						auto& Clip = Clips.back();
 						Series::Unpack(Item->Get("name"), &Clip.Name);
 						Series::Unpack(Item->Get("duration"), &Clip.Duration);
 						Series::Unpack(Item->Get("rate"), &Clip.Rate);
@@ -1679,7 +1692,8 @@ namespace Edge
 							Clip.Keys.reserve(Keys->Size());
 							for (auto& Key : Keys->GetChilds())
 							{
-								auto& Pose = Clip.Keys.emplace_back();
+								Clip.Keys.emplace_back();
+								auto& Pose = Clip.Keys.back();
 								Series::Unpack(Key, &Pose.Time);
 
 								size_t ArrayOffset = 0;
@@ -1688,7 +1702,8 @@ namespace Edge
 									if (!ArrayOffset++)
 										continue;
 
-									auto& Value = Pose.Pose.emplace_back();
+									Pose.Pose.emplace_back();
+									auto& Value = Pose.Pose.back();
 									Series::Unpack(Orientation->Get("position"), &Value.Position);
 									Series::Unpack(Orientation->Get("scale"), &Value.Scale);
 									Series::Unpack(Orientation->Get("rotation"), &Value.Rotation);
@@ -1718,7 +1733,7 @@ namespace Edge
 			}
 			Core::Schema* SkinAnimationProcessor::Import(Core::Stream* Stream, uint64_t Opts)
 			{
-				std::vector<Compute::SkinAnimatorClip> Info = ImportForImmediateUse(Stream, Opts);
+				Core::Vector<Compute::SkinAnimatorClip> Info = ImportForImmediateUse(Stream, Opts);
 				if (Info.empty())
 					return nullptr;
 
@@ -1754,11 +1769,11 @@ namespace Edge
 
 				return Blob;
 			}
-			std::vector<Compute::SkinAnimatorClip> SkinAnimationProcessor::ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts)
+			Core::Vector<Compute::SkinAnimatorClip> SkinAnimationProcessor::ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts)
 			{
-				std::vector<Compute::SkinAnimatorClip> Info;
+				Core::Vector<Compute::SkinAnimatorClip> Info;
 #ifdef ED_HAS_ASSIMP
-				std::vector<char> Data;
+				Core::Vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{
 					Data.reserve(Data.size() + Size);
@@ -1793,7 +1808,7 @@ namespace Edge
 				if (Object != nullptr)
 					return Object;
 				
-				std::string Data;
+				Core::String Data;
 				Stream->Seek(Core::FileSeek::Begin, Offset);
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{
@@ -1814,7 +1829,7 @@ namespace Edge
 				ED_ASSERT(Instance != nullptr, false, "instance should be set");
 
 				auto Schema = (Core::Schema*)Instance;
-				std::string Offset;
+				Core::String Offset;
 
 				if (Type->second == Core::Var::String("XML"))
 				{
@@ -1892,8 +1907,8 @@ namespace Edge
 			void* ServerProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				std::string N = Network::Multiplexer::GetLocalAddress();
-				std::string D = Core::OS::Path::GetDirectory(Stream->GetSource().c_str());
+				Core::String N = Network::Multiplexer::GetLocalAddress();
+				Core::String D = Core::OS::Path::GetDirectory(Stream->GetSource().c_str());
 				auto* Blob = Content->Load<Core::Schema>(Stream->GetSource());
 				auto* Router = new Network::HTTP::MapRouter();
 				auto* Object = new Network::HTTP::Server();
@@ -1938,10 +1953,10 @@ namespace Edge
 						Router->EnableNoDelay = false;
 				}
 
-				std::vector<Core::Schema*> Certificates = Blob->FindCollection("certificate", true);
+				Core::Vector<Core::Schema*> Certificates = Blob->FindCollection("certificate", true);
 				for (auto&& It : Certificates)
 				{
-					std::string Name;
+					Core::String Name;
 					if (!Series::Unpack(It, &Name))
 						Name = "*";
 
@@ -1979,10 +1994,10 @@ namespace Edge
 					Core::Stringify(&Cert->Chain).Eval(N, D).R();
 				}
 
-				std::vector<Core::Schema*> Listeners = Blob->FindCollection("listen", true);
+				Core::Vector<Core::Schema*> Listeners = Blob->FindCollection("listen", true);
 				for (auto&& It : Listeners)
 				{
-					std::string Name;
+					Core::String Name;
 					if (!Series::Unpack(It, &Name))
 						Name = "*";
 
@@ -1998,10 +2013,10 @@ namespace Edge
 						Host->Secure = false;
 				}
 
-				std::vector<Core::Schema*> Sites = Blob->FindCollection("site", true);
+				Core::Vector<Core::Schema*> Sites = Blob->FindCollection("site", true);
 				for (auto&& It : Sites)
 				{
-					std::string Name = "*";
+					Core::String Name = "*";
 					Series::Unpack(It, &Name);
 
 					Network::HTTP::SiteEntry* Site = Router->Site(Core::Stringify(&Name).Eval(N, D).Get());
@@ -2047,11 +2062,11 @@ namespace Edge
                     Series::Unpack(It->Find("resource-root"), &Site->ResourceRoot);
                     Core::Stringify(&Site->ResourceRoot).Eval(N, D);
 
-					std::unordered_map<std::string, Network::HTTP::RouteEntry*> Aliases;
-					std::vector<Core::Schema*> Groups = It->FindCollection("group", true);
+					Core::UnorderedMap<Core::String, Network::HTTP::RouteEntry*> Aliases;
+					Core::Vector<Core::Schema*> Groups = It->FindCollection("group", true);
 					for (auto&& Subgroup : Groups)
 					{
-						std::string Match;
+						Core::String Match;
 						Core::Schema* fMatch = Subgroup->GetAttribute("match");
 						if (fMatch != nullptr && fMatch->Value.GetType() == Core::VarType::String)
 							Match = fMatch->Value.GetBlob();
@@ -2069,11 +2084,11 @@ namespace Edge
 						}
 
 						Network::HTTP::RouteGroup* Group = Site->Group(Match, Mode);
-						std::vector<Core::Schema*> Routes = Subgroup->FindCollection("route", true);
+						Core::Vector<Core::Schema*> Routes = Subgroup->FindCollection("route", true);
 						for (auto&& Base : Routes)
 						{
 							Network::HTTP::RouteEntry* Route = nullptr;
-							std::string SourceURL = "*";
+							Core::String SourceURL = "*";
 							Series::Unpack(Base, &SourceURL);
 
 							Core::Schema* From = Base->GetAttribute("from"), * For = Base->GetAttribute("for");
@@ -2094,68 +2109,68 @@ namespace Edge
 							if (Level != nullptr)
 								Route->Level = (size_t)Level->Value.GetInteger();
 
-							std::vector<Core::Schema*> GatewayFiles = Base->FetchCollection("gateway.files.file");
+							Core::Vector<Core::Schema*> GatewayFiles = Base->FetchCollection("gateway.files.file");
 							if (Base->Fetch("gateway.files.[clear]") != nullptr)
 								Route->Gateway.Files.clear();
 
 							for (auto& File : GatewayFiles)
 							{
-								std::string Pattern;
+								Core::String Pattern;
 								if (Series::Unpack(File, &Pattern))
 									Route->Gateway.Files.emplace_back(Pattern, true);
 							}
 
-							std::vector<Core::Schema*> GatewayMethods = Base->FetchCollection("gateway.methods.method");
+							Core::Vector<Core::Schema*> GatewayMethods = Base->FetchCollection("gateway.methods.method");
 							if (Base->Fetch("gateway.methods.[clear]") != nullptr)
 								Route->Gateway.Methods.clear();
 
 							for (auto& Method : GatewayMethods)
 							{
-								std::string Value;
+								Core::String Value;
 								if (Series::Unpack(Method, &Value))
 									Route->Gateway.Methods.push_back(Value);
 							}
 
-							std::vector<Core::Schema*> AuthMethods = Base->FetchCollection("auth.methods.method");
+							Core::Vector<Core::Schema*> AuthMethods = Base->FetchCollection("auth.methods.method");
 							if (Base->Fetch("auth.methods.[clear]") != nullptr)
 								Route->Auth.Methods.clear();
 
 							for (auto& Method : AuthMethods)
 							{
-								std::string Value;
+								Core::String Value;
 								if (Series::Unpack(Method, &Value))
 									Route->Auth.Methods.push_back(Value);
 							}
 
-							std::vector<Core::Schema*> CompressionFiles = Base->FetchCollection("compression.files.file");
+							Core::Vector<Core::Schema*> CompressionFiles = Base->FetchCollection("compression.files.file");
 							if (Base->Fetch("compression.files.[clear]") != nullptr)
 								Route->Compression.Files.clear();
 
 							for (auto& File : CompressionFiles)
 							{
-								std::string Pattern;
+								Core::String Pattern;
 								if (Series::Unpack(File, &Pattern))
 									Route->Compression.Files.emplace_back(Pattern, true);
 							}
 
-							std::vector<Core::Schema*> HiddenFiles = Base->FetchCollection("hidden-files.hide");
+							Core::Vector<Core::Schema*> HiddenFiles = Base->FetchCollection("hidden-files.hide");
 							if (Base->Fetch("hidden-files.[clear]") != nullptr)
 								Route->HiddenFiles.clear();
 
 							for (auto& File : HiddenFiles)
 							{
-								std::string Pattern;
+								Core::String Pattern;
 								if (Series::Unpack(File, &Pattern))
 									Route->HiddenFiles.emplace_back(Pattern, true);
 							}
 
-							std::vector<Core::Schema*> IndexFiles = Base->FetchCollection("index-files.index");
+							Core::Vector<Core::Schema*> IndexFiles = Base->FetchCollection("index-files.index");
 							if (Base->Fetch("index-files.[clear]") != nullptr)
 								Route->IndexFiles.clear();
 
 							for (auto& File : IndexFiles)
 							{
-								std::string Pattern;
+								Core::String Pattern;
 								if (Series::Unpack(File, &Pattern))
 								{
 									if (!File->GetAttribute("use"))
@@ -2165,13 +2180,13 @@ namespace Edge
 								}
 							}
 
-							std::vector<Core::Schema*> TryFiles = Base->FetchCollection("try-files.fallback");
+							Core::Vector<Core::Schema*> TryFiles = Base->FetchCollection("try-files.fallback");
 							if (Base->Fetch("try-files.[clear]") != nullptr)
 								Route->TryFiles.clear();
 
 							for (auto& File : TryFiles)
 							{
-								std::string Pattern;
+								Core::String Pattern;
 								if (Series::Unpack(File, &Pattern))
 								{
 									if (!File->GetAttribute("use"))
@@ -2181,7 +2196,7 @@ namespace Edge
 								}
 							}
 
-							std::vector<Core::Schema*> ErrorFiles = Base->FetchCollection("error-files.error");
+							Core::Vector<Core::Schema*> ErrorFiles = Base->FetchCollection("error-files.error");
 							if (Base->Fetch("error-files.[clear]") != nullptr)
 								Route->ErrorFiles.clear();
 
@@ -2195,7 +2210,7 @@ namespace Edge
 								Route->ErrorFiles.push_back(Source);
 							}
 
-							std::vector<Core::Schema*> MimeTypes = Base->FetchCollection("mime-types.file");
+							Core::Vector<Core::Schema*> MimeTypes = Base->FetchCollection("mime-types.file");
 							if (Base->Fetch("mime-types.[clear]") != nullptr)
 								Route->MimeTypes.clear();
 
@@ -2207,18 +2222,18 @@ namespace Edge
 								Route->MimeTypes.push_back(Pattern);
 							}
 
-							std::vector<Core::Schema*> DisallowedMethods = Base->FetchCollection("disallowed-methods.method");
+							Core::Vector<Core::Schema*> DisallowedMethods = Base->FetchCollection("disallowed-methods.method");
 							if (Base->Fetch("disallowed-methods.[clear]") != nullptr)
 								Route->DisallowedMethods.clear();
 
 							for (auto& Method : DisallowedMethods)
 							{
-								std::string Value;
+								Core::String Value;
 								if (Series::Unpack(Method, &Value))
 									Route->DisallowedMethods.push_back(Value);
 							}
 
-							std::string Tune;
+							Core::String Tune;
 							if (Series::Unpack(Base->Fetch("compression.tune"), &Tune))
 							{
 								if (!strcmp(Tune.c_str(), "Filtered"))
@@ -2263,7 +2278,7 @@ namespace Edge
 							if (!For || For->Value.GetType() != Core::VarType::String)
 								continue;
 
-							std::string Alias = For->Value.GetBlob();
+							Core::String Alias = For->Value.GetBlob();
 							auto Subalias = Aliases.find(Alias);
 							if (Subalias == Aliases.end())
 								Aliases[Alias] = Route;
@@ -2311,9 +2326,9 @@ namespace Edge
 				if (!Data)
 					return nullptr;
 
-				std::vector<Core::Schema*> Meshes = Data->FetchCollection("meshes.mesh");
-				std::vector<Compute::Vertex> Vertices;
-				std::vector<int> Indices;
+				Core::Vector<Core::Schema*> Meshes = Data->FetchCollection("meshes.mesh");
+				Core::Vector<Compute::Vertex> Vertices;
+				Core::Vector<int> Indices;
 
 				for (auto&& Mesh : Meshes)
 				{

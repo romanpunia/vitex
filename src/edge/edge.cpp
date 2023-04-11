@@ -6,7 +6,6 @@
 #include "network/pdb.h"
 #include "network/mdb.h"
 #include <clocale>
-#include <sstream>
 #ifdef ED_MICROSOFT
 #include <WS2tcpip.h>
 #include <io.h>
@@ -54,12 +53,13 @@ extern "C"
 namespace Edge
 {
 #ifdef ED_HAS_OPENSSL
-    static std::vector<std::shared_ptr<std::mutex>>* CryptoLocks = nullptr;
+    static Core::Vector<std::shared_ptr<std::mutex>>* CryptoLocks = nullptr;
 #if OPENSSL_VERSION_MAJOR >= 3
     static OSSL_PROVIDER* CryptoLegacy = nullptr;
     static OSSL_PROVIDER* CryptoDefault = nullptr;
 #endif
 #endif
+	static Core::Allocator* Allocator = nullptr;
 	static uint64_t Modes = 0;
 	static int State = 0;
 
@@ -199,9 +199,9 @@ namespace Edge
 		return 8;
 #endif
 	}
-	std::string Library::GetDetails()
+	Core::String Library::GetDetails()
 	{
-		std::vector<std::string> Features;
+		Core::Vector<Core::String> Features;
 		if (HasDirectX())
 			Features.push_back("DirectX");
 		if (HasOpenGL())
@@ -233,7 +233,7 @@ namespace Edge
 		if (HasWindowsEpoll())
 			Features.push_back("Wepoll");
 
-		std::stringstream Result;
+		Core::StringStream Result;
 		Result << "version: " << ED_MAJOR_VERSION << "." << ED_MINOR_VERSION << "." << ED_PATCH_LEVEL << " / " << ED_VERSION(ED_MAJOR_VERSION, ED_MINOR_VERSION, ED_PATCH_LEVEL) << "\n";
 		Result << "platform: " << GetPlatform() << " / " << GetBuild() << "\n";
 		Result << "compiler: " << GetCompiler() << "\n";
@@ -325,13 +325,21 @@ namespace Edge
 #endif
 		return "OS with C/C++ support";
 	}
-	Core::Allocator* Library::CreateAllocator()
+	Core::Allocator* Library::GetAllocator()
 	{
 #ifndef NDEBUG
-		return new Core::DebugAllocator();
+		if (!Allocator)
+			Allocator = new Core::DebugAllocator();
 #else
-		return new Core::DefaultAllocator();
+#ifndef ED_HAS_FAST_MEMORY
+		if (!Allocator)
+			Allocator = new Core::DefaultAllocator();
+#else
+		if (!Allocator)
+			Allocator = new Core::PoolAllocator();
 #endif
+#endif
+		return Allocator;
 	}
 
 	bool Initialize(size_t Modules, Core::Allocator* Allocator)
@@ -340,7 +348,7 @@ namespace Edge
 		if (State > 1)
 			return true;
 
-		Core::OS::SetAllocator(Allocator);
+		Core::Memory::SetAllocator(Allocator);
 		Modes = Modules;
 
 		if (Modes & (uint64_t)Init::Core)
@@ -370,7 +378,7 @@ namespace Edge
             
 			if (!CryptoLegacy || !CryptoDefault)
 			{
-				std::string Path = Core::OS::Directory::Get();
+				Core::String Path = Core::OS::Directory::Get();
 				OSSL_PROVIDER_set_default_search_path(nullptr, Path.c_str());
 
 				if (!CryptoDefault)
@@ -390,7 +398,7 @@ namespace Edge
 			RAND_poll();
 
 			int Count = CRYPTO_num_locks();
-			CryptoLocks = ED_NEW(std::vector<std::shared_ptr<std::mutex>>);
+			CryptoLocks = ED_NEW(Core::Vector<std::shared_ptr<std::mutex>>);
 			CryptoLocks->reserve(Count);
 			for (int i = 0; i < Count; i++)
 				CryptoLocks->push_back(std::make_shared<std::mutex>());
@@ -511,7 +519,7 @@ namespace Edge
 		if (Modes & (uint64_t)Init::Audio)
 			Audio::AudioContext::Create();
 
-		Scripting::VirtualMachine::SetMemoryFunctions(Core::OS::Malloc, Core::OS::Free);
+		Scripting::VirtualMachine::SetMemoryFunctions(Core::Memory::Malloc, Core::Memory::Free);
 #ifdef ED_HAS_OPENSSL
 		if (Modes & (uint64_t)Init::SSL)
 		{
@@ -533,6 +541,7 @@ namespace Edge
 		if (State > 0 || State < 0)
 			return State >= 0;
 
+		auto* Manager = Core::Memory::GetAllocator();
 		Core::OS::SetLogDeferred(false);
 		Core::Schedule::Reset();
 		Core::Console::Reset();
@@ -609,7 +618,14 @@ namespace Edge
 #ifdef ED_HAS_ASSIMP
 		Assimp::DefaultLogger::kill();
 #endif
-		Core::OS::SetAllocator(nullptr);
+		Core::Memory::SetAllocator(nullptr);
+
+		if (Manager != nullptr && Manager == Allocator && Allocator->IsFinalizable())
+		{
+			delete Allocator;
+			Allocator = nullptr;
+		}
+
 		return true;
 	}
 }

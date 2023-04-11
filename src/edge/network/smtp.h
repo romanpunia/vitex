@@ -19,32 +19,32 @@ namespace Edge
 
 			struct ED_OUT Recipient
 			{
-				std::string Name;
-				std::string Address;
+				Core::String Name;
+				Core::String Address;
 			};
 
 			struct ED_OUT Attachment
 			{
-				std::string Path;
+				Core::String Path;
 				size_t Length = 0;
 			};
 
 			struct ED_OUT RequestFrame
 			{
-				std::unordered_map<std::string, std::string> Headers;
-				std::vector<Recipient> Recipients;
-				std::vector<Recipient> CCRecipients;
-				std::vector<Recipient> BCCRecipients;
-				std::vector<Attachment> Attachments;
-				std::vector<std::string> Messages;
-				std::string SenderName;
-				std::string SenderAddress;
-				std::string Subject;
-				std::string Charset = "utf-8";
-				std::string Mailer;
-				std::string Receiver;
-				std::string Login;
-				std::string Password;
+				Core::UnorderedMap<Core::String, Core::String> Headers;
+				Core::Vector<Recipient> Recipients;
+				Core::Vector<Recipient> CCRecipients;
+				Core::Vector<Recipient> BCCRecipients;
+				Core::Vector<Attachment> Attachments;
+				Core::Vector<Core::String> Messages;
+				Core::String SenderName;
+				Core::String SenderAddress;
+				Core::String Subject;
+				Core::String Charset = "utf-8";
+				Core::String Mailer;
+				Core::String Receiver;
+				Core::String Login;
+				Core::String Password;
 				Priority Prior = Priority::Normal;
 				bool Authenticate = true;
 				bool NoNotification = false;
@@ -56,16 +56,16 @@ namespace Edge
 			{
 			private:
 				FILE * AttachmentFile;
-				std::string Buffer;
-				std::string Command;
-				std::string Boundary;
-				std::string Hoster;
+				Core::String Buffer;
+				Core::String Command;
+				Core::String Boundary;
+				Core::String Hoster;
 				RequestFrame Request;
 				int32_t Pending;
 				bool Authorized;
 
 			public:
-				Client(const std::string& Domain, int64_t ReadTimeout);
+				Client(const Core::String& Domain, int64_t ReadTimeout);
 				~Client() override;
 				Core::Promise<int> Send(RequestFrame&& Root);
 				RequestFrame* GetRequest();
@@ -80,7 +80,7 @@ namespace Edge
 				bool ProcessAttachment();
 				bool ReadResponses(int Code, const ReplyCallback& Callback);
 				bool ReadResponse(int Code, const ReplyCallback& Callback);
-				bool SendRequest(int Code, const std::string& Content, const ReplyCallback& Callback);
+				bool SendRequest(int Code, const Core::String& Content, const ReplyCallback& Callback);
 				bool CanRequest(const char* Keyword);
 				unsigned char* Unicode(const char* String);
 			};

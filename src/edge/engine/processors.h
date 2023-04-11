@@ -68,18 +68,18 @@ namespace Edge
 
 			struct MeshBlob
 			{
-				std::unordered_map<size_t, size_t> JointIndices;
-				std::vector<Compute::SkinVertex> Vertices;
-				std::vector<int32_t> Indices;
-				std::string Name;
+				Core::UnorderedMap<size_t, size_t> JointIndices;
+				Core::Vector<Compute::SkinVertex> Vertices;
+				Core::Vector<int32_t> Indices;
+				Core::String Name;
 				Compute::Matrix4x4 Transform;
 				size_t LocalIndex = 0;
 			};
 
 			struct ModelInfo
 			{
-				std::unordered_map<std::string, MeshJoint> JointOffsets;
-				std::vector<MeshBlob> Meshes;
+				Core::UnorderedMap<Core::String, MeshJoint> JointOffsets;
+				Core::Vector<MeshBlob> Meshes;
 				Compute::Matrix4x4 Transform;
 				Compute::Joint Skeleton;
 				Compute::Vector3 Min, Max;
@@ -89,9 +89,9 @@ namespace Edge
 
 			struct ModelChannel
 			{
-				std::unordered_map<float, Compute::Vector3> Positions;
-				std::unordered_map<float, Compute::Vector3> Scales;
-				std::unordered_map<float, Compute::Quaternion> Rotations;
+				Core::UnorderedMap<float, Compute::Vector3> Positions;
+				Core::UnorderedMap<float, Compute::Vector3> Scales;
+				Core::UnorderedMap<float, Compute::Quaternion> Rotations;
 			};
 
 			class ED_OUT AssetProcessor final : public Processor
@@ -192,7 +192,7 @@ namespace Edge
 
 			public:
 				static Core::Schema* Import(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
-				static std::vector<Compute::SkinAnimatorClip> ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
+				static Core::Vector<Compute::SkinAnimatorClip> ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
 			};
 
 			class ED_OUT SchemaProcessor final : public Processor

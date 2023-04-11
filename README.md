@@ -276,6 +276,7 @@ These **will not** alter any interfaces but all related functions will return **
 + **ED_USE_BULLET3** will enable built-in Bullet3 library and physics interfaces, defaults to true
 + **ED_USE_RMLUI** will enable built-in RmlUi library and gui interfaces, defaults to true
 + **ED_USE_BINDINGS** will enable full script bindings otherwise only essentials will be used to reduce lib size, defaults to true
++ **ED_USE_FAST_MEMORY** will enable custom allocator for all used standard containers, making them incompatible with std::allocator based ones but adding opportunity to use pool allocator, defaults to false
 
 ## Static dependencies
 * [bullet3](https://github.com/bulletphysics/bullet3)

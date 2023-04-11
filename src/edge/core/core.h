@@ -72,6 +72,7 @@
 #include <atomic>
 #include <limits>
 #include <array>
+#include <sstream>
 #ifdef ED_FAST_SORT
 #include <execution>
 #define ED_SORT(Begin, End, Comparator) std::sort(std::execution::par_unseq, Begin, End, Comparator)
@@ -137,7 +138,7 @@ typedef socklen_t socket_size_t;
 #define ED_WATCH(Ptr, Label) ((void)0)
 #define ED_WATCH_AT(Ptr, Function, Label) ((void)0)
 #define ED_UNWATCH(Ptr) ((void)0)
-#define ED_MALLOC(Type, Size) (Type*)Edge::Core::OS::Malloc(Size)
+#define ED_MALLOC(Type, Size) (Type*)Edge::Core::Memory::Malloc(Size)
 #define ED_NEW(Type, ...) new((void*)ED_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
 #else
 #if ED_DLEVEL >= 5
@@ -174,17 +175,22 @@ typedef socklen_t socket_size_t;
 #define ED_MEASURE(Threshold) auto ED_MEASURE_PREPARE(__LINE__) = Edge::Core::OS::Timing::Measure(__FILE__, __func__, __LINE__, Threshold)
 #define ED_MEASURE_LOOP() Edge::Core::OS::Timing::MeasureLoop()
 #define ED_AWAIT(Value) Edge::Core::Coawait(Value, __func__, #Value)
-#define ED_WATCH(Ptr, Label) Edge::Core::OS::Watch(Ptr, Edge::Core::Allocator::Context(__FILE__, __func__, Label, __LINE__))
-#define ED_WATCH_AT(Ptr, Function, Label) Edge::Core::OS::Watch(Ptr, Edge::Core::Allocator::Context(__FILE__, Function, Label, __LINE__))
-#define ED_UNWATCH(Ptr) Edge::Core::OS::Unwatch(Ptr)
-#define ED_MALLOC(Type, Size) (Type*)Edge::Core::OS::MallocDebug(Size, Edge::Core::Allocator::Context(__FILE__, __func__, typeid(Type).name(), __LINE__))
+#define ED_WATCH(Ptr, Label) Edge::Core::Memory::Watch(Ptr, Edge::Core::MemoryContext(__FILE__, __func__, Label, __LINE__))
+#define ED_WATCH_AT(Ptr, Function, Label) Edge::Core::Memory::Watch(Ptr, Edge::Core::MemoryContext(__FILE__, Function, Label, __LINE__))
+#define ED_UNWATCH(Ptr) Edge::Core::Memory::Unwatch(Ptr)
+#define ED_MALLOC(Type, Size) (Type*)Edge::Core::Memory::MallocContext(Size, Edge::Core::MemoryContext(__FILE__, __func__, typeid(Type).name(), __LINE__))
 #define ED_NEW(Type, ...) new((void*)ED_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
 #endif
 #ifdef max
 #undef max
 #endif
+#ifdef ED_HAS_FAST_MEMORY
+#define ED_STD_ALLOCATOR Edge::Core::AllocationInvoker
+#else
+#define ED_STD_ALLOCATOR std::allocator
+#endif
 #define ED_DELETE(Destructor, Var) { if (Var != nullptr) { (Var)->~Destructor(); ED_FREE((void*)Var); } }
-#define ED_FREE(Ptr) Edge::Core::OS::Free(Ptr)
+#define ED_FREE(Ptr) Edge::Core::Memory::Free(Ptr)
 #define ED_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
 #define ED_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
 #define ED_ASSIGN(FromPtr, ToPtr) { (FromPtr) = ToPtr; if (FromPtr != nullptr) (FromPtr)->AddRef(); }
@@ -328,27 +334,262 @@ namespace Edge
 			Trace = 5
 		};
 
+		template <typename T, typename = void>
+		struct IsIterable : std::false_type { };
+
+		template <typename T>
+		struct IsIterable<T, std::void_t<decltype(std::begin(std::declval<T&>())), decltype(std::end(std::declval<T&>()))>> : std::true_type
+		{
+		};
+
 		template <typename T>
 		using Unique = T*;
 
-		typedef std::vector<struct Variant> VariantList;
-		typedef std::vector<Schema*> SchemaList;
-		typedef std::unordered_map<std::string, struct Variant> VariantArgs;
-		typedef std::unordered_map<std::string, Schema*> SchemaArgs;
+		template <typename T>
+		struct ED_OUT Mapping
+		{
+			T Map;
+
+			~Mapping() = default;
+		};
+
+		struct ED_OUT MemoryContext
+		{
+			const char* Source;
+			const char* Function;
+			const char* TypeName;
+			int Line;
+
+			MemoryContext();
+			MemoryContext(const char* NewSource, const char* NewFunction, const char* NewTypeName, int NewLine);
+		};
+
+		class ED_OUT_TS Allocator
+		{
+		public:
+			virtual ~Allocator() = default;
+			virtual Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept = 0;
+			virtual void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept = 0;
+			virtual void Free(Unique<void> Address) noexcept = 0;
+			virtual void Watch(MemoryContext&& Origin, void* Address) noexcept = 0;
+			virtual void Unwatch(void* Address) noexcept = 0;
+			virtual void Finalize() noexcept = 0;
+			virtual bool IsValid(void* Address) noexcept = 0;
+			virtual bool IsFinalizable() noexcept = 0;
+		};
+
+		class ED_OUT_TS DebugAllocator final : public Allocator
+		{
+		public:
+			struct ED_OUT_TS TracingBlock
+			{
+				std::string TypeName;
+				MemoryContext Origin;
+				time_t Time;
+				size_t Size;
+				bool Active;
+				bool Static;
+
+				TracingBlock();
+				TracingBlock(const char* NewTypeName, MemoryContext&& NewOrigin, time_t NewTime, size_t NewSize, bool IsActive, bool IsStatic);
+			};
+
+		private:
+			std::unordered_map<void*, TracingBlock> Blocks;
+			std::recursive_mutex Mutex;
+
+		public:
+			~DebugAllocator() override = default;
+			Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept override;
+			void Free(Unique<void> Address) noexcept override;
+			void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept override;
+			void Watch(MemoryContext&& Origin, void* Address) noexcept override;
+			void Unwatch(void* Address) noexcept override;
+			void Finalize() noexcept override;
+			bool IsValid(void* Address) noexcept override;
+			bool IsFinalizable() noexcept override;
+			bool Dump(void* Address);
+			bool FindBlock(void* Address, TracingBlock* Output);
+			const std::unordered_map<void*, TracingBlock>& GetBlocks() const;
+		};
+		
+		class ED_OUT_TS DefaultAllocator final : public Allocator
+		{
+		public:
+			~DefaultAllocator() override = default;
+			Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept override;
+			void Free(Unique<void> Address) noexcept override;
+			void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept override;
+			void Watch(MemoryContext&& Origin, void* Address) noexcept override;
+			void Unwatch(void* Address) noexcept override;
+			void Finalize() noexcept override;
+			bool IsValid(void* Address) noexcept override;
+			bool IsFinalizable() noexcept override;
+		};
+
+		class ED_OUT_TS PoolAllocator final : public Allocator
+		{
+		public:
+			struct PageGroup;
+
+			struct PageCache
+			{
+				 std::deque<void*> Childs;
+				 int64_t AliveTime;
+				 size_t Capacity;
+				 PageGroup* Page;
+				 void* BaseAddress;
+			};
+
+			struct PageGroup
+			{
+				std::unordered_set<PageCache*> Reserve;
+				size_t Size;
+			};
+
+		private:
+			std::unordered_map<size_t, PageGroup*> Pages;
+			std::unordered_map<void*, PageCache*> Blocks;
+			std::recursive_mutex Mutex;
+			uint64_t MinimalLifeTime;
+			double ElementsReducingFactor;
+			size_t ElementsReducingBase;
+			size_t ElementsPerAllocation;
+
+		public:
+			PoolAllocator(uint64_t MinimalLifeTimeMs = 2000, size_t MaxElementsPerAllocation = 1024, size_t ElementsReducingBaseBytes = 300, double ElementsReducingFactorRate = 5.0);
+			~PoolAllocator() noexcept override;
+			Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept override;
+			void Free(Unique<void> Address) noexcept override;
+			void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept override;
+			void Watch(MemoryContext&& Origin, void* Address) noexcept override;
+			void Unwatch(void* Address) noexcept override;
+			void Finalize() noexcept override;
+			bool IsValid(void* Address) noexcept override;
+			bool IsFinalizable() noexcept override;
+
+		private:
+			void DeallocatePageCache(PageCache* Address, bool EraseFromCache);
+			PageCache* AllocatePageCache(MemoryContext&& Origin, PageGroup* Page, size_t Size);
+			PageCache* GetPageCache(MemoryContext&& Origin, PageGroup* Page, size_t Size);
+			PageGroup* GetPageGroup(size_t Size);
+			int64_t GetClock();
+			size_t GetElementsCount(PageGroup* Page, size_t Size);
+			double GetFrequency(PageGroup* Page);
+		};
+
+		class ED_OUT_TS Memory
+		{
+		private:
+			static std::unordered_map<void*, std::pair<MemoryContext, size_t>>* Allocations;
+			static std::mutex* Mutex;
+			static Allocator* Base;
+
+		public:
+			static Unique<void> Malloc(size_t Size) noexcept;
+			static Unique<void> MallocContext(size_t Size, MemoryContext&& Origin) noexcept;
+			static void Free(Unique<void> Address) noexcept;
+			static void Watch(void* Address, MemoryContext&& Origin) noexcept;
+			static void Unwatch(void* Address) noexcept;
+			static void SetAllocator(Allocator* NewAllocator);
+			static bool IsValidAddress(void* Address);
+			static Allocator* GetAllocator();
+
+		private:
+			static void Initialize();
+			static void Uninitialize();
+		};
+
+		template <typename T>
+		class ED_OUT AllocationInvoker
+		{
+		public:
+			typedef T value_type;
+
+		public:
+			template <typename U>
+			struct rebind
+			{
+				typedef AllocationInvoker<U> other;
+			};
+
+		public:
+			AllocationInvoker() = default;
+			~AllocationInvoker() = default;
+			AllocationInvoker(const AllocationInvoker&) = default;
+			value_type* allocate(size_t Count)
+			{
+				return ED_MALLOC(T, Count * sizeof(T));
+			}
+			value_type* allocate(size_t Count, const void*)
+			{
+				return ED_MALLOC(T, Count * sizeof(T));
+			}
+			void deallocate(value_type* Address, size_t Count)
+			{
+				ED_FREE((void*)Address);
+			}
+			size_t max_size() const
+			{
+				return std::numeric_limits<size_t>::max() / sizeof(T);
+			}
+			bool operator== (const AllocationInvoker&)
+			{
+				return true;
+			}
+			bool operator!=(const AllocationInvoker&)
+			{
+				return false;
+			}
+
+		public:
+			template <typename U>
+			AllocationInvoker(const AllocationInvoker<U>&)
+			{
+			}
+		};
+
+		template <typename T>
+		using Vector = std::vector<T, ED_STD_ALLOCATOR<T>>;
+
+		template <typename T>
+		using LinkedList = std::list<T, ED_STD_ALLOCATOR<T>>;
+
+		template <typename T>
+		using SingleQueue = std::queue<T, std::deque<T, ED_STD_ALLOCATOR<T>>>;
+
+		template <typename T>
+		using DoubleQueue = std::deque<T, ED_STD_ALLOCATOR<T>>;
+
+		template <typename K, typename Hasher = typename std::unordered_set<K>::hasher, typename KeyEqual = typename std::unordered_set<K>::key_equal>
+		using UnorderedSet = std::unordered_set<K, Hasher, KeyEqual, ED_STD_ALLOCATOR<typename std::unordered_set<K>::value_type>>;
+
+		template <typename K, typename V, typename Hasher = typename std::unordered_map<K, V>::hasher, typename KeyEqual = typename std::unordered_map<K, V>::key_equal>
+		using UnorderedMap = std::unordered_map<K, V, Hasher, KeyEqual, ED_STD_ALLOCATOR<typename std::unordered_map<K, V>::value_type>>;
+
+		template <typename K, typename V, typename Hasher = typename std::unordered_multimap<K, V>::hasher, typename KeyEqual = typename std::unordered_multimap<K, V>::key_equal>
+		using UnorderedMultiMap = std::unordered_multimap<K, V, Hasher, KeyEqual, ED_STD_ALLOCATOR<typename std::unordered_multimap<K, V>::value_type>>;
+
+		template <typename K, typename V, typename Comparator = typename std::map<K, V>::key_compare>
+		using OrderedMap = std::map<K, V, Comparator, ED_STD_ALLOCATOR<typename std::map<K, V>::value_type>>;
+
+		using String = std::basic_string<std::string::value_type, std::string::traits_type, ED_STD_ALLOCATOR<typename std::string::value_type>>;
+		using StringStream = std::basic_stringstream<std::string::value_type, std::string::traits_type, ED_STD_ALLOCATOR<typename std::string::value_type>>;
+		using WideString = std::basic_string<std::wstring::value_type, std::wstring::traits_type, ED_STD_ALLOCATOR<typename std::wstring::value_type>>;
+		using WideStringStream = std::basic_stringstream<std::wstring::value_type, std::wstring::traits_type, ED_STD_ALLOCATOR<typename std::wstring::value_type>>;
+
+		typedef Core::Vector<struct Variant> VariantList;
+		typedef Core::Vector<Schema*> SchemaList;
+		typedef Core::UnorderedMap<Core::String, struct Variant> VariantArgs;
+		typedef Core::UnorderedMap<Core::String, Schema*> SchemaArgs;
 		typedef std::function<void()> TaskCallback;
 		typedef std::function<void(size_t)> SeqTaskCallback;
-		typedef std::function<std::string(const std::string&)> SchemaNameCallback;
+		typedef std::function<Core::String(const Core::String&)> SchemaNameCallback;
 		typedef std::function<void(VarForm, const char*, size_t)> SchemaWriteCallback;
 		typedef std::function<bool(char*, size_t)> SchemaReadCallback;
 		typedef std::function<bool()> ActivityCallback;
 		typedef uint64_t TaskId;
 		typedef Decimal BigNumber;
-
-		template <typename Type>
-		struct Mapping
-		{
-			Type Map;
-		};
 
 		struct ED_OUT Coroutine
 		{
@@ -373,7 +614,7 @@ namespace Edge
 		struct ED_OUT Decimal
 		{
 		private:
-			std::deque<char> Source;
+			Core::DoubleQueue<char> Source;
 			int Length;
 			char Sign;
 			bool Invalid;
@@ -381,7 +622,7 @@ namespace Edge
 		public:
 			Decimal() noexcept;
 			Decimal(const char* Value) noexcept;
-			Decimal(const std::string& Value) noexcept;
+			Decimal(const Core::String& Value) noexcept;
 			Decimal(int32_t Value) noexcept;
 			Decimal(uint32_t Value) noexcept;
 			Decimal(int64_t Value) noexcept;
@@ -404,8 +645,8 @@ namespace Edge
 			float ToFloat() const;
 			int64_t ToInt64() const;
 			uint64_t ToUInt64() const;
-			std::string ToString() const;
-			std::string Exp() const;
+			Core::String ToString() const;
+			Core::String Exp() const;
 			int Decimals() const;
 			int Ints() const;
 			int Size() const;
@@ -442,7 +683,7 @@ namespace Edge
 			{
 				return ToUInt64();
 			}
-			explicit operator std::string() const
+			explicit operator Core::String() const
 			{
 				return ToString();
 			}
@@ -491,9 +732,9 @@ namespace Edge
 			Variant(const Variant& Other) noexcept;
 			Variant(Variant&& Other) noexcept;
 			~Variant() noexcept;
-			bool Deserialize(const std::string& Value, bool Strict = false);
-			std::string Serialize() const;
-			std::string GetBlob() const;
+			bool Deserialize(const Core::String& Value, bool Strict = false);
+			Core::String Serialize() const;
+			Core::String GetBlob() const;
 			Decimal GetDecimal() const;
 			void* GetPointer() const;
 			const char* GetString() const;
@@ -558,7 +799,7 @@ namespace Edge
 
 		struct ED_OUT FileEntry
 		{
-			std::string Path;
+			Core::String Path;
 			size_t Size = 0;
 			int64_t LastModified = 0;
 			int64_t CreationTime = 0;
@@ -604,9 +845,9 @@ namespace Edge
 			bool operator >(const DateTime& Right);
 			bool operator <(const DateTime& Right);
 			bool operator ==(const DateTime& Right);
-			std::string Format(const std::string& Value);
-			std::string Date(const std::string& Value);
-			std::string Iso8601();
+			Core::String Format(const Core::String& Value);
+			Core::String Date(const Core::String& Value);
+			Core::String Iso8601();
 			DateTime Now();
 			DateTime FromNanoseconds(uint64_t Value);
 			DateTime FromMicroseconds(uint64_t Value);
@@ -649,8 +890,8 @@ namespace Edge
 			void Rebuild();
 
 		public:
-			static std::string FetchWebDateGMT(int64_t TimeStamp);
-			static std::string FetchWebDateTime(int64_t TimeStamp);
+			static Core::String FetchWebDateGMT(int64_t TimeStamp);
+			static Core::String FetchWebDateTime(int64_t TimeStamp);
 			static bool FetchWebDateGMT(char* Buffer, size_t Length, int64_t Time);
 			static bool FetchWebDateTime(char* Buffer, size_t Length, int64_t Time);
 			static int64_t ParseWebDate(const char* Date);
@@ -667,7 +908,7 @@ namespace Edge
 			};
 
 		private:
-			std::string* Base;
+			Core::String* Base;
 			bool Deletable;
 
 		public:
@@ -679,9 +920,9 @@ namespace Edge
 			Stringify(float Value) noexcept;
 			Stringify(double Value) noexcept;
 			Stringify(long double Value) noexcept;
-			Stringify(const std::string& Buffer) noexcept;
-			Stringify(std::string* Buffer) noexcept;
-			Stringify(const std::string* Buffer) noexcept;
+			Stringify(const Core::String& Buffer) noexcept;
+			Stringify(Core::String* Buffer) noexcept;
+			Stringify(const Core::String* Buffer) noexcept;
 			Stringify(const char* Buffer) noexcept;
 			Stringify(const char* Buffer, size_t Length) noexcept;
 			Stringify(Stringify&& Value) noexcept;
@@ -700,18 +941,18 @@ namespace Edge
 			Stringify& Compress(const char* SpaceIfNotFollowedOrPrecededByOf, const char* NotInBetweenOf, size_t Start = 0U);
 			Stringify& ReplaceOf(const char* Chars, const char* To, size_t Start = 0U);
 			Stringify& ReplaceNotOf(const char* Chars, const char* To, size_t Start = 0U);
-			Stringify& ReplaceGroups(const std::string& FromRegex, const std::string& To);
-			Stringify& Replace(const std::string& From, const std::string& To, size_t Start = 0U);
+			Stringify& ReplaceGroups(const Core::String& FromRegex, const Core::String& To);
+			Stringify& Replace(const Core::String& From, const Core::String& To, size_t Start = 0U);
 			Stringify& Replace(const char* From, const char* To, size_t Start = 0U);
 			Stringify& Replace(const char& From, const char& To, size_t Position = 0U);
 			Stringify& Replace(const char& From, const char& To, size_t Position, size_t Count);
-			Stringify& ReplacePart(size_t Start, size_t End, const std::string& Value);
+			Stringify& ReplacePart(size_t Start, size_t End, const Core::String& Value);
 			Stringify& ReplacePart(size_t Start, size_t End, const char* Value);
-			Stringify& ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const std::string& With, size_t Start = 0U);
-			Stringify& ReplaceInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start = 0U);
-			Stringify& ReplaceNotInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start = 0U);
-			Stringify& ReplaceParts(std::vector<std::pair<std::string, Stringify::Settle>>& Inout, const std::string& With, const std::function<char(const std::string&, char, int)>& Surrounding = nullptr);
-			Stringify& ReplaceParts(std::vector<Stringify::Settle>& Inout, const std::string& With, const std::function<char(char, int)>& Surrounding = nullptr);
+			Stringify& ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const Core::String& With, size_t Start = 0U);
+			Stringify& ReplaceInBetween(const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start = 0U);
+			Stringify& ReplaceNotInBetween(const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start = 0U);
+			Stringify& ReplaceParts(Core::Vector<std::pair<Core::String, Stringify::Settle>>& Inout, const Core::String& With, const std::function<char(const Core::String&, char, int)>& Surrounding = nullptr);
+			Stringify& ReplaceParts(Core::Vector<Stringify::Settle>& Inout, const Core::String& With, const std::function<char(char, int)>& Surrounding = nullptr);
 			Stringify& RemovePart(size_t Start, size_t End);
 			Stringify& Reverse();
 			Stringify& Reverse(size_t Start, size_t End);
@@ -725,49 +966,49 @@ namespace Edge
 			Stringify& Fill(const char& Char, size_t Start, size_t Count);
 			Stringify& Assign(const char* Raw);
 			Stringify& Assign(const char* Raw, size_t Length);
-			Stringify& Assign(const std::string& Raw);
-			Stringify& Assign(const std::string& Raw, size_t Start, size_t Count);
+			Stringify& Assign(const Core::String& Raw);
+			Stringify& Assign(const Core::String& Raw, size_t Start, size_t Count);
 			Stringify& Assign(const char* Raw, size_t Start, size_t Count);
 			Stringify& Append(const char* Raw);
 			Stringify& Append(const char& Char);
 			Stringify& Append(const char& Char, size_t Count);
-			Stringify& Append(const std::string& Raw);
+			Stringify& Append(const Core::String& Raw);
 			Stringify& Append(const char* Raw, size_t Count);
 			Stringify& Append(const char* Raw, size_t Start, size_t Count);
-			Stringify& Append(const std::string& Raw, size_t Start, size_t Count);
+			Stringify& Append(const Core::String& Raw, size_t Start, size_t Count);
 			Stringify& fAppend(const char* Format, ...);
-			Stringify& Insert(const std::string& Raw, size_t Position);
-			Stringify& Insert(const std::string& Raw, size_t Position, size_t Start, size_t Count);
-			Stringify& Insert(const std::string& Raw, size_t Position, size_t Count);
+			Stringify& Insert(const Core::String& Raw, size_t Position);
+			Stringify& Insert(const Core::String& Raw, size_t Position, size_t Start, size_t Count);
+			Stringify& Insert(const Core::String& Raw, size_t Position, size_t Count);
 			Stringify& Insert(const char& Char, size_t Position, size_t Count);
 			Stringify& Insert(const char& Char, size_t Position);
 			Stringify& Erase(size_t Position);
 			Stringify& Erase(size_t Position, size_t Count);
 			Stringify& EraseOffsets(size_t Start, size_t End);
-			Stringify& Eval(const std::string& Net, const std::string& Dir);
-			std::vector<std::pair<std::string, Stringify::Settle>> FindInBetween(const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
-			std::vector<std::pair<std::string, Stringify::Settle>> FindStartsWithEndsOf(const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
-			Stringify::Settle ReverseFind(const std::string& Needle, size_t Offset = 0U) const;
+			Stringify& Eval(const Core::String& Net, const Core::String& Dir);
+			Core::Vector<std::pair<Core::String, Stringify::Settle>> FindInBetween(const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
+			Core::Vector<std::pair<Core::String, Stringify::Settle>> FindStartsWithEndsOf(const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
+			Stringify::Settle ReverseFind(const Core::String& Needle, size_t Offset = 0U) const;
 			Stringify::Settle ReverseFind(const char* Needle, size_t Offset = 0U) const;
 			Stringify::Settle ReverseFind(const char& Needle, size_t Offset = 0U) const;
 			Stringify::Settle ReverseFindUnescaped(const char& Needle, size_t Offset = 0U) const;
-			Stringify::Settle ReverseFindOf(const std::string& Needle, size_t Offset = 0U) const;
+			Stringify::Settle ReverseFindOf(const Core::String& Needle, size_t Offset = 0U) const;
 			Stringify::Settle ReverseFindOf(const char* Needle, size_t Offset = 0U) const;
-			Stringify::Settle Find(const std::string& Needle, size_t Offset = 0U) const;
+			Stringify::Settle Find(const Core::String& Needle, size_t Offset = 0U) const;
 			Stringify::Settle Find(const char* Needle, size_t Offset = 0U) const;
 			Stringify::Settle Find(const char& Needle, size_t Offset = 0U) const;
 			Stringify::Settle FindUnescaped(const char& Needle, size_t Offset = 0U) const;
-			Stringify::Settle FindOf(const std::string& Needle, size_t Offset = 0U) const;
+			Stringify::Settle FindOf(const Core::String& Needle, size_t Offset = 0U) const;
 			Stringify::Settle FindOf(const char* Needle, size_t Offset = 0U) const;
-			Stringify::Settle FindNotOf(const std::string& Needle, size_t Offset = 0U) const;
+			Stringify::Settle FindNotOf(const Core::String& Needle, size_t Offset = 0U) const;
 			Stringify::Settle FindNotOf(const char* Needle, size_t Offset = 0U) const;
 			bool IsPrecededBy(size_t At, const char* Of) const;
 			bool IsFollowedBy(size_t At, const char* Of) const;
-			bool StartsWith(const std::string& Value, size_t Offset = 0U) const;
+			bool StartsWith(const Core::String& Value, size_t Offset = 0U) const;
 			bool StartsWith(const char* Value, size_t Offset = 0U) const;
 			bool StartsOf(const char* Value, size_t Offset = 0U) const;
 			bool StartsNotOf(const char* Value, size_t Offset = 0U) const;
-			bool EndsWith(const std::string& Value) const;
+			bool EndsWith(const Core::String& Value) const;
 			bool EndsOf(const char* Value) const;
 			bool EndsNotOf(const char* Value) const;
 			bool EndsWith(const char* Value) const;
@@ -790,24 +1031,28 @@ namespace Edge
 			size_t Capacity() const;
 			char* Value() const;
 			const char* Get() const;
-			std::string& R();
-			std::wstring ToWide() const;
-			std::vector<std::string> Split(const std::string& With, size_t Start = 0U) const;
-			std::vector<std::string> Split(char With, size_t Start = 0U) const;
-			std::vector<std::string> SplitMax(char With, size_t MaxCount, size_t Start = 0U) const;
-			std::vector<std::string> SplitOf(const char* With, size_t Start = 0U) const;
-			std::vector<std::string> SplitNotOf(const char* With, size_t Start = 0U) const;
+			Core::String& R();
+			Core::WideString ToWide() const;
+			Core::Vector<Core::String> Split(const Core::String& With, size_t Start = 0U) const;
+			Core::Vector<Core::String> Split(char With, size_t Start = 0U) const;
+			Core::Vector<Core::String> SplitMax(char With, size_t MaxCount, size_t Start = 0U) const;
+			Core::Vector<Core::String> SplitOf(const char* With, size_t Start = 0U) const;
+			Core::Vector<Core::String> SplitNotOf(const char* With, size_t Start = 0U) const;
 			Stringify& operator = (Stringify&& New) noexcept;
 			Stringify& operator = (const Stringify& New) noexcept;
 
+		public:
+#ifdef ED_HAS_FAST_MEMORY
+			Stringify(const std::string& Value) noexcept;
+#endif
 		public:
 			static bool IsDigit(char Char);
 			static bool IsAlphabetic(char Char);
 			static int CaseCompare(const char* Value1, const char* Value2);
 			static int Match(const char* Pattern, const char* Text);
 			static int Match(const char* Pattern, size_t Length, const char* Text);
-			static std::string ToString(float Number);
-			static std::string ToString(double Number);
+			static Core::String ToString(float Number);
+			static Core::String ToString(double Number);
 			static void ConvertToWide(const char* Input, size_t InputSize, wchar_t* Output, size_t OutputSize);
 		};
 
@@ -900,156 +1145,43 @@ namespace Edge
 			public:
 				static Unique<Schema> Auto(Variant&& Value);
 				static Unique<Schema> Auto(const Variant& Value);
-				static Unique<Schema> Auto(const std::string& Value, bool Strict = false);
+				static Unique<Schema> Auto(const Core::String& Value, bool Strict = false);
 				static Unique<Schema> Null();
 				static Unique<Schema> Undefined();
 				static Unique<Schema> Object();
 				static Unique<Schema> Array();
 				static Unique<Schema> Pointer(void* Value);
-				static Unique<Schema> String(const std::string& Value);
+				static Unique<Schema> String(const Core::String& Value);
 				static Unique<Schema> String(const char* Value, size_t Size);
-				static Unique<Schema> Binary(const std::string& Value);
+				static Unique<Schema> Binary(const Core::String& Value);
 				static Unique<Schema> Binary(const unsigned char* Value, size_t Size);
 				static Unique<Schema> Binary(const char* Value, size_t Size);
 				static Unique<Schema> Integer(int64_t Value);
 				static Unique<Schema> Number(double Value);
 				static Unique<Schema> Decimal(const BigNumber& Value);
 				static Unique<Schema> Decimal(BigNumber&& Value);
-				static Unique<Schema> DecimalString(const std::string& Value);
+				static Unique<Schema> DecimalString(const Core::String& Value);
 				static Unique<Schema> Boolean(bool Value);
 			};
 
 		public:
-			static Variant Auto(const std::string& Value, bool Strict = false);
+			static Variant Auto(const Core::String& Value, bool Strict = false);
 			static Variant Null();
 			static Variant Undefined();
 			static Variant Object();
 			static Variant Array();
 			static Variant Pointer(void* Value);
-			static Variant String(const std::string& Value);
+			static Variant String(const Core::String& Value);
 			static Variant String(const char* Value, size_t Size);
-			static Variant Binary(const std::string& Value);
+			static Variant Binary(const Core::String& Value);
 			static Variant Binary(const unsigned char* Value, size_t Size);
 			static Variant Binary(const char* Value, size_t Size);
 			static Variant Integer(int64_t Value);
 			static Variant Number(double Value);
 			static Variant Decimal(const BigNumber& Value);
 			static Variant Decimal(BigNumber&& Value);
-			static Variant DecimalString(const std::string& Value);
+			static Variant DecimalString(const Core::String& Value);
 			static Variant Boolean(bool Value);
-		};
-
-		class ED_OUT_TS Allocator
-		{
-		public:
-			struct ED_OUT Context
-			{
-				const char* Source;
-				const char* Function;
-				const char* TypeName;
-				int Line;
-
-				Context();
-				Context(const char* NewSource, const char* NewFunction, const char* NewTypeName, int NewLine);
-			};
-
-		public:
-			bool Tracing = true;
-
-		public:
-			virtual ~Allocator() = default;
-			virtual Unique<void> Allocate(Context&& Origin, size_t Size) noexcept = 0;
-			virtual void Free(Unique<void> Address) noexcept = 0;
-			virtual void Watch(Context&& Origin, void* Address) noexcept = 0;
-			virtual void Unwatch(void* Address) noexcept = 0;
-			virtual bool IsValid(void* Address) noexcept = 0;
-		};
-
-		class ED_OUT_TS DebugAllocator final : public Allocator
-		{
-		public:
-			struct Block
-			{
-				std::string TypeName;
-				Context Origin;
-				time_t Time;
-				size_t Size;
-				bool Active;
-			};
-
-		private:
-			std::unordered_map<void*, Block> Blocks;
-			std::recursive_mutex Mutex;
-
-		public:
-			~DebugAllocator() noexcept override;
-			Unique<void> Allocate(Context&& Origin, size_t Size) noexcept override;
-			void Free(Unique<void> Address) noexcept override;
-			void Watch(Context&& Origin, void* Address) noexcept override;
-			void Unwatch(void* Address) noexcept override;
-			bool IsValid(void* Address) noexcept override;
-			bool Dump(void* Address);
-			bool FindBlock(void* Address, Block* Output);
-			const std::unordered_map<void*, Block>& GetBlocks() const;
-		};
-
-		class ED_OUT_TS PoolAllocator final : public Allocator
-		{
-		public:
-			struct PageGroup;
-
-			struct PageCache
-			{
-				 std::queue<void*> Pool;
-				 int64_t AliveTime;
-				 size_t Capacity;
-				 PageGroup* Page;
-				 void* BaseAddress;
-			};
-
-			struct PageGroup
-			{
-				std::unordered_set<PageCache*> Cache;
-				size_t Size;
-			};
-
-		private:
-			std::unordered_map<size_t, PageGroup*> Pages;
-			std::unordered_map<void*, PageCache*> Blocks;
-			std::recursive_mutex Mutex;
-			uint64_t MinimalLifeTime;
-			double ElementsReducingFactor;
-			size_t ElementsReducingBase;
-			size_t ElementsPerAllocation;
-
-		public:
-			PoolAllocator(uint64_t MinimalLifeTimeMs = 2000, size_t MaxElementsPerAllocation = 1024, size_t ElementsReducingBaseBytes = 300, double ElementsReducingFactorRate = 5.0);
-			~PoolAllocator() noexcept override;
-			Unique<void> Allocate(Context && Origin, size_t Size) noexcept override;
-			void Free(Unique<void> Address) noexcept override;
-			void Watch(Context && Origin, void* Address) noexcept override;
-			void Unwatch(void* Address) noexcept override;
-			bool IsValid(void* Address) noexcept override;
-
-		private:
-			void DeallocatePageCache(PageCache* Address, bool EraseFromCache);
-			PageCache* AllocatePageCache(Context&& Origin, PageGroup* Page, size_t Size);
-			PageCache* GetPageCache(Context&& Origin, PageGroup* Page, size_t Size);
-			PageGroup* GetPageGroup(size_t Size);
-			int64_t GetClock();
-			size_t GetElementsCount(PageGroup* Page, size_t Size);
-			double GetFrequency(PageGroup* Page);
-		};
-
-		class ED_OUT_TS DefaultAllocator final : public Allocator
-		{
-		public:
-			~DefaultAllocator() override = default;
-			Unique<void> Allocate(Context&& Origin, size_t Size) noexcept override;
-			void Free(Unique<void> Address) noexcept override;
-			void Watch(Context&& Origin, void* Address) noexcept override;
-			void Unwatch(void* Address) noexcept override;
-			bool IsValid(void* Address) noexcept override;
 		};
 
 		class ED_OUT_TS OS
@@ -1128,51 +1260,51 @@ namespace Edge
 			{
 			public:
 				static void Set(const char* Path);
-				static void Patch(const std::string& Path);
-				static bool Scan(const std::string& Path, std::vector<FileEntry>* Entries);
+				static void Patch(const Core::String& Path);
+				static bool Scan(const Core::String& Path, Core::Vector<FileEntry>* Entries);
 				static bool Each(const char* Path, const std::function<bool(FileEntry*)>& Callback);
 				static bool Create(const char* Path);
 				static bool Remove(const char* Path);
 				static bool IsExists(const char* Path);
-				static std::string Get();
-				static std::vector<std::string> GetMounts();
+				static Core::String Get();
+				static Core::Vector<Core::String> GetMounts();
 			};
 
 			class ED_OUT File
 			{
 			public:
-				static bool Write(const std::string& Path, const char* Data, size_t Length);
-				static bool Write(const std::string& Path, const std::string& Data);
-				static bool State(const std::string& Path, FileEntry* Resource);
+				static bool Write(const Core::String& Path, const char* Data, size_t Length);
+				static bool Write(const Core::String& Path, const Core::String& Data);
+				static bool State(const Core::String& Path, FileEntry* Resource);
 				static bool Move(const char* From, const char* To);
 				static bool Remove(const char* Path);
 				static bool IsExists(const char* Path);
 				static void Close(Unique<void> Stream);
-				static int Compare(const std::string& FirstPath, const std::string& SecondPath);
-				static size_t Join(const std::string& To, const std::vector<std::string>& Paths);
-				static uint64_t GetCheckSum(const std::string& Data);
+				static int Compare(const Core::String& FirstPath, const Core::String& SecondPath);
+				static size_t Join(const Core::String& To, const Core::Vector<Core::String>& Paths);
+				static uint64_t GetCheckSum(const Core::String& Data);
 				static FileState GetProperties(const char* Path);
-				static Unique<Stream> OpenJoin(const std::string& Path, const std::vector<std::string>& Paths);
-				static Unique<Stream> OpenArchive(const std::string& Path, size_t UnarchivedMaxSize = 128 * 1024 * 1024);
-				static Unique<Stream> Open(const std::string& Path, FileMode Mode, bool Async = false);
+				static Unique<Stream> OpenJoin(const Core::String& Path, const Core::Vector<Core::String>& Paths);
+				static Unique<Stream> OpenArchive(const Core::String& Path, size_t UnarchivedMaxSize = 128 * 1024 * 1024);
+				static Unique<Stream> Open(const Core::String& Path, FileMode Mode, bool Async = false);
 				static Unique<void> Open(const char* Path, const char* Mode);
 				static Unique<unsigned char> ReadChunk(Stream* Stream, size_t Length);
-				static Unique<unsigned char> ReadAll(const std::string& Path, size_t* ByteLength);
+				static Unique<unsigned char> ReadAll(const Core::String& Path, size_t* ByteLength);
 				static Unique<unsigned char> ReadAll(Stream* Stream, size_t* ByteLength);
-				static std::string ReadAsString(const std::string& Path);
-				static std::vector<std::string> ReadAsArray(const std::string& Path);
+				static Core::String ReadAsString(const Core::String& Path);
+				static Core::Vector<Core::String> ReadAsArray(const Core::String& Path);
 			};
 
 			class ED_OUT Path
 			{
 			public:
 				static bool IsRemote(const char* Path);
-				static std::string Resolve(const char* Path);
-				static std::string Resolve(const std::string& Path, const std::string& Directory);
-				static std::string ResolveDirectory(const char* Path);
-				static std::string ResolveDirectory(const std::string& Path, const std::string& Directory);
-				static std::string GetDirectory(const char* Path, size_t Level = 0);
-				static std::string GetNonExistant(const std::string& Path);
+				static Core::String Resolve(const char* Path);
+				static Core::String Resolve(const Core::String& Path, const Core::String& Directory);
+				static Core::String ResolveDirectory(const char* Path);
+				static Core::String ResolveDirectory(const Core::String& Path, const Core::String& Directory);
+				static Core::String GetDirectory(const char* Path, size_t Level = 0);
+				static Core::String GetNonExistant(const Core::String& Path);
 				static const char* GetFilename(const char* Path);
 				static const char* GetExtension(const char* Path);
 			};
@@ -1191,57 +1323,57 @@ namespace Edge
                 struct ED_OUT ArgsContext
                 {
 				public:
-                    std::unordered_map<std::string, std::string> Base;
+                    Core::UnorderedMap<Core::String, Core::String> Base;
                     
 				public:
-					ArgsContext(int Argc, char** Argv, const std::string& WhenNoValue = "1") noexcept;
-					void ForEach(const std::function<void(const std::string&, const std::string&)>& Callback) const;
-					bool IsEnabled(const std::string& Option, const std::string& Shortcut = "") const;
-					bool IsDisabled(const std::string& Option, const std::string& Shortcut = "") const;
-					bool Has(const std::string& Option, const std::string& Shortcut = "") const;
-					std::string& Get(const std::string& Option, const std::string& Shortcut = "");
-					std::string& GetIf(const std::string& Option, const std::string& Shortcut, const std::string& WhenEmpty);
-					std::string& GetAppPath();
+					ArgsContext(int Argc, char** Argv, const Core::String& WhenNoValue = "1") noexcept;
+					void ForEach(const std::function<void(const Core::String&, const Core::String&)>& Callback) const;
+					bool IsEnabled(const Core::String& Option, const Core::String& Shortcut = "") const;
+					bool IsDisabled(const Core::String& Option, const Core::String& Shortcut = "") const;
+					bool Has(const Core::String& Option, const Core::String& Shortcut = "") const;
+					Core::String& Get(const Core::String& Option, const Core::String& Shortcut = "");
+					Core::String& GetIf(const Core::String& Option, const Core::String& Shortcut, const Core::String& WhenEmpty);
+					Core::String& GetAppPath();
                     
                 private:
-					bool IsTrue(const std::string& Value) const;
-					bool IsFalse(const std::string& Value) const;
+					bool IsTrue(const Core::String& Value) const;
+					bool IsFalse(const Core::String& Value) const;
                 };
                 
 			public:
 				static void Interrupt();
 				static int Execute(const char* Format, ...);
-				static bool Spawn(const std::string& Path, const std::vector<std::string>& Params, ChildProcess* Result);
+				static bool Spawn(const Core::String& Path, const Core::Vector<Core::String>& Params, ChildProcess* Result);
 				static bool Await(ChildProcess* Process, int* ExitCode);
 				static bool Free(ChildProcess* Process);
-                static std::string GetThreadId(const std::thread::id& Id);
-                static std::unordered_map<std::string, std::string> GetArgs(int Argc, char** Argv, const std::string& WhenNoValue = "1");
+                static Core::String GetThreadId(const std::thread::id& Id);
+                static Core::UnorderedMap<Core::String, Core::String> GetArgs(int Argc, char** Argv, const Core::String& WhenNoValue = "1");
 			};
 
 			class ED_OUT Symbol
 			{
 			public:
-				static Unique<void> Load(const std::string& Path = "");
-				static Unique<void> LoadFunction(void* Handle, const std::string& Name);
+				static Unique<void> Load(const Core::String& Path = "");
+				static Unique<void> LoadFunction(void* Handle, const Core::String& Name);
 				static bool Unload(void* Handle);
 			};
 
 			class ED_OUT Input
 			{
 			public:
-				static bool Text(const std::string& Title, const std::string& Message, const std::string& DefaultInput, std::string* Result);
-				static bool Password(const std::string& Title, const std::string& Message, std::string* Result);
-				static bool Save(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, std::string* Result);
-				static bool Open(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, bool Multiple, std::string* Result);
-				static bool Folder(const std::string& Title, const std::string& DefaultPath, std::string* Result);
-				static bool Color(const std::string& Title, const std::string& DefaultHexRGB, std::string* Result);
+				static bool Text(const Core::String& Title, const Core::String& Message, const Core::String& DefaultInput, Core::String* Result);
+				static bool Password(const Core::String& Title, const Core::String& Message, Core::String* Result);
+				static bool Save(const Core::String& Title, const Core::String& DefaultPath, const Core::String& Filter, const Core::String& FilterDescription, Core::String* Result);
+				static bool Open(const Core::String& Title, const Core::String& DefaultPath, const Core::String& Filter, const Core::String& FilterDescription, bool Multiple, Core::String* Result);
+				static bool Folder(const Core::String& Title, const Core::String& DefaultPath, Core::String* Result);
+				static bool Color(const Core::String& Title, const Core::String& DefaultHexRGB, Core::String* Result);
 			};
 
 			class ED_OUT Error
 			{
 			public:
 				static int Get();
-				static std::string GetName(int Code);
+				static Core::String GetName(int Code);
 				static bool IsError(int Code);
 			};
 
@@ -1263,7 +1395,7 @@ namespace Edge
 			public:
 				static Tick Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS);
 				static void MeasureLoop();
-				static std::string GetMeasureTrace();
+				static Core::String GetMeasureTrace();
 			};
 
 		public:
@@ -1271,7 +1403,7 @@ namespace Edge
 			{
 				char Buffer[ED_BIG_CHUNK_SIZE] = { '\0' };
 				char Date[64] = { '\0' };
-				std::string Temp;
+				Core::String Temp;
 				const char* Source;
 				int Level;
 				int Line;
@@ -1281,38 +1413,28 @@ namespace Edge
 
 				const char* GetLevelName() const;
 				StdColor GetLevelColor() const;
-				std::string& GetText();
+				Core::String& GetText();
 			};
 
 		private:
 			static std::function<void(Message&)> Callback;
 			static std::mutex Buffer;
-			static Allocator* Memory;
             static bool Pretty;
 			static bool Deferred;
 			static bool Active;
 
 		public:
-			static Unique<void> Malloc(size_t Size) noexcept;
-			static Unique<void> MallocDebug(size_t Size, Allocator::Context&& Origin) noexcept;
-			static void Free(Unique<void> Address) noexcept;
-			static void Watch(void* Address, Allocator::Context&& Origin) noexcept;
-			static void Unwatch(void* Address) noexcept;
 			static void Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
 			static void Log(int Level, int Line, const char* Source, const char* Format, ...);
 			static void Pause();
-			static void SetAllocator(Allocator* NewAllocator);
 			static void SetLogCallback(const std::function<void(Message&)>& Callback);
 			static void SetLogActive(bool Enabled);
 			static void SetLogDeferred(bool Enabled);
             static void SetLogPretty(bool Enabled);
-			static void SetMemoryTracing(bool Enabled);
 			static bool IsLogActive();
 			static bool IsLogDeferred();
 			static bool IsLogPretty();
-			static bool IsValidAddress(void* Address);
-			static Allocator* GetAllocator();
-			static std::string GetStackTrace(size_t Skips, size_t MaxFrames = 16);
+			static Core::String GetStackTrace(size_t Skips, size_t MaxFrames = 16);
 
 		private:
 			static void EnqueueLog(Message&& Data);
@@ -1323,12 +1445,12 @@ namespace Edge
 		class ED_OUT_TS Composer
 		{
 		private:
-			static Mapping<std::unordered_map<uint64_t, std::pair<uint64_t, void*>>>* Factory;
+			static Mapping<Core::UnorderedMap<uint64_t, std::pair<uint64_t, void*>>>* Factory;
 
 		public:
 			static bool Clear();
-			static bool Pop(const std::string& Hash);
-			static std::unordered_set<uint64_t> Fetch(uint64_t Id);
+			static bool Pop(const Core::String& Hash);
+			static Core::UnorderedSet<uint64_t> Fetch(uint64_t Id);
 
 		private:
 			static void Push(uint64_t TypeId, uint64_t Tag, void* Callback);
@@ -1336,7 +1458,7 @@ namespace Edge
 
 		public:
 			template <typename T, typename... Args>
-			static Unique<T> Create(const std::string& Hash, Args... Data)
+			static Unique<T> Create(const Core::String& Hash, Args... Data)
 			{
 				return Create<T, Args...>(ED_HASH(Hash), Data...);
 			}
@@ -1406,7 +1528,7 @@ namespace Edge
 			void Release() noexcept
 			{
 				__vcnt &= 0x7FFFFFFF;
-				ED_ASSERT_V(__vcnt > 0 && OS::IsValidAddress((void*)(T*)this), "address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
+				ED_ASSERT_V(__vcnt > 0 && Memory::IsValidAddress((void*)(T*)this), "address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
 				if (!--__vcnt)
 					delete (T*)this;
 			}
@@ -1488,7 +1610,7 @@ namespace Edge
 			typedef std::function<T(bool&)> ComplexGetterCallback;
 
 		private:
-			std::unordered_map<size_t, ComplexSetterCallback> Setters;
+			Core::UnorderedMap<size_t, ComplexSetterCallback> Setters;
 			ComplexGetterCallback Getter;
 			size_t Index;
 			bool IsSet;
@@ -1596,7 +1718,7 @@ namespace Edge
 			}
 
 		public:
-			inline typename std::enable_if<std::is_arithmetic<T>::value || std::is_same<T, std::string>::value || std::is_same<T, std::string>::value, Reactive&>::type operator+= (const T& Other)
+			inline typename std::enable_if<std::is_arithmetic<T>::value || std::is_same<T, Core::String>::value || std::is_same<T, Core::String>::value, Reactive&>::type operator+= (const T& Other)
 			{
 				T Temporary = GetValue() + Other;
 				SetValue(std::move(Temporary));
@@ -1639,7 +1761,7 @@ namespace Edge
 			typedef std::function<T* (bool&)> ComplexGetterCallback;
 
 		private:
-			std::unordered_map<size_t, ComplexSetterCallback> Setters;
+			Core::UnorderedMap<size_t, ComplexSetterCallback> Setters;
 			ComplexGetterCallback Getter;
 			size_t Index;
 			bool IsSet;
@@ -1808,18 +1930,18 @@ namespace Edge
 			void ColorBegin(StdColor Text, StdColor Background = StdColor::Black);
 			void ColorEnd();
 			void WriteBuffer(const char* Buffer);
-			void WriteLine(const std::string& Line);
+			void WriteLine(const Core::String& Line);
 			void WriteChar(char Value);
-			void Write(const std::string& Line);
+			void Write(const Core::String& Line);
 			void fWriteLine(const char* Format, ...);
 			void fWrite(const char* Format, ...);
-			void sWriteLine(const std::string& Line);
-			void sWrite(const std::string& Line);
+			void sWriteLine(const Core::String& Line);
+			void sWrite(const Core::String& Line);
 			void sfWriteLine(const char* Format, ...);
 			void sfWrite(const char* Format, ...);
 			void GetSize(uint32_t* Width, uint32_t* Height);
 			double GetCapturedTime() const;
-			std::string Read(size_t Size);
+			Core::String Read(size_t Size);
 
 		public:
 			static Console* Get();
@@ -1864,7 +1986,7 @@ namespace Edge
 			} Fixed;
 
 		private:
-			std::queue<Capture> Captures;
+			Core::SingleQueue<Capture> Captures;
 			Units MinDelta = Units(0);
 			Units MaxDelta = Units(0);
 			float FixedFrames = 0.0f;
@@ -1901,7 +2023,7 @@ namespace Edge
 		class ED_OUT Stream : public Reference<Stream>
 		{
 		protected:
-			std::string Path;
+			Core::String Path;
 			size_t VirtualSize;
 
 		public:
@@ -1924,7 +2046,7 @@ namespace Edge
 			size_t ReadAll(const std::function<void(char*, size_t)>& Callback);
 			size_t GetVirtualSize() const;
 			size_t GetSize();
-			std::string& GetSource();
+			Core::String& GetSource();
 		};
 
 		class ED_OUT FileStream : public Stream
@@ -1977,15 +2099,15 @@ namespace Edge
 		{
 		protected:
 			void* Resource;
-			std::unordered_map<std::string, std::string> Headers;
-			std::vector<char> Chunk;
+			Core::UnorderedMap<Core::String, Core::String> Headers;
+			Core::Vector<char> Chunk;
 			size_t Offset;
 			size_t Size;
 			bool Async;
 
 		public:
 			WebStream(bool IsAsync) noexcept;
-			WebStream(bool IsAsync, std::unordered_map<std::string, std::string>&& NewHeaders) noexcept;
+			WebStream(bool IsAsync, Core::UnorderedMap<Core::String, Core::String>&& NewHeaders) noexcept;
 			~WebStream() noexcept override;
 			void Clear() override;
 			bool Open(const char* File, FileMode Mode) override;
@@ -2005,16 +2127,16 @@ namespace Edge
 		class ED_OUT FileLog final : public Reference<FileLog>
 		{
 		private:
-			std::string LastValue;
+			Core::String LastValue;
 			size_t Offset;
 			int64_t Time;
 
 		public:
 			Stream* Source = nullptr;
-			std::string Path, Name;
+			Core::String Path, Name;
 
 		public:
-			FileLog(const std::string& Root) noexcept;
+			FileLog(const Core::String& Root) noexcept;
 			~FileLog() noexcept;
 			void Process(const std::function<bool(FileLog*, const char*, int64_t)>& Callback);
 		};
@@ -2022,15 +2144,15 @@ namespace Edge
 		class ED_OUT FileTree final : public Reference<FileTree>
 		{
 		public:
-			std::vector<FileTree*> Directories;
-			std::vector<std::string> Files;
-			std::string Path;
+			Core::Vector<FileTree*> Directories;
+			Core::Vector<Core::String> Files;
+			Core::String Path;
 
 		public:
-			FileTree(const std::string& Path) noexcept;
+			FileTree(const Core::String& Path) noexcept;
 			~FileTree() noexcept;
 			void Loop(const std::function<bool(const FileTree*)>& Callback) const;
-			const FileTree* Find(const std::string& Path) const;
+			const FileTree* Find(const Core::String& Path) const;
 			size_t GetFiles() const;
 		};
 
@@ -2039,8 +2161,8 @@ namespace Edge
 			friend Cocontext;
 
 		private:
-			std::unordered_set<Coroutine*> Cached;
-			std::unordered_set<Coroutine*> Used;
+			Core::UnorderedSet<Coroutine*> Cached;
+			Core::UnorderedSet<Coroutine*> Used;
 			std::thread::id Thread;
 			Coroutine* Current;
 			Cocontext* Master;
@@ -2091,53 +2213,53 @@ namespace Edge
 		class ED_OUT Schema final : public Reference<Schema>
 		{
 		protected:
-			std::vector<Schema*>* Nodes;
+			Core::Vector<Schema*>* Nodes;
 			Schema* Parent;
 			bool Saved;
 
 		public:
-			std::string Key;
+			Core::String Key;
 			Variant Value;
 
 		public:
 			Schema(const Variant& Base) noexcept;
 			Schema(Variant&& Base) noexcept;
 			~Schema() noexcept;
-			std::unordered_map<std::string, size_t> GetNames() const;
-			std::vector<Schema*> FindCollection(const std::string& Name, bool Deep = false) const;
-			std::vector<Schema*> FetchCollection(const std::string& Notation, bool Deep = false) const;
-			std::vector<Schema*> GetAttributes() const;
-			std::vector<Schema*>& GetChilds();
-			Schema* Find(const std::string& Name, bool Deep = false) const;
-			Schema* Fetch(const std::string& Notation, bool Deep = false) const;
-			Variant FetchVar(const std::string& Key, bool Deep = false) const;
+			Core::UnorderedMap<Core::String, size_t> GetNames() const;
+			Core::Vector<Schema*> FindCollection(const Core::String& Name, bool Deep = false) const;
+			Core::Vector<Schema*> FetchCollection(const Core::String& Notation, bool Deep = false) const;
+			Core::Vector<Schema*> GetAttributes() const;
+			Core::Vector<Schema*>& GetChilds();
+			Schema* Find(const Core::String& Name, bool Deep = false) const;
+			Schema* Fetch(const Core::String& Notation, bool Deep = false) const;
+			Variant FetchVar(const Core::String& Key, bool Deep = false) const;
 			Variant GetVar(size_t Index) const;
-			Variant GetVar(const std::string& Key) const;
-			Variant GetAttributeVar(const std::string& Key) const;
+			Variant GetVar(const Core::String& Key) const;
+			Variant GetAttributeVar(const Core::String& Key) const;
 			Schema* GetParent() const;
-			Schema* GetAttribute(const std::string& Key) const;
+			Schema* GetAttribute(const Core::String& Key) const;
 			Schema* Get(size_t Index) const;
-			Schema* Get(const std::string& Key) const;
-			Schema* Set(const std::string& Key);
-			Schema* Set(const std::string& Key, const Variant& Value);
-			Schema* Set(const std::string& Key, Variant&& Value);
-			Schema* Set(const std::string& Key, Unique<Schema> Value);
-			Schema* SetAttribute(const std::string& Key, const Variant& Value);
-			Schema* SetAttribute(const std::string& Key, Variant&& Value);
+			Schema* Get(const Core::String& Key) const;
+			Schema* Set(const Core::String& Key);
+			Schema* Set(const Core::String& Key, const Variant& Value);
+			Schema* Set(const Core::String& Key, Variant&& Value);
+			Schema* Set(const Core::String& Key, Unique<Schema> Value);
+			Schema* SetAttribute(const Core::String& Key, const Variant& Value);
+			Schema* SetAttribute(const Core::String& Key, Variant&& Value);
 			Schema* Push(const Variant& Value);
 			Schema* Push(Variant&& Value);
 			Schema* Push(Unique<Schema> Value);
 			Schema* Pop(size_t Index);
-			Schema* Pop(const std::string& Name);
+			Schema* Pop(const Core::String& Name);
 			Unique<Schema> Copy() const;
-			bool Rename(const std::string& Name, const std::string& NewName);
-			bool Has(const std::string& Name) const;
-			bool HasAttribute(const std::string& Name) const;
+			bool Rename(const Core::String& Name, const Core::String& NewName);
+			bool Has(const Core::String& Name) const;
+			bool HasAttribute(const Core::String& Name) const;
 			bool IsEmpty() const;
 			bool IsAttribute() const;
 			bool IsSaved() const;
 			size_t Size() const;
-			std::string GetName() const;
+			Core::String GetName() const;
 			void Join(Schema* Other, bool Copy = true, bool Fast = true);
 			void Reserve(size_t Size);
 			void Unlink();
@@ -2146,7 +2268,7 @@ namespace Edge
 
 		protected:
 			void Allocate();
-			void Allocate(const std::vector<Schema*>& Other);
+			void Allocate(const Core::Vector<Schema*>& Other);
 
 		private:
 			void Attach(Schema* Root);
@@ -2156,22 +2278,22 @@ namespace Edge
 			static bool ConvertToXML(Schema* Value, const SchemaWriteCallback& Callback);
 			static bool ConvertToJSON(Schema* Value, const SchemaWriteCallback& Callback);
 			static bool ConvertToJSONB(Schema* Value, const SchemaWriteCallback& Callback);
-			static std::string ToXML(Schema* Value);
-			static std::string ToJSON(Schema* Value);
-			static std::vector<char> ToJSONB(Schema* Value);
+			static Core::String ToXML(Schema* Value);
+			static Core::String ToJSON(Schema* Value);
+			static Core::Vector<char> ToJSONB(Schema* Value);
 			static Unique<Schema> ConvertFromXML(const char* Buffer, bool Assert = true);
 			static Unique<Schema> ConvertFromJSON(const char* Buffer, size_t Size, bool Assert = true);
 			static Unique<Schema> ConvertFromJSONB(const SchemaReadCallback& Callback, bool Assert = true);
-			static Unique<Schema> FromXML(const std::string& Text, bool Assert = true);
-			static Unique<Schema> FromJSON(const std::string& Text, bool Assert = true);
-			static Unique<Schema> FromJSONB(const std::vector<char>& Binary, bool Assert = true);
+			static Unique<Schema> FromXML(const Core::String& Text, bool Assert = true);
+			static Unique<Schema> FromJSON(const Core::String& Text, bool Assert = true);
+			static Unique<Schema> FromJSONB(const Core::Vector<char>& Binary, bool Assert = true);
 
 		private:
 			static bool ProcessConvertionFromXML(void* Base, Schema* Current);
 			static bool ProcessConvertionFromJSON(void* Base, Schema* Current);
-			static bool ProcessConvertionFromJSONB(Schema* Current, std::unordered_map<size_t, std::string>* Map, const SchemaReadCallback& Callback);
-			static bool ProcessConvertionToJSONB(Schema* Current, std::unordered_map<std::string, size_t>* Map, const SchemaWriteCallback& Callback);
-			static bool GenerateNamingTable(const Schema* Current, std::unordered_map<std::string, size_t>* Map, size_t& Index);
+			static bool ProcessConvertionFromJSONB(Schema* Current, Core::UnorderedMap<size_t, Core::String>* Map, const SchemaReadCallback& Callback);
+			static bool ProcessConvertionToJSONB(Schema* Current, Core::UnorderedMap<Core::String, size_t>* Map, const SchemaWriteCallback& Callback);
+			static bool GenerateNamingTable(const Schema* Current, Core::UnorderedMap<Core::String, size_t>* Map, size_t& Index);
 		};
 
 		class ED_OUT_TS Schedule final : public Reference<Schedule>
@@ -2232,14 +2354,14 @@ namespace Edge
 		private:
 			struct
 			{
-				std::vector<TaskCallback> Events;
+				Core::Vector<TaskCallback> Events;
 				TaskCallback Tasks[ED_MAX_EVENTS];
 				Costate* State = nullptr;
 			} Dispatcher;
 
 		private:
 			ConcurrentQueuePtr* Queues[(size_t)Difficulty::Count];
-			std::vector<ThreadPtr*> Threads[(size_t)Difficulty::Count];
+			Core::Vector<ThreadPtr*> Threads[(size_t)Difficulty::Count];
 			std::atomic<TaskId> Generation;
 			std::mutex Exclusive;
 			ThreadDebugCallback Debug;
@@ -2942,7 +3064,7 @@ namespace Edge
 					ED_DELETE(Status, State);
 			}
 		};
-		
+
 		template <>
 		class ED_OUT_TS Promise<void>
 		{
@@ -3130,6 +3252,55 @@ namespace Edge
 			}
 		};
 
+		ED_OUT_TS inline bool Coasync(const TaskCallback& Callback, bool AlwaysEnqueue = false) noexcept
+		{
+			ED_ASSERT(Callback, false, "callback should not be empty");
+			if (!AlwaysEnqueue && Costate::IsCoroutine())
+			{
+				Callback();
+				return true;
+			}
+
+			return Schedule::Get()->SetCoroutine(Callback);
+		}
+		ED_OUT_TS inline bool Coasync(TaskCallback&& Callback, bool AlwaysEnqueue = false) noexcept
+		{
+			ED_ASSERT(Callback, false, "callback should not be empty");
+			if (!AlwaysEnqueue && Costate::IsCoroutine())
+			{
+				Callback();
+				return true;
+			}
+
+			return Schedule::Get()->SetCoroutine(std::move(Callback));
+		}
+		ED_OUT_TS inline bool Cosuspend() noexcept
+		{
+			ED_ASSERT(Costate::Get() != nullptr, false, "cannot call suspend outside coroutine");
+			return Costate::Get()->Suspend();
+		}
+		ED_OUT_TS inline Stringify Form(const char* Format, ...) noexcept
+		{
+			ED_ASSERT(Format != nullptr, Stringify(), "format should be set");
+
+			va_list Args;
+			va_start(Args, Format);
+			char Buffer[ED_BIG_CHUNK_SIZE];
+			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
+			va_end(Args);
+
+			return Stringify(Buffer, Size > ED_BIG_CHUNK_SIZE ? ED_BIG_CHUNK_SIZE : (size_t)Size);
+		}
+		ED_OUT_TS inline Promise<bool> Cosleep(uint64_t Ms) noexcept
+		{
+			Promise<bool> Result;
+			Schedule::Get()->SetTimeout(Ms, [Result]() mutable
+			{
+				Result.Set(true);
+			}, Difficulty::Light);
+
+			return Result;
+		}
 		template <typename T>
 		ED_OUT_TS inline T&& Coawait(Promise<T>&& Future, const char* Function = nullptr, const char* Expression = nullptr) noexcept
 		{
@@ -3215,55 +3386,6 @@ namespace Edge
 
 			return Result;
 		}
-		ED_OUT_TS inline Promise<bool> Cosleep(uint64_t Ms) noexcept
-		{
-			Promise<bool> Result;
-			Schedule::Get()->SetTimeout(Ms, [Result]() mutable
-			{
-				Result.Set(true);
-			}, Difficulty::Light);
-
-			return Result;
-		}
-		ED_OUT_TS inline bool Coasync(const TaskCallback& Callback, bool AlwaysEnqueue = false) noexcept
-		{
-			ED_ASSERT(Callback, false, "callback should not be empty");
-			if (!AlwaysEnqueue && Costate::IsCoroutine())
-			{
-				Callback();
-				return true;
-			}
-
-			return Schedule::Get()->SetCoroutine(Callback);
-		}
-		ED_OUT_TS inline bool Coasync(TaskCallback&& Callback, bool AlwaysEnqueue = false) noexcept
-		{
-			ED_ASSERT(Callback, false, "callback should not be empty");
-			if (!AlwaysEnqueue && Costate::IsCoroutine())
-			{
-				Callback();
-				return true;
-			}
-
-			return Schedule::Get()->SetCoroutine(std::move(Callback));
-		}
-		ED_OUT_TS inline bool Cosuspend() noexcept
-		{
-			ED_ASSERT(Costate::Get() != nullptr, false, "cannot call suspend outside coroutine");
-			return Costate::Get()->Suspend();
-		}
-		ED_OUT_TS inline Stringify Form(const char* Format, ...) noexcept
-		{
-			ED_ASSERT(Format != nullptr, Stringify(), "format should be set");
-
-			va_list Args;
-			va_start(Args, Format);
-			char Buffer[ED_BIG_CHUNK_SIZE];
-			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-			va_end(Args);
-
-			return Stringify(Buffer, Size > ED_BIG_CHUNK_SIZE ? ED_BIG_CHUNK_SIZE : (size_t)Size);
-		}
 		template <size_t Size>
 		ED_OUT_TS constexpr uint64_t Shuffle(const char Source[Size]) noexcept
 		{
@@ -3275,6 +3397,27 @@ namespace Edge
 			}
 
 			return Result;
+		}
+#ifdef ED_HAS_FAST_MEMORY
+		template <typename O, typename I>
+		ED_OUT_TS inline O Copy(const I& Other)
+		{
+			static_assert(!std::is_same<I, O>::value, "copy should be used to copy object of the same type with different allocator");
+			static_assert(IsIterable<I>::value, "input type should be iterable");
+			static_assert(IsIterable<O>::value, "output type should be iterable");
+			return O(Other.begin(), Other.end());
+		}
+#else
+		template <typename O, typename I>
+		ED_OUT_TS inline O&& Copy(I&& Other)
+		{
+			return Other;
+		}
+#endif
+		template <typename T>
+		ED_OUT_TS inline Core::String ToString(T Other)
+		{
+			return Core::Copy<Core::String, std::string>(std::to_string(Other));
 		}
 	}
 }

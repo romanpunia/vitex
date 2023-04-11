@@ -218,14 +218,14 @@ namespace Edge
 			{
 				return (void*)this;
 			}
-			std::string OGLInputLayout::GetLayoutHash(OGLElementBuffer** Buffers, unsigned int Count)
+			Core::String OGLInputLayout::GetLayoutHash(OGLElementBuffer** Buffers, unsigned int Count)
 			{
-				std::string Hash;
+				Core::String Hash;
 				if (!Buffers || !Count)
 					return Hash;
 
 				for (unsigned int i = 0; i < Count; i++)
-					Hash += std::to_string((uintptr_t)(void*)Buffers[i]);
+					Hash += Core::ToString((uintptr_t)(void*)Buffers[i]);
 
 				return Hash;
 			}
@@ -1081,7 +1081,7 @@ namespace Edge
 				GLuint Buffer = GL_NONE;
 				if (!DynamicLinkage)
 				{
-					std::string Hash = OGLInputLayout::GetLayoutHash(IResources, Count);
+					Core::String Hash = OGLInputLayout::GetLayoutHash(IResources, Count);
 					auto It = Register.Layout->Layouts.find(Hash);
 					if (It == Register.Layout->Layouts.end())
 					{
@@ -2541,11 +2541,11 @@ namespace Edge
 					return Result;
 				}
 
-				std::string Name = GetProgramName(F);
-				std::string VertexEntry = GetShaderMain(ShaderType::Vertex);
-				if (F.Data.find(VertexEntry) != std::string::npos)
+				Core::String Name = GetProgramName(F);
+				Core::String VertexEntry = GetShaderMain(ShaderType::Vertex);
+				if (F.Data.find(VertexEntry) != Core::String::npos)
 				{
-					std::string Stage = Name + SHADER_VERTEX, Bytecode;
+					Core::String Stage = Name + SHADER_VERTEX, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[ogl] transpile %s vertex shader source", Stage.c_str());
@@ -2584,10 +2584,10 @@ namespace Edge
 					}
 				}
 
-				std::string PixelEntry = GetShaderMain(ShaderType::Pixel);
-				if (F.Data.find(PixelEntry) != std::string::npos)
+				Core::String PixelEntry = GetShaderMain(ShaderType::Pixel);
+				if (F.Data.find(PixelEntry) != Core::String::npos)
 				{
-					std::string Stage = Name + SHADER_PIXEL, Bytecode;
+					Core::String Stage = Name + SHADER_PIXEL, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[ogl] transpile %s pixel shader source", Stage.c_str());
@@ -2626,10 +2626,10 @@ namespace Edge
 					}
 				}
 
-				std::string GeometryEntry = GetShaderMain(ShaderType::Geometry);
-				if (F.Data.find(GeometryEntry) != std::string::npos)
+				Core::String GeometryEntry = GetShaderMain(ShaderType::Geometry);
+				if (F.Data.find(GeometryEntry) != Core::String::npos)
 				{
-					std::string Stage = Name + SHADER_GEOMETRY, Bytecode;
+					Core::String Stage = Name + SHADER_GEOMETRY, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[ogl] transpile %s geometry shader source", Stage.c_str());
@@ -2668,10 +2668,10 @@ namespace Edge
 					}
 				}
 
-				std::string ComputeEntry = GetShaderMain(ShaderType::Compute);
-				if (F.Data.find(ComputeEntry) != std::string::npos)
+				Core::String ComputeEntry = GetShaderMain(ShaderType::Compute);
+				if (F.Data.find(ComputeEntry) != Core::String::npos)
 				{
-					std::string Stage = Name + SHADER_COMPUTE, Bytecode;
+					Core::String Stage = Name + SHADER_COMPUTE, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[ogl] transpile %s compute shader source", Stage.c_str());
@@ -2710,10 +2710,10 @@ namespace Edge
 					}
 				}
 
-				std::string HullEntry = GetShaderMain(ShaderType::Hull);
-				if (F.Data.find(HullEntry) != std::string::npos)
+				Core::String HullEntry = GetShaderMain(ShaderType::Hull);
+				if (F.Data.find(HullEntry) != Core::String::npos)
 				{
-					std::string Stage = Name + SHADER_HULL, Bytecode;
+					Core::String Stage = Name + SHADER_HULL, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[ogl] transpile %s hull shader source", Stage.c_str());
@@ -2752,10 +2752,10 @@ namespace Edge
 					}
 				}
 
-				std::string DomainEntry = GetShaderMain(ShaderType::Domain);
-				if (F.Data.find(DomainEntry) != std::string::npos)
+				Core::String DomainEntry = GetShaderMain(ShaderType::Domain);
+				if (F.Data.find(DomainEntry) != Core::String::npos)
 				{
-					std::string Stage = Name + SHADER_DOMAIN, Bytecode;
+					Core::String Stage = Name + SHADER_DOMAIN, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[ogl] transpile %s domain shader source", Stage.c_str());
@@ -3702,7 +3702,7 @@ namespace Edge
 						oColor = iColor;
 					});
 
-					std::string Result = ShaderVersion;
+					Core::String Result = ShaderVersion;
 					Result.append(VertexShaderCode);
 
 					const char* Subbuffer = Result.data();
@@ -3743,7 +3743,7 @@ namespace Edge
 							oResult = oColor * Padding.w;
 					});
 
-					std::string Result = ShaderVersion;
+					Core::String Result = ShaderVersion;
 					Result.append(PixelShaderCode);
 
 					const char* Subbuffer = Result.data();
@@ -3848,7 +3848,7 @@ namespace Edge
 
 				return Seed;
 			}
-			std::string OGLDevice::CompileState(GLuint Handle)
+			Core::String OGLDevice::CompileState(GLuint Handle)
 			{
 				GLint Stat = 0, Size = 0;
 				glGetShaderiv(Handle, GL_COMPILE_STATUS, &Stat);
@@ -3860,7 +3860,7 @@ namespace Edge
 				GLchar* Buffer = ED_MALLOC(GLchar, sizeof(GLchar) * Size);
 				glGetShaderInfoLog(Handle, Size, NULL, Buffer);
 
-				std::string Result((char*)Buffer, Size);
+				Core::String Result((char*)Buffer, Size);
 				ED_FREE(Buffer);
 
 				return Result;

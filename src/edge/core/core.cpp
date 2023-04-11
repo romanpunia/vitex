@@ -6,7 +6,6 @@
 #include <functional>
 #include <iostream>
 #include <csignal>
-#include <sstream>
 #include <bitset>
 #include <sys/stat.h>
 #include <rapidxml.hpp>
@@ -52,7 +51,6 @@ extern "C"
 #include <zlib.h>
 }
 #endif
-#define MEM_TRACE(Format, ...) if (Tracing) ED_TRACE(Format, ##__VA_ARGS__)
 #define PATIENCE 300
 #define MAX_STORE 16
 #define TRIGGER 1024
@@ -202,7 +200,7 @@ namespace
 		else
 			strftime(Date, Size, "%Y-%m-%d %H:%M:%S", &DateTime);
 	}
-	void GetLocation(std::stringstream& Stream, const char* Indent, const backward::ResolvedTrace::SourceLoc& Location, void* Address = nullptr)
+	void GetLocation(Edge::Core::StringStream& Stream, const char* Indent, const backward::ResolvedTrace::SourceLoc& Location, void* Address = nullptr)
 	{
 		if (!Location.filename.empty())
 			Stream << Indent << "source \"" << Location.filename << "\", line " << Location.line << ", in " << Location.function;
@@ -215,13 +213,13 @@ namespace
 			Stream << " nullptr";
 		Stream << "\n";
 	}
-	std::string GetStack(backward::StackTrace& Source)
+	Edge::Core::String GetStack(backward::StackTrace& Source)
 	{
 		size_t ThreadId = Source.thread_id();
 		backward::TraceResolver Resolver;
 		Resolver.load_stacktrace(Source);
 
-		std::stringstream Stream;
+		Edge::Core::StringStream Stream;
 		Stream << "stack trace (most recent call last)" << (ThreadId ? " in thread " : ":\n");
 		if (ThreadId)
 			Stream << ThreadId << ":\n";
@@ -260,28 +258,28 @@ namespace
 			GetLocation(Stream, "   ", Trace.source, Trace.addr);
 		}
 
-		std::string Out(Stream.str());
+		Edge::Core::String Out(Stream.str());
 		return Out.substr(0, Out.size() - 1);
 	}
 #ifdef ED_APPLE
-#define SYSCTL(fname, ...) std::size_t Size{};if(fname(__VA_ARGS__,nullptr,&Size,nullptr,0))return{};std::vector<char> Result(Size);if(fname(__VA_ARGS__,Result.data(),&Size,nullptr,0))return{};return Result
+#define SYSCTL(fname, ...) std::size_t Size{};if(fname(__VA_ARGS__,nullptr,&Size,nullptr,0))return{};Edge::Core::Vector<char> Result(Size);if(fname(__VA_ARGS__,Result.data(),&Size,nullptr,0))return{};return Result
 	template <class T>
-	static std::pair<bool, T> SysDecompose(const std::vector<char>& Data)
+	static std::pair<bool, T> SysDecompose(const Edge::Core::Vector<char>& Data)
 	{
 		std::pair<bool, T> Out { true, {} };
 		std::memcpy(&Out.second, Data.data(), sizeof(Out.second));
 		return Out;
 	}
-	std::vector<char> SysControl(const char* Name)
+	Edge::Core::Vector<char> SysControl(const char* Name)
 	{
 		SYSCTL(::sysctlbyname, Name);
 	}
-	std::vector<char> SysControl(int M1, int M2)
+	Edge::Core::Vector<char> SysControl(int M1, int M2)
 	{
 		int Name[2] { M1, M2 };
 		SYSCTL(::sysctl, Name, sizeof(Name) / sizeof(*Name));
 	}
-	std::pair<bool, uint64_t> SysExtract(const std::vector<char>& Data)
+	std::pair<bool, uint64_t> SysExtract(const Edge::Core::Vector<char>& Data)
 	{
 		switch (Data.size())
 		{
@@ -297,10 +295,10 @@ namespace
 	}
 #endif
 #ifdef ED_MICROSOFT
-	static std::vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> CPUInfoBuffer()
+	static Edge::Core::Vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> CPUInfoBuffer()
 	{
 		DWORD ByteCount = 0;
-		std::vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> Buffer;
+		Edge::Core::Vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> Buffer;
 		GetLogicalProcessorInformation(nullptr, &ByteCount);
 		Buffer.resize(ByteCount / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
 		GetLogicalProcessorInformation(Buffer.data(), &ByteCount);
@@ -335,14 +333,14 @@ namespace Edge
 				if (Delta <= Threshold)
 					return;
 
-				std::string BackTrace = OS::Timing::GetMeasureTrace();
+				Core::String BackTrace = OS::Timing::GetMeasureTrace();
 				ED_WARN("[stall] operation took %" PRIu64 " ms (%" PRIu64 " us), back trace %s", Delta / 1000, Delta, BackTrace.c_str());
 			}
 		};
 #endif
 		struct ConcurrentQueuePtr
 		{
-			std::map<std::chrono::microseconds, Timeout> Timers;
+			Core::OrderedMap<std::chrono::microseconds, Timeout> Timers;
 			std::condition_variable Notify;
 			std::mutex Update;
 			FastQueue Tasks;
@@ -407,6 +405,437 @@ namespace Edge
 #endif
 			}
 		};
+
+		MemoryContext::MemoryContext() : Source("?.cpp"), Function("?"), TypeName("void"), Line(0)
+		{
+		}
+		MemoryContext::MemoryContext(const char* NewSource, const char* NewFunction, const char* NewTypeName, int NewLine) : Source(NewSource ? NewSource : "?.cpp"), Function(NewFunction ? NewFunction : "?"), TypeName(NewTypeName ? NewTypeName : "void"), Line(NewLine >= 0 ? NewLine : 0)
+		{
+		}
+
+		DebugAllocator::TracingBlock::TracingBlock() : Time(0), Size(0), Active(false)
+		{
+		}
+		DebugAllocator::TracingBlock::TracingBlock(const char* NewTypeName, MemoryContext&& NewOrigin, time_t NewTime, size_t NewSize, bool IsActive, bool IsStatic) : TypeName(NewTypeName ? NewTypeName : "void"), Origin(std::move(NewOrigin)), Time(NewTime), Size(NewSize), Active(IsActive), Static(IsStatic)
+		{
+		}
+
+		void* DebugAllocator::Allocate(MemoryContext&& Origin, size_t Size) noexcept
+		{
+			void* Address = malloc(Size);
+			ED_ASSERT(Address != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
+
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), Size, true, false);
+			return Address;
+		}
+		void DebugAllocator::Free(void* Address) noexcept
+		{
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			auto It = Blocks.find(Address);
+			ED_ASSERT_V(It != Blocks.end() && It->second.Active, "cannot free memory that was not allocated by this allocator at 0x%" PRIXPTR, Address);
+
+			Blocks.erase(It);
+			free(Address);
+		}
+		void DebugAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
+		{
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), Size, true, true);
+		}
+		void DebugAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
+		{
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			auto It = Blocks.find(Address);
+
+			ED_ASSERT_V(It == Blocks.end() || !It->second.Active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, Address);
+			Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), sizeof(void*), false, false);
+		}
+		void DebugAllocator::Unwatch(void* Address) noexcept
+		{
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			auto It = Blocks.find(Address);
+
+			ED_ASSERT_V(It != Blocks.end() && !It->second.Active, "address at 0x%" PRIXPTR " cannot be cleared from tracking because it was not allocated by this allocator", Address);
+			Blocks.erase(It);
+		}
+		void DebugAllocator::Finalize() noexcept
+		{
+			Dump(nullptr);
+		}
+		bool DebugAllocator::IsValid(void* Address) noexcept
+		{
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			auto It = Blocks.find(Address);
+
+			ED_ASSERT(It != Blocks.end(), false, "address at 0x%" PRIXPTR " cannot be used as it was already freed");
+			return It != Blocks.end();
+		}
+		bool DebugAllocator::IsFinalizable() noexcept
+		{
+			return true;
+		}
+		bool DebugAllocator::Dump(void* Address)
+		{
+			ED_TRACE("[mem] dump internal memory state on 0x%" PRIXPTR, Address);
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			if (Address != nullptr)
+			{
+				bool IsLogActive = OS::IsLogActive();
+				if (!IsLogActive)
+					OS::SetLogActive(true);
+
+				auto It = Blocks.find(Address);
+				if (It != Blocks.end())
+				{
+					char Date[64];
+					GetDateTime(It->second.Time, Date, sizeof(Date));
+					OS::Log(4, It->second.Origin.Line, It->second.Origin.Source, "[mem] %saddress at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", It->second.Static ? "static " : "", It->first, Date, It->second.TypeName.c_str(), (uint64_t)It->second.Size, It->second.Origin.Function);
+				}
+
+				OS::SetLogActive(IsLogActive);
+				return It != Blocks.end();
+			}
+			else if (!Blocks.empty())
+			{
+				size_t StaticAddresses = 0;
+				for (auto& Item : Blocks)
+				{
+					if (Item.second.Static || Item.second.TypeName.find("ontainer_proxy") != std::string::npos || Item.second.TypeName.find("ist_node") != std::string::npos)
+						++StaticAddresses;
+				}
+
+				if (StaticAddresses == Blocks.size())
+					return false;
+
+				bool IsLogActive = OS::IsLogActive();
+				if (!IsLogActive)
+					OS::SetLogActive(true);
+
+				size_t TotalMemory = 0;
+				for (auto& Item : Blocks)
+					TotalMemory += Item.second.Size;
+
+				ED_DEBUG("[mem] %" PRIu64 " addresses are still used (%" PRIu64 " bytes)", (uint64_t)(Blocks.size() - StaticAddresses), (uint64_t)TotalMemory);
+				for (auto& Item : Blocks)
+				{
+					if (Item.second.Static || Item.second.TypeName.find("ontainer_proxy") != std::string::npos || Item.second.TypeName.find("ist_node") != std::string::npos)
+						continue;
+
+					char Date[64];
+					GetDateTime(Item.second.Time, Date, sizeof(Date));
+					OS::Log(4, Item.second.Origin.Line, Item.second.Origin.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", Item.first, Date, Item.second.TypeName.c_str(), (uint64_t)Item.second.Size, Item.second.Origin.Function);
+				}
+
+				OS::SetLogActive(IsLogActive);
+				return true;
+			}
+
+			return false;
+		}
+		bool DebugAllocator::FindBlock(void* Address, TracingBlock* Output)
+		{
+			ED_ASSERT(Address != nullptr, false, "address should not be null");
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			auto It = Blocks.find(Address);
+			if (It == Blocks.end())
+				return false;
+
+			if (Output != nullptr)
+				*Output = It->second;
+
+			return true;
+		}
+		const std::unordered_map<void*, DebugAllocator::TracingBlock>& DebugAllocator::GetBlocks() const
+		{
+			return Blocks;
+		}
+
+		void* DefaultAllocator::Allocate(MemoryContext&& Origin, size_t Size) noexcept
+		{
+			void* Address = malloc(Size);
+			ED_ASSERT(Address != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
+			return Address;
+		}
+		void DefaultAllocator::Free(void* Address) noexcept
+		{
+			free(Address);
+		}
+		void DefaultAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
+		{
+		}
+		void DefaultAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
+		{
+		}
+		void DefaultAllocator::Unwatch(void* Address) noexcept
+		{
+		}
+		void DefaultAllocator::Finalize() noexcept
+		{
+		}
+		bool DefaultAllocator::IsValid(void* Address) noexcept
+		{
+			return true;
+		}
+		bool DefaultAllocator::IsFinalizable() noexcept
+		{
+			return true;
+		}
+
+		PoolAllocator::PoolAllocator(uint64_t MinimalLifeTimeMs, size_t MaxElementsPerAllocation, size_t ElementsReducingBaseBytes, double ElementsReducingFactorRate) : MinimalLifeTime(MinimalLifeTimeMs), ElementsReducingFactor(ElementsReducingFactorRate), ElementsReducingBase(ElementsReducingBaseBytes), ElementsPerAllocation(MaxElementsPerAllocation)
+		{
+			ED_ASSERT_V(ElementsPerAllocation > 0, "elements count per allocation should be greater then zero");
+			ED_ASSERT_V(ElementsReducingFactor > 1.0, "elements reducing factor should be greater then zero");
+			ED_ASSERT_V(ElementsReducingBase > 0, "elements reducing base should be greater then zero");
+		}
+		PoolAllocator::~PoolAllocator() noexcept
+		{
+			for (auto& Page : Pages)
+			{
+				for (auto* Address : Page.second->Reserve)
+					DeallocatePageCache(Address, false);
+				delete Page.second;
+			}
+			Pages.clear();
+		}
+		void* PoolAllocator::Allocate(MemoryContext&& Origin, size_t Size) noexcept
+		{
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			auto* Page = GetPageGroup(Size);
+			auto* Cache = GetPageCache(std::move(Origin), Page, Size);
+			if (!Cache)
+				return nullptr;
+
+			void* Address = Cache->Childs.front();
+			Blocks[Address] = Cache;
+			Cache->Childs.pop_front();
+
+			return Address;
+		}
+		void PoolAllocator::Free(void* Address) noexcept
+		{
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			auto Block = Blocks.find(Address);
+			if (Block == Blocks.end())
+				return free(Address);
+
+			auto* Cache = Block->second;
+			Cache->Childs.push_front(Address);
+			Blocks.erase(Block);
+
+			if (Cache->Childs.size() < Cache->Capacity)
+				return;
+
+			if (Cache->Capacity == 1 || GetClock() - Cache->AliveTime > (int64_t)MinimalLifeTime)
+				DeallocatePageCache(Cache, true);
+		}
+		void PoolAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
+		{
+		}
+		void PoolAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
+		{
+		}
+		void PoolAllocator::Unwatch(void* Address) noexcept
+		{
+		}
+		void PoolAllocator::Finalize() noexcept
+		{
+		}
+		bool PoolAllocator::IsValid(void* Address) noexcept
+		{
+			return true;
+		}
+		bool PoolAllocator::IsFinalizable() noexcept
+		{
+			return false;
+		}
+		void PoolAllocator::DeallocatePageCache(PageCache* Cache, bool EraseFromCache)
+		{
+			if (EraseFromCache)
+				Cache->Page->Reserve.erase(Cache);
+
+			free(Cache->BaseAddress);
+			delete Cache;
+		}
+		PoolAllocator::PageCache* PoolAllocator::AllocatePageCache(MemoryContext&& Origin, PageGroup* Page, size_t Size)
+		{
+			size_t PageElements = GetElementsCount(Page, Size);
+			size_t PageSize = Size * PageElements;
+			char* Address = (char*)malloc(PageSize);
+			ED_ASSERT(Address != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)PageSize);
+
+			if (!Address)
+				return nullptr;
+
+			auto* Cache = new PageCache();
+			Cache->Childs.resize(PageElements);
+			Cache->AliveTime = GetClock();
+			Cache->Capacity = PageElements;
+			Cache->BaseAddress = Address;
+			Cache->Page = Page;
+
+			for (size_t i = 0; i < PageElements; i++)
+				Cache->Childs[i] = Address + Size * i;
+
+			Page->Reserve.insert(Cache);
+			return Cache;
+		}
+		PoolAllocator::PageCache* PoolAllocator::GetPageCache(MemoryContext&& Origin, PageGroup* Page, size_t Size)
+		{
+			for (auto* Address : Page->Reserve)
+			{
+				if (!Address->Childs.empty())
+					return Address;
+			}
+
+			return AllocatePageCache(std::move(Origin), Page, Size);
+		}
+		PoolAllocator::PageGroup* PoolAllocator::GetPageGroup(size_t Size)
+		{
+			auto*& Page = Pages[Size];
+			if (!Page)
+			{
+				Page = new PageGroup();
+				Page->Size = Size;
+			}
+
+			return Page;
+		}
+		int64_t PoolAllocator::GetClock()
+		{
+			return (int64_t)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		}
+		size_t PoolAllocator::GetElementsCount(PageGroup* Page, size_t Size)
+		{
+			double Total = (double)ElementsPerAllocation;
+			double Reducing = (double)Size / (double)ElementsReducingBase;
+			double Frequency = GetFrequency(Page);
+
+			if (Reducing > 1.0)
+			{
+				Total /= ElementsReducingFactor * Reducing;
+				if (Total < 1.0)
+					Total = 1.0;
+			}
+			else if (Frequency > 1.0)
+				Total *= Frequency;
+
+			return (size_t)Total;
+		}
+		double PoolAllocator::GetFrequency(PageGroup* Page)
+		{
+			if (Pages.size() <= 1)
+				return 1.0;
+
+			double Average = 0.0;
+			for (auto& Next : Pages)
+			{
+				if (Next.second != Page)
+					Average += (double)Next.second->Reserve.size();
+			}
+
+			Average /= (double)Pages.size() - 1;
+			if (Average < 1.0)
+				Average = 1.0;
+
+			return std::max(1.0, (double)Page->Reserve.size() / Average);
+		}
+
+		void Memory::Initialize()
+		{
+			if (!Allocations)
+				Allocations = new std::unordered_map<void*, std::pair<MemoryContext, size_t>>();
+
+			if (!Mutex)
+				Mutex = new std::mutex();
+		}
+		void Memory::Uninitialize()
+		{
+			if (Allocations != nullptr)
+			{
+				delete Allocations;
+				Allocations = nullptr;
+			}
+
+			if (Mutex != nullptr)
+			{
+				delete Mutex;
+				Mutex = nullptr;
+			}
+		}
+		void* Memory::Malloc(size_t Size) noexcept
+		{
+			return MallocContext(Size, MemoryContext());
+		}
+		void* Memory::MallocContext(size_t Size, MemoryContext&& Origin) noexcept
+		{
+			ED_ASSERT(Size > 0, nullptr, "cannot allocate zero bytes");
+			if (Base != nullptr)
+				return Base->Allocate(std::move(Origin), Size);
+
+			void* Address = malloc(Size);
+			Initialize();
+
+			std::unique_lock<std::mutex> Unique(*Mutex);
+			auto& Item = (*Allocations)[Address];
+			Item.first = std::move(Origin);
+			Item.second = Size;
+			return Address;
+		}
+		void Memory::Free(void* Address) noexcept
+		{
+			if (!Address)
+				return;
+
+			if (Base != nullptr)
+				return Base->Free(Address);
+
+			if (Allocations != nullptr)
+			{
+				std::unique_lock<std::mutex> Unique(*Mutex);
+				Allocations->erase(Address);
+				free(Address);
+			}
+		}
+		void Memory::Watch(void* Address, MemoryContext&& Origin) noexcept
+		{
+			ED_ASSERT_V(Base != nullptr, "allocator should be set");
+			ED_ASSERT_V(Address != nullptr, "address should be set");
+			Base->Watch(std::move(Origin), Address);
+		}
+		void Memory::Unwatch(void* Address) noexcept
+		{
+			ED_ASSERT_V(Base != nullptr, "allocator should be set");
+			ED_ASSERT_V(Address != nullptr, "address should be set");
+			Base->Unwatch(Address);
+		}
+		void Memory::SetAllocator(Allocator* NewAllocator)
+		{
+			if (Base != nullptr)
+				Base->Finalize();
+
+			Base = NewAllocator;
+			if (Base != nullptr && Allocations != nullptr)
+			{
+				for (auto& Item : *Allocations)
+					Base->Transfer(Item.first, MemoryContext(Item.second.first), Item.second.second);
+			}
+			else
+				Uninitialize();
+		}
+		bool Memory::IsValidAddress(void* Address)
+		{
+			ED_ASSERT(Base != nullptr, false, "allocator should be set");
+			ED_ASSERT(Address != nullptr, false, "address should be set");
+			return Base->IsValid(Address);
+		}
+		Allocator* Memory::GetAllocator()
+		{
+			return Base;
+		}
+		std::unordered_map<void*, std::pair<MemoryContext, size_t>>* Memory::Allocations = nullptr;
+		std::mutex* Memory::Mutex = nullptr;
+		Allocator* Memory::Base = nullptr;
 
 		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept : State(Coactive::Active), Dead(0), Callback(Procedure), Slave(ED_NEW(Cocontext, Base)), Master(Base)
 		{
@@ -481,25 +910,25 @@ namespace Edge
 
 			Unlead();
 		}
-		Decimal::Decimal(const std::string& Value) noexcept : Decimal(Value.c_str())
+		Decimal::Decimal(const Core::String& Value) noexcept : Decimal(Value.c_str())
 		{
 		}
-		Decimal::Decimal(int32_t Value) noexcept : Decimal(std::to_string(Value))
+		Decimal::Decimal(int32_t Value) noexcept : Decimal(Core::ToString(Value))
 		{
 		}
-		Decimal::Decimal(uint32_t Value) noexcept : Decimal(std::to_string(Value))
+		Decimal::Decimal(uint32_t Value) noexcept : Decimal(Core::ToString(Value))
 		{
 		}
-		Decimal::Decimal(int64_t Value) noexcept : Decimal(std::to_string(Value))
+		Decimal::Decimal(int64_t Value) noexcept : Decimal(Core::ToString(Value))
 		{
 		}
-		Decimal::Decimal(uint64_t Value) noexcept : Decimal(std::to_string(Value))
+		Decimal::Decimal(uint64_t Value) noexcept : Decimal(Core::ToString(Value))
 		{
 		}
-		Decimal::Decimal(float Value) noexcept : Decimal(std::to_string(Value))
+		Decimal::Decimal(float Value) noexcept : Decimal(Core::ToString(Value))
 		{
 		}
-		Decimal::Decimal(double Value) noexcept : Decimal(std::to_string(Value))
+		Decimal::Decimal(double Value) noexcept : Decimal(Core::ToString(Value))
 		{
 		}
 		Decimal::Decimal(const Decimal& Value) noexcept : Source(Value.Source), Length(Value.Length), Sign(Value.Sign), Invalid(Value.Invalid)
@@ -559,7 +988,7 @@ namespace Edge
 				{
 					if (Precision != 0)
 					{
-						std::string Result = "0.";
+						Core::String Result = "0.";
 						Result.reserve(3 + (size_t)Precision);
 						for (int i = 1; i < Precision; i++)
 							Result += '0';
@@ -667,7 +1096,7 @@ namespace Edge
 			if (Invalid || Source.empty())
 				return 0;
 
-			std::string Result;
+			Core::String Result;
 			if (Sign == '-')
 				Result += Sign;
 
@@ -692,7 +1121,7 @@ namespace Edge
 			if (Invalid || Source.empty())
 				return 0;
 
-			std::string Result;
+			Core::String Result;
 			int Offset = 0, Size = Length;
 			while ((Source[Offset] == '0') && (Size > 0))
 			{
@@ -709,12 +1138,12 @@ namespace Edge
 
 			return strtoull(Result.c_str(), nullptr, 10);
 		}
-		std::string Decimal::ToString() const
+		Core::String Decimal::ToString() const
 		{
 			if (Invalid || Source.empty())
 				return "NaN";
 
-			std::string Result;
+			Core::String Result;
 			if (Sign == '-')
 				Result += Sign;
 
@@ -734,12 +1163,12 @@ namespace Edge
 
 			return Result;
 		}
-		std::string Decimal::Exp() const
+		Core::String Decimal::Exp() const
 		{
 			if (Invalid)
 				return "NaN";
 
-			std::string Result;
+			Core::String Result;
 			int Compare = Decimal::CompareNum(*this, Decimal(1));
 			if (Compare == 0)
 			{
@@ -760,7 +1189,7 @@ namespace Edge
 						Result += Source[i];
 				}
 				Result += "e+";
-				Result += std::to_string(Ints() - 1);
+				Result += Core::ToString(Ints() - 1);
 			}
 			else if (Compare == 2)
 			{
@@ -778,7 +1207,7 @@ namespace Edge
 						Result += Sign;
 						Result += Source[Count];
 						Result += "e-";
-						Result += std::to_string(Exp);
+						Result += Core::ToString(Exp);
 					}
 					else
 						Result += "+0";
@@ -793,7 +1222,7 @@ namespace Edge
 						Result += Source[i];
 
 					Result += "e-";
-					Result += std::to_string(Exp);
+					Result += Core::ToString(Exp);
 				}
 			}
 
@@ -1278,7 +1707,7 @@ namespace Edge
 				N.Source.pop_back();
 
 				bool IsZero = true;
-				std::deque<char>::const_iterator ZeroIt = R.Source.begin();
+				auto ZeroIt = R.Source.begin();
 				for (; ZeroIt != R.Source.end(); ++ZeroIt)
 				{
 					if (*ZeroIt != '0')
@@ -1312,7 +1741,7 @@ namespace Edge
 					Q.Source.push_front(Decimal::IntToChar(QSub));
 
 					bool IsZero = true;
-					std::deque<char>::const_iterator ZeroIt = R.Source.begin();
+					auto ZeroIt = R.Source.begin();
 					for (; ZeroIt != R.Source.end(); ++ZeroIt)
 					{
 						if (*ZeroIt != '0')
@@ -1384,7 +1813,7 @@ namespace Edge
 				N.Source.pop_back();
 
 				bool IsZero = true;
-				std::deque<char>::const_iterator ZeroIt = R.Source.begin();
+				auto ZeroIt = R.Source.begin();
 				for (; ZeroIt != R.Source.end(); ++ZeroIt)
 				{
 					if (*ZeroIt != '0')
@@ -1419,7 +1848,7 @@ namespace Edge
 					Result = R;
 
 					bool IsZero = true;
-					std::deque<char>::const_iterator ZeroIt = R.Source.begin();
+					auto ZeroIt = R.Source.begin();
 					for (; ZeroIt != R.Source.end(); ++ZeroIt)
 					{
 						if (*ZeroIt != '0')
@@ -1503,7 +1932,7 @@ namespace Edge
 				N.Source.pop_back();
 
 				bool IsZero = true;
-				std::deque<char>::const_iterator ZeroIt = R.Source.begin();
+				auto ZeroIt = R.Source.begin();
 				for (; ZeroIt != R.Source.end(); ++ZeroIt)
 				{
 					if (*ZeroIt != '0')
@@ -1538,7 +1967,7 @@ namespace Edge
 					Q.Source.push_front(Decimal::IntToChar(QSub));
 
 					bool IsZero = true;
-					std::deque<char>::const_iterator ZeroIt = R.Source.begin();
+					auto ZeroIt = R.Source.begin();
 					for (; ZeroIt != R.Source.end(); ++ZeroIt)
 					{
 						if (*ZeroIt != '0')
@@ -1759,7 +2188,7 @@ namespace Edge
 		{
 			Free();
 		}
-		bool Variant::Deserialize(const std::string& Text, bool Strict)
+		bool Variant::Deserialize(const Core::String& Text, bool Strict)
 		{
 			Free();
 			if (!Strict)
@@ -1822,14 +2251,14 @@ namespace Edge
 
 			if (Text.size() > 2 && Text.front() == PREFIX_BINARY[0] && Text.back() == PREFIX_BINARY[0])
 			{
-				Move(Var::Binary(Compute::Codec::Bep45Decode(std::string(Text.substr(1).c_str(), Text.size() - 2))));
+				Move(Var::Binary(Compute::Codec::Bep45Decode(Core::String(Text.substr(1).c_str(), Text.size() - 2))));
 				return true;
 			}
 
 			Move(Var::String(Text));
 			return true;
 		}
-		std::string Variant::Serialize() const
+		Core::String Variant::Serialize() const
 		{
 			switch (Type)
 			{
@@ -1844,9 +2273,9 @@ namespace Edge
 				case VarType::Pointer:
 					return PREFIX_ENUM "void*" PREFIX_ENUM;
 				case VarType::String:
-					return std::string(GetString(), GetSize());
+					return Core::String(GetString(), GetSize());
 				case VarType::Binary:
-					return PREFIX_BINARY + Compute::Codec::Bep45Encode(std::string(GetString(), GetSize())) + PREFIX_BINARY;
+					return PREFIX_BINARY + Compute::Codec::Bep45Encode(Core::String(GetString(), GetSize())) + PREFIX_BINARY;
 				case VarType::Decimal:
 				{
 					auto* Data = ((Decimal*)Value.Pointer);
@@ -1856,28 +2285,28 @@ namespace Edge
 					return Data->ToString();
 				}
 				case VarType::Integer:
-					return std::to_string(Value.Integer);
+					return ToString(Value.Integer);
 				case VarType::Number:
-					return std::to_string(Value.Number);
+					return ToString(Value.Number);
 				case VarType::Boolean:
 					return Value.Boolean ? "true" : "false";
 				default:
 					return "";
 			}
 		}
-		std::string Variant::GetBlob() const
+		Core::String Variant::GetBlob() const
 		{
 			if (Type == VarType::String || Type == VarType::Binary)
-				return std::string(GetString(), Size);
+				return Core::String(GetString(), Size);
 
 			if (Type == VarType::Decimal)
 				return ((Decimal*)Value.Pointer)->ToString();
 
 			if (Type == VarType::Integer)
-				return std::to_string(GetInteger());
+				return Core::ToString(GetInteger());
 
 			if (Type == VarType::Number)
-				return std::to_string(GetNumber());
+				return Core::ToString(GetNumber());
 
 			if (Type == VarType::Boolean)
 				return Value.Boolean ? "1" : "0";
@@ -1890,10 +2319,10 @@ namespace Edge
 				return *(Decimal*)Value.Pointer;
 
 			if (Type == VarType::Integer)
-				return Decimal(std::to_string(Value.Integer));
+				return Decimal(Core::ToString(Value.Integer));
 
 			if (Type == VarType::Number)
-				return Decimal(std::to_string(Value.Number));
+				return Decimal(Core::ToString(Value.Number));
 
 			if (Type == VarType::Boolean)
 				return Decimal(Value.Boolean ? "1" : "0");
@@ -2340,7 +2769,7 @@ namespace Edge
 		{
 			return Time == Right.Time;
 		}
-		std::string DateTime::Format(const std::string& Value)
+		Core::String DateTime::Format(const Core::String& Value)
 		{
 			if (DateRebuild)
 				Rebuild();
@@ -2349,7 +2778,7 @@ namespace Edge
 			strftime(Buffer, sizeof(Buffer), Value.c_str(), &DateValue);
 			return Buffer;
 		}
-		std::string DateTime::Date(const std::string& Value)
+		Core::String DateTime::Date(const Core::String& Value)
 		{
 			auto Offset = std::chrono::system_clock::to_time_t(std::chrono::system_clock::time_point(Time));
 			if (DateRebuild)
@@ -2362,9 +2791,9 @@ namespace Edge
 			T.tm_mon++;
 			T.tm_year += 1900;
 
-			return Stringify(Value).Replace("{s}", T.tm_sec < 10 ? Form("0%i", T.tm_sec).R() : std::to_string(T.tm_sec)).Replace("{m}", T.tm_min < 10 ? Form("0%i", T.tm_min).R() : std::to_string(T.tm_min)).Replace("{h}", std::to_string(T.tm_hour)).Replace("{D}", std::to_string(T.tm_yday)).Replace("{MD}", T.tm_mday < 10 ? Form("0%i", T.tm_mday).R() : std::to_string(T.tm_mday)).Replace("{WD}", std::to_string(T.tm_wday + 1)).Replace("{M}", T.tm_mon < 10 ? Form("0%i", T.tm_mon).R() : std::to_string(T.tm_mon)).Replace("{Y}", std::to_string(T.tm_year)).R();
+			return Stringify(Value).Replace("{s}", T.tm_sec < 10 ? Form("0%i", T.tm_sec).R() : Core::ToString(T.tm_sec)).Replace("{m}", T.tm_min < 10 ? Form("0%i", T.tm_min).R() : Core::ToString(T.tm_min)).Replace("{h}", Core::ToString(T.tm_hour)).Replace("{D}", Core::ToString(T.tm_yday)).Replace("{MD}", T.tm_mday < 10 ? Form("0%i", T.tm_mday).R() : Core::ToString(T.tm_mday)).Replace("{WD}", Core::ToString(T.tm_wday + 1)).Replace("{M}", T.tm_mon < 10 ? Form("0%i", T.tm_mon).R() : Core::ToString(T.tm_mon)).Replace("{Y}", Core::ToString(T.tm_year)).R();
 		}
-		std::string DateTime::Iso8601()
+		Core::String DateTime::Iso8601()
 		{
 			if (DateRebuild)
 				Rebuild();
@@ -2767,7 +3196,7 @@ namespace Edge
 
 			return std::chrono::duration_cast<_Years>(Time).count();
 		}
-		std::string DateTime::FetchWebDateGMT(int64_t TimeStamp)
+		Core::String DateTime::FetchWebDateGMT(int64_t TimeStamp)
 		{
 			auto Time = (time_t)TimeStamp;
 			struct tm Date { };
@@ -2782,7 +3211,7 @@ namespace Edge
 			strftime(Buffer, sizeof(Buffer), "%a, %d %b %Y %H:%M:%S GMT", &Date);
 			return Buffer;
 		}
-		std::string DateTime::FetchWebDateTime(int64_t TimeStamp)
+		Core::String DateTime::FetchWebDateTime(int64_t TimeStamp)
 		{
 			auto Time = (time_t)TimeStamp;
 			struct tm Date { };
@@ -2923,63 +3352,69 @@ namespace Edge
 
 		Stringify::Stringify() noexcept : Deletable(true)
 		{
-			Base = ED_NEW(std::string);
+			Base = ED_NEW(Core::String);
 		}
 		Stringify::Stringify(int Value) noexcept : Deletable(true)
 		{
-			Base = ED_NEW(std::string, std::to_string(Value));
+			Base = ED_NEW(Core::String, Core::ToString(Value));
 		}
 		Stringify::Stringify(unsigned int Value) noexcept : Deletable(true)
 		{
-			Base = ED_NEW(std::string, std::to_string(Value));
+			Base = ED_NEW(Core::String, Core::ToString(Value));
 		}
 		Stringify::Stringify(int64_t Value) noexcept : Deletable(true)
 		{
-			Base = ED_NEW(std::string, std::to_string(Value));
+			Base = ED_NEW(Core::String, Core::ToString(Value));
 		}
 		Stringify::Stringify(uint64_t Value) noexcept : Deletable(true)
 		{
-			Base = ED_NEW(std::string, std::to_string(Value));
+			Base = ED_NEW(Core::String, Core::ToString(Value));
 		}
 		Stringify::Stringify(float Value) noexcept : Deletable(true)
 		{
-			Base = ED_NEW(std::string, std::to_string(Value));
+			Base = ED_NEW(Core::String, Core::ToString(Value));
 		}
 		Stringify::Stringify(double Value) noexcept : Deletable(true)
 		{
-			Base = ED_NEW(std::string, std::to_string(Value));
+			Base = ED_NEW(Core::String, Core::ToString(Value));
 		}
 		Stringify::Stringify(long double Value) noexcept : Deletable(true)
 		{
-			Base = ED_NEW(std::string, std::to_string(Value));
+			Base = ED_NEW(Core::String, Core::ToString(Value));
 		}
-		Stringify::Stringify(const std::string& Buffer) noexcept : Deletable(true)
+#ifdef ED_HAS_FAST_MEMORY
+		Stringify::Stringify(const std::string& Value) noexcept : Deletable(true)
 		{
-			Base = ED_NEW(std::string, Buffer);
+			Base = ED_NEW(Core::String, Core::Copy<Core::String>(Value));
 		}
-		Stringify::Stringify(std::string* Buffer) noexcept
+#endif
+		Stringify::Stringify(const Core::String& Buffer) noexcept : Deletable(true)
+		{
+			Base = ED_NEW(Core::String, Buffer);
+		}
+		Stringify::Stringify(Core::String* Buffer) noexcept
 		{
 			Deletable = (!Buffer);
-			Base = (Deletable ? ED_NEW(std::string) : Buffer);
+			Base = (Deletable ? ED_NEW(Core::String) : Buffer);
 		}
-		Stringify::Stringify(const std::string* Buffer) noexcept
+		Stringify::Stringify(const Core::String* Buffer) noexcept
 		{
 			Deletable = (!Buffer);
-			Base = (Deletable ? ED_NEW(std::string) : (std::string*)Buffer);
+			Base = (Deletable ? ED_NEW(Core::String) : (Core::String*)Buffer);
 		}
 		Stringify::Stringify(const char* Buffer) noexcept : Deletable(true)
 		{
 			if (Buffer != nullptr)
-				Base = ED_NEW(std::string, Buffer);
+				Base = ED_NEW(Core::String, Buffer);
 			else
-				Base = ED_NEW(std::string);
+				Base = ED_NEW(Core::String);
 		}
 		Stringify::Stringify(const char* Buffer, size_t Length) noexcept : Deletable(true)
 		{
 			if (Buffer != nullptr)
-				Base = ED_NEW(std::string, Buffer, Length);
+				Base = ED_NEW(Core::String, Buffer, Length);
 			else
-				Base = ED_NEW(std::string);
+				Base = ED_NEW(Core::String);
 		}
 		Stringify::Stringify(Stringify&& Value) noexcept : Base(Value.Base), Deletable(Value.Deletable)
 		{
@@ -2989,9 +3424,9 @@ namespace Edge
 		Stringify::Stringify(const Stringify& Value) noexcept : Deletable(true)
 		{
 			if (Value.Base != nullptr)
-				Base = ED_NEW(std::string, *Value.Base);
+				Base = ED_NEW(Core::String, *Value.Base);
 			else
-				Base = ED_NEW(std::string);
+				Base = ED_NEW(Core::String);
 		}
 		Stringify::~Stringify() noexcept
 		{
@@ -3236,7 +3671,7 @@ namespace Edge
 
 			return *this;
 		}
-		Stringify& Stringify::Replace(const std::string& From, const std::string& To, size_t Start)
+		Stringify& Stringify::Replace(const Core::String& From, const Core::String& To, size_t Start)
 		{
 			ED_ASSERT(!From.empty(), *this, "match should not be empty");
 
@@ -3252,7 +3687,7 @@ namespace Edge
 
 			return *this;
 		}
-		Stringify& Stringify::ReplaceGroups(const std::string& FromRegex, const std::string& To)
+		Stringify& Stringify::ReplaceGroups(const Core::String& FromRegex, const Core::String& To)
 		{
 			Compute::RegexSource Source('(' + FromRegex + ')');
 			Compute::Regex::Replace(&Source, To, *Base);
@@ -3302,7 +3737,7 @@ namespace Edge
 
 			return *this;
 		}
-		Stringify& Stringify::ReplacePart(size_t Start, size_t End, const std::string& Value)
+		Stringify& Stringify::ReplacePart(size_t Start, size_t End, const Core::String& Value)
 		{
 			return ReplacePart(Start, End, Value.c_str());
 		}
@@ -3328,7 +3763,7 @@ namespace Edge
 
 			return *this;
 		}
-		Stringify& Stringify::ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const std::string& With, size_t Start)
+		Stringify& Stringify::ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const Core::String& With, size_t Start)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Begins != nullptr && Begins[0] != '\0', *this, "begin should not be empty");
@@ -3377,7 +3812,7 @@ namespace Edge
 
 			return *this;
 		}
-		Stringify& Stringify::ReplaceInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start)
+		Stringify& Stringify::ReplaceInBetween(const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Begins != nullptr && Begins[0] != '\0', *this, "begin should not be empty");
@@ -3442,14 +3877,14 @@ namespace Edge
 
 			return *this;
 		}
-		Stringify& Stringify::ReplaceNotInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start)
+		Stringify& Stringify::ReplaceNotInBetween(const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Begins != nullptr && Begins[0] != '\0', *this, "begin should not be empty");
 			ED_ASSERT(Ends != nullptr && Ends[0] != '\0', *this, "end should not be empty");
 
 			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
-			size_t ReplaceAt = std::string::npos;
+			size_t ReplaceAt = Core::String::npos;
 
 			for (size_t i = Start; i < Base->size(); i++)
 			{
@@ -3463,18 +3898,18 @@ namespace Edge
 				size_t Nesting = 1;
 				if (BeginsOffset != BeginsSize)
 				{
-					if (ReplaceAt == std::string::npos)
+					if (ReplaceAt == Core::String::npos)
 						ReplaceAt = i;
 
 					continue;
 				}
 
-				if (ReplaceAt != std::string::npos)
+				if (ReplaceAt != Core::String::npos)
 				{
 					Base->replace(Base->begin() + ReplaceAt, Base->begin() + i, With);
 					From = ReplaceAt + BeginsSize + With.size();
 					i = From - BeginsSize;
-					ReplaceAt = std::string::npos;
+					ReplaceAt = Core::String::npos;
 				}
 
 				size_t To = From, EndsOffset = 0;
@@ -3507,16 +3942,16 @@ namespace Edge
 				i = To - 1;
 			}
 
-			if (ReplaceAt == std::string::npos)
+			if (ReplaceAt == Core::String::npos)
 				return *this;
 
 			Base->replace(Base->begin() + ReplaceAt, Base->end(), With);
 			return *this;
 		}
-		Stringify& Stringify::ReplaceParts(std::vector<std::pair<std::string, Stringify::Settle>>& Inout, const std::string& With, const std::function<char(const std::string&, char, int)>& Surrounding)
+		Stringify& Stringify::ReplaceParts(Core::Vector<std::pair<Core::String, Stringify::Settle>>& Inout, const Core::String& With, const std::function<char(const Core::String&, char, int)>& Surrounding)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			ED_SORT(Inout.begin(), Inout.end(), [](const std::pair<std::string, Stringify::Settle>& A, const std::pair<std::string, Stringify::Settle>& B)
+			ED_SORT(Inout.begin(), Inout.end(), [](const std::pair<Core::String, Stringify::Settle>& A, const std::pair<Core::String, Stringify::Settle>& B)
 			{
 				return A.second.Start < B.second.Start;
 			});
@@ -3532,7 +3967,7 @@ namespace Edge
 				Item.second.End = (size_t)((int64_t)Item.second.End + Offset);
 				if (Surrounding != nullptr)
 				{
-					std::string Replacement = With;
+					Core::String Replacement = With;
 					if (Item.second.Start > 0)
 					{
 						char Next = Surrounding(Item.first, Base->at(Item.second.Start - 1), -1);
@@ -3561,7 +3996,7 @@ namespace Edge
 
 			return *this;
 		}
-		Stringify& Stringify::ReplaceParts(std::vector<Stringify::Settle>& Inout, const std::string& With, const std::function<char(char, int)>& Surrounding)
+		Stringify& Stringify::ReplaceParts(Core::Vector<Stringify::Settle>& Inout, const Core::String& With, const std::function<char(char, int)>& Surrounding)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");	
 			ED_SORT(Inout.begin(), Inout.end(), [](const Stringify::Settle& A, const Stringify::Settle& B)
@@ -3580,7 +4015,7 @@ namespace Edge
 				Item.End = (size_t)((int64_t)Item.End + Offset);
 				if (Surrounding != nullptr)
 				{
-					std::string Replacement = With;
+					Core::String Replacement = With;
 					if (Item.Start > 0)
 					{
 						char Next = Surrounding(Base->at(Item.Start - 1), -1);
@@ -3773,13 +4208,13 @@ namespace Edge
 
 			return *this;
 		}
-		Stringify& Stringify::Assign(const std::string& Raw)
+		Stringify& Stringify::Assign(const Core::String& Raw)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			Base->assign(Raw);
 			return *this;
 		}
-		Stringify& Stringify::Assign(const std::string& Raw, size_t Start, size_t Count)
+		Stringify& Stringify::Assign(const Core::String& Raw, size_t Start, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Start >= Raw.size() || !Count)
@@ -3816,7 +4251,7 @@ namespace Edge
 			Base->append(Count, Char);
 			return *this;
 		}
-		Stringify& Stringify::Append(const std::string& Raw)
+		Stringify& Stringify::Append(const Core::String& Raw)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			Base->append(Raw);
@@ -3840,7 +4275,7 @@ namespace Edge
 			Base->append(Raw + Start, Count - Start);
 			return *this;
 		}
-		Stringify& Stringify::Append(const std::string& Raw, size_t Start, size_t Count)
+		Stringify& Stringify::Append(const Core::String& Raw, size_t Start, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Count > 0, *this, "count should be greater than Zero");
@@ -3862,7 +4297,7 @@ namespace Edge
 
 			return Append(Buffer, Count);
 		}
-		Stringify& Stringify::Insert(const std::string& Raw, size_t Position)
+		Stringify& Stringify::Insert(const Core::String& Raw, size_t Position)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Position >= Base->size())
@@ -3871,7 +4306,7 @@ namespace Edge
 			Base->insert(Position, Raw);
 			return *this;
 		}
-		Stringify& Stringify::Insert(const std::string& Raw, size_t Position, size_t Start, size_t Count)
+		Stringify& Stringify::Insert(const Core::String& Raw, size_t Position, size_t Start, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Position >= Base->size())
@@ -3882,7 +4317,7 @@ namespace Edge
 
 			return *this;
 		}
-		Stringify& Stringify::Insert(const std::string& Raw, size_t Position, size_t Count)
+		Stringify& Stringify::Insert(const Core::String& Raw, size_t Position, size_t Count)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Position >= Base->size())
@@ -3930,14 +4365,14 @@ namespace Edge
 		{
 			return Erase(Start, End - Start);
 		}
-		Stringify& Stringify::Eval(const std::string& Net, const std::string& Dir)
+		Stringify& Stringify::Eval(const Core::String& Net, const Core::String& Dir)
 		{
 			if (Base->empty())
 				return *this;
 
 			if (StartsOf("./\\"))
 			{
-				std::string Result = Core::OS::Path::Resolve(Base->c_str(), Dir);
+				Core::String Result = Core::OS::Path::Resolve(Base->c_str(), Dir);
 				if (!Result.empty())
 					Assign(Result);
 			}
@@ -3957,9 +4392,9 @@ namespace Edge
 
 			return *this;
 		}
-		std::vector<std::pair<std::string, Stringify::Settle>> Stringify::FindInBetween(const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset) const
+		Core::Vector<std::pair<Core::String, Stringify::Settle>> Stringify::FindInBetween(const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset) const
 		{
-			std::vector<std::pair<std::string, Stringify::Settle>> Result;
+			Core::Vector<std::pair<Core::String, Stringify::Settle>> Result;
 			ED_ASSERT(Begins != nullptr && Begins[0] != '\0', Result, "begin should not be empty");
 			ED_ASSERT(Ends != nullptr && Ends[0] != '\0', Result, "end should not be empty");
 
@@ -4027,9 +4462,9 @@ namespace Edge
 
 			return Result;
 		}
-		std::vector<std::pair<std::string, Stringify::Settle>> Stringify::FindStartsWithEndsOf(const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset) const
+		Core::Vector<std::pair<Core::String, Stringify::Settle>> Stringify::FindStartsWithEndsOf(const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset) const
 		{
-			std::vector<std::pair<std::string, Stringify::Settle>> Result;
+			Core::Vector<std::pair<Core::String, Stringify::Settle>> Result;
 			ED_ASSERT(Begins != nullptr && Begins[0] != '\0', Result, "begin should not be empty");
 			ED_ASSERT(EndsOf != nullptr && EndsOf[0] != '\0', Result, "end should not be empty");
 
@@ -4105,7 +4540,7 @@ namespace Edge
 
 			return Result;
 		}
-		Stringify::Settle Stringify::ReverseFind(const std::string& Needle, size_t Offset) const
+		Stringify::Settle Stringify::ReverseFind(const Core::String& Needle, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
@@ -4180,7 +4615,7 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		Stringify::Settle Stringify::ReverseFindOf(const std::string& Needle, size_t Offset) const
+		Stringify::Settle Stringify::ReverseFindOf(const Core::String& Needle, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
@@ -4220,7 +4655,7 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		Stringify::Settle Stringify::Find(const std::string& Needle, size_t Offset) const
+		Stringify::Settle Stringify::Find(const Core::String& Needle, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
@@ -4270,7 +4705,7 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		Stringify::Settle Stringify::FindOf(const std::string& Needle, size_t Offset) const
+		Stringify::Settle Stringify::FindOf(const Core::String& Needle, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			for (size_t i = Offset; i < Base->size(); i++)
@@ -4301,7 +4736,7 @@ namespace Edge
 
 			return { Base->size(), Base->size(), false };
 		}
-		Stringify::Settle Stringify::FindNotOf(const std::string& Needle, size_t Offset) const
+		Stringify::Settle Stringify::FindNotOf(const Core::String& Needle, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
 			for (size_t i = Offset; i < Base->size(); i++)
@@ -4382,7 +4817,7 @@ namespace Edge
 
 			return false;
 		}
-		bool Stringify::StartsWith(const std::string& Value, size_t Offset) const
+		bool Stringify::StartsWith(const Core::String& Value, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			if (Base->size() < Value.size())
@@ -4451,7 +4886,7 @@ namespace Edge
 
 			return Result;
 		}
-		bool Stringify::EndsWith(const std::string& Value) const
+		bool Stringify::EndsWith(const Core::String& Value) const
 		{
 			ED_ASSERT(Base != nullptr, false, "cannot parse without context");
 			if (Base->empty() || Value.size() > Base->size())
@@ -4744,15 +5179,15 @@ namespace Edge
 			ED_ASSERT(Base != nullptr, nullptr, "cannot parse without context");
 			return Base->c_str();
 		}
-		std::string& Stringify::R()
+		Core::String& Stringify::R()
 		{
 			ED_ASSERT(Base != nullptr, *Base, "cannot parse without context");
 			return *Base;
 		}
-		std::wstring Stringify::ToWide() const
+		Core::WideString Stringify::ToWide() const
 		{
-			ED_ASSERT(Base != nullptr, std::wstring(), "cannot parse without context");
-			std::wstring Output;
+			ED_ASSERT(Base != nullptr, Core::WideString(), "cannot parse without context");
+			Core::WideString Output;
 			Output.reserve(Base->size());
 
 			wchar_t W;
@@ -4812,10 +5247,10 @@ namespace Edge
 
 			return Output;
 		}
-		std::vector<std::string> Stringify::Split(const std::string& With, size_t Start) const
+		Core::Vector<Core::String> Stringify::Split(const Core::String& With, size_t Start) const
 		{
-			ED_ASSERT(Base != nullptr, std::vector<std::string>(), "cannot parse without context");
-			std::vector<std::string> Output;
+			ED_ASSERT(Base != nullptr, Core::Vector<Core::String>(), "cannot parse without context");
+			Core::Vector<Core::String> Output;
 			if (Start >= Base->size())
 				return Output;
 
@@ -4832,10 +5267,10 @@ namespace Edge
 
 			return Output;
 		}
-		std::vector<std::string> Stringify::Split(char With, size_t Start) const
+		Core::Vector<Core::String> Stringify::Split(char With, size_t Start) const
 		{
-			ED_ASSERT(Base != nullptr, std::vector<std::string>(), "cannot parse without context");
-			std::vector<std::string> Output;
+			ED_ASSERT(Base != nullptr, Core::Vector<Core::String>(), "cannot parse without context");
+			Core::Vector<Core::String> Output;
 			if (Start >= Base->size())
 				return Output;
 
@@ -4852,10 +5287,10 @@ namespace Edge
 
 			return Output;
 		}
-		std::vector<std::string> Stringify::SplitMax(char With, size_t Count, size_t Start) const
+		Core::Vector<Core::String> Stringify::SplitMax(char With, size_t Count, size_t Start) const
 		{
-			ED_ASSERT(Base != nullptr, std::vector<std::string>(), "cannot parse without context");
-			std::vector<std::string> Output;
+			ED_ASSERT(Base != nullptr, Core::Vector<Core::String>(), "cannot parse without context");
+			Core::Vector<Core::String> Output;
 			if (Start >= Base->size())
 				return Output;
 
@@ -4872,10 +5307,10 @@ namespace Edge
 
 			return Output;
 		}
-		std::vector<std::string> Stringify::SplitOf(const char* With, size_t Start) const
+		Core::Vector<Core::String> Stringify::SplitOf(const char* With, size_t Start) const
 		{
-			ED_ASSERT(Base != nullptr, std::vector<std::string>(), "cannot parse without context");
-			std::vector<std::string> Output;
+			ED_ASSERT(Base != nullptr, Core::Vector<Core::String>(), "cannot parse without context");
+			Core::Vector<Core::String> Output;
 			if (Start >= Base->size())
 				return Output;
 
@@ -4892,10 +5327,10 @@ namespace Edge
 
 			return Output;
 		}
-		std::vector<std::string> Stringify::SplitNotOf(const char* With, size_t Start) const
+		Core::Vector<Core::String> Stringify::SplitNotOf(const char* With, size_t Start) const
 		{
-			ED_ASSERT(Base != nullptr, std::vector<std::string>(), "cannot parse without context");
-			std::vector<std::string> Output;
+			ED_ASSERT(Base != nullptr, Core::Vector<Core::String>(), "cannot parse without context");
+			Core::Vector<Core::String> Output;
 			if (Start >= Base->size())
 				return Output;
 
@@ -4998,25 +5433,25 @@ namespace Edge
 
 			Deletable = true;
 			if (Value.Base != nullptr)
-				Base = ED_NEW(std::string, *Value.Base);
+				Base = ED_NEW(Core::String, *Value.Base);
 			else
-				Base = ED_NEW(std::string);
+				Base = ED_NEW(Core::String);
 
 			return *this;
 		}
-		std::string Stringify::ToString(float Number)
+		Core::String Stringify::ToString(float Number)
 		{
-			std::string Result(std::to_string(Number));
-			Result.erase(Result.find_last_not_of('0') + 1, std::string::npos);
+			Core::String Result(Core::ToString(Number));
+			Result.erase(Result.find_last_not_of('0') + 1, Core::String::npos);
 			if (!Result.empty() && Result.back() == '.')
 				Result.erase(Result.end() - 1);
 
 			return Result;
 		}
-		std::string Stringify::ToString(double Number)
+		Core::String Stringify::ToString(double Number)
 		{
-			std::string Result(std::to_string(Number));
-			Result.erase(Result.find_last_not_of('0') + 1, std::string::npos);
+			Core::String Result(Core::ToString(Number));
+			Result.erase(Result.find_last_not_of('0') + 1, Core::String::npos);
 			if (!Result.empty() && Result.back() == '.')
 				Result.erase(Result.end() - 1);
 
@@ -5180,7 +5615,7 @@ namespace Edge
 		{
 			return new Schema(Value);
 		}
-		Schema* Var::Set::Auto(const std::string& Value, bool Strict)
+		Schema* Var::Set::Auto(const Core::String& Value, bool Strict)
 		{
 			return new Schema(Var::Auto(Value, Strict));
 		}
@@ -5204,7 +5639,7 @@ namespace Edge
 		{
 			return new Schema(Var::Pointer(Value));
 		}
-		Schema* Var::Set::String(const std::string& Value)
+		Schema* Var::Set::String(const Core::String& Value)
 		{
 			return new Schema(Var::String(Value));
 		}
@@ -5212,7 +5647,7 @@ namespace Edge
 		{
 			return new Schema(Var::String(Value, Size));
 		}
-		Schema* Var::Set::Binary(const std::string& Value)
+		Schema* Var::Set::Binary(const Core::String& Value)
 		{
 			return new Schema(Var::Binary(Value));
 		}
@@ -5240,7 +5675,7 @@ namespace Edge
 		{
 			return new Schema(Var::Decimal(std::move(Value)));
 		}
-		Schema* Var::Set::DecimalString(const std::string& Value)
+		Schema* Var::Set::DecimalString(const Core::String& Value)
 		{
 			return new Schema(Var::DecimalString(Value));
 		}
@@ -5249,7 +5684,7 @@ namespace Edge
 			return new Schema(Var::Boolean(Value));
 		}
 
-		Variant Var::Auto(const std::string& Value, bool Strict)
+		Variant Var::Auto(const Core::String& Value, bool Strict)
 		{
 			Variant Result;
 			Result.Deserialize(Value, Strict);
@@ -5281,7 +5716,7 @@ namespace Edge
 			Result.Value.Pointer = (char*)Value;
 			return Result;
 		}
-		Variant Var::String(const std::string& Value)
+		Variant Var::String(const Core::String& Value)
 		{
 			return String(Value.c_str(), Value.size());
 		}
@@ -5301,7 +5736,7 @@ namespace Edge
 
 			return Result;
 		}
-		Variant Var::Binary(const std::string& Value)
+		Variant Var::Binary(const Core::String& Value)
 		{
 			return Binary(Value.c_str(), Value.size());
 		}
@@ -5351,7 +5786,7 @@ namespace Edge
 			Result.Value.Pointer = (char*)Buffer;
 			return Result;
 		}
-		Variant Var::DecimalString(const std::string& Value)
+		Variant Var::DecimalString(const Core::String& Value)
 		{
 			BigNumber* Buffer = ED_NEW(BigNumber, Value);
 			Variant Result(VarType::Decimal);
@@ -5365,301 +5800,6 @@ namespace Edge
 			return Result;
 		}
 
-		Allocator::Context::Context() : Source("?.cpp"), Function("?"), TypeName("void"), Line(0)
-		{
-		}
-		Allocator::Context::Context(const char* NewSource, const char* NewFunction, const char* NewTypeName, int NewLine) : Source(NewSource ? NewSource : "?.cpp"), Function(NewFunction ? NewFunction : "?"), TypeName(NewTypeName ? NewTypeName : "void"), Line(NewLine >= 0 ? NewLine : 0)
-		{
-		}
-
-		DebugAllocator::~DebugAllocator() noexcept
-		{
-			Dump(nullptr);
-		}
-		void* DebugAllocator::Allocate(Context&& Origin, size_t Size) noexcept
-		{
-			void* Address = malloc(Size);
-			ED_ASSERT(Address != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
-			MEM_TRACE("[mem] allocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, Address, Origin.TypeName);
-
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			Blocks[Address] = { Origin.TypeName, std::move(Origin), time(nullptr), Size, true };
-			return Address;
-		}
-		void DebugAllocator::Free(void* Address) noexcept
-		{
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto It = Blocks.find(Address);
-			ED_ASSERT_V(It != Blocks.end() && It->second.Active, "cannot free memory that was not allocated by this allocator at 0x%" PRIXPTR, Address);
-			MEM_TRACE("[mem] free %" PRIu64 " bytes at 0x%" PRIXPTR, (uint64_t)It->second.Size, Address);
-
-			Blocks.erase(It);
-			free(Address);
-		}
-		void DebugAllocator::Watch(Context&& Origin, void* Address) noexcept
-		{
-			MEM_TRACE("[mem] watch address 0x%" PRIXPTR " as %s", Address, Origin.TypeName);
-
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto It = Blocks.find(Address);
-
-			ED_ASSERT_V(It == Blocks.end() || !It->second.Active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, Address);
-			Blocks[Address] = { Origin.TypeName, std::move(Origin), time(nullptr), sizeof(void*), false };
-		}
-		void DebugAllocator::Unwatch(void* Address) noexcept
-		{
-			MEM_TRACE("[mem] unwatch address 0x%" PRIXPTR, Address);
-			
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto It = Blocks.find(Address);
-
-			ED_ASSERT_V(It != Blocks.end() && !It->second.Active, "address at 0x%" PRIXPTR " cannot be cleared from tracking because it was not allocated by this allocator", Address);
-			Blocks.erase(It);
-		}
-		bool DebugAllocator::IsValid(void* Address) noexcept
-		{
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto It = Blocks.find(Address);
-
-			ED_ASSERT(It != Blocks.end(), false, "address at 0x%" PRIXPTR " cannot be used as it was already freed");
-			return It != Blocks.end();
-		}
-		bool DebugAllocator::Dump(void* Address)
-		{
-			ED_TRACE("[mem] dump internal memory state on 0x%" PRIXPTR, Address);
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			if (Address != nullptr)
-			{
-				bool IsLogActive = OS::IsLogActive();
-				if (!IsLogActive)
-					OS::SetLogActive(true);
-
-				auto It = Blocks.find(Address);
-				if (It != Blocks.end())
-				{
-					char Date[64];
-					GetDateTime(It->second.Time, Date, sizeof(Date));
-					OS::Log(4, It->second.Origin.Line, It->second.Origin.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", It->first, Date, It->second.TypeName.c_str(), (uint64_t)It->second.Size, It->second.Origin.Function);
-				}
-
-				OS::SetLogActive(IsLogActive);
-				return It != Blocks.end();
-			}
-			else if (!Blocks.empty())
-			{
-				bool IsLogActive = OS::IsLogActive();
-				if (!IsLogActive)
-					OS::SetLogActive(true);
-
-				size_t TotalMemory = 0;
-				for (auto& Item : Blocks)
-					TotalMemory += Item.second.Size;
-
-				ED_DEBUG("[mem] %" PRIu64 " addresses are still used (%" PRIu64 " bytes)", (uint64_t)Blocks.size(), (uint64_t)TotalMemory);
-				for (auto& Item : Blocks)
-				{
-					char Date[64];
-					GetDateTime(Item.second.Time, Date, sizeof(Date));
-					OS::Log(4, Item.second.Origin.Line, Item.second.Origin.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", Item.first, Date, Item.second.TypeName.c_str(), (uint64_t)Item.second.Size, Item.second.Origin.Function);
-				}
-
-				OS::SetLogActive(IsLogActive);
-				return true;
-			}
-
-			return false;
-		}
-		bool DebugAllocator::FindBlock(void* Address, Block* Output)
-		{
-			ED_ASSERT(Address != nullptr, false, "address should not be null");
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto It = Blocks.find(Address);
-			if (It == Blocks.end())
-				return false;
-
-			if (Output != nullptr)
-				*Output = It->second;
-
-			return true;
-		}
-		const std::unordered_map<void*, DebugAllocator::Block>& DebugAllocator::GetBlocks() const
-		{
-			return Blocks;
-		}
-
-		void* DefaultAllocator::Allocate(Context&& Origin, size_t Size) noexcept
-		{
-			void* Address = malloc(Size);
-			ED_ASSERT(Address != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
-			MEM_TRACE("[mem] allocate %" PRIu64 " bytes at %" PRIXPTR " as %s", (uint64_t)Size, Address, Origin.TypeName);
-			
-			return Address;
-		}
-		void DefaultAllocator::Free(void* Address) noexcept
-		{
-			MEM_TRACE("[mem] free at 0x%" PRIXPTR, Address);
-			free(Address);
-		}
-		void DefaultAllocator::Watch(Context&& Origin, void* Address) noexcept
-		{
-		}
-		void DefaultAllocator::Unwatch(void* Address) noexcept
-		{
-		}
-		bool DefaultAllocator::IsValid(void* Address) noexcept
-		{
-			return true;
-		}
-
-		PoolAllocator::PoolAllocator(uint64_t MinimalLifeTimeMs, size_t MaxElementsPerAllocation, size_t ElementsReducingBaseBytes, double ElementsReducingFactorRate) : MinimalLifeTime(MinimalLifeTimeMs), ElementsReducingFactor(ElementsReducingFactorRate), ElementsReducingBase(ElementsReducingBaseBytes), ElementsPerAllocation(MaxElementsPerAllocation)
-		{
-			ED_ASSERT_V(ElementsPerAllocation > 0, "elements count per allocation should be greater then zero");
-			ED_ASSERT_V(ElementsReducingFactor > 1.0, "elements reducing factor should be greater then zero");
-			ED_ASSERT_V(ElementsReducingBase > 0, "elements reducing base should be greater then zero");
-		}
-		PoolAllocator::~PoolAllocator() noexcept
-		{
-			for (auto& Page : Pages)
-			{
-				for (auto* Address : Page.second->Cache)
-					DeallocatePageCache(Address, false);
-				delete Page.second;
-			}
-			Pages.clear();
-		}
-		void* PoolAllocator::Allocate(Context&& Origin, size_t Size) noexcept
-		{
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto* Page = GetPageGroup(Size);
-			auto* Cache = GetPageCache(std::move(Origin), Page, Size);
-			if (!Cache)
-				return nullptr;
-	
-			void* Address = Cache->Pool.front();
-			Blocks[Address] = Cache;
-			Cache->Pool.pop();
-
-			return Address;
-		}
-		void PoolAllocator::Free(void* Address) noexcept
-		{
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto Block = Blocks.find(Address);
-			ED_ASSERT_V(Block != Blocks.end(), "address 0x" PRIXPTR " is not a valid address");
-
-			auto* Cache = Block->second;
-			Cache->Pool.push(Address);
-			Blocks.erase(Block);
-
-			if (Cache->Pool.size() < Cache->Capacity)
-				return;
-
-			if (Cache->Capacity == 1 || GetClock() - Cache->AliveTime > (int64_t)MinimalLifeTime)
-				DeallocatePageCache(Cache, true);
-		}
-		void PoolAllocator::Watch(Context&& Origin, void* Address) noexcept
-		{
-		}
-		void PoolAllocator::Unwatch(void* Address) noexcept
-		{
-		}
-		bool PoolAllocator::IsValid(void* Address) noexcept
-		{
-			return true;
-		}
-		void PoolAllocator::DeallocatePageCache(PageCache* Cache, bool EraseFromCache)
-		{
-			MEM_TRACE("[mem] free %" PRIu64 " bytes of page block at 0x%" PRIXPTR, (uint64_t)Cache->Page->Size, Cache->BaseAddress);
-			if (EraseFromCache)
-				Cache->Page->Cache.erase(Cache);
-
-			free(Cache->BaseAddress);
-			delete Cache;
-		}
-		PoolAllocator::PageCache* PoolAllocator::AllocatePageCache(Context&& Origin, PageGroup* Page, size_t Size)
-		{
-			size_t PageElements = GetElementsCount(Page, Size);
-			size_t PageSize = Size * PageElements;
-			char* Address = (char*)malloc(PageSize);
-			ED_ASSERT(Address != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)PageSize);
-			MEM_TRACE("[mem] allocate %" PRIu64 " bytes for page block at %" PRIXPTR " as %s", (uint64_t)PageSize, Address, Origin.TypeName);
-
-			if (!Address)
-				return nullptr;
-
-			auto* Cache = new PageCache();
-			Cache->AliveTime = GetClock();
-			Cache->Capacity = PageElements;
-			Cache->BaseAddress = Address;
-			Cache->Page = Page;
-			
-			for (size_t i = 0; i < PageElements; i++)
-				Cache->Pool.emplace(Address + Size * i);
-
-			Page->Cache.insert(Cache);
-			return Cache;
-		}
-		PoolAllocator::PageCache* PoolAllocator::GetPageCache(Context&& Origin, PageGroup* Page, size_t Size)
-		{
-			for (auto* Address : Page->Cache)
-			{
-				if (!Address->Pool.empty())
-					return Address;
-			}
-
-			return AllocatePageCache(std::move(Origin), Page, Size);
-		}
-		PoolAllocator::PageGroup* PoolAllocator::GetPageGroup(size_t Size)
-		{
-			auto*& Page = Pages[Size];
-			if (!Page)
-			{
-				Page = new PageGroup();
-				Page->Size = Size;
-			}
-
-			return Page;
-		}
-		int64_t PoolAllocator::GetClock()
-		{
-			return (int64_t)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		}
-		size_t PoolAllocator::GetElementsCount(PageGroup* Page, size_t Size)
-		{
-			double Total = (double)ElementsPerAllocation;
-			double Reducing = (double)Size / (double)ElementsReducingBase;
-			double Frequency = GetFrequency(Page);
-			
-			if (Reducing > 1.0)
-			{
-				Total /= ElementsReducingFactor * Reducing;
-				if (Total < 1.0)
-					Total = 1.0;
-			}
-			else if (Frequency > 1.0)
-				Total *= Frequency;
-
-			return (size_t)Total;
-		}
-		double PoolAllocator::GetFrequency(PageGroup* Page)
-		{
-			if (Pages.size() <= 1)
-				return 1.0;
-
-			double Average = 0.0;
-			for (auto& Next : Pages)
-			{
-				if (Next.second != Page)
-					Average += (double)Next.second->Cache.size();
-			}
-
-			Average /= (double)Pages.size() - 1;
-			if (Average < 1.0)
-				Average = 1.0;
-
-			return std::max(1.0, (double)Page->Cache.size() / Average);
-		}
-
 		bool Composer::Clear()
 		{
 			if (!Factory)
@@ -5669,7 +5809,7 @@ namespace Edge
 			Factory = nullptr;
 			return true;
 		}
-		bool Composer::Pop(const std::string& Hash)
+		bool Composer::Pop(const Core::String& Hash)
 		{
 			ED_ASSERT(Factory != nullptr, false, "composer should be initialized");
 			ED_TRACE("[composer] pop %s", Hash.c_str());
@@ -5688,7 +5828,7 @@ namespace Edge
 		}
 		void Composer::Push(uint64_t TypeId, uint64_t Tag, void* Callback)
 		{
-			using Map = Mapping<std::unordered_map<uint64_t, std::pair<uint64_t, void*>>>;
+			using Map = Mapping<Core::UnorderedMap<uint64_t, std::pair<uint64_t, void*>>>;
 			if (!Factory)
 				Factory = ED_NEW(Map);
 
@@ -5705,11 +5845,11 @@ namespace Edge
 
 			return nullptr;
 		}
-		std::unordered_set<uint64_t> Composer::Fetch(uint64_t Id)
+		Core::UnorderedSet<uint64_t> Composer::Fetch(uint64_t Id)
 		{
-			ED_ASSERT(Factory != nullptr, std::unordered_set<uint64_t>(), "composer should be initialized");
+			ED_ASSERT(Factory != nullptr, Core::UnorderedSet<uint64_t>(), "composer should be initialized");
 
-			std::unordered_set<uint64_t> Hashes;
+			Core::UnorderedSet<uint64_t> Hashes;
 			for (auto& Item : Factory->Map)
 			{
 				if (Item.second.first == Id)
@@ -5718,7 +5858,7 @@ namespace Edge
 
 			return Hashes;
 		}
-		Mapping<std::unordered_map<uint64_t, std::pair<uint64_t, void*>>>* Composer::Factory = nullptr;
+		Mapping<Core::UnorderedMap<uint64_t, std::pair<uint64_t, void*>>>* Composer::Factory = nullptr;
 
 		Console::Console() noexcept : Coloring(true), Allocated(false), Present(false), Time(0)
 #ifdef ED_MICROSOFT
@@ -5873,7 +6013,7 @@ namespace Edge
 			ED_ASSERT_V(Buffer != nullptr, "buffer should be set");
 			std::cout << Buffer;
 		}
-		void Console::WriteLine(const std::string& Line)
+		void Console::WriteLine(const Core::String& Line)
 		{
 			ED_ASSERT_V(Present, "console should be shown at least once");
 			std::cout << Line << '\n';
@@ -5883,7 +6023,7 @@ namespace Edge
 			ED_ASSERT_V(Present, "console should be shown at least once");
 			std::cout << Value;
 		}
-		void Console::Write(const std::string& Line)
+		void Console::Write(const Core::String& Line)
 		{
 			ED_ASSERT_V(Present, "console should be shown at least once");
 			std::cout << Line;
@@ -5920,14 +6060,14 @@ namespace Edge
 
 			std::cout << Buffer;
 		}
-		void Console::sWriteLine(const std::string& Line)
+		void Console::sWriteLine(const Core::String& Line)
 		{
 			ED_ASSERT_V(Present, "console should be shown at least once");
 			Lock.lock();
 			std::cout << Line << '\n';
 			Lock.unlock();
 		}
-		void Console::sWrite(const std::string& Line)
+		void Console::sWrite(const Core::String& Line)
 		{
 			ED_ASSERT_V(Present, "console should be shown at least once");
 			Lock.lock();
@@ -5998,10 +6138,10 @@ namespace Edge
 		{
 			return (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0 - Time;
 		}
-		std::string Console::Read(size_t Size)
+		Core::String Console::Read(size_t Size)
 		{
-			ED_ASSERT(Present, std::string(), "console should be shown at least once");
-			ED_ASSERT(Size > 0, std::string(), "read length should be greater than Zero");
+			ED_ASSERT(Present, Core::String(), "console should be shown at least once");
+			ED_ASSERT(Size > 0, Core::String(), "read length should be greater than Zero");
 
 			char* Value = ED_MALLOC(char, sizeof(char) * (Size + 1));
 			memset(Value, 0, Size * sizeof(char));
@@ -6010,7 +6150,7 @@ namespace Edge
 			std::cout.flush();
 #endif
 			std::cin.getline(Value, Size);
-			std::string Output = Value;
+			Core::String Output = Value;
 			ED_FREE(Value);
 
 			return Output;
@@ -6209,7 +6349,7 @@ namespace Edge
 
 			return Size;
 		}
-		std::string& Stream::GetSource()
+		Core::String& Stream::GetSource()
 		{
 			return Path;
 		}
@@ -6564,7 +6704,7 @@ namespace Edge
 		WebStream::WebStream(bool IsAsync) noexcept : Resource(nullptr), Offset(0), Size(0), Async(IsAsync)
 		{
 		}
-		WebStream::WebStream(bool IsAsync, std::unordered_map<std::string, std::string>&& NewHeaders) noexcept : WebStream(IsAsync)
+		WebStream::WebStream(bool IsAsync, Core::UnorderedMap<Core::String, Core::String>&& NewHeaders) noexcept : WebStream(IsAsync)
 		{
 			Headers = std::move(NewHeaders);
 		}
@@ -6754,7 +6894,7 @@ namespace Edge
 			return (void*)Resource;
 		}
 
-		FileTree::FileTree(const std::string& Folder) noexcept
+		FileTree::FileTree(const Core::String& Folder) noexcept
 		{
 			Path = OS::Path::Resolve(Folder.c_str());
 			if (!Path.empty())
@@ -6771,7 +6911,7 @@ namespace Edge
 			}
 			else
 			{
-				std::vector<std::string> Drives = OS::Directory::GetMounts();
+				Core::Vector<Core::String> Drives = OS::Directory::GetMounts();
 				for (auto& Drive : Drives)
 					Directories.push_back(new FileTree(Drive));
 			}
@@ -6790,7 +6930,7 @@ namespace Edge
 			for (auto& Directory : Directories)
 				Directory->Loop(Callback);
 		}
-		const FileTree* FileTree::Find(const std::string& V) const
+		const FileTree* FileTree::Find(const Core::String& V) const
 		{
 			if (Path == V)
 				return this;
@@ -6822,17 +6962,17 @@ namespace Edge
 #endif
 		}
 		
-		OS::Process::ArgsContext::ArgsContext(int Argc, char** Argv, const std::string& WhenNoValue) noexcept
+		OS::Process::ArgsContext::ArgsContext(int Argc, char** Argv, const Core::String& WhenNoValue) noexcept
         {
             Base = OS::Process::GetArgs(Argc, Argv, WhenNoValue);
         }
-        void OS::Process::ArgsContext::ForEach(const std::function<void(const std::string&, const std::string&)>& Callback) const
+        void OS::Process::ArgsContext::ForEach(const std::function<void(const Core::String&, const Core::String&)>& Callback) const
         {
             ED_ASSERT_V(Callback != nullptr, "callback should not be empty");
             for (auto& Item : Base)
                 Callback(Item.first, Item.second);
         }
-        bool OS::Process::ArgsContext::IsEnabled(const std::string& Option, const std::string& Shortcut) const
+        bool OS::Process::ArgsContext::IsEnabled(const Core::String& Option, const Core::String& Shortcut) const
         {
             auto It = Base.find(Option);
             if (It == Base.end() || !IsTrue(It->second))
@@ -6840,7 +6980,7 @@ namespace Edge
                             
             return true;
         }
-        bool OS::Process::ArgsContext::IsDisabled(const std::string& Option, const std::string& Shortcut) const
+        bool OS::Process::ArgsContext::IsDisabled(const Core::String& Option, const Core::String& Shortcut) const
         {
             auto It = Base.find(Option);
             if (It == Base.end())
@@ -6848,21 +6988,21 @@ namespace Edge
                             
             return IsFalse(It->second);
         }
-        bool OS::Process::ArgsContext::Has(const std::string& Option, const std::string& Shortcut) const
+        bool OS::Process::ArgsContext::Has(const Core::String& Option, const Core::String& Shortcut) const
         {
             if (Base.find(Option) != Base.end())
                 return true;
                         
             return Shortcut.empty() ? false : Base.find(Shortcut) != Base.end();
         }
-        std::string& OS::Process::ArgsContext::Get(const std::string& Option, const std::string& Shortcut)
+        Core::String& OS::Process::ArgsContext::Get(const Core::String& Option, const Core::String& Shortcut)
         {
             if (Base.find(Option) != Base.end())
                 return Base[Option];
                         
             return Shortcut.empty() ? Base[Option] : Base[Shortcut];
         }
-        std::string& OS::Process::ArgsContext::GetIf(const std::string& Option, const std::string& Shortcut, const std::string& WhenEmpty)
+        Core::String& OS::Process::ArgsContext::GetIf(const Core::String& Option, const Core::String& Shortcut, const Core::String& WhenEmpty)
         {
             if (Base.find(Option) != Base.end())
                 return Base[Option];
@@ -6870,32 +7010,32 @@ namespace Edge
             if (!Shortcut.empty() && Base.find(Shortcut) != Base.end())
                 return Base[Shortcut];
                         
-            std::string& Value = Base[Option];
+            Core::String& Value = Base[Option];
             Value = WhenEmpty;
             return Value;
         }
-        std::string& OS::Process::ArgsContext::GetAppPath()
+        Core::String& OS::Process::ArgsContext::GetAppPath()
         {
             return Get("__path__");
         }
-        bool OS::Process::ArgsContext::IsTrue(const std::string& Value) const
+        bool OS::Process::ArgsContext::IsTrue(const Core::String& Value) const
         {
             if (Value.empty())
                 return false;
                         
-            if (Stringify((std::string*)&Value).ToUInt64() > 0)
+            if (Stringify((Core::String*)&Value).ToUInt64() > 0)
                 return true;
                         
 			Stringify Data(Value);
             Data.ToLower();
             return Data.R() == "on" || Data.R() == "true" || Data.R() == "yes" || Data.R() == "y";
         }
-        bool OS::Process::ArgsContext::IsFalse(const std::string& Value) const
+        bool OS::Process::ArgsContext::IsFalse(const Core::String& Value) const
         {
             if (Value.empty())
                 return true;
                         
-            if (Stringify((std::string*)&Value).ToUInt64() > 0)
+            if (Stringify((Core::String*)&Value).ToUInt64() > 0)
                 return false;
                         
 			Stringify Data(Value);
@@ -6953,8 +7093,8 @@ namespace Edge
 			if (!Info.is_open() || !Info)
 				return Result;
 
-			std::vector<unsigned int> Packages;
-			for (std::string Line; std::getline(Info, Line);)
+			Core::Vector<unsigned int> Packages;
+			for (Core::String Line; std::getline(Info, Line);)
 			{
 				if (Line.find("physical id") == 0)
 				{
@@ -7029,7 +7169,7 @@ namespace Edge
 
 			return Result;
 #else
-			std::string Prefix("/sys/devices/system/cpu/cpu0/cache/index" + std::to_string(Level) + '/');
+			Core::String Prefix("/sys/devices/system/cpu/cpu0/cache/index" + Core::ToString(Level) + '/');
 			std::ifstream Size(Prefix + "size");
 			std::ifstream LineSize(Prefix + "coherency_line_size");
 			std::ifstream Associativity(Prefix + "associativity");
@@ -7065,7 +7205,7 @@ namespace Edge
 
 			if (Type.is_open() && Type)
 			{
-				std::string Temp;
+				Core::String Temp;
 				Type >> Temp;
 				if (Temp.find("nified") == 1)
 					Result.Type = Cache::Unified;
@@ -7155,7 +7295,7 @@ namespace Edge
 			if (!Info.is_open() || !Info)
 				return 0;
 
-			for (std::string Line; std::getline(Info, Line);)
+			for (Core::String Line; std::getline(Info, Line);)
 			{
 				if (Line.find("cpu MHz") == 0)
 				{
@@ -7180,12 +7320,12 @@ namespace Edge
 				ED_ERR("[io] couldn't set current directory");
 #endif
 		}
-		void OS::Directory::Patch(const std::string& Path)
+		void OS::Directory::Patch(const Core::String& Path)
 		{
 			if (!IsExists(Path.c_str()))
 				Create(Path.c_str());
 		}
-		bool OS::Directory::Scan(const std::string& Path, std::vector<FileEntry>* Entries)
+		bool OS::Directory::Scan(const Core::String& Path, Core::Vector<FileEntry>* Entries)
 		{
 			ED_ASSERT(Entries != nullptr, false, "entries should be set");
 			ED_MEASURE(ED_TIMING_IO);
@@ -7264,8 +7404,8 @@ namespace Edge
 		bool OS::Directory::Each(const char* Path, const std::function<bool(FileEntry*)>& Callback)
 		{
 			ED_ASSERT(Path != nullptr, false, "path should be set");
-			std::vector<FileEntry> Entries;
-			std::string Result = Path::Resolve(Path);
+			Core::Vector<FileEntry> Entries;
+			Core::String Result = Path::Resolve(Path);
 			Scan(Result, &Entries);
 
 			Stringify R(&Result);
@@ -7300,7 +7440,7 @@ namespace Edge
 			while (Index > 0 && Buffer[Index] != '/' && Buffer[Index] != '\\')
 				Index--;
 
-			if (Index > 0 && !Create(std::string(Path).substr(0, Index).c_str()))
+			if (Index > 0 && !Create(Core::String(Path).substr(0, Index).c_str()))
 				return false;
 
 			return ::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS;
@@ -7312,7 +7452,7 @@ namespace Edge
 			while (Index > 0 && Path[Index] != '/' && Path[Index] != '\\')
 				Index--;
 
-			if (Index > 0 && !Create(std::string(Path).substr(0, Index).c_str()))
+			if (Index > 0 && !Create(Core::String(Path).substr(0, Index).c_str()))
 				return false;
 
 			return mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST;
@@ -7326,7 +7466,7 @@ namespace Edge
 
 #ifdef ED_MICROSOFT
 			WIN32_FIND_DATA FileInformation;
-			std::string FilePath, Pattern = std::string(Path) + "\\*.*";
+			Core::String FilePath, Pattern = Core::String(Path) + "\\*.*";
 			HANDLE Handle = ::FindFirstFile(Pattern.c_str(), &FileInformation);
 
 			if (Handle == INVALID_HANDLE_VALUE)
@@ -7340,7 +7480,7 @@ namespace Edge
 				if (FileInformation.cFileName[0] == '.')
 					continue;
 
-				FilePath = std::string(Path) + "\\" + FileInformation.cFileName;
+				FilePath = Core::String(Path) + "\\" + FileInformation.cFileName;
 				if (FileInformation.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 				{
 					::FindClose(Handle);
@@ -7420,19 +7560,19 @@ namespace Edge
 
 			return Buffer.st_mode & S_IFDIR;
 		}
-		std::string OS::Directory::Get()
+		Core::String OS::Directory::Get()
 		{
 			ED_MEASURE(ED_TIMING_IO);
 #ifndef ED_HAS_SDL2
 			char Buffer[ED_MAX_PATH + 1] = { };
 #ifdef ED_MICROSOFT
 			if (GetModuleFileNameA(nullptr, Buffer, ED_MAX_PATH) == 0)
-				return std::string();
+				return Core::String();
 #else
 			if (!getcwd(Buffer, sizeof(Buffer)))
-				return std::string();
+				return Core::String();
 #endif
-			std::string Result = Path::GetDirectory(Buffer);
+			Core::String Result = Path::GetDirectory(Buffer);
 			if (!Result.empty() && Result.back() != '/' && Result.back() != '\\')
 				Result += ED_PATH_SPLIT;
 
@@ -7440,17 +7580,17 @@ namespace Edge
 			return Result;
 #else
 			char* Buffer = SDL_GetBasePath();
-			std::string Result = Buffer;
+			Core::String Result = Buffer;
 			SDL_free(Buffer);
 
 			ED_TRACE("[io] fetch working dir %s", Result.c_str());
 			return Result;
 #endif
 		}
-		std::vector<std::string> OS::Directory::GetMounts()
+		Core::Vector<Core::String> OS::Directory::GetMounts()
 		{
 			ED_TRACE("[io] fetch mount points");
-			std::vector<std::string> Output;
+			Core::Vector<Core::String> Output;
 #ifdef ED_MICROSOFT
 			DWORD DriveMask = GetLogicalDrives();
 			int Offset = (int)'A';
@@ -7458,7 +7598,7 @@ namespace Edge
 			while (DriveMask)
 			{
 				if (DriveMask & 1)
-					Output.push_back(std::string(1, (char)Offset) + '\\');
+					Output.push_back(Core::String(1, (char)Offset) + '\\');
 				DriveMask >>= 1;
 				Offset++;
 			}
@@ -7470,7 +7610,7 @@ namespace Edge
 #endif
 		}
 
-		bool OS::File::State(const std::string& Path, FileEntry* Resource)
+		bool OS::File::State(const Core::String& Path, FileEntry* Resource)
 		{
 			ED_ASSERT(Resource != nullptr, false, "resource should be set");
 			ED_MEASURE(ED_TIMING_IO);
@@ -7534,7 +7674,7 @@ namespace Edge
 			return true;
 #endif
 		}
-		bool OS::File::Write(const std::string& Path, const char* Data, size_t Length)
+		bool OS::File::Write(const Core::String& Path, const char* Data, size_t Length)
 		{
 			ED_ASSERT(Data != nullptr, false, "data should be set");
 			auto* Stream = Open(Path, FileMode::Binary_Write_Only);
@@ -7547,7 +7687,7 @@ namespace Edge
 
 			return Size == Length;
 		}
-		bool OS::File::Write(const std::string& Path, const std::string& Data)
+		bool OS::File::Write(const Core::String& Path, const Core::String& Data)
 		{
 			auto* Stream = Open(Path, FileMode::Binary_Write_Only);
 			if (!Stream)
@@ -7599,7 +7739,7 @@ namespace Edge
 			ED_DEBUG("[io] close fs %i", ED_FILENO((FILE*)Stream));
 			fclose((FILE*)Stream);
 		}
-		int OS::File::Compare(const std::string& FirstPath, const std::string& SecondPath)
+		int OS::File::Compare(const Core::String& FirstPath, const Core::String& SecondPath)
 		{
 			ED_ASSERT(!FirstPath.empty(), -1, "first path should not be empty");
 			ED_ASSERT(!SecondPath.empty(), 1, "second path should not be empty");
@@ -7651,7 +7791,7 @@ namespace Edge
 			OS::File::Close(Second);
 			return Diff;
 		}
-		size_t OS::File::Join(const std::string& To, const std::vector<std::string>& Paths)
+		size_t OS::File::Join(const Core::String& To, const Core::Vector<Core::String>& Paths)
 		{
 			ED_ASSERT(!To.empty(), 0, "to should not be empty");
 			ED_ASSERT(!Paths.empty(), 0, "paths to join should not be empty");
@@ -7678,7 +7818,7 @@ namespace Edge
 			ED_RELEASE(Target);
 			return Total;
 		}
-		uint64_t OS::File::GetCheckSum(const std::string& Data)
+		uint64_t OS::File::GetCheckSum(const Core::String& Data)
 		{
 			return Compute::Crypto::CRC32(Data);
 		}
@@ -7732,7 +7872,7 @@ namespace Edge
 			return (void*)Stream;
 #endif
 		}
-		Stream* OS::File::Open(const std::string& Path, FileMode Mode, bool Async)
+		Stream* OS::File::Open(const Core::String& Path, FileMode Mode, bool Async)
 		{
 			Network::Location URL(Path);
 			if (URL.Protocol == "file")
@@ -7759,13 +7899,13 @@ namespace Edge
 
 			return nullptr;
 		}
-		Stream* OS::File::OpenArchive(const std::string& Path, size_t UnarchivedMaxSize)
+		Stream* OS::File::OpenArchive(const Core::String& Path, size_t UnarchivedMaxSize)
 		{
 			FileEntry Data;
 			if (!OS::File::State(Path, &Data))
 				return Open(Path, FileMode::Binary_Write_Only);
 
-			std::string Temp = Path::GetNonExistant(Path);
+			Core::String Temp = Path::GetNonExistant(Path);
 			Move(Path.c_str(), Temp.c_str());
 
 			Stream* Target = nullptr;
@@ -7789,7 +7929,7 @@ namespace Edge
 
 			return Target;
 		}
-		Stream* OS::File::OpenJoin(const std::string& To, const std::vector<std::string>& Paths)
+		Stream* OS::File::OpenJoin(const Core::String& To, const Core::Vector<Core::String>& Paths)
 		{
 			ED_ASSERT(!To.empty(), nullptr, "to should not be empty");
 			ED_ASSERT(!Paths.empty(), nullptr, "paths to join should not be empty");
@@ -7814,7 +7954,7 @@ namespace Edge
 
 			return Target;
 		}
-		unsigned char* OS::File::ReadAll(const std::string& Path, size_t* Length)
+		unsigned char* OS::File::ReadAll(const Core::String& Path, size_t* Length)
 		{
 			auto* Stream = Open(Path, FileMode::Binary_Read_Only);
 			if (!Stream)
@@ -7852,7 +7992,7 @@ namespace Edge
 			}
 			else
 			{
-				std::string Data;
+				Core::String Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Length)
 				{
 					Data.reserve(Data.size() + Length);
@@ -7888,21 +8028,21 @@ namespace Edge
 
 			return Bytes;
 		}
-		std::string OS::File::ReadAsString(const std::string& Path)
+		Core::String OS::File::ReadAsString(const Core::String& Path)
 		{
 			size_t Length = 0;
 			char* Data = (char*)ReadAll(Path, &Length);
 			if (!Data)
-				return std::string();
+				return Core::String();
 
-			std::string Output = std::string(Data, Length);
+			Core::String Output = Core::String(Data, Length);
 			ED_FREE(Data);
 
 			return Output;
 		}
-		std::vector<std::string> OS::File::ReadAsArray(const std::string& Path)
+		Core::Vector<Core::String> OS::File::ReadAsArray(const Core::String& Path)
 		{
-			std::string Result = ReadAsString(Path);
+			Core::String Result = ReadAsString(Path);
 			return Stringify(&Result).Split('\n');
 		}
 
@@ -7911,9 +8051,9 @@ namespace Edge
 			ED_ASSERT(Path != nullptr, false, "path should be set");
 			return Network::Location(Path).Protocol != "file";
 		}
-		std::string OS::Path::Resolve(const char* Path)
+		Core::String OS::Path::Resolve(const char* Path)
 		{
-			ED_ASSERT(Path != nullptr, std::string(), "path should be set");
+			ED_ASSERT(Path != nullptr, Core::String(), "path should be set");
 			ED_MEASURE(ED_TIMING_IO);
 			char Buffer[ED_BIG_CHUNK_SIZE] = { };
 #ifdef ED_MICROSOFT
@@ -7932,7 +8072,7 @@ namespace Edge
 			ED_TRACE("[io] resolve %s path: %s", Path, Buffer);
 			return Buffer;
 		}
-		std::string OS::Path::Resolve(const std::string& Path, const std::string& Directory)
+		Core::String OS::Path::Resolve(const Core::String& Path, const Core::String& Directory)
 		{
 			ED_ASSERT(!Path.empty() && !Directory.empty(), "", "path and directory should not be empty");
 			if (IsPathExists(Path.c_str()))
@@ -7943,7 +8083,7 @@ namespace Edge
 			bool Relative = !Prefixed && (PathData.StartsWith("./") || PathData.StartsWith(".\\"));
 			bool Postfixed = DirectoryData.EndsOf("/\\");
 
-			std::string Target = Directory;
+			Core::String Target = Directory;
 			if (!Prefixed && !Postfixed)
 				Target.append(1, ED_PATH_SPLIT);
 
@@ -7954,45 +8094,45 @@ namespace Edge
 
 			return Resolve(Target.c_str());
 		}
-		std::string OS::Path::ResolveDirectory(const char* Path)
+		Core::String OS::Path::ResolveDirectory(const char* Path)
 		{
-			std::string Result = Resolve(Path);
+			Core::String Result = Resolve(Path);
 			if (!Result.empty() && !Stringify(&Result).EndsOf("/\\"))
 				Result.append(1, ED_PATH_SPLIT);
 
 			return Result;
 		}
-		std::string OS::Path::ResolveDirectory(const std::string& Path, const std::string& Directory)
+		Core::String OS::Path::ResolveDirectory(const Core::String& Path, const Core::String& Directory)
 		{
-			std::string Result = Resolve(Path, Directory);
+			Core::String Result = Resolve(Path, Directory);
 			if (!Result.empty() && !Stringify(&Result).EndsOf("/\\"))
 				Result.append(1, ED_PATH_SPLIT);
 
 			return Result;
 		}
-		std::string OS::Path::GetNonExistant(const std::string& Path)
+		Core::String OS::Path::GetNonExistant(const Core::String& Path)
 		{
 			ED_ASSERT(!Path.empty(), Path, "path should not be empty");
 			const char* Extension = GetExtension(Path.c_str());
 			bool IsTrueFile = Extension != nullptr && *Extension != '\0';
 			size_t ExtensionAt = IsTrueFile ? Path.rfind(Extension) : Path.size();
-			if (ExtensionAt == std::string::npos)
+			if (ExtensionAt == Core::String::npos)
 				return Path;
 
-			std::string First = Path.substr(0, ExtensionAt).append(1, '.');
-			std::string Second = IsTrueFile ? Extension : std::string();
-			std::string Filename = Path;
+			Core::String First = Path.substr(0, ExtensionAt).append(1, '.');
+			Core::String Second = IsTrueFile ? Extension : Core::String();
+			Core::String Filename = Path;
 			size_t Nonce = 0;
 			FileEntry Data;
 
 			while (OS::File::State(Filename, &Data) && Data.Size > 0)
-				Filename = First + std::to_string(++Nonce) + Second;
+				Filename = First + Core::ToString(++Nonce) + Second;
 
 			return Filename;
 		}
-		std::string OS::Path::GetDirectory(const char* Path, size_t Level)
+		Core::String OS::Path::GetDirectory(const char* Path, size_t Level)
 		{
-			ED_ASSERT(Path != nullptr, std::string(), "path should be set");
+			ED_ASSERT(Path != nullptr, Core::String(), "path should be set");
 
 			Stringify Buffer(Path);
 			Stringify::Settle Result = Buffer.ReverseFindOf("/\\");
@@ -8096,7 +8236,7 @@ namespace Edge
 			ED_DEBUG("[os] execute command\n\t%s", Buffer);
 			return system(Buffer);
 		}
-		bool OS::Process::Spawn(const std::string& Path, const std::vector<std::string>& Params, ChildProcess* Child)
+		bool OS::Process::Spawn(const Core::String& Path, const Core::Vector<Core::String>& Params, ChildProcess* Child)
 		{
 			ED_MEASURE(ED_TIMING_IO);
 #ifdef ED_MICROSOFT
@@ -8159,7 +8299,7 @@ namespace Edge
 			pid_t ProcessId = fork();
 			if (ProcessId == 0)
 			{
-				std::vector<char*> Args;
+				Core::Vector<char*> Args;
 				for (auto It = Params.begin(); It != Params.end(); ++It)
 					Args.push_back((char*)It->c_str());
 				Args.push_back(nullptr);
@@ -8236,20 +8376,20 @@ namespace Edge
 			Child->Valid = false;
 			return true;
 		}
-		std::string OS::Process::GetThreadId(const std::thread::id& Id)
+		Core::String OS::Process::GetThreadId(const std::thread::id& Id)
 		{
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			Stream << Id;
 
 			return Stream.str();
 		}
-        std::unordered_map<std::string, std::string> OS::Process::GetArgs(int ArgsCount, char** Args, const std::string& WhenNoValue)
+        Core::UnorderedMap<Core::String, Core::String> OS::Process::GetArgs(int ArgsCount, char** Args, const Core::String& WhenNoValue)
         {
-            std::unordered_map<std::string, std::string> Results;
+            Core::UnorderedMap<Core::String, Core::String> Results;
             ED_ASSERT(Args != nullptr, Results, "arguments should be set");
             ED_ASSERT(ArgsCount > 0, Results, "arguments count should be greater than zero");
             
-            std::vector<std::string> Params;
+            Core::Vector<Core::String> Params;
             for (int i = 0; i < ArgsCount; i++)
             {
                 ED_ASSERT(Args[i] != nullptr, Results, "argument %i should be set", i);
@@ -8266,9 +8406,9 @@ namespace Edge
                 {
                     Item = Item.substr(2);
                     size_t Position = Item.find('=');
-                    if (Position != std::string::npos)
+                    if (Position != Core::String::npos)
                     {
-                        std::string Value = Item.substr(Position + 1);
+                        Core::String Value = Item.substr(Position + 1);
                         Results[Item.substr(0, Position)] = Value.empty() ? WhenNoValue : Value;
                     }
                     else
@@ -8287,7 +8427,7 @@ namespace Edge
             return Results;
         }
 
-		void* OS::Symbol::Load(const std::string& Path)
+		void* OS::Symbol::Load(const Core::String& Path)
 		{
 			ED_MEASURE(ED_TIMING_IO);
 			Stringify Name(Path);
@@ -8322,7 +8462,7 @@ namespace Edge
 			return nullptr;
 #endif
 		}
-		void* OS::Symbol::LoadFunction(void* Handle, const std::string& Name)
+		void* OS::Symbol::LoadFunction(void* Handle, const Core::String& Name)
 		{
 			ED_ASSERT(Handle != nullptr && !Name.empty(), nullptr, "handle should be set and name should not be empty");
 			ED_DEBUG("[dl] load function %s", Name.c_str());
@@ -8334,7 +8474,7 @@ namespace Edge
 				LPVOID Buffer;
 				FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&Buffer, 0, nullptr);
 				LPVOID Display = (LPVOID)LocalAlloc(LMEM_ZEROINIT, (::lstrlen((LPCTSTR)Buffer) + 40) * sizeof(TCHAR));
-				std::string Text((LPCTSTR)Display);
+				Core::String Text((LPCTSTR)Display);
 				LocalFree(Buffer);
 				LocalFree(Display);
 
@@ -8371,7 +8511,7 @@ namespace Edge
 #endif
 		}
 
-		bool OS::Input::Text(const std::string& Title, const std::string& Message, const std::string& DefaultInput, std::string* Result)
+		bool OS::Input::Text(const Core::String& Title, const Core::String& Message, const Core::String& DefaultInput, Core::String* Result)
 		{
 			ED_TRACE("[dg] open input { title: %s, message: %s }", Title.c_str(), Message.c_str());
 			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), DefaultInput.c_str());
@@ -8384,7 +8524,7 @@ namespace Edge
 
 			return true;
 		}
-		bool OS::Input::Password(const std::string& Title, const std::string& Message, std::string* Result)
+		bool OS::Input::Password(const Core::String& Title, const Core::String& Message, Core::String* Result)
 		{
 			ED_TRACE("[dg] open password { title: %s, message: %s }", Title.c_str(), Message.c_str());
 			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), nullptr);
@@ -8397,10 +8537,10 @@ namespace Edge
 
 			return true;
 		}
-		bool OS::Input::Save(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, std::string* Result)
+		bool OS::Input::Save(const Core::String& Title, const Core::String& DefaultPath, const Core::String& Filter, const Core::String& FilterDescription, Core::String* Result)
 		{
-			std::vector<std::string> Sources = Stringify(&Filter).Split(',');
-			std::vector<char*> Patterns;
+			Core::Vector<Core::String> Sources = Stringify(&Filter).Split(',');
+			Core::Vector<char*> Patterns;
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
 
@@ -8417,10 +8557,10 @@ namespace Edge
 
 			return true;
 		}
-		bool OS::Input::Open(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, bool Multiple, std::string* Result)
+		bool OS::Input::Open(const Core::String& Title, const Core::String& DefaultPath, const Core::String& Filter, const Core::String& FilterDescription, bool Multiple, Core::String* Result)
 		{
-			std::vector<std::string> Sources = Stringify(&Filter).Split(',');
-			std::vector<char*> Patterns;
+			Core::Vector<Core::String> Sources = Stringify(&Filter).Split(',');
+			Core::Vector<char*> Patterns;
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
 
@@ -8437,7 +8577,7 @@ namespace Edge
 
 			return true;
 		}
-		bool OS::Input::Folder(const std::string& Title, const std::string& DefaultPath, std::string* Result)
+		bool OS::Input::Folder(const Core::String& Title, const Core::String& DefaultPath, Core::String* Result)
 		{
 			ED_TRACE("[dg] open folder { title: %s }", Title.c_str());
 			const char* Data = tinyfd_selectFolderDialog(Title.c_str(), DefaultPath.c_str());
@@ -8450,7 +8590,7 @@ namespace Edge
 
 			return true;
 		}
-		bool OS::Input::Color(const std::string& Title, const std::string& DefaultHexRGB, std::string* Result)
+		bool OS::Input::Color(const Core::String& Title, const Core::String& DefaultHexRGB, Core::String* Result)
 		{
 			ED_TRACE("[dg] open color { title: %s }", Title.c_str());
 			unsigned char RGB[3] = { 0, 0, 0 };
@@ -8482,12 +8622,12 @@ namespace Edge
 			return ErrorCode;
 #endif
 		}
-		std::string OS::Error::GetName(int Code)
+		Core::String OS::Error::GetName(int Code)
 		{
 #ifdef ED_MICROSOFT
 			LPSTR Buffer = nullptr;
 			size_t Size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, Code, MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), (LPSTR)&Buffer, 0, nullptr);
-			std::string Result(Buffer, Size);
+			Core::String Result(Buffer, Size);
 			LocalFree(Buffer);
 
 			return Stringify(&Result).Replace("\r", "").Replace("\n", "").R();
@@ -8540,12 +8680,12 @@ namespace Edge
 					return StdColor::LightGray;
 			}
 		}
-		std::string& OS::Message::GetText()
+		Core::String& OS::Message::GetText()
 		{
 			if (!Temp.empty())
 				return Temp;
 
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			Stream << Date;
 #ifndef NDEBUG
 			Stream << ' ' << Source << ':' << Line;
@@ -8618,11 +8758,11 @@ namespace Edge
 			}
 #endif
 		}
-		std::string OS::Timing::GetMeasureTrace()
+		Core::String OS::Timing::GetMeasureTrace()
 		{
 #ifndef NDEBUG
 			auto Source = MeasuringTree;
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			Stream << "in thread " << std::this_thread::get_id() << ":\n";
 
 			size_t Size = Source.size();
@@ -8638,42 +8778,14 @@ namespace Edge
 				Source.pop();
 			}
 
-			std::string Out(Stream.str());
+			Core::String Out(Stream.str());
 			return Out.substr(0, Out.size() - 1);
 #else
-			return std::string();
+			return Core::String();
 #endif
 		}
 
 		static thread_local bool IgnoreLogging = false;
-		void* OS::Malloc(size_t Size) noexcept
-		{
-			return MallocDebug(Size, Allocator::Context());
-		}
-		void* OS::MallocDebug(size_t Size, Allocator::Context&& Origin) noexcept
-		{
-			ED_ASSERT(Memory != nullptr, nullptr, "allocator should be set");
-			ED_ASSERT(Size > 0, nullptr, "cannot allocate zero bytes");
-			return Memory->Allocate(std::move(Origin), Size);
-		}
-		void OS::Free(void* Address) noexcept
-		{
-			ED_ASSERT_V(Memory != nullptr, "allocator should be set");
-			if (Address != nullptr)
-				Memory->Free(Address);
-		}
-		void OS::Watch(void* Address, Allocator::Context&& Origin) noexcept
-		{
-			ED_ASSERT_V(Memory != nullptr, "allocator should be set");
-			ED_ASSERT_V(Address != nullptr, "address should be set");
-			Memory->Watch(std::move(Origin), Address);
-		}
-		void OS::Unwatch(void* Address) noexcept
-		{
-			ED_ASSERT_V(Memory != nullptr, "allocator should be set");
-			ED_ASSERT_V(Address != nullptr, "address should be set");
-			Memory->Unwatch(Address);
-		}
 		void OS::Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
 		{
 			if (!Active && !Callback)
@@ -8802,7 +8914,7 @@ namespace Edge
 						Log->ColorBegin(StdColor::Gray);
 						Log->WriteBuffer(Data.Source);
 						Log->WriteBuffer(":");
-						Log->Write(std::to_string(Data.Line));
+						Log->Write(Core::ToString(Data.Line));
 						Log->WriteBuffer(" ");
 #endif
 						Log->ColorBegin(Data.GetLevelColor());
@@ -8999,11 +9111,6 @@ namespace Edge
 		{
 			OS::Process::Interrupt();
 		}
-		void OS::SetAllocator(Allocator* NewAllocator)
-		{
-			delete Memory;
-			Memory = NewAllocator;
-		}
 		void OS::SetLogCallback(const std::function<void(Message&)>& _Callback)
 		{
 			Callback = _Callback;
@@ -9020,11 +9127,6 @@ namespace Edge
         {
             Pretty = Enabled;
         }
-		void OS::SetMemoryTracing(bool Enabled)
-		{
-			ED_ASSERT_V(Memory != nullptr, "allocator should be set");
-			Memory->Tracing = Enabled;
-		}
 		bool OS::IsLogActive()
 		{
 			return Active;
@@ -9037,17 +9139,7 @@ namespace Edge
 		{
 			return Pretty;
 		}
-		bool OS::IsValidAddress(void* Address)
-		{
-			ED_ASSERT(Memory != nullptr, false, "allocator should be set");
-			ED_ASSERT(Address != nullptr, false, "address should be set");
-			return Memory->IsValid(Address);
-		}
-		Allocator* OS::GetAllocator()
-		{
-			return Memory;
-		}
-		std::string OS::GetStackTrace(size_t Skips, size_t MaxFrames)
+		Core::String OS::GetStackTrace(size_t Skips, size_t MaxFrames)
 		{
 			backward::StackTrace Stack;
 			Stack.load_here(MaxFrames + Skips);
@@ -9057,12 +9149,11 @@ namespace Edge
 		}
 		std::function<void(OS::Message&)> OS::Callback;
 		std::mutex OS::Buffer;
-		Allocator* OS::Memory = nullptr;
 		bool OS::Active = false;
 		bool OS::Deferred = false;
         bool OS::Pretty = true;
 
-		FileLog::FileLog(const std::string& Root) noexcept : Offset(-1), Time(0), Path(Root)
+		FileLog::FileLog(const Core::String& Root) noexcept : Offset(-1), Time(0), Path(Root)
 		{
 			Source = new FileStream();
 			auto V = Stringify(&Path).Replace('\\', '/').Split('/');
@@ -9096,7 +9187,7 @@ namespace Edge
 			char* Data = ED_MALLOC(char, sizeof(char) * (Delta + 1));
 			Source->Read(Data, sizeof(char) * Delta);
 
-			std::string Value = Data;
+			Core::String Value = Data;
 			int64_t ValueLength = -1;
 			for (size_t i = Value.size(); i > 0; i--)
 			{
@@ -9119,7 +9210,7 @@ namespace Edge
 			LastValue = Value;
 			if (V.Find("\n").Found)
 			{
-				std::vector<std::string> Lines = V.Split('\n');
+				Core::Vector<Core::String> Lines = V.Split('\n');
 				for (auto& Line : Lines)
 				{
 					if (Line.empty())
@@ -9940,7 +10031,7 @@ namespace Edge
 		bool Schedule::ProcessLoop(Difficulty Type, ThreadPtr* Thread)
 		{
 			auto* Queue = Queues[(size_t)Type];
-			std::string ThreadId = OS::Process::GetThreadId(Thread->Id);
+			Core::String ThreadId = OS::Process::GetThreadId(Thread->Id);
 			InitializeThread(Thread->GlobalIndex, Thread->LocalIndex);
 
 			if (Thread->Daemon)
@@ -10015,7 +10106,7 @@ namespace Edge
 						Thread->Update.unlock();
 					};
 
-					std::vector<TaskCallback> Events;
+					Core::Vector<TaskCallback> Events;
 					Events.resize(Policy.Coroutines);
 
 					do
@@ -10318,17 +10409,17 @@ namespace Edge
 			Unlink();
 			Clear();
 		}
-		std::unordered_map<std::string, size_t> Schema::GetNames() const
+		Core::UnorderedMap<Core::String, size_t> Schema::GetNames() const
 		{
-			std::unordered_map<std::string, size_t> Mapping;
+			Core::UnorderedMap<Core::String, size_t> Mapping;
 			size_t Index = 0;
 
 			GenerateNamingTable(this, &Mapping, Index);
 			return Mapping;
 		}
-		std::vector<Schema*> Schema::FindCollection(const std::string& Name, bool Deep) const
+		Core::Vector<Schema*> Schema::FindCollection(const Core::String& Name, bool Deep) const
 		{
-			std::vector<Schema*> Result;
+			Core::Vector<Schema*> Result;
 			if (!Nodes)
 				return Result;
 
@@ -10340,38 +10431,38 @@ namespace Edge
 				if (!Deep)
 					continue;
 
-				std::vector<Schema*> New = Value->FindCollection(Name);
+				Core::Vector<Schema*> New = Value->FindCollection(Name);
 				for (auto& Subvalue : New)
 					Result.push_back(Subvalue);
 			}
 
 			return Result;
 		}
-		std::vector<Schema*> Schema::FetchCollection(const std::string& Notation, bool Deep) const
+		Core::Vector<Schema*> Schema::FetchCollection(const Core::String& Notation, bool Deep) const
 		{
-			std::vector<std::string> Names = Stringify(Notation).Split('.');
+			Core::Vector<Core::String> Names = Stringify(Notation).Split('.');
 			if (Names.empty())
-				return std::vector<Schema*>();
+				return Core::Vector<Schema*>();
 
 			if (Names.size() == 1)
 				return FindCollection(*Names.begin());
 
 			Schema* Current = Find(*Names.begin(), Deep);
 			if (!Current)
-				return std::vector<Schema*>();
+				return Core::Vector<Schema*>();
 
 			for (auto It = Names.begin() + 1; It != Names.end() - 1; ++It)
 			{
 				Current = Current->Find(*It, Deep);
 				if (!Current)
-					return std::vector<Schema*>();
+					return Core::Vector<Schema*>();
 			}
 
 			return Current->FindCollection(*(Names.end() - 1), Deep);
 		}
-		std::vector<Schema*> Schema::GetAttributes() const
+		Core::Vector<Schema*> Schema::GetAttributes() const
 		{
-			std::vector<Schema*> Attributes;
+			Core::Vector<Schema*> Attributes;
 			if (!Nodes)
 				return Attributes;
 
@@ -10383,12 +10474,12 @@ namespace Edge
 
 			return Attributes;
 		}
-		std::vector<Schema*>& Schema::GetChilds()
+		Core::Vector<Schema*>& Schema::GetChilds()
 		{
 			Allocate();
 			return *Nodes;
 		}
-		Schema* Schema::Find(const std::string& Name, bool Deep) const
+		Schema* Schema::Find(const Core::String& Name, bool Deep) const
 		{
 			if (!Nodes)
 				return nullptr;
@@ -10416,9 +10507,9 @@ namespace Edge
 
 			return nullptr;
 		}
-		Schema* Schema::Fetch(const std::string& Notation, bool Deep) const
+		Schema* Schema::Fetch(const Core::String& Notation, bool Deep) const
 		{
-			std::vector<std::string> Names = Stringify(Notation).Split('.');
+			Core::Vector<Core::String> Names = Stringify(Notation).Split('.');
 			if (Names.empty())
 				return nullptr;
 
@@ -10439,11 +10530,11 @@ namespace Edge
 		{
 			return Parent;
 		}
-		Schema* Schema::GetAttribute(const std::string& Name) const
+		Schema* Schema::GetAttribute(const Core::String& Name) const
 		{
 			return Get(':' + Name);
 		}
-		Variant Schema::FetchVar(const std::string& fKey, bool Deep) const
+		Variant Schema::FetchVar(const Core::String& fKey, bool Deep) const
 		{
 			Schema* Result = Fetch(fKey, Deep);
 			if (!Result)
@@ -10459,7 +10550,7 @@ namespace Edge
 
 			return Result->Value;
 		}
-		Variant Schema::GetVar(const std::string& fKey) const
+		Variant Schema::GetVar(const Core::String& fKey) const
 		{
 			Schema* Result = Get(fKey);
 			if (!Result)
@@ -10467,7 +10558,7 @@ namespace Edge
 
 			return Result->Value;
 		}
-		Variant Schema::GetAttributeVar(const std::string& Key) const
+		Variant Schema::GetAttributeVar(const Core::String& Key) const
 		{
 			return GetVar(':' + Key);
 		}
@@ -10478,7 +10569,7 @@ namespace Edge
 
 			return (*Nodes)[Index];
 		}
-		Schema* Schema::Get(const std::string& Name) const
+		Schema* Schema::Get(const Core::String& Name) const
 		{
 			ED_ASSERT(!Name.empty(), nullptr, "name should not be empty");
 			if (!Nodes)
@@ -10492,11 +10583,11 @@ namespace Edge
 
 			return nullptr;
 		}
-		Schema* Schema::Set(const std::string& Name)
+		Schema* Schema::Set(const Core::String& Name)
 		{
 			return Set(Name, Var::Object());
 		}
-		Schema* Schema::Set(const std::string& Name, const Variant& Base)
+		Schema* Schema::Set(const Core::String& Name, const Variant& Base)
 		{
 			if (Value.Type == VarType::Object && Nodes != nullptr)
 			{
@@ -10522,7 +10613,7 @@ namespace Edge
 			Nodes->push_back(Result);
 			return Result;
 		}
-		Schema* Schema::Set(const std::string& Name, Variant&& Base)
+		Schema* Schema::Set(const Core::String& Name, Variant&& Base)
 		{
 			if (Value.Type == VarType::Object && Nodes != nullptr)
 			{
@@ -10548,7 +10639,7 @@ namespace Edge
 			Nodes->push_back(Result);
 			return Result;
 		}
-		Schema* Schema::Set(const std::string& Name, Schema* Base)
+		Schema* Schema::Set(const Core::String& Name, Schema* Base)
 		{
 			if (!Base)
 				return Set(Name, Var::Null());
@@ -10578,11 +10669,11 @@ namespace Edge
 			Nodes->push_back(Base);
 			return Base;
 		}
-		Schema* Schema::SetAttribute(const std::string& Name, const Variant& fValue)
+		Schema* Schema::SetAttribute(const Core::String& Name, const Variant& fValue)
 		{
 			return Set(':' + Name, fValue);
 		}
-		Schema* Schema::SetAttribute(const std::string& Name, Variant&& fValue)
+		Schema* Schema::SetAttribute(const Core::String& Name, Variant&& fValue)
 		{
 			return Set(':' + Name, std::move(fValue));
 		}
@@ -10628,7 +10719,7 @@ namespace Edge
 
 			return this;
 		}
-		Schema* Schema::Pop(const std::string& Name)
+		Schema* Schema::Pop(const Core::String& Name)
 		{
 			if (!Nodes)
 				return this;
@@ -10664,7 +10755,7 @@ namespace Edge
 
 			return New;
 		}
-		bool Schema::Rename(const std::string& Name, const std::string& NewName)
+		bool Schema::Rename(const Core::String& Name, const Core::String& NewName)
 		{
 			ED_ASSERT(!Name.empty() && !NewName.empty(), false, "name and new name should not be empty");
 
@@ -10675,11 +10766,11 @@ namespace Edge
 			Result->Key = NewName;
 			return true;
 		}
-		bool Schema::Has(const std::string& Name) const
+		bool Schema::Has(const Core::String& Name) const
 		{
 			return Fetch(Name) != nullptr;
 		}
-		bool Schema::HasAttribute(const std::string& Name) const
+		bool Schema::HasAttribute(const Core::String& Name) const
 		{
 			return Fetch(':' + Name) != nullptr;
 		}
@@ -10702,7 +10793,7 @@ namespace Edge
 		{
 			return Nodes ? Nodes->size() : 0;
 		}
-		std::string Schema::GetName() const
+		Core::String Schema::GetName() const
 		{
 			return IsAttribute() ? Key.substr(1) : Key;
 		}
@@ -10835,12 +10926,12 @@ namespace Edge
 		void Schema::Allocate()
 		{
 			if (!Nodes)
-				Nodes = ED_NEW(std::vector<Schema*>);
+				Nodes = ED_NEW(Core::Vector<Schema*>);
 		}
-		void Schema::Allocate(const std::vector<Schema*>& Other)
+		void Schema::Allocate(const Core::Vector<Schema*>& Other)
 		{
 			if (!Nodes)
-				Nodes = ED_NEW(std::vector<Schema*>, Other);
+				Nodes = ED_NEW(Core::Vector<Schema*>, Other);
 			else
 				*Nodes = Other;
 		}
@@ -10862,7 +10953,7 @@ namespace Edge
 		bool Schema::ConvertToXML(Schema* Base, const SchemaWriteCallback& Callback)
 		{
 			ED_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
-			std::vector<Schema*> Attributes = Base->GetAttributes();
+			Core::Vector<Schema*> Attributes = Base->GetAttributes();
 			bool Scalable = (Base->Value.GetSize() > 0 || ((size_t)(Base->Nodes ? Base->Nodes->size() : 0) > (size_t)Attributes.size()));
 			Callback(VarForm::Write_Tab, "", 0);
 			Callback(VarForm::Dummy, "<", 1);
@@ -10880,8 +10971,8 @@ namespace Edge
 
 			for (auto It = Attributes.begin(); It != Attributes.end(); ++It)
 			{
-				std::string Key = (*It)->GetName();
-				std::string Value = (*It)->Value.Serialize();
+				Core::String Key = (*It)->GetName();
+				Core::String Value = (*It)->Value.Serialize();
 
 				Callback(VarForm::Dummy, Key.c_str(), Key.size());
 				Callback(VarForm::Dummy, "=\"", 2);
@@ -10907,7 +10998,7 @@ namespace Edge
 			Callback(VarForm::Tab_Increase, "", 0);
 			if (Base->Value.GetSize() > 0)
 			{
-				std::string Text = Base->Value.Serialize();
+				Core::String Text = Base->Value.Serialize();
 				if (Base->Nodes != nullptr && !Base->Nodes->empty())
 				{
 					Callback(VarForm::Write_Line, "", 0);
@@ -10948,7 +11039,7 @@ namespace Edge
 			ED_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
 			if (!Base->Parent && !Base->Value.IsObject())
 			{
-				std::string Value = Base->Value.Serialize();
+				Core::String Value = Base->Value.Serialize();
 				Core::Stringify Safe(&Value);
 				Safe.Escape();
 
@@ -10993,7 +11084,7 @@ namespace Edge
 
 				if (!Next->Value.IsObject())
 				{
-					std::string Value = (Next->Value.GetType() == VarType::Undefined ? "null" : Next->Value.Serialize());
+					Core::String Value = (Next->Value.GetType() == VarType::Undefined ? "null" : Next->Value.Serialize());
 					Core::Stringify Safe(&Value);
 					Safe.Escape();
 
@@ -11036,7 +11127,7 @@ namespace Edge
 		bool Schema::ConvertToJSONB(Schema* Base, const SchemaWriteCallback& Callback)
 		{
 			ED_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
-			std::unordered_map<std::string, size_t> Mapping = Base->GetNames();
+			Core::UnorderedMap<Core::String, size_t> Mapping = Base->GetNames();
 			uint32_t Set = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)Mapping.size());
 			uint64_t Version = OS::CPU::ToEndianness<uint64_t>(OS::CPU::Endian::Little, JSONB_VERSION);
 
@@ -11058,27 +11149,27 @@ namespace Edge
 			ProcessConvertionToJSONB(Base, &Mapping, Callback);
 			return true;
 		}
-		std::string Schema::ToXML(Schema* Value)
+		Core::String Schema::ToXML(Schema* Value)
 		{
-			std::string Result;
+			Core::String Result;
 			ConvertToXML(Value, [&](VarForm Type, const char* Buffer, size_t Length)
 			{
 				Result.append(Buffer, Length);
 			});
 			return Result;
 		}
-		std::string Schema::ToJSON(Schema* Value)
+		Core::String Schema::ToJSON(Schema* Value)
 		{
-			std::string Result;
+			Core::String Result;
 			ConvertToJSON(Value, [&](VarForm Type, const char* Buffer, size_t Length)
 			{
 				Result.append(Buffer, Length);
 			});
 			return Result;
 		}
-		std::vector<char> Schema::ToJSONB(Schema* Value)
+		Core::Vector<char> Schema::ToJSONB(Schema* Value)
 		{
-			std::vector<char> Result;
+			Core::Vector<char> Result;
 			ConvertToJSONB(Value, [&](VarForm Type, const char* Buffer, size_t Length)
 			{
 				for (size_t i = 0; i < Length; i++)
@@ -11306,7 +11397,7 @@ namespace Edge
 				return nullptr;
 			}
 
-			std::unordered_map<size_t, std::string> Map;
+			Core::UnorderedMap<size_t, Core::String> Map;
 			Set = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Set);
 
 			for (uint32_t i = 0; i < Set; ++i)
@@ -11335,7 +11426,7 @@ namespace Edge
 				if (Size <= 0)
 					continue;
 
-				std::string Name;
+				Core::String Name;
 				Name.resize((size_t)Size);
 				if (!Callback((char*)Name.c_str(), sizeof(char) * Size))
 				{
@@ -11357,15 +11448,15 @@ namespace Edge
 
 			return Current;
 		}
-		Schema* Schema::FromXML(const std::string& Text, bool Assert)
+		Schema* Schema::FromXML(const Core::String& Text, bool Assert)
 		{
 			return ConvertFromXML(Text.c_str(), Assert);
 		}
-		Schema* Schema::FromJSON(const std::string& Text, bool Assert)
+		Schema* Schema::FromJSON(const Core::String& Text, bool Assert)
 		{
 			return ConvertFromJSON(Text.c_str(), Text.size(), Assert);
 		}
-		Schema* Schema::FromJSONB(const std::vector<char>& Binary, bool Assert)
+		Schema* Schema::FromJSONB(const Core::Vector<char>& Binary, bool Assert)
 		{
 			size_t Offset = 0;
 			return Core::Schema::ConvertFromJSONB([&Binary, &Offset](char* Buffer, size_t Length)
@@ -11392,7 +11483,7 @@ namespace Edge
 				ProcessConvertionFromXML((void*)It, Subresult);
 
 				if (It->value_size() > 0)
-					Subresult->Value.Deserialize(std::string(It->value(), It->value_size()));
+					Subresult->Value.Deserialize(Core::String(It->value(), It->value_size()));
 			}
 
 			return true;
@@ -11404,7 +11495,7 @@ namespace Edge
 			auto Ref = (rapidjson::Value*)Base;
 			if (!Ref->IsArray())
 			{
-				std::string Name;
+				Core::String Name;
 				Current->Reserve((size_t)Ref->MemberCount());
 
 				VarType Type = Current->Value.Type;
@@ -11457,7 +11548,7 @@ namespace Edge
 			}
 			else
 			{
-				std::string Value;
+				Core::String Value;
 				Current->Reserve((size_t)Ref->Size());
 
 				for (auto It = Ref->Begin(); It != Ref->End(); ++It)
@@ -11502,7 +11593,7 @@ namespace Edge
 
 			return true;
 		}
-		bool Schema::ProcessConvertionToJSONB(Schema* Current, std::unordered_map<std::string, size_t>* Map, const SchemaWriteCallback& Callback)
+		bool Schema::ProcessConvertionToJSONB(Schema* Current, Core::UnorderedMap<Core::String, size_t>* Map, const SchemaWriteCallback& Callback)
 		{
 			uint32_t Id = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)Map->at(Current->Key));
 			Callback(VarForm::Dummy, (const char*)&Id, sizeof(uint32_t));
@@ -11532,7 +11623,7 @@ namespace Edge
 				}
 				case VarType::Decimal:
 				{
-					std::string Number = ((Decimal*)Current->Value.Value.Pointer)->ToString();
+					Core::String Number = ((Decimal*)Current->Value.Value.Pointer)->ToString();
 					uint16_t Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint16_t)Number.size());
 					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint16_t));
 					Callback(VarForm::Dummy, Number.c_str(), (size_t)Size * sizeof(char));
@@ -11561,7 +11652,7 @@ namespace Edge
 
 			return true;
 		}
-		bool Schema::ProcessConvertionFromJSONB(Schema* Current, std::unordered_map<size_t, std::string>* Map, const SchemaReadCallback& Callback)
+		bool Schema::ProcessConvertionFromJSONB(Schema* Current, Core::UnorderedMap<size_t, Core::String>* Map, const SchemaReadCallback& Callback)
 		{
 			uint32_t Id = 0;
 			if (!Callback((char*)&Id, sizeof(uint32_t)))
@@ -11618,7 +11709,7 @@ namespace Edge
 						return false;
 					}
 
-					std::string Buffer;
+					Core::String Buffer;
 					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
 					Buffer.resize((size_t)Size);
 
@@ -11640,7 +11731,7 @@ namespace Edge
 						return false;
 					}
 
-					std::string Buffer;
+					Core::String Buffer;
 					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
 					Buffer.resize(Size);
 
@@ -11686,7 +11777,7 @@ namespace Edge
 						return false;
 					}
 
-					std::string Buffer;
+					Core::String Buffer;
 					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
 					Buffer.resize((size_t)Size);
 
@@ -11717,7 +11808,7 @@ namespace Edge
 
 			return true;
 		}
-		bool Schema::GenerateNamingTable(const Schema* Current, std::unordered_map<std::string, size_t>* Map, size_t& Index)
+		bool Schema::GenerateNamingTable(const Schema* Current, Core::UnorderedMap<Core::String, size_t>* Map, size_t& Index)
 		{
 			auto M = Map->find(Current->Key);
 			if (M == Map->end())

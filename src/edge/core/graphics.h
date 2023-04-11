@@ -772,8 +772,8 @@ namespace Edge
 		typedef std::function<void(int, int, float, float, float, float, float, bool)> TouchStateCallback;
 		typedef std::function<void(int, int, int, float, float, float, bool)> GestureStateCallback;
 		typedef std::function<void(int, int, float, float, float, float)> MultiGestureStateCallback;
-		typedef std::function<void(const std::string&)> DropFileCallback;
-		typedef std::function<void(const std::string&)> DropTextCallback;
+		typedef std::function<void(const Core::String&)> DropFileCallback;
+		typedef std::function<void(const Core::String&)> DropTextCallback;
 		typedef std::function<void(GraphicsDevice*)> RenderThreadCallback;
 
 		struct ED_OUT Alert
@@ -783,14 +783,14 @@ namespace Edge
 		private:
 			struct Element
 			{
-				std::string Name;
+				Core::String Name;
 				int Id = -1, Flags = 0;
 			};
 
 		private:
-			std::string Name;
-			std::string Data;
-			std::vector<Element> Buttons;
+			Core::String Name;
+			Core::String Data;
+			Core::Vector<Element> Buttons;
 			std::function<void(int)> Done;
 			AlertType View;
 			Activity* Base;
@@ -798,8 +798,8 @@ namespace Edge
 
 		public:
 			Alert(Activity* From) noexcept;
-			void Setup(AlertType Type, const std::string& Title, const std::string& Text);
-			void Button(AlertConfirm Confirm, const std::string& Text, int Id);
+			void Setup(AlertType Type, const Core::String& Title, const Core::String& Text);
+			void Button(AlertConfirm Confirm, const Core::String& Text, int Id);
 			void Result(const std::function<void(int)>& Callback);
 
 		private:
@@ -989,7 +989,7 @@ namespace Edge
 		public:
 			struct Attribute
 			{
-				std::string SemanticName;
+				Core::String SemanticName;
 				unsigned int SemanticIndex;
 				AttributeType Format;
 				unsigned int Components;
@@ -1001,12 +1001,12 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				std::vector<Attribute> Attributes;
+				Core::Vector<Attribute> Attributes;
 				Shader* Source = nullptr;
 			};
 
 		protected:
-			std::vector<Attribute> Layout;
+			Core::Vector<Attribute> Layout;
 
 		protected:
 			InputLayout(const Desc& I) noexcept;
@@ -1014,7 +1014,7 @@ namespace Edge
 		public:
 			virtual ~InputLayout() noexcept;
 			virtual void* GetResource() const = 0;
-			const std::vector<Attribute>& GetAttributes() const;
+			const Core::Vector<Attribute>& GetAttributes() const;
 		};
 
 		class ED_OUT Shader : public Core::Reference<Shader>
@@ -1024,9 +1024,9 @@ namespace Edge
 			{
 				Compute::ProcIncludeCallback Include = nullptr;
 				Compute::Preprocessor::Desc Features;
-				std::vector<std::string> Defines;
-				std::string Filename;
-				std::string Data;
+				Core::Vector<Core::String> Defines;
+				Core::String Filename;
+				Core::String Data;
 				ShaderType Stage = ShaderType::All;
 			};
 
@@ -1073,8 +1073,8 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				std::vector<Compute::Vertex> Elements;
-				std::vector<int> Indices;
+				Core::Vector<Compute::Vertex> Elements;
+				Core::Vector<int> Indices;
 				CPUAccess AccessFlags = CPUAccess::None;
 				ResourceUsage Usage = ResourceUsage::Default;
 			};
@@ -1085,7 +1085,7 @@ namespace Edge
 
 		public:
 			Compute::Matrix4x4 Transform;
-			std::string Name;
+			Core::String Name;
 
 		protected:
 			MeshBuffer(const Desc& I) noexcept;
@@ -1102,8 +1102,8 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				std::vector<Compute::SkinVertex> Elements;
-				std::vector<int> Indices;
+				Core::Vector<Compute::SkinVertex> Elements;
+				Core::Vector<int> Indices;
 				CPUAccess AccessFlags = CPUAccess::None;
 				ResourceUsage Usage = ResourceUsage::Default;
 			};
@@ -1114,8 +1114,8 @@ namespace Edge
 
 		public:
 			Compute::Matrix4x4 Transform;
-			std::unordered_map<size_t, size_t> Joints;
-			std::string Name;
+			Core::UnorderedMap<size_t, size_t> Joints;
+			Core::String Name;
 
 		protected:
 			SkinMeshBuffer(const Desc& I) noexcept;
@@ -1138,7 +1138,7 @@ namespace Edge
 			};
 
 		protected:
-			std::vector<Compute::ElementVertex> Array;
+			Core::Vector<Compute::ElementVertex> Array;
 			ElementBuffer* Elements;
 			GraphicsDevice* Device;
 			size_t ElementLimit;
@@ -1150,7 +1150,7 @@ namespace Edge
 
 		public:
 			virtual ~InstanceBuffer() noexcept;
-			std::vector<Compute::ElementVertex>& GetArray();
+			Core::Vector<Compute::ElementVertex>& GetArray();
 			ElementBuffer* GetElements() const;
 			GraphicsDevice* GetDevice() const;
 			size_t GetElementLimit() const;
@@ -1560,7 +1560,7 @@ namespace Edge
 				ShaderModel ShaderMode = ShaderModel::Auto;
 				Format BufferFormat = Format::R8G8B8A8_Unorm;
 				VSync VSyncMode = VSync::Frequency_X1;
-				std::string CacheDirectory = "./shaders";
+				Core::String CacheDirectory = "./shaders";
 				int IsWindowed = 1;
 				bool ShaderCache = true;
 				bool Debug = false;
@@ -1574,18 +1574,18 @@ namespace Edge
 
 			struct Section
 			{
-				std::string Name;
-				std::string Code;
+				Core::String Name;
+				Core::String Code;
 			};
 
 		protected:
-			std::unordered_map<std::string, DepthStencilState*> DepthStencilStates;
-			std::unordered_map<std::string, RasterizerState*> RasterizerStates;
-			std::unordered_map<std::string, BlendState*> BlendStates;
-			std::unordered_map<std::string, SamplerState*> SamplerStates;
-			std::unordered_map<std::string, InputLayout*> InputLayouts;
-			std::unordered_map<std::string, Section*> Sections;
-			std::queue<RenderThreadCallback> Queue;
+			Core::UnorderedMap<Core::String, DepthStencilState*> DepthStencilStates;
+			Core::UnorderedMap<Core::String, RasterizerState*> RasterizerStates;
+			Core::UnorderedMap<Core::String, BlendState*> BlendStates;
+			Core::UnorderedMap<Core::String, SamplerState*> SamplerStates;
+			Core::UnorderedMap<Core::String, InputLayout*> InputLayouts;
+			Core::UnorderedMap<Core::String, Section*> Sections;
+			Core::SingleQueue<RenderThreadCallback> Queue;
 			std::thread::id RenderThread;
 			PrimitiveTopology Primitives;
 			ShaderModel ShaderGen;
@@ -1595,8 +1595,8 @@ namespace Edge
 			unsigned int PresentFlags = 0;
 			unsigned int CompileFlags = 0;
 			VSync VSyncMode = VSync::Frequency_X1;
-			std::vector<Vertex> Elements;
-			std::string Caches;
+			Core::Vector<Vertex> Elements;
+			Core::String Caches;
 			const void* Constants[4];
 			size_t MaxElements;
 			RenderBackend Backend;
@@ -1761,24 +1761,24 @@ namespace Edge
 			void Lockup(RenderThreadCallback&& Callback);
 			void Enqueue(RenderThreadCallback&& Callback);
 			bool Preprocess(Shader::Desc& Subresult);
-			bool Transpile(std::string* HLSL, ShaderType Stage, ShaderLang To);
-			bool AddSection(const std::string& Name, const std::string& Code);
-			bool RemoveSection(const std::string& Name);
-			bool GetSection(const std::string& Name, Section** Result, bool Internal = false);
-			bool GetSection(const std::string& Name, Shader::Desc* Result);
+			bool Transpile(Core::String* HLSL, ShaderType Stage, ShaderLang To);
+			bool AddSection(const Core::String& Name, const Core::String& Code);
+			bool RemoveSection(const Core::String& Name);
+			bool GetSection(const Core::String& Name, Section** Result, bool Internal = false);
+			bool GetSection(const Core::String& Name, Shader::Desc* Result);
 			bool IsLeftHanded() const;
-			std::string GetShaderMain(ShaderType Type) const;
-			const std::unordered_map<std::string, DepthStencilState*>& GetDepthStencilStates() const;
-			const std::unordered_map<std::string, RasterizerState*>& GetRasterizerStates() const;
-			const std::unordered_map<std::string, BlendState*>& GetBlendStates() const;
-			const std::unordered_map<std::string, SamplerState*>& GetSamplerStates() const;
-			const std::unordered_map<std::string, InputLayout*>& GetInputLayouts() const;
+			Core::String GetShaderMain(ShaderType Type) const;
+			const Core::UnorderedMap<Core::String, DepthStencilState*>& GetDepthStencilStates() const;
+			const Core::UnorderedMap<Core::String, RasterizerState*>& GetRasterizerStates() const;
+			const Core::UnorderedMap<Core::String, BlendState*>& GetBlendStates() const;
+			const Core::UnorderedMap<Core::String, SamplerState*>& GetSamplerStates() const;
+			const Core::UnorderedMap<Core::String, InputLayout*>& GetInputLayouts() const;
 			Core::Unique<Surface> CreateSurface(Texture2D* Base);
-			DepthStencilState* GetDepthStencilState(const std::string& Name);
-			BlendState* GetBlendState(const std::string& Name);
-			RasterizerState* GetRasterizerState(const std::string& Name);
-			SamplerState* GetSamplerState(const std::string& Name);
-			InputLayout* GetInputLayout(const std::string& Name);
+			DepthStencilState* GetDepthStencilState(const Core::String& Name);
+			BlendState* GetBlendState(const Core::String& Name);
+			RasterizerState* GetRasterizerState(const Core::String& Name);
+			SamplerState* GetSamplerState(const Core::String& Name);
+			InputLayout* GetInputLayout(const Core::String& Name);
 			ShaderModel GetShaderModel() const;
 			RenderTarget2D* GetRenderTarget();
 			RenderBackend GetBackend() const;
@@ -1793,9 +1793,9 @@ namespace Edge
 
 		protected:
 			virtual TextureCube* CreateTextureCubeInternal(void* Resource[6]) = 0;
-			std::string GetProgramName(const Shader::Desc& Desc);
-			bool GetProgramCache(const std::string& Name, std::string* Data);
-			bool SetProgramCache(const std::string& Name, const std::string& Data);
+			Core::String GetProgramName(const Shader::Desc& Desc);
+			bool GetProgramCache(const Core::String& Name, Core::String* Data);
+			bool SetProgramCache(const Core::String& Name, const Core::String& Data);
 			void CreateStates();
 			void CreateSections();
 			void ReleaseProxy();
@@ -1803,7 +1803,7 @@ namespace Edge
 
 		public:
 			static GraphicsDevice* Create(Desc& I);
-			static void CompileBuiltinShaders(const std::vector<GraphicsDevice*>& Devices);
+			static void CompileBuiltinShaders(const Core::Vector<GraphicsDevice*>& Devices);
 		};
 
 		class ED_OUT Activity final : public Core::Reference<Activity>
@@ -1811,7 +1811,7 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				std::string Title = "Activity";
+				Core::String Title = "Activity";
 				unsigned int Width = 0;
 				unsigned int Height = 0;
 				unsigned int X = 0, Y = 0;
@@ -1879,7 +1879,7 @@ namespace Edge
 		public:
 			Activity(const Desc& I) noexcept;
 			virtual ~Activity() noexcept;
-			void SetClipboardText(const std::string& Text);
+			void SetClipboardText(const Core::String& Text);
 			void SetCursorPosition(const Compute::Vector2& Position);
 			void SetCursorPosition(float X, float Y);
 			void SetGlobalCursorPosition(const Compute::Vector2& Position);
@@ -1925,9 +1925,9 @@ namespace Edge
 			Compute::Vector2 GetCursorPosition() const;
 			Compute::Vector2 GetCursorPosition(float ScreenWidth, float ScreenHeight) const;
 			Compute::Vector2 GetCursorPosition(const Compute::Vector2& ScreenDimensions) const;
-			std::string GetClipboardText() const;
+			Core::String GetClipboardText() const;
 			SDL_Window* GetHandle() const;
-			std::string GetError() const;
+			Core::String GetError() const;
 			Desc& GetOptions();
 
 		private:

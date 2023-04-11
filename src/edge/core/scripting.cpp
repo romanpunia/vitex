@@ -1,7 +1,6 @@
 #include "scripting.h"
 #include "bindings.h"
 #include <iostream>
-#include <sstream>
 #ifndef ANGELSCRIPT_H 
 #include <angelscript.h>
 #endif
@@ -11,14 +10,14 @@ namespace
 	class CByteCodeStream : public asIBinaryStream
 	{
 	private:
-		std::vector<asBYTE> Code;
+		Edge::Core::Vector<asBYTE> Code;
 		int ReadPos, WritePos;
 
 	public:
 		CByteCodeStream() : ReadPos(0), WritePos(0)
 		{
 		}
-		CByteCodeStream(const std::vector<asBYTE>& Data) : Code(Data), ReadPos(0), WritePos(0)
+		CByteCodeStream(const Edge::Core::Vector<asBYTE>& Data) : Code(Data), ReadPos(0), WritePos(0)
 		{
 		}
 		int Read(void* Ptr, asUINT Size)
@@ -38,7 +37,7 @@ namespace
 
 			return 0;
 		}
-		std::vector<asBYTE>& GetCode()
+		Edge::Core::Vector<asBYTE>& GetCode()
 		{
 			return Code;
 		}
@@ -50,30 +49,30 @@ namespace
 
 	struct DEnum
 	{
-		std::vector<std::string> Values;
+		Edge::Core::Vector<Edge::Core::String> Values;
 	};
 
 	struct DClass
 	{
-		std::vector<std::string> Props;
-		std::vector<std::string> Interfaces;
-		std::vector<std::string> Types;
-		std::vector<std::string> Funcdefs;
-		std::vector<std::string> Methods;
-		std::vector<std::string> Functions;
+		Edge::Core::Vector<Edge::Core::String> Props;
+		Edge::Core::Vector<Edge::Core::String> Interfaces;
+		Edge::Core::Vector<Edge::Core::String> Types;
+		Edge::Core::Vector<Edge::Core::String> Funcdefs;
+		Edge::Core::Vector<Edge::Core::String> Methods;
+		Edge::Core::Vector<Edge::Core::String> Functions;
 	};
 
 	struct DNamespace
 	{
-		std::unordered_map<std::string, DEnum> Enums;
-		std::unordered_map<std::string, DClass> Classes;
-		std::vector<std::string> Funcdefs;
-		std::vector<std::string> Functions;
+		Edge::Core::UnorderedMap<Edge::Core::String, DEnum> Enums;
+		Edge::Core::UnorderedMap<Edge::Core::String, DClass> Classes;
+		Edge::Core::Vector<Edge::Core::String> Funcdefs;
+		Edge::Core::Vector<Edge::Core::String> Functions;
 	};
 
-	std::string GetCombination(const std::vector<std::string>& Names, const std::string& By)
+	Edge::Core::String GetCombination(const Edge::Core::Vector<Edge::Core::String>& Names, const Edge::Core::String& By)
 	{
-		std::string Result;
+		Edge::Core::String Result;
 		for (size_t i = 0; i < Names.size(); i++)
 		{
 			Result.append(Names[i]);
@@ -83,9 +82,9 @@ namespace
 
 		return Result;
 	}
-	std::string GetCombinationAll(const std::vector<std::string>& Names, const std::string& By, const std::string& EndBy)
+	Edge::Core::String GetCombinationAll(const Edge::Core::Vector<Edge::Core::String>& Names, const Edge::Core::String& By, const Edge::Core::String& EndBy)
 	{
-		std::string Result;
+		Edge::Core::String Result;
 		for (size_t i = 0; i < Names.size(); i++)
 		{
 			Result.append(Names[i]);
@@ -97,12 +96,12 @@ namespace
 
 		return Result;
 	}
-	std::string GetTypeNaming(asITypeInfo* Type)
+	Edge::Core::String GetTypeNaming(asITypeInfo* Type)
 	{
 		const char* Namespace = Type->GetNamespace();
-		return (Namespace ? Namespace + std::string("::") : std::string("")) + Type->GetName();
+		return (Namespace ? Namespace + Edge::Core::String("::") : Edge::Core::String("")) + Type->GetName();
 	}
-	asITypeInfo* GetTypeNamespacing(asIScriptEngine* Engine, const std::string& Name)
+	asITypeInfo* GetTypeNamespacing(asIScriptEngine* Engine, const Edge::Core::String& Name)
 	{
 		asITypeInfo* Result = Engine->GetTypeInfoByName(Name.c_str());
 		if (Result != nullptr)
@@ -110,7 +109,7 @@ namespace
 
 		return Engine->GetTypeInfoByName((Name + "@").c_str());
 	}
-	void DumpNamespace(Edge::Core::FileStream* Stream, const std::string& Naming, DNamespace& Namespace, std::string& Offset)
+	void DumpNamespace(Edge::Core::FileStream* Stream, const Edge::Core::String& Naming, DNamespace& Namespace, Edge::Core::String& Offset)
 	{
 		if (!Naming.empty())
 		{
@@ -184,13 +183,46 @@ namespace Edge
 {
 	namespace Scripting
 	{
-		static bool GenerateSourceCode(Compute::Preprocessor* Base, const std::string& Path, std::string& Buffer)
+		static bool GenerateSourceCode(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Buffer)
 		{
 			if (!Base->Process(Path, Buffer))
 				return false;
 
 			return Bindings::Registry::MakePostprocess(Buffer);
 		}
+
+		uint64_t TypeCache::Set(uint64_t Id, const Core::String& Name)
+		{
+			ED_ASSERT(Id > 0 && !Name.empty(), 0, "id should be greater than zero and name should not be empty");
+
+			using Map = Core::Mapping<Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>>;
+			if (!Names)
+				Names = ED_NEW(Map);
+
+			Names->Map[Id] = std::make_pair(Name, (int)-1);
+			return Id;
+		}
+		int TypeCache::GetTypeId(uint64_t Id)
+		{
+			auto It = Names->Map.find(Id);
+			if (It == Names->Map.end())
+				return -1;
+
+			if (It->second.second < 0)
+			{
+				VirtualMachine* Engine = VirtualMachine::Get();
+				ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+				It->second.second = Engine->GetTypeIdByDecl(It->second.first.c_str());
+			}
+
+			return It->second.second;
+		}
+		void TypeCache::FreeProxy()
+		{
+			ED_DELETE(Mapping, Names);
+			Names = nullptr;
+		}
+		Core::Mapping<Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>>* TypeCache::Names = nullptr;
 
 		int FunctionFactory::AtomicNotifyGC(const char* TypeName, void* Object)
 		{
@@ -204,6 +236,19 @@ namespace Edge
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			TypeInfo Type = Engine->GetTypeInfoByName(TypeName);
+			return Engine->NotifyOfNewObject(Object, Type.GetTypeInfo());
+		}
+		int FunctionFactory::AtomicNotifyGCById(int TypeId, void* Object)
+		{
+			ED_ASSERT(Object != nullptr, -1, "object should be set");
+
+			asIScriptContext* Context = asGetActiveContext();
+			ED_ASSERT(Context != nullptr, -1, "context should be set");
+
+			VirtualMachine* Engine = VirtualMachine::Get(Context->GetEngine());
+			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+
+			TypeInfo Type = Engine->GetTypeInfoById(TypeId);
 			return Engine->NotifyOfNewObject(Object, Type.GetTypeInfo());
 		}
 		asSFuncPtr* FunctionFactory::CreateFunctionBase(void(*Base)(), int Type)
@@ -987,7 +1032,7 @@ namespace Edge
 			return VM;
 		}
 
-		BaseClass::BaseClass(VirtualMachine* Engine, const std::string& Name, int Type) noexcept : VM(Engine), Object(Name), TypeId(Type)
+		BaseClass::BaseClass(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept : VM(Engine), Object(Name), TypeId(Type)
 		{
 		}
 		int BaseClass::SetFunctionDef(const char* Decl)
@@ -1050,7 +1095,7 @@ namespace Edge
 			const char* Namespace = Engine->GetDefaultNamespace();
 			const char* Scope = Info->GetNamespace();
 
-			Engine->SetDefaultNamespace(Scope[0] == '\0' ? Object.c_str() : std::string(Scope).append("::").append(Object).c_str());
+			Engine->SetDefaultNamespace(Scope[0] == '\0' ? Object.c_str() : Core::String(Scope).append("::").append(Object).c_str());
 			int R = Engine->RegisterGlobalProperty(Decl, Value);
 			Engine->SetDefaultNamespace(Namespace);
 
@@ -1086,7 +1131,7 @@ namespace Edge
 			const char* Namespace = Engine->GetDefaultNamespace();
 			const char* Scope = Info->GetNamespace();
 
-			Engine->SetDefaultNamespace(Scope[0] == '\0' ? Object.c_str() : std::string(Scope).append("::").append(Object).c_str());
+			Engine->SetDefaultNamespace(Scope[0] == '\0' ? Object.c_str() : Core::String(Scope).append("::").append(Object).c_str());
 			int R = Engine->RegisterGlobalFunction(Decl, *Value, (asECallConvTypes)Type);
 			Engine->SetDefaultNamespace(Namespace);
 
@@ -1137,7 +1182,7 @@ namespace Edge
 		{
 			return VM != nullptr && TypeId >= 0;
 		}
-		std::string BaseClass::GetName() const
+		Core::String BaseClass::GetName() const
 		{
 			return Object;
 		}
@@ -1303,7 +1348,7 @@ namespace Edge
 			}
 		}
 
-		TypeInterface::TypeInterface(VirtualMachine* Engine, const std::string& Name, int Type) noexcept : VM(Engine), Object(Name), TypeId(Type)
+		TypeInterface::TypeInterface(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept : VM(Engine), Object(Name), TypeId(Type)
 		{
 		}
 		int TypeInterface::SetMethod(const char* Decl)
@@ -1325,7 +1370,7 @@ namespace Edge
 		{
 			return VM != nullptr && TypeId >= 0;
 		}
-		std::string TypeInterface::GetName() const
+		Core::String TypeInterface::GetName() const
 		{
 			return Object;
 		}
@@ -1334,7 +1379,7 @@ namespace Edge
 			return VM;
 		}
 
-		Enumeration::Enumeration(VirtualMachine* Engine, const std::string& Name, int Type) noexcept : VM(Engine), Object(Name), TypeId(Type)
+		Enumeration::Enumeration(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept : VM(Engine), Object(Name), TypeId(Type)
 		{
 		}
 		int Enumeration::SetValue(const char* Name, int Value)
@@ -1356,7 +1401,7 @@ namespace Edge
 		{
 			return VM != nullptr && TypeId >= 0;
 		}
-		std::string Enumeration::GetName() const
+		Core::String Enumeration::GetName() const
 		{
 			return Object;
 		}
@@ -1595,7 +1640,7 @@ namespace Edge
 			if (VM->GetTypeNameScope(&TypeName, &Namespace, &NamespaceSize) != 0)
 				return Mod->GetTypeInfoByName(Name);
 
-			VM->BeginNamespace(std::string(Namespace, NamespaceSize).c_str());
+			VM->BeginNamespace(Core::String(Namespace, NamespaceSize).c_str());
 			asITypeInfo* Info = Mod->GetTypeInfoByName(TypeName);
 			VM->EndNamespace();
 
@@ -1654,7 +1699,7 @@ namespace Edge
 			ED_ASSERT_V(VM != nullptr, "engine should be set");
 
 			Processor = new Compute::Preprocessor();
-			Processor->SetIncludeCallback([this](Compute::Preprocessor* Processor, const Compute::IncludeResult& File, std::string* Out)
+			Processor->SetIncludeCallback([this](Compute::Preprocessor* Processor, const Compute::IncludeResult& File, Core::String* Out)
 			{
 				ED_ASSERT(VM != nullptr, false, "engine should be set");
 				if (Include && Include(Processor, File, Out))
@@ -1666,7 +1711,7 @@ namespace Edge
 				if (!File.IsFile && File.IsSystem)
 					return VM->ImportSubmodule(File.Module);
 
-				std::string Buffer;
+				Core::String Buffer;
 				if (!VM->ImportFile(File.Module, &Buffer))
 					return false;
 
@@ -1675,7 +1720,7 @@ namespace Edge
 
 				return Scope->AddScriptSection(File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0;
 			});
-			Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const std::string& Name, const std::vector<std::string>& Args)
+			Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const Core::String& Name, const Core::Vector<Core::String>& Args)
 			{
 				ED_ASSERT(VM != nullptr, false, "engine should be set");
 				if (Pragma && Pragma(Processor, Name, Args))
@@ -1683,7 +1728,7 @@ namespace Edge
 
 				if (Name == "compile" && Args.size() == 2)
 				{
-					const std::string& Key = Args[0];
+					const Core::String& Key = Args[0];
 					Core::Stringify Value(&Args[1]);
 
 					size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
@@ -1752,7 +1797,7 @@ namespace Edge
 				}
 				else if (Name == "comment" && Args.size() == 2)
 				{
-					const std::string& Key = Args[0];
+					const Core::String& Key = Args[0];
 					if (Key == "INFO")
 						ED_INFO("[compiler] %s", Args[1].c_str());
 					else if (Key == "TRACE")
@@ -1764,7 +1809,7 @@ namespace Edge
 				}
 				else if (Name == "modify" && Args.size() == 2)
 				{
-					const std::string& Key = Args[0];
+					const Core::String& Key = Args[0];
 					Core::Stringify Value(&Args[1]);
 
 					size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
@@ -1788,8 +1833,8 @@ namespace Edge
 				}
 				else if (Name == "clibrary" && Args.size() >= 1)
 				{
-					std::string Directory = Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str());
-					std::string Path1 = Args[0], Path2 = Core::OS::Path::Resolve(Args[0], Directory.empty() ? Core::OS::Directory::Get() : Directory);
+					Core::String Directory = Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str());
+					Core::String Path1 = Args[0], Path2 = Core::OS::Path::Resolve(Args[0], Directory.empty() ? Core::OS::Directory::Get() : Directory);
 
 					bool Loaded = VM->ImportLibrary(Path1) || VM->ImportLibrary(Path2);
 					if (Loaded && Args.size() == 2 && !Args[1].empty())
@@ -1824,11 +1869,11 @@ namespace Edge
 		{
 			Pragma = Callback;
 		}
-		void Compiler::Define(const std::string& Word)
+		void Compiler::Define(const Core::String& Word)
 		{
 			Processor->Define(Word);
 		}
-		void Compiler::Undefine(const std::string& Word)
+		void Compiler::Undefine(const Core::String& Word)
 		{
 			Processor->Undefine(Word);
 		}
@@ -1848,7 +1893,7 @@ namespace Edge
 			BuiltOK = false;
 			return true;
 		}
-		bool Compiler::IsDefined(const std::string& Word) const
+		bool Compiler::IsDefined(const Core::String& Word) const
 		{
 			return Processor->IsDefined(Word.c_str());
 		}
@@ -1875,7 +1920,7 @@ namespace Edge
 			VCache = *Info;
 			return Result;
 		}
-		int Compiler::Prepare(const std::string& ModuleName, bool Scoped)
+		int Compiler::Prepare(const Core::String& ModuleName, bool Scoped)
 		{
 			ED_ASSERT(VM != nullptr, -1, "engine should be set");
 			ED_ASSERT(!ModuleName.empty(), -1, "module name should not be empty");
@@ -1900,7 +1945,7 @@ namespace Edge
 			VM->SetProcessorOptions(Processor);
 			return 0;
 		}
-		int Compiler::Prepare(const std::string& ModuleName, const std::string& Name, bool Debug, bool Scoped)
+		int Compiler::Prepare(const Core::String& ModuleName, const Core::String& Name, bool Debug, bool Scoped)
 		{
 			ED_ASSERT(VM != nullptr, -1, "engine should be set");
 
@@ -1935,7 +1980,7 @@ namespace Edge
 
 			return R;
 		}
-		int Compiler::LoadFile(const std::string& Path)
+		int Compiler::LoadFile(const Core::String& Path)
 		{
 			ED_ASSERT(VM != nullptr, -1, "engine should be set");
 			ED_ASSERT(Scope != nullptr, -1, "module should not be empty");
@@ -1943,14 +1988,14 @@ namespace Edge
 			if (VCache.Valid)
 				return 0;
 
-			std::string Source = Core::OS::Path::Resolve(Path.c_str());
+			Core::String Source = Core::OS::Path::Resolve(Path.c_str());
 			if (!Core::OS::File::IsExists(Source.c_str()))
 			{
 				ED_ERR("[vm] file %s not found", Source.c_str());
 				return -1;
 			}
 
-			std::string Buffer = Core::OS::File::ReadAsString(Source);
+			Core::String Buffer = Core::OS::File::ReadAsString(Source);
 			if (!GenerateSourceCode(Processor, Source, Buffer))
 				return asINVALID_DECLARATION;
 
@@ -1960,7 +2005,7 @@ namespace Edge
 
 			return R;
 		}
-		int Compiler::LoadCode(const std::string& Name, const std::string& Data)
+		int Compiler::LoadCode(const Core::String& Name, const Core::String& Data)
 		{
 			ED_ASSERT(VM != nullptr, -1, "engine should be set");
 			ED_ASSERT(Scope != nullptr, -1, "module should not be empty");
@@ -1968,7 +2013,7 @@ namespace Edge
 			if (VCache.Valid)
 				return 0;
 
-			std::string Buffer(Data);
+			Core::String Buffer(Data);
 			if (!GenerateSourceCode(Processor, Name, Buffer))
 				return asINVALID_DECLARATION;
 
@@ -1978,7 +2023,7 @@ namespace Edge
 
 			return R;
 		}
-		int Compiler::LoadCode(const std::string& Name, const char* Data, size_t Size)
+		int Compiler::LoadCode(const Core::String& Name, const char* Data, size_t Size)
 		{
 			ED_ASSERT(VM != nullptr, -1, "engine should be set");
 			ED_ASSERT(Scope != nullptr, -1, "module should not be empty");
@@ -1986,7 +2031,7 @@ namespace Edge
 			if (VCache.Valid)
 				return 0;
 
-			std::string Buffer(Data, Size);
+			Core::String Buffer(Data, Size);
 			if (!GenerateSourceCode(Processor, Name, Buffer))
 				return asINVALID_DECLARATION;
 
@@ -2085,7 +2130,7 @@ namespace Edge
 				return ExecuteEntry(EntryName, std::move(OnArgs));
 			});
 		}
-		Core::Promise<int> Compiler::ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
+		Core::Promise<int> Compiler::ExecuteMemory(const Core::String& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
 		{
 			ED_ASSERT(VM != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
 			ED_ASSERT(!Buffer.empty(), Core::Promise<int>(asINVALID_ARG), "buffer should not be empty");
@@ -2125,7 +2170,7 @@ namespace Edge
 
 			return Context->TryExecute(false, Function, std::move(OnArgs));
 		}
-		Core::Promise<int> Compiler::ExecuteScoped(const std::string& Code, const char* Args, ArgsCallback&& OnArgs)
+		Core::Promise<int> Compiler::ExecuteScoped(const Core::String& Code, const char* Args, ArgsCallback&& OnArgs)
 		{
 			return ExecuteScoped(Code.c_str(), Code.size(), Args, std::move(OnArgs));
 		}
@@ -2137,7 +2182,7 @@ namespace Edge
 			ED_ASSERT(Scope != nullptr, Core::Promise<int>(asINVALID_ARG), "module should not be empty");
 			ED_ASSERT(BuiltOK, Core::Promise<int>(asINVALID_ARG), "module should be built");
 
-			std::string Eval = "void __vfbdy(";
+			Core::String Eval = "void __vfbdy(";
 			if (Args != nullptr)
 				Eval.append(Args);
 			Eval.append("){\n");
@@ -2361,13 +2406,13 @@ namespace Edge
 			ED_ASSERT(Context != nullptr, Activation::UNINITIALIZED, "context should be set");
 			return (Activation)Context->GetState();
 		}
-		std::string ImmediateContext::GetStackTrace(size_t Skips, size_t MaxFrames) const
+		Core::String ImmediateContext::GetStackTrace(size_t Skips, size_t MaxFrames) const
 		{
-			std::string Trace = Core::OS::GetStackTrace(Skips, MaxFrames).append("\n");
+			Core::String Trace = Core::OS::GetStackTrace(Skips, MaxFrames).append("\n");
 			ED_ASSERT(Context != nullptr, Trace, "context should be set");
 
-			std::string ThreadId = Core::OS::Process::GetThreadId(std::this_thread::get_id());
-			std::stringstream Stream;
+			Core::String ThreadId = Core::OS::Process::GetThreadId(std::this_thread::get_id());
+			Core::StringStream Stream;
 			Stream << "vm stack trace (most recent call last)" << (!ThreadId.empty() ? " in thread " : ":\n");
 			if (!ThreadId.empty())
 				Stream << ThreadId << ":\n";
@@ -2395,7 +2440,7 @@ namespace Edge
 				Stream << "\n";
 			}
 
-			std::string Out(Stream.str());
+			Core::String Out(Stream.str());
 			return Trace + Out.substr(0, Out.size() - 1);
 		}
 		int ImmediateContext::PushState()
@@ -2685,10 +2730,10 @@ namespace Edge
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetThisPointer(StackLevel);
 		}
-		std::string ImmediateContext::GetErrorStackTrace()
+		Core::String ImmediateContext::GetErrorStackTrace()
 		{
 			Exchange.lock();
-			std::string Result = Stacktrace;
+			Core::String Result = Stacktrace;
 			Exchange.unlock();
 
 			return Result;
@@ -2755,7 +2800,7 @@ namespace Edge
 				const char* Name = Function->GetName();
 				const char* Source = Function->GetModuleName();
 				int Line = Context->GetExceptionLineNumber();
-				std::string Trace = Base->GetStackTrace(3, 64);
+				Core::String Trace = Base->GetStackTrace(3, 64);
 
 				ED_ERR("[vm] %s:%d %s(): runtime exception thrown\n\tdetails: %s\n\texecution flow dump: %.*s\n",
 					   Source ? Source : "log", Line,
@@ -2962,31 +3007,31 @@ namespace Edge
 		{
 			return Engine->GetSizeOfPrimitiveType(TypeId);
 		}
-		std::string VirtualMachine::GetObjectView(void* Object, int TypeId)
+		Core::String VirtualMachine::GetObjectView(void* Object, int TypeId)
 		{
 			if (!Object)
 				return "null";
 
 			if (TypeId == (int)TypeId::INT8)
-				return "int8(" + std::to_string(*(char*)(Object)) + "), ";
+				return "int8(" + Core::ToString(*(char*)(Object)) + "), ";
 			else if (TypeId == (int)TypeId::INT16)
-				return "int16(" + std::to_string(*(short*)(Object)) + "), ";
+				return "int16(" + Core::ToString(*(short*)(Object)) + "), ";
 			else if (TypeId == (int)TypeId::INT32)
-				return "int32(" + std::to_string(*(int*)(Object)) + "), ";
+				return "int32(" + Core::ToString(*(int*)(Object)) + "), ";
 			else if (TypeId == (int)TypeId::INT64)
-				return "int64(" + std::to_string(*(int64_t*)(Object)) + "), ";
+				return "int64(" + Core::ToString(*(int64_t*)(Object)) + "), ";
 			else if (TypeId == (int)TypeId::UINT8)
-				return "uint8(" + std::to_string(*(unsigned char*)(Object)) + "), ";
+				return "uint8(" + Core::ToString(*(unsigned char*)(Object)) + "), ";
 			else if (TypeId == (int)TypeId::UINT16)
-				return "uint16(" + std::to_string(*(unsigned short*)(Object)) + "), ";
+				return "uint16(" + Core::ToString(*(unsigned short*)(Object)) + "), ";
 			else if (TypeId == (int)TypeId::UINT32)
-				return "uint32(" + std::to_string(*(unsigned int*)(Object)) + "), ";
+				return "uint32(" + Core::ToString(*(unsigned int*)(Object)) + "), ";
 			else if (TypeId == (int)TypeId::UINT64)
-				return "uint64(" + std::to_string(*(uint64_t*)(Object)) + "), ";
+				return "uint64(" + Core::ToString(*(uint64_t*)(Object)) + "), ";
 			else if (TypeId == (int)TypeId::FLOAT)
-				return "float(" + std::to_string(*(float*)(Object)) + "), ";
+				return "float(" + Core::ToString(*(float*)(Object)) + "), ";
 			else if (TypeId == (int)TypeId::DOUBLE)
-				return "double(" + std::to_string(*(double*)(Object)) + "), ";
+				return "double(" + Core::ToString(*(double*)(Object)) + "), ";
 
 			asITypeInfo* Type = Engine->GetTypeInfoById(TypeId);
 			const char* Name = Type->GetName();
@@ -3007,7 +3052,7 @@ namespace Edge
 			if (GetTypeNameScope(&TypeName, &Namespace, &NamespaceSize) != 0)
 				return Engine->GetTypeInfoByName(Name);
 
-			BeginNamespace(std::string(Namespace, NamespaceSize).c_str());
+			BeginNamespace(Core::String(Namespace, NamespaceSize).c_str());
 			asITypeInfo* Info = Engine->GetTypeInfoByName(TypeName);
 			EndNamespace();
 
@@ -3061,7 +3106,7 @@ namespace Edge
 			Processor->SetFeatures(Proc);
 			Sync.General.unlock();
 		}
-		void VirtualMachine::SetCompileCallback(const std::string& Section, CompileCallback&& Callback)
+		void VirtualMachine::SetCompileCallback(const Core::String& Section, CompileCallback&& Callback)
 		{
 			Sync.General.lock();
 			if (Callback != nullptr)
@@ -3121,7 +3166,7 @@ namespace Edge
 		{
 			return new Compiler(this);
 		}
-		asIScriptModule* VirtualMachine::CreateScopedModule(const std::string& Name)
+		asIScriptModule* VirtualMachine::CreateScopedModule(const Core::String& Name)
 		{
 			ED_ASSERT(Engine != nullptr, nullptr, "engine should be set");
 			ED_ASSERT(!Name.empty(), nullptr, "name should not be empty");
@@ -3133,10 +3178,10 @@ namespace Edge
 				return Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
 			}
 
-			std::string Result;
+			Core::String Result;
 			while (Result.size() < 1024)
 			{
-				Result = Name + std::to_string(Scope++);
+				Result = Name + Core::ToString(Scope++);
 				if (!Engine->GetModule(Result.c_str()))
 				{
 					Sync.General.unlock();
@@ -3147,7 +3192,7 @@ namespace Edge
 			Sync.General.unlock();
 			return nullptr;
 		}
-		asIScriptModule* VirtualMachine::CreateModule(const std::string& Name)
+		asIScriptModule* VirtualMachine::CreateModule(const Core::String& Name)
 		{
 			ED_ASSERT(Engine != nullptr, nullptr, "engine should be set");
 			ED_ASSERT(!Name.empty(), nullptr, "name should not be empty");
@@ -3248,10 +3293,10 @@ namespace Edge
 		{
 			Engine->GCEnumCallback(Reference);
 		}
-		bool VirtualMachine::DumpRegisteredInterfaces(const std::string& Where)
+		bool VirtualMachine::DumpRegisteredInterfaces(const Core::String& Where)
 		{
-			std::unordered_map<std::string, DNamespace> Namespaces;
-			std::string Path = Core::OS::Path::ResolveDirectory(Where.c_str());
+			Core::UnorderedMap<Core::String, DNamespace> Namespaces;
+			Core::String Path = Core::OS::Path::ResolveDirectory(Where.c_str());
 			Core::OS::Directory::Patch(Path);
 
 			if (Path.empty())
@@ -3270,7 +3315,7 @@ namespace Edge
 				{
 					int EValue;
 					const char* EName = EType->GetEnumValueByIndex(j, &EValue);
-					Enum.Values.push_back(Core::Form("%s = %i", EName ? EName : std::to_string(j).c_str(), EValue).R());
+					Enum.Values.push_back(Core::Form("%s = %i", EName ? EName : Core::ToString(j).c_str(), EValue).R());
 				}
 			}
 
@@ -3303,7 +3348,7 @@ namespace Edge
 				{
 					int STypeId = EType->GetSubTypeId(j);
 					const char* SDecl = Engine->GetTypeDeclaration(STypeId, true);
-					Class.Types.push_back(std::string("class ") + (SDecl ? SDecl : "__type__"));
+					Class.Types.push_back(Core::String("class ") + (SDecl ? SDecl : "__type__"));
 				}
 
 				for (asUINT j = 0; j < FuncdefsCount; j++)
@@ -3311,7 +3356,7 @@ namespace Edge
 					asITypeInfo* FType = EType->GetChildFuncdef(j);
 					asIScriptFunction* FFunction = FType->GetFuncdefSignature();
 					const char* FDecl = FFunction->GetDeclaration(false, false, true);
-					Class.Funcdefs.push_back(std::string("funcdef ") + (FDecl ? FDecl : "void __unnamed" + std::to_string(j) + "__()"));
+					Class.Funcdefs.push_back(Core::String("funcdef ") + (FDecl ? FDecl : "void __unnamed" + Core::ToString(j) + "__()"));
 				}
 
 				for (asUINT j = 0; j < PropsCount; j++)
@@ -3322,21 +3367,21 @@ namespace Edge
 
 					const char* PDecl = Engine->GetTypeDeclaration(PTypeId, true);
 					const char* PMod = (PPrivate ? "private " : (PProtected ? "protected " : nullptr));
-					Class.Props.push_back(Core::Form("%s%s %s", PMod ? PMod : "", PDecl ? PDecl : "__type__", PName ? PName : ("__unnamed" + std::to_string(j) + "__").c_str()).R());
+					Class.Props.push_back(Core::Form("%s%s %s", PMod ? PMod : "", PDecl ? PDecl : "__type__", PName ? PName : ("__unnamed" + Core::ToString(j) + "__").c_str()).R());
 				}
 
 				for (asUINT j = 0; j < FactoriesCount; j++)
 				{
 					asIScriptFunction* FFunction = EType->GetFactoryByIndex(j);
 					const char* FDecl = FFunction->GetDeclaration(false, false, true);
-					Class.Methods.push_back(FDecl ? std::string(FDecl) : "void " + std::string(CName) + "()");
+					Class.Methods.push_back(FDecl ? Core::String(FDecl) : "void " + Core::String(CName) + "()");
 				}
 
 				for (asUINT j = 0; j < MethodsCount; j++)
 				{
 					asIScriptFunction* FFunction = EType->GetMethodByIndex(j);
 					const char* FDecl = FFunction->GetDeclaration(false, false, true);
-					Class.Methods.push_back(FDecl ? FDecl : "void __unnamed" + std::to_string(j) + "__()");
+					Class.Methods.push_back(FDecl ? FDecl : "void __unnamed" + Core::ToString(j) + "__()");
 				}
 			}
 
@@ -3357,13 +3402,13 @@ namespace Edge
 						DNamespace& Namespace = Namespaces[CNamespace ? CNamespace : ""];
 						DClass& Class = Namespace.Classes[CName];
 						const char* FDecl = FFunction->GetDeclaration(false, false, true);
-						Class.Functions.push_back(FDecl ? FDecl : "void __unnamed" + std::to_string(i) + "__()");
+						Class.Functions.push_back(FDecl ? FDecl : "void __unnamed" + Core::ToString(i) + "__()");
 						continue;
 					}
 				}
 
 				DNamespace& Namespace = Namespaces[FNamespace ? FNamespace : ""];
-				Namespace.Functions.push_back(FDecl ? FDecl : "void __unnamed" + std::to_string(i) + "__()");
+				Namespace.Functions.push_back(FDecl ? FDecl : "void __unnamed" + Core::ToString(i) + "__()");
 			}
 
 			asUINT FuncdefsCount = Engine->GetFuncdefCount();
@@ -3377,15 +3422,15 @@ namespace Edge
 				const char* FNamespace = FType->GetNamespace();
 				DNamespace& Namespace = Namespaces[FNamespace ? FNamespace : ""];
 				const char* FDecl = FFunction->GetDeclaration(false, false, true);
-				Namespace.Funcdefs.push_back(std::string("funcdef ") + (FDecl ? FDecl : "void __unnamed" + std::to_string(i) + "__()"));
+				Namespace.Funcdefs.push_back(Core::String("funcdef ") + (FDecl ? FDecl : "void __unnamed" + Core::ToString(i) + "__()"));
 			}
 
-			typedef std::pair<std::string, DNamespace*> GroupKey;
-			std::unordered_map<std::string, std::pair<std::string, std::vector<GroupKey>>> Groups;
+			typedef std::pair<Core::String, DNamespace*> GroupKey;
+			Core::UnorderedMap<Core::String, std::pair<Core::String, Core::Vector<GroupKey>>> Groups;
 			for (auto& Namespace : Namespaces)
 			{
-				std::string Name = Namespace.first;
-				std::string Subname = (Namespace.first.empty() ? "" : Name);
+				Core::String Name = Namespace.first;
+				Core::String Subname = (Namespace.first.empty() ? "" : Name);
 				auto Offset = Core::Stringify(&Name).Find("::");
 
 				if (Offset.Found)
@@ -3398,7 +3443,7 @@ namespace Edge
 					}
 				}
 
-				std::string File = Core::OS::Path::Resolve((Path + Core::Stringify(Name).Replace("::", "/").ToLower().R() + ".as").c_str());
+				Core::String File = Core::OS::Path::Resolve((Path + Core::Stringify(Name).Replace("::", "/").ToLower().R() + ".as").c_str());
 				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(File.c_str()));
 
 				auto& Source = Groups[Name];
@@ -3413,7 +3458,7 @@ namespace Edge
 				if (!Stream)
 					return false;
 
-				std::string Offset;
+				Core::String Offset;
 				ED_SORT(Group.second.second.begin(), Group.second.second.end(), [](const GroupKey& A, const GroupKey& B)
 				{
 					return A.first.size() < B.first.size();
@@ -3432,7 +3477,7 @@ namespace Edge
 
 			return true;
 		}
-		bool VirtualMachine::DumpAllInterfaces(const std::string& Where)
+		bool VirtualMachine::DumpAllInterfaces(const Core::String& Where)
 		{
 			for (auto& Item : Modules)
 			{
@@ -3573,7 +3618,7 @@ namespace Edge
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 			return Engine->SetEngineProperty((asEEngineProp)Property, (asPWORD)Value);
 		}
-		void VirtualMachine::SetDocumentRoot(const std::string& Value)
+		void VirtualMachine::SetDocumentRoot(const Core::String& Value)
 		{
 			Sync.General.lock();
 			Include.Root = Value;
@@ -3584,13 +3629,13 @@ namespace Edge
 				Include.Root.append(1, ED_PATH_SPLIT);
 			Sync.General.unlock();
 		}
-		std::string VirtualMachine::GetDocumentRoot() const
+		Core::String VirtualMachine::GetDocumentRoot() const
 		{
 			return Include.Root;
 		}
-		std::vector<std::string> VirtualMachine::GetSubmodules() const
+		Core::Vector<Core::String> VirtualMachine::GetSubmodules() const
 		{
-			std::vector<std::string> Result;
+			Core::Vector<Core::String> Result;
 			for (auto& Module : Modules)
 			{
 				if (Module.second.Registered)
@@ -3599,13 +3644,13 @@ namespace Edge
 
 			return Result;
 		}
-		std::vector<std::string> VirtualMachine::VerifyModules(const std::string& Directory, const Compute::RegexSource& Exp)
+		Core::Vector<Core::String> VirtualMachine::VerifyModules(const Core::String& Directory, const Compute::RegexSource& Exp)
 		{
-			std::vector<std::string> Result;
+			Core::Vector<Core::String> Result;
 			if (!Core::OS::Directory::IsExists(Directory.c_str()))
 				return Result;
 
-			std::vector<Core::FileEntry> Entries;
+			Core::Vector<Core::FileEntry> Entries;
 			if (!Core::OS::Directory::Scan(Directory, &Entries))
 				return Result;
 
@@ -3627,7 +3672,7 @@ namespace Edge
 				}
 				else
 				{
-					std::vector<std::string> Merge = VerifyModules(Entry.Path, Exp);
+					Core::Vector<Core::String> Merge = VerifyModules(Entry.Path, Exp);
 					if (!Merge.empty())
 						Result.insert(Result.end(), Merge.begin(), Merge.end());
 				}
@@ -3635,10 +3680,10 @@ namespace Edge
 
 			return Result;
 		}
-		bool VirtualMachine::VerifyModule(const std::string& Path)
+		bool VirtualMachine::VerifyModule(const Core::String& Path)
 		{
 			ED_ASSERT(Engine != nullptr, false, "engine should be set");
-			std::string Source = Core::OS::File::ReadAsString(Path);
+			Core::String Source = Core::OS::File::ReadAsString(Path);
 			if (Source.empty())
 				return true;
 
@@ -3664,13 +3709,13 @@ namespace Edge
 		{
 			return TypeId == 0;
 		}
-		bool VirtualMachine::AddSubmodule(const std::string& Name, const std::vector<std::string>& Dependencies, const SubmoduleCallback& Callback)
+		bool VirtualMachine::AddSubmodule(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const SubmoduleCallback& Callback)
 		{
 			ED_ASSERT(!Name.empty(), false, "name should not be empty");
 			if (Dependencies.empty() && !Callback)
 			{
-				std::string Namespace = Name + '/';
-				std::vector<std::string> Deps;
+				Core::String Namespace = Name + '/';
+				Core::Vector<Core::String> Deps;
 
 				Sync.General.lock();
 				for (auto& Item : Modules)
@@ -3725,7 +3770,7 @@ namespace Edge
 			Sync.General.unlock();
 			return true;
 		}
-		bool VirtualMachine::ImportFile(const std::string& Path, std::string* Out)
+		bool VirtualMachine::ImportFile(const Core::String& Path, Core::String* Out)
 		{
 			if (!(Imports & (uint32_t)Imports::Files))
 			{
@@ -3755,7 +3800,7 @@ namespace Edge
 				return true;
 			}
 
-			std::string& Result = Files[Path];
+			Core::String& Result = Files[Path];
 			Result = Core::OS::File::ReadAsString(Path);
 			if (Out != nullptr)
 				Out->assign(Result);
@@ -3763,7 +3808,7 @@ namespace Edge
 			Sync.General.unlock();
 			return true;
 		}
-		bool VirtualMachine::ImportSymbol(const std::vector<std::string>& Sources, const std::string& Func, const std::string& Decl)
+		bool VirtualMachine::ImportSymbol(const Core::Vector<Core::String>& Sources, const Core::String& Func, const Core::String& Decl)
 		{
 			if (!(Imports & (uint32_t)Imports::CSymbols))
 			{
@@ -3824,7 +3869,7 @@ namespace Edge
 			ED_ERR("[vm] cannot load shared object function: %s\n\tnot found in any of loaded shared objects", Func.c_str());
 			return false;
 		}
-		bool VirtualMachine::ImportLibrary(const std::string& Path)
+		bool VirtualMachine::ImportLibrary(const Core::String& Path)
 		{
 			if (!(Imports & (uint32_t)Imports::CLibraries) && !Path.empty())
 			{
@@ -3832,7 +3877,7 @@ namespace Edge
 				return false;
 			}
 
-			std::string Name = GetLibraryName(Path);
+			Core::String Name = GetLibraryName(Path);
 			if (!Engine)
 				return false;
 
@@ -3862,7 +3907,7 @@ namespace Edge
 			ED_DEBUG("[vm] load library %s", Path.c_str());
 			return true;
 		}
-		bool VirtualMachine::ImportSubmodule(const std::string& Name)
+		bool VirtualMachine::ImportSubmodule(const Core::String& Name)
 		{
 			if (!(Imports & (uint32_t)Imports::Submodules))
 			{
@@ -3870,7 +3915,7 @@ namespace Edge
 				return false;
 			}
 
-			std::string Target = Name;
+			Core::String Target = Name;
 			if (Core::Stringify(&Target).EndsWith(".as"))
 				Target = Target.substr(0, Target.size() - 3);
 
@@ -3908,7 +3953,7 @@ namespace Edge
 
 			return true;
 		}
-		Core::Schema* VirtualMachine::ImportJSON(const std::string& Path)
+		Core::Schema* VirtualMachine::ImportJSON(const Core::String& Path)
 		{
 			if (!(Imports & (uint32_t)Imports::JSON))
 			{
@@ -3916,7 +3961,7 @@ namespace Edge
 				return nullptr;
 			}
 
-			std::string File = Core::OS::Path::Resolve(Path, Include.Root);
+			Core::String File = Core::OS::Path::Resolve(Path, Include.Root);
 			if (!Core::OS::File::IsExists(File.c_str()))
 			{
 				File = Core::OS::Path::Resolve(Path + ".json", Include.Root);
@@ -3929,7 +3974,7 @@ namespace Edge
 
 			if (!Cached)
 			{
-				std::string Data = Core::OS::File::ReadAsString(File);
+				Core::String Data = Core::OS::File::ReadAsString(File);
 				return Core::Schema::ConvertFromJSON(Data.c_str(), Data.size());
 			}
 
@@ -3944,7 +3989,7 @@ namespace Edge
 			}
 
 			Core::Schema*& Result = Datas[File];
-			std::string Data = Core::OS::File::ReadAsString(File);
+			Core::String Data = Core::OS::File::ReadAsString(File);
 			Result = Core::Schema::ConvertFromJSON(Data.c_str(), Data.size());
 
 			Core::Schema* Copy = nullptr;
@@ -3966,6 +4011,7 @@ namespace Edge
 		void VirtualMachine::FreeProxy()
 		{
 			Bindings::Registry::Release();
+			TypeCache::FreeProxy();
 			CleanupThisThread();
 		}
 		VirtualMachine* VirtualMachine::Get(asIScriptEngine* Engine)
@@ -3982,7 +4028,7 @@ namespace Edge
 
 			return Get(Context->GetEngine());
 		}
-		std::string VirtualMachine::GetLibraryName(const std::string& Path)
+		Core::String VirtualMachine::GetLibraryName(const Core::String& Path)
 		{
 			if (Path.empty())
 				return Path;
@@ -4132,7 +4178,7 @@ namespace Edge
 		void Debugger::RegisterToStringCallback(const TypeInfo& Type, ToStringCallback Callback)
 		{
 			ED_ASSERT_V(ToStringCallbacks.find(Type.GetTypeInfo()) == ToStringCallbacks.end(), "callback should not already be set");
-			ToStringCallbacks.insert(std::unordered_map<const asITypeInfo*, ToStringCallback>::value_type(Type.GetTypeInfo(), Callback));
+			ToStringCallbacks.insert(Core::UnorderedMap<const asITypeInfo*, ToStringCallback>::value_type(Type.GetTypeInfo(), Callback));
 		}
 		void Debugger::LineCallback(ImmediateContext* Context)
 		{
@@ -4166,7 +4212,7 @@ namespace Edge
 			else if (Action == DebugAction::STEP_INTO)
 				CheckBreakPoint(Context);
 
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			const char* File = nullptr;
 			int Number = Base->GetLineNumber(0, 0, &File);
 
@@ -4187,11 +4233,11 @@ namespace Edge
 				Output("[dbg]> ");
 				std::cin.getline(Buffer, 512);
 
-				if (InterpretCommand(std::string(Buffer), Context))
+				if (InterpretCommand(Core::String(Buffer), Context))
 					break;
 			}
 		}
-		void Debugger::PrintValue(const std::string& Expression, ImmediateContext* Context)
+		void Debugger::PrintValue(const Core::String& Expression, ImmediateContext* Context)
 		{
 			ED_ASSERT_V(Context != nullptr, "context should be set");
 
@@ -4199,7 +4245,7 @@ namespace Edge
 			ED_ASSERT_V(Base != nullptr, "context should be set");
 
 			asIScriptEngine* Engine = Context->GetVM()->GetEngine();
-			std::string Text = Expression, Scope, Name;
+			Core::String Text = Expression, Scope, Name;
 			asUINT Length = 0;
 
 			asETokenClass T = Engine->ParseToken(Text.c_str(), 0, &Length);
@@ -4311,7 +4357,7 @@ namespace Edge
 
 			if (Pointer)
 			{
-				std::stringstream Stream;
+				Core::StringStream Stream;
 				Stream << ToString(Pointer, TypeId, 3, VM) << std::endl;
 				Output(Stream.str());
 			}
@@ -4320,7 +4366,7 @@ namespace Edge
 		}
 		void Debugger::ListBreakPoints()
 		{
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (size_t b = 0; b < BreakPoints.size(); b++)
 			{
 				if (BreakPoints[b].Function)
@@ -4340,7 +4386,7 @@ namespace Edge
 			void* Pointer = Base->GetThisPointer();
 			if (Pointer != nullptr)
 			{
-				std::stringstream Stream;
+				Core::StringStream Stream;
 				Stream << "this = " << ToString(Pointer, Base->GetThisTypeId(), 3, VirtualMachine::Get(Base->GetEngine())) << std::endl;
 				Output(Stream.str());
 			}
@@ -4356,7 +4402,7 @@ namespace Edge
 			if (!Function)
 				return;
 
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (asUINT n = 0; n < Function->GetVarCount(); n++)
 			{
 				if (Base->IsVarInScope(n))
@@ -4383,7 +4429,7 @@ namespace Edge
 			if (!Mod)
 				return;
 
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (asUINT n = 0; n < Mod->GetGlobalVarCount(); n++)
 			{
 				int TypeId = 0;
@@ -4403,7 +4449,7 @@ namespace Edge
 			asUINT GCCurrSize, GCTotalDestr, GCTotalDet, GCNewObjects, GCTotalNewDestr;
 			Engine->GetGCStatistics(&GCCurrSize, &GCTotalDestr, &GCTotalDet, &GCNewObjects, &GCTotalNewDestr);
 
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			Stream << "Garbage collector:" << std::endl;
 			Stream << " current size:          " << GCCurrSize << std::endl;
 			Stream << " total destroyed:       " << GCTotalDestr << std::endl;
@@ -4419,7 +4465,7 @@ namespace Edge
 			asIScriptContext* Base = Context->GetContext();
 			ED_ASSERT_V(Base != nullptr, "context should be set");
 
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			const char* File = nullptr;
 			int LineNumber = 0;
 
@@ -4431,34 +4477,34 @@ namespace Edge
 
 			Output(Stream.str());
 		}
-		void Debugger::AddFuncBreakPoint(const std::string& Function)
+		void Debugger::AddFuncBreakPoint(const Core::String& Function)
 		{
 			size_t B = Function.find_first_not_of(" \t");
 			size_t E = Function.find_last_not_of(" \t");
-			std::string Actual = Function.substr(B, E != std::string::npos ? E - B + 1 : std::string::npos);
+			Core::String Actual = Function.substr(B, E != Core::String::npos ? E - B + 1 : Core::String::npos);
 
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			Stream << "Adding deferred break point for function '" << Actual << "'" << std::endl;
 			Output(Stream.str());
 
 			BreakPoint Point(Actual, 0, true);
 			BreakPoints.push_back(Point);
 		}
-		void Debugger::AddFileBreakPoint(const std::string& File, int LineNumber)
+		void Debugger::AddFileBreakPoint(const Core::String& File, int LineNumber)
 		{
 			size_t R = File.find_last_of("\\/");
-			std::string Actual;
+			Core::String Actual;
 
-			if (R != std::string::npos)
+			if (R != Core::String::npos)
 				Actual = File.substr(R + 1);
 			else
 				Actual = File;
 
 			size_t B = Actual.find_first_not_of(" \t");
 			size_t E = Actual.find_last_not_of(" \t");
-			Actual = Actual.substr(B, E != std::string::npos ? E - B + 1 : std::string::npos);
+			Actual = Actual.substr(B, E != Core::String::npos ? E - B + 1 : Core::String::npos);
 
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			Stream << "Setting break point in file '" << Actual << "' at line " << LineNumber << std::endl;
 			Output(Stream.str());
 
@@ -4479,7 +4525,7 @@ namespace Edge
 				   " a - Abort execution\n"
 				   " h - Print this help text\n");
 		}
-		void Debugger::Output(const std::string& Data)
+		void Debugger::Output(const Core::String& Data)
 		{
 			std::cout << Data;
 		}
@@ -4504,9 +4550,9 @@ namespace Edge
 			const char* Temp = 0;
 			int Line = Base->GetLineNumber(0, 0, &Temp);
 
-			std::string File = Temp ? Temp : "";
+			Core::String File = Temp ? Temp : "";
 			size_t R = File.find_last_of("\\/");
-			if (R != std::string::npos)
+			if (R != Core::String::npos)
 				File = File.substr(R + 1);
 
 			asIScriptFunction* Function = Base->GetFunction();
@@ -4518,7 +4564,7 @@ namespace Edge
 					{
 						if (BreakPoints[n].Name == Function->GetName())
 						{
-							std::stringstream Stream;
+							Core::StringStream Stream;
 							Stream << "Entering function '" << BreakPoints[n].Name << "'. Transforming it into break point" << std::endl;
 							Output(Stream.str());
 
@@ -4536,7 +4582,7 @@ namespace Edge
 							BreakPoints[n].NeedsAdjusting = false;
 							if (Number != BreakPoints[n].Line)
 							{
-								std::stringstream Stream;
+								Core::StringStream Stream;
 								Stream << "Moving break point " << n << " in file '" << File << "' to next line with code at line " << Number << std::endl;
 								Output(Stream.str());
 
@@ -4552,7 +4598,7 @@ namespace Edge
 			{
 				if (!BreakPoints[n].Function && BreakPoints[n].Line == Line && BreakPoints[n].Name == File)
 				{
-					std::stringstream Stream;
+					Core::StringStream Stream;
 					Stream << "Reached break point " << n << " in file '" << File << "' at line " << Line << std::endl;
 					Output(Stream.str());
 					return true;
@@ -4561,7 +4607,7 @@ namespace Edge
 
 			return false;
 		}
-		bool Debugger::InterpretCommand(const std::string& Command, ImmediateContext* Context)
+		bool Debugger::InterpretCommand(const Core::String& Command, ImmediateContext* Context)
 		{
 			ED_ASSERT(Context != nullptr, false, "context should be set");
 
@@ -4590,17 +4636,17 @@ namespace Edge
 				case 'b':
 				{
 					size_t Div = Command.find(':');
-					if (Div != std::string::npos && Div > 2)
+					if (Div != Core::String::npos && Div > 2)
 					{
-						std::string File = Command.substr(2, Div - 2);
-						std::string Line = Command.substr(Div + 1);
+						Core::String File = Command.substr(2, Div - 2);
+						Core::String Line = Command.substr(Div + 1);
 						int Number = Core::Stringify(&Line).ToInt();
 
 						AddFileBreakPoint(File, Number);
 					}
-					else if (Div == std::string::npos && (Div = Command.find_first_not_of(" \t", 1)) != std::string::npos)
+					else if (Div == Core::String::npos && (Div = Command.find_first_not_of(" \t", 1)) != Core::String::npos)
 					{
-						std::string Function = Command.substr(Div);
+						Core::String Function = Command.substr(Div);
 						AddFuncBreakPoint(Function);
 					}
 					else
@@ -4616,7 +4662,7 @@ namespace Edge
 				{
 					if (Command.length() > 2)
 					{
-						std::string BR = Command.substr(2);
+						Core::String BR = Command.substr(2);
 						if (BR == "all")
 						{
 							BreakPoints.clear();
@@ -4643,7 +4689,7 @@ namespace Edge
 				{
 					bool WantPrintHelp = false;
 					size_t P = Command.find_first_not_of(" \t", 1);
-					if (P != std::string::npos)
+					if (P != Core::String::npos)
 					{
 						if (Command[P] == 'b')
 							ListBreakPoints();
@@ -4687,7 +4733,7 @@ namespace Edge
 				case 'p':
 				{
 					size_t P = Command.find_first_not_of(" \t", 1);
-					if (P == std::string::npos)
+					if (P == Core::String::npos)
 					{
 						Output("Incorrect format for print, expected:\n"
 							   " p <expression>\n");
@@ -4710,7 +4756,7 @@ namespace Edge
 
 			return true;
 		}
-		std::string Debugger::ToString(void* Value, unsigned int TypeId, int ExpandMembers, VirtualMachine* Engine)
+		Core::String Debugger::ToString(void* Value, unsigned int TypeId, int ExpandMembers, VirtualMachine* Engine)
 		{
 			if (Value == 0)
 				return "<null>";
@@ -4725,7 +4771,7 @@ namespace Edge
 			if (!Base)
 				return "<null>";
 
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			if (TypeId == asTYPEID_VOID)
 				return "<void>";
 			else if (TypeId == asTYPEID_BOOL)
@@ -4823,7 +4869,7 @@ namespace Edge
 						if (Type->GetFlags() & asOBJ_REF)
 							Stream << " ";
 
-						std::string Text = It->second(Value, ExpandMembers, this);
+						Core::String Text = It->second(Value, ExpandMembers, this);
 						Stream << Text;
 					}
 				}

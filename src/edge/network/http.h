@@ -60,8 +60,8 @@ namespace Edge
 				End
 			};
 
-			typedef std::vector<std::string> RangePayload;
-			typedef std::map<std::string, RangePayload, struct HeaderComparator> HeaderMapping;
+			typedef Core::Vector<Core::String> RangePayload;
+			typedef Core::OrderedMap<Core::String, RangePayload, struct HeaderComparator> HeaderMapping;
 			typedef std::function<bool(class Connection*)> SuccessCallback;
 			typedef std::function<bool(class Connection*, SocketPoll, const char*, size_t)> ContentCallback;
 			typedef std::function<bool(class Connection*, struct Credentials*)> AuthorizeCallback;
@@ -102,7 +102,7 @@ namespace Edge
 					}
 				};
 
-				bool operator() (const std::string& Left, const std::string& Right) const
+				bool operator() (const Core::String& Left, const Core::String& Right) const
 				{
 					return std::lexicographical_compare(Left.begin(), Left.end(), Right.begin(), Right.end(), Insensitive());
 				}
@@ -110,14 +110,14 @@ namespace Edge
 
 			struct ED_OUT ErrorFile
 			{
-				std::string Pattern;
+				Core::String Pattern;
 				int StatusCode = 0;
 			};
 
 			struct ED_OUT MimeType
 			{
-				std::string Extension;
-				std::string Type;
+				Core::String Extension;
+				Core::String Type;
 			};
 
 			struct ED_OUT MimeStatic
@@ -130,36 +130,36 @@ namespace Edge
 
 			struct ED_OUT Credentials
 			{
-				std::string Token;
+				Core::String Token;
 				Auth Type = Auth::Unverified;
 			};
 
 			struct ED_OUT Resource
 			{
 				HeaderMapping Headers;
-				std::string Path;
-				std::string Type;
-				std::string Name;
-				std::string Key;
+				Core::String Path;
+				Core::String Type;
+				Core::String Name;
+				Core::String Key;
 				size_t Length = 0;
 				bool Memory = false;
 
-				void PutHeader(const std::string& Key, const std::string& Value);
-				void SetHeader(const std::string& Key, const std::string& Value);
-				std::string ComposeHeader(const std::string& Key) const;
-				RangePayload* GetHeaderRanges(const std::string& Key);
-				const std::string* GetHeaderBlob(const std::string& Key) const;
-				const char* GetHeader(const std::string& Key) const;
+				void PutHeader(const Core::String& Key, const Core::String& Value);
+				void SetHeader(const Core::String& Key, const Core::String& Value);
+				Core::String ComposeHeader(const Core::String& Key) const;
+				RangePayload* GetHeaderRanges(const Core::String& Key);
+				const Core::String* GetHeaderBlob(const Core::String& Key) const;
+				const char* GetHeader(const Core::String& Key) const;
 			};
 
 			struct ED_OUT Cookie
 			{
-				std::string Name;
-				std::string Value;
-				std::string Domain;
-				std::string Path = "/";
-				std::string SameSite;
-				std::string Expires;
+				Core::String Name;
+				Core::String Value;
+				Core::String Domain;
+				Core::String Path = "/";
+				Core::String SameSite;
+				Core::String Expires;
 				bool Secure = false;
 				bool HttpOnly = false;
 
@@ -169,21 +169,21 @@ namespace Edge
 
 			struct ED_OUT ContentFrame
 			{
-				std::vector<Resource> Resources;
-				std::vector<char> Data;
+				Core::Vector<Resource> Resources;
+				Core::Vector<char> Data;
 				size_t Length = 0;
 				size_t Offset = 0;
 				bool Exceeds = false;
 				bool Limited = false;
 
-				void Append(const std::string& Data);
+				void Append(const Core::String& Data);
 				void Append(const char* Data, size_t Size);
-				void Assign(const std::string& Data);
+				void Assign(const Core::String& Data);
 				void Assign(const char* Data, size_t Size);
 				void Prepare(const char* ContentLength);
 				void Finalize();
 				void Cleanup();
-				std::string GetText() const;
+				Core::String GetText() const;
 				bool IsFinalized() const;
 			};
 
@@ -192,10 +192,10 @@ namespace Edge
 				HeaderMapping Cookies;
 				HeaderMapping Headers;
 				ContentFrame Content;
-				std::string Query;
-				std::string Path;
-				std::string URI;
-				std::string Where;
+				Core::String Query;
+				Core::String Path;
+				Core::String URI;
+				Core::String Where;
 				Compute::RegexResult Match;
 				Credentials User;
 				char Method[10] = { 'G', 'E', 'T' };
@@ -203,50 +203,50 @@ namespace Edge
 
 				void SetMethod(const char* Value);
 				void SetVersion(unsigned int Major, unsigned int Minor);
-				void PutHeader(const std::string& Key, const std::string& Value);
-				void SetHeader(const std::string& Key, const std::string& Value);
+				void PutHeader(const Core::String& Key, const Core::String& Value);
+				void SetHeader(const Core::String& Key, const Core::String& Value);
 				void Cleanup();
-				std::string ComposeHeader(const std::string& Key) const;
-				RangePayload* GetCookieRanges(const std::string& Key);
-				std::string* GetCookieBlob(const std::string& Key) const;
-				const char* GetCookie(const std::string& Key) const;
-				RangePayload* GetHeaderRanges(const std::string& Key);
-				const std::string* GetHeaderBlob(const std::string& Key) const;
-				const char* GetHeader(const std::string& Key) const;
-				std::vector<std::pair<size_t, size_t>> GetRanges() const;
-				std::pair<size_t, size_t> GetRange(std::vector<std::pair<size_t, size_t>>::iterator Range, size_t ContentLength) const;
+				Core::String ComposeHeader(const Core::String& Key) const;
+				RangePayload* GetCookieRanges(const Core::String& Key);
+				Core::String* GetCookieBlob(const Core::String& Key) const;
+				const char* GetCookie(const Core::String& Key) const;
+				RangePayload* GetHeaderRanges(const Core::String& Key);
+				const Core::String* GetHeaderBlob(const Core::String& Key) const;
+				const char* GetHeader(const Core::String& Key) const;
+				Core::Vector<std::pair<size_t, size_t>> GetRanges() const;
+				std::pair<size_t, size_t> GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContentLength) const;
 			};
 
 			struct ED_OUT ResponseFrame
 			{
 				HeaderMapping Headers;
 				ContentFrame Content;
-				std::vector<Cookie> Cookies;
+				Core::Vector<Cookie> Cookies;
 				int StatusCode = -1;
 				bool Error = false;
 
-				void PutHeader(const std::string& Key, const std::string& Value);
-				void SetHeader(const std::string& Key, const std::string& Value);
+				void PutHeader(const Core::String& Key, const Core::String& Value);
+				void SetHeader(const Core::String& Key, const Core::String& Value);
 				void SetCookie(const Cookie& Value);
 				void SetCookie(Cookie&& Value);
 				void Cleanup();
-				std::string ComposeHeader(const std::string& Key) const;
+				Core::String ComposeHeader(const Core::String& Key) const;
 				Cookie* GetCookie(const char* Key);
-				RangePayload* GetHeaderRanges(const std::string& Key);
-				const std::string* GetHeaderBlob(const std::string& Key) const;
-				const char* GetHeader(const std::string& Key) const;
+				RangePayload* GetHeaderRanges(const Core::String& Key);
+				const Core::String* GetHeaderBlob(const Core::String& Key) const;
+				const char* GetHeader(const Core::String& Key) const;
 				bool IsOK() const;
 			};
 
 			class ED_OUT RouteGroup final : public Core::Reference<RouteGroup>
 			{
 			public:
-				std::vector<RouteEntry*> Routes;
-				std::string Match;
+				Core::Vector<RouteEntry*> Routes;
+				Core::String Match;
 				RouteMode Mode;
 
 			public:
-				RouteGroup(const std::string& NewMatch, RouteMode NewMode) noexcept;
+				RouteGroup(const Core::String& NewMatch, RouteMode NewMode) noexcept;
 				~RouteGroup() noexcept;
 			};
 
@@ -275,7 +275,7 @@ namespace Edge
 				} Lifetime;
 
 			private:
-				std::queue<Message> Messages;
+				Core::SingleQueue<Message> Messages;
 				std::atomic<uint32_t> State;
 				std::atomic<bool> Active;
 				std::atomic<bool> Reset;
@@ -330,7 +330,7 @@ namespace Edge
 
 			public:
 				GatewayFrame(HTTP::Connection* NewBase, Scripting::Compiler* NewCompiler);
-				bool Start(const std::string& Path, const char* Method, char* Buffer, size_t Size);
+				bool Start(const Core::String& Path, const char* Method, char* Buffer, size_t Size);
 				bool Error(int StatusCode, const char* Text);
 				bool Finish();
 				bool IsFinished();
@@ -367,20 +367,20 @@ namespace Edge
 				} Callbacks;
 				struct
 				{
-					std::vector<Compute::RegexSource> Files;
-					std::vector<std::string> Methods;
+					Core::Vector<Compute::RegexSource> Files;
+					Core::Vector<Core::String> Methods;
 					bool ReportStack = false;
 					bool ReportErrors = false;
 				} Gateway;
 				struct
 				{
-					std::vector<std::string> Methods;
-					std::string Type;
-					std::string Realm;
+					Core::Vector<Core::String> Methods;
+					Core::String Type;
+					Core::String Realm;
 				} Auth;
 				struct
 				{
-					std::vector<Compute::RegexSource> Files;
+					Core::Vector<Compute::RegexSource> Files;
 					CompressionTune Tune = CompressionTune::Default;
 					int QualityLevel = 8;
 					int MemoryLevel = 8;
@@ -389,18 +389,18 @@ namespace Edge
 				} Compression;
 
 			public:
-				std::vector<Compute::RegexSource> HiddenFiles;
-				std::vector<ErrorFile> ErrorFiles;
-				std::vector<MimeType> MimeTypes;
-				std::vector<std::string> IndexFiles;
-				std::vector<std::string> TryFiles;
-				std::vector<std::string> DisallowedMethods;
-				std::string DocumentRoot = "./";
-				std::string CharSet = "utf-8";
-				std::string ProxyIpAddress;
-				std::string AccessControlAllowOrigin;
-				std::string Redirect;
-				std::string Override;
+				Core::Vector<Compute::RegexSource> HiddenFiles;
+				Core::Vector<ErrorFile> ErrorFiles;
+				Core::Vector<MimeType> MimeTypes;
+				Core::Vector<Core::String> IndexFiles;
+				Core::Vector<Core::String> TryFiles;
+				Core::Vector<Core::String> DisallowedMethods;
+				Core::String DocumentRoot = "./";
+				Core::String CharSet = "utf-8";
+				Core::String ProxyIpAddress;
+				Core::String AccessControlAllowOrigin;
+				Core::String Redirect;
+				Core::String Override;
 				size_t WebSocketTimeout = 30000;
 				size_t StaticFileMaxAge = 604800;
 				size_t MaxCacheLength = 1024 * 64;
@@ -425,16 +425,16 @@ namespace Edge
 					{
 						struct
 						{
-							std::string Name = "sid";
-							std::string Domain;
-							std::string Path = "/";
-							std::string SameSite = "Strict";
+							Core::String Name = "sid";
+							Core::String Domain;
+							Core::String Path = "/";
+							Core::String SameSite = "Strict";
 							uint64_t Expires = 31536000;
 							bool Secure = false;
 							bool HttpOnly = true;
 						} Cookie;
 
-						std::string DocumentRoot;
+						Core::String DocumentRoot;
 						uint64_t Expires = 604800;
 					} Session;
 
@@ -447,8 +447,8 @@ namespace Edge
 				} Callbacks;
 
 			public:
-				std::vector<RouteGroup*> Groups;
-				std::string ResourceRoot = "./temp";
+				Core::Vector<RouteGroup*> Groups;
+				Core::String ResourceRoot = "./temp";
 				size_t MaxResources = 5;
 				RouteEntry* Base = nullptr;
 				MapRouter* Router = nullptr;
@@ -457,37 +457,37 @@ namespace Edge
 				SiteEntry();
 				~SiteEntry() noexcept;
 				void Sort();
-				RouteGroup* Group(const std::string& Match, RouteMode Mode);
-				RouteEntry* Route(const std::string& Match, RouteMode Mode, const std::string& Pattern);
-				RouteEntry* Route(const std::string& Pattern, RouteGroup* Group, RouteEntry* From);
+				RouteGroup* Group(const Core::String& Match, RouteMode Mode);
+				RouteEntry* Route(const Core::String& Match, RouteMode Mode, const Core::String& Pattern);
+				RouteEntry* Route(const Core::String& Pattern, RouteGroup* Group, RouteEntry* From);
 				bool Remove(RouteEntry* Source);
 				bool Get(const char* Pattern, const SuccessCallback& Callback);
-				bool Get(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
+				bool Get(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
 				bool Post(const char* Pattern, const SuccessCallback& Callback);
-				bool Post(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
+				bool Post(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
 				bool Put(const char* Pattern, const SuccessCallback& Callback);
-				bool Put(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
+				bool Put(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
 				bool Patch(const char* Pattern, const SuccessCallback& Callback);
-				bool Patch(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
+				bool Patch(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
 				bool Delete(const char* Pattern, const SuccessCallback& Callback);
-				bool Delete(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
+				bool Delete(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
 				bool Options(const char* Pattern, const SuccessCallback& Callback);
-				bool Options(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
+				bool Options(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
 				bool Access(const char* Pattern, const SuccessCallback& Callback);
-				bool Access(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
+				bool Access(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
 				bool WebSocketConnect(const char* Pattern, const WebSocketCallback& Callback);
-				bool WebSocketConnect(const std::string& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback);
+				bool WebSocketConnect(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback);
 				bool WebSocketDisconnect(const char* Pattern, const WebSocketCallback& Callback);
-				bool WebSocketDisconnect(const std::string& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback);
+				bool WebSocketDisconnect(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback);
 				bool WebSocketReceive(const char* Pattern, const WebSocketReadCallback& Callback);
-				bool WebSocketReceive(const std::string& Match, RouteMode Mode, const char* Pattern, const WebSocketReadCallback& Callback);
+				bool WebSocketReceive(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketReadCallback& Callback);
 			};
 
 			class ED_OUT MapRouter final : public SocketRouter
 			{
 			public:
-				std::unordered_map<std::string, SiteEntry*> Sites;
-				std::string ModuleRoot;
+				Core::UnorderedMap<Core::String, SiteEntry*> Sites;
+				Core::String ModuleRoot;
 				Scripting::VirtualMachine* VM;
 
 			public:
@@ -544,23 +544,23 @@ namespace Edge
 				~Query() noexcept;
 				void Clear();
 				void Steal(Core::Schema** Output);
-				void Decode(const char* ContentType, const std::string& URI);
-				std::string Encode(const char* ContentType) const;
+				void Decode(const char* ContentType, const Core::String& URI);
+				Core::String Encode(const char* ContentType) const;
 				Core::Schema* Get(const char* Name) const;
 				Core::Schema* Set(const char* Name);
 				Core::Schema* Set(const char* Name, const char* Value);
 
 			private:
-				void NewParameter(std::vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value);
-				void DecodeAXWFD(const std::string& URI);
-				void DecodeAJSON(const std::string& URI);
-				std::string EncodeAXWFD() const;
-				std::string EncodeAJSON() const;
+				void NewParameter(Core::Vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value);
+				void DecodeAXWFD(const Core::String& URI);
+				void DecodeAJSON(const Core::String& URI);
+				Core::String EncodeAXWFD() const;
+				Core::String EncodeAJSON() const;
 				Core::Schema* GetParameter(QueryToken* Name);
 
 			private:
-				static std::string Build(Core::Schema* Base);
-				static std::string BuildFromBase(Core::Schema* Base);
+				static Core::String Build(Core::Schema* Base);
+				static Core::String BuildFromBase(Core::Schema* Base);
 				static Core::Schema* FindParameter(Core::Schema* Base, QueryToken* Name);
 			};
 
@@ -568,7 +568,7 @@ namespace Edge
 			{
 			public:
 				Core::Schema* Query = nullptr;
-				std::string SessionId;
+				Core::String SessionId;
 				int64_t SessionExpires = 0;
 				bool IsNewSession = false;
 
@@ -580,11 +580,11 @@ namespace Edge
 				bool Read(Connection* Base);
 
 			private:
-				std::string& FindSessionId(Connection* Base);
-				std::string& GenerateSessionId(Connection* Base);
+				Core::String& FindSessionId(Connection* Base);
+				Core::String& GenerateSessionId(Connection* Base);
 
 			public:
-				static bool InvalidateCache(const std::string& Path);
+				static bool InvalidateCache(const Core::String& Path);
 			};
 
 			class ED_OUT Parser final : public Core::Reference<Parser>
@@ -645,7 +645,7 @@ namespace Edge
 					ResponseFrame* Response = nullptr;
 					RouteEntry* Route = nullptr;
 					FILE* Stream = nullptr;
-					std::string Header;
+					Core::String Header;
 					Resource Source;
 					ResourceCallback Callback;
 					bool Close = false;
@@ -686,7 +686,7 @@ namespace Edge
 			class ED_OUT WebCodec final : public Core::Reference<WebCodec>
 			{
 			public:
-				typedef std::queue<std::pair<WebSocketOp, std::vector<char>>> MessageQueue;
+				typedef Core::SingleQueue<std::pair<WebSocketOp, Core::Vector<char>>> MessageQueue;
 
 			private:
 				enum class Bytecode
@@ -711,7 +711,7 @@ namespace Edge
 				};
 
 			private:
-				std::vector<char> Payload;
+				Core::Vector<char> Payload;
 				WebSocketOp Opcode;
 				MessageQueue Queue;
 				Bytecode State;
@@ -724,20 +724,20 @@ namespace Edge
 				uint8_t Masks;
 
 			public:
-				std::vector<char> Data;
+				Core::Vector<char> Data;
 
 			public:
 				WebCodec();
 				bool ParseFrame(const char* Data, size_t Size);
-				bool GetFrame(WebSocketOp* Op, std::vector<char>* Message);
+				bool GetFrame(WebSocketOp* Op, Core::Vector<char>* Message);
 			};
 
 			class ED_OUT_TS Util
 			{
 			public:
-				static std::string ConnectionResolve(Connection* Base);
+				static Core::String ConnectionResolve(Connection* Base);
 				static const char* StatusMessage(int StatusCode);
-				static const char* ContentType(const std::string& Path, std::vector<MimeType>* MimeTypes);
+				static const char* ContentType(const Core::String& Path, Core::Vector<MimeType>* MimeTypes);
 			};
 
 			class ED_OUT_TS Paths
@@ -749,7 +749,7 @@ namespace Edge
 				static void ConstructHeadUncache(Connection* Base, Core::Stringify* Buffer);
 				static bool ConstructRoute(MapRouter* Router, Connection* Base);
 				static bool ConstructDirectoryEntries(Connection* Base, const Core::FileEntry& A, const Core::FileEntry& B);
-				static std::string ConstructContentRange(size_t Offset, size_t Length, size_t ContentLength);
+				static Core::String ConstructContentRange(size_t Offset, size_t Length, size_t ContentLength);
 			};
 
 			class ED_OUT_TS Parsing
@@ -768,14 +768,14 @@ namespace Edge
 				static bool ParsePathValue(Parser* Parser, const char* Name, size_t Length);
 				static bool ParseQueryValue(Parser* Parser, const char* Name, size_t Length);
 				static int ParseContentRange(const char* ContentRange, int64_t* Range1, int64_t* Range2);
-				static std::string ParseMultipartDataBoundary();
-				static void ParseCookie(const std::string& Value);
+				static Core::String ParseMultipartDataBoundary();
+				static void ParseCookie(const Core::String& Value);
 			};
 
 			class ED_OUT_TS Permissions
 			{
 			public:
-				static std::string Authorize(const std::string& Username, const std::string& Password, const std::string& Type = "Basic");
+				static Core::String Authorize(const Core::String& Username, const Core::String& Password, const Core::String& Type = "Basic");
 				static bool Authorize(Connection* Base);
 				static bool MethodAllowed(Connection* Base);
 				static bool WebSocketUpgradeAllowed(Connection* Base);
@@ -785,7 +785,7 @@ namespace Edge
 			{
 			public:
 				static bool ResourceHasAlternative(Connection* Base);
-				static bool ResourceHidden(Connection* Base, std::string* Path);
+				static bool ResourceHidden(Connection* Base, Core::String* Path);
 				static bool ResourceIndexed(Connection* Base, Core::FileEntry* Resource);
 				static bool ResourceProvided(Connection* Base, Core::FileEntry* Resource);
 				static bool ResourceModified(Connection* Base, Core::FileEntry* Resource);
@@ -836,7 +836,7 @@ namespace Edge
 				bool OnConfigure(SocketRouter* New) override;
 				bool OnRequestEnded(SocketConnection* Base, bool Check) override;
 				bool OnRequestBegin(SocketConnection* Base) override;
-				bool OnStall(std::unordered_set<SocketConnection*>& Data) override;
+				bool OnStall(Core::UnorderedSet<SocketConnection*>& Data) override;
 				bool OnListen() override;
 				bool OnUnlisten() override;
 				SocketConnection* OnAllocate(SocketListener* Host) override;

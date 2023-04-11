@@ -21,10 +21,10 @@ namespace Edge
 		typedef std::pair<Graphics::Texture3D*, class Component*> VoxelMapping;
 		typedef Graphics::DepthTarget2D LinearDepthMap;
 		typedef Graphics::DepthTargetCube CubicDepthMap;
-		typedef std::vector<LinearDepthMap*> CascadedDepthMap;
+		typedef Core::Vector<LinearDepthMap*> CascadedDepthMap;
 		typedef std::function<void(Core::Timer*, struct Viewer*)> RenderCallback;
 		typedef std::function<void(class ContentManager*, bool)> SaveCallback;
-		typedef std::function<void(const std::string&, Core::VariantArgs&)> MessageCallback;
+		typedef std::function<void(const Core::String&, Core::VariantArgs&)> MessageCallback;
 		typedef std::function<bool(class Component*, const Compute::Vector3&)> RayCallback;
 		typedef std::function<bool(Graphics::RenderTarget*)> TargetCallback;
 
@@ -199,12 +199,12 @@ namespace Edge
 
 		struct ED_OUT Event
 		{
-			std::string Name;
+			Core::String Name;
 			Core::VariantArgs Args;
 
-			Event(const std::string& NewName) noexcept;
-			Event(const std::string& NewName, const Core::VariantArgs& NewArgs) noexcept;
-			Event(const std::string& NewName, Core::VariantArgs&& NewArgs) noexcept;
+			Event(const Core::String& NewName) noexcept;
+			Event(const Core::String& NewName, const Core::VariantArgs& NewArgs) noexcept;
+			Event(const Core::String& NewName, Core::VariantArgs&& NewArgs) noexcept;
 			Event(const Event& Other) noexcept;
 			Event(Event&& Other) noexcept;
 			Event& operator= (const Event& Other) noexcept;
@@ -221,14 +221,14 @@ namespace Edge
 
 		struct ED_OUT AssetCache
 		{
-			std::string Path;
+			Core::String Path;
 			void* Resource = nullptr;
 		};
 
 		struct ED_OUT AssetArchive
 		{
 			Core::Stream* Stream = nullptr;
-			std::string Path;
+			Core::String Path;
 			size_t Length = 0;
 			size_t Offset = 0;
 		};
@@ -248,8 +248,8 @@ namespace Edge
 
 		struct ED_OUT IdxSnapshot
 		{
-			std::unordered_map<Entity*, size_t> To;
-			std::unordered_map<size_t, Entity*> From;
+			Core::UnorderedMap<Entity*, size_t> To;
+			Core::UnorderedMap<size_t, Entity*> From;
 		};
 
 		struct ED_OUT VisibilityQuery
@@ -403,8 +403,8 @@ namespace Edge
 
 		struct ED_OUT PoseBuffer
 		{
-			std::unordered_map<Graphics::SkinMeshBuffer*, PoseMatrices> Matrices;
-			std::unordered_map<size_t, PoseData> Offsets;
+			Core::UnorderedMap<Graphics::SkinMeshBuffer*, PoseMatrices> Matrices;
+			Core::UnorderedMap<size_t, PoseData> Offsets;
 
 			void Fill(SkinModel* Mesh);
 			void Fill(Compute::Joint& Next);
@@ -439,30 +439,30 @@ namespace Edge
 			static void Pack(Core::Schema* V, const Compute::Vertex& Value);
 			static void Pack(Core::Schema* V, const Compute::SkinVertex& Value);
 			static void Pack(Core::Schema* V, const Ticker& Value);
-			static void Pack(Core::Schema* V, const std::string& Value);
-			static void Pack(Core::Schema* V, const std::vector<bool>& Value);
-			static void Pack(Core::Schema* V, const std::vector<int>& Value);
-			static void Pack(Core::Schema* V, const std::vector<unsigned int>& Value);
-			static void Pack(Core::Schema* V, const std::vector<float>& Value);
-			static void Pack(Core::Schema* V, const std::vector<double>& Value);
-			static void Pack(Core::Schema* V, const std::vector<int64_t>& Value);
-			static void Pack(Core::Schema* V, const std::vector<long double>& Value);
-			static void Pack(Core::Schema* V, const std::vector<uint64_t>& Value);
-			static void Pack(Core::Schema* V, const std::vector<Compute::Vector2>& Value);
-			static void Pack(Core::Schema* V, const std::vector<Compute::Vector3>& Value);
-			static void Pack(Core::Schema* V, const std::vector<Compute::Vector4>& Value);
-			static void Pack(Core::Schema* V, const std::vector<Compute::Matrix4x4>& Value);
-			static void Pack(Core::Schema* V, const std::vector<AnimatorState>& Value);
-			static void Pack(Core::Schema* V, const std::vector<SpawnerProperties>& Value);
-			static void Pack(Core::Schema* V, const std::vector<Compute::KeyAnimatorClip>& Value);
-			static void Pack(Core::Schema* V, const std::vector<Compute::AnimatorKey>& Value);
-			static void Pack(Core::Schema* V, const std::vector<Compute::ElementVertex>& Value);
-			static void Pack(Core::Schema* V, const std::vector<Compute::Joint>& Value);
-			static void Pack(Core::Schema* V, const std::vector<Compute::Vertex>& Value);
-			static void Pack(Core::Schema* V, const std::vector<Compute::SkinVertex>& Value);
-			static void Pack(Core::Schema* V, const std::vector<Ticker>& Value);
-			static void Pack(Core::Schema* V, const std::vector<std::string>& Value);
-			static void Pack(Core::Schema* V, const std::unordered_map<size_t, size_t>& Value);
+			static void Pack(Core::Schema* V, const Core::String& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<bool>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<int>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<unsigned int>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<float>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<double>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<int64_t>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<long double>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<uint64_t>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<Compute::Vector2>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<Compute::Vector3>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<Compute::Vector4>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<Compute::Matrix4x4>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<AnimatorState>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<SpawnerProperties>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<Compute::KeyAnimatorClip>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<Compute::AnimatorKey>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<Compute::ElementVertex>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<Compute::Joint>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<Compute::Vertex>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<Compute::SkinVertex>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<Ticker>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<Core::String>& Value);
+			static void Pack(Core::Schema* V, const Core::UnorderedMap<size_t, size_t>& Value);
 			static bool Unpack(Core::Schema* V, bool* O);
 			static bool Unpack(Core::Schema* V, int* O);
 			static bool Unpack(Core::Schema* V, unsigned int* O);
@@ -488,30 +488,30 @@ namespace Edge
 			static bool Unpack(Core::Schema* V, Compute::Vertex* O);
 			static bool Unpack(Core::Schema* V, Compute::SkinVertex* O);
 			static bool Unpack(Core::Schema* V, Ticker* O);
-			static bool Unpack(Core::Schema* V, std::string* O);
-			static bool Unpack(Core::Schema* V, std::vector<bool>* O);
-			static bool Unpack(Core::Schema* V, std::vector<int>* O);
-			static bool Unpack(Core::Schema* V, std::vector<unsigned int>* O);
-			static bool Unpack(Core::Schema* V, std::vector<float>* O);
-			static bool Unpack(Core::Schema* V, std::vector<double>* O);
-			static bool Unpack(Core::Schema* V, std::vector<int64_t>* O);
-			static bool Unpack(Core::Schema* V, std::vector<long double>* O);
-			static bool Unpack(Core::Schema* V, std::vector<uint64_t>* O);
-			static bool Unpack(Core::Schema* V, std::vector<Compute::Vector2>* O);
-			static bool Unpack(Core::Schema* V, std::vector<Compute::Vector3>* O);
-			static bool Unpack(Core::Schema* V, std::vector<Compute::Vector4>* O);
-			static bool Unpack(Core::Schema* V, std::vector<Compute::Matrix4x4>* O);
-			static bool Unpack(Core::Schema* V, std::vector<AnimatorState>* O);
-			static bool Unpack(Core::Schema* V, std::vector<SpawnerProperties>* O);
-			static bool Unpack(Core::Schema* V, std::vector<Compute::KeyAnimatorClip>* O);
-			static bool Unpack(Core::Schema* V, std::vector<Compute::AnimatorKey>* O);
-			static bool Unpack(Core::Schema* V, std::vector<Compute::ElementVertex>* O);
-			static bool Unpack(Core::Schema* V, std::vector<Compute::Joint>* O);
-			static bool Unpack(Core::Schema* V, std::vector<Compute::Vertex>* O);
-			static bool Unpack(Core::Schema* V, std::vector<Compute::SkinVertex>* O);
-			static bool Unpack(Core::Schema* V, std::vector<Ticker>* O);
-			static bool Unpack(Core::Schema* V, std::vector<std::string>* O);
-			static bool Unpack(Core::Schema* V, std::unordered_map<size_t, size_t>* O);
+			static bool Unpack(Core::Schema* V, Core::String* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<bool>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<int>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<unsigned int>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<float>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<double>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<int64_t>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<long double>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<uint64_t>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<Compute::Vector2>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<Compute::Vector3>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<Compute::Vector4>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<Compute::Matrix4x4>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<AnimatorState>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<SpawnerProperties>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<Compute::KeyAnimatorClip>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<Compute::AnimatorKey>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<Compute::ElementVertex>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<Compute::Joint>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<Compute::Vertex>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<Compute::SkinVertex>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<Ticker>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<Core::String>* O);
+			static bool Unpack(Core::Schema* V, Core::UnorderedMap<size_t, size_t>* O);
 		};
 
 		class ED_OUT_TS Parallel
@@ -559,17 +559,17 @@ namespace Edge
 
 		public:
 			static Task Enqueue(const Core::TaskCallback& Callback);
-			static std::vector<Task> EnqueueAll(const std::vector<Core::TaskCallback>& Callbacks);
+			static Core::Vector<Task> EnqueueAll(const Core::Vector<Core::TaskCallback>& Callbacks);
 			static void Wait(const Task& Value);
-			static void WailAll(const std::vector<Task>& Values);
+			static void WailAll(const Core::Vector<Task>& Values);
 			static size_t GetThreadIndex();
 			static size_t GetThreads();
 
 		public:
 			template <typename Iterator, typename Function>
-			static std::vector<Task> ForEach(Iterator Begin, Iterator End, Function&& Callback)
+			static Core::Vector<Task> ForEach(Iterator Begin, Iterator End, Function&& Callback)
 			{
-				std::vector<Task> Tasks;
+				Core::Vector<Task> Tasks;
 				size_t Size = End - Begin;
 
 				if (!Size)
@@ -590,9 +590,9 @@ namespace Edge
 				return Tasks;
 			}
 			template <typename Iterator, typename InitFunction, typename ElementFunction>
-			static std::vector<Task> Distribute(Iterator Begin, Iterator End, InitFunction&& InitCallback, ElementFunction&& ElementCallback)
+			static Core::Vector<Task> Distribute(Iterator Begin, Iterator End, InitFunction&& InitCallback, ElementFunction&& ElementCallback)
 			{
-				std::vector<Task> Tasks;
+				Core::Vector<Task> Tasks;
 				size_t Size = End - Begin;
 				if (!Size)
 				{
@@ -634,7 +634,7 @@ namespace Edge
 		class ED_OUT Model final : public Core::Reference<Model>
 		{
 		public:
-			std::vector<Graphics::MeshBuffer*> Meshes;
+			Core::Vector<Graphics::MeshBuffer*> Meshes;
 			Compute::Vector4 Max;
 			Compute::Vector4 Min;
 
@@ -642,13 +642,13 @@ namespace Edge
 			Model() noexcept;
 			~Model() noexcept;
 			void Cleanup();
-			Graphics::MeshBuffer* FindMesh(const std::string& Name);
+			Graphics::MeshBuffer* FindMesh(const Core::String& Name);
 		};
 
 		class ED_OUT SkinModel final : public Core::Reference<SkinModel>
 		{
 		public:
-			std::vector<Graphics::SkinMeshBuffer*> Meshes;
+			Core::Vector<Graphics::SkinMeshBuffer*> Meshes;
 			Compute::Joint Skeleton;
 			Compute::Matrix4x4 InvTransform;
 			Compute::Matrix4x4 Transform;
@@ -658,11 +658,11 @@ namespace Edge
 		public:
 			SkinModel() noexcept;
 			~SkinModel() noexcept;
-			bool FindJoint(const std::string& Name, Compute::Joint* Output);
+			bool FindJoint(const Core::String& Name, Compute::Joint* Output);
 			bool FindJoint(size_t Index, Compute::Joint* Output);
 			void Synchronize(PoseBuffer* Map);
 			void Cleanup();
-			Graphics::SkinMeshBuffer* FindMesh(const std::string& Name);
+			Graphics::SkinMeshBuffer* FindMesh(const Core::String& Name);
 
 		private:
 			void Synchronize(PoseBuffer* Map, Compute::Joint& Next, const Compute::Matrix4x4& ParentOffset);
@@ -671,12 +671,12 @@ namespace Edge
 		class ED_OUT SkinAnimation final : public Core::Reference<SkinAnimation>
 		{
 		private:
-			std::vector<Compute::SkinAnimatorClip> Clips;
+			Core::Vector<Compute::SkinAnimatorClip> Clips;
 
 		public:
-			SkinAnimation(std::vector<Compute::SkinAnimatorClip>&& Data) noexcept;
+			SkinAnimation(Core::Vector<Compute::SkinAnimatorClip>&& Data) noexcept;
 			~SkinAnimation() = default;
-			const std::vector<Compute::SkinAnimatorClip>& GetClips();
+			const Core::Vector<Compute::SkinAnimatorClip>& GetClips();
 			bool IsValid();
 		};
 
@@ -694,7 +694,7 @@ namespace Edge
 			Graphics::Texture2D* HeightMap;
 			Graphics::Texture2D* OcclusionMap;
 			Graphics::Texture2D* EmissionMap;
-			std::string Name;
+			Core::String Name;
 			SceneGraph* Scene;
 
 		public:
@@ -705,8 +705,8 @@ namespace Edge
 			Material(SceneGraph* NewScene = nullptr) noexcept;
 			Material(const Material& Other) noexcept;
 			~Material() noexcept;
-			void SetName(const std::string& Value);
-			const std::string& GetName() const;
+			void SetName(const Core::String& Value);
+			const Core::String& GetName() const;
 			void SetDiffuseMap(Graphics::Texture2D* New);
 			Graphics::Texture2D* GetDiffuseMap() const;
 			void SetNormalMap(Graphics::Texture2D* New);
@@ -764,7 +764,7 @@ namespace Edge
 			virtual void Synchronize(Core::Timer* Time);
 			virtual void Animate(Core::Timer* Time);
 			virtual void Update(Core::Timer* Time);
-			virtual void Message(const std::string& Name, Core::VariantArgs& Args);
+			virtual void Message(const Core::String& Name, Core::VariantArgs& Args);
 			virtual void Movement();
 			virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const;
 			virtual float GetVisibility(const Viewer& View, float Distance) const;
@@ -801,8 +801,8 @@ namespace Edge
 
 			struct
 			{
-				std::unordered_map<uint64_t, Component*> Components;
-				std::string Name;
+				Core::UnorderedMap<uint64_t, Component*> Components;
+				Core::String Name;
 			} Type;
 
 		private:
@@ -811,7 +811,7 @@ namespace Edge
 			bool Active;
 
 		public:
-			void SetName(const std::string& Value);
+			void SetName(const Core::String& Value);
 			void SetRoot(Entity* Parent);
 			void UpdateBounds();
 			void RemoveComponent(uint64_t Id);
@@ -826,7 +826,7 @@ namespace Edge
 			const Compute::Matrix4x4& GetBox() const;
 			const Compute::Vector3& GetMin() const;
 			const Compute::Vector3& GetMax() const;
-			const std::string& GetName() const;
+			const Core::String& GetName() const;
 			size_t GetChildsCount() const;
 			float GetVisibility(const Viewer& Base) const;
 			bool IsActive() const;
@@ -838,11 +838,11 @@ namespace Edge
 			~Entity() noexcept;
 
 		public:
-			std::unordered_map<uint64_t, Component*>::iterator begin()
+			Core::UnorderedMap<uint64_t, Component*>::iterator begin()
 			{
 				return Type.Components.begin();
 			}
-			std::unordered_map<uint64_t, Component*>::iterator end()
+			Core::UnorderedMap<uint64_t, Component*>::iterator end()
 			{
 				return Type.Components.end();
 			}
@@ -877,7 +877,7 @@ namespace Edge
 			friend SceneGraph;
 
 		protected:
-			std::unordered_map<void*, Material*> Materials;
+			Core::UnorderedMap<void*, Material*> Materials;
 
 		private:
 			GeoCategory Category;
@@ -890,7 +890,7 @@ namespace Edge
 		public:
 			Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash) noexcept;
 			virtual ~Drawable() noexcept;
-			virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
+			virtual void Message(const Core::String& Name, Core::VariantArgs& Args) override;
 			virtual void Movement() override;
 			virtual Core::Unique<Component> Copy(Entity* New) const override = 0;
 			void ClearMaterials();
@@ -902,7 +902,7 @@ namespace Edge
 			int64_t GetSlot();
 			Material* GetMaterial(void* Surface);
 			Material* GetMaterial();
-			const std::unordered_map<void*, Material*>& GetMaterials();
+			const Core::UnorderedMap<void*, Material*>& GetMaterials();
 
 		public:
 			ED_COMPONENT("drawable_component");
@@ -975,7 +975,7 @@ namespace Edge
 				Compute::Cosmos::Iterator Stack;
 				Compute::Frustum6P Frustum;
 				Compute::Bounding Bounds;
-				std::vector<void*> Queue;
+				Core::Vector<void*> Queue;
 			} Indexing;
 
 			struct RsState
@@ -1015,7 +1015,7 @@ namespace Edge
 			} State;
 
 		protected:
-			std::vector<Renderer*> Renderers;
+			Core::Vector<Renderer*> Renderers;
 			Graphics::GraphicsDevice* Device;
 			Material* BaseMaterial;
 			SceneGraph* Scene;
@@ -1050,9 +1050,9 @@ namespace Edge
 			void MoveRenderer(uint64_t Id, size_t Offset);
 			void RemoveRenderer(uint64_t Id);
 			void RestoreOutput();
-			void FreeShader(const std::string& Name, Graphics::Shader* Shader);
+			void FreeShader(const Core::String& Name, Graphics::Shader* Shader);
 			void FreeShader(Graphics::Shader* Shader);
-			void FreeBuffers(const std::string& Name, Graphics::ElementBuffer** Buffers);
+			void FreeBuffers(const Core::String& Name, Graphics::ElementBuffer** Buffers);
 			void FreeBuffers(Graphics::ElementBuffer** Buffers);
 			void UpdateConstantBuffer(RenderBufferType Buffer);
 			void ClearMaterials();
@@ -1062,12 +1062,12 @@ namespace Edge
 			bool TryGeometry(Material* Next, bool WithTextures);
 			bool HasCategory(GeoCategory Category);
 			Graphics::Shader* CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
-			Graphics::Shader* CompileShader(const std::string& SectionName, size_t BufferSize = 0);
-			bool CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount);
+			Graphics::Shader* CompileShader(const Core::String& SectionName, size_t BufferSize = 0);
+			bool CompileBuffers(Graphics::ElementBuffer** Result, const Core::String& Name, size_t ElementSize, size_t ElementsCount);
 			Renderer* AddRenderer(Core::Unique<Renderer> In);
 			Renderer* GetRenderer(uint64_t Id);
 			bool GetOffset(uint64_t Id, size_t& Offset) const;
-			std::vector<Renderer*>& GetRenderers();
+			Core::Vector<Renderer*>& GetRenderers();
 			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type) const;
 			Graphics::RenderTarget2D* GetRT(TargetType Type) const;
 			Graphics::Texture2D** GetMerger();
@@ -1080,7 +1080,7 @@ namespace Edge
 
 		private:
 			SparseIndex& GetStorageWrapper(uint64_t Section);
-			void WatchAll(std::vector<Parallel::Task>&& Tasks);
+			void WatchAll(Core::Vector<Parallel::Task>&& Tasks);
 
 		private:
 			template <typename T, typename OverlapsFunction, typename MatchFunction>
@@ -1272,19 +1272,19 @@ namespace Edge
 			};
 
 		private:
-			std::unordered_map<std::string, SCache> Cache;
+			Core::UnorderedMap<Core::String, SCache> Cache;
 			Graphics::GraphicsDevice* Device;
 			std::mutex Safe;
 
 		public:
 			ShaderCache(Graphics::GraphicsDevice* Device) noexcept;
 			~ShaderCache() noexcept;
-			Graphics::Shader* Compile(const std::string& Name, const Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
-			Graphics::Shader* Get(const std::string& Name);
-			std::string Find(Graphics::Shader* Shader);
-			const std::unordered_map<std::string, SCache>& GetCaches() const;
-			bool Has(const std::string& Name);
-			bool Free(const std::string& Name, Graphics::Shader* Shader = nullptr);
+			Graphics::Shader* Compile(const Core::String& Name, const Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
+			Graphics::Shader* Get(const Core::String& Name);
+			Core::String Find(Graphics::Shader* Shader);
+			const Core::UnorderedMap<Core::String, SCache>& GetCaches() const;
+			bool Has(const Core::String& Name);
+			bool Free(const Core::String& Name, Graphics::Shader* Shader = nullptr);
 			void ClearCache();
 		};
 
@@ -1298,7 +1298,7 @@ namespace Edge
 			};
 
 		private:
-			std::unordered_map<std::string, SCache> Cache;
+			Core::UnorderedMap<Core::String, SCache> Cache;
 			Graphics::GraphicsDevice* Device;
 			Graphics::ElementBuffer* Sphere[2];
 			Graphics::ElementBuffer* Cube[2];
@@ -1312,11 +1312,11 @@ namespace Edge
 		public:
 			PrimitiveCache(Graphics::GraphicsDevice* Device) noexcept;
 			~PrimitiveCache() noexcept;
-			bool Compile(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount);
-			bool Get(Graphics::ElementBuffer** Result, const std::string& Name);
-			bool Has(const std::string& Name);
-			bool Free(const std::string& Name, Graphics::ElementBuffer** Buffers);
-			std::string Find(Graphics::ElementBuffer** Buffer);
+			bool Compile(Graphics::ElementBuffer** Result, const Core::String& Name, size_t ElementSize, size_t ElementsCount);
+			bool Get(Graphics::ElementBuffer** Result, const Core::String& Name);
+			bool Has(const Core::String& Name);
+			bool Free(const Core::String& Name, Graphics::ElementBuffer** Buffers);
+			Core::String Find(Graphics::ElementBuffer** Buffer);
 			Model* GetBoxModel();
 			SkinModel* GetSkinBoxModel();
 			Graphics::ElementBuffer* GetQuad();
@@ -1324,7 +1324,7 @@ namespace Edge
 			Graphics::ElementBuffer* GetCube(BufferType Type);
 			Graphics::ElementBuffer* GetBox(BufferType Type);
 			Graphics::ElementBuffer* GetSkinBox(BufferType Type);
-			const std::unordered_map<std::string, SCache>& GetCaches() const;
+			const Core::UnorderedMap<Core::String, SCache>& GetCaches() const;
 			void GetSphereBuffers(Graphics::ElementBuffer** Result);
 			void GetCubeBuffers(Graphics::ElementBuffer** Result);
 			void GetBoxBuffers(Graphics::ElementBuffer** Result);
@@ -1335,12 +1335,12 @@ namespace Edge
 		class ED_OUT_TS ContentManager final : public Core::Reference<ContentManager>
 		{
 		private:
-			std::unordered_map<std::string, std::unordered_map<Processor*, AssetCache*>> Assets;
-			std::unordered_map<std::string, AssetArchive*> Dockers;
-			std::unordered_map<uint64_t, Processor*> Processors;
-			std::unordered_map<Core::Stream*, size_t> Streams;
+			Core::UnorderedMap<Core::String, Core::UnorderedMap<Processor*, AssetCache*>> Assets;
+			Core::UnorderedMap<Core::String, AssetArchive*> Dockers;
+			Core::UnorderedMap<uint64_t, Processor*> Processors;
+			Core::UnorderedMap<Core::Stream*, size_t> Streams;
 			Graphics::GraphicsDevice* Device;
-			std::string Environment, Base;
+			Core::String Environment, Base;
 			std::mutex Mutex;
 			size_t Queue;
 
@@ -1351,39 +1351,39 @@ namespace Edge
 			void ClearDockers();
 			void ClearStreams();
 			void ClearProcessors();
-			void ClearPath(const std::string& Path);
-			void SetEnvironment(const std::string& Path);
+			void ClearPath(const Core::String& Path);
+			void SetEnvironment(const Core::String& Path);
 			void SetDevice(Graphics::GraphicsDevice* NewDevice);
-			void* Load(Processor* Processor, const std::string& Path, const Core::VariantArgs& Keys);
-			bool Save(Processor* Processor, const std::string& Path, void* Object, const Core::VariantArgs& Keys);
-			Core::Promise<void*> LoadAsync(Processor* Processor, const std::string& Path, const Core::VariantArgs& Keys);
-			Core::Promise<bool> SaveAsync(Processor* Processor, const std::string& Path, void* Object, const Core::VariantArgs& Keys);
+			void* Load(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
+			bool Save(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Keys);
+			Core::Promise<void*> LoadAsync(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
+			Core::Promise<bool> SaveAsync(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Keys);
 			Processor* AddProcessor(Processor* Value, uint64_t Id);
 			Processor* GetProcessor(uint64_t Id);
-			AssetCache* FindCache(Processor* Target, const std::string& Path);
+			AssetCache* FindCache(Processor* Target, const Core::String& Path);
 			AssetCache* FindCache(Processor* Target, void* Resource);
-			const std::unordered_map<uint64_t, Processor*>& GetProcessors() const;
+			const Core::UnorderedMap<uint64_t, Processor*>& GetProcessors() const;
 			bool RemoveProcessor(uint64_t Id);
-			bool Import(const std::string& Path);
-			bool Export(const std::string& Path, const std::string& Directory, const std::string& Name = "");
-			void* TryToCache(Processor* Root, const std::string& Path, void* Resource);
+			bool Import(const Core::String& Path);
+			bool Export(const Core::String& Path, const Core::String& Directory, const Core::String& Name = "");
+			void* TryToCache(Processor* Root, const Core::String& Path, void* Resource);
 			bool IsBusy();
 			Graphics::GraphicsDevice* GetDevice() const;
-			const std::string& GetEnvironment() const;
+			const Core::String& GetEnvironment() const;
 
 		private:
-			void* LoadDockerized(Processor* Processor, const std::string& Path, const Core::VariantArgs& Keys);
+			void* LoadDockerized(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
 			void Enqueue();
 			void Dequeue();
 
 		public:
 			template <typename T>
-			Core::Unique<T> Load(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
+			Core::Unique<T> Load(const Core::String& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				return (T*)Load(GetProcessor<T>(), Path, Keys);
 			}
 			template <typename T>
-			Core::Promise<Core::Unique<T>> LoadAsync(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
+			Core::Promise<Core::Unique<T>> LoadAsync(const Core::String& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				Enqueue();
 				return Core::Cotask<T*>([this, Path, Keys]()
@@ -1395,12 +1395,12 @@ namespace Edge
 				});
 			}
 			template <typename T>
-			bool Save(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
+			bool Save(const Core::String& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				return Save(GetProcessor<T>(), Path, Object, Keys);
 			}
 			template <typename T>
-			Core::Promise<bool> SaveAsync(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
+			Core::Promise<bool> SaveAsync(const Core::String& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				return SaveAsync(GetProcessor<T>(), Path, (void*)Object, Keys);
 			}
@@ -1420,7 +1420,7 @@ namespace Edge
 				return GetProcessor(typeid(T).hash_code());
 			}
 			template <typename T>
-			AssetCache* FindCache(const std::string& Path)
+			AssetCache* FindCache(const Core::String& Path)
 			{
 				return FindCache(GetProcessor<T>(), Path);
 			}
@@ -1436,23 +1436,23 @@ namespace Edge
 		private:
 			ContentManager* Content;
 			Core::Schema* Data;
-			std::string Path;
+			Core::String Path;
 			std::mutex Safe;
 
 		public:
-			AppData(ContentManager* Manager, const std::string& Path) noexcept;
+			AppData(ContentManager* Manager, const Core::String& Path) noexcept;
 			~AppData() noexcept;
-			void Migrate(const std::string& Path);
-			void SetKey(const std::string& Name, Core::Unique<Core::Schema> Value);
-			void SetText(const std::string& Name, const std::string& Value);
-			Core::Unique<Core::Schema> GetKey(const std::string& Name);
-			std::string GetText(const std::string& Name);
-			bool Has(const std::string& Name);
+			void Migrate(const Core::String& Path);
+			void SetKey(const Core::String& Name, Core::Unique<Core::Schema> Value);
+			void SetText(const Core::String& Name, const Core::String& Value);
+			Core::Unique<Core::Schema> GetKey(const Core::String& Name);
+			Core::String GetText(const Core::String& Name);
+			bool Has(const Core::String& Name);
 			Core::Schema* GetSnapshot() const;
 
 		private:
-			bool ReadAppData(const std::string& Path);
-			bool WriteAppData(const std::string& Path);
+			bool ReadAppData(const Core::String& Path);
+			bool WriteAppData(const Core::String& Path);
 		};
 
 		class ED_OUT SceneGraph final : public Core::Reference<SceneGraph>
@@ -1515,10 +1515,10 @@ namespace Edge
 				Graphics::SamplerState* Sampler;
 				Graphics::InputLayout* Layout;
 				Graphics::Texture2D* Merger;
-				std::vector<CubicDepthMap*> Points;
-				std::vector<LinearDepthMap*> Spots;
-				std::vector<CascadedDepthMap*> Lines;
-				std::vector<VoxelMapping> Voxels;
+				Core::Vector<CubicDepthMap*> Points;
+				Core::Vector<LinearDepthMap*> Spots;
+				Core::Vector<CascadedDepthMap*> Lines;
+				Core::Vector<VoxelMapping> Voxels;
 			} Display;
 
 			struct
@@ -1528,13 +1528,13 @@ namespace Edge
 			} Loading;
 
 		protected:
-			std::unordered_map<std::string, std::unordered_set<MessageCallback*>> Listeners;
-			std::unordered_map<uint64_t, std::unordered_set<Component*>> Changes;
-			std::unordered_map<uint64_t, SparseIndex*> Registry;
-			std::unordered_map<Component*, size_t> Incomplete;
-			std::queue<Core::TaskCallback> Transactions;
-			std::queue<Parallel::Task> Tasks;
-			std::queue<Event> Events;
+			Core::UnorderedMap<Core::String, Core::UnorderedSet<MessageCallback*>> Listeners;
+			Core::UnorderedMap<uint64_t, Core::UnorderedSet<Component*>> Changes;
+			Core::UnorderedMap<uint64_t, SparseIndex*> Registry;
+			Core::UnorderedMap<Component*, size_t> Incomplete;
+			Core::SingleQueue<Core::TaskCallback> Transactions;
+			Core::SingleQueue<Parallel::Task> Tasks;
+			Core::SingleQueue<Event> Events;
 			Core::Pool<Component*> Actors[(size_t)ActorType::Count];
 			Core::Pool<Material*> Materials;
 			Core::Pool<Entity*> Entities;
@@ -1571,7 +1571,7 @@ namespace Edge
 			void DeleteEntity(Core::Unique<Entity> Entity);
 			void SetCamera(Entity* Camera);
 			void RayTest(uint64_t Section, const Compute::Ray& Origin, const RayCallback& Callback);
-			void ScriptHook(const std::string& Name = "main");
+			void ScriptHook(const Core::String& Name = "main");
 			void SetActive(bool Enabled);
 			void SetMRT(TargetType Type, bool Clear);
 			void SetRT(TargetType Type, bool Clear);
@@ -1586,7 +1586,7 @@ namespace Edge
 			void MakeSnapshot(IdxSnapshot* Result);
 			void Transaction(Core::TaskCallback&& Callback);
 			void Watch(Parallel::Task&& Awaitable);
-			void WatchAll(std::vector<Parallel::Task>&& Awaitables);
+			void WatchAll(Core::Vector<Parallel::Task>&& Awaitables);
 			void AwaitAll();
 			void ClearCulling();
 			void ReserveMaterials(size_t Size);
@@ -1594,14 +1594,14 @@ namespace Edge
 			void ReserveComponents(uint64_t Section, size_t Size);
 			void GenerateDepthCascades(Core::Unique<CascadedDepthMap>* Result, uint32_t Size) const;
 			bool GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out);
-			bool PushEvent(const std::string& EventName, Core::VariantArgs&& Args, bool Propagate);
-			bool PushEvent(const std::string& EventName, Core::VariantArgs&& Args, Component* Target);
-			bool PushEvent(const std::string& EventName, Core::VariantArgs&& Args, Entity* Target);
-			MessageCallback* SetListener(const std::string& Event, MessageCallback&& Callback);
-			bool ClearListener(const std::string& Event, MessageCallback* Id);
+			bool PushEvent(const Core::String& EventName, Core::VariantArgs&& Args, bool Propagate);
+			bool PushEvent(const Core::String& EventName, Core::VariantArgs&& Args, Component* Target);
+			bool PushEvent(const Core::String& EventName, Core::VariantArgs&& Args, Entity* Target);
+			MessageCallback* SetListener(const Core::String& Event, MessageCallback&& Callback);
+			bool ClearListener(const Core::String& Event, MessageCallback* Id);
 			bool AddMaterial(Core::Unique<Material> Base);
-			void LoadResource(uint64_t Id, Component* Context, const std::string& Path, const Core::VariantArgs& Keys, const std::function<void(void*)>& Callback);
-			std::string FindResourceId(uint64_t Id, void* Resource);
+			void LoadResource(uint64_t Id, Component* Context, const Core::String& Path, const Core::VariantArgs& Keys, const std::function<void(void*)>& Callback);
+			Core::String FindResourceId(uint64_t Id, void* Resource);
 			Material* GetInvalidMaterial();
 			Material* AddMaterial();
 			Material* CloneMaterial(Material* Base);
@@ -1612,7 +1612,7 @@ namespace Edge
 			Component* GetCamera();
 			RenderSystem* GetRenderer();
 			Viewer GetCameraViewer() const;
-			Material* GetMaterial(const std::string& Material);
+			Material* GetMaterial(const Core::String& Material);
 			Material* GetMaterial(size_t Material);
 			SparseIndex& GetStorage(uint64_t Section);
 			Core::Pool<Component*>& GetComponents(uint64_t Section);
@@ -1620,19 +1620,19 @@ namespace Edge
 			Graphics::RenderTarget2D::Desc GetDescRT() const;
 			Graphics::MultiRenderTarget2D::Desc GetDescMRT() const;
 			Graphics::Format GetFormatMRT(unsigned int Target) const;
-			std::vector<Entity*> CloneEntityAsArray(Entity* Value);
-			std::vector<Entity*> QueryByParent(Entity* Parent) const;
-			std::vector<Entity*> QueryByName(const std::string& Name) const;
-			std::vector<Component*> QueryByPosition(uint64_t Section, const Compute::Vector3& Position, float Radius);
-			std::vector<Component*> QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max);
-			std::vector<Component*> QueryByMatch(uint64_t Section, std::function<bool(const Compute::Bounding&)>&& MatchCallback);
-			std::vector<std::pair<Component*, Compute::Vector3>> QueryByRay(uint64_t Section, const Compute::Ray& Origin);
-			std::vector<CubicDepthMap*>& GetPointsMapping();
-			std::vector<LinearDepthMap*>& GetSpotsMapping();
-			std::vector<CascadedDepthMap*>& GetLinesMapping();
-			std::vector<VoxelMapping>& GetVoxelsMapping();
-			const std::unordered_map<uint64_t, SparseIndex*>& GetRegistry() const;
-			std::string AsResourcePath(const std::string& Path);
+			Core::Vector<Entity*> CloneEntityAsArray(Entity* Value);
+			Core::Vector<Entity*> QueryByParent(Entity* Parent) const;
+			Core::Vector<Entity*> QueryByName(const Core::String& Name) const;
+			Core::Vector<Component*> QueryByPosition(uint64_t Section, const Compute::Vector3& Position, float Radius);
+			Core::Vector<Component*> QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max);
+			Core::Vector<Component*> QueryByMatch(uint64_t Section, std::function<bool(const Compute::Bounding&)>&& MatchCallback);
+			Core::Vector<std::pair<Component*, Compute::Vector3>> QueryByRay(uint64_t Section, const Compute::Ray& Origin);
+			Core::Vector<CubicDepthMap*>& GetPointsMapping();
+			Core::Vector<LinearDepthMap*>& GetSpotsMapping();
+			Core::Vector<CascadedDepthMap*>& GetLinesMapping();
+			Core::Vector<VoxelMapping>& GetVoxelsMapping();
+			const Core::UnorderedMap<uint64_t, SparseIndex*>& GetRegistry() const;
+			Core::String AsResourcePath(const Core::String& Path);
 			Entity* AddEntity();
 			Entity* CloneEntity(Entity* Value);
 			bool AddEntity(Core::Unique<Entity> Entity);
@@ -1673,7 +1673,7 @@ namespace Edge
 			bool UnloadComponent(Component* Base);
 			void RegisterComponent(Component* Base, bool Verify);
 			void UnregisterComponent(Component* Base);
-			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
+			void CloneEntities(Entity* Instance, Core::Vector<Entity*>* Array);
 			void GenerateMaterialBuffer();
 			void GenerateVoxelBuffers();
 			void GenerateDepthBuffers();
@@ -1691,9 +1691,9 @@ namespace Edge
 
 		public:
 			template <typename T, typename MatchFunction>
-			std::vector<Component*> QueryByMatch(MatchFunction&& MatchCallback)
+			Core::Vector<Component*> QueryByMatch(MatchFunction&& MatchCallback)
 			{
-				std::vector<Component*> Result;
+				Core::Vector<Component*> Result;
 				Compute::Cosmos::Iterator Context;
 				auto& Storage = GetStorage(T::GetTypeId());
 				auto Enqueue = [&Result](Component* Item) { Result.push_back(Item); };
@@ -1702,17 +1702,17 @@ namespace Edge
 				return Result;
 			}
 			template <typename T>
-			std::vector<Component*> QueryByPosition(const Compute::Vector3& Position, float Radius)
+			Core::Vector<Component*> QueryByPosition(const Compute::Vector3& Position, float Radius)
 			{
 				return QueryByPosition(T::GetTypeId(), Position, Radius);
 			}
 			template <typename T>
-			std::vector<Component*> QueryByArea(const Compute::Vector3& Min, const Compute::Vector3& Max)
+			Core::Vector<Component*> QueryByArea(const Compute::Vector3& Min, const Compute::Vector3& Max)
 			{
 				return QueryByArea(T::GetTypeId(), Min, Max);
 			}
 			template <typename T>
-			std::vector<std::pair<Component*, Compute::Vector3>> QueryByRay(const Compute::Ray& Origin)
+			Core::Vector<std::pair<Component*, Compute::Vector3>> QueryByRay(const Compute::Ray& Origin)
 			{
 				return QueryByRay(T::GetTypeId(), Origin);
 			}
@@ -1722,12 +1722,12 @@ namespace Edge
 				RayTest(T::GetTypeId(), Origin, std::move(Callback));
 			}
 			template <typename T>
-			void LoadResource(Component* Context, const std::string& Path, const std::function<void(T*)>& Callback)
+			void LoadResource(Component* Context, const Core::String& Path, const std::function<void(T*)>& Callback)
 			{
 				LoadResource<T>(Context, Path, Core::VariantArgs(), Callback);
 			}
 			template <typename T>
-			void LoadResource(Component* Context, const std::string& Path, const Core::VariantArgs& Keys, const std::function<void(T*)>& Callback)
+			void LoadResource(Component* Context, const Core::String& Path, const Core::VariantArgs& Keys, const std::function<void(T*)>& Callback)
 			{
 				LoadResource((uint64_t)typeid(T).hash_code(), Context, Path, Keys, [Callback](void* Object)
 				{
@@ -1736,7 +1736,7 @@ namespace Edge
 				});
 			}
 			template <typename T>
-			std::string FindResourceId(T* Resource)
+			Core::String FindResourceId(T* Resource)
 			{
 				return FindResourceId(typeid(T).hash_code(), (void*)Resource);
 			}
@@ -1765,9 +1765,9 @@ namespace Edge
 
 				Graphics::GraphicsDevice::Desc GraphicsDevice;
 				Graphics::Activity::Desc Activity;
-				std::string Preferences;
-				std::string Environment;
-				std::string Directory;
+				Core::String Preferences;
+				Core::String Environment;
+				Core::String Directory;
 				size_t Stack = ED_STACK_SIZE;
 				size_t PollingTimeout = 100;
 				size_t PollingEvents = 256;
@@ -1865,7 +1865,7 @@ namespace Edge
 		template <typename Geometry, typename Instance>
 		struct BatchingGroup
 		{
-			std::vector<Instance> Instances;
+			Core::Vector<Instance> Instances;
 			Graphics::ElementBuffer* DataBuffer = nullptr;
 			Geometry* GeometryBuffer = nullptr;
 			Material* MaterialData = nullptr;
@@ -1891,9 +1891,9 @@ namespace Edge
 			};
 
 		public:
-			std::vector<std::vector<Dispatchable>> Queue;
-			std::unordered_map<size_t, DataGroup*> Groups;
-			std::queue<DataGroup*>* Cache = nullptr;
+			Core::Vector<Core::Vector<Dispatchable>> Queue;
+			Core::UnorderedMap<size_t, DataGroup*> Groups;
+			Core::SingleQueue<DataGroup*>* Cache = nullptr;
 
 		public:
 			void Clear()
@@ -1999,9 +1999,9 @@ namespace Edge
 		public:
 			typedef BatchingGroup<Geometry, Instance> BatchGroup;
 			typedef BatchingProxy<Geometry, Instance> Batching;
-			typedef std::unordered_map<size_t, BatchGroup*> Groups;
+			typedef Core::UnorderedMap<size_t, BatchGroup*> Groups;
 			typedef std::pair<T*, VisibilityQuery> QueryGroup;
-			typedef std::vector<T*> Storage;
+			typedef Core::Vector<T*> Storage;
 
 		public:
 			static const size_t Depth = Max;
@@ -2009,8 +2009,8 @@ namespace Edge
 		private:
 			Batching Batchers[Max][(size_t)GeoCategory::Count];
 			Storage Data[Max][(size_t)GeoCategory::Count];
-			std::vector<std::vector<QueryGroup>> Queries;
-			std::queue<BatchGroup*> Cache;
+			Core::Vector<Core::Vector<QueryGroup>> Queries;
+			Core::SingleQueue<BatchGroup*> Cache;
 			size_t Offset;
 
 		public:
@@ -2284,14 +2284,14 @@ namespace Edge
 		public:
 			typedef BatchingGroup<Geometry, Instance> BatchGroup;
 			typedef BatchingProxy<Geometry, Instance> Batching;
-			typedef std::unordered_map<size_t, BatchGroup*> Groups;
-			typedef std::vector<T*> Objects;
+			typedef Core::UnorderedMap<size_t, BatchGroup*> Groups;
+			typedef Core::Vector<T*> Objects;
 
 		private:
 			RendererProxy<T, Geometry, Instance> Proxy;
 			std::function<void(T*, Instance&, Batching&)> Upsert;
-			std::unordered_map<T*, Graphics::Query*> Active;
-			std::queue<Graphics::Query*> Inactive;
+			Core::UnorderedMap<T*, Graphics::Query*> Active;
+			Core::SingleQueue<Graphics::Query*> Inactive;
 			Graphics::DepthStencilState* DepthStencil;
 			Graphics::BlendState* Blend;
 			Graphics::Query* Current;
@@ -2627,7 +2627,7 @@ namespace Edge
 		class ED_OUT EffectRenderer : public Renderer
 		{
 		protected:
-			std::unordered_map<std::string, Graphics::Shader*> Effects;
+			Core::UnorderedMap<Core::String, Graphics::Shader*> Effects;
 			Graphics::DepthStencilState* DepthStencil;
 			Graphics::RasterizerState* Rasterizer;
 			Graphics::BlendState* Blend;
@@ -2664,9 +2664,9 @@ namespace Edge
 			void SampleClamp();
 			void SampleMirror();
 			void GenerateMips();
-			Graphics::Shader* GetEffect(const std::string& Name);
+			Graphics::Shader* GetEffect(const Core::String& Name);
 			Graphics::Shader* CompileEffect(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
-			Graphics::Shader* CompileEffect(const std::string& SectionName, size_t BufferSize = 0);
+			Graphics::Shader* CompileEffect(const Core::String& SectionName, size_t BufferSize = 0);
 
 		public:
 			ED_COMPONENT("effect_renderer");

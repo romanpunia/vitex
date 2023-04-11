@@ -65,11 +65,11 @@ namespace Edge
 {
 	namespace Network
 	{
-		static addrinfo* TryConnectDNS(const std::unordered_map<socket_t, addrinfo*>& Hosts, uint64_t Timeout)
+		static addrinfo* TryConnectDNS(const Core::UnorderedMap<socket_t, addrinfo*>& Hosts, uint64_t Timeout)
 		{
 			ED_MEASURE(ED_TIMING_NET);
 
-			std::vector<pollfd> Sockets4, Sockets6;
+			Core::Vector<pollfd> Sockets4, Sockets6;
 			for (auto& Host : Hosts)
 			{
 				Socket Stream(Host.first);
@@ -129,7 +129,7 @@ namespace Edge
 			return &(((struct sockaddr_in6*)Info)->sin6_addr);
 		}
     
-		Location::Location(const std::string& Src) noexcept : URL(Src), Protocol("file"), Port(-1)
+		Location::Location(const Core::String& Src) noexcept : URL(Src), Protocol("file"), Port(-1)
 		{
 			ED_ASSERT_V(!URL.empty(), "url should not be empty");
 			Core::Stringify(&URL).Replace('\\', '/');
@@ -144,12 +144,12 @@ namespace Edge
 						++HostBegin;
 
 					PathBegin = *HostBegin == '\0' || *HostBegin == '/' ? HostBegin : HostBegin + 1;
-					Protocol = std::string(URL.c_str(), HostBegin);
+					Protocol = Core::String(URL.c_str(), HostBegin);
 					goto InlineURL;
 				}
 				else
 				{
-					Protocol = std::string(URL.c_str(), HostBegin);
+					Protocol = Core::String(URL.c_str(), HostBegin);
 					HostBegin += 3;
 				}
 			}
@@ -161,15 +161,15 @@ namespace Edge
 				const char* AtSymbol = strchr(HostBegin, '@');
 				if (AtSymbol)
 				{
-					std::string LoginPassword;
-					LoginPassword = std::string(HostBegin, AtSymbol);
+					Core::String LoginPassword;
+					LoginPassword = Core::String(HostBegin, AtSymbol);
 					HostBegin = AtSymbol + 1;
 
 					const char* PasswordPtr = strchr(LoginPassword.c_str(), ':');
 					if (PasswordPtr)
 					{
-						Username = Compute::Codec::URIDecode(std::string(LoginPassword.c_str(), PasswordPtr));
-						Password = Compute::Codec::URIDecode(std::string(PasswordPtr + 1));
+						Username = Compute::Codec::URIDecode(Core::String(LoginPassword.c_str(), PasswordPtr));
+						Password = Compute::Codec::URIDecode(Core::String(PasswordPtr + 1));
 					}
 					else
 						Username = Compute::Codec::URIDecode(LoginPassword);
@@ -182,7 +182,7 @@ namespace Edge
 					if (1 != sscanf(PortBegin, ":%d", &Port))
 						return;
 
-					Hostname = std::string(HostBegin, PortBegin);
+					Hostname = Core::String(HostBegin, PortBegin);
 					if (!PathBegin)
 						return;
 				}
@@ -194,7 +194,7 @@ namespace Edge
 						return;
 					}
 
-					Hostname = std::string(HostBegin, PathBegin);
+					Hostname = Core::String(HostBegin, PathBegin);
 				}
 			}
 			else
@@ -206,7 +206,7 @@ namespace Edge
 			{
 				const char* ParametersEnd = strchr(++ParametersBegin, '#');
 				Core::Stringify Parameters(ParametersBegin, ParametersEnd ? ParametersEnd - ParametersBegin : strlen(ParametersBegin));
-				Path = std::string(PathBegin, ParametersBegin - 1);
+				Path = Core::String(PathBegin, ParametersBegin - 1);
 
 				if (!ParametersEnd)
 				{
@@ -214,7 +214,7 @@ namespace Edge
 					if (ParametersEnd != nullptr && ParametersEnd > Path.c_str())
 					{
 						Fragment = ParametersEnd + 1;
-						Path = std::string(Path.c_str(), ParametersEnd);
+						Path = Core::String(Path.c_str(), ParametersEnd);
 					}
 				}
 				else
@@ -222,7 +222,7 @@ namespace Edge
 
 				for (auto& Item : Parameters.Split('&'))
 				{
-					std::vector<std::string> KeyValue = Core::Stringify(&Item).Split('=');
+					Core::Vector<Core::String> KeyValue = Core::Stringify(&Item).Split('=');
 					KeyValue[0] = Compute::Codec::URIDecode(KeyValue[0]);
 
 					if (KeyValue.size() >= 2)
@@ -237,7 +237,7 @@ namespace Edge
 				if (ParametersEnd != nullptr)
 				{
 					Fragment = ParametersEnd + 1;
-					Path = std::string(PathBegin, ParametersEnd);
+					Path = Core::String(PathBegin, ParametersEnd);
 				}
 				else
 					Path = PathBegin;
@@ -514,10 +514,10 @@ namespace Edge
 			}
 			Exclusive.unlock();
 		}
-		std::string DNS::FindNameFromAddress(const std::string& Host, const std::string& Service)
+		Core::String DNS::FindNameFromAddress(const Core::String& Host, const Core::String& Service)
 		{
-			ED_ASSERT(!Host.empty(), std::string(), "ip address should not be empty");
-			ED_ASSERT(!Service.empty(), std::string(), "port should be greater than zero");
+			ED_ASSERT(!Host.empty(), Core::String(), "ip address should not be empty");
+			ED_ASSERT(!Service.empty(), Core::String(), "port should be greater than zero");
 			ED_MEASURE(ED_TIMING_NET * 3);
 
 			struct sockaddr_storage Storage;
@@ -543,20 +543,20 @@ namespace Edge
 			if (Result == -1)
 			{
 				ED_ERR("[dns] cannot reverse resolve dns for identity %s:%i\n\tinvalid address", Host.c_str(), Service.c_str());
-				return std::string();
+				return Core::String();
 			}
 
 			char Hostname[NI_MAXHOST], ServiceName[NI_MAXSERV];
 			if (getnameinfo((struct sockaddr*)&Storage, sizeof(struct sockaddr), Hostname, NI_MAXHOST, ServiceName, NI_MAXSERV, NI_NUMERICSERV) != 0)
 			{
 				ED_ERR("[dns] cannot reverse resolve dns for identity %s:%i", Host.c_str(), Service.c_str());
-				return std::string();
+				return Core::String();
 			}
 
 			ED_DEBUG("[net] dns reverse resolved for identity %s:%i\n\thost %s:%s is used", Host.c_str(), Service.c_str(), Hostname, ServiceName);
 			return Hostname;
 		}
-		SocketAddress* DNS::FindAddressFromName(const std::string& Host, const std::string& Service, DNSType DNS, SocketProtocol Proto, SocketType Type)
+		SocketAddress* DNS::FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType DNS, SocketProtocol Proto, SocketType Type)
 		{
 			ED_ASSERT(!Host.empty(), nullptr, "host should not be empty");
 			ED_ASSERT(!Service.empty(), nullptr, "service should not be empty");
@@ -566,7 +566,7 @@ namespace Edge
 			memset(&Hints, 0, sizeof(struct addrinfo));
 			Hints.ai_family = AF_UNSPEC;
 
-			std::string XProto;
+			Core::String XProto;
 			switch (Proto)
 			{
 				case SocketProtocol::IP:
@@ -594,7 +594,7 @@ namespace Edge
 					break;
 			}
 
-			std::string XType;
+			Core::String XType;
 			switch (Type)
 			{
 				case SocketType::Datagram:
@@ -621,12 +621,12 @@ namespace Edge
 			}
 
 			int64_t Time = time(nullptr);
-			std::string Identity = XProto + '_' + XType + '@' + Host + ':' + Service;
+			Core::String Identity = XProto + '_' + XType + '@' + Host + ':' + Service;
 			{
-				std::unique_lock Unique(Exclusive);
+				std::unique_lock<std::mutex> Unique(Exclusive);
 				if (!Names)
 				{
-					using Map = Core::Mapping<std::unordered_map<std::string, std::pair<int64_t, SocketAddress*>>>;
+					using Map = Core::Mapping<Core::UnorderedMap<Core::String, std::pair<int64_t, SocketAddress*>>>;
 					Names = ED_NEW(Map);
 				}
 
@@ -643,7 +643,7 @@ namespace Edge
 			}
 
 			struct addrinfo* Good = nullptr;
-			std::unordered_map<socket_t, addrinfo*> Hosts;
+			Core::UnorderedMap<socket_t, addrinfo*> Hosts;
 			for (auto It = Addresses; It != nullptr; It = It->ai_next)
 			{
 				socket_t Connection = socket(It->ai_family, It->ai_socktype, It->ai_protocol);
@@ -682,10 +682,10 @@ namespace Edge
 			SocketAddress* Result = new SocketAddress(Addresses, Good);
 			ED_DEBUG("[net] dns resolved for identity %s\n\taddress %s is used", Identity.c_str(), Multiplexer::GetAddress(Good).c_str());
 
-			std::unique_lock Unique(Exclusive);
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			if (!Names)
 			{
-				using Map = Core::Mapping<std::unordered_map<std::string, std::pair<int64_t, SocketAddress*>>>;
+				using Map = Core::Mapping<Core::UnorderedMap<Core::String, std::pair<int64_t, SocketAddress*>>>;
 				Names = ED_NEW(Map);
 			}
 
@@ -701,7 +701,7 @@ namespace Edge
 
 			return Result;
 		}
-		Core::Mapping<std::unordered_map<std::string, std::pair<int64_t, SocketAddress*>>>* DNS::Names = nullptr;
+		Core::Mapping<Core::UnorderedMap<Core::String, std::pair<int64_t, SocketAddress*>>>* DNS::Names = nullptr;
 		std::mutex DNS::Exclusive;
 
 		int Utils::Poll(pollfd* Fd, int FdCount, int Timeout)
@@ -718,7 +718,7 @@ namespace Edge
 		{
 			ED_ASSERT(Fd != nullptr, -1, "poll should be set");
 			ED_TRACE("[net] poll %i fds (%i ms)", FdCount, Timeout);
-			std::vector<pollfd> Fds;
+			Core::Vector<pollfd> Fds;
 			Fds.resize(FdCount);
 
 			for (size_t i = 0; i < (size_t)FdCount; i++)
@@ -790,12 +790,12 @@ namespace Edge
 			ED_TRACE("[net] initialize multiplexer (%" PRIu64 " events)", (uint64_t)MaxEvents);
 			ED_DELETE(EpollHandle, Handle);
 
-			using Map = Core::Mapping<std::map<std::chrono::microseconds, Socket*>>;
+			using Map = Core::Mapping<Core::OrderedMap<std::chrono::microseconds, Socket*>>;
 			if (!Timeouts)
 				Timeouts = ED_NEW(Map);
 
 			if (!Fds)
-				Fds = ED_NEW(std::vector<EpollFd>);
+				Fds = ED_NEW(Core::Vector<EpollFd>);
 			
 			DefaultTimeout = DispatchTimeout;
 			Handle = ED_NEW(EpollHandle, (int)MaxEvents);
@@ -849,7 +849,7 @@ namespace Edge
 			if (Timeouts->Map.empty())
 				return Count;
 
-			std::unique_lock Unique(Exclusive);
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			while (!Timeouts->Map.empty())
 			{
 				auto It = Timeouts->Map.begin();
@@ -1135,7 +1135,7 @@ namespace Edge
 		{
 			return Activations;
 		}
-		std::string Multiplexer::GetLocalAddress()
+		Core::String Multiplexer::GetLocalAddress()
 		{
 			char Buffer[ED_CHUNK_SIZE];
 			if (gethostname(Buffer, sizeof(Buffer)) == SOCKET_ERROR)
@@ -1167,17 +1167,17 @@ namespace Edge
 
 			return Result;
 		}
-		std::string Multiplexer::GetAddress(addrinfo* Info)
+		Core::String Multiplexer::GetAddress(addrinfo* Info)
 		{
-			ED_ASSERT(Info != nullptr, std::string(), "address info should be set");
+			ED_ASSERT(Info != nullptr, Core::String(), "address info should be set");
 			char Buffer[INET6_ADDRSTRLEN];
 			inet_ntop(Info->ai_family, GetAddressStorage(Info->ai_addr), Buffer, sizeof(Buffer));
 			ED_TRACE("[net] inet ntop addrinfo 0x%" PRIXPTR ": %s", (void*)Info, Buffer);
 			return Buffer;
 		}
-		std::string Multiplexer::GetAddress(sockaddr* Info)
+		Core::String Multiplexer::GetAddress(sockaddr* Info)
 		{
-			ED_ASSERT(Info != nullptr, std::string(), "socket address should be set");
+			ED_ASSERT(Info != nullptr, Core::String(), "socket address should be set");
 			char Buffer[INET6_ADDRSTRLEN];
 			inet_ntop(Info->sa_family, GetAddressStorage(Info), Buffer, sizeof(Buffer));
 			ED_TRACE("[net] inet ntop sockaddr 0x%" PRIXPTR ": %s", (void*)Info, Buffer);
@@ -1204,8 +1204,8 @@ namespace Edge
 			return Family;
 		}
 		EpollHandle* Multiplexer::Handle = nullptr;
-		Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Multiplexer::Timeouts = nullptr;
-		std::vector<EpollFd>* Multiplexer::Fds = nullptr;
+		Core::Mapping<Core::OrderedMap<std::chrono::microseconds, Socket*>>* Multiplexer::Timeouts = nullptr;
+		Core::Vector<EpollFd>* Multiplexer::Fds = nullptr;
 		std::atomic<size_t> Multiplexer::Activations(0);
 		std::mutex Multiplexer::Exclusive;
 		uint64_t Multiplexer::DefaultTimeout = 50;
@@ -1230,10 +1230,10 @@ namespace Edge
 		{
 			return Names;
 		}
-		std::string SocketAddress::GetAddress() const
+		Core::String SocketAddress::GetAddress() const
 		{
 			if (!Usable)
-				return std::string();
+				return Core::String();
 
 			return Multiplexer::GetAddress(Usable);
 		}
@@ -2047,7 +2047,7 @@ namespace Edge
 		{
 			return Multiplexer::IsAwaitingEvents(this);
 		}
-		std::string Socket::GetRemoteAddress()
+		Core::String Socket::GetRemoteAddress()
 		{
 			struct sockaddr_storage Address;
 			socklen_t Size = sizeof(Address);
@@ -2062,10 +2062,10 @@ namespace Edge
 				}
 			}
 
-			return std::string();
+			return Core::String();
 		}
 
-		SocketListener::SocketListener(const std::string& NewName, const RemoteHost& NewHost, SocketAddress* NewAddress) : Name(NewName), Hostname(NewHost), Source(NewAddress), Base(new Socket())
+		SocketListener::SocketListener(const Core::String& NewName, const RemoteHost& NewHost, SocketAddress* NewAddress) : Name(NewName), Hostname(NewHost), Source(NewAddress), Base(new Socket())
 		{
 		}
 		SocketListener::~SocketListener() noexcept
@@ -2086,11 +2086,11 @@ namespace Edge
 			}
 #endif
 		}
-		RemoteHost& SocketRouter::Listen(const std::string& Hostname, int Port, bool Secure)
+		RemoteHost& SocketRouter::Listen(const Core::String& Hostname, int Port, bool Secure)
 		{
 			return Listen("*", Hostname, Port, Secure);
 		}
-		RemoteHost& SocketRouter::Listen(const std::string& Pattern, const std::string& Hostname, int Port, bool Secure)
+		RemoteHost& SocketRouter::Listen(const Core::String& Pattern, const Core::String& Hostname, int Port, bool Secure)
 		{
 			RemoteHost& Listener = Listeners[Pattern.empty() ? "*" : Pattern];
 			Listener.Hostname = Hostname;
@@ -2261,7 +2261,7 @@ namespace Edge
 				if (It.second.Hostname.empty())
 					continue;
 
-				SocketAddress* Source = DNS::FindAddressFromName(It.second.Hostname, std::to_string(It.second.Port), DNSType::Listen, SocketProtocol::TCP, SocketType::Stream);
+				SocketAddress* Source = DNS::FindAddressFromName(It.second.Hostname, Core::ToString(It.second.Port), DNSType::Listen, SocketProtocol::TCP, SocketType::Stream);
 				if (!Source)
 				{
 					ED_ERR("[net] cannot resolve %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
@@ -2334,7 +2334,7 @@ namespace Edge
 #ifdef SSL_CTX_set_ecdh_auto
 				SSL_CTX_set_ecdh_auto(It.second.Context, 1);
 #endif
-				std::string ContextId = Compute::Crypto::Hash(Compute::Digests::MD5(), Core::Stringify((int64_t)time(nullptr)).R());
+				Core::String ContextId = Compute::Crypto::Hash(Compute::Digests::MD5(), Core::Stringify((int64_t)time(nullptr)).R());
 				SSL_CTX_set_session_id_context(It.second.Context, (const unsigned char*)ContextId.c_str(), (unsigned int)ContextId.size());
 
 				if (!It.second.Chain.empty() && !It.second.Key.empty())
@@ -2459,7 +2459,7 @@ namespace Edge
 					if (State != ServerState::Working)
 						return false;
 				
-					std::string IpAddress = RemoteAddr;
+					Core::String IpAddress = RemoteAddr;
 					Core::Schedule::Get()->SetTask([this, Source, Fd, IpAddress = std::move(IpAddress)]() mutable
 					{
 						Accept(Source, Fd, IpAddress);
@@ -2492,7 +2492,7 @@ namespace Edge
 			});
 			return false;
 		}
-		bool SocketServer::Accept(SocketListener* Host, socket_t Fd, const std::string& Address)
+		bool SocketServer::Accept(SocketListener* Host, socket_t Fd, const Core::String& Address)
 		{
 			auto* Base = Pop(Host);
 			if (!Base)
@@ -2630,7 +2630,7 @@ namespace Edge
 		{
 			return true;
 		}
-		bool SocketServer::OnStall(std::unordered_set<SocketConnection*>& Base)
+		bool SocketServer::OnStall(Core::UnorderedSet<SocketConnection*>& Base)
 		{
 			return true;
 		}
@@ -2703,15 +2703,15 @@ namespace Edge
 		{
 			return new SocketRouter();
 		}
-		const std::unordered_set<SocketConnection*>& SocketServer::GetActiveClients()
+		const Core::UnorderedSet<SocketConnection*>& SocketServer::GetActiveClients()
 		{
 			return Active;
 		}
-		const std::unordered_set<SocketConnection*>& SocketServer::GetPooledClients()
+		const Core::UnorderedSet<SocketConnection*>& SocketServer::GetPooledClients()
 		{
 			return Inactive;
 		}
-		const std::vector<SocketListener*>& SocketServer::GetListeners()
+		const Core::Vector<SocketListener*>& SocketServer::GetListeners()
 		{
 			return Listeners;
 		}
@@ -2841,11 +2841,11 @@ namespace Edge
 				Multiplexer::SetActive(true);
 				Core::Cotask<SocketAddress*>([this]()
 				{
-					return DNS::FindAddressFromName(Hostname.Hostname, std::to_string(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
+					return DNS::FindAddressFromName(Hostname.Hostname, Core::ToString(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
 				}).Await(std::move(RemoteConnect));
 			}
 			else
-				RemoteConnect(DNS::FindAddressFromName(Hostname.Hostname, std::to_string(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream));
+				RemoteConnect(DNS::FindAddressFromName(Hostname.Hostname, Core::ToString(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream));
 
 			return Future;
 		}
@@ -2956,7 +2956,7 @@ namespace Edge
 				Success(0);
 			}) == 0;
 		}
-		bool SocketClient::Stage(const std::string& Name)
+		bool SocketClient::Stage(const Core::String& Name)
 		{
 			Action = Name;
 			return !Action.empty();

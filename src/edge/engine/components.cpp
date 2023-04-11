@@ -134,8 +134,8 @@ namespace Edge
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Core::Schema* Shaping = Node->Find("shape");
-				std::vector<Compute::Vector3> Vertices;
-				std::string Path; size_t Type;
+				Core::Vector<Compute::Vector3> Vertices;
+				Core::String Path; size_t Type;
 				float Mass = 0.0f, Anticipation = 0.0f;
 				bool Extended = false;
 
@@ -192,10 +192,10 @@ namespace Edge
 				Core::Schema* Shaping = Node->Set("shape");
 				if (Instance->GetCollisionShapeType() == Compute::Shape::Convex_Hull)
 				{
-					std::string Path = Scene->FindResourceId<Compute::HullShape>(Hull);
+					Core::String Path = Scene->FindResourceId<Compute::HullShape>(Hull);
 					if (Path.empty())
 					{
-						std::vector<Compute::Vector3> Vertices = Scene->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
+						Core::Vector<Compute::Vector3> Vertices = Scene->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
 						Series::Pack(Shaping->Set("data"), Vertices);
 					}
 					else
@@ -257,7 +257,7 @@ namespace Edge
 
 				GetEntity()->GetTransform()->MakeDirty();
 			}
-			void RigidBody::Load(const std::string& Path, float Mass, float Anticipation, const std::function<void()>& Callback)
+			void RigidBody::Load(const Core::String& Path, float Mass, float Anticipation, const std::function<void()>& Callback)
 			{
 				Parent->GetScene()->LoadResource<Compute::HullShape>(this, Path, [this, Mass, Anticipation, Callback](Compute::HullShape* NewHull)
 				{
@@ -459,7 +459,7 @@ namespace Edge
 				Core::Schema* Shaping = nullptr;
 				if ((Shaping = Node->Find("shape")) != nullptr)
 				{
-					std::string Path;
+					Core::String Path;
 					if (Series::Unpack(Shaping->Find("path"), &Path))
 					{
 						Node->AddRef();
@@ -565,7 +565,7 @@ namespace Edge
 				{
 					if (Instance->GetCollisionShapeType() == Compute::Shape::Convex_Hull)
 					{
-						std::string Path = Parent->GetScene()->FindResourceId<Compute::HullShape>(Hull);
+						Core::String Path = Parent->GetScene()->FindResourceId<Compute::HullShape>(Hull);
 						if (!Path.empty())
 							Series::Pack(Node->Set("shape")->Set("path"), Path);
 					}
@@ -672,7 +672,7 @@ namespace Edge
 				Instance->SetActivity(true);
 				GetEntity()->GetTransform()->MakeDirty();
 			}
-			void SoftBody::Load(const std::string& Path, float Anticipation, const std::function<void()>& Callback)
+			void SoftBody::Load(const Core::String& Path, float Anticipation, const std::function<void()>& Callback)
 			{
 				Parent->GetScene()->LoadResource<Compute::HullShape>(this, Path, [this, Anticipation, Callback](Compute::HullShape* NewHull)
 				{
@@ -854,11 +854,11 @@ namespace Edge
 			{
 				return Instance;
 			}
-			std::vector<Compute::Vertex>& SoftBody::GetVertices()
+			Core::Vector<Compute::Vertex>& SoftBody::GetVertices()
 			{
 				return Vertices;
 			}
-			std::vector<int>& SoftBody::GetIndices()
+			Core::Vector<int>& SoftBody::GetIndices()
 			{
 				return Indices;
 			}
@@ -1249,7 +1249,7 @@ namespace Edge
 				Series::Unpack(Node->Find("category"), &NewCategory);
 				SetCategory((GeoCategory)NewCategory);
 
-				std::string Path;
+				Core::String Path;
 				if (!Series::Unpack(Node->Find("model"), &Path) || Path.empty())
 					return;
 				else
@@ -1271,7 +1271,7 @@ namespace Edge
 					{
 						for (auto&& Material : Node->FetchCollection("materials.material"))
 						{
-							std::string Name; size_t Slot = 0;
+							Core::String Name; size_t Slot = 0;
 							if (Series::Unpack(Material->Find("name"), &Name) && Series::Unpack(Material->Find("slot"), &Slot))
 							{
 								Graphics::MeshBuffer* Surface = Instance->FindMesh(Name);
@@ -1319,7 +1319,7 @@ namespace Edge
 				for (auto* Item : Instance->Meshes)
 					Materials[(void*)Item] = nullptr;
 			}
-			void Model::SetMaterialFor(const std::string& Name, Material* Value)
+			void Model::SetMaterialFor(const Core::String& Name, Material* Value)
 			{
 				if (!Instance)
 					return;
@@ -1358,7 +1358,7 @@ namespace Edge
 			{
 				return Instance;
 			}
-			Material* Model::GetMaterialFor(const std::string& Name)
+			Material* Model::GetMaterialFor(const Core::String& Name)
 			{
 				if (!Instance)
 					return nullptr;
@@ -1387,7 +1387,7 @@ namespace Edge
 				Series::Unpack(Node->Find("category"), &NewCategory);
 				SetCategory((GeoCategory)NewCategory);
 
-				std::string Path;
+				Core::String Path;
 				if (!Series::Unpack(Node->Find("skin-model"), &Path) || Path.empty())
 					return;
 				else
@@ -1410,7 +1410,7 @@ namespace Edge
 						Skeleton.Fill(Instance);
 						for (auto&& Material : Node->FetchCollection("materials.material"))
 						{
-							std::string Name; size_t Slot = 0;
+							Core::String Name; size_t Slot = 0;
 							if (Series::Unpack(Material->Find("name"), &Name) && Series::Unpack(Material->Find("slot"), &Slot))
 							{
 								Graphics::SkinMeshBuffer* Surface = Instance->FindMesh(Name);
@@ -1464,7 +1464,7 @@ namespace Edge
 				for (auto* Item : Instance->Meshes)
 					Materials[(void*)Item] = nullptr;
 			}
-			void Skin::SetMaterialFor(const std::string& Name, Material* Value)
+			void Skin::SetMaterialFor(const Core::String& Name, Material* Value)
 			{
 				if (!Instance)
 					return;
@@ -1503,7 +1503,7 @@ namespace Edge
 			{
 				return Instance;
 			}
-			Material* Skin::GetMaterialFor(const std::string& Name)
+			Material* Skin::GetMaterialFor(const Core::String& Name)
 			{
 				if (!Instance)
 					return nullptr;
@@ -1661,7 +1661,7 @@ namespace Edge
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 				Series::Unpack(Node->Find("state"), &State);
 
-				std::string Path;
+				Core::String Path;
 				if (!Series::Unpack(Node->Find("path"), &Path))
 					return;
 
@@ -1871,14 +1871,14 @@ namespace Edge
 
 				return &Clips[(size_t)Clip].Keys[(size_t)Frame];
 			}
-			const std::vector<Compute::SkinAnimatorKey>* SkinAnimator::GetClip(int64_t Clip)
+			const Core::Vector<Compute::SkinAnimatorKey>* SkinAnimator::GetClip(int64_t Clip)
 			{
 				ED_ASSERT(Animation != nullptr, nullptr, "animation should be set");
 				auto& Clips = Animation->GetClips();
 				ED_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), nullptr, "clip index outside of range");
 				return &Clips[(size_t)Clip].Keys;
 			}
-			std::string SkinAnimator::GetPath() const
+			Core::String SkinAnimator::GetPath() const
 			{
 				return Parent->GetScene()->FindResourceId<SkinAnimation>(Animation);
 			}
@@ -1893,7 +1893,7 @@ namespace Edge
 
 				return Target;
 			}
-			int64_t SkinAnimator::GetClipByName(const std::string& Name) const
+			int64_t SkinAnimator::GetClipByName(const Core::String& Name) const
 			{
 				if (!Animation)
 					return -1;
@@ -1937,7 +1937,7 @@ namespace Edge
 				Series::Unpack(Node->Find("offset"), &Offset);
 				Series::Unpack(Node->Find("default"), &Default);
 
-				std::string Path;
+				Core::String Path;
 				if (!Series::Unpack(Node->Find("path"), &Path) || Path.empty())
 					Series::Unpack(Node->Find("animation"), &Clips);
 				else
@@ -2014,7 +2014,7 @@ namespace Edge
 					State.Time = 0.0f;
 				}
 			}
-			void KeyAnimator::LoadAnimation(const std::string& Path, const std::function<void(bool)>& Callback)
+			void KeyAnimator::LoadAnimation(const Core::String& Path, const std::function<void(bool)>& Callback)
 			{
 				auto* Scene = Parent->GetScene();
 				Scene->LoadResource<Core::Schema>(this, Path, [this, Scene, Path, Callback](Core::Schema* Result)
@@ -2120,12 +2120,12 @@ namespace Edge
 
 				return &Clips[(size_t)Clip].Keys[(size_t)Frame];
 			}
-			std::vector<Compute::AnimatorKey>* KeyAnimator::GetClip(int64_t Clip)
+			Core::Vector<Compute::AnimatorKey>* KeyAnimator::GetClip(int64_t Clip)
 			{
 				ED_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), nullptr, "clip index outside of range");
 				return &Clips[(size_t)Clip].Keys;
 			}
-			std::string KeyAnimator::GetPath()
+			Core::String KeyAnimator::GetPath()
 			{
 				return Reference;
 			}
@@ -2493,7 +2493,7 @@ namespace Edge
 				Series::Unpack(Node->Find("air-absorption"), &Sync.AirAbsorption);
 				Series::Unpack(Node->Find("room-roll-off"), &Sync.RoomRollOff);
 
-				std::string Path;
+				Core::String Path;
 				if (!Series::Unpack(Node->Find("audio-clip"), &Path) || Path.empty())
 					return;
 
@@ -2687,7 +2687,7 @@ namespace Edge
 				Series::Pack(Node->Set("shadow-iterations"), Shadow.Iterations);
 				Series::Pack(Node->Set("shadow-enabled"), Shadow.Enabled);
 			}
-			void PointLight::Message(const std::string& Name, Core::VariantArgs& Args)
+			void PointLight::Message(const Core::String& Name, Core::VariantArgs& Args)
 			{
 				if (Name == "depth-flush")
 					DepthMap = nullptr;
@@ -2765,7 +2765,7 @@ namespace Edge
 				Series::Pack(Node->Set("shadow-iterations"), Shadow.Iterations);
 				Series::Pack(Node->Set("shadow-enabled"), Shadow.Enabled);
 			}
-			void SpotLight::Message(const std::string& Name, Core::VariantArgs& Args)
+			void SpotLight::Message(const Core::String& Name, Core::VariantArgs& Args)
 			{
 				if (Name == "depth-flush")
 					DepthMap = nullptr;
@@ -2825,12 +2825,12 @@ namespace Edge
 
 				for (uint32_t i = 0; i < 6; i++)
 				{
-					Series::Unpack(Node->Find("projection-" + std::to_string(i)), &Projection[i]);
-					Series::Unpack(Node->Find("view-" + std::to_string(i)), &View[i]);
+					Series::Unpack(Node->Find("projection-" + Core::ToString(i)), &Projection[i]);
+					Series::Unpack(Node->Find("view-" + Core::ToString(i)), &View[i]);
 				}
 
 				for (uint32_t i = 0; i < 6; i++)
-					Series::Unpack(Node->Find("shadow-distance-" + std::to_string(i)), &Shadow.Distance[i]);
+					Series::Unpack(Node->Find("shadow-distance-" + Core::ToString(i)), &Shadow.Distance[i]);
 
 				Series::Unpack(Node->Find("shadow-cascades"), &Shadow.Cascades);
 				Series::Unpack(Node->Find("shadow-far"), &Shadow.Far);
@@ -2856,12 +2856,12 @@ namespace Edge
 
 				for (uint32_t i = 0; i < 6; i++)
 				{
-					Series::Pack(Node->Set("projection-" + std::to_string(i)), Projection[i]);
-					Series::Pack(Node->Set("view-" + std::to_string(i)), View[i]);
+					Series::Pack(Node->Set("projection-" + Core::ToString(i)), Projection[i]);
+					Series::Pack(Node->Set("view-" + Core::ToString(i)), View[i]);
 				}
 
 				for (uint32_t i = 0; i < 6; i++)
-					Series::Pack(Node->Set("shadow-distance-" + std::to_string(i)), Shadow.Distance[i]);
+					Series::Pack(Node->Set("shadow-distance-" + Core::ToString(i)), Shadow.Distance[i]);
 
 				Series::Pack(Node->Set("shadow-cascades"), Shadow.Cascades);
 				Series::Pack(Node->Set("shadow-far"), Shadow.Far);
@@ -2879,7 +2879,7 @@ namespace Edge
 				Series::Pack(Node->Set("outer-radius"), Sky.OuterRadius);
 				Series::Pack(Node->Set("sky-intensity"), Sky.Intensity);
 			}
-			void LineLight::Message(const std::string& Name, Core::VariantArgs& Args)
+			void LineLight::Message(const Core::String& Name, Core::VariantArgs& Args)
 			{
 				if (Name == "depth-flush")
 					DepthMap = nullptr;
@@ -2946,7 +2946,7 @@ namespace Edge
 			{
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 
-				auto* Scene = Parent->GetScene(); std::string Path;
+				auto* Scene = Parent->GetScene(); Core::String Path;
 				if (!Series::Unpack(Node->Find("diffuse-map"), &Path) || Path.empty())
 				{
 					if (Series::Unpack(Node->Find("diffuse-map-px"), &Path))
@@ -3040,7 +3040,7 @@ namespace Edge
 					});
 				}
 
-				std::vector<Compute::Matrix4x4> Views;
+				Core::Vector<Compute::Matrix4x4> Views;
 				Series::Unpack(Node->Find("projection"), &Projection);
 				Series::Unpack(Node->Find("view"), &Views);
 				Series::Unpack(Node->Find("tick"), &Tick);
@@ -3077,7 +3077,7 @@ namespace Edge
 				else
 					Series::Pack(Node->Set("diffuse-map"), Scene->FindResourceId<Graphics::Texture2D>(DiffuseMap));
 
-				std::vector<Compute::Matrix4x4> Views;
+				Core::Vector<Compute::Matrix4x4> Views;
 				for (int64_t i = 0; i < 6; i++)
 					Views.push_back(View[i]);
 
@@ -3287,7 +3287,7 @@ namespace Edge
 				Series::Pack(Node->Set("specular"), Specular);
 				Series::Pack(Node->Set("bleeding"), Bleeding);
 			}
-			void Illuminator::Message(const std::string& Name, Core::VariantArgs& Args)
+			void Illuminator::Message(const Core::String& Name, Core::VariantArgs& Args)
 			{
 				if (Name == "depth-flush")
 				{
@@ -3349,7 +3349,7 @@ namespace Edge
 				Series::Unpack(Node->Find("occludee-scaling"), &Renderer->OccludeeScaling);
 				Series::Unpack(Node->Find("max-queries"), &Renderer->MaxQueries);
 
-				std::vector<Core::Schema*> Renderers = Node->FetchCollection("renderers.renderer");
+				Core::Vector<Core::Schema*> Renderers = Node->FetchCollection("renderers.renderer");
 				for (auto& Render : Renderers)
 				{
 					uint64_t Id;
@@ -3552,7 +3552,7 @@ namespace Edge
 			{
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 
-				std::string Type;
+				Core::String Type;
 				if (Series::Unpack(Node->Find("source"), &Type))
 				{
 					if (Type == "memory")
@@ -3662,7 +3662,7 @@ namespace Edge
 							}
 							default:
 							{
-								std::string Result;
+								Core::String Result;
 								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), Result);
 								break;
@@ -3747,7 +3747,7 @@ namespace Edge
 						{
 							Scripting::TypeInfo Type = GetCompiler()->GetVM()->GetTypeInfoById(Result.TypeId);
 							if (Type.IsValid() && strcmp(Type.GetName(), "String") == 0)
-								Series::Pack(Var->Set("data"), *(std::string*)Result.Pointer);
+								Series::Pack(Var->Set("data"), *(Core::String*)Result.Pointer);
 							else
 								ED_CLEAR(Var);
 							break;
@@ -3806,7 +3806,7 @@ namespace Edge
 					Context->SetArgObject(1, Time);
 				});
 			}
-			void Scriptable::Message(const std::string& Name, Core::VariantArgs& Args)
+			void Scriptable::Message(const Core::String& Name, Core::VariantArgs& Args)
 			{
 				Call(Entry.Message, [this, Name, Args](Scripting::ImmediateContext* Context)
 				{
@@ -3885,7 +3885,7 @@ namespace Edge
 
 				return Target;
 			}
-			Core::Promise<int> Scriptable::Call(const std::string& Name, unsigned int Args, Scripting::ArgsCallback&& OnArgs)
+			Core::Promise<int> Scriptable::Call(const Core::String& Name, unsigned int Args, Scripting::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
 					return Core::Promise<int>((int)Scripting::Errors::INVALID_CONFIGURATION);
@@ -3911,7 +3911,7 @@ namespace Edge
 					return Result;
 				});;
 			}
-			Core::Promise<int> Scriptable::CallEntry(const std::string& Name)
+			Core::Promise<int> Scriptable::CallEntry(const Core::String& Name)
 			{
 				return Call(GetFunctionByName(Name, Invoke == InvokeType::Typeless ? 0 : 1).GetFunction(), [this](Scripting::ImmediateContext* Context)
 				{
@@ -3926,7 +3926,7 @@ namespace Edge
 			{
 				return LoadSource(Source, Resource);
 			}
-			int Scriptable::LoadSource(SourceType Type, const std::string& Data)
+			int Scriptable::LoadSource(SourceType Type, const Core::String& Data)
 			{
 				SceneGraph* Scene = Parent->GetScene();
 				if (Compiler != nullptr)
@@ -3942,7 +3942,7 @@ namespace Edge
 						return (int)Scripting::Errors::INVALID_CONFIGURATION;
 
 					Compiler = VM->CreateCompiler();
-					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const std::string& Name, const std::vector<std::string>& Args)
+					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const Core::String& Name, const Core::Vector<Core::String>& Args)
 					{
 						if (Name == "name" && Args.size() == 1)
 							Module = Args[0];
@@ -4013,7 +4013,7 @@ namespace Edge
 			{
 				return Compiler;
 			}
-			Scripting::Function Scriptable::GetFunctionByName(const std::string& Name, unsigned int Args)
+			Scripting::Function Scriptable::GetFunctionByName(const Core::String& Name, unsigned int Args)
 			{
 				ED_ASSERT(!Name.empty(), nullptr, "name should not be empty");
 				if (!Compiler)
@@ -4125,11 +4125,11 @@ namespace Edge
 
 				return (int)fModule.GetFunctionCount();
 			}
-			const std::string& Scriptable::GetSource()
+			const Core::String& Scriptable::GetSource()
 			{
 				return Resource;
 			}
-			const std::string& Scriptable::GetModuleName()
+			const Core::String& Scriptable::GetModuleName()
 			{
 				return Module;
 			}

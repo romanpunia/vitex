@@ -28,8 +28,8 @@ namespace Edge
 
 			class Connection;
 
-			typedef std::function<Core::Promise<bool>(const std::vector<std::string>&)> OnReconnect;
-			typedef std::function<void(const std::string&)> OnQueryLog;
+			typedef std::function<Core::Promise<bool>(const Core::Vector<Core::String>&)> OnReconnect;
+			typedef std::function<void(const Core::String&)> OnQueryLog;
 			typedef std::function<void(const Notify&)> OnNotification;
 			typedef std::function<void(Cursor&)> OnResult;
 			typedef Connection* SessionId;
@@ -220,42 +220,42 @@ namespace Edge
 			class ED_OUT_TS Util
 			{
 			public:
-				static std::string InlineArray(Cluster* Client, Core::Unique<Core::Schema> Array);
-				static std::string InlineQuery(Cluster* Client, Core::Unique<Core::Schema> Where, const std::unordered_set<std::string>& Whitelist, const std::string& Default = "TRUE");
+				static Core::String InlineArray(Cluster* Client, Core::Unique<Core::Schema> Array);
+				static Core::String InlineQuery(Cluster* Client, Core::Unique<Core::Schema> Where, const Core::UnorderedSet<Core::String>& Whitelist, const Core::String& Default = "TRUE");
 			};
 
 			class ED_OUT Address
 			{
 			private:
-				std::unordered_map<std::string, std::string> Params;
+				Core::UnorderedMap<Core::String, Core::String> Params;
 
 			public:
 				Address();
-				Address(const std::string& URI);
-				void Override(const std::string& Key, const std::string& Value);
-				bool Set(AddressOp Key, const std::string& Value);
-				std::string Get(AddressOp Key) const;
-				std::string GetAddress() const;
-				const std::unordered_map<std::string, std::string>& Get() const;
+				Address(const Core::String& URI);
+				void Override(const Core::String& Key, const Core::String& Value);
+				bool Set(AddressOp Key, const Core::String& Value);
+				Core::String Get(AddressOp Key) const;
+				Core::String GetAddress() const;
+				const Core::UnorderedMap<Core::String, Core::String>& Get() const;
 				Core::Unique<const char*> CreateKeys() const;
 				Core::Unique<const char*> CreateValues() const;
 
 			private:
-				static std::string GetKeyName(AddressOp Key);
+				static Core::String GetKeyName(AddressOp Key);
 			};
 
 			class ED_OUT Notify
 			{
 			private:
-				std::string Name;
-				std::string Data;
+				Core::String Name;
+				Core::String Data;
 				int Pid;
 
 			public:
 				Notify(TNotify* NewBase);
 				Core::Unique<Core::Schema> GetSchema() const;
-				std::string GetName() const;
-				std::string GetData() const;
+				Core::String GetName() const;
+				Core::String GetData() const;
 				int GetPid() const;
 			};
 
@@ -273,7 +273,7 @@ namespace Edge
 
 			public:
 				int SetValueText(char* Data, size_t Size);
-				std::string GetName() const;
+				Core::String GetName() const;
 				Core::Variant Get() const;
 				Core::Schema* GetInline() const;
 				char* GetRaw() const;
@@ -374,11 +374,11 @@ namespace Edge
 				Core::Unique<Core::Schema> GetArrayOfArrays() const;
 				Core::Unique<Core::Schema> GetObject(size_t Index = 0) const;
 				Core::Unique<Core::Schema> GetArray(size_t Index = 0) const;
-				std::string GetCommandStatusText() const;
-				std::string GetStatusText() const;
-				std::string GetErrorText() const;
-				std::string GetErrorField(FieldCode Field) const;
-				int GetNameIndex(const std::string& Name) const;
+				Core::String GetCommandStatusText() const;
+				Core::String GetStatusText() const;
+				Core::String GetErrorText() const;
+				Core::String GetErrorField(FieldCode Field) const;
+				int GetNameIndex(const Core::String& Name) const;
 				QueryExec GetStatus() const;
 				ObjectId GetValueId() const;
 				size_t GetAffectedRows() const;
@@ -415,7 +415,7 @@ namespace Edge
 				friend Cluster;
 
 			private:
-				std::vector<Response> Base;
+				Core::Vector<Response> Base;
 				Connection* Executor;
 				Caching Cache;
 
@@ -456,11 +456,11 @@ namespace Edge
 				Core::Unique<Core::Schema> GetArray(size_t ResponseIndex = 0, size_t Index = 0) const;
 
 			public:
-				std::vector<Response>::iterator begin()
+				Core::Vector<Response>::iterator begin()
 				{
 					return Base.begin();
 				}
-				std::vector<Response>::iterator end()
+				Core::Vector<Response>::iterator end()
 				{
 					return Base.end();
 				}
@@ -471,7 +471,7 @@ namespace Edge
 				friend Cluster;
 
 			private:
-				std::unordered_set<std::string> Listens;
+				Core::UnorderedSet<Core::String> Listens;
 				TConnection* Base;
 				Socket* Stream;
 				Request* Current;
@@ -495,7 +495,7 @@ namespace Edge
 
 			private:
 				Core::Promise<Cursor> Future;
-				std::vector<char> Command;
+				Core::Vector<char> Command;
 				std::chrono::microseconds Time;
 				SessionId Session;
 				OnResult Callback;
@@ -503,11 +503,11 @@ namespace Edge
 				size_t Options;
 
 			public:
-				Request(const std::string& Commands, Caching Status);
+				Request(const Core::String& Commands, Caching Status);
 				void Finalize(Cursor& Subresult);
 				void Failure();
 				Cursor&& GetResult();
-				const std::vector<char>& GetCommand() const;
+				const Core::Vector<char>& GetCommand() const;
 				SessionId GetSession() const;
 				uint64_t GetTiming() const;
 				bool IsPending() const;
@@ -520,7 +520,7 @@ namespace Edge
 			private:
 				struct
 				{
-					std::unordered_map<std::string, std::pair<int64_t, Cursor>> Objects;
+					Core::UnorderedMap<Core::String, std::pair<int64_t, Cursor>> Objects;
 					std::mutex Context;
 					uint64_t ShortDuration = 10;
 					uint64_t MidDuration = 30;
@@ -530,9 +530,9 @@ namespace Edge
 				} Cache;
 
 			private:
-				std::unordered_map<std::string, std::unordered_map<uint64_t, OnNotification>> Listeners;
-				std::unordered_map<Socket*, Connection*> Pool;
-				std::vector<Request*> Requests;
+				Core::UnorderedMap<Core::String, Core::UnorderedMap<uint64_t, OnNotification>> Listeners;
+				Core::UnorderedMap<Socket*, Connection*> Pool;
+				Core::Vector<Request*> Requests;
 				std::atomic<uint64_t> Channel;
 				std::mutex Update;
 				OnReconnect Reconnected;
@@ -545,28 +545,28 @@ namespace Edge
 				void SetCacheCleanup(uint64_t Interval);
 				void SetCacheDuration(QueryOp CacheId, uint64_t Duration);
 				void SetWhenReconnected(const OnReconnect& NewCallback);
-				uint64_t AddChannel(const std::string& Name, const OnNotification& NewCallback);
-				bool RemoveChannel(const std::string& Name, uint64_t Id);
+				uint64_t AddChannel(const Core::String& Name, const OnNotification& NewCallback);
+				bool RemoveChannel(const Core::String& Name, uint64_t Id);
 				Core::Promise<SessionId> TxBegin(Isolation Type);
-				Core::Promise<SessionId> TxBegin(const std::string& Command);
-				Core::Promise<bool> TxEnd(const std::string& Command, SessionId Session);
+				Core::Promise<SessionId> TxBegin(const Core::String& Command);
+				Core::Promise<bool> TxEnd(const Core::String& Command, SessionId Session);
 				Core::Promise<bool> TxCommit(SessionId Session);
 				Core::Promise<bool> TxRollback(SessionId Session);
 				Core::Promise<bool> Connect(const Address& URI, size_t Connections);
 				Core::Promise<bool> Disconnect();
-				Core::Promise<bool> Listen(const std::vector<std::string>& Channels);
-				Core::Promise<bool> Unlisten(const std::vector<std::string>& Channels);
-				Core::Promise<Cursor> EmplaceQuery(const std::string& Command, Core::SchemaList* Map, size_t QueryOps = 0, SessionId Session = nullptr);
-				Core::Promise<Cursor> TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, size_t QueryOps = 0, SessionId Session = nullptr);
-				Core::Promise<Cursor> Query(const std::string& Command, size_t QueryOps = 0, SessionId Session = nullptr);
+				Core::Promise<bool> Listen(const Core::Vector<Core::String>& Channels);
+				Core::Promise<bool> Unlisten(const Core::Vector<Core::String>& Channels);
+				Core::Promise<Cursor> EmplaceQuery(const Core::String& Command, Core::SchemaList* Map, size_t QueryOps = 0, SessionId Session = nullptr);
+				Core::Promise<Cursor> TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, size_t QueryOps = 0, SessionId Session = nullptr);
+				Core::Promise<Cursor> Query(const Core::String& Command, size_t QueryOps = 0, SessionId Session = nullptr);
 				Connection* GetConnection(QueryState State);
 				Connection* GetConnection() const;
 				bool IsConnected() const;
 
 			private:
-				std::string GetCacheOid(const std::string& Payload, size_t QueryOpts);
-				bool GetCache(const std::string& CacheOid, Cursor* Data);
-				void SetCache(const std::string& CacheOid, Cursor* Data, size_t QueryOpts);
+				Core::String GetCacheOid(const Core::String& Payload, size_t QueryOpts);
+				bool GetCache(const Core::String& CacheOid, Cursor* Data);
+				void SetCache(const Core::String& CacheOid, Cursor* Data, size_t QueryOpts);
 				void TryUnassign(Connection* Base, Request* Context);
 				bool Reestablish(Connection* Base);
 				bool Consume(Connection* Base);
@@ -574,7 +574,7 @@ namespace Edge
 				bool Flush(Connection* Base, bool ListenForResults);
 				bool Dispatch(Connection* Base, bool Connected);
 				bool TryAssign(Connection* Base, Request* Context);
-				Connection* IsListens(const std::string& Name);
+				Connection* IsListens(const Core::String& Name);
 			};
 
 			class ED_OUT_TS Driver
@@ -582,7 +582,7 @@ namespace Edge
 			private:
 				struct Pose
 				{
-					std::string Key;
+					Core::String Key;
 					size_t Offset = 0;
 					bool Escape = false;
 					bool Negate = false;
@@ -590,14 +590,14 @@ namespace Edge
 
 				struct Sequence
 				{
-					std::vector<Pose> Positions;
-					std::string Request;
-					std::string Cache;
+					Core::Vector<Pose> Positions;
+					Core::String Request;
+					Core::String Cache;
 				};
 
 			private:
-				static Core::Mapping<std::unordered_map<std::string, Sequence>>* Queries;
-				static Core::Mapping<std::unordered_map<std::string, std::string>>* Constants;
+				static Core::Mapping<Core::UnorderedMap<Core::String, Sequence>>* Queries;
+				static Core::Mapping<Core::UnorderedMap<Core::String, Core::String>>* Constants;
 				static std::mutex* Safe;
 				static std::atomic<bool> Active;
 				static std::atomic<int> State;
@@ -607,20 +607,20 @@ namespace Edge
 				static void Create();
 				static void Release();
 				static void SetQueryLog(const OnQueryLog& Callback);
-				static void LogQuery(const std::string& Command);
-				static bool AddConstant(const std::string& Name, const std::string& Value);
-				static bool AddQuery(const std::string& Name, const char* Buffer, size_t Size);
-				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
-				static bool RemoveConstant(const std::string& Name);
-				static bool RemoveQuery(const std::string& Name);
+				static void LogQuery(const Core::String& Command);
+				static bool AddConstant(const Core::String& Name, const Core::String& Value);
+				static bool AddQuery(const Core::String& Name, const char* Buffer, size_t Size);
+				static bool AddDirectory(const Core::String& Directory, const Core::String& Origin = "");
+				static bool RemoveConstant(const Core::String& Name);
+				static bool RemoveQuery(const Core::String& Name);
 				static bool LoadCacheDump(Core::Schema* Dump);
 				static Core::Schema* GetCacheDump();
-				static std::string Emplace(Cluster* Base, const std::string& SQL, Core::SchemaList* Map, bool Once = true);
-				static std::string GetQuery(Cluster* Base, const std::string& Name, Core::SchemaArgs* Map, bool Once = true);
-				static std::string GetCharArray(TConnection* Base, const std::string& Src);
-				static std::string GetByteArray(TConnection* Base, const char* Src, size_t Size);
-				static std::string GetSQL(TConnection* Base, Core::Schema* Source, bool Escape, bool Negate);
-				static std::vector<std::string> GetQueries();
+				static Core::String Emplace(Cluster* Base, const Core::String& SQL, Core::SchemaList* Map, bool Once = true);
+				static Core::String GetQuery(Cluster* Base, const Core::String& Name, Core::SchemaArgs* Map, bool Once = true);
+				static Core::String GetCharArray(TConnection* Base, const Core::String& Src);
+				static Core::String GetByteArray(TConnection* Base, const char* Src, size_t Size);
+				static Core::String GetSQL(TConnection* Base, Core::Schema* Source, bool Escape, bool Negate);
+				static Core::Vector<Core::String> GetQueries();
 			};
 		}
 	}

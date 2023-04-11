@@ -760,7 +760,7 @@ namespace Edge
 		{
 			return Instance;
 		}
-		const std::vector<AudioEffect*>& AudioSource::GetEffects() const
+		const Core::Vector<AudioEffect*>& AudioSource::GetEffects() const
 		{
 			return Effects;
 		}

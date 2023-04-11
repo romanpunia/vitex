@@ -59,9 +59,8 @@ namespace Edge
 
 		struct Vector4;
 
-		typedef std::function<void(class FiniteState*)> ActionCallback;
-		typedef std::function<bool(class Preprocessor*, const struct IncludeResult& File, std::string* Out)> ProcIncludeCallback;
-		typedef std::function<bool(class Preprocessor*, const std::string& Name, const std::vector<std::string>& Args)> ProcPragmaCallback;
+		typedef std::function<bool(class Preprocessor*, const struct IncludeResult& File, Core::String* Out)> ProcIncludeCallback;
+		typedef std::function<bool(class Preprocessor*, const Core::String& Name, const Core::Vector<Core::String>& Args)> ProcPragmaCallback;
 		typedef std::function<void(const struct CollisionBody&)> CollisionCallback;
 		typedef void* Cipher;
 		typedef void* Digest;
@@ -207,15 +206,15 @@ namespace Edge
 
 		struct ED_OUT IncludeDesc
 		{
-			std::vector<std::string> Exts;
-			std::string From;
-			std::string Path;
-			std::string Root;
+			Core::Vector<Core::String> Exts;
+			Core::String From;
+			Core::String Path;
+			Core::String Root;
 		};
 
 		struct ED_OUT IncludeResult
 		{
-			std::string Module;
+			Core::String Module;
 			bool IsSystem = false;
 			bool IsFile = false;
 		};
@@ -829,8 +828,8 @@ namespace Edge
 
 		struct ED_OUT Joint
 		{
-			std::vector<Joint> Childs;
-			std::string Name;
+			Core::Vector<Joint> Childs;
+			Core::String Name;
 			Matrix4x4 Global;
 			Matrix4x4 Local;
 			size_t Index;
@@ -846,22 +845,22 @@ namespace Edge
 
 		struct ED_OUT SkinAnimatorKey
 		{
-			std::vector<AnimatorKey> Pose;
+			Core::Vector<AnimatorKey> Pose;
 			float Time;
 		};
 
 		struct ED_OUT SkinAnimatorClip
 		{
-			std::vector<SkinAnimatorKey> Keys;
-			std::string Name;
+			Core::Vector<SkinAnimatorKey> Keys;
+			Core::String Name;
 			float Duration = 1.0f;
 			float Rate = 1.0f;
 		};
 
 		struct ED_OUT KeyAnimatorClip
 		{
-			std::vector<AnimatorKey> Keys;
-			std::string Name;
+			Core::Vector<AnimatorKey> Keys;
+			Core::String Name;
 			float Duration = 1.0f;
 			float Rate = 1.0f;
 		};
@@ -938,9 +937,9 @@ namespace Edge
 			friend class Regex;
 
 		private:
-			std::string Expression;
-			std::vector<RegexBracket> Brackets;
-			std::vector<RegexBranch> Branches;
+			Core::String Expression;
+			Core::Vector<RegexBracket> Brackets;
+			Core::Vector<RegexBranch> Branches;
 			int64_t MaxBranches;
 			int64_t MaxBrackets;
 			int64_t MaxMatches;
@@ -951,12 +950,12 @@ namespace Edge
 
 		public:
 			RegexSource() noexcept;
-			RegexSource(const std::string& Regexp, bool fIgnoreCase = false, int64_t fMaxMatches = -1, int64_t fMaxBranches = -1, int64_t fMaxBrackets = -1) noexcept;
+			RegexSource(const Core::String& Regexp, bool fIgnoreCase = false, int64_t fMaxMatches = -1, int64_t fMaxBranches = -1, int64_t fMaxBrackets = -1) noexcept;
 			RegexSource(const RegexSource& Other) noexcept;
 			RegexSource(RegexSource&& Other) noexcept;
 			RegexSource& operator =(const RegexSource& V) noexcept;
 			RegexSource& operator =(RegexSource&& V) noexcept;
-			const std::string& GetRegex() const;
+			const Core::String& GetRegex() const;
 			int64_t GetMaxBranches() const;
 			int64_t GetMaxBrackets() const;
 			int64_t GetMaxMatches() const;
@@ -973,7 +972,7 @@ namespace Edge
 			friend class Regex;
 
 		private:
-			std::vector<RegexMatch> Matches;
+			Core::Vector<RegexMatch> Matches;
 			RegexState State;
 			int64_t Steps;
 
@@ -989,8 +988,8 @@ namespace Edge
 			bool Empty() const;
 			int64_t GetSteps() const;
 			RegexState GetState() const;
-			const std::vector<RegexMatch>& Get() const;
-			std::vector<std::string> ToArray() const;
+			const Core::Vector<RegexMatch>& Get() const;
+			Core::Vector<Core::String> ToArray() const;
 		};
 
 		struct ED_OUT PrivateKey
@@ -1009,28 +1008,28 @@ namespace Edge
 			};
 
 		private:
-			std::vector<void*> Blocks;
-			std::string Plain;
+			Core::Vector<void*> Blocks;
+			Core::String Plain;
 
 		private:
-			PrivateKey(const std::string& Text, bool) noexcept;
-			PrivateKey(std::string&& Text, bool) noexcept;
+			PrivateKey(const Core::String& Text, bool) noexcept;
+			PrivateKey(Core::String&& Text, bool) noexcept;
 
 		public:
 			PrivateKey() noexcept;
 			PrivateKey(const PrivateKey& Other) noexcept;
 			PrivateKey(PrivateKey&& Other) noexcept;
-			explicit PrivateKey(const std::string& Key) noexcept;
+			explicit PrivateKey(const Core::String& Key) noexcept;
 			explicit PrivateKey(const char* Buffer) noexcept;
 			explicit PrivateKey(const char* Buffer, size_t Size) noexcept;
 			~PrivateKey() noexcept;
 			PrivateKey& operator =(const PrivateKey& V) noexcept;
 			PrivateKey& operator =(PrivateKey&& V) noexcept;
 			void Clear();
-			void Secure(const std::string& Key);
+			void Secure(const Core::String& Key);
 			void Secure(const char* Buffer, size_t Size);
 			void ExposeToStack(char* Buffer, size_t MaxSize, size_t* OutSize = nullptr) const;
-			std::string ExposeToHeap() const;
+			Core::String ExposeToHeap() const;
 			size_t GetSize() const;
 
 		public:
@@ -1043,8 +1042,8 @@ namespace Edge
 			}
 
 		public:
-			static PrivateKey GetPlain(std::string&& Value);
-			static PrivateKey GetPlain(const std::string& Value);
+			static PrivateKey GetPlain(Core::String&& Value);
+			static PrivateKey GetPlain(const Core::String& Value);
 			static void RandomizeBuffer(char* Data, size_t Size);
 
 		private:
@@ -1166,17 +1165,17 @@ namespace Edge
 
 			struct Result
 			{
-				std::vector<unsigned int> Strips;
-				std::vector<unsigned int> Groups;
+				Core::Vector<unsigned int> Strips;
+				Core::Vector<unsigned int> Groups;
 
-				std::vector<int> GetIndices(int Group = -1);
-				std::vector<int> GetInvIndices(int Group = -1);
+				Core::Vector<int> GetIndices(int Group = -1);
+				Core::Vector<int> GetInvIndices(int Group = -1);
 			};
 
 		private:
-			std::vector<unsigned int> SingleStrip;
-			std::vector<unsigned int> StripLengths;
-			std::vector<unsigned int> StripRuns;
+			Core::Vector<unsigned int> SingleStrip;
+			Core::Vector<unsigned int> StripLengths;
+			Core::Vector<unsigned int> StripRuns;
 			Adjacencies* Adj;
 			bool* Tags;
 			unsigned int NbStrips;
@@ -1254,14 +1253,14 @@ namespace Edge
 		public:
 			MD5Hasher() noexcept;
 			void Transform(const UInt1* Buffer, unsigned int Length = 64);
-			void Update(const std::string& Buffer, unsigned int BlockSize = 64);
+			void Update(const Core::String& Buffer, unsigned int BlockSize = 64);
 			void Update(const unsigned char* Buffer, unsigned int Length, unsigned int BlockSize = 64);
 			void Update(const char* Buffer, unsigned int Length, unsigned int BlockSize = 64);
 			void Finalize();
 			Core::Unique<char> HexDigest() const;
 			Core::Unique<unsigned char> RawDigest() const;
-			std::string ToHex() const;
-			std::string ToRaw() const;
+			Core::String ToHex() const;
+			Core::String ToRaw() const;
 
 		private:
 			static void Decode(UInt4* Output, const UInt1* Input, unsigned int Length);
@@ -1494,24 +1493,24 @@ namespace Edge
 		public:
 			static const char* GetDigestName(Digest Type);
 			static const char* GetCipherName(Cipher Type);
-			static std::string RandomBytes(size_t Length);
-			static std::string Hash(Digest Type, const std::string& Value);
-			static std::string HashBinary(Digest Type, const std::string& Value);
-			static std::string Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
-			static std::string Sign(Digest Type, const std::string& Value, const PrivateKey& Key);
-			static std::string HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
-			static std::string HMAC(Digest Type, const std::string& Value, const PrivateKey& Key);
-			static std::string Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static std::string Encrypt(Cipher Type, const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static std::string Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static std::string Decrypt(Cipher Type, const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static std::string JWTSign(const std::string& Algo, const std::string& Payload, const PrivateKey& Key);
-			static std::string JWTEncode(WebToken* Src, const PrivateKey& Key);
-			static Core::Unique<WebToken> JWTDecode(const std::string& Value, const PrivateKey& Key);
-			static std::string DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt);
-			static Core::Unique<Core::Schema> DocDecrypt(const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt);
+			static Core::String RandomBytes(size_t Length);
+			static Core::String Hash(Digest Type, const Core::String& Value);
+			static Core::String HashBinary(Digest Type, const Core::String& Value);
+			static Core::String Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
+			static Core::String Sign(Digest Type, const Core::String& Value, const PrivateKey& Key);
+			static Core::String HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
+			static Core::String HMAC(Digest Type, const Core::String& Value, const PrivateKey& Key);
+			static Core::String Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static Core::String Encrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static Core::String Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static Core::String Decrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static Core::String JWTSign(const Core::String& Algo, const Core::String& Payload, const PrivateKey& Key);
+			static Core::String JWTEncode(WebToken* Src, const PrivateKey& Key);
+			static Core::Unique<WebToken> JWTDecode(const Core::String& Value, const PrivateKey& Key);
+			static Core::String DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt);
+			static Core::Unique<Core::Schema> DocDecrypt(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt);
 			static unsigned char RandomUC();
-			static uint64_t CRC32(const std::string& Data);
+			static uint64_t CRC32(const Core::String& Data);
 			static uint64_t Random(uint64_t Min, uint64_t Max);
 			static uint64_t Random();
 			static void Sha1CollapseBufferBlock(unsigned int* Buffer);
@@ -1524,38 +1523,38 @@ namespace Edge
 		class ED_OUT_TS Codec
 		{
 		public:
-			static std::string Move(const std::string& Text, int Offset);
-			static std::string Encode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool Padding);
-			static std::string Decode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool(*IsAlphabetic)(unsigned char));
-			static std::string Bep45Encode(const std::string& Value);
-			static std::string Bep45Decode(const std::string& Value);
-			static std::string Base45Encode(const std::string& Value);
-			static std::string Base45Decode(const std::string& Value);
-			static std::string Base64Encode(const unsigned char* Value, size_t Length);
-			static std::string Base64Encode(const std::string& Value);
-			static std::string Base64Decode(const unsigned char* Value, size_t Length);
-			static std::string Base64Decode(const std::string& Value);
-			static std::string Base64URLEncode(const unsigned char* Value, size_t Length);
-			static std::string Base64URLEncode(const std::string& Value);
-			static std::string Base64URLDecode(const unsigned char* Value, size_t Length);
-			static std::string Base64URLDecode(const std::string& Value);
-			static std::string Shuffle(const char* Value, size_t Size, uint64_t Mask);
-			static std::string Compress(const std::string& Data, Compression Type = Compression::Default);
-			static std::string Decompress(const std::string& Data);
-			static std::string HexEncode(const char* Value, size_t Size);
-			static std::string HexEncode(const std::string& Value);
-			static std::string HexDecode(const char* Value, size_t Size);
-			static std::string HexDecode(const std::string& Value);
-			static std::string URIEncode(const std::string& Text);
-			static std::string URIEncode(const char* Text, size_t Length);
-			static std::string URIDecode(const std::string& Text);
-			static std::string URIDecode(const char* Text, size_t Length);
-			static std::string DecimalToHex(uint64_t V);
-			static std::string Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65);
+			static Core::String Move(const Core::String& Text, int Offset);
+			static Core::String Encode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool Padding);
+			static Core::String Decode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool(*IsAlphabetic)(unsigned char));
+			static Core::String Bep45Encode(const Core::String& Value);
+			static Core::String Bep45Decode(const Core::String& Value);
+			static Core::String Base45Encode(const Core::String& Value);
+			static Core::String Base45Decode(const Core::String& Value);
+			static Core::String Base64Encode(const unsigned char* Value, size_t Length);
+			static Core::String Base64Encode(const Core::String& Value);
+			static Core::String Base64Decode(const unsigned char* Value, size_t Length);
+			static Core::String Base64Decode(const Core::String& Value);
+			static Core::String Base64URLEncode(const unsigned char* Value, size_t Length);
+			static Core::String Base64URLEncode(const Core::String& Value);
+			static Core::String Base64URLDecode(const unsigned char* Value, size_t Length);
+			static Core::String Base64URLDecode(const Core::String& Value);
+			static Core::String Shuffle(const char* Value, size_t Size, uint64_t Mask);
+			static Core::String Compress(const Core::String& Data, Compression Type = Compression::Default);
+			static Core::String Decompress(const Core::String& Data);
+			static Core::String HexEncode(const char* Value, size_t Size);
+			static Core::String HexEncode(const Core::String& Value);
+			static Core::String HexDecode(const char* Value, size_t Size);
+			static Core::String HexDecode(const Core::String& Value);
+			static Core::String URIEncode(const Core::String& Text);
+			static Core::String URIEncode(const char* Text, size_t Length);
+			static Core::String URIDecode(const Core::String& Text);
+			static Core::String URIDecode(const char* Text, size_t Length);
+			static Core::String DecimalToHex(uint64_t V);
+			static Core::String Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65);
 			static size_t Utf8(int Code, char* Buffer);
 			static bool Hex(char Code, int& Value);
 			static bool HexToString(void* Data, size_t Length, char* Buffer, size_t BufferLength);
-			static bool HexToDecimal(const std::string& Text, size_t Index, size_t Size, int& Value);
+			static bool HexToDecimal(const Core::String& Text, size_t Index, size_t Size, int& Value);
 			static bool IsBase64URL(unsigned char Value);
 			static bool IsBase64(unsigned char Value);
 		};
@@ -1577,11 +1576,11 @@ namespace Edge
 			static bool HasSBIntersected(Transform* BoxR0, Transform* BoxR1);
 			static bool HasOBBIntersected(Transform* BoxR0, Transform* BoxR1);
 			static bool HasAABBIntersected(Transform* BoxR0, Transform* BoxR1);
-			static void FlipIndexWindingOrder(std::vector<int>& Indices);
+			static void FlipIndexWindingOrder(Core::Vector<int>& Indices);
 			static void MatrixRhToLh(Compute::Matrix4x4* Matrix);
 			static void SetLeftHanded(bool IsLeftHanded);
-			static std::vector<int> CreateTriangleStrip(TriangleStrip::Desc& Desc, const std::vector<int>& Indices);
-			static std::vector<int> CreateTriangleList(const std::vector<int>& Indices);
+			static Core::Vector<int> CreateTriangleStrip(TriangleStrip::Desc& Desc, const Core::Vector<int>& Indices);
+			static Core::Vector<int> CreateTriangleList(const Core::Vector<int>& Indices);
 			static void CreateFrustum8CRad(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ);
 			static void CreateFrustum8C(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ);
 			static Ray CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView);
@@ -1593,7 +1592,7 @@ namespace Edge
 
 		public:
 			template <typename T>
-			static void TexCoordRhToLh(std::vector<T>& Vertices, bool Always = false)
+			static void TexCoordRhToLh(Core::Vector<T>& Vertices, bool Always = false)
 			{
 				if (IsLeftHanded() || Always)
 					return;
@@ -1622,9 +1621,9 @@ namespace Edge
 			static int64_t Parse(const char* Buffer, int64_t BufferLength, RegexResult* Info);
 
 		public:
-			static bool Match(RegexSource* Value, RegexResult& Result, const std::string& Buffer);
+			static bool Match(RegexSource* Value, RegexResult& Result, const Core::String& Buffer);
 			static bool Match(RegexSource* Value, RegexResult& Result, const char* Buffer, int64_t Length);
-			static bool Replace(RegexSource* Value, const std::string& ToExpression, std::string& Buffer);
+			static bool Replace(RegexSource* Value, const Core::String& ToExpression, Core::String& Buffer);
 			static const char* Syntax();
 		};
 
@@ -1634,28 +1633,28 @@ namespace Edge
 			Core::Schema* Header;
 			Core::Schema* Payload;
 			Core::Schema* Token;
-			std::string Refresher;
-			std::string Signature;
-			std::string Data;
+			Core::String Refresher;
+			Core::String Signature;
+			Core::String Data;
 
 		public:
 			WebToken() noexcept;
-			WebToken(const std::string& Issuer, const std::string& Subject, int64_t Expiration) noexcept;
+			WebToken(const Core::String& Issuer, const Core::String& Subject, int64_t Expiration) noexcept;
 			virtual ~WebToken() noexcept;
 			void Unsign();
-			void SetAlgorithm(const std::string& Value);
-			void SetType(const std::string& Value);
-			void SetContentType(const std::string& Value);
-			void SetIssuer(const std::string& Value);
-			void SetSubject(const std::string& Value);
-			void SetId(const std::string& Value);
-			void SetAudience(const std::vector<std::string>& Value);
+			void SetAlgorithm(const Core::String& Value);
+			void SetType(const Core::String& Value);
+			void SetContentType(const Core::String& Value);
+			void SetIssuer(const Core::String& Value);
+			void SetSubject(const Core::String& Value);
+			void SetId(const Core::String& Value);
+			void SetAudience(const Core::Vector<Core::String>& Value);
 			void SetExpiration(int64_t Value);
 			void SetNotBefore(int64_t Value);
 			void SetCreated(int64_t Value);
-			void SetRefreshToken(const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt);
+			void SetRefreshToken(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt);
 			bool Sign(const PrivateKey& Key);
-			std::string GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt);
+			Core::String GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt);
 			bool IsValid() const;
 		};
 
@@ -1664,10 +1663,10 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				std::string MultilineCommentBegin = "/*";
-				std::string MultilineCommentEnd = "*/";
-				std::string CommentBegin = "//";
-				std::string StringLiterals = "\"'`";
+				Core::String MultilineCommentBegin = "/*";
+				Core::String MultilineCommentEnd = "*/";
+				Core::String CommentBegin = "//";
+				Core::String StringLiterals = "\"'`";
 				bool Pragmas = true;
 				bool Includes = true;
 				bool Defines = true;
@@ -1702,8 +1701,8 @@ namespace Edge
 
 			struct Token
 			{
-				std::string Name;
-				std::string Value;
+				Core::String Name;
+				Core::String Value;
 				size_t Start = 0;
 				size_t End = 0;
 				bool Found = false;
@@ -1711,8 +1710,8 @@ namespace Edge
 
 			struct Conditional
 			{
-				std::vector<Conditional> Childs;
-				std::string Expression;
+				Core::Vector<Conditional> Childs;
+				Core::String Expression;
 				bool Chaining = false;
 				Condition Type = Condition::Text;
 				size_t TokenStart = 0;
@@ -1723,15 +1722,15 @@ namespace Edge
 
 			struct Definition
 			{
-				std::vector<std::string> Tokens;
-				std::string Expansion;
+				Core::Vector<Core::String> Tokens;
+				Core::String Expansion;
 			};
 
 		private:
-			std::unordered_map<std::string, std::pair<Condition, Controller>> ControlFlow;
-			std::unordered_map<std::string, Definition> Defines;
-			std::unordered_set<std::string> Sets;
-			std::string ExpandedPath;
+			Core::UnorderedMap<Core::String, std::pair<Condition, Controller>> ControlFlow;
+			Core::UnorderedMap<Core::String, Definition> Defines;
+			Core::UnorderedSet<Core::String> Sets;
+			Core::String ExpandedPath;
 			ProcIncludeCallback Include;
 			ProcPragmaCallback Pragma;
 			IncludeDesc FileDesc;
@@ -1745,53 +1744,32 @@ namespace Edge
 			void SetIncludeCallback(const ProcIncludeCallback& Callback);
 			void SetPragmaCallback(const ProcPragmaCallback& Callback);
 			void SetFeatures(const Desc& Value);
-			bool Define(const std::string& Expression);
-			void Undefine(const std::string& Name);
+			bool Define(const Core::String& Expression);
+			void Undefine(const Core::String& Name);
 			void Clear();
-			bool IsDefined(const std::string& Name) const;
-			bool IsDefined(const std::string& Name, const std::string& Value) const;
-			bool Process(const std::string& Path, std::string& Buffer);
-			const std::string& GetCurrentFilePath() const;
+			bool IsDefined(const Core::String& Name) const;
+			bool IsDefined(const Core::String& Name, const Core::String& Value) const;
+			bool Process(const Core::String& Path, Core::String& Buffer);
+			const Core::String& GetCurrentFilePath() const;
 
 		private:
-			Token FindNextToken(std::string& Buffer, size_t& Offset);
-			Token FindNextConditionalToken(std::string& Buffer, size_t& Offset);
-			size_t ReplaceToken(Token& Where, std::string& Buffer, const std::string& To);
-			std::vector<Conditional> PrepareConditions(std::string& Buffer, Token& Next, size_t& Offset, bool Top);
-			std::string Evaluate(std::string& Buffer, const std::vector<Conditional>& Conditions);
-			std::pair<std::string, std::string> GetExpressionParts(const std::string& Value);
-			std::pair<std::string, std::string> UnpackExpression(const std::pair<std::string, std::string>& Expression);
+			Token FindNextToken(Core::String& Buffer, size_t& Offset);
+			Token FindNextConditionalToken(Core::String& Buffer, size_t& Offset);
+			size_t ReplaceToken(Token& Where, Core::String& Buffer, const Core::String& To);
+			Core::Vector<Conditional> PrepareConditions(Core::String& Buffer, Token& Next, size_t& Offset, bool Top);
+			Core::String Evaluate(Core::String& Buffer, const Core::Vector<Conditional>& Conditions);
+			std::pair<Core::String, Core::String> GetExpressionParts(const Core::String& Value);
+			std::pair<Core::String, Core::String> UnpackExpression(const std::pair<Core::String, Core::String>& Expression);
 			int SwitchCase(const Conditional& Value);
-			bool ExpandDefinitions(std::string& Buffer, size_t& Size);
-			bool ParseArguments(const std::string& Value, std::vector<std::string>& Tokens, bool UnpackLiterals);
-			bool ConsumeTokens(const std::string& Path, std::string& Buffer);
+			bool ExpandDefinitions(Core::String& Buffer, size_t& Size);
+			bool ParseArguments(const Core::String& Value, Core::Vector<Core::String>& Tokens, bool UnpackLiterals);
+			bool ConsumeTokens(const Core::String& Path, Core::String& Buffer);
 			bool ReturnResult(bool Result, bool WasNested);
-			bool HasResult(const std::string& Path);
+			bool HasResult(const Core::String& Path);
 			bool SaveResult();
 
 		public:
 			static IncludeResult ResolveInclude(const IncludeDesc& Desc);
-		};
-
-		class ED_OUT FiniteState final : public Core::Reference<FiniteState>
-		{
-		private:
-			std::unordered_map<std::string, ActionCallback*> Actions;
-			std::stack<ActionCallback*> State;
-			std::mutex Mutex;
-
-		public:
-			FiniteState() noexcept;
-			~FiniteState() noexcept;
-			FiniteState* Bind(const std::string& Name, const ActionCallback& Callback);
-			FiniteState* Unbind(const std::string& Name);
-			FiniteState* Push(const std::string& Name);
-			FiniteState* Replace(const std::string& Name);
-			FiniteState* Pop();
-			void Update();
-
-		private:
-			ActionCallback* Find(const std::string& Name);
 		};
 
 		class ED_OUT Transform final : public Core::Reference<Transform>
@@ -1809,7 +1787,7 @@ namespace Edge
 
 		private:
 			Core::TaskCallback OnDirty;
-			std::vector<Transform*> Childs;
+			Core::Vector<Transform*> Childs;
 			Matrix4x4 Temporary;
 			Transform* Root;
 			Spacing* Local;
@@ -1862,7 +1840,7 @@ namespace Edge
 			Transform* GetUpperRoot() const;
 			Transform* GetChild(size_t Child) const;
 			size_t GetChildsCount() const;
-			std::vector<Transform*>& GetChilds();
+			Core::Vector<Transform*>& GetChilds();
 
 		protected:
 			bool CanRootBeApplied(Transform* Root) const;
@@ -1871,7 +1849,7 @@ namespace Edge
 		class ED_OUT Cosmos
 		{
 		public:
-			typedef std::vector<size_t> Iterator;
+			typedef Core::Vector<size_t> Iterator;
 
 		public:
 			struct ED_OUT Node
@@ -1888,8 +1866,8 @@ namespace Edge
 			};
 
 		private:
-			std::unordered_map<void*, size_t> Items;
-			std::vector<Node> Nodes;
+			Core::UnorderedMap<void*, size_t> Items;
+			Core::Vector<Node> Nodes;
 			size_t Root;
 			size_t NodeCount;
 			size_t NodeCapacity;
@@ -1903,8 +1881,8 @@ namespace Edge
 			void InsertItem(void* Item, const Vector3& LowerBound, const Vector3& UpperBound);
 			bool UpdateItem(void* Item, const Vector3& LowerBound, const Vector3& UpperBound, bool Always = false);
 			const Bounding& GetArea(void* Item);
-			const std::unordered_map<void*, size_t>& GetItems() const;
-			const std::vector<Node>& GetNodes() const;
+			const Core::UnorderedMap<void*, size_t>& GetItems() const;
+			const Core::Vector<Node>& GetNodes() const;
 			size_t GetNodesCount() const;
 			size_t GetHeight() const;
 			size_t GetMaxBalance() const;
@@ -1954,17 +1932,17 @@ namespace Edge
 		class ED_OUT HullShape final : public Core::Reference<HullShape>
 		{
 		private:
-			std::vector<Vertex> Vertices;
-			std::vector<int> Indices;
+			Core::Vector<Vertex> Vertices;
+			Core::Vector<int> Indices;
 			btCollisionShape* Shape;
 
 		public:
-			HullShape(std::vector<Vertex>&& NewVertices, std::vector<int>&& Indices) noexcept;
-			HullShape(std::vector<Vertex>&& NewVertices) noexcept;
+			HullShape(Core::Vector<Vertex>&& NewVertices, Core::Vector<int>&& Indices) noexcept;
+			HullShape(Core::Vector<Vertex>&& NewVertices) noexcept;
 			HullShape(btCollisionShape* From) noexcept;
 			~HullShape() noexcept;
-			const std::vector<Vertex>& GetVertices() const;
-			const std::vector<int>& GetIndices() const;
+			const Core::Vector<Vertex>& GetVertices() const;
+			const Core::Vector<int>& GetIndices() const;
 			btCollisionShape* GetShape() const;
 		};
 
@@ -2193,8 +2171,8 @@ namespace Edge
 			Core::Unique<SoftBody> Copy();
 			void Activate(bool Force);
 			void Synchronize(Transform* Transform, bool Kinematic);
-			void GetIndices(std::vector<int>* Indices) const;
-			void GetVertices(std::vector<Vertex>* Vertices) const;
+			void GetIndices(Core::Vector<int>* Indices) const;
+			void GetVertices(Core::Vector<Vertex>* Vertices) const;
 			void GetBoundingBox(Vector3* Min, Vector3* Max) const;
 			void SetContactStiffnessAndDamping(float Stiffness, float Damping);
 			void AddAnchor(int Node, RigidBody* Body, bool DisableCollisionBetweenLinkedBodies = false, float Influence = 1);
@@ -2620,7 +2598,7 @@ namespace Edge
 			};
 
 		private:
-			std::unordered_map<void*, size_t> Shapes;
+			Core::UnorderedMap<void*, size_t> Shapes;
 			btCollisionConfiguration* Collision;
 			btBroadphaseInterface* Broadphase;
 			btConstraintSolver* Solver;
@@ -2673,16 +2651,16 @@ namespace Edge
 			btCollisionShape* CreateCapsule(float Radius = 1, float Height = 1);
 			btCollisionShape* CreateCone(float Radius = 1, float Height = 1);
 			btCollisionShape* CreateCylinder(const Vector3& Scale = Vector3(1, 1, 1));
-			btCollisionShape* CreateConvexHull(std::vector<SkinVertex>& Mesh);
-			btCollisionShape* CreateConvexHull(std::vector<Vertex>& Mesh);
-			btCollisionShape* CreateConvexHull(std::vector<Vector2>& Mesh);
-			btCollisionShape* CreateConvexHull(std::vector<Vector3>& Mesh);
-			btCollisionShape* CreateConvexHull(std::vector<Vector4>& Mesh);
+			btCollisionShape* CreateConvexHull(Core::Vector<SkinVertex>& Mesh);
+			btCollisionShape* CreateConvexHull(Core::Vector<Vertex>& Mesh);
+			btCollisionShape* CreateConvexHull(Core::Vector<Vector2>& Mesh);
+			btCollisionShape* CreateConvexHull(Core::Vector<Vector3>& Mesh);
+			btCollisionShape* CreateConvexHull(Core::Vector<Vector4>& Mesh);
 			btCollisionShape* CreateConvexHull(btCollisionShape* From);
 			btCollisionShape* TryCloneShape(btCollisionShape* Shape);
 			btCollisionShape* ReuseShape(btCollisionShape* Shape);
 			void FreeShape(Core::Unique<btCollisionShape*> Value);
-			std::vector<Vector3> GetShapeVertices(btCollisionShape* Shape) const;
+			Core::Vector<Vector3> GetShapeVertices(btCollisionShape* Shape) const;
 			size_t GetShapeVerticesCount(btCollisionShape* Shape) const;
 			float GetMaxDisplacement() const;
 			float GetAirDensity() const;

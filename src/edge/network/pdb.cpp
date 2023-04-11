@@ -13,12 +13,12 @@ namespace Edge
 			class ArrayFilter;
 
 			typedef std::function<void(void*, ArrayFilter*, char*, size_t)> FilterCallback;
-			typedef std::vector<std::function<void(bool)>> FuturesList;
+			typedef Core::Vector<std::function<void(bool)>> FuturesList;
 #ifdef ED_HAS_POSTGRESQL
 			class ArrayFilter
 			{
 			private:
-				std::vector<char> Records;
+				Core::Vector<char> Records;
 				const char* Source;
 				size_t Size;
 				size_t Position;
@@ -112,10 +112,10 @@ namespace Edge
 				if (Buffer.Empty())
 					return;
 
-				std::string Result;
+				Core::String Result;
 				Buffer.Erase(Buffer.Size() - 1);
 
-				std::vector<std::string> Errors = Buffer.Split('\n');
+				Core::Vector<Core::String> Errors = Buffer.Split('\n');
 				for (auto& Item : Errors)
 					Result += "\n\t" + Item;
 
@@ -130,10 +130,10 @@ namespace Edge
 				if (Buffer.Empty())
 					return;
 
-				std::string Result;
+				Core::String Result;
 				Buffer.Erase(Buffer.Size() - 1);
 
-				std::vector<std::string> Errors = Buffer.Split('\n');
+				Core::Vector<Core::String> Errors = Buffer.Split('\n');
 				for (auto& Item : Errors)
 					Result += "\n\t" + Item;
 
@@ -215,7 +215,7 @@ namespace Edge
 					}
 					case OidType::Money:
 					case OidType::Numeric:
-						return Core::Var::DecimalString(std::string(Data, (size_t)Size));
+						return Core::Var::DecimalString(Core::String(Data, (size_t)Size));
 					case OidType::Bytea:
 					{
 						size_t Length = 0;
@@ -362,13 +362,13 @@ namespace Edge
 				}
 			}
 #endif
-			std::string Util::InlineArray(Cluster* Client, Core::Schema* Array)
+			Core::String Util::InlineArray(Cluster* Client, Core::Schema* Array)
 			{
-				ED_ASSERT(Client != nullptr, std::string(), "cluster should be set");
-				ED_ASSERT(Array != nullptr, std::string(), "array should be set");
+				ED_ASSERT(Client != nullptr, Core::String(), "cluster should be set");
+				ED_ASSERT(Array != nullptr, Core::String(), "array should be set");
 
 				Core::SchemaList Map;
-				std::string Def;
+				Core::String Def;
 
 				for (auto* Item : Array->GetChilds())
 				{
@@ -393,23 +393,23 @@ namespace Edge
 					}
 				}
 
-				std::string Result = PDB::Driver::Emplace(Client, Def, &Map, false);
+				Core::String Result = PDB::Driver::Emplace(Client, Def, &Map, false);
 				if (!Result.empty() && Result.back() == ',')
 					Result.erase(Result.end() - 1);
 
 				ED_RELEASE(Array);
 				return Result;
 			}
-			std::string Util::InlineQuery(Cluster* Client, Core::Schema* Where, const std::unordered_set<std::string>& Whitelist, const std::string& Default)
+			Core::String Util::InlineQuery(Cluster* Client, Core::Schema* Where, const Core::UnorderedSet<Core::String>& Whitelist, const Core::String& Default)
 			{
-				ED_ASSERT(Client != nullptr, std::string(), "cluster should be set");
-				ED_ASSERT(Where != nullptr, std::string(), "array should be set");
+				ED_ASSERT(Client != nullptr, Core::String(), "cluster should be set");
+				ED_ASSERT(Where != nullptr, Core::String(), "array should be set");
 
 				Core::SchemaList Map;
-				std::string Allow = "abcdefghijklmnopqrstuvwxyz._", Def;
+				Core::String Allow = "abcdefghijklmnopqrstuvwxyz._", Def;
 				for (auto* Statement : Where->GetChilds())
 				{
-					std::string Op = Statement->Value.GetBlob();
+					Core::String Op = Statement->Value.GetBlob();
 					if (Op == "=" || Op == "<>" || Op == "<=" || Op == "<" || Op == ">" || Op == ">=" || Op == "+" || Op == "-" || Op == "*" || Op == "/" || Op == "(" || Op == ")" || Op == "TRUE" || Op == "FALSE")
 						Def += Op;
 					else if (Op == "~==")
@@ -435,7 +435,7 @@ namespace Edge
 							Op = Op.substr(1);
 							if (Whitelist.empty() || Whitelist.find(Op) != Whitelist.end())
 							{
-								if (Op.find_first_not_of(Allow) == std::string::npos)
+								if (Op.find_first_not_of(Allow) == Core::String::npos)
 									Def += Op;
 							}
 						}
@@ -449,7 +449,7 @@ namespace Edge
 					}
 				}
 
-				std::string Result = PDB::Driver::Emplace(Client, Def, &Map, false);
+				Core::String Result = PDB::Driver::Emplace(Client, Def, &Map, false);
 				if (Result.empty())
 					Result = Default;
 
@@ -460,7 +460,7 @@ namespace Edge
 			Address::Address()
 			{
 			}
-			Address::Address(const std::string& URI)
+			Address::Address(const Core::String& URI)
 			{
 #ifdef ED_HAS_POSTGRESQL
 				char* Message = nullptr;
@@ -486,20 +486,20 @@ namespace Edge
 				}
 #endif
 			}
-			void Address::Override(const std::string& Key, const std::string& Value)
+			void Address::Override(const Core::String& Key, const Core::String& Value)
 			{
 				Params[Key] = Value;
 			}
-			bool Address::Set(AddressOp Key, const std::string& Value)
+			bool Address::Set(AddressOp Key, const Core::String& Value)
 			{
-				std::string Name = GetKeyName(Key);
+				Core::String Name = GetKeyName(Key);
 				if (Name.empty())
 					return false;
 
 				Params[Name] = Value;
 				return true;
 			}
-			std::string Address::Get(AddressOp Key) const
+			Core::String Address::Get(AddressOp Key) const
 			{
 				auto It = Params.find(GetKeyName(Key));
 				if (It == Params.end())
@@ -507,19 +507,19 @@ namespace Edge
 
 				return It->second;
 			}
-			std::string Address::GetAddress() const
+			Core::String Address::GetAddress() const
 			{
-				std::string Hostname = Get(AddressOp::Ip);
+				Core::String Hostname = Get(AddressOp::Ip);
 				if (Hostname.empty())
 					Hostname = Get(AddressOp::Host);
 
 				return "postgresql://" + Hostname + ':' + Get(AddressOp::Port) + '/';
 			}
-			const std::unordered_map<std::string, std::string>& Address::Get() const
+			const Core::UnorderedMap<Core::String, Core::String>& Address::Get() const
 			{
 				return Params;
 			}
-			std::string Address::GetKeyName(AddressOp Key)
+			Core::String Address::GetKeyName(AddressOp Key)
 			{
 				switch (Key)
 				{
@@ -628,11 +628,11 @@ namespace Edge
 				return nullptr;
 #endif
 			}
-			std::string Notify::GetName() const
+			Core::String Notify::GetName() const
 			{
 				return Name;
 			}
-			std::string Notify::GetData() const
+			Core::String Notify::GetData() const
 			{
 				return Data;
 			}
@@ -657,20 +657,20 @@ namespace Edge
 				return -1;
 #endif
 			}
-			std::string Column::GetName() const
+			Core::String Column::GetName() const
 			{
 #ifdef ED_HAS_POSTGRESQL
-				ED_ASSERT(Base != nullptr, std::string(), "context should be valid");
-				ED_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), std::string(), "row should be valid");
-				ED_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), std::string(), "column should be valid");
+				ED_ASSERT(Base != nullptr, Core::String(), "context should be valid");
+				ED_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), Core::String(), "row should be valid");
+				ED_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), Core::String(), "column should be valid");
 
 				char* Text = PQfname(Base, (int)ColumnIndex);
 				if (!Text)
-					return std::string();
+					return Core::String();
 
 				return Text;
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
 			Core::Variant Column::Get() const
@@ -864,9 +864,9 @@ namespace Edge
 					Oid Type = PQftype(Base, j);
 
 					if (!Null)
-						Result->Set(Name ? Name : std::to_string(j), ToSchema(Data, Count, Type));
+						Result->Set(Name ? Name : Core::ToString(j), ToSchema(Data, Count, Type));
 					else
-						Result->Set(Name ? Name : std::to_string(j), Core::Var::Null());
+						Result->Set(Name ? Name : Core::ToString(j), Core::Var::Null());
 				}
 
 				return Result;
@@ -1014,13 +1014,13 @@ namespace Edge
 				if (ColumnsSize <= 0)
 					return Result;
 
-				std::vector<std::pair<std::string, Oid>> Meta;
+				Core::Vector<std::pair<Core::String, Oid>> Meta;
 				Meta.reserve((size_t)ColumnsSize);
 
 				for (int j = 0; j < ColumnsSize; j++)
 				{
 					char* Name = PQfname(Base, j);
-					Meta.emplace_back(std::make_pair(Name ? Name : std::to_string(j), PQftype(Base, j)));
+					Meta.emplace_back(std::make_pair(Name ? Name : Core::ToString(j), PQftype(Base, j)));
 				}
 
 				Result->Reserve((size_t)RowsSize);
@@ -1065,7 +1065,7 @@ namespace Edge
 				if (ColumnsSize <= 0)
 					return Result;
 
-				std::vector<Oid> Meta;
+				Core::Vector<Oid> Meta;
 				Meta.reserve((size_t)ColumnsSize);
 
 				for (int j = 0; j < ColumnsSize; j++)
@@ -1101,49 +1101,49 @@ namespace Edge
 			{
 				return GetRow(Index).GetArray();
 			}
-			std::string Response::GetCommandStatusText() const
+			Core::String Response::GetCommandStatusText() const
 			{
 #ifdef ED_HAS_POSTGRESQL
-				ED_ASSERT(Base != nullptr, std::string(), "context should be valid");
+				ED_ASSERT(Base != nullptr, Core::String(), "context should be valid");
 				char* Text = PQcmdStatus(Base);
 				if (!Text)
-					return std::string();
+					return Core::String();
 
 				return Text;
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
-			std::string Response::GetStatusText() const
+			Core::String Response::GetStatusText() const
 			{
 #ifdef ED_HAS_POSTGRESQL
-				ED_ASSERT(Base != nullptr, std::string(), "context should be valid");
+				ED_ASSERT(Base != nullptr, Core::String(), "context should be valid");
 				char* Text = PQresStatus(PQresultStatus(Base));
 				if (!Text)
-					return std::string();
+					return Core::String();
 
 				return Text;
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
-			std::string Response::GetErrorText() const
+			Core::String Response::GetErrorText() const
 			{
 #ifdef ED_HAS_POSTGRESQL
-				ED_ASSERT(Base != nullptr, std::string(), "context should be valid");
+				ED_ASSERT(Base != nullptr, Core::String(), "context should be valid");
 				char* Text = PQresultErrorMessage(Base);
 				if (!Text)
-					return std::string();
+					return Core::String();
 
 				return Text;
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
-			std::string Response::GetErrorField(FieldCode Field) const
+			Core::String Response::GetErrorField(FieldCode Field) const
 			{
 #ifdef ED_HAS_POSTGRESQL
-				ED_ASSERT(Base != nullptr, std::string(), "context should be valid");
+				ED_ASSERT(Base != nullptr, Core::String(), "context should be valid");
 				int Code;
 				switch (Field)
 				{
@@ -1202,19 +1202,19 @@ namespace Edge
 						Code = PG_DIAG_SOURCE_FUNCTION;
 						break;
 					default:
-						return std::string();
+						return Core::String();
 				}
 
 				char* Text = PQresultErrorField(Base, Code);
 				if (!Text)
-					return std::string();
+					return Core::String();
 
 				return Text;
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
-			int Response::GetNameIndex(const std::string& Name) const
+			int Response::GetNameIndex(const Core::String& Name) const
 			{
 #ifdef ED_HAS_POSTGRESQL
 				ED_ASSERT(Base != nullptr, -1, "context should be valid");
@@ -1511,7 +1511,7 @@ namespace Edge
 				return Current != nullptr;
 			}
 
-			Request::Request(const std::string& Commands, Caching Status) : Command(Commands.begin(), Commands.end()), Time(Core::Schedule::GetClock()), Session(0), Result(nullptr, Status), Options(0)
+			Request::Request(const Core::String& Commands, Caching Status) : Command(Commands.begin(), Commands.end()), Time(Core::Schedule::GetClock()), Session(0), Result(nullptr, Status), Options(0)
 			{
 				Command.emplace_back('\0');
 			}
@@ -1529,7 +1529,7 @@ namespace Edge
 			{
 				return std::move(Result);
 			}
-			const std::vector<char>& Request::GetCommand() const
+			const Core::Vector<char>& Request::GetCommand() const
 			{
 				return Command;
 			}
@@ -1604,7 +1604,7 @@ namespace Edge
 				Reconnected = NewCallback;
 				Update.unlock();
 			}
-			uint64_t Cluster::AddChannel(const std::string& Name, const OnNotification& NewCallback)
+			uint64_t Cluster::AddChannel(const Core::String& Name, const OnNotification& NewCallback)
 			{
 				ED_ASSERT(NewCallback != nullptr, 0, "callback should be set");
 
@@ -1615,7 +1615,7 @@ namespace Edge
 
 				return Id;
 			}
-			bool Cluster::RemoveChannel(const std::string& Name, uint64_t Id)
+			bool Cluster::RemoveChannel(const Core::String& Name, uint64_t Id)
 			{
 				Update.lock();
 				auto& Base = Listeners[Name];
@@ -1645,14 +1645,14 @@ namespace Edge
 						return TxBegin("BEGIN");
 				}
 			}
-			Core::Promise<SessionId> Cluster::TxBegin(const std::string& Command)
+			Core::Promise<SessionId> Cluster::TxBegin(const Core::String& Command)
 			{
 				return Query(Command, (size_t)QueryOp::TransactionStart).Then<SessionId>([](Cursor&& Result)
 				{
 					return Result.IsSuccess() ? Result.GetExecutor() : nullptr;
 				});
 			}
-			Core::Promise<bool> Cluster::TxEnd(const std::string& Command, SessionId Session)
+			Core::Promise<bool> Cluster::TxEnd(const Core::String& Command, SessionId Session)
 			{
 				return Query(Command, (size_t)QueryOp::TransactionEnd, Session).Then<bool>([](Cursor&& Result)
 				{
@@ -1690,8 +1690,8 @@ namespace Edge
 					const char** Keys = Source.CreateKeys();
 					const char** Values = Source.CreateValues();
 					std::unique_lock<std::mutex> Unique(Update);
-					std::unordered_map<socket_t, TConnection*> Queue;
-					std::vector<Utils::PollFd> Sockets;
+					Core::UnorderedMap<socket_t, TConnection*> Queue;
+					Core::Vector<Utils::PollFd> Sockets;
 					TConnection* Error = nullptr;
 
 					ED_DEBUG("[pq] try connect using %i connections", (int)Connections);
@@ -1804,11 +1804,11 @@ namespace Edge
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<bool> Cluster::Listen(const std::vector<std::string>& Channels)
+			Core::Promise<bool> Cluster::Listen(const Core::Vector<Core::String>& Channels)
 			{
 				ED_ASSERT(!Channels.empty(), Core::Promise<bool>(false), "channels should not be empty");
 				Update.lock();
-				std::vector<std::string> Actual;
+				Core::Vector<Core::String> Actual;
 				Actual.reserve(Channels.size());
 				for (auto& Item : Channels)
 				{
@@ -1820,7 +1820,7 @@ namespace Edge
 				if (Actual.empty())
 					return Core::Promise<bool>(true);
 
-				std::string Command;
+				Core::String Command;
 				for (auto& Item : Actual)
 					Command += "LISTEN " + Item + ';';
 
@@ -1837,11 +1837,11 @@ namespace Edge
 					return true;
 				});
 			}
-			Core::Promise<bool> Cluster::Unlisten(const std::vector<std::string>& Channels)
+			Core::Promise<bool> Cluster::Unlisten(const Core::Vector<Core::String>& Channels)
 			{
 				ED_ASSERT(!Channels.empty(), Core::Promise<bool>(false), "channels should not be empty");
 				Update.lock();
-				std::unordered_map<Connection*, std::string> Commands;
+				Core::UnorderedMap<Connection*, Core::String> Commands;
 				for (auto& Item : Channels)
 				{
 					Connection* Next = IsListens(Item);
@@ -1865,24 +1865,24 @@ namespace Edge
 					return Count > 0;
 				});
 			}
-			Core::Promise<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::SchemaList* Map, size_t Opts, SessionId Session)
+			Core::Promise<Cursor> Cluster::EmplaceQuery(const Core::String& Command, Core::SchemaList* Map, size_t Opts, SessionId Session)
 			{
 				bool Once = !(Opts & (size_t)QueryOp::ReuseArgs);
 				return Query(Driver::Emplace(this, Command, Map, Once), Opts, Session);
 			}
-			Core::Promise<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, size_t Opts, SessionId Session)
+			Core::Promise<Cursor> Cluster::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, size_t Opts, SessionId Session)
 			{
 				ED_DEBUG("[pq] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 
 				bool Once = !(Opts & (size_t)QueryOp::ReuseArgs);
 				return Query(Driver::GetQuery(this, Name, Map, Once), Opts, Session);
 			}
-			Core::Promise<Cursor> Cluster::Query(const std::string& Command, size_t Opts, SessionId Session)
+			Core::Promise<Cursor> Cluster::Query(const Core::String& Command, size_t Opts, SessionId Session)
 			{
 				ED_ASSERT(!Command.empty(), Core::Promise<Cursor>(Cursor()), "command should not be empty");
 
 				bool MayCache = Opts & (size_t)QueryOp::CacheShort || Opts & (size_t)QueryOp::CacheMid || Opts & (size_t)QueryOp::CacheLong;
-				std::string Reference;
+				Core::String Reference;
 
 				if (MayCache)
 				{
@@ -1930,7 +1930,7 @@ namespace Edge
 				if (!IsInQueue || Next->Session == 0)
 					return Future;
 
-				std::string Tx = Core::Stringify(Command).Trim().ToUpper().R();
+				Core::String Tx = Core::Stringify(Command).Trim().ToUpper().R();
 				if (Tx != "COMMIT" && Tx != "ROLLBACK")
 					return Future;
 
@@ -1978,7 +1978,7 @@ namespace Edge
 
 				return nullptr;
 			}
-			Connection* Cluster::IsListens(const std::string& Name)
+			Connection* Cluster::IsListens(const Core::String& Name)
 			{
 				for (auto& Item : Pool)
 				{
@@ -1988,9 +1988,9 @@ namespace Edge
 
 				return nullptr;
 			}
-			std::string Cluster::GetCacheOid(const std::string& Payload, size_t Opts)
+			Core::String Cluster::GetCacheOid(const Core::String& Payload, size_t Opts)
 			{
-				std::string Reference = Compute::Codec::HexEncode(Compute::Crypto::Hash(Compute::Digests::SHA256(), Payload));
+				Core::String Reference = Compute::Codec::HexEncode(Compute::Crypto::Hash(Compute::Digests::SHA256(), Payload));
 				if (Opts & (size_t)QueryOp::CacheShort)
 					Reference.append(".s");
 				else if (Opts & (size_t)QueryOp::CacheMid)
@@ -2004,7 +2004,7 @@ namespace Edge
 			{
 				return !Pool.empty();
 			}
-			bool Cluster::GetCache(const std::string& CacheOid, Cursor* Data)
+			bool Cluster::GetCache(const Core::String& CacheOid, Cursor* Data)
 			{
 				ED_ASSERT(!CacheOid.empty(), false, "cache oid should not be empty");
 				ED_ASSERT(Data != nullptr, false, "cursor should be set");
@@ -2029,7 +2029,7 @@ namespace Edge
 				Cache.Context.unlock();
 				return false;
 			}
-			void Cluster::SetCache(const std::string& CacheOid, Cursor* Data, size_t Opts)
+			void Cluster::SetCache(const Core::String& CacheOid, Cursor* Data, size_t Opts)
 			{
 				ED_ASSERT_V(!CacheOid.empty(), "cache oid should not be empty");
 				ED_ASSERT_V(Data != nullptr, "cursor should be set");
@@ -2115,7 +2115,7 @@ namespace Edge
 					return false;
 				}
 
-				std::vector<std::string> Channels;
+				Core::Vector<Core::String> Channels;
 				Channels.reserve(Target->Listens.size());
 				for (auto& Item : Target->Listens)
 					Channels.push_back(Item);
@@ -2338,8 +2338,8 @@ namespace Edge
 #ifdef ED_HAS_POSTGRESQL
 				if (State <= 0)
 				{
-					using Map1 = Core::Mapping<std::unordered_map<std::string, Sequence>>;
-					using Map2 = Core::Mapping<std::unordered_map<std::string, std::string>>;
+					using Map1 = Core::Mapping<Core::UnorderedMap<Core::String, Sequence>>;
+					using Map2 = Core::Mapping<Core::UnorderedMap<Core::String, Core::String>>;
 					Network::Multiplexer::SetActive(true);
 
 					Queries = ED_NEW(Map1);
@@ -2388,12 +2388,12 @@ namespace Edge
 			{
 				Logger = Callback;
 			}
-			void Driver::LogQuery(const std::string& Command)
+			void Driver::LogQuery(const Core::String& Command)
 			{
 				if (Logger)
 					Logger(Command + '\n');
 			}
-			bool Driver::AddConstant(const std::string& Name, const std::string& Value)
+			bool Driver::AddConstant(const Core::String& Name, const Core::String& Value)
 			{
 				ED_ASSERT(Constants && Safe, false, "driver should be initialized");
 				ED_ASSERT(!Name.empty(), false, "name should not be empty");
@@ -2403,7 +2403,7 @@ namespace Edge
 				Safe->unlock();
 				return true;
 			}
-			bool Driver::AddQuery(const std::string& Name, const char* Buffer, size_t Size)
+			bool Driver::AddQuery(const Core::String& Name, const char* Buffer, size_t Size)
 			{
 				ED_ASSERT(Queries && Safe, false, "driver should be initialized");
 				ED_ASSERT(!Name.empty(), false, "name should not be empty");
@@ -2415,10 +2415,10 @@ namespace Edge
 				Sequence Result;
 				Result.Request.assign(Buffer, Size);
 
-				std::string Lines = "\r\n";
-				std::string Enums = " \r\n\t\'\"()<>=%&^*/+-,!?:;";
-				std::string Erasable = " \r\n\t\'\"()<>=%&^*/+-,.!?:;";
-				std::string Quotes = "\"'`";
+				Core::String Lines = "\r\n";
+				Core::String Enums = " \r\n\t\'\"()<>=%&^*/+-,!?:;";
+				Core::String Erasable = " \r\n\t\'\"()<>=%&^*/+-,.!?:;";
+				Core::String Quotes = "\"'`";
 
 				Core::Stringify Base(&Result.Request);
 				Base.ReplaceInBetween("/*", "*/", "", false).ReplaceStartsWithEndsOf("--", Lines.c_str(), "");
@@ -2452,7 +2452,7 @@ namespace Edge
 					}
 				}
 
-				std::vector<std::pair<std::string, Core::Stringify::Settle>> Variables;
+				Core::Vector<std::pair<Core::String, Core::Stringify::Settle>> Variables;
 				for (auto& Item : Base.FindInBetween("$<", ">", Quotes.c_str()))
 				{
 					Item.first += ";escape";
@@ -2477,19 +2477,19 @@ namespace Edge
 					Variables.emplace_back(std::move(Item));
 				}
 
-				Base.ReplaceParts(Variables, "", [&Erasable](const std::string& Name, char Left, int Side)
+				Base.ReplaceParts(Variables, "", [&Erasable](const Core::String& Name, char Left, int Side)
 				{
-					if (Side < 0 && Name.find(";negate") != std::string::npos)
+					if (Side < 0 && Name.find(";negate") != Core::String::npos)
 						return '\0';
 
-					return Erasable.find(Left) == std::string::npos ? ' ' : '\0';
+					return Erasable.find(Left) == Core::String::npos ? ' ' : '\0';
 				});
 
 				for (auto& Item : Variables)
 				{
 					Pose Position;
-					Position.Negate = Item.first.find(";negate") != std::string::npos;
-					Position.Escape = Item.first.find(";escape") != std::string::npos;
+					Position.Negate = Item.first.find(";negate") != Core::String::npos;
+					Position.Escape = Item.first.find(";escape") != Core::String::npos;
 					Position.Offset = Item.second.Start;
 					Position.Key = Item.first.substr(0, Item.first.find(';'));
 					Result.Positions.emplace_back(std::move(Position));
@@ -2504,13 +2504,13 @@ namespace Edge
 
 				return true;
 			}
-			bool Driver::AddDirectory(const std::string& Directory, const std::string& Origin)
+			bool Driver::AddDirectory(const Core::String& Directory, const Core::String& Origin)
 			{
-				std::vector<Core::FileEntry> Entries;
+				Core::Vector<Core::FileEntry> Entries;
 				if (!Core::OS::Directory::Scan(Directory, &Entries))
 					return false;
 
-				std::string Path = Directory;
+				Core::String Path = Directory;
 				if (Path.back() != '/' && Path.back() != '\\')
 					Path.append(1, '/');
 
@@ -2541,7 +2541,7 @@ namespace Edge
 
 				return true;
 			}
-			bool Driver::RemoveConstant(const std::string& Name)
+			bool Driver::RemoveConstant(const Core::String& Name)
 			{
 				ED_ASSERT(Constants && Safe, false, "driver should be initialized");
 				Safe->lock();
@@ -2556,7 +2556,7 @@ namespace Edge
 				Safe->unlock();
 				return true;
 			}
-			bool Driver::RemoveQuery(const std::string& Name)
+			bool Driver::RemoveQuery(const Core::String& Name)
 			{
 				ED_ASSERT(Queries && Safe, false, "driver should be initialized");
 				Safe->lock();
@@ -2603,7 +2603,7 @@ namespace Edge
 						}
 					}
 
-					std::string Name = Data->GetVar("name").GetBlob();
+					Core::String Name = Data->GetVar("name").GetBlob();
 					Queries->Map[Name] = std::move(Result);
 					++Count;
 				}
@@ -2642,7 +2642,7 @@ namespace Edge
 				ED_DEBUG("[pq] OK save %" PRIu64 " parsed query templates", (uint64_t)Queries->Map.size());
 				return Result;
 			}
-			std::string Driver::Emplace(Cluster* Base, const std::string& SQL, Core::SchemaList* Map, bool Once)
+			Core::String Driver::Emplace(Cluster* Base, const Core::String& SQL, Core::SchemaList* Map, bool Once)
 			{
 				if (!Map || Map->empty())
 					return SQL;
@@ -2650,7 +2650,7 @@ namespace Edge
 				Connection* Remote = Base->GetConnection();
 				Core::Stringify Buffer(SQL);
 				Core::Stringify::Settle Set;
-				std::string& Src = Buffer.R();
+				Core::String& Src = Buffer.R();
 				size_t Offset = 0;
 				size_t Next = 0;
 
@@ -2688,7 +2688,7 @@ namespace Edge
 							Set.Start--;
 						}
 					}
-					std::string Value = GetSQL(Remote->GetBase(), (*Map)[Next++], Escape, Negate);
+					Core::String Value = GetSQL(Remote->GetBase(), (*Map)[Next++], Escape, Negate);
 					Buffer.Erase(Set.Start, (Escape ? 1 : 2));
 					Buffer.Insert(Value, Set.Start);
 					Offset = Set.Start + Value.size();
@@ -2703,9 +2703,9 @@ namespace Edge
 
 				return Src;
 			}
-			std::string Driver::GetQuery(Cluster* Base, const std::string& Name, Core::SchemaArgs* Map, bool Once)
+			Core::String Driver::GetQuery(Cluster* Base, const Core::String& Name, Core::SchemaArgs* Map, bool Once)
 			{
-				ED_ASSERT(Queries && Safe, std::string(), "driver should be initialized");
+				ED_ASSERT(Queries && Safe, Core::String(), "driver should be initialized");
 				Safe->lock();
 				auto It = Queries->Map.find(Name);
 				if (It == Queries->Map.end())
@@ -2719,12 +2719,12 @@ namespace Edge
 					}
 
 					ED_ERR("[pq] template query %s does not exist", Name.c_str());
-					return std::string();
+					return Core::String();
 				}
 
 				if (!It->second.Cache.empty())
 				{
-					std::string Result = It->second.Cache;
+					Core::String Result = It->second.Cache;
 					Safe->unlock();
 
 					if (Once && Map != nullptr)
@@ -2739,7 +2739,7 @@ namespace Edge
 
 				if (!Map || Map->empty())
 				{
-					std::string Result = It->second.Request;
+					Core::String Result = It->second.Request;
 					Safe->unlock();
 
 					if (Once && Map != nullptr)
@@ -2767,7 +2767,7 @@ namespace Edge
 						continue;
 					}
 
-					std::string Value = GetSQL(Remote->GetBase(), It->second, Word.Escape, Word.Negate);
+					Core::String Value = GetSQL(Remote->GetBase(), It->second, Word.Escape, Word.Negate);
 					if (Value.empty())
 						continue;
 
@@ -2782,15 +2782,15 @@ namespace Edge
 					Map->clear();
 				}
 
-				std::string Data = Origin.Request;
+				Core::String Data = Origin.Request;
 				if (Data.empty())
 					ED_ERR("[pq] could not construct query: \"%s\"", Name.c_str());
 
 				return Data;
 			}
-			std::vector<std::string> Driver::GetQueries()
+			Core::Vector<Core::String> Driver::GetQueries()
 			{
-				std::vector<std::string> Result;
+				Core::Vector<Core::String> Result;
 				ED_ASSERT(Queries && Safe, Result, "driver should be initialized");
 
 				Safe->lock();
@@ -2801,7 +2801,7 @@ namespace Edge
 
 				return Result;
 			}
-			std::string Driver::GetCharArray(TConnection* Base, const std::string& Src)
+			Core::String Driver::GetCharArray(TConnection* Base, const Core::String& Src)
 			{
 #ifdef ED_HAS_POSTGRESQL
 				if (Src.empty())
@@ -2814,7 +2814,7 @@ namespace Edge
 				}
 
 				char* Subresult = PQescapeLiteral(Base, Src.c_str(), Src.size());
-				std::string Result(Subresult);
+				Core::String Result(Subresult);
 				PQfreemem(Subresult);
 
 				return Result;
@@ -2822,7 +2822,7 @@ namespace Edge
 				return "'" + Src + "'";
 #endif
 			}
-			std::string Driver::GetByteArray(TConnection* Base, const char* Src, size_t Size)
+			Core::String Driver::GetByteArray(TConnection* Base, const char* Src, size_t Size)
 			{
 #ifdef ED_HAS_POSTGRESQL
 				if (!Src || !Size)
@@ -2833,7 +2833,7 @@ namespace Edge
 
 				size_t Length = 0;
 				char* Subresult = (char*)PQescapeByteaConn(Base, (unsigned char*)Src, Size, &Length);
-				std::string Result(Subresult, Length > 1 ? Length - 1 : Length);
+				Core::String Result(Subresult, Length > 1 ? Length - 1 : Length);
 				PQfreemem((unsigned char*)Subresult);
 
 				Result.insert(Result.begin(), '\'');
@@ -2843,7 +2843,7 @@ namespace Edge
 				return "'\\x" + Compute::Codec::HexEncode(Src, Size) + "'::bytea";
 #endif
 			}
-			std::string Driver::GetSQL(TConnection* Base, Core::Schema* Source, bool Escape, bool Negate)
+			Core::String Driver::GetSQL(TConnection* Base, Core::Schema* Source, bool Escape, bool Negate)
 			{
 				if (!Source)
 					return "NULL";
@@ -2853,7 +2853,7 @@ namespace Edge
 				{
 					case Core::VarType::Object:
 					{
-						std::string Result;
+						Core::String Result;
 						Core::Schema::ConvertToJSON(Source, [&Result](Core::VarForm, const char* Buffer, size_t Length)
 						{
 							if (Buffer != nullptr && Length > 0)
@@ -2864,7 +2864,7 @@ namespace Edge
 					}
 					case Core::VarType::Array:
 					{
-						std::string Result = (Parent && Parent->Value.GetType() == Core::VarType::Array ? "[" : "ARRAY[");
+						Core::String Result = (Parent && Parent->Value.GetType() == Core::VarType::Array ? "[" : "ARRAY[");
 						for (auto* Node : Source->GetChilds())
 							Result.append(GetSQL(Base, Node, Escape, Negate)).append(1, ',');
 
@@ -2881,11 +2881,11 @@ namespace Edge
 						return Source->Value.GetBlob();
 					}
 					case Core::VarType::Integer:
-						return std::to_string(Negate ? -Source->Value.GetInteger() : Source->Value.GetInteger());
+						return Core::ToString(Negate ? -Source->Value.GetInteger() : Source->Value.GetInteger());
 					case Core::VarType::Number:
 					{
 						bool Trailing = (Source->Value.GetNumber() != (double)Source->Value.GetInteger());
-						std::string Result = std::to_string(Negate ? -Source->Value.GetNumber() : Source->Value.GetNumber());
+						Core::String Result = Core::ToString(Negate ? -Source->Value.GetNumber() : Source->Value.GetNumber());
 						return Trailing ? Result : Result + ".0";
 					}
 					case Core::VarType::Boolean:
@@ -2893,8 +2893,8 @@ namespace Edge
 					case Core::VarType::Decimal:
 					{
 						Core::Decimal Value = Source->Value.GetDecimal();
-						std::string Result = (Negate ? '-' + Value.ToString() : Value.ToString());
-						return Result.find('.') != std::string::npos ? Result : Result + ".0";
+						Core::String Result = (Negate ? '-' + Value.ToString() : Value.ToString());
+						return Result.find('.') != Core::String::npos ? Result : Result + ".0";
 					}
 					case Core::VarType::Binary:
 						return GetByteArray(Base, Source->Value.GetString(), Source->Value.GetSize());
@@ -2907,8 +2907,8 @@ namespace Edge
 
 				return "NULL";
 			}
-			Core::Mapping<std::unordered_map<std::string, Driver::Sequence>>* Driver::Queries = nullptr;
-			Core::Mapping<std::unordered_map<std::string, std::string>>* Driver::Constants = nullptr;
+			Core::Mapping<Core::UnorderedMap<Core::String, Driver::Sequence>>* Driver::Queries = nullptr;
+			Core::Mapping<Core::UnorderedMap<Core::String, Core::String>>* Driver::Constants = nullptr;
 			std::mutex* Driver::Safe = nullptr;
 			std::atomic<bool> Driver::Active(false);
 			std::atomic<int> Driver::State(0);

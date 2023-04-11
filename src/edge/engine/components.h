@@ -13,8 +13,8 @@ namespace Edge
 			protected:
 				Compute::HullShape* Hull = nullptr;
 				Compute::SoftBody * Instance = nullptr;
-				std::vector<Compute::Vertex> Vertices;
-				std::vector<int> Indices;
+				Core::Vector<Compute::Vertex> Vertices;
+				Core::Vector<int> Indices;
 
 			public:
 				Compute::Vector2 TexCoord = 1.0f;
@@ -32,7 +32,7 @@ namespace Edge
 				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				Core::Unique<Component> Copy(Entity* New) const override;
 				void Load(Compute::HullShape* Shape, float Anticipation = 0.0f);
-				void Load(const std::string& Path, float Anticipation = 0.0f, const std::function<void()>& Callback = nullptr);
+				void Load(const Core::String& Path, float Anticipation = 0.0f, const std::function<void()>& Callback = nullptr);
 				void LoadEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation = 0.0f);
 				void LoadPatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation = 0.0f);
 				void LoadRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation = 0.0f);
@@ -42,8 +42,8 @@ namespace Edge
 				void SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation);
 				void SetTransform(bool Kinematic);
 				Compute::SoftBody* GetBody();
-				std::vector<Compute::Vertex>& GetVertices();
-				std::vector<int>& GetIndices();
+				Core::Vector<Compute::Vertex>& GetVertices();
+				Core::Vector<int>& GetIndices();
 
 			private:
 				void DeserializeBody(Core::Schema* Node);
@@ -71,7 +71,7 @@ namespace Edge
 				void Deactivate() override;
 				Core::Unique<Component> Copy(Entity* New) const override;
 				void Load(btCollisionShape* Shape, float Mass, float Anticipation = 0.0f);
-				void Load(const std::string& Path, float Mass, float Anticipation = 0.0f, const std::function<void()>& Callback = nullptr);
+				void Load(const Core::String& Path, float Mass, float Anticipation = 0.0f, const std::function<void()>& Callback = nullptr);
 				void Clear();
 				void SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation);
 				void SetTransform(bool Kinematic);
@@ -149,9 +149,9 @@ namespace Edge
 				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				Core::Unique<Component> Copy(Entity* New) const override;
 				void SetDrawable(Core::Unique<Engine::Model> Drawable);
-				void SetMaterialFor(const std::string& Name, Material* Value);
+				void SetMaterialFor(const Core::String& Name, Material* Value);
 				Engine::Model* GetDrawable();
-				Material* GetMaterialFor(const std::string& Name);
+				Material* GetMaterialFor(const Core::String& Name);
 
 			public:
 				ED_COMPONENT("model_component");
@@ -176,9 +176,9 @@ namespace Edge
 				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				Core::Unique<Component> Copy(Entity* New) const override;
 				void SetDrawable(Core::Unique<Engine::SkinModel> Drawable);
-				void SetMaterialFor(const std::string& Name, Material* Value);
+				void SetMaterialFor(const Core::String& Name, Material* Value);
 				Engine::SkinModel* GetDrawable();
-				Material* GetMaterialFor(const std::string& Name);
+				Material* GetMaterialFor(const Core::String& Name);
 
 			public:
 				ED_COMPONENT("skin_component");
@@ -249,12 +249,12 @@ namespace Edge
 				bool IsExists(int64_t Clip);
 				bool IsExists(int64_t Clip, int64_t Frame);
 				const Compute::SkinAnimatorKey* GetFrame(int64_t Clip, int64_t Frame);
-				const std::vector<Compute::SkinAnimatorKey>* GetClip(int64_t Clip);
-				int64_t GetClipByName(const std::string& Name) const;
+				const Core::Vector<Compute::SkinAnimatorKey>* GetClip(int64_t Clip);
+				int64_t GetClipByName(const Core::String& Name) const;
 				size_t GetClipsCount() const;
 				Skin* GetSkin() const;
 				SkinAnimation* GetAnimation() const;
-				std::string GetPath() const;
+				Core::String GetPath() const;
 
 			private:
 				void BlendAnimation(int64_t Clip, int64_t Frame);
@@ -267,10 +267,10 @@ namespace Edge
 			class ED_OUT KeyAnimator final : public Component
 			{
 			private:
-				std::string Reference;
+				Core::String Reference;
 
 			public:
-				std::vector<Compute::KeyAnimatorClip> Clips;
+				Core::Vector<Compute::KeyAnimatorClip> Clips;
 				Compute::AnimatorKey Offset;
 				Compute::AnimatorKey Default;
 				AnimatorState State;
@@ -282,7 +282,7 @@ namespace Edge
 				void Serialize(Core::Schema* Node) override;
 				void Animate(Core::Timer* Time) override;
 				Core::Unique<Component> Copy(Entity* New) const override;
-				void LoadAnimation(const std::string& Path, const std::function<void(bool)>& Callback = nullptr);
+				void LoadAnimation(const Core::String& Path, const std::function<void(bool)>& Callback = nullptr);
 				void ClearAnimation();
 				void Play(int64_t Clip = -1, int64_t Frame = -1);
 				void Pause();
@@ -290,8 +290,8 @@ namespace Edge
 				bool IsExists(int64_t Clip);
 				bool IsExists(int64_t Clip, int64_t Frame);
 				Compute::AnimatorKey* GetFrame(int64_t Clip, int64_t Frame);
-				std::vector<Compute::AnimatorKey>* GetClip(int64_t Clip);
-				std::string GetPath();
+				Core::Vector<Compute::AnimatorKey>* GetClip(int64_t Clip);
+				Core::String GetPath();
 
 			private:
 				void BlendAnimation(int64_t Clip, int64_t Frame);
@@ -459,7 +459,7 @@ namespace Edge
 				PointLight(Entity* Ref);
 				void Deserialize(Core::Schema * Node) override;
 				void Serialize(Core::Schema * Node) override;
-				void Message(const std::string& Name, Core::VariantArgs& Args) override;
+				void Message(const Core::String& Name, Core::VariantArgs& Args) override;
 				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				float GetVisibility(const Viewer& View, float Distance) const override;
 				Core::Unique<Component> Copy(Entity * New) const override;
@@ -499,7 +499,7 @@ namespace Edge
 				SpotLight(Entity* Ref);
 				void Deserialize(Core::Schema * Node) override;
 				void Serialize(Core::Schema * Node) override;
-				void Message(const std::string& Name, Core::VariantArgs& Args) override;
+				void Message(const Core::String& Name, Core::VariantArgs& Args) override;
 				void Synchronize(Core::Timer * Time) override;
 				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				float GetVisibility(const Viewer& View, float Distance) const override;
@@ -550,7 +550,7 @@ namespace Edge
 				LineLight(Entity* Ref);
 				void Deserialize(Core::Schema * Node) override;
 				void Serialize(Core::Schema * Node) override;
-				void Message(const std::string& Name, Core::VariantArgs& Args) override;
+				void Message(const Core::String& Name, Core::VariantArgs& Args) override;
 				Core::Unique<Component> Copy(Entity * New) const override;
 				void GenerateOrigin();
 
@@ -632,7 +632,7 @@ namespace Edge
 				Illuminator(Entity* Ref);
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) override;
-				void Message(const std::string& Name, Core::VariantArgs& Args) override;
+				void Message(const Core::String& Name, Core::VariantArgs& Args) override;
 				Core::Unique<Component> Copy(Entity* New) const override;
 
 			public:
@@ -722,8 +722,8 @@ namespace Edge
 
 			protected:
 				Scripting::Compiler* Compiler;
-				std::string Resource;
-				std::string Module;
+				Core::String Resource;
+				Core::String Module;
 				SourceType Source;
 				InvokeType Invoke;
 
@@ -735,26 +735,26 @@ namespace Edge
 				void Activate(Component* New) override;
 				void Deactivate() override;
 				void Update(Core::Timer* Time) override;
-				void Message(const std::string& Name, Core::VariantArgs& Args) override;
+				void Message(const Core::String& Name, Core::VariantArgs& Args) override;
 				Core::Unique<Component> Copy(Entity* New) const override;
-				Core::Promise<int> Call(const std::string& Name, unsigned int Args, Scripting::ArgsCallback&& OnArgs);
+				Core::Promise<int> Call(const Core::String& Name, unsigned int Args, Scripting::ArgsCallback&& OnArgs);
 				Core::Promise<int> Call(asIScriptFunction* Entry, Scripting::ArgsCallback&& OnArgs);
-				Core::Promise<int> CallEntry(const std::string& Name);
+				Core::Promise<int> CallEntry(const Core::String& Name);
 				int LoadSource();
-				int LoadSource(SourceType Type, const std::string& Source);
+				int LoadSource(SourceType Type, const Core::String& Source);
 				void SetInvocation(InvokeType Type);
 				void UnloadSource();
 				Scripting::Compiler* GetCompiler();
 				bool GetPropertyByName(const char* Name, Scripting::PropertyInfo* Result);
 				bool GetPropertyByIndex(int Index, Scripting::PropertyInfo* Result);
-				Scripting::Function GetFunctionByName(const std::string& Name, unsigned int Args);
+				Scripting::Function GetFunctionByName(const Core::String& Name, unsigned int Args);
 				Scripting::Function GetFunctionByIndex(int Index, unsigned int Args);
 				SourceType GetSourceType();
 				InvokeType GetInvokeType();
 				int GetPropertiesCount();
 				int GetFunctionsCount();
-				const std::string& GetSource();
-				const std::string& GetModuleName();
+				const Core::String& GetSource();
+				const Core::String& GetModuleName();
 
 			public:
 				template <typename T>

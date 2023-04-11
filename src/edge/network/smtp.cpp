@@ -43,7 +43,7 @@ namespace Edge
 	{
 		namespace SMTP
 		{
-			Client::Client(const std::string& Domain, int64_t ReadTimeout) : SocketClient(ReadTimeout), AttachmentFile(nullptr), Hoster(Domain), Pending(0), Authorized(false)
+			Client::Client(const Core::String& Domain, int64_t ReadTimeout) : SocketClient(ReadTimeout), AttachmentFile(nullptr), Hoster(Domain), Pending(0), Authorized(false)
 			{
 				AutoEncrypt = false;
 			}
@@ -177,7 +177,7 @@ namespace Edge
 					return true;
 				}) || true;
 			}
-			bool Client::SendRequest(int Code, const std::string& Content, const ReplyCallback& Callback)
+			bool Client::SendRequest(int Code, const Core::String& Content, const ReplyCallback& Callback)
 			{
 				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, Callback, Code](SocketPoll Event)
 				{
@@ -241,10 +241,10 @@ namespace Edge
 				{
 					return SendRequest(334, "AUTH LOGIN\r\n", [this, Callback]()
 					{
-						std::string Hash = Compute::Codec::Base64Encode(Request.Login);
+						Core::String Hash = Compute::Codec::Base64Encode(Request.Login);
 						SendRequest(334, Hash.append("\r\n"), [this, Callback]()
 						{
-							std::string Hash = Compute::Codec::Base64Encode(Request.Password);
+							Core::String Hash = Compute::Codec::Base64Encode(Request.Password);
 							SendRequest(235, Hash.append("\r\n"), [this, Callback]()
 							{
 								Authorized = true;
@@ -255,7 +255,7 @@ namespace Edge
 				}
 				else if (CanRequest("PLAIN"))
 				{
-					std::string Hash = Core::Form("%s^%s^%s", Request.Login.c_str(), Request.Login.c_str(), Request.Password.c_str()).R();
+					Core::String Hash = Core::Form("%s^%s^%s", Request.Login.c_str(), Request.Login.c_str(), Request.Password.c_str()).R();
 					char* Escape = (char*)Hash.c_str();
 
 					for (size_t i = 0; i < Hash.size(); i++)
@@ -274,8 +274,8 @@ namespace Edge
 				{
 					return SendRequest(334, "AUTH CRAM-MD5\r\n", [this, Callback]()
 					{
-						std::string EncodedChallenge = Command.c_str() + 4;
-						std::string DecodedChallenge = Compute::Codec::Base64Decode(EncodedChallenge);
+						Core::String EncodedChallenge = Command.c_str() + 4;
+						Core::String DecodedChallenge = Compute::Codec::Base64Decode(EncodedChallenge);
 						unsigned char* UserChallenge = Unicode(DecodedChallenge.c_str());
 						unsigned char* UserPassword = Unicode(Request.Password.c_str());
 
@@ -340,7 +340,7 @@ namespace Edge
 				{
 					return SendRequest(334, "AUTH DIGEST-MD5\r\n", [this, Callback]()
 					{
-						std::string EncodedChallenge = Command.c_str() + 4;
+						Core::String EncodedChallenge = Command.c_str() + 4;
 						Core::Stringify DecodedChallenge = Compute::Codec::Base64Decode(EncodedChallenge);
 
 						Core::Stringify::Settle Result1 = DecodedChallenge.Find("nonce");
@@ -351,8 +351,8 @@ namespace Edge
 						if (!Result2.Found)
 							return (void)Error("smtp has delivered bad digest");
 
-						std::string Nonce = DecodedChallenge.Splice(Result1.Start + 7, Result2.Start).R();
-						std::string Realm;
+						Core::String Nonce = DecodedChallenge.Splice(Result1.Start + 7, Result2.Start).R();
+						Core::String Realm;
 
 						Result1 = DecodedChallenge.Find("realm");
 						if (Result1.Found)
@@ -376,7 +376,7 @@ namespace Edge
 
 						char InetAddress[INET_ADDRSTRLEN];
 						struct sockaddr_in* Address = (struct sockaddr_in*)&Storage;
-						std::string URI = "smtp/";
+						Core::String URI = "smtp/";
 
 						if (inet_ntop(AF_INET, &(Address->sin_addr), InetAddress, INET_ADDRSTRLEN) != nullptr)
 							URI += InetAddress;
@@ -558,7 +558,7 @@ namespace Edge
 										break;
 								}
 
-								std::string Recipients;
+								Core::String Recipients;
 								for (size_t i = 0; i < Request.Recipients.size(); i++)
 								{
 									if (i > 0)
@@ -697,7 +697,7 @@ namespace Edge
 				if (Id > 0 && (Name[Id] == '\\' || Name[Id] == '/'))
 					Name = Name - 1;
 
-				std::string Hash = Core::Form("=?UTF-8?B?%s?=", Compute::Codec::Base64Encode((unsigned char*)Name, Id + 1).c_str()).R();
+				Core::String Hash = Core::Form("=?UTF-8?B?%s?=", Compute::Codec::Base64Encode((unsigned char*)Name, Id + 1).c_str()).R();
 				Core::Stringify Content;
 				Content.fAppend("--%s\r\n", Boundary.c_str());
 				Content.fAppend("Content-Type: application/x-msdownload; name=\"%s\"\r\n", Hash.c_str());
@@ -727,7 +727,7 @@ namespace Edge
 				if (Size != Count)
 					return Error("cannot read attachment block from %s", It.Path.c_str());
 
-				std::string Content = Compute::Codec::Base64Encode((const unsigned char*)Data, Size);
+				Core::String Content = Compute::Codec::Base64Encode((const unsigned char*)Data, Size);
 				Content.append("\r\n");
 
 				It.Length -= Size;

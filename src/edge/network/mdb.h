@@ -29,7 +29,7 @@ namespace Edge
 			typedef _mongoc_client_t TConnection;
 			typedef _mongoc_change_stream_t TWatcher;
 			typedef _mongoc_client_session_t TTransaction;
-			typedef std::function<void(const std::string&)> OnQueryLog;
+			typedef std::function<void(const Core::String&)> OnQueryLog;
 
 			class Transaction;
 
@@ -81,8 +81,8 @@ namespace Edge
 
 			struct ED_OUT Property
 			{
-				std::string Name;
-				std::string String;
+				Core::String Name;
+				Core::String String;
 				TDocument* Source;
 				Type Mod;
 				int64_t Integer;
@@ -100,7 +100,7 @@ namespace Edge
 				Property& operator =(const Property& Other);
 				Property& operator =(Property&& Other);
 				Core::Unique<TDocument> LoseOwnership();
-				std::string& ToString();
+				Core::String& ToString();
 				Document Get() const;
 				Property operator [](const char* Name);
 				Property operator [](const char* Name) const;
@@ -113,8 +113,8 @@ namespace Edge
 				static bool GetDecimal(const char* Value, int64_t* High, int64_t* Low);
 				static unsigned int GetHashId(unsigned char* Id12);
 				static int64_t GetTimeId(unsigned char* Id12);
-				static std::string IdToString(unsigned char* Id12);
-				static std::string StringToId(const std::string& Id24);
+				static Core::String IdToString(unsigned char* Id12);
+				static Core::String StringToId(const Core::String& Id24);
 			};
 
 			class ED_OUT Document
@@ -140,7 +140,7 @@ namespace Edge
 				bool SetInteger(const char* Key, int64_t Value, size_t ArrayId = 0);
 				bool SetNumber(const char* Key, double Value, size_t ArrayId = 0);
 				bool SetDecimal(const char* Key, uint64_t High, uint64_t Low, size_t ArrayId = 0);
-				bool SetDecimalString(const char* Key, const std::string& Value, size_t ArrayId = 0);
+				bool SetDecimalString(const char* Key, const Core::String& Value, size_t ArrayId = 0);
 				bool SetDecimalInteger(const char* Key, int64_t Value, size_t ArrayId = 0);
 				bool SetDecimalNumber(const char* Key, double Value, size_t ArrayId = 0);
 				bool SetBoolean(const char* Key, bool Value, size_t ArrayId = 0);
@@ -150,10 +150,10 @@ namespace Edge
 				bool HasProperty(const char* Key) const;
 				bool GetProperty(const char* Key, Property* Output) const;
 				size_t Count() const;
-				std::string ToRelaxedJSON() const;
-				std::string ToExtendedJSON() const;
-				std::string ToJSON() const;
-				std::string ToIndices() const;
+				Core::String ToRelaxedJSON() const;
+				Core::String ToExtendedJSON() const;
+				Core::String ToJSON() const;
+				Core::String ToIndices() const;
 				Core::Unique<Core::Schema> ToSchema(bool IsArray = false) const;
 				TDocument* Get() const;
 				Document Copy() const;
@@ -178,7 +178,7 @@ namespace Edge
 			public:
 				static Document FromEmpty();
 				static Document FromDocument(Core::Schema* Document);
-				static Document FromJSON(const std::string& JSON);
+				static Document FromJSON(const Core::String& JSON);
 				static Document FromBuffer(const unsigned char* Buffer, size_t Length);
 				static Document FromSource(TDocument* Src);
 
@@ -239,7 +239,7 @@ namespace Edge
 				bool InsertOne(const Document& Result, const Document& Options);
 				bool UpdateOne(const Document& Match, const Document& Result, const Document& Options);
 				bool UpdateMany(const Document& Match, const Document& Result, const Document& Options);
-				bool TemplateQuery(const std::string& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
+				bool TemplateQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
 				bool Query(const Document& Command);
 				Core::Promise<Document> ExecuteWithReply();
 				Core::Promise<bool> Execute();
@@ -333,16 +333,16 @@ namespace Edge
 				~Collection();
 				Collection& operator =(const Collection& Other) = delete;
 				Collection& operator =(Collection&& Other);
-				Core::Promise<bool> Rename(const std::string& NewDatabaseName, const std::string& NewCollectionName) const;
-				Core::Promise<bool> RenameWithOptions(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options) const;
-				Core::Promise<bool> RenameWithRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName) const;
-				Core::Promise<bool> RenameWithOptionsAndRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options) const;
+				Core::Promise<bool> Rename(const Core::String& NewDatabaseName, const Core::String& NewCollectionName) const;
+				Core::Promise<bool> RenameWithOptions(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options) const;
+				Core::Promise<bool> RenameWithRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName) const;
+				Core::Promise<bool> RenameWithOptionsAndRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options) const;
 				Core::Promise<bool> Remove(const Document& Options) const;
-				Core::Promise<bool> RemoveIndex(const std::string& Name, const Document& Options) const;
+				Core::Promise<bool> RemoveIndex(const Core::String& Name, const Document& Options) const;
 				Core::Promise<Document> RemoveMany(const Document& Match, const Document& Options) const;
 				Core::Promise<Document> RemoveOne(const Document& Match, const Document& Options) const;
 				Core::Promise<Document> ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options) const;
-				Core::Promise<Document> InsertMany(std::vector<Document>& List, const Document& Options) const;
+				Core::Promise<Document> InsertMany(Core::Vector<Document>& List, const Document& Options) const;
 				Core::Promise<Document> InsertOne(const Document& Result, const Document& Options) const;
 				Core::Promise<Document> UpdateMany(const Document& Match, const Document& Update, const Document& Options) const;
 				Core::Promise<Document> UpdateOne(const Document& Match, const Document& Update, const Document& Options) const;
@@ -353,7 +353,7 @@ namespace Edge
 				Core::Promise<Cursor> FindMany(const Document& Match, const Document& Options) const;
 				Core::Promise<Cursor> FindOne(const Document& Match, const Document& Options) const;
 				Core::Promise<Cursor> Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options) const;
-				Core::Promise<Response> TemplateQuery(const std::string& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true, Transaction* Session = nullptr) const;
+				Core::Promise<Response> TemplateQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true, Transaction* Session = nullptr) const;
 				Core::Promise<Response> Query(const Document& Command, Transaction* Session = nullptr) const;
 				const char* GetName() const;
 				Stream CreateStream(Document&& Options) const;
@@ -377,16 +377,16 @@ namespace Edge
 				Database& operator =(const Database& Other) = delete;
 				Database& operator =(Database&& Other);
 				Core::Promise<bool> RemoveAllUsers();
-				Core::Promise<bool> RemoveUser(const std::string& Name);
+				Core::Promise<bool> RemoveUser(const Core::String& Name);
 				Core::Promise<bool> Remove();
 				Core::Promise<bool> RemoveWithOptions(const Document& Options);
-				Core::Promise<bool> AddUser(const std::string& Username, const std::string& Password, const Document& Roles, const Document& Custom);
-				Core::Promise<bool> HasCollection(const std::string& Name) const;
-				Core::Promise<Collection> CreateCollection(const std::string& Name, const Document& Options);
+				Core::Promise<bool> AddUser(const Core::String& Username, const Core::String& Password, const Document& Roles, const Document& Custom);
+				Core::Promise<bool> HasCollection(const Core::String& Name) const;
+				Core::Promise<Collection> CreateCollection(const Core::String& Name, const Document& Options);
 				Core::Promise<Cursor> FindCollections(const Document& Options) const;
-				std::vector<std::string> GetCollectionNames(const Document& Options) const;
+				Core::Vector<Core::String> GetCollectionNames(const Document& Options) const;
 				const char* GetName() const;
-				Collection GetCollection(const std::string& Name);
+				Collection GetCollection(const Core::String& Name);
 				TDatabase* Get() const;
 				operator bool() const
 				{
@@ -434,14 +434,14 @@ namespace Edge
 				Core::Promise<Document> RemoveMany(const Collection& Base, const Document& Match, Document&& Options);
 				Core::Promise<Document> RemoveOne(const Collection& Base, const Document& Match, Document&& Options);
 				Core::Promise<Document> ReplaceOne(const Collection& Base, const Document& Match, const Document& Replacement, Document&& Options);
-				Core::Promise<Document> InsertMany(const Collection& Base, std::vector<Document>& List, Document&& Options);
+				Core::Promise<Document> InsertMany(const Collection& Base, Core::Vector<Document>& List, Document&& Options);
 				Core::Promise<Document> InsertOne(const Collection& Base, const Document& Result, Document&& Options);
 				Core::Promise<Document> UpdateMany(const Collection& Base, const Document& Match, const Document& Update, Document&& Options);
 				Core::Promise<Document> UpdateOne(const Collection& Base, const Document& Match, const Document& Update, Document&& Options);
 				Core::Promise<Cursor> FindMany(const Collection& Base, const Document& Match, Document&& Options) const;
 				Core::Promise<Cursor> FindOne(const Collection& Base, const Document& Match, Document&& Options) const;
 				Core::Promise<Cursor> Aggregate(const Collection& Base, QueryFlags Flags, const Document& Pipeline, Document&& Options) const;
-				Core::Promise<Response> TemplateQuery(const Collection& Base, const std::string& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
+				Core::Promise<Response> TemplateQuery(const Collection& Base, const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
 				Core::Promise<Response> Query(const Collection& Base, const Document& Command);
 				Core::Promise<TransactionState> Commit();
 				TTransaction* Get() const;
@@ -465,22 +465,22 @@ namespace Edge
 			public:
 				Connection();
 				~Connection() noexcept;
-				Core::Promise<bool> Connect(const std::string& Address);
+				Core::Promise<bool> Connect(const Core::String& Address);
 				Core::Promise<bool> Connect(Address* URI);
 				Core::Promise<bool> Disconnect();
 				Core::Promise<bool> MakeTransaction(const std::function<Core::Promise<bool>(Transaction&)>& Callback);
 				Core::Promise<bool> MakeCotransaction(const std::function<bool(Transaction&)>& Callback);
 				Core::Promise<Cursor> FindDatabases(const Document& Options) const;
-				void SetProfile(const std::string& Name);
+				void SetProfile(const Core::String& Name);
 				bool SetServer(bool Writeable);
 				Transaction& GetSession();
-				Database GetDatabase(const std::string& Name) const;
+				Database GetDatabase(const Core::String& Name) const;
 				Database GetDefaultDatabase() const;
 				Collection GetCollection(const char* DatabaseName, const char* Name) const;
 				Address GetAddress() const;
 				Cluster* GetMaster() const;
 				TConnection* Get() const;
-				std::vector<std::string> GetDatabaseNames(const Document& Options) const;
+				Core::Vector<Core::String> GetDatabaseNames(const Document& Options) const;
 				bool IsConnected() const;
 			};
 
@@ -494,7 +494,7 @@ namespace Edge
 			public:
 				Cluster();
 				~Cluster() noexcept;
-				Core::Promise<bool> Connect(const std::string& Address);
+				Core::Promise<bool> Connect(const Core::String& Address);
 				Core::Promise<bool> Connect(Address* URI);
 				Core::Promise<bool> Disconnect();
 				void SetProfile(const char* Name);
@@ -509,15 +509,15 @@ namespace Edge
 			private:
 				struct Pose
 				{
-					std::string Key;
+					Core::String Key;
 					size_t Offset = 0;
 					bool Escape = false;
 				};
 
 				struct Sequence
 				{
-					std::vector<Pose> Positions;
-					std::string Request;
+					Core::Vector<Pose> Positions;
+					Core::String Request;
 					Document Cache;
 
 					Sequence();
@@ -526,8 +526,8 @@ namespace Edge
 				};
 
 			private:
-				static Core::Mapping<std::unordered_map<std::string, Sequence>>* Queries;
-				static Core::Mapping<std::unordered_map<std::string, std::string>>* Constants;
+				static Core::Mapping<Core::UnorderedMap<Core::String, Sequence>>* Queries;
+				static Core::Mapping<Core::UnorderedMap<Core::String, Core::String>>* Constants;
 				static std::mutex* Safe;
 				static std::atomic<int> State;
 				static OnQueryLog Logger;
@@ -539,18 +539,18 @@ namespace Edge
 				static void SetQueryLog(const OnQueryLog& Callback);
 				static void AttachQueryLog(TConnection* Connection);
 				static void AttachQueryLog(TConnectionPool* Connection);
-				static bool AddConstant(const std::string& Name, const std::string& Value);
-				static bool AddQuery(const std::string& Name, const char* Buffer, size_t Size);
-				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
-				static bool RemoveConstant(const std::string& Name);
-				static bool RemoveQuery(const std::string& Name);
+				static bool AddConstant(const Core::String& Name, const Core::String& Value);
+				static bool AddQuery(const Core::String& Name, const char* Buffer, size_t Size);
+				static bool AddDirectory(const Core::String& Directory, const Core::String& Origin = "");
+				static bool RemoveConstant(const Core::String& Name);
+				static bool RemoveQuery(const Core::String& Name);
 				static bool LoadCacheDump(Core::Schema* Dump);
 				static Core::Schema* GetCacheDump();
-				static Document GetQuery(const std::string& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
-				static std::vector<std::string> GetQueries();
+				static Document GetQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
+				static Core::Vector<Core::String> GetQueries();
 
 			private:
-				static std::string GetJSON(Core::Schema* Source, bool Escape);
+				static Core::String GetJSON(Core::Schema* Source, bool Escape);
 			};
 		}
 	}

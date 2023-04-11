@@ -994,7 +994,7 @@ namespace Edge
 			{
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 
-				std::string Path;
+				Core::String Path;
 				if (Series::Unpack(Node->Find("sky-map"), &Path) && !Path.empty())
 					System->GetScene()->LoadResource<Graphics::Texture2D>(System->GetComponent(), Path, std::bind(&Lighting::SetSkyMap, this, std::placeholders::_1));
 

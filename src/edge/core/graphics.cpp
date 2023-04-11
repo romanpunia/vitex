@@ -20,7 +20,6 @@
 #include <glslang/Include/ResourceLimits.h>
 #include <glslang/Public/ShaderLang.h>
 #include <glslang/Public/ShaderLang.h>
-#include <sstream>
 
 namespace
 {
@@ -168,7 +167,7 @@ namespace Edge
 		Alert::Alert(Activity* From) noexcept : View(AlertType::None), Base(From), Waiting(false)
 		{
 		}
-		void Alert::Setup(AlertType Type, const std::string& Title, const std::string& Text)
+		void Alert::Setup(AlertType Type, const Core::String& Title, const Core::String& Text)
 		{
 			ED_ASSERT_V(Type != AlertType::None, "alert type should not be none");
 			View = Type;
@@ -176,7 +175,7 @@ namespace Edge
 			Data = Text;
 			Buttons.clear();
 		}
-		void Alert::Button(AlertConfirm Confirm, const std::string& Text, int Id)
+		void Alert::Button(AlertConfirm Confirm, const Core::String& Text, int Id)
 		{
 			ED_ASSERT_V(View != AlertType::None, "alert type should not be none");
 			ED_ASSERT_V(Buttons.size() < 16, "there must be less than 16 buttons in alert");
@@ -374,7 +373,7 @@ namespace Edge
 		InputLayout::~InputLayout() noexcept
 		{
 		}
-		const std::vector<InputLayout::Attribute>& InputLayout::GetAttributes() const
+		const Core::Vector<InputLayout::Attribute>& InputLayout::GetAttributes() const
 		{
 			return Layout;
 		}
@@ -445,7 +444,7 @@ namespace Edge
 		{
 			ED_CLEAR(Elements);
 		}
-		std::vector<Compute::ElementVertex>& InstanceBuffer::GetArray()
+		Core::Vector<Compute::ElementVertex>& InstanceBuffer::GetArray()
 		{
 			return Array;
 		}
@@ -1097,7 +1096,7 @@ namespace Edge
 			{
 				GraphicsDevice* Base = (GraphicsDevice*)Context;
 				if (Base != nullptr && Base->GetBackend() != RenderBackend::None)
-					Base->AddSection(Name, std::string((const char*)Buffer, Size - 1));
+					Base->AddSection(Name, Core::String((const char*)Buffer, Size - 1));
 			});
 #else
 			ED_WARN("[graphics] default shader resources were not compiled");
@@ -1126,7 +1125,7 @@ namespace Edge
 			InputLayouts.clear();
 			ED_CLEAR(RenderTarget);
 		}
-		bool GraphicsDevice::AddSection(const std::string& Name, const std::string& Code)
+		bool GraphicsDevice::AddSection(const Core::String& Name, const Core::String& Code)
 		{
 			Core::Stringify Language(Core::OS::Path::GetExtension(Name.c_str()));
 			Language.Substring(1).Trim().ToLower();
@@ -1139,7 +1138,7 @@ namespace Edge
 
 			return true;
 		}
-		bool GraphicsDevice::RemoveSection(const std::string& Name)
+		bool GraphicsDevice::RemoveSection(const Core::String& Name)
 		{
 			auto It = Sections.find(Name);
 			if (It == Sections.end())
@@ -1176,7 +1175,7 @@ namespace Edge
 			Subresult.Features.Pragmas = false;
 
 			Compute::Preprocessor* Processor = new Compute::Preprocessor();
-			Processor->SetIncludeCallback([this, &Subresult](Compute::Preprocessor* P, const Compute::IncludeResult& File, std::string* Output)
+			Processor->SetIncludeCallback([this, &Subresult](Compute::Preprocessor* P, const Compute::IncludeResult& File, Core::String* Output)
 			{
 				if (Subresult.Include && Subresult.Include(P, File, Output))
 					return true;
@@ -1214,7 +1213,7 @@ namespace Edge
 
 			return Preprocessed;
 		}
-		bool GraphicsDevice::Transpile(std::string* HLSL, ShaderType Type, ShaderLang To)
+		bool GraphicsDevice::Transpile(Core::String* HLSL, ShaderType Type, ShaderLang To)
 		{
 			if (!HLSL || HLSL->empty())
 				return true;
@@ -1255,7 +1254,7 @@ namespace Edge
 					return false;
 			}
 
-			std::string Entry = GetShaderMain(Type);
+			Core::String Entry = GetShaderMain(Type);
 			std::vector<uint32_t> Binary;
 			glslang::InitializeProcess();
 
@@ -1313,7 +1312,7 @@ namespace Edge
 					Compiler.build_combined_image_samplers();
 					PrepareSamplers(&Compiler);
 
-					*HLSL = Compiler.compile();
+					*HLSL = Core::Copy<Core::String>(Compiler.compile());
 					if (HLSL->empty())
 						return true;
 
@@ -1331,7 +1330,7 @@ namespace Edge
 					spirv_cross::CompilerHLSL Compiler(Binary);
 					Compiler.set_hlsl_options(Options);
 
-					*HLSL = Compiler.compile();
+					*HLSL = Core::Copy<Core::String>(Compiler.compile());
 					return true;
 				}
 				else if (To == ShaderLang::MSL)
@@ -1343,12 +1342,12 @@ namespace Edge
 					Compiler.build_combined_image_samplers();
 					PrepareSamplers(&Compiler);
 
-					*HLSL = Compiler.compile();
+					*HLSL = Core::Copy<Core::String>(Compiler.compile());
 					return true;
 				}
 				else if (To == ShaderLang::SPV)
 				{
-					std::stringstream Stream;
+					Core::StringStream Stream;
 					std::copy(Binary.begin(), Binary.end(), std::ostream_iterator<uint32_t>(Stream, " "));
 
 					HLSL->assign(Stream.str());
@@ -1373,7 +1372,7 @@ namespace Edge
 			return false;
 #endif
 		}
-		bool GraphicsDevice::GetSection(const std::string& Name, Section** Result, bool Internal)
+		bool GraphicsDevice::GetSection(const Core::String& Name, Section** Result, bool Internal)
 		{
 			if (Name.empty() || Sections.empty())
 			{
@@ -1383,7 +1382,7 @@ namespace Edge
 				return false;
 			}
 
-			std::function<bool(const std::string&)> Resolve = [this, &Result](const std::string& Src)
+			std::function<bool(const Core::String&)> Resolve = [this, &Result](const Core::String& Src)
 			{
 				auto It = Sections.find(Src);
 				if (It == Sections.end())
@@ -1410,7 +1409,7 @@ namespace Edge
 
 			return false;
 		}
-		bool GraphicsDevice::GetSection(const std::string& Name, Shader::Desc* Result)
+		bool GraphicsDevice::GetSection(const Core::String& Name, Shader::Desc* Result)
 		{
 			if (Name.empty() || !Result)
 				return false;
@@ -1428,7 +1427,7 @@ namespace Edge
 		{
 			return Debug;
 		}
-		bool GraphicsDevice::GetProgramCache(const std::string& Name, std::string* Data)
+		bool GraphicsDevice::GetProgramCache(const Core::String& Name, Core::String* Data)
 		{
 			ED_ASSERT(Data != nullptr, false, "data should be set");
 			Data->clear();
@@ -1436,7 +1435,7 @@ namespace Edge
 			if (!ShaderCache || Caches.empty())
 				return false;
 
-			std::string Path = Caches + Name;
+			Core::String Path = Caches + Name;
 			if (Path.empty())
 				return false;
 
@@ -1452,19 +1451,19 @@ namespace Edge
 
 			char Buffer[ED_BIG_CHUNK_SIZE]; size_t Size = 0;
 			while ((Size = (size_t)Stream->Read(Buffer, sizeof(Buffer))) > 0)
-				Data->append(std::string(Buffer, Size));
+				Data->append(Core::String(Buffer, Size));
 
 			ED_DEBUG("[graphics] load %s program cache", Name.c_str());
 			ED_RELEASE(Stream);
 
 			return !Data->empty();
 		}
-		bool GraphicsDevice::SetProgramCache(const std::string& Name, const std::string& Data)
+		bool GraphicsDevice::SetProgramCache(const Core::String& Name, const Core::String& Data)
 		{
 			if (!ShaderCache || Caches.empty())
 				return true;
 
-			std::string Path = Caches + Name;
+			Core::String Path = Caches + Name;
 			if (Path.empty())
 				return false;
 
@@ -1578,9 +1577,9 @@ namespace Edge
 		{
 			return CompileFlags;
 		}
-		std::string GraphicsDevice::GetProgramName(const Shader::Desc& Desc)
+		Core::String GraphicsDevice::GetProgramName(const Shader::Desc& Desc)
 		{
-			std::string Result = Desc.Filename;
+			Core::String Result = Desc.Filename;
 			for (auto& Item : Desc.Defines)
 				Result += '&' + Item + "=1";
 
@@ -1620,7 +1619,7 @@ namespace Edge
 					break;
 			}
 
-			std::string Postfix;
+			Core::String Postfix;
 			switch (Backend)
 			{
 				case Edge::Graphics::RenderBackend::D3D11:
@@ -1635,7 +1634,7 @@ namespace Edge
 
 			return Compute::Crypto::Hash(Compute::Digests::MD5(), Result) + Postfix;
 		}
-		std::string GraphicsDevice::GetShaderMain(ShaderType Type) const
+		Core::String GraphicsDevice::GetShaderMain(ShaderType Type) const
 		{
 			switch (Type)
 			{
@@ -1659,23 +1658,23 @@ namespace Edge
 		{
 			return ShaderGen;
 		}
-		const std::unordered_map<std::string, DepthStencilState*>& GraphicsDevice::GetDepthStencilStates() const
+		const Core::UnorderedMap<Core::String, DepthStencilState*>& GraphicsDevice::GetDepthStencilStates() const
 		{
 			return DepthStencilStates;
 		}
-		const std::unordered_map<std::string, RasterizerState*>& GraphicsDevice::GetRasterizerStates() const
+		const Core::UnorderedMap<Core::String, RasterizerState*>& GraphicsDevice::GetRasterizerStates() const
 		{
 			return RasterizerStates;
 		}
-		const std::unordered_map<std::string, BlendState*>& GraphicsDevice::GetBlendStates() const
+		const Core::UnorderedMap<Core::String, BlendState*>& GraphicsDevice::GetBlendStates() const
 		{
 			return BlendStates;
 		}
-		const std::unordered_map<std::string, SamplerState*>& GraphicsDevice::GetSamplerStates() const
+		const Core::UnorderedMap<Core::String, SamplerState*>& GraphicsDevice::GetSamplerStates() const
 		{
 			return SamplerStates;
 		}
-		const std::unordered_map<std::string, InputLayout*>& GraphicsDevice::GetInputLayouts() const
+		const Core::UnorderedMap<Core::String, InputLayout*>& GraphicsDevice::GetInputLayouts() const
 		{
 			return InputLayouts;
 		}
@@ -1746,7 +1745,7 @@ namespace Edge
 			return nullptr;
 #endif
 		}
-		DepthStencilState* GraphicsDevice::GetDepthStencilState(const std::string& Name)
+		DepthStencilState* GraphicsDevice::GetDepthStencilState(const Core::String& Name)
 		{
 			auto It = DepthStencilStates.find(Name);
 			if (It != DepthStencilStates.end())
@@ -1754,7 +1753,7 @@ namespace Edge
 
 			return nullptr;
 		}
-		BlendState* GraphicsDevice::GetBlendState(const std::string& Name)
+		BlendState* GraphicsDevice::GetBlendState(const Core::String& Name)
 		{
 			auto It = BlendStates.find(Name);
 			if (It != BlendStates.end())
@@ -1762,7 +1761,7 @@ namespace Edge
 
 			return nullptr;
 		}
-		RasterizerState* GraphicsDevice::GetRasterizerState(const std::string& Name)
+		RasterizerState* GraphicsDevice::GetRasterizerState(const Core::String& Name)
 		{
 			auto It = RasterizerStates.find(Name);
 			if (It != RasterizerStates.end())
@@ -1770,7 +1769,7 @@ namespace Edge
 
 			return nullptr;
 		}
-		SamplerState* GraphicsDevice::GetSamplerState(const std::string& Name)
+		SamplerState* GraphicsDevice::GetSamplerState(const Core::String& Name)
 		{
 			auto It = SamplerStates.find(Name);
 			if (It != SamplerStates.end())
@@ -1778,7 +1777,7 @@ namespace Edge
 
 			return nullptr;
 		}
-		InputLayout* GraphicsDevice::GetInputLayout(const std::string& Name)
+		InputLayout* GraphicsDevice::GetInputLayout(const Core::String& Name)
 		{
 			auto It = InputLayouts.find(Name);
 			if (It != InputLayouts.end())
@@ -1812,7 +1811,7 @@ namespace Edge
 			ED_ERR("[graphics] backend was not found");
 			return nullptr;
 		}
-		void GraphicsDevice::CompileBuiltinShaders(const std::vector<GraphicsDevice*>& Devices)
+		void GraphicsDevice::CompileBuiltinShaders(const Core::Vector<GraphicsDevice*>& Devices)
 		{
 			auto GetDeviceName = [](GraphicsDevice* Device) -> const char*
 			{
@@ -1928,7 +1927,7 @@ namespace Edge
 #endif
 #endif
 		}
-		void Activity::SetClipboardText(const std::string& Text)
+		void Activity::SetClipboardText(const Core::String& Text)
 		{
 #ifdef ED_HAS_SDL2
 			ED_ASSERT_V(Handle != nullptr, "activity should be initialized");
@@ -2859,12 +2858,12 @@ namespace Edge
 			return Compute::Vector2();
 #endif
 		}
-		std::string Activity::GetClipboardText() const
+		Core::String Activity::GetClipboardText() const
 		{
 #ifdef ED_HAS_SDL2
-			ED_ASSERT(Handle != nullptr, std::string(), "activity should be initialized");
+			ED_ASSERT(Handle != nullptr, Core::String(), "activity should be initialized");
 			char* Text = SDL_GetClipboardText();
-			std::string Result = (Text ? Text : "");
+			Core::String Result = (Text ? Text : "");
 
 			if (Text != nullptr)
 				SDL_free(Text);
@@ -2878,10 +2877,10 @@ namespace Edge
 		{
 			return Handle;
 		}
-		std::string Activity::GetError() const
+		Core::String Activity::GetError() const
 		{
 #ifdef ED_HAS_SDL2
-			ED_ASSERT(Handle != nullptr, std::string(), "activity should be initialized");
+			ED_ASSERT(Handle != nullptr, Core::String(), "activity should be initialized");
 			const char* Error = SDL_GetError();
 			if (!Error)
 				return "";

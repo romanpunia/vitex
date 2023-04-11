@@ -335,9 +335,9 @@ namespace Edge
 					Graphics::ElementBuffer* SBuffer = nullptr;
 					Graphics::ElementBuffer* LBuffer = nullptr;
 					Graphics::Texture3D* LightBuffer = nullptr;
-					std::vector<IPointLight> PArray;
-					std::vector<ISpotLight> SArray;
-					std::vector<ILineLight> LArray;
+					Core::Vector<IPointLight> PArray;
+					Core::Vector<ISpotLight> SArray;
+					Core::Vector<ILineLight> LArray;
 					const size_t MaxLights = 64;
 				} Voxels;
 

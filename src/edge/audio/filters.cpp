@@ -1,6 +1,6 @@
 #include "filters.h"
 #include "../core/engine.h"
-#if defined(ED_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(ED_HAS_OPENAL)
 #ifdef ED_AL_AT_OPENAL
 #include <OpenAL/al.h>
 #else

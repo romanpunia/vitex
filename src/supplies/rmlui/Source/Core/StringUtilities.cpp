@@ -170,7 +170,7 @@ String StringUtilities::DecodeRml(const String& s)
 					if (j > 0 && s[start + j] == ';')
 					{
 						String tmp = s.substr(start, j);
-						std::istringstream iss(tmp);
+						std::istringstream iss(std::string(tmp.begin(), tmp.end()));
 						uint32_t code_point;
 						if (iss >> std::hex >> code_point)
 						{
@@ -193,7 +193,7 @@ String StringUtilities::DecodeRml(const String& s)
 					if (j > 0 && s[start + j] == ';')
 					{
 						String tmp = s.substr(start, j);
-						std::istringstream iss(tmp);
+						std::istringstream iss(std::string(tmp.begin(), tmp.end()));
 						uint32_t code_point;
 						if (iss >> code_point)
 						{

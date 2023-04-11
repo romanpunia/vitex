@@ -350,6 +350,17 @@ namespace Edge
 		typedef std::function<void(class VirtualMachine*)> SubmoduleCallback;
 		typedef std::function<void(class ImmediateContext*)> ArgsCallback;
 
+		class ED_OUT TypeCache
+		{
+		private:
+			static Core::Mapping<Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>>* Names;
+
+		public:
+			static uint64_t Set(uint64_t Id, const Core::String& Name);
+			static int GetTypeId(uint64_t Id);
+			static void FreeProxy();
+		};
+
 		class ED_OUT_TS FunctionFactory
 		{
 		public:
@@ -358,6 +369,7 @@ namespace Edge
 			static Core::Unique<asSFuncPtr> CreateDummyBase();
 			static void ReleaseFunctor(Core::Unique<asSFuncPtr>* Ptr);
 			static int AtomicNotifyGC(const char* TypeName, void* Object);
+			static int AtomicNotifyGCById(int TypeId, void* Object);
 		};
 
 		template <int N>
@@ -531,21 +543,21 @@ namespace Edge
 			{
 				((T*)Memory)->~T();
 			}
-			template <typename T, const char* TypeName, typename... Args>
+			template <typename T, uint64_t TypeName, typename... Args>
 			static T* GetManagedCall(Args... Data)
 			{
 				auto* Result = new T(Data...);
-				FunctionFactory::AtomicNotifyGC(TypeName, (void*)Result);
+				FunctionFactory::AtomicNotifyGCById(TypeCache::GetTypeId(TypeName), (void*)Result);
 
 				return Result;
 			}
-			template <typename T, const char* TypeName>
+			template <typename T, uint64_t TypeName>
 			static void GetManagedListCall(asIScriptGeneric* Generic)
 			{
 				GenericContext Args(Generic);
 				T* Result = new T((unsigned char*)Args.GetArgAddress(0));
 				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = Result;
-				FunctionFactory::AtomicNotifyGC(TypeName, (void*)Result);
+				FunctionFactory::AtomicNotifyGCById(TypeCache::GetTypeId(TypeName), (void*)Result);
 			}
 			template <typename T, typename... Args>
 			static Core::Unique<T> GetUnmanagedCall(Args... Data)
@@ -615,8 +627,8 @@ namespace Edge
 
 		struct ED_OUT ByteCodeInfo
 		{
-			std::vector<unsigned char> Data;
-			std::string Name;
+			Core::Vector<unsigned char> Data;
+			Core::String Name;
 			bool Valid = false;
 			bool Debug = true;
 		};
@@ -834,11 +846,11 @@ namespace Edge
 		{
 		protected:
 			VirtualMachine* VM;
-			std::string Object;
+			Core::String Object;
 			int TypeId;
 
 		public:
-			BaseClass(VirtualMachine* Engine, const std::string& Name, int Type) noexcept;
+			BaseClass(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept;
 			int SetFunctionDef(const char* Decl);
 			int SetOperatorCopyAddress(asSFuncPtr* Value, FunctionCall = FunctionCall::THISCALL);
 			int SetBehaviourAddress(const char* Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall = FunctionCall::THISCALL);
@@ -852,7 +864,7 @@ namespace Edge
 			int SetDestructorAddress(const char* Decl, asSFuncPtr* Value);
 			int GetTypeId() const;
 			bool IsValid() const;
-			std::string GetName() const;
+			Core::String GetName() const;
 			VirtualMachine* GetVM() const;
 
 		private:
@@ -907,7 +919,7 @@ namespace Edge
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				for (size_t i = 0; i < ElementsCount; i++)
 				{
-					std::string ElementDecl = Decl + std::to_string(i);
+					Core::String ElementDecl = Decl + Core::ToString(i);
 					int RE = SetPropertyAddress(ElementDecl.c_str(), (int)reinterpret_cast<size_t>(&(((T*)0)->*Value)) + (int)(sizeof(R) * i));
 					if (RE < 0)
 						return RE;
@@ -1120,7 +1132,7 @@ namespace Edge
 		struct ED_OUT RefClass : public BaseClass
 		{
 		public:
-			RefClass(VirtualMachine* Engine, const std::string& Name, int Type) noexcept : BaseClass(Engine, Name, Type)
+			RefClass(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept : BaseClass(Engine, Name, Type)
 			{
 			}
 
@@ -1165,7 +1177,7 @@ namespace Edge
 
 				return Result;
 			}
-			template <typename T, const char* TypeName, typename... Args>
+			template <typename T, uint64_t TypeName, typename... Args>
 			int SetGcConstructor(const char* Decl)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
@@ -1175,7 +1187,7 @@ namespace Edge
 
 				return Result;
 			}
-			template <typename T, const char* TypeName, asIScriptGeneric*>
+			template <typename T, uint64_t TypeName, asIScriptGeneric*>
 			int SetGcConstructor(const char* Decl)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
@@ -1185,7 +1197,7 @@ namespace Edge
 
 				return Result;
 			}
-			template <typename T, const char* TypeName>
+			template <typename T, uint64_t TypeName>
 			int SetGcConstructorList(const char* Decl)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
@@ -1195,7 +1207,7 @@ namespace Edge
 
 				return Result;
 			}
-			template <typename T, const char* TypeName>
+			template <typename T>
 			int SetGcConstructorListEx(const char* Decl, void(*Value)(asIScriptGeneric*))
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
@@ -1287,7 +1299,7 @@ namespace Edge
 		struct ED_OUT TypeClass : public BaseClass
 		{
 		public:
-			TypeClass(VirtualMachine* Engine, const std::string& Name, int Type) noexcept : BaseClass(Engine, Name, Type)
+			TypeClass(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept : BaseClass(Engine, Name, Type)
 			{
 			}
 
@@ -1348,15 +1360,15 @@ namespace Edge
 		{
 		private:
 			VirtualMachine* VM;
-			std::string Object;
+			Core::String Object;
 			int TypeId;
 
 		public:
-			TypeInterface(VirtualMachine* Engine, const std::string& Name, int Type) noexcept;
+			TypeInterface(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept;
 			int SetMethod(const char* Decl);
 			int GetTypeId() const;
 			bool IsValid() const;
-			std::string GetName() const;
+			Core::String GetName() const;
 			VirtualMachine* GetVM() const;
 		};
 
@@ -1364,15 +1376,15 @@ namespace Edge
 		{
 		private:
 			VirtualMachine* VM;
-			std::string Object;
+			Core::String Object;
 			int TypeId;
 
 		public:
-			Enumeration(VirtualMachine* Engine, const std::string& Name, int Type) noexcept;
+			Enumeration(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept;
 			int SetValue(const char* Name, int Value);
 			int GetTypeId() const;
 			bool IsValid() const;
-			std::string GetName() const;
+			Core::String GetName() const;
 			VirtualMachine* GetVM() const;
 		};
 
@@ -1503,25 +1515,25 @@ namespace Edge
 			~Compiler() noexcept;
 			void SetIncludeCallback(const Compute::ProcIncludeCallback& Callback);
 			void SetPragmaCallback(const Compute::ProcPragmaCallback& Callback);
-			void Define(const std::string& Word);
-			void Undefine(const std::string& Word);
+			void Define(const Core::String& Word);
+			void Undefine(const Core::String& Word);
 			bool Clear();
-			bool IsDefined(const std::string& Word) const;
+			bool IsDefined(const Core::String& Word) const;
 			bool IsBuilt() const;
 			bool IsCached() const;
 			int Prepare(ByteCodeInfo* Info);
-			int Prepare(const std::string& ModuleName, bool Scoped = false);
-			int Prepare(const std::string& ModuleName, const std::string& Cache, bool Debug = true, bool Scoped = false);
+			int Prepare(const Core::String& ModuleName, bool Scoped = false);
+			int Prepare(const Core::String& ModuleName, const Core::String& Cache, bool Debug = true, bool Scoped = false);
 			int SaveByteCode(ByteCodeInfo* Info);
-			int LoadFile(const std::string& Path);
-			int LoadCode(const std::string& Name, const std::string& Buffer);
-			int LoadCode(const std::string& Name, const char* Buffer, size_t Length);
+			int LoadFile(const Core::String& Path);
+			int LoadCode(const Core::String& Name, const Core::String& Buffer);
+			int LoadCode(const Core::String& Name, const char* Buffer, size_t Length);
 			Core::Promise<int> Compile();
 			Core::Promise<int> LoadByteCode(ByteCodeInfo* Info);
 			Core::Promise<int> ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
-			Core::Promise<int> ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
+			Core::Promise<int> ExecuteMemory(const Core::String& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
 			Core::Promise<int> ExecuteEntry(const char* Name, ArgsCallback&& OnArgs = nullptr);
-			Core::Promise<int> ExecuteScoped(const std::string& Code, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
+			Core::Promise<int> ExecuteScoped(const Core::String& Code, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
 			Core::Promise<int> ExecuteScoped(const char* Buffer, size_t Length, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
 			Module GetModule() const;
 			VirtualMachine* GetVM() const;
@@ -1548,9 +1560,9 @@ namespace Edge
 		private:
 			std::function<void(ImmediateContext*)> LineCallback;
 			std::function<void(ImmediateContext*)> ExceptionCallback;
-			std::queue<Task> Tasks;
+			Core::SingleQueue<Task> Tasks;
 			std::mutex Exchange;
-			std::string Stacktrace;
+			Core::String Stacktrace;
 			asIScriptContext* Context;
 			VirtualMachine* VM;
 
@@ -1565,7 +1577,7 @@ namespace Edge
 			int Abort();
 			int Suspend();
 			Activation GetState() const;
-			std::string GetStackTrace(size_t Skips, size_t MaxFrames) const;
+			Core::String GetStackTrace(size_t Skips, size_t MaxFrames) const;
 			int PushState();
 			int PopState();
 			bool IsNested(unsigned int* NestCount = 0) const;
@@ -1605,7 +1617,7 @@ namespace Edge
 			int SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
 			void ClearLineCallback();
 			unsigned int GetCallstackSize() const;
-			std::string GetErrorStackTrace();
+			Core::String GetErrorStackTrace();
 			Function GetFunction(unsigned int StackLevel = 0);
 			int GetLineNumber(unsigned int StackLevel = 0, int* Column = 0, const char** SectionName = 0);
 			int GetPropertiesCount(unsigned int StackLevel = 0);
@@ -1642,19 +1654,19 @@ namespace Edge
 		class ED_OUT VirtualMachine final : public Core::Reference<VirtualMachine>
 		{
 		public:
-			typedef std::function<void(const std::string&)> CompileCallback;
+			typedef std::function<void(const Core::String&)> CompileCallback;
 			typedef std::function<void()> WhenErrorCallback;
 
 		private:
 			struct Kernel
 			{
-				std::unordered_map<std::string, void*> Functions;
+				Core::UnorderedMap<Core::String, void*> Functions;
 				void* Handle;
 			};
 
 			struct Submodule
 			{
-				std::vector<std::string> Dependencies;
+				Core::Vector<Core::String> Dependencies;
 				SubmoduleCallback Callback;
 				bool Registered = false;
 			};
@@ -1670,14 +1682,14 @@ namespace Edge
 			static int ManagerUD;
 
 		private:
-			std::unordered_map<std::string, std::string> Files;
-			std::unordered_map<std::string, Core::Schema*> Datas;
-			std::unordered_map<std::string, ByteCodeInfo> Opcodes;
-			std::unordered_map<std::string, Kernel> Kernels;
-			std::unordered_map<std::string, Submodule> Modules;
-			std::unordered_map<std::string, CompileCallback> Callbacks;
-			std::vector<asIScriptContext*> Contexts;
-			std::string DefaultNamespace;
+			Core::UnorderedMap<Core::String, Core::String> Files;
+			Core::UnorderedMap<Core::String, Core::Schema*> Datas;
+			Core::UnorderedMap<Core::String, ByteCodeInfo> Opcodes;
+			Core::UnorderedMap<Core::String, Kernel> Kernels;
+			Core::UnorderedMap<Core::String, Submodule> Modules;
+			Core::UnorderedMap<Core::String, CompileCallback> Callbacks;
+			Core::Vector<asIScriptContext*> Contexts;
+			Core::String DefaultNamespace;
 			Compute::Preprocessor::Desc Proc;
 			Compute::IncludeDesc Include;
 			WhenErrorCallback WherError;
@@ -1696,7 +1708,7 @@ namespace Edge
 			void SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc);
 			void SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc);
 			void SetProcessorOptions(Compute::Preprocessor* Processor);
-			void SetCompileCallback(const std::string& Section, CompileCallback&& Callback);
+			void SetCompileCallback(const Core::String& Section, CompileCallback&& Callback);
 			int Collect(size_t NumIterations = 1);
 			void GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const;
 			int NotifyOfNewObject(void* Object, const TypeInfo& Type);
@@ -1704,14 +1716,14 @@ namespace Edge
 			void ForwardEnumReferences(void* Reference, const TypeInfo& Type);
 			void ForwardReleaseReferences(void* Reference, const TypeInfo& Type);
 			void GCEnumCallback(void* Reference);
-			bool DumpRegisteredInterfaces(const std::string& Path);
-			bool DumpAllInterfaces(const std::string& Path);
+			bool DumpRegisteredInterfaces(const Core::String& Path);
+			bool DumpAllInterfaces(const Core::String& Path);
 			bool GetByteCodeCache(ByteCodeInfo* Info);
 			void SetByteCodeCache(ByteCodeInfo* Info);
 			Core::Unique<ImmediateContext> CreateContext();
 			Core::Unique<Compiler> CreateCompiler();
-			asIScriptModule* CreateScopedModule(const std::string& Name);
-			asIScriptModule* CreateModule(const std::string& Name);
+			asIScriptModule* CreateScopedModule(const Core::String& Name);
+			asIScriptModule* CreateModule(const Core::String& Name);
 			void* CreateObject(const TypeInfo& Type);
 			void* CreateObjectCopy(void* Object, const TypeInfo& Type);
 			void* CreateEmptyObject(const TypeInfo& Type);
@@ -1737,20 +1749,20 @@ namespace Edge
 			int SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object);
 			int Log(const char* Section, int Row, int Column, LogCategory Type, const char* Message);
 			int SetProperty(Features Property, size_t Value);
-			void SetDocumentRoot(const std::string& Root);
+			void SetDocumentRoot(const Core::String& Root);
 			size_t GetProperty(Features Property) const;
 			asIScriptEngine* GetEngine() const;
-			std::string GetDocumentRoot() const;
-			std::vector<std::string> GetSubmodules() const;
-			std::vector<std::string> VerifyModules(const std::string& Directory, const Compute::RegexSource& Exp);
-			bool VerifyModule(const std::string& Path);
+			Core::String GetDocumentRoot() const;
+			Core::Vector<Core::String> GetSubmodules() const;
+			Core::Vector<Core::String> VerifyModules(const Core::String& Directory, const Compute::RegexSource& Exp);
+			bool VerifyModule(const Core::String& Path);
 			bool IsNullable(int TypeId);
-			bool AddSubmodule(const std::string& Name, const std::vector<std::string>& Dependencies, const SubmoduleCallback& Callback);
-			bool ImportFile(const std::string& Path, std::string* Out);
-			bool ImportSymbol(const std::vector<std::string>& Sources, const std::string& Name, const std::string& Decl);
-			bool ImportLibrary(const std::string& Path);
-			bool ImportSubmodule(const std::string& Name);
-			Core::Schema* ImportJSON(const std::string& Path);
+			bool AddSubmodule(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const SubmoduleCallback& Callback);
+			bool ImportFile(const Core::String& Path, Core::String* Out);
+			bool ImportSymbol(const Core::Vector<Core::String>& Sources, const Core::String& Name, const Core::String& Decl);
+			bool ImportLibrary(const Core::String& Path);
+			bool ImportSubmodule(const Core::String& Name);
+			Core::Schema* ImportJSON(const Core::String& Path);
 			int SetFunctionDef(const char* Decl);
 			int SetFunctionAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECLF);
 			int SetPropertyAddress(const char* Decl, void* Value);
@@ -1778,7 +1790,7 @@ namespace Edge
 			int GetTypeIdByDecl(const char* Decl) const;
 			const char* GetTypeIdDecl(int TypeId, bool IncludeNamespace = false) const;
 			int GetSizeOfPrimitiveType(int TypeId) const;
-			std::string GetObjectView(void* Object, int TypeId);
+			Core::String GetObjectView(void* Object, int TypeId);
 			TypeInfo GetTypeInfoById(int TypeId) const;
 			TypeInfo GetTypeInfoByName(const char* Name);
 			TypeInfo GetTypeInfoByDecl(const char* Decl) const;
@@ -1792,7 +1804,7 @@ namespace Edge
 			static void FreeProxy();
 
 		private:
-			static std::string GetLibraryName(const std::string& Path);
+			static Core::String GetLibraryName(const Core::String& Path);
 			static asIScriptContext* RequestContext(asIScriptEngine* Engine, void* Data);
 			static void ReturnContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data);
 			static void CompileLogger(asSMessageInfo* Info, void* Object);
@@ -1870,7 +1882,7 @@ namespace Edge
 		class ED_OUT Debugger final : public Core::Reference<Debugger>
 		{
 		public:
-			typedef std::string(*ToStringCallback)(void* Object, int ExpandLevel, Debugger* Dbg);
+			typedef Core::String(*ToStringCallback)(void* Object, int ExpandLevel, Debugger* Dbg);
 
 		protected:
 			enum class DebugAction
@@ -1883,19 +1895,19 @@ namespace Edge
 
 			struct BreakPoint
 			{
-				std::string Name;
+				Core::String Name;
 				bool NeedsAdjusting;
 				bool Function;
 				int Line;
 
-				BreakPoint(const std::string& N, int L, bool F) noexcept : Name(N), NeedsAdjusting(true), Function(F), Line(L)
+				BreakPoint(const Core::String& N, int L, bool F) noexcept : Name(N), NeedsAdjusting(true), Function(F), Line(L)
 				{
 				}
 			};
 
 		protected:
-			std::unordered_map<const asITypeInfo*, ToStringCallback> ToStringCallbacks;
-			std::vector<BreakPoint> BreakPoints;
+			Core::UnorderedMap<const asITypeInfo*, ToStringCallback> ToStringCallbacks;
+			Core::Vector<BreakPoint> BreakPoints;
 			unsigned int LastCommandAtStackLevel;
 			asIScriptFunction* LastFunction;
 			VirtualMachine* VM;
@@ -1906,22 +1918,22 @@ namespace Edge
 			~Debugger() noexcept;
 			void RegisterToStringCallback(const TypeInfo& Type, ToStringCallback Callback);
 			void TakeCommands(ImmediateContext* Context);
-			void Output(const std::string& Data);
+			void Output(const Core::String& Data);
 			void LineCallback(ImmediateContext* Context);
 			void PrintHelp();
-			void AddFileBreakPoint(const std::string& File, int LineNumber);
-			void AddFuncBreakPoint(const std::string& Function);
+			void AddFileBreakPoint(const Core::String& File, int LineNumber);
+			void AddFuncBreakPoint(const Core::String& Function);
 			void ListBreakPoints();
 			void ListLocalVariables(ImmediateContext* Context);
 			void ListGlobalVariables(ImmediateContext* Context);
 			void ListMemberProperties(ImmediateContext* Context);
 			void ListStatistics(ImmediateContext* Context);
 			void PrintCallstack(ImmediateContext* Context);
-			void PrintValue(const std::string& Expression, ImmediateContext* Context);
+			void PrintValue(const Core::String& Expression, ImmediateContext* Context);
 			void SetEngine(VirtualMachine* Engine);
-			bool InterpretCommand(const std::string& Command, ImmediateContext* Context);
+			bool InterpretCommand(const Core::String& Command, ImmediateContext* Context);
 			bool CheckBreakPoint(ImmediateContext* Context);
-			std::string ToString(void* Value, unsigned int TypeId, int ExpandMembersLevel, VirtualMachine* Engine);
+			Core::String ToString(void* Value, unsigned int TypeId, int ExpandMembersLevel, VirtualMachine* Engine);
 			VirtualMachine* GetEngine();
 		};
 	}

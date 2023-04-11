@@ -147,7 +147,7 @@ namespace Edge
 				Source = nullptr;
 				return Result;
 			}
-			std::string& Property::ToString()
+			Core::String& Property::ToString()
 			{
 				switch (Mod)
 				{
@@ -160,9 +160,9 @@ namespace Edge
 					case Type::Boolean:
 						return String.assign(Boolean ? "true" : "false");
 					case Type::Number:
-						return String.assign(std::to_string(Number));
+						return String.assign(Core::ToString(Number));
 					case Type::Integer:
-						return String.assign(std::to_string(Integer));
+						return String.assign(Core::ToString(Integer));
 					case Type::ObjectId:
 						return String.assign(Compute::Codec::Bep45Encode((const char*)ObjectId));
 					case Type::Null:
@@ -262,10 +262,10 @@ namespace Edge
 				return 0;
 #endif
 			}
-			std::string Util::IdToString(unsigned char* Id12)
+			Core::String Util::IdToString(unsigned char* Id12)
 			{
 #ifdef ED_HAS_MONGOC
-				ED_ASSERT(Id12 != nullptr, std::string(), "id should be set");
+				ED_ASSERT(Id12 != nullptr, Core::String(), "id should be set");
 
 				bson_oid_t Id;
 				memcpy(Id.bytes, Id12, sizeof(unsigned char) * 12);
@@ -273,19 +273,19 @@ namespace Edge
 				char Result[25];
 				bson_oid_to_string(&Id, Result);
 
-				return std::string(Result, 24);
+				return Core::String(Result, 24);
 #else
 				return "";
 #endif
 			}
-			std::string Util::StringToId(const std::string& Id24)
+			Core::String Util::StringToId(const Core::String& Id24)
 			{
-				ED_ASSERT(Id24.size() == 24, std::string(), "id should be 24 chars long");
+				ED_ASSERT(Id24.size() == 24, Core::String(), "id should be 24 chars long");
 #ifdef ED_HAS_MONGOC
 				bson_oid_t Id;
 				bson_oid_init_from_string(&Id, Id24.c_str());
 
-				return std::string((const char*)Id.bytes, 12);
+				return Core::String((const char*)Id.bytes, 12);
 #else
 				return "";
 #endif
@@ -460,7 +460,7 @@ namespace Edge
 				return false;
 #endif
 			}
-			bool Document::SetDecimalString(const char* Key, const std::string& Value, size_t ArrayId)
+			bool Document::SetDecimalString(const char* Key, const Core::String& Value, size_t ArrayId)
 			{
 #ifdef ED_HAS_MONGOC
 				ED_ASSERT(Base != nullptr, false, "schema should be set");
@@ -744,14 +744,14 @@ namespace Edge
 				return 0;
 #endif
 			}
-			std::string Document::ToRelaxedJSON() const
+			Core::String Document::ToRelaxedJSON() const
 			{
 #ifdef ED_HAS_MONGOC
-				ED_ASSERT(Base != nullptr, std::string(), "schema should be set");
+				ED_ASSERT(Base != nullptr, Core::String(), "schema should be set");
 				size_t Length = 0;
 				char* Value = bson_as_relaxed_extended_json(Base, &Length);
 
-				std::string Output;
+				Core::String Output;
 				Output.assign(Value, (uint64_t)Length);
 				bson_free(Value);
 
@@ -760,14 +760,14 @@ namespace Edge
 				return "";
 #endif
 			}
-			std::string Document::ToExtendedJSON() const
+			Core::String Document::ToExtendedJSON() const
 			{
 #ifdef ED_HAS_MONGOC
-				ED_ASSERT(Base != nullptr, std::string(), "schema should be set");
+				ED_ASSERT(Base != nullptr, Core::String(), "schema should be set");
 				size_t Length = 0;
 				char* Value = bson_as_canonical_extended_json(Base, &Length);
 
-				std::string Output;
+				Core::String Output;
 				Output.assign(Value, (uint64_t)Length);
 				bson_free(Value);
 
@@ -776,14 +776,14 @@ namespace Edge
 				return "";
 #endif
 			}
-			std::string Document::ToJSON() const
+			Core::String Document::ToJSON() const
 			{
 #ifdef ED_HAS_MONGOC
-				ED_ASSERT(Base != nullptr, std::string(), "schema should be set");
+				ED_ASSERT(Base != nullptr, Core::String(), "schema should be set");
 				size_t Length = 0;
 				char* Value = bson_as_json(Base, &Length);
 
-				std::string Output;
+				Core::String Output;
 				Output.assign(Value, (uint64_t)Length);
 				bson_free(Value);
 
@@ -792,15 +792,15 @@ namespace Edge
 				return "";
 #endif
 			}
-			std::string Document::ToIndices() const
+			Core::String Document::ToIndices() const
 			{
 #ifdef ED_HAS_MONGOC
-				ED_ASSERT(Base != nullptr, std::string(), "schema should be set");
+				ED_ASSERT(Base != nullptr, Core::String(), "schema should be set");
 				char* Value = mongoc_collection_keys_to_index_string(Base);
 				if (!Value)
-					return std::string();
+					return Core::String();
 
-				std::string Output(Value);
+				Core::String Output(Value);
 				bson_free(Value);
 
 				return Output;
@@ -817,7 +817,7 @@ namespace Edge
 				Core::Schema* Node = (IsArray ? Core::Var::Set::Array() : Core::Var::Set::Object());
 				Loop([Node](Property* Key) -> bool
 				{
-					std::string Name = (Node->Value.GetType() == Core::VarType::Array ? "" : Key->Name);
+					Core::String Name = (Node->Value.GetType() == Core::VarType::Array ? "" : Key->Name);
 					switch (Key->Mod)
 					{
 						case Type::Document:
@@ -927,7 +927,7 @@ namespace Edge
 						{
 							if (Node->Value.GetSize() != 12)
 							{
-								std::string Base = Compute::Codec::Bep45Encode(Node->Value.GetBlob());
+								Core::String Base = Compute::Codec::Bep45Encode(Node->Value.GetBlob());
 								Result.SetBlob(Array ? nullptr : Node->Key.c_str(), Base.c_str(), Base.size(), Index);
 							}
 							else
@@ -953,7 +953,7 @@ namespace Edge
 				return nullptr;
 #endif
 			}
-			Document Document::FromJSON(const std::string& JSON)
+			Document Document::FromJSON(const Core::String& JSON)
 			{
 #ifdef ED_HAS_MONGOC
 				bson_error_t Error;
@@ -1232,7 +1232,7 @@ namespace Edge
 				return false;
 #endif
 			}
-			bool Stream::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once)
+			bool Stream::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once)
 			{
 				ED_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 				return Query(Driver::GetQuery(Name, Map, Once));
@@ -1754,7 +1754,7 @@ namespace Edge
 				Other.Base = nullptr;
 				return *this;
 			}
-			Core::Promise<bool> Collection::Rename(const std::string& NewDatabaseName, const std::string& NewCollectionName) const
+			Core::Promise<bool> Collection::Rename(const Core::String& NewDatabaseName, const Core::String& NewCollectionName) const
 			{
 #ifdef ED_HAS_MONGOC
 				auto* Context = Base;
@@ -1766,7 +1766,7 @@ namespace Edge
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<bool> Collection::RenameWithOptions(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options) const
+			Core::Promise<bool> Collection::RenameWithOptions(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options) const
 			{
 #ifdef ED_HAS_MONGOC
 				auto* Context = Base;
@@ -1778,7 +1778,7 @@ namespace Edge
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<bool> Collection::RenameWithRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName) const
+			Core::Promise<bool> Collection::RenameWithRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName) const
 			{
 #ifdef ED_HAS_MONGOC
 				auto* Context = Base;
@@ -1790,7 +1790,7 @@ namespace Edge
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<bool> Collection::RenameWithOptionsAndRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options) const
+			Core::Promise<bool> Collection::RenameWithOptionsAndRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options) const
 			{
 #ifdef ED_HAS_MONGOC
 				auto* Context = Base;
@@ -1814,7 +1814,7 @@ namespace Edge
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<bool> Collection::RemoveIndex(const std::string& Name, const Document& Options) const
+			Core::Promise<bool> Collection::RemoveIndex(const Core::String& Name, const Document& Options) const
 			{
 #ifdef ED_HAS_MONGOC
 				auto* Context = Base;
@@ -1883,16 +1883,16 @@ namespace Edge
 				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
-			Core::Promise<Document> Collection::InsertMany(std::vector<Document>& List, const Document& Options) const
+			Core::Promise<Document> Collection::InsertMany(Core::Vector<Document>& List, const Document& Options) const
 			{
 #ifdef ED_HAS_MONGOC
 				ED_ASSERT(!List.empty(), Core::Promise<Document>(Document(nullptr)), "insert array should not be empty");
-				std::vector<Document> Array(std::move(List));
+				Core::Vector<Document> Array(std::move(List));
 				auto* Context = Base;
 
 				return Core::Cotask<Document>([Context, &Array, &Options]()
 				{
-					std::vector<TDocument*> Subarray;
+					Core::Vector<TDocument*> Subarray;
 				    Subarray.reserve(Array.size());
 
 				    for (auto& Item : Array)
@@ -2068,7 +2068,7 @@ namespace Edge
 				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
-			Core::Promise<Response> Collection::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once, Transaction* Session) const
+			Core::Promise<Response> Collection::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once, Transaction* Session) const
 			{
 				ED_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 				return Query(Driver::GetQuery(Name, Map, Once), Session);
@@ -2267,7 +2267,7 @@ namespace Edge
 						return Core::Promise<Response>(Response());
 					}
 
-					std::vector<Document> Data;
+					Core::Vector<Document> Data;
 					Values.Get().Loop([&Data](Property* Value)
 					{
 						Data.push_back(Value->LoseOwnership());
@@ -2447,7 +2447,7 @@ namespace Edge
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<bool> Database::RemoveUser(const std::string& Name)
+			Core::Promise<bool> Database::RemoveUser(const Core::String& Name)
 			{
 #ifdef ED_HAS_MONGOC
 				auto* Context = Base;
@@ -2486,7 +2486,7 @@ namespace Edge
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<bool> Database::AddUser(const std::string& Username, const std::string& Password, const Document& Roles, const Document& Custom)
+			Core::Promise<bool> Database::AddUser(const Core::String& Username, const Core::String& Password, const Document& Roles, const Document& Custom)
 			{
 #ifdef ED_HAS_MONGOC
 				auto* Context = Base;
@@ -2498,7 +2498,7 @@ namespace Edge
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<bool> Database::HasCollection(const std::string& Name) const
+			Core::Promise<bool> Database::HasCollection(const Core::String& Name) const
 			{
 #ifdef ED_HAS_MONGOC
 				auto* Context = Base;
@@ -2528,7 +2528,7 @@ namespace Edge
 				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
-			Core::Promise<Collection> Database::CreateCollection(const std::string& Name, const Document& Options)
+			Core::Promise<Collection> Database::CreateCollection(const Core::String& Name, const Document& Options)
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Base)
@@ -2550,30 +2550,30 @@ namespace Edge
 				return Core::Promise<Collection>(Collection(nullptr));
 #endif
 			}
-			std::vector<std::string> Database::GetCollectionNames(const Document& Options) const
+			Core::Vector<Core::String> Database::GetCollectionNames(const Document& Options) const
 			{
 #ifdef ED_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
 				if (!Base)
-					return std::vector<std::string>();
+					return Core::Vector<Core::String>();
 
 				char** Names = mongoc_database_get_collection_names_with_opts(Base, Options.Get(), &Error);
 				if (Names == nullptr)
 				{
 					ED_ERR("[mongoc] %s", Error.message);
-					return std::vector<std::string>();
+					return Core::Vector<Core::String>();
 				}
 
-				std::vector<std::string> Output;
+				Core::Vector<Core::String> Output;
 				for (unsigned i = 0; Names[i]; i++)
 					Output.push_back(Names[i]);
 
 				bson_strfreev(Names);
 				return Output;
 #else
-				return std::vector<std::string>();
+				return Core::Vector<Core::String>();
 #endif
 			}
 			const char* Database::GetName() const
@@ -2585,7 +2585,7 @@ namespace Edge
 				return nullptr;
 #endif
 			}
-			Collection Database::GetCollection(const std::string& Name)
+			Collection Database::GetCollection(const Core::String& Name)
 			{
 #ifdef ED_HAS_MONGOC
 				ED_ASSERT(Base != nullptr, nullptr, "context should be set");
@@ -2798,7 +2798,7 @@ namespace Edge
 				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
-			Core::Promise<Document> Transaction::InsertMany(const Collection& Source, std::vector<Document>& List, Document&& Options)
+			Core::Promise<Document> Transaction::InsertMany(const Collection& Source, Core::Vector<Document>& List, Document&& Options)
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Push(Options))
@@ -2875,7 +2875,7 @@ namespace Edge
 				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
-			Core::Promise<Response> Transaction::TemplateQuery(const Collection& Source, const std::string& Name, Core::SchemaArgs* Map, bool Once)
+			Core::Promise<Response> Transaction::TemplateQuery(const Collection& Source, const Core::String& Name, Core::SchemaArgs* Map, bool Once)
 			{
 				return Query(Source, Driver::GetQuery(Name, Map, Once));
 			}
@@ -2934,7 +2934,7 @@ namespace Edge
 					Disconnect();
 				Driver::Release();
 			}
-			Core::Promise<bool> Connection::Connect(const std::string& Address)
+			Core::Promise<bool> Connection::Connect(const Core::String& Address)
 			{
 #ifdef ED_HAS_MONGOC
 				ED_ASSERT(Master != nullptr, Core::Promise<bool>(false), "connection should be created outside of cluster");
@@ -3137,7 +3137,7 @@ namespace Edge
 				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
-			void Connection::SetProfile(const std::string& Name)
+			void Connection::SetProfile(const Core::String& Name)
 			{
 #ifdef ED_HAS_MONGOC
 				mongoc_client_set_appname(Base, Name.c_str());
@@ -3178,7 +3178,7 @@ namespace Edge
 				return Session;
 #endif
 			}
-			Database Connection::GetDatabase(const std::string& Name) const
+			Database Connection::GetDatabase(const Core::String& Name) const
 			{
 #ifdef ED_HAS_MONGOC
 				ED_ASSERT(Base != nullptr, nullptr, "context should be set");
@@ -3222,10 +3222,10 @@ namespace Edge
 			{
 				return Base;
 			}
-			std::vector<std::string> Connection::GetDatabaseNames(const Document& Options) const
+			Core::Vector<Core::String> Connection::GetDatabaseNames(const Document& Options) const
 			{
 #ifdef ED_HAS_MONGOC
-				ED_ASSERT(Base != nullptr, std::vector<std::string>(), "context should be set");
+				ED_ASSERT(Base != nullptr, Core::Vector<Core::String>(), "context should be set");
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
@@ -3233,17 +3233,17 @@ namespace Edge
 				if (Names == nullptr)
 				{
 					ED_ERR("[mongoc] %s", Error.message);
-					return std::vector<std::string>();
+					return Core::Vector<Core::String>();
 				}
 
-				std::vector<std::string> Output;
+				Core::Vector<Core::String> Output;
 				for (unsigned i = 0; Names[i]; i++)
 					Output.push_back(Names[i]);
 
 				bson_strfreev(Names);
 				return Output;
 #else
-				return std::vector<std::string>();
+				return Core::Vector<Core::String>();
 #endif
 			}
 			bool Connection::IsConnected() const
@@ -3260,7 +3260,7 @@ namespace Edge
 				Disconnect();
 				Driver::Release();
 			}
-			Core::Promise<bool> Cluster::Connect(const std::string& URI)
+			Core::Promise<bool> Cluster::Connect(const Core::String& URI)
 			{
 #ifdef ED_HAS_MONGOC
 				if (Connected)
@@ -3412,8 +3412,8 @@ namespace Edge
 #ifdef ED_HAS_MONGOC
 				if (State <= 0)
 				{
-					using Map1 = Core::Mapping<std::unordered_map<std::string, Sequence>>;
-					using Map2 = Core::Mapping<std::unordered_map<std::string, std::string>>;
+					using Map1 = Core::Mapping<Core::UnorderedMap<Core::String, Sequence>>;
+					using Map2 = Core::Mapping<Core::UnorderedMap<Core::String, Core::String>>;
 					Network::Multiplexer::SetActive(true);
 
 					Queries = ED_NEW(Map1);
@@ -3501,7 +3501,7 @@ namespace Edge
 				{
 					const char* Name = mongoc_apm_command_started_get_command_name(Event);
 					char* Command = bson_as_relaxed_extended_json(mongoc_apm_command_started_get_command(Event), nullptr);
-					std::string Buffer = Core::Form("%s:\n%s\n", Name, Command).R();
+					Core::String Buffer = Core::Form("%s:\n%s\n", Name, Command).R();
 					bson_free(Command);
 
 					if (Logger)
@@ -3524,7 +3524,7 @@ namespace Edge
 				mongoc_client_pool_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
 #endif
 			}
-			bool Driver::AddConstant(const std::string& Name, const std::string& Value)
+			bool Driver::AddConstant(const Core::String& Name, const Core::String& Value)
 			{
 				ED_ASSERT(Constants && Safe, false, "driver should be initialized");
 				ED_ASSERT(!Name.empty(), false, "name should not be empty");
@@ -3534,7 +3534,7 @@ namespace Edge
 				Safe->unlock();
 				return true;
 			}
-			bool Driver::AddQuery(const std::string& Name, const char* Buffer, size_t Size)
+			bool Driver::AddQuery(const Core::String& Name, const char* Buffer, size_t Size)
 			{
 				ED_ASSERT(Queries && Safe, false, "driver should be initialized");
 				ED_ASSERT(!Name.empty(), false, "name should not be empty");
@@ -3546,9 +3546,9 @@ namespace Edge
 				Sequence Result;
 				Result.Request.assign(Buffer, Size);
 
-				std::string Enums = " \r\n\t\'\"()<>=%&^*/+-,!?:;";
-				std::string Erasable = " \r\n\t\'\"()<>=%&^*/+-,.!?:;";
-				std::string Quotes = "\"'`";
+				Core::String Enums = " \r\n\t\'\"()<>=%&^*/+-,!?:;";
+				Core::String Erasable = " \r\n\t\'\"()<>=%&^*/+-,.!?:;";
+				Core::String Quotes = "\"'`";
 
 				Core::Stringify Base(&Result.Request);
 				Base.ReplaceInBetween("/*", "*/", "", false);
@@ -3582,7 +3582,7 @@ namespace Edge
 					}
 				}
 
-				std::vector<std::pair<std::string, Core::Stringify::Settle>> Variables;
+				Core::Vector<std::pair<Core::String, Core::Stringify::Settle>> Variables;
 				for (auto& Item : Base.FindInBetween("$<", ">", Quotes.c_str()))
 				{
 					Item.first += ";escape";
@@ -3595,15 +3595,15 @@ namespace Edge
 					Variables.emplace_back(std::move(Item));
 				}
 
-				Base.ReplaceParts(Variables, "", [&Erasable](const std::string&, char Left, int)
+				Base.ReplaceParts(Variables, "", [&Erasable](const Core::String&, char Left, int)
 				{
-					return Erasable.find(Left) == std::string::npos ? ' ' : '\0';
+					return Erasable.find(Left) == Core::String::npos ? ' ' : '\0';
 				});
 
 				for (auto& Item : Variables)
 				{
 					Pose Position;
-					Position.Escape = Item.first.find(";escape") != std::string::npos;
+					Position.Escape = Item.first.find(";escape") != Core::String::npos;
 					Position.Offset = Item.second.Start;
 					Position.Key = Item.first.substr(0, Item.first.find(';'));
 					Result.Positions.emplace_back(std::move(Position));
@@ -3618,13 +3618,13 @@ namespace Edge
 
 				return true;
 			}
-			bool Driver::AddDirectory(const std::string& Directory, const std::string& Origin)
+			bool Driver::AddDirectory(const Core::String& Directory, const Core::String& Origin)
 			{
-				std::vector<Core::FileEntry> Entries;
+				Core::Vector<Core::FileEntry> Entries;
 				if (!Core::OS::Directory::Scan(Directory, &Entries))
 					return false;
 
-				std::string Path = Directory;
+				Core::String Path = Directory;
 				if (Path.back() != '/' && Path.back() != '\\')
 					Path.append(1, '/');
 
@@ -3652,7 +3652,7 @@ namespace Edge
 
 				return true;
 			}
-			bool Driver::RemoveConstant(const std::string& Name)
+			bool Driver::RemoveConstant(const Core::String& Name)
 			{
 				ED_ASSERT(Constants && Safe, false, "driver should be initialized");
 				Safe->lock();
@@ -3667,7 +3667,7 @@ namespace Edge
 				Safe->unlock();
 				return true;
 			}
-			bool Driver::RemoveQuery(const std::string& Name)
+			bool Driver::RemoveQuery(const Core::String& Name)
 			{
 				ED_ASSERT(Queries && Safe, false, "driver should be initialized");
 				Safe->lock();
@@ -3716,7 +3716,7 @@ namespace Edge
 						}
 					}
 
-					std::string Name = Data->GetVar("name").GetBlob();
+					Core::String Name = Data->GetVar("name").GetBlob();
 					Queries->Map[Name] = std::move(Result);
 					++Count;
 				}
@@ -3755,7 +3755,7 @@ namespace Edge
 				ED_DEBUG("[pq] OK save %" PRIu64 " parsed query templates", (uint64_t)Queries->Map.size());
 				return Result;
 			}
-			Document Driver::GetQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once)
+			Document Driver::GetQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once)
 			{
 				ED_ASSERT(Queries && Safe, nullptr, "driver should be initialized");
 				Safe->lock();
@@ -3818,7 +3818,7 @@ namespace Edge
 						continue;
 					}
 
-					std::string Value = GetJSON(It->second, Word.Escape);
+					Core::String Value = GetJSON(It->second, Word.Escape);
 					if (Value.empty())
 						continue;
 
@@ -3839,9 +3839,9 @@ namespace Edge
 
 				return Data;
 			}
-			std::vector<std::string> Driver::GetQueries()
+			Core::Vector<Core::String> Driver::GetQueries()
 			{
-				std::vector<std::string> Result;
+				Core::Vector<Core::String> Result;
 				ED_ASSERT(Queries && Safe, Result, "driver should be initialized");
 
 				Safe->lock();
@@ -3852,14 +3852,14 @@ namespace Edge
 
 				return Result;
 			}
-			std::string Driver::GetJSON(Core::Schema* Source, bool Escape)
+			Core::String Driver::GetJSON(Core::Schema* Source, bool Escape)
 			{
-				ED_ASSERT(Source != nullptr, std::string(), "source should be set");
+				ED_ASSERT(Source != nullptr, Core::String(), "source should be set");
 				switch (Source->Value.GetType())
 				{
 					case Core::VarType::Object:
 					{
-						std::string Result = "{";
+						Core::String Result = "{";
 						for (auto* Node : Source->GetChilds())
 						{
 							Result.append(1, '\"').append(Node->Key).append("\":");
@@ -3873,7 +3873,7 @@ namespace Edge
 					}
 					case Core::VarType::Array:
 					{
-						std::string Result = "[";
+						Core::String Result = "[";
 						for (auto* Node : Source->GetChilds())
 							Result.append(GetJSON(Node, true)).append(1, ',');
 
@@ -3884,7 +3884,7 @@ namespace Edge
 					}
 					case Core::VarType::String:
 					{
-						std::string Result = Source->Value.GetBlob();
+						Core::String Result = Source->Value.GetBlob();
 						if (!Escape)
 							return Result;
 
@@ -3893,9 +3893,9 @@ namespace Edge
 						return Result;
 					}
 					case Core::VarType::Integer:
-						return std::to_string(Source->Value.GetInteger());
+						return Core::ToString(Source->Value.GetInteger());
 					case Core::VarType::Number:
-						return std::to_string(Source->Value.GetNumber());
+						return Core::ToString(Source->Value.GetNumber());
 					case Core::VarType::Boolean:
 						return Source->Value.GetBoolean() ? "true" : "false";
 					case Core::VarType::Decimal:
@@ -3904,7 +3904,7 @@ namespace Edge
 					{
 						if (Source->Value.GetSize() != 12)
 						{
-							std::string Base = Compute::Codec::Bep45Encode(Source->Value.GetBlob());
+							Core::String Base = Compute::Codec::Bep45Encode(Source->Value.GetBlob());
 							return "\"" + Base + "\"";
 						}
 
@@ -3919,8 +3919,8 @@ namespace Edge
 
 				return "";
 			}
-			Core::Mapping<std::unordered_map<std::string, Driver::Sequence>>* Driver::Queries = nullptr;
-			Core::Mapping<std::unordered_map<std::string, std::string>>* Driver::Constants = nullptr;
+			Core::Mapping<Core::UnorderedMap<Core::String, Driver::Sequence>>* Driver::Queries = nullptr;
+			Core::Mapping<Core::UnorderedMap<Core::String, Core::String>>* Driver::Constants = nullptr;
 			std::mutex* Driver::Safe = nullptr;
 			std::atomic<int> Driver::State(0);
 			OnQueryLog Driver::Logger = nullptr;

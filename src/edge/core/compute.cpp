@@ -3278,7 +3278,7 @@ namespace Edge
 			State(RegexState::No_Match), IgnoreCase(false)
 		{
 		}
-		RegexSource::RegexSource(const std::string& Regexp, bool fIgnoreCase, int64_t fMaxMatches, int64_t fMaxBranches, int64_t fMaxBrackets) noexcept :
+		RegexSource::RegexSource(const Core::String& Regexp, bool fIgnoreCase, int64_t fMaxMatches, int64_t fMaxBranches, int64_t fMaxBrackets) noexcept :
 			Expression(Regexp),
 			MaxBranches(fMaxBranches >= 1 ? fMaxBranches : 128),
 			MaxBrackets(fMaxBrackets >= 1 ? fMaxBrackets : 128),
@@ -3341,7 +3341,7 @@ namespace Edge
 
 			return *this;
 		}
-		const std::string& RegexSource::GetRegex() const
+		const Core::String& RegexSource::GetRegex() const
 		{
 			return Expression;
 		}
@@ -3498,13 +3498,13 @@ namespace Edge
 		{
 			return State;
 		}
-		const std::vector<RegexMatch>& RegexResult::Get() const
+		const Core::Vector<RegexMatch>& RegexResult::Get() const
 		{
 			return Matches;
 		}
-		std::vector<std::string> RegexResult::ToArray() const
+		Core::Vector<Core::String> RegexResult::ToArray() const
 		{
-			std::vector<std::string> Array;
+			Core::Vector<Core::String> Array;
 			Array.reserve(Matches.size());
 
 			for (auto& Item : Matches)
@@ -3513,7 +3513,7 @@ namespace Edge
 			return Array;
 		}
 
-		bool Regex::Match(RegexSource* Value, RegexResult& Result, const std::string& Buffer)
+		bool Regex::Match(RegexSource* Value, RegexResult& Result, const Core::String& Buffer)
 		{
 			return Match(Value, Result, Buffer.c_str(), Buffer.size());
 		}
@@ -3544,13 +3544,13 @@ namespace Edge
 			Result.State = RegexState::Match_Found;
 			return true;
 		}
-		bool Regex::Replace(RegexSource* Value, const std::string& To, std::string& Buffer)
+		bool Regex::Replace(RegexSource* Value, const Core::String& To, Core::String& Buffer)
 		{
 			Core::Stringify Parser(&Buffer), Emplace;
 			RegexResult Result;
 			size_t Matches = 0;
 
-			bool Expression = (!To.empty() && To.find('$') != std::string::npos);
+			bool Expression = (!To.empty() && To.find('$') != Core::String::npos);
 			if (!Expression)
 				Emplace.Assign(To);
 
@@ -3567,7 +3567,7 @@ namespace Edge
 					for (size_t i = 1; i < Result.Matches.size(); i++)
 					{
 						auto& Item = Result.Matches[i];
-						Emplace.Replace("$" + std::to_string(i), std::string(Item.Pointer, (size_t)Item.Length));
+						Emplace.Replace("$" + Core::ToString(i), Core::String(Item.Pointer, (size_t)Item.Length));
 					}
 				}
 
@@ -3968,15 +3968,15 @@ namespace Edge
 		{
 			ED_TRACE("[crypto] init empty private key");
 		}
-		PrivateKey::PrivateKey(std::string&& Text, bool) noexcept : Plain(std::move(Text))
+		PrivateKey::PrivateKey(Core::String&& Text, bool) noexcept : Plain(std::move(Text))
 		{
 			ED_TRACE("[crypto] init plain private key on %" PRIu64 " bytes", (uint64_t)Plain.size());
 		}
-		PrivateKey::PrivateKey(const std::string& Text, bool) noexcept : Plain(Text)
+		PrivateKey::PrivateKey(const Core::String& Text, bool) noexcept : Plain(Text)
 		{
 			ED_TRACE("[crypto] init plain private key on %" PRIu64 " bytes", (uint64_t)Plain.size());
 		}
-		PrivateKey::PrivateKey(const std::string& Key) noexcept
+		PrivateKey::PrivateKey(const Core::String& Key) noexcept
 		{
 			Secure(Key);
 		}
@@ -4023,7 +4023,7 @@ namespace Edge
 			Blocks.clear();
 			Plain.clear();
 		}
-		void PrivateKey::Secure(const std::string& Key)
+		void PrivateKey::Secure(const Core::String& Key)
 		{
 			Secure(Key.c_str(), Key.size());
 		}
@@ -4061,12 +4061,12 @@ namespace Edge
 			if (OutSize != nullptr)
 				*OutSize = Size;
 		}
-		std::string PrivateKey::ExposeToHeap() const
+		Core::String PrivateKey::ExposeToHeap() const
 		{
 			ED_TRACE("[crypto] heap expose private key from 0x%" PRIXPTR, (void*)this);
-			std::string Result;
+			Core::String Result;
 			Result.resize(Blocks.size());
-			ExposeToStack(Result.data(), Result.size() + 1);
+			ExposeToStack((char*)Result.data(), Result.size() + 1);
 			return Result;
 		}
 		void PrivateKey::CopyDistribution(const PrivateKey& Other)
@@ -4113,12 +4113,12 @@ namespace Edge
 			for (size_t i = 0; i < Size; i++)
 				Buffer[i] = Crypto::Random() % std::numeric_limits<char>::max();
 		}
-		PrivateKey PrivateKey::GetPlain(std::string&& Value)
+		PrivateKey PrivateKey::GetPlain(Core::String&& Value)
 		{
 			PrivateKey Key = PrivateKey(std::move(Value), true);
 			return Key;
 		}
-		PrivateKey PrivateKey::GetPlain(const std::string& Value)
+		PrivateKey PrivateKey::GetPlain(const Core::String& Value)
 		{
 			PrivateKey Key = PrivateKey(Value, true);
 			return Key;
@@ -4280,9 +4280,9 @@ namespace Edge
 		}
 		TriangleStrip& TriangleStrip::FreeBuffers()
 		{
-			std::vector<unsigned int>().swap(SingleStrip);
-			std::vector<unsigned int>().swap(StripRuns);
-			std::vector<unsigned int>().swap(StripLengths);
+			Core::Vector<unsigned int>().swap(SingleStrip);
+			Core::Vector<unsigned int>().swap(StripRuns);
+			Core::Vector<unsigned int>().swap(StripLengths);
 			ED_FREE(Tags);
 			Tags = nullptr;
 
@@ -4563,14 +4563,14 @@ namespace Edge
 			}
 
 			result.Strips = SingleStrip;
-			result.Groups = std::vector<unsigned int>({ TotalLength });
+			result.Groups = Core::Vector<unsigned int>({ TotalLength });
 
 			return true;
 		}
 
-		std::vector<int> TriangleStrip::Result::GetIndices(int Group)
+		Core::Vector<int> TriangleStrip::Result::GetIndices(int Group)
 		{
-			std::vector<int> Indices;
+			Core::Vector<int> Indices;
 			if (Group < 0)
 			{
 				Indices.reserve(Strips.size());
@@ -4597,9 +4597,9 @@ namespace Edge
 
 			return Indices;
 		}
-		std::vector<int> TriangleStrip::Result::GetInvIndices(int Group)
+		Core::Vector<int> TriangleStrip::Result::GetInvIndices(int Group)
 		{
-			std::vector<int> Indices = GetIndices(Group);
+			Core::Vector<int> Indices = GetIndices(Group);
 			std::reverse(Indices.begin(), Indices.end());
 
 			return Indices;
@@ -5024,7 +5024,7 @@ namespace Edge
 			memset(X, 0, sizeof(X));
 #endif
 		}
-		void MD5Hasher::Update(const std::string& Input, unsigned int BlockSize)
+		void MD5Hasher::Update(const Core::String& Input, unsigned int BlockSize)
 		{
 			Update(Input.c_str(), (unsigned int)Input.size(), BlockSize);
 		}
@@ -5097,9 +5097,9 @@ namespace Edge
 
 			return Output;
 		}
-		std::string MD5Hasher::ToHex() const
+		Core::String MD5Hasher::ToHex() const
 		{
-			ED_ASSERT(Finalized, std::string(), "md5 hash should be finalized");
+			ED_ASSERT(Finalized, Core::String(), "md5 hash should be finalized");
 			char Data[48];
 			memset(Data, 0, sizeof(Data));
 
@@ -5108,9 +5108,9 @@ namespace Edge
 
 			return Data;
 		}
-		std::string MD5Hasher::ToRaw() const
+		Core::String MD5Hasher::ToRaw() const
 		{
-			ED_ASSERT(Finalized, std::string(), "md5 hash should be finalized");
+			ED_ASSERT(Finalized, Core::String(), "md5 hash should be finalized");
 			UInt1 Data[17];
 			memcpy(Data, Digest, 16);
 			Data[16] = '\0';
@@ -7004,7 +7004,7 @@ namespace Edge
 			return "0x?";
 #endif
 		}
-		std::string Crypto::RandomBytes(size_t Length)
+		Core::String Crypto::RandomBytes(size_t Length)
 		{
 #ifdef ED_HAS_OPENSSL
 			ED_TRACE("[crypto] fill random %" PRIu64 " bytes", (uint64_t)Length);
@@ -7012,21 +7012,21 @@ namespace Edge
 			if (RAND_bytes(Buffer, (int)Length) != 1)
 				DisplayCryptoLog();
 
-			std::string Output((const char*)Buffer, Length);
+			Core::String Output((const char*)Buffer, Length);
 			ED_FREE(Buffer);
 
 			return Output;
 #else
-			return std::string();
+			return Core::String();
 #endif
 		}
-		std::string Crypto::Hash(Digest Type, const std::string& Value)
+		Core::String Crypto::Hash(Digest Type, const Core::String& Value)
 		{
 			return Codec::HexEncode(Crypto::HashBinary(Type, Value));
 		}
-		std::string Crypto::HashBinary(Digest Type, const std::string& Value)
+		Core::String Crypto::HashBinary(Digest Type, const Core::String& Value)
 		{
-			ED_ASSERT(Type != nullptr, std::string(), "type should be set");
+			ED_ASSERT(Type != nullptr, Core::String(), "type should be set");
 #ifdef ED_HAS_OPENSSL
 			ED_TRACE("[crypto] %s hash %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Value.size());	
 			EVP_MD* Method = (EVP_MD*)Type;
@@ -7034,10 +7034,10 @@ namespace Edge
 			if (!Context)
 			{
 				DisplayCryptoLog();
-				return std::string();
+				return Core::String();
 			}
 
-			std::string Result;
+			Core::String Result;
 			Result.resize(EVP_MD_size(Method));
 
 			unsigned int Size = 0; bool OK = true;
@@ -7049,7 +7049,7 @@ namespace Edge
 			if (!OK)
 			{
 				DisplayCryptoLog();
-				return std::string();
+				return Core::String();
 			}
 
 			Result.resize((size_t)Size);
@@ -7058,11 +7058,11 @@ namespace Edge
 			return Value;
 #endif
 		}
-		std::string Crypto::Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
+		Core::String Crypto::Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
 		{
-			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
-			ED_ASSERT(Type != nullptr, std::string(), "type should be set");
-			ED_ASSERT(Length > 0, std::string(), "length should be greater than zero");
+			ED_ASSERT(Value != nullptr, Core::String(), "value should be set");
+			ED_ASSERT(Type != nullptr, Core::String(), "type should be set");
+			ED_ASSERT(Length > 0, Core::String(), "length should be greater than zero");
 #ifdef ED_HAS_OPENSSL
 			ED_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
 			auto LocalKey = Key.Expose<ED_CHUNK_SIZE>();
@@ -7074,17 +7074,17 @@ namespace Edge
 			if (!Pointer)
 			{
 				DisplayCryptoLog();
-				return std::string();
+				return Core::String();
 			}
 
-			return std::string((const char*)Result, Size);
+			return Core::String((const char*)Result, Size);
 #elif OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			ED_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
 			HMAC_CTX* Context = HMAC_CTX_new();
 			if (!Context)
 			{
 				DisplayCryptoLog();
-				return std::string();
+				return Core::String();
 			}
 
 			unsigned char Result[EVP_MAX_MD_SIZE];
@@ -7092,14 +7092,14 @@ namespace Edge
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_free(Context);
-				return std::string();
+				return Core::String();
 			}
 
 			if (1 != HMAC_Update(Context, (const unsigned char*)Value, (int)Length))
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_free(Context);
-				return std::string();
+				return Core::String();
 			}
 
 			unsigned int Size = sizeof(Result);
@@ -7107,10 +7107,10 @@ namespace Edge
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_free(Context);
-				return std::string();
+				return Core::String();
 			}
 
-			std::string Output((const char*)Result, Size);
+			Core::String Output((const char*)Result, Size);
 			HMAC_CTX_free(Context);
 
 			return Output;
@@ -7124,14 +7124,14 @@ namespace Edge
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_cleanup(&Context);
-				return std::string();
+				return Core::String();
 			}
 
 			if (1 != HMAC_Update(&Context, (const unsigned char*)Value, (int)Length))
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_cleanup(&Context);
-				return std::string();
+				return Core::String();
 			}
 
 			unsigned int Size = sizeof(Result);
@@ -7139,10 +7139,10 @@ namespace Edge
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_cleanup(&Context);
-				return std::string();
+				return Core::String();
 			}
 
-			std::string Output((const char*)Result, Size);
+			Core::String Output((const char*)Result, Size);
 			HMAC_CTX_cleanup(&Context);
 
 			return Output;
@@ -7151,15 +7151,15 @@ namespace Edge
 			return Value;
 #endif
 		}
-		std::string Crypto::Sign(Digest Type, const std::string& Value, const PrivateKey& Key)
+		Core::String Crypto::Sign(Digest Type, const Core::String& Value, const PrivateKey& Key)
 		{
 			return Sign(Type, Value.c_str(), (uint64_t)Value.size(), Key);
 		}
-		std::string Crypto::HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
+		Core::String Crypto::HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
 		{
-			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
-			ED_ASSERT(Type != nullptr, std::string(), "type should be set");
-			ED_ASSERT(Length > 0, std::string(), "length should be greater than zero");
+			ED_ASSERT(Value != nullptr, Core::String(), "value should be set");
+			ED_ASSERT(Type != nullptr, Core::String(), "type should be set");
+			ED_ASSERT(Length > 0, Core::String(), "length should be greater than zero");
 #ifdef ED_HAS_OPENSSL
 			ED_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
 			auto LocalKey = Key.Expose<ED_CHUNK_SIZE>();
@@ -7169,34 +7169,34 @@ namespace Edge
 			if (!::HMAC((const EVP_MD*)Type, LocalKey.Key, (int)LocalKey.Size, (const unsigned char*)Value, Length, Result, &Size))
 			{
 				DisplayCryptoLog();
-				return std::string();
+				return Core::String();
 			}
 
-			std::string Output((const char*)Result, Size);
+			Core::String Output((const char*)Result, Size);
 			return Output;
 #else
 			return (const char*)Value;
 #endif
 		}
-		std::string Crypto::HMAC(Digest Type, const std::string& Value, const PrivateKey& Key)
+		Core::String Crypto::HMAC(Digest Type, const Core::String& Value, const PrivateKey& Key)
 		{
 			return Crypto::HMAC(Type, Value.c_str(), Value.size(), Key);
 		}
-		std::string Crypto::Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		Core::String Crypto::Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
-			ED_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.");
-			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
-			ED_ASSERT(Type != nullptr, std::string(), "type should be set");
+			ED_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), Core::String(), "compexity should be valid 64, 128, 256, etc.");
+			ED_ASSERT(Value != nullptr, Core::String(), "value should be set");
+			ED_ASSERT(Type != nullptr, Core::String(), "type should be set");
 			ED_TRACE("[crypto] %s encrypt%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
 
 			if (!Length)
-				return std::string();
+				return Core::String();
 #ifdef ED_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
 			{
 				DisplayCryptoLog();
-				return std::string();
+				return Core::String();
 			}
 
 			auto LocalKey = Key.Expose<ED_CHUNK_SIZE>();
@@ -7206,7 +7206,7 @@ namespace Edge
 				{
 					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return std::string();
+					return Core::String();
 				}
 			}
 
@@ -7215,7 +7215,7 @@ namespace Edge
 			{
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
-				return std::string();
+				return Core::String();
 			}
 
 			int Size1 = (int)Length, Size2 = 0;
@@ -7226,7 +7226,7 @@ namespace Edge
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				ED_FREE(Buffer);
-				return std::string();
+				return Core::String();
 			}
 
 			if (1 != EVP_EncryptFinal_ex(Context, Buffer + Size2, &Size1))
@@ -7234,10 +7234,10 @@ namespace Edge
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				ED_FREE(Buffer);
-				return std::string();
+				return Core::String();
 			}
 
-			std::string Output((const char*)Buffer, Size1 + Size2);
+			Core::String Output((const char*)Buffer, Size1 + Size2);
 			EVP_CIPHER_CTX_free(Context);
 			ED_FREE(Buffer);
 
@@ -7246,25 +7246,25 @@ namespace Edge
 			return (const char*)Value;
 #endif
 		}
-		std::string Crypto::Encrypt(Cipher Type, const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		Core::String Crypto::Encrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
 			return Encrypt(Type, Value.c_str(), Value.size(), Key, Salt);
 		}
-		std::string Crypto::Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		Core::String Crypto::Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
-			ED_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.");
-			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
-			ED_ASSERT(Type != nullptr, std::string(), "type should be set");
+			ED_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), Core::String(), "compexity should be valid 64, 128, 256, etc.");
+			ED_ASSERT(Value != nullptr, Core::String(), "value should be set");
+			ED_ASSERT(Type != nullptr, Core::String(), "type should be set");
 			ED_TRACE("[crypto] %s decrypt%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
 
 			if (!Length)
-				return std::string();
+				return Core::String();
 #ifdef ED_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
 			{
 				DisplayCryptoLog();
-				return std::string();
+				return Core::String();
 			}
 
 			auto LocalKey = Key.Expose<ED_CHUNK_SIZE>();
@@ -7274,7 +7274,7 @@ namespace Edge
 				{
 					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return std::string();
+					return Core::String();
 				}
 			}
 
@@ -7283,7 +7283,7 @@ namespace Edge
 			{
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
-				return std::string();
+				return Core::String();
 			}
 
 			int Size1 = (int)Length, Size2 = 0;
@@ -7294,7 +7294,7 @@ namespace Edge
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				ED_FREE(Buffer);
-				return std::string();
+				return Core::String();
 			}
 
 			if (1 != EVP_DecryptFinal_ex(Context, Buffer + Size2, &Size1))
@@ -7302,10 +7302,10 @@ namespace Edge
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				ED_FREE(Buffer);
-				return std::string();
+				return Core::String();
 			}
 
-			std::string Output((const char*)Buffer, Size1 + Size2);
+			Core::String Output((const char*)Buffer, Size1 + Size2);
 			EVP_CIPHER_CTX_free(Context);
 			ED_FREE(Buffer);
 
@@ -7314,11 +7314,11 @@ namespace Edge
 			return (const char*)Value;
 #endif
 		}
-		std::string Crypto::Decrypt(Cipher Type, const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		Core::String Crypto::Decrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
 			return Decrypt(Type, Value.c_str(), (uint64_t)Value.size(), Key, Salt);
 		}
-		std::string Crypto::JWTSign(const std::string& Alg, const std::string& Payload, const PrivateKey& Key)
+		Core::String Crypto::JWTSign(const Core::String& Alg, const Core::String& Payload, const PrivateKey& Key)
 		{
 			Digest Hash = nullptr;
 			if (Alg == "HS256")
@@ -7330,36 +7330,36 @@ namespace Edge
 
 			return Crypto::HMAC(Hash, Payload, Key);
 		}
-		std::string Crypto::JWTEncode(WebToken* Src, const PrivateKey& Key)
+		Core::String Crypto::JWTEncode(WebToken* Src, const PrivateKey& Key)
 		{
-			ED_ASSERT(Src != nullptr, std::string(), "web token should be set");
-			ED_ASSERT(Src->Header != nullptr, std::string(), "web token header should be set");
-			ED_ASSERT(Src->Payload != nullptr, std::string(), "web token payload should be set");
+			ED_ASSERT(Src != nullptr, Core::String(), "web token should be set");
+			ED_ASSERT(Src->Header != nullptr, Core::String(), "web token header should be set");
+			ED_ASSERT(Src->Payload != nullptr, Core::String(), "web token payload should be set");
 
-			std::string Alg = Src->Header->GetVar("alg").GetBlob();
+			Core::String Alg = Src->Header->GetVar("alg").GetBlob();
 			if (Alg.empty())
-				return std::string();
+				return Core::String();
 
-			std::string Header;
+			Core::String Header;
 			Core::Schema::ConvertToJSON(Src->Header, [&Header](Core::VarForm, const char* Buffer, size_t Size)
 			{
 				Header.append(Buffer, Size);
 			});
 
-			std::string Payload;
+			Core::String Payload;
 			Core::Schema::ConvertToJSON(Src->Payload, [&Payload](Core::VarForm, const char* Buffer, size_t Size)
 			{
 				Payload.append(Buffer, Size);
 			});
 
-			std::string Data = Codec::Base64URLEncode(Header) + '.' + Codec::Base64URLEncode(Payload);
+			Core::String Data = Codec::Base64URLEncode(Header) + '.' + Codec::Base64URLEncode(Payload);
 			Src->Signature = JWTSign(Alg, Data, Key);
 
 			return Data + '.' + Codec::Base64URLEncode(Src->Signature);
 		}
-		WebToken* Crypto::JWTDecode(const std::string& Value, const PrivateKey& Key)
+		WebToken* Crypto::JWTDecode(const Core::String& Value, const PrivateKey& Key)
 		{
-			std::vector<std::string> Source = Core::Stringify(&Value).Split('.');
+			Core::Vector<Core::String> Source = Core::Stringify(&Value).Split('.');
 			if (Source.size() != 3)
 				return nullptr;
 
@@ -7393,10 +7393,10 @@ namespace Edge
 
 			return Result;
 		}
-		std::string Crypto::DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt)
+		Core::String Crypto::DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt)
 		{
-			ED_ASSERT(Src != nullptr, std::string(), "schema should be set");
-			std::string Result;
+			ED_ASSERT(Src != nullptr, Core::String(), "schema should be set");
+			Core::String Result;
 			Core::Schema::ConvertToJSON(Src, [&Result](Core::VarForm, const char* Buffer, size_t Size)
 			{
 				Result.append(Buffer, Size);
@@ -7405,10 +7405,10 @@ namespace Edge
 			Result = Codec::Bep45Encode(Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt));
 			return Result;
 		}
-		Core::Schema* Crypto::DocDecrypt(const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt)
+		Core::Schema* Crypto::DocDecrypt(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt)
 		{
 			ED_ASSERT(!Value.empty(), nullptr, "value should not be empty");
-			std::string Source = Decrypt(Ciphers::AES_256_CBC(), Codec::Bep45Decode(Value), Key, Salt);
+			Core::String Source = Decrypt(Ciphers::AES_256_CBC(), Codec::Bep45Decode(Value), Key, Salt);
 			return Core::Schema::ConvertFromJSON(Source.c_str(), Source.size());
 		}
 		unsigned char Crypto::RandomUC()
@@ -7416,7 +7416,7 @@ namespace Edge
 			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 			return Alphabet[(size_t)(Random() % (sizeof(Alphabet) - 1))];
 		}
-		uint64_t Crypto::CRC32(const std::string& Data)
+		uint64_t Crypto::CRC32(const Core::String& Data)
 		{
 			ED_TRACE("[crypto] crc32 %" PRIu64 " bytes", (uint64_t)Data.size());
 			int64_t Result = 0xFFFFFFFF;
@@ -7583,9 +7583,9 @@ namespace Edge
 #endif
 		}
 
-		std::string Codec::Move(const std::string& Text, int Offset)
+		Core::String Codec::Move(const Core::String& Text, int Offset)
 		{
-			std::string Result;
+			Core::String Result;
 			for (size_t i = 0; i < Text.size(); i++)
 			{
 				if (Text[i] != 0)
@@ -7596,13 +7596,13 @@ namespace Edge
 
 			return Result;
 		}
-		std::string Codec::Encode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool Padding)
+		Core::String Codec::Encode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool Padding)
 		{
-			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
-			ED_ASSERT(Length > 0, std::string(), "length should be greater than zero");
+			ED_ASSERT(Value != nullptr, Core::String(), "value should be set");
+			ED_ASSERT(Length > 0, Core::String(), "length should be greater than zero");
 			ED_TRACE("[codec] %s encode64 %" PRIu64 " bytes", Padding ? "padded" : "unpadded", (uint64_t)Length);
 
-			std::string Result;
+			Core::String Result;
 			unsigned char Row3[3];
 			unsigned char Row4[4];
 			uint32_t Offset = 0, Step = 0;
@@ -7646,14 +7646,14 @@ namespace Edge
 
 			return Result;
 		}
-		std::string Codec::Decode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool(*IsAlphabetic)(unsigned char))
+		Core::String Codec::Decode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool(*IsAlphabetic)(unsigned char))
 		{
-			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
-			ED_ASSERT(IsAlphabetic != nullptr, std::string(), "callback should be set");
-			ED_ASSERT(Length > 0, std::string(), "length should be greater than zero");
+			ED_ASSERT(Value != nullptr, Core::String(), "value should be set");
+			ED_ASSERT(IsAlphabetic != nullptr, Core::String(), "callback should be set");
+			ED_ASSERT(Length > 0, Core::String(), "length should be greater than zero");
 			ED_TRACE("[codec] decode64 %" PRIu64 " bytes", (uint64_t)Length);
 
-			std::string Result;
+			Core::String Result;
 			unsigned char Row4[4];
 			unsigned char Row3[3];
 			uint32_t Offset = 0, Step = 0;
@@ -7696,7 +7696,7 @@ namespace Edge
 
 			return Result;
 		}
-		std::string Codec::Bep45Encode(const std::string& Data)
+		Core::String Codec::Bep45Encode(const Core::String& Data)
 		{
 			static const char From[] = " $%*+-./:";
 			static const char To[] = "abcdefghi";
@@ -7707,7 +7707,7 @@ namespace Edge
 
 			return Result.R();
 		}
-		std::string Codec::Bep45Decode(const std::string& Data)
+		Core::String Codec::Bep45Decode(const Core::String& Data)
 		{
 			static const char From[] = "abcdefghi";
 			static const char To[] = " $%*+-./:";
@@ -7718,11 +7718,11 @@ namespace Edge
 
 			return Base45Decode(Result.R());
 		}
-		std::string Codec::Base45Encode(const std::string& Data)
+		Core::String Codec::Base45Encode(const Core::String& Data)
 		{
 			ED_TRACE("[codec] base45 encode %" PRIu64 " bytes", (uint64_t)Data.size());
 			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
-			std::string Result;
+			Core::String Result;
 			size_t Size = Data.size();
 			Result.reserve(Size);
 
@@ -7753,7 +7753,7 @@ namespace Edge
 
 			return Result;
 		}
-		std::string Codec::Base45Decode(const std::string& Data)
+		Core::String Codec::Base45Decode(const Core::String& Data)
 		{
 			ED_TRACE("[codec] base45 decode %" PRIu64 " bytes", (uint64_t)Data.size());
 			static unsigned char CharToInt[256] =
@@ -7777,7 +7777,7 @@ namespace Edge
 			};
 
 			size_t Size = Data.size();
-			std::string Result(Size, ' ');
+			Core::String Result(Size, ' ');
 			size_t Offset = 0;
 
 			for (size_t i = 0; i < Size; i += 3)
@@ -7803,56 +7803,56 @@ namespace Edge
 				Result[Offset++] = x;
 			}
 
-			return std::string(Result.c_str(), Offset);
+			return Core::String(Result.c_str(), Offset);
 		}
-		std::string Codec::Base64Encode(const unsigned char* Value, size_t Length)
+		Core::String Codec::Base64Encode(const unsigned char* Value, size_t Length)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 			return Encode64(Set, Value, Length, true);
 		}
-		std::string Codec::Base64Encode(const std::string& Value)
+		Core::String Codec::Base64Encode(const Core::String& Value)
 		{
 			return Base64Encode((const unsigned char*)Value.c_str(), Value.size());
 		}
-		std::string Codec::Base64Decode(const unsigned char* Value, size_t Length)
+		Core::String Codec::Base64Decode(const unsigned char* Value, size_t Length)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 			return Decode64(Set, Value, Length, IsBase64);
 		}
-		std::string Codec::Base64Decode(const std::string& Value)
+		Core::String Codec::Base64Decode(const Core::String& Value)
 		{
 			return Base64Decode((const unsigned char*)Value.c_str(), Value.size());
 		}
-		std::string Codec::Base64URLEncode(const unsigned char* Value, size_t Length)
+		Core::String Codec::Base64URLEncode(const unsigned char* Value, size_t Length)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 			return Encode64(Set, Value, Length, false);
 		}
-		std::string Codec::Base64URLEncode(const std::string& Value)
+		Core::String Codec::Base64URLEncode(const Core::String& Value)
 		{
 			return Base64URLEncode((const unsigned char*)Value.c_str(), Value.size());
 		}
-		std::string Codec::Base64URLDecode(const unsigned char* Value, size_t Length)
+		Core::String Codec::Base64URLDecode(const unsigned char* Value, size_t Length)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 			size_t Padding = Length % 4;
 			if (Padding == 0)
 				return Decode64(Set, Value, Length, IsBase64URL);
 
-			std::string Padded((const char*)Value, Length);
+			Core::String Padded((const char*)Value, Length);
 			Padded.append(4 - Padding, '=');
 			return Decode64(Set, (const unsigned char*)Padded.c_str(), Padded.size(), IsBase64URL);
 		}
-		std::string Codec::Base64URLDecode(const std::string& Value)
+		Core::String Codec::Base64URLDecode(const Core::String& Value)
 		{
 			return Base64URLDecode((const unsigned char*)Value.c_str(), (uint64_t)Value.size());
 		}
-		std::string Codec::Shuffle(const char* Value, size_t Size, uint64_t Mask)
+		Core::String Codec::Shuffle(const char* Value, size_t Size, uint64_t Mask)
 		{
-			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
+			ED_ASSERT(Value != nullptr, Core::String(), "value should be set");
 			ED_TRACE("[codec] shuffle %" PRIu64 " bytes", (uint64_t)Size);
 
-			std::string Result;
+			Core::String Result;
 			Result.resize(Size);
 
 			int64_t Hash = Mask;
@@ -7865,7 +7865,7 @@ namespace Edge
 
 			return Result;
 		}
-		std::string Codec::Compress(const std::string& Data, Compression Type)
+		Core::String Codec::Compress(const Core::String& Data, Compression Type)
 		{
 #ifdef ED_HAS_ZLIB
 			ED_TRACE("[codec] compress %" PRIu64 " bytes", (uint64_t)Data.size());
@@ -7874,17 +7874,17 @@ namespace Edge
 			if (compress2(Buffer, &Size, (const Bytef*)Data.data(), (uLong)Data.size(), (int)Type) != Z_OK)
 			{
 				ED_FREE(Buffer);
-				return std::string();
+				return Core::String();
 			}
 
-			std::string Output((char*)Buffer, (size_t)Size);
+			Core::String Output((char*)Buffer, (size_t)Size);
 			ED_FREE(Buffer);
 			return Output;
 #else
 			return Data;
 #endif
 		}
-		std::string Codec::Decompress(const std::string& Data)
+		Core::String Codec::Decompress(const Core::String& Data)
 		{
 #ifdef ED_HAS_ZLIB
 			ED_TRACE("[codec] decompress %" PRIu64 " bytes", (uint64_t)Data.size());
@@ -7903,27 +7903,27 @@ namespace Edge
 				else if (Code != Z_OK)
 				{
 					ED_FREE(Buffer);
-					return std::string();
+					return Core::String();
 				}
 
-				std::string Output((char*)Buffer, (size_t)Size);
+				Core::String Output((char*)Buffer, (size_t)Size);
 				ED_FREE(Buffer);
 				return Output;
 			}
 
-			return std::string();
+			return Core::String();
 #else
 			return Data;
 #endif
 		}
-		std::string Codec::HexEncode(const char* Value, size_t Size)
+		Core::String Codec::HexEncode(const char* Value, size_t Size)
 		{
-			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
-			ED_ASSERT(Size > 0, std::string(), "length should be greater than zero");
+			ED_ASSERT(Value != nullptr, Core::String(), "value should be set");
+			ED_ASSERT(Size > 0, Core::String(), "length should be greater than zero");
 			ED_TRACE("[codec] hex encode %" PRIu64 " bytes", (uint64_t)Size);
 			static const char Hex[17] = "0123456789abcdef";
 
-			std::string Output;
+			Core::String Output;
 			Output.reserve(Size * 2);
 
 			for (size_t i = 0; i < Size; i++)
@@ -7935,17 +7935,17 @@ namespace Edge
 
 			return Output;
 		}
-		std::string Codec::HexEncode(const std::string& Value)
+		Core::String Codec::HexEncode(const Core::String& Value)
 		{
 			return HexEncode(Value.c_str(), Value.size());
 		}
-		std::string Codec::HexDecode(const char* Value, size_t Size)
+		Core::String Codec::HexDecode(const char* Value, size_t Size)
 		{
-			ED_ASSERT(Value != nullptr, std::string(), "value should be set");
-			ED_ASSERT(Size > 0, std::string(), "length should be greater than zero");
+			ED_ASSERT(Value != nullptr, Core::String(), "value should be set");
+			ED_ASSERT(Size > 0, Core::String(), "length should be greater than zero");
 			ED_TRACE("[codec] hex decode %" PRIu64 " bytes", (uint64_t)Size);
 
-			std::string Output;
+			Core::String Output;
 			Output.reserve(Size / 2);
 
 			char Hex[3] = { 0, 0, 0 };
@@ -7957,24 +7957,24 @@ namespace Edge
 
 			return Output;
 		}
-		std::string Codec::HexDecode(const std::string& Value)
+		Core::String Codec::HexDecode(const Core::String& Value)
 		{
 			return HexDecode(Value.c_str(), Value.size());
 		}
-		std::string Codec::URIEncode(const std::string& Text)
+		Core::String Codec::URIEncode(const Core::String& Text)
 		{
 			return URIEncode(Text.c_str(), Text.size());
 		}
-		std::string Codec::URIEncode(const char* Text, size_t Length)
+		Core::String Codec::URIEncode(const char* Text, size_t Length)
 		{
-			ED_ASSERT(Text != nullptr, std::string(), "text should be set");
-			ED_ASSERT(Length > 0, std::string(), "length should be greater than zero");
+			ED_ASSERT(Text != nullptr, Core::String(), "text should be set");
+			ED_ASSERT(Length > 0, Core::String(), "length should be greater than zero");
 			ED_TRACE("[codec] uri encode %" PRIu64 " bytes", (uint64_t)Length);
 
 			static const char* Unescape = "._-$,;~()";
 			static const char* Hex = "0123456789abcdef";
 
-			std::string Value;
+			Core::String Value;
 			Value.reserve(Length);
 
 			while (*Text != '\0')
@@ -7993,17 +7993,17 @@ namespace Edge
 
 			return Value;
 		}
-		std::string Codec::URIDecode(const std::string& Text)
+		Core::String Codec::URIDecode(const Core::String& Text)
 		{
 			return URIDecode(Text.c_str(), Text.size());
 		}
-		std::string Codec::URIDecode(const char* Text, size_t Length)
+		Core::String Codec::URIDecode(const char* Text, size_t Length)
 		{
-			ED_ASSERT(Text != nullptr, std::string(), "text should be set");
-			ED_ASSERT(Length > 0, std::string(), "length should be greater than zero");
+			ED_ASSERT(Text != nullptr, Core::String(), "text should be set");
+			ED_ASSERT(Length > 0, Core::String(), "length should be greater than zero");
 			ED_TRACE("[codec] uri encode %" PRIu64 " bytes", (uint64_t)Length);
 
-			std::string Value;
+			Core::String Value;
 			size_t i = 0;
 
 			while (i < Length)
@@ -8024,16 +8024,16 @@ namespace Edge
 
 			return Value;
 		}
-		std::string Codec::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
+		Core::String Codec::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
 		{
-			ED_ASSERT(BaseLessThan65 >= 1 && BaseLessThan65 <= 64, std::string(), "base should be between 1 and 64");
+			ED_ASSERT(BaseLessThan65 >= 1 && BaseLessThan65 <= 64, Core::String(), "base should be between 1 and 64");
 			static const char* Base62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
 			static const char* Base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 			if (Value == 0)
 				return "0";
 
 			const char* Base = (BaseLessThan65 == 64 ? Base64 : Base62);
-			std::string Output;
+			Core::String Output;
 
 			while (Value > 0)
 			{
@@ -8043,10 +8043,10 @@ namespace Edge
 
 			return Output;
 		}
-		std::string Codec::DecimalToHex(uint64_t n)
+		Core::String Codec::DecimalToHex(uint64_t n)
 		{
 			const char* Set = "0123456789abcdef";
-			std::string Result;
+			Core::String Result;
 
 			do
 			{
@@ -8138,7 +8138,7 @@ namespace Edge
 			Buffer[3 * Length - 1] = 0;
 			return true;
 		}
-		bool Codec::HexToDecimal(const std::string& Text, size_t Index, size_t Count, int& Value)
+		bool Codec::HexToDecimal(const Core::String& Text, size_t Index, size_t Count, int& Value)
 		{
 			ED_ASSERT(Index < Text.size(), false, "index outside of range");
 
@@ -8419,7 +8419,7 @@ namespace Edge
 				(Position0.Z - Scale0.Z) <= (Position1.Z + Scale1.Z) &&
 				(Position1.Z - Scale1.Z) <= (Position0.Z + Scale0.Z);
 		}
-		void Geometric::FlipIndexWindingOrder(std::vector<int>& Indices)
+		void Geometric::FlipIndexWindingOrder(Core::Vector<int>& Indices)
 		{
 			std::reverse(Indices.begin(), Indices.end());
 		}
@@ -8433,9 +8433,9 @@ namespace Edge
 			ED_TRACE("[geometric] set left-handed: %s", IsLeftHanded ? "on" : "off");
 			LeftHanded = IsLeftHanded;
 		}
-        std::vector<int> Geometric::CreateTriangleStrip(TriangleStrip::Desc& Desc, const std::vector<int>& Indices)
+        Core::Vector<int> Geometric::CreateTriangleStrip(TriangleStrip::Desc& Desc, const Core::Vector<int>& Indices)
 		{
-			std::vector<unsigned int> Src;
+			Core::Vector<unsigned int> Src;
 			Src.reserve(Indices.size());
 
 			for (auto& Index : Indices)
@@ -8447,23 +8447,23 @@ namespace Edge
 			TriangleStrip Strip;
 			if (!Strip.Fill(Desc))
 			{
-				std::vector<int> Empty;
+				Core::Vector<int> Empty;
 				return Empty;
 			}
 
 			TriangleStrip::Result Result;
 			if (!Strip.Resolve(Result))
 			{
-				std::vector<int> Empty;
+				Core::Vector<int> Empty;
 				return Empty;
 			}
 
 			return Result.GetIndices();
 		}
-		std::vector<int> Geometric::CreateTriangleList(const std::vector<int>& Indices)
+		Core::Vector<int> Geometric::CreateTriangleList(const Core::Vector<int>& Indices)
 		{
 			size_t Size = Indices.size() - 2;
-			std::vector<int> Result;
+			Core::Vector<int> Result;
 			Result.reserve(Size * 3);
 
 			for (size_t i = 0; i < Size; i++)
@@ -8551,7 +8551,7 @@ namespace Edge
 		WebToken::WebToken() noexcept : Header(nullptr), Payload(nullptr), Token(nullptr)
 		{
 		}
-		WebToken::WebToken(const std::string& Issuer, const std::string& Subject, int64_t Expiration) noexcept : Header(Core::Var::Set::Object()), Payload(Core::Var::Set::Object()), Token(nullptr)
+		WebToken::WebToken(const Core::String& Issuer, const Core::String& Subject, int64_t Expiration) noexcept : Header(Core::Var::Set::Object()), Payload(Core::Var::Set::Object()), Token(nullptr)
 		{
 			Header->Set("alg", Core::Var::String("HS256"));
 			Header->Set("typ", Core::Var::String("JWT"));
@@ -8570,7 +8570,7 @@ namespace Edge
 			Signature.clear();
 			Data.clear();
 		}
-		void WebToken::SetAlgorithm(const std::string& Value)
+		void WebToken::SetAlgorithm(const Core::String& Value)
 		{
 			if (!Header)
 				Header = Core::Var::Set::Object();
@@ -8578,7 +8578,7 @@ namespace Edge
 			Header->Set("alg", Core::Var::String(Value));
 			Unsign();
 		}
-		void WebToken::SetType(const std::string& Value)
+		void WebToken::SetType(const Core::String& Value)
 		{
 			if (!Header)
 				Header = Core::Var::Set::Object();
@@ -8586,7 +8586,7 @@ namespace Edge
 			Header->Set("typ", Core::Var::String(Value));
 			Unsign();
 		}
-		void WebToken::SetContentType(const std::string& Value)
+		void WebToken::SetContentType(const Core::String& Value)
 		{
 			if (!Header)
 				Header = Core::Var::Set::Object();
@@ -8594,7 +8594,7 @@ namespace Edge
 			Header->Set("cty", Core::Var::String(Value));
 			Unsign();
 		}
-		void WebToken::SetIssuer(const std::string& Value)
+		void WebToken::SetIssuer(const Core::String& Value)
 		{
 			if (!Payload)
 				Payload = Core::Var::Set::Object();
@@ -8602,7 +8602,7 @@ namespace Edge
 			Payload->Set("iss", Core::Var::String(Value));
 			Unsign();
 		}
-		void WebToken::SetSubject(const std::string& Value)
+		void WebToken::SetSubject(const Core::String& Value)
 		{
 			if (!Payload)
 				Payload = Core::Var::Set::Object();
@@ -8610,7 +8610,7 @@ namespace Edge
 			Payload->Set("sub", Core::Var::String(Value));
 			Unsign();
 		}
-		void WebToken::SetId(const std::string& Value)
+		void WebToken::SetId(const Core::String& Value)
 		{
 			if (!Payload)
 				Payload = Core::Var::Set::Object();
@@ -8618,7 +8618,7 @@ namespace Edge
 			Payload->Set("jti", Core::Var::String(Value));
 			Unsign();
 		}
-		void WebToken::SetAudience(const std::vector<std::string>& Value)
+		void WebToken::SetAudience(const Core::Vector<Core::String>& Value)
 		{
 			Core::Schema* Array = Core::Var::Set::Array();
 			for (auto& Item : Value)
@@ -8654,7 +8654,7 @@ namespace Edge
 			Payload->Set("iat", Core::Var::Integer(Value));
 			Unsign();
 		}
-		void WebToken::SetRefreshToken(const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt)
+		void WebToken::SetRefreshToken(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt)
 		{
 			ED_RELEASE(Token);
 			Token = Crypto::DocDecrypt(Value, Key, Salt);
@@ -8669,7 +8669,7 @@ namespace Edge
 
 			return !Data.empty();
 		}
-		std::string WebToken::GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt)
+		Core::String WebToken::GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt)
 		{
 			Refresher = Crypto::DocEncrypt(Token, Key, Salt);
 			return Refresher;
@@ -8685,22 +8685,22 @@ namespace Edge
 
 		Preprocessor::Preprocessor() noexcept : Nested(false)
 		{
-			std::vector<std::pair<std::string, Condition>> Controls =
+			Core::Vector<std::pair<Core::String, Condition>> Controls =
 			{
-				std::make_pair(std::string("ifdef"), Condition::Exists),
-				std::make_pair(std::string("ifndef"), Condition::NotExists),
-				std::make_pair(std::string("ifeq"), Condition::Equals),
-				std::make_pair(std::string("ifneq"), Condition::NotEquals),
-				std::make_pair(std::string("ifgt"), Condition::Greater),
-				std::make_pair(std::string("ifngt"), Condition::NotGreater),
-				std::make_pair(std::string("ifgte"), Condition::GreaterEquals),
-				std::make_pair(std::string("ifngte"), Condition::NotGreaterEquals),
-				std::make_pair(std::string("iflt"), Condition::Less),
-				std::make_pair(std::string("ifnlt"), Condition::NotLess),
-				std::make_pair(std::string("iflte"), Condition::LessEquals),
-				std::make_pair(std::string("ifnlte"), Condition::NotLessEquals),
-				std::make_pair(std::string("iflte"), Condition::LessEquals),
-				std::make_pair(std::string("ifnlte"), Condition::NotLessEquals)
+				std::make_pair(Core::String("ifdef"), Condition::Exists),
+				std::make_pair(Core::String("ifndef"), Condition::NotExists),
+				std::make_pair(Core::String("ifeq"), Condition::Equals),
+				std::make_pair(Core::String("ifneq"), Condition::NotEquals),
+				std::make_pair(Core::String("ifgt"), Condition::Greater),
+				std::make_pair(Core::String("ifngt"), Condition::NotGreater),
+				std::make_pair(Core::String("ifgte"), Condition::GreaterEquals),
+				std::make_pair(Core::String("ifngte"), Condition::NotGreaterEquals),
+				std::make_pair(Core::String("iflt"), Condition::Less),
+				std::make_pair(Core::String("ifnlt"), Condition::NotLess),
+				std::make_pair(Core::String("iflte"), Condition::LessEquals),
+				std::make_pair(Core::String("ifnlte"), Condition::NotLessEquals),
+				std::make_pair(Core::String("iflte"), Condition::LessEquals),
+				std::make_pair(Core::String("ifnlte"), Condition::NotLessEquals)
 			};
 
 			ControlFlow.reserve(Controls.size() * 2 + 2);
@@ -8729,7 +8729,7 @@ namespace Edge
 		{
 			Features = F;
 		}
-		bool Preprocessor::Define(const std::string& Expression)
+		bool Preprocessor::Define(const Core::String& Expression)
 		{
 			if (Expression.empty())
 			{
@@ -8738,7 +8738,7 @@ namespace Edge
 			}
 
 			ED_TRACE("[proc] on 0x%" PRIXPTR " define %s", (void*)this, Expression.c_str());
-			std::string Name; size_t NameOffset = 0;
+			Core::String Name; size_t NameOffset = 0;
 			while (NameOffset < Expression.size())
 			{
 				char V = Expression[NameOffset++];
@@ -8785,7 +8785,7 @@ namespace Edge
 					return false;
 				}
 
-				std::string Template = Core::Stringify(Expression.substr(0, TemplateEnd)).Trim().R();
+				Core::String Template = Core::Stringify(Expression.substr(0, TemplateEnd)).Trim().R();
 				if (!ParseArguments(Template, Data.Tokens, false) || Data.Tokens.empty())
 				{
 					ED_ERR("[proc] %s: invalid macro definition at %s", ExpandedPath.c_str(), Template.c_str());
@@ -8810,7 +8810,7 @@ namespace Edge
 			Defines[Name] = std::move(Data);
 			return true;
 		}
-		void Preprocessor::Undefine(const std::string& Name)
+		void Preprocessor::Undefine(const Core::String& Name)
 		{
 			ED_TRACE("[proc] on 0x%" PRIXPTR " undefine %s", (void*)this, Name.c_str());
 			Defines.erase(Name);
@@ -8821,13 +8821,13 @@ namespace Edge
 			Sets.clear();
 			ExpandedPath.clear();
 		}
-		bool Preprocessor::IsDefined(const std::string& Name) const
+		bool Preprocessor::IsDefined(const Core::String& Name) const
 		{
 			bool Exists = Defines.count(Name) > 0;
 			ED_TRACE("[proc] on 0x%" PRIXPTR " ifdef %s: %s", (void*)this, Name, Exists ? "yes" : "no");
 			return Exists;
 		}
-		bool Preprocessor::IsDefined(const std::string& Name, const std::string& Value) const
+		bool Preprocessor::IsDefined(const Core::String& Name, const Core::String& Value) const
 		{
 			auto It = Defines.find(Name);
 			if (It != Defines.end())
@@ -8835,7 +8835,7 @@ namespace Edge
 
 			return Value.empty();
 		}
-		bool Preprocessor::Process(const std::string& Path, std::string& Data)
+		bool Preprocessor::Process(const Core::String& Path, Core::String& Data)
 		{
 			bool Nesting = SaveResult();
 			if (Data.empty())
@@ -8844,7 +8844,7 @@ namespace Edge
 			if (!Path.empty() && HasResult(Path))
 				return ReturnResult(true, Nesting);
 
-			std::string LastPath = ExpandedPath;
+			Core::String LastPath = ExpandedPath;
 			ExpandedPath = Path;
 			if (!Path.empty())
 				Sets.insert(Path);
@@ -8879,7 +8879,7 @@ namespace Edge
 
 			return Result;
 		}
-		bool Preprocessor::HasResult(const std::string& Path)
+		bool Preprocessor::HasResult(const Core::String& Path)
 		{
 			return Sets.count(Path) > 0;
 		}
@@ -8890,7 +8890,7 @@ namespace Edge
 
 			return Nesting;
 		}
-		Preprocessor::Token Preprocessor::FindNextToken(std::string& Buffer, size_t& Offset)
+		Preprocessor::Token Preprocessor::FindNextToken(Core::String& Buffer, size_t& Offset)
 		{
 			bool HasMultilineComments = !Features.MultilineCommentBegin.empty() && !Features.MultilineCommentEnd.empty();
 			bool HasComments = !Features.CommentBegin.empty();
@@ -8933,7 +8933,7 @@ namespace Edge
 					Core::Stringify(&Result.Value).Trim();
 					if (Result.Value.size() >= 2)
 					{
-						if (HasStringLiterals && Result.Value.front() == Result.Value.back() && Features.StringLiterals.find(Result.Value.front()) != std::string::npos)
+						if (HasStringLiterals && Result.Value.front() == Result.Value.back() && Features.StringLiterals.find(Result.Value.front()) != Core::String::npos)
 							Result.Value = Result.Value.substr(1, Result.Value.size() - 2);
 						else if (Result.Value.front() == '<' && Result.Value.back() == '>')
 							Result.Value = Result.Value.substr(1, Result.Value.size() - 2);
@@ -8949,7 +8949,7 @@ namespace Edge
 
 					Offset += Features.MultilineCommentBegin.size();
 					Offset = Buffer.find(Features.MultilineCommentEnd, Offset);
-					if (Offset == std::string::npos)
+					if (Offset == Core::String::npos)
 					{
 						Offset = Buffer.size();
 						break;
@@ -8975,7 +8975,7 @@ namespace Edge
 				}
 
 			ParseLiterals:
-				if (HasStringLiterals && Features.StringLiterals.find(V) != std::string::npos)
+				if (HasStringLiterals && Features.StringLiterals.find(V) != Core::String::npos)
 				{
 					while (Offset < Buffer.size())
 					{
@@ -8988,7 +8988,7 @@ namespace Edge
 
 			return Result;
 		}
-		Preprocessor::Token Preprocessor::FindNextConditionalToken(std::string& Buffer, size_t& Offset)
+		Preprocessor::Token Preprocessor::FindNextConditionalToken(Core::String& Buffer, size_t& Offset)
 		{
 		Retry:
 			Token Next = FindNextToken(Buffer, Offset);
@@ -9000,14 +9000,14 @@ namespace Edge
 
 			return Next;
 		}
-		size_t Preprocessor::ReplaceToken(Token& Where, std::string& Buffer, const std::string& To)
+		size_t Preprocessor::ReplaceToken(Token& Where, Core::String& Buffer, const Core::String& To)
 		{
 			Buffer.replace(Where.Start, Where.End - Where.Start, To);
 			return Where.Start;
 		}
-		std::vector<Preprocessor::Conditional> Preprocessor::PrepareConditions(std::string& Buffer, Token& Next, size_t& Offset, bool Top)
+		Core::Vector<Preprocessor::Conditional> Preprocessor::PrepareConditions(Core::String& Buffer, Token& Next, size_t& Offset, bool Top)
 		{
-			std::vector<Conditional> Conditions;
+			Core::Vector<Conditional> Conditions;
 			size_t ChildEnding = 0;
 
 			do
@@ -9030,7 +9030,7 @@ namespace Edge
 
 				if (ChildEnding > 0)
 				{
-					std::string Text = Buffer.substr(ChildEnding, Block.TokenStart - ChildEnding);
+					Core::String Text = Buffer.substr(ChildEnding, Block.TokenStart - ChildEnding);
 					if (!Text.empty())
 					{
 						Conditional Subblock;
@@ -9051,7 +9051,7 @@ namespace Edge
 					auto& Base = Conditions.back();
 					auto Listing = PrepareConditions(Buffer, Next, Offset, false);
 					if (Listing.empty())
-						return std::vector<Conditional>();
+						return Core::Vector<Conditional>();
 
 					size_t LastSize = Base.Childs.size();
 					Base.Childs.reserve(LastSize + Listing.size());
@@ -9062,7 +9062,7 @@ namespace Edge
 					if (LastSize > 0)
 						continue;
 
-					std::string Text = Buffer.substr(Base.TokenEnd, Block.TokenStart - Base.TokenEnd);
+					Core::String Text = Buffer.substr(Base.TokenEnd, Block.TokenStart - Base.TokenEnd);
 					if (!Text.empty())
 					{
 						Conditional Subblock;
@@ -9077,7 +9077,7 @@ namespace Edge
 					if (Conditions.empty())
 					{
 						ED_ERR("[proc] %s: #%s is has no opening #if block", ExpandedPath.c_str(), Next.Name.c_str());
-						return std::vector<Conditional>();
+						return Core::Vector<Conditional>();
 					}
 
 					Conditions.emplace_back(std::move(Block));
@@ -9088,7 +9088,7 @@ namespace Edge
 					if (Conditions.empty())
 					{
 						ED_ERR("[proc] %s: #%s is has no opening #if block", ExpandedPath.c_str(), Next.Name.c_str());
-						return std::vector<Conditional>();
+						return Core::Vector<Conditional>();
 					}
 
 					Conditions.emplace_back(std::move(Block));
@@ -9098,14 +9098,14 @@ namespace Edge
 					break;
 
 				ED_ERR("[proc] %s: #%s is not a valid conditional block", ExpandedPath.c_str(), Next.Name.c_str());
-				return std::vector<Conditional>();
+				return Core::Vector<Conditional>();
 			} while ((Next = FindNextConditionalToken(Buffer, Offset)).Found);
 
 			return Conditions;
 		}
-		std::string Preprocessor::Evaluate(std::string& Buffer, const std::vector<Conditional>& Conditions)
+		Core::String Preprocessor::Evaluate(Core::String& Buffer, const Core::Vector<Conditional>& Conditions)
 		{
-			std::string Result; bool SkipControlFlow = false;
+			Core::String Result; bool SkipControlFlow = false;
 			for (size_t i = 0; i < Conditions.size(); i++)
 			{
 				auto& Next = Conditions[i];
@@ -9126,7 +9126,7 @@ namespace Edge
 
 			return Result;
 		}
-		std::pair<std::string, std::string> Preprocessor::GetExpressionParts(const std::string& Value)
+		std::pair<Core::String, Core::String> Preprocessor::GetExpressionParts(const Core::String& Value)
 		{
 			size_t Offset = 0;
 			while (Offset < Value.size())
@@ -9141,16 +9141,16 @@ namespace Edge
 				size_t Count = Offset;
 				while (Offset < Value.size() && std::isspace(Value[++Offset]));
 
-				std::string Expression = Core::Stringify(Value.substr(Offset)).Trim().R();
-				if (!Features.StringLiterals.empty() && Expression.front() == Expression.back() && Features.StringLiterals.find(Expression.front()) != std::string::npos)
+				Core::String Expression = Core::Stringify(Value.substr(Offset)).Trim().R();
+				if (!Features.StringLiterals.empty() && Expression.front() == Expression.back() && Features.StringLiterals.find(Expression.front()) != Core::String::npos)
 					Expression = Expression.substr(1, Expression.size() - 2);
 
 				return std::make_pair(Core::Stringify(Value.substr(0, Count)).Trim().R(), Core::Stringify(&Expression).Trim().R());
 			}
 
-			return std::make_pair(Core::Stringify(Value).Trim().R(), std::string());
+			return std::make_pair(Core::Stringify(Value).Trim().R(), Core::String());
 		}
-		std::pair<std::string, std::string> Preprocessor::UnpackExpression(const std::pair<std::string, std::string>& Expression)
+		std::pair<Core::String, Core::String> Preprocessor::UnpackExpression(const std::pair<Core::String, Core::String>& Expression)
 		{
 			auto Left = Defines.find(Expression.first);
 			auto Right = Defines.find(Expression.second);
@@ -9230,13 +9230,13 @@ namespace Edge
 					return -1;
 			}
 		}
-		bool Preprocessor::ExpandDefinitions(std::string& Buffer, size_t& Size)
+		bool Preprocessor::ExpandDefinitions(Core::String& Buffer, size_t& Size)
 		{
 			if (!Size)
 				return true;
 
-			std::vector<std::string> Tokens;
-			std::string Copy = Buffer.substr(0, Size);
+			Core::Vector<Core::String> Tokens;
+			Core::String Copy = Buffer.substr(0, Size);
 			Core::Stringify Formatter(&Copy);
 			Buffer.erase(Buffer.begin(), Buffer.begin() + Size);
 
@@ -9253,9 +9253,9 @@ namespace Edge
 				else if (Size < Item.first.size() + 1)
 					continue;
 
-				bool Stringify = Item.second.Expansion.find('#') != std::string::npos;
-				size_t TemplateStart, Offset = 0; std::string Needle = Item.first + '(';
-				while ((TemplateStart = Copy.find(Needle, Offset)) != std::string::npos)
+				bool Stringify = Item.second.Expansion.find('#') != Core::String::npos;
+				size_t TemplateStart, Offset = 0; Core::String Needle = Item.first + '(';
+				while ((TemplateStart = Copy.find(Needle, Offset)) != Core::String::npos)
 				{
 					int32_t Pose = 1; size_t TemplateEnd = TemplateStart + Needle.size();
 					while (TemplateEnd < Copy.size() && Pose > 0)
@@ -9278,7 +9278,7 @@ namespace Edge
 						return false;
 					}
 
-					std::string Template = Copy.substr(TemplateStart, TemplateEnd - TemplateStart);
+					Core::String Template = Copy.substr(TemplateStart, TemplateEnd - TemplateStart);
 					Tokens.reserve(Item.second.Tokens.size() + 1);
 					Tokens.clear();
 
@@ -9313,13 +9313,13 @@ namespace Edge
 			Buffer.insert(0, Copy);
 			return true;
 		}
-		bool Preprocessor::ParseArguments(const std::string& Value, std::vector<std::string>& Tokens, bool UnpackLiterals)
+		bool Preprocessor::ParseArguments(const Core::String& Value, Core::Vector<Core::String>& Tokens, bool UnpackLiterals)
 		{
 			size_t Where = Value.find('(');
-			if (Where == std::string::npos || Value.back() != ')')
+			if (Where == Core::String::npos || Value.back() != ')')
 				return false;
 
-			std::string Data = Value.substr(Where + 1, Value.size() - Where - 2);
+			Core::String Data = Value.substr(Where + 1, Value.size() - Where - 2);
 			Tokens.emplace_back(std::move(Value.substr(0, Where)));
 			Where = 0;
 
@@ -9345,10 +9345,10 @@ namespace Edge
 				else if (V == ',' || Where + 1 >= Data.size())
 				{
 				AddValue:
-					std::string Subvalue = Core::Stringify(Data.substr(Last, Where + 1 >= Data.size() ? std::string::npos : Where - Last)).Trim().R();
+					Core::String Subvalue = Core::Stringify(Data.substr(Last, Where + 1 >= Data.size() ? Core::String::npos : Where - Last)).Trim().R();
 					if (UnpackLiterals && Subvalue.size() >= 2)
 					{
-						if (!Features.StringLiterals.empty() && Subvalue.front() == Subvalue.back() && Features.StringLiterals.find(Subvalue.front()) != std::string::npos)
+						if (!Features.StringLiterals.empty() && Subvalue.front() == Subvalue.back() && Features.StringLiterals.find(Subvalue.front()) != Core::String::npos)
 							Tokens.emplace_back(std::move(Subvalue.substr(1, Subvalue.size() - 2)));
 						else
 							Tokens.emplace_back(std::move(Subvalue));
@@ -9362,7 +9362,7 @@ namespace Edge
 
 			return true;
 		}
-		bool Preprocessor::ConsumeTokens(const std::string& Path, std::string& Buffer)
+		bool Preprocessor::ConsumeTokens(const Core::String& Path, Core::String& Buffer)
 		{
 			size_t Offset = 0;
 			while (true)
@@ -9389,7 +9389,7 @@ namespace Edge
 						continue;
 					}
 
-					std::string Subbuffer;
+					Core::String Subbuffer;
 					if (!Include || !Include(this, File, &Subbuffer))
 					{
 						ED_ERR("[proc] %s: cannot find \"%s\"", Path.c_str(), Next.Value.c_str());
@@ -9405,14 +9405,14 @@ namespace Edge
 				}
 				else if (Next.Name == "pragma")
 				{
-					std::vector<std::string> Tokens;
+					Core::Vector<Core::String> Tokens;
 					if (!ParseArguments(Next.Value, Tokens, true) || Tokens.empty())
 					{
 						ED_ERR("[proc] %s: cannot parse pragma definition at %s", Path.c_str(), Next.Value.c_str());
 						return false;
 					}
 
-					std::string Name = Tokens.front();
+					Core::String Name = Tokens.front();
 					Tokens.erase(Tokens.begin());
 
 					if (Pragma && !Pragma(this, Name, Tokens))
@@ -9423,7 +9423,7 @@ namespace Edge
 
 					if (!Pragma)
 					{
-						std::string Value = Buffer.substr(Next.Start, Next.End - Next.Start);
+						Core::String Value = Buffer.substr(Next.Start, Next.End - Next.Start);
 						ED_TRACE("[proc] on 0x%" PRIXPTR " ignore pragma %s", (void*)this, Value.c_str());
 						if (Next.Start > 0 && Buffer[Next.Start - 1] != '\n' && Buffer[Next.Start - 1] != '\r')
 							Value.insert(Value.begin(), '\n');
@@ -9459,14 +9459,14 @@ namespace Edge
 				else if (Next.Name.size() >= 2 && Next.Name[0] == 'i' && Next.Name[1] == 'f' && ControlFlow.find(Next.Name) != ControlFlow.end())
 				{
 					size_t Start = Next.Start;
-					std::vector<Conditional> Conditions = PrepareConditions(Buffer, Next, Offset, true);
+					Core::Vector<Conditional> Conditions = PrepareConditions(Buffer, Next, Offset, true);
 					if (Conditions.empty())
 					{
 						ED_ERR("[proc] %s: #if has no closing #endif block", Path.c_str(), Next.Name.c_str());
 						return false;
 					}
 
-					std::string Result = Evaluate(Buffer, Conditions);
+					Core::String Result = Evaluate(Buffer, Conditions);
 					Next.Start = Start; Next.End = Offset;
 					Offset = ReplaceToken(Next, Buffer, Result);
 					continue;
@@ -9478,13 +9478,13 @@ namespace Edge
 
 			return true;
 		}
-		const std::string& Preprocessor::GetCurrentFilePath() const
+		const Core::String& Preprocessor::GetCurrentFilePath() const
 		{
 			return ExpandedPath;
 		}
 		IncludeResult Preprocessor::ResolveInclude(const IncludeDesc& Desc)
 		{
-			std::string Base;
+			Core::String Base;
 			if (!Desc.From.empty())
 				Base.assign(Core::OS::Path::GetDirectory(Desc.From.c_str()));
 			else
@@ -9510,7 +9510,7 @@ namespace Edge
 
 				for (auto It : Desc.Exts)
 				{
-					std::string File(Result.Module);
+					Core::String File(Result.Module);
 					if (Result.Module.empty())
 						File.assign(Core::OS::Path::Resolve(Desc.Path + It, Desc.Root));
 					else
@@ -9539,7 +9539,7 @@ namespace Edge
 
 			for (auto It : Desc.Exts)
 			{
-				std::string File(Result.Module);
+				Core::String File(Result.Module);
 				if (Result.Module.empty())
 					File.assign(Core::OS::Path::Resolve(Desc.Path + It, Desc.Root));
 				else
@@ -9555,109 +9555,6 @@ namespace Edge
 
 			Result.Module.clear();
 			return Result;
-		}
-
-		FiniteState::FiniteState() noexcept
-		{
-		}
-		FiniteState::~FiniteState() noexcept
-		{
-			for (auto& Action : Actions)
-				ED_DELETE(ActionCallback, Action.second);
-		}
-		FiniteState* FiniteState::Bind(const std::string& Name, const ActionCallback& Callback)
-		{
-			ED_ASSERT(Callback, nullptr, "callback should not be empty");
-			ActionCallback* Result = ED_NEW(ActionCallback, Callback);
-			Mutex.lock();
-			auto It = Actions.find(Name);
-			if (It != Actions.end())
-			{
-				ED_DELETE(ActionCallback, It->second);
-				It->second = Result;
-				Mutex.unlock();
-
-				return this;
-			}
-
-			Actions.insert(std::make_pair(Name, Result));
-			Mutex.unlock();
-
-			return this;
-		}
-		FiniteState* FiniteState::Unbind(const std::string& Name)
-		{
-			Mutex.lock();
-			auto It = Actions.find(Name);
-			if (It == Actions.end())
-			{
-				Mutex.unlock();
-				return this;
-			}
-
-			ED_DELETE(ActionCallback, It->second);
-			Actions.erase(It);
-			Mutex.unlock();
-
-			return this;
-		}
-		FiniteState* FiniteState::Push(const std::string& Name)
-		{
-			Mutex.lock();
-			ActionCallback* Callback = Find(Name);
-			if (!Callback)
-			{
-				Mutex.unlock();
-				return this;
-			}
-
-			State.push(Callback);
-			Mutex.unlock();
-
-			return this;
-		}
-		FiniteState* FiniteState::Replace(const std::string& Name)
-		{
-			Mutex.lock();
-			ActionCallback* Callback = Find(Name);
-			if (!Callback)
-			{
-				Mutex.unlock();
-				return this;
-			}
-
-			if (!State.empty())
-				State.pop();
-
-			State.push(Callback);
-			Mutex.unlock();
-
-			return this;
-		}
-		FiniteState* FiniteState::Pop()
-		{
-			Mutex.lock();
-			State.pop();
-			Mutex.unlock();
-
-			return this;
-		}
-		void FiniteState::Update()
-		{
-			Mutex.lock();
-			ActionCallback* Next = (State.empty() ? nullptr : State.top());
-			Mutex.unlock();
-
-			if (Next != nullptr)
-				(*Next)(this);
-		}
-		ActionCallback* FiniteState::Find(const std::string& Name)
-		{
-			auto It = Actions.find(Name);
-			if (It != Actions.end())
-				return It->second;
-
-			return nullptr;
 		}
 
 		Transform::Transform(void* NewUserData) noexcept : Root(nullptr), Local(nullptr), Scaling(false), Dirty(true), UserData(NewUserData)
@@ -9778,7 +9675,7 @@ namespace Edge
 		}
 		void Transform::RemoveChilds()
 		{
-			std::vector<Transform*> Array;
+			Core::Vector<Transform*> Array;
 			Array.swap(Childs);
 
 			for (auto& Child : Array)
@@ -10075,7 +9972,7 @@ namespace Edge
 		{
 			return Childs.size();
 		}
-		std::vector<Transform*>& Transform::GetChilds()
+		Core::Vector<Transform*>& Transform::GetChilds()
 		{
 			return Childs;
 		}
@@ -10124,7 +10021,7 @@ namespace Edge
 			Node.Item = Item;
 			InsertLeaf(NodeIndex);
 
-			Items.insert(std::unordered_map<void*, size_t>::value_type(Item, NodeIndex));
+			Items.insert(Core::UnorderedMap<void*, size_t>::value_type(Item, NodeIndex));
 		}
 		void Cosmos::RemoveItem(void* Item)
 		{
@@ -10523,11 +10420,11 @@ namespace Edge
 		{
 			return Root;
 		}
-		const std::unordered_map<void*, size_t>& Cosmos::GetItems() const
+		const Core::UnorderedMap<void*, size_t>& Cosmos::GetItems() const
 		{
 			return Items;
 		}
-		const std::vector<Cosmos::Node>& Cosmos::GetNodes() const
+		const Core::Vector<Cosmos::Node>& Cosmos::GetNodes() const
 		{
 			return Nodes;
 		}
@@ -10567,7 +10464,7 @@ namespace Edge
 			return Items.empty();
 		}
 
-		HullShape::HullShape(std::vector<Vertex>&& NewVertices, std::vector<int>&& NewIndices) noexcept : Vertices(std::move(NewVertices)), Indices(std::move(NewIndices)), Shape(nullptr)
+		HullShape::HullShape(Core::Vector<Vertex>&& NewVertices, Core::Vector<int>&& NewIndices) noexcept : Vertices(std::move(NewVertices)), Indices(std::move(NewIndices)), Shape(nullptr)
 		{
 #ifdef ED_USE_BULLET3
 			btConvexHullShape* Hull = (btConvexHullShape*)Shape;
@@ -10579,7 +10476,7 @@ namespace Edge
 			Hull->setMargin(0);
 #endif
 		}
-		HullShape::HullShape(std::vector<Vertex>&& NewVertices) noexcept : Vertices(std::move(NewVertices)), Shape(nullptr)
+		HullShape::HullShape(Core::Vector<Vertex>&& NewVertices) noexcept : Vertices(std::move(NewVertices)), Shape(nullptr)
 		{
 #ifdef ED_USE_BULLET3
 			Shape = ED_NEW(btConvexHullShape);
@@ -10627,11 +10524,11 @@ namespace Edge
 			ED_DELETE(btCollisionShape, Shape);
 #endif
 		}
-		const std::vector<Vertex>& HullShape::GetVertices() const
+		const Core::Vector<Vertex>& HullShape::GetVertices() const
 		{
 			return Vertices;
 		}
-		const std::vector<int>& HullShape::GetIndices() const
+		const Core::Vector<int>& HullShape::GetIndices() const
 		{
 			return Indices;
 		}
@@ -11450,7 +11347,7 @@ namespace Edge
 			if (Initial.Shape.Convex.Enabled && Hull != nullptr)
 			{
 				auto& Positions = Hull->GetVertices();
-				std::vector<btScalar> Vertices;
+				Core::Vector<btScalar> Vertices;
 				Vertices.resize(Positions.size() * 3);
 
 				for (size_t i = 0; i < Hull->GetVertices().size(); i++)
@@ -11609,13 +11506,13 @@ namespace Edge
 			}
 #endif
 		}
-		void SoftBody::GetIndices(std::vector<int>* Result) const
+		void SoftBody::GetIndices(Core::Vector<int>* Result) const
 		{
 #ifdef ED_USE_BULLET3
 			ED_ASSERT_V(Instance != nullptr, "softbody should be initialized");
 			ED_ASSERT_V(Result != nullptr, "result should be set");
 
-			std::unordered_map<btSoftBody::Node*, int> Nodes;
+			Core::UnorderedMap<btSoftBody::Node*, int> Nodes;
 			for (int i = 0; i < Instance->m_nodes.size(); i++)
 				Nodes.insert(std::make_pair(&Instance->m_nodes[i], i));
 
@@ -11631,7 +11528,7 @@ namespace Edge
 			}
 #endif
 		}
-		void SoftBody::GetVertices(std::vector<Vertex>* Result) const
+		void SoftBody::GetVertices(Core::Vector<Vertex>* Result) const
 		{
 #ifdef ED_USE_BULLET3
 			ED_ASSERT_V(Instance != nullptr, "softbody should be initialized");
@@ -14525,7 +14422,7 @@ namespace Edge
 			return nullptr;
 #endif
 		}
-		btCollisionShape* Simulator::CreateConvexHull(std::vector<SkinVertex>& Vertices)
+		btCollisionShape* Simulator::CreateConvexHull(Core::Vector<SkinVertex>& Vertices)
 		{
 #ifdef ED_USE_BULLET3
 			btConvexHullShape* Shape = ED_NEW(btConvexHullShape);
@@ -14546,7 +14443,7 @@ namespace Edge
 			return nullptr;
 #endif
 		}
-		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vertex>& Vertices)
+		btCollisionShape* Simulator::CreateConvexHull(Core::Vector<Vertex>& Vertices)
 		{
 #ifdef ED_USE_BULLET3
 			btConvexHullShape* Shape = ED_NEW(btConvexHullShape);
@@ -14567,7 +14464,7 @@ namespace Edge
 			return nullptr;
 #endif
 		}
-		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vector2>& Vertices)
+		btCollisionShape* Simulator::CreateConvexHull(Core::Vector<Vector2>& Vertices)
 		{
 #ifdef ED_USE_BULLET3
 			btConvexHullShape* Shape = ED_NEW(btConvexHullShape);
@@ -14588,7 +14485,7 @@ namespace Edge
 			return nullptr;
 #endif
 		}
-		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vector3>& Vertices)
+		btCollisionShape* Simulator::CreateConvexHull(Core::Vector<Vector3>& Vertices)
 		{
 #ifdef ED_USE_BULLET3
 			btConvexHullShape* Shape = ED_NEW(btConvexHullShape);
@@ -14609,7 +14506,7 @@ namespace Edge
 			return nullptr;
 #endif
 		}
-		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vector4>& Vertices)
+		btCollisionShape* Simulator::CreateConvexHull(Core::Vector<Vector4>& Vertices)
 		{
 #ifdef ED_USE_BULLET3
 			btConvexHullShape* Shape = ED_NEW(btConvexHullShape);
@@ -14759,18 +14656,18 @@ namespace Edge
 			Safe.unlock();
 #endif
 		}
-		std::vector<Vector3> Simulator::GetShapeVertices(btCollisionShape* Value) const
+		Core::Vector<Vector3> Simulator::GetShapeVertices(btCollisionShape* Value) const
 		{
 #ifdef ED_USE_BULLET3
-			ED_ASSERT(Value != nullptr, std::vector<Vector3>(), "shape should be set");
+			ED_ASSERT(Value != nullptr, Core::Vector<Vector3>(), "shape should be set");
 			auto Type = (Shape)Value->getShapeType();
 			if (Type != Shape::Convex_Hull)
-				return std::vector<Vector3>();
+				return Core::Vector<Vector3>();
 
 			btConvexHullShape* Hull = (btConvexHullShape*)Value;
 			btVector3* Points = Hull->getUnscaledPoints();
 			size_t Count = Hull->getNumPoints();
-			std::vector<Vector3> Vertices;
+			Core::Vector<Vector3> Vertices;
 			Vertices.reserve(Count);
 
 			for (size_t i = 0; i < Count; i++)
@@ -14781,7 +14678,7 @@ namespace Edge
 
 			return Vertices;
 #else
-			return std::vector<Vector3>();
+			return Core::Vector<Vector3>();
 #endif
 		}
 		size_t Simulator::GetShapeVerticesCount(btCollisionShape* Value) const

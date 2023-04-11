@@ -5,7 +5,6 @@
 #include "../network/http.h"
 #include "../audio/effects.h"
 #include "../audio/filters.h"
-#include <sstream>
 #ifdef ED_HAS_SDL2
 #include <SDL2/SDL_syswm.h>
 #undef Complex
@@ -33,13 +32,13 @@ namespace Edge
 			return Time;
 		}
 
-		Event::Event(const std::string& NewName) noexcept : Name(NewName)
+		Event::Event(const Core::String& NewName) noexcept : Name(NewName)
 		{
 		}
-		Event::Event(const std::string& NewName, const Core::VariantArgs& NewArgs) noexcept : Name(NewName), Args(NewArgs)
+		Event::Event(const Core::String& NewName, const Core::VariantArgs& NewArgs) noexcept : Name(NewName), Args(NewArgs)
 		{
 		}
-		Event::Event(const std::string& NewName, Core::VariantArgs&& NewArgs) noexcept : Name(NewName), Args(std::move(NewArgs))
+		Event::Event(const Core::String& NewName, Core::VariantArgs&& NewArgs) noexcept : Name(NewName), Args(std::move(NewArgs))
 		{
 		}
 		Event::Event(const Event& Other) noexcept : Name(Other.Name), Args(Other.Args)
@@ -390,125 +389,125 @@ namespace Edge
 			ED_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("delay", Core::Var::Number(Value.Delay));
 		}
-		void Series::Pack(Core::Schema* V, const std::string& Value)
+		void Series::Pack(Core::Schema* V, const Core::String& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("s", Core::Var::String(Value));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<bool>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<bool>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
 			V->Set("b-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<int>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<int>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
 			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<unsigned int>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<unsigned int>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
 			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<float>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<float>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
 			V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<double>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<double>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
 			V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<int64_t>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<int64_t>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
 			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<long double>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<long double>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
 			V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<uint64_t>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<uint64_t>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
 			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<Compute::Vector2>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::Vector2>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It.X << " " << It.Y << " ";
 
 			V->Set("v2-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<Compute::Vector3>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::Vector3>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It.X << " " << It.Y << " " << It.Z << " ";
 
 			V->Set("v3-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<Compute::Vector4>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::Vector4>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It.X << " " << It.Y << " " << It.Z << " " << It.W << " ";
 
 			V->Set("v4-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<Compute::Matrix4x4>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::Matrix4x4>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 			{
 				for (float i : It.Row)
@@ -518,10 +517,10 @@ namespace Edge
 			V->Set("m4x4-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<AnimatorState>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<AnimatorState>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 			{
 				Stream << It.Paused << " ";
@@ -537,10 +536,10 @@ namespace Edge
 			V->Set("as-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<SpawnerProperties>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<SpawnerProperties>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 			{
 				Stream << It.Angular.Accuracy << " " << It.Angular.Min << " " << It.Angular.Max << " ";
@@ -564,17 +563,17 @@ namespace Edge
 			V->Set("sp-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<Compute::KeyAnimatorClip>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::KeyAnimatorClip>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
 			Core::Schema* Array = V->Set("clips", Core::Var::Array());
 			for (auto&& It : Value)
 				Series::Pack(Array->Set("clip"), It);
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<Compute::AnimatorKey>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::AnimatorKey>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 			{
 				Stream << It.Position.X << " ";
@@ -593,10 +592,10 @@ namespace Edge
 			V->Set("ak-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<Compute::ElementVertex>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::ElementVertex>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 			{
 				Stream << It.PositionX << " ";
@@ -617,16 +616,16 @@ namespace Edge
 			V->Set("ev-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<Compute::Joint>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::Joint>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
 			for (auto&& It : Value)
 				Series::Pack(V->Set("joint"), It);
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<Compute::Vertex>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::Vertex>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 			{
 				Stream << It.PositionX << " ";
@@ -649,10 +648,10 @@ namespace Edge
 			V->Set("iv-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<Compute::SkinVertex>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::SkinVertex>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 			{
 				Stream << It.PositionX << " ";
@@ -682,17 +681,17 @@ namespace Edge
 			V->Set("iv-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<Ticker>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<Ticker>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It.Delay << " ";
 
 			V->Set("tt-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::vector<std::string>& Value)
+		void Series::Pack(Core::Schema* V, const Core::Vector<Core::String>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
 			Core::Schema* Array = V->Set("s-array", Core::Var::Array());
@@ -701,10 +700,10 @@ namespace Edge
 
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const std::unordered_map<size_t, size_t>& Value)
+		void Series::Pack(Core::Schema* V, const Core::UnorderedMap<size_t, size_t>& Value)
 		{
 			ED_ASSERT_V(V != nullptr, "schema should be set");
-			std::stringstream Stream;
+			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << (uint64_t)It.first << " " << (uint64_t)It.second << " ";
 
@@ -986,7 +985,7 @@ namespace Edge
 			Series::Unpack(V->Get("global"), &O->Global);
 			Series::Unpack(V->Get("local"), &O->Local);
 
-			std::vector<Core::Schema*> Joints = V->FetchCollection("childs.joint", false);
+			Core::Vector<Core::Schema*> Joints = V->FetchCollection("childs.joint", false);
 			for (auto& It : Joints)
 			{
 				O->Childs.emplace_back();
@@ -1077,7 +1076,7 @@ namespace Edge
 			O->Delay = (float)V->GetAttributeVar("delay").GetNumber();
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::string* O)
+		bool Series::Unpack(Core::Schema* V, Core::String* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1086,18 +1085,18 @@ namespace Edge
 			*O = V->GetAttributeVar("s").GetBlob();
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<bool>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<bool>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("b-array").GetBlob());
+			Core::String Array(V->GetVar("b-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto It = O->begin(); It != O->end(); ++It)
@@ -1109,18 +1108,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<int>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<int>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("i-array").GetBlob());
+			Core::String Array(V->GetVar("i-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto It = O->begin(); It != O->end(); ++It)
@@ -1132,18 +1131,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<unsigned int>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<unsigned int>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("i-array").GetBlob());
+			Core::String Array(V->GetVar("i-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto It = O->begin(); It != O->end(); ++It)
@@ -1155,18 +1154,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<float>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<float>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("n-array").GetBlob());
+			Core::String Array(V->GetVar("n-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto It = O->begin(); It != O->end(); ++It)
@@ -1178,18 +1177,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<double>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<double>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("n-array").GetBlob());
+			Core::String Array(V->GetVar("n-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto It = O->begin(); It != O->end(); ++It)
@@ -1201,18 +1200,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<int64_t>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<int64_t>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("i-array").GetBlob());
+			Core::String Array(V->GetVar("i-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto It = O->begin(); It != O->end(); ++It)
@@ -1224,18 +1223,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<long double>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<long double>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("n-array").GetBlob());
+			Core::String Array(V->GetVar("n-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto It = O->begin(); It != O->end(); ++It)
@@ -1247,18 +1246,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<uint64_t>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<uint64_t>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("i-array").GetBlob());
+			Core::String Array(V->GetVar("i-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto It = O->begin(); It != O->end(); ++It)
@@ -1270,18 +1269,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<Compute::Vector2>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::Vector2>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("v2-array").GetBlob());
+			Core::String Array(V->GetVar("v2-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto& It : *O)
@@ -1289,18 +1288,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<Compute::Vector3>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::Vector3>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("v3-array").GetBlob());
+			Core::String Array(V->GetVar("v3-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto& It : *O)
@@ -1308,18 +1307,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<Compute::Vector4>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::Vector4>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("v4-array").GetBlob());
+			Core::String Array(V->GetVar("v4-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto& It : *O)
@@ -1327,18 +1326,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<Compute::Matrix4x4>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::Matrix4x4>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("m4x4-array").GetBlob());
+			Core::String Array(V->GetVar("m4x4-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto& It : *O)
@@ -1349,18 +1348,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<AnimatorState>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<AnimatorState>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("as-array").GetBlob());
+			Core::String Array(V->GetVar("as-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto& It : *O)
@@ -1377,18 +1376,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<SpawnerProperties>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<SpawnerProperties>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("sp-array").GetBlob());
+			Core::String Array(V->GetVar("sp-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto& It : *O)
@@ -1413,13 +1412,13 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<Compute::KeyAnimatorClip>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::KeyAnimatorClip>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::vector<Core::Schema*> Frames = V->FetchCollection("clips.clip", false);
+			Core::Vector<Core::Schema*> Frames = V->FetchCollection("clips.clip", false);
 			for (auto&& It : Frames)
 			{
 				O->push_back(Compute::KeyAnimatorClip());
@@ -1428,18 +1427,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<Compute::AnimatorKey>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::AnimatorKey>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("ak-array").GetBlob());
+			Core::String Array(V->GetVar("ak-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto& It : *O)
@@ -1450,18 +1449,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<Compute::ElementVertex>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::ElementVertex>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("ev-array").GetBlob());
+			Core::String Array(V->GetVar("ev-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto& It : *O)
@@ -1483,7 +1482,7 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<Compute::Joint>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::Joint>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1498,17 +1497,17 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<Compute::Vertex>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::Vertex>* O)
 		{
 			if (!V || !O)
 				return false;
 
-			std::string Array(V->GetVar("iv-array").GetBlob());
+			Core::String Array(V->GetVar("iv-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			float Dummy;
@@ -1540,18 +1539,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<Compute::SkinVertex>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::SkinVertex>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("iv-array").GetBlob());
+			Core::String Array(V->GetVar("iv-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto& It : *O)
@@ -1582,18 +1581,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<Ticker>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<Ticker>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("tt-array").GetBlob());
+			Core::String Array(V->GetVar("tt-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->resize((size_t)Size);
 
 			for (auto& It : *O)
@@ -1601,7 +1600,7 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::vector<std::string>* O)
+		bool Series::Unpack(Core::Schema* V, Core::Vector<Core::String>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1619,18 +1618,18 @@ namespace Edge
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, std::unordered_map<size_t, size_t>* O)
+		bool Series::Unpack(Core::Schema* V, Core::UnorderedMap<size_t, size_t>* O)
 		{
 			ED_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::string Array(V->GetVar("gl-array").GetBlob());
+			Core::String Array(V->GetVar("gl-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
-			std::stringstream Stream(Array);
+			Core::StringStream Stream(Array);
 			O->reserve((size_t)Size);
 
 			for (size_t i = 0; i < (size_t)Size; i++)
@@ -1663,10 +1662,10 @@ namespace Edge
 			Callback();
 			return Task();
 		}
-		std::vector<Parallel::Task> Parallel::EnqueueAll(const std::vector<Core::TaskCallback>& Callbacks)
+		Core::Vector<Parallel::Task> Parallel::EnqueueAll(const Core::Vector<Core::TaskCallback>& Callbacks)
 		{
-			ED_ASSERT(!Callbacks.empty(), std::vector<Task>(), "callbacks should not be empty");
-			std::vector<Task> Result;
+			ED_ASSERT(!Callbacks.empty(), Core::Vector<Task>(), "callbacks should not be empty");
+			Core::Vector<Task> Result;
 			Result.reserve(Callbacks.size());
 
 			for (auto& Callback : Callbacks)
@@ -1679,7 +1678,7 @@ namespace Edge
 			if (Value.valid())
 				Value.wait();
 		}
-		void Parallel::WailAll(const std::vector<Task>& Values)
+		void Parallel::WailAll(const Core::Vector<Task>& Values)
 		{
 			for (auto& Value : Values)
 				Wait(Value);
@@ -1728,7 +1727,7 @@ namespace Edge
 				ED_RELEASE(Item);
 			Meshes.clear();
 		}
-		Graphics::MeshBuffer* Model::FindMesh(const std::string& Name)
+		Graphics::MeshBuffer* Model::FindMesh(const Core::String& Name)
 		{
 			for (auto&& It : Meshes)
 			{
@@ -1746,7 +1745,7 @@ namespace Edge
 		{
 			Cleanup();
 		}
-		bool SkinModel::FindJoint(const std::string& Name, Compute::Joint* Base)
+		bool SkinModel::FindJoint(const Core::String& Name, Compute::Joint* Base)
 		{
 			if (!Base)
 				Base = &Skeleton;
@@ -1825,7 +1824,7 @@ namespace Edge
 				ED_RELEASE(Item);
 			Meshes.clear();
 		}
-		Graphics::SkinMeshBuffer* SkinModel::FindMesh(const std::string& Name)
+		Graphics::SkinMeshBuffer* SkinModel::FindMesh(const Core::String& Name)
 		{
 			for (auto&& It : Meshes)
 			{
@@ -1836,10 +1835,10 @@ namespace Edge
 			return nullptr;
 		}
 
-		SkinAnimation::SkinAnimation(std::vector<Compute::SkinAnimatorClip>&& Data) noexcept : Clips(std::move(Data))
+		SkinAnimation::SkinAnimation(Core::Vector<Compute::SkinAnimatorClip>&& Data) noexcept : Clips(std::move(Data))
 		{
 		}
-		const std::vector<Compute::SkinAnimatorClip>& SkinAnimation::GetClips()
+		const Core::Vector<Compute::SkinAnimatorClip>& SkinAnimation::GetClips()
 		{
 			return Clips;
 		}
@@ -1906,13 +1905,13 @@ namespace Edge
 			ED_CLEAR(OcclusionMap);
 			ED_CLEAR(EmissionMap);
 		}
-		void Material::SetName(const std::string& Value)
+		void Material::SetName(const Core::String& Value)
 		{
 			Name = Value;
 			if (Scene != nullptr)
 				Scene->Mutate(this, "set");
 		}
-		const std::string& Material::GetName() const
+		const Core::String& Material::GetName() const
 		{
 			return Name;
 		}
@@ -2038,7 +2037,7 @@ namespace Edge
 		void Component::Update(Core::Timer* Time)
 		{
 		}
-		void Component::Message(const std::string& Name, Core::VariantArgs& Args)
+		void Component::Message(const Core::String& Name, Core::VariantArgs& Args)
 		{
 		}
 		void Component::Movement()
@@ -2112,7 +2111,7 @@ namespace Edge
 
 			ED_RELEASE(Transform);
 		}
-		void Entity::SetName(const std::string& Value)
+		void Entity::SetName(const Core::String& Value)
 		{
 			Type.Name = Value;
 			Scene->Mutate(this, "set");
@@ -2160,7 +2159,7 @@ namespace Edge
 		}
 		void Entity::RemoveComponent(uint64_t Id)
 		{
-			std::unordered_map<uint64_t, Component*>::iterator It = Type.Components.find(Id);
+			Core::UnorderedMap<uint64_t, Component*>::iterator It = Type.Components.find(Id);
 			if (It == Type.Components.end())
 				return;
 
@@ -2180,7 +2179,7 @@ namespace Edge
 		}
 		void Entity::RemoveChilds()
 		{
-			std::vector<Compute::Transform*>& Childs = Transform->GetChilds();
+			Core::Vector<Compute::Transform*>& Childs = Transform->GetChilds();
 			for (size_t i = 0; i < Childs.size(); i++)
 			{
 				Entity* Next = (Entity*)Transform->GetChild(i)->UserData;
@@ -2215,7 +2214,7 @@ namespace Edge
 		}
 		Component* Entity::GetComponent(uint64_t Id)
 		{
-			std::unordered_map<uint64_t, Component*>::iterator It = Type.Components.find(Id);
+			Core::UnorderedMap<uint64_t, Component*>::iterator It = Type.Components.find(Id);
 			if (It != Type.Components.end())
 				return It->second;
 
@@ -2249,7 +2248,7 @@ namespace Edge
 		{
 			return Transform;
 		}
-		const std::string& Entity::GetName() const
+		const Core::String& Entity::GetName() const
 		{
 			return Type.Name;
 		}
@@ -2296,7 +2295,7 @@ namespace Edge
 		Drawable::~Drawable() noexcept
 		{
 		}
-		void Drawable::Message(const std::string& Name, Core::VariantArgs& Args)
+		void Drawable::Message(const Core::String& Name, Core::VariantArgs& Args)
 		{
 			if (Name != "mutation")
 				return;
@@ -2376,7 +2375,7 @@ namespace Edge
 
 			return Materials.begin()->second;
 		}
-		const std::unordered_map<void*, Material*>& Drawable::GetMaterials()
+		const Core::UnorderedMap<void*, Material*>& Drawable::GetMaterials()
 		{
 			return Materials;
 		}
@@ -2608,7 +2607,7 @@ namespace Edge
 		{
 			Scene->SetMRT(TargetType::Main, false);
 		}
-		void RenderSystem::FreeShader(const std::string& Name, Graphics::Shader* Shader)
+		void RenderSystem::FreeShader(const Core::String& Name, Graphics::Shader* Shader)
 		{
 			ShaderCache* Cache = Scene->GetShaders();
 			if (Cache != nullptr)
@@ -2627,7 +2626,7 @@ namespace Edge
 
 			ED_RELEASE(Shader);
 		}
-		void RenderSystem::FreeBuffers(const std::string& Name, Graphics::ElementBuffer** Buffers)
+		void RenderSystem::FreeBuffers(const Core::String& Name, Graphics::ElementBuffer** Buffers)
 		{
 			if (!Buffers)
 				return;
@@ -2783,7 +2782,7 @@ namespace Edge
 
 			return false;
 		}
-		bool RenderSystem::CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount)
+		bool RenderSystem::CompileBuffers(Graphics::ElementBuffer** Result, const Core::String& Name, size_t ElementSize, size_t ElementsCount)
 		{
 			ED_ASSERT(Result != nullptr, false, "result should be set");
 			ED_ASSERT(!Name.empty(), false, "buffers must have a name");
@@ -2835,7 +2834,7 @@ namespace Edge
 
 			return Shader;
 		}
-		Graphics::Shader* RenderSystem::CompileShader(const std::string& SectionName, size_t BufferSize)
+		Graphics::Shader* RenderSystem::CompileShader(const Core::String& SectionName, size_t BufferSize)
 		{
 			Graphics::Shader::Desc I = Graphics::Shader::Desc();
 			if (!Device->GetSection(SectionName, &I))
@@ -2890,7 +2889,7 @@ namespace Edge
 
 			return false;
 		}
-		std::vector<Renderer*>& RenderSystem::GetRenderers()
+		Core::Vector<Renderer*>& RenderSystem::GetRenderers()
 		{
 			return Renderers;
 		}
@@ -2930,7 +2929,7 @@ namespace Edge
 		{
 			return Scene->GetStorage(Section);
 		}
-		void RenderSystem::WatchAll(std::vector<Parallel::Task>&& Tasks)
+		void RenderSystem::WatchAll(Core::Vector<Parallel::Task>&& Tasks)
 		{
 			Scene->WatchAll(std::move(Tasks));
 		}
@@ -2942,7 +2941,7 @@ namespace Edge
 		{
 			ClearCache();
 		}
-		Graphics::Shader* ShaderCache::Compile(const std::string& Name, const Graphics::Shader::Desc& Desc, size_t BufferSize)
+		Graphics::Shader* ShaderCache::Compile(const Core::String& Name, const Graphics::Shader::Desc& Desc, size_t BufferSize)
 		{
 			Graphics::Shader* Shader = Get(Name);
 			if (Shader != nullptr)
@@ -2965,7 +2964,7 @@ namespace Edge
 
 			return Shader;
 		}
-		Graphics::Shader* ShaderCache::Get(const std::string& Name)
+		Graphics::Shader* ShaderCache::Get(const Core::String& Name)
 		{
 			Safe.lock();
 			auto It = Cache.find(Name);
@@ -2980,28 +2979,28 @@ namespace Edge
 			Safe.unlock();
 			return nullptr;
 		}
-		std::string ShaderCache::Find(Graphics::Shader* Shader)
+		Core::String ShaderCache::Find(Graphics::Shader* Shader)
 		{
-			ED_ASSERT(Shader != nullptr, std::string(), "shader should be set");
+			ED_ASSERT(Shader != nullptr, Core::String(), "shader should be set");
 			Safe.lock();
 			for (auto& Item : Cache)
 			{
 				if (Item.second.Shader == Shader)
 				{
-					std::string Result = Item.first;
+					Core::String Result = Item.first;
 					Safe.unlock();
 					return Result;
 				}
 			}
 
 			Safe.unlock();
-			return std::string();
+			return Core::String();
 		}
-		const std::unordered_map<std::string, ShaderCache::SCache>& ShaderCache::GetCaches() const
+		const Core::UnorderedMap<Core::String, ShaderCache::SCache>& ShaderCache::GetCaches() const
 		{
 			return Cache;
 		}
-		bool ShaderCache::Has(const std::string& Name)
+		bool ShaderCache::Has(const Core::String& Name)
 		{
 			Safe.lock();
 			auto It = Cache.find(Name);
@@ -3014,7 +3013,7 @@ namespace Edge
 			Safe.unlock();
 			return false;
 		}
-		bool ShaderCache::Free(const std::string& Name, Graphics::Shader* Shader)
+		bool ShaderCache::Free(const Core::String& Name, Graphics::Shader* Shader)
 		{
 			Safe.lock();
 			auto It = Cache.find(Name);
@@ -3064,7 +3063,7 @@ namespace Edge
 		{
 			ClearCache();
 		}
-		bool PrimitiveCache::Compile(Graphics::ElementBuffer** Results, const std::string& Name, size_t ElementSize, size_t ElementsCount)
+		bool PrimitiveCache::Compile(Graphics::ElementBuffer** Results, const Core::String& Name, size_t ElementSize, size_t ElementsCount)
 		{
 			ED_ASSERT(Results != nullptr, false, "results should be set");
 			if (Get(Results, Name))
@@ -3104,7 +3103,7 @@ namespace Edge
 
 			return true;
 		}
-		bool PrimitiveCache::Get(Graphics::ElementBuffer** Results, const std::string& Name)
+		bool PrimitiveCache::Get(Graphics::ElementBuffer** Results, const Core::String& Name)
 		{
 			ED_ASSERT(Results != nullptr, false, "results should be set");
 			Safe.lock();
@@ -3122,7 +3121,7 @@ namespace Edge
 			Safe.unlock();
 			return false;
 		}
-		bool PrimitiveCache::Has(const std::string& Name)
+		bool PrimitiveCache::Has(const Core::String& Name)
 		{
 			Safe.lock();
 			auto It = Cache.find(Name);
@@ -3135,7 +3134,7 @@ namespace Edge
 			Safe.unlock();
 			return false;
 		}
-		bool PrimitiveCache::Free(const std::string& Name, Graphics::ElementBuffer** Buffers)
+		bool PrimitiveCache::Free(const Core::String& Name, Graphics::ElementBuffer** Buffers)
 		{
 			Safe.lock();
 			auto It = Cache.find(Name);
@@ -3168,22 +3167,22 @@ namespace Edge
 
 			return true;
 		}
-		std::string PrimitiveCache::Find(Graphics::ElementBuffer** Buffers)
+		Core::String PrimitiveCache::Find(Graphics::ElementBuffer** Buffers)
 		{
-			ED_ASSERT(Buffers != nullptr, std::string(), "buffers should be set");
+			ED_ASSERT(Buffers != nullptr, Core::String(), "buffers should be set");
 			Safe.lock();
 			for (auto& Item : Cache)
 			{
 				if (Item.second.Buffers[0] == Buffers[0] && Item.second.Buffers[1] == Buffers[1])
 				{
-					std::string Result = Item.first;
+					Core::String Result = Item.first;
 					Safe.unlock();
 					return Result;
 				}
 			}
 
 			Safe.unlock();
-			return std::string();
+			return Core::String();
 		}
 		Model* PrimitiveCache::GetBoxModel()
 		{
@@ -3233,7 +3232,7 @@ namespace Edge
 			if (Quad != nullptr)
 				return Quad;
 
-			std::vector<Compute::ShapeVertex> Elements =
+			Core::Vector<Compute::ShapeVertex> Elements =
 			{
 				{ -1.0f, -1.0f, 0, -1, 0 },
 				{ -1.0f, 1.0f, 0, -1, -1 },
@@ -3267,7 +3266,7 @@ namespace Edge
 
 			if (Type == BufferType::Index)
 			{
-				std::vector<int> Indices =
+				Core::Vector<int> Indices =
 				{
 					0, 4, 1, 0,
 					9, 4, 9, 5,
@@ -3306,7 +3305,7 @@ namespace Edge
 				const float Z = 0.850650808352039932f;
 				const float N = 0.0f;
 
-				std::vector<Compute::ShapeVertex> Elements =
+				Core::Vector<Compute::ShapeVertex> Elements =
 				{
 					{ -X, N, Z },
 					{ X, N, Z },
@@ -3348,7 +3347,7 @@ namespace Edge
 
 			if (Type == BufferType::Index)
 			{
-				std::vector<int> Indices =
+				Core::Vector<int> Indices =
 				{
 					0, 1, 2, 0,
 					18, 1, 3, 4,
@@ -3377,7 +3376,7 @@ namespace Edge
 			}
 			else if (Type == BufferType::Vertex)
 			{
-				std::vector<Compute::ShapeVertex> Elements
+				Core::Vector<Compute::ShapeVertex> Elements
 				{
 					{ 1, 1, 1, 0.875, -0.5 },
 					{ -1, -1, 1, 0.625, -0.75 },
@@ -3431,7 +3430,7 @@ namespace Edge
 
 			if (Type == BufferType::Index)
 			{
-				std::vector<int> Indices =
+				Core::Vector<int> Indices =
 				{
 					16, 23, 15, 17,
 					16, 15, 13, 22,
@@ -3460,7 +3459,7 @@ namespace Edge
 			}
 			else if (Type == BufferType::Vertex)
 			{
-				std::vector<Compute::Vertex> Elements =
+				Core::Vector<Compute::Vertex> Elements =
 				{
 					{ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 },
 					{ 1, -1, 1, 0.625, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0 },
@@ -3514,7 +3513,7 @@ namespace Edge
 
 			if (Type == BufferType::Index)
 			{
-				std::vector<int> Indices =
+				Core::Vector<int> Indices =
 				{
 					16, 23, 15, 17,
 					16, 15, 13, 22,
@@ -3543,7 +3542,7 @@ namespace Edge
 			}
 			else if (Type == BufferType::Vertex)
 			{
-				std::vector<Compute::SkinVertex> Elements =
+				Core::Vector<Compute::SkinVertex> Elements =
 				{
 					{ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
 					{ 1, -1, 1, 0.625, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
@@ -3589,7 +3588,7 @@ namespace Edge
 
 			return nullptr;
 		}
-		const std::unordered_map<std::string, PrimitiveCache::SCache>& PrimitiveCache::GetCaches() const
+		const Core::UnorderedMap<Core::String, PrimitiveCache::SCache>& PrimitiveCache::GetCaches() const
 		{
 			return Cache;
 		}
@@ -4339,7 +4338,7 @@ namespace Edge
 
 			return true;
 		}
-		void SceneGraph::CloneEntities(Entity* Instance, std::vector<Entity*>* Array)
+		void SceneGraph::CloneEntities(Entity* Instance, Core::Vector<Entity*>* Array)
 		{
 			ED_ASSERT_V(Instance != nullptr, "entity should be set");
 			ED_ASSERT_V(Array != nullptr, "array should be set");
@@ -4355,7 +4354,7 @@ namespace Edge
 			if (!Instance->Transform->GetChildsCount())
 				return;
 
-			std::vector<Compute::Transform*>& Childs = Instance->Transform->GetChilds();
+			Core::Vector<Compute::Transform*>& Childs = Instance->Transform->GetChilds();
 			Clone->Transform->GetChilds().clear();
 
 			for (auto& Child : Childs)
@@ -4385,7 +4384,7 @@ namespace Edge
 					break;
 			}
 		}
-		void SceneGraph::ScriptHook(const std::string& Name)
+		void SceneGraph::ScriptHook(const Core::String& Name)
 		{
 			Transaction([this, Name]()
 			{
@@ -4529,7 +4528,7 @@ namespace Edge
 
 			return true;
 		}
-		MessageCallback* SceneGraph::SetListener(const std::string& EventName, MessageCallback&& Callback)
+		MessageCallback* SceneGraph::SetListener(const Core::String& EventName, MessageCallback&& Callback)
 		{
 			ED_ASSERT(Callback != nullptr, nullptr, "callback should be set");
 			ED_TRACE("[scene] attach listener %s on 0x%" PRIXPTR, EventName.c_str(), (void*)this);
@@ -4539,7 +4538,7 @@ namespace Edge
 
 			return Id;
 		}
-		bool SceneGraph::ClearListener(const std::string& EventName, MessageCallback* Id)
+		bool SceneGraph::ClearListener(const Core::String& EventName, MessageCallback* Id)
 		{
 			ED_ASSERT(!EventName.empty(), false, "event name should not be empty");
 			ED_ASSERT(Id != nullptr, false, "callback id should be set");
@@ -4556,7 +4555,7 @@ namespace Edge
 
 			return true;
 		}
-		bool SceneGraph::PushEvent(const std::string& EventName, Core::VariantArgs&& Args, bool Propagate)
+		bool SceneGraph::PushEvent(const Core::String& EventName, Core::VariantArgs&& Args, bool Propagate)
 		{
 			ED_TRACE("[scene] push %s event %s on 0x%" PRIXPTR, Propagate ? "scene" : "listener", EventName.c_str(), (void*)this);
 			Event Next(EventName, std::move(Args));
@@ -4568,7 +4567,7 @@ namespace Edge
 
 			return true;
 		}
-		bool SceneGraph::PushEvent(const std::string& EventName, Core::VariantArgs&& Args, Component* Target)
+		bool SceneGraph::PushEvent(const Core::String& EventName, Core::VariantArgs&& Args, Component* Target)
 		{
 			ED_TRACE("[scene] push component event %s on 0x%" PRIXPTR " for 0x%" PRIXPTR, EventName.c_str(), (void*)this, (void*)Target);
 			ED_ASSERT(Target != nullptr, false, "target should be set");
@@ -4581,7 +4580,7 @@ namespace Edge
 
 			return true;
 		}
-		bool SceneGraph::PushEvent(const std::string& EventName, Core::VariantArgs&& Args, Entity* Target)
+		bool SceneGraph::PushEvent(const Core::String& EventName, Core::VariantArgs&& Args, Entity* Target)
 		{
 			ED_TRACE("[scene] push entity event %s on 0x%" PRIXPTR " for 0x%" PRIXPTR, EventName.c_str(), (void*)this, (void*)Target);
 			ED_ASSERT(Target != nullptr, false, "target should be set");
@@ -4594,7 +4593,7 @@ namespace Edge
 
 			return true;
 		}
-		void SceneGraph::LoadResource(uint64_t Id, Component* Context, const std::string& Path, const Core::VariantArgs& Keys, const std::function<void(void*)>& Callback)
+		void SceneGraph::LoadResource(uint64_t Id, Component* Context, const Core::String& Path, const Core::VariantArgs& Keys, const std::function<void(void*)>& Callback)
 		{
 			ED_ASSERT_V(Conf.Shared.Content != nullptr, "content manager should be set");
 			ED_ASSERT_V(Context != nullptr, "component calling this function should be set");
@@ -4613,10 +4612,10 @@ namespace Edge
 				});
 			});
 		}
-		std::string SceneGraph::FindResourceId(uint64_t Id, void* Resource)
+		Core::String SceneGraph::FindResourceId(uint64_t Id, void* Resource)
 		{
 			AssetCache* Cache = Conf.Shared.Content->FindCache(Conf.Shared.Content->GetProcessor(Id), Resource);
-			return Cache != nullptr ? AsResourcePath(Cache->Path) : std::string();
+			return Cache != nullptr ? AsResourcePath(Cache->Path) : Core::String();
 		}
 		bool SceneGraph::IsLeftHanded() const
 		{
@@ -4727,7 +4726,7 @@ namespace Edge
 			if (Awaitable.valid())
 				Tasks.emplace(std::move(Awaitable));
 		}
-		void SceneGraph::WatchAll(std::vector<Parallel::Task>&& Awaitables)
+		void SceneGraph::WatchAll(Core::Vector<Parallel::Task>&& Awaitables)
 		{
 			for (auto& Awaitable : Awaitables)
 				Watch(std::move(Awaitable));
@@ -5113,7 +5112,7 @@ namespace Edge
 
 			return *Storage;
 		}
-		Material* SceneGraph::GetMaterial(const std::string& Name)
+		Material* SceneGraph::GetMaterial(const Core::String& Name)
 		{
 			auto Begin = Materials.Begin(), End = Materials.End();
 			for (auto It = Begin; It != End; ++It)
@@ -5245,16 +5244,16 @@ namespace Edge
 
 			return Graphics::Format::Unknown;
 		}
-		std::vector<Entity*> SceneGraph::CloneEntityAsArray(Entity* Value)
+		Core::Vector<Entity*> SceneGraph::CloneEntityAsArray(Entity* Value)
 		{
-			std::vector<Entity*> Array;
+			Core::Vector<Entity*> Array;
 			ED_ASSERT(Value != nullptr, Array, "entity should be set");
 			CloneEntities(Value, &Array);
 			return Array;
 		}
-		std::vector<Entity*> SceneGraph::QueryByParent(Entity* Entity) const
+		Core::Vector<Entity*> SceneGraph::QueryByParent(Entity* Entity) const
 		{
-			std::vector<Engine::Entity*> Array;
+			Core::Vector<Engine::Entity*> Array;
 			ED_ASSERT(Entity != nullptr, Array, "entity should be set");
 
 			auto Begin = Entities.Begin(), End = Entities.End();
@@ -5266,9 +5265,9 @@ namespace Edge
 
 			return Array;
 		}
-		std::vector<Entity*> SceneGraph::QueryByName(const std::string& Name) const
+		Core::Vector<Entity*> SceneGraph::QueryByName(const Core::String& Name) const
 		{
-			std::vector<Entity*> Array;
+			Core::Vector<Entity*> Array;
 			auto Begin = Entities.Begin(), End = Entities.End();
 			for (auto It = Begin; It != End; ++It)
 			{
@@ -5278,13 +5277,13 @@ namespace Edge
 
 			return Array;
 		}
-		std::vector<Component*> SceneGraph::QueryByPosition(uint64_t Section, const Compute::Vector3& Position, float Radius)
+		Core::Vector<Component*> SceneGraph::QueryByPosition(uint64_t Section, const Compute::Vector3& Position, float Radius)
 		{
 			return QueryByArea(Section, Position - Radius * 0.5f, Position + Radius * 0.5f);
 		}
-		std::vector<Component*> SceneGraph::QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max)
+		Core::Vector<Component*> SceneGraph::QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max)
 		{
-			std::vector<Component*> Result;
+			Core::Vector<Component*> Result;
 			Compute::Bounding Target(Min, Max);
 			Compute::Cosmos::Iterator Context;
 			auto& Storage = GetStorage(Section);
@@ -5298,9 +5297,9 @@ namespace Edge
 
 			return Result;
 		}
-		std::vector<Component*> SceneGraph::QueryByMatch(uint64_t Section, std::function<bool(const Compute::Bounding&)>&& MatchCallback)
+		Core::Vector<Component*> SceneGraph::QueryByMatch(uint64_t Section, std::function<bool(const Compute::Bounding&)>&& MatchCallback)
 		{
-			std::vector<Component*> Result;
+			Core::Vector<Component*> Result;
 			Compute::Cosmos::Iterator Context;
 			auto& Storage = GetStorage(Section);
 			auto Enqueue = [&Result](Component* Item) { Result.push_back(Item); };
@@ -5308,10 +5307,10 @@ namespace Edge
 
 			return Result;
 		}
-		std::vector<std::pair<Component*, Compute::Vector3>> SceneGraph::QueryByRay(uint64_t Section, const Compute::Ray& Origin)
+		Core::Vector<std::pair<Component*, Compute::Vector3>> SceneGraph::QueryByRay(uint64_t Section, const Compute::Ray& Origin)
 		{
 			typedef std::pair<Component*, Compute::Vector3> RayHit;
-			std::vector<RayHit> Result;
+			Core::Vector<RayHit> Result;
 			Compute::Ray Target = Origin;
 			Compute::Cosmos::Iterator Context;
 			auto& Storage = GetStorage(Section);
@@ -5340,27 +5339,27 @@ namespace Edge
 
 			return Result;
 		}
-		std::vector<CubicDepthMap*>& SceneGraph::GetPointsMapping()
+		Core::Vector<CubicDepthMap*>& SceneGraph::GetPointsMapping()
 		{
 			return Display.Points;
 		}
-		std::vector<LinearDepthMap*>& SceneGraph::GetSpotsMapping()
+		Core::Vector<LinearDepthMap*>& SceneGraph::GetSpotsMapping()
 		{
 			return Display.Spots;
 		}
-		std::vector<CascadedDepthMap*>& SceneGraph::GetLinesMapping()
+		Core::Vector<CascadedDepthMap*>& SceneGraph::GetLinesMapping()
 		{
 			return Display.Lines;
 		}
-		std::vector<VoxelMapping>& SceneGraph::GetVoxelsMapping()
+		Core::Vector<VoxelMapping>& SceneGraph::GetVoxelsMapping()
 		{
 			return Display.Voxels;
 		}
-		const std::unordered_map<uint64_t, SparseIndex*>& SceneGraph::GetRegistry() const
+		const Core::UnorderedMap<uint64_t, SparseIndex*>& SceneGraph::GetRegistry() const
 		{
 			return Registry;
 		}
-		std::string SceneGraph::AsResourcePath(const std::string& Path)
+		Core::String SceneGraph::AsResourcePath(const Core::String& Path)
 		{
 			ED_ASSERT(Conf.Shared.Content != nullptr, Path, "content manager should be set");
 			return Core::Stringify(Path).Replace(Conf.Shared.Content->GetEnvironment(), "./").Replace('\\', '/').R();
@@ -5470,7 +5469,7 @@ namespace Edge
 
 		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) noexcept : Device(NewDevice), Queue(0)
 		{
-			std::string Directory = Core::OS::Directory::Get();
+			Core::String Directory = Core::OS::Directory::Get();
 			Base = Core::OS::Path::ResolveDirectory(Directory.c_str());
 			SetEnvironment(Base);
 		}
@@ -5532,10 +5531,10 @@ namespace Edge
 			Processors.clear();
 			Mutex.unlock();
 		}
-		void ContentManager::ClearPath(const std::string& Path)
+		void ContentManager::ClearPath(const Core::String& Path)
 		{
 			ED_TRACE("[content] clear path %s on 0x%" PRIXPTR, Path.c_str(), (void*)this);
-			std::string File = Core::OS::Path::Resolve(Path, Environment);
+			Core::String File = Core::OS::Path::Resolve(Path, Environment);
 			if (File.empty())
 				return;
 
@@ -5545,7 +5544,7 @@ namespace Edge
 				Assets.erase(It);
 			Mutex.unlock();
 		}
-		void ContentManager::SetEnvironment(const std::string& Path)
+		void ContentManager::SetEnvironment(const Core::String& Path)
 		{
 			Mutex.lock();
 			Environment = Core::OS::Path::ResolveDirectory(Path.c_str());
@@ -5557,7 +5556,7 @@ namespace Edge
 		{
 			Device = NewDevice;
 		}
-		void* ContentManager::LoadDockerized(Processor* Processor, const std::string& Path, const Core::VariantArgs& Map)
+		void* ContentManager::LoadDockerized(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Map)
 		{
 			if (Path.empty())
 			{
@@ -5603,7 +5602,7 @@ namespace Edge
 			ED_TRACE("[content] load dockerized %s", Path.c_str());
 			return Processor->Deserialize(Stream, It->second + Docker->second->Offset, Map);
 		}
-		void* ContentManager::Load(Processor* Processor, const std::string& Path, const Core::VariantArgs& Map)
+		void* ContentManager::Load(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Map)
 		{
 			if (Path.empty())
 			{
@@ -5624,14 +5623,14 @@ namespace Edge
 				return Object;
 			}
 
-			std::string File = Path;
+			Core::String File = Path;
 			if (!Core::OS::Path::IsRemote(File.c_str()))
 			{
 				Mutex.lock();
 				File = Core::OS::Path::Resolve(File, Environment);
 				if (Core::OS::File::IsExists(File.c_str()))
 				{
-					std::string Subpath = Environment + File;
+					Core::String Subpath = Environment + File;
 					Subpath = Core::OS::Path::Resolve(Subpath.c_str());
 
 					if (Core::OS::File::IsExists(Subpath.c_str()))
@@ -5666,7 +5665,7 @@ namespace Edge
 
 			return Object;
 		}
-		bool ContentManager::Save(Processor* Processor, const std::string& Path, void* Object, const Core::VariantArgs& Map)
+		bool ContentManager::Save(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Map)
 		{
 			ED_ASSERT(Object != nullptr, false, "object should be set");
 			if (Path.empty())
@@ -5682,8 +5681,8 @@ namespace Edge
 			}
 
 			Mutex.lock();
-			std::string Directory = Core::OS::Path::GetDirectory(Path.c_str());
-			std::string File = Core::OS::Path::Resolve(Directory, Environment);
+			Core::String Directory = Core::OS::Path::GetDirectory(Path.c_str());
+			Core::String File = Core::OS::Path::Resolve(Directory, Environment);
 			File.append(Path.substr(Directory.size()));
 			Mutex.unlock();
 
@@ -5709,7 +5708,7 @@ namespace Edge
 
 			return Result;
 		}
-		Core::Promise<void*> ContentManager::LoadAsync(Processor* Processor, const std::string& Path, const Core::VariantArgs& Keys)
+		Core::Promise<void*> ContentManager::LoadAsync(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys)
 		{
 			Enqueue();
 			return Core::Cotask<void*>([this, Processor, Path, Keys]()
@@ -5720,7 +5719,7 @@ namespace Edge
 				return Result;
 			});
 		}
-		Core::Promise<bool> ContentManager::SaveAsync(Processor* Processor, const std::string& Path, void* Object, const Core::VariantArgs& Keys)
+		Core::Promise<bool> ContentManager::SaveAsync(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Keys)
 		{
 			Enqueue();
 			return Core::Cotask<bool>([this, Processor, Path, Object, Keys]()
@@ -5774,10 +5773,10 @@ namespace Edge
 			Mutex.unlock();
 			return true;
 		}
-		bool ContentManager::Import(const std::string& Path)
+		bool ContentManager::Import(const Core::String& Path)
 		{
 			Mutex.lock();
-			std::string File = Core::OS::Path::Resolve(Path, Environment);
+			Core::String File = Core::OS::Path::Resolve(Path, Environment);
 			Mutex.unlock();
 
 			if (File.empty())
@@ -5848,7 +5847,7 @@ namespace Edge
 
 			return true;
 		}
-		bool ContentManager::Export(const std::string& Path, const std::string& Directory, const std::string& Name)
+		bool ContentManager::Export(const Core::String& Path, const Core::String& Directory, const Core::String& Name)
 		{
 			ED_ASSERT(!Path.empty() && !Directory.empty(), false, "path and directory should not be empty");
 			auto* Stream = new Core::GzStream();
@@ -5860,7 +5859,7 @@ namespace Edge
 			}
 
 			Mutex.lock();
-			std::string DirectoryBase = Core::OS::Path::Resolve(Directory, Environment);
+			Core::String DirectoryBase = Core::OS::Path::Resolve(Directory, Environment);
 			Mutex.unlock();
 
 			auto Tree = new Core::FileTree(DirectoryBase);
@@ -5878,7 +5877,7 @@ namespace Edge
 					if (!File)
 						continue;
 
-					std::string Path = Core::Stringify(Resource).Replace(DirectoryBase, Name).Replace('\\', '/').R();
+					Core::String Path = Core::Stringify(Resource).Replace(DirectoryBase, Name).Replace('\\', '/').R();
 					if (Name.empty())
 						Path.assign(Path.substr(1));
 
@@ -5929,10 +5928,10 @@ namespace Edge
 
 			return true;
 		}
-		void* ContentManager::TryToCache(Processor* Root, const std::string& Path, void* Resource)
+		void* ContentManager::TryToCache(Processor* Root, const Core::String& Path, void* Resource)
 		{
 			ED_TRACE("[content] save 0x%" PRIXPTR " to cache", Resource);
-			std::string Target = Core::Stringify(Path).Replace('\\', '/').Replace(Environment, "./").R();
+			Core::String Target = Core::Stringify(Path).Replace('\\', '/').Replace(Environment, "./").R();
 			std::unique_lock<std::mutex> Unique(Mutex);
 			auto& Entries = Assets[Target];
 			auto& Entry = Entries[Root];
@@ -5967,11 +5966,11 @@ namespace Edge
 			--Queue;
 			Mutex.unlock();
 		}
-		const std::unordered_map<uint64_t, Processor*>& ContentManager::GetProcessors() const
+		const Core::UnorderedMap<uint64_t, Processor*>& ContentManager::GetProcessors() const
 		{
 			return Processors;
 		}
-		AssetCache* ContentManager::FindCache(Processor* Target, const std::string& Path)
+		AssetCache* ContentManager::FindCache(Processor* Target, const Core::String& Path)
 		{
 			if (Path.empty())
 				return nullptr;
@@ -6017,12 +6016,12 @@ namespace Edge
 		{
 			return Device;
 		}
-		const std::string& ContentManager::GetEnvironment() const
+		const Core::String& ContentManager::GetEnvironment() const
 		{
 			return Environment;
 		}
 
-		AppData::AppData(ContentManager* Manager, const std::string& NewPath) noexcept : Content(Manager), Data(nullptr)
+		AppData::AppData(ContentManager* Manager, const Core::String& NewPath) noexcept : Content(Manager), Data(nullptr)
 		{
 			ED_ASSERT_V(Manager != nullptr, "content manager should be set");
 			Migrate(NewPath);
@@ -6031,7 +6030,7 @@ namespace Edge
 		{
 			ED_CLEAR(Data);
 		}
-		void AppData::Migrate(const std::string& Next)
+		void AppData::Migrate(const Core::String& Next)
 		{
 			ED_ASSERT_V(!Next.empty(), "path should not be empty");
 			ED_TRACE("[appd] migrate %s to %s", Path.c_str(), Next.c_str());
@@ -6049,7 +6048,7 @@ namespace Edge
 			Path = Next;
 			Safe.unlock();
 		}
-		void AppData::SetKey(const std::string& Name, Core::Schema* Value)
+		void AppData::SetKey(const Core::String& Name, Core::Schema* Value)
 		{
 			ED_TRACE("[appd] set %s = %s", Name.c_str(), Value ? Core::Schema::ToJSON(Value).c_str() : "NULL");
 			Safe.lock();
@@ -6060,11 +6059,11 @@ namespace Edge
 			WriteAppData(Path);
 			Safe.unlock();
 		}
-		void AppData::SetText(const std::string& Name, const std::string& Value)
+		void AppData::SetText(const Core::String& Name, const Core::String& Value)
 		{
 			SetKey(Name, Core::Var::Set::String(Value));
 		}
-		Core::Schema* AppData::GetKey(const std::string& Name)
+		Core::Schema* AppData::GetKey(const Core::String& Name)
 		{
 			Safe.lock();
 			if (!ReadAppData(Path))
@@ -6080,7 +6079,7 @@ namespace Edge
 			Safe.unlock();
 			return Result;
 		}
-		std::string AppData::GetText(const std::string& Name)
+		Core::String AppData::GetText(const Core::String& Name)
 		{
 			Safe.lock();
 			if (!ReadAppData(Path))
@@ -6093,7 +6092,7 @@ namespace Edge
 			Safe.unlock();
 			return Result.GetBlob();
 		}
-		bool AppData::Has(const std::string& Name)
+		bool AppData::Has(const Core::String& Name)
 		{
 			Safe.lock();
 			if (!ReadAppData(Path))
@@ -6106,7 +6105,7 @@ namespace Edge
 			Safe.unlock();
 			return Result;
 		}
-		bool AppData::ReadAppData(const std::string& Next)
+		bool AppData::ReadAppData(const Core::String& Next)
 		{
 			if (Data != nullptr)
 				return true;
@@ -6117,13 +6116,13 @@ namespace Edge
 			Data = Content->Load<Core::Schema>(Next);
 			return Data != nullptr;
 		}
-		bool AppData::WriteAppData(const std::string& Next)
+		bool AppData::WriteAppData(const Core::String& Next)
 		{
 			if (Next.empty() || !Data)
 				return false;
 
 			const char* TypeId = Core::OS::Path::GetExtension(Next.c_str());
-			std::string Type = "JSONB";
+			Core::String Type = "JSONB";
 
 			if (TypeId != nullptr)
 			{
@@ -6228,7 +6227,7 @@ namespace Edge
 				
 				if (!Control.Preferences.empty())
 				{
-					std::string Path = Core::OS::Path::Resolve(Control.Preferences, Content->GetEnvironment());
+					Core::String Path = Core::OS::Path::Resolve(Control.Preferences, Content->GetEnvironment());
 					if (!Database)
 						Database = new AppData(Content, Path);
 				}
@@ -6826,7 +6825,7 @@ namespace Edge
 			System->RestoreOutput();
 			return 1;
 		}
-		Graphics::Shader* EffectRenderer::GetEffect(const std::string& Name)
+		Graphics::Shader* EffectRenderer::GetEffect(const Core::String& Name)
 		{
 			auto It = Effects.find(Name);
 			if (It != Effects.end())
@@ -6852,7 +6851,7 @@ namespace Edge
 
 			return Shader;
 		}
-		Graphics::Shader* EffectRenderer::CompileEffect(const std::string& SectionName, size_t BufferSize)
+		Graphics::Shader* EffectRenderer::CompileEffect(const Core::String& SectionName, size_t BufferSize)
 		{
 			Graphics::Shader::Desc I = Graphics::Shader::Desc();
 			if (!System->GetDevice()->GetSection(SectionName, &I))

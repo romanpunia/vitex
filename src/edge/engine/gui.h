@@ -63,7 +63,7 @@ namespace Edge
 
 			class Context;
 
-			typedef std::function<std::string(const std::string&)> TranslationCallback;
+			typedef std::function<Core::String(const Core::String&)> TranslationCallback;
 			typedef std::function<void(void*)> DestroyCallback;
 			typedef std::function<void(IEvent&)> EventCallback;
 			typedef std::function<void(IEvent&, const Core::VariantList&)> DataCallback;
@@ -175,17 +175,17 @@ namespace Edge
 			public:
 				static void Convert(Rml::Variant* From, Core::Variant* To);
 				static void Revert(Core::Variant* From, Rml::Variant* To);
-				static Compute::Vector4 ToColor4(const std::string& Value);
-				static std::string FromColor4(const Compute::Vector4& Base, bool HEX);
-				static Compute::Vector4 ToColor3(const std::string& Value);
-				static std::string FromColor3(const Compute::Vector4& Base, bool HEX);
-				static int GetVectorType(const std::string& Value);
-				static Compute::Vector4 ToVector4(const std::string& Base);
-				static std::string FromVector4(const Compute::Vector4& Base);
-				static Compute::Vector3 ToVector3(const std::string& Base);
-				static std::string FromVector3(const Compute::Vector3& Base);
-				static Compute::Vector2 ToVector2(const std::string& Base);
-				static std::string FromVector2(const Compute::Vector2& Base);
+				static Compute::Vector4 ToColor4(const Core::String& Value);
+				static Core::String FromColor4(const Compute::Vector4& Base, bool HEX);
+				static Compute::Vector4 ToColor3(const Core::String& Value);
+				static Core::String FromColor3(const Compute::Vector4& Base, bool HEX);
+				static int GetVectorType(const Core::String& Value);
+				static Compute::Vector4 ToVector4(const Core::String& Base);
+				static Core::String FromVector4(const Compute::Vector4& Base);
+				static Compute::Vector3 ToVector3(const Core::String& Base);
+				static Core::String FromVector3(const Compute::Vector3& Base);
+				static Compute::Vector2 ToVector2(const Core::String& Base);
+				static Core::String FromVector2(const Compute::Vector2& Base);
 			};
 
 			class ED_OUT IEvent
@@ -207,20 +207,20 @@ namespace Edge
 				void SetCurrentElement(const IElement& Element);
 				IElement GetCurrentElement() const;
 				IElement GetTargetElement() const;
-				std::string GetType() const;
+				Core::String GetType() const;
 				void StopPropagation();
 				void StopImmediatePropagation();
 				bool IsInterruptible() const;
 				bool IsPropagating() const;
 				bool IsImmediatePropagating() const;
-				bool GetBoolean(const std::string& Key) const;
-				int64_t GetInteger(const std::string& Key) const;
-				double GetNumber(const std::string& Key) const;
-				std::string GetString(const std::string& Key) const;
-				Compute::Vector2 GetVector2(const std::string& Key) const;
-				Compute::Vector3 GetVector3(const std::string& Key) const;
-				Compute::Vector4 GetVector4(const std::string& Key) const;
-				void* GetPointer(const std::string& Key) const;
+				bool GetBoolean(const Core::String& Key) const;
+				int64_t GetInteger(const Core::String& Key) const;
+				double GetNumber(const Core::String& Key) const;
+				Core::String GetString(const Core::String& Key) const;
+				Compute::Vector2 GetVector2(const Core::String& Key) const;
+				Compute::Vector3 GetVector3(const Core::String& Key) const;
+				Compute::Vector4 GetVector4(const Core::String& Key) const;
+				void* GetPointer(const Core::String& Key) const;
 				Rml::Event* GetEvent() const;
 				bool IsValid() const;
 			};
@@ -236,11 +236,11 @@ namespace Edge
 				virtual ~IElement() = default;
 				virtual void Release();
 				IElement Clone() const;
-				void SetClass(const std::string& ClassName, bool Activate);
-				bool IsClassSet(const std::string& ClassName) const;
-				void SetClassNames(const std::string& ClassNames);
-				std::string GetClassNames() const;
-				std::string GetAddress(bool IncludePseudoClasses = false, bool IncludeParents = true) const;
+				void SetClass(const Core::String& ClassName, bool Activate);
+				bool IsClassSet(const Core::String& ClassName) const;
+				void SetClassNames(const Core::String& ClassNames);
+				Core::String GetClassNames() const;
+				Core::String GetAddress(bool IncludePseudoClasses = false, bool IncludeParents = true) const;
 				void SetOffset(const Compute::Vector2& Offset, const IElement& OffsetParent, bool OffsetFixed = false);
 				Compute::Vector2 GetRelativeOffset(Area Type = Area::Content);
 				Compute::Vector2 GetAbsoluteOffset(Area Type = Area::Content);
@@ -252,29 +252,29 @@ namespace Edge
 				bool IsPointWithinElement(const Compute::Vector2& Point);
 				bool IsVisible() const;
 				float GetZIndex() const;
-				bool SetProperty(const std::string& Name, const std::string& Value);
-				void RemoveProperty(const std::string& Name);
-				std::string GetProperty(const std::string& Name);
-				std::string GetLocalProperty(const std::string& Name);
-				float ResolveNumericProperty(const std::string& PropertyName);
+				bool SetProperty(const Core::String& Name, const Core::String& Value);
+				void RemoveProperty(const Core::String& Name);
+				Core::String GetProperty(const Core::String& Name);
+				Core::String GetLocalProperty(const Core::String& Name);
+				float ResolveNumericProperty(const Core::String& PropertyName);
 				Compute::Vector2 GetContainingBlock();
 				Position GetPosition();
 				Float GetFloat();
 				Display GetDisplay();
 				float GetLineHeight();
 				bool Project(Compute::Vector2& Point) const noexcept;
-				bool Animate(const std::string& PropertyName, const std::string& TargetValue, float Duration, TimingFunc Func, TimingDir Dir, int NumIterations = 1, bool AlternateDirection = true, float Delay = 0.0f);
-				bool AddAnimationKey(const std::string& PropertyName, const std::string& TargetValue, float Duration, TimingFunc Func, TimingDir Dir);
-				void SetPseudoClass(const std::string& PseudoClass, bool Activate);
-				bool IsPseudoClassSet(const std::string& PseudoClass) const;
-				void SetAttribute(const std::string& Name, const std::string& Value);
-				std::string GetAttribute(const std::string& Name);
-				bool HasAttribute(const std::string& Name) const;
-				void RemoveAttribute(const std::string& Name);
+				bool Animate(const Core::String& PropertyName, const Core::String& TargetValue, float Duration, TimingFunc Func, TimingDir Dir, int NumIterations = 1, bool AlternateDirection = true, float Delay = 0.0f);
+				bool AddAnimationKey(const Core::String& PropertyName, const Core::String& TargetValue, float Duration, TimingFunc Func, TimingDir Dir);
+				void SetPseudoClass(const Core::String& PseudoClass, bool Activate);
+				bool IsPseudoClassSet(const Core::String& PseudoClass) const;
+				void SetAttribute(const Core::String& Name, const Core::String& Value);
+				Core::String GetAttribute(const Core::String& Name);
+				bool HasAttribute(const Core::String& Name) const;
+				void RemoveAttribute(const Core::String& Name);
 				IElement GetFocusLeafNode();
-				std::string GetTagName() const;
-				std::string GetId() const;
-				void SetId(const std::string& Id);
+				Core::String GetTagName() const;
+				Core::String GetId() const;
+				void SetId(const Core::String& Id);
 				float GetAbsoluteLeft();
 				float GetAbsoluteTop();
 				float GetClientLeft();
@@ -300,9 +300,9 @@ namespace Edge
 				IElement GetLastChild() const;
 				IElement GetChild(int Index) const;
 				int GetNumChildren(bool IncludeNonDOMElements = false) const;
-				void GetInnerHTML(std::string& Content) const;
-				std::string GetInnerHTML() const;
-				void SetInnerHTML(const std::string& HTML);
+				void GetInnerHTML(Core::String& Content) const;
+				Core::String GetInnerHTML() const;
+				void SetInnerHTML(const Core::String& HTML);
 				bool IsFocused();
 				bool IsHovered();
 				bool IsActive();
@@ -310,20 +310,20 @@ namespace Edge
 				bool Focus();
 				void Blur();
 				void Click();
-				void AddEventListener(const std::string& Event, Listener* Source, bool InCapturePhase = false);
-				void RemoveEventListener(const std::string& Event, Listener* Source, bool InCapturePhase = false);
-				bool DispatchEvent(const std::string& Type, const Core::VariantArgs& Args);
+				void AddEventListener(const Core::String& Event, Listener* Source, bool InCapturePhase = false);
+				void RemoveEventListener(const Core::String& Event, Listener* Source, bool InCapturePhase = false);
+				bool DispatchEvent(const Core::String& Type, const Core::VariantArgs& Args);
 				void ScrollIntoView(bool AlignWithTop = true);
 				IElement AppendChild(const IElement& Element, bool DOMElement = true);
 				IElement InsertBefore(const IElement& Element, const IElement& AdjacentElement);
 				IElement ReplaceChild(const IElement& InsertedElement, const IElement& ReplacedElement);
 				IElement RemoveChild(const IElement& Element);
 				bool HasChildNodes() const;
-				IElement GetElementById(const std::string& Id);
-				IElement QuerySelector(const std::string& Selector);
-				std::vector<IElement> QuerySelectorAll(const std::string& Selectors);
+				IElement GetElementById(const Core::String& Id);
+				IElement QuerySelector(const Core::String& Selector);
+				Core::Vector<IElement> QuerySelectorAll(const Core::String& Selectors);
 				bool CastFormColor(Compute::Vector4* Ptr, bool Alpha);
-				bool CastFormString(std::string* Ptr);
+				bool CastFormString(Core::String* Ptr);
 				bool CastFormPointer(void** Ptr);
 				bool CastFormInt32(int32_t* Ptr);
 				bool CastFormUInt32(uint32_t* Ptr);
@@ -336,18 +336,18 @@ namespace Edge
 				bool CastFormFloat(float* Ptr, float Mult);
 				bool CastFormDouble(double* Ptr);
 				bool CastFormBoolean(bool* Ptr);
-				std::string GetFormName() const;
-				void SetFormName(const std::string& Name);
-				std::string GetFormValue() const;
-				void SetFormValue(const std::string& Value);
+				Core::String GetFormName() const;
+				void SetFormName(const Core::String& Name);
+				Core::String GetFormValue() const;
+				void SetFormValue(const Core::String& Value);
 				bool IsFormDisabled() const;
 				void SetFormDisabled(bool Disable);
 				Rml::Element* GetElement() const;
 				bool IsValid() const;
 
 			public:
-				static std::string FromPointer(void* Ptr);
-				static void* ToPointer(const std::string& Value);
+				static Core::String FromPointer(void* Ptr);
+				static void* ToPointer(const Core::String& Value);
 			};
 
 			class ED_OUT IElementDocument : public IElement
@@ -356,15 +356,15 @@ namespace Edge
 				IElementDocument();
 				IElementDocument(Rml::ElementDocument* Ref);
 				void Release() override;
-				void SetTitle(const std::string& Title);
+				void SetTitle(const Core::String& Title);
 				void PullToFront();
 				void PushToBack();
 				void Show(ModalFlag Modal = ModalFlag::None, FocusFlag Focus = FocusFlag::Auto);
 				void Hide();
 				void Close();
-				std::string GetTitle() const;
-				std::string GetSourceURL() const;
-				IElement CreateElement(const std::string& Name);
+				Core::String GetTitle() const;
+				Core::String GetSourceURL() const;
+				IElement CreateElement(const Core::String& Name);
 				bool IsModal() const;
 				Rml::ElementDocument* GetElementDocument() const;
 			};
@@ -392,7 +392,7 @@ namespace Edge
 				static bool Create();
 				static bool Release();
 				static void SetMetadata(Graphics::Activity* Activity, RenderConstants* Constants, ContentManager* Content, Core::Timer* Time);
-				static void SetTranslator(const std::string& Name, const TranslationCallback& Callback);
+				static void SetTranslator(const Core::String& Name, const TranslationCallback& Callback);
 				static void SetVirtualMachine(Scripting::VirtualMachine* VM);
 				static RenderSubsystem* GetRenderInterface();
 				static FileSubsystem* GetFileInterface();
@@ -402,7 +402,7 @@ namespace Edge
 				static Compute::Matrix4x4* GetTransform();
 				static Compute::Matrix4x4* GetProjection();
 				static Compute::Matrix4x4 ToMatrix(const void* Matrix);
-				static std::string EscapeHTML(const std::string& Text);
+				static Core::String EscapeHTML(const Core::String& Text);
 
 			private:
 				static void ResizeDecorators(int Width, int Height);
@@ -417,8 +417,8 @@ namespace Edge
 				friend Context;
 
 			private:
-				std::unordered_map<std::string, DataNode*> Props;
-				std::vector<std::function<void()>> Callbacks;
+				Core::UnorderedMap<Core::String, DataNode*> Props;
+				Core::Vector<std::function<void()>> Callbacks;
 				Rml::DataModelConstructor* Base;
 				ModelCallback OnUnmount;
 
@@ -427,27 +427,27 @@ namespace Edge
 
 			public:
 				~DataModel() noexcept;
-				DataNode* SetProperty(const std::string& Name, const Core::Variant& Value);
-				DataNode* SetProperty(const std::string& Name, Core::Variant* Reference);
-				DataNode* SetArray(const std::string& Name);
-				DataNode* SetString(const std::string& Name, const std::string& Value);
-				DataNode* SetInteger(const std::string& Name, int64_t Value);
-				DataNode* SetFloat(const std::string& Name, float Value);
-				DataNode* SetDouble(const std::string& Name, double Value);
-				DataNode* SetBoolean(const std::string& Name, bool Value);
-				DataNode* SetPointer(const std::string& Name, void* Value);
-				DataNode* GetProperty(const std::string& Name);
-				std::string GetString(const std::string& Name);
-				int64_t GetInteger(const std::string& Name);
-				float GetFloat(const std::string& Name);
-				double GetDouble(const std::string& Name);
-				bool GetBoolean(const std::string& Name);
-				void* GetPointer(const std::string& Name);
-				bool SetCallback(const std::string& Name, const DataCallback& Callback);
+				DataNode* SetProperty(const Core::String& Name, const Core::Variant& Value);
+				DataNode* SetProperty(const Core::String& Name, Core::Variant* Reference);
+				DataNode* SetArray(const Core::String& Name);
+				DataNode* SetString(const Core::String& Name, const Core::String& Value);
+				DataNode* SetInteger(const Core::String& Name, int64_t Value);
+				DataNode* SetFloat(const Core::String& Name, float Value);
+				DataNode* SetDouble(const Core::String& Name, double Value);
+				DataNode* SetBoolean(const Core::String& Name, bool Value);
+				DataNode* SetPointer(const Core::String& Name, void* Value);
+				DataNode* GetProperty(const Core::String& Name);
+				Core::String GetString(const Core::String& Name);
+				int64_t GetInteger(const Core::String& Name);
+				float GetFloat(const Core::String& Name);
+				double GetDouble(const Core::String& Name);
+				bool GetBoolean(const Core::String& Name);
+				void* GetPointer(const Core::String& Name);
+				bool SetCallback(const Core::String& Name, const DataCallback& Callback);
 				bool SetUnmountCallback(const ModelCallback& Callback);
-				bool HasChanged(const std::string& VariableName) const;
+				bool HasChanged(const Core::String& VariableName) const;
 				void SetDetachCallback(std::function<void()>&& Callback);
-				void Change(const std::string& VariableName);
+				void Change(const Core::String& VariableName);
 				void Detach();
 				bool IsValid() const;
 				Rml::DataModelConstructor* Get();
@@ -459,8 +459,8 @@ namespace Edge
 				friend DataModel;
 
 			private:
-				std::vector<DataNode> Childs;
-				std::string Name;
+				Core::Vector<DataNode> Childs;
+				Core::String Name;
 				Core::Variant* Ref;
 				DataModel* Handle;
 				void* Order;
@@ -468,8 +468,8 @@ namespace Edge
 				bool Safe;
 
 			private:
-				DataNode(DataModel* Model, const std::string& TopName, const Core::Variant& Initial) noexcept;
-				DataNode(DataModel* Model, const std::string& TopName, Core::Variant* Reference) noexcept;
+				DataNode(DataModel* Model, const Core::String& TopName, const Core::Variant& Initial) noexcept;
+				DataNode(DataModel* Model, const Core::String& TopName, Core::Variant* Reference) noexcept;
 
 			public:
 				DataNode(DataNode&& Other) noexcept;
@@ -489,7 +489,7 @@ namespace Edge
 				void Set(const Core::Variant& NewValue);
 				void Set(Core::Variant* NewReference);
 				void SetTop(void* SeqId, size_t Depth);
-				void SetString(const std::string& Value);
+				void SetString(const Core::String& Value);
 				void SetVector2(const Compute::Vector2& Value);
 				void SetVector3(const Compute::Vector3& Value);
 				void SetVector4(const Compute::Vector4& Value);
@@ -502,7 +502,7 @@ namespace Edge
 				void* GetSeqId() const;
 				size_t GetDepth() const;
 				const Core::Variant& Get();
-				std::string GetString();
+				Core::String GetString();
 				Compute::Vector2 GetVector2();
 				Compute::Vector3 GetVector3();
 				Compute::Vector4 GetVector4();
@@ -517,7 +517,7 @@ namespace Edge
 			private:
 				void GetValue(Rml::Variant& Result);
 				void SetValue(const Rml::Variant& Result);
-				void SetValueStr(const std::string& Value);
+				void SetValueStr(const Core::String& Value);
 				void SetValueNum(double Value);
 				void SetValueInt(int64_t Value);
 				int64_t GetValueSize();
@@ -533,7 +533,7 @@ namespace Edge
 
 			public:
 				Listener(const EventCallback& NewCallback);
-				Listener(const std::string& FunctionName);
+				Listener(const Core::String& FunctionName);
 				~Listener() noexcept;
 			};
 
@@ -552,8 +552,8 @@ namespace Edge
 				} Inputs;
 
 			private:
-				std::unordered_map<int, std::unordered_map<std::string, Rml::Element*>> Elements;
-				std::unordered_map<std::string, DataModel*> Models;
+				Core::UnorderedMap<int, Core::UnorderedMap<Core::String, Rml::Element*>> Elements;
+				Core::UnorderedMap<Core::String, DataModel*> Models;
 				Scripting::Compiler* Compiler;
 				Compute::Vector2 Cursor;
 				ModelCallback OnMount;
@@ -573,24 +573,24 @@ namespace Edge
 				void EnableMouseCursor(bool Enable);
 				void ClearStyles();
 				bool ClearDocuments();
-				bool Initialize(const std::string& ConfPath);
-				bool LoadFontFace(const std::string& Path, bool UseAsFallback = false);
+				bool Initialize(const Core::String& ConfPath);
+				bool LoadFontFace(const Core::String& Path, bool UseAsFallback = false);
 				bool IsLoading();
 				bool IsInputFocused();
 				bool WasInputUsed(uint32_t InputTypeMask);
 				int GetNumDocuments() const;
 				void SetDensityIndependentPixelRatio(float DensityIndependentPixelRatio);
 				float GetDensityIndependentPixelRatio() const;
-				bool ReplaceHTML(const std::string& Selector, const std::string& HTML, int Index = 0);
-				IElementDocument EvalHTML(const std::string& HTML, int Index = 0);
-				IElementDocument AddCSS(const std::string& CSS, int Index = 0);
-				IElementDocument LoadCSS(const std::string& Path, int Index = 0);
-				IElementDocument LoadDocument(const std::string& Path);
-				IElementDocument AddDocument(const std::string& HTML);
-				IElementDocument AddDocumentEmpty(const std::string& InstancerName = "body");
-				IElementDocument GetDocument(const std::string& Id);
+				bool ReplaceHTML(const Core::String& Selector, const Core::String& HTML, int Index = 0);
+				IElementDocument EvalHTML(const Core::String& HTML, int Index = 0);
+				IElementDocument AddCSS(const Core::String& CSS, int Index = 0);
+				IElementDocument LoadCSS(const Core::String& Path, int Index = 0);
+				IElementDocument LoadDocument(const Core::String& Path);
+				IElementDocument AddDocument(const Core::String& HTML);
+				IElementDocument AddDocumentEmpty(const Core::String& InstancerName = "body");
+				IElementDocument GetDocument(const Core::String& Id);
 				IElementDocument GetDocument(int Index);
-				IElement GetElementById(const std::string& Id, int Index = 0);
+				IElement GetElementById(const Core::String& Id, int Index = 0);
 				IElement GetHoverElement();
 				IElement GetFocusElement();
 				IElement GetRootElement();
@@ -598,26 +598,26 @@ namespace Edge
 				void PullDocumentToFront(const IElementDocument& Schema);
 				void PushDocumentToBack(const IElementDocument& Schema);
 				void UnfocusDocument(const IElementDocument& Schema);
-				void AddEventListener(const std::string& Event, Listener* Listener, bool InCapturePhase = false);
-				void RemoveEventListener(const std::string& Event, Listener* Listener, bool InCapturePhase = false);
+				void AddEventListener(const Core::String& Event, Listener* Listener, bool InCapturePhase = false);
+				void RemoveEventListener(const Core::String& Event, Listener* Listener, bool InCapturePhase = false);
 				bool IsMouseInteracting() const;
 				bool GetActiveClipRegion(Compute::Vector2& Origin, Compute::Vector2& Dimensions) const;
 				void SetActiveClipRegion(const Compute::Vector2& Origin, const Compute::Vector2& Dimensions);
-				bool RemoveDataModel(const std::string& Name);
+				bool RemoveDataModel(const Core::String& Name);
 				bool RemoveDataModels();
-				void SetDocumentsBaseTag(const std::string& Tag);
+				void SetDocumentsBaseTag(const Core::String& Tag);
 				void SetMountCallback(const ModelCallback& Callback);
-				std::string GetDocumentsBaseTag();
-				std::unordered_map<std::string, bool>* GetFontFaces();
+				Core::String GetDocumentsBaseTag();
+				Core::UnorderedMap<Core::String, bool>* GetFontFaces();
 				Compute::Vector2 GetDimensions() const;
-				DataModel* SetDataModel(const std::string& Name);
-				DataModel* GetDataModel(const std::string& Name);
+				DataModel* SetDataModel(const Core::String& Name);
+				DataModel* GetDataModel(const Core::String& Name);
 				Rml::Context* GetContext();
 
 			private:
-				bool Initialize(Core::Schema* Conf, const std::string& Relative);
-				bool Preprocess(const std::string& Path, std::string& Buffer);
-				void Decompose(std::string& Buffer);
+				bool Initialize(Core::Schema* Conf, const Core::String& Relative);
+				bool Preprocess(const Core::String& Path, Core::String& Buffer);
+				void Decompose(Core::String& Buffer);
 				void CreateVM();
 				void ClearVM();
 

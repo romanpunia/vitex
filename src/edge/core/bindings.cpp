@@ -9,7 +9,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <sstream>
 #include <angelscript.h>
 #ifndef __psp2__
 #include <locale.h>
@@ -70,7 +69,7 @@ namespace
 		static StringFactory* Base;
 
 	public:
-		std::unordered_map<std::string, int> Cache;
+		Edge::Core::UnorderedMap<Edge::Core::String, int> Cache;
 
 	public:
 		StringFactory()
@@ -85,7 +84,7 @@ namespace
 			ED_ASSERT(Buffer != nullptr, nullptr, "buffer must not be null");
 
 			asAcquireExclusiveLock();
-			std::string Source(Buffer, Length);
+			Edge::Core::String Source(Buffer, Length);
 			auto It = Cache.find(Source);
 
 			if (It == Cache.end())
@@ -101,7 +100,7 @@ namespace
 			ED_ASSERT(Source != nullptr, asERROR, "source must not be null");
 
 			asAcquireExclusiveLock();
-			auto It = Cache.find(*reinterpret_cast<const std::string*>(Source));
+			auto It = Cache.find(*reinterpret_cast<const Edge::Core::String*>(Source));
 			if (It == Cache.end())
 			{
 				asReleaseExclusiveLock();
@@ -119,10 +118,10 @@ namespace
 		{
 			ED_ASSERT(Source != nullptr, asERROR, "source must not be null");
 			if (Length != nullptr)
-				*Length = (asUINT)reinterpret_cast<const std::string*>(Source)->length();
+				*Length = (asUINT)reinterpret_cast<const Edge::Core::String*>(Source)->length();
 
 			if (Buffer != nullptr)
-				memcpy(Buffer, reinterpret_cast<const std::string*>(Source)->c_str(), reinterpret_cast<const std::string*>(Source)->length());
+				memcpy(Buffer, reinterpret_cast<const Edge::Core::String*>(Source)->c_str(), reinterpret_cast<const Edge::Core::String*>(Source)->length());
 
 			return asSUCCESS;
 		}
@@ -190,201 +189,137 @@ namespace Edge
 				return *reinterpret_cast<void**>(From);
 			}
 
-			Core::Mapping<std::unordered_map<uint64_t, std::pair<std::string, int>>>* Names = nullptr;
-			uint64_t TypeCache::Set(uint64_t Id, const std::string& Name)
-			{
-				ED_ASSERT(Id > 0 && !Name.empty(), 0, "id should be greater than zero and name should not be empty");
-
-				using Map = Core::Mapping<std::unordered_map<uint64_t, std::pair<std::string, int>>>;
-				if (!Names)
-					Names = ED_NEW(Map);
-
-				Names->Map[Id] = std::make_pair(Name, (int)-1);
-				return Id;
-			}
-			int TypeCache::GetTypeId(uint64_t Id)
-			{
-				auto It = Names->Map.find(Id);
-				if (It == Names->Map.end())
-					return -1;
-
-				if (It->second.second < 0)
-				{
-					VirtualMachine* Engine = VirtualMachine::Get();
-					ED_ASSERT(Engine != nullptr, -1, "engine should be set");
-					It->second.second = Engine->GetTypeIdByDecl(It->second.first.c_str());
-				}
-
-				return It->second.second;
-			}
-
-			void String::Construct(std::string* Current)
+			void String::Construct(Core::String* Current)
 			{
 				ED_ASSERT_V(Current != nullptr, "Current should be set");
-				new(Current) std::string();
+				new(Current) Core::String();
 			}
-			void String::CopyConstruct(const std::string& Other, std::string* Current)
+			void String::CopyConstruct(const Core::String& Other, Core::String* Current)
 			{
 				ED_ASSERT_V(Current != nullptr, "Current should be set");
-				new(Current) std::string(Other);
+				new(Current) Core::String(Other);
 			}
-			void String::Destruct(std::string* Current)
+			void String::Destruct(Core::String* Current)
 			{
 				ED_ASSERT_V(Current != nullptr, "Current should be set");
 				Current->~basic_string();
 			}
-			std::string& String::AddAssignTo(const std::string& Current, std::string& Dest)
+			Core::String& String::AddAssignTo(const Core::String& Current, Core::String& Dest)
 			{
 				Dest += Current;
 				return Dest;
 			}
-			bool String::IsEmpty(const std::string& Current)
+			bool String::IsEmpty(const Core::String& Current)
 			{
 				return Current.empty();
 			}
-			void* String::ToPtr(const std::string& Value)
+			void* String::ToPtr(const Core::String& Value)
 			{
 				return (void*)Value.c_str();
 			}
-			std::string String::Reverse(const std::string& Value)
+			Core::String String::Reverse(const Core::String& Value)
 			{
 				Core::Stringify Result(Value);
 				Result.Reverse();
 				return Result.R();
 			}
-			std::string& String::AssignUInt64To(as_uint64_t Value, std::string& Dest)
+			Core::String& String::AssignUInt64To(as_uint64_t Value, Core::String& Dest)
 			{
-				std::ostringstream Stream;
-				Stream << Value;
-				Dest = Stream.str();
+				Dest = Core::ToString(Value);
 				return Dest;
 			}
-			std::string& String::AddAssignUInt64To(as_uint64_t Value, std::string& Dest)
+			Core::String& String::AddAssignUInt64To(as_uint64_t Value, Core::String& Dest)
 			{
-				std::ostringstream Stream;
-				Stream << Value;
-				Dest += Stream.str();
+				Dest += Core::ToString(Value);
 				return Dest;
 			}
-			std::string String::AddUInt641(const std::string& Current, as_uint64_t Value)
+			Core::String String::AddUInt641(const Core::String& Current, as_uint64_t Value)
 			{
 				std::ostringstream Stream;
 				Stream << Value;
 				Stream << Current;
-				return Stream.str();
+				return Core::Copy<Core::String>(Stream.str());
 			}
-			std::string String::AddInt641(as_int64_t Value, const std::string& Current)
+			Core::String String::AddInt641(as_int64_t Value, const Core::String& Current)
 			{
 				std::ostringstream Stream;
 				Stream << Current;
 				Stream << Value;
-				return Stream.str();
+				return Core::Copy<Core::String>(Stream.str());
 			}
-			std::string& String::AssignInt64To(as_int64_t Value, std::string& Dest)
+			Core::String& String::AssignInt64To(as_int64_t Value, Core::String& Dest)
 			{
-				std::ostringstream Stream;
-				Stream << Value;
-				Dest = Stream.str();
+				Dest = Core::ToString(Value);
 				return Dest;
 			}
-			std::string& String::AddAssignInt64To(as_int64_t Value, std::string& Dest)
+			Core::String& String::AddAssignInt64To(as_int64_t Value, Core::String& Dest)
 			{
-				std::ostringstream Stream;
-				Stream << Value;
-				Dest += Stream.str();
+				Dest += Core::ToString(Value);
 				return Dest;
 			}
-			std::string String::AddInt642(const std::string& Current, as_int64_t Value)
+			Core::String String::AddInt642(const Core::String& Current, as_int64_t Value)
 			{
-				std::ostringstream Stream;
-				Stream << Value;
-				return Current + Stream.str();
+				return Current + Core::ToString(Value);
 			}
-			std::string String::AddUInt642(as_uint64_t Value, const std::string& Current)
+			Core::String String::AddUInt642(as_uint64_t Value, const Core::String& Current)
 			{
-				std::ostringstream Stream;
-				Stream << Value;
-				return Stream.str() + Current;
+				return Core::ToString(Value) + Current;
 			}
-			std::string& String::AssignDoubleTo(double Value, std::string& Dest)
+			Core::String& String::AssignDoubleTo(double Value, Core::String& Dest)
 			{
-				std::ostringstream Stream;
-				Stream << Value;
-				Dest = Stream.str();
+				Dest = Core::ToString(Value);
 				return Dest;
 			}
-			std::string& String::AddAssignDoubleTo(double Value, std::string& Dest)
+			Core::String& String::AddAssignDoubleTo(double Value, Core::String& Dest)
 			{
-				std::ostringstream Stream;
-				Stream << Value;
-				Dest += Stream.str();
+				Dest += Core::ToString(Value);
 				return Dest;
 			}
-			std::string& String::AssignFloatTo(float Value, std::string& Dest)
+			Core::String& String::AssignFloatTo(float Value, Core::String& Dest)
 			{
-				std::ostringstream Stream;
-				Stream << Value;
-				Dest = Stream.str();
+				Dest = Core::ToString(Value);
 				return Dest;
 			}
-			std::string& String::AddAssignFloatTo(float Value, std::string& Dest)
+			Core::String& String::AddAssignFloatTo(float Value, Core::String& Dest)
 			{
-				std::ostringstream Stream;
-				Stream << Value;
-				Dest += Stream.str();
+				Dest += Core::ToString(Value);
 				return Dest;
 			}
-			std::string& String::AssignBoolTo(bool Value, std::string& Dest)
+			Core::String& String::AssignBoolTo(bool Value, Core::String& Dest)
 			{
-				std::ostringstream Stream;
-				Stream << (Value ? "true" : "false");
-				Dest = Stream.str();
+				Dest = (Value ? "true" : "false");
 				return Dest;
 			}
-			std::string& String::AddAssignBoolTo(bool Value, std::string& Dest)
+			Core::String& String::AddAssignBoolTo(bool Value, Core::String& Dest)
 			{
-				std::ostringstream Stream;
-				Stream << (Value ? "true" : "false");
-				Dest += Stream.str();
+				Dest += (Value ? "true" : "false");
 				return Dest;
 			}
-			std::string String::AddDouble1(const std::string& Current, double Value)
+			Core::String String::AddDouble1(const Core::String& Current, double Value)
 			{
-				std::ostringstream Stream;
-				Stream << Value;
-				return Current + Stream.str();
+				return Current + Core::ToString(Value);
 			}
-			std::string String::AddDouble2(double Value, const std::string& Current)
+			Core::String String::AddDouble2(double Value, const Core::String& Current)
 			{
-				std::ostringstream Stream;
-				Stream << Value;
-				return Stream.str() + Current;
+				return Core::ToString(Value) + Current;
 			}
-			std::string String::AddFloat1(const std::string& Current, float Value)
+			Core::String String::AddFloat1(const Core::String& Current, float Value)
 			{
-				std::ostringstream Stream;
-				Stream << Value;
-				return Current + Stream.str();
+				return Current + Core::ToString(Value);
 			}
-			std::string String::AddFloat2(float Value, const std::string& Current)
+			Core::String String::AddFloat2(float Value, const Core::String& Current)
 			{
-				std::ostringstream Stream;
-				Stream << Value;
-				return Stream.str() + Current;
+				return Core::ToString(Value) + Current;
 			}
-			std::string String::AddBool1(const std::string& Current, bool Value)
+			Core::String String::AddBool1(const Core::String& Current, bool Value)
 			{
-				std::ostringstream Stream;
-				Stream << (Value ? "true" : "false");
-				return Current + Stream.str();
+				return Current + (Value ? "true" : "false");
 			}
-			std::string String::AddBool2(bool Value, const std::string& Current)
+			Core::String String::AddBool2(bool Value, const Core::String& Current)
 			{
-				std::ostringstream Stream;
-				Stream << (Value ? "true" : "false");
-				return Stream.str() + Current;
+				return (Value ? "true" : "false") + Current;
 			}
-			char* String::CharAt(size_t Value, std::string& Current)
+			char* String::CharAt(size_t Value, Core::String& Current)
 			{
 				if (Value >= Current.size())
 				{
@@ -397,7 +332,7 @@ namespace Edge
 
 				return &Current[Value];
 			}
-			int String::Cmp(const std::string& A, const std::string& B)
+			int String::Cmp(const Core::String& A, const Core::String& B)
 			{
 				int Result = 0;
 				if (A < B)
@@ -407,51 +342,51 @@ namespace Edge
 
 				return Result;
 			}
-			int String::FindFirst(const std::string& Needle, size_t Start, const std::string& Current)
+			int String::FindFirst(const Core::String& Needle, size_t Start, const Core::String& Current)
 			{
 				return (int)Current.find(Needle, (size_t)Start);
 			}
-			int String::FindFirstOf(const std::string& Needle, size_t Start, const std::string& Current)
+			int String::FindFirstOf(const Core::String& Needle, size_t Start, const Core::String& Current)
 			{
 				return (int)Current.find_first_of(Needle, (size_t)Start);
 			}
-			int String::FindLastOf(const std::string& Needle, size_t Start, const std::string& Current)
+			int String::FindLastOf(const Core::String& Needle, size_t Start, const Core::String& Current)
 			{
 				return (int)Current.find_last_of(Needle, (size_t)Start);
 			}
-			int String::FindFirstNotOf(const std::string& Needle, size_t Start, const std::string& Current)
+			int String::FindFirstNotOf(const Core::String& Needle, size_t Start, const Core::String& Current)
 			{
 				return (int)Current.find_first_not_of(Needle, (size_t)Start);
 			}
-			int String::FindLastNotOf(const std::string& Needle, size_t Start, const std::string& Current)
+			int String::FindLastNotOf(const Core::String& Needle, size_t Start, const Core::String& Current)
 			{
 				return (int)Current.find_last_not_of(Needle, (size_t)Start);
 			}
-			int String::FindLast(const std::string& Needle, int Start, const std::string& Current)
+			int String::FindLast(const Core::String& Needle, int Start, const Core::String& Current)
 			{
 				return (int)Current.rfind(Needle, (size_t)Start);
 			}
-			void String::Insert(size_t Offset, const std::string& Other, std::string& Current)
+			void String::Insert(size_t Offset, const Core::String& Other, Core::String& Current)
 			{
 				Current.insert(Offset, Other);
 			}
-			void String::Erase(size_t Offset, int Count, std::string& Current)
+			void String::Erase(size_t Offset, int Count, Core::String& Current)
 			{
-				Current.erase(Offset, (size_t)(Count < 0 ? std::string::npos : Count));
+				Current.erase(Offset, (size_t)(Count < 0 ? Core::String::npos : Count));
 			}
-			size_t String::Length(const std::string& Current)
+			size_t String::Length(const Core::String& Current)
 			{
 				return (size_t)Current.length();
 			}
-			void String::Resize(size_t Size, std::string& Current)
+			void String::Resize(size_t Size, Core::String& Current)
 			{
 				Current.resize(Size);
 			}
-			std::string String::Replace(const std::string& A, const std::string& B, uint64_t Offset, const std::string& Base)
+			Core::String String::Replace(const Core::String& A, const Core::String& B, uint64_t Offset, const Core::String& Base)
 			{
 				return Edge::Core::Stringify(Base).Replace(A, B, (size_t)Offset).R();
 			}
-			as_int64_t String::IntStore(const std::string& Value, size_t Base, size_t* ByteCount)
+			as_int64_t String::IntStore(const Core::String& Value, size_t Base, size_t* ByteCount)
 			{
 				if (Base != 10 && Base != 16)
 				{
@@ -502,7 +437,7 @@ namespace Edge
 
 				return Result;
 			}
-			as_uint64_t String::UIntStore(const std::string& Value, size_t Base, size_t* ByteCount)
+			as_uint64_t String::UIntStore(const Core::String& Value, size_t Base, size_t* ByteCount)
 			{
 				if (Base != 10 && Base != 16)
 				{
@@ -541,12 +476,12 @@ namespace Edge
 
 				return Result;
 			}
-			double String::FloatStore(const std::string& Value, size_t* ByteCount)
+			double String::FloatStore(const Core::String& Value, size_t* ByteCount)
 			{
 				char* End;
 #if !defined(_WIN32_WCE) && !defined(ANDROID) && !defined(__psp2__)
 				char* Temp = setlocale(LC_NUMERIC, 0);
-				std::string Base = Temp ? Temp : "C";
+				Core::String Base = Temp ? Temp : "C";
 				setlocale(LC_NUMERIC, "C");
 #endif
 
@@ -559,76 +494,76 @@ namespace Edge
 
 				return res;
 			}
-			std::string String::Sub(size_t Start, int Count, const std::string& Current)
+			Core::String String::Sub(size_t Start, int Count, const Core::String& Current)
 			{
-				std::string Result;
+				Core::String Result;
 				if (Start < Current.length() && Count != 0)
-					Result = Current.substr(Start, (size_t)(Count < 0 ? std::string::npos : Count));
+					Result = Current.substr(Start, (size_t)(Count < 0 ? Core::String::npos : Count));
 
 				return Result;
 			}
-			bool String::Equals(const std::string& Left, const std::string& Right)
+			bool String::Equals(const Core::String& Left, const Core::String& Right)
 			{
 				return Left == Right;
 			}
-			std::string String::ToLower(const std::string& Symbol)
+			Core::String String::ToLower(const Core::String& Symbol)
 			{
 				return Edge::Core::Stringify(Symbol).ToLower().R();
 			}
-			std::string String::ToUpper(const std::string& Symbol)
+			Core::String String::ToUpper(const Core::String& Symbol)
 			{
 				return Edge::Core::Stringify(Symbol).ToUpper().R();
 			}
-			std::string String::ToInt8(char Value)
+			Core::String String::ToInt8(char Value)
 			{
-				return std::to_string(Value);
+				return Core::ToString(Value);
 			}
-			std::string String::ToInt16(short Value)
+			Core::String String::ToInt16(short Value)
 			{
-				return std::to_string(Value);
+				return Core::ToString(Value);
 			}
-			std::string String::ToInt(int Value)
+			Core::String String::ToInt(int Value)
 			{
-				return std::to_string(Value);
+				return Core::ToString(Value);
 			}
-			std::string String::ToInt64(int64_t Value)
+			Core::String String::ToInt64(int64_t Value)
 			{
-				return std::to_string(Value);
+				return Core::ToString(Value);
 			}
-			std::string String::ToUInt8(unsigned char Value)
+			Core::String String::ToUInt8(unsigned char Value)
 			{
-				return std::to_string(Value);
+				return Core::ToString(Value);
 			}
-			std::string String::ToUInt16(unsigned short Value)
+			Core::String String::ToUInt16(unsigned short Value)
 			{
-				return std::to_string(Value);
+				return Core::ToString(Value);
 			}
-			std::string String::ToUInt(unsigned int Value)
+			Core::String String::ToUInt(unsigned int Value)
 			{
-				return std::to_string(Value);
+				return Core::ToString(Value);
 			}
-			std::string String::ToUInt64(uint64_t Value)
+			Core::String String::ToUInt64(uint64_t Value)
 			{
-				return std::to_string(Value);
+				return Core::ToString(Value);
 			}
-			std::string String::ToFloat(float Value)
+			Core::String String::ToFloat(float Value)
 			{
-				return std::to_string(Value);
+				return Core::ToString(Value);
 			}
-			std::string String::ToDouble(double Value)
+			Core::String String::ToDouble(double Value)
 			{
-				return std::to_string(Value);
+				return Core::ToString(Value);
 			}
-			std::string String::ToPointer(void* Value)
+			Core::String String::ToPointer(void* Value)
 			{
 				char* Buffer = (char*)Value;
 				if (!Buffer)
-					return std::string();
+					return Core::String();
 
 				size_t Size = strlen(Buffer);
-				return Size > 1024 * 1024 * 1024 ? std::string() : std::string(Buffer, Size);
+				return Size > 1024 * 1024 * 1024 ? Core::String() : Core::String(Buffer, Size);
 			}
-			Array* String::Split(const std::string& Splitter, const std::string& Current)
+			Array* String::Split(const Core::String& Splitter, const Core::String& Current)
 			{
 				asIScriptContext* Context = asGetActiveContext();
 				asIScriptEngine* Engine = Context->GetEngine();
@@ -636,35 +571,35 @@ namespace Edge
 				Array* Array = Array::Create(ArrayType);
 
 				int Offset = 0, Prev = 0, Count = 0;
-				while ((Offset = (int)Current.find(Splitter, Prev)) != (int)std::string::npos)
+				while ((Offset = (int)Current.find(Splitter, Prev)) != (int)Core::String::npos)
 				{
 					Array->Resize(Array->GetSize() + 1);
-					((std::string*)Array->At(Count))->assign(&Current[Prev], Offset - Prev);
+					((Core::String*)Array->At(Count))->assign(&Current[Prev], Offset - Prev);
 					Prev = Offset + (int)Splitter.length();
 					Count++;
 				}
 
 				Array->Resize(Array->GetSize() + 1);
-				((std::string*)Array->At(Count))->assign(&Current[Prev]);
+				((Core::String*)Array->At(Count))->assign(&Current[Prev]);
 				return Array;
 			}
-			std::string String::Join(const Array& Array, const std::string& Splitter)
+			Core::String String::Join(const Array& Array, const Core::String& Splitter)
 			{
-				std::string Current = "";
+				Core::String Current = "";
 				if (!Array.GetSize())
 					return Current;
 
 				int i;
 				for (i = 0; i < (int)Array.GetSize() - 1; i++)
 				{
-					Current += *(std::string*)Array.At(i);
+					Current += *(Core::String*)Array.At(i);
 					Current += Splitter;
 				}
 
-				Current += *(std::string*)Array.At(i);
+				Current += *(Core::String*)Array.At(i);
 				return Current;
 			}
-			char String::ToChar(const std::string& Symbol)
+			char String::ToChar(const Core::String& Symbol)
 			{
 				return Symbol.empty() ? '\0' : Symbol[0];
 			}
@@ -708,13 +643,13 @@ namespace Edge
 				return diff / (fabs(A) + fabs(B)) < Epsilon;
 			}
 
-			void Exception::Throw(const std::string& In)
+			void Exception::Throw(const Core::String& In)
 			{
 				asIScriptContext* Context = asGetActiveContext();
 				if (Context != nullptr)
 					Context->SetException(In.empty() ? "runtime exception" : In.c_str());
 			}
-			std::string Exception::GetException()
+			Core::String Exception::GetException()
 			{
 				asIScriptContext* Context = asGetActiveContext();
 				if (!Context)
@@ -974,7 +909,7 @@ namespace Edge
 
 			Array::Array(asITypeInfo* Info, void* BufferPtr) noexcept : RefCount(1), GCFlag(false), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
-				ED_ASSERT_V(Info && std::string(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
+				ED_ASSERT_V(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
 				Precache();
 
@@ -1029,7 +964,7 @@ namespace Edge
 			}
 			Array::Array(size_t Length, asITypeInfo* Info) noexcept : RefCount(1), GCFlag(false), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
-				ED_ASSERT_V(Info && std::string(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
+				ED_ASSERT_V(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
 				Precache();
 
@@ -1047,7 +982,7 @@ namespace Edge
 			}
 			Array::Array(const Array& Other) noexcept : RefCount(1), GCFlag(false), ObjType(Other.ObjType), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
-				ED_ASSERT_V(ObjType && std::string(ObjType->GetName()) == TYPENAME_ARRAY, "array type is invalid");
+				ED_ASSERT_V(ObjType && Core::String(ObjType->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
 				Precache();
 
@@ -1060,7 +995,7 @@ namespace Edge
 			}
 			Array::Array(size_t Length, void* DefaultValue, asITypeInfo* Info) noexcept : RefCount(1), GCFlag(false), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
-				ED_ASSERT_V(Info && std::string(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
+				ED_ASSERT_V(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
 				Precache();
 
@@ -2506,7 +2441,7 @@ namespace Edge
 			{
 				return It != Other.It;
 			}
-			const std::string& Dictionary::LocalIterator::GetKey() const
+			const Core::String& Dictionary::LocalIterator::GetKey() const
 			{
 				return It->first;
 			}
@@ -2543,16 +2478,16 @@ namespace Edge
 					if (asPWORD(Buffer) & 0x3)
 						Buffer += 4 - (asPWORD(Buffer) & 0x3);
 
-					std::string Name;
+					Core::String Name;
 					if (keyAsRef)
 					{
-						Name = **(std::string**)Buffer;
-						Buffer += sizeof(std::string*);
+						Name = **(Core::String**)Buffer;
+						Buffer += sizeof(Core::String*);
 					}
 					else
 					{
-						Name = *(std::string*)Buffer;
-						Buffer += sizeof(std::string);
+						Name = *(Core::String*)Buffer;
+						Buffer += sizeof(Core::String);
 					}
 
 					int TypeId = *(int*)Buffer;
@@ -2702,11 +2637,11 @@ namespace Edge
 
 				return *this;
 			}
-			Storable* Dictionary::operator[](const std::string& Key)
+			Storable* Dictionary::operator[](const Core::String& Key)
 			{
 				return &Data[Key];
 			}
-			const Storable* Dictionary::operator[](const std::string& Key) const
+			const Storable* Dictionary::operator[](const Core::String& Key) const
 			{
 				auto It = Data.find(Key);
 				if (It != Data.end())
@@ -2718,7 +2653,7 @@ namespace Edge
 
 				return 0;
 			}
-			void Dictionary::Set(const std::string& Key, void* Value, int TypeId)
+			void Dictionary::Set(const Core::String& Key, void* Value, int TypeId)
 			{
 				auto It = Data.find(Key);
 				if (It == Data.end())
@@ -2726,7 +2661,7 @@ namespace Edge
 
 				It->second.Set(Engine, Value, TypeId);
 			}
-			bool Dictionary::Get(const std::string& Key, void* Value, int TypeId) const
+			bool Dictionary::Get(const Core::String& Key, void* Value, int TypeId) const
 			{
 				auto It = Data.find(Key);
 				if (It != Data.end())
@@ -2734,7 +2669,7 @@ namespace Edge
 
 				return false;
 			}
-			bool Dictionary::GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const
+			bool Dictionary::GetIndex(size_t Index, Core::String* Key, void** Value, int* TypeId) const
 			{
 				if (Index >= Data.size())
 					return false;
@@ -2759,7 +2694,7 @@ namespace Edge
 
 				return true;
 			}
-			int Dictionary::GetTypeId(const std::string& Key) const
+			int Dictionary::GetTypeId(const Core::String& Key) const
 			{
 				auto It = Data.find(Key);
 				if (It != Data.end())
@@ -2767,7 +2702,7 @@ namespace Edge
 
 				return -1;
 			}
-			bool Dictionary::Exists(const std::string& Key) const
+			bool Dictionary::Exists(const Core::String& Key) const
 			{
 				auto It = Data.find(Key);
 				if (It != Data.end())
@@ -2786,7 +2721,7 @@ namespace Edge
 			{
 				return size_t(Data.size());
 			}
-			bool Dictionary::Delete(const std::string& Key)
+			bool Dictionary::Delete(const Core::String& Key)
 			{
 				auto It = Data.find(Key);
 				if (It != Data.end())
@@ -2813,7 +2748,7 @@ namespace Edge
 				size_t Current = 0;
 
 				for (auto It = Data.begin(); It != Data.end(); ++It)
-					*(std::string*)Array->At(Current++) = It->first;
+					*(Core::String*)Array->At(Current++) = It->first;
 
 				return Array;
 			}
@@ -2825,7 +2760,7 @@ namespace Edge
 			{
 				return LocalIterator(*this, Data.end());
 			}
-			Dictionary::LocalIterator Dictionary::Find(const std::string& Key) const
+			Dictionary::LocalIterator Dictionary::Find(const Core::String& Key) const
 			{
 				return LocalIterator(*this, Data.find(Key));
 			}
@@ -3273,7 +3208,7 @@ namespace Edge
 				return false;
 			}
 
-			std::string Random::Getb(uint64_t Size)
+			Core::String Random::Getb(uint64_t Size)
 			{
 				return Compute::Codec::HexEncode(Compute::Crypto::RandomBytes((size_t)Size)).substr(0, (size_t)Size);
 			}
@@ -3446,11 +3381,11 @@ namespace Edge
 			{
 				return new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext());
 			}
-			std::string Promise::GetStatus(ImmediateContext* Context)
+			Core::String Promise::GetStatus(ImmediateContext* Context)
 			{
-				ED_ASSERT(Context != nullptr, std::string(), "context should be set");
+				ED_ASSERT(Context != nullptr, Core::String(), "context should be set");
 
-				std::string Result;
+				Core::String Result;
 				switch (Context->GetState())
 				{
 					case Activation::FINISHED:
@@ -3633,8 +3568,8 @@ namespace Edge
 					if (asPWORD(Buffer) & 0x3)
 						Buffer += 4 - (asPWORD(Buffer) & 0x3);
 
-					std::string Name = *(std::string*)Buffer;
-					Buffer += sizeof(std::string);
+					Core::String Name = *(Core::String*)Buffer;
+					Buffer += sizeof(Core::String);
 
 					int TypeId = *(int*)Buffer;
 					Buffer += sizeof(int);
@@ -3699,7 +3634,7 @@ namespace Edge
 							Result->Set(Name, Base);
 						}
 						else if (Type && !strcmp(TYPENAME_STRING, Type->GetName()))
-							Result->Set(Name, Core::Var::String(*(std::string*)Ref));
+							Result->Set(Name, Core::Var::String(*(Core::String*)Ref));
 						else if (Type && !strcmp(TYPENAME_DECIMAL, Type->GetName()))
 							Result->Set(Name, Core::Var::Decimal(*(Core::Decimal*)Ref));
 					}
@@ -3731,7 +3666,7 @@ namespace Edge
 				SchemaNotifyAllReferences(New, Engine, Engine->GetTypeInfoByName(TYPENAME_SCHEMA));
 				*(Core::Schema**)Generic->GetAddressOfReturnLocation() = New;
 			}
-			Core::Schema* SchemaGetIndex(Core::Schema* Base, const std::string& Name)
+			Core::Schema* SchemaGetIndex(Core::Schema* Base, const Core::String& Name)
 			{
 				Core::Schema* Result = Base->Fetch(Name);
 				if (Result != nullptr)
@@ -3743,7 +3678,7 @@ namespace Edge
 			{
 				return Base->Get(Offset);
 			}
-			Core::Schema* SchemaSet(Core::Schema* Base, const std::string& Name, Core::Schema* Value)
+			Core::Schema* SchemaSet(Core::Schema* Base, const Core::String& Name, Core::Schema* Value)
 			{
 				if (Value != nullptr && Value->GetParent() != Base)
 					Value->AddRef();
@@ -3777,7 +3712,7 @@ namespace Edge
 				auto& Childs = Base->GetChilds();
 				return Childs.empty() ? Core::Var::Undefined() : Childs.back()->Value;
 			}
-			Array* SchemaGetCollection(Core::Schema* Base, const std::string& Name, bool Deep)
+			Array* SchemaGetCollection(Core::Schema* Base, const Core::String& Name, bool Deep)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context)
@@ -3787,7 +3722,7 @@ namespace Edge
 				if (!VM)
 					return nullptr;
 
-				std::vector<Core::Schema*> Nodes = Base->FetchCollection(Name, Deep);
+				Core::Vector<Core::Schema*> Nodes = Base->FetchCollection(Name, Deep);
 				for (auto& Node : Nodes)
 					Node->AddRef();
 
@@ -3830,7 +3765,7 @@ namespace Edge
 				if (!VM)
 					return nullptr;
 
-				std::unordered_map<std::string, size_t> Mapping = Base->GetNames();
+				Core::UnorderedMap<Core::String, size_t> Mapping = Base->GetNames();
 				Dictionary* Map = Dictionary::Create(VM->GetEngine());
 
 				for (auto& Item : Mapping)
@@ -3845,9 +3780,9 @@ namespace Edge
 			{
 				return Base->Size();
 			}
-			std::string SchemaToJSON(Core::Schema* Base)
+			Core::String SchemaToJSON(Core::Schema* Base)
 			{
-				std::string Stream;
+				Core::String Stream;
 				Core::Schema::ConvertToJSON(Base, [&Stream](Core::VarForm, const char* Buffer, size_t Length)
 				{
 					if (Buffer != nullptr && Length > 0)
@@ -3856,9 +3791,9 @@ namespace Edge
 
 				return Stream;
 			}
-			std::string SchemaToXML(Core::Schema* Base)
+			Core::String SchemaToXML(Core::Schema* Base)
 			{
-				std::string Stream;
+				Core::String Stream;
 				Core::Schema::ConvertToXML(Base, [&Stream](Core::VarForm, const char* Buffer, size_t Length)
 				{
 					if (Buffer != nullptr && Length > 0)
@@ -3867,7 +3802,7 @@ namespace Edge
 
 				return Stream;
 			}
-			std::string SchemaToString(Core::Schema* Base)
+			Core::String SchemaToString(Core::Schema* Base)
 			{
 				switch (Base->Value.GetType())
 				{
@@ -3881,9 +3816,9 @@ namespace Edge
 					case Core::VarType::Binary:
 						return Base->Value.GetBlob();
 					case Core::VarType::Integer:
-						return std::to_string(Base->Value.GetInteger());
+						return Core::ToString(Base->Value.GetInteger());
 					case Core::VarType::Number:
-						return std::to_string(Base->Value.GetNumber());
+						return Core::ToString(Base->Value.GetNumber());
 					case Core::VarType::Decimal:
 						return Base->Value.GetDecimal().ToString();
 					case Core::VarType::Boolean:
@@ -3892,7 +3827,7 @@ namespace Edge
 
 				return "";
 			}
-			std::string SchemaToBinary(Core::Schema* Base)
+			Core::String SchemaToBinary(Core::Schema* Base)
 			{
 				return Base->Value.GetBlob();
 			}
@@ -3912,15 +3847,15 @@ namespace Edge
 			{
 				return Base->Value.GetBoolean();
 			}
-			Core::Schema* SchemaFromJSON(const std::string& Value)
+			Core::Schema* SchemaFromJSON(const Core::String& Value)
 			{
 				return Core::Schema::ConvertFromJSON(Value.c_str(), Value.size());
 			}
-			Core::Schema* SchemaFromXML(const std::string& Value)
+			Core::Schema* SchemaFromXML(const Core::String& Value)
 			{
 				return Core::Schema::ConvertFromXML(Value.c_str());
 			}
-			Core::Schema* SchemaImport(const std::string& Value)
+			Core::Schema* SchemaImport(const Core::String& Value)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
 				if (!VM)
@@ -3952,7 +3887,7 @@ namespace Edge
 			}
 #ifdef ED_HAS_BINDINGS
 			template <typename T>
-			std::string GetComponentName(T* Base)
+			Core::String GetComponentName(T* Base)
 			{
 				return Base->GetName();
 			}
@@ -4281,7 +4216,7 @@ namespace Edge
 
 				return 0;
 			}
-			std::string Thread::GetId() const
+			Core::String Thread::GetId() const
 			{
 				return Core::OS::Process::GetThreadId(Procedure.get_id());
 			}
@@ -4427,7 +4362,7 @@ namespace Edge
 				if (Context && Context->GetState() != asEXECUTION_SUSPENDED)
 					Context->Suspend();
 			}
-			std::string Thread::GetThreadId()
+			Core::String Thread::GetThreadId()
 			{
 				return Core::OS::Process::GetThreadId(std::this_thread::get_id());
 			}
@@ -4468,7 +4403,7 @@ namespace Edge
 					int TypeId = *(int*)Buffer;
 					Buffer += sizeof(int);
 
-					Core::Stringify Result; std::string Offset;
+					Core::Stringify Result; Core::String Offset;
 					FormatBuffer(VM, Result, Offset, (void*)Buffer, TypeId);
 					Args.push_back(Result.R()[0] == '\n' ? Result.Substring(1).R() : Result.R());
 
@@ -4486,7 +4421,7 @@ namespace Edge
 						Buffer += VM->GetSizeOfPrimitiveType(TypeId);
 				}
 			}
-			std::string Format::JSON(void* Ref, int TypeId)
+			Core::String Format::JSON(void* Ref, int TypeId)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context)
@@ -4496,7 +4431,7 @@ namespace Edge
 				FormatJSON(Context->GetVM(), Result, Ref, TypeId);
 				return Result.R();
 			}
-			std::string Format::Form(const std::string& F, const Format& Form)
+			Core::String Format::Form(const Core::String& F, const Format& Form)
 			{
 				Core::Stringify Buffer = F;
 				size_t Offset = 0;
@@ -4513,7 +4448,7 @@ namespace Edge
 
 				return Buffer.R();
 			}
-			void Format::WriteLine(Core::Console* Base, const std::string& F, Format* Form)
+			void Format::WriteLine(Core::Console* Base, const Core::String& F, Format* Form)
 			{
 				Core::Stringify Buffer = F;
 				size_t Offset = 0;
@@ -4533,7 +4468,7 @@ namespace Edge
 
 				Base->sWriteLine(Buffer.R());
 			}
-			void Format::Write(Core::Console* Base, const std::string& F, Format* Form)
+			void Format::Write(Core::Console* Base, const Core::String& F, Format* Form)
 			{
 				Core::Stringify Buffer = F;
 				size_t Offset = 0;
@@ -4553,7 +4488,7 @@ namespace Edge
 
 				Base->sWrite(Buffer.R());
 			}
-			void Format::FormatBuffer(VirtualMachine* VM, Core::Stringify& Result, std::string& Offset, void* Ref, int TypeId)
+			void Format::FormatBuffer(VirtualMachine* VM, Core::Stringify& Result, Core::String& Offset, void* Ref, int TypeId)
 			{
 				if (TypeId < (int)TypeId::BOOL || TypeId >(int)TypeId::DOUBLE)
 				{
@@ -4587,7 +4522,7 @@ namespace Edge
 					else if (strcmp(Type.GetName(), TYPENAME_DICTIONARY) == 0)
 					{
 						Dictionary* Base = *(Dictionary**)Ref;
-						Core::Stringify Decl; std::string Name;
+						Core::Stringify Decl; Core::String Name;
 
 						Offset += '\t';
 						for (unsigned int i = 0; i < Base->GetSize(); i++)
@@ -4646,7 +4581,7 @@ namespace Edge
 							Result.fAppend("{}\n", Type.GetName());
 					}
 					else
-						Result.Append(*(std::string*)Ref);
+						Result.Append(*(Core::String*)Ref);
 				}
 				else
 				{
@@ -4725,7 +4660,7 @@ namespace Edge
 					else if (strcmp(Type.GetName(), TYPENAME_DICTIONARY) == 0)
 					{
 						Dictionary* Base = (Dictionary*)Object;
-						Core::Stringify Decl; std::string Name;
+						Core::Stringify Decl; Core::String Name;
 
 						for (unsigned int i = 0; i < Base->GetSize(); i++)
 						{
@@ -4776,7 +4711,7 @@ namespace Edge
 							Result.fAppend("{}", Type.GetName());
 					}
 					else
-						Result.fAppend("\"%s\"", ((std::string*)Object)->c_str());
+						Result.fAppend("\"%s\"", ((Core::String*)Object)->c_str());
 				}
 				else
 				{
@@ -4886,7 +4821,7 @@ namespace Edge
 				if (!OnInputEvent)
 					return;
 
-				std::string Text(Buffer, Length);
+				Core::String Text(Buffer, Length);
 				Context->TryExecute(true, OnInputEvent, [Text](ImmediateContext* Context)
 				{
 					Context->SetArgObject(0, (void*)&Text);
@@ -4970,82 +4905,82 @@ namespace Edge
 				return ExitCode == ED_EXIT_RESTART;
 			}
 
-			bool StreamOpen(Core::Stream* Base, const std::string& Path, Core::FileMode Mode)
+			bool StreamOpen(Core::Stream* Base, const Core::String& Path, Core::FileMode Mode)
 			{
 				return Base->Open(Path.c_str(), Mode);
 			}
-			std::string StreamRead(Core::Stream* Base, size_t Size)
+			Core::String StreamRead(Core::Stream* Base, size_t Size)
 			{
-				std::string Result;
+				Core::String Result;
 				Result.resize(Size);
 
-				size_t Count = Base->Read(Result.data(), Size);
+				size_t Count = Base->Read((char*)Result.data(), Size);
 				if (Count < Size)
 					Result.resize(Count);
 
 				return Result;
 			}
-			size_t StreamWrite(Core::Stream* Base, const std::string& Data)
+			size_t StreamWrite(Core::Stream* Base, const Core::String& Data)
 			{
 				return Base->Write(Data.data(), Data.size());
 			}
 
-			bool FileStreamOpen(Core::FileStream* Base, const std::string& Path, Core::FileMode Mode)
+			bool FileStreamOpen(Core::FileStream* Base, const Core::String& Path, Core::FileMode Mode)
 			{
 				return Base->Open(Path.c_str(), Mode);
 			}
-			std::string FileStreamRead(Core::FileStream* Base, size_t Size)
+			Core::String FileStreamRead(Core::FileStream* Base, size_t Size)
 			{
-				std::string Result;
+				Core::String Result;
 				Result.resize(Size);
 
-				size_t Count = Base->Read(Result.data(), Size);
+				size_t Count = Base->Read((char*)Result.data(), Size);
 				if (Count < Size)
 					Result.resize(Count);
 
 				return Result;
 			}
-			size_t FileStreamWrite(Core::FileStream* Base, const std::string& Data)
+			size_t FileStreamWrite(Core::FileStream* Base, const Core::String& Data)
 			{
 				return Base->Write(Data.data(), Data.size());
 			}
 
-			bool GzStreamOpen(Core::GzStream* Base, const std::string& Path, Core::FileMode Mode)
+			bool GzStreamOpen(Core::GzStream* Base, const Core::String& Path, Core::FileMode Mode)
 			{
 				return Base->Open(Path.c_str(), Mode);
 			}
-			std::string GzStreamRead(Core::GzStream* Base, size_t Size)
+			Core::String GzStreamRead(Core::GzStream* Base, size_t Size)
 			{
-				std::string Result;
+				Core::String Result;
 				Result.resize(Size);
 
-				size_t Count = Base->Read(Result.data(), Size);
+				size_t Count = Base->Read((char*)Result.data(), Size);
 				if (Count < Size)
 					Result.resize(Count);
 
 				return Result;
 			}
-			size_t GzStreamWrite(Core::GzStream* Base, const std::string& Data)
+			size_t GzStreamWrite(Core::GzStream* Base, const Core::String& Data)
 			{
 				return Base->Write(Data.data(), Data.size());
 			}
 
-			bool WebStreamOpen(Core::WebStream* Base, const std::string& Path, Core::FileMode Mode)
+			bool WebStreamOpen(Core::WebStream* Base, const Core::String& Path, Core::FileMode Mode)
 			{
 				return Base->Open(Path.c_str(), Mode);
 			}
-			std::string WebStreamRead(Core::WebStream* Base, size_t Size)
+			Core::String WebStreamRead(Core::WebStream* Base, size_t Size)
 			{
-				std::string Result;
+				Core::String Result;
 				Result.resize(Size);
 
-				size_t Count = Base->Read(Result.data(), Size);
+				size_t Count = Base->Read((char*)Result.data(), Size);
 				if (Count < Size)
 					Result.resize(Count);
 
 				return Result;
 			}
-			size_t WebStreamWrite(Core::WebStream* Base, const std::string& Data)
+			size_t WebStreamWrite(Core::WebStream* Base, const Core::String& Data)
 			{
 				return Base->Write(Data.data(), Data.size());
 			}
@@ -5144,96 +5079,96 @@ namespace Edge
 				return false;
 			}
 
-			Array* OSDirectoryScan(const std::string& Path)
+			Array* OSDirectoryScan(const Core::String& Path)
 			{
-				std::vector<Core::FileEntry> Entries;
+				Core::Vector<Core::FileEntry> Entries;
 				Core::OS::Directory::Scan(Path, &Entries);
 
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_FILEENTRY ">@");
 				return Array::Compose<Core::FileEntry>(Type.GetTypeInfo(), Entries);
 			}
-			Array* OSDirectoryGetMounts(const std::string& Path)
+			Array* OSDirectoryGetMounts(const Core::String& Path)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
-				return Array::Compose<std::string>(Type.GetTypeInfo(), Core::OS::Directory::GetMounts());
+				return Array::Compose<Core::String>(Type.GetTypeInfo(), Core::OS::Directory::GetMounts());
 			}
-			bool OSDirectoryCreate(const std::string& Path)
+			bool OSDirectoryCreate(const Core::String& Path)
 			{
 				return Core::OS::Directory::Create(Path.c_str());
 			}
-			bool OSDirectoryRemove(const std::string& Path)
+			bool OSDirectoryRemove(const Core::String& Path)
 			{
 				return Core::OS::Directory::Remove(Path.c_str());
 			}
-			bool OSDirectoryIsExists(const std::string& Path)
+			bool OSDirectoryIsExists(const Core::String& Path)
 			{
 				return Core::OS::Directory::IsExists(Path.c_str());
 			}
-			void OSDirectorySet(const std::string& Path)
+			void OSDirectorySet(const Core::String& Path)
 			{
 				return Core::OS::Directory::Set(Path.c_str());
 			}
 
-			bool OSFileState(const std::string& Path, Core::FileEntry& Data)
+			bool OSFileState(const Core::String& Path, Core::FileEntry& Data)
 			{
 				return Core::OS::File::State(Path.c_str(), &Data);
 			}
-			bool OSFileMove(const std::string& From, const std::string& To)
+			bool OSFileMove(const Core::String& From, const Core::String& To)
 			{
 				return Core::OS::File::Move(From.c_str(), To.c_str());
 			}
-			bool OSFileRemove(const std::string& Path)
+			bool OSFileRemove(const Core::String& Path)
 			{
 				return Core::OS::File::Remove(Path.c_str());
 			}
-			bool OSFileIsExists(const std::string& Path)
+			bool OSFileIsExists(const Core::String& Path)
 			{
 				return Core::OS::File::IsExists(Path.c_str());
 			}
-			size_t OSFileJoin(const std::string& From, Array* Paths)
+			size_t OSFileJoin(const Core::String& From, Array* Paths)
 			{
-				return Core::OS::File::Join(From.c_str(), Array::Decompose<std::string>(Paths));
+				return Core::OS::File::Join(From.c_str(), Array::Decompose<Core::String>(Paths));
 			}
-			Core::FileState OSFileGetProperties(const std::string& Path)
+			Core::FileState OSFileGetProperties(const Core::String& Path)
 			{
 				return Core::OS::File::GetProperties(Path.c_str());
 			}
-			Core::Stream* OSFileOpenJoin(const std::string& From, Array* Paths)
+			Core::Stream* OSFileOpenJoin(const Core::String& From, Array* Paths)
 			{
-				return Core::OS::File::OpenJoin(From.c_str(), Array::Decompose<std::string>(Paths));
+				return Core::OS::File::OpenJoin(From.c_str(), Array::Decompose<Core::String>(Paths));
 			}
-			Array* OSFileReadAsArray(const std::string& Path)
+			Array* OSFileReadAsArray(const Core::String& Path)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
-				return Array::Compose<std::string>(Type.GetTypeInfo(), Core::OS::File::ReadAsArray(Path));
+				return Array::Compose<Core::String>(Type.GetTypeInfo(), Core::OS::File::ReadAsArray(Path));
 			}
 
-			bool OSPathIsRemote(const std::string& Path)
+			bool OSPathIsRemote(const Core::String& Path)
 			{
 				return Core::OS::Path::IsRemote(Path.c_str());
 			}
-			std::string OSPathResolve(const std::string& Path)
+			Core::String OSPathResolve(const Core::String& Path)
 			{
 				return Core::OS::Path::Resolve(Path.c_str());
 			}
-			std::string OSPathResolveDirectory(const std::string& Path)
+			Core::String OSPathResolveDirectory(const Core::String& Path)
 			{
 				return Core::OS::Path::ResolveDirectory(Path.c_str());
 			}
-			std::string OSPathGetDirectory(const std::string& Path, size_t Level)
+			Core::String OSPathGetDirectory(const Core::String& Path, size_t Level)
 			{
 				return Core::OS::Path::GetDirectory(Path.c_str(), Level);
 			}
-			std::string OSPathGetFilename(const std::string& Path)
+			Core::String OSPathGetFilename(const Core::String& Path)
 			{
 				return Core::OS::Path::GetFilename(Path.c_str());
 			}
-			std::string OSPathGetExtension(const std::string& Path)
+			Core::String OSPathGetExtension(const Core::String& Path)
 			{
 				return Core::OS::Path::GetExtension(Path.c_str());
 			}
 
-			int OSProcessExecute(const std::string& Command)
+			int OSProcessExecute(const Core::String& Command)
 			{
 				return Core::OS::Process::Execute("%s", Command.c_str());
 			}
@@ -5252,10 +5187,10 @@ namespace Edge
 				ED_DELETE(ChildProcess, Result);
 				return Success;
 			}
-			void* OSProcessSpawn(const std::string& Path, Array* Args)
+			void* OSProcessSpawn(const Core::String& Path, Array* Args)
 			{
 				Core::ChildProcess* Result = ED_NEW(Core::ChildProcess);
-				if (!Core::OS::Process::Spawn(Path, Array::Decompose<std::string>(Args), Result))
+				if (!Core::OS::Process::Spawn(Path, Array::Decompose<Core::String>(Args), Result))
 				{
 					ED_DELETE(ChildProcess, Result);
 					return nullptr;
@@ -5609,9 +5544,9 @@ namespace Edge
 				return Base.Keys[Index % Base.Keys.size()];
 			}
 
-			std::string RegexMatchTarget(Compute::RegexMatch& Base)
+			Core::String RegexMatchTarget(Compute::RegexMatch& Base)
 			{
-				return Base.Pointer ? Base.Pointer : std::string();
+				return Base.Pointer ? Base.Pointer : Core::String();
 			}
 
 			Array* RegexResultGet(Compute::RegexResult& Base)
@@ -5622,18 +5557,18 @@ namespace Edge
 			Array* RegexResultToArray(Compute::RegexResult& Base)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
-				return Array::Compose<std::string>(Type.GetTypeInfo(), Base.ToArray());
+				return Array::Compose<Core::String>(Type.GetTypeInfo(), Base.ToArray());
 			}
 
-			Compute::RegexResult RegexSourceMatch(Compute::RegexSource& Base, const std::string& Text)
+			Compute::RegexResult RegexSourceMatch(Compute::RegexSource& Base, const Core::String& Text)
 			{
 				Compute::RegexResult Result;
 				Compute::Regex::Match(&Base, Result, Text);
 				return Result;
 			}
-			std::string RegexSourceReplace(Compute::RegexSource& Base, const std::string& Text, const std::string& To)
+			Core::String RegexSourceReplace(Compute::RegexSource& Base, const Core::String& Text, const Core::String& To)
 			{
-				std::string Copy = Text;
+				Core::String Copy = Text;
 				Compute::RegexResult Result;
 				Compute::Regex::Replace(&Base, To, Copy);
 				return Copy;
@@ -5641,7 +5576,7 @@ namespace Edge
 
 			void WebTokenSetAudience(Compute::WebToken* Base, Array* Data)
 			{
-				Base->SetAudience(Array::Decompose<std::string>(Data));
+				Base->SetAudience(Array::Decompose<Core::String>(Data));
 			}
 
 			void CosmosQueryIndex(Compute::Cosmos* Base, asIScriptFunction* Overlaps, asIScriptFunction* Match)
@@ -5668,11 +5603,11 @@ namespace Edge
 				});
 			}
 
-			void IncludeDescAddExt(Compute::IncludeDesc& Base, const std::string& Value)
+			void IncludeDescAddExt(Compute::IncludeDesc& Base, const Core::String& Value)
 			{
 				Base.Exts.push_back(Value);
 			}
-			void IncludeDescRemoveExt(Compute::IncludeDesc& Base, const std::string& Value)
+			void IncludeDescRemoveExt(Compute::IncludeDesc& Base, const Core::String& Value)
 			{
 				auto It = std::find(Base.Exts.begin(), Base.Exts.end(), Value);
 				if (It != Base.Exts.end())
@@ -5685,7 +5620,7 @@ namespace Edge
 				if (!Context || !Callback)
 					return Base->SetIncludeCallback(nullptr);
 
-				Base->SetIncludeCallback([Context, Callback](Compute::Preprocessor* Base, const Compute::IncludeResult& File, std::string* Out)
+				Base->SetIncludeCallback([Context, Callback](Compute::Preprocessor* Base, const Compute::IncludeResult& File, Core::String* Out)
 				{
 					Context->TryExecute(true, Callback, [Base, &File, &Out](ImmediateContext* Context)
 					{
@@ -5704,9 +5639,9 @@ namespace Edge
 					return Base->SetPragmaCallback(nullptr);
 
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
-				Base->SetPragmaCallback([Type, Context, Callback](Compute::Preprocessor* Base, const std::string& Name, const std::vector<std::string>& Args)
+				Base->SetPragmaCallback([Type, Context, Callback](Compute::Preprocessor* Base, const Core::String& Name, const Core::Vector<Core::String>& Args)
 				{
-					Array* Params = Array::Compose<std::string>(Type.GetTypeInfo(), Args);
+					Array* Params = Array::Compose<Core::String>(Type.GetTypeInfo(), Args);
 					Context->TryExecute(true, Callback, [Base, &Name, &Params](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
@@ -5720,7 +5655,7 @@ namespace Edge
 					return (bool)Context->GetReturnWord();
 				});
 			}
-			bool PreprocessorIsDefined(Compute::Preprocessor* Base, const std::string& Name)
+			bool PreprocessorIsDefined(Compute::Preprocessor* Base, const Core::String& Name)
 			{
 				return Base->IsDefined(Name.c_str());
 			}
@@ -5754,7 +5689,7 @@ namespace Edge
 
 			Array* SoftBodyGetIndices(Compute::SoftBody* Base)
 			{
-				std::vector<int> Result;
+				Core::Vector<int> Result;
 				Base->GetIndices(&Result);
 
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<int>@");
@@ -5762,7 +5697,7 @@ namespace Edge
 			}
 			Array* SoftBodyGetVertices(Compute::SoftBody* Base)
 			{
-				std::vector<Compute::Vertex> Result;
+				Core::Vector<Compute::Vertex> Result;
 				Base->GetVertices(&Result);
 
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VERTEX ">@");
@@ -5821,7 +5756,7 @@ namespace Edge
 				});
 			}
 
-			void ActivitySetTitle(Graphics::Activity* Base, const std::string& Value)
+			void ActivitySetTitle(Graphics::Activity* Base, const Core::String& Value)
 			{
 				Base->SetTitle(Value.c_str());
 			}	
@@ -5886,7 +5821,7 @@ namespace Edge
 				{
 					Base->Callbacks.InputEdit = [Context, Callback](char* Buffer, int X, int Y)
 					{
-						std::string Text = (Buffer ? Buffer : std::string());
+						Core::String Text = (Buffer ? Buffer : Core::String());
 						Context->TryExecute(true, Callback, [Text, X, Y](ImmediateContext* Context)
 						{
 							Context->SetArgObject(0, (void*)&Text);
@@ -5905,7 +5840,7 @@ namespace Edge
 				{
 					Base->Callbacks.Input = [Context, Callback](char* Buffer, int X)
 					{
-						std::string Text = (Buffer ? Buffer : std::string());
+						Core::String Text = (Buffer ? Buffer : Core::String());
 						Context->TryExecute(true, Callback, [Text, X](ImmediateContext* Context)
 						{
 							Context->SetArgObject(0, (void*)&Text);
@@ -6189,7 +6124,7 @@ namespace Edge
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.DropFile = [Context, Callback](const std::string& Text)
+					Base->Callbacks.DropFile = [Context, Callback](const Core::String& Text)
 					{
 						Context->TryExecute(true, Callback, [Text](ImmediateContext* Context)
 						{
@@ -6205,7 +6140,7 @@ namespace Edge
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.DropText = [Context, Callback](const std::string& Text)
+					Base->Callbacks.DropText = [Context, Callback](const Core::String& Text)
 					{
 						Context->TryExecute(true, Callback, [Text](ImmediateContext* Context)
 						{
@@ -6255,7 +6190,7 @@ namespace Edge
 
 			void ShaderDescSetDefines(Graphics::Shader::Desc& Base, Array* Data)
 			{
-				Base.Defines = Array::Decompose<std::string>(Data);
+				Base.Defines = Array::Decompose<Core::String>(Data);
 			}
 
 			void MeshBufferDescSetElements(Graphics::MeshBuffer::Desc& Base, Array* Data)
@@ -6347,32 +6282,32 @@ namespace Edge
 
 			void GraphicsDeviceSetVertexBuffers(Graphics::GraphicsDevice* Base, Array* Data, bool Value)
 			{
-				std::vector<Graphics::ElementBuffer*> Buffer = Array::Decompose<Graphics::ElementBuffer*>(Data);
+				Core::Vector<Graphics::ElementBuffer*> Buffer = Array::Decompose<Graphics::ElementBuffer*>(Data);
 				Base->SetVertexBuffers(Buffer.data(), (uint32_t)Buffer.size(), Value);
 			}
 			void GraphicsDeviceSetWriteable1(Graphics::GraphicsDevice* Base, Array* Data, uint32_t Slot, bool Value)
 			{
-				std::vector<Graphics::ElementBuffer*> Buffer = Array::Decompose<Graphics::ElementBuffer*>(Data);
+				Core::Vector<Graphics::ElementBuffer*> Buffer = Array::Decompose<Graphics::ElementBuffer*>(Data);
 				Base->SetWriteable(Buffer.data(), Slot, (uint32_t)Buffer.size(), Value);
 			}
 			void GraphicsDeviceSetWriteable2(Graphics::GraphicsDevice* Base, Array* Data, uint32_t Slot, bool Value)
 			{
-				std::vector<Graphics::Texture2D*> Buffer = Array::Decompose<Graphics::Texture2D*>(Data);
+				Core::Vector<Graphics::Texture2D*> Buffer = Array::Decompose<Graphics::Texture2D*>(Data);
 				Base->SetWriteable(Buffer.data(), Slot, (uint32_t)Buffer.size(), Value);
 			}
 			void GraphicsDeviceSetWriteable3(Graphics::GraphicsDevice* Base, Array* Data, uint32_t Slot, bool Value)
 			{
-				std::vector<Graphics::Texture3D*> Buffer = Array::Decompose<Graphics::Texture3D*>(Data);
+				Core::Vector<Graphics::Texture3D*> Buffer = Array::Decompose<Graphics::Texture3D*>(Data);
 				Base->SetWriteable(Buffer.data(), Slot, (uint32_t)Buffer.size(), Value);
 			}
 			void GraphicsDeviceSetWriteable4(Graphics::GraphicsDevice* Base, Array* Data, uint32_t Slot, bool Value)
 			{
-				std::vector<Graphics::TextureCube*> Buffer = Array::Decompose<Graphics::TextureCube*>(Data);
+				Core::Vector<Graphics::TextureCube*> Buffer = Array::Decompose<Graphics::TextureCube*>(Data);
 				Base->SetWriteable(Buffer.data(), Slot, (uint32_t)Buffer.size(), Value);
 			}
 			void GraphicsDeviceSetTargetMap(Graphics::GraphicsDevice* Base, Graphics::RenderTarget* Target, Array* Data)
 			{
-				std::vector<bool> Buffer = Array::Decompose<bool>(Data);
+				Core::Vector<bool> Buffer = Array::Decompose<bool>(Data);
 				while (Buffer.size() < 8)
 					Buffer.push_back(false);
 
@@ -6384,17 +6319,17 @@ namespace Edge
 			}
 			void GraphicsDeviceSetViewports(Graphics::GraphicsDevice* Base, Array* Data)
 			{
-				std::vector<Graphics::Viewport> Buffer = Array::Decompose<Graphics::Viewport>(Data);
+				Core::Vector<Graphics::Viewport> Buffer = Array::Decompose<Graphics::Viewport>(Data);
 				Base->SetViewports((uint32_t)Buffer.size(), Buffer.data());
 			}
 			void GraphicsDeviceSetScissorRects(Graphics::GraphicsDevice* Base, Array* Data)
 			{
-				std::vector<Compute::Rectangle> Buffer = Array::Decompose<Compute::Rectangle>(Data);
+				Core::Vector<Compute::Rectangle> Buffer = Array::Decompose<Compute::Rectangle>(Data);
 				Base->SetScissorRects((uint32_t)Buffer.size(), Buffer.data());
 			}
 			Array* GraphicsDeviceGetViewports(Graphics::GraphicsDevice* Base)
 			{
-				std::vector<Graphics::Viewport> Viewports;
+				Core::Vector<Graphics::Viewport> Viewports;
 				Viewports.resize(32);
 
 				uint32_t Count = 0;
@@ -6406,7 +6341,7 @@ namespace Edge
 			}
 			Array* GraphicsDeviceGetScissorRects(Graphics::GraphicsDevice* Base)
 			{
-				std::vector<Compute::Rectangle> Rects;
+				Core::Vector<Compute::Rectangle> Rects;
 				Rects.resize(32);
 
 				uint32_t Count = 0;
@@ -6460,7 +6395,7 @@ namespace Edge
 			}
 			Graphics::TextureCube* GraphicsDeviceCreateTextureCube(Graphics::GraphicsDevice* Base, Array* Data)
 			{
-				std::vector<Graphics::Texture2D*> Buffer = Array::Decompose<Graphics::Texture2D*>(Data);
+				Core::Vector<Graphics::Texture2D*> Buffer = Array::Decompose<Graphics::Texture2D*>(Data);
 				while (Buffer.size() < 6)
 					Buffer.push_back(nullptr);
 
@@ -6587,17 +6522,17 @@ namespace Edge
 			Dictionary* LocationGetQuery(Network::Location& Base)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_STRING ">@");
-				return Dictionary::Compose<std::string>(Type.GetTypeId(), Base.Query);
+				return Dictionary::Compose<Core::String>(Type.GetTypeId(), Base.Query);
 			}
 
-			int SocketAccept1(Network::Socket* Base, Network::Socket* Fd, std::string& Address)
+			int SocketAccept1(Network::Socket* Base, Network::Socket* Fd, Core::String& Address)
 			{
 				char IpAddress[64];
 				int Status = Base->Accept(Fd, IpAddress);
 				Address = IpAddress;
 				return Status;
 			}
-			int SocketAccept2(Network::Socket* Base, socket_t& Fd, std::string& Address)
+			int SocketAccept2(Network::Socket* Base, socket_t& Fd, Core::String& Address)
 			{
 				char IpAddress[64];
 				int Status = Base->Accept(&Fd, IpAddress);
@@ -6612,7 +6547,7 @@ namespace Edge
 
 				return Base->AcceptAsync(WithAddress, [Context, Callback](socket_t Fd, char* Address)
 				{
-					std::string IpAddress = Address;
+					Core::String IpAddress = Address;
 					Context->TryExecute(false, Callback, [Fd, IpAddress](ImmediateContext* Context)
 					{
 #ifdef ED_64
@@ -6652,11 +6587,11 @@ namespace Edge
 					}).Wait();
 				});
 			}
-			int SocketWrite(Network::Socket* Base, const std::string& Data)
+			int SocketWrite(Network::Socket* Base, const Core::String& Data)
 			{
 				return Base->Write(Data.data(), (int)Data.size());
 			}
-			int SocketWriteAsync(Network::Socket* Base, const std::string& Data, asIScriptFunction* Callback)
+			int SocketWriteAsync(Network::Socket* Base, const Core::String& Data, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context || !Callback)
@@ -6670,12 +6605,12 @@ namespace Edge
 					}).Wait();
 				});
 			}
-			int SocketRead1(Network::Socket* Base, std::string& Data, int Size)
+			int SocketRead1(Network::Socket* Base, Core::String& Data, int Size)
 			{
 				Data.resize(Size);
 				return Base->Read((char*)Data.data(), Size);
 			}
-			int SocketRead2(Network::Socket* Base, std::string& Data, int Size, asIScriptFunction* Callback)
+			int SocketRead2(Network::Socket* Base, Core::String& Data, int Size, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context || !Callback)
@@ -6683,7 +6618,7 @@ namespace Edge
 
 				return Base->Read((char*)Data.data(), (int)Data.size(), [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
-					std::string Source(Data, Size);
+					Core::String Source(Data, Size);
 					Context->TryExecute(true, Callback, [Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
@@ -6701,7 +6636,7 @@ namespace Edge
 
 				return Base->ReadAsync(Size, [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
-					std::string Source(Data, Size);
+					Core::String Source(Data, Size);
 					Context->TryExecute(false, Callback, [Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
@@ -6711,7 +6646,7 @@ namespace Edge
 					return (bool)Context->GetReturnWord();
 				});
 			}
-			int SocketReadUntil(Network::Socket* Base, std::string& Data, asIScriptFunction* Callback)
+			int SocketReadUntil(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context || !Callback)
@@ -6719,7 +6654,7 @@ namespace Edge
 
 				return Base->ReadUntil(Data.c_str(), [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
-					std::string Source(Data, Size);
+					Core::String Source(Data, Size);
 					Context->TryExecute(true, Callback, [Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
@@ -6729,7 +6664,7 @@ namespace Edge
 					return (bool)Context->GetReturnWord();
 				});
 			}
-			int SocketReadUntilAsync(Network::Socket* Base, std::string& Data, asIScriptFunction* Callback)
+			int SocketReadUntilAsync(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context || !Callback)
@@ -6737,7 +6672,7 @@ namespace Edge
 
 				return Base->ReadUntilAsync(Data.c_str(), [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
-					std::string Source(Data, Size);
+					Core::String Source(Data, Size);
 					Context->TryExecute(false, Callback, [Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
@@ -6763,7 +6698,7 @@ namespace Edge
 					return (bool)Context->GetReturnWord();
 				});
 			}
-			int SocketSecure(Network::Socket* Base, ssl_ctx_st* Context, const std::string& Value)
+			int SocketSecure(Network::Socket* Base, ssl_ctx_st* Context, const Core::String& Value)
 			{
 				return Base->Secure(Context, Value.c_str());
 			}
@@ -6786,7 +6721,7 @@ namespace Edge
 
 			int EpollHandleWait(Network::EpollHandle& Base, Array* Data, uint64_t Timeout)
 			{
-				std::vector<Network::EpollFd> Fds = Array::Decompose<Network::EpollFd>(Data);
+				Core::Vector<Network::EpollFd> Fds = Array::Decompose<Network::EpollFd>(Data);
 				return Base.Wait(Fds.data(), Fds.size(), Timeout);
 			}
 
@@ -6842,11 +6777,11 @@ namespace Edge
 				return Dictionary::Compose<Network::SocketCertificate>(Type.GetTypeId(), Base->Certificates);
 			}
 
-			std::string SocketConnectionGetRemoteAddress(Network::SocketConnection* Base)
+			Core::String SocketConnectionGetRemoteAddress(Network::SocketConnection* Base)
 			{
 				return Base->RemoteAddress;
 			}
-			bool SocketConnectionError(Network::SocketConnection* Base, int Code, const std::string& Message)
+			bool SocketConnectionError(Network::SocketConnection* Base, int Code, const Core::String& Message)
 			{
 				return Base->Error(Code, "%s", Message.c_str());
 			}
@@ -6976,7 +6911,7 @@ namespace Edge
 			}
 
 			template <typename T>
-			void ComponentMessage(T* Base, const std::string& Name, Core::Schema* Args)
+			void ComponentMessage(T* Base, const Core::String& Name, Core::Schema* Args)
 			{
 				auto Data = ToVariantKeys(Args);
 				return Base->Message(Name, Data);
@@ -7036,7 +6971,7 @@ namespace Edge
 			}
 			Array* EntityGetComponents(Engine::Entity* Base)
 			{
-				std::vector<Engine::Component*> Components;
+				Core::Vector<Engine::Component*> Components;
 				Components.reserve(Base->GetComponentsCount());
 
 				for (auto& Item : *Base)
@@ -7113,23 +7048,23 @@ namespace Edge
 				if (Source != nullptr)
 					Base->RemoveRenderer(Source->GetId());
 			}
-			void RenderSystemFreeBuffers1(Engine::RenderSystem* Base, const std::string& Name, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
+			void RenderSystemFreeBuffers1(Engine::RenderSystem* Base, const Core::String& Name, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
 			{
 				Graphics::ElementBuffer* Buffers[2];
 				Buffers[0] = Buffer1;
 				Buffers[1] = Buffer2;
 				Base->FreeBuffers(Name, Buffers);
 			}
-			void RenderSystemFreeBuffers2(Engine::RenderSystem* Base, const std::string& Name, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
+			void RenderSystemFreeBuffers2(Engine::RenderSystem* Base, const Core::String& Name, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
 			{
 				Graphics::ElementBuffer* Buffers[2];
 				Buffers[0] = Buffer1;
 				Buffers[1] = Buffer2;
 				Base->FreeBuffers(Buffers);
 			}
-			Array* RenderSystemCompileBuffers(Engine::RenderSystem* Base, const std::string& Name, size_t ElementSize, size_t ElementsCount)
+			Array* RenderSystemCompileBuffers(Engine::RenderSystem* Base, const Core::String& Name, size_t ElementSize, size_t ElementsCount)
 			{
-				std::vector<Graphics::ElementBuffer*> Buffers;
+				Core::Vector<Graphics::ElementBuffer*> Buffers;
 				Buffers.push_back(nullptr);
 				Buffers.push_back(nullptr);
 
@@ -7177,9 +7112,9 @@ namespace Edge
 				});
 			}
 
-			Array* PrimitiveCacheCompile(Engine::PrimitiveCache* Base, const std::string& Name, size_t ElementSize, size_t ElementsCount)
+			Array* PrimitiveCacheCompile(Engine::PrimitiveCache* Base, const Core::String& Name, size_t ElementSize, size_t ElementsCount)
 			{
-				std::vector<Graphics::ElementBuffer*> Buffers;
+				Core::Vector<Graphics::ElementBuffer*> Buffers;
 				Buffers.push_back(nullptr);
 				Buffers.push_back(nullptr);
 
@@ -7189,9 +7124,9 @@ namespace Edge
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTBUFFER "@>@");
 				return Array::Compose(Type.GetTypeInfo(), Buffers);
 			}
-			Array* PrimitiveCacheGet(Engine::PrimitiveCache* Base, const std::string& Name)
+			Array* PrimitiveCacheGet(Engine::PrimitiveCache* Base, const Core::String& Name)
 			{
-				std::vector<Graphics::ElementBuffer*> Buffers;
+				Core::Vector<Graphics::ElementBuffer*> Buffers;
 				Buffers.push_back(nullptr);
 				Buffers.push_back(nullptr);
 
@@ -7201,14 +7136,14 @@ namespace Edge
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTBUFFER "@>@");
 				return Array::Compose(Type.GetTypeInfo(), Buffers);
 			}
-			bool PrimitiveCacheFree(Engine::PrimitiveCache* Base, const std::string& Name, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
+			bool PrimitiveCacheFree(Engine::PrimitiveCache* Base, const Core::String& Name, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
 			{
 				Graphics::ElementBuffer* Buffers[2];
 				Buffers[0] = Buffer1;
 				Buffers[1] = Buffer2;
 				return Base->Free(Name, Buffers);
 			}
-			std::string PrimitiveCacheFind(Engine::PrimitiveCache* Base, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
+			Core::String PrimitiveCacheFind(Engine::PrimitiveCache* Base, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
 			{
 				Graphics::ElementBuffer* Buffers[2];
 				Buffers[0] = Buffer1;
@@ -7217,7 +7152,7 @@ namespace Edge
 			}
 			Array* PrimitiveCacheGetSphereBuffers(Engine::PrimitiveCache* Base)
 			{
-				std::vector<Graphics::ElementBuffer*> Buffers;
+				Core::Vector<Graphics::ElementBuffer*> Buffers;
 				Buffers.push_back(nullptr);
 				Buffers.push_back(nullptr);
 				Base->GetSphereBuffers(Buffers.data());
@@ -7227,7 +7162,7 @@ namespace Edge
 			}
 			Array* PrimitiveCacheGetCubeBuffers(Engine::PrimitiveCache* Base)
 			{
-				std::vector<Graphics::ElementBuffer*> Buffers;
+				Core::Vector<Graphics::ElementBuffer*> Buffers;
 				Buffers.push_back(nullptr);
 				Buffers.push_back(nullptr);
 				Base->GetCubeBuffers(Buffers.data());
@@ -7237,7 +7172,7 @@ namespace Edge
 			}
 			Array* PrimitiveCacheGetBoxBuffers(Engine::PrimitiveCache* Base)
 			{
-				std::vector<Graphics::ElementBuffer*> Buffers;
+				Core::Vector<Graphics::ElementBuffer*> Buffers;
 				Buffers.push_back(nullptr);
 				Buffers.push_back(nullptr);
 				Base->GetBoxBuffers(Buffers.data());
@@ -7247,7 +7182,7 @@ namespace Edge
 			}
 			Array* PrimitiveCacheGetSkinBoxBuffers(Engine::PrimitiveCache* Base)
 			{
-				std::vector<Graphics::ElementBuffer*> Buffers;
+				Core::Vector<Graphics::ElementBuffer*> Buffers;
 				Buffers.push_back(nullptr);
 				Buffers.push_back(nullptr);
 				Base->GetSkinBoxBuffers(Buffers.data());
@@ -7256,15 +7191,15 @@ namespace Edge
 				return Array::Compose(Type.GetTypeInfo(), Buffers);
 			}
 
-			void* ContentManagerLoad(Engine::ContentManager* Base, Engine::Processor* Source, const std::string& Path, Core::Schema* Args)
+			void* ContentManagerLoad(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, Core::Schema* Args)
 			{
 				return Base->Load(Source, Path, ToVariantKeys(Args));
 			}
-			bool ContentManagerSave(Engine::ContentManager* Base, Engine::Processor* Source, const std::string& Path, void* Object, Core::Schema* Args)
+			bool ContentManagerSave(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, void* Object, Core::Schema* Args)
 			{
 				return Base->Save(Source, Path, Object, ToVariantKeys(Args));
 			}
-			void ContentManagerLoadAsync2(Engine::ContentManager* Base, Engine::Processor* Source, const std::string& Path, Core::Schema* Args, asIScriptFunction* Callback)
+			void ContentManagerLoadAsync2(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, Core::Schema* Args, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context || !Callback)
@@ -7284,11 +7219,11 @@ namespace Edge
 					});
 				});
 			}
-			void ContentManagerLoadAsync1(Engine::ContentManager* Base, Engine::Processor* Source, const std::string& Path, asIScriptFunction* Callback)
+			void ContentManagerLoadAsync1(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, asIScriptFunction* Callback)
 			{
 				ContentManagerLoadAsync2(Base, Source, Path, nullptr, Callback);
 			}
-			void ContentManagerSaveAsync2(Engine::ContentManager* Base, Engine::Processor* Source, const std::string& Path, void* Object, Core::Schema* Args, asIScriptFunction* Callback)
+			void ContentManagerSaveAsync2(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, void* Object, Core::Schema* Args, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context || !Callback)
@@ -7308,11 +7243,11 @@ namespace Edge
 					});
 				});
 			}
-			void ContentManagerSaveAsync1(Engine::ContentManager* Base, Engine::Processor* Source, const std::string& Path, void* Object, asIScriptFunction* Callback)
+			void ContentManagerSaveAsync1(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, void* Object, asIScriptFunction* Callback)
 			{
 				ContentManagerSaveAsync2(Base, Source, Path, Object, nullptr, Callback);
 			}
-			bool ContentManagerFindCache1(Engine::ContentManager* Base, Engine::Processor* Source, Engine::AssetCache& Output, const std::string& Path)
+			bool ContentManagerFindCache1(Engine::ContentManager* Base, Engine::Processor* Source, Engine::AssetCache& Output, const Core::String& Path)
 			{
 				auto* Cache = Base->FindCache(Source, Path);
 				if (!Cache)
@@ -7385,19 +7320,19 @@ namespace Edge
 					return (bool)Context->GetReturnByte();
 				});
 			}
-			void SceneGraphMutate1(Engine::SceneGraph* Base, Engine::Entity* Source, Engine::Entity* Child, const std::string& Name)
+			void SceneGraphMutate1(Engine::SceneGraph* Base, Engine::Entity* Source, Engine::Entity* Child, const Core::String& Name)
 			{
 				Base->Mutate(Source, Child, Name.c_str());
 			}
-			void SceneGraphMutate2(Engine::SceneGraph* Base, Engine::Entity* Source, const std::string& Name)
+			void SceneGraphMutate2(Engine::SceneGraph* Base, Engine::Entity* Source, const Core::String& Name)
 			{
 				Base->Mutate(Source, Name.c_str());
 			}
-			void SceneGraphMutate3(Engine::SceneGraph* Base, Engine::Component* Source, const std::string& Name)
+			void SceneGraphMutate3(Engine::SceneGraph* Base, Engine::Component* Source, const Core::String& Name)
 			{
 				Base->Mutate(Source, Name.c_str());
 			}
-			void SceneGraphMutate4(Engine::SceneGraph* Base, Engine::Material* Source, const std::string& Name)
+			void SceneGraphMutate4(Engine::SceneGraph* Base, Engine::Material* Source, const Core::String& Name)
 			{
 				Base->Mutate(Source, Name.c_str());
 			}
@@ -7418,25 +7353,25 @@ namespace Edge
 					});
 				});
 			}
-			void SceneGraphPushEvent1(Engine::SceneGraph* Base, const std::string& Name, Core::Schema* Args, bool Propagate)
+			void SceneGraphPushEvent1(Engine::SceneGraph* Base, const Core::String& Name, Core::Schema* Args, bool Propagate)
 			{
 				Base->PushEvent(Name, ToVariantKeys(Args), Propagate);
 			}
-			void SceneGraphPushEvent2(Engine::SceneGraph* Base, const std::string& Name, Core::Schema* Args, Engine::Component* Source)
+			void SceneGraphPushEvent2(Engine::SceneGraph* Base, const Core::String& Name, Core::Schema* Args, Engine::Component* Source)
 			{
 				Base->PushEvent(Name, ToVariantKeys(Args), Source);
 			}
-			void SceneGraphPushEvent3(Engine::SceneGraph* Base, const std::string& Name, Core::Schema* Args, Engine::Entity* Source)
+			void SceneGraphPushEvent3(Engine::SceneGraph* Base, const Core::String& Name, Core::Schema* Args, Engine::Entity* Source)
 			{
 				Base->PushEvent(Name, ToVariantKeys(Args), Source);
 			}
-			void* SceneGraphSetListener(Engine::SceneGraph* Base, const std::string& Name, asIScriptFunction* Callback)
+			void* SceneGraphSetListener(Engine::SceneGraph* Base, const Core::String& Name, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context || !Callback)
 					return nullptr;
 
-				return Base->SetListener(Name, [Context, Callback](const std::string& Name, Core::VariantArgs& BaseArgs)
+				return Base->SetListener(Name, [Context, Callback](const Core::String& Name, Core::VariantArgs& BaseArgs)
 				{
 					Core::Schema* Args = Core::Var::Set::Object();
 					Args->Reserve(BaseArgs.size());
@@ -7457,7 +7392,7 @@ namespace Edge
 					});
 				});
 			}
-			void SceneGraphLoadResource(Engine::SceneGraph* Base, uint64_t Id, Engine::Component* Source, const std::string& Path, Core::Schema* Args, asIScriptFunction* Callback)
+			void SceneGraphLoadResource(Engine::SceneGraph* Base, uint64_t Id, Engine::Component* Source, const Core::String& Path, Core::Schema* Args, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context || !Callback)
@@ -7480,7 +7415,7 @@ namespace Edge
 			Array* SceneGraphGetComponents(Engine::SceneGraph* Base, uint64_t Id)
 			{
 				auto& Data = Base->GetComponents(Id);
-				std::vector<Engine::Component*> Output;
+				Core::Vector<Engine::Component*> Output;
 				Output.reserve(Data.Size());
 
 				for (auto* Next : Data)
@@ -7492,7 +7427,7 @@ namespace Edge
 			Array* SceneGraphGetActors(Engine::SceneGraph* Base, Engine::ActorType Source)
 			{
 				auto& Data = Base->GetActors(Source);
-				std::vector<Engine::Component*> Output;
+				Core::Vector<Engine::Component*> Output;
 				Output.reserve(Data.Size());
 
 				for (auto* Next : Data)
@@ -7511,7 +7446,7 @@ namespace Edge
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ENTITY "@>@");
 				return Array::Compose(Type.GetTypeInfo(), Base->QueryByParent(Source));
 			}
-			Array* SceneGraphQueryByName(Engine::SceneGraph* Base, const std::string& Source)
+			Array* SceneGraphQueryByName(Engine::SceneGraph* Base, const Core::String& Source)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ENTITY "@>@");
 				return Array::Compose(Type.GetTypeInfo(), Base->QueryByName(Source));
@@ -7567,7 +7502,7 @@ namespace Edge
 				ED_RELEASE(Base.Shaders);
 			}
 
-			bool IElementDispatchEvent(Engine::GUI::IElement& Base, const std::string& Name, Core::Schema* Args)
+			bool IElementDispatchEvent(Engine::GUI::IElement& Base, const Core::String& Name, Core::Schema* Args)
 			{
 				Core::VariantArgs Data;
 				if (Args != nullptr)
@@ -7579,13 +7514,13 @@ namespace Edge
 
 				return Base.DispatchEvent(Name, Data);
 			}
-			Array* IElementQuerySelectorAll(Engine::GUI::IElement& Base, const std::string& Value)
+			Array* IElementQuerySelectorAll(Engine::GUI::IElement& Base, const Core::String& Value)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTNODE ">@");
 				return Array::Compose(Type.GetTypeInfo(), Base.QuerySelectorAll(Value));
 			}
 
-			bool IElementDocumentDispatchEvent(Engine::GUI::IElementDocument& Base, const std::string& Name, Core::Schema* Args)
+			bool IElementDocumentDispatchEvent(Engine::GUI::IElementDocument& Base, const Core::String& Name, Core::Schema* Args)
 			{
 				Core::VariantArgs Data;
 				if (Args != nullptr)
@@ -7597,7 +7532,7 @@ namespace Edge
 
 				return Base.DispatchEvent(Name, Data);
 			}
-			Array* IElementDocumentQuerySelectorAll(Engine::GUI::IElementDocument& Base, const std::string& Value)
+			Array* IElementDocumentQuerySelectorAll(Engine::GUI::IElementDocument& Base, const Core::String& Value)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTNODE ">@");
 				return Array::Compose(Type.GetTypeInfo(), Base.QuerySelectorAll(Value));
@@ -7628,7 +7563,7 @@ namespace Edge
 
 				return true;
 			}
-			bool DataModelSet(Engine::GUI::DataModel* Base, const std::string& Name, Core::Schema* Data)
+			bool DataModelSet(Engine::GUI::DataModel* Base, const Core::String& Name, Core::Schema* Data)
 			{
 				if (!Data->Value.IsObject())
 					return Base->SetProperty(Name, Data->Value) != nullptr;
@@ -7639,35 +7574,35 @@ namespace Edge
 
 				return DataModelSetRecursive(Node, Data, 0);
 			}
-			bool DataModelSetVar(Engine::GUI::DataModel* Base, const std::string& Name, const Core::Variant& Data)
+			bool DataModelSetVar(Engine::GUI::DataModel* Base, const Core::String& Name, const Core::Variant& Data)
 			{
 				return Base->SetProperty(Name, Data) != nullptr;
 			}
-			bool DataModelSetString(Engine::GUI::DataModel* Base, const std::string& Name, const std::string& Value)
+			bool DataModelSetString(Engine::GUI::DataModel* Base, const Core::String& Name, const Core::String& Value)
 			{
 				return Base->SetString(Name, Value) != nullptr;
 			}
-			bool DataModelSetInteger(Engine::GUI::DataModel* Base, const std::string& Name, int64_t Value)
+			bool DataModelSetInteger(Engine::GUI::DataModel* Base, const Core::String& Name, int64_t Value)
 			{
 				return Base->SetInteger(Name, Value) != nullptr;
 			}
-			bool DataModelSetFloat(Engine::GUI::DataModel* Base, const std::string& Name, float Value)
+			bool DataModelSetFloat(Engine::GUI::DataModel* Base, const Core::String& Name, float Value)
 			{
 				return Base->SetFloat(Name, Value) != nullptr;
 			}
-			bool DataModelSetDouble(Engine::GUI::DataModel* Base, const std::string& Name, double Value)
+			bool DataModelSetDouble(Engine::GUI::DataModel* Base, const Core::String& Name, double Value)
 			{
 				return Base->SetDouble(Name, Value) != nullptr;
 			}
-			bool DataModelSetBoolean(Engine::GUI::DataModel* Base, const std::string& Name, bool Value)
+			bool DataModelSetBoolean(Engine::GUI::DataModel* Base, const Core::String& Name, bool Value)
 			{
 				return Base->SetBoolean(Name, Value) != nullptr;
 			}
-			bool DataModelSetPointer(Engine::GUI::DataModel* Base, const std::string& Name, void* Value)
+			bool DataModelSetPointer(Engine::GUI::DataModel* Base, const Core::String& Name, void* Value)
 			{
 				return Base->SetPointer(Name, Value) != nullptr;
 			}
-			bool DataModelSetCallback(Engine::GUI::DataModel* Base, const std::string& Name, asIScriptFunction* Callback)
+			bool DataModelSetCallback(Engine::GUI::DataModel* Base, const Core::String& Name, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context)
@@ -7702,7 +7637,7 @@ namespace Edge
 					});
 				});
 			}
-			Core::Schema* DataModelGet(Engine::GUI::DataModel* Base, const std::string& Name)
+			Core::Schema* DataModelGet(Engine::GUI::DataModel* Base, const Core::String& Name)
 			{
 				Engine::GUI::DataNode* Node = Base->GetProperty(Name);
 				if (!Node)
@@ -7723,7 +7658,7 @@ namespace Edge
 			ModelListener::ModelListener(asIScriptFunction* NewCallback) noexcept : Base(new Engine::GUI::Listener(Bind(NewCallback))), Source(NewCallback), Context(nullptr)
 			{
 			}
-			ModelListener::ModelListener(const std::string& FunctionName) noexcept : Base(new Engine::GUI::Listener(FunctionName)), Source(nullptr), Context(nullptr)
+			ModelListener::ModelListener(const Core::String& FunctionName) noexcept : Base(new Engine::GUI::Listener(FunctionName)), Source(nullptr), Context(nullptr)
 			{
 			}
 			ModelListener::~ModelListener() noexcept
@@ -7767,7 +7702,7 @@ namespace Edge
 				};
 			}
 
-			void ComponentsSoftBodyLoad(Engine::Components::SoftBody* Base, const std::string& Path, float Ant, asIScriptFunction* Callback)
+			void ComponentsSoftBodyLoad(Engine::Components::SoftBody* Base, const Core::String& Path, float Ant, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
@@ -7789,7 +7724,7 @@ namespace Edge
 				});
 			}
 
-			void ComponentsRigidBodyLoad(Engine::Components::RigidBody* Base, const std::string& Path, float Mass, float Ant, asIScriptFunction* Callback)
+			void ComponentsRigidBodyLoad(Engine::Components::RigidBody* Base, const Core::String& Path, float Mass, float Ant, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
@@ -7811,7 +7746,7 @@ namespace Edge
 				});
 			}
 
-			void ComponentsKeyAnimatorLoadAnimation(Engine::Components::KeyAnimator* Base, const std::string& Path, asIScriptFunction* Callback)
+			void ComponentsKeyAnimatorLoadAnimation(Engine::Components::KeyAnimator* Base, const Core::String& Path, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
@@ -7980,16 +7915,16 @@ namespace Edge
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_ADDREF, "void f()", asMETHOD(Dictionary, AddRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_RELEASE, "void f()", asMETHOD(Dictionary, Release), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "dictionary &opAssign(const dictionary &in)", asMETHODPR(Dictionary, operator=, (const Dictionary&), Dictionary&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "void set(const string &in, const ?&in)", asMETHODPR(Dictionary, Set, (const std::string&, void*, int), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "bool get(const string &in, ?&out) const", asMETHODPR(Dictionary, Get, (const std::string&, void*, int) const, bool), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "void set(const string &in, const ?&in)", asMETHODPR(Dictionary, Set, (const Core::String&, void*, int), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "bool get(const string &in, ?&out) const", asMETHODPR(Dictionary, Get, (const Core::String&, void*, int) const, bool), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "bool exists(const string &in) const", asMETHOD(Dictionary, Exists), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "bool empty() const", asMETHOD(Dictionary, IsEmpty), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "usize size() const", asMETHOD(Dictionary, GetSize), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "bool delete(const string &in)", asMETHOD(Dictionary, Delete), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "void delete_all()", asMETHOD(Dictionary, DeleteAll), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "array<string>@ get_keys() const", asMETHOD(Dictionary, GetKeys), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "storable &opIndex(const string &in)", asMETHODPR(Dictionary, operator[], (const std::string&), Storable*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "const storable &opIndex(const string &in) const", asMETHODPR(Dictionary, operator[], (const std::string&) const, const Storable*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "storable &opIndex(const string &in)", asMETHODPR(Dictionary, operator[], (const Core::String&), Storable*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "const storable &opIndex(const string &in) const", asMETHODPR(Dictionary, operator[], (const Core::String&) const, const Storable*), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Dictionary, GetRefCount), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Dictionary, SetGCFlag), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Dictionary, GetGCFlag), asCALL_THISCALL);
@@ -8109,16 +8044,16 @@ namespace Edge
 				if (!Engine)
 					return false;
 
-				Engine->RegisterObjectType("string", sizeof(std::string), asOBJ_VALUE | asGetTypeTraits<std::string>());
+				Engine->RegisterObjectType("string", sizeof(Core::String), asOBJ_VALUE | asGetTypeTraits<Core::String>());
 				Engine->RegisterStringFactory("string", StringFactory::Get());
 				Engine->RegisterObjectBehaviour("string", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(String::Construct), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectBehaviour("string", asBEHAVE_CONSTRUCT, "void f(const string &in)", asFUNCTION(String::CopyConstruct), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectBehaviour("string", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(String::Destruct), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string &opAssign(const string &in)", asMETHODPR(std::string, operator =, (const std::string&), std::string&), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "string &opAssign(const string &in)", asMETHODPR(Core::String, operator =, (const Core::String&), Core::String&), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("string", "string &opAddAssign(const string &in)", asFUNCTION(String::AddAssignTo), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "bool opEquals(const string &in) const", asFUNCTIONPR(String::Equals, (const std::string&, const std::string&), bool), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "bool opEquals(const string &in) const", asFUNCTIONPR(String::Equals, (const Core::String&, const Core::String&), bool), asCALL_CDECL_OBJFIRST);
 				Engine->RegisterObjectMethod("string", "int opCmp(const string &in) const", asFUNCTION(String::Cmp), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string opAdd(const string &in) const", asFUNCTIONPR(std::operator +, (const std::string&, const std::string&), std::string), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "string opAdd(const string &in) const", asFUNCTIONPR(std::operator +, (const Core::String&, const Core::String&), Core::String), asCALL_CDECL_OBJFIRST);
 				Engine->RegisterObjectMethod("string", "usize size() const", asFUNCTION(String::Length), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "void resize(usize)", asFUNCTION(String::Resize), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "bool empty() const", asFUNCTION(String::IsEmpty), asCALL_CDECL_OBJLAST);
@@ -8232,7 +8167,7 @@ namespace Edge
 				Engine->RegisterObjectMethod("thread", "bool pop(?&out, uint64)", asMETHODPR(Thread, Pop, (void*, int, uint64_t), bool), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("thread", "int join(uint64)", asMETHODPR(Thread, Join, (uint64_t), int), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("thread", "int join()", asMETHODPR(Thread, Join, (), int), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "string get_id() const", asMETHODPR(Thread, GetId, () const, std::string), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("thread", "string get_id() const", asMETHODPR(Thread, GetId, () const, Core::String), asCALL_THISCALL);
 
 				VM->BeginNamespace("this_thread");
 				Engine->RegisterGlobalFunction("thread@+ get_routine()", asFUNCTION(Thread::GetThread), asCALL_CDECL);
@@ -8310,7 +8245,7 @@ namespace Edge
 				VDecimal.SetConstructor<Core::Decimal, uint64_t>("void f(uint64)");
 				VDecimal.SetConstructor<Core::Decimal, float>("void f(float)");
 				VDecimal.SetConstructor<Core::Decimal, double>("void f(double)");
-				VDecimal.SetConstructor<Core::Decimal, const std::string&>("void f(const string &in)");
+				VDecimal.SetConstructor<Core::Decimal, const Core::String&>("void f(const string &in)");
 				VDecimal.SetConstructor<Core::Decimal, const Core::Decimal&>("void f(const decimal &in)");
 				VDecimal.SetMethod("decimal& truncate(int)", &Core::Decimal::Truncate);
 				VDecimal.SetMethod("decimal& round(int)", &Core::Decimal::Round);
@@ -8386,9 +8321,9 @@ namespace Edge
 				Engine->SetFunction("variant integer_t(int64)", &Core::Var::Integer);
 				Engine->SetFunction("variant number_t(double)", &Core::Var::Number);
 				Engine->SetFunction("variant boolean_t(bool)", &Core::Var::Boolean);
-				Engine->SetFunction<Core::Variant(const std::string&)>("variant string_t(const string &in)", &Core::Var::String);
-				Engine->SetFunction<Core::Variant(const std::string&)>("variant binary_t(const string &in)", &Core::Var::Binary);
-				Engine->SetFunction<Core::Variant(const std::string&)>("variant decimal_t(const string &in)", &Core::Var::DecimalString);
+				Engine->SetFunction<Core::Variant(const Core::String&)>("variant string_t(const string &in)", &Core::Var::String);
+				Engine->SetFunction<Core::Variant(const Core::String&)>("variant binary_t(const string &in)", &Core::Var::Binary);
+				Engine->SetFunction<Core::Variant(const Core::String&)>("variant decimal_t(const string &in)", &Core::Var::DecimalString);
 				Engine->SetFunction<Core::Variant(const Core::Decimal&)>("variant decimal_t(const decimal &in)", &Core::Var::Decimal);
 				Engine->EndNamespace();
 
@@ -8445,8 +8380,8 @@ namespace Edge
 				VDateTime.SetOperatorEx(Operators::Cmp, (uint32_t)Position::Const, "int", "const timestamp &in", &DateTimeCmp);
 				VDateTime.SetOperatorEx(Operators::Add, (uint32_t)Position::Const, "timestamp", "const timestamp &in", &DateTimeAdd);
 				VDateTime.SetOperatorEx(Operators::Sub, (uint32_t)Position::Const, "timestamp", "const timestamp &in", &DateTimeSub);
-				VDateTime.SetMethodStatic<std::string, int64_t>("string get_gmt(int64)", &Core::DateTime::FetchWebDateGMT);
-				VDateTime.SetMethodStatic<std::string, int64_t>("string get_time(int64)", &Core::DateTime::FetchWebDateTime);
+				VDateTime.SetMethodStatic<Core::String, int64_t>("string get_gmt(int64)", &Core::DateTime::FetchWebDateGMT);
+				VDateTime.SetMethodStatic<Core::String, int64_t>("string get_time(int64)", &Core::DateTime::FetchWebDateTime);
 
 				return true;
 			}
@@ -8505,26 +8440,26 @@ namespace Edge
 			bool Registry::LoadSchema(VirtualMachine* Engine)
 			{
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+				ED_TYPEREF(Schema, "schema");
 
-				static const char Schema[] = "schema";
 				RefClass VSchema = Engine->SetClass<Core::Schema>("schema", true);
 				VSchema.SetProperty<Core::Schema>("string key", &Core::Schema::Key);
 				VSchema.SetProperty<Core::Schema>("variant value", &Core::Schema::Value);
 				VSchema.SetGcConstructor<Core::Schema, Schema, const Core::Variant&>("schema@ f(const variant &in)");
-				VSchema.SetGcConstructorListEx<Core::Schema, Schema>("schema@ f(int &in) { repeat { string, ? } }", &SchemaConstruct);
+				VSchema.SetGcConstructorListEx<Core::Schema>("schema@ f(int &in) { repeat { string, ? } }", &SchemaConstruct);
 				VSchema.SetMethod<Core::Schema, Core::Variant, size_t>("variant getVar(usize) const", &Core::Schema::GetVar);
-				VSchema.SetMethod<Core::Schema, Core::Variant, const std::string&>("variant get_var(const string &in) const", &Core::Schema::GetVar);
-				VSchema.SetMethod<Core::Schema, Core::Variant, const std::string&>("variant get_attribute_var(const string &in) const", &Core::Schema::GetAttributeVar);
+				VSchema.SetMethod<Core::Schema, Core::Variant, const Core::String&>("variant get_var(const string &in) const", &Core::Schema::GetVar);
+				VSchema.SetMethod<Core::Schema, Core::Variant, const Core::String&>("variant get_attribute_var(const string &in) const", &Core::Schema::GetAttributeVar);
 				VSchema.SetMethod("schema@+ get_parent() const", &Core::Schema::GetParent);
 				VSchema.SetMethod("schema@+ get_attribute(const string &in) const", &Core::Schema::GetAttribute);
 				VSchema.SetMethod<Core::Schema, Core::Schema*, size_t>("schema@+ get(usize) const", &Core::Schema::Get);
-				VSchema.SetMethod<Core::Schema, Core::Schema*, const std::string&, bool>("schema@+ get(const string &in, bool = false) const", &Core::Schema::Fetch);
-				VSchema.SetMethod<Core::Schema, Core::Schema*, const std::string&>("schema@+ get(const string &in)", &Core::Schema::Set);
-				VSchema.SetMethod<Core::Schema, Core::Schema*, const std::string&, const Core::Variant&>("schema@+ set(const string &in, const variant &in)", &Core::Schema::Set);
-				VSchema.SetMethod<Core::Schema, Core::Schema*, const std::string&, const Core::Variant&>("schema@+ set_attribute(const string& in, const variant &in)", &Core::Schema::SetAttribute);
+				VSchema.SetMethod<Core::Schema, Core::Schema*, const Core::String&, bool>("schema@+ get(const string &in, bool = false) const", &Core::Schema::Fetch);
+				VSchema.SetMethod<Core::Schema, Core::Schema*, const Core::String&>("schema@+ get(const string &in)", &Core::Schema::Set);
+				VSchema.SetMethod<Core::Schema, Core::Schema*, const Core::String&, const Core::Variant&>("schema@+ set(const string &in, const variant &in)", &Core::Schema::Set);
+				VSchema.SetMethod<Core::Schema, Core::Schema*, const Core::String&, const Core::Variant&>("schema@+ set_attribute(const string& in, const variant &in)", &Core::Schema::SetAttribute);
 				VSchema.SetMethod<Core::Schema, Core::Schema*, const Core::Variant&>("schema@+ push(const variant &in)", &Core::Schema::Push);
 				VSchema.SetMethod<Core::Schema, Core::Schema*, size_t>("schema@+ pop(usize)", &Core::Schema::Pop);
-				VSchema.SetMethod<Core::Schema, Core::Schema*, const std::string&>("schema@+ pop(const string &in)", &Core::Schema::Pop);
+				VSchema.SetMethod<Core::Schema, Core::Schema*, const Core::String&>("schema@+ pop(const string &in)", &Core::Schema::Pop);
 				VSchema.SetMethod("schema@ copy() const", &Core::Schema::Copy);
 				VSchema.SetMethod("bool has(const string &in) const", &Core::Schema::Has);
 				VSchema.SetMethod("bool has_attribute(const string &in) const", &Core::Schema::HasAttribute);
@@ -8579,9 +8514,9 @@ namespace Edge
 				Engine->SetFunction("schema@ integer_t(int64)", &Core::Var::Set::Integer);
 				Engine->SetFunction("schema@ number_t(double)", &Core::Var::Set::Number);
 				Engine->SetFunction("schema@ boolean_t(bool)", &Core::Var::Set::Boolean);
-				Engine->SetFunction<Core::Schema* (const std::string&)>("schema@ string_t(const string &in)", &Core::Var::Set::String);
-				Engine->SetFunction<Core::Schema* (const std::string&)>("schema@ binary_t(const string &in)", &Core::Var::Set::Binary);
-				Engine->SetFunction<Core::Schema* (const std::string&)>("schema@ decimal_t(const string &in)", &Core::Var::Set::DecimalString);
+				Engine->SetFunction<Core::Schema* (const Core::String&)>("schema@ string_t(const string &in)", &Core::Var::Set::String);
+				Engine->SetFunction<Core::Schema* (const Core::String&)>("schema@ binary_t(const string &in)", &Core::Var::Set::Binary);
+				Engine->SetFunction<Core::Schema* (const Core::String&)>("schema@ decimal_t(const string &in)", &Core::Var::Set::DecimalString);
 				Engine->SetFunction<Core::Schema* (const Core::Decimal&)>("schema@ decimal_t(const decimal &in)", &Core::Var::Set::Decimal);
 				Engine->SetFunction("schema@+ as(schema@+)", &SchemaInit);
 				Engine->EndNamespace();
@@ -8784,7 +8719,7 @@ namespace Edge
 				Engine->EndNamespace();
 
 				Engine->BeginNamespace("os::file");
-				Engine->SetFunction<bool(const std::string&, const std::string&)>("bool write(const string &in, const string &in)", &Core::OS::File::Write);
+				Engine->SetFunction<bool(const Core::String&, const Core::String&)>("bool write(const string &in, const string &in)", &Core::OS::File::Write);
 				Engine->SetFunction("bool state(const string &in, file_entry &out)", &OSFileState);
 				Engine->SetFunction("bool move(const string &in, const string &in)", &OSFileMove);
 				Engine->SetFunction("bool remove(const string &in)", &OSFileRemove);
@@ -8797,7 +8732,7 @@ namespace Edge
 				Engine->SetFunction("int64 get_check_sum(const string &in)", &Core::OS::File::GetCheckSum);
 				Engine->SetFunction("base_stream@ open_join(const string &in, array<string>@+)", &OSFileOpenJoin);
 				Engine->SetFunction("base_stream@ open_archive(const string &in, usize)", &Core::OS::File::OpenArchive);
-				Engine->SetFunction<Core::Stream*(const std::string&, Core::FileMode, bool)>("base_stream@ open(const string &in, file_mode, bool = false)", &Core::OS::File::Open);
+				Engine->SetFunction<Core::Stream*(const Core::String&, Core::FileMode, bool)>("base_stream@ open(const string &in, file_mode, bool = false)", &Core::OS::File::Open);
 				Engine->EndNamespace();
 
 				Engine->BeginNamespace("os::path");
@@ -8808,8 +8743,8 @@ namespace Edge
 				Engine->SetFunction("string get_filename(const string &in)", &OSPathGetFilename);
 				Engine->SetFunction("string get_extension(const string &in)", &OSPathGetExtension);
 				Engine->SetFunction("string get_non_existant(const string &in)", &Core::OS::Path::GetNonExistant);
-				Engine->SetFunction<std::string(const std::string&, const std::string&)>("string resolve(const string &in, const string &in)", &Core::OS::Path::Resolve);
-				Engine->SetFunction<std::string(const std::string&, const std::string&)>("string resolve_directory(const string &in, const string &in)", &Core::OS::Path::ResolveDirectory);
+				Engine->SetFunction<Core::String(const Core::String&, const Core::String&)>("string resolve(const string &in, const string &in)", &Core::OS::Path::Resolve);
+				Engine->SetFunction<Core::String(const Core::String&, const Core::String&)>("string resolve_directory(const string &in, const string &in)", &Core::OS::Path::ResolveDirectory);
 				Engine->EndNamespace();
 
 				Engine->BeginNamespace("os::process");
@@ -9481,7 +9416,7 @@ namespace Edge
 				TypeClass VRegexSource = Engine->SetStructTrivial<Compute::RegexSource>("regex_source");
 				VRegexSource.SetProperty<Compute::RegexSource>("bool ignoreCase", &Compute::RegexSource::IgnoreCase);
 				VRegexSource.SetConstructor<Compute::RegexSource>("void f()");
-				VRegexSource.SetConstructor<Compute::RegexSource, const std::string&, bool, int64_t, int64_t, int64_t>("void f(const string &in, bool = false, int64 = -1, int64 = -1, int64 = -1)");
+				VRegexSource.SetConstructor<Compute::RegexSource, const Core::String&, bool, int64_t, int64_t, int64_t>("void f(const string &in, bool = false, int64 = -1, int64 = -1, int64 = -1)");
 				VRegexSource.SetMethod("const string& get_regex() const", &Compute::RegexSource::GetRegex);
 				VRegexSource.SetMethod("int64 get_max_branches() const", &Compute::RegexSource::GetMaxBranches);
 				VRegexSource.SetMethod("int64 get_max_brackets() const", &Compute::RegexSource::GetMaxBrackets);
@@ -9502,6 +9437,8 @@ namespace Edge
 			{
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+				ED_TYPEREF(WebToken, "web_token");
+
 				Enumeration VCompression = Engine->SetEnum("compression_cdc");
 				VCompression.SetValue("none", (int)Compute::Compression::None);
 				VCompression.SetValue("best_speed", (int)Compute::Compression::BestSpeed);
@@ -9510,14 +9447,13 @@ namespace Edge
 
 				TypeClass VPrivateKey = Engine->SetStructTrivial<Compute::PrivateKey>("private_key");
 				VPrivateKey.SetConstructor<Compute::PrivateKey>("void f()");
-				VPrivateKey.SetConstructor<Compute::PrivateKey, const std::string&>("void f(const string &in)");
+				VPrivateKey.SetConstructor<Compute::PrivateKey, const Core::String&>("void f(const string &in)");
 				VPrivateKey.SetMethod("void clear()", &Compute::PrivateKey::Clear);
-				VPrivateKey.SetMethod<Compute::PrivateKey, void, const std::string&>("void secure(const string &in)", &Compute::PrivateKey::Secure);
+				VPrivateKey.SetMethod<Compute::PrivateKey, void, const Core::String&>("void secure(const string &in)", &Compute::PrivateKey::Secure);
 				VPrivateKey.SetMethod("string expose_to_heap() const", &Compute::PrivateKey::ExposeToHeap);
 				VPrivateKey.SetMethod("usize size() const", &Compute::PrivateKey::Clear);
-				VPrivateKey.SetMethodStatic<Compute::PrivateKey, const std::string&>("private_key get_plain(const string &in)", &Compute::PrivateKey::GetPlain);
+				VPrivateKey.SetMethodStatic<Compute::PrivateKey, const Core::String&>("private_key get_plain(const string &in)", &Compute::PrivateKey::GetPlain);
 
-				static const char WebToken[] = "web_token";
 				RefClass VWebToken = Engine->SetClass<Compute::WebToken>("web_token", true);
 				VWebToken.SetProperty<Compute::WebToken>("schema@ header", &Compute::WebToken::Header);
 				VWebToken.SetProperty<Compute::WebToken>("schema@ payload", &Compute::WebToken::Payload);
@@ -9526,7 +9462,7 @@ namespace Edge
 				VWebToken.SetProperty<Compute::WebToken>("string signature", &Compute::WebToken::Signature);
 				VWebToken.SetProperty<Compute::WebToken>("string data", &Compute::WebToken::Data);
 				VWebToken.SetGcConstructor<Compute::WebToken, WebToken>("web_token@ f()");
-				VWebToken.SetGcConstructor<Compute::WebToken, WebToken, const std::string&, const std::string&, int64_t>("web_token@ f(const string &in, const string &in, int64)");
+				VWebToken.SetGcConstructor<Compute::WebToken, WebToken, const Core::String&, const Core::String&, int64_t>("web_token@ f(const string &in, const string &in, int64)");
 				VWebToken.SetMethod("void unsign()", &Compute::WebToken::Unsign);
 				VWebToken.SetMethod("void set_algorithm(const string &in)", &Compute::WebToken::SetAlgorithm);
 				VWebToken.SetMethod("void set_type(const string &in)", &Compute::WebToken::SetType);
@@ -9732,10 +9668,10 @@ namespace Edge
 				Engine->SetFunction("string random_bytes(usize)", &Compute::Crypto::RandomBytes);
 				Engine->SetFunction("string hash(uptr@, const string &in)", &Compute::Crypto::Hash);
 				Engine->SetFunction("string hash_binary(uptr@, const string &in)", &Compute::Crypto::HashBinary);
-				Engine->SetFunction<std::string(Compute::Digest, const std::string&, const Compute::PrivateKey&)>("string sign(uptr@, const string &in, const private_key &in)", &Compute::Crypto::Sign);
-				Engine->SetFunction<std::string(Compute::Digest, const std::string&, const Compute::PrivateKey&)>("string hmac(uptr@, const string &in, const private_key &in)", &Compute::Crypto::HMAC);
-				Engine->SetFunction<std::string(Compute::Digest, const std::string&, const Compute::PrivateKey&, const Compute::PrivateKey&, int)>("string encrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &Compute::Crypto::Encrypt);
-				Engine->SetFunction<std::string(Compute::Digest, const std::string&, const Compute::PrivateKey&, const Compute::PrivateKey&, int)>("string decrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &Compute::Crypto::Decrypt);
+				Engine->SetFunction<Core::String(Compute::Digest, const Core::String&, const Compute::PrivateKey&)>("string sign(uptr@, const string &in, const private_key &in)", &Compute::Crypto::Sign);
+				Engine->SetFunction<Core::String(Compute::Digest, const Core::String&, const Compute::PrivateKey&)>("string hmac(uptr@, const string &in, const private_key &in)", &Compute::Crypto::HMAC);
+				Engine->SetFunction<Core::String(Compute::Digest, const Core::String&, const Compute::PrivateKey&, const Compute::PrivateKey&, int)>("string encrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &Compute::Crypto::Encrypt);
+				Engine->SetFunction<Core::String(Compute::Digest, const Core::String&, const Compute::PrivateKey&, const Compute::PrivateKey&, int)>("string decrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &Compute::Crypto::Decrypt);
 				Engine->SetFunction("string jwt_sign(const string &in, const string &in, const private_key &in)", &Compute::Crypto::JWTSign);
 				Engine->SetFunction("string jwt_encode(web_token@+, const private_key &in)", &Compute::Crypto::JWTEncode);
 				Engine->SetFunction("web_token@ jwt_decode(const string &in, const private_key &in)", &Compute::Crypto::JWTDecode);
@@ -9756,14 +9692,14 @@ namespace Edge
 				Engine->SetFunction("string base45_decode(const string &in)", &Compute::Codec::Base45Decode);
 				Engine->SetFunction("string compress(const string &in, compression_cdc)", &Compute::Codec::Compress);
 				Engine->SetFunction("string decompress(const string &in)", &Compute::Codec::Decompress);
-				Engine->SetFunction<std::string(const std::string&)>("string base65_encode(const string &in)", &Compute::Codec::Base64Encode);
-				Engine->SetFunction<std::string(const std::string&)>("string base65_decode(const string &in)", &Compute::Codec::Base64Decode);
-				Engine->SetFunction<std::string(const std::string&)>("string base64_url_encode(const string &in)", &Compute::Codec::Base64URLEncode);
-				Engine->SetFunction<std::string(const std::string&)>("string base64_url_decode(const string &in)", &Compute::Codec::Base64URLDecode);
-				Engine->SetFunction<std::string(const std::string&)>("string hex_dncode(const string &in)", &Compute::Codec::HexEncode);
-				Engine->SetFunction<std::string(const std::string&)>("string hex_decode(const string &in)", &Compute::Codec::HexDecode);
-				Engine->SetFunction<std::string(const std::string&)>("string uri_encode(const string &in)", &Compute::Codec::URIEncode);
-				Engine->SetFunction<std::string(const std::string&)>("string uri_decode(const string &in)", &Compute::Codec::URIDecode);
+				Engine->SetFunction<Core::String(const Core::String&)>("string base65_encode(const string &in)", &Compute::Codec::Base64Encode);
+				Engine->SetFunction<Core::String(const Core::String&)>("string base65_decode(const string &in)", &Compute::Codec::Base64Decode);
+				Engine->SetFunction<Core::String(const Core::String&)>("string base64_url_encode(const string &in)", &Compute::Codec::Base64URLEncode);
+				Engine->SetFunction<Core::String(const Core::String&)>("string base64_url_decode(const string &in)", &Compute::Codec::Base64URLDecode);
+				Engine->SetFunction<Core::String(const Core::String&)>("string hex_dncode(const string &in)", &Compute::Codec::HexEncode);
+				Engine->SetFunction<Core::String(const Core::String&)>("string hex_decode(const string &in)", &Compute::Codec::HexDecode);
+				Engine->SetFunction<Core::String(const Core::String&)>("string uri_encode(const string &in)", &Compute::Codec::URIEncode);
+				Engine->SetFunction<Core::String(const Core::String&)>("string uri_decode(const string &in)", &Compute::Codec::URIDecode);
 				Engine->SetFunction("string decimal_to_hex(uint64)", &Compute::Codec::DecimalToHex);
 				Engine->SetFunction("string base10_to_base_n(uint64, uint8)", &Compute::Codec::Base10ToBaseN);
 				Engine->EndNamespace();
@@ -10655,6 +10591,8 @@ namespace Edge
 			{
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+				ED_TYPEREF(AudioSource, "audio_source");
+
 				Enumeration VSoundDistanceModel = Engine->SetEnum("sound_distance_model");
 				VSoundDistanceModel.SetValue("invalid", (int)Audio::SoundDistanceModel::Invalid);
 				VSoundDistanceModel.SetValue("invert", (int)Audio::SoundDistanceModel::Invert);
@@ -10779,7 +10717,6 @@ namespace Edge
 				VAudioClip.SetMethod("uint32 get_buffer() const", &Audio::AudioClip::GetBuffer);
 				VAudioClip.SetMethod("int32 get_format() const", &Audio::AudioClip::GetFormat);
 
-				static const char AudioSource[] = "audio_source";
 				VAudioSource.SetGcConstructor<Audio::AudioSource, AudioSource>("audio_source@ f()");
 				VAudioSource.SetMethod("int64 add_effect(base_audio_effect@+)", &Audio::AudioSource::AddEffect);
 				VAudioSource.SetMethod("bool remove_effect(usize)", &Audio::AudioSource::RemoveEffect);
@@ -12242,7 +12179,7 @@ namespace Edge
 				VGraphicsDevice.SetMethod("bool transpile(string &out, shader_type, shader_lang)", &Graphics::GraphicsDevice::Transpile);
 				VGraphicsDevice.SetMethod("bool add_section(const string &in, const string &in)", &Graphics::GraphicsDevice::AddSection);
 				VGraphicsDevice.SetMethod("bool remove_section(const string &in)", &Graphics::GraphicsDevice::RemoveSection);
-				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, const std::string&, Graphics::Shader::Desc*>("bool get_section(const string &in, shader_desc &out)", &Graphics::GraphicsDevice::GetSection);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, const Core::String&, Graphics::Shader::Desc*>("bool get_section(const string &in, shader_desc &out)", &Graphics::GraphicsDevice::GetSection);
 				VGraphicsDevice.SetMethod("bool is_left_handed() const", &Graphics::GraphicsDevice::IsLeftHanded);
 				VGraphicsDevice.SetMethod("string get_shader_main(shader_type) const", &Graphics::GraphicsDevice::GetShaderMain);
 				VGraphicsDevice.SetMethod("depth_stencil_state@+ get_depth_stencil_state(const string &in)", &Graphics::GraphicsDevice::GetDepthStencilState);
@@ -12300,6 +12237,10 @@ namespace Edge
 			{
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+				ED_TYPEREF(SocketListener, "socket_listener");
+				ED_TYPEREF(SocketConnection, "socket_connection");
+				ED_TYPEREF(SocketServer, "socket_server");
+
 				Enumeration VSecure = Engine->SetEnum("socket_secure");
 				VSecure.SetValue("unsecure", (int)Network::Secure::Any);
 				VSecure.SetValue("ssl_v2", (int)Network::Secure::SSL_V2);
@@ -12353,7 +12294,7 @@ namespace Edge
 				VLocation.SetProperty<Network::Location>("string fragment", &Network::Location::Fragment);
 				VLocation.SetProperty<Network::Location>("string path", &Network::Location::Path);
 				VLocation.SetProperty<Network::Location>("int32 port", &Network::Location::Port);
-				VLocation.SetConstructor<Network::Location, const std::string&>("void f(const string &in)");
+				VLocation.SetConstructor<Network::Location, const Core::String&>("void f(const string &in)");
 				VLocation.SetMethodEx("dictionary@ get_query() const", &LocationGetQuery);
 
 				TypeClass VCertificate = Engine->SetStructTrivial<Network::Certificate>("certificate");
@@ -12498,16 +12439,15 @@ namespace Edge
 				Engine->SetFunction("bool is_active()", &Network::Multiplexer::IsActive);
 				Engine->SetFunction("usize get_activations()", &Network::Multiplexer::GetActivations);
 				Engine->SetFunction("string get_local_address()", &Network::Multiplexer::GetLocalAddress);
-				Engine->SetFunction<std::string(addrinfo*)>("string get_address(uptr@)", &Network::Multiplexer::GetAddress);
+				Engine->SetFunction<Core::String(addrinfo*)>("string get_address(uptr@)", &Network::Multiplexer::GetAddress);
 				Engine->EndNamespace();
 
-				static const char SocketListener[] = "socket_listener";
 				RefClass VSocketListener = Engine->SetClass<Network::SocketListener>("socket_listener", true);
 				VSocketListener.SetProperty<Network::SocketListener>("string name", &Network::SocketListener::Name);
 				VSocketListener.SetProperty<Network::SocketListener>("remote_host hostname", &Network::SocketListener::Hostname);
 				VSocketListener.SetProperty<Network::SocketListener>("socket_address@ source", &Network::SocketListener::Source);
 				VSocketListener.SetProperty<Network::SocketListener>("socket@ base", &Network::SocketListener::Base);
-				VSocketListener.SetGcConstructor<Network::SocketListener, SocketListener, const std::string&, const Network::RemoteHost&, Network::SocketAddress*>("socket_listener@ f(const string &in, const remote_host &in, socket_address@+)");
+				VSocketListener.SetGcConstructor<Network::SocketListener, SocketListener, const Core::String&, const Network::RemoteHost&, Network::SocketAddress*>("socket_listener@ f(const string &in, const remote_host &in, socket_address@+)");
 				VSocketListener.SetEnumRefsEx<Network::SocketListener>([](Network::SocketListener* Base, asIScriptEngine* Engine)
 				{
 					Engine->GCEnumCallback(Base->Base);
@@ -12526,14 +12466,13 @@ namespace Edge
 				VSocketRouter.SetProperty<Network::SocketRouter>("int64 graceful_time_wait", &Network::SocketRouter::GracefulTimeWait);
 				VSocketRouter.SetProperty<Network::SocketRouter>("bool enable_no_delay", &Network::SocketRouter::EnableNoDelay);
 				VSocketRouter.SetConstructor<Network::SocketRouter>("socket_router@ f()");
-				VSocketRouter.SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string&, int, bool>("remote_host& listen(const string &in, int, bool = false)", &Network::SocketRouter::Listen);
-				VSocketRouter.SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string&, const std::string&, int, bool>("remote_host& listen(const string &in, const string &in, int, bool = false)", &Network::SocketRouter::Listen);
+				VSocketRouter.SetMethod<Network::SocketRouter, Network::RemoteHost&, const Core::String&, int, bool>("remote_host& listen(const string &in, int, bool = false)", &Network::SocketRouter::Listen);
+				VSocketRouter.SetMethod<Network::SocketRouter, Network::RemoteHost&, const Core::String&, const Core::String&, int, bool>("remote_host& listen(const string &in, const string &in, int, bool = false)", &Network::SocketRouter::Listen);
 				VSocketRouter.SetMethodEx("void set_listeners(dictionary@ data)", &SocketRouterSetListeners);
 				VSocketRouter.SetMethodEx("dictionary@ get_listeners() const", &SocketRouterGetListeners);
 				VSocketRouter.SetMethodEx("void set_certificates(dictionary@ data)", &SocketRouterSetCertificates);
 				VSocketRouter.SetMethodEx("dictionary@ get_certificates() const", &SocketRouterGetCertificates);
 
-				static const char SocketConnection[] = "socket_connection";
 				RefClass VSocketConnection = Engine->SetClass<Network::SocketConnection>("socket_connection", true);
 				VSocketConnection.SetProperty<Network::SocketConnection>("socket@ stream", &Network::SocketConnection::Stream);
 				VSocketConnection.SetProperty<Network::SocketConnection>("socket_listener@ host", &Network::SocketConnection::Host);
@@ -12556,7 +12495,6 @@ namespace Edge
 					Base->~SocketConnection();
 				});
 
-				static const char SocketServer[] = "socket_server";
 				RefClass VSocketServer = Engine->SetClass<Network::SocketServer>("socket_server", true);
 				VSocketServer.SetGcConstructor<Network::SocketServer, SocketServer>("socket_server@ f()");
 				VSocketServer.SetMethod("void set_router(socket_router@+)", &Network::SocketServer::SetRouter);
@@ -12613,6 +12551,17 @@ namespace Edge
 			{
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+				ED_TYPEREF(Material, "material");
+				ED_TYPEREF(Model, "model");
+				ED_TYPEREF(SkinModel, "skin_model");
+				ED_TYPEREF(RenderSystem, "render_system");
+				ED_TYPEREF(ShaderCache, "shader_cache");
+				ED_TYPEREF(PrimitiveCache, "primitive_cache");
+				ED_TYPEREF(ContentManager, "content_manager");
+				ED_TYPEREF(AppData, "app_data");
+				ED_TYPEREF(SceneGraph, "scene_graph");
+				ED_TYPEREF(ApplicationName, "application");
+
 				Enumeration VApplicationSet = Engine->SetEnum("application_set");
 				VApplicationSet.SetValue("graphics_set", (int)Engine::ApplicationSet::GraphicsSet);
 				VApplicationSet.SetValue("activity_set", (int)Engine::ApplicationSet::ActivitySet);
@@ -12766,7 +12715,7 @@ namespace Edge
 
 				TypeClass VEvent = Engine->SetStructTrivial<Engine::Event>("scene_event");
 				VEvent.SetProperty<Engine::Event>("string name", &Engine::Event::Name);
-				VEvent.SetConstructor<Engine::Event, const std::string&>("void f(const string &in)");
+				VEvent.SetConstructor<Engine::Event, const Core::String&>("void f(const string &in)");
 				VEvent.SetMethodEx("void set_args(dictionary@+)", &EventSetArgs);
 				VEvent.SetMethodEx("dictionary@ get_args() const", &EventGetArgs);
 
@@ -12886,7 +12835,6 @@ namespace Edge
 				VSkinAnimation.SetMethodEx("array<skin_animator_clip>@+ get_clips() const", &SkinAnimationGetClips);
 				VSkinAnimation.SetMethod("bool is_valid() const", &Engine::SkinAnimation::IsValid);
 
-				static const char Material[] = "material";
 				RefClass VSceneGraph = Engine->SetClass<Engine::SceneGraph>("scene_graph", true);
 				VMaterial.SetProperty<Engine::Material>("subsurface surface", &Engine::Material::Surface);
 				VMaterial.SetProperty<Engine::Material>("usize slot", &Engine::Material::Slot);
@@ -12953,7 +12901,7 @@ namespace Edge
 				Engine->SetFunction<void(Core::Schema*, const Compute::Vertex&)>("void pack(schema@+, const vertex &in)", &Engine::Series::Pack);
 				Engine->SetFunction<void(Core::Schema*, const Compute::SkinVertex&)>("void pack(schema@+, const skin_vertex &in)", &Engine::Series::Pack);
 				Engine->SetFunction<void(Core::Schema*, const Engine::Ticker&)>("void pack(schema@+, const clock_ticker &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const std::string&)>("void pack(schema@+, const string &in)", &Engine::Series::Pack);
+				Engine->SetFunction<void(Core::Schema*, const Core::String&)>("void pack(schema@+, const string &in)", &Engine::Series::Pack);
 				Engine->SetFunction<bool(Core::Schema*, bool*)>("bool unpack(schema@+, bool &out)", &Engine::Series::Unpack);
 				Engine->SetFunction<bool(Core::Schema*, int*)>("bool unpack(schema@+, int32 &out)", &Engine::Series::Unpack);
 				Engine->SetFunction<bool(Core::Schema*, unsigned int*)>("bool unpack(schema@+, uint32 &out)", &Engine::Series::Unpack);
@@ -12977,10 +12925,9 @@ namespace Edge
 				Engine->SetFunction<bool(Core::Schema*, Compute::Vertex*)>("bool unpack(schema@+, vertex &out)", &Engine::Series::Unpack);
 				Engine->SetFunction<bool(Core::Schema*, Compute::SkinVertex*)>("bool unpack(schema@+, skin_vertex &out)", &Engine::Series::Unpack);
 				Engine->SetFunction<bool(Core::Schema*, Engine::Ticker*)>("bool unpack(schema@+, clock_ticker &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, std::string*)>("bool unpack(schema@+, string &out)", &Engine::Series::Unpack);
+				Engine->SetFunction<bool(Core::Schema*, Core::String*)>("bool unpack(schema@+, string &out)", &Engine::Series::Unpack);
 				Engine->EndNamespace();
 
-				static const char Model[] = "model";
 				RefClass VModel = Engine->SetClass<Engine::Model>("model", true);
 				VModel.SetProperty<Engine::Model>("vector4 max", &Engine::Model::Max);
 				VModel.SetProperty<Engine::Model>("vector4 min", &Engine::Model::Min);
@@ -12998,14 +12945,13 @@ namespace Edge
 					Base->Cleanup();
 				});
 
-				static const char SkinModel[] = "skin_model";
 				VSkinModel.SetProperty<Engine::SkinModel>("joint skeleton", &Engine::SkinModel::Skeleton);
 				VSkinModel.SetProperty<Engine::SkinModel>("matrix4x4 inv_transform", &Engine::SkinModel::InvTransform);
 				VSkinModel.SetProperty<Engine::SkinModel>("matrix4x4 base_transform", &Engine::SkinModel::Transform);
 				VSkinModel.SetProperty<Engine::SkinModel>("vector4 max", &Engine::SkinModel::Max);
 				VSkinModel.SetProperty<Engine::SkinModel>("vector4 min", &Engine::SkinModel::Min);
 				VSkinModel.SetGcConstructor<Engine::SkinModel, SkinModel>("skin_model@ f()");
-				VSkinModel.SetMethod<Engine::SkinModel, bool, const std::string&, Compute::Joint*>("bool find_joint(const string &in, joint &out) const", &Engine::SkinModel::FindJoint);
+				VSkinModel.SetMethod<Engine::SkinModel, bool, const Core::String&, Compute::Joint*>("bool find_joint(const string &in, joint &out) const", &Engine::SkinModel::FindJoint);
 				VSkinModel.SetMethod<Engine::SkinModel, bool, size_t, Compute::Joint*>("bool find_joint(usize, joint &out) const", &Engine::SkinModel::FindJoint);
 				VSkinModel.SetMethod("skin_mesh_buffer@+ find_mesh(const string &in) const", &Engine::SkinModel::FindMesh);
 				VSkinModel.SetMethodEx("array<skin_mesh_buffer@>@ get_meshes() const", &SkinModelGetMeshes);
@@ -13071,7 +13017,6 @@ namespace Edge
 				VRsState.SetMethod("render_opt get_opts() const", &Engine::RenderSystem::RsState::GetOpts);
 				VRsState.SetMethod("render_state get_state() const", &Engine::RenderSystem::RsState::Get);
 
-				static const char RenderSystem[] = "render_system";
 				RefClass VPrimitiveCache = Engine->SetClass<Engine::Renderer>("primitive_cache", true);
 				VRenderSystem.SetFunctionDef("void overlapping_result(base_component@+)");
 				VRenderSystem.SetProperty<Engine::RenderSystem>("rs_state state", &Engine::RenderSystem::State);
@@ -13100,7 +13045,7 @@ namespace Edge
 				VRenderSystem.SetMethodEx("void move_renderer(base_renderer@+, usize)", &RenderSystemMoveRenderer);
 				VRenderSystem.SetMethodEx("void remove_renderer(base_renderer@+, usize)", &RenderSystemRemoveRenderer);
 				VRenderSystem.SetMethod("void restore_output()", &Engine::RenderSystem::RestoreOutput);
-				VRenderSystem.SetMethod<Engine::RenderSystem, void, const std::string&, Graphics::Shader*>("void free_shader(const string &in, shader@+)", &Engine::RenderSystem::FreeShader);
+				VRenderSystem.SetMethod<Engine::RenderSystem, void, const Core::String&, Graphics::Shader*>("void free_shader(const string &in, shader@+)", &Engine::RenderSystem::FreeShader);
 				VRenderSystem.SetMethod<Engine::RenderSystem, void, Graphics::Shader*>("void free_shader(shader@+)", &Engine::RenderSystem::FreeShader);
 				VRenderSystem.SetMethodEx("void free_buffers(const string &in, element_buffer@+, element_buffer@+)", &RenderSystemFreeBuffers1);
 				VRenderSystem.SetMethodEx("void free_buffers(element_buffer@+, element_buffer@+)", &RenderSystemFreeBuffers2);
@@ -13112,7 +13057,7 @@ namespace Edge
 				VRenderSystem.SetMethod("bool try_geometry(material@+, bool)", &Engine::RenderSystem::TryGeometry);
 				VRenderSystem.SetMethod("bool has_category(geo_category)", &Engine::RenderSystem::HasCategory);
 				VRenderSystem.SetMethod<Engine::RenderSystem, Graphics::Shader*, Graphics::Shader::Desc&, size_t>("shader@+ compile_shader(shader_desc &in, usize = 0)", &Engine::RenderSystem::CompileShader);
-				VRenderSystem.SetMethod<Engine::RenderSystem, Graphics::Shader*, const std::string&, size_t>("shader@+ compile_shader(const string &in, usize = 0)", &Engine::RenderSystem::CompileShader);
+				VRenderSystem.SetMethod<Engine::RenderSystem, Graphics::Shader*, const Core::String&, size_t>("shader@+ compile_shader(const string &in, usize = 0)", &Engine::RenderSystem::CompileShader);
 				VRenderSystem.SetMethodEx("array<element_buffer@>@ compile_buffers(const string &in, usize, usize)", &RenderSystemCompileBuffers);
 				VRenderSystem.SetMethodEx("bool add_renderer(base_renderer@+)", &RenderSystemAddRenderer);
 				VRenderSystem.SetMethodEx("base_renderer@+ get_renderer(uint64) const", &RenderSystemGetRenderer);
@@ -13138,7 +13083,6 @@ namespace Edge
 					Base->RemoveRenderers();
 				});
 
-				static const char ShaderCache[] = "shader_cache";
 				RefClass VShaderCache = Engine->SetClass<Engine::ShaderCache>("shader_cache", true);
 				VShaderCache.SetGcConstructor<Engine::ShaderCache, ShaderCache, Graphics::GraphicsDevice*>("shader_cache@ f()");
 				VShaderCache.SetMethod("shader@+ compile(const string &in, const shader_desc &in, usize = 0)", &Engine::ShaderCache::Compile);
@@ -13157,7 +13101,6 @@ namespace Edge
 					Base->ClearCache();
 				});
 
-				static const char PrimitiveCache[] = "primitive_cache";
 				VPrimitiveCache.SetGcConstructor<Engine::PrimitiveCache, PrimitiveCache, Graphics::GraphicsDevice*>("primitive_cache@ f()");
 				VPrimitiveCache.SetMethodEx("array<element_buffer@>@ compile(const string &in, usize, usize)", &PrimitiveCacheCompile);
 				VPrimitiveCache.SetMethodEx("array<element_buffer@>@ get(const string &in) const", &PrimitiveCacheGet);
@@ -13199,7 +13142,6 @@ namespace Edge
 					Base->ClearCache();
 				});
 
-				static const char ContentManager[] = "content_manager";
 				VContentManager.SetFunctionDef("void load_callback(uptr@)");
 				VContentManager.SetFunctionDef("void save_callback(bool)");
 				VContentManager.SetGcConstructor<Engine::ContentManager, ContentManager, Graphics::GraphicsDevice*>("content_manager@ f()");
@@ -13218,7 +13160,7 @@ namespace Edge
 				VContentManager.SetMethodEx("void save_async(base_processor@+, const string &in, uptr@, schema@+, save_callback@)", &ContentManagerSaveAsync2);
 				VContentManager.SetMethodEx("bool find_cache_info(base_processor@+, asset_cache &out, const string &in)", &ContentManagerFindCache1);
 				VContentManager.SetMethodEx("bool find_cache_info(base_processor@+, asset_cache &out, uptr@)", &ContentManagerFindCache2);
-				VContentManager.SetMethod<Engine::ContentManager, Engine::AssetCache*, Engine::Processor*, const std::string&>("uptr@ find_cache(base_processor@+, const string &in)", &Engine::ContentManager::FindCache);
+				VContentManager.SetMethod<Engine::ContentManager, Engine::AssetCache*, Engine::Processor*, const Core::String&>("uptr@ find_cache(base_processor@+, const string &in)", &Engine::ContentManager::FindCache);
 				VContentManager.SetMethod<Engine::ContentManager, Engine::AssetCache*, Engine::Processor*, void*>("uptr@ find_cache(base_processor@+, uptr@)", &Engine::ContentManager::FindCache);
 				VContentManager.SetMethodEx("base_processor@+ add_processor(base_processor@+, uint64)", &ContentManagerAddProcessor);
 				VContentManager.SetMethod<Engine::ContentManager, Engine::Processor*, uint64_t>("base_processor@+ get_processor(uint64)", &Engine::ContentManager::GetProcessor);
@@ -13239,9 +13181,8 @@ namespace Edge
 					Base->ClearProcessors();
 				});
 
-				static const char AppData[] = "app_data";
 				RefClass VAppData = Engine->SetClass<Engine::AppData>("app_data", true);
-				VAppData.SetGcConstructor<Engine::AppData, AppData, Engine::ContentManager*, const std::string&>("app_data@ f(content_manager@+, const string &in)");
+				VAppData.SetGcConstructor<Engine::AppData, AppData, Engine::ContentManager*, const Core::String&>("app_data@ f(content_manager@+, const string &in)");
 				VAppData.SetMethod("void migrate(const string &in)", &Engine::AppData::Migrate);
 				VAppData.SetMethod("void set_key(const string &in, schema@+)", &Engine::AppData::SetKey);
 				VAppData.SetMethod("void set_text(const string &in, const string &in)", &Engine::AppData::SetText);
@@ -13299,7 +13240,6 @@ namespace Edge
 				VSceneGraphStatistics.SetProperty<Engine::SceneGraph::SgStatistics>("usize instances", &Engine::SceneGraph::SgStatistics::Instances);
 				VSceneGraphStatistics.SetProperty<Engine::SceneGraph::SgStatistics>("usize draw_calls", &Engine::SceneGraph::SgStatistics::DrawCalls);
 
-				static const char SceneGraph[] = "scene_graph";
 				VSceneGraph.SetGcConstructor<Engine::SceneGraph, SceneGraph, const Engine::SceneGraph::Desc&>("scene_graph@ f(const scene_graph_desc &in)");
 				VSceneGraph.SetFunctionDef("bool ray_test_callback(base_component@+, const vector3 &in)");
 				VSceneGraph.SetFunctionDef("void transaction_callback()");
@@ -13344,7 +13284,7 @@ namespace Edge
 				VSceneGraph.SetMethod<Engine::SceneGraph, bool, Engine::Material*>("bool add_material(material@+)", &Engine::SceneGraph::AddMaterial);
 				VSceneGraph.SetMethod<Engine::SceneGraph, Engine::Material*>("material@+ add_material()", &Engine::SceneGraph::AddMaterial);
 				VSceneGraph.SetMethodEx("void load_resource(uint64, base_component@+, const string &in, schema@+, resource_callback@)", &SceneGraphLoadResource);
-				VSceneGraph.SetMethod<Engine::SceneGraph, std::string, uint64_t, void*>("string find_resource_id(uint64, uptr@)", &Engine::SceneGraph::FindResourceId);
+				VSceneGraph.SetMethod<Engine::SceneGraph, Core::String, uint64_t, void*>("string find_resource_id(uint64, uptr@)", &Engine::SceneGraph::FindResourceId);
 				VSceneGraph.SetMethod("material@+ clone_material(material@+)", &Engine::SceneGraph::CloneMaterial);
 				VSceneGraph.SetMethod("scene_entity@+ get_entity(usize) const", &Engine::SceneGraph::GetEntity);
 				VSceneGraph.SetMethod("scene_entity@+ get_last_entity() const", &Engine::SceneGraph::GetLastEntity);
@@ -13353,7 +13293,7 @@ namespace Edge
 				VSceneGraph.SetMethod("base_component@+ get_camera() const", &Engine::SceneGraph::GetCamera);
 				VSceneGraph.SetMethod("render_system@+ get_renderer() const", &Engine::SceneGraph::GetRenderer);
 				VSceneGraph.SetMethod("viewer_t get_camera_viewer() const", &Engine::SceneGraph::GetCameraViewer);
-				VSceneGraph.SetMethod<Engine::SceneGraph, Engine::Material*, const std::string&>("material@+ get_material(const string &in) const", &Engine::SceneGraph::GetMaterial);
+				VSceneGraph.SetMethod<Engine::SceneGraph, Engine::Material*, const Core::String&>("material@+ get_material(const string &in) const", &Engine::SceneGraph::GetMaterial);
 				VSceneGraph.SetMethod<Engine::SceneGraph, Engine::Material*, size_t>("material@+ get_material(usize) const", &Engine::SceneGraph::GetMaterial);
 				VSceneGraph.SetMethod<Engine::SceneGraph, Engine::SparseIndex&, uint64_t>("sparse_index& get_storage(uint64) const", &Engine::SceneGraph::GetStorage);
 				VSceneGraph.SetMethodEx("array<base_component@>@ get_components(uint64) const", &SceneGraphGetComponents);
@@ -13447,7 +13387,6 @@ namespace Edge
 				VApplicationDesc.SetProperty<Application::Desc>("bool cursor", &Application::Desc::Cursor);
 				VApplicationDesc.SetConstructor<Application::Desc>("void f()");
 
-				static const char ApplicationName[] = "application";
 				VApplication.SetFunctionDef("void script_hook_callback()");
 				VApplication.SetFunctionDef("void key_event_callback(key_code, key_mod, int32, int32, bool)");
 				VApplication.SetFunctionDef("void input_event_callback(const string &in)");
@@ -14148,6 +14087,8 @@ namespace Edge
 			{
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+				ED_TYPEREF(ModelListenerName, "ui_listener");
+
 				Enumeration VEventPhase = Engine->SetEnum("ui_event_phase");
 				Enumeration VArea = Engine->SetEnum("ui_area");
 				Enumeration VDisplay = Engine->SetEnum("ui_display");
@@ -14201,9 +14142,8 @@ namespace Edge
 				VEvent.SetMethod("uptr@ get_event() const", &Engine::GUI::IEvent::GetEvent);
 				VEvent.SetMethod("bool is_valid() const", &Engine::GUI::IEvent::IsValid);
 
-				static const char ModelListenerName[] = "ui_listener";
 				VListener.SetGcConstructor<ModelListener, ModelListenerName, asIScriptFunction*>("ui_listener@ f(model_listener_event@)");
-				VListener.SetGcConstructor<ModelListener, ModelListenerName, const std::string&>("ui_listener@ f(const string &in)");
+				VListener.SetGcConstructor<ModelListener, ModelListenerName, const Core::String&>("ui_listener@ f(const string &in)");
 				VListener.SetEnumRefsEx<ModelListener>([](ModelListener* Base, asIScriptEngine* Engine)
 				{
 					Engine->GCEnumCallback(Base->GetCallback());
@@ -14322,8 +14262,8 @@ namespace Edge
 				VElement.SetMethod("ui_element get_last_child() const", &Engine::GUI::IElement::GetLastChild);
 				VElement.SetMethod("ui_element get_child(int) const", &Engine::GUI::IElement::GetChild);
 				VElement.SetMethod("int get_num_children(bool = false) const", &Engine::GUI::IElement::GetNumChildren);
-				VElement.SetMethod<Engine::GUI::IElement, void, std::string&>("void get_inner_html(string &out) const", &Engine::GUI::IElement::GetInnerHTML);
-				VElement.SetMethod<Engine::GUI::IElement, std::string>("string get_inner_html() const", &Engine::GUI::IElement::GetInnerHTML);
+				VElement.SetMethod<Engine::GUI::IElement, void, Core::String&>("void get_inner_html(string &out) const", &Engine::GUI::IElement::GetInnerHTML);
+				VElement.SetMethod<Engine::GUI::IElement, Core::String>("string get_inner_html() const", &Engine::GUI::IElement::GetInnerHTML);
 				VElement.SetMethod("void set_inner_html(const string &in)", &Engine::GUI::IElement::SetInnerHTML);
 				VElement.SetMethod("bool is_focused()", &Engine::GUI::IElement::IsFocused);
 				VElement.SetMethod("bool is_hovered()", &Engine::GUI::IElement::IsHovered);
@@ -14431,8 +14371,8 @@ namespace Edge
 				VDocument.SetMethod("ui_element get_last_child() const", &Engine::GUI::IElementDocument::GetLastChild);
 				VDocument.SetMethod("ui_element get_child(int) const", &Engine::GUI::IElementDocument::GetChild);
 				VDocument.SetMethod("int get_num_children(bool = false) const", &Engine::GUI::IElementDocument::GetNumChildren);
-				VDocument.SetMethod<Engine::GUI::IElement, void, std::string&>("void get_inner_html(string &out) const", &Engine::GUI::IElementDocument::GetInnerHTML);
-				VDocument.SetMethod<Engine::GUI::IElement, std::string>("string get_inner_html() const", &Engine::GUI::IElementDocument::GetInnerHTML);
+				VDocument.SetMethod<Engine::GUI::IElement, void, Core::String&>("void get_inner_html(string &out) const", &Engine::GUI::IElementDocument::GetInnerHTML);
+				VDocument.SetMethod<Engine::GUI::IElement, Core::String>("string get_inner_html() const", &Engine::GUI::IElementDocument::GetInnerHTML);
 				VDocument.SetMethod("void set_inner_html(const string &in)", &Engine::GUI::IElementDocument::SetInnerHTML);
 				VDocument.SetMethod("bool is_focused()", &Engine::GUI::IElementDocument::IsFocused);
 				VDocument.SetMethod("bool is_hovered()", &Engine::GUI::IElementDocument::IsHovered);
@@ -14544,7 +14484,7 @@ namespace Edge
 				VContext.SetMethod("void set_documents_base_tag(const string &in)", &Engine::GUI::Context::SetDocumentsBaseTag);
 				VContext.SetMethod("void clear_styles()", &Engine::GUI::Context::ClearStyles);
 				VContext.SetMethod("bool clear_documents()", &Engine::GUI::Context::ClearDocuments);
-				VContext.SetMethod<Engine::GUI::Context, bool, const std::string&>("bool initialize(const string &in)", &Engine::GUI::Context::Initialize);
+				VContext.SetMethod<Engine::GUI::Context, bool, const Core::String&>("bool initialize(const string &in)", &Engine::GUI::Context::Initialize);
 				VContext.SetMethod("bool is_input_focused()", &Engine::GUI::Context::IsInputFocused);
 				VContext.SetMethod("bool is_loading()", &Engine::GUI::Context::IsLoading);
 				VContext.SetMethod("bool replace_html(const string &in, const string &in, int = 0)", &Engine::GUI::Context::ReplaceHTML);
@@ -14562,7 +14502,7 @@ namespace Edge
 				VContext.SetMethod("ui_document load_document(const string &in)", &Engine::GUI::Context::LoadDocument);
 				VContext.SetMethod("ui_document add_document(const string &in)", &Engine::GUI::Context::AddDocument);
 				VContext.SetMethod("ui_document add_document_empty(const string &in = \"body\")", &Engine::GUI::Context::AddDocumentEmpty);
-				VContext.SetMethod<Engine::GUI::Context, Engine::GUI::IElementDocument, const std::string&>("ui_document get_document(const string &in)", &Engine::GUI::Context::GetDocument);
+				VContext.SetMethod<Engine::GUI::Context, Engine::GUI::IElementDocument, const Core::String&>("ui_document get_document(const string &in)", &Engine::GUI::Context::GetDocument);
 				VContext.SetMethod<Engine::GUI::Context, Engine::GUI::IElementDocument, int>("ui_document get_document(int)", &Engine::GUI::Context::GetDocument);
 				VContext.SetMethod("int get_num_documents() const", &Engine::GUI::Context::GetNumDocuments);
 				VContext.SetMethod("ui_element get_element_by_id(const string &in, int = 0)", &Engine::GUI::Context::GetElementById);
@@ -14587,7 +14527,7 @@ namespace Edge
 				return false;
 #endif
 			}
-			bool Registry::MakePostprocess(std::string& Code)
+			bool Registry::MakePostprocess(Core::String& Code)
 			{
 				const char Match[] = "co_await ";
 				size_t MatchSize = sizeof(Match) - 1;
@@ -14649,7 +14589,7 @@ namespace Edge
 
 					if (End - Start > 0)
 					{
-						std::string Expression = Code.substr(Start, End - Start) + ".yield().unwrap()";
+						Core::String Expression = Code.substr(Start, End - Start) + ".yield().unwrap()";
 						Core::Stringify(&Code).ReplacePart(Offset, End, Expression);
 						Offset += Expression.size();
 					}
@@ -14662,8 +14602,6 @@ namespace Edge
 			bool Registry::Release()
 			{
 				StringFactory::Free();
-				ED_DELETE(Mapping, Names);
-				Names = nullptr;
 				return false;
 			}
 		}

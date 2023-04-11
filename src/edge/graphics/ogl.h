@@ -84,8 +84,8 @@ namespace Edge
 				friend OGLElementBuffer;
 
 			public:
-				std::unordered_map<size_t, std::vector<std::function<void(size_t)>>> VertexLayout;
-				std::unordered_map<std::string, GLuint> Layouts;
+				Core::UnorderedMap<size_t, Core::Vector<std::function<void(size_t)>>> VertexLayout;
+				Core::UnorderedMap<Core::String, GLuint> Layouts;
 				GLuint DynamicResource = GL_NONE;
 
 			public:
@@ -94,7 +94,7 @@ namespace Edge
 				void* GetResource() const override;
 
 			public:
-				static std::string GetLayoutHash(OGLElementBuffer** Buffers, unsigned int Count);
+				static Core::String GetLayoutHash(OGLElementBuffer** Buffers, unsigned int Count);
 			};
 
 			class OGLShader final : public Shader
@@ -105,7 +105,7 @@ namespace Edge
 				bool Compiled;
 
 			public:
-				std::unordered_map<GLuint, OGLDevice*> Programs;
+				Core::UnorderedMap<GLuint, OGLDevice*> Programs;
 				GLuint VertexShader = GL_NONE;
 				GLuint PixelShader = GL_NONE;
 				GLuint GeometryShader = GL_NONE;
@@ -126,7 +126,7 @@ namespace Edge
 				friend OGLDevice;
 
 			private:
-				std::unordered_map<GLuint, OGLInputLayout*> Bindings;
+				Core::UnorderedMap<GLuint, OGLInputLayout*> Bindings;
 				GLuint Resource = GL_NONE;
 				GLenum Flags = GL_NONE;
 
@@ -362,7 +362,7 @@ namespace Edge
 				struct
 				{
 					std::tuple<OGLElementBuffer*, Format> IndexBuffer = { nullptr, Format::Unknown };
-					std::unordered_map<uint64_t, GLuint> Programs;
+					Core::UnorderedMap<uint64_t, GLuint> Programs;
 					std::array<OGLElementBuffer*, ED_MAX_UNITS> VertexBuffers = { };
 					std::array<GLuint, ED_MAX_UNITS> Bindings = { };
 					std::array<GLuint, ED_MAX_UNITS> Textures = { };
@@ -536,7 +536,7 @@ namespace Edge
 				void CopyConstantBuffer(GLuint Buffer, void* Data, size_t Size);
 				int CreateConstantBuffer(GLuint* Buffer, size_t Size);
 				bool CreateDirectBuffer(size_t Size);
-				std::string CompileState(GLuint Handle);
+				Core::String CompileState(GLuint Handle);
 
 			private:
 				uint64_t GetProgramHash();

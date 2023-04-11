@@ -231,7 +231,7 @@ namespace Edge
 			friend class AudioDevice;
 
 		private:
-			std::vector<AudioEffect*> Effects;
+			Core::Vector<AudioEffect*> Effects;
 			AudioClip* Clip = nullptr;
 			unsigned int Instance = 0;
 
@@ -253,7 +253,7 @@ namespace Edge
 			AudioClip* GetClip() const;
 			AudioEffect* GetEffect(uint64_t Section) const;
 			unsigned int GetInstance() const;
-			const std::vector<AudioEffect*>& GetEffects() const;
+			const Core::Vector<AudioEffect*>& GetEffects() const;
 
 		public:
 			template <typename T>

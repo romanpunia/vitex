@@ -333,7 +333,7 @@ namespace Edge
 				}
 				Rml::FileHandle Open(const Rml::String& Path) override
 				{
-					std::string Target = Path;
+					Core::String Target = Path;
 					Network::Location URL(Target);
 					if (URL.Protocol == "file")
 					{
@@ -377,8 +377,8 @@ namespace Edge
 			class MainSubsystem final : public Rml::SystemInterface
 			{
 			private:
-				std::unordered_map<std::string, TranslationCallback> Translators;
-				std::unordered_map<std::string, bool> Fonts;
+				Core::UnorderedMap<Core::String, TranslationCallback> Translators;
+				Core::UnorderedMap<Core::String, bool> Fonts;
 				Graphics::Activity* Activity;
 				Core::Timer* Time;
 
@@ -441,9 +441,9 @@ namespace Edge
 					ContentManager* Content = (Subsystem::GetRenderInterface() ? Subsystem::GetRenderInterface()->GetContent() : nullptr);
 					ED_ASSERT_V(Content != nullptr, "activity should be set");
 
-					std::string Proto1, Proto2;
-					std::string Fixed1 = GetFixedURL(Path1, Proto1);
-					std::string Fixed2 = GetFixedURL(Path2, Proto2);
+					Core::String Proto1, Proto2;
+					Core::String Fixed1 = GetFixedURL(Path1, Proto1);
+					Core::String Fixed2 = GetFixedURL(Path2, Proto2);
 
 					if (Proto1 != "file" && Proto2 == "file")
 					{
@@ -511,7 +511,7 @@ namespace Edge
 					Activity = NewActivity;
 					Time = NewTime;
 				}
-				void SetTranslator(const std::string& Name, const TranslationCallback& Callback)
+				void SetTranslator(const Core::String& Name, const TranslationCallback& Callback)
 				{
 					auto It = Translators.find(Name);
 					if (It == Translators.end())
@@ -519,7 +519,7 @@ namespace Edge
 					else
 						It->second = Callback;
 				}
-				bool AddFontFace(const std::string& Path, bool UseAsFallback)
+				bool AddFontFace(const Core::String& Path, bool UseAsFallback)
 				{
 					auto It = Fonts.find(Path);
 					if (It != Fonts.end())
@@ -531,11 +531,11 @@ namespace Edge
 					Fonts.insert(std::make_pair(Path, UseAsFallback));
 					return true;
 				}
-				std::unordered_map<std::string, bool>* GetFontFaces()
+				Core::UnorderedMap<Core::String, bool>* GetFontFaces()
 				{
 					return &Fonts;
 				}
-				std::string GetFixedURL(const std::string& URL, std::string& Proto)
+				Core::String GetFixedURL(const Core::String& URL, Core::String& Proto)
 				{
 					if (!Core::Stringify(&URL).Find("://").Found)
 					{
@@ -645,7 +645,7 @@ namespace Edge
 			{
 			public:
 				Scripting::Function Function;
-				std::string Memory;
+				Core::String Memory;
 
 			public:
 				ListenerSubsystem(const Rml::String& Code, Rml::Element* Element) : Function(nullptr), Memory(Code)
@@ -687,8 +687,8 @@ namespace Edge
 					if (Function.IsValid())
 						return true;
 
-					std::string Name = "__vf" + Compute::Crypto::Hash(Compute::Digests::MD5(), Memory);
-					std::string Eval = "void " + Name + "(GUI::Event &in Event){\n";
+					Core::String Name = "__vf" + Compute::Crypto::Hash(Compute::Digests::MD5(), Memory);
+					Core::String Eval = "void " + Name + "(GUI::Event &in Event){\n";
 					Eval.append(Memory);
 					Eval += "\n;}";
 
@@ -777,7 +777,7 @@ namespace Edge
 					case Rml::Variant::STRING:
 					case Rml::Variant::COLOURF:
 					case Rml::Variant::COLOURB:
-						*To = Core::Var::String(From->Get<std::string>());
+						*To = Core::Var::String(From->Get<Core::String>());
 						break;
 					case Rml::Variant::VOIDPTR:
 						*To = Core::Var::Pointer(From->Get<void*>());
@@ -799,7 +799,7 @@ namespace Edge
 						break;
 					case Core::VarType::String:
 					{
-						std::string Blob = From->GetBlob();
+						Core::String Blob = From->GetBlob();
 						int Type = IVariant::GetVectorType(Blob);
 						if (Type == 2)
 						{
@@ -838,7 +838,7 @@ namespace Edge
 				}
 #endif
 			}
-			Compute::Vector4 IVariant::ToColor4(const std::string& Value)
+			Compute::Vector4 IVariant::ToColor4(const Core::String& Value)
 			{
 				if (Value.empty())
 					return 0.0f;
@@ -892,7 +892,7 @@ namespace Edge
 
 				return Result;
 			}
-			std::string IVariant::FromColor4(const Compute::Vector4& Base, bool HEX)
+			Core::String IVariant::FromColor4(const Compute::Vector4& Base, bool HEX)
 			{
 				if (!HEX)
 					return Core::Form("%d %d %d %d", (unsigned int)(Base.X * 255.0f), (unsigned int)(Base.Y * 255.0f), (unsigned int)(Base.Z * 255.0f), (unsigned int)(Base.W * 255.0f)).R();
@@ -903,7 +903,7 @@ namespace Edge
 					(unsigned int)(Base.Z * 255.0f),
 					(unsigned int)(Base.W * 255.0f)).R();
 			}
-			Compute::Vector4 IVariant::ToColor3(const std::string& Value)
+			Compute::Vector4 IVariant::ToColor3(const Core::String& Value)
 			{
 				if (Value.empty())
 					return 0.0f;
@@ -949,7 +949,7 @@ namespace Edge
 
 				return Result;
 			}
-			std::string IVariant::FromColor3(const Compute::Vector4& Base, bool HEX)
+			Core::String IVariant::FromColor3(const Compute::Vector4& Base, bool HEX)
 			{
 				if (!HEX)
 					return Core::Form("%d %d %d", (unsigned int)(Base.X * 255.0f), (unsigned int)(Base.Y * 255.0f), (unsigned int)(Base.Z * 255.0f)).R();
@@ -959,7 +959,7 @@ namespace Edge
 					(unsigned int)(Base.Y * 255.0f),
 					(unsigned int)(Base.Z * 255.0f)).R();
 			}
-			int IVariant::GetVectorType(const std::string& Value)
+			int IVariant::GetVectorType(const Core::String& Value)
 			{
 				if (Value.size() < 2 || Value[0] != 'v')
 					return -1;
@@ -975,7 +975,7 @@ namespace Edge
 
 				return -1;
 			}
-			Compute::Vector4 IVariant::ToVector4(const std::string& Base)
+			Compute::Vector4 IVariant::ToVector4(const Core::String& Base)
 			{
 				Compute::Vector4 Result;
 				if (sscanf(Base.c_str(), "v4 %f %f %f %f", &Result.X, &Result.Y, &Result.Z, &Result.W) != 4)
@@ -983,11 +983,11 @@ namespace Edge
 
 				return Result;
 			}
-			std::string IVariant::FromVector4(const Compute::Vector4& Base)
+			Core::String IVariant::FromVector4(const Compute::Vector4& Base)
 			{
 				return Core::Form("v4 %f %f %f %f", Base.X, Base.Y, Base.Z, Base.W).R();
 			}
-			Compute::Vector3 IVariant::ToVector3(const std::string& Base)
+			Compute::Vector3 IVariant::ToVector3(const Core::String& Base)
 			{
 				Compute::Vector3 Result;
 				if (sscanf(Base.c_str(), "v3 %f %f %f", &Result.X, &Result.Y, &Result.Z) != 3)
@@ -995,11 +995,11 @@ namespace Edge
 
 				return Result;
 			}
-			std::string IVariant::FromVector3(const Compute::Vector3& Base)
+			Core::String IVariant::FromVector3(const Compute::Vector3& Base)
 			{
 				return Core::Form("v3 %f %f %f", Base.X, Base.Y, Base.Z).R();
 			}
-			Compute::Vector2 IVariant::ToVector2(const std::string& Base)
+			Compute::Vector2 IVariant::ToVector2(const Core::String& Base)
 			{
 				Compute::Vector2 Result;
 				if (sscanf(Base.c_str(), "v2 %f %f", &Result.X, &Result.Y) != 2)
@@ -1007,7 +1007,7 @@ namespace Edge
 
 				return Result;
 			}
-			std::string IVariant::FromVector2(const Compute::Vector2& Base)
+			Core::String IVariant::FromVector2(const Compute::Vector2& Base)
 			{
 				return Core::Form("v2 %f %f", Base.X, Base.Y).R();
 			}
@@ -1087,13 +1087,13 @@ namespace Edge
 				return IElement();
 #endif
 			}
-			std::string IEvent::GetType() const
+			Core::String IEvent::GetType() const
 			{
 #ifdef ED_USE_RMLUI
-				ED_ASSERT(IsValid(), std::string(), "event should be valid");
+				ED_ASSERT(IsValid(), Core::String(), "event should be valid");
 				return Base->GetType();
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
 			void IEvent::StopPropagation()
@@ -1137,7 +1137,7 @@ namespace Edge
 				return false;
 #endif
 			}
-			bool IEvent::GetBoolean(const std::string& Key) const
+			bool IEvent::GetBoolean(const Core::String& Key) const
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), false, "event should be valid");
@@ -1146,7 +1146,7 @@ namespace Edge
 				return false;
 #endif
 			}
-			int64_t IEvent::GetInteger(const std::string& Key) const
+			int64_t IEvent::GetInteger(const Core::String& Key) const
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), 0, "event should be valid");
@@ -1155,7 +1155,7 @@ namespace Edge
 				return 0;
 #endif
 			}
-			double IEvent::GetNumber(const std::string& Key) const
+			double IEvent::GetNumber(const Core::String& Key) const
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), 0.0, "event should be valid");
@@ -1164,16 +1164,16 @@ namespace Edge
 				return 0.0;
 #endif
 			}
-			std::string IEvent::GetString(const std::string& Key) const
+			Core::String IEvent::GetString(const Core::String& Key) const
 			{
 #ifdef ED_USE_RMLUI
-				ED_ASSERT(IsValid(), std::string(), "event should be valid");
+				ED_ASSERT(IsValid(), Core::String(), "event should be valid");
 				return Base->GetParameter<Rml::String>(Key, "");
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
-			Compute::Vector2 IEvent::GetVector2(const std::string& Key) const
+			Compute::Vector2 IEvent::GetVector2(const Core::String& Key) const
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), Compute::Vector2(), "event should be valid");
@@ -1183,7 +1183,7 @@ namespace Edge
 				return Compute::Vector2();
 #endif
 			}
-			Compute::Vector3 IEvent::GetVector3(const std::string& Key) const
+			Compute::Vector3 IEvent::GetVector3(const Core::String& Key) const
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), Compute::Vector3(), "event should be valid");
@@ -1193,7 +1193,7 @@ namespace Edge
 				return Compute::Vector3();
 #endif
 			}
-			Compute::Vector4 IEvent::GetVector4(const std::string& Key) const
+			Compute::Vector4 IEvent::GetVector4(const Core::String& Key) const
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), Compute::Vector4(), "event should be valid");
@@ -1203,7 +1203,7 @@ namespace Edge
 				return Compute::Vector4();
 #endif
 			}
-			void* IEvent::GetPointer(const std::string& Key) const
+			void* IEvent::GetPointer(const Core::String& Key) const
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), nullptr, "event should be valid");
@@ -1247,14 +1247,14 @@ namespace Edge
 				return IElement();
 #endif
 			}
-			void IElement::SetClass(const std::string& ClassName, bool Activate)
+			void IElement::SetClass(const Core::String& ClassName, bool Activate)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(IsValid(), "element should be valid");
 				Base->SetClass(ClassName, Activate);
 #endif
 			}
-			bool IElement::IsClassSet(const std::string& ClassName) const
+			bool IElement::IsClassSet(const Core::String& ClassName) const
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), false, "element should be valid");
@@ -1263,30 +1263,30 @@ namespace Edge
 				return false;
 #endif
 			}
-			void IElement::SetClassNames(const std::string& ClassNames)
+			void IElement::SetClassNames(const Core::String& ClassNames)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(IsValid(), "element should be valid");
 				Base->SetClassNames(ClassNames);
 #endif
 			}
-			std::string IElement::GetClassNames() const
+			Core::String IElement::GetClassNames() const
 			{
 #ifdef ED_USE_RMLUI
-				ED_ASSERT(IsValid(), std::string(), "element should be valid");
+				ED_ASSERT(IsValid(), Core::String(), "element should be valid");
 				return Base->GetClassNames();
 #else
-				return std::string();
+				return Core::String();
 #endif
 
 			}
-			std::string IElement::GetAddress(bool IncludePseudoClasses, bool IncludeParents) const
+			Core::String IElement::GetAddress(bool IncludePseudoClasses, bool IncludeParents) const
 			{
 #ifdef ED_USE_RMLUI
-				ED_ASSERT(IsValid(), std::string(), "element should be valid");
+				ED_ASSERT(IsValid(), Core::String(), "element should be valid");
 				return Base->GetAddress(IncludePseudoClasses, IncludeParents);
 #else
-				return std::string();
+				return Core::String();
 #endif
 
 			}
@@ -1397,7 +1397,7 @@ namespace Edge
 #endif
 
 			}
-			bool IElement::SetProperty(const std::string& Name, const std::string& Value)
+			bool IElement::SetProperty(const Core::String& Name, const Core::String& Value)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), false, "element should be valid");
@@ -1407,40 +1407,40 @@ namespace Edge
 #endif
 
 			}
-			void IElement::RemoveProperty(const std::string& Name)
+			void IElement::RemoveProperty(const Core::String& Name)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(IsValid(), "element should be valid");
 				Base->RemoveProperty(Name);
 #endif
 			}
-			std::string IElement::GetProperty(const std::string& Name)
+			Core::String IElement::GetProperty(const Core::String& Name)
 			{
 #ifdef ED_USE_RMLUI
-				ED_ASSERT(IsValid(), std::string(), "element should be valid");
+				ED_ASSERT(IsValid(), Core::String(), "element should be valid");
 				const Rml::Property* Result = Base->GetProperty(Name);
 				if (!Result)
 					return "";
 
 				return Result->ToString();
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
-			std::string IElement::GetLocalProperty(const std::string& Name)
+			Core::String IElement::GetLocalProperty(const Core::String& Name)
 			{
 #ifdef ED_USE_RMLUI
-				ED_ASSERT(IsValid(), std::string(), "element should be valid");
+				ED_ASSERT(IsValid(), Core::String(), "element should be valid");
 				const Rml::Property* Result = Base->GetLocalProperty(Name);
 				if (!Result)
 					return "";
 
 				return Result->ToString();
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
-			float IElement::ResolveNumericProperty(const std::string& PropertyName)
+			float IElement::ResolveNumericProperty(const Core::String& PropertyName)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), 0.0f, "element should be valid");
@@ -1508,7 +1508,7 @@ namespace Edge
 				return false;
 #endif
 			}
-			bool IElement::Animate(const std::string& PropertyName, const std::string& TargetValue, float Duration, TimingFunc Func, TimingDir Dir, int NumIterations, bool AlternateDirection, float Delay)
+			bool IElement::Animate(const Core::String& PropertyName, const Core::String& TargetValue, float Duration, TimingFunc Func, TimingDir Dir, int NumIterations, bool AlternateDirection, float Delay)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), false, "element should be valid");
@@ -1517,7 +1517,7 @@ namespace Edge
 				return false;
 #endif
 			}
-			bool IElement::AddAnimationKey(const std::string& PropertyName, const std::string& TargetValue, float Duration, TimingFunc Func, TimingDir Dir)
+			bool IElement::AddAnimationKey(const Core::String& PropertyName, const Core::String& TargetValue, float Duration, TimingFunc Func, TimingDir Dir)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), false, "element should be valid");
@@ -1526,14 +1526,14 @@ namespace Edge
 				return false;
 #endif
 			}
-			void IElement::SetPseudoClass(const std::string& PseudoClass, bool Activate)
+			void IElement::SetPseudoClass(const Core::String& PseudoClass, bool Activate)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(IsValid(), "element should be valid");
 				Base->SetPseudoClass(PseudoClass, Activate);
 #endif
 			}
-			bool IElement::IsPseudoClassSet(const std::string& PseudoClass) const
+			bool IElement::IsPseudoClassSet(const Core::String& PseudoClass) const
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), false, "element should be valid");
@@ -1542,23 +1542,23 @@ namespace Edge
 				return false;
 #endif
 			}
-			void IElement::SetAttribute(const std::string& Name, const std::string& Value)
+			void IElement::SetAttribute(const Core::String& Name, const Core::String& Value)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(IsValid(), "element should be valid");
 				Base->SetAttribute(Name, Value);
 #endif
 			}
-			std::string IElement::GetAttribute(const std::string& Name)
+			Core::String IElement::GetAttribute(const Core::String& Name)
 			{
 #ifdef ED_USE_RMLUI
-				ED_ASSERT(IsValid(), std::string(), "element should be valid");
-				return Base->GetAttribute<std::string>(Name, "");
+				ED_ASSERT(IsValid(), Core::String(), "element should be valid");
+				return Base->GetAttribute<Core::String>(Name, "");
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
-			bool IElement::HasAttribute(const std::string& Name) const
+			bool IElement::HasAttribute(const Core::String& Name) const
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), false, "element should be valid");
@@ -1567,7 +1567,7 @@ namespace Edge
 				return false;
 #endif
 			}
-			void IElement::RemoveAttribute(const std::string& Name)
+			void IElement::RemoveAttribute(const Core::String& Name)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(IsValid(), "element should be valid");
@@ -1583,25 +1583,25 @@ namespace Edge
 				return IElement();
 #endif
 			}
-			std::string IElement::GetTagName() const
+			Core::String IElement::GetTagName() const
 			{
 #ifdef ED_USE_RMLUI
-				ED_ASSERT(IsValid(), std::string(), "element should be valid");
+				ED_ASSERT(IsValid(), Core::String(), "element should be valid");
 				return Base->GetTagName();
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
-			std::string IElement::GetId() const
+			Core::String IElement::GetId() const
 			{
 #ifdef ED_USE_RMLUI
-				ED_ASSERT(IsValid(), std::string(), "element should be valid");
+				ED_ASSERT(IsValid(), Core::String(), "element should be valid");
 				return Base->GetId();
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
-			void IElement::SetId(const std::string& Id)
+			void IElement::SetId(const Core::String& Id)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(IsValid(), "element should be valid");
@@ -1829,23 +1829,23 @@ namespace Edge
 				return 0;
 #endif
 			}
-			void IElement::GetInnerHTML(std::string& Content) const
+			void IElement::GetInnerHTML(Core::String& Content) const
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(IsValid(), "element should be valid");
 				Base->GetInnerRML(Content);
 #endif
 			}
-			std::string IElement::GetInnerHTML() const
+			Core::String IElement::GetInnerHTML() const
 			{
 #ifdef ED_USE_RMLUI
-				ED_ASSERT(IsValid(), std::string(), "element should be valid");
+				ED_ASSERT(IsValid(), Core::String(), "element should be valid");
 				return Base->GetInnerRML();
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
-			void IElement::SetInnerHTML(const std::string& HTML)
+			void IElement::SetInnerHTML(const Core::String& HTML)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(IsValid(), "element should be valid");
@@ -1911,7 +1911,7 @@ namespace Edge
 				Base->Click();
 #endif
 			}
-			void IElement::AddEventListener(const std::string& Event, Listener* Source, bool InCapturePhase)
+			void IElement::AddEventListener(const Core::String& Event, Listener* Source, bool InCapturePhase)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(IsValid(), "element should be valid");
@@ -1920,7 +1920,7 @@ namespace Edge
 				Base->AddEventListener(Event, Source->Base, InCapturePhase);
 #endif
 			}
-			void IElement::RemoveEventListener(const std::string& Event, Listener* Source, bool InCapturePhase)
+			void IElement::RemoveEventListener(const Core::String& Event, Listener* Source, bool InCapturePhase)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(IsValid(), "element should be valid");
@@ -1929,7 +1929,7 @@ namespace Edge
 				Base->RemoveEventListener(Event, Source->Base, InCapturePhase);
 #endif
 			}
-			bool IElement::DispatchEvent(const std::string& Type, const Core::VariantArgs& Args)
+			bool IElement::DispatchEvent(const Core::String& Type, const Core::VariantArgs& Args)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), false, "element should be valid");
@@ -2005,7 +2005,7 @@ namespace Edge
 				return false;
 #endif
 			}
-			IElement IElement::GetElementById(const std::string& Id)
+			IElement IElement::GetElementById(const Core::String& Id)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), nullptr, "element should be valid");
@@ -2014,7 +2014,7 @@ namespace Edge
 				return IElement();
 #endif
 			}
-			IElement IElement::QuerySelector(const std::string& Selector)
+			IElement IElement::QuerySelector(const Core::String& Selector)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), nullptr, "element should be valid");
@@ -2023,14 +2023,14 @@ namespace Edge
 				return IElement();
 #endif
 			}
-			std::vector<IElement> IElement::QuerySelectorAll(const std::string& Selectors)
+			Core::Vector<IElement> IElement::QuerySelectorAll(const Core::String& Selectors)
 			{
 #ifdef ED_USE_RMLUI
-				ED_ASSERT(IsValid(), std::vector<IElement>(), "element should be valid");
+				ED_ASSERT(IsValid(), Core::Vector<IElement>(), "element should be valid");
 				Rml::ElementList Elements;
 				Base->QuerySelectorAll(Elements, Selectors);
 
-				std::vector<IElement> Result;
+				Core::Vector<IElement> Result;
 				Result.reserve(Elements.size());
 
 				for (auto& Item : Elements)
@@ -2038,7 +2038,7 @@ namespace Edge
 
 				return Result;
 #else
-				return std::vector<IElement>();
+				return Core::Vector<IElement>();
 #endif
 			}
 			bool IElement::CastFormColor(Compute::Vector4* Ptr, bool Alpha)
@@ -2048,7 +2048,7 @@ namespace Edge
 				ED_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				std::string Value = Form->GetValue();
+				Core::String Value = Form->GetValue();
 				Compute::Vector4 Color = (Alpha ? IVariant::ToColor4(Value) : IVariant::ToColor3(Value));
 
 				if (Alpha)
@@ -2105,14 +2105,14 @@ namespace Edge
 				return false;
 #endif
 			}
-			bool IElement::CastFormString(std::string* Ptr)
+			bool IElement::CastFormString(Core::String* Ptr)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), false, "element should be valid");
 				ED_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				std::string Value = Form->GetValue();
+				Core::String Value = Form->GetValue();
 				if (Value == *Ptr)
 					return false;
 
@@ -2164,7 +2164,7 @@ namespace Edge
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
 
-					Form->SetValue(std::to_string(*Ptr));
+					Form->SetValue(Core::ToString(*Ptr));
 					return false;
 				}
 
@@ -2184,7 +2184,7 @@ namespace Edge
 					return true;
 				}
 
-				Form->SetValue(std::to_string(*Ptr));
+				Form->SetValue(Core::ToString(*Ptr));
 				return false;
 #else
 				return false;
@@ -2203,7 +2203,7 @@ namespace Edge
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
 
-					Form->SetValue(std::to_string(*Ptr));
+					Form->SetValue(Core::ToString(*Ptr));
 					return false;
 				}
 
@@ -2223,7 +2223,7 @@ namespace Edge
 					return true;
 				}
 
-				Form->SetValue(std::to_string(*Ptr));
+				Form->SetValue(Core::ToString(*Ptr));
 				return false;
 #else
 				return false;
@@ -2262,7 +2262,7 @@ namespace Edge
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
 
-					Form->SetValue(std::to_string(*Ptr));
+					Form->SetValue(Core::ToString(*Ptr));
 					return false;
 				}
 
@@ -2282,7 +2282,7 @@ namespace Edge
 					return true;
 				}
 
-				Form->SetValue(std::to_string(*Ptr));
+				Form->SetValue(Core::ToString(*Ptr));
 				return false;
 #else
 				return false;
@@ -2301,7 +2301,7 @@ namespace Edge
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
 
-					Form->SetValue(std::to_string(*Ptr));
+					Form->SetValue(Core::ToString(*Ptr));
 					return false;
 				}
 
@@ -2321,7 +2321,7 @@ namespace Edge
 					return true;
 				}
 
-				Form->SetValue(std::to_string(*Ptr));
+				Form->SetValue(Core::ToString(*Ptr));
 				return false;
 #else
 				return false;
@@ -2340,7 +2340,7 @@ namespace Edge
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
 
-					Form->SetValue(std::to_string(*Ptr));
+					Form->SetValue(Core::ToString(*Ptr));
 					return false;
 				}
 
@@ -2360,7 +2360,7 @@ namespace Edge
 					return true;
 				}
 
-				Form->SetValue(std::to_string(*Ptr));
+				Form->SetValue(Core::ToString(*Ptr));
 				return false;
 #else
 				return false;
@@ -2506,17 +2506,17 @@ namespace Edge
 				return false;
 #endif
 			}
-			std::string IElement::GetFormName() const
+			Core::String IElement::GetFormName() const
 			{
 #ifdef ED_USE_RMLUI
-				ED_ASSERT(IsValid(), std::string(), "element should be valid");
+				ED_ASSERT(IsValid(), Core::String(), "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				return Form->GetName();
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
-			void IElement::SetFormName(const std::string& Name)
+			void IElement::SetFormName(const Core::String& Name)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(IsValid(), "element should be valid");
@@ -2524,17 +2524,17 @@ namespace Edge
 				Form->SetName(Name);
 #endif
 			}
-			std::string IElement::GetFormValue() const
+			Core::String IElement::GetFormValue() const
 			{
 #ifdef ED_USE_RMLUI
-				ED_ASSERT(IsValid(), std::string(), "element should be valid");
+				ED_ASSERT(IsValid(), Core::String(), "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				return Form->GetValue();
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
-			void IElement::SetFormValue(const std::string& Value)
+			void IElement::SetFormValue(const Core::String& Value)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(IsValid(), "element should be valid");
@@ -2568,14 +2568,14 @@ namespace Edge
 			{
 				return Base != nullptr;
 			}
-			std::string IElement::FromPointer(void* Ptr)
+			Core::String IElement::FromPointer(void* Ptr)
 			{
 				if (!Ptr)
 					return "0";
 
-				return std::to_string((intptr_t)(void*)Ptr);
+				return Core::ToString((intptr_t)(void*)Ptr);
 			}
-			void* IElement::ToPointer(const std::string& Value)
+			void* IElement::ToPointer(const Core::String& Value)
 			{
 				if (Value.empty())
 					return nullptr;
@@ -2601,7 +2601,7 @@ namespace Edge
 				Base = nullptr;
 #endif
 			}
-			void IElementDocument::SetTitle(const std::string& Title)
+			void IElementDocument::SetTitle(const Core::String& Title)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(IsValid(), "element should be valid");
@@ -2643,25 +2643,25 @@ namespace Edge
 				((Rml::ElementDocument*)Base)->Close();
 #endif
 			}
-			std::string IElementDocument::GetTitle() const
+			Core::String IElementDocument::GetTitle() const
 			{
 #ifdef ED_USE_RMLUI
-				ED_ASSERT(IsValid(), std::string(), "element should be valid");
+				ED_ASSERT(IsValid(), Core::String(), "element should be valid");
 				return ((Rml::ElementDocument*)Base)->GetTitle();
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
-			std::string IElementDocument::GetSourceURL() const
+			Core::String IElementDocument::GetSourceURL() const
 			{
 #ifdef ED_USE_RMLUI
-				ED_ASSERT(IsValid(), std::string(), "element should be valid");
+				ED_ASSERT(IsValid(), Core::String(), "element should be valid");
 				return ((Rml::ElementDocument*)Base)->GetSourceURL();
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
-			IElement IElementDocument::CreateElement(const std::string& Name)
+			IElement IElementDocument::CreateElement(const Core::String& Name)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), nullptr, "element should be valid");
@@ -2784,7 +2784,7 @@ namespace Edge
 					SystemInterface->Attach(Activity, Time);
 #endif
 			}
-			void Subsystem::SetTranslator(const std::string& Name, const TranslationCallback& Callback)
+			void Subsystem::SetTranslator(const Core::String& Name, const TranslationCallback& Callback)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(SystemInterface != nullptr, "system interface should be valid");
@@ -2848,26 +2848,26 @@ namespace Edge
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(Matrix != nullptr, Compute::Matrix4x4::Identity(), "matrix should be set");
 				const Rml::Matrix4f* NewTransform = (const Rml::Matrix4f*)Matrix;
-				auto& Row11 = NewTransform->GetRow(0);
+				Rml::Vector4f Row11 = NewTransform->GetRow(0);
 				Compute::Matrix4x4 Result;
 				Result.Row[0] = Row11.x;
 				Result.Row[1] = Row11.y;
 				Result.Row[2] = Row11.z;
 				Result.Row[3] = Row11.w;
 
-				auto& Row22 = NewTransform->GetRow(1);
+				Rml::Vector4f Row22 = NewTransform->GetRow(1);
 				Result.Row[4] = Row22.x;
 				Result.Row[5] = Row22.y;
 				Result.Row[6] = Row22.z;
 				Result.Row[7] = Row22.w;
 
-				auto& Row33 = NewTransform->GetRow(2);
+				Rml::Vector4f Row33 = NewTransform->GetRow(2);
 				Result.Row[8] = Row33.x;
 				Result.Row[9] = Row33.y;
 				Result.Row[10] = Row33.z;
 				Result.Row[11] = Row33.w;
 
-				auto& Row44 = NewTransform->GetRow(3);
+				Rml::Vector4f Row44 = NewTransform->GetRow(3);
 				Result.Row[12] = Row44.x;
 				Result.Row[13] = Row44.y;
 				Result.Row[14] = Row44.z;
@@ -2878,7 +2878,7 @@ namespace Edge
 				return Compute::Matrix4x4();
 #endif
 			}
-			std::string Subsystem::EscapeHTML(const std::string& Text)
+			Core::String Subsystem::EscapeHTML(const Core::String& Text)
 			{
 				return Core::Stringify(&Text).Replace("\r\n", "&nbsp;").Replace("\n", "&nbsp;").Replace("<", "&lt;").Replace(">", "&gt;").R();
 			}
@@ -2915,7 +2915,7 @@ namespace Edge
 				if (Callback)
 					Callbacks.emplace_back(std::move(Callback));
 			}
-			DataNode* DataModel::SetProperty(const std::string& Name, const Core::Variant& Value)
+			DataNode* DataModel::SetProperty(const Core::String& Name, const Core::Variant& Value)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), nullptr, "data node should be valid");
@@ -2947,7 +2947,7 @@ namespace Edge
 				return nullptr;
 #endif
 			}
-			DataNode* DataModel::SetProperty(const std::string& Name, Core::Variant* Value)
+			DataNode* DataModel::SetProperty(const Core::String& Name, Core::Variant* Value)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), nullptr, "data node should be valid");
@@ -2973,35 +2973,35 @@ namespace Edge
 				return nullptr;
 #endif
 			}
-			DataNode* DataModel::SetArray(const std::string& Name)
+			DataNode* DataModel::SetArray(const Core::String& Name)
 			{
 				return SetProperty(Name, Core::Var::Array());
 			}
-			DataNode* DataModel::SetString(const std::string& Name, const std::string& Value)
+			DataNode* DataModel::SetString(const Core::String& Name, const Core::String& Value)
 			{
 				return SetProperty(Name, Core::Var::String(Value));
 			}
-			DataNode* DataModel::SetInteger(const std::string& Name, int64_t Value)
+			DataNode* DataModel::SetInteger(const Core::String& Name, int64_t Value)
 			{
 				return SetProperty(Name, Core::Var::Integer(Value));
 			}
-			DataNode* DataModel::SetFloat(const std::string& Name, float Value)
+			DataNode* DataModel::SetFloat(const Core::String& Name, float Value)
 			{
 				return SetProperty(Name, Core::Var::Number(Value));
 			}
-			DataNode* DataModel::SetDouble(const std::string& Name, double Value)
+			DataNode* DataModel::SetDouble(const Core::String& Name, double Value)
 			{
 				return SetProperty(Name, Core::Var::Number(Value));
 			}
-			DataNode* DataModel::SetBoolean(const std::string& Name, bool Value)
+			DataNode* DataModel::SetBoolean(const Core::String& Name, bool Value)
 			{
 				return SetProperty(Name, Core::Var::Boolean(Value));
 			}
-			DataNode* DataModel::SetPointer(const std::string& Name, void* Value)
+			DataNode* DataModel::SetPointer(const Core::String& Name, void* Value)
 			{
 				return SetProperty(Name, Core::Var::Pointer(Value));
 			}
-			DataNode* DataModel::GetProperty(const std::string& Name)
+			DataNode* DataModel::GetProperty(const Core::String& Name)
 			{
 				auto It = Props.find(Name);
 				if (It != Props.end())
@@ -3009,7 +3009,7 @@ namespace Edge
 
 				return nullptr;
 			}
-			std::string DataModel::GetString(const std::string& Name)
+			Core::String DataModel::GetString(const Core::String& Name)
 			{
 				DataNode* Result = GetProperty(Name);
 				if (!Result)
@@ -3017,7 +3017,7 @@ namespace Edge
 
 				return Result->Ref->GetBlob();
 			}
-			int64_t DataModel::GetInteger(const std::string& Name)
+			int64_t DataModel::GetInteger(const Core::String& Name)
 			{
 				DataNode* Result = GetProperty(Name);
 				if (!Result)
@@ -3025,7 +3025,7 @@ namespace Edge
 
 				return Result->Ref->GetInteger();
 			}
-			float DataModel::GetFloat(const std::string& Name)
+			float DataModel::GetFloat(const Core::String& Name)
 			{
 				DataNode* Result = GetProperty(Name);
 				if (!Result)
@@ -3033,7 +3033,7 @@ namespace Edge
 
 				return (float)Result->Ref->GetNumber();
 			}
-			double DataModel::GetDouble(const std::string& Name)
+			double DataModel::GetDouble(const Core::String& Name)
 			{
 				DataNode* Result = GetProperty(Name);
 				if (!Result)
@@ -3041,7 +3041,7 @@ namespace Edge
 
 				return Result->Ref->GetNumber();
 			}
-			bool DataModel::GetBoolean(const std::string& Name)
+			bool DataModel::GetBoolean(const Core::String& Name)
 			{
 				DataNode* Result = GetProperty(Name);
 				if (!Result)
@@ -3049,7 +3049,7 @@ namespace Edge
 
 				return Result->Ref->GetBoolean();
 			}
-			void* DataModel::GetPointer(const std::string& Name)
+			void* DataModel::GetPointer(const Core::String& Name)
 			{
 				DataNode* Result = GetProperty(Name);
 				if (!Result)
@@ -3057,7 +3057,7 @@ namespace Edge
 
 				return Result->Ref->GetPointer();
 			}
-			bool DataModel::SetCallback(const std::string& Name, const DataCallback& Callback)
+			bool DataModel::SetCallback(const Core::String& Name, const DataCallback& Callback)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), false, "data node should be valid");
@@ -3084,14 +3084,14 @@ namespace Edge
 				OnUnmount = Callback;
 				return true;
 			}
-			void DataModel::Change(const std::string& VariableName)
+			void DataModel::Change(const Core::String& VariableName)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(IsValid(), "data node should be valid");
 				Base->GetModelHandle().DirtyVariable(VariableName);
 #endif
 			}
-			bool DataModel::HasChanged(const std::string& VariableName) const
+			bool DataModel::HasChanged(const Core::String& VariableName) const
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(IsValid(), false, "data node should be valid");
@@ -3115,11 +3115,11 @@ namespace Edge
 				return Base;
 			}
 
-			DataNode::DataNode(DataModel* Model, const std::string& TopName, const Core::Variant& Initial) noexcept : Name(TopName), Handle(Model), Order(nullptr), Depth(0), Safe(true)
+			DataNode::DataNode(DataModel* Model, const Core::String& TopName, const Core::Variant& Initial) noexcept : Name(TopName), Handle(Model), Order(nullptr), Depth(0), Safe(true)
 			{
 				Ref = ED_NEW(Core::Variant, Initial);
 			}
-			DataNode::DataNode(DataModel* Model, const std::string& TopName, Core::Variant* Reference) noexcept : Name(TopName), Ref(Reference), Handle(Model), Order(nullptr), Depth(0), Safe(false)
+			DataNode::DataNode(DataModel* Model, const Core::String& TopName, Core::Variant* Reference) noexcept : Name(TopName), Ref(Reference), Handle(Model), Order(nullptr), Depth(0), Safe(false)
 			{
 			}
 			DataNode::DataNode(const DataNode& Other) noexcept : Childs(Other.Childs), Name(Other.Name), Handle(Other.Handle), Order(Other.Order), Depth(0), Safe(Other.Safe)
@@ -3327,7 +3327,7 @@ namespace Edge
 				if (Handle != nullptr && !Name.empty())
 					Handle->Change(Name);
 			}
-			void DataNode::SetString(const std::string& Value)
+			void DataNode::SetString(const Core::String& Value)
 			{
 				Set(Core::Var::String(Value));
 			}
@@ -3379,7 +3379,7 @@ namespace Edge
 			{
 				return *Ref;
 			}
-			std::string DataNode::GetString()
+			Core::String DataNode::GetString()
 			{
 				return Ref->GetBlob();
 			}
@@ -3423,7 +3423,7 @@ namespace Edge
 			{
 				IVariant::Convert((Rml::Variant*)&Result, Ref);
 			}
-			void DataNode::SetValueStr(const std::string& Value)
+			void DataNode::SetValueStr(const Core::String& Value)
 			{
 				*Ref = Core::Var::String(Value);
 			}
@@ -3484,7 +3484,7 @@ namespace Edge
 				Base = ED_NEW(EventSubsystem, NewCallback);
 #endif
 			}
-			Listener::Listener(const std::string& FunctionName)
+			Listener::Listener(const Core::String& FunctionName)
 			{
 #ifdef ED_USE_RMLUI
 				Base = ED_NEW(ListenerSubsystem, FunctionName, nullptr);
@@ -3500,7 +3500,7 @@ namespace Edge
 			Context::Context(const Compute::Vector2& Size) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
 			{
 #ifdef ED_USE_RMLUI
-				Base = (ScopedContext*)Rml::CreateContext(std::to_string(Subsystem::Id++), Rml::Vector2i((int)Size.X, (int)Size.Y));
+				Base = (ScopedContext*)Rml::CreateContext(Core::ToString(Subsystem::Id++), Rml::Vector2i((int)Size.X, (int)Size.Y));
 
 				ED_ASSERT_V(Base != nullptr, "context cannot be created");
 				Base->Basis = this;
@@ -3514,7 +3514,7 @@ namespace Edge
 				ED_ASSERT_V(Device->GetRenderTarget() != nullptr, "graphics device should be set");
 
 				Graphics::RenderTarget2D* Target = Device->GetRenderTarget();
-				Base = (ScopedContext*)Rml::CreateContext(std::to_string(Subsystem::Id++), Rml::Vector2i((int)Target->GetWidth(), (int)Target->GetHeight()));
+				Base = (ScopedContext*)Rml::CreateContext(Core::ToString(Subsystem::Id++), Rml::Vector2i((int)Target->GetWidth(), (int)Target->GetHeight()));
 
 				ED_ASSERT_V(Base != nullptr, "context cannot be created");
 				Base->Basis = this;
@@ -3584,7 +3584,7 @@ namespace Edge
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(Buffer != nullptr && Length > 0, "buffer should be set");
-				if (Base->ProcessTextInput(std::string(Buffer, Length)))
+				if (Base->ProcessTextInput(Core::String(Buffer, Length)))
 					Inputs.Text = true;
 #endif
 			}
@@ -3653,7 +3653,7 @@ namespace Edge
 				return false;
 #endif
 			}
-			bool Context::Initialize(Core::Schema* Conf, const std::string& Relative)
+			bool Context::Initialize(Core::Schema* Conf, const Core::String& Relative)
 			{
 				ED_ASSERT(Conf != nullptr, false, "conf should be set");
 				bool State = Loading;
@@ -3661,14 +3661,14 @@ namespace Edge
 
 				for (auto* Face : Conf->FindCollection("font-face", true))
 				{
-					std::string Path = Face->GetAttributeVar("path").GetBlob();
+					Core::String Path = Face->GetAttributeVar("path").GetBlob();
 					if (Path.empty())
 					{
 						ED_ERR("[gui] path is required for font face");
 						return false;
 					}
 
-					std::string Target = Core::OS::Path::Resolve(Path, Relative);
+					Core::String Target = Core::OS::Path::Resolve(Path, Relative);
 					if (!LoadFontFace(Target.empty() ? Path : Target, Face->GetAttribute("fallback") != nullptr))
 					{
 						Loading = State;
@@ -3678,14 +3678,14 @@ namespace Edge
 
 				for (auto* Document : Conf->FindCollection("document", true))
 				{
-					std::string Path = Document->GetAttributeVar("path").GetBlob();
+					Core::String Path = Document->GetAttributeVar("path").GetBlob();
 					if (Path.empty())
 					{
 						ED_ERR("[gui] path is required for document");
 						return false;
 					}
 
-					std::string Target = Core::OS::Path::Resolve(Path, Relative);
+					Core::String Target = Core::OS::Path::Resolve(Path, Relative);
 					IElementDocument Result = LoadDocument(Target.empty() ? Path : Target);
 					if (!Result.IsValid())
 					{
@@ -3699,7 +3699,7 @@ namespace Edge
 				Loading = State;
 				return true;
 			}
-			bool Context::Initialize(const std::string& ConfPath)
+			bool Context::Initialize(const Core::String& ConfPath)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(Subsystem::RenderInterface != nullptr, false, "render interface should be set");
@@ -3741,7 +3741,7 @@ namespace Edge
 				return false;
 #endif
 			}
-			bool Context::LoadFontFace(const std::string& Path, bool UseAsFallback)
+			bool Context::LoadFontFace(const Core::String& Path, bool UseAsFallback)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT(Subsystem::GetSystemInterface() != nullptr, false, "system interface should be set");
@@ -3756,7 +3756,7 @@ namespace Edge
 				return false;
 #endif
 			}
-			std::unordered_map<std::string, bool>* Context::GetFontFaces()
+			Core::UnorderedMap<Core::String, bool>* Context::GetFontFaces()
 			{
 #ifdef ED_USE_RMLUI
 				return Subsystem::GetSystemInterface()->GetFontFaces();
@@ -3801,7 +3801,7 @@ namespace Edge
 				return 0.0f;
 #endif
 			}
-			bool Context::ReplaceHTML(const std::string& Selector, const std::string& HTML, int Index)
+			bool Context::ReplaceHTML(const Core::String& Selector, const Core::String& HTML, int Index)
 			{
 #ifdef ED_USE_RMLUI
 				auto* Current = Base->GetDocument(Index);
@@ -3818,7 +3818,7 @@ namespace Edge
 				return false;
 #endif
 			}
-			IElementDocument Context::EvalHTML(const std::string& HTML, int Index)
+			IElementDocument Context::EvalHTML(const Core::String& HTML, int Index)
 			{
 #ifdef ED_USE_RMLUI
 				auto* Current = Base->GetDocument(Index);
@@ -3832,7 +3832,7 @@ namespace Edge
 				return IElementDocument();
 #endif
 			}
-			IElementDocument Context::AddCSS(const std::string& CSS, int Index)
+			IElementDocument Context::AddCSS(const Core::String& CSS, int Index)
 			{
 #ifdef ED_USE_RMLUI
 				auto* Current = Base->GetDocument(Index);
@@ -3870,7 +3870,7 @@ namespace Edge
 				return IElementDocument();
 #endif
 			}
-			IElementDocument Context::LoadCSS(const std::string& Path, int Index)
+			IElementDocument Context::LoadCSS(const Core::String& Path, int Index)
 			{
 #ifdef ED_USE_RMLUI
 				auto* Current = Base->GetDocument(Index);
@@ -3896,7 +3896,7 @@ namespace Edge
 				return IElementDocument();
 #endif
 			}
-			IElementDocument Context::LoadDocument(const std::string& Path)
+			IElementDocument Context::LoadDocument(const Core::String& Path)
 			{
 #ifdef ED_USE_RMLUI
 				bool State = Loading;
@@ -3919,7 +3919,7 @@ namespace Edge
 					return nullptr;
 				}
 
-				std::string Data((const char*)Buffer, Length);
+				Core::String Data((const char*)Buffer, Length);
 				ED_FREE(Buffer);
 
 				Decompose(Data);
@@ -3938,7 +3938,7 @@ namespace Edge
 				return IElementDocument();
 #endif
 			}
-			IElementDocument Context::AddDocumentEmpty(const std::string& InstancerName)
+			IElementDocument Context::AddDocumentEmpty(const Core::String& InstancerName)
 			{
 #ifdef ED_USE_RMLUI
 				return Base->CreateDocument(InstancerName);
@@ -3946,7 +3946,7 @@ namespace Edge
 				return IElementDocument();
 #endif
 			}
-			IElementDocument Context::AddDocument(const std::string& HTML)
+			IElementDocument Context::AddDocument(const Core::String& HTML)
 			{
 #ifdef ED_USE_RMLUI
 				return Base->LoadDocumentFromMemory(HTML);
@@ -3954,7 +3954,7 @@ namespace Edge
 				return IElementDocument();
 #endif
 			}
-			IElementDocument Context::GetDocument(const std::string& Id)
+			IElementDocument Context::GetDocument(const Core::String& Id)
 			{
 #ifdef ED_USE_RMLUI
 				return Base->GetDocument(Id);
@@ -3978,7 +3978,7 @@ namespace Edge
 				return 0;
 #endif
 			}
-			IElement Context::GetElementById(const std::string& Id, int DocIndex)
+			IElement Context::GetElementById(const Core::String& Id, int DocIndex)
 			{
 #ifdef ED_USE_RMLUI
 				Rml::ElementDocument* Root = Base->GetDocument(DocIndex);
@@ -4058,14 +4058,14 @@ namespace Edge
 				Base->UnfocusDocument(Schema.GetElementDocument());
 #endif
 			}
-			void Context::AddEventListener(const std::string& Event, Listener* Listener, bool InCapturePhase)
+			void Context::AddEventListener(const Core::String& Event, Listener* Listener, bool InCapturePhase)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(Listener != nullptr && Listener->Base != nullptr, "listener should be valid");
 				Base->AddEventListener(Event, Listener->Base, InCapturePhase);
 #endif
 			}
-			void Context::RemoveEventListener(const std::string& Event, Listener* Listener, bool InCapturePhase)
+			void Context::RemoveEventListener(const Core::String& Event, Listener* Listener, bool InCapturePhase)
 			{
 #ifdef ED_USE_RMLUI
 				ED_ASSERT_V(Listener != nullptr && Listener->Base != nullptr, "listener should be valid");
@@ -4121,7 +4121,7 @@ namespace Edge
 				return Base->SetActiveClipRegion(Rml::Vector2i((int)Origin.X, (int)Origin.Y), Rml::Vector2i((int)Dimensions.X, (int)Dimensions.Y));
 #endif
 			}
-			DataModel* Context::SetDataModel(const std::string& Name)
+			DataModel* Context::SetDataModel(const Core::String& Name)
 			{
 #ifdef ED_USE_RMLUI
 				Rml::DataModelConstructor Result = Base->CreateDataModel(Name);
@@ -4131,7 +4131,7 @@ namespace Edge
 				DataModel* Handle = new DataModel(&Result);
 				if (auto Type = Result.RegisterStruct<DataNode>())
 				{
-					Result.RegisterArray<std::vector<DataNode>>();
+					Result.RegisterArray<Core::Vector<DataNode>>();
 					Type.RegisterMember("int", &DataNode::GetInteger, &DataNode::SetValueInt);
 					Type.RegisterMember("num", &DataNode::GetDouble, &DataNode::SetValueNum);
 					Type.RegisterMember("str", &DataNode::GetString, &DataNode::SetValueStr);
@@ -4146,7 +4146,7 @@ namespace Edge
 				return nullptr;
 #endif
 			}
-			DataModel* Context::GetDataModel(const std::string& Name)
+			DataModel* Context::GetDataModel(const Core::String& Name)
 			{
 				auto It = Models.find(Name);
 				if (It != Models.end())
@@ -4154,7 +4154,7 @@ namespace Edge
 
 				return nullptr;
 			}
-			bool Context::RemoveDataModel(const std::string& Name)
+			bool Context::RemoveDataModel(const Core::String& Name)
 			{
 #ifdef ED_USE_RMLUI
 				if (!Base->RemoveDataModel(Name))
@@ -4193,7 +4193,7 @@ namespace Edge
 				return false;
 #endif
 			}
-			void Context::SetDocumentsBaseTag(const std::string& Tag)
+			void Context::SetDocumentsBaseTag(const Core::String& Tag)
 			{
 #ifdef ED_USE_RMLUI
 				Base->SetDocumentsBaseTag(Tag);
@@ -4203,7 +4203,7 @@ namespace Edge
 			{
 				OnMount = Callback;
 			}
-			bool Context::Preprocess(const std::string& Path, std::string& Buffer)
+			bool Context::Preprocess(const Core::String& Path, Core::String& Buffer)
 			{
 				Compute::Preprocessor::Desc Features;
 				Features.Conditions = false;
@@ -4216,7 +4216,7 @@ namespace Edge
 				Desc.Root = Core::OS::Directory::Get();
 
 				Compute::Preprocessor* Processor = new Compute::Preprocessor();
-				Processor->SetIncludeCallback([this](Compute::Preprocessor* P, const Compute::IncludeResult& File, std::string* Output)
+				Processor->SetIncludeCallback([this](Compute::Preprocessor* P, const Compute::IncludeResult& File, Core::String* Output)
 				{
 					if (File.Module.empty() || (!File.IsFile && !File.IsSystem))
 						return false;
@@ -4243,7 +4243,7 @@ namespace Edge
 
 				return Result;
 			}
-			void Context::Decompose(std::string& Data)
+			void Context::Decompose(Core::String& Data)
 			{
 				Core::Stringify::Settle Result, Start, End;
 				Core::Stringify Buffer(&Data);
@@ -4286,12 +4286,12 @@ namespace Edge
 				Compiler->Clear();
 				Compiler->Prepare("__scope__", true);
 			}
-			std::string Context::GetDocumentsBaseTag()
+			Core::String Context::GetDocumentsBaseTag()
 			{
 #ifdef ED_USE_RMLUI
 				return Base->GetDocumentsBaseTag();
 #else
-				return std::string();
+				return Core::String();
 #endif
 			}
 			int Context::GetKeyCode(Graphics::KeyCode Key)

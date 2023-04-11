@@ -54,27 +54,27 @@ namespace Edge
 	{
 		namespace HTTP
 		{
-			static void TextAppend(std::vector<char>& Array, const std::string& Src)
+			static void TextAppend(Core::Vector<char>& Array, const Core::String& Src)
 			{
 				Array.insert(Array.end(), Src.begin(), Src.end());
 			}
-			static void TextAppend(std::vector<char>& Array, const char* Buffer, size_t Size)
+			static void TextAppend(Core::Vector<char>& Array, const char* Buffer, size_t Size)
 			{
 				Array.insert(Array.end(), Buffer, Buffer + Size);
 			}
-			static void TextAssign(std::vector<char>& Array, const std::string& Src)
+			static void TextAssign(Core::Vector<char>& Array, const Core::String& Src)
 			{
 				Array.assign(Src.begin(), Src.end());
 			}
-			static void TextAssign(std::vector<char>& Array, const char* Buffer, size_t Size)
+			static void TextAssign(Core::Vector<char>& Array, const char* Buffer, size_t Size)
 			{
 				Array.assign(Buffer, Buffer + Size);
 			}
-			static std::string TextSubstring(std::vector<char>& Array, size_t Offset, size_t Size)
+			static Core::String TextSubstring(Core::Vector<char>& Array, size_t Offset, size_t Size)
 			{
-				return std::string(Array.data() + Offset, Size);
+				return Core::String(Array.data() + Offset, Size);
 			}
-			static std::string TextHTML(const std::string& Result)
+			static Core::String TextHTML(const Core::String& Result)
 			{
 				if (Result.empty())
 					return Result;
@@ -462,7 +462,7 @@ namespace Edge
 				ED_ASSERT_V(Base != nullptr, "connection should be set");
 				ED_ASSERT_V(Compiler != nullptr, "compiler should be set");
 			}
-			bool GatewayFrame::Start(const std::string& Path, const char* Method, char* Buffer, size_t Size)
+			bool GatewayFrame::Start(const Core::String& Path, const char* Method, char* Buffer, size_t Size)
 			{
 				ED_ASSERT(Method != nullptr, false, "method should be set");
 
@@ -598,7 +598,7 @@ namespace Edge
 				return Base;
 			}
 
-			RouteGroup::RouteGroup(const std::string& NewMatch, RouteMode NewMode) noexcept : Match(NewMatch), Mode(NewMode)
+			RouteGroup::RouteGroup(const Core::String& NewMatch, RouteMode NewMode) noexcept : Match(NewMatch), Mode(NewMode)
 			{
 			}
 			RouteGroup::~RouteGroup() noexcept
@@ -681,7 +681,7 @@ namespace Edge
 					ED_SORT(Group->Routes.begin(), Group->Routes.end(), Comparator);
 				}
 			}
-			RouteGroup* SiteEntry::Group(const std::string& Match, RouteMode Mode)
+			RouteGroup* SiteEntry::Group(const Core::String& Match, RouteMode Mode)
 			{
 				for (auto& Group : Groups)
 				{
@@ -694,7 +694,7 @@ namespace Edge
 
 				return Result;
 			}
-			RouteEntry* SiteEntry::Route(const std::string& Match, RouteMode Mode, const std::string& Pattern)
+			RouteEntry* SiteEntry::Route(const Core::String& Match, RouteMode Mode, const Core::String& Pattern)
 			{
 				if (Pattern.empty() || Pattern == "/")
 					return Base;
@@ -745,7 +745,7 @@ namespace Edge
 
 				return Route(Pattern, Source, From);
 			}
-			RouteEntry* SiteEntry::Route(const std::string& Pattern, RouteGroup* Group, RouteEntry* From)
+			RouteEntry* SiteEntry::Route(const Core::String& Pattern, RouteGroup* Group, RouteEntry* From)
 			{
 				ED_ASSERT(Group != nullptr, nullptr, "group should be set");
 				ED_ASSERT(From != nullptr, nullptr, "from should be set");
@@ -775,7 +775,7 @@ namespace Edge
 			{
 				return Get("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Get(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool SiteEntry::Get(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
 				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
@@ -788,7 +788,7 @@ namespace Edge
 			{
 				return Post("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Post(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool SiteEntry::Post(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
 				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
@@ -801,7 +801,7 @@ namespace Edge
 			{
 				return Put("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Put(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool SiteEntry::Put(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
 				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
@@ -814,7 +814,7 @@ namespace Edge
 			{
 				return Patch("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Patch(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool SiteEntry::Patch(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
 				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
@@ -827,7 +827,7 @@ namespace Edge
 			{
 				return Delete("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Delete(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool SiteEntry::Delete(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
 				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
@@ -840,7 +840,7 @@ namespace Edge
 			{
 				return Options("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Options(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool SiteEntry::Options(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
 				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
@@ -853,7 +853,7 @@ namespace Edge
 			{
 				return Access("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Access(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool SiteEntry::Access(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
 				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
@@ -866,7 +866,7 @@ namespace Edge
 			{
 				return WebSocketConnect("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::WebSocketConnect(const std::string& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback)
+			bool SiteEntry::WebSocketConnect(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback)
 			{
 				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
@@ -879,7 +879,7 @@ namespace Edge
 			{
 				return WebSocketDisconnect("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::WebSocketDisconnect(const std::string& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback)
+			bool SiteEntry::WebSocketDisconnect(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback)
 			{
 				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
@@ -892,7 +892,7 @@ namespace Edge
 			{
 				return WebSocketReceive("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::WebSocketReceive(const std::string& Match, RouteMode Mode, const char* Pattern, const WebSocketReadCallback& Callback)
+			bool SiteEntry::WebSocketReceive(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketReadCallback& Callback)
 			{
 				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
@@ -921,7 +921,7 @@ namespace Edge
 				if (It != Sites.end())
 					return It->second;
 
-				std::string Name = Core::Stringify(Pattern).ToLower().R();
+				Core::String Name = Core::Stringify(Pattern).ToLower().R();
 				if (Name.empty())
 					Name = "*";
 
@@ -931,26 +931,26 @@ namespace Edge
 				return Result;
 			}
 
-			void Resource::PutHeader(const std::string& Label, const std::string& Value)
+			void Resource::PutHeader(const Core::String& Label, const Core::String& Value)
 			{
 				ED_ASSERT_V(!Label.empty(), "label should not be empty");
 				Headers[Label].push_back(Value);
 			}
-			void Resource::SetHeader(const std::string& Label, const std::string& Value)
+			void Resource::SetHeader(const Core::String& Label, const Core::String& Value)
 			{
 				ED_ASSERT_V(!Label.empty(), "label should not be empty");
 				auto& Range = Headers[Label];
 				Range.clear();
 				Range.push_back(Value);
 			}
-			std::string Resource::ComposeHeader(const std::string& Label) const
+			Core::String Resource::ComposeHeader(const Core::String& Label) const
 			{
-				ED_ASSERT(!Label.empty(), std::string(), "label should not be empty");
+				ED_ASSERT(!Label.empty(), Core::String(), "label should not be empty");
 				auto It = Headers.find(Label);
 				if (It == Headers.end())
-					return std::string();
+					return Core::String();
 
-				std::string Result;
+				Core::String Result;
 				for (auto& Item : It->second)
 				{
 					Result.append(Item);
@@ -959,12 +959,12 @@ namespace Edge
 
 				return (Result.empty() ? Result : Result.substr(0, Result.size() - 1));
 			}
-			RangePayload* Resource::GetHeaderRanges(const std::string& Label)
+			RangePayload* Resource::GetHeaderRanges(const Core::String& Label)
 			{
 				ED_ASSERT(!Label.empty(), nullptr, "label should not be empty");
 				return (RangePayload*)&Headers[Label];
 			}
-			const std::string* Resource::GetHeaderBlob(const std::string& Label) const
+			const Core::String* Resource::GetHeaderBlob(const Core::String& Label) const
 			{
 				ED_ASSERT(!Label.empty(), nullptr, "label should not be empty");
 				auto It = Headers.find(Label);
@@ -974,10 +974,10 @@ namespace Edge
 				if (It->second.empty())
 					return nullptr;
 
-				const std::string& Result = It->second.back();
+				const Core::String& Result = It->second.back();
 				return &Result;
 			}
-			const char* Resource::GetHeader(const std::string& Label) const
+			const char* Resource::GetHeader(const Core::String& Label) const
 			{
 				ED_ASSERT(!Label.empty(), nullptr, "label should not be empty");
 				auto It = Headers.find(Label);
@@ -997,15 +997,15 @@ namespace Edge
 			}
 			void RequestFrame::SetVersion(unsigned int Major, unsigned int Minor)
 			{
-				std::string Value = "HTTP/" + std::to_string(Major) + '.' + std::to_string(Minor);
+				Core::String Value = "HTTP/" + Core::ToString(Major) + '.' + Core::ToString(Minor);
 				strncpy(Version, Value.c_str(), sizeof(Version));
 			}
-			void RequestFrame::PutHeader(const std::string& Key, const std::string& Value)
+			void RequestFrame::PutHeader(const Core::String& Key, const Core::String& Value)
 			{
 				ED_ASSERT_V(!Key.empty(), "key should not be empty");
 				Headers[Key].push_back(Value);
 			}
-			void RequestFrame::SetHeader(const std::string& Key, const std::string& Value)
+			void RequestFrame::SetHeader(const Core::String& Key, const Core::String& Value)
 			{
 				ED_ASSERT_V(!Key.empty(), "key should not be empty");
 				auto& Range = Headers[Key];
@@ -1026,14 +1026,14 @@ namespace Edge
 				URI.clear();
 				Where.clear();
 			}
-			std::string RequestFrame::ComposeHeader(const std::string& Label) const
+			Core::String RequestFrame::ComposeHeader(const Core::String& Label) const
 			{
-				ED_ASSERT(!Label.empty(), std::string(), "label should not be empty");
+				ED_ASSERT(!Label.empty(), Core::String(), "label should not be empty");
 				auto It = Headers.find(Label);
 				if (It == Headers.end())
-					return std::string();
+					return Core::String();
 
-				std::string Result;
+				Core::String Result;
 				for (auto& Item : It->second)
 				{
 					Result.append(Item);
@@ -1042,12 +1042,12 @@ namespace Edge
 
 				return (Result.empty() ? Result : Result.substr(0, Result.size() - 1));
 			}
-			RangePayload* RequestFrame::GetCookieRanges(const std::string& Key)
+			RangePayload* RequestFrame::GetCookieRanges(const Core::String& Key)
 			{
 				ED_ASSERT(!Key.empty(), nullptr, "key should not be empty");
 				return (RangePayload*)&Cookies[Key];
 			}
-			const char* RequestFrame::GetCookie(const std::string& Key) const
+			const char* RequestFrame::GetCookie(const Core::String& Key) const
 			{
 				ED_ASSERT(!Key.empty(), nullptr, "key should not be empty");
 				auto It = Cookies.find(Key);
@@ -1059,12 +1059,12 @@ namespace Edge
 
 				return It->second.back().c_str();
 			}
-			RangePayload* RequestFrame::GetHeaderRanges(const std::string& Key)
+			RangePayload* RequestFrame::GetHeaderRanges(const Core::String& Key)
 			{
 				ED_ASSERT(!Key.empty(), nullptr, "key should not be empty");
 				return (RangePayload*)&Headers[Key];
 			}
-			const std::string* RequestFrame::GetHeaderBlob(const std::string& Key) const
+			const Core::String* RequestFrame::GetHeaderBlob(const Core::String& Key) const
 			{
 				ED_ASSERT(!Key.empty(), nullptr, "key should not be empty");
 				auto It = Headers.find(Key);
@@ -1074,10 +1074,10 @@ namespace Edge
 				if (It->second.empty())
 					return nullptr;
 
-				const std::string& Result = It->second.back();
+				const Core::String& Result = It->second.back();
 				return &Result;
 			}
-			const char* RequestFrame::GetHeader(const std::string& Key) const
+			const char* RequestFrame::GetHeader(const Core::String& Key) const
 			{
 				ED_ASSERT(!Key.empty(), nullptr, "key should not be empty");
 				auto It = Headers.find(Key);
@@ -1089,14 +1089,14 @@ namespace Edge
 
 				return It->second.back().c_str();
 			}
-			std::vector<std::pair<size_t, size_t>> RequestFrame::GetRanges() const
+			Core::Vector<std::pair<size_t, size_t>> RequestFrame::GetRanges() const
 			{
 				const char* Range = GetHeader("Range");
 				if (Range == nullptr)
-					return std::vector<std::pair<size_t, size_t>>();
+					return Core::Vector<std::pair<size_t, size_t>>();
 
-				std::vector<std::string> Bases = Core::Stringify(Range).Split(',');
-				std::vector<std::pair<size_t, size_t>> Ranges;
+				Core::Vector<Core::String> Bases = Core::Stringify(Range).Split(',');
+				Core::Vector<std::pair<size_t, size_t>> Ranges;
 
 				for (auto& Item : Bases)
 				{
@@ -1129,7 +1129,7 @@ namespace Edge
 
 				return Ranges;
 			}
-			std::pair<size_t, size_t> RequestFrame::GetRange(std::vector<std::pair<size_t, size_t>>::iterator Range, size_t ContenLength) const
+			std::pair<size_t, size_t> RequestFrame::GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContenLength) const
 			{
 				if (Range->first == -1 && Range->second == -1)
 					return std::make_pair(0, ContenLength);
@@ -1146,12 +1146,12 @@ namespace Edge
 				return std::make_pair(Range->first, Range->second - Range->first + 1);
 			}
 
-			void ResponseFrame::PutHeader(const std::string& Key, const std::string& Value)
+			void ResponseFrame::PutHeader(const Core::String& Key, const Core::String& Value)
 			{
 				ED_ASSERT_V(!Key.empty(), "key should not be empty");
 				Headers[Key].push_back(Value);
 			}
-			void ResponseFrame::SetHeader(const std::string& Key, const std::string& Value)
+			void ResponseFrame::SetHeader(const Core::String& Key, const Core::String& Value)
 			{
 				ED_ASSERT_V(!Key.empty(), "key should not be empty");
 				auto& Range = Headers[Key];
@@ -1192,14 +1192,14 @@ namespace Edge
 				Headers.clear();
 				Content.Cleanup();
 			}
-			std::string ResponseFrame::ComposeHeader(const std::string& Label) const
+			Core::String ResponseFrame::ComposeHeader(const Core::String& Label) const
 			{
-				ED_ASSERT(!Label.empty(), std::string(), "label should not be empty");
+				ED_ASSERT(!Label.empty(), Core::String(), "label should not be empty");
 				auto It = Headers.find(Label);
 				if (It == Headers.end())
-					return std::string();
+					return Core::String();
 
-				std::string Result;
+				Core::String Result;
 				for (auto& Item : It->second)
 				{
 					Result.append(Item);
@@ -1220,12 +1220,12 @@ namespace Edge
 
 				return nullptr;
 			}
-			RangePayload* ResponseFrame::GetHeaderRanges(const std::string& Key)
+			RangePayload* ResponseFrame::GetHeaderRanges(const Core::String& Key)
 			{
 				ED_ASSERT(!Key.empty(), nullptr, "key should not be empty");
 				return (RangePayload*)&Headers[Key];
 			}
-			const std::string* ResponseFrame::GetHeaderBlob(const std::string& Key) const
+			const Core::String* ResponseFrame::GetHeaderBlob(const Core::String& Key) const
 			{
 				ED_ASSERT(!Key.empty(), nullptr, "key should not be empty");
 				auto It = Headers.find(Key);
@@ -1235,10 +1235,10 @@ namespace Edge
 				if (It->second.empty())
 					return nullptr;
 
-				const std::string& Result = It->second.back();
+				const Core::String& Result = It->second.back();
 				return &Result;
 			}
-			const char* ResponseFrame::GetHeader(const std::string& Key) const
+			const char* ResponseFrame::GetHeader(const Core::String& Key) const
 			{
 				ED_ASSERT(!Key.empty(), nullptr, "key should not be empty");
 				auto It = Headers.find(Key);
@@ -1255,7 +1255,7 @@ namespace Edge
 				return StatusCode >= 200 && StatusCode < 400;
 			}
 
-			void ContentFrame::Append(const std::string& Text)
+			void ContentFrame::Append(const Core::String& Text)
 			{
 				TextAppend(Data, Text);
 			}
@@ -1263,7 +1263,7 @@ namespace Edge
 			{
 				TextAppend(Data, Buffer, Size);
 			}
-			void ContentFrame::Assign(const std::string& Text)
+			void ContentFrame::Assign(const Core::String& Text)
 			{
 				TextAssign(Data, Text);
 			}
@@ -1286,7 +1286,7 @@ namespace Edge
 			{
 				if (!Resources.empty())
 				{
-					std::vector<std::string> Paths;
+					Core::Vector<Core::String> Paths;
 					Paths.reserve(Resources.size());
 					for (auto& Item : Resources)
 					{
@@ -1305,9 +1305,9 @@ namespace Edge
 				Limited = false;
 				Exceeds = false;
 			}
-			std::string ContentFrame::GetText() const
+			Core::String ContentFrame::GetText() const
 			{
-				return std::string(Data.data(), Data.size());
+				return Core::String(Data.data(), Data.size());
 			}
 			bool ContentFrame::IsFinalized() const
 			{
@@ -1519,7 +1519,7 @@ namespace Edge
 					if (Route->Site->ResourceRoot.empty())
 						Eat = true;
 
-					std::string Boundary("--");
+					Core::String Boundary("--");
 					Boundary.append(BoundaryName + 9);
 
 					Parsers.Multipart->PrepareForNextParsing(this, true);
@@ -1696,7 +1696,7 @@ namespace Edge
 					char Date[64];
 					Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Info.Start / 1000);
 
-					std::string Auth;
+					Core::String Auth;
 					if (Route && Request.User.Type == Auth::Denied)
 						Auth = "WWW-Authenticate: " + Route->Auth.Type + " realm=\"" + Route->Auth.Realm + "\"\r\n";
 
@@ -1704,7 +1704,7 @@ namespace Edge
 					if (HasContents)
 					{
 						char Buffer[ED_BIG_CHUNK_SIZE];
-						std::string Reason = TextHTML(Info.Message);
+						Core::String Reason = TextHTML(Info.Message);
 						snprintf(Buffer, sizeof(Buffer), "<html><head><title>%d %s</title><style>" CSS_MESSAGE_STYLE "%s</style></head><body><div><h1>%d %s</h1></div></body></html>\n", Response.StatusCode, StatusText, Reason.size() <= 128 ? CSS_NORMAL_FONT : CSS_SMALL_FONT, Response.StatusCode, Reason.empty() ? StatusText : Reason.c_str());
 
 						if (Route && Route->Callbacks.Headers)
@@ -1728,7 +1728,7 @@ namespace Edge
 				}
 
 				Core::Stringify Chunked;
-				std::string Boundary;
+				Core::String Boundary;
 				const char* ContentType;
 				Chunked.fAppend("%s %d %s\r\n", Request.Version, Response.StatusCode, Util::StatusMessage(Response.StatusCode));
 
@@ -1787,7 +1787,7 @@ namespace Edge
 
 							if (deflateInit2(&fStream, Route ? Route->Compression.QualityLevel : 8, Z_DEFLATED, (Gzip ? 15 | 16 : 15), Route ? Route->Compression.MemoryLevel : 8, Route ? (int)Route->Compression.Tune : 0) == Z_OK)
 							{
-								std::string Buffer(Response.Content.Data.size(), '\0');
+								Core::String Buffer(Response.Content.Data.size(), '\0');
 								fStream.avail_out = (uInt)Buffer.size();
 								fStream.next_out = (Bytef*)Buffer.c_str();
 								bool Compress = (deflate(&fStream, Z_FINISH) == Z_STREAM_END);
@@ -1810,14 +1810,14 @@ namespace Edge
 #endif
 					if (Request.GetHeader("Range") != nullptr)
 					{
-						std::vector<std::pair<size_t, size_t>> Ranges = Request.GetRanges();
+						Core::Vector<std::pair<size_t, size_t>> Ranges = Request.GetRanges();
 						if (Ranges.size() > 1)
 						{
-							std::string Data;
+							Core::String Data;
 							for (auto It = Ranges.begin(); It != Ranges.end(); ++It)
 							{
 								std::pair<size_t, size_t> Offset = Request.GetRange(It, Response.Content.Data.size());
-								std::string ContentRange = Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size());
+								Core::String ContentRange = Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size());
 
 								Data.append("--", 2);
 								Data.append(Boundary);
@@ -1962,9 +1962,9 @@ namespace Edge
 				*Output = Object;
 				Object = nullptr;
 			}
-			void Query::NewParameter(std::vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value)
+			void Query::NewParameter(Core::Vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value)
 			{
-				std::string URI = Compute::Codec::URIDecode(Name.Value, Name.Length);
+				Core::String URI = Compute::Codec::URIDecode(Name.Value, Name.Length);
 				char* Data = (char*)URI.c_str();
 
 				size_t Offset = 0, Length = URI.size();
@@ -2021,7 +2021,7 @@ namespace Edge
 				if (Parameter != nullptr)
 					Parameter->Value.Deserialize(Compute::Codec::URIDecode(Value.Value, Value.Length));
 			}
-			void Query::Decode(const char* Type, const std::string& URI)
+			void Query::Decode(const char* Type, const Core::String& URI)
 			{
 				if (!Type || URI.empty())
 					return;
@@ -2031,9 +2031,9 @@ namespace Edge
 				else if (!Core::Stringify::CaseCompare(Type, "application/json"))
 					DecodeAJSON(URI);
 			}
-			void Query::DecodeAXWFD(const std::string& URI)
+			void Query::DecodeAXWFD(const Core::String& URI)
 			{
-				std::vector<QueryToken> Tokens;
+				Core::Vector<QueryToken> Tokens;
 				char* Data = (char*)URI.c_str();
 
 				size_t Offset = 0, Length = URI.size();
@@ -2063,12 +2063,12 @@ namespace Edge
 					i++;
 				}
 			}
-			void Query::DecodeAJSON(const std::string& URI)
+			void Query::DecodeAJSON(const Core::String& URI)
 			{
 				ED_CLEAR(Object);
 				Object = (Core::Schema*)Core::Schema::ConvertFromJSON(URI.c_str(), URI.size());
 			}
-			std::string Query::Encode(const char* Type) const
+			Core::String Query::Encode(const char* Type) const
 			{
 				if (Type != nullptr)
 				{
@@ -2081,9 +2081,9 @@ namespace Edge
 
 				return "";
 			}
-			std::string Query::EncodeAXWFD() const
+			Core::String Query::EncodeAXWFD() const
 			{
-				std::string Output; auto& Nodes = Object->GetChilds();
+				Core::String Output; auto& Nodes = Object->GetChilds();
 				for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
 				{
 					Output.append(BuildFromBase(*It));
@@ -2093,9 +2093,9 @@ namespace Edge
 
 				return Output;
 			}
-			std::string Query::EncodeAJSON() const
+			Core::String Query::EncodeAJSON() const
 			{
-				std::string Stream;
+				Core::String Stream;
 				Core::Schema::ConvertToJSON(Object, [&Stream](Core::VarForm, const char* Buffer, size_t Length)
 				{
 					if (Buffer != nullptr && Length > 0)
@@ -2142,7 +2142,7 @@ namespace Edge
 				}
 				else
 				{
-					New->Key.assign(std::to_string(Object->Size()));
+					New->Key.assign(Core::ToString(Object->Size()));
 					Object->Value = Core::Var::Array();
 				}
 
@@ -2151,9 +2151,9 @@ namespace Edge
 
 				return New;
 			}
-			std::string Query::Build(Core::Schema* Base)
+			Core::String Query::Build(Core::Schema* Base)
 			{
-				std::string Output, Label = Compute::Codec::URIEncode(Base->GetParent() != nullptr ? ('[' + Base->Key + ']') : Base->Key);
+				Core::String Output, Label = Compute::Codec::URIEncode(Base->GetParent() != nullptr ? ('[' + Base->Key + ']') : Base->Key);
 				if (!Base->IsEmpty())
 				{
 					auto& Childs = Base->GetChilds();
@@ -2166,7 +2166,7 @@ namespace Edge
 				}
 				else
 				{
-					std::string V = Base->Value.Serialize();
+					Core::String V = Base->Value.Serialize();
 					if (!V.empty())
 						Output.append(Label).append(1, '=').append(Compute::Codec::URIEncode(V));
 					else
@@ -2175,9 +2175,9 @@ namespace Edge
 
 				return Output;
 			}
-			std::string Query::BuildFromBase(Core::Schema* Base)
+			Core::String Query::BuildFromBase(Core::Schema* Base)
 			{
-				std::string Output, Label = Compute::Codec::URIEncode(Base->Key);
+				Core::String Output, Label = Compute::Codec::URIEncode(Base->Key);
 				if (!Base->IsEmpty())
 				{
 					auto& Childs = Base->GetChilds();
@@ -2190,7 +2190,7 @@ namespace Edge
 				}
 				else
 				{
-					std::string V = Base->Value.Serialize();
+					Core::String V = Base->Value.Serialize();
 					if (!V.empty())
 						Output.append(Label).append(1, '=').append(Compute::Codec::URIEncode(V));
 					else
@@ -2211,7 +2211,7 @@ namespace Edge
 					}
 				}
 
-				std::string Key;
+				Core::String Key;
 				if (Name->Value && Name->Length > 0)
 				{
 					Key.assign(Name->Value, (size_t)Name->Length);
@@ -2222,7 +2222,7 @@ namespace Edge
 				}
 				else
 				{
-					Key.assign(std::to_string(Base->Size()));
+					Key.assign(Core::ToString(Base->Size()));
 					Base->Value = Core::Var::Array();
 				}
 
@@ -2245,7 +2245,7 @@ namespace Edge
 			bool Session::Write(Connection* Base)
 			{
 				ED_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				std::string Schema = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
+				Core::String Schema = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
 
 				FILE* Stream = (FILE*)Core::OS::File::Open(Schema.c_str(), "wb");
 				if (!Stream)
@@ -2266,7 +2266,7 @@ namespace Edge
 			bool Session::Read(Connection* Base)
 			{
 				ED_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				std::string Schema = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
+				Core::String Schema = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
 
 				FILE* Stream = (FILE*)Core::OS::File::Open(Schema.c_str(), "rb");
 				if (!Stream)
@@ -2315,7 +2315,7 @@ namespace Edge
 				Core::OS::File::Close(Stream);
 				return true;
 			}
-			std::string& Session::FindSessionId(Connection* Base)
+			Core::String& Session::FindSessionId(Connection* Base)
 			{
 				if (!SessionId.empty())
 					return SessionId;
@@ -2327,11 +2327,11 @@ namespace Edge
 
 				return SessionId.assign(Value);
 			}
-			std::string& Session::GenerateSessionId(Connection* Base)
+			Core::String& Session::GenerateSessionId(Connection* Base)
 			{
 				ED_ASSERT(Base != nullptr && Base->Route != nullptr, SessionId, "connection should be set");
 				int64_t Time = time(nullptr);
-				SessionId = Compute::Crypto::Hash(Compute::Digests::MD5(), Base->Request.URI + std::to_string(Time));
+				SessionId = Compute::Crypto::Hash(Compute::Digests::MD5(), Base->Request.URI + Core::ToString(Time));
 				IsNewSession = true;
 
 				if (SessionExpires == 0)
@@ -2350,9 +2350,9 @@ namespace Edge
 
 				return SessionId;
 			}
-			bool Session::InvalidateCache(const std::string& Path)
+			bool Session::InvalidateCache(const Core::String& Path)
 			{
-				std::vector<Core::FileEntry> Entries;
+				Core::Vector<Core::FileEntry> Entries;
 				if (!Core::OS::Directory::Scan(Path, &Entries))
 					return false;
 
@@ -2362,7 +2362,7 @@ namespace Edge
 					if (Item.IsDirectory)
 						continue;
 
-					std::string Filename = (Split ? Path + '/' : Path) + Item.Path;
+					Core::String Filename = (Split ? Path + '/' : Path) + Item.Path;
 					if (!Core::OS::File::Remove(Filename.c_str()))
 						ED_ERR("[http] couldn't invalidate session\n\t%s", Item.Path.c_str());
 				}
@@ -3451,7 +3451,7 @@ namespace Edge
 							Data++; Size--;
 							if (State == Bytecode::End && Remains == 0)
 							{
-								Queue.emplace(std::make_pair(Opcode, std::vector<char>()));
+								Queue.emplace(std::make_pair(Opcode, Core::Vector<char>()));
 								goto FetchPayload;
 							}
 							break;
@@ -3560,7 +3560,7 @@ namespace Edge
 							Data++; Size--;
 							if (Remains == 0)
 							{
-								Queue.emplace(std::make_pair(Opcode, std::vector<char>()));
+								Queue.emplace(std::make_pair(Opcode, Core::Vector<char>()));
 								goto FetchPayload;
 							}
 							break;
@@ -3577,7 +3577,7 @@ namespace Edge
 									Data[i] ^= Mask[Masks++ % 4];
 							}
 
-							std::vector<char> Message;
+							Core::Vector<char> Message;
 							TextAssign(Message, Data, Length);
 							Queue.emplace(std::make_pair(Opcode, std::move(Message)));
 							Opcode = WebSocketOp::Continue;
@@ -3603,7 +3603,7 @@ namespace Edge
 
 				return true;
 			}
-			bool WebCodec::GetFrame(WebSocketOp* Op, std::vector<char>* Message)
+			bool WebCodec::GetFrame(WebSocketOp* Op, Core::Vector<char>* Message)
 			{
 				ED_ASSERT(Op != nullptr, false, "op should be set");
 				ED_ASSERT(Message != nullptr, false, "message should be set");
@@ -3619,7 +3619,7 @@ namespace Edge
 				return true;
 			}
 
-			std::string Util::ConnectionResolve(Connection* Base)
+			Core::String Util::ConnectionResolve(Connection* Base)
 			{
 				ED_ASSERT(Base != nullptr && Base->Root != nullptr && Base->Root->Router != nullptr, "Connection: Close\r\n", "connection should be set");
 				if (Base->Info.KeepAlive <= 0)
@@ -3642,11 +3642,11 @@ namespace Edge
 					return "Connection: Close\r\n";
 
 				if (Base->Root->Router->KeepAliveMaxCount < 0)
-					return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + std::to_string(Base->Root->Router->SocketTimeout / 1000) + "\r\n";
+					return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + Core::ToString(Base->Root->Router->SocketTimeout / 1000) + "\r\n";
 
-				return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + std::to_string(Base->Root->Router->SocketTimeout / 1000) + ", max=" + std::to_string(Base->Root->Router->KeepAliveMaxCount) + "\r\n";
+				return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + Core::ToString(Base->Root->Router->SocketTimeout / 1000) + ", max=" + Core::ToString(Base->Root->Router->KeepAliveMaxCount) + "\r\n";
 			}
-			const char* Util::ContentType(const std::string& Path, std::vector<MimeType>* Types)
+			const char* Util::ContentType(const Core::String& Path, Core::Vector<MimeType>* Types)
 			{
 				ED_ASSERT(Types != nullptr, nullptr, "types should be set");
 				static MimeStatic MimeTypes[] = { MimeStatic(".3dm", "x-world/x-3dmf"), MimeStatic(".3dmf", "x-world/x-3dmf"), MimeStatic(".a", "application/octet-stream"), MimeStatic(".aab", "application/x-authorware-bin"), MimeStatic(".aac", "audio/aac"), MimeStatic(".aam", "application/x-authorware-map"), MimeStatic(".aas", "application/x-authorware-seg"), MimeStatic(".aat", "application/font-sfnt"), MimeStatic(".abc", "text/vnd.abc"), MimeStatic(".acgi", "text/html"), MimeStatic(".afl", "video/animaflex"), MimeStatic(".ai", "application/postscript"), MimeStatic(".aif", "audio/x-aiff"), MimeStatic(".aifc", "audio/x-aiff"), MimeStatic(".aiff", "audio/x-aiff"), MimeStatic(".aim", "application/x-aim"), MimeStatic(".aip", "text/x-audiosoft-intra"), MimeStatic(".ani", "application/x-navi-animation"), MimeStatic(".aos", "application/x-nokia-9000-communicator-add-on-software"), MimeStatic(".aps", "application/mime"), MimeStatic(".arc", "application/octet-stream"), MimeStatic(".arj", "application/arj"), MimeStatic(".art", "image/x-jg"), MimeStatic(".asf", "video/x-ms-asf"), MimeStatic(".asm", "text/x-asm"), MimeStatic(".asp", "text/asp"), MimeStatic(".asx", "video/x-ms-asf"), MimeStatic(".au", "audio/x-au"), MimeStatic(".avi", "video/x-msvideo"), MimeStatic(".avs", "video/avs-video"), MimeStatic(".bcpio", "application/x-bcpio"), MimeStatic(".bin", "application/x-binary"), MimeStatic(".bm", "image/bmp"), MimeStatic(".bmp", "image/bmp"), MimeStatic(".boo", "application/book"), MimeStatic(".book", "application/book"), MimeStatic(".boz", "application/x-bzip2"), MimeStatic(".bsh", "application/x-bsh"), MimeStatic(".bz", "application/x-bzip"), MimeStatic(".bz2", "application/x-bzip2"), MimeStatic(".c", "text/x-c"), MimeStatic(".c++", "text/x-c"), MimeStatic(".cat", "application/vnd.ms-pki.seccat"), MimeStatic(".cc", "text/x-c"), MimeStatic(".ccad", "application/clariscad"), MimeStatic(".cco", "application/x-cocoa"), MimeStatic(".cdf", "application/x-cdf"), MimeStatic(".cer", "application/pkix-cert"), MimeStatic(".cff", "application/font-sfnt"), MimeStatic(".cha", "application/x-chat"), MimeStatic(".chat", "application/x-chat"), MimeStatic(".class", "application/x-java-class"), MimeStatic(".com", "application/octet-stream"), MimeStatic(".conf", "text/plain"), MimeStatic(".cpio", "application/x-cpio"), MimeStatic(".cpp", "text/x-c"), MimeStatic(".cpt", "application/x-compactpro"), MimeStatic(".crl", "application/pkcs-crl"), MimeStatic(".crt", "application/x-x509-user-cert"), MimeStatic(".csh", "text/x-script.csh"), MimeStatic(".css", "text/css"), MimeStatic(".csv", "text/csv"), MimeStatic(".cxx", "text/plain"), MimeStatic(".dcr", "application/x-director"), MimeStatic(".deepv", "application/x-deepv"), MimeStatic(".def", "text/plain"), MimeStatic(".der", "application/x-x509-ca-cert"), MimeStatic(".dif", "video/x-dv"), MimeStatic(".dir", "application/x-director"), MimeStatic(".dl", "video/x-dl"), MimeStatic(".dll", "application/octet-stream"), MimeStatic(".doc", "application/msword"), MimeStatic(".dot", "application/msword"), MimeStatic(".dp", "application/commonground"), MimeStatic(".drw", "application/drafting"), MimeStatic(".dump", "application/octet-stream"), MimeStatic(".dv", "video/x-dv"), MimeStatic(".dvi", "application/x-dvi"), MimeStatic(".dwf", "model/vnd.dwf"), MimeStatic(".dwg", "image/vnd.dwg"), MimeStatic(".dxf", "image/vnd.dwg"), MimeStatic(".dxr", "application/x-director"), MimeStatic(".el", "text/x-script.elisp"), MimeStatic(".elc", "application/x-bytecode.elisp"), MimeStatic(".env", "application/x-envoy"), MimeStatic(".eps", "application/postscript"), MimeStatic(".es", "application/x-esrehber"), MimeStatic(".etx", "text/x-setext"), MimeStatic(".evy", "application/x-envoy"), MimeStatic(".exe", "application/octet-stream"), MimeStatic(".f", "text/x-fortran"), MimeStatic(".f77", "text/x-fortran"), MimeStatic(".f90", "text/x-fortran"), MimeStatic(".fdf", "application/vnd.fdf"), MimeStatic(".fif", "image/fif"), MimeStatic(".fli", "video/x-fli"), MimeStatic(".flo", "image/florian"), MimeStatic(".flx", "text/vnd.fmi.flexstor"), MimeStatic(".fmf", "video/x-atomic3d-feature"), MimeStatic(".for", "text/x-fortran"), MimeStatic(".fpx", "image/vnd.fpx"), MimeStatic(".frl", "application/freeloader"), MimeStatic(".funk", "audio/make"), MimeStatic(".g", "text/plain"), MimeStatic(".g3", "image/g3fax"), MimeStatic(".gif", "image/gif"), MimeStatic(".gl", "video/x-gl"), MimeStatic(".gsd", "audio/x-gsm"), MimeStatic(".gsm", "audio/x-gsm"), MimeStatic(".gsp", "application/x-gsp"), MimeStatic(".gss", "application/x-gss"), MimeStatic(".gtar", "application/x-gtar"), MimeStatic(".gz", "application/x-gzip"), MimeStatic(".h", "text/x-h"), MimeStatic(".hdf", "application/x-hdf"), MimeStatic(".help", "application/x-helpfile"), MimeStatic(".hgl", "application/vnd.hp-hpgl"), MimeStatic(".hh", "text/x-h"), MimeStatic(".hlb", "text/x-script"), MimeStatic(".hlp", "application/x-helpfile"), MimeStatic(".hpg", "application/vnd.hp-hpgl"), MimeStatic(".hpgl", "application/vnd.hp-hpgl"), MimeStatic(".hqx", "application/binhex"), MimeStatic(".hta", "application/hta"), MimeStatic(".htc", "text/x-component"), MimeStatic(".htm", "text/html"), MimeStatic(".html", "text/html"), MimeStatic(".htmls", "text/html"), MimeStatic(".htt", "text/webviewhtml"), MimeStatic(".htx", "text/html"), MimeStatic(".ice", "x-conference/x-cooltalk"), MimeStatic(".ico", "image/x-icon"), MimeStatic(".idc", "text/plain"), MimeStatic(".ief", "image/ief"), MimeStatic(".iefs", "image/ief"), MimeStatic(".iges", "model/iges"), MimeStatic(".igs", "model/iges"), MimeStatic(".ima", "application/x-ima"), MimeStatic(".imap", "application/x-httpd-imap"), MimeStatic(".inf", "application/inf"), MimeStatic(".ins", "application/x-internett-signup"), MimeStatic(".ip", "application/x-ip2"), MimeStatic(".isu", "video/x-isvideo"), MimeStatic(".it", "audio/it"), MimeStatic(".iv", "application/x-inventor"), MimeStatic(".ivr", "i-world/i-vrml"), MimeStatic(".ivy", "application/x-livescreen"), MimeStatic(".jam", "audio/x-jam"), MimeStatic(".jav", "text/x-java-source"), MimeStatic(".java", "text/x-java-source"), MimeStatic(".jcm", "application/x-java-commerce"), MimeStatic(".jfif", "image/jpeg"), MimeStatic(".jfif-tbnl", "image/jpeg"), MimeStatic(".jpe", "image/jpeg"), MimeStatic(".jpeg", "image/jpeg"), MimeStatic(".jpg", "image/jpeg"), MimeStatic(".jpm", "image/jpm"), MimeStatic(".jps", "image/x-jps"), MimeStatic(".jpx", "image/jpx"), MimeStatic(".js", "application/x-javascript"), MimeStatic(".json", "application/json"), MimeStatic(".jut", "image/jutvision"), MimeStatic(".kar", "music/x-karaoke"), MimeStatic(".kml", "application/vnd.google-earth.kml+xml"), MimeStatic(".kmz", "application/vnd.google-earth.kmz"), MimeStatic(".ksh", "text/x-script.ksh"), MimeStatic(".la", "audio/x-nspaudio"), MimeStatic(".lam", "audio/x-liveaudio"), MimeStatic(".latex", "application/x-latex"), MimeStatic(".lha", "application/x-lha"), MimeStatic(".lhx", "application/octet-stream"), MimeStatic(".lib", "application/octet-stream"), MimeStatic(".list", "text/plain"), MimeStatic(".lma", "audio/x-nspaudio"), MimeStatic(".log", "text/plain"), MimeStatic(".lsp", "text/x-script.lisp"), MimeStatic(".lst", "text/plain"), MimeStatic(".lsx", "text/x-la-asf"), MimeStatic(".ltx", "application/x-latex"), MimeStatic(".lzh", "application/x-lzh"), MimeStatic(".lzx", "application/x-lzx"), MimeStatic(".m", "text/x-m"), MimeStatic(".m1v", "video/mpeg"), MimeStatic(".m2a", "audio/mpeg"), MimeStatic(".m2v", "video/mpeg"), MimeStatic(".m3u", "audio/x-mpegurl"), MimeStatic(".m4v", "video/x-m4v"), MimeStatic(".man", "application/x-troff-man"), MimeStatic(".map", "application/x-navimap"), MimeStatic(".mar", "text/plain"), MimeStatic(".mbd", "application/mbedlet"), MimeStatic(".mc$", "application/x-magic-cap-package-1.0"), MimeStatic(".mcd", "application/x-mathcad"), MimeStatic(".mcf", "text/mcf"), MimeStatic(".mcp", "application/netmc"), MimeStatic(".me", "application/x-troff-me"), MimeStatic(".mht", "message/rfc822"), MimeStatic(".mhtml", "message/rfc822"), MimeStatic(".mid", "audio/x-midi"), MimeStatic(".midi", "audio/x-midi"), MimeStatic(".mif", "application/x-mif"), MimeStatic(".mime", "www/mime"), MimeStatic(".mjf", "audio/x-vnd.audioexplosion.mjuicemediafile"), MimeStatic(".mjpg", "video/x-motion-jpeg"), MimeStatic(".mm", "application/base64"), MimeStatic(".mme", "application/base64"), MimeStatic(".mod", "audio/x-mod"), MimeStatic(".moov", "video/quicktime"), MimeStatic(".mov", "video/quicktime"), MimeStatic(".movie", "video/x-sgi-movie"), MimeStatic(".mp2", "video/x-mpeg"), MimeStatic(".mp3", "audio/x-mpeg-3"), MimeStatic(".mp4", "video/mp4"), MimeStatic(".mpa", "audio/mpeg"), MimeStatic(".mpc", "application/x-project"), MimeStatic(".mpeg", "video/mpeg"), MimeStatic(".mpg", "video/mpeg"), MimeStatic(".mpga", "audio/mpeg"), MimeStatic(".mpp", "application/vnd.ms-project"), MimeStatic(".mpt", "application/x-project"), MimeStatic(".mpv", "application/x-project"), MimeStatic(".mpx", "application/x-project"), MimeStatic(".mrc", "application/marc"), MimeStatic(".ms", "application/x-troff-ms"), MimeStatic(".mv", "video/x-sgi-movie"), MimeStatic(".my", "audio/make"), MimeStatic(".mzz", "application/x-vnd.audioexplosion.mzz"), MimeStatic(".nap", "image/naplps"), MimeStatic(".naplps", "image/naplps"), MimeStatic(".nc", "application/x-netcdf"), MimeStatic(".ncm", "application/vnd.nokia.configuration-message"), MimeStatic(".nif", "image/x-niff"), MimeStatic(".niff", "image/x-niff"), MimeStatic(".nix", "application/x-mix-transfer"), MimeStatic(".nsc", "application/x-conference"), MimeStatic(".nvd", "application/x-navidoc"), MimeStatic(".o", "application/octet-stream"), MimeStatic(".obj", "application/octet-stream"), MimeStatic(".oda", "application/oda"), MimeStatic(".oga", "audio/ogg"), MimeStatic(".ogg", "audio/ogg"), MimeStatic(".ogv", "video/ogg"), MimeStatic(".omc", "application/x-omc"), MimeStatic(".omcd", "application/x-omcdatamaker"), MimeStatic(".omcr", "application/x-omcregerator"), MimeStatic(".otf", "application/font-sfnt"), MimeStatic(".p", "text/x-pascal"), MimeStatic(".p10", "application/x-pkcs10"), MimeStatic(".p12", "application/x-pkcs12"), MimeStatic(".p7a", "application/x-pkcs7-signature"), MimeStatic(".p7c", "application/x-pkcs7-mime"), MimeStatic(".p7m", "application/x-pkcs7-mime"), MimeStatic(".p7r", "application/x-pkcs7-certreqresp"), MimeStatic(".p7s", "application/pkcs7-signature"), MimeStatic(".part", "application/pro_eng"), MimeStatic(".pas", "text/x-pascal"), MimeStatic(".pbm", "image/x-portable-bitmap"), MimeStatic(".pcl", "application/vnd.hp-pcl"), MimeStatic(".pct", "image/x-pct"), MimeStatic(".pcx", "image/x-pcx"), MimeStatic(".pdb", "chemical/x-pdb"), MimeStatic(".pdf", "application/pdf"), MimeStatic(".pfr", "application/font-tdpfr"), MimeStatic(".pfunk", "audio/make"), MimeStatic(".pgm", "image/x-portable-greymap"), MimeStatic(".pic", "image/pict"), MimeStatic(".pict", "image/pict"), MimeStatic(".pkg", "application/x-newton-compatible-pkg"), MimeStatic(".pko", "application/vnd.ms-pki.pko"), MimeStatic(".pl", "text/x-script.perl"), MimeStatic(".plx", "application/x-pixelscript"), MimeStatic(".pm", "text/x-script.perl-module"), MimeStatic(".pm4", "application/x-pagemaker"), MimeStatic(".pm5", "application/x-pagemaker"), MimeStatic(".png", "image/png"), MimeStatic(".pnm", "image/x-portable-anymap"), MimeStatic(".pot", "application/vnd.ms-powerpoint"), MimeStatic(".pov", "model/x-pov"), MimeStatic(".ppa", "application/vnd.ms-powerpoint"), MimeStatic(".ppm", "image/x-portable-pixmap"), MimeStatic(".pps", "application/vnd.ms-powerpoint"), MimeStatic(".ppt", "application/vnd.ms-powerpoint"), MimeStatic(".ppz", "application/vnd.ms-powerpoint"), MimeStatic(".pre", "application/x-freelance"), MimeStatic(".prt", "application/pro_eng"), MimeStatic(".ps", "application/postscript"), MimeStatic(".psd", "application/octet-stream"), MimeStatic(".pvu", "paleovu/x-pv"), MimeStatic(".pwz", "application/vnd.ms-powerpoint"), MimeStatic(".py", "text/x-script.python"), MimeStatic(".pyc", "application/x-bytecode.python"), MimeStatic(".qcp", "audio/vnd.qcelp"), MimeStatic(".qd3", "x-world/x-3dmf"), MimeStatic(".qd3d", "x-world/x-3dmf"), MimeStatic(".qif", "image/x-quicktime"), MimeStatic(".qt", "video/quicktime"), MimeStatic(".qtc", "video/x-qtc"), MimeStatic(".qti", "image/x-quicktime"), MimeStatic(".qtif", "image/x-quicktime"), MimeStatic(".ra", "audio/x-pn-realaudio"), MimeStatic(".ram", "audio/x-pn-realaudio"), MimeStatic(".rar", "application/x-arj-compressed"), MimeStatic(".ras", "image/x-cmu-raster"), MimeStatic(".rast", "image/cmu-raster"), MimeStatic(".rexx", "text/x-script.rexx"), MimeStatic(".rf", "image/vnd.rn-realflash"), MimeStatic(".rgb", "image/x-rgb"), MimeStatic(".rm", "audio/x-pn-realaudio"), MimeStatic(".rmi", "audio/mid"), MimeStatic(".rmm", "audio/x-pn-realaudio"), MimeStatic(".rmp", "audio/x-pn-realaudio"), MimeStatic(".rng", "application/vnd.nokia.ringing-tone"), MimeStatic(".rnx", "application/vnd.rn-realplayer"), MimeStatic(".roff", "application/x-troff"), MimeStatic(".rp", "image/vnd.rn-realpix"), MimeStatic(".rpm", "audio/x-pn-realaudio-plugin"), MimeStatic(".rt", "text/vnd.rn-realtext"), MimeStatic(".rtf", "application/x-rtf"), MimeStatic(".rtx", "application/x-rtf"), MimeStatic(".rv", "video/vnd.rn-realvideo"), MimeStatic(".s", "text/x-asm"), MimeStatic(".s3m", "audio/s3m"), MimeStatic(".saveme", "application/octet-stream"), MimeStatic(".sbk", "application/x-tbook"), MimeStatic(".scm", "text/x-script.scheme"), MimeStatic(".sdml", "text/plain"), MimeStatic(".sdp", "application/x-sdp"), MimeStatic(".sdr", "application/sounder"), MimeStatic(".sea", "application/x-sea"), MimeStatic(".set", "application/set"), MimeStatic(".sgm", "text/x-sgml"), MimeStatic(".sgml", "text/x-sgml"), MimeStatic(".sh", "text/x-script.sh"), MimeStatic(".shar", "application/x-shar"), MimeStatic(".shtm", "text/html"), MimeStatic(".shtml", "text/html"), MimeStatic(".sid", "audio/x-psid"), MimeStatic(".sil", "application/font-sfnt"), MimeStatic(".sit", "application/x-sit"), MimeStatic(".skd", "application/x-koan"), MimeStatic(".skm", "application/x-koan"), MimeStatic(".skp", "application/x-koan"), MimeStatic(".skt", "application/x-koan"), MimeStatic(".sl", "application/x-seelogo"), MimeStatic(".smi", "application/smil"), MimeStatic(".smil", "application/smil"), MimeStatic(".snd", "audio/x-adpcm"), MimeStatic(".so", "application/octet-stream"), MimeStatic(".sol", "application/solids"), MimeStatic(".spc", "text/x-speech"), MimeStatic(".spl", "application/futuresplash"), MimeStatic(".spr", "application/x-sprite"), MimeStatic(".sprite", "application/x-sprite"), MimeStatic(".src", "application/x-wais-source"), MimeStatic(".ssi", "text/x-server-parsed-html"), MimeStatic(".ssm", "application/streamingmedia"), MimeStatic(".sst", "application/vnd.ms-pki.certstore"), MimeStatic(".step", "application/step"), MimeStatic(".stl", "application/vnd.ms-pki.stl"), MimeStatic(".stp", "application/step"), MimeStatic(".sv4cpio", "application/x-sv4cpio"), MimeStatic(".sv4crc", "application/x-sv4crc"), MimeStatic(".svf", "image/x-dwg"), MimeStatic(".svg", "image/svg+xml"), MimeStatic(".svr", "x-world/x-svr"), MimeStatic(".swf", "application/x-shockwave-flash"), MimeStatic(".t", "application/x-troff"), MimeStatic(".talk", "text/x-speech"), MimeStatic(".tar", "application/x-tar"), MimeStatic(".tbk", "application/x-tbook"), MimeStatic(".tcl", "text/x-script.tcl"), MimeStatic(".tcsh", "text/x-script.tcsh"), MimeStatic(".tex", "application/x-tex"), MimeStatic(".texi", "application/x-texinfo"), MimeStatic(".texinfo", "application/x-texinfo"), MimeStatic(".text", "text/plain"), MimeStatic(".tgz", "application/x-compressed"), MimeStatic(".tif", "image/x-tiff"), MimeStatic(".tiff", "image/x-tiff"), MimeStatic(".torrent", "application/x-bittorrent"), MimeStatic(".tr", "application/x-troff"), MimeStatic(".tsi", "audio/tsp-audio"), MimeStatic(".tsp", "audio/tsplayer"), MimeStatic(".tsv", "text/tab-separated-values"), MimeStatic(".ttf", "application/font-sfnt"), MimeStatic(".turbot", "image/florian"), MimeStatic(".txt", "text/plain"), MimeStatic(".uil", "text/x-uil"), MimeStatic(".uni", "text/uri-list"), MimeStatic(".unis", "text/uri-list"), MimeStatic(".unv", "application/i-deas"), MimeStatic(".uri", "text/uri-list"), MimeStatic(".uris", "text/uri-list"), MimeStatic(".ustar", "application/x-ustar"), MimeStatic(".uu", "text/x-uuencode"), MimeStatic(".uue", "text/x-uuencode"), MimeStatic(".vcd", "application/x-cdlink"), MimeStatic(".vcs", "text/x-vcalendar"), MimeStatic(".vda", "application/vda"), MimeStatic(".vdo", "video/vdo"), MimeStatic(".vew", "application/groupwise"), MimeStatic(".viv", "video/vnd.vivo"), MimeStatic(".vivo", "video/vnd.vivo"), MimeStatic(".vmd", "application/vocaltec-media-desc"), MimeStatic(".vmf", "application/vocaltec-media-resource"), MimeStatic(".voc", "audio/x-voc"), MimeStatic(".vos", "video/vosaic"), MimeStatic(".vox", "audio/voxware"), MimeStatic(".vqe", "audio/x-twinvq-plugin"), MimeStatic(".vqf", "audio/x-twinvq"), MimeStatic(".vql", "audio/x-twinvq-plugin"), MimeStatic(".vrml", "model/vrml"), MimeStatic(".vrt", "x-world/x-vrt"), MimeStatic(".vsd", "application/x-visio"), MimeStatic(".vst", "application/x-visio"), MimeStatic(".vsw", "application/x-visio"), MimeStatic(".w60", "application/wordperfect6.0"), MimeStatic(".w61", "application/wordperfect6.1"), MimeStatic(".w6w", "application/msword"), MimeStatic(".wav", "audio/x-wav"), MimeStatic(".wb1", "application/x-qpro"), MimeStatic(".wbmp", "image/vnd.wap.wbmp"), MimeStatic(".web", "application/vnd.xara"), MimeStatic(".webm", "video/webm"), MimeStatic(".wiz", "application/msword"), MimeStatic(".wk1", "application/x-123"), MimeStatic(".wmf", "windows/metafile"), MimeStatic(".wml", "text/vnd.wap.wml"), MimeStatic(".wmlc", "application/vnd.wap.wmlc"), MimeStatic(".wmls", "text/vnd.wap.wmlscript"), MimeStatic(".wmlsc", "application/vnd.wap.wmlscriptc"), MimeStatic(".woff", "application/font-woff"), MimeStatic(".word", "application/msword"), MimeStatic(".wp", "application/wordperfect"), MimeStatic(".wp5", "application/wordperfect"), MimeStatic(".wp6", "application/wordperfect"), MimeStatic(".wpd", "application/wordperfect"), MimeStatic(".wq1", "application/x-lotus"), MimeStatic(".wri", "application/x-wri"), MimeStatic(".wrl", "model/vrml"), MimeStatic(".wrz", "model/vrml"), MimeStatic(".wsc", "text/scriplet"), MimeStatic(".wsrc", "application/x-wais-source"), MimeStatic(".wtk", "application/x-wintalk"), MimeStatic(".x-png", "image/png"), MimeStatic(".xbm", "image/x-xbm"), MimeStatic(".xdr", "video/x-amt-demorun"), MimeStatic(".xgz", "xgl/drawing"), MimeStatic(".xhtml", "application/xhtml+xml"), MimeStatic(".xif", "image/vnd.xiff"), MimeStatic(".xl", "application/vnd.ms-excel"), MimeStatic(".xla", "application/vnd.ms-excel"), MimeStatic(".xlb", "application/vnd.ms-excel"), MimeStatic(".xlc", "application/vnd.ms-excel"), MimeStatic(".xld", "application/vnd.ms-excel"), MimeStatic(".xlk", "application/vnd.ms-excel"), MimeStatic(".xll", "application/vnd.ms-excel"), MimeStatic(".xlm", "application/vnd.ms-excel"), MimeStatic(".xls", "application/vnd.ms-excel"), MimeStatic(".xlt", "application/vnd.ms-excel"), MimeStatic(".xlv", "application/vnd.ms-excel"), MimeStatic(".xlw", "application/vnd.ms-excel"), MimeStatic(".xm", "audio/xm"), MimeStatic(".xml", "text/xml"), MimeStatic(".xmz", "xgl/movie"), MimeStatic(".xpix", "application/x-vnd.ls-xpix"), MimeStatic(".xpm", "image/x-xpixmap"), MimeStatic(".xsl", "application/xml"), MimeStatic(".xslt", "application/xml"), MimeStatic(".xsr", "video/x-amt-showrun"), MimeStatic(".xwd", "image/x-xwd"), MimeStatic(".xyz", "chemical/x-pdb"), MimeStatic(".z", "application/x-compressed"), MimeStatic(".zip", "application/x-zip-compressed"), MimeStatic(".zoo", "application/octet-stream"), MimeStatic(".zsh", "text/x-script.zsh") };
@@ -3955,10 +3955,10 @@ namespace Edge
 					if (Item.Name.empty())
 						continue;
 
-					std::string Expires = (Item.Expires.empty() ? "" : "; Expires=" + Item.Expires);
-					std::string Domain = (Item.Domain.empty() ? "" : "; Domain=" + Item.Domain);
-					std::string Path = (Item.Path.empty() ? "" : "; Path=" + Item.Path);
-					std::string SameSite = (Item.SameSite.empty() ? "" : "; SameSite=" + Item.SameSite);
+					Core::String Expires = (Item.Expires.empty() ? "" : "; Expires=" + Item.Expires);
+					Core::String Domain = (Item.Domain.empty() ? "" : "; Domain=" + Item.Domain);
+					Core::String Path = (Item.Path.empty() ? "" : "; Path=" + Item.Path);
+					Core::String SameSite = (Item.SameSite.empty() ? "" : "; SameSite=" + Item.SameSite);
 					const char* Secure = (!Item.Secure ? "" : "; Secure");
 					const char* HttpOnly = (!Item.HttpOnly ? "" : "; HttpOnly");
 					Buffer->fAppend("Set-Cookie: %s=%s%s%s%s%s%s%s\r\n",
@@ -4004,7 +4004,7 @@ namespace Edge
 				if (!Host)
 					return false;
 
-				std::unordered_map<std::string, SiteEntry*>::iterator It;
+				Core::UnorderedMap<Core::String, SiteEntry*>::iterator It;
 				if (Router->Listeners.size() > 1)
 				{
 					auto Listen = Router->Listeners.find(*Host);
@@ -4114,14 +4114,14 @@ namespace Edge
 
 				return strcmp(A.Path.c_str(), B.Path.c_str()) < 0;
 			}
-			std::string Paths::ConstructContentRange(size_t Offset, size_t Length, size_t ContentLength)
+			Core::String Paths::ConstructContentRange(size_t Offset, size_t Length, size_t ContentLength)
 			{
-				std::string Field = "bytes ";
-				Field += std::to_string(Offset);
+				Core::String Field = "bytes ";
+				Field += Core::ToString(Offset);
 				Field += '-';
-				Field += std::to_string(Offset + Length - 1);
+				Field += Core::ToString(Offset + Length - 1);
 				Field += '/';
-				Field += std::to_string(ContentLength);
+				Field += Core::ToString(ContentLength);
 
 				return Field;
 			}
@@ -4141,7 +4141,7 @@ namespace Edge
 				if (Parser->Frame.Header.empty())
 					return true;
 
-				std::string Value(Data, Length);
+				Core::String Value(Data, Length);
 				if (Parser->Frame.Header == "Content-Disposition")
 				{
 					Core::Stringify::Settle Start = Core::Stringify(&Value).Find("name=\"");
@@ -4258,7 +4258,7 @@ namespace Edge
 
 				if (Core::Stringify::CaseCompare(Parser->Frame.Header.c_str(), "cookie") == 0)
 				{
-					std::vector<std::pair<std::string, std::string>> Cookies;
+					Core::Vector<std::pair<Core::String, Core::String>> Cookies;
 					const char* Offset = Data;
 
 					for (size_t i = 0; i < Length; i++)
@@ -4266,7 +4266,7 @@ namespace Edge
 						if (Data[i] != '=')
 							continue;
 
-						std::string Name(Offset, (size_t)((Data + i) - Offset));
+						Core::String Name(Offset, (size_t)((Data + i) - Offset));
 						size_t Set = i;
 
 						while (i + 1 < Length && Data[i] != ';')
@@ -4275,7 +4275,7 @@ namespace Edge
 						if (Data[i] == ';')
 							i--;
 
-						Cookies.emplace_back(std::make_pair(std::move(Name), std::string(Data + Set + 1, i - Set)));
+						Cookies.emplace_back(std::make_pair(std::move(Name), Core::String(Data + Set + 1, i - Set)));
 						Offset = Data + (i + 3);
 					}
 
@@ -4290,7 +4290,7 @@ namespace Edge
 				}
 				else
 				{
-					std::vector<std::string> Keys = Core::Stringify(Data, Length).Split(',');
+					Core::Vector<Core::String> Keys = Core::Stringify(Data, Length).Split(',');
 					for (auto& Item : Keys)
 						Core::Stringify(&Item).Trim();
 
@@ -4373,13 +4373,13 @@ namespace Edge
 
 				return sscanf(ContentRange, "bytes=%" PRId64 "-%" PRId64, Range1, Range2);
 			}
-			std::string Parsing::ParseMultipartDataBoundary()
+			Core::String Parsing::ParseMultipartDataBoundary()
 			{
 				static const char Data[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 				std::random_device SeedGenerator;
 				std::mt19937 Engine(SeedGenerator());
-				std::string Result = "--sha1-digest-multipart-data-";
+				Core::String Result = "--sha1-digest-multipart-data-";
 
 				for (int i = 0; i < 16; i++)
 					Result += Data[Engine() % (sizeof(Data) - 1)];
@@ -4387,7 +4387,7 @@ namespace Edge
 				return Result;
 			}
 
-			std::string Permissions::Authorize(const std::string& Username, const std::string& Password, const std::string& Type)
+			Core::String Permissions::Authorize(const Core::String& Username, const Core::String& Password, const Core::String& Type)
 			{
 				return Type + ' ' + Compute::Codec::Base64Encode(Username + ':' + Password);
 			}
@@ -4426,7 +4426,7 @@ namespace Edge
 				while (Authorization[Index] != ' ' && Authorization[Index] != '\0')
 					Index++;
 
-				std::string Type(Authorization, Index);
+				Core::String Type(Authorization, Index);
 				if (Type != Base->Route->Auth.Type)
 				{
 					Base->Request.User.Type = Auth::Denied;
@@ -4493,13 +4493,13 @@ namespace Edge
 
 				return false;
 			}
-			bool Resources::ResourceHidden(Connection* Base, std::string* Path)
+			bool Resources::ResourceHidden(Connection* Base, Core::String* Path)
 			{
 				ED_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				if (Base->Route->HiddenFiles.empty())
 					return false;
 
-				const std::string& Value = (Path ? *Path : Base->Request.Path);
+				const Core::String& Value = (Path ? *Path : Base->Request.Path);
 				Compute::RegexResult Result;
 
 				for (auto& Item : Base->Route->HiddenFiles)
@@ -4518,7 +4518,7 @@ namespace Edge
 				if (Base->Route->IndexFiles.empty())
 					return false;
 
-				std::string Path = Base->Request.Path;
+				Core::String Path = Base->Request.Path;
 				if (!Core::Stringify(&Path).EndsOf("/\\"))
 				{
 #ifdef ED_MICROSOFT
@@ -4916,7 +4916,7 @@ namespace Edge
 			bool Logical::ProcessDirectory(Connection* Base)
 			{
 				ED_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				std::vector<Core::FileEntry> Entries;
+				Core::Vector<Core::FileEntry> Entries;
 				if (!Core::OS::Directory::Scan(Base->Request.Path, &Entries))
 					return Base->Error(500, "System denied to directory listing.");
 
@@ -4939,8 +4939,8 @@ namespace Edge
 					Size--;
 
 				char Direction = (!Base->Request.Query.empty() && Base->Request.Query[1] == 'd') ? 'a' : 'd';
-				std::string Name = Compute::Codec::URIDecode(Base->Request.URI);
-				std::string Parent(1, '/');
+				Core::String Name = Compute::Codec::URIDecode(Base->Request.URI);
+				Core::String Parent(1, '/');
 				if (Base->Request.URI.size() > 1)
 				{
 					Parent = Base->Request.URI.substr(0, Base->Request.URI.size() - 1);
@@ -4982,8 +4982,8 @@ namespace Edge
 					char dDate[64];
 					Core::DateTime::FetchWebDateTime(dDate, sizeof(dDate), Item.LastModified);
 
-					std::string URI = Compute::Codec::URIEncode(Item.Path);
-					std::string HREF = (Base->Request.URI + ((*(Base->Request.URI.c_str() + 1) != '\0' && Base->Request.URI[Base->Request.URI.size() - 1] != '/') ? "/" : "") + URI);
+					Core::String URI = Compute::Codec::URIEncode(Item.Path);
+					Core::String HREF = (Base->Request.URI + ((*(Base->Request.URI.c_str() + 1) != '\0' && Base->Request.URI[Base->Request.URI.size() - 1] != '/') ? "/" : "") + URI);
 					if (Item.IsDirectory && !Core::Stringify(&HREF).EndsOf("/\\"))
 						HREF.append(1, '/');
 
@@ -5013,7 +5013,7 @@ namespace Edge
 
 						if (deflateInit2(&Stream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? 15 | 16 : 15), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) == Z_OK)
 						{
-							std::string Buffer(Base->Response.Content.Data.size(), '\0');
+							Core::String Buffer(Base->Response.Content.Data.size(), '\0');
 							Stream.avail_out = (uInt)Buffer.size();
 							Stream.next_out = (Bytef*)Buffer.c_str();
 							bool Compress = (deflate(&Stream, Z_FINISH) == Z_STREAM_END);
@@ -5381,7 +5381,7 @@ namespace Edge
 
 						if (deflateInit2(&ZStream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? 15 | 16 : 15), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) == Z_OK)
 						{
-							std::string Buffer(Base->Response.Content.Data.size(), '\0');
+							Core::String Buffer(Base->Response.Content.Data.size(), '\0');
 							ZStream.avail_out = (uInt)Buffer.size();
 							ZStream.next_out = (Bytef*)Buffer.c_str();
 							bool Compress = (deflate(&ZStream, Z_FINISH) == Z_STREAM_END);
@@ -5602,7 +5602,7 @@ namespace Edge
 									Scripting::ImmediateContext* Context = Gateway->GetContext();
 									if (Context != nullptr)
 									{
-										std::string Stack = Context->GetErrorStackTrace();
+										Core::String Stack = Context->GetErrorStackTrace();
 										if (!Stack.empty())
 											Base->Info.Message += "\n\n" + Stack;
 									}
@@ -5719,7 +5719,7 @@ namespace Edge
 			}
 			bool Server::Update()
 			{
-				std::unordered_set<std::string> Modules;
+				Core::UnorderedSet<Core::String> Modules;
 				auto* Root = (MapRouter*)Router;
 				bool Success = true;
 
@@ -5756,10 +5756,10 @@ namespace Edge
 							Modules.insert(Route->DocumentRoot);
 							for (auto& Exp : Route->Gateway.Files)
 							{
-								std::vector<std::string> Result = Root->VM->VerifyModules(Route->DocumentRoot, Exp);
+								Core::Vector<Core::String> Result = Root->VM->VerifyModules(Route->DocumentRoot, Exp);
 								if (!Result.empty())
 								{
-									std::string Files;
+									Core::String Files;
 									for (auto& Name : Result)
 										Files += "\n\t" + Name;
 
@@ -5924,15 +5924,15 @@ namespace Edge
 					return true;
 				});
 			}
-			bool Server::OnStall(std::unordered_set<SocketConnection*>& Data)
+			bool Server::OnStall(Core::UnorderedSet<SocketConnection*>& Data)
 			{
 				for (auto* Item : Data)
 				{
 					HTTP::Connection* Base = (HTTP::Connection*)Item;
-					std::string Status = "pathname: " + Base->Request.URI;
+					Core::String Status = "pathname: " + Base->Request.URI;
 
 					if (Base->WebSocket != nullptr)
-						Status += "\nwebsocket: " + std::string(Base->WebSocket->IsFinished() ? "alive" : "dead");
+						Status += "\nwebsocket: " + Core::String(Base->WebSocket->IsFinished() ? "alive" : "dead");
 
 					if (Base->Gateway != nullptr)
 					{
@@ -6136,7 +6136,7 @@ namespace Edge
 				ED_ASSERT(WebSocket != nullptr, Core::Promise<bool>(false), "websocket should be opened");
 				ED_ASSERT(Stream.IsValid(), Core::Promise<bool>(false), "stream should be opened");
 
-				std::string Key = Compute::Codec::Base64Encode(Compute::Crypto::RandomBytes(16));
+				Core::String Key = Compute::Codec::Base64Encode(Compute::Crypto::RandomBytes(16));
 				Root.SetHeader("Pragma", "no-cache");
 				Root.SetHeader("Upgrade", "WebSocket");
 				Root.SetHeader("Connection", "Upgrade");
@@ -6184,14 +6184,14 @@ namespace Edge
 						if (Hostname.Port == 443)
 							Request.SetHeader("Host", Hostname.Hostname.c_str());
 						else
-							Request.SetHeader("Host", (Hostname.Hostname + ':' + std::to_string(Hostname.Port)));
+							Request.SetHeader("Host", (Hostname.Hostname + ':' + Core::ToString(Hostname.Port)));
 					}
 					else
 					{
 						if (Hostname.Port == 80)
 							Request.SetHeader("Host", Hostname.Hostname);
 						else
-							Request.SetHeader("Host", (Hostname.Hostname + ':' + std::to_string(Hostname.Port)));
+							Request.SetHeader("Host", (Hostname.Hostname + ':' + Core::ToString(Hostname.Port)));
 					}
 				}
 
@@ -6204,7 +6204,7 @@ namespace Edge
 				if (!Request.GetHeader("Content-Length"))
 				{
 					Request.Content.Length = Request.Content.Data.size();
-					Request.SetHeader("Content-Length", std::to_string(Request.Content.Data.size()));
+					Request.SetHeader("Content-Length", Core::ToString(Request.Content.Data.size()));
 				}
 
 				if (!Request.GetHeader("Connection"))
@@ -6216,7 +6216,7 @@ namespace Edge
 						Request.SetHeader("Content-Type", "application/octet-stream");
 
 					if (!Request.GetHeader("Content-Length"))
-						Request.SetHeader("Content-Length", std::to_string(Request.Content.Data.size()).c_str());
+						Request.SetHeader("Content-Length", Core::ToString(Request.Content.Data.size()).c_str());
 				}
 				else if (!memcmp(Request.Method, "POST", 4) || !memcmp(Request.Method, "PUT", 3) || !memcmp(Request.Method, "PATCH", 5))
 					Request.SetHeader("Content-Length", "0");

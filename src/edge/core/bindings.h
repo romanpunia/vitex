@@ -3,7 +3,7 @@
 #include "scripting.h"
 #include "../engine/gui.h"
 #define ED_SHUFFLE(Name) Edge::Core::Shuffle<sizeof(Name)>(Name)
-#define ED_TYPEREF(Name, TypeName) static const uint64_t Name = ED_SHUFFLE(TypeName); Edge::Scripting::Bindings::TypeCache::Set(Name, TypeName)
+#define ED_TYPEREF(Name, TypeName) static const uint64_t Name = ED_SHUFFLE(TypeName); Edge::Scripting::TypeCache::Set(Name, TypeName)
 #define ED_PROMISIFY(MemberFunction, TypeId) Edge::Scripting::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
 #define ED_PROMISIFY_REF(MemberFunction, TypeRef) Edge::Scripting::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
 #define ED_SPROMISIFY(Function, TypeId) Edge::Scripting::Bindings::Promise::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
@@ -98,88 +98,81 @@ namespace Edge
 				static bool LoadUiModel(VirtualMachine* Engine);
 				static bool LoadUiControl(VirtualMachine* Engine);
 				static bool LoadUiContext(VirtualMachine* Engine);
-				static bool MakePostprocess(std::string& Code);
+				static bool MakePostprocess(Core::String& Code);
 				static bool Release();
-			};
-
-			class ED_OUT TypeCache
-			{
-			public:
-				static uint64_t Set(uint64_t Id, const std::string& Name);
-				static int GetTypeId(uint64_t Id);
 			};
 
 			class ED_OUT Exception
 			{
 			public:
-				static void Throw(const std::string& In);
-				static std::string GetException();
+				static void Throw(const Core::String& In);
+				static Core::String GetException();
 			};
 
 			class ED_OUT String
 			{
 			public:
-				static void Construct(std::string* thisPointer);
-				static void CopyConstruct(const std::string& other, std::string* thisPointer);
-				static void Destruct(std::string* thisPointer);
-				static std::string& AddAssignTo(const std::string& str, std::string& dest);
-				static bool IsEmpty(const std::string& str);
-				static void* ToPtr(const std::string& Value);
-				static std::string Reverse(const std::string& Value);
-				static std::string& AssignUInt64To(as_uint64_t i, std::string& dest);
-				static std::string& AddAssignUInt64To(as_uint64_t i, std::string& dest);
-				static std::string AddUInt641(const std::string& str, as_uint64_t i);
-				static std::string AddInt641(as_int64_t i, const std::string& str);
-				static std::string& AssignInt64To(as_int64_t i, std::string& dest);
-				static std::string& AddAssignInt64To(as_int64_t i, std::string& dest);
-				static std::string AddInt642(const std::string& str, as_int64_t i);
-				static std::string AddUInt642(as_uint64_t i, const std::string& str);
-				static std::string& AssignDoubleTo(double f, std::string& dest);
-				static std::string& AddAssignDoubleTo(double f, std::string& dest);
-				static std::string& AssignFloatTo(float f, std::string& dest);
-				static std::string& AddAssignFloatTo(float f, std::string& dest);
-				static std::string& AssignBoolTo(bool b, std::string& dest);
-				static std::string& AddAssignBoolTo(bool b, std::string& dest);
-				static std::string AddDouble1(const std::string& str, double f);
-				static std::string AddDouble2(double f, const std::string& str);
-				static std::string AddFloat1(const std::string& str, float f);
-				static std::string AddFloat2(float f, const std::string& str);
-				static std::string AddBool1(const std::string& str, bool b);
-				static std::string AddBool2(bool b, const std::string& str);
-				static char* CharAt(size_t i, std::string& str);
-				static int Cmp(const std::string& a, const std::string& b);
-				static int FindFirst(const std::string& sub, size_t start, const std::string& str);
-				static int FindFirstOf(const std::string& sub, size_t start, const std::string& str);
-				static int FindLastOf(const std::string& sub, size_t start, const std::string& str);
-				static int FindFirstNotOf(const std::string& sub, size_t start, const std::string& str);
-				static int FindLastNotOf(const std::string& sub, size_t start, const std::string& str);
-				static int FindLast(const std::string& sub, int start, const std::string& str);
-				static void Insert(size_t pos, const std::string& other, std::string& str);
-				static void Erase(size_t pos, int count, std::string& str);
-				static size_t Length(const std::string& str);
-				static void Resize(size_t l, std::string& str);
-				static std::string Replace(const std::string& a, const std::string& b, size_t o, const std::string& base);
-				static as_int64_t IntStore(const std::string& val, size_t base, size_t* byteCount);
-				static as_uint64_t UIntStore(const std::string& val, size_t base, size_t* byteCount);
-				static double FloatStore(const std::string& val, size_t* byteCount);
-				static std::string Sub(size_t start, int count, const std::string& str);
-				static bool Equals(const std::string& lhs, const std::string& rhs);
-				static std::string ToLower(const std::string& Symbol);
-				static std::string ToUpper(const std::string& Symbol);
-				static std::string ToInt8(char Value);
-				static std::string ToInt16(short Value);
-				static std::string ToInt(int Value);
-				static std::string ToInt64(int64_t Value);
-				static std::string ToUInt8(unsigned char Value);
-				static std::string ToUInt16(unsigned short Value);
-				static std::string ToUInt(unsigned int Value);
-				static std::string ToUInt64(uint64_t Value);
-				static std::string ToFloat(float Value);
-				static std::string ToDouble(double Value);
-				static std::string ToPointer(void* Value);
-				static Array* Split(const std::string& delim, const std::string& str);
-				static std::string Join(const Array& array, const std::string& delim);
-				static char ToChar(const std::string& Symbol);
+				static void Construct(Core::String* thisPointer);
+				static void CopyConstruct(const Core::String& other, Core::String* thisPointer);
+				static void Destruct(Core::String* thisPointer);
+				static Core::String& AddAssignTo(const Core::String& str, Core::String& dest);
+				static bool IsEmpty(const Core::String& str);
+				static void* ToPtr(const Core::String& Value);
+				static Core::String Reverse(const Core::String& Value);
+				static Core::String& AssignUInt64To(as_uint64_t i, Core::String& dest);
+				static Core::String& AddAssignUInt64To(as_uint64_t i, Core::String& dest);
+				static Core::String AddUInt641(const Core::String& str, as_uint64_t i);
+				static Core::String AddInt641(as_int64_t i, const Core::String& str);
+				static Core::String& AssignInt64To(as_int64_t i, Core::String& dest);
+				static Core::String& AddAssignInt64To(as_int64_t i, Core::String& dest);
+				static Core::String AddInt642(const Core::String& str, as_int64_t i);
+				static Core::String AddUInt642(as_uint64_t i, const Core::String& str);
+				static Core::String& AssignDoubleTo(double f, Core::String& dest);
+				static Core::String& AddAssignDoubleTo(double f, Core::String& dest);
+				static Core::String& AssignFloatTo(float f, Core::String& dest);
+				static Core::String& AddAssignFloatTo(float f, Core::String& dest);
+				static Core::String& AssignBoolTo(bool b, Core::String& dest);
+				static Core::String& AddAssignBoolTo(bool b, Core::String& dest);
+				static Core::String AddDouble1(const Core::String& str, double f);
+				static Core::String AddDouble2(double f, const Core::String& str);
+				static Core::String AddFloat1(const Core::String& str, float f);
+				static Core::String AddFloat2(float f, const Core::String& str);
+				static Core::String AddBool1(const Core::String& str, bool b);
+				static Core::String AddBool2(bool b, const Core::String& str);
+				static char* CharAt(size_t i, Core::String& str);
+				static int Cmp(const Core::String& a, const Core::String& b);
+				static int FindFirst(const Core::String& sub, size_t start, const Core::String& str);
+				static int FindFirstOf(const Core::String& sub, size_t start, const Core::String& str);
+				static int FindLastOf(const Core::String& sub, size_t start, const Core::String& str);
+				static int FindFirstNotOf(const Core::String& sub, size_t start, const Core::String& str);
+				static int FindLastNotOf(const Core::String& sub, size_t start, const Core::String& str);
+				static int FindLast(const Core::String& sub, int start, const Core::String& str);
+				static void Insert(size_t pos, const Core::String& other, Core::String& str);
+				static void Erase(size_t pos, int count, Core::String& str);
+				static size_t Length(const Core::String& str);
+				static void Resize(size_t l, Core::String& str);
+				static Core::String Replace(const Core::String& a, const Core::String& b, size_t o, const Core::String& base);
+				static as_int64_t IntStore(const Core::String& val, size_t base, size_t* byteCount);
+				static as_uint64_t UIntStore(const Core::String& val, size_t base, size_t* byteCount);
+				static double FloatStore(const Core::String& val, size_t* byteCount);
+				static Core::String Sub(size_t start, int count, const Core::String& str);
+				static bool Equals(const Core::String& lhs, const Core::String& rhs);
+				static Core::String ToLower(const Core::String& Symbol);
+				static Core::String ToUpper(const Core::String& Symbol);
+				static Core::String ToInt8(char Value);
+				static Core::String ToInt16(short Value);
+				static Core::String ToInt(int Value);
+				static Core::String ToInt64(int64_t Value);
+				static Core::String ToUInt8(unsigned char Value);
+				static Core::String ToUInt16(unsigned short Value);
+				static Core::String ToUInt(unsigned int Value);
+				static Core::String ToUInt64(uint64_t Value);
+				static Core::String ToFloat(float Value);
+				static Core::String ToDouble(double Value);
+				static Core::String ToPointer(void* Value);
+				static Array* Split(const Core::String& delim, const Core::String& str);
+				static Core::String Join(const Array& array, const Core::String& delim);
+				static char ToChar(const Core::String& Symbol);
 			};
 
 			class ED_OUT Math
@@ -369,7 +362,7 @@ namespace Edge
 
 			public:
 				template <typename T>
-				static Array* Compose(asITypeInfo* ArrayType, const std::vector<T>& Objects)
+				static Array* Compose(asITypeInfo* ArrayType, const Core::Vector<T>& Objects)
 				{
 					Array* Array = Create(ArrayType, Objects.size());
 					for (size_t i = 0; i < Objects.size(); i++)
@@ -378,9 +371,9 @@ namespace Edge
 					return Array;
 				}
 				template <typename T>
-				static typename std::enable_if<std::is_pointer<T>::value, std::vector<T>>::type Decompose(Array* Array)
+				static typename std::enable_if<std::is_pointer<T>::value, Core::Vector<T>>::type Decompose(Array* Array)
 				{
-					std::vector<T> Result;
+					Core::Vector<T> Result;
 					if (!Array)
 						return Result;
 
@@ -393,9 +386,9 @@ namespace Edge
 					return Result;
 				}
 				template <typename T>
-				static typename std::enable_if<!std::is_pointer<T>::value, std::vector<T>>::type Decompose(Array* Array)
+				static typename std::enable_if<!std::is_pointer<T>::value, Core::Vector<T>>::type Decompose(Array* Array)
 				{
-					std::vector<T> Result;
+					Core::Vector<T> Result;
 					if (!Array)
 						return Result;
 
@@ -415,8 +408,8 @@ namespace Edge
 				template <typename T, T>
 				struct IfyStatic;
 
-				template <typename T, typename R, typename ...Args, std::vector<R>(T::* F)(Args...)>
-				struct Ify<std::vector<R>(T::*)(Args...), F>
+				template <typename T, typename R, typename ...Args, Core::Vector<R>(T::* F)(Args...)>
+				struct Ify<Core::Vector<R>(T::*)(Args...), F>
 				{
 					template <TypeId TypeId>
 					static Array* Id(T* Base, Args... Data)
@@ -427,7 +420,7 @@ namespace Edge
 						asITypeInfo* Info = VM->GetTypeInfoById((int)TypeId).GetTypeInfo();
 						ED_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
 
-						std::vector<R> Source((Base->*F)(Data...));
+						Core::Vector<R> Source((Base->*F)(Data...));
 						return Array::Compose(Info, Source);
 					}
 					template <uint64_t TypeRef>
@@ -439,13 +432,13 @@ namespace Edge
 						asITypeInfo* Info = VM->GetTypeInfoById(TypeCache::GetTypeId(TypeRef)).GetTypeInfo();
 						ED_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
 
-						std::vector<R> Source((Base->*F)(Data...));
+						Core::Vector<R> Source((Base->*F)(Data...));
 						return Array::Compose(Info, Source);
 					}
 				};
 
-				template <typename R, typename ...Args, std::vector<R>(*F)(Args...)>
-				struct IfyStatic<std::vector<R>(*)(Args...), F>
+				template <typename R, typename ...Args, Core::Vector<R>(*F)(Args...)>
+				struct IfyStatic<Core::Vector<R>(*)(Args...), F>
 				{
 					template <TypeId TypeId>
 					static Array* Id(Args... Data)
@@ -456,7 +449,7 @@ namespace Edge
 						asITypeInfo* Info = VM->GetTypeInfoById((int)TypeId).GetTypeInfo();
 						ED_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
 
-						std::vector<R> Source((*F)(Data...));
+						Core::Vector<R> Source((*F)(Data...));
 						return Array::Compose(Info, Source);
 					}
 					template <uint64_t TypeRef>
@@ -468,7 +461,7 @@ namespace Edge
 						asITypeInfo* Info = VM->GetTypeInfoById(TypeCache::GetTypeId(TypeRef)).GetTypeInfo();
 						ED_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
 
-						std::vector<R> Source((*F)(Data...));
+						Core::Vector<R> Source((*F)(Data...));
 						return Array::Compose(Info, Source);
 					}
 				};
@@ -498,7 +491,7 @@ namespace Edge
 			class ED_OUT Dictionary
 			{
 			public:
-				typedef std::unordered_map<std::string, Storable> InternalMap;
+				typedef Core::UnorderedMap<Core::String, Storable> InternalMap;
 
 			public:
 				class LocalIterator
@@ -516,7 +509,7 @@ namespace Edge
 					LocalIterator& operator*();
 					bool operator==(const LocalIterator& Other) const;
 					bool operator!=(const LocalIterator& Other) const;
-					const std::string& GetKey() const;
+					const Core::String& GetKey() const;
 					int GetTypeId() const;
 					bool GetValue(void* Value, int TypeId) const;
 					const void* GetAddressOfValue() const;
@@ -547,21 +540,21 @@ namespace Edge
 				void AddRef() const;
 				void Release() const;
 				Dictionary& operator= (const Dictionary& Other) noexcept;
-				void Set(const std::string& Key, void* Value, int TypeId);
-				bool Get(const std::string& Key, void* Value, int TypeId) const;
-				bool GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const;
-				Storable* operator[](const std::string& Key);
-				const Storable* operator[](const std::string& Key) const;
-				int GetTypeId(const std::string& Key) const;
-				bool Exists(const std::string& Key) const;
+				void Set(const Core::String& Key, void* Value, int TypeId);
+				bool Get(const Core::String& Key, void* Value, int TypeId) const;
+				bool GetIndex(size_t Index, Core::String* Key, void** Value, int* TypeId) const;
+				Storable* operator[](const Core::String& Key);
+				const Storable* operator[](const Core::String& Key) const;
+				int GetTypeId(const Core::String& Key) const;
+				bool Exists(const Core::String& Key) const;
 				bool IsEmpty() const;
 				size_t GetSize() const;
-				bool Delete(const std::string& Key);
+				bool Delete(const Core::String& Key);
 				void DeleteAll();
 				Array* GetKeys() const;
 				LocalIterator Begin() const;
 				LocalIterator End() const;
-				LocalIterator Find(const std::string& Key) const;
+				LocalIterator Find(const Core::String& Key) const;
 				int GetRefCount();
 				void SetGCFlag();
 				bool GetGCFlag();
@@ -594,7 +587,7 @@ namespace Edge
 
 			public:
 				template <typename T>
-				static Dictionary* Compose(int TypeId, const std::unordered_map<std::string, T>& Objects)
+				static Dictionary* Compose(int TypeId, const Core::UnorderedMap<Core::String, T>& Objects)
 				{
 					auto* Engine = VirtualMachine::Get();
 					Dictionary* Data = Create(Engine ? Engine->GetEngine() : nullptr);
@@ -604,16 +597,16 @@ namespace Edge
 					return Data;
 				}
 				template <typename T>
-				static typename std::enable_if<std::is_pointer<T>::value, std::unordered_map<std::string, T>>::type Decompose(int TypeId, Dictionary* Array)
+				static typename std::enable_if<std::is_pointer<T>::value, Core::UnorderedMap<Core::String, T>>::type Decompose(int TypeId, Dictionary* Array)
 				{
-					std::unordered_map<std::string, T> Result;
+					Core::UnorderedMap<Core::String, T> Result;
 					Result.reserve(Array->GetSize());
 
 					int SubTypeId = 0;
 					size_t Size = Array->GetSize();
 					for (size_t i = 0; i < Size; i++)
 					{
-						std::string Key; void* Value = nullptr;
+						Core::String Key; void* Value = nullptr;
 						if (Array->GetIndex(i, &Key, &Value, &SubTypeId) && SubTypeId == TypeId)
 							Result[Key] = (T*)Value;
 					}
@@ -621,16 +614,16 @@ namespace Edge
 					return Result;
 				}
 				template <typename T>
-				static typename std::enable_if<!std::is_pointer<T>::value, std::unordered_map<std::string, T>>::type Decompose(int TypeId, Dictionary* Array)
+				static typename std::enable_if<!std::is_pointer<T>::value, Core::UnorderedMap<Core::String, T>>::type Decompose(int TypeId, Dictionary* Array)
 				{
-					std::unordered_map<std::string, T> Result;
+					Core::UnorderedMap<Core::String, T> Result;
 					Result.reserve(Array->GetSize());
 
 					int SubTypeId = 0;
 					size_t Size = Array->GetSize();
 					for (size_t i = 0; i < Size; i++)
 					{
-						std::string Key; void* Value = nullptr;
+						Core::String Key; void* Value = nullptr;
 						if (Array->GetIndex(i, &Key, &Value, &SubTypeId) && SubTypeId == TypeId)
 							Result[Key] = *(T*)Value;
 					}
@@ -705,7 +698,7 @@ namespace Edge
 			class ED_OUT Random
 			{
 			public:
-				static std::string Getb(uint64_t Size);
+				static Core::String Getb(uint64_t Size);
 				static double Betweend(double Min, double Max);
 				static double Magd();
 				static double Getd();
@@ -748,7 +741,7 @@ namespace Edge
 
 			public:
 				static Core::Unique<Promise> Create();
-				static std::string GetStatus(ImmediateContext* Context);
+				static Core::String GetStatus(ImmediateContext* Context);
 
 			public:
 				template <typename T>
@@ -897,7 +890,7 @@ namespace Edge
 			private:
 				struct
 				{
-					std::vector<Any*> Queue;
+					Core::Vector<Any*> Queue;
 					std::condition_variable CV;
 					std::mutex Mutex;
 				} Pipe[2];
@@ -930,7 +923,7 @@ namespace Edge
 				int GetRefCount();
 				int Join(uint64_t Timeout);
 				int Join();
-				std::string GetId() const;
+				Core::String GetId() const;
 
 			private:
 				void Routine();
@@ -938,7 +931,7 @@ namespace Edge
 			public:
 				static void Create(asIScriptGeneric* Generic);
 				static Thread* GetThread();
-				static std::string GetThreadId();
+				static Core::String GetThreadId();
 				static void ThreadSleep(uint64_t Mills);
 				static void ThreadSuspend();
 			};
@@ -946,20 +939,20 @@ namespace Edge
 			class ED_OUT Format final : public Core::Reference<Format>
 			{
 			public:
-				std::vector<std::string> Args;
+				Core::Vector<Core::String> Args;
 
 			public:
 				Format() noexcept;
 				Format(unsigned char* Buffer) noexcept;
 
 			public:
-				static std::string JSON(void* Ref, int TypeId);
-				static std::string Form(const std::string& F, const Format& Form);
-				static void WriteLine(Core::Console* Base, const std::string& F, Format* Form);
-				static void Write(Core::Console* Base, const std::string& F, Format* Form);
+				static Core::String JSON(void* Ref, int TypeId);
+				static Core::String Form(const Core::String& F, const Format& Form);
+				static void WriteLine(Core::Console* Base, const Core::String& F, Format* Form);
+				static void Write(Core::Console* Base, const Core::String& F, Format* Form);
 
 			private:
-				static void FormatBuffer(VirtualMachine* VM, Core::Stringify& Result, std::string& Offset, void* Ref, int TypeId);
+				static void FormatBuffer(VirtualMachine* VM, Core::Stringify& Result, Core::String& Offset, void* Ref, int TypeId);
 				static void FormatJSON(VirtualMachine* VM, Core::Stringify& Result, void* Ref, int TypeId);
 			};
 
@@ -1007,7 +1000,7 @@ namespace Edge
 
 			public:
 				ModelListener(asIScriptFunction* NewCallback) noexcept;
-				ModelListener(const std::string& FunctionName) noexcept;
+				ModelListener(const Core::String& FunctionName) noexcept;
 				~ModelListener() noexcept;
 				asIScriptFunction* GetCallback();
 

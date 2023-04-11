@@ -1206,7 +1206,8 @@ namespace Edge
 			}
 			void D3D11Device::FlushState()
 			{
-				ImmediateContext->ClearState();
+				if (ImmediateContext != nullptr)
+					ImmediateContext->ClearState();
 			}
 			bool D3D11Device::Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
@@ -2449,11 +2450,11 @@ namespace Edge
 					return Result;
 				}
 
-				std::string Name = GetProgramName(F);
-				std::string VertexEntry = GetShaderMain(ShaderType::Vertex);
-				if (F.Data.find(VertexEntry) != std::string::npos)
+				Core::String Name = GetProgramName(F);
+				Core::String VertexEntry = GetShaderMain(ShaderType::Vertex);
+				if (F.Data.find(VertexEntry) != Core::String::npos)
 				{
-					std::string Stage = Name + SHADER_VERTEX, Bytecode;
+					Core::String Stage = Name + SHADER_VERTEX, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[d3d11] compile %s vertex shader source", Stage.c_str());
@@ -2461,7 +2462,7 @@ namespace Edge
 						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, VertexEntry.c_str(), GetVSProfile(), CompileFlags, 0, &Result->Signature, &ErrorBlob);
 						if (State != S_OK || GetCompileState(ErrorBlob))
 						{
-							std::string Message = GetCompileState(ErrorBlob);
+							Core::String Message = GetCompileState(ErrorBlob);
 							D3D_RELEASE(ErrorBlob);
 
 							ED_ERR("[d3d11] couldn't compile vertex shader\n\t%s", Message.c_str());
@@ -2470,7 +2471,7 @@ namespace Edge
 
 						Data = (void*)Result->Signature->GetBufferPointer();
 						Size = (size_t)Result->Signature->GetBufferSize();
-						if (!SetProgramCache(Stage, std::string((char*)Data, Size)))
+						if (!SetProgramCache(Stage, Core::String((char*)Data, Size)))
 							ED_WARN("[d3d11] couldn't cache vertex shader");
 					}
 					else
@@ -2496,10 +2497,10 @@ namespace Edge
 					}
 				}
 
-				std::string PixelEntry = GetShaderMain(ShaderType::Pixel);
-				if (F.Data.find(PixelEntry) != std::string::npos)
+				Core::String PixelEntry = GetShaderMain(ShaderType::Pixel);
+				if (F.Data.find(PixelEntry) != Core::String::npos)
 				{
-					std::string Stage = Name + SHADER_PIXEL, Bytecode;
+					Core::String Stage = Name + SHADER_PIXEL, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[d3d11] compile %s pixel shader source", Stage.c_str());
@@ -2507,7 +2508,7 @@ namespace Edge
 						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, PixelEntry.c_str(), GetPSProfile(), CompileFlags, 0, &ShaderBlob, &ErrorBlob);
 						if (State != S_OK || GetCompileState(ErrorBlob))
 						{
-							std::string Message = GetCompileState(ErrorBlob);
+							Core::String Message = GetCompileState(ErrorBlob);
 							D3D_RELEASE(ErrorBlob);
 
 							ED_ERR("[d3d11] couldn't compile pixel shader\n\t%s", Message.c_str());
@@ -2516,7 +2517,7 @@ namespace Edge
 
 						Data = (void*)ShaderBlob->GetBufferPointer();
 						Size = (size_t)ShaderBlob->GetBufferSize();
-						if (!SetProgramCache(Stage, std::string((char*)Data, Size)))
+						if (!SetProgramCache(Stage, Core::String((char*)Data, Size)))
 							ED_WARN("[d3d11] couldn't cache pixel shader");
 					}
 					else
@@ -2536,10 +2537,10 @@ namespace Edge
 					}
 				}
 
-				std::string GeometryEntry = GetShaderMain(ShaderType::Geometry);
-				if (F.Data.find(GeometryEntry) != std::string::npos)
+				Core::String GeometryEntry = GetShaderMain(ShaderType::Geometry);
+				if (F.Data.find(GeometryEntry) != Core::String::npos)
 				{
-					std::string Stage = Name + SHADER_GEOMETRY, Bytecode;
+					Core::String Stage = Name + SHADER_GEOMETRY, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[d3d11] compile %s geometry shader source", Stage.c_str());
@@ -2547,7 +2548,7 @@ namespace Edge
 						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, GeometryEntry.c_str(), GetGSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
 						if (State != S_OK || GetCompileState(ErrorBlob))
 						{
-							std::string Message = GetCompileState(ErrorBlob);
+							Core::String Message = GetCompileState(ErrorBlob);
 							D3D_RELEASE(ErrorBlob);
 
 							ED_ERR("[d3d11] couldn't compile geometry shader\n\t%s", Message.c_str());
@@ -2556,7 +2557,7 @@ namespace Edge
 
 						Data = (void*)ShaderBlob->GetBufferPointer();
 						Size = (size_t)ShaderBlob->GetBufferSize();
-						if (!SetProgramCache(Stage, std::string((char*)Data, Size)))
+						if (!SetProgramCache(Stage, Core::String((char*)Data, Size)))
 							ED_WARN("[d3d11] couldn't cache geometry shader");
 					}
 					else
@@ -2576,10 +2577,10 @@ namespace Edge
 					}
 				}
 
-				std::string ComputeEntry = GetShaderMain(ShaderType::Compute);
-				if (F.Data.find(ComputeEntry) != std::string::npos)
+				Core::String ComputeEntry = GetShaderMain(ShaderType::Compute);
+				if (F.Data.find(ComputeEntry) != Core::String::npos)
 				{
-					std::string Stage = Name + SHADER_COMPUTE, Bytecode;
+					Core::String Stage = Name + SHADER_COMPUTE, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[d3d11] compile %s compute shader source", Stage.c_str());
@@ -2587,7 +2588,7 @@ namespace Edge
 						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, ComputeEntry.c_str(), GetCSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
 						if (State != S_OK || GetCompileState(ErrorBlob))
 						{
-							std::string Message = GetCompileState(ErrorBlob);
+							Core::String Message = GetCompileState(ErrorBlob);
 							D3D_RELEASE(ErrorBlob);
 
 							ED_ERR("[d3d11] couldn't compile compute shader\n\t%s", Message.c_str());
@@ -2596,7 +2597,7 @@ namespace Edge
 
 						Data = (void*)ShaderBlob->GetBufferPointer();
 						Size = (size_t)ShaderBlob->GetBufferSize();
-						if (!SetProgramCache(Stage, std::string((char*)Data, Size)))
+						if (!SetProgramCache(Stage, Core::String((char*)Data, Size)))
 							ED_WARN("[d3d11] couldn't cache compute shader");
 					}
 					else
@@ -2616,10 +2617,10 @@ namespace Edge
 					}
 				}
 
-				std::string HullEntry = GetShaderMain(ShaderType::Hull);
-				if (F.Data.find(HullEntry) != std::string::npos)
+				Core::String HullEntry = GetShaderMain(ShaderType::Hull);
+				if (F.Data.find(HullEntry) != Core::String::npos)
 				{
-					std::string Stage = Name + SHADER_HULL, Bytecode;
+					Core::String Stage = Name + SHADER_HULL, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[d3d11] compile %s hull shader source", Stage.c_str());
@@ -2627,7 +2628,7 @@ namespace Edge
 						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, HullEntry.c_str(), GetHSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
 						if (State != S_OK || GetCompileState(ErrorBlob))
 						{
-							std::string Message = GetCompileState(ErrorBlob);
+							Core::String Message = GetCompileState(ErrorBlob);
 							D3D_RELEASE(ErrorBlob);
 
 							ED_ERR("[d3d11] couldn't compile hull shader\n\t%s", Message.c_str());
@@ -2636,7 +2637,7 @@ namespace Edge
 
 						Data = (void*)ShaderBlob->GetBufferPointer();
 						Size = (size_t)ShaderBlob->GetBufferSize();
-						if (!SetProgramCache(Stage, std::string((char*)Data, Size)))
+						if (!SetProgramCache(Stage, Core::String((char*)Data, Size)))
 							ED_WARN("[d3d11] couldn't cache hull shader");
 					}
 					else
@@ -2656,10 +2657,10 @@ namespace Edge
 					}
 				}
 
-				std::string DomainEntry = GetShaderMain(ShaderType::Domain);
-				if (F.Data.find(DomainEntry) != std::string::npos)
+				Core::String DomainEntry = GetShaderMain(ShaderType::Domain);
+				if (F.Data.find(DomainEntry) != Core::String::npos)
 				{
-					std::string Stage = Name + SHADER_DOMAIN, Bytecode;
+					Core::String Stage = Name + SHADER_DOMAIN, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						ED_DEBUG("[d3d11] compile %s domain shader source", Stage.c_str());
@@ -2667,7 +2668,7 @@ namespace Edge
 						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, DomainEntry.c_str(), GetDSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
 						if (State != S_OK || GetCompileState(ErrorBlob))
 						{
-							std::string Message = GetCompileState(ErrorBlob);
+							Core::String Message = GetCompileState(ErrorBlob);
 							D3D_RELEASE(ErrorBlob);
 
 							ED_ERR("[d3d11] couldn't compile domain shader\n\t%s", Message.c_str());
@@ -2676,7 +2677,7 @@ namespace Edge
 
 						Data = (void*)ShaderBlob->GetBufferPointer();
 						Size = (size_t)ShaderBlob->GetBufferSize();
-						if (!SetProgramCache(Stage, std::string((char*)Data, Size)))
+						if (!SetProgramCache(Stage, Core::String((char*)Data, Size)))
 							ED_WARN("[d3d11] couldn't cache domain shader");
 					}
 					else
@@ -3844,7 +3845,7 @@ namespace Edge
 					D3DCompile(VertexShaderCode, strlen(VertexShaderCode), nullptr, nullptr, nullptr, "vs_main", GetVSProfile(), 0, 0, &Blob, nullptr);
 					if (GetCompileState(Error))
 					{
-						std::string Message = GetCompileState(Error);
+						Core::String Message = GetCompileState(Error);
 						D3D_RELEASE(Error);
 
 						ED_ERR("[d3d11] couldn't compile vertex shader\n\t%s", Message.c_str());
@@ -3906,7 +3907,7 @@ namespace Edge
 					D3DCompile(PixelShaderCode, strlen(PixelShaderCode), nullptr, nullptr, nullptr, "ps_main", GetPSProfile(), 0, 0, &Blob, &Error);
 					if (GetCompileState(Error))
 					{
-						std::string Message = GetCompileState(Error);
+						Core::String Message = GetCompileState(Error);
 						D3D_RELEASE(Error);
 
 						ED_ERR("[d3d11] couldn't compile pixel shader\n\t%s", Message.c_str());
@@ -4076,7 +4077,7 @@ namespace Edge
 				if (!Shader->Signature || !Register.Layout || Register.Layout->Layout.empty())
 					return nullptr;
 
-				std::vector<D3D11_INPUT_ELEMENT_DESC> Result;
+				Core::Vector<D3D11_INPUT_ELEMENT_DESC> Result;
 				for (size_t i = 0; i < Register.Layout->Layout.size(); i++)
 				{
 					const InputLayout::Attribute& It = Register.Layout->Layout[i];

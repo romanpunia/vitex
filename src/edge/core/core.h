@@ -579,6 +579,13 @@ namespace Edge
 		using WideString = std::basic_string<std::wstring::value_type, std::wstring::traits_type, ED_STD_ALLOCATOR<typename std::wstring::value_type>>;
 		using WideStringStream = std::basic_stringstream<std::wstring::value_type, std::wstring::traits_type, ED_STD_ALLOCATOR<typename std::wstring::value_type>>;
 
+		typedef std::function<void()> TaskCallback;
+		typedef std::function<void(size_t)> SeqTaskCallback;
+		typedef std::function<Core::String(const Core::String&)> SchemaNameCallback;
+		typedef std::function<void(VarForm, const char*, size_t)> SchemaWriteCallback;
+		typedef std::function<bool(char*, size_t)> SchemaReadCallback;
+		typedef std::function<bool()> ActivityCallback;
+
 		struct ED_OUT Coroutine
 		{
 			friend Costate;
@@ -757,12 +764,6 @@ namespace Edge
 		typedef Core::Vector<Schema*> SchemaList;
 		typedef Core::UnorderedMap<Core::String, Variant> VariantArgs;
 		typedef Core::UnorderedMap<Core::String, Schema*> SchemaArgs;
-		typedef std::function<void()> TaskCallback;
-		typedef std::function<void(size_t)> SeqTaskCallback;
-		typedef std::function<Core::String(const Core::String&)> SchemaNameCallback;
-		typedef std::function<void(VarForm, const char*, size_t)> SchemaWriteCallback;
-		typedef std::function<bool(char*, size_t)> SchemaReadCallback;
-		typedef std::function<bool()> ActivityCallback;
 		typedef uint64_t TaskId;
 		typedef Decimal BigNumber;
 

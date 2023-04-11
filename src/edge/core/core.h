@@ -72,6 +72,7 @@
 #include <atomic>
 #include <limits>
 #include <array>
+#include <list>
 #include <sstream>
 #ifdef ED_FAST_SORT
 #include <execution>

@@ -13,7 +13,7 @@
 #define ED_OUT __declspec(dllexport)
 #endif
 #if __cplusplus >= 201703L || _MSVC_LANG >= 201703L || defined(_HAS_CXX17)
-#define ED_FAST_SORT
+#define ED_CXX17
 #endif
 #ifdef _WIN64
 #define ED_64 1
@@ -74,7 +74,7 @@
 #include <array>
 #include <list>
 #include <sstream>
-#ifdef ED_FAST_SORT
+#ifdef ED_CXX17
 #include <execution>
 #define ED_SORT(Begin, End, Comparator) std::sort(std::execution::par_unseq, Begin, End, Comparator)
 #else
@@ -550,6 +550,143 @@ namespace Edge
 			}
 		};
 
+		template <typename T, T OffsetBasis, T Prime>
+		struct FNV1AHash
+		{
+			static_assert(std::is_unsigned<T>::value, "Q needs to be unsigned integer");
+
+			T operator()(const void* Address, size_t Size) const noexcept
+			{
+				const auto Data = static_cast<const unsigned char*>(Address);
+				auto State = OffsetBasis;
+				for (size_t i = 0; i < Size; ++i)
+					State = (State ^ (size_t)Data[i]) * Prime;
+
+				return State;
+			}
+		};
+
+		template <size_t Bits>
+		struct FNV1ABits;
+
+		template <>
+		struct FNV1ABits<32>
+		{
+			using type = FNV1AHash<uint32_t, UINT32_C(2166136261), UINT32_C(16777619)>;
+		};
+
+		template <>
+		struct FNV1ABits<64>
+		{
+			using type = FNV1AHash<uint64_t, UINT64_C(14695981039346656037), UINT64_C(1099511628211)>;
+		};
+
+		template <size_t Bits>
+		using FNV1A = typename FNV1ABits<Bits>::type;
+
+		template <typename T>
+		struct Hasher
+		{
+			typedef float argument_type;
+			typedef size_t result_type;
+
+			result_type operator()(const T& Value) const noexcept
+			{
+				auto Hasher = std::hash<T>();
+				return Hasher(Value);
+			}
+		};
+
+		template <typename T>
+		struct EqualTo
+		{
+			typedef T first_argument_type;
+			typedef T second_argument_type;
+			typedef bool result_type;
+
+			result_type operator()(const T& Left, const T& Right) const noexcept
+			{
+				auto Comparator = std::equal_to<T>();
+				return Comparator(Left, Right);
+			}
+		};
+
+		using String = std::basic_string<std::string::value_type, std::string::traits_type, ED_STD_ALLOCATOR<typename std::string::value_type>>;
+		using StringStream = std::basic_stringstream<std::string::value_type, std::string::traits_type, ED_STD_ALLOCATOR<typename std::string::value_type>>;
+		using WideString = std::basic_string<std::wstring::value_type, std::wstring::traits_type, ED_STD_ALLOCATOR<typename std::wstring::value_type>>;
+		using WideStringStream = std::basic_stringstream<std::wstring::value_type, std::wstring::traits_type, ED_STD_ALLOCATOR<typename std::wstring::value_type>>;
+
+		template <>
+		struct EqualTo<String>
+		{
+			typedef String first_argument_type;
+			typedef String second_argument_type;
+			typedef bool result_type;
+			using is_transparent = void;
+
+			result_type operator()(const String& Left, const String& Right) const noexcept
+			{
+				return Left == Right;
+			}
+			result_type operator()(const char* Left, const String& Right) const noexcept
+			{
+				return Right.compare(Left) == 0;
+			}
+			result_type operator()(const String& Left, const char* Right) const noexcept
+			{
+				return Left.compare(Right) == 0;
+			}
+#ifdef ED_CXX17
+			result_type operator()(const std::string_view& Left, const String& Right) const noexcept
+			{
+				return Left == Right;
+			}
+			result_type operator()(const String& Left, const std::string_view& Right) const noexcept
+			{
+				return Left == Right;
+			}
+#endif
+		};
+
+		template <>
+		struct Hasher<String>
+		{
+			typedef float argument_type;
+			typedef size_t result_type;
+			using is_transparent = void;
+
+			result_type operator()(const char* Value) const noexcept
+			{
+				auto Hasher = FNV1A<CHAR_BIT * sizeof(size_t)>();
+				return Hasher(Value, strlen(Value));
+			}
+			result_type operator()(const String& Value) const noexcept
+			{
+				auto Hasher = FNV1A<CHAR_BIT * sizeof(size_t)>();
+				return Hasher(Value.c_str(), Value.size());
+			}
+#ifdef ED_CXX17
+			result_type operator()(const std::string_view& Value) const noexcept
+			{
+				auto Hasher = FNV1A<CHAR_BIT * sizeof(size_t)>();
+				return Hasher(Value.data(), Value.size());
+			}
+#endif
+		};
+
+		template <>
+		struct Hasher<WideString>
+		{
+			typedef float argument_type;
+			typedef size_t result_type;
+
+			result_type operator()(const WideString& Value) const noexcept
+			{
+				auto Hasher = FNV1A<CHAR_BIT * sizeof(std::size_t)>();
+				return Hasher(Value.c_str(), Value.size());
+			}
+		};
+
 		template <typename T>
 		using Vector = std::vector<T, ED_STD_ALLOCATOR<T>>;
 
@@ -562,22 +699,17 @@ namespace Edge
 		template <typename T>
 		using DoubleQueue = std::deque<T, ED_STD_ALLOCATOR<T>>;
 
-		template <typename K, typename Hasher = typename std::unordered_set<K>::hasher, typename KeyEqual = typename std::unordered_set<K>::key_equal>
-		using UnorderedSet = std::unordered_set<K, Hasher, KeyEqual, ED_STD_ALLOCATOR<typename std::unordered_set<K>::value_type>>;
+		template <typename K, typename Hash = Hasher<K>, typename KeyEqual = EqualTo<K>>
+		using UnorderedSet = std::unordered_set<K, Hash, KeyEqual, ED_STD_ALLOCATOR<typename std::unordered_set<K>::value_type>>;
 
-		template <typename K, typename V, typename Hasher = typename std::unordered_map<K, V>::hasher, typename KeyEqual = typename std::unordered_map<K, V>::key_equal>
-		using UnorderedMap = std::unordered_map<K, V, Hasher, KeyEqual, ED_STD_ALLOCATOR<typename std::unordered_map<K, V>::value_type>>;
+		template <typename K, typename V, typename Hash = Hasher<K>, typename KeyEqual = EqualTo<K>>
+		using UnorderedMap = std::unordered_map<K, V, Hash, KeyEqual, ED_STD_ALLOCATOR<typename std::unordered_map<K, V>::value_type>>;
 
-		template <typename K, typename V, typename Hasher = typename std::unordered_multimap<K, V>::hasher, typename KeyEqual = typename std::unordered_multimap<K, V>::key_equal>
-		using UnorderedMultiMap = std::unordered_multimap<K, V, Hasher, KeyEqual, ED_STD_ALLOCATOR<typename std::unordered_multimap<K, V>::value_type>>;
+		template <typename K, typename V, typename Hash = Hasher<K>, typename KeyEqual = EqualTo<K>>
+		using UnorderedMultiMap = std::unordered_multimap<K, V, Hash, KeyEqual, ED_STD_ALLOCATOR<typename std::unordered_multimap<K, V>::value_type>>;
 
 		template <typename K, typename V, typename Comparator = typename std::map<K, V>::key_compare>
 		using OrderedMap = std::map<K, V, Comparator, ED_STD_ALLOCATOR<typename std::map<K, V>::value_type>>;
-
-		using String = std::basic_string<std::string::value_type, std::string::traits_type, ED_STD_ALLOCATOR<typename std::string::value_type>>;
-		using StringStream = std::basic_stringstream<std::string::value_type, std::string::traits_type, ED_STD_ALLOCATOR<typename std::string::value_type>>;
-		using WideString = std::basic_string<std::wstring::value_type, std::wstring::traits_type, ED_STD_ALLOCATOR<typename std::wstring::value_type>>;
-		using WideStringStream = std::basic_stringstream<std::wstring::value_type, std::wstring::traits_type, ED_STD_ALLOCATOR<typename std::wstring::value_type>>;
 
 		typedef std::function<void()> TaskCallback;
 		typedef std::function<void(size_t)> SeqTaskCallback;

@@ -7170,10 +7170,14 @@ namespace Edge
 			return Result;
 #else
 			Core::String Prefix("/sys/devices/system/cpu/cpu0/cache/index" + Core::ToString(Level) + '/');
-			std::ifstream Size(Prefix + "size");
-			std::ifstream LineSize(Prefix + "coherency_line_size");
-			std::ifstream Associativity(Prefix + "associativity");
-			std::ifstream Type(Prefix + "type");
+			Core::String SizePath(Prefix + "size");
+			Core::String LineSizePath(Prefix + "coherency_line_size");
+			Core::String AssociativityPath(Prefix + "associativity");
+			Core::String TypePath(Prefix + "type");
+			std::ifstream Size(SizePath.c_str());
+			std::ifstream LineSize(LineSizePath.c_str());
+			std::ifstream Associativity(AssociativityPath.c_str());
+			std::ifstream Type(TypePath.c_str());
 			CacheInfo Result {};
 
 			if (Size.is_open() && Size)
@@ -7207,6 +7211,7 @@ namespace Edge
 			{
 				Core::String Temp;
 				Type >> Temp;
+
 				if (Temp.find("nified") == 1)
 					Result.Type = Cache::Unified;
 				else if (Temp.find("nstruction") == 1)

@@ -39,6 +39,10 @@ void cs_main(uint3 Voxel : SV_DispatchThreadID)
 
 	Fragment Frag = GetFragmentWithDiffuse(Diffuse, Voxel);
 	Material Mat = Materials[Frag.Material];
+    float Transparency = pow(1.0 - Mat.Transparency, 4);
+    [branch] if (Transparency < Alpha)
+        return;
+
 	float G = GetRoughness(Frag, Mat), i;
 	float3 M = GetMetallic(Frag, Mat);
 	float3 D = normalize(vb_Position - Frag.Position);
@@ -57,8 +61,6 @@ void cs_main(uint3 Voxel : SV_DispatchThreadID)
 		{
 			float3 V = GetVoxel(Light.Position) - Origin;
 			A *= GetShadow(Origin, normalize(V), length(V));
-			[branch] if (A <= Alpha)
-				continue;
 		}
 		
 		float3 L = normalize(K);
@@ -79,8 +81,6 @@ void cs_main(uint3 Voxel : SV_DispatchThreadID)
 		{
 			float3 V = GetVoxel(Light.Position) - Origin;
 			A *= GetShadow(Origin, normalize(V), length(V));
-			[branch] if (A <= Alpha)
-				continue;
 		}
 		
 		float3 R = GetCookTorranceBRDF(Frag.Normal, D, L, Frag.Diffuse, M, G);
@@ -89,15 +89,11 @@ void cs_main(uint3 Voxel : SV_DispatchThreadID)
 
 	[loop] for (i = 0; i < vxb_Lights.z; i++)
 	{
-		LineLight Light = LineLights[i];
-		float A = 1.0;
-
+		LineLight Light = LineLights[i]; float A = 1.0;
 		[branch] if (Light.Softness > 0.0 && vxb_Bleeding > 0.0)
 		{
 			float3 V = Light.Position * float3(1.0, -1.0, 1.0);
 			A = GetShadow(Origin, V, vxb_Size.x);
-			[branch] if (A <= Alpha)
-				continue;
 		}
 		
 		float3 R = GetCookTorranceBRDF(Frag.Normal, D, Light.Position, Frag.Diffuse, M, G);
@@ -105,5 +101,5 @@ void cs_main(uint3 Voxel : SV_DispatchThreadID)
 	}
 
 	Result.w = min(1.0, Mat.Emission.w + GetDensity(Result.w));
-	LightBuffer[Voxel] = Result;
+    LightBuffer[Voxel] += Result * Transparency;
 };

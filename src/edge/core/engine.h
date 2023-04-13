@@ -1133,6 +1133,9 @@ namespace Edge
 					}
 				}
 
+				if (Indexing.Queue.empty())
+					return;
+
 				WatchAll(Parallel::ForEach(Indexing.Queue.begin(), Indexing.Queue.end(), [Match](void* Item)
 				{
 					Match(Parallel::GetThreadIndex(), (T*)Item);
@@ -1184,7 +1187,8 @@ namespace Edge
 						break;
 					}
 					default:
-						WatchAll(Parallel::Distribute(Storage.Data.Begin(), Storage.Data.End(), std::move(InitCallback), std::move(ElementCallback)));
+						if (!Storage.Data.Empty())
+							WatchAll(Parallel::Distribute(Storage.Data.Begin(), Storage.Data.End(), std::move(InitCallback), std::move(ElementCallback)));
 						break;
 				}
 			}
@@ -1232,7 +1236,8 @@ namespace Edge
 						break;
 					}
 					default:
-						WatchAll(Parallel::Distribute(Storage.Data.Begin(), Storage.Data.End(), std::move(InitCallback), std::move(ElementCallback)));
+						if (!Storage.Data.Empty())
+							WatchAll(Parallel::Distribute(Storage.Data.Begin(), Storage.Data.End(), std::move(InitCallback), std::move(ElementCallback)));
 						break;
 				}
 			}

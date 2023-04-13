@@ -25,7 +25,7 @@ float GetAvg(float3 Value)
 [maxvertexcount(3)]
 void gs_main(triangle VOutput V[3], inout TriangleStream<VOutput> Stream)
 {
-	uint Dominant = GetVoxelDominant(V[0].Position.xyz, V[1].Position.xyz, V[2].Position.xyz); 
+    uint Dominant = GetVoxelDominant(V[0].Position.xyz, V[1].Position.xyz, V[2].Position.xyz); 
 	[unroll] for (uint i = 0; i < 3; ++i)
 	{
 		VOutput Next = V[i];

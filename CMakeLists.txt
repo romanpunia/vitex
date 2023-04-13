@@ -55,6 +55,7 @@ set_target_properties(edge PROPERTIES
 		CXX_EXTENSIONS OFF
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION})
+target_compile_features(edge PRIVATE cxx_std_17)
 
 #Project's settings
 set(ED_USE_BINDINGS true CACHE BOOL "Enable full script bindings")

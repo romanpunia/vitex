@@ -657,18 +657,18 @@ namespace Edge
 
 			result_type operator()(const char* Value) const noexcept
 			{
-				auto Hasher = FNV1A<CHAR_BIT * sizeof(size_t)>();
+				auto Hasher = FNV1A<8 * sizeof(size_t)>();
 				return Hasher(Value, strlen(Value));
 			}
 			result_type operator()(const String& Value) const noexcept
 			{
-				auto Hasher = FNV1A<CHAR_BIT * sizeof(size_t)>();
+				auto Hasher = FNV1A<8 * sizeof(size_t)>();
 				return Hasher(Value.c_str(), Value.size());
 			}
 #ifdef ED_CXX17
 			result_type operator()(const std::string_view& Value) const noexcept
 			{
-				auto Hasher = FNV1A<CHAR_BIT * sizeof(size_t)>();
+				auto Hasher = FNV1A<8 * sizeof(size_t)>();
 				return Hasher(Value.data(), Value.size());
 			}
 #endif
@@ -682,7 +682,7 @@ namespace Edge
 
 			result_type operator()(const WideString& Value) const noexcept
 			{
-				auto Hasher = FNV1A<CHAR_BIT * sizeof(std::size_t)>();
+				auto Hasher = FNV1A<8 * sizeof(std::size_t)>();
 				return Hasher(Value.c_str(), Value.size());
 			}
 		};

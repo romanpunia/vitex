@@ -137,7 +137,10 @@ namespace
 		static void Free()
 		{
 			if (Base != nullptr && Base->Cache.empty())
+			{
 				ED_DELETE(StringFactory, Base);
+				Base = nullptr;
+			}
 		}
 	};
 	StringFactory* StringFactory::Base = nullptr;

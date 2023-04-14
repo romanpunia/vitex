@@ -544,7 +544,6 @@ namespace Edge
 		auto* Manager = Core::Memory::GetAllocator();
 		Core::OS::SetLogDeferred(false);
 		Core::Schedule::Reset();
-		Core::Console::Reset();
 
 		if (Modes & (uint64_t)Init::Audio)
 			Audio::AudioContext::Release();
@@ -626,6 +625,7 @@ namespace Edge
 			Allocator = nullptr;
 		}
 
+		Core::Console::Reset();
 		return true;
 	}
 }

@@ -5905,13 +5905,10 @@ namespace Edge
 				return;
 			}
 
-			if (AllocConsole() == TRUE)
-			{
-				Conin = freopen("conin$", "r", stdin);
-				Conout = freopen("conout$", "w", stdout);
-				Conerr = freopen("conout$", "w", stderr);
-				Allocated = true;
-			}
+			Allocated = !!AllocConsole();
+			Conin = freopen("conin$", "r", stdin);
+			Conout = freopen("conout$", "w", stdout);
+			Conerr = freopen("conout$", "w", stderr);
 
 			CONSOLE_SCREEN_BUFFER_INFO ScreenBuffer;
 			SetConsoleCtrlHandler(ConsoleEventHandler, true);

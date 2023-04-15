@@ -93,10 +93,10 @@ namespace Edge
 
 		enum class RenderState
 		{
-			Geometry_Result,
-			Geometry_Voxels,
-			Depth_Linear,
-			Depth_Cubic
+			Geometric,
+			Voxelization,
+			Linearization,
+			Cubic
 		};
 
 		enum class GeoCategory
@@ -930,6 +930,7 @@ namespace Edge
 			virtual void BeginPass(Core::Timer* Time);
 			virtual void EndPass();
 			virtual bool HasCategory(GeoCategory Category);
+			virtual size_t RenderPrepass(Core::Timer* Time);
 			virtual size_t RenderPass(Core::Timer* Time) = 0;
 			void SetRenderer(RenderSystem* NewSystem);
 			RenderSystem* GetRenderer() const;
@@ -983,7 +984,7 @@ namespace Edge
 				friend RenderSystem;
 
 			private:
-				RenderState Target = RenderState::Geometry_Result;
+				RenderState Target = RenderState::Geometric;
 				RenderOpt Options = RenderOpt::None;
 				size_t Top = 0;
 
@@ -2334,35 +2335,43 @@ namespace Edge
 			{
 				return 0;
 			}
-			virtual size_t RenderDepthLinear(Core::Timer* TimeStep, const Objects& Chunk)
+			virtual size_t RenderLinearization(Core::Timer* TimeStep, const Objects& Chunk)
 			{
 				return 0;
 			}
-			virtual size_t RenderDepthLinearBatched(Core::Timer* TimeStep, const Groups& Chunk)
+			virtual size_t RenderLinearizationBatched(Core::Timer* TimeStep, const Groups& Chunk)
 			{
 				return 0;
 			}
-			virtual size_t RenderDepthCubic(Core::Timer* TimeStep, const Objects& Chunk, Compute::Matrix4x4* ViewProjection)
+			virtual size_t RenderCubic(Core::Timer* TimeStep, const Objects& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				return 0;
 			}
-			virtual size_t RenderDepthCubicBatched(Core::Timer* TimeStep, const Groups& Chunk, Compute::Matrix4x4* ViewProjection)
+			virtual size_t RenderCubicBatched(Core::Timer* TimeStep, const Groups& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				return 0;
 			}
-			virtual size_t RenderGeometryVoxels(Core::Timer* TimeStep, const Objects& Chunk)
+			virtual size_t RenderVoxelization(Core::Timer* TimeStep, const Objects& Chunk)
 			{
 				return 0;
 			}
-			virtual size_t RenderGeometryVoxelsBatched(Core::Timer* TimeStep, const Groups& Chunk)
+			virtual size_t RenderVoxelizationBatched(Core::Timer* TimeStep, const Groups& Chunk)
 			{
 				return 0;
 			}
-			virtual size_t RenderGeometryResult(Core::Timer* TimeStep, const Objects& Chunk)
+			virtual size_t RenderGeometric(Core::Timer* TimeStep, const Objects& Chunk)
 			{
 				return 0;
 			}
-			virtual size_t RenderGeometryResultBatched(Core::Timer* TimeStep, const Groups& Chunk)
+			virtual size_t RenderGeometricBatched(Core::Timer* TimeStep, const Groups& Chunk)
+			{
+				return 0;
+			}
+			virtual size_t RenderGeometricPrepass(Core::Timer* TimeStep, const Objects& Chunk)
+			{
+				return 0;
+			}
+			virtual size_t RenderGeometricPrepassBatched(Core::Timer* TimeStep, const Groups& Chunk)
 			{
 				return 0;
 			}
@@ -2406,25 +2415,56 @@ namespace Edge
 			{
 				return !Proxy.Top(Category).empty();
 			}
+			size_t RenderPrepass(Core::Timer* Time) override
+			{
+				size_t Count = 0;
+				if (!System->State.Is(RenderState::Geometric))
+					return Count;
+
+				GeoCategory Category = GeoCategory::Opaque;
+				if (System->State.IsSet(RenderOpt::Transparent))
+					Category = GeoCategory::Transparent;
+				else if (System->State.IsSet(RenderOpt::Additive))
+					Category = GeoCategory::Additive;
+
+				ED_MEASURE(ED_TIMING_CORE);
+				if (Proxy.HasBatching())
+				{
+					auto& Frame = Proxy.Batches(Category);
+					if (!Frame.empty())
+						Count += RenderGeometricPrepassBatched(Time, Frame);
+				}
+				else
+				{
+					auto& Frame = Proxy.Top(Category);
+					if (!Frame.empty())
+						Count += RenderGeometricPrepass(Time, Frame);
+				}
+
+				if (System->State.IsTop())
+					Count += CullingPass();
+
+				return Count;
+			}
 			size_t RenderPass(Core::Timer* Time) override
 			{
 				size_t Count = 0;
-				if (System->State.Is(RenderState::Geometry_Result))
+				if (System->State.Is(RenderState::Geometric))
 				{
-					ED_MEASURE(ED_TIMING_CORE);
 					GeoCategory Category = GeoCategory::Opaque;
 					if (System->State.IsSet(RenderOpt::Transparent))
 						Category = GeoCategory::Transparent;
 					else if (System->State.IsSet(RenderOpt::Additive))
 						Category = GeoCategory::Additive;
 
+					ED_MEASURE(ED_TIMING_CORE);
 					if (Proxy.HasBatching())
 					{
 						auto& Frame = Proxy.Batches(Category);
 						if (!Frame.empty())
 						{
 							System->ClearMaterials();
-							Count += RenderGeometryResultBatched(Time, Frame);
+							Count += RenderGeometricBatched(Time, Frame);
 						}
 					}
 					else
@@ -2433,14 +2473,11 @@ namespace Edge
 						if (!Frame.empty())
 						{
 							System->ClearMaterials();
-							Count += RenderGeometryResult(Time, Frame);
+							Count += RenderGeometric(Time, Frame);
 						}
 					}
-
-					if (System->State.IsTop())
-						Count += CullingPass();
 				}
-				else if (System->State.Is(RenderState::Geometry_Voxels))
+				else if (System->State.Is(RenderState::Voxelization))
 				{
 					if (System->State.IsSet(RenderOpt::Transparent) || System->State.IsSet(RenderOpt::Additive))
 						return 0;
@@ -2452,7 +2489,7 @@ namespace Edge
 						if (!Frame.empty())
 						{
 							System->ClearMaterials();
-							Count += RenderGeometryVoxelsBatched(Time, Frame);
+							Count += RenderVoxelizationBatched(Time, Frame);
 						}
 					}
 					else
@@ -2461,11 +2498,11 @@ namespace Edge
 						if (!Frame.empty())
 						{
 							System->ClearMaterials();
-							Count += RenderGeometryVoxels(Time, Frame);
+							Count += RenderVoxelization(Time, Frame);
 						}
 					}
 				}
-				else if (System->State.Is(RenderState::Depth_Linear))
+				else if (System->State.Is(RenderState::Linearization))
 				{
 					if (!System->State.IsSubpass())
 						return 0;
@@ -2479,10 +2516,10 @@ namespace Edge
 							System->ClearMaterials();
 
 						if (!Frame1.empty())
-							Count += RenderDepthLinearBatched(Time, Frame1);
+							Count += RenderLinearizationBatched(Time, Frame1);
 
 						if (!Frame2.empty())
-							Count += RenderDepthLinearBatched(Time, Frame2);
+							Count += RenderLinearizationBatched(Time, Frame2);
 					}
 					else
 					{
@@ -2492,13 +2529,13 @@ namespace Edge
 							System->ClearMaterials();
 
 						if (!Frame1.empty())
-							Count += RenderDepthLinear(Time, Frame1);
+							Count += RenderLinearization(Time, Frame1);
 
 						if (!Frame2.empty())
-							Count += RenderDepthLinear(Time, Frame2);
+							Count += RenderLinearization(Time, Frame2);
 					}
 				}
-				else if (System->State.Is(RenderState::Depth_Cubic))
+				else if (System->State.Is(RenderState::Cubic))
 				{
 					if (!System->State.IsSubpass())
 						return 0;
@@ -2512,10 +2549,10 @@ namespace Edge
 							System->ClearMaterials();
 
 						if (!Frame1.empty())
-							Count += RenderDepthCubicBatched(Time, Frame1, System->View.CubicViewProjection);
+							Count += RenderCubicBatched(Time, Frame1, System->View.CubicViewProjection);
 
 						if (!Frame2.empty())
-							Count += RenderDepthCubicBatched(Time, Frame2, System->View.CubicViewProjection);
+							Count += RenderCubicBatched(Time, Frame2, System->View.CubicViewProjection);
 					}
 					else
 					{
@@ -2525,10 +2562,10 @@ namespace Edge
 							System->ClearMaterials();
 
 						if (!Frame1.empty())
-							Count += RenderDepthCubic(Time, Frame1, System->View.CubicViewProjection);
+							Count += RenderCubic(Time, Frame1, System->View.CubicViewProjection);
 
 						if (!Frame2.empty())
-							Count += RenderDepthCubic(Time, Frame2, System->View.CubicViewProjection);
+							Count += RenderCubic(Time, Frame2, System->View.CubicViewProjection);
 					}
 				}
 

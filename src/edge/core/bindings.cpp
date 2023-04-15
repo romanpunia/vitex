@@ -8470,7 +8470,7 @@ namespace Edge
 				VSchema.SetMethod("bool is_attribute() const", &Core::Schema::IsAttribute);
 				VSchema.SetMethod("bool is_saved() const", &Core::Schema::IsAttribute);
 				VSchema.SetMethod("string get_name() const", &Core::Schema::GetName);
-				VSchema.SetMethod("void join(schema@+)", &Core::Schema::Join);
+				VSchema.SetMethod("void join(schema@+, bool)", &Core::Schema::Join);
 				VSchema.SetMethod("void unlink()", &Core::Schema::Unlink);
 				VSchema.SetMethod("void clear()", &Core::Schema::Clear);
 				VSchema.SetMethod("void save()", &Core::Schema::Save);
@@ -12592,10 +12592,10 @@ namespace Edge
 				VRenderCulling.SetValue("disable_t", (int)Engine::RenderCulling::Disable);
 
 				Enumeration VRenderState = Engine->SetEnum("render_state");
-				VRenderState.SetValue("geometry_result_t", (int)Engine::RenderState::Geometry_Result);
-				VRenderState.SetValue("geometry_voxels_t", (int)Engine::RenderState::Geometry_Voxels);
-				VRenderState.SetValue("depth_linear_t", (int)Engine::RenderState::Depth_Linear);
-				VRenderState.SetValue("depth_cubic_t", (int)Engine::RenderState::Depth_Cubic);
+				VRenderState.SetValue("geometric_t", (int)Engine::RenderState::Geometric);
+				VRenderState.SetValue("voxelization_t", (int)Engine::RenderState::Voxelization);
+				VRenderState.SetValue("linearization_t", (int)Engine::RenderState::Linearization);
+				VRenderState.SetValue("cubic_t", (int)Engine::RenderState::Cubic);
 
 				Enumeration VGeoCategory = Engine->SetEnum("geo_category");
 				VGeoCategory.SetValue("opaque_t", (int)Engine::GeoCategory::Opaque);

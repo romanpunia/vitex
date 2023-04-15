@@ -3,6 +3,8 @@
 #include "../engine/processors.h"
 #include "../engine/renderers.h"
 #include "../network/http.h"
+#include "../network/mdb.h"
+#include "../network/pdb.h"
 #include "../audio/effects.h"
 #include "../audio/filters.h"
 #ifdef ED_HAS_SDL2
@@ -2420,6 +2422,10 @@ namespace Edge
 		{
 			return false;
 		}
+		size_t Renderer::RenderPrepass(Core::Timer* Time)
+		{
+			return 0;
+		}
 		size_t Renderer::RenderPass(Core::Timer* TimeStep)
 		{
 			return 0;
@@ -2700,6 +2706,12 @@ namespace Edge
 			{
 				if (Next->Active)
 					Next->BeginPass(Time);
+			}
+
+			for (auto& Next : Renderers)
+			{
+				if (Next->Active)
+					Count += Next->RenderPrepass(Time);
 			}
 
 			for (auto& Next : Renderers)
@@ -4009,7 +4021,7 @@ namespace Edge
 			FillMaterialBuffers();
 			SetMRT(TargetType::Main, true);
 			Renderer->RestoreViewBuffer(nullptr);
-			Statistics.DrawCalls += Renderer->Render(Time, RenderState::Geometry_Result, RenderOpt::None);
+			Statistics.DrawCalls += Renderer->Render(Time, RenderState::Geometric, RenderOpt::None);
 		}
 		void SceneGraph::StepSimulate(Core::Timer* Time)
 		{
@@ -6166,7 +6178,11 @@ namespace Edge
 			ED_CLEAR(Activity);
 
 			if (Control.Usage & (size_t)ApplicationSet::NetworkSet)
+			{
+				Network::MDB::Driver::Release();
+				Network::PDB::Driver::Release();
 				Network::Multiplexer::Release();
+			}
 
 			Host = nullptr;
 		}
@@ -6792,7 +6808,7 @@ namespace Edge
 			ED_ASSERT(System->GetMRT(TargetType::Main) != nullptr, 0, "main render target should be set");
 			ED_MEASURE(ED_TIMING_FRAME);
 
-			if (!System->State.Is(RenderState::Geometry_Result) || System->State.IsSubpass())
+			if (!System->State.Is(RenderState::Geometric) || System->State.IsSubpass())
 				return 0;
 
 			MaxSlot = 5;

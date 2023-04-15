@@ -5860,10 +5860,7 @@ namespace Edge
 		}
 		Mapping<Core::UnorderedMap<uint64_t, std::pair<uint64_t, void*>>>* Composer::Factory = nullptr;
 
-		Console::Console() noexcept : Coloring(true), Allocated(false), Present(false), Time(0)
-#ifdef ED_MICROSOFT
-			, Conin(nullptr), Conout(nullptr), Conerr(nullptr), Attributes(0)
-#endif
+		Console::Console() noexcept : Input(nullptr), Output(nullptr), Errors(nullptr), Attributes(0), Time(0), Coloring(true), Present(false)
 		{
 		}
 		Console::~Console() noexcept
@@ -5874,10 +5871,10 @@ namespace Edge
 			if (!Present)
 				return;
 
-			if (Allocated)
-				::ShowWindow(::GetConsoleWindow(), SW_HIDE);
-
+			::ShowWindow(::GetConsoleWindow(), SW_HIDE);
+#if 0
 			FreeConsole();
+#endif
 #endif
 		}
 		void Console::Begin()
@@ -5899,28 +5896,23 @@ namespace Edge
 		void Console::Show()
 		{
 #ifdef ED_MICROSOFT
-			if (Present)
+			if (!Present)
 			{
-				::ShowWindow(::GetConsoleWindow(), SW_SHOW);
-				return;
+				AllocConsole();
+				Input = freopen("conin$", "r", stdin);
+				Output = freopen("conout$", "w", stdout);
+				Errors = freopen("conout$", "w", stderr);
+
+				CONSOLE_SCREEN_BUFFER_INFO ScreenBuffer;
+				SetConsoleCtrlHandler(ConsoleEventHandler, true);
+
+				HANDLE Base = GetStdHandle(STD_OUTPUT_HANDLE);
+				if (GetConsoleScreenBufferInfo(Base, &ScreenBuffer))
+					Attributes = ScreenBuffer.wAttributes;
+				ED_TRACE("[console] allocate window 0x%" PRIXPTR, (void*)Base);
 			}
 
-			Allocated = !!AllocConsole();
-			Conin = freopen("conin$", "r", stdin);
-			Conout = freopen("conout$", "w", stdout);
-			Conerr = freopen("conout$", "w", stderr);
-
-			CONSOLE_SCREEN_BUFFER_INFO ScreenBuffer;
-			SetConsoleCtrlHandler(ConsoleEventHandler, true);
-
-			HANDLE Base = GetStdHandle(STD_OUTPUT_HANDLE);
-			if (GetConsoleScreenBufferInfo(Base, &ScreenBuffer))
-				Attributes = ScreenBuffer.wAttributes;
-
-			ED_TRACE("[console] allocate window 0x%" PRIXPTR, (void*)Base);
-#else
-			if (Present)
-				return;
+			::ShowWindow(::GetConsoleWindow(), SW_SHOW);
 #endif
 			Present = true;
 		}
@@ -8899,41 +8891,41 @@ namespace Edge
 				IgnoreLogging = false;
 			}
 
-			if (Active)
-			{
+			if (!Active)
+				return;
 #if defined(ED_MICROSOFT) && !defined(NDEBUG)
-				OutputDebugStringA(Data.GetText().c_str());
+			OutputDebugStringA(Data.GetText().c_str());
 #endif
-				if (Pretty && Console::IsPresent())
-				{
-					Console* Log = Console::Get();
-					Log->Begin();
-					{
-						Log->ColorBegin(Data.Pretty ? StdColor::Cyan : StdColor::Gray);
-						Log->WriteBuffer(Data.Date);
-						Log->WriteBuffer(" ");
+			if (!Console::IsPresent())
+				return;
+
+			Console* Log = Console::Get();
+			Log->Begin();
+			if (Pretty)
+			{
+				Log->ColorBegin(Data.Pretty ? StdColor::Cyan : StdColor::Gray);
+				Log->WriteBuffer(Data.Date);
+				Log->WriteBuffer(" ");
 #ifndef NDEBUG
-						Log->ColorBegin(StdColor::Gray);
-						Log->WriteBuffer(Data.Source);
-						Log->WriteBuffer(":");
-						Log->Write(Core::ToString(Data.Line));
-						Log->WriteBuffer(" ");
+				Log->ColorBegin(StdColor::Gray);
+				Log->WriteBuffer(Data.Source);
+				Log->WriteBuffer(":");
+				Log->Write(Core::ToString(Data.Line));
+				Log->WriteBuffer(" ");
 #endif
-						Log->ColorBegin(Data.GetLevelColor());
-						Log->WriteBuffer(Data.GetLevelName());
-						Log->WriteBuffer(" ");
-						if (Data.Pretty)
-							PrettyPrintLog(Log, Data.Buffer, StdColor::LightGray);
-						else
-							Log->WriteBuffer(Data.Buffer);
-						Log->WriteBuffer("\n");
-					}
-					Log->ColorEnd();
-					Log->End();
-				}
+				Log->ColorBegin(Data.GetLevelColor());
+				Log->WriteBuffer(Data.GetLevelName());
+				Log->WriteBuffer(" ");
+				if (Data.Pretty)
+					PrettyPrintLog(Log, Data.Buffer, StdColor::LightGray);
 				else
-					std::cout << Data.GetText();
+					Log->WriteBuffer(Data.Buffer);
+				Log->WriteBuffer("\n");
+				Log->ColorEnd();
 			}
+			else
+				Log->Write(Data.GetText());
+			Log->End();
 		}
 		void OS::PrettyPrintLog(Console* Log, const char* Buffer, StdColor BaseColor)
 		{
@@ -10799,52 +10791,48 @@ namespace Edge
 		{
 			return IsAttribute() ? Key.substr(1) : Key;
 		}
-		void Schema::Join(Schema* Other, bool Copy, bool Fast)
+		void Schema::Join(Schema* Other, bool AppendOnly)
 		{
 			ED_ASSERT_V(Other != nullptr && Value.IsObject(), "other should be object and not empty");
+			auto FillArena = [](UnorderedMap<Core::String, Schema*>& Nodes, Schema* Base)
+			{
+				if (!Base->Nodes)
+					return;
+
+				for (auto& Node : *Base->Nodes)
+				{
+					auto& Next = Nodes[Node->Key];
+					ED_RELEASE(Next);
+					Next = Node;
+				}
+
+				Base->Nodes->clear();
+			};
 
 			Allocate();
-			Other->Allocate();
 			Nodes->reserve(Nodes->size() + Other->Nodes->size());
 			Saved = false;
 
-			if (Copy)
+			if (!AppendOnly)
 			{
-				for (auto& Node : *Other->Nodes)
-				{
-					Schema* Result = Node->Copy();
-					Result->Attach(this);
+				UnorderedMap<Core::String, Schema*> Subnodes;
+				Subnodes.reserve(Nodes->capacity());
+				FillArena(Subnodes, this);
+				FillArena(Subnodes, Other);
 
-					bool Append = true;
-					if (Value.Type == VarType::Array && !Fast)
-					{
-						for (auto It = Nodes->begin(); It != Nodes->end(); ++It)
-						{
-							if ((*It)->Key == Result->Key)
-							{
-								(*It)->Parent = nullptr;
-								ED_RELEASE(*It);
-								*It = Result;
-								Append = false;
-								break;
-							}
-						}
-					}
-
-					if (Append)
-						Nodes->push_back(Result);
-				}
+				for (auto& Node : Subnodes)
+					Nodes->push_back(Node.second);
 			}
-			else
+			else if (Other->Nodes != nullptr)
 			{
 				Nodes->insert(Nodes->end(), Other->Nodes->begin(), Other->Nodes->end());
 				Other->Nodes->clear();
+			}
 
-				for (auto& Node : *Nodes)
-				{
-					Node->Saved = false;
-					Node->Parent = this;
-				}
+			for (auto& Node : *Nodes)
+			{
+				Node->Saved = false;
+				Node->Parent = this;
 			}
 		}
 		void Schema::Reserve(size_t Size)

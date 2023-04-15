@@ -2035,16 +2035,14 @@ namespace Edge
 		protected:
 			std::mutex Session;
 			std::mutex Lock;
-			bool Coloring;
-			bool Allocated;
-			bool Present;
-			double Time;
-#ifdef ED_MICROSOFT
-			FILE* Conin;
-			FILE* Conout;
-			FILE* Conerr;
+			FILE* Input;
+			FILE* Output;
+			FILE* Errors;
 			unsigned short Attributes;
-#endif
+			double Time;
+			bool Coloring;
+			bool Present;
+
 		private:
 			Console() noexcept;
 
@@ -2394,7 +2392,7 @@ namespace Edge
 			bool IsSaved() const;
 			size_t Size() const;
 			Core::String GetName() const;
-			void Join(Schema* Other, bool Copy = true, bool Fast = true);
+			void Join(Schema* Other, bool AppendOnly);
 			void Reserve(size_t Size);
 			void Unlink();
 			void Clear();

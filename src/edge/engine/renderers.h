@@ -39,10 +39,10 @@ namespace Edge
 				SoftBody(RenderSystem* Lab);
 				~SoftBody();
 				size_t CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk) override;
-				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
-				size_t RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
-				size_t RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
-				size_t RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection) override;
+				size_t RenderGeometric(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderVoxelization(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderLinearization(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
 				ED_COMPONENT("soft_body_renderer");
@@ -77,10 +77,10 @@ namespace Edge
 				~Model() override;
 				void BatchGeometry(Components::Model* Base, Batching& Batch, size_t Chunk) override;
 				size_t CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk) override;
-				size_t RenderGeometryResultBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk) override;
-				size_t RenderGeometryVoxelsBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk) override;
-				size_t RenderDepthLinearBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk) override;
-				size_t RenderDepthCubicBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk, Compute::Matrix4x4* ViewProjection) override;
+				size_t RenderGeometricBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk) override;
+				size_t RenderVoxelizationBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk) override;
+				size_t RenderLinearizationBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk) override;
+				size_t RenderCubicBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk, Compute::Matrix4x4* ViewProjection) override;
 
 			private:
 				Engine::Model* GetDrawable(Components::Model* Base);
@@ -117,10 +117,10 @@ namespace Edge
 				Skin(RenderSystem* Lab);
 				~Skin();
 				size_t CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk) override;
-				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
-				size_t RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
-				size_t RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
-				size_t RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection) override;
+				size_t RenderGeometric(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderVoxelization(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderLinearization(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection) override;
 
 			private:
 				Engine::SkinModel* GetDrawable(Components::Skin* Base);
@@ -162,9 +162,9 @@ namespace Edge
 			public:
 				Emitter(RenderSystem* Lab);
 				~Emitter() override;
-				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
-				size_t RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
-				size_t RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection) override;
+				size_t RenderGeometric(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderLinearization(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
 				ED_COMPONENT("emitter_renderer");
@@ -183,7 +183,7 @@ namespace Edge
 			public:
 				Decal(RenderSystem* Lab);
 				~Decal() override;
-				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderGeometric(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
 
 			public:
 				ED_COMPONENT("decal_renderer");

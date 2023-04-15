@@ -617,6 +617,7 @@ namespace Edge
 #ifdef ED_HAS_ASSIMP
 		Assimp::DefaultLogger::kill();
 #endif
+		Core::Console::Reset();
 		Core::Memory::SetAllocator(nullptr);
 
 		if (Manager != nullptr && Manager == Allocator && Allocator->IsFinalizable())
@@ -625,7 +626,6 @@ namespace Edge
 			Allocator = nullptr;
 		}
 
-		Core::Console::Reset();
 		return true;
 	}
 }

@@ -22,8 +22,8 @@ namespace Edge
 				Shaders.Geometry = System->CompileShader("geometry/model/geometry");
 				Shaders.Voxelize = System->CompileShader("geometry/model/voxelize", sizeof(Lighting::IVoxelBuffer));
 				Shaders.Occlusion = System->CompileShader("geometry/model/occlusion");
-				Shaders.Depth.Linear = System->CompileShader("geometry/model/depth/linear");
-				Shaders.Depth.Cubic = System->CompileShader("geometry/model/depth/cubic", sizeof(Compute::Matrix4x4) * 6);
+				Shaders.Depth.Linear = System->CompileShader("geometry/model/depth-linear");
+				Shaders.Depth.Cubic = System->CompileShader("geometry/model/depth-cubic", sizeof(Compute::Matrix4x4) * 6);
 
 				Graphics::ElementBuffer* Buffers[2];
 				if (Lab->CompileBuffers(Buffers, "soft-body", sizeof(Compute::Vertex), 16384))
@@ -99,7 +99,7 @@ namespace Edge
 
 				return Count;
 			}
-			size_t SoftBody::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
+			size_t SoftBody::RenderGeometric(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -134,7 +134,7 @@ namespace Edge
 
 				return Count;
 			}
-			size_t SoftBody::RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
+			size_t SoftBody::RenderVoxelization(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -167,7 +167,7 @@ namespace Edge
 				Device->SetShader(nullptr, ED_GS);
 				return Count;
 			}
-			size_t SoftBody::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
+			size_t SoftBody::RenderLinearization(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -202,7 +202,7 @@ namespace Edge
 				Device->SetTexture2D(nullptr, 1, ED_PS);
 				return Count;
 			}
-			size_t SoftBody::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection)
+			size_t SoftBody::RenderCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -257,8 +257,8 @@ namespace Edge
 				Shaders.Geometry = System->CompileShader("geometry/model/geometry");
 				Shaders.Voxelize = System->CompileShader("geometry/model/voxelize", sizeof(Lighting::IVoxelBuffer));
 				Shaders.Occlusion = System->CompileShader("geometry/model/occlusion");
-				Shaders.Depth.Linear = System->CompileShader("geometry/model/depth/linear");
-				Shaders.Depth.Cubic = System->CompileShader("geometry/model/depth/cubic", sizeof(Compute::Matrix4x4) * 6);
+				Shaders.Depth.Linear = System->CompileShader("geometry/model/depth-linear");
+				Shaders.Depth.Cubic = System->CompileShader("geometry/model/depth-cubic", sizeof(Compute::Matrix4x4) * 6);
 			}
 			Model::~Model()
 			{
@@ -344,7 +344,7 @@ namespace Edge
 
 				return Count;
 			}
-			size_t Model::RenderGeometryResultBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
+			size_t Model::RenderGeometricBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -366,7 +366,7 @@ namespace Edge
 				Device->SetVertexBuffers(VertexBuffers, 2);
 				return Chunk.size();
 			}
-			size_t Model::RenderGeometryVoxelsBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
+			size_t Model::RenderVoxelizationBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -387,7 +387,7 @@ namespace Edge
 				Device->SetShader(nullptr, ED_GS);
 				return Chunk.size();
 			}
-			size_t Model::RenderDepthLinearBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
+			size_t Model::RenderLinearizationBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -410,7 +410,7 @@ namespace Edge
 				Device->SetTexture2D(nullptr, 1, ED_PS);
 				return Chunk.size();
 			}
-			size_t Model::RenderDepthCubicBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk, Compute::Matrix4x4* ViewProjection)
+			size_t Model::RenderCubicBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -461,8 +461,8 @@ namespace Edge
 				Shaders.Geometry = System->CompileShader("geometry/skin/geometry");
 				Shaders.Voxelize = System->CompileShader("geometry/skin/voxelize", sizeof(Lighting::IVoxelBuffer));
 				Shaders.Occlusion = System->CompileShader("geometry/skin/occlusion");
-				Shaders.Depth.Linear = System->CompileShader("geometry/skin/depth/linear");
-				Shaders.Depth.Cubic = System->CompileShader("geometry/skin/depth/cubic", sizeof(Compute::Matrix4x4) * 6);
+				Shaders.Depth.Linear = System->CompileShader("geometry/skin/depth-linear");
+				Shaders.Depth.Cubic = System->CompileShader("geometry/skin/depth-cubic", sizeof(Compute::Matrix4x4) * 6);
 			}
 			Skin::~Skin()
 			{
@@ -534,7 +534,7 @@ namespace Edge
 
 				return Count;
 			}
-			size_t Skin::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
+			size_t Skin::RenderGeometric(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -576,7 +576,7 @@ namespace Edge
 
 				return Count;
 			}
-			size_t Skin::RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
+			size_t Skin::RenderVoxelization(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -613,7 +613,7 @@ namespace Edge
 				Device->SetShader(nullptr, ED_GS);
 				return Count;
 			}
-			size_t Skin::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
+			size_t Skin::RenderLinearization(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -652,7 +652,7 @@ namespace Edge
 				Device->SetTexture2D(nullptr, 1, ED_PS);
 				return Count;
 			}
-			size_t Skin::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection)
+			size_t Skin::RenderCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -717,9 +717,9 @@ namespace Edge
 
 				Shaders.Opaque = System->CompileShader("geometry/emitter/geometry/opaque");
 				Shaders.Transparency = System->CompileShader("geometry/emitter/geometry/transparency");
-				Shaders.Depth.Linear = System->CompileShader("geometry/emitter/depth/linear");
-				Shaders.Depth.Point = System->CompileShader("geometry/emitter/depth/point");
-				Shaders.Depth.Quad = System->CompileShader("geometry/emitter/depth/quad", sizeof(Depth));
+				Shaders.Depth.Linear = System->CompileShader("geometry/emitter/depth-linear");
+				Shaders.Depth.Point = System->CompileShader("geometry/emitter/depth-point");
+				Shaders.Depth.Quad = System->CompileShader("geometry/emitter/depth-quad", sizeof(Depth));
 			}
 			Emitter::~Emitter()
 			{
@@ -729,7 +729,7 @@ namespace Edge
 				System->FreeShader(Shaders.Depth.Point);
 				System->FreeShader(Shaders.Depth.Quad);
 			}
-			size_t Emitter::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
+			size_t Emitter::RenderGeometric(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -787,7 +787,7 @@ namespace Edge
 				Device->SetPrimitiveTopology(T);
 				return Count;
 			}
-			size_t Emitter::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
+			size_t Emitter::RenderLinearization(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -828,7 +828,7 @@ namespace Edge
 				Device->SetPrimitiveTopology(T);
 				return Count;
 			}
-			size_t Emitter::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection)
+			size_t Emitter::RenderCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 				auto& Source = System->View;
@@ -891,7 +891,7 @@ namespace Edge
 			{
 				System->FreeShader(Shader);
 			}
-			size_t Decal::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
+			size_t Decal::RenderGeometric(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -1041,7 +1041,7 @@ namespace Edge
 			}
 			void Lighting::BeginPass(Core::Timer* Time)
 			{
-				if (System->State.Is(RenderState::Depth_Linear) || System->State.Is(RenderState::Depth_Cubic))
+				if (System->State.Is(RenderState::Linearization) || System->State.Is(RenderState::Cubic))
 					return;
 
 				auto& Lines = System->GetScene()->GetComponents<Components::LineLight>();
@@ -1053,7 +1053,7 @@ namespace Edge
 			}
 			void Lighting::EndPass()
 			{
-				if (System->State.Is(RenderState::Depth_Linear) || System->State.Is(RenderState::Depth_Cubic))
+				if (System->State.Is(RenderState::Linearization) || System->State.Is(RenderState::Cubic))
 					return;
 
 				Lights.Spots.Pop();
@@ -1151,7 +1151,7 @@ namespace Edge
 
 					Compute::Matrix4x4 Offset = Compute::Matrix4x4::CreateTranslatedScale(VoxelBuffer.Center, VoxelBuffer.Scale);
 					System->SetView(Offset, System->View.Projection, VoxelBuffer.Center, 90.0f, 1.0f, 0.1f, GetDominant(VoxelBuffer.Scale) * 2.0f, RenderCulling::Cubic);
-					State.Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Geometry_Voxels, RenderOpt::None);
+					State.Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Voxelization, RenderOpt::None);
 					System->RestoreViewBuffer(nullptr);
 
 					State.Device->SetWriteable(Out, 1, 3, false);
@@ -1194,7 +1194,7 @@ namespace Edge
 						Compute::CubeFace Face = (Compute::CubeFace)j;
 						State.Scene->ClearMRT(TargetType::Main, true, true);
 						System->SetView(Light->View[j] = Compute::Matrix4x4::CreateLookAt(Face, Position), Light->Projection, Position, 90.0f, 1.0f, 0.1f, Light->GetSize().Radius, RenderCulling::Linear);
-						State.Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Geometry_Result, Light->StaticMask ? RenderOpt::Static : RenderOpt::None);
+						State.Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Geometric, Light->StaticMask ? RenderOpt::Static : RenderOpt::None);
 						State.Device->CubemapFace(Surfaces.Subresource, Face);
 					}
 
@@ -1224,7 +1224,7 @@ namespace Edge
 					State.Device->SetTarget(Target);
 					State.Device->ClearDepth(Target);
 					System->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), 90.0f, 1.0f, 0.1f, Light->Shadow.Distance, RenderCulling::Cubic);
-					State.Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Depth_Cubic, RenderOpt::None);
+					State.Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Cubic, RenderOpt::None);
 				}
 			}
 			void Lighting::RenderSpotShadowMaps(Core::Timer* Time)
@@ -1246,7 +1246,7 @@ namespace Edge
 					State.Device->SetTarget(Target);
 					State.Device->ClearDepth(Target);
 					System->SetView(Light->View, Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), Light->Cutoff, 1.0f, 0.1f, Light->Shadow.Distance, RenderCulling::Linear);
-					State.Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Depth_Linear, RenderOpt::Backfaces);
+					State.Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Linearization, RenderOpt::Backfaces);
 				}
 			}
 			void Lighting::RenderLineShadowMaps(Core::Timer* Time)
@@ -1276,7 +1276,7 @@ namespace Edge
 						State.Device->ClearDepth(Cascade);
 
 						System->SetView(Light->View[i], Light->Projection[i], 0.0f, 90.0f, 1.0f, -System->View.FarPlane, System->View.FarPlane, RenderCulling::Disable);
-						State.Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Depth_Linear, RenderOpt::None);
+						State.Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Linearization, RenderOpt::None);
 					}
 				}
 
@@ -1679,7 +1679,7 @@ namespace Edge
 				State.Device = System->GetDevice();
 				State.Scene = System->GetScene();
 
-				if (System->State.Is(RenderState::Geometry_Result))
+				if (System->State.Is(RenderState::Geometric))
 				{
 					if (!System->State.IsSubpass() && !System->State.IsSet(RenderOpt::Transparent))
 					{
@@ -1698,7 +1698,7 @@ namespace Edge
 					RenderResultBuffers();
 					System->RestoreOutput();
 				}
-				else if (System->State.Is(RenderState::Geometry_Voxels))
+				else if (System->State.Is(RenderState::Voxelization))
 					RenderLuminance();
 
 				return 1;
@@ -1954,12 +1954,12 @@ namespace Edge
 			size_t Transparency::RenderPass(Core::Timer* Time)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-				if (!System->State.Is(RenderState::Geometry_Result) || System->State.IsSet(RenderOpt::Transparent) || System->State.IsSet(RenderOpt::Additive))
+				if (!System->State.Is(RenderState::Geometric) || System->State.IsSet(RenderOpt::Transparent) || System->State.IsSet(RenderOpt::Additive))
 					return 0;
 
 				SceneGraph* Scene = System->GetScene();
 				if (System->HasCategory(GeoCategory::Additive))
-					Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Geometry_Result, System->State.GetOpts() | RenderOpt::Additive);
+					Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Geometric, System->State.GetOpts() | RenderOpt::Additive);
 
 				if (!System->HasCategory(GeoCategory::Transparent))
 					return 0;
@@ -1972,7 +1972,7 @@ namespace Edge
 
 				Scene->SwapMRT(TargetType::Main, MRT);
 				Scene->SetMRT(TargetType::Main, true);
-				Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Geometry_Result, System->State.GetOpts() | RenderOpt::Transparent);
+				Scene->Statistics.DrawCalls += System->Render(Time, RenderState::Geometric, System->State.GetOpts() | RenderOpt::Transparent);
 				Scene->SwapMRT(TargetType::Main, nullptr);
 
 				Device->CopyTarget(MainMRT, 0, RT, 0);
@@ -2531,7 +2531,7 @@ namespace Edge
 			size_t UserInterface::RenderPass(Core::Timer* Timer)
 			{
 				ED_ASSERT(Context != nullptr, 0, "context should be set");
-				if (!System->State.Is(RenderState::Geometry_Result) || System->State.IsSubpass() || System->State.IsSet(RenderOpt::Transparent) || System->State.IsSet(RenderOpt::Additive))
+				if (!System->State.Is(RenderState::Geometric) || System->State.IsSubpass() || System->State.IsSet(RenderOpt::Transparent) || System->State.IsSet(RenderOpt::Additive))
 					return 0;
 
 				Context->UpdateEvents(Activity);

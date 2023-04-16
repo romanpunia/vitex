@@ -98,7 +98,7 @@ namespace Edge
 			WebSocketFrame::WebSocketFrame(Socket* NewStream) : State((uint32_t)WebSocketState::Open), Active(true), Reset(false), Deadly(false), Busy(false), Stream(NewStream), Codec(new WebCodec())
 			{
 			}
-			WebSocketFrame::~WebSocketFrame()
+			WebSocketFrame::~WebSocketFrame() noexcept
 			{
 				while (!Messages.empty())
 				{
@@ -1334,7 +1334,7 @@ namespace Edge
 				Parsers.Multipart->OnResourceBegin = Parsing::ParseMultipartResourceBegin;
 				Parsers.Multipart->OnResourceEnd = Parsing::ParseMultipartResourceEnd;
 			}
-			Connection::~Connection()
+			Connection::~Connection() noexcept
 			{
 				ED_RELEASE(Parsers.Request);
 				ED_RELEASE(Parsers.Multipart);

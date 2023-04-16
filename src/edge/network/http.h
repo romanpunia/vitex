@@ -517,7 +517,7 @@ namespace Edge
 
 			public:
 				Connection(Server* Source) noexcept;
-				~Connection() override;
+				~Connection() noexcept override;
 				void Reset(bool Fully) override;
 				bool Finish() override;
 				bool Finish(int StatusCode) override;

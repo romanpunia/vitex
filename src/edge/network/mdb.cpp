@@ -2923,7 +2923,7 @@ namespace Edge
 			{
 				Driver::Create();
 			}
-			Connection::~Connection()
+			Connection::~Connection() noexcept
 			{
 #ifdef ED_HAS_MONGOC
 				TTransaction* Context = Session.Get();

@@ -612,8 +612,8 @@ namespace Edge
 		};
 
 		using String = std::basic_string<std::string::value_type, std::string::traits_type, ED_STD_ALLOCATOR<typename std::string::value_type>>;
-		using StringStream = std::basic_stringstream<std::string::value_type, std::string::traits_type, ED_STD_ALLOCATOR<typename std::string::value_type>>;
 		using WideString = std::basic_string<std::wstring::value_type, std::wstring::traits_type, ED_STD_ALLOCATOR<typename std::wstring::value_type>>;
+		using StringStream = std::basic_stringstream<std::string::value_type, std::string::traits_type, ED_STD_ALLOCATOR<typename std::string::value_type>>;
 		using WideStringStream = std::basic_stringstream<std::wstring::value_type, std::wstring::traits_type, ED_STD_ALLOCATOR<typename std::wstring::value_type>>;
 
 		template <>

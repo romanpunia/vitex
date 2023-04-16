@@ -3255,7 +3255,7 @@ namespace Edge
 			{
 				Driver::Create();
 			}
-			Cluster::~Cluster()
+			Cluster::~Cluster() noexcept
 			{
 				Disconnect();
 				Driver::Release();

@@ -642,7 +642,7 @@ namespace Edge
 				Base->URI = Compute::RegexSource("/");
 				Base->Site = this;
 			}
-			SiteEntry::~SiteEntry()
+			SiteEntry::~SiteEntry() noexcept
 			{
 				for (auto& Item : Groups)
 					ED_RELEASE(Item);
@@ -1944,7 +1944,7 @@ namespace Edge
 			Query::Query() : Object(Core::Var::Set::Object())
 			{
 			}
-			Query::~Query()
+			Query::~Query() noexcept
 			{
 				ED_RELEASE(Object);
 			}
@@ -2233,7 +2233,7 @@ namespace Edge
 			{
 				Query = Core::Var::Set::Object();
 			}
-			Session::~Session()
+			Session::~Session() noexcept
 			{
 				ED_RELEASE(Query);
 			}
@@ -2373,7 +2373,7 @@ namespace Edge
 			Parser::Parser()
 			{
 			}
-			Parser::~Parser()
+			Parser::~Parser() noexcept
 			{
 				ED_FREE(Multipart.Boundary);
 			}

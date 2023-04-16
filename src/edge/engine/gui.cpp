@@ -2900,7 +2900,7 @@ namespace Edge
 					Base = ED_NEW(Rml::DataModelConstructor, *Ref);
 #endif
 			}
-			DataModel::~DataModel()
+			DataModel::~DataModel() noexcept
 			{
 #ifdef ED_USE_RMLUI
 				Detach();
@@ -3490,7 +3490,7 @@ namespace Edge
 				Base = ED_NEW(ListenerSubsystem, FunctionName, nullptr);
 #endif
 			}
-			Listener::~Listener()
+			Listener::~Listener() noexcept
 			{
 #ifdef ED_USE_RMLUI
 				Base->OnDetach(nullptr);
@@ -3521,7 +3521,7 @@ namespace Edge
 				CreateVM();
 #endif
 			}
-			Context::~Context()
+			Context::~Context() noexcept
 			{
 #ifdef ED_USE_RMLUI
 				RemoveDataModels();

@@ -1482,7 +1482,7 @@ namespace Edge
 			Connection::Connection(TConnection* NewBase, socket_t Fd) : Base(NewBase), Stream(new Socket(Fd)), Current(nullptr), State(QueryState::Idle), InSession(false)
 			{
 			}
-			Connection::~Connection()
+			Connection::~Connection() noexcept
 			{
 				ED_RELEASE(Stream);
 			}
@@ -1550,7 +1550,7 @@ namespace Edge
 			{
 				Driver::Create();
 			}
-			Cluster::~Cluster()
+			Cluster::~Cluster() noexcept
 			{
 				Update.lock();
 #ifdef ED_HAS_POSTGRESQL
@@ -1726,6 +1726,8 @@ namespace Edge
 								bool Ready = false;
 								switch (PQconnectPoll(Base))
 								{
+									case PGRES_POLLING_ACTIVE:
+										break;
 									case PGRES_POLLING_FAILED:
 										Error = Base;
 										goto Failure;

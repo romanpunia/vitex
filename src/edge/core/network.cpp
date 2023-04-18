@@ -67,7 +67,7 @@ namespace Edge
 	{
 		static addrinfo* TryConnectDNS(const Core::UnorderedMap<socket_t, addrinfo*>& Hosts, uint64_t Timeout)
 		{
-			ED_MEASURE(ED_TIMING_NET);
+			ED_MEASURE(Core::Timings::Networking);
 
 			Core::Vector<pollfd> Sockets4, Sockets6;
 			for (auto& Host : Hosts)
@@ -518,7 +518,7 @@ namespace Edge
 		{
 			ED_ASSERT(!Host.empty(), Core::String(), "ip address should not be empty");
 			ED_ASSERT(!Service.empty(), Core::String(), "port should be greater than zero");
-			ED_MEASURE(ED_TIMING_NET * 3);
+			ED_MEASURE((uint64_t)Core::Timings::Networking * 3);
 
 			struct sockaddr_storage Storage;
 			int Port = Core::Stringify(&Service).ToInt();
@@ -560,7 +560,7 @@ namespace Edge
 		{
 			ED_ASSERT(!Host.empty(), nullptr, "host should not be empty");
 			ED_ASSERT(!Service.empty(), nullptr, "service should not be empty");
-			ED_MEASURE(ED_TIMING_NET * 3);
+			ED_MEASURE((uint64_t)Core::Timings::Networking * 3);
 
 			struct addrinfo Hints;
 			memset(&Hints, 0, sizeof(struct addrinfo));
@@ -838,14 +838,14 @@ namespace Edge
 			if (Count < 0)
 				return Count;
 
-			ED_MEASURE(EventTimeout + ED_TIMING_IO);
+			ED_MEASURE(EventTimeout + (uint64_t)Core::Timings::FileSystem);
 			size_t Size = (size_t)Count;
 			auto Time = Core::Schedule::GetClock();
 
 			for (size_t i = 0; i < Size; i++)
 				DispatchEvents(Fds->at(i), Time);
 
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			if (Timeouts->Map.empty())
 				return Count;
 
@@ -1137,7 +1137,7 @@ namespace Edge
 		}
 		Core::String Multiplexer::GetLocalAddress()
 		{
-			char Buffer[ED_CHUNK_SIZE];
+			char Buffer[Core::CHUNK_SIZE];
 			if (gethostname(Buffer, sizeof(Buffer)) == SOCKET_ERROR)
 				return "127.0.0.1";
 
@@ -1314,7 +1314,7 @@ namespace Edge
 			if (Gracefully)
 			{
 				ED_TRACE("[net] fd %i graceful shutdown", (int)Fd);
-				ED_MEASURE(ED_TIMING_NET);
+				ED_MEASURE(Core::Timings::Networking);
 				int Timeout = 100;
 				SetBlocking(true);
 				SetSocket(SO_RCVTIMEO, &Timeout, sizeof(int));
@@ -1412,13 +1412,13 @@ namespace Edge
 			ED_ASSERT(Stream != nullptr, -1, "stream should be set");
 			ED_ASSERT(Offset >= 0, -1, "offset should be set and positive");
 			ED_ASSERT(Size > 0, -1, "size should be set and greater than zero");
-			ED_MEASURE(ED_TIMING_NET);
+			ED_MEASURE(Core::Timings::Networking);
 			ED_TRACE("[net] fd %i sendfile %" PRId64 " off, %" PRId64 " bytes", (int)Fd, Offset, Size);
 #ifdef ED_APPLE
 			off_t Seek = (off_t)Offset, Length = (off_t)Size;
 			int64_t Value = (int64_t)sendfile(ED_FILENO(Stream), Fd, Seek, &Length, nullptr, 0);
 			Size = Length;
-#elif defined(ED_UNIX)
+#elif defined(ED_LINUX)
 			off_t Seek = (off_t)Offset;
 			int64_t Value = (int64_t)sendfile(Fd, ED_FILENO(Stream), &Seek, (size_t)Size);
 			Size = Value;
@@ -1478,7 +1478,7 @@ namespace Edge
 		int Socket::Write(const char* Buffer, int Size)
 		{
 			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			ED_MEASURE(ED_TIMING_NET);
+			ED_MEASURE(Core::Timings::Networking);
 			ED_TRACE("[net] fd %i write %i bytes", (int)Fd, Size);
 #ifdef ED_HAS_OPENSSL
 			if (Device != nullptr)
@@ -1557,7 +1557,7 @@ namespace Edge
 		{
 			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			ED_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
-			ED_MEASURE(ED_TIMING_NET);
+			ED_MEASURE(Core::Timings::Networking);
 			ED_TRACE("[net] fd %i read %i bytes", (int)Fd, Size);
 #ifdef ED_HAS_OPENSSL
 			if (Device != nullptr)
@@ -1618,7 +1618,7 @@ namespace Edge
 			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			ED_ASSERT(Size > 0, -1, "size should be greater than zero");
 
-			char Buffer[ED_BIG_CHUNK_SIZE];
+			char Buffer[Core::BLOB_SIZE];
 			int Offset = 0;
 
 			while (Size > 0)
@@ -1788,7 +1788,7 @@ namespace Edge
 		int Socket::Connect(SocketAddress* Address, uint64_t Timeout)
 		{
 			ED_ASSERT(Address && Address->IsUsable(), -1, "address should be set and usable");
-			ED_MEASURE(ED_TIMING_NET);
+			ED_MEASURE(Core::Timings::Networking);
 			ED_DEBUG("[net] connect fd %i", (int)Fd);
 			addrinfo* Source = Address->Get();
 			return connect(Fd, Source->ai_addr, (int)Source->ai_addrlen);
@@ -1796,7 +1796,7 @@ namespace Edge
 		int Socket::ConnectAsync(SocketAddress* Address, SocketConnectedCallback&& Callback)
 		{
 			ED_ASSERT(Address && Address->IsUsable(), -1, "address should be set and usable");
-			ED_MEASURE(ED_TIMING_NET);
+			ED_MEASURE(Core::Timings::Networking);
 			ED_DEBUG("[net] connect fd %i", (int)Fd);
 
 			addrinfo* Source = Address->Get();
@@ -1836,7 +1836,7 @@ namespace Edge
 		int Socket::Open(SocketAddress* Address)
 		{
 			ED_ASSERT(Address && Address->IsUsable(), -1, "address should be set and usable");
-			ED_MEASURE(ED_TIMING_NET);
+			ED_MEASURE(Core::Timings::Networking);
 			ED_DEBUG("[net] assign fd");
 
 			addrinfo* Source = Address->Get();
@@ -1851,7 +1851,7 @@ namespace Edge
 		int Socket::Secure(ssl_ctx_st* Context, const char* Hostname)
 		{
 #ifdef ED_HAS_OPENSSL
-			ED_MEASURE(ED_TIMING_NET);
+			ED_MEASURE(Core::Timings::Networking);
 			ED_TRACE("[net] fd %i create ssl device on %s", (int)Fd, Hostname);
 			if (Device != nullptr)
 				SSL_free(Device);
@@ -1870,7 +1870,7 @@ namespace Edge
 		int Socket::Bind(SocketAddress* Address)
 		{
 			ED_ASSERT(Address && Address->IsUsable(), -1, "address should be set and usable");
-			ED_MEASURE(ED_TIMING_NET);
+			ED_MEASURE(Core::Timings::Networking);
 			ED_DEBUG("[net] bind fd %i", (int)Fd);
 
 			addrinfo* Source = Address->Get();
@@ -1878,13 +1878,13 @@ namespace Edge
 		}
 		int Socket::Listen(int Backlog)
 		{
-			ED_MEASURE(ED_TIMING_NET);
+			ED_MEASURE(Core::Timings::Networking);
 			ED_DEBUG("[net] listen fd %i", (int)Fd);
 			return listen(Fd, Backlog);
 		}
 		int Socket::ClearEvents(bool Gracefully)
 		{
-			ED_MEASURE(ED_TIMING_NET);
+			ED_MEASURE(Core::Timings::Networking);
 			ED_TRACE("[net] fd %i clear events %s", (int)Fd, Gracefully ? "gracefully" : "forcefully");
 			if (Gracefully)
 				Multiplexer::CancelEvents(this, SocketPoll::Reset);
@@ -1894,7 +1894,7 @@ namespace Edge
 		}
 		int Socket::MigrateTo(socket_t NewFd, bool Gracefully)
 		{
-			ED_MEASURE(ED_TIMING_NET);
+			ED_MEASURE(Core::Timings::Networking);
 			ED_TRACE("[net] migrate fd %i to fd %i", (int)Fd, (int)NewFd);
 			int Result = Gracefully ? ClearEvents(false) : 0;
 			Fd = NewFd;
@@ -2114,7 +2114,7 @@ namespace Edge
 		}
 		bool SocketConnection::Error(int StatusCode, const char* ErrorMessage, ...)
 		{
-			char Buffer[ED_BIG_CHUNK_SIZE];
+			char Buffer[Core::BLOB_SIZE];
 			if (Info.Close)
 				return Finish();
 
@@ -2130,7 +2130,7 @@ namespace Edge
 		{
 #ifdef ED_HAS_OPENSSL
 			ED_ASSERT(Output != nullptr, false, "certificate should be set");
-			ED_MEASURE(ED_TIMING_NET);
+			ED_MEASURE(Core::Timings::Networking);
 
 			X509* Certificate = SSL_get_peer_certificate(Stream->GetDevice());
 			if (!Certificate)
@@ -2140,10 +2140,10 @@ namespace Edge
 			X509_NAME* Issuer = X509_get_issuer_name(Certificate);
 			ASN1_INTEGER* Serial = X509_get_serialNumber(Certificate);
 
-			char SubjectBuffer[ED_CHUNK_SIZE];
+			char SubjectBuffer[Core::CHUNK_SIZE];
 			X509_NAME_oneline(Subject, SubjectBuffer, (int)sizeof(SubjectBuffer));
 
-			char IssuerBuffer[ED_CHUNK_SIZE], SerialBuffer[ED_CHUNK_SIZE];
+			char IssuerBuffer[Core::CHUNK_SIZE], SerialBuffer[Core::CHUNK_SIZE];
 			X509_NAME_oneline(Issuer, IssuerBuffer, (int)sizeof(IssuerBuffer));
 
 			unsigned char Buffer[256];
@@ -2164,7 +2164,7 @@ namespace Edge
 			const EVP_MD* Digest = EVP_get_digestbyname("sha1");
 			ASN1_digest((int (*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
 
-			char FingerBuffer[ED_CHUNK_SIZE];
+			char FingerBuffer[Core::CHUNK_SIZE];
 			if (!Compute::Codec::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
 				*FingerBuffer = '\0';
 
@@ -2390,7 +2390,7 @@ namespace Edge
 		}
 		bool SocketServer::Unlisten(uint64_t TimeoutSeconds)
 		{
-			ED_MEASURE(ED_TIMING_HANG);
+			ED_MEASURE(Core::Timings::Hangup);
 			if (!Router && State == ServerState::Idle)
 				return false;
 
@@ -2472,7 +2472,7 @@ namespace Edge
 		}
 		bool SocketServer::FreeAll()
 		{
-			ED_MEASURE(ED_TIMING_FRAME);
+			ED_MEASURE(Core::Timings::Pass);
 			if (Inactive.empty())
 				return false;
 
@@ -2644,7 +2644,7 @@ namespace Edge
 		}
 		void SocketServer::Push(SocketConnection* Base)
 		{
-			ED_MEASURE(ED_TIMING_FRAME);
+			ED_MEASURE(Core::Timings::Pass);
 			Sync.lock();
 			auto It = Active.find(Base);
 			if (It != Active.end())
@@ -2963,7 +2963,7 @@ namespace Edge
 		}
 		bool SocketClient::Error(const char* Format, ...)
 		{
-			char Buffer[ED_BIG_CHUNK_SIZE];
+			char Buffer[Core::BLOB_SIZE];
 			va_list Args;
 			va_start(Args, Format);
 			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);

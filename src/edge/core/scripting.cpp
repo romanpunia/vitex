@@ -1849,7 +1849,7 @@ namespace Edge
 			Processor->Define("OS_MICROSOFT");
 #elif defined(ED_APPLE)
 			Processor->Define("OS_APPLE");
-#elif defined(ED_UNIX)
+#elif defined(ED_LINUX)
 			Processor->Define("OS_UNIX");
 #endif
 			Context = VM->CreateContext();
@@ -3626,7 +3626,7 @@ namespace Edge
 				return Sync.General.unlock();
 
 			if (!Core::Stringify(&Include.Root).EndsOf("/\\"))
-				Include.Root.append(1, ED_PATH_SPLIT);
+				Include.Root.append(1, ED_SPLITTER);
 			Sync.General.unlock();
 		}
 		Core::String VirtualMachine::GetDocumentRoot() const

@@ -1686,7 +1686,7 @@ namespace Edge
 				Update.unlock();
 				return Core::Cotask<bool>([this, Connections]()
 				{
-					ED_MEASURE(ED_TIMING_MAX);
+					ED_MEASURE(Core::Timings::Intensive);
 					const char** Keys = Source.CreateKeys();
 					const char** Values = Source.CreateValues();
 					std::unique_lock<std::mutex> Unique(Update);
@@ -2174,7 +2174,7 @@ namespace Edge
 				if (!Base->Current)
 					return false;
 
-				ED_MEASURE(ED_TIMING_MAX);
+				ED_MEASURE(Core::Timings::Intensive);
 				ED_DEBUG("[pq] execute query on 0x%" PRIXPTR "%s\n\t%.64s%s", (uintptr_t)Base, Base->InSession ? " (transaction)" : "", Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
 				
 				if (PQsendQuery(Base->Base, Base->Current->Command.data()) == 1)
@@ -2227,7 +2227,7 @@ namespace Edge
 			bool Cluster::Dispatch(Connection* Source, bool Connected)
 			{
 #ifdef ED_HAS_POSTGRESQL
-				ED_MEASURE(ED_TIMING_MAX);
+				ED_MEASURE(Core::Timings::Intensive);
 				Update.lock();
 				if (!Connected)
 				{
@@ -2237,7 +2237,7 @@ namespace Edge
 					return Core::Schedule::Get()->SetTask([this, Source]()
 					{
 						Reestablish(Source);
-					}, Core::Difficulty::Heavy) != ED_INVALID_TASK_ID;
+					}, Core::Difficulty::Heavy) != Core::INVALID_TASK_ID;
 				}
 
 			Retry:

@@ -46,7 +46,7 @@ if (ED_USE_RMLUI)
 	target_compile_definitions(edge PRIVATE
 			-DRMLUI_STATIC_LIB
 			-DRMLUI_MATRIX_ROW_MAJOR
-            -DRMLUI_CUSTOM_CONFIGURATION_FILE="${PROJECT_SOURCE_DIR}/src/edge/engine/gui/config.h")
+            -DRMLUI_CUSTOM_CONFIGURATION_FILE="${PROJECT_SOURCE_DIR}/src/edge/engine/gui/config.hpp")
 	target_compile_definitions(edge PUBLIC -DED_USE_RMLUI)
 		
 	#Resolve default font engine

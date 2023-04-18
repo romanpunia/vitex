@@ -21,12 +21,6 @@ for example, destroy a rigid body owned by physics engine, we use scene transact
 
 Another important aspect of Edge is schemas, they are used to serialize and deserialize data. For game, their main purpose is to provide containers for serialized game states such as meshes, animations, materials, scenes, configurations and other. For services, they can be used as a data transmitting containers to convert between XML, JSON, JSONB, MongoDB documents, PostgreSQL results and others.
 
-As for memory management, there are no smart pointers, instead raw pointers with reference counting are used. **Unique\<T\>** is just an alias for **T\*** pointer, nothing more. Reference counting is used mostly for script engine virtual machine not for actual C++ code, you can use it within C++ if you want, every heap allocated object is based on **Edge::Core::Reference<T>** and every heap allocation goes through **Edge::Core::Mem** malloc, realloc and free.
-
-There are two basic rules of memory ownership:
-1. If function accept a pointer argument like **char\*** then it means that it will not delete it, it may only read or modify the contents. If function returns a pointer like **char\*** then this pointer should not be deleted manually; in some cases manual deletion is considered OK (singletons, tree structures like Schema).
-2. If function accept a pointer alias argument like **Edge::Core::Unique\<char\>** then it will delete it now or later (means ownership is lost). If function returns a pointer like **Edge::Core::Unique\<char\>** then this pointer should be deleted manually.
-
 ![CMake Ubuntu](https://github.com/romanpunia/edge/workflows/CMake/badge.svg)
 
 ## Features

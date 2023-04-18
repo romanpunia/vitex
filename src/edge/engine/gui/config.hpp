@@ -1,5 +1,6 @@
-#ifndef ED_ENGINE_GUI_CONFIG_H
-#define ED_ENGINE_GUI_CONFIG_H
+#ifndef ED_ENGINE_GUI_CONFIG_HPP
+#define ED_ENGINE_GUI_CONFIG_HPP
+#ifdef ED_USE_RMLUI
 #include "../../core/core.h"
 #include <utility>
 #include <vector>
@@ -75,4 +76,5 @@ namespace Rml
 		return std::make_unique<T, Args...>(std::forward<Args>(Values)...);
 	}
 }
+#endif
 #endif

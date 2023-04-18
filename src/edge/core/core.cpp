@@ -51,21 +51,6 @@ extern "C"
 #include <zlib.h>
 }
 #endif
-#define PATIENCE 300
-#define MAX_STORE 16
-#define TRIGGER 1024
-#define DICT 32768U
-#define NO_OP 0
-#define APPEND_OP 1
-#define COMPRESS_OP 2
-#define REPLACE_OP 3
-#define PULL2(p) ((p)[0]+((uint32_t)((p)[1])<<8))
-#define PULL4(p) (PULL2(p)+((uint32_t)PULL2(p+2)<<16))
-#define PULL8(p) (PULL4(p)+((off_t)PULL4(p+4)<<32))
-#define PUT2(p,a) do {(p)[0]=a;(p)[1]=(a)>>8;} while(0)
-#define PUT4(p,a) do {PUT2(p,a);PUT2(p+2,a>>16);} while(0)
-#define PUT8(p,a) do {PUT4(p,a);PUT4(p+4,a>>32);} while(0)
-#define LOGID "\106\035\172"
 #define PREFIX_ENUM "$"
 #define PREFIX_BINARY "`"
 #define JSONB_VERSION 0xef1033dd
@@ -326,7 +311,7 @@ namespace Edge
 
 			void NotifyOfOverConsumption()
 			{
-				if (Threshold == ED_TIMING_INFINITE)
+				if (Threshold == (uint64_t)Core::Timings::Infinite)
 					return;
 
 				uint64_t Delta = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Time;
@@ -2774,7 +2759,7 @@ namespace Edge
 			if (DateRebuild)
 				Rebuild();
 
-			char Buffer[ED_CHUNK_SIZE];
+			char Buffer[CHUNK_SIZE];
 			strftime(Buffer, sizeof(Buffer), Value.c_str(), &DateValue);
 			return Buffer;
 		}
@@ -3202,7 +3187,7 @@ namespace Edge
 			struct tm Date { };
 #ifdef ED_MICROSOFT
 			if (gmtime_s(&Date, &Time) != 0)
-#elif defined(ED_UNIX)
+#elif defined(ED_LINUX)
 			if (gmtime_r(&Time, &Date) == nullptr)
 #endif
 				return "Thu, 01 Jan 1970 00:00:00 GMT";
@@ -4289,7 +4274,7 @@ namespace Edge
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Format != nullptr, *this, "format should be set");
 
-			char Buffer[ED_BIG_CHUNK_SIZE];
+			char Buffer[BLOB_SIZE];
 			va_list Args;
 			va_start(Args, Format);
 			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
@@ -5898,10 +5883,12 @@ namespace Edge
 #ifdef ED_MICROSOFT
 			if (!Present)
 			{
-				AllocConsole();
-				Input = freopen("conin$", "r", stdin);
-				Output = freopen("conout$", "w", stdout);
-				Errors = freopen("conout$", "w", stderr);
+				if (AllocConsole())
+				{
+					Input = freopen("conin$", "r", stdin);
+					Output = freopen("conout$", "w", stdout);
+					Errors = freopen("conout$", "w", stderr);
+				}
 
 				CONSOLE_SCREEN_BUFFER_INFO ScreenBuffer;
 				SetConsoleCtrlHandler(ConsoleEventHandler, true);
@@ -5930,7 +5917,7 @@ namespace Edge
 			FillConsoleOutputCharacterA((HANDLE)Wnd, ' ', Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
 			FillConsoleOutputAttribute((HANDLE)Wnd, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE, Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
 			SetConsoleCursorPosition((HANDLE)Wnd, TopLeft);
-#elif defined ED_UNIX
+#elif defined ED_LINUX
 			std::cout << "\033[2J";
 #endif
 		}
@@ -6020,7 +6007,7 @@ namespace Edge
 		void Console::fWriteLine(const char* Format, ...)
 		{
 			ED_ASSERT_V(Present, "console should be shown at least once");
-			char Buffer[ED_BIG_CHUNK_SIZE] = { '\0' };
+			char Buffer[BLOB_SIZE] = { '\0' };
 
 			va_list Args;
 			va_start(Args, Format);
@@ -6036,7 +6023,7 @@ namespace Edge
 		void Console::fWrite(const char* Format, ...)
 		{
 			ED_ASSERT_V(Present, "console should be shown at least once");
-			char Buffer[ED_BIG_CHUNK_SIZE] = { '\0' };
+			char Buffer[BLOB_SIZE] = { '\0' };
 
 			va_list Args;
 			va_start(Args, Format);
@@ -6068,7 +6055,7 @@ namespace Edge
 			ED_ASSERT_V(Present, "console should be shown at least once");
 			ED_ASSERT_V(Format != nullptr, "format should be set");
 
-			char Buffer[ED_BIG_CHUNK_SIZE] = { '\0' };
+			char Buffer[BLOB_SIZE] = { '\0' };
 			va_list Args;
 			va_start(Args, Format);
 #ifdef ED_MICROSOFT
@@ -6087,7 +6074,7 @@ namespace Edge
 			ED_ASSERT_V(Present, "console should be shown at least once");
 			ED_ASSERT_V(Format != nullptr, "format should be set");
 
-			char Buffer[ED_BIG_CHUNK_SIZE] = { '\0' };
+			char Buffer[BLOB_SIZE] = { '\0' };
 			va_list Args;
 			va_start(Args, Format);
 #ifdef ED_MICROSOFT
@@ -6306,7 +6293,7 @@ namespace Edge
 			ED_ASSERT(Callback != nullptr, 0, "callback should be set");
 			ED_TRACE("[io] read all bytes on fd %i", GetFd());
 
-			char Buffer[ED_CHUNK_SIZE];
+			char Buffer[CHUNK_SIZE];
 			size_t Size = 0, Total = 0;
 
 			do
@@ -6420,7 +6407,7 @@ namespace Edge
 		bool FileStream::Seek(FileSeek Mode, int64_t Offset)
 		{
 			ED_ASSERT(Resource != nullptr, false, "file should be opened");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 
 			switch (Mode)
 			{
@@ -6440,14 +6427,14 @@ namespace Edge
 		bool FileStream::Move(int64_t Offset)
 		{
 			ED_ASSERT(Resource != nullptr, false, "file should be opened");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_TRACE("[io] seek fs %i move %" PRId64, GetFd(), Offset);
 			return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
 		}
 		int FileStream::Flush()
 		{
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_TRACE("[io] flush fs %i", GetFd());
 			return fflush(Resource);
 		}
@@ -6455,7 +6442,7 @@ namespace Edge
 		{
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 			ED_ASSERT(Format != nullptr, false, "format should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 
 			va_list Args;
 			va_start(Args, Format);
@@ -6469,7 +6456,7 @@ namespace Edge
 		{
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 			ED_ASSERT(Data != nullptr, false, "data should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_TRACE("[io] fs %i read %i bytes", GetFd(), (int)Length);
 			return fread(Data, 1, Length, Resource);
 		}
@@ -6477,7 +6464,7 @@ namespace Edge
 		{
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 			ED_ASSERT(Format != nullptr, false, "format should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 
 			va_list Args;
 			va_start(Args, Format);
@@ -6491,14 +6478,14 @@ namespace Edge
 		{
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 			ED_ASSERT(Data != nullptr, false, "data should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_TRACE("[io] fs %i write %i bytes", GetFd(), (int)Length);
 			return fwrite(Data, 1, Length, Resource);
 		}
 		size_t FileStream::Tell()
 		{
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_TRACE("[io] fs %i tell", GetFd());
 			return ftell(Resource);
 		}
@@ -6534,7 +6521,7 @@ namespace Edge
 		{
 			ED_ASSERT(File != nullptr, 0, "filename should be set");
 #ifdef ED_HAS_ZLIB
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			Close();
 
 			Path = OS::Path::Resolve(File);
@@ -6571,7 +6558,7 @@ namespace Edge
 		bool GzStream::Close()
 		{
 #ifdef ED_HAS_ZLIB
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			if (Resource != nullptr)
 			{
 				ED_DEBUG("[gz] close 0x%" PRIXPTR, (uintptr_t)Resource);
@@ -6585,7 +6572,7 @@ namespace Edge
 		{
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef ED_HAS_ZLIB
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			switch (Mode)
 			{
 				case FileSeek::Begin:
@@ -6605,7 +6592,7 @@ namespace Edge
 		{
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef ED_HAS_ZLIB
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_TRACE("[gz] seek fs %i move %" PRId64, GetFd(), Offset);
 			return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
 #else
@@ -6616,7 +6603,7 @@ namespace Edge
 		{
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef ED_HAS_ZLIB
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			return gzflush((gzFile)Resource, Z_SYNC_FLUSH);
 #else
 			return 0;
@@ -6632,7 +6619,7 @@ namespace Edge
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 			ED_ASSERT(Data != nullptr, 0, "data should be set");
 #ifdef ED_HAS_ZLIB
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_TRACE("[gz] fs %i read %i bytes", GetFd(), (int)Length);
 			return gzread((gzFile)Resource, Data, (unsigned int)Length);
 #else
@@ -6643,7 +6630,7 @@ namespace Edge
 		{
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 			ED_ASSERT(Format != nullptr, 0, "format should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 
 			va_list Args;
 			va_start(Args, Format);
@@ -6662,7 +6649,7 @@ namespace Edge
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 			ED_ASSERT(Data != nullptr, 0, "data should be set");
 #ifdef ED_HAS_ZLIB
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_TRACE("[gz] fs %i write %i bytes", GetFd(), (int)Length);
 			return gzwrite((gzFile)Resource, Data, (unsigned int)Length);
 #else
@@ -6673,7 +6660,7 @@ namespace Edge
 		{
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef ED_HAS_ZLIB
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_TRACE("[gz] fs %i tell", GetFd());
 			return gztell((gzFile)Resource);
 #else
@@ -7309,7 +7296,7 @@ namespace Edge
 #ifdef ED_MICROSOFT
 			if (!SetCurrentDirectoryA(Path))
 				ED_ERR("[io] couldn't set current directory");
-#elif defined(ED_UNIX)
+#elif defined(ED_LINUX)
 			if (chdir(Path) != 0)
 				ED_ERR("[io] couldn't set current directory");
 #endif
@@ -7322,14 +7309,14 @@ namespace Edge
 		bool OS::Directory::Scan(const Core::String& Path, Core::Vector<FileEntry>* Entries)
 		{
 			ED_ASSERT(Entries != nullptr, false, "entries should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_TRACE("[io] scan dir %s", Path.c_str());
 
 			FileEntry Entry;
 #if defined(ED_MICROSOFT)
 			struct Dirent
 			{
-				char Directory[ED_CHUNK_SIZE];
+				char Directory[CHUNK_SIZE];
 			};
 
 			struct Directory
@@ -7339,8 +7326,8 @@ namespace Edge
 				Dirent Result;
 			};
 
-			wchar_t Buffer[ED_CHUNK_SIZE];
-			Stringify::ConvertToWide(Path.c_str(), Path.size(), Buffer, ED_CHUNK_SIZE);
+			wchar_t Buffer[CHUNK_SIZE];
+			Stringify::ConvertToWide(Path.c_str(), Path.size(), Buffer, CHUNK_SIZE);
 
 			auto* Value = ED_MALLOC(Directory, sizeof(Directory));
 			DWORD Attributes = GetFileAttributesW(Buffer);
@@ -7404,7 +7391,7 @@ namespace Edge
 
 			Stringify R(&Result);
 			if (!R.EndsOf("/\\"))
-				Result += ED_PATH_SPLIT;
+				Result += ED_SPLITTER;
 
 			for (auto& Entry : Entries)
 			{
@@ -7417,11 +7404,11 @@ namespace Edge
 		bool OS::Directory::Create(const char* Path)
 		{
 			ED_ASSERT(Path != nullptr, false, "path should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_DEBUG("[io] create dir %s", Path);
 #ifdef ED_MICROSOFT
-			wchar_t Buffer[ED_CHUNK_SIZE];
-			Stringify::ConvertToWide(Path, strlen(Path), Buffer, ED_CHUNK_SIZE);
+			wchar_t Buffer[CHUNK_SIZE];
+			Stringify::ConvertToWide(Path, strlen(Path), Buffer, CHUNK_SIZE);
 
 			size_t Length = wcslen(Buffer);
 			if (!Length)
@@ -7455,7 +7442,7 @@ namespace Edge
 		bool OS::Directory::Remove(const char* Path)
 		{
 			ED_ASSERT(Path != nullptr, false, "path should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_DEBUG("[io] remove dir %s", Path);
 
 #ifdef ED_MICROSOFT
@@ -7502,7 +7489,7 @@ namespace Edge
 				return false;
 
 			return ::RemoveDirectory(Path) != FALSE;
-#elif defined ED_UNIX
+#elif defined ED_LINUX
 			DIR* Root = opendir(Path);
 			size_t Size = strlen(Path);
 
@@ -7545,7 +7532,7 @@ namespace Edge
 		bool OS::Directory::IsExists(const char* Path)
 		{
 			ED_ASSERT(Path != nullptr, false, "path should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_TRACE("[io] check path %s", Path);
 
 			struct stat Buffer;
@@ -7556,19 +7543,26 @@ namespace Edge
 		}
 		Core::String OS::Directory::Get()
 		{
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 #ifndef ED_HAS_SDL2
-			char Buffer[ED_MAX_PATH + 1] = { };
 #ifdef ED_MICROSOFT
-			if (GetModuleFileNameA(nullptr, Buffer, ED_MAX_PATH) == 0)
+			char Buffer[MAX_PATH + 1] = { };
+			if (GetModuleFileNameA(nullptr, Buffer, MAX_PATH) == 0)
 				return Core::String();
 #else
+#ifdef PATH_MAX
+			char Buffer[PATH_MAX + 1] = { };
+#elif defined(_POSIX_PATH_MAX)
+			char Buffer[_POSIX_PATH_MAX + 1] = { };
+#else
+			char Buffer[CHUNK_SIZE + 1] = { };
+#endif
 			if (!getcwd(Buffer, sizeof(Buffer)))
 				return Core::String();
 #endif
 			Core::String Result = Path::GetDirectory(Buffer);
 			if (!Result.empty() && Result.back() != '/' && Result.back() != '\\')
-				Result += ED_PATH_SPLIT;
+				Result += ED_SPLITTER;
 
 			ED_TRACE("[io] fetch working dir %s", Result.c_str());
 			return Result;
@@ -7607,13 +7601,13 @@ namespace Edge
 		bool OS::File::State(const Core::String& Path, FileEntry* Resource)
 		{
 			ED_ASSERT(Resource != nullptr, false, "resource should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 
 			*Resource = FileEntry();
 			Resource->Path = Path;
 #if defined(ED_MICROSOFT)
-			wchar_t Buffer[ED_CHUNK_SIZE];
-			Stringify::ConvertToWide(Path.c_str(), Path.size(), Buffer, ED_CHUNK_SIZE);
+			wchar_t Buffer[CHUNK_SIZE];
+			Stringify::ConvertToWide(Path.c_str(), Path.size(), Buffer, CHUNK_SIZE);
 
 			WIN32_FILE_ATTRIBUTE_DATA Info;
 			if (GetFileAttributesExW(Buffer, GetFileExInfoStandard, &Info) == 0)
@@ -7675,7 +7669,7 @@ namespace Edge
 			if (!Stream)
 				return false;
 
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			size_t Size = Stream->Write(Data, Length);
 			ED_RELEASE(Stream);
 
@@ -7687,7 +7681,7 @@ namespace Edge
 			if (!Stream)
 				return false;
 
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			size_t Size = Stream->Write(Data.data(), Data.size());
 			ED_RELEASE(Stream);
 
@@ -7696,11 +7690,11 @@ namespace Edge
 		bool OS::File::Move(const char* From, const char* To)
 		{
 			ED_ASSERT(From != nullptr && To != nullptr, false, "from and to should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_DEBUG("[io] move file from %s to %s", From, To);
 #ifdef ED_MICROSOFT
 			return MoveFileA(From, To) != 0;
-#elif defined ED_UNIX
+#elif defined ED_LINUX
 			return !rename(From, To);
 #else
 			return false;
@@ -7709,12 +7703,12 @@ namespace Edge
 		bool OS::File::Remove(const char* Path)
 		{
 			ED_ASSERT(Path != nullptr, false, "path should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_DEBUG("[io] remove file %s", Path);
 #ifdef ED_MICROSOFT
 			SetFileAttributesA(Path, 0);
 			return DeleteFileA(Path) != 0;
-#elif defined ED_UNIX
+#elif defined ED_LINUX
 			return unlink(Path) == 0;
 #else
 			return false;
@@ -7723,7 +7717,7 @@ namespace Edge
 		bool OS::File::IsExists(const char* Path)
 		{
 			ED_ASSERT(Path != nullptr, false, "path should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_TRACE("[io] check path %s", Path);
 			return IsPathExists(OS::Path::Resolve(Path).c_str());
 		}
@@ -7758,14 +7752,14 @@ namespace Edge
 				return -1;
 			}
 
-			const size_t Size = ED_CHUNK_SIZE;
+			const size_t Size = CHUNK_SIZE;
 			char Buffer1[Size];
 			char Buffer2[Size];
 			int Diff = 0;
 
 			do
 			{
-				ED_MEASURE(ED_TIMING_IO);
+				ED_MEASURE(Core::Timings::FileSystem);
 				size_t S1 = fread(Buffer1, sizeof(char), Size, First);
 				size_t S2 = fread(Buffer2, sizeof(char), Size, Second);
 				if (S1 == S2)
@@ -7812,9 +7806,22 @@ namespace Edge
 			ED_RELEASE(Target);
 			return Total;
 		}
-		uint64_t OS::File::GetCheckSum(const Core::String& Data)
+		uint64_t OS::File::GetHash(const Core::String& Data)
 		{
 			return Compute::Crypto::CRC32(Data);
+		}
+		uint64_t OS::File::GetIndex(const char* Data, size_t Size)
+		{
+			ED_ASSERT(Data != nullptr, 0, "data buffer should be set");
+
+			uint64_t Result = 0xcbf29ce484222325;
+			for (size_t i = 0; i < Size; i++)
+			{
+				Result ^= Data[i];
+				Result *= 1099511628211;
+			}
+
+			return Result;
 		}
 		FileState OS::File::GetProperties(const char* Path)
 		{
@@ -7822,7 +7829,7 @@ namespace Edge
 			struct stat Buffer;
 
 			ED_ASSERT(Path != nullptr, State, "path should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 
 			if (stat(Path, &Buffer) != 0)
 			{
@@ -7847,11 +7854,11 @@ namespace Edge
 		}
 		void* OS::File::Open(const char* Path, const char* Mode)
 		{
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_ASSERT(Path != nullptr && Mode != nullptr, nullptr, "path and mode should be set");
 #ifdef ED_MICROSOFT
-			wchar_t Buffer[ED_CHUNK_SIZE], Type[20];
-			Stringify::ConvertToWide(Path, strlen(Path), Buffer, ED_CHUNK_SIZE);
+			wchar_t Buffer[CHUNK_SIZE], Type[20];
+			Stringify::ConvertToWide(Path, strlen(Path), Buffer, CHUNK_SIZE);
 			Stringify::ConvertToWide(Mode, strlen(Mode), Type, 20);
 
 			FILE* Stream = _wfopen(Buffer, Type);
@@ -7959,7 +7966,7 @@ namespace Edge
 		unsigned char* OS::File::ReadAll(Stream* Stream, size_t* Length)
 		{
 			ED_ASSERT(Stream != nullptr, nullptr, "path should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_TRACE("[io] fd %i read-all", Stream->GetFd());
 
 			size_t Size = Stream->GetSize();
@@ -8048,8 +8055,8 @@ namespace Edge
 		Core::String OS::Path::Resolve(const char* Path)
 		{
 			ED_ASSERT(Path != nullptr, Core::String(), "path should be set");
-			ED_MEASURE(ED_TIMING_IO);
-			char Buffer[ED_BIG_CHUNK_SIZE] = { };
+			ED_MEASURE(Core::Timings::FileSystem);
+			char Buffer[BLOB_SIZE] = { };
 #ifdef ED_MICROSOFT
 			if (GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr) == 0)
 			{
@@ -8079,7 +8086,7 @@ namespace Edge
 
 			Core::String Target = Directory;
 			if (!Prefixed && !Postfixed)
-				Target.append(1, ED_PATH_SPLIT);
+				Target.append(1, ED_SPLITTER);
 
 			if (Relative)
 				Target.append(Path.c_str() + 2, Path.size() - 2);
@@ -8092,7 +8099,7 @@ namespace Edge
 		{
 			Core::String Result = Resolve(Path);
 			if (!Result.empty() && !Stringify(&Result).EndsOf("/\\"))
-				Result.append(1, ED_PATH_SPLIT);
+				Result.append(1, ED_SPLITTER);
 
 			return Result;
 		}
@@ -8100,7 +8107,7 @@ namespace Edge
 		{
 			Core::String Result = Resolve(Path, Directory);
 			if (!Result.empty() && !Stringify(&Result).EndsOf("/\\"))
-				Result.append(1, ED_PATH_SPLIT);
+				Result.append(1, ED_SPLITTER);
 
 			return Result;
 		}
@@ -8217,7 +8224,7 @@ namespace Edge
 		int OS::Process::Execute(const char* Format, ...)
 		{
 			ED_ASSERT(Format != nullptr, -1, "format should be set");
-			char Buffer[ED_BIG_CHUNK_SIZE];
+			char Buffer[BLOB_SIZE];
 			va_list Args;
 			va_start(Args, Format);
 #ifdef ED_MICROSOFT
@@ -8232,7 +8239,7 @@ namespace Edge
 		}
 		bool OS::Process::Spawn(const Core::String& Path, const Core::Vector<Core::String>& Params, ChildProcess* Child)
 		{
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 #ifdef ED_MICROSOFT
 			HANDLE Job = CreateJobObject(nullptr, nullptr);
 			if (Job == nullptr)
@@ -8423,7 +8430,7 @@ namespace Edge
 
 		void* OS::Symbol::Load(const Core::String& Path)
 		{
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			Stringify Name(Path);
 #ifdef ED_MICROSOFT
 			if (Path.empty())
@@ -8443,7 +8450,7 @@ namespace Edge
 
 			ED_DEBUG("[dl] load dylib library %s", Name.Get());
 			return (void*)dlopen(Name.Get(), RTLD_LAZY);
-#elif defined(ED_UNIX)
+#elif defined(ED_LINUX)
 			if (Path.empty())
 				return (void*)dlopen(nullptr, RTLD_LAZY);
 
@@ -8460,7 +8467,7 @@ namespace Edge
 		{
 			ED_ASSERT(Handle != nullptr && !Name.empty(), nullptr, "handle should be set and name should not be empty");
 			ED_DEBUG("[dl] load function %s", Name.c_str());
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 #ifdef ED_MICROSOFT
 			void* Result = (void*)GetProcAddress((HMODULE)Handle, Name.c_str());
 			if (!Result)
@@ -8477,7 +8484,7 @@ namespace Edge
 			}
 
 			return Result;
-#elif defined(ED_UNIX)
+#elif defined(ED_LINUX)
 			void* Result = (void*)dlsym(Handle, Name.c_str());
 			if (!Result)
 			{
@@ -8494,11 +8501,11 @@ namespace Edge
 		bool OS::Symbol::Unload(void* Handle)
 		{
 			ED_ASSERT(Handle != nullptr, false, "handle should be set");
-			ED_MEASURE(ED_TIMING_IO);
+			ED_MEASURE(Core::Timings::FileSystem);
 			ED_DEBUG("[dl] unload library 0x%" PRIXPTR, Handle);
 #ifdef ED_MICROSOFT
 			return (FreeLibrary((HMODULE)Handle) != 0);
-#elif defined(ED_UNIX)
+#elif defined(ED_LINUX)
 			return (dlclose(Handle) == 0);
 #else
 			return false;
@@ -8724,7 +8731,7 @@ namespace Edge
 #ifndef NDEBUG
 			ED_ASSERT(File != nullptr, OS::Timing::Tick(false), "file should be set");
 			ED_ASSERT(Function != nullptr, OS::Timing::Tick(false), "function should be set");
-			ED_ASSERT(ThresholdMS > 0 || ThresholdMS == ED_TIMING_INFINITE, OS::Timing::Tick(false), "threshold time should be greater than Zero");
+			ED_ASSERT(ThresholdMS > 0 || ThresholdMS == (uint64_t)Core::Timings::Infinite, OS::Timing::Tick(false), "threshold time should be greater than Zero");
 			if (MeasuringDisabled)
 				return OS::Timing::Tick(false);
 
@@ -8793,7 +8800,7 @@ namespace Edge
 			Data.Pretty = true;
 			GetDateTime(time(nullptr), Data.Date, sizeof(Data.Date));
 
-			char Buffer[ED_BIG_CHUNK_SIZE] = { '\0' };
+			char Buffer[BLOB_SIZE] = { '\0' };
 			Data.Size = snprintf(Buffer, sizeof(Buffer),
 				"%s(): \"%s\" assertion failed\n\tdetails: %s\n\texecution flow dump: %s",
 				Function ? Function : "anonymous",
@@ -9579,13 +9586,13 @@ namespace Edge
 		TaskId Schedule::GetTaskId()
 		{
 			TaskId Id = ++Generation;
-			while (Id == ED_INVALID_TASK_ID)
+			while (Id == INVALID_TASK_ID)
 				Id = ++Generation;
 			return Id;
 		}
 		TaskId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type)
 		{
-			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
+			ED_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
 			return SetSeqInterval(Milliseconds, [Callback](size_t)
 			{
 				Callback();
@@ -9593,7 +9600,7 @@ namespace Edge
 		}
 		TaskId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
 		{
-			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
+			ED_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
 			return SetSeqInterval(Milliseconds, [Callback = std::move(Callback)](size_t) mutable
 			{
 				Callback();
@@ -9601,15 +9608,15 @@ namespace Edge
 		}
 		TaskId Schedule::SetSeqInterval(uint64_t Milliseconds, const SeqTaskCallback& Callback, Difficulty Type)
 		{
-			ED_ASSERT(Type != Difficulty::Count, ED_INVALID_TASK_ID, "difficulty should be set");
-			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
+			ED_ASSERT(Type != Difficulty::Count, INVALID_TASK_ID, "difficulty should be set");
+			ED_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
 
 			if (!Enqueue || Immediate)
-				return ED_INVALID_TASK_ID;
+				return INVALID_TASK_ID;
 #ifndef NDEBUG
 			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
 #endif
-			ED_MEASURE(ED_TIMING_ATOM);
+			ED_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
@@ -9624,15 +9631,15 @@ namespace Edge
 		}
 		TaskId Schedule::SetSeqInterval(uint64_t Milliseconds, SeqTaskCallback&& Callback, Difficulty Type)
 		{
-			ED_ASSERT(Type != Difficulty::Count, ED_INVALID_TASK_ID, "difficulty should be set");
-			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
+			ED_ASSERT(Type != Difficulty::Count, INVALID_TASK_ID, "difficulty should be set");
+			ED_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
 
 			if (!Enqueue || Immediate)
-				return ED_INVALID_TASK_ID;
+				return INVALID_TASK_ID;
 #ifndef NDEBUG
 			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
 #endif
-			ED_MEASURE(ED_TIMING_ATOM);
+			ED_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
@@ -9647,7 +9654,7 @@ namespace Edge
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type)
 		{
-			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
+			ED_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
 			return SetSeqTimeout(Milliseconds, [Callback](size_t)
 			{
 				Callback();
@@ -9655,7 +9662,7 @@ namespace Edge
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
 		{
-			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
+			ED_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
 			return SetSeqTimeout(Milliseconds, [Callback = std::move(Callback)](size_t) mutable
 			{
 				Callback();
@@ -9663,15 +9670,15 @@ namespace Edge
 		}
 		TaskId Schedule::SetSeqTimeout(uint64_t Milliseconds, const SeqTaskCallback& Callback, Difficulty Type)
 		{
-			ED_ASSERT(Type != Difficulty::Count, ED_INVALID_TASK_ID, "difficulty should be set");
-			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
+			ED_ASSERT(Type != Difficulty::Count, INVALID_TASK_ID, "difficulty should be set");
+			ED_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
 
 			if (!Enqueue || Immediate)
-				return ED_INVALID_TASK_ID;
+				return INVALID_TASK_ID;
 #ifndef NDEBUG
 			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
 #endif
-			ED_MEASURE(ED_TIMING_ATOM);
+			ED_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
@@ -9686,15 +9693,15 @@ namespace Edge
 		}
 		TaskId Schedule::SetSeqTimeout(uint64_t Milliseconds, SeqTaskCallback&& Callback, Difficulty Type)
 		{
-			ED_ASSERT(Type != Difficulty::Count, ED_INVALID_TASK_ID, "difficulty should be set");
-			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
+			ED_ASSERT(Type != Difficulty::Count, INVALID_TASK_ID, "difficulty should be set");
+			ED_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
 
 			if (!Enqueue || Immediate)
-				return ED_INVALID_TASK_ID;
+				return INVALID_TASK_ID;
 #ifndef NDEBUG
 			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
 #endif
-			ED_MEASURE(ED_TIMING_ATOM);
+			ED_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
@@ -9723,7 +9730,7 @@ namespace Edge
 #ifndef NDEBUG
 			PostDebug(Type, ThreadTask::EnqueueTask, 1);
 #endif
-			ED_MEASURE(ED_TIMING_ATOM);
+			ED_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Type];
 			std::unique_lock<std::mutex> Lock(Queue->Update);
 			Queue->Tasks.enqueue(Callback);
@@ -9746,7 +9753,7 @@ namespace Edge
 #ifndef NDEBUG
 			PostDebug(Type, ThreadTask::EnqueueTask, 1);
 #endif
-			ED_MEASURE(ED_TIMING_ATOM);
+			ED_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Type];
 			Queue->Tasks.enqueue(std::move(Callback));
 			Queue->Notify.notify_all();
@@ -9764,7 +9771,7 @@ namespace Edge
 				return true;
 			}
 
-			ED_MEASURE(ED_TIMING_ATOM);
+			ED_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Coroutine];
 			Queue->Tasks.enqueue(Callback);
 			for (auto* Thread : Threads[(size_t)Difficulty::Coroutine])
@@ -9785,7 +9792,7 @@ namespace Edge
 #ifndef NDEBUG
 			PostDebug(Difficulty::Coroutine, ThreadTask::EnqueueCoroutine, 1);
 #endif
-			ED_MEASURE(ED_TIMING_ATOM);
+			ED_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Coroutine];
 			Queue->Tasks.enqueue(std::move(Callback));
 			for (auto* Thread : Threads[(size_t)Difficulty::Coroutine])
@@ -9811,7 +9818,7 @@ namespace Edge
 		}
 		bool Schedule::ClearTimeout(TaskId Target)
 		{
-			ED_MEASURE(ED_TIMING_ATOM);
+			ED_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
 			std::unique_lock<std::mutex> Lock(Queue->Update);
 			for (auto It = Queue->Timers.begin(); It != Queue->Timers.end(); ++It)
@@ -9900,7 +9907,7 @@ namespace Edge
 		bool Schedule::Wakeup()
 		{
 			ED_TRACE("[schedule] wakeup 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(std::this_thread::get_id()).c_str());
-			TaskCallback Dummy[ED_MAX_EVENTS * 2] = { nullptr };
+			TaskCallback Dummy[EVENTS_SIZE * 2] = { nullptr };
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
 				auto* Queue = Queues[i];
@@ -9909,7 +9916,7 @@ namespace Edge
 				for (auto* Thread : Threads[i])
 				{
 					Thread->Notify.notify_all();
-					Queue->Tasks.enqueue_bulk(Dummy, ED_MAX_EVENTS);
+					Queue->Tasks.enqueue_bulk(Dummy, EVENTS_SIZE);
 				}
 			}
 
@@ -9918,7 +9925,7 @@ namespace Edge
 		bool Schedule::Dispatch()
 		{
 			size_t Passes = 0;
-			ED_MEASURE(ED_TIMING_MAX);
+			ED_MEASURE(Core::Timings::Intensive);
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
 				if (ProcessTick((Difficulty)i))
@@ -10000,13 +10007,13 @@ namespace Edge
 				case Difficulty::Light:
 				case Difficulty::Heavy:
 				{
-					size_t Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Tasks, ED_MAX_EVENTS);
+					size_t Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Tasks, EVENTS_SIZE);
 #ifndef NDEBUG
 					PostDebug(Type, ThreadTask::ProcessTask, Count);
 #endif
 					for (size_t i = 0; i < Count; ++i)
 					{
-						ED_MEASURE(Type == Difficulty::Heavy ? ED_TIMING_MAX : ED_TIMING_IO);
+						ED_MEASURE(Type == Difficulty::Heavy ? Core::Timings::Intensive : Core::Timings::FileSystem);
 						TaskCallback Data(std::move(Dispatcher.Tasks[i]));
 						if (Data != nullptr)
 							Data();
@@ -10028,15 +10035,15 @@ namespace Edge
 			Core::String ThreadId = OS::Process::GetThreadId(Thread->Id);
 			InitializeThread(Thread->GlobalIndex, Thread->LocalIndex);
 
-			if (Thread->Daemon)
-				ED_DEBUG("[schedule] acquire thread %s", ThreadId.c_str());
-			else
-				ED_DEBUG("[schedule] spawn thread %s", ThreadId.c_str());
-
 			switch (Type)
 			{
 				case Difficulty::Clock:
 				{
+					if (Thread->Daemon)
+						ED_DEBUG("[schedule] acquire thread %s (timers)", ThreadId.c_str());
+					else
+						ED_DEBUG("[schedule] spawn thread %s (timers)", ThreadId.c_str());
+
 					do
 					{
 						std::unique_lock<std::mutex> Lock(Queue->Update);
@@ -10088,6 +10095,11 @@ namespace Edge
 				}
 				case Difficulty::Coroutine:
 				{
+					if (Thread->Daemon)
+						ED_DEBUG("[schedule] acquire thread %s (coroutines)", ThreadId.c_str());
+					else
+						ED_DEBUG("[schedule] spawn thread %s (coroutines)", ThreadId.c_str());
+
 					ReceiveToken Token(Queue->Tasks);
 					Costate* State = new Costate(Policy.Memory);
 					State->NotifyLock = [Thread]()
@@ -10128,7 +10140,7 @@ namespace Edge
 						PostDebug(Type, ThreadTask::ProcessCoroutine, State->GetCount());
 #endif
 						{
-							ED_MEASURE(ED_TIMING_CORE);
+							ED_MEASURE(Core::Timings::Frame);
 							State->Dispatch();
 						}
 #ifndef NDEBUG
@@ -10153,8 +10165,13 @@ namespace Edge
 				case Difficulty::Light:
 				case Difficulty::Heavy:
 				{
+					if (Thread->Daemon)
+						ED_DEBUG("[schedule] acquire thread %s (%s)", ThreadId.c_str(), Thread->Type == Difficulty::Light ? "non-blocking" : "blocking");
+					else
+						ED_DEBUG("[schedule] spawn thread %s (%s)", ThreadId.c_str(), Thread->Type == Difficulty::Light ? "non-blocking" : "blocking");
+
 					ReceiveToken Token(Queue->Tasks);
-					TaskCallback Events[ED_MAX_EVENTS];
+					TaskCallback Events[EVENTS_SIZE];
 
 					do
 					{
@@ -10164,13 +10181,13 @@ namespace Edge
 						size_t Count = 0;
 						do
 						{
-							Count = Queue->Tasks.try_dequeue_bulk(Token, Events, ED_MAX_EVENTS);
+							Count = Queue->Tasks.try_dequeue_bulk(Token, Events, EVENTS_SIZE);
 #ifndef NDEBUG
 							PostDebug(Thread, ThreadTask::ProcessTask, Count);
 #endif
 							for (size_t i = 0; i < Count; ++i)
 							{
-								ED_MEASURE(ED_TIMING_MAX);
+								ED_MEASURE(Core::Timings::Intensive);
 								TaskCallback Data(std::move(Events[i]));
 								if (Data != nullptr)
 									Data();

@@ -185,7 +185,7 @@ namespace Edge
 	}
 	int Library::GetVersion()
 	{
-		return ED_VERSION(ED_MAJOR_VERSION, ED_MINOR_VERSION, ED_PATCH_LEVEL);
+		return (int)VERSION;
 	}
 	int Library::GetDebugLevel()
 	{
@@ -193,11 +193,7 @@ namespace Edge
 	}
 	int Library::GetArchitecture()
 	{
-#ifdef ED_32
-		return 4;
-#else
-		return 8;
-#endif
+		return (int)sizeof(size_t);
 	}
 	Core::String Library::GetDetails()
 	{
@@ -234,7 +230,7 @@ namespace Edge
 			Features.push_back("Wepoll");
 
 		Core::StringStream Result;
-		Result << "version: " << ED_MAJOR_VERSION << "." << ED_MINOR_VERSION << "." << ED_PATCH_LEVEL << " / " << ED_VERSION(ED_MAJOR_VERSION, ED_MINOR_VERSION, ED_PATCH_LEVEL) << "\n";
+		Result << "version: " << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_VERSION << " / " << VERSION << "\n";
 		Result << "platform: " << GetPlatform() << " / " << GetBuild() << "\n";
 		Result << "compiler: " << GetCompiler() << "\n";
 		Result << "features: ";
@@ -259,24 +255,24 @@ namespace Edge
 	const char* Library::GetCompiler()
 	{
 #ifdef _MSC_VER
-#ifdef ED_32
-		return "Visual C++ 32-bit";
-#else
+#ifdef ED_64
 		return "Visual C++ 64-bit";
+#else
+		return "Visual C++ 32-bit";
 #endif
 #endif
 #ifdef __clang__
-#ifdef ED_32
-		return "Clang 32-bit";
-#else
+#ifdef ED_64
 		return "Clang 64-bit";
+#else
+		return "Clang 32-bit";
 #endif
 #endif
 #ifdef __EMSCRIPTEN__
-#ifdef ED_32
-		return "Emscripten 32-bit";
-#else
+#ifdef ED_64
 		return "Emscripten 64-bit";
+#else
+		return "Emscripten 32-bit";
 #endif
 #endif
 #ifdef __MINGW32__
@@ -286,10 +282,10 @@ namespace Edge
 		return "MinGW 64-bit";
 #endif
 #ifdef __GNUC__
-#ifdef ED_32
-		return "GCC 32-bit";
-#else
+#ifdef ED_64
 		return "GCC 64-bit";
+#else
+		return "GCC 32-bit";
 #endif
 #endif
 		return "C/C++ compiler";

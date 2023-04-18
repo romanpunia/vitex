@@ -363,10 +363,10 @@ namespace Edge
 				{
 					std::tuple<OGLElementBuffer*, Format> IndexBuffer = { nullptr, Format::Unknown };
 					Core::UnorderedMap<uint64_t, GLuint> Programs;
-					std::array<OGLElementBuffer*, ED_MAX_UNITS> VertexBuffers = { };
-					std::array<GLuint, ED_MAX_UNITS> Bindings = { };
-					std::array<GLuint, ED_MAX_UNITS> Textures = { };
-					std::array<GLuint, ED_MAX_UNITS> Samplers = { };
+					std::array<OGLElementBuffer*, UNITS_SIZE> VertexBuffers = { };
+					std::array<GLuint, UNITS_SIZE> Bindings = { };
+					std::array<GLuint, UNITS_SIZE> Textures = { };
+					std::array<GLuint, UNITS_SIZE> Samplers = { };
 					std::array<OGLShader*, 6> Shaders = { };
 					OGLBlendState* Blend = nullptr;
 					OGLRasterizerState* Rasterizer = nullptr;

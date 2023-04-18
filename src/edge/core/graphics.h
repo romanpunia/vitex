@@ -10,9 +10,6 @@
 #define ED_CS (unsigned int)Edge::Graphics::ShaderType::Compute
 #define ED_HS (unsigned int)Edge::Graphics::ShaderType::Hull
 #define ED_DS (unsigned int)Edge::Graphics::ShaderType::Domain
-#define ED_WINDOW_SIZE 128
-#define ED_MAX_JOINTS 96
-#define ED_MAX_UNITS 32
 
 struct SDL_SysWMinfo;
 struct SDL_Cursor;
@@ -23,6 +20,13 @@ namespace Edge
 {
 	namespace Graphics
 	{
+		enum
+		{
+			WINDOW_SIZE = 128,
+			JOINTS_SIZE = 96,
+			UNITS_SIZE = 32
+		};
+
 		enum class AppState
 		{
 			Close_Window,
@@ -1169,8 +1173,8 @@ namespace Edge
 				void* Data = nullptr;
 				unsigned int RowPitch = 0;
 				unsigned int DepthPitch = 0;
-				unsigned int Width = ED_WINDOW_SIZE;
-				unsigned int Height = ED_WINDOW_SIZE;
+				unsigned int Width = WINDOW_SIZE;
+				unsigned int Height = WINDOW_SIZE;
 				int MipLevels = 1;
 				bool Writable = false;
 			};
@@ -1209,8 +1213,8 @@ namespace Edge
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = ResourceBind::Shader_Input;
 				ResourceMisc MiscFlags = ResourceMisc::None;
-				unsigned int Width = ED_WINDOW_SIZE;
-				unsigned int Height = ED_WINDOW_SIZE;
+				unsigned int Width = WINDOW_SIZE;
+				unsigned int Height = WINDOW_SIZE;
 				unsigned int Depth = 1;
 				int MipLevels = 1;
 				bool Writable = false;
@@ -1251,8 +1255,8 @@ namespace Edge
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = ResourceBind::Shader_Input;
 				ResourceMisc MiscFlags = ResourceMisc::Texture_Cube;
-				unsigned int Width = ED_WINDOW_SIZE;
-				unsigned int Height = ED_WINDOW_SIZE;
+				unsigned int Width = WINDOW_SIZE;
+				unsigned int Height = WINDOW_SIZE;
 				int MipLevels = 1;
 				bool Writable = false;
 			};
@@ -1289,8 +1293,8 @@ namespace Edge
 				CPUAccess AccessFlags = CPUAccess::None;
 				ResourceUsage Usage = ResourceUsage::Default;
 				Format FormatMode = Format::D24_Unorm_S8_Uint;
-				unsigned int Width = ED_WINDOW_SIZE;
-				unsigned int Height = ED_WINDOW_SIZE;
+				unsigned int Width = WINDOW_SIZE;
+				unsigned int Height = WINDOW_SIZE;
 			};
 
 		protected:
@@ -1369,8 +1373,8 @@ namespace Edge
 				ResourceBind BindFlags = (ResourceBind)(ResourceBind::Render_Target | ResourceBind::Shader_Input);
 				ResourceMisc MiscFlags = ResourceMisc::None;
 				void* RenderSurface = nullptr;
-				unsigned int Width = ED_WINDOW_SIZE;
-				unsigned int Height = ED_WINDOW_SIZE;
+				unsigned int Width = WINDOW_SIZE;
+				unsigned int Height = WINDOW_SIZE;
 				unsigned int MipLevels = 1;
 				bool DepthStencil = true;
 			};
@@ -1404,8 +1408,8 @@ namespace Edge
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = (ResourceBind)(ResourceBind::Render_Target | ResourceBind::Shader_Input);
 				ResourceMisc MiscFlags = ResourceMisc::None;
-				unsigned int Width = ED_WINDOW_SIZE;
-				unsigned int Height = ED_WINDOW_SIZE;
+				unsigned int Width = WINDOW_SIZE;
+				unsigned int Height = WINDOW_SIZE;
 				unsigned int MipLevels = 1;
 				bool DepthStencil = true;
 			};
@@ -1567,8 +1571,8 @@ namespace Edge
 				unsigned int PresentationFlags = 0;
 				unsigned int CompilationFlags = (unsigned int)(ShaderCompile::Enable_Strictness | ShaderCompile::Optimization_Level3 | ShaderCompile::Matrix_Row_Major);
 				unsigned int CreationFlags = 0;
-				unsigned int BufferWidth = ED_WINDOW_SIZE;
-				unsigned int BufferHeight = ED_WINDOW_SIZE;
+				unsigned int BufferWidth = WINDOW_SIZE;
+				unsigned int BufferHeight = WINDOW_SIZE;
 				Activity* Window = nullptr;
 			};
 

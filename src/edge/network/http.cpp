@@ -288,12 +288,12 @@ namespace Edge
 						return Core::Schedule::Get()->SetTask([this]()
 						{
 							Next();
-						}, Core::Difficulty::Light) != ED_INVALID_TASK_ID;
+						}, Core::Difficulty::Light) != Core::INVALID_TASK_ID;
 					});
 				}
 				else if (State == (uint32_t)WebSocketState::Process)
 				{
-					char Buffer[ED_BIG_CHUNK_SIZE];
+					char Buffer[Core::BLOB_SIZE];
 					while (true)
 					{
 						int Size = Stream->Read(Buffer, sizeof(Buffer), [this](SocketPoll Event, const char* Buffer, size_t Recv)
@@ -1703,7 +1703,7 @@ namespace Edge
 					int HasContents = (Response.StatusCode > 199 && Response.StatusCode != 204 && Response.StatusCode != 304);
 					if (HasContents)
 					{
-						char Buffer[ED_BIG_CHUNK_SIZE];
+						char Buffer[Core::BLOB_SIZE];
 						Core::String Reason = TextHTML(Info.Message);
 						snprintf(Buffer, sizeof(Buffer), "<html><head><title>%d %s</title><style>" CSS_MESSAGE_STYLE "%s</style></head><body><div><h1>%d %s</h1></div></body></html>\n", Response.StatusCode, StatusText, Reason.size() <= 128 ? CSS_NORMAL_FONT : CSS_SMALL_FONT, Response.StatusCode, Reason.empty() ? StatusText : Reason.c_str());
 
@@ -1900,10 +1900,10 @@ namespace Edge
 				X509_NAME* Issuer = X509_get_issuer_name(Certificate);
 				ASN1_INTEGER* Serial = X509_get_serialNumber(Certificate);
 
-				char SubjectBuffer[ED_CHUNK_SIZE];
+				char SubjectBuffer[Core::CHUNK_SIZE];
 				X509_NAME_oneline(Subject, SubjectBuffer, (int)sizeof(SubjectBuffer));
 
-				char IssuerBuffer[ED_CHUNK_SIZE], SerialBuffer[ED_CHUNK_SIZE];
+				char IssuerBuffer[Core::CHUNK_SIZE], SerialBuffer[Core::CHUNK_SIZE];
 				X509_NAME_oneline(Issuer, IssuerBuffer, (int)sizeof(IssuerBuffer));
 
 				unsigned char Buffer[256];
@@ -1924,7 +1924,7 @@ namespace Edge
 				const EVP_MD* Digest = EVP_get_digestbyname("sha1");
 				ASN1_digest((int(*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
 
-				char FingerBuffer[ED_CHUNK_SIZE];
+				char FingerBuffer[Core::CHUNK_SIZE];
 				if (!Compute::Codec::HexToString(Buffer, Size, FingerBuffer, sizeof(FingerBuffer)))
 					*FingerBuffer = '\0';
                 
@@ -5324,7 +5324,7 @@ namespace Edge
 				ED_ASSERT(Stream != nullptr, false, "stream should be set");
 
             Retry:
-                char Buffer[ED_BIG_CHUNK_SIZE];
+                char Buffer[Core::BLOB_SIZE];
 				if (!ContentLength || Router->State != ServerState::Working)
 				{
 				Cleanup:
@@ -5454,7 +5454,7 @@ namespace Edge
 #define FREE_STREAMING { Core::OS::File::Close(Stream); deflateEnd(ZStream); ED_FREE(ZStream); }
 				z_stream* ZStream = (z_stream*)CStream;
             Retry:
-                char Buffer[ED_BIG_CHUNK_SIZE + GZ_HEADER_SIZE], Deflate[ED_BIG_CHUNK_SIZE];
+                char Buffer[Core::BLOB_SIZE + GZ_HEADER_SIZE], Deflate[Core::BLOB_SIZE];
 				if (!ContentLength || Router->State != ServerState::Working)
 				{
 				Cleanup:

@@ -5,9 +5,6 @@
 #include "scripting.h"
 #include <atomic>
 #include <cstdarg>
-#include <future>
-#define ED_EXIT_JUMP 9600
-#define ED_EXIT_RESTART ED_EXIT_JUMP * 2
 
 namespace Edge
 {
@@ -54,7 +51,9 @@ namespace Edge
 
 		enum
 		{
-			MAX_STACK_DEPTH = 4
+			MAX_STACK_DEPTH = 4,
+			EXIT_JUMP = 9600,
+			EXIT_RESTART = EXIT_JUMP * 2
 		};
 
 		enum class ApplicationSet
@@ -343,7 +342,7 @@ namespace Edge
 
 		struct ED_OUT AnimationBuffer
 		{
-			Compute::Matrix4x4 Offsets[ED_MAX_JOINTS];
+			Compute::Matrix4x4 Offsets[Graphics::JOINTS_SIZE];
 			Compute::Vector3 Padding;
 			float Animated = 0.0f;
 		};
@@ -398,7 +397,7 @@ namespace Edge
 
 		struct ED_OUT PoseMatrices
 		{
-			Compute::Matrix4x4 Data[ED_MAX_JOINTS];
+			Compute::Matrix4x4 Data[Graphics::JOINTS_SIZE];
 		};
 
 		struct ED_OUT PoseBuffer
@@ -517,51 +516,13 @@ namespace Edge
 		class ED_OUT_TS Parallel
 		{
 		public:
-			template <typename T>
-			struct Context
-			{
-				std::promise<T> Value;
-
-				Context() = default;
-				~Context() = default;
-				Context(const Context&)
-				{
-					ED_ASSERT_V(false, "parallel context cannot be copied, only moved (copy constructor for std::function)");
-				}
-				Context(Context && Other) : Value(std::move(Other.Value))
-				{
-				}
-				Context& operator= (const Context&)
-				{
-					ED_ASSERT(false, *this, "parallel context cannot be copied, only moved (copy operator for std::function)");
-					return *this;
-				}
-				Context& operator= (Context && Other)
-				{
-					if (&Other == this)
-						return *this;
-
-					Value = std::move(Other.Value);
-					return *this;
-				}
-				std::future<T> Get()
-				{
-					return Value.get_future();
-				}
-				void Resolve()
-				{
-					Value.set_value();
-				}
-			};
-
-		public:
-			typedef std::future<void> Task;
+			typedef Core::Promise<void> Task;
 
 		public:
 			static Task Enqueue(const Core::TaskCallback& Callback);
 			static Core::Vector<Task> EnqueueAll(const Core::Vector<Core::TaskCallback>& Callbacks);
-			static void Wait(const Task& Value);
-			static void WailAll(const Core::Vector<Task>& Values);
+			static void Wait(Task&& Value);
+			static void WailAll(Core::Vector<Task>&& Values);
 			static size_t GetThreadIndex();
 			static size_t GetThreads();
 
@@ -1774,7 +1735,7 @@ namespace Edge
 				Core::String Preferences;
 				Core::String Environment;
 				Core::String Directory;
-				size_t Stack = ED_STACK_SIZE;
+				size_t Stack = Core::STACK_SIZE;
 				size_t PollingTimeout = 100;
 				size_t PollingEvents = 256;
 				size_t Coroutines = 16;
@@ -1847,7 +1808,7 @@ namespace Edge
 				int ExitCode = App->Start();
 				ED_RELEASE(App);
 
-				ED_ASSERT(ExitCode != ED_EXIT_RESTART, ExitCode, "application cannot be restarted");
+				ED_ASSERT(ExitCode != EXIT_RESTART, ExitCode, "application cannot be restarted");
 				return ExitCode;
 			}
 			template <typename T, typename ...A>
@@ -1858,7 +1819,7 @@ namespace Edge
 				int ExitCode = App->Start();
 				ED_RELEASE(App);
 
-				if (ExitCode == ED_EXIT_RESTART)
+				if (ExitCode == EXIT_RESTART)
 					goto RestartApp;
 
 				return ExitCode;
@@ -2103,7 +2064,7 @@ namespace Edge
 			template <class Q = T>
 			typename std::enable_if<std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top, bool AssumeSorted)
 			{
-				ED_MEASURE(ED_TIMING_CORE);
+				ED_MEASURE(Core::Timings::Frame);
 				if (AssumeSorted)
 				{
 					auto* Scene = System->GetScene();
@@ -2170,7 +2131,7 @@ namespace Edge
 			template <class Q = T>
 			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top, bool AssumeSorted)
 			{
-				ED_MEASURE(ED_TIMING_CORE);
+				ED_MEASURE(Core::Timings::Frame);
 				auto& Subframe = Top[(size_t)GeoCategory::Opaque];
 				if (AssumeSorted)
 				{
@@ -2207,7 +2168,7 @@ namespace Edge
 			template <class Q = T>
 			typename std::enable_if<std::is_base_of<Drawable, Q>::value>::type Subcull(RenderSystem* System, Storage* Top)
 			{
-				ED_MEASURE(ED_TIMING_CORE);
+				ED_MEASURE(Core::Timings::Frame);
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					Top[i].clear();
 
@@ -2427,7 +2388,7 @@ namespace Edge
 				else if (System->State.IsSet(RenderOpt::Additive))
 					Category = GeoCategory::Additive;
 
-				ED_MEASURE(ED_TIMING_CORE);
+				ED_MEASURE(Core::Timings::Frame);
 				if (Proxy.HasBatching())
 				{
 					auto& Frame = Proxy.Batches(Category);
@@ -2457,7 +2418,7 @@ namespace Edge
 					else if (System->State.IsSet(RenderOpt::Additive))
 						Category = GeoCategory::Additive;
 
-					ED_MEASURE(ED_TIMING_CORE);
+					ED_MEASURE(Core::Timings::Frame);
 					if (Proxy.HasBatching())
 					{
 						auto& Frame = Proxy.Batches(Category);
@@ -2482,7 +2443,7 @@ namespace Edge
 					if (System->State.IsSet(RenderOpt::Transparent) || System->State.IsSet(RenderOpt::Additive))
 						return 0;
 
-					ED_MEASURE(ED_TIMING_MIX);
+					ED_MEASURE(Core::Timings::Mixed);
 					if (Proxy.HasBatching())
 					{
 						auto& Frame = Proxy.Batches(GeoCategory::Opaque);
@@ -2507,7 +2468,7 @@ namespace Edge
 					if (!System->State.IsSubpass())
 						return 0;
 
-					ED_MEASURE(ED_TIMING_FRAME);
+					ED_MEASURE(Core::Timings::Pass);
 					if (Proxy.HasBatching())
 					{
 						auto& Frame1 = Proxy.Batches(GeoCategory::Opaque);
@@ -2540,7 +2501,7 @@ namespace Edge
 					if (!System->State.IsSubpass())
 						return 0;
 
-					ED_MEASURE(ED_TIMING_FRAME);
+					ED_MEASURE(Core::Timings::Pass);
 					if (Proxy.HasBatching())
 					{
 						auto& Frame1 = Proxy.Batches(GeoCategory::Opaque);
@@ -2576,7 +2537,7 @@ namespace Edge
 				if (!System->OcclusionCulling)
 					return 0;
 
-				ED_MEASURE(ED_TIMING_FRAME);
+				ED_MEASURE(Core::Timings::Pass);
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				size_t Count = 0; size_t Fragments = 0;
 

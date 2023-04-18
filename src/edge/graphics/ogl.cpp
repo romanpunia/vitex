@@ -1004,8 +1004,8 @@ namespace Edge
 			}
 			void OGLDevice::SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
-				ED_ASSERT_V(Count <= ED_MAX_UNITS && Slot + Count <= ED_MAX_UNITS, "count should be less than or equal %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				ED_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 
 				OGLSamplerState* IResource = (OGLSamplerState*)State;
 				GLuint NewState = (GLuint)(IResource ? IResource->Resource : GL_NONE);
@@ -1023,7 +1023,7 @@ namespace Edge
 			}
 			void OGLDevice::SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				OGLShader* IResource = (OGLShader*)Resource;
 				glBindBufferBase(GL_UNIFORM_BUFFER, Slot, IResource ? IResource->ConstantBuffer : GL_NONE);
@@ -1035,12 +1035,12 @@ namespace Edge
 			}
 			void OGLDevice::SetConstantBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 				glBindBufferBase(GL_UNIFORM_BUFFER, Slot, Resource ? ((OGLElementBuffer*)Resource)->Resource : GL_NONE);
 			}
 			void OGLDevice::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, Slot, Resource ? ((OGLElementBuffer*)Resource)->Resource : GL_NONE);
 			}
 			void OGLDevice::SetIndexBuffer(ElementBuffer* Resource, Format FormatMode)
@@ -1061,9 +1061,9 @@ namespace Edge
 			void OGLDevice::SetVertexBuffers(ElementBuffer** Resources, unsigned int Count, bool DynamicLinkage)
 			{
 				ED_ASSERT_V(Resources != nullptr || !Count, "invalid vertex buffer array pointer");
-				ED_ASSERT_V(Count <= ED_MAX_UNITS, "slot should be less than or equal to %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Count <= UNITS_SIZE, "slot should be less than or equal to %i", (int)UNITS_SIZE);
 
-				static OGLElementBuffer* IResources[ED_MAX_UNITS] = { nullptr };
+				static OGLElementBuffer* IResources[UNITS_SIZE] = { nullptr };
 				bool HasBuffers = false;
 
 				for (unsigned int i = 0; i < Count; i++)
@@ -1123,7 +1123,7 @@ namespace Edge
 			void OGLDevice::SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type)
 			{
 				ED_ASSERT_V(!Resource || !((OGLTexture2D*)Resource)->Backbuffer, "resource 2d should not be back buffer texture");
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
 				GLuint NewResource = (IResource ? IResource->Resource : GL_NONE);
@@ -1137,7 +1137,7 @@ namespace Edge
 			}
 			void OGLDevice::SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
 				GLuint NewResource = (IResource ? IResource->Resource : GL_NONE);
@@ -1151,7 +1151,7 @@ namespace Edge
 			}
 			void OGLDevice::SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
 				GLuint NewResource = (IResource ? IResource->Resource : GL_NONE);
@@ -1165,14 +1165,14 @@ namespace Edge
 			}
 			void OGLDevice::SetWriteable(ElementBuffer** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
-				ED_ASSERT_V(Count <= ED_MAX_UNITS && Slot + Count <= ED_MAX_UNITS, "count should be less than or equal %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				ED_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 				ED_ASSERT_V(Resource != nullptr, "resource should be set");
 			}
 			void OGLDevice::SetWriteable(Texture2D** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
-				ED_ASSERT_V(Count <= ED_MAX_UNITS && Slot + Count <= ED_MAX_UNITS, "count should be less than or equal %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				ED_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 				ED_ASSERT_V(Resource != nullptr, "resource should be set");
 
 				for (unsigned int i = 0; i < Count; i++)
@@ -1189,8 +1189,8 @@ namespace Edge
 			}
 			void OGLDevice::SetWriteable(Texture3D** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
-				ED_ASSERT_V(Count <= ED_MAX_UNITS && Slot + Count <= ED_MAX_UNITS, "count should be less than or equal %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				ED_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 				ED_ASSERT_V(Resource != nullptr, "resource should be set");
 
 				for (unsigned int i = 0; i < Count; i++)
@@ -1206,8 +1206,8 @@ namespace Edge
 			}
 			void OGLDevice::SetWriteable(TextureCube** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
-				ED_ASSERT_V(Count <= ED_MAX_UNITS && Slot + Count <= ED_MAX_UNITS, "count should be less than or equal %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				ED_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 				ED_ASSERT_V(Resource != nullptr, "resource should be set");
 
 				for (unsigned int i = 0; i < Count; i++)
@@ -1398,8 +1398,8 @@ namespace Edge
 			}
 			void OGLDevice::FlushTexture(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
-				ED_ASSERT_V(Count <= ED_MAX_UNITS && Slot + Count <= ED_MAX_UNITS, "count should be less than or equal %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				ED_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 
 				for (unsigned int i = 0; i < Count; i++)
 				{

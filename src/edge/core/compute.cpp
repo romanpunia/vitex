@@ -2620,7 +2620,7 @@ namespace Edge
 		}
 		Matrix4x4 Matrix4x4::CreateOrthographic(float Width, float Height, float NearZ, float FarZ)
 		{
-			if (ED_LEFT_HANDED)
+			if (Geometric::IsLeftHanded())
 			{
 				float Depth = 1.0f / (FarZ - NearZ);
 				return Matrix4x4(
@@ -2725,12 +2725,12 @@ namespace Edge
 				case CubeFace::NegativeX:
 					return Matrix4x4::CreateLookAt(Position, Position - Vector3(1, 0, 0), Vector3::Up());
 				case CubeFace::PositiveY:
-					if (ED_LEFT_HANDED)
+					if (Geometric::IsLeftHanded())
 						return Matrix4x4::CreateLookAt(Position, Position + Vector3(0, 1, 0), Vector3::Backward());
 					else
 						return Matrix4x4::CreateLookAt(Position, Position - Vector3(0, 1, 0), Vector3::Forward());
 				case CubeFace::NegativeY:
-					if (ED_LEFT_HANDED)
+					if (Geometric::IsLeftHanded())
 						return Matrix4x4::CreateLookAt(Position, Position - Vector3(0, 1, 0), Vector3::Forward());
 					else
 						return Matrix4x4::CreateLookAt(Position, Position + Vector3(0, 1, 0), Vector3::Backward());
@@ -3869,7 +3869,7 @@ namespace Edge
 		{
 			ED_ASSERT(Buffer != nullptr, 0, "invalid buffer");
 			ED_ASSERT(Info != nullptr, 0, "invalid regex result");
-			ED_MEASURE(ED_TIMING_CORE);
+			ED_MEASURE(Core::Timings::Frame);
 
 			int64_t is_anchored = Info->Src->Brackets[0].Pointer[0] == '^', i, result = -1;
 			for (i = 0; i <= BufferLength; i++)
@@ -7065,7 +7065,7 @@ namespace Edge
 			ED_ASSERT(Length > 0, Core::String(), "length should be greater than zero");
 #ifdef ED_HAS_OPENSSL
 			ED_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
-			auto LocalKey = Key.Expose<ED_CHUNK_SIZE>();
+			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
 #if OPENSSL_VERSION_MAJOR >= 3
 			unsigned char Result[EVP_MAX_MD_SIZE];
 			unsigned int Size = sizeof(Result);
@@ -7162,7 +7162,7 @@ namespace Edge
 			ED_ASSERT(Length > 0, Core::String(), "length should be greater than zero");
 #ifdef ED_HAS_OPENSSL
 			ED_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
-			auto LocalKey = Key.Expose<ED_CHUNK_SIZE>();
+			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
 			unsigned char Result[EVP_MAX_MD_SIZE];
 			unsigned int Size = sizeof(Result);
 
@@ -7199,7 +7199,7 @@ namespace Edge
 				return Core::String();
 			}
 
-			auto LocalKey = Key.Expose<ED_CHUNK_SIZE>();
+			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
 			if (ComplexityBytes > 0)
 			{
 				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
@@ -7210,7 +7210,7 @@ namespace Edge
 				}
 			}
 
-			auto LocalSalt = Salt.Expose<ED_CHUNK_SIZE>();
+			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
 			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)LocalKey.Key, (const unsigned char*)LocalSalt.Key))
 			{
 				DisplayCryptoLog();
@@ -7267,7 +7267,7 @@ namespace Edge
 				return Core::String();
 			}
 
-			auto LocalKey = Key.Expose<ED_CHUNK_SIZE>();
+			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
 			if (ComplexityBytes > 0)
 			{
 				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
@@ -7278,7 +7278,7 @@ namespace Edge
 				}
 			}
 
-			auto LocalSalt = Salt.Expose<ED_CHUNK_SIZE>();
+			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
 			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)LocalKey.Key, (const unsigned char*)LocalSalt.Key))
 			{
 				DisplayCryptoLog();
@@ -14233,7 +14233,7 @@ namespace Edge
 			if (!Active || TimeSpeed <= 0.0f)
 				return;
 
-			ED_MEASURE(ED_TIMING_CORE);
+			ED_MEASURE(Core::Timings::Frame);
 			World->stepSimulation(TimeStep * TimeSpeed, Interpolation > 0 ? Interpolation : Interpolate, FixedTimeStep > 0.0f ? FixedTimeStep * TimeSpeed : TimeSpeed / 60.0f);
 #endif
 		}
@@ -14242,7 +14242,7 @@ namespace Edge
 #ifdef ED_USE_BULLET3
 			ED_ASSERT_V(Callback != nullptr, "callback should not be empty");
 			ED_ASSERT_V(Body != nullptr, "body should be set");
-			ED_MEASURE(ED_TIMING_FRAME);
+			ED_MEASURE(Core::Timings::Pass);
 
 			FindContactsHandler Handler;
 			Handler.Callback = Callback;
@@ -14253,7 +14253,7 @@ namespace Edge
 		{
 #ifdef ED_USE_BULLET3
 			ED_ASSERT(Callback != nullptr, false, "callback should not be empty");
-			ED_MEASURE(ED_TIMING_FRAME);
+			ED_MEASURE(Core::Timings::Pass);
 
 			FindRayContactsHandler Handler;
 			Handler.Callback = Callback;

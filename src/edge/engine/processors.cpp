@@ -582,10 +582,10 @@ namespace Edge
 			template <typename T>
 			T* ProcessRendererJob(Graphics::GraphicsDevice* Device, std::function<T*(Graphics::GraphicsDevice*)>&& Callback)
 			{
-				Parallel::Context<T*> Promise; std::future<T*> Future = Promise.Get();
-				Graphics::RenderThreadCallback Job = [Promise = std::move(Promise), Callback = std::move(Callback)](Graphics::GraphicsDevice* Device) mutable
+				Core::Promise<T*> Future;
+				Graphics::RenderThreadCallback Job = [Future, Callback = std::move(Callback)](Graphics::GraphicsDevice* Device) mutable
 				{
-					Promise.Value.set_value(Callback(Device));
+					Future.Set(Callback(Device));
 				};
 
 				auto* App = Application::Get();
@@ -594,7 +594,7 @@ namespace Edge
 				else
 					Device->Enqueue(std::move(Job));
 
-				return Future.get();
+				return Future.Get();
 			}
 
 			AssetProcessor::AssetProcessor(ContentManager* Manager) : Processor(Manager)

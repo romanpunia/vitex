@@ -748,8 +748,8 @@ namespace Edge
 			}
 			void D3D11Device::SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
-				ED_ASSERT_V(Count <= ED_MAX_UNITS && Slot + Count <= ED_MAX_UNITS, "count should be less than or equal %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				ED_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 
 				ID3D11SamplerState* NewState = (ID3D11SamplerState*)(State ? State->GetResource() : nullptr);
 				REG_EXCHANGE_T3(Sampler, NewState, Slot, Type);
@@ -774,7 +774,7 @@ namespace Edge
 			}
 			void D3D11Device::SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				ID3D11Buffer* IBuffer = (Resource ? ((D3D11Shader*)Resource)->ConstantBuffer : nullptr);
 				if (Type & (uint32_t)ShaderType::Vertex)
@@ -797,7 +797,7 @@ namespace Edge
 			}
 			void D3D11Device::SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11InstanceBuffer*)Resource)->Resource : nullptr);
 				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
@@ -822,7 +822,7 @@ namespace Edge
 			}
 			void D3D11Device::SetConstantBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				ID3D11Buffer* IBuffer = (Resource ? ((D3D11ElementBuffer*)Resource)->Element : nullptr);
 				if (Type & (uint32_t)ShaderType::Vertex)
@@ -845,7 +845,7 @@ namespace Edge
 			}
 			void D3D11Device::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11ElementBuffer*)Resource)->Resource : nullptr);
 				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
@@ -870,7 +870,7 @@ namespace Edge
 			}
 			void D3D11Device::SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11Texture2D*)Resource)->Resource : nullptr);
 				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
@@ -895,7 +895,7 @@ namespace Edge
 			}
 			void D3D11Device::SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11Texture3D*)Resource)->Resource : nullptr);
 				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
@@ -920,7 +920,7 @@ namespace Edge
 			}
 			void D3D11Device::SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11TextureCube*)Resource)->Resource : nullptr);
 				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
@@ -952,11 +952,11 @@ namespace Edge
 			void D3D11Device::SetVertexBuffers(ElementBuffer** Resources, unsigned int Count, bool)
 			{
 				ED_ASSERT_V(Resources != nullptr || !Count, "invalid vertex buffer array pointer");
-				ED_ASSERT_V(Count <= ED_MAX_UNITS, "slot should be less than or equal to %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Count <= UNITS_SIZE, "slot should be less than or equal to %i", (int)UNITS_SIZE);
 
-				static ID3D11Buffer* IBuffers[ED_MAX_UNITS] = { nullptr };
-				static unsigned int Strides[ED_MAX_UNITS] = { };
-				static unsigned int Offsets[ED_MAX_UNITS] = { };
+				static ID3D11Buffer* IBuffers[UNITS_SIZE] = { nullptr };
+				static unsigned int Strides[UNITS_SIZE] = { };
+				static unsigned int Offsets[UNITS_SIZE] = { };
 
 				for (unsigned int i = 0; i < Count; i++)
 				{
@@ -1178,10 +1178,10 @@ namespace Edge
 			}
 			void D3D11Device::FlushTexture(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				ED_ASSERT_V(Slot < ED_MAX_UNITS, "slot should be less than %i", (int)ED_MAX_UNITS);
-				ED_ASSERT_V(Count <= ED_MAX_UNITS && Slot + Count <= ED_MAX_UNITS, "count should be less than or equal %i", (int)ED_MAX_UNITS);
+				ED_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				ED_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 
-				static ID3D11ShaderResourceView* Array[ED_MAX_UNITS] = { nullptr };
+				static ID3D11ShaderResourceView* Array[UNITS_SIZE] = { nullptr };
 				if (Type & (uint32_t)ShaderType::Vertex)
 					ImmediateContext->VSSetShaderResources(Slot, Count, Array);
 

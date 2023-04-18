@@ -5,7 +5,6 @@
 #include <map>
 #include <stack>
 #include <limits>
-#define ED_LEFT_HANDED (Edge::Compute::Geometric::IsLeftHanded())
 
 class btCollisionConfiguration;
 class btBroadphaseInterface;

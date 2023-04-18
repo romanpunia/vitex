@@ -1648,21 +1648,21 @@ namespace Edge
 
 		Parallel::Task Parallel::Enqueue(const Core::TaskCallback& Callback)
 		{
-			ED_ASSERT(Callback != nullptr, Task(), "callback should be set");
+			ED_ASSERT(Callback != nullptr, Task::Empty(), "callback should be set");
 			auto* Queue = Core::Schedule::Get();
 			if (Queue->GetThreads(Core::Difficulty::Heavy) > 0)
 			{
-				Context<void> Promise; std::future<void> Future = Promise.Get();
-				if (Queue->SetTask([Promise = std::move(Promise), Callback]() mutable
+				Task Future;
+				if (Queue->SetTask([Future, Callback]() mutable
 				{
 					Callback();
-					Promise.Resolve();
+					Future.Set();
 				}))
 					return Future;
 			}
 
 			Callback();
-			return Task();
+			return Task::Empty();
 		}
 		Core::Vector<Parallel::Task> Parallel::EnqueueAll(const Core::Vector<Core::TaskCallback>& Callbacks)
 		{
@@ -1675,15 +1675,14 @@ namespace Edge
 
 			return Result;
 		}
-		void Parallel::Wait(const Task& Value)
+		void Parallel::Wait(Task&& Value)
 		{
-			if (Value.valid())
-				Value.wait();
+			Value.Wait();
 		}
-		void Parallel::WailAll(const Core::Vector<Task>& Values)
+		void Parallel::WailAll(Core::Vector<Task>&& Values)
 		{
 			for (auto& Value : Values)
-				Wait(Value);
+				Value.Wait();
 		}
 		size_t Parallel::GetThreadIndex()
 		{
@@ -1796,7 +1795,7 @@ namespace Edge
 		void SkinModel::Synchronize(PoseBuffer* Map)
 		{
 			ED_ASSERT_V(Map != nullptr, "pose buffer should be set");
-			ED_MEASURE(ED_TIMING_ATOM);
+			ED_MEASURE(Core::Timings::Atomic);
 
 			for (auto& Mesh : Meshes)
 				Map->Matrices[Mesh];
@@ -1813,7 +1812,7 @@ namespace Edge
 			for (auto& Matrices : Map->Matrices)
 			{
 				auto Index = Matrices.first->Joints.find(Next.Index);
-				if (Index != Matrices.first->Joints.end() && Index->second <= ED_MAX_JOINTS)
+				if (Index != Matrices.first->Joints.end() && Index->second <= Graphics::JOINTS_SIZE)
 					Matrices.second.Data[Index->second] = FinalOffset;
 			}
 
@@ -3798,7 +3797,7 @@ namespace Edge
 		}
 		SceneGraph::~SceneGraph() noexcept
 		{
-			ED_MEASURE(ED_TIMING_MAX);
+			ED_MEASURE(Core::Timings::Intensive);
 			StepTransactions();
 
 			for (auto& Item : Listeners)
@@ -3992,7 +3991,7 @@ namespace Edge
 		void SceneGraph::Dispatch(Core::Timer* Time)
 		{
 			ED_ASSERT_V(Time != nullptr, "time should be set");
-			ED_MEASURE(ED_TIMING_FRAME);
+			ED_MEASURE(Core::Timings::Pass);
 
 			StepEvents();
 			StepTransactions();
@@ -4006,7 +4005,7 @@ namespace Edge
 		void SceneGraph::Publish(Core::Timer* Time)
 		{
 			ED_ASSERT_V(Time != nullptr, "timer should be set");
-			ED_MEASURE(ED_TIMING_CORE * 2);
+			ED_MEASURE((uint64_t)Core::Timings::Frame * 2);
 
 			auto* Base = (Components::Camera*)Camera.load();
 			auto* Renderer = (Base ? Base->GetRenderer() : nullptr);
@@ -4027,7 +4026,7 @@ namespace Edge
 		{
 			ED_ASSERT_V(Time != nullptr, "timer should be set");
 			ED_ASSERT_V(Simulator != nullptr, "simulator should be set");
-			ED_MEASURE(ED_TIMING_CORE);
+			ED_MEASURE(Core::Timings::Frame);
 
 			if (!Active)
 				return;
@@ -4040,7 +4039,7 @@ namespace Edge
 		void SceneGraph::StepSynchronize(Core::Timer* Time)
 		{
 			ED_ASSERT_V(Time != nullptr, "timer should be set");
-			ED_MEASURE(ED_TIMING_CORE);
+			ED_MEASURE(Core::Timings::Frame);
 
 			auto& Storage = Actors[(size_t)ActorType::Synchronize];
 			if (!Storage.Empty())
@@ -4054,7 +4053,7 @@ namespace Edge
 		void SceneGraph::StepAnimate(Core::Timer* Time)
 		{
 			ED_ASSERT_V(Time != nullptr, "timer should be set");
-			ED_MEASURE(ED_TIMING_CORE);
+			ED_MEASURE(Core::Timings::Frame);
 
 			auto& Storage = Actors[(size_t)ActorType::Animate];
 			if (Active && !Storage.Empty())
@@ -4079,7 +4078,7 @@ namespace Edge
 		void SceneGraph::StepGameplay(Core::Timer* Time)
 		{
 			ED_ASSERT_V(Time != nullptr, "timer should be set");
-			ED_MEASURE(ED_TIMING_FRAME);
+			ED_MEASURE(Core::Timings::Pass);
 
 			auto& Storage = Actors[(size_t)ActorType::Update];
 			if (Active && !Storage.Empty())
@@ -4092,7 +4091,7 @@ namespace Edge
 		}
 		void SceneGraph::StepTransactions()
 		{
-			ED_MEASURE(ED_TIMING_FRAME);
+			ED_MEASURE(Core::Timings::Pass);
 			if (!Transactions.empty())
 				ED_TRACE("[scene] process %" PRIu64 " transactions on 0x%" PRIXPTR, (uint64_t)Transactions.size(), (void*)this);
 
@@ -4104,7 +4103,7 @@ namespace Edge
 		}
 		void SceneGraph::StepEvents()
 		{
-			ED_MEASURE(ED_TIMING_FRAME);
+			ED_MEASURE(Core::Timings::Pass);
 			if (!Events.empty())
 				ED_TRACE("[scene] resolve %" PRIu64 " events on 0x%" PRIXPTR, (uint64_t)Events.size(), (void*)this);
 
@@ -4117,7 +4116,7 @@ namespace Edge
 		}
 		void SceneGraph::StepIndexing()
 		{
-			ED_MEASURE(ED_TIMING_CORE);
+			ED_MEASURE(Core::Timings::Frame);
 			if (!Camera.load() || Dirty.Empty())
 				return;
 
@@ -4143,7 +4142,7 @@ namespace Edge
 		}
 		void SceneGraph::StepFinalize()
 		{
-			ED_MEASURE(ED_TIMING_CORE);
+			ED_MEASURE(Core::Timings::Frame);
 
 			AwaitAll();
 			if (!Camera.load())
@@ -4384,7 +4383,7 @@ namespace Edge
 		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, const RayCallback& Callback)
 		{
 			ED_ASSERT_V(Callback, "callback should not be empty");
-			ED_MEASURE(ED_TIMING_FRAME);
+			ED_MEASURE(Core::Timings::Pass);
 
 			auto& Array = GetComponents(Section);
 			Compute::Ray Base = Origin;
@@ -4735,7 +4734,7 @@ namespace Edge
 		}
 		void SceneGraph::Watch(Parallel::Task&& Awaitable)
 		{
-			if (Awaitable.valid())
+			if (Awaitable.IsPending())
 				Tasks.emplace(std::move(Awaitable));
 		}
 		void SceneGraph::WatchAll(Core::Vector<Parallel::Task>&& Awaitables)
@@ -4745,10 +4744,10 @@ namespace Edge
 		}
 		void SceneGraph::AwaitAll()
 		{
-			ED_MEASURE(ED_TIMING_CORE);
+			ED_MEASURE(Core::Timings::Frame);
 			while (!Tasks.empty())
 			{
-				Tasks.front().wait();
+				Tasks.front().Wait();
 				Tasks.pop();
 			}
 		}
@@ -5160,7 +5159,7 @@ namespace Edge
 		Entity* SceneGraph::CloneEntityInstance(Entity* Entity)
 		{
 			ED_ASSERT(Entity != nullptr, nullptr, "entity should be set");
-			ED_MEASURE(ED_TIMING_FRAME);
+			ED_MEASURE(Core::Timings::Pass);
 
 			Engine::Entity* Instance = new Engine::Entity(this);
 			Instance->Transform->Copy(Entity->Transform);
@@ -5920,8 +5919,8 @@ namespace Edge
 					size_t Size = File->GetSize();
 					while (Size > 0)
 					{
-						char Buffer[ED_BIG_CHUNK_SIZE];
-						size_t Offset = File->Read(Buffer, Size > ED_BIG_CHUNK_SIZE ? ED_BIG_CHUNK_SIZE : Size);
+						char Buffer[Core::BLOB_SIZE];
+						size_t Offset = File->Read(Buffer, Size > Core::BLOB_SIZE ? Core::BLOB_SIZE : Size);
 						if (Offset <= 0)
 							break;
 
@@ -6281,14 +6280,14 @@ namespace Edge
 						if (Renderer != nullptr)
 						{
 							ED_ERR("[engine] graphics device cannot be pre-initialized");
-							return ED_EXIT_JUMP + 1;
+							return EXIT_JUMP + 1;
 						}
 
 						Renderer = Graphics::GraphicsDevice::Create(Control.GraphicsDevice);
 						if (!Renderer || !Renderer->IsValid())
 						{
 							ED_ERR("[engine] graphics device cannot be created");
-							return ED_EXIT_JUMP + 2;
+							return EXIT_JUMP + 2;
 						}
 
 						Compute::Geometric::SetLeftHanded(Renderer->IsLeftHanded());
@@ -6307,7 +6306,7 @@ namespace Edge
 					else if (!Activity->GetHandle())
 					{
 						ED_ERR("[engine] cannot create activity instance");
-						return ED_EXIT_JUMP + 3;
+						return EXIT_JUMP + 3;
 					}
 
 					Activity->UserPointer = this;
@@ -6358,7 +6357,7 @@ namespace Edge
 				else
 				{
 					ED_ERR("[engine] cannot detect display to create activity");
-					return ED_EXIT_JUMP + 4;
+					return EXIT_JUMP + 4;
 				}
 #endif
 			}
@@ -6371,7 +6370,7 @@ namespace Edge
 				if (!Audio->IsValid())
 				{
 					ED_ERR("[engine] audio device cannot be created");
-					return ED_EXIT_JUMP + 5;
+					return EXIT_JUMP + 5;
 				}
 			}
 
@@ -6400,7 +6399,7 @@ namespace Edge
 
 			Initialize();
 			if (State == ApplicationState::Terminated)
-				return ExitCode != 0 ? ExitCode : ED_EXIT_JUMP + 6;
+				return ExitCode != 0 ? ExitCode : EXIT_JUMP + 6;
 
 			State = ApplicationState::Active;
 			if (!Control.Threads)
@@ -6431,7 +6430,7 @@ namespace Edge
 					Activity->Maximize();
 			}
 
-			ED_MEASURE(ED_TIMING_INFINITE);
+			ED_MEASURE(Core::Timings::Infinite);
 			if (Activity != nullptr && Control.Parallel)
 			{
 				while (State == ApplicationState::Active)
@@ -6492,7 +6491,7 @@ namespace Edge
 			CloseEvent();
 			Queue->Stop();
 
-			ExitCode = (State == ApplicationState::Restart ? ED_EXIT_RESTART : ExitCode);
+			ExitCode = (State == ApplicationState::Restart ? EXIT_RESTART : ExitCode);
 			State = ApplicationState::Terminated;
 			return ExitCode;
 		}
@@ -6806,7 +6805,7 @@ namespace Edge
 		{
 			ED_ASSERT(System->GetPrimitives() != nullptr, 0, "primitive cache should be set");
 			ED_ASSERT(System->GetMRT(TargetType::Main) != nullptr, 0, "main render target should be set");
-			ED_MEASURE(ED_TIMING_FRAME);
+			ED_MEASURE(Core::Timings::Pass);
 
 			if (!System->State.Is(RenderState::Geometric) || System->State.IsSubpass())
 				return 0;

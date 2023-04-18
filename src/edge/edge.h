@@ -1,14 +1,17 @@
 #ifndef EDGE_H
 #define EDGE_H
-#define ED_MAJOR_VERSION 19
-#define ED_MINOR_VERSION 23
-#define ED_PATCH_LEVEL 74
-#define ED_VERSION(X, Y, Z) ((X) * 1000 + (Y) * 100 + (Z))
-#define ED_AT_LEAST(X, Y, Z) (ED_VERSION(ED_MAJOR_VERSION, ED_MINOR_VERSION, ED_PATCH_LEVEL) >= ED_VERSION(X, Y, Z))
 #include "core/core.h"
 
 namespace Edge
 {
+	enum
+	{
+		MAJOR_VERSION = 20,
+		MINOR_VERSION = 23,
+		PATCH_VERSION = 02,
+		VERSION = (MAJOR_VERSION) * 10000 + (MINOR_VERSION) * 100 + (PATCH_VERSION)
+	};
+
 	enum class Init
 	{
 		Core = 1,

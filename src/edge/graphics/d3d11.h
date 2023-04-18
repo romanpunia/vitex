@@ -346,8 +346,8 @@ namespace Edge
 				struct
 				{
 					std::array<D3D11Shader*, 6> Shaders = { };
-					std::array<std::pair<ID3D11ShaderResourceView*, unsigned int>, ED_MAX_UNITS> Resources = { };
-					std::array<std::pair<D3D11ElementBuffer*, unsigned int>, ED_MAX_UNITS> VertexBuffers = { };
+					std::array<std::pair<ID3D11ShaderResourceView*, unsigned int>, UNITS_SIZE> Resources = { };
+					std::array<std::pair<D3D11ElementBuffer*, unsigned int>, UNITS_SIZE> VertexBuffers = { };
 					std::tuple<ID3D11SamplerState*, unsigned int, unsigned int> Sampler = { nullptr, 0, 0 };
 					std::tuple<D3D11ElementBuffer*, Format> IndexBuffer = { nullptr, Format::Unknown };
 					ID3D11BlendState* Blend = nullptr;

@@ -720,9 +720,9 @@ namespace Edge
 			}
 			bool Client::ProcessAttachment()
 			{
-				char Data[ED_BIG_CHUNK_SIZE];
+				char Data[Core::BLOB_SIZE];
 				Attachment& It = Request.Attachments.at(Request.Attachments.size() - Pending);
-				size_t Count = It.Length > ED_BIG_CHUNK_SIZE ? ED_BIG_CHUNK_SIZE : It.Length;
+				size_t Count = It.Length > Core::BLOB_SIZE ? Core::BLOB_SIZE : It.Length;
 				size_t Size = (size_t)fread(Data, sizeof(char), Count, AttachmentFile);
 				if (Size != Count)
 					return Error("cannot read attachment block from %s", It.Path.c_str());

@@ -1,6 +1,5 @@
 #ifndef ED_NETWORK_HTTP_H
 #define ED_NETWORK_HTTP_H
-#define ED_HTTP_PAYLOAD (1024 * 64)
 #include "../core/network.h"
 #include "../core/scripting.h"
 
@@ -10,6 +9,11 @@ namespace Edge
 	{
 		namespace HTTP
 		{
+			enum
+			{
+				PAYLOAD_SIZE = (size_t)(1024 * 64)
+			};
+
 			enum class Auth
 			{
 				Granted,
@@ -858,12 +862,12 @@ namespace Edge
 				Client(int64_t ReadTimeout);
 				~Client() override;
 				bool Downgrade();
-				Core::Promise<bool> Consume(size_t MaxSize = ED_HTTP_PAYLOAD);
-				Core::Promise<bool> Fetch(HTTP::RequestFrame&& Root, size_t MaxSize = ED_HTTP_PAYLOAD);
+				Core::Promise<bool> Consume(size_t MaxSize = PAYLOAD_SIZE);
+				Core::Promise<bool> Fetch(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
 				Core::Promise<bool> Upgrade(HTTP::RequestFrame&& Root);
 				Core::Promise<ResponseFrame*> Send(HTTP::RequestFrame&& Root);
-				Core::Promise<Core::Unique<Core::Schema>> JSON(HTTP::RequestFrame&& Root, size_t MaxSize = ED_HTTP_PAYLOAD);
-				Core::Promise<Core::Unique<Core::Schema>> XML(HTTP::RequestFrame&& Root, size_t MaxSize = ED_HTTP_PAYLOAD);
+				Core::Promise<Core::Unique<Core::Schema>> JSON(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
+				Core::Promise<Core::Unique<Core::Schema>> XML(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
 				WebSocketFrame* GetWebSocket();
 				RequestFrame* GetRequest();
 				ResponseFrame* GetResponse();

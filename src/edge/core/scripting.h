@@ -4,21 +4,6 @@
 #include <type_traits>
 #include <random>
 #include <queue>
-#ifdef __LP64__
-typedef unsigned int as_uint32_t;
-typedef unsigned long as_uint64_t;
-typedef long as_int64_t;
-#else
-typedef unsigned long as_uint32_t;
-#if !defined(_MSC_VER) && (defined(__GNUC__) || defined(__MWERKS__) || defined(__SUNPRO_CC) || defined(__psp2__))
-typedef uint64_t as_uint64_t;
-typedef int64_t as_int64_t;
-#else
-typedef unsigned __int64 as_uint64_t;
-typedef __int64 as_int64_t;
-#endif
-#endif
-typedef unsigned int as_size_t;
 
 class asIScriptEngine;
 class asIScriptContext;

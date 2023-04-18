@@ -2,7 +2,6 @@
 #define ED_BINDINGS_H
 #include "scripting.h"
 #include "../engine/gui.h"
-#define ED_SHUFFLE(Name) Edge::Core::Shuffle<sizeof(Name)>(Name)
 #define ED_TYPEREF(Name, TypeName) static const uint64_t Name = ED_SHUFFLE(TypeName); Edge::Scripting::TypeCache::Set(Name, TypeName)
 #define ED_PROMISIFY(MemberFunction, TypeId) Edge::Scripting::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
 #define ED_PROMISIFY_REF(MemberFunction, TypeRef) Edge::Scripting::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
@@ -16,6 +15,21 @@
 #define ED_ANYIFY_REF(MemberFunction, TypeRef) Edge::Scripting::Bindings::Any::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
 #define ED_SANYIFY(Function, TypeId) Edge::Scripting::Bindings::Any::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
 #define ED_SANYIFY_REF(Function, TypeRef) Edge::Scripting::Bindings::Any::IfyStatic<decltype(&Function), &Function>::Decl<TypeRef>
+#ifdef __LP64__
+typedef unsigned int as_uint32_t;
+typedef unsigned long as_uint64_t;
+typedef long as_int64_t;
+#else
+typedef unsigned long as_uint32_t;
+#if !defined(_MSC_VER) && (defined(__GNUC__) || defined(__MWERKS__) || defined(__SUNPRO_CC) || defined(__psp2__))
+typedef uint64_t as_uint64_t;
+typedef int64_t as_int64_t;
+#else
+typedef unsigned __int64 as_uint64_t;
+typedef __int64 as_int64_t;
+#endif
+#endif
+typedef unsigned int as_size_t;
 
 namespace Edge
 {

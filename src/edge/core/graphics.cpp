@@ -463,8 +463,8 @@ namespace Edge
 
 		Texture2D::Texture2D() noexcept
 		{
-			Width = ED_WINDOW_SIZE;
-			Height = ED_WINDOW_SIZE;
+			Width = WINDOW_SIZE;
+			Height = WINDOW_SIZE;
 			MipLevels = 1;
 			FormatMode = Format::Unknown;
 			Usage = ResourceUsage::Default;
@@ -512,8 +512,8 @@ namespace Edge
 
 		Texture3D::Texture3D()
 		{
-			Width = ED_WINDOW_SIZE;
-			Height = ED_WINDOW_SIZE;
+			Width = WINDOW_SIZE;
+			Height = WINDOW_SIZE;
 			Depth = 1;
 			MipLevels = 1;
 			FormatMode = Format::Unknown;
@@ -556,8 +556,8 @@ namespace Edge
 
 		TextureCube::TextureCube() noexcept
 		{
-			Width = ED_WINDOW_SIZE;
-			Height = ED_WINDOW_SIZE;
+			Width = WINDOW_SIZE;
+			Height = WINDOW_SIZE;
 			MipLevels = 1;
 			FormatMode = Format::Unknown;
 			Usage = ResourceUsage::Default;
@@ -603,7 +603,7 @@ namespace Edge
 			return MipLevels;
 		}
 
-		DepthTarget2D::DepthTarget2D(const Desc& I) noexcept : Resource(nullptr), Viewarea({ 0, 0, ED_WINDOW_SIZE, ED_WINDOW_SIZE, 0, 1 })
+		DepthTarget2D::DepthTarget2D(const Desc& I) noexcept : Resource(nullptr), Viewarea({ 0, 0, WINDOW_SIZE, WINDOW_SIZE, 0, 1 })
 		{
 		}
 		DepthTarget2D::~DepthTarget2D() noexcept
@@ -619,7 +619,7 @@ namespace Edge
 			return Viewarea;
 		}
 
-		DepthTargetCube::DepthTargetCube(const Desc& I) noexcept : Resource(nullptr), Viewarea({ 0, 0, ED_WINDOW_SIZE, ED_WINDOW_SIZE, 0, 1 })
+		DepthTargetCube::DepthTargetCube(const Desc& I) noexcept : Resource(nullptr), Viewarea({ 0, 0, WINDOW_SIZE, WINDOW_SIZE, 0, 1 })
 		{
 		}
 		DepthTargetCube::~DepthTargetCube() noexcept
@@ -635,7 +635,7 @@ namespace Edge
 			return Viewarea;
 		}
 
-		RenderTarget::RenderTarget() noexcept : DepthStencil(nullptr), Viewarea({ 0, 0, ED_WINDOW_SIZE, ED_WINDOW_SIZE, 0, 1 })
+		RenderTarget::RenderTarget() noexcept : DepthStencil(nullptr), Viewarea({ 0, 0, WINDOW_SIZE, WINDOW_SIZE, 0, 1 })
 		{
 		}
 		RenderTarget::~RenderTarget() noexcept
@@ -1449,7 +1449,7 @@ namespace Edge
 				return false;
 			}
 
-			char Buffer[ED_BIG_CHUNK_SIZE]; size_t Size = 0;
+			char Buffer[Core::BLOB_SIZE]; size_t Size = 0;
 			while ((Size = (size_t)Stream->Read(Buffer, sizeof(Buffer))) > 0)
 				Data->append(Core::String(Buffer, Size));
 
@@ -2171,7 +2171,7 @@ namespace Edge
 		bool Activity::Dispatch()
 		{
 			ED_ASSERT(Handle != nullptr, false, "activity should be initialized");
-			ED_MEASURE(ED_TIMING_MIX);
+			ED_MEASURE(Core::Timings::Mixed);
 
 			memcpy((void*)Keys[1], (void*)Keys[0], sizeof(Keys[0]));
 #ifdef ED_HAS_SDL2

@@ -30,7 +30,7 @@ namespace Edge
 			bool ExecuteQuery(const char* Name, R&& Function, T* Base, Args&&... Data)
 			{
 				ED_ASSERT(Base != nullptr, false, "context should be set");
-				ED_MEASURE(ED_TIMING_MAX);
+				ED_MEASURE(Core::Timings::Intensive);
 				ED_DEBUG("[mongoc] execute query schema on 0x%" PRIXPTR "\n\t%s", (uintptr_t)Base, Name + 1);
 
 				bson_error_t Error;
@@ -50,7 +50,7 @@ namespace Edge
 			Cursor ExecuteCursor(const char* Name, R&& Function, T* Base, Args&&... Data)
 			{
 				ED_ASSERT(Base != nullptr, nullptr, "context should be set");
-				ED_MEASURE(ED_TIMING_MAX);
+				ED_MEASURE(Core::Timings::Intensive);
 				ED_DEBUG("[mongoc] execute query cursor on 0x%" PRIXPTR "\n\t%s", (uintptr_t)Base, Name + 1);
 
 				bson_error_t Error;
@@ -1542,7 +1542,7 @@ namespace Edge
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context]()
 				{
-					ED_MEASURE(ED_TIMING_MAX);
+					ED_MEASURE(Core::Timings::Intensive);
 					TDocument* Query = nullptr;
 					return mongoc_cursor_next(Context, (const TDocument**)&Query);
 				});
@@ -2948,7 +2948,7 @@ namespace Edge
 
 				return Core::Cotask<bool>([this, Address]()
 				{
-					ED_MEASURE(ED_TIMING_MAX);
+					ED_MEASURE(Core::Timings::Intensive);
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
 
@@ -2991,7 +2991,7 @@ namespace Edge
 				TAddress* URI = URL->Get();
 				return Core::Cotask<bool>([this, URI]()
 				{
-					ED_MEASURE(ED_TIMING_MAX);
+					ED_MEASURE(Core::Timings::Intensive);
 					Base = mongoc_client_new_from_uri(URI);
 					if (!Base)
 					{
@@ -3273,7 +3273,7 @@ namespace Edge
 
 				return Core::Cotask<bool>([this, URI]()
 				{
-					ED_MEASURE(ED_TIMING_MAX);
+					ED_MEASURE(Core::Timings::Intensive);
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
 
@@ -3316,7 +3316,7 @@ namespace Edge
 
 				return Core::Cotask<bool>([this, Context]()
 				{
-					ED_MEASURE(ED_TIMING_MAX);
+					ED_MEASURE(Core::Timings::Intensive);
 					SrcAddress = Context;
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
 					if (!Pool)

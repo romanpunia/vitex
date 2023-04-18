@@ -4905,7 +4905,7 @@ namespace Edge
 			}
 			bool Application::WantsRestart(int ExitCode)
 			{
-				return ExitCode == ED_EXIT_RESTART;
+				return ExitCode == Engine::EXIT_RESTART;
 			}
 
 			bool StreamOpen(Core::Stream* Base, const Core::String& Path, Core::FileMode Mode)
@@ -4991,11 +4991,11 @@ namespace Edge
 			Core::TaskId ScheduleSetInterval(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback, Core::Difficulty Type)
 			{
 				if (!Callback)
-					return ED_INVALID_TASK_ID;
+					return Core::INVALID_TASK_ID;
 
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context)
-					return ED_INVALID_TASK_ID;
+					return Core::INVALID_TASK_ID;
 
 				Callback->AddRef();
 				Context->AddRef();
@@ -5018,21 +5018,21 @@ namespace Edge
 					});
 				}, Type);
 
-				if (Task != ED_INVALID_TASK_ID)
+				if (Task != Core::INVALID_TASK_ID)
 					return Task;
 
 				Callback->Release();
 				Context->Release();
-				return ED_INVALID_TASK_ID;
+				return Core::INVALID_TASK_ID;
 			}
 			Core::TaskId ScheduleSetTimeout(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback, Core::Difficulty Type)
 			{
 				if (!Callback)
-					return ED_INVALID_TASK_ID;
+					return Core::INVALID_TASK_ID;
 
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context)
-					return ED_INVALID_TASK_ID;
+					return Core::INVALID_TASK_ID;
 
 				Callback->AddRef();
 				Context->AddRef();
@@ -5046,12 +5046,12 @@ namespace Edge
 					});
 				}, Type);
 
-				if (Task != ED_INVALID_TASK_ID)
+				if (Task != Core::INVALID_TASK_ID)
 					return Task;
 
 				Callback->Release();
 				Context->Release();
-				return ED_INVALID_TASK_ID;
+				return Core::INVALID_TASK_ID;
 			}
 			bool ScheduleSetImmediate(Core::Schedule* Base, asIScriptFunction* Callback, Core::Difficulty Type)
 			{
@@ -6475,7 +6475,7 @@ namespace Edge
 
 			Compute::Matrix4x4& AnimationBufferGetOffsets(Engine::AnimationBuffer& Base, size_t Index)
 			{
-				return Base.Offsets[Index % ED_MAX_JOINTS];
+				return Base.Offsets[Index % Graphics::JOINTS_SIZE];
 			}
 
 			void PoseBufferSetOffset(Engine::PoseBuffer& Base, int64_t Index, const Engine::PoseData& Data)
@@ -6484,7 +6484,7 @@ namespace Edge
 			}
 			void PoseBufferSetMatrix(Engine::PoseBuffer& Base, Graphics::SkinMeshBuffer* Mesh, size_t Index, const Compute::Matrix4x4& Data)
 			{
-				Base.Matrices[Mesh].Data[Index % ED_MAX_JOINTS] = Data;
+				Base.Matrices[Mesh].Data[Index % Graphics::JOINTS_SIZE] = Data;
 			}
 			Engine::PoseData& PoseBufferGetOffset(Engine::PoseBuffer& Base, int64_t Index)
 			{
@@ -6492,7 +6492,7 @@ namespace Edge
 			}
 			Compute::Matrix4x4& PoseBufferGetMatrix(Engine::PoseBuffer& Base, Graphics::SkinMeshBuffer* Mesh, size_t Index)
 			{
-				return Base.Matrices[Mesh].Data[Index % ED_MAX_JOINTS];
+				return Base.Matrices[Mesh].Data[Index % Graphics::JOINTS_SIZE];
 			}
 			size_t PoseBufferGetOffsetsSize(Engine::PoseBuffer& Base)
 			{
@@ -6500,7 +6500,7 @@ namespace Edge
 			}
 			size_t PoseBufferGetMatricesSize(Engine::PoseBuffer& Base, Graphics::SkinMeshBuffer* Mesh)
 			{
-				return ED_MAX_JOINTS;
+				return Graphics::JOINTS_SIZE;
 			}
 
 			Array* ModelGetMeshes(Engine::Model* Base)
@@ -8732,7 +8732,7 @@ namespace Edge
 				Engine->SetFunction("array<string>@ read_as_array(const string &in)", &OSFileReadAsArray);
 				Engine->SetFunction("usize join(const string &in, array<string>@+)", &OSFileJoin);
 				Engine->SetFunction("int32 compare(const string &in, const string &in)", &Core::OS::File::Compare);
-				Engine->SetFunction("int64 get_check_sum(const string &in)", &Core::OS::File::GetCheckSum);
+				Engine->SetFunction("int64 get_hash(const string &in)", &Core::OS::File::GetHash);
 				Engine->SetFunction("base_stream@ open_join(const string &in, array<string>@+)", &OSFileOpenJoin);
 				Engine->SetFunction("base_stream@ open_archive(const string &in, usize)", &Core::OS::File::OpenArchive);
 				Engine->SetFunction<Core::Stream*(const Core::String&, Core::FileMode, bool)>("base_stream@ open(const string &in, file_mode, bool = false)", &Core::OS::File::Open);
@@ -10764,7 +10764,7 @@ namespace Edge
 				VAudioDevice.SetMethod("void set_exception_codes(int32 &out, int32 &out) const", &Audio::AudioDevice::GetExceptionCodes);
 				VAudioDevice.SetMethod("bool is_valid() const", &Audio::AudioDevice::IsValid);
 
-				Engine->SetFunction("uint64 component_id(const string &in)", &Core::OS::File::GetCheckSum);
+				Engine->SetFunction("uint64 component_id(const string &in)", &Core::OS::File::GetHash);
 
 				return true;
 #else

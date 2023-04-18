@@ -1,60 +1,6 @@
 #ifndef ED_CORE_H
 #define ED_CORE_H
-#pragma warning(disable: 4251)
-#if defined(_WIN32) || defined(_WIN64)
-#define ED_MICROSOFT 1
-#define ED_CDECL __cdecl
-#define ED_FILENO _fileno
-#define ED_PATH_SPLIT '\\'
-#define ED_MAX_PATH MAX_PATH
-#ifndef ED_EXPORT
-#define ED_OUT __declspec(dllimport)
-#else
-#define ED_OUT __declspec(dllexport)
-#endif
-#if __cplusplus >= 201703L || _MSVC_LANG >= 201703L || defined(_HAS_CXX17)
-#define ED_CXX17
-#endif
-#ifdef _WIN64
-#define ED_64 1
-#else
-#define ED_32 1
-#endif
-#elif defined(__APPLE__)
-#define _XOPEN_SOURCE
-#define ED_APPLE 1
-#define ED_UNIX 1
-#define ED_CDECL
-#define ED_OUT
-#define ED_FILENO fileno
-#define ED_PATH_SPLIT '/'
-#ifdef PATH_MAX
-#define ED_MAX_PATH PATH_MAX
-#else
-#define ED_MAX_PATH _POSIX_PATH_MAX
-#endif
-#if __x86_64__ || __ppc64__
-#define ED_64 1
-#else
-#define ED_32 1
-#endif
-#elif defined __linux__ && defined __GNUC__
-#define ED_UNIX 1
-#define ED_CDECL
-#define ED_OUT
-#define ED_FILENO fileno
-#define ED_PATH_SPLIT '/'
-#ifdef PATH_MAX
-#define ED_MAX_PATH PATH_MAX
-#else
-#define ED_MAX_PATH _POSIX_PATH_MAX
-#endif
-#if __x86_64__ || __ppc64__
-#define ED_64 1
-#else
-#define ED_32 1
-#endif
-#endif
+#include "../config.hpp"
 #include <inttypes.h>
 #include <thread>
 #include <algorithm>
@@ -74,145 +20,6 @@
 #include <array>
 #include <list>
 #include <sstream>
-#ifdef ED_CXX17
-#include <execution>
-#define ED_SORT(Begin, End, Comparator) std::sort(std::execution::par_unseq, Begin, End, Comparator)
-#else
-#define ED_SORT(Begin, End, Comparator) std::sort(Begin, End, Comparator)
-#endif
-#ifdef ED_MICROSOFT
-#ifdef ED_USE_FCTX
-#define ED_COCALL
-#define ED_CODATA void* Context
-#else
-#define ED_COCALL __stdcall
-#define ED_CODATA void* Context
-#endif
-typedef size_t socket_t;
-typedef int socket_size_t;
-typedef void* epoll_handle;
-#else
-#ifdef ED_USE_FCTX
-#define ED_COCALL
-#define ED_CODATA void* Context
-#else
-#define ED_COCALL
-#define ED_CODATA int X, int Y
-#endif
-#include <sys/types.h>
-#include <sys/socket.h>
-typedef int epoll_handle;
-typedef int socket_t;
-typedef socklen_t socket_size_t;
-#endif
-#ifdef NDEBUG
-#if ED_DLEVEL >= 5
-#define ED_TRACE(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Trace, 0, nullptr, Format, ##__VA_ARGS__)
-#else
-#define ED_TRACE(Format, ...) ((void)0)
-#endif
-#if ED_DLEVEL >= 4
-#define ED_DEBUG(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Debug, 0, nullptr, Format, ##__VA_ARGS__)
-#else
-#define ED_DEBUG(Format, ...) ((void)0)
-#endif
-#if ED_DLEVEL >= 3
-#define ED_INFO(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Info, 0, nullptr, Format, ##__VA_ARGS__)
-#else
-#define ED_INFO(Format, ...) ((void)0)
-#endif
-#if ED_DLEVEL >= 2
-#define ED_WARN(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Warning, 0, nullptr, Format, ##__VA_ARGS__)
-#else
-#define ED_WARN(Format, ...) ((void)0)
-#endif
-#if ED_DLEVEL >= 1
-#define ED_ERR(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Error, 0, nullptr, Format, ##__VA_ARGS__)
-#else
-#define ED_ERR(Format, ...) ((void)0)
-#endif
-#define ED_ASSERT(Condition, Returnable, Format, ...) ((void)0)
-#define ED_ASSERT_V(Condition, Format, ...) ((void)0)
-#define ED_MEASURE(Threshold) ((void)0)
-#define ED_MEASURE_LOOP() ((void)0)
-#define ED_AWAIT(Value) Edge::Core::Coawait(Value)
-#define ED_WATCH(Ptr, Label) ((void)0)
-#define ED_WATCH_AT(Ptr, Function, Label) ((void)0)
-#define ED_UNWATCH(Ptr) ((void)0)
-#define ED_MALLOC(Type, Size) (Type*)Edge::Core::Memory::Malloc(Size)
-#define ED_NEW(Type, ...) new((void*)ED_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
-#else
-#if ED_DLEVEL >= 5
-#define ED_TRACE(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Trace, __LINE__, __FILE__, Format, ##__VA_ARGS__)
-#else
-#define ED_TRACE(Format, ...) ((void)0)
-#endif
-#if ED_DLEVEL >= 4
-#define ED_DEBUG(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Debug, __LINE__, __FILE__, Format, ##__VA_ARGS__)
-#else
-#define ED_DEBUG(Format, ...) ((void)0)
-#endif
-#if ED_DLEVEL >= 3
-#define ED_INFO(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Info, __LINE__, __FILE__, Format, ##__VA_ARGS__)
-#else
-#define ED_INFO(Format, ...) ((void)0)
-#endif
-#if ED_DLEVEL >= 2
-#define ED_WARN(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Warning, __LINE__, __FILE__, Format, ##__VA_ARGS__)
-#else
-#define ED_WARN(Format, ...) ((void)0)
-#endif
-#if ED_DLEVEL >= 1
-#define ED_ERR(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Error, __LINE__, __FILE__, Format, ##__VA_ARGS__)
-#define ED_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Edge::Core::OS::Assert(true, __LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); return Returnable; }
-#define ED_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Edge::Core::OS::Assert(true, __LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); return; }
-#else
-#define ED_ERR(Format, ...) ((void)0)
-#define ED_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Edge::Core::OS::Process::Interrupt(); return Returnable; }
-#define ED_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Edge::Core::OS::Process::Interrupt(); return; }
-#endif
-#define ED_MEASURE_START(X) _measure_line_##X
-#define ED_MEASURE_PREPARE(X) ED_MEASURE_START(X)
-#define ED_MEASURE(Threshold) auto ED_MEASURE_PREPARE(__LINE__) = Edge::Core::OS::Timing::Measure(__FILE__, __func__, __LINE__, Threshold)
-#define ED_MEASURE_LOOP() Edge::Core::OS::Timing::MeasureLoop()
-#define ED_AWAIT(Value) Edge::Core::Coawait(Value, __func__, #Value)
-#define ED_WATCH(Ptr, Label) Edge::Core::Memory::Watch(Ptr, Edge::Core::MemoryContext(__FILE__, __func__, Label, __LINE__))
-#define ED_WATCH_AT(Ptr, Function, Label) Edge::Core::Memory::Watch(Ptr, Edge::Core::MemoryContext(__FILE__, Function, Label, __LINE__))
-#define ED_UNWATCH(Ptr) Edge::Core::Memory::Unwatch(Ptr)
-#define ED_MALLOC(Type, Size) (Type*)Edge::Core::Memory::MallocContext(Size, Edge::Core::MemoryContext(__FILE__, __func__, typeid(Type).name(), __LINE__))
-#define ED_NEW(Type, ...) new((void*)ED_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
-#endif
-#ifdef max
-#undef max
-#endif
-#ifdef ED_HAS_FAST_MEMORY
-#define ED_STD_ALLOCATOR Edge::Core::AllocationInvoker
-#else
-#define ED_STD_ALLOCATOR std::allocator
-#endif
-#define ED_DELETE(Destructor, Var) { if (Var != nullptr) { (Var)->~Destructor(); ED_FREE((void*)Var); } }
-#define ED_FREE(Ptr) Edge::Core::Memory::Free(Ptr)
-#define ED_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
-#define ED_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
-#define ED_ASSIGN(FromPtr, ToPtr) { (FromPtr) = ToPtr; if (FromPtr != nullptr) (FromPtr)->AddRef(); }
-#define ED_REASSIGN(FromPtr, ToPtr) { ED_RELEASE(FromPtr); (FromPtr) = ToPtr; if (FromPtr != nullptr) (FromPtr)->AddRef(); }
-#define ED_HASH(Name) Edge::Core::OS::File::GetCheckSum(Name)
-#define ED_STRINGIFY(Text) #Text
-#define ED_TIMING_ATOM (1)
-#define ED_TIMING_FRAME (5)
-#define ED_TIMING_CORE (16)
-#define ED_TIMING_MIX (50)
-#define ED_TIMING_IO (80)
-#define ED_TIMING_NET (150)
-#define ED_TIMING_MAX (350)
-#define ED_TIMING_HANG (5000)
-#define ED_TIMING_INFINITE (0)
-#define ED_STACK_SIZE (512 * 1024)
-#define ED_CHUNK_SIZE (2048)
-#define ED_BIG_CHUNK_SIZE (8192)
-#define ED_MAX_EVENTS (32)
-#define ED_INVALID_TASK_ID (0)
-#define ED_OUT_TS ED_OUT
 
 namespace Edge
 {
@@ -234,10 +41,34 @@ namespace Edge
 
 		class Var;
 
+		typedef uint64_t TaskId;
+
+		enum
+		{
+			INVALID_TASK_ID = (TaskId)0,
+			STACK_SIZE = (size_t)(512 * 1024),
+			CHUNK_SIZE = (size_t)2048,
+			BLOB_SIZE = (size_t)8192,
+			EVENTS_SIZE = (size_t)32
+		};
+
+		enum class Timings : uint64_t
+		{
+			Atomic = 1,
+			Pass = 5,
+			Frame = 16,
+			Mixed = 50,
+			FileSystem = 50,
+			Networking = 150,
+			Intensive = 350,
+			Hangup = 5000,
+			Infinite = 0
+		};
+
 		enum class Deferred : uint8_t
 		{
-			None = 0,
-			Pending = 1,
+			Pending = 0,
+			Waiting = 1,
 			Ready = 2
 		};
 
@@ -550,6 +381,16 @@ namespace Edge
 			}
 		};
 
+		template <typename T>
+		struct AllocationType
+		{
+#ifdef ED_HAS_FAST_MEMORY
+			using type = AllocationInvoker<T>;
+#else
+			using type = std::allocator<T>;
+#endif
+		};
+
 		template <typename T, T OffsetBasis, T Prime>
 		struct FNV1AHash
 		{
@@ -611,10 +452,10 @@ namespace Edge
 			}
 		};
 
-		using String = std::basic_string<std::string::value_type, std::string::traits_type, ED_STD_ALLOCATOR<typename std::string::value_type>>;
-		using WideString = std::basic_string<std::wstring::value_type, std::wstring::traits_type, ED_STD_ALLOCATOR<typename std::wstring::value_type>>;
-		using StringStream = std::basic_stringstream<std::string::value_type, std::string::traits_type, ED_STD_ALLOCATOR<typename std::string::value_type>>;
-		using WideStringStream = std::basic_stringstream<std::wstring::value_type, std::wstring::traits_type, ED_STD_ALLOCATOR<typename std::wstring::value_type>>;
+		using String = std::basic_string<std::string::value_type, std::string::traits_type, typename AllocationType<typename std::string::value_type>::type>;
+		using WideString = std::basic_string<std::wstring::value_type, std::wstring::traits_type, typename AllocationType<typename std::wstring::value_type>::type>;
+		using StringStream = std::basic_stringstream<std::string::value_type, std::string::traits_type, typename AllocationType<typename std::string::value_type>::type>;
+		using WideStringStream = std::basic_stringstream<std::wstring::value_type, std::wstring::traits_type, typename AllocationType<typename std::wstring::value_type>::type>;
 
 		template <>
 		struct EqualTo<String>
@@ -688,28 +529,28 @@ namespace Edge
 		};
 
 		template <typename T>
-		using Vector = std::vector<T, ED_STD_ALLOCATOR<T>>;
+		using Vector = std::vector<T, typename AllocationType<T>::type>;
 
 		template <typename T>
-		using LinkedList = std::list<T, ED_STD_ALLOCATOR<T>>;
+		using LinkedList = std::list<T, typename AllocationType<T>::type>;
 
 		template <typename T>
-		using SingleQueue = std::queue<T, std::deque<T, ED_STD_ALLOCATOR<T>>>;
+		using SingleQueue = std::queue<T, std::deque<T, typename AllocationType<T>::type>>;
 
 		template <typename T>
-		using DoubleQueue = std::deque<T, ED_STD_ALLOCATOR<T>>;
+		using DoubleQueue = std::deque<T, typename AllocationType<T>::type>;
 
 		template <typename K, typename Hash = Hasher<K>, typename KeyEqual = EqualTo<K>>
-		using UnorderedSet = std::unordered_set<K, Hash, KeyEqual, ED_STD_ALLOCATOR<typename std::unordered_set<K>::value_type>>;
+		using UnorderedSet = std::unordered_set<K, Hash, KeyEqual, typename AllocationType<typename std::unordered_set<K>::value_type>::type>;
 
 		template <typename K, typename V, typename Hash = Hasher<K>, typename KeyEqual = EqualTo<K>>
-		using UnorderedMap = std::unordered_map<K, V, Hash, KeyEqual, ED_STD_ALLOCATOR<typename std::unordered_map<K, V>::value_type>>;
+		using UnorderedMap = std::unordered_map<K, V, Hash, KeyEqual, typename AllocationType<typename std::unordered_map<K, V>::value_type>::type>;
 
 		template <typename K, typename V, typename Hash = Hasher<K>, typename KeyEqual = EqualTo<K>>
-		using UnorderedMultiMap = std::unordered_multimap<K, V, Hash, KeyEqual, ED_STD_ALLOCATOR<typename std::unordered_multimap<K, V>::value_type>>;
+		using UnorderedMultiMap = std::unordered_multimap<K, V, Hash, KeyEqual, typename AllocationType<typename std::unordered_multimap<K, V>::value_type>::type>;
 
 		template <typename K, typename V, typename Comparator = typename std::map<K, V>::key_compare>
-		using OrderedMap = std::map<K, V, Comparator, ED_STD_ALLOCATOR<typename std::map<K, V>::value_type>>;
+		using OrderedMap = std::map<K, V, Comparator, typename AllocationType<typename std::map<K, V>::value_type>::type>;
 
 		typedef std::function<void()> TaskCallback;
 		typedef std::function<void(size_t)> SeqTaskCallback;
@@ -896,7 +737,6 @@ namespace Edge
 		typedef Core::Vector<Schema*> SchemaList;
 		typedef Core::UnorderedMap<Core::String, Variant> VariantArgs;
 		typedef Core::UnorderedMap<Core::String, Schema*> SchemaArgs;
-		typedef uint64_t TaskId;
 		typedef Decimal BigNumber;
 
 		struct ED_OUT FileState
@@ -1416,7 +1256,8 @@ namespace Edge
 				static void Close(Unique<void> Stream);
 				static int Compare(const Core::String& FirstPath, const Core::String& SecondPath);
 				static size_t Join(const Core::String& To, const Core::Vector<Core::String>& Paths);
-				static uint64_t GetCheckSum(const Core::String& Data);
+				static uint64_t GetHash(const Core::String& Data);
+				static uint64_t GetIndex(const char* Data, size_t Size);
 				static FileState GetProperties(const char* Path);
 				static Unique<Stream> OpenJoin(const Core::String& Path, const Core::Vector<Core::String>& Paths);
 				static Unique<Stream> OpenArchive(const Core::String& Path, size_t UnarchivedMaxSize = 128 * 1024 * 1024);
@@ -1427,6 +1268,20 @@ namespace Edge
 				static Unique<unsigned char> ReadAll(Stream* Stream, size_t* ByteLength);
 				static Core::String ReadAsString(const Core::String& Path);
 				static Core::Vector<Core::String> ReadAsArray(const Core::String& Path);
+
+			public:
+				template <size_t Size>
+				static constexpr uint64_t GetIndex(const char Source[Size]) noexcept
+				{
+					uint64_t Result = 0xcbf29ce484222325;
+					for (size_t i = 0; i < Size; i++)
+					{
+						Result ^= Source[i];
+						Result *= 1099511628211;
+					}
+
+					return Result;
+				}
 			};
 
 			class ED_OUT Path
@@ -1535,7 +1390,7 @@ namespace Edge
 		public:
 			struct ED_OUT Message
 			{
-				char Buffer[ED_BIG_CHUNK_SIZE] = { '\0' };
+				char Buffer[BLOB_SIZE] = { '\0' };
 				char Date[64] = { '\0' };
 				Core::String Temp;
 				const char* Source;
@@ -2305,7 +2160,7 @@ namespace Edge
 			std::function<void()> NotifyUnlock;
 
 		public:
-			Costate(size_t StackSize = ED_STACK_SIZE) noexcept;
+			Costate(size_t StackSize = STACK_SIZE) noexcept;
 			~Costate() noexcept;
 			Costate(const Costate&) = delete;
 			Costate(Costate&&) = delete;
@@ -2474,7 +2329,7 @@ namespace Edge
 			{
 				std::chrono::milliseconds Timeout = std::chrono::milliseconds(2000);
 				size_t Threads[(size_t)Difficulty::Count] = { 1, 1, 1, 1 };
-				size_t Memory = ED_STACK_SIZE;
+				size_t Memory = STACK_SIZE;
 				size_t Coroutines = 16;
 				ActivityCallback Ping = nullptr;
 				bool Parallel = true;
@@ -2487,7 +2342,7 @@ namespace Edge
 			struct
 			{
 				Core::Vector<TaskCallback> Events;
-				TaskCallback Tasks[ED_MAX_EVENTS];
+				TaskCallback Tasks[EVENTS_SIZE];
 				Costate* State = nullptr;
 			} Dispatcher;
 
@@ -3051,30 +2906,33 @@ namespace Edge
 			}
 			void Set(const T& Other)
 			{
-				ED_ASSERT_V(Data != nullptr && Data->Code == Deferred::Pending, "async should be pending");
+				ED_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				std::unique_lock<std::mutex> Unique(Data->Update);
+				bool Async = (Data->Code != Deferred::Waiting);
 				Data->Code = Deferred::Ready;
 				Data->Result = Other;
-				Execute(Data);
+				Execute(Data, Async);
 			}
 			void Set(T&& Other)
 			{
-				ED_ASSERT_V(Data != nullptr && Data->Code == Deferred::Pending, "async should be pending");
+				ED_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				std::unique_lock<std::mutex> Unique(Data->Update);
+				bool Async = (Data->Code != Deferred::Waiting);
 				Data->Code = Deferred::Ready;
 				Data->Result = std::move(Other);
-				Execute(Data);
+				Execute(Data, Async);
 			}
 			void Set(const Promise& Other)
 			{
-				ED_ASSERT_V(Data != nullptr && Data->Code == Deferred::Pending, "async should be pending");
+				ED_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				Status* Copy = AddRef();
 				Other.Await([Copy](T&& Value) mutable
 				{
 					std::unique_lock<std::mutex> Unique(Copy->Update);
+					bool Async = (Copy->Code != Deferred::Waiting);
 					Copy->Code = Deferred::Ready;
 					Copy->Result = std::move(Value);
-					Execute(Copy);
+					Execute(Copy, Async);
 					Release(Copy);
 				});
 			}
@@ -3096,19 +2954,22 @@ namespace Edge
 				if (!IsPending())
 					return;
 
-				std::condition_variable Ready;
-				std::mutex Waitable;
-				Await([&](T&&)
-				{
-					std::unique_lock<std::mutex> Lock(Waitable);
-					Ready.notify_all();
-				});
+				std::unique_lock<std::mutex> Lock(Data->Update);
+				if (Data->Code == Deferred::Ready)
+					return;
 
-				std::unique_lock<std::mutex> Lock(Waitable);
-				Ready.wait(Lock, [&]()
+				std::condition_variable Ready;
+				Status* Copy = AddRef();
+				Copy->Code = Deferred::Waiting;
+				Copy->Event = [&Ready]()
+				{
+					Ready.notify_all();
+				};
+				Ready.wait(Lock, [this]()
 				{
 					return !IsPending();
 				});
+				Release(Copy);
 			}
 			T&& Get() noexcept
 			{
@@ -3117,11 +2978,11 @@ namespace Edge
 			}
 			Deferred GetStatus() const noexcept
 			{
-				return Data ? Data->Code.load() : Deferred::None;
+				return Data ? Data->Code.load() : Deferred::Ready;
 			}
 			bool IsPending() const noexcept
 			{
-				return Data ? Data->Code.load() == Deferred::Pending : false;
+				return Data ? Data->Code != Deferred::Ready : false;
 			}
 			template <typename R>
 			Promise<R> Then(std::function<void(Promise<R>&, T&&)>&& Callback) const noexcept
@@ -3175,7 +3036,7 @@ namespace Edge
 				std::unique_lock<std::mutex> Unique(Data->Update);
 				Data->Event = std::move(Callback);
 				if (Data->Code == Deferred::Ready)
-					Execute(Data);
+					Execute(Data, false);
 			}
 
 		public:
@@ -3185,10 +3046,15 @@ namespace Edge
 			}
 
 		private:
-			static void Execute(Status* State) noexcept
+			static void Execute(Status* State, bool Async) noexcept
 			{
-				if (State->Event)
+				if (!State->Event)
+					return;
+
+				if (Async)
 					Schedule::ExecutePromise(std::move(State->Event));
+				else
+					State->Event();
 			}
 			static void Release(Status* State) noexcept
 			{
@@ -3248,20 +3114,22 @@ namespace Edge
 			}
 			void Set()
 			{
-				ED_ASSERT_V(Data != nullptr && Data->Code == Deferred::Pending, "async should be pending");
+				ED_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				std::unique_lock<std::mutex> Unique(Data->Update);
+				bool Async = (Data->Code != Deferred::Waiting);
 				Data->Code = Deferred::Ready;
-				Execute(Data);
+				Execute(Data, Async);
 			}
 			void Set(const Promise& Other)
 			{
-				ED_ASSERT_V(Data != nullptr && Data->Code == Deferred::Pending, "async should be pending");
+				ED_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				Status* Copy = AddRef();
 				Other.Await([Copy]() mutable
 				{
 					std::unique_lock<std::mutex> Unique(Copy->Update);
+					bool Async = (Copy->Code != Deferred::Waiting);
 					Copy->Code = Deferred::Ready;
-					Execute(Copy);
+					Execute(Copy, Async);
 					Release(Copy);
 				});
 			}
@@ -3283,19 +3151,22 @@ namespace Edge
 				if (!IsPending())
 					return;
 
-				std::condition_variable Ready;
-				std::mutex Waitable;
-				Await([&]()
-				{
-					std::unique_lock<std::mutex> Lock(Waitable);
-					Ready.notify_all();
-				});
+				std::unique_lock<std::mutex> Lock(Data->Update);
+				if (Data->Code == Deferred::Ready)
+					return;
 
-				std::unique_lock<std::mutex> Lock(Waitable);
-				Ready.wait(Lock, [&]()
+				std::condition_variable Ready;
+				Status* Copy = AddRef();
+				Copy->Code = Deferred::Waiting;
+				Copy->Event = [&Ready]()
+				{
+					Ready.notify_all();
+				};
+				Ready.wait(Lock, [this]()
 				{
 					return !IsPending();
 				});
+				Release(Copy);
 			}
 			void Get() noexcept
 			{
@@ -3304,11 +3175,11 @@ namespace Edge
 			}
 			Deferred GetStatus() const noexcept
 			{
-				return Data ? Data->Code.load() : Deferred::None;
+				return Data ? Data->Code.load() : Deferred::Ready;
 			}
 			bool IsPending() const noexcept
 			{
-				return Data ? Data->Code.load() == Deferred::Pending : false;
+				return Data ? Data->Code != Deferred::Ready : false;
 			}
 			template <typename R>
 			Promise<R> Then(std::function<void(Promise<R>&)>&& Callback) const noexcept
@@ -3362,7 +3233,7 @@ namespace Edge
 				std::unique_lock<std::mutex> Unique(Data->Update);
 				Data->Event = std::move(Callback);
 				if (Data->Code == Deferred::Ready)
-					Execute(Data);
+					Execute(Data, false);
 			}
 
 		public:
@@ -3372,10 +3243,15 @@ namespace Edge
 			}
 
 		private:
-			static void Execute(Status* State) noexcept
+			static void Execute(Status* State, bool Async) noexcept
 			{
-				if (State->Event)
+				if (!State->Event)
+					return;
+
+				if (Async)
 					Schedule::ExecutePromise(std::move(State->Event));
+				else
+					State->Event();
 			}
 			static void Release(Status* State) noexcept
 			{
@@ -3417,11 +3293,11 @@ namespace Edge
 
 			va_list Args;
 			va_start(Args, Format);
-			char Buffer[ED_BIG_CHUNK_SIZE];
+			char Buffer[BLOB_SIZE];
 			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 			va_end(Args);
 
-			return Stringify(Buffer, Size > ED_BIG_CHUNK_SIZE ? ED_BIG_CHUNK_SIZE : (size_t)Size);
+			return Stringify(Buffer, Size > BLOB_SIZE ? BLOB_SIZE : (size_t)Size);
 		}
 		ED_OUT_TS inline Promise<bool> Cosleep(uint64_t Ms) noexcept
 		{
@@ -3455,8 +3331,8 @@ namespace Edge
 			if (Function != nullptr && Expression != nullptr)
 			{
 				int64_t Diff = (Schedule::GetClock() - Time).count();
-				if (Diff > ED_TIMING_HANG * 1000)
-					ED_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us)\t\nwhere: %s\n\texpression: %s\n\texpected: %" PRIu64 " ms at most", Diff / 1000, Diff, Function, Expression, (uint64_t)ED_TIMING_HANG);
+				if (Diff > (int64_t)Core::Timings::Hangup * 1000)
+					ED_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us)\t\nwhere: %s\n\texpression: %s\n\texpected: %" PRIu64 " ms at most", Diff / 1000, Diff, Function, Expression, (uint64_t)Core::Timings::Hangup);
 				ED_UNWATCH((void*)&Future);
 			}
 #endif
@@ -3515,18 +3391,6 @@ namespace Edge
 			{
 				Result.Set(std::move(Callback()));
 			});
-
-			return Result;
-		}
-		template <size_t Size>
-		ED_OUT_TS constexpr uint64_t Shuffle(const char Source[Size]) noexcept
-		{
-			uint64_t Result = 0xcbf29ce484222325;
-			for (size_t i = 0; i < Size; i++)
-			{
-				Result ^= Source[i];
-				Result *= 1099511628211;
-			}
 
 			return Result;
 		}

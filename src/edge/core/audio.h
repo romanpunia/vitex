@@ -1,17 +1,6 @@
 #ifndef ED_AUDIO_H
 #define ED_AUDIO_H
 #include "compute.h"
-#define ED_COMPONENT_ROOT(Name) \
-virtual const char* GetName() { return Name; } \
-virtual uint64_t GetId() { static uint64_t V = ED_HASH(Name); return V; } \
-static const char* GetTypeName() { return Name; } \
-static uint64_t GetTypeId() { static uint64_t V = ED_HASH(Name); return V; }
-
-#define ED_COMPONENT(Name) \
-virtual const char* GetName() override { return Name; } \
-virtual uint64_t GetId() override { static uint64_t V = ED_HASH(Name); return V; } \
-static const char* GetTypeName() { return Name; } \
-static uint64_t GetTypeId() { static uint64_t V = ED_HASH(Name); return V; }
 
 namespace Edge
 {

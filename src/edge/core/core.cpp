@@ -7862,14 +7862,22 @@ namespace Edge
 			Stringify::ConvertToWide(Mode, strlen(Mode), Type, 20);
 
 			FILE* Stream = _wfopen(Buffer, Type);
-			ED_DEBUG("[io] open fs %i %s %s", ED_FILENO(Stream), Mode, Path);
+			if (Stream != nullptr)
+				ED_DEBUG("[io] open fs %i %s %s", ED_FILENO(Stream), Mode, Path);
+			else
+				ED_WARN("[io] open fs %s %s: cannot be opened", Mode, Path);
+
 			return (void*)Stream;
 #else
 			FILE* Stream = fopen(Path, Mode);
 			if (Stream != nullptr)
 				fcntl(ED_FILENO(Stream), F_SETFD, FD_CLOEXEC);
 
-			ED_DEBUG("[io] open fs %i %s %s", ED_FILENO(Stream), Mode, Path);
+			if (Stream != nullptr)
+				ED_DEBUG("[io] open fs %i %s %s", ED_FILENO(Stream), Mode, Path);
+			else
+				ED_WARN("[io] open fs %s %s: cannot be opened", Mode, Path);
+
 			return (void*)Stream;
 #endif
 		}

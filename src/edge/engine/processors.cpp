@@ -1035,7 +1035,7 @@ namespace Edge
 				for (size_t i = 0; i < Object->GetMaterialsCount(); i++)
 				{
 					Engine::Material* Material = Object->GetMaterial(i);
-					if (!Material)
+					if (!Material || Material == Object->GetInvalidMaterial())
 						continue;
 
 					Core::String Path;

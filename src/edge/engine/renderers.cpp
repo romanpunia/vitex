@@ -715,8 +715,8 @@ namespace Edge
 				OverwriteBlend = Device->GetBlendState("overwrite");
 				Sampler = Device->GetSamplerState("trilinear-x16");
 
-				Shaders.Opaque = System->CompileShader("geometry/emitter/geometry/opaque");
-				Shaders.Transparency = System->CompileShader("geometry/emitter/geometry/transparency");
+				Shaders.Opaque = System->CompileShader("geometry/emitter/opaque");
+				Shaders.Transparency = System->CompileShader("geometry/emitter/transparency");
 				Shaders.Depth.Linear = System->CompileShader("geometry/emitter/depth-linear");
 				Shaders.Depth.Point = System->CompileShader("geometry/emitter/depth-point");
 				Shaders.Depth.Quad = System->CompileShader("geometry/emitter/depth-quad", sizeof(Depth));

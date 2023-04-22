@@ -577,41 +577,41 @@ namespace Edge
 		{
 			for (auto& Page : Pages)
 			{
-				for (auto* Address : Page.second->Reserve)
-					DeallocatePageCache(Address, false);
+				for (auto* Cache : *Page.second)
+					DeallocatePageCache(Cache, false);
 				delete Page.second;
 			}
 			Pages.clear();
 		}
-		void* PoolAllocator::Allocate(MemoryContext&& Origin, size_t Size) noexcept
+		void* PoolAllocator::Allocate(MemoryContext&&, size_t Size) noexcept
 		{
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto* Page = GetPageGroup(Size);
-			auto* Cache = GetPageCache(std::move(Origin), Page, Size);
+			auto*& Page = Pages[Size];
+			if (!Page)
+				Page = new PageGroup();
+
+			auto* Cache = GetPageCache(Page, Size);
 			if (!Cache)
 				return nullptr;
 
-			void* Address = Cache->Childs.front();
-			Blocks[Address] = Cache;
-			Cache->Childs.pop_front();
-
-			return Address;
+			PageAddress* Address = Cache->Addresses.back();
+			Cache->Addresses.pop_back();
+			return Address->Address;
 		}
 		void PoolAllocator::Free(void* Address) noexcept
 		{
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto Block = Blocks.find(Address);
-			if (Block == Blocks.end())
+			char* SourceAddress = nullptr;
+			PageAddress* Source = (PageAddress*)((char*)Address - sizeof(PageAddress));
+			memcpy(&SourceAddress, (char*)Source + sizeof(void*), sizeof(void*));
+			if (SourceAddress != Address)
 				return free(Address);
 
-			auto* Cache = Block->second;
-			Cache->Childs.push_front(Address);
-			Blocks.erase(Block);
+			PageCache* Cache = nullptr;
+			memcpy(&Cache, Source, sizeof(void*));
 
-			if (Cache->Childs.size() < Cache->Capacity)
-				return;
-
-			if (Cache->Capacity == 1 || GetClock() - Cache->AliveTime > (int64_t)MinimalLifeTime)
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			Cache->Addresses.push_back(Source);
+			if (Cache->Addresses.size() >= Cache->Capacity && (Cache->Capacity == 1 || GetClock() - Cache->AliveTime > (int64_t)MinimalLifeTime))
 				DeallocatePageCache(Cache, true);
 		}
 		void PoolAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
@@ -637,54 +637,59 @@ namespace Edge
 		void PoolAllocator::DeallocatePageCache(PageCache* Cache, bool EraseFromCache)
 		{
 			if (EraseFromCache)
-				Cache->Page->Reserve.erase(Cache);
+			{
+				auto& Chunks = *Cache->Page;
+				for (auto It = Chunks.begin(); It != Chunks.end(); It++)
+				{
+					if (*It == Cache)
+					{
+						Chunks.erase(It);
+						break;
+					}
+				}
+			}
 
-			free(Cache->BaseAddress);
-			delete Cache;
+			Cache->~PageCache();
+			free(Cache);
 		}
-		PoolAllocator::PageCache* PoolAllocator::AllocatePageCache(MemoryContext&& Origin, PageGroup* Page, size_t Size)
+		PoolAllocator::PageCache* PoolAllocator::AllocatePageCache(PageGroup* Page, size_t Size)
 		{
+			size_t AddressSize = sizeof(PageAddress) + Size;
 			size_t PageElements = GetElementsCount(Page, Size);
-			size_t PageSize = Size * PageElements;
-			char* Address = (char*)malloc(PageSize);
-			ED_ASSERT(Address != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)PageSize);
+			size_t PageSize = sizeof(PageCache) + AddressSize * PageElements;
+			PageCache* Cache = (PageCache*)malloc(PageSize);
+			ED_ASSERT(Cache != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)PageSize);
 
-			if (!Address)
+			if (!Cache)
 				return nullptr;
 
-			auto* Cache = new PageCache();
-			Cache->Childs.resize(PageElements);
+			new(Cache) PageCache();
+			Cache->Addresses.resize(PageElements);
 			Cache->AliveTime = GetClock();
 			Cache->Capacity = PageElements;
-			Cache->BaseAddress = Address;
 			Cache->Page = Page;
 
+			char* BaseAddress = (char*)Cache + sizeof(PageCache);
 			for (size_t i = 0; i < PageElements; i++)
-				Cache->Childs[i] = Address + Size * i;
+			{
+				PageAddress* Next = (PageAddress*)(BaseAddress + AddressSize * i);
+				Next->Address = (void*)(BaseAddress + AddressSize * i + sizeof(PageAddress));
+				Next->Cache = Cache;
+				Cache->Addresses[i] = Next;
+			}
 
-			Page->Reserve.insert(Cache);
+			Page->push_back(Cache);
 			return Cache;
 		}
-		PoolAllocator::PageCache* PoolAllocator::GetPageCache(MemoryContext&& Origin, PageGroup* Page, size_t Size)
+		PoolAllocator::PageCache* PoolAllocator::GetPageCache(PageGroup* Page, size_t Size)
 		{
-			for (auto* Address : Page->Reserve)
+			for (auto* Cache : *Page)
 			{
-				if (!Address->Childs.empty())
-					return Address;
+				if (!Cache->Addresses.empty())
+					return Cache;
 			}
 
-			return AllocatePageCache(std::move(Origin), Page, Size);
-		}
-		PoolAllocator::PageGroup* PoolAllocator::GetPageGroup(size_t Size)
-		{
-			auto*& Page = Pages[Size];
-			if (!Page)
-			{
-				Page = new PageGroup();
-				Page->Size = Size;
-			}
-
-			return Page;
+			return AllocatePageCache(Page, Size);
 		}
 		int64_t PoolAllocator::GetClock()
 		{
@@ -716,14 +721,14 @@ namespace Edge
 			for (auto& Next : Pages)
 			{
 				if (Next.second != Page)
-					Average += (double)Next.second->Reserve.size();
+					Average += (double)Next.second->size();
 			}
 
 			Average /= (double)Pages.size() - 1;
 			if (Average < 1.0)
 				Average = 1.0;
 
-			return std::max(1.0, (double)Page->Reserve.size() / Average);
+			return std::max(1.0, (double)Page->size() / Average);
 		}
 
 		void Memory::Initialize()
@@ -5652,11 +5657,11 @@ namespace Edge
 		{
 			return new Schema(Var::Number(Value));
 		}
-		Schema* Var::Set::Decimal(const BigNumber& Value)
+		Schema* Var::Set::Decimal(const Core::Decimal& Value)
 		{
 			return new Schema(Var::Decimal(Value));
 		}
-		Schema* Var::Set::Decimal(BigNumber&& Value)
+		Schema* Var::Set::Decimal(Core::Decimal&& Value)
 		{
 			return new Schema(Var::Decimal(std::move(Value)));
 		}
@@ -5757,23 +5762,23 @@ namespace Edge
 			Result.Value.Number = Value;
 			return Result;
 		}
-		Variant Var::Decimal(const BigNumber& Value)
+		Variant Var::Decimal(const Core::Decimal& Value)
 		{
-			BigNumber* Buffer = ED_NEW(BigNumber, Value);
+			Core::Decimal* Buffer = ED_NEW(Core::Decimal, Value);
 			Variant Result(VarType::Decimal);
 			Result.Value.Pointer = (char*)Buffer;
 			return Result;
 		}
-		Variant Var::Decimal(BigNumber&& Value)
+		Variant Var::Decimal(Core::Decimal&& Value)
 		{
-			BigNumber* Buffer = ED_NEW(BigNumber, std::move(Value));
+			Core::Decimal* Buffer = ED_NEW(Core::Decimal, std::move(Value));
 			Variant Result(VarType::Decimal);
 			Result.Value.Pointer = (char*)Buffer;
 			return Result;
 		}
 		Variant Var::DecimalString(const Core::String& Value)
 		{
-			BigNumber* Buffer = ED_NEW(BigNumber, Value);
+			Core::Decimal* Buffer = ED_NEW(Core::Decimal, Value);
 			Variant Result(VarType::Decimal);
 			Result.Value.Pointer = (char*)Buffer;
 			return Result;
@@ -10388,13 +10393,6 @@ namespace Edge
 		std::chrono::microseconds Schedule::GetClock()
 		{
 			return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
-		}
-		void Schedule::ExecutePromise(TaskCallback&& Callback)
-		{
-			if (Singleton != nullptr && Singleton->Active)
-				Singleton->SetTask(std::move(Callback), Difficulty::Light);
-			else
-				Callback();
 		}
 		bool Schedule::IsPresentAndActive()
 		{

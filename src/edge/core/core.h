@@ -262,26 +262,28 @@ namespace Edge
 		class ED_OUT_TS PoolAllocator final : public Allocator
 		{
 		public:
-			struct PageGroup;
+			struct PageCache;
+
+			using PageGroup = std::vector<PageCache*>;
+
+			struct PageAddress
+			{
+				PageCache* Cache;
+				void* Address;
+			};
 
 			struct PageCache
 			{
-				 std::deque<void*> Childs;
-				 int64_t AliveTime;
-				 size_t Capacity;
-				 PageGroup* Page;
-				 void* BaseAddress;
-			};
+				std::vector<PageAddress*> Addresses;
+				PageGroup* Page;
+				int64_t AliveTime;
+				size_t Capacity;
 
-			struct PageGroup
-			{
-				std::unordered_set<PageCache*> Reserve;
-				size_t Size;
+				~PageCache() = default;
 			};
 
 		private:
 			std::unordered_map<size_t, PageGroup*> Pages;
-			std::unordered_map<void*, PageCache*> Blocks;
 			std::recursive_mutex Mutex;
 			uint64_t MinimalLifeTime;
 			double ElementsReducingFactor;
@@ -302,9 +304,8 @@ namespace Edge
 
 		private:
 			void DeallocatePageCache(PageCache* Address, bool EraseFromCache);
-			PageCache* AllocatePageCache(MemoryContext&& Origin, PageGroup* Page, size_t Size);
-			PageCache* GetPageCache(MemoryContext&& Origin, PageGroup* Page, size_t Size);
-			PageGroup* GetPageGroup(size_t Size);
+			PageCache* AllocatePageCache(PageGroup* Page, size_t Size);
+			PageCache* GetPageCache(PageGroup* Page, size_t Size);
 			int64_t GetClock();
 			size_t GetElementsCount(PageGroup* Page, size_t Size);
 			double GetFrequency(PageGroup* Page);
@@ -737,7 +738,6 @@ namespace Edge
 		typedef Core::Vector<Schema*> SchemaList;
 		typedef Core::UnorderedMap<Core::String, Variant> VariantArgs;
 		typedef Core::UnorderedMap<Core::String, Schema*> SchemaArgs;
-		typedef Decimal BigNumber;
 
 		struct ED_OUT FileState
 		{
@@ -1132,8 +1132,8 @@ namespace Edge
 				static Unique<Schema> Binary(const char* Value, size_t Size);
 				static Unique<Schema> Integer(int64_t Value);
 				static Unique<Schema> Number(double Value);
-				static Unique<Schema> Decimal(const BigNumber& Value);
-				static Unique<Schema> Decimal(BigNumber&& Value);
+				static Unique<Schema> Decimal(const Core::Decimal& Value);
+				static Unique<Schema> Decimal(Core::Decimal&& Value);
 				static Unique<Schema> DecimalString(const Core::String& Value);
 				static Unique<Schema> Boolean(bool Value);
 			};
@@ -1152,8 +1152,8 @@ namespace Edge
 			static Variant Binary(const char* Value, size_t Size);
 			static Variant Integer(int64_t Value);
 			static Variant Number(double Value);
-			static Variant Decimal(const BigNumber& Value);
-			static Variant Decimal(BigNumber&& Value);
+			static Variant Decimal(const Core::Decimal& Value);
+			static Variant Decimal(Core::Decimal&& Value);
 			static Variant DecimalString(const Core::String& Value);
 			static Variant Boolean(bool Value);
 		};
@@ -2412,7 +2412,6 @@ namespace Edge
 		public:
 			static std::chrono::microseconds GetClock();
 			static Schedule* Get();
-			static void ExecutePromise(TaskCallback&& Callback);
 			static bool Reset();
 			static bool IsPresentAndActive();
 
@@ -2811,25 +2810,58 @@ namespace Edge
 			}
 		};
 
+		struct ED_OUT_TS ParallelExecutor
+		{
+			inline void operator()(TaskCallback&& Callback)
+			{
+				if (Schedule::IsPresentAndActive())
+					Schedule::Get()->SetTask(std::move(Callback), Difficulty::Light);
+				else
+					Callback();
+			}
+		};
+
 		template <typename T>
 		class ED_OUT_TS Awaitable
 		{
 		public:
+			char Value[sizeof(T)];
 			TaskCallback Event;
-			std::mutex Update;
 			std::atomic<uint32_t> Count;
 			std::atomic<Deferred> Code;
-			T Result;
+			std::mutex Update;
 
 		public:
-			Awaitable() noexcept : Count(1), Code(Deferred::Pending), Result()
+			Awaitable() noexcept : Count(1), Code(Deferred::Pending)
 			{
 			}
-			Awaitable(const T& Value) noexcept : Count(1), Code(Deferred::Ready), Result(Value)
+			Awaitable(const T& NewValue) noexcept : Count(1), Code(Deferred::Ready)
 			{
+				Emplace(NewValue);
 			}
-			Awaitable(T&& Value) noexcept : Count(1), Code(Deferred::Ready), Result(std::move(Value))
+			Awaitable(T&& NewValue) noexcept : Count(1), Code(Deferred::Ready)
 			{
+				Emplace(std::move(NewValue));
+			}
+			~Awaitable()
+			{
+				if (Code == Deferred::Ready)
+					((T*)Value)->~T();
+			}
+			void Emplace(const T& NewValue)
+			{
+				ED_ASSERT_V(Code != Deferred::Ready, "emplacing to already initialized memory is not desired");
+				new(Value) T(NewValue);
+			}
+			void Emplace(T&& NewValue)
+			{
+				ED_ASSERT_V(Code != Deferred::Ready, "emplacing to already initialized memory is not desired");
+				new(Value) T(std::move(NewValue));
+			}
+			T& Unwrap()
+			{
+				ED_ASSERT(Code == Deferred::Ready, *(T*)Value, "unwrapping uninitialized memory will result in undefined behaviour");
+				return *(T*)Value;
 			}
 		};
 
@@ -2848,10 +2880,9 @@ namespace Edge
 			}
 		};
 
-		template <typename T>
-		class ED_OUT_TS Promise
+		template <typename T, typename Executor>
+		class ED_OUT_TS BasicPromise
 		{
-			static_assert(std::is_default_constructible<T>::value, "async cannot be used with non default constructible type");
 			typedef Awaitable<T> Status;
 			typedef T Type;
 
@@ -2863,7 +2894,7 @@ namespace Edge
 			};
 
 			template <typename F>
-			struct Unwrap<Promise<F>>
+			struct Unwrap<BasicPromise<F, Executor>>
 			{
 				typedef F type;
 			};
@@ -2872,29 +2903,29 @@ namespace Edge
 			Status* Data;
 
 		public:
-			Promise() noexcept : Data(ED_NEW(Status))
+			BasicPromise() noexcept : Data(ED_NEW(Status))
 			{
 			}
-			explicit Promise(const T& Value) noexcept : Data(ED_NEW(Status, Value))
+			explicit BasicPromise(const T& Value) noexcept : Data(ED_NEW(Status, Value))
 			{
 			}
-			explicit Promise(T&& Value) noexcept : Data(ED_NEW(Status, std::move(Value)))
+			explicit BasicPromise(T&& Value) noexcept : Data(ED_NEW(Status, std::move(Value)))
 			{
 			}
-			Promise(const Promise& Other) : Data(Other.Data)
+			BasicPromise(const BasicPromise& Other) : Data(Other.Data)
 			{
 				AddRef();
 			}
-			Promise(Promise&& Other) noexcept : Data(Other.Data)
+			BasicPromise(BasicPromise&& Other) noexcept : Data(Other.Data)
 			{
 				Other.Data = nullptr;
 			}
-			~Promise() noexcept
+			~BasicPromise() noexcept
 			{
 				Release(Data);
 			}
-			Promise& operator= (const Promise& Other) = delete;
-			Promise& operator= (Promise&& Other) noexcept
+			BasicPromise& operator= (const BasicPromise& Other) = delete;
+			BasicPromise& operator= (BasicPromise&& Other) noexcept
 			{
 				if (&Other == this)
 					return *this;
@@ -2909,8 +2940,8 @@ namespace Edge
 				ED_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				std::unique_lock<std::mutex> Unique(Data->Update);
 				bool Async = (Data->Code != Deferred::Waiting);
+				Data->Emplace(Other);
 				Data->Code = Deferred::Ready;
-				Data->Result = Other;
 				Execute(Data, Async);
 			}
 			void Set(T&& Other)
@@ -2918,11 +2949,11 @@ namespace Edge
 				ED_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				std::unique_lock<std::mutex> Unique(Data->Update);
 				bool Async = (Data->Code != Deferred::Waiting);
+				Data->Emplace(std::move(Other));
 				Data->Code = Deferred::Ready;
-				Data->Result = std::move(Other);
 				Execute(Data, Async);
 			}
-			void Set(const Promise& Other)
+			void Set(const BasicPromise& Other)
 			{
 				ED_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				Status* Copy = AddRef();
@@ -2930,8 +2961,8 @@ namespace Edge
 				{
 					std::unique_lock<std::mutex> Unique(Copy->Update);
 					bool Async = (Copy->Code != Deferred::Waiting);
+					Copy->Emplace(std::move(Value));
 					Copy->Code = Deferred::Ready;
-					Copy->Result = std::move(Value);
 					Execute(Copy, Async);
 					Release(Copy);
 				});
@@ -2940,12 +2971,12 @@ namespace Edge
 			{
 				ED_ASSERT_V(Callback, "callback should be set");
 				if (!IsPending())
-					return Callback(std::move(Data->Result));
+					return Callback(std::move(Data->Unwrap()));
 
 				Status* Copy = AddRef();
 				Store([Copy, Callback = std::move(Callback)]() mutable
 				{
-					Callback(std::move(Copy->Result));
+					Callback(std::move(Copy->Unwrap()));
 					Release(Copy);
 				});
 			}
@@ -2985,29 +3016,31 @@ namespace Edge
 				return Data ? Data->Code != Deferred::Ready : false;
 			}
 			template <typename R>
-			Promise<R> Then(std::function<void(Promise<R>&, T&&)>&& Callback) const noexcept
+			BasicPromise<R, Executor> Then(std::function<void(BasicPromise<R, Executor>&, T&&)>&& Callback) const noexcept
 			{
-				ED_ASSERT(Data != nullptr && Callback, Promise<R>::Empty(), "async should be pending");
+				using OtherPromise = BasicPromise<R, Executor>;
+				ED_ASSERT(Data != nullptr && Callback, OtherPromise::Empty(), "async should be pending");
 
-				Promise<R> Result; Status* Copy = AddRef();
+				BasicPromise<R, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
 				{
-					Callback(Result, std::move(Copy->Result));
+					Callback(Result, std::move(Copy->Unwrap()));
 					Release(Copy);
 				});
 
 				return Result;
 			}
 			template <typename R>
-			Promise<typename Unwrap<R>::type> Then(std::function<R(T&&)>&& Callback) const noexcept
+			BasicPromise<typename Unwrap<R>::type, Executor> Then(std::function<R(T&&)>&& Callback) const noexcept
 			{
 				using F = typename Unwrap<R>::type;
-				ED_ASSERT(Data != nullptr && Callback, Promise<F>::Empty(), "async should be pending");
+				using OtherPromise = BasicPromise<F, Executor>;
+				ED_ASSERT(Data != nullptr && Callback, OtherPromise::Empty(), "async should be pending");
 
-				Promise<F> Result; Status* Copy = AddRef();
+				BasicPromise<F, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
 				{
-					Result.Set(std::move(Callback(std::move(Copy->Result))));
+					Result.Set(std::move(Callback(std::move(Copy->Unwrap()))));
 					Release(Copy);
 				});
 
@@ -3015,7 +3048,7 @@ namespace Edge
 			}
 
 		private:
-			Promise(bool Unused1, bool Unused2) noexcept : Data(nullptr)
+			BasicPromise(bool Unused1, bool Unused2) noexcept : Data(nullptr)
 			{
 			}
 			Status* AddRef() const
@@ -3029,7 +3062,7 @@ namespace Edge
 				if (!Data)
 					Data = ED_NEW(Status);
 
-				return std::move(Data->Result);
+				return std::move(Data->Unwrap());
 			}
 			void Store(TaskCallback&& Callback) const noexcept
 			{
@@ -3040,9 +3073,9 @@ namespace Edge
 			}
 
 		public:
-			static Promise Empty() noexcept
+			static BasicPromise Empty() noexcept
 			{
-				return Promise(false, false);
+				return BasicPromise(false, false);
 			}
 
 		private:
@@ -3052,7 +3085,7 @@ namespace Edge
 					return;
 
 				if (Async)
-					Schedule::ExecutePromise(std::move(State->Event));
+					Executor()(std::move(State->Event));
 				else
 					State->Event();
 			}
@@ -3063,8 +3096,8 @@ namespace Edge
 			}
 		};
 
-		template <>
-		class ED_OUT_TS Promise<void>
+		template <typename Executor>
+		class ED_OUT_TS BasicPromise<void, Executor>
 		{
 			typedef Awaitable<void> Status;
 			typedef void Type;
@@ -3077,7 +3110,7 @@ namespace Edge
 			};
 
 			template <typename F>
-			struct Unwrap<Promise<F>>
+			struct Unwrap<BasicPromise<F, Executor>>
 			{
 				typedef F type;
 			};
@@ -3086,23 +3119,23 @@ namespace Edge
 			Status* Data;
 
 		public:
-			Promise() noexcept : Data(ED_NEW(Status))
+			BasicPromise() noexcept : Data(ED_NEW(Status))
 			{
 			}
-			Promise(const Promise& Other) noexcept : Data(Other.Data)
+			BasicPromise(const BasicPromise& Other) noexcept : Data(Other.Data)
 			{
 				AddRef();
 			}
-			Promise(Promise&& Other) noexcept : Data(Other.Data)
+			BasicPromise(BasicPromise&& Other) noexcept : Data(Other.Data)
 			{
 				Other.Data = nullptr;
 			}
-			~Promise() noexcept
+			~BasicPromise() noexcept
 			{
 				Release(Data);
 			}
-			Promise& operator= (const Promise& Other) = delete;
-			Promise& operator= (Promise&& Other) noexcept
+			BasicPromise& operator= (const BasicPromise& Other) = delete;
+			BasicPromise& operator= (BasicPromise&& Other) noexcept
 			{
 				if (&Other == this)
 					return *this;
@@ -3120,7 +3153,7 @@ namespace Edge
 				Data->Code = Deferred::Ready;
 				Execute(Data, Async);
 			}
-			void Set(const Promise& Other)
+			void Set(const BasicPromise& Other)
 			{
 				ED_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				Status* Copy = AddRef();
@@ -3182,11 +3215,12 @@ namespace Edge
 				return Data ? Data->Code != Deferred::Ready : false;
 			}
 			template <typename R>
-			Promise<R> Then(std::function<void(Promise<R>&)>&& Callback) const noexcept
+			BasicPromise<R, Executor> Then(std::function<void(BasicPromise<R, Executor>&)>&& Callback) const noexcept
 			{
-				ED_ASSERT(Data != nullptr && Callback, Promise<R>::Empty(), "async should be pending");
+				using OtherPromise = BasicPromise<R, Executor>;
+				ED_ASSERT(Data != nullptr && Callback, OtherPromise::Empty(), "async should be pending");
 
-				Promise<R> Result; Status* Copy = AddRef();
+				BasicPromise<R, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
 				{
 					Callback(Result);
@@ -3196,12 +3230,13 @@ namespace Edge
 				return Result;
 			}
 			template <typename R>
-			Promise<typename Unwrap<R>::type> Then(std::function<R()>&& Callback) const noexcept
+			BasicPromise<typename Unwrap<R>::type, Executor> Then(std::function<R()>&& Callback) const noexcept
 			{
 				using F = typename Unwrap<R>::type;
-				ED_ASSERT(Data != nullptr && Callback, Promise<F>::Empty(), "async should be pending");
+				using OtherPromise = BasicPromise<F, Executor>;
+				ED_ASSERT(Data != nullptr && Callback, OtherPromise::Empty(), "async should be pending");
 
-				Promise<F> Result; Status* Copy = AddRef();
+				BasicPromise<F, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
 				{
 					Callback();
@@ -3213,7 +3248,7 @@ namespace Edge
 			}
 
 		private:
-			Promise(Status* Context) noexcept : Data(Context)
+			BasicPromise(Status* Context) noexcept : Data(Context)
 			{
 				AddRef();
 			}
@@ -3237,9 +3272,9 @@ namespace Edge
 			}
 
 		public:
-			static Promise Empty() noexcept
+			static BasicPromise Empty() noexcept
 			{
-				return Promise((Status*)nullptr);
+				return BasicPromise((Status*)nullptr);
 			}
 
 		private:
@@ -3249,7 +3284,7 @@ namespace Edge
 					return;
 
 				if (Async)
-					Schedule::ExecutePromise(std::move(State->Event));
+					Executor()(std::move(State->Event));
 				else
 					State->Event();
 			}
@@ -3259,6 +3294,9 @@ namespace Edge
 					ED_DELETE(Status, State);
 			}
 		};
+
+		template <typename T, typename Executor = ParallelExecutor>
+		using Promise = BasicPromise<T, Executor>;
 
 		ED_OUT_TS inline bool Coasync(const TaskCallback& Callback, bool AlwaysEnqueue = false) noexcept
 		{

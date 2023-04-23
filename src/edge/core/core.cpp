@@ -577,20 +577,18 @@ namespace Edge
 		{
 			for (auto& Page : Pages)
 			{
-				for (auto* Cache : *Page.second)
-					DeallocatePageCache(Cache, false);
-				delete Page.second;
+				for (auto* Cache : Page.second)
+				{
+					Cache->~PageCache();
+					free(Cache);
+				}
 			}
 			Pages.clear();
 		}
 		void* PoolAllocator::Allocate(MemoryContext&&, size_t Size) noexcept
 		{
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto*& Page = Pages[Size];
-			if (!Page)
-				Page = new PageGroup();
-
-			auto* Cache = GetPageCache(Page, Size);
+			auto* Cache = GetPageCache(Size);
 			if (!Cache)
 				return nullptr;
 
@@ -611,8 +609,13 @@ namespace Edge
 
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			Cache->Addresses.push_back(Source);
-			if (Cache->Addresses.size() >= Cache->Capacity && (Cache->Capacity == 1 || GetClock() - Cache->AliveTime > (int64_t)MinimalLifeTime))
-				DeallocatePageCache(Cache, true);
+
+			if (Cache->Addresses.size() >= Cache->Capacity && (Cache->Capacity == 1 || GetClock() - Cache->Timing > (int64_t)MinimalLifeTime))
+			{
+				Cache->Page.erase(std::find(Cache->Page.begin(), Cache->Page.end(), Cache));
+				Cache->~PageCache();
+				free(Cache);
+			}
 		}
 		void PoolAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
 		{
@@ -634,26 +637,15 @@ namespace Edge
 		{
 			return false;
 		}
-		void PoolAllocator::DeallocatePageCache(PageCache* Cache, bool EraseFromCache)
+		PoolAllocator::PageCache* PoolAllocator::GetPageCache(size_t Size)
 		{
-			if (EraseFromCache)
+			auto& Page = Pages[Size];
+			for (auto* Cache : Page)
 			{
-				auto& Chunks = *Cache->Page;
-				for (auto It = Chunks.begin(); It != Chunks.end(); It++)
-				{
-					if (*It == Cache)
-					{
-						Chunks.erase(It);
-						break;
-					}
-				}
+				if (!Cache->Addresses.empty())
+					return Cache;
 			}
 
-			Cache->~PageCache();
-			free(Cache);
-		}
-		PoolAllocator::PageCache* PoolAllocator::AllocatePageCache(PageGroup* Page, size_t Size)
-		{
 			size_t AddressSize = sizeof(PageAddress) + Size;
 			size_t PageElements = GetElementsCount(Page, Size);
 			size_t PageSize = sizeof(PageCache) + AddressSize * PageElements;
@@ -663,13 +655,8 @@ namespace Edge
 			if (!Cache)
 				return nullptr;
 
-			new(Cache) PageCache();
-			Cache->Addresses.resize(PageElements);
-			Cache->AliveTime = GetClock();
-			Cache->Capacity = PageElements;
-			Cache->Page = Page;
-
 			char* BaseAddress = (char*)Cache + sizeof(PageCache);
+			new(Cache) PageCache(Page, GetClock(), PageElements);
 			for (size_t i = 0; i < PageElements; i++)
 			{
 				PageAddress* Next = (PageAddress*)(BaseAddress + AddressSize * i);
@@ -678,29 +665,36 @@ namespace Edge
 				Cache->Addresses[i] = Next;
 			}
 
-			Page->push_back(Cache);
+			Page.push_back(Cache);
 			return Cache;
-		}
-		PoolAllocator::PageCache* PoolAllocator::GetPageCache(PageGroup* Page, size_t Size)
-		{
-			for (auto* Cache : *Page)
-			{
-				if (!Cache->Addresses.empty())
-					return Cache;
-			}
-
-			return AllocatePageCache(Page, Size);
 		}
 		int64_t PoolAllocator::GetClock()
 		{
 			return (int64_t)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		}
-		size_t PoolAllocator::GetElementsCount(PageGroup* Page, size_t Size)
+		size_t PoolAllocator::GetElementsCount(PageGroup& Page, size_t Size)
 		{
+			double Frequency;
+			if (Pages.size() > 1)
+			{
+				Frequency = 0.0;
+				for (auto& Next : Pages)
+				{
+					if (Next.second != Page)
+						Frequency += (double)Next.second.size();
+				}
+
+				Frequency /= (double)Pages.size() - 1;
+				if (Frequency < 1.0)
+					Frequency = std::max(1.0, (double)Page.size());
+				else
+					Frequency = std::max(1.0, (double)Page.size() / Frequency);
+			}
+			else
+				Frequency = 1.0;
+
 			double Total = (double)ElementsPerAllocation;
 			double Reducing = (double)Size / (double)ElementsReducingBase;
-			double Frequency = GetFrequency(Page);
-
 			if (Reducing > 1.0)
 			{
 				Total /= ElementsReducingFactor * Reducing;
@@ -711,24 +705,6 @@ namespace Edge
 				Total *= Frequency;
 
 			return (size_t)Total;
-		}
-		double PoolAllocator::GetFrequency(PageGroup* Page)
-		{
-			if (Pages.size() <= 1)
-				return 1.0;
-
-			double Average = 0.0;
-			for (auto& Next : Pages)
-			{
-				if (Next.second != Page)
-					Average += (double)Next.second->size();
-			}
-
-			Average /= (double)Pages.size() - 1;
-			if (Average < 1.0)
-				Average = 1.0;
-
-			return std::max(1.0, (double)Page->size() / Average);
 		}
 
 		void Memory::Initialize()

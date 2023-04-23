@@ -275,15 +275,19 @@ namespace Edge
 			struct PageCache
 			{
 				std::vector<PageAddress*> Addresses;
-				PageGroup* Page;
-				int64_t AliveTime;
+				PageGroup& Page;
+				int64_t Timing;
 				size_t Capacity;
 
+				inline PageCache(PageGroup& NewPage, int64_t Time, size_t Size) : Page(NewPage), Timing(Time), Capacity(Size)
+				{
+					Addresses.resize(Capacity);
+				}
 				~PageCache() = default;
 			};
 
 		private:
-			std::unordered_map<size_t, PageGroup*> Pages;
+			std::unordered_map<size_t, PageGroup> Pages;
 			std::recursive_mutex Mutex;
 			uint64_t MinimalLifeTime;
 			double ElementsReducingFactor;
@@ -303,12 +307,9 @@ namespace Edge
 			bool IsFinalizable() noexcept override;
 
 		private:
-			void DeallocatePageCache(PageCache* Address, bool EraseFromCache);
-			PageCache* AllocatePageCache(PageGroup* Page, size_t Size);
-			PageCache* GetPageCache(PageGroup* Page, size_t Size);
+			PageCache* GetPageCache(size_t Size);
 			int64_t GetClock();
-			size_t GetElementsCount(PageGroup* Page, size_t Size);
-			double GetFrequency(PageGroup* Page);
+			size_t GetElementsCount(PageGroup& Page, size_t Size);
 		};
 
 		class ED_OUT_TS Memory

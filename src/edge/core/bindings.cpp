@@ -12019,6 +12019,7 @@ namespace Edge
 				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("int32 is_windowed", &Graphics::GraphicsDevice::Desc::IsWindowed);
 				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("bool shader_cache", &Graphics::GraphicsDevice::Desc::ShaderCache);
 				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("bool debug", &Graphics::GraphicsDevice::Desc::Debug);
+				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("bool blit_rendering", &Graphics::GraphicsDevice::Desc::BlitRendering);
 				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("uint32 presentation_flags", &Graphics::GraphicsDevice::Desc::PresentationFlags);
 				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("uint32 compilation_flags", &Graphics::GraphicsDevice::Desc::CompilationFlags);
 				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("uint32 creation_flags", &Graphics::GraphicsDevice::Desc::CreationFlags);

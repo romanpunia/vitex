@@ -3427,6 +3427,8 @@ namespace Edge
 			}
 			void Camera::ResizeBuffers()
 			{
+				SceneGraph* Scene = Parent->GetScene();
+				Viewport = Scene->GetDevice()->GetRenderTarget()->GetViewport();
 				for (auto* Next : Renderer->GetRenderers())
 					Next->ResizeBuffers();
 			}

@@ -1568,6 +1568,7 @@ namespace Edge
 				int IsWindowed = 1;
 				bool ShaderCache = true;
 				bool Debug = false;
+				bool BlitRendering = false;
 				unsigned int PresentationFlags = 0;
 				unsigned int CompilationFlags = (unsigned int)(ShaderCompile::Enable_Strictness | ShaderCompile::Optimization_Level3 | ShaderCompile::Matrix_Row_Major);
 				unsigned int CreationFlags = 0;

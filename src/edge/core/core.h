@@ -2837,11 +2837,11 @@ namespace Edge
 			}
 			Awaitable(const T& NewValue) noexcept : Count(1), Code(Deferred::Ready)
 			{
-				Emplace(NewValue);
+				new(Value) T(NewValue);
 			}
 			Awaitable(T&& NewValue) noexcept : Count(1), Code(Deferred::Ready)
 			{
-				Emplace(std::move(NewValue));
+				new(Value) T(std::move(NewValue));
 			}
 			~Awaitable()
 			{

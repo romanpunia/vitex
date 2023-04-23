@@ -535,13 +535,19 @@ namespace Edge
 				SwapChainResource.BufferDesc.RefreshRate.Numerator = 60;
 				SwapChainResource.BufferDesc.RefreshRate.Denominator = 1;
 				SwapChainResource.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-				SwapChainResource.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+				SwapChainResource.BufferDesc.Scaling = DXGI_MODE_SCALING_CENTERED;
 				SwapChainResource.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 				SwapChainResource.SampleDesc.Count = 1;
 				SwapChainResource.SampleDesc.Quality = 0;
 				SwapChainResource.Windowed = I.IsWindowed;
-				SwapChainResource.Flags = 0;
-				SwapChainResource.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+
+				if (I.BlitRendering)
+				{
+					SwapChainResource.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+					SwapChainResource.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+				}
+				else
+					SwapChainResource.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 #if defined(ED_MICROSOFT) && defined(ED_HAS_SDL2)
 				if (Window != nullptr)
 				{

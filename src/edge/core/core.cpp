@@ -9845,9 +9845,6 @@ namespace Edge
 			}
 
 			size_t Index = 0;
-			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
-				Policy.Threads[i] = std::max<size_t>(Policy.Threads[i], 1);
-
 			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Coroutine]; j++)
 				PushThread(Difficulty::Coroutine, Index++, j, false);
 
@@ -9932,6 +9929,9 @@ namespace Edge
 		bool Schedule::ProcessTick(Difficulty Type)
 		{
 			auto* Queue = Queues[(size_t)Type];
+			if (!Policy.Threads[(size_t)Type])
+				return false;
+
 			switch (Type)
 			{
 				case Difficulty::Clock:

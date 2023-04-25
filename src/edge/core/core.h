@@ -3591,7 +3591,7 @@ namespace Edge
 			}
 			else
 			{
-				Promise<void> Value = Callback();
+				Promise<void> Value = Context->Callback();
 				return Value.Then<void>([Context]()
 				{
 					ED_DELETE(PromiseContext, Context);

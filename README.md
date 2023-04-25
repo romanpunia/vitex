@@ -4,7 +4,7 @@
 </p>
 
 ## About
-Edge is a cross-platform C++14/17/20/23 framework to create any type of application from a unified interface. In it's core, Edge is based on same concepts as Node.js but made to it's extreme. As in Node, Edge has a worker pool that not only consumes but also publishes tasks, here we don't really have a concept of event loop, every thread is on it's own an event loop.
+Edge is a cross-platform C++14/17/20 framework to create any type of application from a unified interface. In it's core, Edge is based on same concepts as Node.js but made to it's extreme. As in Node, Edge has a worker pool that not only consumes but also publishes tasks, here we don't really have a concept of event loop, every thread is on it's own an event loop.
 
 Using concept of tasks and queues, in Edge there are two rules for optimal performace and proper CPU loading:
 1. Split work in to small pieces.
@@ -38,9 +38,9 @@ Another important aspect of Edge is schemas, they are used to serialize and dese
 + Adjustable logging system
 + Dynamic libraries importer
 + Ref. counting (opt. with new/delete) for ownership management
-+ Coroutines via native fibers (WinAPI/ucontext_t/fcontext_t)
++ Coroutines (fibers: WinAPI/ucontext_t/fcontext_t, generators: CoroutinesTS)
 + Async/await promise-like object to handle chains of async data
-+ Coasync/Coawait primitives to handle async functions like in JS
++ Coasync/Coawait/Coreturn primitives to handle async functions like in JS
 + BigNumber for accuracy sensitive operations of any precision
 + Category-based tasking for event queue to process blocking and non-blocking tasks
 + Synchronization primitives: spin lock (Spin), readers-writer lock (Guard)

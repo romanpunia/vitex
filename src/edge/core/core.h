@@ -3531,34 +3531,41 @@ namespace Edge
 			return BasicPromise<T, Executor>::awaitable(Value);
 		}
 		template <typename T>
-		ED_OUT_TS void Coforward(Promise<T> Value, PromiseContext<T>* Context)
+		ED_OUT_TS void Coforward1(Promise<T> Value, PromiseContext<T>* Context)
 		{
 			Promise<T> Wrapper = Context->Callback();
-			Value.Set(Wrapper.Then<T>([Context](T&& Result) -> T&&
+			auto Deleter = [Context](T&& Result) -> T&&
 			{
 				ED_DELETE(PromiseContext, Context);
 				return std::move(Result);
-			}));
+			};
+			Value.Set(Wrapper.Then<T>(Deleter));
+		}
+		template <typename T>
+		ED_OUT_TS Promise<T> Coforward2(Promise<T>&& Value, PromiseContext<T>* Context)
+		{
+			auto Deleter = [Context](T&& Result) -> T&&
+			{
+				ED_DELETE(PromiseContext, Context);
+				return std::move(Result);
+			};
+			return Value.Then<T>(Deleter);
 		}
 		template <typename T>
 		ED_OUT_TS inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
 			ED_ASSERT(Callback != nullptr, Promise<T>::Ready(), "callback should be set");
 			PromiseContext<T>* Context = ED_NEW(PromiseContext<T>, std::move(Callback));
-			if (!AlwaysEnqueue)
+			if (AlwaysEnqueue)
 			{
-				Promise<T> Value = Context->Callback();
-				return Value.Then<T>([Context](T&& Result) -> T&&
-				{
-					ED_DELETE(PromiseContext, Context);
-					return std::move(Result);
-				});
+				Promise<T> Value;
+				Schedule::Get()->SetTask(std::bind(&Coforward1<T>, Value, Context), Difficulty::Light);
+				return Value;
 			}
 			else
 			{
-				Promise<T> Value;
-				Schedule::Get()->SetTask(std::bind(&Coforward<T>, Value, Context), Difficulty::Light);
-				return Value;
+				Promise<T> Value = Context->Callback();
+				return Coforward2<T>(std::move(Value), Context);
 			}
 		}
 		template <>

@@ -3541,7 +3541,7 @@ namespace Edge
 				Schedule::Get()->SetTask([Value, Context]() mutable
 				{
 					Promise<T> Wrapper = Context->Callback();
-					Value.Set(Wrapper.Then<T>([Context](T&& Result)
+					Value.Set(Wrapper.Then<typename T>([Context](T&& Result)
 					{
 						ED_DELETE(PromiseContext, Context);
 						return Result;
@@ -3553,7 +3553,7 @@ namespace Edge
 			else
 			{
 				Promise<T> Value = Context->Callback();
-				return Value.Then<T>([Context](T&& Result)
+				return Value.Then<typename T>([Context](T&& Result)
 				{
 					ED_DELETE(PromiseContext, Context);
 					return Result;

@@ -3539,7 +3539,7 @@ namespace Edge
 				ED_DELETE(PromiseContext, Context);
 				return std::move(Result);
 			};
-			Value.Set(Wrapper.Then<T>(Deleter));
+			Value.Set(Wrapper.template Then<T>(Deleter));
 		}
 		template <typename T>
 		ED_OUT_TS Promise<T> Coforward2(Promise<T>&& Value, PromiseContext<T>* Context)
@@ -3549,7 +3549,7 @@ namespace Edge
 				ED_DELETE(PromiseContext, Context);
 				return std::move(Result);
 			};
-			return Value.Then<T>(Deleter);
+			return Value.template Then<T>(Deleter);
 		}
 		template <typename T>
 		ED_OUT_TS inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept

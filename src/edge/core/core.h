@@ -2895,13 +2895,13 @@ namespace Edge
 			template <typename F>
 			struct Unwrap
 			{
-				typedef F type;
+				typedef std::remove_reference<F>::type type;
 			};
 
 			template <typename F>
 			struct Unwrap<BasicPromise<F, Executor>>
 			{
-				typedef F type;
+				typedef std::remove_reference<F>::type type;
 			};
 
 		private:
@@ -3531,33 +3531,34 @@ namespace Edge
 			return BasicPromise<T, Executor>::awaitable(Value);
 		}
 		template <typename T>
+		ED_OUT_TS void Coforward(Promise<T> Value, PromiseContext<T>* Context)
+		{
+			Promise<T> Wrapper = Context->Callback();
+			Value.Set(Wrapper.Then<T>([Context](T&& Result) -> T&&
+			{
+				ED_DELETE(PromiseContext, Context);
+				return std::move(Result);
+			}));
+		}
+		template <typename T>
 		ED_OUT_TS inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
 			ED_ASSERT(Callback != nullptr, Promise<T>::Ready(), "callback should be set");
 			PromiseContext<T>* Context = ED_NEW(PromiseContext<T>, std::move(Callback));
-			if (AlwaysEnqueue)
+			if (!AlwaysEnqueue)
 			{
-				Promise<T> Value;
-				Schedule::Get()->SetTask([Value, Context]() mutable
+				Promise<T> Value = Context->Callback();
+				return Value.Then<T>([Context](T&& Result) -> T&&
 				{
-					Promise<T> Wrapper = Context->Callback();
-					Value.Set(Wrapper.Then<typename T>([Context](T&& Result)
-					{
-						ED_DELETE(PromiseContext, Context);
-						return Result;
-					}));
-				}, Difficulty::Light);
-
-				return Value;
+					ED_DELETE(PromiseContext, Context);
+					return std::move(Result);
+				});
 			}
 			else
 			{
-				Promise<T> Value = Context->Callback();
-				return Value.Then<typename T>([Context](T&& Result)
-				{
-					ED_DELETE(PromiseContext, Context);
-					return Result;
-				});
+				Promise<T> Value;
+				Schedule::Get()->SetTask(std::bind(&Coforward<T>, Value, Context), Difficulty::Light);
+				return Value;
 			}
 		}
 		template <>

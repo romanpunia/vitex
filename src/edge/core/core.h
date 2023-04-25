@@ -3523,12 +3523,14 @@ namespace Edge
 		template <typename T, typename Executor = ParallelExecutor>
 		auto operator co_await(BasicPromise<T, Executor>&& Value) noexcept
 		{
-			return BasicPromise<T, Executor>::awaitable(std::move(Value));
+			using Awaitable = typename BasicPromise<T, Executor>::awaitable;
+			return Awaitable(std::move(Value));
 		}
 		template <typename T, typename Executor = ParallelExecutor>
 		auto operator co_await(const BasicPromise<T, Executor>& Value) noexcept
 		{
-			return BasicPromise<T, Executor>::awaitable(Value);
+			using Awaitable = typename BasicPromise<T, Executor>::awaitable;
+			return Awaitable(Value);
 		}
 		template <typename T>
 		ED_OUT_TS void Coforward1(Promise<T> Value, PromiseContext<T>* Context)

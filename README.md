@@ -4,7 +4,7 @@
 </p>
 
 ## About
-Edge is a cross-platform C++14 framework to create any type of application from a unified interface. In it's core, Edge is based on same concepts as Node.js but made to it's extreme. As in Node, Edge has a worker pool that not only consumes but also publishes tasks, here we don't really have a concept of event loop, every thread is on it's own an event loop.
+Edge is a cross-platform C++14/17/20/23 framework to create any type of application from a unified interface. In it's core, Edge is based on same concepts as Node.js but made to it's extreme. As in Node, Edge has a worker pool that not only consumes but also publishes tasks, here we don't really have a concept of event loop, every thread is on it's own an event loop.
 
 Using concept of tasks and queues, in Edge there are two rules for optimal performace and proper CPU loading:
 1. Split work in to small pieces.
@@ -246,6 +246,7 @@ You can look at [Lynx's CMakeLists.txt](https://github.com/romanpunia/lynx/blob/
 
 ## Building options
 There are several build options for this project.
++ **ED_CXX** is the C++ standard (14, 17, 20) which will be used, C++17 and higher will add parallel sort and other optimizations, C++20 and higher will replace stateful coroutines with coroutines TS, defaults to 20
 + **ED_MSG_TRACE** to allow tracing logs (very verbose), defaults to false
 + **ED_MSG_DEBUG** to allow debug logs (op. details), defaults to false
 + **ED_MSG_INFO** to allow informational logs, defaults to true

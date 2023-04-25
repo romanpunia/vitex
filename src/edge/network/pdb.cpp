@@ -1858,13 +1858,13 @@ namespace Edge
 				if (Commands.empty())
 					return Core::Promise<bool>(true);
 
-				return Core::Coasync<bool>([this, Commands = std::move(Commands)]() mutable
+				return Core::Coasync<bool>([this, Commands = std::move(Commands)]() mutable -> Core::Promise<bool>
 				{
 					size_t Count = 0;
 					for (auto& Next : Commands)
 					    Count += ED_AWAIT(Query(Next.second, (size_t)QueryOp::TransactionAlways, Next.first)).IsSuccess() ? 1 : 0;
 
-					return Count > 0;
+					Coreturn Count > 0;
 				});
 			}
 			Core::Promise<Cursor> Cluster::EmplaceQuery(const Core::String& Command, Core::SchemaList* Map, size_t Opts, SessionId Session)

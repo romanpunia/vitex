@@ -375,7 +375,7 @@ namespace Edge
 							return (void)Error("cannot detect peer name");
 
 						char InetAddress[INET_ADDRSTRLEN];
-						struct sockaddr_in* Address = (struct sockaddr_in*)&Storage;
+						sockaddr_in* Address = (sockaddr_in*)&Storage;
 						Core::String URI = "smtp/";
 
 						if (inet_ntop(AF_INET, &(Address->sin_addr), InetAddress, INET_ADDRSTRLEN) != nullptr)

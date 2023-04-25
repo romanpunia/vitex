@@ -20,6 +20,9 @@
 #include <array>
 #include <list>
 #include <sstream>
+#ifdef ED_CXX20
+#include <coroutine>
+#endif
 
 namespace Edge
 {
@@ -2823,28 +2826,28 @@ namespace Edge
 		};
 
 		template <typename T>
-		class ED_OUT_TS Awaitable
+		class ED_OUT_TS DeferredStorage
 		{
 		public:
-			char Value[sizeof(T)];
 			TaskCallback Event;
+			char Value[sizeof(T)];
 			std::atomic<uint32_t> Count;
 			std::atomic<Deferred> Code;
 			std::mutex Update;
 
 		public:
-			Awaitable() noexcept : Count(1), Code(Deferred::Pending)
+			DeferredStorage() noexcept : Count(1), Code(Deferred::Pending)
 			{
 			}
-			Awaitable(const T& NewValue) noexcept : Count(1), Code(Deferred::Ready)
+			DeferredStorage(const T& NewValue) noexcept : Count(1), Code(Deferred::Ready)
 			{
 				new(Value) T(NewValue);
 			}
-			Awaitable(T&& NewValue) noexcept : Count(1), Code(Deferred::Ready)
+			DeferredStorage(T&& NewValue) noexcept : Count(1), Code(Deferred::Ready)
 			{
 				new(Value) T(std::move(NewValue));
 			}
-			~Awaitable()
+			~DeferredStorage()
 			{
 				if (Code == Deferred::Ready)
 					((T*)Value)->~T();
@@ -2867,7 +2870,7 @@ namespace Edge
 		};
 
 		template <>
-		class ED_OUT_TS Awaitable<void>
+		class ED_OUT_TS DeferredStorage<void>
 		{
 		public:
 			TaskCallback Event;
@@ -2876,7 +2879,7 @@ namespace Edge
 			std::atomic<Deferred> Code;
 
 		public:
-			Awaitable() noexcept : Count(1), Code(Deferred::Pending)
+			DeferredStorage() noexcept : Count(1), Code(Deferred::Pending)
 			{
 			}
 		};
@@ -2884,7 +2887,8 @@ namespace Edge
 		template <typename T, typename Executor>
 		class ED_OUT_TS BasicPromise
 		{
-			typedef Awaitable<T> Status;
+		public:
+			typedef DeferredStorage<T> Status;
 			typedef T Type;
 
 		private:
@@ -2907,10 +2911,10 @@ namespace Edge
 			BasicPromise() noexcept : Data(ED_NEW(Status))
 			{
 			}
-			explicit BasicPromise(const T& Value) noexcept : Data(ED_NEW(Status, Value))
+			BasicPromise(const T& Value) noexcept : Data(ED_NEW(Status, Value))
 			{
 			}
-			explicit BasicPromise(T&& Value) noexcept : Data(ED_NEW(Status, std::move(Value)))
+			BasicPromise(T&& Value) noexcept : Data(ED_NEW(Status, std::move(Value)))
 			{
 			}
 			BasicPromise(const BasicPromise& Other) : Data(Other.Data)
@@ -3020,7 +3024,7 @@ namespace Edge
 			BasicPromise<R, Executor> Then(std::function<void(BasicPromise<R, Executor>&, T&&)>&& Callback) const noexcept
 			{
 				using OtherPromise = BasicPromise<R, Executor>;
-				ED_ASSERT(Data != nullptr && Callback, OtherPromise::Empty(), "async should be pending");
+				ED_ASSERT(Data != nullptr && Callback, OtherPromise::Ready(), "async should be pending");
 
 				BasicPromise<R, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
@@ -3036,7 +3040,7 @@ namespace Edge
 			{
 				using F = typename Unwrap<R>::type;
 				using OtherPromise = BasicPromise<F, Executor>;
-				ED_ASSERT(Data != nullptr && Callback, OtherPromise::Empty(), "async should be pending");
+				ED_ASSERT(Data != nullptr && Callback, OtherPromise::Ready(), "async should be pending");
 
 				BasicPromise<F, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
@@ -3074,7 +3078,7 @@ namespace Edge
 			}
 
 		public:
-			static BasicPromise Empty() noexcept
+			static BasicPromise Ready() noexcept
 			{
 				return BasicPromise(false, false);
 			}
@@ -3095,12 +3099,104 @@ namespace Edge
 				if (State != nullptr && !--State->Count)
 					ED_DELETE(Status, State);
 			}
+#ifdef ED_CXX20
+		public:
+			struct awaitable
+			{
+				BasicPromise Value;
+
+				explicit awaitable(const BasicPromise& NewValue) : Value(NewValue)
+				{
+				}
+				explicit awaitable(BasicPromise&& NewValue) : Value(std::move(NewValue))
+				{
+				}
+				awaitable(const awaitable&) = default;
+				awaitable(awaitable&&) = default;
+				bool await_ready() const noexcept
+				{
+					return !Value.IsPending();
+				}
+				T&& await_resume() noexcept
+				{
+					return Value.Get();
+				}
+				void await_suspend(std::coroutine_handle<> Handle)
+				{
+					Value.Await([Handle](T&&)
+					{
+						Handle.resume();
+					});
+				}
+			};
+
+			struct promise_type
+			{
+				BasicPromise Value;
+#ifndef NDEBUG
+				std::chrono::microseconds Time;
+#endif
+				promise_type()
+				{
+#ifndef NDEBUG
+					Time = Schedule::GetClock();
+					ED_WATCH((void*)&Value, "coroutine20-frame");
+#endif
+				}
+				std::suspend_never initial_suspend() const noexcept
+				{
+					return {};
+				}
+				std::suspend_never final_suspend() const noexcept
+				{
+					return {};
+				}
+				BasicPromise get_return_object()
+				{
+#ifndef NDEBUG
+					int64_t Diff = (Schedule::GetClock() - Time).count();
+					if (Diff > (int64_t)Core::Timings::Hangup * 1000)
+						ED_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us)\t\nexpected: %" PRIu64 " ms at most", Diff / 1000, Diff, (uint64_t)Core::Timings::Hangup);
+					ED_UNWATCH((void*)&Value);
+#endif
+					return Value;
+				}
+				void return_value(const BasicPromise& NewValue)
+				{
+					Value.Set(NewValue);
+				}
+				void return_value(const T& NewValue)
+				{
+					Value.Set(NewValue);
+				}
+				void return_value(T&& NewValue)
+				{
+					Value.Set(std::move(NewValue));
+				}
+				void unhandled_exception()
+				{
+				}
+				void* operator new(size_t Size) noexcept
+				{
+					return ED_MALLOC(promise_type, Size);
+				}
+				void operator delete(void* Ptr) noexcept
+				{
+					ED_FREE(Ptr);
+				}
+				static BasicPromise get_return_object_on_allocation_failure()
+				{
+					return BasicPromise::Ready();
+				}
+			};
+#endif
 		};
 
 		template <typename Executor>
 		class ED_OUT_TS BasicPromise<void, Executor>
 		{
-			typedef Awaitable<void> Status;
+		public:
+			typedef DeferredStorage<void> Status;
 			typedef void Type;
 
 		private:
@@ -3205,7 +3301,6 @@ namespace Edge
 			void Get() noexcept
 			{
 				Wait();
-				Load();
 			}
 			Deferred GetStatus() const noexcept
 			{
@@ -3219,7 +3314,7 @@ namespace Edge
 			BasicPromise<R, Executor> Then(std::function<void(BasicPromise<R, Executor>&)>&& Callback) const noexcept
 			{
 				using OtherPromise = BasicPromise<R, Executor>;
-				ED_ASSERT(Data != nullptr && Callback, OtherPromise::Empty(), "async should be pending");
+				ED_ASSERT(Data != nullptr && Callback, OtherPromise::Ready(), "async should be pending");
 
 				BasicPromise<R, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
@@ -3235,7 +3330,7 @@ namespace Edge
 			{
 				using F = typename Unwrap<R>::type;
 				using OtherPromise = BasicPromise<F, Executor>;
-				ED_ASSERT(Data != nullptr && Callback, OtherPromise::Empty(), "async should be pending");
+				ED_ASSERT(Data != nullptr && Callback, OtherPromise::Ready(), "async should be pending");
 
 				BasicPromise<F, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
@@ -3273,7 +3368,7 @@ namespace Edge
 			}
 
 		public:
-			static BasicPromise Empty() noexcept
+			static BasicPromise Ready() noexcept
 			{
 				return BasicPromise((Status*)nullptr);
 			}
@@ -3294,60 +3389,206 @@ namespace Edge
 				if (State != nullptr && !--State->Count)
 					ED_DELETE(Status, State);
 			}
+#ifdef ED_CXX20
+		public:
+			struct awaitable
+			{
+				BasicPromise Value;
+
+				explicit awaitable(const BasicPromise& NewValue) : Value(NewValue)
+				{
+				}
+				explicit awaitable(BasicPromise&& NewValue) : Value(std::move(NewValue))
+				{
+				}
+				awaitable(const awaitable&) = default;
+				awaitable(awaitable&&) = default;
+				bool await_ready() const noexcept
+				{
+					return !Value.IsPending();
+				}
+				void await_resume() noexcept
+				{
+				}
+				void await_suspend(std::coroutine_handle<> Handle)
+				{
+					Value.Await([Handle]()
+					{
+						Handle.resume();
+					});
+				}
+			};
+
+			struct promise_type
+			{
+				BasicPromise Value;
+#ifndef NDEBUG
+				std::chrono::microseconds Time;
+#endif
+				promise_type()
+				{
+#ifndef NDEBUG
+					Time = Schedule::GetClock();
+					ED_WATCH((void*)&Value, "coroutine20-frame");
+#endif
+				}
+				std::suspend_never initial_suspend() const noexcept
+				{
+					return {};
+				}
+				std::suspend_never final_suspend() const noexcept
+				{
+					return {};
+				}
+				BasicPromise get_return_object()
+				{
+#ifndef NDEBUG
+					int64_t Diff = (Schedule::GetClock() - Time).count();
+					if (Diff > (int64_t)Core::Timings::Hangup * 1000)
+						ED_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us)\t\nexpected: %" PRIu64 " ms at most", Diff / 1000, Diff, (uint64_t)Core::Timings::Hangup);
+					ED_UNWATCH((void*)&Value);
+#endif
+					return Value;
+				}
+				void return_void()
+				{
+					Value.Set();
+				}
+				void unhandled_exception()
+				{
+				}
+				void* operator new(size_t Size) noexcept
+				{
+					return ED_MALLOC(promise_type, Size);
+				}
+				void operator delete(void* Ptr) noexcept
+				{
+					ED_FREE(Ptr);
+				}
+				static BasicPromise get_return_object_on_allocation_failure()
+				{
+					return BasicPromise::Ready();
+				}
+			};
+#endif
 		};
 
 		template <typename T, typename Executor = ParallelExecutor>
 		using Promise = BasicPromise<T, Executor>;
-
-		ED_OUT_TS inline bool Coasync(const TaskCallback& Callback, bool AlwaysEnqueue = false) noexcept
+		
+		template <typename T>
+		struct ED_OUT PromiseContext
 		{
-			ED_ASSERT(Callback, false, "callback should not be empty");
-			if (!AlwaysEnqueue && Costate::IsCoroutine())
-			{
-				Callback();
-				return true;
-			}
+			std::function<Promise<T>()> Callback;
 
-			return Schedule::Get()->SetCoroutine(Callback);
-		}
-		ED_OUT_TS inline bool Coasync(TaskCallback&& Callback, bool AlwaysEnqueue = false) noexcept
-		{
-			ED_ASSERT(Callback, false, "callback should not be empty");
-			if (!AlwaysEnqueue && Costate::IsCoroutine())
+			PromiseContext(std::function<Promise<T>()>&& NewCallback) : Callback(std::move(NewCallback))
 			{
-				Callback();
-				return true;
 			}
+			~PromiseContext() = default;
+			PromiseContext(const PromiseContext& Other) = delete;
+			PromiseContext(PromiseContext&& Other) = delete;
+			PromiseContext& operator= (const PromiseContext& Other) = delete;
+			PromiseContext& operator= (PromiseContext&& Other) = delete;
+		};
 
-			return Schedule::Get()->SetCoroutine(std::move(Callback));
-		}
 		ED_OUT_TS inline bool Cosuspend() noexcept
 		{
 			ED_ASSERT(Costate::Get() != nullptr, false, "cannot call suspend outside coroutine");
 			return Costate::Get()->Suspend();
 		}
-		ED_OUT_TS inline Stringify Form(const char* Format, ...) noexcept
+		ED_OUT_TS inline Promise<void> Cosleep(uint64_t Ms) noexcept
 		{
-			ED_ASSERT(Format != nullptr, Stringify(), "format should be set");
-
-			va_list Args;
-			va_start(Args, Format);
-			char Buffer[BLOB_SIZE];
-			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-			va_end(Args);
-
-			return Stringify(Buffer, Size > BLOB_SIZE ? BLOB_SIZE : (size_t)Size);
-		}
-		ED_OUT_TS inline Promise<bool> Cosleep(uint64_t Ms) noexcept
-		{
-			Promise<bool> Result;
+			Promise<void> Result;
 			Schedule::Get()->SetTimeout(Ms, [Result]() mutable
 			{
-				Result.Set(true);
+				Result.Set();
 			}, Difficulty::Light);
 
 			return Result;
 		}
+		template <typename T, typename Executor = ParallelExecutor>
+		ED_OUT_TS inline Promise<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Heavy) noexcept
+		{
+			ED_ASSERT(Callback, Promise<T>::Ready(), "callback should not be empty");
+
+			Promise<T> Result;
+			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
+			{
+				Result.Set(std::move(Callback()));
+			}, Type);
+
+			return Result;
+		}
+#ifdef ED_CXX20
+		template <typename T, typename Executor = ParallelExecutor>
+		auto operator co_await(BasicPromise<T, Executor>&& Value) noexcept
+		{
+			return BasicPromise<T, Executor>::awaitable(std::move(Value));
+		}
+		template <typename T, typename Executor = ParallelExecutor>
+		auto operator co_await(const BasicPromise<T, Executor>& Value) noexcept
+		{
+			return BasicPromise<T, Executor>::awaitable(Value);
+		}
+		template <typename T>
+		ED_OUT_TS inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
+		{
+			ED_ASSERT(Callback != nullptr, Promise<T>::Ready(), "callback should be set");
+			PromiseContext<T>* Context = ED_NEW(PromiseContext<T>, std::move(Callback));
+			if (AlwaysEnqueue)
+			{
+				Promise<T> Value;
+				Schedule::Get()->SetTask([Value, Context]() mutable
+				{
+					Promise<T> Wrapper = Context->Callback();
+					Value.Set(Wrapper.Then<T>([Context](T&& Result)
+					{
+						ED_DELETE(PromiseContext, Context);
+						return Result;
+					}));
+				}, Difficulty::Light);
+
+				return Value;
+			}
+			else
+			{
+				Promise<T> Value = Context->Callback();
+				return Value.Then<T>([Context](T&& Result)
+				{
+					ED_DELETE(PromiseContext, Context);
+					return Result;
+				});
+			}
+		}
+		template <>
+		ED_OUT_TS inline Promise<void> Coasync(std::function<Promise<void>()>&& Callback, bool AlwaysEnqueue) noexcept
+		{
+			ED_ASSERT(Callback != nullptr, Promise<void>::Ready(), "callback should be set");
+			PromiseContext<void>* Context = ED_NEW(PromiseContext<void>, std::move(Callback));
+			if (AlwaysEnqueue)
+			{
+				Promise<void> Value;
+				Schedule::Get()->SetTask([Value, Context]() mutable
+				{
+					Promise<void> Wrapper = Context->Callback();
+					Value.Set(Wrapper.Then<void>([Context]()
+					{
+						ED_DELETE(PromiseContext, Context);
+					}));
+				}, Difficulty::Light);
+
+				return Value;
+			}
+			else
+			{
+				Promise<void> Value = Callback();
+				return Value.Then<void>([Context]()
+				{
+					ED_DELETE(PromiseContext, Context);
+				});
+			}
+		}
+#else
 		template <typename T>
 		ED_OUT_TS inline T&& Coawait(Promise<T>&& Future, const char* Function = nullptr, const char* Expression = nullptr) noexcept
 		{
@@ -3378,61 +3619,37 @@ namespace Edge
 			return Future.Get();
 		}
 		template <typename T>
-		ED_OUT_TS inline Promise<T> Cotask(const std::function<T()>& Callback, Difficulty Type = Difficulty::Heavy) noexcept
+		ED_OUT_TS inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
-			ED_ASSERT(Callback, Promise<T>::Empty(), "callback should not be empty");
-
-			Promise<T> Result;
-			Schedule::Get()->SetTask([Result, Callback]() mutable
-			{
-				Result.Set(std::move(Callback()));
-			}, Type);
-
-			return Result;
-		}
-		template <typename T>
-		ED_OUT_TS inline Promise<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Heavy) noexcept
-		{
-			ED_ASSERT(Callback, Promise<T>::Empty(), "callback should not be empty");
-
-			Promise<T> Result;
-			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
-			{
-				Result.Set(std::move(Callback()));
-			}, Type);
-
-			return Result;
-		}
-		template <typename T>
-		ED_OUT_TS inline Promise<T> Coasync(const std::function<T()>& Callback, bool AlwaysEnqueue = false) noexcept
-		{
-			ED_ASSERT(Callback, Promise<T>::Empty(), "callback should not be empty");
+			ED_ASSERT(Callback, Promise<T>::Ready(), "callback should not be empty");
 			if (!AlwaysEnqueue && Costate::IsCoroutine())
-				return Promise<T>(Callback());
-
-			Promise<T> Result;
-			Schedule::Get()->SetCoroutine([Result, Callback]() mutable
-			{
-				Result.Set(std::move(Callback()));
-			});
-
-			return Result;
-		}
-		template <typename T>
-		ED_OUT_TS inline Promise<T> Coasync(std::function<T()>&& Callback, bool AlwaysEnqueue = false) noexcept
-		{
-			ED_ASSERT(Callback, Promise<T>::Empty(), "callback should not be empty");
-			if (!AlwaysEnqueue && Costate::IsCoroutine())
-				return Promise<T>(Callback());
+				return Callback();
 
 			Promise<T> Result;
 			Schedule::Get()->SetCoroutine([Result, Callback = std::move(Callback)]() mutable
 			{
-				Result.Set(std::move(Callback()));
+				Result.Set(Callback().Get());
 			});
 
 			return Result;
 		}
+		template <>
+		ED_OUT_TS inline Promise<void> Coasync(std::function<Promise<void>()>&& Callback, bool AlwaysEnqueue) noexcept
+		{
+			ED_ASSERT(Callback, Promise<void>::Ready(), "callback should not be empty");
+			if (!AlwaysEnqueue && Costate::IsCoroutine())
+				return Callback();
+
+			Promise<void> Result;
+			Schedule::Get()->SetCoroutine([Result, Callback = std::move(Callback)]() mutable
+			{
+				Callback();
+				Result.Set();
+			});
+
+			return Result;
+		}
+#endif
 #ifdef ED_HAS_FAST_MEMORY
 		template <typename O, typename I>
 		ED_OUT_TS inline O Copy(const I& Other)
@@ -3453,6 +3670,18 @@ namespace Edge
 		ED_OUT_TS inline Core::String ToString(T Other)
 		{
 			return Core::Copy<Core::String, std::string>(std::to_string(Other));
+		}
+		ED_OUT_TS inline Stringify Form(const char* Format, ...) noexcept
+		{
+			ED_ASSERT(Format != nullptr, Stringify(), "format should be set");
+
+			va_list Args;
+			va_start(Args, Format);
+			char Buffer[BLOB_SIZE];
+			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
+			va_end(Args);
+
+			return Stringify(Buffer, Size > BLOB_SIZE ? BLOB_SIZE : (size_t)Size);
 		}
 	}
 }

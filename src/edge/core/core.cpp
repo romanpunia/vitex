@@ -6693,7 +6693,7 @@ namespace Edge
 				case FileMode::Read_Only:
 				{
 					auto* Client = new Network::HTTP::Client(30000);
-					if (ED_AWAIT(Client->Connect(&Address, false)) != 0)
+					if (Client->Connect(&Address, false).Get() != 0)
 					{
 						ED_RELEASE(Client);
 						break;
@@ -6708,7 +6708,7 @@ namespace Edge
 					for (auto& Item : Headers)
 						Request.SetHeader(Item.first, Item.second);
 
-					Network::HTTP::ResponseFrame* Response = ED_AWAIT(Client->Send(std::move(Request)));
+					Network::HTTP::ResponseFrame* Response = Client->Send(std::move(Request)).Get();
 					if (!Response || Response->StatusCode < 0)
 					{
 						ED_RELEASE(Client);
@@ -6743,7 +6743,7 @@ namespace Edge
 		{
 			auto* Client = (Network::HTTP::Client*)Resource;
 			if (Client != nullptr)
-				ED_AWAIT(Client->Close());
+				Client->Close().Wait();
 
 			ED_RELEASE(Client);
 			Resource = nullptr;
@@ -6811,7 +6811,7 @@ namespace Edge
 			if (Offset + Length > Chunk.size() && (Chunk.size() < Size || !Size))
 			{
 				auto* Client = (Network::HTTP::Client*)Resource;
-				if (!ED_AWAIT(Client->Consume(Length)))
+				if (!Client->Consume(Length).Get())
 					return 0;
 
 				auto* Response = Client->GetResponse();
@@ -9547,9 +9547,15 @@ namespace Edge
 		void Schedule::Desc::SetThreads(size_t Cores)
 		{
 			size_t Clock = 1;
+#ifdef ED_CXX20
+			size_t Chain = 0;
+			size_t Light = (size_t)(std::max((double)Cores * 0.35, 1.0));
+			size_t Heavy = std::max<size_t>(Cores - Light, 1);
+#else
 			size_t Chain = (size_t)(std::max((double)Cores * 0.20, 1.0));
 			size_t Light = (size_t)(std::max((double)Cores * 0.30, 1.0));
 			size_t Heavy = std::max<size_t>(Cores - Light, 1);
+#endif
 			Threads[((size_t)Difficulty::Clock)] = Clock;
 			Threads[((size_t)Difficulty::Coroutine)] = Chain;
 			Threads[((size_t)Difficulty::Light)] = Light;

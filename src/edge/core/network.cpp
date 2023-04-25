@@ -2736,7 +2736,7 @@ namespace Edge
 		{
 			if (Stream.IsValid())
 			{
-				int Result = ED_AWAIT(Close());
+				int Result = Close().Get();
 				ED_WARN("[net:%i] socket client leaking\n\tconsider manual termination", Result);
 			}
 #ifdef ED_HAS_OPENSSL

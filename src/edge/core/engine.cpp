@@ -1646,13 +1646,13 @@ namespace Edge
 			return true;
 		}
 
-		Parallel::Task Parallel::Enqueue(const Core::TaskCallback& Callback)
+		Core::Promise<void> Parallel::Enqueue(const Core::TaskCallback& Callback)
 		{
-			ED_ASSERT(Callback != nullptr, Task::Empty(), "callback should be set");
+			ED_ASSERT(Callback != nullptr, Core::Promise<void>::Ready(), "callback should be set");
 			auto* Queue = Core::Schedule::Get();
 			if (Queue->GetThreads(Core::Difficulty::Heavy) > 0)
 			{
-				Task Future;
+				Core::Promise<void> Future;
 				if (Queue->SetTask([Future, Callback]() mutable
 				{
 					Callback();
@@ -1662,12 +1662,12 @@ namespace Edge
 			}
 
 			Callback();
-			return Task::Empty();
+			return Core::Promise<void>::Ready();
 		}
-		Core::Vector<Parallel::Task> Parallel::EnqueueAll(const Core::Vector<Core::TaskCallback>& Callbacks)
+		Core::Vector<Core::Promise<void>> Parallel::EnqueueAll(const Core::Vector<Core::TaskCallback>& Callbacks)
 		{
-			ED_ASSERT(!Callbacks.empty(), Core::Vector<Task>(), "callbacks should not be empty");
-			Core::Vector<Task> Result;
+			ED_ASSERT(!Callbacks.empty(), Core::Vector<Core::Promise<void>>(), "callbacks should not be empty");
+			Core::Vector<Core::Promise<void>> Result;
 			Result.reserve(Callbacks.size());
 
 			for (auto& Callback : Callbacks)
@@ -1675,11 +1675,11 @@ namespace Edge
 
 			return Result;
 		}
-		void Parallel::Wait(Task&& Value)
+		void Parallel::Wait(Core::Promise<void>&& Value)
 		{
 			Value.Wait();
 		}
-		void Parallel::WailAll(Core::Vector<Task>&& Values)
+		void Parallel::WailAll(Core::Vector<Core::Promise<void>>&& Values)
 		{
 			for (auto& Value : Values)
 				Value.Wait();
@@ -2940,7 +2940,7 @@ namespace Edge
 		{
 			return Scene->GetStorage(Section);
 		}
-		void RenderSystem::WatchAll(Core::Vector<Parallel::Task>&& Tasks)
+		void RenderSystem::WatchAll(Core::Vector<Core::Promise<void>>&& Tasks)
 		{
 			Scene->WatchAll(std::move(Tasks));
 		}
@@ -4732,12 +4732,12 @@ namespace Edge
 			if (ExecuteNow)
 				Callback();
 		}
-		void SceneGraph::Watch(Parallel::Task&& Awaitable)
+		void SceneGraph::Watch(Core::Promise<void>&& Awaitable)
 		{
 			if (Awaitable.IsPending())
 				Tasks.emplace(std::move(Awaitable));
 		}
-		void SceneGraph::WatchAll(Core::Vector<Parallel::Task>&& Awaitables)
+		void SceneGraph::WatchAll(Core::Vector<Core::Promise<void>>&& Awaitables)
 		{
 			for (auto& Awaitable : Awaitables)
 				Watch(std::move(Awaitable));

@@ -11,9 +11,6 @@
 #define ED_OUT __declspec(dllexport)
 #endif
 #define ED_OUT_TS ED_OUT
-#if __cplusplus >= 201703L || _MSVC_LANG >= 201703L || defined(_HAS_CXX17)
-#define ED_CXX17
-#endif
 #ifdef _WIN64
 #define ED_64 1
 #endif
@@ -38,9 +35,6 @@ typedef void* epoll_handle;
 #define ED_SPLITTER '/'
 #if __x86_64__ || __ppc64__
 #define ED_64 1
-#endif
-#if __cplusplus >= 201703L || defined(_HAS_CXX17)
-#define ED_CXX17
 #endif
 #ifdef ED_USE_FCTX
 #define ED_COCALL
@@ -73,9 +67,6 @@ typedef socklen_t socket_size_t;
 #if __x86_64__ || __ppc64__
 #define ED_64 1
 #endif
-#if __cplusplus >= 201703L || defined(_HAS_CXX17)
-#define ED_CXX17
-#endif
 #ifdef ED_USE_FCTX
 #define ED_COCALL
 #define ED_CODATA void* Context
@@ -89,7 +80,17 @@ typedef int epoll_handle;
 typedef int socket_t;
 typedef socklen_t socket_size_t;
 #endif
-#ifdef ED_CXX17
+#if ED_CXX >= 17
+#if __cplusplus >= 201703L || _MSVC_LANG >= 201703L || defined(_HAS_CXX17)
+#define ED_CXX17 1
+#endif
+#endif
+#if ED_CXX >= 20
+#if __cplusplus >= 202002L || _MSVC_LANG >= 202002L || defined(_HAS_CXX20)
+#define ED_CXX20 1
+#endif
+#endif
+#if defined(ED_CXX17) && defined(ED_MICROSOFT)
 #include <execution>
 #define ED_SORT(Begin, End, Comparator) std::sort(std::execution::par_unseq, Begin, End, Comparator)
 #else
@@ -125,12 +126,14 @@ typedef socklen_t socket_size_t;
 #define ED_ASSERT_V(Condition, Format, ...) ((void)0)
 #define ED_MEASURE(Threshold) ((void)0)
 #define ED_MEASURE_LOOP() ((void)0)
-#define ED_AWAIT(Value) Edge::Core::Coawait(Value)
 #define ED_WATCH(Ptr, Label) ((void)0)
 #define ED_WATCH_AT(Ptr, Function, Label) ((void)0)
 #define ED_UNWATCH(Ptr) ((void)0)
 #define ED_MALLOC(Type, Size) (Type*)Edge::Core::Memory::Malloc(Size)
 #define ED_NEW(Type, ...) new((void*)ED_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
+#ifndef ED_CXX20
+#define ED_AWAIT(Value) Edge::Core::Coawait(Value)
+#endif
 #else
 #if ED_DLEVEL >= 5
 #define ED_TRACE(Format, ...) Edge::Core::OS::Log((int)Edge::Core::LogLevel::Trace, __LINE__, __FILE__, Format, ##__VA_ARGS__)
@@ -165,12 +168,14 @@ typedef socklen_t socket_size_t;
 #define ED_MEASURE_PREPARE(X) ED_MEASURE_START(X)
 #define ED_MEASURE(Threshold) auto ED_MEASURE_PREPARE(__LINE__) = Edge::Core::OS::Timing::Measure(__FILE__, __func__, __LINE__, (uint64_t)(Threshold))
 #define ED_MEASURE_LOOP() Edge::Core::OS::Timing::MeasureLoop()
-#define ED_AWAIT(Value) Edge::Core::Coawait(Value, __func__, #Value)
 #define ED_WATCH(Ptr, Label) Edge::Core::Memory::Watch(Ptr, Edge::Core::MemoryContext(__FILE__, __func__, Label, __LINE__))
 #define ED_WATCH_AT(Ptr, Function, Label) Edge::Core::Memory::Watch(Ptr, Edge::Core::MemoryContext(__FILE__, Function, Label, __LINE__))
 #define ED_UNWATCH(Ptr) Edge::Core::Memory::Unwatch(Ptr)
 #define ED_MALLOC(Type, Size) (Type*)Edge::Core::Memory::MallocContext(Size, Edge::Core::MemoryContext(__FILE__, __func__, typeid(Type).name(), __LINE__))
 #define ED_NEW(Type, ...) new((void*)ED_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
+#ifndef ED_CXX20
+#define ED_AWAIT(Value) Edge::Core::Coawait(Value, __func__, #Value)
+#endif
 #endif
 #define ED_DELETE(Destructor, Var) { if (Var != nullptr) { (Var)->~Destructor(); ED_FREE((void*)Var); } }
 #define ED_FREE(Ptr) Edge::Core::Memory::Free(Ptr)
@@ -183,4 +188,13 @@ typedef socklen_t socket_size_t;
 #define ED_STRINGIFY(Text) #Text
 #define ED_COMPONENT_ROOT(Name) virtual const char* GetName() { return Name; } virtual uint64_t GetId() { static uint64_t V = ED_HASH(Name); return V; } static const char* GetTypeName() { return Name; } static uint64_t GetTypeId() { static uint64_t V = ED_HASH(Name); return V; }
 #define ED_COMPONENT(Name) virtual const char* GetName() override { return Name; } virtual uint64_t GetId() override { static uint64_t V = ED_HASH(Name); return V; } static const char* GetTypeName() { return Name; } static uint64_t GetTypeId() { static uint64_t V = ED_HASH(Name); return V; }
+#ifdef ED_CXX20
+#define ED_AWAIT(Value) (co_await (Value))
+#define Coawait(Value) (co_await (Value))
+#define Coreturn co_return
+#define CoreturnVoid co_return
+#else
+#define Coreturn return
+#define CoreturnVoid return Edge::Core::Promise<void>::Ready()
+#endif
 #endif

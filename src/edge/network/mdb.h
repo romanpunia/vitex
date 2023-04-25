@@ -307,11 +307,11 @@ namespace Edge
 				Response& operator =(Response&& Other);
 				Core::Promise<Core::Unique<Core::Schema>> Fetch() const;
 				Core::Promise<Core::Unique<Core::Schema>> FetchAll() const;
-				Property GetProperty(const char* Name);
+				Core::Promise<Property> GetProperty(const char* Name);
 				Cursor&& GetCursor();
 				Document&& GetDocument();
 				bool IsSuccess() const;
-				Property operator [](const char* Name)
+				Core::Promise<Property> operator [](const char* Name)
 				{
 					return GetProperty(Name);
 				}

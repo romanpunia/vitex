@@ -1674,44 +1674,49 @@ namespace Edge
 				if (!NetCursor)
 					return Core::Promise<Core::Schema*>(Core::Var::Set::Array());
 
-				return Core::Coasync<Core::Schema*>([this]()
+				return Core::Coasync<Core::Schema*>([this]() -> Core::Promise<Core::Schema*>
 				{
 					Core::Schema* Result = Core::Var::Set::Array();
 					while (ED_AWAIT(NetCursor.Next()))
 						Result->Push(NetCursor.GetCurrent().ToSchema());
 
-					return Result;
+					Coreturn Result;
 				});
 			}
-			Property Response::GetProperty(const char* Name)
+			Core::Promise<Property> Response::GetProperty(const char* Name)
 			{
 				ED_ASSERT(Name != nullptr, Property(), "context should be set");
 
-				Property Result;
 				if (NetDocument)
 				{
+					Property Result;
 					NetDocument.GetProperty(Name, &Result);
 					return Result;
 				}
 
 				if (!NetCursor)
-					return Result;
+					return Property();
 
 				Document Source = NetCursor.GetCurrent();
 				if (Source)
 				{
+					Property Result;
 					Source.GetProperty(Name, &Result);
 					return Result;
 				}
 
-				if (!ED_AWAIT(NetCursor.Next()))
-					return Result;
+				return Core::Coasync<Property>([this, Name]() mutable -> Core::Promise<Property>
+				{
+					Property Result;
+					if (!ED_AWAIT(NetCursor.Next()))
+						Coreturn Result;
 
-				Source = NetCursor.GetCurrent();
-				if (Source)
-					Source.GetProperty(Name, &Result);
+					Document Source = NetCursor.GetCurrent();
+					if (Source)
+						Source.GetProperty(Name, &Result);
 
-				return Result;
+					Coreturn Result;
+				});
 			}
 			Cursor&& Response::GetCursor()
 			{
@@ -3040,16 +3045,16 @@ namespace Edge
 			{
 #ifdef ED_HAS_MONGOC
 				ED_ASSERT(Callback, Core::Promise<bool>(false), "callback should not be empty");
-				return Core::Coasync<bool>([this, Callback]()
+				return Core::Coasync<bool>([this, Callback]() -> Core::Promise<bool>
 				{
 					Transaction Context = GetSession();
 					if (!Context)
-						return false;
+						Coreturn false;
 
 					while (true)
 					{
 						if (!ED_AWAIT(Context.Start()))
-							return false;
+							Coreturn false;
 
 						if (!ED_AWAIT(Callback(Context)))
 							break;
@@ -3058,7 +3063,7 @@ namespace Edge
 						{
 							TransactionState State = ED_AWAIT(Context.Commit());
 							if (State == TransactionState::OK || State == TransactionState::Fatal)
-								return State == TransactionState::OK;
+								Coreturn State == TransactionState::OK;
 
 							if (State == TransactionState::Retry_Commit)
 							{
@@ -3075,7 +3080,7 @@ namespace Edge
 					}
 
 					ED_AWAIT(Context.Abort());
-					return false;
+					Coreturn false;
 				});
 #else
 				return Core::Promise<bool>(false);
@@ -3085,16 +3090,16 @@ namespace Edge
 			{
 #ifdef ED_HAS_MONGOC
 				ED_ASSERT(Callback, Core::Promise<bool>(false), "callback should not be empty");
-				return Core::Coasync<bool>([this, Callback]()
+				return Core::Coasync<bool>([this, Callback]() -> Core::Promise<bool>
 				{
 					Transaction Context = GetSession();
 					if (!Context)
-						return false;
+						Coreturn false;
 
 					while (true)
 					{
 						if (!ED_AWAIT(Context.Start()))
-							return false;
+							Coreturn false;
 
 						if (!Callback(Context))
 							break;
@@ -3103,7 +3108,7 @@ namespace Edge
 						{
 							TransactionState State = ED_AWAIT(Context.Commit());
 							if (State == TransactionState::OK || State == TransactionState::Fatal)
-								return State == TransactionState::OK;
+								Coreturn State == TransactionState::OK;
 
 							if (State == TransactionState::Retry_Commit)
 							{
@@ -3120,7 +3125,7 @@ namespace Edge
 					}
 
 					ED_AWAIT(Context.Abort());
-					return false;
+					Coreturn false;
 				});
 #else
 				return Core::Promise<bool>(false);

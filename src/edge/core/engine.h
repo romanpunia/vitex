@@ -516,21 +516,18 @@ namespace Edge
 		class ED_OUT_TS Parallel
 		{
 		public:
-			typedef Core::Promise<void> Task;
-
-		public:
-			static Task Enqueue(const Core::TaskCallback& Callback);
-			static Core::Vector<Task> EnqueueAll(const Core::Vector<Core::TaskCallback>& Callbacks);
-			static void Wait(Task&& Value);
-			static void WailAll(Core::Vector<Task>&& Values);
+			static Core::Promise<void> Enqueue(const Core::TaskCallback& Callback);
+			static Core::Vector<Core::Promise<void>> EnqueueAll(const Core::Vector<Core::TaskCallback>& Callbacks);
+			static void Wait(Core::Promise<void>&& Value);
+			static void WailAll(Core::Vector<Core::Promise<void>>&& Values);
 			static size_t GetThreadIndex();
 			static size_t GetThreads();
 
 		public:
 			template <typename Iterator, typename Function>
-			static Core::Vector<Task> ForEach(Iterator Begin, Iterator End, Function&& Callback)
+			static Core::Vector<Core::Promise<void>> ForEach(Iterator Begin, Iterator End, Function&& Callback)
 			{
-				Core::Vector<Task> Tasks;
+				Core::Vector<Core::Promise<void>> Tasks;
 				size_t Size = End - Begin;
 
 				if (!Size)
@@ -551,9 +548,9 @@ namespace Edge
 				return Tasks;
 			}
 			template <typename Iterator, typename InitFunction, typename ElementFunction>
-			static Core::Vector<Task> Distribute(Iterator Begin, Iterator End, InitFunction&& InitCallback, ElementFunction&& ElementCallback)
+			static Core::Vector<Core::Promise<void>> Distribute(Iterator Begin, Iterator End, InitFunction&& InitCallback, ElementFunction&& ElementCallback)
 			{
-				Core::Vector<Task> Tasks;
+				Core::Vector<Core::Promise<void>> Tasks;
 				size_t Size = End - Begin;
 				if (!Size)
 				{
@@ -1042,7 +1039,7 @@ namespace Edge
 
 		private:
 			SparseIndex& GetStorageWrapper(uint64_t Section);
-			void WatchAll(Core::Vector<Parallel::Task>&& Tasks);
+			void WatchAll(Core::Vector<Core::Promise<void>>&& Tasks);
 
 		private:
 			template <typename T, typename OverlapsFunction, typename MatchFunction>
@@ -1500,7 +1497,7 @@ namespace Edge
 			Core::UnorderedMap<uint64_t, SparseIndex*> Registry;
 			Core::UnorderedMap<Component*, size_t> Incomplete;
 			Core::SingleQueue<Core::TaskCallback> Transactions;
-			Core::SingleQueue<Parallel::Task> Tasks;
+			Core::SingleQueue<Core::Promise<void>> Tasks;
 			Core::SingleQueue<Event> Events;
 			Core::Pool<Component*> Actors[(size_t)ActorType::Count];
 			Core::Pool<Material*> Materials;
@@ -1552,8 +1549,8 @@ namespace Edge
 			void Mutate(Material* Target, const char* Type);
 			void MakeSnapshot(IdxSnapshot* Result);
 			void Transaction(Core::TaskCallback&& Callback);
-			void Watch(Parallel::Task&& Awaitable);
-			void WatchAll(Core::Vector<Parallel::Task>&& Awaitables);
+			void Watch(Core::Promise<void>&& Awaitable);
+			void WatchAll(Core::Vector<Core::Promise<void>>&& Awaitables);
 			void AwaitAll();
 			void ClearCulling();
 			void ReserveMaterials(size_t Size);
@@ -1738,7 +1735,7 @@ namespace Edge
 				size_t Stack = Core::STACK_SIZE;
 				size_t PollingTimeout = 100;
 				size_t PollingEvents = 256;
-				size_t Coroutines = 16;
+				size_t Coroutines = 96;
 				size_t Threads = 0;
 				size_t Usage =
 					(size_t)ApplicationSet::GraphicsSet |

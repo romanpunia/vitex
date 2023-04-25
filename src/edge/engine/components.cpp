@@ -3978,7 +3978,7 @@ namespace Edge
 				if (R < 0)
 					return R;
 
-				R = ED_AWAIT(Compiler->Compile());
+				R = Compiler->Compile().Get();
 				if (R < 0)
 					return R;
 

@@ -50,7 +50,8 @@ endforeach()
 add_library(edge SHARED ${SOURCE})
 set_target_properties(edge PROPERTIES
         OUTPUT_NAME "edge"
-		CXX_STANDARD 17
+		CXX_STANDARD ${ED_CXX}
+        CXX_STANDARD_REQUIRED ON
 		CXX_EXTENSIONS OFF
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION})

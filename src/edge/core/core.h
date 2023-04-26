@@ -3496,16 +3496,6 @@ namespace Edge
 			ED_ASSERT(Costate::Get() != nullptr, false, "cannot call suspend outside coroutine");
 			return Costate::Get()->Suspend();
 		}
-		ED_OUT_TS inline Promise<void> Cosleep(uint64_t Ms) noexcept
-		{
-			Promise<void> Result;
-			Schedule::Get()->SetTimeout(Ms, [Result]() mutable
-			{
-				Result.Set();
-			}, Difficulty::Light);
-
-			return Result;
-		}
 		template <typename T, typename Executor = ParallelExecutor>
 		ED_OUT_TS inline Promise<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Heavy) noexcept
 		{
@@ -3602,9 +3592,12 @@ namespace Edge
 		template <typename T>
 		ED_OUT_TS inline T&& Coawait(Promise<T>&& Future, const char* Function = nullptr, const char* Expression = nullptr) noexcept
 		{
-			Costate* State; Coroutine* Base;
-			if (!Costate::GetState(&State, &Base) || !Future.IsPending())
+			if (!Future.IsPending())
 				return Future.Get();
+
+			Costate* State; Coroutine* Base;
+			Costate::GetState(&State, &Base);
+			ED_ASSERT(State != nullptr && Base != nullptr, false, "cannot call await outside coroutine");
 #ifndef NDEBUG
 			std::chrono::microseconds Time = Schedule::GetClock();
 			if (Function != nullptr && Expression != nullptr)

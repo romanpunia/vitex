@@ -791,8 +791,10 @@ namespace Edge
 					static Promise* Id(T* Base, Args... Data)
 					{
 						Promise* Future = Promise::Create();
-						((Base->*F)(Data...)).Await([Future](R&& Result)
+						Core::Coasync<void>([Future, Base, Data...]() -> Core::Promise<void>
 						{
+							auto Indirect = ((Base->*F)(Data...));
+							auto&& Result = ED_AWAIT(Indirect);
 							Future->Store((void*)&Result, (int)TypeID);
 						});
 
@@ -803,8 +805,10 @@ namespace Edge
 					{
 						Promise* Future = Promise::Create();
 						int Id = TypeCache::GetTypeId(TypeRef);
-						((Base->*F)(Data...)).Await([Future, Id](R&& Result)
+						Core::Coasync<void>([Future, Id, Base, Data...]() -> Core::Promise<void>
 						{
+							auto Indirect = ((Base->*F)(Data...));
+							auto&& Result = ED_AWAIT(Indirect);
 							Future->Store((void*)&Result, Id);
 						});
 
@@ -819,8 +823,10 @@ namespace Edge
 					static Promise* Id(Args... Data)
 					{
 						Promise* Future = Promise::Create();
-						((*F)(Data...)).Await([Future](R&& Result)
+						Core::Coasync<void>([Future, Data...]() -> Core::Promise<void>
 						{
+							auto Indirect = ((*F)(Data...));
+							auto&& Result = ED_AWAIT(Indirect);
 							Future->Store((void*)&Result, (int)TypeID);
 						});
 
@@ -831,8 +837,10 @@ namespace Edge
 					{
 						Promise* Future = Promise::Create();
 						int TypeId = TypeCache::GetTypeId(TypeRef);
-						((*F)(Data...)).Await([Future, TypeId](R&& Result)
+						Core::Coasync<void>([Future, TypeId, Data...]() -> Core::Promise<void>
 						{
+							auto Indirect = ((*F)(Data...));
+							auto&& Result = ED_AWAIT(Indirect);
 							Future->Store((void*)&Result, TypeId);
 						});
 

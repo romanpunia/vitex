@@ -751,10 +751,12 @@ namespace Edge
 				void Store(void* Ref, const char* TypeId);
 				bool Retrieve(void* fRef, int TypeId);
 				void* Retrieve();
+				bool IsPending();
 				Promise* YieldIf();
 
 			public:
 				static Core::Unique<Promise> Create();
+				static Core::Unique<Promise> CreatePendingOrReady(void* Ref, int TypeId);
 				static Core::String GetStatus(ImmediateContext* Context);
 
 			public:
@@ -762,7 +764,7 @@ namespace Edge
 				static Core::Unique<Promise> Compose(Core::Promise<T>&& Value, TypeId Id)
 				{
 					Promise* Future = Promise::Create();
-					Value.Await([Future, Id](T&& Result)
+					Value.When([Future, Id](T&& Result)
 					{
 						Future->Store((void*)&Result, (int)Id);
 					});
@@ -852,7 +854,7 @@ namespace Edge
 			class ED_OUT Mutex
 			{
 			private:
-				std::mutex Base;
+				std::recursive_mutex Base;
 				int Ref;
 
 			public:
@@ -865,6 +867,62 @@ namespace Edge
 
 			public:
 				static Mutex* Factory();
+			};
+
+			class ED_OUT Thread
+			{
+			private:
+				static int ContextUD;
+				static int EngineListUD;
+
+			private:
+				struct
+				{
+					Core::Vector<Any*> Queue;
+					std::condition_variable CV;
+					std::mutex Mutex;
+				} Pipe[2];
+
+			private:
+				std::thread Procedure;
+				std::recursive_mutex Mutex;
+				asIScriptFunction* Function;
+				VirtualMachine* VM;
+				ImmediateContext* Context;
+				bool Flag;
+				int Sparcing;
+				int RefCount;
+
+			public:
+				Thread(asIScriptEngine* Engine, asIScriptFunction* Function) noexcept;
+				void EnumReferences(asIScriptEngine* Engine);
+				void SetGCFlag();
+				void ReleaseReferences(asIScriptEngine* Engine);
+				void AddRef();
+				void Release();
+				void Suspend();
+				void Resume();
+				void Push(void* Ref, int TypeId);
+				bool Pop(void* Ref, int TypeId);
+				bool Pop(void* Ref, int TypeId, uint64_t Timeout);
+				bool IsActive();
+				bool Start();
+				bool GetGCFlag();
+				int GetRefCount();
+				int Join(uint64_t Timeout);
+				int Join();
+				Core::String GetId() const;
+
+			private:
+				void InvokeRoutine();
+				void ResumeRoutine();
+
+			public:
+				static void Create(asIScriptGeneric* Generic);
+				static Thread* GetThread();
+				static Core::String GetThreadId();
+				static void ThreadSleep(uint64_t Mills);
+				static void ThreadSuspend();
 			};
 
 			class ED_OUT Complex
@@ -901,61 +959,6 @@ namespace Edge
 				static void ConvConstructor(float r, Complex* self);
 				static void InitConstructor(float r, float i, Complex* self);
 				static void ListConstructor(float* list, Complex* self);
-			};
-
-			class ED_OUT Thread
-			{
-			private:
-				static int ContextUD;
-				static int EngineListUD;
-
-			private:
-				struct
-				{
-					Core::Vector<Any*> Queue;
-					std::condition_variable CV;
-					std::mutex Mutex;
-				} Pipe[2];
-
-			private:
-				std::condition_variable CV;
-				std::thread Procedure;
-				std::mutex Mutex;
-				asIScriptFunction* Function;
-				VirtualMachine* VM;
-				ImmediateContext* Context;
-				bool GCFlag;
-				int Ref;
-
-			public:
-				Thread(asIScriptEngine* Engine, asIScriptFunction* Function) noexcept;
-				void EnumReferences(asIScriptEngine* Engine);
-				void SetGCFlag();
-				void ReleaseReferences(asIScriptEngine* Engine);
-				void AddRef();
-				void Release();
-				void Suspend();
-				void Resume();
-				void Push(void* Ref, int TypeId);
-				bool Pop(void* Ref, int TypeId);
-				bool Pop(void* Ref, int TypeId, uint64_t Timeout);
-				bool IsActive();
-				bool Start();
-				bool GetGCFlag();
-				int GetRefCount();
-				int Join(uint64_t Timeout);
-				int Join();
-				Core::String GetId() const;
-
-			private:
-				void Routine();
-
-			public:
-				static void Create(asIScriptGeneric* Generic);
-				static Thread* GetThread();
-				static Core::String GetThreadId();
-				static void ThreadSleep(uint64_t Mills);
-				static void ThreadSuspend();
 			};
 
 			class ED_OUT Format final : public Core::Reference<Format>

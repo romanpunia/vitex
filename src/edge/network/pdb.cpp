@@ -2136,7 +2136,7 @@ namespace Edge
 				{
 					if (Reconnected)
 					{
-						Reconnected(Channels).Await([this, Channels](bool&& ListenToChannels)
+						Reconnected(Channels).When([this, Channels](bool&& ListenToChannels)
 						{
 							if (ListenToChannels)
 								Listen(Channels);

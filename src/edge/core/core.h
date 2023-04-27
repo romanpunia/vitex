@@ -2962,7 +2962,7 @@ namespace Edge
 			{
 				ED_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				Status* Copy = AddRef();
-				Other.Await([Copy](T&& Value) mutable
+				Other.When([Copy](T&& Value) mutable
 				{
 					std::unique_lock<std::mutex> Unique(Copy->Update);
 					bool Async = (Copy->Code != Deferred::Waiting);
@@ -2972,7 +2972,7 @@ namespace Edge
 					Release(Copy);
 				});
 			}
-			void Await(std::function<void(T&&)>&& Callback) const noexcept
+			void When(std::function<void(T&&)>&& Callback) const noexcept
 			{
 				ED_ASSERT_V(Callback, "callback should be set");
 				if (!IsPending())
@@ -3123,7 +3123,7 @@ namespace Edge
 				}
 				void await_suspend(std::coroutine_handle<> Handle)
 				{
-					Value.Await([Handle](T&&)
+					Value.When([Handle](T&&)
 					{
 						Handle.resume();
 					});
@@ -3254,7 +3254,7 @@ namespace Edge
 			{
 				ED_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				Status* Copy = AddRef();
-				Other.Await([Copy]() mutable
+				Other.When([Copy]() mutable
 				{
 					std::unique_lock<std::mutex> Unique(Copy->Update);
 					bool Async = (Copy->Code != Deferred::Waiting);
@@ -3263,7 +3263,7 @@ namespace Edge
 					Release(Copy);
 				});
 			}
-			void Await(std::function<void()>&& Callback) const noexcept
+			void When(std::function<void()>&& Callback) const noexcept
 			{
 				ED_ASSERT_V(Callback, "callback should be set");
 				if (!IsPending())
@@ -3412,7 +3412,7 @@ namespace Edge
 				}
 				void await_suspend(std::coroutine_handle<> Handle)
 				{
-					Value.Await([Handle]()
+					Value.When([Handle]()
 					{
 						Handle.resume();
 					});
@@ -3605,7 +3605,7 @@ namespace Edge
 #endif
 			State->Deactivate(Base, [&Future, &State, &Base]()
 			{
-				Future.Await([&State, &Base](T&&)
+				Future.When([&State, &Base](T&&)
 				{
 					State->Activate(Base);
 				});

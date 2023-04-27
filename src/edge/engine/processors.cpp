@@ -646,7 +646,7 @@ namespace Edge
 				Engine::Material* Object = new Engine::Material(nullptr);
 				if (Series::Unpack(Data->Get("diffuse-map"), &Path) && !Path.empty())
 				{
-					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
+					Content->LoadAsync<Graphics::Texture2D>(Path).When([Object](Graphics::Texture2D* NewTexture)
 					{
 						Object->SetDiffuseMap(NewTexture);
 						ED_RELEASE(NewTexture);
@@ -655,7 +655,7 @@ namespace Edge
 
 				if (Series::Unpack(Data->Get("normal-map"), &Path) && !Path.empty())
 				{
-					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
+					Content->LoadAsync<Graphics::Texture2D>(Path).When([Object](Graphics::Texture2D* NewTexture)
 					{
 						Object->SetNormalMap(NewTexture);
 						ED_RELEASE(NewTexture);
@@ -664,7 +664,7 @@ namespace Edge
 
 				if (Series::Unpack(Data->Get("metallic-map"), &Path) && !Path.empty())
 				{
-					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
+					Content->LoadAsync<Graphics::Texture2D>(Path).When([Object](Graphics::Texture2D* NewTexture)
 					{
 						Object->SetMetallicMap(NewTexture);
 						ED_RELEASE(NewTexture);
@@ -673,7 +673,7 @@ namespace Edge
 
 				if (Series::Unpack(Data->Get("roughness-map"), &Path) && !Path.empty())
 				{
-					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
+					Content->LoadAsync<Graphics::Texture2D>(Path).When([Object](Graphics::Texture2D* NewTexture)
 					{
 						Object->SetRoughnessMap(NewTexture);
 						ED_RELEASE(NewTexture);
@@ -682,7 +682,7 @@ namespace Edge
 
 				if (Series::Unpack(Data->Get("height-map"), &Path) && !Path.empty())
 				{
-					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
+					Content->LoadAsync<Graphics::Texture2D>(Path).When([Object](Graphics::Texture2D* NewTexture)
 					{
 						Object->SetHeightMap(NewTexture);
 						ED_RELEASE(NewTexture);
@@ -691,7 +691,7 @@ namespace Edge
 
 				if (Series::Unpack(Data->Get("occlusion-map"), &Path) && !Path.empty())
 				{
-					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
+					Content->LoadAsync<Graphics::Texture2D>(Path).When([Object](Graphics::Texture2D* NewTexture)
 					{
 						Object->SetOcclusionMap(NewTexture);
 						ED_RELEASE(NewTexture);
@@ -700,7 +700,7 @@ namespace Edge
 
 				if (Series::Unpack(Data->Get("emission-map"), &Path) && !Path.empty())
 				{
-					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
+					Content->LoadAsync<Graphics::Texture2D>(Path).When([Object](Graphics::Texture2D* NewTexture)
 					{
 						Object->SetEmissionMap(NewTexture);
 						ED_RELEASE(NewTexture);

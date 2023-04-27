@@ -3367,6 +3367,10 @@ namespace Edge
 
 				return nullptr;
 			}
+			bool Promise::IsPending()
+			{
+				return !Future;
+			}
 			Promise* Promise::YieldIf()
 			{
 				Update.lock();
@@ -3383,6 +3387,13 @@ namespace Edge
 			Promise* Promise::Create()
 			{
 				return new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext());
+			}
+			Promise* Promise::CreatePendingOrReady(void* _Ref, int TypeId)
+			{
+				Promise* Future = new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext());
+				if (TypeId != asTYPEID_VOID)
+					Future->Store(_Ref, TypeId);
+				return Future;
 			}
 			Core::String Promise::GetStatus(ImmediateContext* Context)
 			{
@@ -3955,6 +3966,282 @@ namespace Edge
 				return new(Data) Mutex();
 			}
 
+			Thread::Thread(asIScriptEngine* Engine, asIScriptFunction* Func) noexcept : Function(Func), VM(VirtualMachine::Get(Engine)), Context(nullptr), Flag(false), Sparcing(0), RefCount(1)
+			{
+				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_THREAD));
+			}
+			void Thread::InvokeRoutine()
+			{
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				{
+					if (!Function)
+						return Release();
+
+					if (Context == nullptr)
+						Context = VM->CreateContext();
+
+					if (Context == nullptr)
+					{
+						VM->GetEngine()->WriteMessage(TYPENAME_THREAD, 0, 0, asMSGTYPE_ERROR, "failed to start a thread: no available context");
+						return Release();
+					}
+				}
+				Context->TryExecute(false, Function, [this](ImmediateContext* Context)
+				{
+					Context->SetArgObject(0, this);
+					Context->SetUserData(this, ContextUD);
+				}).When([this](int&&)
+				{
+					Context->SetUserData(nullptr, ContextUD);
+					std::unique_lock<std::recursive_mutex> Unique(Mutex);
+					if (Sparcing == 0)
+						Release();
+					else
+						Sparcing = 2;
+				});
+				asThreadCleanup();
+			}
+			void Thread::ResumeRoutine()
+			{
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Sparcing = 1;
+
+				if (Context && Context->GetState() == Activation::SUSPENDED)
+					Context->Execute();
+
+				if (Sparcing == 2)
+					Release();
+				asThreadCleanup();
+			}
+			void Thread::AddRef()
+			{
+				Flag = false;
+				asAtomicInc(RefCount);
+			}
+			void Thread::Suspend()
+			{
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Sparcing = 1;
+
+				if (Context && Context->GetState() != Activation::SUSPENDED)
+					Context->Suspend();
+			}
+			void Thread::Resume()
+			{
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				if (Procedure.joinable())
+					Procedure.join();
+	
+				Procedure = std::thread(&Thread::ResumeRoutine, this);
+				ED_DEBUG("[vm] resume thread at %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
+			}
+			void Thread::Release()
+			{
+				Flag = false;
+				if (asAtomicDec(RefCount) <= 0)
+				{
+					ReleaseReferences(nullptr);
+					this->~Thread();
+					asFreeMem((void*)this);
+				}
+			}
+			void Thread::SetGCFlag()
+			{
+				Flag = true;
+			}
+			bool Thread::GetGCFlag()
+			{
+				return Flag;
+			}
+			int Thread::GetRefCount()
+			{
+				return RefCount;
+			}
+			void Thread::EnumReferences(asIScriptEngine* Engine)
+			{
+				for (int i = 0; i < 2; i++)
+				{
+					for (auto Any : Pipe[i].Queue)
+					{
+						if (Any != nullptr)
+							Engine->GCEnumCallback(Any);
+					}
+				}
+
+				Engine->GCEnumCallback(Engine);
+				if (Context != nullptr)
+					Engine->GCEnumCallback(Context);
+
+				if (Function != nullptr)
+					Engine->GCEnumCallback(Function);
+			}
+			int Thread::Join(uint64_t Timeout)
+			{
+				if (std::this_thread::get_id() == Procedure.get_id())
+					return -1;
+
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				if (!Procedure.joinable())
+					return -1;
+
+				ED_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
+				Procedure.join();
+				return 1;
+			}
+			int Thread::Join()
+			{
+				if (std::this_thread::get_id() == Procedure.get_id())
+					return -1;
+
+				while (true)
+				{
+					int R = Join(1000);
+					if (R == -1 || R == 1)
+						return R;
+				}
+
+				return 0;
+			}
+			Core::String Thread::GetId() const
+			{
+				return Core::OS::Process::GetThreadId(Procedure.get_id());
+			}
+			void Thread::Push(void* _Ref, int TypeId)
+			{
+				auto* _Thread = GetThread();
+				int Id = (_Thread == this ? 1 : 0);
+
+				void* Data = asAllocMem(sizeof(Any));
+				Any* Next = new(Data) Any(_Ref, TypeId, VirtualMachine::Get()->GetEngine());
+				Pipe[Id].Mutex.lock();
+				Pipe[Id].Queue.push_back(Next);
+				Pipe[Id].Mutex.unlock();
+				Pipe[Id].CV.notify_one();
+			}
+			bool Thread::Pop(void* _Ref, int TypeId)
+			{
+				bool Resolved = false;
+				while (!Resolved)
+					Resolved = Pop(_Ref, TypeId, 1000);
+
+				return true;
+			}
+			bool Thread::Pop(void* _Ref, int TypeId, uint64_t Timeout)
+			{
+				auto* _Thread = GetThread();
+				int Id = (_Thread == this ? 0 : 1);
+
+				std::unique_lock<std::mutex> Guard(Pipe[Id].Mutex);
+				if (!Pipe[Id].CV.wait_for(Guard, std::chrono::milliseconds(Timeout), [&]
+				{
+					return Pipe[Id].Queue.size() != 0;
+				}))
+					return false;
+
+				Any* Result = Pipe[Id].Queue.front();
+				if (!Result->Retrieve(_Ref, TypeId))
+					return false;
+
+				Pipe[Id].Queue.erase(Pipe[Id].Queue.begin());
+				Result->Release();
+
+				return true;
+			}
+			bool Thread::IsActive()
+			{
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				return (Context && Context->GetState() != Activation::SUSPENDED);
+			}
+			bool Thread::Start()
+			{
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				if (!Function)
+					return false;
+
+				if (Context != nullptr)
+				{
+					if (Context->GetState() != Activation::SUSPENDED)
+						return false;
+					else
+						Join();
+				}
+				else if (Procedure.joinable())
+				{
+					if (std::this_thread::get_id() == Procedure.get_id())
+						return false;
+
+					ED_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
+					Procedure.join();
+				}
+
+				AddRef();
+				Procedure = std::thread(&Thread::InvokeRoutine, this);
+				ED_DEBUG("[vm] spawn thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
+				return true;
+			}
+			void Thread::ReleaseReferences(asIScriptEngine*)
+			{
+				Core::String Id;
+				{
+					std::unique_lock<std::recursive_mutex> Unique(Mutex);
+					Id = Core::OS::Process::GetThreadId(Procedure.get_id());
+				}
+
+				if (Join() >= 0)
+					ED_ERR("[vm] thread %s was joined implicitly (not desired)", Id.empty() ? "?" : Id.c_str());
+
+				for (int i = 0; i < 2; i++)
+				{
+					Pipe[i].Mutex.lock();
+					for (auto Any : Pipe[i].Queue)
+					{
+						if (Any != nullptr)
+							Any->Release();
+					}
+					Pipe[i].Queue.clear();
+					Pipe[i].Mutex.unlock();
+				}
+
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				if (Function)
+					Function->Release();
+
+				ED_CLEAR(Context);
+				VM = nullptr;
+				Function = nullptr;
+			}
+			void Thread::Create(asIScriptGeneric* Generic)
+			{
+				asIScriptEngine* Engine = Generic->GetEngine();
+				asIScriptFunction* Function = *(asIScriptFunction**)Generic->GetAddressOfArg(0);
+				void* Data = asAllocMem(sizeof(Thread));
+				*(Thread**)Generic->GetAddressOfReturnLocation() = new(Data) Thread(Engine, Function);
+			}
+			Thread* Thread::GetThread()
+			{
+				asIScriptContext* Context = asGetActiveContext();
+				if (!Context)
+					return nullptr;
+
+				return static_cast<Thread*>(Context->GetUserData(ContextUD));
+			}
+			void Thread::ThreadSleep(uint64_t Timeout)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(Timeout));
+			}
+			void Thread::ThreadSuspend()
+			{
+				asIScriptContext* Context = asGetActiveContext();
+				if (Context && Context->GetState() != asEXECUTION_SUSPENDED)
+					Context->Suspend();
+			}
+			Core::String Thread::GetThreadId()
+			{
+				return Core::OS::Process::GetThreadId(std::this_thread::get_id());
+			}
+			int Thread::ContextUD = 550;
+			int Thread::EngineListUD = 551;
+
 			Complex::Complex() noexcept
 			{
 				R = 0;
@@ -4071,306 +4358,6 @@ namespace Edge
 			{
 				new(Base) Complex(InitList[0], InitList[1]);
 			}
-
-			Thread::Thread(asIScriptEngine* Engine, asIScriptFunction* Func) noexcept : Function(Func), VM(VirtualMachine::Get(Engine)), Context(nullptr), GCFlag(false), Ref(1)
-			{
-				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_THREAD));
-			}
-			void Thread::Routine()
-			{
-				Mutex.lock();
-				if (!Function)
-				{
-					Release();
-					return Mutex.unlock();
-				}
-
-				if (Context == nullptr)
-					Context = VM->CreateContext();
-
-				if (Context == nullptr)
-				{
-					VM->GetEngine()->WriteMessage(TYPENAME_THREAD, 0, 0, asMSGTYPE_ERROR, "failed to start a thread: no available context");
-					Release();
-
-					return Mutex.unlock();
-				}
-
-				Mutex.unlock();
-				Context->TryExecute(false, Function, [this](ImmediateContext* Context)
-				{
-					Context->SetArgObject(0, this);
-					Context->SetUserData(this, ContextUD);
-				}).Await([this](int&&)
-				{
-					Context->SetUserData(nullptr, ContextUD);
-					this->Mutex.lock();
-
-					if (!Context->IsSuspended())
-						ED_CLEAR(Context);
-
-					CV.notify_all();
-					this->Mutex.unlock();
-					Release();
-				});
-			}
-			void Thread::AddRef()
-			{
-				GCFlag = false;
-				asAtomicInc(Ref);
-			}
-			void Thread::Suspend()
-			{
-				Mutex.lock();
-				if (Context && Context->GetState() != Activation::SUSPENDED)
-					Context->Suspend();
-				Mutex.unlock();
-			}
-			void Thread::Resume()
-			{
-				Mutex.lock();
-				if (Context && Context->GetState() == Activation::SUSPENDED)
-					Context->Execute();
-				Mutex.unlock();
-			}
-			void Thread::Release()
-			{
-				GCFlag = false;
-				if (asAtomicDec(Ref) <= 0)
-				{
-					if (Procedure.joinable())
-					{
-						ED_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
-						Procedure.join();
-					}
-
-					ReleaseReferences(nullptr);
-					this->~Thread();
-					asFreeMem((void*)this);
-				}
-			}
-			void Thread::SetGCFlag()
-			{
-				GCFlag = true;
-			}
-			bool Thread::GetGCFlag()
-			{
-				return GCFlag;
-			}
-			int Thread::GetRefCount()
-			{
-				return Ref;
-			}
-			void Thread::EnumReferences(asIScriptEngine* Engine)
-			{
-				for (int i = 0; i < 2; i++)
-				{
-					for (auto Any : Pipe[i].Queue)
-					{
-						if (Any != nullptr)
-							Engine->GCEnumCallback(Any);
-					}
-				}
-
-				Engine->GCEnumCallback(Engine);
-				if (Context != nullptr)
-					Engine->GCEnumCallback(Context);
-
-				if (Function != nullptr)
-					Engine->GCEnumCallback(Function);
-			}
-			int Thread::Join(uint64_t Timeout)
-			{
-				if (std::this_thread::get_id() == Procedure.get_id())
-					return -1;
-
-				Mutex.lock();
-				if (!Procedure.joinable())
-				{
-					Mutex.unlock();
-					return -1;
-				}
-				Mutex.unlock();
-
-				std::unique_lock<std::mutex> Guard(Mutex);
-				if (CV.wait_for(Guard, std::chrono::milliseconds(Timeout), [&]
-				{
-					return !((Context && Context->GetState() != Activation::SUSPENDED));
-				}))
-				{
-					ED_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
-					Procedure.join();
-					return 1;
-				}
-
-				return 0;
-			}
-			int Thread::Join()
-			{
-				if (std::this_thread::get_id() == Procedure.get_id())
-					return -1;
-
-				while (true)
-				{
-					int R = Join(1000);
-					if (R == -1 || R == 1)
-						return R;
-				}
-
-				return 0;
-			}
-			Core::String Thread::GetId() const
-			{
-				return Core::OS::Process::GetThreadId(Procedure.get_id());
-			}
-			void Thread::Push(void* _Ref, int TypeId)
-			{
-				auto* _Thread = GetThread();
-				int Id = (_Thread == this ? 1 : 0);
-
-				void* Data = asAllocMem(sizeof(Any));
-				Any* Next = new(Data) Any(_Ref, TypeId, VirtualMachine::Get()->GetEngine());
-				Pipe[Id].Mutex.lock();
-				Pipe[Id].Queue.push_back(Next);
-				Pipe[Id].Mutex.unlock();
-				Pipe[Id].CV.notify_one();
-			}
-			bool Thread::Pop(void* _Ref, int TypeId)
-			{
-				bool Resolved = false;
-				while (!Resolved)
-					Resolved = Pop(_Ref, TypeId, 1000);
-
-				return true;
-			}
-			bool Thread::Pop(void* _Ref, int TypeId, uint64_t Timeout)
-			{
-				auto* _Thread = GetThread();
-				int Id = (_Thread == this ? 0 : 1);
-
-				std::unique_lock<std::mutex> Guard(Pipe[Id].Mutex);
-				if (!CV.wait_for(Guard, std::chrono::milliseconds(Timeout), [&]
-				{
-					return Pipe[Id].Queue.size() != 0;
-				}))
-					return false;
-
-				Any* Result = Pipe[Id].Queue.front();
-				if (!Result->Retrieve(_Ref, TypeId))
-					return false;
-
-				Pipe[Id].Queue.erase(Pipe[Id].Queue.begin());
-				Result->Release();
-
-				return true;
-			}
-			bool Thread::IsActive()
-			{
-				Mutex.lock();
-				bool State = (Context && Context->GetState() != Activation::SUSPENDED);
-				Mutex.unlock();
-
-				return State;
-			}
-			bool Thread::Start()
-			{
-				Mutex.lock();
-				if (!Function)
-				{
-					Mutex.unlock();
-					return false;
-				}
-
-				if (Context != nullptr)
-				{
-					if (Context->GetState() != Activation::SUSPENDED)
-					{
-						Mutex.unlock();
-						return false;
-					}
-					else
-					{
-						Mutex.unlock();
-						Join();
-						Mutex.lock();
-					}
-				}
-				else if (Procedure.joinable())
-				{
-					if (std::this_thread::get_id() == Procedure.get_id())
-					{
-						Mutex.unlock();
-						return false;
-					}
-
-					ED_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
-					Procedure.join();
-				}
-
-				AddRef();
-				Procedure = std::thread(&Thread::Routine, this);
-				ED_DEBUG("[vm] spawn thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
-				Mutex.unlock();
-
-				return true;
-			}
-			void Thread::ReleaseReferences(asIScriptEngine*)
-			{
-				if (Join() >= 0)
-					ED_ERR("[memerr] thread was forced to join");
-
-				for (int i = 0; i < 2; i++)
-				{
-					Pipe[i].Mutex.lock();
-					for (auto Any : Pipe[i].Queue)
-					{
-						if (Any != nullptr)
-							Any->Release();
-					}
-					Pipe[i].Queue.clear();
-					Pipe[i].Mutex.unlock();
-				}
-
-				Mutex.lock();
-				if (Function)
-					Function->Release();
-
-				ED_CLEAR(Context);
-				VM = nullptr;
-				Function = nullptr;
-				Mutex.unlock();
-			}
-			void Thread::Create(asIScriptGeneric* Generic)
-			{
-				asIScriptEngine* Engine = Generic->GetEngine();
-				asIScriptFunction* Function = *(asIScriptFunction**)Generic->GetAddressOfArg(0);
-				void* Data = asAllocMem(sizeof(Thread));
-				*(Thread**)Generic->GetAddressOfReturnLocation() = new(Data) Thread(Engine, Function);
-			}
-			Thread* Thread::GetThread()
-			{
-				asIScriptContext* Context = asGetActiveContext();
-				if (!Context)
-					return nullptr;
-
-				return static_cast<Thread*>(Context->GetUserData(ContextUD));
-			}
-			void Thread::ThreadSleep(uint64_t Timeout)
-			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(Timeout));
-			}
-			void Thread::ThreadSuspend()
-			{
-				asIScriptContext* Context = asGetActiveContext();
-				if (Context && Context->GetState() != asEXECUTION_SUSPENDED)
-					Context->Suspend();
-			}
-			Core::String Thread::GetThreadId()
-			{
-				return Core::OS::Process::GetThreadId(std::this_thread::get_id());
-			}
-			int Thread::ContextUD = 550;
-			int Thread::EngineListUD = 551;
 
 			void ConsoleTrace(Core::Console* Base, uint32_t Frames)
 			{
@@ -4988,7 +4975,7 @@ namespace Edge
 				return Base->Write(Data.data(), Data.size());
 			}
 
-			Core::TaskId ScheduleSetInterval(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback, Core::Difficulty Type)
+			Core::TaskId ScheduleSetInterval(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback, Core::Difficulty Type, bool AllowMultithreading)
 			{
 				if (!Callback)
 					return Core::INVALID_TASK_ID;
@@ -5000,8 +4987,15 @@ namespace Edge
 				Callback->AddRef();
 				Context->AddRef();
 				
-				Core::TaskId Task = Base->SetSeqInterval(Mills, [Context, Callback](size_t InvocationId) mutable
+				Core::TaskId Task = Base->SetSeqInterval(Mills, [AllowMultithreading, Context, Callback](size_t InvocationId) mutable
 				{
+					if (AllowMultithreading && Context->IsSuspended())
+					{
+						auto* VM = Context->GetVM();
+						Context->Release();
+						Context = VM->CreateContext();
+					}
+
 					Callback->AddRef();
 					Context->AddRef();
 
@@ -5011,7 +5005,7 @@ namespace Edge
 						Context->Release();
 					}
 
-					Context->TryExecute(false, Callback, nullptr).Await([Context, Callback](int&&)
+					Context->TryExecute(false, Callback, nullptr).When([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -5025,7 +5019,7 @@ namespace Edge
 				Context->Release();
 				return Core::INVALID_TASK_ID;
 			}
-			Core::TaskId ScheduleSetTimeout(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback, Core::Difficulty Type)
+			Core::TaskId ScheduleSetTimeout(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback, Core::Difficulty Type, bool AllowMultithreading)
 			{
 				if (!Callback)
 					return Core::INVALID_TASK_ID;
@@ -5037,9 +5031,16 @@ namespace Edge
 				Callback->AddRef();
 				Context->AddRef();
 
-				Core::TaskId Task = Base->SetTimeout(Mills, [Context, Callback]() mutable
+				Core::TaskId Task = Base->SetTimeout(Mills, [AllowMultithreading, Context, Callback]() mutable
 				{
-					Context->TryExecute(false, Callback, nullptr).Await([Context, Callback](int&&)
+					if (AllowMultithreading && Context->IsSuspended())
+					{
+						auto* VM = Context->GetVM();
+						Context->Release();
+						Context = VM->CreateContext();
+					}
+
+					Context->TryExecute(false, Callback, nullptr).When([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -5053,7 +5054,7 @@ namespace Edge
 				Context->Release();
 				return Core::INVALID_TASK_ID;
 			}
-			bool ScheduleSetImmediate(Core::Schedule* Base, asIScriptFunction* Callback, Core::Difficulty Type)
+			bool ScheduleSetImmediate(Core::Schedule* Base, asIScriptFunction* Callback, Core::Difficulty Type, bool AllowMultithreading)
 			{
 				if (!Callback)
 					return false;
@@ -5065,9 +5066,16 @@ namespace Edge
 				Callback->AddRef();
 				Context->AddRef();
 
-				bool Queued = Base->SetTask([Context, Callback]() mutable
+				bool Queued = Base->SetTask([AllowMultithreading, Context, Callback]() mutable
 				{
-					Context->TryExecute(false, Callback, nullptr).Await([Context, Callback](int&&)
+					if (AllowMultithreading && Context->IsSuspended())
+					{
+						auto* VM = Context->GetVM();
+						Context->Release();
+						Context = VM->CreateContext();
+					}
+
+					Context->TryExecute(false, Callback, nullptr).When([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -7210,12 +7218,12 @@ namespace Edge
 
 				Callback->AddRef();
 				Context->AddRef();
-				Base->LoadAsync(Source, Path, ToVariantKeys(Args)).Await([Context, Callback](void*&& Object)
+				Base->LoadAsync(Source, Path, ToVariantKeys(Args)).When([Context, Callback](void*&& Object)
 				{
 					Context->TryExecute(false, Callback, [Object](ImmediateContext* Context)
 					{
 						Context->SetArgAddress(0, Object);
-					}).Await([Context, Callback](int&&)
+					}).When([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -7234,12 +7242,12 @@ namespace Edge
 
 				Callback->AddRef();
 				Context->AddRef();
-				Base->SaveAsync(Source, Path, Object, ToVariantKeys(Args)).Await([Context, Callback](bool&& Success)
+				Base->SaveAsync(Source, Path, Object, ToVariantKeys(Args)).When([Context, Callback](bool&& Success)
 				{
 					Context->TryExecute(false, Callback, [Success](ImmediateContext* Context)
 					{
 						Context->SetArg8(0, Success);
-					}).Await([Context, Callback](int&&)
+					}).When([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -7349,7 +7357,7 @@ namespace Edge
 				Callback->AddRef();
 				Base->Transaction([Context, Callback]()
 				{
-					Context->TryExecute(false, Callback, nullptr).Await([Context, Callback](int&&)
+					Context->TryExecute(false, Callback, nullptr).When([Context, Callback](int&&)
 					{
 						Context->Release();
 						Callback->Release();
@@ -7387,7 +7395,7 @@ namespace Edge
 					{
 						Context->SetArgObject(0, (void*)&Name);
 						Context->SetArgObject(1, (void*)Args);
-					}).Await([Context, Callback, Args](int&&)
+					}).When([Context, Callback, Args](int&&)
 					{
 						Context->Release();
 						Callback->Release();
@@ -7408,7 +7416,7 @@ namespace Edge
 					Context->TryExecute(false, Callback, [Resource](ImmediateContext* Context)
 					{
 						Context->SetArgAddress(0, Resource);
-					}).Await([Context, Callback](int&&)
+					}).When([Context, Callback](int&&)
 					{
 						Context->Release();
 						Callback->Release();
@@ -7633,7 +7641,7 @@ namespace Edge
 						Engine::GUI::IEvent Copy = Event;
 						Context->SetArgObject(0, &Copy);
 						Context->SetArgObject(1, &Data);
-					}).Await([Event](int&&)
+					}).When([Event](int&&)
 					{
 						Engine::GUI::IEvent Copy = Event;
 						Copy.Release();
@@ -7697,7 +7705,7 @@ namespace Edge
 					{
 						Engine::GUI::IEvent Copy = Event;
 						Context->SetArgObject(0, &Copy);
-					}).Await([Event](int&&)
+					}).When([Event](int&&)
 					{
 						Engine::GUI::IEvent Copy = Event;
 						Copy.Release();
@@ -7719,7 +7727,7 @@ namespace Edge
 					if (!Context || !Callback)
 						return;
 
-					Context->TryExecute(false, Callback, nullptr).Await([Context, Callback](int&&)
+					Context->TryExecute(false, Callback, nullptr).When([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -7741,7 +7749,7 @@ namespace Edge
 					if (!Context || !Callback)
 						return;
 
-					Context->TryExecute(false, Callback, nullptr).Await([Context, Callback](int&&)
+					Context->TryExecute(false, Callback, nullptr).When([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -7763,7 +7771,7 @@ namespace Edge
 					if (!Context || !Callback)
 						return;
 
-					Context->TryExecute(false, Callback, nullptr).Await([Context, Callback](int&&)
+					Context->TryExecute(false, Callback, nullptr).When([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -8174,7 +8182,7 @@ namespace Edge
 
 				VM->BeginNamespace("this_thread");
 				Engine->RegisterGlobalFunction("thread@+ get_routine()", asFUNCTION(Thread::GetThread), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("uint64 get_id()", asFUNCTION(Thread::GetThreadId), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("string get_id()", asFUNCTION(Thread::GetThreadId), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("void sleep(uint64)", asFUNCTION(Thread::ThreadSleep), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("void suspend()", asFUNCTION(Thread::ThreadSuspend), asCALL_CDECL);
 				VM->EndNamespace();
@@ -8207,6 +8215,7 @@ namespace Edge
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 
 				Engine->RegisterObjectType("promise<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_FACTORY, "promise<T>@ f(?&in)", asFUNCTION(Promise::CreatePendingOrReady), asCALL_CDECL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Array::TemplateCallback), asCALL_CDECL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(Promise, AddRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(Promise, Release), asCALL_THISCALL);
@@ -8218,6 +8227,7 @@ namespace Edge
 				Engine->RegisterObjectMethod("promise<T>", "void wrap(?&in)", asMETHODPR(Promise, Store, (void*, int), void), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("promise<T>", "T& unwrap()", asMETHODPR(Promise, Retrieve, (), void*), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("promise<T>", "promise<T>@+ yield()", asMETHOD(Promise, YieldIf), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise<T>", "bool is_pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
 
 				return true;
 			}
@@ -8806,9 +8816,9 @@ namespace Edge
 
 				RefClass VSchedule = Engine->SetClass<Core::Schedule>("schedule", false);
 				VSchedule.SetFunctionDef("void task_event()");
-				VSchedule.SetMethodEx("task_id set_interval(uint64, task_event@+, difficulty = difficulty::light)", &ScheduleSetInterval);
-				VSchedule.SetMethodEx("task_id set_timeout(uint64, task_event@+, difficulty = difficulty::light)", &ScheduleSetTimeout);
-				VSchedule.SetMethodEx("bool set_immediate(task_event@+, difficulty = difficulty::heavy)", &ScheduleSetImmediate);
+				VSchedule.SetMethodEx("task_id set_interval(uint64, task_event@+, difficulty = difficulty::light, bool = false)", &ScheduleSetInterval);
+				VSchedule.SetMethodEx("task_id set_timeout(uint64, task_event@+, difficulty = difficulty::light, bool = false)", &ScheduleSetTimeout);
+				VSchedule.SetMethodEx("bool set_immediate(task_event@+, difficulty = difficulty::heavy, bool = false)", &ScheduleSetImmediate);
 				VSchedule.SetMethod("bool clear_timeout(task_id)", &Core::Schedule::ClearTimeout);
 				VSchedule.SetMethod("bool dispatch()", &Core::Schedule::Dispatch);
 				VSchedule.SetMethod("bool start(const schedule_policy &in)", &Core::Schedule::Start);
@@ -9446,7 +9456,7 @@ namespace Edge
 				VCompression.SetValue("none", (int)Compute::Compression::None);
 				VCompression.SetValue("best_speed", (int)Compute::Compression::BestSpeed);
 				VCompression.SetValue("best_compression", (int)Compute::Compression::BestCompression);
-				VCompression.SetValue("default", (int)Compute::Compression::Default);
+				VCompression.SetValue("default_compression", (int)Compute::Compression::Default);
 
 				TypeClass VPrivateKey = Engine->SetStructTrivial<Compute::PrivateKey>("private_key");
 				VPrivateKey.SetConstructor<Compute::PrivateKey>("void f()");

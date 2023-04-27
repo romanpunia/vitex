@@ -4611,7 +4611,7 @@ namespace Edge
 			ED_ASSERT_V(Callback != nullptr, "callback should be set");
 
 			LoadComponent(Context);
-			Conf.Shared.Content->LoadAsync(Conf.Shared.Content->GetProcessor(Id), Path, Keys).Await([this, Context, Callback](void*&& Result)
+			Conf.Shared.Content->LoadAsync(Conf.Shared.Content->GetProcessor(Id), Path, Keys).When([this, Context, Callback](void*&& Result)
 			{
 				if (!UnloadComponent(Context))
 					return;

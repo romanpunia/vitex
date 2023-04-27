@@ -591,7 +591,7 @@ namespace Edge
 
 					Scope->Basis->AddRef();
 					Scripting::Compiler* Compiler = Scope->Basis->Compiler;
-					Compiler->ExecuteScoped(Content.c_str(), Content.size()).Await([Scope](int&&)
+					Compiler->ExecuteScoped(Content.c_str(), Content.size()).When([Scope](int&&)
 					{
 						Scope->Basis->Release();
 					});
@@ -605,7 +605,7 @@ namespace Edge
 					if (Compiler->LoadFile(Core::Stringify(Path).Replace('|', ':').R()) < 0)
 						return;
 
-					Compiler->Compile().Await([Scope, Compiler](int&& Status)
+					Compiler->Compile().When([Scope, Compiler](int&& Status)
 					{
 						if (Status < 0)
 							return;
@@ -620,7 +620,7 @@ namespace Edge
 						{
 							if (Main.GetArgsCount() == 1)
 								Context->SetArgObject(0, Scope->Basis);
-						}).Await([Scope](int&&)
+						}).When([Scope](int&&)
 						{
 							Scope->Basis->Release();
 						});
@@ -676,7 +676,7 @@ namespace Edge
 					{
 						IEvent Event(Ptr);
 						Context->SetArgObject(0, &Event);
-					}).Await([Scope, Ptr](int&&)
+					}).When([Scope, Ptr](int&&)
 					{
 						delete Ptr;
 						Scope->Basis->Release();

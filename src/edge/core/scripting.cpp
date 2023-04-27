@@ -4140,7 +4140,7 @@ namespace Edge
 			Engine->AddSubmodule("std/shapes", { "std/vectors" }, Bindings::Registry::LoadShapes);
 			Engine->AddSubmodule("std/key_frames", { "std/vectors", "std/string" }, Bindings::Registry::LoadKeyFrames);
 			Engine->AddSubmodule("std/regex", { "std/string" }, Bindings::Registry::LoadRegex);
-			Engine->AddSubmodule("std/crypto", { "std/string" }, Bindings::Registry::LoadCrypto);
+			Engine->AddSubmodule("std/crypto", { "std/string", "std/schema" }, Bindings::Registry::LoadCrypto);
 			Engine->AddSubmodule("std/geometric", { "std/vectors", "std/vertices", "std/shapes" }, Bindings::Registry::LoadGeometric);
 			Engine->AddSubmodule("std/preprocessor", { "std/string" }, Bindings::Registry::LoadPreprocessor);
 			Engine->AddSubmodule("std/physics", { "std/string", "std/geometric" }, Bindings::Registry::LoadPhysics);

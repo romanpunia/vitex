@@ -2842,7 +2842,7 @@ namespace Edge
 				Core::Cotask<SocketAddress*>([this]()
 				{
 					return DNS::FindAddressFromName(Hostname.Hostname, Core::ToString(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
-				}).Await(std::move(RemoteConnect));
+				}).When(std::move(RemoteConnect));
 			}
 			else
 				RemoteConnect(DNS::FindAddressFromName(Hostname.Hostname, Core::ToString(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream));

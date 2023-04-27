@@ -4124,7 +4124,8 @@ namespace Edge
 			Engine->AddSubmodule("std/exception", { "std/string" }, Bindings::Registry::LoadException);
 			Engine->AddSubmodule("std/mutex", { }, Bindings::Registry::LoadMutex);
 			Engine->AddSubmodule("std/thread", { "std/any", "std/string" }, Bindings::Registry::LoadThread);
-			Engine->AddSubmodule("std/promise", { "std/any" }, Bindings::Registry::LoadPromise);
+			Engine->AddSubmodule("std/promise", { }, Bindings::Registry::LoadPromise);
+			Engine->AddSubmodule("std/promise/parallel", { }, Bindings::Registry::LoadPromiseParallel);
 			Engine->AddSubmodule("std/format", { "std/string" }, Bindings::Registry::LoadFormat);
 			Engine->AddSubmodule("std/decimal", { "std/string" }, Bindings::Registry::LoadDecimal);
 			Engine->AddSubmodule("std/variant", { "std/string", "std/decimal" }, Bindings::Registry::LoadVariant);

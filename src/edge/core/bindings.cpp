@@ -3244,19 +3244,17 @@ namespace Edge
 				return Compute::Math<uint64_t>::Random(Min, Max);
 			}
 
-			Promise::Promise(asIScriptContext* _Base) noexcept : Engine(nullptr), Context(ImmediateContext::Get(_Base)), Future(nullptr), Ref(1), Pending(false), Flag(false)
+			Promise::Promise(asIScriptContext* NewContext) noexcept : Engine(nullptr), Context(NewContext), Callback(nullptr), RefCount(1), Marked(false)
 			{
-				if (!Context)
-					return;
-
+				ED_ASSERT_V(Context != nullptr, "context should not be null");
 				Context->AddRef();
-				Engine = Context->GetVM()->GetEngine();
+				Engine = Context->GetEngine();
 				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_PROMISE));
 			}
 			void Promise::Release()
 			{
-				Flag = false;
-				if (asAtomicDec(Ref) <= 0)
+				Marked = false;
+				if (asAtomicDec(RefCount) <= 0)
 				{
 					ReleaseReferences(nullptr);
 					this->~Promise();
@@ -3265,20 +3263,42 @@ namespace Edge
 			}
 			void Promise::AddRef()
 			{
-				Flag = false;
-				asAtomicInc(Ref);
+				Marked = false;
+				asAtomicInc(RefCount);
 			}
-			void Promise::EnumReferences(asIScriptEngine* Engine)
+			void Promise::EnumReferences(asIScriptEngine* OtherEngine)
 			{
-				if (Future != nullptr)
-					Engine->GCEnumCallback(Future);
+				if (Value.Object != nullptr && (Value.TypeId & asTYPEID_MASK_OBJECT))
+				{
+					asITypeInfo* SubType = Engine->GetTypeInfoById(Value.TypeId);
+					if ((SubType->GetFlags() & asOBJ_REF))
+						OtherEngine->GCEnumCallback(Value.Object);
+					else if ((SubType->GetFlags() & asOBJ_VALUE) && (SubType->GetFlags() & asOBJ_GC))
+						Engine->ForwardGCEnumReferences(Value.Object, SubType);
+
+					asITypeInfo* Type = OtherEngine->GetTypeInfoById(Value.TypeId);
+					if (Type != nullptr)
+						OtherEngine->GCEnumCallback(Type);
+				}
+
+				if (Callback != nullptr)
+					OtherEngine->GCEnumCallback(Callback);
 			}
 			void Promise::ReleaseReferences(asIScriptEngine*)
 			{
-				if (Future != nullptr)
+				if (Value.TypeId & asTYPEID_MASK_OBJECT)
 				{
-					Future->Release();
-					Future = nullptr;
+					asITypeInfo* Type = Engine->GetTypeInfoById(Value.TypeId);
+					Engine->ReleaseScriptObject(Value.Object, Type);
+					if (Type != nullptr)
+						Type->Release();
+					Value.Clean();
+				}
+
+				if (Callback != nullptr)
+				{
+					Callback->Release();
+					Callback = nullptr;
 				}
 
 				if (Context != nullptr)
@@ -3287,113 +3307,287 @@ namespace Edge
 					Context = nullptr;
 				}
 			}
-			void Promise::SetGCFlag()
+			void Promise::SetFlag()
 			{
-				Flag = true;
+				Marked = true;
 			}
-			bool Promise::GetGCFlag()
+			bool Promise::GetFlag()
 			{
-				return Flag;
+				return Marked;
 			}
 			int Promise::GetRefCount()
 			{
-				return Ref;
+				return RefCount;
 			}
-			void Promise::Store(void* _Ref, int TypeId)
+			int Promise::GetTypeIdOfObject()
+			{
+				return Value.TypeId;
+			}
+			void* Promise::GetAddressOfObject()
+			{
+				return Retrieve();
+			}
+			void Promise::When(asIScriptFunction* NewCallback)
+			{
+				if (Callback != nullptr)
+					Callback->Release();
+
+				Callback = NewCallback;
+				if (Callback != nullptr)
+					Callback->AddRef();
+			}
+			void Promise::Store(void* RefPointer, int RefTypeId)
 			{
 				Update.lock();
-				if (!Future)
+				ED_ASSERT_V(Value.TypeId == asTYPEID_VOID, "promise should be settled only once");
+				ED_ASSERT_V(RefPointer != nullptr, "input pointer should not be null");
+				ED_ASSERT_V(Engine != nullptr, "promise is malformed (engine is null)");
+				ED_ASSERT_V(Context != nullptr, "promise is malformed (context is null)");
+
+				if (Value.TypeId == asTYPEID_VOID)
 				{
-					Future = new(asAllocMem(sizeof(Any))) Any(_Ref, TypeId, Engine);
-					if (TypeId & asTYPEID_OBJHANDLE)
-						Engine->ReleaseScriptObject(*(void**)_Ref, Engine->GetTypeInfoById(TypeId));
-
-					if (Pending)
+					if ((RefTypeId & asTYPEID_MASK_OBJECT))
 					{
-						Pending = false;
-						if (Context->GetUserData(PromiseUD) == (void*)this)
-							Context->SetUserData(nullptr, PromiseUD);
+						asITypeInfo* Type = Engine->GetTypeInfoById(RefTypeId);
+						if (Type != nullptr)
+							Type->AddRef();
+					}
 
-						bool WantsResume = (Context->GetState() != Activation::ACTIVE);
-						Update.unlock();
-						if (WantsResume)
-						{
-							Promise* Base = this;
-							Core::Schedule::Get()->SetTask([Base]()
-							{
-								Base->Context->Execute();
-								Base->Release();
-							}, Core::Difficulty::Light);
-						}
-						else
-							Release();
+					Value.TypeId = RefTypeId;
+					if (Value.TypeId & asTYPEID_OBJHANDLE)
+					{
+						Value.Object = *(void**)RefPointer;
+					}
+					else if (Value.TypeId & asTYPEID_MASK_OBJECT)
+					{
+						Value.Object = Engine->CreateScriptObjectCopy(RefPointer, Engine->GetTypeInfoById(Value.TypeId));
 					}
 					else
-						Update.unlock();
+					{
+						Value.Integer = 0;
+						int Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
+						memcpy(&Value.Integer, RefPointer, Size);
+					}
+
+					bool SuspendOwned = Context->GetUserData(PromiseUD) == (void*)this;
+					if (SuspendOwned)
+						Context->SetUserData(nullptr, PromiseUD);
+
+					bool WantsResume = (Context->GetState() != asEXECUTION_ACTIVE && SuspendOwned);
+					ImmediateContext* Immediate = ImmediateContext::Get(Context);
+					Promise* Base = this;
+					Update.unlock();
+
+					if (Callback != nullptr)
+					{
+						AddRef();
+						Immediate->TryExecute(false, Callback, [Base](ImmediateContext* Context)
+						{
+							Context->SetArgAddress(0, Base->GetAddressOfObject());
+						}).When([Base](int&&)
+						{
+							Base->Callback->Release();
+							Base->Callback = nullptr;
+							Base->Release();
+						});
+					}
+
+					if (WantsResume)
+					{
+						Core::Schedule::Get()->SetTask([Base, Immediate]()
+						{
+							Immediate->Execute();
+							Base->Release();
+						}, Core::Difficulty::Light);
+					}
+					else if (SuspendOwned)
+						Release();
 				}
 				else
 				{
 					asIScriptContext* ThisContext = asGetActiveContext();
 					if (!ThisContext)
-						ThisContext = Context->GetContext();
+						ThisContext = Context;
 
 					ThisContext->SetException("promise is already fulfilled");
 					Update.unlock();
 				}
 			}
-			void Promise::Store(void* _Ref, const char* TypeName)
+			void Promise::Store(void* RefPointer, const char* TypeName)
 			{
-				Store(_Ref, Engine->GetTypeIdByDecl(TypeName));
+				ED_ASSERT_V(Engine != nullptr, "promise is malformed (engine is null)");
+				ED_ASSERT_V(TypeName != nullptr, "typename should not be null");
+				Store(RefPointer, Engine->GetTypeIdByDecl(TypeName));
 			}
-			bool Promise::Retrieve(void* _Ref, int TypeId)
+			bool Promise::Retrieve(void* RefPointer, int RefTypeId)
 			{
-				if (!Future)
+				ED_ASSERT(Engine != nullptr, false, "promise is malformed (engine is null)");
+				ED_ASSERT(RefPointer != nullptr, false, "output pointer should not be null");
+				if (Value.TypeId == asTYPEID_VOID)
 					return false;
 
-				return Future->Retrieve(_Ref, TypeId);
+				if (RefTypeId & asTYPEID_OBJHANDLE)
+				{
+					if ((Value.TypeId & asTYPEID_MASK_OBJECT))
+					{
+						if ((Value.TypeId & asTYPEID_HANDLETOCONST) && !(RefTypeId & asTYPEID_HANDLETOCONST))
+							return false;
+
+						Engine->RefCastObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId), Engine->GetTypeInfoById(RefTypeId), reinterpret_cast<void**>(RefPointer));
+						if (*(asPWORD*)RefPointer == 0)
+							return false;
+
+						return true;
+					}
+				}
+				else if (RefTypeId & asTYPEID_MASK_OBJECT)
+				{
+					if (Value.TypeId == RefTypeId)
+					{
+						Engine->AssignScriptObject(RefPointer, Value.Object, Engine->GetTypeInfoById(Value.TypeId));
+						return true;
+					}
+				}
+				else
+				{
+					int Size1 = Engine->GetSizeOfPrimitiveType(Value.TypeId);
+					int Size2 = Engine->GetSizeOfPrimitiveType(RefTypeId);
+					ED_ASSERT(Size1 == Size2, false, "cannot map incompatible primitive types");
+
+					if (Size1 == Size2)
+					{
+						memcpy(RefPointer, &Value.Integer, Size1);
+						return true;
+					}
+				}
+
+				return false;
 			}
 			void* Promise::Retrieve()
 			{
-				if (!Future)
+				if (Value.TypeId == asTYPEID_VOID)
 					return nullptr;
 
-				int TypeId = Future->GetTypeId();
-				if (TypeId & asTYPEID_OBJHANDLE)
-					return &Future->Value.Object;
-				else if (TypeId & asTYPEID_MASK_OBJECT)
-					return Future->Value.Object;
-				else if (TypeId <= asTYPEID_DOUBLE || TypeId & asTYPEID_MASK_SEQNBR)
-					return &Future->Value.Integer;
+				if (Value.TypeId & asTYPEID_OBJHANDLE)
+					return &Value.Object;
+				else if (Value.TypeId & asTYPEID_MASK_OBJECT)
+					return Value.Object;
+				else if (Value.TypeId <= asTYPEID_DOUBLE || Value.TypeId & asTYPEID_MASK_SEQNBR)
+					return &Value.Integer;
 
 				return nullptr;
 			}
 			bool Promise::IsPending()
 			{
-				return !Future;
+				return Value.TypeId == asTYPEID_VOID;
 			}
 			Promise* Promise::YieldIf()
 			{
-				Update.lock();
-				if (!Future && Context != nullptr)
+				std::unique_lock<std::mutex> Unique(Update);
+				if (Value.TypeId == asTYPEID_VOID && Context != nullptr)
 				{
 					AddRef();
-					Pending = true;
 					Context->SetUserData(this, PromiseUD);
 					Context->Suspend();
 				}
-				Update.unlock();
+
 				return this;
 			}
 			Promise* Promise::Create()
 			{
 				return new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext());
 			}
-			Promise* Promise::CreatePendingOrReady(void* _Ref, int TypeId)
+			Promise* Promise::CreateFactory(void* _Ref, int TypeId)
 			{
 				Promise* Future = new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext());
 				if (TypeId != asTYPEID_VOID)
 					Future->Store(_Ref, TypeId);
+
 				return Future;
+			}
+			bool Promise::TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect)
+			{
+				int TypeId = Info->GetSubTypeId();
+				if (TypeId == asTYPEID_VOID)
+					return false;
+
+				if ((TypeId & asTYPEID_MASK_OBJECT) && !(TypeId & asTYPEID_OBJHANDLE))
+				{
+					asIScriptEngine* Engine = Info->GetEngine();
+					asITypeInfo* SubType = Engine->GetTypeInfoById(TypeId);
+					asDWORD Flags = SubType->GetFlags();
+
+					if ((Flags & asOBJ_VALUE) && !(Flags & asOBJ_POD))
+					{
+						bool Found = false;
+						for (size_t i = 0; i < SubType->GetBehaviourCount(); i++)
+						{
+							asEBehaviours Behaviour;
+							asIScriptFunction* Func = SubType->GetBehaviourByIndex((int)i, &Behaviour);
+							if (Behaviour != asBEHAVE_CONSTRUCT)
+								continue;
+
+							if (Func->GetParamCount() == 0)
+							{
+								Found = true;
+								break;
+							}
+						}
+
+						if (!Found)
+						{
+							Engine->WriteMessage(TYPENAME_PROMISE, 0, 0, asMSGTYPE_ERROR, "The subtype has no default constructor");
+							return false;
+						}
+					}
+					else if ((Flags & asOBJ_REF))
+					{
+						bool Found = false;
+						if (!Engine->GetEngineProperty(asEP_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE))
+						{
+							for (size_t i = 0; i < SubType->GetFactoryCount(); i++)
+							{
+								asIScriptFunction* Function = SubType->GetFactoryByIndex((int)i);
+								if (Function->GetParamCount() == 0)
+								{
+									Found = true;
+									break;
+								}
+							}
+						}
+
+						if (!Found)
+						{
+							Engine->WriteMessage(TYPENAME_PROMISE, 0, 0, asMSGTYPE_ERROR, "The subtype has no default factory");
+							return false;
+						}
+					}
+
+					if (!(Flags & asOBJ_GC))
+						DontGarbageCollect = true;
+				}
+				else if (!(TypeId & asTYPEID_OBJHANDLE))
+				{
+					DontGarbageCollect = true;
+				}
+				else
+				{
+					asITypeInfo* SubType = Info->GetEngine()->GetTypeInfoById(TypeId);
+					asDWORD Flags = SubType->GetFlags();
+
+					if (!(Flags & asOBJ_GC))
+					{
+						if ((Flags & asOBJ_SCRIPT_OBJECT))
+						{
+							if ((Flags & asOBJ_NOINHERIT))
+								DontGarbageCollect = true;
+						}
+						else
+							DontGarbageCollect = true;
+					}
+				}
+
+				return true;
 			}
 			Core::String Promise::GetStatus(ImmediateContext* Context)
 			{
@@ -3432,7 +3626,7 @@ namespace Edge
 				if (Base != nullptr)
 				{
 					const char* Format = " in pending promise on 0x%" PRIXPTR " %s";
-					if (Base->Future != nullptr)
+					if (!Base->IsPending())
 						Result += Core::Form(Format, (uintptr_t)Base, "that was fulfilled").R();
 					else
 						Result += Core::Form(Format, (uintptr_t)Base, "that was not fulfilled").R();
@@ -8213,21 +8407,46 @@ namespace Edge
 			{
 				asIScriptEngine* Engine = VM->GetEngine();
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
-
 				Engine->RegisterObjectType("promise<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_FACTORY, "promise<T>@ f(?&in)", asFUNCTION(Promise::CreatePendingOrReady), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Array::TemplateCallback), asCALL_CDECL);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_FACTORY, "promise<T>@ f(?&in)", asFUNCTION(Promise::CreateFactory), asCALL_CDECL);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Promise::TemplateCallback), asCALL_CDECL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(Promise, AddRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(Promise, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Promise, SetGCFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Promise, GetGCFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Promise, SetFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Promise, GetFlag), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Promise, GetRefCount), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Promise, EnumReferences), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Promise, ReleaseReferences), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("promise<T>", "void wrap(?&in)", asMETHODPR(Promise, Store, (void*, int), void), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("promise<T>", "T& unwrap()", asMETHODPR(Promise, Retrieve, (), void*), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("promise<T>", "promise<T>@+ yield()", asMETHOD(Promise, YieldIf), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise<T>", "bool is_pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise<T>", "bool pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
+
+				return true;
+			}
+			bool Registry::LoadPromiseParallel(VirtualMachine* VM)
+			{
+				asIScriptEngine* Engine = VM->GetEngine();
+				if (Engine->GetTypeInfoByDecl("promise<bool>@") != nullptr)
+					return false;
+
+				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+				Engine->RegisterObjectType("promise<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_FACTORY, "promise<T>@ f(?&in)", asFUNCTION(Promise::CreateFactory), asCALL_CDECL);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Promise::TemplateCallback), asCALL_CDECL);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(Promise, AddRef), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(Promise, Release), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Promise, SetFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Promise, GetFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Promise, GetRefCount), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Promise, EnumReferences), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Promise, ReleaseReferences), asCALL_THISCALL);
+				Engine->RegisterFuncdef("void promise<T>::when_callback(T&in)");
+				Engine->RegisterObjectMethod("promise<T>", "void when(when_callback@+)", asMETHOD(Promise, When), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise<T>", "void wrap(?&in)", asMETHODPR(Promise, Store, (void*, int), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise<T>", "T& unwrap()", asMETHODPR(Promise, Retrieve, (), void*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise<T>", "promise<T>@+ yield()", asMETHOD(Promise, YieldIf), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise<T>", "bool pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
 
 				return true;
 			}

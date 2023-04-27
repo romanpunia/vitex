@@ -52,16 +52,13 @@ namespace Edge
 
 				int TypeId;
 
-				Dynamic() : TypeId(0)
+				Dynamic()
 				{
 					Clean();
 				}
 				void Clean()
 				{
-					TypeId = 0;
-					Object = nullptr;
-					Number = 0.0;
-					Integer = 0;
+					memset((void*)this, 0, sizeof(*this));
 				}
 			};
 
@@ -82,6 +79,7 @@ namespace Edge
 				static bool LoadThread(VirtualMachine* VM);
 				static bool LoadRandom(VirtualMachine* VM);
 				static bool LoadPromise(VirtualMachine* VM);
+				static bool LoadPromiseParallel(VirtualMachine* VM);
 				static bool LoadFormat(VirtualMachine* Engine);
 				static bool LoadDecimal(VirtualMachine* Engine);
 				static bool LoadVariant(VirtualMachine* Engine);
@@ -724,39 +722,43 @@ namespace Edge
 
 			class ED_OUT Promise
 			{
-				friend ImmediateContext;
-
 			private:
 				static int PromiseUD;
 
 			private:
 				asIScriptEngine* Engine;
-				ImmediateContext* Context;
-				Any* Future;
+				asIScriptContext* Context;
+				asIScriptFunction* Callback;
 				std::mutex Update;
-				int Ref;
-				bool Pending;
-				bool Flag;
+				Dynamic Value;
+				int RefCount;
+				bool Marked;
 
 			public:
-				Promise(asIScriptContext* Base) noexcept;
-				void EnumReferences(asIScriptEngine* Engine);
-				void ReleaseReferences(asIScriptEngine* Engine);
-				void AddRef();
 				void Release();
-				void SetGCFlag();
-				bool GetGCFlag();
+				void AddRef();
+				void EnumReferences(asIScriptEngine* OtherEngine);
+				void ReleaseReferences(asIScriptEngine*);
+				void SetFlag();
+				bool GetFlag();
 				int GetRefCount();
-				void Store(void* Ref, int TypeId);
-				void Store(void* Ref, const char* TypeId);
-				bool Retrieve(void* fRef, int TypeId);
+				int GetTypeIdOfObject();
+				void* GetAddressOfObject();
+				void When(asIScriptFunction* NewCallback);
+				void Store(void* RefPointer, int RefTypeId);
+				void Store(void* RefPointer, const char* TypeName);
+				bool Retrieve(void* RefPointer, int RefTypeId);
 				void* Retrieve();
 				bool IsPending();
 				Promise* YieldIf();
 
+			private:
+				Promise(asIScriptContext* NewContext) noexcept;
+
 			public:
-				static Core::Unique<Promise> Create();
-				static Core::Unique<Promise> CreatePendingOrReady(void* Ref, int TypeId);
+				static Promise* Create();
+				static Promise* CreateFactory(void* _Ref, int TypeId);
+				static bool TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect);
 				static Core::String GetStatus(ImmediateContext* Context);
 
 			public:

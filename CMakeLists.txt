@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.6)
 include(lib/toolchain.cmake)
 
 #Project's metadata
-project(edge)
+project(mavi)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 
 #Build directory if not defined
@@ -47,50 +47,41 @@ foreach(ITEM IN ITEMS ${SOURCE})
 endforeach()
 
 #Project's outputs
-add_library(edge SHARED ${SOURCE})
-set_target_properties(edge PROPERTIES
-        OUTPUT_NAME "edge"
-		CXX_STANDARD ${ED_CXX}
+add_library(mavi SHARED ${SOURCE})
+set_target_properties(mavi PROPERTIES
+		CXX_STANDARD ${VI_CXX}
         CXX_STANDARD_REQUIRED ON
 		CXX_EXTENSIONS OFF
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION})
 
 #Project's settings
-set(ED_USE_BINDINGS true CACHE BOOL "Enable full script bindings")
-set(ED_USE_FAST_MEMORY false CACHE BOOL "Enable custom allocator for standard containers")
-set(ED_MSG_TRACE false CACHE BOOL "Enable tracing messages")
-set(ED_MSG_DEBUG false CACHE BOOL "Enable debugging messages")
-set(ED_MSG_INFO true CACHE BOOL "Enable info messages")
-set(ED_MSG_WARN true CACHE BOOL "Enable warning messages")
-set(ED_MSG_ERROR true CACHE BOOL "Enable error messages")
-if (ED_MSG_TRACE AND ED_MSG_DEBUG AND ED_MSG_INFO AND ED_MSG_WARN AND ED_MSG_ERROR)
-    target_compile_definitions(edge PUBLIC -DED_DLEVEL=5)
-    message(STATUS "Logging messages: tracing")
-elseif (ED_MSG_DEBUG AND ED_MSG_INFO AND ED_MSG_WARN AND ED_MSG_ERROR)
-    target_compile_definitions(edge PUBLIC -DED_DLEVEL=4)
-    message(STATUS "Logging messages: debugging")
-elseif (ED_MSG_INFO AND ED_MSG_WARN AND ED_MSG_ERROR)
-    target_compile_definitions(edge PUBLIC -DED_DLEVEL=3)
-    message(STATUS "Logging messages: essentials only")
-elseif (ED_MSG_WARN AND ED_MSG_ERROR)
-    target_compile_definitions(edge PUBLIC -DED_DLEVEL=2)
-    message(STATUS "Logging messages: violations only")
-elseif (ED_MSG_ERROR)
-    target_compile_definitions(edge PUBLIC -DED_DLEVEL=1)
-    message(STATUS "Logging messages: errors only")
+set(VI_USE_BINDINGS true CACHE BOOL "Enable full script bindings")
+set(VI_USE_FAST_MEMORY false CACHE BOOL "Enable custom allocator for standard containers")
+set(VI_LOGGING "default" CACHE STRING "Logging level (errors, warnings, default, debug, verbose)")
+message(STATUS "Logging messages: ${VI_LOGGING}")
+
+if (${VI_LOGGING} STREQUAL "verbose")
+    target_compile_definitions(mavi PUBLIC -DVI_DLEVEL=5)
+elseif (${VI_LOGGING} STREQUAL "debug")
+    target_compile_definitions(mavi PUBLIC -DVI_DLEVEL=4)
+elseif (${VI_LOGGING} STREQUAL "default")
+    target_compile_definitions(mavi PUBLIC -DVI_DLEVEL=3)
+elseif (${VI_LOGGING} STREQUAL "warnings")
+    target_compile_definitions(mavi PUBLIC -DVI_DLEVEL=2)
+elseif (${VI_LOGGING} STREQUAL "errors")
+    target_compile_definitions(mavi PUBLIC -DVI_DLEVEL=1)
 else()
-    target_compile_definitions(edge PUBLIC -DED_DLEVEL=0)
-    message(STATUS "Logging messages: none")
+    target_compile_definitions(mavi PUBLIC -DVI_DLEVEL=0)
 endif()
-if (ED_USE_FAST_MEMORY)
-    target_compile_definitions(edge PUBLIC -DED_HAS_FAST_MEMORY)
+if (VI_USE_FAST_MEMORY)
+    target_compile_definitions(mavi PUBLIC -DVI_HAS_FAST_MEMORY)
     message(STATUS "Allocation strategy: aggresive")
 else()
     message(STATUS "Allocation strategy: default")
 endif()
-if (ED_USE_BINDINGS)
-    target_compile_definitions(edge PUBLIC -DED_HAS_BINDINGS)
+if (VI_USE_BINDINGS)
+    target_compile_definitions(mavi PUBLIC -DVI_HAS_BINDINGS)
     message(STATUS "Script bindings: full coverage")
 else()
     message(STATUS "Script bindings: minimal coverage")

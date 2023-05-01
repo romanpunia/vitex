@@ -12,4 +12,4 @@ bin/*.exe
 bin/*.ilk
 bin/*.exp
 **/.DS_Store
-src/edge/graphics/dynamic/*.*
+src/mavi/graphics/dynamic/*.*

@@ -1,5 +1,5 @@
-set(ED_USE_SIMD OFF CACHE BOOL "Enable SIMD instructions (release mode perf. gain)")
-if (ED_USE_SIMD)
+set(VI_USE_SIMD OFF CACHE BOOL "Enable SIMD instructions (release mode perf. gain)")
+if (VI_USE_SIMD)
 	#Resolve source targets
 	file(GLOB_RECURSE SOURCE_SIMD
 			${CMAKE_CURRENT_LIST_DIR}/*.inl*

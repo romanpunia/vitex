@@ -1,18 +1,18 @@
 #Query all sources
 file(GLOB_RECURSE SOURCE
-		${PROJECT_SOURCE_DIR}/src/edge/*.inl*
-		${PROJECT_SOURCE_DIR}/src/edge/*.h*
-		${PROJECT_SOURCE_DIR}/src/edge/*.c*
-		${PROJECT_SOURCE_DIR}/src/edge/*.cc*
-		${PROJECT_SOURCE_DIR}/src/edge/*.hpp*
-		${PROJECT_SOURCE_DIR}/src/edge/*.cpp*
-		${PROJECT_SOURCE_DIR}/src/edge/*.hxx*
-		${PROJECT_SOURCE_DIR}/src/edge/*.cxx*)
+		${PROJECT_SOURCE_DIR}/src/mavi/*.inl*
+		${PROJECT_SOURCE_DIR}/src/mavi/*.h*
+		${PROJECT_SOURCE_DIR}/src/mavi/*.c*
+		${PROJECT_SOURCE_DIR}/src/mavi/*.cc*
+		${PROJECT_SOURCE_DIR}/src/mavi/*.hpp*
+		${PROJECT_SOURCE_DIR}/src/mavi/*.cpp*
+		${PROJECT_SOURCE_DIR}/src/mavi/*.hxx*
+		${PROJECT_SOURCE_DIR}/src/mavi/*.cxx*)
 
 #Shader embedding specifics (with compilation)
-set(ED_USE_SHADERS true CACHE BOOL "Enable built-in shaders")
-set(BUFFER_OUT "${PROJECT_SOURCE_DIR}/src/edge/graphics/dynamic/shaders")
-if (ED_USE_SHADERS)
+set(VI_USE_SHADERS true CACHE BOOL "Enable built-in shaders")
+set(BUFFER_OUT "${PROJECT_SOURCE_DIR}/src/mavi/graphics/dynamic/shaders")
+if (VI_USE_SHADERS)
 	set(BUFFER_DIR "${PROJECT_SOURCE_DIR}/src/shaders")
     set(BUFFER_DATA "#ifndef HAS_SHADER_BATCH\n#define HAS_SHADER_BATCH\n\nnamespace shader_batch\n{\n\tvoid foreach(void* context, void(*callback)(void*, const char*, const unsigned char*, unsigned))\n\t{\n\t\tif (!callback)\n\t\t\treturn;\n")
     file(GLOB_RECURSE BINARIES ${BUFFER_DIR}/*)

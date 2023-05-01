@@ -2,14 +2,6 @@
 .git/
 debug/
 release/
-bin/*.so
-bin/*.a
-bin/*.dylib
-bin/*.dll
-bin/*.lib
-bin/*.pdb
-bin/*.exe
-bin/*.ilk
-bin/*.exp
+bin/
 **/.DS_Store
 src/mavi/graphics/dynamic/*.*

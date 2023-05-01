@@ -3,7 +3,7 @@
   <img width="640" height="336" src="https://github.com/romanpunia/mavi/blob/master/var/screenshot.png?raw=true">
 </p>
 
-## About
+## About 👻
 Mavi is a cross-platform C++14/17/20 framework to create any type of application from a unified interface. In it's core, Mavi is based on same concepts as Node.js but made to it's extreme. As in Node, Mavi has a worker pool that not only consumes but also publishes tasks, here we don't really have a concept of event loop, every thread is on it's own an event loop.
 
 Using concept of tasks and queues, in Mavi there are two rules for optimal performace and proper CPU loading:

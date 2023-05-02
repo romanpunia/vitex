@@ -14769,15 +14769,31 @@ namespace Mavi
 				while (Offset < Code.size())
 				{
 					char U = Code[Offset];
-					if (U != '\"' && U != '\'')
+					if (U == '/' && Offset + 1 < Code.size() && Code[Offset + 1] == '/' || Code[Offset + 1] == '*')
 					{
-						if (Code.size() - Offset < MatchSize || memcmp(Code.c_str() + Offset, Match, MatchSize) != 0)
+						if (Code[++Offset] == '*')
 						{
-							++Offset;
-							continue;
+							while (Offset + 1 < Code.size())
+							{
+								char N1 = Code[Offset++];
+								char N2 = Code[Offset++];
+								if (N1 == '*' && N2 == '/')
+									break;
+							}
 						}
+						else
+						{
+							while (Offset < Code.size())
+							{
+								char N = Code[Offset++];
+								if (N == '\r' || N == '\n')
+									break;
+							}
+						}
+
+						continue;
 					}
-					else
+					else if (U == '\"' || U == '\'')
 					{
 						++Offset;
 						while (Offset < Code.size())
@@ -14786,6 +14802,11 @@ namespace Mavi
 								break;
 						}
 
+						continue;
+					}
+					else if (Code.size() - Offset < MatchSize || memcmp(Code.c_str() + Offset, Match, MatchSize) != 0)
+					{
+						++Offset;
 						continue;
 					}
 

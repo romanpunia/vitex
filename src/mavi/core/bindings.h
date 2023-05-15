@@ -56,6 +56,11 @@ namespace Mavi
 				{
 					Clean();
 				}
+				Dynamic(int NewTypeId)
+				{
+					Clean();
+					TypeId = NewTypeId;
+				}
 				void Clean()
 				{
 					memset((void*)this, 0, sizeof(*this));
@@ -723,16 +728,16 @@ namespace Mavi
 			class VI_OUT Promise
 			{
 			private:
+				static int PromiseNULL;
 				static int PromiseUD;
 
 			private:
 				asIScriptEngine* Engine;
 				asIScriptContext* Context;
 				asIScriptFunction* Callback;
+				std::atomic<int> RefCount;
 				std::mutex Update;
 				Dynamic Value;
-				int RefCount;
-				bool Marked;
 
 			public:
 				void Release();
@@ -747,7 +752,9 @@ namespace Mavi
 				void When(asIScriptFunction* NewCallback);
 				void Store(void* RefPointer, int RefTypeId);
 				void Store(void* RefPointer, const char* TypeName);
+				void StoreVoid();
 				bool Retrieve(void* RefPointer, int RefTypeId);
+				void RetrieveVoid();
 				void* Retrieve();
 				bool IsPending();
 				Promise* YieldIf();
@@ -758,6 +765,7 @@ namespace Mavi
 			public:
 				static Promise* Create();
 				static Promise* CreateFactory(void* _Ref, int TypeId);
+				static Promise* CreateFactoryVoid();
 				static bool TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect);
 				static Core::String GetStatus(ImmediateContext* Context);
 

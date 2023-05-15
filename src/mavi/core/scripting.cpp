@@ -2835,6 +2835,7 @@ namespace Mavi
 			for (auto& Context : Contexts)
 				Context->Release();
 
+			CleanupThisThread();
 			if (Engine != nullptr)
 				Engine->ShutDownAndRelease();
 			ClearCache();

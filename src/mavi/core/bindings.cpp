@@ -3244,7 +3244,7 @@ namespace Mavi
 				return Compute::Math<uint64_t>::Random(Min, Max);
 			}
 
-			Promise::Promise(asIScriptContext* NewContext) noexcept : Engine(nullptr), Context(NewContext), Callback(nullptr), RefCount(1), Marked(false)
+			Promise::Promise(asIScriptContext* NewContext) noexcept : Engine(nullptr), Context(NewContext), Callback(nullptr), Value(-1), RefCount(1)
 			{
 				VI_ASSERT_V(Context != nullptr, "context should not be null");
 				Context->AddRef();
@@ -3253,8 +3253,8 @@ namespace Mavi
 			}
 			void Promise::Release()
 			{
-				Marked = false;
-				if (asAtomicDec(RefCount) <= 0)
+				RefCount &= 0x7FFFFFFF;
+				if (--RefCount <= 0)
 				{
 					ReleaseReferences(nullptr);
 					this->~Promise();
@@ -3263,8 +3263,7 @@ namespace Mavi
 			}
 			void Promise::AddRef()
 			{
-				Marked = false;
-				asAtomicInc(RefCount);
+				RefCount = (RefCount & 0x7FFFFFFF) + 1;
 			}
 			void Promise::EnumReferences(asIScriptEngine* OtherEngine)
 			{
@@ -3309,15 +3308,15 @@ namespace Mavi
 			}
 			void Promise::SetFlag()
 			{
-				Marked = true;
+				RefCount |= 0x80000000;
 			}
 			bool Promise::GetFlag()
 			{
-				return Marked;
+				return (RefCount & 0x80000000) ? true : false;
 			}
 			int Promise::GetRefCount()
 			{
-				return RefCount;
+				return (RefCount & 0x7FFFFFFF);
 			}
 			int Promise::GetTypeIdOfObject()
 			{
@@ -3338,13 +3337,13 @@ namespace Mavi
 			}
 			void Promise::Store(void* RefPointer, int RefTypeId)
 			{
-				Update.lock();
-				VI_ASSERT_V(Value.TypeId == asTYPEID_VOID, "promise should be settled only once");
-				VI_ASSERT_V(RefPointer != nullptr, "input pointer should not be null");
+				VI_ASSERT_V(Value.TypeId == PromiseNULL, "promise should be settled only once");
+				VI_ASSERT_V(RefPointer != nullptr || RefTypeId == asTYPEID_VOID, "input pointer should not be null");
 				VI_ASSERT_V(Engine != nullptr, "promise is malformed (engine is null)");
 				VI_ASSERT_V(Context != nullptr, "promise is malformed (context is null)");
 
-				if (Value.TypeId == asTYPEID_VOID)
+				Update.lock();
+				if (Value.TypeId == PromiseNULL)
 				{
 					if ((RefTypeId & asTYPEID_MASK_OBJECT))
 					{
@@ -3419,11 +3418,15 @@ namespace Mavi
 				VI_ASSERT_V(TypeName != nullptr, "typename should not be null");
 				Store(RefPointer, Engine->GetTypeIdByDecl(TypeName));
 			}
+			void Promise::StoreVoid()
+			{
+				Store(nullptr, asTYPEID_VOID);
+			}
 			bool Promise::Retrieve(void* RefPointer, int RefTypeId)
 			{
 				VI_ASSERT(Engine != nullptr, false, "promise is malformed (engine is null)");
 				VI_ASSERT(RefPointer != nullptr, false, "output pointer should not be null");
-				if (Value.TypeId == asTYPEID_VOID)
+				if (Value.TypeId == PromiseNULL)
 					return false;
 
 				if (RefTypeId & asTYPEID_OBJHANDLE)
@@ -3463,9 +3466,12 @@ namespace Mavi
 
 				return false;
 			}
+			void Promise::RetrieveVoid()
+			{
+			}
 			void* Promise::Retrieve()
 			{
-				if (Value.TypeId == asTYPEID_VOID)
+				if (Value.TypeId == PromiseNULL)
 					return nullptr;
 
 				if (Value.TypeId & asTYPEID_OBJHANDLE)
@@ -3479,12 +3485,12 @@ namespace Mavi
 			}
 			bool Promise::IsPending()
 			{
-				return Value.TypeId == asTYPEID_VOID;
+				return Value.TypeId == PromiseNULL;
 			}
 			Promise* Promise::YieldIf()
 			{
 				std::unique_lock<std::mutex> Unique(Update);
-				if (Value.TypeId == asTYPEID_VOID && Context != nullptr)
+				if (Value.TypeId == PromiseNULL && Context != nullptr)
 				{
 					AddRef();
 					Context->SetUserData(this, PromiseUD);
@@ -3502,8 +3508,11 @@ namespace Mavi
 				Promise* Future = new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext());
 				if (TypeId != asTYPEID_VOID)
 					Future->Store(_Ref, TypeId);
-
 				return Future;
+			}
+			Promise* Promise::CreateFactoryVoid()
+			{
+				return Create();
 			}
 			bool Promise::TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect)
 			{
@@ -3634,6 +3643,7 @@ namespace Mavi
 
 				return Result;
 			}
+			int Promise::PromiseNULL = -1;
 			int Promise::PromiseUD = 559;
 
 			Core::Decimal DecimalNegate(Core::Decimal& Base)
@@ -4057,11 +4067,11 @@ namespace Mavi
 			}
 			Core::Schema* SchemaFromJSON(const Core::String& Value)
 			{
-				return Core::Schema::ConvertFromJSON(Value.c_str(), Value.size());
+				return Core::Schema::ConvertFromJSON(Value.c_str(), Value.size(), false);
 			}
 			Core::Schema* SchemaFromXML(const Core::String& Value)
 			{
-				return Core::Schema::ConvertFromXML(Value.c_str());
+				return Core::Schema::ConvertFromXML(Value.c_str(), false);
 			}
 			Core::Schema* SchemaImport(const Core::String& Value)
 			{
@@ -8421,6 +8431,19 @@ namespace Mavi
 				Engine->RegisterObjectMethod("promise<T>", "T& unwrap()", asMETHODPR(Promise, Retrieve, (), void*), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("promise<T>", "promise<T>@+ yield()", asMETHOD(Promise, YieldIf), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("promise<T>", "bool pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
+				Engine->RegisterObjectType("promise_v", 0, asOBJ_REF | asOBJ_GC);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_FACTORY, "promise_v@ f()", asFUNCTION(Promise::CreateFactoryVoid), asCALL_CDECL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_ADDREF, "void f()", asMETHOD(Promise, AddRef), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_RELEASE, "void f()", asMETHOD(Promise, Release), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Promise, SetFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Promise, GetFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Promise, GetRefCount), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Promise, EnumReferences), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Promise, ReleaseReferences), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise_v", "void wrap()", asMETHODPR(Promise, StoreVoid, (), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise_v", "void unwrap()", asMETHODPR(Promise, RetrieveVoid, (), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise_v", "promise_v@+ yield()", asMETHOD(Promise, YieldIf), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise_v", "bool pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
 
 				return true;
 			}
@@ -8447,6 +8470,21 @@ namespace Mavi
 				Engine->RegisterObjectMethod("promise<T>", "T& unwrap()", asMETHODPR(Promise, Retrieve, (), void*), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("promise<T>", "promise<T>@+ yield()", asMETHOD(Promise, YieldIf), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("promise<T>", "bool pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
+				Engine->RegisterObjectType("promise_v", 0, asOBJ_REF | asOBJ_GC);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_FACTORY, "promise_v@ f()", asFUNCTION(Promise::CreateFactoryVoid), asCALL_CDECL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_ADDREF, "void f()", asMETHOD(Promise, AddRef), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_RELEASE, "void f()", asMETHOD(Promise, Release), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Promise, SetFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Promise, GetFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Promise, GetRefCount), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Promise, EnumReferences), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Promise, ReleaseReferences), asCALL_THISCALL);
+				Engine->RegisterFuncdef("void promise_v::when_callback()");
+				Engine->RegisterObjectMethod("promise_v", "void when(when_callback@+)", asMETHOD(Promise, When), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise_v", "void wrap()", asMETHODPR(Promise, StoreVoid, (), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise_v", "void unwrap()", asMETHODPR(Promise, RetrieveVoid, (), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise_v", "promise_v@+ yield()", asMETHOD(Promise, YieldIf), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("promise_v", "bool pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
 
 				return true;
 			}
@@ -8645,6 +8683,7 @@ namespace Mavi
 				VConsole.SetMethod("void hide()", &Core::Console::Hide);
 				VConsole.SetMethod("void show()", &Core::Console::Show);
 				VConsole.SetMethod("void clear()", &Core::Console::Clear);
+				VConsole.SetMethod("void detach()", &Core::Console::Detach);
 				VConsole.SetMethod("void flush()", &Core::Console::Flush);
 				VConsole.SetMethod("void flush_write()", &Core::Console::FlushWrite);
 				VConsole.SetMethod("void set_cursor(uint32, uint32)", &Core::Console::SetCursor);
@@ -8679,14 +8718,14 @@ namespace Mavi
 				VSchema.SetProperty<Core::Schema>("variant value", &Core::Schema::Value);
 				VSchema.SetGcConstructor<Core::Schema, Schema, const Core::Variant&>("schema@ f(const variant &in)");
 				VSchema.SetGcConstructorListEx<Core::Schema>("schema@ f(int &in) { repeat { string, ? } }", &SchemaConstruct);
-				VSchema.SetMethod<Core::Schema, Core::Variant, size_t>("variant getVar(usize) const", &Core::Schema::GetVar);
+				VSchema.SetMethod<Core::Schema, Core::Variant, size_t>("variant get_var(usize) const", &Core::Schema::GetVar);
 				VSchema.SetMethod<Core::Schema, Core::Variant, const Core::String&>("variant get_var(const string &in) const", &Core::Schema::GetVar);
 				VSchema.SetMethod<Core::Schema, Core::Variant, const Core::String&>("variant get_attribute_var(const string &in) const", &Core::Schema::GetAttributeVar);
 				VSchema.SetMethod("schema@+ get_parent() const", &Core::Schema::GetParent);
 				VSchema.SetMethod("schema@+ get_attribute(const string &in) const", &Core::Schema::GetAttribute);
 				VSchema.SetMethod<Core::Schema, Core::Schema*, size_t>("schema@+ get(usize) const", &Core::Schema::Get);
 				VSchema.SetMethod<Core::Schema, Core::Schema*, const Core::String&, bool>("schema@+ get(const string &in, bool = false) const", &Core::Schema::Fetch);
-				VSchema.SetMethod<Core::Schema, Core::Schema*, const Core::String&>("schema@+ get(const string &in)", &Core::Schema::Set);
+				VSchema.SetMethod<Core::Schema, Core::Schema*, const Core::String&>("schema@+ set(const string &in)", &Core::Schema::Set);
 				VSchema.SetMethod<Core::Schema, Core::Schema*, const Core::String&, const Core::Variant&>("schema@+ set(const string &in, const variant &in)", &Core::Schema::Set);
 				VSchema.SetMethod<Core::Schema, Core::Schema*, const Core::String&, const Core::Variant&>("schema@+ set_attribute(const string& in, const variant &in)", &Core::Schema::SetAttribute);
 				VSchema.SetMethod<Core::Schema, Core::Schema*, const Core::Variant&>("schema@+ push(const variant &in)", &Core::Schema::Push);
@@ -14851,6 +14890,7 @@ namespace Mavi
 						Offset = End;
 				}
 
+				Core::Stringify(&Code).Replace("promise<void>", "promise_v");
 				return true;
 			}
 			bool Registry::Release()

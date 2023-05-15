@@ -1912,6 +1912,7 @@ namespace Mavi
 			void Hide();
 			void Show();
 			void Clear();
+			void Detach();
 			void Flush();
 			void FlushWrite();
 			void Trace(uint32_t MaxFrames = 32);

@@ -5854,7 +5854,6 @@ namespace Mavi
 		void Console::Hide()
 		{
 #ifdef VI_MICROSOFT
-			VI_ASSERT_V(Present, "console should be shown at least once to be hidden");
 			::ShowWindow(::GetConsoleWindow(), SW_HIDE);
 			VI_TRACE("[console] hide window");
 #endif
@@ -5887,7 +5886,6 @@ namespace Mavi
 		void Console::Clear()
 		{
 #ifdef VI_MICROSOFT
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			HANDLE Wnd = GetStdHandle(STD_OUTPUT_HANDLE);
 
 			CONSOLE_SCREEN_BUFFER_INFO Info;
@@ -5902,19 +5900,20 @@ namespace Mavi
 			std::cout << "\033[2J";
 #endif
 		}
+		void Console::Detach()
+		{
+			Present = false;
+		}
 		void Console::Flush()
 		{
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			std::cout.flush();
 		}
 		void Console::FlushWrite()
 		{
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			std::cout << std::flush;
 		}
 		void Console::Trace(uint32_t MaxFrames)
 		{
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			std::cout << OS::GetStackTrace(2, MaxFrames) << '\n';
 		}
 		void Console::CaptureTime()
@@ -5938,7 +5937,6 @@ namespace Mavi
 		}
 		void Console::ColorBegin(StdColor Text, StdColor Background)
 		{
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			if (!Coloring)
 				return;
 #if defined(_WIN32)
@@ -5955,7 +5953,6 @@ namespace Mavi
 		}
 		void Console::ColorEnd()
 		{
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			if (!Coloring)
 				return;
 #if defined(_WIN32)
@@ -5966,28 +5963,23 @@ namespace Mavi
 		}
 		void Console::WriteBuffer(const char* Buffer)
 		{
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			VI_ASSERT_V(Buffer != nullptr, "buffer should be set");
 			std::cout << Buffer;
 		}
 		void Console::WriteLine(const Core::String& Line)
 		{
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			std::cout << Line << '\n';
 		}
 		void Console::WriteChar(char Value)
 		{
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			std::cout << Value;
 		}
 		void Console::Write(const Core::String& Line)
 		{
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			std::cout << Line;
 		}
 		void Console::fWriteLine(const char* Format, ...)
 		{
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			char Buffer[BLOB_SIZE] = { '\0' };
 
 			va_list Args;
@@ -6003,7 +5995,6 @@ namespace Mavi
 		}
 		void Console::fWrite(const char* Format, ...)
 		{
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			char Buffer[BLOB_SIZE] = { '\0' };
 
 			va_list Args;
@@ -6019,21 +6010,18 @@ namespace Mavi
 		}
 		void Console::sWriteLine(const Core::String& Line)
 		{
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			Lock.lock();
 			std::cout << Line << '\n';
 			Lock.unlock();
 		}
 		void Console::sWrite(const Core::String& Line)
 		{
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			Lock.lock();
 			std::cout << Line;
 			Lock.unlock();
 		}
 		void Console::sfWriteLine(const char* Format, ...)
 		{
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			VI_ASSERT_V(Format != nullptr, "format should be set");
 
 			char Buffer[BLOB_SIZE] = { '\0' };
@@ -6052,7 +6040,6 @@ namespace Mavi
 		}
 		void Console::sfWrite(const char* Format, ...)
 		{
-			VI_ASSERT_V(Present, "console should be shown at least once");
 			VI_ASSERT_V(Format != nullptr, "format should be set");
 
 			char Buffer[BLOB_SIZE] = { '\0' };
@@ -6808,13 +6795,20 @@ namespace Mavi
 			VI_TRACE("[http] fd %i read %i bytes", GetFd(), (int)Length);
 
 			size_t Result = 0;
-			if (Offset + Length > Chunk.size() && (Chunk.size() < Size || !Size))
+			if (Offset + Length > Chunk.size() && (Chunk.size() < Size || (!Size && !((Network::HTTP::Client*)Resource)->GetResponse()->Content.Limited)))
 			{
 				auto* Client = (Network::HTTP::Client*)Resource;
 				if (!Client->Consume(Length).Get())
 					return 0;
 
 				auto* Response = Client->GetResponse();
+				if (!Size && Response->Content.Limited)
+				{
+					Size = Response->Content.Length;
+					if (!Size)
+						return 0;
+				}
+
 				if (Response->Content.Data.empty())
 					return 0;
 
@@ -7989,6 +7983,7 @@ namespace Mavi
 					Data.append(Buffer, Length);
 				});
 
+				Size = Data.size();
 				if (Data.empty())
 				{
 					VI_RELEASE(Stream);
@@ -9575,6 +9570,7 @@ namespace Mavi
 				VI_DELETE(ConcurrentQueuePtr, Queues[i]);
 
 			VI_RELEASE(Dispatcher.State);
+			Scripting::VirtualMachine::CleanupThisThread();
 			if (Singleton == this)
 				Singleton = nullptr;
 		}

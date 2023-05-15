@@ -1312,7 +1312,7 @@ namespace Mavi
 			bool ContentFrame::IsFinalized() const
 			{
 				if (!Limited)
-					return false;
+					return Offset >= Length && Offset > 0;
 
 				return Offset >= Length || Data.size() >= Length;
 			}
@@ -6052,7 +6052,10 @@ namespace Mavi
 						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 						{
 							if (!Response.Content.Limited)
+							{
 								Response.Content.Length += Response.Content.Offset;
+								Response.Content.Limited = true;
+							}
 
 							if (!Response.Content.Data.empty())
 								VI_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());

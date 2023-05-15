@@ -3381,7 +3381,7 @@ namespace Mavi
 					if (Callback != nullptr)
 					{
 						AddRef();
-						Immediate->TryExecute(false, Callback, [Base](ImmediateContext* Context)
+						Immediate->Execute(Callback, [Base](ImmediateContext* Context)
 						{
 							Context->SetArgAddress(0, Base->GetAddressOfObject());
 						}).When([Base](int&&)
@@ -3396,7 +3396,7 @@ namespace Mavi
 					{
 						Core::Schedule::Get()->SetTask([Base, Immediate]()
 						{
-							Immediate->Execute();
+							Immediate->Resume();
 							Base->Release();
 						}, Core::Difficulty::Light);
 					}
@@ -4180,7 +4180,7 @@ namespace Mavi
 						return Release();
 					}
 				}
-				Context->TryExecute(false, Function, [this](ImmediateContext* Context)
+				Context->Execute(Function, [this](ImmediateContext* Context)
 				{
 					Context->SetArgObject(0, this);
 					Context->SetUserData(this, ContextUD);
@@ -4201,7 +4201,7 @@ namespace Mavi
 				Sparcing = 1;
 
 				if (Context && Context->GetState() == Activation::SUSPENDED)
-					Context->Execute();
+					Context->Resume();
 
 				if (Sparcing == 2)
 					Release();
@@ -4984,21 +4984,21 @@ namespace Mavi
 				if (!OnScriptHook)
 					return;
 
-				Context->TryExecute(true, OnScriptHook, nullptr).Wait();
+				Context->ExecuteSubcall(OnScriptHook, nullptr);
 			}
 			void Application::KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
 			{
 				if (!OnKeyEvent)
 					return;
 
-				Context->TryExecute(true, OnKeyEvent, [Key, Mod, Virtual, Repeat, Pressed](ImmediateContext* Context)
+				Context->ExecuteSubcall(OnKeyEvent, [Key, Mod, Virtual, Repeat, Pressed](ImmediateContext* Context)
 				{
 					Context->SetArg32(0, (int)Key);
 					Context->SetArg32(1, (int)Mod);
 					Context->SetArg32(2, Virtual);
 					Context->SetArg32(3, Repeat);
 					Context->SetArg8(4, (unsigned char)Pressed);
-				}).Wait();
+				});
 			}
 			void Application::InputEvent(char* Buffer, size_t Length)
 			{
@@ -5006,82 +5006,82 @@ namespace Mavi
 					return;
 
 				Core::String Text(Buffer, Length);
-				Context->TryExecute(true, OnInputEvent, [Text](ImmediateContext* Context)
+				Context->ExecuteSubcall(OnInputEvent, [&Text](ImmediateContext* Context)
 				{
 					Context->SetArgObject(0, (void*)&Text);
-				}).Wait();
+				});
 			}
 			void Application::WheelEvent(int X, int Y, bool Normal)
 			{
 				if (!OnWheelEvent)
 					return;
 
-				Context->TryExecute(true, OnWheelEvent, [X, Y, Normal](ImmediateContext* Context)
+				Context->ExecuteSubcall(OnWheelEvent, [X, Y, Normal](ImmediateContext* Context)
 				{
 					Context->SetArg32(0, X);
 					Context->SetArg32(1, Y);
 					Context->SetArg8(2, (unsigned char)Normal);
-				}).Wait();
+				});
 			}
 			void Application::WindowEvent(Graphics::WindowState NewState, int X, int Y)
 			{
 				if (!OnWindowEvent)
 					return;
 
-				Context->TryExecute(true, OnWindowEvent, [NewState, X, Y](ImmediateContext* Context)
+				Context->ExecuteSubcall(OnWindowEvent, [NewState, X, Y](ImmediateContext* Context)
 				{
 					Context->SetArg32(0, (int)NewState);
 					Context->SetArg32(1, X);
 					Context->SetArg32(2, Y);
-				}).Wait();
+				});
 			}
 			void Application::CloseEvent()
 			{
 				if (!OnCloseEvent)
 					return;
 
-				Context->TryExecute(true, OnCloseEvent, nullptr).Wait();
+				Context->ExecuteSubcall(OnCloseEvent, nullptr);
 			}
 			void Application::ComposeEvent()
 			{
 				if (!OnComposeEvent)
 					return;
 
-				Context->TryExecute(true, OnComposeEvent, nullptr).Wait();
+				Context->ExecuteSubcall(OnComposeEvent, nullptr);
 			}
 			void Application::Dispatch(Core::Timer* Time)
 			{
 				if (!OnDispatch)
 					return;
 
-				Context->TryExecute(true, OnDispatch, [Time](ImmediateContext* Context)
+				Context->ExecuteSubcall(OnDispatch, [Time](ImmediateContext* Context)
 				{
 					Context->SetArgObject(0, (void*)Time);
-				}).Wait();
+				});
 			}
 			void Application::Publish(Core::Timer* Time)
 			{
 				if (!OnPublish)
 					return;
 
-				Context->TryExecute(true, OnPublish, [Time](ImmediateContext* Context)
+				Context->ExecuteSubcall(OnPublish, [Time](ImmediateContext* Context)
 				{
 					Context->SetArgObject(0, (void*)Time);
-				}).Wait();
+				});
 			}
 			void Application::Initialize()
 			{
 				if (!OnInitialize)
 					return;
 
-				Context->TryExecute(true, OnInitialize, nullptr).Wait();
+				Context->ExecuteSubcall(OnInitialize, nullptr);
 			}
 			Engine::GUI::Context* Application::GetGUI() const
 			{
 				if (!OnGetGUI)
 					return Engine::Application::GetGUI();
 
-				Context->TryExecute(true, OnGetGUI, nullptr).Wait();
+				Context->ExecuteSubcall(OnGetGUI, nullptr);
 				return Context->GetReturnObject<Engine::GUI::Context>();
 			}
 			bool Application::WantsRestart(int ExitCode)
@@ -5199,7 +5199,7 @@ namespace Mavi
 						Context->Release();
 					}
 
-					Context->TryExecute(false, Callback, nullptr).When([Context, Callback](int&&)
+					Context->Execute(Callback, nullptr).When([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -5234,7 +5234,7 @@ namespace Mavi
 						Context = VM->CreateContext();
 					}
 
-					Context->TryExecute(false, Callback, nullptr).When([Context, Callback](int&&)
+					Context->Execute(Callback, nullptr).When([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -5269,7 +5269,7 @@ namespace Mavi
 						Context = VM->CreateContext();
 					}
 
-					Context->TryExecute(false, Callback, nullptr).When([Context, Callback](int&&)
+					Context->Execute(Callback, nullptr).When([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -5793,7 +5793,7 @@ namespace Mavi
 				Compute::Cosmos::Iterator Iterator;
 				Base->QueryIndex<void>(Iterator, [Context, Overlaps](const Compute::Bounding& Box)
 				{
-					Context->TryExecute(false, Overlaps, [&Box](ImmediateContext* Context)
+					Context->Execute(Overlaps, [&Box](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, (void*)&Box);
 					}).Wait();
@@ -5801,10 +5801,10 @@ namespace Mavi
 					return (bool)Context->GetReturnWord();
 				}, [Context, Match](void* Item)
 				{
-					Context->TryExecute(true, Match, [Item](ImmediateContext* Context)
+					Context->ExecuteSubcall(Match, [Item](ImmediateContext* Context)
 					{
 						Context->SetArgAddress(0, Item);
-					}).Wait();
+					});
 				});
 			}
 
@@ -5827,12 +5827,12 @@ namespace Mavi
 
 				Base->SetIncludeCallback([Context, Callback](Compute::Preprocessor* Base, const Compute::IncludeResult& File, Core::String* Out)
 				{
-					Context->TryExecute(true, Callback, [Base, &File, &Out](ImmediateContext* Context)
+					Context->ExecuteSubcall(Callback, [Base, &File, &Out](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArgObject(1, (void*)&File);
 						Context->SetArgObject(2, Out);
-					}).Wait();
+					});
 
 					return (bool)Context->GetReturnWord();
 				});
@@ -5847,12 +5847,12 @@ namespace Mavi
 				Base->SetPragmaCallback([Type, Context, Callback](Compute::Preprocessor* Base, const Core::String& Name, const Core::Vector<Core::String>& Args)
 				{
 					Array* Params = Array::Compose<Core::String>(Type.GetTypeInfo(), Args);
-					Context->TryExecute(true, Callback, [Base, &Name, &Params](ImmediateContext* Context)
+					Context->ExecuteSubcall(Callback, [Base, &Name, &Params](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArgObject(1, (void*)&Name);
 						Context->SetArgObject(2, Params);
-					}).Wait();
+					});
 
 					if (Params != nullptr)
 						Params->Release();
@@ -5954,10 +5954,10 @@ namespace Mavi
 
 				Base.Result([Context, Callback](int Id)
 				{
-					Context->TryExecute(true, Callback, [Id](ImmediateContext* Context)
+					Context->ExecuteSubcall(Callback, [Id](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, Id);
-					}).Wait();
+					});
 				});
 			}
 
@@ -5972,10 +5972,10 @@ namespace Mavi
 				{
 					Base->Callbacks.AppStateChange = [Context, Callback](Graphics::AppState Type)
 					{
-						Context->TryExecute(true, Callback, [Type](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [Type](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, (int)Type);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -5988,12 +5988,12 @@ namespace Mavi
 				{
 					Base->Callbacks.WindowStateChange = [Context, Callback](Graphics::WindowState State, int X, int Y)
 					{
-						Context->TryExecute(true, Callback, [State, X, Y](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [State, X, Y](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, (int)State);
 							Context->SetArg32(1, X);
 							Context->SetArg32(2, Y);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6006,14 +6006,14 @@ namespace Mavi
 				{
 					Base->Callbacks.KeyState = [Context, Callback](Graphics::KeyCode Code, Graphics::KeyMod Mod, int X, int Y, bool Value)
 					{
-						Context->TryExecute(true, Callback, [Code, Mod, X, Y, Value](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [Code, Mod, X, Y, Value](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, (int)Code);
 							Context->SetArg32(1, (int)Mod);
 							Context->SetArg32(2, X);
 							Context->SetArg32(3, Y);
 							Context->SetArg8(4, Value);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6027,12 +6027,12 @@ namespace Mavi
 					Base->Callbacks.InputEdit = [Context, Callback](char* Buffer, int X, int Y)
 					{
 						Core::String Text = (Buffer ? Buffer : Core::String());
-						Context->TryExecute(true, Callback, [Text, X, Y](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [Text, X, Y](ImmediateContext* Context)
 						{
 							Context->SetArgObject(0, (void*)&Text);
 							Context->SetArg32(1, X);
 							Context->SetArg32(2, Y);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6046,11 +6046,11 @@ namespace Mavi
 					Base->Callbacks.Input = [Context, Callback](char* Buffer, int X)
 					{
 						Core::String Text = (Buffer ? Buffer : Core::String());
-						Context->TryExecute(true, Callback, [Text, X](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [Text, X](ImmediateContext* Context)
 						{
 							Context->SetArgObject(0, (void*)&Text);
 							Context->SetArg32(1, X);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6063,13 +6063,13 @@ namespace Mavi
 				{
 					Base->Callbacks.CursorMove = [Context, Callback](int X, int Y, int Z, int W)
 					{
-						Context->TryExecute(true, Callback, [X, Y, Z, W](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [X, Y, Z, W](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
 							Context->SetArg32(2, Z);
 							Context->SetArg32(3, W);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6082,12 +6082,12 @@ namespace Mavi
 				{
 					Base->Callbacks.CursorWheelState = [Context, Callback](int X, int Y, bool Z)
 					{
-						Context->TryExecute(true, Callback, [X, Y, Z](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [X, Y, Z](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
 							Context->SetArg8(2, Z);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6100,12 +6100,12 @@ namespace Mavi
 				{
 					Base->Callbacks.JoyStickAxisMove = [Context, Callback](int X, int Y, int Z)
 					{
-						Context->TryExecute(true, Callback, [X, Y, Z](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [X, Y, Z](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
 							Context->SetArg32(2, Z);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6118,13 +6118,13 @@ namespace Mavi
 				{
 					Base->Callbacks.JoyStickBallMove = [Context, Callback](int X, int Y, int Z, int W)
 					{
-						Context->TryExecute(true, Callback, [X, Y, Z, W](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [X, Y, Z, W](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
 							Context->SetArg32(2, Z);
 							Context->SetArg32(3, W);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6137,12 +6137,12 @@ namespace Mavi
 				{
 					Base->Callbacks.JoyStickHatMove = [Context, Callback](Graphics::JoyStickHat Type, int X, int Y)
 					{
-						Context->TryExecute(true, Callback, [Type, X, Y](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [Type, X, Y](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, (int)Type);
 							Context->SetArg32(1, X);
 							Context->SetArg32(2, Y);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6155,12 +6155,12 @@ namespace Mavi
 				{
 					Base->Callbacks.JoyStickKeyState = [Context, Callback](int X, int Y, bool Z)
 					{
-						Context->TryExecute(true, Callback, [X, Y, Z](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [X, Y, Z](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
 							Context->SetArg8(2, Z);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6173,11 +6173,11 @@ namespace Mavi
 				{
 					Base->Callbacks.JoyStickState = [Context, Callback](int X, bool Y)
 					{
-						Context->TryExecute(true, Callback, [X, Y](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [X, Y](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg8(1, Y);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6190,12 +6190,12 @@ namespace Mavi
 				{
 					Base->Callbacks.ControllerAxisMove = [Context, Callback](int X, int Y, int Z)
 					{
-						Context->TryExecute(true, Callback, [X, Y, Z](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [X, Y, Z](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
 							Context->SetArg32(2, Z);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6208,12 +6208,12 @@ namespace Mavi
 				{
 					Base->Callbacks.ControllerKeyState = [Context, Callback](int X, int Y, bool Z)
 					{
-						Context->TryExecute(true, Callback, [X, Y, Z](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [X, Y, Z](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
 							Context->SetArg8(2, Z);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6226,11 +6226,11 @@ namespace Mavi
 				{
 					Base->Callbacks.ControllerState = [Context, Callback](int X, int Y)
 					{
-						Context->TryExecute(true, Callback, [X, Y](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [X, Y](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6243,7 +6243,7 @@ namespace Mavi
 				{
 					Base->Callbacks.TouchMove = [Context, Callback](int X, int Y, float Z, float W, float X1, float Y1, float Z1)
 					{
-						Context->TryExecute(true, Callback, [X, Y, Z, W, X1, Y1, Z1](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [X, Y, Z, W, X1, Y1, Z1](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6252,7 +6252,7 @@ namespace Mavi
 							Context->SetArgFloat(4, X1);
 							Context->SetArgFloat(5, Y1);
 							Context->SetArgFloat(6, Z1);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6265,7 +6265,7 @@ namespace Mavi
 				{
 					Base->Callbacks.TouchState = [Context, Callback](int X, int Y, float Z, float W, float X1, float Y1, float Z1, bool W1)
 					{
-						Context->TryExecute(true, Callback, [X, Y, Z, W, X1, Y1, Z1, W1](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [X, Y, Z, W, X1, Y1, Z1, W1](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6275,7 +6275,7 @@ namespace Mavi
 							Context->SetArgFloat(5, Y1);
 							Context->SetArgFloat(6, Z1);
 							Context->SetArg8(7, W1);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6288,7 +6288,7 @@ namespace Mavi
 				{
 					Base->Callbacks.GestureState = [Context, Callback](int X, int Y, int Z, float W, float X1, float Y1, bool Z1)
 					{
-						Context->TryExecute(true, Callback, [X, Y, Z, W, X1, Y1, Z1](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [X, Y, Z, W, X1, Y1, Z1](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6297,7 +6297,7 @@ namespace Mavi
 							Context->SetArgFloat(4, X1);
 							Context->SetArgFloat(5, Y1);
 							Context->SetArg8(6, Z1);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6310,7 +6310,7 @@ namespace Mavi
 				{
 					Base->Callbacks.MultiGestureState = [Context, Callback](int X, int Y, float Z, float W, float X1, float Y1)
 					{
-						Context->TryExecute(true, Callback, [X, Y, Z, W, X1, Y1](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [X, Y, Z, W, X1, Y1](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6318,7 +6318,7 @@ namespace Mavi
 							Context->SetArgFloat(3, W);
 							Context->SetArgFloat(4, X1);
 							Context->SetArgFloat(5, Y1);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6331,10 +6331,10 @@ namespace Mavi
 				{
 					Base->Callbacks.DropFile = [Context, Callback](const Core::String& Text)
 					{
-						Context->TryExecute(true, Callback, [Text](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [Text](ImmediateContext* Context)
 						{
 							Context->SetArgObject(0, (void*)&Text);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6347,10 +6347,10 @@ namespace Mavi
 				{
 					Base->Callbacks.DropText = [Context, Callback](const Core::String& Text)
 					{
-						Context->TryExecute(true, Callback, [Text](ImmediateContext* Context)
+						Context->ExecuteSubcall(Callback, [Text](ImmediateContext* Context)
 						{
 							Context->SetArgObject(0, (void*)&Text);
-						}).Wait();
+						});
 					};
 				}
 				else
@@ -6753,7 +6753,7 @@ namespace Mavi
 				return Base->AcceptAsync(WithAddress, [Context, Callback](socket_t Fd, char* Address)
 				{
 					Core::String IpAddress = Address;
-					Context->TryExecute(false, Callback, [Fd, IpAddress](ImmediateContext* Context)
+					Context->Execute(Callback, [Fd, IpAddress](ImmediateContext* Context)
 					{
 #ifdef VI_64
 						Context->SetArg64(0, (int64_t)Fd);
@@ -6774,7 +6774,7 @@ namespace Mavi
 
 				return Base->CloseAsync(Graceful, [Context, Callback]()
 				{
-					Context->TryExecute(false, Callback, nullptr).Wait();
+					Context->Execute(Callback, nullptr).Wait();
 					return (bool)Context->GetReturnWord();
 				});
 			}
@@ -6786,7 +6786,7 @@ namespace Mavi
 
 				return Base->SendFileAsync(Stream, Offset, Size, [Context, Callback](Network::SocketPoll Poll)
 				{
-					Context->TryExecute(false, Callback, [Poll](ImmediateContext* Context)
+					Context->Execute(Callback, [Poll](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
 					}).Wait();
@@ -6804,7 +6804,7 @@ namespace Mavi
 
 				return Base->WriteAsync(Data.data(), Data.size(), [Context, Callback](Network::SocketPoll Poll)
 				{
-					Context->TryExecute(false, Callback, [Poll](ImmediateContext* Context)
+					Context->Execute(Callback, [Poll](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
 					}).Wait();
@@ -6824,11 +6824,11 @@ namespace Mavi
 				return Base->Read((char*)Data.data(), (int)Data.size(), [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
 					Core::String Source(Data, Size);
-					Context->TryExecute(true, Callback, [Poll, Source](ImmediateContext* Context)
+					Context->ExecuteSubcall(Callback, [Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
 						Context->SetArgObject(1, (void*)&Source);
-					}).Wait();
+					});
 
 					return (bool)Context->GetReturnWord();
 				});
@@ -6842,7 +6842,7 @@ namespace Mavi
 				return Base->ReadAsync(Size, [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
 					Core::String Source(Data, Size);
-					Context->TryExecute(false, Callback, [Poll, Source](ImmediateContext* Context)
+					Context->Execute(Callback, [Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
 						Context->SetArgObject(1, (void*)&Source);
@@ -6860,11 +6860,11 @@ namespace Mavi
 				return Base->ReadUntil(Data.c_str(), [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
 					Core::String Source(Data, Size);
-					Context->TryExecute(true, Callback, [Poll, Source](ImmediateContext* Context)
+					Context->ExecuteSubcall(Callback, [Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
 						Context->SetArgObject(1, (void*)&Source);
-					}).Wait();
+					});
 
 					return (bool)Context->GetReturnWord();
 				});
@@ -6878,7 +6878,7 @@ namespace Mavi
 				return Base->ReadUntilAsync(Data.c_str(), [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
 					Core::String Source(Data, Size);
-					Context->TryExecute(false, Callback, [Poll, Source](ImmediateContext* Context)
+					Context->Execute(Callback, [Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
 						Context->SetArgObject(1, (void*)&Source);
@@ -6895,7 +6895,7 @@ namespace Mavi
 
 				return Base->ConnectAsync(Address, [Context, Callback](int Code)
 				{
-					Context->TryExecute(false, Callback, [Code](ImmediateContext* Context)
+					Context->Execute(Callback, [Code](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Code);
 					}).Wait();
@@ -6938,7 +6938,7 @@ namespace Mavi
 
 				return Network::Multiplexer::WhenReadable(Base, [Base, Context, Callback](Network::SocketPoll Poll)
 				{
-					Context->TryExecute(false, Callback, [Base, Poll](ImmediateContext* Context)
+					Context->Execute(Callback, [Base, Poll](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArg32(1, (int)Poll);
@@ -6953,7 +6953,7 @@ namespace Mavi
 
 				return Network::Multiplexer::WhenWriteable(Base, [Base, Context, Callback](Network::SocketPoll Poll)
 				{
-					Context->TryExecute(false, Callback, [Base, Poll](ImmediateContext* Context)
+					Context->Execute(Callback, [Base, Poll](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArg32(1, (int)Poll);
@@ -7310,10 +7310,10 @@ namespace Mavi
 
 				Base->QueryBasicSync(Id, [Context, Callback](Engine::Component* Item)
 				{
-					Context->TryExecute(true, Callback, [Item](ImmediateContext* Context)
+					Context->ExecuteSubcall(Callback, [Item](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, (void*)Item);
-					}).Wait();
+					});
 				});
 			}
 
@@ -7414,7 +7414,7 @@ namespace Mavi
 				Context->AddRef();
 				Base->LoadAsync(Source, Path, ToVariantKeys(Args)).When([Context, Callback](void*&& Object)
 				{
-					Context->TryExecute(false, Callback, [Object](ImmediateContext* Context)
+					Context->Execute(Callback, [Object](ImmediateContext* Context)
 					{
 						Context->SetArgAddress(0, Object);
 					}).When([Context, Callback](int&&)
@@ -7438,7 +7438,7 @@ namespace Mavi
 				Context->AddRef();
 				Base->SaveAsync(Source, Path, Object, ToVariantKeys(Args)).When([Context, Callback](bool&& Success)
 				{
-					Context->TryExecute(false, Callback, [Success](ImmediateContext* Context)
+					Context->Execute(Callback, [Success](ImmediateContext* Context)
 					{
 						Context->SetArg8(0, Success);
 					}).When([Context, Callback](int&&)
@@ -7517,11 +7517,11 @@ namespace Mavi
 
 				Base->RayTest(Id, Ray, [Context, Callback](Engine::Component* Source, const Compute::Vector3& Where)
 				{
-					Context->TryExecute(true, Callback, [&Source, &Where](ImmediateContext* Context)
+					Context->ExecuteSubcall(Callback, [&Source, &Where](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, (void*)Source);
 						Context->SetArgObject(1, (void*)&Where);
-					}).Wait();
+					});
 					return (bool)Context->GetReturnByte();
 				});
 			}
@@ -7551,7 +7551,7 @@ namespace Mavi
 				Callback->AddRef();
 				Base->Transaction([Context, Callback]()
 				{
-					Context->TryExecute(false, Callback, nullptr).When([Context, Callback](int&&)
+					Context->Execute(Callback, nullptr).When([Context, Callback](int&&)
 					{
 						Context->Release();
 						Callback->Release();
@@ -7585,7 +7585,7 @@ namespace Mavi
 
 					Callback->AddRef();
 					Context->AddRef();
-					Context->TryExecute(false, Callback, [Name, Args](ImmediateContext* Context)
+					Context->Execute(Callback, [Name, Args](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, (void*)&Name);
 						Context->SetArgObject(1, (void*)Args);
@@ -7607,7 +7607,7 @@ namespace Mavi
 				Callback->AddRef();
 				Base->LoadResource(Id, Source, Path, ToVariantKeys(Args), [Context, Callback](void* Resource)
 				{
-					Context->TryExecute(false, Callback, [Resource](ImmediateContext* Context)
+					Context->Execute(Callback, [Resource](ImmediateContext* Context)
 					{
 						Context->SetArgAddress(0, Resource);
 					}).When([Context, Callback](int&&)
@@ -7680,10 +7680,10 @@ namespace Mavi
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_COMPONENT "@>@");
 				return Array::Compose(Type.GetTypeInfo(), Base->QueryByMatch(Id, [Context, Callback](const Compute::Bounding& Source)
 				{
-					Context->TryExecute(true, Callback, [&Source](ImmediateContext* Context)
+					Context->ExecuteSubcall(Callback, [&Source](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, (void*)&Source);
-					}).Wait();
+					});
 					return (bool)Context->GetReturnByte();
 				}));
 			}
@@ -7830,7 +7830,7 @@ namespace Mavi
 				{
 					Engine::GUI::IEvent Event = Wrapper.Copy();
 					Array* Data = Array::Compose(Type.GetTypeInfo(), Args);
-					Context->TryExecute(false, Callback, [Event, &Data](ImmediateContext* Context)
+					Context->Execute(Callback, [Event, &Data](ImmediateContext* Context)
 					{
 						Engine::GUI::IEvent Copy = Event;
 						Context->SetArgObject(0, &Copy);
@@ -7895,7 +7895,7 @@ namespace Mavi
 				return [this](Engine::GUI::IEvent& Wrapper)
 				{
 					Engine::GUI::IEvent Event = Wrapper.Copy();
-					Context->TryExecute(false, Source, [Event](ImmediateContext* Context)
+					Context->Execute(Source, [Event](ImmediateContext* Context)
 					{
 						Engine::GUI::IEvent Copy = Event;
 						Context->SetArgObject(0, &Copy);
@@ -7921,7 +7921,7 @@ namespace Mavi
 					if (!Context || !Callback)
 						return;
 
-					Context->TryExecute(false, Callback, nullptr).When([Context, Callback](int&&)
+					Context->Execute(Callback, nullptr).When([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -7943,7 +7943,7 @@ namespace Mavi
 					if (!Context || !Callback)
 						return;
 
-					Context->TryExecute(false, Callback, nullptr).When([Context, Callback](int&&)
+					Context->Execute(Callback, nullptr).When([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -7965,7 +7965,7 @@ namespace Mavi
 					if (!Context || !Callback)
 						return;
 
-					Context->TryExecute(false, Callback, nullptr).When([Context, Callback](int&&)
+					Context->Execute(Callback, nullptr).When([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -8424,7 +8424,7 @@ namespace Mavi
 
 				return true;
 			}
-			bool Registry::LoadPromiseParallel(VirtualMachine* VM)
+			bool Registry::LoadPromiseAsync(VirtualMachine* VM)
 			{
 				asIScriptEngine* Engine = VM->GetEngine();
 				if (Engine->GetTypeInfoByDecl("promise<bool>@") != nullptr)

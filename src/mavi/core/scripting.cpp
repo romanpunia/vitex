@@ -132,14 +132,14 @@ namespace
 		{
 			auto Copy = It;
 			Stream->WriteAny("%sclass %s%s%s%s%s%s\n%s{\n\t%s",
-							 Offset.c_str(),
-							 It->first.c_str(),
-							 It->second.Types.empty() ? "" : "<",
-							 It->second.Types.empty() ? "" : GetCombination(It->second.Types, ", ").c_str(),
-							 It->second.Types.empty() ? "" : ">",
-							 It->second.Interfaces.empty() ? "" : " : ",
-							 It->second.Interfaces.empty() ? "" : GetCombination(It->second.Interfaces, ", ").c_str(),
-							 Offset.c_str(), Offset.c_str());
+				Offset.c_str(),
+				It->first.c_str(),
+				It->second.Types.empty() ? "" : "<",
+				It->second.Types.empty() ? "" : GetCombination(It->second.Types, ", ").c_str(),
+				It->second.Types.empty() ? "" : ">",
+				It->second.Interfaces.empty() ? "" : " : ",
+				It->second.Interfaces.empty() ? "" : GetCombination(It->second.Interfaces, ", ").c_str(),
+				Offset.c_str(), Offset.c_str());
 			Stream->WriteAny("%s", GetCombinationAll(It->second.Funcdefs, ";\n\t" + Offset, It->second.Props.empty() && It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str());
 			Stream->WriteAny("%s", GetCombinationAll(It->second.Props, ";\n\t" + Offset, It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str());
 			Stream->WriteAny("%s", GetCombinationAll(It->second.Methods, ";\n\t" + Offset, ";").c_str());
@@ -1086,7 +1086,7 @@ namespace Mavi
 			VI_ASSERT(IsValid(), -1, "class should be valid");
 			VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
 			VI_ASSERT(Value != nullptr, -1, "value should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " static property %i bytes at 0x%" PRIXPTR, (void*)this,  (int)strlen(Decl), (void*)Value);
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " static property %i bytes at 0x%" PRIXPTR, (void*)this, (int)strlen(Decl), (void*)Value);
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, -1, "engine should be set");
@@ -2144,7 +2144,7 @@ namespace Mavi
 			R = LoadCode("anonymous", Buffer);
 			if (R < 0)
 				return Core::Promise<int>(R);
-			
+
 			return Compile().Then<Core::Promise<int>>([this, EntryName, OnArgs = std::move(OnArgs)](int&& R) mutable
 			{
 				if (R < 0)
@@ -2168,7 +2168,7 @@ namespace Mavi
 			if (!Function)
 				return Core::Promise<int>(asNO_FUNCTION);
 
-			return Context->TryExecute(false, Function, std::move(OnArgs));
+			return Context->Execute(Function, std::move(OnArgs));
 		}
 		Core::Promise<int> Compiler::ExecuteScoped(const Core::String& Code, const char* Args, ArgsCallback&& OnArgs)
 		{
@@ -2189,7 +2189,7 @@ namespace Mavi
 			Eval.append(Buffer, Length);
 			Eval += "\n;}";
 
-			asIScriptModule* Source = GetModule().GetModule();	
+			asIScriptModule* Source = GetModule().GetModule();
 			return Core::Cotask<Core::Promise<int>>([this, Source, Eval, OnArgs = std::move(OnArgs)]() mutable
 			{
 				asIScriptFunction* Function = nullptr; int R = 0;
@@ -2199,7 +2199,7 @@ namespace Mavi
 				if (R < 0)
 					return Core::Promise<int>(R);
 
-				Core::Promise<int> Result = Context->TryExecute(false, Function, std::move(OnArgs));
+				Core::Promise<int> Result = Context->Execute(Function, std::move(OnArgs));
 				Function->Release();
 
 				return Result;
@@ -2242,12 +2242,12 @@ namespace Mavi
 		}
 		ImmediateContext::~ImmediateContext() noexcept
 		{
-			while (!Tasks.empty())
+			while (!Frame.Tasks.empty())
 			{
-				auto& Next = Tasks.front();
+				auto& Next = Frame.Tasks.front();
 				Next.Callback.Release();
 				Next.Future.Set(asCONTEXT_NOT_PREPARED);
-				Tasks.pop();
+				Frame.Tasks.pop();
 			}
 
 			if (Context != nullptr)
@@ -2258,78 +2258,68 @@ namespace Mavi
 					Context->Release();
 			}
 		}
-		Core::Promise<int> ImmediateContext::TryExecute(bool IsNested, const Function& Function, ArgsCallback&& OnArgs)
+		Core::Promise<int> ImmediateContext::Execute(const Function& Function, ArgsCallback&& OnArgs)
 		{
 			VI_ASSERT(Context != nullptr, Core::Promise<int>(asINVALID_ARG), "context should be set");
 			VI_ASSERT(Function.IsValid(), Core::Promise<int>(asINVALID_ARG), "function should be set");
+			VI_ASSERT(!Core::Costate::IsCoroutine(), Core::Promise<int>(asINVALID_ARG), "cannot safely execute in coroutine");
 
-			if (!IsNested && Core::Costate::IsCoroutine())
-			{
-				Core::Promise<int> Result;
-				Core::Schedule::Get()->SetTask([this, Result, Function, OnArgs = std::move(OnArgs)]() mutable
-				{
-					Result.Set(TryExecute(false, Function, std::move(OnArgs)));
-				}, Core::Difficulty::Heavy);
-				return Result;
-			}
-
+			Callable Next;
+			auto Future = Next.Future;
 			Exchange.lock();
-			if (IsNested)
+
+			if (!Frame.Tasks.empty() || Context->GetState() == asEXECUTION_ACTIVE || Context->IsNested())
 			{
-				bool WantsNesting = Context->GetState() == asEXECUTION_ACTIVE;
-				if (WantsNesting)
-					Context->PushState();
-
-				int Result = Context->Prepare(Function.GetFunction());
-				if (Result < 0)
-				{
-					Exchange.unlock();
-					return Core::Promise<int>(Result);
-				}
-
-				Exchange.unlock();
-				if (OnArgs)
-					OnArgs(this);
-
-				Result = Context->Execute();
-				if (WantsNesting)
-					Context->PopState();
-
-				return Core::Promise<int>(Result);
-			}
-			else if (Tasks.empty())
-			{
-				int Result = Context->Prepare(Function.GetFunction());
-				if (Result < 0)
-				{
-					Exchange.unlock();
-					return Core::Promise<int>(Result);
-				}
-				else
-					Tasks.emplace();
-
-				auto Future = Tasks.front().Future;
-				Exchange.unlock();
-
-				if (OnArgs)
-					OnArgs(this);
-
-				Execute();
-				return Future;
-			}
-			else
-			{
-				Task Next;
 				Next.Args = std::move(OnArgs);
 				Next.Callback = Function;
 				Next.Callback.AddRef();
-
-				Core::Promise<int> Future = Next.Future;
-				Tasks.emplace(std::move(Next));
+				Frame.Tasks.emplace(std::move(Next));
 				Exchange.unlock();
-
 				return Future;
 			}
+
+			int Result = Context->Prepare(Function.GetFunction());
+			if (Result < 0)
+			{
+				Exchange.unlock();
+				return Core::Promise<int>(Result);
+			}
+
+			Frame.Tasks.emplace(std::move(Next));
+			Exchange.unlock();
+			if (OnArgs)
+				OnArgs(this);
+
+			Resume();
+			return Future;
+		}
+		int ImmediateContext::ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs)
+		{
+			VI_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
+			VI_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
+			VI_ASSERT(!Core::Costate::IsCoroutine(), asINVALID_ARG, "cannot safely execute in coroutine");
+
+			Exchange.lock();
+			if (Context->GetState() != asEXECUTION_ACTIVE)
+			{
+				Exchange.unlock();
+				VI_ASSERT(false, asINVALID_ARG, "context should be active");
+				return asEXECUTION_ABORTED;
+			}
+
+			Context->PushState();
+			int Result = Context->Prepare(Function.GetFunction());
+			Exchange.unlock();
+
+			if (Result >= 0)
+			{
+				if (OnArgs)
+					OnArgs(this);
+				Result = Context->Execute();
+			}
+
+			Context->PopState();
+			return Result;
 		}
 		int ImmediateContext::SetOnException(void(*Callback)(asIScriptContext* Context, void* Object), void* Object)
 		{
@@ -2346,49 +2336,52 @@ namespace Mavi
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->Unprepare();
 		}
-		int ImmediateContext::Execute()
+		int ImmediateContext::Resume()
 		{
 			int Result = Context->Execute();
-			if (Result != asEXECUTION_SUSPENDED)
+			if (Result == asEXECUTION_SUSPENDED)
+				return Result;
+
+			Exchange.lock();
+			if (Frame.Tasks.empty())
 			{
-				Exchange.lock();
-				if (!Tasks.empty())
-				{
-					int Subresult = 0;
-					{
-						auto Current = Tasks.front();
-						Current.Callback.Release();
-						Tasks.pop();
-
-						Exchange.unlock();
-						Current.Future.Set(Result);
-						Exchange.lock();
-					}
-
-					while (!Tasks.empty())
-					{
-						auto Next = Tasks.front();
-						Tasks.pop();
-						Exchange.unlock();
-
-						Subresult = Context->Prepare(Next.Callback.GetFunction());
-						if (Subresult >= 0)
-						{
-							if (Next.Args)
-								Next.Args(this);
-
-							Subresult = Context->Execute();
-							if (Subresult == asEXECUTION_SUSPENDED)
-								return Result;
-						}
-
-						Next.Future.Set(Subresult);
-						Exchange.lock();
-					}
-				}
 				Exchange.unlock();
+				return Result;
 			}
 
+			auto Future = Frame.Tasks.front().Future;
+			Frame.Tasks.front().Callback.Release();
+			Frame.Tasks.pop();
+
+			Exchange.unlock();
+			Future.Set(Result);
+			Exchange.lock();
+
+			while (!Frame.Tasks.empty())
+			{
+				auto Next = std::move(Frame.Tasks.front());
+				Frame.Tasks.pop();
+				Exchange.unlock();
+
+				int Subresult = Context->Prepare(Next.Callback.GetFunction());
+				if (Subresult < 0)
+					goto Finalize;
+
+				if (Next.Args)
+					Next.Args(this);
+
+				Subresult = Context->Execute();
+				if (Subresult != asEXECUTION_SUSPENDED)
+					goto Finalize;
+
+				return Result;
+			Finalize:
+				Next.Callback.Release();
+				Next.Future.Set(Subresult);
+				Exchange.lock();
+			}
+
+			Exchange.unlock();
 			return Result;
 		}
 		int ImmediateContext::Abort()
@@ -2470,7 +2463,7 @@ namespace Mavi
 		bool ImmediateContext::IsPending()
 		{
 			Exchange.lock();
-			bool Pending = !Tasks.empty();
+			bool Pending = !Frame.Tasks.empty();
 			Exchange.unlock();
 
 			return Pending;
@@ -2653,23 +2646,23 @@ namespace Mavi
 		}
 		int ImmediateContext::SetLineCallback(const std::function<void(ImmediateContext*)>& Callback)
 		{
-			LineCallback = Callback;
+			Callbacks.Line = Callback;
 			return SetLineCallback(&ImmediateContext::LineLogger, this);
 		}
 		int ImmediateContext::SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback)
 		{
-			ExceptionCallback = Callback;
+			Callbacks.Exception = Callback;
 			return 0;
 		}
 		void ImmediateContext::ClearLineCallback()
 		{
 			VI_ASSERT_V(Context != nullptr, "context should be set");
 			Context->ClearLineCallback();
-			LineCallback = nullptr;
+			Callbacks.Line = nullptr;
 		}
 		void ImmediateContext::ClearExceptionCallback()
 		{
-			ExceptionCallback = nullptr;
+			Callbacks.Exception = nullptr;
 		}
 		unsigned int ImmediateContext::GetCallstackSize() const
 		{
@@ -2733,7 +2726,7 @@ namespace Mavi
 		Core::String ImmediateContext::GetErrorStackTrace()
 		{
 			Exchange.lock();
-			Core::String Result = Stacktrace;
+			Core::String Result = Frame.Stacktrace;
 			Exchange.unlock();
 
 			return Result;
@@ -2784,9 +2777,9 @@ namespace Mavi
 		{
 			ImmediateContext* Base = ImmediateContext::Get(Context);
 			VI_ASSERT_V(Base != nullptr, "context should be set");
-			VI_ASSERT_V(Base->LineCallback, "context should be set");
+			VI_ASSERT_V(Base->Callbacks.Line, "context should be set");
 
-			Base->LineCallback(Base);
+			Base->Callbacks.Line(Base);
 		}
 		void ImmediateContext::ExceptionLogger(asIScriptContext* Context, void*)
 		{
@@ -2803,20 +2796,20 @@ namespace Mavi
 				Core::String Trace = Base->GetStackTrace(3, 64);
 
 				VI_ERR("[vm] %s:%d %s(): runtime exception thrown\n\tdetails: %s\n\texecution flow dump: %.*s\n",
-					   Source ? Source : "log", Line,
-					   Name ? Name : "anonymous",
-					   Message ? Message : "no additional data",
-					   (int)Trace.size(), Trace.c_str());
+					Source ? Source : "log", Line,
+					Name ? Name : "anonymous",
+					Message ? Message : "no additional data",
+					(int)Trace.size(), Trace.c_str());
 
 				Base->Exchange.lock();
-				Base->Stacktrace = Trace;
+				Base->Frame.Stacktrace = Trace;
 				Base->Exchange.unlock();
 
-				if (Base->ExceptionCallback)
-					Base->ExceptionCallback(Base);
+				if (Base->Callbacks.Exception)
+					Base->Callbacks.Exception(Base);
 			}
-			else if (Base->ExceptionCallback)
-				Base->ExceptionCallback(Base);
+			else if (Base->Callbacks.Exception)
+				Base->Callbacks.Exception(Base);
 		}
 		int ImmediateContext::ContextUD = 152;
 
@@ -4125,7 +4118,7 @@ namespace Mavi
 			Engine->AddSubmodule("std/mutex", { }, Bindings::Registry::LoadMutex);
 			Engine->AddSubmodule("std/thread", { "std/any", "std/string" }, Bindings::Registry::LoadThread);
 			Engine->AddSubmodule("std/promise", { }, Bindings::Registry::LoadPromise);
-			Engine->AddSubmodule("std/promise/parallel", { }, Bindings::Registry::LoadPromiseParallel);
+			Engine->AddSubmodule("std/promise/async", { }, Bindings::Registry::LoadPromiseAsync);
 			Engine->AddSubmodule("std/format", { "std/string" }, Bindings::Registry::LoadFormat);
 			Engine->AddSubmodule("std/decimal", { "std/string" }, Bindings::Registry::LoadDecimal);
 			Engine->AddSubmodule("std/variant", { "std/string", "std/decimal" }, Bindings::Registry::LoadVariant);
@@ -4515,16 +4508,16 @@ namespace Mavi
 		void Debugger::PrintHelp()
 		{
 			Output(" c - Continue\n"
-				   " s - Step into\n"
-				   " n - Next step\n"
-				   " o - Step out\n"
-				   " b - Set break point\n"
-				   " l - List various things\n"
-				   " r - Remove break point\n"
-				   " p - Print value\n"
-				   " w - Where am I?\n"
-				   " a - Abort execution\n"
-				   " h - Print this help text\n");
+				" s - Step into\n"
+				" n - Next step\n"
+				" o - Step out\n"
+				" b - Set break point\n"
+				" l - List various things\n"
+				" r - Remove break point\n"
+				" p - Print value\n"
+				" w - Where am I?\n"
+				" a - Abort execution\n"
+				" h - Print this help text\n");
 		}
 		void Debugger::Output(const Core::String& Data)
 		{
@@ -4653,8 +4646,8 @@ namespace Mavi
 					else
 					{
 						Output("Incorrect format for setting break point, expected one of:\n"
-							   " b <file name>:<line number>\n"
-							   " b <function name>\n");
+							" b <file name>:<line number>\n"
+							" b <function name>\n");
 					}
 
 					return false;
@@ -4681,7 +4674,7 @@ namespace Mavi
 					else
 					{
 						Output("Incorrect format for removing break points, expected:\n"
-							   " r <all|number of break point>\n");
+							" r <all|number of break point>\n");
 					}
 
 					return false;
@@ -4717,13 +4710,13 @@ namespace Mavi
 					if (WantPrintHelp)
 					{
 						Output("Expected format: \n"
-							   " l <list option>\n"
-							   "Available options: \n"
-							   " b - breakpoints\n"
-							   " v - local variables\n"
-							   " m - member properties\n"
-							   " g - global variables\n"
-							   " s - statistics\n");
+							" l <list option>\n"
+							"Available options: \n"
+							" b - breakpoints\n"
+							" v - local variables\n"
+							" m - member properties\n"
+							" g - global variables\n"
+							" s - statistics\n");
 					}
 
 					return false;
@@ -4737,7 +4730,7 @@ namespace Mavi
 					if (P == Core::String::npos)
 					{
 						Output("Incorrect format for print, expected:\n"
-							   " p <expression>\n");
+							" p <expression>\n");
 					}
 					else
 						PrintValue(Command.substr(P), Context);

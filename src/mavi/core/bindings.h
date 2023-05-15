@@ -79,7 +79,7 @@ namespace Mavi
 				static bool LoadThread(VirtualMachine* VM);
 				static bool LoadRandom(VirtualMachine* VM);
 				static bool LoadPromise(VirtualMachine* VM);
-				static bool LoadPromiseParallel(VirtualMachine* VM);
+				static bool LoadPromiseAsync(VirtualMachine* VM);
 				static bool LoadFormat(VirtualMachine* Engine);
 				static bool LoadDecimal(VirtualMachine* Engine);
 				static bool LoadVariant(VirtualMachine* Engine);

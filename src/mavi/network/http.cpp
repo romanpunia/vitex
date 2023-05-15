@@ -495,7 +495,7 @@ namespace Mavi
 					VI_DEBUG("[http] enter context on 0x%" PRIXPTR, (uintptr_t)Compiler);
 
 					Scripting::ImmediateContext* Context = Compiler->GetContext();
-					Context->TryExecute(false, Entry, nullptr).When([this, Context](int Result)
+					Context->Execute(Entry, nullptr).When([this, Context](int Result)
 					{
 						int Response = -1;
 						if (Result >= 0)
@@ -6283,7 +6283,7 @@ namespace Mavi
 					if (!Result)
 						return (Core::Schema*)nullptr;
 
-					return Core::Schema::ConvertFromJSON(Response.Content.Data.data(), Response.Content.Data.size());
+					return Core::Schema::ConvertFromJSON(Response.Content.Data.data(), Response.Content.Data.size(), false);
 				});
 			}
 			Core::Promise<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, size_t MaxSize)
@@ -6293,7 +6293,7 @@ namespace Mavi
 					if (!Result)
 						return (Core::Schema*)nullptr;
 
-					return Core::Schema::ConvertFromXML(Response.Content.Data.data());
+					return Core::Schema::ConvertFromXML(Response.Content.Data.data(), false);
 				});
 			}
 			WebSocketFrame* Client::GetWebSocket()

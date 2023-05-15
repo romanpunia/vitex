@@ -395,7 +395,7 @@ namespace Mavi
 			{
 				asSFuncPtr* Ptr = FunctionFactory::CreateMethodBase(&Value, sizeof(DummyMethodPtr) + 2 * sizeof(int), 3);
 #if defined(_MSC_VER) && !defined(VI_64)
-				*(reinterpret_cast<unsigned long*>(Ptr) + 3) = *(reinterpret_cast<unsigned long*>(Ptr) + 2);
+				* (reinterpret_cast<unsigned long*>(Ptr) + 3) = *(reinterpret_cast<unsigned long*>(Ptr) + 2);
 #endif
 				return Ptr;
 			}
@@ -1535,30 +1535,39 @@ namespace Mavi
 			static int ContextUD;
 
 		private:
-			struct Task
+			struct Callable
 			{
 				Core::Promise<int> Future;
 				Function Callback = nullptr;
 				ArgsCallback Args;
 			};
 
+			struct Events
+			{
+				std::function<void(ImmediateContext*)> Exception;
+				std::function<void(ImmediateContext*)> Line;
+			} Callbacks;
+
+			struct Invoker
+			{
+				Core::SingleQueue<Callable> Tasks;
+				Core::String Stacktrace;
+			} Frame;
+
 		private:
-			std::function<void(ImmediateContext*)> LineCallback;
-			std::function<void(ImmediateContext*)> ExceptionCallback;
-			Core::SingleQueue<Task> Tasks;
-			std::mutex Exchange;
-			Core::String Stacktrace;
 			asIScriptContext* Context;
 			VirtualMachine* VM;
+			std::mutex Exchange;
 
 		public:
 			ImmediateContext(asIScriptContext* Base) noexcept;
 			~ImmediateContext() noexcept;
-			Core::Promise<int> TryExecute(bool IsNested, const Function& Function, ArgsCallback&& OnArgs);
+			Core::Promise<int> Execute(const Function& Function, ArgsCallback&& OnArgs);
+			int ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs);
 			int SetOnException(void(*Callback)(asIScriptContext* Context, void* Object), void* Object);
 			int Prepare(const Function& Function);
 			int Unprepare();
-			int Execute();
+			int Resume();
 			int Abort();
 			int Suspend();
 			Activation GetState() const;

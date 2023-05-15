@@ -616,7 +616,7 @@ namespace Mavi
 
 						Scope->Basis->AddRef();
 						Scripting::ImmediateContext* Context = Compiler->GetContext();
-						Context->TryExecute(false, Main, [Main, Scope](Scripting::ImmediateContext* Context)
+						Context->Execute(Main, [Main, Scope](Scripting::ImmediateContext* Context)
 						{
 							if (Main.GetArgsCount() == 1)
 								Context->SetArgObject(0, Scope->Basis);
@@ -672,7 +672,7 @@ namespace Mavi
 
 					Scope->Basis->AddRef();
 					Scripting::ImmediateContext* Context = Scope->Basis->Compiler->GetContext();
-					Context->TryExecute(false, Function, [Ptr](Scripting::ImmediateContext* Context)
+					Context->Execute(Function, [Ptr](Scripting::ImmediateContext* Context)
 					{
 						IEvent Event(Ptr);
 						Context->SetArgObject(0, &Event);

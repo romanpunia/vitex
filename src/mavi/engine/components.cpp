@@ -3903,7 +3903,7 @@ namespace Mavi
 					return Core::Promise<int>((int)Scripting::Errors::INVALID_ARG);
 
 				Protect();
-				return Compiler->GetContext()->TryExecute(false, Function, [OnArgs = std::move(OnArgs)](Scripting::ImmediateContext* Context)
+				return Compiler->GetContext()->Execute(Function, [OnArgs = std::move(OnArgs)](Scripting::ImmediateContext* Context)
 				{
 					if (OnArgs)
 						OnArgs(Context);
@@ -3911,7 +3911,7 @@ namespace Mavi
 				{
 					Unprotect();
 					return Result;
-				});;
+				});
 			}
 			Core::Promise<int> Scriptable::CallEntry(const Core::String& Name)
 			{

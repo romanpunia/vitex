@@ -302,4 +302,4 @@ These are recommended to be installed, but are not required to.
 Mavi is licensed under the MIT license
 
 ## Known Issues
-Script interface covers only these modules for now: Core, Compute, Audio, Network, Graphics, Engine, GUI, Components, Renderers.
+Script interface covers only these modules for now: Core, Compute, Audio, Network, Graphics, Engine, Engine GUI, Engine components, Engine renderers. TODO: Audio effects, Audio filters, Network HTTP, Network MongoDB, Network PostgreSQL, Network SMTP.

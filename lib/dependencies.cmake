@@ -89,7 +89,6 @@ endif()
 target_include_directories(mavi PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/angelscript/include)
 target_include_directories(mavi PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/angelscript/source)
 target_compile_definitions(mavi PRIVATE
-        -DANGELSCRIPT_EXPORT
         -DAS_USE_STLNAMES)
 		
 #Resolve headers and compile options for STB

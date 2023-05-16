@@ -2683,7 +2683,7 @@ namespace Mavi
 		};
 
 		template <typename T>
-		class VI_OUT_TS Math
+		class Math
 		{
 		public:
 			template <typename F, bool = std::is_fundamental<F>::value>

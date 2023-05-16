@@ -1715,6 +1715,9 @@ namespace Mavi
 				if (!VM->ImportFile(File.Module, &Buffer))
 					return false;
 
+				if (Buffer.empty())
+					return true;
+
 				if (!GenerateSourceCode(Processor, File.Module, Buffer))
 					return false;
 
@@ -1824,7 +1827,7 @@ namespace Mavi
 				{
 					bool Loaded;
 					if (Args.size() == 3)
-						Loaded = VM->ImportLibrary(Args[0]) && VM->ImportSymbol({ Args[0] }, Args[1], Args[2]);
+						Loaded = VM->ImportLibrary(Args[0], false) && VM->ImportSymbol({ Args[0] }, Args[1], Args[2]);
 					else
 						Loaded = VM->ImportSymbol({ }, Args[0], Args[1]);
 
@@ -1836,7 +1839,7 @@ namespace Mavi
 					Core::String Directory = Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str());
 					Core::String Path1 = Args[0], Path2 = Core::OS::Path::Resolve(Args[0], Directory.empty() ? Core::OS::Directory::Get() : Directory);
 
-					bool Loaded = VM->ImportLibrary(Path1) || VM->ImportLibrary(Path2);
+					bool Loaded = VM->ImportLibrary(Path1, false) || VM->ImportLibrary(Path2, false);
 					if (Loaded && Args.size() == 2 && !Args[1].empty())
 						Define("SOL_" + Args[1]);
 				}
@@ -2816,6 +2819,9 @@ namespace Mavi
 		VirtualMachine::VirtualMachine() noexcept : Scope(0), Engine(asCreateScriptEngine()), Imports((uint32_t)Imports::All), Cached(true)
 		{
 			Include.Exts.push_back(".as");
+			Include.Exts.push_back(".so");
+			Include.Exts.push_back(".dylib");
+			Include.Exts.push_back(".dll");
 			Include.Root = Core::OS::Directory::Get();
 
 			Engine->SetUserData(this, ManagerUD);
@@ -2829,8 +2835,12 @@ namespace Mavi
 		}
 		VirtualMachine::~VirtualMachine() noexcept
 		{
-			for (auto& Core : Kernels)
-				Core::OS::Symbol::Unload(Core.second.Handle);
+			for (auto& Next : Kernels)
+			{
+				if (Next.second.IsAddon)
+					UninitializeAddon(Next.first, Next.second);
+				Core::OS::Symbol::Unload(Next.second.Handle);
+			}
 
 			for (auto& Context : Contexts)
 				Context->Release();
@@ -3775,6 +3785,9 @@ namespace Mavi
 			if (!Core::OS::File::IsExists(Path.c_str()))
 				return false;
 
+			if (!Core::Stringify(&Path).EndsWith(".as"))
+				return ImportLibrary(Path, true);
+
 			if (!Cached)
 			{
 				if (Out != nullptr)
@@ -3863,7 +3876,7 @@ namespace Mavi
 			VI_ERR("[vm] cannot load shared object function: %s\n\tnot found in any of loaded shared objects", Func.c_str());
 			return false;
 		}
-		bool VirtualMachine::ImportLibrary(const Core::String& Path)
+		bool VirtualMachine::ImportLibrary(const Core::String& Path, bool Addon)
 		{
 			if (!(Imports & (uint32_t)Imports::CLibraries) && !Path.empty())
 			{
@@ -3893,9 +3906,18 @@ namespace Mavi
 
 			Kernel Library;
 			Library.Handle = Handle;
+			Library.IsAddon = Addon;
+
+			if (Library.IsAddon && !InitializeAddon(Name, Library))
+			{
+				VI_ERR("[vm] cannot initialize addon library %s", Path.c_str());
+				UninitializeAddon(Name, Library);
+				Core::OS::Symbol::Unload(Handle);
+				return false;
+			}
 
 			Sync.General.lock();
-			Kernels.insert({ Name, Library });
+			Kernels.insert({ Name, std::move(Library) });
 			Sync.General.unlock();
 
 			VI_DEBUG("[vm] load library %s", Path.c_str());
@@ -3946,6 +3968,35 @@ namespace Mavi
 				Base.Callback(this);
 
 			return true;
+		}
+		bool VirtualMachine::InitializeAddon(const Core::String& Path, Kernel& Library)
+		{
+			auto ViInitialize = (int(*)(VirtualMachine*))Core::OS::Symbol::LoadFunction(Library.Handle, "ViInitialize");
+			if (!ViInitialize)
+			{
+				VI_ERR("[vm] potential addon library %s does not contain <ViInitialize> function", Path.c_str());
+				return false;
+			}
+
+			int Code = ViInitialize(this);
+			if (Code != 0)
+			{
+				VI_ERR("[vm] addon library %s initialization failed: exit code %i", Path.c_str(), Code);
+				return false;
+			}
+
+			VI_DEBUG("[vm] addon library %s initializated", Path.c_str());
+			Library.Functions.insert({ "ViInitialize", (void*)ViInitialize });
+			return true;
+		}
+		void VirtualMachine::UninitializeAddon(const Core::String& Name, Kernel& Library)
+		{
+			auto ViUninitialize = (bool(*)(VirtualMachine*))Core::OS::Symbol::LoadFunction(Library.Handle, "ViUninitialize");
+			if (ViUninitialize != nullptr)
+			{
+				Library.Functions.insert({ "ViUninitialize", (void*)ViUninitialize });
+				ViUninitialize(this);
+			}
 		}
 		Core::Schema* VirtualMachine::ImportJSON(const Core::String& Path)
 		{
@@ -4034,7 +4085,7 @@ namespace Mavi
 
 			Core::Stringify::Settle End = Src.ReverseFind('.');
 			if (End.Found)
-				Src.Substring(0, End.End);
+				Src.Substring(0, End.Start);
 
 			return Src.R();
 		}

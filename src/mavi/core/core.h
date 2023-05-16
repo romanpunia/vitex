@@ -181,7 +181,7 @@ namespace Mavi
 		using Unique = T*;
 
 		template <typename T>
-		struct VI_OUT Mapping
+		struct Mapping
 		{
 			T Map;
 
@@ -338,7 +338,7 @@ namespace Mavi
 		};
 
 		template <typename T>
-		class VI_OUT AllocationInvoker
+		class AllocationInvoker
 		{
 		public:
 			typedef T value_type;
@@ -1483,7 +1483,7 @@ namespace Mavi
 		};
 
 		template <typename T>
-		class VI_OUT_TS Reference
+		class Reference
 		{
 		private:
 			std::atomic<uint32_t> __vcnt = 1;
@@ -1528,7 +1528,7 @@ namespace Mavi
 		};
 
 		template <typename T>
-		class VI_OUT_TS UPtr
+		class UPtr
 		{
 		private:
 			T* Pointer;
@@ -1594,7 +1594,7 @@ namespace Mavi
 		};
 
 		template <typename T>
-		class VI_OUT_TS Reactive
+		class Reactive
 		{
 		public:
 			typedef std::function<void(T&)> SimpleSetterCallback;
@@ -1745,7 +1745,7 @@ namespace Mavi
 		};
 
 		template <typename T>
-		class VI_OUT_TS Reactive<T*>
+		class Reactive<T*>
 		{
 		public:
 			typedef std::function<void(T*&)> SimpleSetterCallback;
@@ -2425,7 +2425,7 @@ namespace Mavi
 		};
 
 		template <typename T>
-		class VI_OUT Pool
+		class Pool
 		{
 			static_assert(std::is_pointer<T>::value, "pool can be used only for pointer types");
 
@@ -2665,7 +2665,7 @@ namespace Mavi
 		};
 
 		template <typename T>
-		class VI_OUT_TS Guarded
+		class Guarded
 		{
 		public:
 			class Loaded
@@ -2827,7 +2827,7 @@ namespace Mavi
 		};
 
 		template <typename T>
-		class VI_OUT_TS DeferredStorage
+		class DeferredStorage
 		{
 		public:
 			TaskCallback Event;
@@ -2871,7 +2871,7 @@ namespace Mavi
 		};
 
 		template <>
-		class VI_OUT_TS DeferredStorage<void>
+		class DeferredStorage<void>
 		{
 		public:
 			TaskCallback Event;
@@ -2886,7 +2886,7 @@ namespace Mavi
 		};
 
 		template <typename T, typename Executor>
-		class VI_OUT_TS BasicPromise
+		class BasicPromise
 		{
 		public:
 			typedef DeferredStorage<T> Status;
@@ -3199,7 +3199,7 @@ namespace Mavi
 		};
 
 		template <typename Executor>
-		class VI_OUT_TS BasicPromise<void, Executor>
+		class BasicPromise<void, Executor>
 		{
 		public:
 			typedef DeferredStorage<void> Status;
@@ -3488,7 +3488,7 @@ namespace Mavi
 		using Promise = BasicPromise<T, Executor>;
 		
 		template <typename T>
-		struct VI_OUT PromiseContext
+		struct PromiseContext
 		{
 			std::function<Promise<T>()> Callback;
 
@@ -3502,13 +3502,13 @@ namespace Mavi
 			PromiseContext& operator= (PromiseContext&& Other) = delete;
 		};
 
-		VI_OUT_TS inline bool Cosuspend() noexcept
+		inline bool Cosuspend() noexcept
 		{
 			VI_ASSERT(Costate::Get() != nullptr, false, "cannot call suspend outside coroutine");
 			return Costate::Get()->Suspend();
 		}
 		template <typename T, typename Executor = ParallelExecutor>
-		VI_OUT_TS inline Promise<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Heavy) noexcept
+		inline Promise<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Heavy) noexcept
 		{
 			VI_ASSERT(Callback, Promise<T>::Ready(), "callback should not be empty");
 
@@ -3534,7 +3534,7 @@ namespace Mavi
 			return Awaitable(Value);
 		}
 		template <typename T>
-		VI_OUT_TS void Coforward1(Promise<T> Value, PromiseContext<T>* Context)
+		void Coforward1(Promise<T> Value, PromiseContext<T>* Context)
 		{
 			Promise<T> Wrapper = Context->Callback();
 			auto Deleter = [Context](T&& Result) -> T&&
@@ -3545,7 +3545,7 @@ namespace Mavi
 			Value.Set(Wrapper.template Then<T>(Deleter));
 		}
 		template <typename T>
-		VI_OUT_TS Promise<T> Coforward2(Promise<T>&& Value, PromiseContext<T>* Context)
+		Promise<T> Coforward2(Promise<T>&& Value, PromiseContext<T>* Context)
 		{
 			auto Deleter = [Context](T&& Result) -> T&&
 			{
@@ -3555,7 +3555,7 @@ namespace Mavi
 			return Value.template Then<T>(Deleter);
 		}
 		template <typename T>
-		VI_OUT_TS inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
+		inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
 			VI_ASSERT(Callback != nullptr, Promise<T>::Ready(), "callback should be set");
 			PromiseContext<T>* Context = VI_NEW(PromiseContext<T>, std::move(Callback));
@@ -3572,7 +3572,7 @@ namespace Mavi
 			}
 		}
 		template <>
-		VI_OUT_TS inline Promise<void> Coasync(std::function<Promise<void>()>&& Callback, bool AlwaysEnqueue) noexcept
+		inline Promise<void> Coasync(std::function<Promise<void>()>&& Callback, bool AlwaysEnqueue) noexcept
 		{
 			VI_ASSERT(Callback != nullptr, Promise<void>::Ready(), "callback should be set");
 			PromiseContext<void>* Context = VI_NEW(PromiseContext<void>, std::move(Callback));
@@ -3601,7 +3601,7 @@ namespace Mavi
 		}
 #else
 		template <typename T>
-		VI_OUT_TS inline T&& Coawait(Promise<T>&& Future, const char* Function = nullptr, const char* Expression = nullptr) noexcept
+		inline T&& Coawait(Promise<T>&& Future, const char* Function = nullptr, const char* Expression = nullptr) noexcept
 		{
 			if (!Future.IsPending())
 				return Future.Get();
@@ -3633,7 +3633,7 @@ namespace Mavi
 			return Future.Get();
 		}
 		template <typename T>
-		VI_OUT_TS inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
+		inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
 			VI_ASSERT(Callback, Promise<T>::Ready(), "callback should not be empty");
 			if (!AlwaysEnqueue && Costate::IsCoroutine())
@@ -3648,7 +3648,7 @@ namespace Mavi
 			return Result;
 		}
 		template <>
-		VI_OUT_TS inline Promise<void> Coasync(std::function<Promise<void>()>&& Callback, bool AlwaysEnqueue) noexcept
+		inline Promise<void> Coasync(std::function<Promise<void>()>&& Callback, bool AlwaysEnqueue) noexcept
 		{
 			VI_ASSERT(Callback, Promise<void>::Ready(), "callback should not be empty");
 			if (!AlwaysEnqueue && Costate::IsCoroutine())
@@ -3666,7 +3666,7 @@ namespace Mavi
 #endif
 #ifdef VI_HAS_FAST_MEMORY
 		template <typename O, typename I>
-		VI_OUT_TS inline O Copy(const I& Other)
+		inline O Copy(const I& Other)
 		{
 			static_assert(!std::is_same<I, O>::value, "copy should be used to copy object of the same type with different allocator");
 			static_assert(IsIterable<I>::value, "input type should be iterable");
@@ -3675,17 +3675,17 @@ namespace Mavi
 		}
 #else
 		template <typename O, typename I>
-		VI_OUT_TS inline O&& Copy(I&& Other)
+		inline O&& Copy(I&& Other)
 		{
 			return std::move(Other);
 		}
 #endif
 		template <typename T>
-		VI_OUT_TS inline Core::String ToString(T Other)
+		inline Core::String ToString(T Other)
 		{
 			return Core::Copy<Core::String, std::string>(std::to_string(Other));
 		}
-		VI_OUT_TS inline Stringify Form(const char* Format, ...) noexcept
+		inline Stringify Form(const char* Format, ...) noexcept
 		{
 			VI_ASSERT(Format != nullptr, Stringify(), "format should be set");
 

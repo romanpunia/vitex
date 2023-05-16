@@ -5,6 +5,7 @@
 #define VI_MICROSOFT 1
 #define VI_FILENO _fileno
 #define VI_SPLITTER '\\'
+#define VI_EXPOSE __declspec(dllexport)
 #ifndef VI_EXPORT
 #define VI_OUT __declspec(dllimport)
 #else
@@ -29,6 +30,7 @@ typedef void* epoll_handle;
 #define _XOPEN_SOURCE
 #define VI_APPLE 1
 #define VI_LINUX 1
+#define VI_EXPOSE
 #define VI_OUT
 #define VI_OUT_TS
 #define VI_FILENO fileno
@@ -57,6 +59,7 @@ typedef socklen_t socket_size_t;
 #endif
 #if !defined(VI_APPLE) && (defined(__linux__) || defined(__linux)  || defined(linux) || defined(__unix__) || defined(__unix) || defined(unix) || defined(__FreeBSD__) || defined(__ANDROID__))
 #define VI_LINUX 1
+#define VI_EXPOSE
 #define VI_OUT
 #define VI_OUT_TS
 #define VI_FILENO fileno

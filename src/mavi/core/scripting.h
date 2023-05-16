@@ -358,7 +358,7 @@ namespace Mavi
 		};
 
 		template <int N>
-		struct VI_OUT_TS FunctionBinding
+		struct FunctionBinding
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
@@ -368,7 +368,7 @@ namespace Mavi
 		};
 
 		template <>
-		struct VI_OUT_TS FunctionBinding<sizeof(DummyMethodPtr)>
+		struct FunctionBinding<sizeof(DummyMethodPtr)>
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
@@ -378,7 +378,7 @@ namespace Mavi
 		};
 #if defined(_MSC_VER) && !defined(__MWERKS__)
 		template <>
-		struct VI_OUT_TS FunctionBinding<sizeof(DummyMethodPtr) + 1 * sizeof(int)>
+		struct FunctionBinding<sizeof(DummyMethodPtr) + 1 * sizeof(int)>
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
@@ -388,7 +388,7 @@ namespace Mavi
 		};
 
 		template <>
-		struct VI_OUT_TS FunctionBinding<sizeof(DummyMethodPtr) + 2 * sizeof(int)>
+		struct FunctionBinding<sizeof(DummyMethodPtr) + 2 * sizeof(int)>
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
@@ -402,7 +402,7 @@ namespace Mavi
 		};
 
 		template <>
-		struct VI_OUT_TS FunctionBinding<sizeof(DummyMethodPtr) + 3 * sizeof(int)>
+		struct FunctionBinding<sizeof(DummyMethodPtr) + 3 * sizeof(int)>
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
@@ -412,7 +412,7 @@ namespace Mavi
 		};
 
 		template <>
-		struct VI_OUT_TS FunctionBinding<sizeof(DummyMethodPtr) + 4 * sizeof(int)>
+		struct FunctionBinding<sizeof(DummyMethodPtr) + 4 * sizeof(int)>
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
@@ -1656,6 +1656,7 @@ namespace Mavi
 			{
 				Core::UnorderedMap<Core::String, void*> Functions;
 				void* Handle;
+				bool IsAddon;
 			};
 
 			struct Submodule
@@ -1754,7 +1755,7 @@ namespace Mavi
 			bool AddSubmodule(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const SubmoduleCallback& Callback);
 			bool ImportFile(const Core::String& Path, Core::String* Out);
 			bool ImportSymbol(const Core::Vector<Core::String>& Sources, const Core::String& Name, const Core::String& Decl);
-			bool ImportLibrary(const Core::String& Path);
+			bool ImportLibrary(const Core::String& Path, bool Addon);
 			bool ImportSubmodule(const Core::String& Name);
 			Core::Schema* ImportJSON(const Core::String& Path);
 			int SetFunctionDef(const char* Decl);
@@ -1788,6 +1789,10 @@ namespace Mavi
 			TypeInfo GetTypeInfoById(int TypeId) const;
 			TypeInfo GetTypeInfoByName(const char* Name);
 			TypeInfo GetTypeInfoByDecl(const char* Decl) const;
+
+		private:
+			bool InitializeAddon(const Core::String& Name, Kernel& Library);
+			void UninitializeAddon(const Core::String& Name, Kernel& Library);
 
 		public:
 			static void SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*));

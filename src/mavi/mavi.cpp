@@ -183,6 +183,18 @@ namespace Mavi
 		return false;
 #endif
 	}
+	int Library::GetMajorVersion()
+	{
+		return (int)MAJOR_VERSION;
+	}
+	int Library::GetMinorVersion()
+	{
+		return (int)MINOR_VERSION;
+	}
+	int Library::GetPatchVersion()
+	{
+		return (int)PATCH_VERSION;
+	}
 	int Library::GetVersion()
 	{
 		return (int)VERSION;

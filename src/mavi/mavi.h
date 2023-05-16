@@ -8,7 +8,7 @@ namespace Mavi
 	{
 		MAJOR_VERSION = 21,
 		MINOR_VERSION = 25,
-		PATCH_VERSION = 8,
+		PATCH_VERSION = 9,
 		VERSION = (MAJOR_VERSION) * 10000 + (MINOR_VERSION) * 100 + (PATCH_VERSION)
 	};
 
@@ -54,6 +54,9 @@ namespace Mavi
 		static bool HasBullet3();
         static bool HasFContext();
 		static bool HasWindowsEpoll();
+		static int GetMajorVersion();
+		static int GetMinorVersion();
+		static int GetPatchVersion();
 		static int GetVersion();
 		static int GetDebugLevel();
 		static int GetArchitecture();

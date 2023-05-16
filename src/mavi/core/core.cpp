@@ -462,6 +462,7 @@ namespace Mavi
 		}
 		bool DebugAllocator::Dump(void* Address)
 		{
+#if VI_DLEVEL >= 4
 			VI_TRACE("[mem] dump internal memory state on 0x%" PRIXPTR, Address);
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			if (Address != nullptr)
@@ -515,7 +516,7 @@ namespace Mavi
 				OS::SetLogActive(IsLogActive);
 				return true;
 			}
-
+#endif
 			return false;
 		}
 		bool DebugAllocator::FindBlock(void* Address, TracingBlock* Output)

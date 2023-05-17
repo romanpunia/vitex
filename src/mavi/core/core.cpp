@@ -4104,6 +4104,10 @@ namespace Mavi
 		}
 		Stringify& Stringify::Trim()
 		{
+			return TrimStart().TrimEnd();
+		}
+		Stringify& Stringify::TrimStart()
+		{
 			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			Base->erase(Base->begin(), std::find_if(Base->begin(), Base->end(), [](int C) -> int
 			{
@@ -4112,11 +4116,17 @@ namespace Mavi
 
 				return std::isspace(C) == 0 ? 1 : 0;
 			}));
+
+			return *this;
+		}
+		Stringify& Stringify::TrimEnd()
+		{
+			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			Base->erase(std::find_if(Base->rbegin(), Base->rend(), [](int C) -> int
 			{
 				if (C < -1 || C > 255)
 					return 1;
-			
+
 				return std::isspace(C) == 0 ? 1 : 0;
 			}).base(), Base->end());
 
@@ -11029,7 +11039,7 @@ namespace Mavi
 		bool Schema::ConvertToJSON(Schema* Base, const SchemaWriteCallback& Callback)
 		{
 			VI_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
-			if (!Base->Parent && !Base->Value.IsObject())
+			if (!Base->Value.IsObject())
 			{
 				Core::String Value = Base->Value.Serialize();
 				Core::Stringify Safe(&Value);

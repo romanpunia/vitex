@@ -2050,9 +2050,6 @@ namespace Mavi
 					if (!Series::Unpack(It->Fetch("gateway.session.expires"), &Site->Gateway.Session.Expires))
 						Site->Gateway.Session.Expires = 604800;
 
-					if (!Series::Unpack(It->Fetch("gateway.verify"), &Site->Gateway.Verify))
-						Site->Gateway.Verify = false;
-
 					if (!Series::Unpack(It->Fetch("gateway.enabled"), &Site->Gateway.Enabled))
 						Site->Gateway.Enabled = false;
 

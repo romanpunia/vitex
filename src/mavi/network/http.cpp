@@ -5719,7 +5719,6 @@ namespace Mavi
 			}
 			bool Server::Update()
 			{
-				Core::UnorderedSet<Core::String> Modules;
 				auto* Root = (MapRouter*)Router;
 				bool Success = true;
 
@@ -5746,31 +5745,6 @@ namespace Mavi
 							Route->Site = Entry;
 							if (!Route->Override.empty())
 								Route->Override = Core::OS::Path::Resolve(Route->Override, Route->DocumentRoot);
-
-							if (!Root->VM || !Entry->Gateway.Enabled || !Entry->Gateway.Verify)
-								continue;
-
-							if (Modules.find(Route->DocumentRoot) != Modules.end())
-								continue;
-
-							Modules.insert(Route->DocumentRoot);
-							for (auto& Exp : Route->Gateway.Files)
-							{
-								Core::Vector<Core::String> Result = Root->VM->VerifyModules(Route->DocumentRoot, Exp);
-								if (!Result.empty())
-								{
-									Core::String Files;
-									for (auto& Name : Result)
-										Files += "\n\t" + Name;
-
-									VI_ERR("[vm] there are errors in %i module(s)%s", (int)Result.size(), Files.c_str());
-									Entry->Gateway.Enabled = Success = false;
-									break;
-								}
-							}
-
-							if (Entry->Gateway.Enabled && !Route->Gateway.Files.empty())
-								VI_DEBUG("[vm] modules are verified for: %s", Route->DocumentRoot.c_str());
 						}
 					}
 

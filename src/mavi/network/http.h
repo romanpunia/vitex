@@ -442,7 +442,6 @@ namespace Mavi
 						uint64_t Expires = 604800;
 					} Session;
 
-					bool Verify = false;
 					bool Enabled = false;
 				} Gateway;
 				struct

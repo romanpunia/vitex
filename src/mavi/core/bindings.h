@@ -223,6 +223,7 @@ namespace Mavi
 				int CopyFrom(const Any* Other);
 				void Store(void* Ref, int RefTypeId);
 				bool Retrieve(void* Ref, int RefTypeId) const;
+				void* GetAddressOfObject();
 				int GetTypeId() const;
 				int GetRefCount();
 				void SetFlag();
@@ -669,7 +670,7 @@ namespace Mavi
 				void Cast(void** OutRef, int TypeId);
 				asITypeInfo* GetType() const;
 				int GetTypeId() const;
-				void* GetRef();
+				void* GetAddressOfObject();
 				void EnumReferences(asIScriptEngine* Engine);
 				void ReleaseReferences(asIScriptEngine* Engine);
 				Ref& Assign(void* Ref, int TypeId);
@@ -685,7 +686,7 @@ namespace Mavi
 				static void Destruct(Ref* self);
 			};
 
-			class VI_OUT WeakRef
+			class VI_OUT Weak
 			{
 			protected:
 				asILockableSharedBool* WeakRefFlag;
@@ -693,14 +694,16 @@ namespace Mavi
 				void* Ref;
 
 			public:
-				WeakRef(asITypeInfo* Type) noexcept;
-				WeakRef(const WeakRef& Other) noexcept;
-				WeakRef(void* Ref, asITypeInfo* Type) noexcept;
-				~WeakRef() noexcept;
-				WeakRef& operator= (const WeakRef& Other) noexcept;
-				bool operator== (const WeakRef& Other) const;
-				bool operator!= (const WeakRef& Other) const;
-				WeakRef& Set(void* NewRef);
+				Weak(asITypeInfo* Type) noexcept;
+				Weak(const Weak& Other) noexcept;
+				Weak(void* Ref, asITypeInfo* Type) noexcept;
+				~Weak() noexcept;
+				Weak& operator= (const Weak& Other) noexcept;
+				bool operator== (const Weak& Other) const;
+				bool operator!= (const Weak& Other) const;
+				Weak& Set(void* NewRef);
+				int GetTypeId() const;
+				void* GetAddressOfObject();
 				void* Get() const;
 				bool Equals(void* Ref) const;
 				asITypeInfo* GetRefType() const;
@@ -708,7 +711,7 @@ namespace Mavi
 			public:
 				static void Construct(asITypeInfo* type, void* mem);
 				static void Construct2(asITypeInfo* type, void* ref, void* mem);
-				static void Destruct(WeakRef* obj);
+				static void Destruct(Weak* obj);
 				static bool TemplateCallback(asITypeInfo* TI, bool&);
 			};
 
@@ -747,7 +750,7 @@ namespace Mavi
 				void SetFlag();
 				bool GetFlag();
 				int GetRefCount();
-				int GetTypeIdOfObject();
+				int GetTypeId();
 				void* GetAddressOfObject();
 				void When(asIScriptFunction* NewCallback);
 				void Store(void* RefPointer, int RefTypeId);

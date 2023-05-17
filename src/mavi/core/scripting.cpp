@@ -183,6 +183,81 @@ namespace Mavi
 {
 	namespace Scripting
 	{
+		static Core::String ConvertTree(Core::Schema* Source, int Depth)
+		{
+			if (!Source->Value.IsObject())
+				return Core::Schema::ToJSON(Source);
+
+			if (Depth < 1)
+				return "[ ... ]";
+
+			Core::String Output;
+			auto& Childs = Source->GetChilds();
+			if (Source->Value.Is(Core::VarType::Object))
+			{
+				Output.append("{ ");
+				for (size_t i = 0; i < Childs.size(); i++)
+				{
+					auto* Child = Childs[i];
+					Output.append("\"" + Child->GetName() + "\" = ");
+					Output.append(ConvertTree(Child, Depth - 1));
+					if (i + 1 < Childs.size())
+						Output.append(", ");
+				}
+				Output.append(" }");
+			}
+			else
+			{
+				Output.append("[ ");
+				for (size_t i = 0; i < Childs.size(); i++)
+				{
+					Output.append(ConvertTree(Childs[i], Depth - 1));
+					if (i + 1 < Childs.size())
+						Output.append(", ");
+				}
+				Output.append(" ]");
+			}
+			
+			return Output;
+		}
+		static Core::Vector<Core::String> ExtractLinesOfCode(const Core::String& Code, int Line, int Max)
+		{
+			Core::Vector<Core::String> Total;
+			size_t Start = 0, Size = Code.size();
+			size_t Offset = 0, Lines = 0;
+			size_t LeftSide = (Max - 1) / 2;
+			size_t RightSide = (Max - 1) - LeftSide;
+
+			VI_ASSERT(Max > 0, Total, "max lines count should be at least one");
+			while (Offset < Size)
+			{
+				if (Code[Offset++] != '\n')
+					continue;
+
+				++Lines;
+				if (Lines >= Line - LeftSide && LeftSide > 0)
+				{
+					Total.push_back(Core::Stringify(Code.substr(Start, Offset - Start)).ReplaceOf("\r\n\t\v", " ").R());
+					--LeftSide; --Max;
+				}
+				else if (Lines == Line)
+				{
+					Total.insert(Total.begin(), Core::Stringify(Code.substr(Start, Offset - Start)).ReplaceOf("\r\n\t\v", " ").R());
+					--Max;
+				}
+				else if (Lines >= Line + RightSide && RightSide > 0)
+				{
+					Total.push_back(Core::Stringify(Code.substr(Start, Offset - Start)).ReplaceOf("\r\n\t\v", " ").R());
+					--RightSide; --Max;
+				}
+
+				Start = Offset;
+				if (!Max)
+					break;
+			}
+
+			return Total;
+		}
 		static bool GenerateSourceCode(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Buffer)
 		{
 			if (!Base->Process(Path, Buffer))
@@ -1425,7 +1500,7 @@ namespace Mavi
 			VI_ASSERT(IsValid(), -1, "module should be valid");
 			VI_ASSERT(Name != nullptr, -1, "name should be set");
 			VI_ASSERT(Code != nullptr, -1, "code should be set");
-			return Mod->AddScriptSection(Name, Code, CodeLength, LineOffset);
+			return VM->AddScriptSection(Mod, Name, Code, CodeLength, LineOffset);
 		}
 		int Module::RemoveFunction(const Function& Function)
 		{
@@ -1721,7 +1796,7 @@ namespace Mavi
 				if (!GenerateSourceCode(Processor, File.Module, Buffer))
 					return false;
 
-				return Scope->AddScriptSection(File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0;
+				return VM->AddScriptSection(Scope, File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0;
 			});
 			Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const Core::String& Name, const Core::Vector<Core::String>& Args)
 			{
@@ -2002,7 +2077,7 @@ namespace Mavi
 			if (!GenerateSourceCode(Processor, Source, Buffer))
 				return asINVALID_DECLARATION;
 
-			int R = Scope->AddScriptSection(Source.c_str(), Buffer.c_str(), Buffer.size());
+			int R = VM->AddScriptSection(Scope, Source.c_str(), Buffer.c_str(), Buffer.size());
 			if (R >= 0)
 				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR " (file)", (uintptr_t)this);
 
@@ -2020,7 +2095,7 @@ namespace Mavi
 			if (!GenerateSourceCode(Processor, Name, Buffer))
 				return asINVALID_DECLARATION;
 
-			int R = Scope->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
+			int R = VM->AddScriptSection(Scope, Name.c_str(), Buffer.c_str(), Buffer.size());
 			if (R >= 0)
 				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
 
@@ -2038,7 +2113,7 @@ namespace Mavi
 			if (!GenerateSourceCode(Processor, Name, Buffer))
 				return asINVALID_DECLARATION;
 
-			int R = Scope->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
+			int R = VM->AddScriptSection(Scope, Name.c_str(), Buffer.c_str(), Buffer.size());
 			if (R >= 0)
 				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
 
@@ -2188,7 +2263,7 @@ namespace Mavi
 			Core::String Eval = "void __vfbdy(";
 			if (Args != nullptr)
 				Eval.append(Args);
-			Eval.append("){\n");
+			Eval.append("){return\n");
 			Eval.append(Buffer, Length);
 			Eval += "\n;}";
 
@@ -2235,6 +2310,1200 @@ namespace Mavi
 			return (Compiler*)Context->GetUserData(CompilerUD);
 		}
 		int Compiler::CompilerUD = 154;
+
+		DebuggerContext::DebuggerContext(bool IsSuspended) noexcept : LastFunction(nullptr), VM(nullptr), Action(IsSuspended ? DebugAction::Trigger : DebugAction::Continue)
+		{
+			LastCommandAtStackLevel = 0;
+			AddDefaultCommands();
+			AddDefaultStringifiers();
+		}
+		DebuggerContext::~DebuggerContext() noexcept
+		{
+			SetEngine(0);
+		}
+		void DebuggerContext::AddDefaultCommands()
+		{
+			AddCommand("h, help", "show debugger commands", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				size_t Max = 0;
+				for (auto& Next : Descriptions)
+				{
+					if (Next.first.size() > Max)
+						Max = Next.first.size();
+				}
+
+				for (auto& Next : Descriptions)
+				{
+					size_t Spaces = Max - Next.first.size();
+					Output("  ");
+					Output(Next.first);
+					for (size_t i = 0; i < Spaces; i++)
+						Output(" ");
+					Output(" - ");
+					Output(Next.second);
+					Output("\n");
+				}
+				return false;
+			});
+			AddCommand("e, eval", "evaluate script expression", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				if (!Args.empty() && !Args[0].empty())
+					ExecuteExpression(Context, Args[0]);
+
+				return false;
+			});
+			AddCommand("b, break", "add a break point", ArgsType::Array, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				if (Args.size() > 1)
+				{
+					if (Args[0].empty())
+						goto BreakFailure;
+
+					Core::Stringify Number(&Args[1]);
+					if (!Number.HasInteger())
+						goto BreakFailure;
+
+					AddFileBreakPoint(Args[0], Number.ToInt());
+					return false;
+				}
+				else if (Args.size() == 1)
+				{
+					if (Args[0].empty())
+						goto BreakFailure;
+
+					Core::Stringify Number(&Args[0]);
+					if (!Number.HasInteger())
+					{
+						AddFuncBreakPoint(Args[0]);
+						return false;
+					}
+
+					const char* File = 0;
+					Context->GetLineNumber(0, 0, &File);
+					if (!File)
+						goto BreakFailure;
+
+					AddFileBreakPoint(File, Number.ToInt());
+					return false;
+				}
+
+			BreakFailure:
+				Output(
+					"  break <file name> <line number>\n"
+					"  break <function name | line number>\n");
+				return false;
+			});
+			AddCommand("del, clear", "remove a break point", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				if (Args.empty())
+				{
+				ClearFailure:
+					Output("  clear <all | breakpoint number>\n");
+					return false;
+				}
+
+				if (Args[0] == "all")
+				{
+					BreakPoints.clear();
+					Output("  all break points have been removed\n");
+					return false;
+				}
+
+				Core::Stringify Number(&Args[0]);
+				if (!Number.HasInteger())
+					goto ClearFailure;
+
+				size_t Offset = (size_t)Number.ToUInt64();
+				if (Offset >= BreakPoints.size())
+					goto ClearFailure;
+
+				BreakPoints.erase(BreakPoints.begin() + Offset);
+				ListBreakPoints();
+				return false;
+			});
+			AddCommand("p, print", "print variable value", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				if (Args[0].empty())
+				{
+					Output("  print <expression>\n");
+					return false;
+				}
+
+				PrintValue(Args[0], Context);
+				return false;
+			});
+			AddCommand("i, info", "show info about of specific topic", ArgsType::Array, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				if (Args.empty())
+					goto InfoFailure;
+
+				if (Args[0] == "b" || Args[0] == "breaks")
+				{
+					ListBreakPoints();
+					return false;
+				}
+				else if (Args[0] == "l" || Args[0] == "locals")
+				{
+					ListLocalVariables(Context);
+					return false;
+				}
+				else if (Args[0] == "g" || Args[0] == "globals")
+				{
+					ListGlobalVariables(Context);
+					return false;
+				}
+				else if (Args[0] == "m" || Args[0] == "members")
+				{
+					ListMemberProperties(Context);
+					return false;
+				}
+				else if (Args[0] == "t" || Args[0] == "threads")
+				{
+					ListThreads();
+					return false;
+				}
+				else if (Args[0] == "c" || Args[0] == "code")
+				{
+					ListSourceCode(Context);
+					return false;
+				}
+				else if (Args[0] == "gc" || Args[0] == "statistics")
+				{
+					ListStatistics(Context);
+					return false;
+				}
+
+			InfoFailure:
+				Output(
+					"  info b, info breaks - show breakpoints\n"
+					"  info l, info locals - show local variables\n"
+					"  info m, info members - show member properties\n"
+					"  info g, info globals - show global variables\n"
+					"  info t, info threads - show suspended threads\n"
+					"  info c, info code - show source code section\n"
+					"  info gc, info statistics - show gc statistics\n");
+				return false;
+			});
+			AddCommand("t, thread", "switch to thread by it's number", ArgsType::Array, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				if (Args.empty())
+				{
+				ThreadFailure:
+					Output("  thread <thread number>\n");
+					return false;
+				}
+
+				Core::Stringify Number(Args[0]);
+				if (!Number.HasInteger())
+					goto ThreadFailure;
+
+				size_t Index = (size_t)Number.ToUInt64();
+				if (Index >= Threads.size())
+					goto ThreadFailure;
+
+				auto& Thread = Threads[Index];
+				if (Thread.Context == Context)
+					return false;
+
+				Action = DebugAction::Switch;
+				LastContext = Thread.Context;
+				return true;
+			});
+			AddCommand("c, continue", "continue execution", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				Action = DebugAction::Continue;
+				return true;
+			});
+			AddCommand("s, step", "step into subroutine", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				Action = DebugAction::StepInto;
+				return true;
+			});
+			AddCommand("n, next", "step over subroutine", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				Action = DebugAction::StepOver;
+				LastCommandAtStackLevel = Context->GetCallstackSize();
+				return true;
+			});
+			AddCommand("fin, finish", "step out of subroutine", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				Action = DebugAction::StepOut;
+				LastCommandAtStackLevel = Context->GetCallstackSize();
+				return true;
+			});
+			AddCommand("a, abort", "abort current execution", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				Context->Abort();
+				return false;
+			});
+			AddCommand("bt, backtrace", "show current callstack", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				PrintCallstack(Context);
+				return false;
+			});
+		}
+		void DebuggerContext::AddDefaultStringifiers()
+		{
+			AddToStringCallback("string", [](void* Object, int Depth, int TypeId)
+			{
+				Core::String& Source = *(Core::String*)Object;
+				Core::String Output;
+				if (Depth > 0)
+				{
+					Output.append("{ capacity = ");
+					Output.append(Core::ToString(Source.capacity()));
+					Output.append(", size = ");
+					Output.append(Core::ToString(Source.size()));
+					Output.append(", data = \"");
+					Output.append(Source);
+					Output.append("\" }");
+				}
+				else
+				{
+					Output.append("\"");
+					Output.append(Core::ToString(Source.size()));
+					Output.append("\"");
+				}
+				return Output;
+			});
+			AddToStringCallback("decimal", [](void* Object, int Depth, int TypeId)
+			{
+				Core::Decimal& Source = *(Core::Decimal*)Object;
+				return Source.ToString();
+			});
+			AddToStringCallback("variant", [](void* Object, int Depth, int TypeId)
+			{
+				Core::Variant& Source = *(Core::Variant*)Object;
+				return "\"" + Source.Serialize() + "\"";
+			});
+			AddToStringCallback("any", [this](void* Object, int Depth, int TypeId)
+			{
+				Bindings::Any* Source = (Bindings::Any*)Object;
+				return ToString(Source->GetAddressOfObject(), Source->GetTypeId(), Depth - 1);
+			});
+			AddToStringCallback("ref", [this](void* Object, int Depth, int TypeId)
+			{
+				Bindings::Ref* Source = (Bindings::Ref*)Object;
+				return ToString(Source->GetAddressOfObject(), Source->GetTypeId(), Depth - 1);
+			});
+			AddToStringCallback("weak", [this](void* Object, int Depth, int TypeId)
+			{
+				Bindings::Any* Source = (Bindings::Any*)Object;
+				return ToString(Source->GetAddressOfObject(), Source->GetTypeId(), Depth - 1);
+			});
+			AddToStringCallback("promise, promise_v", [this](void* Object, int Depth, int TypeId)
+			{
+				Bindings::Promise* Source = (Bindings::Promise*)Object;
+				Core::String Output;
+				Output.append("{ state = ");
+				Output.append(Source->IsPending() ? "pending" : "fulfilled");
+				Output.append(", data = ");
+				Output.append(ToString(Source->GetAddressOfObject(), Source->GetTypeId(), Depth - 1));
+				Output.append(" }");
+				return Output;
+			});
+			AddToStringCallback("thread", [this](void* Object, int Depth, int TypeId)
+			{
+				Bindings::Thread* Source = (Bindings::Thread*)Object;
+				Core::String Output;
+				Output.append("{ id = ");
+				Output.append(Source->GetId());
+				Output.append(", state = ");
+				Output.append(Source->IsActive() ? "active" : "suspended");
+				Output.append(" }");
+				return Output;
+			});
+			AddToStringCallback("array", [this](void* Object, int Depth, int TypeId)
+			{
+				Bindings::Array* Source = (Bindings::Array*)Object;
+				Core::String Output;
+				if (Depth > 0)
+				{
+					int TypeId = Source->GetElementTypeId();
+					size_t Size = Source->GetSize();
+					Output.append("{ size = ");
+					Output.append(Core::ToString(Size));
+					Output.append(", data = [ ");
+					for (size_t i = 0; i < Size; i++)
+					{
+						Output.append(ToString(Source->At(i), TypeId, Depth - 1));
+						if (i + 1 < Size)
+							Output.append(", ");
+					}
+					Output.append(" ] }");
+				}
+				else
+					Output.append("[ ... ]");
+				return Output;
+			});
+			AddToStringCallback("dictionary", [this](void* Object, int Depth, int TypeId)
+			{
+				Bindings::Dictionary* Source = (Bindings::Dictionary*)Object;
+				Core::String Output;
+				if (Depth > 0)
+				{
+					size_t Size = Source->GetSize();
+					Output.append("{ size = ");
+					Output.append(Core::ToString(Size));
+					Output.append(", data = { ");
+					for (size_t i = 0; i < Size; i++)
+					{
+						Core::String Name; void* Value; int TypeId;
+						if (!Source->GetIndex(i, &Name, &Value, &TypeId))
+							continue;
+
+						Output.append("\"");
+						Output.append(Name);
+						Output.append("\" = ");
+						Output.append(ToString(Value, TypeId, Depth - 1));
+						if (i + 1 < Size)
+							Output.append(", ");
+					}
+					Output.append(" } }");
+				}
+				else
+					Output.append("[ ... ]");
+				return Output;
+			});
+			AddToStringCallback("schema", [](void* Object, int Depth, int TypeId)
+			{
+				Core::Schema* Source = (Core::Schema*)Object;
+				return ConvertTree(Source, Depth);
+			});
+		}
+		void DebuggerContext::AddCommand(const Core::String& Name, const Core::String& Description, ArgsType Type, const CommandCallback& Callback)
+		{
+			Descriptions[Name] = Description;
+			for (auto& Command : Core::Stringify(&Name).Split(','))
+			{
+				auto& Data = Commands[Core::Stringify(Command).Trim().R()];
+				Data.Callback = Callback;
+				Data.Description = Description;
+				Data.Arguments = Type;
+			}
+		}
+		void DebuggerContext::SetOutputCallback(OutputCallback&& Callback)
+		{
+			OnOutput = std::move(Callback);
+		}
+		void DebuggerContext::SetInputCallback(InputCallback&& Callback)
+		{
+			OnInput = std::move(Callback);
+		}
+		void DebuggerContext::AddToStringCallback(const TypeInfo& Type, ToStringCallback&& Callback)
+		{
+			FastToStringCallbacks[Type.GetTypeInfo()] = std::move(Callback);
+		}
+		void DebuggerContext::AddToStringCallback(const Core::String& Type, const ToStringTypeCallback& Callback)
+		{
+			for (auto& Item : Core::Stringify(&Type).Split(','))
+				SlowToStringCallbacks[Core::Stringify(Item).Trim().R()] = Callback;
+		}
+		void DebuggerContext::LineCallback(asIScriptContext* Base)
+		{
+			ImmediateContext* Context = ImmediateContext::Get(Base);
+			VI_ASSERT_V(Context != nullptr, "context should be set");
+			auto State = Base->GetState();
+			if (State != asEXECUTION_ACTIVE)
+			{
+				if (State != asEXECUTION_SUSPENDED)
+					ClearThread(Context);
+				return;
+			}
+
+			ThreadData Thread = GetThread(Context);
+		Retry:
+			ThreadBarrier.lock();
+			if (Action == DebugAction::Continue)
+			{
+				LastContext = Context;
+				if (!CheckBreakPoint(Context))
+					return ThreadBarrier.unlock();
+			}
+			else if (Action == DebugAction::Switch)
+			{
+				if (LastContext != Thread.Context)
+				{
+					ThreadBarrier.unlock();
+					std::this_thread::sleep_for(std::chrono::milliseconds(10));
+					goto Retry;
+				}
+				else
+				{
+					LastContext = Context;
+					Action = DebugAction::Trigger;
+					Output("switched to thread " + Core::OS::Process::GetThreadId(Thread.Id) + "\n");
+				}
+			}
+			else if (Action == DebugAction::StepOver)
+			{
+				LastContext = Context;
+				if (Base->GetCallstackSize() > LastCommandAtStackLevel && !CheckBreakPoint(Context))
+					return ThreadBarrier.unlock();
+			}
+			else if (Action == DebugAction::StepOut)
+			{
+				LastContext = Context;
+				if (Base->GetCallstackSize() >= LastCommandAtStackLevel && !CheckBreakPoint(Context))
+					return ThreadBarrier.unlock();
+			}
+			else if (Action == DebugAction::StepInto)
+			{
+				LastContext = Context;
+				CheckBreakPoint(Context);
+			}
+			else if (Action == DebugAction::Trigger)
+				LastContext = Context;
+
+			Input(Context);
+			bool Switching = (Action == DebugAction::Switch);
+			ThreadBarrier.unlock();
+
+			if (Switching)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(10));
+				goto Retry;
+			}
+		}
+		void DebuggerContext::Input(ImmediateContext* Context)
+		{
+			VI_ASSERT_V(Context != nullptr, "context should be set");
+
+			asIScriptContext* Base = Context->GetContext();
+			VI_ASSERT_V(Base != nullptr, "context should be set");
+
+			for (;;)
+			{
+				Output("(dbg) ");
+				if (InterpretCommand(OnInput ? OnInput() : Core::Console::Get()->Read(1024), Context))
+					break;
+			}
+		}
+		void DebuggerContext::PrintValue(const Core::String& Expression, ImmediateContext* Context)
+		{
+			VI_ASSERT_V(Context != nullptr, "context should be set");
+
+			asIScriptContext* Base = Context->GetContext();
+			VI_ASSERT_V(Base != nullptr, "context should be set");
+
+			asIScriptEngine* Engine = Context->GetVM()->GetEngine();
+			Core::String Text = Expression, Scope, Name;
+			asUINT Length = 0;
+
+			asETokenClass T = Engine->ParseToken(Text.c_str(), 0, &Length);
+			while (T == asTC_IDENTIFIER || (T == asTC_KEYWORD && Length == 2 && Text.compare("::") != 0))
+			{
+				if (T == asTC_KEYWORD)
+				{
+					if (Scope.empty() && Name.empty())
+						Scope = "::";
+					else if (Scope == "::" || Scope.empty())
+						Scope = Name;
+					else
+						Scope += "::" + Name;
+
+					Name.clear();
+				}
+				else
+					Name.assign(Text.c_str(), Length);
+
+				Text = Text.substr(Length);
+				T = Engine->ParseToken(Text.c_str(), 0, &Length);
+			}
+
+			if (Name.empty())
+			{
+				Output("  invalid expression, expected identifier\n");
+				return;
+			}
+
+			void* Pointer = 0;
+			int TypeId = 0;
+
+			asIScriptFunction* Function = Base->GetFunction();
+			if (!Function)
+				return;
+
+			if (Scope.empty())
+			{
+				for (asUINT n = Function->GetVarCount(); n-- > 0;)
+				{
+					const char* VarName = 0;
+					Base->GetVar(n, 0, &VarName, &TypeId);
+					if (Base->IsVarInScope(n) && VarName != 0 && Name == VarName)
+					{
+						Pointer = Base->GetAddressOfVar(n);
+						break;
+					}
+				}
+
+				if (!Pointer && Function->GetObjectType())
+				{
+					if (Name == "this")
+					{
+						Pointer = Base->GetThisPointer();
+						TypeId = Base->GetThisTypeId();
+					}
+					else
+					{
+						asITypeInfo* Type = Engine->GetTypeInfoById(Base->GetThisTypeId());
+						for (asUINT n = 0; n < Type->GetPropertyCount(); n++)
+						{
+							const char* PropName = 0;
+							int Offset = 0;
+							bool IsReference = 0;
+							int CompositeOffset = 0;
+							bool IsCompositeIndirect = false;
+
+							Type->GetProperty(n, &PropName, &TypeId, 0, 0, &Offset, &IsReference, 0, &CompositeOffset, &IsCompositeIndirect);
+							if (Name == PropName)
+							{
+								Pointer = (void*)(((asBYTE*)Base->GetThisPointer()) + CompositeOffset);
+								if (IsCompositeIndirect)
+									Pointer = *(void**)Pointer;
+
+								Pointer = (void*)(((asBYTE*)Pointer) + Offset);
+								if (IsReference)
+									Pointer = *(void**)Pointer;
+
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			if (!Pointer)
+			{
+				if (Scope.empty())
+					Scope = Function->GetNamespace();
+				else if (Scope == "::")
+					Scope.clear();
+
+				asIScriptModule* Mod = Function->GetModule();
+				if (Mod != nullptr)
+				{
+					for (asUINT n = 0; n < Mod->GetGlobalVarCount(); n++)
+					{
+						const char* VarName = 0, * Namespace = 0;
+						Mod->GetGlobalVar(n, &VarName, &Namespace, &TypeId);
+
+						if (Name == VarName && Scope == Namespace)
+						{
+							Pointer = Mod->GetAddressOfGlobalVar(n);
+							break;
+						}
+					}
+				}
+			}
+
+			if (Pointer)
+			{
+				Core::StringStream Stream;
+				Stream << "  " << ToString(Pointer, TypeId, 3) << std::endl;
+				Output(Stream.str());
+			}
+			else
+				Output("  invalid expression, no matching symbols\n");
+		}
+		void DebuggerContext::ListBreakPoints()
+		{
+			Core::StringStream Stream;
+			for (size_t b = 0; b < BreakPoints.size(); b++)
+			{
+				if (BreakPoints[b].Function)
+					Stream << "  " << b << " - " << BreakPoints[b].Name << std::endl;
+				else
+					Stream << "  " << b << " - " << BreakPoints[b].Name << ":" << BreakPoints[b].Line << std::endl;
+			}
+			Output(Stream.str());
+		}
+		void DebuggerContext::ListThreads()
+		{
+			Core::StringStream Stream;
+			size_t Index = 0;
+			for (auto& Item : Threads)
+			{
+				asIScriptContext* Context = Item.Context->GetContext();
+				asIScriptFunction* Function = Context->GetFunction();
+				if (LastContext == Item.Context)
+					Stream << "  * ";
+				else
+					Stream << "  ";
+				Stream << "#" << Index++ << " thread " << Core::OS::Process::GetThreadId(Item.Id) << ", ";
+				if (Function != nullptr)
+				{
+					void* Address = (void*)(uintptr_t)Function->GetId();
+					if (Function->GetFuncType() == asFUNC_SCRIPT)
+						Stream << "source \"" << (Function->GetScriptSectionName() ? Function->GetScriptSectionName() : "") << "\", line " << Context->GetLineNumber() << ", in " << Function->GetDeclaration();
+					else
+						Stream << "source { native code }, in " << Function->GetDeclaration() << " nullptr";
+
+					if (Address != nullptr)
+						Stream << " 0x" << Address;
+					else
+						Stream << " nullptr";
+				}
+				else
+					Stream << "source { native code } [nullptr]";
+				Stream << "\n";
+			}
+			Output(Stream.str());
+		}
+		void DebuggerContext::ListMemberProperties(ImmediateContext* Context)
+		{
+			VI_ASSERT_V(Context != nullptr, "context should be set");
+
+			asIScriptContext* Base = Context->GetContext();
+			VI_ASSERT_V(Base != nullptr, "context should be set");
+
+			void* Pointer = Base->GetThisPointer();
+			if (Pointer != nullptr)
+			{
+				Core::StringStream Stream;
+				Stream << "  this = " << ToString(Pointer, Base->GetThisTypeId(), 3) << std::endl;
+				Output(Stream.str());
+			}
+		}
+		void DebuggerContext::ListLocalVariables(ImmediateContext* Context)
+		{
+			VI_ASSERT_V(Context != nullptr, "context should be set");
+
+			asIScriptContext* Base = Context->GetContext();
+			VI_ASSERT_V(Base != nullptr, "context should be set");
+
+			asIScriptFunction* Function = Base->GetFunction();
+			if (!Function)
+				return;
+
+			Core::StringStream Stream;
+			for (asUINT n = 0; n < Function->GetVarCount(); n++)
+			{
+				if (Base->IsVarInScope(n))
+				{
+					int TypeId;
+					Base->GetVar(n, 0, 0, &TypeId);
+					Stream << "  " << Function->GetVarDecl(n) << " = " << ToString(Base->GetAddressOfVar(n), TypeId, 3) << std::endl;
+				}
+			}
+			Output(Stream.str());
+		}
+		void DebuggerContext::ListGlobalVariables(ImmediateContext* Context)
+		{
+			VI_ASSERT_V(Context != nullptr, "context should be set");
+
+			asIScriptContext* Base = Context->GetContext();
+			VI_ASSERT_V(Base != nullptr, "context should be set");
+
+			asIScriptFunction* Function = Base->GetFunction();
+			if (!Function)
+				return;
+
+			asIScriptModule* Mod = Function->GetModule();
+			if (!Mod)
+				return;
+
+			Core::StringStream Stream;
+			for (asUINT n = 0; n < Mod->GetGlobalVarCount(); n++)
+			{
+				int TypeId = 0;
+				Mod->GetGlobalVar(n, nullptr, nullptr, &TypeId);
+				Stream << "  " << Mod->GetGlobalVarDeclaration(n) << " = " << ToString(Mod->GetAddressOfGlobalVar(n), TypeId, 3) << std::endl;
+			}
+			Output(Stream.str());
+		}
+		void DebuggerContext::ListSourceCode(ImmediateContext* Context)
+		{
+			VI_ASSERT_V(Context != nullptr, "context should be set");
+			const char* File = nullptr;
+			Context->GetLineNumber(0, 0, &File);
+
+			if (!File)
+				return Output("source code is not available");
+			
+			auto Lines = Core::Stringify(VM->GetScriptSection(File)).Split('\n');
+			size_t MaxLineSize = Core::ToString(Lines.size()).size(), LineNumber = 0;
+			for (auto& Line : Lines)
+			{
+				size_t LineSize = Core::ToString(++LineNumber).size();
+				size_t Spaces = 1 + (MaxLineSize - LineSize);
+				Output("  ");
+				Output(Core::ToString(LineNumber));
+				for (size_t i = 0; i < Spaces; i++)
+					Output(" ");
+				Output(Line + '\n');
+			}
+		}
+		void DebuggerContext::ListStatistics(ImmediateContext* Context)
+		{
+			VI_ASSERT_V(Context != nullptr, "context should be set");
+
+			asIScriptContext* Base = Context->GetContext();
+			VI_ASSERT_V(Base != nullptr, "context should be set");
+
+			asIScriptEngine* Engine = Base->GetEngine();
+			asUINT GCCurrSize, GCTotalDestr, GCTotalDet, GCNewObjects, GCTotalNewDestr;
+			Engine->GetGCStatistics(&GCCurrSize, &GCTotalDestr, &GCTotalDet, &GCNewObjects, &GCTotalNewDestr);
+
+			Core::StringStream Stream;
+			Stream << "  garbage collector" << std::endl;
+			Stream << "    current size:          " << GCCurrSize << std::endl;
+			Stream << "    total destroyed:       " << GCTotalDestr << std::endl;
+			Stream << "    total detected:        " << GCTotalDet << std::endl;
+			Stream << "    new objects:           " << GCNewObjects << std::endl;
+			Stream << "    new objects destroyed: " << GCTotalNewDestr << std::endl;
+			Output(Stream.str());
+		}
+		void DebuggerContext::PrintCallstack(ImmediateContext* Context)
+		{
+			VI_ASSERT_V(Context != nullptr, "context should be set");
+
+			asIScriptContext* Base = Context->GetContext();
+			VI_ASSERT_V(Base != nullptr, "context should be set");
+
+			static bool FirstTime = true;
+			if (FirstTime)
+			{
+				Context->GetStackTrace(0, 64);
+				FirstTime = false;
+			}
+
+			Core::StringStream Stream;
+			const char* File = nullptr;
+			int ColumnNumber = 0;
+			int LineNumber = Base->GetLineNumber(0, &ColumnNumber, &File);
+			for (auto& Line : Core::Stringify(Context->GetStackTrace(16, 64)).Split('\n'))
+			{
+				if (Line.front() == '#')
+					Stream << "    " << Line << "\n";
+				else
+					Stream << "  " << Line << "\n";
+			}
+
+			Stream << "\n";
+			if (File != nullptr && LineNumber >= 0)
+			{
+				Core::Vector<Core::String> Lines = ExtractLinesOfCode(VM->GetScriptSection(File), LineNumber, 3);
+				if (Lines.empty())
+					goto Print;
+
+				Core::Stringify Line = Lines.front();
+				Lines.erase(Lines.begin());
+
+				if (Line.Empty())
+					goto Print;
+
+				Stream << "  last 3 lines of currently executing code\n";
+				if (Lines.size() >= 1)
+					Stream << "  " << LineNumber - 1 << "  " << Core::Stringify(&Lines[0]).TrimEnd().R() << "\n";
+				Stream << "  " << LineNumber << "  " << Line.TrimEnd().R() << "\n  ";
+
+				ColumnNumber += 1 + Core::ToString(LineNumber).size();
+				for (int i = 0; i < ColumnNumber; i++)
+					Stream << " ";
+
+				if (Lines.size() >= 2)
+					Stream << "^\n  " << LineNumber + 1 << "  " << Core::Stringify(&Lines[1]).TrimEnd().R() << "\n";
+				else
+					Stream << "^\n";
+			}
+		Print:
+			Output(Stream.str());
+		}
+		void DebuggerContext::AddFuncBreakPoint(const Core::String& Function)
+		{
+			size_t B = Function.find_first_not_of(" \t");
+			size_t E = Function.find_last_not_of(" \t");
+			Core::String Actual = Function.substr(B, E != Core::String::npos ? E - B + 1 : Core::String::npos);
+
+			Core::StringStream Stream;
+			Stream << "  adding deferred break point for function '" << Actual << "'" << std::endl;
+			Output(Stream.str());
+
+			BreakPoint Point(Actual, 0, true);
+			BreakPoints.push_back(Point);
+		}
+		void DebuggerContext::AddFileBreakPoint(const Core::String& File, int LineNumber)
+		{
+			size_t R = File.find_last_of("\\/");
+			Core::String Actual;
+
+			if (R != Core::String::npos)
+				Actual = File.substr(R + 1);
+			else
+				Actual = File;
+
+			size_t B = Actual.find_first_not_of(" \t");
+			size_t E = Actual.find_last_not_of(" \t");
+			Actual = Actual.substr(B, E != Core::String::npos ? E - B + 1 : Core::String::npos);
+
+			Core::StringStream Stream;
+			Stream << "  setting break point in file '" << Actual << "' at line " << LineNumber << std::endl;
+			Output(Stream.str());
+
+			BreakPoint Point(Actual, LineNumber, false);
+			BreakPoints.push_back(Point);
+		}
+		void DebuggerContext::Output(const Core::String& Data)
+		{
+			if (OnOutput)
+				OnOutput(Data);
+			else
+				Core::Console::Get()->Write(Data);
+		}
+		void DebuggerContext::SetEngine(VirtualMachine* Engine)
+		{
+			if (Engine != nullptr && Engine != VM)
+			{
+				if (VM != nullptr)
+					VM->GetEngine()->Release();
+
+				VM = Engine;
+				VM->GetEngine()->AddRef();
+			}
+		}
+		bool DebuggerContext::CheckBreakPoint(ImmediateContext* Context)
+		{
+			VI_ASSERT(Context != nullptr, false, "context should be set");
+
+			asIScriptContext* Base = Context->GetContext();
+			VI_ASSERT(Base != nullptr, false, "context should be set");
+
+			const char* Temp = 0;
+			int Line = Base->GetLineNumber(0, 0, &Temp);
+
+			Core::String File = Temp ? Temp : "";
+			size_t R = File.find_last_of("\\/");
+			if (R != Core::String::npos)
+				File = File.substr(R + 1);
+
+			asIScriptFunction* Function = Base->GetFunction();
+			if (LastFunction != Function)
+			{
+				for (size_t n = 0; n < BreakPoints.size(); n++)
+				{
+					if (BreakPoints[n].Function)
+					{
+						if (BreakPoints[n].Name == Function->GetName())
+						{
+							Core::StringStream Stream;
+							Stream << "  entering function '" << BreakPoints[n].Name << "', transforming it into break point" << std::endl;
+							Output(Stream.str());
+
+							BreakPoints[n].Name = File;
+							BreakPoints[n].Line = Line;
+							BreakPoints[n].Function = false;
+							BreakPoints[n].NeedsAdjusting = false;
+						}
+					}
+					else if (BreakPoints[n].NeedsAdjusting && BreakPoints[n].Name == File)
+					{
+						int Number = Function->FindNextLineWithCode(BreakPoints[n].Line);
+						if (Number >= 0)
+						{
+							BreakPoints[n].NeedsAdjusting = false;
+							if (Number != BreakPoints[n].Line)
+							{
+								Core::StringStream Stream;
+								Stream << "  moving break point " << n << " in file '" << File << "' to next line with code at line " << Number << std::endl;
+								Output(Stream.str());
+
+								BreakPoints[n].Line = Number;
+							}
+						}
+					}
+				}
+			}
+
+			LastFunction = Function;
+			for (size_t n = 0; n < BreakPoints.size(); n++)
+			{
+				if (!BreakPoints[n].Function && BreakPoints[n].Line == Line && BreakPoints[n].Name == File)
+				{
+					Core::StringStream Stream;
+					Stream << "  reached break point " << n << " in file '" << File << "' at line " << Line << std::endl;
+					Output(Stream.str());
+					return true;
+				}
+			}
+
+			return false;
+		}
+		bool DebuggerContext::InterpretCommand(const Core::String& Command, ImmediateContext* Context)
+		{
+			VI_ASSERT(Context != nullptr, false, "context should be set");
+
+			asIScriptContext* Base = Context->GetContext();
+			VI_ASSERT(Base != nullptr, false, "context should be set");
+
+			for (auto& Item : Core::Stringify(&Command).Split("&&"))
+			{
+				Core::String Name = Core::Stringify(&Item).Trim().R().substr(0, Item.find(' '));
+				auto It = Commands.find(Name);
+				if (It == Commands.end())
+				{
+					Output("  command <" + Name + "> is not a known operation\n");
+					return false;
+				}
+
+				Core::String Data = (Name.size() == Item.size() ? Core::String() : Item.substr(Name.size()));
+				Core::Vector<Core::String> Args;
+				switch (It->second.Arguments)
+				{
+					case ArgsType::Array:
+					{
+						size_t Offset = 0;
+						while (Offset < Data.size())
+						{
+							char V = Data[Offset];
+							if (std::isspace(V))
+							{
+								size_t Start = Offset;
+								while (++Start < Data.size() && std::isspace(Data[Start]));
+
+								size_t End = Start;
+								while (++End < Data.size() && !std::isspace(Data[End]) && Data[End] != '\"' && Data[End] != '\'');
+
+								auto Value = Core::Stringify(Data.substr(Start, End - Start)).Trim().R();
+								if (!Value.empty())
+									Args.push_back(Value);
+								Offset = End;
+							}
+							else if (V == '\"' || V == '\'')
+								while (++Offset < Data.size() && Data[Offset] != V);
+							else
+								++Offset;
+						}
+						break;
+					}
+					case ArgsType::Expression:
+						Args.emplace_back(Core::Stringify(Data).Trim().R());
+						break;
+					case ArgsType::NoArgs:
+					default:
+						if (Data.empty())
+							break;
+
+						Output("  command <" + Name + "> requires no arguments\n");
+						return false;
+				}
+
+				if (It->second.Callback(Context, Args))
+					return true;
+			}
+
+			return false;
+		}
+		Core::String DebuggerContext::ToString(void* Value, unsigned int TypeId, int Depth)
+		{
+			if (Value == 0 || !VM)
+				return "null";
+
+			asIScriptEngine* Base = VM->GetEngine();
+			if (!Base)
+				return "null";
+
+			Core::StringStream Stream;
+			if (TypeId == asTYPEID_VOID)
+				return "void";
+			else if (TypeId == asTYPEID_BOOL)
+				return *(bool*)Value ? "true" : "false";
+			else if (TypeId == asTYPEID_INT8)
+				Stream << (int)*(signed char*)Value;
+			else if (TypeId == asTYPEID_INT16)
+				Stream << (int)*(signed short*)Value;
+			else if (TypeId == asTYPEID_INT32)
+				Stream << *(signed int*)Value;
+			else if (TypeId == asTYPEID_INT64)
+				Stream << *(asINT64*)Value;
+			else if (TypeId == asTYPEID_UINT8)
+				Stream << (unsigned int)*(unsigned char*)Value;
+			else if (TypeId == asTYPEID_UINT16)
+				Stream << (unsigned int)*(unsigned short*)Value;
+			else if (TypeId == asTYPEID_UINT32)
+				Stream << *(unsigned int*)Value;
+			else if (TypeId == asTYPEID_UINT64)
+				Stream << *(asQWORD*)Value;
+			else if (TypeId == asTYPEID_FLOAT)
+				Stream << *(float*)Value;
+			else if (TypeId == asTYPEID_DOUBLE)
+				Stream << *(double*)Value;
+			else if ((TypeId & asTYPEID_MASK_OBJECT) == 0)
+			{
+				Stream << *(asUINT*)Value;
+
+				asITypeInfo* T = Base->GetTypeInfoById(TypeId);
+				for (int n = T->GetEnumValueCount(); n-- > 0;)
+				{
+					int EnumVal;
+					const char* EnumName = T->GetEnumValueByIndex(n, &EnumVal);
+
+					if (EnumVal == *(int*)Value)
+					{
+						Stream << ", " << EnumName;
+						break;
+					}
+				}
+			}
+			else if (TypeId & asTYPEID_SCRIPTOBJECT)
+			{
+				if (TypeId & asTYPEID_OBJHANDLE)
+					Value = *(void**)Value;
+
+				asIScriptObject* Object = (asIScriptObject*)Value;
+				Stream << "0x" << Object;
+
+				if (Object && Depth > 0)
+				{
+					asITypeInfo* Type = Object->GetObjectType();
+					Stream << " {";
+					for (asUINT n = 0; n < Object->GetPropertyCount(); n++)
+					{
+						Stream << (n == 0 ? " " : ", ");
+						Stream << Type->GetPropertyDeclaration(n) << " = " << ToString(Object->GetAddressOfProperty(n), Object->GetPropertyTypeId(n), Depth - 1);
+					}
+					Stream << " }";
+				}
+			}
+			else
+			{
+				if (TypeId & asTYPEID_OBJHANDLE)
+					Value = *(void**)Value;
+
+				asITypeInfo* Type = Base->GetTypeInfoById(TypeId);
+				if (Type->GetFlags() & asOBJ_REF)
+					Stream << "0x" << Value;
+
+				if (Value != nullptr)
+				{
+					auto It = FastToStringCallbacks.find(Type);
+					if (It == FastToStringCallbacks.end())
+					{
+						if (Type->GetFlags() & asOBJ_TEMPLATE)
+							It = FastToStringCallbacks.find(Base->GetTypeInfoByName(Type->GetName()));
+					}
+
+					if (It != FastToStringCallbacks.end())
+					{
+						if (Type->GetFlags() & asOBJ_REF)
+							Stream << " ";
+
+						Stream << It->second(Value, Depth);
+						goto Finalize;
+					}
+				}
+
+				if (Value != nullptr)
+				{
+					auto It = SlowToStringCallbacks.find(Type->GetName());
+					if (It != SlowToStringCallbacks.end())
+					{
+						if (Type->GetFlags() & asOBJ_REF)
+							Stream << " ";
+
+						Stream << It->second(Value, Depth, TypeId);
+						goto Finalize;
+					}
+				}
+
+				if (Value != nullptr && Depth > 0)
+				{
+					if (Type->GetFlags() & asOBJ_REF)
+						Stream << " {";
+					else
+						Stream << "{";
+
+					for (asUINT n = 0; n < Type->GetPropertyCount(); n++)
+					{
+						int PropTypeId, PropOffset;
+						if (Type->GetProperty(n, nullptr, &PropTypeId, nullptr, nullptr, &PropOffset, nullptr, nullptr, nullptr, nullptr) != 0)
+							continue;
+
+						void* Address = (char*)Value + PropOffset;
+						Stream << (n == 0 ? " " : ", ");
+						Stream << Type->GetPropertyDeclaration(n) << " = " << ToString(Address, PropTypeId, Depth - 1);
+					}
+					Stream << " }";
+				}
+			}
+
+		Finalize:
+			return Stream.str();
+		}
+		void DebuggerContext::ClearThread(ImmediateContext* Context)
+		{
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			for (auto It = Threads.begin(); It != Threads.end(); It++)
+			{
+				if (It->Context == Context)
+				{
+					Threads.erase(It);
+					break;
+				}
+			}
+		}
+		int DebuggerContext::ExecuteExpression(ImmediateContext* Context, const Core::String& Code)
+		{
+			VI_ASSERT(VM != nullptr, asINVALID_ARG, "engine should be set");
+			VI_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
+
+			Core::String Eval = "any@ __vfdbgbdy(){return any(" + Code + ");}";
+			asIScriptModule* Module = Context->GetFunction().GetModule().GetModule();
+			asIScriptFunction* Function = nullptr; int Result = 0;
+			Bindings::Any* Data = nullptr;
+			Context->ClearLineCallback();
+			VM->ImportSubmodule("std/any");
+
+			while ((Result = Module->CompileFunction("__vfdbgbdy", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function)) == asBUILD_IN_PROGRESS)
+				std::this_thread::sleep_for(std::chrono::microseconds(100));
+
+			if (Result < 0)
+				goto Cleanup;
+
+			Context->PushState();
+			Result = Context->Prepare(Function);
+			if (Result < 0)
+				goto Cleanup;
+
+			Result = Context->ExecuteNext();
+			if (Result < 0)
+				goto Cleanup;
+			
+			Data = Context->GetReturnObject<Bindings::Any>();
+			Output("  " + ToString(Data, VM->GetTypeInfoByName("any").GetTypeId(), 3) + "\n");
+
+		Cleanup:
+			if (Function != nullptr)
+			{
+				Context->PopState();
+				Function->Release();
+			}
+
+			Context->GetContext()->SetLineCallback(asMETHOD(DebuggerContext, LineCallback), this, asCALL_THISCALL);
+			return Result;
+		}
+		DebuggerContext::ThreadData DebuggerContext::GetThread(ImmediateContext* Context)
+		{
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			for (auto& Thread : Threads)
+			{
+				if (Thread.Context == Context)
+				{
+					Thread.Id = std::this_thread::get_id();
+					return Thread;
+				}
+			}
+
+			ThreadData Thread;
+			Thread.Context = Context;
+			Thread.Id = std::this_thread::get_id();
+			Threads.push_back(Thread);
+			return Thread;
+		}
+		VirtualMachine* DebuggerContext::GetEngine()
+		{
+			return VM;
+		}
 
 		ImmediateContext::ImmediateContext(asIScriptContext* Base) noexcept : Context(Base), VM(nullptr)
 		{
@@ -2318,7 +3587,7 @@ namespace Mavi
 			{
 				if (OnArgs)
 					OnArgs(this);
-				Result = Context->Execute();
+				Result = ExecuteNext();
 			}
 
 			Context->PopState();
@@ -2341,7 +3610,7 @@ namespace Mavi
 		}
 		int ImmediateContext::Resume()
 		{
-			int Result = Context->Execute();
+			int Result = ExecuteNext();
 			if (Result == asEXECUTION_SUSPENDED)
 				return Result;
 
@@ -2373,7 +3642,7 @@ namespace Mavi
 				if (Next.Args)
 					Next.Args(this);
 
-				Subresult = Context->Execute();
+				Subresult = ExecuteNext();
 				if (Subresult != asEXECUTION_SUSPENDED)
 					goto Finalize;
 
@@ -2424,7 +3693,7 @@ namespace Mavi
 					if (Function->GetFuncType() == asFUNC_SCRIPT)
 						Stream << "source \"" << (Function->GetScriptSectionName() ? Function->GetScriptSectionName() : "") << "\", line " << Context->GetLineNumber(TraceIdx) << ", in " << Function->GetDeclaration();
 					else
-						Stream << "source {...native_call...}, in " << Function->GetDeclaration() << " nullptr";
+						Stream << "source { native code }, in " << Function->GetDeclaration() << " nullptr";
 
 					if (Address != nullptr)
 						Stream << " 0x" << Address;
@@ -2432,7 +3701,7 @@ namespace Mavi
 						Stream << " nullptr";
 				}
 				else
-					Stream << "source {...native_call...} [nullptr]";
+					Stream << "source { native code } [nullptr]";
 				Stream << "\n";
 			}
 
@@ -2448,6 +3717,10 @@ namespace Mavi
 		{
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->PopState();
+		}
+		int ImmediateContext::ExecuteNext()
+		{
+			return Context->Execute();
 		}
 		bool ImmediateContext::IsNested(unsigned int* NestCount) const
 		{
@@ -2766,6 +4039,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Context != nullptr, nullptr, "context should be set");
 			void* VM = Context->GetUserData(ContextUD);
+			VI_ASSERT(VM != nullptr, nullptr, "context should be created by virtual machine");
 			return (ImmediateContext*)VM;
 		}
 		ImmediateContext* ImmediateContext::Get()
@@ -2816,7 +4090,7 @@ namespace Mavi
 		}
 		int ImmediateContext::ContextUD = 152;
 
-		VirtualMachine::VirtualMachine() noexcept : Scope(0), Engine(asCreateScriptEngine()), Imports((uint32_t)Imports::All), Cached(true)
+		VirtualMachine::VirtualMachine() noexcept : Scope(0), Debugger(nullptr), Engine(asCreateScriptEngine()), Imports((uint32_t)Imports::All), Cached(true)
 		{
 			Include.Exts.push_back(".as");
 			Include.Exts.push_back(".so");
@@ -2845,6 +4119,7 @@ namespace Mavi
 			for (auto& Context : Contexts)
 				Context->Release();
 
+			VI_CLEAR(Debugger);
 			CleanupThisThread();
 			if (Engine != nullptr)
 				Engine->ShutDownAndRelease();
@@ -3042,6 +4317,15 @@ namespace Mavi
 
 			return Core::Form("%s(0x%" PRIXPTR ")", Name ? Name : "unknown", (uintptr_t)Object).R();
 		}
+		Core::String VirtualMachine::GetScriptSection(const Core::String& Section)
+		{
+			std::unique_lock<std::mutex> Unique(Sync.General);
+			auto It = Sections.find(Section);
+			if (It == Sections.end())
+				return Core::String();
+
+			return It->second;
+		}
 		TypeInfo VirtualMachine::GetTypeInfoById(int TypeId) const
 		{
 			return Engine->GetTypeInfoById(TypeId);
@@ -3075,6 +4359,24 @@ namespace Mavi
 		{
 			Cached = Enabled;
 		}
+		void VirtualMachine::SetDebugger(DebuggerContext* Context)
+		{
+			Sync.General.lock();
+			VI_RELEASE(Debugger);
+			Debugger = Context;
+			if (Debugger != nullptr)
+				Debugger->SetEngine(this);
+			Sync.Pool.lock();
+			for (auto* Next : Contexts)
+			{
+				if (Debugger != nullptr)
+					Next->SetLineCallback(asMETHOD(DebuggerContext, LineCallback), Debugger, asCALL_THISCALL);
+				else
+					Next->ClearLineCallback();
+			}
+			Sync.Pool.unlock();
+			Sync.General.unlock();
+		}
 		void VirtualMachine::ClearCache()
 		{
 			Sync.General.lock();
@@ -3086,9 +4388,15 @@ namespace Mavi
 			Files.clear();
 			Sync.General.unlock();
 		}
+		void VirtualMachine::ClearSections()
+		{
+			Sync.General.lock();
+			Sections.clear();
+			Sync.General.unlock();
+		}
 		void VirtualMachine::SetCompilerErrorCallback(const WhenErrorCallback& Callback)
 		{
-			WherError = Callback;
+			WhenError = Callback;
 		}
 		void VirtualMachine::SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc)
 		{
@@ -3164,7 +4472,13 @@ namespace Mavi
 		}
 		ImmediateContext* VirtualMachine::CreateContext()
 		{
-			return new ImmediateContext(Engine->RequestContext());
+			asIScriptContext* Context = Engine->RequestContext();
+			VI_ASSERT(Context != nullptr, nullptr, "cannot create script context");
+
+			if (Debugger != nullptr)
+				Context->SetLineCallback(asMETHOD(DebuggerContext, LineCallback), Debugger, asCALL_THISCALL);
+
+			return new ImmediateContext(Context);
 		}
 		Compiler* VirtualMachine::CreateCompiler()
 		{
@@ -3491,6 +4805,21 @@ namespace Mavi
 
 			return DumpRegisteredInterfaces(Where);
 		}
+		int VirtualMachine::AddScriptSection(asIScriptModule* Module, const char* Name, const char* Code, size_t CodeLength, int LineOffset)
+		{
+			VI_ASSERT(Name != nullptr, asINVALID_ARG, "name should be set");
+			VI_ASSERT(Code != nullptr, asINVALID_ARG, "code should be set");
+			VI_ASSERT(Module != nullptr, asINVALID_ARG, "module should be set");
+
+			if (Debugger != nullptr)
+			{
+				Sync.General.lock();
+				Sections[Name] = CodeLength > 0 ? Core::String(Code, CodeLength) : Code;
+				Sync.General.unlock();
+			}
+
+			return Module->AddScriptSection(Name, Code, CodeLength, LineOffset);
+		}
 		int VirtualMachine::GetTypeNameScope(const char** TypeName, const char** Namespace, size_t* NamespaceSize) const
 		{
 			VI_ASSERT(TypeName != nullptr && *TypeName != nullptr, -1, "typename should be set");
@@ -3647,67 +4976,6 @@ namespace Mavi
 			}
 
 			return Result;
-		}
-		Core::Vector<Core::String> VirtualMachine::VerifyModules(const Core::String& Directory, const Compute::RegexSource& Exp)
-		{
-			Core::Vector<Core::String> Result;
-			if (!Core::OS::Directory::IsExists(Directory.c_str()))
-				return Result;
-
-			Core::Vector<Core::FileEntry> Entries;
-			if (!Core::OS::Directory::Scan(Directory, &Entries))
-				return Result;
-
-			Compute::RegexResult fResult;
-			for (auto& Entry : Entries)
-			{
-				if (Directory.back() != '/' && Directory.back() != '\\')
-					Entry.Path = Directory + '/' + Entry.Path;
-				else
-					Entry.Path = Directory + Entry.Path;
-
-				if (!Entry.IsDirectory)
-				{
-					if (!Compute::Regex::Match((Compute::RegexSource*)&Exp, fResult, Entry.Path))
-						continue;
-
-					if (!VerifyModule(Entry.Path))
-						Result.push_back(Entry.Path);
-				}
-				else
-				{
-					Core::Vector<Core::String> Merge = VerifyModules(Entry.Path, Exp);
-					if (!Merge.empty())
-						Result.insert(Result.end(), Merge.begin(), Merge.end());
-				}
-			}
-
-			return Result;
-		}
-		bool VirtualMachine::VerifyModule(const Core::String& Path)
-		{
-			VI_ASSERT(Engine != nullptr, false, "engine should be set");
-			Core::String Source = Core::OS::File::ReadAsString(Path);
-			if (Source.empty())
-				return true;
-
-			uint32_t Retry = 0;
-			Sync.General.lock();
-			asIScriptModule* Module = Engine->GetModule("__vfver", asGM_ALWAYS_CREATE);
-			Module->AddScriptSection(Path.c_str(), Source.c_str(), Source.size());
-
-			int R = Module->Build();
-			while (R == asBUILD_IN_PROGRESS)
-			{
-				R = Module->Build();
-				if (Retry++ > 0)
-					std::this_thread::sleep_for(std::chrono::microseconds(100));
-			}
-
-			Module->Discard();
-			Sync.General.unlock();
-
-			return R >= 0;
 		}
 		bool VirtualMachine::IsNullable(int TypeId)
 		{
@@ -4053,6 +5321,10 @@ namespace Mavi
 		{
 			return Engine;
 		}
+		DebuggerContext* VirtualMachine::GetDebugger() const
+		{
+			return Debugger;
+		}
 		void VirtualMachine::FreeProxy()
 		{
 			Bindings::Registry::Release();
@@ -4063,6 +5335,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Engine != nullptr, nullptr, "engine should be set");
 			void* VM = Engine->GetUserData(ManagerUD);
+			VI_ASSERT(VM != nullptr, nullptr, "engine should be created by virtual machine");
 			return (VirtualMachine*)VM;
 		}
 		VirtualMachine* VirtualMachine::Get()
@@ -4093,13 +5366,16 @@ namespace Mavi
 		{
 			VirtualMachine* VM = VirtualMachine::Get(Engine);
 			if (!VM)
+			{
+			CreateNewContext:
 				return Engine->CreateContext();
+			}
 
 			VM->Sync.Pool.lock();
 			if (VM->Contexts.empty())
 			{
 				VM->Sync.Pool.unlock();
-				return Engine->CreateContext();
+				goto CreateNewContext;
 			}
 
 			asIScriptContext* Context = *VM->Contexts.rbegin();
@@ -4130,8 +5406,8 @@ namespace Mavi
 		{
 			VirtualMachine* Engine = (VirtualMachine*)This;
 			const char* Section = (Info->section && Info->section[0] != '\0' ? Info->section : "any");
-			if (Engine->WherError)
-				Engine->WherError();
+			if (Engine->WhenError)
+				Engine->WhenError();
 
 			if (Engine != nullptr && !Engine->Callbacks.empty())
 			{
@@ -4212,720 +5488,5 @@ namespace Mavi
 			return nullptr;
 		}
 		int VirtualMachine::ManagerUD = 553;
-
-		Debugger::Debugger() noexcept : LastFunction(nullptr), VM(nullptr), Action(DebugAction::CONTINUE)
-		{
-			LastCommandAtStackLevel = 0;
-		}
-		Debugger::~Debugger() noexcept
-		{
-			SetEngine(0);
-		}
-		void Debugger::RegisterToStringCallback(const TypeInfo& Type, ToStringCallback Callback)
-		{
-			VI_ASSERT_V(ToStringCallbacks.find(Type.GetTypeInfo()) == ToStringCallbacks.end(), "callback should not already be set");
-			ToStringCallbacks.insert(Core::UnorderedMap<const asITypeInfo*, ToStringCallback>::value_type(Type.GetTypeInfo(), Callback));
-		}
-		void Debugger::LineCallback(ImmediateContext* Context)
-		{
-			VI_ASSERT_V(Context != nullptr, "context should be set");
-			asIScriptContext* Base = Context->GetContext();
-
-			VI_ASSERT_V(Base != nullptr, "context should be set");
-			VI_ASSERT_V(Base->GetState() == asEXECUTION_ACTIVE, "context should be active");
-
-			if (Action == DebugAction::CONTINUE)
-			{
-				if (!CheckBreakPoint(Context))
-					return;
-			}
-			else if (Action == DebugAction::STEP_OVER)
-			{
-				if (Base->GetCallstackSize() > LastCommandAtStackLevel)
-				{
-					if (!CheckBreakPoint(Context))
-						return;
-				}
-			}
-			else if (Action == DebugAction::STEP_OUT)
-			{
-				if (Base->GetCallstackSize() >= LastCommandAtStackLevel)
-				{
-					if (!CheckBreakPoint(Context))
-						return;
-				}
-			}
-			else if (Action == DebugAction::STEP_INTO)
-				CheckBreakPoint(Context);
-
-			Core::StringStream Stream;
-			const char* File = nullptr;
-			int Number = Base->GetLineNumber(0, 0, &File);
-
-			Stream << (File ? File : "{unnamed}") << ":" << Number << "; " << Base->GetFunction()->GetDeclaration() << std::endl;
-			Output(Stream.str());
-			TakeCommands(Context);
-		}
-		void Debugger::TakeCommands(ImmediateContext* Context)
-		{
-			VI_ASSERT_V(Context != nullptr, "context should be set");
-
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT_V(Base != nullptr, "context should be set");
-
-			for (;;)
-			{
-				char Buffer[512];
-				Output("[dbg]> ");
-				std::cin.getline(Buffer, 512);
-
-				if (InterpretCommand(Core::String(Buffer), Context))
-					break;
-			}
-		}
-		void Debugger::PrintValue(const Core::String& Expression, ImmediateContext* Context)
-		{
-			VI_ASSERT_V(Context != nullptr, "context should be set");
-
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT_V(Base != nullptr, "context should be set");
-
-			asIScriptEngine* Engine = Context->GetVM()->GetEngine();
-			Core::String Text = Expression, Scope, Name;
-			asUINT Length = 0;
-
-			asETokenClass T = Engine->ParseToken(Text.c_str(), 0, &Length);
-			while (T == asTC_IDENTIFIER || (T == asTC_KEYWORD && Length == 2 && Text.compare("::") != 0))
-			{
-				if (T == asTC_KEYWORD)
-				{
-					if (Scope.empty() && Name.empty())
-						Scope = "::";
-					else if (Scope == "::" || Scope.empty())
-						Scope = Name;
-					else
-						Scope += "::" + Name;
-
-					Name.clear();
-				}
-				else
-					Name.assign(Text.c_str(), Length);
-
-				Text = Text.substr(Length);
-				T = Engine->ParseToken(Text.c_str(), 0, &Length);
-			}
-
-			if (Name.empty())
-			{
-				Output("Invalid expression. Expected identifier\n");
-				return;
-			}
-
-			void* Pointer = 0;
-			int TypeId = 0;
-
-			asIScriptFunction* Function = Base->GetFunction();
-			if (!Function)
-				return;
-
-			if (Scope.empty())
-			{
-				for (asUINT n = Function->GetVarCount(); n-- > 0;)
-				{
-					const char* VarName = 0;
-					Base->GetVar(n, 0, &VarName, &TypeId);
-					if (Base->IsVarInScope(n) && VarName != 0 && Name == VarName)
-					{
-						Pointer = Base->GetAddressOfVar(n);
-						break;
-					}
-				}
-
-				if (!Pointer && Function->GetObjectType())
-				{
-					if (Name == "this")
-					{
-						Pointer = Base->GetThisPointer();
-						TypeId = Base->GetThisTypeId();
-					}
-					else
-					{
-						asITypeInfo* Type = Engine->GetTypeInfoById(Base->GetThisTypeId());
-						for (asUINT n = 0; n < Type->GetPropertyCount(); n++)
-						{
-							const char* PropName = 0;
-							int Offset = 0;
-							bool IsReference = 0;
-							int CompositeOffset = 0;
-							bool IsCompositeIndirect = false;
-
-							Type->GetProperty(n, &PropName, &TypeId, 0, 0, &Offset, &IsReference, 0, &CompositeOffset, &IsCompositeIndirect);
-							if (Name == PropName)
-							{
-								Pointer = (void*)(((asBYTE*)Base->GetThisPointer()) + CompositeOffset);
-								if (IsCompositeIndirect)
-									Pointer = *(void**)Pointer;
-
-								Pointer = (void*)(((asBYTE*)Pointer) + Offset);
-								if (IsReference)
-									Pointer = *(void**)Pointer;
-
-								break;
-							}
-						}
-					}
-				}
-			}
-
-			if (!Pointer)
-			{
-				if (Scope.empty())
-					Scope = Function->GetNamespace();
-				else if (Scope == "::")
-					Scope.clear();
-
-				asIScriptModule* Mod = Function->GetModule();
-				if (Mod != nullptr)
-				{
-					for (asUINT n = 0; n < Mod->GetGlobalVarCount(); n++)
-					{
-						const char* VarName = 0, * Namespace = 0;
-						Mod->GetGlobalVar(n, &VarName, &Namespace, &TypeId);
-
-						if (Name == VarName && Scope == Namespace)
-						{
-							Pointer = Mod->GetAddressOfGlobalVar(n);
-							break;
-						}
-					}
-				}
-			}
-
-			if (Pointer)
-			{
-				Core::StringStream Stream;
-				Stream << ToString(Pointer, TypeId, 3, VM) << std::endl;
-				Output(Stream.str());
-			}
-			else
-				Output("Invalid expression. No matching symbol\n");
-		}
-		void Debugger::ListBreakPoints()
-		{
-			Core::StringStream Stream;
-			for (size_t b = 0; b < BreakPoints.size(); b++)
-			{
-				if (BreakPoints[b].Function)
-					Stream << b << " - " << BreakPoints[b].Name << std::endl;
-				else
-					Stream << b << " - " << BreakPoints[b].Name << ":" << BreakPoints[b].Line << std::endl;
-			}
-			Output(Stream.str());
-		}
-		void Debugger::ListMemberProperties(ImmediateContext* Context)
-		{
-			VI_ASSERT_V(Context != nullptr, "context should be set");
-
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT_V(Base != nullptr, "context should be set");
-
-			void* Pointer = Base->GetThisPointer();
-			if (Pointer != nullptr)
-			{
-				Core::StringStream Stream;
-				Stream << "this = " << ToString(Pointer, Base->GetThisTypeId(), 3, VirtualMachine::Get(Base->GetEngine())) << std::endl;
-				Output(Stream.str());
-			}
-		}
-		void Debugger::ListLocalVariables(ImmediateContext* Context)
-		{
-			VI_ASSERT_V(Context != nullptr, "context should be set");
-
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT_V(Base != nullptr, "context should be set");
-
-			asIScriptFunction* Function = Base->GetFunction();
-			if (!Function)
-				return;
-
-			Core::StringStream Stream;
-			for (asUINT n = 0; n < Function->GetVarCount(); n++)
-			{
-				if (Base->IsVarInScope(n))
-				{
-					int TypeId;
-					Base->GetVar(n, 0, 0, &TypeId);
-					Stream << Function->GetVarDecl(n) << " = " << ToString(Base->GetAddressOfVar(n), TypeId, 3, VirtualMachine::Get(Base->GetEngine())) << std::endl;
-				}
-			}
-			Output(Stream.str());
-		}
-		void Debugger::ListGlobalVariables(ImmediateContext* Context)
-		{
-			VI_ASSERT_V(Context != nullptr, "context should be set");
-
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT_V(Base != nullptr, "context should be set");
-
-			asIScriptFunction* Function = Base->GetFunction();
-			if (!Function)
-				return;
-
-			asIScriptModule* Mod = Function->GetModule();
-			if (!Mod)
-				return;
-
-			Core::StringStream Stream;
-			for (asUINT n = 0; n < Mod->GetGlobalVarCount(); n++)
-			{
-				int TypeId = 0;
-				Mod->GetGlobalVar(n, nullptr, nullptr, &TypeId);
-				Stream << Mod->GetGlobalVarDeclaration(n) << " = " << ToString(Mod->GetAddressOfGlobalVar(n), TypeId, 3, VirtualMachine::Get(Base->GetEngine())) << std::endl;
-			}
-			Output(Stream.str());
-		}
-		void Debugger::ListStatistics(ImmediateContext* Context)
-		{
-			VI_ASSERT_V(Context != nullptr, "context should be set");
-
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT_V(Base != nullptr, "context should be set");
-
-			asIScriptEngine* Engine = Base->GetEngine();
-			asUINT GCCurrSize, GCTotalDestr, GCTotalDet, GCNewObjects, GCTotalNewDestr;
-			Engine->GetGCStatistics(&GCCurrSize, &GCTotalDestr, &GCTotalDet, &GCNewObjects, &GCTotalNewDestr);
-
-			Core::StringStream Stream;
-			Stream << "Garbage collector:" << std::endl;
-			Stream << " current size:          " << GCCurrSize << std::endl;
-			Stream << " total destroyed:       " << GCTotalDestr << std::endl;
-			Stream << " total detected:        " << GCTotalDet << std::endl;
-			Stream << " new objects:           " << GCNewObjects << std::endl;
-			Stream << " new objects destroyed: " << GCTotalNewDestr << std::endl;
-			Output(Stream.str());
-		}
-		void Debugger::PrintCallstack(ImmediateContext* Context)
-		{
-			VI_ASSERT_V(Context != nullptr, "context should be set");
-
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT_V(Base != nullptr, "context should be set");
-
-			Core::StringStream Stream;
-			const char* File = nullptr;
-			int LineNumber = 0;
-
-			for (asUINT n = 0; n < Base->GetCallstackSize(); n++)
-			{
-				LineNumber = Base->GetLineNumber(n, 0, &File);
-				Stream << (File ? File : "{unnamed}") << ":" << LineNumber << "; " << Base->GetFunction(n)->GetDeclaration() << std::endl;
-			}
-
-			Output(Stream.str());
-		}
-		void Debugger::AddFuncBreakPoint(const Core::String& Function)
-		{
-			size_t B = Function.find_first_not_of(" \t");
-			size_t E = Function.find_last_not_of(" \t");
-			Core::String Actual = Function.substr(B, E != Core::String::npos ? E - B + 1 : Core::String::npos);
-
-			Core::StringStream Stream;
-			Stream << "Adding deferred break point for function '" << Actual << "'" << std::endl;
-			Output(Stream.str());
-
-			BreakPoint Point(Actual, 0, true);
-			BreakPoints.push_back(Point);
-		}
-		void Debugger::AddFileBreakPoint(const Core::String& File, int LineNumber)
-		{
-			size_t R = File.find_last_of("\\/");
-			Core::String Actual;
-
-			if (R != Core::String::npos)
-				Actual = File.substr(R + 1);
-			else
-				Actual = File;
-
-			size_t B = Actual.find_first_not_of(" \t");
-			size_t E = Actual.find_last_not_of(" \t");
-			Actual = Actual.substr(B, E != Core::String::npos ? E - B + 1 : Core::String::npos);
-
-			Core::StringStream Stream;
-			Stream << "Setting break point in file '" << Actual << "' at line " << LineNumber << std::endl;
-			Output(Stream.str());
-
-			BreakPoint Point(Actual, LineNumber, false);
-			BreakPoints.push_back(Point);
-		}
-		void Debugger::PrintHelp()
-		{
-			Output(" c - Continue\n"
-				" s - Step into\n"
-				" n - Next step\n"
-				" o - Step out\n"
-				" b - Set break point\n"
-				" l - List various things\n"
-				" r - Remove break point\n"
-				" p - Print value\n"
-				" w - Where am I?\n"
-				" a - Abort execution\n"
-				" h - Print this help text\n");
-		}
-		void Debugger::Output(const Core::String& Data)
-		{
-			std::cout << Data;
-		}
-		void Debugger::SetEngine(VirtualMachine* Engine)
-		{
-			if (Engine != nullptr && Engine != VM)
-			{
-				if (VM != nullptr)
-					VM->GetEngine()->Release();
-
-				VM = Engine;
-				VM->GetEngine()->AddRef();
-			}
-		}
-		bool Debugger::CheckBreakPoint(ImmediateContext* Context)
-		{
-			VI_ASSERT(Context != nullptr, false, "context should be set");
-
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT(Base != nullptr, false, "context should be set");
-
-			const char* Temp = 0;
-			int Line = Base->GetLineNumber(0, 0, &Temp);
-
-			Core::String File = Temp ? Temp : "";
-			size_t R = File.find_last_of("\\/");
-			if (R != Core::String::npos)
-				File = File.substr(R + 1);
-
-			asIScriptFunction* Function = Base->GetFunction();
-			if (LastFunction != Function)
-			{
-				for (size_t n = 0; n < BreakPoints.size(); n++)
-				{
-					if (BreakPoints[n].Function)
-					{
-						if (BreakPoints[n].Name == Function->GetName())
-						{
-							Core::StringStream Stream;
-							Stream << "Entering function '" << BreakPoints[n].Name << "'. Transforming it into break point" << std::endl;
-							Output(Stream.str());
-
-							BreakPoints[n].Name = File;
-							BreakPoints[n].Line = Line;
-							BreakPoints[n].Function = false;
-							BreakPoints[n].NeedsAdjusting = false;
-						}
-					}
-					else if (BreakPoints[n].NeedsAdjusting && BreakPoints[n].Name == File)
-					{
-						int Number = Function->FindNextLineWithCode(BreakPoints[n].Line);
-						if (Number >= 0)
-						{
-							BreakPoints[n].NeedsAdjusting = false;
-							if (Number != BreakPoints[n].Line)
-							{
-								Core::StringStream Stream;
-								Stream << "Moving break point " << n << " in file '" << File << "' to next line with code at line " << Number << std::endl;
-								Output(Stream.str());
-
-								BreakPoints[n].Line = Number;
-							}
-						}
-					}
-				}
-			}
-
-			LastFunction = Function;
-			for (size_t n = 0; n < BreakPoints.size(); n++)
-			{
-				if (!BreakPoints[n].Function && BreakPoints[n].Line == Line && BreakPoints[n].Name == File)
-				{
-					Core::StringStream Stream;
-					Stream << "Reached break point " << n << " in file '" << File << "' at line " << Line << std::endl;
-					Output(Stream.str());
-					return true;
-				}
-			}
-
-			return false;
-		}
-		bool Debugger::InterpretCommand(const Core::String& Command, ImmediateContext* Context)
-		{
-			VI_ASSERT(Context != nullptr, false, "context should be set");
-
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT(Base != nullptr, false, "context should be set");
-
-			if (Command.length() == 0)
-				return true;
-
-			switch (Command[0])
-			{
-				case 'c':
-					Action = DebugAction::CONTINUE;
-					break;
-				case 's':
-					Action = DebugAction::STEP_INTO;
-					break;
-				case 'n':
-					Action = DebugAction::STEP_OVER;
-					LastCommandAtStackLevel = Base->GetCallstackSize();
-					break;
-				case 'o':
-					Action = DebugAction::STEP_OUT;
-					LastCommandAtStackLevel = Base->GetCallstackSize();
-					break;
-				case 'b':
-				{
-					size_t Div = Command.find(':');
-					if (Div != Core::String::npos && Div > 2)
-					{
-						Core::String File = Command.substr(2, Div - 2);
-						Core::String Line = Command.substr(Div + 1);
-						int Number = Core::Stringify(&Line).ToInt();
-
-						AddFileBreakPoint(File, Number);
-					}
-					else if (Div == Core::String::npos && (Div = Command.find_first_not_of(" \t", 1)) != Core::String::npos)
-					{
-						Core::String Function = Command.substr(Div);
-						AddFuncBreakPoint(Function);
-					}
-					else
-					{
-						Output("Incorrect format for setting break point, expected one of:\n"
-							" b <file name>:<line number>\n"
-							" b <function name>\n");
-					}
-
-					return false;
-				}
-				case 'r':
-				{
-					if (Command.length() > 2)
-					{
-						Core::String BR = Command.substr(2);
-						if (BR == "all")
-						{
-							BreakPoints.clear();
-							Output("All break points have been removed\n");
-						}
-						else
-						{
-							int NBR = Core::Stringify(&BR).ToInt();
-							if (NBR >= 0 && NBR < (int)BreakPoints.size())
-								BreakPoints.erase(BreakPoints.begin() + NBR);
-
-							ListBreakPoints();
-						}
-					}
-					else
-					{
-						Output("Incorrect format for removing break points, expected:\n"
-							" r <all|number of break point>\n");
-					}
-
-					return false;
-				}
-				case 'l':
-				{
-					bool WantPrintHelp = false;
-					size_t P = Command.find_first_not_of(" \t", 1);
-					if (P != Core::String::npos)
-					{
-						if (Command[P] == 'b')
-							ListBreakPoints();
-						else if (Command[P] == 'v')
-							ListLocalVariables(Context);
-						else if (Command[P] == 'g')
-							ListGlobalVariables(Context);
-						else if (Command[P] == 'm')
-							ListMemberProperties(Context);
-						else if (Command[P] == 's')
-							ListStatistics(Context);
-						else
-						{
-							Output("Unknown list option.\n");
-							WantPrintHelp = true;
-						}
-					}
-					else
-					{
-						Output("Incorrect format for list command.\n");
-						WantPrintHelp = true;
-					}
-
-					if (WantPrintHelp)
-					{
-						Output("Expected format: \n"
-							" l <list option>\n"
-							"Available options: \n"
-							" b - breakpoints\n"
-							" v - local variables\n"
-							" m - member properties\n"
-							" g - global variables\n"
-							" s - statistics\n");
-					}
-
-					return false;
-				}
-				case 'h':
-					PrintHelp();
-					return false;
-				case 'p':
-				{
-					size_t P = Command.find_first_not_of(" \t", 1);
-					if (P == Core::String::npos)
-					{
-						Output("Incorrect format for print, expected:\n"
-							" p <expression>\n");
-					}
-					else
-						PrintValue(Command.substr(P), Context);
-
-					return false;
-				}
-				case 'w':
-					PrintCallstack(Context);
-					return false;
-				case 'a':
-					Base->Abort();
-					break;
-				default:
-					Output("Unknown command\n");
-					return false;
-			}
-
-			return true;
-		}
-		Core::String Debugger::ToString(void* Value, unsigned int TypeId, int ExpandMembers, VirtualMachine* Engine)
-		{
-			if (Value == 0)
-				return "<null>";
-
-			if (Engine == 0)
-				Engine = VM;
-
-			if (!VM || !Engine)
-				return "<null>";
-
-			asIScriptEngine* Base = Engine->GetEngine();
-			if (!Base)
-				return "<null>";
-
-			Core::StringStream Stream;
-			if (TypeId == asTYPEID_VOID)
-				return "<void>";
-			else if (TypeId == asTYPEID_BOOL)
-				return *(bool*)Value ? "true" : "false";
-			else if (TypeId == asTYPEID_INT8)
-				Stream << (int)*(signed char*)Value;
-			else if (TypeId == asTYPEID_INT16)
-				Stream << (int)*(signed short*)Value;
-			else if (TypeId == asTYPEID_INT32)
-				Stream << *(signed int*)Value;
-			else if (TypeId == asTYPEID_INT64)
-#if defined(_MSC_VER) && _MSC_VER <= 1200
-				Stream << "{...}";
-#else
-				Stream << *(asINT64*)Value;
-#endif
-			else if (TypeId == asTYPEID_UINT8)
-				Stream << (unsigned int)*(unsigned char*)Value;
-			else if (TypeId == asTYPEID_UINT16)
-				Stream << (unsigned int)*(unsigned short*)Value;
-			else if (TypeId == asTYPEID_UINT32)
-				Stream << *(unsigned int*)Value;
-			else if (TypeId == asTYPEID_UINT64)
-#if defined(_MSC_VER) && _MSC_VER <= 1200
-				Stream << "{...}";
-#else
-				Stream << *(asQWORD*)Value;
-#endif
-			else if (TypeId == asTYPEID_FLOAT)
-				Stream << *(float*)Value;
-			else if (TypeId == asTYPEID_DOUBLE)
-				Stream << *(double*)Value;
-			else if ((TypeId & asTYPEID_MASK_OBJECT) == 0)
-			{
-				Stream << *(asUINT*)Value;
-
-				asITypeInfo* T = Base->GetTypeInfoById(TypeId);
-				for (int n = T->GetEnumValueCount(); n-- > 0;)
-				{
-					int EnumVal;
-					const char* EnumName = T->GetEnumValueByIndex(n, &EnumVal);
-
-					if (EnumVal == *(int*)Value)
-					{
-						Stream << ", " << EnumName;
-						break;
-					}
-				}
-			}
-			else if (TypeId & asTYPEID_SCRIPTOBJECT)
-			{
-				if (TypeId & asTYPEID_OBJHANDLE)
-					Value = *(void**)Value;
-
-				asIScriptObject* Object = (asIScriptObject*)Value;
-				Stream << "{" << Object << "}";
-
-				if (Object && ExpandMembers > 0)
-				{
-					asITypeInfo* Type = Object->GetObjectType();
-					for (asUINT n = 0; n < Object->GetPropertyCount(); n++)
-					{
-						if (n == 0)
-							Stream << " ";
-						else
-							Stream << ", ";
-
-						Stream << Type->GetPropertyDeclaration(n) << " = " << ToString(Object->GetAddressOfProperty(n), Object->GetPropertyTypeId(n), ExpandMembers - 1, VirtualMachine::Get(Type->GetEngine()));
-					}
-				}
-			}
-			else
-			{
-				if (TypeId & asTYPEID_OBJHANDLE)
-					Value = *(void**)Value;
-
-				asITypeInfo* Type = Base->GetTypeInfoById(TypeId);
-				if (Type->GetFlags() & asOBJ_REF)
-					Stream << "{" << Value << "}";
-
-				if (Value != nullptr)
-				{
-					auto It = ToStringCallbacks.find(Type);
-					if (It == ToStringCallbacks.end())
-					{
-						if (Type->GetFlags() & asOBJ_TEMPLATE)
-						{
-							asITypeInfo* TmpType = Base->GetTypeInfoByName(Type->GetName());
-							It = ToStringCallbacks.find(TmpType);
-						}
-					}
-
-					if (It != ToStringCallbacks.end())
-					{
-						if (Type->GetFlags() & asOBJ_REF)
-							Stream << " ";
-
-						Core::String Text = It->second(Value, ExpandMembers, this);
-						Stream << Text;
-					}
-				}
-			}
-
-			return Stream.str();
-		}
-		VirtualMachine* Debugger::GetEngine()
-		{
-			return VM;
-		}
 	}
 }

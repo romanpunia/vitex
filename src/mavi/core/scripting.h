@@ -1529,6 +1529,111 @@ namespace Mavi
 			static Compiler* Get(ImmediateContext* Context);
 		};
 
+		class VI_OUT DebuggerContext final : public Core::Reference<DebuggerContext>
+		{
+		public:
+			typedef std::function<Core::String(void* Object, int Members)> ToStringCallback;
+			typedef std::function<Core::String(void* Object, int Members, int TypeId)> ToStringTypeCallback;
+			typedef std::function<bool(ImmediateContext*, const Core::Vector<Core::String>&)> CommandCallback;
+			typedef std::function<void(const Core::String&)> OutputCallback;
+			typedef std::function<Core::String()> InputCallback;
+
+		protected:
+			enum class DebugAction
+			{
+				Trigger,
+				Switch,
+				Continue,
+				StepInto,
+				StepOver,
+				StepOut
+			};
+
+			enum class ArgsType
+			{
+				NoArgs,
+				Expression,
+				Array
+			};
+
+			struct BreakPoint
+			{
+				Core::String Name;
+				bool NeedsAdjusting;
+				bool Function;
+				int Line;
+
+				BreakPoint(const Core::String& N, int L, bool F) noexcept : Name(N), NeedsAdjusting(true), Function(F), Line(L)
+				{
+				}
+			};
+
+			struct CommandData
+			{
+				CommandCallback Callback;
+				Core::String Description;
+				ArgsType Arguments;
+			};
+
+			struct ThreadData
+			{
+				ImmediateContext* Context;
+				std::thread::id Id;
+			};
+
+		protected:
+			Core::UnorderedMap<const asITypeInfo*, ToStringCallback> FastToStringCallbacks;
+			Core::UnorderedMap<Core::String, ToStringTypeCallback> SlowToStringCallbacks;
+			Core::UnorderedMap<Core::String, CommandData> Commands;
+			Core::UnorderedMap<Core::String, Core::String> Descriptions;
+			Core::Vector<ThreadData> Threads;
+			Core::Vector<BreakPoint> BreakPoints;
+			std::recursive_mutex ThreadBarrier;
+			std::recursive_mutex Mutex;
+			ImmediateContext* LastContext;
+			unsigned int LastCommandAtStackLevel;
+			asIScriptFunction* LastFunction;
+			VirtualMachine* VM;
+			OutputCallback OnOutput;
+			InputCallback OnInput;
+			DebugAction Action;
+
+		public:
+			DebuggerContext(bool IsSuspended = true) noexcept;
+			~DebuggerContext() noexcept;
+			void SetOutputCallback(OutputCallback&& Callback);
+			void SetInputCallback(InputCallback&& Callback);
+			void AddToStringCallback(const TypeInfo& Type, ToStringCallback&& Callback);
+			void AddToStringCallback(const Core::String& Type, const ToStringTypeCallback& Callback);
+			void Input(ImmediateContext* Context);
+			void Output(const Core::String& Data);
+			void LineCallback(asIScriptContext* Context);
+			void AddFileBreakPoint(const Core::String& File, int LineNumber);
+			void AddFuncBreakPoint(const Core::String& Function);
+			void ListBreakPoints();
+			void ListThreads();
+			void ListLocalVariables(ImmediateContext* Context);
+			void ListGlobalVariables(ImmediateContext* Context);
+			void ListMemberProperties(ImmediateContext* Context);
+			void ListSourceCode(ImmediateContext* Context);
+			void ListStatistics(ImmediateContext* Context);
+			void PrintCallstack(ImmediateContext* Context);
+			void PrintValue(const Core::String& Expression, ImmediateContext* Context);
+			void SetEngine(VirtualMachine* Engine);
+			bool InterpretCommand(const Core::String& Command, ImmediateContext* Context);
+			bool CheckBreakPoint(ImmediateContext* Context);
+			Core::String ToString(void* Value, unsigned int TypeId, int MaxDepth);
+			VirtualMachine* GetEngine();
+
+		private:
+			void AddCommand(const Core::String& Name, const Core::String& Description, ArgsType Type, const CommandCallback& Callback);
+			void AddDefaultCommands();
+			void AddDefaultStringifiers();
+			void ClearThread(ImmediateContext* Context);
+			int ExecuteExpression(ImmediateContext* Context, const Core::String& Code);
+			ThreadData GetThread(ImmediateContext* Context);
+		};
+
 		class VI_OUT ImmediateContext final : public Core::Reference<ImmediateContext>
 		{
 		private:
@@ -1574,6 +1679,7 @@ namespace Mavi
 			Core::String GetStackTrace(size_t Skips, size_t MaxFrames) const;
 			int PushState();
 			int PopState();
+			int ExecuteNext();
 			bool IsNested(unsigned int* NestCount = 0) const;
 			bool IsThrown() const;
 			bool IsPending();
@@ -1678,6 +1784,7 @@ namespace Mavi
 
 		private:
 			Core::UnorderedMap<Core::String, Core::String> Files;
+			Core::UnorderedMap<Core::String, Core::String> Sections;
 			Core::UnorderedMap<Core::String, Core::Schema*> Datas;
 			Core::UnorderedMap<Core::String, ByteCodeInfo> Opcodes;
 			Core::UnorderedMap<Core::String, Kernel> Kernels;
@@ -1687,8 +1794,9 @@ namespace Mavi
 			Core::String DefaultNamespace;
 			Compute::Preprocessor::Desc Proc;
 			Compute::IncludeDesc Include;
-			WhenErrorCallback WherError;
+			WhenErrorCallback WhenError;
 			uint64_t Scope;
+			DebuggerContext* Debugger;
 			asIScriptEngine* Engine;
 			unsigned int Imports;
 			bool Cached;
@@ -1698,7 +1806,9 @@ namespace Mavi
 			~VirtualMachine() noexcept;
 			void SetImports(unsigned int Opts);
 			void SetCache(bool Enabled);
+			void SetDebugger(Core::Unique<DebuggerContext> Context);
 			void ClearCache();
+			void ClearSections();
 			void SetCompilerErrorCallback(const WhenErrorCallback& Callback);
 			void SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc);
 			void SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc);
@@ -1736,6 +1846,7 @@ namespace Mavi
 			int EndNamespaceIsolated();
 			int Namespace(const char* Namespace, const std::function<int(VirtualMachine*)>& Callback);
 			int NamespaceIsolated(const char* Namespace, size_t DefaultMask, const std::function<int(VirtualMachine*)>& Callback);
+			int AddScriptSection(asIScriptModule* Module, const char* Name, const char* Code, size_t CodeLength = 0, int LineOffset = 0);
 			int GetTypeNameScope(const char** TypeName, const char** Namespace, size_t* NamespaceSize) const;
 			size_t BeginAccessMask(size_t DefaultMask);
 			size_t EndAccessMask();
@@ -1747,10 +1858,9 @@ namespace Mavi
 			void SetDocumentRoot(const Core::String& Root);
 			size_t GetProperty(Features Property) const;
 			asIScriptEngine* GetEngine() const;
+			DebuggerContext* GetDebugger() const;
 			Core::String GetDocumentRoot() const;
 			Core::Vector<Core::String> GetSubmodules() const;
-			Core::Vector<Core::String> VerifyModules(const Core::String& Directory, const Compute::RegexSource& Exp);
-			bool VerifyModule(const Core::String& Path);
 			bool IsNullable(int TypeId);
 			bool AddSubmodule(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const SubmoduleCallback& Callback);
 			bool ImportFile(const Core::String& Path, Core::String* Out);
@@ -1786,6 +1896,7 @@ namespace Mavi
 			const char* GetTypeIdDecl(int TypeId, bool IncludeNamespace = false) const;
 			int GetSizeOfPrimitiveType(int TypeId) const;
 			Core::String GetObjectView(void* Object, int TypeId);
+			Core::String GetScriptSection(const Core::String& SectionName);
 			TypeInfo GetTypeInfoById(int TypeId) const;
 			TypeInfo GetTypeInfoByName(const char* Name);
 			TypeInfo GetTypeInfoByDecl(const char* Decl) const;
@@ -1876,64 +1987,6 @@ namespace Mavi
 				VI_ASSERT(Name != nullptr, TypeClass(nullptr, "", -1), "name should be set");
 				return SetPodAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | (size_t)ObjectBehaviours::POD | Bridge::GetTypeTraits<T>());
 			}
-		};
-
-		class VI_OUT Debugger final : public Core::Reference<Debugger>
-		{
-		public:
-			typedef Core::String(*ToStringCallback)(void* Object, int ExpandLevel, Debugger* Dbg);
-
-		protected:
-			enum class DebugAction
-			{
-				CONTINUE,
-				STEP_INTO,
-				STEP_OVER,
-				STEP_OUT
-			};
-
-			struct BreakPoint
-			{
-				Core::String Name;
-				bool NeedsAdjusting;
-				bool Function;
-				int Line;
-
-				BreakPoint(const Core::String& N, int L, bool F) noexcept : Name(N), NeedsAdjusting(true), Function(F), Line(L)
-				{
-				}
-			};
-
-		protected:
-			Core::UnorderedMap<const asITypeInfo*, ToStringCallback> ToStringCallbacks;
-			Core::Vector<BreakPoint> BreakPoints;
-			unsigned int LastCommandAtStackLevel;
-			asIScriptFunction* LastFunction;
-			VirtualMachine* VM;
-			DebugAction Action;
-
-		public:
-			Debugger() noexcept;
-			~Debugger() noexcept;
-			void RegisterToStringCallback(const TypeInfo& Type, ToStringCallback Callback);
-			void TakeCommands(ImmediateContext* Context);
-			void Output(const Core::String& Data);
-			void LineCallback(ImmediateContext* Context);
-			void PrintHelp();
-			void AddFileBreakPoint(const Core::String& File, int LineNumber);
-			void AddFuncBreakPoint(const Core::String& Function);
-			void ListBreakPoints();
-			void ListLocalVariables(ImmediateContext* Context);
-			void ListGlobalVariables(ImmediateContext* Context);
-			void ListMemberProperties(ImmediateContext* Context);
-			void ListStatistics(ImmediateContext* Context);
-			void PrintCallstack(ImmediateContext* Context);
-			void PrintValue(const Core::String& Expression, ImmediateContext* Context);
-			void SetEngine(VirtualMachine* Engine);
-			bool InterpretCommand(const Core::String& Command, ImmediateContext* Context);
-			bool CheckBreakPoint(ImmediateContext* Context);
-			Core::String ToString(void* Value, unsigned int TypeId, int ExpandMembersLevel, VirtualMachine* Engine);
-			VirtualMachine* GetEngine();
 		};
 	}
 }

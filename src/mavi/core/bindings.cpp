@@ -22,8 +22,8 @@
 #define TYPENAME_CLOSURE "closure"
 #define TYPENAME_THREAD "thread"
 #define TYPENAME_REF "ref"
-#define TYPENAME_WEAKREF "weak_ref"
-#define TYPENAME_CONSTWEAKREF "const_weak_ref"
+#define TYPENAME_WEAK "weak"
+#define TYPENAME_CONSTWEAK "const_weak"
 #define TYPENAME_PROMISE "promise"
 #define TYPENAME_SCHEMA "schema"
 #define TYPENAME_DECIMAL "decimal"
@@ -796,6 +796,17 @@ namespace Mavi
 
 				return false;
 			}
+			void* Any::GetAddressOfObject()
+			{
+				if (Value.TypeId & asTYPEID_OBJHANDLE)
+					return &Value.Object;
+				else if (Value.TypeId & asTYPEID_MASK_OBJECT)
+					return Value.Object;
+				else if (Value.TypeId <= asTYPEID_DOUBLE || Value.TypeId & asTYPEID_MASK_SEQNBR)
+					return &Value.Integer;
+
+				return nullptr;
+			}
 			int Any::GetTypeId() const
 			{
 				return Value.TypeId;
@@ -1424,7 +1435,7 @@ namespace Mavi
 							Context->SetArgObject(0, (void*)B);
 						}
 
-						if (Context->Execute() == asEXECUTION_FINISHED)
+						if (ImmediateContext::Get(Context)->ExecuteNext() == asEXECUTION_FINISHED)
 							return (int)Context->GetReturnDWord() < 0;
 					}
 				}
@@ -1539,7 +1550,7 @@ namespace Mavi
 							Context->SetArgObject(0, (void*)B);
 						}
 
-						if (Context->Execute() == asEXECUTION_FINISHED)
+						if (ImmediateContext::Get(Context)->ExecuteNext() == asEXECUTION_FINISHED)
 							return Context->GetReturnByte() != 0;
 
 						return false;
@@ -1559,7 +1570,7 @@ namespace Mavi
 							Context->SetArgObject(0, (void*)B);
 						}
 
-						if (Context->Execute() == asEXECUTION_FINISHED)
+						if (ImmediateContext::Get(Context)->ExecuteNext() == asEXECUTION_FINISHED)
 							return (int)Context->GetReturnDWord() == 0;
 
 						return false;
@@ -1820,6 +1831,7 @@ namespace Mavi
 				if (!CmpContext)
 					return;
 
+				auto* CmpContextVM = ImmediateContext::Get(CmpContext);
 				for (size_t i = Start + 1; i < End; i++)
 				{
 					Copy(Swap, GetArrayItemPointer((int)i));
@@ -1830,7 +1842,7 @@ namespace Mavi
 						CmpContext->Prepare(Function);
 						CmpContext->SetArgAddress(0, GetDataPointer(Swap));
 						CmpContext->SetArgAddress(1, At(j));
-						int Result = CmpContext->Execute();
+						int Result = CmpContextVM->ExecuteNext();
 						if (Result != asEXECUTION_FINISHED)
 							break;
 
@@ -2937,9 +2949,9 @@ namespace Mavi
 				Type = _Type;
 				AddRefHandle();
 			}
-			void* Ref::GetRef()
+			void* Ref::GetAddressOfObject()
 			{
-				return Pointer;
+				return &Pointer;
 			}
 			asITypeInfo* Ref::GetType() const
 			{
@@ -3054,12 +3066,12 @@ namespace Mavi
 				Base->~Ref();
 			}
 
-			WeakRef::WeakRef(asITypeInfo* _Type) noexcept : WeakRefFlag(nullptr), Type(_Type), Ref(nullptr)
+			Weak::Weak(asITypeInfo* _Type) noexcept : WeakRefFlag(nullptr), Type(_Type), Ref(nullptr)
 			{
 				VI_ASSERT_V(Type != nullptr, "type should be set");
 				Type->AddRef();
 			}
-			WeakRef::WeakRef(const WeakRef& Other) noexcept
+			Weak::Weak(const Weak& Other) noexcept
 			{
 				Ref = Other.Ref;
 				Type = Other.Type;
@@ -3068,9 +3080,9 @@ namespace Mavi
 				if (WeakRefFlag)
 					WeakRefFlag->AddRef();
 			}
-			WeakRef::WeakRef(void* RefPtr, asITypeInfo* _Type) noexcept
+			Weak::Weak(void* RefPtr, asITypeInfo* _Type) noexcept
 			{
-				if (!_Type || !(strcmp(_Type->GetName(), TYPENAME_WEAKREF) == 0 || strcmp(_Type->GetName(), TYPENAME_CONSTWEAKREF) == 0))
+				if (!_Type || !(strcmp(_Type->GetName(), TYPENAME_WEAK) == 0 || strcmp(_Type->GetName(), TYPENAME_CONSTWEAK) == 0))
 					return;
 
 				Ref = RefPtr;
@@ -3081,7 +3093,7 @@ namespace Mavi
 				if (WeakRefFlag)
 					WeakRefFlag->AddRef();
 			}
-			WeakRef::~WeakRef() noexcept
+			Weak::~Weak() noexcept
 			{
 				if (Type)
 					Type->Release();
@@ -3089,14 +3101,14 @@ namespace Mavi
 				if (WeakRefFlag)
 					WeakRefFlag->Release();
 			}
-			WeakRef& WeakRef::operator =(const WeakRef& Other) noexcept
+			Weak& Weak::operator =(const Weak& Other) noexcept
 			{
 				if (Ref == Other.Ref && WeakRefFlag == Other.WeakRefFlag)
 					return *this;
 
 				if (Type != Other.Type)
 				{
-					if (!(strcmp(Type->GetName(), TYPENAME_CONSTWEAKREF) == 0 && strcmp(Other.Type->GetName(), TYPENAME_WEAKREF) == 0 && Type->GetSubType() == Other.Type->GetSubType()))
+					if (!(strcmp(Type->GetName(), TYPENAME_CONSTWEAK) == 0 && strcmp(Other.Type->GetName(), TYPENAME_WEAK) == 0 && Type->GetSubType() == Other.Type->GetSubType()))
 						return *this;
 				}
 
@@ -3110,7 +3122,7 @@ namespace Mavi
 
 				return *this;
 			}
-			WeakRef& WeakRef::Set(void* NewRef)
+			Weak& Weak::Set(void* NewRef)
 			{
 				if (WeakRefFlag)
 					WeakRefFlag->Release();
@@ -3127,11 +3139,11 @@ namespace Mavi
 				Type->GetEngine()->ReleaseScriptObject(NewRef, Type->GetSubType());
 				return *this;
 			}
-			asITypeInfo* WeakRef::GetRefType() const
+			asITypeInfo* Weak::GetRefType() const
 			{
 				return Type->GetSubType();
 			}
-			bool WeakRef::operator==(const WeakRef& Other) const
+			bool Weak::operator==(const Weak& Other) const
 			{
 				if (Ref == Other.Ref &&
 					WeakRefFlag == Other.WeakRefFlag &&
@@ -3140,11 +3152,25 @@ namespace Mavi
 
 				return false;
 			}
-			bool WeakRef::operator!=(const WeakRef& Other) const
+			bool Weak::operator!=(const Weak& Other) const
 			{
 				return !(*this == Other);
 			}
-			void* WeakRef::Get() const
+			int Weak::GetTypeId() const
+			{
+				if (!Type)
+					return asTYPEID_VOID;
+
+				return Type->GetTypeId();
+			}
+			void* Weak::GetAddressOfObject()
+			{
+				if (!Type)
+					return nullptr;
+
+				return &Ref;
+			}
+			void* Weak::Get() const
 			{
 				if (Ref == 0 || WeakRefFlag == 0)
 					return 0;
@@ -3160,7 +3186,7 @@ namespace Mavi
 
 				return 0;
 			}
-			bool WeakRef::Equals(void* RefPtr) const
+			bool Weak::Equals(void* RefPtr) const
 			{
 				if (Ref != RefPtr)
 					return false;
@@ -3171,22 +3197,22 @@ namespace Mavi
 
 				return true;
 			}
-			void WeakRef::Construct(asITypeInfo* Type, void* Memory)
+			void Weak::Construct(asITypeInfo* Type, void* Memory)
 			{
-				new(Memory) WeakRef(Type);
+				new(Memory) Weak(Type);
 			}
-			void WeakRef::Construct2(asITypeInfo* Type, void* RefPtr, void* Memory)
+			void Weak::Construct2(asITypeInfo* Type, void* RefPtr, void* Memory)
 			{
-				new(Memory) WeakRef(RefPtr, Type);
+				new(Memory) Weak(RefPtr, Type);
 				asIScriptContext* Context = asGetActiveContext();
 				if (Context && Context->GetState() == asEXECUTION_EXCEPTION)
-					reinterpret_cast<WeakRef*>(Memory)->~WeakRef();
+					reinterpret_cast<Weak*>(Memory)->~Weak();
 			}
-			void WeakRef::Destruct(WeakRef* Obj)
+			void Weak::Destruct(Weak* Obj)
 			{
-				Obj->~WeakRef();
+				Obj->~Weak();
 			}
-			bool WeakRef::TemplateCallback(asITypeInfo* Info, bool&)
+			bool Weak::TemplateCallback(asITypeInfo* Info, bool&)
 			{
 				asITypeInfo* SubType = Info->GetSubType();
 				if (SubType == 0)
@@ -3207,7 +3233,7 @@ namespace Mavi
 						return true;
 				}
 
-				Info->GetEngine()->WriteMessage(TYPENAME_WEAKREF, 0, 0, asMSGTYPE_ERROR, "The subtype doesn't support weak references");
+				Info->GetEngine()->WriteMessage(TYPENAME_WEAK, 0, 0, asMSGTYPE_ERROR, "The subtype doesn't support weak references");
 				return false;
 			}
 
@@ -3318,7 +3344,7 @@ namespace Mavi
 			{
 				return (RefCount & 0x7FFFFFFF);
 			}
-			int Promise::GetTypeIdOfObject()
+			int Promise::GetTypeId()
 			{
 				return Value.TypeId;
 			}
@@ -4176,8 +4202,8 @@ namespace Mavi
 			}
 			void Thread::InvokeRoutine()
 			{
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
 				{
+					std::unique_lock<std::recursive_mutex> Unique(Mutex);
 					if (!Function)
 						return Release();
 
@@ -4207,14 +4233,20 @@ namespace Mavi
 			}
 			void Thread::ResumeRoutine()
 			{
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Mutex.lock();
 				Sparcing = 1;
 
 				if (Context && Context->GetState() == Activation::SUSPENDED)
+				{
+					Mutex.unlock();
 					Context->Resume();
+					Mutex.lock();
+				}
 
 				if (Sparcing == 2)
 					Release();
+
+				Mutex.unlock();
 				asThreadCleanup();
 			}
 			void Thread::AddRef()
@@ -4224,20 +4256,30 @@ namespace Mavi
 			}
 			void Thread::Suspend()
 			{
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Mutex.lock();
 				Sparcing = 1;
 
 				if (Context && Context->GetState() != Activation::SUSPENDED)
+				{
+					Mutex.unlock();
 					Context->Suspend();
+				}
+				else
+					Mutex.unlock();
 			}
 			void Thread::Resume()
 			{
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Mutex.lock();
 				if (Procedure.joinable())
+				{
+					Mutex.unlock();
 					Procedure.join();
-	
+					Mutex.lock();
+				}
+
 				Procedure = std::thread(&Thread::ResumeRoutine, this);
 				VI_DEBUG("[vm] resume thread at %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
+				Mutex.unlock();
 			}
 			void Thread::Release()
 			{
@@ -4284,11 +4326,13 @@ namespace Mavi
 				if (std::this_thread::get_id() == Procedure.get_id())
 					return -1;
 
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
-				if (!Procedure.joinable())
-					return -1;
+				{
+					std::unique_lock<std::recursive_mutex> Unique(Mutex);
+					if (!Procedure.joinable())
+						return -1;
 
-				VI_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
+					VI_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
+				}
 				Procedure.join();
 				return 1;
 			}
@@ -8175,32 +8219,32 @@ namespace Mavi
 				if (!Engine)
 					return false;
 
-				Engine->RegisterObjectType("weak_ref<class T>", sizeof(WeakRef), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_TEMPLATE | asOBJ_APP_CLASS_DAK);
-				Engine->RegisterObjectBehaviour("weak_ref<T>", asBEHAVE_CONSTRUCT, "void f(int&in)", asFUNCTION(WeakRef::Construct), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("weak_ref<T>", asBEHAVE_CONSTRUCT, "void f(int&in, T@+)", asFUNCTION(WeakRef::Construct2), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("weak_ref<T>", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(WeakRef::Destruct), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("weak_ref<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(WeakRef::TemplateCallback), asCALL_CDECL);
-				Engine->RegisterObjectMethod("weak_ref<T>", "T@ opImplCast()", asMETHOD(WeakRef, Get), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("weak_ref<T>", "T@ get() const", asMETHODPR(WeakRef, Get, () const, void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("weak_ref<T>", "weak_ref<T> &opHndlAssign(const weak_ref<T> &in)", asMETHOD(WeakRef, operator=), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("weak_ref<T>", "weak_ref<T> &opAssign(const weak_ref<T> &in)", asMETHOD(WeakRef, operator=), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("weak_ref<T>", "bool opEquals(const weak_ref<T> &in) const", asMETHODPR(WeakRef, operator==, (const WeakRef&) const, bool), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("weak_ref<T>", "weak_ref<T> &opHndlAssign(T@)", asMETHOD(WeakRef, Set), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("weak_ref<T>", "bool opEquals(const T@+) const", asMETHOD(WeakRef, Equals), asCALL_THISCALL);
-				Engine->RegisterObjectType("const_weak_ref<class T>", sizeof(WeakRef), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_TEMPLATE | asOBJ_APP_CLASS_DAK);
-				Engine->RegisterObjectBehaviour("const_weak_ref<T>", asBEHAVE_CONSTRUCT, "void f(int&in)", asFUNCTION(WeakRef::Construct), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("const_weak_ref<T>", asBEHAVE_CONSTRUCT, "void f(int&in, const T@+)", asFUNCTION(WeakRef::Construct2), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("const_weak_ref<T>", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(WeakRef::Destruct), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("const_weak_ref<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(WeakRef::TemplateCallback), asCALL_CDECL);
-				Engine->RegisterObjectMethod("const_weak_ref<T>", "const T@ opImplCast() const", asMETHOD(WeakRef, Get), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak_ref<T>", "const T@ get() const", asMETHODPR(WeakRef, Get, () const, void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak_ref<T>", "const_weak_ref<T> &opHndlAssign(const const_weak_ref<T> &in)", asMETHOD(WeakRef, operator=), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak_ref<T>", "const_weak_ref<T> &opAssign(const const_weak_ref<T> &in)", asMETHOD(WeakRef, operator=), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak_ref<T>", "bool opEquals(const const_weak_ref<T> &in) const", asMETHODPR(WeakRef, operator==, (const WeakRef&) const, bool), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak_ref<T>", "const_weak_ref<T> &opHndlAssign(const T@)", asMETHOD(WeakRef, Set), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak_ref<T>", "bool opEquals(const T@+) const", asMETHOD(WeakRef, Equals), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak_ref<T>", "const_weak_ref<T> &opHndlAssign(const weak_ref<T> &in)", asMETHOD(WeakRef, operator=), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak_ref<T>", "bool opEquals(const weak_ref<T> &in) const", asMETHODPR(WeakRef, operator==, (const WeakRef&) const, bool), asCALL_THISCALL);
+				Engine->RegisterObjectType("weak<class T>", sizeof(Weak), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_TEMPLATE | asOBJ_APP_CLASS_DAK);
+				Engine->RegisterObjectBehaviour("weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in)", asFUNCTION(Weak::Construct), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in, T@+)", asFUNCTION(Weak::Construct2), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("weak<T>", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(Weak::Destruct), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("weak<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Weak::TemplateCallback), asCALL_CDECL);
+				Engine->RegisterObjectMethod("weak<T>", "T@ opImplCast()", asMETHOD(Weak, Get), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("weak<T>", "T@ get() const", asMETHODPR(Weak, Get, () const, void*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("weak<T>", "weak<T> &opHndlAssign(const weak<T> &in)", asMETHOD(Weak, operator=), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("weak<T>", "weak<T> &opAssign(const weak<T> &in)", asMETHOD(Weak, operator=), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("weak<T>", "bool opEquals(const weak<T> &in) const", asMETHODPR(Weak, operator==, (const Weak&) const, bool), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("weak<T>", "weak<T> &opHndlAssign(T@)", asMETHOD(Weak, Set), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("weak<T>", "bool opEquals(const T@+) const", asMETHOD(Weak, Equals), asCALL_THISCALL);
+				Engine->RegisterObjectType("const_weak<class T>", sizeof(Weak), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_TEMPLATE | asOBJ_APP_CLASS_DAK);
+				Engine->RegisterObjectBehaviour("const_weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in)", asFUNCTION(Weak::Construct), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("const_weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in, const T@+)", asFUNCTION(Weak::Construct2), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("const_weak<T>", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(Weak::Destruct), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("const_weak<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Weak::TemplateCallback), asCALL_CDECL);
+				Engine->RegisterObjectMethod("const_weak<T>", "const T@ opImplCast() const", asMETHOD(Weak, Get), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("const_weak<T>", "const T@ get() const", asMETHODPR(Weak, Get, () const, void*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("const_weak<T>", "const_weak<T> &opHndlAssign(const const_weak<T> &in)", asMETHOD(Weak, operator=), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("const_weak<T>", "const_weak<T> &opAssign(const const_weak<T> &in)", asMETHOD(Weak, operator=), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("const_weak<T>", "bool opEquals(const const_weak<T> &in) const", asMETHODPR(Weak, operator==, (const Weak&) const, bool), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("const_weak<T>", "const_weak<T> &opHndlAssign(const T@)", asMETHOD(Weak, Set), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("const_weak<T>", "bool opEquals(const T@+) const", asMETHOD(Weak, Equals), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("const_weak<T>", "const_weak<T> &opHndlAssign(const weak<T> &in)", asMETHOD(Weak, operator=), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("const_weak<T>", "bool opEquals(const weak<T> &in) const", asMETHODPR(Weak, operator==, (const Weak&) const, bool), asCALL_THISCALL);
 				
 				return true;
 			}

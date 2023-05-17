@@ -939,6 +939,8 @@ namespace Mavi
 			Stringify& Substring(const Stringify::Settle& Result);
 			Stringify& Splice(size_t Start, size_t End);
 			Stringify& Trim();
+			Stringify& TrimStart();
+			Stringify& TrimEnd();
 			Stringify& Fill(const char& Char);
 			Stringify& Fill(const char& Char, size_t Count);
 			Stringify& Fill(const char& Char, size_t Start, size_t Count);

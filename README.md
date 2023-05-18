@@ -113,6 +113,7 @@ Another important aspect of Mavi is schemas, they are used to serialize and dese
 + Compiler with preprocessor from Compute module
 + Coroutines are supported throughout the script module
 + Generator keyword **co_await** can be used to await and unwrap any promise in non-blocking manner (syntax follows C++20 co_await)
++ Generator keyword **throw** can be used to throw more readable exceptions with categories (syntax follows C++ throw)
 + Module system to add bindings as include files
 + Symbolic imports to import functions from C/C++ libraries directly to script
 + Pointer wrapper to work directly with raw pointers

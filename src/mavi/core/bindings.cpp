@@ -4356,7 +4356,7 @@ namespace Mavi
 					Context->SetUserData(nullptr, ContextUD);
 					if (State != asEXECUTION_SUSPENDED)
 					{
-						Exception = Exception::Pointer(Context->GetContext());
+						Except = Exception::Pointer(Context->GetContext());
 						Context->Unprepare();
 					}
 					if (Sparcing == 0)
@@ -4464,8 +4464,8 @@ namespace Mavi
 				Procedure.join();
 
 				std::unique_lock<std::recursive_mutex> Unique(Mutex);
-				if (!Exception.Empty())
-					Exception::Throw(Exception);
+				if (!Except.Empty())
+					Exception::Throw(Except);
 
 				return 1;
 			}

@@ -921,7 +921,7 @@ namespace Mavi
 				} Pipe[2];
 
 			private:
-				Exception::Pointer Exception;
+				Exception::Pointer Except;
 				std::thread Procedure;
 				std::recursive_mutex Mutex;
 				asIScriptFunction* Function;

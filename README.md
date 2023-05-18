@@ -119,8 +119,8 @@ Another important aspect of Mavi is schemas, they are used to serialize and dese
 + Pointer wrapper to work directly with raw pointers
 + Strings with pointer conversion support to work with C char arrays
 + Powerful IO-abstracted multithreaded debugger interface with GDB syntax
-+ Standard library
-+ Mavi bindings (WIP 70%)
++ Optional JIT compiler useful for CPU intensive script-side code execution
++ Standard library (WIP 75%)
 #### Graphics
 + Window (activity) system
 + Input detection (keyboard, cursor, controller, joystick, multi-touch)
@@ -264,6 +264,7 @@ Dependency options
 + **VI_USE_SPIRV** will enable SPIRV Cross and Glslang libraries if any, defaults to true
 + **VI_USE_SHADERS** to embed shaders from **/src/shaders** to **/src/mavi/graphics/dynamic/shaders.hpp**, defaults to true
 + **VI_USE_SIMD** will enable simd optimisations (processor-specific), defaults to false
++ **VI_USE_FCTX** will enable optional JIT compiler for AngelScript, defaults to false
 + **VI_USE_FCTX** will enable internal fcontext implementation for coroutines, defaults to true
 + **VI_USE_BULLET3** will enable built-in Bullet3 library and physics interfaces, defaults to true
 + **VI_USE_RMLUI** will enable built-in RmlUi library and gui interfaces, defaults to true

@@ -9493,7 +9493,7 @@ namespace Mavi
 			IncludeResult Result;
 			if (!Core::Stringify(Desc.Path).StartsOf("/."))
 			{
-				if (Desc.Root.empty())
+				if (Desc.Path.empty() || Desc.Root.empty())
 				{
 					Result.Module = Core::Stringify(Desc.Path).Replace('\\', '/').R();
 					Result.IsSystem = true;

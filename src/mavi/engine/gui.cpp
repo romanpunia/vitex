@@ -591,7 +591,7 @@ namespace Mavi
 
 					Scope->Basis->AddRef();
 					Scripting::Compiler* Compiler = Scope->Basis->Compiler;
-					Compiler->ExecuteScoped(Content.c_str(), Content.size()).When([Scope](int&&)
+					Compiler->ExecuteScoped(Content).When([Scope](int&&)
 					{
 						Scope->Basis->Release();
 					});

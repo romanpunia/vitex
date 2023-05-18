@@ -3,6 +3,9 @@
 #include <iostream>
 #ifndef ANGELSCRIPT_H 
 #include <angelscript.h>
+#ifdef VI_HAS_JIT
+#include "../../supplies/angelscript/compiler/compiler.h"
+#endif
 #endif
 
 namespace
@@ -2141,7 +2144,7 @@ namespace Mavi
 			VI_ASSERT(BuiltOK, -1, "module should be built");
 
 			CByteCodeStream* Stream = VI_NEW(CByteCodeStream);
-			int R = Scope->SaveByteCode(Stream, Info->Debug);
+			int R = Scope->SaveByteCode(Stream, !Info->Debug);
 			Info->Data = Stream->GetCode();
 			VI_DELETE(CByteCodeStream, Stream);
 
@@ -2340,30 +2343,74 @@ namespace Mavi
 
 			return Context->Execute(Function, std::move(OnArgs));
 		}
-		Core::Promise<int> Compiler::ExecuteScoped(const Core::String& Code, const char* Args, ArgsCallback&& OnArgs)
-		{
-			return ExecuteScoped(Code.c_str(), Code.size(), Args, std::move(OnArgs));
-		}
-		Core::Promise<int> Compiler::ExecuteScoped(const char* Buffer, size_t Length, const char* Args, ArgsCallback&& OnArgs)
+		Core::Promise<int> Compiler::ExecuteScoped(const Core::String& Buffer, const char* Returns, const char* Args, ArgsCallback&& OnArgs)
 		{
 			VI_ASSERT(VM != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
-			VI_ASSERT(Buffer != nullptr && Length > 0, Core::Promise<int>(asINVALID_ARG), "buffer should not be empty");
+			VI_ASSERT(!Buffer.empty(), Core::Promise<int>(asINVALID_ARG), "buffer should not be empty");
 			VI_ASSERT(Context != nullptr, Core::Promise<int>(asINVALID_ARG), "context should be set");
 			VI_ASSERT(Scope != nullptr, Core::Promise<int>(asINVALID_ARG), "module should not be empty");
 			VI_ASSERT(BuiltOK, Core::Promise<int>(asINVALID_ARG), "module should be built");
 
-			Core::String Eval = "void __vfbdy(";
-			if (Args != nullptr)
-				Eval.append(Args);
-			Eval.append("){return\n");
-			Eval.append(Buffer, Length);
-			Eval += "\n;}";
+			Core::String Eval;
+			Eval.append(Returns ? Returns : "void");
+			Eval.append(" __vfunc(");
+			Eval.append(Args ? Args : "");
+			Eval.append("){");
+
+			if (Returns != nullptr && strncmp(Returns, "void", 4) != 0)
+			{
+				size_t Offset = Buffer.size();
+				while (Offset > 0)
+				{
+					char U = Buffer[Offset - 1];
+					if (U == '\"' || U == '\'')
+					{
+						--Offset;
+						while (Offset > 0)
+						{
+							if (Buffer[--Offset] == U)
+								break;
+						}
+
+						continue;
+					}
+					else if (U == ';' && Offset < Buffer.size())
+						break;
+					--Offset;
+				}
+
+				if (Offset > 0)
+					Eval.append(Buffer.substr(0, Offset));
+
+				size_t Size = strlen(Returns);
+				Eval.append("return ");
+				if (Returns[Size - 1] == '@')
+				{
+					Eval.append("@");
+					Eval.append(Returns, Size - 1);
+				}
+				else
+					Eval.append(Returns);
+				
+				Eval.append("(");
+				Eval.append(Buffer.substr(Offset));
+				if (Eval.back() == ';')
+					Eval.erase(Eval.end() - 1);
+				Eval.append(");}");
+			}
+			else
+			{
+				Eval.append(Buffer);
+				if (Eval.back() == ';')
+					Eval.erase(Eval.end() - 1);
+				Eval.append(";}");
+			}
 
 			asIScriptModule* Source = GetModule().GetModule();
 			return Core::Cotask<Core::Promise<int>>([this, Source, Eval, OnArgs = std::move(OnArgs)]() mutable
 			{
 				asIScriptFunction* Function = nullptr; int R = 0;
-				while ((R = Source->CompileFunction("__vfbdy", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function)) == asBUILD_IN_PROGRESS)
+				while ((R = Source->CompileFunction("__vfunc", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function)) == asBUILD_IN_PROGRESS)
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
 
 				if (R < 0)
@@ -2403,7 +2450,7 @@ namespace Mavi
 		}
 		int Compiler::CompilerUD = 154;
 
-		DebuggerContext::DebuggerContext(bool IsSuspended) noexcept : ForceSwitchThreads(0), LastContext(nullptr), LastFunction(nullptr), VM(nullptr), Action(IsSuspended ? DebugAction::Trigger : DebugAction::Continue), IsInputError(false)
+		DebuggerContext::DebuggerContext(DebugType Type) noexcept : ForceSwitchThreads(0), LastContext(nullptr), LastFunction(nullptr), VM(nullptr), Action(Type == DebugType::Suspended ? DebugAction::Trigger : DebugAction::Continue), InputError(false), Attachable(Type != DebugType::Detach)
 		{
 			LastCommandAtStackLevel = 0;
 			AddDefaultCommands();
@@ -2926,12 +2973,12 @@ namespace Mavi
 		}
 		void DebuggerContext::AllowInputAfterFailure()
 		{
-			IsInputError = false;
+			InputError = false;
 		}
 		void DebuggerContext::Input(ImmediateContext* Context)
 		{
 			VI_ASSERT_V(Context != nullptr, "context should be set");
-			if (IsInputError)
+			if (InputError)
 				return;
 
 			asIScriptContext* Base = Context->GetContext();
@@ -2945,13 +2992,13 @@ namespace Mavi
 				{
 					if (!OnInput(Data))
 					{
-						IsInputError = true;
+						InputError = true;
 						break;
 					}
 				}
 				else if (!Core::Console::Get()->ReadLine(Data, 1024))
 				{
-					IsInputError = true;
+					InputError = true;
 					break;
 				}
 				
@@ -3499,9 +3546,13 @@ namespace Mavi
 		}
 		bool DebuggerContext::IsInputIgnored()
 		{
-			return IsInputError;
+			return InputError;
 		}
-		Core::String DebuggerContext::ToString(void* Value, unsigned int TypeId, int Depth)
+		bool DebuggerContext::IsAttached()
+		{
+			return Attachable;
+		}
+		Core::String DebuggerContext::ToString(void* Value, unsigned int TypeId, int Depth, bool SkipAddresses)
 		{
 			if (Value == 0 || !VM)
 				return "null";
@@ -3537,9 +3588,9 @@ namespace Mavi
 				Stream << *(double*)Value;
 			else if ((TypeId & asTYPEID_MASK_OBJECT) == 0)
 			{
+				asITypeInfo* T = Base->GetTypeInfoById(TypeId);
 				Stream << *(asUINT*)Value;
 
-				asITypeInfo* T = Base->GetTypeInfoById(TypeId);
 				for (int n = T->GetEnumValueCount(); n-- > 0;)
 				{
 					int EnumVal;
@@ -3558,7 +3609,8 @@ namespace Mavi
 					Value = *(void**)Value;
 
 				asIScriptObject* Object = (asIScriptObject*)Value;
-				Stream << "0x" << Object;
+				if (!SkipAddresses)
+					Stream << "0x" << Object;
 
 				if (Object && Depth > 0)
 				{
@@ -3578,7 +3630,7 @@ namespace Mavi
 					Value = *(void**)Value;
 
 				asITypeInfo* Type = Base->GetTypeInfoById(TypeId);
-				if (Type->GetFlags() & asOBJ_REF)
+				if (!SkipAddresses && Type->GetFlags() & asOBJ_REF)
 					Stream << "0x" << Value;
 
 				if (Value != nullptr)
@@ -3592,7 +3644,7 @@ namespace Mavi
 
 					if (It != FastToStringCallbacks.end())
 					{
-						if (Type->GetFlags() & asOBJ_REF)
+						if (!SkipAddresses && Type->GetFlags() & asOBJ_REF)
 							Stream << " ";
 
 						Stream << It->second(Value, Depth);
@@ -3605,7 +3657,7 @@ namespace Mavi
 					auto It = SlowToStringCallbacks.find(Type->GetName());
 					if (It != SlowToStringCallbacks.end())
 					{
-						if (Type->GetFlags() & asOBJ_REF)
+						if (!SkipAddresses && Type->GetFlags() & asOBJ_REF)
 							Stream << " ";
 
 						Stream << It->second(Value, Depth, TypeId);
@@ -3615,7 +3667,7 @@ namespace Mavi
 
 				if (Value != nullptr && Depth > 0)
 				{
-					if (Type->GetFlags() & asOBJ_REF)
+					if (!SkipAddresses && Type->GetFlags() & asOBJ_REF)
 						Stream << " {";
 					else
 						Stream << "{";
@@ -3682,14 +3734,14 @@ namespace Mavi
 			VI_ASSERT(VM != nullptr, asINVALID_ARG, "engine should be set");
 			VI_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
 
-			Core::String Eval = "any@ __vfdbgbdy(){return any(" + Code + ");}";
+			Core::String Eval = "any@ __vfdbgfunc(){return any(" + (Code.empty() || Code.back() != ';' ? Code : Code.substr(0, Code.size() - 1)) + ");}";
 			asIScriptModule* Module = Context->GetFunction().GetModule().GetModule();
 			asIScriptFunction* Function = nullptr; int Result = 0;
 			Bindings::Any* Data = nullptr;
 			VM->DetachDebuggerFromContext(Context->GetContext());
 			VM->ImportSubmodule("std/any");
 
-			while ((Result = Module->CompileFunction("__vfdbgbdy", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function)) == asBUILD_IN_PROGRESS)
+			while ((Result = Module->CompileFunction("__vfdbgfunc", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function)) == asBUILD_IN_PROGRESS)
 				std::this_thread::sleep_for(std::chrono::microseconds(100));
 
 			if (Result < 0)
@@ -4278,7 +4330,7 @@ namespace Mavi
 		}
 		int ImmediateContext::ContextUD = 152;
 
-		VirtualMachine::VirtualMachine() noexcept : Scope(0), Debugger(nullptr), Engine(asCreateScriptEngine()), Imports((uint32_t)Imports::All), Cached(true)
+		VirtualMachine::VirtualMachine() noexcept : Scope(0), Debugger(nullptr), Engine(asCreateScriptEngine()), Translator(nullptr), Imports((uint32_t)Imports::All), Cached(true)
 		{
 			Include.Exts.push_back(".as");
 			Include.Exts.push_back(".so");
@@ -4310,7 +4362,11 @@ namespace Mavi
 			VI_CLEAR(Debugger);
 			CleanupThisThread();
 			if (Engine != nullptr)
+			{
 				Engine->ShutDownAndRelease();
+				Engine = nullptr;
+			}
+			SetByteCodeTranslator((unsigned int)TranslationOptions::Disabled);
 			ClearCache();
 		}
 		int VirtualMachine::SetFunctionDef(const char* Decl)
@@ -4539,6 +4595,26 @@ namespace Mavi
 			VI_ASSERT(Decl != nullptr, nullptr, "declaration should be set");
 			return Engine->GetTypeInfoByDecl(Decl);
 		}
+		bool VirtualMachine::SetByteCodeTranslator(unsigned int Options)
+		{
+#ifdef HAS_AS_JIT
+			std::unique_lock<std::mutex> Unique(Sync.General);
+			asCJITCompiler* Context = (asCJITCompiler*)Translator;
+			bool TranslatorActive = (Options != (unsigned int)TranslationOptions::Disabled);
+			VI_DELETE(asCJITCompiler, Context);
+
+			Context = TranslatorActive ? VI_NEW(asCJITCompiler, Options) : nullptr;
+			Translator = (asIScriptTranslator*)Context;
+			if (!Engine)
+				return true;
+
+			Engine->SetEngineProperty(asEP_INCLUDE_JIT_INSTRUCTIONS, (asPWORD)TranslatorActive);
+			Engine->SetJITCompiler(Context);
+			return true;
+#else
+			return false;
+#endif
+		}
 		void VirtualMachine::SetCodeGenerator(const Core::String& Name, GeneratorCallback&& Callback)
 		{
 			Sync.General.lock();
@@ -4627,7 +4703,7 @@ namespace Mavi
 		void VirtualMachine::AttachDebuggerToContext(asIScriptContext* Context)
 		{
 			VI_ASSERT_V(Context != nullptr, "context should be set");
-			if (!Debugger)
+			if (!Debugger || !Debugger->IsAttached())
 				return DetachDebuggerFromContext(Context);
 
 			Context->SetLineCallback(asMETHOD(DebuggerContext, LineCallback), Debugger, asCALL_THISCALL);
@@ -5186,7 +5262,7 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, -1, "engine should be set");
 			return Engine->SetEngineProperty((asEEngineProp)Property, (asPWORD)Value);
 		}
-		void VirtualMachine::SetDocumentRoot(const Core::String& Value)
+		void VirtualMachine::SetModuleDirectory(const Core::String& Value)
 		{
 			Sync.General.lock();
 			Include.Root = Value;
@@ -5197,7 +5273,7 @@ namespace Mavi
 				Include.Root.append(1, VI_SPLITTER);
 			Sync.General.unlock();
 		}
-		Core::String VirtualMachine::GetDocumentRoot() const
+		Core::String VirtualMachine::GetModuleDirectory() const
 		{
 			return Include.Root;
 		}
@@ -5220,6 +5296,14 @@ namespace Mavi
 		bool VirtualMachine::IsNullable(int TypeId)
 		{
 			return TypeId == 0;
+		}
+		bool VirtualMachine::IsTranslatorSupported()
+		{
+#ifdef VI_HAS_JIT
+			return true;
+#else
+			return false;
+#endif
 		}
 		bool VirtualMachine::AddSubmodule(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const SubmoduleCallback& Callback)
 		{
@@ -5740,7 +5824,7 @@ namespace Mavi
 			Engine->AddSubmodule("std/audio", { "std/string", "std/vectors" }, Bindings::Registry::LoadAudio);
 			Engine->AddSubmodule("std/activity", { "std/string", "std/vectors" }, Bindings::Registry::LoadActivity);
 			Engine->AddSubmodule("std/graphics", { "std/activity", "std/string", "std/vectors", "std/vertices", "std/shapes", "std/key_frames" }, Bindings::Registry::LoadGraphics);
-			Engine->AddSubmodule("std/network", { "std/string", "std/array", "std/dictionary" }, Bindings::Registry::LoadNetwork);
+			Engine->AddSubmodule("std/network", { "std/string", "std/array", "std/dictionary", "std/promise" }, Bindings::Registry::LoadNetwork);
 			Engine->AddSubmodule("std/vm", { "std/string" }, Bindings::Registry::LoadVM);
 			Engine->AddSubmodule("std/gui/control", { "std/vectors", "std/schema", "std/array" }, Bindings::Registry::LoadUiControl);
 			Engine->AddSubmodule("std/gui/model", { "std/gui/control", }, Bindings::Registry::LoadUiModel);

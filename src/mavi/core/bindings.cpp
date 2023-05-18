@@ -389,15 +389,10 @@ namespace Mavi
 			{
 				return Mavi::Core::Stringify(Base).Replace(A, B, (size_t)Offset).R();
 			}
-			as_int64_t String::IntStore(const Core::String& Value, size_t Base, size_t* ByteCount)
+			as_int64_t String::IntStore(const Core::String& Value, size_t Base)
 			{
 				if (Base != 10 && Base != 16)
-				{
-					if (ByteCount)
-						*ByteCount = 0;
-
 					return 0;
-				}
 
 				const char* End = &Value[0];
 				bool Sign = false;
@@ -432,22 +427,15 @@ namespace Mavi
 					}
 				}
 
-				if (ByteCount)
-					*ByteCount = size_t(size_t(End - Value.c_str()));
-
 				if (Sign)
 					Result = -Result;
 
 				return Result;
 			}
-			as_uint64_t String::UIntStore(const Core::String& Value, size_t Base, size_t* ByteCount)
+			as_uint64_t String::UIntStore(const Core::String& Value, size_t Base)
 			{
 				if (Base != 10 && Base != 16)
-				{
-					if (ByteCount)
-						*ByteCount = 0;
 					return 0;
-				}
 
 				const char* End = &Value[0];
 				as_uint64_t Result = 0;
@@ -474,28 +462,15 @@ namespace Mavi
 					}
 				}
 
-				if (ByteCount)
-					*ByteCount = size_t(size_t(End - Value.c_str()));
-
 				return Result;
 			}
-			double String::FloatStore(const Core::String& Value, size_t* ByteCount)
+			float String::FloatStore(const Core::String& Value)
 			{
-				char* End;
-#if !defined(_WIN32_WCE) && !defined(ANDROID) && !defined(__psp2__)
-				char* Temp = setlocale(LC_NUMERIC, 0);
-				Core::String Base = Temp ? Temp : "C";
-				setlocale(LC_NUMERIC, "C");
-#endif
-
-				double res = strtod(Value.c_str(), &End);
-#if !defined(_WIN32_WCE) && !defined(ANDROID) && !defined(__psp2__)
-				setlocale(LC_NUMERIC, Base.c_str());
-#endif
-				if (ByteCount)
-					*ByteCount = size_t(size_t(End - Value.c_str()));
-
-				return res;
+				return Core::Stringify(&Value).ToFloat();
+			}
+			double String::DoubleStore(const Core::String& Value)
+			{
+				return Core::Stringify(&Value).ToDouble();
 			}
 			Core::String String::Sub(size_t Start, int Count, const Core::String& Current)
 			{
@@ -3825,6 +3800,14 @@ namespace Mavi
 			{
 				Base -= V;
 				return Base;
+			}
+			Core::Decimal& DecimalFPP(Core::Decimal& Base)
+			{
+				return ++Base;
+			}
+			Core::Decimal& DecimalFMM(Core::Decimal& Base)
+			{
+				return --Base;
 			}
 			Core::Decimal& DecimalPP(Core::Decimal& Base)
 			{
@@ -8475,9 +8458,10 @@ namespace Mavi
 				Engine->RegisterObjectMethod("string", "string to_upper() const", asFUNCTION(String::ToUpper), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "string reverse() const", asFUNCTION(String::Reverse), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "uptr@ get_ptr() const", asFUNCTION(String::ToPtr), asCALL_CDECL_OBJLAST);
-				Engine->RegisterGlobalFunction("int64 to_int(const string &in, usize = 10, usize &out = 0)", asFUNCTION(String::IntStore), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("uint64 to_uint(const string &in, usize = 10, usize &out = 0)", asFUNCTION(String::UIntStore), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double to_float(const string &in, usize &out = 0)", asFUNCTION(String::FloatStore), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("int64 to_int(const string &in, usize = 10)", asFUNCTION(String::IntStore), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("uint64 to_uint(const string &in, usize = 10)", asFUNCTION(String::UIntStore), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float to_float(const string &in)", asFUNCTION(String::FloatStore), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("double to_double(const string &in)", asFUNCTION(String::DoubleStore), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("uint8 to_char(const string &in)", asFUNCTION(String::ToChar), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string to_string(const array<string> &in, const string &in)", asFUNCTION(String::Join), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string to_string(int8)", asFUNCTION(String::ToInt8), asCALL_CDECL);
@@ -8717,6 +8701,8 @@ namespace Mavi
 				VDecimal.SetOperatorEx(Operators::DivAssign, (uint32_t)Position::Left, "decimal&", "const decimal &in", &DecimalDivEq);
 				VDecimal.SetOperatorEx(Operators::AddAssign, (uint32_t)Position::Left, "decimal&", "const decimal &in", &DecimalAddEq);
 				VDecimal.SetOperatorEx(Operators::SubAssign, (uint32_t)Position::Left, "decimal&", "const decimal &in", &DecimalSubEq);
+				VDecimal.SetOperatorEx(Operators::PreInc, (uint32_t)Position::Left, "decimal&", "", &DecimalFPP);
+				VDecimal.SetOperatorEx(Operators::PreDec, (uint32_t)Position::Left, "decimal&", "", &DecimalFMM);
 				VDecimal.SetOperatorEx(Operators::PostInc, (uint32_t)Position::Left, "decimal&", "", &DecimalPP);
 				VDecimal.SetOperatorEx(Operators::PostDec, (uint32_t)Position::Left, "decimal&", "", &DecimalMM);
 				VDecimal.SetOperatorEx(Operators::Equals, (uint32_t)Position::Const, "bool", "const decimal &in", &DecimalEq);
@@ -8865,6 +8851,7 @@ namespace Mavi
 				VConsole.SetMethod("void hide()", &Core::Console::Hide);
 				VConsole.SetMethod("void show()", &Core::Console::Show);
 				VConsole.SetMethod("void clear()", &Core::Console::Clear);
+				VConsole.SetMethod("void attach()", &Core::Console::Attach);
 				VConsole.SetMethod("void detach()", &Core::Console::Detach);
 				VConsole.SetMethod("void flush()", &Core::Console::Flush);
 				VConsole.SetMethod("void flush_write()", &Core::Console::FlushWrite);
@@ -9059,6 +9046,7 @@ namespace Mavi
 				VStream.SetMethod("int32 get_fd()", &Core::Stream::GetFd);
 				VStream.SetMethod("usize get_size()", &Core::Stream::GetSize);
 				VStream.SetMethod("usize tell()", &Core::Stream::Tell);
+				VStream.SetMethod("bool is_sized() const", &Core::Stream::IsSized);
 				VStream.SetMethodEx("bool open(const string &in, file_mode)", &StreamOpen);
 				VStream.SetMethodEx("usize write(const string &in)", &StreamWrite);
 				VStream.SetMethodEx("string read(usize)", &StreamRead);
@@ -9073,6 +9061,7 @@ namespace Mavi
 				VFileStream.SetMethod("int32 get_fd()", &Core::FileStream::GetFd);
 				VFileStream.SetMethod("usize get_size()", &Core::FileStream::GetSize);
 				VFileStream.SetMethod("usize tell()", &Core::FileStream::Tell);
+				VFileStream.SetMethod("bool is_sized() const", &Core::FileStream::IsSized);
 				VFileStream.SetMethodEx("bool open(const string &in, file_mode)", &FileStreamOpen);
 				VFileStream.SetMethodEx("usize write(const string &in)", &FileStreamWrite);
 				VFileStream.SetMethodEx("string read(usize)", &FileStreamRead);
@@ -9087,6 +9076,7 @@ namespace Mavi
 				VGzStream.SetMethod("int32 get_fd()", &Core::GzStream::GetFd);
 				VGzStream.SetMethod("usize get_size()", &Core::GzStream::GetSize);
 				VGzStream.SetMethod("usize tell()", &Core::GzStream::Tell);
+				VGzStream.SetMethod("bool is_sized() const", &Core::GzStream::IsSized);
 				VGzStream.SetMethodEx("bool open(const string &in, file_mode)", &GzStreamOpen);
 				VGzStream.SetMethodEx("usize write(const string &in)", &GzStreamWrite);
 				VGzStream.SetMethodEx("string read(usize)", &GzStreamRead);
@@ -9101,6 +9091,7 @@ namespace Mavi
 				VWebStream.SetMethod("int32 get_fd()", &Core::WebStream::GetFd);
 				VWebStream.SetMethod("usize get_size()", &Core::WebStream::GetSize);
 				VWebStream.SetMethod("usize tell()", &Core::WebStream::Tell);
+				VWebStream.SetMethod("bool is_sized() const", &Core::WebStream::IsSized);
 				VWebStream.SetMethodEx("bool open(const string &in, file_mode)", &WebStreamOpen);
 				VWebStream.SetMethodEx("usize write(const string &in)", &WebStreamWrite);
 				VWebStream.SetMethodEx("string read(usize)", &WebStreamRead);

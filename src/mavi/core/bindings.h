@@ -192,9 +192,10 @@ namespace Mavi
 				static size_t Length(const Core::String& str);
 				static void Resize(size_t l, Core::String& str);
 				static Core::String Replace(const Core::String& a, const Core::String& b, size_t o, const Core::String& base);
-				static as_int64_t IntStore(const Core::String& val, size_t base, size_t* byteCount);
-				static as_uint64_t UIntStore(const Core::String& val, size_t base, size_t* byteCount);
-				static double FloatStore(const Core::String& val, size_t* byteCount);
+				static as_int64_t IntStore(const Core::String& val, size_t base);
+				static as_uint64_t UIntStore(const Core::String& val, size_t base);
+				static float FloatStore(const Core::String& val);
+				static double DoubleStore(const Core::String& val);
 				static Core::String Sub(size_t start, int count, const Core::String& str);
 				static bool Equals(const Core::String& lhs, const Core::String& rhs);
 				static Core::String ToLower(const Core::String& Symbol);

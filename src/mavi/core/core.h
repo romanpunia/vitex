@@ -898,6 +898,7 @@ namespace Mavi
 			Stringify(float Value) noexcept;
 			Stringify(double Value) noexcept;
 			Stringify(long double Value) noexcept;
+			Stringify(Core::String&& Buffer) noexcept;
 			Stringify(const Core::String& Buffer) noexcept;
 			Stringify(Core::String* Buffer) noexcept;
 			Stringify(const Core::String* Buffer) noexcept;
@@ -1914,6 +1915,7 @@ namespace Mavi
 			void Hide();
 			void Show();
 			void Clear();
+			void Attach();
 			void Detach();
 			void Flush();
 			void FlushWrite();
@@ -2037,6 +2039,7 @@ namespace Mavi
 			virtual size_t Tell() = 0;
 			virtual int GetFd() const = 0;
 			virtual void* GetBuffer() const = 0;
+			virtual bool IsSized() const = 0;
 			void SetVirtualSize(size_t Size);
 			size_t ReadAll(const std::function<void(char*, size_t)>& Callback);
 			size_t GetVirtualSize() const;
@@ -2065,6 +2068,7 @@ namespace Mavi
 			size_t Tell() override;
 			int GetFd() const override;
 			void* GetBuffer() const override;
+			bool IsSized() const override;
 		};
 
 		class VI_OUT GzStream : public Stream
@@ -2088,6 +2092,7 @@ namespace Mavi
 			size_t Tell() override;
 			int GetFd() const override;
 			void* GetBuffer() const override;
+			bool IsSized() const override;
 		};
 
 		class VI_OUT WebStream : public Stream
@@ -2117,6 +2122,7 @@ namespace Mavi
 			size_t Tell() override;
 			int GetFd() const override;
 			void* GetBuffer() const override;
+			bool IsSized() const override;
 		};
 
 		class VI_OUT FileLog final : public Reference<FileLog>

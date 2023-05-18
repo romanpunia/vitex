@@ -3355,6 +3355,10 @@ namespace Mavi
 			Base = VI_NEW(Core::String, Core::Copy<Core::String>(Value));
 		}
 #endif
+		Stringify::Stringify(Core::String&& Buffer) noexcept : Deletable(true)
+		{
+			Base = VI_NEW(Core::String, std::move(Buffer));
+		}
 		Stringify::Stringify(const Core::String& Buffer) noexcept : Deletable(true)
 		{
 			Base = VI_NEW(Core::String, Buffer);
@@ -5911,6 +5915,22 @@ namespace Mavi
 			std::cout << "\033[2J";
 #endif
 		}
+		void Console::Attach()
+		{
+			if (Present)
+				return;
+#ifdef VI_MICROSOFT
+			CONSOLE_SCREEN_BUFFER_INFO ScreenBuffer;
+			SetConsoleCtrlHandler(ConsoleEventHandler, true);
+
+			HANDLE Base = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (GetConsoleScreenBufferInfo(Base, &ScreenBuffer))
+				Attributes = ScreenBuffer.wAttributes;
+
+			VI_TRACE("[console] attach window 0x%" PRIXPTR, (void*)Base);
+#endif
+			Present = true;
+		}
 		void Console::Detach()
 		{
 			Present = false;
@@ -6309,6 +6329,9 @@ namespace Mavi
 		}
 		size_t Stream::GetSize()
 		{
+			if (!IsSized())
+				return 0;
+
 			size_t Position = Tell();
 			Seek(FileSeek::End, 0);
 			size_t Size = Tell();
@@ -6489,6 +6512,10 @@ namespace Mavi
 		{
 			return (void*)Resource;
 		}
+		bool FileStream::IsSized() const
+		{
+			return true;
+		}
 
 		GzStream::GzStream() noexcept : Resource(nullptr)
 		{
@@ -6666,6 +6693,10 @@ namespace Mavi
 		void* GzStream::GetBuffer() const
 		{
 			return (void*)Resource;
+		}
+		bool GzStream::IsSized() const
+		{
+			return false;
 		}
 
 		WebStream::WebStream(bool IsAsync) noexcept : Resource(nullptr), Offset(0), Size(0), Async(IsAsync)
@@ -6866,6 +6897,10 @@ namespace Mavi
 		void* WebStream::GetBuffer() const
 		{
 			return (void*)Resource;
+		}
+		bool WebStream::IsSized() const
+		{
+			return true;
 		}
 
 		FileTree::FileTree(const Core::String& Folder) noexcept
@@ -8847,7 +8882,6 @@ namespace Mavi
 #if VI_DLEVEL >= 5
 			Data.Pretty = Level != (int)LogLevel::Trace;
 #else
-
 			Data.Pretty = Level != (int)LogLevel::Debug && Level != (int)LogLevel::Trace;
 #endif
 			GetDateTime(time(nullptr), Data.Date, sizeof(Data.Date));

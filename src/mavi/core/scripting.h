@@ -8,6 +8,7 @@
 class asIScriptEngine;
 class asIScriptContext;
 class asIScriptModule;
+class asIScriptTranslator;
 class asITypeInfo;
 class asIScriptFunction;
 class asIScriptGeneric;
@@ -34,7 +35,14 @@ namespace Mavi
 		{
 		};
 
-		enum class Optimizer
+		enum class DebugType
+		{
+			Suspended,
+			Attach,
+			Detach
+		};
+
+		enum class TranslationOptions
 		{
 			No_Suspend = 0x01,
 			Syscall_FPU_No_Reset = 0x02,
@@ -43,7 +51,8 @@ namespace Mavi
 			No_Switches = 0x10,
 			No_Script_Calls = 0x20,
 			Fast_Ref_Counter = 0x40,
-			Optimal = Alloc_Simple | Fast_Ref_Counter
+			Optimal = Alloc_Simple | Fast_Ref_Counter,
+			Disabled = -1
 		};
 
 		enum class LogCategory
@@ -1519,8 +1528,7 @@ namespace Mavi
 			Core::Promise<int> ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
 			Core::Promise<int> ExecuteMemory(const Core::String& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
 			Core::Promise<int> ExecuteEntry(const char* Name, ArgsCallback&& OnArgs = nullptr);
-			Core::Promise<int> ExecuteScoped(const Core::String& Code, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
-			Core::Promise<int> ExecuteScoped(const char* Buffer, size_t Length, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
+			Core::Promise<int> ExecuteScoped(const Core::String& Code, const char* Returns = nullptr, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
 			Module GetModule() const;
 			VirtualMachine* GetVM() const;
 			ImmediateContext* GetContext() const;
@@ -1602,10 +1610,11 @@ namespace Mavi
 			InputCallback OnInput;
 			ExitCallback OnExit;
 			DebugAction Action;
-			bool IsInputError;
+			bool InputError;
+			bool Attachable;
 
 		public:
-			DebuggerContext(bool IsSuspended = true) noexcept;
+			DebuggerContext(DebugType Type = DebugType::Suspended) noexcept;
 			~DebuggerContext() noexcept;
 			void SetOutputCallback(OutputCallback&& Callback);
 			void SetInputCallback(InputCallback&& Callback);
@@ -1636,7 +1645,8 @@ namespace Mavi
 			bool CheckBreakPoint(ImmediateContext* Context);
 			bool Interrupt();
 			bool IsInputIgnored();
-			Core::String ToString(void* Value, unsigned int TypeId, int MaxDepth);
+			bool IsAttached();
+			Core::String ToString(void* Value, unsigned int TypeId, int MaxDepth, bool SkipAddresses = false);
 			VirtualMachine* GetEngine();
 
 		private:
@@ -1813,12 +1823,14 @@ namespace Mavi
 			uint64_t Scope;
 			DebuggerContext* Debugger;
 			asIScriptEngine* Engine;
+			asIScriptTranslator* Translator;
 			unsigned int Imports;
 			bool Cached;
 
 		public:
 			VirtualMachine() noexcept;
 			~VirtualMachine() noexcept;
+			bool SetByteCodeTranslator(unsigned int Options);
 			void SetCodeGenerator(const Core::String& Name, GeneratorCallback&& Callback);
 			void SetImports(unsigned int Opts);
 			void SetCache(bool Enabled);
@@ -1873,13 +1885,14 @@ namespace Mavi
 			int SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object);
 			int Log(const char* Section, int Row, int Column, LogCategory Type, const char* Message);
 			int SetProperty(Features Property, size_t Value);
-			void SetDocumentRoot(const Core::String& Root);
+			void SetModuleDirectory(const Core::String& Root);
 			size_t GetProperty(Features Property) const;
 			asIScriptEngine* GetEngine() const;
 			DebuggerContext* GetDebugger() const;
-			Core::String GetDocumentRoot() const;
+			Core::String GetModuleDirectory() const;
 			Core::Vector<Core::String> GetSubmodules();
 			bool IsNullable(int TypeId);
+			bool IsTranslatorSupported();
 			bool AddSubmodule(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const SubmoduleCallback& Callback);
 			bool ImportFile(const Core::String& Path, Core::String* Out);
 			bool ImportSymbol(const Core::Vector<Core::String>& Sources, const Core::String& Name, const Core::String& Decl);

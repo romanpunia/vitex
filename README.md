@@ -117,7 +117,7 @@ Another important aspect of Mavi is schemas, they are used to serialize and dese
 + Symbolic imports to import functions from C/C++ libraries directly to script
 + Pointer wrapper to work directly with raw pointers
 + Strings with pointer conversion support to work with C char arrays
-+ Multithreaded debugger interface with GDB-like usage
++ Powerful IO-abstracted multithreaded debugger interface with GDB syntax
 + Standard library
 + Mavi bindings (WIP 70%)
 #### Graphics

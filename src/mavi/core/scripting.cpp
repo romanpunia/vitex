@@ -109,29 +109,29 @@ namespace
 
 		return Engine->GetTypeInfoByName((Name + "@").c_str());
 	}
-	void DumpNamespace(Mavi::Core::FileStream* Stream, const Mavi::Core::String& Naming, DNamespace& Namespace, Mavi::Core::String& Offset)
+	void DumpNamespace(Mavi::Core::String& Source, const Mavi::Core::String& Naming, DNamespace& Namespace, Mavi::Core::String& Offset)
 	{
 		if (!Naming.empty())
 		{
 			Offset.append("\t");
-			Stream->WriteAny("namespace %s\n{\n", Naming.c_str());
+			Source += Mavi::Core::Form("namespace %s\n{\n", Naming.c_str()).R();
 		}
 
 		for (auto It = Namespace.Enums.begin(); It != Namespace.Enums.end(); It++)
 		{
 			auto Copy = It;
-			Stream->WriteAny("%senum %s\n%s{\n\t%s", Offset.c_str(), It->first.c_str(), Offset.c_str(), Offset.c_str());
-			Stream->WriteAny("%s", GetCombination(It->second.Values, ",\n\t" + Offset).c_str());
-			Stream->WriteAny("\n%s}\n%s", Offset.c_str(), ++Copy != Namespace.Enums.end() ? "\n" : "");
+			Source += Mavi::Core::Form("%senum %s\n%s{\n\t%s", Offset.c_str(), It->first.c_str(), Offset.c_str(), Offset.c_str()).R();
+			Source += Mavi::Core::Form("%s", GetCombination(It->second.Values, ",\n\t" + Offset).c_str()).R();
+			Source += Mavi::Core::Form("\n%s}\n%s", Offset.c_str(), ++Copy != Namespace.Enums.end() ? "\n" : "").R();
 		}
 
 		if (!Namespace.Enums.empty() && (!Namespace.Classes.empty() || !Namespace.Funcdefs.empty() || !Namespace.Functions.empty()))
-			Stream->WriteAny("\n");
+			Source += Mavi::Core::Form("\n").R();
 
 		for (auto It = Namespace.Classes.begin(); It != Namespace.Classes.end(); It++)
 		{
 			auto Copy = It;
-			Stream->WriteAny("%sclass %s%s%s%s%s%s\n%s{\n\t%s",
+			Source += Mavi::Core::Form("%sclass %s%s%s%s%s%s\n%s{\n\t%s",
 				Offset.c_str(),
 				It->first.c_str(),
 				It->second.Types.empty() ? "" : "<",
@@ -139,43 +139,45 @@ namespace
 				It->second.Types.empty() ? "" : ">",
 				It->second.Interfaces.empty() ? "" : " : ",
 				It->second.Interfaces.empty() ? "" : GetCombination(It->second.Interfaces, ", ").c_str(),
-				Offset.c_str(), Offset.c_str());
-			Stream->WriteAny("%s", GetCombinationAll(It->second.Funcdefs, ";\n\t" + Offset, It->second.Props.empty() && It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str());
-			Stream->WriteAny("%s", GetCombinationAll(It->second.Props, ";\n\t" + Offset, It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str());
-			Stream->WriteAny("%s", GetCombinationAll(It->second.Methods, ";\n\t" + Offset, ";").c_str());
-			Stream->WriteAny("\n%s}\n%s", Offset.c_str(), !It->second.Functions.empty() || ++Copy != Namespace.Classes.end() ? "\n" : "");
+				Offset.c_str(), Offset.c_str()).R();
+			Source += Mavi::Core::Form("%s", GetCombinationAll(It->second.Funcdefs, ";\n\t" + Offset, It->second.Props.empty() && It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str()).R();
+			Source += Mavi::Core::Form("%s", GetCombinationAll(It->second.Props, ";\n\t" + Offset, It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str()).R();
+			Source += Mavi::Core::Form("%s", GetCombinationAll(It->second.Methods, ";\n\t" + Offset, ";").c_str()).R();
+			Source += Mavi::Core::Form("\n%s}\n%s", Offset.c_str(), !It->second.Functions.empty() || ++Copy != Namespace.Classes.end() ? "\n" : "").R();
 
 			if (It->second.Functions.empty())
 				continue;
 
-			Stream->WriteAny("%snamespace %s\n%s{\n\t%s", Offset.c_str(), It->first.c_str(), Offset.c_str(), Offset.c_str());
-			Stream->WriteAny("%s", GetCombinationAll(It->second.Functions, ";\n\t" + Offset, ";").c_str());
-			Stream->WriteAny("\n%s}\n%s", Offset.c_str(), ++Copy != Namespace.Classes.end() ? "\n" : "");
+			Source += Mavi::Core::Form("%snamespace %s\n%s{\n\t%s", Offset.c_str(), It->first.c_str(), Offset.c_str(), Offset.c_str()).R();
+			Source += Mavi::Core::Form("%s", GetCombinationAll(It->second.Functions, ";\n\t" + Offset, ";").c_str()).R();
+			Source += Mavi::Core::Form("\n%s}\n%s", Offset.c_str(), ++Copy != Namespace.Classes.end() ? "\n" : "").R();
 		}
 
 		if (!Namespace.Funcdefs.empty())
 		{
 			if (!Namespace.Enums.empty() || !Namespace.Classes.empty())
-				Stream->WriteAny("\n%s", Offset.c_str());
+				Source += Mavi::Core::Form("\n%s", Offset.c_str()).R();
 			else
-				Stream->WriteAny("%s", Offset.c_str());
+				Source += Mavi::Core::Form("%s", Offset.c_str()).R();
 		}
 
-		Stream->WriteAny("%s", GetCombinationAll(Namespace.Funcdefs, ";\n" + Offset, Namespace.Functions.empty() ? ";\n" : "\n\n" + Offset).c_str());
+		Source += Mavi::Core::Form("%s", GetCombinationAll(Namespace.Funcdefs, ";\n" + Offset, Namespace.Functions.empty() ? ";\n" : "\n\n" + Offset).c_str()).R();
 		if (!Namespace.Functions.empty() && Namespace.Funcdefs.empty())
 		{
 			if (!Namespace.Enums.empty() || !Namespace.Classes.empty())
-				Stream->WriteAny("\n");
+				Source += Mavi::Core::Form("\n").R();
 			else
-				Stream->WriteAny("%s", Offset.c_str());
+				Source += Mavi::Core::Form("%s", Offset.c_str()).R();
 		}
 
-		Stream->WriteAny("%s", GetCombinationAll(Namespace.Functions, ";\n" + Offset, ";\n").c_str());
+		Source += Mavi::Core::Form("%s", GetCombinationAll(Namespace.Functions, ";\n" + Offset, ";\n").c_str()).R();
 		if (!Naming.empty())
 		{
-			Stream->WriteAny("}");
+			Source += Mavi::Core::Form("}").R();
 			Offset.erase(Offset.begin());
 		}
+		else
+			Source.erase(Source.end() - 1);
 	}
 }
 
@@ -227,12 +229,16 @@ namespace Mavi
 			size_t Offset = 0, Lines = 0;
 			size_t LeftSide = (Max - 1) / 2;
 			size_t RightSide = (Max - 1) - LeftSide;
+			size_t BaseRightSide = (RightSide > 0 ? RightSide - 1 : 0);
 
 			VI_ASSERT(Max > 0, Total, "max lines count should be at least one");
 			while (Offset < Size)
 			{
 				if (Code[Offset++] != '\n')
-					continue;
+				{
+					if (Offset != Size)
+						continue;
+				}
 
 				++Lines;
 				if (Lines >= Line - LeftSide && LeftSide > 0)
@@ -245,7 +251,7 @@ namespace Mavi
 					Total.insert(Total.begin(), Core::Stringify(Code.substr(Start, Offset - Start)).ReplaceOf("\r\n\t\v", " ").R());
 					--Max;
 				}
-				else if (Lines >= Line + RightSide && RightSide > 0)
+				else if (Lines >= Line + (RightSide - BaseRightSide) && RightSide > 0)
 				{
 					Total.push_back(Core::Stringify(Code.substr(Start, Offset - Start)).ReplaceOf("\r\n\t\v", " ").R());
 					--RightSide; --Max;
@@ -257,13 +263,6 @@ namespace Mavi
 			}
 
 			return Total;
-		}
-		static bool GenerateSourceCode(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Buffer)
-		{
-			if (!Base->Process(Path, Buffer))
-				return false;
-
-			return Bindings::Registry::MakePostprocess(Buffer);
 		}
 
 		uint64_t TypeCache::Set(uint64_t Id, const Core::String& Name)
@@ -343,6 +342,99 @@ namespace Mavi
 		asSFuncPtr* FunctionFactory::CreateDummyBase()
 		{
 			return VI_NEW(asSFuncPtr, 0);
+		}
+		void FunctionFactory::ReplacePreconditions(const Core::String& Keyword, Core::String& Code, const std::function<Core::String(const Core::String& Expression)>& Replacer)
+		{
+			VI_ASSERT_V(!Keyword.empty(), "keyword should not be empty");
+			VI_ASSERT_V(Replacer != nullptr, "replacer callback should not be empty");
+			Core::String Match = Keyword + ' ';
+			size_t MatchSize = Match.size();
+			size_t Offset = 0;
+
+			while (Offset < Code.size())
+			{
+				char U = Code[Offset];
+				if (U == '/' && Offset + 1 < Code.size() && Code[Offset + 1] == '/' || Code[Offset + 1] == '*')
+				{
+					if (Code[++Offset] == '*')
+					{
+						while (Offset + 1 < Code.size())
+						{
+							char N1 = Code[Offset++];
+							char N2 = Code[Offset++];
+							if (N1 == '*' && N2 == '/')
+								break;
+						}
+					}
+					else
+					{
+						while (Offset < Code.size())
+						{
+							char N = Code[Offset++];
+							if (N == '\r' || N == '\n')
+								break;
+						}
+					}
+
+					continue;
+				}
+				else if (U == '\"' || U == '\'')
+				{
+					++Offset;
+					while (Offset < Code.size())
+					{
+						if (Code[Offset++] == U)
+							break;
+					}
+
+					continue;
+				}
+				else if (Code.size() - Offset < MatchSize || memcmp(Code.c_str() + Offset, Match.c_str(), MatchSize) != 0)
+				{
+					++Offset;
+					continue;
+				}
+
+				size_t Start = Offset + MatchSize;
+				while (Start < Code.size())
+				{
+					char& V = Code[Start];
+					if (!isspace(V))
+						break;
+					++Start;
+				}
+
+				int32_t Brackets = 0;
+				size_t End = Start;
+				while (End < Code.size())
+				{
+					char& V = Code[End];
+					if (V == ')')
+					{
+						if (--Brackets < 0)
+							break;
+					}
+					else if (V == '(')
+						++Brackets;
+					else if (V == ';')
+						break;
+					else if (Brackets == 0)
+					{
+						if (!isalnum(V) && V != '.' && V != ' ' && V != '_')
+							break;
+					}
+					End++;
+				}
+
+				if (End - Start > 0)
+				{
+					Core::String Expression = Replacer(Code.substr(Start, End - Start));
+					Core::Stringify(&Code).ReplacePart(Offset, End, Expression);
+					Offset += Expression.size();
+				}
+				else
+					Offset = End;
+			}
 		}
 		void FunctionFactory::ReleaseFunctor(asSFuncPtr** Ptr)
 		{
@@ -1793,7 +1885,7 @@ namespace Mavi
 				if (Buffer.empty())
 					return true;
 
-				if (!GenerateSourceCode(Processor, File.Module, Buffer))
+				if (!VM->GenerateCode(Processor, File.Module, Buffer))
 					return false;
 
 				return VM->AddScriptSection(Scope, File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0;
@@ -2074,7 +2166,7 @@ namespace Mavi
 			}
 
 			Core::String Buffer = Core::OS::File::ReadAsString(Source);
-			if (!GenerateSourceCode(Processor, Source, Buffer))
+			if (!VM->GenerateCode(Processor, Source, Buffer))
 				return asINVALID_DECLARATION;
 
 			int R = VM->AddScriptSection(Scope, Source.c_str(), Buffer.c_str(), Buffer.size());
@@ -2092,7 +2184,7 @@ namespace Mavi
 				return 0;
 
 			Core::String Buffer(Data);
-			if (!GenerateSourceCode(Processor, Name, Buffer))
+			if (!VM->GenerateCode(Processor, Name, Buffer))
 				return asINVALID_DECLARATION;
 
 			int R = VM->AddScriptSection(Scope, Name.c_str(), Buffer.c_str(), Buffer.size());
@@ -2110,7 +2202,7 @@ namespace Mavi
 				return 0;
 
 			Core::String Buffer(Data, Size);
-			if (!GenerateSourceCode(Processor, Name, Buffer))
+			if (!VM->GenerateCode(Processor, Name, Buffer))
 				return asINVALID_DECLARATION;
 
 			int R = VM->AddScriptSection(Scope, Name.c_str(), Buffer.c_str(), Buffer.size());
@@ -2311,7 +2403,7 @@ namespace Mavi
 		}
 		int Compiler::CompilerUD = 154;
 
-		DebuggerContext::DebuggerContext(bool IsSuspended) noexcept : LastFunction(nullptr), VM(nullptr), Action(IsSuspended ? DebugAction::Trigger : DebugAction::Continue)
+		DebuggerContext::DebuggerContext(bool IsSuspended) noexcept : ForceSwitchThreads(0), LastContext(nullptr), LastFunction(nullptr), VM(nullptr), Action(IsSuspended ? DebugAction::Trigger : DebugAction::Continue), IsInputError(false)
 		{
 			LastCommandAtStackLevel = 0;
 			AddDefaultCommands();
@@ -2343,6 +2435,18 @@ namespace Mavi
 					Output(Next.second);
 					Output("\n");
 				}
+				return false;
+			});
+			AddCommand("ls, loadsys", "load global system module", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				if (!Args.empty() && !Args[0].empty())
+					VM->ImportSubmodule(Args[0]);
+				return false;
+			});
+			AddCommand("le, loadext", "load global external module", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				if (!Args.empty() && !Args[0].empty())
+					VM->ImportLibrary(Args[0], true);
 				return false;
 			});
 			AddCommand("e, eval", "evaluate script expression", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
@@ -2437,9 +2541,14 @@ namespace Mavi
 				if (Args.empty())
 					goto InfoFailure;
 
-				if (Args[0] == "b" || Args[0] == "breaks")
+				if (Args[0] == "b" || Args[0] == "break")
 				{
 					ListBreakPoints();
+					return false;
+				}
+				if (Args[0] == "e" || Args[0] == "exception")
+				{
+					ShowException(Context);
 					return false;
 				}
 				else if (Args[0] == "l" || Args[0] == "locals")
@@ -2467,6 +2576,16 @@ namespace Mavi
 					ListSourceCode(Context);
 					return false;
 				}
+				else if (Args[0] == "ms" || Args[0] == "modules")
+				{
+					ListModules();
+					return false;
+				}
+				else if (Args[0] == "ri" || Args[0] == "interfaces")
+				{
+					ListInterfaces(Context);
+					return false;
+				}
 				else if (Args[0] == "gc" || Args[0] == "statistics")
 				{
 					ListStatistics(Context);
@@ -2475,12 +2594,14 @@ namespace Mavi
 
 			InfoFailure:
 				Output(
-					"  info b, info breaks - show breakpoints\n"
+					"  info b, info break - show breakpoints\n"
 					"  info l, info locals - show local variables\n"
 					"  info m, info members - show member properties\n"
 					"  info g, info globals - show global variables\n"
 					"  info t, info threads - show suspended threads\n"
 					"  info c, info code - show source code section\n"
+					"  info ms, info modules - show imported modules\n"
+					"  info ri, info interfaces - show registered script virtual interfaces\n"
 					"  info gc, info statistics - show gc statistics\n");
 				return false;
 			});
@@ -2690,6 +2811,10 @@ namespace Mavi
 		{
 			OnInput = std::move(Callback);
 		}
+		void DebuggerContext::SetExitCallback(ExitCallback&& Callback)
+		{
+			OnExit = std::move(Callback);
+		}
 		void DebuggerContext::AddToStringCallback(const TypeInfo& Type, ToStringCallback&& Callback)
 		{
 			FastToStringCallbacks[Type.GetTypeInfo()] = std::move(Callback);
@@ -2704,7 +2829,7 @@ namespace Mavi
 			ImmediateContext* Context = ImmediateContext::Get(Base);
 			VI_ASSERT_V(Context != nullptr, "context should be set");
 			auto State = Base->GetState();
-			if (State != asEXECUTION_ACTIVE)
+			if (State != asEXECUTION_ACTIVE && State != asEXECUTION_EXCEPTION)
 			{
 				if (State != asEXECUTION_SUSPENDED)
 					ClearThread(Context);
@@ -2712,9 +2837,31 @@ namespace Mavi
 			}
 
 			ThreadData Thread = GetThread(Context);
+			if (State == asEXECUTION_EXCEPTION)
+				ForceSwitchThreads = 1;
 		Retry:
 			ThreadBarrier.lock();
-			if (Action == DebugAction::Continue)
+			if (ForceSwitchThreads > 0)
+			{
+				if (State == asEXECUTION_EXCEPTION)
+				{
+					Action = DebugAction::Trigger;
+					ForceSwitchThreads = 0;
+					if (LastContext != Thread.Context)
+					{
+						LastContext = Context;
+						Output("  exception handler caused switch to thread " + Core::OS::Process::GetThreadId(Thread.Id) + " after last continuation\n");
+					}
+					ShowException(Context);
+				}
+				else
+				{
+					ThreadBarrier.unlock();
+					std::this_thread::sleep_for(std::chrono::milliseconds(10));
+					goto Retry;
+				}
+			}
+			else if (Action == DebugAction::Continue)
 			{
 				LastContext = Context;
 				if (!CheckBreakPoint(Context))
@@ -2732,7 +2879,7 @@ namespace Mavi
 				{
 					LastContext = Context;
 					Action = DebugAction::Trigger;
-					Output("switched to thread " + Core::OS::Process::GetThreadId(Thread.Id) + "\n");
+					Output("  switched to thread " + Core::OS::Process::GetThreadId(Thread.Id) + "\n");
 				}
 			}
 			else if (Action == DebugAction::StepOver)
@@ -2752,11 +2899,18 @@ namespace Mavi
 				LastContext = Context;
 				CheckBreakPoint(Context);
 			}
+			else if (Action == DebugAction::Interrupt)
+			{
+				LastContext = Context;
+				Action = DebugAction::Trigger;
+				Output("  execution interrupt signal has been raised, moving to input trigger\n");
+				PrintCallstack(Context);
+			}
 			else if (Action == DebugAction::Trigger)
 				LastContext = Context;
 
 			Input(Context);
-			bool Switching = (Action == DebugAction::Switch);
+			bool Switching = (Action == DebugAction::Switch || ForceSwitchThreads > 0);
 			ThreadBarrier.unlock();
 
 			if (Switching)
@@ -2765,17 +2919,43 @@ namespace Mavi
 				goto Retry;
 			}
 		}
+		void DebuggerContext::ExceptionCallback(asIScriptContext* Base)
+		{
+			if (!Base->WillExceptionBeCaught())
+				LineCallback(Base);
+		}
+		void DebuggerContext::AllowInputAfterFailure()
+		{
+			IsInputError = false;
+		}
 		void DebuggerContext::Input(ImmediateContext* Context)
 		{
 			VI_ASSERT_V(Context != nullptr, "context should be set");
+			if (IsInputError)
+				return;
 
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT_V(Base != nullptr, "context should be set");
 
 			for (;;)
 			{
+				Core::String Data;
 				Output("(dbg) ");
-				if (InterpretCommand(OnInput ? OnInput() : Core::Console::Get()->Read(1024), Context))
+				if (OnInput)
+				{
+					if (!OnInput(Data))
+					{
+						IsInputError = true;
+						break;
+					}
+				}
+				else if (!Core::Console::Get()->ReadLine(Data, 1024))
+				{
+					IsInputError = true;
+					break;
+				}
+				
+				if (InterpretCommand(Data, Context))
 					break;
 			}
 		}
@@ -2906,6 +3086,36 @@ namespace Mavi
 			else
 				Output("  invalid expression, no matching symbols\n");
 		}
+		void DebuggerContext::ShowException(ImmediateContext* Context)
+		{
+			Core::StringStream Stream;
+			auto Exception = Bindings::Exception::GetException();
+			if (Exception.Empty())
+				return;
+
+			Core::String Data = Exception.What();
+			auto ExceptionLines = Core::Stringify(&Data).Split('\n');
+			if (!Context->WillExceptionBeCaught() && !ExceptionLines.empty())
+				ExceptionLines[0] = "uncaught " + ExceptionLines[0];
+
+			for (auto& Line : ExceptionLines)
+			{
+				if (Line.empty())
+					continue;
+
+				if (Line.front() == '#')
+					Stream << "    " << Line << "\n";
+				else
+					Stream << "  " << Line << "\n";
+			}
+
+			const char* File = nullptr;
+			int ColumnNumber = 0;
+			int LineNumber = Context->GetExceptionLineNumber(&ColumnNumber, &File);
+			if (File != nullptr && LineNumber > 0)
+				AppendSourceCode(Stream, "exception origin", File, LineNumber, ColumnNumber, 5);
+			Output(Stream.str());
+		}
 		void DebuggerContext::ListBreakPoints()
 		{
 			Core::StringStream Stream;
@@ -2933,22 +3143,22 @@ namespace Mavi
 				Stream << "#" << Index++ << " thread " << Core::OS::Process::GetThreadId(Item.Id) << ", ";
 				if (Function != nullptr)
 				{
-					void* Address = (void*)(uintptr_t)Function->GetId();
 					if (Function->GetFuncType() == asFUNC_SCRIPT)
 						Stream << "source \"" << (Function->GetScriptSectionName() ? Function->GetScriptSectionName() : "") << "\", line " << Context->GetLineNumber() << ", in " << Function->GetDeclaration();
 					else
-						Stream << "source { native code }, in " << Function->GetDeclaration() << " nullptr";
-
-					if (Address != nullptr)
-						Stream << " 0x" << Address;
-					else
-						Stream << " nullptr";
+						Stream << "source { native code }, in " << Function->GetDeclaration();
+					Stream << " 0x" << Function;
 				}
 				else
 					Stream << "source { native code } [nullptr]";
 				Stream << "\n";
 			}
 			Output(Stream.str());
+		}
+		void DebuggerContext::ListModules()
+		{
+			for (auto& Name : VM->GetSubmodules())
+				Output("  " + Name + "\n");
 		}
 		void DebuggerContext::ListMemberProperties(ImmediateContext* Context)
 		{
@@ -3034,6 +3244,16 @@ namespace Mavi
 				Output(Line + '\n');
 			}
 		}
+		void DebuggerContext::ListInterfaces(ImmediateContext* Context)
+		{
+			for (auto& Interface : VM->DumpRegisteredInterfaces(Context))
+			{
+				Output("  listing generated <" + Interface.first + ">:\n");
+				for (auto& Line : Core::Stringify(&Interface.second).Replace("\t", "  ").Split('\n'))
+					Output("    " + Line + "\n");
+				Output("\n");
+			}
+		}
 		void DebuggerContext::ListStatistics(ImmediateContext* Context)
 		{
 			VI_ASSERT_V(Context != nullptr, "context should be set");
@@ -3061,53 +3281,23 @@ namespace Mavi
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT_V(Base != nullptr, "context should be set");
 
-			static bool FirstTime = true;
-			if (FirstTime)
-			{
-				Context->GetStackTrace(0, 64);
-				FirstTime = false;
-			}
-
 			Core::StringStream Stream;
 			const char* File = nullptr;
 			int ColumnNumber = 0;
 			int LineNumber = Base->GetLineNumber(0, &ColumnNumber, &File);
 			for (auto& Line : Core::Stringify(Context->GetStackTrace(16, 64)).Split('\n'))
 			{
+				if (Line.empty())
+					continue;
+
 				if (Line.front() == '#')
 					Stream << "    " << Line << "\n";
 				else
 					Stream << "  " << Line << "\n";
 			}
 
-			Stream << "\n";
 			if (File != nullptr && LineNumber >= 0)
-			{
-				Core::Vector<Core::String> Lines = ExtractLinesOfCode(VM->GetScriptSection(File), LineNumber, 3);
-				if (Lines.empty())
-					goto Print;
-
-				Core::Stringify Line = Lines.front();
-				Lines.erase(Lines.begin());
-
-				if (Line.Empty())
-					goto Print;
-
-				Stream << "  last 3 lines of currently executing code\n";
-				if (Lines.size() >= 1)
-					Stream << "  " << LineNumber - 1 << "  " << Core::Stringify(&Lines[0]).TrimEnd().R() << "\n";
-				Stream << "  " << LineNumber << "  " << Line.TrimEnd().R() << "\n  ";
-
-				ColumnNumber += 1 + Core::ToString(LineNumber).size();
-				for (int i = 0; i < ColumnNumber; i++)
-					Stream << " ";
-
-				if (Lines.size() >= 2)
-					Stream << "^\n  " << LineNumber + 1 << "  " << Core::Stringify(&Lines[1]).TrimEnd().R() << "\n";
-				else
-					Stream << "^\n";
-			}
-		Print:
+				AppendSourceCode(Stream, "caller origin", File, LineNumber, ColumnNumber, 5);
 			Output(Stream.str());
 		}
 		void DebuggerContext::AddFuncBreakPoint(const Core::String& Function)
@@ -3229,6 +3419,19 @@ namespace Mavi
 
 			return false;
 		}
+		bool DebuggerContext::Interrupt()
+		{
+			ThreadBarrier.lock();
+			if (Action != DebugAction::Continue && Action != DebugAction::StepInto && Action != DebugAction::StepOut)
+			{
+				ThreadBarrier.unlock();
+				return false;
+			}
+
+			Action = DebugAction::Interrupt;
+			ThreadBarrier.unlock();
+			return true;
+		}
 		bool DebuggerContext::InterpretCommand(const Core::String& Command, ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, false, "context should be set");
@@ -3293,6 +3496,10 @@ namespace Mavi
 			}
 
 			return false;
+		}
+		bool DebuggerContext::IsInputIgnored()
+		{
+			return IsInputError;
 		}
 		Core::String DebuggerContext::ToString(void* Value, unsigned int TypeId, int Depth)
 		{
@@ -3442,6 +3649,34 @@ namespace Mavi
 				}
 			}
 		}
+		void DebuggerContext::AppendSourceCode(Core::StringStream& Stream, const char* Label, const char* File, int LineNumber, int ColumnNumber, int Count)
+		{
+			if (Count % 2 == 0)
+				++Count;
+
+			Core::Vector<Core::String> Lines = ExtractLinesOfCode(VM->GetScriptSection(File), LineNumber, Count);
+			if (Lines.empty())
+				return;
+
+			Core::Stringify Line = Lines.front();
+			Lines.erase(Lines.begin());
+			if (Line.Empty())
+				return;
+
+			Stream << "\n  last " << Count << " lines of " << Label << " code\n";
+			size_t TopSize = (Lines.size() % 2 != 0 ? 1 : 0) + Lines.size() / 2;
+			for (size_t i = 0; i < TopSize; i++)
+				Stream << "  " << LineNumber + i - Lines.size() / 2 << "  " << Core::Stringify(&Lines[i]).TrimEnd().R() << "\n";
+			Stream << "  " << LineNumber << "  " << Line.TrimEnd().R() << "\n  ";
+
+			ColumnNumber += 1 + Core::ToString(LineNumber).size();
+			for (int i = 0; i < ColumnNumber; i++)
+				Stream << " ";
+
+			Stream << "^\n";
+			for (size_t i = TopSize; i < Lines.size(); i++)
+				Stream << "  " << LineNumber + i - Lines.size() / 2 << "  " << Core::Stringify(&Lines[i]).TrimEnd().R() << "\n";
+		}
 		int DebuggerContext::ExecuteExpression(ImmediateContext* Context, const Core::String& Code)
 		{
 			VI_ASSERT(VM != nullptr, asINVALID_ARG, "engine should be set");
@@ -3451,7 +3686,7 @@ namespace Mavi
 			asIScriptModule* Module = Context->GetFunction().GetModule().GetModule();
 			asIScriptFunction* Function = nullptr; int Result = 0;
 			Bindings::Any* Data = nullptr;
-			Context->ClearLineCallback();
+			VM->DetachDebuggerFromContext(Context->GetContext());
 			VM->ImportSubmodule("std/any");
 
 			while ((Result = Module->CompileFunction("__vfdbgbdy", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function)) == asBUILD_IN_PROGRESS)
@@ -3479,7 +3714,7 @@ namespace Mavi
 				Function->Release();
 			}
 
-			Context->GetContext()->SetLineCallback(asMETHOD(DebuggerContext, LineCallback), this, asCALL_THISCALL);
+			VM->AttachDebuggerToContext(Context->GetContext());
 			return Result;
 		}
 		DebuggerContext::ThreadData DebuggerContext::GetThread(ImmediateContext* Context)
@@ -3510,7 +3745,6 @@ namespace Mavi
 			VI_ASSERT_V(Base != nullptr, "context should be set");
 			VM = VirtualMachine::Get(Base->GetEngine());
 			Context->SetUserData(this, ContextUD);
-			Context->SetExceptionCallback(asFUNCTION(ExceptionLogger), this, asCALL_CDECL);
 		}
 		ImmediateContext::~ImmediateContext() noexcept
 		{
@@ -3687,26 +3921,21 @@ namespace Mavi
 				asIScriptFunction* Function = Context->GetFunction(TraceIdx);
 				if (Function != nullptr)
 				{
-					void* Address = (void*)(uintptr_t)Function->GetId();
 					Stream << "#" << TraceIdx << "   ";
-
 					if (Function->GetFuncType() == asFUNC_SCRIPT)
 						Stream << "source \"" << (Function->GetScriptSectionName() ? Function->GetScriptSectionName() : "") << "\", line " << Context->GetLineNumber(TraceIdx) << ", in " << Function->GetDeclaration();
 					else
-						Stream << "source { native code }, in " << Function->GetDeclaration() << " nullptr";
-
-					if (Address != nullptr)
-						Stream << " 0x" << Address;
-					else
-						Stream << " nullptr";
+						Stream << "source { native code }, in " << Function->GetDeclaration();
+					Stream << " 0x" << Function;
 				}
 				else
 					Stream << "source { native code } [nullptr]";
 				Stream << "\n";
 			}
 
-			Core::String Out(Stream.str());
-			return Trace + Out.substr(0, Out.size() - 1);
+			if (!Trace.empty())
+				Stream << Trace.substr(0, Trace.size() - 1);
+			return Stream.str();
 		}
 		int ImmediateContext::PushState()
 		{
@@ -3730,11 +3959,8 @@ namespace Mavi
 		bool ImmediateContext::IsThrown() const
 		{
 			VI_ASSERT(Context != nullptr, false, "context should be set");
-			const char* Exception = Context->GetExceptionString();
-			if (!Exception)
-				return false;
-
-			return Exception[0] != '\0';
+			const char* Message = Context->GetExceptionString();
+			return Message != nullptr && Message[0] != '\0';
 		}
 		bool ImmediateContext::IsPending()
 		{
@@ -3923,7 +4149,7 @@ namespace Mavi
 		int ImmediateContext::SetLineCallback(const std::function<void(ImmediateContext*)>& Callback)
 		{
 			Callbacks.Line = Callback;
-			return SetLineCallback(&ImmediateContext::LineLogger, this);
+			return SetLineCallback(&VirtualMachine::LineHandler, this);
 		}
 		int ImmediateContext::SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback)
 		{
@@ -3999,7 +4225,7 @@ namespace Mavi
 			VI_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetThisPointer(StackLevel);
 		}
-		Core::String ImmediateContext::GetErrorStackTrace()
+		Core::String ImmediateContext::GetExceptionStackTrace()
 		{
 			Exchange.lock();
 			Core::String Result = Frame.Stacktrace;
@@ -4049,44 +4275,6 @@ namespace Mavi
 				return nullptr;
 
 			return Get(Context);
-		}
-		void ImmediateContext::LineLogger(asIScriptContext* Context, void*)
-		{
-			ImmediateContext* Base = ImmediateContext::Get(Context);
-			VI_ASSERT_V(Base != nullptr, "context should be set");
-			VI_ASSERT_V(Base->Callbacks.Line, "context should be set");
-
-			Base->Callbacks.Line(Base);
-		}
-		void ImmediateContext::ExceptionLogger(asIScriptContext* Context, void*)
-		{
-			asIScriptFunction* Function = Context->GetExceptionFunction();
-			ImmediateContext* Base = ImmediateContext::Get(Context);
-			VI_ASSERT_V(Base != nullptr, "context should be set");
-
-			const char* Message = Context->GetExceptionString();
-			if (Message && Message[0] != '\0' && !Context->WillExceptionBeCaught())
-			{
-				const char* Name = Function->GetName();
-				const char* Source = Function->GetModuleName();
-				int Line = Context->GetExceptionLineNumber();
-				Core::String Trace = Base->GetStackTrace(3, 64);
-
-				VI_ERR("[vm] %s:%d %s(): runtime exception thrown\n\tdetails: %s\n\texecution flow dump: %.*s\n",
-					Source ? Source : "log", Line,
-					Name ? Name : "anonymous",
-					Message ? Message : "no additional data",
-					(int)Trace.size(), Trace.c_str());
-
-				Base->Exchange.lock();
-				Base->Frame.Stacktrace = Trace;
-				Base->Exchange.unlock();
-
-				if (Base->Callbacks.Exception)
-					Base->Callbacks.Exception(Base);
-			}
-			else if (Base->Callbacks.Exception)
-				Base->Callbacks.Exception(Base);
 		}
 		int ImmediateContext::ContextUD = 152;
 
@@ -4351,6 +4539,15 @@ namespace Mavi
 			VI_ASSERT(Decl != nullptr, nullptr, "declaration should be set");
 			return Engine->GetTypeInfoByDecl(Decl);
 		}
+		void VirtualMachine::SetCodeGenerator(const Core::String& Name, GeneratorCallback&& Callback)
+		{
+			Sync.General.lock();
+			if (Callback != nullptr)
+				Generators[Name] = std::move(Callback);
+			else
+				Generators.erase(Name);
+			Sync.General.unlock();
+		}
 		void VirtualMachine::SetImports(unsigned int Opts)
 		{
 			Imports = Opts;
@@ -4370,9 +4567,9 @@ namespace Mavi
 			for (auto* Next : Contexts)
 			{
 				if (Debugger != nullptr)
-					Next->SetLineCallback(asMETHOD(DebuggerContext, LineCallback), Debugger, asCALL_THISCALL);
+					AttachDebuggerToContext(Next);
 				else
-					Next->ClearLineCallback();
+					DetachDebuggerFromContext(Next);
 			}
 			Sync.Pool.unlock();
 			Sync.General.unlock();
@@ -4427,6 +4624,21 @@ namespace Mavi
 				Callbacks.erase(Section);
 			Sync.General.unlock();
 		}
+		void VirtualMachine::AttachDebuggerToContext(asIScriptContext* Context)
+		{
+			VI_ASSERT_V(Context != nullptr, "context should be set");
+			if (!Debugger)
+				return DetachDebuggerFromContext(Context);
+
+			Context->SetLineCallback(asMETHOD(DebuggerContext, LineCallback), Debugger, asCALL_THISCALL);
+			Context->SetExceptionCallback(asMETHOD(DebuggerContext, ExceptionCallback), Debugger, asCALL_THISCALL);
+		}
+		void VirtualMachine::DetachDebuggerFromContext(asIScriptContext* Context)
+		{
+			VI_ASSERT_V(Context != nullptr, "context should be set");
+			Context->ClearLineCallback();
+			Context->SetExceptionCallback(asFUNCTION(VirtualMachine::ExceptionHandler), Context, asCALL_CDECL);
+		}
 		bool VirtualMachine::GetByteCodeCache(ByteCodeInfo* Info)
 		{
 			VI_ASSERT(Info != nullptr, false, "bytecode should be set");
@@ -4474,10 +4686,7 @@ namespace Mavi
 		{
 			asIScriptContext* Context = Engine->RequestContext();
 			VI_ASSERT(Context != nullptr, nullptr, "cannot create script context");
-
-			if (Debugger != nullptr)
-				Context->SetLineCallback(asMETHOD(DebuggerContext, LineCallback), Debugger, asCALL_THISCALL);
-
+			AttachDebuggerToContext(Context);
 			return new ImmediateContext(Context);
 		}
 		Compiler* VirtualMachine::CreateCompiler()
@@ -4611,19 +4820,52 @@ namespace Mavi
 		{
 			Engine->GCEnumCallback(Reference);
 		}
-		bool VirtualMachine::DumpRegisteredInterfaces(const Core::String& Where)
+		bool VirtualMachine::GenerateCode(Compute::Preprocessor* Processor, const Core::String& Path, Core::String& InoutBuffer)
 		{
-			Core::UnorderedMap<Core::String, DNamespace> Namespaces;
-			Core::String Path = Core::OS::Path::ResolveDirectory(Where.c_str());
-			Core::OS::Directory::Patch(Path);
+			VI_ASSERT(Processor != nullptr, false, "preprocessor should be set");
+			if (InoutBuffer.empty())
+				return true;
 
-			if (Path.empty())
-				return false;
-
-			asUINT EnumsCount = Engine->GetEnumCount();
-			for (asUINT i = 0; i < EnumsCount; i++)
+			VI_TRACE("[vm] preprocessor source code generation at %s (%" PRIu64 " bytes)", Path.empty() ? "<anonymous>" : Path.c_str(), (uint64_t)InoutBuffer.size());
+			if (!Processor->Process(Path, InoutBuffer))
 			{
-				asITypeInfo* EType = Engine->GetEnumByIndex(i);
+				VI_ERR("[vm] preprocessor generator has failed to generate souce code\nat file path", Path.empty() ? "<anonymous>" : Path.c_str());
+				return false;
+			}
+
+			std::unique_lock<std::mutex> Unique(Sync.General);
+			for (auto& Item : Generators)
+			{
+				VI_TRACE("[vm] generate source code for %s generator at %s (%" PRIu64 " bytes)", Item.first.c_str(), Path.empty() ? "<anonymous>" : Path.c_str(), (uint64_t)InoutBuffer.size());
+				if (!Item.second(Path, InoutBuffer))
+				{
+					VI_ERR("[vm] %s generator has failed to generate souce code\nat file path", Item.first.c_str(), Path.empty() ? "<anonymous>" : Path.c_str());
+					return false;
+				}
+			}
+
+			return true;
+		}
+		Core::UnorderedMap<Core::String, Core::String> VirtualMachine::DumpRegisteredInterfaces(ImmediateContext* Context)
+		{
+			Core::UnorderedSet<Core::String> Grouping;
+			Core::UnorderedMap<Core::String, Core::String> Sources;
+			Core::UnorderedMap<Core::String, DNamespace> Namespaces;
+			Core::UnorderedMap<Core::String, Core::Vector<std::pair<Core::String, DNamespace*>>> Groups;
+			auto AddGroup = [&Grouping , &Namespaces, &Groups](const Core::String& CurrentName)
+			{
+				auto& Group = Groups[CurrentName];
+				for (auto& Namespace : Namespaces)
+				{
+					if (Grouping.find(Namespace.first) == Grouping.end())
+					{
+						Group.push_back(std::make_pair(Namespace.first, &Namespace.second));
+						Grouping.insert(Namespace.first);
+					}
+				}
+			};
+			auto AddEnum = [&Namespaces](asITypeInfo* EType)
+			{
 				const char* ENamespace = EType->GetNamespace();
 				DNamespace& Namespace = Namespaces[ENamespace ? ENamespace : ""];
 				DEnum& Enum = Namespace.Enums[EType->GetName()];
@@ -4635,12 +4877,9 @@ namespace Mavi
 					const char* EName = EType->GetEnumValueByIndex(j, &EValue);
 					Enum.Values.push_back(Core::Form("%s = %i", EName ? EName : Core::ToString(j).c_str(), EValue).R());
 				}
-			}
-
-			asUINT ObjectsCount = Engine->GetObjectTypeCount();
-			for (asUINT i = 0; i < ObjectsCount; i++)
+			};
+			auto AddObject = [this, &Namespaces](asITypeInfo* EType)
 			{
-				asITypeInfo* EType = Engine->GetObjectTypeByIndex(i);
 				asITypeInfo* EBase = EType->GetBaseType();
 				const char* CNamespace = EType->GetNamespace();
 				const char* CName = EType->GetName();
@@ -4701,12 +4940,9 @@ namespace Mavi
 					const char* FDecl = FFunction->GetDeclaration(false, false, true);
 					Class.Methods.push_back(FDecl ? FDecl : "void __unnamed" + Core::ToString(j) + "__()");
 				}
-			}
-
-			asUINT FunctionsCount = Engine->GetGlobalFunctionCount();
-			for (asUINT i = 0; i < FunctionsCount; i++)
+			};
+			auto AddFunction = [this, &Namespaces](asIScriptFunction* FFunction, asUINT Index)
 			{
-				asIScriptFunction* FFunction = Engine->GetGlobalFunctionByIndex(i);
 				const char* FNamespace = FFunction->GetNamespace();
 				const char* FDecl = FFunction->GetDeclaration(false, false, true);
 
@@ -4720,90 +4956,89 @@ namespace Mavi
 						DNamespace& Namespace = Namespaces[CNamespace ? CNamespace : ""];
 						DClass& Class = Namespace.Classes[CName];
 						const char* FDecl = FFunction->GetDeclaration(false, false, true);
-						Class.Functions.push_back(FDecl ? FDecl : "void __unnamed" + Core::ToString(i) + "__()");
-						continue;
+						Class.Functions.push_back(FDecl ? FDecl : "void __unnamed" + Core::ToString(Index) + "__()");
+						return;
 					}
 				}
 
 				DNamespace& Namespace = Namespaces[FNamespace ? FNamespace : ""];
-				Namespace.Functions.push_back(FDecl ? FDecl : "void __unnamed" + Core::ToString(i) + "__()");
-			}
-
-			asUINT FuncdefsCount = Engine->GetFuncdefCount();
-			for (asUINT i = 0; i < FuncdefsCount; i++)
+				Namespace.Functions.push_back(FDecl ? FDecl : "void __unnamed" + Core::ToString(Index) + "__()");
+			};
+			auto AddFuncdef = [this, &Namespaces](asITypeInfo* FType, asUINT Index)
 			{
-				asITypeInfo* FType = Engine->GetFuncdefByIndex(i);
 				if (FType->GetParentType() != nullptr)
-					continue;
+					return;
 
 				asIScriptFunction* FFunction = FType->GetFuncdefSignature();
 				const char* FNamespace = FType->GetNamespace();
 				DNamespace& Namespace = Namespaces[FNamespace ? FNamespace : ""];
 				const char* FDecl = FFunction->GetDeclaration(false, false, true);
-				Namespace.Funcdefs.push_back(Core::String("funcdef ") + (FDecl ? FDecl : "void __unnamed" + Core::ToString(i) + "__()"));
-			}
+				Namespace.Funcdefs.push_back(Core::String("funcdef ") + (FDecl ? FDecl : "void __unnamed" + Core::ToString(Index) + "__()"));
+			};
+			
+			asUINT EnumsCount = Engine->GetEnumCount();
+			for (asUINT i = 0; i < EnumsCount; i++)
+				AddEnum(Engine->GetEnumByIndex(i));
 
-			typedef std::pair<Core::String, DNamespace*> GroupKey;
-			Core::UnorderedMap<Core::String, std::pair<Core::String, Core::Vector<GroupKey>>> Groups;
-			for (auto& Namespace : Namespaces)
+			asUINT ObjectsCount = Engine->GetObjectTypeCount();
+			for (asUINT i = 0; i < ObjectsCount; i++)
+				AddObject(Engine->GetObjectTypeByIndex(i));
+
+			asUINT FunctionsCount = Engine->GetGlobalFunctionCount();
+			for (asUINT i = 0; i < FunctionsCount; i++)
+				AddFunction(Engine->GetGlobalFunctionByIndex(i), i);
+
+			asUINT FuncdefsCount = Engine->GetFuncdefCount();
+			for (asUINT i = 0; i < FuncdefsCount; i++)
+				AddFuncdef(Engine->GetFuncdefByIndex(i), i);
+
+			Core::String ModuleName = "__vfinterface.as";
+			if (Context != nullptr)
 			{
-				Core::String Name = Namespace.first;
-				Core::String Subname = (Namespace.first.empty() ? "" : Name);
-				auto Offset = Core::Stringify(&Name).Find("::");
-
-				if (Offset.Found)
+				asIScriptFunction* Function = Context->GetFunction().GetFunction();
+				if (Function != nullptr)
 				{
-					Name = Name.substr(0, (size_t)Offset.Start);
-					if (Groups.find(Name) != Groups.end())
+					asIScriptModule* Module = Function->GetModule();
+					if (Module != nullptr)
 					{
-						Groups[Name].second.push_back(std::make_pair(Subname, &Namespace.second));
-						continue;
+						asUINT EnumsCount = Module->GetEnumCount();
+						for (asUINT i = 0; i < EnumsCount; i++)
+							AddEnum(Module->GetEnumByIndex(i));
+
+						asUINT ObjectsCount = Module->GetObjectTypeCount();
+						for (asUINT i = 0; i < ObjectsCount; i++)
+							AddObject(Module->GetObjectTypeByIndex(i));
+
+						asUINT FunctionsCount = Module->GetFunctionCount();
+						for (asUINT i = 0; i < FunctionsCount; i++)
+							AddFunction(Module->GetFunctionByIndex(i), i);
+
+						ModuleName = Module->GetName();
 					}
 				}
-
-				Core::String File = Core::OS::Path::Resolve((Path + Core::Stringify(Name).Replace("::", "/").ToLower().R() + ".as").c_str());
-				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(File.c_str()));
-
-				auto& Source = Groups[Name];
-				Source.first = File;
-				Source.second.push_back(std::make_pair(Subname, &Namespace.second));
 			}
 
-			Core::FileStream* Stream;
+			AddGroup(ModuleName);
 			for (auto& Group : Groups)
 			{
-				Stream = (Core::FileStream*)Core::OS::File::Open(Group.second.first, Core::FileMode::Write_Only);
-				if (!Stream)
-					return false;
-
 				Core::String Offset;
-				VI_SORT(Group.second.second.begin(), Group.second.second.end(), [](const GroupKey& A, const GroupKey& B)
+				VI_SORT(Group.second.begin(), Group.second.end(), [](const auto& A, const auto& B)
 				{
 					return A.first.size() < B.first.size();
 				});
 
-				auto& List = Group.second.second;
+				auto& Source = Sources[Group.first];
+				auto& List = Group.second;
 				for (auto It = List.begin(); It != List.end(); It++)
 				{
 					auto Copy = It;
-					DumpNamespace(Stream, It->first, *It->second, Offset);
+					DumpNamespace(Source, It->first, *It->second, Offset);
 					if (++Copy != List.end())
-						Stream->WriteAny("\n\n");
+						Source += "\n\n";
 				}
-				VI_RELEASE(Stream);
 			}
 
-			return true;
-		}
-		bool VirtualMachine::DumpAllInterfaces(const Core::String& Where)
-		{
-			for (auto& Item : Modules)
-			{
-				if (!ImportSubmodule(Item.first))
-					return false;
-			}
-
-			return DumpRegisteredInterfaces(Where);
+			return Sources;
 		}
 		int VirtualMachine::AddScriptSection(asIScriptModule* Module, const char* Name, const char* Code, size_t CodeLength, int LineOffset)
 		{
@@ -4966,14 +5201,19 @@ namespace Mavi
 		{
 			return Include.Root;
 		}
-		Core::Vector<Core::String> VirtualMachine::GetSubmodules() const
+		Core::Vector<Core::String> VirtualMachine::GetSubmodules()
 		{
+			std::unique_lock<std::mutex> Unique(Sync.General);
 			Core::Vector<Core::String> Result;
+			Result.reserve(Modules.size() + Kernels.size());
 			for (auto& Module : Modules)
 			{
 				if (Module.second.Registered)
-					Result.push_back(Module.first);
+					Result.push_back(Core::Form("system(0x%" PRIXPTR "):%s", (void*)&Module.second, Module.first.c_str()).R());
 			}
+
+			for (auto& Module : Kernels)
+				Result.push_back(Core::Form("%s(0x%" PRIXPTR "):%s", Module.second.IsAddon ? "addon" : "clibrary", Module.second.Handle, Module.first.c_str()).R());
 
 			return Result;
 		}
@@ -5383,6 +5623,37 @@ namespace Mavi
 			VM->Sync.Pool.unlock();
 
 			return Context;
+		}
+		void VirtualMachine::LineHandler(asIScriptContext* Context, void*)
+		{
+			ImmediateContext* Base = ImmediateContext::Get(Context);
+			VI_ASSERT_V(Base != nullptr, "context should be set");
+			VI_ASSERT_V(Base->Callbacks.Line, "context should be set");
+			Base->Callbacks.Line(Base);
+		}
+		void VirtualMachine::ExceptionHandler(asIScriptContext* Context, void*)
+		{
+			ImmediateContext* Base = ImmediateContext::Get(Context);
+			VI_ASSERT_V(Base != nullptr, "context should be set");
+
+			const char* Message = Context->GetExceptionString();
+			if (Message && Message[0] != '\0' && !Context->WillExceptionBeCaught())
+			{
+				Core::String Details = Bindings::Exception::Pointer(Core::String(Message)).What();
+				Core::String Trace = Base->GetStackTrace(3, 64);
+				VI_ERR("[vm] uncaught exception %s, callstack dump:\n%.*s",
+					Details.empty() ? "unknown" : Details.c_str(),
+					(int)Trace.size(), Trace.c_str());
+
+				Base->Exchange.lock();
+				Base->Frame.Stacktrace = Trace;
+				Base->Exchange.unlock();
+
+				if (Base->Callbacks.Exception)
+					Base->Callbacks.Exception(Base);
+			}
+			else if (Base->Callbacks.Exception)
+				Base->Callbacks.Exception(Base);
 		}
 		void VirtualMachine::SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*))
 		{

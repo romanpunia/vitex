@@ -6093,10 +6093,10 @@ namespace Mavi
 		{
 			return (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0 - Time;
 		}
-		Core::String Console::Read(size_t Size)
+		bool Console::ReadLine(Core::String& Data, size_t Size)
 		{
-			VI_ASSERT(Present, Core::String(), "console should be shown at least once");
-			VI_ASSERT(Size > 0, Core::String(), "read length should be greater than Zero");
+			VI_ASSERT(Present, false, "console should be shown at least once");
+			VI_ASSERT(Size > 0, false, "read length should be greater than Zero");
 
 			char* Value = VI_MALLOC(char, sizeof(char) * (Size + 1));
 			memset(Value, 0, Size * sizeof(char));
@@ -6104,11 +6104,23 @@ namespace Mavi
 #ifndef VI_MICROSOFT
 			std::cout.flush();
 #endif
-			std::cin.getline(Value, Size);
-			Core::String Output = Value;
-			VI_FREE(Value);
+			if (!std::cin.getline(Value, Size))
+			{
+				Data.clear();
+				VI_FREE(Value);
+				return false;
+			}
 
-			return Output;
+			Data = Value;
+			VI_FREE(Value);
+			return true;
+		}
+		Core::String Console::Read(size_t Size)
+		{
+			Core::String Data;
+			Data.reserve(Size);
+			ReadLine(Data, Size);
+			return Data;
 		}
 		bool Console::IsPresent()
 		{
@@ -9137,10 +9149,16 @@ namespace Mavi
 		}
 		Core::String OS::GetStackTrace(size_t Skips, size_t MaxFrames)
 		{
+			static bool IsPreloaded = false;
+			if (!IsPreloaded)
+			{
+				IsPreloaded = true;
+				GetStackTrace(0, 8);
+			}
+
 			backward::StackTrace Stack;
 			Stack.load_here(MaxFrames + Skips);
 			Stack.skip_n_firsts(Skips);
-
 			return GetStack(Stack);
 		}
 		std::function<void(OS::Message&)> OS::Callback;

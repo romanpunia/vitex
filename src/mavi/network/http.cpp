@@ -5602,7 +5602,7 @@ namespace Mavi
 									Scripting::ImmediateContext* Context = Gateway->GetContext();
 									if (Context != nullptr)
 									{
-										Core::String Stack = Context->GetErrorStackTrace();
+										Core::String Stack = Context->GetExceptionStackTrace();
 										if (!Stack.empty())
 											Base->Info.Message += "\n\n" + Stack;
 									}

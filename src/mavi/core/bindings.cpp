@@ -646,23 +646,144 @@ namespace Mavi
 				return diff / (fabs(A) + fabs(B)) < Epsilon;
 			}
 
-			void Exception::Throw(const Core::String& In)
+			Exception::Pointer::Pointer() : Context(nullptr)
+			{
+			}
+			Exception::Pointer::Pointer(asIScriptContext* NewContext) : Context(NewContext)
+			{
+				const char* Value = (Context ? Context->GetExceptionString() : nullptr);
+				if (Value != nullptr && Value[0] != '\0')
+				{
+					LoadExceptionData(Context->GetExceptionString());
+					Origin = LoadStackHere();
+				}
+			}
+			Exception::Pointer::Pointer(const Core::String& Value) : Context(asGetActiveContext())
+			{
+				LoadExceptionData(Value);
+				Origin = LoadStackHere();
+			}
+			Exception::Pointer::Pointer(const Core::String& NewType, const Core::String& NewMessage) : Type(NewType), Message(NewMessage), Context(asGetActiveContext())
+			{
+				Origin = LoadStackHere();
+			}
+			void Exception::Pointer::LoadExceptionData(const Core::String& Value)
+			{
+				size_t Offset = Value.find(':');
+				if (Offset != std::string::npos)
+				{
+					Type = Value.substr(0, Offset);
+					Message = Value.substr(Offset + 1);
+				}
+				else if (!Value.empty())
+				{
+					Type = "std::runtime_error";
+					Message = Value;
+				}
+			}
+			const Core::String& Exception::Pointer::GetType() const
+			{
+				return Type;
+			}
+			const Core::String& Exception::Pointer::GetMessage() const
+			{
+				return Message;
+			}
+			Core::String Exception::Pointer::ToExceptionString() const
+			{
+				return Empty() ? "" : Type + ":" + Message;
+			}
+			Core::String Exception::Pointer::What() const
+			{
+				Core::String Data = Type;
+				if (!Message.empty())
+				{
+					Data.append(": ");
+					Data.append(Message);
+				}
+
+				Data.append(" ");
+				Data.append(Origin.empty() ? LoadStackHere() : Origin);
+				return Data;
+			}
+			Core::String Exception::Pointer::LoadStackHere() const
+			{
+				Core::String Data;
+				if (!Context)
+					return Data;
+
+				ImmediateContext* ThisContext = ImmediateContext::Get(Context);
+				if (!ThisContext)
+					return Data;
+
+				asIScriptFunction* Function = Context->GetExceptionFunction();
+				if (!Function)
+					return Data;
+
+				const char* Decl = Function->GetDeclaration();
+				Data.append("at function ");
+				Data.append(Decl ? Decl : "<any>");
+
+				const char* Module = Function->GetModuleName();
+				Data.append(", in module ");
+				Data.append(Module ? Module : "<anonymous>");
+
+				int LineNumber = Context->GetExceptionLineNumber();
+				if (LineNumber > 0)
+				{
+					Data.append(":");
+					Data.append(Core::ToString(LineNumber));
+				}
+
+				Data.append(", at location ");
+				Data.append(Core::Form("0x%" PRIXPTR, Function).R());
+				return Data;
+			}
+			bool Exception::Pointer::Empty() const
+			{
+				return Type.empty() && Message.empty();
+			}
+
+			void Exception::Throw(const Pointer& Data)
 			{
 				asIScriptContext* Context = asGetActiveContext();
 				if (Context != nullptr)
-					Context->SetException(In.empty() ? "runtime exception" : In.c_str());
+					Context->SetException(Data.ToExceptionString().c_str());
 			}
-			Core::String Exception::GetException()
+			void Exception::Rethrow()
+			{
+				asIScriptContext* Context = asGetActiveContext();
+				if (Context != nullptr)
+					Context->SetException(Context->GetExceptionString());
+			}
+			bool Exception::HasException()
 			{
 				asIScriptContext* Context = asGetActiveContext();
 				if (!Context)
-					return "";
+					return false;
+
+				const char* Message = Context->GetExceptionString();
+				return Message != nullptr && Message[0] != '\0';
+			}
+			Exception::Pointer Exception::GetException()
+			{
+				asIScriptContext* Context = asGetActiveContext();
+				if (!Context)
+					return Pointer();
 
 				const char* Message = Context->GetExceptionString();
 				if (!Message)
-					return "";
+					return Pointer();
 
-				return Message;
+				return Pointer(Core::String(Message));
+			}
+			bool Exception::GeneratorCallback(const Core::String& Path, Core::String& Code)
+			{
+				FunctionFactory::ReplacePreconditions("throw", Code, [](const Core::String& Expression)
+				{
+					return "exception::throw(" + Expression + ")";
+				});
+				return true;
 			}
 
 			Any::Any(asIScriptEngine* _Engine) noexcept : RefCount(1), GCFlag(false), Engine(_Engine) 
@@ -3624,6 +3745,15 @@ namespace Mavi
 
 				return true;
 			}
+			bool Promise::GeneratorCallback(const Core::String&, Core::String& Code)
+			{
+				Core::Stringify(&Code).Replace("promise<void>", "promise_v");
+				FunctionFactory::ReplacePreconditions("co_await", Code, [](const Core::String& Expression)
+				{
+					return Expression + ".yield().unwrap()";
+				});
+				return true;
+			}
 			Core::String Promise::GetStatus(ImmediateContext* Context)
 			{
 				VI_ASSERT(Context != nullptr, Core::String(), "context should be set");
@@ -4220,10 +4350,15 @@ namespace Mavi
 				{
 					Context->SetArgObject(0, this);
 					Context->SetUserData(this, ContextUD);
-				}).When([this](int&&)
+				}).When([this](int&& State)
 				{
-					Context->SetUserData(nullptr, ContextUD);
 					std::unique_lock<std::recursive_mutex> Unique(Mutex);
+					Context->SetUserData(nullptr, ContextUD);
+					if (State != asEXECUTION_SUSPENDED)
+					{
+						Exception = Exception::Pointer(Context->GetContext());
+						Context->Unprepare();
+					}
 					if (Sparcing == 0)
 						Release();
 					else
@@ -4269,14 +4404,7 @@ namespace Mavi
 			}
 			void Thread::Resume()
 			{
-				Mutex.lock();
-				if (Procedure.joinable())
-				{
-					Mutex.unlock();
-					Procedure.join();
-					Mutex.lock();
-				}
-
+				Mutex.lock(); Join();
 				Procedure = std::thread(&Thread::ResumeRoutine, this);
 				VI_DEBUG("[vm] resume thread at %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
 				Mutex.unlock();
@@ -4334,6 +4462,11 @@ namespace Mavi
 					VI_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
 				}
 				Procedure.join();
+
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				if (!Exception.Empty())
+					Exception::Throw(Exception);
+
 				return 1;
 			}
 			int Thread::Join()
@@ -4410,16 +4543,13 @@ namespace Mavi
 				{
 					if (Context->GetState() != Activation::SUSPENDED)
 						return false;
-					else
-						Join();
+					Join();
 				}
 				else if (Procedure.joinable())
 				{
 					if (std::this_thread::get_id() == Procedure.get_id())
 						return false;
-
-					VI_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
-					Procedure.join();
+					Join();
 				}
 
 				AddRef();
@@ -4429,15 +4559,7 @@ namespace Mavi
 			}
 			void Thread::ReleaseReferences(asIScriptEngine*)
 			{
-				Core::String Id;
-				{
-					std::unique_lock<std::recursive_mutex> Unique(Mutex);
-					Id = Core::OS::Process::GetThreadId(Procedure.get_id());
-				}
-
-				if (Join() >= 0)
-					VI_ERR("[vm] thread %s was joined implicitly (not desired)", Id.empty() ? "?" : Id.c_str());
-
+				Join();
 				for (int i = 0; i < 2; i++)
 				{
 					Pipe[i].Mutex.lock();
@@ -8377,9 +8499,23 @@ namespace Mavi
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
 
 				asIScriptEngine* Engine = VM->GetEngine();
+				TypeClass VExceptionData = VM->SetStructTrivial<Exception::Pointer>("exception_ptr");
+				VExceptionData.SetProperty("string type", &Exception::Pointer::Type);
+				VExceptionData.SetProperty("string message", &Exception::Pointer::Message);
+				VExceptionData.SetProperty("string origin", &Exception::Pointer::Origin);
+				VExceptionData.SetConstructor<Exception::Pointer>("void f()");
+				VExceptionData.SetConstructor<Exception::Pointer, const Core::String&>("void f(const string&in)");
+				VExceptionData.SetConstructor<Exception::Pointer, const Core::String&, const Core::String&>("void f(const string&in, const string&in)");
+				VExceptionData.SetMethod("const string& get_type() const", &Exception::Pointer::GetType);
+				VExceptionData.SetMethod("const string& get_message() const", &Exception::Pointer::GetMessage);
+				VExceptionData.SetMethod("string what() const", &Exception::Pointer::What);
+				VExceptionData.SetMethod("bool empty() const", &Exception::Pointer::Empty);
+
+				VM->SetCodeGenerator("std/exception", &Exception::GeneratorCallback);
 				VM->BeginNamespace("exception");
-				Engine->RegisterGlobalFunction("void throw(const string &in = \"\")", asFUNCTION(Exception::Throw), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string unwrap()", asFUNCTION(Exception::GetException), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("void throw(const exception_ptr&in)", asFUNCTION(Exception::Throw), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("void rethrow()", asFUNCTION(Exception::Rethrow), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("exception_ptr unwrap()", asFUNCTION(Exception::GetException), asCALL_CDECL);
 				VM->EndNamespace();
 
 				return true;
@@ -8488,6 +8624,7 @@ namespace Mavi
 				Engine->RegisterObjectMethod("promise_v", "void unwrap()", asMETHODPR(Promise, RetrieveVoid, (), void), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("promise_v", "promise_v@+ yield()", asMETHOD(Promise, YieldIf), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("promise_v", "bool pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
+				VM->SetCodeGenerator("std/promise", &Promise::GeneratorCallback);
 
 				return true;
 			}
@@ -8529,6 +8666,7 @@ namespace Mavi
 				Engine->RegisterObjectMethod("promise_v", "void unwrap()", asMETHODPR(Promise, RetrieveVoid, (), void), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("promise_v", "promise_v@+ yield()", asMETHOD(Promise, YieldIf), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("promise_v", "bool pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
+				VM->SetCodeGenerator("std/promise/async", &Promise::GeneratorCallback);
 
 				return true;
 			}
@@ -14842,100 +14980,6 @@ namespace Mavi
 				VI_ASSERT(false, false, "<gui/context> is not loaded");
 				return false;
 #endif
-			}
-			bool Registry::MakePostprocess(Core::String& Code)
-			{
-				const char Match[] = "co_await ";
-				size_t MatchSize = sizeof(Match) - 1;
-				size_t Offset = 0;
-
-				while (Offset < Code.size())
-				{
-					char U = Code[Offset];
-					if (U == '/' && Offset + 1 < Code.size() && Code[Offset + 1] == '/' || Code[Offset + 1] == '*')
-					{
-						if (Code[++Offset] == '*')
-						{
-							while (Offset + 1 < Code.size())
-							{
-								char N1 = Code[Offset++];
-								char N2 = Code[Offset++];
-								if (N1 == '*' && N2 == '/')
-									break;
-							}
-						}
-						else
-						{
-							while (Offset < Code.size())
-							{
-								char N = Code[Offset++];
-								if (N == '\r' || N == '\n')
-									break;
-							}
-						}
-
-						continue;
-					}
-					else if (U == '\"' || U == '\'')
-					{
-						++Offset;
-						while (Offset < Code.size())
-						{
-							if (Code[Offset++] == U)
-								break;
-						}
-
-						continue;
-					}
-					else if (Code.size() - Offset < MatchSize || memcmp(Code.c_str() + Offset, Match, MatchSize) != 0)
-					{
-						++Offset;
-						continue;
-					}
-
-					size_t Start = Offset + MatchSize;
-					while (Start < Code.size())
-					{
-						char& V = Code[Start];
-						if (!isspace(V))
-							break;
-						++Start;
-					}
-
-					int32_t Brackets = 0;
-					size_t End = Start;
-					while (End < Code.size())
-					{
-						char& V = Code[End];
-						if (V == ')')
-						{
-							if (--Brackets < 0)
-								break;
-						}
-						else if (V == '(')
-							++Brackets;
-						else if (V == ';')
-							break;
-						else if (Brackets == 0)
-						{
-							if (!isalnum(V) && V != '.' && V != ' ' && V != '_')
-								break;
-						}
-						End++;
-					}
-
-					if (End - Start > 0)
-					{
-						Core::String Expression = Code.substr(Start, End - Start) + ".yield().unwrap()";
-						Core::Stringify(&Code).ReplacePart(Offset, End, Expression);
-						Offset += Expression.size();
-					}
-					else
-						Offset = End;
-				}
-
-				Core::Stringify(&Code).Replace("promise<void>", "promise_v");
-				return true;
 			}
 			bool Registry::Release()
 			{

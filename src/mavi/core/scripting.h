@@ -352,6 +352,7 @@ namespace Mavi
 			static Core::Unique<asSFuncPtr> CreateFunctionBase(void(*Base)(), int Type);
 			static Core::Unique<asSFuncPtr> CreateMethodBase(const void* Base, size_t Size, int Type);
 			static Core::Unique<asSFuncPtr> CreateDummyBase();
+			static void ReplacePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<Core::String(const Core::String& Expression)>& Replacer);
 			static void ReleaseFunctor(Core::Unique<asSFuncPtr>* Ptr);
 			static int AtomicNotifyGC(const char* TypeName, void* Object);
 			static int AtomicNotifyGCById(int TypeId, void* Object);
@@ -1536,12 +1537,14 @@ namespace Mavi
 			typedef std::function<Core::String(void* Object, int Members, int TypeId)> ToStringTypeCallback;
 			typedef std::function<bool(ImmediateContext*, const Core::Vector<Core::String>&)> CommandCallback;
 			typedef std::function<void(const Core::String&)> OutputCallback;
-			typedef std::function<Core::String()> InputCallback;
+			typedef std::function<bool(Core::String&)> InputCallback;
+			typedef std::function<void()> ExitCallback;
 
 		protected:
 			enum class DebugAction
 			{
 				Trigger,
+				Interrupt,
 				Switch,
 				Continue,
 				StepInto,
@@ -1592,36 +1595,47 @@ namespace Mavi
 			std::recursive_mutex Mutex;
 			ImmediateContext* LastContext;
 			unsigned int LastCommandAtStackLevel;
+			std::atomic<int32_t> ForceSwitchThreads;
 			asIScriptFunction* LastFunction;
 			VirtualMachine* VM;
 			OutputCallback OnOutput;
 			InputCallback OnInput;
+			ExitCallback OnExit;
 			DebugAction Action;
+			bool IsInputError;
 
 		public:
 			DebuggerContext(bool IsSuspended = true) noexcept;
 			~DebuggerContext() noexcept;
 			void SetOutputCallback(OutputCallback&& Callback);
 			void SetInputCallback(InputCallback&& Callback);
+			void SetExitCallback(ExitCallback&& Callback);
 			void AddToStringCallback(const TypeInfo& Type, ToStringCallback&& Callback);
 			void AddToStringCallback(const Core::String& Type, const ToStringTypeCallback& Callback);
+			void AllowInputAfterFailure();
 			void Input(ImmediateContext* Context);
 			void Output(const Core::String& Data);
 			void LineCallback(asIScriptContext* Context);
+			void ExceptionCallback(asIScriptContext* Context);
 			void AddFileBreakPoint(const Core::String& File, int LineNumber);
 			void AddFuncBreakPoint(const Core::String& Function);
+			void ShowException(ImmediateContext* Context);
 			void ListBreakPoints();
 			void ListThreads();
+			void ListModules();
 			void ListLocalVariables(ImmediateContext* Context);
 			void ListGlobalVariables(ImmediateContext* Context);
 			void ListMemberProperties(ImmediateContext* Context);
 			void ListSourceCode(ImmediateContext* Context);
+			void ListInterfaces(ImmediateContext* Context);
 			void ListStatistics(ImmediateContext* Context);
 			void PrintCallstack(ImmediateContext* Context);
 			void PrintValue(const Core::String& Expression, ImmediateContext* Context);
 			void SetEngine(VirtualMachine* Engine);
 			bool InterpretCommand(const Core::String& Command, ImmediateContext* Context);
 			bool CheckBreakPoint(ImmediateContext* Context);
+			bool Interrupt();
+			bool IsInputIgnored();
 			Core::String ToString(void* Value, unsigned int TypeId, int MaxDepth);
 			VirtualMachine* GetEngine();
 
@@ -1630,12 +1644,15 @@ namespace Mavi
 			void AddDefaultCommands();
 			void AddDefaultStringifiers();
 			void ClearThread(ImmediateContext* Context);
+			void AppendSourceCode(Core::StringStream& Stream, const char* Label, const char* File, int LineNumber, int ColumnNumber, int Count);
 			int ExecuteExpression(ImmediateContext* Context, const Core::String& Code);
 			ThreadData GetThread(ImmediateContext* Context);
 		};
 
 		class VI_OUT ImmediateContext final : public Core::Reference<ImmediateContext>
 		{
+			friend VirtualMachine;
+
 		private:
 			static int ContextUD;
 
@@ -1717,7 +1734,7 @@ namespace Mavi
 			int SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
 			void ClearLineCallback();
 			unsigned int GetCallstackSize() const;
-			Core::String GetErrorStackTrace();
+			Core::String GetExceptionStackTrace();
 			Function GetFunction(unsigned int StackLevel = 0);
 			int GetLineNumber(unsigned int StackLevel = 0, int* Column = 0, const char** SectionName = 0);
 			int GetPropertiesCount(unsigned int StackLevel = 0);
@@ -1745,15 +1762,12 @@ namespace Mavi
 		public:
 			static ImmediateContext* Get(asIScriptContext* Context);
 			static ImmediateContext* Get();
-
-		private:
-			static void LineLogger(asIScriptContext* Context, void* Object);
-			static void ExceptionLogger(asIScriptContext* Context, void* Object);
 		};
 
 		class VI_OUT VirtualMachine final : public Core::Reference<VirtualMachine>
 		{
 		public:
+			typedef std::function<bool(const Core::String& Path, Core::String& Buffer)> GeneratorCallback;
 			typedef std::function<void(const Core::String&)> CompileCallback;
 			typedef std::function<void()> WhenErrorCallback;
 
@@ -1790,6 +1804,7 @@ namespace Mavi
 			Core::UnorderedMap<Core::String, Kernel> Kernels;
 			Core::UnorderedMap<Core::String, Submodule> Modules;
 			Core::UnorderedMap<Core::String, CompileCallback> Callbacks;
+			Core::UnorderedMap<Core::String, GeneratorCallback> Generators;
 			Core::Vector<asIScriptContext*> Contexts;
 			Core::String DefaultNamespace;
 			Compute::Preprocessor::Desc Proc;
@@ -1804,6 +1819,7 @@ namespace Mavi
 		public:
 			VirtualMachine() noexcept;
 			~VirtualMachine() noexcept;
+			void SetCodeGenerator(const Core::String& Name, GeneratorCallback&& Callback);
 			void SetImports(unsigned int Opts);
 			void SetCache(bool Enabled);
 			void SetDebugger(Core::Unique<DebuggerContext> Context);
@@ -1814,6 +1830,8 @@ namespace Mavi
 			void SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc);
 			void SetProcessorOptions(Compute::Preprocessor* Processor);
 			void SetCompileCallback(const Core::String& Section, CompileCallback&& Callback);
+			void AttachDebuggerToContext(asIScriptContext* Context);
+			void DetachDebuggerFromContext(asIScriptContext* Context);
 			int Collect(size_t NumIterations = 1);
 			void GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const;
 			int NotifyOfNewObject(void* Object, const TypeInfo& Type);
@@ -1821,8 +1839,8 @@ namespace Mavi
 			void ForwardEnumReferences(void* Reference, const TypeInfo& Type);
 			void ForwardReleaseReferences(void* Reference, const TypeInfo& Type);
 			void GCEnumCallback(void* Reference);
-			bool DumpRegisteredInterfaces(const Core::String& Path);
-			bool DumpAllInterfaces(const Core::String& Path);
+			bool GenerateCode(Compute::Preprocessor* Processor, const Core::String& Path, Core::String& InoutBuffer);
+			Core::UnorderedMap<Core::String, Core::String> DumpRegisteredInterfaces(ImmediateContext* Context);
 			bool GetByteCodeCache(ByteCodeInfo* Info);
 			void SetByteCodeCache(ByteCodeInfo* Info);
 			Core::Unique<ImmediateContext> CreateContext();
@@ -1860,7 +1878,7 @@ namespace Mavi
 			asIScriptEngine* GetEngine() const;
 			DebuggerContext* GetDebugger() const;
 			Core::String GetDocumentRoot() const;
-			Core::Vector<Core::String> GetSubmodules() const;
+			Core::Vector<Core::String> GetSubmodules();
 			bool IsNullable(int TypeId);
 			bool AddSubmodule(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const SubmoduleCallback& Callback);
 			bool ImportFile(const Core::String& Path, Core::String* Out);
@@ -1906,6 +1924,8 @@ namespace Mavi
 			void UninitializeAddon(const Core::String& Name, Kernel& Library);
 
 		public:
+			static void LineHandler(asIScriptContext* Context, void* Object);
+			static void ExceptionHandler(asIScriptContext* Context, void* Object);
 			static void SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*));
 			static void CleanupThisThread();
 			static VirtualMachine* Get(asIScriptEngine* Engine);

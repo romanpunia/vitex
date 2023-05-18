@@ -115,15 +115,38 @@ namespace Mavi
 				static bool LoadUiModel(VirtualMachine* Engine);
 				static bool LoadUiControl(VirtualMachine* Engine);
 				static bool LoadUiContext(VirtualMachine* Engine);
-				static bool MakePostprocess(Core::String& Code);
 				static bool Release();
 			};
 
 			class VI_OUT Exception
 			{
 			public:
-				static void Throw(const Core::String& In);
-				static Core::String GetException();
+				struct Pointer
+				{
+					Core::String Type;
+					Core::String Message;
+					Core::String Origin;
+					asIScriptContext* Context;
+
+					Pointer();
+					Pointer(asIScriptContext* Context);
+					Pointer(const Core::String& Data);
+					Pointer(const Core::String& Type, const Core::String& Message);
+					void LoadExceptionData(const Core::String& Data);
+					const Core::String& GetType() const;
+					const Core::String& GetMessage() const;
+					Core::String ToExceptionString() const;
+					Core::String What() const;
+					Core::String LoadStackHere() const;
+					bool Empty() const;
+				};
+
+			public:
+				static void Throw(const Pointer& Data);
+				static void Rethrow();
+				static bool HasException();
+				static Pointer GetException();
+				static bool GeneratorCallback(const Core::String& Path, Core::String& Code);
 			};
 
 			class VI_OUT String
@@ -770,6 +793,7 @@ namespace Mavi
 				static Promise* CreateFactory(void* _Ref, int TypeId);
 				static Promise* CreateFactoryVoid();
 				static bool TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect);
+				static bool GeneratorCallback(const Core::String& Path, Core::String& Code);
 				static Core::String GetStatus(ImmediateContext* Context);
 
 			public:
@@ -897,6 +921,7 @@ namespace Mavi
 				} Pipe[2];
 
 			private:
+				Exception::Pointer Exception;
 				std::thread Procedure;
 				std::recursive_mutex Mutex;
 				asIScriptFunction* Function;

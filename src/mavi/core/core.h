@@ -1935,6 +1935,7 @@ namespace Mavi
 			void sfWrite(const char* Format, ...);
 			void GetSize(uint32_t* Width, uint32_t* Height);
 			double GetCapturedTime() const;
+			bool ReadLine(Core::String& Data, size_t Size);
 			Core::String Read(size_t Size);
 
 		public:

@@ -58,12 +58,6 @@ namespace Mavi
 
 		struct Vector4;
 
-		typedef std::function<bool(class Preprocessor*, const struct IncludeResult& File, Core::String* Out)> ProcIncludeCallback;
-		typedef std::function<bool(class Preprocessor*, const Core::String& Name, const Core::Vector<Core::String>& Args)> ProcPragmaCallback;
-		typedef std::function<void(const struct CollisionBody&)> CollisionCallback;
-		typedef void* Cipher;
-		typedef void* Digest;
-
 		enum class Shape
 		{
 			Box,
@@ -198,10 +192,24 @@ namespace Mavi
 			Default = -1
 		};
 
+		enum class IncludeType
+		{
+			Error,
+			Preprocess,
+			Unchanged,
+			Virtual
+		};
+
 		inline SoftCollision operator |(SoftCollision A, SoftCollision B)
 		{
 			return static_cast<SoftCollision>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
 		}
+
+		typedef std::function<IncludeType(class Preprocessor*, const struct IncludeResult& File, Core::String& Output)> ProcIncludeCallback;
+		typedef std::function<bool(class Preprocessor*, const Core::String& Name, const Core::Vector<Core::String>& Args)> ProcPragmaCallback;
+		typedef std::function<void(const struct CollisionBody&)> CollisionCallback;
+		typedef void* Cipher;
+		typedef void* Digest;
 
 		struct VI_OUT IncludeDesc
 		{

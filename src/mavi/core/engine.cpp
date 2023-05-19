@@ -4033,7 +4033,7 @@ namespace Mavi
 
 			Watch(Parallel::Enqueue([this, Time]()
 			{
-				Simulator->Simulate(4, Time->GetStep(), Time->GetFixedStep());
+				Simulator->Simulate(4, Time->GetFixedStep(), 1.0f / Time->GetFixedFrames());
 			}));
 		}
 		void SceneGraph::StepSynchronize(Core::Timer* Time)
@@ -6433,6 +6433,7 @@ namespace Mavi
 			VI_MEASURE(Core::Timings::Infinite);
 			if (Activity != nullptr && Control.Parallel)
 			{
+				Time->Reset();
 				while (State == ApplicationState::Active)
 				{
 					bool Focused = Activity->Dispatch();
@@ -6446,6 +6447,7 @@ namespace Mavi
 			}
 			else if (Activity != nullptr && !Control.Parallel)
 			{
+				Time->Reset();
 				while (State == ApplicationState::Active)
 				{
 					bool Focused = Activity->Dispatch();
@@ -6461,6 +6463,7 @@ namespace Mavi
 			}
 			else if (!Activity && Control.Parallel)
 			{
+				Time->Reset();
 				while (State == ApplicationState::Active)
 				{
 					Time->Begin();
@@ -6472,6 +6475,7 @@ namespace Mavi
 			}
 			else if (!Activity && !Control.Parallel)
 			{
+				Time->Reset();
 				while (State == ApplicationState::Active)
 				{
 					Queue->Dispatch();

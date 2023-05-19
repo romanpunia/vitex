@@ -4216,24 +4216,24 @@ namespace Mavi
 				Desc.Root = Core::OS::Directory::Get();
 
 				Compute::Preprocessor* Processor = new Compute::Preprocessor();
-				Processor->SetIncludeCallback([this](Compute::Preprocessor* P, const Compute::IncludeResult& File, Core::String* Output)
+				Processor->SetIncludeCallback([this](Compute::Preprocessor* P, const Compute::IncludeResult& File, Core::String& Output)
 				{
 					if (File.Module.empty() || (!File.IsFile && !File.IsSystem))
-						return false;
+						return Compute::IncludeType::Error;
 
 					if (File.IsSystem && !File.IsFile)
-						return false;
+						return Compute::IncludeType::Error;
 
 					size_t Length;
 					unsigned char* Data = Core::OS::File::ReadAll(File.Module, &Length);
 					if (!Data)
-						return false;
+						return Compute::IncludeType::Error;
 
-					Output->assign((const char*)Data, Length);
+					Output.assign((const char*)Data, Length);
 					VI_FREE(Data);
 
-					this->Decompose(*Output);
-					return true;
+					this->Decompose(Output);
+					return Compute::IncludeType::Preprocess;
 				});
 				Processor->SetIncludeOptions(Desc);
 				Processor->SetFeatures(Features);

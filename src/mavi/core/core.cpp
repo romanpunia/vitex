@@ -5841,22 +5841,50 @@ namespace Mavi
 		}
 		Mapping<Core::UnorderedMap<uint64_t, std::pair<uint64_t, void*>>>* Composer::Factory = nullptr;
 
-		Console::Console() noexcept : Input(nullptr), Output(nullptr), Errors(nullptr), Attributes(0), Time(0), Coloring(true), Present(false)
+		Console::Console() noexcept : Status(Mode::Detached), Colors(true)
 		{
 		}
 		Console::~Console() noexcept
 		{
+			Deallocate();
 			if (Singleton == this)
 				Singleton = nullptr;
-#ifdef VI_MICROSOFT
-			if (!Present)
+		}
+		void Console::Allocate()
+		{
+			if (Status != Mode::Detached)
 				return;
+#ifdef VI_MICROSOFT
+			if (AllocConsole())
+			{
+				Streams.Input = freopen("conin$", "r", stdin);
+				Streams.Output = freopen("conout$", "w", stdout);
+				Streams.Errors = freopen("conout$", "w", stderr);
+			}
 
+			CONSOLE_SCREEN_BUFFER_INFO ScreenBuffer;
+			SetConsoleCtrlHandler(ConsoleEventHandler, true);
+
+			HANDLE Base = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (GetConsoleScreenBufferInfo(Base, &ScreenBuffer))
+				Cache.Attributes = ScreenBuffer.wAttributes;
+
+			VI_TRACE("[console] allocate window 0x%" PRIXPTR, (void*)Base);
+#endif
+			Status = Mode::Allocated;
+		}
+		void Console::Deallocate()
+		{
+			if (Status != Mode::Allocated)
+				return;
+#ifdef VI_MICROSOFT
 			::ShowWindow(::GetConsoleWindow(), SW_HIDE);
 #if 0
 			FreeConsole();
 #endif
+			VI_TRACE("[console] deallocate window");
 #endif
+			Status = Mode::Detached;
 		}
 		void Console::Begin()
 		{
@@ -5875,28 +5903,11 @@ namespace Mavi
 		}
 		void Console::Show()
 		{
+			Allocate();
 #ifdef VI_MICROSOFT
-			if (!Present)
-			{
-				if (AllocConsole())
-				{
-					Input = freopen("conin$", "r", stdin);
-					Output = freopen("conout$", "w", stdout);
-					Errors = freopen("conout$", "w", stderr);
-				}
-
-				CONSOLE_SCREEN_BUFFER_INFO ScreenBuffer;
-				SetConsoleCtrlHandler(ConsoleEventHandler, true);
-
-				HANDLE Base = GetStdHandle(STD_OUTPUT_HANDLE);
-				if (GetConsoleScreenBufferInfo(Base, &ScreenBuffer))
-					Attributes = ScreenBuffer.wAttributes;
-				VI_TRACE("[console] allocate window 0x%" PRIXPTR, (void*)Base);
-			}
-
 			::ShowWindow(::GetConsoleWindow(), SW_SHOW);
+			VI_TRACE("[console] show window");
 #endif
-			Present = true;
 		}
 		void Console::Clear()
 		{
@@ -5917,7 +5928,7 @@ namespace Mavi
 		}
 		void Console::Attach()
 		{
-			if (Present)
+			if (Status != Mode::Detached)
 				return;
 #ifdef VI_MICROSOFT
 			CONSOLE_SCREEN_BUFFER_INFO ScreenBuffer;
@@ -5925,15 +5936,16 @@ namespace Mavi
 
 			HANDLE Base = GetStdHandle(STD_OUTPUT_HANDLE);
 			if (GetConsoleScreenBufferInfo(Base, &ScreenBuffer))
-				Attributes = ScreenBuffer.wAttributes;
+				Cache.Attributes = ScreenBuffer.wAttributes;
 
 			VI_TRACE("[console] attach window 0x%" PRIXPTR, (void*)Base);
 #endif
-			Present = true;
+			Status = Mode::Attached;
 		}
 		void Console::Detach()
 		{
-			Present = false;
+			Deallocate();
+			Status = Mode::Detached;
 		}
 		void Console::Flush()
 		{
@@ -5949,11 +5961,11 @@ namespace Mavi
 		}
 		void Console::CaptureTime()
 		{
-			Time = (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0;
+			Cache.Time = (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0;
 		}
 		void Console::SetColoring(bool Enabled)
 		{
-			Coloring = Enabled;
+			Colors = Enabled;
 		}
 		void Console::SetCursor(uint32_t X, uint32_t Y)
 		{
@@ -5968,7 +5980,7 @@ namespace Mavi
 		}
 		void Console::ColorBegin(StdColor Text, StdColor Background)
 		{
-			if (!Coloring)
+			if (!Colors)
 				return;
 #if defined(_WIN32)
 			if (Background == StdColor::Zero)
@@ -5984,10 +5996,10 @@ namespace Mavi
 		}
 		void Console::ColorEnd()
 		{
-			if (!Coloring)
+			if (!Colors)
 				return;
 #if defined(_WIN32)
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), Attributes);
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), Cache.Attributes);
 #else
 			std::cout << "\033[0m";
 #endif
@@ -6041,15 +6053,15 @@ namespace Mavi
 		}
 		void Console::sWriteLine(const Core::String& Line)
 		{
-			Lock.lock();
+			Session.lock();
 			std::cout << Line << '\n';
-			Lock.unlock();
+			Session.unlock();
 		}
 		void Console::sWrite(const Core::String& Line)
 		{
-			Lock.lock();
+			Session.lock();
 			std::cout << Line;
-			Lock.unlock();
+			Session.unlock();
 		}
 		void Console::sfWriteLine(const char* Format, ...)
 		{
@@ -6065,9 +6077,9 @@ namespace Mavi
 #endif
 			va_end(Args);
 
-			Lock.lock();
+			Session.lock();
 			std::cout << Buffer << '\n';
-			Lock.unlock();
+			Session.unlock();
 		}
 		void Console::sfWrite(const char* Format, ...)
 		{
@@ -6083,9 +6095,9 @@ namespace Mavi
 #endif
 			va_end(Args);
 
-			Lock.lock();
+			Session.lock();
 			std::cout << Buffer;
-			Lock.unlock();
+			Session.unlock();
 		}
 		void Console::GetSize(uint32_t* Width, uint32_t* Height)
 		{
@@ -6111,12 +6123,13 @@ namespace Mavi
 		}
 		double Console::GetCapturedTime() const
 		{
-			return (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0 - Time;
+			return (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0 - Cache.Time;
 		}
 		bool Console::ReadLine(Core::String& Data, size_t Size)
 		{
-			VI_ASSERT(Present, false, "console should be shown at least once");
-			VI_ASSERT(Size > 0, false, "read length should be greater than Zero");
+			VI_ASSERT(Status != Mode::Detached, false, "console should be shown at least once");
+			VI_ASSERT(Size > 0, false, "read length should be greater than zero");
+			VI_TRACE("[console] read up to %" PRIu64 " bytes", (uint64_t)Size);
 
 			char* Value = VI_MALLOC(char, sizeof(char) * (Size + 1));
 			memset(Value, 0, Size * sizeof(char));
@@ -6144,7 +6157,7 @@ namespace Mavi
 		}
 		bool Console::IsPresent()
 		{
-			return Singleton != nullptr && Singleton->Present;
+			return Singleton != nullptr && Singleton->Status != Mode::Detached;
 		}
 		bool Console::Reset()
 		{
@@ -6167,8 +6180,7 @@ namespace Mavi
 		static float UnitsToMills = 1000.0f;
 		Timer::Timer() noexcept
 		{
-			Timing.Begin = Clock();
-			Timing.When = Timing.Begin;
+			Reset();
 		}
 		void Timer::SetFixedFrames(float Value)
 		{
@@ -6181,6 +6193,18 @@ namespace Mavi
 			MaxFrames = Value;
 			if (MaxFrames > 0.0)
 				MinDelta = ToUnits(1.0f / MaxFrames);
+		}
+		void Timer::Reset()
+		{
+			Timing.Begin = Clock();
+			Timing.When = Timing.Begin;
+			Timing.Delta = Units(0);
+			Timing.Frame = 0;
+			Fixed.When = Timing.Begin;
+			Fixed.Delta = Units(0);
+			Fixed.Sum = Units(0);
+			Fixed.Frame = 0;
+			Fixed.InFrame = false;
 		}
 		void Timer::Begin()
 		{
@@ -6274,6 +6298,10 @@ namespace Mavi
 		float Timer::GetFixedStep() const
 		{
 			return ToSeconds(Fixed.Delta);
+		}
+		float Timer::GetFixedFrames() const
+		{
+			return FixedFrames;
 		}
 		float Timer::ToSeconds(const Units& Value)
 		{

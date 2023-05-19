@@ -82,6 +82,7 @@ namespace Mavi
 				static bool LoadException(VirtualMachine* VM);
 				static bool LoadMutex(VirtualMachine* VM);
 				static bool LoadThread(VirtualMachine* VM);
+				static bool LoadBuffers(VirtualMachine* Engine);
 				static bool LoadRandom(VirtualMachine* VM);
 				static bool LoadPromise(VirtualMachine* VM);
 				static bool LoadPromiseAsync(VirtualMachine* VM);
@@ -585,6 +586,7 @@ namespace Mavi
 				void Set(const Core::String& Key, void* Value, int TypeId);
 				bool Get(const Core::String& Key, void* Value, int TypeId) const;
 				bool GetIndex(size_t Index, Core::String* Key, void** Value, int* TypeId) const;
+				bool TryGetIndex(size_t Index, Core::String* Key, void* Value, int TypeId) const;
 				Storable* operator[](const Core::String& Key);
 				const Storable* operator[](const Core::String& Key) const;
 				int GetTypeId(const Core::String& Key) const;
@@ -998,6 +1000,63 @@ namespace Mavi
 				static void ConvConstructor(float r, Complex* self);
 				static void InitConstructor(float r, float i, Complex* self);
 				static void ListConstructor(float* list, Complex* self);
+			};
+
+			class VI_OUT CharBuffer
+			{
+			private:
+				char* Buffer;
+				size_t Size;
+				int Ref;
+
+			public:
+				~CharBuffer();
+				void AddRef();
+				void Release();
+				bool Allocate(size_t Size);
+				void Deallocate();
+				bool SetInt8(size_t Offset, int8_t Value, size_t Size);
+				bool SetUint8(size_t Offset, uint8_t Value, size_t Size);
+				bool StoreBytes(size_t Offset, const Core::String& Value);
+				bool StoreInt8(size_t Offset, int8_t Value);
+				bool StoreUint8(size_t Offset, uint8_t Value);
+				bool StoreInt16(size_t Offset, int16_t Value);
+				bool StoreUint16(size_t Offset, uint16_t Value);
+				bool StoreInt32(size_t Offset, int32_t Value);
+				bool StoreUint32(size_t Offset, uint32_t Value);
+				bool StoreInt64(size_t Offset, int64_t Value);
+				bool StoreUint64(size_t Offset, uint64_t Value);
+				bool StoreFloat(size_t Offset, float Value);
+				bool StoreDouble(size_t Offset, double Value);
+				bool Interpret(size_t Offset, Core::String& Value, size_t MaxSize) const;
+				bool LoadBytes(size_t Offset, Core::String& Value, size_t Size) const;
+				bool LoadInt8(size_t Offset, int8_t& Value) const;
+				bool LoadUint8(size_t Offset, uint8_t& Value) const;
+				bool LoadInt16(size_t Offset, int16_t& Value) const;
+				bool LoadUint16(size_t Offset, uint16_t& Value) const;
+				bool LoadInt32(size_t Offset, int32_t& Value) const;
+				bool LoadUint32(size_t Offset, uint32_t& Value) const;
+				bool LoadInt64(size_t Offset, int64_t& Value) const;
+				bool LoadUint64(size_t Offset, uint64_t& Value) const;
+				bool LoadFloat(size_t Offset, float& Value) const;
+				bool LoadDouble(size_t Offset, double& Value) const;
+				void* GetPointer(size_t Offset) const;
+				bool Exists(size_t Offset) const;
+				bool Empty() const;
+				size_t GetSize() const;
+				Core::String ToString(size_t MaxSize) const;
+
+			private:
+				CharBuffer() noexcept;
+				CharBuffer(size_t Size) noexcept;
+				CharBuffer(char* Pointer) noexcept;
+				bool Store(size_t Offset, const char* Data, size_t Size);
+				bool Load(size_t Offset, char* Data, size_t Size) const;
+
+			public:
+				static CharBuffer* Create();
+				static CharBuffer* Create(size_t Size);
+				static CharBuffer* Create(char* Pointer);
 			};
 
 			class VI_OUT Format final : public Core::Reference<Format>

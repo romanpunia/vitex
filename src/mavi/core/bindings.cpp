@@ -2805,6 +2805,22 @@ namespace Mavi
 
 				return true;
 			}
+			bool Dictionary::TryGetIndex(size_t Index, Core::String* Key, void* Value, int TypeId) const
+			{
+				if (Index >= Data.size())
+					return false;
+
+				auto It = Begin();
+				size_t Offset = 0;
+
+				while (Offset != Index)
+				{
+					++Offset;
+					++It;
+				}
+
+				return It.GetValue(Value, TypeId);
+			}
 			int Dictionary::GetTypeId(const Core::String& Key) const
 			{
 				auto It = Data.find(Key);
@@ -4595,6 +4611,255 @@ namespace Mavi
 			int Thread::ContextUD = 550;
 			int Thread::EngineListUD = 551;
 
+			CharBuffer::CharBuffer() noexcept : CharBuffer(nullptr)
+			{
+			}
+			CharBuffer::CharBuffer(size_t NewSize) noexcept : CharBuffer(nullptr)
+			{
+				if (NewSize > 0)
+					Allocate(NewSize);
+			}
+			CharBuffer::CharBuffer(char* Pointer) noexcept : Buffer(Pointer), Size(0), Ref(1)
+			{
+			}
+			CharBuffer::~CharBuffer()
+			{
+				Deallocate();
+			}
+			void CharBuffer::Release()
+			{
+				if (asAtomicDec(Ref) <= 0)
+				{
+					this->~CharBuffer();
+					asFreeMem((void*)this);
+				}
+			}
+			void CharBuffer::AddRef()
+			{
+				asAtomicInc(Ref);
+			}
+			bool CharBuffer::Allocate(size_t NewSize)
+			{
+				Deallocate();
+				if (!NewSize)
+					return false;
+
+				Buffer = (char*)asAllocMem(NewSize);
+				if (!Buffer)
+					return false;
+
+				memset(Buffer, 0, NewSize);
+				Size = NewSize;
+				return true;
+			}
+			void CharBuffer::Deallocate()
+			{
+				if (Size > 0)
+					asFreeMem(Buffer);
+
+				Buffer = nullptr;
+				Size = 0;
+			}
+			bool CharBuffer::SetInt8(size_t Offset, int8_t Value, size_t SetSize)
+			{
+				if (!Buffer || Offset + SetSize > Size)
+					return false;
+
+				memset(Buffer + Offset, (int32_t)Value, SetSize);
+				return true;
+			}
+			bool CharBuffer::SetUint8(size_t Offset, uint8_t Value, size_t SetSize)
+			{
+				if (!Buffer || Offset + SetSize > Size)
+					return false;
+
+				memset(Buffer + Offset, (int32_t)Value, SetSize);
+				return true;
+			}
+			bool CharBuffer::StoreBytes(size_t Offset, const Core::String& Value)
+			{
+				return Store(Offset, Value.c_str(), sizeof(char) * Value.size());
+			}
+			bool CharBuffer::StoreInt8(size_t Offset, int8_t Value)
+			{
+				return Store(Offset, (const char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::StoreUint8(size_t Offset, uint8_t Value)
+			{
+				return Store(Offset, (const char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::StoreInt16(size_t Offset, int16_t Value)
+			{
+				return Store(Offset, (const char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::StoreUint16(size_t Offset, uint16_t Value)
+			{
+				return Store(Offset, (const char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::StoreInt32(size_t Offset, int32_t Value)
+			{
+				return Store(Offset, (const char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::StoreUint32(size_t Offset, uint32_t Value)
+			{
+				return Store(Offset, (const char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::StoreInt64(size_t Offset, int64_t Value)
+			{
+				return Store(Offset, (const char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::StoreUint64(size_t Offset, uint64_t Value)
+			{
+				return Store(Offset, (const char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::StoreFloat(size_t Offset, float Value)
+			{
+				return Store(Offset, (const char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::StoreDouble(size_t Offset, double Value)
+			{
+				return Store(Offset, (const char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::Interpret(size_t Offset, Core::String& Value, size_t MaxSize) const
+			{
+				size_t DataSize = 0;
+				if (!Buffer || Offset + sizeof(&DataSize) > Size)
+					return false;
+
+				char* Data = Buffer + Offset;
+				char* Next = Data;
+				while (*(Next++) != '\0')
+				{
+					if (++DataSize > MaxSize)
+						return false;
+				}
+
+				Value.assign(Data, DataSize);
+				return true;
+			}
+			bool CharBuffer::LoadBytes(size_t Offset, Core::String& Value, size_t ValueSize) const
+			{
+				Value.resize(ValueSize);
+				if (Load(Offset, (char*)Value.c_str(), sizeof(char) * ValueSize))
+					return true;
+
+				Value.clear();
+				return false;
+			}
+			bool CharBuffer::LoadInt8(size_t Offset, int8_t& Value) const
+			{
+				return Load(Offset, (char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::LoadUint8(size_t Offset, uint8_t& Value) const
+			{
+				return Load(Offset, (char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::LoadInt16(size_t Offset, int16_t& Value) const
+			{
+				return Load(Offset, (char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::LoadUint16(size_t Offset, uint16_t& Value) const
+			{
+				return Load(Offset, (char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::LoadInt32(size_t Offset, int32_t& Value) const
+			{
+				return Load(Offset, (char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::LoadUint32(size_t Offset, uint32_t& Value) const
+			{
+				return Load(Offset, (char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::LoadInt64(size_t Offset, int64_t& Value) const
+			{
+				return Load(Offset, (char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::LoadUint64(size_t Offset, uint64_t& Value) const
+			{
+				return Load(Offset, (char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::LoadFloat(size_t Offset, float& Value) const
+			{
+				return Load(Offset, (char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::LoadDouble(size_t Offset, double& Value) const
+			{
+				return Load(Offset, (char*)&Value, sizeof(Value));
+			}
+			bool CharBuffer::Store(size_t Offset, const char* Data, size_t DataSize)
+			{
+				if (!Buffer || Offset + DataSize > Size)
+					return false;
+
+				memcpy(Buffer + Offset, Data, DataSize);
+				return true;
+			}
+			bool CharBuffer::Load(size_t Offset, char* Data, size_t DataSize) const
+			{
+				if (!Buffer || Offset + DataSize > Size)
+					return false;
+
+				memcpy(Data, Buffer + Offset, DataSize);
+				return true;
+			}
+			void* CharBuffer::GetPointer(size_t Offset) const
+			{
+				if (Size > 0 && Offset >= Size)
+					return nullptr;
+
+				return Buffer + Offset;
+			}
+			bool CharBuffer::Exists(size_t Offset) const
+			{
+				return !Size || Offset < Size;
+			}
+			bool CharBuffer::Empty() const
+			{
+				return !Buffer;
+			}
+			size_t CharBuffer::GetSize() const
+			{
+				return Size;
+			}
+			Core::String CharBuffer::ToString(size_t MaxSize) const
+			{
+				Core::String Data;
+				if (!Buffer)
+					return Data;
+
+				if (Size > 0)
+				{
+					Data.assign(Buffer, Size > MaxSize ? MaxSize : Size);
+					return Data;
+				}
+
+				size_t DataSize = 0;
+				char* Next = Buffer;
+				while (*(Next++) != '\0')
+				{
+					if (++DataSize > MaxSize)
+					{
+						Data.assign(Buffer, DataSize - 1);
+						return Data;
+					}
+				}
+
+				Data.assign(Buffer, DataSize);
+				return Data;
+			}
+			CharBuffer* CharBuffer::Create()
+			{
+				return new(asAllocMem(sizeof(CharBuffer))) CharBuffer();
+			}
+			CharBuffer* CharBuffer::Create(size_t Size)
+			{
+				return new(asAllocMem(sizeof(CharBuffer))) CharBuffer(Size);
+			}
+			CharBuffer* CharBuffer::Create(char* Pointer)
+			{
+				return new(asAllocMem(sizeof(CharBuffer))) CharBuffer(Pointer);
+			}
+
 			Complex::Complex() noexcept
 			{
 				R = 0;
@@ -5984,16 +6249,16 @@ namespace Mavi
 				if (!Context || !Callback)
 					return Base->SetIncludeCallback(nullptr);
 
-				Base->SetIncludeCallback([Context, Callback](Compute::Preprocessor* Base, const Compute::IncludeResult& File, Core::String* Out)
+				Base->SetIncludeCallback([Context, Callback](Compute::Preprocessor* Base, const Compute::IncludeResult& File, Core::String& Output)
 				{
-					Context->ExecuteSubcall(Callback, [Base, &File, &Out](ImmediateContext* Context)
+					Context->ExecuteSubcall(Callback, [Base, &File, &Output](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArgObject(1, (void*)&File);
-						Context->SetArgObject(2, Out);
+						Context->SetArgObject(2, &Output);
 					});
 
-					return (bool)Context->GetReturnWord();
+					return (Compute::IncludeType)Context->GetReturnDWord();
 				});
 			}
 			void PreprocessorSetPragmaCallback(Compute::Preprocessor* Base, asIScriptFunction* Callback)
@@ -8283,6 +8548,7 @@ namespace Mavi
 				Engine->RegisterObjectMethod("dictionary", "bool get(const string &in, ?&out) const", asMETHODPR(Dictionary, Get, (const Core::String&, void*, int) const, bool), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "bool exists(const string &in) const", asMETHOD(Dictionary, Exists), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "bool empty() const", asMETHOD(Dictionary, IsEmpty), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "bool at(usize, string&out, ?&out) const", asMETHOD(Dictionary, TryGetIndex), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "usize size() const", asMETHOD(Dictionary, GetSize), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "bool delete(const string &in)", asMETHOD(Dictionary, Delete), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "void delete_all()", asMETHOD(Dictionary, DeleteAll), asCALL_THISCALL);
@@ -8466,11 +8732,11 @@ namespace Mavi
 				Engine->RegisterGlobalFunction("string to_string(const array<string> &in, const string &in)", asFUNCTION(String::Join), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string to_string(int8)", asFUNCTION(String::ToInt8), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string to_string(int16)", asFUNCTION(String::ToInt16), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(int)", asFUNCTION(String::ToInt), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("string to_string(int32)", asFUNCTION(String::ToInt), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string to_string(int64)", asFUNCTION(String::ToInt64), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string to_string(uint8)", asFUNCTION(String::ToUInt8), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string to_string(uint16)", asFUNCTION(String::ToUInt16), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(uint)", asFUNCTION(String::ToUInt), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("string to_string(uint32)", asFUNCTION(String::ToUInt), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string to_string(uint64)", asFUNCTION(String::ToUInt64), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string to_string(float)", asFUNCTION(String::ToFloat), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string to_string(double)", asFUNCTION(String::ToDouble), asCALL_CDECL);
@@ -8557,6 +8823,55 @@ namespace Mavi
 				return true;
 #else
 				VI_ASSERT(false, false, "<thread> is not loaded");
+				return false;
+#endif
+			}
+			bool Registry::LoadBuffers(VirtualMachine* VM)
+			{
+#ifdef VI_HAS_BINDINGS
+				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
+				asIScriptEngine* Engine = VM->GetEngine();
+				Engine->RegisterObjectType("char_buffer", 0, asOBJ_REF);
+				Engine->RegisterObjectBehaviour("char_buffer", asBEHAVE_FACTORY, "char_buffer@ f()", asFUNCTIONPR(CharBuffer::Create, (), CharBuffer*), asCALL_CDECL);
+				Engine->RegisterObjectBehaviour("char_buffer", asBEHAVE_FACTORY, "char_buffer@ f(usize)", asFUNCTIONPR(CharBuffer::Create, (size_t), CharBuffer*), asCALL_CDECL);
+				Engine->RegisterObjectBehaviour("char_buffer", asBEHAVE_FACTORY, "char_buffer@ f(uptr@)", asFUNCTIONPR(CharBuffer::Create, (char*), CharBuffer*), asCALL_CDECL);
+				Engine->RegisterObjectBehaviour("char_buffer", asBEHAVE_ADDREF, "void f()", asMETHOD(CharBuffer, AddRef), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("char_buffer", asBEHAVE_RELEASE, "void f()", asMETHOD(CharBuffer, Release), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "uptr@ get_ptr(usize = 0) const", asMETHOD(CharBuffer, GetPointer), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool allocate(usize)", asMETHOD(CharBuffer, Allocate), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool deallocate()", asMETHOD(CharBuffer, Deallocate), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool exists(usize) const", asMETHOD(CharBuffer, Exists), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool empty() const", asMETHOD(CharBuffer, Empty), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool set(usize, int8, usize)", asMETHOD(CharBuffer, SetInt8), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool set(usize, uint8, usize)", asMETHOD(CharBuffer, SetUint8), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, const string&in)", asMETHOD(CharBuffer, StoreBytes), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, int8)", asMETHOD(CharBuffer, StoreInt8), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, uint8)", asMETHOD(CharBuffer, StoreUint8), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, int16)", asMETHOD(CharBuffer, StoreInt16), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, uint16)", asMETHOD(CharBuffer, StoreUint16), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, int32)", asMETHOD(CharBuffer, StoreInt32), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, uint32)", asMETHOD(CharBuffer, StoreUint32), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, int64)", asMETHOD(CharBuffer, StoreInt64), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, uint64)", asMETHOD(CharBuffer, StoreUint64), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, float)", asMETHOD(CharBuffer, StoreFloat), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, double)", asMETHOD(CharBuffer, StoreDouble), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool interpret(usize, string&out, usize) const", asMETHOD(CharBuffer, Interpret), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, string&out, usize) const", asMETHOD(CharBuffer, LoadBytes), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, int8&out) const", asMETHOD(CharBuffer, LoadInt8), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, uint8&out) const", asMETHOD(CharBuffer, LoadUint8), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, int16&out) const", asMETHOD(CharBuffer, LoadInt16), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, uint16&out) const", asMETHOD(CharBuffer, LoadUint16), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, int32&out) const", asMETHOD(CharBuffer, LoadInt32), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, uint32&out) const", asMETHOD(CharBuffer, LoadUint32), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, int64&out) const", asMETHOD(CharBuffer, LoadInt64), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, uint64&out) const", asMETHOD(CharBuffer, LoadUint64), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, float&out) const", asMETHOD(CharBuffer, LoadFloat), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, double&out) const", asMETHOD(CharBuffer, LoadDouble), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "usize size() const", asMETHOD(CharBuffer, GetSize), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("char_buffer", "string to_string(usize) const", asMETHOD(CharBuffer, ToString), asCALL_THISCALL);
+				return true;
+#else
+				VI_ASSERT(false, false, "<buffers> is not loaded");
 				return false;
 #endif
 			}
@@ -8851,6 +9166,8 @@ namespace Mavi
 				VConsole.SetMethod("void hide()", &Core::Console::Hide);
 				VConsole.SetMethod("void show()", &Core::Console::Show);
 				VConsole.SetMethod("void clear()", &Core::Console::Clear);
+				VConsole.SetMethod("void allocate()", &Core::Console::Allocate);
+				VConsole.SetMethod("void deallocate()", &Core::Console::Deallocate);
 				VConsole.SetMethod("void attach()", &Core::Console::Attach);
 				VConsole.SetMethod("void detach()", &Core::Console::Detach);
 				VConsole.SetMethod("void flush()", &Core::Console::Flush);
@@ -10275,6 +10592,12 @@ namespace Mavi
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				Enumeration VIncludeType = Engine->SetEnum("include_type");
+				VIncludeType.SetValue("error_t", (int)Compute::IncludeType::Error);
+				VIncludeType.SetValue("preprocess_t", (int)Compute::IncludeType::Preprocess);
+				VIncludeType.SetValue("unchaned_t", (int)Compute::IncludeType::Unchanged);
+				VIncludeType.SetValue("virtual_t", (int)Compute::IncludeType::Virtual);
+
 				TypeClass VIncludeDesc = Engine->SetStructTrivial<Compute::IncludeDesc>("include_desc");
 				VIncludeDesc.SetProperty<Compute::IncludeDesc>("string from", &Compute::IncludeDesc::From);
 				VIncludeDesc.SetProperty<Compute::IncludeDesc>("string path", &Compute::IncludeDesc::Path);
@@ -10300,7 +10623,7 @@ namespace Mavi
 				VDesc.SetConstructor<Compute::Preprocessor::Desc>("void f()");
 
 				RefClass VPreprocessor = Engine->SetClass<Compute::Preprocessor>("preprocessor", false);
-				VPreprocessor.SetFunctionDef("bool proc_include_event(preprocessor@+, const include_result &in, string &out)");
+				VPreprocessor.SetFunctionDef("include_type proc_include_event(preprocessor@+, const include_result &in, string &out)");
 				VPreprocessor.SetFunctionDef("bool proc_pragma_event(preprocessor@+, const string &in, array<string>@+)");
 				VPreprocessor.SetConstructor<Compute::Preprocessor>("preprocessor@ f(uptr@)");
 				VPreprocessor.SetMethod("void set_include_options(const include_desc &in)", &Compute::Preprocessor::SetIncludeOptions);

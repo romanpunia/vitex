@@ -188,43 +188,6 @@ namespace Mavi
 {
 	namespace Scripting
 	{
-		static Core::String ConvertTree(Core::Schema* Source, int Depth)
-		{
-			if (!Source->Value.IsObject())
-				return Core::Schema::ToJSON(Source);
-
-			if (Depth < 1)
-				return "[ ... ]";
-
-			Core::String Output;
-			auto& Childs = Source->GetChilds();
-			if (Source->Value.Is(Core::VarType::Object))
-			{
-				Output.append("{ ");
-				for (size_t i = 0; i < Childs.size(); i++)
-				{
-					auto* Child = Childs[i];
-					Output.append("\"" + Child->GetName() + "\" = ");
-					Output.append(ConvertTree(Child, Depth - 1));
-					if (i + 1 < Childs.size())
-						Output.append(", ");
-				}
-				Output.append(" }");
-			}
-			else
-			{
-				Output.append("[ ");
-				for (size_t i = 0; i < Childs.size(); i++)
-				{
-					Output.append(ConvertTree(Childs[i], Depth - 1));
-					if (i + 1 < Childs.size())
-						Output.append(", ");
-				}
-				Output.append(" ]");
-			}
-			
-			return Output;
-		}
 		static Core::Vector<Core::String> ExtractLinesOfCode(const Core::String& Code, int Line, int Max)
 		{
 			Core::Vector<Core::String> Total;
@@ -266,6 +229,10 @@ namespace Mavi
 			}
 
 			return Total;
+		}
+		static Core::String CharTrimEnd(const char* Value)
+		{
+			return Core::Stringify(Value).TrimEnd().R();
 		}
 
 		uint64_t TypeCache::Set(uint64_t Id, const Core::String& Name)
@@ -795,6 +762,15 @@ namespace Mavi
 		{
 			VI_ASSERT(IsValid(), FunctionType::DUMMY, "function should be valid");
 			return (FunctionType)Ptr->GetFuncType();
+		}
+		uint32_t* Function::GetByteCode(size_t* Size) const
+		{
+			VI_ASSERT(IsValid(), nullptr, "function should be valid");
+			asUINT DataSize = 0;
+			asDWORD* Data = Ptr->GetByteCode(&DataSize);
+			if (Size != nullptr)
+				*Size = DataSize;
+			return (uint32_t*)Data;
 		}
 		const char* Function::GetModuleName() const
 		{
@@ -1611,7 +1587,10 @@ namespace Mavi
 		int Module::Build()
 		{
 			VI_ASSERT(IsValid(), -1, "module should be valid");
-			return Mod->Build();
+			int R = Mod->Build();
+			if (R != asBUILD_IN_PROGRESS)
+				VM->ClearSections();
+			return R;
 		}
 		int Module::LoadByteCode(ByteCodeInfo* Info)
 		{
@@ -1869,29 +1848,36 @@ namespace Mavi
 			VI_ASSERT_V(VM != nullptr, "engine should be set");
 
 			Processor = new Compute::Preprocessor();
-			Processor->SetIncludeCallback([this](Compute::Preprocessor* Processor, const Compute::IncludeResult& File, Core::String* Out)
+			Processor->SetIncludeCallback([this](Compute::Preprocessor* Processor, const Compute::IncludeResult& File, Core::String& Output)
 			{
-				VI_ASSERT(VM != nullptr, false, "engine should be set");
-				if (Include && Include(Processor, File, Out))
-					return true;
+				VI_ASSERT(VM != nullptr, Compute::IncludeType::Error, "engine should be set");
+				if (Include)
+				{
+					Compute::IncludeType Status = Include(Processor, File, Output);
+					if (Status != Compute::IncludeType::Error)
+						return Status;
+				}
 
 				if (File.Module.empty() || !Scope)
-					return false;
+					return Compute::IncludeType::Error;
 
 				if (!File.IsFile && File.IsSystem)
-					return VM->ImportSubmodule(File.Module);
+					return VM->ImportSubmodule(File.Module) ? Compute::IncludeType::Virtual : Compute::IncludeType::Error;
 
 				Core::String Buffer;
-				if (!VM->ImportFile(File.Module, &Buffer))
-					return false;
+				if (!VM->ImportFile(File.Module, Buffer))
+					return Compute::IncludeType::Error;
 
 				if (Buffer.empty())
-					return true;
+					return Compute::IncludeType::Virtual;
 
 				if (!VM->GenerateCode(Processor, File.Module, Buffer))
-					return false;
+					return Compute::IncludeType::Error;
 
-				return VM->AddScriptSection(Scope, File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0;
+				if (Buffer.empty())
+					return Compute::IncludeType::Virtual;
+
+				return VM->AddScriptSection(Scope, File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0 ? Compute::IncludeType::Virtual : Compute::IncludeType::Error;
 			});
 			Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const Core::String& Name, const Core::Vector<Core::String>& Args)
 			{
@@ -2238,6 +2224,8 @@ namespace Mavi
 				int R = 0;
 				while ((R = Scope->Build()) == asBUILD_IN_PROGRESS)
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
+
+				VM->ClearSections();
 				return R;
 			}).Then<int>([this](int&& R)
 			{
@@ -2583,6 +2571,17 @@ namespace Mavi
 				PrintValue(Args[0], Context);
 				return false;
 			});
+			AddCommand("d, dump", "dump compiled function bytecode by name or declaration", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			{
+				if (Args[0].empty())
+				{
+					Output("  dump <function declaration | function name>\n");
+					return false;
+				}
+
+				PrintByteCode(Args[0], Context);
+				return false;
+			});
 			AddCommand("i, info", "show info about of specific topic", ArgsType::Array, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
 			{
 				if (Args.empty())
@@ -2596,6 +2595,21 @@ namespace Mavi
 				if (Args[0] == "e" || Args[0] == "exception")
 				{
 					ShowException(Context);
+					return false;
+				}
+				else if (Args[0] == "s" || Args[0] == "stack")
+				{
+					if (Args.size() > 1)
+					{
+						Core::Stringify Numeric(&Args[1]);
+						if (Numeric.HasInteger())
+							ListStackRegisters(Context, Numeric.ToUInt());
+						else
+							Output("  invalid stack level");
+					}
+					else
+						ListStackRegisters(Context, 0);
+
 					return false;
 				}
 				else if (Args[0] == "l" || Args[0] == "locals")
@@ -2633,7 +2647,7 @@ namespace Mavi
 					ListInterfaces(Context);
 					return false;
 				}
-				else if (Args[0] == "gc" || Args[0] == "statistics")
+				else if (Args[0] == "gc" || Args[0] == "garbage")
 				{
 					ListStatistics(Context);
 					return false;
@@ -2642,6 +2656,8 @@ namespace Mavi
 			InfoFailure:
 				Output(
 					"  info b, info break - show breakpoints\n"
+					"  info s, info stack <level?> - show stack registers\n"
+					"  info e, info exception - show current exception\n"
 					"  info l, info locals - show local variables\n"
 					"  info m, info members - show member properties\n"
 					"  info g, info globals - show global variables\n"
@@ -2649,7 +2665,7 @@ namespace Mavi
 					"  info c, info code - show source code section\n"
 					"  info ms, info modules - show imported modules\n"
 					"  info ri, info interfaces - show registered script virtual interfaces\n"
-					"  info gc, info statistics - show gc statistics\n");
+					"  info gc, info garbage - show gc statistics\n");
 				return false;
 			});
 			AddCommand("t, thread", "switch to thread by it's number", ArgsType::Array, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
@@ -2712,131 +2728,180 @@ namespace Mavi
 		}
 		void DebuggerContext::AddDefaultStringifiers()
 		{
-			AddToStringCallback("string", [](void* Object, int Depth, int TypeId)
+			AddToStringCallback("string", [](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Core::String& Source = *(Core::String*)Object;
-				Core::String Output;
-				if (Depth > 0)
-				{
-					Output.append("{ capacity = ");
-					Output.append(Core::ToString(Source.capacity()));
-					Output.append(", size = ");
-					Output.append(Core::ToString(Source.size()));
-					Output.append(", data = \"");
-					Output.append(Source);
-					Output.append("\" }");
-				}
-				else
-				{
-					Output.append("\"");
-					Output.append(Core::ToString(Source.size()));
-					Output.append("\"");
-				}
-				return Output;
+				Core::StringStream Stream;
+				Stream << "\"" << Source << "\"";
+				return Stream.str();
 			});
-			AddToStringCallback("decimal", [](void* Object, int Depth, int TypeId)
+			AddToStringCallback("decimal", [](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Core::Decimal& Source = *(Core::Decimal*)Object;
 				return Source.ToString();
 			});
-			AddToStringCallback("variant", [](void* Object, int Depth, int TypeId)
+			AddToStringCallback("variant", [](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Core::Variant& Source = *(Core::Variant*)Object;
 				return "\"" + Source.Serialize() + "\"";
 			});
-			AddToStringCallback("any", [this](void* Object, int Depth, int TypeId)
+			AddToStringCallback("any", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Bindings::Any* Source = (Bindings::Any*)Object;
-				return ToString(Source->GetAddressOfObject(), Source->GetTypeId(), Depth - 1);
+				return ToString(Indent, Depth - 1, Source->GetAddressOfObject(), Source->GetTypeId());
 			});
-			AddToStringCallback("ref", [this](void* Object, int Depth, int TypeId)
+			AddToStringCallback("ref", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Bindings::Ref* Source = (Bindings::Ref*)Object;
-				return ToString(Source->GetAddressOfObject(), Source->GetTypeId(), Depth - 1);
+				return ToString(Indent, Depth - 1, Source->GetAddressOfObject(), Source->GetTypeId());
 			});
-			AddToStringCallback("weak", [this](void* Object, int Depth, int TypeId)
+			AddToStringCallback("weak", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Bindings::Any* Source = (Bindings::Any*)Object;
-				return ToString(Source->GetAddressOfObject(), Source->GetTypeId(), Depth - 1);
+				return ToString(Indent, Depth - 1, Source->GetAddressOfObject(), Source->GetTypeId());
 			});
-			AddToStringCallback("promise, promise_v", [this](void* Object, int Depth, int TypeId)
+			AddToStringCallback("promise, promise_v", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Bindings::Promise* Source = (Bindings::Promise*)Object;
-				Core::String Output;
-				Output.append("{ state = ");
-				Output.append(Source->IsPending() ? "pending" : "fulfilled");
-				Output.append(", data = ");
-				Output.append(ToString(Source->GetAddressOfObject(), Source->GetTypeId(), Depth - 1));
-				Output.append(" }");
-				return Output;
+				Core::StringStream Stream;
+				Stream << "\n";
+				Stream << Indent << "  state = " << (Source->IsPending() ? "pending\n" : "fulfilled\n");
+				Stream << Indent << "  data = " << ToString(Indent, Depth - 1, Source->GetAddressOfObject(), Source->GetTypeId());
+				return Stream.str();
 			});
-			AddToStringCallback("thread", [this](void* Object, int Depth, int TypeId)
+			AddToStringCallback("thread", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Bindings::Thread* Source = (Bindings::Thread*)Object;
-				Core::String Output;
-				Output.append("{ id = ");
-				Output.append(Source->GetId());
-				Output.append(", state = ");
-				Output.append(Source->IsActive() ? "active" : "suspended");
-				Output.append(" }");
-				return Output;
+				Core::StringStream Stream;
+				Stream << "\n";
+				Stream << Indent << "  id = " << Source->GetId() << "\n";
+				Stream << Indent << "  state = " << (Source->IsActive() ? "active" : "suspended");
+				return Stream.str();
 			});
-			AddToStringCallback("array", [this](void* Object, int Depth, int TypeId)
+			AddToStringCallback("char_buffer", [](Core::String& Indent, int Depth, void* Object, int TypeId)
+			{
+				Bindings::CharBuffer* Source = (Bindings::CharBuffer*)Object;
+				size_t Size = Source->GetSize();
+
+				Core::StringStream Stream;
+				Stream << "0x" << (void*)Source << " (" << Size << " bytes) [";
+
+				char* Buffer = (char*)Source->GetPointer(0);
+				size_t Count = (Size > 256 ? 256 : Size);
+				Core::String Next = "0";
+
+				for (size_t i = 0; i < Count; i++)
+				{
+					Next[0] = Buffer[i];
+					Stream << "0x" << Compute::Codec::HexEncode(Next);
+					if (i + 1 < Count)
+						Stream << ", ";
+				}
+
+				if (Count < Size)
+					Stream << ", ...";
+
+				Stream << "]";
+				return Stream.str();
+			});
+			AddToStringCallback("array", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Bindings::Array* Source = (Bindings::Array*)Object;
-				Core::String Output;
-				if (Depth > 0)
+				int BaseTypeId = Source->GetElementTypeId();
+				size_t Size = Source->GetSize();
+				Core::StringStream Stream;
+				Stream << "0x" << (void*)Source << " (" << Size << " elements)";
+
+				if (!Depth || !Size)
+					return Stream.str();
+
+				if (Size > 128)
 				{
-					int TypeId = Source->GetElementTypeId();
-					size_t Size = Source->GetSize();
-					Output.append("{ size = ");
-					Output.append(Core::ToString(Size));
-					Output.append(", data = [ ");
+					Stream << "\n";
+					Indent.append("  ");
 					for (size_t i = 0; i < Size; i++)
 					{
-						Output.append(ToString(Source->At(i), TypeId, Depth - 1));
+						Stream << Indent << "[" << i << "]: " << ToString(Indent, Depth - 1, Source->At(i), BaseTypeId);
 						if (i + 1 < Size)
-							Output.append(", ");
+							Stream << "\n";
 					}
-					Output.append(" ] }");
+					Indent.erase(Indent.end() - 2, Indent.end());
 				}
 				else
-					Output.append("[ ... ]");
-				return Output;
+				{
+					Stream << " [";
+					for (size_t i = 0; i < Size; i++)
+					{
+						Stream << ToString(Indent, Depth - 1, Source->At(i), BaseTypeId);
+						if (i + 1 < Size)
+							Stream << ", ";
+					}
+					Stream << "]";
+				}
+
+				return Stream.str();
 			});
-			AddToStringCallback("dictionary", [this](void* Object, int Depth, int TypeId)
+			AddToStringCallback("dictionary", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Bindings::Dictionary* Source = (Bindings::Dictionary*)Object;
-				Core::String Output;
-				if (Depth > 0)
-				{
-					size_t Size = Source->GetSize();
-					Output.append("{ size = ");
-					Output.append(Core::ToString(Size));
-					Output.append(", data = { ");
-					for (size_t i = 0; i < Size; i++)
-					{
-						Core::String Name; void* Value; int TypeId;
-						if (!Source->GetIndex(i, &Name, &Value, &TypeId))
-							continue;
+				size_t Size = Source->GetSize();
+				Core::StringStream Stream;
+				Stream << "0x" << (void*)Source << " (" << Size << " elements)";
 
-						Output.append("\"");
-						Output.append(Name);
-						Output.append("\" = ");
-						Output.append(ToString(Value, TypeId, Depth - 1));
-						if (i + 1 < Size)
-							Output.append(", ");
-					}
-					Output.append(" } }");
+				if (!Depth || !Size)
+					return Stream.str();
+
+				Stream << "\n";
+				Indent.append("  ");
+				for (size_t i = 0; i < Size; i++)
+				{
+					Core::String Name; void* Value; int TypeId;
+					if (!Source->GetIndex(i, &Name, &Value, &TypeId))
+						continue;
+
+					TypeInfo Type = VM->GetTypeInfoById(TypeId);
+					Stream << Indent << CharTrimEnd(Type.IsValid() ? Type.GetName() : "?") << " \"" << Name << "\": " << ToString(Indent, Depth - 1, Value, TypeId);
+					if (i + 1 < Size)
+						Stream << "\n";
 				}
-				else
-					Output.append("[ ... ]");
-				return Output;
+
+				Indent.erase(Indent.end() - 2, Indent.end());
+				return Stream.str();
 			});
-			AddToStringCallback("schema", [](void* Object, int Depth, int TypeId)
+			AddToStringCallback("schema", [](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
+				Core::StringStream Stream;
 				Core::Schema* Source = (Core::Schema*)Object;
-				return ConvertTree(Source, Depth);
+				if (Source->Value.IsObject())
+					Stream << "\n";
+
+				Core::Schema::ConvertToJSON(Source, [&Indent, &Stream](Core::VarForm Type, const char* Buffer, size_t Size)
+				{
+					if (Buffer != nullptr && Size > 0)
+						Stream << Core::String(Buffer, Size);
+
+					switch (Type)
+					{
+						case Core::VarForm::Tab_Decrease:
+							Indent.erase(Indent.end() - 2, Indent.end());
+							break;
+						case Core::VarForm::Tab_Increase:
+							Indent.append("  ");
+							break;
+						case Core::VarForm::Write_Space:
+							Stream << " ";
+							break;
+						case Core::VarForm::Write_Line:
+							Stream << "\n";
+							break;
+						case Core::VarForm::Write_Tab:
+							Stream << Indent;
+							break;
+						default:
+							break;
+					}
+				});
+				return Stream.str();
 			});
 		}
 		void DebuggerContext::AddCommand(const Core::String& Name, const Core::String& Description, ArgsType Type, const CommandCallback& Callback)
@@ -3126,12 +3191,59 @@ namespace Mavi
 
 			if (Pointer)
 			{
+				Core::String Indent = "  ";
 				Core::StringStream Stream;
-				Stream << "  " << ToString(Pointer, TypeId, 3) << std::endl;
+				Stream << Indent << ToString(Indent, 3, Pointer, TypeId) << std::endl;
 				Output(Stream.str());
 			}
 			else
 				Output("  invalid expression, no matching symbols\n");
+		}
+		void DebuggerContext::PrintByteCode(const Core::String& FunctionDecl, ImmediateContext* Context)
+		{
+			VI_ASSERT_V(Context != nullptr, "context should be set");
+
+			asIScriptContext* Base = Context->GetContext();
+			VI_ASSERT_V(Base != nullptr, "context should be set");
+
+			asIScriptFunction* Function = Context->GetContext()->GetFunction();
+			if (!Function)
+				return Output("  context was not found\n");
+
+			asIScriptModule* Module = Function->GetModule();
+			if (!Module)
+				return Output("  module was not found\n");
+
+			Function = Module->GetFunctionByName(FunctionDecl.c_str());
+			if (!Function)
+				Function = Module->GetFunctionByDecl(FunctionDecl.c_str());
+
+			if (!Function)
+				return Output("  function was not found\n");
+
+			Core::StringStream Stream;
+			Stream << "  function <" << Function->GetName() << "> bytecode instructions:";
+
+			asUINT Size = 0, Calls = 0, Args = 0;
+			asDWORD* ByteCode = Function->GetByteCode(&Size);
+			for (asUINT i = 0; i < Size; i++)
+			{
+				asDWORD Value = ByteCode[i];
+				if (Value <= std::numeric_limits<uint8_t>::max())
+				{
+					ByteCodeLabel RightLabel = VirtualMachine::GetByteCodeInfo(Value);
+					Stream << "\n    0x" << (void*)(uintptr_t)(i) << ": " << RightLabel.Name << " [bc:" << (int)RightLabel.Id << ";ac:" << (int)RightLabel.Args << "]";
+					++Calls;
+				}
+				else
+				{
+					Stream << " " << Value;
+					++Args;
+				}
+			}
+
+			Stream << "\n  " << Size << " instructions, " << Calls << " operations, " << Args << " values\n";
+			Output(Stream.str());
 		}
 		void DebuggerContext::ShowException(ImmediateContext* Context)
 		{
@@ -3160,7 +3272,7 @@ namespace Mavi
 			int ColumnNumber = 0;
 			int LineNumber = Context->GetExceptionLineNumber(&ColumnNumber, &File);
 			if (File != nullptr && LineNumber > 0)
-				AppendSourceCode(Stream, "exception origin", File, LineNumber, ColumnNumber, 5);
+				Stream << VM->GetSourceCodeAppendixByPath("exception origin", File, LineNumber, ColumnNumber, 5);
 			Output(Stream.str());
 		}
 		void DebuggerContext::ListBreakPoints()
@@ -3207,6 +3319,110 @@ namespace Mavi
 			for (auto& Name : VM->GetSubmodules())
 				Output("  " + Name + "\n");
 		}
+		void DebuggerContext::ListStackRegisters(ImmediateContext* Context, uint32_t Level)
+		{
+			VI_ASSERT_V(Context != nullptr, "context should be set");
+
+			asIScriptContext* Base = Context->GetContext();
+			VI_ASSERT_V(Base != nullptr, "context should be set");
+
+			asUINT StackSize = Base->GetCallstackSize();
+			if (StackSize < Level)
+				return Output("  there are only " + Core::ToString(StackSize) + " stack frames");
+
+			asIScriptFunction* CurrentFunction = nullptr;
+			asDWORD StackFramePointer, ProgramPointer, StackPointer, StackIndex;
+			if (Base->GetCallStateRegisters(Level, &StackFramePointer, &CurrentFunction, &ProgramPointer, &StackPointer, &StackIndex) != 0)
+				return Output("  cannot read stack frame #" + Core::ToString(Level));
+
+			Core::StringStream Stream;
+			Core::String Indent = "    ";
+			size_t ArgsCount = (size_t)Base->GetArgsOnStackCount(Level);
+			Stream << "stack frame #" << Level << " values:\n";
+			for (asUINT n = 0; n < ArgsCount; n++)
+			{
+				asUINT Flags; int TypeId; void* Address;
+				if (Base->GetArgOnStack(Level, n, &TypeId, &Flags, &Address) < 0)
+					continue;
+
+				TypeInfo Type = VM->GetTypeInfoById(TypeId);
+				Stream << Indent << "#" << n << " <" << (Type.IsValid() ? Type.GetName() : "?") << "#" << Flags << ">: " << ToString(Indent, 3, Base->GetAddressOfVar(n), TypeId) << std::endl;
+			}
+
+			if (!ArgsCount)
+				Stream << "  stack is empty\n";
+
+			Stream << "stack frame #" << Level << " info:\n";
+			Stream << "  stack frame pointer (sfp): " << StackFramePointer << "\n";
+			Stream << "  program pointer (pp): " << ProgramPointer << "\n";
+			Stream << "  stack pointer (sp): " << StackPointer << "\n";
+			Stream << "  stack index (si): " << StackIndex << "\n";
+			Stream << "  stack depth (sd): " << StackSize - (Level + 1) << "\n";
+
+			if (CurrentFunction != nullptr)
+			{
+				asUINT Size = 0; size_t PreviewSize = 33;
+				asDWORD* ByteCode = CurrentFunction->GetByteCode(&Size);
+				Stream << "  current function (cf): " << CurrentFunction->GetDeclaration(true, true, true) << "\n";
+				if (ByteCode != nullptr && ProgramPointer < Size)
+				{
+					asUINT Left = std::min<asUINT>(PreviewSize, ProgramPointer);
+					Stream << "stack frame #" << Level << " instructions:";
+					bool HadInstruction = false;
+
+					if (Left > 0)
+					{
+						Stream << "\n  ... " << ProgramPointer - Left << " instructions passed";
+						for (asUINT i = 1; i < Left; i++)
+						{
+							asDWORD Value = ByteCode[ProgramPointer - i];
+							if (Value <= std::numeric_limits<uint8_t>::max())
+							{
+								ByteCodeLabel LeftLabel = VirtualMachine::GetByteCodeInfo((uint8_t)Value);
+								Stream << "\n  0x" << (void*)(uintptr_t)(ProgramPointer - i) << ": " << LeftLabel.Name << " [bc:" << (int)LeftLabel.Id << ";ac:" << (int)LeftLabel.Args << "]";
+								HadInstruction = true;
+							}
+							else if (!HadInstruction)
+							{
+								Stream << "\n  ... " << Value;
+								HadInstruction = true;
+							}
+							else
+								Stream << " " << Value;
+						}
+					}
+
+					asUINT Right = std::min<asUINT>(PreviewSize, Size - ProgramPointer);
+					ByteCodeLabel MainLabel = VirtualMachine::GetByteCodeInfo((uint8_t)ByteCode[ProgramPointer]);
+					Stream << "\n> 0x" << (void*)(uintptr_t)(ProgramPointer) << ": " << MainLabel.Name << " [bc:" << (int)MainLabel.Id << ";ac:" << (int)MainLabel.Args << "]";
+					HadInstruction = true;
+
+					if (Right > 0)
+					{
+						for (asUINT i = 1; i < Right; i++)
+						{
+							asDWORD Value = ByteCode[ProgramPointer + i];
+							if (Value <= std::numeric_limits<uint8_t>::max())
+							{
+								ByteCodeLabel RightLabel = VirtualMachine::GetByteCodeInfo((uint8_t)Value);
+								Stream << "\n  0x" << (void*)(uintptr_t)(ProgramPointer + i) << ": " << RightLabel.Name << " [bc:" << (int)RightLabel.Id << ";ac:" << (int)RightLabel.Args << "]";
+								HadInstruction = true;
+							}
+							else if (!HadInstruction)
+							{
+								Stream << "\n  ... " << Value;
+								HadInstruction = true;
+							}
+							else
+								Stream << " " << Value;
+						}
+						Stream << "\n  ... " << Size - ProgramPointer << " more instructions\n";
+					}
+				}
+			}
+
+			Output(Stream.str());
+		}
 		void DebuggerContext::ListMemberProperties(ImmediateContext* Context)
 		{
 			VI_ASSERT_V(Context != nullptr, "context should be set");
@@ -3217,8 +3433,9 @@ namespace Mavi
 			void* Pointer = Base->GetThisPointer();
 			if (Pointer != nullptr)
 			{
+				Core::String Indent = "  ";
 				Core::StringStream Stream;
-				Stream << "  this = " << ToString(Pointer, Base->GetThisTypeId(), 3) << std::endl;
+				Stream << Indent << "this = " << ToString(Indent, 3, Pointer, Base->GetThisTypeId()) << std::endl;
 				Output(Stream.str());
 			}
 		}
@@ -3233,15 +3450,16 @@ namespace Mavi
 			if (!Function)
 				return;
 
+			Core::String Indent = "  ";
 			Core::StringStream Stream;
 			for (asUINT n = 0; n < Function->GetVarCount(); n++)
 			{
-				if (Base->IsVarInScope(n))
-				{
-					int TypeId;
-					Base->GetVar(n, 0, 0, &TypeId);
-					Stream << "  " << Function->GetVarDecl(n) << " = " << ToString(Base->GetAddressOfVar(n), TypeId, 3) << std::endl;
-				}
+				if (!Base->IsVarInScope(n))
+					continue;
+
+				int TypeId;
+				Base->GetVar(n, 0, 0, &TypeId);
+				Stream << Indent << CharTrimEnd(Function->GetVarDecl(n)) << ": " << ToString(Indent, 3, Base->GetAddressOfVar(n), TypeId) << std::endl;
 			}
 			Output(Stream.str());
 		}
@@ -3260,12 +3478,13 @@ namespace Mavi
 			if (!Mod)
 				return;
 
+			Core::String Indent = "  ";
 			Core::StringStream Stream;
 			for (asUINT n = 0; n < Mod->GetGlobalVarCount(); n++)
 			{
 				int TypeId = 0;
 				Mod->GetGlobalVar(n, nullptr, nullptr, &TypeId);
-				Stream << "  " << Mod->GetGlobalVarDeclaration(n) << " = " << ToString(Mod->GetAddressOfGlobalVar(n), TypeId, 3) << std::endl;
+				Stream << Indent << CharTrimEnd(Mod->GetGlobalVarDeclaration(n)) << ": " << ToString(Indent, 3, Mod->GetAddressOfGlobalVar(n), TypeId) << std::endl;
 			}
 			Output(Stream.str());
 		}
@@ -3344,7 +3563,7 @@ namespace Mavi
 			}
 
 			if (File != nullptr && LineNumber >= 0)
-				AppendSourceCode(Stream, "caller origin", File, LineNumber, ColumnNumber, 5);
+				Stream << VM->GetSourceCodeAppendixByPath("caller origin", File, LineNumber, ColumnNumber, 5);
 			Output(Stream.str());
 		}
 		void DebuggerContext::AddFuncBreakPoint(const Core::String& Function)
@@ -3552,7 +3771,12 @@ namespace Mavi
 		{
 			return Attachable;
 		}
-		Core::String DebuggerContext::ToString(void* Value, unsigned int TypeId, int Depth, bool SkipAddresses)
+		Core::String DebuggerContext::ToString(int Depth, void* Value, unsigned int TypeId)
+		{
+			Core::String Indent;
+			return ToString(Indent, Depth, Value, TypeId);
+		}
+		Core::String DebuggerContext::ToString(Core::String& Indent, int Depth, void* Value, unsigned int TypeId)
 		{
 			if (Value == 0 || !VM)
 				return "null";
@@ -3595,10 +3819,9 @@ namespace Mavi
 				{
 					int EnumVal;
 					const char* EnumName = T->GetEnumValueByIndex(n, &EnumVal);
-
 					if (EnumVal == *(int*)Value)
 					{
-						Stream << ", " << EnumName;
+						Stream << " (" << EnumName <<  ")";
 						break;
 					}
 				}
@@ -3608,21 +3831,33 @@ namespace Mavi
 				if (TypeId & asTYPEID_OBJHANDLE)
 					Value = *(void**)Value;
 
-				asIScriptObject* Object = (asIScriptObject*)Value;
-				if (!SkipAddresses)
-					Stream << "0x" << Object;
-
-				if (Object && Depth > 0)
+				if (!Value || !Depth)
 				{
-					asITypeInfo* Type = Object->GetObjectType();
-					Stream << " {";
-					for (asUINT n = 0; n < Object->GetPropertyCount(); n++)
-					{
-						Stream << (n == 0 ? " " : ", ");
-						Stream << Type->GetPropertyDeclaration(n) << " = " << ToString(Object->GetAddressOfProperty(n), Object->GetPropertyTypeId(n), Depth - 1);
-					}
-					Stream << " }";
+					if (Value != nullptr)
+						Stream << "0x" << Value;
+					else
+						Stream << "null";
+					goto Finalize;
 				}
+
+				asIScriptObject* Object = (asIScriptObject*)Value;
+				asITypeInfo* Type = Object->GetObjectType();
+				size_t Size = Object->GetPropertyCount();
+				if (!Size)
+				{
+					Stream << "0x" << Value << " { }";
+					goto Finalize;
+				}
+
+				Stream << "\n";
+				Indent.append("  ");
+				for (asUINT n = 0; n < Size; n++)
+				{
+					Stream << Indent << CharTrimEnd(Type->GetPropertyDeclaration(n)) << ": " << ToString(Indent, Depth - 1, Object->GetAddressOfProperty(n), Object->GetPropertyTypeId(n));
+					if (n + 1 < Size)
+						Stream << "\n";
+				}
+				Indent.erase(Indent.end() - 2, Indent.end());
 			}
 			else
 			{
@@ -3630,60 +3865,59 @@ namespace Mavi
 					Value = *(void**)Value;
 
 				asITypeInfo* Type = Base->GetTypeInfoById(TypeId);
-				if (!SkipAddresses && Type->GetFlags() & asOBJ_REF)
-					Stream << "0x" << Value;
-
-				if (Value != nullptr)
+				if (!Value || !Depth)
 				{
-					auto It = FastToStringCallbacks.find(Type);
-					if (It == FastToStringCallbacks.end())
-					{
-						if (Type->GetFlags() & asOBJ_TEMPLATE)
-							It = FastToStringCallbacks.find(Base->GetTypeInfoByName(Type->GetName()));
-					}
-
-					if (It != FastToStringCallbacks.end())
-					{
-						if (!SkipAddresses && Type->GetFlags() & asOBJ_REF)
-							Stream << " ";
-
-						Stream << It->second(Value, Depth);
-						goto Finalize;
-					}
-				}
-
-				if (Value != nullptr)
-				{
-					auto It = SlowToStringCallbacks.find(Type->GetName());
-					if (It != SlowToStringCallbacks.end())
-					{
-						if (!SkipAddresses && Type->GetFlags() & asOBJ_REF)
-							Stream << " ";
-
-						Stream << It->second(Value, Depth, TypeId);
-						goto Finalize;
-					}
-				}
-
-				if (Value != nullptr && Depth > 0)
-				{
-					if (!SkipAddresses && Type->GetFlags() & asOBJ_REF)
-						Stream << " {";
+					if (Value != nullptr)
+						Stream << "0x" << Value;
 					else
-						Stream << "{";
-
-					for (asUINT n = 0; n < Type->GetPropertyCount(); n++)
-					{
-						int PropTypeId, PropOffset;
-						if (Type->GetProperty(n, nullptr, &PropTypeId, nullptr, nullptr, &PropOffset, nullptr, nullptr, nullptr, nullptr) != 0)
-							continue;
-
-						void* Address = (char*)Value + PropOffset;
-						Stream << (n == 0 ? " " : ", ");
-						Stream << Type->GetPropertyDeclaration(n) << " = " << ToString(Address, PropTypeId, Depth - 1);
-					}
-					Stream << " }";
+						Stream << "null";
+					goto Finalize;
 				}
+
+				auto It1 = FastToStringCallbacks.find(Type);
+				if (It1 == FastToStringCallbacks.end())
+				{
+					if (Type->GetFlags() & asOBJ_TEMPLATE)
+						It1 = FastToStringCallbacks.find(Base->GetTypeInfoByName(Type->GetName()));
+				}
+
+				if (It1 != FastToStringCallbacks.end())
+				{
+					Indent.append("  ");
+					Stream << It1->second(Indent, Depth, Value);
+					Indent.erase(Indent.end() - 2, Indent.end());
+					goto Finalize;
+				}
+
+				auto It2 = SlowToStringCallbacks.find(Type->GetName());
+				if (It2 != SlowToStringCallbacks.end())
+				{
+					Indent.append("  ");
+					Stream << It2->second(Indent, Depth, Value, TypeId);
+					Indent.erase(Indent.end() - 2, Indent.end());
+					goto Finalize;
+				}
+
+				size_t Size = Type->GetPropertyCount();
+				if (!Size)
+				{
+					Stream << "0x" << Value << " { }";
+					goto Finalize;
+				}
+
+				Stream << "\n";
+				Indent.append("  ");
+				for (asUINT n = 0; n < Type->GetPropertyCount(); n++)
+				{
+					int PropTypeId, PropOffset;
+					if (Type->GetProperty(n, nullptr, &PropTypeId, nullptr, nullptr, &PropOffset, nullptr, nullptr, nullptr, nullptr) != 0)
+						continue;
+
+					Stream << Indent << CharTrimEnd(Type->GetPropertyDeclaration(n)) << ": " << ToString(Indent, Depth - 1, (char*)Value + PropOffset, PropTypeId);
+					if (n + 1 < Size)
+						Stream << "\n";
+				}
+				Indent.erase(Indent.end() - 2, Indent.end());
 			}
 
 		Finalize:
@@ -3701,39 +3935,12 @@ namespace Mavi
 				}
 			}
 		}
-		void DebuggerContext::AppendSourceCode(Core::StringStream& Stream, const char* Label, const char* File, int LineNumber, int ColumnNumber, int Count)
-		{
-			if (Count % 2 == 0)
-				++Count;
-
-			Core::Vector<Core::String> Lines = ExtractLinesOfCode(VM->GetScriptSection(File), LineNumber, Count);
-			if (Lines.empty())
-				return;
-
-			Core::Stringify Line = Lines.front();
-			Lines.erase(Lines.begin());
-			if (Line.Empty())
-				return;
-
-			Stream << "\n  last " << Count << " lines of " << Label << " code\n";
-			size_t TopSize = (Lines.size() % 2 != 0 ? 1 : 0) + Lines.size() / 2;
-			for (size_t i = 0; i < TopSize; i++)
-				Stream << "  " << LineNumber + i - Lines.size() / 2 << "  " << Core::Stringify(&Lines[i]).TrimEnd().R() << "\n";
-			Stream << "  " << LineNumber << "  " << Line.TrimEnd().R() << "\n  ";
-
-			ColumnNumber += 1 + Core::ToString(LineNumber).size();
-			for (int i = 0; i < ColumnNumber; i++)
-				Stream << " ";
-
-			Stream << "^\n";
-			for (size_t i = TopSize; i < Lines.size(); i++)
-				Stream << "  " << LineNumber + i - Lines.size() / 2 << "  " << Core::Stringify(&Lines[i]).TrimEnd().R() << "\n";
-		}
 		int DebuggerContext::ExecuteExpression(ImmediateContext* Context, const Core::String& Code)
 		{
 			VI_ASSERT(VM != nullptr, asINVALID_ARG, "engine should be set");
 			VI_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
 
+			Core::String Indent = "  ";
 			Core::String Eval = "any@ __vfdbgfunc(){return any(" + (Code.empty() || Code.back() != ';' ? Code : Code.substr(0, Code.size() - 1)) + ");}";
 			asIScriptModule* Module = Context->GetFunction().GetModule().GetModule();
 			asIScriptFunction* Function = nullptr; int Result = 0;
@@ -3755,9 +3962,9 @@ namespace Mavi
 			Result = Context->ExecuteNext();
 			if (Result < 0)
 				goto Cleanup;
-			
+
 			Data = Context->GetReturnObject<Bindings::Any>();
-			Output("  " + ToString(Data, VM->GetTypeInfoByName("any").GetTypeId(), 3) + "\n");
+			Output(Indent + ToString(Indent, 3, Data, VM->GetTypeInfoByName("any").GetTypeId()) + "\n");
 
 		Cleanup:
 			if (Function != nullptr)
@@ -4340,7 +4547,7 @@ namespace Mavi
 
 			Engine->SetUserData(this, ManagerUD);
 			Engine->SetContextCallbacks(RequestContext, ReturnContext, nullptr);
-			Engine->SetMessageCallback(asFUNCTION(CompileLogger), this, asCALL_CDECL);
+			Engine->SetMessageCallback(asFUNCTION(MessageLogger), this, asCALL_CDECL);
 			Engine->SetEngineProperty(asEP_INIT_GLOBAL_VARS_AFTER_BUILD, 0);
 			Engine->SetEngineProperty(asEP_USE_CHARACTER_LITERALS, 1);
 			Engine->SetEngineProperty(asEP_DISALLOW_EMPTY_LIST_ELEMENTS, 1);
@@ -4663,6 +4870,9 @@ namespace Mavi
 		}
 		void VirtualMachine::ClearSections()
 		{
+			if (Debugger != nullptr)
+				return;
+
 			Sync.General.lock();
 			Sections.clear();
 			Sync.General.unlock();
@@ -5121,13 +5331,11 @@ namespace Mavi
 			VI_ASSERT(Name != nullptr, asINVALID_ARG, "name should be set");
 			VI_ASSERT(Code != nullptr, asINVALID_ARG, "code should be set");
 			VI_ASSERT(Module != nullptr, asINVALID_ARG, "module should be set");
+			VI_ASSERT(CodeLength > 0, asINVALID_ARG, "code should not be empty");
 
-			if (Debugger != nullptr)
-			{
-				Sync.General.lock();
-				Sections[Name] = CodeLength > 0 ? Core::String(Code, CodeLength) : Code;
-				Sync.General.unlock();
-			}
+			Sync.General.lock();
+			Sections[Name] = Core::String(Code, CodeLength);
+			Sync.General.unlock();
 
 			return Module->AddScriptSection(Name, Code, CodeLength, LineOffset);
 		}
@@ -5366,7 +5574,7 @@ namespace Mavi
 			Sync.General.unlock();
 			return true;
 		}
-		bool VirtualMachine::ImportFile(const Core::String& Path, Core::String* Out)
+		bool VirtualMachine::ImportFile(const Core::String& Path, Core::String& Output)
 		{
 			if (!(Imports & (uint32_t)Imports::Files))
 			{
@@ -5382,9 +5590,7 @@ namespace Mavi
 
 			if (!Cached)
 			{
-				if (Out != nullptr)
-					Out->assign(Core::OS::File::ReadAsString(Path));
-
+				Output.assign(Core::OS::File::ReadAsString(Path));
 				return true;
 			}
 
@@ -5392,18 +5598,13 @@ namespace Mavi
 			auto It = Files.find(Path);
 			if (It != Files.end())
 			{
-				if (Out != nullptr)
-					Out->assign(It->second);
-
+				Output.assign(It->second);
 				Sync.General.unlock();
 				return true;
 			}
 
-			Core::String& Result = Files[Path];
-			Result = Core::OS::File::ReadAsString(Path);
-			if (Out != nullptr)
-				Out->assign(Result);
-
+			Output.assign(Core::OS::File::ReadAsString(Path));
+			Files.insert(std::make_pair(Path, Output));
 			Sync.General.unlock();
 			return true;
 		}
@@ -5590,6 +5791,42 @@ namespace Mavi
 				ViUninitialize(this);
 			}
 		}
+		Core::String VirtualMachine::GetSourceCodeAppendix(const char* Label, const Core::String& Code, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines)
+		{
+			if (MaxLines % 2 == 0)
+				++MaxLines;
+
+			Core::StringStream Stream;
+			VI_ASSERT(Label != nullptr, Stream.str(), "label should be set");
+			Core::Vector<Core::String> Lines = ExtractLinesOfCode(Code, (int)LineNumber, (int)MaxLines);
+			if (Lines.empty())
+				return Stream.str();
+
+			Core::Stringify Line = Lines.front();
+			Lines.erase(Lines.begin());
+			if (Line.Empty())
+				return Stream.str();
+
+			Stream << "\n  last " << MaxLines << " lines of " << Label << " code\n";
+			size_t TopSize = (Lines.size() % 2 != 0 ? 1 : 0) + Lines.size() / 2;
+			for (size_t i = 0; i < TopSize; i++)
+				Stream << "  " << LineNumber + i - Lines.size() / 2 << "  " << Core::Stringify(&Lines[i]).TrimEnd().R() << "\n";
+			Stream << "  " << LineNumber << "  " << Line.TrimEnd().R() << "\n  ";
+
+			ColumnNumber += 1 + Core::ToString(LineNumber).size();
+			for (int i = 0; i < ColumnNumber; i++)
+				Stream << " ";
+
+			Stream << "^";
+			for (size_t i = TopSize; i < Lines.size(); i++)
+				Stream << "\n  " << LineNumber + i - Lines.size() / 2 + 1 << "  " << Core::Stringify(&Lines[i]).TrimEnd().R();
+
+			return Stream.str();
+		}
+		Core::String VirtualMachine::GetSourceCodeAppendixByPath(const char* Label, const Core::String& Path, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines)
+		{
+			return GetSourceCodeAppendix(Label, GetScriptSection(Path), LineNumber, ColumnNumber, MaxLines);
+		}
 		Core::Schema* VirtualMachine::ImportJSON(const Core::String& Path)
 		{
 			if (!(Imports & (uint32_t)Imports::JSON))
@@ -5747,6 +5984,15 @@ namespace Mavi
 		{
 			asThreadCleanup();
 		}
+		ByteCodeLabel VirtualMachine::GetByteCodeInfo(uint8_t Code)
+		{
+			auto& Source = asBCInfo[Code];
+			ByteCodeLabel Label;
+			Label.Name = Source.name;
+			Label.Id = Code;
+			Label.Args = asBCTypeSize[Source.type];
+			return Label;
+		}
 		void VirtualMachine::ReturnContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data)
 		{
 			VirtualMachine* VM = VirtualMachine::Get(Engine);
@@ -5757,33 +6003,34 @@ namespace Mavi
 			Context->Unprepare();
 			VM->Sync.Pool.unlock();
 		}
-		void VirtualMachine::CompileLogger(asSMessageInfo* Info, void* This)
+		void VirtualMachine::MessageLogger(asSMessageInfo* Info, void* This)
 		{
 			VirtualMachine* Engine = (VirtualMachine*)This;
 			const char* Section = (Info->section && Info->section[0] != '\0' ? Info->section : "any");
 			if (Engine->WhenError)
 				Engine->WhenError();
 
+			Core::String SourceCode = Engine->GetSourceCodeAppendixByPath("error", Info->section, Info->row, Info->col, 5);
 			if (Engine != nullptr && !Engine->Callbacks.empty())
 			{
 				auto It = Engine->Callbacks.find(Section);
 				if (It != Engine->Callbacks.end())
 				{
 					if (Info->type == asMSGTYPE_WARNING)
-						return It->second(Core::Form("WARN anonymous.as (%i, %i): %s", Info->row, Info->col, Info->message).R());
+						return It->second(Core::Form("WARN at line %i: %s%s", Info->row, Info->message, SourceCode.c_str()).R());
 					else if (Info->type == asMSGTYPE_INFORMATION)
-						return It->second(Core::Form("INFO anonymous.as (%i, %i): %s", Info->row, Info->col, Info->message).R());
+						return It->second(Core::Form("INFO at line %i: %s%s", Info->row, Info->message, SourceCode.c_str()).R());
 
-					return It->second(Core::Form("ERR anonymous.as (%i, %i): %s", Info->row, Info->col, Info->message).R());
+					return It->second(Core::Form("ERR at line %i: %s%s", Info->row, Info->message, SourceCode.c_str()).R());
 				}
 			}
 
 			if (Info->type == asMSGTYPE_WARNING)
-				VI_WARN("[compiler]\n\t%s (%i, %i): %s", Section, Info->row, Info->col, Info->message);
+				VI_WARN("[compiler] %s at line %i: %s%s", Section, Info->row, Info->message, SourceCode.c_str());
 			else if (Info->type == asMSGTYPE_INFORMATION)
-				VI_INFO("[compiler]\n\t%s (%i, %i): %s", Section, Info->row, Info->col, Info->message);
+				VI_INFO("[compiler] %s at line %i: %s%s", Section, Info->row, Info->message, SourceCode.c_str());
 			else if (Info->type == asMSGTYPE_ERROR)
-				VI_ERR("[compiler]\n\t%s (%i, %i): %s", Section, Info->row, Info->col, Info->message);
+				VI_ERR("[compiler] %s at line %i: %s%s", Section, Info->row, Info->message, SourceCode.c_str());
 		}
 		void VirtualMachine::RegisterSubmodules(VirtualMachine* Engine)
 		{
@@ -5800,6 +6047,7 @@ namespace Mavi
 			Engine->AddSubmodule("std/exception", { "std/string" }, Bindings::Registry::LoadException);
 			Engine->AddSubmodule("std/mutex", { }, Bindings::Registry::LoadMutex);
 			Engine->AddSubmodule("std/thread", { "std/any", "std/string" }, Bindings::Registry::LoadThread);
+			Engine->AddSubmodule("std/buffers", { "std/string" }, Bindings::Registry::LoadBuffers);
 			Engine->AddSubmodule("std/promise", { }, Bindings::Registry::LoadPromise);
 			Engine->AddSubmodule("std/promise/async", { }, Bindings::Registry::LoadPromiseAsync);
 			Engine->AddSubmodule("std/format", { "std/string" }, Bindings::Registry::LoadFormat);

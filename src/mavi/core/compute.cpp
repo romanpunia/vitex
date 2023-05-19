@@ -8856,7 +8856,7 @@ namespace Mavi
 			}
 
 			size_t Size = Data.size();
-			if (false && !ExpandDefinitions(Data, Size))
+			if (!ExpandDefinitions(Data, Size))
 			{
 				ExpandedPath = LastPath;
 				return ReturnResult(false, Nesting);
@@ -9379,28 +9379,37 @@ namespace Mavi
 						return false;
 					}
 
+					Core::String Subbuffer;
 					FileDesc.Path = Next.Value;
 					FileDesc.From = Path;
 
 					IncludeResult File = ResolveInclude(FileDesc);
 					if (HasResult(File.Module))
 					{
-						Offset = ReplaceToken(Next, Buffer, "");
-						continue;
-					}
-
-					Core::String Subbuffer;
-					if (!Include || !Include(this, File, &Subbuffer))
-					{
-						VI_ERR("[proc] %s: cannot find \"%s\"", Path.c_str(), Next.Value.c_str());
-						return false;
-					}
-
-					VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude %s", (void*)this, File.IsSystem ? "system " : (File.IsFile ? "file " : ""), File.Module.c_str());
-					if (Subbuffer.empty() || Process(File.Module, Subbuffer))
-					{
+					SuccessfulInclude:
 						Offset = ReplaceToken(Next, Buffer, Subbuffer);
 						continue;
+					}
+
+					switch (Include ? Include(this, File, Subbuffer) : IncludeType::Error)
+					{
+						case IncludeType::Preprocess:
+							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude preprocess %s", (void*)this, File.IsSystem ? "system " : (File.IsFile ? "file " : ""), File.Module.c_str());
+							if (Subbuffer.empty() || Process(File.Module, Subbuffer))
+								goto SuccessfulInclude;
+
+							VI_ERR("[proc] %s: cannot preprocess include \"%s\"", Path.c_str(), Next.Value.c_str());
+							return false;
+						case IncludeType::Unchanged:
+							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude as-is %s", (void*)this, File.IsSystem ? "system " : (File.IsFile ? "file " : ""), File.Module.c_str());
+							goto SuccessfulInclude;
+						case IncludeType::Virtual:
+							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude virtual %s", (void*)this, File.IsSystem ? "system " : (File.IsFile ? "file " : ""), File.Module.c_str());
+							goto SuccessfulInclude;
+						case IncludeType::Error:
+						default:
+							VI_ERR("[proc] %s: cannot find \"%s\"", Path.c_str(), Next.Value.c_str());
+							return false;
 					}
 				}
 				else if (Next.Name == "pragma")

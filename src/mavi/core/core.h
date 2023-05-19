@@ -1894,16 +1894,32 @@ namespace Mavi
 
 		class VI_OUT_TS Console final : public Reference<Console>
 		{
+		private:
+			enum class Mode
+			{
+				Attached,
+				Allocated,
+				Detached
+			};
+
+		private:
+			struct
+			{
+				FILE* Input = nullptr;
+				FILE* Output = nullptr;
+				FILE* Errors = nullptr;
+			} Streams;
+
+			struct
+			{
+				unsigned short Attributes = 0;
+				double Time = 0.0;
+			} Cache;
+
 		protected:
-			std::mutex Session;
-			std::mutex Lock;
-			FILE* Input;
-			FILE* Output;
-			FILE* Errors;
-			unsigned short Attributes;
-			double Time;
-			bool Coloring;
-			bool Present;
+			std::recursive_mutex Session;
+			Mode Status;
+			bool Colors;
 
 		private:
 			Console() noexcept;
@@ -1917,6 +1933,8 @@ namespace Mavi
 			void Clear();
 			void Attach();
 			void Detach();
+			void Allocate();
+			void Deallocate();
 			void Flush();
 			void FlushWrite();
 			void Trace(uint32_t MaxFrames = 32);
@@ -1994,6 +2012,7 @@ namespace Mavi
 			~Timer() noexcept = default;
 			void SetFixedFrames(float Value);
 			void SetMaxFrames(float Value);
+			void Reset();
 			void Begin();
 			void Finish();
 			void Push(const char* Name = nullptr);
@@ -2008,6 +2027,7 @@ namespace Mavi
 			float GetElapsedMills() const;
 			float GetStep() const;
 			float GetFixedStep() const;
+			float GetFixedFrames() const;
 			bool IsFixed() const;
 
 		public:

@@ -1175,32 +1175,36 @@ namespace Mavi
 			Subresult.Features.Pragmas = false;
 
 			Compute::Preprocessor* Processor = new Compute::Preprocessor();
-			Processor->SetIncludeCallback([this, &Subresult](Compute::Preprocessor* P, const Compute::IncludeResult& File, Core::String* Output)
+			Processor->SetIncludeCallback([this, &Subresult](Compute::Preprocessor* P, const Compute::IncludeResult& File, Core::String& Output)
 			{
-				if (Subresult.Include && Subresult.Include(P, File, Output))
-					return true;
+				if (Subresult.Include)
+				{
+					Compute::IncludeType Status = Subresult.Include(P, File, Output);
+					if (Status != Compute::IncludeType::Error)
+						return Status;
+				}
 
 				if (File.Module.empty() || (!File.IsFile && !File.IsSystem))
-					return false;
+					return Compute::IncludeType::Error;
 
 				if (File.IsSystem && !File.IsFile)
 				{
 					Section* Result;
 					if (!GetSection(File.Module, &Result, true))
-						return false;
+						return Compute::IncludeType::Error;
 
-					Output->assign(Result->Code);
-					return true;
+					Output.assign(Result->Code);
+					return Compute::IncludeType::Preprocess;
 				}
 
 				size_t Length;
 				unsigned char* Data = Core::OS::File::ReadAll(File.Module, &Length);
 				if (!Data)
-					return false;
+					return Compute::IncludeType::Error;
 
-				Output->assign((const char*)Data, (size_t)Length);
+				Output.assign((const char*)Data, (size_t)Length);
 				VI_FREE(Data);
-				return true;
+				return Compute::IncludeType::Preprocess;
 			});
 			Processor->SetIncludeOptions(Desc);
 			Processor->SetFeatures(Subresult.Features);

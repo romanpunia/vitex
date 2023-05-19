@@ -628,6 +628,13 @@ namespace Mavi
 			bool Debug = true;
 		};
 
+		struct VI_OUT ByteCodeLabel
+		{
+			const char* Name;
+			uint8_t Id;
+			uint8_t Args;
+		};
+
 		struct VI_OUT PropertyInfo
 		{
 			const char* Name;
@@ -777,6 +784,7 @@ namespace Mavi
 			int Release();
 			int GetId() const;
 			FunctionType GetType() const;
+			uint32_t* GetByteCode(size_t* Size = nullptr) const;
 			const char* GetModuleName() const;
 			Module GetModule() const;
 			const char* GetSectionName() const;
@@ -1541,8 +1549,8 @@ namespace Mavi
 		class VI_OUT DebuggerContext final : public Core::Reference<DebuggerContext>
 		{
 		public:
-			typedef std::function<Core::String(void* Object, int Members)> ToStringCallback;
-			typedef std::function<Core::String(void* Object, int Members, int TypeId)> ToStringTypeCallback;
+			typedef std::function<Core::String(Core::String& Indent, int Depth, void* Object)> ToStringCallback;
+			typedef std::function<Core::String(Core::String& Indent, int Depth, void* Object, int TypeId)> ToStringTypeCallback;
 			typedef std::function<bool(ImmediateContext*, const Core::Vector<Core::String>&)> CommandCallback;
 			typedef std::function<void(const Core::String&)> OutputCallback;
 			typedef std::function<bool(Core::String&)> InputCallback;
@@ -1632,6 +1640,7 @@ namespace Mavi
 			void ListBreakPoints();
 			void ListThreads();
 			void ListModules();
+			void ListStackRegisters(ImmediateContext* Context, uint32_t Level);
 			void ListLocalVariables(ImmediateContext* Context);
 			void ListGlobalVariables(ImmediateContext* Context);
 			void ListMemberProperties(ImmediateContext* Context);
@@ -1640,13 +1649,15 @@ namespace Mavi
 			void ListStatistics(ImmediateContext* Context);
 			void PrintCallstack(ImmediateContext* Context);
 			void PrintValue(const Core::String& Expression, ImmediateContext* Context);
+			void PrintByteCode(const Core::String& FunctionDecl, ImmediateContext* Context);
 			void SetEngine(VirtualMachine* Engine);
 			bool InterpretCommand(const Core::String& Command, ImmediateContext* Context);
 			bool CheckBreakPoint(ImmediateContext* Context);
 			bool Interrupt();
 			bool IsInputIgnored();
 			bool IsAttached();
-			Core::String ToString(void* Value, unsigned int TypeId, int MaxDepth, bool SkipAddresses = false);
+			Core::String ToString(int MaxDepth, void* Value, unsigned int TypeId);
+			Core::String ToString(Core::String& Indent, int MaxDepth, void* Value, unsigned int TypeId);
 			VirtualMachine* GetEngine();
 
 		private:
@@ -1654,7 +1665,6 @@ namespace Mavi
 			void AddDefaultCommands();
 			void AddDefaultStringifiers();
 			void ClearThread(ImmediateContext* Context);
-			void AppendSourceCode(Core::StringStream& Stream, const char* Label, const char* File, int LineNumber, int ColumnNumber, int Count);
 			int ExecuteExpression(ImmediateContext* Context, const Core::String& Code);
 			ThreadData GetThread(ImmediateContext* Context);
 		};
@@ -1894,11 +1904,13 @@ namespace Mavi
 			bool IsNullable(int TypeId);
 			bool IsTranslatorSupported();
 			bool AddSubmodule(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const SubmoduleCallback& Callback);
-			bool ImportFile(const Core::String& Path, Core::String* Out);
+			bool ImportFile(const Core::String& Path, Core::String& Output);
 			bool ImportSymbol(const Core::Vector<Core::String>& Sources, const Core::String& Name, const Core::String& Decl);
 			bool ImportLibrary(const Core::String& Path, bool Addon);
 			bool ImportSubmodule(const Core::String& Name);
 			Core::Schema* ImportJSON(const Core::String& Path);
+			Core::String GetSourceCodeAppendix(const char* Label, const Core::String& Code, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
+			Core::String GetSourceCodeAppendixByPath(const char* Label, const Core::String& Path, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
 			int SetFunctionDef(const char* Decl);
 			int SetFunctionAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECLF);
 			int SetPropertyAddress(const char* Decl, void* Value);
@@ -1941,6 +1953,7 @@ namespace Mavi
 			static void ExceptionHandler(asIScriptContext* Context, void* Object);
 			static void SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*));
 			static void CleanupThisThread();
+			static ByteCodeLabel GetByteCodeInfo(uint8_t Code);
 			static VirtualMachine* Get(asIScriptEngine* Engine);
 			static VirtualMachine* Get();
 			static size_t GetDefaultAccessMask();
@@ -1950,7 +1963,7 @@ namespace Mavi
 			static Core::String GetLibraryName(const Core::String& Path);
 			static asIScriptContext* RequestContext(asIScriptEngine* Engine, void* Data);
 			static void ReturnContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data);
-			static void CompileLogger(asSMessageInfo* Info, void* Object);
+			static void MessageLogger(asSMessageInfo* Info, void* Object);
 			static void RegisterSubmodules(VirtualMachine* Engine);
 			static void* GetNullable();
 

@@ -627,7 +627,7 @@ namespace Mavi
 			Exception::Pointer::Pointer(asIScriptContext* NewContext) : Context(NewContext)
 			{
 				const char* Value = (Context ? Context->GetExceptionString() : nullptr);
-				if (Value != nullptr && Value[0] != '\0')
+				if (Value != nullptr && Value[0] != '\0' && (Context ? !Context->WillExceptionBeCaught() : false))
 				{
 					LoadExceptionData(Context->GetExceptionString());
 					Origin = LoadStackHere();

@@ -94,7 +94,9 @@ namespace Mavi
 			GENERIC_CALL_MODE = 28,
 			INIT_STACK_SIZE = 29,
 			INIT_CALL_STACK_SIZE = 30,
-			MAX_CALL_STACK_SIZE = 31
+			MAX_CALL_STACK_SIZE = 31,
+			IGNORE_DUPLICATE_SHARED_INTF = 32,
+			NO_DEBUG_OUTPUT = 33,
 		};
 
 		enum class Modifiers
@@ -146,14 +148,15 @@ namespace Mavi
 
 		enum class Activation
 		{
-			FINISHED = 0,
-			SUSPENDED = 1,
-			ABORTED = 2,
-			EXCEPTION = 3,
-			PREPARED = 4,
-			UNINITIALIZED = 5,
-			ACTIVE = 6,
-			ERR = 7
+			Finished = 0,
+			Suspended = 1,
+			Aborted = 2,
+			Exception = 3,
+			Prepared = 4,
+			Uninitialized = 5,
+			Active = 6,
+			Error = 7,
+			Deserialization = 8
 		};
 
 		enum class FunctionCall
@@ -321,7 +324,8 @@ namespace Mavi
 			Submodules = 4,
 			Files = 8,
 			JSON = 8,
-			All = (CLibraries | CSymbols | Submodules | Files | JSON)
+			Remotes = 16,
+			All = (CLibraries | CSymbols | Submodules | Files | JSON | Remotes)
 		};
 
 		inline ObjectBehaviours operator |(ObjectBehaviours A, ObjectBehaviours B)
@@ -1717,23 +1721,23 @@ namespace Mavi
 			int PushState();
 			int PopState();
 			int ExecuteNext();
-			bool IsNested(unsigned int* NestCount = 0) const;
+			bool IsNested(size_t* NestCount = 0) const;
 			bool IsThrown() const;
 			bool IsPending();
 			int SetObject(void* Object);
-			int SetArg8(unsigned int Arg, unsigned char Value);
-			int SetArg16(unsigned int Arg, unsigned short Value);
-			int SetArg32(unsigned int Arg, int Value);
-			int SetArg64(unsigned int Arg, int64_t Value);
-			int SetArgFloat(unsigned int Arg, float Value);
-			int SetArgDouble(unsigned int Arg, double Value);
-			int SetArgAddress(unsigned int Arg, void* Address);
-			int SetArgObject(unsigned int Arg, void* Object);
-			int SetArgAny(unsigned int Arg, void* Ptr, int TypeId);
+			int SetArg8(size_t Arg, unsigned char Value);
+			int SetArg16(size_t Arg, unsigned short Value);
+			int SetArg32(size_t Arg, int Value);
+			int SetArg64(size_t Arg, int64_t Value);
+			int SetArgFloat(size_t Arg, float Value);
+			int SetArgDouble(size_t Arg, double Value);
+			int SetArgAddress(size_t Arg, void* Address);
+			int SetArgObject(size_t Arg, void* Object);
+			int SetArgAny(size_t Arg, void* Ptr, int TypeId);
 			int GetReturnableByType(void* Return, asITypeInfo* ReturnTypeId);
 			int GetReturnableByDecl(void* Return, const char* ReturnTypeDecl);
 			int GetReturnableById(void* Return, int ReturnTypeId);
-			void* GetAddressOfArg(unsigned int Arg);
+			void* GetAddressOfArg(size_t Arg);
 			unsigned char GetReturnByte();
 			unsigned short GetReturnWord();
 			size_t GetReturnDWord();
@@ -1753,18 +1757,28 @@ namespace Mavi
 			int SetLineCallback(const std::function<void(ImmediateContext*)>& Callback);
 			int SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
 			void ClearLineCallback();
-			unsigned int GetCallstackSize() const;
+			size_t GetCallstackSize() const;
 			Core::String GetExceptionStackTrace();
-			Function GetFunction(unsigned int StackLevel = 0);
-			int GetLineNumber(unsigned int StackLevel = 0, int* Column = 0, const char** SectionName = 0);
-			int GetPropertiesCount(unsigned int StackLevel = 0);
-			const char* GetPropertyName(unsigned int Index, unsigned int StackLevel = 0);
-			const char* GetPropertyDecl(unsigned int Index, unsigned int StackLevel = 0, bool IncludeNamespace = false);
-			int GetPropertyTypeId(unsigned int Index, unsigned int StackLevel = 0);
-			void* GetAddressOfProperty(unsigned int Index, unsigned int StackLevel = 0);
-			bool IsPropertyInScope(unsigned int Index, unsigned int StackLevel = 0);
-			int GetThisTypeId(unsigned int StackLevel = 0);
-			void* GetThisPointer(unsigned int StackLevel = 0);
+			int StartDeserialization();
+			int FinishDeserialization();
+			int PushFunction(const Function& Func, void* Object);
+			int GetStateRegisters(size_t StackLevel, Function* CallingSystemFunction, Function* InitialFunction, uint32_t* OrigStackPointer, uint32_t* ArgumentsSize, uint64_t* ValueRegister, void** ObjectRegister, TypeInfo* ObjectTypeRegister);
+			int GetCallStateRegisters(size_t StackLevel, uint32_t* StackFramePointer, Function* CurrentFunction, uint32_t* ProgramPointer, uint32_t* StackPointer, uint32_t* StackIndex);
+			int SetStateRegisters(size_t StackLevel, Function CallingSystemFunction, const Function& InitialFunction, uint32_t OrigStackPointer, uint32_t ArgumentsSize, uint64_t ValueRegister, void* ObjectRegister, const TypeInfo& ObjectTypeRegister);
+			int SetCallStateRegisters(size_t StackLevel, uint32_t StackFramePointer, const Function& CurrentFunction, uint32_t ProgramPointer, uint32_t StackPointer, uint32_t StackIndex);
+			int GetArgsOnStackCount(size_t StackLevel);
+			int GetArgOnStack(size_t StackLevel, size_t Argument, int* TypeId, size_t* Flags, void** Address);
+			Function GetFunction(size_t StackLevel = 0);
+			int GetLineNumber(size_t StackLevel = 0, int* Column = 0, const char** SectionName = 0);
+			int GetPropertiesCount(size_t StackLevel = 0);
+			int GetProperty(size_t Index, size_t StackLevel, const char** Name, int* TypeId = 0, Modifiers* TypeModifiers = 0, bool* IsVarOnHeap = 0, int* StackOffset = 0);
+			const char* GetPropertyName(size_t Index, size_t StackLevel = 0);
+			const char* GetPropertyDecl(size_t Index, size_t StackLevel = 0, bool IncludeNamespace = false);
+			int GetPropertyTypeId(size_t Index, size_t StackLevel = 0);
+			void* GetAddressOfProperty(size_t Index, size_t StackLevel = 0, bool DontDereference = false, bool ReturnAddressOfUnitializedObjects = false);
+			bool IsPropertyInScope(size_t Index, size_t StackLevel = 0);
+			int GetThisTypeId(size_t StackLevel = 0);
+			void* GetThisPointer(size_t StackLevel = 0);
 			Function GetSystemFunction();
 			bool IsSuspended() const;
 			void* SetUserData(void* Data, size_t Type = 0);
@@ -1835,6 +1849,7 @@ namespace Mavi
 			asIScriptEngine* Engine;
 			asIScriptTranslator* Translator;
 			unsigned int Imports;
+			bool SaveSources;
 			bool Cached;
 
 		public:
@@ -1842,6 +1857,7 @@ namespace Mavi
 			~VirtualMachine() noexcept;
 			bool SetByteCodeTranslator(unsigned int Options);
 			void SetCodeGenerator(const Core::String& Name, GeneratorCallback&& Callback);
+			void SetPreserveSourceCode(bool Enabled);
 			void SetImports(unsigned int Opts);
 			void SetCache(bool Enabled);
 			void SetDebugger(Core::Unique<DebuggerContext> Context);
@@ -1895,16 +1911,18 @@ namespace Mavi
 			int SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object);
 			int Log(const char* Section, int Row, int Column, LogCategory Type, const char* Message);
 			int SetProperty(Features Property, size_t Value);
+			size_t GetProperty(Features Property);
 			void SetModuleDirectory(const Core::String& Root);
 			size_t GetProperty(Features Property) const;
 			asIScriptEngine* GetEngine() const;
 			DebuggerContext* GetDebugger() const;
 			Core::String GetModuleDirectory() const;
 			Core::Vector<Core::String> GetSubmodules();
+			bool HasSubmodule(const Core::String& Name);
 			bool IsNullable(int TypeId);
 			bool IsTranslatorSupported();
 			bool AddSubmodule(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const SubmoduleCallback& Callback);
-			bool ImportFile(const Core::String& Path, Core::String& Output);
+			bool ImportFile(const Core::String& Path, bool IsRemote, Core::String& Output);
 			bool ImportSymbol(const Core::Vector<Core::String>& Sources, const Core::String& Name, const Core::String& Decl);
 			bool ImportLibrary(const Core::String& Path, bool Addon);
 			bool ImportSubmodule(const Core::String& Name);

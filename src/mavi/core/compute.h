@@ -222,7 +222,8 @@ namespace Mavi
 		struct VI_OUT IncludeResult
 		{
 			Core::String Module;
-			bool IsSystem = false;
+			bool IsAbstract = false;
+			bool IsRemote = false;
 			bool IsFile = false;
 		};
 
@@ -1713,6 +1714,8 @@ namespace Mavi
 				size_t Start = 0;
 				size_t End = 0;
 				bool Found = false;
+				bool AsGlobal = false;
+				bool AsScope = false;
 			};
 
 			struct Conditional
@@ -1776,7 +1779,7 @@ namespace Mavi
 			bool SaveResult();
 
 		public:
-			static IncludeResult ResolveInclude(const IncludeDesc& Desc);
+			static IncludeResult ResolveInclude(const IncludeDesc& Desc, bool AsGlobal);
 		};
 
 		class VI_OUT Transform final : public Core::Reference<Transform>

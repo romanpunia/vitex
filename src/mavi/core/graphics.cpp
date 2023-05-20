@@ -1184,10 +1184,10 @@ namespace Mavi
 						return Status;
 				}
 
-				if (File.Module.empty() || (!File.IsFile && !File.IsSystem))
+				if (File.Module.empty() || (!File.IsFile && !File.IsAbstract))
 					return Compute::IncludeType::Error;
 
-				if (File.IsSystem && !File.IsFile)
+				if (File.IsAbstract && !File.IsFile)
 				{
 					Section* Result;
 					if (!GetSection(File.Module, &Result, true))
@@ -1197,14 +1197,8 @@ namespace Mavi
 					return Compute::IncludeType::Preprocess;
 				}
 
-				size_t Length;
-				unsigned char* Data = Core::OS::File::ReadAll(File.Module, &Length);
-				if (!Data)
-					return Compute::IncludeType::Error;
-
-				Output.assign((const char*)Data, (size_t)Length);
-				VI_FREE(Data);
-				return Compute::IncludeType::Preprocess;
+				Output.assign(Core::OS::File::ReadAsString(File.Module));
+				return Output.empty() ? Compute::IncludeType::Error : Compute::IncludeType::Preprocess;
 			});
 			Processor->SetIncludeOptions(Desc);
 			Processor->SetFeatures(Subresult.Features);

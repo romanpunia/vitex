@@ -3840,10 +3840,10 @@ namespace Mavi
 				if (!Compiler || !Target->Compiler)
 					return Target;
 
-				if (Compiler->GetContext()->GetState() == Mavi::Scripting::Activation::ACTIVE)
+				if (Compiler->GetContext()->GetState() == Mavi::Scripting::Activation::Active)
 					return Target;
 
-				if (Target->Compiler->GetContext()->GetState() == Mavi::Scripting::Activation::ACTIVE)
+				if (Target->Compiler->GetContext()->GetState() == Mavi::Scripting::Activation::Active)
 					return Target;
 
 				Scripting::Module From = Compiler->GetModule();
@@ -3934,7 +3934,7 @@ namespace Mavi
 				if (Compiler != nullptr)
 				{
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Scripting::Activation::ACTIVE)
+					if (VM->GetState() == Scripting::Activation::Active)
 						return (int)Scripting::Errors::MODULE_IS_IN_USE;
 				}
 				else
@@ -4022,7 +4022,7 @@ namespace Mavi
 					return nullptr;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Scripting::Activation::ACTIVE)
+				if (VM->GetState() == Scripting::Activation::Active)
 					return nullptr;
 
 				auto Result = Compiler->GetModule().GetFunctionByName(Name.c_str());
@@ -4038,7 +4038,7 @@ namespace Mavi
 					return nullptr;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Scripting::Activation::ACTIVE)
+				if (VM->GetState() == Scripting::Activation::Active)
 					return nullptr;
 
 				auto Result = Compiler->GetModule().GetFunctionByIndex(Index);
@@ -4054,7 +4054,7 @@ namespace Mavi
 					return false;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Mavi::Scripting::Activation::ACTIVE)
+				if (VM->GetState() == Mavi::Scripting::Activation::Active)
 					return false;
 
 				Scripting::Module fModule = Compiler->GetModule();
@@ -4077,7 +4077,7 @@ namespace Mavi
 					return false;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Mavi::Scripting::Activation::ACTIVE)
+				if (VM->GetState() == Mavi::Scripting::Activation::Active)
 					return false;
 
 				Scripting::Module fModule = Compiler->GetModule();
@@ -4103,7 +4103,7 @@ namespace Mavi
 					return (int)Scripting::Errors::INVALID_ARG;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Mavi::Scripting::Activation::ACTIVE)
+				if (VM->GetState() == Mavi::Scripting::Activation::Active)
 					return (int)Scripting::Errors::MODULE_IS_IN_USE;
 
 				Scripting::Module fModule = Compiler->GetModule();
@@ -4118,7 +4118,7 @@ namespace Mavi
 					return (int)Scripting::Errors::INVALID_ARG;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Mavi::Scripting::Activation::ACTIVE)
+				if (VM->GetState() == Mavi::Scripting::Activation::Active)
 					return (int)Scripting::Errors::MODULE_IS_IN_USE;
 
 				Scripting::Module fModule = Compiler->GetModule();

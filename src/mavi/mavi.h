@@ -7,8 +7,8 @@ namespace Mavi
 	enum
 	{
 		MAJOR_VERSION = 21,
-		MINOR_VERSION = 27,
-		PATCH_VERSION = 14,
+		MINOR_VERSION = 28,
+		PATCH_VERSION = 15,
 		VERSION = (MAJOR_VERSION) * 10000 + (MINOR_VERSION) * 100 + (PATCH_VERSION)
 	};
 
@@ -32,7 +32,7 @@ namespace Mavi
 
 	enum class Preset : size_t
 	{
-		Game = (size_t)(Init::Core | Init::Debug | Init::Network | Init::SSL | Init::SDL2 | Init::Compute | Init::Locale | Init::Audio | Init::GLEW),
+		Game = (size_t)(Init::Core | Init::Debug | Init::Network | Init::SSL | Init::Compute | Init::Locale | Init::SDL2 | Init::Audio | Init::GLEW),
 		App = (size_t)(Init::Core | Init::Debug | Init::Network | Init::SSL | Init::Compute | Init::Locale)
 	};
 

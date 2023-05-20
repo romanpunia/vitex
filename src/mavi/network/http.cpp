@@ -501,11 +501,11 @@ namespace Mavi
 						if (Result >= 0)
 						{
 							Scripting::Activation Status = (Scripting::Activation)Result;
-							if (Status == Scripting::Activation::FINISHED)
+							if (Status == Scripting::Activation::Finished)
 								Response = 0;
-							else if (Status == Scripting::Activation::ERR || Status == Scripting::Activation::ABORTED)
+							else if (Status == Scripting::Activation::Error || Status == Scripting::Activation::Aborted)
 								Response = 1;
-							else if (Status == Scripting::Activation::EXCEPTION)
+							else if (Status == Scripting::Activation::Exception)
 								Response = Context->IsThrown() ? 1 : 0;
 						}
 

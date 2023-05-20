@@ -3752,29 +3752,32 @@ namespace Mavi
 				Core::String Result;
 				switch (Context->GetState())
 				{
-					case Activation::FINISHED:
-						Result = "FIN";
+					case Activation::Finished:
+						Result = "finished";
 						break;
-					case Activation::SUSPENDED:
-						Result = "SUSP";
+					case Activation::Suspended:
+						Result = "suspended";
 						break;
-					case Activation::ABORTED:
-						Result = "ABRT";
+					case Activation::Aborted:
+						Result = "aborted";
 						break;
-					case Activation::EXCEPTION:
-						Result = "EXCE";
+					case Activation::Exception:
+						Result = "exception";
 						break;
-					case Activation::PREPARED:
-						Result = "PREP";
+					case Activation::Prepared:
+						Result = "prepared";
 						break;
-					case Activation::ACTIVE:
-						Result = "ACTV";
+					case Activation::Active:
+						Result = "active";
 						break;
-					case Activation::ERR:
-						Result = "ERR";
+					case Activation::Error:
+						Result = "error";
+						break;
+					case Activation::Deserialization:
+						Result = "deserialization";
 						break;
 					default:
-						Result = "INIT";
+						Result = "invalid";
 						break;
 				}
 
@@ -4370,7 +4373,7 @@ namespace Mavi
 				Mutex.lock();
 				Sparcing = 1;
 
-				if (Context && Context->GetState() == Activation::SUSPENDED)
+				if (Context && Context->GetState() == Activation::Suspended)
 				{
 					Mutex.unlock();
 					Context->Resume();
@@ -4393,7 +4396,7 @@ namespace Mavi
 				Mutex.lock();
 				Sparcing = 1;
 
-				if (Context && Context->GetState() != Activation::SUSPENDED)
+				if (Context && Context->GetState() != Activation::Suspended)
 				{
 					Mutex.unlock();
 					Context->Suspend();
@@ -4530,7 +4533,7 @@ namespace Mavi
 			bool Thread::IsActive()
 			{
 				std::unique_lock<std::recursive_mutex> Unique(Mutex);
-				return (Context && Context->GetState() != Activation::SUSPENDED);
+				return (Context && Context->GetState() != Activation::Suspended);
 			}
 			bool Thread::Start()
 			{
@@ -4540,7 +4543,7 @@ namespace Mavi
 
 				if (Context != nullptr)
 				{
-					if (Context->GetState() != Activation::SUSPENDED)
+					if (Context->GetState() != Activation::Suspended)
 						return false;
 					Join();
 				}
@@ -10608,7 +10611,8 @@ namespace Mavi
 
 				TypeClass VIncludeResult = Engine->SetStructTrivial<Compute::IncludeResult>("include_result");
 				VIncludeResult.SetProperty<Compute::IncludeResult>("string module", &Compute::IncludeResult::Module);
-				VIncludeResult.SetProperty<Compute::IncludeResult>("bool is_system", &Compute::IncludeResult::IsSystem);
+				VIncludeResult.SetProperty<Compute::IncludeResult>("bool is_abstract", &Compute::IncludeResult::IsAbstract);
+				VIncludeResult.SetProperty<Compute::IncludeResult>("bool is_remote", &Compute::IncludeResult::IsRemote);
 				VIncludeResult.SetProperty<Compute::IncludeResult>("bool is_file", &Compute::IncludeResult::IsFile);
 				VIncludeResult.SetConstructor<Compute::IncludeResult>("void f()");
 

@@ -4218,19 +4218,15 @@ namespace Mavi
 				Compute::Preprocessor* Processor = new Compute::Preprocessor();
 				Processor->SetIncludeCallback([this](Compute::Preprocessor* P, const Compute::IncludeResult& File, Core::String& Output)
 				{
-					if (File.Module.empty() || (!File.IsFile && !File.IsSystem))
+					if (File.Module.empty() || (!File.IsFile && !File.IsAbstract))
 						return Compute::IncludeType::Error;
 
-					if (File.IsSystem && !File.IsFile)
+					if (File.IsAbstract && !File.IsFile)
 						return Compute::IncludeType::Error;
 
-					size_t Length;
-					unsigned char* Data = Core::OS::File::ReadAll(File.Module, &Length);
-					if (!Data)
+					Output.assign(Core::OS::File::ReadAsString(File.Module));
+					if (Output.empty())
 						return Compute::IncludeType::Error;
-
-					Output.assign((const char*)Data, Length);
-					VI_FREE(Data);
 
 					this->Decompose(Output);
 					return Compute::IncludeType::Preprocess;

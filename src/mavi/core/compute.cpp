@@ -8916,7 +8916,7 @@ namespace Mavi
 					while (Result.End < Buffer.size())
 					{
 						char N = Buffer[++Result.End];
-						if (N == '\r' || N == '\n')
+						if (N == '\r' || N == '\n' || Result.End == Buffer.size())
 						{
 							Result.Value = Buffer.substr(Offset, Result.End - Offset);
 							while (Result.End < Buffer.size())
@@ -8934,9 +8934,15 @@ namespace Mavi
 					if (Result.Value.size() >= 2)
 					{
 						if (HasStringLiterals && Result.Value.front() == Result.Value.back() && Features.StringLiterals.find(Result.Value.front()) != Core::String::npos)
+						{
 							Result.Value = Result.Value.substr(1, Result.Value.size() - 2);
+							Result.AsScope = true;
+						}
 						else if (Result.Value.front() == '<' && Result.Value.back() == '>')
+						{
 							Result.Value = Result.Value.substr(1, Result.Value.size() - 2);
+							Result.AsGlobal = true;
+						}
 					}
 
 					Result.Found = true;
@@ -9383,7 +9389,7 @@ namespace Mavi
 					FileDesc.Path = Next.Value;
 					FileDesc.From = Path;
 
-					IncludeResult File = ResolveInclude(FileDesc);
+					IncludeResult File = ResolveInclude(FileDesc, Next.AsGlobal);
 					if (HasResult(File.Module))
 					{
 					SuccessfulInclude:
@@ -9491,28 +9497,42 @@ namespace Mavi
 		{
 			return ExpandedPath;
 		}
-		IncludeResult Preprocessor::ResolveInclude(const IncludeDesc& Desc)
+		IncludeResult Preprocessor::ResolveInclude(const IncludeDesc& Desc, bool AsGlobal)
 		{
-			Core::String Base;
-			if (!Desc.From.empty())
-				Base.assign(Core::OS::Path::GetDirectory(Desc.From.c_str()));
-			else
-				Base.assign(Core::OS::Directory::Get());
-
 			IncludeResult Result;
+			if (!AsGlobal)
+			{
+				Core::String Base = (Desc.From.empty() ? Core::OS::Directory::Get() : Core::OS::Path::GetDirectory(Desc.From.c_str()));
+				bool IsOriginRemote = (Desc.From.empty() ? false : Core::OS::Path::IsRemote(Base.c_str()));
+				bool IsPathRemote = (Desc.Path.empty() ? false : Core::OS::Path::IsRemote(Desc.Path.c_str()));
+				if (IsOriginRemote || IsPathRemote)
+				{
+					Result.Module = Desc.Path;
+					Result.IsRemote = true;
+					Result.IsFile = true;
+					if (!IsOriginRemote)
+						return Result;
+
+					Core::Stringify URL(&Result.Module);
+					URL.Replace("./", "");
+					URL.Insert(Base, 0);
+					return Result;
+				}
+			}
+
 			if (!Core::Stringify(Desc.Path).StartsOf("/."))
 			{
 				if (Desc.Path.empty() || Desc.Root.empty())
 				{
 					Result.Module = Core::Stringify(Desc.Path).Replace('\\', '/').R();
-					Result.IsSystem = true;
+					Result.IsAbstract = true;
 					return Result;
 				}
 
 				Result.Module = Core::OS::Path::Resolve(Desc.Path, Desc.Root);
 				if (Core::OS::File::IsExists(Result.Module.c_str()))
 				{
-					Result.IsSystem = true;
+					Result.IsAbstract = true;
 					Result.IsFile = true;
 					return Result;
 				}
@@ -9529,16 +9549,19 @@ namespace Mavi
 						continue;
 
 					Result.Module = std::move(File);
-					Result.IsSystem = true;
+					Result.IsAbstract = true;
 					Result.IsFile = true;
 					return Result;
 				}
 
 				Result.Module = Core::Stringify(Desc.Path).Replace('\\', '/').R();;
-				Result.IsSystem = true;
+				Result.IsAbstract = true;
 				return Result;
 			}
+			else if (AsGlobal)
+				return Result;
 
+			Core::String Base = (Desc.From.empty() ? Core::OS::Directory::Get() : Core::OS::Path::GetDirectory(Desc.From.c_str()));
 			Result.Module = Core::OS::Path::Resolve(Desc.Path, Base);
 			if (Core::OS::File::IsExists(Result.Module.c_str()))
 			{

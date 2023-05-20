@@ -38,6 +38,9 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <dlfcn.h>
+#ifdef VI_LINUX
+#include <term.h>
+#endif
 #ifndef VI_USE_FCTX
 #include <ucontext.h>
 #endif
@@ -311,7 +314,7 @@ namespace Mavi
 
 			void NotifyOfOverConsumption()
 			{
-				if (Threshold == (uint64_t)Core::Timings::Infinite)
+				if (true || Threshold == (uint64_t)Core::Timings::Infinite)
 					return;
 
 				uint64_t Delta = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Time;
@@ -5870,6 +5873,13 @@ namespace Mavi
 				Cache.Attributes = ScreenBuffer.wAttributes;
 
 			VI_TRACE("[console] allocate window 0x%" PRIXPTR, (void*)Base);
+#else
+#ifdef VI_LINUX
+			int Success;
+			setupterm(NULL, STDOUT_FILENO, &Success);
+			if (Success <= 0)
+				return;
+#endif
 #endif
 			Status = Mode::Allocated;
 		}
@@ -5923,7 +5933,9 @@ namespace Mavi
 			FillConsoleOutputAttribute((HANDLE)Wnd, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE, Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
 			SetConsoleCursorPosition((HANDLE)Wnd, TopLeft);
 #elif defined VI_LINUX
-			std::cout << "\033[2J";
+			putp(tigetstr("clear"));
+#else
+			std::cout << "\x1B[2J\x1B[H";
 #endif
 		}
 		void Console::Attach()
@@ -5939,6 +5951,13 @@ namespace Mavi
 				Cache.Attributes = ScreenBuffer.wAttributes;
 
 			VI_TRACE("[console] attach window 0x%" PRIXPTR, (void*)Base);
+#else
+#ifdef VI_LINUX
+			int Success;
+			setupterm(NULL, STDOUT_FILENO, &Success);
+			if (Success <= 0)
+				return;
+#endif
 #endif
 			Status = Mode::Attached;
 		}
@@ -5969,7 +5988,7 @@ namespace Mavi
 		}
 		void Console::SetCursor(uint32_t X, uint32_t Y)
 		{
-#if defined(_WIN32)
+#ifdef VI_MICROSOFT
 			HANDLE Wnd = GetStdHandle(STD_OUTPUT_HANDLE);
 			COORD Position = { (short)X, (short)Y };
 

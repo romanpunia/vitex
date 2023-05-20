@@ -1860,11 +1860,11 @@ namespace Mavi
 				if (File.Module.empty() || !Scope)
 					return Compute::IncludeType::Error;
 
-				if (!File.IsFile && File.IsSystem)
+				if (!File.IsFile && File.IsAbstract)
 					return VM->ImportSubmodule(File.Module) ? Compute::IncludeType::Virtual : Compute::IncludeType::Error;
 
 				Core::String Buffer;
-				if (!VM->ImportFile(File.Module, Buffer))
+				if (!VM->ImportFile(File.Module, File.IsRemote, Buffer))
 					return Compute::IncludeType::Error;
 
 				if (Buffer.empty())
@@ -1952,6 +1952,10 @@ namespace Mavi
 						VM->SetProperty(Features::INIT_CALL_STACK_SIZE, Result);
 					else if (Key == "MAX_CALL_STACK_SIZE")
 						VM->SetProperty(Features::MAX_CALL_STACK_SIZE, Result);
+					else if (Key == "IGNORE_DUPLICATE_SHARED_INTF")
+						VM->SetProperty(Features::IGNORE_DUPLICATE_SHARED_INTF, Result);
+					else if (Key == "NO_DEBUG_OUTPUT")
+						VM->SetProperty(Features::NO_DEBUG_OUTPUT, Result);
 				}
 				else if (Name == "comment" && Args.size() == 2)
 				{
@@ -2763,7 +2767,7 @@ namespace Mavi
 			{
 				Bindings::Promise* Source = (Bindings::Promise*)Object;
 				Core::StringStream Stream;
-				Stream << "\n";
+				Stream << "(promise<T>)\n";
 				Stream << Indent << "  state = " << (Source->IsPending() ? "pending\n" : "fulfilled\n");
 				Stream << Indent << "  data = " << ToString(Indent, Depth - 1, Source->GetAddressOfObject(), Source->GetTypeId());
 				return Stream.str();
@@ -2772,7 +2776,7 @@ namespace Mavi
 			{
 				Bindings::Thread* Source = (Bindings::Thread*)Object;
 				Core::StringStream Stream;
-				Stream << "\n";
+				Stream << "(thread)\n";
 				Stream << Indent << "  id = " << Source->GetId() << "\n";
 				Stream << Indent << "  state = " << (Source->IsActive() ? "active" : "suspended");
 				return Stream.str();
@@ -2783,7 +2787,7 @@ namespace Mavi
 				size_t Size = Source->GetSize();
 
 				Core::StringStream Stream;
-				Stream << "0x" << (void*)Source << " (" << Size << " bytes) [";
+				Stream << "0x" << (void*)Source << " (char_buffer, " << Size << " bytes) [";
 
 				char* Buffer = (char*)Source->GetPointer(0);
 				size_t Count = (Size > 256 ? 256 : Size);
@@ -2809,7 +2813,7 @@ namespace Mavi
 				int BaseTypeId = Source->GetElementTypeId();
 				size_t Size = Source->GetSize();
 				Core::StringStream Stream;
-				Stream << "0x" << (void*)Source << " (" << Size << " elements)";
+				Stream << "0x" << (void*)Source << " (array<T>, " << Size << " elements)";
 
 				if (!Depth || !Size)
 					return Stream.str();
@@ -2845,7 +2849,7 @@ namespace Mavi
 				Bindings::Dictionary* Source = (Bindings::Dictionary*)Object;
 				size_t Size = Source->GetSize();
 				Core::StringStream Stream;
-				Stream << "0x" << (void*)Source << " (" << Size << " elements)";
+				Stream << "0x" << (void*)Source << " (dictionary, " << Size << " elements)";
 
 				if (!Depth || !Size)
 					return Stream.str();
@@ -2872,7 +2876,7 @@ namespace Mavi
 				Core::StringStream Stream;
 				Core::Schema* Source = (Core::Schema*)Object;
 				if (Source->Value.IsObject())
-					Stream << "\n";
+					Stream << "0x" << (void*)Source << "(schema)\n";
 
 				Core::Schema::ConvertToJSON(Source, [&Indent, &Stream](Core::VarForm Type, const char* Buffer, size_t Size)
 				{
@@ -3271,7 +3275,7 @@ namespace Mavi
 			int ColumnNumber = 0;
 			int LineNumber = Context->GetExceptionLineNumber(&ColumnNumber, &File);
 			if (File != nullptr && LineNumber > 0)
-				Stream << VM->GetSourceCodeAppendixByPath("exception origin", File, LineNumber, ColumnNumber, 5);
+				Stream << VM->GetSourceCodeAppendixByPath("exception origin", File, LineNumber, ColumnNumber, 5) << "\n";
 			Output(Stream.str());
 		}
 		void DebuggerContext::ListBreakPoints()
@@ -3326,64 +3330,135 @@ namespace Mavi
 			VI_ASSERT_V(Base != nullptr, "context should be set");
 
 			asUINT StackSize = Base->GetCallstackSize();
-			if (StackSize < Level)
-				return Output("  there are only " + Core::ToString(StackSize) + " stack frames");
-
-			asIScriptFunction* CurrentFunction = nullptr;
-			asDWORD StackFramePointer, ProgramPointer, StackPointer, StackIndex;
-			if (Base->GetCallStateRegisters(Level, &StackFramePointer, &CurrentFunction, &ProgramPointer, &StackPointer, &StackIndex) != 0)
-				return Output("  cannot read stack frame #" + Core::ToString(Level));
+			if (Level >= StackSize)
+				return Output("  there are only " + Core::ToString(StackSize) + " stack frames\n");
 
 			Core::StringStream Stream;
-			Core::String Indent = "    ";
-			size_t ArgsCount = (size_t)Base->GetArgsOnStackCount(Level);
-			Stream << "stack frame #" << Level << " values:\n";
-			for (asUINT n = 0; n < ArgsCount; n++)
+			Stream << "  stack frame #" << Level << " values:\n";
+			int PropertiesCount = Base->GetVarCount(Level);
+			if (PropertiesCount > 0)
 			{
-				asUINT Flags; int TypeId; void* Address;
-				if (Base->GetArgOnStack(Level, n, &TypeId, &Flags, &Address) < 0)
-					continue;
+				Core::String Indent = "    ";
+				for (asUINT n = PropertiesCount; n != (asUINT)-1; n--)
+				{
+					int TypeId, Offset; bool Heap, Active = Base->IsVarInScope(n, Level);
+					if (Base->GetVar(n, Level, nullptr, &TypeId, nullptr, &Heap, &Offset) < 0)
+						continue;
 
-				TypeInfo Type = VM->GetTypeInfoById(TypeId);
-				Stream << Indent << "#" << n << " <" << (Type.IsValid() ? Type.GetName() : "?") << "#" << Flags << ">: " << ToString(Indent, 3, Base->GetAddressOfVar(n), TypeId) << std::endl;
+					Stream << Indent << "#" << n << " [sp:" << Offset << ";hp:" << Heap << "] " << CharTrimEnd(Base->GetVarDeclaration(n, Level)) << ": ";
+					if (Active)
+						Stream << ToString(Indent, 3, Base->GetAddressOfVar(n), TypeId) << std::endl;
+					else
+						Stream << "<uninitialized>" << std::endl;
+				}
 			}
 
-			if (!ArgsCount)
-				Stream << "  stack is empty\n";
+			bool HasBaseCallState = false;
+			if (PropertiesCount <= 0)
+				Stream << "  stack arguments are empty\n";
 
-			Stream << "stack frame #" << Level << " info:\n";
-			Stream << "  stack frame pointer (sfp): " << StackFramePointer << "\n";
-			Stream << "  program pointer (pp): " << ProgramPointer << "\n";
-			Stream << "  stack pointer (sp): " << StackPointer << "\n";
-			Stream << "  stack index (si): " << StackIndex << "\n";
-			Stream << "  stack depth (sd): " << StackSize - (Level + 1) << "\n";
+			Stream << "  stack frame #" << Level << " registers:\n";
+			asIScriptFunction* CurrentFunction = nullptr;
+			asDWORD StackFramePointer, ProgramPointer, StackPointer, StackIndex;
+			if (Base->GetCallStateRegisters(Level, &StackFramePointer, &CurrentFunction, &ProgramPointer, &StackPointer, &StackIndex) >= 0)
+			{
+				void* ThisPointer = Base->GetThisPointer(Level);
+				asITypeInfo* ThisType = VM->GetEngine()->GetTypeInfoById(Base->GetThisTypeId(Level));
+				const char* SectionName = ""; int ColumnNumber = 0;
+				int LineNumber = Base->GetLineNumber(Level, &ColumnNumber, &SectionName);
+				Stream << "    [sfp] stack frame pointer: " << StackFramePointer << "\n";
+				Stream << "    [pp] program pointer: " << ProgramPointer << "\n";
+				Stream << "    [sp] stack pointer: " << StackPointer << "\n";
+				Stream << "    [si] stack index: " << StackIndex << "\n";
+				Stream << "    [sd] stack depth: " << StackSize - (Level + 1) << "\n";
+				Stream << "    [tp] this pointer: 0x" << ThisPointer << "\n";
+				Stream << "    [ttp] this type pointer: 0x" << ThisType << " (" << (ThisType ? ThisType->GetName() : "null") << ")" << "\n";
+				Stream << "    [sn] section name: " << SectionName << "\n";
+				Stream << "    [ln] line number: " << LineNumber << "\n";
+				Stream << "    [cn] column number: " << ColumnNumber << "\n";
+				Stream << "    [ces] context execution state: ";
+				switch (Base->GetState())
+				{
+					case asEXECUTION_FINISHED:
+						Stream << "finished\n";
+						break;
+					case asEXECUTION_SUSPENDED:
+						Stream << "suspended\n";
+						break;
+					case asEXECUTION_ABORTED:
+						Stream << "aborted\n";
+						break;
+					case asEXECUTION_EXCEPTION:
+						Stream << "exception\n";
+						break;
+					case asEXECUTION_PREPARED:
+						Stream << "prepared\n";
+						break;
+					case asEXECUTION_UNINITIALIZED:
+						Stream << "uninitialized\n";
+						break;
+					case asEXECUTION_ACTIVE:
+						Stream << "active\n";
+						break;
+					case asEXECUTION_ERROR:
+						Stream << "error\n";
+						break;
+					case asEXECUTION_DESERIALIZATION:
+						Stream << "deserialization\n";
+						break;
+					default:
+						Stream << "invalid\n";
+						break;
+				}
+				HasBaseCallState = true;
+			}
 
-			if (CurrentFunction != nullptr)
+			void* ObjectRegister = nullptr; asITypeInfo* ObjectTypeRegister = nullptr;
+			asIScriptFunction* CallingSystemFunction = nullptr, * InitialFunction = nullptr;
+			asDWORD OriginalStackPointer, InitialArgumentsSize; asQWORD ValueRegister;
+			if (Base->GetStateRegisters(Level, &CallingSystemFunction, &InitialFunction, &OriginalStackPointer, &InitialArgumentsSize, &ValueRegister, &ObjectRegister, &ObjectTypeRegister) >= 0)
+			{
+				Stream << "    [osp] original stack pointer: " << OriginalStackPointer << "\n";
+				Stream << "    [vc] value content: " << ValueRegister << "\n";
+				Stream << "    [op] object pointer: 0x" << ObjectRegister << "\n";
+				Stream << "    [otp] object type pointer: 0x" << ObjectTypeRegister << " (" << (ObjectTypeRegister ? ObjectTypeRegister->GetName() : "null") << ")" << "\n";
+				Stream << "    [ias] initial arguments size: " << InitialArgumentsSize << "\n";
+
+				if (InitialFunction != nullptr)
+					Stream << "    [if] initial function: " << InitialFunction->GetDeclaration(true, true, true) << "\n";
+
+				if (CallingSystemFunction != nullptr)
+					Stream << "    [csf] calling system function: " << CallingSystemFunction->GetDeclaration(true, true, true) << "\n";
+			}
+			else if (!HasBaseCallState)
+				Stream << "  stack registers are empty\n";
+
+			if (HasBaseCallState && CurrentFunction != nullptr)
 			{
 				asUINT Size = 0; size_t PreviewSize = 33;
 				asDWORD* ByteCode = CurrentFunction->GetByteCode(&Size);
-				Stream << "  current function (cf): " << CurrentFunction->GetDeclaration(true, true, true) << "\n";
+				Stream << "    [cf] current function: " << CurrentFunction->GetDeclaration(true, true, true) << "\n";
 				if (ByteCode != nullptr && ProgramPointer < Size)
 				{
 					asUINT Left = std::min<asUINT>(PreviewSize, ProgramPointer);
-					Stream << "stack frame #" << Level << " instructions:";
+					Stream << "  stack frame #" << Level << " instructions:";
 					bool HadInstruction = false;
 
 					if (Left > 0)
 					{
-						Stream << "\n  ... " << ProgramPointer - Left << " instructions passed";
+						Stream << "\n    ... " << ProgramPointer - Left << " instructions passed";
 						for (asUINT i = 1; i < Left; i++)
 						{
 							asDWORD Value = ByteCode[ProgramPointer - i];
 							if (Value <= std::numeric_limits<uint8_t>::max())
 							{
 								ByteCodeLabel LeftLabel = VirtualMachine::GetByteCodeInfo((uint8_t)Value);
-								Stream << "\n  0x" << (void*)(uintptr_t)(ProgramPointer - i) << ": " << LeftLabel.Name << " [bc:" << (int)LeftLabel.Id << ";ac:" << (int)LeftLabel.Args << "]";
+								Stream << "\n    0x" << (void*)(uintptr_t)(ProgramPointer - i) << ": " << LeftLabel.Name << " [bc:" << (int)LeftLabel.Id << ";ac:" << (int)LeftLabel.Args << "]";
 								HadInstruction = true;
 							}
 							else if (!HadInstruction)
 							{
-								Stream << "\n  ... " << Value;
+								Stream << "\n    ... " << Value;
 								HadInstruction = true;
 							}
 							else
@@ -3393,7 +3468,7 @@ namespace Mavi
 
 					asUINT Right = std::min<asUINT>(PreviewSize, Size - ProgramPointer);
 					ByteCodeLabel MainLabel = VirtualMachine::GetByteCodeInfo((uint8_t)ByteCode[ProgramPointer]);
-					Stream << "\n> 0x" << (void*)(uintptr_t)(ProgramPointer) << ": " << MainLabel.Name << " [bc:" << (int)MainLabel.Id << ";ac:" << (int)MainLabel.Args << "]";
+					Stream << "\n  > 0x" << (void*)(uintptr_t)(ProgramPointer) << ": " << MainLabel.Name << " [bc:" << (int)MainLabel.Id << ";ac:" << (int)MainLabel.Args << "]";
 					HadInstruction = true;
 
 					if (Right > 0)
@@ -3404,21 +3479,25 @@ namespace Mavi
 							if (Value <= std::numeric_limits<uint8_t>::max())
 							{
 								ByteCodeLabel RightLabel = VirtualMachine::GetByteCodeInfo((uint8_t)Value);
-								Stream << "\n  0x" << (void*)(uintptr_t)(ProgramPointer + i) << ": " << RightLabel.Name << " [bc:" << (int)RightLabel.Id << ";ac:" << (int)RightLabel.Args << "]";
+								Stream << "\n    0x" << (void*)(uintptr_t)(ProgramPointer + i) << ": " << RightLabel.Name << " [bc:" << (int)RightLabel.Id << ";ac:" << (int)RightLabel.Args << "]";
 								HadInstruction = true;
 							}
 							else if (!HadInstruction)
 							{
-								Stream << "\n  ... " << Value;
+								Stream << "\n    ... " << Value;
 								HadInstruction = true;
 							}
 							else
 								Stream << " " << Value;
 						}
-						Stream << "\n  ... " << Size - ProgramPointer << " more instructions\n";
+						Stream << "\n    ... " << Size - ProgramPointer << " more instructions\n";
 					}
 				}
+				else
+					Stream << "  stack frame #" << Level << " instructions:\n    ... instructions data are empty\n";
 			}
+			else
+				Stream << "  stack frame #" << Level << " instructions:\n    ... instructions data are empty\n";
 
 			Output(Stream.str());
 		}
@@ -3562,7 +3641,7 @@ namespace Mavi
 			}
 
 			if (File != nullptr && LineNumber >= 0)
-				Stream << VM->GetSourceCodeAppendixByPath("caller origin", File, LineNumber, ColumnNumber, 5);
+				Stream << VM->GetSourceCodeAppendixByPath("caller origin", File, LineNumber, ColumnNumber, 5) << "\n";
 			Output(Stream.str());
 		}
 		void DebuggerContext::AddFuncBreakPoint(const Core::String& Function)
@@ -3842,9 +3921,10 @@ namespace Mavi
 				asIScriptObject* Object = (asIScriptObject*)Value;
 				asITypeInfo* Type = Object->GetObjectType();
 				size_t Size = Object->GetPropertyCount();
+				Stream << "0x" << Value << " (" << Type->GetName() << ")";
 				if (!Size)
 				{
-					Stream << "0x" << Value << " { }";
+					Stream << " { }";
 					goto Finalize;
 				}
 
@@ -3867,9 +3947,9 @@ namespace Mavi
 				if (!Value || !Depth)
 				{
 					if (Value != nullptr)
-						Stream << "0x" << Value;
+						Stream << "0x" << Value << " (" << Type->GetName() << ")";
 					else
-						Stream << "null";
+						Stream << "null (" << Type->GetName() << ")";
 					goto Finalize;
 				}
 
@@ -3898,9 +3978,10 @@ namespace Mavi
 				}
 
 				size_t Size = Type->GetPropertyCount();
+				Stream << "0x" << Value << " (" << Type->GetName() << ")";
 				if (!Size)
 				{
-					Stream << "0x" << Value << " { }";
+					Stream << " { }";
 					goto Finalize;
 				}
 
@@ -4160,7 +4241,7 @@ namespace Mavi
 		}
 		Activation ImmediateContext::GetState() const
 		{
-			VI_ASSERT(Context != nullptr, Activation::UNINITIALIZED, "context should be set");
+			VI_ASSERT(Context != nullptr, Activation::Uninitialized, "context should be set");
 			return (Activation)Context->GetState();
 		}
 		Core::String ImmediateContext::GetStackTrace(size_t Skips, size_t MaxFrames) const
@@ -4209,10 +4290,13 @@ namespace Mavi
 		{
 			return Context->Execute();
 		}
-		bool ImmediateContext::IsNested(unsigned int* NestCount) const
+		bool ImmediateContext::IsNested(size_t* NestCount) const
 		{
 			VI_ASSERT(Context != nullptr, false, "context should be set");
-			return Context->IsNested(NestCount);
+			asUINT NestCount1 = 0;
+			bool Value = Context->IsNested(&NestCount1);
+			if (NestCount != nullptr) *NestCount = (size_t)NestCount1;
+			return Value;
 		}
 		bool ImmediateContext::IsThrown() const
 		{
@@ -4233,50 +4317,50 @@ namespace Mavi
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetObject(Object);
 		}
-		int ImmediateContext::SetArg8(unsigned int Arg, unsigned char Value)
+		int ImmediateContext::SetArg8(size_t Arg, unsigned char Value)
 		{
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
-			return Context->SetArgByte(Arg, Value);
+			return Context->SetArgByte((asUINT)Arg, Value);
 		}
-		int ImmediateContext::SetArg16(unsigned int Arg, unsigned short Value)
+		int ImmediateContext::SetArg16(size_t Arg, unsigned short Value)
 		{
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
-			return Context->SetArgWord(Arg, Value);
+			return Context->SetArgWord((asUINT)Arg, Value);
 		}
-		int ImmediateContext::SetArg32(unsigned int Arg, int Value)
+		int ImmediateContext::SetArg32(size_t Arg, int Value)
 		{
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
-			return Context->SetArgDWord(Arg, Value);
+			return Context->SetArgDWord((asUINT)Arg, Value);
 		}
-		int ImmediateContext::SetArg64(unsigned int Arg, int64_t Value)
+		int ImmediateContext::SetArg64(size_t Arg, int64_t Value)
 		{
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
-			return Context->SetArgQWord(Arg, Value);
+			return Context->SetArgQWord((asUINT)Arg, Value);
 		}
-		int ImmediateContext::SetArgFloat(unsigned int Arg, float Value)
+		int ImmediateContext::SetArgFloat(size_t Arg, float Value)
 		{
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
-			return Context->SetArgFloat(Arg, Value);
+			return Context->SetArgFloat((asUINT)Arg, Value);
 		}
-		int ImmediateContext::SetArgDouble(unsigned int Arg, double Value)
+		int ImmediateContext::SetArgDouble(size_t Arg, double Value)
 		{
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
-			return Context->SetArgDouble(Arg, Value);
+			return Context->SetArgDouble((asUINT)Arg, Value);
 		}
-		int ImmediateContext::SetArgAddress(unsigned int Arg, void* Address)
+		int ImmediateContext::SetArgAddress(size_t Arg, void* Address)
 		{
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
-			return Context->SetArgAddress(Arg, Address);
+			return Context->SetArgAddress((asUINT)Arg, Address);
 		}
-		int ImmediateContext::SetArgObject(unsigned int Arg, void* Object)
+		int ImmediateContext::SetArgObject(size_t Arg, void* Object)
 		{
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
-			return Context->SetArgObject(Arg, Object);
+			return Context->SetArgObject((asUINT)Arg, Object);
 		}
-		int ImmediateContext::SetArgAny(unsigned int Arg, void* Ptr, int TypeId)
+		int ImmediateContext::SetArgAny(size_t Arg, void* Ptr, int TypeId)
 		{
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
-			return Context->SetArgVarType(Arg, Ptr, TypeId);
+			return Context->SetArgVarType((asUINT)Arg, Ptr, TypeId);
 		}
 		int ImmediateContext::GetReturnableByType(void* Return, asITypeInfo* ReturnTypeInfo)
 		{
@@ -4322,7 +4406,7 @@ namespace Mavi
 			asIScriptEngine* Engine = VM->GetEngine();
 			return GetReturnableByType(Return, Engine->GetTypeInfoById(ReturnTypeId));
 		}
-		void* ImmediateContext::GetAddressOfArg(unsigned int Arg)
+		void* ImmediateContext::GetAddressOfArg(size_t Arg)
 		{
 			VI_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetAddressOfArg(Arg);
@@ -4414,6 +4498,64 @@ namespace Mavi
 			Callbacks.Exception = Callback;
 			return 0;
 		}
+		int ImmediateContext::StartDeserialization()
+		{
+			VI_ASSERT(Context != nullptr, false, "context should be set");
+			return Context->StartDeserialization();
+		}
+		int ImmediateContext::FinishDeserialization()
+		{
+			VI_ASSERT(Context != nullptr, false, "context should be set");
+			return Context->FinishDeserialization();
+		}
+		int ImmediateContext::PushFunction(const Function& Func, void* Object)
+		{
+			VI_ASSERT(Context != nullptr, false, "context should be set");
+			return Context->PushFunction(Func.GetFunction(), Object);
+		}
+		int ImmediateContext::GetStateRegisters(size_t StackLevel, Function* CallingSystemFunction, Function* InitialFunction, uint32_t* OrigStackPointer, uint32_t* ArgumentsSize, uint64_t* ValueRegister, void** ObjectRegister, TypeInfo* ObjectTypeRegister)
+		{
+			VI_ASSERT(Context != nullptr, false, "context should be set");
+			asITypeInfo* ObjectTypeRegister1 = nullptr;
+			asIScriptFunction* CallingSystemFunction1 = nullptr, *InitialFunction1 = nullptr;
+			asDWORD OrigStackPointer1 = 0, ArgumentsSize1 = 0; asQWORD ValueRegister1 = 0;
+			int R = Context->GetStateRegisters((asUINT)StackLevel, &CallingSystemFunction1, &InitialFunction1, &OrigStackPointer1, &ArgumentsSize1, &ValueRegister1, ObjectRegister, &ObjectTypeRegister1);
+			if (CallingSystemFunction != nullptr) *CallingSystemFunction = CallingSystemFunction1;
+			if (InitialFunction != nullptr) *InitialFunction = InitialFunction1;
+			if (OrigStackPointer != nullptr) *OrigStackPointer = (uint32_t)OrigStackPointer1;
+			if (ArgumentsSize != nullptr) *ArgumentsSize = (uint32_t)ArgumentsSize1;
+			if (ValueRegister != nullptr) *ValueRegister = (uint64_t)ValueRegister1;
+			if (ObjectTypeRegister != nullptr) *ObjectTypeRegister = ObjectTypeRegister1;
+			return R;
+		}
+		int ImmediateContext::GetCallStateRegisters(size_t StackLevel, uint32_t* StackFramePointer, Function* CurrentFunction, uint32_t* ProgramPointer, uint32_t* StackPointer, uint32_t* StackIndex)
+		{
+			VI_ASSERT(Context != nullptr, false, "context should be set");
+			asIScriptFunction* CurrentFunction1 = nullptr;
+			asDWORD StackFramePointer1 = 0, ProgramPointer1 = 0, StackPointer1 = 0, StackIndex1 = 0;
+			int R = Context->GetCallStateRegisters((asUINT)StackLevel, &StackFramePointer1, &CurrentFunction1, &ProgramPointer1, &StackPointer1, &StackIndex1);
+			if (CurrentFunction != nullptr) *CurrentFunction = CurrentFunction1;
+			if (StackFramePointer != nullptr) *StackFramePointer = (uint32_t)StackFramePointer1;
+			if (ProgramPointer != nullptr) *ProgramPointer = (uint32_t)ProgramPointer1;
+			if (StackPointer != nullptr) *StackPointer = (uint32_t)StackPointer1;
+			if (StackIndex != nullptr) *StackIndex = (uint32_t)StackIndex1;
+			return R;
+		}
+		int ImmediateContext::SetStateRegisters(size_t StackLevel, Function CallingSystemFunction, const Function& InitialFunction, uint32_t OrigStackPointer, uint32_t ArgumentsSize, uint64_t ValueRegister, void* ObjectRegister, const TypeInfo& ObjectTypeRegister)
+		{
+			VI_ASSERT(Context != nullptr, false, "context should be set");
+			return Context->SetStateRegisters(StackLevel, CallingSystemFunction.GetFunction(), InitialFunction.GetFunction(), (asDWORD)OrigStackPointer, (asDWORD)ArgumentsSize, (asQWORD)ValueRegister, ObjectRegister, ObjectTypeRegister.GetTypeInfo());
+		}
+		int ImmediateContext::SetCallStateRegisters(size_t StackLevel, uint32_t StackFramePointer, const Function& CurrentFunction, uint32_t ProgramPointer, uint32_t StackPointer, uint32_t StackIndex)
+		{
+			VI_ASSERT(Context != nullptr, false, "context should be set");
+			return Context->SetCallStateRegisters(StackLevel, (asDWORD)StackFramePointer, CurrentFunction.GetFunction(), (asDWORD)ProgramPointer, (asDWORD)StackPointer, (asDWORD)StackIndex);
+		}
+		int ImmediateContext::GetArgsOnStackCount(size_t StackLevel)
+		{
+			VI_ASSERT(Context != nullptr, false, "context should be set");
+			return Context->GetArgsOnStackCount((asUINT)StackLevel);
+		}
 		void ImmediateContext::ClearLineCallback()
 		{
 			VI_ASSERT_V(Context != nullptr, "context should be set");
@@ -4424,64 +4566,72 @@ namespace Mavi
 		{
 			Callbacks.Exception = nullptr;
 		}
-		unsigned int ImmediateContext::GetCallstackSize() const
+		size_t ImmediateContext::GetCallstackSize() const
 		{
 			VI_ASSERT(Context != nullptr, 0, "context should be set");
-			return Context->GetCallstackSize();
+			return (size_t)Context->GetCallstackSize();
 		}
-		Function ImmediateContext::GetFunction(unsigned int StackLevel)
+		Function ImmediateContext::GetFunction(size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, nullptr, "context should be set");
-			return Context->GetFunction(StackLevel);
+			return Context->GetFunction((asUINT)StackLevel);
 		}
-		int ImmediateContext::GetLineNumber(unsigned int StackLevel, int* Column, const char** SectionName)
+		int ImmediateContext::GetLineNumber(size_t StackLevel, int* Column, const char** SectionName)
 		{
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
-			return Context->GetLineNumber(StackLevel, Column, SectionName);
+			return Context->GetLineNumber((asUINT)StackLevel, Column, SectionName);
 		}
-		int ImmediateContext::GetPropertiesCount(unsigned int StackLevel)
+		int ImmediateContext::GetPropertiesCount(size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
-			return Context->GetVarCount(StackLevel);
+			return Context->GetVarCount((asUINT)StackLevel);
 		}
-		const char* ImmediateContext::GetPropertyName(unsigned int Index, unsigned int StackLevel)
+		int ImmediateContext::GetProperty(size_t Index, size_t StackLevel, const char** Name, int* TypeId, Modifiers* TypeModifiers, bool* IsVarOnHeap, int* StackOffset)
+		{
+			VI_ASSERT(Context != nullptr, -1, "context should be set");
+			asETypeModifiers TypeModifiers1 = asTM_NONE;
+			int Value = Context->GetVar((asUINT)Index, (asUINT)StackLevel, Name, TypeId, &TypeModifiers1, IsVarOnHeap, StackOffset);
+			if (TypeModifiers != nullptr) *TypeModifiers = (Modifiers)TypeModifiers1;
+			return Value;
+		}
+		const char* ImmediateContext::GetPropertyName(size_t Index, size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, nullptr, "context should be set");
 			const char* Name = nullptr;
-			Context->GetVar(Index, StackLevel, &Name);
+			Context->GetVar((asUINT)Index, (asUINT)StackLevel, &Name);
 			return Name;
 		}
-		const char* ImmediateContext::GetPropertyDecl(unsigned int Index, unsigned int StackLevel, bool IncludeNamespace)
+		const char* ImmediateContext::GetPropertyDecl(size_t Index, size_t StackLevel, bool IncludeNamespace)
 		{
 			VI_ASSERT(Context != nullptr, nullptr, "context should be set");
-			return Context->GetVarDeclaration(Index, StackLevel, IncludeNamespace);
+			return Context->GetVarDeclaration((asUINT)Index, (asUINT)StackLevel, IncludeNamespace);
 		}
-		int ImmediateContext::GetPropertyTypeId(unsigned int Index, unsigned int StackLevel)
+		int ImmediateContext::GetPropertyTypeId(size_t Index, size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
 			int TypeId = -1;
-			Context->GetVar(Index, StackLevel, nullptr, &TypeId);
+			Context->GetVar((asUINT)Index, (asUINT)StackLevel, nullptr, &TypeId);
 			return TypeId;
 		}
-		void* ImmediateContext::GetAddressOfProperty(unsigned int Index, unsigned int StackLevel)
+		void* ImmediateContext::GetAddressOfProperty(size_t Index, size_t StackLevel, bool DontDereference, bool ReturnAddressOfUnitializedObjects)
 		{
 			VI_ASSERT(Context != nullptr, nullptr, "context should be set");
-			return Context->GetAddressOfVar(Index, StackLevel);
+			return Context->GetAddressOfVar((asUINT)Index, (asUINT)StackLevel, DontDereference, ReturnAddressOfUnitializedObjects);
 		}
-		bool ImmediateContext::IsPropertyInScope(unsigned int Index, unsigned int StackLevel)
+		bool ImmediateContext::IsPropertyInScope(size_t Index, size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, false, "context should be set");
-			return Context->IsVarInScope(Index, StackLevel);
+			return Context->IsVarInScope((asUINT)Index, (asUINT)StackLevel);
 		}
-		int ImmediateContext::GetThisTypeId(unsigned int StackLevel)
+		int ImmediateContext::GetThisTypeId(size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
-			return Context->GetThisTypeId(StackLevel);
+			return Context->GetThisTypeId((asUINT)StackLevel);
 		}
-		void* ImmediateContext::GetThisPointer(unsigned int StackLevel)
+		void* ImmediateContext::GetThisPointer(size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, nullptr, "context should be set");
-			return Context->GetThisPointer(StackLevel);
+			return Context->GetThisPointer((asUINT)StackLevel);
 		}
 		Core::String ImmediateContext::GetExceptionStackTrace()
 		{
@@ -4536,7 +4686,7 @@ namespace Mavi
 		}
 		int ImmediateContext::ContextUD = 152;
 
-		VirtualMachine::VirtualMachine() noexcept : Scope(0), Debugger(nullptr), Engine(asCreateScriptEngine()), Translator(nullptr), Imports((uint32_t)Imports::All), Cached(true)
+		VirtualMachine::VirtualMachine() noexcept : Scope(0), Debugger(nullptr), Engine(asCreateScriptEngine()), Translator(nullptr), Imports((uint32_t)Imports::All), SaveSources(false), Cached(true)
 		{
 			Include.Exts.push_back(".as");
 			Include.Exts.push_back(".so");
@@ -4550,6 +4700,7 @@ namespace Mavi
 			Engine->SetEngineProperty(asEP_INIT_GLOBAL_VARS_AFTER_BUILD, 0);
 			Engine->SetEngineProperty(asEP_USE_CHARACTER_LITERALS, 1);
 			Engine->SetEngineProperty(asEP_DISALLOW_EMPTY_LIST_ELEMENTS, 1);
+			Engine->SetEngineProperty(asEP_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, 0);
 			Engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
 			RegisterSubmodules(this);
 		}
@@ -4830,6 +4981,10 @@ namespace Mavi
 				Generators.erase(Name);
 			Sync.General.unlock();
 		}
+		void VirtualMachine::SetPreserveSourceCode(bool Enabled)
+		{
+			SaveSources = Enabled;
+		}
 		void VirtualMachine::SetImports(unsigned int Opts)
 		{
 			Imports = Opts;
@@ -4869,7 +5024,7 @@ namespace Mavi
 		}
 		void VirtualMachine::ClearSections()
 		{
-			if (Debugger != nullptr)
+			if (Debugger != nullptr || SaveSources)
 				return;
 
 			Sync.General.lock();
@@ -5469,6 +5624,11 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, -1, "engine should be set");
 			return Engine->SetEngineProperty((asEEngineProp)Property, (asPWORD)Value);
 		}
+		size_t VirtualMachine::GetProperty(Features Property)
+		{
+			VI_ASSERT(Engine != nullptr, 0, "engine should be set");
+			return (size_t)Engine->GetEngineProperty((asEEngineProp)Property);
+		}
 		void VirtualMachine::SetModuleDirectory(const Core::String& Value)
 		{
 			Sync.General.lock();
@@ -5499,6 +5659,15 @@ namespace Mavi
 				Result.push_back(Core::Form("%s(0x%" PRIXPTR "):%s", Module.second.IsAddon ? "addon" : "clibrary", Module.second.Handle, Module.first.c_str()).R());
 
 			return Result;
+		}
+		bool VirtualMachine::HasSubmodule(const Core::String& Name)
+		{
+			std::unique_lock<std::mutex> Unique(Sync.General);
+			auto It = Modules.find(Name);
+			if (It == Modules.end())
+				return false;
+
+			return It->second.Registered;
 		}
 		bool VirtualMachine::IsNullable(int TypeId)
 		{
@@ -5573,19 +5742,27 @@ namespace Mavi
 			Sync.General.unlock();
 			return true;
 		}
-		bool VirtualMachine::ImportFile(const Core::String& Path, Core::String& Output)
+		bool VirtualMachine::ImportFile(const Core::String& Path, bool IsRemote, Core::String& Output)
 		{
 			if (!(Imports & (uint32_t)Imports::Files))
 			{
 				VI_ERR("[vm] file import is not allowed");
 				return false;
 			}
-
-			if (!Core::OS::File::IsExists(Path.c_str()))
+			else if (IsRemote && !(Imports & (uint32_t)Imports::Remotes))
+			{
+				VI_ERR("[vm] remote file import is not allowed");
 				return false;
+			}
 
-			if (!Core::Stringify(&Path).EndsWith(".as"))
-				return ImportLibrary(Path, true);
+			if (!IsRemote)
+			{
+				if (!Core::OS::File::IsExists(Path.c_str()))
+					return false;
+
+				if (!Core::Stringify(&Path).EndsWith(".as"))
+					return ImportLibrary(Path, true);
+			}
 
 			if (!Cached)
 			{
@@ -5602,7 +5779,9 @@ namespace Mavi
 				return true;
 			}
 
+			Sync.General.unlock();
 			Output.assign(Core::OS::File::ReadAsString(Path));
+			Sync.General.lock();
 			Files.insert(std::make_pair(Path, Output));
 			Sync.General.unlock();
 			return true;
@@ -5959,16 +6138,24 @@ namespace Mavi
 			const char* Message = Context->GetExceptionString();
 			if (Message && Message[0] != '\0' && !Context->WillExceptionBeCaught())
 			{
+				VirtualMachine* VM = Base->GetVM();
 				Core::String Details = Bindings::Exception::Pointer(Core::String(Message)).What();
 				Core::String Trace = Base->GetStackTrace(3, 64);
-				VI_ERR("[vm] uncaught exception %s, callstack dump:\n%.*s",
-					Details.empty() ? "unknown" : Details.c_str(),
-					(int)Trace.size(), Trace.c_str());
+				if (VM != nullptr && (VM->Debugger != nullptr || VM->SaveSources))
+				{
+					int ColumnNumber = 0; const char* SectionName = "";
+					int LineNumber = Context->GetExceptionLineNumber(&ColumnNumber, &SectionName);
+					Core::String SourceCode = VM->GetSourceCodeAppendixByPath("exception origin", SectionName, LineNumber, ColumnNumber, 5);
+					if (SourceCode.empty())
+						Trace.append("\n  (source code is not available)");
+					else
+						Trace.append(SourceCode);
+				}
 
+				VI_ERR("[vm] uncaught exception %s, callstack:\n%.*s", Details.empty() ? "unknown" : Details.c_str(), (int)Trace.size(), Trace.c_str());
 				Base->Exchange.lock();
 				Base->Frame.Stacktrace = Trace;
 				Base->Exchange.unlock();
-
 				if (Base->Callbacks.Exception)
 					Base->Callbacks.Exception(Base);
 			}
@@ -6005,11 +6192,14 @@ namespace Mavi
 		void VirtualMachine::MessageLogger(asSMessageInfo* Info, void* This)
 		{
 			VirtualMachine* Engine = (VirtualMachine*)This;
-			const char* Section = (Info->section && Info->section[0] != '\0' ? Info->section : "any");
+			const char* Section = (Info->section && Info->section[0] != '\0' ? Info->section : "?");
 			if (Engine->WhenError)
 				Engine->WhenError();
 
-			Core::String SourceCode = Engine->GetSourceCodeAppendixByPath("error", Info->section, Info->row, Info->col, 5);
+			Core::String SourceCode = Engine->GetSourceCodeAppendixByPath("error", Section, Info->row, Info->col, 5);
+			if (SourceCode.empty())
+				SourceCode = " (source code is not available)";
+
 			if (Engine != nullptr && !Engine->Callbacks.empty())
 			{
 				auto It = Engine->Callbacks.find(Section);

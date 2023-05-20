@@ -38,9 +38,6 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <dlfcn.h>
-#ifdef VI_LINUX
-#include <term.h>
-#endif
 #ifndef VI_USE_FCTX
 #include <ucontext.h>
 #endif
@@ -5873,13 +5870,6 @@ namespace Mavi
 				Cache.Attributes = ScreenBuffer.wAttributes;
 
 			VI_TRACE("[console] allocate window 0x%" PRIXPTR, (void*)Base);
-#else
-#ifdef VI_LINUX
-			int Success;
-			setupterm(NULL, STDOUT_FILENO, &Success);
-			if (Success <= 0)
-				return;
-#endif
 #endif
 			Status = Mode::Allocated;
 		}
@@ -5932,10 +5922,8 @@ namespace Mavi
 			FillConsoleOutputCharacterA((HANDLE)Wnd, ' ', Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
 			FillConsoleOutputAttribute((HANDLE)Wnd, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE, Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
 			SetConsoleCursorPosition((HANDLE)Wnd, TopLeft);
-#elif defined VI_LINUX
-			putp(tigetstr("clear"));
 #else
-			std::cout << "\x1B[2J\x1B[H";
+			std::system("clear");
 #endif
 		}
 		void Console::Attach()
@@ -5951,13 +5939,6 @@ namespace Mavi
 				Cache.Attributes = ScreenBuffer.wAttributes;
 
 			VI_TRACE("[console] attach window 0x%" PRIXPTR, (void*)Base);
-#else
-#ifdef VI_LINUX
-			int Success;
-			setupterm(NULL, STDOUT_FILENO, &Success);
-			if (Success <= 0)
-				return;
-#endif
 #endif
 			Status = Mode::Attached;
 		}

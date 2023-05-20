@@ -2772,41 +2772,6 @@ namespace Mavi
 				Stream << Indent << "  data = " << ToString(Indent, Depth - 1, Source->GetAddressOfObject(), Source->GetTypeId());
 				return Stream.str();
 			});
-			AddToStringCallback("thread", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Bindings::Thread* Source = (Bindings::Thread*)Object;
-				Core::StringStream Stream;
-				Stream << "(thread)\n";
-				Stream << Indent << "  id = " << Source->GetId() << "\n";
-				Stream << Indent << "  state = " << (Source->IsActive() ? "active" : "suspended");
-				return Stream.str();
-			});
-			AddToStringCallback("char_buffer", [](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Bindings::CharBuffer* Source = (Bindings::CharBuffer*)Object;
-				size_t Size = Source->GetSize();
-
-				Core::StringStream Stream;
-				Stream << "0x" << (void*)Source << " (char_buffer, " << Size << " bytes) [";
-
-				char* Buffer = (char*)Source->GetPointer(0);
-				size_t Count = (Size > 256 ? 256 : Size);
-				Core::String Next = "0";
-
-				for (size_t i = 0; i < Count; i++)
-				{
-					Next[0] = Buffer[i];
-					Stream << "0x" << Compute::Codec::HexEncode(Next);
-					if (i + 1 < Count)
-						Stream << ", ";
-				}
-
-				if (Count < Size)
-					Stream << ", ...";
-
-				Stream << "]";
-				return Stream.str();
-			});
 			AddToStringCallback("array", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Bindings::Array* Source = (Bindings::Array*)Object;
@@ -2906,6 +2871,43 @@ namespace Mavi
 				});
 				return Stream.str();
 			});
+#ifdef VI_HAS_BINDINGS
+			AddToStringCallback("thread", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
+			{
+				Bindings::Thread* Source = (Bindings::Thread*)Object;
+				Core::StringStream Stream;
+				Stream << "(thread)\n";
+				Stream << Indent << "  id = " << Source->GetId() << "\n";
+				Stream << Indent << "  state = " << (Source->IsActive() ? "active" : "suspended");
+				return Stream.str();
+			});
+			AddToStringCallback("char_buffer", [](Core::String& Indent, int Depth, void* Object, int TypeId)
+			{
+				Bindings::CharBuffer* Source = (Bindings::CharBuffer*)Object;
+				size_t Size = Source->GetSize();
+
+				Core::StringStream Stream;
+				Stream << "0x" << (void*)Source << " (char_buffer, " << Size << " bytes) [";
+
+				char* Buffer = (char*)Source->GetPointer(0);
+				size_t Count = (Size > 256 ? 256 : Size);
+				Core::String Next = "0";
+
+				for (size_t i = 0; i < Count; i++)
+				{
+					Next[0] = Buffer[i];
+					Stream << "0x" << Compute::Codec::HexEncode(Next);
+					if (i + 1 < Count)
+						Stream << ", ";
+				}
+
+				if (Count < Size)
+					Stream << ", ...";
+
+				Stream << "]";
+				return Stream.str();
+			});
+#endif
 		}
 		void DebuggerContext::AddCommand(const Core::String& Name, const Core::String& Description, ArgsType Type, const CommandCallback& Callback)
 		{

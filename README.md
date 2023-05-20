@@ -1,7 +1,7 @@
 <br/>
-<div id="theia-logo" align="center">
+<div align="center">
     <br />
-    <img src="https://github.com/romanpunia/mavi/blob/master/var/logo.png?raw=true" alt="Mavi Logo" width="300"/>
+    <img src="https://github.com/romanpunia/mavi/blob/master/var/logo-main.png?raw=true" alt="Mavi Logo" width="300" />
     <h3>C++ Cross-Platform Framework</h3>
 </div>
 

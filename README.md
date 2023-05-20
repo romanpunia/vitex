@@ -271,34 +271,32 @@ Dependency options
 + **VI_USE_BINDINGS** will enable full script bindings otherwise only essentials will be used to reduce lib size, defaults to true
 + **VI_USE_FAST_MEMORY** will enable custom allocator for all used standard containers, making them incompatible with std::allocator based ones but adding opportunity to use pool allocator, defaults to false
 
-## Static dependencies
-* [bullet3](https://github.com/bulletphysics/bullet3)
-* [angelscript](https://sourceforge.net/projects/angelscript/)
-* [wepoll](https://github.com/piscisaureus/wepoll)
-* [rmlui](https://github.com/mikke89/RmlUi)
-* [tinyfiledialogs](https://github.com/native-toolkit/tinyfiledialogs)
-* [rapidxml](https://github.com/discordapp/rapidxml)
-* [rapidjson](https://github.com/tencent/rapidjson)
-* [stb](https://github.com/nothings/stb)
-* [vectorclass](https://github.com/vectorclass/version1)
-* [concurrentqueue](https://github.com/cameron314/concurrentqueue)
-* [backward-cpp](https://github.com/bombela/backward-cpp)
-
-## Dynamic dependencies
-These are recommended to be installed, but are not required to.
-* [d3d11](https://www.microsoft.com/en-us/download/details.aspx?id=6812)
-* [opengl](https://github.com/KhronosGroup/OpenGL-Registry)
-* [openssl](https://github.com/openssl/openssl)
-* [openal-soft](https://github.com/kcat/openal-soft)
-* [glew](https://github.com/nigels-com/glew)
-* [zlib](https://github.com/madler/zlib)
-* [assimp](https://github.com/assimp/assimp)
-* [mongo-c-driver](https://github.com/mongodb/mongo-c-driver)
-* [libpq](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq)
-* [freetype](https://github.com/freetype/freetype)
-* [sdl2](https://www.libsdl.org/download-2.0.php)
-* [spirv-cross](https://github.com/KhronosGroup/SPIRV-Cross)
-* [glslang](https://github.com/KhronosGroup/glslang)
+## Dependencies
+Shared objects (so) are optional.
+* [Bullet3 (embedded)](https://github.com/bulletphysics/bullet3)
+* [AngelScript (embedded)](https://sourceforge.net/projects/angelscript/)
+* [wepoll (embedded)](https://github.com/piscisaureus/wepoll)
+* [RmlUi (embedded)](https://github.com/mikke89/RmlUi)
+* [tinyfiledialogs (embedded)](https://github.com/native-toolkit/tinyfiledialogs)
+* [RapidXML (embedded)](https://github.com/discordapp/rapidxml)
+* [RapidJSON (embedded)](https://github.com/tencent/rapidjson)
+* [stb (embedded)](https://github.com/nothings/stb)
+* [vectorclass (embedded)](https://github.com/vectorclass/version1)
+* [concurrentqueue (embedded)](https://github.com/cameron314/concurrentqueue)
+* [backward-cpp (embedded)](https://github.com/bombela/backward-cpp)
+* [D3D11 (so)](https://www.microsoft.com/en-us/download/details.aspx?id=6812)
+* [OpenGL (so)](https://github.com/KhronosGroup/OpenGL-Registry)
+* [OpenSSL (so)](https://github.com/openssl/openssl)
+* [OpenAL-Soft (so)](https://github.com/kcat/openal-soft)
+* [GLEW (so)](https://github.com/nigels-com/glew)
+* [zlib (so)](https://github.com/madler/zlib)
+* [Assimp (so)](https://github.com/assimp/assimp)
+* [mongo-c-driver (so)](https://github.com/mongodb/mongo-c-driver)
+* [libpq (so)](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq)
+* [freetype (so)](https://github.com/freetype/freetype)
+* [SDL2 (so)](https://www.libsdl.org/download-2.0.php)
+* [spirv-cross (so)](https://github.com/KhronosGroup/SPIRV-Cross)
+* [glslang (so)](https://github.com/KhronosGroup/glslang)
 
 ## License
 Mavi is licensed under the MIT license

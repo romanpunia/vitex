@@ -3708,6 +3708,11 @@ namespace Mavi
 		{
 			return std::move(Other);
 		}
+		template <typename O, typename I>
+		inline const O& Copy(const I& Other)
+		{
+			return Other;
+		}
 #endif
 		template <typename T>
 		inline Core::String ToString(T Other)

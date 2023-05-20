@@ -1,10 +1,14 @@
 <br/>
 <div align="center">
     <br />
-    <img src="https://github.com/romanpunia/mavi/blob/master/var/logo-main.png?raw=true" alt="Mavi Logo" width="300" />
+    <img src="https://github.com/romanpunia/mavi/blob/master/var/logo.png?raw=true" alt="Mavi Logo" width="300" />
     <h3>C++ Cross-Platform Framework</h3>
 </div>
+<div align="center">
 
+  [![Build Status](https://github.com/romanpunia/mavi/workflows/CMake/badge.svg)](https://github.com/eclipse-theia/theia/actions?query=branch%3Amaster+event%3Apush+event%3Aschedule)
+
+</div>
 
 ## About 👻
 Mavi is a cross-platform C++14/17/20 framework to create any type of application from a unified interface. In it's core, Mavi is based on same concepts as Node.js but made to it's extreme. As in Node, Mavi has a worker pool that not only consumes but also publishes tasks, here we don't really have a concept of event loop, every thread is on it's own an event loop.
@@ -23,12 +27,6 @@ For games, Mavi is a 3D optimized engine, there is a posibility to render effici
 for example, destroy a rigid body owned by physics engine, we use scene transactions that are just callbacks that are guaranteed to be executed thread safe (in scope of scene) which in turn makes scene eventual consistent as transactions are fired later when all parallel tasks are finished.
 
 Another important aspect of Mavi is schemas, they are used to serialize and deserialize data. For game, their main purpose is to provide containers for serialized game states such as meshes, animations, materials, scenes, configurations and other. For services, they can be used as a data transmitting containers to convert between XML, JSON, JSONB, MongoDB documents, PostgreSQL results and others.
-
-<p align="center">
-  <img width="640" src="https://github.com/romanpunia/mavi/blob/master/var/screenshot.png?raw=true">
-</p>
-
-![CMake Ubuntu](https://github.com/romanpunia/mavi/workflows/CMake/badge.svg)
 
 ## Features
 #### Core

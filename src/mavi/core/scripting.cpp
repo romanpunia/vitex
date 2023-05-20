@@ -2709,13 +2709,13 @@ namespace Mavi
 			AddCommand("n, next", "step over subroutine", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
 			{
 				Action = DebugAction::StepOver;
-				LastCommandAtStackLevel = Context->GetCallstackSize();
+				LastCommandAtStackLevel = (unsigned int)Context->GetCallstackSize();
 				return true;
 			});
 			AddCommand("fin, finish", "step out of subroutine", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
 			{
 				Action = DebugAction::StepOut;
-				LastCommandAtStackLevel = Context->GetCallstackSize();
+				LastCommandAtStackLevel = (unsigned int)Context->GetCallstackSize();
 				return true;
 			});
 			AddCommand("a, abort", "abort current execution", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
@@ -3236,7 +3236,7 @@ namespace Mavi
 				asDWORD Value = ByteCode[i];
 				if (Value <= std::numeric_limits<uint8_t>::max())
 				{
-					ByteCodeLabel RightLabel = VirtualMachine::GetByteCodeInfo(Value);
+					ByteCodeLabel RightLabel = VirtualMachine::GetByteCodeInfo((uint8_t)Value);
 					Stream << "\n    0x" << (void*)(uintptr_t)(i) << ": " << RightLabel.Name << " [bc:" << (int)RightLabel.Id << ";ac:" << (int)RightLabel.Args << "]";
 					++Calls;
 				}
@@ -3442,7 +3442,7 @@ namespace Mavi
 				Stream << "    [cf] current function: " << CurrentFunction->GetDeclaration(true, true, true) << "\n";
 				if (ByteCode != nullptr && ProgramPointer < Size)
 				{
-					asUINT Left = std::min<asUINT>(PreviewSize, ProgramPointer);
+					asUINT Left = std::min<asUINT>((asUINT)PreviewSize, (asUINT)ProgramPointer);
 					Stream << "  stack frame #" << Level << " instructions:";
 					bool HadInstruction = false;
 
@@ -3468,7 +3468,7 @@ namespace Mavi
 						}
 					}
 
-					asUINT Right = std::min<asUINT>(PreviewSize, Size - ProgramPointer);
+					asUINT Right = std::min<asUINT>((asUINT)PreviewSize, (asUINT)Size - (asUINT)ProgramPointer);
 					ByteCodeLabel MainLabel = VirtualMachine::GetByteCodeInfo((uint8_t)ByteCode[ProgramPointer]);
 					Stream << "\n  > 0x" << (void*)(uintptr_t)(ProgramPointer) << ": " << MainLabel.Name << " [bc:" << (int)MainLabel.Id << ";ac:" << (int)MainLabel.Args << "]";
 					HadInstruction = true;
@@ -4411,7 +4411,7 @@ namespace Mavi
 		void* ImmediateContext::GetAddressOfArg(size_t Arg)
 		{
 			VI_ASSERT(Context != nullptr, nullptr, "context should be set");
-			return Context->GetAddressOfArg(Arg);
+			return Context->GetAddressOfArg((asUINT)Arg);
 		}
 		unsigned char ImmediateContext::GetReturnByte()
 		{
@@ -4546,12 +4546,12 @@ namespace Mavi
 		int ImmediateContext::SetStateRegisters(size_t StackLevel, Function CallingSystemFunction, const Function& InitialFunction, uint32_t OrigStackPointer, uint32_t ArgumentsSize, uint64_t ValueRegister, void* ObjectRegister, const TypeInfo& ObjectTypeRegister)
 		{
 			VI_ASSERT(Context != nullptr, false, "context should be set");
-			return Context->SetStateRegisters(StackLevel, CallingSystemFunction.GetFunction(), InitialFunction.GetFunction(), (asDWORD)OrigStackPointer, (asDWORD)ArgumentsSize, (asQWORD)ValueRegister, ObjectRegister, ObjectTypeRegister.GetTypeInfo());
+			return Context->SetStateRegisters((asUINT)StackLevel, CallingSystemFunction.GetFunction(), InitialFunction.GetFunction(), (asDWORD)OrigStackPointer, (asDWORD)ArgumentsSize, (asQWORD)ValueRegister, ObjectRegister, ObjectTypeRegister.GetTypeInfo());
 		}
 		int ImmediateContext::SetCallStateRegisters(size_t StackLevel, uint32_t StackFramePointer, const Function& CurrentFunction, uint32_t ProgramPointer, uint32_t StackPointer, uint32_t StackIndex)
 		{
 			VI_ASSERT(Context != nullptr, false, "context should be set");
-			return Context->SetCallStateRegisters(StackLevel, (asDWORD)StackFramePointer, CurrentFunction.GetFunction(), (asDWORD)ProgramPointer, (asDWORD)StackPointer, (asDWORD)StackIndex);
+			return Context->SetCallStateRegisters((asUINT)StackLevel, (asDWORD)StackFramePointer, CurrentFunction.GetFunction(), (asDWORD)ProgramPointer, (asDWORD)StackPointer, (asDWORD)StackIndex);
 		}
 		int ImmediateContext::GetArgsOnStackCount(size_t StackLevel)
 		{
@@ -5993,8 +5993,8 @@ namespace Mavi
 				Stream << "  " << LineNumber + i - Lines.size() / 2 << "  " << Core::Stringify(&Lines[i]).TrimEnd().R() << "\n";
 			Stream << "  " << LineNumber << "  " << Line.TrimEnd().R() << "\n  ";
 
-			ColumnNumber += 1 + Core::ToString(LineNumber).size();
-			for (int i = 0; i < ColumnNumber; i++)
+			ColumnNumber += 1 + (uint32_t)Core::ToString(LineNumber).size();
+			for (uint32_t i = 0; i < ColumnNumber; i++)
 				Stream << " ";
 
 			Stream << "^";

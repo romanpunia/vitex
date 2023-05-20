@@ -269,7 +269,7 @@ Dependency options
 + **VI_USE_SPIRV** will enable SPIRV Cross and Glslang libraries if any, defaults to true
 + **VI_USE_SHADERS** to embed shaders from **/src/shaders** to **/src/mavi/graphics/dynamic/shaders.hpp**, defaults to true
 + **VI_USE_SIMD** will enable simd optimisations (processor-specific), defaults to false
-+ **VI_USE_FCTX** will enable optional JIT compiler for AngelScript, defaults to false
++ **VI_USE_JIT** will enable optional JIT compiler for AngelScript, defaults to false
 + **VI_USE_FCTX** will enable internal fcontext implementation for coroutines, defaults to true
 + **VI_USE_BULLET3** will enable built-in Bullet3 library and physics interfaces, defaults to true
 + **VI_USE_RMLUI** will enable built-in RmlUi library and gui interfaces, defaults to true

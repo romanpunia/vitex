@@ -151,6 +151,22 @@ namespace Mavi
 		return false;
 #endif
 	}
+	bool Library::HasJIT()
+	{
+#ifdef VI_USE_JIT
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Library::HasFastMemory()
+	{
+#ifdef VI_HAS_FAST_MEMORY
+		return true;
+#else
+		return false;
+#endif
+	}
 	bool Library::HasBullet3()
 	{
 #ifdef VI_USE_BULLET3
@@ -232,6 +248,10 @@ namespace Mavi
 			Features.push_back("SDL2");
 		if (HasSIMD())
 			Features.push_back("SIMD");
+		if (HasJIT())
+			Features.push_back("JIT");
+		if (HasFastMemory())
+			Features.push_back("FastMemory");
 		if (HasBullet3())
 			Features.push_back("Bullet3");
 		if (HasRmlUI())

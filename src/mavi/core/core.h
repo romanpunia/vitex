@@ -42,6 +42,8 @@ namespace Mavi
 
 		class Stream;
 
+		class ProcessStream;
+
 		class Var;
 
 		typedef uint64_t TaskId;
@@ -1338,7 +1340,9 @@ namespace Mavi
                 
 			public:
 				static void Interrupt();
-				static int Execute(const char* Format, ...);
+				static int ExecutePlain(const String& Command);
+				static ProcessStream* ExecuteWriteOnly(const String& Command);
+				static ProcessStream* ExecuteReadOnly(const String& Command);
 				static bool Spawn(const Core::String& Path, const Core::Vector<Core::String>& Params, ChildProcess* Result);
 				static bool Await(ChildProcess* Process, int* ExitCode);
 				static bool Free(ChildProcess* Process);
@@ -2046,7 +2050,7 @@ namespace Mavi
 		public:
 			Stream() noexcept;
 			virtual ~Stream() noexcept = default;
-			virtual void Clear() = 0;
+			virtual bool Clear() = 0;
 			virtual bool Open(const char* File, FileMode Mode) = 0;
 			virtual bool Close() = 0;
 			virtual bool Seek(FileSeek Mode, int64_t Offset) = 0;
@@ -2075,9 +2079,9 @@ namespace Mavi
 		public:
 			FileStream() noexcept;
 			~FileStream() noexcept override;
-			void Clear() override;
-			bool Open(const char* File, FileMode Mode) override;
-			bool Close() override;
+			virtual bool Clear() override;
+			virtual bool Open(const char* File, FileMode Mode) override;
+			virtual bool Close() override;
 			bool Seek(FileSeek Mode, int64_t Offset) override;
 			bool Move(int64_t Offset) override;
 			int Flush() override;
@@ -2088,10 +2092,10 @@ namespace Mavi
 			size_t Tell() override;
 			int GetFd() const override;
 			void* GetBuffer() const override;
-			bool IsSized() const override;
+			virtual bool IsSized() const override;
 		};
 
-		class VI_OUT GzStream : public Stream
+		class VI_OUT GzStream final : public Stream
 		{
 		protected:
 			void* Resource;
@@ -2099,7 +2103,7 @@ namespace Mavi
 		public:
 			GzStream() noexcept;
 			~GzStream() noexcept override;
-			void Clear() override;
+			bool Clear() override;
 			bool Open(const char* File, FileMode Mode) override;
 			bool Close() override;
 			bool Seek(FileSeek Mode, int64_t Offset) override;
@@ -2115,7 +2119,7 @@ namespace Mavi
 			bool IsSized() const override;
 		};
 
-		class VI_OUT WebStream : public Stream
+		class VI_OUT WebStream final : public Stream
 		{
 		protected:
 			void* Resource;
@@ -2129,7 +2133,7 @@ namespace Mavi
 			WebStream(bool IsAsync) noexcept;
 			WebStream(bool IsAsync, Core::UnorderedMap<Core::String, Core::String>&& NewHeaders) noexcept;
 			~WebStream() noexcept override;
-			void Clear() override;
+			bool Clear() override;
 			bool Open(const char* File, FileMode Mode) override;
 			bool Close() override;
 			bool Seek(FileSeek Mode, int64_t Offset) override;
@@ -2143,6 +2147,25 @@ namespace Mavi
 			int GetFd() const override;
 			void* GetBuffer() const override;
 			bool IsSized() const override;
+		};
+
+		class VI_OUT ProcessStream final : public FileStream
+		{
+		private:
+			int ExitCode;
+
+		public:
+			ProcessStream() noexcept;
+			~ProcessStream() noexcept = default;
+			bool Clear() override;
+			bool Open(const char* File, FileMode Mode) override;
+			bool Close() override;
+			bool IsSized() const override;
+			int GetExitCode() const;
+
+		private:
+			static void* OpenPipe(const char* File, const char* Mode);
+			static int ClosePipe(void* Fd);
 		};
 
 		class VI_OUT FileLog final : public Reference<FileLog>

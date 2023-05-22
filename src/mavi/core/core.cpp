@@ -6379,13 +6379,17 @@ namespace Mavi
 		{
 			Close();
 		}
-		void FileStream::Clear()
+		bool FileStream::Clear()
 		{
 			VI_TRACE("[io] fs %i clear", GetFd());
-			Close();
+			if (!Close())
+				return false;
 
-			if (!Path.empty())
-				Resource = (FILE*)OS::File::Open(Path.c_str(), "w");
+			if (Path.empty())
+				return false;
+
+			Resource = (FILE*)OS::File::Open(Path.c_str(), "w");
+			return Resource != nullptr;
 		}
 		bool FileStream::Open(const char* File, FileMode Mode)
 		{
@@ -6552,16 +6556,17 @@ namespace Mavi
 		{
 			Close();
 		}
-		void GzStream::Clear()
+		bool GzStream::Clear()
 		{
 			VI_TRACE("[gz] fs %i clear", GetFd());
-			Close();
+			if (!Close())
+				return false;
 
-			if (!Path.empty())
-			{
-				OS::File::Close(OS::File::Open(Path.c_str(), "w"));
-				Open(Path.c_str(), FileMode::Binary_Write_Only);
-			}
+			if (Path.empty())
+				return false;
+
+			OS::File::Close(OS::File::Open(Path.c_str(), "w"));
+			return Open(Path.c_str(), FileMode::Binary_Write_Only);
 		}
 		bool GzStream::Open(const char* File, FileMode Mode)
 		{
@@ -6738,9 +6743,10 @@ namespace Mavi
 		{
 			Close();
 		}
-		void WebStream::Clear()
+		bool WebStream::Clear()
 		{
 			VI_ASSERT_V(false, "web clear is not supported");
+			return false;
 		}
 		bool WebStream::Open(const char* File, FileMode Mode)
 		{
@@ -6929,6 +6935,132 @@ namespace Mavi
 		bool WebStream::IsSized() const
 		{
 			return true;
+		}
+
+		ProcessStream::ProcessStream() noexcept : FileStream(), ExitCode(-1)
+		{
+		}
+		ProcessStream::~ProcessStream() noexcept
+		{
+		}
+		bool ProcessStream::Clear()
+		{
+			VI_ASSERT(false, false, "process clear is not supported");
+			return false;
+		}
+		bool ProcessStream::Open(const char* File, FileMode Mode)
+		{
+#ifdef VI_MICROSOFT
+			VI_ASSERT(File != nullptr, false, "command should be set");
+			Close();
+			Path = File;
+
+			switch (Mode)
+			{
+				case FileMode::Read_Only:
+					Resource = (FILE*)OpenPipe(Path.c_str(), "r");
+					break;
+				case FileMode::Write_Only:
+					Resource = (FILE*)OpenPipe(Path.c_str(), "w");
+					break;
+				case FileMode::Append_Only:
+					Resource = (FILE*)OpenPipe(Path.c_str(), "a");
+					break;
+				case FileMode::Read_Write:
+					Resource = (FILE*)OpenPipe(Path.c_str(), "r+");
+					break;
+				case FileMode::Write_Read:
+					Resource = (FILE*)OpenPipe(Path.c_str(), "w+");
+					break;
+				case FileMode::Read_Append_Write:
+					Resource = (FILE*)OpenPipe(Path.c_str(), "a+");
+					break;
+				case FileMode::Binary_Read_Only:
+					Resource = (FILE*)OpenPipe(Path.c_str(), "rb");
+					break;
+				case FileMode::Binary_Write_Only:
+					Resource = (FILE*)OpenPipe(Path.c_str(), "wb");
+					break;
+				case FileMode::Binary_Append_Only:
+					Resource = (FILE*)OpenPipe(Path.c_str(), "ab");
+					break;
+				case FileMode::Binary_Read_Write:
+					Resource = (FILE*)OpenPipe(Path.c_str(), "rb+");
+					break;
+				case FileMode::Binary_Write_Read:
+					Resource = (FILE*)OpenPipe(Path.c_str(), "wb+");
+					break;
+				case FileMode::Binary_Read_Append_Write:
+					Resource = (FILE*)OpenPipe(Path.c_str(), "ab+");
+					break;
+			}
+
+			return Resource != nullptr;
+#elif defined(VI_LINUX)
+
+#endif
+		}
+		bool ProcessStream::Close()
+		{
+			if (Resource != nullptr)
+			{
+				ExitCode = ClosePipe(Resource);
+				Resource = nullptr;
+			}
+
+			return ExitCode == 0;
+		}
+		bool ProcessStream::IsSized() const
+		{
+			return false;
+		}
+		int ProcessStream::GetExitCode() const
+		{
+			return ExitCode;
+		}
+		void* ProcessStream::OpenPipe(const char* Path, const char* Mode)
+		{
+			VI_MEASURE(Core::Timings::FileSystem);
+			VI_ASSERT(Path != nullptr && Mode != nullptr, nullptr, "path and mode should be set");
+#ifdef VI_MICROSOFT
+			wchar_t Buffer[CHUNK_SIZE], Type[20];
+			Stringify::ConvertToWide(Path, strlen(Path), Buffer, CHUNK_SIZE);
+			Stringify::ConvertToWide(Mode, strlen(Mode), Type, 20);
+
+			FILE* Stream = _wpopen(Buffer, Type);
+			if (Stream != nullptr)
+				VI_DEBUG("[io] open ps %i %s %s", VI_FILENO(Stream), Mode, Path);
+			else
+				VI_WARN("[io] open ps %s %s: cannot be opened", Mode, Path);
+
+			return (void*)Stream;
+#elif defined(VI_LINUX)
+			FILE* Stream = popen(Path, Mode);
+			if (Stream != nullptr)
+				fcntl(VI_FILENO(Stream), F_SETFD, FD_CLOEXEC);
+
+			if (Stream != nullptr)
+				VI_DEBUG("[io] open ps %i %s %s", VI_FILENO(Stream), Mode, Path);
+			else
+				VI_WARN("[io] open ps %s %s: cannot be opened", Mode, Path);
+
+			return (void*)Stream;
+#else
+			VI_ERR("[io] open ps %s %s: not supported", Mode, Path);
+			return nullptr;
+#endif
+		}
+		int ProcessStream::ClosePipe(void* Fd)
+		{
+			VI_ASSERT_V(Fd != nullptr, "stream should be set");
+			VI_DEBUG("[io] close ps %i", VI_FILENO((FILE*)Fd));
+#ifdef VI_MICROSOFT
+			return _pclose((FILE*)Fd);
+#elif defined(VI_LINUX)
+			return pclose((FILE*)Fd);
+#else
+			return nullptr;
+#endif
 		}
 
 		FileTree::FileTree(const Core::String& Folder) noexcept
@@ -8291,21 +8423,33 @@ namespace Mavi
 #endif
 #endif
 		}
-		int OS::Process::Execute(const char* Format, ...)
+		int OS::Process::ExecutePlain(const String& Command)
 		{
-			VI_ASSERT(Format != nullptr, -1, "format should be set");
-			char Buffer[BLOB_SIZE];
-			va_list Args;
-			va_start(Args, Format);
-#ifdef VI_MICROSOFT
-			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-#else
-			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-#endif
-			va_end(Args);
+			VI_ASSERT(!Command.empty(), -1, "format should be set");
+			VI_DEBUG("[os] execute sp:command [ %s ]", Buffer);
+			return system(Command.c_str());
+		}
+		ProcessStream* OS::Process::ExecuteWriteOnly(const String& Command)
+		{
+			VI_ASSERT(!Command.empty(), nullptr, "format should be set");
+			VI_DEBUG("[os] execute wo:command [ %s ]", Buffer);
+			ProcessStream* Stream = new ProcessStream();
+			if (Stream->Open(Command.c_str(), FileMode::Write_Only))
+				return Stream;
 
-			VI_DEBUG("[os] execute command\n\t%s", Buffer);
-			return system(Buffer);
+			VI_RELEASE(Stream);
+			return nullptr;
+		}
+		ProcessStream* OS::Process::ExecuteReadOnly(const String& Command)
+		{
+			VI_ASSERT(!Command.empty(), nullptr, "format should be set");
+			VI_DEBUG("[os] execute ro:command [ %s ]", Buffer);
+			ProcessStream* Stream = new ProcessStream();
+			if (Stream->Open(Command.c_str(), FileMode::Read_Only))
+				return Stream;
+
+			VI_RELEASE(Stream);
+			return nullptr;
 		}
 		bool OS::Process::Spawn(const Core::String& Path, const Core::Vector<Core::String>& Params, ChildProcess* Child)
 		{

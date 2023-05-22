@@ -3,7 +3,7 @@
 #include <iostream>
 #ifndef ANGELSCRIPT_H 
 #include <angelscript.h>
-#ifdef VI_HAS_JIT
+#ifdef VI_USE_JIT
 #include "../../supplies/angelscript/compiler/compiler.h"
 #endif
 #endif
@@ -5677,7 +5677,7 @@ namespace Mavi
 		}
 		bool VirtualMachine::IsTranslatorSupported()
 		{
-#ifdef VI_HAS_JIT
+#ifdef VI_USE_JIT
 			return true;
 #else
 			return false;

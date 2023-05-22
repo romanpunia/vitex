@@ -5596,6 +5596,26 @@ namespace Mavi
 				return Base->Write(Data.data(), Data.size());
 			}
 
+			bool ProcessStreamOpen(Core::ProcessStream* Base, const Core::String& Path, Core::FileMode Mode)
+			{
+				return Base->Open(Path.c_str(), Mode);
+			}
+			Core::String ProcessStreamRead(Core::ProcessStream* Base, size_t Size)
+			{
+				Core::String Result;
+				Result.resize(Size);
+
+				size_t Count = Base->Read((char*)Result.data(), Size);
+				if (Count < Size)
+					Result.resize(Count);
+
+				return Result;
+			}
+			size_t ProcessStreamWrite(Core::ProcessStream* Base, const Core::String& Data)
+			{
+				return Base->Write(Data.data(), Data.size());
+			}
+
 			Core::TaskId ScheduleSetInterval(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback, Core::Difficulty Type, bool AllowMultithreading)
 			{
 				if (!Callback)
@@ -5800,10 +5820,6 @@ namespace Mavi
 				return Core::OS::Path::GetExtension(Path.c_str());
 			}
 
-			int OSProcessExecute(const Core::String& Command)
-			{
-				return Core::OS::Process::Execute("%s", Command.c_str());
-			}
 			int OSProcessAwait(void* ProcessPtr)
 			{
 				int ExitCode = -1;
@@ -9358,7 +9374,7 @@ namespace Mavi
 				VFileEntry.SetProperty("bool is_exists", &Core::FileEntry::IsExists);
 
 				RefClass VStream = Engine->SetClass<Core::Stream>("base_stream", false);
-				VStream.SetMethod("void clear()", &Core::Stream::Clear);
+				VStream.SetMethod("bool clear()", &Core::Stream::Clear);
 				VStream.SetMethod("bool close()", &Core::Stream::Close);
 				VStream.SetMethod("bool seek(file_seek, int64)", &Core::Stream::Seek);
 				VStream.SetMethod("bool move(int64)", &Core::Stream::Move);
@@ -9373,7 +9389,7 @@ namespace Mavi
 
 				RefClass VFileStream = Engine->SetClass<Core::FileStream>("file_stream", false);
 				VFileStream.SetConstructor<Core::FileStream>("file_stream@ f()");
-				VFileStream.SetMethod("void clear()", &Core::FileStream::Clear);
+				VFileStream.SetMethod("bool clear()", &Core::FileStream::Clear);
 				VFileStream.SetMethod("bool close()", &Core::FileStream::Close);
 				VFileStream.SetMethod("bool seek(file_seek, int64)", &Core::FileStream::Seek);
 				VFileStream.SetMethod("bool move(int64)", &Core::FileStream::Move);
@@ -9388,7 +9404,7 @@ namespace Mavi
 
 				RefClass VGzStream = Engine->SetClass<Core::GzStream>("gz_stream", false);
 				VGzStream.SetConstructor<Core::GzStream>("gz_stream@ f()");
-				VGzStream.SetMethod("void clear()", &Core::GzStream::Clear);
+				VGzStream.SetMethod("bool clear()", &Core::GzStream::Clear);
 				VGzStream.SetMethod("bool close()", &Core::GzStream::Close);
 				VGzStream.SetMethod("bool seek(file_seek, int64)", &Core::GzStream::Seek);
 				VGzStream.SetMethod("bool move(int64)", &Core::GzStream::Move);
@@ -9403,7 +9419,7 @@ namespace Mavi
 
 				RefClass VWebStream = Engine->SetClass<Core::WebStream>("web_stream", false);
 				VWebStream.SetConstructor<Core::WebStream, bool>("web_stream@ f(bool)");
-				VWebStream.SetMethod("void clear()", &Core::WebStream::Clear);
+				VWebStream.SetMethod("bool clear()", &Core::WebStream::Clear);
 				VWebStream.SetMethod("bool close()", &Core::WebStream::Close);
 				VWebStream.SetMethod("bool seek(file_seek, int64)", &Core::WebStream::Seek);
 				VWebStream.SetMethod("bool move(int64)", &Core::WebStream::Move);
@@ -9416,12 +9432,30 @@ namespace Mavi
 				VWebStream.SetMethodEx("usize write(const string &in)", &WebStreamWrite);
 				VWebStream.SetMethodEx("string read(usize)", &WebStreamRead);
 
+				RefClass VProcessStream = Engine->SetClass<Core::ProcessStream>("web_stream", false);
+				VProcessStream.SetConstructor<Core::ProcessStream, bool>("web_stream@ f(bool)");
+				VProcessStream.SetMethod("bool clear()", &Core::ProcessStream::Clear);
+				VProcessStream.SetMethod("bool close()", &Core::ProcessStream::Close);
+				VProcessStream.SetMethod("bool seek(file_seek, int64)", &Core::ProcessStream::Seek);
+				VProcessStream.SetMethod("bool move(int64)", &Core::ProcessStream::Move);
+				VProcessStream.SetMethod("int32 flush()", &Core::ProcessStream::Flush);
+				VProcessStream.SetMethod("int32 get_fd()", &Core::ProcessStream::GetFd);
+				VProcessStream.SetMethod("usize get_size()", &Core::ProcessStream::GetSize);
+				VProcessStream.SetMethod("usize tell()", &Core::ProcessStream::Tell);
+				VProcessStream.SetMethod("int32 get_exit_code() const", &Core::ProcessStream::GetExitCode);
+				VProcessStream.SetMethod("bool is_sized() const", &Core::ProcessStream::IsSized);
+				VProcessStream.SetMethodEx("bool open(const string &in, file_mode)", &ProcessStreamOpen);
+				VProcessStream.SetMethodEx("usize write(const string &in)", &ProcessStreamWrite);
+				VProcessStream.SetMethodEx("string read(usize)", &ProcessStreamRead);
+
 				VStream.SetDynamicCast<Core::Stream, Core::FileStream>("file_stream@+");
 				VStream.SetDynamicCast<Core::Stream, Core::GzStream>("gz_stream@+");
 				VStream.SetDynamicCast<Core::Stream, Core::WebStream>("web_stream@+");
+				VStream.SetDynamicCast<Core::Stream, Core::ProcessStream>("process_stream@+");
 				VFileStream.SetDynamicCast<Core::FileStream, Core::Stream>("base_stream@+", true);
 				VGzStream.SetDynamicCast<Core::GzStream, Core::Stream>("base_stream@+", true);
 				VWebStream.SetDynamicCast<Core::WebStream, Core::Stream>("base_stream@+", true);
+				VProcessStream.SetDynamicCast<Core::ProcessStream, Core::Stream>("base_stream@+", true);
 
 				return true;
 #else
@@ -9513,7 +9547,9 @@ namespace Mavi
 
 				Engine->BeginNamespace("os::process");
 				Engine->SetFunction("void interrupt()", &Core::OS::Process::Interrupt);
-				Engine->SetFunction("int execute(const string &in)", &OSProcessExecute);
+				Engine->SetFunction("process_stream@+ execute_write_only(const string &in)", &Core::OS::Process::ExecuteWriteOnly);
+				Engine->SetFunction("process_stream@+ execute_read_only(const string &in)", &Core::OS::Process::ExecuteReadOnly);
+				Engine->SetFunction("int execute_plain(const string &in)", &Core::OS::Process::ExecutePlain);
 				Engine->SetFunction("int await(uptr@)", &OSProcessAwait);
 				Engine->SetFunction("bool free(uptr@)", &OSProcessFree);
 				Engine->SetFunction("uptr@ spawn(const string &in, array<string>@+)", &OSProcessSpawn);

@@ -50,6 +50,8 @@ namespace Mavi
 		static bool HasOpenAL();
 		static bool HasSDL2();
 		static bool HasSIMD();
+		static bool HasJIT();
+		static bool HasFastMemory();
         static bool HasRmlUI();
 		static bool HasBullet3();
         static bool HasFContext();

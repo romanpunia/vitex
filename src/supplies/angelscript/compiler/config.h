@@ -1,6 +1,6 @@
 #ifndef COMPILER_CORE_H
 #define COMPILER_CORE_H
-#ifdef VI_HAS_JIT
+#ifdef VI_USE_JIT
 #if defined(_WIN32) || defined(_WIN64)
 #ifndef _M_ARM
 #define HAS_AS_JIT

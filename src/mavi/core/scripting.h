@@ -1805,10 +1805,16 @@ namespace Mavi
 			typedef std::function<void(const Core::String&)> CompileCallback;
 			typedef std::function<void()> WhenErrorCallback;
 
-		private:
+		public:
+			struct Symbol
+			{
+				Core::String Declaration;
+				void* Handle;
+			};
+
 			struct Kernel
 			{
-				Core::UnorderedMap<Core::String, void*> Functions;
+				Core::UnorderedMap<Core::String, Symbol> Functions;
 				void* Handle;
 				bool IsAddon;
 			};
@@ -1918,6 +1924,8 @@ namespace Mavi
 			DebuggerContext* GetDebugger() const;
 			Core::String GetModuleDirectory() const;
 			Core::Vector<Core::String> GetSubmodules();
+			const Core::UnorderedMap<Core::String, Submodule>& GetModules() const;
+			const Core::UnorderedMap<Core::String, Kernel>& GetKernels() const;
 			bool HasSubmodule(const Core::String& Name);
 			bool IsNullable(int TypeId);
 			bool IsTranslatorSupported();

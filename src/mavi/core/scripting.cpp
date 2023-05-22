@@ -5662,6 +5662,14 @@ namespace Mavi
 
 			return Result;
 		}
+		const Core::UnorderedMap<Core::String, VirtualMachine::Submodule>& VirtualMachine::GetModules() const
+		{
+			return Modules;
+		}
+		const Core::UnorderedMap<Core::String, VirtualMachine::Kernel>& VirtualMachine::GetKernels() const
+		{
+			return Kernels;
+		}
 		bool VirtualMachine::HasSubmodule(const Core::String& Name)
 		{
 			std::unique_lock<std::mutex> Unique(Sync.General);
@@ -5823,7 +5831,7 @@ namespace Mavi
 					return false;
 				}
 
-				Context.Functions.insert({ Func, (void*)Function });
+				Context.Functions.insert({ Func, { Decl, (void*)Function } });
 				VI_DEBUG("[vm] load function %s", Func.c_str());
 				return true;
 			};
@@ -5959,7 +5967,7 @@ namespace Mavi
 			}
 
 			VI_DEBUG("[vm] addon library %s initializated", Path.c_str());
-			Library.Functions.insert({ "ViInitialize", (void*)ViInitialize });
+			Library.Functions.insert({ "ViInitialize", { Core::String(), (void*)ViInitialize } });
 			return true;
 		}
 		void VirtualMachine::UninitializeAddon(const Core::String& Name, Kernel& Library)
@@ -5967,7 +5975,7 @@ namespace Mavi
 			auto ViUninitialize = (bool(*)(VirtualMachine*))Core::OS::Symbol::LoadFunction(Library.Handle, "ViUninitialize");
 			if (ViUninitialize != nullptr)
 			{
-				Library.Functions.insert({ "ViUninitialize", (void*)ViUninitialize });
+				Library.Functions.insert({ "ViUninitialize", { Core::String(), (void*)ViUninitialize } });
 				ViUninitialize(this);
 			}
 		}

@@ -38,13 +38,13 @@ install(FILES
         DESTINATION include/mavi/audio)
 install(FILES
         src/mavi/core/audio.h
+        src/mavi/core/bindings.h
         src/mavi/core/compute.h
         src/mavi/core/core.h
         src/mavi/core/engine.h
         src/mavi/core/graphics.h
         src/mavi/core/network.h
-        src/mavi/core/script.h
-        src/mavi/core/bindings.h
+        src/mavi/core/scripting.h
         DESTINATION include/mavi/core)
 install(FILES
         src/mavi/engine/components.h
@@ -59,5 +59,6 @@ install(FILES
         src/mavi/network/smtp.h
         DESTINATION include/mavi/network)
 install(FILES
+        src/mavi/config.hpp
         src/mavi/mavi.h
         DESTINATION include/mavi)

@@ -6745,7 +6745,7 @@ namespace Mavi
 		}
 		bool WebStream::Clear()
 		{
-			VI_ASSERT_V(false, "web clear is not supported");
+			VI_ASSERT(false, false, "web clear is not supported");
 			return false;
 		}
 		bool WebStream::Open(const char* File, FileMode Mode)
@@ -7045,14 +7045,14 @@ namespace Mavi
 		}
 		int ProcessStream::ClosePipe(void* Fd)
 		{
-			VI_ASSERT_V(Fd != nullptr, "stream should be set");
+			VI_ASSERT(Fd != nullptr, -1, "stream should be set");
 			VI_DEBUG("[io] close ps %i", VI_FILENO((FILE*)Fd));
 #ifdef VI_MICROSOFT
 			return _pclose((FILE*)Fd);
 #elif defined(VI_LINUX)
 			return pclose((FILE*)Fd);
 #else
-			return nullptr;
+			return -1;
 #endif
 		}
 

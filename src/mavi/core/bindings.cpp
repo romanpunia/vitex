@@ -9432,8 +9432,8 @@ namespace Mavi
 				VWebStream.SetMethodEx("usize write(const string &in)", &WebStreamWrite);
 				VWebStream.SetMethodEx("string read(usize)", &WebStreamRead);
 
-				RefClass VProcessStream = Engine->SetClass<Core::ProcessStream>("web_stream", false);
-				VProcessStream.SetConstructor<Core::ProcessStream, bool>("web_stream@ f(bool)");
+				RefClass VProcessStream = Engine->SetClass<Core::ProcessStream>("process_stream", false);
+				VProcessStream.SetConstructor<Core::ProcessStream>("process_stream@ f()");
 				VProcessStream.SetMethod("bool clear()", &Core::ProcessStream::Clear);
 				VProcessStream.SetMethod("bool close()", &Core::ProcessStream::Close);
 				VProcessStream.SetMethod("bool seek(file_seek, int64)", &Core::ProcessStream::Seek);

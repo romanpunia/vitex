@@ -5974,7 +5974,7 @@ namespace Mavi
 		}
 		void VirtualMachine::UninitializeAddon(const Core::String& Name, Kernel& Library)
 		{
-			auto ViUninitialize = (bool(*)(VirtualMachine*))Core::OS::Symbol::LoadFunction(Library.Handle, "ViUninitialize");
+			auto ViUninitialize = (void(*)(VirtualMachine*))Core::OS::Symbol::LoadFunction(Library.Handle, "ViUninitialize");
 			if (ViUninitialize != nullptr)
 			{
 				Library.Functions.insert({ "ViUninitialize", { Core::String(), (void*)ViUninitialize } });

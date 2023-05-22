@@ -8271,7 +8271,7 @@ namespace Mavi
 		Core::String OS::Path::Resolve(const Core::String& Path, const Core::String& Directory)
 		{
 			VI_ASSERT(!Path.empty() && !Directory.empty(), "", "path and directory should not be empty");
-			if (IsPathExists(Path.c_str()))
+			if (IsPathExists(Path.c_str()) && Path.find("..") == std::string::npos)
 				return Path;
 
 			Stringify PathData(&Path), DirectoryData(&Directory);

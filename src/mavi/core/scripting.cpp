@@ -2217,7 +2217,6 @@ namespace Mavi
 						return R;
 
 					VI_DEBUG("[vm] OK compile on 0x%" PRIXPTR " (cache)", (uintptr_t)this);
-					Scope->ResetGlobalVars(Context->GetContext());
 					return R;
 				});
 			}
@@ -2267,7 +2266,10 @@ namespace Mavi
 			{
 				VI_DELETE(CByteCodeStream, Stream);
 				if (R >= 0)
+				{
 					VI_DEBUG("[vm] OK load bytecode on 0x%" PRIXPTR, (uintptr_t)this);
+					Scope->ResetGlobalVars(Context->GetContext());
+				}
 				return R;
 			});
 		}
@@ -3375,7 +3377,7 @@ namespace Mavi
 				Stream << "    [sd] stack depth: " << StackSize - (Level + 1) << "\n";
 				Stream << "    [tp] this pointer: 0x" << ThisPointer << "\n";
 				Stream << "    [ttp] this type pointer: 0x" << ThisType << " (" << (ThisType ? ThisType->GetName() : "null") << ")" << "\n";
-				Stream << "    [sn] section name: " << SectionName << "\n";
+				Stream << "    [sn] section name: " << (SectionName ? SectionName : "?") << "\n";
 				Stream << "    [ln] line number: " << LineNumber << "\n";
 				Stream << "    [cn] column number: " << ColumnNumber << "\n";
 				Stream << "    [ces] context execution state: ";
@@ -6155,7 +6157,7 @@ namespace Mavi
 				{
 					int ColumnNumber = 0; const char* SectionName = "";
 					int LineNumber = Context->GetExceptionLineNumber(&ColumnNumber, &SectionName);
-					Core::String SourceCode = VM->GetSourceCodeAppendixByPath("exception origin", SectionName, LineNumber, ColumnNumber, 5);
+					Core::String SourceCode = VM->GetSourceCodeAppendixByPath("exception origin", SectionName ? SectionName : "", LineNumber, ColumnNumber, 5);
 					if (SourceCode.empty())
 						Trace.append("\n  (source code is not available)");
 					else

@@ -159,6 +159,14 @@ namespace Mavi
 		return false;
 #endif
 	}
+	bool Library::HasBindings()
+	{
+#ifdef VI_HAS_BINDINGS
+		return true;
+#else
+		return false;
+#endif
+	}
 	bool Library::HasFastMemory()
 	{
 #ifdef VI_HAS_FAST_MEMORY
@@ -170,6 +178,22 @@ namespace Mavi
 	bool Library::HasBullet3()
 	{
 #ifdef VI_USE_BULLET3
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Library::HasFreeType()
+	{
+#ifdef VI_HAS_FREETYPE
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Library::HasSPIRV()
+	{
+#ifdef VI_HAS_SPIRV
 		return true;
 #else
 		return false;
@@ -198,6 +222,10 @@ namespace Mavi
 #else
 		return false;
 #endif
+	}
+	bool Library::HasShaders()
+	{
+		return HasSPIRV();
 	}
 	int Library::GetMajorVersion()
 	{
@@ -250,16 +278,24 @@ namespace Mavi
 			Features.push_back("SIMD");
 		if (HasJIT())
 			Features.push_back("JIT");
+		if (HasBindings())
+			Features.push_back("Bindings");
 		if (HasFastMemory())
 			Features.push_back("FastMemory");
 		if (HasBullet3())
 			Features.push_back("Bullet3");
+		if (HasFreeType())
+			Features.push_back("FreeType");
+		if (HasSPIRV())
+			Features.push_back("SPIRV");
 		if (HasRmlUI())
 			Features.push_back("RmlUI");
 		if (HasFContext())
 			Features.push_back("FContext");
 		if (HasWindowsEpoll())
 			Features.push_back("Wepoll");
+		if (HasShaders())
+			Features.push_back("Shaders");
 
 		Core::StringStream Result;
 		Result << "version: " << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_VERSION << " / " << VERSION << "\n";

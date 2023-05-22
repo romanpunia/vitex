@@ -51,11 +51,15 @@ namespace Mavi
 		static bool HasSDL2();
 		static bool HasSIMD();
 		static bool HasJIT();
+		static bool HasBindings();
 		static bool HasFastMemory();
+		static bool HasFreeType();
+		static bool HasSPIRV();
         static bool HasRmlUI();
 		static bool HasBullet3();
         static bool HasFContext();
 		static bool HasWindowsEpoll();
+		static bool HasShaders();
 		static int GetMajorVersion();
 		static int GetMinorVersion();
 		static int GetPatchVersion();

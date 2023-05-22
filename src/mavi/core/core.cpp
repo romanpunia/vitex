@@ -5923,7 +5923,7 @@ namespace Mavi
 			FillConsoleOutputAttribute((HANDLE)Wnd, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE, Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
 			SetConsoleCursorPosition((HANDLE)Wnd, TopLeft);
 #else
-			std::system("clear");
+			(void)std::system("clear");
 #endif
 		}
 		void Console::Attach()
@@ -6940,9 +6940,6 @@ namespace Mavi
 		ProcessStream::ProcessStream() noexcept : FileStream(), ExitCode(-1)
 		{
 		}
-		ProcessStream::~ProcessStream() noexcept
-		{
-		}
 		bool ProcessStream::Clear()
 		{
 			VI_ASSERT(false, false, "process clear is not supported");
@@ -6950,7 +6947,6 @@ namespace Mavi
 		}
 		bool ProcessStream::Open(const char* File, FileMode Mode)
 		{
-#ifdef VI_MICROSOFT
 			VI_ASSERT(File != nullptr, false, "command should be set");
 			Close();
 			Path = File;
@@ -6996,9 +6992,6 @@ namespace Mavi
 			}
 
 			return Resource != nullptr;
-#elif defined(VI_LINUX)
-
-#endif
 		}
 		bool ProcessStream::Close()
 		{

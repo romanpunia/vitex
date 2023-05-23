@@ -6099,10 +6099,6 @@ namespace Mavi
 			if (Start.Found)
 				Src.Substring(Start.End);
 
-			Core::Stringify::Settle End = Src.ReverseFind('.');
-			if (End.Found)
-				Src.Substring(0, End.Start);
-
 			return Src.R();
 		}
 		asIScriptContext* VirtualMachine::RequestContext(asIScriptEngine* Engine, void* Data)

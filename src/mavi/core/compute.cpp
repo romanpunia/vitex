@@ -9411,6 +9411,7 @@ namespace Mavi
 							goto SuccessfulInclude;
 						case IncludeType::Virtual:
 							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude virtual %s", (void*)this, File.IsSystem ? "system " : (File.IsFile ? "file " : ""), File.Module.c_str());
+							Subbuffer.clear();
 							goto SuccessfulInclude;
 						case IncludeType::Error:
 						default:
@@ -9502,7 +9503,7 @@ namespace Mavi
 			IncludeResult Result;
 			if (!AsGlobal)
 			{
-				Core::String Base = (Desc.From.empty() ? Core::OS::Directory::Get() : Core::OS::Path::GetDirectory(Desc.From.c_str()));
+				Core::String Base = (Desc.From.empty() ? Core::OS::Directory::GetWorking() : Core::OS::Path::GetDirectory(Desc.From.c_str()));
 				bool IsOriginRemote = (Desc.From.empty() ? false : Core::OS::Path::IsRemote(Base.c_str()));
 				bool IsPathRemote = (Desc.Path.empty() ? false : Core::OS::Path::IsRemote(Desc.Path.c_str()));
 				if (IsOriginRemote || IsPathRemote)
@@ -9561,7 +9562,7 @@ namespace Mavi
 			else if (AsGlobal)
 				return Result;
 
-			Core::String Base = (Desc.From.empty() ? Core::OS::Directory::Get() : Core::OS::Path::GetDirectory(Desc.From.c_str()));
+			Core::String Base = (Desc.From.empty() ? Core::OS::Directory::GetWorking() : Core::OS::Path::GetDirectory(Desc.From.c_str()));
 			Result.Module = Core::OS::Path::Resolve(Desc.Path, Base);
 			if (Core::OS::File::IsExists(Result.Module.c_str()))
 			{

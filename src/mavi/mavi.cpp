@@ -442,7 +442,7 @@ namespace Mavi
             
 			if (!CryptoLegacy || !CryptoDefault)
 			{
-				Core::String Path = Core::OS::Directory::Get();
+				Core::String Path = Core::OS::Directory::GetModule();
 				OSSL_PROVIDER_set_default_search_path(nullptr, Path.c_str());
 
 				if (!CryptoDefault)

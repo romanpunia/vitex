@@ -1841,7 +1841,7 @@ namespace Mavi
 						switch (Pretty)
 						{
 							case Mavi::Core::VarForm::Tab_Decrease:
-								Offset.assign(Offset.substr(0, Offset.size() - 1));
+								Offset.erase(Offset.end() - 1);
 								break;
 							case Mavi::Core::VarForm::Tab_Increase:
 								Offset.append(1, '\t');
@@ -1870,7 +1870,7 @@ namespace Mavi
 						switch (Pretty)
 						{
 							case Mavi::Core::VarForm::Tab_Decrease:
-								Offset.assign(Offset.substr(0, Offset.size() - 1));
+								Offset.erase(Offset.end() - 1);
 								break;
 							case Mavi::Core::VarForm::Tab_Increase:
 								Offset.append(1, '\t');

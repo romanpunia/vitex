@@ -5761,9 +5761,9 @@ namespace Mavi
 			{
 				return Core::OS::Directory::IsExists(Path.c_str());
 			}
-			void OSDirectorySet(const Core::String& Path)
+			void OSDirectorySetWorking(const Core::String& Path)
 			{
-				return Core::OS::Directory::Set(Path.c_str());
+				return Core::OS::Directory::SetWorking(Path.c_str());
 			}
 
 			bool OSFileState(const Core::String& Path, Core::FileEntry& Data)
@@ -9516,8 +9516,9 @@ namespace Mavi
 				Engine->SetFunction("bool create(const string &in)", &OSDirectoryCreate);
 				Engine->SetFunction("bool remove(const string &in)", &OSDirectoryRemove);
 				Engine->SetFunction("bool is_exists(const string &in)", &OSDirectoryIsExists);
-				Engine->SetFunction("string get()", &Core::OS::Directory::Get);
-				Engine->SetFunction("void set(const string &in)", &OSDirectorySet);
+				Engine->SetFunction("string get_module()", &Core::OS::Directory::GetModule);
+				Engine->SetFunction("string get_working()", &Core::OS::Directory::GetWorking);
+				Engine->SetFunction("void set_working(const string &in)", &OSDirectorySetWorking);
 				Engine->SetFunction("void patch(const string &in)", &Core::OS::Directory::Patch);
 				Engine->EndNamespace();
 

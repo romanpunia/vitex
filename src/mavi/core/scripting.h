@@ -1921,7 +1921,7 @@ namespace Mavi
 			size_t GetProperty(Features Property) const;
 			asIScriptEngine* GetEngine() const;
 			DebuggerContext* GetDebugger() const;
-			Core::String GetModuleDirectory() const;
+			const Core::String& GetModuleDirectory() const;
 			Core::Vector<Core::String> GetExposedAddons();
 			const Core::UnorderedMap<Core::String, Addon>& GetSystemAddons() const;
 			const Core::UnorderedMap<Core::String, CLibrary>& GetCLibraries() const;

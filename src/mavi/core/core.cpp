@@ -28,10 +28,14 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#ifdef VI_SOLARIS
+#include <stdlib.h>
+#endif
 #ifdef VI_APPLE
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
+#include <mach-o/dyld.h>
 #endif
 #include <sys/utsname.h>
 #include <sys/wait.h>
@@ -7475,7 +7479,7 @@ namespace Mavi
 #endif
 		}
 
-		void OS::Directory::Set(const char* Path)
+		void OS::Directory::SetWorking(const char* Path)
 		{
 			VI_ASSERT_V(Path != nullptr, "path should be set");
 			VI_TRACE("[io] set working dir %s", Path);
@@ -7727,10 +7731,10 @@ namespace Mavi
 
 			return Buffer.st_mode & S_IFDIR;
 		}
-		Core::String OS::Directory::Get()
+		Core::String OS::Directory::GetModule()
 		{
 			VI_MEASURE(Core::Timings::FileSystem);
-#ifndef VI_HAS_SDL2
+#ifdef VI_HAS_SDL2
 #ifdef VI_MICROSOFT
 			char Buffer[MAX_PATH + 1] = { };
 			if (GetModuleFileNameA(nullptr, Buffer, MAX_PATH) == 0)
@@ -7743,23 +7747,63 @@ namespace Mavi
 #else
 			char Buffer[CHUNK_SIZE + 1] = { };
 #endif
-			if (!getcwd(Buffer, sizeof(Buffer)))
+#ifdef VI_APPLE
+			uint32_t BufferSize = sizeof(Buffer) - 1;
+			if (_NSGetExecutablePath(Buffer, &BufferSize) != 0)
 				return Core::String();
+#elif defined(VI_SOLARIS)
+			const char* TempBuffer = getexecname();
+			if (!TempBuffer || *TempBuffer == '\0')
+				return Core::String();
+
+			TempBuffer = OS::Path::GetDirectory(TempBuffer);
+			size_t TempBufferSize = strlen(TempBuffer);
+			memcpy(Buffer, TempBuffer, TempBufferSize > sizeof(Buffer) - 1 ? sizeof(Buffer) - 1 : TempBufferSize);
+#else
+			size_t BufferSize = sizeof(Buffer) - 1;
+			if (readlink("/proc/self/exe", Buffer, BufferSize) == -1 && readlink("/proc/curproc/file", Buffer, BufferSize) == -1 && readlink("/proc/curproc/exe", Buffer, BufferSize) == -1)
+				return Core::String();
+#endif
 #endif
 			Core::String Result = Path::GetDirectory(Buffer);
 			if (!Result.empty() && Result.back() != '/' && Result.back() != '\\')
 				Result += VI_SPLITTER;
 
-			VI_TRACE("[io] fetch working dir %s", Result.c_str());
+			VI_TRACE("[io] fetch module dir %s", Result.c_str());
 			return Result;
 #else
 			char* Buffer = SDL_GetBasePath();
 			Core::String Result = Buffer;
 			SDL_free(Buffer);
 
-			VI_TRACE("[io] fetch working dir %s", Result.c_str());
+			VI_TRACE("[io] fetch module dir %s", Result.c_str());
 			return Result;
 #endif
+		}
+		Core::String OS::Directory::GetWorking()
+		{
+			VI_MEASURE(Core::Timings::FileSystem);
+#ifdef VI_MICROSOFT
+			char Buffer[MAX_PATH + 1] = { };
+			if (GetCurrentDirectoryA(MAX_PATH, Buffer) == 0)
+				return Core::String();
+#else
+#ifdef PATH_MAX
+			char Buffer[PATH_MAX + 1] = { };
+#elif defined(_POSIX_PATH_MAX)
+			char Buffer[_POSIX_PATH_MAX + 1] = { };
+#else
+			char Buffer[CHUNK_SIZE + 1] = { };
+#endif
+			if (!getcwd(Buffer, sizeof(Buffer)))
+				return Core::String();
+#endif
+			Core::String Result = Buffer;
+			if (!Result.empty() && Result.back() != '/' && Result.back() != '\\')
+				Result += VI_SPLITTER;
+
+			VI_TRACE("[io] fetch working dir %s", Result.c_str());
+			return Result;
 		}
 		Core::Vector<Core::String> OS::Directory::GetMounts()
 		{

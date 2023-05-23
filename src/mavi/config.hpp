@@ -57,7 +57,7 @@ typedef int epoll_handle;
 typedef int socket_t;
 typedef socklen_t socket_size_t;
 #endif
-#if !defined(VI_APPLE) && (defined(__linux__) || defined(__linux)  || defined(linux) || defined(__unix__) || defined(__unix) || defined(unix) || defined(__FreeBSD__) || defined(__ANDROID__))
+#if !defined(VI_APPLE) && (defined(__linux__) || defined(__linux)  || defined(linux) || defined(__unix__) || defined(__unix) || defined(unix) || defined(__FreeBSD__) || defined(__ANDROID__) || (defined(__sun) && defined(__SVR4)))
 #define VI_LINUX 1
 #define VI_EXPOSE
 #define VI_OUT
@@ -66,6 +66,12 @@ typedef socklen_t socket_size_t;
 #define VI_SPLITTER '/'
 #ifdef __ANDROID__
 #define VI_ANDROID 1
+#endif
+#ifdef __FreeBSD__
+#define VI_FREEBSD 1
+#endif
+#if defined(__sun) && defined(__SVR4)
+#define VI_SOLARIS 1
 #endif
 #if __x86_64__ || __ppc64__
 #define VI_64 1

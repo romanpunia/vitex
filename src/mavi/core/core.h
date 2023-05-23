@@ -1242,14 +1242,15 @@ namespace Mavi
 			class VI_OUT Directory
 			{
 			public:
-				static void Set(const char* Path);
+				static void SetWorking(const char* Path);
 				static void Patch(const Core::String& Path);
 				static bool Scan(const Core::String& Path, Core::Vector<FileEntry>* Entries);
 				static bool Each(const char* Path, const std::function<bool(FileEntry*)>& Callback);
 				static bool Create(const char* Path);
 				static bool Remove(const char* Path);
 				static bool IsExists(const char* Path);
-				static Core::String Get();
+				static Core::String GetModule();
+				static Core::String GetWorking();
 				static Core::Vector<Core::String> GetMounts();
 			};
 

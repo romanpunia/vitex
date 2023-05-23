@@ -1851,11 +1851,17 @@ namespace Mavi
 			Processor->SetIncludeCallback([this](Compute::Preprocessor* Processor, const Compute::IncludeResult& File, Core::String& Output)
 			{
 				VI_ASSERT(VM != nullptr, Compute::IncludeType::Error, "engine should be set");
-				if (Include)
+				switch (Include ? Include(Processor, File, Output) : Compute::IncludeType::Unchanged)
 				{
-					Compute::IncludeType Status = Include(Processor, File, Output);
-					if (Status != Compute::IncludeType::Error)
-						return Status;
+					case Compute::IncludeType::Preprocess:
+						goto Preprocess;
+					case Compute::IncludeType::Virtual:
+						return Compute::IncludeType::Virtual;
+					case Compute::IncludeType::Error:
+						return Compute::IncludeType::Error;
+					case Compute::IncludeType::Unchanged:
+					default:
+						break;
 				}
 
 				if (File.Module.empty() || !Scope)
@@ -1864,20 +1870,20 @@ namespace Mavi
 				if (!File.IsFile && File.IsAbstract)
 					return VM->ImportSystemAddon(File.Module) ? Compute::IncludeType::Virtual : Compute::IncludeType::Error;
 
-				Core::String Buffer;
-				if (!VM->ImportFile(File.Module, File.IsRemote, Buffer))
+				if (!VM->ImportFile(File.Module, File.IsRemote, Output))
 					return Compute::IncludeType::Error;
 
-				if (Buffer.empty())
+			Preprocess:
+				if (Output.empty())
 					return Compute::IncludeType::Virtual;
 
-				if (!VM->GenerateCode(Processor, File.Module, Buffer))
+				if (!VM->GenerateCode(Processor, File.Module, Output))
 					return Compute::IncludeType::Error;
 
-				if (Buffer.empty())
+				if (Output.empty())
 					return Compute::IncludeType::Virtual;
 
-				return VM->AddScriptSection(Scope, File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0 ? Compute::IncludeType::Virtual : Compute::IncludeType::Error;
+				return VM->AddScriptSection(Scope, File.Module.c_str(), Output.c_str(), Output.size()) >= 0 ? Compute::IncludeType::Virtual : Compute::IncludeType::Error;
 			});
 			Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const Core::String& Name, const Core::Vector<Core::String>& Args)
 			{
@@ -1997,7 +2003,7 @@ namespace Mavi
 				else if (Name == "clibrary" && Args.size() >= 1)
 				{
 					Core::String Directory = Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str());
-					Core::String Path1 = Args[0], Path2 = Core::OS::Path::Resolve(Args[0], Directory.empty() ? Core::OS::Directory::Get() : Directory);
+					Core::String Path1 = Args[0], Path2 = Core::OS::Path::Resolve(Args[0], Directory.empty() ? Core::OS::Directory::GetWorking() : Directory);
 
 					bool Loaded = VM->ImportCLibrary(Path1) || VM->ImportCLibrary(Path2);
 					if (Loaded && Args.size() == 2 && !Args[1].empty())
@@ -4707,7 +4713,7 @@ namespace Mavi
 			Include.Exts.push_back(".so");
 			Include.Exts.push_back(".dylib");
 			Include.Exts.push_back(".dll");
-			Include.Root = Core::OS::Directory::Get();
+			Include.Root = Core::OS::Directory::GetWorking();
 
 			Engine->SetUserData(this, ManagerUD);
 			Engine->SetContextCallbacks(RequestContext, ReturnContext, nullptr);
@@ -5655,7 +5661,7 @@ namespace Mavi
 				Include.Root.append(1, VI_SPLITTER);
 			Sync.General.unlock();
 		}
-		Core::String VirtualMachine::GetModuleDirectory() const
+		const Core::String& VirtualMachine::GetModuleDirectory() const
 		{
 			return Include.Root;
 		}

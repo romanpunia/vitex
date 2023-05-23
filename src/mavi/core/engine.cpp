@@ -5480,7 +5480,7 @@ namespace Mavi
 
 		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) noexcept : Device(NewDevice), Queue(0)
 		{
-			Core::String Directory = Core::OS::Directory::Get();
+			Core::String Directory = Core::OS::Directory::GetModule();
 			Base = Core::OS::Path::ResolveDirectory(Directory.c_str());
 			SetEnvironment(Base);
 		}
@@ -5560,7 +5560,6 @@ namespace Mavi
 			Mutex.lock();
 			Environment = Core::OS::Path::ResolveDirectory(Path.c_str());
 			Core::Stringify(&Environment).Replace('\\', '/');
-			Core::OS::Directory::Set(Environment.c_str());
 			Mutex.unlock();
 		}
 		void ContentManager::SetDevice(Graphics::GraphicsDevice* NewDevice)
@@ -6238,7 +6237,7 @@ namespace Mavi
 				Content->AddProcessor<Processors::SchemaProcessor, Core::Schema>();
 				Content->AddProcessor<Processors::ServerProcessor, Network::HTTP::Server>();
 				Content->AddProcessor<Processors::HullShapeProcessor, Compute::HullShape>();
-				Content->SetEnvironment(Control.Environment.empty() ? Core::OS::Directory::Get() + Control.Directory : Control.Environment + Control.Directory);
+				Content->SetEnvironment(Control.Environment.empty() ? Core::OS::Directory::GetModule() + Control.Directory : Control.Environment + Control.Directory);
 				
 				if (!Control.Preferences.empty())
 				{

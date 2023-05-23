@@ -5545,7 +5545,7 @@ namespace Mavi
 		void ContentManager::ClearPath(const Core::String& Path)
 		{
 			VI_TRACE("[content] clear path %s on 0x%" PRIXPTR, Path.c_str(), (void*)this);
-			Core::String File = Core::OS::Path::Resolve(Path, Environment);
+			Core::String File = Core::OS::Path::Resolve(Path, Environment, false);
 			if (File.empty())
 				return;
 
@@ -5637,7 +5637,7 @@ namespace Mavi
 			if (!Core::OS::Path::IsRemote(File.c_str()))
 			{
 				Mutex.lock();
-				File = Core::OS::Path::Resolve(File, Environment);
+				File = Core::OS::Path::Resolve(File, Environment, false);
 				if (Core::OS::File::IsExists(File.c_str()))
 				{
 					Core::String Subpath = Environment + File;
@@ -5692,7 +5692,7 @@ namespace Mavi
 
 			Mutex.lock();
 			Core::String Directory = Core::OS::Path::GetDirectory(Path.c_str());
-			Core::String File = Core::OS::Path::Resolve(Directory, Environment);
+			Core::String File = Core::OS::Path::Resolve(Directory, Environment, false);
 			File.append(Path.substr(Directory.size()));
 			Mutex.unlock();
 
@@ -5786,7 +5786,7 @@ namespace Mavi
 		bool ContentManager::Import(const Core::String& Path)
 		{
 			Mutex.lock();
-			Core::String File = Core::OS::Path::Resolve(Path, Environment);
+			Core::String File = Core::OS::Path::Resolve(Path, Environment, false);
 			Mutex.unlock();
 
 			if (File.empty())
@@ -5861,7 +5861,7 @@ namespace Mavi
 		{
 			VI_ASSERT(!Path.empty() && !Directory.empty(), false, "path and directory should not be empty");
 			auto* Stream = new Core::GzStream();
-			if (!Stream->Open(Core::OS::Path::Resolve(Path, Environment).c_str(), Core::FileMode::Write_Only))
+			if (!Stream->Open(Core::OS::Path::Resolve(Path, Environment, false).c_str(), Core::FileMode::Write_Only))
 			{
 				VI_ERR("[engine] cannot open \"%s\" for writing", Path.c_str());
 				VI_RELEASE(Stream);
@@ -5869,7 +5869,7 @@ namespace Mavi
 			}
 
 			Mutex.lock();
-			Core::String DirectoryBase = Core::OS::Path::Resolve(Directory, Environment);
+			Core::String DirectoryBase = Core::OS::Path::Resolve(Directory, Environment, false);
 			Mutex.unlock();
 
 			auto Tree = new Core::FileTree(DirectoryBase);
@@ -6241,7 +6241,7 @@ namespace Mavi
 				
 				if (!Control.Preferences.empty())
 				{
-					Core::String Path = Core::OS::Path::Resolve(Control.Preferences, Content->GetEnvironment());
+					Core::String Path = Core::OS::Path::Resolve(Control.Preferences, Content->GetEnvironment(), false);
 					if (!Database)
 						Database = new AppData(Content, Path);
 				}
@@ -6274,7 +6274,7 @@ namespace Mavi
 						Control.GraphicsDevice.Window = Activity;
 
 						if (Content != nullptr && !Control.GraphicsDevice.CacheDirectory.empty())
-							Control.GraphicsDevice.CacheDirectory = Core::OS::Path::ResolveDirectory(Control.GraphicsDevice.CacheDirectory, Content->GetEnvironment());
+							Control.GraphicsDevice.CacheDirectory = Core::OS::Path::ResolveDirectory(Control.GraphicsDevice.CacheDirectory, Content->GetEnvironment(), false);
 
 						if (Renderer != nullptr)
 						{

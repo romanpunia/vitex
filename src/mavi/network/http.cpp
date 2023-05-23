@@ -5736,7 +5736,7 @@ namespace Mavi
 						Core::OS::Directory::Patch(Entry->ResourceRoot);
 
 					if (!Entry->Base->Override.empty())
-						Entry->Base->Override = Core::OS::Path::Resolve(Entry->Base->Override, Entry->Base->DocumentRoot);
+						Entry->Base->Override = Core::OS::Path::Resolve(Entry->Base->Override, Entry->Base->DocumentRoot, false);
 
 					for (auto& Group : Entry->Groups)
 					{
@@ -5744,7 +5744,7 @@ namespace Mavi
 						{
 							Route->Site = Entry;
 							if (!Route->Override.empty())
-								Route->Override = Core::OS::Path::Resolve(Route->Override, Route->DocumentRoot);
+								Route->Override = Core::OS::Path::Resolve(Route->Override, Route->DocumentRoot, false);
 						}
 					}
 

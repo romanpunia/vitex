@@ -340,7 +340,7 @@ namespace Mavi
 						if (!Core::OS::File::IsExists(Target.c_str()))
 						{
 							ContentManager* Content = (Subsystem::GetRenderInterface() ? Subsystem::GetRenderInterface()->GetContent() : nullptr);
-							Target = (Content ? Core::OS::Path::Resolve(Path, Content->GetEnvironment()) : Core::OS::Path::Resolve(Path.c_str()));
+							Target = (Content ? Core::OS::Path::Resolve(Path, Content->GetEnvironment(), false) : Core::OS::Path::Resolve(Path.c_str()));
 							Target = (Target.empty() ? Path.c_str() : Target.c_str());
 						}
 					}
@@ -457,9 +457,9 @@ namespace Mavi
 					}
 					else if (Proto1 == "file" && Proto2 == "file")
 					{
-						Result = Core::OS::Path::Resolve(Fixed2, Core::OS::Path::GetDirectory(Fixed1.c_str()));
+						Result = Core::OS::Path::Resolve(Fixed2, Core::OS::Path::GetDirectory(Fixed1.c_str()), false);
 						if (Result.empty())
-							Result = Core::OS::Path::Resolve(Fixed2, Content->GetEnvironment());
+							Result = Core::OS::Path::Resolve(Fixed2, Content->GetEnvironment(), false);
 					}
 					else if (Proto1 == "file" && Proto2 != "file")
 						Result = Core::Stringify(Path2).Replace("/////", "//").R();
@@ -3668,7 +3668,7 @@ namespace Mavi
 						return false;
 					}
 
-					Core::String Target = Core::OS::Path::Resolve(Path, Relative);
+					Core::String Target = Core::OS::Path::Resolve(Path, Relative, false);
 					if (!LoadFontFace(Target.empty() ? Path : Target, Face->GetAttribute("fallback") != nullptr))
 					{
 						Loading = State;
@@ -3685,7 +3685,7 @@ namespace Mavi
 						return false;
 					}
 
-					Core::String Target = Core::OS::Path::Resolve(Path, Relative);
+					Core::String Target = Core::OS::Path::Resolve(Path, Relative, false);
 					IElementDocument Result = LoadDocument(Target.empty() ? Path : Target);
 					if (!Result.IsValid())
 					{

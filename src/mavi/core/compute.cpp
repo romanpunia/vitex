@@ -9530,7 +9530,7 @@ namespace Mavi
 					return Result;
 				}
 
-				Result.Module = Core::OS::Path::Resolve(Desc.Path, Desc.Root);
+				Result.Module = Core::OS::Path::Resolve(Desc.Path, Desc.Root, false);
 				if (Core::OS::File::IsExists(Result.Module.c_str()))
 				{
 					Result.IsAbstract = true;
@@ -9542,7 +9542,7 @@ namespace Mavi
 				{
 					Core::String File(Result.Module);
 					if (Result.Module.empty())
-						File.assign(Core::OS::Path::Resolve(Desc.Path + It, Desc.Root));
+						File.assign(Core::OS::Path::Resolve(Desc.Path + It, Desc.Root, false));
 					else
 						File.append(It);
 
@@ -9563,7 +9563,7 @@ namespace Mavi
 				return Result;
 
 			Core::String Base = (Desc.From.empty() ? Core::OS::Directory::GetWorking() : Core::OS::Path::GetDirectory(Desc.From.c_str()));
-			Result.Module = Core::OS::Path::Resolve(Desc.Path, Base);
+			Result.Module = Core::OS::Path::Resolve(Desc.Path, Base, false);
 			if (Core::OS::File::IsExists(Result.Module.c_str()))
 			{
 				Result.IsFile = true;
@@ -9574,7 +9574,7 @@ namespace Mavi
 			{
 				Core::String File(Result.Module);
 				if (Result.Module.empty())
-					File.assign(Core::OS::Path::Resolve(Desc.Path + It, Desc.Root));
+					File.assign(Core::OS::Path::Resolve(Desc.Path + It, Desc.Root, false));
 				else
 					File.append(It);
 

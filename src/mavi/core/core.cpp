@@ -4357,7 +4357,7 @@ namespace Mavi
 
 			if (StartsOf("./\\"))
 			{
-				Core::String Result = Core::OS::Path::Resolve(Base->c_str(), Dir);
+				Core::String Result = Core::OS::Path::Resolve(Base->c_str(), Dir, false);
 				if (!Result.empty())
 					Assign(Result);
 			}
@@ -7734,7 +7734,7 @@ namespace Mavi
 		Core::String OS::Directory::GetModule()
 		{
 			VI_MEASURE(Core::Timings::FileSystem);
-#ifdef VI_HAS_SDL2
+#ifndef VI_HAS_SDL2
 #ifdef VI_MICROSOFT
 			char Buffer[MAX_PATH + 1] = { };
 			if (GetModuleFileNameA(nullptr, Buffer, MAX_PATH) == 0)
@@ -8312,10 +8312,10 @@ namespace Mavi
 			VI_TRACE("[io] resolve %s path: %s", Path, Buffer);
 			return Buffer;
 		}
-		Core::String OS::Path::Resolve(const Core::String& Path, const Core::String& Directory)
+		Core::String OS::Path::Resolve(const Core::String& Path, const Core::String& Directory, bool EvenIfExists)
 		{
 			VI_ASSERT(!Path.empty() && !Directory.empty(), "", "path and directory should not be empty");
-			if (IsPathExists(Path.c_str()) && Path.find("..") == std::string::npos)
+			if (!EvenIfExists && IsPathExists(Path.c_str()) && Path.find("..") == std::string::npos)
 				return Path;
 
 			Stringify PathData(&Path), DirectoryData(&Directory);
@@ -8342,9 +8342,9 @@ namespace Mavi
 
 			return Result;
 		}
-		Core::String OS::Path::ResolveDirectory(const Core::String& Path, const Core::String& Directory)
+		Core::String OS::Path::ResolveDirectory(const Core::String& Path, const Core::String& Directory, bool EvenIfExists)
 		{
-			Core::String Result = Resolve(Path, Directory);
+			Core::String Result = Resolve(Path, Directory, EvenIfExists);
 			if (!Result.empty() && !Stringify(&Result).EndsOf("/\\"))
 				Result.append(1, VI_SPLITTER);
 

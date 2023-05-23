@@ -9547,8 +9547,8 @@ namespace Mavi
 				Engine->SetFunction("string get_filename(const string &in)", &OSPathGetFilename);
 				Engine->SetFunction("string get_extension(const string &in)", &OSPathGetExtension);
 				Engine->SetFunction("string get_non_existant(const string &in)", &Core::OS::Path::GetNonExistant);
-				Engine->SetFunction<Core::String(const Core::String&, const Core::String&)>("string resolve(const string &in, const string &in)", &Core::OS::Path::Resolve);
-				Engine->SetFunction<Core::String(const Core::String&, const Core::String&)>("string resolve_directory(const string &in, const string &in)", &Core::OS::Path::ResolveDirectory);
+				Engine->SetFunction<Core::String(const Core::String&, const Core::String&, bool)>("string resolve(const string &in, const string &in, bool)", &Core::OS::Path::Resolve);
+				Engine->SetFunction<Core::String(const Core::String&, const Core::String&, bool)>("string resolve_directory(const string &in, const string &in, bool)", &Core::OS::Path::ResolveDirectory);
 				Engine->EndNamespace();
 
 				Engine->BeginNamespace("os::process");

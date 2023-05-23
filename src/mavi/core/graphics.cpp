@@ -1171,7 +1171,7 @@ namespace Mavi
 			Desc.Exts.push_back(".glsl");
 			Desc.Exts.push_back(".msl");
 			Desc.Exts.push_back(".spv");
-			Desc.Root = Core::OS::Directory::GetWorking();
+			Desc.Root = Core::OS::Directory::GetModule();
 			Subresult.Features.Pragmas = false;
 
 			Compute::Preprocessor* Processor = new Compute::Preprocessor();

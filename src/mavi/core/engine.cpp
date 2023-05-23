@@ -5560,6 +5560,7 @@ namespace Mavi
 			Mutex.lock();
 			Environment = Core::OS::Path::ResolveDirectory(Path.c_str());
 			Core::Stringify(&Environment).Replace('\\', '/');
+			Core::OS::Directory::SetWorking(Environment.c_str());
 			Mutex.unlock();
 		}
 		void ContentManager::SetDevice(Graphics::GraphicsDevice* NewDevice)

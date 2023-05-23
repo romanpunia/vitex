@@ -1925,6 +1925,7 @@ namespace Mavi
 			Core::Vector<Core::String> GetExposedAddons();
 			const Core::UnorderedMap<Core::String, Addon>& GetSystemAddons() const;
 			const Core::UnorderedMap<Core::String, CLibrary>& GetCLibraries() const;
+			const Compute::IncludeDesc& GetCompileIncludeOptions() const;
 			bool HasLibrary(const Core::String& Name, bool IsAddon = false);
 			bool HasSystemAddon(const Core::String& Name);
 			bool HasAddon(const Core::String& Name);

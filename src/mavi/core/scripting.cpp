@@ -5689,6 +5689,10 @@ namespace Mavi
 		{
 			return CLibraries;
 		}
+		const Compute::IncludeDesc& VirtualMachine::GetCompileIncludeOptions() const
+		{
+			return Include;
+		}
 		bool VirtualMachine::HasLibrary(const Core::String& Name, bool IsAddon)
 		{
 			std::unique_lock<std::mutex> Unique(Sync.General);

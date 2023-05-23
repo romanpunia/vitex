@@ -13346,6 +13346,54 @@ namespace Mavi
 				return false;
 #endif
 			}
+			bool Registry::ImportHTTP(VirtualMachine* Engine)
+			{
+#ifdef VI_HAS_BINDINGS
+				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+
+				/* TODO: register bindings for <http> module */
+				return true;
+#else
+				VI_ASSERT(false, false, "<http> is not loaded");
+				return false;
+#endif
+			}
+			bool Registry::ImportSMTP(VirtualMachine* Engine)
+			{
+#ifdef VI_HAS_BINDINGS
+				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+
+				/* TODO: register bindings for <smtp> module */
+				return true;
+#else
+				VI_ASSERT(false, false, "<smtp> is not loaded");
+				return false;
+#endif
+			}
+			bool Registry::ImportPostgreSQL(VirtualMachine* Engine)
+			{
+#ifdef VI_HAS_BINDINGS
+				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+
+				/* TODO: register bindings for <postgresql> module */
+				return true;
+#else
+				VI_ASSERT(false, false, "<postgresql> is not loaded");
+				return false;
+#endif
+			}
+			bool Registry::ImportMongoDB(VirtualMachine* Engine)
+			{
+#ifdef VI_HAS_BINDINGS
+				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+
+				/* TODO: register bindings for <mongodb> module */
+				return true;
+#else
+				VI_ASSERT(false, false, "<mongodb> is not loaded");
+				return false;
+#endif
+			}
 			bool Registry::ImportVM(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS

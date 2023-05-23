@@ -109,6 +109,10 @@ namespace Mavi
 				static bool ImportActivity(VirtualMachine* Engine);
 				static bool ImportGraphics(VirtualMachine* Engine);
 				static bool ImportNetwork(VirtualMachine* Engine);
+				static bool ImportHTTP(VirtualMachine* Engine);
+				static bool ImportSMTP(VirtualMachine* Engine);
+				static bool ImportPostgreSQL(VirtualMachine* Engine);
+				static bool ImportMongoDB(VirtualMachine* Engine);
 				static bool ImportVM(VirtualMachine* Engine);
 				static bool ImportEngine(VirtualMachine* Engine);
 				static bool ImportComponents(VirtualMachine* Engine);

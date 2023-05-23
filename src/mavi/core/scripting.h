@@ -320,12 +320,11 @@ namespace Mavi
 		enum class Imports
 		{
 			CLibraries = 1,
-			CSymbols = 2,
-			Submodules = 4,
+			CFunctions = 2,
+			Addons = 4,
 			Files = 8,
-			JSON = 8,
-			Remotes = 16,
-			All = (CLibraries | CSymbols | Submodules | Files | JSON | Remotes)
+			Remotes = 8,
+			All = (CLibraries | CFunctions | Addons | Files | Remotes)
 		};
 
 		inline ObjectBehaviours operator |(ObjectBehaviours A, ObjectBehaviours B)
@@ -345,7 +344,7 @@ namespace Mavi
 		typedef void(*FunctionPtr)();
 		typedef std::function<void(struct TypeInfo*, struct FunctionInfo*)> PropertyCallback;
 		typedef std::function<void(struct TypeInfo*, struct Function*)> MethodCallback;
-		typedef std::function<void(class VirtualMachine*)> SubmoduleCallback;
+		typedef std::function<void(class VirtualMachine*)> AddonCallback;
 		typedef std::function<void(class ImmediateContext*)> ArgsCallback;
 
 		class VI_OUT TypeCache
@@ -1643,7 +1642,7 @@ namespace Mavi
 			void ShowException(ImmediateContext* Context);
 			void ListBreakPoints();
 			void ListThreads();
-			void ListModules();
+			void ListAddons();
 			void ListStackRegisters(ImmediateContext* Context, uint32_t Level);
 			void ListLocalVariables(ImmediateContext* Context);
 			void ListGlobalVariables(ImmediateContext* Context);
@@ -1806,24 +1805,24 @@ namespace Mavi
 			typedef std::function<void()> WhenErrorCallback;
 
 		public:
-			struct Symbol
+			struct CFunction
 			{
 				Core::String Declaration;
 				void* Handle;
 			};
 
-			struct Kernel
+			struct CLibrary
 			{
-				Core::UnorderedMap<Core::String, Symbol> Functions;
+				Core::UnorderedMap<Core::String, CFunction> Functions;
 				void* Handle;
 				bool IsAddon;
 			};
 
-			struct Submodule
+			struct Addon
 			{
 				Core::Vector<Core::String> Dependencies;
-				SubmoduleCallback Callback;
-				bool Registered = false;
+				AddonCallback Callback;
+				bool Exposed = false;
 			};
 
 		private:
@@ -1841,8 +1840,8 @@ namespace Mavi
 			Core::UnorderedMap<Core::String, Core::String> Sections;
 			Core::UnorderedMap<Core::String, Core::Schema*> Datas;
 			Core::UnorderedMap<Core::String, ByteCodeInfo> Opcodes;
-			Core::UnorderedMap<Core::String, Kernel> Kernels;
-			Core::UnorderedMap<Core::String, Submodule> Modules;
+			Core::UnorderedMap<Core::String, CLibrary> CLibraries;
+			Core::UnorderedMap<Core::String, Addon> Addons;
 			Core::UnorderedMap<Core::String, CompileCallback> Callbacks;
 			Core::UnorderedMap<Core::String, GeneratorCallback> Generators;
 			Core::Vector<asIScriptContext*> Contexts;
@@ -1923,18 +1922,20 @@ namespace Mavi
 			asIScriptEngine* GetEngine() const;
 			DebuggerContext* GetDebugger() const;
 			Core::String GetModuleDirectory() const;
-			Core::Vector<Core::String> GetSubmodules();
-			const Core::UnorderedMap<Core::String, Submodule>& GetModules() const;
-			const Core::UnorderedMap<Core::String, Kernel>& GetKernels() const;
-			bool HasSubmodule(const Core::String& Name);
+			Core::Vector<Core::String> GetExposedAddons();
+			const Core::UnorderedMap<Core::String, Addon>& GetSystemAddons() const;
+			const Core::UnorderedMap<Core::String, CLibrary>& GetCLibraries() const;
+			bool HasLibrary(const Core::String& Name, bool IsAddon = false);
+			bool HasSystemAddon(const Core::String& Name);
+			bool HasAddon(const Core::String& Name);
 			bool IsNullable(int TypeId);
 			bool IsTranslatorSupported();
-			bool AddSubmodule(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const SubmoduleCallback& Callback);
+			bool AddSystemAddon(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const AddonCallback& Callback);
 			bool ImportFile(const Core::String& Path, bool IsRemote, Core::String& Output);
-			bool ImportSymbol(const Core::Vector<Core::String>& Sources, const Core::String& Name, const Core::String& Decl);
-			bool ImportLibrary(const Core::String& Path, bool Addon);
-			bool ImportSubmodule(const Core::String& Name);
-			Core::Schema* ImportJSON(const Core::String& Path);
+			bool ImportCFunction(const Core::Vector<Core::String>& Sources, const Core::String& Name, const Core::String& Decl);
+			bool ImportCLibrary(const Core::String& Path, bool IAddon = false);
+			bool ImportAddon(const Core::String& Path);
+			bool ImportSystemAddon(const Core::String& Name);
 			Core::String GetSourceCodeAppendix(const char* Label, const Core::String& Code, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
 			Core::String GetSourceCodeAppendixByPath(const char* Label, const Core::String& Path, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
 			int SetFunctionDef(const char* Decl);
@@ -1971,8 +1972,8 @@ namespace Mavi
 			TypeInfo GetTypeInfoByDecl(const char* Decl) const;
 
 		private:
-			bool InitializeAddon(const Core::String& Name, Kernel& Library);
-			void UninitializeAddon(const Core::String& Name, Kernel& Library);
+			bool InitializeAddon(const Core::String& Name, CLibrary& Library);
+			void UninitializeAddon(const Core::String& Name, CLibrary& Library);
 
 		public:
 			static void LineHandler(asIScriptContext* Context, void* Object);
@@ -1990,7 +1991,7 @@ namespace Mavi
 			static asIScriptContext* RequestContext(asIScriptEngine* Engine, void* Data);
 			static void ReturnContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data);
 			static void MessageLogger(asSMessageInfo* Info, void* Object);
-			static void RegisterSubmodules(VirtualMachine* Engine);
+			static void RegisterAddons(VirtualMachine* Engine);
 			static void* GetNullable();
 
 		public:

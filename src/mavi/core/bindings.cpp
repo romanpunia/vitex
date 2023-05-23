@@ -4233,11 +4233,16 @@ namespace Mavi
 			}
 			Core::Schema* SchemaImport(const Core::String& Value)
 			{
-				VirtualMachine* VM = VirtualMachine::Get();
-				if (!VM)
-					return nullptr;
+				Core::String Data = Core::OS::File::ReadAsString(Value);
+				Core::Schema* Output = Core::Schema::FromJSON(Value, false);
+				if (Output != nullptr)
+					return Output;
 
-				return VM->ImportJSON(Value);
+				Output = Core::Schema::FromXML(Value, false);
+				if (Output != nullptr)
+					return Output;
+					
+				return Core::Schema::FromJSONB(Core::Vector<char>(Value.begin(), Value.end()), false);
 			}
 			Core::Schema* SchemaCopyAssign(Core::Schema* Base, const Core::Variant& Other)
 			{
@@ -8416,7 +8421,7 @@ namespace Mavi
 				});
 			}
 #endif
-			bool Registry::LoadCTypes(VirtualMachine* VM)
+			bool Registry::ImportCTypes(VirtualMachine* VM)
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
@@ -8431,7 +8436,7 @@ namespace Mavi
 
 				return true;
 			}
-			bool Registry::LoadAny(VirtualMachine* VM)
+			bool Registry::ImportAny(VirtualMachine* VM)
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
 
@@ -8454,7 +8459,7 @@ namespace Mavi
 
 				return true;
 			}
-			bool Registry::LoadArray(VirtualMachine* VM)
+			bool Registry::ImportArray(VirtualMachine* VM)
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
 
@@ -8504,7 +8509,7 @@ namespace Mavi
 
 				return true;
 			}
-			bool Registry::LoadComplex(VirtualMachine* VM)
+			bool Registry::ImportComplex(VirtualMachine* VM)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
@@ -8537,7 +8542,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadDictionary(VirtualMachine* VM)
+			bool Registry::ImportDictionary(VirtualMachine* VM)
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
@@ -8583,7 +8588,7 @@ namespace Mavi
 				Dictionary::Setup(Engine);
 				return true;
 			}
-			bool Registry::LoadRef(VirtualMachine* VM)
+			bool Registry::ImportRef(VirtualMachine* VM)
 			{
 				asIScriptEngine* Engine = VM->GetEngine();
 				if (!Engine)
@@ -8603,7 +8608,7 @@ namespace Mavi
 				Engine->RegisterObjectMethod("ref", "bool opEquals(const ?&in) const", asMETHODPR(Ref, Equals, (void*, int) const, bool), asCALL_THISCALL);
 				return true;
 			}
-			bool Registry::LoadWeakRef(VirtualMachine* VM)
+			bool Registry::ImportWeakRef(VirtualMachine* VM)
 			{
 				asIScriptEngine* Engine = VM->GetEngine();
 				if (!Engine)
@@ -8638,7 +8643,7 @@ namespace Mavi
 				
 				return true;
 			}
-			bool Registry::LoadMath(VirtualMachine* VM)
+			bool Registry::ImportMath(VirtualMachine* VM)
 			{
 				asIScriptEngine* Engine = VM->GetEngine();
 				if (!Engine)
@@ -8687,7 +8692,7 @@ namespace Mavi
 				
 				return true;
 			}
-			bool Registry::LoadString(VirtualMachine* VM)
+			bool Registry::ImportString(VirtualMachine* VM)
 			{
 				asIScriptEngine* Engine = VM->GetEngine();
 				if (!Engine)
@@ -8763,7 +8768,7 @@ namespace Mavi
 
 				return true;
 			}
-			bool Registry::LoadException(VirtualMachine* VM)
+			bool Registry::ImportException(VirtualMachine* VM)
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
 
@@ -8789,7 +8794,7 @@ namespace Mavi
 
 				return true;
 			}
-			bool Registry::LoadMutex(VirtualMachine* VM)
+			bool Registry::ImportMutex(VirtualMachine* VM)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
@@ -8807,7 +8812,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadThread(VirtualMachine* VM)
+			bool Registry::ImportThread(VirtualMachine* VM)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
@@ -8845,7 +8850,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadBuffers(VirtualMachine* VM)
+			bool Registry::ImportBuffers(VirtualMachine* VM)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
@@ -8894,7 +8899,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadRandom(VirtualMachine* VM)
+			bool Registry::ImportRandom(VirtualMachine* VM)
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
 
@@ -8911,7 +8916,7 @@ namespace Mavi
 
 				return true;
 			}
-			bool Registry::LoadPromise(VirtualMachine* VM)
+			bool Registry::ImportPromise(VirtualMachine* VM)
 			{
 				asIScriptEngine* Engine = VM->GetEngine();
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -8946,7 +8951,7 @@ namespace Mavi
 
 				return true;
 			}
-			bool Registry::LoadPromiseAsync(VirtualMachine* VM)
+			bool Registry::ImportPromiseAsync(VirtualMachine* VM)
 			{
 				asIScriptEngine* Engine = VM->GetEngine();
 				if (Engine->GetTypeInfoByDecl("promise<bool>@") != nullptr)
@@ -8988,7 +8993,7 @@ namespace Mavi
 
 				return true;
 			}
-			bool Registry::LoadFormat(VirtualMachine* Engine)
+			bool Registry::ImportFormat(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -9003,7 +9008,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadDecimal(VirtualMachine* Engine)
+			bool Registry::ImportDecimal(VirtualMachine* Engine)
 			{
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
 
@@ -9050,7 +9055,7 @@ namespace Mavi
 
 				return true;
 			}
-			bool Registry::LoadVariant(VirtualMachine* Engine)
+			bool Registry::ImportVariant(VirtualMachine* Engine)
 			{
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
 				Enumeration VVarType = Engine->SetEnum("var_type");
@@ -9101,7 +9106,7 @@ namespace Mavi
 
 				return true;
 			}
-			bool Registry::LoadTimestamp(VirtualMachine* Engine)
+			bool Registry::ImportTimestamp(VirtualMachine* Engine)
 			{
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
 				TypeClass VDateTime = Engine->SetStructTrivial<Core::DateTime>("timestamp");
@@ -9157,7 +9162,7 @@ namespace Mavi
 
 				return true;
 			}
-			bool Registry::LoadConsole(VirtualMachine* Engine)
+			bool Registry::ImportConsole(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -9213,7 +9218,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadSchema(VirtualMachine* Engine)
+			bool Registry::ImportSchema(VirtualMachine* Engine)
 			{
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
 				VI_TYPEREF(Schema, "schema");
@@ -9299,7 +9304,7 @@ namespace Mavi
 
 				return true;
 			}
-			bool Registry::LoadClockTimer(VirtualMachine* Engine)
+			bool Registry::ImportClockTimer(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -9326,7 +9331,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadFileSystem(VirtualMachine* Engine)
+			bool Registry::ImportFileSystem(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -9463,7 +9468,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadOS(VirtualMachine* Engine)
+			bool Registry::ImportOS(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -9582,7 +9587,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadSchedule(VirtualMachine* Engine)
+			bool Registry::ImportSchedule(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -9628,7 +9633,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadVertices(VirtualMachine* Engine)
+			bool Registry::ImportVertices(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -9704,7 +9709,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadVectors(VirtualMachine* Engine)
+			bool Registry::ImportVectors(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -10035,7 +10040,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadShapes(VirtualMachine* Engine)
+			bool Registry::ImportShapes(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -10092,7 +10097,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadKeyFrames(VirtualMachine* Engine)
+			bool Registry::ImportKeyFrames(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -10180,7 +10185,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadRegex(VirtualMachine* Engine)
+			bool Registry::ImportRegex(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -10233,7 +10238,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadCrypto(VirtualMachine* Engine)
+			bool Registry::ImportCrypto(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -10510,7 +10515,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadGeometric(VirtualMachine* Engine)
+			bool Registry::ImportGeometric(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -10627,7 +10632,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadPreprocessor(VirtualMachine* Engine)
+			bool Registry::ImportPreprocessor(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -10683,7 +10688,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadPhysics(VirtualMachine* Engine)
+			bool Registry::ImportPhysics(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -11394,7 +11399,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadAudio(VirtualMachine* Engine)
+			bool Registry::ImportAudio(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -11576,7 +11581,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadActivity(VirtualMachine* Engine)
+			bool Registry::ImportActivity(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -12075,7 +12080,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadGraphics(VirtualMachine* Engine)
+			bool Registry::ImportGraphics(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -13041,7 +13046,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadNetwork(VirtualMachine* Engine)
+			bool Registry::ImportNetwork(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -13341,7 +13346,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadVM(VirtualMachine* Engine)
+			bool Registry::ImportVM(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -13355,7 +13360,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadEngine(VirtualMachine* Engine)
+			bool Registry::ImportEngine(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -14266,7 +14271,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadComponents(VirtualMachine* Engine)
+			bool Registry::ImportComponents(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -14577,7 +14582,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadRenderers(VirtualMachine* Engine)
+			bool Registry::ImportRenderers(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -14891,7 +14896,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadUiControl(VirtualMachine* Engine)
+			bool Registry::ImportUiControl(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -15239,7 +15244,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadUiModel(VirtualMachine* Engine)
+			bool Registry::ImportUiModel(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -15283,7 +15288,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::LoadUiContext(VirtualMachine* Engine)
+			bool Registry::ImportUiContext(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");

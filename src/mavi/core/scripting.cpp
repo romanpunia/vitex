@@ -1,5 +1,6 @@
 #include "scripting.h"
 #include "bindings.h"
+#include "../mavi.h"
 #include <iostream>
 #ifndef ANGELSCRIPT_H 
 #include <angelscript.h>
@@ -1861,7 +1862,7 @@ namespace Mavi
 					return Compute::IncludeType::Error;
 
 				if (!File.IsFile && File.IsAbstract)
-					return VM->ImportSubmodule(File.Module) ? Compute::IncludeType::Virtual : Compute::IncludeType::Error;
+					return VM->ImportSystemAddon(File.Module) ? Compute::IncludeType::Virtual : Compute::IncludeType::Error;
 
 				Core::String Buffer;
 				if (!VM->ImportFile(File.Module, File.IsRemote, Buffer))
@@ -1986,9 +1987,9 @@ namespace Mavi
 				{
 					bool Loaded;
 					if (Args.size() == 3)
-						Loaded = VM->ImportLibrary(Args[0], false) && VM->ImportSymbol({ Args[0] }, Args[1], Args[2]);
+						Loaded = VM->ImportCLibrary(Args[0]) && VM->ImportCFunction({ Args[0] }, Args[1], Args[2]);
 					else
-						Loaded = VM->ImportSymbol({ }, Args[0], Args[1]);
+						Loaded = VM->ImportCFunction({ }, Args[0], Args[1]);
 
 					if (Loaded)
 						Define("SOF_" + Args[1]);
@@ -1998,7 +1999,7 @@ namespace Mavi
 					Core::String Directory = Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str());
 					Core::String Path1 = Args[0], Path2 = Core::OS::Path::Resolve(Args[0], Directory.empty() ? Core::OS::Directory::Get() : Directory);
 
-					bool Loaded = VM->ImportLibrary(Path1, false) || VM->ImportLibrary(Path2, false);
+					bool Loaded = VM->ImportCLibrary(Path1) || VM->ImportCLibrary(Path2);
 					if (Loaded && Args.size() == 2 && !Args[1].empty())
 						Define("SOL_" + Args[1]);
 				}
@@ -2007,12 +2008,22 @@ namespace Mavi
 
 				return true;
 			});
+			Processor->Define("VI_VERSION " + Core::ToString((size_t)VERSION));
 #ifdef VI_MICROSOFT
 			Processor->Define("OS_MICROSOFT");
+#elif defined(VI_ANDROID)
+			Processor->Define("OS_ANDROID");
+			Processor->Define("OS_LINUX");
 #elif defined(VI_APPLE)
 			Processor->Define("OS_APPLE");
+			Processor->Define("OS_LINUX");
+#ifdef VI_IOS
+			Processor->Define("OS_IOS");
+#elif defined(VI_OSX)
+			Processor->Define("OS_OSX");
+#endif
 #elif defined(VI_LINUX)
-			Processor->Define("OS_UNIX");
+			Processor->Define("OS_LINUX");
 #endif
 			Context = VM->CreateContext();
 			Context->SetUserData(this, CompilerUD);
@@ -2477,16 +2488,16 @@ namespace Mavi
 				}
 				return false;
 			});
-			AddCommand("ls, loadsys", "load global system module", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			AddCommand("ls, loadsys", "load global system addon", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
 			{
 				if (!Args.empty() && !Args[0].empty())
-					VM->ImportSubmodule(Args[0]);
+					VM->ImportSystemAddon(Args[0]);
 				return false;
 			});
-			AddCommand("le, loadext", "load global external module", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			AddCommand("le, loadext", "load global external addon", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
 			{
 				if (!Args.empty() && !Args[0].empty())
-					VM->ImportLibrary(Args[0], true);
+					VM->ImportAddon(Args[0]);
 				return false;
 			});
 			AddCommand("e, eval", "evaluate script expression", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
@@ -2642,9 +2653,9 @@ namespace Mavi
 					ListSourceCode(Context);
 					return false;
 				}
-				else if (Args[0] == "ms" || Args[0] == "modules")
+				else if (Args[0] == "a" || Args[0] == "addons")
 				{
-					ListModules();
+					ListAddons();
 					return false;
 				}
 				else if (Args[0] == "ri" || Args[0] == "interfaces")
@@ -2668,7 +2679,7 @@ namespace Mavi
 					"  info g, info globals - show global variables\n"
 					"  info t, info threads - show suspended threads\n"
 					"  info c, info code - show source code section\n"
-					"  info ms, info modules - show imported modules\n"
+					"  info a, info addons - show imported addons\n"
 					"  info ri, info interfaces - show registered script virtual interfaces\n"
 					"  info gc, info garbage - show gc statistics\n");
 				return false;
@@ -3321,9 +3332,9 @@ namespace Mavi
 			}
 			Output(Stream.str());
 		}
-		void DebuggerContext::ListModules()
+		void DebuggerContext::ListAddons()
 		{
-			for (auto& Name : VM->GetSubmodules())
+			for (auto& Name : VM->GetExposedAddons())
 				Output("  " + Name + "\n");
 		}
 		void DebuggerContext::ListStackRegisters(ImmediateContext* Context, uint32_t Level)
@@ -4030,7 +4041,7 @@ namespace Mavi
 			asIScriptFunction* Function = nullptr; int Result = 0;
 			Bindings::Any* Data = nullptr;
 			VM->DetachDebuggerFromContext(Context->GetContext());
-			VM->ImportSubmodule("std/any");
+			VM->ImportSystemAddon("std/any");
 
 			while ((Result = Module->CompileFunction("__vfdbgfunc", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function)) == asBUILD_IN_PROGRESS)
 				std::this_thread::sleep_for(std::chrono::microseconds(100));
@@ -4706,11 +4717,11 @@ namespace Mavi
 			Engine->SetEngineProperty(asEP_DISALLOW_EMPTY_LIST_ELEMENTS, 1);
 			Engine->SetEngineProperty(asEP_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, 0);
 			Engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
-			RegisterSubmodules(this);
+			RegisterAddons(this);
 		}
 		VirtualMachine::~VirtualMachine() noexcept
 		{
-			for (auto& Next : Kernels)
+			for (auto& Next : CLibraries)
 			{
 				if (Next.second.IsAddon)
 					UninitializeAddon(Next.first, Next.second);
@@ -5273,7 +5284,7 @@ namespace Mavi
 			VI_TRACE("[vm] preprocessor source code generation at %s (%" PRIu64 " bytes)", Path.empty() ? "<anonymous>" : Path.c_str(), (uint64_t)InoutBuffer.size());
 			if (!Processor->Process(Path, InoutBuffer))
 			{
-				VI_ERR("[vm] preprocessor generator has failed to generate souce code\nat file path", Path.empty() ? "<anonymous>" : Path.c_str());
+				VI_ERR("[vm] preprocessor generator has failed to generate souce code: %s", Path.empty() ? "<anonymous>" : Path.c_str());
 				return false;
 			}
 
@@ -5283,7 +5294,7 @@ namespace Mavi
 				VI_TRACE("[vm] generate source code for %s generator at %s (%" PRIu64 " bytes)", Item.first.c_str(), Path.empty() ? "<anonymous>" : Path.c_str(), (uint64_t)InoutBuffer.size());
 				if (!Item.second(Path, InoutBuffer))
 				{
-					VI_ERR("[vm] %s generator has failed to generate souce code\nat file path", Item.first.c_str(), Path.empty() ? "<anonymous>" : Path.c_str());
+					VI_ERR("[vm] %s generator has failed to generate souce code: %s", Item.first.c_str(), Path.empty() ? "<anonymous>" : Path.c_str());
 					return false;
 				}
 			}
@@ -5648,38 +5659,51 @@ namespace Mavi
 		{
 			return Include.Root;
 		}
-		Core::Vector<Core::String> VirtualMachine::GetSubmodules()
+		Core::Vector<Core::String> VirtualMachine::GetExposedAddons()
 		{
 			std::unique_lock<std::mutex> Unique(Sync.General);
 			Core::Vector<Core::String> Result;
-			Result.reserve(Modules.size() + Kernels.size());
-			for (auto& Module : Modules)
+			Result.reserve(Addons.size() + CLibraries.size());
+			for (auto& Module : Addons)
 			{
-				if (Module.second.Registered)
+				if (Module.second.Exposed)
 					Result.push_back(Core::Form("system(0x%" PRIXPTR "):%s", (void*)&Module.second, Module.first.c_str()).R());
 			}
 
-			for (auto& Module : Kernels)
+			for (auto& Module : CLibraries)
 				Result.push_back(Core::Form("%s(0x%" PRIXPTR "):%s", Module.second.IsAddon ? "addon" : "clibrary", Module.second.Handle, Module.first.c_str()).R());
 
 			return Result;
 		}
-		const Core::UnorderedMap<Core::String, VirtualMachine::Submodule>& VirtualMachine::GetModules() const
+		const Core::UnorderedMap<Core::String, VirtualMachine::Addon>& VirtualMachine::GetSystemAddons() const
 		{
-			return Modules;
+			return Addons;
 		}
-		const Core::UnorderedMap<Core::String, VirtualMachine::Kernel>& VirtualMachine::GetKernels() const
+		const Core::UnorderedMap<Core::String, VirtualMachine::CLibrary>& VirtualMachine::GetCLibraries() const
 		{
-			return Kernels;
+			return CLibraries;
 		}
-		bool VirtualMachine::HasSubmodule(const Core::String& Name)
+		bool VirtualMachine::HasLibrary(const Core::String& Name, bool IsAddon)
 		{
 			std::unique_lock<std::mutex> Unique(Sync.General);
-			auto It = Modules.find(Name);
-			if (It == Modules.end())
+			auto It = CLibraries.find(Name);
+			if (It == CLibraries.end())
 				return false;
 
-			return It->second.Registered;
+			return It->second.IsAddon == IsAddon;
+		}
+		bool VirtualMachine::HasSystemAddon(const Core::String& Name)
+		{
+			std::unique_lock<std::mutex> Unique(Sync.General);
+			auto It = Addons.find(Name);
+			if (It == Addons.end())
+				return false;
+
+			return It->second.Exposed;
+		}
+		bool VirtualMachine::HasAddon(const Core::String& Name)
+		{
+			return HasLibrary(Name, true);
 		}
 		bool VirtualMachine::IsNullable(int TypeId)
 		{
@@ -5693,7 +5717,7 @@ namespace Mavi
 			return false;
 #endif
 		}
-		bool VirtualMachine::AddSubmodule(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const SubmoduleCallback& Callback)
+		bool VirtualMachine::AddSystemAddon(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const AddonCallback& Callback)
 		{
 			VI_ASSERT(!Name.empty(), false, "name should not be empty");
 			if (Dependencies.empty() && !Callback)
@@ -5702,52 +5726,52 @@ namespace Mavi
 				Core::Vector<Core::String> Deps;
 
 				Sync.General.lock();
-				for (auto& Item : Modules)
+				for (auto& Item : Addons)
 				{
 					if (Core::Stringify(&Item.first).StartsWith(Namespace))
 						Deps.push_back(Item.first);
 				}
 
-				if (Modules.empty())
+				if (Addons.empty())
 				{
 					Sync.General.unlock();
 					return false;
 				}
 
-				auto It = Modules.find(Name);
-				if (It == Modules.end())
+				auto It = Addons.find(Name);
+				if (It == Addons.end())
 				{
-					Submodule Result;
+					Addon Result;
 					Result.Dependencies = Deps;
-					Modules.insert({ Name, Result });
+					Addons.insert({ Name, std::move(Result) });
 				}
 				else
 				{
 					It->second.Dependencies = Deps;
-					It->second.Registered = false;
+					It->second.Exposed = false;
 				}
 			}
 			else
 			{
 				Sync.General.lock();
-				auto It = Modules.find(Name);
-				if (It != Modules.end())
+				auto It = Addons.find(Name);
+				if (It != Addons.end())
 				{
 					if (Callback || !Dependencies.empty())
 					{
 						It->second.Dependencies = Dependencies;
 						It->second.Callback = Callback;
-						It->second.Registered = false;
+						It->second.Exposed = false;
 					}
 					else
-						Modules.erase(It);
+						Addons.erase(It);
 				}
 				else
 				{
-					Submodule Result;
+					Addon Result;
 					Result.Dependencies = Dependencies;
 					Result.Callback = Callback;
-					Modules.insert({ Name, Result });
+					Addons.insert({ Name, std::move(Result) });
 				}
 			}
 
@@ -5773,7 +5797,7 @@ namespace Mavi
 					return false;
 
 				if (!Core::Stringify(&Path).EndsWith(".as"))
-					return ImportLibrary(Path, true);
+					return ImportAddon(Path);
 			}
 
 			if (!Cached)
@@ -5798,18 +5822,18 @@ namespace Mavi
 			Sync.General.unlock();
 			return true;
 		}
-		bool VirtualMachine::ImportSymbol(const Core::Vector<Core::String>& Sources, const Core::String& Func, const Core::String& Decl)
+		bool VirtualMachine::ImportCFunction(const Core::Vector<Core::String>& Sources, const Core::String& Func, const Core::String& Decl)
 		{
-			if (!(Imports & (uint32_t)Imports::CSymbols))
+			if (!(Imports & (uint32_t)Imports::CFunctions))
 			{
-				VI_ERR("[vm] csymbols import is not allowed");
+				VI_ERR("[vm] cfunction import is not allowed");
 				return false;
 			}
 
 			if (!Engine || Decl.empty() || Func.empty())
 				return false;
 
-			auto LoadFunction = [this, &Func, &Decl](Kernel& Context, bool Assert) -> bool
+			auto LoadFunction = [this, &Func, &Decl](CLibrary& Context, bool Assert) -> bool
 			{
 				auto Handle = Context.Functions.find(Func);
 				if (Handle != Context.Functions.end())
@@ -5839,18 +5863,18 @@ namespace Mavi
 			};
 
 			std::unique_lock<std::mutex> Unique(Sync.General);
-			auto It = Kernels.end();
+			auto It = CLibraries.end();
 			for (auto& Item : Sources)
 			{
-				It = Kernels.find(Item);
-				if (It != Kernels.end())
+				It = CLibraries.find(Item);
+				if (It != CLibraries.end())
 					break;
 			}
 
-			if (It != Kernels.end())
+			if (It != CLibraries.end())
 				return LoadFunction(It->second, true);
 
-			for (auto& Item : Kernels)
+			for (auto& Item : CLibraries)
 			{
 				if (LoadFunction(Item.second, false))
 					return true;
@@ -5859,7 +5883,7 @@ namespace Mavi
 			VI_ERR("[vm] cannot load shared object function: %s\n\tnot found in any of loaded shared objects", Func.c_str());
 			return false;
 		}
-		bool VirtualMachine::ImportLibrary(const Core::String& Path, bool Addon)
+		bool VirtualMachine::ImportCLibrary(const Core::String& Path, bool IsAddon)
 		{
 			if (!(Imports & (uint32_t)Imports::CLibraries) && !Path.empty())
 			{
@@ -5872,8 +5896,8 @@ namespace Mavi
 				return false;
 
 			Sync.General.lock();
-			auto Core = Kernels.find(Name);
-			if (Core != Kernels.end())
+			auto Core = CLibraries.find(Name);
+			if (Core != CLibraries.end())
 			{
 				Sync.General.unlock();
 				return true;
@@ -5887,9 +5911,9 @@ namespace Mavi
 				return false;
 			}
 
-			Kernel Library;
+			CLibrary Library;
 			Library.Handle = Handle;
-			Library.IsAddon = Addon;
+			Library.IsAddon = IsAddon;
 
 			if (Library.IsAddon && !InitializeAddon(Name, Library))
 			{
@@ -5900,17 +5924,17 @@ namespace Mavi
 			}
 
 			Sync.General.lock();
-			Kernels.insert({ Name, std::move(Library) });
+			CLibraries.insert({ Name, std::move(Library) });
 			Sync.General.unlock();
 
 			VI_DEBUG("[vm] load library %s", Path.c_str());
 			return true;
 		}
-		bool VirtualMachine::ImportSubmodule(const Core::String& Name)
+		bool VirtualMachine::ImportSystemAddon(const Core::String& Name)
 		{
-			if (!(Imports & (uint32_t)Imports::Submodules))
+			if (!(Imports & (uint32_t)Imports::Addons))
 			{
-				VI_ERR("[vm] submodules import is not allowed");
+				VI_ERR("[vm] system addons import is not allowed: %s", Name.c_str());
 				return false;
 			}
 
@@ -5919,40 +5943,44 @@ namespace Mavi
 				Target = Target.substr(0, Target.size() - 3);
 
 			Sync.General.lock();
-			auto It = Modules.find(Target);
-			if (It == Modules.end())
+			auto It = Addons.find(Target);
+			if (It == Addons.end())
 			{
 				Sync.General.unlock();
-				VI_ERR("[vm] couldn't find script submodule %s", Name.c_str());
+				VI_ERR("[vm] couldn't find script system addon %s", Name.c_str());
 				return false;
 			}
 
-			if (It->second.Registered)
+			if (It->second.Exposed)
 			{
 				Sync.General.unlock();
 				return true;
 			}
 
-			Submodule Base = It->second;
-			It->second.Registered = true;
+			Addon Base = It->second;
+			It->second.Exposed = true;
 			Sync.General.unlock();
 
 			for (auto& Item : Base.Dependencies)
 			{
-				if (!ImportSubmodule(Item))
+				if (!ImportSystemAddon(Item))
 				{
-					VI_ERR("[vm] couldn't load submodule %s for %s", Item.c_str(), Name.c_str());
+					VI_ERR("[vm] couldn't load system addon %s for %s", Item.c_str(), Name.c_str());
 					return false;
 				}
 			}
 
-			VI_DEBUG("[vm] load submodule %s", Name.c_str());
+			VI_DEBUG("[vm] load system addon %s", Name.c_str());
 			if (Base.Callback)
 				Base.Callback(this);
 
 			return true;
 		}
-		bool VirtualMachine::InitializeAddon(const Core::String& Path, Kernel& Library)
+		bool VirtualMachine::ImportAddon(const Core::String& Name)
+		{
+			return ImportCLibrary(Name.c_str(), true);
+		}
+		bool VirtualMachine::InitializeAddon(const Core::String& Path, CLibrary& Library)
 		{
 			auto ViInitialize = (int(*)(VirtualMachine*))Core::OS::Symbol::LoadFunction(Library.Handle, "ViInitialize");
 			if (!ViInitialize)
@@ -5972,7 +6000,7 @@ namespace Mavi
 			Library.Functions.insert({ "ViInitialize", { Core::String(), (void*)ViInitialize } });
 			return true;
 		}
-		void VirtualMachine::UninitializeAddon(const Core::String& Name, Kernel& Library)
+		void VirtualMachine::UninitializeAddon(const Core::String& Name, CLibrary& Library)
 		{
 			auto ViUninitialize = (void(*)(VirtualMachine*))Core::OS::Symbol::LoadFunction(Library.Handle, "ViUninitialize");
 			if (ViUninitialize != nullptr)
@@ -6016,52 +6044,6 @@ namespace Mavi
 		Core::String VirtualMachine::GetSourceCodeAppendixByPath(const char* Label, const Core::String& Path, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines)
 		{
 			return GetSourceCodeAppendix(Label, GetScriptSection(Path), LineNumber, ColumnNumber, MaxLines);
-		}
-		Core::Schema* VirtualMachine::ImportJSON(const Core::String& Path)
-		{
-			if (!(Imports & (uint32_t)Imports::JSON))
-			{
-				VI_ERR("[vm] json import is not allowed");
-				return nullptr;
-			}
-
-			Core::String File = Core::OS::Path::Resolve(Path, Include.Root);
-			if (!Core::OS::File::IsExists(File.c_str()))
-			{
-				File = Core::OS::Path::Resolve(Path + ".json", Include.Root);
-				if (!Core::OS::File::IsExists(File.c_str()))
-				{
-					VI_ERR("[vm] %s resource was not found", Path.c_str());
-					return nullptr;
-				}
-			}
-
-			if (!Cached)
-			{
-				Core::String Data = Core::OS::File::ReadAsString(File);
-				return Core::Schema::ConvertFromJSON(Data.c_str(), Data.size());
-			}
-
-			Sync.General.lock();
-			auto It = Datas.find(File);
-			if (It != Datas.end())
-			{
-				Core::Schema* Result = It->second ? It->second->Copy() : nullptr;
-				Sync.General.unlock();
-
-				return Result;
-			}
-
-			Core::Schema*& Result = Datas[File];
-			Core::String Data = Core::OS::File::ReadAsString(File);
-			Result = Core::Schema::ConvertFromJSON(Data.c_str(), Data.size());
-
-			Core::Schema* Copy = nullptr;
-			if (Result != nullptr)
-				Copy = Result->Copy();
-
-			Sync.General.unlock();
-			return Copy;
 		}
 		size_t VirtualMachine::GetProperty(Features Property) const
 		{
@@ -6233,55 +6215,55 @@ namespace Mavi
 			else if (Info->type == asMSGTYPE_ERROR)
 				VI_ERR("[compiler] %s at line %i: %s%s", Section, Info->row, Info->message, SourceCode.c_str());
 		}
-		void VirtualMachine::RegisterSubmodules(VirtualMachine* Engine)
+		void VirtualMachine::RegisterAddons(VirtualMachine* Engine)
 		{
-			Engine->AddSubmodule("std/ctypes", { }, Bindings::Registry::LoadCTypes);
-			Engine->AddSubmodule("std/any", { }, Bindings::Registry::LoadAny);
-			Engine->AddSubmodule("std/array", { "std/ctypes" }, Bindings::Registry::LoadArray);
-			Engine->AddSubmodule("std/complex", { }, Bindings::Registry::LoadComplex);
-			Engine->AddSubmodule("std/ref", { }, Bindings::Registry::LoadRef);
-			Engine->AddSubmodule("std/weak_ref", { }, Bindings::Registry::LoadWeakRef);
-			Engine->AddSubmodule("std/math", { }, Bindings::Registry::LoadMath);
-			Engine->AddSubmodule("std/string", { "std/array" }, Bindings::Registry::LoadString);
-			Engine->AddSubmodule("std/random", { "std/string" }, Bindings::Registry::LoadRandom);
-			Engine->AddSubmodule("std/dictionary", { "std/array", "std/string" }, Bindings::Registry::LoadDictionary);
-			Engine->AddSubmodule("std/exception", { "std/string" }, Bindings::Registry::LoadException);
-			Engine->AddSubmodule("std/mutex", { }, Bindings::Registry::LoadMutex);
-			Engine->AddSubmodule("std/thread", { "std/any", "std/string" }, Bindings::Registry::LoadThread);
-			Engine->AddSubmodule("std/buffers", { "std/string" }, Bindings::Registry::LoadBuffers);
-			Engine->AddSubmodule("std/promise", { }, Bindings::Registry::LoadPromise);
-			Engine->AddSubmodule("std/promise/async", { }, Bindings::Registry::LoadPromiseAsync);
-			Engine->AddSubmodule("std/format", { "std/string" }, Bindings::Registry::LoadFormat);
-			Engine->AddSubmodule("std/decimal", { "std/string" }, Bindings::Registry::LoadDecimal);
-			Engine->AddSubmodule("std/variant", { "std/string", "std/decimal" }, Bindings::Registry::LoadVariant);
-			Engine->AddSubmodule("std/timestamp", { "std/string" }, Bindings::Registry::LoadTimestamp);
-			Engine->AddSubmodule("std/console", { "std/format" }, Bindings::Registry::LoadConsole);
-			Engine->AddSubmodule("std/schema", { "std/array", "std/string", "std/dictionary", "std/variant" }, Bindings::Registry::LoadSchema);
-			Engine->AddSubmodule("std/schedule", { "std/ctypes" }, Bindings::Registry::LoadSchedule);
-			Engine->AddSubmodule("std/clock_timer", { }, Bindings::Registry::LoadClockTimer);
-			Engine->AddSubmodule("std/file_system", { "std/string" }, Bindings::Registry::LoadFileSystem);
-			Engine->AddSubmodule("std/os", { "std/file_system", "std/array" }, Bindings::Registry::LoadOS);
-			Engine->AddSubmodule("std/vertices", { }, Bindings::Registry::LoadVertices);
-			Engine->AddSubmodule("std/vectors", { }, Bindings::Registry::LoadVectors);
-			Engine->AddSubmodule("std/shapes", { "std/vectors" }, Bindings::Registry::LoadShapes);
-			Engine->AddSubmodule("std/key_frames", { "std/vectors", "std/string" }, Bindings::Registry::LoadKeyFrames);
-			Engine->AddSubmodule("std/regex", { "std/string" }, Bindings::Registry::LoadRegex);
-			Engine->AddSubmodule("std/crypto", { "std/string", "std/schema" }, Bindings::Registry::LoadCrypto);
-			Engine->AddSubmodule("std/geometric", { "std/vectors", "std/vertices", "std/shapes" }, Bindings::Registry::LoadGeometric);
-			Engine->AddSubmodule("std/preprocessor", { "std/string" }, Bindings::Registry::LoadPreprocessor);
-			Engine->AddSubmodule("std/physics", { "std/string", "std/geometric" }, Bindings::Registry::LoadPhysics);
-			Engine->AddSubmodule("std/audio", { "std/string", "std/vectors" }, Bindings::Registry::LoadAudio);
-			Engine->AddSubmodule("std/activity", { "std/string", "std/vectors" }, Bindings::Registry::LoadActivity);
-			Engine->AddSubmodule("std/graphics", { "std/activity", "std/string", "std/vectors", "std/vertices", "std/shapes", "std/key_frames" }, Bindings::Registry::LoadGraphics);
-			Engine->AddSubmodule("std/network", { "std/string", "std/array", "std/dictionary", "std/promise" }, Bindings::Registry::LoadNetwork);
-			Engine->AddSubmodule("std/vm", { "std/string" }, Bindings::Registry::LoadVM);
-			Engine->AddSubmodule("std/gui/control", { "std/vectors", "std/schema", "std/array" }, Bindings::Registry::LoadUiControl);
-			Engine->AddSubmodule("std/gui/model", { "std/gui/control", }, Bindings::Registry::LoadUiModel);
-			Engine->AddSubmodule("std/gui/context", { "std/gui/model" }, Bindings::Registry::LoadUiContext);
-			Engine->AddSubmodule("std/engine", { "std/schema", "std/key_frames", "std/file_system", "std/graphics", "std/audio", "std/physics", "std/clock_timer", "std/vm", "std/gui/context" }, Bindings::Registry::LoadEngine);
-			Engine->AddSubmodule("std/components", { "std/engine" }, Bindings::Registry::LoadComponents);
-			Engine->AddSubmodule("std/renderers", { "std/engine" }, Bindings::Registry::LoadRenderers);
-			Engine->AddSubmodule("std", { }, nullptr);
+			Engine->AddSystemAddon("std/ctypes", { }, Bindings::Registry::ImportCTypes);
+			Engine->AddSystemAddon("std/any", { }, Bindings::Registry::ImportAny);
+			Engine->AddSystemAddon("std/array", { "std/ctypes" }, Bindings::Registry::ImportArray);
+			Engine->AddSystemAddon("std/complex", { }, Bindings::Registry::ImportComplex);
+			Engine->AddSystemAddon("std/ref", { }, Bindings::Registry::ImportRef);
+			Engine->AddSystemAddon("std/weak_ref", { }, Bindings::Registry::ImportWeakRef);
+			Engine->AddSystemAddon("std/math", { }, Bindings::Registry::ImportMath);
+			Engine->AddSystemAddon("std/string", { "std/array" }, Bindings::Registry::ImportString);
+			Engine->AddSystemAddon("std/random", { "std/string" }, Bindings::Registry::ImportRandom);
+			Engine->AddSystemAddon("std/dictionary", { "std/array", "std/string" }, Bindings::Registry::ImportDictionary);
+			Engine->AddSystemAddon("std/exception", { "std/string" }, Bindings::Registry::ImportException);
+			Engine->AddSystemAddon("std/mutex", { }, Bindings::Registry::ImportMutex);
+			Engine->AddSystemAddon("std/thread", { "std/any", "std/string" }, Bindings::Registry::ImportThread);
+			Engine->AddSystemAddon("std/buffers", { "std/string" }, Bindings::Registry::ImportBuffers);
+			Engine->AddSystemAddon("std/promise", { }, Bindings::Registry::ImportPromise);
+			Engine->AddSystemAddon("std/promise/async", { }, Bindings::Registry::ImportPromiseAsync);
+			Engine->AddSystemAddon("std/format", { "std/string" }, Bindings::Registry::ImportFormat);
+			Engine->AddSystemAddon("std/decimal", { "std/string" }, Bindings::Registry::ImportDecimal);
+			Engine->AddSystemAddon("std/variant", { "std/string", "std/decimal" }, Bindings::Registry::ImportVariant);
+			Engine->AddSystemAddon("std/timestamp", { "std/string" }, Bindings::Registry::ImportTimestamp);
+			Engine->AddSystemAddon("std/console", { "std/format" }, Bindings::Registry::ImportConsole);
+			Engine->AddSystemAddon("std/schema", { "std/array", "std/string", "std/dictionary", "std/variant" }, Bindings::Registry::ImportSchema);
+			Engine->AddSystemAddon("std/schedule", { "std/ctypes" }, Bindings::Registry::ImportSchedule);
+			Engine->AddSystemAddon("std/clock_timer", { }, Bindings::Registry::ImportClockTimer);
+			Engine->AddSystemAddon("std/file_system", { "std/string" }, Bindings::Registry::ImportFileSystem);
+			Engine->AddSystemAddon("std/os", { "std/file_system", "std/array" }, Bindings::Registry::ImportOS);
+			Engine->AddSystemAddon("std/vertices", { }, Bindings::Registry::ImportVertices);
+			Engine->AddSystemAddon("std/vectors", { }, Bindings::Registry::ImportVectors);
+			Engine->AddSystemAddon("std/shapes", { "std/vectors" }, Bindings::Registry::ImportShapes);
+			Engine->AddSystemAddon("std/key_frames", { "std/vectors", "std/string" }, Bindings::Registry::ImportKeyFrames);
+			Engine->AddSystemAddon("std/regex", { "std/string" }, Bindings::Registry::ImportRegex);
+			Engine->AddSystemAddon("std/crypto", { "std/string", "std/schema" }, Bindings::Registry::ImportCrypto);
+			Engine->AddSystemAddon("std/geometric", { "std/vectors", "std/vertices", "std/shapes" }, Bindings::Registry::ImportGeometric);
+			Engine->AddSystemAddon("std/preprocessor", { "std/string" }, Bindings::Registry::ImportPreprocessor);
+			Engine->AddSystemAddon("std/physics", { "std/string", "std/geometric" }, Bindings::Registry::ImportPhysics);
+			Engine->AddSystemAddon("std/audio", { "std/string", "std/vectors" }, Bindings::Registry::ImportAudio);
+			Engine->AddSystemAddon("std/activity", { "std/string", "std/vectors" }, Bindings::Registry::ImportActivity);
+			Engine->AddSystemAddon("std/graphics", { "std/activity", "std/string", "std/vectors", "std/vertices", "std/shapes", "std/key_frames" }, Bindings::Registry::ImportGraphics);
+			Engine->AddSystemAddon("std/network", { "std/string", "std/array", "std/dictionary", "std/promise" }, Bindings::Registry::ImportNetwork);
+			Engine->AddSystemAddon("std/vm", { "std/string" }, Bindings::Registry::ImportVM);
+			Engine->AddSystemAddon("std/gui/control", { "std/vectors", "std/schema", "std/array" }, Bindings::Registry::ImportUiControl);
+			Engine->AddSystemAddon("std/gui/model", { "std/gui/control", }, Bindings::Registry::ImportUiModel);
+			Engine->AddSystemAddon("std/gui/context", { "std/gui/model" }, Bindings::Registry::ImportUiContext);
+			Engine->AddSystemAddon("std/engine", { "std/schema", "std/key_frames", "std/file_system", "std/graphics", "std/audio", "std/physics", "std/clock_timer", "std/vm", "std/gui/context" }, Bindings::Registry::ImportEngine);
+			Engine->AddSystemAddon("std/components", { "std/engine" }, Bindings::Registry::ImportComponents);
+			Engine->AddSystemAddon("std/renderers", { "std/engine" }, Bindings::Registry::ImportRenderers);
+			Engine->AddSystemAddon("std", { }, nullptr);
 		}
 		size_t VirtualMachine::GetDefaultAccessMask()
 		{

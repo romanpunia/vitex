@@ -2949,13 +2949,13 @@ namespace Mavi
 			template <typename F>
 			struct Unwrap
 			{
-				typedef std::remove_reference<F>::type type;
+				typedef typename std::remove_reference<F>::type type;
 			};
 
 			template <typename F>
 			struct Unwrap<BasicPromise<F, Executor>>
 			{
-				typedef std::remove_reference<F>::type type;
+				typedef typename std::remove_reference<F>::type type;
 			};
 
 		private:
@@ -3661,7 +3661,7 @@ namespace Mavi
 
 			Costate* State; Coroutine* Base;
 			Costate::GetState(&State, &Base);
-			VI_ASSERT(State != nullptr && Base != nullptr, false, "cannot call await outside coroutine");
+			VI_ASSERT(State != nullptr && Base != nullptr, Future.Get(), "cannot call await outside coroutine");
 #ifndef NDEBUG
 			std::chrono::microseconds Time = Schedule::GetClock();
 			if (Function != nullptr && Expression != nullptr)

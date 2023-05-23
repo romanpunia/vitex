@@ -4359,7 +4359,7 @@ namespace Mavi
 					Context->SetUserData(this, ContextUD);
 				}).When([this](int&& State)
 				{
-					std::unique_lock<std::recursive_mutex> Unique(Mutex);
+					std::unique_lock<std::recursive_mutex> Unique(this->Mutex);
 					Context->SetUserData(nullptr, ContextUD);
 					if (State != asEXECUTION_SUSPENDED)
 					{

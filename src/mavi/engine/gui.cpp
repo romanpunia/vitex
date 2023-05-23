@@ -3708,14 +3708,16 @@ namespace Mavi
 				bool State = Loading;
 				Loading = true;
 
-				Core::Schema* Sheet = Subsystem::RenderInterface->GetContent()->Load<Core::Schema>(ConfPath);
+				ContentManager* Content = Subsystem::RenderInterface->GetContent();
+				Core::Schema* Sheet = Content->Load<Core::Schema>(ConfPath);
 				if (!Sheet)
 				{
 					Loading = State;
 					return false;
 				}
 
-				bool Result = Initialize(Sheet, Core::OS::Path::GetDirectory(ConfPath.c_str()));
+				Core::String TargetPath = Core::OS::Path::ResolveDirectory(Core::OS::Path::GetDirectory(ConfPath.c_str()), Content->GetEnvironment(), true);
+				bool Result = Initialize(Sheet, TargetPath);
 				VI_RELEASE(Sheet);
 
 				Loading = State;

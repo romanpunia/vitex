@@ -102,6 +102,7 @@ namespace Mavi
 				static bool ImportKeyFrames(VirtualMachine* Engine);
 				static bool ImportRegex(VirtualMachine* Engine);
 				static bool ImportCrypto(VirtualMachine* Engine);
+				static bool ImportCodec(VirtualMachine* Engine);
 				static bool ImportGeometric(VirtualMachine* Engine);
 				static bool ImportPreprocessor(VirtualMachine* Engine);
 				static bool ImportPhysics(VirtualMachine* Engine);

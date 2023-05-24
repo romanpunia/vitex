@@ -6255,6 +6255,7 @@ namespace Mavi
 			Engine->AddSystemAddon("std/key_frames", { "std/vectors", "std/string" }, Bindings::Registry::ImportKeyFrames);
 			Engine->AddSystemAddon("std/regex", { "std/string" }, Bindings::Registry::ImportRegex);
 			Engine->AddSystemAddon("std/crypto", { "std/string", "std/schema" }, Bindings::Registry::ImportCrypto);
+			Engine->AddSystemAddon("std/codec", { "std/string" }, Bindings::Registry::ImportCodec);
 			Engine->AddSystemAddon("std/geometric", { "std/vectors", "std/vertices", "std/shapes" }, Bindings::Registry::ImportGeometric);
 			Engine->AddSystemAddon("std/preprocessor", { "std/string" }, Bindings::Registry::ImportPreprocessor);
 			Engine->AddSystemAddon("std/physics", { "std/string", "std/geometric" }, Bindings::Registry::ImportPhysics);

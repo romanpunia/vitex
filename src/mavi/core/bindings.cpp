@@ -10338,12 +10338,6 @@ namespace Mavi
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
 				VI_TYPEREF(WebToken, "web_token");
 
-				Enumeration VCompression = Engine->SetEnum("compression_cdc");
-				VCompression.SetValue("none", (int)Compute::Compression::None);
-				VCompression.SetValue("best_speed", (int)Compute::Compression::BestSpeed);
-				VCompression.SetValue("best_compression", (int)Compute::Compression::BestCompression);
-				VCompression.SetValue("default_compression", (int)Compute::Compression::Default);
-
 				TypeClass VPrivateKey = Engine->SetStructTrivial<Compute::PrivateKey>("private_key");
 				VPrivateKey.SetConstructor<Compute::PrivateKey>("void f()");
 				VPrivateKey.SetConstructor<Compute::PrivateKey, const Core::String&>("void f(const string &in)");
@@ -10583,6 +10577,22 @@ namespace Mavi
 				Engine->SetFunction("void display_crypto_log()", &Compute::Crypto::DisplayCryptoLog);
 				Engine->EndNamespace();
 
+				return true;
+#else
+				VI_ASSERT(false, false, "<crypto> is not loaded");
+				return false;
+#endif
+			}
+			bool Registry::ImportCrypto(VirtualMachine* Engine)
+			{
+#ifdef VI_HAS_BINDINGS
+				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				Enumeration VCompression = Engine->SetEnum("compression_cdc");
+				VCompression.SetValue("none", (int)Compute::Compression::None);
+				VCompression.SetValue("best_speed", (int)Compute::Compression::BestSpeed);
+				VCompression.SetValue("best_compression", (int)Compute::Compression::BestCompression);
+				VCompression.SetValue("default_compression", (int)Compute::Compression::Default);
+
 				Engine->BeginNamespace("codec");
 				Engine->SetFunction("string move(const string &in, int)", &Compute::Codec::Move);
 				Engine->SetFunction("string bep45_encode(const string &in)", &Compute::Codec::Bep45Encode);
@@ -10591,8 +10601,8 @@ namespace Mavi
 				Engine->SetFunction("string base45_decode(const string &in)", &Compute::Codec::Base45Decode);
 				Engine->SetFunction("string compress(const string &in, compression_cdc)", &Compute::Codec::Compress);
 				Engine->SetFunction("string decompress(const string &in)", &Compute::Codec::Decompress);
-				Engine->SetFunction<Core::String(const Core::String&)>("string base65_encode(const string &in)", &Compute::Codec::Base64Encode);
-				Engine->SetFunction<Core::String(const Core::String&)>("string base65_decode(const string &in)", &Compute::Codec::Base64Decode);
+				Engine->SetFunction<Core::String(const Core::String&)>("string base64_encode(const string &in)", &Compute::Codec::Base64Encode);
+				Engine->SetFunction<Core::String(const Core::String&)>("string base64_decode(const string &in)", &Compute::Codec::Base64Decode);
 				Engine->SetFunction<Core::String(const Core::String&)>("string base64_url_encode(const string &in)", &Compute::Codec::Base64URLEncode);
 				Engine->SetFunction<Core::String(const Core::String&)>("string base64_url_decode(const string &in)", &Compute::Codec::Base64URLDecode);
 				Engine->SetFunction<Core::String(const Core::String&)>("string hex_dncode(const string &in)", &Compute::Codec::HexEncode);
@@ -10605,7 +10615,7 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<crypto> is not loaded");
+				VI_ASSERT(false, false, "<codec> is not loaded");
 				return false;
 #endif
 			}

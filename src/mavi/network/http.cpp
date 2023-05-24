@@ -1570,7 +1570,7 @@ namespace Mavi
 				HTTP::Resource fResource;
 				fResource.Length = Request.Content.Length;
 				fResource.Type = (ContentType ? ContentType : "application/octet-stream");
-				fResource.Path = Core::OS::Directory::GetModule() + Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(16));
+				fResource.Path = Core::OS::Directory::GetWorking() + Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(16));
 
 				FILE* File = (FILE*)Core::OS::File::Open(fResource.Path.c_str(), "wb");
 				if (!File)

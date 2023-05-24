@@ -4215,7 +4215,7 @@ namespace Mavi
 				Compute::IncludeDesc Desc = Compute::IncludeDesc();
 				Desc.Exts.push_back(".html");
 				Desc.Exts.push_back(".htm");
-				Desc.Root = Core::OS::Directory::GetModule();
+				Desc.Root = Core::OS::Directory::GetWorking();
 
 				Compute::Preprocessor* Processor = new Compute::Preprocessor();
 				Processor->SetIncludeCallback([this](Compute::Preprocessor* P, const Compute::IncludeResult& File, Core::String& Output)

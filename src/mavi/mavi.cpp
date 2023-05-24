@@ -443,6 +443,8 @@ namespace Mavi
 			if (!CryptoLegacy || !CryptoDefault)
 			{
 				Core::String Path = Core::OS::Directory::GetModule();
+				bool IsModuleDirectory = true;
+			Retry:
 				OSSL_PROVIDER_set_default_search_path(nullptr, Path.c_str());
 
 				if (!CryptoDefault)
@@ -452,7 +454,15 @@ namespace Mavi
 					CryptoLegacy = OSSL_PROVIDER_load(nullptr, "legacy");
 
 				if (!CryptoLegacy || !CryptoDefault)
+				{
+					if (IsModuleDirectory)
+					{
+						Path = Core::OS::Directory::GetWorking();
+						IsModuleDirectory = false;
+						goto Retry;
+					}
 					Compute::Crypto::DisplayCryptoLog();
+				}
 				else
 					ERR_clear_error();
 			}

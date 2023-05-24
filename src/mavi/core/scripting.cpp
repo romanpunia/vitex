@@ -2003,7 +2003,7 @@ namespace Mavi
 				else if (Name == "clibrary" && Args.size() >= 1)
 				{
 					Core::String Directory = Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str());
-					Core::String Path1 = Args[0], Path2 = Core::OS::Path::Resolve(Args[0], Directory.empty() ? Core::OS::Directory::GetModule() : Directory, false);
+					Core::String Path1 = Args[0], Path2 = Core::OS::Path::Resolve(Args[0], Directory.empty() ? Core::OS::Directory::GetWorking() : Directory, false);
 
 					bool Loaded = VM->ImportCLibrary(Path1) || VM->ImportCLibrary(Path2);
 					if (Loaded && Args.size() == 2 && !Args[1].empty())
@@ -4713,7 +4713,7 @@ namespace Mavi
 			Include.Exts.push_back(".so");
 			Include.Exts.push_back(".dylib");
 			Include.Exts.push_back(".dll");
-			Include.Root = Core::OS::Directory::GetModule();
+			Include.Root = Core::OS::Directory::GetWorking();
 
 			Engine->SetUserData(this, ManagerUD);
 			Engine->SetContextCallbacks(RequestContext, ReturnContext, nullptr);

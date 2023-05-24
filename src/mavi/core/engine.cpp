@@ -5480,7 +5480,7 @@ namespace Mavi
 
 		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) noexcept : Device(NewDevice), Queue(0)
 		{
-			Core::String Directory = Core::OS::Directory::GetModule();
+			Core::String Directory = Core::OS::Directory::GetWorking();
 			Base = Core::OS::Path::ResolveDirectory(Directory.c_str());
 			SetEnvironment(Base);
 		}
@@ -6238,7 +6238,7 @@ namespace Mavi
 				Content->AddProcessor<Processors::SchemaProcessor, Core::Schema>();
 				Content->AddProcessor<Processors::ServerProcessor, Network::HTTP::Server>();
 				Content->AddProcessor<Processors::HullShapeProcessor, Compute::HullShape>();
-				Content->SetEnvironment(Control.Environment.empty() ? Core::OS::Directory::GetModule() + Control.Directory : Control.Environment + Control.Directory);
+				Content->SetEnvironment(Control.Environment.empty() ? Core::OS::Directory::GetWorking() + Control.Directory : Control.Environment + Control.Directory);
 				
 				if (!Control.Preferences.empty())
 				{

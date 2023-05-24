@@ -5281,6 +5281,21 @@ namespace Mavi
 		{
 			Engine->GCEnumCallback(Reference);
 		}
+		bool VirtualMachine::TriggerDebugger(uint64_t TimeoutMs)
+		{
+			if (!Debugger)
+				return false;
+
+			asIScriptContext* Context = asGetActiveContext();
+			if (!Context)
+				return false;
+
+			Debugger->LineCallback(Context);
+			if (TimeoutMs > 0)
+				std::this_thread::sleep_for(std::chrono::milliseconds(TimeoutMs));
+
+			return true;
+		}
 		bool VirtualMachine::GenerateCode(Compute::Preprocessor* Processor, const Core::String& Path, Core::String& InoutBuffer)
 		{
 			VI_ASSERT(Processor != nullptr, false, "preprocessor should be set");

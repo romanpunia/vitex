@@ -4396,6 +4396,12 @@ namespace Mavi
 			}
 			void Mutex::Lock()
 			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				while (VM != nullptr && VM->TriggerDebugger(50))
+				{
+					if (Base.try_lock())
+						return;
+				}
 				Base.lock();
 			}
 			void Mutex::Unlock()
@@ -4545,19 +4551,23 @@ namespace Mavi
 				if (std::this_thread::get_id() == Procedure.get_id())
 					return -1;
 
+				Mutex.lock();
+				if (!Procedure.joinable())
 				{
-					std::unique_lock<std::recursive_mutex> Unique(Mutex);
-					if (!Procedure.joinable())
-						return -1;
-
-					VI_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
+					Mutex.unlock();
+					return -1;
 				}
+
+				VI_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
+				Mutex.unlock();
+
+				while (Procedure.joinable() && VM != nullptr && VM->TriggerDebugger(50));
 				Procedure.join();
 
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Mutex.lock();
 				if (!Except.Empty())
 					Exception::Throw(Except);
-
+				Mutex.unlock();
 				return 1;
 			}
 			int Thread::Join()

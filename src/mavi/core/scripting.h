@@ -1882,6 +1882,7 @@ namespace Mavi
 			void ForwardEnumReferences(void* Reference, const TypeInfo& Type);
 			void ForwardReleaseReferences(void* Reference, const TypeInfo& Type);
 			void GCEnumCallback(void* Reference);
+			bool TriggerDebugger(uint64_t TimeoutMs = 0);
 			bool GenerateCode(Compute::Preprocessor* Processor, const Core::String& Path, Core::String& InoutBuffer);
 			Core::UnorderedMap<Core::String, Core::String> DumpRegisteredInterfaces(ImmediateContext* Context);
 			bool GetByteCodeCache(ByteCodeInfo* Info);

@@ -10605,7 +10605,7 @@ namespace Mavi
 				Engine->SetFunction<Core::String(const Core::String&)>("string base64_decode(const string &in)", &Compute::Codec::Base64Decode);
 				Engine->SetFunction<Core::String(const Core::String&)>("string base64_url_encode(const string &in)", &Compute::Codec::Base64URLEncode);
 				Engine->SetFunction<Core::String(const Core::String&)>("string base64_url_decode(const string &in)", &Compute::Codec::Base64URLDecode);
-				Engine->SetFunction<Core::String(const Core::String&)>("string hex_dncode(const string &in)", &Compute::Codec::HexEncode);
+				Engine->SetFunction<Core::String(const Core::String&)>("string hex_encode(const string &in)", &Compute::Codec::HexEncode);
 				Engine->SetFunction<Core::String(const Core::String&)>("string hex_decode(const string &in)", &Compute::Codec::HexDecode);
 				Engine->SetFunction<Core::String(const Core::String&)>("string uri_encode(const string &in)", &Compute::Codec::URIEncode);
 				Engine->SetFunction<Core::String(const Core::String&)>("string uri_decode(const string &in)", &Compute::Codec::URIDecode);

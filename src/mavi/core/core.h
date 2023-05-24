@@ -1962,6 +1962,7 @@ namespace Mavi
 			double GetCapturedTime() const;
 			bool ReadLine(Core::String& Data, size_t Size);
 			Core::String Read(size_t Size);
+			char ReadChar();
 
 		public:
 			static Console* Get();

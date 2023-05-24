@@ -541,6 +541,34 @@ namespace Mavi
 				size_t Size = strlen(Buffer);
 				return Size > 1024 * 1024 * 1024 ? Core::String() : Core::String(Buffer, Size);
 			}
+			char& String::Front(Core::String& Base)
+			{
+				if (Base.empty())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					Base.append(1, '\0');
+					return Base.front();
+				}
+
+				return Base.front();
+			}
+			char& String::Back(Core::String& Base)
+			{
+				if (Base.empty())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					Base.append(1, '\0');
+					return Base.back();
+				}
+
+				return Base.back();
+			}
 			Array* String::Split(const Core::String& Splitter, const Core::String& Current)
 			{
 				asIScriptContext* Context = asGetActiveContext();
@@ -1413,6 +1441,58 @@ namespace Mavi
 			{
 				return const_cast<void*>(const_cast<const Array*>(this)->At(Index));
 			}
+			void* Array::Front()
+			{
+				if (IsEmpty())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return nullptr;
+				}
+
+				return At(0);
+			}
+			const void* Array::Front() const
+			{
+				if (IsEmpty())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return nullptr;
+				}
+
+				return At(0);
+			}
+			void* Array::Back()
+			{
+				if (IsEmpty())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return nullptr;
+				}
+
+				return At(GetSize() - 1);
+			}
+			const void* Array::Back() const
+			{
+				if (IsEmpty())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return nullptr;
+				}
+
+				return At(GetSize() - 1);
+			}
 			void* Array::GetBuffer()
 			{
 				return Buffer->Data;
@@ -1551,6 +1631,10 @@ namespace Mavi
 						Copy(GetArrayItemPointer((int)(Size - i - 1)), Temp);
 					}
 				}
+			}
+			void Array::Clear()
+			{
+				Resize(0);
 			}
 			bool Array::operator==(const Array& Other) const
 			{
@@ -8475,7 +8559,11 @@ namespace Mavi
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(Array, Release), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("array<T>", "T &opIndex(usize Index)", asMETHODPR(Array, At, (size_t), void*), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("array<T>", "const T &opIndex(usize Index) const", asMETHODPR(Array, At, (size_t) const, const void*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "T &front()", asMETHODPR(Array, Front, (), void*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "const T &front() const", asMETHODPR(Array, Front, () const, const void*), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("array<T>", "array<T> &opAssign(const array<T>&in)", asMETHOD(Array, operator=), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "T &back()", asMETHODPR(Array, Back, (), void*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "const T &back() const", asMETHODPR(Array, Back, () const, const void*), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("array<T>", "void insert_at(usize Index, const T&in Value)", asMETHODPR(Array, InsertAt, (size_t, void*), void), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("array<T>", "void insert_at(usize Index, const array<T>& Array)", asMETHODPR(Array, InsertAt, (size_t, const Array&), void), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("array<T>", "void insert_last(const T&in Value)", asMETHOD(Array, InsertLast), asCALL_THISCALL);
@@ -8487,6 +8575,7 @@ namespace Mavi
 				Engine->RegisterObjectMethod("array<T>", "usize size() const", asMETHOD(Array, GetSize), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("array<T>", "void reserve(usize length)", asMETHOD(Array, Reserve), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("array<T>", "void resize(usize length)", asMETHODPR(Array, Resize, (size_t), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "void clear()", asMETHODPR(Array, Clear, (), void), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("array<T>", "void sort_asc()", asMETHODPR(Array, SortAsc, (), void), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("array<T>", "void sort_asc(usize StartAt, usize Count)", asMETHODPR(Array, SortAsc, (size_t, size_t), void), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("array<T>", "void sort_desc()", asMETHODPR(Array, SortDesc, (), void), asCALL_THISCALL);
@@ -8711,6 +8800,8 @@ namespace Mavi
 				Engine->RegisterObjectMethod("string", "usize size() const", asFUNCTION(String::Length), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "void resize(usize)", asFUNCTION(String::Resize), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "bool empty() const", asFUNCTION(String::IsEmpty), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("string", "uint8 &front()", asFUNCTION(String::Front), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("string", "uint8 &back()", asFUNCTION(String::Back), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "uint8 &opIndex(usize)", asFUNCTION(String::CharAt), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "const uint8 &opIndex(usize) const", asFUNCTION(String::CharAt), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "string &opAssign(double)", asFUNCTION(String::AssignDoubleTo), asCALL_CDECL_OBJLAST);
@@ -9206,6 +9297,8 @@ namespace Mavi
 				VConsole.SetMethod("void write(const string &in)", &Core::Console::sWrite);
 				VConsole.SetMethod("double get_captured_time()", &Core::Console::GetCapturedTime);
 				VConsole.SetMethod("string read(usize)", &Core::Console::Read);
+				VConsole.SetMethod("bool read_line(string&out, usize)", &Core::Console::ReadLine);
+				VConsole.SetMethod("uint8 read_char()", &Core::Console::ReadChar);
 				VConsole.SetMethodStatic("console@+ get()", &Core::Console::Get);
 				VConsole.SetMethodEx("void trace(uint32 = 32)", &ConsoleTrace);
 				VConsole.SetMethodEx("void get_size(uint32 &out, uint32 &out)", &ConsoleGetSize);

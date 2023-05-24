@@ -218,7 +218,9 @@ namespace Mavi
 				static Core::String ToPointer(void* Value);
 				static Array* Split(const Core::String& delim, const Core::String& str);
 				static Core::String Join(const Array& array, const Core::String& delim);
-				static char ToChar(const Core::String& Symbol);
+				static char ToChar(const Core::String& Base);
+				static char& Front(Core::String& Base);
+				static char& Back(Core::String& Base);
 			};
 
 			class VI_OUT Math
@@ -350,6 +352,10 @@ namespace Mavi
 				bool IsEmpty() const;
 				void Reserve(size_t MaxElements);
 				void Resize(size_t NumElements);
+				void* Front();
+				const void* Front() const;
+				void* Back();
+				const void* Back() const;
 				void* At(size_t Index);
 				const void* At(size_t Index) const;
 				void SetValue(size_t Index, void* Value);
@@ -368,6 +374,7 @@ namespace Mavi
 				void Sort(size_t StartAt, size_t Count, bool Asc);
 				void Sort(asIScriptFunction* Less, size_t StartAt, size_t Count);
 				void Reverse();
+				void Clear();
 				int Find(void* Value) const;
 				int Find(size_t StartAt, void* Value) const;
 				int FindByRef(void* Ref) const;

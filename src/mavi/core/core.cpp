@@ -6135,22 +6135,27 @@ namespace Mavi
 			VI_ASSERT(Size > 0, false, "read length should be greater than zero");
 			VI_TRACE("[console] read up to %" PRIu64 " bytes", (uint64_t)Size);
 
-			char* Value = VI_MALLOC(char, sizeof(char) * (Size + 1));
-			memset(Value, 0, Size * sizeof(char));
-			Value[Size] = '\0';
-#ifndef VI_MICROSOFT
-			std::cout.flush();
-#endif
-			if (!std::cin.getline(Value, Size))
+			bool Success;
+			if (Size > CHUNK_SIZE - 1)
 			{
-				Data.clear();
+				char* Value = VI_MALLOC(char, sizeof(char) * (Size + 1));
+				memset(Value, 0, (Size + 1) * sizeof(char));
+				if ((Success = (bool)std::cin.getline(Value, Size)))
+					Data.assign(Value);
+				else
+					Data.clear();
 				VI_FREE(Value);
-				return false;
+			}
+			else
+			{
+				char Value[CHUNK_SIZE] = { 0 };
+				if ((Success = (bool)std::cin.getline(Value, Size)))
+					Data.assign(Value);
+				else
+					Data.clear();
 			}
 
-			Data = Value;
-			VI_FREE(Value);
-			return true;
+			return Success;
 		}
 		Core::String Console::Read(size_t Size)
 		{
@@ -6158,6 +6163,10 @@ namespace Mavi
 			Data.reserve(Size);
 			ReadLine(Data, Size);
 			return Data;
+		}
+		char Console::ReadChar()
+		{
+			return (char)getchar();
 		}
 		bool Console::IsPresent()
 		{

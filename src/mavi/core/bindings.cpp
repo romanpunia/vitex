@@ -10583,7 +10583,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportCrypto(VirtualMachine* Engine)
+			bool Registry::ImportCodec(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");

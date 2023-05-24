@@ -7657,14 +7657,17 @@ namespace Mavi
 
 			do
 			{
-				if (FileInformation.cFileName[0] == '.')
+				if (!strcmp(FileInformation.cFileName, ".") || !strcmp(FileInformation.cFileName, ".."))
 					continue;
 
 				FilePath = Core::String(Path) + "\\" + FileInformation.cFileName;
 				if (FileInformation.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 				{
+					if (Remove(FilePath.c_str()))
+						continue;
+
 					::FindClose(Handle);
-					return Remove(FilePath.c_str());
+					return false;
 				}
 
 				if (::SetFileAttributes(FilePath.c_str(), FILE_ATTRIBUTE_NORMAL) == FALSE)

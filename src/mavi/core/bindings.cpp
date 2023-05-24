@@ -5858,6 +5858,10 @@ namespace Mavi
 			{
 				return Core::OS::File::Move(From.c_str(), To.c_str());
 			}
+			bool OSFileCopy(const Core::String& From, const Core::String& To)
+			{
+				return Core::OS::File::Copy(From.c_str(), To.c_str());
+			}
 			bool OSFileRemove(const Core::String& Path)
 			{
 				return Core::OS::File::Remove(Path.c_str());
@@ -9611,14 +9615,15 @@ namespace Mavi
 				Engine->SetFunction("bool is_exists(const string &in)", &OSDirectoryIsExists);
 				Engine->SetFunction("string get_module()", &Core::OS::Directory::GetModule);
 				Engine->SetFunction("string get_working()", &Core::OS::Directory::GetWorking);
+				Engine->SetFunction("bool patch(const string &in)", &Core::OS::Directory::Patch);
 				Engine->SetFunction("void set_working(const string &in)", &OSDirectorySetWorking);
-				Engine->SetFunction("void patch(const string &in)", &Core::OS::Directory::Patch);
 				Engine->EndNamespace();
 
 				Engine->BeginNamespace("os::file");
 				Engine->SetFunction<bool(const Core::String&, const Core::String&)>("bool write(const string &in, const string &in)", &Core::OS::File::Write);
 				Engine->SetFunction("bool state(const string &in, file_entry &out)", &OSFileState);
 				Engine->SetFunction("bool move(const string &in, const string &in)", &OSFileMove);
+				Engine->SetFunction("bool copy(const string &in, const string &in)", &OSFileCopy);
 				Engine->SetFunction("bool remove(const string &in)", &OSFileRemove);
 				Engine->SetFunction("bool is_exists(const string &in)", &OSFileIsExists);
 				Engine->SetFunction("file_state get_properties(const string &in)", &OSFileGetProperties);

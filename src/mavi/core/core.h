@@ -1243,7 +1243,7 @@ namespace Mavi
 			{
 			public:
 				static void SetWorking(const char* Path);
-				static void Patch(const Core::String& Path);
+				static bool Patch(const Core::String& Path);
 				static bool Scan(const Core::String& Path, Core::Vector<FileEntry>* Entries);
 				static bool Each(const char* Path, const std::function<bool(FileEntry*)>& Callback);
 				static bool Create(const char* Path);
@@ -1261,6 +1261,7 @@ namespace Mavi
 				static bool Write(const Core::String& Path, const Core::String& Data);
 				static bool State(const Core::String& Path, FileEntry* Resource);
 				static bool Move(const char* From, const char* To);
+				static bool Copy(const char* From, const char* To);
 				static bool Remove(const char* Path);
 				static bool IsExists(const char* Path);
 				static void Close(Unique<void> Stream);

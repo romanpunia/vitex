@@ -7500,10 +7500,12 @@ namespace Mavi
 				VI_ERR("[io] couldn't set current directory");
 #endif
 		}
-		void OS::Directory::Patch(const Core::String& Path)
+		bool OS::Directory::Patch(const Core::String& Path)
 		{
-			if (!IsExists(Path.c_str()))
-				Create(Path.c_str());
+			if (IsExists(Path.c_str()))
+				return true;
+
+			return Create(Path.c_str());
 		}
 		bool OS::Directory::Scan(const Core::String& Path, Core::Vector<FileEntry>* Entries)
 		{
@@ -7928,6 +7930,25 @@ namespace Mavi
 			VI_RELEASE(Stream);
 
 			return Size == Data.size();
+		}
+		bool OS::File::Copy(const char* From, const char* To)
+		{
+			VI_ASSERT(From != nullptr && To != nullptr, false, "from and to should be set");
+			VI_MEASURE(Core::Timings::FileSystem);
+			VI_DEBUG("[io] copy file from %s to %s", From, To);
+			std::ifstream Source(From, std::ios::binary);
+			if (!Source)
+				return false;
+
+			if (!OS::Directory::Patch(OS::Path::GetDirectory(To)))
+				return false;
+
+			std::ofstream Destination(To, std::ios::binary);
+			if (!Source)
+				return false;
+
+			Destination << Source.rdbuf();
+			return true;
 		}
 		bool OS::File::Move(const char* From, const char* To)
 		{

@@ -1299,6 +1299,8 @@ namespace Mavi
 			{
 			public:
 				static bool IsRemote(const char* Path);
+				static bool IsRelative(const char* Path);
+				static bool IsAbsolute(const char* Path);
 				static Core::String Resolve(const char* Path);
 				static Core::String Resolve(const Core::String& Path, const Core::String& Directory, bool EvenIfExists);
 				static Core::String ResolveDirectory(const char* Path);

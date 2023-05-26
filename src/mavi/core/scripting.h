@@ -1702,10 +1702,9 @@ namespace Mavi
 		private:
 			asIScriptContext* Context;
 			VirtualMachine* VM;
-			std::mutex Exchange;
+			std::recursive_mutex Exchange;
 
 		public:
-			ImmediateContext(asIScriptContext* Base) noexcept;
 			~ImmediateContext() noexcept;
 			Core::Promise<int> Execute(const Function& Function, ArgsCallback&& OnArgs);
 			int ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs);
@@ -1785,6 +1784,9 @@ namespace Mavi
 			asIScriptContext* GetContext();
 			VirtualMachine* GetVM();
 
+		private:
+			ImmediateContext(asIScriptContext* Base) noexcept;
+
 		public:
 			template <typename T>
 			T* GetReturnObject()
@@ -1844,7 +1846,8 @@ namespace Mavi
 			Core::UnorderedMap<Core::String, Addon> Addons;
 			Core::UnorderedMap<Core::String, CompileCallback> Callbacks;
 			Core::UnorderedMap<Core::String, GeneratorCallback> Generators;
-			Core::Vector<asIScriptContext*> Contexts;
+			Core::Vector<ImmediateContext*> Threads;
+			Core::Vector<asIScriptContext*> Stacks;
 			Core::String DefaultNamespace;
 			Compute::Preprocessor::Desc Proc;
 			Compute::IncludeDesc Include;
@@ -1891,6 +1894,8 @@ namespace Mavi
 			Core::Unique<Compiler> CreateCompiler();
 			asIScriptModule* CreateScopedModule(const Core::String& Name);
 			asIScriptModule* CreateModule(const Core::String& Name);
+			ImmediateContext* RequestContext();
+			void ReturnContext(ImmediateContext* Context);
 			void* CreateObject(const TypeInfo& Type);
 			void* CreateObjectCopy(void* Object, const TypeInfo& Type);
 			void* CreateEmptyObject(const TypeInfo& Type);
@@ -1990,8 +1995,8 @@ namespace Mavi
 
 		private:
 			static Core::String GetLibraryName(const Core::String& Path);
-			static asIScriptContext* RequestContext(asIScriptEngine* Engine, void* Data);
-			static void ReturnContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data);
+			static asIScriptContext* RequestRawContext(asIScriptEngine* Engine, void* Data);
+			static void ReturnRawContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data);
 			static void MessageLogger(asSMessageInfo* Info, void* Object);
 			static void RegisterAddons(VirtualMachine* Engine);
 			static void* GetNullable();

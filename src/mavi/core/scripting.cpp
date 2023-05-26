@@ -4130,29 +4130,25 @@ namespace Mavi
 			VI_ASSERT(Function.IsValid(), Core::Promise<int>(asINVALID_ARG), "function should be set");
 			VI_ASSERT(!Core::Costate::IsCoroutine(), Core::Promise<int>(asINVALID_ARG), "cannot safely execute in coroutine");
 
-			Callable Next;
-			auto Future = Next.Future;
-			Exchange.lock();
-
+			std::unique_lock<std::recursive_mutex> Unique(Exchange);
 			if (!Frame.Tasks.empty() || Context->GetState() == asEXECUTION_ACTIVE || Context->IsNested())
 			{
+				Callable Next;
+				auto Future = Next.Future;
 				Next.Args = std::move(OnArgs);
 				Next.Callback = Function;
 				Next.Callback.AddRef();
 				Frame.Tasks.emplace(std::move(Next));
-				Exchange.unlock();
 				return Future;
 			}
 
 			int Result = Context->Prepare(Function.GetFunction());
 			if (Result < 0)
-			{
-				Exchange.unlock();
 				return Core::Promise<int>(Result);
-			}
 
+			Callable Next;
+			auto Future = Next.Future;
 			Frame.Tasks.emplace(std::move(Next));
-			Exchange.unlock();
 			if (OnArgs)
 				OnArgs(this);
 
@@ -4165,18 +4161,15 @@ namespace Mavi
 			VI_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
 			VI_ASSERT(!Core::Costate::IsCoroutine(), asINVALID_ARG, "cannot safely execute in coroutine");
 
-			Exchange.lock();
+			std::unique_lock<std::recursive_mutex> Unique(Exchange);
 			if (Context->GetState() != asEXECUTION_ACTIVE)
 			{
-				Exchange.unlock();
 				VI_ASSERT(false, asINVALID_ARG, "context should be active");
 				return asEXECUTION_ABORTED;
 			}
 
 			Context->PushState();
 			int Result = Context->Prepare(Function.GetFunction());
-			Exchange.unlock();
-
 			if (Result >= 0)
 			{
 				if (OnArgs)
@@ -4716,7 +4709,7 @@ namespace Mavi
 			Include.Root = Core::OS::Directory::GetWorking();
 
 			Engine->SetUserData(this, ManagerUD);
-			Engine->SetContextCallbacks(RequestContext, ReturnContext, nullptr);
+			Engine->SetContextCallbacks(RequestRawContext, ReturnRawContext, nullptr);
 			Engine->SetMessageCallback(asFUNCTION(MessageLogger), this, asCALL_CDECL);
 			Engine->SetEngineProperty(asEP_INIT_GLOBAL_VARS_AFTER_BUILD, 0);
 			Engine->SetEngineProperty(asEP_USE_CHARACTER_LITERALS, 1);
@@ -4734,7 +4727,10 @@ namespace Mavi
 				Core::OS::Symbol::Unload(Next.second.Handle);
 			}
 
-			for (auto& Context : Contexts)
+			for (auto& Context : Threads)
+				VI_RELEASE(Context);
+
+			for (auto& Context : Stacks)
 				Context->Release();
 
 			VI_CLEAR(Debugger);
@@ -5022,7 +5018,7 @@ namespace Mavi
 			if (Debugger != nullptr)
 				Debugger->SetEngine(this);
 			Sync.Pool.lock();
-			for (auto* Next : Contexts)
+			for (auto* Next : Stacks)
 			{
 				if (Debugger != nullptr)
 					AttachDebuggerToContext(Next);
@@ -6116,7 +6112,28 @@ namespace Mavi
 
 			return Src.R();
 		}
-		asIScriptContext* VirtualMachine::RequestContext(asIScriptEngine* Engine, void* Data)
+		ImmediateContext* VirtualMachine::RequestContext()
+		{
+			Sync.Pool.lock();
+			if (Threads.empty())
+			{
+				Sync.Pool.unlock();
+				return CreateContext();
+			}
+
+			ImmediateContext* Context = *Threads.rbegin();
+			Threads.pop_back();
+			Sync.Pool.unlock();
+			return Context;
+		}
+		void VirtualMachine::ReturnContext(ImmediateContext* Context)
+		{
+			Sync.Pool.lock();
+			Threads.push_back(Context);
+			Context->Unprepare();
+			Sync.Pool.unlock();
+		}
+		asIScriptContext* VirtualMachine::RequestRawContext(asIScriptEngine* Engine, void* Data)
 		{
 			VirtualMachine* VM = VirtualMachine::Get(Engine);
 			if (!VM)
@@ -6126,17 +6143,27 @@ namespace Mavi
 			}
 
 			VM->Sync.Pool.lock();
-			if (VM->Contexts.empty())
+			if (VM->Stacks.empty())
 			{
 				VM->Sync.Pool.unlock();
 				goto CreateNewContext;
 			}
 
-			asIScriptContext* Context = *VM->Contexts.rbegin();
-			VM->Contexts.pop_back();
+			asIScriptContext* Context = *VM->Stacks.rbegin();
+			VM->Stacks.pop_back();
 			VM->Sync.Pool.unlock();
 
 			return Context;
+		}
+		void VirtualMachine::ReturnRawContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data)
+		{
+			VirtualMachine* VM = VirtualMachine::Get(Engine);
+			VI_ASSERT(VM != nullptr, (void)Context->Release(), "engine should be set");
+
+			VM->Sync.Pool.lock();
+			VM->Stacks.push_back(Context);
+			Context->Unprepare();
+			VM->Sync.Pool.unlock();
 		}
 		void VirtualMachine::LineHandler(asIScriptContext* Context, void*)
 		{
@@ -6193,16 +6220,6 @@ namespace Mavi
 			Label.Id = Code;
 			Label.Args = asBCTypeSize[Source.type];
 			return Label;
-		}
-		void VirtualMachine::ReturnContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data)
-		{
-			VirtualMachine* VM = VirtualMachine::Get(Engine);
-			VI_ASSERT(VM != nullptr, (void)Context->Release(), "engine should be set");
-
-			VM->Sync.Pool.lock();
-			VM->Contexts.push_back(Context);
-			Context->Unprepare();
-			VM->Sync.Pool.unlock();
 		}
 		void VirtualMachine::MessageLogger(asSMessageInfo* Info, void* This)
 		{

@@ -8325,6 +8325,30 @@ namespace Mavi
 			VI_ASSERT(Path != nullptr, false, "path should be set");
 			return Network::Location(Path).Protocol != "file";
 		}
+		bool OS::Path::IsRelative(const char* Path)
+		{
+#ifdef VI_MICROSOFT
+			return !IsAbsolute(Path);
+#else
+			return Path[0] == '/' || Path[0] == '\\';
+#endif
+		}
+		bool OS::Path::IsAbsolute(const char* Path)
+		{
+			VI_ASSERT(Path != nullptr, false, "path should be set");
+#ifdef VI_MICROSOFT
+			if (Path[0] == '/' || Path[0] == '\\')
+				return true;
+
+			size_t Size = strnlen(Path, 2);
+			if (Size < 2)
+				return false;
+
+			return std::isalnum(Path[0]) && Path[1] == ':';
+#else
+			return Path[0] == '/' || Path[0] == '\\';
+#endif
+		}
 		Core::String OS::Path::Resolve(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, Core::String(), "path should be set");
@@ -8349,9 +8373,11 @@ namespace Mavi
 		Core::String OS::Path::Resolve(const Core::String& Path, const Core::String& Directory, bool EvenIfExists)
 		{
 			VI_ASSERT(!Path.empty() && !Directory.empty(), "", "path and directory should not be empty");
-			if (!EvenIfExists && IsPathExists(Path.c_str()) && Path.find("..") == std::string::npos)
+			if (IsAbsolute(Path.c_str()))
 				return Path;
-
+			else if (!EvenIfExists && IsPathExists(Path.c_str()) && Path.find("..") == std::string::npos)
+				return Path;
+			
 			Stringify PathData(&Path), DirectoryData(&Directory);
 			bool Prefixed = PathData.StartsOf("/\\");
 			bool Relative = !Prefixed && (PathData.StartsWith("./") || PathData.StartsWith(".\\"));
@@ -9847,6 +9873,7 @@ namespace Mavi
 		}
 		void Schedule::Desc::SetThreads(size_t Cores)
 		{
+			VI_ASSERT_V(Cores > 0, "at least one core should be present");
 			size_t Clock = 1;
 #ifdef VI_CXX20
 			size_t Chain = 0;

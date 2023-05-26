@@ -5912,6 +5912,14 @@ namespace Mavi
 			{
 				return Core::OS::Path::IsRemote(Path.c_str());
 			}
+			bool OSPathIsRelative(const Core::String& Path)
+			{
+				return Core::OS::Path::IsRelative(Path.c_str());
+			}
+			bool OSPathIsAbsolute(const Core::String& Path)
+			{
+				return Core::OS::Path::IsAbsolute(Path.c_str());
+			}
 			Core::String OSPathResolve(const Core::String& Path)
 			{
 				return Core::OS::Path::Resolve(Path.c_str());
@@ -11078,6 +11086,8 @@ namespace Mavi
 
 				Engine->BeginNamespace("os::path");
 				Engine->SetFunction("bool is_remote(const string &in)", &OSPathIsRemote);
+				Engine->SetFunction("bool is_relative(const string &in)", &OSPathIsRelative);
+				Engine->SetFunction("bool is_absolute(const string &in)", &OSPathIsAbsolute);
 				Engine->SetFunction("string resolve(const string &in)", &OSPathResolve);
 				Engine->SetFunction("string resolve_directory(const string &in)", &OSPathResolveDirectory);
 				Engine->SetFunction("string get_directory(const string &in, usize = 0)", &OSPathGetDirectory);

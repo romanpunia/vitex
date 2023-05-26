@@ -2437,7 +2437,8 @@ namespace Mavi
 			for (auto It : Listeners)
 				VI_RELEASE(It);
 
-			VI_RELEASE(Router);
+			VI_CLEAR(Router);
+			Listeners.clear();
 			State = ServerState::Idle;
 			Router = nullptr;
 
@@ -2736,8 +2737,8 @@ namespace Mavi
 		{
 			if (Stream.IsValid())
 			{
-				int Result = Close().Get();
-				VI_WARN("[net:%i] socket client leaking\n\tconsider manual termination", Result);
+				int Result = Stream.Close(false);
+				VI_WARN("[net:%i] socket stream is still active: connection terminated", Result);
 			}
 #ifdef VI_HAS_OPENSSL
 			if (Context != nullptr)

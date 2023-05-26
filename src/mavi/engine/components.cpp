@@ -3978,20 +3978,18 @@ namespace Mavi
 				if (R < 0)
 					return R;
 
-				R = Compiler->Compile().Get();
-				if (R < 0)
-					return R;
-
-				Entry.Animate = GetFunctionByName("animate", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
-				Entry.Serialize = GetFunctionByName("serialize", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
-				Entry.Deserialize = GetFunctionByName("deserialize", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
-				Entry.Awake = GetFunctionByName("awake", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
-				Entry.Asleep = GetFunctionByName("asleep", Invoke == InvokeType::Typeless ? 0 : 1).GetFunction();
-				Entry.Synchronize = GetFunctionByName("synchronize", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
-				Entry.Update = GetFunctionByName("update", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
-				Entry.Message = GetFunctionByName("message", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
-
-				return R;
+				Compiler->Compile().When([this](int&&)
+				{
+					Entry.Animate = GetFunctionByName("animate", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
+					Entry.Serialize = GetFunctionByName("serialize", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
+					Entry.Deserialize = GetFunctionByName("deserialize", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
+					Entry.Awake = GetFunctionByName("awake", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
+					Entry.Asleep = GetFunctionByName("asleep", Invoke == InvokeType::Typeless ? 0 : 1).GetFunction();
+					Entry.Synchronize = GetFunctionByName("synchronize", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
+					Entry.Update = GetFunctionByName("update", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
+					Entry.Message = GetFunctionByName("message", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
+				});
+				return 0;
 			}
 			void Scriptable::SetInvocation(InvokeType Type)
 			{

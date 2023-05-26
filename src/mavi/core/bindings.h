@@ -847,7 +847,7 @@ namespace Mavi
 						Promise* Future = Promise::Create();
 						Core::Coasync<void>([Future, Base, Data...]() -> Core::Promise<void>
 						{
-							auto&& Result = VI_AWAIT(((Base->*F)(Data...)));
+							auto Result = VI_AWAIT(((Base->*F)(Data...)));
 							Future->Store((void*)&Result, (int)TypeID);
 							CoreturnVoid;
 						});
@@ -861,8 +861,7 @@ namespace Mavi
 						int Id = TypeCache::GetTypeId(TypeRef);
 						Core::Coasync<void>([Future, Id, Base, Data...]() -> Core::Promise<void>
 						{
-							auto Indirect = ((Base->*F)(Data...));
-							auto&& Result = VI_AWAIT(Indirect);
+							auto Result = VI_AWAIT(((Base->*F)(Data...)));
 							Future->Store((void*)&Result, Id);
 						});
 
@@ -879,8 +878,7 @@ namespace Mavi
 						Promise* Future = Promise::Create();
 						Core::Coasync<void>([Future, Data...]() -> Core::Promise<void>
 						{
-							auto Indirect = ((*F)(Data...));
-							auto&& Result = VI_AWAIT(Indirect);
+							auto Result = VI_AWAIT(((*F)(Data...)));
 							Future->Store((void*)&Result, (int)TypeID);
 						});
 
@@ -893,8 +891,7 @@ namespace Mavi
 						int TypeId = TypeCache::GetTypeId(TypeRef);
 						Core::Coasync<void>([Future, TypeId, Data...]() -> Core::Promise<void>
 						{
-							auto Indirect = ((*F)(Data...));
-							auto&& Result = VI_AWAIT(Indirect);
+							auto Result = VI_AWAIT(((*F)(Data...)));
 							Future->Store((void*)&Result, TypeId);
 						});
 

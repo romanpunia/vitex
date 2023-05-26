@@ -1913,10 +1913,6 @@ namespace Mavi
 				auto* Router = new Network::HTTP::MapRouter();
 				auto* Object = new Network::HTTP::Server();
 
-				Application* App = Application::Get();
-				if (App != nullptr)
-					Router->VM = App->VM;
-
 				if (Blob == nullptr)
 				{
 					VI_RELEASE(Router);
@@ -1928,9 +1924,6 @@ namespace Mavi
 				Core::Schema* Config = Blob->Find("netstat");
 				if (Config != nullptr)
 				{
-					if (Series::Unpack(Config->Fetch("module-root"), &Router->ModuleRoot))
-						Core::Stringify(&Router->ModuleRoot).Eval(N, D);
-
 					if (!Series::Unpack(Config->Find("keep-alive"), &Router->KeepAliveMaxCount))
 						Router->KeepAliveMaxCount = 50;
 
@@ -2023,35 +2016,32 @@ namespace Mavi
 					if (Site == nullptr)
 						continue;
 
-					if (!Series::Unpack(It->Fetch("gateway.session.cookie.name"), &Site->Gateway.Session.Cookie.Name))
-						Site->Gateway.Session.Cookie.Name = "sid";
+					if (!Series::Unpack(It->Fetch("session.cookie.name"), &Site->Session.Cookie.Name))
+						Site->Session.Cookie.Name = "sid";
 
-					if (!Series::Unpack(It->Fetch("gateway.session.cookie.domain"), &Site->Gateway.Session.Cookie.Domain))
-						Site->Gateway.Session.Cookie.Domain.clear();
+					if (!Series::Unpack(It->Fetch("session.cookie.domain"), &Site->Session.Cookie.Domain))
+						Site->Session.Cookie.Domain.clear();
 
-					if (!Series::Unpack(It->Fetch("gateway.session.cookie.path"), &Site->Gateway.Session.Cookie.Path))
-						Site->Gateway.Session.Cookie.Path = "/";
+					if (!Series::Unpack(It->Fetch("session.cookie.path"), &Site->Session.Cookie.Path))
+						Site->Session.Cookie.Path = "/";
 
-					if (!Series::Unpack(It->Fetch("gateway.session.cookie.same-site"), &Site->Gateway.Session.Cookie.SameSite))
-						Site->Gateway.Session.Cookie.SameSite = "Strict";
+					if (!Series::Unpack(It->Fetch("session.cookie.same-site"), &Site->Session.Cookie.SameSite))
+						Site->Session.Cookie.SameSite = "Strict";
 
-					if (!Series::Unpack(It->Fetch("gateway.session.cookie.expires"), &Site->Gateway.Session.Cookie.Expires))
-						Site->Gateway.Session.Cookie.Expires = 31536000;
+					if (!Series::Unpack(It->Fetch("session.cookie.expires"), &Site->Session.Cookie.Expires))
+						Site->Session.Cookie.Expires = 31536000;
 
-					if (!Series::Unpack(It->Fetch("gateway.session.cookie.secure"), &Site->Gateway.Session.Cookie.Secure))
-						Site->Gateway.Session.Cookie.Secure = false;
+					if (!Series::Unpack(It->Fetch("session.cookie.secure"), &Site->Session.Cookie.Secure))
+						Site->Session.Cookie.Secure = false;
 
-					if (!Series::Unpack(It->Fetch("gateway.session.cookie.http-only"), &Site->Gateway.Session.Cookie.HttpOnly))
-						Site->Gateway.Session.Cookie.HttpOnly = true;
+					if (!Series::Unpack(It->Fetch("session.cookie.http-only"), &Site->Session.Cookie.HttpOnly))
+						Site->Session.Cookie.HttpOnly = true;
 
-					if (Series::Unpack(It->Fetch("gateway.session.document-root"), &Site->Gateway.Session.DocumentRoot))
-						Core::Stringify(&Site->Gateway.Session.DocumentRoot).Eval(N, D);
+					if (Series::Unpack(It->Fetch("session.document-root"), &Site->Session.DocumentRoot))
+						Core::Stringify(&Site->Session.DocumentRoot).Eval(N, D);
 
-					if (!Series::Unpack(It->Fetch("gateway.session.expires"), &Site->Gateway.Session.Expires))
-						Site->Gateway.Session.Expires = 604800;
-
-					if (!Series::Unpack(It->Fetch("gateway.enabled"), &Site->Gateway.Enabled))
-						Site->Gateway.Enabled = false;
+					if (!Series::Unpack(It->Fetch("session.expires"), &Site->Session.Expires))
+						Site->Session.Expires = 604800;
 
 					if (!Series::Unpack(It->Find("max-resources"), &Site->MaxResources))
 						Site->MaxResources = 5;
@@ -2095,38 +2085,16 @@ namespace Mavi
 								if (Subalias != Aliases.end())
 									Route = Site->Route(SourceURL, Group, Subalias->second);
 								else
-									Route = Site->Route(Match, Mode, SourceURL);
+									Route = Site->Route(Match, Mode, SourceURL, true);
 							}
 							else if (For != nullptr && For->Value.GetType() == Core::VarType::String && SourceURL.empty())
-								Route = Site->Route(Match, Mode, "..." + For->Value.GetBlob() + "...");
+								Route = Site->Route(Match, Mode, "..." + For->Value.GetBlob() + "...", true);
 							else
-								Route = Site->Route(Match, Mode, SourceURL);
+								Route = Site->Route(Match, Mode, SourceURL, true);
 
 							Core::Schema* Level = Base->GetAttribute("level");
 							if (Level != nullptr)
 								Route->Level = (size_t)Level->Value.GetInteger();
-
-							Core::Vector<Core::Schema*> GatewayFiles = Base->FetchCollection("gateway.files.file");
-							if (Base->Fetch("gateway.files.[clear]") != nullptr)
-								Route->Gateway.Files.clear();
-
-							for (auto& File : GatewayFiles)
-							{
-								Core::String Pattern;
-								if (Series::Unpack(File, &Pattern))
-									Route->Gateway.Files.emplace_back(Pattern, true);
-							}
-
-							Core::Vector<Core::Schema*> GatewayMethods = Base->FetchCollection("gateway.methods.method");
-							if (Base->Fetch("gateway.methods.[clear]") != nullptr)
-								Route->Gateway.Methods.clear();
-
-							for (auto& Method : GatewayMethods)
-							{
-								Core::String Value;
-								if (Series::Unpack(Method, &Value))
-									Route->Gateway.Methods.push_back(Value);
-							}
 
 							Core::Vector<Core::Schema*> AuthMethods = Base->FetchCollection("auth.methods.method");
 							if (Base->Fetch("auth.methods.[clear]") != nullptr)
@@ -2255,8 +2223,6 @@ namespace Mavi
 								Core::Stringify(&Route->DocumentRoot).Eval(N, D);
 
 							Series::Unpack(Base->Find("override"), &Route->Override);
-							Series::Unpack(Base->Fetch("gateway.report-errors"), &Route->Gateway.ReportErrors);
-							Series::Unpack(Base->Fetch("gateway.report-stack"), &Route->Gateway.ReportStack);
 							Series::Unpack(Base->Fetch("auth.type"), &Route->Auth.Type);
 							Series::Unpack(Base->Fetch("auth.realm"), &Route->Auth.Realm);
 							Series::Unpack(Base->Fetch("compression.min-length"), &Route->Compression.MinLength);

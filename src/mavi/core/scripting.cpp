@@ -325,7 +325,7 @@ namespace Mavi
 			while (Offset < Code.size())
 			{
 				char U = Code[Offset];
-				if (U == '/' && Offset + 1 < Code.size() && Code[Offset + 1] == '/' || Code[Offset + 1] == '*')
+				if (U == '/' && Offset + 1 < Code.size() && (Code[Offset + 1] == '/' || Code[Offset + 1] == '*'))
 				{
 					if (Code[++Offset] == '*')
 					{
@@ -6253,7 +6253,7 @@ namespace Mavi
 			Engine->AddSystemAddon("std/thread", { "std/any", "std/string" }, Bindings::Registry::ImportThread);
 			Engine->AddSystemAddon("std/buffers", { "std/string" }, Bindings::Registry::ImportBuffers);
 			Engine->AddSystemAddon("std/promise", { }, Bindings::Registry::ImportPromise);
-			Engine->AddSystemAddon("std/promise/async", { }, Bindings::Registry::ImportPromiseAsync);
+			Engine->AddSystemAddon("std/promise:when", { "std/promise" }, Bindings::Registry::ImportPromiseAsync);
 			Engine->AddSystemAddon("std/format", { "std/string" }, Bindings::Registry::ImportFormat);
 			Engine->AddSystemAddon("std/decimal", { "std/string" }, Bindings::Registry::ImportDecimal);
 			Engine->AddSystemAddon("std/variant", { "std/string", "std/decimal" }, Bindings::Registry::ImportVariant);
@@ -6278,8 +6278,8 @@ namespace Mavi
 			Engine->AddSystemAddon("std/activity", { "std/string", "std/vectors" }, Bindings::Registry::ImportActivity);
 			Engine->AddSystemAddon("std/graphics", { "std/activity", "std/string", "std/vectors", "std/vertices", "std/shapes", "std/key_frames" }, Bindings::Registry::ImportGraphics);
 			Engine->AddSystemAddon("std/network", { "std/string", "std/array", "std/dictionary", "std/promise" }, Bindings::Registry::ImportNetwork);
-			Engine->AddSystemAddon("std/http", { "std/network" }, Bindings::Registry::ImportHTTP);
-			Engine->AddSystemAddon("std/smtp", { "std/network" }, Bindings::Registry::ImportSMTP);
+			Engine->AddSystemAddon("std/http", { "std/schema", "std/file_system", "std/promise", "std/regex", "std/network" }, Bindings::Registry::ImportHTTP);
+			Engine->AddSystemAddon("std/smtp", { "std/promise", "std/network" }, Bindings::Registry::ImportSMTP);
 			Engine->AddSystemAddon("std/postgresql", { "std/network" }, Bindings::Registry::ImportPostgreSQL);
 			Engine->AddSystemAddon("std/mongodb", { "std/network" }, Bindings::Registry::ImportMongoDB);
 			Engine->AddSystemAddon("std/vm", { "std/string" }, Bindings::Registry::ImportVM);

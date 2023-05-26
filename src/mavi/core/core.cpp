@@ -1,4 +1,5 @@
 #include "core.h"
+#include "scripting.h"
 #include "../network/http.h"
 #include <cctype>
 #include <ctime>
@@ -8496,13 +8497,13 @@ namespace Mavi
 		int OS::Process::ExecutePlain(const String& Command)
 		{
 			VI_ASSERT(!Command.empty(), -1, "format should be set");
-			VI_DEBUG("[os] execute sp:command [ %s ]", Buffer);
+			VI_DEBUG("[os] execute sp:command [ %s ]", Command.c_str());
 			return system(Command.c_str());
 		}
 		ProcessStream* OS::Process::ExecuteWriteOnly(const String& Command)
 		{
 			VI_ASSERT(!Command.empty(), nullptr, "format should be set");
-			VI_DEBUG("[os] execute wo:command [ %s ]", Buffer);
+			VI_DEBUG("[os] execute wo:command [ %s ]", Command.c_str());
 			ProcessStream* Stream = new ProcessStream();
 			if (Stream->Open(Command.c_str(), FileMode::Write_Only))
 				return Stream;
@@ -8513,7 +8514,7 @@ namespace Mavi
 		ProcessStream* OS::Process::ExecuteReadOnly(const String& Command)
 		{
 			VI_ASSERT(!Command.empty(), nullptr, "format should be set");
-			VI_DEBUG("[os] execute ro:command [ %s ]", Buffer);
+			VI_DEBUG("[os] execute ro:command [ %s ]", Command.c_str());
 			ProcessStream* Stream = new ProcessStream();
 			if (Stream->Open(Command.c_str(), FileMode::Read_Only))
 				return Stream;

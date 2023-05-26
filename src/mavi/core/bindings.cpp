@@ -1,8 +1,12 @@
 #include "bindings.h"
+#ifdef VI_HAS_BINDINGS
 #include "network.h"
+#include "../network/http.h"
+#include "../network/smtp.h"
 #include "../engine/processors.h"
 #include "../engine/components.h"
 #include "../engine/renderers.h"
+#endif
 #include <new>
 #include <assert.h>
 #include <string.h>
@@ -39,6 +43,7 @@
 #define TYPENAME_PHYSICSHULLSHAPE "physics_hull_shape"
 #define TYPENAME_FILEENTRY "file_entry"
 #define TYPENAME_REGEXMATCH "regex_match"
+#define TYPENAME_REGEXSOURCE "regex_source"
 #define TYPENAME_INPUTLAYOUTATTRIBUTE "input_layout_attribute"
 #define TYPENAME_REMOTEHOST "remote_host"
 #define TYPENAME_SOCKETCERTIFICATE "socket_certificate"
@@ -59,7 +64,12 @@
 #define TYPENAME_ENTITY "scene_entity"
 #define TYPENAME_SCENEGRAPH "scene_graph"
 #define TYPENAME_ELEMENTNODE "ui_element"
-#define TYPENAME_HTTPSERVER "http_server"
+#define TYPENAME_HTTPERRORFILE "http::error_file"
+#define TYPENAME_HTTPMIMETYPE "http::mime_type"
+#define TYPENAME_HTTPRESOURCEINFO "http::resource_info"
+#define TYPENAME_HTTPSERVER "http::server"
+#define TYPENAME_SMTPRECIPIENT "smtp::recipient"
+#define TYPENAME_SMTPATTACHMENT "smtp::attachment"
 
 namespace
 {
@@ -7528,6 +7538,19 @@ namespace Mavi
 				return Dictionary::Compose<Network::SocketCertificate>(Type.GetTypeId(), Base->Certificates);
 			}
 
+			void SocketServerSetRouter(Network::SocketServer* Server, Network::SocketRouter* Router)
+			{
+				if (Router != nullptr)
+					Router->AddRef();
+				Server->SetRouter(Router);
+			}
+			bool SocketServerConfigure(Network::SocketServer* Server, Network::SocketRouter* Router)
+			{
+				if (Router != nullptr)
+					Router->AddRef();
+				return Server->Configure(Router);
+			}
+
 			Core::String SocketConnectionGetRemoteAddress(Network::SocketConnection* Base)
 			{
 				return Base->RemoteAddress;
@@ -8518,6 +8541,1443 @@ namespace Mavi
 					});
 				});
 			}
+
+			Core::String ResourceGetHeaderBlob(Network::HTTP::Resource* Base, const Core::String& Name)
+			{
+				auto* Value = Base->GetHeaderBlob(Name);
+				return Value ? *Value : Core::String();
+			}
+
+			void ContentFramePrepare(Network::HTTP::ContentFrame& Base, const Core::String& ContentLength)
+			{
+				Base.Prepare(ContentLength.c_str());
+			}
+			size_t ContentFrameGetResourcesSize(Network::HTTP::ContentFrame& Base)
+			{
+				return Base.Resources.size();
+			}
+			Network::HTTP::Resource ContentFrameGetResource(Network::HTTP::ContentFrame& Base, size_t Index)
+			{
+				if (Index >= Base.Resources.size())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return Network::HTTP::Resource();
+				}
+
+				return Base.Resources[Index];
+			}
+
+			Core::String RequestFrameGetHeaderBlob(Network::HTTP::RequestFrame& Base, const Core::String& Name)
+			{
+				auto* Value = Base.GetHeaderBlob(Name);
+				return Value ? *Value : Core::String();
+			}
+			Core::String RequestFrameGetHeader(Network::HTTP::RequestFrame& Base, size_t Index, size_t Subindex)
+			{
+				if (Index >= Base.Headers.size())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return Core::String();
+				}
+
+				auto It = Base.Headers.begin();
+				while (Index-- > 0)
+					++It;
+
+				if (Subindex >= It->second.size())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return Core::String();
+				}
+
+				return It->second[Subindex];
+			}
+			size_t RequestFrameGetHeaderSize(Network::HTTP::RequestFrame& Base, size_t Index)
+			{
+				if (Index >= Base.Headers.size())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return 0;
+				}
+
+				auto It = Base.Headers.begin();
+				while (Index-- > 0)
+					++It;
+
+				return It->second.size();
+			}
+			size_t RequestFrameGetHeadersSize(Network::HTTP::RequestFrame& Base)
+			{
+				return Base.Headers.size();
+			}
+			Core::String RequestFrameGetCookieBlob(Network::HTTP::RequestFrame& Base, const Core::String& Name)
+			{
+				auto* Value = Base.GetCookieBlob(Name);
+				return Value ? *Value : Core::String();
+			}
+			Core::String RequestFrameGetCookie(Network::HTTP::RequestFrame& Base, size_t Index, size_t Subindex)
+			{
+				if (Index >= Base.Cookies.size())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return Core::String();
+				}
+
+				auto It = Base.Cookies.begin();
+				while (Index-- > 0)
+					++It;
+
+				if (Subindex >= It->second.size())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return Core::String();
+				}
+
+				return It->second[Subindex];
+			}
+			size_t RequestFrameGetCookieSize(Network::HTTP::RequestFrame& Base, size_t Index)
+			{
+				if (Index >= Base.Cookies.size())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return 0;
+				}
+
+				auto It = Base.Cookies.begin();
+				while (Index-- > 0)
+					++It;
+
+				return It->second.size();
+			}
+			size_t RequestFrameGetCookiesSize(Network::HTTP::RequestFrame& Base)
+			{
+				return Base.Cookies.size();
+			}
+			void RequestFrameSetMethod(Network::HTTP::RequestFrame& Base, const Core::String& Value)
+			{
+				Base.SetMethod(Value.c_str());
+			}
+			Core::String RequestFrameGetMethod(Network::HTTP::RequestFrame& Base)
+			{
+				return Base.Method;
+			}
+			Core::String RequestFrameGetVersion(Network::HTTP::RequestFrame& Base)
+			{
+				return Base.Version;
+			}
+
+			Core::String ResponseFrameGetHeaderBlob(Network::HTTP::ResponseFrame& Base, const Core::String& Name)
+			{
+				auto* Value = Base.GetHeaderBlob(Name);
+				return Value ? *Value : Core::String();
+			}
+			Core::String ResponseFrameGetHeader(Network::HTTP::ResponseFrame& Base, size_t Index, size_t Subindex)
+			{
+				if (Index >= Base.Headers.size())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return Core::String();
+				}
+
+				auto It = Base.Headers.begin();
+				while (Index-- > 0)
+					++It;
+
+				if (Subindex >= It->second.size())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return Core::String();
+				}
+
+				return It->second[Subindex];
+			}
+			size_t ResponseFrameGetHeaderSize(Network::HTTP::ResponseFrame& Base, size_t Index)
+			{
+				if (Index >= Base.Headers.size())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return 0;
+				}
+
+				auto It = Base.Headers.begin();
+				while (Index-- > 0)
+					++It;
+
+				return It->second.size();
+			}
+			size_t ResponseFrameGetHeadersSize(Network::HTTP::ResponseFrame& Base)
+			{
+				return Base.Headers.size();
+			}
+			Network::HTTP::Cookie ResponseFrameGetCookie1(Network::HTTP::ResponseFrame& Base, const Core::String& Name)
+			{
+				auto Value = Base.GetCookie(Name.c_str());
+				return Value ? *Value : Network::HTTP::Cookie();
+			}
+			Network::HTTP::Cookie ResponseFrameGetCookie2(Network::HTTP::ResponseFrame& Base, size_t Index)
+			{
+				if (Index >= Base.Cookies.size())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return Network::HTTP::Cookie();
+				}
+
+				return Base.Cookies[Index];
+			}
+			size_t ResponseFrameGetCookiesSize(Network::HTTP::ResponseFrame& Base)
+			{
+				return Base.Cookies.size();
+			}
+
+			Network::HTTP::RouteEntry* RouteGroupGetRoute(Network::HTTP::RouteGroup* Base, size_t Index)
+			{
+				if (Index >= Base->Routes.size())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return nullptr;
+				}
+
+				return Base->Routes[Index];
+			}
+			size_t RouteGroupGetRoutesSize(Network::HTTP::RouteGroup* Base)
+			{
+				return Base->Routes.size();
+			}
+
+			void RouteEntryCleanup(Network::HTTP::RouteEntry* Base)
+			{
+				if (Base->Callbacks.WebSocket.Initiate)
+				{
+					Base->Callbacks.WebSocket.Initiate(nullptr);
+					Base->Callbacks.WebSocket.Initiate = nullptr;
+				}
+				if (Base->Callbacks.WebSocket.Connect)
+				{
+					Base->Callbacks.WebSocket.Connect(nullptr);
+					Base->Callbacks.WebSocket.Connect = nullptr;
+				}
+				if (Base->Callbacks.WebSocket.Disconnect)
+				{
+					Base->Callbacks.WebSocket.Disconnect(nullptr);
+					Base->Callbacks.WebSocket.Disconnect = nullptr;
+				}
+				if (Base->Callbacks.WebSocket.Receive)
+				{
+					Base->Callbacks.WebSocket.Receive(nullptr, Network::HTTP::WebSocketOp::Close, nullptr, 0);
+					Base->Callbacks.WebSocket.Receive = nullptr;
+				}
+				if (Base->Callbacks.Get)
+				{
+					Base->Callbacks.Get(nullptr);
+					Base->Callbacks.Get = nullptr;
+				}
+				if (Base->Callbacks.Post)
+				{
+					Base->Callbacks.Post(nullptr);
+					Base->Callbacks.Get = nullptr;
+				}
+				if (Base->Callbacks.Put)
+				{
+					Base->Callbacks.Put(nullptr);
+					Base->Callbacks.Put = nullptr;
+				}
+				if (Base->Callbacks.Patch)
+				{
+					Base->Callbacks.Patch(nullptr);
+					Base->Callbacks.Patch = nullptr;
+				}
+				if (Base->Callbacks.Delete)
+				{
+					Base->Callbacks.Delete(nullptr);
+					Base->Callbacks.Delete = nullptr;
+				}
+				if (Base->Callbacks.Options)
+				{
+					Base->Callbacks.Options(nullptr);
+					Base->Callbacks.Options = nullptr;
+				}
+				if (Base->Callbacks.Access)
+				{
+					Base->Callbacks.Access(nullptr);
+					Base->Callbacks.Access = nullptr;
+				}
+				if (Base->Callbacks.Headers)
+				{
+					Core::String Empty;
+					Base->Callbacks.Headers(nullptr, Empty);
+					Base->Callbacks.Headers = nullptr;
+				}
+				if (Base->Callbacks.Authorize)
+				{
+					Base->Callbacks.Authorize(nullptr, nullptr);
+					Base->Callbacks.Authorize = nullptr;
+				}
+			}
+			void RouteEntrySetHiddenFiles(Network::HTTP::RouteEntry* Base, Array* Data)
+			{
+				if (Data != nullptr)
+					Base->HiddenFiles = Array::Decompose<Compute::RegexSource>(Data);
+				else
+					Base->HiddenFiles.clear();
+			}
+			Array* RouteEntryGetHiddenFiles(Network::HTTP::RouteEntry* Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_REGEXSOURCE ">@");
+				return Array::Compose<Compute::RegexSource>(Type.GetTypeInfo(), Base->HiddenFiles);
+			}
+			void RouteEntrySetErrorFiles(Network::HTTP::RouteEntry* Base, Array* Data)
+			{
+				if (Data != nullptr)
+					Base->ErrorFiles = Array::Decompose<Network::HTTP::ErrorFile>(Data);
+				else
+					Base->ErrorFiles.clear();
+			}
+			Array* RouteEntryGetErrorFiles(Network::HTTP::RouteEntry* Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_HTTPERRORFILE ">@");
+				return Array::Compose<Network::HTTP::ErrorFile>(Type.GetTypeInfo(), Base->ErrorFiles);
+			}
+			void RouteEntrySetMimeTypes(Network::HTTP::RouteEntry* Base, Array* Data)
+			{
+				if (Data != nullptr)
+					Base->MimeTypes = Array::Decompose<Network::HTTP::MimeType>(Data);
+				else
+					Base->MimeTypes.clear();
+			}
+			Array* RouteEntryGetMimeTypes(Network::HTTP::RouteEntry* Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_HTTPMIMETYPE ">@");
+				return Array::Compose<Network::HTTP::MimeType>(Type.GetTypeInfo(), Base->MimeTypes);
+			}
+			void RouteEntrySetIndexFiles(Network::HTTP::RouteEntry* Base, Array* Data)
+			{
+				if (Data != nullptr)
+					Base->IndexFiles = Array::Decompose<Core::String>(Data);
+				else
+					Base->IndexFiles.clear();
+			}
+			Array* RouteEntryGetIndexFiles(Network::HTTP::RouteEntry* Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose<Core::String>(Type.GetTypeInfo(), Base->IndexFiles);
+			}
+			void RouteEntrySetTryFiles(Network::HTTP::RouteEntry* Base, Array* Data)
+			{
+				if (Data != nullptr)
+					Base->TryFiles = Array::Decompose<Core::String>(Data);
+				else
+					Base->TryFiles.clear();
+			}
+			Array* RouteEntryGetTryFiles(Network::HTTP::RouteEntry* Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose<Core::String>(Type.GetTypeInfo(), Base->TryFiles);
+			}
+			void RouteEntrySetDisallowedMethodsFiles(Network::HTTP::RouteEntry* Base, Array* Data)
+			{
+				if (Data != nullptr)
+					Base->DisallowedMethods = Array::Decompose<Core::String>(Data);
+				else
+					Base->DisallowedMethods.clear();
+			}
+			Array* RouteEntryGetDisallowedMethodsFiles(Network::HTTP::RouteEntry* Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose<Core::String>(Type.GetTypeInfo(), Base->DisallowedMethods);
+			}
+			Network::HTTP::SiteEntry* RouteEntryGetSite(Network::HTTP::RouteEntry* Base)
+			{
+				return Base->Site;
+			}
+
+			void RouteAuthSetMethods(Network::HTTP::RouteEntry::RouteAuth& Base, Array* Data)
+			{
+				if (Data != nullptr)
+					Base.Methods = Array::Decompose<Core::String>(Data);
+				else
+					Base.Methods.clear();
+			}
+			Array* RouteAuthGetMethods(Network::HTTP::RouteEntry::RouteAuth& Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose<Core::String>(Type.GetTypeInfo(), Base.Methods);
+			}
+
+			void RouteCompressionSetFiles(Network::HTTP::RouteEntry::RouteCompression& Base, Array* Data)
+			{
+				if (Data != nullptr)
+					Base.Files = Array::Decompose<Compute::RegexSource>(Data);
+				else
+					Base.Files.clear();
+			}
+			Array* RouteCompressionGetFiles(Network::HTTP::RouteEntry::RouteCompression& Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_REGEXSOURCE ">@");
+				return Array::Compose<Compute::RegexSource>(Type.GetTypeInfo(), Base.Files);
+			}
+
+			Network::HTTP::RouteEntry* SiteEntryGetBase(Network::HTTP::SiteEntry* Base)
+			{
+				return Base->Base;
+			}
+			Network::HTTP::MapRouter* SiteEntryGetRouter(Network::HTTP::SiteEntry* Base)
+			{
+				return Base->Router;
+			}
+			Network::HTTP::RouteGroup* SiteEntryGetGroup(Network::HTTP::SiteEntry* Base, size_t Index)
+			{
+				if (Index >= Base->Groups.size())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return nullptr;
+				}
+
+				return Base->Groups[Index];
+			}
+			size_t SiteEntryGetGroupsSize(Network::HTTP::SiteEntry* Base)
+			{
+				return Base->Groups.size();
+			}
+			Network::HTTP::RouteEntry* SiteEntryFetchRoute(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern)
+			{
+				return Base->Route(Match, Mode, Pattern, false);
+			}
+			bool SiteEntryGet2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				if (!Route)
+					return false;
+
+				if (Route->Callbacks.Get != nullptr)
+					Route->Callbacks.Get(nullptr);
+
+				if (!Callback)
+				{
+					Route->Callbacks.Get = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Route->Callbacks.Get = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Route->Callbacks.Get = [Callback, Context](Network::HTTP::Connection* Base)
+				{
+					if (!Base)
+					{
+						Callback->Release();
+						Context->Release();
+						return false;
+					}
+
+					Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					return true;
+				};
+				return true;
+			}
+			bool SiteEntryGet1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				return SiteEntryGet2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntryPost2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				if (!Route)
+					return false;
+
+				if (Route->Callbacks.Post != nullptr)
+					Route->Callbacks.Post(nullptr);
+
+				if (!Callback)
+				{
+					Route->Callbacks.Post = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Route->Callbacks.Post = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Route->Callbacks.Post = [Callback, Context](Network::HTTP::Connection* Base)
+				{
+					if (!Base)
+					{
+						Callback->Release();
+						Context->Release();
+						return false;
+					}
+
+					Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					return true;
+				};
+				return true;
+			}
+			bool SiteEntryPost1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				return SiteEntryPost2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntryPatch2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				if (!Route)
+					return false;
+
+				if (Route->Callbacks.Patch != nullptr)
+					Route->Callbacks.Patch(nullptr);
+
+				if (!Callback)
+				{
+					Route->Callbacks.Patch = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Route->Callbacks.Patch = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Route->Callbacks.Patch = [Callback, Context](Network::HTTP::Connection* Base)
+				{
+					if (!Base)
+					{
+						Callback->Release();
+						Context->Release();
+						return false;
+					}
+
+					Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					return true;
+				};
+				return true;
+			}
+			bool SiteEntryPatch1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				return SiteEntryPatch2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntryDelete2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				if (!Route)
+					return false;
+
+				if (Route->Callbacks.Delete != nullptr)
+					Route->Callbacks.Delete(nullptr);
+
+				if (!Callback)
+				{
+					Route->Callbacks.Delete = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Route->Callbacks.Delete = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Route->Callbacks.Delete = [Callback, Context](Network::HTTP::Connection* Base)
+				{
+					if (!Base)
+					{
+						Callback->Release();
+						Context->Release();
+						return false;
+					}
+
+					Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					return true;
+				};
+				return true;
+			}
+			bool SiteEntryDelete1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				return SiteEntryDelete2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntryOptions2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				if (!Route)
+					return false;
+
+				if (Route->Callbacks.Options != nullptr)
+					Route->Callbacks.Options(nullptr);
+
+				if (!Callback)
+				{
+					Route->Callbacks.Options = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Route->Callbacks.Options = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Route->Callbacks.Options = [Callback, Context](Network::HTTP::Connection* Base)
+				{
+					if (!Base)
+					{
+						Callback->Release();
+						Context->Release();
+						return false;
+					}
+
+					Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					return true;
+				};
+				return true;
+			}
+			bool SiteEntryOptions1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				return SiteEntryOptions2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntryAccess2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				if (!Route)
+					return false;
+
+				if (Route->Callbacks.Access != nullptr)
+					Route->Callbacks.Access(nullptr);
+
+				if (!Callback)
+				{
+					Route->Callbacks.Access = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Route->Callbacks.Access = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Route->Callbacks.Access = [Callback, Context](Network::HTTP::Connection* Base)
+				{
+					if (!Base)
+					{
+						Callback->Release();
+						Context->Release();
+						return false;
+					}
+
+					Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					return true;
+				};
+				return true;
+			}
+			bool SiteEntryAccess1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				return SiteEntryAccess2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntryHeaders2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				if (!Route)
+					return false;
+
+				if (Route->Callbacks.Headers != nullptr)
+				{
+					Core::String Empty;
+					Route->Callbacks.Headers(nullptr, Empty);
+				}
+
+				if (!Callback)
+				{
+					Route->Callbacks.Headers = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Route->Callbacks.Headers = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Route->Callbacks.Headers = [Callback, Context](Network::HTTP::Connection* Base, Core::String& Source)
+				{
+					if (!Base)
+					{
+						Callback->Release();
+						Context->Release();
+						return false;
+					}
+
+					Context->Execute(Callback, [Base, &Source](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, Base);
+						Context->SetArgObject(1, &Source);
+					}).Wait();
+					return true;
+				};
+				return true;
+			}
+			bool SiteEntryHeaders1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				return SiteEntryHeaders2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntryAuthorize2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				if (!Route)
+					return false;
+
+				if (Route->Callbacks.Authorize != nullptr)
+					Route->Callbacks.Authorize(nullptr, nullptr);
+
+				if (!Callback)
+				{
+					Route->Callbacks.Authorize = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Route->Callbacks.Authorize = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Route->Callbacks.Authorize = [Callback, Context](Network::HTTP::Connection* Base, Network::HTTP::Credentials* Source)
+				{
+					if (!Base || !Source)
+					{
+						Callback->Release();
+						Context->Release();
+						return false;
+					}
+
+					Context->Execute(Callback, [Base, Source](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, Base);
+						Context->SetArgObject(1, Source);
+					}).Wait();
+					return true;
+				};
+				return true;
+			}
+			bool SiteEntryAuthorize1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				return SiteEntryAuthorize2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntryWebsocketInitiate2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				if (!Route)
+					return false;
+
+				if (Route->Callbacks.WebSocket.Initiate != nullptr)
+					Route->Callbacks.WebSocket.Initiate(nullptr);
+
+				if (!Callback)
+				{
+					Route->Callbacks.WebSocket.Initiate = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Route->Callbacks.WebSocket.Initiate = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Route->Callbacks.WebSocket.Initiate = [Callback, Context](Network::HTTP::Connection* Base)
+				{
+					if (!Base)
+					{
+						Callback->Release();
+						Context->Release();
+						return false;
+					}
+
+					Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					return true;
+				};
+				return true;
+			}
+			bool SiteEntryWebsocketInitiate1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				return SiteEntryWebsocketInitiate2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntryWebsocketConnect2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				if (!Route)
+					return false;
+
+				if (Route->Callbacks.WebSocket.Connect != nullptr)
+					Route->Callbacks.WebSocket.Connect(nullptr);
+
+				if (!Callback)
+				{
+					Route->Callbacks.WebSocket.Connect = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Route->Callbacks.WebSocket.Connect = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Route->Callbacks.WebSocket.Connect = [Callback, Context](Network::HTTP::WebSocketFrame* Base)
+				{
+					if (!Base)
+					{
+						Callback->Release();
+						Context->Release();
+					}
+					else
+						Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+				};
+				return true;
+			}
+			bool SiteEntryWebsocketConnect1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				return SiteEntryWebsocketConnect2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntryWebsocketDisconnect2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				if (!Route)
+					return false;
+
+				if (Route->Callbacks.WebSocket.Disconnect != nullptr)
+					Route->Callbacks.WebSocket.Disconnect(nullptr);
+
+				if (!Callback)
+				{
+					Route->Callbacks.WebSocket.Disconnect = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Route->Callbacks.WebSocket.Disconnect = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Route->Callbacks.WebSocket.Disconnect = [Callback, Context](Network::HTTP::WebSocketFrame* Base)
+				{
+					if (!Base)
+					{
+						Callback->Release();
+						Context->Release();
+					}
+					else
+						Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+				};
+				return true;
+			}
+			bool SiteEntryWebsocketDisconnect1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				return SiteEntryWebsocketDisconnect2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntryWebsocketReceive2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				if (!Route)
+					return false;
+
+				if (Route->Callbacks.WebSocket.Receive != nullptr)
+					Route->Callbacks.WebSocket.Receive(nullptr, Network::HTTP::WebSocketOp::Close, nullptr, 0);
+
+				if (!Callback)
+				{
+					Route->Callbacks.WebSocket.Receive = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Route->Callbacks.WebSocket.Receive = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Route->Callbacks.WebSocket.Receive = [Callback, Context](Network::HTTP::WebSocketFrame* Base, Network::HTTP::WebSocketOp Opcode, const char* Data, size_t Size)
+				{
+					if (!Base)
+					{
+						Callback->Release();
+						Context->Release();
+						return false;
+					}
+
+					Core::String Buffer(Data ? Data : "", Data ? Size : 0);
+					Context->Execute(Callback, [Base, Opcode, Buffer](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, Base);
+						Context->SetArg32(1, (int)Opcode);
+						Context->SetArgObject(2, (void*)&Buffer);
+					});
+					return true;
+				};
+				return true;
+			}
+			bool SiteEntryWebsocketReceive1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			{
+				return SiteEntryWebsocketReceive2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+			}
+			void WebSocketFrameCleanup(Network::HTTP::WebSocketFrame* Base)
+			{
+				if (Base->Connect)
+				{
+					Base->Connect(nullptr);
+					Base->Connect = nullptr;
+				}
+				if (Base->BeforeDisconnect)
+				{
+					Base->BeforeDisconnect(nullptr);
+					Base->BeforeDisconnect = nullptr;
+				}
+				if (Base->Disconnect)
+				{
+					Base->Disconnect(nullptr);
+					Base->Disconnect = nullptr;
+				}
+				if (Base->Receive)
+				{
+					Base->Receive(nullptr, Network::HTTP::WebSocketOp::Close, nullptr, 0);
+					Base->Receive = nullptr;
+				}
+			}
+			bool WebSocketFrameSetOnConnect(Network::HTTP::WebSocketFrame* Base, asIScriptFunction* Callback)
+			{
+				if (Base->Connect != nullptr && Base->Lifetime.Destroy != nullptr)
+					Base->Connect(nullptr);
+
+				if (!Callback)
+				{
+					Base->Connect = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Base->Connect = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Base->Lifetime.Destroy = &WebSocketFrameCleanup;
+				Base->Connect = [Callback, Context](Network::HTTP::WebSocketFrame* Base)
+				{
+					if (!Base)
+					{
+						Callback->Release();
+						Context->Release();
+					}
+					else
+						Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+				};
+				return true;
+			}
+			bool WebSocketFrameSetOnBeforeDisconnect(Network::HTTP::WebSocketFrame* Base, asIScriptFunction* Callback)
+			{
+				if (Base->BeforeDisconnect != nullptr && Base->Lifetime.Destroy != nullptr)
+					Base->BeforeDisconnect(nullptr);
+
+				if (!Callback)
+				{
+					Base->BeforeDisconnect = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Base->BeforeDisconnect = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Base->Lifetime.Destroy = &WebSocketFrameCleanup;
+				Base->BeforeDisconnect = [Callback, Context](Network::HTTP::WebSocketFrame* Base)
+				{
+					if (!Base)
+					{
+						Callback->Release();
+						Context->Release();
+					}
+					else
+						Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+				};
+				return true;
+			}
+			bool WebSocketFrameSetOnDisconnect(Network::HTTP::WebSocketFrame* Base, asIScriptFunction* Callback)
+			{
+				if (Base->Disconnect != nullptr && Base->Lifetime.Destroy != nullptr)
+					Base->Disconnect(nullptr);
+
+				if (!Callback)
+				{
+					Base->Disconnect = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Base->Disconnect = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Base->Lifetime.Destroy = &WebSocketFrameCleanup;
+				Base->Disconnect = [Callback, Context](Network::HTTP::WebSocketFrame* Base)
+				{
+					if (!Base)
+					{
+						Callback->Release();
+						Context->Release();
+					}
+					else
+						Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+				};
+				return true;
+			}
+			bool WebSocketFrameSetOnReceive(Network::HTTP::WebSocketFrame* Base, asIScriptFunction* Callback)
+			{
+				if (Base->Receive != nullptr && Base->Lifetime.Destroy != nullptr)
+					Base->Receive(nullptr, Network::HTTP::WebSocketOp::Close, nullptr, 0);
+
+				if (!Callback)
+				{
+					Base->Receive = nullptr;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (!Context)
+				{
+					Base->Receive = nullptr;
+					return false;
+				}
+
+				Callback->AddRef();
+				Context->AddRef();
+				Base->Lifetime.Destroy = &WebSocketFrameCleanup;
+				Base->Receive = [Callback, Context](Network::HTTP::WebSocketFrame* Base, Network::HTTP::WebSocketOp Opcode, const char* Data, size_t Size)
+				{
+					if (!Base)
+					{
+						Callback->Release();
+						Context->Release();
+						return false;
+					}
+
+					Core::String Buffer(Data ? Data : "", Data ? Size : 0);
+					Context->Execute(Callback, [Base, Opcode, Buffer](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, Base);
+						Context->SetArg32(1, (int)Opcode);
+						Context->SetArgObject(2, (void*)&Buffer);
+					});
+					return true;
+				};
+				return true;
+			}
+			Core::Promise<bool> WebSocketFrameSend2(Network::HTTP::WebSocketFrame* Base, uint32_t Mask, const Core::String& Data, Network::HTTP::WebSocketOp Opcode)
+			{
+				Core::Promise<bool> Result;
+				Base->Send(Mask, Data.c_str(), Data.size(), Opcode, [Result](Network::HTTP::WebSocketFrame* Base) mutable { Result.Set(true); });
+				return Result;
+			}
+			Core::Promise<bool> WebSocketFrameSend1(Network::HTTP::WebSocketFrame* Base, const Core::String& Data, Network::HTTP::WebSocketOp Opcode)
+			{
+				return WebSocketFrameSend2(Base, 0, Data, Opcode);
+			}
+
+			void MapRouterCleanup(Network::HTTP::MapRouter* Base)
+			{
+				for (auto& Site : Base->Sites)
+				{
+					RouteEntryCleanup(Site.second->Base);
+					for (auto& Group : Site.second->Groups)
+					{
+						for (auto& Route : Group->Routes)
+							RouteEntryCleanup(Route);
+					}
+				}
+			}
+			Network::HTTP::SiteEntry* MapRouterSite1(Network::HTTP::MapRouter* Base)
+			{
+				Base->Lifetime.Destroy = &MapRouterCleanup;
+				return Base->Site();
+			}
+			Network::HTTP::SiteEntry* MapRouterSite2(Network::HTTP::MapRouter* Base, const Core::String& Host)
+			{
+				Base->Lifetime.Destroy = &MapRouterCleanup;
+				return Base->Site(Host.c_str());
+			}
+			Network::HTTP::SiteEntry* MapRouterGetSite1(Network::HTTP::MapRouter* Base, const Core::String& Host)
+			{
+				auto It = Base->Sites.find(Host);
+				if (It != Base->Sites.end())
+					return It->second;
+
+				return nullptr;
+			}
+			Network::HTTP::SiteEntry* MapRouterGetSite2(Network::HTTP::MapRouter* Base, size_t Index)
+			{
+				if (Index >= Base->Sites.size())
+				{
+					asIScriptContext* Context = asGetActiveContext();
+					if (Context)
+						Context->SetException("index out of bounds");
+
+					return nullptr;
+				}
+
+				auto It = Base->Sites.begin();
+				while (Index-- > 0)
+					++It;
+
+				return It->second;
+			}
+			size_t MapRouterGetSitesSize(Network::HTTP::MapRouter* Base)
+			{
+				return Base->Sites.size();
+			}
+
+			Core::Promise<Array*> ConnectionStore(Network::HTTP::Connection* Base, bool Eat)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return Core::Promise<Array*>((Array*)nullptr);
+
+				Core::Promise<Array*> Result;
+				Core::Vector<Network::HTTP::Resource>* Resources = VI_NEW(Core::Vector<Network::HTTP::Resource>);
+				asITypeInfo* Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_HTTPRESOURCEINFO ">@").GetTypeInfo();
+				Base->Store([Result, Resources, Type](Network::HTTP::Resource* Next) mutable
+				{
+					if (Next != nullptr)
+					{
+						Resources->push_back(*Next);
+						return true;
+					}
+
+					Result.Set(Array::Compose<Network::HTTP::Resource>(Type, *Resources));
+					VI_DELETE(vector, Resources);
+					return true;
+				}, Eat);
+				return Result;
+			}
+			Core::Promise<Core::String> ConnectionConsume(Network::HTTP::Connection* Base, bool Eat)
+			{
+				Core::Promise<Core::String> Result;
+				Core::String* Data = VI_NEW(Core::String);
+				Base->Consume([Result, Data](Network::HTTP::Connection*, Network::SocketPoll Poll, const char* Buffer, size_t Size) mutable
+				{
+					if (!Buffer || !Size)
+					{
+						Result.Set(std::move(*Data));
+						VI_DELETE(basic_string, Data);
+					}
+					else
+						Data->append(Buffer, Size);
+					return true;
+				}, Eat);
+				return Result;
+			}
+			Core::Promise<bool> ConnectionSkip(Network::HTTP::Connection* Base)
+			{
+				Core::Promise<bool> Result;
+				Base->Skip([Result](Network::HTTP::Connection*) mutable { Result.Set(true); return true; });
+				return Result;
+			}
+			Network::HTTP::WebSocketFrame* ConnectionGetWebSocket(Network::HTTP::Connection* Base)
+			{
+				return Base->WebSocket;
+			}
+			Network::HTTP::RouteEntry* ConnectionGetRoute(Network::HTTP::Connection* Base)
+			{
+				return Base->Route;
+			}
+			Network::HTTP::Server* ConnectionGetServer(Network::HTTP::Connection* Base)
+			{
+				return Base->Root;
+			}
+
+			void QueryDecode(Network::HTTP::Query* Base, const Core::String& ContentType, const Core::String& Data)
+			{
+				Base->Decode(ContentType.c_str(), Data);
+			}
+			Core::String QueryEncode(Network::HTTP::Query* Base, const Core::String& ContentType)
+			{
+				return Base->Encode(ContentType.c_str());
+			}
+			void QuerySetData(Network::HTTP::Query* Base, Core::Schema* Data)
+			{
+				VI_CLEAR(Base->Object);
+				VI_ASSIGN(Base->Object, Data);
+			}
+			Core::Schema* QueryGetData(Network::HTTP::Query* Base)
+			{
+				return Base->Object;
+			}
+
+			void SessionSetData(Network::HTTP::Session* Base, Core::Schema* Data)
+			{
+				VI_CLEAR(Base->Query);
+				VI_ASSIGN(Base->Query, Data);
+			}
+			Core::Schema* SessionGetData(Network::HTTP::Session* Base)
+			{
+				return Base->Query;
+			}
+
+			Core::String ClientGetRemoteAddress(Network::HTTP::Client* Base)
+			{
+				return Base->RemoteAddress;
+			}
+			Core::Promise<bool> ClientFetch(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
+			{
+				Network::HTTP::RequestFrame Copy = Frame;
+				return Base->Fetch(std::move(Copy), MaxSize);
+			}
+			Core::Promise<bool> ClientUpgrade(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame)
+			{
+				Network::HTTP::RequestFrame Copy = Frame;
+				return Base->Upgrade(std::move(Copy));
+			}
+			Core::Promise<bool> ClientSend(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame)
+			{
+				Network::HTTP::RequestFrame Copy = Frame;
+				return Base->Send(std::move(Copy)).Then<bool>([](Network::HTTP::ResponseFrame*&& Frame)
+				{
+					return Frame != nullptr;
+				});
+			}
+			Core::Promise<Core::Schema*> ClientJSON(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
+			{
+				Network::HTTP::RequestFrame Copy = Frame;
+				return Base->JSON(std::move(Copy), MaxSize);
+			}
+			Core::Promise<Core::Schema*> ClientXML(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
+			{
+				Network::HTTP::RequestFrame Copy = Frame;
+				return Base->XML(std::move(Copy), MaxSize);
+			}
+			
+			Array* SMTPRequestGetRecipients(Network::SMTP::RequestFrame* Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_SMTPRECIPIENT ">@");
+				return Array::Compose<Network::SMTP::Recipient>(Type.GetTypeInfo(), Base->Recipients);
+			}
+			void SMTPRequestSetRecipients(Network::SMTP::RequestFrame* Base, Array* Data)
+			{
+				if (Data != nullptr)
+					Base->Recipients = Array::Decompose<Network::SMTP::Recipient>(Data);
+				else
+					Base->Recipients.clear();
+			}
+			Array* SMTPRequestGetCCRecipients(Network::SMTP::RequestFrame* Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_SMTPRECIPIENT ">@");
+				return Array::Compose<Network::SMTP::Recipient>(Type.GetTypeInfo(), Base->CCRecipients);
+			}
+			void SMTPRequestSetCCRecipients(Network::SMTP::RequestFrame* Base, Array* Data)
+			{
+				if (Data != nullptr)
+					Base->CCRecipients = Array::Decompose<Network::SMTP::Recipient>(Data);
+				else
+					Base->CCRecipients.clear();
+			}
+			Array* SMTPRequestGetBCCRecipients(Network::SMTP::RequestFrame* Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_SMTPRECIPIENT ">@");
+				return Array::Compose<Network::SMTP::Recipient>(Type.GetTypeInfo(), Base->BCCRecipients);
+			}
+			void SMTPRequestSetBCCRecipients(Network::SMTP::RequestFrame* Base, Array* Data)
+			{
+				if (Data != nullptr)
+					Base->BCCRecipients = Array::Decompose<Network::SMTP::Recipient>(Data);
+				else
+					Base->BCCRecipients.clear();
+			}
+			Array* SMTPRequestGetAttachments(Network::SMTP::RequestFrame* Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_SMTPATTACHMENT ">@");
+				return Array::Compose<Network::SMTP::Attachment>(Type.GetTypeInfo(), Base->Attachments);
+			}
+			void SMTPRequestSetAttachments(Network::SMTP::RequestFrame* Base, Array* Data)
+			{
+				if (Data != nullptr)
+					Base->Attachments = Array::Decompose<Network::SMTP::Attachment>(Data);
+				else
+					Base->Attachments.clear();
+			}
+			Array* SMTPRequestGetMessages(Network::SMTP::RequestFrame* Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose<Core::String>(Type.GetTypeInfo(), Base->Messages);
+			}
+			void SMTPRequestSetMessages(Network::SMTP::RequestFrame* Base, Array* Data)
+			{
+				if (Data != nullptr)
+					Base->Messages = Array::Decompose<Core::String>(Data);
+				else
+					Base->Messages.clear();
+			}
+			void SMTPRequestSetHeader(Network::SMTP::RequestFrame* Base, const Core::String& Name, const Core::String& Value)
+			{
+				if (Value.empty())
+					Base->Headers.erase(Name);
+				else
+					Base->Headers[Name] = Value;
+			}
+			Core::String SMTPRequestGetHeader(Network::SMTP::RequestFrame* Base, const Core::String& Name)
+			{
+				auto It = Base->Headers.find(Name);
+				return It == Base->Headers.end() ? Core::String() : It->second;
+			}
+			Core::String SMTPRequestGetRemoteAddress(Network::SMTP::RequestFrame* Base)
+			{
+				return Base->RemoteAddress;
+			}
+
+			Core::Promise<int> SMTPClientSend(Network::SMTP::Client* Base, const Network::SMTP::RequestFrame& Frame)
+			{
+				Network::SMTP::RequestFrame Copy = Frame;
+				return Base->Send(std::move(Copy));
+			}
 #endif
 			bool Registry::ImportCTypes(VirtualMachine* VM)
 			{
@@ -9059,42 +10519,11 @@ namespace Mavi
 			bool Registry::ImportPromiseAsync(VirtualMachine* VM)
 			{
 				asIScriptEngine* Engine = VM->GetEngine();
-				if (Engine->GetTypeInfoByDecl("promise<bool>@") != nullptr)
-					return false;
-
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
-				Engine->RegisterObjectType("promise<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_FACTORY, "promise<T>@ f(?&in)", asFUNCTION(Promise::CreateFactory), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Promise::TemplateCallback), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(Promise, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(Promise, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Promise, SetFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Promise, GetFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Promise, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Promise, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Promise, ReleaseReferences), asCALL_THISCALL);
 				Engine->RegisterFuncdef("void promise<T>::when_callback(T&in)");
 				Engine->RegisterObjectMethod("promise<T>", "void when(when_callback@+)", asMETHOD(Promise, When), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise<T>", "void wrap(?&in)", asMETHODPR(Promise, Store, (void*, int), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise<T>", "T& unwrap()", asMETHODPR(Promise, Retrieve, (), void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise<T>", "promise<T>@+ yield()", asMETHOD(Promise, YieldIf), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise<T>", "bool pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
-				Engine->RegisterObjectType("promise_v", 0, asOBJ_REF | asOBJ_GC);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_FACTORY, "promise_v@ f()", asFUNCTION(Promise::CreateFactoryVoid), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_ADDREF, "void f()", asMETHOD(Promise, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_RELEASE, "void f()", asMETHOD(Promise, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Promise, SetFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Promise, GetFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Promise, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Promise, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Promise, ReleaseReferences), asCALL_THISCALL);
 				Engine->RegisterFuncdef("void promise_v::when_callback()");
 				Engine->RegisterObjectMethod("promise_v", "void when(when_callback@+)", asMETHOD(Promise, When), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise_v", "void wrap()", asMETHODPR(Promise, StoreVoid, (), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise_v", "void unwrap()", asMETHODPR(Promise, RetrieveVoid, (), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise_v", "promise_v@+ yield()", asMETHOD(Promise, YieldIf), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise_v", "bool pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
-				VM->SetCodeGenerator("std/promise/async", &Promise::GeneratorCallback);
 
 				return true;
 			}
@@ -13429,11 +14858,11 @@ namespace Mavi
 
 				RefClass VSocketServer = Engine->SetClass<Network::SocketServer>("socket_server", true);
 				VSocketServer.SetGcConstructor<Network::SocketServer, SocketServer>("socket_server@ f()");
-				VSocketServer.SetMethod("void set_router(socket_router@+)", &Network::SocketServer::SetRouter);
+				VSocketServer.SetMethodEx("void set_router(socket_router@+)", &SocketServerSetRouter);
 				VSocketServer.SetMethod("void set_backlog(usize)", &Network::SocketServer::SetBacklog);
 				VSocketServer.SetMethod("void lock()", &Network::SocketServer::Lock);
 				VSocketServer.SetMethod("void unlock()", &Network::SocketServer::Unlock);
-				VSocketServer.SetMethod("bool configure(socket_router@+)", &Network::SocketServer::Configure);
+				VSocketServer.SetMethodEx("bool configure(socket_router@+)", &SocketServerConfigure);
 				VSocketServer.SetMethod("bool unlisten(uint64 = 5)", &Network::SocketServer::Unlisten);
 				VSocketServer.SetMethod("bool listen()", &Network::SocketServer::Listen);
 				VSocketServer.SetMethod("usize get_backlog() const", &Network::SocketServer::GetBacklog);
@@ -13469,8 +14898,404 @@ namespace Mavi
 			{
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_TYPEREF(RouteGroup, "http::route_group");
+				VI_TYPEREF(SiteEntry, "http::site_entry");
+				VI_TYPEREF(MapRouter, "http::map_router");
+				VI_TYPEREF(Server, "http::server");
+				VI_TYPEREF(Connection, "http::connection");
+				VI_TYPEREF(ArrayResourceInfo, "array<resource_info>@");
+				VI_TYPEREF(String, "string");
+				VI_TYPEREF(Schema, "schema");
 
-				/* TODO: register bindings for <http> module */
+				Engine->BeginNamespace("http");
+				Enumeration VAuth = Engine->SetEnum("auth");
+				VAuth.SetValue("granted", (int)Network::HTTP::Auth::Granted);
+				VAuth.SetValue("denied", (int)Network::HTTP::Auth::Denied);
+				VAuth.SetValue("unverified", (int)Network::HTTP::Auth::Unverified);
+
+				Enumeration VWebSocketOp = Engine->SetEnum("websocket_op");
+				VWebSocketOp.SetValue("next", (int)Network::HTTP::WebSocketOp::Continue);
+				VWebSocketOp.SetValue("text", (int)Network::HTTP::WebSocketOp::Text);
+				VWebSocketOp.SetValue("binary", (int)Network::HTTP::WebSocketOp::Binary);
+				VWebSocketOp.SetValue("close", (int)Network::HTTP::WebSocketOp::Close);
+				VWebSocketOp.SetValue("ping", (int)Network::HTTP::WebSocketOp::Ping);
+				VWebSocketOp.SetValue("pong", (int)Network::HTTP::WebSocketOp::Pong);
+
+				Enumeration VWebSocketState = Engine->SetEnum("websocket_state");
+				VWebSocketState.SetValue("open", (int)Network::HTTP::WebSocketState::Open);
+				VWebSocketState.SetValue("receive", (int)Network::HTTP::WebSocketState::Receive);
+				VWebSocketState.SetValue("process", (int)Network::HTTP::WebSocketState::Process);
+				VWebSocketState.SetValue("close", (int)Network::HTTP::WebSocketState::Close);
+
+				Enumeration VCompressionTune = Engine->SetEnum("compression_tune");
+				VCompressionTune.SetValue("filtered", (int)Network::HTTP::CompressionTune::Filtered);
+				VCompressionTune.SetValue("huffman", (int)Network::HTTP::CompressionTune::Huffman);
+				VCompressionTune.SetValue("rle", (int)Network::HTTP::CompressionTune::Rle);
+				VCompressionTune.SetValue("fixed", (int)Network::HTTP::CompressionTune::Fixed);
+				VCompressionTune.SetValue("defaults", (int)Network::HTTP::CompressionTune::Default);
+
+				Enumeration VRouteMode = Engine->SetEnum("route_mode");
+				VRouteMode.SetValue("start", (int)Network::HTTP::RouteMode::Start);
+				VRouteMode.SetValue("match", (int)Network::HTTP::RouteMode::Match);
+				VRouteMode.SetValue("end", (int)Network::HTTP::RouteMode::End);
+
+				TypeClass VErrorFile = Engine->SetStructTrivial<Network::HTTP::ErrorFile>("error_file");
+				VErrorFile.SetProperty<Network::HTTP::ErrorFile>("string pattern", &Network::HTTP::ErrorFile::Pattern);
+				VErrorFile.SetProperty<Network::HTTP::ErrorFile>("int32 status_code", &Network::HTTP::ErrorFile::StatusCode);
+				VErrorFile.SetConstructor<Network::HTTP::ErrorFile>("void f()");
+
+				TypeClass VMimeType = Engine->SetStructTrivial<Network::HTTP::MimeType>("mime_type");
+				VMimeType.SetProperty<Network::HTTP::MimeType>("string extension", &Network::HTTP::MimeType::Extension);
+				VMimeType.SetProperty<Network::HTTP::MimeType>("string type", &Network::HTTP::MimeType::Type);
+				VMimeType.SetConstructor<Network::HTTP::MimeType>("void f()");
+
+				TypeClass VCredentials = Engine->SetStructTrivial<Network::HTTP::Credentials>("credentials");
+				VCredentials.SetProperty<Network::HTTP::Credentials>("string token", &Network::HTTP::Credentials::Token);
+				VCredentials.SetProperty<Network::HTTP::Credentials>("auth type", &Network::HTTP::Credentials::Type);
+				VCredentials.SetConstructor<Network::HTTP::Credentials>("void f()");
+
+				TypeClass VResource = Engine->SetStructTrivial<Network::HTTP::Resource>("resource_info");
+				VResource.SetProperty<Network::HTTP::Resource>("string path", &Network::HTTP::Resource::Path);
+				VResource.SetProperty<Network::HTTP::Resource>("string type", &Network::HTTP::Resource::Type);
+				VResource.SetProperty<Network::HTTP::Resource>("string name", &Network::HTTP::Resource::Name);
+				VResource.SetProperty<Network::HTTP::Resource>("string key", &Network::HTTP::Resource::Key);
+				VResource.SetProperty<Network::HTTP::Resource>("usize length", &Network::HTTP::Resource::Length);
+				VResource.SetProperty<Network::HTTP::Resource>("bool memory", &Network::HTTP::Resource::Memory);
+				VResource.SetConstructor<Network::HTTP::Resource>("void f()");
+				VResource.SetMethod("void put_header(const string&in, const string&in)", &Network::HTTP::Resource::PutHeader);
+				VResource.SetMethod("void set_header(const string&in, const string&in)", &Network::HTTP::Resource::SetHeader);
+				VResource.SetMethod("string compose_header(const string&in) const", &Network::HTTP::Resource::ComposeHeader);
+				VResource.SetMethodEx("string get_header(const string&in) const", &ResourceGetHeaderBlob);
+
+				TypeClass VCookie = Engine->SetStructTrivial<Network::HTTP::Cookie>("cookie");
+				VCookie.SetProperty<Network::HTTP::Cookie>("string name", &Network::HTTP::Cookie::Name);
+				VCookie.SetProperty<Network::HTTP::Cookie>("string value", &Network::HTTP::Cookie::Value);
+				VCookie.SetProperty<Network::HTTP::Cookie>("string domain", &Network::HTTP::Cookie::Domain);
+				VCookie.SetProperty<Network::HTTP::Cookie>("string same_site", &Network::HTTP::Cookie::SameSite);
+				VCookie.SetProperty<Network::HTTP::Cookie>("string expires", &Network::HTTP::Cookie::Expires);
+				VCookie.SetProperty<Network::HTTP::Cookie>("bool secure", &Network::HTTP::Cookie::Secure);
+				VCookie.SetProperty<Network::HTTP::Cookie>("bool http_only", &Network::HTTP::Cookie::HttpOnly);
+				VCookie.SetConstructor<Network::HTTP::Cookie>("void f()");
+				VCookie.SetMethod("void set_expires(int64)", &Network::HTTP::Cookie::SetExpires);
+				VCookie.SetMethod("void set_expired()", &Network::HTTP::Cookie::SetExpired);
+
+				TypeClass VContentFrame = Engine->SetStructTrivial<Network::HTTP::ContentFrame>("content_frame");
+				VContentFrame.SetProperty<Network::HTTP::ContentFrame>("usize length", &Network::HTTP::ContentFrame::Length);
+				VContentFrame.SetProperty<Network::HTTP::ContentFrame>("usize offset", &Network::HTTP::ContentFrame::Offset);
+				VContentFrame.SetProperty<Network::HTTP::ContentFrame>("bool exceeds", &Network::HTTP::ContentFrame::Exceeds);
+				VContentFrame.SetProperty<Network::HTTP::ContentFrame>("bool limited", &Network::HTTP::ContentFrame::Limited);
+				VContentFrame.SetConstructor<Network::HTTP::ContentFrame>("void f()");
+				VContentFrame.SetMethod<Network::HTTP::ContentFrame, void, const Core::String&>("void append(const string&in)", &Network::HTTP::ContentFrame::Append);
+				VContentFrame.SetMethod<Network::HTTP::ContentFrame, void, const Core::String&>("void assign(const string&in)", &Network::HTTP::ContentFrame::Assign);
+				VContentFrame.SetMethod("void finalize()", &Network::HTTP::ContentFrame::Finalize);
+				VContentFrame.SetMethod("void cleanup()", &Network::HTTP::ContentFrame::Cleanup);
+				VContentFrame.SetMethod("string get_text() const", &Network::HTTP::ContentFrame::GetText);
+				VContentFrame.SetMethod("bool is_finalized() const", &Network::HTTP::ContentFrame::IsFinalized);
+				VContentFrame.SetMethodEx("void prepare(const string&in)", &ContentFramePrepare);
+				VContentFrame.SetMethodEx("resource_info get_resource(usize) const", &ContentFrameGetResource);
+				VContentFrame.SetMethodEx("usize get_resources_size() const", &ContentFrameGetResourcesSize);
+
+				TypeClass VRequestFrame = Engine->SetStructTrivial<Network::HTTP::RequestFrame>("request_frame");
+				VRequestFrame.SetProperty<Network::HTTP::RequestFrame>("content_frame content", &Network::HTTP::RequestFrame::Content);
+				VRequestFrame.SetProperty<Network::HTTP::RequestFrame>("string query", &Network::HTTP::RequestFrame::Query);
+				VRequestFrame.SetProperty<Network::HTTP::RequestFrame>("string path", &Network::HTTP::RequestFrame::Path);
+				VRequestFrame.SetProperty<Network::HTTP::RequestFrame>("string uri", &Network::HTTP::RequestFrame::URI);
+				VRequestFrame.SetProperty<Network::HTTP::RequestFrame>("string where", &Network::HTTP::RequestFrame::Where);
+				VRequestFrame.SetProperty<Network::HTTP::RequestFrame>("regex_result match", &Network::HTTP::RequestFrame::Match);
+				VRequestFrame.SetProperty<Network::HTTP::RequestFrame>("credentials user", &Network::HTTP::RequestFrame::User);
+				VRequestFrame.SetConstructor<Network::HTTP::RequestFrame>("void f()");
+				VRequestFrame.SetMethod("void set_version(uint32, uint32)", &Network::HTTP::RequestFrame::SetVersion);
+				VRequestFrame.SetMethod("void put_header(const string&in, const string&in)", &Network::HTTP::RequestFrame::PutHeader);
+				VRequestFrame.SetMethod("void set_header(const string&in, const string&in)", &Network::HTTP::RequestFrame::SetHeader);
+				VRequestFrame.SetMethod("void cleanup()", &Network::HTTP::RequestFrame::Cleanup);
+				VRequestFrame.SetMethod("string compose_header(const string&in) const", &Network::HTTP::RequestFrame::ComposeHeader);
+				VRequestFrame.SetMethodEx("string get_cookie(const string&in) const", &RequestFrameGetCookieBlob);
+				VRequestFrame.SetMethodEx("string get_header(const string&in) const", &RequestFrameGetHeaderBlob);
+				VRequestFrame.SetMethodEx("string get_header(usize, usize = 0) const", &RequestFrameGetHeader);
+				VRequestFrame.SetMethodEx("string get_cookie(usize, usize = 0) const", &RequestFrameGetCookie);
+				VRequestFrame.SetMethodEx("usize get_headers_size() const", &RequestFrameGetHeadersSize);
+				VRequestFrame.SetMethodEx("usize get_header_size(usize) const", &RequestFrameGetHeaderSize);
+				VRequestFrame.SetMethodEx("usize get_cookies_size() const", &RequestFrameGetCookiesSize);
+				VRequestFrame.SetMethodEx("usize get_cookie_size(usize) const", &RequestFrameGetCookieSize);
+				VRequestFrame.SetMethodEx("void set_method(const string&in)", &RequestFrameSetMethod);
+				VRequestFrame.SetMethodEx("string get_method() const", &RequestFrameGetMethod);
+				VRequestFrame.SetMethodEx("string get_version() const", &RequestFrameGetVersion);
+
+				TypeClass VResponseFrame = Engine->SetStructTrivial<Network::HTTP::ResponseFrame>("response_frame");
+				VResponseFrame.SetProperty<Network::HTTP::ResponseFrame>("content_frame content", &Network::HTTP::ResponseFrame::Content);
+				VResponseFrame.SetProperty<Network::HTTP::ResponseFrame>("int32 status_code", &Network::HTTP::ResponseFrame::StatusCode);
+				VResponseFrame.SetProperty<Network::HTTP::ResponseFrame>("bool error", &Network::HTTP::ResponseFrame::Error);
+				VResponseFrame.SetConstructor<Network::HTTP::ResponseFrame>("void f()");
+				VResponseFrame.SetMethod("void put_header(const string&in, const string&in)", &Network::HTTP::ResponseFrame::PutHeader);
+				VResponseFrame.SetMethod("void set_header(const string&in, const string&in)", &Network::HTTP::ResponseFrame::SetHeader);
+				VResponseFrame.SetMethod<Network::HTTP::ResponseFrame, void, const Network::HTTP::Cookie&>("void set_cookie(const cookie&in)", &Network::HTTP::ResponseFrame::SetCookie);
+				VResponseFrame.SetMethod("void cleanup()", &Network::HTTP::ResponseFrame::Cleanup);
+				VResponseFrame.SetMethod("string compose_header(const string&in) const", &Network::HTTP::ResponseFrame::ComposeHeader);
+				VResponseFrame.SetMethodEx("string get_header(const string&in) const", &ResponseFrameGetHeaderBlob);
+				VResponseFrame.SetMethod("bool is_ok() const", &Network::HTTP::ResponseFrame::IsOK);
+				VResponseFrame.SetMethodEx("string get_header(usize, usize) const", &ResponseFrameGetHeader);
+				VResponseFrame.SetMethodEx("cookie get_cookie(const string&in) const", &ResponseFrameGetCookie1);
+				VResponseFrame.SetMethodEx("cookie get_cookie(usize) const", &ResponseFrameGetCookie2);
+				VResponseFrame.SetMethodEx("usize get_headers_size() const", &ResponseFrameGetHeadersSize);
+				VResponseFrame.SetMethodEx("usize get_header_size(usize) const", &ResponseFrameGetHeaderSize);
+				VResponseFrame.SetMethodEx("usize get_cookies_size() const", &ResponseFrameGetCookiesSize);
+
+				TypeClass VRouteAuth = Engine->SetStructTrivial<Network::HTTP::RouteEntry::RouteAuth>("route_auth");
+				VRouteAuth.SetProperty<Network::HTTP::RouteEntry::RouteAuth>("string type", &Network::HTTP::RouteEntry::RouteAuth::Type);
+				VRouteAuth.SetProperty<Network::HTTP::RouteEntry::RouteAuth>("string realm", &Network::HTTP::RouteEntry::RouteAuth::Realm);
+				VRouteAuth.SetConstructor<Network::HTTP::RouteEntry::RouteAuth>("void f()");
+				VRouteAuth.SetMethodEx("void set_methods(array<string>@+)", &RouteAuthSetMethods);
+				VRouteAuth.SetMethodEx("array<string>@ get_methods() const", &RouteAuthGetMethods);
+
+				TypeClass VRouteCompression = Engine->SetStructTrivial<Network::HTTP::RouteEntry::RouteCompression>("route_compression");
+				VRouteCompression.SetProperty<Network::HTTP::RouteEntry::RouteCompression>("compression_tune tune", &Network::HTTP::RouteEntry::RouteCompression::Tune);
+				VRouteCompression.SetProperty<Network::HTTP::RouteEntry::RouteCompression>("int32 quality_level", &Network::HTTP::RouteEntry::RouteCompression::QualityLevel);
+				VRouteCompression.SetProperty<Network::HTTP::RouteEntry::RouteCompression>("int32 memory_level", &Network::HTTP::RouteEntry::RouteCompression::MemoryLevel);
+				VRouteCompression.SetProperty<Network::HTTP::RouteEntry::RouteCompression>("usize min_length", &Network::HTTP::RouteEntry::RouteCompression::MinLength);
+				VRouteCompression.SetProperty<Network::HTTP::RouteEntry::RouteCompression>("bool enabled", &Network::HTTP::RouteEntry::RouteCompression::Enabled);
+				VRouteCompression.SetConstructor<Network::HTTP::RouteEntry::RouteCompression>("void f()");
+				VRouteCompression.SetMethodEx("void set_files(array<regex_source>@+)", &RouteCompressionSetFiles);
+				VRouteCompression.SetMethodEx("array<regex_source>@ get_files() const", &RouteCompressionGetFiles);
+
+				RefClass VSiteEntry = Engine->SetClass<Network::HTTP::SiteEntry>("site_entry", false);
+				RefClass VRouteEntry = Engine->SetClass<Network::HTTP::RouteEntry>("route_entry", false);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("route_auth auths", &Network::HTTP::RouteEntry::Auth);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("route_compression compressions", &Network::HTTP::RouteEntry::Compression);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("string document_root", &Network::HTTP::RouteEntry::DocumentRoot);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("string char_set", &Network::HTTP::RouteEntry::CharSet);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("string proxy_ip_address", &Network::HTTP::RouteEntry::ProxyIpAddress);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("string access_control_allow_origin", &Network::HTTP::RouteEntry::AccessControlAllowOrigin);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("string redirect", &Network::HTTP::RouteEntry::Redirect);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("string overrides", &Network::HTTP::RouteEntry::Override);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("usize websocket_timeout", &Network::HTTP::RouteEntry::WebSocketTimeout);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("usize static_file_max_age", &Network::HTTP::RouteEntry::StaticFileMaxAge);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("usize max_cache_length", &Network::HTTP::RouteEntry::MaxCacheLength);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("usize level", &Network::HTTP::RouteEntry::Level);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("bool allow_directory_listing", &Network::HTTP::RouteEntry::AllowDirectoryListing);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("bool allow_websocket", &Network::HTTP::RouteEntry::AllowWebSocket);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("bool allow_send_file", &Network::HTTP::RouteEntry::AllowSendFile);
+				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("regex_source uri", &Network::HTTP::RouteEntry::URI);
+				VRouteEntry.SetConstructor<Network::HTTP::RouteEntry>("route_entry@ f()");
+				VRouteEntry.SetConstructor<Network::HTTP::RouteEntry, Network::HTTP::RouteEntry*, const Compute::RegexSource&>("route_entry@ f(route_entry@+, const regex_source&in)");
+				VRouteEntry.SetMethodEx("void set_hidden_files(array<regex_source>@+)", &RouteEntrySetHiddenFiles);
+				VRouteEntry.SetMethodEx("array<regex_source>@ get_hidden_files() const", &RouteEntryGetHiddenFiles);
+				VRouteEntry.SetMethodEx("void set_error_files(array<error_file>@+)", &RouteEntrySetErrorFiles);
+				VRouteEntry.SetMethodEx("array<error_file>@ get_error_files() const", &RouteEntryGetErrorFiles);
+				VRouteEntry.SetMethodEx("void set_mime_types(array<mime_type>@+)", &RouteEntrySetMimeTypes);
+				VRouteEntry.SetMethodEx("array<mime_type>@ get_mime_types() const", &RouteEntryGetMimeTypes);
+				VRouteEntry.SetMethodEx("void set_index_files(array<string>@+)", &RouteEntrySetIndexFiles);
+				VRouteEntry.SetMethodEx("array<string>@ get_index_files() const", &RouteEntryGetIndexFiles);
+				VRouteEntry.SetMethodEx("void set_try_files(array<string>@+)", &RouteEntrySetTryFiles);
+				VRouteEntry.SetMethodEx("array<string>@ get_try_files() const", &RouteEntryGetTryFiles);
+				VRouteEntry.SetMethodEx("void set_disallowed_methods_files(array<string>@+)", &RouteEntrySetDisallowedMethodsFiles);
+				VRouteEntry.SetMethodEx("array<string>@ get_disallowed_methods_files() const", &RouteEntryGetDisallowedMethodsFiles);
+				VRouteEntry.SetMethodEx("site_entry@+ get_site() const", &RouteEntryGetSite);
+
+				RefClass VRouteGroup = Engine->SetClass<Network::HTTP::RouteGroup>("route_group", false);
+				VRouteGroup.SetProperty<Network::HTTP::RouteGroup>("string match", &Network::HTTP::RouteGroup::Match);
+				VRouteGroup.SetProperty<Network::HTTP::RouteGroup>("route_mode mode", &Network::HTTP::RouteGroup::Mode);
+				VRouteGroup.SetGcConstructor<Network::HTTP::RouteGroup, RouteGroup, const Core::String&, Network::HTTP::RouteMode>("route_group@ f(const string&in, route_mode)");
+				VRouteGroup.SetMethodEx("route_entry@+ get_route(usize) const", &RouteGroupGetRoute);
+				VRouteGroup.SetMethodEx("usize get_routes_size() const", &RouteGroupGetRoutesSize);
+
+				TypeClass VSiteCookie = Engine->SetStructTrivial<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("site_cookie");
+				VSiteCookie.SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("string name", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::Name);
+				VSiteCookie.SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("string domain", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::Domain);
+				VSiteCookie.SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("string path", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::Path);
+				VSiteCookie.SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("string same_site", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::SameSite);
+				VSiteCookie.SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("uint64 expires", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::Expires);
+				VSiteCookie.SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("bool secure", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::Secure);
+				VSiteCookie.SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("bool http_only", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::HttpOnly);
+				VSiteCookie.SetConstructor<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("void f()");
+
+				TypeClass VSiteSession = Engine->SetStructTrivial<Network::HTTP::SiteEntry::SiteSession>("site_session");
+				VSiteSession.SetProperty<Network::HTTP::SiteEntry::SiteSession>("site_cookie cookie", &Network::HTTP::SiteEntry::SiteSession::Cookie);
+				VSiteSession.SetProperty<Network::HTTP::SiteEntry::SiteSession>("string document_root", &Network::HTTP::SiteEntry::SiteSession::DocumentRoot);
+				VSiteSession.SetProperty<Network::HTTP::SiteEntry::SiteSession>("uint64 expires", &Network::HTTP::SiteEntry::SiteSession::Expires);
+				VSiteSession.SetConstructor<Network::HTTP::SiteEntry::SiteSession>("void f()");
+
+				RefClass VMapRouter = Engine->SetClass<Network::HTTP::MapRouter>("map_router", true);
+				RefClass VConnection = Engine->SetClass<Network::HTTP::Connection>("connection", false);
+				RefClass VWebSocketFrame = Engine->SetClass<Network::HTTP::WebSocketFrame>("websocket_frame", false);
+				VWebSocketFrame.SetFunctionDef("void status_event(websocket_frame@+)");
+				VWebSocketFrame.SetFunctionDef("void data_event(websocket_frame@+, websocket_op, const string&in)");
+				VWebSocketFrame.SetMethodEx("bool set_on_connect(status_event@+)", &WebSocketFrameSetOnConnect);
+				VWebSocketFrame.SetMethodEx("bool set_on_before_disconnect(status_event@+)", &WebSocketFrameSetOnBeforeDisconnect);
+				VWebSocketFrame.SetMethodEx("bool set_on_disconnect(status_event@+)", &WebSocketFrameSetOnDisconnect);
+				VWebSocketFrame.SetMethodEx("bool set_on_receive(data_event@+)", &WebSocketFrameSetOnReceive);
+				VWebSocketFrame.SetMethodEx("promise<bool>@ send(const string&in, websocket_op)", &VI_SPROMISIFY(WebSocketFrameSend1, TypeId::BOOL));
+				VWebSocketFrame.SetMethodEx("promise<bool>@ send(uint32, const string&in, websocket_op)", &VI_SPROMISIFY(WebSocketFrameSend2, TypeId::BOOL));
+				VWebSocketFrame.SetMethod("void finish()", &Network::HTTP::WebSocketFrame::Finish);
+				VWebSocketFrame.SetMethod("void next()", &Network::HTTP::WebSocketFrame::Next);
+				VWebSocketFrame.SetMethod("bool is_finished() const", &Network::HTTP::WebSocketFrame::IsFinished);
+
+				VSiteEntry.SetFunctionDef("void net_event(connection@+)");
+				VSiteEntry.SetFunctionDef("void auth_event(connection@+, credentials&in)");
+				VSiteEntry.SetFunctionDef("void header_event(connection@+, string&out)");
+				VSiteEntry.SetFunctionDef("void websocket_event(websocket_frame@+)");
+				VSiteEntry.SetFunctionDef("void websocket_data_event(websocket_frame@+, websocket_op, const string&in)");
+				VSiteEntry.SetProperty<Network::HTTP::SiteEntry>("site_session sessions", &Network::HTTP::SiteEntry::Session);
+				VSiteEntry.SetProperty<Network::HTTP::SiteEntry>("string resource_root", &Network::HTTP::SiteEntry::ResourceRoot);
+				VSiteEntry.SetProperty<Network::HTTP::SiteEntry>("usize max_resources", &Network::HTTP::SiteEntry::MaxResources);
+				VSiteEntry.SetMethod("void sort()", &Network::HTTP::SiteEntry::Sort);
+				VSiteEntry.SetMethod("route_group@+ group(const string&in, route_mode)", &Network::HTTP::SiteEntry::Group);
+				VSiteEntry.SetMethod<Network::HTTP::SiteEntry, Network::HTTP::RouteEntry*, const Core::String&, Network::HTTP::RouteMode, const Core::String&>("route_entry@+ route(const string&in, route_mode, const string&in)", &Network::HTTP::SiteEntry::Route);
+				VSiteEntry.SetMethod<Network::HTTP::SiteEntry, Network::HTTP::RouteEntry*, const Core::String&, Network::HTTP::RouteGroup*, Network::HTTP::RouteEntry*>("route_entry@+ route(const string&in, route_group@+, route_entry@+)", &Network::HTTP::SiteEntry::Route);
+				VSiteEntry.SetMethod("bool remove(route_entry@+)", &Network::HTTP::SiteEntry::Remove);
+				VSiteEntry.SetMethodEx("bool get(const string&in, net_event@+) const", &SiteEntryGet1);
+				VSiteEntry.SetMethodEx("bool get(const string&in, route_mode, const string&in, net_event@+) const", &SiteEntryGet2);
+				VSiteEntry.SetMethodEx("bool post(const string&in, net_event@+) const", &SiteEntryPost1);
+				VSiteEntry.SetMethodEx("bool post(const string&in, route_mode, const string&in, net_event@+) const", &SiteEntryPost2);
+				VSiteEntry.SetMethodEx("bool patch(const string&in, net_event@+) const", &SiteEntryPatch1);
+				VSiteEntry.SetMethodEx("bool patch(const string&in, route_mode, const string&in, net_event@+) const", &SiteEntryPatch2);
+				VSiteEntry.SetMethodEx("bool delete(const string&in, net_event@+) const", &SiteEntryDelete1);
+				VSiteEntry.SetMethodEx("bool delete(const string&in, route_mode, const string&in, net_event@+) const", &SiteEntryDelete2);
+				VSiteEntry.SetMethodEx("bool options(const string&in, net_event@+) const", &SiteEntryOptions1);
+				VSiteEntry.SetMethodEx("bool options(const string&in, route_mode, const string&in, net_event@+) const", &SiteEntryOptions2);
+				VSiteEntry.SetMethodEx("bool access(const string&in, net_event@+) const", &SiteEntryAccess1);
+				VSiteEntry.SetMethodEx("bool access(const string&in, route_mode, const string&in, net_event@+) const", &SiteEntryAccess2);
+				VSiteEntry.SetMethodEx("bool headers(const string&in, header_event@+) const", &SiteEntryHeaders1);
+				VSiteEntry.SetMethodEx("bool headers(const string&in, route_mode, const string&in, header_event@+) const", &SiteEntryHeaders2);
+				VSiteEntry.SetMethodEx("bool authorize(const string&in, auth_event@+) const", &SiteEntryAuthorize1);
+				VSiteEntry.SetMethodEx("bool authorize(const string&in, route_mode, const string&in, auth_event@+) const", &SiteEntryAuthorize2);
+				VSiteEntry.SetMethodEx("bool websocket_initiate(const string&in, net_event@+) const", &SiteEntryWebsocketInitiate1);
+				VSiteEntry.SetMethodEx("bool websocket_initiate(const string&in, route_mode, const string&in, net_event@+) const", &SiteEntryWebsocketInitiate2);
+				VSiteEntry.SetMethodEx("bool websocket_connect(const string&in, websocket_event@+) const", &SiteEntryWebsocketConnect1);
+				VSiteEntry.SetMethodEx("bool websocket_connect(const string&in, route_mode, const string&in, websocket_event@+) const", &SiteEntryWebsocketConnect2);
+				VSiteEntry.SetMethodEx("bool websocket_disconnect(const string&in, websocket_event@+) const", &SiteEntryWebsocketDisconnect1);
+				VSiteEntry.SetMethodEx("bool websocket_disconnect(const string&in, route_mode, const string&in, websocket_event@+) const", &SiteEntryWebsocketDisconnect2);
+				VSiteEntry.SetMethodEx("bool websocket_receive(const string&in, websocket_data_event@+) const", &SiteEntryWebsocketReceive1);
+				VSiteEntry.SetMethodEx("bool websocket_receive(const string&in, route_mode, const string&in, websocket_data_event@+) const", &SiteEntryWebsocketReceive2);
+				VSiteEntry.SetMethodEx("route_entry@+ get_base() const", &SiteEntryGetBase);
+				VSiteEntry.SetMethodEx("map_router@+ get_router() const", &SiteEntryGetRouter);
+				VSiteEntry.SetMethodEx("route_group@+ get_group(usize) const", &SiteEntryGetGroup);
+				VSiteEntry.SetMethodEx("usize get_groups_size() const", &SiteEntryGetGroupsSize);
+
+				VMapRouter.SetProperty<Network::SocketRouter>("usize payload_max_length", &Network::SocketRouter::PayloadMaxLength);
+				VMapRouter.SetProperty<Network::SocketRouter>("usize backlog_queue", &Network::SocketRouter::BacklogQueue);
+				VMapRouter.SetProperty<Network::SocketRouter>("usize socket_timeout", &Network::SocketRouter::SocketTimeout);
+				VMapRouter.SetProperty<Network::SocketRouter>("usize max_connections", &Network::SocketRouter::MaxConnections);
+				VMapRouter.SetProperty<Network::SocketRouter>("int64 keep_alive_max_count", &Network::SocketRouter::KeepAliveMaxCount);
+				VMapRouter.SetProperty<Network::SocketRouter>("int64 graceful_time_wait", &Network::SocketRouter::GracefulTimeWait);
+				VMapRouter.SetProperty<Network::SocketRouter>("bool enable_no_delay", &Network::SocketRouter::EnableNoDelay);
+				VMapRouter.SetGcConstructor<Network::HTTP::MapRouter, MapRouter>("map_router@ f()");
+				VMapRouter.SetMethod<Network::SocketRouter, Network::RemoteHost&, const Core::String&, int, bool>("remote_host& listen(const string &in, int, bool = false)", &Network::SocketRouter::Listen);
+				VMapRouter.SetMethod<Network::SocketRouter, Network::RemoteHost&, const Core::String&, const Core::String&, int, bool>("remote_host& listen(const string &in, const string &in, int, bool = false)", &Network::SocketRouter::Listen);
+				VMapRouter.SetMethodEx("void set_listeners(dictionary@ data)", &SocketRouterSetListeners);
+				VMapRouter.SetMethodEx("dictionary@ get_listeners() const", &SocketRouterGetListeners);
+				VMapRouter.SetMethodEx("void set_certificates(dictionary@ data)", &SocketRouterSetCertificates);
+				VMapRouter.SetMethodEx("dictionary@ get_certificates() const", &SocketRouterGetCertificates);
+				VMapRouter.SetMethodEx("site_entry@+ site()", &MapRouterSite1);
+				VMapRouter.SetMethodEx("site_entry@+ site(const string&in)", &MapRouterSite2);
+				VMapRouter.SetMethodEx("site_entry@+ get_site(const string&in) const", &MapRouterGetSite1);
+				VMapRouter.SetMethodEx("site_entry@+ get_site(usize) const", &MapRouterGetSite2);
+				VMapRouter.SetMethodEx("usize get_sites_size() const", &MapRouterGetSitesSize);
+				VMapRouter.SetEnumRefsEx<Network::HTTP::MapRouter>([](Network::HTTP::MapRouter* Base, asIScriptEngine* Engine)
+				{
+					for (auto& Site : Base->Sites)
+					{
+						Engine->GCEnumCallback(Site.second);
+						Engine->GCEnumCallback(Site.second->Base);
+						for (auto& Group : Site.second->Groups)
+						{
+							for (auto& Route : Group->Routes)
+								Engine->GCEnumCallback(Route);
+						}
+					}
+				});
+				VMapRouter.SetReleaseRefsEx<Network::HTTP::MapRouter>([](Network::HTTP::MapRouter* Base, asIScriptEngine*)
+				{
+					MapRouterCleanup(Base);
+					Base->~MapRouter();
+				});
+				VMapRouter.SetDynamicCast<Network::HTTP::MapRouter, Network::SocketRouter>("socket_router@+", true);
+
+				RefClass VServer = Engine->SetClass<Network::HTTP::Server>("server", true);
+				VConnection.SetProperty<Network::HTTP::Connection>("file_entry target", &Network::HTTP::Connection::Resource);
+				VConnection.SetProperty<Network::HTTP::Connection>("request_frame request", &Network::HTTP::Connection::Request);
+				VConnection.SetProperty<Network::HTTP::Connection>("response_frame response", &Network::HTTP::Connection::Response);
+				VConnection.SetProperty<Network::SocketConnection>("socket@ stream", &Network::SocketConnection::Stream);
+				VConnection.SetProperty<Network::SocketConnection>("socket_listener@ host", &Network::SocketConnection::Host);
+				VConnection.SetProperty<Network::SocketConnection>("socket_data_frame info", &Network::SocketConnection::Info);
+				VConnection.SetMethodEx("string get_remote_address() const", &SocketConnectionGetRemoteAddress);
+				VConnection.SetMethodEx("bool error(int, const string &in)", &SocketConnectionError);
+				VConnection.SetMethod("bool encryption_info(socket_certificate &out)", &Network::SocketConnection::EncryptionInfo);
+				VConnection.SetMethod("bool stop()", &Network::SocketConnection::Break);
+				VConnection.SetMethod("void reset(bool)", &Network::HTTP::Connection::Reset);
+				VConnection.SetMethod<Network::HTTP::Connection, bool>("bool finish()", &Network::HTTP::Connection::Finish);
+				VConnection.SetMethod<Network::HTTP::Connection, bool, int>("bool finish(int32)", &Network::HTTP::Connection::Finish);
+				VConnection.SetMethodEx("promise<array<resource_info>@>@ store(bool = false) const", &VI_SPROMISIFY_REF(ConnectionStore, ArrayResourceInfo));
+				VConnection.SetMethodEx("promise<string>@ consume(bool = false) const", &VI_SPROMISIFY_REF(ConnectionConsume, String));
+				VConnection.SetMethodEx("promise<bool>@ skip() const", &VI_SPROMISIFY(ConnectionSkip, TypeId::BOOL));
+				VConnection.SetMethodEx("websocket_frame@+ get_websocket() const", &ConnectionGetWebSocket);
+				VConnection.SetMethodEx("route_entry@+ get_route() const", &ConnectionGetRoute);
+				VConnection.SetMethodEx("server@+ get_root() const", &ConnectionGetServer);
+
+				RefClass VQuery = Engine->SetClass<Network::HTTP::Query>("query", false);
+				VQuery.SetConstructor<Network::HTTP::Query>("query@ f()");
+				VQuery.SetMethod("void clear()", &Network::HTTP::Query::Clear);
+				VQuery.SetMethodEx("void decode(const string&in, const string&in)", &QueryDecode);
+				VQuery.SetMethodEx("string encode(const string&in)", &QueryEncode);
+				VQuery.SetMethodEx("void set_data(schema@+)", &QuerySetData);
+				VQuery.SetMethodEx("schema@+ get_data()", &QueryGetData);
+
+				RefClass VSession = Engine->SetClass<Network::HTTP::Session>("session", false);
+				VSession.SetProperty<Network::HTTP::Session>("string session_id", &Network::HTTP::Session::SessionId);
+				VSession.SetProperty<Network::HTTP::Session>("int64 session_expires", &Network::HTTP::Session::SessionExpires);
+				VSession.SetConstructor<Network::HTTP::Session>("session@ f()");
+				VSession.SetMethod("void clear()", &Network::HTTP::Session::Clear);
+				VSession.SetMethod("bool write(connection@+)", &Network::HTTP::Session::Write);
+				VSession.SetMethod("bool read(connection@+)", &Network::HTTP::Session::Read);
+				VSession.SetMethodStatic("bool invalidate_cache(const string&in)", &Network::HTTP::Session::InvalidateCache);
+				VSession.SetMethodEx("void set_data(schema@+)", &SessionSetData);
+				VSession.SetMethodEx("schema@+ get_data()", &SessionGetData);
+
+				VServer.SetGcConstructor<Network::HTTP::Server, Server>("server@ f()");
+				VServer.SetMethod("void update()", &Network::HTTP::Server::Update);
+				VServer.SetMethodEx("void set_router(map_router@+)", &SocketServerSetRouter);
+				VServer.SetMethod("void set_backlog(usize)", &Network::SocketServer::SetBacklog);
+				VServer.SetMethod("void lock()", &Network::SocketServer::Lock);
+				VServer.SetMethod("void unlock()", &Network::SocketServer::Unlock);
+				VServer.SetMethodEx("bool configure(map_router@+)", &SocketServerConfigure);
+				VServer.SetMethod("bool unlisten(uint64 = 5)", &Network::SocketServer::Unlisten);
+				VServer.SetMethod("bool listen()", &Network::SocketServer::Listen);
+				VServer.SetMethod("usize get_backlog() const", &Network::SocketServer::GetBacklog);
+				VServer.SetMethod("server_state get_state() const", &Network::SocketServer::GetState);
+				VServer.SetMethod("map_router@+ get_router() const", &Network::SocketServer::GetRouter);
+				VServer.SetEnumRefsEx<Network::HTTP::Server>([](Network::HTTP::Server* Base, asIScriptEngine* Engine)
+				{
+					Engine->GCEnumCallback(Base->GetRouter());
+					for (auto* Item : Base->GetActiveClients())
+						Engine->GCEnumCallback(Item);
+
+					for (auto* Item : Base->GetPooledClients())
+						Engine->GCEnumCallback(Item);
+				});
+				VServer.SetReleaseRefsEx<Network::HTTP::Server>([](Network::HTTP::Server* Base, asIScriptEngine*)
+				{
+					Base->~Server();
+				});
+				VServer.SetDynamicCast<Network::HTTP::Server, Network::SocketServer>("socket_server@+", true);
+
+				RefClass VClient = Engine->SetClass<Network::HTTP::Client>("client", false);
+				VClient.SetConstructor<Network::HTTP::Client, int64_t>("client@ f(int64)");
+				VClient.SetMethod("bool downgrade()", &Network::HTTP::Client::Downgrade);
+				VClient.SetMethodEx("string get_remote_address() const", &ClientGetRemoteAddress);
+				VClient.SetMethodEx("promise<bool>@ consume(usize = 65536)", &VI_PROMISIFY(Network::HTTP::Client::Consume, TypeId::BOOL));
+				VClient.SetMethodEx("promise<bool>@ fetch(const request_frame&in, usize = 65536)", &VI_SPROMISIFY(ClientFetch, TypeId::BOOL));
+				VClient.SetMethodEx("promise<bool>@ upgrade(const request_frame&in)", &VI_SPROMISIFY(ClientUpgrade, TypeId::BOOL));
+				VClient.SetMethodEx("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(ClientSend, TypeId::BOOL));
+				VClient.SetMethodEx("promise<schema@>@ json(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientJSON, Schema));
+				VClient.SetMethodEx("promise<schema@>@ xml(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientXML, Schema));
+				VClient.SetMethodEx("promise<int>@ connect(remote_host &in)", &VI_PROMISIFY(Network::SocketClient::Connect, TypeId::INT32));
+				VClient.SetMethodEx("promise<int>@ close()", &VI_PROMISIFY(Network::SocketClient::Close, TypeId::INT32));
+				VClient.SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
+				VClient.SetMethod("websocket_frame@+ get_websocket() const", &Network::HTTP::Client::GetWebSocket);
+				VClient.SetMethod("request_frame& get_request() property", &Network::HTTP::Client::GetRequest);
+				VClient.SetMethod("response_frame& get_response() property", &Network::HTTP::Client::GetResponse);
+				VClient.SetDynamicCast<Network::HTTP::Client, Network::SocketClient>("socket_client@+", true);
+				Engine->EndNamespace();
+
 				return true;
 #else
 				VI_ASSERT(false, false, "<http> is not loaded");
@@ -13482,7 +15307,61 @@ namespace Mavi
 #ifdef VI_HAS_BINDINGS
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
 
-				/* TODO: register bindings for <smtp> module */
+				Engine->BeginNamespace("smtp");
+				Enumeration VPriority = Engine->SetEnum("priority");
+				VPriority.SetValue("high", (int)Network::SMTP::Priority::High);
+				VPriority.SetValue("normal", (int)Network::SMTP::Priority::Normal);
+				VPriority.SetValue("low", (int)Network::SMTP::Priority::Low);
+
+				TypeClass VRecipient = Engine->SetStructTrivial<Network::SMTP::Recipient>("recipient");
+				VRecipient.SetProperty<Network::SMTP::Recipient>("string name", &Network::SMTP::Recipient::Name);
+				VRecipient.SetProperty<Network::SMTP::Recipient>("string address", &Network::SMTP::Recipient::Address);
+				VRecipient.SetConstructor<Network::SMTP::Recipient>("void f()");
+
+				TypeClass VAttachment = Engine->SetStructTrivial<Network::SMTP::Attachment>("attachment");
+				VAttachment.SetProperty<Network::SMTP::Attachment>("string path", &Network::SMTP::Attachment::Path);
+				VAttachment.SetProperty<Network::SMTP::Attachment>("usize length", &Network::SMTP::Attachment::Length);
+				VAttachment.SetConstructor<Network::SMTP::Attachment>("void f()");
+
+				TypeClass VRequestFrame = Engine->SetStructTrivial<Network::SMTP::RequestFrame>("request_frame");
+				VRequestFrame.SetProperty<Network::SMTP::RequestFrame>("string sender_name", &Network::SMTP::RequestFrame::SenderName);
+				VRequestFrame.SetProperty<Network::SMTP::RequestFrame>("string sender_address", &Network::SMTP::RequestFrame::SenderAddress);
+				VRequestFrame.SetProperty<Network::SMTP::RequestFrame>("string subject", &Network::SMTP::RequestFrame::Subject);
+				VRequestFrame.SetProperty<Network::SMTP::RequestFrame>("string charset", &Network::SMTP::RequestFrame::Charset);
+				VRequestFrame.SetProperty<Network::SMTP::RequestFrame>("string mailer", &Network::SMTP::RequestFrame::Mailer);
+				VRequestFrame.SetProperty<Network::SMTP::RequestFrame>("string receiver", &Network::SMTP::RequestFrame::Receiver);
+				VRequestFrame.SetProperty<Network::SMTP::RequestFrame>("string login", &Network::SMTP::RequestFrame::Login);
+				VRequestFrame.SetProperty<Network::SMTP::RequestFrame>("string password", &Network::SMTP::RequestFrame::Password);
+				VRequestFrame.SetProperty<Network::SMTP::RequestFrame>("priority prior", &Network::SMTP::RequestFrame::Prior);
+				VRequestFrame.SetProperty<Network::SMTP::RequestFrame>("bool authenticate", &Network::SMTP::RequestFrame::Authenticate);
+				VRequestFrame.SetProperty<Network::SMTP::RequestFrame>("bool no_notification", &Network::SMTP::RequestFrame::NoNotification);
+				VRequestFrame.SetProperty<Network::SMTP::RequestFrame>("bool allow_html", &Network::SMTP::RequestFrame::AllowHTML);
+				VRequestFrame.SetConstructor<Network::SMTP::RequestFrame>("void f()");
+				VRequestFrame.SetMethodEx("void set_header(const string&in, const string&in)", &SMTPRequestSetHeader);
+				VRequestFrame.SetMethodEx("string get_header(const string&in)", &SMTPRequestGetHeader);
+				VRequestFrame.SetMethodEx("void set_recipients(array<recipient>@+)", &SMTPRequestSetRecipients);
+				VRequestFrame.SetMethodEx("array<string>@ get_recipients() const", &SMTPRequestGetRecipients);
+				VRequestFrame.SetMethodEx("void set_cc_recipients(array<recipient>@+)", &SMTPRequestSetCCRecipients);
+				VRequestFrame.SetMethodEx("array<string>@ get_cc_recipients() const", &SMTPRequestGetCCRecipients);
+				VRequestFrame.SetMethodEx("void set_bcc_recipients(array<recipient>@+)", &SMTPRequestSetBCCRecipients);
+				VRequestFrame.SetMethodEx("array<string>@ get_bcc_recipients() const", &SMTPRequestGetBCCRecipients);
+				VRequestFrame.SetMethodEx("void set_attachments(array<attachment>@+)", &SMTPRequestSetAttachments);
+				VRequestFrame.SetMethodEx("array<attachment>@ get_attachments() const", &SMTPRequestGetAttachments);
+				VRequestFrame.SetMethodEx("void set_messages(array<string>@+)", &SMTPRequestSetMessages);
+				VRequestFrame.SetMethodEx("array<string>@ get_messages() const", &SMTPRequestGetMessages);
+				VRequestFrame.SetMethodEx("string get_remote_address() const", &SMTPRequestGetRemoteAddress);
+
+				RefClass VClient = Engine->SetClass<Network::SMTP::Client>("client", false);
+				VClient.SetConstructor<Network::SMTP::Client, const Core::String&, int64_t>("client@ f(const string&in, int64)");
+				VClient.SetMethodEx("string get_remote_address() const", &ClientGetRemoteAddress);
+				VClient.SetMethodEx("promise<int>@ send(const request_frame&in)", &VI_SPROMISIFY(SMTPClientSend, TypeId::INT32));
+				VClient.SetMethodEx("promise<int>@ connect(remote_host &in)", &VI_PROMISIFY(Network::SocketClient::Connect, TypeId::INT32));
+				VClient.SetMethodEx("promise<int>@ close()", &VI_PROMISIFY(Network::SocketClient::Close, TypeId::INT32));
+				VClient.SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
+				VClient.SetMethod("request_frame& get_request() property", &Network::SMTP::Client::GetRequest);
+				VClient.SetDynamicCast<Network::SMTP::Client, Network::SocketClient>("socket_client@+", true);
+				Engine->EndNamespace();
+
 				return true;
 #else
 				VI_ASSERT(false, false, "<smtp> is not loaded");

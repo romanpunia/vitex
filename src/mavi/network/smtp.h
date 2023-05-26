@@ -66,7 +66,7 @@ namespace Mavi
 
 			public:
 				Client(const Core::String& Domain, int64_t ReadTimeout);
-				~Client() override;
+				~Client() override = default;
 				Core::Promise<int> Send(RequestFrame&& Root);
 				RequestFrame* GetRequest();
 

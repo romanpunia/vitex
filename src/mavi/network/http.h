@@ -1,7 +1,6 @@
 #ifndef VI_NETWORK_HTTP_H
 #define VI_NETWORK_HTTP_H
 #include "../core/network.h"
-#include "../core/scripting.h"
 
 namespace Mavi
 {
@@ -19,15 +18,6 @@ namespace Mavi
 				Granted,
 				Denied,
 				Unverified
-			};
-
-			enum class QueryValue
-			{
-				Unknown,
-				Number,
-				String,
-				Boolean,
-				Object
 			};
 
 			enum class WebSocketOp
@@ -69,15 +59,11 @@ namespace Mavi
 			typedef std::function<bool(class Connection*)> SuccessCallback;
 			typedef std::function<bool(class Connection*, SocketPoll, const char*, size_t)> ContentCallback;
 			typedef std::function<bool(class Connection*, struct Credentials*)> AuthorizeCallback;
-			typedef std::function<bool(class Connection*, Core::Stringify*)> HeaderCallback;
-			typedef std::function<bool(class Connection*, Scripting::Compiler*)> CompilerCallback;
+			typedef std::function<bool(class Connection*, Core::String&)> HeaderCallback;
 			typedef std::function<bool(struct Resource*)> ResourceCallback;
 			typedef std::function<void(class WebSocketFrame*)> WebSocketCallback;
 			typedef std::function<bool(class WebSocketFrame*, WebSocketOp, const char*, size_t)> WebSocketReadCallback;
 			typedef std::function<bool(class WebSocketFrame*)> WebSocketCheckCallback;
-			typedef std::function<void(class GatewayFrame*)> GatewayCallback;
-			typedef std::function<void(class GatewayFrame*, int, const char*)> GatewayStatusCallback;
-			typedef std::function<bool(class GatewayFrame*)> GatewayCloseCallback;
 			typedef std::function<bool(class Parser*, size_t)> ParserCodeCallback;
 			typedef std::function<bool(class Parser*, const char*, size_t)> ParserDataCallback;
 			typedef std::function<bool(class Parser*)> ParserNotifyCallback;
@@ -212,7 +198,7 @@ namespace Mavi
 				void Cleanup();
 				Core::String ComposeHeader(const Core::String& Key) const;
 				RangePayload* GetCookieRanges(const Core::String& Key);
-				Core::String* GetCookieBlob(const Core::String& Key) const;
+				const Core::String* GetCookieBlob(const Core::String& Key) const;
 				const char* GetCookie(const Core::String& Key) const;
 				RangePayload* GetHeaderRanges(const Core::String& Key);
 				const Core::String* GetHeaderBlob(const Core::String& Key) const;
@@ -256,7 +242,6 @@ namespace Mavi
 
 			class VI_OUT WebSocketFrame final : public Core::Reference<WebSocketFrame>
 			{
-				friend class GatewayFrame;
 				friend class Connection;
 				friend class Util;
 
@@ -276,6 +261,7 @@ namespace Mavi
 					WebSocketCallback Reset;
 					WebSocketCallback Close;
 					WebSocketCheckCallback Dead;
+					WebSocketCallback Destroy;
 				} Lifetime;
 
 			private:
@@ -313,43 +299,12 @@ namespace Mavi
 				bool IsIgnore();
 			};
 
-			class VI_OUT GatewayFrame final : public Core::Reference<GatewayFrame>
-			{
-				friend WebSocketFrame;
-				friend class Util;
-
-			public:
-				struct
-				{
-					GatewayStatusCallback Status;
-					GatewayCloseCallback Close;
-					GatewayCallback Exception;
-					GatewayCallback Finish;
-				} Lifetime;
-
-			private:
-				HTTP::Connection* Base;
-				Scripting::Compiler* Compiler;
-				std::atomic<bool> Active;
-
-			public:
-				GatewayFrame(HTTP::Connection* NewBase, Scripting::Compiler* NewCompiler);
-				bool Start(const Core::String& Path, const char* Method, char* Buffer, size_t Size);
-				bool Error(int StatusCode, const char* Text);
-				bool Finish();
-				bool IsFinished();
-				bool GetException(const char** Exception, const char** Function, int* Line, int* Column);
-				Scripting::ImmediateContext* GetContext();
-				Scripting::Compiler* GetCompiler();
-				HTTP::Connection* GetBase();
-			};
-
 			class VI_OUT RouteEntry final : public Core::Reference<RouteEntry>
 			{
 			public:
-				struct
+				struct RouteCallbacks
 				{
-					struct
+					struct WebSocketCallbacks
 					{
 						SuccessCallback Initiate;
 						WebSocketCallback Connect;
@@ -364,25 +319,16 @@ namespace Mavi
 					SuccessCallback Delete;
 					SuccessCallback Options;
 					SuccessCallback Access;
-					SuccessCallback Proxy;
 					HeaderCallback Headers;
-					CompilerCallback Compiler;
 					AuthorizeCallback Authorize;
 				} Callbacks;
-				struct
-				{
-					Core::Vector<Compute::RegexSource> Files;
-					Core::Vector<Core::String> Methods;
-					bool ReportStack = false;
-					bool ReportErrors = false;
-				} Gateway;
-				struct
+				struct RouteAuth
 				{
 					Core::Vector<Core::String> Methods;
 					Core::String Type;
 					Core::String Realm;
 				} Auth;
-				struct
+				struct RouteCompression
 				{
 					Core::Vector<Compute::RegexSource> Files;
 					CompressionTune Tune = CompressionTune::Default;
@@ -423,28 +369,23 @@ namespace Mavi
 			class VI_OUT SiteEntry final : public Core::Reference<SiteEntry>
 			{
 			public:
-				struct
+				struct SiteSession
 				{
-					struct
+					struct SiteCookie
 					{
-						struct
-						{
-							Core::String Name = "sid";
-							Core::String Domain;
-							Core::String Path = "/";
-							Core::String SameSite = "Strict";
-							uint64_t Expires = 31536000;
-							bool Secure = false;
-							bool HttpOnly = true;
-						} Cookie;
+						Core::String Name = "sid";
+						Core::String Domain;
+						Core::String Path = "/";
+						Core::String SameSite = "Strict";
+						uint64_t Expires = 31536000;
+						bool Secure = false;
+						bool HttpOnly = true;
+					} Cookie;
 
-						Core::String DocumentRoot;
-						uint64_t Expires = 604800;
-					} Session;
-
-					bool Enabled = false;
-				} Gateway;
-				struct
+					Core::String DocumentRoot;
+					uint64_t Expires = 604800;
+				} Session;
+				struct SiteCallbacks
 				{
 					SuccessCallback OnRewriteURL;
 				} Callbacks;
@@ -461,7 +402,7 @@ namespace Mavi
 				~SiteEntry() noexcept;
 				void Sort();
 				RouteGroup* Group(const Core::String& Match, RouteMode Mode);
-				RouteEntry* Route(const Core::String& Match, RouteMode Mode, const Core::String& Pattern);
+				RouteEntry* Route(const Core::String& Match, RouteMode Mode, const Core::String& Pattern, bool InheritProps);
 				RouteEntry* Route(const Core::String& Pattern, RouteGroup* Group, RouteEntry* From);
 				bool Remove(RouteEntry* Source);
 				bool Get(const char* Pattern, const SuccessCallback& Callback);
@@ -478,6 +419,12 @@ namespace Mavi
 				bool Options(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
 				bool Access(const char* Pattern, const SuccessCallback& Callback);
 				bool Access(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
+				bool Headers(const char* Pattern, const HeaderCallback& Callback);
+				bool Headers(const Core::String& Match, RouteMode Mode, const char* Pattern, const HeaderCallback& Callback);
+				bool Authorize(const char* Pattern, const AuthorizeCallback& Callback);
+				bool Authorize(const Core::String& Match, RouteMode Mode, const char* Pattern, const AuthorizeCallback& Callback);
+				bool WebSocketInitiate(const char* Pattern, const SuccessCallback& Callback);
+				bool WebSocketInitiate(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
 				bool WebSocketConnect(const char* Pattern, const WebSocketCallback& Callback);
 				bool WebSocketConnect(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback);
 				bool WebSocketDisconnect(const char* Pattern, const WebSocketCallback& Callback);
@@ -489,9 +436,13 @@ namespace Mavi
 			class VI_OUT MapRouter final : public SocketRouter
 			{
 			public:
+				struct
+				{
+					std::function<void(MapRouter*)> Destroy;
+				} Lifetime;
+
+			public:
 				Core::UnorderedMap<Core::String, SiteEntry*> Sites;
-				Core::String ModuleRoot;
-				Scripting::VirtualMachine* VM;
 
 			public:
 				MapRouter();
@@ -503,7 +454,7 @@ namespace Mavi
 			class VI_OUT Connection final : public SocketConnection
 			{
 			public:
-				struct
+				struct ParserFrame
 				{
 					HTTP::Parser* Multipart = nullptr;
 					HTTP::Parser* Request = nullptr;
@@ -512,7 +463,6 @@ namespace Mavi
 			public:
 				Core::FileEntry Resource;
 				WebSocketFrame* WebSocket = nullptr;
-				GatewayFrame* Gateway = nullptr;
 				RouteEntry* Route = nullptr;
 				Server* Root = nullptr;
 				RequestFrame Request;
@@ -573,7 +523,6 @@ namespace Mavi
 				Core::Schema* Query = nullptr;
 				Core::String SessionId;
 				int64_t SessionExpires = 0;
-				bool IsNewSession = false;
 
 			public:
 				Session();
@@ -642,7 +591,7 @@ namespace Mavi
 				} Chunked;
 
 			public:
-				struct
+				struct FrameInfo
 				{
 					RequestFrame* Request = nullptr;
 					ResponseFrame* Response = nullptr;
@@ -790,7 +739,6 @@ namespace Mavi
 				static bool ResourceHasAlternative(Connection* Base);
 				static bool ResourceHidden(Connection* Base, Core::String* Path);
 				static bool ResourceIndexed(Connection* Base, Core::FileEntry* Resource);
-				static bool ResourceProvided(Connection* Base, Core::FileEntry* Resource);
 				static bool ResourceModified(Connection* Base, Core::FileEntry* Resource);
 				static bool ResourceCompressed(Connection* Base, size_t Size);
 			};
@@ -819,20 +767,18 @@ namespace Mavi
 				static bool ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, size_t ContentLength);
 				static bool ProcessFileCompress(Connection* Base, size_t ContentLength, size_t Range, bool Gzip);
 				static bool ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, size_t ContentLength);
-				static bool ProcessGateway(Connection* Base);
 				static bool ProcessWebSocket(Connection* Base, const char* Key);
 			};
 
 			class VI_OUT_TS Server final : public SocketServer
 			{
-				friend GatewayFrame;
 				friend Connection;
 				friend Logical;
 				friend Util;
 
 			public:
 				Server();
-				~Server() override;
+				~Server() override = default;
 				bool Update();
 
 			private:
@@ -870,7 +816,6 @@ namespace Mavi
 				WebSocketFrame* GetWebSocket();
 				RequestFrame* GetRequest();
 				ResponseFrame* GetResponse();
-				ContentFrame* GetContent();
 
 			private:
 				bool Receive();

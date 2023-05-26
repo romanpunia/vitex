@@ -108,6 +108,8 @@ namespace Mavi
 				}
 
 				VI_RELEASE(Codec);
+				if (Lifetime.Destroy)
+					Lifetime.Destroy(this);
 			}
 			void WebSocketFrame::Send(const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
@@ -457,147 +459,6 @@ namespace Mavi
 				return true;
 			}
 
-			GatewayFrame::GatewayFrame(HTTP::Connection* NewBase, Scripting::Compiler* NewCompiler) : Base(NewBase), Compiler(NewCompiler), Active(true)
-			{
-				VI_ASSERT_V(Base != nullptr, "connection should be set");
-				VI_ASSERT_V(Compiler != nullptr, "compiler should be set");
-			}
-			bool GatewayFrame::Start(const Core::String& Path, const char* Method, char* Buffer, size_t Size)
-			{
-				VI_ASSERT(Method != nullptr, false, "method should be set");
-
-				if (!Active)
-				{
-					VI_FREE(Buffer);
-					return Finish();
-				}
-
-				int Result = Compiler->LoadCode(Path, Buffer, Size);
-				VI_FREE(Buffer);
-
-				if (Result < 0)
-					return Error(500, "Module cannot be loaded.");
-
-				Compiler->Compile().Then<bool>([this, Method](int&& Result)
-				{
-					if (Result < 0)
-						return Error(500, "Module cannot be compiled.");
-
-					Scripting::Module Module = Compiler->GetModule();
-					Scripting::Function Entry = Module.GetFunctionByName("Main");
-					if (!Entry.IsValid())
-					{
-						Entry = Module.GetFunctionByName(Method);
-						if (!Entry.IsValid())
-							return Error(400, "Method is not allowed.");
-					}
-
-					VI_DEBUG("[http] enter context on 0x%" PRIXPTR, (uintptr_t)Compiler);
-
-					Scripting::ImmediateContext* Context = Compiler->GetContext();
-					Context->Execute(Entry, nullptr).When([this, Context](int Result)
-					{
-						int Response = -1;
-						if (Result >= 0)
-						{
-							Scripting::Activation Status = (Scripting::Activation)Result;
-							if (Status == Scripting::Activation::Finished)
-								Response = 0;
-							else if (Status == Scripting::Activation::Error || Status == Scripting::Activation::Aborted)
-								Response = 1;
-							else if (Status == Scripting::Activation::Exception)
-								Response = Context->IsThrown() ? 1 : 0;
-						}
-
-						VI_DEBUG("[http] %s exit context on 0x%" PRIXPTR, Response == -1 ? "INT" : Response > 0 ? "ERR" : "OK", (uintptr_t)Compiler);
-						if (Response > 0)
-							Lifetime.Exception(this);
-
-						if (Lifetime.Finish)
-							Lifetime.Finish(this);
-						else
-							Finish();
-					});
-
-					return true;
-				});
-				return true;
-			}
-			bool GatewayFrame::Error(int StatusCode, const char* Text)
-			{
-				if (Lifetime.Status)
-					Lifetime.Status(this, StatusCode, Text);
-
-				return Finish();
-			}
-			bool GatewayFrame::Finish()
-			{
-				if (Active)
-				{
-					Base->Info.Sync.lock();
-					if (Compiler != nullptr)
-					{
-						if (!Compiler->Clear())
-						{
-							Base->Info.Sync.unlock();
-							return false;
-						}
-						VI_CLEAR(Compiler);
-					}
-
-					Base->Info.Sync.unlock();
-					Active = false;
-				}
-
-				if (!Lifetime.Close)
-					return false;
-
-				return Lifetime.Close(this);
-			}
-			bool GatewayFrame::IsFinished()
-			{
-				return !Active;
-			}
-			bool GatewayFrame::GetException(const char** Exception, const char** Function, int* Line, int* Column)
-			{
-				VI_ASSERT(Exception != nullptr, false, "exception ptr should be set");
-				VI_ASSERT(Function != nullptr, false, "function ptr should be set");
-				VI_ASSERT(Line != nullptr, false, "line ptr should be set");
-				VI_ASSERT(Column != nullptr, false, "column ptr should be set");
-
-				Base->Info.Sync.lock();
-				if (!Compiler)
-				{
-					Base->Info.Sync.unlock();
-					return false;
-				}
-
-				Scripting::ImmediateContext* Context = Compiler->GetContext();
-				if (!Context)
-				{
-					Base->Info.Sync.unlock();
-					return false;
-				}
-
-				*Exception = Context->GetExceptionString();
-				*Function = Context->GetExceptionFunction().GetName();
-				*Line = Context->GetExceptionLineNumber(Column, nullptr);
-				Base->Info.Sync.unlock();
-				return true;
-			}
-			Scripting::ImmediateContext* GatewayFrame::GetContext()
-			{
-				return (Compiler ? Compiler->GetContext() : nullptr);
-			}
-			Scripting::Compiler* GatewayFrame::GetCompiler()
-			{
-				return Compiler;
-			}
-			HTTP::Connection* GatewayFrame::GetBase()
-			{
-				return Base;
-			}
-
 			RouteGroup::RouteGroup(const Core::String& NewMatch, RouteMode NewMode) noexcept : Match(NewMatch), Mode(NewMode)
 			{
 			}
@@ -605,13 +466,13 @@ namespace Mavi
 			{
 				for (auto* Entry : Routes)
 					VI_RELEASE(Entry);
+				Routes.clear();
 			}
 
 			RouteEntry::RouteEntry(RouteEntry* Other, const Compute::RegexSource& Source)
 			{
 				VI_ASSERT_V(Other != nullptr, "other should be set");
 				Callbacks = Other->Callbacks;
-				Gateway = Other->Gateway;
 				Auth = Other->Auth;
 				Compression = Other->Compression;
 				HiddenFiles = Other->HiddenFiles;
@@ -646,7 +507,9 @@ namespace Mavi
 			{
 				for (auto& Item : Groups)
 					VI_RELEASE(Item);
-				VI_RELEASE(Base);
+
+				Groups.clear();
+				VI_CLEAR(Base);
 			}
 			void SiteEntry::Sort()
 			{
@@ -694,7 +557,7 @@ namespace Mavi
 
 				return Result;
 			}
-			RouteEntry* SiteEntry::Route(const Core::String& Match, RouteMode Mode, const Core::String& Pattern)
+			RouteEntry* SiteEntry::Route(const Core::String& Match, RouteMode Mode, const Core::String& Pattern, bool InheritProps)
 			{
 				if (Pattern.empty() || Pattern == "/")
 					return Base;
@@ -719,6 +582,9 @@ namespace Mavi
 					Groups.emplace_back(Result);
 					Source = Groups.back();
 				}
+
+				if (!InheritProps)
+					return Route(Pattern, Source, nullptr);
 
 				HTTP::RouteEntry* From = Base;
 				Compute::RegexResult Result;
@@ -748,11 +614,16 @@ namespace Mavi
 			RouteEntry* SiteEntry::Route(const Core::String& Pattern, RouteGroup* Group, RouteEntry* From)
 			{
 				VI_ASSERT(Group != nullptr, nullptr, "group should be set");
-				VI_ASSERT(From != nullptr, nullptr, "from should be set");
+				if (From != nullptr)
+				{
+					HTTP::RouteEntry* Result = new HTTP::RouteEntry(From, Compute::RegexSource(Pattern));
+					Group->Routes.push_back(Result);
+					return Result;
+				}
 
-				HTTP::RouteEntry* Result = new HTTP::RouteEntry(From, Compute::RegexSource(Pattern));
+				HTTP::RouteEntry* Result = new HTTP::RouteEntry();
+				Result->URI = Compute::RegexSource(Pattern);
 				Group->Routes.push_back(Result);
-
 				return Result;
 			}
 			bool SiteEntry::Remove(RouteEntry* Source)
@@ -777,7 +648,7 @@ namespace Mavi
 			}
 			bool SiteEntry::Get(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
@@ -790,7 +661,7 @@ namespace Mavi
 			}
 			bool SiteEntry::Post(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
@@ -803,7 +674,7 @@ namespace Mavi
 			}
 			bool SiteEntry::Put(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
@@ -816,7 +687,7 @@ namespace Mavi
 			}
 			bool SiteEntry::Patch(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
@@ -829,7 +700,7 @@ namespace Mavi
 			}
 			bool SiteEntry::Delete(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
@@ -842,7 +713,7 @@ namespace Mavi
 			}
 			bool SiteEntry::Options(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
@@ -855,11 +726,50 @@ namespace Mavi
 			}
 			bool SiteEntry::Access(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Access = Callback;
+				return true;
+			}
+			bool SiteEntry::Headers(const char* Pattern, const HeaderCallback& Callback)
+			{
+				return Headers("", RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntry::Headers(const Core::String& Match, RouteMode Mode, const char* Pattern, const HeaderCallback& Callback)
+			{
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				if (!Value)
+					return false;
+
+				Value->Callbacks.Headers = Callback;
+				return true;
+			}
+			bool SiteEntry::Authorize(const char* Pattern, const AuthorizeCallback& Callback)
+			{
+				return Authorize("", RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntry::Authorize(const Core::String& Match, RouteMode Mode, const char* Pattern, const AuthorizeCallback& Callback)
+			{
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				if (!Value)
+					return false;
+
+				Value->Callbacks.Authorize = Callback;
+				return true;
+			}
+			bool SiteEntry::WebSocketInitiate(const char* Pattern, const SuccessCallback& Callback)
+			{
+				return WebSocketInitiate("", RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntry::WebSocketInitiate(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			{
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				if (!Value)
+					return false;
+
+				Value->Callbacks.WebSocket.Initiate = Callback;
 				return true;
 			}
 			bool SiteEntry::WebSocketConnect(const char* Pattern, const WebSocketCallback& Callback)
@@ -868,7 +778,7 @@ namespace Mavi
 			}
 			bool SiteEntry::WebSocketConnect(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
@@ -881,7 +791,7 @@ namespace Mavi
 			}
 			bool SiteEntry::WebSocketDisconnect(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
@@ -894,7 +804,7 @@ namespace Mavi
 			}
 			bool SiteEntry::WebSocketReceive(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketReadCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
@@ -902,13 +812,16 @@ namespace Mavi
 				return true;
 			}
 
-			MapRouter::MapRouter() : VM(nullptr)
+			MapRouter::MapRouter()
 			{
 			}
 			MapRouter::~MapRouter()
 			{
+				if (Lifetime.Destroy != nullptr)
+					Lifetime.Destroy(this);
 				for (auto& Entry : Sites)
 					VI_RELEASE(Entry.second);
+				Sites.clear();
 			}
 			SiteEntry* MapRouter::Site()
 			{
@@ -1046,6 +959,19 @@ namespace Mavi
 			{
 				VI_ASSERT(!Key.empty(), nullptr, "key should not be empty");
 				return (RangePayload*)&Cookies[Key];
+			}
+			const Core::String* RequestFrame::GetCookieBlob(const Core::String& Key) const
+			{
+				VI_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				auto It = Cookies.find(Key);
+				if (It == Cookies.end())
+					return nullptr;
+
+				if (It->second.empty())
+					return nullptr;
+
+				const Core::String& Result = It->second.back();
+				return &Result;
 			}
 			const char* RequestFrame::GetCookie(const Core::String& Key) const
 			{
@@ -1336,8 +1262,8 @@ namespace Mavi
 			}
 			Connection::~Connection() noexcept
 			{
-				VI_RELEASE(Parsers.Request);
-				VI_RELEASE(Parsers.Multipart);
+				VI_CLEAR(Parsers.Request);
+				VI_CLEAR(Parsers.Multipart);
 			}
 			void Connection::Reset(bool Fully)
 			{
@@ -1653,18 +1579,6 @@ namespace Mavi
 					VI_CLEAR(WebSocket);
 				}
 
-				if (Gateway != nullptr)
-				{
-					if (!Gateway->IsFinished())
-					{
-						Info.Sync.unlock();
-						Gateway->Finish();
-						return false;
-					}
-
-					VI_CLEAR(Gateway);
-				}
-
 				Info.Sync.unlock();
 				if (Response.StatusCode < 0 || Stream->Outcome > 0 || !Stream->IsValid())
 					return Root->Manage(this);
@@ -1691,7 +1605,7 @@ namespace Mavi
 
 					Paths::ConstructHeadUncache(this, &Content);
 					if (Route && Route->Callbacks.Headers)
-						Route->Callbacks.Headers(this, nullptr);
+						Route->Callbacks.Headers(this, Content.R());
 
 					char Date[64];
 					Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Info.Start / 1000);
@@ -1708,14 +1622,14 @@ namespace Mavi
 						snprintf(Buffer, sizeof(Buffer), "<html><head><title>%d %s</title><style>" CSS_MESSAGE_STYLE "%s</style></head><body><div><h1>%d %s</h1></div></body></html>\n", Response.StatusCode, StatusText, Reason.size() <= 128 ? CSS_NORMAL_FONT : CSS_SMALL_FONT, Response.StatusCode, Reason.empty() ? StatusText : Reason.c_str());
 
 						if (Route && Route->Callbacks.Headers)
-							Route->Callbacks.Headers(this, &Content);
+							Route->Callbacks.Headers(this, Content.R());
 
 						Content.fAppend("Date: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\nContent-Length: %" PRIu64 "\r\n%s\r\n%s", Date, Util::ConnectionResolve(this).c_str(), Route ? Route->CharSet.c_str() : "utf-8", (uint64_t)strlen(Buffer), Auth.c_str(), Buffer);
 					}
 					else
 					{
 						if (Route && Route->Callbacks.Headers)
-							Route->Callbacks.Headers(this, &Content);
+							Route->Callbacks.Headers(this, Content.R());
 
 						Content.fAppend("Date: %s\r\nAccept-Ranges: bytes\r\n%s%s\r\n", Date, Util::ConnectionResolve(this).c_str(), Auth.c_str());
 					}
@@ -1861,7 +1775,7 @@ namespace Mavi
 
 				Paths::ConstructHeadFull(&Request, &Response, false, &Chunked);
 				if (Route && Route->Callbacks.Headers)
-					Route->Callbacks.Headers(this, &Chunked);
+					Route->Callbacks.Headers(this, Chunked.R());
 
 				Chunked.Append("\r\n", 2);
 				return Stream->WriteAsync(Chunked.Get(), (int64_t)Chunked.Size(), [this](SocketPoll Event)
@@ -2245,13 +2159,13 @@ namespace Mavi
 			bool Session::Write(Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				Core::String Schema = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
+				Core::String Schema = Base->Route->Site->Session.DocumentRoot + FindSessionId(Base);
 
 				FILE* Stream = (FILE*)Core::OS::File::Open(Schema.c_str(), "wb");
 				if (!Stream)
 					return false;
 
-				SessionExpires = time(nullptr) + Base->Route->Site->Gateway.Session.Expires;
+				SessionExpires = time(nullptr) + Base->Route->Site->Session.Expires;
 				fwrite(&SessionExpires, sizeof(int64_t), 1, Stream);
 
 				Query->ConvertToJSONB(Query, [Stream](Core::VarForm, const char* Buffer, size_t Size)
@@ -2266,7 +2180,7 @@ namespace Mavi
 			bool Session::Read(Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				Core::String Schema = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
+				Core::String Schema = Base->Route->Site->Session.DocumentRoot + FindSessionId(Base);
 
 				FILE* Stream = (FILE*)Core::OS::File::Open(Schema.c_str(), "rb");
 				if (!Stream)
@@ -2297,7 +2211,6 @@ namespace Mavi
 					return false;
 				}
 
-
 				Core::Schema* V = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, size_t Size)
 				{
 					if (!Buffer || !Size)
@@ -2321,7 +2234,7 @@ namespace Mavi
 					return SessionId;
 
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, SessionId, "connection should be set");
-				const char* Value = Base->Request.GetCookie(Base->Route->Site->Gateway.Session.Cookie.Name.c_str());
+				const char* Value = Base->Request.GetCookie(Base->Route->Site->Session.Cookie.Name.c_str());
 				if (!Value)
 					return GenerateSessionId(Base);
 
@@ -2332,20 +2245,18 @@ namespace Mavi
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, SessionId, "connection should be set");
 				int64_t Time = time(nullptr);
 				SessionId = Compute::Crypto::Hash(Compute::Digests::MD5(), Base->Request.URI + Core::ToString(Time));
-				IsNewSession = true;
-
 				if (SessionExpires == 0)
-					SessionExpires = Time + Base->Route->Site->Gateway.Session.Expires;
+					SessionExpires = Time + Base->Route->Site->Session.Expires;
 
 				Cookie Result;
 				Result.Value = SessionId;
-				Result.Name = Base->Route->Site->Gateway.Session.Cookie.Name;
-				Result.Domain = Base->Route->Site->Gateway.Session.Cookie.Domain;
-				Result.Path = Base->Route->Site->Gateway.Session.Cookie.Path;
-				Result.SameSite = Base->Route->Site->Gateway.Session.Cookie.SameSite;
-				Result.Secure = Base->Route->Site->Gateway.Session.Cookie.Secure;
-				Result.HttpOnly = Base->Route->Site->Gateway.Session.Cookie.HttpOnly;
-				Result.SetExpires(Time + (int64_t)Base->Route->Site->Gateway.Session.Cookie.Expires);
+				Result.Name = Base->Route->Site->Session.Cookie.Name;
+				Result.Domain = Base->Route->Site->Session.Cookie.Domain;
+				Result.Path = Base->Route->Site->Session.Cookie.Path;
+				Result.SameSite = Base->Route->Site->Session.Cookie.SameSite;
+				Result.Secure = Base->Route->Site->Session.Cookie.Secure;
+				Result.HttpOnly = Base->Route->Site->Session.Cookie.HttpOnly;
+				Result.SetExpires(Time + (int64_t)Base->Route->Site->Session.Cookie.Expires);
 				Base->Response.SetCookie(std::move(Result));
 
 				return SessionId;
@@ -4544,37 +4455,6 @@ namespace Mavi
 
 				return false;
 			}
-			bool Resources::ResourceProvided(Connection* Base, Core::FileEntry* Resource)
-			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-
-				if (!Base->Route->Site->Gateway.Enabled)
-					return false;
-
-				if (!Base->Route->Gateway.Methods.empty())
-				{
-					for (auto& Item : Base->Route->Gateway.Methods)
-					{
-						if (Item == Base->Request.Method)
-							return false;
-					}
-				}
-
-				if (Base->Route->Gateway.Files.empty())
-					return false;
-
-				Compute::RegexResult Result;
-				for (auto& Item : Base->Route->Gateway.Files)
-				{
-					if (!Compute::Regex::Match(&Item, Result, Base->Request.Path))
-						continue;
-
-					return Resource->Size > 0;
-				}
-
-				return false;
-			}
 			bool Resources::ResourceModified(Connection* Base, Core::FileEntry* Resource)
 			{
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
@@ -4691,9 +4571,6 @@ namespace Mavi
 					return Base->Error(403, "Directory listing denied.");
 				}
 
-				if (Resources::ResourceProvided(Base, &Base->Resource))
-					return Logical::ProcessGateway(Base);
-
 				if (Base->Route->StaticFileMaxAge > 0 && !Resources::ResourceModified(Base, &Base->Resource))
 				{
 					return Core::Schedule::Get()->SetTask([Base]()
@@ -4722,9 +4599,6 @@ namespace Mavi
 				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
 					return Base->Error(404, "Requested resource was not found.");
 
-				if (Resources::ResourceProvided(Base, &Base->Resource))
-					return Logical::ProcessGateway(Base);
-
 				if (Base->Route->StaticFileMaxAge > 0 && !Resources::ResourceModified(Base, &Base->Resource))
 				{
 					return Core::Schedule::Get()->SetTask([Base]()
@@ -4746,9 +4620,6 @@ namespace Mavi
 
 				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
 					return Base->Error(403, "Directory overwrite denied.");
-
-				if (Resources::ResourceProvided(Base, &Base->Resource))
-					return Logical::ProcessGateway(Base);
 
 				if (!Base->Resource.IsDirectory)
 					return Base->Error(403, "Directory overwrite denied.");
@@ -4795,7 +4666,7 @@ namespace Mavi
 
 						Core::OS::File::Close(Stream);
 						if (Base->Route->Callbacks.Headers)
-							Base->Route->Callbacks.Headers(Base, nullptr);
+							Base->Route->Callbacks.Headers(Base, Content.R());
 
 						Content.Append("\r\n", 2);
 						return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
@@ -4832,9 +4703,6 @@ namespace Mavi
 				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
 					return Base->Error(404, "Requested resource cannot be directory.");
 
-				if (Resources::ResourceProvided(Base, &Base->Resource))
-					return Logical::ProcessGateway(Base);
-
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
@@ -4842,7 +4710,7 @@ namespace Mavi
 				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
 
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, nullptr);
+					Base->Route->Callbacks.Headers(Base, Content.R());
 
 				Content.Append("\r\n", 2);
 				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
@@ -4862,9 +4730,6 @@ namespace Mavi
 				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
 					return Base->Error(404, "Requested resource was not found.");
 
-				if (Resources::ResourceProvided(Base, &Base->Resource))
-					return Logical::ProcessGateway(Base);
-
 				if (!Base->Resource.IsDirectory)
 				{
 					if (Core::OS::File::Remove(Base->Request.Path.c_str()) != 0)
@@ -4880,7 +4745,7 @@ namespace Mavi
 				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%s", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
 
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, nullptr);
+					Base->Route->Callbacks.Headers(Base, Content.R());
 
 				Content.Append("\r\n", 2);
 				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
@@ -4901,7 +4766,7 @@ namespace Mavi
 				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sAllow: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
 
 				if (Base->Route && Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, &Content);
+					Base->Route->Callbacks.Headers(Base, Content.R());
 
 				Content.Append("\r\n", 2);
 				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
@@ -4928,7 +4793,7 @@ namespace Mavi
 
 				Paths::ConstructHeadCache(Base, &Content);
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, &Content);
+					Base->Route->Callbacks.Headers(Base, Content.R());
 
 				const char* Message = Base->Response.GetHeader("X-Error");
 				if (Message != nullptr)
@@ -5111,7 +4976,7 @@ namespace Mavi
 
 				Paths::ConstructHeadCache(Base, &Content);
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, &Content);
+					Base->Route->Callbacks.Headers(Base, Content.R());
 
 				const char* Message = Base->Response.GetHeader("X-Error");
 				if (Message != nullptr)
@@ -5180,7 +5045,7 @@ namespace Mavi
 
 				Paths::ConstructHeadCache(Base, &Content);
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, &Content);
+					Base->Route->Callbacks.Headers(Base, Content.R());
 
 				const char* Message = Base->Response.GetHeader("X-Error");
 				if (Message != nullptr)
@@ -5234,7 +5099,7 @@ namespace Mavi
 
 				Paths::ConstructHeadCache(Base, &Content);
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, &Content);
+					Base->Route->Callbacks.Headers(Base, Content.R());
 
 				Content.fAppend("Accept-Ranges: bytes\r\nLast-Modified: %s\r\nEtag: %s\r\n%s\r\n", LastModified, ETag, Util::ConnectionResolve(Base).c_str());
 				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
@@ -5533,108 +5398,6 @@ namespace Mavi
 				return Base->Finish();
 #endif
 			}
-			bool Logical::ProcessGateway(Connection* Base)
-			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				if (!Base->Route->Callbacks.Compiler)
-					return Base->Error(400, "Gateway cannot be issued.") && false;
-
-				Scripting::VirtualMachine* VM = ((MapRouter*)Base->Root->GetRouter())->VM;
-				if (!VM)
-					return Base->Error(500, "Gateway cannot be issued.") && false;
-
-				return Core::Schedule::Get()->SetTask([Base, VM]()
-				{
-					Scripting::Compiler* Compiler = VM->CreateCompiler();
-					if (Compiler->Prepare(Core::OS::Path::GetFilename(Base->Request.Path.c_str()), Base->Request.Path, true, true) < 0)
-					{
-						VI_RELEASE(Compiler);
-						return (void)Base->Error(500, "Gateway module cannot be prepared.");
-					}
-
-					char* Buffer = nullptr;
-					if (Base->Route->Callbacks.Compiler)
-					{
-						if (!Base->Route->Callbacks.Compiler(Base, Compiler))
-						{
-							VI_RELEASE(Compiler);
-							return (void)Base->Error(500, "Gateway creation exception.");
-						}
-					}
-
-					size_t Size = 0;
-					if (!Compiler->IsCached())
-					{
-						FILE* Stream = (FILE*)Core::OS::File::Open(Base->Request.Path.c_str(), "rb");
-						if (!Stream)
-							return (void)Base->Error(404, "Gateway resource was not found.");
-
-						Size = Base->Resource.Size;
-						Buffer = VI_MALLOC(char, (size_t)(Size + 1) * sizeof(char));
-
-						if (fread(Buffer, 1, (size_t)Size, Stream) != (size_t)Size)
-						{
-							Core::OS::File::Close(Stream);
-							VI_FREE(Buffer);
-							return (void)Base->Error(500, "Gateway resource stream exception.");
-						}
-
-						Buffer[Size] = '\0';
-						Core::OS::File::Close(Stream);
-					}
-
-					Core::Schedule::Get()->SetTask([Base, Compiler, Buffer, Size]()
-					{
-						Base->Gateway = new GatewayFrame(Base, Compiler);
-						Base->Gateway->Lifetime.Exception = [](GatewayFrame* Gateway)
-						{
-							HTTP::Connection* Base = Gateway->GetBase();
-							Base->Response.StatusCode = 500;
-
-							if (Base->Route->Gateway.ReportErrors)
-							{
-								const char* Exception, * Function; int Line, Column;
-								if (Gateway->GetException(&Exception, &Function, &Line, &Column))
-									Base->Info.Message = Core::Form("%s() at line %i\n%s.", Function ? Function : "anonymous", Line, Exception ? Exception : "empty exception").R();
-
-								if (Base->Route->Gateway.ReportStack)
-								{
-									Scripting::ImmediateContext* Context = Gateway->GetContext();
-									if (Context != nullptr)
-									{
-										Core::String Stack = Context->GetExceptionStackTrace();
-										if (!Stack.empty())
-											Base->Info.Message += "\n\n" + Stack;
-									}
-								}
-							}
-							else
-								Base->Info.Message.assign("Internal processing error occurred.");
-						};
-						Base->Gateway->Lifetime.Finish = [](GatewayFrame* Gateway)
-						{
-							HTTP::Connection* Base = Gateway->GetBase();
-							if (Base->WebSocket != nullptr && (Base->WebSocket->Connect || Base->WebSocket->Disconnect || Base->WebSocket->Receive))
-								Base->WebSocket->Next();
-							else
-								Gateway->Finish();
-						};
-						Base->Gateway->Lifetime.Close = [](GatewayFrame* Gateway)
-						{
-							HTTP::Connection* Base = Gateway->GetBase();
-							if (Base->Response.StatusCode <= 0)
-								Base->Response.StatusCode = 200;
-
-							if (!Base->WebSocket)
-								return Base->Finish();
-
-							Base->WebSocket->Finish();
-							return true;
-						};
-						Base->Gateway->Start(Base->Request.Path, Base->Request.Method, Buffer, Size);
-					}, Core::Difficulty::Heavy);
-				}, Core::Difficulty::Heavy);
-			}
 			bool Logical::ProcessWebSocket(Connection* Base, const char* Key)
 			{
 				VI_ASSERT(Base != nullptr, false, "connection should be set");
@@ -5669,7 +5432,7 @@ namespace Mavi
 				}
 
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, &Content);
+					Base->Route->Callbacks.Headers(Base, Content.R());
 
 				Content.Append("\r\n", 2);
 				return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
@@ -5697,13 +5460,8 @@ namespace Mavi
 						};
 
 						Base->Stream->Timeout = Base->Route->WebSocketTimeout;
-						if (!Resources::ResourceProvided(Base, &Base->Resource))
-						{
-							if (!Base->Route->Callbacks.WebSocket.Initiate || !Base->Route->Callbacks.WebSocket.Initiate(Base))
-								Base->WebSocket->Next();
-						}
-						else
-							ProcessGateway(Base);
+						if (!Base->Route->Callbacks.WebSocket.Initiate || !Base->Route->Callbacks.WebSocket.Initiate(Base))
+							Base->WebSocket->Next();
 					}
 					else if (Packet::IsError(Event))
 						Base->Break();
@@ -5712,10 +5470,6 @@ namespace Mavi
 
 			Server::Server() : SocketServer()
 			{
-			}
-			Server::~Server()
-			{
-				Unlisten();
 			}
 			bool Server::Update()
 			{
@@ -5729,8 +5483,8 @@ namespace Mavi
 					Entry->Base->Site = Entry;
 					Entry->Router = Root;
 
-					if (!Entry->Gateway.Session.DocumentRoot.empty())
-						Core::OS::Directory::Patch(Entry->Gateway.Session.DocumentRoot);
+					if (!Entry->Session.DocumentRoot.empty())
+						Core::OS::Directory::Patch(Entry->Session.DocumentRoot);
 
 					if (!Entry->ResourceRoot.empty())
 						Core::OS::Directory::Patch(Entry->ResourceRoot);
@@ -5903,27 +5657,10 @@ namespace Mavi
 				for (auto* Item : Data)
 				{
 					HTTP::Connection* Base = (HTTP::Connection*)Item;
-					Core::String Status = "pathname: " + Base->Request.URI;
-
+					Core::String Status = "\n\tpathname: " + Base->Request.URI;
 					if (Base->WebSocket != nullptr)
-						Status += "\nwebsocket: " + Core::String(Base->WebSocket->IsFinished() ? "alive" : "dead");
-
-					if (Base->Gateway != nullptr)
-					{
-						Scripting::ImmediateContext* Context = Base->Gateway->GetContext();
-						if (Context != nullptr)
-						{
-							Status += "\nvcontext: " + Scripting::Bindings::Promise::GetStatus(Context);
-							Status += "\ngateway " + Context->GetStackTrace(0, 64);
-						}
-						else
-						{
-							Status += "\nvcontext: FIN";
-							Status += "\ngateway: dead";
-						}
-					}
-
-					VI_DEBUG("[stall] connection on fd %i\n%s", (int)Base->Stream->GetFd(),  Status.c_str());
+						Status += "\n\twebsocket: " + Core::String(Base->WebSocket->IsFinished() ? "alive" : "dead");
+					VI_DEBUG("[stall] connection on fd %i%s", (int)Base->Stream->GetFd(),  Status.c_str());
 				}
 
 				return true;
@@ -5949,8 +5686,8 @@ namespace Mavi
 							VI_ERR("[http] resource directory %s cannot be created", Entry->ResourceRoot.c_str());
 					}
 
-					if (!Entry->Gateway.Session.DocumentRoot.empty())
-						Session::InvalidateCache(Entry->Gateway.Session.DocumentRoot);
+					if (!Entry->Session.DocumentRoot.empty())
+						Session::InvalidateCache(Entry->Session.DocumentRoot);
 				}
 
 				return true;
@@ -5970,7 +5707,7 @@ namespace Mavi
 			}
 			Client::~Client()
 			{
-				VI_RELEASE(WebSocket);
+				VI_CLEAR(WebSocket);
 			}
 			bool Client::Downgrade()
 			{

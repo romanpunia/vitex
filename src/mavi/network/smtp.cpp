@@ -47,9 +47,6 @@ namespace Mavi
 			{
 				AutoEncrypt = false;
 			}
-			Client::~Client()
-			{
-			}
 			bool Client::OnResolveHost(RemoteHost* Address)
 			{
 				VI_ASSERT(Address != nullptr, false, "address should be set");

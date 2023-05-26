@@ -98,15 +98,15 @@ Dependency options
 
 ## Dependencies
 Shared objects (so) are optional.
-* [Bullet3 (embedded)](https://github.com/bulletphysics/bullet3)
+* [Bullet3 (embedded, optional)](https://github.com/bulletphysics/bullet3)
 * [AngelScript (embedded)](https://sourceforge.net/projects/angelscript/)
 * [wepoll (embedded)](https://github.com/piscisaureus/wepoll)
-* [RmlUi (embedded)](https://github.com/mikke89/RmlUi)
+* [RmlUi (embedded, optional)](https://github.com/mikke89/RmlUi)
 * [tinyfiledialogs (embedded)](https://github.com/native-toolkit/tinyfiledialogs)
 * [RapidXML (embedded)](https://github.com/discordapp/rapidxml)
 * [RapidJSON (embedded)](https://github.com/tencent/rapidjson)
 * [stb (embedded)](https://github.com/nothings/stb)
-* [vectorclass (embedded)](https://github.com/vectorclass/version1)
+* [vectorclass (embedded, optional)](https://github.com/vectorclass/version1)
 * [concurrentqueue (embedded)](https://github.com/cameron314/concurrentqueue)
 * [backward-cpp (embedded)](https://github.com/bombela/backward-cpp)
 * [D3D11 (so)](https://www.microsoft.com/en-us/download/details.aspx?id=6812)

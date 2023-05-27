@@ -2031,13 +2031,13 @@ namespace Mavi
 #elif defined(VI_LINUX)
 			Processor->Define("OS_LINUX");
 #endif
-			Context = VM->CreateContext();
+			Context = VM->RequestContext();
 			Context->SetUserData(this, CompilerUD);
 			VM->SetProcessorOptions(Processor);
 		}
 		Compiler::~Compiler() noexcept
 		{
-			VI_RELEASE(Context);
+			VM->ReturnContext(Context);
 			VI_RELEASE(Processor);
 		}
 		void Compiler::SetIncludeCallback(const Compute::ProcIncludeCallback& Callback)
@@ -5317,6 +5317,24 @@ namespace Mavi
 			}
 
 			return true;
+		}
+		Core::Promise<int> VirtualMachine::ExecuteParallel(const Function& Function, ArgsCallback&& OnArgs)
+		{
+			if (!Function.IsValid())
+				return Core::Promise<int>(asINVALID_ARG);
+
+			ImmediateContext* Context = RequestContext();
+			if (!Context)
+				return Core::Promise<int>(asINVALID_OBJECT);
+
+			VirtualMachine* VM = this;
+			VM->AddRef();
+			return Context->Execute(Function, std::move(OnArgs)).Then<int>([VM, Context](int&& Result)
+			{
+				VM->ReturnContext(Context);
+				VM->Release();
+				return Result;
+			});
 		}
 		Core::UnorderedMap<Core::String, Core::String> VirtualMachine::DumpRegisteredInterfaces(ImmediateContext* Context)
 		{

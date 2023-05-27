@@ -1887,15 +1887,15 @@ namespace Mavi
 			void GCEnumCallback(void* Reference);
 			bool TriggerDebugger(uint64_t TimeoutMs = 0);
 			bool GenerateCode(Compute::Preprocessor* Processor, const Core::String& Path, Core::String& InoutBuffer);
+			Core::Promise<int> ExecuteParallel(const Function& Function, ArgsCallback&& OnArgs);
 			Core::UnorderedMap<Core::String, Core::String> DumpRegisteredInterfaces(ImmediateContext* Context);
+			Core::Unique<Compiler> CreateCompiler();
+			Core::Unique<asIScriptModule> CreateScopedModule(const Core::String& Name);
+			Core::Unique<asIScriptModule> CreateModule(const Core::String& Name);
+			Core::Unique<ImmediateContext> RequestContext();
+			void ReturnContext(ImmediateContext* Context);
 			bool GetByteCodeCache(ByteCodeInfo* Info);
 			void SetByteCodeCache(ByteCodeInfo* Info);
-			Core::Unique<ImmediateContext> CreateContext();
-			Core::Unique<Compiler> CreateCompiler();
-			asIScriptModule* CreateScopedModule(const Core::String& Name);
-			asIScriptModule* CreateModule(const Core::String& Name);
-			ImmediateContext* RequestContext();
-			void ReturnContext(ImmediateContext* Context);
 			void* CreateObject(const TypeInfo& Type);
 			void* CreateObjectCopy(void* Object, const TypeInfo& Type);
 			void* CreateEmptyObject(const TypeInfo& Type);
@@ -1979,6 +1979,7 @@ namespace Mavi
 			TypeInfo GetTypeInfoByDecl(const char* Decl) const;
 
 		private:
+			Core::Unique<ImmediateContext> CreateContext();
 			bool InitializeAddon(const Core::String& Name, CLibrary& Library);
 			void UninitializeAddon(const Core::String& Name, CLibrary& Library);
 

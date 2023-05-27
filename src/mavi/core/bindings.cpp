@@ -4445,7 +4445,7 @@ namespace Mavi
 						return Release();
 
 					if (Context == nullptr)
-						Context = VM->CreateContext();
+						Context = VM->RequestContext();
 
 					if (Context == nullptr)
 					{
@@ -5739,27 +5739,17 @@ namespace Mavi
 				
 				Core::TaskId Task = Base->SetSeqInterval(Mills, [AllowMultithreading, Context, Callback](size_t InvocationId) mutable
 				{
+					auto ReleaseRefs = [Context, Callback](int&&) { Callback->Release(); Context->Release(); };
+					if (InvocationId != 1)
+					{
+						Callback->AddRef();
+						Context->AddRef();
+					}
+
 					if (AllowMultithreading && Context->IsSuspended())
-					{
-						auto* VM = Context->GetVM();
-						Context->Release();
-						Context = VM->CreateContext();
-					}
-
-					Callback->AddRef();
-					Context->AddRef();
-
-					if (InvocationId == 1)
-					{
-						Callback->Release();
-						Context->Release();
-					}
-
-					Context->Execute(Callback, nullptr).When([Context, Callback](int&&)
-					{
-						Callback->Release();
-						Context->Release();
-					});
+						Context->GetVM()->ExecuteParallel(Callback, nullptr).When(ReleaseRefs);
+					else
+						Context->Execute(Callback, nullptr).When(ReleaseRefs);
 				}, Type);
 
 				if (Task != Core::INVALID_TASK_ID)
@@ -5783,18 +5773,11 @@ namespace Mavi
 
 				Core::TaskId Task = Base->SetTimeout(Mills, [AllowMultithreading, Context, Callback]() mutable
 				{
+					auto ReleaseRefs = [Context, Callback](int&&) { Callback->Release(); Context->Release(); };
 					if (AllowMultithreading && Context->IsSuspended())
-					{
-						auto* VM = Context->GetVM();
-						Context->Release();
-						Context = VM->CreateContext();
-					}
-
-					Context->Execute(Callback, nullptr).When([Context, Callback](int&&)
-					{
-						Callback->Release();
-						Context->Release();
-					});
+						Context->GetVM()->ExecuteParallel(Callback, nullptr).When(ReleaseRefs);
+					else
+						Context->Execute(Callback, nullptr).When(ReleaseRefs);
 				}, Type);
 
 				if (Task != Core::INVALID_TASK_ID)
@@ -5818,18 +5801,11 @@ namespace Mavi
 
 				bool Queued = Base->SetTask([AllowMultithreading, Context, Callback]() mutable
 				{
+					auto ReleaseRefs = [Context, Callback](int&&) { Callback->Release(); Context->Release(); };
 					if (AllowMultithreading && Context->IsSuspended())
-					{
-						auto* VM = Context->GetVM();
-						Context->Release();
-						Context = VM->CreateContext();
-					}
-
-					Context->Execute(Callback, nullptr).When([Context, Callback](int&&)
-					{
-						Callback->Release();
-						Context->Release();
-					});
+						Context->GetVM()->ExecuteParallel(Callback, nullptr).When(ReleaseRefs);
+					else
+						Context->Execute(Callback, nullptr).When(ReleaseRefs);
 				}, Type);
 
 				if (Queued)

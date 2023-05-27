@@ -1501,6 +1501,27 @@ namespace Mavi
 			}
 		};
 
+		struct VI_OUT FunctionDelegate
+		{
+			VirtualMachine* VM;
+			ImmediateContext* Context;
+			asIScriptFunction* Callback;
+			asITypeInfo* DelegateType;
+			void* DelegateObject;
+
+			FunctionDelegate();
+			FunctionDelegate(const Function& Function);
+			FunctionDelegate(const FunctionDelegate& Other);
+			FunctionDelegate(FunctionDelegate&& Other);
+			~FunctionDelegate();
+			FunctionDelegate& operator= (const FunctionDelegate& Other);
+			FunctionDelegate& operator= (FunctionDelegate&& Other);
+			Core::Promise<int> operator()(ArgsCallback&& OnArgs, ArgsCallback&& OnReturn = nullptr);
+			bool IsValid() const;
+			void AddRef();
+			void Release();
+		};
+
 		class VI_OUT Compiler final : public Core::Reference<Compiler>
 		{
 		private:
@@ -1674,6 +1695,7 @@ namespace Mavi
 
 		class VI_OUT ImmediateContext final : public Core::Reference<ImmediateContext>
 		{
+			friend FunctionDelegate;
 			friend VirtualMachine;
 
 		private:
@@ -1779,6 +1801,8 @@ namespace Mavi
 			void* GetThisPointer(size_t StackLevel = 0);
 			Function GetSystemFunction();
 			bool IsSuspended() const;
+			bool CanExecuteNewFunction() const;
+			bool CanExecuteSubFunction() const;
 			void* SetUserData(void* Data, size_t Type = 0);
 			void* GetUserData(size_t Type = 0) const;
 			asIScriptContext* GetContext();
@@ -1887,7 +1911,6 @@ namespace Mavi
 			void GCEnumCallback(void* Reference);
 			bool TriggerDebugger(uint64_t TimeoutMs = 0);
 			bool GenerateCode(Compute::Preprocessor* Processor, const Core::String& Path, Core::String& InoutBuffer);
-			Core::Promise<int> ExecuteParallel(const Function& Function, ArgsCallback&& OnArgs);
 			Core::UnorderedMap<Core::String, Core::String> DumpRegisteredInterfaces(ImmediateContext* Context);
 			Core::Unique<Compiler> CreateCompiler();
 			Core::Unique<asIScriptModule> CreateScopedModule(const Core::String& Name);

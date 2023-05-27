@@ -610,7 +610,7 @@ namespace Mavi
 						if (Status < 0)
 							return;
 
-						Scripting::Function Main = Compiler->GetModule().GetFunctionByName("Main");
+						Scripting::Function Main = Compiler->GetModule().GetFunctionByName("main");
 						if (!Main.IsValid())
 							return;
 
@@ -688,7 +688,7 @@ namespace Mavi
 						return true;
 
 					Core::String Name = "__vf" + Compute::Crypto::Hash(Compute::Digests::MD5(), Memory);
-					Core::String Eval = "void " + Name + "(GUI::Event &in Event){\n";
+					Core::String Eval = "void " + Name + "(ui_event&in event){\n";
 					Eval.append(Memory);
 					Eval += "\n;}";
 

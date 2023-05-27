@@ -809,7 +809,6 @@ namespace Mavi
 				static Promise* CreateFactoryVoid();
 				static bool TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect);
 				static bool GeneratorCallback(const Core::String& Path, Core::String& Code);
-				static Core::String GetStatus(ImmediateContext* Context);
 
 			public:
 				template <typename T>
@@ -1126,15 +1125,14 @@ namespace Mavi
 			class VI_OUT ModelListener : public Core::Reference<ModelListener>
 			{
 			private:
+				FunctionDelegate Delegate;
 				Engine::GUI::Listener* Base;
-				asIScriptFunction* Source;
-				ImmediateContext* Context;
 
 			public:
 				ModelListener(asIScriptFunction* NewCallback) noexcept;
 				ModelListener(const Core::String& FunctionName) noexcept;
 				~ModelListener() noexcept;
-				asIScriptFunction* GetCallback();
+				FunctionDelegate& GetDelegate();
 
 			private:
 				Engine::GUI::EventCallback Bind(asIScriptFunction* Callback);

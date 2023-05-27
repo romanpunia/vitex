@@ -3604,8 +3604,8 @@ namespace Mavi
 					if (SuspendOwned)
 						Context->SetUserData(nullptr, PromiseUD);
 
-					bool WantsResume = (Context->GetState() != asEXECUTION_ACTIVE && SuspendOwned);
 					ImmediateContext* Immediate = ImmediateContext::Get(Context);
+					bool WantsResume = (Immediate->IsSuspended() && SuspendOwned);
 					Promise* Base = this;
 					Update.unlock();
 
@@ -3838,54 +3838,6 @@ namespace Mavi
 					return Expression + ".yield().unwrap()";
 				});
 				return true;
-			}
-			Core::String Promise::GetStatus(ImmediateContext* Context)
-			{
-				VI_ASSERT(Context != nullptr, Core::String(), "context should be set");
-
-				Core::String Result;
-				switch (Context->GetState())
-				{
-					case Activation::Finished:
-						Result = "finished";
-						break;
-					case Activation::Suspended:
-						Result = "suspended";
-						break;
-					case Activation::Aborted:
-						Result = "aborted";
-						break;
-					case Activation::Exception:
-						Result = "exception";
-						break;
-					case Activation::Prepared:
-						Result = "prepared";
-						break;
-					case Activation::Active:
-						Result = "active";
-						break;
-					case Activation::Error:
-						Result = "error";
-						break;
-					case Activation::Deserialization:
-						Result = "deserialization";
-						break;
-					default:
-						Result = "invalid";
-						break;
-				}
-
-				Promise* Base = (Promise*)Context->GetUserData(PromiseUD);
-				if (Base != nullptr)
-				{
-					const char* Format = " in pending promise on 0x%" PRIXPTR " %s";
-					if (!Base->IsPending())
-						Result += Core::Form(Format, (uintptr_t)Base, "that was fulfilled").R();
-					else
-						Result += Core::Form(Format, (uintptr_t)Base, "that was not fulfilled").R();
-				}
-
-				return Result;
 			}
 			int Promise::PromiseNULL = -1;
 			int Promise::PromiseUD = 559;
@@ -4478,7 +4430,7 @@ namespace Mavi
 				Mutex.lock();
 				Sparcing = 1;
 
-				if (Context && Context->GetState() == Activation::Suspended)
+				if (Context && Context->IsSuspended())
 				{
 					Mutex.unlock();
 					Context->Resume();
@@ -4501,7 +4453,7 @@ namespace Mavi
 				Mutex.lock();
 				Sparcing = 1;
 
-				if (Context && Context->GetState() != Activation::Suspended)
+				if (Context && !Context->IsSuspended())
 				{
 					Mutex.unlock();
 					Context->Suspend();
@@ -4642,7 +4594,7 @@ namespace Mavi
 			bool Thread::IsActive()
 			{
 				std::unique_lock<std::recursive_mutex> Unique(Mutex);
-				return (Context && Context->GetState() != Activation::Suspended);
+				return (Context && !Context->IsSuspended());
 			}
 			bool Thread::Start()
 			{
@@ -4652,7 +4604,7 @@ namespace Mavi
 
 				if (Context != nullptr)
 				{
-					if (Context->GetState() != Activation::Suspended)
+					if (!Context->IsSuspended())
 						return false;
 					Join();
 				}
@@ -4712,8 +4664,8 @@ namespace Mavi
 			}
 			void Thread::ThreadSuspend()
 			{
-				asIScriptContext* Context = asGetActiveContext();
-				if (Context && Context->GetState() != asEXECUTION_SUSPENDED)
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (Context && !Context->IsSuspended())
 					Context->Suspend();
 			}
 			Core::String Thread::GetThreadId()
@@ -5725,95 +5677,38 @@ namespace Mavi
 				return Base->Write(Data.data(), Data.size());
 			}
 
-			Core::TaskId ScheduleSetInterval(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback, Core::Difficulty Type, bool AllowMultithreading)
+			Core::TaskId ScheduleSetInterval(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback, Core::Difficulty Type)
 			{
-				if (!Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return Core::INVALID_TASK_ID;
 
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
-					return Core::INVALID_TASK_ID;
-
-				Callback->AddRef();
-				Context->AddRef();
-				
-				Core::TaskId Task = Base->SetSeqInterval(Mills, [AllowMultithreading, Context, Callback](size_t InvocationId) mutable
+				return Base->SetSeqInterval(Mills, [Delegate](size_t InvocationId) mutable
 				{
-					auto ReleaseRefs = [Context, Callback](int&&) { Callback->Release(); Context->Release(); };
-					if (InvocationId != 1)
-					{
-						Callback->AddRef();
-						Context->AddRef();
-					}
-
-					if (AllowMultithreading && Context->IsSuspended())
-						Context->GetVM()->ExecuteParallel(Callback, nullptr).When(ReleaseRefs);
-					else
-						Context->Execute(Callback, nullptr).When(ReleaseRefs);
+					Delegate(nullptr);
 				}, Type);
-
-				if (Task != Core::INVALID_TASK_ID)
-					return Task;
-
-				Callback->Release();
-				Context->Release();
-				return Core::INVALID_TASK_ID;
 			}
-			Core::TaskId ScheduleSetTimeout(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback, Core::Difficulty Type, bool AllowMultithreading)
+			Core::TaskId ScheduleSetTimeout(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback, Core::Difficulty Type)
 			{
-				if (!Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return Core::INVALID_TASK_ID;
 
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
-					return Core::INVALID_TASK_ID;
-
-				Callback->AddRef();
-				Context->AddRef();
-
-				Core::TaskId Task = Base->SetTimeout(Mills, [AllowMultithreading, Context, Callback]() mutable
+				return Base->SetTimeout(Mills, [Delegate]() mutable
 				{
-					auto ReleaseRefs = [Context, Callback](int&&) { Callback->Release(); Context->Release(); };
-					if (AllowMultithreading && Context->IsSuspended())
-						Context->GetVM()->ExecuteParallel(Callback, nullptr).When(ReleaseRefs);
-					else
-						Context->Execute(Callback, nullptr).When(ReleaseRefs);
+					Delegate(nullptr);
 				}, Type);
-
-				if (Task != Core::INVALID_TASK_ID)
-					return Task;
-
-				Callback->Release();
-				Context->Release();
-				return Core::INVALID_TASK_ID;
 			}
-			bool ScheduleSetImmediate(Core::Schedule* Base, asIScriptFunction* Callback, Core::Difficulty Type, bool AllowMultithreading)
+			bool ScheduleSetImmediate(Core::Schedule* Base, asIScriptFunction* Callback, Core::Difficulty Type)
 			{
-				if (!Callback)
-					return false;
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
+					return Core::INVALID_TASK_ID;
 
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
-					return false;
-
-				Callback->AddRef();
-				Context->AddRef();
-
-				bool Queued = Base->SetTask([AllowMultithreading, Context, Callback]() mutable
+				return Base->SetTask([Delegate]() mutable
 				{
-					auto ReleaseRefs = [Context, Callback](int&&) { Callback->Release(); Context->Release(); };
-					if (AllowMultithreading && Context->IsSuspended())
-						Context->GetVM()->ExecuteParallel(Callback, nullptr).When(ReleaseRefs);
-					else
-						Context->Execute(Callback, nullptr).When(ReleaseRefs);
+					Delegate(nullptr);
 				}, Type);
-
-				if (Queued)
-					return true;
-
-				Callback->Release();
-				Context->Release();
-				return false;
 			}
 
 			Array* OSDirectoryScan(const Core::String& Path)
@@ -6333,12 +6228,8 @@ namespace Mavi
 				Compute::Cosmos::Iterator Iterator;
 				Base->QueryIndex<void>(Iterator, [Context, Overlaps](const Compute::Bounding& Box)
 				{
-					Context->Execute(Overlaps, [&Box](ImmediateContext* Context)
-					{
-						Context->SetArgObject(0, (void*)&Box);
-					}).Wait();
-
-					return (bool)Context->GetReturnWord();
+					Context->ExecuteSubcall(Overlaps, [&Box](ImmediateContext* Context) { Context->SetArgObject(0, (void*)&Box); });
+					return (bool)Context->GetReturnByte();
 				}, [Context, Match](void* Item)
 				{
 					Context->ExecuteSubcall(Match, [Item](ImmediateContext* Context)
@@ -7286,14 +7177,14 @@ namespace Mavi
 			}
 			int SocketAcceptAsync(Network::Socket* Base, bool WithAddress, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return -1;
 
-				return Base->AcceptAsync(WithAddress, [Context, Callback](socket_t Fd, char* Address)
+				return Base->AcceptAsync(WithAddress, [Delegate](socket_t Fd, char* Address) mutable
 				{
-					Core::String IpAddress = Address;
-					Context->Execute(Callback, [Fd, IpAddress](ImmediateContext* Context)
+					Core::String IpAddress = Address; bool Result = false;
+					Delegate([Fd, IpAddress](ImmediateContext* Context)
 					{
 #ifdef VI_64
 						Context->SetArg64(0, (int64_t)Fd);
@@ -7301,35 +7192,41 @@ namespace Mavi
 						Context->SetArg32(0, (int32_t)Fd);
 #endif
 						Context->SetArgObject(1, (void*)&IpAddress);
+					}, [&Result](ImmediateContext* Context) mutable
+					{
+						Result = (bool)Context->GetReturnByte();
 					}).Wait();
-
-					return (bool)Context->GetReturnWord();
+					return Result;
 				});
 			}
 			int SocketCloseAsync(Network::Socket* Base, bool Graceful, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return -1;
 
-				return Base->CloseAsync(Graceful, [Context, Callback]()
+				return Base->CloseAsync(Graceful, [Delegate]() mutable
 				{
-					Context->Execute(Callback, nullptr).Wait();
-					return (bool)Context->GetReturnWord();
+					bool Result = false;
+					Delegate(nullptr, [&Result](ImmediateContext* Context) mutable
+					{
+						Result = (bool)Context->GetReturnByte();
+					});
+					return Result;
 				});
 			}
 			int64_t SocketSendFileAsync(Network::Socket* Base, FILE* Stream, int64_t Offset, int64_t Size, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return -1;
 
-				return Base->SendFileAsync(Stream, Offset, Size, [Context, Callback](Network::SocketPoll Poll)
+				return Base->SendFileAsync(Stream, Offset, Size, [Delegate](Network::SocketPoll Poll) mutable
 				{
-					Context->Execute(Callback, [Poll](ImmediateContext* Context)
+					Delegate([Poll](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
-					}).Wait();
+					});
 				});
 			}
 			int SocketWrite(Network::Socket* Base, const Core::String& Data)
@@ -7338,13 +7235,13 @@ namespace Mavi
 			}
 			int SocketWriteAsync(Network::Socket* Base, const Core::String& Data, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return -1;
 
-				return Base->WriteAsync(Data.data(), Data.size(), [Context, Callback](Network::SocketPoll Poll)
+				return Base->WriteAsync(Data.data(), Data.size(), [Delegate](Network::SocketPoll Poll) mutable
 				{
-					Context->Execute(Callback, [Poll](ImmediateContext* Context)
+					Delegate([Poll](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
 					}).Wait();
@@ -7375,20 +7272,23 @@ namespace Mavi
 			}
 			int SocketReadAsync(Network::Socket* Base, size_t Size, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return -1;
 
-				return Base->ReadAsync(Size, [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
+				return Base->ReadAsync(Size, [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
 				{
-					Core::String Source(Data, Size);
-					Context->Execute(Callback, [Poll, Source](ImmediateContext* Context)
+					Core::String Source(Data, Size); bool Result = false;
+					Delegate([Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
 						Context->SetArgObject(1, (void*)&Source);
+					}, [&Result](ImmediateContext* Context) mutable
+					{
+						Result = (bool)Context->GetReturnByte();
 					}).Wait();
 
-					return (bool)Context->GetReturnWord();
+					return Result;
 				});
 			}
 			int SocketReadUntil(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
@@ -7411,36 +7311,43 @@ namespace Mavi
 			}
 			int SocketReadUntilAsync(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return -1;
 
-				return Base->ReadUntilAsync(Data.c_str(), [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
+				return Base->ReadUntilAsync(Data.c_str(), [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
 				{
-					Core::String Source(Data, Size);
-					Context->Execute(Callback, [Poll, Source](ImmediateContext* Context)
+					Core::String Source(Data, Size); bool Result = false;
+					Delegate([Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
 						Context->SetArgObject(1, (void*)&Source);
+					}, [&Result](ImmediateContext* Context) mutable
+					{
+						Result = (bool)Context->GetReturnByte();
 					}).Wait();
 
-					return (bool)Context->GetReturnWord();
+					return Result;
 				});
 			}
 			int SocketConnectAsync(Network::Socket* Base, Network::SocketAddress* Address, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return -1;
 
-				return Base->ConnectAsync(Address, [Context, Callback](int Code)
+				return Base->ConnectAsync(Address, [Delegate](int Code) mutable
 				{
-					Context->Execute(Callback, [Code](ImmediateContext* Context)
+					bool Result = false;
+					Delegate([Code](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Code);
+					}, [&Result](ImmediateContext* Context) mutable
+					{
+						Result = (bool)Context->GetReturnByte();
 					}).Wait();
 
-					return (bool)Context->GetReturnWord();
+					return Result;
 				});
 			}
 			int SocketSecure(Network::Socket* Base, ssl_ctx_st* Context, const Core::String& Value)
@@ -7472,13 +7379,13 @@ namespace Mavi
 
 			bool MultiplexerWhenReadable(Network::Socket* Base, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return false;
 
-				return Network::Multiplexer::WhenReadable(Base, [Base, Context, Callback](Network::SocketPoll Poll)
+				return Network::Multiplexer::WhenReadable(Base, [Base, Delegate](Network::SocketPoll Poll) mutable
 				{
-					Context->Execute(Callback, [Base, Poll](ImmediateContext* Context)
+					Delegate([Base, Poll](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArg32(1, (int)Poll);
@@ -7487,13 +7394,13 @@ namespace Mavi
 			}
 			bool MultiplexerWhenWriteable(Network::Socket* Base, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return false;
 
-				return Network::Multiplexer::WhenWriteable(Base, [Base, Context, Callback](Network::SocketPoll Poll)
+				return Network::Multiplexer::WhenWriteable(Base, [Base, Delegate](Network::SocketPoll Poll) mutable
 				{
-					Context->Execute(Callback, [Base, Poll](ImmediateContext* Context)
+					Delegate([Base, Poll](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArg32(1, (int)Poll);
@@ -7959,21 +7866,15 @@ namespace Mavi
 			}
 			void ContentManagerLoadAsync2(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, Core::Schema* Args, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return;
 
-				Callback->AddRef();
-				Context->AddRef();
-				Base->LoadAsync(Source, Path, ToVariantKeys(Args)).When([Context, Callback](void*&& Object)
+				Base->LoadAsync(Source, Path, ToVariantKeys(Args)).When([Delegate](void*&& Object) mutable
 				{
-					Context->Execute(Callback, [Object](ImmediateContext* Context)
+					Delegate([Object](ImmediateContext* Context)
 					{
 						Context->SetArgAddress(0, Object);
-					}).When([Context, Callback](int&&)
-					{
-						Callback->Release();
-						Context->Release();
 					});
 				});
 			}
@@ -7983,21 +7884,15 @@ namespace Mavi
 			}
 			void ContentManagerSaveAsync2(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, void* Object, Core::Schema* Args, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return;
 
-				Callback->AddRef();
-				Context->AddRef();
-				Base->SaveAsync(Source, Path, Object, ToVariantKeys(Args)).When([Context, Callback](bool&& Success)
+				Base->SaveAsync(Source, Path, Object, ToVariantKeys(Args)).When([Delegate](bool&& Success) mutable
 				{
-					Context->Execute(Callback, [Success](ImmediateContext* Context)
+					Delegate([Success](ImmediateContext* Context)
 					{
 						Context->SetArg8(0, Success);
-					}).When([Context, Callback](int&&)
-					{
-						Callback->Release();
-						Context->Release();
 					});
 				});
 			}
@@ -8096,19 +7991,13 @@ namespace Mavi
 			}
 			void SceneGraphTransaction(Engine::SceneGraph* Base, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return;
 
-				Context->AddRef();
-				Callback->AddRef();
-				Base->Transaction([Context, Callback]()
+				Base->Transaction([Delegate]() mutable
 				{
-					Context->Execute(Callback, nullptr).When([Context, Callback](int&&)
-					{
-						Context->Release();
-						Callback->Release();
-					});
+					Delegate(nullptr).Wait();
 				});
 			}
 			void SceneGraphPushEvent1(Engine::SceneGraph* Base, const Core::String& Name, Core::Schema* Args, bool Propagate)
@@ -8125,48 +8014,38 @@ namespace Mavi
 			}
 			void* SceneGraphSetListener(Engine::SceneGraph* Base, const Core::String& Name, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return nullptr;
 
-				return Base->SetListener(Name, [Context, Callback](const Core::String& Name, Core::VariantArgs& BaseArgs)
+				return Base->SetListener(Name, [Delegate](const Core::String& Name, Core::VariantArgs& BaseArgs) mutable
 				{
 					Core::Schema* Args = Core::Var::Set::Object();
 					Args->Reserve(BaseArgs.size());
 					for (auto& Item : BaseArgs)
 						Args->Set(Item.first, Item.second);
 
-					Callback->AddRef();
-					Context->AddRef();
-					Context->Execute(Callback, [Name, Args](ImmediateContext* Context)
+					Delegate([Name, Args](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, (void*)&Name);
 						Context->SetArgObject(1, (void*)Args);
-					}).When([Context, Callback, Args](int&&)
+					}).When([Args](int&&)
 					{
-						Context->Release();
-						Callback->Release();
 						VI_RELEASE(Args);
 					});
 				});
 			}
 			void SceneGraphLoadResource(Engine::SceneGraph* Base, uint64_t Id, Engine::Component* Source, const Core::String& Path, Core::Schema* Args, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return;
 
-				Context->AddRef();
-				Callback->AddRef();
-				Base->LoadResource(Id, Source, Path, ToVariantKeys(Args), [Context, Callback](void* Resource)
+				Base->LoadResource(Id, Source, Path, ToVariantKeys(Args), [Delegate](void* Resource) mutable
 				{
-					Context->Execute(Callback, [Resource](ImmediateContext* Context)
+					Delegate([Resource](ImmediateContext* Context)
 					{
 						Context->SetArgAddress(0, Resource);
-					}).When([Context, Callback](int&&)
-					{
-						Context->Release();
-						Callback->Release();
 					});
 				});
 			}
@@ -8362,36 +8241,22 @@ namespace Mavi
 			}
 			bool DataModelSetCallback(Engine::GUI::DataModel* Base, const Core::String& Name, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 					return false;
-
-				if (!Callback)
-					return false;
-
-				Callback->AddRef();
-				Context->AddRef();
 
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
-				Base->SetDetachCallback([Callback, Context]()
-				{
-					Callback->Release();
-					Context->Release();
-				});
-
-				return Base->SetCallback(Name, [Type, Context, Callback](Engine::GUI::IEvent& Wrapper, const Core::VariantList& Args)
+				return Base->SetCallback(Name, [Type, Delegate](Engine::GUI::IEvent& Wrapper, const Core::VariantList& Args) mutable
 				{
 					Engine::GUI::IEvent Event = Wrapper.Copy();
 					Array* Data = Array::Compose(Type.GetTypeInfo(), Args);
-					Context->Execute(Callback, [Event, &Data](ImmediateContext* Context)
+					Delegate([Event, &Data](ImmediateContext* Context) mutable
 					{
-						Engine::GUI::IEvent Copy = Event;
-						Context->SetArgObject(0, &Copy);
+						Context->SetArgObject(0, &Event);
 						Context->SetArgObject(1, &Data);
-					}).When([Event](int&&)
+					}).When([Event](int&&) mutable
 					{
-						Engine::GUI::IEvent Copy = Event;
-						Copy.Release();
+						Event.Release();
 					});
 				});
 			}
@@ -8413,116 +8278,73 @@ namespace Mavi
 				return Base->GetElementAtPoint(Value);
 			}
 
-			ModelListener::ModelListener(asIScriptFunction* NewCallback) noexcept : Base(new Engine::GUI::Listener(Bind(NewCallback))), Source(NewCallback), Context(nullptr)
+			ModelListener::ModelListener(asIScriptFunction* NewCallback) noexcept : Delegate(), Base(new Engine::GUI::Listener(Bind(NewCallback)))
 			{
 			}
-			ModelListener::ModelListener(const Core::String& FunctionName) noexcept : Base(new Engine::GUI::Listener(FunctionName)), Source(nullptr), Context(nullptr)
+			ModelListener::ModelListener(const Core::String& FunctionName) noexcept : Delegate(), Base(new Engine::GUI::Listener(FunctionName))
 			{
 			}
 			ModelListener::~ModelListener() noexcept
 			{
-				VI_CLEAR(Source);
-				VI_CLEAR(Context);
 				VI_CLEAR(Base);
 			}
-			asIScriptFunction* ModelListener::GetCallback()
+			FunctionDelegate& ModelListener::GetDelegate()
 			{
-				return Source;
+				return Delegate;
 			}
 			Engine::GUI::EventCallback ModelListener::Bind(asIScriptFunction* Callback)
 			{
-				if (Context != nullptr)
-					Context->Release();
-				Context = ImmediateContext::Get();
-
-				if (Source != nullptr)
-					Source->Release();
-				Source = Callback;
-
-				if (!Context || !Source)
+				Delegate = FunctionDelegate(Callback);
+				if (!Delegate.IsValid())
 					return nullptr;
-
-				Source->AddRef();
-				Context->AddRef();
-
-				return [this](Engine::GUI::IEvent& Wrapper)
+				
+				ModelListener* Listener = this;
+				return [Listener](Engine::GUI::IEvent& Wrapper)
 				{
 					Engine::GUI::IEvent Event = Wrapper.Copy();
-					Context->Execute(Source, [Event](ImmediateContext* Context)
+					Listener->Delegate([Event](ImmediateContext* Context) mutable
 					{
-						Engine::GUI::IEvent Copy = Event;
-						Context->SetArgObject(0, &Copy);
-					}).When([Event](int&&)
+						Context->SetArgObject(0, &Event);
+					}).When([Event](int&&) mutable
 					{
-						Engine::GUI::IEvent Copy = Event;
-						Copy.Release();
+						Event.Release();
 					});
 				};
 			}
 
 			void ComponentsSoftBodyLoad(Engine::Components::SoftBody* Base, const Core::String& Path, float Ant, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (Context != nullptr && Callback != nullptr)
-				{
-					Context->AddRef();
-					Callback->AddRef();
-				}
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
+					return Base->Load(Path, Ant);
 
-				Base->Load(Path, Ant, [Context, Callback]()
+				Base->Load(Path, Ant, [Delegate]() mutable
 				{
-					if (!Context || !Callback)
-						return;
-
-					Context->Execute(Callback, nullptr).When([Context, Callback](int&&)
-					{
-						Callback->Release();
-						Context->Release();
-					});
+					Delegate(nullptr);
 				});
 			}
 
 			void ComponentsRigidBodyLoad(Engine::Components::RigidBody* Base, const Core::String& Path, float Mass, float Ant, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (Context != nullptr && Callback != nullptr)
-				{
-					Context->AddRef();
-					Callback->AddRef();
-				}
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
+					return Base->Load(Path, Mass, Ant);
 
-				Base->Load(Path, Mass, Ant, [Context, Callback]()
+				Base->Load(Path, Mass, Ant, [Delegate]() mutable
 				{
-					if (!Context || !Callback)
-						return;
-
-					Context->Execute(Callback, nullptr).When([Context, Callback](int&&)
-					{
-						Callback->Release();
-						Context->Release();
-					});
+					Delegate(nullptr);
 				});
 			}
 
 			void ComponentsKeyAnimatorLoadAnimation(Engine::Components::KeyAnimator* Base, const Core::String& Path, asIScriptFunction* Callback)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (Context != nullptr && Callback != nullptr)
-				{
-					Context->AddRef();
-					Callback->AddRef();
-				}
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
+					return Base->LoadAnimation(Path);
 
-				Base->LoadAnimation(Path, [Context, Callback](bool)
+				Base->LoadAnimation(Path, [Delegate](bool) mutable
 				{
-					if (!Context || !Callback)
-						return;
-
-					Context->Execute(Callback, nullptr).When([Context, Callback](int&&)
-					{
-						Callback->Release();
-						Context->Release();
-					});
+					Delegate(nullptr);
 				});
 			}
 
@@ -8764,75 +8586,6 @@ namespace Mavi
 				return Base->Routes.size();
 			}
 
-			void RouteEntryCleanup(Network::HTTP::RouteEntry* Base)
-			{
-				if (Base->Callbacks.WebSocket.Initiate)
-				{
-					Base->Callbacks.WebSocket.Initiate(nullptr);
-					Base->Callbacks.WebSocket.Initiate = nullptr;
-				}
-				if (Base->Callbacks.WebSocket.Connect)
-				{
-					Base->Callbacks.WebSocket.Connect(nullptr);
-					Base->Callbacks.WebSocket.Connect = nullptr;
-				}
-				if (Base->Callbacks.WebSocket.Disconnect)
-				{
-					Base->Callbacks.WebSocket.Disconnect(nullptr);
-					Base->Callbacks.WebSocket.Disconnect = nullptr;
-				}
-				if (Base->Callbacks.WebSocket.Receive)
-				{
-					Base->Callbacks.WebSocket.Receive(nullptr, Network::HTTP::WebSocketOp::Close, nullptr, 0);
-					Base->Callbacks.WebSocket.Receive = nullptr;
-				}
-				if (Base->Callbacks.Get)
-				{
-					Base->Callbacks.Get(nullptr);
-					Base->Callbacks.Get = nullptr;
-				}
-				if (Base->Callbacks.Post)
-				{
-					Base->Callbacks.Post(nullptr);
-					Base->Callbacks.Get = nullptr;
-				}
-				if (Base->Callbacks.Put)
-				{
-					Base->Callbacks.Put(nullptr);
-					Base->Callbacks.Put = nullptr;
-				}
-				if (Base->Callbacks.Patch)
-				{
-					Base->Callbacks.Patch(nullptr);
-					Base->Callbacks.Patch = nullptr;
-				}
-				if (Base->Callbacks.Delete)
-				{
-					Base->Callbacks.Delete(nullptr);
-					Base->Callbacks.Delete = nullptr;
-				}
-				if (Base->Callbacks.Options)
-				{
-					Base->Callbacks.Options(nullptr);
-					Base->Callbacks.Options = nullptr;
-				}
-				if (Base->Callbacks.Access)
-				{
-					Base->Callbacks.Access(nullptr);
-					Base->Callbacks.Access = nullptr;
-				}
-				if (Base->Callbacks.Headers)
-				{
-					Core::String Empty;
-					Base->Callbacks.Headers(nullptr, Empty);
-					Base->Callbacks.Headers = nullptr;
-				}
-				if (Base->Callbacks.Authorize)
-				{
-					Base->Callbacks.Authorize(nullptr, nullptr);
-					Base->Callbacks.Authorize = nullptr;
-				}
-			}
 			void RouteEntrySetHiddenFiles(Network::HTTP::RouteEntry* Base, Array* Data)
 			{
 				if (Data != nullptr)
@@ -9003,34 +8756,16 @@ namespace Mavi
 				if (!Route)
 					return false;
 
-				if (Route->Callbacks.Get != nullptr)
-					Route->Callbacks.Get(nullptr);
-
-				if (!Callback)
-				{
-					Route->Callbacks.Get = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Route->Callbacks.Get = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Route->Callbacks.Get = [Callback, Context](Network::HTTP::Connection* Base)
+				Route->Callbacks.Get = [Delegate](Network::HTTP::Connection* Base) mutable
 				{
-					if (!Base)
-					{
-						Callback->Release();
-						Context->Release();
-						return false;
-					}
-
-					Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					Delegate([Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
 					return true;
 				};
 				return true;
@@ -9045,34 +8780,16 @@ namespace Mavi
 				if (!Route)
 					return false;
 
-				if (Route->Callbacks.Post != nullptr)
-					Route->Callbacks.Post(nullptr);
-
-				if (!Callback)
-				{
-					Route->Callbacks.Post = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Route->Callbacks.Post = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Route->Callbacks.Post = [Callback, Context](Network::HTTP::Connection* Base)
+				Route->Callbacks.Post = [Delegate](Network::HTTP::Connection* Base) mutable
 				{
-					if (!Base)
-					{
-						Callback->Release();
-						Context->Release();
-						return false;
-					}
-
-					Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					Delegate([Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
 					return true;
 				};
 				return true;
@@ -9087,34 +8804,16 @@ namespace Mavi
 				if (!Route)
 					return false;
 
-				if (Route->Callbacks.Patch != nullptr)
-					Route->Callbacks.Patch(nullptr);
-
-				if (!Callback)
-				{
-					Route->Callbacks.Patch = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Route->Callbacks.Patch = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Route->Callbacks.Patch = [Callback, Context](Network::HTTP::Connection* Base)
+				Route->Callbacks.Patch = [Delegate](Network::HTTP::Connection* Base) mutable
 				{
-					if (!Base)
-					{
-						Callback->Release();
-						Context->Release();
-						return false;
-					}
-
-					Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					Delegate([Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
 					return true;
 				};
 				return true;
@@ -9129,34 +8828,16 @@ namespace Mavi
 				if (!Route)
 					return false;
 
-				if (Route->Callbacks.Delete != nullptr)
-					Route->Callbacks.Delete(nullptr);
-
-				if (!Callback)
-				{
-					Route->Callbacks.Delete = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Route->Callbacks.Delete = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Route->Callbacks.Delete = [Callback, Context](Network::HTTP::Connection* Base)
+				Route->Callbacks.Delete = [Delegate](Network::HTTP::Connection* Base) mutable
 				{
-					if (!Base)
-					{
-						Callback->Release();
-						Context->Release();
-						return false;
-					}
-
-					Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					Delegate([Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
 					return true;
 				};
 				return true;
@@ -9171,34 +8852,16 @@ namespace Mavi
 				if (!Route)
 					return false;
 
-				if (Route->Callbacks.Options != nullptr)
-					Route->Callbacks.Options(nullptr);
-
-				if (!Callback)
-				{
-					Route->Callbacks.Options = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Route->Callbacks.Options = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Route->Callbacks.Options = [Callback, Context](Network::HTTP::Connection* Base)
+				Route->Callbacks.Options = [Delegate](Network::HTTP::Connection* Base) mutable
 				{
-					if (!Base)
-					{
-						Callback->Release();
-						Context->Release();
-						return false;
-					}
-
-					Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					Delegate([Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
 					return true;
 				};
 				return true;
@@ -9213,34 +8876,16 @@ namespace Mavi
 				if (!Route)
 					return false;
 
-				if (Route->Callbacks.Access != nullptr)
-					Route->Callbacks.Access(nullptr);
-
-				if (!Callback)
-				{
-					Route->Callbacks.Access = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Route->Callbacks.Access = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Route->Callbacks.Access = [Callback, Context](Network::HTTP::Connection* Base)
+				Route->Callbacks.Access = [Delegate](Network::HTTP::Connection* Base) mutable
 				{
-					if (!Base)
-					{
-						Callback->Release();
-						Context->Release();
-						return false;
-					}
-
-					Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					Delegate([Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
 					return true;
 				};
 				return true;
@@ -9255,37 +8900,16 @@ namespace Mavi
 				if (!Route)
 					return false;
 
-				if (Route->Callbacks.Headers != nullptr)
-				{
-					Core::String Empty;
-					Route->Callbacks.Headers(nullptr, Empty);
-				}
-
-				if (!Callback)
-				{
-					Route->Callbacks.Headers = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Route->Callbacks.Headers = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Route->Callbacks.Headers = [Callback, Context](Network::HTTP::Connection* Base, Core::String& Source)
+				Route->Callbacks.Headers = [Delegate](Network::HTTP::Connection* Base, Core::String& Source) mutable
 				{
-					if (!Base)
-					{
-						Callback->Release();
-						Context->Release();
-						return false;
-					}
-
-					Context->Execute(Callback, [Base, &Source](ImmediateContext* Context)
+					Delegate([Base, &Source](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArgObject(1, &Source);
@@ -9304,34 +8928,16 @@ namespace Mavi
 				if (!Route)
 					return false;
 
-				if (Route->Callbacks.Authorize != nullptr)
-					Route->Callbacks.Authorize(nullptr, nullptr);
-
-				if (!Callback)
-				{
-					Route->Callbacks.Authorize = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Route->Callbacks.Authorize = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Route->Callbacks.Authorize = [Callback, Context](Network::HTTP::Connection* Base, Network::HTTP::Credentials* Source)
+				Route->Callbacks.Authorize = [Delegate](Network::HTTP::Connection* Base, Network::HTTP::Credentials* Source) mutable
 				{
-					if (!Base || !Source)
-					{
-						Callback->Release();
-						Context->Release();
-						return false;
-					}
-
-					Context->Execute(Callback, [Base, Source](ImmediateContext* Context)
+					Delegate([Base, Source](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArgObject(1, Source);
@@ -9350,34 +8956,16 @@ namespace Mavi
 				if (!Route)
 					return false;
 
-				if (Route->Callbacks.WebSocket.Initiate != nullptr)
-					Route->Callbacks.WebSocket.Initiate(nullptr);
-
-				if (!Callback)
-				{
-					Route->Callbacks.WebSocket.Initiate = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Route->Callbacks.WebSocket.Initiate = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Route->Callbacks.WebSocket.Initiate = [Callback, Context](Network::HTTP::Connection* Base)
+				Route->Callbacks.WebSocket.Initiate = [Delegate](Network::HTTP::Connection* Base) mutable
 				{
-					if (!Base)
-					{
-						Callback->Release();
-						Context->Release();
-						return false;
-					}
-
-					Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					Delegate([Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
 					return true;
 				};
 				return true;
@@ -9392,33 +8980,17 @@ namespace Mavi
 				if (!Route)
 					return false;
 
-				if (Route->Callbacks.WebSocket.Connect != nullptr)
-					Route->Callbacks.WebSocket.Connect(nullptr);
-
-				if (!Callback)
-				{
-					Route->Callbacks.WebSocket.Connect = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Route->Callbacks.WebSocket.Connect = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Route->Callbacks.WebSocket.Connect = [Callback, Context](Network::HTTP::WebSocketFrame* Base)
+				Route->Callbacks.WebSocket.Connect = [Delegate](Network::HTTP::WebSocketFrame* Base) mutable
 				{
-					if (!Base)
-					{
-						Callback->Release();
-						Context->Release();
-					}
-					else
-						Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					Delegate([Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					return true;
 				};
 				return true;
 			}
@@ -9432,33 +9004,17 @@ namespace Mavi
 				if (!Route)
 					return false;
 
-				if (Route->Callbacks.WebSocket.Disconnect != nullptr)
-					Route->Callbacks.WebSocket.Disconnect(nullptr);
-
-				if (!Callback)
-				{
-					Route->Callbacks.WebSocket.Disconnect = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Route->Callbacks.WebSocket.Disconnect = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Route->Callbacks.WebSocket.Disconnect = [Callback, Context](Network::HTTP::WebSocketFrame* Base)
+				Route->Callbacks.WebSocket.Disconnect = [Delegate](Network::HTTP::WebSocketFrame* Base) mutable
 				{
-					if (!Base)
-					{
-						Callback->Release();
-						Context->Release();
-					}
-					else
-						Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					Delegate([Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					return true;
 				};
 				return true;
 			}
@@ -9472,35 +9028,17 @@ namespace Mavi
 				if (!Route)
 					return false;
 
-				if (Route->Callbacks.WebSocket.Receive != nullptr)
-					Route->Callbacks.WebSocket.Receive(nullptr, Network::HTTP::WebSocketOp::Close, nullptr, 0);
-
-				if (!Callback)
-				{
-					Route->Callbacks.WebSocket.Receive = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Route->Callbacks.WebSocket.Receive = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Route->Callbacks.WebSocket.Receive = [Callback, Context](Network::HTTP::WebSocketFrame* Base, Network::HTTP::WebSocketOp Opcode, const char* Data, size_t Size)
+				Route->Callbacks.WebSocket.Receive = [Delegate](Network::HTTP::WebSocketFrame* Base, Network::HTTP::WebSocketOp Opcode, const char* Data, size_t Size) mutable
 				{
-					if (!Base)
-					{
-						Callback->Release();
-						Context->Release();
-						return false;
-					}
-
 					Core::String Buffer(Data ? Data : "", Data ? Size : 0);
-					Context->Execute(Callback, [Base, Opcode, Buffer](ImmediateContext* Context)
+					Delegate([Base, Opcode, Buffer](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArg32(1, (int)Opcode);
@@ -9514,160 +9052,64 @@ namespace Mavi
 			{
 				return SiteEntryWebsocketReceive2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			void WebSocketFrameCleanup(Network::HTTP::WebSocketFrame* Base)
-			{
-				if (Base->Connect)
-				{
-					Base->Connect(nullptr);
-					Base->Connect = nullptr;
-				}
-				if (Base->BeforeDisconnect)
-				{
-					Base->BeforeDisconnect(nullptr);
-					Base->BeforeDisconnect = nullptr;
-				}
-				if (Base->Disconnect)
-				{
-					Base->Disconnect(nullptr);
-					Base->Disconnect = nullptr;
-				}
-				if (Base->Receive)
-				{
-					Base->Receive(nullptr, Network::HTTP::WebSocketOp::Close, nullptr, 0);
-					Base->Receive = nullptr;
-				}
-			}
 			bool WebSocketFrameSetOnConnect(Network::HTTP::WebSocketFrame* Base, asIScriptFunction* Callback)
 			{
-				if (Base->Connect != nullptr && Base->Lifetime.Destroy != nullptr)
-					Base->Connect(nullptr);
-
-				if (!Callback)
-				{
-					Base->Connect = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Base->Connect = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Base->Lifetime.Destroy = &WebSocketFrameCleanup;
-				Base->Connect = [Callback, Context](Network::HTTP::WebSocketFrame* Base)
+				Base->Connect = [Delegate](Network::HTTP::WebSocketFrame* Base) mutable
 				{
-					if (!Base)
-					{
-						Callback->Release();
-						Context->Release();
-					}
-					else
-						Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					Delegate([Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
 				};
 				return true;
 			}
 			bool WebSocketFrameSetOnBeforeDisconnect(Network::HTTP::WebSocketFrame* Base, asIScriptFunction* Callback)
 			{
-				if (Base->BeforeDisconnect != nullptr && Base->Lifetime.Destroy != nullptr)
-					Base->BeforeDisconnect(nullptr);
-
-				if (!Callback)
-				{
-					Base->BeforeDisconnect = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Base->BeforeDisconnect = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Base->Lifetime.Destroy = &WebSocketFrameCleanup;
-				Base->BeforeDisconnect = [Callback, Context](Network::HTTP::WebSocketFrame* Base)
+				Base->BeforeDisconnect = [Delegate](Network::HTTP::WebSocketFrame* Base) mutable
 				{
-					if (!Base)
-					{
-						Callback->Release();
-						Context->Release();
-					}
-					else
-						Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					Delegate([Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
 				};
 				return true;
 			}
 			bool WebSocketFrameSetOnDisconnect(Network::HTTP::WebSocketFrame* Base, asIScriptFunction* Callback)
 			{
-				if (Base->Disconnect != nullptr && Base->Lifetime.Destroy != nullptr)
-					Base->Disconnect(nullptr);
-
-				if (!Callback)
-				{
-					Base->Disconnect = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Base->Disconnect = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Base->Lifetime.Destroy = &WebSocketFrameCleanup;
-				Base->Disconnect = [Callback, Context](Network::HTTP::WebSocketFrame* Base)
+				Base->Disconnect = [Delegate](Network::HTTP::WebSocketFrame* Base) mutable
 				{
-					if (!Base)
-					{
-						Callback->Release();
-						Context->Release();
-					}
-					else
-						Context->Execute(Callback, [Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
+					Delegate([Base](ImmediateContext* Context) { Context->SetArgObject(0, Base); });
 				};
 				return true;
 			}
 			bool WebSocketFrameSetOnReceive(Network::HTTP::WebSocketFrame* Base, asIScriptFunction* Callback)
 			{
-				if (Base->Receive != nullptr && Base->Lifetime.Destroy != nullptr)
-					Base->Receive(nullptr, Network::HTTP::WebSocketOp::Close, nullptr, 0);
-
-				if (!Callback)
-				{
-					Base->Receive = nullptr;
-					return true;
-				}
-
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
 				{
 					Base->Receive = nullptr;
 					return false;
 				}
 
-				Callback->AddRef();
-				Context->AddRef();
-				Base->Lifetime.Destroy = &WebSocketFrameCleanup;
-				Base->Receive = [Callback, Context](Network::HTTP::WebSocketFrame* Base, Network::HTTP::WebSocketOp Opcode, const char* Data, size_t Size)
+				Base->Receive = [Delegate](Network::HTTP::WebSocketFrame* Base, Network::HTTP::WebSocketOp Opcode, const char* Data, size_t Size) mutable
 				{
-					if (!Base)
-					{
-						Callback->Release();
-						Context->Release();
-						return false;
-					}
-
 					Core::String Buffer(Data ? Data : "", Data ? Size : 0);
-					Context->Execute(Callback, [Base, Opcode, Buffer](ImmediateContext* Context)
+					Delegate([Base, Opcode, Buffer](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArg32(1, (int)Opcode);
@@ -9688,26 +9130,12 @@ namespace Mavi
 				return WebSocketFrameSend2(Base, 0, Data, Opcode);
 			}
 
-			void MapRouterCleanup(Network::HTTP::MapRouter* Base)
-			{
-				for (auto& Site : Base->Sites)
-				{
-					RouteEntryCleanup(Site.second->Base);
-					for (auto& Group : Site.second->Groups)
-					{
-						for (auto& Route : Group->Routes)
-							RouteEntryCleanup(Route);
-					}
-				}
-			}
 			Network::HTTP::SiteEntry* MapRouterSite1(Network::HTTP::MapRouter* Base)
 			{
-				Base->Lifetime.Destroy = &MapRouterCleanup;
 				return Base->Site();
 			}
 			Network::HTTP::SiteEntry* MapRouterSite2(Network::HTTP::MapRouter* Base, const Core::String& Host)
 			{
-				Base->Lifetime.Destroy = &MapRouterCleanup;
 				return Base->Site(Host.c_str());
 			}
 			Network::HTTP::SiteEntry* MapRouterGetSite1(Network::HTTP::MapRouter* Base, const Core::String& Host)
@@ -11132,9 +10560,9 @@ namespace Mavi
 
 				RefClass VSchedule = Engine->SetClass<Core::Schedule>("schedule", false);
 				VSchedule.SetFunctionDef("void task_event()");
-				VSchedule.SetMethodEx("task_id set_interval(uint64, task_event@+, difficulty = difficulty::light, bool = false)", &ScheduleSetInterval);
-				VSchedule.SetMethodEx("task_id set_timeout(uint64, task_event@+, difficulty = difficulty::light, bool = false)", &ScheduleSetTimeout);
-				VSchedule.SetMethodEx("bool set_immediate(task_event@+, difficulty = difficulty::heavy, bool = false)", &ScheduleSetImmediate);
+				VSchedule.SetMethodEx("task_id set_interval(uint64, task_event@+, difficulty = difficulty::light)", &ScheduleSetInterval);
+				VSchedule.SetMethodEx("task_id set_timeout(uint64, task_event@+, difficulty = difficulty::light)", &ScheduleSetTimeout);
+				VSchedule.SetMethodEx("bool set_immediate(task_event@+, difficulty = difficulty::heavy)", &ScheduleSetImmediate);
 				VSchedule.SetMethod("bool clear_timeout(task_id)", &Core::Schedule::ClearTimeout);
 				VSchedule.SetMethod("bool dispatch()", &Core::Schedule::Dispatch);
 				VSchedule.SetMethod("bool start(const schedule_policy &in)", &Core::Schedule::Start);
@@ -15191,7 +14619,6 @@ namespace Mavi
 				});
 				VMapRouter.SetReleaseRefsEx<Network::HTTP::MapRouter>([](Network::HTTP::MapRouter* Base, asIScriptEngine*)
 				{
-					MapRouterCleanup(Base);
 					Base->~MapRouter();
 				});
 				VMapRouter.SetDynamicCast<Network::HTTP::MapRouter, Network::SocketRouter>("socket_router@+", true);
@@ -16991,10 +16418,13 @@ namespace Mavi
 				VListener.SetGcConstructor<ModelListener, ModelListenerName, const Core::String&>("ui_listener@ f(const string &in)");
 				VListener.SetEnumRefsEx<ModelListener>([](ModelListener* Base, asIScriptEngine* Engine)
 				{
-					Engine->GCEnumCallback(Base->GetCallback());
+					auto& Delegate = Base->GetDelegate();
+					Engine->GCEnumCallback(Delegate.Callback);
+					Engine->GCEnumCallback(Delegate.DelegateObject);
 				});
 				VListener.SetReleaseRefsEx<ModelListener>([](ModelListener* Base, asIScriptEngine*)
 				{
+					Base->GetDelegate().Release();
 					Base->~ModelListener();
 				});
 

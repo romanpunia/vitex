@@ -1843,6 +1843,150 @@ namespace Mavi
 			return VM;
 		}
 
+		FunctionDelegate::FunctionDelegate() : VM(nullptr), Context(nullptr), Callback(nullptr), DelegateType(nullptr), DelegateObject(nullptr)
+		{
+		}
+		FunctionDelegate::FunctionDelegate(const Function& Function) : VM(nullptr), Context(nullptr), Callback(nullptr), DelegateType(nullptr), DelegateObject(nullptr)
+		{
+			if (!Function.IsValid())
+				return;
+
+			VM = VirtualMachine::Get();
+			if (!VM)
+				return;
+
+			Context = ImmediateContext::Get();
+			Callback = Function.GetFunction();
+			DelegateType = Callback->GetDelegateObjectType();
+			DelegateObject = Callback->GetDelegateObject();
+			AddRef();
+		}
+		FunctionDelegate::FunctionDelegate(const FunctionDelegate& Other) : VM(Other.VM), Context(Other.Context), Callback(Other.Callback), DelegateType(Other.DelegateType), DelegateObject(Other.DelegateObject)
+		{
+			AddRef();
+		}
+		FunctionDelegate::FunctionDelegate(FunctionDelegate&& Other) : VM(Other.VM), Context(Other.Context), Callback(Other.Callback), DelegateType(Other.DelegateType), DelegateObject(Other.DelegateObject)
+		{
+			Other.VM = nullptr;
+			Other.Context = nullptr;
+			Other.Callback = nullptr;
+			Other.DelegateType = nullptr;
+			Other.DelegateObject = nullptr;
+		}
+		FunctionDelegate::~FunctionDelegate()
+		{
+			Release();
+		}
+		FunctionDelegate& FunctionDelegate::operator= (const FunctionDelegate& Other)
+		{
+			if (this == &Other)
+				return *this;
+
+			Release();
+			VM = Other.VM;
+			Context = Other.Context;
+			Callback = Other.Callback;
+			DelegateType = Other.DelegateType;
+			DelegateObject = Other.DelegateObject;
+			AddRef();
+
+			return *this;
+		}
+		FunctionDelegate& FunctionDelegate::operator= (FunctionDelegate&& Other)
+		{
+			if (this == &Other)
+				return *this;
+
+			VM = Other.VM;
+			Context = Other.Context;
+			Callback = Other.Callback;
+			DelegateType = Other.DelegateType;
+			DelegateObject = Other.DelegateObject;
+			Other.VM = nullptr;
+			Other.Context = nullptr;
+			Other.Callback = nullptr;
+			Other.DelegateType = nullptr;
+			Other.DelegateObject = nullptr;
+			return *this;
+		}
+		Core::Promise<int> FunctionDelegate::operator()(ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
+		{
+			if (!IsValid())
+				return Core::Promise<int>(asINVALID_ARG);
+
+			ImmediateContext* Target = Context;
+			FunctionDelegate* Base = this;
+			bool IsParallelExecution = false;
+			if (Target != nullptr)
+			{
+				std::unique_lock<std::recursive_mutex> Unique(Target->Exchange);
+				if (!Target->CanExecuteNewFunction())
+				{
+					Target = VM->RequestContext();
+					IsParallelExecution = true;
+				}
+			}
+			else
+			{
+				Target = VM->RequestContext();
+				IsParallelExecution = true;
+			}
+
+			return Target->Execute(Callback, std::move(OnArgs)).Then<int>([Target, Base, IsParallelExecution, OnReturn = std::move(OnReturn)](int&& Result) mutable
+			{
+				if (OnReturn)
+					OnReturn(Base->Context);
+
+				if (IsParallelExecution)
+					Base->VM->ReturnContext(Target);
+				return Result;
+			});
+		}
+		void FunctionDelegate::AddRef()
+		{
+			if (!IsValid())
+				return;
+
+			if (VM != nullptr)
+				VM->AddRef();
+
+			if (Context != nullptr)
+				Context->AddRef();
+
+			if (!Callback)
+				return;
+
+			Callback->AddRef();
+			if (!VM || Callback->GetFuncType() != asFUNC_DELEGATE)
+				return;
+
+			if (DelegateObject != nullptr && DelegateType != nullptr)
+				VM->GetEngine()->AddRefScriptObject(DelegateObject, DelegateType);
+		}
+		void FunctionDelegate::Release()
+		{
+			if (IsValid())
+			{
+				if (VM != nullptr && DelegateObject != nullptr && DelegateType != nullptr)
+					VM->GetEngine()->ReleaseScriptObject(DelegateObject, DelegateType);
+				if (Callback != nullptr)
+					Callback->Release();
+				if (Context != nullptr)
+					Context->Release();
+				if (VM != nullptr)
+					VM->Release();
+			}
+			VM = nullptr;
+			Context = nullptr;
+			Callback = nullptr;
+			DelegateType = nullptr;
+			DelegateObject = nullptr;
+		}
+		bool FunctionDelegate::IsValid() const
+		{
+			return (VM || Context) && Callback;
+		}
+
 		Compiler::Compiler(VirtualMachine* Engine) noexcept : Scope(nullptr), VM(Engine), Context(nullptr), BuiltOK(false)
 		{
 			VI_ASSERT_V(VM != nullptr, "engine should be set");
@@ -4131,7 +4275,7 @@ namespace Mavi
 			VI_ASSERT(!Core::Costate::IsCoroutine(), Core::Promise<int>(asINVALID_ARG), "cannot safely execute in coroutine");
 
 			std::unique_lock<std::recursive_mutex> Unique(Exchange);
-			if (!Frame.Tasks.empty() || Context->GetState() == asEXECUTION_ACTIVE || Context->IsNested())
+			if (!Frame.Tasks.empty() || !CanExecuteNewFunction() || Context->IsNested())
 			{
 				Callable Next;
 				auto Future = Next.Future;
@@ -4162,7 +4306,7 @@ namespace Mavi
 			VI_ASSERT(!Core::Costate::IsCoroutine(), asINVALID_ARG, "cannot safely execute in coroutine");
 
 			std::unique_lock<std::recursive_mutex> Unique(Exchange);
-			if (Context->GetState() != asEXECUTION_ACTIVE)
+			if (!CanExecuteSubFunction())
 			{
 				VI_ASSERT(false, asINVALID_ARG, "context should be active");
 				return asEXECUTION_ABORTED;
@@ -4664,6 +4808,17 @@ namespace Mavi
 		{
 			VI_ASSERT(Context != nullptr, false, "context should be set");
 			return Context->GetState() == asEXECUTION_SUSPENDED;
+		}
+		bool ImmediateContext::CanExecuteNewFunction() const
+		{
+			VI_ASSERT(Context != nullptr, false, "context should be set");
+			auto State = Context->GetState();
+			return State != asEXECUTION_SUSPENDED && State != asEXECUTION_ACTIVE;
+		}
+		bool ImmediateContext::CanExecuteSubFunction() const
+		{
+			VI_ASSERT(Context != nullptr, false, "context should be set");
+			return Context->GetState() == asEXECUTION_ACTIVE;
 		}
 		void* ImmediateContext::SetUserData(void* Data, size_t Type)
 		{
@@ -5317,24 +5472,6 @@ namespace Mavi
 			}
 
 			return true;
-		}
-		Core::Promise<int> VirtualMachine::ExecuteParallel(const Function& Function, ArgsCallback&& OnArgs)
-		{
-			if (!Function.IsValid())
-				return Core::Promise<int>(asINVALID_ARG);
-
-			ImmediateContext* Context = RequestContext();
-			if (!Context)
-				return Core::Promise<int>(asINVALID_OBJECT);
-
-			VirtualMachine* VM = this;
-			VM->AddRef();
-			return Context->Execute(Function, std::move(OnArgs)).Then<int>([VM, Context](int&& Result)
-			{
-				VM->ReturnContext(Context);
-				VM->Release();
-				return Result;
-			});
 		}
 		Core::UnorderedMap<Core::String, Core::String> VirtualMachine::DumpRegisteredInterfaces(ImmediateContext* Context)
 		{

@@ -2196,6 +2196,9 @@ namespace Mavi
 		}
 		Compiler::~Compiler() noexcept
 		{
+			if (Scope != nullptr)
+				Scope->Discard();
+
 			VI_RELEASE(Processor);
 		}
 		void Compiler::SetIncludeCallback(const Compute::ProcIncludeCallback& Callback)
@@ -2213,6 +2216,12 @@ namespace Mavi
 		void Compiler::Undefine(const Core::String& Word)
 		{
 			Processor->Undefine(Word);
+		}
+		Module Compiler::UnlinkModule()
+		{
+			Module Result(Scope);
+			Scope = nullptr;
+			return Result;
 		}
 		bool Compiler::Clear()
 		{

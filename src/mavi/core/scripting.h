@@ -1546,6 +1546,7 @@ namespace Mavi
 			void SetPragmaCallback(const Compute::ProcPragmaCallback& Callback);
 			void Define(const Core::String& Word);
 			void Undefine(const Core::String& Word);
+			Module UnlinkModule();
 			bool Clear();
 			bool IsDefined(const Core::String& Word) const;
 			bool IsBuilt() const;

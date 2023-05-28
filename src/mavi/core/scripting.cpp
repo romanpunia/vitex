@@ -1861,6 +1861,23 @@ namespace Mavi
 			DelegateObject = Callback->GetDelegateObject();
 			AddRef();
 		}
+		FunctionDelegate::FunctionDelegate(const Function& Function, ImmediateContext* WantedContext) : VM(nullptr), Context(WantedContext), Callback(nullptr), DelegateType(nullptr), DelegateObject(nullptr)
+		{
+			if (!Function.IsValid())
+				return;
+
+			VM = (WantedContext ? WantedContext->GetVM() : VirtualMachine::Get());
+			if (!VM)
+				return;
+
+			if (!Context)
+				Context = ImmediateContext::Get();
+
+			Callback = Function.GetFunction();
+			DelegateType = Callback->GetDelegateObjectType();
+			DelegateObject = Callback->GetDelegateObject();
+			AddRef();
+		}
 		FunctionDelegate::FunctionDelegate(const FunctionDelegate& Other) : VM(Other.VM), Context(Other.Context), Callback(Other.Callback), DelegateType(Other.DelegateType), DelegateObject(Other.DelegateObject)
 		{
 			AddRef();
@@ -1909,36 +1926,36 @@ namespace Mavi
 			Other.DelegateObject = nullptr;
 			return *this;
 		}
+		Core::Promise<int> FunctionDelegate::ExecuteOnNewContext(ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
+		{
+			FunctionDelegate* Base = this;
+			ImmediateContext* Target = VM->RequestContext();
+			return Target->ExecuteCall(Callback, std::move(OnArgs)).Then<int>([Target, Base, OnReturn = std::move(OnReturn)](int&& Result) mutable
+			{
+				if (OnReturn)
+					OnReturn(Base->Context);
+
+				Base->VM->ReturnContext(Target);
+				return Result;
+			});
+		}
 		Core::Promise<int> FunctionDelegate::operator()(ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
 		{
 			if (!IsValid())
 				return Core::Promise<int>(asINVALID_ARG);
 
-			ImmediateContext* Target = Context;
-			FunctionDelegate* Base = this;
-			bool IsParallelExecution = false;
-			if (Target != nullptr)
-			{
-				std::unique_lock<std::recursive_mutex> Unique(Target->Exchange);
-				if (!Target->CanExecuteNewFunction())
-				{
-					Target = VM->RequestContext();
-					IsParallelExecution = true;
-				}
-			}
-			else
-			{
-				Target = VM->RequestContext();
-				IsParallelExecution = true;
-			}
+			if (!Context)
+				return ExecuteOnNewContext(std::move(OnArgs), std::move(OnReturn));
 
-			return Target->Execute(Callback, std::move(OnArgs)).Then<int>([Target, Base, IsParallelExecution, OnReturn = std::move(OnReturn)](int&& Result) mutable
+			std::unique_lock<std::recursive_mutex> Unique(Context->Exchange);
+			if (!Context->CanExecuteCall())
+				return ExecuteOnNewContext(std::move(OnArgs), std::move(OnReturn));
+
+			FunctionDelegate* Base = this;
+			return Context->ExecuteCall(Callback, std::move(OnArgs)).Then<int>([Base, OnReturn = std::move(OnReturn)](int&& Result) mutable
 			{
 				if (OnReturn)
 					OnReturn(Base->Context);
-
-				if (IsParallelExecution)
-					Base->VM->ReturnContext(Target);
 				return Result;
 			});
 		}
@@ -1987,7 +2004,7 @@ namespace Mavi
 			return (VM || Context) && Callback;
 		}
 
-		Compiler::Compiler(VirtualMachine* Engine) noexcept : Scope(nullptr), VM(Engine), Context(nullptr), BuiltOK(false)
+		Compiler::Compiler(VirtualMachine* Engine) noexcept : Scope(nullptr), VM(Engine), Built(false)
 		{
 			VI_ASSERT_V(VM != nullptr, "engine should be set");
 
@@ -2175,13 +2192,10 @@ namespace Mavi
 #elif defined(VI_LINUX)
 			Processor->Define("OS_LINUX");
 #endif
-			Context = VM->RequestContext();
-			Context->SetUserData(this, CompilerUD);
 			VM->SetProcessorOptions(Processor);
 		}
 		Compiler::~Compiler() noexcept
 		{
-			VM->ReturnContext(Context);
 			VI_RELEASE(Processor);
 		}
 		void Compiler::SetIncludeCallback(const Compute::ProcIncludeCallback& Callback)
@@ -2203,9 +2217,6 @@ namespace Mavi
 		bool Compiler::Clear()
 		{
 			VI_ASSERT(VM != nullptr, false, "engine should be set");
-			if (Context != nullptr && Context->IsPending())
-				return false;
-
 			if (Scope != nullptr)
 				Scope->Discard();
 
@@ -2213,7 +2224,7 @@ namespace Mavi
 				Processor->Clear();
 
 			Scope = nullptr;
-			BuiltOK = false;
+			Built = false;
 			return true;
 		}
 		bool Compiler::IsDefined(const Core::String& Word) const
@@ -2222,7 +2233,7 @@ namespace Mavi
 		}
 		bool Compiler::IsBuilt() const
 		{
-			return BuiltOK;
+			return Built;
 		}
 		bool Compiler::IsCached() const
 		{
@@ -2249,7 +2260,7 @@ namespace Mavi
 			VI_ASSERT(!ModuleName.empty(), -1, "module name should not be empty");
 			VI_DEBUG("[vm] prepare %s on 0x%" PRIXPTR, ModuleName.c_str(), (uintptr_t)this);
 
-			BuiltOK = false;
+			Built = false;
 			VCache.Valid = false;
 			VCache.Name.clear();
 
@@ -2291,7 +2302,7 @@ namespace Mavi
 			VI_ASSERT(VM != nullptr, -1, "engine should be set");
 			VI_ASSERT(Scope != nullptr, -1, "module should not be empty");
 			VI_ASSERT(Info != nullptr, -1, "bytecode should be set");
-			VI_ASSERT(BuiltOK, -1, "module should be built");
+			VI_ASSERT(Built, -1, "module should be built");
 
 			CByteCodeStream* Stream = VI_NEW(CByteCodeStream);
 			int R = Scope->SaveByteCode(Stream, !Info->Debug);
@@ -2364,52 +2375,6 @@ namespace Mavi
 
 			return R;
 		}
-		Core::Promise<int> Compiler::Compile()
-		{
-			VI_ASSERT(VM != nullptr, Core::Promise<int>(-1), "engine should be set");
-			VI_ASSERT(Scope != nullptr, Core::Promise<int>(-1), "module should not be empty");
-
-			if (VCache.Valid)
-			{
-				return LoadByteCode(&VCache).Then<int>([this](int&& R)
-				{
-					BuiltOK = (R >= 0);
-					if (!BuiltOK)
-						return R;
-
-					VI_DEBUG("[vm] OK compile on 0x%" PRIXPTR " (cache)", (uintptr_t)this);
-					return R;
-				});
-			}
-
-			return Core::Cotask<int>([this]()
-			{
-				int R = 0;
-				while ((R = Scope->Build()) == asBUILD_IN_PROGRESS)
-					std::this_thread::sleep_for(std::chrono::microseconds(100));
-
-				VM->ClearSections();
-				return R;
-			}).Then<int>([this](int&& R)
-			{
-				BuiltOK = (R >= 0);
-				if (!BuiltOK)
-					return R;
-
-				VI_DEBUG("[vm] OK compile on 0x%" PRIXPTR, (uintptr_t)this);
-				Scope->ResetGlobalVars(Context->GetContext());
-
-				if (VCache.Name.empty())
-					return R;
-
-				R = SaveByteCode(&VCache);
-				if (R < 0)
-					return R;
-
-				VM->SetByteCodeCache(&VCache);
-				return R;
-			});
-		}
 		Core::Promise<int> Compiler::LoadByteCode(ByteCodeInfo* Info)
 		{
 			VI_ASSERT(VM != nullptr, Core::Promise<int>(-1), "engine should be set");
@@ -2427,14 +2392,55 @@ namespace Mavi
 			{
 				VI_DELETE(CByteCodeStream, Stream);
 				if (R >= 0)
-				{
 					VI_DEBUG("[vm] OK load bytecode on 0x%" PRIXPTR, (uintptr_t)this);
-					Scope->ResetGlobalVars(Context->GetContext());
-				}
 				return R;
 			});
 		}
-		Core::Promise<int> Compiler::ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
+		Core::Promise<int> Compiler::Compile()
+		{
+			VI_ASSERT(VM != nullptr, Core::Promise<int>(-1), "engine should be set");
+			VI_ASSERT(Scope != nullptr, Core::Promise<int>(-1), "module should not be empty");
+
+			if (VCache.Valid)
+			{
+				return LoadByteCode(&VCache).Then<int>([this](int&& R)
+				{
+					Built = (R >= 0);
+					if (!Built)
+						return R;
+
+					VI_DEBUG("[vm] OK compile on 0x%" PRIXPTR " (cache)", (uintptr_t)this);
+					return R;
+				});
+			}
+
+			return Core::Cotask<int>([this]()
+			{
+				int R = 0;
+				while ((R = Scope->Build()) == asBUILD_IN_PROGRESS)
+					std::this_thread::sleep_for(std::chrono::microseconds(100));
+
+				VM->ClearSections();
+				return R;
+			}).Then<int>([this](int&& R)
+			{
+				Built = (R >= 0);
+				if (!Built)
+					return R;
+
+				VI_DEBUG("[vm] OK compile on 0x%" PRIXPTR, (uintptr_t)this);
+				if (VCache.Name.empty())
+					return R;
+
+				R = SaveByteCode(&VCache);
+				if (R < 0)
+					return R;
+
+				VM->SetByteCodeCache(&VCache);
+				return R;
+			});
+		}
+		Core::Promise<int> Compiler::CompileFile(const char* Name, const char* ModuleName, const char* EntryName)
 		{
 			VI_ASSERT(VM != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
 			VI_ASSERT(Name != nullptr, Core::Promise<int>(asINVALID_ARG), "name should be set");
@@ -2449,21 +2455,16 @@ namespace Mavi
 			if (R < 0)
 				return Core::Promise<int>(R);
 
-			return Compile().Then<Core::Promise<int>>([this, EntryName, OnArgs = std::move(OnArgs)](int&& R) mutable
-			{
-				if (R < 0)
-					return Core::Promise<int>(R);
-
-				return ExecuteEntry(EntryName, std::move(OnArgs));
-			});
+			return Compile();
 		}
-		Core::Promise<int> Compiler::ExecuteMemory(const Core::String& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
+		Core::Promise<int> Compiler::CompileMemory(const Core::String& Buffer, const char* ModuleName, const char* EntryName)
 		{
 			VI_ASSERT(VM != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
 			VI_ASSERT(!Buffer.empty(), Core::Promise<int>(asINVALID_ARG), "buffer should not be empty");
 			VI_ASSERT(ModuleName != nullptr, Core::Promise<int>(asINVALID_ARG), "module name should be set");
 			VI_ASSERT(EntryName != nullptr, Core::Promise<int>(asINVALID_ARG), "entry name should be set");
 
+			Core::String Name = "anonymous:" + Core::ToString(Counter++);
 			int R = Prepare(ModuleName, "anonymous");
 			if (R < 0)
 				return Core::Promise<int>(R);
@@ -2472,42 +2473,20 @@ namespace Mavi
 			if (R < 0)
 				return Core::Promise<int>(R);
 
-			return Compile().Then<Core::Promise<int>>([this, EntryName, OnArgs = std::move(OnArgs)](int&& R) mutable
-			{
-				if (R < 0)
-					return Core::Promise<int>(R);
-
-				return ExecuteEntry(EntryName, std::move(OnArgs));
-			});
+			return Compile();
 		}
-		Core::Promise<int> Compiler::ExecuteEntry(const char* Name, ArgsCallback&& OnArgs)
+		Core::Promise<Function> Compiler::CompileFunction(const Core::String& Buffer, const char* Returns, const char* Args)
 		{
-			VI_ASSERT(VM != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
-			VI_ASSERT(Name != nullptr, Core::Promise<int>(asINVALID_ARG), "name should be set");
-			VI_ASSERT(Context != nullptr, Core::Promise<int>(asINVALID_ARG), "context should be set");
-			VI_ASSERT(Scope != nullptr, Core::Promise<int>(asINVALID_ARG), "module should not be empty");
-			VI_ASSERT(BuiltOK, Core::Promise<int>(asINVALID_ARG), "module should be built");
-
-			asIScriptEngine* Engine = VM->GetEngine();
-			VI_ASSERT(Engine != nullptr, Core::Promise<int>(asINVALID_CONFIGURATION), "engine should be set");
-
-			asIScriptFunction* Function = Scope->GetFunctionByName(Name);
-			if (!Function)
-				return Core::Promise<int>(asNO_FUNCTION);
-
-			return Context->Execute(Function, std::move(OnArgs));
-		}
-		Core::Promise<int> Compiler::ExecuteScoped(const Core::String& Buffer, const char* Returns, const char* Args, ArgsCallback&& OnArgs)
-		{
-			VI_ASSERT(VM != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
-			VI_ASSERT(!Buffer.empty(), Core::Promise<int>(asINVALID_ARG), "buffer should not be empty");
-			VI_ASSERT(Context != nullptr, Core::Promise<int>(asINVALID_ARG), "context should be set");
-			VI_ASSERT(Scope != nullptr, Core::Promise<int>(asINVALID_ARG), "module should not be empty");
-			VI_ASSERT(BuiltOK, Core::Promise<int>(asINVALID_ARG), "module should be built");
+			VI_ASSERT(VM != nullptr, Core::Promise<Function>(Function(nullptr)), "engine should be set");
+			VI_ASSERT(!Buffer.empty(), Core::Promise<Function>(Function(nullptr)), "buffer should not be empty");
+			VI_ASSERT(Scope != nullptr, Core::Promise<Function>(Function(nullptr)), "module should not be empty");
+			VI_ASSERT(Built, Core::Promise<Function>(Function(nullptr)), "module should be built");
 
 			Core::String Eval;
 			Eval.append(Returns ? Returns : "void");
-			Eval.append(" __vfunc(");
+			Eval.append(" __vfunc");
+			Eval.append(Core::ToString(Counter++));
+			Eval.append("(");
 			Eval.append(Args ? Args : "");
 			Eval.append("){");
 
@@ -2561,31 +2540,18 @@ namespace Mavi
 			}
 
 			asIScriptModule* Source = GetModule().GetModule();
-			return Core::Cotask<Core::Promise<int>>([this, Source, Eval, OnArgs = std::move(OnArgs)]() mutable
+			return Core::Cotask<Function>([Source, Eval = std::move(Eval)]() mutable
 			{
-				asIScriptFunction* Function = nullptr; int R = 0;
-				while ((R = Source->CompileFunction("__vfunc", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function)) == asBUILD_IN_PROGRESS)
+				asIScriptFunction* FunctionPointer = nullptr; int R = 0;
+				while ((R = Source->CompileFunction("__vfunc", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &FunctionPointer)) == asBUILD_IN_PROGRESS)
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
 
-				if (R < 0)
-					return Core::Promise<int>(R);
-
-				Core::Promise<int> Result = Context->Execute(Function, std::move(OnArgs));
-				Function->Release();
-
-				return Result;
-			}).Then<Core::Promise<int>>([](Core::Promise<int>&& Result)
-			{
-				return Result;
+				return Function(FunctionPointer);
 			});
 		}
 		VirtualMachine* Compiler::GetVM() const
 		{
 			return VM;
-		}
-		ImmediateContext* Compiler::GetContext() const
-		{
-			return Context;
 		}
 		Module Compiler::GetModule() const
 		{
@@ -4252,13 +4218,8 @@ namespace Mavi
 		}
 		ImmediateContext::~ImmediateContext() noexcept
 		{
-			while (!Frame.Tasks.empty())
-			{
-				auto& Next = Frame.Tasks.front();
-				Next.Callback.Release();
-				Next.Future.Set(asCONTEXT_NOT_PREPARED);
-				Frame.Tasks.pop();
-			}
+			if (Executor.Future.IsPending())
+				Executor.Future.Set(asCONTEXT_NOT_PREPARED);
 
 			if (Context != nullptr)
 			{
@@ -4268,36 +4229,26 @@ namespace Mavi
 					Context->Release();
 			}
 		}
-		Core::Promise<int> ImmediateContext::Execute(const Function& Function, ArgsCallback&& OnArgs)
+		Core::Promise<int> ImmediateContext::ExecuteCall(const Function& Function, ArgsCallback&& OnArgs)
 		{
 			VI_ASSERT(Context != nullptr, Core::Promise<int>(asINVALID_ARG), "context should be set");
 			VI_ASSERT(Function.IsValid(), Core::Promise<int>(asINVALID_ARG), "function should be set");
 			VI_ASSERT(!Core::Costate::IsCoroutine(), Core::Promise<int>(asINVALID_ARG), "cannot safely execute in coroutine");
 
 			std::unique_lock<std::recursive_mutex> Unique(Exchange);
-			if (!Frame.Tasks.empty() || !CanExecuteNewFunction() || Context->IsNested())
-			{
-				Callable Next;
-				auto Future = Next.Future;
-				Next.Args = std::move(OnArgs);
-				Next.Callback = Function;
-				Next.Callback.AddRef();
-				Frame.Tasks.emplace(std::move(Next));
-				return Future;
-			}
+			if (!CanExecuteCall())
+				return Core::Promise<int>(asCONTEXT_ACTIVE);
 
 			int Result = Context->Prepare(Function.GetFunction());
 			if (Result < 0)
 				return Core::Promise<int>(Result);
 
-			Callable Next;
-			auto Future = Next.Future;
-			Frame.Tasks.emplace(std::move(Next));
 			if (OnArgs)
 				OnArgs(this);
 
+			Executor.Future = Core::Promise<int>();
 			Resume();
-			return Future;
+			return Executor.Future;
 		}
 		int ImmediateContext::ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs)
 		{
@@ -4306,7 +4257,7 @@ namespace Mavi
 			VI_ASSERT(!Core::Costate::IsCoroutine(), asINVALID_ARG, "cannot safely execute in coroutine");
 
 			std::unique_lock<std::recursive_mutex> Unique(Exchange);
-			if (!CanExecuteSubFunction())
+			if (!CanExecuteSubcall())
 			{
 				VI_ASSERT(false, asINVALID_ARG, "context should be active");
 				return asEXECUTION_ABORTED;
@@ -4345,46 +4296,9 @@ namespace Mavi
 			if (Result == asEXECUTION_SUSPENDED)
 				return Result;
 
-			Exchange.lock();
-			if (Frame.Tasks.empty())
-			{
-				Exchange.unlock();
-				return Result;
-			}
-
-			auto Future = Frame.Tasks.front().Future;
-			Frame.Tasks.front().Callback.Release();
-			Frame.Tasks.pop();
-
-			Exchange.unlock();
-			Future.Set(Result);
-			Exchange.lock();
-
-			while (!Frame.Tasks.empty())
-			{
-				auto Next = std::move(Frame.Tasks.front());
-				Frame.Tasks.pop();
-				Exchange.unlock();
-
-				int Subresult = Context->Prepare(Next.Callback.GetFunction());
-				if (Subresult < 0)
-					goto Finalize;
-
-				if (Next.Args)
-					Next.Args(this);
-
-				Subresult = ExecuteNext();
-				if (Subresult != asEXECUTION_SUSPENDED)
-					goto Finalize;
-
-				return Result;
-			Finalize:
-				Next.Callback.Release();
-				Next.Future.Set(Subresult);
-				Exchange.lock();
-			}
-
-			Exchange.unlock();
+			std::unique_lock<std::recursive_mutex> Unique(Exchange);
+			if (Executor.Future.IsPending())
+				Executor.Future.Set(Result);
 			return Result;
 		}
 		int ImmediateContext::Abort()
@@ -4464,11 +4378,8 @@ namespace Mavi
 		}
 		bool ImmediateContext::IsPending()
 		{
-			Exchange.lock();
-			bool Pending = !Frame.Tasks.empty();
-			Exchange.unlock();
-
-			return Pending;
+			std::unique_lock<std::recursive_mutex> Unique(Exchange);
+			return Executor.Future.IsPending();
 		}
 		int ImmediateContext::SetObject(void* Object)
 		{
@@ -4793,11 +4704,8 @@ namespace Mavi
 		}
 		Core::String ImmediateContext::GetExceptionStackTrace()
 		{
-			Exchange.lock();
-			Core::String Result = Frame.Stacktrace;
-			Exchange.unlock();
-
-			return Result;
+			std::unique_lock<std::recursive_mutex> Unique(Exchange);
+			return Executor.Stacktrace;
 		}
 		Function ImmediateContext::GetSystemFunction()
 		{
@@ -4809,13 +4717,13 @@ namespace Mavi
 			VI_ASSERT(Context != nullptr, false, "context should be set");
 			return Context->GetState() == asEXECUTION_SUSPENDED;
 		}
-		bool ImmediateContext::CanExecuteNewFunction() const
+		bool ImmediateContext::CanExecuteCall() const
 		{
 			VI_ASSERT(Context != nullptr, false, "context should be set");
 			auto State = Context->GetState();
-			return State != asEXECUTION_SUSPENDED && State != asEXECUTION_ACTIVE;
+			return State != asEXECUTION_SUSPENDED && State != asEXECUTION_ACTIVE && !Context->IsNested() && !Executor.Future.IsPending();
 		}
-		bool ImmediateContext::CanExecuteSubFunction() const
+		bool ImmediateContext::CanExecuteSubcall() const
 		{
 			VI_ASSERT(Context != nullptr, false, "context should be set");
 			return Context->GetState() == asEXECUTION_ACTIVE;
@@ -4866,7 +4774,7 @@ namespace Mavi
 			Engine->SetUserData(this, ManagerUD);
 			Engine->SetContextCallbacks(RequestRawContext, ReturnRawContext, nullptr);
 			Engine->SetMessageCallback(asFUNCTION(MessageLogger), this, asCALL_CDECL);
-			Engine->SetEngineProperty(asEP_INIT_GLOBAL_VARS_AFTER_BUILD, 0);
+			Engine->SetEngineProperty(asEP_INIT_GLOBAL_VARS_AFTER_BUILD, 1);
 			Engine->SetEngineProperty(asEP_USE_CHARACTER_LITERALS, 1);
 			Engine->SetEngineProperty(asEP_DISALLOW_EMPTY_LIST_ELEMENTS, 1);
 			Engine->SetEngineProperty(asEP_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, 0);
@@ -6351,7 +6259,7 @@ namespace Mavi
 
 				VI_ERR("[vm] uncaught exception %s, callstack:\n%.*s", Details.empty() ? "unknown" : Details.c_str(), (int)Trace.size(), Trace.c_str());
 				Base->Exchange.lock();
-				Base->Frame.Stacktrace = Trace;
+				Base->Executor.Stacktrace = Trace;
 				Base->Exchange.unlock();
 				if (Base->Callbacks.Exception)
 					Base->Callbacks.Exception(Base);

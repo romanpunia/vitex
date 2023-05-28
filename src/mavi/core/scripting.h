@@ -25,8 +25,6 @@ namespace Mavi
 
 		struct Function;
 
-		class Compiler;
-
 		class VirtualMachine;
 
 		class ImmediateContext;
@@ -1511,6 +1509,7 @@ namespace Mavi
 
 			FunctionDelegate();
 			FunctionDelegate(const Function& Function);
+			FunctionDelegate(const Function& Function, ImmediateContext* WantedContext);
 			FunctionDelegate(const FunctionDelegate& Other);
 			FunctionDelegate(FunctionDelegate&& Other);
 			~FunctionDelegate();
@@ -1520,6 +1519,9 @@ namespace Mavi
 			bool IsValid() const;
 			void AddRef();
 			void Release();
+
+		private:
+			Core::Promise<int> ExecuteOnNewContext(ArgsCallback&& OnArgs, ArgsCallback&& OnReturn);
 		};
 
 		class VI_OUT Compiler final : public Core::Reference<Compiler>
@@ -1533,9 +1535,9 @@ namespace Mavi
 			Compute::Preprocessor* Processor;
 			asIScriptModule* Scope;
 			VirtualMachine* VM;
-			ImmediateContext* Context;
 			ByteCodeInfo VCache;
-			bool BuiltOK;
+			size_t Counter;
+			bool Built;
 
 		public:
 			Compiler(VirtualMachine* Engine) noexcept;
@@ -1555,15 +1557,13 @@ namespace Mavi
 			int LoadFile(const Core::String& Path);
 			int LoadCode(const Core::String& Name, const Core::String& Buffer);
 			int LoadCode(const Core::String& Name, const char* Buffer, size_t Length);
-			Core::Promise<int> Compile();
 			Core::Promise<int> LoadByteCode(ByteCodeInfo* Info);
-			Core::Promise<int> ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
-			Core::Promise<int> ExecuteMemory(const Core::String& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
-			Core::Promise<int> ExecuteEntry(const char* Name, ArgsCallback&& OnArgs = nullptr);
-			Core::Promise<int> ExecuteScoped(const Core::String& Code, const char* Returns = nullptr, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
+			Core::Promise<int> Compile();
+			Core::Promise<int> CompileFile(const char* Name, const char* ModuleName, const char* EntryName);
+			Core::Promise<int> CompileMemory(const Core::String& Buffer, const char* ModuleName, const char* EntryName);
+			Core::Promise<Function> CompileFunction(const Core::String& Code, const char* Returns = nullptr, const char* Args = nullptr);
 			Module GetModule() const;
 			VirtualMachine* GetVM() const;
-			ImmediateContext* GetContext() const;
 			Compute::Preprocessor* GetProcessor() const;
 
 		private:
@@ -1702,24 +1702,17 @@ namespace Mavi
 			static int ContextUD;
 
 		private:
-			struct Callable
-			{
-				Core::Promise<int> Future;
-				Function Callback = nullptr;
-				ArgsCallback Args;
-			};
-
 			struct Events
 			{
 				std::function<void(ImmediateContext*)> Exception;
 				std::function<void(ImmediateContext*)> Line;
 			} Callbacks;
 
-			struct Invoker
+			struct Frame
 			{
-				Core::SingleQueue<Callable> Tasks;
+				Core::Promise<int> Future = Core::Promise<int>::Ready();
 				Core::String Stacktrace;
-			} Frame;
+			} Executor;
 
 		private:
 			asIScriptContext* Context;
@@ -1728,7 +1721,7 @@ namespace Mavi
 
 		public:
 			~ImmediateContext() noexcept;
-			Core::Promise<int> Execute(const Function& Function, ArgsCallback&& OnArgs);
+			Core::Promise<int> ExecuteCall(const Function& Function, ArgsCallback&& OnArgs);
 			int ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs);
 			int SetOnException(void(*Callback)(asIScriptContext* Context, void* Object), void* Object);
 			int Prepare(const Function& Function);
@@ -1801,8 +1794,8 @@ namespace Mavi
 			void* GetThisPointer(size_t StackLevel = 0);
 			Function GetSystemFunction();
 			bool IsSuspended() const;
-			bool CanExecuteNewFunction() const;
-			bool CanExecuteSubFunction() const;
+			bool CanExecuteCall() const;
+			bool CanExecuteSubcall() const;
 			void* SetUserData(void* Data, size_t Type = 0);
 			void* GetUserData(size_t Type = 0) const;
 			asIScriptContext* GetContext();

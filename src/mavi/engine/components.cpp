@@ -3840,12 +3840,6 @@ namespace Mavi
 				if (!Compiler || !Target->Compiler)
 					return Target;
 
-				if (Compiler->GetContext()->GetState() == Mavi::Scripting::Activation::Active)
-					return Target;
-
-				if (Target->Compiler->GetContext()->GetState() == Mavi::Scripting::Activation::Active)
-					return Target;
-
 				Scripting::Module From = Compiler->GetModule();
 				Scripting::Module To = Target->Compiler->GetModule();
 				Scripting::VirtualMachine* VM = Compiler->GetVM();
@@ -3899,15 +3893,12 @@ namespace Mavi
 				if (!Compiler)
 					return Core::Promise<int>((int)Scripting::Errors::INVALID_CONFIGURATION);
 
-				if (!Function)
+				Scripting::FunctionDelegate Delegate(Function);
+				if (!Delegate.IsValid())
 					return Core::Promise<int>((int)Scripting::Errors::INVALID_ARG);
 
 				Protect();
-				return Compiler->GetContext()->Execute(Function, [OnArgs = std::move(OnArgs)](Scripting::ImmediateContext* Context)
-				{
-					if (OnArgs)
-						OnArgs(Context);
-				}).Then<int>([this](int&& Result)
+				return Delegate(std::move(OnArgs)).Then<int>([this](int&& Result)
 				{
 					Unprotect();
 					return Result;
@@ -3931,13 +3922,7 @@ namespace Mavi
 			int Scriptable::LoadSource(SourceType Type, const Core::String& Data)
 			{
 				SceneGraph* Scene = Parent->GetScene();
-				if (Compiler != nullptr)
-				{
-					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Scripting::Activation::Active)
-						return (int)Scripting::Errors::MODULE_IS_IN_USE;
-				}
-				else
+				if (!Compiler)
 				{
 					auto* VM = Scene->GetConf().Shared.VM;
 					if (!VM)
@@ -4019,10 +4004,6 @@ namespace Mavi
 				if (!Compiler)
 					return nullptr;
 
-				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Scripting::Activation::Active)
-					return nullptr;
-
 				auto Result = Compiler->GetModule().GetFunctionByName(Name.c_str());
 				if (Result.IsValid() && Result.GetArgsCount() != Args)
 					return nullptr;
@@ -4033,10 +4014,6 @@ namespace Mavi
 			{
 				VI_ASSERT(Index >= 0, nullptr, "index should be greater or equal to zero");
 				if (!Compiler)
-					return nullptr;
-
-				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Scripting::Activation::Active)
 					return nullptr;
 
 				auto Result = Compiler->GetModule().GetFunctionByIndex(Index);
@@ -4051,19 +4028,12 @@ namespace Mavi
 				if (!Compiler)
 					return false;
 
-				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Mavi::Scripting::Activation::Active)
+				Scripting::Module Base = Compiler->GetModule();
+				if (!Base.IsValid())
 					return false;
 
-				Scripting::Module fModule = Compiler->GetModule();
-				if (!fModule.IsValid())
-					return false;
-
-				int Index = fModule.GetPropertyIndexByName(Name);
-				if (Index < 0)
-					return false;
-
-				if (fModule.GetProperty(Index, Result) < 0)
+				int Index = Base.GetPropertyIndexByName(Name);
+				if (Index < 0 || Base.GetProperty(Index, Result) < 0)
 					return false;
 
 				return true;
@@ -4074,15 +4044,8 @@ namespace Mavi
 				if (!Compiler)
 					return false;
 
-				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Mavi::Scripting::Activation::Active)
-					return false;
-
-				Scripting::Module fModule = Compiler->GetModule();
-				if (!fModule.IsValid())
-					return false;
-
-				if (fModule.GetProperty(Index, Result) < 0)
+				Scripting::Module Base = Compiler->GetModule();
+				if (!Base.IsValid() || Base.GetProperty(Index, Result) < 0)
 					return false;
 
 				return true;
@@ -4100,30 +4063,22 @@ namespace Mavi
 				if (!Compiler)
 					return (int)Scripting::Errors::INVALID_ARG;
 
-				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Mavi::Scripting::Activation::Active)
-					return (int)Scripting::Errors::MODULE_IS_IN_USE;
-
-				Scripting::Module fModule = Compiler->GetModule();
-				if (!fModule.IsValid())
+				Scripting::Module Base = Compiler->GetModule();
+				if (!Base.IsValid())
 					return 0;
 
-				return (int)fModule.GetPropertiesCount();
+				return (int)Base.GetPropertiesCount();
 			}
 			int Scriptable::GetFunctionsCount()
 			{
 				if (!Compiler)
 					return (int)Scripting::Errors::INVALID_ARG;
 
-				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Mavi::Scripting::Activation::Active)
-					return (int)Scripting::Errors::MODULE_IS_IN_USE;
-
-				Scripting::Module fModule = Compiler->GetModule();
-				if (!fModule.IsValid())
+				Scripting::Module Base = Compiler->GetModule();
+				if (!Base.IsValid())
 					return 0;
 
-				return (int)fModule.GetFunctionCount();
+				return (int)Base.GetFunctionCount();
 			}
 			const Core::String& Scriptable::GetSource()
 			{

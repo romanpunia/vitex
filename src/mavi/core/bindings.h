@@ -775,7 +775,7 @@ namespace Mavi
 			private:
 				asIScriptEngine* Engine;
 				asIScriptContext* Context;
-				asIScriptFunction* Callback;
+				FunctionDelegate Delegate;
 				std::atomic<int> RefCount;
 				std::mutex Update;
 				Dynamic Value;
@@ -920,6 +920,14 @@ namespace Mavi
 			class VI_OUT Thread
 			{
 			private:
+				enum class ThreadState
+				{
+					Execute,
+					Resume,
+					Release
+				};
+
+			private:
 				static int ContextUD;
 				static int EngineListUD;
 
@@ -938,8 +946,8 @@ namespace Mavi
 				asIScriptFunction* Function;
 				VirtualMachine* VM;
 				ImmediateContext* Context;
+				ThreadState Status;
 				bool Flag;
-				int Sparcing;
 				int RefCount;
 
 			public:

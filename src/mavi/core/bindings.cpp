@@ -3476,7 +3476,7 @@ namespace Mavi
 				return Compute::Math<uint64_t>::Random(Min, Max);
 			}
 
-			Promise::Promise(asIScriptContext* NewContext) noexcept : Engine(nullptr), Context(NewContext), Callback(nullptr), Value(-1), RefCount(1)
+			Promise::Promise(asIScriptContext* NewContext) noexcept : Engine(nullptr), Context(NewContext), Value(-1), RefCount(1)
 			{
 				VI_ASSERT_V(Context != nullptr, "context should not be null");
 				Context->AddRef();
@@ -3512,8 +3512,11 @@ namespace Mavi
 						OtherEngine->GCEnumCallback(Type);
 				}
 
-				if (Callback != nullptr)
-					OtherEngine->GCEnumCallback(Callback);
+				if (Delegate.IsValid())
+				{
+					OtherEngine->GCEnumCallback(Delegate.Callback);
+					OtherEngine->GCEnumCallback(Delegate.DelegateObject);
+				}
 			}
 			void Promise::ReleaseReferences(asIScriptEngine*)
 			{
@@ -3526,11 +3529,8 @@ namespace Mavi
 					Value.Clean();
 				}
 
-				if (Callback != nullptr)
-				{
-					Callback->Release();
-					Callback = nullptr;
-				}
+				if (Delegate.IsValid())
+					Delegate.Release();
 
 				if (Context != nullptr)
 				{
@@ -3560,12 +3560,7 @@ namespace Mavi
 			}
 			void Promise::When(asIScriptFunction* NewCallback)
 			{
-				if (Callback != nullptr)
-					Callback->Release();
-
-				Callback = NewCallback;
-				if (Callback != nullptr)
-					Callback->AddRef();
+				Delegate = FunctionDelegate(NewCallback);
 			}
 			void Promise::Store(void* RefPointer, int RefTypeId)
 			{
@@ -3609,17 +3604,12 @@ namespace Mavi
 					Promise* Base = this;
 					Update.unlock();
 
-					if (Callback != nullptr)
+					if (Delegate.IsValid())
 					{
-						AddRef();
-						Immediate->Execute(Callback, [Base](ImmediateContext* Context)
+						auto NewDelegate = std::move(Delegate);
+						NewDelegate([Base](ImmediateContext* Context)
 						{
 							Context->SetArgAddress(0, Base->GetAddressOfObject());
-						}).When([Base](int&&)
-						{
-							Base->Callback->Release();
-							Base->Callback = nullptr;
-							Base->Release();
 						});
 					}
 
@@ -4385,62 +4375,55 @@ namespace Mavi
 				return new(Data) Mutex();
 			}
 
-			Thread::Thread(asIScriptEngine* Engine, asIScriptFunction* Func) noexcept : Function(Func), VM(VirtualMachine::Get(Engine)), Context(nullptr), Flag(false), Sparcing(0), RefCount(1)
+			Thread::Thread(asIScriptEngine* Engine, asIScriptFunction* Func) noexcept : Function(Func), VM(VirtualMachine::Get(Engine)), Context(VM ? VM->RequestContext() : nullptr), Flag(false), Status(ThreadState::Execute), RefCount(1)
 			{
 				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_THREAD));
+				VI_ASSERT_V(Context != nullptr, "context should be set");
+				if (VM != nullptr && !Context)
+					VM->GetEngine()->WriteMessage(TYPENAME_THREAD, 0, 0, asMSGTYPE_ERROR, "failed to start a thread: no available context");
 			}
 			void Thread::InvokeRoutine()
 			{
-				{
-					std::unique_lock<std::recursive_mutex> Unique(Mutex);
-					if (!Function)
-						return Release();
+				if (!Function)
+					return Release();
 
-					if (Context == nullptr)
-						Context = VM->RequestContext();
+				Thread* Base = this;
+				Context->ExecuteCall(Function, [Base](ImmediateContext* Context)
+				{
+					Context->SetArgObject(0, Base);
+					Context->SetUserData(Base, ContextUD);
+				}).When([Base](int&& State)
+				{
+					std::unique_lock<std::recursive_mutex> Unique(Base->Mutex);
+					Base->Context->SetUserData(nullptr, ContextUD);
 
-					if (Context == nullptr)
-					{
-						VM->GetEngine()->WriteMessage(TYPENAME_THREAD, 0, 0, asMSGTYPE_ERROR, "failed to start a thread: no available context");
-						return Release();
-					}
-				}
-				Context->Execute(Function, [this](ImmediateContext* Context)
-				{
-					Context->SetArgObject(0, this);
-					Context->SetUserData(this, ContextUD);
-				}).When([this](int&& State)
-				{
-					std::unique_lock<std::recursive_mutex> Unique(this->Mutex);
-					Context->SetUserData(nullptr, ContextUD);
 					if (State != asEXECUTION_SUSPENDED)
 					{
-						Except = Exception::Pointer(Context->GetContext());
-						Context->Unprepare();
+						Base->Except = Exception::Pointer(Base->Context->GetContext());
+						Base->Context->Unprepare();
 					}
-					if (Sparcing == 0)
-						Release();
-					else
-						Sparcing = 2;
+
+					if (Base->Status != ThreadState::Execute)
+					{
+						Base->Status = ThreadState::Release;
+						return;
+					}
+
+					Base->Release();
 				});
 				asThreadCleanup();
 			}
 			void Thread::ResumeRoutine()
 			{
-				Mutex.lock();
-				Sparcing = 1;
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Status = ThreadState::Resume;
 
-				if (Context && Context->IsSuspended())
-				{
-					Mutex.unlock();
+				if (Context->IsSuspended())
 					Context->Resume();
-					Mutex.lock();
-				}
 
-				if (Sparcing == 2)
+				if (Status == ThreadState::Release)
 					Release();
 
-				Mutex.unlock();
 				asThreadCleanup();
 			}
 			void Thread::AddRef()
@@ -4450,23 +4433,20 @@ namespace Mavi
 			}
 			void Thread::Suspend()
 			{
-				Mutex.lock();
-				Sparcing = 1;
-
-				if (Context && !Context->IsSuspended())
-				{
-					Mutex.unlock();
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Status = ThreadState::Resume;
+				if (!Context->IsSuspended())
 					Context->Suspend();
-				}
-				else
-					Mutex.unlock();
 			}
 			void Thread::Resume()
 			{
-				Mutex.lock(); Join();
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				if (!Context->IsSuspended())
+					return;
+
+				Join();
 				Procedure = std::thread(&Thread::ResumeRoutine, this);
 				VI_DEBUG("[vm] resume thread at %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
-				Mutex.unlock();
 			}
 			void Thread::Release()
 			{
@@ -4513,12 +4493,9 @@ namespace Mavi
 				if (std::this_thread::get_id() == Procedure.get_id())
 					return -1;
 
-				Mutex.lock();
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
 				if (!Procedure.joinable())
-				{
-					Mutex.unlock();
 					return -1;
-				}
 
 				VI_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
 				Mutex.unlock();
@@ -4529,7 +4506,6 @@ namespace Mavi
 				Mutex.lock();
 				if (!Except.Empty())
 					Exception::Throw(Except);
-				Mutex.unlock();
 				return 1;
 			}
 			int Thread::Join()
@@ -4550,43 +4526,39 @@ namespace Mavi
 			{
 				return Core::OS::Process::GetThreadId(Procedure.get_id());
 			}
-			void Thread::Push(void* _Ref, int TypeId)
+			void Thread::Push(void* Ref, int TypeId)
 			{
-				auto* _Thread = GetThread();
-				int Id = (_Thread == this ? 1 : 0);
-
 				void* Data = asAllocMem(sizeof(Any));
-				Any* Next = new(Data) Any(_Ref, TypeId, VirtualMachine::Get()->GetEngine());
-				Pipe[Id].Mutex.lock();
-				Pipe[Id].Queue.push_back(Next);
-				Pipe[Id].Mutex.unlock();
-				Pipe[Id].CV.notify_one();
+				Any* Next = new(Data) Any(Ref, TypeId, VirtualMachine::Get()->GetEngine());
+				auto& Source = Pipe[(GetThread() == this ? 1 : 0)];
+				Source.Mutex.lock();
+				Source.Queue.push_back(Next);
+				Source.Mutex.unlock();
+				Source.CV.notify_one();
 			}
-			bool Thread::Pop(void* _Ref, int TypeId)
+			bool Thread::Pop(void* Ref, int TypeId)
 			{
 				bool Resolved = false;
 				while (!Resolved)
-					Resolved = Pop(_Ref, TypeId, 1000);
+					Resolved = Pop(Ref, TypeId, 1000);
 
 				return true;
 			}
-			bool Thread::Pop(void* _Ref, int TypeId, uint64_t Timeout)
+			bool Thread::Pop(void* Ref, int TypeId, uint64_t Timeout)
 			{
-				auto* _Thread = GetThread();
-				int Id = (_Thread == this ? 0 : 1);
-
-				std::unique_lock<std::mutex> Guard(Pipe[Id].Mutex);
-				if (!Pipe[Id].CV.wait_for(Guard, std::chrono::milliseconds(Timeout), [&]
+				auto& Source = Pipe[(GetThread() == this ? 0 : 1)];
+				std::unique_lock<std::mutex> Guard(Source.Mutex);
+				if (!Source.CV.wait_for(Guard, std::chrono::milliseconds(Timeout), [&]
 				{
-					return Pipe[Id].Queue.size() != 0;
+					return Source.Queue.size() != 0;
 				}))
 					return false;
 
-				Any* Result = Pipe[Id].Queue.front();
-				if (!Result->Retrieve(_Ref, TypeId))
+				Any* Result = Source.Queue.front();
+				if (!Result->Retrieve(Ref, TypeId))
 					return false;
 
-				Pipe[Id].Queue.erase(Pipe[Id].Queue.begin());
+				Source.Queue.erase(Source.Queue.begin());
 				Result->Release();
 
 				return true;
@@ -4594,28 +4566,17 @@ namespace Mavi
 			bool Thread::IsActive()
 			{
 				std::unique_lock<std::recursive_mutex> Unique(Mutex);
-				return (Context && !Context->IsSuspended());
+				return !Context->IsSuspended();
 			}
 			bool Thread::Start()
 			{
 				std::unique_lock<std::recursive_mutex> Unique(Mutex);
-				if (!Function)
+				if (!Function || !Context->CanExecuteCall())
 					return false;
 
-				if (Context != nullptr)
-				{
-					if (!Context->IsSuspended())
-						return false;
-					Join();
-				}
-				else if (Procedure.joinable())
-				{
-					if (std::this_thread::get_id() == Procedure.get_id())
-						return false;
-					Join();
-				}
-
+				Join();
 				AddRef();
+
 				Procedure = std::thread(&Thread::InvokeRoutine, this);
 				VI_DEBUG("[vm] spawn thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
 				return true;
@@ -4625,21 +4586,22 @@ namespace Mavi
 				Join();
 				for (int i = 0; i < 2; i++)
 				{
-					Pipe[i].Mutex.lock();
-					for (auto Any : Pipe[i].Queue)
+					auto& Source = Pipe[i];
+					Source.Mutex.lock();
+					for (auto Any : Source.Queue)
 					{
 						if (Any != nullptr)
 							Any->Release();
 					}
-					Pipe[i].Queue.clear();
-					Pipe[i].Mutex.unlock();
+					Source.Queue.clear();
+					Source.Mutex.unlock();
 				}
 
 				std::unique_lock<std::recursive_mutex> Unique(Mutex);
 				if (Function)
 					Function->Release();
 
-				VI_CLEAR(Context);
+				VM->ReturnContext(Context);
 				VM = nullptr;
 				Function = nullptr;
 			}

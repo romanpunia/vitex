@@ -763,19 +763,15 @@ namespace Mavi
 					VI_ASSERT(Name != nullptr, (int)Scripting::Errors::INVALID_ARG, "name should be set");
 					VI_ASSERT(Compiler != nullptr, (int)Scripting::Errors::INVALID_ARG, "compiler should be set");
 
-					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Mavi::Scripting::Activation::Active)
-						return (int)Scripting::Errors::MODULE_IS_IN_USE;
-
-					Scripting::Module Src = Compiler->GetModule();
-					if (!Src.IsValid())
+					Scripting::Module Base = Compiler->GetModule();
+					if (!Base.IsValid())
 						return 0;
 
-					int Index = Src.GetPropertyIndexByName(Name);
+					int Index = Base.GetPropertyIndexByName(Name);
 					if (Index < 0)
 						return Index;
 
-					T* Address = (T*)Src.GetAddressOfProperty(Index);
+					T* Address = (T*)Base.GetAddressOfProperty(Index);
 					if (!Address)
 						return -1;
 
@@ -788,19 +784,15 @@ namespace Mavi
 					VI_ASSERT(Name != nullptr, (int)Scripting::Errors::INVALID_ARG, "name should be set");
 					VI_ASSERT(Compiler != nullptr, (int)Scripting::Errors::INVALID_ARG, "compiler should be set");
 
-					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Mavi::Scripting::Activation::Active)
-						return (int)Scripting::Errors::MODULE_IS_IN_USE;
-
-					Scripting::Module Src = Compiler->GetModule();
-					if (!Src.IsValid())
+					Scripting::Module Base = Compiler->GetModule();
+					if (!Base.IsValid())
 						return (int)Scripting::Errors::INVALID_CONFIGURATION;
 
-					int Index = Src.GetPropertyIndexByName(Name);
+					int Index = Base.GetPropertyIndexByName(Name);
 					if (Index < 0)
 						return Index;
 
-					T** Address = (T**)Src.GetAddressOfProperty(Index);
+					T** Address = (T**)Base.GetAddressOfProperty(Index);
 					if (!Address)
 						return -1;
 
@@ -819,15 +811,11 @@ namespace Mavi
 					VI_ASSERT(Index >= 0, (int)Scripting::Errors::INVALID_ARG, "index should be greater or equal to zero");
 					VI_ASSERT(Compiler != nullptr, (int)Scripting::Errors::INVALID_ARG, "compiler should be set");
 
-					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Mavi::Scripting::Activation::Active)
-						return (int)Scripting::Errors::MODULE_IS_IN_USE;
-
-					Scripting::Module Src = Compiler->GetModule();
-					if (!Src.IsValid())
+					Scripting::Module Base = Compiler->GetModule();
+					if (!Base.IsValid())
 						return 0;
 
-					T* Address = (T*)Src.GetAddressOfProperty(Index);
+					T* Address = (T*)Base.GetAddressOfProperty(Index);
 					if (!Address)
 						return -1;
 
@@ -840,15 +828,11 @@ namespace Mavi
 					VI_ASSERT(Index >= 0, (int)Scripting::Errors::INVALID_ARG, "index should be greater or equal to zero");
 					VI_ASSERT(Compiler != nullptr, (int)Scripting::Errors::INVALID_ARG, "compiler should be set");
 
-					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Mavi::Scripting::Activation::Active)
-						return (int)Scripting::Errors::MODULE_IS_IN_USE;
-
-					Scripting::Module Src = Compiler->GetModule();
-					if (!Src.IsValid())
+					Scripting::Module Base = Compiler->GetModule();
+					if (!Base.IsValid())
 						return (int)Scripting::Errors::INVALID_CONFIGURATION;
 
-					T** Address = (T**)Src.GetAddressOfProperty(Index);
+					T** Address = (T**)Base.GetAddressOfProperty(Index);
 					if (!Address)
 						return -1;
 

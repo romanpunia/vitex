@@ -590,10 +590,18 @@ namespace Mavi
 					VI_ASSERT_V(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
 
 					Scope->Basis->AddRef();
-					Scripting::Compiler* Compiler = Scope->Basis->Compiler;
-					Compiler->ExecuteScoped(Content).When([Scope](int&&)
+					Scope->Basis->Compiler->CompileFunction(Content).When([Scope](Scripting::Function&& Function)
 					{
-						Scope->Basis->Release();
+						Scripting::FunctionDelegate Delegate(Function);
+						Function.Release();
+
+						if (!Delegate.IsValid())
+							return Scope->Basis->Release();
+
+						Delegate(nullptr, [Scope](Scripting::ImmediateContext*)
+						{
+							Scope->Basis->Release();
+						});	
 					});
 				}
 				void LoadExternalScript(const Rml::String& Path) override
@@ -611,16 +619,17 @@ namespace Mavi
 							return;
 
 						Scripting::Function Main = Compiler->GetModule().GetFunctionByName("main");
-						if (!Main.IsValid())
+						Scripting::FunctionDelegate Delegate(Main);
+						if (!Delegate.IsValid())
 							return;
 
-						Scope->Basis->AddRef();
-						Scripting::ImmediateContext* Context = Compiler->GetContext();
-						Context->Execute(Main, [Main, Scope](Scripting::ImmediateContext* Context)
+						bool HasArguments = Main.GetArgsCount() > 0;
+						Delegate([HasArguments, Scope](Scripting::ImmediateContext* Context)
 						{
-							if (Main.GetArgsCount() == 1)
+							Scope->Basis->AddRef();
+							if (HasArguments)
 								Context->SetArgObject(0, Scope->Basis);
-						}).When([Scope](int&&)
+						}, [Scope](Scripting::ImmediateContext*)
 						{
 							Scope->Basis->Release();
 						});
@@ -663,6 +672,10 @@ namespace Mavi
 					if (!CompileInline(Scope))
 						return;
 
+					Scripting::FunctionDelegate Delegate(Function);
+					if (!Delegate.IsValid())
+						return;
+
 					Rml::Event* Ptr = Rml::Factory::InstanceEvent(Event.GetTargetElement(), Event.GetId(), Event.GetType(), Event.GetParameters(), Event.IsInterruptible()).release();
 					if (Ptr != nullptr)
 					{
@@ -671,15 +684,14 @@ namespace Mavi
 					}
 
 					Scope->Basis->AddRef();
-					Scripting::ImmediateContext* Context = Scope->Basis->Compiler->GetContext();
-					Context->Execute(Function, [Ptr](Scripting::ImmediateContext* Context)
+					Delegate([Ptr](Scripting::ImmediateContext* Context)
 					{
 						IEvent Event(Ptr);
 						Context->SetArgObject(0, &Event);
-					}).When([Scope, Ptr](int&&)
+					}, [Scope, Ptr](Scripting::ImmediateContext*)
 					{
-						delete Ptr;
 						Scope->Basis->Release();
+						delete Ptr;
 					});
 				}
 				bool CompileInline(ScopedContext* Scope)

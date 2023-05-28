@@ -5723,6 +5723,15 @@ namespace Mavi
 
 			return Module(Engine->GetModule(Name, asGM_CREATE_IF_NOT_EXISTS));
 		}
+		int VirtualMachine::SetLibraryProperty(LibraryFeatures Property, size_t Value)
+		{
+			LibrarySettings[Property] = Value;
+			return 0;
+		}
+		size_t VirtualMachine::GetLibraryProperty(LibraryFeatures Property)
+		{
+			return LibrarySettings[Property];
+		}
 		int VirtualMachine::SetProperty(Features Property, size_t Value)
 		{
 			VI_ASSERT(Engine != nullptr, -1, "engine should be set");
@@ -6342,7 +6351,6 @@ namespace Mavi
 			Engine->AddSystemAddon("std/thread", { "std/any", "std/string" }, Bindings::Registry::ImportThread);
 			Engine->AddSystemAddon("std/buffers", { "std/string" }, Bindings::Registry::ImportBuffers);
 			Engine->AddSystemAddon("std/promise", { }, Bindings::Registry::ImportPromise);
-			Engine->AddSystemAddon("std/promise:when", { "std/promise" }, Bindings::Registry::ImportPromiseAsync);
 			Engine->AddSystemAddon("std/format", { "std/string" }, Bindings::Registry::ImportFormat);
 			Engine->AddSystemAddon("std/decimal", { "std/string" }, Bindings::Registry::ImportDecimal);
 			Engine->AddSystemAddon("std/variant", { "std/string", "std/decimal" }, Bindings::Registry::ImportVariant);

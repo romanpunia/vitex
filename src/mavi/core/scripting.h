@@ -97,6 +97,12 @@ namespace Mavi
 			NO_DEBUG_OUTPUT = 33,
 		};
 
+		enum class LibraryFeatures
+		{
+			PromiseNoCallbacks = 0,
+			PromiseNoConstructor = 1
+		};
+
 		enum class Modifiers
 		{
 			NONE = 0,
@@ -1864,6 +1870,7 @@ namespace Mavi
 			Core::UnorderedMap<Core::String, Addon> Addons;
 			Core::UnorderedMap<Core::String, CompileCallback> Callbacks;
 			Core::UnorderedMap<Core::String, GeneratorCallback> Generators;
+			Core::UnorderedMap<LibraryFeatures, size_t> LibrarySettings;
 			Core::Vector<ImmediateContext*> Threads;
 			Core::Vector<asIScriptContext*> Stacks;
 			Core::String DefaultNamespace;
@@ -1938,6 +1945,8 @@ namespace Mavi
 			Module GetModule(const char* Name);
 			int SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object);
 			int Log(const char* Section, int Row, int Column, LogCategory Type, const char* Message);
+			int SetLibraryProperty(LibraryFeatures Property, size_t Value);
+			size_t GetLibraryProperty(LibraryFeatures Property);
 			int SetProperty(Features Property, size_t Value);
 			size_t GetProperty(Features Property);
 			void SetModuleDirectory(const Core::String& Root);

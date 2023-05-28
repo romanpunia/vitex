@@ -3721,10 +3721,6 @@ namespace Mavi
 
 				return this;
 			}
-			Promise* Promise::Create()
-			{
-				return new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext());
-			}
 			Promise* Promise::CreateFactory(void* _Ref, int TypeId)
 			{
 				Promise* Future = new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext());
@@ -3732,9 +3728,12 @@ namespace Mavi
 					Future->Store(_Ref, TypeId);
 				return Future;
 			}
-			Promise* Promise::CreateFactoryVoid()
+			Promise* Promise::CreateFactoryVoid(bool HasValue)
 			{
-				return Create();
+				Promise* Future = new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext());
+				if (HasValue)
+					Future->StoreVoid();
+				return Future;
 			}
 			bool Promise::TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect)
 			{
@@ -9860,7 +9859,6 @@ namespace Mavi
 				asIScriptEngine* Engine = VM->GetEngine();
 				VI_ASSERT(Engine != nullptr, false, "manager should be set");
 				Engine->RegisterObjectType("promise<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_FACTORY, "promise<T>@ f(?&in)", asFUNCTION(Promise::CreateFactory), asCALL_CDECL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Promise::TemplateCallback), asCALL_CDECL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(Promise, AddRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(Promise, Release), asCALL_THISCALL);
@@ -9874,7 +9872,6 @@ namespace Mavi
 				Engine->RegisterObjectMethod("promise<T>", "promise<T>@+ yield()", asMETHOD(Promise, YieldIf), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("promise<T>", "bool pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
 				Engine->RegisterObjectType("promise_v", 0, asOBJ_REF | asOBJ_GC);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_FACTORY, "promise_v@ f()", asFUNCTION(Promise::CreateFactoryVoid), asCALL_CDECL);
 				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_ADDREF, "void f()", asMETHOD(Promise, AddRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_RELEASE, "void f()", asMETHOD(Promise, Release), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Promise, SetFlag), asCALL_THISCALL);
@@ -9888,16 +9885,21 @@ namespace Mavi
 				Engine->RegisterObjectMethod("promise_v", "bool pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
 				VM->SetCodeGenerator("std/promise", &Promise::GeneratorCallback);
 
-				return true;
-			}
-			bool Registry::ImportPromiseAsync(VirtualMachine* VM)
-			{
-				asIScriptEngine* Engine = VM->GetEngine();
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
-				Engine->RegisterFuncdef("void promise<T>::when_callback(T&in)");
-				Engine->RegisterObjectMethod("promise<T>", "void when(when_callback@+)", asMETHOD(Promise, When), asCALL_THISCALL);
-				Engine->RegisterFuncdef("void promise_v::when_callback()");
-				Engine->RegisterObjectMethod("promise_v", "void when(when_callback@+)", asMETHOD(Promise, When), asCALL_THISCALL);
+				bool HasConstructor = (!VM->GetLibraryProperty(LibraryFeatures::PromiseNoConstructor));
+				if (HasConstructor)
+				{
+					Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_FACTORY, "promise<T>@ f(?&in)", asFUNCTION(Promise::CreateFactory), asCALL_CDECL);
+					Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_FACTORY, "promise_v@ f(bool = false)", asFUNCTION(Promise::CreateFactoryVoid), asCALL_CDECL);
+				}
+
+				bool HasCallbacks = (!VM->GetLibraryProperty(LibraryFeatures::PromiseNoCallbacks));
+				if (HasCallbacks)
+				{
+					Engine->RegisterFuncdef("void promise<T>::when_callback(T&in)");
+					Engine->RegisterObjectMethod("promise<T>", "void when(when_callback@+)", asMETHOD(Promise, When), asCALL_THISCALL);
+					Engine->RegisterFuncdef("void promise_v::when_callback()");
+					Engine->RegisterObjectMethod("promise_v", "void when(when_callback@+)", asMETHOD(Promise, When), asCALL_THISCALL);
+				}
 
 				return true;
 			}

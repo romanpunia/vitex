@@ -85,7 +85,6 @@ namespace Mavi
 				static bool ImportBuffers(VirtualMachine* Engine);
 				static bool ImportRandom(VirtualMachine* VM);
 				static bool ImportPromise(VirtualMachine* VM);
-				static bool ImportPromiseAsync(VirtualMachine* VM);
 				static bool ImportFormat(VirtualMachine* Engine);
 				static bool ImportDecimal(VirtualMachine* Engine);
 				static bool ImportVariant(VirtualMachine* Engine);
@@ -804,9 +803,8 @@ namespace Mavi
 				Promise(asIScriptContext* NewContext) noexcept;
 
 			public:
-				static Promise* Create();
 				static Promise* CreateFactory(void* _Ref, int TypeId);
-				static Promise* CreateFactoryVoid();
+				static Promise* CreateFactoryVoid(bool HasValue);
 				static bool TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect);
 				static bool GeneratorCallback(const Core::String& Path, Core::String& Code);
 
@@ -814,7 +812,7 @@ namespace Mavi
 				template <typename T>
 				static Core::Unique<Promise> Compose(Core::Promise<T>&& Value, TypeId Id)
 				{
-					Promise* Future = Promise::Create();
+					Promise* Future = Promise::CreateFactoryVoid(false);
 					Value.When([Future, Id](T&& Result)
 					{
 						Future->Store((void*)&Result, (int)Id);
@@ -843,7 +841,7 @@ namespace Mavi
 					template <TypeId TypeID>
 					static Promise* Id(T* Base, Args... Data)
 					{
-						Promise* Future = Promise::Create();
+						Promise* Future = Promise::CreateFactoryVoid(false);
 						Core::Coasync<void>([Future, Base, Data...]() -> Core::Promise<void>
 						{
 							auto Result = VI_AWAIT(((Base->*F)(Data...)));
@@ -856,7 +854,7 @@ namespace Mavi
 					template <uint64_t TypeRef>
 					static Promise* Decl(T* Base, Args... Data)
 					{
-						Promise* Future = Promise::Create();
+						Promise* Future = Promise::CreateFactoryVoid(false);
 						int Id = TypeCache::GetTypeId(TypeRef);
 						Core::Coasync<void>([Future, Id, Base, Data...]() -> Core::Promise<void>
 						{
@@ -874,7 +872,7 @@ namespace Mavi
 					template <TypeId TypeID>
 					static Promise* Id(Args... Data)
 					{
-						Promise* Future = Promise::Create();
+						Promise* Future = Promise::CreateFactoryVoid(false);
 						Core::Coasync<void>([Future, Data...]() -> Core::Promise<void>
 						{
 							auto Result = VI_AWAIT(((*F)(Data...)));
@@ -886,7 +884,7 @@ namespace Mavi
 					template <uint64_t TypeRef>
 					static Promise* Decl(Args... Data)
 					{
-						Promise* Future = Promise::Create();
+						Promise* Future = Promise::CreateFactoryVoid(false);
 						int TypeId = TypeCache::GetTypeId(TypeRef);
 						Core::Coasync<void>([Future, TypeId, Data...]() -> Core::Promise<void>
 						{

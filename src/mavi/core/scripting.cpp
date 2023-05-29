@@ -6025,7 +6025,7 @@ namespace Mavi
 					return true;
 			}
 
-			VI_ERR("[vm] cannot load shared object function: %s\n\tnot found in any of loaded shared objects", Func.c_str());
+			VI_ERR("[vm] cannot load shared object function: %s (not found in any of loaded shared objects)", Func.c_str());
 			return false;
 		}
 		bool VirtualMachine::ImportCLibrary(const Core::String& Path, bool IsAddon)
@@ -6092,7 +6092,7 @@ namespace Mavi
 			if (It == Addons.end())
 			{
 				Sync.General.unlock();
-				VI_ERR("[vm] couldn't find script system addon %s", Name.c_str());
+				VI_ERR("[vm] cannot find script system addon %s", Name.c_str());
 				return false;
 			}
 
@@ -6110,7 +6110,7 @@ namespace Mavi
 			{
 				if (!ImportSystemAddon(Item))
 				{
-					VI_ERR("[vm] couldn't load system addon %s for %s", Item.c_str(), Name.c_str());
+					VI_ERR("[vm] cannot load system addon %s for %s", Item.c_str(), Name.c_str());
 					return false;
 				}
 			}

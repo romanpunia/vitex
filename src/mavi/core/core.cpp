@@ -472,9 +472,9 @@ namespace Mavi
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			if (Address != nullptr)
 			{
-				bool IsLogActive = OS::IsLogActive();
-				if (!IsLogActive)
-					OS::SetLogActive(true);
+				bool LogActive = OS::HasLogFlag(LogOption::Active);
+				if (!LogActive)
+					OS::SetLogFlag(LogOption::Active, true);
 
 				auto It = Blocks.find(Address);
 				if (It != Blocks.end())
@@ -484,7 +484,7 @@ namespace Mavi
 					OS::Log(4, It->second.Origin.Line, It->second.Origin.Source, "[mem] %saddress at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", It->second.Static ? "static " : "", It->first, Date, It->second.TypeName.c_str(), (uint64_t)It->second.Size, It->second.Origin.Function);
 				}
 
-				OS::SetLogActive(IsLogActive);
+				OS::SetLogFlag(LogOption::Active, LogActive);
 				return It != Blocks.end();
 			}
 			else if (!Blocks.empty())
@@ -499,9 +499,9 @@ namespace Mavi
 				if (StaticAddresses == Blocks.size())
 					return false;
 
-				bool IsLogActive = OS::IsLogActive();
-				if (!IsLogActive)
-					OS::SetLogActive(true);
+				bool LogActive = OS::HasLogFlag(LogOption::Active);
+				if (!LogActive)
+					OS::SetLogFlag(LogOption::Active, true);
 
 				size_t TotalMemory = 0;
 				for (auto& Item : Blocks)
@@ -518,7 +518,7 @@ namespace Mavi
 					OS::Log(4, Item.second.Origin.Line, Item.second.Origin.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", Item.first, Date, Item.second.TypeName.c_str(), (uint64_t)Item.second.Size, Item.second.Origin.Function);
 				}
 
-				OS::SetLogActive(IsLogActive);
+				OS::SetLogFlag(LogOption::Active, LogActive);
 				return true;
 			}
 #endif
@@ -4367,7 +4367,7 @@ namespace Mavi
 				const char* Env = std::getenv(Base->c_str() + 1);
 				if (!Env)
 				{
-					VI_WARN("[env] cannot resolve environmental variable\n\t%s", Base->c_str() + 1);
+					VI_WARN("[env] cannot resolve environmental variable [%s]", Base->c_str() + 1);
 					Base->clear();
 				}
 				else
@@ -7495,10 +7495,10 @@ namespace Mavi
 			VI_TRACE("[io] set working dir %s", Path);
 #ifdef VI_MICROSOFT
 			if (!SetCurrentDirectoryA(Path))
-				VI_ERR("[io] couldn't set current directory");
+				VI_ERR("[io] cannot set current directory");
 #elif defined(VI_LINUX)
 			if (chdir(Path) != 0)
-				VI_ERR("[io] couldn't set current directory");
+				VI_ERR("[io] cannot set current directory");
 #endif
 		}
 		bool OS::Directory::Patch(const Core::String& Path)
@@ -9100,7 +9100,7 @@ namespace Mavi
 		static thread_local bool IgnoreLogging = false;
 		void OS::Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
 		{
-			if (!Active && !Callback)
+			if (!HasLogFlag(LogOption::Active) && !Callback)
 				return;
 
 			Message Data;
@@ -9109,14 +9109,15 @@ namespace Mavi
 			Data.Line = Line;
 			Data.Source = Source ? OS::Path::GetFilename(Source) : "";
 			Data.Pretty = true;
-			GetDateTime(time(nullptr), Data.Date, sizeof(Data.Date));
+
+			if (HasLogFlag(LogOption::Dated))
+				GetDateTime(time(nullptr), Data.Date, sizeof(Data.Date));
 
 			char Buffer[BLOB_SIZE] = { '\0' };
-			Data.Size = snprintf(Buffer, sizeof(Buffer),
-				"%s(): \"%s\" assertion failed\n\tdetails: %s\n\texecution flow dump: %s",
-				Function ? Function : "anonymous",
-				Condition ? Condition : "unknown assertion",
-				Format ? Format : "no additional data",
+			Data.Size = snprintf(Buffer, sizeof(Buffer), "%s(): \"%s\" assertion failed: %s, latest known callstack: %s",
+				Function ? Function : "?",
+				Condition ? Condition : "?",
+				Format ? Format : "condition should be truthful",
 				OS::GetStackTrace(2, 64).c_str());
 
 			if (Format != nullptr)
@@ -9140,7 +9141,11 @@ namespace Mavi
 		}
 		void OS::Log(int Level, int Line, const char* Source, const char* Format, ...)
 		{
-			if (!Format || IgnoreLogging || (!Active && !Callback))
+			VI_ASSERT_V(Format != nullptr, "format string should be set");
+			if (!HasLogFlag(LogOption::Active) && !Callback)
+				return;
+
+			if (IgnoreLogging)
 				return;
 
 			Message Data;
@@ -9153,14 +9158,15 @@ namespace Mavi
 #else
 			Data.Pretty = Level != (int)LogLevel::Debug && Level != (int)LogLevel::Trace;
 #endif
-			GetDateTime(time(nullptr), Data.Date, sizeof(Data.Date));
+			if (HasLogFlag(LogOption::Dated))
+				GetDateTime(time(nullptr), Data.Date, sizeof(Data.Date));
 
 			char Buffer[512] = { '\0' };
 			if (Level == 1)
 			{
 				int ErrorCode = OS::Error::Get();
 				if (OS::Error::IsError(ErrorCode))
-					snprintf(Buffer, sizeof(Buffer), "%s\n\tsystem: %s", Format, OS::Error::GetName(ErrorCode).c_str());
+					snprintf(Buffer, sizeof(Buffer), "%s, latest system error [%s]", Format, OS::Error::GetName(ErrorCode).c_str());
 				else
 					memcpy(Buffer, Format, std::min(sizeof(Buffer), strlen(Format)));
 			}
@@ -9180,13 +9186,8 @@ namespace Mavi
 		}
 		void OS::EnqueueLog(Message&& Data)
 		{
-			if (Deferred && Schedule::IsPresentAndActive())
-			{
-				Schedule::Get()->SetTask([Data = std::move(Data)]() mutable
-				{
-					DispatchLog(Data);
-				});
-			}
+			if (HasLogFlag(LogOption::Async) && Schedule::IsPresentAndActive())
+				Schedule::Get()->SetTask([Data = std::move(Data)]() mutable { DispatchLog(Data); });
 			else
 				DispatchLog(Data);
 		}
@@ -9207,9 +9208,6 @@ namespace Mavi
 #endif
 				IgnoreLogging = false;
 			}
-
-			if (!Active)
-				return;
 #if defined(VI_MICROSOFT) && !defined(NDEBUG)
 			OutputDebugStringA(Data.GetText().c_str());
 #endif
@@ -9218,18 +9216,21 @@ namespace Mavi
 
 			Console* Log = Console::Get();
 			Log->Begin();
-			if (Pretty)
+			if (HasLogFlag(LogOption::Pretty))
 			{
 				Log->ColorBegin(Data.Pretty ? StdColor::Cyan : StdColor::Gray);
-				Log->WriteBuffer(Data.Date);
-				Log->WriteBuffer(" ");
-#ifndef NDEBUG
-				Log->ColorBegin(StdColor::Gray);
-				Log->WriteBuffer(Data.Source);
-				Log->WriteBuffer(":");
-				Log->Write(Core::ToString(Data.Line));
-				Log->WriteBuffer(" ");
-#endif
+				if (HasLogFlag(LogOption::Dated))
+				{
+					Log->WriteBuffer(Data.Date);
+					Log->WriteBuffer(" ");
+	#ifndef NDEBUG
+					Log->ColorBegin(StdColor::Gray);
+					Log->WriteBuffer(Data.Source);
+					Log->WriteBuffer(":");
+					Log->Write(Core::ToString(Data.Line));
+					Log->WriteBuffer(" ");
+	#endif
+				}
 				Log->ColorBegin(Data.GetLevelColor());
 				Log->WriteBuffer(Data.GetLevelName());
 				Log->WriteBuffer(" ");
@@ -9426,29 +9427,16 @@ namespace Mavi
 		{
 			Callback = _Callback;
 		}
-		void OS::SetLogActive(bool Enabled)
+		void OS::SetLogFlag(LogOption Option, bool Active)
 		{
-			Active = Enabled;
+			if (Active)
+				LogFlags = LogFlags | (uint32_t)Option;
+			else
+				LogFlags = LogFlags & ~(uint32_t)Option;
 		}
-		void OS::SetLogDeferred(bool Enabled)
+		bool OS::HasLogFlag(LogOption Option)
 		{
-			Deferred = Enabled;
-		}
-        void OS::SetLogPretty(bool Enabled)
-        {
-            Pretty = Enabled;
-        }
-		bool OS::IsLogActive()
-		{
-			return Active;
-		}
-		bool OS::IsLogDeferred()
-		{
-			return Deferred;
-		}
-		bool OS::IsLogPretty()
-		{
-			return Pretty;
+			return LogFlags & (uint32_t)Option;
 		}
 		Core::String OS::GetStackTrace(size_t Skips, size_t MaxFrames)
 		{
@@ -9466,9 +9454,7 @@ namespace Mavi
 		}
 		std::function<void(OS::Message&)> OS::Callback;
 		std::mutex OS::Buffer;
-		bool OS::Active = false;
-		bool OS::Deferred = false;
-        bool OS::Pretty = true;
+		uint32_t OS::LogFlags = (uint32_t)LogOption::Pretty;
 
 		FileLog::FileLog(const Core::String& Root) noexcept : Offset(-1), Time(0), Path(Root)
 		{

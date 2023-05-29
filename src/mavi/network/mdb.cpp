@@ -31,7 +31,7 @@ namespace Mavi
 			{
 				VI_ASSERT(Base != nullptr, false, "context should be set");
 				VI_MEASURE(Core::Timings::Intensive);
-				VI_DEBUG("[mongoc] execute query schema on 0x%" PRIXPTR "\n\t%s", (uintptr_t)Base, Name + 1);
+				VI_DEBUG("[mongoc] execute query schema on 0x%" PRIXPTR ": %s", (uintptr_t)Base, Name + 1);
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
@@ -51,7 +51,7 @@ namespace Mavi
 			{
 				VI_ASSERT(Base != nullptr, nullptr, "context should be set");
 				VI_MEASURE(Core::Timings::Intensive);
-				VI_DEBUG("[mongoc] execute query cursor on 0x%" PRIXPTR "\n\t%s", (uintptr_t)Base, Name + 1);
+				VI_DEBUG("[mongoc] execute query cursor on 0x%" PRIXPTR ": %s", (uintptr_t)Base, Name + 1);
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
@@ -2967,7 +2967,7 @@ namespace Mavi
 					Base = mongoc_client_new_from_uri(URI);
 					if (!Base)
 					{
-						VI_ERR("[mongoc] couldn't connect to requested URI");
+						VI_ERR("[mongoc] cannot connect to requested URI");
 						return false;
 					}
 
@@ -3000,7 +3000,7 @@ namespace Mavi
 					Base = mongoc_client_new_from_uri(URI);
 					if (!Base)
 					{
-						VI_ERR("[mongoc] couldn't connect to requested URI");
+						VI_ERR("[mongoc] cannot connect to requested URI");
 						return false;
 					}
 
@@ -3176,7 +3176,7 @@ namespace Mavi
 				bson_error_t Error;
 				Session = mongoc_client_start_session(Base, nullptr, &Error);
 				if (!Session.Get())
-					VI_ERR("[mongoc] couldn't create transaction\n\t%s", Error.message);
+					VI_ERR("[mongoc] cannot create transaction: %s", Error.message);
 
 				return Session;
 #else
@@ -3292,7 +3292,7 @@ namespace Mavi
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
 					if (!Pool)
 					{
-						VI_ERR("[mongoc] couldn't connect to requested URI");
+						VI_ERR("[mongoc] cannot connect to requested URI");
 						return false;
 					}
 
@@ -3326,7 +3326,7 @@ namespace Mavi
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
 					if (!Pool)
 					{
-						VI_ERR("[mongoc] couldn't connect to requested URI");
+						VI_ERR("[mongoc] cannot connect to requested URI");
 						return false;
 					}
 
@@ -3573,7 +3573,7 @@ namespace Mavi
 						auto It = Constants->Map.find(Item.first);
 						if (It == Constants->Map.end())
 						{
-							VI_ERR("[mongoc] template query %s\n\texpects constant: %s", Name.c_str(), Item.first.c_str());
+							VI_ERR("[mongoc] template query @%s expects constant: %s", Name.c_str(), Item.first.c_str());
 							Base.ReplacePart(Item.second.Start, Item.second.End, "");
 						}
 						else
@@ -3819,7 +3819,7 @@ namespace Mavi
 					auto It = Map->find(Word.Key);
 					if (It == Map->end())
 					{
-						VI_ERR("[mongoc] template query %s\n\texpects parameter: %s", Name.c_str(), Word.Key.c_str());
+						VI_ERR("[mongoc] template query @%s expects parameter: %s", Name.c_str(), Word.Key.c_str());
 						continue;
 					}
 

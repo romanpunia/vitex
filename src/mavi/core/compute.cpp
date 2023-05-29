@@ -8824,7 +8824,7 @@ namespace Mavi
 		bool Preprocessor::IsDefined(const Core::String& Name) const
 		{
 			bool Exists = Defines.count(Name) > 0;
-			VI_TRACE("[proc] on 0x%" PRIXPTR " ifdef %s: %s", (void*)this, Name, Exists ? "yes" : "no");
+			VI_TRACE("[proc] on 0x%" PRIXPTR " ifdef %s: %s", (void*)this, Name.c_str(), Exists ? "yes" : "no");
 			return Exists;
 		}
 		bool Preprocessor::IsDefined(const Core::String& Name, const Core::String& Value) const
@@ -9400,17 +9400,17 @@ namespace Mavi
 					switch (Include ? Include(this, File, Subbuffer) : IncludeType::Error)
 					{
 						case IncludeType::Preprocess:
-							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude preprocess %s", (void*)this, File.IsSystem ? "system " : (File.IsFile ? "file " : ""), File.Module.c_str());
+							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude preprocess %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
 							if (Subbuffer.empty() || Process(File.Module, Subbuffer))
 								goto SuccessfulInclude;
 
 							VI_ERR("[proc] %s: cannot preprocess include \"%s\"", Path.c_str(), Next.Value.c_str());
 							return false;
 						case IncludeType::Unchanged:
-							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude as-is %s", (void*)this, File.IsSystem ? "system " : (File.IsFile ? "file " : ""), File.Module.c_str());
+							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude as-is %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
 							goto SuccessfulInclude;
 						case IncludeType::Virtual:
-							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude virtual %s", (void*)this, File.IsSystem ? "system " : (File.IsFile ? "file " : ""), File.Module.c_str());
+							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude virtual %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
 							Subbuffer.clear();
 							goto SuccessfulInclude;
 						case IncludeType::Error:

@@ -418,7 +418,7 @@ namespace Mavi
 		if (Modes & (uint64_t)Init::Core)
 		{
 			if (Modes & (uint64_t)Init::Debug)
-				Core::OS::SetLogActive(true);
+				Core::OS::SetLogFlag(Core::LogOption::Active, true);
 		}
 
 		if (Modes & (uint64_t)Init::Network)
@@ -616,7 +616,7 @@ namespace Mavi
 			return State >= 0;
 
 		auto* Manager = Core::Memory::GetAllocator();
-		Core::OS::SetLogDeferred(false);
+		Core::OS::SetLogFlag(Core::LogOption::Async, false);
 		Core::Schedule::Reset();
 
 		if (Modes & (uint64_t)Init::SSL)
@@ -683,7 +683,7 @@ namespace Mavi
 		if (Modes & (uint64_t)Init::Core)
 		{
 			if (Modes & (uint64_t)Init::Debug)
-				Core::OS::SetLogActive(false);
+				Core::OS::SetLogFlag(Core::LogOption::Active, false);
 		}
 #ifdef VI_HAS_ASSIMP
 		Assimp::DefaultLogger::kill();

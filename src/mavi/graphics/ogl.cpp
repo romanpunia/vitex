@@ -584,7 +584,7 @@ namespace Mavi
 				Context = SDL_GL_CreateContext(Window->GetHandle());
 				if (!Context)
 				{
-					VI_ERR("[ogl] creation conflict\n\t%s", Window->GetError().c_str());
+					VI_ERR("[ogl] %s", Window->GetError().c_str());
 					return;
 				}
 
@@ -984,7 +984,7 @@ namespace Mavi
 
 					char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
 					glGetProgramInfoLog(Program, Size, &Size, Buffer);
-					VI_ERR("[ogl] couldn't link shaders\n\t%.*s", Size, Buffer);
+					VI_ERR("[ogl-linker] %.*s", Size, Buffer);
 					VI_FREE(Buffer);
 
 					glUseProgramObjectARB(GL_NONE);
@@ -2560,7 +2560,7 @@ namespace Mavi
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
 						if (!SetProgramCache(Stage, Bytecode))
-							VI_WARN("[ogl] couldn't cache vertex shader");
+							VI_WARN("[ogl]cannot cache vertex shader");
 					}
 					else
 					{
@@ -2579,7 +2579,7 @@ namespace Mavi
 						glGetShaderiv(Result->VertexShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->VertexShader, Size, &Size, Buffer);
-						VI_ERR("[ogl] couldn't compile vertex shader\n\t%.*s", Size, Buffer);
+						VI_ERR("[ogl-compiler] %.*s", Size, Buffer);
 						VI_FREE(Buffer);
 					}
 				}
@@ -2602,7 +2602,7 @@ namespace Mavi
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
 						if (!SetProgramCache(Stage, Bytecode))
-							VI_WARN("[ogl] couldn't cache pixel shader");
+							VI_WARN("[ogl]cannot cache pixel shader");
 					}
 					else
 					{
@@ -2621,7 +2621,7 @@ namespace Mavi
 						glGetShaderiv(Result->PixelShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->PixelShader, Size, &Size, Buffer);
-						VI_ERR("[ogl] couldn't compile pixel shader\n\t%.*s", Size, Buffer);
+						VI_ERR("[ogl-compiler] %.*s", Size, Buffer);
 						VI_FREE(Buffer);
 					}
 				}
@@ -2644,7 +2644,7 @@ namespace Mavi
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
 						if (!SetProgramCache(Stage, Bytecode))
-							VI_WARN("[ogl] couldn't cache geometry shader");
+							VI_WARN("[ogl]cannot cache geometry shader");
 					}
 					else
 					{
@@ -2663,7 +2663,7 @@ namespace Mavi
 						glGetShaderiv(Result->GeometryShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->GeometryShader, Size, &Size, Buffer);
-						VI_ERR("[ogl] couldn't compile geometry shader\n\t%.*s", Size, Buffer);
+						VI_ERR("[ogl-compiler] %.*s", Size, Buffer);
 						VI_FREE(Buffer);
 					}
 				}
@@ -2686,7 +2686,7 @@ namespace Mavi
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
 						if (!SetProgramCache(Stage, Bytecode))
-							VI_WARN("[ogl] couldn't cache compute shader");
+							VI_WARN("[ogl]cannot cache compute shader");
 					}
 					else
 					{
@@ -2705,7 +2705,7 @@ namespace Mavi
 						glGetShaderiv(Result->ComputeShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->ComputeShader, Size, &Size, Buffer);
-						VI_ERR("[ogl] couldn't compile compute shader\n\t%.*s", Size, Buffer);
+						VI_ERR("[ogl-compiler] %.*s", Size, Buffer);
 						VI_FREE(Buffer);
 					}
 				}
@@ -2728,7 +2728,7 @@ namespace Mavi
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
 						if (!SetProgramCache(Stage, Bytecode))
-							VI_WARN("[ogl] couldn't cache hull shader");
+							VI_WARN("[ogl]cannot cache hull shader");
 					}
 					else
 					{
@@ -2747,7 +2747,7 @@ namespace Mavi
 						glGetShaderiv(Result->HullShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->HullShader, Size, &Size, Buffer);
-						VI_ERR("[ogl] couldn't compile hull shader\n\t%.*s", Size, Buffer);
+						VI_ERR("[ogl-compiler] %.*s", Size, Buffer);
 						VI_FREE(Buffer);
 					}
 				}
@@ -2770,7 +2770,7 @@ namespace Mavi
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
 						if (!SetProgramCache(Stage, Bytecode))
-							VI_WARN("[ogl] couldn't cache domain shader");
+							VI_WARN("[ogl]cannot cache domain shader");
 					}
 					else
 					{
@@ -2789,7 +2789,7 @@ namespace Mavi
 						glGetShaderiv(Result->DomainShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->DomainShader, Size, &Size, Buffer);
-						VI_ERR("[ogl] couldn't compile domain shader\n\t%.*s", Size, Buffer);
+						VI_ERR("[ogl-compiler] %.*s", Size, Buffer);
 						VI_FREE(Buffer);
 					}
 				}
@@ -3039,7 +3039,7 @@ namespace Mavi
 
 				if (IResource->Width % 4 != 0 || IResource->Height % 3 != 0)
 				{
-					VI_ERR("[ogl] couldn't create texture cube because width or height cannot be not divided");
+					VI_ERR("[ogl] cannot create texture cube because width or height cannot be not divided");
 					return nullptr;
 				}
 
@@ -3717,7 +3717,7 @@ namespace Mavi
 						glGetShaderiv(Immediate.VertexShader, GL_INFO_LOG_LENGTH, &BufferSize);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (BufferSize + 1));
 						glGetShaderInfoLog(Immediate.VertexShader, BufferSize, &BufferSize, Buffer);
-						VI_ERR("[ogl] couldn't compile vertex shader\n\t%.*s", BufferSize, Buffer);
+						VI_ERR("[ogl-compiler] %.*s", BufferSize, Buffer);
 						VI_FREE(Buffer);
 
 						return false;
@@ -3758,7 +3758,7 @@ namespace Mavi
 						glGetShaderiv(Immediate.PixelShader, GL_INFO_LOG_LENGTH, &BufferSize);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (BufferSize + 1));
 						glGetShaderInfoLog(Immediate.PixelShader, BufferSize, &BufferSize, Buffer);
-						VI_ERR("[ogl] couldn't compile pixel shader\n\t%.*s", BufferSize, Buffer);
+						VI_ERR("[ogl-compiler] %.*s", BufferSize, Buffer);
 						VI_FREE(Buffer);
 
 						return false;
@@ -3780,7 +3780,7 @@ namespace Mavi
 
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
 						glGetProgramInfoLog(Immediate.Program, Size, &Size, Buffer);
-						VI_ERR("[ogl] couldn't link shaders\n\t%.*s", Size, Buffer);
+						VI_ERR("[ogl-linker] %.*s", Size, Buffer);
 						VI_FREE(Buffer);
 
 						glDeleteProgram(Immediate.Program);

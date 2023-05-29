@@ -117,7 +117,7 @@ namespace Mavi
 
 				Core::Vector<Core::String> Errors = Buffer.Split('\n');
 				for (auto& Item : Errors)
-					Result += "\n\t" + Item;
+					Result += ", " + Item;
 
 				VI_ERR("[pqerr] %s", Errors.size() > 1 ? Result.c_str() : Result.c_str() + 2);
 			}
@@ -135,7 +135,7 @@ namespace Mavi
 
 				Core::Vector<Core::String> Errors = Buffer.Split('\n');
 				for (auto& Item : Errors)
-					Result += "\n\t" + Item;
+					Result += ", " + Item;
 
 				VI_WARN("[pqnotice] %s", Errors.size() > 1 ? Result.c_str() : Result.c_str() + 2);
 			}
@@ -480,7 +480,7 @@ namespace Mavi
 				{
 					if (Message != nullptr)
 					{
-						VI_ERR("[pq] couldn't parse URI string\n\t%s", Message);
+						VI_ERR("[pq] cannot parse URI string: %s", Message);
 						PQfreemem(Message);
 					}
 				}
@@ -2092,7 +2092,7 @@ namespace Mavi
 					Current->Failure();
 					Update.lock();
 
-					VI_ERR("[pqerr] query reset on 0x%" PRIXPTR "\n\tconnection lost", (uintptr_t)Target->Base);
+					VI_ERR("[pqerr] query reset on 0x%" PRIXPTR ": connection lost", (uintptr_t)Target->Base);
 					VI_RELEASE(Current);
 				}
 
@@ -2175,7 +2175,7 @@ namespace Mavi
 					return false;
 
 				VI_MEASURE(Core::Timings::Intensive);
-				VI_DEBUG("[pq] execute query on 0x%" PRIXPTR "%s\n\t%.64s%s", (uintptr_t)Base, Base->InSession ? " (transaction)" : "", Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
+				VI_DEBUG("[pq] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)Base, Base->InSession ? " (transaction)" : "", Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
 				
 				if (PQsendQuery(Base->Base, Base->Current->Command.data()) == 1)
 				{
@@ -2270,7 +2270,7 @@ namespace Mavi
 									}, Core::Difficulty::Light);
 								}
 							}
-							VI_DEBUG("[pq] notification on channel @%s:\n\t%s", Notification->relname, Notification->extra ? Notification->extra : "[payload]");
+							VI_DEBUG("[pq] notification on channel @%s: %s", Notification->relname, Notification->extra ? Notification->extra : "[payload]");
 							PQfreeNotify(Notification);
 						}
 					}
@@ -2440,7 +2440,7 @@ namespace Mavi
 						auto It = Constants->Map.find(Item.first);
 						if (It == Constants->Map.end())
 						{
-							VI_ERR("[pq] template query %s\n\texpects constant: %s", Name.c_str(), Item.first.c_str());
+							VI_ERR("[pq] template query @%s expects constant: %s", Name.c_str(), Item.first.c_str());
 							Base.ReplacePart(Item.second.Start, Item.second.End, "");
 						}
 						else
@@ -2660,7 +2660,7 @@ namespace Mavi
 				{
 					if (Next >= Map->size())
 					{
-						VI_ERR("[pq] emplace query %.64s\n\texpects: at least %" PRIu64 " args", SQL.c_str(), (uint64_t)(Next)+1);
+						VI_ERR("[pq] emplace query \"%.64s\" expects at least %" PRIu64 " args", SQL.c_str(), (uint64_t)(Next)+1);
 						break;
 					}
 
@@ -2765,7 +2765,7 @@ namespace Mavi
 					auto It = Map->find(Word.Key);
 					if (It == Map->end())
 					{
-						VI_ERR("[pq] template query %s\n\texpects parameter: %s", Name.c_str(), Word.Key.c_str());
+						VI_ERR("[pq] template query @%s expects parameter: %s", Name.c_str(), Word.Key.c_str());
 						continue;
 					}
 

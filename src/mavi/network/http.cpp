@@ -326,9 +326,9 @@ namespace Mavi
 					if (Opcode == WebSocketOp::Text || Opcode == WebSocketOp::Binary)
 					{
 						if (Opcode == WebSocketOp::Binary)
-							VI_DEBUG("[websocket] sock %i frame binary\n\t%s", (int)Stream->GetFd(), Compute::Codec::HexEncode(Codec->Data.data(), Codec->Data.size()).c_str());
+							VI_DEBUG("[websocket] sock %i frame binary: %s", (int)Stream->GetFd(), Compute::Codec::HexEncode(Codec->Data.data(), Codec->Data.size()).c_str());
 						else
-							VI_DEBUG("[websocket] sock %i frame text\n\t%.*s", (int)Stream->GetFd(), (int)Codec->Data.size(), Codec->Data.data());
+							VI_DEBUG("[websocket] sock %i frame text: %.*s", (int)Stream->GetFd(), (int)Codec->Data.size(), Codec->Data.data());
 
 						if (Receive)
 						{
@@ -2275,7 +2275,7 @@ namespace Mavi
 
 					Core::String Filename = (Split ? Path + '/' : Path) + Item.Path;
 					if (!Core::OS::File::Remove(Filename.c_str()))
-						VI_ERR("[http] couldn't invalidate session\n\t%s", Item.Path.c_str());
+						VI_ERR("[http] cannot invalidate session: %s", Item.Path.c_str());
 				}
 
 				return true;
@@ -5657,9 +5657,9 @@ namespace Mavi
 				for (auto* Item : Data)
 				{
 					HTTP::Connection* Base = (HTTP::Connection*)Item;
-					Core::String Status = "\n\tpathname: " + Base->Request.URI;
+					Core::String Status = ", pathname: " + Base->Request.URI;
 					if (Base->WebSocket != nullptr)
-						Status += "\n\twebsocket: " + Core::String(Base->WebSocket->IsFinished() ? "alive" : "dead");
+						Status += ", websocket: " + Core::String(Base->WebSocket->IsFinished() ? "alive" : "dead");
 					VI_DEBUG("[stall] connection on fd %i%s", (int)Base->Stream->GetFd(),  Status.c_str());
 				}
 

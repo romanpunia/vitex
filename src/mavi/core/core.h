@@ -171,6 +171,14 @@ namespace Mavi
 			Trace = 5
 		};
 
+		enum class LogOption
+		{
+			Active = 1 << 0,
+			Pretty = 1 << 1,
+			Async = 1 << 2,
+			Dated = 1 << 3
+		};
+
 		template <typename T, typename = void>
 		struct IsIterable : std::false_type { };
 
@@ -1423,21 +1431,15 @@ namespace Mavi
 		private:
 			static std::function<void(Message&)> Callback;
 			static std::mutex Buffer;
-            static bool Pretty;
-			static bool Deferred;
-			static bool Active;
+			static uint32_t LogFlags;
 
 		public:
 			static void Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
 			static void Log(int Level, int Line, const char* Source, const char* Format, ...);
 			static void Pause();
 			static void SetLogCallback(const std::function<void(Message&)>& Callback);
-			static void SetLogActive(bool Enabled);
-			static void SetLogDeferred(bool Enabled);
-            static void SetLogPretty(bool Enabled);
-			static bool IsLogActive();
-			static bool IsLogDeferred();
-			static bool IsLogPretty();
+			static void SetLogFlag(LogOption Option, bool Active);
+			static bool HasLogFlag(LogOption Option);
 			static Core::String GetStackTrace(size_t Skips, size_t MaxFrames = 16);
 
 		private:
@@ -3683,7 +3685,7 @@ namespace Mavi
 			{
 				int64_t Diff = (Schedule::GetClock() - Time).count();
 				if (Diff > (int64_t)Core::Timings::Hangup * 1000)
-					VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us)\t\nwhere: %s\n\texpression: %s\n\texpected: %" PRIu64 " ms at most", Diff / 1000, Diff, Function, Expression, (uint64_t)Core::Timings::Hangup);
+					VI_WARN("[stall] %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us) out of % " PRIu64 "ms budget", Function, Expression, Diff / 1000, Diff, (uint64_t)Core::Timings::Hangup);
 				VI_UNWATCH((void*)&Future);
 			}
 #endif

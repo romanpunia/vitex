@@ -637,7 +637,7 @@ namespace Mavi
 			VI_TRACE("[audio] open alc device: 0x%" PRIXPTR, (void*)Device);
 			if (!Device)
 			{
-				VI_ERR("[audio] couldn't create alc device");
+				VI_ERR("[audio] cannot create alc device");
 				int Code = alGetError();
 				if (Code != AL_NO_ERROR)
 					VI_ERR("[audio] %s", alGetString(Code));
@@ -649,7 +649,7 @@ namespace Mavi
 			VI_TRACE("[audio] create alc context: 0x%" PRIXPTR, (void*)Context);
 			if (!Context)
 			{
-				VI_ERR("[audio] couldn't create alc device context");
+				VI_ERR("[audio] cannot create alc device context");
 				int Code = alcGetError((ALCdevice*)Device);
 				if (Code != AL_NO_ERROR)
 					VI_ERR("[audio] %s", alcGetString((ALCdevice*)Device, Code));

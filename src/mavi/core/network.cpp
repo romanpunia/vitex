@@ -542,7 +542,7 @@ namespace Mavi
 
 			if (Result == -1)
 			{
-				VI_ERR("[dns] cannot reverse resolve dns for identity %s:%i\n\tinvalid address", Host.c_str(), Service.c_str());
+				VI_ERR("[dns] cannot reverse resolve dns for identity %s:%i", Host.c_str(), Service.c_str());
 				return Core::String();
 			}
 
@@ -553,7 +553,7 @@ namespace Mavi
 				return Core::String();
 			}
 
-			VI_DEBUG("[net] dns reverse resolved for identity %s:%i\n\thost %s:%s is used", Host.c_str(), Service.c_str(), Hostname, ServiceName);
+			VI_DEBUG("[net] dns reverse resolved for identity %s:%i (host %s:%s is used)", Host.c_str(), Service.c_str(), Hostname, ServiceName);
 			return Hostname;
 		}
 		SocketAddress* DNS::FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType DNS, SocketProtocol Proto, SocketType Type)
@@ -680,7 +680,7 @@ namespace Mavi
 			}
 
 			SocketAddress* Result = new SocketAddress(Addresses, Good);
-			VI_DEBUG("[net] dns resolved for identity %s\n\taddress %s is used", Identity.c_str(), Multiplexer::GetAddress(Good).c_str());
+			VI_DEBUG("[net] dns resolved for identity %s (address %s is used)", Identity.c_str(), Multiplexer::GetAddress(Good).c_str());
 
 			std::unique_lock<std::mutex> Unique(Exclusive);
 			if (!Names)
@@ -2341,31 +2341,31 @@ namespace Mavi
 				{
 					if (SSL_CTX_load_verify_locations(It.second.Context, It.second.Chain.c_str(), It.second.Key.c_str()) != 1)
 					{
-						VI_ERR("[net] cannot load verification locations:\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
+						VI_ERR("[net] cannot load verification locations: %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (SSL_CTX_set_default_verify_paths(It.second.Context) != 1)
 					{
-						VI_ERR("[net] cannot set default verification paths:\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
+						VI_ERR("[net] cannot set default verification paths: %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (SSL_CTX_use_certificate_file(It.second.Context, It.second.Chain.c_str(), SSL_FILETYPE_PEM) <= 0)
 					{
-						VI_ERR("[net] cannot use this certificate file:\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
+						VI_ERR("[net] cannot use this certificate file: %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (SSL_CTX_use_PrivateKey_file(It.second.Context, It.second.Key.c_str(), SSL_FILETYPE_PEM) <= 0)
 					{
-						VI_ERR("[net] cannot use this private key:\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
+						VI_ERR("[net] cannot use this private key: %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (!SSL_CTX_check_private_key(It.second.Context))
 					{
-						VI_ERR("[net] cannot verify this private key:\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
+						VI_ERR("[net] cannot verify this private key: %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
@@ -2380,7 +2380,7 @@ namespace Mavi
 				{
 					if (SSL_CTX_set_cipher_list(It.second.Context, It.second.Ciphers.c_str()) != 1)
 					{
-						VI_ERR("[net] cannot set ciphers list:\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
+						VI_ERR("[net] cannot set ciphers list: %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 				}
@@ -2401,7 +2401,7 @@ namespace Mavi
 			{
 				if (TimeoutSeconds > 0 && time(nullptr) - Timeout > (int64_t)TimeoutSeconds)
 				{
-					VI_ERR("[stall] server has stalled connections: %i\n\tthese connections will be ignored", (int)Active.size());
+					VI_ERR("[stall] server has stalled connections: %i (these connections will be ignored)", (int)Active.size());
 					Sync.lock();
 					OnStall(Active);
 					Sync.unlock();
@@ -2909,7 +2909,7 @@ namespace Mavi
 					{
 						if (!Packet::IsDone(Event))
 						{
-							Error("ssl connection timeout\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
+							Error("ssl connection timeout: %s", ERR_error_string(ERR_get_error(), nullptr));
 							Callback(false);
 						}
 						else
@@ -2924,7 +2924,7 @@ namespace Mavi
 					{
 						if (!Packet::IsDone(Event))
 						{
-							Error("ssl connection timeout\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
+							Error("ssl connection timeout: %s", ERR_error_string(ERR_get_error(), nullptr));
 							Callback(false);
 						}
 						else
@@ -2970,7 +2970,7 @@ namespace Mavi
 			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 			va_end(Args);
 
-			VI_ERR("[net] %.*s\n\tat %s", Size, Buffer, Action.empty() ? "request" : Action.c_str());
+			VI_ERR("[net] %.*s (latest state: %s)", Size, Buffer, Action.empty() ? "request" : Action.c_str());
 			Stream.CloseAsync(true, [this]()
 			{
 				Success(-1);

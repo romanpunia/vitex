@@ -1271,7 +1271,7 @@ namespace Mavi
             if (!Transpiler.parse(&DriverLimits, 100, true, Flags))
 			{
 				const char* Output = Transpiler.getInfoLog();
-				VI_ERR("[graphics] cannot transpile shader source\n\t%s", Output);
+				VI_ERR("[graphics] %s", Output);
 
 				glslang::FinalizeProcess();
 				return false;
@@ -1354,7 +1354,8 @@ namespace Mavi
 			}
 			catch (const spirv_cross::CompilerError& Exception)
 			{
-				VI_ERR("[graphics] cannot transpile spirv binary to shader binary\n\t%s", Exception.what());
+				VI_ERR("[graphics] cannot transpile spirv binary to shader binary: %s", Exception.what());
+				(void)Exception;
 				return false;
 			}
 			catch (...)

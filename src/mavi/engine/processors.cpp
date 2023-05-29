@@ -1511,7 +1511,7 @@ namespace Mavi
 				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (unsigned int)Opts, Core::OS::Path::GetExtension(Stream->GetSource().c_str()));
 				if (!Scene)
 				{
-					VI_ERR("[engine] cannot import mesh\n\t%s", Importer.GetErrorString());
+					VI_ERR("[engine] cannot import mesh: %s", Importer.GetErrorString());
 					return Info;
 				}
 

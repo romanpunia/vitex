@@ -558,7 +558,7 @@ namespace Mavi
 #endif
 				if (D3D11CreateDeviceAndSwapChain(nullptr, DriverType, nullptr, CreationFlags, FeatureLevels, ARRAYSIZE(FeatureLevels), D3D11_SDK_VERSION, &SwapChainResource, &SwapChain, &Context, &FeatureLevel, &ImmediateContext) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create swap chain, device or immediate context");
+					VI_ERR("[d3d11] cannot create swap chain, device or immediate context");
 					return;
 				}
 
@@ -2339,7 +2339,7 @@ namespace Mavi
 				if (Context->CreateDepthStencilState(&State, &DeviceState) != S_OK)
 				{
 					D3D_RELEASE(DeviceState);
-					VI_ERR("[d3d11] couldn't create depth stencil state");
+					VI_ERR("[d3d11] cannot create depth stencil state");
 					return nullptr;
 				}
 
@@ -2370,7 +2370,7 @@ namespace Mavi
 				if (Context->CreateBlendState(&State, &DeviceState) != S_OK)
 				{
 					D3D_RELEASE(DeviceState);
-					VI_ERR("[d3d11] couldn't create blend state");
+					VI_ERR("[d3d11] cannot create blend state");
 					return nullptr;
 				}
 
@@ -2397,7 +2397,7 @@ namespace Mavi
 				if (Context->CreateRasterizerState(&State, &DeviceState) != S_OK)
 				{
 					D3D_RELEASE(DeviceState);
-					VI_ERR("[d3d11] couldn't create rasterizer state");
+					VI_ERR("[d3d11] cannot create rasterizer state");
 					return nullptr;
 				}
 
@@ -2427,7 +2427,7 @@ namespace Mavi
 				if (Context->CreateSamplerState(&State, &DeviceState) != S_OK)
 				{
 					D3D_RELEASE(DeviceState);
-					VI_ERR("[d3d11] couldn't create sampler state");
+					VI_ERR("[d3d11] cannot create sampler state");
 					return nullptr;
 				}
 
@@ -2471,14 +2471,14 @@ namespace Mavi
 							Core::String Message = GetCompileState(ErrorBlob);
 							D3D_RELEASE(ErrorBlob);
 
-							VI_ERR("[d3d11] couldn't compile vertex shader\n\t%s", Message.c_str());
+							VI_ERR("[d3d11-compiler] %s", Message.c_str());
 							return Result;
 						}
 
 						Data = (void*)Result->Signature->GetBufferPointer();
 						Size = (size_t)Result->Signature->GetBufferSize();
 						if (!SetProgramCache(Stage, Core::String((char*)Data, Size)))
-							VI_WARN("[d3d11] couldn't cache vertex shader");
+							VI_WARN("[d3d11] cannot cache vertex shader");
 					}
 					else
 					{
@@ -2486,7 +2486,7 @@ namespace Mavi
 						Size = Bytecode.size();
 						if (D3DCreateBlob(Size, &Result->Signature) != S_OK)
 						{
-							VI_ERR("[d3d11] couldn't load shader signature");
+							VI_ERR("[d3d11] cannot load shader signature");
 							return Result;
 						}
 
@@ -2498,7 +2498,7 @@ namespace Mavi
 					State = Context->CreateVertexShader(Data, Size, nullptr, &Result->VertexShader);
 					if (State != S_OK)
 					{
-						VI_ERR("[d3d11] couldn't load vertex shader bytecode");
+						VI_ERR("[d3d11] cannot load vertex shader bytecode");
 						return Result;
 					}
 				}
@@ -2517,14 +2517,14 @@ namespace Mavi
 							Core::String Message = GetCompileState(ErrorBlob);
 							D3D_RELEASE(ErrorBlob);
 
-							VI_ERR("[d3d11] couldn't compile pixel shader\n\t%s", Message.c_str());
+							VI_ERR("[d3d11-compiler] %s", Message.c_str());
 							return Result;
 						}
 
 						Data = (void*)ShaderBlob->GetBufferPointer();
 						Size = (size_t)ShaderBlob->GetBufferSize();
 						if (!SetProgramCache(Stage, Core::String((char*)Data, Size)))
-							VI_WARN("[d3d11] couldn't cache pixel shader");
+							VI_WARN("[d3d11] cannot cache pixel shader");
 					}
 					else
 					{
@@ -2538,7 +2538,7 @@ namespace Mavi
 
 					if (State != S_OK)
 					{
-						VI_ERR("[d3d11] couldn't load pixel shader bytecode");
+						VI_ERR("[d3d11] cannot load pixel shader bytecode");
 						return Result;
 					}
 				}
@@ -2557,14 +2557,14 @@ namespace Mavi
 							Core::String Message = GetCompileState(ErrorBlob);
 							D3D_RELEASE(ErrorBlob);
 
-							VI_ERR("[d3d11] couldn't compile geometry shader\n\t%s", Message.c_str());
+							VI_ERR("[d3d11-compiler] %s", Message.c_str());
 							return Result;
 						}
 
 						Data = (void*)ShaderBlob->GetBufferPointer();
 						Size = (size_t)ShaderBlob->GetBufferSize();
 						if (!SetProgramCache(Stage, Core::String((char*)Data, Size)))
-							VI_WARN("[d3d11] couldn't cache geometry shader");
+							VI_WARN("[d3d11] cannot cache geometry shader");
 					}
 					else
 					{
@@ -2578,7 +2578,7 @@ namespace Mavi
 
 					if (State != S_OK)
 					{
-						VI_ERR("[d3d11] couldn't load geometry shader bytecode");
+						VI_ERR("[d3d11] cannot load geometry shader bytecode");
 						return Result;
 					}
 				}
@@ -2597,14 +2597,14 @@ namespace Mavi
 							Core::String Message = GetCompileState(ErrorBlob);
 							D3D_RELEASE(ErrorBlob);
 
-							VI_ERR("[d3d11] couldn't compile compute shader\n\t%s", Message.c_str());
+							VI_ERR("[d3d11-compiler] %s", Message.c_str());
 							return Result;
 						}
 
 						Data = (void*)ShaderBlob->GetBufferPointer();
 						Size = (size_t)ShaderBlob->GetBufferSize();
 						if (!SetProgramCache(Stage, Core::String((char*)Data, Size)))
-							VI_WARN("[d3d11] couldn't cache compute shader");
+							VI_WARN("[d3d11] cannot cache compute shader");
 					}
 					else
 					{
@@ -2618,7 +2618,7 @@ namespace Mavi
 
 					if (State != S_OK)
 					{
-						VI_ERR("[d3d11] couldn't load compute shader bytecode");
+						VI_ERR("[d3d11] cannot load compute shader bytecode");
 						return Result;
 					}
 				}
@@ -2637,14 +2637,14 @@ namespace Mavi
 							Core::String Message = GetCompileState(ErrorBlob);
 							D3D_RELEASE(ErrorBlob);
 
-							VI_ERR("[d3d11] couldn't compile hull shader\n\t%s", Message.c_str());
+							VI_ERR("[d3d11-compiler] %s", Message.c_str());
 							return Result;
 						}
 
 						Data = (void*)ShaderBlob->GetBufferPointer();
 						Size = (size_t)ShaderBlob->GetBufferSize();
 						if (!SetProgramCache(Stage, Core::String((char*)Data, Size)))
-							VI_WARN("[d3d11] couldn't cache hull shader");
+							VI_WARN("[d3d11] cannot cache hull shader");
 					}
 					else
 					{
@@ -2658,7 +2658,7 @@ namespace Mavi
 
 					if (State != S_OK)
 					{
-						VI_ERR("[d3d11] couldn't load hull shader bytecode");
+						VI_ERR("[d3d11] cannot load hull shader bytecode");
 						return Result;
 					}
 				}
@@ -2677,14 +2677,14 @@ namespace Mavi
 							Core::String Message = GetCompileState(ErrorBlob);
 							D3D_RELEASE(ErrorBlob);
 
-							VI_ERR("[d3d11] couldn't compile domain shader\n\t%s", Message.c_str());
+							VI_ERR("[d3d11-compiler] %s", Message.c_str());
 							return Result;
 						}
 
 						Data = (void*)ShaderBlob->GetBufferPointer();
 						Size = (size_t)ShaderBlob->GetBufferSize();
 						if (!SetProgramCache(Stage, Core::String((char*)Data, Size)))
-							VI_WARN("[d3d11] couldn't cache domain shader");
+							VI_WARN("[d3d11] cannot cache domain shader");
 					}
 					else
 					{
@@ -2698,7 +2698,7 @@ namespace Mavi
 
 					if (State != S_OK)
 					{
-						VI_ERR("[d3d11] couldn't load domain shader bytecode");
+						VI_ERR("[d3d11] cannot load domain shader bytecode");
 						return Result;
 					}
 				}
@@ -2741,7 +2741,7 @@ namespace Mavi
 
 					if (Context->CreateUnorderedAccessView(Result->Element, &AccessDesc, &Result->Access) != S_OK)
 					{
-						VI_ERR("[d3d11] couldn't create buffer access view");
+						VI_ERR("[d3d11] cannot create buffer access view");
 						return Result;
 					}
 				}
@@ -2757,7 +2757,7 @@ namespace Mavi
 
 				if (Context->CreateShaderResourceView(Result->Element, &SRV, &Result->Resource) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create shader resource view");
+					VI_ERR("[d3d11] cannot create shader resource view");
 					return Result;
 				}
 
@@ -2851,7 +2851,7 @@ namespace Mavi
 
 				if (Context->CreateShaderResourceView(((D3D11ElementBuffer*)Result->Elements)->Element, &SRV, &Result->Resource) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create shader resource view");
+					VI_ERR("[d3d11] cannot create shader resource view");
 					return Result;
 				}
 
@@ -2894,13 +2894,13 @@ namespace Mavi
 				D3D11Texture2D* Result = new D3D11Texture2D();
 				if (Context->CreateTexture2D(&Description, I.Data && I.MipLevels <= 0 ? &Data : nullptr, &Result->View) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create 2d texture");
+					VI_ERR("[d3d11] cannot create 2d texture");
 					return Result;
 				}
 
 				if (!GenerateTexture(Result))
 				{
-					VI_ERR("[d3d11] couldn't generate 2d resource");
+					VI_ERR("[d3d11] cannot generate 2d resource");
 					return Result;
 				}
 
@@ -2921,7 +2921,7 @@ namespace Mavi
 
 				if (Context->CreateUnorderedAccessView(Result->View, &AccessDesc, &Result->Access) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create 2d texture access view");
+					VI_ERR("[d3d11] cannot create 2d texture access view");
 					return Result;
 				}
 
@@ -2957,13 +2957,13 @@ namespace Mavi
 				D3D11Texture3D* Result = new D3D11Texture3D();
 				if (Context->CreateTexture3D(&Description, nullptr, &Result->View) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create 3d resource");
+					VI_ERR("[d3d11] cannot create 3d resource");
 					return Result;
 				}
 
 				if (!GenerateTexture(Result))
 				{
-					VI_ERR("[d3d11] couldn't generate 3d resource");
+					VI_ERR("[d3d11] cannot generate 3d resource");
 					return Result;
 				}
 
@@ -2980,7 +2980,7 @@ namespace Mavi
 
 				if (Context->CreateUnorderedAccessView(Result->View, &AccessDesc, &Result->Access) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create 3d texture access view");
+					VI_ERR("[d3d11] cannot create 3d texture access view");
 					return Result;
 				}
 
@@ -3018,7 +3018,7 @@ namespace Mavi
 				D3D11TextureCube* Result = new D3D11TextureCube();
 				if (Context->CreateTexture2D(&Description, 0, &Result->View) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create texture cube");
+					VI_ERR("[d3d11] cannot create texture cube");
 					return Result;
 				}
 
@@ -3032,7 +3032,7 @@ namespace Mavi
 
 				if (!GenerateTexture(Result))
 				{
-					VI_ERR("[d3d11] couldn't generate cube resource");
+					VI_ERR("[d3d11] cannot generate cube resource");
 					return Result;
 				}
 
@@ -3049,7 +3049,7 @@ namespace Mavi
 
 				if (Context->CreateUnorderedAccessView(Result->View, &AccessDesc, &Result->Access) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create cube texture access view");
+					VI_ERR("[d3d11] cannot create cube texture access view");
 					return Result;
 				}
 
@@ -3092,14 +3092,14 @@ namespace Mavi
 				Description.MipLevels = GetMipLevel(Description.Width, Description.Height);
 				if (Width % 4 != 0 || Height % 3 != 0)
 				{
-					VI_ERR("[d3d11] couldn't create texture cube because width or height cannot be not divided");
+					VI_ERR("[d3d11] cannot create texture cube because width or height cannot be not divided");
 					return nullptr;
 				}
 
 				D3D11TextureCube* Result = new D3D11TextureCube();
 				if (Context->CreateTexture2D(&Description, 0, &Result->View) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create texture 2d");
+					VI_ERR("[d3d11] cannot create texture 2d");
 					return Result;
 				}
 
@@ -3158,7 +3158,7 @@ namespace Mavi
 				D3D11TextureCube* Result = new D3D11TextureCube();
 				if (Context->CreateTexture2D(&Description, 0, &Result->View) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create texture 2d");
+					VI_ERR("[d3d11] cannot create texture 2d");
 					return Result;
 				}
 
@@ -3197,7 +3197,7 @@ namespace Mavi
 				ID3D11Texture2D* DepthTexture = nullptr;
 				if (Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create depth buffer texture 2d");
+					VI_ERR("[d3d11] cannot create depth buffer texture 2d");
 					return Result;
 				}
 
@@ -3209,7 +3209,7 @@ namespace Mavi
 
 				if (Context->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create depth stencil view");
+					VI_ERR("[d3d11] cannot create depth stencil view");
 					return Result;
 				}
 
@@ -3218,7 +3218,7 @@ namespace Mavi
 
 				if (!CreateTexture2D(Result->Resource, GetDepthFormat(I.FormatMode)))
 				{
-					VI_ERR("[d3d11] couldn't create shader resource view");
+					VI_ERR("[d3d11] cannot create shader resource view");
 					return Result;
 				}
 
@@ -3252,7 +3252,7 @@ namespace Mavi
 				ID3D11Texture2D* DepthTexture = nullptr;
 				if (Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create depth buffer texture 2d");
+					VI_ERR("[d3d11] cannot create depth buffer texture 2d");
 					return Result;
 				}
 
@@ -3266,7 +3266,7 @@ namespace Mavi
 
 				if (Context->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create depth stencil view");
+					VI_ERR("[d3d11] cannot create depth stencil view");
 					return Result;
 				}
 
@@ -3275,7 +3275,7 @@ namespace Mavi
 
 				if (!CreateTextureCube(Result->Resource, GetDepthFormat(I.FormatMode)))
 				{
-					VI_ERR("[d3d11] couldn't create shader resource view");
+					VI_ERR("[d3d11] cannot create shader resource view");
 					return Result;
 				}
 
@@ -3309,7 +3309,7 @@ namespace Mavi
 				ID3D11Texture2D* DepthTexture = nullptr;
 				if (Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create depth buffer texture 2d");
+					VI_ERR("[d3d11] cannot create depth buffer texture 2d");
 					return Result;
 				}
 
@@ -3321,7 +3321,7 @@ namespace Mavi
 
 				if (Context->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create depth stencil view");
+					VI_ERR("[d3d11] cannot create depth stencil view");
 					return Result;
 				}
 
@@ -3330,7 +3330,7 @@ namespace Mavi
 
 				if (!CreateTexture2D(Result->DepthStencil, DXGI_FORMAT_R24_UNORM_X8_TYPELESS))
 				{
-					VI_ERR("[d3d11] couldn't create shader resource view");
+					VI_ERR("[d3d11] cannot create shader resource view");
 					return Result;
 				}
 
@@ -3352,7 +3352,7 @@ namespace Mavi
 
 					if (Context->CreateTexture2D(&Description, nullptr, &Result->Texture) != S_OK)
 					{
-						VI_ERR("[d3d11] couldn't create surface texture view");
+						VI_ERR("[d3d11] cannot create surface texture view");
 						return Result;
 					}
 
@@ -3362,7 +3362,7 @@ namespace Mavi
 
 					if (!GenerateTexture(Result->Resource))
 					{
-						VI_ERR("[d3d11] couldn't create shader resource view");
+						VI_ERR("[d3d11] cannot create shader resource view");
 						return Result;
 					}
 				}
@@ -3375,7 +3375,7 @@ namespace Mavi
 
 				if (Context->CreateRenderTargetView(I.RenderSurface ? (ID3D11Texture2D*)I.RenderSurface : Result->Texture, &RTV, &Result->RenderTargetView) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create render target view");
+					VI_ERR("[d3d11] cannot create render target view");
 					return Result;
 				}
 
@@ -3430,7 +3430,7 @@ namespace Mavi
 				ID3D11Texture2D* DepthTexture = nullptr;
 				if (Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create depth buffer texture 2d");
+					VI_ERR("[d3d11] cannot create depth buffer texture 2d");
 					return Result;
 				}
 
@@ -3442,7 +3442,7 @@ namespace Mavi
 
 				if (Context->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create depth stencil view");
+					VI_ERR("[d3d11] cannot create depth stencil view");
 					return Result;
 				}
 
@@ -3451,7 +3451,7 @@ namespace Mavi
 
 				if (!CreateTexture2D(Result->DepthStencil, DXGI_FORMAT_R24_UNORM_X8_TYPELESS))
 				{
-					VI_ERR("[d3d11] couldn't create shader resource view");
+					VI_ERR("[d3d11] cannot create shader resource view");
 					return Result;
 				}
 
@@ -3478,14 +3478,14 @@ namespace Mavi
 					Result->Information.Format = Format;
 					if (Context->CreateTexture2D(&Result->Information, nullptr, &Result->Texture[i]) != S_OK)
 					{
-						VI_ERR("[d3d11] couldn't create surface texture 2d #%i", i);
+						VI_ERR("[d3d11] cannot create surface texture 2d #%i", i);
 						return Result;
 					}
 
 					RTV.Format = Format;
 					if (Context->CreateRenderTargetView(Result->Texture[i], &RTV, &Result->RenderTargetView[i]) != S_OK)
 					{
-						VI_ERR("[d3d11] couldn't create render target view #%i", i);
+						VI_ERR("[d3d11] cannot create render target view #%i", i);
 						return Result;
 					}
 
@@ -3495,7 +3495,7 @@ namespace Mavi
 
 					if (!GenerateTexture(Result->Resource[i]))
 					{
-						VI_ERR("[d3d11] couldn't create shader resource view");
+						VI_ERR("[d3d11] cannot create shader resource view");
 						return Result;
 					}
 				}
@@ -3531,7 +3531,7 @@ namespace Mavi
 				ID3D11Texture2D* DepthTexture = nullptr;
 				if (Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create depth buffer texture 2d");
+					VI_ERR("[d3d11] cannot create depth buffer texture 2d");
 					return Result;
 				}
 
@@ -3545,7 +3545,7 @@ namespace Mavi
 
 				if (Context->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create depth stencil view");
+					VI_ERR("[d3d11] cannot create depth stencil view");
 					return Result;
 				}
 
@@ -3554,7 +3554,7 @@ namespace Mavi
 
 				if (!CreateTexture2D(Result->DepthStencil, DXGI_FORMAT_R24_UNORM_X8_TYPELESS))
 				{
-					VI_ERR("[d3d11] couldn't create shader resource view");
+					VI_ERR("[d3d11] cannot create shader resource view");
 					return Result;
 				}
 
@@ -3574,7 +3574,7 @@ namespace Mavi
 
 				if (Context->CreateTexture2D(&Description, nullptr, &Result->Texture) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create cube map texture 2d");
+					VI_ERR("[d3d11] cannot create cube map texture 2d");
 					return Result;
 				}
 
@@ -3588,7 +3588,7 @@ namespace Mavi
 
 				if (Context->CreateRenderTargetView(Result->Texture, &RTV, &Result->RenderTargetView) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create render target view");
+					VI_ERR("[d3d11] cannot create render target view");
 					return Result;
 				}
 
@@ -3598,7 +3598,7 @@ namespace Mavi
 
 				if (!GenerateTexture(Result->Resource))
 				{
-					VI_ERR("[d3d11] couldn't create shader resource view");
+					VI_ERR("[d3d11] cannot create shader resource view");
 					return Result;
 				}
 
@@ -3633,7 +3633,7 @@ namespace Mavi
 				ID3D11Texture2D* DepthTexture = nullptr;
 				if (Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create depth buffer texture 2d");
+					VI_ERR("[d3d11] cannot create depth buffer texture 2d");
 					return Result;
 				}
 
@@ -3647,7 +3647,7 @@ namespace Mavi
 
 				if (Context->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create depth stencil view");
+					VI_ERR("[d3d11] cannot create depth stencil view");
 					return Result;
 				}
 
@@ -3656,7 +3656,7 @@ namespace Mavi
 
 				if (!CreateTexture2D(Result->DepthStencil, DXGI_FORMAT_R24_UNORM_X8_TYPELESS))
 				{
-					VI_ERR("[d3d11] couldn't create shader resource view");
+					VI_ERR("[d3d11] cannot create shader resource view");
 					return Result;
 				}
 
@@ -3686,14 +3686,14 @@ namespace Mavi
 					Description.Format = Format;
 					if (Context->CreateTexture2D(&Description, nullptr, &Result->Texture[i]) != S_OK)
 					{
-						VI_ERR("[d3d11] couldn't create cube map rexture 2d");
+						VI_ERR("[d3d11] cannot create cube map rexture 2d");
 						return Result;
 					}
 
 					RTV.Format = Format;
 					if (Context->CreateRenderTargetView(Result->Texture[i], &RTV, &Result->RenderTargetView[i]) != S_OK)
 					{
-						VI_ERR("[d3d11] couldn't create render target view");
+						VI_ERR("[d3d11] cannot create render target view");
 						return Result;
 					}
 
@@ -3703,7 +3703,7 @@ namespace Mavi
 
 					if (!GenerateTexture(Result->Resource[i]))
 					{
-						VI_ERR("[d3d11] couldn't create shader resource view");
+						VI_ERR("[d3d11] cannot create shader resource view");
 						return Result;
 					}
 				}
@@ -3802,7 +3802,7 @@ namespace Mavi
 
 				if (Context->CreateBuffer(&BufferDesc, nullptr, &Immediate.VertexBuffer) != S_OK)
 				{
-					VI_ERR("[d3d11] couldn't create vertex buffer");
+					VI_ERR("[d3d11] cannot create vertex buffer");
 					return false;
 				}
 
@@ -3854,14 +3854,14 @@ namespace Mavi
 						Core::String Message = GetCompileState(Error);
 						D3D_RELEASE(Error);
 
-						VI_ERR("[d3d11] couldn't compile vertex shader\n\t%s", Message.c_str());
+						VI_ERR("[d3d11-compiler] %s", Message.c_str());
 						return false;
 					}
 
 					if (Context->CreateVertexShader((DWORD*)Blob->GetBufferPointer(), Blob->GetBufferSize(), nullptr, &Immediate.VertexShader) != S_OK)
 					{
 						D3D_RELEASE(Blob);
-						VI_ERR("[d3d11] couldn't create vertex shader");
+						VI_ERR("[d3d11] cannot create vertex shader");
 						return false;
 					}
 
@@ -3874,7 +3874,7 @@ namespace Mavi
 					if (Context->CreateInputLayout(LayoutDesc, 3, Blob->GetBufferPointer(), Blob->GetBufferSize(), &Immediate.VertexLayout) != S_OK)
 					{
 						D3D_RELEASE(Blob);
-						VI_ERR("[d3d11] couldn't create input layout");
+						VI_ERR("[d3d11] cannot create input layout");
 						return false;
 					}
 
@@ -3916,14 +3916,14 @@ namespace Mavi
 						Core::String Message = GetCompileState(Error);
 						D3D_RELEASE(Error);
 
-						VI_ERR("[d3d11] couldn't compile pixel shader\n\t%s", Message.c_str());
+						VI_ERR("[d3d11-compiler] %s", Message.c_str());
 						return false;
 					}
 
 					if (Context->CreatePixelShader((DWORD*)Blob->GetBufferPointer(), Blob->GetBufferSize(), nullptr, &Immediate.PixelShader) != S_OK)
 					{
 						D3D_RELEASE(Blob);
-						VI_ERR("[d3d11] couldn't create pixel shader");
+						VI_ERR("[d3d11] cannot create pixel shader");
 						return false;
 					}
 
@@ -3935,7 +3935,7 @@ namespace Mavi
 					CreateConstantBuffer(&Immediate.ConstantBuffer, sizeof(Direct));
 					if (!Immediate.ConstantBuffer)
 					{
-						VI_ERR("[d3d11] couldn't create vertex constant buffer");
+						VI_ERR("[d3d11] cannot create vertex constant buffer");
 						return false;
 					}
 				}
@@ -4185,7 +4185,7 @@ namespace Mavi
 				}
 
 				if (Context->CreateInputLayout(Result.data(), (unsigned int)Result.size(), Shader->Signature->GetBufferPointer(), Shader->Signature->GetBufferSize(), &Shader->VertexLayout) != S_OK)
-					VI_ERR("[d3d11] couldn't generate input layout for specified shader");
+					VI_ERR("[d3d11] cannot generate input layout for specified shader");
 
 				return Shader->VertexLayout;
 			}

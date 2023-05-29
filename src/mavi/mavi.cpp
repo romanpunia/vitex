@@ -591,7 +591,7 @@ namespace Mavi
 		}
 
 		if (Modes & (uint64_t)Init::Audio)
-			Audio::AudioContext::Create();
+			Audio::AudioContext::Initialize();
 
 		Scripting::VirtualMachine::SetMemoryFunctions(Core::Memory::Malloc, Core::Memory::Free);
 #ifdef VI_HAS_OPENSSL
@@ -618,9 +618,6 @@ namespace Mavi
 		auto* Manager = Core::Memory::GetAllocator();
 		Core::OS::SetLogDeferred(false);
 		Core::Schedule::Reset();
-
-		if (Modes & (uint64_t)Init::Audio)
-			Audio::AudioContext::Release();
 
 		if (Modes & (uint64_t)Init::SSL)
 		{

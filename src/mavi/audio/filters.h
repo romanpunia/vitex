@@ -11,7 +11,7 @@ namespace Mavi
 			class VI_OUT FilterContext
 			{
 			public:
-				static void Create();
+				static void Initialize();
 			};
 
 			class VI_OUT Lowpass final : public AudioFilter

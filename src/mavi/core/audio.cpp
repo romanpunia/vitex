@@ -56,12 +56,9 @@ namespace Mavi
 {
 	namespace Audio
 	{
-		void AudioContext::Create()
+		void AudioContext::Initialize()
 		{
-			VI_TRACE("[audio] initialize audio context");
-			if (!Mutex)
-				Mutex = VI_NEW(std::mutex);
-
+			VI_TRACE("[audio] load audio context func addresses");
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
 			LOAD_PROC(LPALGENFILTERS, alGenFilters);
 			LOAD_PROC(LPALDELETEFILTERS, alDeleteFilters);
@@ -97,262 +94,166 @@ namespace Mavi
 			LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTF, alGetAuxiliaryEffectSlotf);
 			LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTFV, alGetAuxiliaryEffectSlotfv);
 #endif
-			Effects::EffectContext::Create();
-			Filters::FilterContext::Create();
-		}
-		void AudioContext::Release()
-		{
-			VI_TRACE("[audio] free audio context");
-			VI_DELETE(mutex, Mutex);
-			Mutex = nullptr;
-		}
-		void AudioContext::Lock()
-		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
-		}
-		void AudioContext::Unlock()
-		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->unlock();
+			Effects::EffectContext::Initialize();
+			Filters::FilterContext::Initialize();
 		}
 		void AudioContext::GenerateBuffers(int Count, unsigned int* Buffers)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
 			VI_TRACE("[audio] generate %i buffers", Count);
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alGenBuffers(Count, Buffers);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::SetBufferData(unsigned int Buffer, int Format, const void* Data, int Size, int Frequency)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alBufferData(Buffer, Format, Data, Size, Frequency);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::SetSourceData3F(unsigned int Source, SoundEx Value, float F1, float F2, float F3)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alSource3f(Source, (uint32_t)Value, F1, F2, F3);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::GetSourceData3F(unsigned int Source, SoundEx Value, float* F1, float* F2, float* F3)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alGetSource3f(Source, (uint32_t)Value, F1, F2, F3);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::SetSourceDataVF(unsigned int Source, SoundEx Value, float* FS)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alSourcefv(Source, (uint32_t)Value, FS);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::GetSourceDataVF(unsigned int Source, SoundEx Value, float* FS)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alGetSourcefv(Source, (uint32_t)Value, FS);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::SetSourceData1F(unsigned int Source, SoundEx Value, float F1)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alSourcef(Source, (uint32_t)Value, F1);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::GetSourceData1F(unsigned int Source, SoundEx Value, float* F1)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alGetSourcef(Source, (uint32_t)Value, F1);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::SetSourceData3I(unsigned int Source, SoundEx Value, int F1, int F2, int F3)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alSource3i(Source, (uint32_t)Value, F1, F2, F3);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::GetSourceData3I(unsigned int Source, SoundEx Value, int* F1, int* F2, int* F3)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alGetSource3i(Source, (uint32_t)Value, F1, F2, F3);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::SetSourceDataVI(unsigned int Source, SoundEx Value, int* FS)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alSourceiv(Source, (uint32_t)Value, FS);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::GetSourceDataVI(unsigned int Source, SoundEx Value, int* FS)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alGetSourceiv(Source, (uint32_t)Value, FS);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::SetSourceData1I(unsigned int Source, SoundEx Value, int F1)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alSourcei(Source, (uint32_t)Value, F1);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::GetSourceData1I(unsigned int Source, SoundEx Value, int* F1)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alGetSourcei(Source, (uint32_t)Value, F1);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::SetListenerData3F(SoundEx Listener, float F1, float F2, float F3)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alListener3f((uint32_t)Listener, F1, F2, F3);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::GetListenerData3F(SoundEx Listener, float* F1, float* F2, float* F3)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alGetListener3f((uint32_t)Listener, F1, F2, F3);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::SetListenerDataVF(SoundEx Listener, float* FS)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alListenerfv((uint32_t)Listener, FS);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::GetListenerDataVF(SoundEx Listener, float* FS)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alGetListenerfv((uint32_t)Listener, FS);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::SetListenerData1F(SoundEx Listener, float F1)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alListenerf((uint32_t)Listener, F1);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::GetListenerData1F(SoundEx Listener, float* F1)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alGetListenerf((uint32_t)Listener, F1);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::SetListenerData3I(SoundEx Listener, int F1, int F2, int F3)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alListener3i((uint32_t)Listener, F1, F2, F3);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::GetListenerData3I(SoundEx Listener, int* F1, int* F2, int* F3)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alGetListener3i((uint32_t)Listener, F1, F2, F3);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::SetListenerDataVI(SoundEx Listener, int* FS)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alListeneriv((uint32_t)Listener, FS);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::GetListenerDataVI(SoundEx Listener, int* FS)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alGetListeneriv((uint32_t)Listener, FS);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::SetListenerData1I(SoundEx Listener, int F1)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alListeneri((uint32_t)Listener, F1);
 #endif
-			Mutex->unlock();
 		}
 		void AudioContext::GetListenerData1I(SoundEx Listener, int* F1)
 		{
-			VI_ASSERT_V(Mutex != nullptr, "context should be initialized");
-			Mutex->lock();
 #ifdef VI_HAS_OPENAL
 			alGetListeneri((uint32_t)Listener, F1);
 #endif
-			Mutex->unlock();
 		}
-		std::mutex* AudioContext::Mutex = nullptr;
-		int AudioContext::State = 0;
 
 		AudioFilter::AudioFilter() noexcept
 		{
@@ -364,16 +265,13 @@ namespace Mavi
 		{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
 			VI_TRACE("[audio] delete %i filter", (int)Filter);
-			AudioContext::Lock();
 			if (alDeleteFilters != nullptr && Filter != AL_FILTER_NULL)
 				alDeleteFilters(1, &Filter);
-			AudioContext::Unlock();
 #endif
 		}
 		bool AudioFilter::CreateLocked(const std::function<bool()>& Callback)
 		{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-			AudioContext::Lock();
 			if (alDeleteFilters != nullptr && Filter != AL_FILTER_NULL)
 				alDeleteFilters(1, &Filter);
 
@@ -382,7 +280,6 @@ namespace Mavi
 
 			if (Callback)
 				Callback();
-			AudioContext::Unlock();
 			VI_TRACE("[audio] generate %i filter", (int)Filter);
 #endif
 			return true;
@@ -404,20 +301,17 @@ namespace Mavi
 			Unbind();
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
 			VI_TRACE("[audio] delete %i effect", (int)Effect);
-			AudioContext::Lock();
 			if (alDeleteEffects != nullptr && Effect != AL_EFFECT_NULL)
 				alDeleteEffects(1, &Effect);
 
 			if (alDeleteAuxiliaryEffectSlots != nullptr && Slot != AL_EFFECTSLOT_NULL)
 				alDeleteAuxiliaryEffectSlots(1, &Slot);
-			AudioContext::Unlock();
 #endif
 			VI_RELEASE(Filter);
 		}
 		bool AudioEffect::CreateLocked(const std::function<bool()>& Callback)
 		{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-			AudioContext::Lock();
 			if (alDeleteAuxiliaryEffectSlots != nullptr && Slot != AL_EFFECTSLOT_NULL)
 				alDeleteAuxiliaryEffectSlots(1, &Slot);
 
@@ -435,7 +329,6 @@ namespace Mavi
 
 			if (alAuxiliaryEffectSloti != nullptr && Effect != AL_EFFECT_NULL)
 				alAuxiliaryEffectSloti(Slot, AL_EFFECTSLOT_EFFECT, (ALint)Effect);
-			AudioContext::Unlock();
 			VI_TRACE("[audio] generate %i effect", (int)Effect);
 #endif
 			return true;
@@ -458,9 +351,7 @@ namespace Mavi
 			Source = NewSource;
 			Zone = NewZone;
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-			AudioContext::Lock();
 			alSource3i(Source->GetInstance(), AL_AUXILIARY_SEND_FILTER, (ALint)Slot, Zone, (ALint)(Filter ? Filter->Filter : AL_FILTER_NULL));
-			AudioContext::Unlock();
 #endif
 			return true;
 		}
@@ -468,9 +359,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Source != nullptr, false, "source should not be empty");
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-			AudioContext::Lock();
 			alSource3i(Source->GetInstance(), AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, Zone, AL_FILTER_NULL);
-			AudioContext::Unlock();
 #endif
 			return true;
 		}
@@ -492,23 +381,19 @@ namespace Mavi
 		{
 #ifdef VI_HAS_OPENAL
 			VI_TRACE("[audio] delete %i buffer", (int)Buffer);
-			AudioContext::Lock();
 			alDeleteBuffers(1, &Buffer);
-			AudioContext::Unlock();
 			Buffer = 0;
 #endif
 		}
 		float AudioClip::Length() const
 		{
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			int ByteSize = 0, ChannelCount = 0, Bits = 0, Frequency = 0;
 			alGetBufferi(Buffer, AL_SIZE, &ByteSize);
 			alGetBufferi(Buffer, AL_CHANNELS, &ChannelCount);
 			alGetBufferi(Buffer, AL_BITS, &Bits);
 			alGetBufferi(Buffer, AL_FREQUENCY, &Frequency);
 
-			AudioContext::Unlock();
 			if (ByteSize == 0 || ChannelCount == 0 || Bits == 0 || Frequency == 0)
 				return 0;
 
@@ -537,7 +422,6 @@ namespace Mavi
 		AudioSource::AudioSource() noexcept
 		{
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (alIsSource(Instance))
 			{
 				alSourceStop(Instance);
@@ -558,7 +442,6 @@ namespace Mavi
 			alSourcef(Instance, AL_CONE_OUTER_GAIN, 0);
 			alSource3f(Instance, AL_POSITION, 0, 0, 0);
 			alSourcei(Instance, AL_SEC_OFFSET, 0);
-			AudioContext::Unlock();
 			VI_TRACE("[audio] generate %i source", (int)Instance);
 #endif
 		}
@@ -568,11 +451,9 @@ namespace Mavi
 			VI_RELEASE(Clip);
 #ifdef VI_HAS_OPENAL
 			VI_TRACE("[audio] delete %i source", (int)Instance);
-			AudioContext::Lock();
 			alSourceStop(Instance);
 			alSourcei(Instance, AL_BUFFER, 0);
 			alDeleteSources(1, &Instance);
-			AudioContext::Unlock();
 #endif
 		}
 		int64_t AudioSource::AddEffect(AudioEffect* Effect)
@@ -621,7 +502,6 @@ namespace Mavi
 		{
 #ifdef VI_HAS_OPENAL
 			VI_TRACE("[audio] set clip %i on %i source", NewClip ? (int)NewClip->GetBuffer() : 0, (int)Instance);
-			AudioContext::Lock();
 			alSourceStop(Instance);
 
 			VI_RELEASE(Clip);
@@ -629,8 +509,6 @@ namespace Mavi
 
 			if (Clip != nullptr)
 				alSourcei(Instance, AL_BUFFER, Clip->GetBuffer());
-
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioSource::Synchronize(AudioSync* Sync, const Compute::Vector3& Position)
@@ -650,7 +528,6 @@ namespace Mavi
 #endif
 			}
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (!Sync->IsRelative)
 				alSource3f(Instance, AL_POSITION, 0, 0, 0);
 			else
@@ -674,14 +551,12 @@ namespace Mavi
 			alSourcef(Instance, AL_CONE_OUTER_ANGLE, Sync->ConeOuterAngle);
 			alSourcef(Instance, AL_CONE_OUTER_GAIN, Sync->ConeOuterGain);
 			alGetSourcef(Instance, AL_SEC_OFFSET, &Sync->Position);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioSource::Reset()
 		{
 #ifdef VI_HAS_OPENAL
 			VI_TRACE("[audio] reset on %i source", (int)Instance);
-			AudioContext::Lock();
 			alSource3f(Instance, AL_DIRECTION, 0, 0, 0);
 			alSourcei(Instance, AL_SOURCE_RELATIVE, 0);
 			alSourcei(Instance, AL_LOOPING, 0);
@@ -695,44 +570,34 @@ namespace Mavi
 			alSourcef(Instance, AL_CONE_OUTER_GAIN, 0);
 			alSource3f(Instance, AL_POSITION, 0, 0, 0);
 			alSourcei(Instance, AL_SEC_OFFSET, 0);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioSource::Pause()
 		{
 #ifdef VI_HAS_OPENAL
 			VI_TRACE("[audio] pause on %i source", (int)Instance);
-			AudioContext::Lock();
 			alSourcePause(Instance);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioSource::Play()
 		{
 #ifdef VI_HAS_OPENAL
 			VI_TRACE("[audio] play on %i source", (int)Instance);
-			AudioContext::Lock();
 			alSourcePlay(Instance);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioSource::Stop()
 		{
 #ifdef VI_HAS_OPENAL
 			VI_TRACE("[audio] stop on %i source", (int)Instance);
-			AudioContext::Lock();
 			alSourceStop(Instance);
-			AudioContext::Unlock();
 #endif
 		}
 		bool AudioSource::IsPlaying() const
 		{
 #ifdef VI_HAS_OPENAL
 			int State = 0;
-			AudioContext::Lock();
 			alGetSourcei(Instance, AL_SOURCE_STATE, &State);
-			AudioContext::Unlock();
-
 			return State == AL_PLAYING;
 #else
 			return false;
@@ -768,14 +633,11 @@ namespace Mavi
 		AudioDevice::AudioDevice() noexcept
 		{
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			Device = (void*)alcOpenDevice(nullptr);
 			VI_TRACE("[audio] open alc device: 0x%" PRIXPTR, (void*)Device);
 			if (!Device)
 			{
-				AudioContext::Unlock();
 				VI_ERR("[audio] couldn't create alc device");
-
 				int Code = alGetError();
 				if (Code != AL_NO_ERROR)
 					VI_ERR("[audio] %s", alGetString(Code));
@@ -787,9 +649,7 @@ namespace Mavi
 			VI_TRACE("[audio] create alc context: 0x%" PRIXPTR, (void*)Context);
 			if (!Context)
 			{
-				AudioContext::Unlock();
 				VI_ERR("[audio] couldn't create alc device context");
-
 				int Code = alcGetError((ALCdevice*)Device);
 				if (Code != AL_NO_ERROR)
 					VI_ERR("[audio] %s", alcGetString((ALCdevice*)Device, Code));
@@ -800,13 +660,11 @@ namespace Mavi
 			alcMakeContextCurrent((ALCcontext*)Context);
 			alDistanceModel(AL_LINEAR_DISTANCE);
 			alListenerf(AL_GAIN, 0.0f);
-			AudioContext::Unlock();
 #endif
 		}
 		AudioDevice::~AudioDevice() noexcept
 		{
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (Context != nullptr)
 			{
 				VI_TRACE("[audio] delete alc context: 0x%" PRIXPTR, (void*)Context);
@@ -821,38 +679,32 @@ namespace Mavi
 				alcCloseDevice((ALCdevice*)Device);
 				Device = nullptr;
 			}
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioDevice::Offset(AudioSource* Source, float& Seconds, bool Get)
 		{
 			VI_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_SEC_OFFSET, Seconds);
 			else
 				alGetSourcef(Source->Instance, AL_SEC_OFFSET, &Seconds);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioDevice::Relative(AudioSource* Source, int& Value, bool Get)
 		{
 			VI_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (!Get)
 				alSourcei(Source->Instance, AL_SOURCE_RELATIVE, Value);
 			else
 				alGetSourcei(Source->Instance, AL_SOURCE_RELATIVE, &Value);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioDevice::Position(AudioSource* Source, Compute::Vector3& Position, bool Get)
 		{
 			VI_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (!Get)
 			{
 				alGetSource3f(Source->Instance, AL_POSITION, &Position.X, &Position.Y, &Position.Z);
@@ -860,155 +712,122 @@ namespace Mavi
 			}
 			else
 				alSource3f(Source->Instance, AL_POSITION, -Position.X, Position.Y, Position.Z);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioDevice::Direction(AudioSource* Source, Compute::Vector3& Direction, bool Get)
 		{
 			VI_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (!Get)
 				alSource3f(Source->Instance, AL_DIRECTION, Direction.X, Direction.Y, Direction.Z);
 			else
 				alGetSource3f(Source->Instance, AL_DIRECTION, &Direction.X, &Direction.Y, &Direction.Z);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioDevice::Velocity(AudioSource* Source, Compute::Vector3& Velocity, bool Get)
 		{
 			VI_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (!Get)
 				alSource3f(Source->Instance, AL_VELOCITY, Velocity.X, Velocity.Y, Velocity.Z);
 			else
 				alGetSource3f(Source->Instance, AL_VELOCITY, &Velocity.X, &Velocity.Y, &Velocity.Z);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioDevice::Pitch(AudioSource* Source, float& Value, bool Get)
 		{
 			VI_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_PITCH, Value);
 			else
 				alGetSourcef(Source->Instance, AL_PITCH, &Value);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioDevice::Gain(AudioSource* Source, float& Value, bool Get)
 		{
 			VI_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_GAIN, Value);
 			else
 				alGetSourcef(Source->Instance, AL_GAIN, &Value);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioDevice::ConeInnerAngle(AudioSource* Source, float& Value, bool Get)
 		{
 			VI_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_CONE_INNER_ANGLE, Value);
 			else
 				alGetSourcef(Source->Instance, AL_CONE_INNER_ANGLE, &Value);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioDevice::ConeOuterAngle(AudioSource* Source, float& Value, bool Get)
 		{
 			VI_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_CONE_OUTER_ANGLE, Value);
 			else
 				alGetSourcef(Source->Instance, AL_CONE_OUTER_ANGLE, &Value);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioDevice::ConeOuterGain(AudioSource* Source, float& Value, bool Get)
 		{
 			VI_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_CONE_OUTER_GAIN, Value);
 			else
 				alGetSourcef(Source->Instance, AL_CONE_OUTER_GAIN, &Value);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioDevice::Distance(AudioSource* Source, float& Value, bool Get)
 		{
 			VI_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_MAX_DISTANCE, Value);
 			else
 				alGetSourcef(Source->Instance, AL_MAX_DISTANCE, &Value);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioDevice::RefDistance(AudioSource* Source, float& Value, bool Get)
 		{
 			VI_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_REFERENCE_DISTANCE, Value);
 			else
 				alGetSourcef(Source->Instance, AL_REFERENCE_DISTANCE, &Value);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioDevice::Loop(AudioSource* Source, int& IsLoop, bool Get)
 		{
 			VI_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if (!Get)
 				alSourcei(Source->Instance, AL_LOOPING, IsLoop);
 			else
 				alGetSourcei(Source->Instance, AL_LOOPING, &IsLoop);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioDevice::SetDistanceModel(SoundDistanceModel Model)
 		{
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			alDistanceModel((int)Model);
-			AudioContext::Unlock();
 #endif
 		}
 		void AudioDevice::GetExceptionCodes(int& ALCCode, int& ALCode) const
 		{
 #ifdef VI_HAS_OPENAL
-			AudioContext::Lock();
 			if ((ALCCode = alcGetError((ALCdevice*)Device)) != ALC_NO_ERROR)
-			{
-				AudioContext::Unlock();
 				VI_ERR("[audio] %s", alcGetString((ALCdevice*)Device, ALCCode));
-				AudioContext::Lock();
-			}
 
 			if ((ALCode = alGetError()) != AL_NO_ERROR)
-			{
-				AudioContext::Unlock();
 				VI_ERR("[audio] %s", alGetString(ALCode));
-				AudioContext::Lock();
-			}
-			AudioContext::Unlock();
 #endif
 		}
 		bool AudioDevice::IsValid() const

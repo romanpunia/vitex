@@ -55,7 +55,7 @@ namespace Mavi
 	{
 		namespace Filters
 		{
-			void FilterContext::Create()
+			void FilterContext::Initialize()
 			{
 				VI_TRACE("[audio] load filter functions");
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
@@ -111,10 +111,8 @@ namespace Mavi
 			void Lowpass::Synchronize()
 			{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-				AudioContext::Lock();
 				alFilterf(Filter, AL_LOWPASS_GAIN, Gain);
 				alFilterf(Filter, AL_LOWPASS_GAINHF, GainHF);
-				AudioContext::Unlock();
 #endif
 			}
 			void Lowpass::Deserialize(Core::Schema* Node)
@@ -154,10 +152,8 @@ namespace Mavi
 			void Highpass::Synchronize()
 			{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-				AudioContext::Lock();
 				alFilterf(Filter, AL_HIGHPASS_GAIN, Gain);
 				alFilterf(Filter, AL_HIGHPASS_GAINLF, GainLF);
-				AudioContext::Unlock();
 #endif
 			}
 			void Highpass::Deserialize(Core::Schema* Node)
@@ -197,11 +193,9 @@ namespace Mavi
 			void Bandpass::Synchronize()
 			{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-				AudioContext::Lock();
 				alFilterf(Filter, AL_BANDPASS_GAIN, Gain);
 				alFilterf(Filter, AL_BANDPASS_GAINLF, GainLF);
 				alFilterf(Filter, AL_BANDPASS_GAINHF, GainHF);
-				AudioContext::Unlock();
 #endif
 			}
 			void Bandpass::Deserialize(Core::Schema* Node)

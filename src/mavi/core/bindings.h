@@ -147,9 +147,13 @@ namespace Mavi
 				};
 
 			public:
+				static void ThrowAt(asIScriptContext* Context, const Pointer& Data);
 				static void Throw(const Pointer& Data);
+				static void RethrowAt(asIScriptContext* Context);
 				static void Rethrow();
+				static bool HasExceptionAt(asIScriptContext* Context);
 				static bool HasException();
+				static Pointer GetExceptionAt(asIScriptContext* Context);
 				static Pointer GetException();
 				static bool GeneratorCallback(const Core::String& Path, Core::String& Code);
 			};
@@ -955,8 +959,8 @@ namespace Mavi
 				void ReleaseReferences(asIScriptEngine* Engine);
 				void AddRef();
 				void Release();
-				void Suspend();
-				void Resume();
+				bool Suspend();
+				bool Resume();
 				void Push(void* Ref, int TypeId);
 				bool Pop(void* Ref, int TypeId);
 				bool Pop(void* Ref, int TypeId, uint64_t Timeout);
@@ -977,7 +981,7 @@ namespace Mavi
 				static Thread* GetThread();
 				static Core::String GetThreadId();
 				static void ThreadSleep(uint64_t Mills);
-				static void ThreadSuspend();
+				static bool ThreadSuspend();
 			};
 
 			class VI_OUT Complex

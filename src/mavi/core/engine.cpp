@@ -4033,7 +4033,7 @@ namespace Mavi
 
 			Watch(Parallel::Enqueue([this, Time]()
 			{
-				Simulator->Simulate(4, Time->GetFixedStep(), 1.0f / Time->GetFixedFrames());
+				Simulator->SimulateStep(Time->GetElapsed());
 			}));
 		}
 		void SceneGraph::StepSynchronize(Core::Timer* Time)

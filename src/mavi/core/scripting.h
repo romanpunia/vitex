@@ -1719,6 +1719,7 @@ namespace Mavi
 			{
 				Core::Promise<int> Future = Core::Promise<int>::Ready();
 				Core::String Stacktrace;
+				size_t DenySuspends = 0;
 			} Executor;
 
 		private:
@@ -1729,6 +1730,7 @@ namespace Mavi
 		public:
 			~ImmediateContext() noexcept;
 			Core::Promise<int> ExecuteCall(const Function& Function, ArgsCallback&& OnArgs);
+			int ExecuteCallSync(const Function& Function, ArgsCallback&& OnArgs);
 			int ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs);
 			int SetOnException(void(*Callback)(asIScriptContext* Context, void* Object), void* Object);
 			int Prepare(const Function& Function);
@@ -1738,6 +1740,8 @@ namespace Mavi
 			int Suspend();
 			Activation GetState() const;
 			Core::String GetStackTrace(size_t Skips, size_t MaxFrames) const;
+			int DisableSuspends();
+			int EnableSuspends();
 			int PushState();
 			int PopState();
 			int ExecuteNext();
@@ -1801,6 +1805,7 @@ namespace Mavi
 			void* GetThisPointer(size_t StackLevel = 0);
 			Function GetSystemFunction();
 			bool IsSuspended() const;
+			bool IsSuspendable() const;
 			bool CanExecuteCall() const;
 			bool CanExecuteSubcall() const;
 			void* SetUserData(void* Data, size_t Type = 0);

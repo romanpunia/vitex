@@ -4259,6 +4259,27 @@ namespace Mavi
 			Resume();
 			return Executor.Future;
 		}
+		int ImmediateContext::ExecuteCallSync(const Function& Function, ArgsCallback&& OnArgs)
+		{
+			VI_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
+			VI_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
+			VI_ASSERT(!Core::Costate::IsCoroutine(), asINVALID_ARG, "cannot safely execute in coroutine");
+
+			std::unique_lock<std::recursive_mutex> Unique(Exchange);
+			if (!CanExecuteCall())
+				return asCONTEXT_ACTIVE;
+
+			DisableSuspends();
+			int Result = Context->Prepare(Function.GetFunction());
+			if (Result >= 0)
+			{
+				if (OnArgs)
+					OnArgs(this);
+				Result = ExecuteNext();
+			}
+			EnableSuspends();
+			return Result;
+		}
 		int ImmediateContext::ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs)
 		{
 			VI_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
@@ -4272,6 +4293,7 @@ namespace Mavi
 				return asEXECUTION_ABORTED;
 			}
 
+			DisableSuspends();
 			Context->PushState();
 			int Result = Context->Prepare(Function.GetFunction());
 			if (Result >= 0)
@@ -4280,8 +4302,8 @@ namespace Mavi
 					OnArgs(this);
 				Result = ExecuteNext();
 			}
-
 			Context->PopState();
+			EnableSuspends();
 			return Result;
 		}
 		int ImmediateContext::SetOnException(void(*Callback)(asIScriptContext* Context, void* Object), void* Object)
@@ -4318,6 +4340,12 @@ namespace Mavi
 		int ImmediateContext::Suspend()
 		{
 			VI_ASSERT(Context != nullptr, -1, "context should be set");
+			if (!IsSuspendable())
+			{
+				Bindings::Exception::ThrowAt(Context, Bindings::Exception::Pointer("async_error", "yield is not allowed in this function call"));
+				return asCONTEXT_NOT_PREPARED;
+			}
+
 			return Context->Suspend();
 		}
 		Activation ImmediateContext::GetState() const
@@ -4356,6 +4384,17 @@ namespace Mavi
 			if (!Trace.empty())
 				Stream << Trace.substr(0, Trace.size() - 1);
 			return Stream.str();
+		}
+		int ImmediateContext::DisableSuspends()
+		{
+			++Executor.DenySuspends;
+			return 0;
+		}
+		int ImmediateContext::EnableSuspends()
+		{
+			VI_ASSERT(Executor.DenySuspends > 0, -1, "suspends are already enabled");
+			--Executor.DenySuspends;
+			return 0;
 		}
 		int ImmediateContext::PushState()
 		{
@@ -4726,6 +4765,10 @@ namespace Mavi
 			VI_ASSERT(Context != nullptr, false, "context should be set");
 			return Context->GetState() == asEXECUTION_SUSPENDED;
 		}
+		bool ImmediateContext::IsSuspendable() const
+		{
+			return !IsSuspended() && !Executor.DenySuspends;
+		}
 		bool ImmediateContext::CanExecuteCall() const
 		{
 			VI_ASSERT(Context != nullptr, false, "context should be set");
@@ -4770,7 +4813,7 @@ namespace Mavi
 
 			return Get(Context);
 		}
-		int ImmediateContext::ContextUD = 152;
+		int ImmediateContext::ContextUD = 151;
 
 		VirtualMachine::VirtualMachine() noexcept : Scope(0), Debugger(nullptr), Engine(asCreateScriptEngine()), Translator(nullptr), Imports((uint32_t)Imports::All), SaveSources(false), Cached(true)
 		{

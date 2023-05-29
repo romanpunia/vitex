@@ -2608,6 +2608,12 @@ namespace Mavi
 			};
 
 		private:
+			struct
+			{
+				float LastElapsedTime = 0.0f;
+			} Timing;
+
+		private:
 			Core::UnorderedMap<void*, size_t> Shapes;
 			btCollisionConfiguration* Collision;
 			btBroadphaseInterface* Broadphase;
@@ -2618,8 +2624,7 @@ namespace Mavi
 			std::mutex Safe;
 
 		public:
-			float TimeSpeed;
-			int Interpolate;
+			float Speedup;
 			bool Active;
 
 		public:
@@ -2643,7 +2648,7 @@ namespace Mavi
 			void AddConstraint(Constraint* Constraint);
 			void RemoveConstraint(Constraint* Constraint);
 			void RemoveAll();
-			void Simulate(int Interpolation, float TimeStep, float FixedTimeStep);
+			void SimulateStep(float ElapsedTimeSeconds);
 			void FindContacts(RigidBody* Body, int(*Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&));
 			bool FindRayContacts(const Vector3& Start, const Vector3& End, int(*Callback)(RayContact*, const CollisionBody&));
 			Core::Unique<RigidBody> CreateRigidBody(const RigidBody::Desc& I);

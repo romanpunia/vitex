@@ -10614,16 +10614,16 @@ namespace Mavi
 			if (!Instance)
 				return;
 
-			int Constrs = Instance->getNumConstraintRefs();
-			for (int i = 0; i < Constrs; i++)
+			int Constraints = Instance->getNumConstraintRefs();
+			for (int i = 0; i < Constraints; i++)
 			{
-				btTypedConstraint* Constr = Instance->getConstraintRef(i);
-				if (Constr != nullptr)
+				btTypedConstraint* Constraint = Instance->getConstraintRef(i);
+				if (Constraint != nullptr)
 				{
-					void* Ptr = Constr->getUserConstraintPtr();
+					void* Ptr = Constraint->getUserConstraintPtr();
 					if (Ptr != nullptr)
 					{
-						btTypedConstraintType Type = Constr->getConstraintType();
+						btTypedConstraintType Type = Constraint->getConstraintType();
 						switch (Type)
 						{
 							case SLIDER_CONSTRAINT_TYPE:
@@ -10637,8 +10637,8 @@ namespace Mavi
 						}
 					}
 
-					Instance->removeConstraintRef(Constr);
-					Constrs--; i--;
+					Instance->removeConstraintRef(Constraint);
+					Constraints--; i--;
 				}
 			}
 
@@ -10765,7 +10765,6 @@ namespace Mavi
 		{
 #ifdef VI_USE_BULLET3
 			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
-
 			btTransform& Base = Instance->getWorldTransform();
 			if (!Kinematic)
 			{
@@ -13952,7 +13951,7 @@ namespace Mavi
 			return State;
 		}
 
-		Simulator::Simulator(const Desc& I) noexcept : SoftSolver(nullptr), TimeSpeed(1), Interpolate(1), Active(true)
+		Simulator::Simulator(const Desc& I) noexcept : SoftSolver(nullptr), Speedup(1.0f), Active(true)
 		{
 #ifdef VI_USE_BULLET3
 			Broadphase = VI_NEW(btDbvtBroadphase);
@@ -14260,14 +14259,16 @@ namespace Mavi
 			}
 #endif
 		}
-		void Simulator::Simulate(int Interpolation, float TimeStep, float FixedTimeStep)
+		void Simulator::SimulateStep(float ElapsedTime)
 		{
 #ifdef VI_USE_BULLET3
-			if (!Active || TimeSpeed <= 0.0f)
+			if (!Active || Speedup <= 0.0f)
 				return;
 
 			VI_MEASURE(Core::Timings::Frame);
-			World->stepSimulation(TimeStep * TimeSpeed, Interpolation > 0 ? Interpolation : Interpolate, FixedTimeStep > 0.0f ? FixedTimeStep * TimeSpeed : TimeSpeed / 60.0f);
+			float TimeStep = (Timing.LastElapsedTime > 0.0 ? std::max(0.0f, ElapsedTime - Timing.LastElapsedTime) : 0.0f);
+			World->stepSimulation(TimeStep * Speedup, 0);
+			Timing.LastElapsedTime = ElapsedTime;
 #endif
 		}
 		void Simulator::FindContacts(RigidBody* Body, int(*Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&))

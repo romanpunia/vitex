@@ -11,7 +11,7 @@ namespace Mavi
 			class VI_OUT EffectContext
 			{
 			public:
-				static void Create();
+				static void Initialize();
 			};
 
 			class VI_OUT Reverb final : public AudioEffect

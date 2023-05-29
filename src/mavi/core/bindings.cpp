@@ -17,8 +17,15 @@
 #ifndef __psp2__
 #include <locale.h>
 #endif
-#define ARRAY_CACHE 1000
-#define MAP_CACHE 1003
+#define CACHE_ARRAY 1000
+#define CACHE_MAP 1003
+#define EXCEPTION_OUTOFBOUNDS "range_error", "index is outside of range"
+#define EXCEPTION_OUTOFMEMORY "allocation_error", "out of available memory"
+#define EXCEPTION_TOOLARGESIZE "allocation_error", "too much memory has been requested"
+#define EXCEPTION_TEMPLATEMISMATCH "template_error", "template type does not match the type that was passed to an object"
+#define EXCEPTION_COPYFAIL "type_error", "cannot copy this type of object"
+#define EXCEPTION_ACCESSINVALID "type_error", "accessing non-existing value"
+#define EXCEPTION_PROMISEREADY "async_error", "trying to settle the promise that is already fullfilled"
 #define TYPENAME_ARRAY "array"
 #define TYPENAME_STRING "string"
 #define TYPENAME_DICTIONARY "dictionary"
@@ -336,10 +343,7 @@ namespace Mavi
 			{
 				if (Value >= Current.size())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context != nullptr)
-						Context->SetException("out of range");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return 0;
 				}
 
@@ -555,10 +559,7 @@ namespace Mavi
 			{
 				if (Base.empty())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					Base.append(1, '\0');
 					return Base.front();
 				}
@@ -569,10 +570,7 @@ namespace Mavi
 			{
 				if (Base.empty())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					Base.append(1, '\0');
 					return Base.back();
 				}
@@ -756,31 +754,39 @@ namespace Mavi
 			{
 				return Type.empty() && Message.empty();
 			}
-
-			void Exception::Throw(const Pointer& Data)
+			
+			void Exception::ThrowAt(asIScriptContext* Context, const Pointer& Data)
 			{
-				asIScriptContext* Context = asGetActiveContext();
 				if (Context != nullptr)
 					Context->SetException(Data.ToExceptionString().c_str());
 			}
-			void Exception::Rethrow()
+			void Exception::Throw(const Pointer& Data)
 			{
-				asIScriptContext* Context = asGetActiveContext();
+				ThrowAt(asGetActiveContext(), Data);
+			}
+			void Exception::RethrowAt(asIScriptContext* Context)
+			{
 				if (Context != nullptr)
 					Context->SetException(Context->GetExceptionString());
 			}
-			bool Exception::HasException()
+			void Exception::Rethrow()
 			{
-				asIScriptContext* Context = asGetActiveContext();
+				RethrowAt(asGetActiveContext());
+			}
+			bool Exception::HasExceptionAt(asIScriptContext* Context)
+			{
 				if (!Context)
 					return false;
 
 				const char* Message = Context->GetExceptionString();
 				return Message != nullptr && Message[0] != '\0';
 			}
-			Exception::Pointer Exception::GetException()
+			bool Exception::HasException()
 			{
-				asIScriptContext* Context = asGetActiveContext();
+				return HasExceptionAt(asGetActiveContext());
+			}
+			Exception::Pointer Exception::GetExceptionAt(asIScriptContext* Context)
+			{
 				if (!Context)
 					return Pointer();
 
@@ -789,6 +795,10 @@ namespace Mavi
 					return Pointer();
 
 				return Pointer(Core::String(Message));
+			}
+			Exception::Pointer Exception::GetException()
+			{
+				return GetExceptionAt(asGetActiveContext());
 			}
 			bool Exception::GeneratorCallback(const Core::String& Path, Core::String& Code)
 			{
@@ -1014,6 +1024,12 @@ namespace Mavi
 					return nullptr;
 
 				void* Data = asAllocMem(sizeof(Any));
+				if (!Data)
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+					return nullptr;
+				}
+
 				return new(Data) Any(Context->GetEngine());
 			}
 			Any* Any::Create(int TypeId, void* Ref)
@@ -1023,6 +1039,12 @@ namespace Mavi
 					return nullptr;
 
 				void* Data = asAllocMem(sizeof(Any));
+				if (!Data)
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+					return nullptr;
+				}
+
 				return new(Data) Any(Ref, TypeId, Context->GetEngine());
 			}
 			Any* Any::Create(const char* Decl, void* Ref)
@@ -1033,12 +1055,21 @@ namespace Mavi
 
 				asIScriptEngine* Engine = Context->GetEngine();
 				void* Data = asAllocMem(sizeof(Any));
+				if (!Data)
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+					return nullptr;
+				}
+
 				return new(Data) Any(Ref, Engine->GetTypeIdByDecl(Decl), Engine);
 			}
 			void Any::Factory1(asIScriptGeneric* G)
 			{
 				asIScriptEngine* Engine = G->GetEngine();
 				void* Mem = asAllocMem(sizeof(Any));
+				if (!Mem)
+					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+
 				*(Any**)G->GetAddressOfReturnLocation() = new(Mem) Any(Engine);
 			}
 			void Any::Factory2(asIScriptGeneric* G)
@@ -1046,8 +1077,10 @@ namespace Mavi
 				asIScriptEngine* Engine = G->GetEngine();
 				void* Ref = (void*)G->GetArgAddress(0);
 				void* Mem = asAllocMem(sizeof(Any));
-				int RefType = G->GetArgTypeId(0);
+				if (!Mem)
+					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 
+				int RefType = G->GetArgTypeId(0);
 				*(Any**)G->GetAddressOfReturnLocation() = new(Mem) Any(Ref, RefType, Engine);
 			}
 			Any& Any::Assignment(Any* Other, Any* Self)
@@ -1224,19 +1257,11 @@ namespace Mavi
 					return;
 
 				SBuffer* NewBuffer = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + (size_t)ElementSize * (size_t)MaxElements));
-				if (NewBuffer)
-				{
-					NewBuffer->NumElements = Buffer->NumElements;
-					NewBuffer->MaxElements = MaxElements;
-				}
-				else
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("out of memory");
-					return;
-				}
-
+				if (!NewBuffer)
+					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+				
+				NewBuffer->NumElements = Buffer->NumElements;
+				NewBuffer->MaxElements = MaxElements;
 				memcpy(NewBuffer->Data, Buffer->Data, (size_t)Buffer->NumElements * (size_t)ElementSize);
 				asFreeMem(Buffer);
 				Buffer = NewBuffer;
@@ -1254,12 +1279,7 @@ namespace Mavi
 					return;
 
 				if (Buffer == 0 || Start > Buffer->NumElements)
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-					return;
-				}
+					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 
 				if (Start + Count > Buffer->NumElements)
 					Count = Buffer->NumElements - Start;
@@ -1294,19 +1314,11 @@ namespace Mavi
 				{
 					size_t Count = (size_t)Buffer->NumElements + (size_t)Delta, Size = (size_t)ElementSize;
 					SBuffer* NewBuffer = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + Size * Count));
-					if (NewBuffer)
-					{
-						NewBuffer->NumElements = Buffer->NumElements + Delta;
-						NewBuffer->MaxElements = NewBuffer->NumElements;
-					}
-					else
-					{
-						asIScriptContext* Context = asGetActiveContext();
-						if (Context)
-							Context->SetException("out of memory");
-						return;
-					}
-
+					if (!NewBuffer)
+						return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+					
+					NewBuffer->NumElements = Buffer->NumElements + Delta;
+					NewBuffer->MaxElements = NewBuffer->NumElements;
 					memcpy(NewBuffer->Data, Buffer->Data, (size_t)Where * (size_t)ElementSize);
 					if (Where < Buffer->NumElements)
 						memcpy(NewBuffer->Data + (Where + Delta) * (size_t)ElementSize, Buffer->Data + Where * (size_t)ElementSize, (size_t)(Buffer->NumElements - Where) * (size_t)ElementSize);
@@ -1337,10 +1349,7 @@ namespace Mavi
 				if (NumElements <= MaxSize)
 					return true;
 
-				asIScriptContext* Context = asGetActiveContext();
-				if (Context)
-					Context->SetException("too large array size");
-
+				Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_TOOLARGESIZE));
 				return false;
 			}
 			asITypeInfo* Array::GetArrayObjectType() const
@@ -1358,34 +1367,18 @@ namespace Mavi
 			void Array::InsertAt(size_t Index, void* Value)
 			{
 				if (Index > Buffer->NumElements)
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-				}
-				else
-				{
-					Resize(1, Index);
-					SetValue(Index, Value);
-				}
+					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
+
+				Resize(1, Index);
+				SetValue(Index, Value);
 			}
 			void Array::InsertAt(size_t Index, const Array& Array)
 			{
 				if (Index > Buffer->NumElements)
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-					return;
-				}
+					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 
 				if (ObjType != Array.ObjType)
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("mismatching array types");
-					return;
-				}
+					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_TEMPLATEMISMATCH));
 
 				size_t NewSize = Array.GetSize();
 				Resize((int)NewSize, Index);
@@ -1420,13 +1413,8 @@ namespace Mavi
 			void Array::RemoveAt(size_t Index)
 			{
 				if (Index >= Buffer->NumElements)
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-				}
-				else
-					Resize(-1, Index);
+					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
+				Resize(-1, Index);
 			}
 			void Array::RemoveLast()
 			{
@@ -1436,10 +1424,7 @@ namespace Mavi
 			{
 				if (Buffer == 0 || Index >= Buffer->NumElements)
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return nullptr;
 				}
 				else if ((SubTypeId & asTYPEID_MASK_OBJECT) && !(SubTypeId & asTYPEID_OBJHANDLE))
@@ -1455,10 +1440,7 @@ namespace Mavi
 			{
 				if (IsEmpty())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return nullptr;
 				}
 
@@ -1468,10 +1450,7 @@ namespace Mavi
 			{
 				if (IsEmpty())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return nullptr;
 				}
 
@@ -1481,10 +1460,7 @@ namespace Mavi
 			{
 				if (IsEmpty())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return nullptr;
 				}
 
@@ -1494,10 +1470,7 @@ namespace Mavi
 			{
 				if (IsEmpty())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return nullptr;
 				}
 
@@ -1510,18 +1483,12 @@ namespace Mavi
 			void Array::CreateBuffer(SBuffer** BufferPtr, size_t NumElements)
 			{
 				*BufferPtr = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + (size_t)ElementSize * (size_t)NumElements));
-				if (*BufferPtr)
-				{
-					(*BufferPtr)->NumElements = NumElements;
-					(*BufferPtr)->MaxElements = NumElements;
-					Construct(*BufferPtr, 0, NumElements);
-				}
-				else
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("out of memory");
-				}
+				if (!*BufferPtr)
+					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+
+				(*BufferPtr)->NumElements = NumElements;
+				(*BufferPtr)->MaxElements = NumElements;
+				Construct(*BufferPtr, 0, NumElements);
 			}
 			void Array::DeleteBuffer(SBuffer* BufferPtr)
 			{
@@ -1673,7 +1640,7 @@ namespace Mavi
 				}
 
 				bool IsEqual = true;
-				SCache* Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ARRAY_CACHE));
+				SCache* Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(CACHE_ARRAY));
 				for (size_t n = 0; n < GetSize(); n++)
 				{
 					if (!Equals(At(n), Other.At(n), CmpContext, Cache))
@@ -1805,7 +1772,7 @@ namespace Mavi
 				SCache* Cache = 0;
 				if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
 				{
-					Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ARRAY_CACHE));
+					Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(CACHE_ARRAY));
 					if (!Cache || (Cache->CmpFunc == 0 && Cache->EqFunc == 0))
 					{
 						asIScriptContext* Context = asGetActiveContext();
@@ -1817,7 +1784,7 @@ namespace Mavi
 								snprintf(Swap, 512, "Type '%s' has multiple matching opEquals or opCmp methods", SubType->GetName());
 							else
 								snprintf(Swap, 512, "Type '%s' does not have a matching opEquals or opCmp method", SubType->GetName());
-							Context->SetException(Swap);
+							Bindings::Exception::Throw(Bindings::Exception::Pointer("template_error", Swap));
 						}
 
 						return -1;
@@ -1901,7 +1868,7 @@ namespace Mavi
 			}
 			void Array::Sort(size_t StartAt, size_t Count, bool Asc)
 			{
-				SCache* Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ARRAY_CACHE));
+				SCache* Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(CACHE_ARRAY));
 				if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
 				{
 					if (!Cache || Cache->CmpFunc == 0)
@@ -1915,7 +1882,7 @@ namespace Mavi
 								snprintf(Swap, 512, "Type '%s' has multiple matching opCmp methods", SubType->GetName());
 							else
 								snprintf(Swap, 512, "Type '%s' does not have a matching opCmp method", SubType->GetName());
-							Context->SetException(Swap);
+							Bindings::Exception::Throw(Bindings::Exception::Pointer("template_error", Swap));
 						}
 
 						return;
@@ -1929,13 +1896,7 @@ namespace Mavi
 				int End = (int)StartAt + (int)Count;
 
 				if (Start >= (int)Buffer->NumElements || End > (int)Buffer->NumElements)
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
-					return;
-				}
+					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 
 				unsigned char Swap[16];
 				asIScriptContext* CmpContext = 0;
@@ -1994,13 +1955,7 @@ namespace Mavi
 					End = Buffer->NumElements;
 
 				if (Start >= Buffer->NumElements)
-				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
-					return;
-				}
+					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 
 				unsigned char Swap[16];
 				asIScriptContext* CmpContext = 0;
@@ -2109,27 +2064,20 @@ namespace Mavi
 				if (!(SubTypeId & ~asTYPEID_MASK_SEQNBR))
 					return;
 
-				SCache* Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ARRAY_CACHE));
+				SCache* Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(CACHE_ARRAY));
 				if (Cache)
 					return;
 
 				asAcquireExclusiveLock();
-				Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ARRAY_CACHE));
+				Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(CACHE_ARRAY));
 				if (Cache)
-				{
-					asReleaseExclusiveLock();
-					return;
-				}
+					return asReleaseExclusiveLock();
 
 				Cache = reinterpret_cast<SCache*>(asAllocMem(sizeof(SCache)));
 				if (!Cache)
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("out of memory");
-
-					asReleaseExclusiveLock();
-					return;
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+					return asReleaseExclusiveLock();
 				}
 
 				memset(Cache, 0, sizeof(SCache));
@@ -2205,7 +2153,7 @@ namespace Mavi
 				if (Cache->CmpFunc == 0 && Cache->CmpFuncReturnCode == 0)
 					Cache->CmpFuncReturnCode = asNO_FUNCTION;
 
-				ObjType->SetUserData(Cache, ARRAY_CACHE);
+				ObjType->SetUserData(Cache, CACHE_ARRAY);
 				asReleaseExclusiveLock();
 			}
 			void Array::EnumReferences(asIScriptEngine* Engine)
@@ -2267,10 +2215,7 @@ namespace Mavi
 				void* Memory = asAllocMem(sizeof(Array));
 				if (Memory == 0)
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("out of memory");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 					return 0;
 				}
 
@@ -2282,10 +2227,7 @@ namespace Mavi
 				void* Memory = asAllocMem(sizeof(Array));
 				if (Memory == 0)
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("out of memory");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 					return 0;
 				}
 
@@ -2297,10 +2239,7 @@ namespace Mavi
 				void* Memory = asAllocMem(sizeof(Array));
 				if (Memory == 0)
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("out of memory");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 					return 0;
 				}
 
@@ -2313,7 +2252,7 @@ namespace Mavi
 			}
 			void Array::CleanupTypeInfoCache(asITypeInfo* Type)
 			{
-				Array::SCache* Cache = reinterpret_cast<Array::SCache*>(Type->GetUserData(ARRAY_CACHE));
+				Array::SCache* Cache = reinterpret_cast<Array::SCache*>(Type->GetUserData(CACHE_ARRAY));
 				if (Cache != nullptr)
 				{
 					Cache->~SCache();
@@ -2451,11 +2390,7 @@ namespace Mavi
 				{
 					Value.Object = Engine->CreateScriptObjectCopy(Pointer, Engine->GetTypeInfoById(Value.TypeId));
 					if (Value.Object == 0)
-					{
-						asIScriptContext* Context = asGetActiveContext();
-						if (Context)
-							Context->SetException("cannot create copy of object");
-					}
+						Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_COPYFAIL));
 				}
 				else
 				{
@@ -2672,7 +2607,7 @@ namespace Mavi
 				asIScriptContext* Context = asGetActiveContext();
 				Init(Context->GetEngine());
 
-				Dictionary::SCache& Cache = *reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(MAP_CACHE));
+				Dictionary::SCache& Cache = *reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(CACHE_MAP));
 				bool keyAsRef = Cache.KeyType->GetFlags() & asOBJ_REF ? true : false;
 
 				size_t Length = *(asUINT*)Buffer;
@@ -2852,10 +2787,7 @@ namespace Mavi
 				if (It != Data.end())
 					return &It->second;
 
-				asIScriptContext* Context = asGetActiveContext();
-				if (Context)
-					Context->SetException("invalid access to non-existing value");
-
+				Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_ACCESSINVALID));
 				return 0;
 			}
 			void Dictionary::Set(const Core::String& Key, void* Value, int TypeId)
@@ -2962,7 +2894,7 @@ namespace Mavi
 			}
 			Array* Dictionary::GetKeys() const
 			{
-				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(MAP_CACHE));
+				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(CACHE_MAP));
 				asITypeInfo* Info = Cache->ArrayType;
 
 				Array* Array = Array::Create(Info, size_t(Data.size()));
@@ -2988,12 +2920,24 @@ namespace Mavi
 			Dictionary* Dictionary::Create(asIScriptEngine* Engine)
 			{
 				Dictionary* Obj = (Dictionary*)asAllocMem(sizeof(Dictionary));
+				if (!Obj)
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+					return nullptr;
+				}
+
 				new(Obj) Dictionary(Engine);
 				return Obj;
 			}
 			Dictionary* Dictionary::Create(unsigned char* buffer)
 			{
 				Dictionary* Obj = (Dictionary*)asAllocMem(sizeof(Dictionary));
+				if (!Obj)
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+					return nullptr;
+				}
+
 				new(Obj) Dictionary(buffer);
 				return Obj;
 			}
@@ -3003,22 +2947,22 @@ namespace Mavi
 				GCFlag = false;
 				Engine = Engine_;
 
-				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(MAP_CACHE));
+				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(CACHE_MAP));
 				Engine->NotifyGarbageCollectorOfNewObject(this, Cache->DictionaryType);
 			}
 			void Dictionary::Cleanup(asIScriptEngine* Engine)
 			{
-				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(MAP_CACHE));
+				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(CACHE_MAP));
 				VI_DELETE(SCache, Cache);
 			}
 			void Dictionary::Setup(asIScriptEngine* Engine)
 			{
-				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(MAP_CACHE));
+				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(CACHE_MAP));
 				if (Cache == 0)
 				{
 					Cache = VI_NEW(Dictionary::SCache);
-					Engine->SetUserData(Cache, MAP_CACHE);
-					Engine->SetEngineUserDataCleanupCallback(Cleanup, MAP_CACHE);
+					Engine->SetUserData(Cache, CACHE_MAP);
+					Engine->SetEngineUserDataCleanupCallback(Cleanup, CACHE_MAP);
 
 					Cache->DictionaryType = Engine->GetTypeInfoByName(TYPENAME_DICTIONARY);
 					Cache->ArrayType = Engine->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">");
@@ -3626,11 +3570,7 @@ namespace Mavi
 				}
 				else
 				{
-					asIScriptContext* ThisContext = asGetActiveContext();
-					if (!ThisContext)
-						ThisContext = Context;
-
-					ThisContext->SetException("promise is already fulfilled");
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_PROMISEREADY));
 					Update.unlock();
 				}
 			}
@@ -3712,25 +3652,39 @@ namespace Mavi
 			Promise* Promise::YieldIf()
 			{
 				std::unique_lock<std::mutex> Unique(Update);
-				if (Value.TypeId == PromiseNULL && Context != nullptr)
+				ImmediateContext* TargetContext = ImmediateContext::Get(Context);
+				if (Value.TypeId == PromiseNULL && TargetContext != nullptr && !TargetContext->Suspend())
 				{
-					AddRef();
 					Context->SetUserData(this, PromiseUD);
-					Context->Suspend();
+					AddRef();
 				}
 
 				return this;
 			}
 			Promise* Promise::CreateFactory(void* _Ref, int TypeId)
 			{
-				Promise* Future = new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext());
+				Promise* Future = (Promise*)asAllocMem(sizeof(Promise));
+				if (!Future)
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+					return nullptr;
+				}
+				
+				new(Future) Promise(asGetActiveContext());
 				if (TypeId != asTYPEID_VOID)
 					Future->Store(_Ref, TypeId);
 				return Future;
 			}
 			Promise* Promise::CreateFactoryVoid(bool HasValue)
 			{
-				Promise* Future = new(asAllocMem(sizeof(Promise))) Promise(asGetActiveContext());
+				Promise* Future = (Promise*)asAllocMem(sizeof(Promise));
+				if (!Future)
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+					return nullptr;
+				}
+
+				new(Future) Promise(asGetActiveContext());
 				if (HasValue)
 					Future->StoreVoid();
 				return Future;
@@ -4364,10 +4318,7 @@ namespace Mavi
 				void* Data = asAllocMem(sizeof(Mutex));
 				if (!Data)
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context != nullptr)
-						Context->SetException("out of memory");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 					return nullptr;
 				}
 
@@ -4430,22 +4381,25 @@ namespace Mavi
 				Flag = false;
 				asAtomicInc(RefCount);
 			}
-			void Thread::Suspend()
+			bool Thread::Suspend()
 			{
 				std::unique_lock<std::recursive_mutex> Unique(Mutex);
 				Status = ThreadState::Resume;
-				if (!Context->IsSuspended())
-					Context->Suspend();
+				if (Context->IsSuspended())
+					return true;
+
+				return !Context->Suspend();
 			}
-			void Thread::Resume()
+			bool Thread::Resume()
 			{
 				std::unique_lock<std::recursive_mutex> Unique(Mutex);
 				if (!Context->IsSuspended())
-					return;
+					return false;
 
 				Join();
 				Procedure = std::thread(&Thread::ResumeRoutine, this);
 				VI_DEBUG("[vm] resume thread at %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
+				return true;
 			}
 			void Thread::Release()
 			{
@@ -4609,6 +4563,9 @@ namespace Mavi
 				asIScriptEngine* Engine = Generic->GetEngine();
 				asIScriptFunction* Function = *(asIScriptFunction**)Generic->GetAddressOfArg(0);
 				void* Data = asAllocMem(sizeof(Thread));
+				if (!Data)
+					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+
 				*(Thread**)Generic->GetAddressOfReturnLocation() = new(Data) Thread(Engine, Function);
 			}
 			Thread* Thread::GetThread()
@@ -4623,11 +4580,16 @@ namespace Mavi
 			{
 				std::this_thread::sleep_for(std::chrono::milliseconds(Timeout));
 			}
-			void Thread::ThreadSuspend()
+			bool Thread::ThreadSuspend()
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				if (Context && !Context->IsSuspended())
-					Context->Suspend();
+				if (!Context)
+					return false;
+				
+				if (Context->IsSuspended())
+					return true;
+
+				return !Context->Suspend();
 			}
 			Core::String Thread::GetThreadId()
 			{
@@ -4671,7 +4633,10 @@ namespace Mavi
 
 				Buffer = (char*)asAllocMem(NewSize);
 				if (!Buffer)
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 					return false;
+				}
 
 				memset(Buffer, 0, NewSize);
 				Size = NewSize;
@@ -4874,15 +4839,36 @@ namespace Mavi
 			}
 			CharBuffer* CharBuffer::Create()
 			{
-				return new(asAllocMem(sizeof(CharBuffer))) CharBuffer();
+				void* Data = asAllocMem(sizeof(CharBuffer));
+				if (!Data)
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+					return nullptr;
+				}
+
+				return new(Data) CharBuffer();
 			}
 			CharBuffer* CharBuffer::Create(size_t Size)
 			{
-				return new(asAllocMem(sizeof(CharBuffer))) CharBuffer(Size);
+				void* Data = asAllocMem(sizeof(CharBuffer));
+				if (!Data)
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+					return nullptr;
+				}
+
+				return new(Data)  CharBuffer(Size);
 			}
 			CharBuffer* CharBuffer::Create(char* Pointer)
 			{
-				return new(asAllocMem(sizeof(CharBuffer))) CharBuffer(Pointer);
+				void* Data = asAllocMem(sizeof(CharBuffer));
+				if (!Data)
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+					return nullptr;
+				}
+
+				return new(Data)  CharBuffer(Pointer);
 			}
 
 			Complex::Complex() noexcept
@@ -8327,10 +8313,7 @@ namespace Mavi
 			{
 				if (Index >= Base.Resources.size())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return Network::HTTP::Resource();
 				}
 
@@ -8346,10 +8329,7 @@ namespace Mavi
 			{
 				if (Index >= Base.Headers.size())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return Core::String();
 				}
 
@@ -8359,10 +8339,7 @@ namespace Mavi
 
 				if (Subindex >= It->second.size())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return Core::String();
 				}
 
@@ -8372,10 +8349,7 @@ namespace Mavi
 			{
 				if (Index >= Base.Headers.size())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return 0;
 				}
 
@@ -8398,10 +8372,7 @@ namespace Mavi
 			{
 				if (Index >= Base.Cookies.size())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return Core::String();
 				}
 
@@ -8411,10 +8382,7 @@ namespace Mavi
 
 				if (Subindex >= It->second.size())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return Core::String();
 				}
 
@@ -8424,10 +8392,7 @@ namespace Mavi
 			{
 				if (Index >= Base.Cookies.size())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return 0;
 				}
 
@@ -8463,10 +8428,7 @@ namespace Mavi
 			{
 				if (Index >= Base.Headers.size())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return Core::String();
 				}
 
@@ -8476,10 +8438,7 @@ namespace Mavi
 
 				if (Subindex >= It->second.size())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return Core::String();
 				}
 
@@ -8489,10 +8448,7 @@ namespace Mavi
 			{
 				if (Index >= Base.Headers.size())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return 0;
 				}
 
@@ -8515,10 +8471,7 @@ namespace Mavi
 			{
 				if (Index >= Base.Cookies.size())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return Network::HTTP::Cookie();
 				}
 
@@ -8533,10 +8486,7 @@ namespace Mavi
 			{
 				if (Index >= Base->Routes.size())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return nullptr;
 				}
 
@@ -8694,10 +8644,7 @@ namespace Mavi
 			{
 				if (Index >= Base->Groups.size())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return nullptr;
 				}
 
@@ -9111,10 +9058,7 @@ namespace Mavi
 			{
 				if (Index >= Base->Sites.size())
 				{
-					asIScriptContext* Context = asGetActiveContext();
-					if (Context)
-						Context->SetException("index out of bounds");
-
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return nullptr;
 				}
 
@@ -9395,7 +9339,7 @@ namespace Mavi
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
 
 				asIScriptEngine* Engine = VM->GetEngine();
-				Engine->SetTypeInfoUserDataCleanupCallback(Array::CleanupTypeInfoCache, ARRAY_CACHE);
+				Engine->SetTypeInfoUserDataCleanupCallback(Array::CleanupTypeInfoCache, CACHE_ARRAY);
 				Engine->RegisterObjectType("array<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Array::TemplateCallback), asCALL_CDECL);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_FACTORY, "array<T>@ f(int&in)", asFUNCTIONPR(Array::Create, (asITypeInfo*), Array*), asCALL_CDECL);
@@ -9767,8 +9711,8 @@ namespace Mavi
 				Engine->RegisterObjectBehaviour("thread", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Thread, ReleaseReferences), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("thread", "bool is_active()", asMETHOD(Thread, IsActive), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("thread", "bool invoke()", asMETHOD(Thread, Start), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "void suspend()", asMETHOD(Thread, Suspend), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "void resume()", asMETHOD(Thread, Resume), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("thread", "bool suspend()", asMETHOD(Thread, Suspend), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("thread", "bool resume()", asMETHOD(Thread, Resume), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("thread", "void push(const ?&in)", asMETHOD(Thread, Push), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("thread", "bool pop(?&out)", asMETHODPR(Thread, Pop, (void*, int), bool), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("thread", "bool pop(?&out, uint64)", asMETHODPR(Thread, Pop, (void*, int, uint64_t), bool), asCALL_THISCALL);
@@ -9780,7 +9724,7 @@ namespace Mavi
 				Engine->RegisterGlobalFunction("thread@+ get_routine()", asFUNCTION(Thread::GetThread), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string get_id()", asFUNCTION(Thread::GetThreadId), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("void sleep(uint64)", asFUNCTION(Thread::ThreadSleep), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("void suspend()", asFUNCTION(Thread::ThreadSuspend), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("bool suspend()", asFUNCTION(Thread::ThreadSuspend), asCALL_CDECL);
 				VM->EndNamespace();
 				return true;
 #else
@@ -12252,8 +12196,7 @@ namespace Mavi
 				VSimulatorDesc.SetProperty<Compute::Simulator::Desc>("bool enable_soft_body", &Compute::Simulator::Desc::EnableSoftBody);
 				VSimulatorDesc.SetConstructor<Compute::Simulator::Desc>("void f()");
 
-				VSimulator.SetProperty<Compute::Simulator>("float time_speed", &Compute::Simulator::TimeSpeed);
-				VSimulator.SetProperty<Compute::Simulator>("int interpolate", &Compute::Simulator::Interpolate);
+				VSimulator.SetProperty<Compute::Simulator>("float speedup", &Compute::Simulator::Speedup);
 				VSimulator.SetProperty<Compute::Simulator>("bool active", &Compute::Simulator::Active);
 				VSimulator.SetConstructor<Compute::Simulator, const Compute::Simulator::Desc&>("physics_simulator@ f(const physics_simulator_desc &in)");
 				VSimulator.SetMethod("void set_gravity(const vector3 &in)", &Compute::Simulator::SetGravity);
@@ -12272,7 +12215,7 @@ namespace Mavi
 				VSimulator.SetMethod("void add_constraint(physics_constraint@+)", &Compute::Simulator::AddConstraint);
 				VSimulator.SetMethod("void remove_constraint(physics_constraint@+)", &Compute::Simulator::RemoveConstraint);
 				VSimulator.SetMethod("void remove_all()", &Compute::Simulator::RemoveAll);
-				VSimulator.SetMethod("void simulate(int, float, float)", &Compute::Simulator::Simulate);
+				VSimulator.SetMethod("void simulate_step(float)", &Compute::Simulator::SimulateStep);
 				VSimulator.SetMethod<Compute::Simulator, Compute::RigidBody*, const Compute::RigidBody::Desc&>("physics_rigidbody@ create_rigidbody(const physics_rigidbody_desc &in)", &Compute::Simulator::CreateRigidBody);
 				VSimulator.SetMethod<Compute::Simulator, Compute::RigidBody*, const Compute::RigidBody::Desc&, Compute::Transform*>("physics_rigidbody@ create_rigidbody(const physics_rigidbody_desc &in, transform@+)", &Compute::Simulator::CreateRigidBody);
 				VSimulator.SetMethod<Compute::Simulator, Compute::SoftBody*, const Compute::SoftBody::Desc&>("physics_softbody@ create_softbody(const physics_softbody_desc &in)", &Compute::Simulator::CreateSoftBody);
@@ -12418,10 +12361,7 @@ namespace Mavi
 				VAudioSync.SetConstructor<Audio::AudioSync>("void f()");
 
 				Engine->BeginNamespace("audio_context");
-				Engine->SetFunction("void create()", Audio::AudioContext::Create);
-				Engine->SetFunction("void release()", Audio::AudioContext::Release);
-				Engine->SetFunction("void lock()", Audio::AudioContext::Lock);
-				Engine->SetFunction("void unlock()", Audio::AudioContext::Unlock);
+				Engine->SetFunction("void initialize()", Audio::AudioContext::Initialize);
 				Engine->SetFunction("void generate_buffers(int32, uint32 &out)", Audio::AudioContext::GenerateBuffers);
 				Engine->SetFunction("void set_source_data_3f(uint32, sound_ex, float, float, float)", Audio::AudioContext::SetSourceData3F);
 				Engine->SetFunction("void get_source_data_3f(uint32, sound_ex, float &out, float &out, float &out)", Audio::AudioContext::GetSourceData3F);

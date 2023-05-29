@@ -56,7 +56,7 @@ namespace Mavi
 	{
 		namespace Effects
 		{
-			void EffectContext::Create()
+			void EffectContext::Initialize()
 			{
 				VI_TRACE("[audio] load effect functions");
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
@@ -141,7 +141,6 @@ namespace Mavi
 			void Reverb::Synchronize()
 			{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-				AudioContext::Lock();
 				if (EAX)
 				{
 					float ReflectionsPan3[3];
@@ -190,7 +189,6 @@ namespace Mavi
 					alEffectf(Effect, AL_REVERB_ROOM_ROLLOFF_FACTOR, RoomRolloffFactor);
 					alEffecti(Effect, AL_REVERB_DECAY_HFLIMIT, IsDecayHFLimited ? 1 : 0);
 				}
-				AudioContext::Unlock();
 #endif
 			}
 			void Reverb::Deserialize(Core::Schema* Node)
@@ -301,14 +299,12 @@ namespace Mavi
 			void Chorus::Synchronize()
 			{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-				AudioContext::Lock();
 				alEffectf(Effect, AL_CHORUS_DELAY, Rate);
 				alEffectf(Effect, AL_CHORUS_DEPTH, Depth);
 				alEffectf(Effect, AL_CHORUS_FEEDBACK, Feedback);
 				alEffectf(Effect, AL_CHORUS_DELAY, Delay);
 				alEffecti(Effect, AL_CHORUS_WAVEFORM, Waveform);
 				alEffecti(Effect, AL_CHORUS_PHASE, Phase);
-				AudioContext::Unlock();
 #endif
 			}
 			void Chorus::Deserialize(Core::Schema* Node)
@@ -368,13 +364,11 @@ namespace Mavi
 			void Distortion::Synchronize()
 			{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-				AudioContext::Lock();
 				alEffectf(Effect, AL_DISTORTION_EDGE, Edge);
 				alEffectf(Effect, AL_DISTORTION_GAIN, Gain);
 				alEffectf(Effect, AL_DISTORTION_LOWPASS_CUTOFF, LowpassCutOff);
 				alEffectf(Effect, AL_DISTORTION_EQCENTER, EQCenter);
 				alEffectf(Effect, AL_DISTORTION_EQBANDWIDTH, EQBandwidth);
-				AudioContext::Unlock();
 #endif
 			}
 			void Distortion::Deserialize(Core::Schema* Node)
@@ -431,13 +425,11 @@ namespace Mavi
 			void Echo::Synchronize()
 			{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-				AudioContext::Lock();
 				alEffectf(Effect, AL_ECHO_DELAY, Delay);
 				alEffectf(Effect, AL_ECHO_LRDELAY, LRDelay);
 				alEffectf(Effect, AL_ECHO_DAMPING, Damping);
 				alEffectf(Effect, AL_ECHO_FEEDBACK, Feedback);
 				alEffectf(Effect, AL_ECHO_SPREAD, Spread);
-				AudioContext::Unlock();
 #endif
 			}
 			void Echo::Deserialize(Core::Schema* Node)
@@ -494,14 +486,12 @@ namespace Mavi
 			void Flanger::Synchronize()
 			{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-				AudioContext::Lock();
 				alEffectf(Effect, AL_FLANGER_RATE, Rate);
 				alEffectf(Effect, AL_FLANGER_DEPTH, Depth);
 				alEffectf(Effect, AL_FLANGER_FEEDBACK, Feedback);
 				alEffectf(Effect, AL_FLANGER_DELAY, Delay);
 				alEffecti(Effect, AL_FLANGER_WAVEFORM, Waveform);
 				alEffecti(Effect, AL_FLANGER_PHASE, Phase);
-				AudioContext::Unlock();
 #endif
 			}
 			void Flanger::Deserialize(Core::Schema* Node)
@@ -561,11 +551,9 @@ namespace Mavi
 			void FrequencyShifter::Synchronize()
 			{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-				AudioContext::Lock();
 				alEffectf(Effect, AL_FREQUENCY_SHIFTER_FREQUENCY, Frequency);
 				alEffecti(Effect, AL_FREQUENCY_SHIFTER_LEFT_DIRECTION, LeftDirection);
 				alEffecti(Effect, AL_FREQUENCY_SHIFTER_RIGHT_DIRECTION, RightDirection);
-				AudioContext::Unlock();
 #endif
 			}
 			void FrequencyShifter::Deserialize(Core::Schema* Node)
@@ -616,14 +604,12 @@ namespace Mavi
 			void VocalMorpher::Synchronize()
 			{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-				AudioContext::Lock();
 				alEffectf(Effect, AL_VOCAL_MORPHER_RATE, Rate);
 				alEffecti(Effect, AL_VOCAL_MORPHER_PHONEMEA, Phonemea);
 				alEffecti(Effect, AL_VOCAL_MORPHER_PHONEMEA_COARSE_TUNING, PhonemeaCoarseTuning);
 				alEffecti(Effect, AL_VOCAL_MORPHER_PHONEMEB, Phonemeb);
 				alEffecti(Effect, AL_VOCAL_MORPHER_PHONEMEB_COARSE_TUNING, PhonemebCoarseTuning);
 				alEffecti(Effect, AL_VOCAL_MORPHER_WAVEFORM, Waveform);
-				AudioContext::Unlock();
 #endif
 			}
 			void VocalMorpher::Deserialize(Core::Schema* Node)
@@ -683,10 +669,8 @@ namespace Mavi
 			void PitchShifter::Synchronize()
 			{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-				AudioContext::Lock();
 				alEffecti(Effect, AL_PITCH_SHIFTER_COARSE_TUNE, CoarseTune);
 				alEffecti(Effect, AL_PITCH_SHIFTER_FINE_TUNE, FineTune);
-				AudioContext::Unlock();
 #endif
 			}
 			void PitchShifter::Deserialize(Core::Schema* Node)
@@ -734,11 +718,9 @@ namespace Mavi
 			void RingModulator::Synchronize()
 			{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-				AudioContext::Lock();
 				alEffectf(Effect, AL_RING_MODULATOR_FREQUENCY, Frequency);
 				alEffectf(Effect, AL_RING_MODULATOR_HIGHPASS_CUTOFF, HighpassCutOff);
 				alEffecti(Effect, AL_RING_MODULATOR_WAVEFORM, Waveform);
-				AudioContext::Unlock();
 #endif
 			}
 			void RingModulator::Deserialize(Core::Schema* Node)
@@ -789,12 +771,10 @@ namespace Mavi
 			void Autowah::Synchronize()
 			{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-				AudioContext::Lock();
 				alEffectf(Effect, AL_AUTOWAH_ATTACK_TIME, AttackTime);
 				alEffectf(Effect, AL_AUTOWAH_RELEASE_TIME, ReleaseTime);
 				alEffectf(Effect, AL_AUTOWAH_RESONANCE, Resonance);
 				alEffectf(Effect, AL_AUTOWAH_PEAK_GAIN, PeakGain);
-				AudioContext::Unlock();
 #endif
 			}
 			void Autowah::Deserialize(Core::Schema* Node)
@@ -883,7 +863,6 @@ namespace Mavi
 			void Equalizer::Synchronize()
 			{
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
-				AudioContext::Lock();
 				alEffectf(Effect, AL_EQUALIZER_LOW_GAIN, LowGain);
 				alEffectf(Effect, AL_EQUALIZER_LOW_CUTOFF, LowCutOff);
 				alEffectf(Effect, AL_EQUALIZER_MID1_CENTER, Mid1Center);
@@ -893,7 +872,6 @@ namespace Mavi
 				alEffectf(Effect, AL_EQUALIZER_MID2_WIDTH, Mid2Width);
 				alEffectf(Effect, AL_EQUALIZER_HIGH_GAIN, HighGain);
 				alEffectf(Effect, AL_EQUALIZER_HIGH_CUTOFF, HighCutOff);
-				AudioContext::Unlock();
 #endif
 			}
 			void Equalizer::Deserialize(Core::Schema* Node)

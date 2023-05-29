@@ -103,15 +103,8 @@ namespace Mavi
 
 		class VI_OUT AudioContext
 		{
-		private:
-			static std::mutex* Mutex;
-			static int State;
-
 		public:
-			static void Create();
-			static void Release();
-			static void Lock();
-			static void Unlock();
+			static void Initialize();
 			static void GenerateBuffers(int Count, unsigned int* Buffers);
 			static void SetBufferData(unsigned int Buffer, int Format, const void* Data, int Size, int Frequency);
 			static void SetSourceData3F(unsigned int Source, SoundEx Value, float F1, float F2, float F3);

@@ -7888,16 +7888,17 @@ namespace Mavi
 		{
 #ifdef VI_HAS_ZLIB
 			VI_TRACE("[codec] decompress %" PRIu64 " bytes", (uint64_t)Data.size());
-			uLongf TotalSize = (uLongf)Data.size() * 2;
+			uLongf SourceSize = (uLong)Data.size();
+			uLongf TotalSize = SourceSize * 2;
 			while (true)
 			{
-				uLongf Size = TotalSize, SrcSize = (uLong)Data.size();
+				uLongf Size = TotalSize, FinalSize = SourceSize;
 				Bytef* Buffer = VI_MALLOC(Bytef, Size);
-				int Code = uncompress2(Buffer, &Size, (const Bytef*)Data.data(), &SrcSize);
-				if (Code == Z_MEM_ERROR)
+				int Code = uncompress2(Buffer, &Size, (const Bytef*)Data.data(), &FinalSize);
+				if (Code == Z_MEM_ERROR || Code == Z_BUF_ERROR)
 				{
 					VI_FREE(Buffer);
-					TotalSize += (uLongf)Data.size();
+					TotalSize += SourceSize;
 					continue;
 				}
 				else if (Code != Z_OK)

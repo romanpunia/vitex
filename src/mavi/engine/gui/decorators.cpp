@@ -11,8 +11,8 @@ namespace Mavi
 		{
 			static void SetWorldViewProjection(RenderConstants* Constants, Rml::Element* Element, const Rml::Vector2f& Position, const Rml::Vector2f& Size, const Compute::Vector2& Mul = 1.0f)
 			{
-				VI_ASSERT_V(Constants != nullptr, "graphics device should be set");
-				VI_ASSERT_V(Element != nullptr, "element should be set");
+				VI_ASSERT(Constants != nullptr, "graphics device should be set");
+				VI_ASSERT(Element != nullptr, "element should be set");
 
 				Compute::Vector3 Scale(Size.x / 2.0f, Size.y / 2.0f);
 				Compute::Vector3 Offset(Position.x + Scale.X, Position.y + Scale.Y);
@@ -118,7 +118,7 @@ namespace Mavi
 				}
 				void RenderElement(Rml::Element* Element, Rml::DecoratorDataHandle ElementData) const override
 				{
-					VI_ASSERT_V(Element != nullptr, "element should be set");
+					VI_ASSERT(Element != nullptr, "element should be set");
 					Rml::Vector2f Position = Element->GetAbsoluteOffset(Rml::Box::PADDING).Round();
 					Rml::Vector2f Size = Element->GetBox().GetSize(Rml::Box::PADDING).Round();
 					float Alpha = Element->GetProperty<float>("opacity");
@@ -170,7 +170,7 @@ namespace Mavi
 				}
 				void RenderElement(Rml::Element* Element, Rml::DecoratorDataHandle ElementData) const override
 				{
-					VI_ASSERT_V(Element != nullptr, "element should be set");
+					VI_ASSERT(Element != nullptr, "element should be set");
 					Graphics::Texture2D* Background = Subsystem::GetBackground();
 					if (!Background)
 						return;
@@ -208,8 +208,8 @@ namespace Mavi
 
 			BoxShadowInstancer::BoxShadowInstancer(RenderConstants* NewConstants) : Shader(nullptr), Device(nullptr), Constants(NewConstants)
 			{
-				VI_ASSERT_V(Constants != nullptr, "render constants should be set");
-				VI_ASSERT_V(Constants->GetDevice() != nullptr, "graphics device should be set");
+				VI_ASSERT(Constants != nullptr, "render constants should be set");
+				VI_ASSERT(Constants->GetDevice() != nullptr, "graphics device should be set");
 				Device = Constants->GetDevice();
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
@@ -268,8 +268,8 @@ namespace Mavi
 
 			BoxBlurInstancer::BoxBlurInstancer(RenderConstants* NewConstants) : Background(nullptr), Shader(nullptr), Device(nullptr), Constants(NewConstants)
 			{
-				VI_ASSERT_V(Constants != nullptr, "render constants should be set");
-				VI_ASSERT_V(Constants->GetDevice() != nullptr, "graphics device should be set");
+				VI_ASSERT(Constants != nullptr, "render constants should be set");
+				VI_ASSERT(Constants->GetDevice() != nullptr, "graphics device should be set");
 				Device = Constants->GetDevice();
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
@@ -326,7 +326,7 @@ namespace Mavi
 			}
 			void Subsystem::CreateDecorators(RenderConstants* Constants)
 			{
-				VI_ASSERT_V(Constants != nullptr, "render constants should be set");
+				VI_ASSERT(Constants != nullptr, "render constants should be set");
 				if (!IBoxShadow)
 				{
 					IBoxShadow = VI_NEW(BoxShadowInstancer, Constants);

@@ -28,7 +28,7 @@ namespace Mavi
 {
 	namespace Core
 	{
-		struct ConcurrentQueuePtr;
+		struct ConcurrentQueue;
 
 		struct Decimal;
 
@@ -177,6 +177,13 @@ namespace Mavi
 			Pretty = 1 << 1,
 			Async = 1 << 2,
 			Dated = 1 << 3
+		};
+
+		enum class Optional : char
+		{
+			Error = -1,
+			None = 0,
+			Value = 1
 		};
 
 		template <typename T, typename = void>
@@ -573,6 +580,363 @@ namespace Mavi
 		typedef std::function<void(VarForm, const char*, size_t)> SchemaWriteCallback;
 		typedef std::function<bool(char*, size_t)> SchemaReadCallback;
 		typedef std::function<bool()> ActivityCallback;
+
+		class VI_OUT_TS ErrorHandling
+		{
+		public:
+			struct VI_OUT Details
+			{
+				struct
+				{
+					const char* File = nullptr;
+					int Line = 0;
+				} Origin;
+				
+				struct
+				{
+					LogLevel Level = LogLevel::Info;
+					bool Fatal = false;
+				} Type;
+
+				struct
+				{
+					char Data[BLOB_SIZE] = { '\0' };
+					char Date[64] = { '\0' };
+					size_t Size = 0;
+				} Message;
+			};
+
+			struct VI_OUT Tick
+			{
+				bool IsCounting;
+
+				Tick(bool Active) noexcept;
+				Tick(const Tick& Other) = delete;
+				Tick(Tick&& Other) noexcept;
+				~Tick() noexcept;
+				Tick& operator =(const Tick& Other) = delete;
+				Tick& operator =(Tick&& Other) noexcept;
+			};
+
+		private:
+			static std::function<void(Details&)> Callback;
+			static std::mutex Buffer;
+			static uint32_t Flags;
+
+		public:
+			static void Panic(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
+			static void Assert(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
+			static void Message(LogLevel Level, int Line, const char* Source, const char* Format, ...);
+			static void Pause();
+			static void SetCallback(const std::function<void(Details&)>& Callback);
+			static void SetFlag(LogOption Option, bool Active);
+			static bool HasFlag(LogOption Option);
+			static Core::String GetStackTrace(size_t Skips, size_t MaxFrames = 16);
+			static Core::String GetMeasureTrace();
+			static Tick Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS);
+			static void MeasureLoop();
+			static const char* GetMessageType(const Details& Base);
+			static StdColor GetMessageColor(const Details& Base);
+			static Core::String GetMessageText(const Details& Base);
+
+		private:
+			static void Enqueue(Details&& Data);
+			static void Dispatch(Details& Data);
+			static void Colorify(Console* Base, Details& Data);
+			static void ColorifyTokens(Console* Base, const char* Buffer, StdColor BaseColor);
+		};
+
+		template <typename V>
+		struct Option
+		{
+			char Value[sizeof(V)];
+			bool Empty;
+
+			Option() : Empty(true)
+			{
+			}
+			Option(const V& Value) : Empty(false)
+			{
+				new (Value) V(Value);
+			}
+			Option(V&& Value) : Empty(false)
+			{
+				new (Value) V(std::move(Value));
+			}
+			Option(const Option&) = delete;
+			Option(Option&& Other) : Empty(Other.Empty)
+			{
+				memcpy(Value, Other.Value, sizeof(Value));
+				Other.Empty = true;
+			}
+			~Option()
+			{
+				if (!Empty)
+					((V*)Value)->~V();
+			}
+			Option& operator= (const V& Value)
+			{
+				~Option();
+				new (Value) V(Value);
+				Empty = false;
+				return *this;
+			}
+			Option& operator= (V&& Value)
+			{
+				~Option();
+				new (Value) V(std::move(Value));
+				Empty = false;
+				return *this;
+			}
+			Option& operator= (const Option&) = delete;
+			Option& operator= (Option&& Other)
+			{
+				if (this == &Other)
+					return *this;
+
+				~Option();
+				memcpy(Value, Other.Value, sizeof(Value));
+				Empty = Other.Empty;
+				Other.Empty = true;
+				return *this;
+			}
+			const V& Unwrap() const
+			{
+				VI_PANIC(IsValue(), "option does not contain any value");
+				return *(V*)Value;
+			}
+			V& Unwrap()
+			{
+				VI_PANIC(IsValue(), "option does not contain any value");
+				return *(V*)Value;
+			}
+			const V& OrPanic(const char* Message) const
+			{
+				VI_ASSERT(Message != nullptr, "panic case message should be set");
+				VI_PANIC(IsValue(), "%s", Message);
+				return *(V*)Value;
+			}
+			V& OrPanic(const char* Message)
+			{
+				VI_ASSERT(Message != nullptr, "panic case message should be set");
+				VI_PANIC(IsValue(), "%s", Message);
+				return *(V*)Value;
+			}
+			const V& operator* () const
+			{
+				return Unwrap();
+			}
+			V& operator* ()
+			{
+				return Unwrap();
+			}
+			operator bool() const
+			{
+				return IsValue();
+			}
+			operator Optional() const
+			{
+				return IsValue() ? Optional::Value : Optional::None;
+			}
+			bool IsNone() const
+			{
+				return Empty;
+			}
+			bool IsValue() const
+			{
+				return !Empty;
+			}
+		};
+
+		template <>
+		struct Option<void>
+		{
+			bool Empty;
+
+			Option(bool Fulfilled) : Empty(!Fulfilled)
+			{
+			}
+			Option(const Option&) = delete;
+			Option(Option&& Other) = default;
+			~Option() = default;
+			Option& operator= (bool Fulfilled)
+			{
+				Empty = !Fulfilled;
+				return *this;
+			}
+			Option& operator= (const Option&) = delete;
+			Option& operator= (Option&& Other) = default;
+			bool Unwrap() const
+			{
+				VI_PANIC(IsValue(), "option does not contain any value");
+				return true;
+			}
+			bool Unwrap()
+			{
+				VI_PANIC(IsValue(), "option does not contain any value");
+				return true;
+			}
+			bool OrPanic(const char* Message) const
+			{
+				VI_ASSERT(Message != nullptr, "panic case message should be set");
+				VI_PANIC(IsValue(), "%s", Message);
+				return true;
+			}
+			bool OrPanic(const char* Message)
+			{
+				VI_ASSERT(Message != nullptr, "panic case message should be set");
+				VI_PANIC(IsValue(), "%s", Message);
+				return true;
+			}
+			operator bool() const
+			{
+				return IsValue();
+			}
+			operator Optional() const
+			{
+				return IsValue() ? Optional::Value : Optional::None;
+			}
+			bool IsNone() const
+			{
+				return Empty;
+			}
+			bool IsValue() const
+			{
+				return !Empty;
+			}
+		};
+
+		template <typename V, typename E>
+		struct Expects
+		{
+			static_assert(!std::is_same<T, void>::value, "value type should not be void");
+			static_assert(!std::is_same<E, void>::value, "error type should not be void");
+			union Pair { V A; E B; };
+			char Value[sizeof(Pair)];
+			char Status;
+
+			Expects(const V& Value) : Status(1)
+			{
+				new (Value) V(Value);
+			}
+			Expects(V&& Value) : Status(1)
+			{
+				new (Value) V(std::move(Value));
+			}
+			Expects(const E& Value) : Status(-1)
+			{
+				new (Value) E(Value);
+			}
+			Expects(E&& Value) : Status(-1)
+			{
+				new (Value) E(std::move(Value));
+			}
+			Expects(const Expects&) = delete;
+			Expects(Expects&& Other) : Status(Other.Status)
+			{
+				Other.Status = 0;
+				if (Status > 0)
+					memcpy(Value, Other.Value, sizeof(V));
+				else if (Status < 0)
+					memcpy(Value, Other.Value, sizeof(E));
+			}
+			~Expects()
+			{
+				if (Status > 0)
+					((V*)Value)->~V();
+				else if (Status < 0)
+					((E*)Value)->~E();
+			}
+			Expects& operator= (const V& Value)
+			{
+				~Expects();
+				new (Value) V(Value);
+				Status = 1;
+				return **this;
+			}
+			Expects& operator= (V&& Value)
+			{
+				~Expects();
+				new (Value) V(std::move(Value));
+				Status = 1;
+				return *this;
+			}
+			Expects& operator= (const Expects&) = delete;
+			Expects& operator= (Expects&& Other)
+			{
+				if (this == &Other)
+					return *this;
+
+				~Expects();
+				Status = Other.Status;
+				Other.Status = 0;
+				if (Status > 0)
+					memcpy(Value, Other.Value, sizeof(V));
+				else if (Status < 0)
+					memcpy(Value, Other.Value, sizeof(E));
+				return *this;
+			}
+			const V& Unwrap() const
+			{
+				VI_PANIC(IsValue(), "unwrapping value that is not expected");
+				return *(V*)Value;
+			}
+			V& Unwrap()
+			{
+				VI_PANIC(IsValue(), "unwrapping value that is not expected");
+				return *(V*)Value;
+			}
+			const V& OrPanic(const char* Message) const
+			{
+				VI_ASSERT(Message != nullptr, "panic case message should be set");
+				VI_PANIC(IsValue(), "%s", Message);
+				return *(V*)Value;
+			}
+			V& OrPanic(const char* Message)
+			{
+				VI_ASSERT(Message != nullptr, "panic case message should be set");
+				VI_PANIC(IsValue(), "%s", Message);
+				return *(V*)Value;
+			}
+			const E& Error() const
+			{
+				VI_PANIC(IsError(), "unwrapping value that is not unexpected");
+				return *(E*)Value;
+			}
+			E& Error()
+			{
+				VI_PANIC(IsError(), "unwrapping value that is not unexpected");
+				return *(E*)Value;
+			}
+			operator bool() const
+			{
+				return IsValue();
+			}
+			operator Optional() const
+			{
+				return (Optional)Status;
+			}
+			const V& operator* () const
+			{
+				return Unwrap();
+			}
+			V& operator* ()
+			{
+				return Unwrap();
+			}
+			bool IsNone() const
+			{
+				return !Status;
+			}
+			bool IsValue() const
+			{
+				return Status > 0;
+			}
+			bool IsValue() const
+			{
+				return Status < 0;
+			}
+		};
 
 		struct VI_OUT Coroutine
 		{
@@ -1047,17 +1411,6 @@ namespace Mavi
 			static void ConvertToWide(const char* Input, size_t InputSize, wchar_t* Output, size_t OutputSize);
 		};
 
-		struct VI_OUT_TS Spin
-		{
-		private:
-			std::atomic_flag Atom;
-
-		public:
-			Spin() noexcept;
-			void Lock();
-			void Unlock();
-		};
-
 		class VI_OUT_TS Guard
 		{
 		public:
@@ -1388,64 +1741,6 @@ namespace Mavi
 				static Core::String GetName(int Code);
 				static bool IsError(int Code);
 			};
-
-			class VI_OUT Timing
-			{
-			public:
-				struct VI_OUT Tick
-				{
-					bool IsCounting;
-
-					Tick(bool Active) noexcept;
-					Tick(const Tick& Other) = delete;
-					Tick(Tick&& Other) noexcept;
-					~Tick() noexcept;
-					Tick& operator =(const Tick& Other) = delete;
-					Tick& operator =(Tick&& Other) noexcept;
-				};
-
-			public:
-				static Tick Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS);
-				static void MeasureLoop();
-				static Core::String GetMeasureTrace();
-			};
-
-		public:
-			struct VI_OUT Message
-			{
-				char Buffer[BLOB_SIZE] = { '\0' };
-				char Date[64] = { '\0' };
-				Core::String Temp;
-				const char* Source;
-				int Level;
-				int Line;
-				int Size;
-				bool Pretty;
-				bool Fatal;
-
-				const char* GetLevelName() const;
-				StdColor GetLevelColor() const;
-				Core::String& GetText();
-			};
-
-		private:
-			static std::function<void(Message&)> Callback;
-			static std::mutex Buffer;
-			static uint32_t LogFlags;
-
-		public:
-			static void Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
-			static void Log(int Level, int Line, const char* Source, const char* Format, ...);
-			static void Pause();
-			static void SetLogCallback(const std::function<void(Message&)>& Callback);
-			static void SetLogFlag(LogOption Option, bool Active);
-			static bool HasLogFlag(LogOption Option);
-			static Core::String GetStackTrace(size_t Skips, size_t MaxFrames = 16);
-
-		private:
-			static void EnqueueLog(Message&& Data);
-			static void DispatchLog(Message& Data);
-			static void PrettyPrintLog(Console* Log, const char* Buffer, StdColor BaseColor);
 		};
 
 		class VI_OUT_TS Composer
@@ -1507,7 +1802,7 @@ namespace Mavi
 				if (Ptr != nullptr)
 				{
 					auto Handle = (T*)Ptr;
-					VI_ASSERT_V(Handle->__vcnt <= 1, "address at 0x%" PRIXPTR " is still in use but destructor has been called by delete as %s at %s()", Ptr, typeid(T).name(), __func__);
+					VI_ASSERT(Handle->__vcnt <= 1, "address at 0x%" PRIXPTR " is still in use but destructor has been called by delete as %s at %s()", Ptr, typeid(T).name(), __func__);
 					VI_FREE(Ptr);
 				}
 			}
@@ -1534,7 +1829,7 @@ namespace Mavi
 			void Release() noexcept
 			{
 				__vcnt &= 0x7FFFFFFF;
-				VI_ASSERT_V(__vcnt > 0 && Memory::IsValidAddress((void*)(T*)this), "address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
+				VI_ASSERT(__vcnt > 0 && Memory::IsValidAddress((void*)(T*)this), "address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
 				if (!--__vcnt)
 					delete (T*)this;
 			}
@@ -1572,7 +1867,7 @@ namespace Mavi
 			}
 			T* operator-> ()
 			{
-				VI_ASSERT(Pointer != nullptr, nullptr, "null pointer access");
+				VI_ASSERT(Pointer != nullptr, "null pointer access");
 				return Pointer;
 			}
 			operator T* ()
@@ -1800,7 +2095,7 @@ namespace Mavi
 			T* operator-> ()
 			{
 				T*& Current = GetValue();
-				VI_ASSERT(Current != nullptr, nullptr, "null pointer access");
+				VI_ASSERT(Current != nullptr, "null pointer access");
 				return Current;
 			}
 			operator T* ()
@@ -2411,7 +2706,7 @@ namespace Mavi
 			} Dispatcher;
 
 		private:
-			ConcurrentQueuePtr* Queues[(size_t)Difficulty::Count];
+			ConcurrentQueue* Queues[(size_t)Difficulty::Count];
 			Core::Vector<ThreadPtr*> Threads[(size_t)Difficulty::Count];
 			std::atomic<TaskId> Generation;
 			std::mutex Exclusive;
@@ -2568,7 +2863,7 @@ namespace Mavi
 			}
 			Iterator Add(const T& Ref)
 			{
-				VI_ASSERT(Count < Volume, End(), "pool capacity overflow");
+				VI_ASSERT(Count < Volume, "pool capacity overflow");
 				Data[Count++] = Ref;
 				return End() - 1;
 			}
@@ -2589,8 +2884,8 @@ namespace Mavi
 			}
 			Iterator RemoveAt(Iterator It)
 			{
-				VI_ASSERT(Count > 0, End(), "pool is empty");
-				VI_ASSERT((size_t)(It - Data) >= 0 && (size_t)(It - Data) < Count, End(), "iterator ranges out of pool");
+				VI_ASSERT(Count > 0, "pool is empty");
+				VI_ASSERT((size_t)(It - Data) >= 0 && (size_t)(It - Data) < Count, "iterator ranges out of pool");
 
 				Count--;
 				Data[It - Data] = Data[Count];
@@ -2606,7 +2901,7 @@ namespace Mavi
 			}
 			Iterator At(size_t Index) const
 			{
-				VI_ASSERT(Index < Count, End(), "index ranges out of pool");
+				VI_ASSERT(Index < Count, "index ranges out of pool");
 				return Data + Index;
 			}
 			Iterator Find(const T& Ref)
@@ -2767,12 +3062,12 @@ namespace Mavi
 				}
 				const T& operator*() const
 				{
-					VI_ASSERT(Base != nullptr, Base->Value, "value was not loaded");
+					VI_ASSERT(Base != nullptr, "value was not loaded");
 					return Base->Value;
 				}
 				const T& Unwrap() const
 				{
-					VI_ASSERT(Base != nullptr, Base->Value, "value was not loaded");
+					VI_ASSERT(Base != nullptr, "value was not loaded");
 					return Base->Value;
 				}
 
@@ -2822,12 +3117,12 @@ namespace Mavi
 				}
 				T& operator*()
 				{
-					VI_ASSERT(Base != nullptr, Base->Value, "value was not stored");
+					VI_ASSERT(Base != nullptr, "value was not stored");
 					return Base->Value;
 				}
 				T& Unwrap()
 				{
-					VI_ASSERT(Base != nullptr, Base->Value, "value was not stored");
+					VI_ASSERT(Base != nullptr, "value was not stored");
 					return Base->Value;
 				}
 
@@ -2914,17 +3209,17 @@ namespace Mavi
 			}
 			void Emplace(const T& NewValue)
 			{
-				VI_ASSERT_V(Code != Deferred::Ready, "emplacing to already initialized memory is not desired");
+				VI_ASSERT(Code != Deferred::Ready, "emplacing to already initialized memory is not desired");
 				new(Value) T(NewValue);
 			}
 			void Emplace(T&& NewValue)
 			{
-				VI_ASSERT_V(Code != Deferred::Ready, "emplacing to already initialized memory is not desired");
+				VI_ASSERT(Code != Deferred::Ready, "emplacing to already initialized memory is not desired");
 				new(Value) T(std::move(NewValue));
 			}
 			T& Unwrap()
 			{
-				VI_ASSERT(Code == Deferred::Ready, *(T*)Value, "unwrapping uninitialized memory will result in undefined behaviour");
+				VI_ASSERT(Code == Deferred::Ready, "unwrapping uninitialized memory will result in undefined behaviour");
 				return *(T*)Value;
 			}
 		};
@@ -3002,7 +3297,7 @@ namespace Mavi
 			}
 			void Set(const T& Other)
 			{
-				VI_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
+				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				std::unique_lock<std::mutex> Unique(Data->Update);
 				bool Async = (Data->Code != Deferred::Waiting);
 				Data->Emplace(Other);
@@ -3011,7 +3306,7 @@ namespace Mavi
 			}
 			void Set(T&& Other)
 			{
-				VI_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
+				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				std::unique_lock<std::mutex> Unique(Data->Update);
 				bool Async = (Data->Code != Deferred::Waiting);
 				Data->Emplace(std::move(Other));
@@ -3020,7 +3315,7 @@ namespace Mavi
 			}
 			void Set(const BasicPromise& Other)
 			{
-				VI_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
+				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				Status* Copy = AddRef();
 				Other.When([Copy](T&& Value) mutable
 				{
@@ -3036,7 +3331,7 @@ namespace Mavi
 			}
 			void When(std::function<void(T&&)>&& Callback) const noexcept
 			{
-				VI_ASSERT_V(Callback, "callback should be set");
+				VI_ASSERT(Callback, "callback should be set");
 				if (!IsPending())
 					return Callback(std::move(Data->Unwrap()));
 
@@ -3089,7 +3384,7 @@ namespace Mavi
 			BasicPromise<R, Executor> Then(std::function<void(BasicPromise<R, Executor>&, T&&)>&& Callback) const noexcept
 			{
 				using OtherPromise = BasicPromise<R, Executor>;
-				VI_ASSERT(Data != nullptr && Callback, OtherPromise::Ready(), "async should be pending");
+				VI_ASSERT(Data != nullptr && Callback, "async should be pending");
 
 				BasicPromise<R, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
@@ -3105,7 +3400,7 @@ namespace Mavi
 			{
 				using F = typename Unwrap<R>::type;
 				using OtherPromise = BasicPromise<F, Executor>;
-				VI_ASSERT(Data != nullptr && Callback, OtherPromise::Ready(), "async should be pending");
+				VI_ASSERT(Data != nullptr && Callback, "async should be pending");
 
 				BasicPromise<F, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
@@ -3309,7 +3604,7 @@ namespace Mavi
 			}
 			void Set()
 			{
-				VI_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
+				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				std::unique_lock<std::mutex> Unique(Data->Update);
 				bool Async = (Data->Code != Deferred::Waiting);
 				Data->Code = Deferred::Ready;
@@ -3317,7 +3612,7 @@ namespace Mavi
 			}
 			void Set(const BasicPromise& Other)
 			{
-				VI_ASSERT_V(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
+				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				Status* Copy = AddRef();
 				Other.When([Copy]() mutable
 				{
@@ -3332,7 +3627,7 @@ namespace Mavi
 			}
 			void When(std::function<void()>&& Callback) const noexcept
 			{
-				VI_ASSERT_V(Callback, "callback should be set");
+				VI_ASSERT(Callback, "callback should be set");
 				if (!IsPending())
 					return Callback();
 
@@ -3384,7 +3679,7 @@ namespace Mavi
 			BasicPromise<R, Executor> Then(std::function<void(BasicPromise<R, Executor>&)>&& Callback) const noexcept
 			{
 				using OtherPromise = BasicPromise<R, Executor>;
-				VI_ASSERT(Data != nullptr && Callback, OtherPromise::Ready(), "async should be pending");
+				VI_ASSERT(Data != nullptr && Callback, "async should be pending");
 
 				BasicPromise<R, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
@@ -3400,7 +3695,7 @@ namespace Mavi
 			{
 				using F = typename Unwrap<R>::type;
 				using OtherPromise = BasicPromise<F, Executor>;
-				VI_ASSERT(Data != nullptr && Callback, OtherPromise::Ready(), "async should be pending");
+				VI_ASSERT(Data != nullptr && Callback, "async should be pending");
 
 				BasicPromise<F, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
@@ -3563,13 +3858,13 @@ namespace Mavi
 
 		inline bool Cosuspend() noexcept
 		{
-			VI_ASSERT(Costate::Get() != nullptr, false, "cannot call suspend outside coroutine");
+			VI_ASSERT(Costate::Get() != nullptr, "cannot call suspend outside coroutine");
 			return Costate::Get()->Suspend();
 		}
 		template <typename T, typename Executor = ParallelExecutor>
 		inline Promise<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Heavy) noexcept
 		{
-			VI_ASSERT(Callback, Promise<T>::Ready(), "callback should not be empty");
+			VI_ASSERT(Callback, "callback should not be empty");
 
 			Promise<T> Result;
 			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
@@ -3616,7 +3911,7 @@ namespace Mavi
 		template <typename T>
 		inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
-			VI_ASSERT(Callback != nullptr, Promise<T>::Ready(), "callback should be set");
+			VI_ASSERT(Callback != nullptr, "callback should be set");
 			PromiseContext<T>* Context = VI_NEW(PromiseContext<T>, std::move(Callback));
 			if (AlwaysEnqueue)
 			{
@@ -3633,7 +3928,7 @@ namespace Mavi
 		template <>
 		inline Promise<void> Coasync(std::function<Promise<void>()>&& Callback, bool AlwaysEnqueue) noexcept
 		{
-			VI_ASSERT(Callback != nullptr, Promise<void>::Ready(), "callback should be set");
+			VI_ASSERT(Callback != nullptr, "callback should be set");
 			PromiseContext<void>* Context = VI_NEW(PromiseContext<void>, std::move(Callback));
 			if (AlwaysEnqueue)
 			{
@@ -3667,7 +3962,7 @@ namespace Mavi
 
 			Costate* State; Coroutine* Base;
 			Costate::GetState(&State, &Base);
-			VI_ASSERT(State != nullptr && Base != nullptr, Future.Get(), "cannot call await outside coroutine");
+			VI_ASSERT(State != nullptr && Base != nullptr, "cannot call await outside coroutine");
 #ifndef NDEBUG
 			std::chrono::microseconds Time = Schedule::GetClock();
 			if (Function != nullptr && Expression != nullptr)
@@ -3694,7 +3989,7 @@ namespace Mavi
 		template <typename T>
 		inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
-			VI_ASSERT(Callback, Promise<T>::Ready(), "callback should not be empty");
+			VI_ASSERT(Callback, "callback should not be empty");
 			if (!AlwaysEnqueue && Costate::IsCoroutine())
 				return Callback();
 
@@ -3709,7 +4004,7 @@ namespace Mavi
 		template <>
 		inline Promise<void> Coasync(std::function<Promise<void>()>&& Callback, bool AlwaysEnqueue) noexcept
 		{
-			VI_ASSERT(Callback, Promise<void>::Ready(), "callback should not be empty");
+			VI_ASSERT(Callback, "callback should not be empty");
 			if (!AlwaysEnqueue && Costate::IsCoroutine())
 				return Callback();
 
@@ -3751,7 +4046,7 @@ namespace Mavi
 		}
 		inline Stringify Form(const char* Format, ...) noexcept
 		{
-			VI_ASSERT(Format != nullptr, Stringify(), "format should be set");
+			VI_ASSERT(Format != nullptr, "format should be set");
 
 			va_list Args;
 			va_start(Args, Format);

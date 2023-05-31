@@ -199,7 +199,7 @@ namespace Mavi
 			}
 			Compute::Vertex* D3D11MeshBuffer::GetElements(GraphicsDevice* Device) const
 			{
-				VI_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
+				VI_ASSERT(Device != nullptr, "graphics device should be set");
 
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap::Write, &Resource);
@@ -216,7 +216,7 @@ namespace Mavi
 			}
 			Compute::SkinVertex* D3D11SkinMeshBuffer::GetElements(GraphicsDevice* Device) const
 			{
-				VI_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
+				VI_ASSERT(Device != nullptr, "graphics device should be set");
 
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap::Write, &Resource);
@@ -433,7 +433,7 @@ namespace Mavi
 			}
 			D3D11MultiRenderTargetCube::~D3D11MultiRenderTargetCube()
 			{
-				VI_ASSERT_V((unsigned int)Target <= 8, "targets count should be less than 9");
+				VI_ASSERT((unsigned int)Target <= 8, "targets count should be less than 9");
 				for (unsigned int i = 0; i < (unsigned int)Target; i++)
 				{
 					D3D_RELEASE(RenderTargetView[i]);
@@ -460,11 +460,11 @@ namespace Mavi
 
 			D3D11Cubemap::D3D11Cubemap(const Desc& I) : Cubemap(I), Merger(nullptr), Source(nullptr)
 			{
-				VI_ASSERT_V(I.Source != nullptr, "source should be set");
-				VI_ASSERT_V(I.Target < I.Source->GetTargetCount(), "targets count should be less than %i", (int)I.Source->GetTargetCount());
+				VI_ASSERT(I.Source != nullptr, "source should be set");
+				VI_ASSERT(I.Target < I.Source->GetTargetCount(), "targets count should be less than %i", (int)I.Source->GetTargetCount());
 
 				D3D11Texture2D* Target = (D3D11Texture2D*)I.Source->GetTarget2D(I.Target);
-				VI_ASSERT_V(Target != nullptr && Target->View != nullptr, "render target should be valid");
+				VI_ASSERT(Target != nullptr && Target->View != nullptr, "render target should be valid");
 
 				Source = Target->View;
 				Source->GetDesc(&Options.Texture);
@@ -511,7 +511,7 @@ namespace Mavi
 				Activity* Window = I.Window;
 				if (!Window)
 				{
-					VI_ASSERT_V(VirtualWindow != nullptr, "cannot initialize virtual activity for device");
+					VI_ASSERT(VirtualWindow != nullptr, "cannot initialize virtual activity for device");
 					Window = VirtualWindow;
 				}
 
@@ -556,12 +556,8 @@ namespace Mavi
 					SwapChainResource.OutputWindow = (HWND)Info.info.win.window;
 				}
 #endif
-				if (D3D11CreateDeviceAndSwapChain(nullptr, DriverType, nullptr, CreationFlags, FeatureLevels, ARRAYSIZE(FeatureLevels), D3D11_SDK_VERSION, &SwapChainResource, &SwapChain, &Context, &FeatureLevel, &ImmediateContext) != S_OK)
-				{
-					VI_ERR("[d3d11] cannot create swap chain, device or immediate context");
-					return;
-				}
-
+				HRESULT Code = D3D11CreateDeviceAndSwapChain(nullptr, DriverType, nullptr, CreationFlags, FeatureLevels, ARRAYSIZE(FeatureLevels), D3D11_SDK_VERSION, &SwapChainResource, &SwapChain, &Context, &FeatureLevel, &ImmediateContext);
+				VI_PANIC(Code == S_OK, "D3D11 graphics device creation failure reason:%i", (int)Code);
 				SetShaderModel(I.ShaderMode == ShaderModel::Auto ? GetSupportedShaderModel() : I.ShaderMode);
 				SetPrimitiveTopology(PrimitiveTopology::Triangle_List);
 				ResizeBuffers(I.BufferWidth, I.BufferHeight);
@@ -754,8 +750,8 @@ namespace Mavi
 			}
 			void D3D11Device::SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
-				VI_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 
 				ID3D11SamplerState* NewState = (ID3D11SamplerState*)(State ? State->GetResource() : nullptr);
 				REG_EXCHANGE_T3(Sampler, NewState, Slot, Type);
@@ -780,7 +776,7 @@ namespace Mavi
 			}
 			void D3D11Device::SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				ID3D11Buffer* IBuffer = (Resource ? ((D3D11Shader*)Resource)->ConstantBuffer : nullptr);
 				if (Type & (uint32_t)ShaderType::Vertex)
@@ -803,7 +799,7 @@ namespace Mavi
 			}
 			void D3D11Device::SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11InstanceBuffer*)Resource)->Resource : nullptr);
 				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
@@ -828,7 +824,7 @@ namespace Mavi
 			}
 			void D3D11Device::SetConstantBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				ID3D11Buffer* IBuffer = (Resource ? ((D3D11ElementBuffer*)Resource)->Element : nullptr);
 				if (Type & (uint32_t)ShaderType::Vertex)
@@ -851,7 +847,7 @@ namespace Mavi
 			}
 			void D3D11Device::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11ElementBuffer*)Resource)->Resource : nullptr);
 				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
@@ -876,7 +872,7 @@ namespace Mavi
 			}
 			void D3D11Device::SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11Texture2D*)Resource)->Resource : nullptr);
 				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
@@ -901,7 +897,7 @@ namespace Mavi
 			}
 			void D3D11Device::SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11Texture3D*)Resource)->Resource : nullptr);
 				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
@@ -926,7 +922,7 @@ namespace Mavi
 			}
 			void D3D11Device::SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11TextureCube*)Resource)->Resource : nullptr);
 				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
@@ -957,8 +953,8 @@ namespace Mavi
 			}
 			void D3D11Device::SetVertexBuffers(ElementBuffer** Resources, unsigned int Count, bool)
 			{
-				VI_ASSERT_V(Resources != nullptr || !Count, "invalid vertex buffer array pointer");
-				VI_ASSERT_V(Count <= UNITS_SIZE, "slot should be less than or equal to %i", (int)UNITS_SIZE);
+				VI_ASSERT(Resources != nullptr || !Count, "invalid vertex buffer array pointer");
+				VI_ASSERT(Count <= UNITS_SIZE, "slot should be less than or equal to %i", (int)UNITS_SIZE);
 
 				static ID3D11Buffer* IBuffers[UNITS_SIZE] = { nullptr };
 				static unsigned int Strides[UNITS_SIZE] = { };
@@ -976,9 +972,9 @@ namespace Mavi
 			}
 			void D3D11Device::SetWriteable(ElementBuffer** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
-				VI_ASSERT_V(Slot < 8, "slot should be less than 8");
-				VI_ASSERT_V(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
-				VI_ASSERT_V(Resource != nullptr, "buffers ptr should be set");
+				VI_ASSERT(Slot < 8, "slot should be less than 8");
+				VI_ASSERT(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
+				VI_ASSERT(Resource != nullptr, "buffers ptr should be set");
 
 				ID3D11UnorderedAccessView* Array[8] = { nullptr };
 				for (unsigned int i = 0; i < Count; i++)
@@ -992,9 +988,9 @@ namespace Mavi
 			}
 			void D3D11Device::SetWriteable(Texture2D** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
-				VI_ASSERT_V(Slot < 8, "slot should be less than 8");
-				VI_ASSERT_V(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
-				VI_ASSERT_V(Resource != nullptr, "buffers ptr should be set");
+				VI_ASSERT(Slot < 8, "slot should be less than 8");
+				VI_ASSERT(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
+				VI_ASSERT(Resource != nullptr, "buffers ptr should be set");
 
 				ID3D11UnorderedAccessView* Array[8] = { nullptr };
 				for (unsigned int i = 0; i < Count; i++)
@@ -1008,9 +1004,9 @@ namespace Mavi
 			}
 			void D3D11Device::SetWriteable(Texture3D** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
-				VI_ASSERT_V(Slot < 8, "slot should be less than 8");
-				VI_ASSERT_V(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
-				VI_ASSERT_V(Resource != nullptr, "buffers ptr should be set");
+				VI_ASSERT(Slot < 8, "slot should be less than 8");
+				VI_ASSERT(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
+				VI_ASSERT(Resource != nullptr, "buffers ptr should be set");
 
 				ID3D11UnorderedAccessView* Array[8] = { nullptr };
 				for (unsigned int i = 0; i < Count; i++)
@@ -1024,9 +1020,9 @@ namespace Mavi
 			}
 			void D3D11Device::SetWriteable(TextureCube** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
-				VI_ASSERT_V(Slot < 8, "slot should be less than 8");
-				VI_ASSERT_V(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
-				VI_ASSERT_V(Resource != nullptr, "buffers ptr should be set");
+				VI_ASSERT(Slot < 8, "slot should be less than 8");
+				VI_ASSERT(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
+				VI_ASSERT(Resource != nullptr, "buffers ptr should be set");
 
 				ID3D11UnorderedAccessView* Array[8] = { nullptr };
 				for (unsigned int i = 0; i < Count; i++)
@@ -1048,7 +1044,7 @@ namespace Mavi
 			}
 			void D3D11Device::SetTarget(DepthTarget2D* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "depth target should be set");
+				VI_ASSERT(Resource != nullptr, "depth target should be set");
 				D3D11DepthTarget2D* IResource = (D3D11DepthTarget2D*)Resource;
 				const Viewport& Viewarea = Resource->GetViewport();
 				D3D11_VIEWPORT Viewport = { Viewarea.TopLeftX, Viewarea.TopLeftY, Viewarea.Width, Viewarea.Height, Viewarea.MinDepth, Viewarea.MaxDepth };
@@ -1058,7 +1054,7 @@ namespace Mavi
 			}
 			void D3D11Device::SetTarget(DepthTargetCube* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "depth target should be set");
+				VI_ASSERT(Resource != nullptr, "depth target should be set");
 				D3D11DepthTargetCube* IResource = (D3D11DepthTargetCube*)Resource;
 				const Viewport& Viewarea = Resource->GetViewport();
 				D3D11_VIEWPORT Viewport = { Viewarea.TopLeftX, Viewarea.TopLeftY, Viewarea.Width, Viewarea.Height, Viewarea.MinDepth, Viewarea.MaxDepth };
@@ -1068,8 +1064,8 @@ namespace Mavi
 			}
 			void D3D11Device::SetTarget(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B)
 			{
-				VI_ASSERT_V(Resource != nullptr, "render target should be set");
-				VI_ASSERT_V(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
+				VI_ASSERT(Resource != nullptr, "render target should be set");
+				VI_ASSERT(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
 
 				const Viewport& Viewarea = Resource->GetViewport();
 				ID3D11RenderTargetView** TargetBuffer = (ID3D11RenderTargetView**)Resource->GetTargetBuffer();
@@ -1083,8 +1079,8 @@ namespace Mavi
 			}
 			void D3D11Device::SetTarget(Graphics::RenderTarget* Resource, unsigned int Target)
 			{
-				VI_ASSERT_V(Resource != nullptr, "render target should be set");
-				VI_ASSERT_V(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
+				VI_ASSERT(Resource != nullptr, "render target should be set");
+				VI_ASSERT(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
 
 				const Viewport& Viewarea = Resource->GetViewport();
 				ID3D11RenderTargetView** TargetBuffer = (ID3D11RenderTargetView**)Resource->GetTargetBuffer();
@@ -1096,7 +1092,7 @@ namespace Mavi
 			}
 			void D3D11Device::SetTarget(Graphics::RenderTarget* Resource, float R, float G, float B)
 			{
-				VI_ASSERT_V(Resource != nullptr, "render target should be set");
+				VI_ASSERT(Resource != nullptr, "render target should be set");
 
 				const Viewport& Viewarea = Resource->GetViewport();
 				ID3D11RenderTargetView** TargetBuffer = (ID3D11RenderTargetView**)Resource->GetTargetBuffer();
@@ -1113,7 +1109,7 @@ namespace Mavi
 			}
 			void D3D11Device::SetTarget(Graphics::RenderTarget* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "render target should be set");
+				VI_ASSERT(Resource != nullptr, "render target should be set");
 
 				const Viewport& Viewarea = Resource->GetViewport();
 				ID3D11RenderTargetView** TargetBuffer = (ID3D11RenderTargetView**)Resource->GetTargetBuffer();
@@ -1125,8 +1121,8 @@ namespace Mavi
 			}
 			void D3D11Device::SetTargetMap(Graphics::RenderTarget* Resource, bool Enabled[8])
 			{
-				VI_ASSERT_V(Resource != nullptr, "render target should be set");
-				VI_ASSERT_V(Resource->GetTargetCount() > 1, "render target should have more than one targets");
+				VI_ASSERT(Resource != nullptr, "render target should be set");
+				VI_ASSERT(Resource->GetTargetCount() > 1, "render target should have more than one targets");
 
 				const Viewport& Viewarea = Resource->GetViewport();
 				ID3D11RenderTargetView** TargetBuffers = (ID3D11RenderTargetView**)Resource->GetTargetBuffer();
@@ -1143,7 +1139,7 @@ namespace Mavi
 			}
 			void D3D11Device::SetTargetRect(unsigned int Width, unsigned int Height)
 			{
-				VI_ASSERT_V(Width > 0 && Height > 0, "width and height should be greater than zero");
+				VI_ASSERT(Width > 0 && Height > 0, "width and height should be greater than zero");
 
 				D3D11_VIEWPORT Viewport = { 0, 0, (FLOAT)Width, (FLOAT)Height, 0, 1 };
 				ImmediateContext->RSSetViewports(1, &Viewport);
@@ -1151,8 +1147,8 @@ namespace Mavi
 			}
 			void D3D11Device::SetViewports(unsigned int Count, Viewport* Value)
 			{
-				VI_ASSERT_V(Value != nullptr, "value should be set");
-				VI_ASSERT_V(Count > 0, "count should be greater than zero");
+				VI_ASSERT(Value != nullptr, "value should be set");
+				VI_ASSERT(Count > 0, "count should be greater than zero");
 
 				D3D11_VIEWPORT Viewports[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 				for (unsigned int i = 0; i < Count; i++)
@@ -1162,8 +1158,8 @@ namespace Mavi
 			}
 			void D3D11Device::SetScissorRects(unsigned int Count, Compute::Rectangle* Value)
 			{
-				VI_ASSERT_V(Value != nullptr, "value should be set");
-				VI_ASSERT_V(Count > 0, "count should be greater than zero");
+				VI_ASSERT(Value != nullptr, "value should be set");
+				VI_ASSERT(Count > 0, "count should be greater than zero");
 
 				D3D11_RECT Rects[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 				for (unsigned int i = 0; i < Count; i++)
@@ -1184,8 +1180,8 @@ namespace Mavi
 			}
 			void D3D11Device::FlushTexture(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
-				VI_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 
 				static ID3D11ShaderResourceView* Array[UNITS_SIZE] = { nullptr };
 				if (Type & (uint32_t)ShaderType::Vertex)
@@ -1217,8 +1213,8 @@ namespace Mavi
 			}
 			bool D3D11Device::Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Map != nullptr, false, "map should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
 
 				D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resource;
 				D3D11_MAPPED_SUBRESOURCE MappedResource;
@@ -1232,8 +1228,8 @@ namespace Mavi
 			}
 			bool D3D11Device::Map(Texture2D* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Map != nullptr, false, "map should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
 
 				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
 				D3D11_MAPPED_SUBRESOURCE MappedResource;
@@ -1247,8 +1243,8 @@ namespace Mavi
 			}
 			bool D3D11Device::Map(Texture3D* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Map != nullptr, false, "map should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
 
 				D3D11Texture3D* IResource = (D3D11Texture3D*)Resource;
 				D3D11_MAPPED_SUBRESOURCE MappedResource;
@@ -1262,8 +1258,8 @@ namespace Mavi
 			}
 			bool D3D11Device::Map(TextureCube* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Map != nullptr, false, "map should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
 
 				D3D11TextureCube* IResource = (D3D11TextureCube*)Resource;
 				D3D11_MAPPED_SUBRESOURCE MappedResource;
@@ -1277,8 +1273,8 @@ namespace Mavi
 			}
 			bool D3D11Device::Unmap(Texture2D* Resource, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Map != nullptr, false, "map should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
 
 				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
 				ImmediateContext->Unmap(IResource->View, 0);
@@ -1286,8 +1282,8 @@ namespace Mavi
 			}
 			bool D3D11Device::Unmap(Texture3D* Resource, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Map != nullptr, false, "map should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
 
 				D3D11Texture3D* IResource = (D3D11Texture3D*)Resource;
 				ImmediateContext->Unmap(IResource->View, 0);
@@ -1295,8 +1291,8 @@ namespace Mavi
 			}
 			bool D3D11Device::Unmap(TextureCube* Resource, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Map != nullptr, false, "map should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
 
 				D3D11TextureCube* IResource = (D3D11TextureCube*)Resource;
 				ImmediateContext->Unmap(IResource->View, 0);
@@ -1304,8 +1300,8 @@ namespace Mavi
 			}
 			bool D3D11Device::Unmap(ElementBuffer* Resource, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Map != nullptr, false, "map should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
 
 				D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resource;
 				ImmediateContext->Unmap(IResource->Element, 0);
@@ -1313,8 +1309,8 @@ namespace Mavi
 			}
 			bool D3D11Device::UpdateConstantBuffer(ElementBuffer* Resource, void* Data, size_t Size)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Data != nullptr, false, "data should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
 
 				D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resource;
 				ImmediateContext->UpdateSubresource(IResource->Element, 0, nullptr, Data, 0, 0);
@@ -1322,8 +1318,8 @@ namespace Mavi
 			}
 			bool D3D11Device::UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Data != nullptr, false, "data should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
 
 				D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resource;
 				D3D11_MAPPED_SUBRESOURCE MappedResource;
@@ -1336,8 +1332,8 @@ namespace Mavi
 			}
 			bool D3D11Device::UpdateBuffer(Shader* Resource, const void* Data)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Data != nullptr, false, "data should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
 
 				D3D11Shader* IResource = (D3D11Shader*)Resource;
 				ImmediateContext->UpdateSubresource(IResource->ConstantBuffer, 0, nullptr, Data, 0, 0);
@@ -1345,8 +1341,8 @@ namespace Mavi
 			}
 			bool D3D11Device::UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Data != nullptr, false, "data should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
 
 				D3D11MeshBuffer* IResource = (D3D11MeshBuffer*)Resource;
 				MappedSubresource MappedResource;
@@ -1358,8 +1354,8 @@ namespace Mavi
 			}
 			bool D3D11Device::UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Data != nullptr, false, "data should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
 
 				D3D11SkinMeshBuffer* IResource = (D3D11SkinMeshBuffer*)Resource;
 				MappedSubresource MappedResource;
@@ -1371,7 +1367,7 @@ namespace Mavi
 			}
 			bool D3D11Device::UpdateBuffer(InstanceBuffer* Resource)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11InstanceBuffer* IResource = (D3D11InstanceBuffer*)Resource;
 				if (IResource->Array.empty() || IResource->Array.size() > IResource->ElementLimit)
 					return false;
@@ -1389,8 +1385,8 @@ namespace Mavi
 			}
 			bool D3D11Device::UpdateBufferSize(Shader* Resource, size_t Size)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Size > 0, false, "size should be greater than zero");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Size > 0, "size should be greater than zero");
 
 				D3D11Shader* IResource = (D3D11Shader*)Resource;
 				D3D_RELEASE(IResource->ConstantBuffer);
@@ -1398,8 +1394,8 @@ namespace Mavi
 			}
 			bool D3D11Device::UpdateBufferSize(InstanceBuffer* Resource, size_t Size)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Size > 0, false, "size should be greater than zero");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Size > 0, "size should be greater than zero");
 
 				D3D11InstanceBuffer* IResource = (D3D11InstanceBuffer*)Resource;
 				ClearBuffer(IResource);
@@ -1431,7 +1427,7 @@ namespace Mavi
 			}
 			void D3D11Device::ClearBuffer(InstanceBuffer* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11InstanceBuffer* IResource = (D3D11InstanceBuffer*)Resource;
 				if (!IResource->Sync)
 					return;
@@ -1446,55 +1442,55 @@ namespace Mavi
 			}
 			void D3D11Device::ClearWritable(Texture2D* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
 
-				VI_ASSERT_V(IResource->Access != nullptr, "resource should be valid");
+				VI_ASSERT(IResource->Access != nullptr, "resource should be valid");
 				UINT ClearColor[4] = { 0, 0, 0, 0 };
 				ImmediateContext->ClearUnorderedAccessViewUint(IResource->Access, ClearColor);
 			}
 			void D3D11Device::ClearWritable(Texture2D* Resource, float R, float G, float B)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
 
-				VI_ASSERT_V(IResource->Access != nullptr, "resource should be valid");
+				VI_ASSERT(IResource->Access != nullptr, "resource should be valid");
 				float ClearColor[4] = { R, G, B, 0.0f };
 				ImmediateContext->ClearUnorderedAccessViewFloat(IResource->Access, ClearColor);
 			}
 			void D3D11Device::ClearWritable(Texture3D* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11Texture3D* IResource = (D3D11Texture3D*)Resource;
 
-				VI_ASSERT_V(IResource->Access != nullptr, "resource should be valid");
+				VI_ASSERT(IResource->Access != nullptr, "resource should be valid");
 				UINT ClearColor[4] = { 0, 0, 0, 0 };
 				ImmediateContext->ClearUnorderedAccessViewUint(IResource->Access, ClearColor);
 			}
 			void D3D11Device::ClearWritable(Texture3D* Resource, float R, float G, float B)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11Texture3D* IResource = (D3D11Texture3D*)Resource;
 
-				VI_ASSERT_V(IResource->Access != nullptr, "resource should be valid");
+				VI_ASSERT(IResource->Access != nullptr, "resource should be valid");
 				float ClearColor[4] = { R, G, B, 0.0f };
 				ImmediateContext->ClearUnorderedAccessViewFloat(IResource->Access, ClearColor);
 			}
 			void D3D11Device::ClearWritable(TextureCube* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11TextureCube* IResource = (D3D11TextureCube*)Resource;
 
-				VI_ASSERT_V(IResource->Access != nullptr, "resource should be valid");
+				VI_ASSERT(IResource->Access != nullptr, "resource should be valid");
 				UINT ClearColor[4] = { 0, 0, 0, 0 };
 				ImmediateContext->ClearUnorderedAccessViewUint(IResource->Access, ClearColor);
 			}
 			void D3D11Device::ClearWritable(TextureCube* Resource, float R, float G, float B)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11TextureCube* IResource = (D3D11TextureCube*)Resource;
 
-				VI_ASSERT_V(IResource->Access != nullptr, "resource should be valid");
+				VI_ASSERT(IResource->Access != nullptr, "resource should be valid");
 				float ClearColor[4] = { R, G, B, 0.0f };
 				ImmediateContext->ClearUnorderedAccessViewFloat(IResource->Access, ClearColor);
 			}
@@ -1504,8 +1500,8 @@ namespace Mavi
 			}
 			void D3D11Device::Clear(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
-				VI_ASSERT_V(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
 
 				ID3D11RenderTargetView** TargetBuffer = (ID3D11RenderTargetView**)Resource->GetTargetBuffer();
 				float ClearColor[4] = { R, G, B, 0.0f };
@@ -1518,19 +1514,19 @@ namespace Mavi
 			}
 			void D3D11Device::ClearDepth(DepthTarget2D* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11DepthTarget2D* IResource = (D3D11DepthTarget2D*)Resource;
 				ImmediateContext->ClearDepthStencilView(IResource->DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 			}
 			void D3D11Device::ClearDepth(DepthTargetCube* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11DepthTargetCube* IResource = (D3D11DepthTargetCube*)Resource;
 				ImmediateContext->ClearDepthStencilView(IResource->DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 			}
 			void D3D11Device::ClearDepth(Graphics::RenderTarget* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				ID3D11DepthStencilView* DepthBuffer = (ID3D11DepthStencilView*)Resource->GetDepthBuffer();
 				ImmediateContext->ClearDepthStencilView(DepthBuffer, D3D11_CLEAR_DEPTH, 1.0f, 0);
 			}
@@ -1540,7 +1536,7 @@ namespace Mavi
 			}
 			void D3D11Device::DrawIndexed(MeshBuffer* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
 				unsigned int Stride = (unsigned int)VertexBuffer->Stride, Offset = 0;
@@ -1561,7 +1557,7 @@ namespace Mavi
 			}
 			void D3D11Device::DrawIndexed(SkinMeshBuffer* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
 				unsigned int Stride = (unsigned int)VertexBuffer->Stride, Offset = 0;
@@ -1586,8 +1582,8 @@ namespace Mavi
 			}
 			void D3D11Device::DrawIndexedInstanced(ElementBuffer* Instances, MeshBuffer* Resource, unsigned int InstanceCount)
 			{
-				VI_ASSERT_V(Instances != nullptr, "instances should be set");
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Instances != nullptr, "instances should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 
 				D3D11ElementBuffer* InstanceBuffer = (D3D11ElementBuffer*)Instances;
 				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
@@ -1612,8 +1608,8 @@ namespace Mavi
 			}
 			void D3D11Device::DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, unsigned int InstanceCount)
 			{
-				VI_ASSERT_V(Instances != nullptr, "instances should be set");
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Instances != nullptr, "instances should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 
 				D3D11ElementBuffer* InstanceBuffer = (D3D11ElementBuffer*)Instances;
 				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
@@ -1650,11 +1646,11 @@ namespace Mavi
 			}
 			bool D3D11Device::CopyTexture2D(Texture2D* Resource, Texture2D** Result)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
 
-				VI_ASSERT(IResource->View != nullptr, false, "resource should be valid");
+				VI_ASSERT(IResource->View != nullptr, "resource should be valid");
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->View->GetDesc(&Information);
 				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
@@ -1673,12 +1669,12 @@ namespace Mavi
 			}
 			bool D3D11Device::CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Texture2D** Result)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				D3D11Texture2D* Source = (D3D11Texture2D*)Resource->GetTarget2D(Target);
-				VI_ASSERT(Source != nullptr, false, "source should be set");
-				VI_ASSERT(Source->View != nullptr, false, "source should be valid");
+				VI_ASSERT(Source != nullptr, "source should be set");
+				VI_ASSERT(Source->View != nullptr, "source should be valid");
 
 				D3D11_TEXTURE2D_DESC Information;
 				Source->View->GetDesc(&Information);
@@ -1698,12 +1694,12 @@ namespace Mavi
 			}
 			bool D3D11Device::CopyTexture2D(RenderTargetCube* Resource, Compute::CubeFace Face, Texture2D** Result)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				D3D11RenderTargetCube* IResource = (D3D11RenderTargetCube*)Resource;
 
-				VI_ASSERT(IResource->Texture != nullptr, false, "resource should be valid");
+				VI_ASSERT(IResource->Texture != nullptr, "resource should be valid");
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Texture->GetDesc(&Information);
 				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
@@ -1722,13 +1718,13 @@ namespace Mavi
 			}
 			bool D3D11Device::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, Compute::CubeFace Face, Texture2D** Result)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				D3D11MultiRenderTargetCube* IResource = (D3D11MultiRenderTargetCube*)Resource;
 
-				VI_ASSERT(IResource->Texture[Cube] != nullptr, false, "source should be set");
-				VI_ASSERT(Cube < (unsigned int)IResource->Target, false, "cube index should be less than %i", (int)IResource->Target);
+				VI_ASSERT(IResource->Texture[Cube] != nullptr, "source should be set");
+				VI_ASSERT(Cube < (unsigned int)IResource->Target, "cube index should be less than %i", (int)IResource->Target);
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Texture[Cube]->GetDesc(&Information);
@@ -1748,12 +1744,12 @@ namespace Mavi
 			}
 			bool D3D11Device::CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				D3D11RenderTargetCube* IResource = (D3D11RenderTargetCube*)Resource;
 
-				VI_ASSERT(IResource->Texture != nullptr, false, "resource should be valid");
+				VI_ASSERT(IResource->Texture != nullptr, "resource should be valid");
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Texture->GetDesc(&Information);
 				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
@@ -1782,13 +1778,13 @@ namespace Mavi
 			}
 			bool D3D11Device::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				D3D11MultiRenderTargetCube* IResource = (D3D11MultiRenderTargetCube*)Resource;
 
-				VI_ASSERT(IResource->Texture[Cube] != nullptr, false, "source should be set");
-				VI_ASSERT(Cube < (unsigned int)IResource->Target, false, "cube index should be less than %i", (int)IResource->Target);
+				VI_ASSERT(IResource->Texture[Cube] != nullptr, "source should be set");
+				VI_ASSERT(Cube < (unsigned int)IResource->Target, "cube index should be less than %i", (int)IResource->Target);
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Texture[Cube]->GetDesc(&Information);
@@ -1818,8 +1814,8 @@ namespace Mavi
 			}
 			bool D3D11Device::CopyTarget(Graphics::RenderTarget* From, unsigned int FromTarget, Graphics::RenderTarget* To, unsigned ToTarget)
 			{
-				VI_ASSERT(From != nullptr, false, "from should be set");
-				VI_ASSERT(To != nullptr, false, "to should be set");
+				VI_ASSERT(From != nullptr, "from should be set");
+				VI_ASSERT(To != nullptr, "to should be set");
 
 				D3D11Texture2D* Source2D = (D3D11Texture2D*)From->GetTarget2D(FromTarget);
 				D3D11TextureCube* SourceCube = (D3D11TextureCube*)From->GetTargetCube(FromTarget);
@@ -1828,15 +1824,15 @@ namespace Mavi
 				ID3D11Texture2D* Source = (Source2D ? Source2D->View : (SourceCube ? SourceCube->View : nullptr));
 				ID3D11Texture2D* Dest = (Dest2D ? Dest2D->View : (DestCube ? DestCube->View : nullptr));
 
-				VI_ASSERT(Source != nullptr, false, "from should be set");
-				VI_ASSERT(Dest != nullptr, false, "to should be set");
+				VI_ASSERT(Source != nullptr, "from should be set");
+				VI_ASSERT(Dest != nullptr, "to should be set");
 
 				ImmediateContext->CopyResource(Dest, Source);
 				return true;
 			}
 			bool D3D11Device::CopyBackBuffer(Texture2D** Result)
 			{
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				ID3D11Texture2D* BackBuffer = nullptr;
 				if (SwapChain->GetBuffer(0, __uuidof(BackBuffer), reinterpret_cast<void**>(&BackBuffer)) != S_OK)
@@ -1869,7 +1865,7 @@ namespace Mavi
 			}
 			bool D3D11Device::CopyBackBufferMSAA(Texture2D** Result)
 			{
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				ID3D11Texture2D* BackBuffer = nullptr;
 				if (SwapChain->GetBuffer(0, __uuidof(BackBuffer), reinterpret_cast<void**>(&BackBuffer)) != S_OK)
@@ -1900,7 +1896,7 @@ namespace Mavi
 			}
 			bool D3D11Device::CopyBackBufferNoAA(Texture2D** Result)
 			{
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				ID3D11Texture2D* BackBuffer = nullptr;
 				if (SwapChain->GetBuffer(0, __uuidof(BackBuffer), reinterpret_cast<void**>(&BackBuffer)) != S_OK)
@@ -1929,9 +1925,9 @@ namespace Mavi
 			}
 			bool D3D11Device::CubemapPush(Cubemap* Resource, TextureCube* Result)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Resource->IsValid(), false, "resource should be valid");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource->IsValid(), "resource should be valid");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				D3D11Cubemap* IResource = (D3D11Cubemap*)Resource;
 				D3D11TextureCube* Dest = (D3D11TextureCube*)Result;
@@ -1958,26 +1954,26 @@ namespace Mavi
 			}
 			bool D3D11Device::CubemapFace(Cubemap* Resource, Compute::CubeFace Face)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Resource->IsValid(), false, "resource should be valid");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource->IsValid(), "resource should be valid");
 
 				D3D11Cubemap* IResource = (D3D11Cubemap*)Resource;
 				D3D11TextureCube* Dest = (D3D11TextureCube*)IResource->Dest;
 
-				VI_ASSERT(IResource->Dest != nullptr, false, "result should be set");
+				VI_ASSERT(IResource->Dest != nullptr, "result should be set");
 				ImmediateContext->CopyResource(IResource->Merger, IResource->Source);
 				ImmediateContext->CopySubresourceRegion(Dest->View, (unsigned int)Face * IResource->Meta.MipLevels, 0, 0, 0, IResource->Merger, 0, &IResource->Options.Region);
 				return true;
 			}
 			bool D3D11Device::CubemapPop(Cubemap* Resource)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Resource->IsValid(), false, "resource should be valid");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource->IsValid(), "resource should be valid");
 
 				D3D11Cubemap* IResource = (D3D11Cubemap*)Resource;
 				D3D11TextureCube* Dest = (D3D11TextureCube*)IResource->Dest;
 
-				VI_ASSERT(IResource->Dest != nullptr, false, "result should be set");
+				VI_ASSERT(IResource->Dest != nullptr, "result should be set");
 				if (IResource->Meta.MipLevels > 0)
 					ImmediateContext->GenerateMips(Dest->Resource);
 
@@ -2052,10 +2048,10 @@ namespace Mavi
 			}
 			bool D3D11Device::GenerateTexture(Texture3D* Resource)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11Texture3D* IResource = (D3D11Texture3D*)Resource;
 
-				VI_ASSERT(IResource->View != nullptr, false, "resource should be valid");
+				VI_ASSERT(IResource->View != nullptr, "resource should be valid");
 				D3D11_TEXTURE3D_DESC Description;
 				IResource->View->GetDesc(&Description);
 				IResource->FormatMode = (Format)Description.Format;
@@ -2085,10 +2081,10 @@ namespace Mavi
 			}
 			bool D3D11Device::GenerateTexture(TextureCube* Resource)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11TextureCube* IResource = (D3D11TextureCube*)Resource;
 
-				VI_ASSERT(IResource->View != nullptr, false, "resource should be valid");
+				VI_ASSERT(IResource->View != nullptr, "resource should be valid");
 				D3D11_TEXTURE2D_DESC Description;
 				IResource->View->GetDesc(&Description);
 				IResource->FormatMode = (Format)Description.Format;
@@ -2118,13 +2114,13 @@ namespace Mavi
 			}
 			bool D3D11Device::GetQueryData(Query* Resource, size_t* Result, bool Flush)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				D3D11Query* IResource = (D3D11Query*)Resource;
 				uint64_t Passing = 0;
 
-				VI_ASSERT(IResource->Async != nullptr, false, "resource should be valid");
+				VI_ASSERT(IResource->Async != nullptr, "resource should be valid");
 				bool Success = ImmediateContext->GetData(IResource->Async, &Passing, sizeof(uint64_t), !Flush ? D3D11_ASYNC_GETDATA_DONOTFLUSH : 0) == S_OK;
 				*Result = (size_t)Passing;
 
@@ -2132,52 +2128,52 @@ namespace Mavi
 			}
 			bool D3D11Device::GetQueryData(Query* Resource, bool* Result, bool Flush)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				D3D11Query* IResource = (D3D11Query*)Resource;
 
-				VI_ASSERT(IResource->Async != nullptr, false, "resource should be valid");
+				VI_ASSERT(IResource->Async != nullptr, "resource should be valid");
 				return ImmediateContext->GetData(IResource->Async, Result, sizeof(bool), !Flush ? D3D11_ASYNC_GETDATA_DONOTFLUSH : 0) == S_OK;
 			}
 			void D3D11Device::QueryBegin(Query* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11Query* IResource = (D3D11Query*)Resource;
 
-				VI_ASSERT_V(IResource->Async != nullptr, "resource should be valid");
+				VI_ASSERT(IResource->Async != nullptr, "resource should be valid");
 				ImmediateContext->Begin(IResource->Async);
 			}
 			void D3D11Device::QueryEnd(Query* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11Query* IResource = (D3D11Query*)Resource;
 
-				VI_ASSERT_V(IResource->Async != nullptr, "resource should be valid");
+				VI_ASSERT(IResource->Async != nullptr, "resource should be valid");
 				ImmediateContext->End(IResource->Async);
 			}
 			void D3D11Device::GenerateMips(Texture2D* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
 
-				VI_ASSERT_V(IResource->Resource != nullptr, "resource should be valid");
+				VI_ASSERT(IResource->Resource != nullptr, "resource should be valid");
 				ImmediateContext->GenerateMips(IResource->Resource);
 			}
 			void D3D11Device::GenerateMips(Texture3D* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11Texture3D* IResource = (D3D11Texture3D*)Resource;
 
-				VI_ASSERT_V(IResource->Resource != nullptr, "resource should be valid");
+				VI_ASSERT(IResource->Resource != nullptr, "resource should be valid");
 				ImmediateContext->GenerateMips(IResource->Resource);
 			}
 			void D3D11Device::GenerateMips(TextureCube* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11TextureCube* IResource = (D3D11TextureCube*)Resource;
 
-				VI_ASSERT_V(IResource->Resource != nullptr, "resource should be valid");
+				VI_ASSERT(IResource->Resource != nullptr, "resource should be valid");
 				ImmediateContext->GenerateMips(IResource->Resource);
 			}
 			bool D3D11Device::ImBegin()
@@ -2212,7 +2208,7 @@ namespace Mavi
 			}
 			void D3D11Device::ImColor(float X, float Y, float Z, float W)
 			{
-				VI_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
+				VI_ASSERT(!Elements.empty(), "vertex should already be emitted");
 				auto& Element = Elements.back();
 				Element.CX = X;
 				Element.CY = Y;
@@ -2225,7 +2221,7 @@ namespace Mavi
 			}
 			void D3D11Device::ImTexCoord(float X, float Y)
 			{
-				VI_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
+				VI_ASSERT(!Elements.empty(), "vertex should already be emitted");
 				auto& Element = Elements.back();
 				Element.TX = X;
 				Element.TY = Y;
@@ -2237,7 +2233,7 @@ namespace Mavi
 			}
 			void D3D11Device::ImPosition(float X, float Y, float Z)
 			{
-				VI_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
+				VI_ASSERT(!Elements.empty(), "vertex should already be emitted");
 				auto& Element = Elements.back();
 				Element.PX = X;
 				Element.PY = Y;
@@ -2789,8 +2785,8 @@ namespace Mavi
 			}
 			MeshBuffer* D3D11Device::CreateMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer)
 			{
-				VI_ASSERT(VertexBuffer != nullptr, nullptr, "vertex buffer should be set");
-				VI_ASSERT(IndexBuffer != nullptr, nullptr, "index buffer should be set");
+				VI_ASSERT(VertexBuffer != nullptr, "vertex buffer should be set");
+				VI_ASSERT(IndexBuffer != nullptr, "index buffer should be set");
 				D3D11MeshBuffer* Result = new D3D11MeshBuffer(D3D11MeshBuffer::Desc());
 				Result->VertexBuffer = VertexBuffer;
 				Result->IndexBuffer = IndexBuffer;
@@ -2822,8 +2818,8 @@ namespace Mavi
 			}
 			SkinMeshBuffer* D3D11Device::CreateSkinMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer)
 			{
-				VI_ASSERT(VertexBuffer != nullptr, nullptr, "vertex buffer should be set");
-				VI_ASSERT(IndexBuffer != nullptr, nullptr, "index buffer should be set");
+				VI_ASSERT(VertexBuffer != nullptr, "vertex buffer should be set");
+				VI_ASSERT(IndexBuffer != nullptr, "index buffer should be set");
 				D3D11SkinMeshBuffer* Result = new D3D11SkinMeshBuffer(D3D11SkinMeshBuffer::Desc());
 				Result->VertexBuffer = VertexBuffer;
 				Result->IndexBuffer = IndexBuffer;
@@ -3057,7 +3053,7 @@ namespace Mavi
 			}
 			TextureCube* D3D11Device::CreateTextureCube(Graphics::Texture2D* Resource[6])
 			{
-				VI_ASSERT(Resource[0] && Resource[1] && Resource[2] && Resource[3] && Resource[4] && Resource[5], nullptr, "all 6 faces should be set");
+				VI_ASSERT(Resource[0] && Resource[1] && Resource[2] && Resource[3] && Resource[4] && Resource[5], "all 6 faces should be set");
 
 				void* Resources[6];
 				for (unsigned int i = 0; i < 6; i++)
@@ -3067,10 +3063,10 @@ namespace Mavi
 			}
 			TextureCube* D3D11Device::CreateTextureCube(Graphics::Texture2D* Resource)
 			{
-				VI_ASSERT(Resource != nullptr, nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				ID3D11Texture2D* Src = ((D3D11Texture2D*)Resource)->View;
 
-				VI_ASSERT(Src != nullptr, nullptr, "src should be set");
+				VI_ASSERT(Src != nullptr, "src should be set");
 				D3D11_TEXTURE2D_DESC Description;
 				Src->GetDesc(&Description);
 				Description.ArraySize = 6;
@@ -3144,7 +3140,7 @@ namespace Mavi
 			}
 			TextureCube* D3D11Device::CreateTextureCubeInternal(void* Resource[6])
 			{
-				VI_ASSERT(Resource[0] && Resource[1] && Resource[2] && Resource[3] && Resource[4] && Resource[5], nullptr, "all 6 faces should be set");
+				VI_ASSERT(Resource[0] && Resource[1] && Resource[2] && Resource[3] && Resource[4] && Resource[5], "all 6 faces should be set");
 
 				D3D11_TEXTURE2D_DESC Description;
 				((ID3D11Texture2D*)Resource[0])->GetDesc(&Description);
@@ -3944,9 +3940,9 @@ namespace Mavi
 			}
 			bool D3D11Device::CreateTexture2D(Texture2D* Resource, DXGI_FORMAT InternalFormat)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
-				VI_ASSERT(IResource->View != nullptr, false, "resource should be set");
+				VI_ASSERT(IResource->View != nullptr, "resource should be set");
 
 				D3D11_TEXTURE2D_DESC Description;
 				IResource->View->GetDesc(&Description);
@@ -4010,9 +4006,9 @@ namespace Mavi
 			}
 			bool D3D11Device::CreateTextureCube(TextureCube* Resource, DXGI_FORMAT InternalFormat)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11TextureCube* IResource = (D3D11TextureCube*)Resource;
-				VI_ASSERT(IResource->View != nullptr, false, "resource should be set");
+				VI_ASSERT(IResource->View != nullptr, "resource should be set");
 
 				D3D11_TEXTURE2D_DESC Description;
 				IResource->View->GetDesc(&Description);
@@ -4076,7 +4072,7 @@ namespace Mavi
 			}
 			ID3D11InputLayout* D3D11Device::GenerateInputLayout(D3D11Shader* Shader)
 			{
-				VI_ASSERT(Shader != nullptr, nullptr, "shader should be set");
+				VI_ASSERT(Shader != nullptr, "shader should be set");
 				if (Shader->VertexLayout != nullptr)
 					return Shader->VertexLayout;
 
@@ -4191,7 +4187,7 @@ namespace Mavi
 			}
 			int D3D11Device::CreateConstantBuffer(ID3D11Buffer** fBuffer, size_t Size)
 			{
-				VI_ASSERT(fBuffer != nullptr, -1, "buffers ptr should be set");
+				VI_ASSERT(fBuffer != nullptr, "buffers ptr should be set");
 
 				D3D11_BUFFER_DESC Description;
 				ZeroMemory(&Description, sizeof(Description));

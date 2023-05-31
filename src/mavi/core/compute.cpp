@@ -58,7 +58,7 @@ namespace
 		btScalar addSingleResult(btManifoldPoint& Point, const btCollisionObjectWrapper* Object1, int PartId0, int Index0, const btCollisionObjectWrapper* Object2, int PartId1, int Index1) override
 		{
 			using namespace Mavi::Compute;
-			VI_ASSERT(Callback && Object1 && Object1->getCollisionObject() && Object2 && Object2->getCollisionObject(), 0, "collision objects are not in available condition");
+			VI_ASSERT(Callback && Object1 && Object1->getCollisionObject() && Object2 && Object2->getCollisionObject(), "collision objects are not in available condition");
 
 			auto& PWOA = Point.getPositionWorldOnA();
 			auto& PWOB = Point.getPositionWorldOnB();
@@ -107,7 +107,7 @@ namespace
 		btScalar addSingleResult(btCollisionWorld::LocalRayResult& RayResult, bool NormalInWorldSpace) override
 		{
 			using namespace Mavi::Compute;
-			VI_ASSERT(Callback && RayResult.m_collisionObject, 0, "collision objects are not in available condition");
+			VI_ASSERT(Callback && RayResult.m_collisionObject, "collision objects are not in available condition");
 
 			RayContact Contact;
 			Contact.HitNormalLocal = BT_TO_V3(RayResult.m_hitNormalLocal);
@@ -144,7 +144,7 @@ namespace
 #endif
 	size_t OffsetOf64(const char* Source, char Dest)
 	{
-		VI_ASSERT(Source != nullptr, 63, "source should be set");
+		VI_ASSERT(Source != nullptr, "source should be set");
 		for (size_t i = 0; i < 64; i++)
 		{
 			if (Source[i] == Dest)
@@ -430,7 +430,7 @@ namespace Mavi
 		}
 		void Vector2::Get2(float* In) const
 		{
-			VI_ASSERT_V(In != nullptr, "in of size 2 should be set");
+			VI_ASSERT(In != nullptr, "in of size 2 should be set");
 			In[0] = X;
 			In[1] = Y;
 		}
@@ -598,7 +598,7 @@ namespace Mavi
 		}
 		float& Vector2::operator [](uint32_t Axis)
 		{
-			VI_ASSERT(Axis >= 0 && Axis <= 1, X, "index out of range");
+			VI_ASSERT(Axis >= 0 && Axis <= 1, "index out of range");
 			if (Axis == 0)
 				return X;
 
@@ -606,7 +606,7 @@ namespace Mavi
 		}
 		float Vector2::operator [](uint32_t Axis) const
 		{
-			VI_ASSERT(Axis >= 0 && Axis <= 1, X, "index out of range");
+			VI_ASSERT(Axis >= 0 && Axis <= 1, "index out of range");
 			if (Axis == 0)
 				return X;
 
@@ -924,13 +924,13 @@ namespace Mavi
 		}
 		void Vector3::Get2(float* In) const
 		{
-			VI_ASSERT_V(In != nullptr, "in of size 2 should be set");
+			VI_ASSERT(In != nullptr, "in of size 2 should be set");
 			In[0] = X;
 			In[1] = Y;
 		}
 		void Vector3::Get3(float* In) const
 		{
-			VI_ASSERT_V(In != nullptr, "in of size 3 should be set");
+			VI_ASSERT(In != nullptr, "in of size 3 should be set");
 			In[0] = X;
 			In[1] = Y;
 			In[2] = Z;
@@ -1108,7 +1108,7 @@ namespace Mavi
 		}
 		float& Vector3::operator [](uint32_t Axis)
 		{
-			VI_ASSERT(Axis >= 0 && Axis <= 2, X, "index out of range");
+			VI_ASSERT(Axis >= 0 && Axis <= 2, "index out of range");
 			if (Axis == 0)
 				return X;
 			else if (Axis == 1)
@@ -1118,7 +1118,7 @@ namespace Mavi
 		}
 		float Vector3::operator [](uint32_t Axis) const
 		{
-			VI_ASSERT(Axis >= 0 && Axis <= 2, X, "index out of range");
+			VI_ASSERT(Axis >= 0 && Axis <= 2, "index out of range");
 			if (Axis == 0)
 				return X;
 			else if (Axis == 1)
@@ -1430,20 +1430,20 @@ namespace Mavi
 		}
 		void Vector4::Get2(float* In) const
 		{
-			VI_ASSERT_V(In != nullptr, "in of size 2 should be set");
+			VI_ASSERT(In != nullptr, "in of size 2 should be set");
 			In[0] = X;
 			In[1] = Y;
 		}
 		void Vector4::Get3(float* In) const
 		{
-			VI_ASSERT_V(In != nullptr, "in of size 3 should be set");
+			VI_ASSERT(In != nullptr, "in of size 3 should be set");
 			In[0] = X;
 			In[1] = Y;
 			In[2] = Z;
 		}
 		void Vector4::Get4(float* In) const
 		{
-			VI_ASSERT_V(In != nullptr, "in of size 4 should be set");
+			VI_ASSERT(In != nullptr, "in of size 4 should be set");
 			In[0] = X;
 			In[1] = Y;
 			In[2] = Z;
@@ -1640,7 +1640,7 @@ namespace Mavi
 		}
 		float& Vector4::operator [](uint32_t Axis)
 		{
-			VI_ASSERT(Axis >= 0 && Axis <= 3, X, "index outside of range");
+			VI_ASSERT(Axis >= 0 && Axis <= 3, "index outside of range");
 			if (Axis == 0)
 				return X;
 			else if (Axis == 1)
@@ -1652,7 +1652,7 @@ namespace Mavi
 		}
 		float Vector4::operator [](uint32_t Axis) const
 		{
-			VI_ASSERT(Axis >= 0 && Axis <= 3, X, "index outside of range");
+			VI_ASSERT(Axis >= 0 && Axis <= 3, "index outside of range");
 			if (Axis == 0)
 				return X;
 			else if (Axis == 1)
@@ -1676,7 +1676,7 @@ namespace Mavi
 		}
 		Bounding::Bounding(const Vector3& LowerBound, const Vector3& UpperBound) noexcept : Lower(LowerBound), Upper(UpperBound)
 		{
-			VI_ASSERT_V(Lower <= Upper, "lower should be smaller than upper");
+			VI_ASSERT(Lower <= Upper, "lower should be smaller than upper");
 			Volume = Geometric::AabbVolume(Lower, Upper);
 			Radius = ((Upper - Lower) * 0.5f).Sum();
 			Center = (Lower + Upper) * 0.5f;
@@ -1720,7 +1720,7 @@ namespace Mavi
 		}
 		void Frustum8C::GetBoundingBox(Vector2* X, Vector2* Y, Vector2* Z)
 		{
-			VI_ASSERT_V(X || Y || Z, "at least one vector of x, y, z should be set");
+			VI_ASSERT(X || Y || Z, "at least one vector of x, y, z should be set");
 			float MinX = std::numeric_limits<float>::max();
 			float MaxX = std::numeric_limits<float>::min();
 			float MinY = std::numeric_limits<float>::max();
@@ -3309,7 +3309,7 @@ namespace Mavi
 		}
 		RegexSource& RegexSource::operator=(const RegexSource& V) noexcept
 		{
-			VI_ASSERT(this != &V, *this, "cannot set to self");
+			VI_ASSERT(this != &V, "cannot set to self");
 			Brackets.clear();
 			Brackets.reserve(V.Brackets.capacity());
 			Branches.clear();
@@ -3326,7 +3326,7 @@ namespace Mavi
 		}
 		RegexSource& RegexSource::operator=(RegexSource&& V) noexcept
 		{
-			VI_ASSERT(this != &V, *this, "cannot set to self");
+			VI_ASSERT(this != &V, "cannot set to self");
 			Brackets.clear();
 			Brackets.reserve(V.Brackets.capacity());
 			Branches.clear();
@@ -3519,8 +3519,8 @@ namespace Mavi
 		}
 		bool Regex::Match(RegexSource* Value, RegexResult& Result, const char* Buffer, int64_t Length)
 		{
-			VI_ASSERT(Value != nullptr && Value->State == RegexState::Preprocessed, false, "invalid regex source");
-			VI_ASSERT(Buffer != nullptr && Length > 0, false, "invalid buffer");
+			VI_ASSERT(Value != nullptr && Value->State == RegexState::Preprocessed, "invalid regex source");
+			VI_ASSERT(Buffer != nullptr && Length > 0, "invalid buffer");
 
 			Result.Src = Value;
 			Result.State = RegexState::Preprocessed;
@@ -3580,18 +3580,18 @@ namespace Mavi
 		}
 		int64_t Regex::Meta(const unsigned char* Buffer)
 		{
-			VI_ASSERT(Buffer != nullptr, 0, "invalid buffer");
+			VI_ASSERT(Buffer != nullptr, "invalid buffer");
 			static const char* Chars = "^$().[]*+?|\\Ssdbfnrtv";
 			return strchr(Chars, *Buffer) != nullptr;
 		}
 		int64_t Regex::OpLength(const char* Value)
 		{
-			VI_ASSERT(Value != nullptr, 1, "invalid value");
+			VI_ASSERT(Value != nullptr, "invalid value");
 			return Value[0] == '\\' && Value[1] == 'x' ? 4 : Value[0] == '\\' ? 2 : 1;
 		}
 		int64_t Regex::SetLength(const char* Value, int64_t ValueLength)
 		{
-			VI_ASSERT(Value != nullptr, -1, "invalid value");
+			VI_ASSERT(Value != nullptr, "invalid value");
 			int64_t Length = 0;
 			while (Length < ValueLength && Value[Length] != ']')
 				Length += OpLength(Value + Length);
@@ -3600,12 +3600,12 @@ namespace Mavi
 		}
 		int64_t Regex::GetOpLength(const char* Value, int64_t ValueLength)
 		{
-			VI_ASSERT(Value != nullptr, -1, "invalid value");
+			VI_ASSERT(Value != nullptr, "invalid value");
 			return Value[0] == '[' ? SetLength(Value + 1, ValueLength - 1) + 1 : OpLength(Value);
 		}
 		int64_t Regex::Quantifier(const char* Value)
 		{
-			VI_ASSERT(Value != nullptr, 0, "invalid value");
+			VI_ASSERT(Value != nullptr, "invalid value");
 			return Value[0] == '*' || Value[0] == '+' || Value[0] == '?';
 		}
 		int64_t Regex::ToInt(int64_t x)
@@ -3614,14 +3614,14 @@ namespace Mavi
 		}
 		int64_t Regex::HexToInt(const unsigned char* Buffer)
 		{
-			VI_ASSERT(Buffer != nullptr, 0, "invalid buffer");
+			VI_ASSERT(Buffer != nullptr, "invalid buffer");
 			return (ToInt(tolower(Buffer[0])) << 4) | ToInt(tolower(Buffer[1]));
 		}
 		int64_t Regex::MatchOp(const unsigned char* Value, const unsigned char* Buffer, RegexResult* Info)
 		{
-			VI_ASSERT(Buffer != nullptr, 0, "invalid buffer");
-			VI_ASSERT(Value != nullptr, 0, "invalid value");
-			VI_ASSERT(Info != nullptr, 0, "invalid regex result");
+			VI_ASSERT(Buffer != nullptr, "invalid buffer");
+			VI_ASSERT(Value != nullptr, "invalid value");
+			VI_ASSERT(Info != nullptr, "invalid regex result");
 
 			int64_t Result = 0;
 			switch (*Value)
@@ -3701,9 +3701,9 @@ namespace Mavi
 		}
 		int64_t Regex::MatchSet(const char* Value, int64_t ValueLength, const char* Buffer, RegexResult* Info)
 		{
-			VI_ASSERT(Buffer != nullptr, 0, "invalid buffer");
-			VI_ASSERT(Value != nullptr, 0, "invalid value");
-			VI_ASSERT(Info != nullptr, 0, "invalid regex result");
+			VI_ASSERT(Buffer != nullptr, "invalid buffer");
+			VI_ASSERT(Value != nullptr, "invalid value");
+			VI_ASSERT(Info != nullptr, "invalid regex result");
 
 			int64_t Length = 0, Result = -1, Invert = Value[0] == '^';
 			if (Invert)
@@ -3727,9 +3727,9 @@ namespace Mavi
 		}
 		int64_t Regex::ParseInner(const char* Value, int64_t ValueLength, const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case)
 		{
-			VI_ASSERT(Buffer != nullptr, 0, "invalid buffer");
-			VI_ASSERT(Value != nullptr, 0, "invalid value");
-			VI_ASSERT(Info != nullptr, 0, "invalid regex result");
+			VI_ASSERT(Buffer != nullptr, "invalid buffer");
+			VI_ASSERT(Value != nullptr, "invalid value");
+			VI_ASSERT(Info != nullptr, "invalid regex result");
 
 			int64_t i, j, n, Step;
 			for (i = j = 0; i < ValueLength && j <= BufferLength; i += Step)
@@ -3848,8 +3848,8 @@ namespace Mavi
 		}
 		int64_t Regex::ParseDOH(const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case)
 		{
-			VI_ASSERT(Buffer != nullptr, 0, "invalid buffer");
-			VI_ASSERT(Info != nullptr, 0, "invalid regex result");
+			VI_ASSERT(Buffer != nullptr, "invalid buffer");
+			VI_ASSERT(Info != nullptr, "invalid regex result");
 
 			const RegexBracket* Bk = &Info->Src->Brackets[(size_t)Case];
 			int64_t i = 0, Length, Result;
@@ -3867,8 +3867,8 @@ namespace Mavi
 		}
 		int64_t Regex::Parse(const char* Buffer, int64_t BufferLength, RegexResult* Info)
 		{
-			VI_ASSERT(Buffer != nullptr, 0, "invalid buffer");
-			VI_ASSERT(Info != nullptr, 0, "invalid regex result");
+			VI_ASSERT(Buffer != nullptr, "invalid buffer");
+			VI_ASSERT(Info != nullptr, "invalid regex result");
 			VI_MEASURE(Core::Timings::Frame);
 
 			int64_t is_anchored = Info->Src->Brackets[0].Pointer[0] == '^', i, result = -1;
@@ -3982,7 +3982,7 @@ namespace Mavi
 		}
 		PrivateKey::PrivateKey(const char* Buffer) noexcept
 		{
-			VI_ASSERT_V(Buffer != nullptr, "buffer should be set");
+			VI_ASSERT(Buffer != nullptr, "buffer should be set");
 			Secure(Buffer, strlen(Buffer));
 		}
 		PrivateKey::PrivateKey(const char* Buffer, size_t Size) noexcept
@@ -4029,7 +4029,7 @@ namespace Mavi
 		}
 		void PrivateKey::Secure(const char* Buffer, size_t Size)
 		{
-			VI_ASSERT_V(Buffer != nullptr, "buffer should be set");
+			VI_ASSERT(Buffer != nullptr, "buffer should be set");
 			VI_TRACE("[crypto] secure private key on %" PRIu64 " bytes", (uint64_t)Size);
 			Blocks.reserve(Size);
 			Clear();
@@ -4321,7 +4321,7 @@ namespace Mavi
 		}
 		bool TriangleStrip::Resolve(TriangleStrip::Result& result)
 		{
-			VI_ASSERT(Adj != nullptr, false, "triangle strip should be initialized");
+			VI_ASSERT(Adj != nullptr, "triangle strip should be initialized");
 			Tags = VI_MALLOC(bool, sizeof(bool) * Adj->NbFaces);
 			unsigned int* Connectivity = VI_MALLOC(unsigned int, sizeof(unsigned int) * Adj->NbFaces);
 
@@ -4925,14 +4925,14 @@ namespace Mavi
 		}
 		void MD5Hasher::Decode(UInt4* Output, const UInt1* Input, unsigned int Length)
 		{
-			VI_ASSERT_V(Output != nullptr && Input != nullptr, "output and input should be set");
+			VI_ASSERT(Output != nullptr && Input != nullptr, "output and input should be set");
 			for (unsigned int i = 0, j = 0; j < Length; i++, j += 4)
 				Output[i] = ((UInt4)Input[j]) | (((UInt4)Input[j + 1]) << 8) | (((UInt4)Input[j + 2]) << 16) | (((UInt4)Input[j + 3]) << 24);
 			VI_TRACE("[crypto] md5 hasher decode to 0x%" PRIXPTR, (void*)Output);
 		}
 		void MD5Hasher::Encode(UInt1* Output, const UInt4* Input, unsigned int Length)
 		{
-			VI_ASSERT_V(Output != nullptr && Input != nullptr, "output and input should be set");
+			VI_ASSERT(Output != nullptr && Input != nullptr, "output and input should be set");
 			for (unsigned int i = 0, j = 0; j < Length; i++, j += 4)
 			{
 				Output[j] = Input[i] & 0xff;
@@ -4944,7 +4944,7 @@ namespace Mavi
 		}
 		void MD5Hasher::Transform(const UInt1* Block, unsigned int Length)
 		{
-			VI_ASSERT_V(Block != nullptr, "block should be set");
+			VI_ASSERT(Block != nullptr, "block should be set");
 			VI_TRACE("[crypto] md5 hasher transform from 0x%" PRIXPTR, (void*)Block);
 			UInt4 A = State[0], B = State[1], C = State[2], D = State[3], X[16];
 			Decode(X, Block, Length);
@@ -5030,7 +5030,7 @@ namespace Mavi
 		}
 		void MD5Hasher::Update(const unsigned char* Input, unsigned int Length, unsigned int BlockSize)
 		{
-			VI_ASSERT_V(Input != nullptr, "input should be set");
+			VI_ASSERT(Input != nullptr, "input should be set");
 			VI_TRACE("[crypto] md5 hasher update from 0x%" PRIXPTR, (void*)Input);
 			unsigned int Index = Count[0] / 8 % BlockSize;
 			Count[0] += (Length << 3);
@@ -5079,7 +5079,7 @@ namespace Mavi
 		}
 		char* MD5Hasher::HexDigest() const
 		{
-			VI_ASSERT(Finalized, nullptr, "md5 hash should be finalized");
+			VI_ASSERT(Finalized, "md5 hash should be finalized");
 			char* Data = VI_MALLOC(char, sizeof(char) * 48);
 			memset(Data, 0, sizeof(char) * 48);
 
@@ -5090,7 +5090,7 @@ namespace Mavi
 		}
 		unsigned char* MD5Hasher::RawDigest() const
 		{
-			VI_ASSERT(Finalized, nullptr, "md5 hash should be finalized");
+			VI_ASSERT(Finalized, "md5 hash should be finalized");
 			UInt1* Output = VI_MALLOC(UInt1, sizeof(UInt1) * 17);
 			memcpy(Output, Digest, 16);
 			Output[16] = '\0';
@@ -5099,7 +5099,7 @@ namespace Mavi
 		}
 		Core::String MD5Hasher::ToHex() const
 		{
-			VI_ASSERT(Finalized, Core::String(), "md5 hash should be finalized");
+			VI_ASSERT(Finalized, "md5 hash should be finalized");
 			char Data[48];
 			memset(Data, 0, sizeof(Data));
 
@@ -5110,7 +5110,7 @@ namespace Mavi
 		}
 		Core::String MD5Hasher::ToRaw() const
 		{
-			VI_ASSERT(Finalized, Core::String(), "md5 hash should be finalized");
+			VI_ASSERT(Finalized, "md5 hash should be finalized");
 			UInt1 Data[17];
 			memcpy(Data, Digest, 16);
 			Data[16] = '\0';
@@ -6986,7 +6986,7 @@ namespace Mavi
 
 		const char* Crypto::GetDigestName(Digest Type)
 		{
-			VI_ASSERT(Type != nullptr, "", "digest should be set");
+			VI_ASSERT(Type != nullptr, "digest should be set");
 #ifdef EVP_MD_name
 			const char* Name = EVP_MD_name((EVP_MD*)Type);
 			return Name ? Name : "0x?";
@@ -6996,7 +6996,7 @@ namespace Mavi
 		}
 		const char* Crypto::GetCipherName(Cipher Type)
 		{
-			VI_ASSERT(Type != nullptr, "", "cipher should be set");
+			VI_ASSERT(Type != nullptr, "cipher should be set");
 #ifdef EVP_CIPHER_name
 			const char* Name = EVP_CIPHER_name((EVP_CIPHER*)Type);
 			return Name ? Name : "0x?";
@@ -7026,7 +7026,7 @@ namespace Mavi
 		}
 		Core::String Crypto::HashBinary(Digest Type, const Core::String& Value)
 		{
-			VI_ASSERT(Type != nullptr, Core::String(), "type should be set");
+			VI_ASSERT(Type != nullptr, "type should be set");
 #ifdef VI_HAS_OPENSSL
 			VI_TRACE("[crypto] %s hash %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Value.size());	
 			EVP_MD* Method = (EVP_MD*)Type;
@@ -7060,9 +7060,9 @@ namespace Mavi
 		}
 		Core::String Crypto::Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
 		{
-			VI_ASSERT(Value != nullptr, Core::String(), "value should be set");
-			VI_ASSERT(Type != nullptr, Core::String(), "type should be set");
-			VI_ASSERT(Length > 0, Core::String(), "length should be greater than zero");
+			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(Type != nullptr, "type should be set");
+			VI_ASSERT(Length > 0, "length should be greater than zero");
 #ifdef VI_HAS_OPENSSL
 			VI_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
 			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
@@ -7157,9 +7157,9 @@ namespace Mavi
 		}
 		Core::String Crypto::HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
 		{
-			VI_ASSERT(Value != nullptr, Core::String(), "value should be set");
-			VI_ASSERT(Type != nullptr, Core::String(), "type should be set");
-			VI_ASSERT(Length > 0, Core::String(), "length should be greater than zero");
+			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(Type != nullptr, "type should be set");
+			VI_ASSERT(Length > 0, "length should be greater than zero");
 #ifdef VI_HAS_OPENSSL
 			VI_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
 			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
@@ -7184,9 +7184,9 @@ namespace Mavi
 		}
 		Core::String Crypto::Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
-			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), Core::String(), "compexity should be valid 64, 128, 256, etc.");
-			VI_ASSERT(Value != nullptr, Core::String(), "value should be set");
-			VI_ASSERT(Type != nullptr, Core::String(), "type should be set");
+			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
+			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(Type != nullptr, "type should be set");
 			VI_TRACE("[crypto] %s encrypt%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
 
 			if (!Length)
@@ -7252,9 +7252,9 @@ namespace Mavi
 		}
 		Core::String Crypto::Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
-			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), Core::String(), "compexity should be valid 64, 128, 256, etc.");
-			VI_ASSERT(Value != nullptr, Core::String(), "value should be set");
-			VI_ASSERT(Type != nullptr, Core::String(), "type should be set");
+			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
+			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(Type != nullptr, "type should be set");
 			VI_TRACE("[crypto] %s decrypt%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
 
 			if (!Length)
@@ -7332,9 +7332,9 @@ namespace Mavi
 		}
 		Core::String Crypto::JWTEncode(WebToken* Src, const PrivateKey& Key)
 		{
-			VI_ASSERT(Src != nullptr, Core::String(), "web token should be set");
-			VI_ASSERT(Src->Header != nullptr, Core::String(), "web token header should be set");
-			VI_ASSERT(Src->Payload != nullptr, Core::String(), "web token payload should be set");
+			VI_ASSERT(Src != nullptr, "web token should be set");
+			VI_ASSERT(Src->Header != nullptr, "web token header should be set");
+			VI_ASSERT(Src->Payload != nullptr, "web token payload should be set");
 
 			Core::String Alg = Src->Header->GetVar("alg").GetBlob();
 			if (Alg.empty())
@@ -7395,7 +7395,7 @@ namespace Mavi
 		}
 		Core::String Crypto::DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt)
 		{
-			VI_ASSERT(Src != nullptr, Core::String(), "schema should be set");
+			VI_ASSERT(Src != nullptr, "schema should be set");
 			Core::String Result;
 			Core::Schema::ConvertToJSON(Src, [&Result](Core::VarForm, const char* Buffer, size_t Size)
 			{
@@ -7407,7 +7407,7 @@ namespace Mavi
 		}
 		Core::Schema* Crypto::DocDecrypt(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt)
 		{
-			VI_ASSERT(!Value.empty(), nullptr, "value should not be empty");
+			VI_ASSERT(!Value.empty(), "value should not be empty");
 			Core::String Source = Decrypt(Ciphers::AES_256_CBC(), Codec::Bep45Decode(Value), Key, Salt);
 			return Core::Schema::ConvertFromJSON(Source.c_str(), Source.size());
 		}
@@ -7464,14 +7464,14 @@ namespace Mavi
 		}
 		void Crypto::Sha1CollapseBufferBlock(unsigned int* Buffer)
 		{
-			VI_ASSERT_V(Buffer != nullptr, "buffer should be set");
+			VI_ASSERT(Buffer != nullptr, "buffer should be set");
 			for (int i = 16; --i >= 0;)
 				Buffer[i] = 0;
 		}
 		void Crypto::Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W)
 		{
-			VI_ASSERT_V(Result != nullptr, "result should be set");
-			VI_ASSERT_V(W != nullptr, "salt should be set");
+			VI_ASSERT(Result != nullptr, "result should be set");
+			VI_ASSERT(W != nullptr, "salt should be set");
 			unsigned int A = Result[0];
 			unsigned int B = Result[1];
 			unsigned int C = Result[2];
@@ -7520,8 +7520,8 @@ namespace Mavi
 		}
 		void Crypto::Sha1Compute(const void* Value, const int Length, char* Hash20)
 		{
-			VI_ASSERT_V(Value != nullptr, "value should be set");
-			VI_ASSERT_V(Hash20 != nullptr, "hash of size 20 should be set");
+			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(Hash20 != nullptr, "hash of size 20 should be set");
 
 			unsigned int Result[5] = { 0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0 };
 			const unsigned char* ValueCUC = (const unsigned char*)Value;
@@ -7560,8 +7560,8 @@ namespace Mavi
 		}
 		void Crypto::Sha1Hash20ToHex(const char* Hash20, char* HexString)
 		{
-			VI_ASSERT_V(Hash20 != nullptr, "hash of size 20 should be set");
-			VI_ASSERT_V(HexString != nullptr, "result hex should be set");
+			VI_ASSERT(Hash20 != nullptr, "hash of size 20 should be set");
+			VI_ASSERT(HexString != nullptr, "result hex should be set");
 
 			const char Hex[] = { "0123456789abcdef" };
 			for (int i = 20; --i >= 0;)
@@ -7598,8 +7598,8 @@ namespace Mavi
 		}
 		Core::String Codec::Encode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool Padding)
 		{
-			VI_ASSERT(Value != nullptr, Core::String(), "value should be set");
-			VI_ASSERT(Length > 0, Core::String(), "length should be greater than zero");
+			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(Length > 0, "length should be greater than zero");
 			VI_TRACE("[codec] %s encode64 %" PRIu64 " bytes", Padding ? "padded" : "unpadded", (uint64_t)Length);
 
 			Core::String Result;
@@ -7648,9 +7648,9 @@ namespace Mavi
 		}
 		Core::String Codec::Decode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool(*IsAlphabetic)(unsigned char))
 		{
-			VI_ASSERT(Value != nullptr, Core::String(), "value should be set");
-			VI_ASSERT(IsAlphabetic != nullptr, Core::String(), "callback should be set");
-			VI_ASSERT(Length > 0, Core::String(), "length should be greater than zero");
+			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(IsAlphabetic != nullptr, "callback should be set");
+			VI_ASSERT(Length > 0, "length should be greater than zero");
 			VI_TRACE("[codec] decode64 %" PRIu64 " bytes", (uint64_t)Length);
 
 			Core::String Result;
@@ -7849,7 +7849,7 @@ namespace Mavi
 		}
 		Core::String Codec::Shuffle(const char* Value, size_t Size, uint64_t Mask)
 		{
-			VI_ASSERT(Value != nullptr, Core::String(), "value should be set");
+			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_TRACE("[codec] shuffle %" PRIu64 " bytes", (uint64_t)Size);
 
 			Core::String Result;
@@ -7919,8 +7919,8 @@ namespace Mavi
 		}
 		Core::String Codec::HexEncode(const char* Value, size_t Size)
 		{
-			VI_ASSERT(Value != nullptr, Core::String(), "value should be set");
-			VI_ASSERT(Size > 0, Core::String(), "length should be greater than zero");
+			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(Size > 0, "length should be greater than zero");
 			VI_TRACE("[codec] hex encode %" PRIu64 " bytes", (uint64_t)Size);
 			static const char Hex[17] = "0123456789abcdef";
 
@@ -7942,8 +7942,8 @@ namespace Mavi
 		}
 		Core::String Codec::HexDecode(const char* Value, size_t Size)
 		{
-			VI_ASSERT(Value != nullptr, Core::String(), "value should be set");
-			VI_ASSERT(Size > 0, Core::String(), "length should be greater than zero");
+			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(Size > 0, "length should be greater than zero");
 			VI_TRACE("[codec] hex decode %" PRIu64 " bytes", (uint64_t)Size);
 
 			Core::String Output;
@@ -7968,8 +7968,8 @@ namespace Mavi
 		}
 		Core::String Codec::URIEncode(const char* Text, size_t Length)
 		{
-			VI_ASSERT(Text != nullptr, Core::String(), "text should be set");
-			VI_ASSERT(Length > 0, Core::String(), "length should be greater than zero");
+			VI_ASSERT(Text != nullptr, "text should be set");
+			VI_ASSERT(Length > 0, "length should be greater than zero");
 			VI_TRACE("[codec] uri encode %" PRIu64 " bytes", (uint64_t)Length);
 
 			static const char* Unescape = "._-$,;~()";
@@ -8000,8 +8000,8 @@ namespace Mavi
 		}
 		Core::String Codec::URIDecode(const char* Text, size_t Length)
 		{
-			VI_ASSERT(Text != nullptr, Core::String(), "text should be set");
-			VI_ASSERT(Length > 0, Core::String(), "length should be greater than zero");
+			VI_ASSERT(Text != nullptr, "text should be set");
+			VI_ASSERT(Length > 0, "length should be greater than zero");
 			VI_TRACE("[codec] uri encode %" PRIu64 " bytes", (uint64_t)Length);
 
 			Core::String Value;
@@ -8027,7 +8027,7 @@ namespace Mavi
 		}
 		Core::String Codec::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
 		{
-			VI_ASSERT(BaseLessThan65 >= 1 && BaseLessThan65 <= 64, Core::String(), "base should be between 1 and 64");
+			VI_ASSERT(BaseLessThan65 >= 1 && BaseLessThan65 <= 64, "base should be between 1 and 64");
 			static const char* Base62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
 			static const char* Base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 			if (Value == 0)
@@ -8059,7 +8059,7 @@ namespace Mavi
 		}
 		size_t Codec::Utf8(int Code, char* Buffer)
 		{
-			VI_ASSERT(Buffer != nullptr, 0, "buffer should be set");
+			VI_ASSERT(Buffer != nullptr, "buffer should be set");
 			if (Code < 0x0080)
 			{
 				Buffer[0] = (Code & 0x7F);
@@ -8122,9 +8122,9 @@ namespace Mavi
 		}
 		bool Codec::HexToString(void* Data, size_t Length, char* Buffer, size_t BufferLength)
 		{
-			VI_ASSERT(Data != nullptr && Length > 0, false, "data buffer should be set");
-			VI_ASSERT(Buffer != nullptr && BufferLength > 0, false, "buffer should be set");
-			VI_ASSERT(BufferLength >= (3 * Length), false, "buffer is too small");
+			VI_ASSERT(Data != nullptr && Length > 0, "data buffer should be set");
+			VI_ASSERT(Buffer != nullptr && BufferLength > 0, "buffer should be set");
+			VI_ASSERT(BufferLength >= (3 * Length), "buffer is too small");
 
 			static const char HEX[] = "0123456789abcdef";
 			for (size_t i = 0; i < Length; i++)
@@ -8141,7 +8141,7 @@ namespace Mavi
 		}
 		bool Codec::HexToDecimal(const Core::String& Text, size_t Index, size_t Count, int& Value)
 		{
-			VI_ASSERT(Index < Text.size(), false, "index outside of range");
+			VI_ASSERT(Index < Text.size(), "index outside of range");
 
 			Value = 0;
 			for (; Count; Index++, Count--)
@@ -8407,7 +8407,7 @@ namespace Mavi
 		}
 		bool Geometric::HasAABBIntersected(Transform* R0, Transform* R1)
 		{
-			VI_ASSERT(R0 != nullptr && R1 != nullptr, false, "transforms should be set");
+			VI_ASSERT(R0 != nullptr && R1 != nullptr, "transforms should be set");
 			const Vector3& Position0 = R0->GetPosition();
 			const Vector3& Position1 = R1->GetPosition();
 			const Vector3& Scale0 = R0->GetScale();
@@ -8426,7 +8426,7 @@ namespace Mavi
 		}
 		void Geometric::MatrixRhToLh(Compute::Matrix4x4* Matrix)
 		{
-			VI_ASSERT_V(Matrix != nullptr, "matrix should be set");
+			VI_ASSERT(Matrix != nullptr, "matrix should be set");
 			*Matrix = *Matrix * RH_TO_LH;
 		}
 		void Geometric::SetLeftHanded(bool IsLeftHanded)
@@ -8487,7 +8487,7 @@ namespace Mavi
 		}
 		void Geometric::CreateFrustum8CRad(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ)
 		{
-			VI_ASSERT_V(Result8 != nullptr, "8 sized array should be set");
+			VI_ASSERT(Result8 != nullptr, "8 sized array should be set");
 			float HalfHFov = std::tan(FieldOfView * 0.5f) * Aspect;
 			float HalfVFov = std::tan(FieldOfView * 0.5f);
 			float XN = NearZ * HalfHFov;
@@ -8663,8 +8663,8 @@ namespace Mavi
 		}
 		bool WebToken::Sign(const PrivateKey& Key)
 		{
-			VI_ASSERT(Header != nullptr, false, "header should be set");
-			VI_ASSERT(Payload != nullptr, false, "payload should be set");
+			VI_ASSERT(Header != nullptr, "header should be set");
+			VI_ASSERT(Payload != nullptr, "payload should be set");
 			if (Data.empty())
 				Data = Crypto::JWTEncode(this, Key);
 
@@ -9602,7 +9602,7 @@ namespace Mavi
 		}
 		void Transform::Synchronize()
 		{
-			VI_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			VI_ASSERT(!Root || Local != nullptr, "corrupted root transform");
 			if (Root != nullptr)
 			{
 				Local->Offset = Matrix4x4::Create(Local->Position, Local->Rotation) * Root->GetBiasUnscaled();
@@ -9620,7 +9620,7 @@ namespace Mavi
 		}
 		void Transform::Move(const Vector3& Value)
 		{
-			VI_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			VI_ASSERT(!Root || Local != nullptr, "corrupted root transform");
 			if (Root != nullptr)
 				Local->Position += Value;
 			else
@@ -9629,7 +9629,7 @@ namespace Mavi
 		}
 		void Transform::Rotate(const Vector3& Value)
 		{
-			VI_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			VI_ASSERT(!Root || Local != nullptr, "corrupted root transform");
 			if (Root != nullptr)
 				Local->Rotation += Value;
 			else
@@ -9638,7 +9638,7 @@ namespace Mavi
 		}
 		void Transform::Rescale(const Vector3& Value)
 		{
-			VI_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			VI_ASSERT(!Root || Local != nullptr, "corrupted root transform");
 			if (Root != nullptr)
 				Local->Scale += Value;
 			else
@@ -9667,7 +9667,7 @@ namespace Mavi
 		}
 		void Transform::Specialize(Spacing& Where)
 		{
-			VI_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			VI_ASSERT(!Root || Local != nullptr, "corrupted root transform");
 			if (Root != nullptr)
 			{
 				Where.Offset = Matrix4x4::Create(Local->Position, Local->Rotation) * Root->GetBiasUnscaled();
@@ -9680,7 +9680,7 @@ namespace Mavi
 		}
 		void Transform::Copy(Transform* Target)
 		{
-			VI_ASSERT_V(Target != nullptr && Target != this, "target should be set");
+			VI_ASSERT(Target != nullptr && Target != this, "target should be set");
 			VI_DELETE(Spacing, Local);
 
 			if (Target->Root != nullptr)
@@ -9697,13 +9697,13 @@ namespace Mavi
 		}
 		void Transform::AddChild(Transform* Child)
 		{
-			VI_ASSERT_V(Child != nullptr && Child != this, "child should be set");
+			VI_ASSERT(Child != nullptr && Child != this, "child should be set");
 			Childs.push_back(Child);
 			Child->MakeDirty();
 		}
 		void Transform::RemoveChild(Transform* Child)
 		{
-			VI_ASSERT_V(Child != nullptr && Child != this, "child should be set");
+			VI_ASSERT(Child != nullptr && Child != this, "child should be set");
 			if (Child->Root == this)
 				Child->SetRoot(nullptr);
 		}
@@ -9743,7 +9743,7 @@ namespace Mavi
 		}
 		void Transform::SetPosition(const Vector3& Value)
 		{
-			VI_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			VI_ASSERT(!Root || Local != nullptr, "corrupted root transform");
 			bool Updated = !(Root ? Local->Position.IsEquals(Value) : Global.Position.IsEquals(Value));
 			if (Root != nullptr)
 				Local->Position = Value;
@@ -9755,7 +9755,7 @@ namespace Mavi
 		}
 		void Transform::SetRotation(const Vector3& Value)
 		{
-			VI_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			VI_ASSERT(!Root || Local != nullptr, "corrupted root transform");
 			bool Updated = !(Root ? Local->Rotation.IsEquals(Value) : Global.Rotation.IsEquals(Value));
 			if (Root != nullptr)
 				Local->Rotation = Value;
@@ -9767,7 +9767,7 @@ namespace Mavi
 		}
 		void Transform::SetScale(const Vector3& Value)
 		{
-			VI_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			VI_ASSERT(!Root || Local != nullptr, "corrupted root transform");
 			bool Updated = !(Root ? Local->Scale.IsEquals(Value) : Global.Scale.IsEquals(Value));
 			if (Root != nullptr)
 				Local->Scale = Value;
@@ -9870,7 +9870,7 @@ namespace Mavi
 		}
 		bool Transform::HasRoot(const Transform* Target) const
 		{
-			VI_ASSERT(Target != nullptr, false, "target should be set");
+			VI_ASSERT(Target != nullptr, "target should be set");
 			Compute::Transform* UpperRoot = Root;
 			while (UpperRoot != nullptr)
 			{
@@ -9884,7 +9884,7 @@ namespace Mavi
 		}
 		bool Transform::HasChild(Transform* Target) const
 		{
-			VI_ASSERT(Target != nullptr, false, "target should be set");
+			VI_ASSERT(Target != nullptr, "target should be set");
 			for (auto& Child : Childs)
 			{
 				if (Child == Target)
@@ -9919,7 +9919,7 @@ namespace Mavi
 		}
 		const Matrix4x4& Transform::GetBias() const
 		{
-			VI_ASSERT(!Root || Local != nullptr, Global.Offset, "corrupted root transform");
+			VI_ASSERT(!Root || Local != nullptr, "corrupted root transform");
 			if (Root != nullptr)
 				return Temporary;
 
@@ -9927,7 +9927,7 @@ namespace Mavi
 		}
 		const Matrix4x4& Transform::GetBiasUnscaled() const
 		{
-			VI_ASSERT(!Root || Local != nullptr, Temporary, "corrupted root transform");
+			VI_ASSERT(!Root || Local != nullptr, "corrupted root transform");
 			if (Root != nullptr)
 				return Local->Offset;
 
@@ -9947,7 +9947,7 @@ namespace Mavi
 		}
 		Vector3 Transform::Forward() const
 		{
-			VI_ASSERT(!Root || Local != nullptr, 0, "corrupted root transform");
+			VI_ASSERT(!Root || Local != nullptr, "corrupted root transform");
 			if (Root != nullptr)
 				return Local->Offset.Forward();
 
@@ -9955,7 +9955,7 @@ namespace Mavi
 		}
 		Vector3 Transform::Right() const
 		{
-			VI_ASSERT(!Root || Local != nullptr, 0, "corrupted root transform");
+			VI_ASSERT(!Root || Local != nullptr, "corrupted root transform");
 			if (Root != nullptr)
 				return Local->Offset.Right();
 
@@ -9963,7 +9963,7 @@ namespace Mavi
 		}
 		Vector3 Transform::Up() const
 		{
-			VI_ASSERT(!Root || Local != nullptr, 0, "corrupted root transform");
+			VI_ASSERT(!Root || Local != nullptr, "corrupted root transform");
 			if (Root != nullptr)
 				return Local->Offset.Up();
 
@@ -9971,7 +9971,7 @@ namespace Mavi
 		}
 		Transform::Spacing& Transform::GetSpacing()
 		{
-			VI_ASSERT(!Root || Local != nullptr, Global, "corrupted root transform");
+			VI_ASSERT(!Root || Local != nullptr, "corrupted root transform");
 			if (Root != nullptr)
 				return *Local;
 
@@ -9979,7 +9979,7 @@ namespace Mavi
 		}
 		Transform::Spacing& Transform::GetSpacing(Positioning Space)
 		{
-			VI_ASSERT(!Root || Local != nullptr, Global, "corrupted root transform");
+			VI_ASSERT(!Root || Local != nullptr, "corrupted root transform");
 			if (Space == Positioning::Local)
 				return *Local;
 
@@ -9999,7 +9999,7 @@ namespace Mavi
 		}
 		Transform* Transform::GetChild(size_t Child) const
 		{
-			VI_ASSERT(Child < Childs.size(), nullptr, "index outside of range");
+			VI_ASSERT(Child < Childs.size(), "index outside of range");
 			return Childs[Child];
 		}
 		size_t Transform::GetChildsCount() const
@@ -10037,8 +10037,8 @@ namespace Mavi
 		}
 		void Cosmos::FreeNode(size_t NodeIndex)
 		{
-			VI_ASSERT_V(NodeIndex < NodeCapacity, "outside of borders");
-			VI_ASSERT_V(NodeCount > 0, "there must be at least one node");
+			VI_ASSERT(NodeIndex < NodeCapacity, "outside of borders");
+			VI_ASSERT(NodeCount > 0, "there must be at least one node");
 
 			auto& Node = Nodes[NodeIndex];
 			Node.Next = FreeList;
@@ -10066,8 +10066,8 @@ namespace Mavi
 			size_t NodeIndex = It->second;
 			Items.erase(It);
 
-			VI_ASSERT_V(NodeIndex < NodeCapacity, "outside of borders");
-			VI_ASSERT_V(Nodes[NodeIndex].IsLeaf(), "cannot remove root node");
+			VI_ASSERT(NodeIndex < NodeCapacity, "outside of borders");
+			VI_ASSERT(Nodes[NodeIndex].IsLeaf(), "cannot remove root node");
 
 			RemoveLeaf(NodeIndex);
 			FreeNode(NodeIndex);
@@ -10214,8 +10214,8 @@ namespace Mavi
 			while (It != Items.end())
 			{
 				size_t NodeIndex = It->second;
-				VI_ASSERT_V(NodeIndex < NodeCapacity, "outside of borders");
-				VI_ASSERT_V(Nodes[NodeIndex].IsLeaf(), "cannot remove root node");
+				VI_ASSERT(NodeIndex < NodeCapacity, "outside of borders");
+				VI_ASSERT(Nodes[NodeIndex].IsLeaf(), "cannot remove root node");
 
 				RemoveLeaf(NodeIndex);
 				FreeNode(NodeIndex);
@@ -10260,7 +10260,7 @@ namespace Mavi
 		{
 			if (FreeList == NULL_NODE)
 			{
-				VI_ASSERT(NodeCount == NodeCapacity, 0, "invalid capacity");
+				VI_ASSERT(NodeCount == NodeCapacity, "invalid capacity");
 
 				NodeCapacity *= 2;
 				Nodes.resize(NodeCapacity);
@@ -10290,14 +10290,14 @@ namespace Mavi
 		}
 		size_t Cosmos::Balance(size_t NodeIndex)
 		{
-			VI_ASSERT(NodeIndex != NULL_NODE, NULL_NODE, "node should not be null");
+			VI_ASSERT(NodeIndex != NULL_NODE, "node should not be null");
 
 			auto& Next = Nodes[NodeIndex];
 			if (Next.IsLeaf() || (Next.Height < 2))
 				return NodeIndex;
 
-			VI_ASSERT(Next.Left < NodeCapacity, NULL_NODE, "left outside of borders");
-			VI_ASSERT(Next.Right < NodeCapacity, NULL_NODE, "right outside of borders");
+			VI_ASSERT(Next.Left < NodeCapacity, "left outside of borders");
+			VI_ASSERT(Next.Right < NodeCapacity, "right outside of borders");
 
 			size_t LeftIndex = Next.Left;
 			size_t RightIndex = Next.Right;
@@ -10307,8 +10307,8 @@ namespace Mavi
 			int Balance = Right.Height - Left.Height;
 			if (Balance > 1)
 			{
-				VI_ASSERT(Right.Left < NodeCapacity, NULL_NODE, "subleft outside of borders");
-				VI_ASSERT(Right.Right < NodeCapacity, NULL_NODE, "subright outside of borders");
+				VI_ASSERT(Right.Left < NodeCapacity, "subleft outside of borders");
+				VI_ASSERT(Right.Right < NodeCapacity, "subright outside of borders");
 
 				size_t RightLeftIndex = Right.Left;
 				size_t RightRightIndex = Right.Right;
@@ -10323,7 +10323,7 @@ namespace Mavi
 				{
 					if (Nodes[Right.Parent].Left != NodeIndex)
 					{
-						VI_ASSERT(Nodes[Right.Parent].Right == NodeIndex, NULL_NODE, "invalid right spacing");
+						VI_ASSERT(Nodes[Right.Parent].Right == NodeIndex, "invalid right spacing");
 						Nodes[Right.Parent].Right = RightIndex;
 					}
 					else
@@ -10359,8 +10359,8 @@ namespace Mavi
 			}
 			else if (Balance < -1)
 			{
-				VI_ASSERT(Left.Left < NodeCapacity, NULL_NODE, "subleft outside of borders");
-				VI_ASSERT(Left.Right < NodeCapacity, NULL_NODE, "subright outside of borders");
+				VI_ASSERT(Left.Left < NodeCapacity, "subleft outside of borders");
+				VI_ASSERT(Left.Right < NodeCapacity, "subright outside of borders");
 
 				size_t LeftLeftIndex = Left.Left;
 				size_t LeftRightIndex = Left.Right;
@@ -10375,7 +10375,7 @@ namespace Mavi
 				{
 					if (Nodes[Left.Parent].Left != NodeIndex)
 					{
-						VI_ASSERT(Nodes[Left.Parent].Right == NodeIndex, NULL_NODE, "invalid left spacing");
+						VI_ASSERT(Nodes[Left.Parent].Right == NodeIndex, "invalid left spacing");
 						Nodes[Left.Parent].Right = LeftIndex;
 					}
 					else
@@ -10416,7 +10416,7 @@ namespace Mavi
 		}
 		size_t Cosmos::ComputeHeight(size_t NodeIndex) const
 		{
-			VI_ASSERT(NodeIndex < NodeCapacity, 0, "outside of borders");
+			VI_ASSERT(NodeIndex < NodeCapacity, "outside of borders");
 
 			auto& Next = Nodes[NodeIndex];
 			if (Next.IsLeaf())
@@ -10443,7 +10443,7 @@ namespace Mavi
 				if (Next.Height <= 1)
 					continue;
 
-				VI_ASSERT(!Next.IsLeaf(), 0, "node should be leaf");
+				VI_ASSERT(!Next.IsLeaf(), "node should be leaf");
 				size_t Balance = std::abs(Nodes[Next.Left].Height - Nodes[Next.Right].Height);
 				MaxBalance = std::max(MaxBalance, Balance);
 			}
@@ -10464,12 +10464,12 @@ namespace Mavi
 		}
 		const Cosmos::Node& Cosmos::GetRootNode() const
 		{
-			VI_ASSERT(Root < Nodes.size(), Nodes.front(), "index out of range");
+			VI_ASSERT(Root < Nodes.size(), "index out of range");
 			return Nodes[Root];
 		}
 		const Cosmos::Node& Cosmos::GetNode(size_t Id) const
 		{
-			VI_ASSERT(Id < Nodes.size(), Nodes.front(), "index out of range");
+			VI_ASSERT(Id < Nodes.size(), "index out of range");
 			return Nodes[Id];
 		}
 		float Cosmos::GetVolumeRatio() const
@@ -10532,8 +10532,8 @@ namespace Mavi
 		HullShape::HullShape(btCollisionShape* From) noexcept : Shape(nullptr)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(From != nullptr, "shape should be set");
-			VI_ASSERT_V(From->getShapeType() == (int)Shape::Convex_Hull, "shape type should be convex hull");
+			VI_ASSERT(From != nullptr, "shape should be set");
+			VI_ASSERT(From->getShapeType() == (int)Shape::Convex_Hull, "shape type should be convex hull");
 
 			btConvexHullShape* Hull = VI_NEW(btConvexHullShape);
 			btConvexHullShape* Base = (btConvexHullShape*)From;
@@ -10574,8 +10574,8 @@ namespace Mavi
 
 		RigidBody::RigidBody(Simulator* Refer, const Desc& I) noexcept : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
-			VI_ASSERT_V(Initial.Shape, "collision shape should be set");
-			VI_ASSERT_V(Engine != nullptr, "simulator should be set");
+			VI_ASSERT(Initial.Shape, "collision shape should be set");
+			VI_ASSERT(Engine != nullptr, "simulator should be set");
 #ifdef VI_USE_BULLET3
 			Initial.Shape = Engine->ReuseShape(Initial.Shape);
 			if (!Initial.Shape)
@@ -10663,7 +10663,7 @@ namespace Mavi
 		}
 		RigidBody* RigidBody::Copy()
 		{
-			VI_ASSERT(Instance != nullptr, nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 
 			Desc I(Initial);
 			I.Position = GetPosition();
@@ -10702,14 +10702,14 @@ namespace Mavi
 		void RigidBody::Push(const Vector3& Velocity)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->applyCentralImpulse(V3_TO_BT(Velocity));
 #endif
 		}
 		void RigidBody::Push(const Vector3& Velocity, const Vector3& Torque)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->applyCentralImpulse(V3_TO_BT(Velocity));
 			Instance->applyTorqueImpulse(V3_TO_BT(Torque));
 #endif
@@ -10717,7 +10717,7 @@ namespace Mavi
 		void RigidBody::Push(const Vector3& Velocity, const Vector3& Torque, const Vector3& Center)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->applyImpulse(V3_TO_BT(Velocity), V3_TO_BT(Center));
 			Instance->applyTorqueImpulse(V3_TO_BT(Torque));
 #endif
@@ -10725,7 +10725,7 @@ namespace Mavi
 		void RigidBody::PushKinematic(const Vector3& Velocity)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 
 			btTransform Offset;
 			Instance->getMotionState()->getWorldTransform(Offset);
@@ -10742,7 +10742,7 @@ namespace Mavi
 		void RigidBody::PushKinematic(const Vector3& Velocity, const Vector3& Torque)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 
 			btTransform Offset;
 			Instance->getMotionState()->getWorldTransform(Offset);
@@ -10765,7 +10765,7 @@ namespace Mavi
 		void RigidBody::Synchronize(Transform* Transform, bool Kinematic)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			btTransform& Base = Instance->getWorldTransform();
 			if (!Kinematic)
 			{
@@ -10789,7 +10789,7 @@ namespace Mavi
 		void RigidBody::SetActivity(bool Active)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			if (GetActivationState() == MotionState::Disable_Deactivation)
 				return;
 
@@ -10805,190 +10805,190 @@ namespace Mavi
 		void RigidBody::SetAsGhost()
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
 #endif
 		}
 		void RigidBody::SetAsNormal()
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setCollisionFlags(0);
 #endif
 		}
 		void RigidBody::SetSelfPointer()
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setUserPointer(this);
 #endif
 		}
 		void RigidBody::SetWorldTransform(btTransform* Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
-			VI_ASSERT_V(Value != nullptr, "transform should be set");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Value != nullptr, "transform should be set");
 			Instance->setWorldTransform(*Value);
 #endif
 		}
 		void RigidBody::SetActivationState(MotionState Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->forceActivationState((int)Value);
 #endif
 		}
 		void RigidBody::SetAngularDamping(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setDamping(Instance->getLinearDamping(), Value);
 #endif
 		}
 		void RigidBody::SetAngularSleepingThreshold(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setSleepingThresholds(Instance->getLinearSleepingThreshold(), Value);
 #endif
 		}
 		void RigidBody::SetFriction(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setFriction(Value);
 #endif
 		}
 		void RigidBody::SetRestitution(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setRestitution(Value);
 #endif
 		}
 		void RigidBody::SetSpinningFriction(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setSpinningFriction(Value);
 #endif
 		}
 		void RigidBody::SetContactStiffness(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setContactStiffnessAndDamping(Value, Instance->getContactDamping());
 #endif
 		}
 		void RigidBody::SetContactDamping(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setContactStiffnessAndDamping(Instance->getContactStiffness(), Value);
 #endif
 		}
 		void RigidBody::SetHitFraction(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setHitFraction(Value);
 #endif
 		}
 		void RigidBody::SetLinearDamping(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setDamping(Value, Instance->getAngularDamping());
 #endif
 		}
 		void RigidBody::SetLinearSleepingThreshold(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setSleepingThresholds(Value, Instance->getAngularSleepingThreshold());
 #endif
 		}
 		void RigidBody::SetCcdMotionThreshold(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setCcdMotionThreshold(Value);
 #endif
 		}
 		void RigidBody::SetCcdSweptSphereRadius(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setCcdSweptSphereRadius(Value);
 #endif
 		}
 		void RigidBody::SetContactProcessingThreshold(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setContactProcessingThreshold(Value);
 #endif
 		}
 		void RigidBody::SetDeactivationTime(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setDeactivationTime(Value);
 #endif
 		}
 		void RigidBody::SetRollingFriction(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setRollingFriction(Value);
 #endif
 		}
 		void RigidBody::SetAngularFactor(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setAngularFactor(V3_TO_BT(Value));
 #endif
 		}
 		void RigidBody::SetAnisotropicFriction(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setAnisotropicFriction(V3_TO_BT(Value));
 #endif
 		}
 		void RigidBody::SetGravity(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setGravity(V3_TO_BT(Value));
 #endif
 		}
 		void RigidBody::SetLinearFactor(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setLinearFactor(V3_TO_BT(Value));
 #endif
 		}
 		void RigidBody::SetLinearVelocity(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setLinearVelocity(V3_TO_BT(Value));
 #endif
 		}
 		void RigidBody::SetAngularVelocity(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setAngularVelocity(V3_TO_BT(Value));
 #endif
 		}
 		void RigidBody::SetCollisionShape(btCollisionShape* Shape, Transform* Transform)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			btCollisionShape* Collision = Instance->getCollisionShape();
 			VI_DELETE(btCollisionShape, Collision);
 
@@ -11000,7 +11000,7 @@ namespace Mavi
 		void RigidBody::SetMass(float Mass)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr && Engine != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr && Engine != nullptr, "rigidbody should be initialized");
 			btVector3 Inertia = Engine->GetWorld()->getGravity();
 			if (Instance->getWorldArrayIndex() >= 0)
 				Engine->GetWorld()->removeRigidBody(Instance);
@@ -11017,14 +11017,14 @@ namespace Mavi
 		void RigidBody::SetCollisionFlags(size_t Flags)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			Instance->setCollisionFlags((int)Flags);
 #endif
 		}
 		MotionState RigidBody::GetActivationState() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, MotionState::Active, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return (MotionState)Instance->getActivationState();
 #else
 			return MotionState::Island_Sleeping;
@@ -11033,7 +11033,7 @@ namespace Mavi
 		Shape RigidBody::GetCollisionShapeType() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr && Instance->getCollisionShape() != nullptr, Shape::Invalid, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr && Instance->getCollisionShape() != nullptr, "rigidbody should be initialized");
 			return (Shape)Instance->getCollisionShape()->getShapeType();
 #else
 			return Shape::Invalid;
@@ -11042,7 +11042,7 @@ namespace Mavi
 		Vector3 RigidBody::GetAngularFactor() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			btVector3 Value = Instance->getAngularFactor();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -11052,7 +11052,7 @@ namespace Mavi
 		Vector3 RigidBody::GetAnisotropicFriction() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			btVector3 Value = Instance->getAnisotropicFriction();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -11062,7 +11062,7 @@ namespace Mavi
 		Vector3 RigidBody::GetGravity() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			btVector3 Value = Instance->getGravity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -11072,7 +11072,7 @@ namespace Mavi
 		Vector3 RigidBody::GetLinearFactor() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			btVector3 Value = Instance->getLinearFactor();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -11082,7 +11082,7 @@ namespace Mavi
 		Vector3 RigidBody::GetLinearVelocity() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			btVector3 Value = Instance->getLinearVelocity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -11092,7 +11092,7 @@ namespace Mavi
 		Vector3 RigidBody::GetAngularVelocity() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			btVector3 Value = Instance->getAngularVelocity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -11102,7 +11102,7 @@ namespace Mavi
 		Vector3 RigidBody::GetScale() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr && Instance->getCollisionShape() != nullptr, 1, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr && Instance->getCollisionShape() != nullptr, "rigidbody should be initialized");
 			btVector3 Value = Instance->getCollisionShape()->getLocalScaling();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -11112,7 +11112,7 @@ namespace Mavi
 		Vector3 RigidBody::GetPosition() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			btVector3 Value = Instance->getWorldTransform().getOrigin();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -11122,7 +11122,7 @@ namespace Mavi
 		Vector3 RigidBody::GetRotation() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			btScalar X, Y, Z;
 			Instance->getWorldTransform().getBasis().getEulerZYX(Z, Y, X);
 			return Vector3(-X, -Y, Z);
@@ -11133,7 +11133,7 @@ namespace Mavi
 		btTransform* RigidBody::GetWorldTransform() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return &Instance->getWorldTransform();
 #else
 			return nullptr;
@@ -11142,7 +11142,7 @@ namespace Mavi
 		btCollisionShape* RigidBody::GetCollisionShape() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, nullptr, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getCollisionShape();
 #else
 			return nullptr;
@@ -11159,7 +11159,7 @@ namespace Mavi
 		bool RigidBody::IsGhost() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, false, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return (Instance->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE) != 0;
 #else
 			return false;
@@ -11168,7 +11168,7 @@ namespace Mavi
 		bool RigidBody::IsActive() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, false, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->isActive();
 #else
 			return false;
@@ -11177,7 +11177,7 @@ namespace Mavi
 		bool RigidBody::IsStatic() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, false, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->isStaticObject();
 #else
 			return true;
@@ -11186,7 +11186,7 @@ namespace Mavi
 		bool RigidBody::IsColliding() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, false, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->hasContactResponse();
 #else
 			return false;
@@ -11195,7 +11195,7 @@ namespace Mavi
 		float RigidBody::GetSpinningFriction() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getSpinningFriction();
 #else
 			return 0;
@@ -11204,7 +11204,7 @@ namespace Mavi
 		float RigidBody::GetContactStiffness() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getContactStiffness();
 #else
 			return 0;
@@ -11213,7 +11213,7 @@ namespace Mavi
 		float RigidBody::GetContactDamping() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getContactDamping();
 #else
 			return 0;
@@ -11222,7 +11222,7 @@ namespace Mavi
 		float RigidBody::GetAngularDamping() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getAngularDamping();
 #else
 			return 0;
@@ -11231,7 +11231,7 @@ namespace Mavi
 		float RigidBody::GetAngularSleepingThreshold() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getAngularSleepingThreshold();
 #else
 			return 0;
@@ -11240,7 +11240,7 @@ namespace Mavi
 		float RigidBody::GetFriction() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getFriction();
 #else
 			return 0;
@@ -11249,7 +11249,7 @@ namespace Mavi
 		float RigidBody::GetRestitution() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getRestitution();
 #else
 			return 0;
@@ -11258,7 +11258,7 @@ namespace Mavi
 		float RigidBody::GetHitFraction() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getHitFraction();
 #else
 			return 0;
@@ -11267,7 +11267,7 @@ namespace Mavi
 		float RigidBody::GetLinearDamping() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getLinearDamping();
 #else
 			return 0;
@@ -11276,7 +11276,7 @@ namespace Mavi
 		float RigidBody::GetLinearSleepingThreshold() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getLinearSleepingThreshold();
 #else
 			return 0;
@@ -11285,7 +11285,7 @@ namespace Mavi
 		float RigidBody::GetCcdMotionThreshold() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getCcdMotionThreshold();
 #else
 			return 0;
@@ -11294,7 +11294,7 @@ namespace Mavi
 		float RigidBody::GetCcdSweptSphereRadius() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getCcdSweptSphereRadius();
 #else
 			return 0;
@@ -11303,7 +11303,7 @@ namespace Mavi
 		float RigidBody::GetContactProcessingThreshold() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getContactProcessingThreshold();
 #else
 			return 0;
@@ -11312,7 +11312,7 @@ namespace Mavi
 		float RigidBody::GetDeactivationTime() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getDeactivationTime();
 #else
 			return 0;
@@ -11321,7 +11321,7 @@ namespace Mavi
 		float RigidBody::GetRollingFriction() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getRollingFriction();
 #else
 			return 0;
@@ -11330,7 +11330,7 @@ namespace Mavi
 		float RigidBody::GetMass() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			float Mass = Instance->getInvMass();
 			return (Mass != 0.0f ? 1.0f / Mass : 0.0f);
 #else
@@ -11340,7 +11340,7 @@ namespace Mavi
 		size_t RigidBody::GetCollisionFlags() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			return Instance->getCollisionFlags();
 #else
 			return 0;
@@ -11357,7 +11357,7 @@ namespace Mavi
 		RigidBody* RigidBody::Get(btRigidBody* From)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(From != nullptr, 0, "rigidbody should be initialized");
+			VI_ASSERT(From != nullptr, "rigidbody should be initialized");
 			return (RigidBody*)From->getUserPointer();
 #else
 			return nullptr;
@@ -11367,8 +11367,8 @@ namespace Mavi
 		SoftBody::SoftBody(Simulator* Refer, const Desc& I) noexcept : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Engine != nullptr, "engine should be set");
-			VI_ASSERT_V(Engine->HasSoftBodySupport(), "soft body should be supported");
+			VI_ASSERT(Engine != nullptr, "engine should be set");
+			VI_ASSERT(Engine->HasSoftBodySupport(), "soft body should be supported");
 
 			btQuaternion Rotation;
 			Rotation.setEulerZYX(Initial.Rotation.Z, Initial.Rotation.Y, Initial.Rotation.X);
@@ -11462,7 +11462,7 @@ namespace Mavi
 		}
 		SoftBody* SoftBody::Copy()
 		{
-			VI_ASSERT(Instance != nullptr, nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 
 			Desc I(Initial);
 			I.Position = GetCenterPosition();
@@ -11494,15 +11494,15 @@ namespace Mavi
 		void SoftBody::Activate(bool Force)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->activate(Force);
 #endif
 		}
 		void SoftBody::Synchronize(Transform* Transform, bool Kinematic)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
-			VI_ASSERT_V(Transform != nullptr, "transform should be set");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Transform != nullptr, "transform should be set");
 #ifdef VI_USE_SIMD
 			LOD_VAL(_r1, 0.0f); LOD_VAL(_r2, 0.0f);
 			for (int i = 0; i < Instance->m_nodes.size(); i++)
@@ -11543,8 +11543,8 @@ namespace Mavi
 		void SoftBody::GetIndices(Core::Vector<int>* Result) const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
-			VI_ASSERT_V(Result != nullptr, "result should be set");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Result != nullptr, "result should be set");
 
 			Core::UnorderedMap<btSoftBody::Node*, int> Nodes;
 			for (int i = 0; i < Instance->m_nodes.size(); i++)
@@ -11565,8 +11565,8 @@ namespace Mavi
 		void SoftBody::GetVertices(Core::Vector<Vertex>* Result) const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
-			VI_ASSERT_V(Result != nullptr, "result should be set");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Result != nullptr, "result should be set");
 
 			static size_t PositionX = offsetof(Compute::Vertex, PositionX);
 			static size_t NormalX = offsetof(Compute::Vertex, NormalX);
@@ -11591,7 +11591,7 @@ namespace Mavi
 		void SoftBody::GetBoundingBox(Vector3* Min, Vector3* Max) const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 
 			btVector3 bMin, bMax;
 			Instance->getAabb(bMin, bMax);
@@ -11605,121 +11605,121 @@ namespace Mavi
 		void SoftBody::SetContactStiffnessAndDamping(float Stiffness, float Damping)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setContactStiffnessAndDamping(Stiffness, Damping);
 #endif
 		}
 		void SoftBody::AddAnchor(int Node, RigidBody* Body, bool DisableCollisionBetweenLinkedBodies, float Influence)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
-			VI_ASSERT_V(Body != nullptr, "body should be set");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Body != nullptr, "body should be set");
 			Instance->appendAnchor(Node, Body->Get(), DisableCollisionBetweenLinkedBodies, Influence);
 #endif
 		}
 		void SoftBody::AddAnchor(int Node, RigidBody* Body, const Vector3& LocalPivot, bool DisableCollisionBetweenLinkedBodies, float Influence)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
-			VI_ASSERT_V(Body != nullptr, "body should be set");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Body != nullptr, "body should be set");
 			Instance->appendAnchor(Node, Body->Get(), V3_TO_BT(LocalPivot), DisableCollisionBetweenLinkedBodies, Influence);
 #endif
 		}
 		void SoftBody::AddForce(const Vector3& Force)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->addForce(V3_TO_BT(Force));
 #endif
 		}
 		void SoftBody::AddForce(const Vector3& Force, int Node)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->addForce(V3_TO_BT(Force), Node);
 #endif
 		}
 		void SoftBody::AddAeroForceToNode(const Vector3& WindVelocity, int NodeIndex)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->addAeroForceToNode(V3_TO_BT(WindVelocity), NodeIndex);
 #endif
 		}
 		void SoftBody::AddAeroForceToFace(const Vector3& WindVelocity, int FaceIndex)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->addAeroForceToFace(V3_TO_BT(WindVelocity), FaceIndex);
 #endif
 		}
 		void SoftBody::AddVelocity(const Vector3& Velocity)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->addVelocity(V3_TO_BT(Velocity));
 #endif
 		}
 		void SoftBody::SetVelocity(const Vector3& Velocity)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setVelocity(V3_TO_BT(Velocity));
 #endif
 		}
 		void SoftBody::AddVelocity(const Vector3& Velocity, int Node)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->addVelocity(V3_TO_BT(Velocity), Node);
 #endif
 		}
 		void SoftBody::SetMass(int Node, float Mass)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setMass(Node, Mass);
 #endif
 		}
 		void SoftBody::SetTotalMass(float Mass, bool FromFaces)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setTotalMass(Mass, FromFaces);
 #endif
 		}
 		void SoftBody::SetTotalDensity(float Density)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setTotalDensity(Density);
 #endif
 		}
 		void SoftBody::SetVolumeMass(float Mass)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setVolumeMass(Mass);
 #endif
 		}
 		void SoftBody::SetVolumeDensity(float Density)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setVolumeDensity(Density);
 #endif
 		}
 		void SoftBody::Translate(const Vector3& Position)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->translate(btVector3(Position.X, Position.Y, -Position.Z));
 #endif
 		}
 		void SoftBody::Rotate(const Vector3& Rotation)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			btQuaternion Value;
 			Value.setEulerZYX(Rotation.X, Rotation.Y, Rotation.Z);
 			Instance->rotate(Value);
@@ -11728,28 +11728,28 @@ namespace Mavi
 		void SoftBody::Scale(const Vector3& Scale)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->scale(V3_TO_BT(Scale));
 #endif
 		}
 		void SoftBody::SetRestLengthScale(float RestLength)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setRestLengthScale(RestLength);
 #endif
 		}
 		void SoftBody::SetPose(bool Volume, bool Frame)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setPose(Volume, Frame);
 #endif
 		}
 		float SoftBody::GetMass(int Node) const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getMass(Node);
 #else
 			return 0;
@@ -11758,7 +11758,7 @@ namespace Mavi
 		float SoftBody::GetTotalMass() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getTotalMass();
 #else
 			return 0;
@@ -11767,7 +11767,7 @@ namespace Mavi
 		float SoftBody::GetRestLengthScale() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getRestLengthScale();
 #else
 			return 0;
@@ -11776,7 +11776,7 @@ namespace Mavi
 		float SoftBody::GetVolume() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getVolume();
 #else
 			return 0;
@@ -11785,7 +11785,7 @@ namespace Mavi
 		int SoftBody::GenerateBendingConstraints(int Distance)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->generateBendingConstraints(Distance);
 #else
 			return 0;
@@ -11794,14 +11794,14 @@ namespace Mavi
 		void SoftBody::RandomizeConstraints()
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->randomizeConstraints();
 #endif
 		}
 		bool SoftBody::CutLink(int Node0, int Node1, float Position)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, false, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->cutLink(Node0, Node1, Position);
 #else
 			return false;
@@ -11810,7 +11810,7 @@ namespace Mavi
 		bool SoftBody::RayTest(const Vector3& From, const Vector3& To, RayCast& Result)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, false, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			btSoftBody::sRayCast Cast;
 			bool R = Instance->rayTest(V3_TO_BT(From), V3_TO_BT(To), Cast);
 			Result.Body = Get(Cast.body);
@@ -11826,14 +11826,14 @@ namespace Mavi
 		void SoftBody::SetWindVelocity(const Vector3& Velocity)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setWindVelocity(V3_TO_BT(Velocity));
 #endif
 		}
 		Vector3 SoftBody::GetWindVelocity() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			btVector3 Value = Instance->getWindVelocity();
 			return BT_TO_V3(Value);
 #else
@@ -11843,7 +11843,7 @@ namespace Mavi
 		void SoftBody::GetAabb(Vector3& Min, Vector3& Max) const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			btVector3 BMin, BMax;
 			Instance->getAabb(BMin, BMax);
 			Min = BT_TO_V3(BMin);
@@ -11853,22 +11853,22 @@ namespace Mavi
 		void SoftBody::IndicesToPointers(const int* Map)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
-			VI_ASSERT_V(Map != nullptr, "map should be set");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Map != nullptr, "map should be set");
 			Instance->indicesToPointers(Map);
 #endif
 		}
 		void SoftBody::SetSpinningFriction(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setSpinningFriction(Value);
 #endif
 		}
 		Vector3 SoftBody::GetLinearVelocity() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			btVector3 Value = Instance->getInterpolationLinearVelocity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -11878,7 +11878,7 @@ namespace Mavi
 		Vector3 SoftBody::GetAngularVelocity() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			btVector3 Value = Instance->getInterpolationAngularVelocity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -11896,7 +11896,7 @@ namespace Mavi
 		void SoftBody::SetActivity(bool Active)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			if (GetActivationState() == MotionState::Disable_Deactivation)
 				return;
 
@@ -11909,120 +11909,120 @@ namespace Mavi
 		void SoftBody::SetAsGhost()
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
 #endif
 		}
 		void SoftBody::SetAsNormal()
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setCollisionFlags(0);
 #endif
 		}
 		void SoftBody::SetSelfPointer()
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setUserPointer(this);
 #endif
 		}
 		void SoftBody::SetWorldTransform(btTransform* Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
-			VI_ASSERT_V(Value != nullptr, "transform should be set");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Value != nullptr, "transform should be set");
 			Instance->setWorldTransform(*Value);
 #endif
 		}
 		void SoftBody::SetActivationState(MotionState Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->forceActivationState((int)Value);
 #endif
 		}
 		void SoftBody::SetFriction(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setFriction(Value);
 #endif
 		}
 		void SoftBody::SetRestitution(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setRestitution(Value);
 #endif
 		}
 		void SoftBody::SetContactStiffness(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setContactStiffnessAndDamping(Value, Instance->getContactDamping());
 #endif
 		}
 		void SoftBody::SetContactDamping(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setContactStiffnessAndDamping(Instance->getContactStiffness(), Value);
 #endif
 		}
 		void SoftBody::SetHitFraction(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setHitFraction(Value);
 #endif
 		}
 		void SoftBody::SetCcdMotionThreshold(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setCcdMotionThreshold(Value);
 #endif
 		}
 		void SoftBody::SetCcdSweptSphereRadius(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setCcdSweptSphereRadius(Value);
 #endif
 		}
 		void SoftBody::SetContactProcessingThreshold(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setContactProcessingThreshold(Value);
 #endif
 		}
 		void SoftBody::SetDeactivationTime(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setDeactivationTime(Value);
 #endif
 		}
 		void SoftBody::SetRollingFriction(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setRollingFriction(Value);
 #endif
 		}
 		void SoftBody::SetAnisotropicFriction(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Instance->setAnisotropicFriction(V3_TO_BT(Value));
 #endif
 		}
 		void SoftBody::SetConfig(const Desc::SConfig& Conf)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			Initial.Config = Conf;
 			Instance->m_cfg.aeromodel = (btSoftBody::eAeroModel::_)Initial.Config.AeroModel;
 			Instance->m_cfg.kVCF = Initial.Config.VCF;
@@ -12063,7 +12063,7 @@ namespace Mavi
 		MotionState SoftBody::GetActivationState() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, MotionState::Active, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return (MotionState)Instance->getActivationState();
 #else
 			return MotionState::Island_Sleeping;
@@ -12072,7 +12072,7 @@ namespace Mavi
 		Shape SoftBody::GetCollisionShapeType() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, Shape::Invalid, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			if (!Initial.Shape.Convex.Enabled)
 				return Shape::Invalid;
 
@@ -12084,7 +12084,7 @@ namespace Mavi
 		Vector3 SoftBody::GetAnisotropicFriction() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			btVector3 Value = Instance->getAnisotropicFriction();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -12094,7 +12094,7 @@ namespace Mavi
 		Vector3 SoftBody::GetScale() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 1, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			btVector3 bMin, bMax;
 			Instance->getAabb(bMin, bMax);
 			btVector3 bScale = bMax - bMin;
@@ -12108,7 +12108,7 @@ namespace Mavi
 		Vector3 SoftBody::GetPosition() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			btVector3 Value = Instance->getWorldTransform().getOrigin();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -12118,7 +12118,7 @@ namespace Mavi
 		Vector3 SoftBody::GetRotation() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			btScalar X, Y, Z;
 			Instance->getWorldTransform().getBasis().getEulerZYX(Z, Y, X);
 			return Vector3(-X, -Y, Z);
@@ -12129,7 +12129,7 @@ namespace Mavi
 		btTransform* SoftBody::GetWorldTransform() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, nullptr, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return &Instance->getWorldTransform();
 #else
 			return nullptr;
@@ -12146,7 +12146,7 @@ namespace Mavi
 		bool SoftBody::IsGhost() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, false, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return (Instance->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE) != 0;
 #else
 			return false;
@@ -12155,7 +12155,7 @@ namespace Mavi
 		bool SoftBody::IsActive() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, false, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->isActive();
 #else
 			return false;
@@ -12164,7 +12164,7 @@ namespace Mavi
 		bool SoftBody::IsStatic() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, false, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->isStaticObject();
 #else
 			return true;
@@ -12173,7 +12173,7 @@ namespace Mavi
 		bool SoftBody::IsColliding() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, false, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->hasContactResponse();
 #else
 			return false;
@@ -12182,7 +12182,7 @@ namespace Mavi
 		float SoftBody::GetSpinningFriction() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getSpinningFriction();
 #else
 			return 0;
@@ -12191,7 +12191,7 @@ namespace Mavi
 		float SoftBody::GetContactStiffness() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getContactStiffness();
 #else
 			return 0;
@@ -12200,7 +12200,7 @@ namespace Mavi
 		float SoftBody::GetContactDamping() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getContactDamping();
 #else
 			return 0;
@@ -12209,7 +12209,7 @@ namespace Mavi
 		float SoftBody::GetFriction() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getFriction();
 #else
 			return 0;
@@ -12218,7 +12218,7 @@ namespace Mavi
 		float SoftBody::GetRestitution() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getRestitution();
 #else
 			return 0;
@@ -12227,7 +12227,7 @@ namespace Mavi
 		float SoftBody::GetHitFraction() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getHitFraction();
 #else
 			return 0;
@@ -12236,7 +12236,7 @@ namespace Mavi
 		float SoftBody::GetCcdMotionThreshold() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getCcdMotionThreshold();
 #else
 			return 0;
@@ -12245,7 +12245,7 @@ namespace Mavi
 		float SoftBody::GetCcdSweptSphereRadius() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getCcdSweptSphereRadius();
 #else
 			return 0;
@@ -12254,7 +12254,7 @@ namespace Mavi
 		float SoftBody::GetContactProcessingThreshold() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getContactProcessingThreshold();
 #else
 			return 0;
@@ -12263,7 +12263,7 @@ namespace Mavi
 		float SoftBody::GetDeactivationTime() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getDeactivationTime();
 #else
 			return 0;
@@ -12272,7 +12272,7 @@ namespace Mavi
 		float SoftBody::GetRollingFriction() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getRollingFriction();
 #else
 			return 0;
@@ -12281,7 +12281,7 @@ namespace Mavi
 		size_t SoftBody::GetCollisionFlags() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->getCollisionFlags();
 #else
 			return 0;
@@ -12290,7 +12290,7 @@ namespace Mavi
 		size_t SoftBody::GetVerticesCount() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
+			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			return Instance->m_nodes.size();
 #else
 			return 0;
@@ -12311,7 +12311,7 @@ namespace Mavi
 		SoftBody* SoftBody::Get(btSoftBody* From)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(From != nullptr, nullptr, "softbody should be set");
+			VI_ASSERT(From != nullptr, "softbody should be set");
 			return (SoftBody*)From->getUserPointer();
 #else
 			return nullptr;
@@ -12325,7 +12325,7 @@ namespace Mavi
 		{
 #ifdef VI_USE_BULLET3
 			btTypedConstraint* Base = Get();
-			VI_ASSERT_V(Base != nullptr, "typed constraint should be initialized");
+			VI_ASSERT(Base != nullptr, "typed constraint should be initialized");
 			Base->setBreakingImpulseThreshold(Value);
 #endif
 		}
@@ -12333,7 +12333,7 @@ namespace Mavi
 		{
 #ifdef VI_USE_BULLET3
 			btTypedConstraint* Base = Get();
-			VI_ASSERT_V(Base != nullptr, "typed constraint should be initialized");
+			VI_ASSERT(Base != nullptr, "typed constraint should be initialized");
 			Base->setEnabled(Value);
 #endif
 		}
@@ -12357,7 +12357,7 @@ namespace Mavi
 		{
 #ifdef VI_USE_BULLET3
 			btTypedConstraint* Base = Get();
-			VI_ASSERT(Base != nullptr, 0, "typed constraint should be initialized");
+			VI_ASSERT(Base != nullptr, "typed constraint should be initialized");
 			return Base->getBreakingImpulseThreshold();
 #else
 			return 0;
@@ -12397,7 +12397,7 @@ namespace Mavi
 		{
 #ifdef VI_USE_BULLET3
 			btTypedConstraint* Base = Get();
-			VI_ASSERT(Base != nullptr, false, "typed constraint should be initialized");
+			VI_ASSERT(Base != nullptr, "typed constraint should be initialized");
 			return Base->isEnabled();
 #else
 			return false;
@@ -12411,8 +12411,8 @@ namespace Mavi
 		PConstraint::PConstraint(Simulator* Refer, const Desc& I) noexcept : Constraint(Refer), Instance(nullptr), State(I)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(I.TargetA != nullptr, "target A rigidbody should be set");
-			VI_ASSERT_V(Engine != nullptr, "simulator should be set");
+			VI_ASSERT(I.TargetA != nullptr, "target A rigidbody should be set");
+			VI_ASSERT(Engine != nullptr, "simulator should be set");
 
 			First = I.TargetA->Get();
 			Second = (I.TargetB ? I.TargetB->Get() : nullptr);
@@ -12435,7 +12435,7 @@ namespace Mavi
 		}
 		Constraint* PConstraint::Copy() const
 		{
-			VI_ASSERT(Instance != nullptr, nullptr, "p2p constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "p2p constraint should be initialized");
 			PConstraint* Target = new PConstraint(Engine, State);
 			Target->SetBreakingImpulseThreshold(GetBreakingImpulseThreshold());
 			Target->SetEnabled(IsEnabled());
@@ -12459,7 +12459,7 @@ namespace Mavi
 		void PConstraint::SetPivotA(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "p2p constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "p2p constraint should be initialized");
 			Instance->setPivotA(V3_TO_BT(Value));
 			State.PivotA = Value;
 #endif
@@ -12467,7 +12467,7 @@ namespace Mavi
 		void PConstraint::SetPivotB(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "p2p constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "p2p constraint should be initialized");
 			Instance->setPivotB(V3_TO_BT(Value));
 			State.PivotB = Value;
 #endif
@@ -12475,7 +12475,7 @@ namespace Mavi
 		Vector3 PConstraint::GetPivotA() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "p2p constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "p2p constraint should be initialized");
 			const btVector3& Value = Instance->getPivotInA();
 			return BT_TO_V3(Value);
 #else
@@ -12485,7 +12485,7 @@ namespace Mavi
 		Vector3 PConstraint::GetPivotB() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "p2p constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "p2p constraint should be initialized");
 			const btVector3& Value = Instance->getPivotInB();
 			return BT_TO_V3(Value);
 #else
@@ -12500,8 +12500,8 @@ namespace Mavi
 		HConstraint::HConstraint(Simulator* Refer, const Desc& I) noexcept : Constraint(Refer), Instance(nullptr), State(I)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(I.TargetA != nullptr, "target A rigidbody should be set");
-			VI_ASSERT_V(Engine != nullptr, "simulator should be set");
+			VI_ASSERT(I.TargetA != nullptr, "target A rigidbody should be set");
+			VI_ASSERT(Engine != nullptr, "simulator should be set");
 
 			First = I.TargetA->Get();
 			Second = (I.TargetB ? I.TargetB->Get() : nullptr);
@@ -12524,7 +12524,7 @@ namespace Mavi
 		}
 		Constraint* HConstraint::Copy() const
 		{
-			VI_ASSERT(Instance != nullptr, nullptr, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			HConstraint* Target = new HConstraint(Engine, State);
 			Target->SetBreakingImpulseThreshold(GetBreakingImpulseThreshold());
 			Target->SetEnabled(IsEnabled());
@@ -12550,84 +12550,84 @@ namespace Mavi
 		void HConstraint::EnableAngularMotor(bool Enable, float TargetVelocity, float MaxMotorImpulse)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			Instance->enableAngularMotor(Enable, TargetVelocity, MaxMotorImpulse);
 #endif
 		}
 		void HConstraint::EnableMotor(bool Enable)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			Instance->enableMotor(Enable);
 #endif
 		}
 		void HConstraint::TestLimit(const Matrix4x4& A, const Matrix4x4& B)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			Instance->testLimit(M16_TO_BT(A), M16_TO_BT(B));
 #endif
 		}
 		void HConstraint::SetFrames(const Matrix4x4& A, const Matrix4x4& B)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			Instance->setFrames(M16_TO_BT(A), M16_TO_BT(B));
 #endif
 		}
 		void HConstraint::SetAngularOnly(bool Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			Instance->setAngularOnly(Value);
 #endif
 		}
 		void HConstraint::SetMaxMotorImpulse(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			Instance->setMaxMotorImpulse(Value);
 #endif
 		}
 		void HConstraint::SetMotorTargetVelocity(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			Instance->setMotorTargetVelocity(Value);
 #endif
 		}
 		void HConstraint::SetMotorTarget(float TargetAngle, float Delta)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			Instance->setMotorTarget(TargetAngle, Delta);
 #endif
 		}
 		void HConstraint::SetLimit(float Low, float High, float Softness, float BiasFactor, float RelaxationFactor)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			Instance->setLimit(Low, High, Softness, BiasFactor, RelaxationFactor);
 #endif
 		}
 		void HConstraint::SetOffset(bool Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			Instance->setUseFrameOffset(Value);
 #endif
 		}
 		void HConstraint::SetReferenceToA(bool Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			Instance->setUseReferenceFrameA(Value);
 #endif
 		}
 		void HConstraint::SetAxis(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			btVector3 Axis = V3_TO_BT(Value);
 			Instance->setAxis(Axis);
 #endif
@@ -12635,7 +12635,7 @@ namespace Mavi
 		int HConstraint::GetSolveLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getSolveLimit();
 #else
 			return 0;
@@ -12644,7 +12644,7 @@ namespace Mavi
 		float HConstraint::GetMotorTargetVelocity() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getMotorTargetVelocity();
 #else
 			return 0;
@@ -12653,7 +12653,7 @@ namespace Mavi
 		float HConstraint::GetMaxMotorImpulse() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getMaxMotorImpulse();
 #else
 			return 0;
@@ -12662,7 +12662,7 @@ namespace Mavi
 		float HConstraint::GetLimitSign() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getLimitSign();
 #else
 			return 0;
@@ -12671,7 +12671,7 @@ namespace Mavi
 		float HConstraint::GetHingeAngle() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getHingeAngle();
 #else
 			return 0;
@@ -12680,7 +12680,7 @@ namespace Mavi
 		float HConstraint::GetHingeAngle(const Matrix4x4& A, const Matrix4x4& B) const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getHingeAngle(M16_TO_BT(A), M16_TO_BT(B));
 #else
 			return 0;
@@ -12689,7 +12689,7 @@ namespace Mavi
 		float HConstraint::GetLowerLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getLowerLimit();
 #else
 			return 0;
@@ -12698,7 +12698,7 @@ namespace Mavi
 		float HConstraint::GetUpperLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getUpperLimit();
 #else
 			return 0;
@@ -12707,7 +12707,7 @@ namespace Mavi
 		float HConstraint::GetLimitSoftness() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getLimitSoftness();
 #else
 			return 0;
@@ -12716,7 +12716,7 @@ namespace Mavi
 		float HConstraint::GetLimitBiasFactor() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getLimitBiasFactor();
 #else
 			return 0;
@@ -12725,7 +12725,7 @@ namespace Mavi
 		float HConstraint::GetLimitRelaxationFactor() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getLimitRelaxationFactor();
 #else
 			return 0;
@@ -12734,7 +12734,7 @@ namespace Mavi
 		bool HConstraint::HasLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->hasLimit();
 #else
 			return 0;
@@ -12743,7 +12743,7 @@ namespace Mavi
 		bool HConstraint::IsOffset() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getUseFrameOffset();
 #else
 			return 0;
@@ -12752,7 +12752,7 @@ namespace Mavi
 		bool HConstraint::IsReferenceToA() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getUseReferenceFrameA();
 #else
 			return 0;
@@ -12761,7 +12761,7 @@ namespace Mavi
 		bool HConstraint::IsAngularOnly() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getAngularOnly();
 #else
 			return 0;
@@ -12770,7 +12770,7 @@ namespace Mavi
 		bool HConstraint::IsAngularMotorEnabled() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getEnableAngularMotor();
 #else
 			return 0;
@@ -12784,8 +12784,8 @@ namespace Mavi
 		SConstraint::SConstraint(Simulator* Refer, const Desc& I) noexcept : Constraint(Refer), Instance(nullptr), State(I)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(I.TargetA != nullptr, "target A rigidbody should be set");
-			VI_ASSERT_V(Engine != nullptr, "simulator should be set");
+			VI_ASSERT(I.TargetA != nullptr, "target A rigidbody should be set");
+			VI_ASSERT(Engine != nullptr, "simulator should be set");
 
 			First = I.TargetA->Get();
 			Second = (I.TargetB ? I.TargetB->Get() : nullptr);
@@ -12808,7 +12808,7 @@ namespace Mavi
 		}
 		Constraint* SConstraint::Copy() const
 		{
-			VI_ASSERT(Instance != nullptr, nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			SConstraint* Target = new SConstraint(Engine, State);
 			Target->SetBreakingImpulseThreshold(GetBreakingImpulseThreshold());
 			Target->SetEnabled(IsEnabled());
@@ -12858,203 +12858,203 @@ namespace Mavi
 		void SConstraint::SetAngularMotorVelocity(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setTargetAngMotorVelocity(Value);
 #endif
 		}
 		void SConstraint::SetLinearMotorVelocity(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setTargetLinMotorVelocity(Value);
 #endif
 		}
 		void SConstraint::SetUpperLinearLimit(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setUpperLinLimit(Value);
 #endif
 		}
 		void SConstraint::SetLowerLinearLimit(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setLowerLinLimit(Value);
 #endif
 		}
 		void SConstraint::SetAngularDampingDirection(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setDampingDirAng(Value);
 #endif
 		}
 		void SConstraint::SetLinearDampingDirection(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setDampingDirLin(Value);
 #endif
 		}
 		void SConstraint::SetAngularDampingLimit(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setDampingLimAng(Value);
 #endif
 		}
 		void SConstraint::SetLinearDampingLimit(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setDampingLimLin(Value);
 #endif
 		}
 		void SConstraint::SetAngularDampingOrtho(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setDampingOrthoAng(Value);
 #endif
 		}
 		void SConstraint::SetLinearDampingOrtho(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setDampingOrthoLin(Value);
 #endif
 		}
 		void SConstraint::SetUpperAngularLimit(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setUpperAngLimit(Value);
 #endif
 		}
 		void SConstraint::SetLowerAngularLimit(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setLowerAngLimit(Value);
 #endif
 		}
 		void SConstraint::SetMaxAngularMotorForce(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setMaxAngMotorForce(Value);
 #endif
 		}
 		void SConstraint::SetMaxLinearMotorForce(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setMaxLinMotorForce(Value);
 #endif
 		}
 		void SConstraint::SetAngularRestitutionDirection(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setRestitutionDirAng(Value);
 #endif
 		}
 		void SConstraint::SetLinearRestitutionDirection(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setRestitutionDirLin(Value);
 #endif
 		}
 		void SConstraint::SetAngularRestitutionLimit(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setRestitutionLimAng(Value);
 #endif
 		}
 		void SConstraint::SetLinearRestitutionLimit(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setRestitutionLimLin(Value);
 #endif
 		}
 		void SConstraint::SetAngularRestitutionOrtho(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setRestitutionOrthoAng(Value);
 #endif
 		}
 		void SConstraint::SetLinearRestitutionOrtho(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setRestitutionOrthoLin(Value);
 #endif
 		}
 		void SConstraint::SetAngularSoftnessDirection(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setSoftnessDirAng(Value);
 #endif
 		}
 		void SConstraint::SetLinearSoftnessDirection(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setSoftnessDirLin(Value);
 #endif
 		}
 		void SConstraint::SetAngularSoftnessLimit(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setSoftnessLimAng(Value);
 #endif
 		}
 		void SConstraint::SetLinearSoftnessLimit(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setSoftnessLimLin(Value);
 #endif
 		}
 		void SConstraint::SetAngularSoftnessOrtho(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setSoftnessOrthoAng(Value);
 #endif
 		}
 		void SConstraint::SetLinearSoftnessOrtho(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setSoftnessOrthoLin(Value);
 #endif
 		}
 		void SConstraint::SetPoweredAngularMotor(bool Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setPoweredAngMotor(Value);
 #endif
 		}
 		void SConstraint::SetPoweredLinearMotor(bool Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			Instance->setPoweredLinMotor(Value);
 #endif
 		}
 		float SConstraint::GetAngularMotorVelocity() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getTargetAngMotorVelocity();
 #else
 			return 0;
@@ -13063,7 +13063,7 @@ namespace Mavi
 		float SConstraint::GetLinearMotorVelocity() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getTargetLinMotorVelocity();
 #else
 			return 0;
@@ -13072,7 +13072,7 @@ namespace Mavi
 		float SConstraint::GetUpperLinearLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getUpperLinLimit();
 #else
 			return 0;
@@ -13081,7 +13081,7 @@ namespace Mavi
 		float SConstraint::GetLowerLinearLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getLowerLinLimit();
 #else
 			return 0;
@@ -13090,7 +13090,7 @@ namespace Mavi
 		float SConstraint::GetAngularDampingDirection() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getDampingDirAng();
 #else
 			return 0;
@@ -13099,7 +13099,7 @@ namespace Mavi
 		float SConstraint::GetLinearDampingDirection() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getDampingDirLin();
 #else
 			return 0;
@@ -13108,7 +13108,7 @@ namespace Mavi
 		float SConstraint::GetAngularDampingLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getDampingLimAng();
 #else
 			return 0;
@@ -13117,7 +13117,7 @@ namespace Mavi
 		float SConstraint::GetLinearDampingLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getDampingLimLin();
 #else
 			return 0;
@@ -13126,7 +13126,7 @@ namespace Mavi
 		float SConstraint::GetAngularDampingOrtho() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getDampingOrthoAng();
 #else
 			return 0;
@@ -13135,7 +13135,7 @@ namespace Mavi
 		float SConstraint::GetLinearDampingOrtho() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getDampingOrthoLin();
 #else
 			return 0;
@@ -13144,7 +13144,7 @@ namespace Mavi
 		float SConstraint::GetUpperAngularLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getUpperAngLimit();
 #else
 			return 0;
@@ -13153,7 +13153,7 @@ namespace Mavi
 		float SConstraint::GetLowerAngularLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getLowerAngLimit();
 #else
 			return 0;
@@ -13162,7 +13162,7 @@ namespace Mavi
 		float SConstraint::GetMaxAngularMotorForce() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getMaxAngMotorForce();
 #else
 			return 0;
@@ -13171,7 +13171,7 @@ namespace Mavi
 		float SConstraint::GetMaxLinearMotorForce() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getMaxLinMotorForce();
 #else
 			return 0;
@@ -13180,7 +13180,7 @@ namespace Mavi
 		float SConstraint::GetAngularRestitutionDirection() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getRestitutionDirAng();
 #else
 			return 0;
@@ -13189,7 +13189,7 @@ namespace Mavi
 		float SConstraint::GetLinearRestitutionDirection() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getRestitutionDirLin();
 #else
 			return 0;
@@ -13198,7 +13198,7 @@ namespace Mavi
 		float SConstraint::GetAngularRestitutionLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getRestitutionLimAng();
 #else
 			return 0;
@@ -13207,7 +13207,7 @@ namespace Mavi
 		float SConstraint::GetLinearRestitutionLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getRestitutionLimLin();
 #else
 			return 0;
@@ -13216,7 +13216,7 @@ namespace Mavi
 		float SConstraint::GetAngularRestitutionOrtho() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getRestitutionOrthoAng();
 #else
 			return 0;
@@ -13225,7 +13225,7 @@ namespace Mavi
 		float SConstraint::GetLinearRestitutionOrtho() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getRestitutionOrthoLin();
 #else
 			return 0;
@@ -13234,7 +13234,7 @@ namespace Mavi
 		float SConstraint::GetAngularSoftnessDirection() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getSoftnessDirAng();
 #else
 			return 0;
@@ -13243,7 +13243,7 @@ namespace Mavi
 		float SConstraint::GetLinearSoftnessDirection() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getSoftnessDirLin();
 #else
 			return 0;
@@ -13252,7 +13252,7 @@ namespace Mavi
 		float SConstraint::GetAngularSoftnessLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getSoftnessLimAng();
 #else
 			return 0;
@@ -13261,7 +13261,7 @@ namespace Mavi
 		float SConstraint::GetLinearSoftnessLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getSoftnessLimLin();
 #else
 			return 0;
@@ -13270,7 +13270,7 @@ namespace Mavi
 		float SConstraint::GetAngularSoftnessOrtho() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getSoftnessOrthoAng();
 #else
 			return 0;
@@ -13279,7 +13279,7 @@ namespace Mavi
 		float SConstraint::GetLinearSoftnessOrtho() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getSoftnessOrthoLin();
 #else
 			return 0;
@@ -13288,7 +13288,7 @@ namespace Mavi
 		bool SConstraint::GetPoweredAngularMotor() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, false, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getPoweredAngMotor();
 #else
 			return false;
@@ -13297,7 +13297,7 @@ namespace Mavi
 		bool SConstraint::GetPoweredLinearMotor() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, false, "slider constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "slider constraint should be initialized");
 			return Instance->getPoweredLinMotor();
 #else
 			return false;
@@ -13311,8 +13311,8 @@ namespace Mavi
 		CTConstraint::CTConstraint(Simulator* Refer, const Desc& I) noexcept : Constraint(Refer), Instance(nullptr), State(I)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(I.TargetA != nullptr, "target A rigidbody should be set");
-			VI_ASSERT_V(Engine != nullptr, "simulator should be set");
+			VI_ASSERT(I.TargetA != nullptr, "target A rigidbody should be set");
+			VI_ASSERT(Engine != nullptr, "simulator should be set");
 
 			First = I.TargetA->Get();
 			Second = (I.TargetB ? I.TargetB->Get() : nullptr);
@@ -13335,7 +13335,7 @@ namespace Mavi
 		}
 		Constraint* CTConstraint::Copy() const
 		{
-			VI_ASSERT(Instance != nullptr, nullptr, "cone-twist constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "cone-twist constraint should be initialized");
 			CTConstraint* Target = new CTConstraint(Engine, State);
 			Target->SetBreakingImpulseThreshold(GetBreakingImpulseThreshold());
 			Target->SetEnabled(IsEnabled());
@@ -13368,84 +13368,84 @@ namespace Mavi
 		void CTConstraint::EnableMotor(bool Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "cone-twist constraint should be initialized");
 			Instance->enableMotor(Value);
 #endif
 		}
 		void CTConstraint::SetFrames(const Matrix4x4& A, const Matrix4x4& B)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "cone-twist constraint should be initialized");
 			Instance->setFrames(M16_TO_BT(A), M16_TO_BT(B));
 #endif
 		}
 		void CTConstraint::SetAngularOnly(bool Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "cone-twist constraint should be initialized");
 			Instance->setAngularOnly(Value);
 #endif
 		}
 		void CTConstraint::SetLimit(int LimitIndex, float LimitValue)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "cone-twist constraint should be initialized");
 			Instance->setLimit(LimitIndex, LimitValue);
 #endif
 		}
 		void CTConstraint::SetLimit(float SwingSpan1, float SwingSpan2, float TwistSpan, float Softness, float BiasFactor, float RelaxationFactor)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "cone-twist constraint should be initialized");
 			Instance->setLimit(SwingSpan1, SwingSpan2, TwistSpan, Softness, BiasFactor, RelaxationFactor);
 #endif
 		}
 		void CTConstraint::SetDamping(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "cone-twist constraint should be initialized");
 			Instance->setDamping(Value);
 #endif
 		}
 		void CTConstraint::SetMaxMotorImpulse(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "cone-twist constraint should be initialized");
 			Instance->setMaxMotorImpulse(Value);
 #endif
 		}
 		void CTConstraint::SetMaxMotorImpulseNormalized(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "cone-twist constraint should be initialized");
 			Instance->setMaxMotorImpulseNormalized(Value);
 #endif
 		}
 		void CTConstraint::SetFixThresh(float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "cone-twist constraint should be initialized");
 			Instance->setFixThresh(Value);
 #endif
 		}
 		void CTConstraint::SetMotorTarget(const Quaternion& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "cone-twist constraint should be initialized");
 			Instance->setMotorTarget(Q4_TO_BT(Value));
 #endif
 		}
 		void CTConstraint::SetMotorTargetInConstraintSpace(const Quaternion& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "cone-twist constraint should be initialized");
 			Instance->setMotorTargetInConstraintSpace(Q4_TO_BT(Value));
 #endif
 		}
 		Vector3 CTConstraint::GetPointForAngle(float AngleInRadians, float Length) const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "cone-twist constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "cone-twist constraint should be initialized");
 			btVector3 Value = Instance->GetPointForAngle(AngleInRadians, Length);
 			return BT_TO_V3(Value);
 #else
@@ -13455,7 +13455,7 @@ namespace Mavi
 		Quaternion CTConstraint::GetMotorTarget() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, Quaternion(), "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			btQuaternion Value = Instance->getMotorTarget();
 			return BT_TO_Q4(Value);
 #else
@@ -13465,7 +13465,7 @@ namespace Mavi
 		int CTConstraint::GetSolveTwistLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getSolveTwistLimit();
 #else
 			return 0;
@@ -13474,7 +13474,7 @@ namespace Mavi
 		int CTConstraint::GetSolveSwingLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getSolveSwingLimit();
 #else
 			return 0;
@@ -13483,7 +13483,7 @@ namespace Mavi
 		float CTConstraint::GetTwistLimitSign() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getTwistLimitSign();
 #else
 			return 0;
@@ -13492,7 +13492,7 @@ namespace Mavi
 		float CTConstraint::GetSwingSpan1() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getSwingSpan1();
 #else
 			return 0;
@@ -13501,7 +13501,7 @@ namespace Mavi
 		float CTConstraint::GetSwingSpan2() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getSwingSpan2();
 #else
 			return 0;
@@ -13510,7 +13510,7 @@ namespace Mavi
 		float CTConstraint::GetTwistSpan() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getTwistSpan();
 #else
 			return 0;
@@ -13519,7 +13519,7 @@ namespace Mavi
 		float CTConstraint::GetLimitSoftness() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getLimitSoftness();
 #else
 			return 0;
@@ -13528,7 +13528,7 @@ namespace Mavi
 		float CTConstraint::GetBiasFactor() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getBiasFactor();
 #else
 			return 0;
@@ -13537,7 +13537,7 @@ namespace Mavi
 		float CTConstraint::GetRelaxationFactor() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getRelaxationFactor();
 #else
 			return 0;
@@ -13546,7 +13546,7 @@ namespace Mavi
 		float CTConstraint::GetTwistAngle() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getTwistAngle();
 #else
 			return 0;
@@ -13555,7 +13555,7 @@ namespace Mavi
 		float CTConstraint::GetLimit(int Value) const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getLimit(Value);
 #else
 			return 0;
@@ -13564,7 +13564,7 @@ namespace Mavi
 		float CTConstraint::GetDamping() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getDamping();
 #else
 			return 0;
@@ -13573,7 +13573,7 @@ namespace Mavi
 		float CTConstraint::GetMaxMotorImpulse() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getMaxMotorImpulse();
 #else
 			return 0;
@@ -13582,7 +13582,7 @@ namespace Mavi
 		float CTConstraint::GetFixThresh() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getFixThresh();
 #else
 			return 0;
@@ -13591,7 +13591,7 @@ namespace Mavi
 		bool CTConstraint::IsMotorEnabled() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->isMotorEnabled();
 #else
 			return 0;
@@ -13600,7 +13600,7 @@ namespace Mavi
 		bool CTConstraint::IsMaxMotorImpulseNormalized() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->isMaxMotorImpulseNormalized();
 #else
 			return 0;
@@ -13609,7 +13609,7 @@ namespace Mavi
 		bool CTConstraint::IsPastSwingLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->isPastSwingLimit();
 #else
 			return 0;
@@ -13618,7 +13618,7 @@ namespace Mavi
 		bool CTConstraint::IsAngularOnly() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "hinge constraint should be initialized");
 			return Instance->getAngularOnly();
 #else
 			return 0;
@@ -13632,8 +13632,8 @@ namespace Mavi
 		DF6Constraint::DF6Constraint(Simulator* Refer, const Desc& I) noexcept : Constraint(Refer), Instance(nullptr), State(I)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(I.TargetA != nullptr, "target A rigidbody should be set");
-			VI_ASSERT_V(Engine != nullptr, "simulator should be set");
+			VI_ASSERT(I.TargetA != nullptr, "target A rigidbody should be set");
+			VI_ASSERT(Engine != nullptr, "simulator should be set");
 
 			First = I.TargetA->Get();
 			Second = (I.TargetB ? I.TargetB->Get() : nullptr);
@@ -13656,7 +13656,7 @@ namespace Mavi
 		}
 		Constraint* DF6Constraint::Copy() const
 		{
-			VI_ASSERT(Instance != nullptr, nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			DF6Constraint* Target = new DF6Constraint(Engine, State);
 			Target->SetBreakingImpulseThreshold(GetBreakingImpulseThreshold());
 			Target->SetEnabled(IsEnabled());
@@ -13684,161 +13684,161 @@ namespace Mavi
 		void DF6Constraint::EnableMotor(int Index, bool OnOff)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->enableMotor(Index, OnOff);
 #endif
 		}
 		void DF6Constraint::EnableSpring(int Index, bool OnOff)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->enableSpring(Index, OnOff);
 #endif
 		}
 		void DF6Constraint::SetFrames(const Matrix4x4& A, const Matrix4x4& B)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setFrames(M16_TO_BT(A), M16_TO_BT(B));
 #endif
 		}
 		void DF6Constraint::SetLinearLowerLimit(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setLinearLowerLimit(V3_TO_BT(Value));
 #endif
 		}
 		void DF6Constraint::SetLinearUpperLimit(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setLinearUpperLimit(V3_TO_BT(Value));
 #endif
 		}
 		void DF6Constraint::SetAngularLowerLimit(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setAngularLowerLimit(V3_TO_BT(Value));
 #endif
 		}
 		void DF6Constraint::SetAngularLowerLimitReversed(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setAngularLowerLimitReversed(V3_TO_BT(Value));
 #endif
 		}
 		void DF6Constraint::SetAngularUpperLimit(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setAngularUpperLimit(V3_TO_BT(Value));
 #endif
 		}
 		void DF6Constraint::SetAngularUpperLimitReversed(const Vector3& Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setAngularUpperLimitReversed(V3_TO_BT(Value));
 #endif
 		}
 		void DF6Constraint::SetLimit(int Axis, float Low, float High)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setLimit(Axis, Low, High);
 #endif
 		}
 		void DF6Constraint::SetLimitReversed(int Axis, float Low, float High)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setLimitReversed(Axis, Low, High);
 #endif
 		}
 		void DF6Constraint::SetRotationOrder(Rotator Order)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setRotationOrder((RotateOrder)Order);
 #endif
 		}
 		void DF6Constraint::SetAxis(const Vector3& A, const Vector3& B)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setAxis(V3_TO_BT(A), V3_TO_BT(B));
 #endif
 		}
 		void DF6Constraint::SetBounce(int Index, float Bounce)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setBounce(Index, Bounce);
 #endif
 		}
 		void DF6Constraint::SetServo(int Index, bool OnOff)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setServo(Index, OnOff);
 #endif
 		}
 		void DF6Constraint::SetTargetVelocity(int Index, float Velocity)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setTargetVelocity(Index, Velocity);
 #endif
 		}
 		void DF6Constraint::SetServoTarget(int Index, float Target)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setServoTarget(Index, Target);
 #endif
 		}
 		void DF6Constraint::SetMaxMotorForce(int Index, float Force)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setMaxMotorForce(Index, Force);
 #endif
 		}
 		void DF6Constraint::SetStiffness(int Index, float Stiffness, bool LimitIfNeeded)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setStiffness(Index, Stiffness, LimitIfNeeded);
 #endif
 		}
 		void DF6Constraint::SetEquilibriumPoint()
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setEquilibriumPoint();
 #endif
 		}
 		void DF6Constraint::SetEquilibriumPoint(int Index)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setEquilibriumPoint(Index);
 #endif
 		}
 		void DF6Constraint::SetEquilibriumPoint(int Index, float Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			Instance->setEquilibriumPoint(Index, Value);
 #endif
 		}
 		Vector3 DF6Constraint::GetAngularUpperLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			btVector3 Result;
 			Instance->getAngularUpperLimit(Result);
 			return BT_TO_V3(Result);
@@ -13849,7 +13849,7 @@ namespace Mavi
 		Vector3 DF6Constraint::GetAngularUpperLimitReversed() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			btVector3 Result;
 			Instance->getAngularUpperLimitReversed(Result);
 			return BT_TO_V3(Result);
@@ -13860,7 +13860,7 @@ namespace Mavi
 		Vector3 DF6Constraint::GetAngularLowerLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			btVector3 Result;
 			Instance->getAngularLowerLimit(Result);
 			return BT_TO_V3(Result);
@@ -13871,7 +13871,7 @@ namespace Mavi
 		Vector3 DF6Constraint::GetAngularLowerLimitReversed() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			btVector3 Result;
 			Instance->getAngularLowerLimitReversed(Result);
 			return BT_TO_V3(Result);
@@ -13882,7 +13882,7 @@ namespace Mavi
 		Vector3 DF6Constraint::GetLinearUpperLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			btVector3 Result;
 			Instance->getLinearUpperLimit(Result);
 			return BT_TO_V3(Result);
@@ -13893,7 +13893,7 @@ namespace Mavi
 		Vector3 DF6Constraint::GetLinearLowerLimit() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			btVector3 Result;
 			Instance->getLinearLowerLimit(Result);
 			return BT_TO_V3(Result);
@@ -13904,7 +13904,7 @@ namespace Mavi
 		Vector3 DF6Constraint::GetAxis(int Value) const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			btVector3 Result = Instance->getAxis(Value);
 			return BT_TO_V3(Result);
 #else
@@ -13914,7 +13914,7 @@ namespace Mavi
 		Rotator DF6Constraint::GetRotationOrder() const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, Rotator::XYZ, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			return (Rotator)Instance->getRotationOrder();
 #else
 			return Rotator::XYZ;
@@ -13923,7 +13923,7 @@ namespace Mavi
 		float DF6Constraint::GetAngle(int Value) const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			return Instance->getAngle(Value);
 #else
 			return 0;
@@ -13932,7 +13932,7 @@ namespace Mavi
 		float DF6Constraint::GetRelativePivotPosition(int Value) const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			return Instance->getRelativePivotPosition(Value);
 #else
 			return 0;
@@ -13941,7 +13941,7 @@ namespace Mavi
 		bool DF6Constraint::IsLimited(int LimitIndex) const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			VI_ASSERT(Instance != nullptr, "6-dof constraint should be initialized");
 			return Instance->isLimited(LimitIndex);
 #else
 			return 0;
@@ -14175,10 +14175,10 @@ namespace Mavi
 		void Simulator::AddSoftBody(SoftBody* Body)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Body != nullptr, "softbody should be set");
-			VI_ASSERT_V(Body->Instance != nullptr, "softbody instance should be set");
-			VI_ASSERT_V(Body->Instance->getWorldArrayIndex() == -1, "softbody should not be attached to other world");
-			VI_ASSERT_V(HasSoftBodySupport(), "softbodies should be supported");
+			VI_ASSERT(Body != nullptr, "softbody should be set");
+			VI_ASSERT(Body->Instance != nullptr, "softbody instance should be set");
+			VI_ASSERT(Body->Instance->getWorldArrayIndex() == -1, "softbody should not be attached to other world");
+			VI_ASSERT(HasSoftBodySupport(), "softbodies should be supported");
 			VI_TRACE("[sim] on 0x%" PRIXPTR " add soft-body 0x%" PRIXPTR, (void*)this, (void*)Body);
 
 			btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
@@ -14188,10 +14188,10 @@ namespace Mavi
 		void Simulator::RemoveSoftBody(SoftBody* Body)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Body != nullptr, "softbody should be set");
-			VI_ASSERT_V(Body->Instance != nullptr, "softbody instance should be set");
-			VI_ASSERT_V(Body->Instance->getWorldArrayIndex() >= 0, "softbody should be attached to world");
-			VI_ASSERT_V(HasSoftBodySupport(), "softbodies should be supported");
+			VI_ASSERT(Body != nullptr, "softbody should be set");
+			VI_ASSERT(Body->Instance != nullptr, "softbody instance should be set");
+			VI_ASSERT(Body->Instance->getWorldArrayIndex() >= 0, "softbody should be attached to world");
+			VI_ASSERT(HasSoftBodySupport(), "softbodies should be supported");
 			VI_TRACE("[sim] on 0x%" PRIXPTR " remove soft-body 0x%" PRIXPTR, (void*)this, (void*)Body);
 
 			btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
@@ -14201,9 +14201,9 @@ namespace Mavi
 		void Simulator::AddRigidBody(RigidBody* Body)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Body != nullptr, "rigidbody should be set");
-			VI_ASSERT_V(Body->Instance != nullptr, "rigidbody instance should be set");
-			VI_ASSERT_V(Body->Instance->getWorldArrayIndex() == -1, "rigidbody should not be attached to other world");
+			VI_ASSERT(Body != nullptr, "rigidbody should be set");
+			VI_ASSERT(Body->Instance != nullptr, "rigidbody instance should be set");
+			VI_ASSERT(Body->Instance->getWorldArrayIndex() == -1, "rigidbody should not be attached to other world");
 			VI_TRACE("[sim] on 0x%" PRIXPTR " add rigid-body 0x%" PRIXPTR, (void*)this, (void*)Body);
 			World->addRigidBody(Body->Instance);
 #endif
@@ -14211,9 +14211,9 @@ namespace Mavi
 		void Simulator::RemoveRigidBody(RigidBody* Body)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Body != nullptr, "rigidbody should be set");
-			VI_ASSERT_V(Body->Instance != nullptr, "rigidbody instance should be set");
-			VI_ASSERT_V(Body->Instance->getWorldArrayIndex() >= 0, "rigidbody should be attached to other world");
+			VI_ASSERT(Body != nullptr, "rigidbody should be set");
+			VI_ASSERT(Body->Instance != nullptr, "rigidbody instance should be set");
+			VI_ASSERT(Body->Instance->getWorldArrayIndex() >= 0, "rigidbody should be attached to other world");
 			VI_TRACE("[sim] on 0x%" PRIXPTR " remove rigid-body 0x%" PRIXPTR, (void*)this, (void*)Body);
 			World->removeRigidBody(Body->Instance);
 #endif
@@ -14221,8 +14221,8 @@ namespace Mavi
 		void Simulator::AddConstraint(Constraint* Constraint)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Constraint != nullptr, "slider constraint should be set");
-			VI_ASSERT_V(Constraint->Get() != nullptr, "slider constraint instance should be set");
+			VI_ASSERT(Constraint != nullptr, "slider constraint should be set");
+			VI_ASSERT(Constraint->Get() != nullptr, "slider constraint instance should be set");
 			VI_TRACE("[sim] on 0x%" PRIXPTR " add constraint 0x%" PRIXPTR, (void*)this, (void*)Constraint);
 			World->addConstraint(Constraint->Get(), !Constraint->HasCollisions());
 #endif
@@ -14230,8 +14230,8 @@ namespace Mavi
 		void Simulator::RemoveConstraint(Constraint* Constraint)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Constraint != nullptr, "slider constraint should be set");
-			VI_ASSERT_V(Constraint->Get() != nullptr, "slider constraint instance should be set");
+			VI_ASSERT(Constraint != nullptr, "slider constraint should be set");
+			VI_ASSERT(Constraint->Get() != nullptr, "slider constraint instance should be set");
 			VI_TRACE("[sim] on 0x%" PRIXPTR " remove constraint 0x%" PRIXPTR, (void*)this, (void*)Constraint);
 			World->removeConstraint(Constraint->Get());
 #endif
@@ -14275,8 +14275,8 @@ namespace Mavi
 		void Simulator::FindContacts(RigidBody* Body, int(*Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&))
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT_V(Callback != nullptr, "callback should not be empty");
-			VI_ASSERT_V(Body != nullptr, "body should be set");
+			VI_ASSERT(Callback != nullptr, "callback should not be empty");
+			VI_ASSERT(Body != nullptr, "body should be set");
 			VI_MEASURE(Core::Timings::Pass);
 
 			FindContactsHandler Handler;
@@ -14287,7 +14287,7 @@ namespace Mavi
 		bool Simulator::FindRayContacts(const Vector3& Start, const Vector3& End, int(*Callback)(RayContact*, const CollisionBody&))
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Callback != nullptr, false, "callback should not be empty");
+			VI_ASSERT(Callback != nullptr, "callback should not be empty");
 			VI_MEASURE(Core::Timings::Pass);
 
 			FindRayContactsHandler Handler;
@@ -14566,8 +14566,8 @@ namespace Mavi
 		btCollisionShape* Simulator::CreateConvexHull(btCollisionShape* From)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(From != nullptr, nullptr, "shape should be set");
-			VI_ASSERT(From->getShapeType() == (int)Shape::Convex_Hull, nullptr, "shape type should be convex hull");
+			VI_ASSERT(From != nullptr, "shape should be set");
+			VI_ASSERT(From->getShapeType() == (int)Shape::Convex_Hull, "shape type should be convex hull");
 
 			btConvexHullShape* Hull = VI_NEW(btConvexHullShape);
 			btConvexHullShape* Base = (btConvexHullShape*)From;
@@ -14614,7 +14614,7 @@ namespace Mavi
 		btCollisionShape* Simulator::TryCloneShape(btCollisionShape* Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Value != nullptr, nullptr, "shape should be set");
+			VI_ASSERT(Value != nullptr, "shape should be set");
 			Shape Type = (Shape)Value->getShapeType();
 			if (Type == Shape::Box)
 			{
@@ -14654,7 +14654,7 @@ namespace Mavi
 		btCollisionShape* Simulator::ReuseShape(btCollisionShape* Value)
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Value != nullptr, nullptr, "shape should be set");
+			VI_ASSERT(Value != nullptr, "shape should be set");
 			Safe.lock();
 			auto It = Shapes.find(Value);
 			if (It == Shapes.end())
@@ -14695,7 +14695,7 @@ namespace Mavi
 		Core::Vector<Vector3> Simulator::GetShapeVertices(btCollisionShape* Value) const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Value != nullptr, Core::Vector<Vector3>(), "shape should be set");
+			VI_ASSERT(Value != nullptr, "shape should be set");
 			auto Type = (Shape)Value->getShapeType();
 			if (Type != Shape::Convex_Hull)
 				return Core::Vector<Vector3>();
@@ -14720,7 +14720,7 @@ namespace Mavi
 		size_t Simulator::GetShapeVerticesCount(btCollisionShape* Value) const
 		{
 #ifdef VI_USE_BULLET3
-			VI_ASSERT(Value != nullptr, 0, "shape should be set");
+			VI_ASSERT(Value != nullptr, "shape should be set");
 			auto Type = (Compute::Shape)Value->getShapeType();
 			if (Type != Shape::Convex_Hull)
 				return 0;

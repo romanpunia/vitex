@@ -347,7 +347,7 @@ namespace Mavi
 		}
 		bool AudioEffect::Bind(AudioSource* NewSource, int NewZone)
 		{
-			VI_ASSERT(Source != nullptr, false, "source should not be empty");
+			VI_ASSERT(Source != nullptr, "source should not be empty");
 			Source = NewSource;
 			Zone = NewZone;
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
@@ -357,7 +357,7 @@ namespace Mavi
 		}
 		bool AudioEffect::Unbind()
 		{
-			VI_ASSERT(Source != nullptr, false, "source should not be empty");
+			VI_ASSERT(Source != nullptr, "source should not be empty");
 #if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
 			alSource3i(Source->GetInstance(), AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, Zone, AL_FILTER_NULL);
 #endif
@@ -458,14 +458,14 @@ namespace Mavi
 		}
 		int64_t AudioSource::AddEffect(AudioEffect* Effect)
 		{
-			VI_ASSERT(Effect != nullptr, -1, "effect should be set");
+			VI_ASSERT(Effect != nullptr, "effect should be set");
 			Effect->Bind(this, (int)Effects.size());
 			Effects.push_back(Effect);
 			return Effects.size() - 1;
 		}
 		bool AudioSource::RemoveEffect(size_t EffectId)
 		{
-			VI_ASSERT(EffectId < Effects.size(), false, "index outside of range");
+			VI_ASSERT(EffectId < Effects.size(), "index outside of range");
 			auto It = Effects.begin() + EffectId;
 			VI_RELEASE(*It);
 			Effects.erase(It);
@@ -505,15 +505,17 @@ namespace Mavi
 			alSourceStop(Instance);
 
 			VI_RELEASE(Clip);
-			VI_ASSIGN(Clip, NewClip);
-
+			Clip = NewClip;
 			if (Clip != nullptr)
+			{
 				alSourcei(Instance, AL_BUFFER, Clip->GetBuffer());
+				Clip->AddRef();
+			}
 #endif
 		}
 		void AudioSource::Synchronize(AudioSync* Sync, const Compute::Vector3& Position)
 		{
-			VI_ASSERT_V(Sync != nullptr, "sync should be set");
+			VI_ASSERT(Sync != nullptr, "sync should be set");
 			for (auto* Effect : Effects)
 			{
 				if (!Effect)
@@ -635,27 +637,11 @@ namespace Mavi
 #ifdef VI_HAS_OPENAL
 			Device = (void*)alcOpenDevice(nullptr);
 			VI_TRACE("[audio] open alc device: 0x%" PRIXPTR, (void*)Device);
-			if (!Device)
-			{
-				VI_ERR("[audio] cannot create alc device");
-				int Code = alGetError();
-				if (Code != AL_NO_ERROR)
-					VI_ERR("[audio] %s", alGetString(Code));
-
-				return;
-			}
+			VI_PANIC(Device != nullptr, "audio device cannot be created [ %s ]", alGetString(alGetError()));
 
 			Context = (void*)alcCreateContext((ALCdevice*)Device, nullptr);
 			VI_TRACE("[audio] create alc context: 0x%" PRIXPTR, (void*)Context);
-			if (!Context)
-			{
-				VI_ERR("[audio] cannot create alc device context");
-				int Code = alcGetError((ALCdevice*)Device);
-				if (Code != AL_NO_ERROR)
-					VI_ERR("[audio] %s", alcGetString((ALCdevice*)Device, Code));
-
-				return;
-			}
+			VI_PANIC(Context != nullptr, "audio context cannot be created [ %s ]", alcGetString((ALCdevice*)Device, alcGetError((ALCdevice*)Device)));
 
 			alcMakeContextCurrent((ALCcontext*)Context);
 			alDistanceModel(AL_LINEAR_DISTANCE);
@@ -683,7 +669,7 @@ namespace Mavi
 		}
 		void AudioDevice::Offset(AudioSource* Source, float& Seconds, bool Get)
 		{
-			VI_ASSERT_V(Source != nullptr, "souce should be set");
+			VI_ASSERT(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_SEC_OFFSET, Seconds);
@@ -693,7 +679,7 @@ namespace Mavi
 		}
 		void AudioDevice::Relative(AudioSource* Source, int& Value, bool Get)
 		{
-			VI_ASSERT_V(Source != nullptr, "souce should be set");
+			VI_ASSERT(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
 			if (!Get)
 				alSourcei(Source->Instance, AL_SOURCE_RELATIVE, Value);
@@ -703,7 +689,7 @@ namespace Mavi
 		}
 		void AudioDevice::Position(AudioSource* Source, Compute::Vector3& Position, bool Get)
 		{
-			VI_ASSERT_V(Source != nullptr, "souce should be set");
+			VI_ASSERT(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
 			if (!Get)
 			{
@@ -716,7 +702,7 @@ namespace Mavi
 		}
 		void AudioDevice::Direction(AudioSource* Source, Compute::Vector3& Direction, bool Get)
 		{
-			VI_ASSERT_V(Source != nullptr, "souce should be set");
+			VI_ASSERT(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
 			if (!Get)
 				alSource3f(Source->Instance, AL_DIRECTION, Direction.X, Direction.Y, Direction.Z);
@@ -726,7 +712,7 @@ namespace Mavi
 		}
 		void AudioDevice::Velocity(AudioSource* Source, Compute::Vector3& Velocity, bool Get)
 		{
-			VI_ASSERT_V(Source != nullptr, "souce should be set");
+			VI_ASSERT(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
 			if (!Get)
 				alSource3f(Source->Instance, AL_VELOCITY, Velocity.X, Velocity.Y, Velocity.Z);
@@ -736,7 +722,7 @@ namespace Mavi
 		}
 		void AudioDevice::Pitch(AudioSource* Source, float& Value, bool Get)
 		{
-			VI_ASSERT_V(Source != nullptr, "souce should be set");
+			VI_ASSERT(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_PITCH, Value);
@@ -746,7 +732,7 @@ namespace Mavi
 		}
 		void AudioDevice::Gain(AudioSource* Source, float& Value, bool Get)
 		{
-			VI_ASSERT_V(Source != nullptr, "souce should be set");
+			VI_ASSERT(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_GAIN, Value);
@@ -756,7 +742,7 @@ namespace Mavi
 		}
 		void AudioDevice::ConeInnerAngle(AudioSource* Source, float& Value, bool Get)
 		{
-			VI_ASSERT_V(Source != nullptr, "souce should be set");
+			VI_ASSERT(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_CONE_INNER_ANGLE, Value);
@@ -766,7 +752,7 @@ namespace Mavi
 		}
 		void AudioDevice::ConeOuterAngle(AudioSource* Source, float& Value, bool Get)
 		{
-			VI_ASSERT_V(Source != nullptr, "souce should be set");
+			VI_ASSERT(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_CONE_OUTER_ANGLE, Value);
@@ -776,7 +762,7 @@ namespace Mavi
 		}
 		void AudioDevice::ConeOuterGain(AudioSource* Source, float& Value, bool Get)
 		{
-			VI_ASSERT_V(Source != nullptr, "souce should be set");
+			VI_ASSERT(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_CONE_OUTER_GAIN, Value);
@@ -786,7 +772,7 @@ namespace Mavi
 		}
 		void AudioDevice::Distance(AudioSource* Source, float& Value, bool Get)
 		{
-			VI_ASSERT_V(Source != nullptr, "souce should be set");
+			VI_ASSERT(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_MAX_DISTANCE, Value);
@@ -796,7 +782,7 @@ namespace Mavi
 		}
 		void AudioDevice::RefDistance(AudioSource* Source, float& Value, bool Get)
 		{
-			VI_ASSERT_V(Source != nullptr, "souce should be set");
+			VI_ASSERT(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_REFERENCE_DISTANCE, Value);
@@ -806,7 +792,7 @@ namespace Mavi
 		}
 		void AudioDevice::Loop(AudioSource* Source, int& IsLoop, bool Get)
 		{
-			VI_ASSERT_V(Source != nullptr, "souce should be set");
+			VI_ASSERT(Source != nullptr, "souce should be set");
 #ifdef VI_HAS_OPENAL
 			if (!Get)
 				alSourcei(Source->Instance, AL_LOOPING, IsLoop);

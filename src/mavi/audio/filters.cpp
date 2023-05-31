@@ -117,13 +117,13 @@ namespace Mavi
 			}
 			void Lowpass::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Engine::Series::Unpack(Node->Find("gain"), &Gain);
 				Engine::Series::Unpack(Node->Find("gain-hf"), &GainHF);
 			}
 			void Lowpass::Serialize(Core::Schema* Node) const
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Engine::Series::Pack(Node->Set("gain"), Gain);
 				Engine::Series::Pack(Node->Set("gain-hf"), GainHF);
 			}
@@ -158,13 +158,13 @@ namespace Mavi
 			}
 			void Highpass::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Engine::Series::Unpack(Node->Find("gain"), &Gain);
 				Engine::Series::Unpack(Node->Find("gain-lf"), &GainLF);
 			}
 			void Highpass::Serialize(Core::Schema* Node) const
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Engine::Series::Pack(Node->Set("gain"), Gain);
 				Engine::Series::Pack(Node->Set("gain-lf"), GainLF);
 			}
@@ -200,14 +200,14 @@ namespace Mavi
 			}
 			void Bandpass::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Engine::Series::Unpack(Node->Find("gain"), &Gain);
 				Engine::Series::Unpack(Node->Find("gain-lf"), &GainLF);
 				Engine::Series::Unpack(Node->Find("gain-hf"), &GainHF);
 			}
 			void Bandpass::Serialize(Core::Schema* Node) const
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Engine::Series::Pack(Node->Set("gain"), Gain);
 				Engine::Series::Pack(Node->Set("gain-lf"), GainLF);
 				Engine::Series::Pack(Node->Set("gain-hf"), GainHF);

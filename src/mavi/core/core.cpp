@@ -316,19 +316,19 @@ namespace Mavi
 
 			void NotifyOfOverConsumption()
 			{
-				if (true || Threshold == (uint64_t)Core::Timings::Infinite)
+				if (Threshold == (uint64_t)Core::Timings::Infinite)
 					return;
 
 				uint64_t Delta = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Time;
 				if (Delta <= Threshold)
 					return;
 
-				Core::String BackTrace = OS::Timing::GetMeasureTrace();
+				Core::String BackTrace = ErrorHandling::GetMeasureTrace();
 				VI_WARN("[stall] operation took %" PRIu64 " ms (%" PRIu64 " us), back trace %s", Delta / 1000, Delta, BackTrace.c_str());
 			}
 		};
 #endif
-		struct ConcurrentQueuePtr
+		struct ConcurrentQueue
 		{
 			Core::OrderedMap<std::chrono::microseconds, Timeout> Timers;
 			std::condition_variable Notify;
@@ -348,7 +348,6 @@ namespace Mavi
 			ucontext_t Context = nullptr;
 			char* Stack = nullptr;
 #endif
-
 			Cocontext()
 			{
 #ifndef VI_USE_FCTX
@@ -413,7 +412,7 @@ namespace Mavi
 		void* DebugAllocator::Allocate(MemoryContext&& Origin, size_t Size) noexcept
 		{
 			void* Address = malloc(Size);
-			VI_ASSERT(Address != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
+			VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
 
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), Size, true, false);
@@ -423,7 +422,7 @@ namespace Mavi
 		{
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			auto It = Blocks.find(Address);
-			VI_ASSERT_V(It != Blocks.end() && It->second.Active, "cannot free memory that was not allocated by this allocator at 0x%" PRIXPTR, Address);
+			VI_ASSERT(It != Blocks.end() && It->second.Active, "cannot free memory that was not allocated by this allocator at 0x%" PRIXPTR, Address);
 
 			Blocks.erase(It);
 			free(Address);
@@ -438,7 +437,7 @@ namespace Mavi
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			auto It = Blocks.find(Address);
 
-			VI_ASSERT_V(It == Blocks.end() || !It->second.Active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, Address);
+			VI_ASSERT(It == Blocks.end() || !It->second.Active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, Address);
 			Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), sizeof(void*), false, false);
 		}
 		void DebugAllocator::Unwatch(void* Address) noexcept
@@ -446,7 +445,7 @@ namespace Mavi
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			auto It = Blocks.find(Address);
 
-			VI_ASSERT_V(It != Blocks.end() && !It->second.Active, "address at 0x%" PRIXPTR " cannot be cleared from tracking because it was not allocated by this allocator", Address);
+			VI_ASSERT(It != Blocks.end() && !It->second.Active, "address at 0x%" PRIXPTR " cannot be cleared from tracking because it was not allocated by this allocator", Address);
 			Blocks.erase(It);
 		}
 		void DebugAllocator::Finalize() noexcept
@@ -458,7 +457,7 @@ namespace Mavi
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			auto It = Blocks.find(Address);
 
-			VI_ASSERT(It != Blocks.end(), false, "address at 0x%" PRIXPTR " cannot be used as it was already freed");
+			VI_ASSERT(It != Blocks.end(), "address at 0x%" PRIXPTR " cannot be used as it was already freed");
 			return It != Blocks.end();
 		}
 		bool DebugAllocator::IsFinalizable() noexcept
@@ -472,7 +471,7 @@ namespace Mavi
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			if (Address != nullptr)
 			{
-				bool LogActive = OS::HasLogFlag(LogOption::Active);
+				bool LogActive = OS::HasFlag(LogOption::Active);
 				if (!LogActive)
 					OS::SetLogFlag(LogOption::Active, true);
 
@@ -499,7 +498,7 @@ namespace Mavi
 				if (StaticAddresses == Blocks.size())
 					return false;
 
-				bool LogActive = OS::HasLogFlag(LogOption::Active);
+				bool LogActive = OS::HasFlag(LogOption::Active);
 				if (!LogActive)
 					OS::SetLogFlag(LogOption::Active, true);
 
@@ -526,7 +525,7 @@ namespace Mavi
 		}
 		bool DebugAllocator::FindBlock(void* Address, TracingBlock* Output)
 		{
-			VI_ASSERT(Address != nullptr, false, "address should not be null");
+			VI_ASSERT(Address != nullptr, "address should not be null");
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			auto It = Blocks.find(Address);
 			if (It == Blocks.end())
@@ -545,7 +544,7 @@ namespace Mavi
 		void* DefaultAllocator::Allocate(MemoryContext&& Origin, size_t Size) noexcept
 		{
 			void* Address = malloc(Size);
-			VI_ASSERT(Address != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
+			VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
 			return Address;
 		}
 		void DefaultAllocator::Free(void* Address) noexcept
@@ -575,9 +574,9 @@ namespace Mavi
 
 		PoolAllocator::PoolAllocator(uint64_t MinimalLifeTimeMs, size_t MaxElementsPerAllocation, size_t ElementsReducingBaseBytes, double ElementsReducingFactorRate) : MinimalLifeTime(MinimalLifeTimeMs), ElementsReducingFactor(ElementsReducingFactorRate), ElementsReducingBase(ElementsReducingBaseBytes), ElementsPerAllocation(MaxElementsPerAllocation)
 		{
-			VI_ASSERT_V(ElementsPerAllocation > 0, "elements count per allocation should be greater then zero");
-			VI_ASSERT_V(ElementsReducingFactor > 1.0, "elements reducing factor should be greater then zero");
-			VI_ASSERT_V(ElementsReducingBase > 0, "elements reducing base should be greater then zero");
+			VI_ASSERT(ElementsPerAllocation > 0, "elements count per allocation should be greater then zero");
+			VI_ASSERT(ElementsReducingFactor > 1.0, "elements reducing factor should be greater then zero");
+			VI_ASSERT(ElementsReducingBase > 0, "elements reducing base should be greater then zero");
 		}
 		PoolAllocator::~PoolAllocator() noexcept
 		{
@@ -656,7 +655,7 @@ namespace Mavi
 			size_t PageElements = GetElementsCount(Page, Size);
 			size_t PageSize = sizeof(PageCache) + AddressSize * PageElements;
 			PageCache* Cache = (PageCache*)malloc(PageSize);
-			VI_ASSERT(Cache != nullptr, nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)PageSize);
+			VI_ASSERT(Cache != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)PageSize);
 
 			if (!Cache)
 				return nullptr;
@@ -741,11 +740,16 @@ namespace Mavi
 		}
 		void* Memory::MallocContext(size_t Size, MemoryContext&& Origin) noexcept
 		{
-			VI_ASSERT(Size > 0, nullptr, "cannot allocate zero bytes");
+			VI_ASSERT(Size > 0, "cannot allocate zero bytes");
 			if (Base != nullptr)
-				return Base->Allocate(std::move(Origin), Size);
+			{
+				void* Address = Base->Allocate(std::move(Origin), Size);
+				VI_PANIC(Address != nullptr, "application is out of memory allocating %" PRIu64 " bytes", (uint64_t)Size);
+				return Address;
+			}
 
 			void* Address = malloc(Size);
+			VI_PANIC(Address != nullptr, "application is out of memory allocating %" PRIu64 " bytes", (uint64_t)Size);
 			Initialize();
 
 			std::unique_lock<std::mutex> Unique(*Mutex);
@@ -771,14 +775,14 @@ namespace Mavi
 		}
 		void Memory::Watch(void* Address, MemoryContext&& Origin) noexcept
 		{
-			VI_ASSERT_V(Base != nullptr, "allocator should be set");
-			VI_ASSERT_V(Address != nullptr, "address should be set");
+			VI_ASSERT(Base != nullptr, "allocator should be set");
+			VI_ASSERT(Address != nullptr, "address should be set");
 			Base->Watch(std::move(Origin), Address);
 		}
 		void Memory::Unwatch(void* Address) noexcept
 		{
-			VI_ASSERT_V(Base != nullptr, "allocator should be set");
-			VI_ASSERT_V(Address != nullptr, "address should be set");
+			VI_ASSERT(Base != nullptr, "allocator should be set");
+			VI_ASSERT(Address != nullptr, "address should be set");
 			Base->Unwatch(Address);
 		}
 		void Memory::SetAllocator(Allocator* NewAllocator)
@@ -797,8 +801,8 @@ namespace Mavi
 		}
 		bool Memory::IsValidAddress(void* Address)
 		{
-			VI_ASSERT(Base != nullptr, false, "allocator should be set");
-			VI_ASSERT(Address != nullptr, false, "address should be set");
+			VI_ASSERT(Base != nullptr, "allocator should be set");
+			VI_ASSERT(Address != nullptr, "address should be set");
 			return Base->IsValid(Address);
 		}
 		Allocator* Memory::GetAllocator()
@@ -808,6 +812,559 @@ namespace Mavi
 		std::unordered_map<void*, std::pair<MemoryContext, size_t>>* Memory::Allocations = nullptr;
 		std::mutex* Memory::Mutex = nullptr;
 		Allocator* Memory::Base = nullptr;
+#ifndef NDEBUG
+		static thread_local std::stack<Measurement> MeasuringTree;
+		static thread_local bool IgnoreMeasuring = false;
+#endif
+		ErrorHandling::Tick::Tick(bool Active) noexcept : IsCounting(Active)
+		{
+		}
+		ErrorHandling::Tick::Tick(Tick&& Other) noexcept : IsCounting(Other.IsCounting)
+		{
+			Other.IsCounting = false;
+		}
+		ErrorHandling::Tick::~Tick() noexcept
+		{
+#ifndef NDEBUG
+			if (IgnoreMeasuring || !IsCounting)
+				return;
+
+			VI_ASSERT(!MeasuringTree.empty(), "debug frame should be set");
+			auto& Next = MeasuringTree.top();
+			Next.NotifyOfOverConsumption();
+			MeasuringTree.pop();
+#endif
+		}
+		ErrorHandling::Tick& ErrorHandling::Tick::operator =(Tick&& Other) noexcept
+		{
+			if (&Other == this)
+				return *this;
+
+			IsCounting = Other.IsCounting;
+			Other.IsCounting = false;
+			return *this;
+		}
+
+		static thread_local bool IgnoreLogging = false;
+		void ErrorHandling::Panic(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
+		{
+			if (!HasFlag(LogOption::Active) && !Callback)
+				return;
+
+			Details Data;
+			Data.Origin.File = Source ? OS::Path::GetFilename(Source) : nullptr;
+			Data.Origin.Line = Line;
+			Data.Type.Level = LogLevel::Error;
+			Data.Type.Fatal = true;
+			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "PANIC! %s(): \"%s\" assertion failed: %s, latest known callstack: %s",
+				Function ? Function : "?",
+				Condition ? Condition : "?",
+				Format ? Format : "condition should be truthful",
+				ErrorHandling::GetStackTrace(2, 64).c_str());
+			if (HasFlag(LogOption::Dated))
+				GetDateTime(time(nullptr), Data.Message.Date, sizeof(Data.Message.Date));
+
+			if (Format != nullptr)
+			{
+				va_list Args;
+				va_start(Args, Format);
+				char Buffer[BLOB_SIZE] = { '\0' };
+				Data.Message.Size = vsnprintf(Buffer, sizeof(Buffer), Data.Message.Data, Args);
+				memcpy(Data.Message.Data, Buffer, sizeof(Buffer));
+				va_end(Args);
+			}
+
+			if (Data.Message.Size > 0)
+			{
+				EscapeText(Data.Message.Data, (size_t)Data.Message.Size);
+				Dispatch(Data);
+			}
+
+			Pause();
+			std::abort();
+		}
+		void ErrorHandling::Assert(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
+		{
+			if (!HasFlag(LogOption::Active) && !Callback)
+				return;
+
+			Details Data;
+			Data.Origin.File = Source ? OS::Path::GetFilename(Source) : nullptr;
+			Data.Origin.Line = Line;
+			Data.Type.Level = LogLevel::Error;
+			Data.Type.Fatal = true;
+			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "%s(): \"%s\" assertion failed: %s, latest known callstack: %s",
+				Function ? Function : "?",
+				Condition ? Condition : "?",
+				Format ? Format : "condition should be truthful",
+				ErrorHandling::GetStackTrace(2, 64).c_str());
+			if (HasFlag(LogOption::Dated))
+				GetDateTime(time(nullptr), Data.Message.Date, sizeof(Data.Message.Date));
+
+			if (Format != nullptr)
+			{
+				va_list Args;
+				va_start(Args, Format);
+				char Buffer[BLOB_SIZE] = { '\0' };
+				Data.Message.Size = vsnprintf(Buffer, sizeof(Buffer), Data.Message.Data, Args);
+				memcpy(Data.Message.Data, Buffer, sizeof(Buffer));
+				va_end(Args);
+			}
+
+			if (Data.Message.Size > 0)
+			{
+				EscapeText(Data.Message.Data, (size_t)Data.Message.Size);
+				Dispatch(Data);
+			}
+
+			Pause();
+			std::abort();
+		}
+		void ErrorHandling::Message(LogLevel Level, int Line, const char* Source, const char* Format, ...)
+		{
+			VI_ASSERT(Format != nullptr, "format string should be set");
+			if (IgnoreLogging || (!HasFlag(LogOption::Active) && !Callback))
+				return;
+
+			Details Data;
+			Data.Origin.File = Source ? OS::Path::GetFilename(Source) : nullptr;
+			Data.Origin.Line = Line;
+			Data.Type.Level = Level;
+			Data.Type.Fatal = false;
+			if (HasFlag(LogOption::Dated))
+				GetDateTime(time(nullptr), Data.Message.Date, sizeof(Data.Message.Date));
+
+			char Buffer[512] = { '\0' };
+			if (Level == LogLevel::Error)
+			{
+				int ErrorCode = OS::Error::Get();
+				if (OS::Error::IsError(ErrorCode))
+					snprintf(Buffer, sizeof(Buffer), "%s, latest system error [%s]", Format, OS::Error::GetName(ErrorCode).c_str());
+				else
+					memcpy(Buffer, Format, std::min(sizeof(Buffer), strlen(Format)));
+			}
+			else
+				memcpy(Buffer, Format, std::min(sizeof(Buffer), strlen(Format)));
+
+			va_list Args;
+			va_start(Args, Format);
+			Data.Message.Size = vsnprintf(Data.Message.Data, sizeof(Data.Message.Data), Buffer, Args);
+			va_end(Args);
+
+			if (!Data.Message.Size)
+				return;
+
+			EscapeText(Data.Message.Data, (size_t)Data.Message.Size);
+			Enqueue(std::move(Data));
+		}
+		void ErrorHandling::Enqueue(Details&& Data)
+		{
+			if (HasFlag(LogOption::Async) && Schedule::IsPresentAndActive())
+				Schedule::Get()->SetTask([Data = std::move(Data)]() mutable { Dispatch(Data); });
+			else
+				Dispatch(Data);
+		}
+		void ErrorHandling::Dispatch(Details& Data)
+		{
+			if (Callback)
+			{
+				IgnoreLogging = true;
+#ifndef NDEBUG
+				if (!IgnoreMeasuring)
+				{
+					IgnoreMeasuring = true;
+					Callback(Data);
+					IgnoreMeasuring = false;
+				}
+#else
+				Callback(Data);
+#endif
+				IgnoreLogging = false;
+			}
+
+			if (!Console::IsPresent())
+			{
+#if defined(VI_MICROSOFT) && !defined(NDEBUG)
+				OutputDebugStringA(GetMessageText(Data).c_str());
+#endif
+				return;
+			}
+
+			Console* Base = Console::Get();
+			Base->Begin();
+			if (!HasFlag(LogOption::Pretty))
+			{
+				String Text = GetMessageText(Data);
+#if defined(VI_MICROSOFT) && !defined(NDEBUG)
+				OutputDebugStringA(Text.c_str());
+#endif
+				Base->Write(Text);
+			}
+			else
+				Colorify(Base, Data);
+			Base->End();
+		}
+		void ErrorHandling::Colorify(Console* Base, Details& Data)
+		{
+#if VI_DLEVEL < 5
+			bool ParseTokens = Data.Type.Level != LogLevel::Trace && Data.Type.Level != LogLevel::Debug;
+#else
+			bool ParseTokens = Data.Type.Level != LogLevel::Trace;
+#endif
+			Base->ColorBegin(ParseTokens ? StdColor::Cyan : StdColor::Gray);
+			if (HasFlag(LogOption::Dated))
+			{
+				Base->WriteBuffer(Data.Message.Date);
+				Base->WriteBuffer(" ");
+#ifndef NDEBUG
+				if (Data.Origin.File != nullptr)
+				{
+					Base->ColorBegin(StdColor::Gray);
+					Base->WriteBuffer(Data.Origin.File);
+					Base->WriteBuffer(":");
+					if (Data.Origin.Line > 0)
+					{
+						Base->Write(Core::ToString(Data.Origin.Line));
+						Base->WriteBuffer(" ");
+					}
+				}
+#endif
+			}
+			Base->ColorBegin(GetMessageColor(Data));
+			Base->WriteBuffer(GetMessageType(Data));
+			Base->WriteBuffer(" ");
+			if (ParseTokens)
+				ColorifyTokens(Base, Data.Message.Data, StdColor::LightGray);
+			else
+				Base->WriteBuffer(Data.Message.Data);
+			Base->WriteBuffer("\n");
+			Base->ColorEnd();
+		}
+		void ErrorHandling::ColorifyTokens(Console* Base, const char* Buffer, StdColor BaseColor)
+		{
+			static PrettyToken Tokens[] =
+			{
+				PrettyToken(StdColor::DarkGreen, "OK"),
+				PrettyToken(StdColor::Yellow, "execute"),
+				PrettyToken(StdColor::Yellow, "spawn"),
+				PrettyToken(StdColor::Yellow, "acquire"),
+				PrettyToken(StdColor::Yellow, "release"),
+				PrettyToken(StdColor::Yellow, "join"),
+				PrettyToken(StdColor::Yellow, "bind"),
+				PrettyToken(StdColor::Yellow, "assign"),
+				PrettyToken(StdColor::Yellow, "resolve"),
+				PrettyToken(StdColor::Yellow, "prepare"),
+				PrettyToken(StdColor::Yellow, "listen"),
+				PrettyToken(StdColor::Yellow, "unlisten"),
+				PrettyToken(StdColor::Yellow, "accept"),
+				PrettyToken(StdColor::Yellow, "load"),
+				PrettyToken(StdColor::Yellow, "save"),
+				PrettyToken(StdColor::Yellow, "open"),
+				PrettyToken(StdColor::Yellow, "close"),
+				PrettyToken(StdColor::Yellow, "create"),
+				PrettyToken(StdColor::Yellow, "remove"),
+				PrettyToken(StdColor::Yellow, "compile"),
+				PrettyToken(StdColor::Yellow, "transpile"),
+				PrettyToken(StdColor::Yellow, "enter"),
+				PrettyToken(StdColor::Yellow, "exit"),
+				PrettyToken(StdColor::Yellow, "connect"),
+				PrettyToken(StdColor::Yellow, "reconnect"),
+				PrettyToken(StdColor::DarkRed, "ERR"),
+				PrettyToken(StdColor::DarkRed, "FATAL"),
+				PrettyToken(StdColor::DarkRed, "leak"),
+				PrettyToken(StdColor::DarkRed, "leaking"),
+				PrettyToken(StdColor::DarkRed, "fail"),
+				PrettyToken(StdColor::DarkRed, "failure"),
+				PrettyToken(StdColor::DarkRed, "failed"),
+				PrettyToken(StdColor::DarkRed, "error"),
+				PrettyToken(StdColor::DarkRed, "errors"),
+				PrettyToken(StdColor::DarkRed, "not"),
+				PrettyToken(StdColor::DarkRed, "cannot"),
+				PrettyToken(StdColor::DarkRed, "could"),
+				PrettyToken(StdColor::DarkRed, "couldn't"),
+				PrettyToken(StdColor::DarkRed, "wasn't"),
+				PrettyToken(StdColor::DarkRed, "took"),
+				PrettyToken(StdColor::DarkRed, "missing"),
+				PrettyToken(StdColor::DarkRed, "invalid"),
+				PrettyToken(StdColor::DarkRed, "required"),
+				PrettyToken(StdColor::DarkRed, "already"),
+				PrettyToken(StdColor::Cyan, "undefined"),
+				PrettyToken(StdColor::Cyan, "nullptr"),
+				PrettyToken(StdColor::Cyan, "null"),
+				PrettyToken(StdColor::Cyan, "this"),
+				PrettyToken(StdColor::Cyan, "ms"),
+				PrettyToken(StdColor::Cyan, "us"),
+				PrettyToken(StdColor::Cyan, "ns"),
+				PrettyToken(StdColor::Cyan, "on"),
+				PrettyToken(StdColor::Cyan, "from"),
+				PrettyToken(StdColor::Cyan, "to"),
+				PrettyToken(StdColor::Cyan, "for"),
+				PrettyToken(StdColor::Cyan, "and"),
+				PrettyToken(StdColor::Cyan, "or"),
+				PrettyToken(StdColor::Cyan, "at"),
+				PrettyToken(StdColor::Cyan, "in"),
+				PrettyToken(StdColor::Cyan, "of"),
+				PrettyToken(StdColor::Magenta, "query"),
+				PrettyToken(StdColor::Blue, "template"),
+			};
+
+			const char* Text = Buffer;
+			size_t Size = strlen(Buffer);
+			size_t Offset = 0;
+
+			Base->ColorBegin(BaseColor);
+			while (Text[Offset] != '\0')
+			{
+				auto& V = Text[Offset];
+				if (Stringify::IsDigit(V))
+				{
+					Base->ColorBegin(StdColor::Yellow);
+					while (Offset < Size)
+					{
+						auto N = std::tolower(Text[Offset]);
+						if (!Stringify::IsDigit(N) && N != '.' && N != 'a' && N != 'b' && N != 'c' && N != 'd' && N != 'e' && N != 'f' && N != 'x')
+							break;
+
+						Base->WriteChar(Text[Offset++]);
+					}
+
+					Base->ColorBegin(BaseColor);
+					continue;
+				}
+				else if (V == '@')
+				{
+					Base->ColorBegin(StdColor::LightBlue);
+					Base->WriteChar(V);
+
+					while (Offset < Size && (Stringify::IsDigit(Text[++Offset]) || Stringify::IsAlphabetic(Text[Offset]) || Text[Offset] == '-' || Text[Offset] == '_'))
+						Base->WriteChar(Text[Offset]);
+
+					Base->ColorBegin(BaseColor);
+					continue;
+				}
+				else if (V == '[' && strstr(Text + Offset + 1, "]") != nullptr)
+				{
+					size_t Iterations = 0, Skips = 0;
+					Base->ColorBegin(StdColor::Cyan);
+					do
+					{
+						Base->WriteChar(Text[Offset]);
+						if (Iterations++ > 0 && Text[Offset] == '[')
+							Skips++;
+					} while (Offset < Size && (Text[Offset++] != ']' || Skips > 0));
+
+					Base->ColorBegin(BaseColor);
+					continue;
+				}
+				else if (V == '\"' && strstr(Text + Offset + 1, "\"") != nullptr)
+				{
+					Base->ColorBegin(StdColor::LightBlue);
+					do
+					{
+						Base->WriteChar(Text[Offset]);
+					} while (Offset < Size && Text[++Offset] != '\"');
+
+					if (Offset < Size)
+						Base->WriteChar(Text[Offset++]);
+					Base->ColorBegin(BaseColor);
+					continue;
+				}
+				else if (V == '\'' && strstr(Text + Offset + 1, "\'") != nullptr)
+				{
+					Base->ColorBegin(StdColor::LightBlue);
+					do
+					{
+						Base->WriteChar(Text[Offset]);
+					} while (Offset < Size && Text[++Offset] != '\'');
+
+					if (Offset < Size)
+						Base->WriteChar(Text[Offset++]);
+					Base->ColorBegin(BaseColor);
+					continue;
+				}
+				else if (Stringify::IsAlphabetic(V) && (!Offset || !Stringify::IsAlphabetic(Text[Offset - 1])))
+				{
+					bool IsMatched = false;
+					for (size_t i = 0; i < sizeof(Tokens) / sizeof(PrettyToken); i++)
+					{
+						auto& Token = Tokens[i];
+						if (V != Token.First || Size - Offset < Token.Size)
+							continue;
+
+						if (Offset + Token.Size < Size && Stringify::IsAlphabetic(Text[Offset + Token.Size]))
+							continue;
+
+						if (memcmp(Text + Offset, Token.Token, Token.Size) == 0)
+						{
+							Base->ColorBegin(Token.Color);
+							for (size_t j = 0; j < Token.Size; j++)
+								Base->WriteChar(Text[Offset++]);
+
+							Base->ColorBegin(BaseColor);
+							IsMatched = true;
+							break;
+						}
+					}
+
+					if (IsMatched)
+						continue;
+				}
+
+				Base->WriteChar(V);
+				++Offset;
+			}
+		}
+		void ErrorHandling::Pause()
+		{
+			OS::Process::Interrupt();
+		}
+		void ErrorHandling::SetCallback(const std::function<void(Details&)>& _Callback)
+		{
+			Callback = _Callback;
+		}
+		void ErrorHandling::SetFlag(LogOption Option, bool Active)
+		{
+			if (Active)
+				Flags = Flags | (uint32_t)Option;
+			else
+				Flags = Flags & ~(uint32_t)Option;
+		}
+		bool ErrorHandling::HasFlag(LogOption Option)
+		{
+			return Flags & (uint32_t)Option;
+		}
+		ErrorHandling::Tick ErrorHandling::Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS)
+		{
+#ifndef NDEBUG
+			VI_ASSERT(File != nullptr, "file should be set");
+			VI_ASSERT(Function != nullptr, "function should be set");
+			VI_ASSERT(ThresholdMS > 0 || ThresholdMS == (uint64_t)Core::Timings::Infinite, "threshold time should be greater than Zero");
+			if (IgnoreMeasuring)
+				return ErrorHandling::Tick(false);
+
+			Measurement Next;
+			Next.File = File;
+			Next.Function = Function;
+			Next.Threshold = ThresholdMS * 1000;
+			Next.Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			Next.Line = Line;
+
+			MeasuringTree.emplace(std::move(Next));
+			return ErrorHandling::Tick(true);
+#else
+			return ErrorHandling::Tick(false);
+#endif
+		}
+		void ErrorHandling::MeasureLoop()
+		{
+#ifndef NDEBUG
+			if (!IgnoreMeasuring)
+			{
+				VI_ASSERT(!MeasuringTree.empty(), "debug frame should be set");
+				auto& Next = MeasuringTree.top();
+				Next.NotifyOfOverConsumption();
+			}
+#endif
+		}
+		Core::String ErrorHandling::GetMeasureTrace()
+		{
+#ifndef NDEBUG
+			auto Source = MeasuringTree;
+			Core::StringStream Stream;
+			Stream << "in thread " << std::this_thread::get_id() << ":\n";
+
+			size_t Size = Source.size();
+			for (size_t TraceIdx = Source.size(); TraceIdx > 0; --TraceIdx)
+			{
+				auto& Next = Source.top();
+				Stream << "\t#" << (Size - TraceIdx) + 1 << " source \"" << Next.File << "\", line " << Next.Line << ", in " << Next.Function;
+				if (Next.Id != nullptr)
+					Stream << " (0x" << Next.Id;
+				else
+					Stream << " (nullptr";
+				Stream << "), at most " << Next.Threshold / 1000 << " ms\n";
+				Source.pop();
+			}
+
+			Core::String Out(Stream.str());
+			return Out.substr(0, Out.size() - 1);
+#else
+			return Core::String();
+#endif
+		}
+		Core::String ErrorHandling::GetStackTrace(size_t Skips, size_t MaxFrames)
+		{
+			static bool IsPreloaded = false;
+			if (!IsPreloaded)
+			{
+				IsPreloaded = true;
+				GetStackTrace(0, 8);
+			}
+
+			backward::StackTrace Stack;
+			Stack.load_here(MaxFrames + Skips);
+			Stack.skip_n_firsts(Skips);
+			return GetStack(Stack);
+		}
+		const char* ErrorHandling::GetMessageType(const Details& Base)
+		{
+			switch (Base.Type.Level)
+			{
+			case LogLevel::Error:
+				return "ERROR";
+			case LogLevel::Warning:
+				return "WARN";
+			case LogLevel::Info:
+				return "INFO";
+			case LogLevel::Debug:
+				return "DEBUG";
+			case LogLevel::Trace:
+				return "TRACE";
+			default:
+				return "LOG";
+			}
+		}
+		StdColor ErrorHandling::GetMessageColor(const Details& Base)
+		{
+			switch (Base.Type.Level)
+			{
+			case LogLevel::Error:
+				return StdColor::DarkRed;
+			case LogLevel::Warning:
+				return StdColor::Orange;
+			case LogLevel::Info:
+				return StdColor::LightBlue;
+			case LogLevel::Debug:
+				return StdColor::Gray;
+			case LogLevel::Trace:
+				return StdColor::Gray;
+			default:
+				return StdColor::LightGray;
+			}
+		}
+		Core::String ErrorHandling::GetMessageText(const Details& Base)
+		{
+			Core::StringStream Stream;
+			if (HasFlag(LogOption::Dated))
+			{
+				Stream << Base.Message.Date;
+#ifndef NDEBUG
+				if (Base.Origin.File != nullptr)
+				{
+					Stream << ' ' << Base.Origin.File << ':';
+					if (Base.Origin.Line > 0)
+						Stream << Base.Origin.Line;
+				}
+#endif
+				Stream << ' ';
+			}
+			Stream << GetMessageType(Base) << ' ';
+			Stream << Base.Message.Data << '\n';
+			return Stream.str();
+		}
+		std::function<void(ErrorHandling::Details&)> ErrorHandling::Callback;
+		std::mutex ErrorHandling::Buffer;
+		uint32_t ErrorHandling::Flags = (uint32_t)LogOption::Pretty;
 
 		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept : State(Coactive::Active), Dead(0), Callback(Procedure), Slave(VI_NEW(Cocontext, Base)), Master(Base)
 		{
@@ -2434,7 +2991,7 @@ namespace Mavi
 		}
 		bool Variant::IsString(const char* Text) const
 		{
-			VI_ASSERT(Text != nullptr, false, "text should be set");
+			VI_ASSERT(Text != nullptr, "text should be set");
 			const char* Other = GetString();
 			if (Other == Text)
 				return true;
@@ -3411,7 +3968,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::EscapePrint()
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			for (size_t i = 0; i < Base->size(); i++)
 			{
 				if (Base->at(i) != '%')
@@ -3436,7 +3993,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::Escape()
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			for (size_t i = 0; i < Base->size(); i++)
 			{
 				char& V = Base->at(i);
@@ -3470,7 +4027,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::Unescape()
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			for (size_t i = 0; i < Base->size(); i++)
 			{
 				if (Base->at(i) != '\\' || i + 1 >= Base->size())
@@ -3501,47 +4058,47 @@ namespace Mavi
 		}
 		Stringify& Stringify::Reserve(size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Count > 0, *this, "count should be greater than Zero");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Count > 0, "count should be greater than Zero");
 
 			Base->reserve(Base->capacity() + Count);
 			return *this;
 		}
 		Stringify& Stringify::Resize(size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Base->resize(Count);
 			return *this;
 		}
 		Stringify& Stringify::Resize(size_t Count, char Char)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Count > 0, *this, "count should be greater than Zero");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Count > 0, "count should be greater than Zero");
 
 			Base->resize(Count, Char);
 			return *this;
 		}
 		Stringify& Stringify::Clear()
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Base->clear();
 			return *this;
 		}
 		Stringify& Stringify::ToUpper()
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			std::transform(Base->begin(), Base->end(), Base->begin(), ::toupper);
 			return *this;
 		}
 		Stringify& Stringify::ToLower()
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			std::transform(Base->begin(), Base->end(), Base->begin(), ::tolower);
 			return *this;
 		}
 		Stringify& Stringify::Clip(size_t Length)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Length < Base->size())
 				Base->erase(Length, Base->size() - Length);
 
@@ -3549,7 +4106,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::Compress(const char* Tokenbase, const char* NotInBetweenOf, size_t Start)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 
 			size_t TokenbaseSize = (Tokenbase ? strlen(Tokenbase) : 0);
 			size_t NiboSize = (NotInBetweenOf ? strlen(NotInBetweenOf) : 0);
@@ -3619,7 +4176,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::ReplaceOf(const char* Chars, const char* To, size_t Start)
 		{
-			VI_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, *this, "match list and replacer should not be empty");
+			VI_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, "match list and replacer should not be empty");
 
 			Stringify::Settle Result { };
 			size_t Offset = Start, ToSize = strlen(To);
@@ -3634,7 +4191,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::ReplaceNotOf(const char* Chars, const char* To, size_t Start)
 		{
-			VI_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, *this, "match list and replacer should not be empty");
+			VI_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, "match list and replacer should not be empty");
 
 			Stringify::Settle Result {};
 			size_t Offset = Start, ToSize = strlen(To);
@@ -3649,7 +4206,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::Replace(const Core::String& From, const Core::String& To, size_t Start)
 		{
-			VI_ASSERT(!From.empty(), *this, "match should not be empty");
+			VI_ASSERT(!From.empty(), "match should not be empty");
 
 			size_t Offset = Start;
 			Stringify::Settle Result { };
@@ -3671,7 +4228,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::Replace(const char* From, const char* To, size_t Start)
 		{
-			VI_ASSERT(From != nullptr && To != nullptr, *this, "from and to should not be empty");
+			VI_ASSERT(From != nullptr && To != nullptr, "from and to should not be empty");
 
 			size_t Offset = Start;
 			size_t Size = strlen(To);
@@ -3688,7 +4245,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::Replace(const char& From, const char& To, size_t Position)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			for (size_t i = Position; i < Base->size(); i++)
 			{
 				char& C = Base->at(i);
@@ -3700,8 +4257,8 @@ namespace Mavi
 		}
 		Stringify& Stringify::Replace(const char& From, const char& To, size_t Position, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Base->size() >= (Position + Count), *this, "invalid offset");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Base->size() >= (Position + Count), "invalid offset");
 
 			size_t Size = Position + Count;
 			for (size_t i = Position; i < Size; i++)
@@ -3719,11 +4276,11 @@ namespace Mavi
 		}
 		Stringify& Stringify::ReplacePart(size_t Start, size_t End, const char* Value)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Start < Base->size(), *this, "invalid start");
-			VI_ASSERT(End <= Base->size(), *this, "invalid end");
-			VI_ASSERT(Start < End, *this, "start should be less than end");
-			VI_ASSERT(Value != nullptr, *this, "replacer should not be empty");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Start < Base->size(), "invalid start");
+			VI_ASSERT(End <= Base->size(), "invalid end");
+			VI_ASSERT(Start < End, "start should be less than end");
+			VI_ASSERT(Value != nullptr, "replacer should not be empty");
 
 			if (Start == 0)
 			{
@@ -3741,9 +4298,9 @@ namespace Mavi
 		}
 		Stringify& Stringify::ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const Core::String& With, size_t Start)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', *this, "begin should not be empty");
-			VI_ASSERT(EndsOf != nullptr && EndsOf[0] != '\0', *this, "end should not be empty");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
+			VI_ASSERT(EndsOf != nullptr && EndsOf[0] != '\0', "end should not be empty");
 
 			size_t BeginsSize = strlen(Begins), EndsOfSize = strlen(EndsOf);
 			for (size_t i = Start; i < Base->size(); i++)
@@ -3790,9 +4347,9 @@ namespace Mavi
 		}
 		Stringify& Stringify::ReplaceInBetween(const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', *this, "begin should not be empty");
-			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', *this, "end should not be empty");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
+			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', "end should not be empty");
 			
 			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
 			for (size_t i = Start; i < Base->size(); i++)
@@ -3855,9 +4412,9 @@ namespace Mavi
 		}
 		Stringify& Stringify::ReplaceNotInBetween(const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', *this, "begin should not be empty");
-			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', *this, "end should not be empty");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
+			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', "end should not be empty");
 
 			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
 			size_t ReplaceAt = Core::String::npos;
@@ -3926,7 +4483,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::ReplaceParts(Core::Vector<std::pair<Core::String, Stringify::Settle>>& Inout, const Core::String& With, const std::function<char(const Core::String&, char, int)>& Surrounding)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_SORT(Inout.begin(), Inout.end(), [](const std::pair<Core::String, Stringify::Settle>& A, const std::pair<Core::String, Stringify::Settle>& B)
 			{
 				return A.second.Start < B.second.Start;
@@ -3974,7 +4531,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::ReplaceParts(Core::Vector<Stringify::Settle>& Inout, const Core::String& With, const std::function<char(char, int)>& Surrounding)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");	
+			VI_ASSERT(Base != nullptr, "cannot parse without context");	
 			VI_SORT(Inout.begin(), Inout.end(), [](const Stringify::Settle& A, const Stringify::Settle& B)
 			{
 				return A.Start < B.Start;
@@ -4022,10 +4579,10 @@ namespace Mavi
 		}
 		Stringify& Stringify::RemovePart(size_t Start, size_t End)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Start < Base->size(), *this, "invalid start");
-			VI_ASSERT(End <= Base->size(), *this, "invalid end");
-			VI_ASSERT(Start < End, *this, "start should be less than end");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Start < Base->size(), "invalid start");
+			VI_ASSERT(End <= Base->size(), "invalid end");
+			VI_ASSERT(Start < End, "start should be less than end");
 
 			if (Start == 0)
 			{
@@ -4043,7 +4600,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::Reverse()
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Base->empty())
 				return *this;
 
@@ -4051,18 +4608,18 @@ namespace Mavi
 		}
 		Stringify& Stringify::Reverse(size_t Start, size_t End)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Base->size() >= 2, *this, "length should be at least 2 chars");
-			VI_ASSERT(End < Base->size(), *this, "end should be less than length - 1");
-			VI_ASSERT(Start < Base->size(), *this, "start should be less than length - 1");
-			VI_ASSERT(Start < End, *this, "start should be less than end");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Base->size() >= 2, "length should be at least 2 chars");
+			VI_ASSERT(End < Base->size(), "end should be less than length - 1");
+			VI_ASSERT(Start < Base->size(), "start should be less than length - 1");
+			VI_ASSERT(Start < End, "start should be less than end");
 
 			std::reverse(Base->begin() + Start, Base->begin() + End);
 			return *this;
 		}
 		Stringify& Stringify::Substring(size_t Start)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Start < Base->size())
 				Base->assign(Base->substr(Start));
 			else
@@ -4072,7 +4629,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::Substring(size_t Start, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Count > 0 && Start < Base->size())
 				Base->assign(Base->substr(Start, Count));
 			else
@@ -4082,8 +4639,8 @@ namespace Mavi
 		}
 		Stringify& Stringify::Substring(const Stringify::Settle& Result)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Result.Found, *this, "result should be found");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Result.Found, "result should be found");
 
 			if (Result.Start >= Base->size())
 			{
@@ -4101,8 +4658,8 @@ namespace Mavi
 		}
 		Stringify& Stringify::Splice(size_t Start, size_t End)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Start < Base->size(), *this, "result start should be less or equal than length - 1");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Start < Base->size(), "result start should be less or equal than length - 1");
 
 			if (End > Base->size())
 				End = (Base->size() - Start);
@@ -4117,7 +4674,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::TrimStart()
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Base->erase(Base->begin(), std::find_if(Base->begin(), Base->end(), [](int C) -> int
 			{
 				if (C < -1 || C > 255)
@@ -4130,7 +4687,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::TrimEnd()
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Base->erase(std::find_if(Base->rbegin(), Base->rend(), [](int C) -> int
 			{
 				if (C < -1 || C > 255)
@@ -4143,8 +4700,8 @@ namespace Mavi
 		}
 		Stringify& Stringify::Fill(const char& Char)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(!Base->empty(), *this, "length should be greater than Zero");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(!Base->empty(), "length should be greater than Zero");
 
 			for (char& i : *Base)
 				i = Char;
@@ -4153,17 +4710,17 @@ namespace Mavi
 		}
 		Stringify& Stringify::Fill(const char& Char, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(!Base->empty(), *this, "length should be greater than Zero");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(!Base->empty(), "length should be greater than Zero");
 
 			Base->assign(Count, Char);
 			return *this;
 		}
 		Stringify& Stringify::Fill(const char& Char, size_t Start, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(!Base->empty(), *this, "length should be greater than Zero");
-			VI_ASSERT(Start <= Base->size(), *this, "start should be less or equal than length");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(!Base->empty(), "length should be greater than Zero");
+			VI_ASSERT(Start <= Base->size(), "start should be less or equal than length");
 
 			if (Start + Count > Base->size())
 				Count = Base->size() - Start;
@@ -4176,7 +4733,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::Assign(const char* Raw)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Raw != nullptr)
 				Base->assign(Raw);
 			else
@@ -4186,7 +4743,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::Assign(const char* Raw, size_t Length)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Raw != nullptr)
 				Base->assign(Raw, Length);
 			else
@@ -4196,13 +4753,13 @@ namespace Mavi
 		}
 		Stringify& Stringify::Assign(const Core::String& Raw)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Base->assign(Raw);
 			return *this;
 		}
 		Stringify& Stringify::Assign(const Core::String& Raw, size_t Start, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Start >= Raw.size() || !Count)
 				Base->clear();
 			else
@@ -4211,69 +4768,69 @@ namespace Mavi
 		}
 		Stringify& Stringify::Assign(const char* Raw, size_t Start, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Raw != nullptr, *this, "assign string should be set");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Raw != nullptr, "assign string should be set");
 
 			Base->assign(Raw);
 			return Substring(Start, Count);
 		}
 		Stringify& Stringify::Append(const char* Raw)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Raw != nullptr, *this, "append string should be set");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Raw != nullptr, "append string should be set");
 
 			Base->append(Raw);
 			return *this;
 		}
 		Stringify& Stringify::Append(const char& Char)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Base->append(1, Char);
 			return *this;
 		}
 		Stringify& Stringify::Append(const char& Char, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Base->append(Count, Char);
 			return *this;
 		}
 		Stringify& Stringify::Append(const Core::String& Raw)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Base->append(Raw);
 			return *this;
 		}
 		Stringify& Stringify::Append(const char* Raw, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Raw != nullptr, *this, "append string should be set");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Raw != nullptr, "append string should be set");
 
 			Base->append(Raw, Count);
 			return *this;
 		}
 		Stringify& Stringify::Append(const char* Raw, size_t Start, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Raw != nullptr, *this, "append string should be set");
-			VI_ASSERT(Count > 0, *this, "count should be greater than Zero");
-			VI_ASSERT(strlen(Raw) >= Start + Count, *this, "offset should be less than append string length");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Raw != nullptr, "append string should be set");
+			VI_ASSERT(Count > 0, "count should be greater than Zero");
+			VI_ASSERT(strlen(Raw) >= Start + Count, "offset should be less than append string length");
 
 			Base->append(Raw + Start, Count - Start);
 			return *this;
 		}
 		Stringify& Stringify::Append(const Core::String& Raw, size_t Start, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Count > 0, *this, "count should be greater than Zero");
-			VI_ASSERT(Raw.size() >= Start + Count, *this, "offset should be less than append string length");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Count > 0, "count should be greater than Zero");
+			VI_ASSERT(Raw.size() >= Start + Count, "offset should be less than append string length");
 
 			Base->append(Raw.substr(Start, Count));
 			return *this;
 		}
 		Stringify& Stringify::fAppend(const char* Format, ...)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Format != nullptr, *this, "format should be set");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Format != nullptr, "format should be set");
 
 			char Buffer[BLOB_SIZE];
 			va_list Args;
@@ -4285,7 +4842,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::Insert(const Core::String& Raw, size_t Position)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Position >= Base->size())
 				Position = Base->size();
 
@@ -4294,7 +4851,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::Insert(const Core::String& Raw, size_t Position, size_t Start, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Position >= Base->size())
 				Position = Base->size();
 
@@ -4305,7 +4862,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::Insert(const Core::String& Raw, size_t Position, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Position >= Base->size())
 				Position = Base->size();
 
@@ -4317,7 +4874,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::Insert(const char& Char, size_t Position, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Position >= Base->size())
 				Position = Base->size();
 
@@ -4326,7 +4883,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::Insert(const char& Char, size_t Position)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Position >= Base->size())
 				Position = Base->size();
 
@@ -4335,15 +4892,15 @@ namespace Mavi
 		}
 		Stringify& Stringify::Erase(size_t Position)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Position < Base->size(), *this, "position should be less than length");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Position < Base->size(), "position should be less than length");
 			Base->erase(Position);
 			return *this;
 		}
 		Stringify& Stringify::Erase(size_t Position, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			VI_ASSERT(Position < Base->size(), *this, "position should be less than length");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Position < Base->size(), "position should be less than length");
 			Base->erase(Position, Count);
 			return *this;
 		}
@@ -4381,8 +4938,8 @@ namespace Mavi
 		Core::Vector<std::pair<Core::String, Stringify::Settle>> Stringify::FindInBetween(const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset) const
 		{
 			Core::Vector<std::pair<Core::String, Stringify::Settle>> Result;
-			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', Result, "begin should not be empty");
-			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', Result, "end should not be empty");
+			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
+			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', "end should not be empty");
 
 			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
 			size_t NisboSize = (NotInSubBetweenOf ? strlen(NotInSubBetweenOf) : 0);
@@ -4451,8 +5008,8 @@ namespace Mavi
 		Core::Vector<std::pair<Core::String, Stringify::Settle>> Stringify::FindStartsWithEndsOf(const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset) const
 		{
 			Core::Vector<std::pair<Core::String, Stringify::Settle>> Result;
-			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', Result, "begin should not be empty");
-			VI_ASSERT(EndsOf != nullptr && EndsOf[0] != '\0', Result, "end should not be empty");
+			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
+			VI_ASSERT(EndsOf != nullptr && EndsOf[0] != '\0', "end should not be empty");
 
 			size_t BeginsSize = strlen(Begins), EndsOfSize = strlen(EndsOf);
 			size_t NisboSize = (NotInSubBetweenOf ? strlen(NotInSubBetweenOf) : 0);
@@ -4528,7 +5085,7 @@ namespace Mavi
 		}
 		Stringify::Settle Stringify::ReverseFind(const Core::String& Needle, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
 
@@ -4550,7 +5107,7 @@ namespace Mavi
 		}
 		Stringify::Settle Stringify::ReverseFind(const char* Needle, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
 
@@ -4573,7 +5130,7 @@ namespace Mavi
 		}
 		Stringify::Settle Stringify::ReverseFind(const char& Needle, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
 
@@ -4588,7 +5145,7 @@ namespace Mavi
 		}
 		Stringify::Settle Stringify::ReverseFindUnescaped(const char& Needle, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
 
@@ -4603,7 +5160,7 @@ namespace Mavi
 		}
 		Stringify::Settle Stringify::ReverseFindOf(const Core::String& Needle, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
 
@@ -4621,7 +5178,7 @@ namespace Mavi
 		}
 		Stringify::Settle Stringify::ReverseFindOf(const char* Needle, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
 
@@ -4643,7 +5200,7 @@ namespace Mavi
 		}
 		Stringify::Settle Stringify::Find(const Core::String& Needle, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
 
@@ -4656,8 +5213,8 @@ namespace Mavi
 		}
 		Stringify::Settle Stringify::Find(const char* Needle, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
-			VI_ASSERT(Needle != nullptr, Stringify::Settle(), "needle should be set");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Needle != nullptr, "needle should be set");
 
 			if (Base->empty() || Offset >= Base->size())
 				return { Base->size(), Base->size(), false };
@@ -4671,7 +5228,7 @@ namespace Mavi
 		}
 		Stringify::Settle Stringify::Find(const char& Needle, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			for (size_t i = Offset; i < Base->size(); i++)
 			{
 				if (Base->at(i) == Needle)
@@ -4682,7 +5239,7 @@ namespace Mavi
 		}
 		Stringify::Settle Stringify::FindUnescaped(const char& Needle, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			for (size_t i = Offset; i < Base->size(); i++)
 			{
 				if (Base->at(i) == Needle && ((int64_t)i - 1 < 0 || Base->at(i - 1) != '\\'))
@@ -4693,7 +5250,7 @@ namespace Mavi
 		}
 		Stringify::Settle Stringify::FindOf(const Core::String& Needle, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			for (size_t i = Offset; i < Base->size(); i++)
 			{
 				for (char k : Needle)
@@ -4707,8 +5264,8 @@ namespace Mavi
 		}
 		Stringify::Settle Stringify::FindOf(const char* Needle, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
-			VI_ASSERT(Needle != nullptr, Stringify::Settle(), "needle should be set");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Needle != nullptr, "needle should be set");
 
 			size_t Length = strlen(Needle);
 			for (size_t i = Offset; i < Base->size(); i++)
@@ -4724,7 +5281,7 @@ namespace Mavi
 		}
 		Stringify::Settle Stringify::FindNotOf(const Core::String& Needle, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			for (size_t i = Offset; i < Base->size(); i++)
 			{
 				bool Result = false;
@@ -4745,8 +5302,8 @@ namespace Mavi
 		}
 		Stringify::Settle Stringify::FindNotOf(const char* Needle, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, Stringify::Settle(), "cannot parse without context");
-			VI_ASSERT(Needle != nullptr, Stringify::Settle(), "needle should be set");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Needle != nullptr, "needle should be set");
 
 			size_t Length = strlen(Needle);
 			for (size_t i = Offset; i < Base->size(); i++)
@@ -4769,8 +5326,8 @@ namespace Mavi
 		}
 		bool Stringify::IsPrecededBy(size_t At, const char* Of) const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
-			VI_ASSERT(Of != nullptr, false, "tokenbase should be set");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Of != nullptr, "tokenbase should be set");
 
 			if (!At || At - 1 >= Base->size())
 				return false;
@@ -4787,8 +5344,8 @@ namespace Mavi
 		}
 		bool Stringify::IsFollowedBy(size_t At, const char* Of) const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
-			VI_ASSERT(Of != nullptr, false, "tokenbase should be set");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Of != nullptr, "tokenbase should be set");
 
 			if (At + 1 >= Base->size())
 				return false;
@@ -4805,7 +5362,7 @@ namespace Mavi
 		}
 		bool Stringify::StartsWith(const Core::String& Value, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Base->size() < Value.size())
 				return false;
 
@@ -4819,8 +5376,8 @@ namespace Mavi
 		}
 		bool Stringify::StartsWith(const char* Value, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
-			VI_ASSERT(Value != nullptr, false, "value should be set");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Value != nullptr, "value should be set");
 
 			size_t Length = strlen(Value);
 			if (Base->size() < Length)
@@ -4836,8 +5393,8 @@ namespace Mavi
 		}
 		bool Stringify::StartsOf(const char* Value, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
-			VI_ASSERT(Value != nullptr, false, "value should be set");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Value != nullptr, "value should be set");
 
 			size_t Length = strlen(Value);
 			if (Offset >= Base->size())
@@ -4853,8 +5410,8 @@ namespace Mavi
 		}
 		bool Stringify::StartsNotOf(const char* Value, size_t Offset) const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
-			VI_ASSERT(Value != nullptr, false, "value should be set");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Value != nullptr, "value should be set");
 
 			size_t Length = strlen(Value);
 			if (Offset >= Base->size())
@@ -4874,7 +5431,7 @@ namespace Mavi
 		}
 		bool Stringify::EndsWith(const Core::String& Value) const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Base->empty() || Value.size() > Base->size())
 				return false;
 
@@ -4882,8 +5439,8 @@ namespace Mavi
 		}
 		bool Stringify::EndsWith(const char* Value) const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
-			VI_ASSERT(Value != nullptr, false, "value should be set");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Value != nullptr, "value should be set");
 
 			size_t Size = strlen(Value);
 			if (Base->empty() || Size > Base->size())
@@ -4893,13 +5450,13 @@ namespace Mavi
 		}
 		bool Stringify::EndsWith(const char& Value) const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return !Base->empty() && Base->back() == Value;
 		}
 		bool Stringify::EndsOf(const char* Value) const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
-			VI_ASSERT(Value != nullptr, false, "value should be set");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Value != nullptr, "value should be set");
 
 			if (Base->empty())
 				return false;
@@ -4915,8 +5472,8 @@ namespace Mavi
 		}
 		bool Stringify::EndsNotOf(const char* Value) const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
-			VI_ASSERT(Value != nullptr, false, "value should be set");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			VI_ASSERT(Value != nullptr, "value should be set");
 
 			if (Base->empty())
 				return true;
@@ -4932,12 +5489,12 @@ namespace Mavi
 		}
 		bool Stringify::Empty() const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return Base->empty();
 		}
 		bool Stringify::HasInteger() const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Base->empty())
 				return false;
 
@@ -4964,7 +5521,7 @@ namespace Mavi
 		}
 		bool Stringify::HasNumber() const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			if (Base->empty() || (Base->size() == 1 && Base->front() == '.'))
 				return false;
 
@@ -4999,7 +5556,7 @@ namespace Mavi
 		}
 		bool Stringify::HasDecimal() const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 
 			auto F = Find('.');
 			if (F.Found)
@@ -5019,7 +5576,7 @@ namespace Mavi
 		}
 		bool Stringify::ToBoolean() const
 		{
-			VI_ASSERT(Base != nullptr, false, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return !strncmp(Base->c_str(), "true", 4) || !strncmp(Base->c_str(), "1", 1);
 		}
 		bool Stringify::IsDigit(char Char)
@@ -5035,7 +5592,7 @@ namespace Mavi
 		}
 		int Stringify::CaseCompare(const char* Value1, const char* Value2)
 		{
-			VI_ASSERT(Value1 != nullptr && Value2 != nullptr, 0, "both values should be set");
+			VI_ASSERT(Value1 != nullptr && Value2 != nullptr, "both values should be set");
 
 			int Result;
 			do
@@ -5047,12 +5604,12 @@ namespace Mavi
 		}
 		int Stringify::Match(const char* Pattern, const char* Text)
 		{
-			VI_ASSERT(Pattern != nullptr && Text != nullptr, -1, "pattern and text should be set");
+			VI_ASSERT(Pattern != nullptr && Text != nullptr, "pattern and text should be set");
 			return Match(Pattern, strlen(Pattern), Text);
 		}
 		int Stringify::Match(const char* Pattern, size_t Length, const char* Text)
 		{
-			VI_ASSERT(Pattern != nullptr && Text != nullptr, -1, "pattern and text should be set");
+			VI_ASSERT(Pattern != nullptr && Text != nullptr, "pattern and text should be set");
 			const char* Token = (const char*)memchr(Pattern, '|', (size_t)Length);
 			if (Token != nullptr)
 			{
@@ -5102,77 +5659,77 @@ namespace Mavi
 		}
 		int Stringify::ToInt() const
 		{
-			VI_ASSERT(Base != nullptr, 0, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return (int)strtol(Base->c_str(), nullptr, 10);
 		}
 		long Stringify::ToLong() const
 		{
-			VI_ASSERT(Base != nullptr, 0, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return strtol(Base->c_str(), nullptr, 10);
 		}
 		float Stringify::ToFloat() const
 		{
-			VI_ASSERT(Base != nullptr, 0.0f, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return strtof(Base->c_str(), nullptr);
 		}
 		unsigned int Stringify::ToUInt() const
 		{
-			VI_ASSERT(Base != nullptr, 0, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return (unsigned int)ToULong();
 		}
 		unsigned long Stringify::ToULong() const
 		{
-			VI_ASSERT(Base != nullptr, 0, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return strtoul(Base->c_str(), nullptr, 10);
 		}
 		int64_t Stringify::ToInt64() const
 		{
-			VI_ASSERT(Base != nullptr, 0, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return strtoll(Base->c_str(), nullptr, 10);
 		}
 		double Stringify::ToDouble() const
 		{
-			VI_ASSERT(Base != nullptr, 0.0, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return strtod(Base->c_str(), nullptr);
 		}
 		long double Stringify::ToLDouble() const
 		{
-			VI_ASSERT(Base != nullptr, 0.0, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return strtold(Base->c_str(), nullptr);
 		}
 		uint64_t Stringify::ToUInt64() const
 		{
-			VI_ASSERT(Base != nullptr, 0, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return strtoull(Base->c_str(), nullptr, 10);
 		}
 		size_t Stringify::Size() const
 		{
-			VI_ASSERT(Base != nullptr, 0, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return Base->size();
 		}
 		size_t Stringify::Capacity() const
 		{
-			VI_ASSERT(Base != nullptr, 0, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return Base->capacity();
 		}
 		char* Stringify::Value() const
 		{
-			VI_ASSERT(Base != nullptr, nullptr, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return (char*)Base->data();
 		}
 		const char* Stringify::Get() const
 		{
-			VI_ASSERT(Base != nullptr, nullptr, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return Base->c_str();
 		}
 		Core::String& Stringify::R()
 		{
-			VI_ASSERT(Base != nullptr, *Base, "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			return *Base;
 		}
 		Core::WideString Stringify::ToWide() const
 		{
-			VI_ASSERT(Base != nullptr, Core::WideString(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Core::WideString Output;
 			Output.reserve(Base->size());
 
@@ -5235,7 +5792,7 @@ namespace Mavi
 		}
 		Core::Vector<Core::String> Stringify::Split(const Core::String& With, size_t Start) const
 		{
-			VI_ASSERT(Base != nullptr, Core::Vector<Core::String>(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Core::Vector<Core::String> Output;
 			if (Start >= Base->size())
 				return Output;
@@ -5255,7 +5812,7 @@ namespace Mavi
 		}
 		Core::Vector<Core::String> Stringify::Split(char With, size_t Start) const
 		{
-			VI_ASSERT(Base != nullptr, Core::Vector<Core::String>(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Core::Vector<Core::String> Output;
 			if (Start >= Base->size())
 				return Output;
@@ -5275,7 +5832,7 @@ namespace Mavi
 		}
 		Core::Vector<Core::String> Stringify::SplitMax(char With, size_t Count, size_t Start) const
 		{
-			VI_ASSERT(Base != nullptr, Core::Vector<Core::String>(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Core::Vector<Core::String> Output;
 			if (Start >= Base->size())
 				return Output;
@@ -5295,7 +5852,7 @@ namespace Mavi
 		}
 		Core::Vector<Core::String> Stringify::SplitOf(const char* With, size_t Start) const
 		{
-			VI_ASSERT(Base != nullptr, Core::Vector<Core::String>(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Core::Vector<Core::String> Output;
 			if (Start >= Base->size())
 				return Output;
@@ -5315,7 +5872,7 @@ namespace Mavi
 		}
 		Core::Vector<Core::String> Stringify::SplitNotOf(const char* With, size_t Start) const
 		{
-			VI_ASSERT(Base != nullptr, Core::Vector<Core::String>(), "cannot parse without context");
+			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Core::Vector<Core::String> Output;
 			if (Start >= Base->size())
 				return Output;
@@ -5335,8 +5892,8 @@ namespace Mavi
 		}
 		void Stringify::ConvertToWide(const char* Input, size_t InputSize, wchar_t* Output, size_t OutputSize)
 		{
-			VI_ASSERT_V(Input != nullptr, "input should be set");
-			VI_ASSERT_V(Output != nullptr && OutputSize > 0, "output should be set");
+			VI_ASSERT(Input != nullptr, "input should be set");
+			VI_ASSERT(Output != nullptr && OutputSize > 0, "output should be set");
 
 			wchar_t W = '\0'; size_t Size = 0;
 			for (size_t i = 0; i < InputSize;)
@@ -5400,7 +5957,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::operator= (Stringify&& Value) noexcept
 		{
-			VI_ASSERT(&Value != this, *this, "cannot set to self");
+			VI_ASSERT(&Value != this, "cannot set to self");
 			if (Deletable)
 				VI_DELETE(basic_string, Base);
 
@@ -5413,7 +5970,7 @@ namespace Mavi
 		}
 		Stringify& Stringify::operator= (const Stringify& Value) noexcept
 		{
-			VI_ASSERT(&Value != this, *this, "cannot set to self");
+			VI_ASSERT(&Value != this, "cannot set to self");
 			if (Deletable)
 				VI_DELETE(basic_string, Base);
 
@@ -5442,19 +5999,6 @@ namespace Mavi
 				Result.erase(Result.end() - 1);
 
 			return Result;
-		}
-
-		Spin::Spin() noexcept
-		{
-		}
-		void Spin::Lock()
-		{
-			while (Atom.test_and_set(std::memory_order_acquire))
-				std::this_thread::yield();
-		}
-		void Spin::Unlock()
-		{
-			Atom.clear(std::memory_order_release);
 		}
 
 		Guard::Loaded::Loaded(Guard* NewBase) noexcept : Base(NewBase)
@@ -5563,7 +6107,7 @@ namespace Mavi
 		void Guard::LoadUnlock()
 		{
 			std::unique_lock<std::mutex> Unique(Mutex);
-			VI_ASSERT_V(Readers > 0, "value was not loaded");
+			VI_ASSERT(Readers > 0, "value was not loaded");
 
 			if (!--Readers)
 				Condition.notify_one();
@@ -5587,7 +6131,7 @@ namespace Mavi
 		void Guard::StoreUnlock()
 		{
 			std::unique_lock<std::mutex> Unique(Mutex);
-			VI_ASSERT_V(Writers > 0, "value was not stored");
+			VI_ASSERT(Writers > 0, "value was not stored");
 
 			--Writers;
 			Condition.notify_all();
@@ -5708,7 +6252,7 @@ namespace Mavi
 		}
 		Variant Var::String(const char* Value, size_t Size)
 		{
-			VI_ASSERT(Value != nullptr, Null(), "value should be set");
+			VI_ASSERT(Value != nullptr, "value should be set");
 			Variant Result(VarType::String);
 			Result.Size = Size;
 
@@ -5732,7 +6276,7 @@ namespace Mavi
 		}
 		Variant Var::Binary(const char* Value, size_t Size)
 		{
-			VI_ASSERT(Value != nullptr, Null(), "value should be set");
+			VI_ASSERT(Value != nullptr, "value should be set");
 			Variant Result(VarType::Binary);
 			Result.Size = Size;
 
@@ -5797,7 +6341,7 @@ namespace Mavi
 		}
 		bool Composer::Pop(const Core::String& Hash)
 		{
-			VI_ASSERT(Factory != nullptr, false, "composer should be initialized");
+			VI_ASSERT(Factory != nullptr, "composer should be initialized");
 			VI_TRACE("[composer] pop %s", Hash.c_str());
 
 			auto It = Factory->Map.find(VI_HASH(Hash));
@@ -5824,7 +6368,7 @@ namespace Mavi
 		}
 		void* Composer::Find(uint64_t TypeId)
 		{
-			VI_ASSERT(Factory != nullptr, nullptr, "composer should be initialized");
+			VI_ASSERT(Factory != nullptr, "composer should be initialized");
 			auto It = Factory->Map.find(TypeId);
 			if (It != Factory->Map.end())
 				return It->second.second;
@@ -5833,7 +6377,7 @@ namespace Mavi
 		}
 		Core::UnorderedSet<uint64_t> Composer::Fetch(uint64_t Id)
 		{
-			VI_ASSERT(Factory != nullptr, Core::UnorderedSet<uint64_t>(), "composer should be initialized");
+			VI_ASSERT(Factory != nullptr, "composer should be initialized");
 
 			Core::UnorderedSet<uint64_t> Hashes;
 			for (auto& Item : Factory->Map)
@@ -5962,7 +6506,7 @@ namespace Mavi
 		}
 		void Console::Trace(uint32_t MaxFrames)
 		{
-			std::cout << OS::GetStackTrace(2, MaxFrames) << '\n';
+			std::cout << ErrorHandling::GetStackTrace(2, MaxFrames) << '\n';
 		}
 		void Console::CaptureTime()
 		{
@@ -6011,7 +6555,7 @@ namespace Mavi
 		}
 		void Console::WriteBuffer(const char* Buffer)
 		{
-			VI_ASSERT_V(Buffer != nullptr, "buffer should be set");
+			VI_ASSERT(Buffer != nullptr, "buffer should be set");
 			std::cout << Buffer;
 		}
 		void Console::WriteLine(const Core::String& Line)
@@ -6070,7 +6614,7 @@ namespace Mavi
 		}
 		void Console::sfWriteLine(const char* Format, ...)
 		{
-			VI_ASSERT_V(Format != nullptr, "format should be set");
+			VI_ASSERT(Format != nullptr, "format should be set");
 
 			char Buffer[BLOB_SIZE] = { '\0' };
 			va_list Args;
@@ -6088,7 +6632,7 @@ namespace Mavi
 		}
 		void Console::sfWrite(const char* Format, ...)
 		{
-			VI_ASSERT_V(Format != nullptr, "format should be set");
+			VI_ASSERT(Format != nullptr, "format should be set");
 
 			char Buffer[BLOB_SIZE] = { '\0' };
 			va_list Args;
@@ -6132,8 +6676,8 @@ namespace Mavi
 		}
 		bool Console::ReadLine(Core::String& Data, size_t Size)
 		{
-			VI_ASSERT(Status != Mode::Detached, false, "console should be shown at least once");
-			VI_ASSERT(Size > 0, false, "read length should be greater than zero");
+			VI_ASSERT(Status != Mode::Detached, "console should be shown at least once");
+			VI_ASSERT(Size > 0, "read length should be greater than zero");
 			VI_TRACE("[console] read up to %" PRIu64 " bytes", (uint64_t)Size);
 
 			bool Success;
@@ -6265,7 +6809,7 @@ namespace Mavi
 		}
 		Timer::Capture Timer::Pop()
 		{
-			VI_ASSERT(!Captures.empty(), Capture(), "there is no time captured at the moment");
+			VI_ASSERT(!Captures.empty(), "there is no time captured at the moment");
 			Capture Base = Captures.front();
 			Base.End = Clock();
 			Base.Delta = Base.End - Base.Begin;
@@ -6343,7 +6887,7 @@ namespace Mavi
 		}
 		size_t Stream::ReadAll(const std::function<void(char*, size_t)>& Callback)
 		{
-			VI_ASSERT(Callback != nullptr, 0, "callback should be set");
+			VI_ASSERT(Callback != nullptr, "callback should be set");
 			VI_TRACE("[io] read all bytes on fd %i", GetFd());
 
 			char Buffer[CHUNK_SIZE];
@@ -6407,7 +6951,7 @@ namespace Mavi
 		}
 		bool FileStream::Open(const char* File, FileMode Mode)
 		{
-			VI_ASSERT(File != nullptr, false, "filename should be set");
+			VI_ASSERT(File != nullptr, "filename should be set");
 
 			Close();
 			Path = OS::Path::Resolve(File);
@@ -6466,7 +7010,7 @@ namespace Mavi
 		}
 		bool FileStream::Seek(FileSeek Mode, int64_t Offset)
 		{
-			VI_ASSERT(Resource != nullptr, false, "file should be opened");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_MEASURE(Core::Timings::FileSystem);
 
 			switch (Mode)
@@ -6486,22 +7030,22 @@ namespace Mavi
 		}
 		bool FileStream::Move(int64_t Offset)
 		{
-			VI_ASSERT(Resource != nullptr, false, "file should be opened");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[io] seek fs %i move %" PRId64, GetFd(), Offset);
 			return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
 		}
 		int FileStream::Flush()
 		{
-			VI_ASSERT(Resource != nullptr, 0, "file should be opened");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[io] flush fs %i", GetFd());
 			return fflush(Resource);
 		}
 		size_t FileStream::ReadAny(const char* Format, ...)
 		{
-			VI_ASSERT(Resource != nullptr, 0, "file should be opened");
-			VI_ASSERT(Format != nullptr, false, "format should be set");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(Format != nullptr, "format should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 
 			va_list Args;
@@ -6514,16 +7058,16 @@ namespace Mavi
 		}
 		size_t FileStream::Read(char* Data, size_t Length)
 		{
-			VI_ASSERT(Resource != nullptr, 0, "file should be opened");
-			VI_ASSERT(Data != nullptr, false, "data should be set");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[io] fs %i read %i bytes", GetFd(), (int)Length);
 			return fread(Data, 1, Length, Resource);
 		}
 		size_t FileStream::WriteAny(const char* Format, ...)
 		{
-			VI_ASSERT(Resource != nullptr, 0, "file should be opened");
-			VI_ASSERT(Format != nullptr, false, "format should be set");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(Format != nullptr, "format should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 
 			va_list Args;
@@ -6536,22 +7080,22 @@ namespace Mavi
 		}
 		size_t FileStream::Write(const char* Data, size_t Length)
 		{
-			VI_ASSERT(Resource != nullptr, 0, "file should be opened");
-			VI_ASSERT(Data != nullptr, false, "data should be set");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[io] fs %i write %i bytes", GetFd(), (int)Length);
 			return fwrite(Data, 1, Length, Resource);
 		}
 		size_t FileStream::Tell()
 		{
-			VI_ASSERT(Resource != nullptr, 0, "file should be opened");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[io] fs %i tell", GetFd());
 			return ftell(Resource);
 		}
 		int FileStream::GetFd() const
 		{
-			VI_ASSERT(Resource != nullptr, -1, "file should be opened");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
 			return VI_FILENO(Resource);
 		}
 		void* FileStream::GetBuffer() const
@@ -6584,7 +7128,7 @@ namespace Mavi
 		}
 		bool GzStream::Open(const char* File, FileMode Mode)
 		{
-			VI_ASSERT(File != nullptr, 0, "filename should be set");
+			VI_ASSERT(File != nullptr, "filename should be set");
 #ifdef VI_HAS_ZLIB
 			VI_MEASURE(Core::Timings::FileSystem);
 			Close();
@@ -6635,7 +7179,7 @@ namespace Mavi
 		}
 		bool GzStream::Seek(FileSeek Mode, int64_t Offset)
 		{
-			VI_ASSERT(Resource != nullptr, 0, "file should be opened");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
 #ifdef VI_HAS_ZLIB
 			VI_MEASURE(Core::Timings::FileSystem);
 			switch (Mode)
@@ -6647,7 +7191,7 @@ namespace Mavi
 					VI_TRACE("[gz] seek fs %i move %" PRId64, GetFd(), Offset);
 					return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
 				case FileSeek::End:
-					VI_ASSERT(false, false, "gz seek from end is not supported");
+					VI_ASSERT(false, "gz seek from end is not supported");
 					return gzseek((gzFile)Resource, (long)Offset, SEEK_END) == 0;
 			}
 #endif
@@ -6655,7 +7199,7 @@ namespace Mavi
 		}
 		bool GzStream::Move(int64_t Offset)
 		{
-			VI_ASSERT(Resource != nullptr, 0, "file should be opened");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
 #ifdef VI_HAS_ZLIB
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[gz] seek fs %i move %" PRId64, GetFd(), Offset);
@@ -6666,7 +7210,7 @@ namespace Mavi
 		}
 		int GzStream::Flush()
 		{
-			VI_ASSERT(Resource != nullptr, 0, "file should be opened");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
 #ifdef VI_HAS_ZLIB
 			VI_MEASURE(Core::Timings::FileSystem);
 			return gzflush((gzFile)Resource, Z_SYNC_FLUSH);
@@ -6676,13 +7220,13 @@ namespace Mavi
 		}
 		size_t GzStream::ReadAny(const char* Format, ...)
 		{
-			VI_ASSERT(false, -1, "gz read-format is not supported");
+			VI_ASSERT(false, "gz read-format is not supported");
 			return 0;
 		}
 		size_t GzStream::Read(char* Data, size_t Length)
 		{
-			VI_ASSERT(Resource != nullptr, 0, "file should be opened");
-			VI_ASSERT(Data != nullptr, 0, "data should be set");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(Data != nullptr, "data should be set");
 #ifdef VI_HAS_ZLIB
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[gz] fs %i read %i bytes", GetFd(), (int)Length);
@@ -6693,8 +7237,8 @@ namespace Mavi
 		}
 		size_t GzStream::WriteAny(const char* Format, ...)
 		{
-			VI_ASSERT(Resource != nullptr, 0, "file should be opened");
-			VI_ASSERT(Format != nullptr, 0, "format should be set");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(Format != nullptr, "format should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 
 			va_list Args;
@@ -6711,8 +7255,8 @@ namespace Mavi
 		}
 		size_t GzStream::Write(const char* Data, size_t Length)
 		{
-			VI_ASSERT(Resource != nullptr, 0, "file should be opened");
-			VI_ASSERT(Data != nullptr, 0, "data should be set");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(Data != nullptr, "data should be set");
 #ifdef VI_HAS_ZLIB
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[gz] fs %i write %i bytes", GetFd(), (int)Length);
@@ -6723,7 +7267,7 @@ namespace Mavi
 		}
 		size_t GzStream::Tell()
 		{
-			VI_ASSERT(Resource != nullptr, 0, "file should be opened");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
 #ifdef VI_HAS_ZLIB
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[gz] fs %i tell", GetFd());
@@ -6734,7 +7278,7 @@ namespace Mavi
 		}
 		int GzStream::GetFd() const
 		{
-			VI_ASSERT(false, -1, "gz fd fetch is not supported");
+			VI_ASSERT(false, "gz fd fetch is not supported");
 			return -1;
 		}
 		void* GzStream::GetBuffer() const
@@ -6759,12 +7303,12 @@ namespace Mavi
 		}
 		bool WebStream::Clear()
 		{
-			VI_ASSERT(false, false, "web clear is not supported");
+			VI_ASSERT(false, "web clear is not supported");
 			return false;
 		}
 		bool WebStream::Open(const char* File, FileMode Mode)
 		{
-			VI_ASSERT(File != nullptr, 0, "filename should be set");
+			VI_ASSERT(File != nullptr, "filename should be set");
 			Close();
 
 			Network::Location URL(File);
@@ -6822,7 +7366,7 @@ namespace Mavi
 				case FileMode::Binary_Write_Read:
 				case FileMode::Binary_Read_Append_Write:
 					Close();
-					VI_ASSERT(false, false, "web stream supports only rb and r modes");
+					VI_ASSERT(false, "web stream supports only rb and r modes");
 					break;
 			}
 
@@ -6876,24 +7420,24 @@ namespace Mavi
 		}
 		bool WebStream::Move(int64_t Offset)
 		{
-			VI_ASSERT(false, false, "web move is not supported");
+			VI_ASSERT(false, "web move is not supported");
 			return false;
 		}
 		int WebStream::Flush()
 		{
-			VI_ASSERT(false, -1, "web flush is not supported");
+			VI_ASSERT(false, "web flush is not supported");
 			return 0;
 		}
 		size_t WebStream::ReadAny(const char* Format, ...)
 		{
-			VI_ASSERT(false, 0, "web read-format is not supported");
+			VI_ASSERT(false, "web read-format is not supported");
 			return 0;
 		}
 		size_t WebStream::Read(char* Data, size_t Length)
 		{
-			VI_ASSERT(Resource != nullptr, 0, "file should be opened");
-			VI_ASSERT(Data != nullptr, 0, "data should be set");
-			VI_ASSERT(Length > 0, 0, "length should be greater than zero");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(Data != nullptr, "data should be set");
+			VI_ASSERT(Length > 0, "length should be greater than zero");
 			VI_TRACE("[http] fd %i read %i bytes", GetFd(), (int)Length);
 
 			size_t Result = 0;
@@ -6924,12 +7468,12 @@ namespace Mavi
 		}
 		size_t WebStream::WriteAny(const char* Format, ...)
 		{
-			VI_ASSERT(false, 0, "web write-format is not supported");
+			VI_ASSERT(false, "web write-format is not supported");
 			return 0;
 		}
 		size_t WebStream::Write(const char* Data, size_t Length)
 		{
-			VI_ASSERT(false, 0, "web write is not supported");
+			VI_ASSERT(false, "web write is not supported");
 			return 0;
 		}
 		size_t WebStream::Tell()
@@ -6939,7 +7483,7 @@ namespace Mavi
 		}
 		int WebStream::GetFd() const
 		{
-			VI_ASSERT(Resource != nullptr, -1, "file should be opened");
+			VI_ASSERT(Resource != nullptr, "file should be opened");
 			return (int)((Network::HTTP::Client*)Resource)->GetStream()->GetFd();
 		}
 		void* WebStream::GetBuffer() const
@@ -6956,12 +7500,12 @@ namespace Mavi
 		}
 		bool ProcessStream::Clear()
 		{
-			VI_ASSERT(false, false, "process clear is not supported");
+			VI_ASSERT(false, "process clear is not supported");
 			return false;
 		}
 		bool ProcessStream::Open(const char* File, FileMode Mode)
 		{
-			VI_ASSERT(File != nullptr, false, "command should be set");
+			VI_ASSERT(File != nullptr, "command should be set");
 			Close();
 			Path = File;
 
@@ -7028,7 +7572,7 @@ namespace Mavi
 		void* ProcessStream::OpenPipe(const char* Path, const char* Mode)
 		{
 			VI_MEASURE(Core::Timings::FileSystem);
-			VI_ASSERT(Path != nullptr && Mode != nullptr, nullptr, "path and mode should be set");
+			VI_ASSERT(Path != nullptr && Mode != nullptr, "path and mode should be set");
 #ifdef VI_MICROSOFT
 			wchar_t Buffer[CHUNK_SIZE], Type[20];
 			Stringify::ConvertToWide(Path, strlen(Path), Buffer, CHUNK_SIZE);
@@ -7059,7 +7603,7 @@ namespace Mavi
 		}
 		int ProcessStream::ClosePipe(void* Fd)
 		{
-			VI_ASSERT(Fd != nullptr, -1, "stream should be set");
+			VI_ASSERT(Fd != nullptr, "stream should be set");
 			VI_DEBUG("[io] close ps %i", VI_FILENO((FILE*)Fd));
 #ifdef VI_MICROSOFT
 			return _pclose((FILE*)Fd);
@@ -7099,7 +7643,7 @@ namespace Mavi
 		}
 		void FileTree::Loop(const std::function<bool(const FileTree*)>& Callback) const
 		{
-			VI_ASSERT_V(Callback, "callback should not be empty");
+			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Callback(this))
 				return;
 
@@ -7144,7 +7688,7 @@ namespace Mavi
         }
         void OS::Process::ArgsContext::ForEach(const std::function<void(const Core::String&, const Core::String&)>& Callback) const
         {
-            VI_ASSERT_V(Callback != nullptr, "callback should not be empty");
+            VI_ASSERT(Callback != nullptr, "callback should not be empty");
             for (auto& Item : Base)
                 Callback(Item.first, Item.second);
         }
@@ -7491,7 +8035,7 @@ namespace Mavi
 
 		void OS::Directory::SetWorking(const char* Path)
 		{
-			VI_ASSERT_V(Path != nullptr, "path should be set");
+			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_TRACE("[io] set working dir %s", Path);
 #ifdef VI_MICROSOFT
 			if (!SetCurrentDirectoryA(Path))
@@ -7510,7 +8054,7 @@ namespace Mavi
 		}
 		bool OS::Directory::Scan(const Core::String& Path, Core::Vector<FileEntry>* Entries)
 		{
-			VI_ASSERT(Entries != nullptr, false, "entries should be set");
+			VI_ASSERT(Entries != nullptr, "entries should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[io] scan dir %s", Path.c_str());
 
@@ -7586,7 +8130,7 @@ namespace Mavi
 		}
 		bool OS::Directory::Each(const char* Path, const std::function<bool(FileEntry*)>& Callback)
 		{
-			VI_ASSERT(Path != nullptr, false, "path should be set");
+			VI_ASSERT(Path != nullptr, "path should be set");
 			Core::Vector<FileEntry> Entries;
 			Core::String Result = Path::Resolve(Path);
 			Scan(Result, &Entries);
@@ -7605,7 +8149,7 @@ namespace Mavi
 		}
 		bool OS::Directory::Create(const char* Path)
 		{
-			VI_ASSERT(Path != nullptr, false, "path should be set");
+			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_DEBUG("[io] create dir %s", Path);
 #ifdef VI_MICROSOFT
@@ -7643,7 +8187,7 @@ namespace Mavi
 		}
 		bool OS::Directory::Remove(const char* Path)
 		{
-			VI_ASSERT(Path != nullptr, false, "path should be set");
+			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_DEBUG("[io] remove dir %s", Path);
 
@@ -7736,7 +8280,7 @@ namespace Mavi
 		}
 		bool OS::Directory::IsExists(const char* Path)
 		{
-			VI_ASSERT(Path != nullptr, false, "path should be set");
+			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[io] check path %s", Path);
 
@@ -7845,7 +8389,7 @@ namespace Mavi
 
 		bool OS::File::State(const Core::String& Path, FileEntry* Resource)
 		{
-			VI_ASSERT(Resource != nullptr, false, "resource should be set");
+			VI_ASSERT(Resource != nullptr, "resource should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 
 			*Resource = FileEntry();
@@ -7909,7 +8453,7 @@ namespace Mavi
 		}
 		bool OS::File::Write(const Core::String& Path, const char* Data, size_t Length)
 		{
-			VI_ASSERT(Data != nullptr, false, "data should be set");
+			VI_ASSERT(Data != nullptr, "data should be set");
 			auto* Stream = Open(Path, FileMode::Binary_Write_Only);
 			if (!Stream)
 				return false;
@@ -7934,7 +8478,7 @@ namespace Mavi
 		}
 		bool OS::File::Copy(const char* From, const char* To)
 		{
-			VI_ASSERT(From != nullptr && To != nullptr, false, "from and to should be set");
+			VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_DEBUG("[io] copy file from %s to %s", From, To);
 			std::ifstream Source(From, std::ios::binary);
@@ -7953,7 +8497,7 @@ namespace Mavi
 		}
 		bool OS::File::Move(const char* From, const char* To)
 		{
-			VI_ASSERT(From != nullptr && To != nullptr, false, "from and to should be set");
+			VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_DEBUG("[io] move file from %s to %s", From, To);
 #ifdef VI_MICROSOFT
@@ -7966,7 +8510,7 @@ namespace Mavi
 		}
 		bool OS::File::Remove(const char* Path)
 		{
-			VI_ASSERT(Path != nullptr, false, "path should be set");
+			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_DEBUG("[io] remove file %s", Path);
 #ifdef VI_MICROSOFT
@@ -7980,21 +8524,21 @@ namespace Mavi
 		}
 		bool OS::File::IsExists(const char* Path)
 		{
-			VI_ASSERT(Path != nullptr, false, "path should be set");
+			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[io] check path %s", Path);
 			return IsPathExists(OS::Path::Resolve(Path).c_str());
 		}
 		void OS::File::Close(void* Stream)
 		{
-			VI_ASSERT_V(Stream != nullptr, "stream should be set");
+			VI_ASSERT(Stream != nullptr, "stream should be set");
 			VI_DEBUG("[io] close fs %i", VI_FILENO((FILE*)Stream));
 			fclose((FILE*)Stream);
 		}
 		int OS::File::Compare(const Core::String& FirstPath, const Core::String& SecondPath)
 		{
-			VI_ASSERT(!FirstPath.empty(), -1, "first path should not be empty");
-			VI_ASSERT(!SecondPath.empty(), 1, "second path should not be empty");
+			VI_ASSERT(!FirstPath.empty(), "first path should not be empty");
+			VI_ASSERT(!SecondPath.empty(), "second path should not be empty");
 
 			size_t Size1 = GetProperties(FirstPath.c_str()).Size;
 			size_t Size2 = GetProperties(SecondPath.c_str()).Size;
@@ -8045,8 +8589,8 @@ namespace Mavi
 		}
 		size_t OS::File::Join(const Core::String& To, const Core::Vector<Core::String>& Paths)
 		{
-			VI_ASSERT(!To.empty(), 0, "to should not be empty");
-			VI_ASSERT(!Paths.empty(), 0, "paths to join should not be empty");
+			VI_ASSERT(!To.empty(), "to should not be empty");
+			VI_ASSERT(!Paths.empty(), "paths to join should not be empty");
 			VI_TRACE("[io] join %i path to %s", (int)Paths.size(), To.c_str());
 
 			Stream* Target = Open(To, FileMode::Binary_Write_Only);
@@ -8076,7 +8620,7 @@ namespace Mavi
 		}
 		uint64_t OS::File::GetIndex(const char* Data, size_t Size)
 		{
-			VI_ASSERT(Data != nullptr, 0, "data buffer should be set");
+			VI_ASSERT(Data != nullptr, "data buffer should be set");
 
 			uint64_t Result = 0xcbf29ce484222325;
 			for (size_t i = 0; i < Size; i++)
@@ -8092,7 +8636,7 @@ namespace Mavi
 			FileState State;
 			struct stat Buffer;
 
-			VI_ASSERT(Path != nullptr, State, "path should be set");
+			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 
 			if (stat(Path, &Buffer) != 0)
@@ -8119,7 +8663,7 @@ namespace Mavi
 		void* OS::File::Open(const char* Path, const char* Mode)
 		{
 			VI_MEASURE(Core::Timings::FileSystem);
-			VI_ASSERT(Path != nullptr && Mode != nullptr, nullptr, "path and mode should be set");
+			VI_ASSERT(Path != nullptr && Mode != nullptr, "path and mode should be set");
 #ifdef VI_MICROSOFT
 			wchar_t Buffer[CHUNK_SIZE], Type[20];
 			Stringify::ConvertToWide(Path, strlen(Path), Buffer, CHUNK_SIZE);
@@ -8204,8 +8748,8 @@ namespace Mavi
 		}
 		Stream* OS::File::OpenJoin(const Core::String& To, const Core::Vector<Core::String>& Paths)
 		{
-			VI_ASSERT(!To.empty(), nullptr, "to should not be empty");
-			VI_ASSERT(!Paths.empty(), nullptr, "paths to join should not be empty");
+			VI_ASSERT(!To.empty(), "to should not be empty");
+			VI_ASSERT(!Paths.empty(), "paths to join should not be empty");
 			VI_TRACE("[io] open join %i path to %s", (int)Paths.size(), To.c_str());
 
 			Stream* Target = Open(To, FileMode::Binary_Write_Only);
@@ -8237,7 +8781,7 @@ namespace Mavi
 		}
 		unsigned char* OS::File::ReadAll(Stream* Stream, size_t* Length)
 		{
-			VI_ASSERT(Stream != nullptr, nullptr, "path should be set");
+			VI_ASSERT(Stream != nullptr, "path should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[io] fd %i read-all", Stream->GetFd());
 
@@ -8295,7 +8839,7 @@ namespace Mavi
 		}
 		unsigned char* OS::File::ReadChunk(Stream* Stream, size_t Length)
 		{
-			VI_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+			VI_ASSERT(Stream != nullptr, "stream should be set");
 			auto* Bytes = VI_MALLOC(unsigned char, (Length + 1));
 			Stream->Read((char*)Bytes, Length);
 			Bytes[Length] = '\0';
@@ -8322,7 +8866,7 @@ namespace Mavi
 
 		bool OS::Path::IsRemote(const char* Path)
 		{
-			VI_ASSERT(Path != nullptr, false, "path should be set");
+			VI_ASSERT(Path != nullptr, "path should be set");
 			return Network::Location(Path).Protocol != "file";
 		}
 		bool OS::Path::IsRelative(const char* Path)
@@ -8335,7 +8879,7 @@ namespace Mavi
 		}
 		bool OS::Path::IsAbsolute(const char* Path)
 		{
-			VI_ASSERT(Path != nullptr, false, "path should be set");
+			VI_ASSERT(Path != nullptr, "path should be set");
 #ifdef VI_MICROSOFT
 			if (Path[0] == '/' || Path[0] == '\\')
 				return true;
@@ -8351,7 +8895,7 @@ namespace Mavi
 		}
 		Core::String OS::Path::Resolve(const char* Path)
 		{
-			VI_ASSERT(Path != nullptr, Core::String(), "path should be set");
+			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 			char Buffer[BLOB_SIZE] = { };
 #ifdef VI_MICROSOFT
@@ -8372,7 +8916,7 @@ namespace Mavi
 		}
 		Core::String OS::Path::Resolve(const Core::String& Path, const Core::String& Directory, bool EvenIfExists)
 		{
-			VI_ASSERT(!Path.empty() && !Directory.empty(), "", "path and directory should not be empty");
+			VI_ASSERT(!Path.empty() && !Directory.empty(), "path and directory should not be empty");
 			if (IsAbsolute(Path.c_str()))
 				return Path;
 			else if (!EvenIfExists && IsPathExists(Path.c_str()) && Path.find("..") == std::string::npos)
@@ -8412,7 +8956,7 @@ namespace Mavi
 		}
 		Core::String OS::Path::GetNonExistant(const Core::String& Path)
 		{
-			VI_ASSERT(!Path.empty(), Path, "path should not be empty");
+			VI_ASSERT(!Path.empty(), "path should not be empty");
 			const char* Extension = GetExtension(Path.c_str());
 			bool IsTrueFile = Extension != nullptr && *Extension != '\0';
 			size_t ExtensionAt = IsTrueFile ? Path.rfind(Extension) : Path.size();
@@ -8432,7 +8976,7 @@ namespace Mavi
 		}
 		Core::String OS::Path::GetDirectory(const char* Path, size_t Level)
 		{
-			VI_ASSERT(Path != nullptr, Core::String(), "path should be set");
+			VI_ASSERT(Path != nullptr, "path should be set");
 
 			Stringify Buffer(Path);
 			Stringify::Settle Result = Buffer.ReverseFindOf("/\\");
@@ -8461,7 +9005,7 @@ namespace Mavi
 		}
 		const char* OS::Path::GetFilename(const char* Path)
 		{
-			VI_ASSERT(Path != nullptr, nullptr, "path should be set");
+			VI_ASSERT(Path != nullptr, "path should be set");
 			size_t Size = strlen(Path);
 			for (size_t i = Size; i-- > 0;)
 			{
@@ -8473,7 +9017,7 @@ namespace Mavi
 		}
 		const char* OS::Path::GetExtension(const char* Path)
 		{
-			VI_ASSERT(Path != nullptr, nullptr, "path should be set");
+			VI_ASSERT(Path != nullptr, "path should be set");
 			const char* Buffer = Path;
 			while (*Buffer != '\0')
 				Buffer++;
@@ -8489,18 +9033,18 @@ namespace Mavi
 
 		bool OS::Net::GetETag(char* Buffer, size_t Length, FileEntry* Resource)
 		{
-			VI_ASSERT(Resource != nullptr, false, "resource should be set");
+			VI_ASSERT(Resource != nullptr, "resource should be set");
 			return GetETag(Buffer, Length, Resource->LastModified, Resource->Size);
 		}
 		bool OS::Net::GetETag(char* Buffer, size_t Length, int64_t LastModified, size_t ContentLength)
 		{
-			VI_ASSERT(Buffer != nullptr && Length > 0, false, "buffer should be set and size should be greater than Zero");
+			VI_ASSERT(Buffer != nullptr && Length > 0, "buffer should be set and size should be greater than Zero");
 			snprintf(Buffer, Length, "\"%lx.%" PRIu64 "\"", (unsigned long)LastModified, (uint64_t)ContentLength);
 			return true;
 		}
 		socket_t OS::Net::GetFd(FILE* Stream)
 		{
-			VI_ASSERT(Stream != nullptr, -1, "stream should be set");
+			VI_ASSERT(Stream != nullptr, "stream should be set");
 			return VI_FILENO(Stream);
 		}
 
@@ -8522,13 +9066,13 @@ namespace Mavi
 		}
 		int OS::Process::ExecutePlain(const String& Command)
 		{
-			VI_ASSERT(!Command.empty(), -1, "format should be set");
+			VI_ASSERT(!Command.empty(), "format should be set");
 			VI_DEBUG("[os] execute sp:command [ %s ]", Command.c_str());
 			return system(Command.c_str());
 		}
 		ProcessStream* OS::Process::ExecuteWriteOnly(const String& Command)
 		{
-			VI_ASSERT(!Command.empty(), nullptr, "format should be set");
+			VI_ASSERT(!Command.empty(), "format should be set");
 			VI_DEBUG("[os] execute wo:command [ %s ]", Command.c_str());
 			ProcessStream* Stream = new ProcessStream();
 			if (Stream->Open(Command.c_str(), FileMode::Write_Only))
@@ -8539,7 +9083,7 @@ namespace Mavi
 		}
 		ProcessStream* OS::Process::ExecuteReadOnly(const String& Command)
 		{
-			VI_ASSERT(!Command.empty(), nullptr, "format should be set");
+			VI_ASSERT(!Command.empty(), "format should be set");
 			VI_DEBUG("[os] execute ro:command [ %s ]", Command.c_str());
 			ProcessStream* Stream = new ProcessStream();
 			if (Stream->Open(Command.c_str(), FileMode::Read_Only))
@@ -8631,7 +9175,7 @@ namespace Mavi
 		}
 		bool OS::Process::Await(ChildProcess* Process, int* ExitCode)
 		{
-			VI_ASSERT(Process != nullptr && Process->Valid, false, "process should be set and be valid");
+			VI_ASSERT(Process != nullptr && Process->Valid, "process should be set and be valid");
 #ifdef VI_MICROSOFT
 			VI_TRACE("[os] await process %s", (int)GetProcessId(Process->Process));
 			WaitForSingleObject(Process->Process, INFINITE);
@@ -8662,7 +9206,7 @@ namespace Mavi
 		}
 		bool OS::Process::Free(ChildProcess* Child)
 		{
-			VI_ASSERT(Child != nullptr && Child->Valid, false, "child should be set and be valid");
+			VI_ASSERT(Child != nullptr && Child->Valid, "child should be set and be valid");
 #ifdef VI_MICROSOFT
 			if (Child->Process != nullptr)
 			{
@@ -8698,13 +9242,13 @@ namespace Mavi
         Core::UnorderedMap<Core::String, Core::String> OS::Process::GetArgs(int ArgsCount, char** Args, const Core::String& WhenNoValue)
         {
             Core::UnorderedMap<Core::String, Core::String> Results;
-            VI_ASSERT(Args != nullptr, Results, "arguments should be set");
-            VI_ASSERT(ArgsCount > 0, Results, "arguments count should be greater than zero");
+            VI_ASSERT(Args != nullptr, "arguments should be set");
+            VI_ASSERT(ArgsCount > 0, "arguments count should be greater than zero");
             
             Core::Vector<Core::String> Params;
             for (int i = 0; i < ArgsCount; i++)
             {
-                VI_ASSERT(Args[i] != nullptr, Results, "argument %i should be set", i);
+                VI_ASSERT(Args[i] != nullptr, "argument %i should be set", i);
                 Params.push_back(Args[i]);
             }
         
@@ -8776,7 +9320,7 @@ namespace Mavi
 		}
 		void* OS::Symbol::LoadFunction(void* Handle, const Core::String& Name)
 		{
-			VI_ASSERT(Handle != nullptr && !Name.empty(), nullptr, "handle should be set and name should not be empty");
+			VI_ASSERT(Handle != nullptr && !Name.empty(), "handle should be set and name should not be empty");
 			VI_DEBUG("[dl] load function %s", Name.c_str());
 			VI_MEASURE(Core::Timings::FileSystem);
 #ifdef VI_MICROSOFT
@@ -8811,7 +9355,7 @@ namespace Mavi
 		}
 		bool OS::Symbol::Unload(void* Handle)
 		{
-			VI_ASSERT(Handle != nullptr, false, "handle should be set");
+			VI_ASSERT(Handle != nullptr, "handle should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_DEBUG("[dl] unload library 0x%" PRIXPTR, Handle);
 #ifdef VI_MICROSOFT
@@ -8916,10 +9460,7 @@ namespace Mavi
 
 			return true;
 		}
-#ifndef NDEBUG
-		static thread_local std::stack<Measurement> MeasuringTree;
-		static thread_local bool MeasuringDisabled = false;
-#endif
+
 		int OS::Error::Get()
 		{
 #ifdef VI_MICROSOFT
@@ -8956,505 +9497,6 @@ namespace Mavi
 			return Code > 0;
 #endif
 		}
-		const char* OS::Message::GetLevelName() const
-		{
-			switch (Level)
-			{
-				case (int)LogLevel::Error:
-					return "ERROR";
-				case (int)LogLevel::Warning:
-					return "WARN";
-				case (int)LogLevel::Info:
-					return "INFO";
-				case (int)LogLevel::Debug:
-					return "DEBUG";
-				case (int)LogLevel::Trace:
-					return "TRACE";
-				default:
-					return "LOG";
-			}
-		}
-		StdColor OS::Message::GetLevelColor() const
-		{
-			switch (Level)
-			{
-				case (int)LogLevel::Error:
-					return StdColor::DarkRed;
-				case (int)LogLevel::Warning:
-					return StdColor::Orange;
-				case (int)LogLevel::Info:
-					return StdColor::LightBlue;
-				case (int)LogLevel::Debug:
-					return StdColor::Gray;
-				case (int)LogLevel::Trace:
-					return StdColor::Gray;
-				default:
-					return StdColor::LightGray;
-			}
-		}
-		Core::String& OS::Message::GetText()
-		{
-			if (!Temp.empty())
-				return Temp;
-
-			Core::StringStream Stream;
-			Stream << Date;
-#ifndef NDEBUG
-			Stream << ' ' << Source << ':' << Line;
-#endif
-			Stream << ' ' << GetLevelName() << ' ';
-			Stream << Buffer << '\n';
-
-			Temp = Stream.str();
-			return Temp;
-		}
-
-		OS::Timing::Tick::Tick(bool Active) noexcept : IsCounting(Active)
-		{
-		}
-		OS::Timing::Tick::Tick(Tick&& Other) noexcept : IsCounting(Other.IsCounting)
-		{
-			Other.IsCounting = false;
-		}
-		OS::Timing::Tick::~Tick() noexcept
-		{
-#ifndef NDEBUG
-			if (MeasuringDisabled || !IsCounting)
-				return;
-
-			VI_ASSERT_V(!MeasuringTree.empty(), "debug frame should be set");
-			auto& Next = MeasuringTree.top();
-			Next.NotifyOfOverConsumption();
-			MeasuringTree.pop();
-#endif
-		}
-		OS::Timing::Tick& OS::Timing::Tick::operator =(Tick&& Other) noexcept
-		{
-			if (&Other == this)
-				return *this;
-
-			IsCounting = Other.IsCounting;
-			Other.IsCounting = false;
-			return *this;
-		}
-		OS::Timing::Tick OS::Timing::Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS)
-		{
-#ifndef NDEBUG
-			VI_ASSERT(File != nullptr, OS::Timing::Tick(false), "file should be set");
-			VI_ASSERT(Function != nullptr, OS::Timing::Tick(false), "function should be set");
-			VI_ASSERT(ThresholdMS > 0 || ThresholdMS == (uint64_t)Core::Timings::Infinite, OS::Timing::Tick(false), "threshold time should be greater than Zero");
-			if (MeasuringDisabled)
-				return OS::Timing::Tick(false);
-
-			Measurement Next;
-			Next.File = File;
-			Next.Function = Function;
-			Next.Threshold = ThresholdMS * 1000;
-			Next.Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-			Next.Line = Line;
-
-			MeasuringTree.emplace(std::move(Next));
-			return OS::Timing::Tick(true);
-#else
-			return OS::Timing::Tick(false);
-#endif
-		}
-		void OS::Timing::MeasureLoop()
-		{
-#ifndef NDEBUG
-			if (!MeasuringDisabled)
-			{
-				VI_ASSERT_V(!MeasuringTree.empty(), "debug frame should be set");
-				auto& Next = MeasuringTree.top();
-				Next.NotifyOfOverConsumption();
-			}
-#endif
-		}
-		Core::String OS::Timing::GetMeasureTrace()
-		{
-#ifndef NDEBUG
-			auto Source = MeasuringTree;
-			Core::StringStream Stream;
-			Stream << "in thread " << std::this_thread::get_id() << ":\n";
-
-			size_t Size = Source.size();
-			for (size_t TraceIdx = Source.size(); TraceIdx > 0; --TraceIdx)
-			{
-				auto& Next = Source.top();
-				Stream << "\t#" << (Size - TraceIdx) + 1 << " source \"" << Next.File << "\", line " << Next.Line << ", in " << Next.Function;
-				if (Next.Id != nullptr)
-					Stream << " (0x" << Next.Id;
-				else
-					Stream << " (nullptr";
-				Stream << "), at most " << Next.Threshold / 1000 << " ms\n";
-				Source.pop();
-			}
-
-			Core::String Out(Stream.str());
-			return Out.substr(0, Out.size() - 1);
-#else
-			return Core::String();
-#endif
-		}
-
-		static thread_local bool IgnoreLogging = false;
-		void OS::Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
-		{
-			if (!HasLogFlag(LogOption::Active) && !Callback)
-				return;
-
-			Message Data;
-			Data.Fatal = Fatal;
-			Data.Level = 1;
-			Data.Line = Line;
-			Data.Source = Source ? OS::Path::GetFilename(Source) : "";
-			Data.Pretty = true;
-
-			if (HasLogFlag(LogOption::Dated))
-				GetDateTime(time(nullptr), Data.Date, sizeof(Data.Date));
-
-			char Buffer[BLOB_SIZE] = { '\0' };
-			Data.Size = snprintf(Buffer, sizeof(Buffer), "%s(): \"%s\" assertion failed: %s, latest known callstack: %s",
-				Function ? Function : "?",
-				Condition ? Condition : "?",
-				Format ? Format : "condition should be truthful",
-				OS::GetStackTrace(2, 64).c_str());
-
-			if (Format != nullptr)
-			{
-				va_list Args;
-				va_start(Args, Format);
-				Data.Size = vsnprintf(Data.Buffer, sizeof(Data.Buffer), Buffer, Args);
-				va_end(Args);
-			}
-			else
-				memcpy(Data.Buffer, Buffer, sizeof(Buffer));
-
-			if (Data.Size > 0)
-			{
-				EscapeText(Data.Buffer, (size_t)Data.Size);
-				EnqueueLog(std::move(Data));
-			}
-
-			if (Fatal)
-				Pause();
-		}
-		void OS::Log(int Level, int Line, const char* Source, const char* Format, ...)
-		{
-			VI_ASSERT_V(Format != nullptr, "format string should be set");
-			if (!HasLogFlag(LogOption::Active) && !Callback)
-				return;
-
-			if (IgnoreLogging)
-				return;
-
-			Message Data;
-			Data.Fatal = false;
-			Data.Level = Level;
-			Data.Line = Line;
-			Data.Source = Source ? OS::Path::GetFilename(Source) : "";
-#if VI_DLEVEL >= 5
-			Data.Pretty = Level != (int)LogLevel::Trace;
-#else
-			Data.Pretty = Level != (int)LogLevel::Debug && Level != (int)LogLevel::Trace;
-#endif
-			if (HasLogFlag(LogOption::Dated))
-				GetDateTime(time(nullptr), Data.Date, sizeof(Data.Date));
-
-			char Buffer[512] = { '\0' };
-			if (Level == 1)
-			{
-				int ErrorCode = OS::Error::Get();
-				if (OS::Error::IsError(ErrorCode))
-					snprintf(Buffer, sizeof(Buffer), "%s, latest system error [%s]", Format, OS::Error::GetName(ErrorCode).c_str());
-				else
-					memcpy(Buffer, Format, std::min(sizeof(Buffer), strlen(Format)));
-			}
-			else
-				memcpy(Buffer, Format, std::min(sizeof(Buffer), strlen(Format)));
-
-			va_list Args;
-			va_start(Args, Format);
-			Data.Size = vsnprintf(Data.Buffer, sizeof(Data.Buffer), Buffer, Args);
-			va_end(Args);
-
-			if (Data.Size > 0)
-			{
-				EscapeText(Data.Buffer, (size_t)Data.Size);
-				EnqueueLog(std::move(Data));
-			}
-		}
-		void OS::EnqueueLog(Message&& Data)
-		{
-			if (HasLogFlag(LogOption::Async) && Schedule::IsPresentAndActive())
-				Schedule::Get()->SetTask([Data = std::move(Data)]() mutable { DispatchLog(Data); });
-			else
-				DispatchLog(Data);
-		}
-		void OS::DispatchLog(Message& Data)
-		{
-			if (Callback)
-			{
-				IgnoreLogging = true;
-#ifndef NDEBUG
-				if (!MeasuringDisabled)
-				{
-					MeasuringDisabled = true;
-					Callback(Data);
-					MeasuringDisabled = false;
-				}
-#else
-				Callback(Data);
-#endif
-				IgnoreLogging = false;
-			}
-#if defined(VI_MICROSOFT) && !defined(NDEBUG)
-			OutputDebugStringA(Data.GetText().c_str());
-#endif
-			if (!Console::IsPresent())
-				return;
-
-			Console* Log = Console::Get();
-			Log->Begin();
-			if (HasLogFlag(LogOption::Pretty))
-			{
-				Log->ColorBegin(Data.Pretty ? StdColor::Cyan : StdColor::Gray);
-				if (HasLogFlag(LogOption::Dated))
-				{
-					Log->WriteBuffer(Data.Date);
-					Log->WriteBuffer(" ");
-	#ifndef NDEBUG
-					Log->ColorBegin(StdColor::Gray);
-					Log->WriteBuffer(Data.Source);
-					Log->WriteBuffer(":");
-					Log->Write(Core::ToString(Data.Line));
-					Log->WriteBuffer(" ");
-	#endif
-				}
-				Log->ColorBegin(Data.GetLevelColor());
-				Log->WriteBuffer(Data.GetLevelName());
-				Log->WriteBuffer(" ");
-				if (Data.Pretty)
-					PrettyPrintLog(Log, Data.Buffer, StdColor::LightGray);
-				else
-					Log->WriteBuffer(Data.Buffer);
-				Log->WriteBuffer("\n");
-				Log->ColorEnd();
-			}
-			else
-				Log->Write(Data.GetText());
-			Log->End();
-		}
-		void OS::PrettyPrintLog(Console* Log, const char* Buffer, StdColor BaseColor)
-		{
-			static PrettyToken Tokens[] =
-			{
-				PrettyToken(StdColor::DarkGreen, "OK"),
-				PrettyToken(StdColor::Yellow, "execute"),
-				PrettyToken(StdColor::Yellow, "spawn"),
-				PrettyToken(StdColor::Yellow, "acquire"),
-				PrettyToken(StdColor::Yellow, "release"),
-				PrettyToken(StdColor::Yellow, "join"),
-				PrettyToken(StdColor::Yellow, "bind"),
-				PrettyToken(StdColor::Yellow, "assign"),
-				PrettyToken(StdColor::Yellow, "resolve"),
-				PrettyToken(StdColor::Yellow, "prepare"),
-				PrettyToken(StdColor::Yellow, "listen"),
-				PrettyToken(StdColor::Yellow, "unlisten"),
-				PrettyToken(StdColor::Yellow, "accept"),
-				PrettyToken(StdColor::Yellow, "load"),
-				PrettyToken(StdColor::Yellow, "save"),
-				PrettyToken(StdColor::Yellow, "open"),
-				PrettyToken(StdColor::Yellow, "close"),
-				PrettyToken(StdColor::Yellow, "create"),
-				PrettyToken(StdColor::Yellow, "remove"),
-				PrettyToken(StdColor::Yellow, "compile"),
-				PrettyToken(StdColor::Yellow, "transpile"),
-				PrettyToken(StdColor::Yellow, "enter"),
-				PrettyToken(StdColor::Yellow, "exit"),
-				PrettyToken(StdColor::Yellow, "connect"),
-				PrettyToken(StdColor::Yellow, "reconnect"),
-				PrettyToken(StdColor::DarkRed, "ERR"),
-				PrettyToken(StdColor::DarkRed, "FATAL"),
-				PrettyToken(StdColor::DarkRed, "leak"),
-				PrettyToken(StdColor::DarkRed, "leaking"),
-				PrettyToken(StdColor::DarkRed, "fail"),
-				PrettyToken(StdColor::DarkRed, "failure"),
-				PrettyToken(StdColor::DarkRed, "failed"),
-				PrettyToken(StdColor::DarkRed, "error"),
-				PrettyToken(StdColor::DarkRed, "errors"),
-				PrettyToken(StdColor::DarkRed, "not"),
-				PrettyToken(StdColor::DarkRed, "cannot"),
-				PrettyToken(StdColor::DarkRed, "could"),
-				PrettyToken(StdColor::DarkRed, "couldn't"),
-				PrettyToken(StdColor::DarkRed, "wasn't"),
-				PrettyToken(StdColor::DarkRed, "took"),
-				PrettyToken(StdColor::DarkRed, "missing"),
-				PrettyToken(StdColor::DarkRed, "invalid"),
-				PrettyToken(StdColor::DarkRed, "required"),
-				PrettyToken(StdColor::DarkRed, "already"),
-				PrettyToken(StdColor::Cyan, "undefined"),
-				PrettyToken(StdColor::Cyan, "nullptr"),
-				PrettyToken(StdColor::Cyan, "null"),
-				PrettyToken(StdColor::Cyan, "this"),
-				PrettyToken(StdColor::Cyan, "ms"),
-				PrettyToken(StdColor::Cyan, "us"),
-				PrettyToken(StdColor::Cyan, "ns"),
-				PrettyToken(StdColor::Cyan, "on"),
-				PrettyToken(StdColor::Cyan, "from"),
-				PrettyToken(StdColor::Cyan, "to"),
-				PrettyToken(StdColor::Cyan, "for"),
-				PrettyToken(StdColor::Cyan, "and"),
-				PrettyToken(StdColor::Cyan, "or"),
-				PrettyToken(StdColor::Cyan, "at"),
-				PrettyToken(StdColor::Cyan, "in"),
-				PrettyToken(StdColor::Cyan, "of"),
-				PrettyToken(StdColor::Magenta, "query"),
-				PrettyToken(StdColor::Blue, "template"),
-			};
-
-			const char* Text = Buffer;
-			size_t Size = strlen(Buffer);
-			size_t Offset = 0;
-
-			Log->ColorBegin(BaseColor);
-			while (Text[Offset] != '\0')
-			{
-				auto& V = Text[Offset];
-				if (Stringify::IsDigit(V))
-				{
-					Log->ColorBegin(StdColor::Yellow);
-					while (Offset < Size)
-					{
-						auto N = std::tolower(Text[Offset]);
-						if (!Stringify::IsDigit(N) && N != '.' && N != 'a' && N != 'b' && N != 'c' && N != 'd' && N != 'e' && N != 'f' && N != 'x')
-							break;
-
-						Log->WriteChar(Text[Offset++]);
-					}
-
-					Log->ColorBegin(BaseColor);
-					continue;
-				}
-				else if (V == '@')
-				{
-					Log->ColorBegin(StdColor::LightBlue);
-					Log->WriteChar(V);
-
-					while (Offset < Size && (Stringify::IsDigit(Text[++Offset]) || Stringify::IsAlphabetic(Text[Offset]) || Text[Offset] == '-' || Text[Offset] == '_'))
-						Log->WriteChar(Text[Offset]);
-
-					Log->ColorBegin(BaseColor);
-					continue;
-				}
-				else if (V == '[' && strstr(Text + Offset + 1, "]") != nullptr)
-				{
-					size_t Iterations = 0, Skips = 0;
-					Log->ColorBegin(StdColor::Cyan);
-					do
-					{
-						Log->WriteChar(Text[Offset]);
-						if (Iterations++ > 0 && Text[Offset] == '[')
-							Skips++;
-					} while (Offset < Size && (Text[Offset++] != ']' || Skips > 0));
-
-					Log->ColorBegin(BaseColor);
-					continue;
-				}
-				else if (V == '\"' && strstr(Text + Offset + 1, "\"") != nullptr)
-				{
-					Log->ColorBegin(StdColor::LightBlue);
-					do
-					{
-						Log->WriteChar(Text[Offset]);
-					} while (Offset < Size && Text[++Offset] != '\"');
-
-					if (Offset < Size)
-						Log->WriteChar(Text[Offset++]);
-					Log->ColorBegin(BaseColor);
-					continue;
-				}
-				else if (V == '\'' && strstr(Text + Offset + 1, "\'") != nullptr)
-				{
-					Log->ColorBegin(StdColor::LightBlue);
-					do
-					{
-						Log->WriteChar(Text[Offset]);
-					} while (Offset < Size && Text[++Offset] != '\'');
-
-					if (Offset < Size)
-						Log->WriteChar(Text[Offset++]);
-					Log->ColorBegin(BaseColor);
-					continue;
-				}
-				else if (Stringify::IsAlphabetic(V) && (!Offset || !Stringify::IsAlphabetic(Text[Offset - 1])))
-				{
-					bool IsMatched = false;
-					for (size_t i = 0; i < sizeof(Tokens) / sizeof(PrettyToken); i++)
-					{
-						auto& Token = Tokens[i];
-						if (V != Token.First || Size - Offset < Token.Size)
-							continue;
-
-						if (Offset + Token.Size < Size && Stringify::IsAlphabetic(Text[Offset + Token.Size]))
-							continue;
-
-						if (memcmp(Text + Offset, Token.Token, Token.Size) == 0)
-						{
-							Log->ColorBegin(Token.Color);
-							for (size_t j = 0; j < Token.Size; j++)
-								Log->WriteChar(Text[Offset++]);
-
-							Log->ColorBegin(BaseColor);
-							IsMatched = true;
-							break;
-						}
-					}
-
-					if (IsMatched)
-						continue;
-				}
-
-				Log->WriteChar(V);
-				++Offset;
-			}
-		}
-		void OS::Pause()
-		{
-			OS::Process::Interrupt();
-		}
-		void OS::SetLogCallback(const std::function<void(Message&)>& _Callback)
-		{
-			Callback = _Callback;
-		}
-		void OS::SetLogFlag(LogOption Option, bool Active)
-		{
-			if (Active)
-				LogFlags = LogFlags | (uint32_t)Option;
-			else
-				LogFlags = LogFlags & ~(uint32_t)Option;
-		}
-		bool OS::HasLogFlag(LogOption Option)
-		{
-			return LogFlags & (uint32_t)Option;
-		}
-		Core::String OS::GetStackTrace(size_t Skips, size_t MaxFrames)
-		{
-			static bool IsPreloaded = false;
-			if (!IsPreloaded)
-			{
-				IsPreloaded = true;
-				GetStackTrace(0, 8);
-			}
-
-			backward::StackTrace Stack;
-			Stack.load_here(MaxFrames + Skips);
-			Stack.skip_n_firsts(Skips);
-			return GetStack(Stack);
-		}
-		std::function<void(OS::Message&)> OS::Callback;
-		std::mutex OS::Buffer;
-		uint32_t OS::LogFlags = (uint32_t)LogOption::Pretty;
 
 		FileLog::FileLog(const Core::String& Root) noexcept : Offset(-1), Time(0), Path(Root)
 		{
@@ -9469,7 +9511,7 @@ namespace Mavi
 		}
 		void FileLog::Process(const std::function<bool(FileLog*, const char*, int64_t)>& Callback)
 		{
-			VI_ASSERT_V(Callback, "callback should not be empty");
+			VI_ASSERT(Callback, "callback should not be empty");
 			FileEntry State;
 			if (Source->GetBuffer() && (!OS::File::State(Path, &State) || State.LastModified == Time))
 				return;
@@ -9553,7 +9595,7 @@ namespace Mavi
 		}
 		Coroutine* Costate::Pop(const TaskCallback& Procedure)
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), nullptr, "cannot call outside costate thread");
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
 
 			Coroutine* Routine = nullptr;
 			if (!Cached.empty())
@@ -9571,7 +9613,7 @@ namespace Mavi
 		}
 		Coroutine* Costate::Pop(TaskCallback&& Procedure)
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), nullptr, "cannot deactive coroutine outside costate thread");
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot deactive coroutine outside costate thread");
 
 			Coroutine* Routine = nullptr;
 			if (!Cached.empty())
@@ -9589,10 +9631,10 @@ namespace Mavi
 		}
 		int Costate::Reuse(Coroutine* Routine, const TaskCallback& Procedure)
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot call outside costate thread");
-			VI_ASSERT(Routine != nullptr, -1, "coroutine should be set");
-			VI_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->Dead > 0, -1, "coroutine should be dead");
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
+			VI_ASSERT(Routine != nullptr, "coroutine should be set");
+			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
+			VI_ASSERT(Routine->Dead > 0, "coroutine should be dead");
 
 			Routine->Callback = Procedure;
 			Routine->Return = nullptr;
@@ -9602,10 +9644,10 @@ namespace Mavi
 		}
 		int Costate::Reuse(Coroutine* Routine, TaskCallback&& Procedure)
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot call outside costate thread");
-			VI_ASSERT(Routine != nullptr, -1, "coroutine should be set");
-			VI_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->Dead > 0, -1, "coroutine should be dead");
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
+			VI_ASSERT(Routine != nullptr, "coroutine should be set");
+			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
+			VI_ASSERT(Routine->Dead > 0, "coroutine should be dead");
 
 			Routine->Callback = std::move(Procedure);
 			Routine->Return = nullptr;
@@ -9615,10 +9657,10 @@ namespace Mavi
 		}
 		int Costate::Reuse(Coroutine* Routine)
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot call outside costate thread");
-			VI_ASSERT(Routine != nullptr, -1, "coroutine should be set");
-			VI_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->Dead > 0, -1, "coroutine should be dead");
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
+			VI_ASSERT(Routine != nullptr, "coroutine should be set");
+			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
+			VI_ASSERT(Routine->Dead > 0, "coroutine should be dead");
 
 			Routine->Callback = nullptr;
 			Routine->Return = nullptr;
@@ -9632,9 +9674,9 @@ namespace Mavi
 		}
 		int Costate::Swap(Coroutine* Routine)
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot call outside costate thread");
-			VI_ASSERT(Routine != nullptr, -1, "coroutine should be set");
-			VI_ASSERT(Routine->Dead < 1, -1, "coroutine should not be dead");
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
+			VI_ASSERT(Routine != nullptr, "coroutine should be set");
+			VI_ASSERT(Routine->Dead < 1, "coroutine should not be dead");
 
 			if (Routine->State == Coactive::Inactive)
 				return 0;
@@ -9661,10 +9703,10 @@ namespace Mavi
 		}
 		int Costate::Push(Coroutine* Routine)
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot call outside costate thread");
-			VI_ASSERT(Routine != nullptr, -1, "coroutine should be set");
-			VI_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->Dead > 0, -1, "coroutine should be dead");
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
+			VI_ASSERT(Routine != nullptr, "coroutine should be set");
+			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
+			VI_ASSERT(Routine->Dead > 0, "coroutine should be dead");
 
 			Cached.erase(Routine);
 			Used.erase(Routine);
@@ -9674,9 +9716,9 @@ namespace Mavi
 		}
 		int Costate::Activate(Coroutine* Routine)
 		{
-			VI_ASSERT(Routine != nullptr, -1, "coroutine should be set");
-			VI_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->Dead < 1, -1, "coroutine should not be dead");
+			VI_ASSERT(Routine != nullptr, "coroutine should be set");
+			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
+			VI_ASSERT(Routine->Dead < 1, "coroutine should not be dead");
 
 			bool MustLock = (Thread != std::this_thread::get_id());
 			if (MustLock && NotifyLock)
@@ -9693,10 +9735,10 @@ namespace Mavi
 		}
 		int Costate::Deactivate(Coroutine* Routine)
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot deactive coroutine outside costate thread");
-			VI_ASSERT(Routine != nullptr, -1, "coroutine should be set");
-			VI_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->Dead < 1, -1, "coroutine should not be dead");
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot deactive coroutine outside costate thread");
+			VI_ASSERT(Routine != nullptr, "coroutine should be set");
+			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
+			VI_ASSERT(Routine->Dead < 1, "coroutine should not be dead");
 
 			if (Current != Routine || Routine->State != Coactive::Active)
 				return -1;
@@ -9716,9 +9758,9 @@ namespace Mavi
 		}
 		int Costate::Resume(Coroutine* Routine)
 		{
-			VI_ASSERT(Routine != nullptr, -1, "coroutine should be set");
-			VI_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot resume coroutine outside costate thread");
-			VI_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
+			VI_ASSERT(Routine != nullptr, "coroutine should be set");
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot resume coroutine outside costate thread");
+			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
 
 			if (Current == Routine || Routine->Dead > 0)
 				return -1;
@@ -9727,7 +9769,7 @@ namespace Mavi
 		}
 		int Costate::Dispatch()
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot dispatch coroutine outside costate thread");
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot dispatch coroutine outside costate thread");
 			size_t Activities = 0;
 		Reset:
 			for (auto* Routine : Used)
@@ -9748,7 +9790,7 @@ namespace Mavi
 		}
 		int Costate::Suspend()
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot suspend coroutine outside costate thread");
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot suspend coroutine outside costate thread");
 
 			Coroutine* Routine = Current;
 			if (!Routine || Routine->Master != this)
@@ -9772,14 +9814,14 @@ namespace Mavi
 		}
 		void Costate::Clear()
 		{
-			VI_ASSERT_V(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
 			for (auto& Routine : Cached)
 				VI_DELETE(Coroutine, Routine);
 			Cached.clear();
 		}
 		bool Costate::HasActive() const
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), false, "cannot call outside costate thread");
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
 			for (const auto& Item : Used)
 			{
 				if (Item->Dead == 0 && Item->State != Coactive::Inactive)
@@ -9806,8 +9848,8 @@ namespace Mavi
 		}
 		bool Costate::GetState(Costate** State, Coroutine** Routine)
 		{
-			VI_ASSERT(State != nullptr, false, "state should be set");
-			VI_ASSERT(Routine != nullptr, false, "state should be set");
+			VI_ASSERT(State != nullptr, "state should be set");
+			VI_ASSERT(Routine != nullptr, "state should be set");
 			*Routine = (Cothread ? Cothread->Current : nullptr);
 			*State = Cothread;
 
@@ -9829,7 +9871,7 @@ namespace Mavi
 			Costate* State = (Costate*)Unpack2_64(X, Y);
 #endif
 			Cothread = State;
-			VI_ASSERT_V(State != nullptr, "costate should be set");
+			VI_ASSERT(State != nullptr, "costate should be set");
 			Coroutine* Routine = State->Current;
 			if (Routine != nullptr)
 			{
@@ -9859,7 +9901,7 @@ namespace Mavi
 		}
 		void Schedule::Desc::SetThreads(size_t Cores)
 		{
-			VI_ASSERT_V(Cores > 0, "at least one core should be present");
+			VI_ASSERT(Cores > 0, "at least one core should be present");
 			size_t Clock = 1;
 #ifdef VI_CXX20
 			size_t Chain = 0;
@@ -9880,13 +9922,13 @@ namespace Mavi
 		Schedule::Schedule() noexcept : Generation(0), Debug(nullptr), Enqueue(true), Terminate(false), Active(false), Immediate(false)
 		{
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
-				Queues[i] = VI_NEW(ConcurrentQueuePtr);
+				Queues[i] = VI_NEW(ConcurrentQueue);
 		}
 		Schedule::~Schedule() noexcept
 		{
 			Stop();
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
-				VI_DELETE(ConcurrentQueuePtr, Queues[i]);
+				VI_DELETE(ConcurrentQueue, Queues[i]);
 
 			VI_RELEASE(Dispatcher.State);
 			Scripting::VirtualMachine::CleanupThisThread();
@@ -9902,7 +9944,7 @@ namespace Mavi
 		}
 		TaskId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type)
 		{
-			VI_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
+			VI_ASSERT(Callback, "callback should not be empty");
 			return SetSeqInterval(Milliseconds, [Callback](size_t)
 			{
 				Callback();
@@ -9910,7 +9952,7 @@ namespace Mavi
 		}
 		TaskId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
 		{
-			VI_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
+			VI_ASSERT(Callback, "callback should not be empty");
 			return SetSeqInterval(Milliseconds, [Callback = std::move(Callback)](size_t) mutable
 			{
 				Callback();
@@ -9918,8 +9960,8 @@ namespace Mavi
 		}
 		TaskId Schedule::SetSeqInterval(uint64_t Milliseconds, const SeqTaskCallback& Callback, Difficulty Type)
 		{
-			VI_ASSERT(Type != Difficulty::Count, INVALID_TASK_ID, "difficulty should be set");
-			VI_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
+			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
+			VI_ASSERT(Callback, "callback should not be empty");
 
 			if (!Enqueue || Immediate)
 				return INVALID_TASK_ID;
@@ -9941,8 +9983,8 @@ namespace Mavi
 		}
 		TaskId Schedule::SetSeqInterval(uint64_t Milliseconds, SeqTaskCallback&& Callback, Difficulty Type)
 		{
-			VI_ASSERT(Type != Difficulty::Count, INVALID_TASK_ID, "difficulty should be set");
-			VI_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
+			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
+			VI_ASSERT(Callback, "callback should not be empty");
 
 			if (!Enqueue || Immediate)
 				return INVALID_TASK_ID;
@@ -9964,7 +10006,7 @@ namespace Mavi
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type)
 		{
-			VI_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
+			VI_ASSERT(Callback, "callback should not be empty");
 			return SetSeqTimeout(Milliseconds, [Callback](size_t)
 			{
 				Callback();
@@ -9972,7 +10014,7 @@ namespace Mavi
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
 		{
-			VI_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
+			VI_ASSERT(Callback, "callback should not be empty");
 			return SetSeqTimeout(Milliseconds, [Callback = std::move(Callback)](size_t) mutable
 			{
 				Callback();
@@ -9980,8 +10022,8 @@ namespace Mavi
 		}
 		TaskId Schedule::SetSeqTimeout(uint64_t Milliseconds, const SeqTaskCallback& Callback, Difficulty Type)
 		{
-			VI_ASSERT(Type != Difficulty::Count, INVALID_TASK_ID, "difficulty should be set");
-			VI_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
+			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
+			VI_ASSERT(Callback, "callback should not be empty");
 
 			if (!Enqueue || Immediate)
 				return INVALID_TASK_ID;
@@ -10003,8 +10045,8 @@ namespace Mavi
 		}
 		TaskId Schedule::SetSeqTimeout(uint64_t Milliseconds, SeqTaskCallback&& Callback, Difficulty Type)
 		{
-			VI_ASSERT(Type != Difficulty::Count, INVALID_TASK_ID, "difficulty should be set");
-			VI_ASSERT(Callback, INVALID_TASK_ID, "callback should not be empty");
+			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
+			VI_ASSERT(Callback, "callback should not be empty");
 
 			if (!Enqueue || Immediate)
 				return INVALID_TASK_ID;
@@ -10026,8 +10068,8 @@ namespace Mavi
 		}
 		bool Schedule::SetTask(const TaskCallback& Callback, Difficulty Type)
 		{
-			VI_ASSERT(Type != Difficulty::Count, false, "difficulty should be set");
-			VI_ASSERT(Callback, false, "callback should not be empty");
+			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
+			VI_ASSERT(Callback, "callback should not be empty");
 
 			if (!Enqueue)
 				return false;
@@ -10049,8 +10091,8 @@ namespace Mavi
 		}
 		bool Schedule::SetTask(TaskCallback&& Callback, Difficulty Type)
 		{
-			VI_ASSERT(Type != Difficulty::Count, false, "difficulty should be set");
-			VI_ASSERT(Callback, false, "callback should not be empty");
+			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
+			VI_ASSERT(Callback, "callback should not be empty");
 
 			if (!Enqueue)
 				return false;
@@ -10071,7 +10113,7 @@ namespace Mavi
 		}
 		bool Schedule::SetCoroutine(const TaskCallback& Callback)
 		{
-			VI_ASSERT(Callback, false, "callback should not be empty");
+			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
 				return false;
 
@@ -10090,7 +10132,7 @@ namespace Mavi
 		}
 		bool Schedule::SetCoroutine(TaskCallback&& Callback)
 		{
-			VI_ASSERT(Callback, false, "callback should not be empty");
+			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
 				return false;
 
@@ -10144,9 +10186,9 @@ namespace Mavi
 		}
 		bool Schedule::Start(const Desc& NewPolicy)
 		{
-			VI_ASSERT(!Active, false, "queue should be stopped");
-			VI_ASSERT(NewPolicy.Memory > 0, false, "stack memory should not be zero");
-			VI_ASSERT(NewPolicy.Coroutines > 0, false, "there must be at least one coroutine");
+			VI_ASSERT(!Active, "queue should be stopped");
+			VI_ASSERT(NewPolicy.Memory > 0, "stack memory should not be zero");
+			VI_ASSERT(NewPolicy.Coroutines > 0, "there must be at least one coroutine");
 			VI_TRACE("[schedule] start 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(std::this_thread::get_id()).c_str());
 
 			Policy = NewPolicy;
@@ -10590,7 +10632,7 @@ namespace Mavi
 		}
 		bool Schedule::HasTasks(Difficulty Type) const
 		{
-			VI_ASSERT(Type != Difficulty::Count, false, "difficulty should be set");
+			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			auto* Queue = Queues[(size_t)Type];
 			switch (Type)
 			{
@@ -10673,7 +10715,7 @@ namespace Mavi
 		}
 		size_t Schedule::GetThreads(Difficulty Type) const
 		{
-			VI_ASSERT(Type != Difficulty::Count, false, "difficulty should be set");
+			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			return Threads[(size_t)Type].size();
 		}
 		const Schedule::Desc& Schedule::GetPolicy() const
@@ -10878,14 +10920,14 @@ namespace Mavi
 		}
 		Schema* Schema::Get(size_t Index) const
 		{
-			VI_ASSERT(Nodes != nullptr, nullptr, "there must be at least one node");
-			VI_ASSERT(Index < Nodes->size(), nullptr, "index outside of range");
+			VI_ASSERT(Nodes != nullptr, "there must be at least one node");
+			VI_ASSERT(Index < Nodes->size(), "index outside of range");
 
 			return (*Nodes)[Index];
 		}
 		Schema* Schema::Get(const Core::String& Name) const
 		{
-			VI_ASSERT(!Name.empty(), nullptr, "name should not be empty");
+			VI_ASSERT(!Name.empty(), "name should not be empty");
 			if (!Nodes)
 				return nullptr;
 
@@ -11022,8 +11064,8 @@ namespace Mavi
 		}
 		Schema* Schema::Pop(size_t Index)
 		{
-			VI_ASSERT(Nodes != nullptr, nullptr, "there must be at least one node");
-			VI_ASSERT(Index < Nodes->size(), nullptr, "index outside of range");
+			VI_ASSERT(Nodes != nullptr, "there must be at least one node");
+			VI_ASSERT(Index < Nodes->size(), "index outside of range");
 
 			auto It = Nodes->begin() + Index;
 			Schema* Base = *It;
@@ -11071,7 +11113,7 @@ namespace Mavi
 		}
 		bool Schema::Rename(const Core::String& Name, const Core::String& NewName)
 		{
-			VI_ASSERT(!Name.empty() && !NewName.empty(), false, "name and new name should not be empty");
+			VI_ASSERT(!Name.empty() && !NewName.empty(), "name and new name should not be empty");
 
 			Schema* Result = Get(Name);
 			if (!Result)
@@ -11113,7 +11155,7 @@ namespace Mavi
 		}
 		void Schema::Join(Schema* Other, bool AppendOnly)
 		{
-			VI_ASSERT_V(Other != nullptr && Value.IsObject(), "other should be object and not empty");
+			VI_ASSERT(Other != nullptr && Value.IsObject(), "other should be object and not empty");
 			auto FillArena = [](UnorderedMap<Core::String, Schema*>& Nodes, Schema* Base)
 			{
 				if (!Base->Nodes)
@@ -11247,7 +11289,7 @@ namespace Mavi
 		}
 		bool Schema::Transform(Schema* Value, const SchemaNameCallback& Callback)
 		{
-			VI_ASSERT(!!Callback, false, "callback should not be empty");
+			VI_ASSERT(!!Callback, "callback should not be empty");
 			if (!Value)
 				return false;
 
@@ -11262,7 +11304,7 @@ namespace Mavi
 		}
 		bool Schema::ConvertToXML(Schema* Base, const SchemaWriteCallback& Callback)
 		{
-			VI_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
+			VI_ASSERT(Base != nullptr && Callback, "base should be set and callback should not be empty");
 			Core::Vector<Schema*> Attributes = Base->GetAttributes();
 			bool Scalable = (Base->Value.GetSize() > 0 || ((size_t)(Base->Nodes ? Base->Nodes->size() : 0) > (size_t)Attributes.size()));
 			Callback(VarForm::Write_Tab, "", 0);
@@ -11346,7 +11388,7 @@ namespace Mavi
 		}
 		bool Schema::ConvertToJSON(Schema* Base, const SchemaWriteCallback& Callback)
 		{
-			VI_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
+			VI_ASSERT(Base != nullptr && Callback, "base should be set and callback should not be empty");
 			if (!Base->Value.IsObject())
 			{
 				Core::String Value = Base->Value.Serialize();
@@ -11436,7 +11478,7 @@ namespace Mavi
 		}
 		bool Schema::ConvertToJSONB(Schema* Base, const SchemaWriteCallback& Callback)
 		{
-			VI_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
+			VI_ASSERT(Base != nullptr && Callback, "base should be set and callback should not be empty");
 			Core::UnorderedMap<Core::String, size_t> Mapping = Base->GetNames();
 			uint32_t Set = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)Mapping.size());
 			uint64_t Version = OS::CPU::ToEndianness<uint64_t>(OS::CPU::Endian::Little, JSONB_VERSION);
@@ -11489,7 +11531,7 @@ namespace Mavi
 		}
 		Schema* Schema::ConvertFromXML(const char* Buffer, bool Assert)
 		{
-			VI_ASSERT(Buffer != nullptr, nullptr, "buffer should not be null");
+			VI_ASSERT(Buffer != nullptr, "buffer should not be null");
 			if (*Buffer == '\0')
 				return nullptr;
 
@@ -11532,7 +11574,7 @@ namespace Mavi
 			{
 				VI_DELETE(xml_document, Data);
 				if (Assert)
-					VI_ERR("[xml] parsing error");
+					VI_ERR("[xml] cannot parse supplied XML");
 
 				return nullptr;
 			}
@@ -11559,7 +11601,7 @@ namespace Mavi
 		}
 		Schema* Schema::ConvertFromJSON(const char* Buffer, size_t Size, bool Assert)
 		{
-			VI_ASSERT(Buffer != nullptr, nullptr, "buffer should not be null");
+			VI_ASSERT(Buffer != nullptr, "buffer should not be null");
 			if (!Size)
 				return nullptr;
 
@@ -11679,7 +11721,7 @@ namespace Mavi
 		}
 		Schema* Schema::ConvertFromJSONB(const SchemaReadCallback& Callback, bool Assert)
 		{
-			VI_ASSERT(Callback, nullptr, "callback should not be empty");
+			VI_ASSERT(Callback, "callback should not be empty");
 			uint64_t Version = 0;
 			if (!Callback((char*)&Version, sizeof(uint64_t)))
 			{
@@ -11781,7 +11823,7 @@ namespace Mavi
 		}
 		bool Schema::ProcessConvertionFromXML(void* Base, Schema* Current)
 		{
-			VI_ASSERT(Base != nullptr && Current != nullptr, false, "base and current should be set");
+			VI_ASSERT(Base != nullptr && Current != nullptr, "base and current should be set");
 
 			auto Ref = (rapidxml::xml_node<>*)Base;
 			for (rapidxml::xml_attribute<>* It = Ref->first_attribute(); It; It = It->next_attribute())
@@ -11800,7 +11842,7 @@ namespace Mavi
 		}
 		bool Schema::ProcessConvertionFromJSON(void* Base, Schema* Current)
 		{
-			VI_ASSERT(Base != nullptr && Current != nullptr, false, "base and current should be set");
+			VI_ASSERT(Base != nullptr && Current != nullptr, "base and current should be set");
 
 			auto Ref = (rapidjson::Value*)Base;
 			if (!Ref->IsArray())

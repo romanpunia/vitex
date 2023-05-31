@@ -2,7 +2,7 @@
 #define VI_BINDINGS_H
 #include "scripting.h"
 #include "../engine/gui.h"
-#define VI_TYPEREF(Name, TypeName) static const uint64_t Name = VI_SHUFFLE(TypeName); Mavi::Scripting::TypeCache::Set(Name, TypeName)
+#define VI_TYPEREF(Name, TypeName) static const uint64_t Name = Mavi::Core::OS::File::GetIndex<sizeof(TypeName)>(TypeName); Mavi::Scripting::TypeCache::Set(Name, TypeName)
 #define VI_PROMISIFY(MemberFunction, TypeId) Mavi::Scripting::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
 #define VI_PROMISIFY_REF(MemberFunction, TypeRef) Mavi::Scripting::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
 #define VI_SPROMISIFY(Function, TypeId) Mavi::Scripting::Bindings::Promise::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
@@ -473,10 +473,10 @@ namespace Mavi
 					static Array* Id(T* Base, Args... Data)
 					{
 						VirtualMachine* VM = VirtualMachine::Get();
-						VI_ASSERT(VM != nullptr, nullptr, "manager should be present");
+						VI_ASSERT(VM != nullptr, "manager should be present");
 
 						asITypeInfo* Info = VM->GetTypeInfoById((int)TypeId).GetTypeInfo();
-						VI_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
+						VI_ASSERT(Info != nullptr, "typeinfo should be valid");
 
 						Core::Vector<R> Source((Base->*F)(Data...));
 						return Array::Compose(Info, Source);
@@ -485,10 +485,10 @@ namespace Mavi
 					static Array* Decl(T* Base, Args... Data)
 					{
 						VirtualMachine* VM = VirtualMachine::Get();
-						VI_ASSERT(VM != nullptr, nullptr, "manager should be present");
+						VI_ASSERT(VM != nullptr, "manager should be present");
 
 						asITypeInfo* Info = VM->GetTypeInfoById(TypeCache::GetTypeId(TypeRef)).GetTypeInfo();
-						VI_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
+						VI_ASSERT(Info != nullptr, "typeinfo should be valid");
 
 						Core::Vector<R> Source((Base->*F)(Data...));
 						return Array::Compose(Info, Source);
@@ -502,10 +502,10 @@ namespace Mavi
 					static Array* Id(Args... Data)
 					{
 						VirtualMachine* VM = VirtualMachine::Get();
-						VI_ASSERT(VM != nullptr, nullptr, "manager should be present");
+						VI_ASSERT(VM != nullptr, "manager should be present");
 
 						asITypeInfo* Info = VM->GetTypeInfoById((int)TypeId).GetTypeInfo();
-						VI_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
+						VI_ASSERT(Info != nullptr, "typeinfo should be valid");
 
 						Core::Vector<R> Source((*F)(Data...));
 						return Array::Compose(Info, Source);
@@ -514,10 +514,10 @@ namespace Mavi
 					static Array* Decl(Args... Data)
 					{
 						VirtualMachine* VM = VirtualMachine::Get();
-						VI_ASSERT(VM != nullptr, nullptr, "manager should be present");
+						VI_ASSERT(VM != nullptr, "manager should be present");
 
 						asITypeInfo* Info = VM->GetTypeInfoById(TypeCache::GetTypeId(TypeRef)).GetTypeInfo();
-						VI_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
+						VI_ASSERT(Info != nullptr, "typeinfo should be valid");
 
 						Core::Vector<R> Source((*F)(Data...));
 						return Array::Compose(Info, Source);
@@ -828,7 +828,7 @@ namespace Mavi
 				static Core::Unique<Promise> Compose(Core::Promise<T>&& Value, const char* TypeName)
 				{
 					VirtualMachine* Engine = VirtualMachine::Get();
-					VI_ASSERT(Engine != nullptr, -1, "engine should be set");
+					VI_ASSERT(Engine != nullptr, "engine should be set");
 					return Compose<T>(std::move(Value), Engine->GetTypeIdByDecl(TypeName));
 				}
 

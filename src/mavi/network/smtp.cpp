@@ -49,7 +49,7 @@ namespace Mavi
 			}
 			bool Client::OnResolveHost(RemoteHost* Address)
 			{
-				VI_ASSERT(Address != nullptr, false, "address should be set");
+				VI_ASSERT(Address != nullptr, "address should be set");
 				if (Address->Port == 0)
 				{
 					servent* Entry = getservbyname("mail", 0);
@@ -186,7 +186,7 @@ namespace Mavi
 			}
 			bool Client::CanRequest(const char* Keyword)
 			{
-				VI_ASSERT(Keyword != nullptr, false, "keyword should be set");
+				VI_ASSERT(Keyword != nullptr, "keyword should be set");
 
 				size_t L1 = Buffer.size(), L2 = strlen(Keyword);
 				if (L1 < L2)

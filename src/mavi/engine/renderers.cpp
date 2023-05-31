@@ -9,8 +9,8 @@ namespace Mavi
 		{
 			SoftBody::SoftBody(Engine::RenderSystem* Lab) : GeometryRenderer(Lab), VertexBuffer(nullptr), IndexBuffer(nullptr)
 			{
-				VI_ASSERT_V(System != nullptr, "render system should be set");
-				VI_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+				VI_ASSERT(System != nullptr, "render system should be set");
+				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencil = Device->GetDepthStencilState("less");
@@ -47,7 +47,7 @@ namespace Mavi
 			}
 			size_t SoftBody::CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk)
 			{
-				VI_ASSERT(System->GetPrimitives() != nullptr, 0, "primitives cache should be set");
+				VI_ASSERT(System->GetPrimitives() != nullptr, "primitives cache should be set");
 
 				Graphics::ElementBuffer* Box[2];
 				System->GetPrimitives()->GetBoxBuffers(Box);
@@ -101,7 +101,7 @@ namespace Mavi
 			}
 			size_t SoftBody::RenderGeometric(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				bool Static = System->State.IsSet(RenderOpt::Static);
 
@@ -136,7 +136,7 @@ namespace Mavi
 			}
 			size_t SoftBody::RenderVoxelization(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 4, 6, VI_PS);
@@ -169,7 +169,7 @@ namespace Mavi
 			}
 			size_t SoftBody::RenderLinearization(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -204,7 +204,7 @@ namespace Mavi
 			}
 			size_t SoftBody::RenderCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -242,8 +242,8 @@ namespace Mavi
 
 			Model::Model(Engine::RenderSystem* Lab) : GeometryRenderer(Lab)
 			{
-				VI_ASSERT_V(System != nullptr, "render system should be set");
-				VI_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+				VI_ASSERT(System != nullptr, "render system should be set");
+				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencil = Device->GetDepthStencilState("less");
@@ -291,7 +291,7 @@ namespace Mavi
 			}
 			size_t Model::CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk)
 			{
-				VI_ASSERT(System->GetPrimitives() != nullptr, 0, "primitive cache should be set");
+				VI_ASSERT(System->GetPrimitives() != nullptr, "primitive cache should be set");
 
 				Graphics::ElementBuffer* Box[2];
 				System->GetPrimitives()->GetBoxBuffers(Box);
@@ -346,7 +346,7 @@ namespace Mavi
 			}
 			size_t Model::RenderGeometricBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -368,7 +368,7 @@ namespace Mavi
 			}
 			size_t Model::RenderVoxelizationBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetInputLayout(Layout[1]);
 				Device->SetSamplerState(Sampler, 4, 6, VI_PS);
@@ -389,7 +389,7 @@ namespace Mavi
 			}
 			size_t Model::RenderLinearizationBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -412,7 +412,7 @@ namespace Mavi
 			}
 			size_t Model::RenderCubicBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -447,8 +447,8 @@ namespace Mavi
 
 			Skin::Skin(Engine::RenderSystem* Lab) : GeometryRenderer(Lab)
 			{
-				VI_ASSERT_V(System != nullptr, "render system should be set");
-				VI_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+				VI_ASSERT(System != nullptr, "render system should be set");
+				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencil = Device->GetDepthStencilState("less");
@@ -474,7 +474,7 @@ namespace Mavi
 			}
 			size_t Skin::CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk)
 			{
-				VI_ASSERT(System->GetPrimitives() != nullptr, 0, "primitive cache should be set");
+				VI_ASSERT(System->GetPrimitives() != nullptr, "primitive cache should be set");
 
 				Graphics::ElementBuffer* Box[2];
 				System->GetPrimitives()->GetSkinBoxBuffers(Box);
@@ -536,7 +536,7 @@ namespace Mavi
 			}
 			size_t Skin::RenderGeometric(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				bool Static = System->State.IsSet(RenderOpt::Static);
 
@@ -578,7 +578,7 @@ namespace Mavi
 			}
 			size_t Skin::RenderVoxelization(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 4, 6, VI_PS);
@@ -615,7 +615,7 @@ namespace Mavi
 			}
 			size_t Skin::RenderLinearization(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -654,7 +654,7 @@ namespace Mavi
 			}
 			size_t Skin::RenderCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -704,8 +704,8 @@ namespace Mavi
 
 			Emitter::Emitter(RenderSystem* Lab) : GeometryRenderer(Lab)
 			{
-				VI_ASSERT_V(System != nullptr, "render system should be set");
-				VI_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+				VI_ASSERT(System != nullptr, "render system should be set");
+				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencilOpaque = Device->GetDepthStencilState("less");
@@ -731,7 +731,7 @@ namespace Mavi
 			}
 			size_t Emitter::RenderGeometric(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::Shader* BaseShader = nullptr;
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
@@ -789,7 +789,7 @@ namespace Mavi
 			}
 			size_t Emitter::RenderLinearization(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
 				Viewer& View = System->View;
@@ -830,7 +830,7 @@ namespace Mavi
 			}
 			size_t Emitter::RenderCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				auto& Source = System->View;
 				Depth.FaceView[0] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::PositiveX, Source.Position);
 				Depth.FaceView[1] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::NegativeX, Source.Position);
@@ -875,8 +875,8 @@ namespace Mavi
 
 			Decal::Decal(RenderSystem* Lab) : GeometryRenderer(Lab)
 			{
-				VI_ASSERT_V(System != nullptr, "render system should be set");
-				VI_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+				VI_ASSERT(System != nullptr, "render system should be set");
+				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencil = Device->GetDepthStencilState("none");
@@ -893,7 +893,7 @@ namespace Mavi
 			}
 			size_t Decal::RenderGeometric(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType::Main);
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -934,8 +934,8 @@ namespace Mavi
 
 			Lighting::Lighting(RenderSystem* Lab) : Renderer(Lab), EnableGI(true)
 			{
-				VI_ASSERT_V(System != nullptr, "render system should be set");
-				VI_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+				VI_ASSERT(System != nullptr, "render system should be set");
+				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencilNone = Device->GetDepthStencilState("none");
@@ -992,7 +992,7 @@ namespace Mavi
 			}
 			void Lighting::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Core::String Path;
 				if (Series::Unpack(Node->Find("sky-map"), &Path) && !Path.empty())
@@ -1016,7 +1016,7 @@ namespace Mavi
 			}
 			void Lighting::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("sky-map"), System->GetScene()->FindResourceId<Graphics::Texture2D>(SkyBase));
 				Series::Pack(Node->Set("high-emission"), AmbientLight.HighEmission);
@@ -1542,16 +1542,19 @@ namespace Mavi
 			}
 			void Lighting::SetSkyMap(Graphics::Texture2D* Cubemap)
 			{
-				VI_RELEASE(SkyBase);
-				VI_ASSIGN(SkyBase, Cubemap);
 				VI_CLEAR(SkyMap);
+				VI_RELEASE(SkyBase);
 
+				SkyBase = Cubemap;
 				if (SkyBase != nullptr)
+				{
 					SkyMap = System->GetDevice()->CreateTextureCube(SkyBase);
+					SkyBase->AddRef();
+				}
 			}
 			void Lighting::SetSurfaceBufferSize(size_t NewSize)
 			{
-				VI_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 
 				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -1586,9 +1589,9 @@ namespace Mavi
 			}
 			void Lighting::SetVoxelBuffer(RenderSystem* System, Graphics::Shader* Src, unsigned int Slot)
 			{
-				VI_ASSERT_V(System != nullptr, "system should be set");
-				VI_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
-				VI_ASSERT_V(Src != nullptr, "src should be set");
+				VI_ASSERT(System != nullptr, "system should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
+				VI_ASSERT(Src != nullptr, "src should be set");
 
 				Lighting* Renderer = System->GetRenderer<Lighting>();
 				if (!Renderer)
@@ -1672,7 +1675,7 @@ namespace Mavi
 			}
 			size_t Lighting::RenderPass(Core::Timer* Time)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				if (System->State.IsSet(RenderOpt::Additive))
 					return 0;
 
@@ -1905,8 +1908,8 @@ namespace Mavi
 
 			Transparency::Transparency(RenderSystem* Lab) : Renderer(Lab)
 			{
-				VI_ASSERT_V(System != nullptr, "render system should be set");
-				VI_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+				VI_ASSERT(System != nullptr, "render system should be set");
+				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencil = Device->GetDepthStencilState("none");
@@ -1925,7 +1928,7 @@ namespace Mavi
 			}
 			void Transparency::ResizeBuffers()
 			{
-				VI_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 
 				SceneGraph* Scene = System->GetScene();
 				Graphics::MultiRenderTarget2D::Desc F1 = Scene->GetDescMRT();
@@ -1953,7 +1956,7 @@ namespace Mavi
 			}
 			size_t Transparency::RenderPass(Core::Timer* Time)
 			{
-				VI_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				if (!System->State.Is(RenderState::Geometric) || System->State.IsSet(RenderOpt::Transparent) || System->State.IsSet(RenderOpt::Additive))
 					return 0;
 
@@ -2012,7 +2015,7 @@ namespace Mavi
 			}
 			void SSR::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("samples-1"), &Reflectance.Samples);
 				Series::Unpack(Node->Find("samples-2"), &Gloss.Samples);
@@ -2025,7 +2028,7 @@ namespace Mavi
 			}
 			void SSR::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("samples-1"), Reflectance.Samples);
 				Series::Pack(Node->Set("samples-2"), Gloss.Samples);
@@ -2067,7 +2070,7 @@ namespace Mavi
 			}
 			void SSGI::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("samples-1"), &Indirection.Samples);
 				Series::Unpack(Node->Find("samples-2"), &Denoise.Samples);
@@ -2081,7 +2084,7 @@ namespace Mavi
 			}
 			void SSGI::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("samples-1"), Indirection.Samples);
 				Series::Pack(Node->Set("samples-2"), Denoise.Samples);
@@ -2131,7 +2134,7 @@ namespace Mavi
 			}
 			void SSGI::ResizeEffect()
 			{
-				VI_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				VI_CLEAR(EmissionMap);
 
 				SceneGraph* Scene = System->GetScene();
@@ -2148,7 +2151,7 @@ namespace Mavi
 			}
 			void SSAO::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("samples-1"), &Shading.Samples);
 				Series::Unpack(Node->Find("scale"), &Shading.Scale);
@@ -2163,7 +2166,7 @@ namespace Mavi
 			}
 			void SSAO::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("samples-1"), Shading.Samples);
 				Series::Pack(Node->Set("scale"), Shading.Scale);
@@ -2195,7 +2198,7 @@ namespace Mavi
 			}
 			void DoF::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("distance"), &Distance);
 				Series::Unpack(Node->Find("time"), &Time);
@@ -2210,7 +2213,7 @@ namespace Mavi
 			}
 			void DoF::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("distance"), Distance);
 				Series::Pack(Node->Set("time"), Time);
@@ -2225,7 +2228,7 @@ namespace Mavi
 			}
 			void DoF::RenderEffect(Core::Timer* fTime)
 			{
-				VI_ASSERT_V(fTime != nullptr, "time should be set");
+				VI_ASSERT(fTime != nullptr, "time should be set");
 				if (Distance > 0.0f)
 					FocusAtNearestTarget(fTime->GetStep());
 
@@ -2235,7 +2238,7 @@ namespace Mavi
 			}
 			void DoF::FocusAtNearestTarget(float Step)
 			{
-				VI_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 
 				Compute::Ray Origin;
 				Origin.Origin = System->View.Position;
@@ -2293,7 +2296,7 @@ namespace Mavi
 			}
 			void MotionBlur::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("samples"), &Motion.Samples);
 				Series::Unpack(Node->Find("blur"), &Motion.Blur);
@@ -2301,7 +2304,7 @@ namespace Mavi
 			}
 			void MotionBlur::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("samples"), Motion.Samples);
 				Series::Pack(Node->Set("blur"), Motion.Blur);
@@ -2309,7 +2312,7 @@ namespace Mavi
 			}
 			void MotionBlur::RenderEffect(Core::Timer* Time)
 			{
-				VI_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				RenderMerge(Shaders.Velocity, &Velocity);
 				RenderResult(Shaders.Motion, &Motion);
 				Velocity.LastViewProjection = System->View.ViewProjection;
@@ -2363,7 +2366,7 @@ namespace Mavi
 			}
 			void Tone::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("grayscale"), &Mapping.Grayscale);
 				Series::Unpack(Node->Find("aces"), &Mapping.ACES);
@@ -2390,7 +2393,7 @@ namespace Mavi
 			}
 			void Tone::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("grayscale"), Mapping.Grayscale);
 				Series::Pack(Node->Set("aces"), Mapping.ACES);
@@ -2424,7 +2427,7 @@ namespace Mavi
 			}
 			void Tone::RenderLUT(Core::Timer* Time)
 			{
-				VI_ASSERT_V(Time != nullptr, "time should be set");
+				VI_ASSERT(Time != nullptr, "time should be set");
 				if (!LutMap || !LutTarget)
 					SetLUTSize(1);
 
@@ -2444,7 +2447,7 @@ namespace Mavi
 			}
 			void Tone::SetLUTSize(size_t Size)
 			{
-				VI_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
 				VI_CLEAR(LutTarget);
 				VI_CLEAR(LutMap);
 
@@ -2466,7 +2469,7 @@ namespace Mavi
 			}
 			void Glitch::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("scanline-jitter"), &ScanLineJitter);
 				Series::Unpack(Node->Find("vertical-jump"), &VerticalJump);
@@ -2483,7 +2486,7 @@ namespace Mavi
 			}
 			void Glitch::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("scanline-jitter"), ScanLineJitter);
 				Series::Pack(Node->Set("vertical-jump"), VerticalJump);
@@ -2520,8 +2523,8 @@ namespace Mavi
 			}
 			UserInterface::UserInterface(RenderSystem* Lab, Graphics::Activity* NewActivity) : Renderer(Lab), Activity(NewActivity)
 			{
-				VI_ASSERT_V(System != nullptr, "render system should be set");
-				VI_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+				VI_ASSERT(System != nullptr, "render system should be set");
+				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 				Context = new GUI::Context(System->GetDevice());
 			}
 			UserInterface::~UserInterface()
@@ -2530,7 +2533,7 @@ namespace Mavi
 			}
 			size_t UserInterface::RenderPass(Core::Timer* Timer)
 			{
-				VI_ASSERT(Context != nullptr, 0, "context should be set");
+				VI_ASSERT(Context != nullptr, "context should be set");
 				if (!System->State.Is(RenderState::Geometric) || System->State.IsSubpass() || System->State.IsSet(RenderOpt::Transparent) || System->State.IsSet(RenderOpt::Additive))
 					return 0;
 

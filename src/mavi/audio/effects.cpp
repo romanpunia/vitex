@@ -193,7 +193,7 @@ namespace Mavi
 			}
 			void Reverb::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -224,7 +224,7 @@ namespace Mavi
 			}
 			void Reverb::Serialize(Core::Schema* Node) const
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -309,7 +309,7 @@ namespace Mavi
 			}
 			void Chorus::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -323,7 +323,7 @@ namespace Mavi
 			}
 			void Chorus::Serialize(Core::Schema* Node) const
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -373,7 +373,7 @@ namespace Mavi
 			}
 			void Distortion::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -386,7 +386,7 @@ namespace Mavi
 			}
 			void Distortion::Serialize(Core::Schema* Node) const
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -434,7 +434,7 @@ namespace Mavi
 			}
 			void Echo::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -447,7 +447,7 @@ namespace Mavi
 			}
 			void Echo::Serialize(Core::Schema* Node) const
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -496,7 +496,7 @@ namespace Mavi
 			}
 			void Flanger::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -510,7 +510,7 @@ namespace Mavi
 			}
 			void Flanger::Serialize(Core::Schema* Node) const
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -558,7 +558,7 @@ namespace Mavi
 			}
 			void FrequencyShifter::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -569,7 +569,7 @@ namespace Mavi
 			}
 			void FrequencyShifter::Serialize(Core::Schema* Node) const
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -614,7 +614,7 @@ namespace Mavi
 			}
 			void VocalMorpher::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -628,7 +628,7 @@ namespace Mavi
 			}
 			void VocalMorpher::Serialize(Core::Schema* Node) const
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -675,7 +675,7 @@ namespace Mavi
 			}
 			void PitchShifter::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -685,7 +685,7 @@ namespace Mavi
 			}
 			void PitchShifter::Serialize(Core::Schema* Node) const
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -725,7 +725,7 @@ namespace Mavi
 			}
 			void RingModulator::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -736,7 +736,7 @@ namespace Mavi
 			}
 			void RingModulator::Serialize(Core::Schema* Node) const
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -779,7 +779,7 @@ namespace Mavi
 			}
 			void Autowah::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -791,7 +791,7 @@ namespace Mavi
 			}
 			void Autowah::Serialize(Core::Schema* Node) const
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -830,14 +830,14 @@ namespace Mavi
 			}
 			void Compressor::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 			}
 			void Compressor::Serialize(Core::Schema* Node) const
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 			}
@@ -876,7 +876,7 @@ namespace Mavi
 			}
 			void Equalizer::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -894,7 +894,7 @@ namespace Mavi
 			}
 			void Equalizer::Serialize(Core::Schema* Node) const
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 

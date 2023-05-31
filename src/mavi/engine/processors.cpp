@@ -602,7 +602,7 @@ namespace Mavi
 			}
 			void* AssetProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
 
 				Core::Vector<char> Temp;
 				Stream->ReadAll([&Temp](char* Buffer, size_t Size)
@@ -622,21 +622,21 @@ namespace Mavi
 			}
 			void MaterialProcessor::Free(AssetCache* Asset)
 			{
-				VI_ASSERT_V(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
 				VI_RELEASE((Engine::Material*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
 			void* MaterialProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Asset != nullptr, nullptr, "asset should be set");
-				VI_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
 
 				((Engine::Material*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
 			void* MaterialProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::Schema* Data = Content->Load<Core::Schema>(Stream->GetSource());
 				Core::String Path;
 
@@ -737,8 +737,8 @@ namespace Mavi
 			}
 			bool MaterialProcessor::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Stream != nullptr, false, "stream should be set");
-				VI_ASSERT(Instance != nullptr, false, "instance should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
+				VI_ASSERT(Instance != nullptr, "instance should be set");
 
 				Engine::Material* Object = (Engine::Material*)Instance;
 				Core::Schema* Data = Core::Var::Set::Object();
@@ -803,8 +803,8 @@ namespace Mavi
 			void* SceneGraphProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				Engine::SceneGraph::Desc I = Engine::SceneGraph::Desc::Get(Application::Get());
-				VI_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				VI_ASSERT(I.Shared.Device != nullptr, nullptr, "graphics device should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
+				VI_ASSERT(I.Shared.Device != nullptr, "graphics device should be set");
 
 				Core::Schema* Blob = Content->Load<Core::Schema>(Stream->GetSource());
 				if (!Blob)
@@ -975,8 +975,8 @@ namespace Mavi
 			}
 			bool SceneGraphProcessor::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Stream != nullptr, false, "stream should be set");
-				VI_ASSERT(Instance != nullptr, false, "instance should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
+				VI_ASSERT(Instance != nullptr, "instance should be set");
 
 				const char* Ext = Core::OS::Path::GetExtension(Stream->GetSource().c_str());
 				if (!Ext)
@@ -1117,14 +1117,14 @@ namespace Mavi
 			}
 			void AudioClipProcessor::Free(AssetCache* Asset)
 			{
-				VI_ASSERT_V(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
 				VI_RELEASE((Audio::AudioClip*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
 			void* AudioClipProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Asset != nullptr, nullptr, "asset should be set");
-				VI_ASSERT(Asset->Resource != nullptr, nullptr, "asset resource should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset->Resource != nullptr, "asset resource should be set");
 
 				((Audio::AudioClip*)Asset->Resource)->AddRef();
 				return Asset->Resource;
@@ -1140,7 +1140,7 @@ namespace Mavi
 			}
 			void* AudioClipProcessor::DeserializeWAVE(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
 #ifdef VI_HAS_SDL2
 				Core::Vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
@@ -1194,7 +1194,7 @@ namespace Mavi
 			}
 			void* AudioClipProcessor::DeserializeOGG(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::Vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{
@@ -1242,21 +1242,21 @@ namespace Mavi
 			}
 			void Texture2DProcessor::Free(AssetCache* Asset)
 			{
-				VI_ASSERT_V(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
 				VI_RELEASE((Graphics::Texture2D*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
 			void* Texture2DProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Asset != nullptr, nullptr, "asset should be set");
-				VI_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
 
 				((Graphics::Texture2D*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
 			void* Texture2DProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::Vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{
@@ -1307,21 +1307,21 @@ namespace Mavi
 			}
 			void ShaderProcessor::Free(AssetCache* Asset)
 			{
-				VI_ASSERT_V(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
 				VI_RELEASE((Graphics::Shader*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
 			void* ShaderProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Asset != nullptr, nullptr, "asset should be set");
-				VI_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
 
 				((Graphics::Shader*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
 			void* ShaderProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::String Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{
@@ -1360,21 +1360,21 @@ namespace Mavi
 			}
 			void ModelProcessor::Free(AssetCache* Asset)
 			{
-				VI_ASSERT_V(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
 				VI_RELEASE((Model*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
 			void* ModelProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Asset != nullptr, nullptr, "asset should be set");
-				VI_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
 
 				((Model*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
 			void* ModelProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Model* Object = nullptr;
 				Core::String& Path = Stream->GetSource();
 				Core::Stringify Location(&Path);
@@ -1417,7 +1417,7 @@ namespace Mavi
 							}));
 
 							auto* Next = Object->Meshes.back();
-							VI_ASSERT(Next != nullptr, Object, "mesh should be initializable");
+							VI_ASSERT(Next != nullptr, "mesh should be initializable");
 
 							Series::Unpack(Mesh->Get("name"), &Next->Name);
 							Series::Unpack(Mesh->Get("transform"), &Next->Transform);
@@ -1450,7 +1450,7 @@ namespace Mavi
 						}));
 
 						auto* Next = Object->Meshes.back();
-						VI_ASSERT(Next != nullptr, Object, "mesh should be initializable");
+						VI_ASSERT(Next != nullptr, "mesh should be initializable");
 
 						Next->Name = Mesh.Name;
 						Next->Transform = Mesh.Transform;
@@ -1529,21 +1529,21 @@ namespace Mavi
 			}
 			void SkinModelProcessor::Free(AssetCache* Asset)
 			{
-				VI_ASSERT_V(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
 				VI_RELEASE((SkinModel*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
 			void* SkinModelProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Asset != nullptr, nullptr, "asset should be set");
-				VI_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
 
 				((SkinModel*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
 			void* SkinModelProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
 				SkinModel* Object = nullptr;
 				Core::String& Path = Stream->GetSource();
 				Core::Stringify Location(&Path);
@@ -1589,7 +1589,7 @@ namespace Mavi
 							}));
 
 							auto* Next = Object->Meshes.back();
-							VI_ASSERT(Next != nullptr, Object, "mesh should be initializable");
+							VI_ASSERT(Next != nullptr, "mesh should be initializable");
 
 							Series::Unpack(Mesh->Get("name"), &Next->Name);
 							Series::Unpack(Mesh->Get("transform"), &Next->Transform);
@@ -1625,7 +1625,7 @@ namespace Mavi
 						}));
 
 						auto* Next = Object->Meshes.back();
-						VI_ASSERT(Next != nullptr, Object, "mesh should be initializable");
+						VI_ASSERT(Next != nullptr, "mesh should be initializable");
 
 						Next->Name = Mesh.Name;
 						Next->Transform = Mesh.Transform;
@@ -1652,21 +1652,21 @@ namespace Mavi
 			}
 			void SkinAnimationProcessor::Free(AssetCache* Asset)
 			{
-				VI_ASSERT_V(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
 				VI_RELEASE((Engine::SkinAnimation*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
 			void* SkinAnimationProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Asset != nullptr, nullptr, "asset should be set");
-				VI_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
 
 				((Engine::SkinAnimation*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
 			void* SkinAnimationProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::Vector<Compute::SkinAnimatorClip> Clips;
 				Core::String& Path = Stream->GetSource();
 				Core::Stringify Location(&Path);
@@ -1799,7 +1799,7 @@ namespace Mavi
 			}
 			void* SchemaProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
 				auto* Object = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, size_t Size)
 				{
 					return Size > 0 ? Stream->Read(Buffer, Size) == Size : true;
@@ -1824,9 +1824,9 @@ namespace Mavi
 			bool SchemaProcessor::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
 				auto Type = Args.find("type");
-				VI_ASSERT(Type != Args.end(), false, "type argument should be set");
-				VI_ASSERT(Stream != nullptr, false, "stream should be set");
-				VI_ASSERT(Instance != nullptr, false, "instance should be set");
+				VI_ASSERT(Type != Args.end(), "type argument should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
+				VI_ASSERT(Instance != nullptr, "instance should be set");
 
 				auto Schema = (Core::Schema*)Instance;
 				Core::String Offset;
@@ -1906,7 +1906,7 @@ namespace Mavi
 			}
 			void* ServerProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::String N = Network::Multiplexer::GetLocalAddress();
 				Core::String D = Core::OS::Path::GetDirectory(Stream->GetSource().c_str());
 				auto* Blob = Content->Load<Core::Schema>(Stream->GetSource());
@@ -2270,21 +2270,21 @@ namespace Mavi
 			}
 			void HullShapeProcessor::Free(AssetCache* Asset)
 			{
-				VI_ASSERT_V(Asset != nullptr, "asset should be set");
-				VI_ASSERT_V(Asset->Resource != nullptr, "instance should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
 				VI_RELEASE((Compute::HullShape*)Asset->Resource);
 			}
 			void* HullShapeProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Asset != nullptr, nullptr, "asset should be set");
-				VI_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
 
 				((Compute::HullShape*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
 			void* HullShapeProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
 				auto* Data = Content->Load<Core::Schema>(Stream->GetSource());
 				if (!Data)
 					return nullptr;

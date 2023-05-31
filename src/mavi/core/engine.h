@@ -1805,7 +1805,7 @@ namespace Mavi
 				int ExitCode = App->Start();
 				VI_RELEASE(App);
 
-				VI_ASSERT(ExitCode != EXIT_RESTART, ExitCode, "application cannot be restarted");
+				VI_ASSERT(ExitCode != EXIT_RESTART, "application cannot be restarted");
 				return ExitCode;
 			}
 			template <typename T, typename ...A>
@@ -1886,12 +1886,12 @@ namespace Mavi
 			}
 			void Emplace(Geometry* Data, Material* Surface, const Instance& Params, size_t Chunk)
 			{
-				VI_ASSERT_V(Chunk < Queue.size(), "chunk index is out of range");
+				VI_ASSERT(Chunk < Queue.size(), "chunk index is out of range");
 				Queue[Chunk].emplace_back(GetKeyId(Data, Surface), Data, Surface, Params);
 			}
 			size_t Compile(Graphics::GraphicsDevice* Device)
 			{
-				VI_ASSERT(Device != nullptr, 0, "device should be set");
+				VI_ASSERT(Device != nullptr, "device should be set");
 				for (auto& Context : Queue)
 				{
 					for (auto& Item : Context)
@@ -2019,8 +2019,8 @@ namespace Mavi
 			}
 			bool Push(Core::Timer* Time, RenderSystem* Base, GeoCategory Category = GeoCategory::Opaque)
 			{
-				VI_ASSERT(Base != nullptr, false, "render system should be present");
-				VI_ASSERT(Offset < Max - 1, false, "storage heap stack overflow");
+				VI_ASSERT(Base != nullptr, "render system should be present");
+				VI_ASSERT(Offset < Max - 1, "storage heap stack overflow");
 
 				Storage* Frame = Data[Offset++];
 				if (Base->State.IsSubpass())
@@ -2035,7 +2035,7 @@ namespace Mavi
 			}
 			void Pop()
 			{
-				VI_ASSERT_V(Offset > 0, "storage heap stack underflow");
+				VI_ASSERT(Offset > 0, "storage heap stack underflow");
 				Offset--;
 			}
 			bool HasBatching()
@@ -2573,7 +2573,7 @@ namespace Mavi
 			}
 			bool CullingBegin(T* Base)
 			{
-				VI_ASSERT(Base != nullptr, false, "base should be set");
+				VI_ASSERT(Base != nullptr, "base should be set");
 				if (Skippable[1] && Base->Overlapping < System->Threshold)
 					return false;
 				else if (Skippable[0] && Base->Overlapping >= System->Threshold)
@@ -2610,7 +2610,7 @@ namespace Mavi
 			}
 			bool CullingEnd()
 			{
-				VI_ASSERT(Current != nullptr, false, "culling query must be started");
+				VI_ASSERT(Current != nullptr, "culling query must be started");
 				if (!Current)
 					return false;
 

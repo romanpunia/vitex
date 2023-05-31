@@ -29,7 +29,7 @@ namespace Mavi
 			template <typename R, typename T, typename... Args>
 			bool ExecuteQuery(const char* Name, R&& Function, T* Base, Args&&... Data)
 			{
-				VI_ASSERT(Base != nullptr, false, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				VI_MEASURE(Core::Timings::Intensive);
 				VI_DEBUG("[mongoc] execute query schema on 0x%" PRIXPTR ": %s", (uintptr_t)Base, Name + 1);
 
@@ -49,7 +49,7 @@ namespace Mavi
 			template <typename R, typename T, typename... Args>
 			Cursor ExecuteCursor(const char* Name, R&& Function, T* Base, Args&&... Data)
 			{
-				VI_ASSERT(Base != nullptr, nullptr, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				VI_MEASURE(Core::Timings::Intensive);
 				VI_DEBUG("[mongoc] execute query cursor on 0x%" PRIXPTR ": %s", (uintptr_t)Base, Name + 1);
 
@@ -210,7 +210,7 @@ namespace Mavi
 			bool Util::GetId(unsigned char* Id12)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Id12 != nullptr, false, "id should be set");
+				VI_ASSERT(Id12 != nullptr, "id should be set");
 				bson_oid_t ObjectId;
 				bson_oid_init(&ObjectId, nullptr);
 
@@ -222,9 +222,9 @@ namespace Mavi
 			}
 			bool Util::GetDecimal(const char* Value, int64_t* High, int64_t* Low)
 			{
-				VI_ASSERT(Value != nullptr, false, "value should be set");
-				VI_ASSERT(High != nullptr, false, "high should be set");
-				VI_ASSERT(Low != nullptr, false, "low should be set");
+				VI_ASSERT(Value != nullptr, "value should be set");
+				VI_ASSERT(High != nullptr, "high should be set");
+				VI_ASSERT(Low != nullptr, "low should be set");
 #ifdef VI_HAS_MONGOC
 				bson_decimal128_t Decimal;
 				if (!bson_decimal128_from_string(Value, &Decimal))
@@ -240,7 +240,7 @@ namespace Mavi
 			unsigned int Util::GetHashId(unsigned char* Id12)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Id12 != nullptr, 0, "id should be set");
+				VI_ASSERT(Id12 != nullptr, "id should be set");
 
 				bson_oid_t Id;
 				memcpy((void*)Id.bytes, (void*)Id12, sizeof(char) * 12);
@@ -252,7 +252,7 @@ namespace Mavi
 			int64_t Util::GetTimeId(unsigned char* Id12)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Id12 != nullptr, 0, "id should be set");
+				VI_ASSERT(Id12 != nullptr, "id should be set");
 
 				bson_oid_t Id;
 				memcpy((void*)Id.bytes, (void*)Id12, sizeof(char) * 12);
@@ -265,7 +265,7 @@ namespace Mavi
 			Core::String Util::IdToString(unsigned char* Id12)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Id12 != nullptr, Core::String(), "id should be set");
+				VI_ASSERT(Id12 != nullptr, "id should be set");
 
 				bson_oid_t Id;
 				memcpy(Id.bytes, Id12, sizeof(unsigned char) * 12);
@@ -280,7 +280,7 @@ namespace Mavi
 			}
 			Core::String Util::StringToId(const Core::String& Id24)
 			{
-				VI_ASSERT(Id24.size() == 24, Core::String(), "id should be 24 chars long");
+				VI_ASSERT(Id24.size() == 24, "id should be 24 chars long");
 #ifdef VI_HAS_MONGOC
 				bson_oid_t Id;
 				bson_oid_init_from_string(&Id, Id24.c_str());
@@ -331,15 +331,15 @@ namespace Mavi
 			void Document::Join(const Document& Value)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Base != nullptr, "schema should be set");
-				VI_ASSERT_V(Value.Base != nullptr, "other schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
+				VI_ASSERT(Value.Base != nullptr, "other schema should be set");
 				bson_concat((bson_t*)Base, (bson_t*)Value.Base);
 #endif
 			}
 			void Document::Loop(const std::function<bool(Property*)>& Callback) const
 			{
-				VI_ASSERT_V(Base != nullptr, "schema should be set");
-				VI_ASSERT_V(Callback, "callback should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
+				VI_ASSERT(Callback, "callback should be set");
 #ifdef VI_HAS_MONGOC
 				bson_iter_t It;
 				if (!bson_iter_init(&It, Base))
@@ -357,8 +357,8 @@ namespace Mavi
 			bool Document::SetSchema(const char* Key, const Document& Value, size_t ArrayId)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
-				VI_ASSERT(Value.Base != nullptr, false, "other schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
+				VI_ASSERT(Value.Base != nullptr, "other schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -372,8 +372,8 @@ namespace Mavi
 			bool Document::SetArray(const char* Key, const Document& Value, size_t ArrayId)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
-				VI_ASSERT(Value.Base != nullptr, false, "other schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
+				VI_ASSERT(Value.Base != nullptr, "other schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -387,8 +387,8 @@ namespace Mavi
 			bool Document::SetString(const char* Key, const char* Value, size_t ArrayId)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
-				VI_ASSERT(Value != nullptr, false, "value should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
+				VI_ASSERT(Value != nullptr, "value should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -402,8 +402,8 @@ namespace Mavi
 			bool Document::SetBlob(const char* Key, const char* Value, size_t Length, size_t ArrayId)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
-				VI_ASSERT(Value != nullptr, false, "value should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
+				VI_ASSERT(Value != nullptr, "value should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -417,7 +417,7 @@ namespace Mavi
 			bool Document::SetInteger(const char* Key, int64_t Value, size_t ArrayId)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -431,7 +431,7 @@ namespace Mavi
 			bool Document::SetNumber(const char* Key, double Value, size_t ArrayId)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -445,7 +445,7 @@ namespace Mavi
 			bool Document::SetDecimal(const char* Key, uint64_t High, uint64_t Low, size_t ArrayId)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -463,7 +463,7 @@ namespace Mavi
 			bool Document::SetDecimalString(const char* Key, const Core::String& Value, size_t ArrayId)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -480,7 +480,7 @@ namespace Mavi
 			bool Document::SetDecimalInteger(const char* Key, int64_t Value, size_t ArrayId)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -500,7 +500,7 @@ namespace Mavi
 			bool Document::SetDecimalNumber(const char* Key, double Value, size_t ArrayId)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -523,7 +523,7 @@ namespace Mavi
 			bool Document::SetBoolean(const char* Key, bool Value, size_t ArrayId)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -537,7 +537,7 @@ namespace Mavi
 			bool Document::SetObjectId(const char* Key, unsigned char Value[12], size_t ArrayId)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				bson_oid_t ObjectId;
 				memcpy(ObjectId.bytes, Value, sizeof(unsigned char) * 12);
@@ -554,7 +554,7 @@ namespace Mavi
 			bool Document::SetNull(const char* Key, size_t ArrayId)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -568,8 +568,8 @@ namespace Mavi
 			bool Document::SetProperty(const char* Key, Property* Value, size_t ArrayId)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
-				VI_ASSERT(Value != nullptr, false, "property should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
+				VI_ASSERT(Value != nullptr, "property should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -603,8 +603,8 @@ namespace Mavi
 			bool Document::HasProperty(const char* Key) const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
-				VI_ASSERT(Key != nullptr, false, "key should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
+				VI_ASSERT(Key != nullptr, "key should be set");
 				return bson_has_field(Base, Key);
 #else
 				return false;
@@ -613,9 +613,9 @@ namespace Mavi
 			bool Document::GetProperty(const char* Key, Property* Output) const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "schema should be set");
-				VI_ASSERT(Key != nullptr, false, "key should be set");
-				VI_ASSERT(Output != nullptr, false, "property should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
+				VI_ASSERT(Key != nullptr, "key should be set");
+				VI_ASSERT(Output != nullptr, "property should be set");
 
 				bson_iter_t It;
 				if (!bson_iter_init_find(&It, Base, Key))
@@ -629,8 +629,8 @@ namespace Mavi
 			bool Document::Clone(void* It, Property* Output)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(It != nullptr, false, "iterator should be set");
-				VI_ASSERT(Output != nullptr, false, "property should be set");
+				VI_ASSERT(It != nullptr, "iterator should be set");
+				VI_ASSERT(Output != nullptr, "property should be set");
 
 				const bson_value_t* Value = bson_iter_value((bson_iter_t*)It);
 				if (!Value)
@@ -747,7 +747,7 @@ namespace Mavi
 			Core::String Document::ToRelaxedJSON() const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, Core::String(), "schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
 				size_t Length = 0;
 				char* Value = bson_as_relaxed_extended_json(Base, &Length);
 
@@ -763,7 +763,7 @@ namespace Mavi
 			Core::String Document::ToExtendedJSON() const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, Core::String(), "schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
 				size_t Length = 0;
 				char* Value = bson_as_canonical_extended_json(Base, &Length);
 
@@ -779,7 +779,7 @@ namespace Mavi
 			Core::String Document::ToJSON() const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, Core::String(), "schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
 				size_t Length = 0;
 				char* Value = bson_as_json(Base, &Length);
 
@@ -795,7 +795,7 @@ namespace Mavi
 			Core::String Document::ToIndices() const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, Core::String(), "schema should be set");
+				VI_ASSERT(Base != nullptr, "schema should be set");
 				char* Value = mongoc_collection_keys_to_index_string(Base);
 				if (!Value)
 					return Core::String();
@@ -890,7 +890,7 @@ namespace Mavi
 			Document Document::FromDocument(Core::Schema* Src)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Src != nullptr && Src->Value.IsObject(), nullptr, "schema should be set");
+				VI_ASSERT(Src != nullptr && Src->Value.IsObject(), "schema should be set");
 				bool Array = (Src->Value.GetType() == Core::VarType::Array);
 				Document Result = bson_new();
 				size_t Index = 0;
@@ -975,7 +975,7 @@ namespace Mavi
 			Document Document::FromBuffer(const unsigned char* Buffer, size_t Length)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
+				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 				return bson_new_from_data(Buffer, Length);
 #else
 				return nullptr;
@@ -984,7 +984,7 @@ namespace Mavi
 			Document Document::FromSource(TDocument* Src)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Src != nullptr, nullptr, "src should be set");
+				VI_ASSERT(Src != nullptr, "src should be set");
 				TDocument* Dest = bson_new();
 				bson_steal((bson_t*)Dest, (bson_t*)Src);
 				return Dest;
@@ -1024,8 +1024,8 @@ namespace Mavi
 			void Address::SetOption(const char* Name, int64_t Value)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Base != nullptr, "context should be set");
-				VI_ASSERT_V(Name != nullptr, "name should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 
 				mongoc_uri_set_option_as_int32(Base, Name, (int32_t)Value);
 #endif
@@ -1033,8 +1033,8 @@ namespace Mavi
 			void Address::SetOption(const char* Name, bool Value)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Base != nullptr, "context should be set");
-				VI_ASSERT_V(Name != nullptr, "name should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 
 				mongoc_uri_set_option_as_bool(Base, Name, Value);
 #endif
@@ -1042,9 +1042,9 @@ namespace Mavi
 			void Address::SetOption(const char* Name, const char* Value)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Base != nullptr, "context should be set");
-				VI_ASSERT_V(Name != nullptr, "name should be set");
-				VI_ASSERT_V(Value != nullptr, "value should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
+				VI_ASSERT(Value != nullptr, "value should be set");
 
 				mongoc_uri_set_option_as_utf8(Base, Name, Value);
 #endif
@@ -1052,8 +1052,8 @@ namespace Mavi
 			void Address::SetAuthMechanism(const char* Value)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Base != nullptr, "context should be set");
-				VI_ASSERT_V(Value != nullptr, "value should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
+				VI_ASSERT(Value != nullptr, "value should be set");
 
 				mongoc_uri_set_auth_mechanism(Base, Value);
 #endif
@@ -1061,8 +1061,8 @@ namespace Mavi
 			void Address::SetAuthSource(const char* Value)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Base != nullptr, "context should be set");
-				VI_ASSERT_V(Value != nullptr, "value should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
+				VI_ASSERT(Value != nullptr, "value should be set");
 
 				mongoc_uri_set_auth_source(Base, Value);
 #endif
@@ -1070,8 +1070,8 @@ namespace Mavi
 			void Address::SetCompressors(const char* Value)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Base != nullptr, "context should be set");
-				VI_ASSERT_V(Value != nullptr, "value should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
+				VI_ASSERT(Value != nullptr, "value should be set");
 
 				mongoc_uri_set_compressors(Base, Value);
 #endif
@@ -1079,8 +1079,8 @@ namespace Mavi
 			void Address::SetDatabase(const char* Value)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Base != nullptr, "context should be set");
-				VI_ASSERT_V(Value != nullptr, "value should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
+				VI_ASSERT(Value != nullptr, "value should be set");
 
 				mongoc_uri_set_database(Base, Value);
 #endif
@@ -1088,8 +1088,8 @@ namespace Mavi
 			void Address::SetUsername(const char* Value)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Base != nullptr, "context should be set");
-				VI_ASSERT_V(Value != nullptr, "value should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
+				VI_ASSERT(Value != nullptr, "value should be set");
 
 				mongoc_uri_set_username(Base, Value);
 #endif
@@ -1097,8 +1097,8 @@ namespace Mavi
 			void Address::SetPassword(const char* Value)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Base != nullptr, "context should be set");
-				VI_ASSERT_V(Value != nullptr, "value should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
+				VI_ASSERT(Value != nullptr, "value should be set");
 
 				mongoc_uri_set_password(Base, Value);
 #endif
@@ -1114,7 +1114,7 @@ namespace Mavi
 			Address Address::FromURI(const char* Value)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Value != nullptr, nullptr, "value should be set");
+				VI_ASSERT(Value != nullptr, "value should be set");
 				TAddress* Result = mongoc_uri_new(Value);
 				if (!strstr(Value, MONGOC_URI_SOCKETTIMEOUTMS))
 					mongoc_uri_set_option_as_int32(Result, MONGOC_URI_SOCKETTIMEOUTMS, 10000);
@@ -1420,7 +1420,7 @@ namespace Mavi
 			size_t Stream::GetHint() const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, 0, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return (size_t)mongoc_bulk_operation_get_hint(Base);
 #else
 				return 0;
@@ -1475,21 +1475,21 @@ namespace Mavi
 			void Cursor::SetMaxAwaitTime(size_t MaxAwaitTime)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Base != nullptr, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				mongoc_cursor_set_max_await_time_ms(Base, (uint32_t)MaxAwaitTime);
 #endif
 			}
 			void Cursor::SetBatchSize(size_t BatchSize)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Base != nullptr, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				mongoc_cursor_set_batch_size(Base, (uint32_t)BatchSize);
 #endif
 			}
 			bool Cursor::SetLimit(int64_t Limit)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_cursor_set_limit(Base, Limit);
 #else
 				return false;
@@ -1498,7 +1498,7 @@ namespace Mavi
 			bool Cursor::SetHint(size_t Hint)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, false, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_cursor_set_hint(Base, (uint32_t)Hint);
 #else
 				return false;
@@ -1553,7 +1553,7 @@ namespace Mavi
 			int64_t Cursor::GetId() const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, 0, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return (int64_t)mongoc_cursor_get_id(Base);
 #else
 				return 0;
@@ -1562,7 +1562,7 @@ namespace Mavi
 			int64_t Cursor::GetLimit() const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, 0, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return (int64_t)mongoc_cursor_get_limit(Base);
 #else
 				return 0;
@@ -1571,7 +1571,7 @@ namespace Mavi
 			size_t Cursor::GetMaxAwaitTime() const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, 0, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return (size_t)mongoc_cursor_get_max_await_time_ms(Base);
 #else
 				return 0;
@@ -1580,7 +1580,7 @@ namespace Mavi
 			size_t Cursor::GetBatchSize() const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, 0, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return (size_t)mongoc_cursor_get_batch_size(Base);
 #else
 				return 0;
@@ -1589,7 +1589,7 @@ namespace Mavi
 			size_t Cursor::GetHint() const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, 0, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return (size_t)mongoc_cursor_get_hint(Base);
 #else
 				return 0;
@@ -1609,7 +1609,7 @@ namespace Mavi
 			Cursor Cursor::Clone()
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, nullptr, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_cursor_clone(Base);
 #else
 				return nullptr;
@@ -1685,7 +1685,7 @@ namespace Mavi
 			}
 			Core::Promise<Property> Response::GetProperty(const char* Name)
 			{
-				VI_ASSERT(Name != nullptr, Property(), "context should be set");
+				VI_ASSERT(Name != nullptr, "context should be set");
 
 				if (NetDocument)
 				{
@@ -1891,7 +1891,7 @@ namespace Mavi
 			Core::Promise<Document> Collection::InsertMany(Core::Vector<Document>& List, const Document& Options) const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(!List.empty(), Core::Promise<Document>(Document(nullptr)), "insert array should not be empty");
+				VI_ASSERT(!List.empty(), "insert array should not be empty");
 				Core::Vector<Document> Array(std::move(List));
 				auto* Context = Base;
 
@@ -2385,7 +2385,7 @@ namespace Mavi
 			const char* Collection::GetName() const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, nullptr, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_collection_get_name(Base);
 #else
 				return nullptr;
@@ -2584,7 +2584,7 @@ namespace Mavi
 			const char* Database::GetName() const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, nullptr, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_database_get_name(Base);
 #else
 				return nullptr;
@@ -2593,7 +2593,7 @@ namespace Mavi
 			Collection Database::GetCollection(const Core::String& Name)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, nullptr, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_database_get_collection(Base, Name.c_str());
 #else
 				return nullptr;
@@ -2732,7 +2732,7 @@ namespace Mavi
 			bool Transaction::Put(TDocument** QueryOptions) const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(QueryOptions != nullptr, false, "query options should be set");
+				VI_ASSERT(QueryOptions != nullptr, "query options should be set");
 				if (!*QueryOptions)
 					*QueryOptions = bson_new();
 
@@ -2942,7 +2942,7 @@ namespace Mavi
 			Core::Promise<bool> Connection::Connect(const Core::String& Address)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Master != nullptr, Core::Promise<bool>(false), "connection should be created outside of cluster");
+				VI_ASSERT(Master != nullptr, "connection should be created outside of cluster");
 				if (Connected)
 				{
 					return Disconnect().Then<Core::Promise<bool>>([this, Address](bool)
@@ -2982,8 +2982,8 @@ namespace Mavi
 			Core::Promise<bool> Connection::Connect(Address* URL)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Master != nullptr, Core::Promise<bool>(false), "connection should be created outside of cluster");
-				VI_ASSERT(URL && URL->Get(), Core::Promise<bool>(false), "url should be valid");
+				VI_ASSERT(Master != nullptr, "connection should be created outside of cluster");
+				VI_ASSERT(URL && URL->Get(), "url should be valid");
 
 				if (Connected)
 				{
@@ -3015,7 +3015,7 @@ namespace Mavi
 			Core::Promise<bool> Connection::Disconnect()
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Connected && Base, Core::Promise<bool>(false), "connection should be established");
+				VI_ASSERT(Connected && Base, "connection should be established");
 				return Core::Cotask<bool>([this]()
 				{
 					Connected = false;
@@ -3044,7 +3044,7 @@ namespace Mavi
 			Core::Promise<bool> Connection::MakeTransaction(const std::function<Core::Promise<bool>(Transaction&)>& Callback)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Callback, Core::Promise<bool>(false), "callback should not be empty");
+				VI_ASSERT(Callback, "callback should not be empty");
 				return Core::Coasync<bool>([this, Callback]() -> Core::Promise<bool>
 				{
 					Transaction Context = GetSession();
@@ -3089,7 +3089,7 @@ namespace Mavi
 			Core::Promise<bool> Connection::MakeCotransaction(const std::function<bool(Transaction&)>& Callback)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Callback, Core::Promise<bool>(false), "callback should not be empty");
+				VI_ASSERT(Callback, "callback should not be empty");
 				return Core::Coasync<bool>([this, Callback]() -> Core::Promise<bool>
 				{
 					Transaction Context = GetSession();
@@ -3186,7 +3186,7 @@ namespace Mavi
 			Database Connection::GetDatabase(const Core::String& Name) const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, nullptr, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_client_get_database(Base, Name.c_str());
 #else
 				return nullptr;
@@ -3195,7 +3195,7 @@ namespace Mavi
 			Database Connection::GetDefaultDatabase() const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, nullptr, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_client_get_default_database(Base);
 #else
 				return nullptr;
@@ -3204,7 +3204,7 @@ namespace Mavi
 			Collection Connection::GetCollection(const char* DatabaseName, const char* Name) const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, nullptr, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_client_get_collection(Base, DatabaseName, Name);
 #else
 				return nullptr;
@@ -3213,7 +3213,7 @@ namespace Mavi
 			Address Connection::GetAddress() const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, nullptr, "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 				return (TAddress*)mongoc_client_get_uri(Base);
 #else
 				return nullptr;
@@ -3230,7 +3230,7 @@ namespace Mavi
 			Core::Vector<Core::String> Connection::GetDatabaseNames(const Document& Options) const
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Base != nullptr, Core::Vector<Core::String>(), "context should be set");
+				VI_ASSERT(Base != nullptr, "context should be set");
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
@@ -3307,7 +3307,7 @@ namespace Mavi
 			Core::Promise<bool> Cluster::Connect(Address* URI)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(URI && URI->Get(), Core::Promise<bool>(false), "url should be set");
+				VI_ASSERT(URI && URI->Get(), "url should be set");
 				if (Connected)
 				{
 					return Disconnect().Then<Core::Promise<bool>>([this, URI](bool)
@@ -3341,7 +3341,7 @@ namespace Mavi
 			Core::Promise<bool> Cluster::Disconnect()
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT(Connected && Pool, Core::Promise<bool>(false), "connection should be established");
+				VI_ASSERT(Connected && Pool, "connection should be established");
 				return Core::Cotask<bool>([this]()
 				{
 					if (Pool != nullptr)
@@ -3361,15 +3361,15 @@ namespace Mavi
 			void Cluster::SetProfile(const char* Name)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Pool != nullptr, "connection should be established");
-				VI_ASSERT_V(Name != nullptr, "name should be set");
+				VI_ASSERT(Pool != nullptr, "connection should be established");
+				VI_ASSERT(Name != nullptr, "name should be set");
 				mongoc_client_pool_set_appname(Pool, Name);
 #endif
 			}
 			void Cluster::Push(Connection** Client)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Client && *Client, "client should be set");
+				VI_ASSERT(Client && *Client, "client should be set");
 				mongoc_client_pool_push(Pool, (*Client)->Base);
 				(*Client)->Base = nullptr;
 				(*Client)->Connected = false;
@@ -3518,21 +3518,21 @@ namespace Mavi
 			void Driver::AttachQueryLog(TConnection* Connection)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Connection != nullptr, "connection should be set");
+				VI_ASSERT(Connection != nullptr, "connection should be set");
 				mongoc_client_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
 #endif
 			}
 			void Driver::AttachQueryLog(TConnectionPool* Connection)
 			{
 #ifdef VI_HAS_MONGOC
-				VI_ASSERT_V(Connection != nullptr, "connection pool should be set");
+				VI_ASSERT(Connection != nullptr, "connection pool should be set");
 				mongoc_client_pool_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
 #endif
 			}
 			bool Driver::AddConstant(const Core::String& Name, const Core::String& Value)
 			{
-				VI_ASSERT(Constants && Safe, false, "driver should be initialized");
-				VI_ASSERT(!Name.empty(), false, "name should not be empty");
+				VI_ASSERT(Constants && Safe, "driver should be initialized");
+				VI_ASSERT(!Name.empty(), "name should not be empty");
 
 				Safe->lock();
 				Constants->Map[Name] = Value;
@@ -3541,9 +3541,9 @@ namespace Mavi
 			}
 			bool Driver::AddQuery(const Core::String& Name, const char* Buffer, size_t Size)
 			{
-				VI_ASSERT(Queries && Safe, false, "driver should be initialized");
-				VI_ASSERT(!Name.empty(), false, "name should not be empty");
-				VI_ASSERT(Buffer, false, "buffer should be set");
+				VI_ASSERT(Queries && Safe, "driver should be initialized");
+				VI_ASSERT(!Name.empty(), "name should not be empty");
+				VI_ASSERT(Buffer, "buffer should be set");
 
 				if (!Size)
 					return false;
@@ -3659,7 +3659,7 @@ namespace Mavi
 			}
 			bool Driver::RemoveConstant(const Core::String& Name)
 			{
-				VI_ASSERT(Constants && Safe, false, "driver should be initialized");
+				VI_ASSERT(Constants && Safe, "driver should be initialized");
 				Safe->lock();
 				auto It = Constants->Map.find(Name);
 				if (It == Constants->Map.end())
@@ -3674,7 +3674,7 @@ namespace Mavi
 			}
 			bool Driver::RemoveQuery(const Core::String& Name)
 			{
-				VI_ASSERT(Queries && Safe, false, "driver should be initialized");
+				VI_ASSERT(Queries && Safe, "driver should be initialized");
 				Safe->lock();
 				auto It = Queries->Map.find(Name);
 				if (It == Queries->Map.end())
@@ -3689,8 +3689,8 @@ namespace Mavi
 			}
 			bool Driver::LoadCacheDump(Core::Schema* Dump)
 			{
-				VI_ASSERT(Queries && Safe, false, "driver should be initialized");
-				VI_ASSERT(Dump != nullptr, false, "dump should be set");
+				VI_ASSERT(Queries && Safe, "driver should be initialized");
+				VI_ASSERT(Dump != nullptr, "dump should be set");
 
 				size_t Count = 0;
 				std::unique_lock<std::mutex> Unique(*Safe);
@@ -3733,7 +3733,7 @@ namespace Mavi
 			}
 			Core::Schema* Driver::GetCacheDump()
 			{
-				VI_ASSERT(Queries && Safe, nullptr, "driver should be initialized");
+				VI_ASSERT(Queries && Safe, "driver should be initialized");
 				std::unique_lock<std::mutex> Unique(*Safe);
 				Core::Schema* Result = Core::Var::Set::Array();
 				for (auto& Query : Queries->Map)
@@ -3762,7 +3762,7 @@ namespace Mavi
 			}
 			Document Driver::GetQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once)
 			{
-				VI_ASSERT(Queries && Safe, nullptr, "driver should be initialized");
+				VI_ASSERT(Queries && Safe, "driver should be initialized");
 				Safe->lock();
 				auto It = Queries->Map.find(Name);
 				if (It == Queries->Map.end())
@@ -3847,7 +3847,7 @@ namespace Mavi
 			Core::Vector<Core::String> Driver::GetQueries()
 			{
 				Core::Vector<Core::String> Result;
-				VI_ASSERT(Queries && Safe, Result, "driver should be initialized");
+				VI_ASSERT(Queries && Safe, "driver should be initialized");
 
 				Safe->lock();
 				Result.reserve(Queries->Map.size());
@@ -3859,7 +3859,7 @@ namespace Mavi
 			}
 			Core::String Driver::GetJSON(Core::Schema* Source, bool Escape)
 			{
-				VI_ASSERT(Source != nullptr, Core::String(), "source should be set");
+				VI_ASSERT(Source != nullptr, "source should be set");
 				switch (Source->Value.GetType())
 				{
 					case Core::VarType::Object:

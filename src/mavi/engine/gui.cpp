@@ -78,9 +78,9 @@ namespace Mavi
 				}
 				void RenderGeometry(Rml::Vertex* Vertices, int VerticesSize, int* Indices, int IndicesSize, Rml::TextureHandle Texture, const Rml::Vector2f& Translation) override
 				{
-					VI_ASSERT_V(Device != nullptr, "graphics device should be set");
-					VI_ASSERT_V(Vertices != nullptr, "vertices should be set");
-					VI_ASSERT_V(Indices != nullptr, "indices should be set");
+					VI_ASSERT(Device != nullptr, "graphics device should be set");
+					VI_ASSERT(Vertices != nullptr, "vertices should be set");
+					VI_ASSERT(Indices != nullptr, "indices should be set");
 
 					Device->ImBegin();
 					Device->ImTopology(Graphics::PrimitiveTopology::Triangle_List);
@@ -104,7 +104,7 @@ namespace Mavi
 				}
 				Rml::CompiledGeometryHandle CompileGeometry(Rml::Vertex* Vertices, int VerticesCount, int* Indices, int IndicesCount, Rml::TextureHandle Handle) override
 				{
-					VI_ASSERT(Device != nullptr, (Rml::CompiledGeometryHandle)nullptr, "graphics device should be set");
+					VI_ASSERT(Device != nullptr, "graphics device should be set");
 					GeometryBuffer* Result = VI_NEW(GeometryBuffer);
 					Result->Texture = (Graphics::Texture2D*)Handle;
 
@@ -131,8 +131,8 @@ namespace Mavi
 				void RenderCompiledGeometry(Rml::CompiledGeometryHandle Handle, const Rml::Vector2f& Translation) override
 				{
 					GeometryBuffer* Buffer = (GeometryBuffer*)Handle;
-					VI_ASSERT_V(Device != nullptr, "graphics device should be set");
-					VI_ASSERT_V(Buffer != nullptr, "buffer should be set");
+					VI_ASSERT(Device != nullptr, "graphics device should be set");
+					VI_ASSERT(Buffer != nullptr, "buffer should be set");
 
 					Constants->Render.Diffuse = (Buffer->Texture != nullptr ? 1.0f : 0.0f);
 					if (HasTransform)
@@ -154,7 +154,7 @@ namespace Mavi
 				}
 				void EnableScissorRegion(bool Enable) override
 				{
-					VI_ASSERT_V(Device != nullptr, "graphics device should be set");
+					VI_ASSERT(Device != nullptr, "graphics device should be set");
 					Ortho = Compute::Matrix4x4::CreateOrthographicOffCenter(0, (float)Device->GetRenderTarget()->GetWidth(), (float)Device->GetRenderTarget()->GetHeight(), 0.0f, -30000.0f, 10000.0f);
 					Device->SetSamplerState(Sampler, 1, 1, VI_PS);
 					Device->SetBlendState(AlphaBlend);
@@ -180,7 +180,7 @@ namespace Mavi
 				}
 				void SetScissorRegion(int X, int Y, int Width, int Height) override
 				{
-					VI_ASSERT_V(Device != nullptr, "graphics device should be set");
+					VI_ASSERT(Device != nullptr, "graphics device should be set");
 					if (!HasTransform)
 					{
 						Compute::Rectangle Scissor;
@@ -225,7 +225,7 @@ namespace Mavi
 				}
 				bool LoadTexture(Rml::TextureHandle& Handle, Rml::Vector2i& TextureDimensions, const Rml::String& Source) override
 				{
-					VI_ASSERT(Content != nullptr, false, "content manager should be set");
+					VI_ASSERT(Content != nullptr, "content manager should be set");
 					Graphics::Texture2D* Result = Content->Load<Graphics::Texture2D>(Source);
 					if (!Result)
 						return false;
@@ -238,8 +238,8 @@ namespace Mavi
 				}
 				bool GenerateTexture(Rml::TextureHandle& Handle, const Rml::byte* Source, const Rml::Vector2i& SourceDimensions) override
 				{
-					VI_ASSERT(Device != nullptr, false, "graphics device should be set");
-					VI_ASSERT(Source != nullptr, false, "source should be set");
+					VI_ASSERT(Device != nullptr, "graphics device should be set");
+					VI_ASSERT(Source != nullptr, "source should be set");
 
 					Graphics::Texture2D::Desc F = Graphics::Texture2D::Desc();
 					F.Data = (void*)Source;
@@ -269,9 +269,9 @@ namespace Mavi
 				}
 				void Attach(RenderConstants* NewConstants, ContentManager* NewContent)
 				{
-					VI_ASSERT_V(NewConstants != nullptr, "render constants should be set");
-					VI_ASSERT_V(NewContent != nullptr, "content manager should be set");
-					VI_ASSERT_V(NewContent->GetDevice() != nullptr, "graphics device should be set");
+					VI_ASSERT(NewConstants != nullptr, "render constants should be set");
+					VI_ASSERT(NewContent != nullptr, "content manager should be set");
+					VI_ASSERT(NewContent->GetDevice() != nullptr, "graphics device should be set");
 
 					VI_CLEAR(VertexBuffer);
 					VI_CLEAR(Shader);
@@ -357,19 +357,19 @@ namespace Mavi
 				size_t Read(void* Buffer, size_t Size, Rml::FileHandle File) override
 				{
 					Core::Stream* Stream = (Core::Stream*)File;
-					VI_ASSERT(Stream != nullptr, 0, "stream should be set");
+					VI_ASSERT(Stream != nullptr, "stream should be set");
 					return Stream->Read((char*)Buffer, Size);
 				}
 				bool Seek(Rml::FileHandle File, long Offset, int Origin) override
 				{
 					Core::Stream* Stream = (Core::Stream*)File;
-					VI_ASSERT(Stream != nullptr, false, "stream should be set");
+					VI_ASSERT(Stream != nullptr, "stream should be set");
 					return Stream->Seek((Core::FileSeek)Origin, Offset) == 0;
 				}
 				size_t Tell(Rml::FileHandle File) override
 				{
 					Core::Stream* Stream = (Core::Stream*)File;
-					VI_ASSERT(Stream != nullptr, 0, "stream should be set");
+					VI_ASSERT(Stream != nullptr, "stream should be set");
 					return Stream->Tell();
 				}
 			};
@@ -388,7 +388,7 @@ namespace Mavi
 				}
 				void SetMouseCursor(const Rml::String& CursorName) override
 				{
-					VI_ASSERT_V(Activity != nullptr, "activity should be set");
+					VI_ASSERT(Activity != nullptr, "activity should be set");
 					if (CursorName == "none")
 						Activity->SetCursor(Graphics::DisplayCursor::None);
 					else if (CursorName == "default")
@@ -418,28 +418,28 @@ namespace Mavi
 				}
 				void SetClipboardText(const Rml::String& Text) override
 				{
-					VI_ASSERT_V(Activity != nullptr, "activity should be set");
+					VI_ASSERT(Activity != nullptr, "activity should be set");
 					Activity->SetClipboardText(Text);
 				}
 				void GetClipboardText(Rml::String& Text) override
 				{
-					VI_ASSERT_V(Activity != nullptr, "activity should be set");
+					VI_ASSERT(Activity != nullptr, "activity should be set");
 					Text = Activity->GetClipboardText();
 				}
 				void ActivateKeyboard(Rml::Vector2f CaretPosition, float LineHeight) override
 				{
-					VI_ASSERT_V(Activity != nullptr, "activity should be set");
+					VI_ASSERT(Activity != nullptr, "activity should be set");
 					Activity->SetScreenKeyboard(true);
 				}
 				void DeactivateKeyboard() override
 				{
-					VI_ASSERT_V(Activity != nullptr, "activity should be set");
+					VI_ASSERT(Activity != nullptr, "activity should be set");
 					Activity->SetScreenKeyboard(false);
 				}
 				void JoinPath(Rml::String& Result, const Rml::String& Path1, const Rml::String& Path2) override
 				{
 					ContentManager* Content = (Subsystem::GetRenderInterface() ? Subsystem::GetRenderInterface()->GetContent() : nullptr);
-					VI_ASSERT_V(Content != nullptr, "activity should be set");
+					VI_ASSERT(Content != nullptr, "activity should be set");
 
 					Core::String Proto1, Proto2;
 					Core::String Fixed1 = GetFixedURL(Path1, Proto1);
@@ -587,7 +587,7 @@ namespace Mavi
 				void LoadInlineScript(const Rml::String& Content, const Rml::String& Path, int Line) override
 				{
 					ScopedContext* Scope = (ScopedContext*)GetContext();
-					VI_ASSERT_V(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
+					VI_ASSERT(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
 
 					Scope->Basis->AddRef();
 					Scope->Basis->Compiler->CompileFunction(Content).When([Scope](Scripting::Function&& Function)
@@ -607,7 +607,7 @@ namespace Mavi
 				void LoadExternalScript(const Rml::String& Path) override
 				{
 					ScopedContext* Scope = (ScopedContext*)GetContext();
-					VI_ASSERT_V(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
+					VI_ASSERT(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
 
 					Scripting::Compiler* Compiler = Scope->Basis->Compiler;
 					if (Compiler->LoadFile(Core::Stringify(Path).Replace('|', ':').R()) < 0)
@@ -668,7 +668,7 @@ namespace Mavi
 				void ProcessEvent(Rml::Event& Event) override
 				{
 					ScopedContext* Scope = (ScopedContext*)Event.GetCurrentElement()->GetContext();
-					VI_ASSERT_V(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
+					VI_ASSERT(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
 					if (!CompileInline(Scope))
 						return;
 
@@ -752,7 +752,7 @@ namespace Mavi
 			void IVariant::Convert(Rml::Variant* From, Core::Variant* To)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(From && To, "from and to should be set");
+				VI_ASSERT(From && To, "from and to should be set");
 				switch (From->GetType())
 				{
 					case Rml::Variant::BOOL:
@@ -803,7 +803,7 @@ namespace Mavi
 			void IVariant::Revert(Core::Variant* From, Rml::Variant* To)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(From && To, "from and to should be set");
+				VI_ASSERT(From && To, "from and to should be set");
 				switch (From->GetType())
 				{
 					case Core::VarType::Null:
@@ -1061,7 +1061,7 @@ namespace Mavi
 			EventPhase IEvent::GetPhase() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), EventPhase::None, "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				return (EventPhase)Base->GetPhase();
 #else
 				return EventPhase::None;
@@ -1070,21 +1070,21 @@ namespace Mavi
 			void IEvent::SetPhase(EventPhase Phase)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				Base->SetPhase((Rml::EventPhase)Phase);
 #endif
 			}
 			void IEvent::SetCurrentElement(const IElement& Element)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				Base->SetCurrentElement(Element.GetElement());
 #endif
 			}
 			IElement IEvent::GetCurrentElement() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				return Base->GetCurrentElement();
 #else
 				return IElement();
@@ -1093,7 +1093,7 @@ namespace Mavi
 			IElement IEvent::GetTargetElement() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				return Base->GetTargetElement();
 #else
 				return IElement();
@@ -1102,7 +1102,7 @@ namespace Mavi
 			Core::String IEvent::GetType() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Core::String(), "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				return Base->GetType();
 #else
 				return Core::String();
@@ -1111,21 +1111,21 @@ namespace Mavi
 			void IEvent::StopPropagation()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				Base->StopPropagation();
 #endif
 			}
 			void IEvent::StopImmediatePropagation()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				Base->StopImmediatePropagation();
 #endif
 			}
 			bool IEvent::IsInterruptible() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				return Base->IsInterruptible();
 #else
 				return false;
@@ -1134,7 +1134,7 @@ namespace Mavi
 			bool IEvent::IsPropagating() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				return Base->IsPropagating();
 #else
 				return false;
@@ -1143,7 +1143,7 @@ namespace Mavi
 			bool IEvent::IsImmediatePropagating() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				return Base->IsImmediatePropagating();
 #else
 				return false;
@@ -1152,7 +1152,7 @@ namespace Mavi
 			bool IEvent::GetBoolean(const Core::String& Key) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				return Base->GetParameter<bool>(Key, false);
 #else
 				return false;
@@ -1161,7 +1161,7 @@ namespace Mavi
 			int64_t IEvent::GetInteger(const Core::String& Key) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0, "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				return Base->GetParameter<int64_t>(Key, 0);
 #else
 				return 0;
@@ -1170,7 +1170,7 @@ namespace Mavi
 			double IEvent::GetNumber(const Core::String& Key) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0, "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				return Base->GetParameter<double>(Key, 0.0);
 #else
 				return 0.0;
@@ -1179,7 +1179,7 @@ namespace Mavi
 			Core::String IEvent::GetString(const Core::String& Key) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Core::String(), "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				return Base->GetParameter<Rml::String>(Key, "");
 #else
 				return Core::String();
@@ -1188,7 +1188,7 @@ namespace Mavi
 			Compute::Vector2 IEvent::GetVector2(const Core::String& Key) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Compute::Vector2(), "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				Rml::Vector2f Result = Base->GetParameter<Rml::Vector2f>(Key, Rml::Vector2f());
 				return Compute::Vector2(Result.x, Result.y);
 #else
@@ -1198,7 +1198,7 @@ namespace Mavi
 			Compute::Vector3 IEvent::GetVector3(const Core::String& Key) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Compute::Vector3(), "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				Rml::Vector3f Result = Base->GetParameter<Rml::Vector3f>(Key, Rml::Vector3f());
 				return Compute::Vector3(Result.x, Result.y, Result.z);
 #else
@@ -1208,7 +1208,7 @@ namespace Mavi
 			Compute::Vector4 IEvent::GetVector4(const Core::String& Key) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Compute::Vector4(), "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				Rml::Vector4f Result = Base->GetParameter<Rml::Vector4f>(Key, Rml::Vector4f());
 				return Compute::Vector4(Result.x, Result.y, Result.z, Result.w);
 #else
@@ -1218,7 +1218,7 @@ namespace Mavi
 			void* IEvent::GetPointer(const Core::String& Key) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "event should be valid");
+				VI_ASSERT(IsValid(), "event should be valid");
 				return Base->GetParameter<void*>(Key, nullptr);
 #else
 				return nullptr;
@@ -1249,7 +1249,7 @@ namespace Mavi
 			IElement IElement::Clone() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::ElementPtr Ptr = Base->Clone();
 				Rml::Element* Result = Ptr.get();
 				Ptr.reset();
@@ -1262,14 +1262,14 @@ namespace Mavi
 			void IElement::SetClass(const Core::String& ClassName, bool Activate)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->SetClass(ClassName, Activate);
 #endif
 			}
 			bool IElement::IsClassSet(const Core::String& ClassName) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->IsClassSet(ClassName);
 #else
 				return false;
@@ -1278,14 +1278,14 @@ namespace Mavi
 			void IElement::SetClassNames(const Core::String& ClassNames)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->SetClassNames(ClassNames);
 #endif
 			}
 			Core::String IElement::GetClassNames() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Core::String(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetClassNames();
 #else
 				return Core::String();
@@ -1295,7 +1295,7 @@ namespace Mavi
 			Core::String IElement::GetAddress(bool IncludePseudoClasses, bool IncludeParents) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Core::String(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetAddress(IncludePseudoClasses, IncludeParents);
 #else
 				return Core::String();
@@ -1305,14 +1305,14 @@ namespace Mavi
 			void IElement::SetOffset(const Compute::Vector2& Offset, const IElement& OffsetParent, bool OffsetFixed)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->SetOffset(Rml::Vector2f(Offset.X, Offset.Y), OffsetParent.GetElement(), OffsetFixed);
 #endif
 			}
 			Compute::Vector2 IElement::GetRelativeOffset(Area Type)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Compute::Vector2(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::Vector2f Result = Base->GetRelativeOffset((Rml::Box::Area)Type);
 				return Compute::Vector2(Result.x, Result.y);
 #else
@@ -1323,7 +1323,7 @@ namespace Mavi
 			Compute::Vector2 IElement::GetAbsoluteOffset(Area Type)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Compute::Vector2(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::Vector2f Result = Base->GetAbsoluteOffset((Rml::Box::Area)Type);
 				return Compute::Vector2(Result.x, Result.y);
 #else
@@ -1334,14 +1334,14 @@ namespace Mavi
 			void IElement::SetClientArea(Area ClientArea)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->SetClientArea((Rml::Box::Area)ClientArea);
 #endif
 			}
 			Area IElement::GetClientArea() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Area::Content, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return (Area)Base->GetClientArea();
 #else
 				return Area::Margin;
@@ -1351,14 +1351,14 @@ namespace Mavi
 			void IElement::SetContentBox(const Compute::Vector2& ContentOffset, const Compute::Vector2& ContentBox)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->SetContentBox(Rml::Vector2f(ContentOffset.X, ContentOffset.Y), Rml::Vector2f(ContentBox.X, ContentBox.Y));
 #endif
 			}
 			float IElement::GetBaseline() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetBaseline();
 #else
 				return 0.0f;
@@ -1368,7 +1368,7 @@ namespace Mavi
 			bool IElement::GetIntrinsicDimensions(Compute::Vector2& Dimensions, float& Ratio)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::Vector2f Size;
 				bool Result = Base->GetIntrinsicDimensions(Size, Ratio);
 				Dimensions = Compute::Vector2(Size.x, Size.y);
@@ -1382,7 +1382,7 @@ namespace Mavi
 			bool IElement::IsPointWithinElement(const Compute::Vector2& Point)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->IsPointWithinElement(Rml::Vector2f(Point.X, Point.Y));
 #else
 				return false;
@@ -1392,7 +1392,7 @@ namespace Mavi
 			bool IElement::IsVisible() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->IsVisible();
 #else
 				return false;
@@ -1402,7 +1402,7 @@ namespace Mavi
 			float IElement::GetZIndex() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetZIndex();
 #else
 				return 0.0f;
@@ -1412,7 +1412,7 @@ namespace Mavi
 			bool IElement::SetProperty(const Core::String& Name, const Core::String& Value)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->SetProperty(Name, Value);
 #else
 				return false;
@@ -1422,14 +1422,14 @@ namespace Mavi
 			void IElement::RemoveProperty(const Core::String& Name)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->RemoveProperty(Name);
 #endif
 			}
 			Core::String IElement::GetProperty(const Core::String& Name)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Core::String(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				const Rml::Property* Result = Base->GetProperty(Name);
 				if (!Result)
 					return "";
@@ -1442,7 +1442,7 @@ namespace Mavi
 			Core::String IElement::GetLocalProperty(const Core::String& Name)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Core::String(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				const Rml::Property* Result = Base->GetLocalProperty(Name);
 				if (!Result)
 					return "";
@@ -1455,7 +1455,7 @@ namespace Mavi
 			float IElement::ResolveNumericProperty(const Core::String& PropertyName)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->ResolveNumericProperty(PropertyName);
 #else
 				return 0.0f;
@@ -1464,7 +1464,7 @@ namespace Mavi
 			Compute::Vector2 IElement::GetContainingBlock()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Compute::Vector2(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::Vector2f Result = Base->GetContainingBlock();
 				return Compute::Vector2(Result.x, Result.y);
 #else
@@ -1474,7 +1474,7 @@ namespace Mavi
 			Position IElement::GetPosition()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Position::Static, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return (Position)Base->GetPosition();
 #else
 				return Position::Static;
@@ -1483,7 +1483,7 @@ namespace Mavi
 			Float IElement::GetFloat()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Float::None, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return (Float)Base->GetFloat();
 #else
 				return Float::None;
@@ -1492,7 +1492,7 @@ namespace Mavi
 			Display IElement::GetDisplay()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Display::None, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return (Display)Base->GetDisplay();
 #else
 				return Display::None;
@@ -1501,7 +1501,7 @@ namespace Mavi
 			float IElement::GetLineHeight()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetLineHeight();
 #else
 				return 0.0f;
@@ -1510,7 +1510,7 @@ namespace Mavi
 			bool IElement::Project(Compute::Vector2& Point) const noexcept
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::Vector2f Offset(Point.X, Point.Y);
 				bool Result = Base->Project(Offset);
 				Point = Compute::Vector2(Offset.x, Offset.y);
@@ -1523,7 +1523,7 @@ namespace Mavi
 			bool IElement::Animate(const Core::String& PropertyName, const Core::String& TargetValue, float Duration, TimingFunc Func, TimingDir Dir, int NumIterations, bool AlternateDirection, float Delay)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->Animate(PropertyName, Rml::Property(TargetValue, Rml::Property::TRANSFORM), Duration, Rml::Tween((Rml::Tween::Type)Func, (Rml::Tween::Direction)Dir), NumIterations, AlternateDirection, Delay);
 #else
 				return false;
@@ -1532,7 +1532,7 @@ namespace Mavi
 			bool IElement::AddAnimationKey(const Core::String& PropertyName, const Core::String& TargetValue, float Duration, TimingFunc Func, TimingDir Dir)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->AddAnimationKey(PropertyName, Rml::Property(TargetValue, Rml::Property::TRANSFORM), Duration, Rml::Tween((Rml::Tween::Type)Func, (Rml::Tween::Direction)Dir));
 #else
 				return false;
@@ -1541,14 +1541,14 @@ namespace Mavi
 			void IElement::SetPseudoClass(const Core::String& PseudoClass, bool Activate)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->SetPseudoClass(PseudoClass, Activate);
 #endif
 			}
 			bool IElement::IsPseudoClassSet(const Core::String& PseudoClass) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->IsPseudoClassSet(PseudoClass);
 #else
 				return false;
@@ -1557,14 +1557,14 @@ namespace Mavi
 			void IElement::SetAttribute(const Core::String& Name, const Core::String& Value)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->SetAttribute(Name, Value);
 #endif
 			}
 			Core::String IElement::GetAttribute(const Core::String& Name)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Core::String(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetAttribute<Core::String>(Name, "");
 #else
 				return Core::String();
@@ -1573,7 +1573,7 @@ namespace Mavi
 			bool IElement::HasAttribute(const Core::String& Name) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->HasAttribute(Name);
 #else
 				return false;
@@ -1582,14 +1582,14 @@ namespace Mavi
 			void IElement::RemoveAttribute(const Core::String& Name)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->RemoveAttribute(Name);
 #endif
 			}
 			IElement IElement::GetFocusLeafNode()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetFocusLeafNode();
 #else
 				return IElement();
@@ -1598,7 +1598,7 @@ namespace Mavi
 			Core::String IElement::GetTagName() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Core::String(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetTagName();
 #else
 				return Core::String();
@@ -1607,7 +1607,7 @@ namespace Mavi
 			Core::String IElement::GetId() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Core::String(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetId();
 #else
 				return Core::String();
@@ -1616,14 +1616,14 @@ namespace Mavi
 			void IElement::SetId(const Core::String& Id)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->SetId(Id);
 #endif
 			}
 			float IElement::GetAbsoluteLeft()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetAbsoluteLeft();
 #else
 				return 0.0f;
@@ -1632,7 +1632,7 @@ namespace Mavi
 			float IElement::GetAbsoluteTop()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetAbsoluteTop();
 #else
 				return 0.0f;
@@ -1641,7 +1641,7 @@ namespace Mavi
 			float IElement::GetClientLeft()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetClientLeft();
 #else
 				return 0.0f;
@@ -1650,7 +1650,7 @@ namespace Mavi
 			float IElement::GetClientTop()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetClientTop();
 #else
 				return 0.0f;
@@ -1659,7 +1659,7 @@ namespace Mavi
 			float IElement::GetClientWidth()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetClientWidth();
 #else
 				return 0.0f;
@@ -1668,7 +1668,7 @@ namespace Mavi
 			float IElement::GetClientHeight()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetClientHeight();
 #else
 				return 0.0f;
@@ -1677,7 +1677,7 @@ namespace Mavi
 			IElement IElement::GetOffsetParent()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetOffsetParent();
 #else
 				return IElement();
@@ -1686,7 +1686,7 @@ namespace Mavi
 			float IElement::GetOffsetLeft()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetOffsetLeft();
 #else
 				return 0.0f;
@@ -1695,7 +1695,7 @@ namespace Mavi
 			float IElement::GetOffsetTop()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetOffsetTop();
 #else
 				return 0.0f;
@@ -1704,7 +1704,7 @@ namespace Mavi
 			float IElement::GetOffsetWidth()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetOffsetWidth();
 #else
 				return 0.0f;
@@ -1713,7 +1713,7 @@ namespace Mavi
 			float IElement::GetOffsetHeight()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetOffsetHeight();
 #else
 				return 0.0f;
@@ -1722,7 +1722,7 @@ namespace Mavi
 			float IElement::GetScrollLeft()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetScrollLeft();
 #else
 				return 0.0f;
@@ -1731,14 +1731,14 @@ namespace Mavi
 			void IElement::SetScrollLeft(float ScrollLeft)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->SetScrollLeft(ScrollLeft);
 #endif
 			}
 			float IElement::GetScrollTop()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetScrollTop();
 #else
 				return 0.0f;
@@ -1747,14 +1747,14 @@ namespace Mavi
 			void IElement::SetScrollTop(float ScrollTop)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->SetScrollTop(ScrollTop);
 #endif
 			}
 			float IElement::GetScrollWidth()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetScrollWidth();
 #else
 				return 0.0f;
@@ -1763,7 +1763,7 @@ namespace Mavi
 			float IElement::GetScrollHeight()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0.0f, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetScrollHeight();
 #else
 				return 0.0f;
@@ -1772,7 +1772,7 @@ namespace Mavi
 			IElementDocument IElement::GetOwnerDocument() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetOwnerDocument();
 #else
 				return IElementDocument();
@@ -1781,7 +1781,7 @@ namespace Mavi
 			IElement IElement::GetParentNode() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetParentNode();
 #else
 				return IElement();
@@ -1790,7 +1790,7 @@ namespace Mavi
 			IElement IElement::GetNextSibling() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetNextSibling();
 #else
 				return IElement();
@@ -1799,7 +1799,7 @@ namespace Mavi
 			IElement IElement::GetPreviousSibling() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetPreviousSibling();
 #else
 				return IElement();
@@ -1808,7 +1808,7 @@ namespace Mavi
 			IElement IElement::GetFirstChild() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetFirstChild();
 #else
 				return IElement();
@@ -1817,7 +1817,7 @@ namespace Mavi
 			IElement IElement::GetLastChild() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetLastChild();
 #else
 				return IElement();
@@ -1826,7 +1826,7 @@ namespace Mavi
 			IElement IElement::GetChild(int Index) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetChild(Index);
 #else
 				return IElement();
@@ -1835,7 +1835,7 @@ namespace Mavi
 			int IElement::GetNumChildren(bool IncludeNonDOMElements) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), 0, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetNumChildren(IncludeNonDOMElements);
 #else
 				return 0;
@@ -1844,14 +1844,14 @@ namespace Mavi
 			void IElement::GetInnerHTML(Core::String& Content) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->GetInnerRML(Content);
 #endif
 			}
 			Core::String IElement::GetInnerHTML() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Core::String(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetInnerRML();
 #else
 				return Core::String();
@@ -1860,14 +1860,14 @@ namespace Mavi
 			void IElement::SetInnerHTML(const Core::String& HTML)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->SetInnerRML(HTML);
 #endif
 			}
 			bool IElement::IsFocused()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->IsPseudoClassSet("focus");
 #else
 				return false;
@@ -1876,7 +1876,7 @@ namespace Mavi
 			bool IElement::IsHovered()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->IsPseudoClassSet("hover");
 #else
 				return false;
@@ -1885,7 +1885,7 @@ namespace Mavi
 			bool IElement::IsActive()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->IsPseudoClassSet("active");
 #else
 				return false;
@@ -1894,7 +1894,7 @@ namespace Mavi
 			bool IElement::IsChecked()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->IsPseudoClassSet("checked");
 #else
 				return false;
@@ -1903,7 +1903,7 @@ namespace Mavi
 			bool IElement::Focus()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->Focus();
 #else
 				return false;
@@ -1912,22 +1912,22 @@ namespace Mavi
 			void IElement::Blur()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->Blur();
 #endif
 			}
 			void IElement::Click()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->Click();
 #endif
 			}
 			void IElement::AddEventListener(const Core::String& Event, Listener* Source, bool InCapturePhase)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
-				VI_ASSERT_V(Source != nullptr && Source->Base != nullptr, "listener should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Source != nullptr && Source->Base != nullptr, "listener should be set");
 
 				Base->AddEventListener(Event, Source->Base, InCapturePhase);
 #endif
@@ -1935,8 +1935,8 @@ namespace Mavi
 			void IElement::RemoveEventListener(const Core::String& Event, Listener* Source, bool InCapturePhase)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
-				VI_ASSERT_V(Source != nullptr && Source->Base != nullptr, "listener should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Source != nullptr && Source->Base != nullptr, "listener should be set");
 
 				Base->RemoveEventListener(Event, Source->Base, InCapturePhase);
 #endif
@@ -1944,7 +1944,7 @@ namespace Mavi
 			bool IElement::DispatchEvent(const Core::String& Type, const Core::VariantArgs& Args)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::Dictionary Props;
 				for (auto& Item : Args)
 				{
@@ -1960,14 +1960,14 @@ namespace Mavi
 			void IElement::ScrollIntoView(bool AlignWithTop)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Base->ScrollIntoView(AlignWithTop);
 #endif
 			}
 			IElement IElement::AppendChild(const IElement& Element, bool DOMElement)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->AppendChild(Rml::ElementPtr(Element.GetElement()), DOMElement);
 #else
 				return IElement();
@@ -1976,7 +1976,7 @@ namespace Mavi
 			IElement IElement::InsertBefore(const IElement& Element, const IElement& AdjacentElement)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->InsertBefore(Rml::ElementPtr(Element.GetElement()), AdjacentElement.GetElement());
 #else
 				return IElement();
@@ -1985,7 +1985,7 @@ namespace Mavi
 			IElement IElement::ReplaceChild(const IElement& InsertedElement, const IElement& ReplacedElement)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::ElementPtr Ptr = Base->ReplaceChild(Rml::ElementPtr(InsertedElement.GetElement()), ReplacedElement.GetElement());
 				Rml::Element* Result = Ptr.get();
 				Ptr.reset();
@@ -1998,7 +1998,7 @@ namespace Mavi
 			IElement IElement::RemoveChild(const IElement& Element)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::ElementPtr Ptr = Base->RemoveChild(Element.GetElement());
 				Rml::Element* Result = Ptr.get();
 				Ptr.reset();
@@ -2011,7 +2011,7 @@ namespace Mavi
 			bool IElement::HasChildNodes() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->HasChildNodes();
 #else
 				return false;
@@ -2020,7 +2020,7 @@ namespace Mavi
 			IElement IElement::GetElementById(const Core::String& Id)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->GetElementById(Id);
 #else
 				return IElement();
@@ -2029,7 +2029,7 @@ namespace Mavi
 			IElement IElement::QuerySelector(const Core::String& Selector)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return Base->QuerySelector(Selector);
 #else
 				return IElement();
@@ -2038,7 +2038,7 @@ namespace Mavi
 			Core::Vector<IElement> IElement::QuerySelectorAll(const Core::String& Selectors)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Core::Vector<IElement>(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::ElementList Elements;
 				Base->QuerySelectorAll(Elements, Selectors);
 
@@ -2056,8 +2056,8 @@ namespace Mavi
 			bool IElement::CastFormColor(Compute::Vector4* Ptr, bool Alpha)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
-				VI_ASSERT(Ptr != nullptr, false, "ptr should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Core::String Value = Form->GetValue();
@@ -2120,8 +2120,8 @@ namespace Mavi
 			bool IElement::CastFormString(Core::String* Ptr)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
-				VI_ASSERT(Ptr != nullptr, false, "ptr should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Core::String Value = Form->GetValue();
@@ -2143,8 +2143,8 @@ namespace Mavi
 			bool IElement::CastFormPointer(void** Ptr)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
-				VI_ASSERT(Ptr != nullptr, false, "ptr should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				void* Value = ToPointer(Form->GetValue());
@@ -2166,8 +2166,8 @@ namespace Mavi
 			bool IElement::CastFormInt32(int32_t* Ptr)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
-				VI_ASSERT(Ptr != nullptr, false, "ptr should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Core::Stringify Value(Form->GetValue());
@@ -2205,8 +2205,8 @@ namespace Mavi
 			bool IElement::CastFormUInt32(uint32_t* Ptr)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
-				VI_ASSERT(Ptr != nullptr, false, "ptr should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Core::Stringify Value(Form->GetValue());
@@ -2244,8 +2244,8 @@ namespace Mavi
 			bool IElement::CastFormFlag32(uint32_t* Ptr, uint32_t Mask)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
-				VI_ASSERT(Ptr != nullptr, false, "ptr should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				bool Value = (*Ptr & Mask);
 				if (!CastFormBoolean(&Value))
@@ -2264,8 +2264,8 @@ namespace Mavi
 			bool IElement::CastFormInt64(int64_t* Ptr)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
-				VI_ASSERT(Ptr != nullptr, false, "ptr should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Core::Stringify Value(Form->GetValue());
@@ -2303,8 +2303,8 @@ namespace Mavi
 			bool IElement::CastFormUInt64(uint64_t* Ptr)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
-				VI_ASSERT(Ptr != nullptr, false, "ptr should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Core::Stringify Value(Form->GetValue());
@@ -2342,8 +2342,8 @@ namespace Mavi
 			bool IElement::CastFormSize(size_t* Ptr)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
-				VI_ASSERT(Ptr != nullptr, false, "ptr should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Core::Stringify Value(Form->GetValue());
@@ -2381,8 +2381,8 @@ namespace Mavi
 			bool IElement::CastFormFlag64(uint64_t* Ptr, uint64_t Mask)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
-				VI_ASSERT(Ptr != nullptr, false, "ptr should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				bool Value = (*Ptr & Mask);
 				if (!CastFormBoolean(&Value))
@@ -2401,8 +2401,8 @@ namespace Mavi
 			bool IElement::CastFormFloat(float* Ptr)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
-				VI_ASSERT(Ptr != nullptr, false, "ptr should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Core::Stringify Value(Form->GetValue());
@@ -2440,8 +2440,8 @@ namespace Mavi
 			bool IElement::CastFormFloat(float* Ptr, float Mult)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
-				VI_ASSERT(Ptr != nullptr, false, "ptr should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				*Ptr *= Mult;
 				bool Result = CastFormFloat(Ptr);
@@ -2455,8 +2455,8 @@ namespace Mavi
 			bool IElement::CastFormDouble(double* Ptr)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
-				VI_ASSERT(Ptr != nullptr, false, "ptr should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Core::Stringify Value(Form->GetValue());
@@ -2494,8 +2494,8 @@ namespace Mavi
 			bool IElement::CastFormBoolean(bool* Ptr)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
-				VI_ASSERT(Ptr != nullptr, false, "ptr should be set");
+				VI_ASSERT(IsValid(), "element should be valid");
+				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				bool B = Form->HasAttribute("checked");
@@ -2521,7 +2521,7 @@ namespace Mavi
 			Core::String IElement::GetFormName() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Core::String(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				return Form->GetName();
 #else
@@ -2531,7 +2531,7 @@ namespace Mavi
 			void IElement::SetFormName(const Core::String& Name)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Form->SetName(Name);
 #endif
@@ -2539,7 +2539,7 @@ namespace Mavi
 			Core::String IElement::GetFormValue() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Core::String(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				return Form->GetValue();
 #else
@@ -2549,7 +2549,7 @@ namespace Mavi
 			void IElement::SetFormValue(const Core::String& Value)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Form->SetValue(Value);
 #endif
@@ -2557,7 +2557,7 @@ namespace Mavi
 			bool IElement::IsFormDisabled() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				return Form->IsDisabled();
 #else
@@ -2567,7 +2567,7 @@ namespace Mavi
 			void IElement::SetFormDisabled(bool Disable)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Form->SetDisabled(Disable);
 #endif
@@ -2616,49 +2616,49 @@ namespace Mavi
 			void IElementDocument::SetTitle(const Core::String& Title)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				((Rml::ElementDocument*)Base)->SetTitle(Title);
 #endif
 			}
 			void IElementDocument::PullToFront()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				((Rml::ElementDocument*)Base)->PullToFront();
 #endif
 			}
 			void IElementDocument::PushToBack()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				((Rml::ElementDocument*)Base)->PushToBack();
 #endif
 			}
 			void IElementDocument::Show(ModalFlag Modal, FocusFlag Focus)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				((Rml::ElementDocument*)Base)->Show((Rml::ModalFlag)Modal, (Rml::FocusFlag)Focus);
 #endif
 			}
 			void IElementDocument::Hide()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				((Rml::ElementDocument*)Base)->Hide();
 #endif
 			}
 			void IElementDocument::Close()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				((Rml::ElementDocument*)Base)->Close();
 #endif
 			}
 			Core::String IElementDocument::GetTitle() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Core::String(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return ((Rml::ElementDocument*)Base)->GetTitle();
 #else
 				return Core::String();
@@ -2667,7 +2667,7 @@ namespace Mavi
 			Core::String IElementDocument::GetSourceURL() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), Core::String(), "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return ((Rml::ElementDocument*)Base)->GetSourceURL();
 #else
 				return Core::String();
@@ -2676,7 +2676,7 @@ namespace Mavi
 			IElement IElementDocument::CreateElement(const Core::String& Name)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::ElementPtr Ptr = ((Rml::ElementDocument*)Base)->CreateElement(Name);
 				Rml::Element* Result = Ptr.get();
 				Ptr.reset();
@@ -2689,7 +2689,7 @@ namespace Mavi
 			bool IElementDocument::IsModal() const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "element should be valid");
+				VI_ASSERT(IsValid(), "element should be valid");
 				return ((Rml::ElementDocument*)Base)->IsModal();
 #else
 				return false;
@@ -2799,7 +2799,7 @@ namespace Mavi
 			void Subsystem::SetTranslator(const Core::String& Name, const TranslationCallback& Callback)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(SystemInterface != nullptr, "system interface should be valid");
+				VI_ASSERT(SystemInterface != nullptr, "system interface should be valid");
 				SystemInterface->SetTranslator(Name, Callback);
 #endif
 			}
@@ -2822,7 +2822,7 @@ namespace Mavi
 			Graphics::GraphicsDevice* Subsystem::GetDevice()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(RenderInterface != nullptr, nullptr, "render interface should be valid");
+				VI_ASSERT(RenderInterface != nullptr, "render interface should be valid");
 				return RenderInterface->GetDevice();
 #else
 				return nullptr;
@@ -2831,7 +2831,7 @@ namespace Mavi
 			Graphics::Texture2D* Subsystem::GetBackground()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(RenderInterface != nullptr, nullptr, "render interface should be valid");
+				VI_ASSERT(RenderInterface != nullptr, "render interface should be valid");
 				return RenderInterface->Background;
 #else
 				return nullptr;
@@ -2840,7 +2840,7 @@ namespace Mavi
 			Compute::Matrix4x4* Subsystem::GetTransform()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(RenderInterface != nullptr, nullptr, "render interface should be valid");
+				VI_ASSERT(RenderInterface != nullptr, "render interface should be valid");
 				return RenderInterface->GetTransform();
 #else
 				return nullptr;
@@ -2849,7 +2849,7 @@ namespace Mavi
 			Compute::Matrix4x4* Subsystem::GetProjection()
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(RenderInterface != nullptr, nullptr, "render interface should be valid");
+				VI_ASSERT(RenderInterface != nullptr, "render interface should be valid");
 				return RenderInterface->GetProjection();
 #else
 				return nullptr;
@@ -2858,7 +2858,7 @@ namespace Mavi
 			Compute::Matrix4x4 Subsystem::ToMatrix(const void* Matrix)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(Matrix != nullptr, Compute::Matrix4x4::Identity(), "matrix should be set");
+				VI_ASSERT(Matrix != nullptr, "matrix should be set");
 				const Rml::Matrix4f* NewTransform = (const Rml::Matrix4f*)Matrix;
 				Rml::Vector4f Row11 = NewTransform->GetRow(0);
 				Compute::Matrix4x4 Result;
@@ -2930,7 +2930,7 @@ namespace Mavi
 			DataNode* DataModel::SetProperty(const Core::String& Name, const Core::Variant& Value)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "data node should be valid");
+				VI_ASSERT(IsValid(), "data node should be valid");
 				DataNode* Result = GetProperty(Name);
 				if (Result != nullptr)
 				{
@@ -2962,8 +2962,8 @@ namespace Mavi
 			DataNode* DataModel::SetProperty(const Core::String& Name, Core::Variant* Value)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), nullptr, "data node should be valid");
-				VI_ASSERT(Value != nullptr, nullptr, "value should be set");
+				VI_ASSERT(IsValid(), "data node should be valid");
+				VI_ASSERT(Value != nullptr, "value should be set");
 
 				DataNode* Sub = GetProperty(Name);
 				if (Sub != nullptr)
@@ -3072,8 +3072,8 @@ namespace Mavi
 			bool DataModel::SetCallback(const Core::String& Name, const DataCallback& Callback)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "data node should be valid");
-				VI_ASSERT(Callback, false, "callback should not be empty");
+				VI_ASSERT(IsValid(), "data node should be valid");
+				VI_ASSERT(Callback, "callback should not be empty");
 
 				return Base->BindEventCallback(Name, [Callback](Rml::DataModelHandle Handle, Rml::Event& Event, const Rml::VariantList& Props)
 				{
@@ -3099,14 +3099,14 @@ namespace Mavi
 			void DataModel::Change(const Core::String& VariableName)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(IsValid(), "data node should be valid");
+				VI_ASSERT(IsValid(), "data node should be valid");
 				Base->GetModelHandle().DirtyVariable(VariableName);
 #endif
 			}
 			bool DataModel::HasChanged(const Core::String& VariableName) const
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(IsValid(), false, "data node should be valid");
+				VI_ASSERT(IsValid(), "data node should be valid");
 				return Base->GetModelHandle().IsVariableDirty(VariableName);
 #else
 				return false;
@@ -3152,7 +3152,7 @@ namespace Mavi
 			}
 			DataNode& DataNode::Insert(size_t Where, const Core::VariantList& Initial, std::pair<void*, size_t>* Top)
 			{
-				VI_ASSERT(Where <= Childs.size(), *Childs.begin(), "index outside of range");
+				VI_ASSERT(Where <= Childs.size(), "index outside of range");
 				DataNode Result(Handle, Name, Core::Var::Array());
 				if (Top != nullptr)
 				{
@@ -3173,7 +3173,7 @@ namespace Mavi
 			}
 			DataNode& DataNode::Insert(size_t Where, const Core::Variant& Initial, std::pair<void*, size_t>* Top)
 			{
-				VI_ASSERT(Where <= Childs.size(), *Childs.begin(), "index outside of range");
+				VI_ASSERT(Where <= Childs.size(), "index outside of range");
 				DataNode Result(Handle, Name, Initial);
 				if (Top != nullptr)
 				{
@@ -3191,7 +3191,7 @@ namespace Mavi
 			}
 			DataNode& DataNode::Insert(size_t Where, Core::Variant* Reference, std::pair<void*, size_t>* Top)
 			{
-				VI_ASSERT(Where <= Childs.size(), *Childs.begin(), "index outside of range");
+				VI_ASSERT(Where <= Childs.size(), "index outside of range");
 				DataNode Result(Handle, Name, Reference);
 				if (Top != nullptr)
 				{
@@ -3263,12 +3263,12 @@ namespace Mavi
 			}
 			DataNode& DataNode::At(size_t Index)
 			{
-				VI_ASSERT(Index < Childs.size(), *this, "index outside of range");
+				VI_ASSERT(Index < Childs.size(), "index outside of range");
 				return Childs[Index];
 			}
 			bool DataNode::Remove(size_t Index)
 			{
-				VI_ASSERT(Index < Childs.size(), false, "index outside of range");
+				VI_ASSERT(Index < Childs.size(), "index outside of range");
 				Childs.erase(Childs.begin() + Index);
 
 				if (Handle != nullptr && !Name.empty())
@@ -3514,7 +3514,7 @@ namespace Mavi
 #ifdef VI_USE_RMLUI
 				Base = (ScopedContext*)Rml::CreateContext(Core::ToString(Subsystem::Id++), Rml::Vector2i((int)Size.X, (int)Size.Y));
 
-				VI_ASSERT_V(Base != nullptr, "context cannot be created");
+				VI_ASSERT(Base != nullptr, "context cannot be created");
 				Base->Basis = this;
 				CreateVM();
 #endif
@@ -3522,13 +3522,13 @@ namespace Mavi
 			Context::Context(Graphics::GraphicsDevice* Device) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(Device != nullptr, "graphics device should be set");
-				VI_ASSERT_V(Device->GetRenderTarget() != nullptr, "graphics device should be set");
+				VI_ASSERT(Device != nullptr, "graphics device should be set");
+				VI_ASSERT(Device->GetRenderTarget() != nullptr, "graphics device should be set");
 
 				Graphics::RenderTarget2D* Target = Device->GetRenderTarget();
 				Base = (ScopedContext*)Rml::CreateContext(Core::ToString(Subsystem::Id++), Rml::Vector2i((int)Target->GetWidth(), (int)Target->GetHeight()));
 
-				VI_ASSERT_V(Base != nullptr, "context cannot be created");
+				VI_ASSERT(Base != nullptr, "context cannot be created");
 				Base->Basis = this;
 				CreateVM();
 #endif
@@ -3595,7 +3595,7 @@ namespace Mavi
 			void Context::EmitInput(const char* Buffer, int Length)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(Buffer != nullptr && Length > 0, "buffer should be set");
+				VI_ASSERT(Buffer != nullptr && Length > 0, "buffer should be set");
 				if (Base->ProcessTextInput(Core::String(Buffer, Length)))
 					Inputs.Text = true;
 #endif
@@ -3638,7 +3638,7 @@ namespace Mavi
 			void Context::RenderLists(Graphics::Texture2D* Target)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(Subsystem::GetRenderInterface() != nullptr, "render interface should be valid");
+				VI_ASSERT(Subsystem::GetRenderInterface() != nullptr, "render interface should be valid");
 				RenderSubsystem* Renderer = Subsystem::GetRenderInterface();
 				Renderer->Background = Target;
 				Base->Render();
@@ -3667,7 +3667,7 @@ namespace Mavi
 			}
 			bool Context::Initialize(Core::Schema* Conf, const Core::String& Relative)
 			{
-				VI_ASSERT(Conf != nullptr, false, "conf should be set");
+				VI_ASSERT(Conf != nullptr, "conf should be set");
 				bool State = Loading;
 				Loading = true;
 
@@ -3714,8 +3714,8 @@ namespace Mavi
 			bool Context::Initialize(const Core::String& ConfPath)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(Subsystem::RenderInterface != nullptr, false, "render interface should be set");
-				VI_ASSERT(Subsystem::RenderInterface->GetContent() != nullptr, false, "content manager should be set");
+				VI_ASSERT(Subsystem::RenderInterface != nullptr, "render interface should be set");
+				VI_ASSERT(Subsystem::RenderInterface->GetContent() != nullptr, "content manager should be set");
 
 				bool State = Loading;
 				Loading = true;
@@ -3758,7 +3758,7 @@ namespace Mavi
 			bool Context::LoadFontFace(const Core::String& Path, bool UseAsFallback)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT(Subsystem::GetSystemInterface() != nullptr, false, "system interface should be set");
+				VI_ASSERT(Subsystem::GetSystemInterface() != nullptr, "system interface should be set");
 				bool State = Loading;
 				Loading = true;
 
@@ -4075,14 +4075,14 @@ namespace Mavi
 			void Context::AddEventListener(const Core::String& Event, Listener* Listener, bool InCapturePhase)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(Listener != nullptr && Listener->Base != nullptr, "listener should be valid");
+				VI_ASSERT(Listener != nullptr && Listener->Base != nullptr, "listener should be valid");
 				Base->AddEventListener(Event, Listener->Base, InCapturePhase);
 #endif
 			}
 			void Context::RemoveEventListener(const Core::String& Event, Listener* Listener, bool InCapturePhase)
 			{
 #ifdef VI_USE_RMLUI
-				VI_ASSERT_V(Listener != nullptr && Listener->Base != nullptr, "listener should be valid");
+				VI_ASSERT(Listener != nullptr && Listener->Base != nullptr, "listener should be valid");
 				Base->RemoveEventListener(Event, Listener->Base, InCapturePhase);
 #endif
 			}

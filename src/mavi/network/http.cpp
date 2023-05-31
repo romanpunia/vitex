@@ -117,7 +117,7 @@ namespace Mavi
 			}
 			void WebSocketFrame::Send(unsigned int Mask, const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
-				VI_ASSERT_V(Buffer != nullptr, "buffer should be set");
+				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 
 				Section.lock();
 				if (Enqueue(Mask, Buffer, Size, Opcode, Callback))
@@ -471,7 +471,7 @@ namespace Mavi
 
 			RouteEntry::RouteEntry(RouteEntry* Other, const Compute::RegexSource& Source)
 			{
-				VI_ASSERT_V(Other != nullptr, "other should be set");
+				VI_ASSERT(Other != nullptr, "other should be set");
 				Callbacks = Other->Callbacks;
 				Auth = Other->Auth;
 				Compression = Other->Compression;
@@ -613,7 +613,7 @@ namespace Mavi
 			}
 			RouteEntry* SiteEntry::Route(const Core::String& Pattern, RouteGroup* Group, RouteEntry* From)
 			{
-				VI_ASSERT(Group != nullptr, nullptr, "group should be set");
+				VI_ASSERT(Group != nullptr, "group should be set");
 				if (From != nullptr)
 				{
 					HTTP::RouteEntry* Result = new HTTP::RouteEntry(From, Compute::RegexSource(Pattern));
@@ -628,7 +628,7 @@ namespace Mavi
 			}
 			bool SiteEntry::Remove(RouteEntry* Source)
 			{
-				VI_ASSERT(Source != nullptr, false, "source should be set");
+				VI_ASSERT(Source != nullptr, "source should be set");
 				for (auto& Group : Groups)
 				{
 					auto It = std::find(Group->Routes.begin(), Group->Routes.end(), Source);
@@ -829,7 +829,7 @@ namespace Mavi
 			}
 			SiteEntry* MapRouter::Site(const char* Pattern)
 			{
-				VI_ASSERT(Pattern != nullptr, nullptr, "pattern should be set");
+				VI_ASSERT(Pattern != nullptr, "pattern should be set");
 				auto It = Sites.find(Pattern);
 				if (It != Sites.end())
 					return It->second;
@@ -846,19 +846,19 @@ namespace Mavi
 
 			void Resource::PutHeader(const Core::String& Label, const Core::String& Value)
 			{
-				VI_ASSERT_V(!Label.empty(), "label should not be empty");
+				VI_ASSERT(!Label.empty(), "label should not be empty");
 				Headers[Label].push_back(Value);
 			}
 			void Resource::SetHeader(const Core::String& Label, const Core::String& Value)
 			{
-				VI_ASSERT_V(!Label.empty(), "label should not be empty");
+				VI_ASSERT(!Label.empty(), "label should not be empty");
 				auto& Range = Headers[Label];
 				Range.clear();
 				Range.push_back(Value);
 			}
 			Core::String Resource::ComposeHeader(const Core::String& Label) const
 			{
-				VI_ASSERT(!Label.empty(), Core::String(), "label should not be empty");
+				VI_ASSERT(!Label.empty(), "label should not be empty");
 				auto It = Headers.find(Label);
 				if (It == Headers.end())
 					return Core::String();
@@ -874,12 +874,12 @@ namespace Mavi
 			}
 			RangePayload* Resource::GetHeaderRanges(const Core::String& Label)
 			{
-				VI_ASSERT(!Label.empty(), nullptr, "label should not be empty");
+				VI_ASSERT(!Label.empty(), "label should not be empty");
 				return (RangePayload*)&Headers[Label];
 			}
 			const Core::String* Resource::GetHeaderBlob(const Core::String& Label) const
 			{
-				VI_ASSERT(!Label.empty(), nullptr, "label should not be empty");
+				VI_ASSERT(!Label.empty(), "label should not be empty");
 				auto It = Headers.find(Label);
 				if (It == Headers.end())
 					return nullptr;
@@ -892,7 +892,7 @@ namespace Mavi
 			}
 			const char* Resource::GetHeader(const Core::String& Label) const
 			{
-				VI_ASSERT(!Label.empty(), nullptr, "label should not be empty");
+				VI_ASSERT(!Label.empty(), "label should not be empty");
 				auto It = Headers.find(Label);
 				if (It == Headers.end())
 					return nullptr;
@@ -905,7 +905,7 @@ namespace Mavi
 
 			void RequestFrame::SetMethod(const char* Value)
 			{
-				VI_ASSERT_V(Value != nullptr, "value should be set");
+				VI_ASSERT(Value != nullptr, "value should be set");
 				strncpy(Method, Value, sizeof(Method));
 			}
 			void RequestFrame::SetVersion(unsigned int Major, unsigned int Minor)
@@ -915,12 +915,12 @@ namespace Mavi
 			}
 			void RequestFrame::PutHeader(const Core::String& Key, const Core::String& Value)
 			{
-				VI_ASSERT_V(!Key.empty(), "key should not be empty");
+				VI_ASSERT(!Key.empty(), "key should not be empty");
 				Headers[Key].push_back(Value);
 			}
 			void RequestFrame::SetHeader(const Core::String& Key, const Core::String& Value)
 			{
-				VI_ASSERT_V(!Key.empty(), "key should not be empty");
+				VI_ASSERT(!Key.empty(), "key should not be empty");
 				auto& Range = Headers[Key];
 				Range.clear();
 				Range.push_back(Value);
@@ -941,7 +941,7 @@ namespace Mavi
 			}
 			Core::String RequestFrame::ComposeHeader(const Core::String& Label) const
 			{
-				VI_ASSERT(!Label.empty(), Core::String(), "label should not be empty");
+				VI_ASSERT(!Label.empty(), "label should not be empty");
 				auto It = Headers.find(Label);
 				if (It == Headers.end())
 					return Core::String();
@@ -957,12 +957,12 @@ namespace Mavi
 			}
 			RangePayload* RequestFrame::GetCookieRanges(const Core::String& Key)
 			{
-				VI_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				VI_ASSERT(!Key.empty(), "key should not be empty");
 				return (RangePayload*)&Cookies[Key];
 			}
 			const Core::String* RequestFrame::GetCookieBlob(const Core::String& Key) const
 			{
-				VI_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				VI_ASSERT(!Key.empty(), "key should not be empty");
 				auto It = Cookies.find(Key);
 				if (It == Cookies.end())
 					return nullptr;
@@ -975,7 +975,7 @@ namespace Mavi
 			}
 			const char* RequestFrame::GetCookie(const Core::String& Key) const
 			{
-				VI_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				VI_ASSERT(!Key.empty(), "key should not be empty");
 				auto It = Cookies.find(Key);
 				if (It == Cookies.end())
 					return nullptr;
@@ -987,12 +987,12 @@ namespace Mavi
 			}
 			RangePayload* RequestFrame::GetHeaderRanges(const Core::String& Key)
 			{
-				VI_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				VI_ASSERT(!Key.empty(), "key should not be empty");
 				return (RangePayload*)&Headers[Key];
 			}
 			const Core::String* RequestFrame::GetHeaderBlob(const Core::String& Key) const
 			{
-				VI_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				VI_ASSERT(!Key.empty(), "key should not be empty");
 				auto It = Headers.find(Key);
 				if (It == Headers.end())
 					return nullptr;
@@ -1005,7 +1005,7 @@ namespace Mavi
 			}
 			const char* RequestFrame::GetHeader(const Core::String& Key) const
 			{
-				VI_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				VI_ASSERT(!Key.empty(), "key should not be empty");
 				auto It = Headers.find(Key);
 				if (It == Headers.end())
 					return nullptr;
@@ -1074,12 +1074,12 @@ namespace Mavi
 
 			void ResponseFrame::PutHeader(const Core::String& Key, const Core::String& Value)
 			{
-				VI_ASSERT_V(!Key.empty(), "key should not be empty");
+				VI_ASSERT(!Key.empty(), "key should not be empty");
 				Headers[Key].push_back(Value);
 			}
 			void ResponseFrame::SetHeader(const Core::String& Key, const Core::String& Value)
 			{
-				VI_ASSERT_V(!Key.empty(), "key should not be empty");
+				VI_ASSERT(!Key.empty(), "key should not be empty");
 				auto& Range = Headers[Key];
 				Range.clear();
 				Range.push_back(Value);
@@ -1120,7 +1120,7 @@ namespace Mavi
 			}
 			Core::String ResponseFrame::ComposeHeader(const Core::String& Label) const
 			{
-				VI_ASSERT(!Label.empty(), Core::String(), "label should not be empty");
+				VI_ASSERT(!Label.empty(), "label should not be empty");
 				auto It = Headers.find(Label);
 				if (It == Headers.end())
 					return Core::String();
@@ -1136,7 +1136,7 @@ namespace Mavi
 			}
 			Cookie* ResponseFrame::GetCookie(const char* Key)
 			{
-				VI_ASSERT(Key != nullptr, nullptr, "key should be set");
+				VI_ASSERT(Key != nullptr, "key should be set");
 				for (size_t i = 0; i < Cookies.size(); i++)
 				{
 					Cookie* Result = &Cookies[i];
@@ -1148,12 +1148,12 @@ namespace Mavi
 			}
 			RangePayload* ResponseFrame::GetHeaderRanges(const Core::String& Key)
 			{
-				VI_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				VI_ASSERT(!Key.empty(), "key should not be empty");
 				return (RangePayload*)&Headers[Key];
 			}
 			const Core::String* ResponseFrame::GetHeaderBlob(const Core::String& Key) const
 			{
-				VI_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				VI_ASSERT(!Key.empty(), "key should not be empty");
 				auto It = Headers.find(Key);
 				if (It == Headers.end())
 					return nullptr;
@@ -1166,7 +1166,7 @@ namespace Mavi
 			}
 			const char* ResponseFrame::GetHeader(const Core::String& Key) const
 			{
-				VI_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				VI_ASSERT(!Key.empty(), "key should not be empty");
 				auto It = Headers.find(Key);
 				if (It == Headers.end())
 					return nullptr;
@@ -1538,7 +1538,7 @@ namespace Mavi
 			}
 			bool Connection::Skip(const SuccessCallback& Callback)
 			{
-				VI_ASSERT(Callback != nullptr, false, "callback should be set");
+				VI_ASSERT(Callback != nullptr, "callback should be set");
 				if (!Request.Content.Resources.empty())
 					return true;
 				else if (Request.Content.IsFinalized())
@@ -1805,7 +1805,7 @@ namespace Mavi
 			bool Connection::EncryptionInfo(Certificate* Output)
 			{
 #ifdef VI_HAS_OPENSSL
-				VI_ASSERT(Output != nullptr, false, "certificate should be set");
+				VI_ASSERT(Output != nullptr, "certificate should be set");
 				X509* Certificate = SSL_get_peer_certificate(Stream->GetDevice());
 				if (!Certificate)
 					return false;
@@ -2032,7 +2032,7 @@ namespace Mavi
 			}
 			Core::Schema* Query::GetParameter(QueryToken* Name)
 			{
-				VI_ASSERT(Name != nullptr, nullptr, "token should be set");
+				VI_ASSERT(Name != nullptr, "token should be set");
 				if (Name->Value && Name->Length > 0)
 				{
 					for (auto* Item : Object->GetChilds())
@@ -2115,7 +2115,7 @@ namespace Mavi
 			}
 			Core::Schema* Query::FindParameter(Core::Schema* Base, QueryToken* Name)
 			{
-				VI_ASSERT(Name != nullptr, nullptr, "token should be set");
+				VI_ASSERT(Name != nullptr, "token should be set");
 				if (!Base->IsEmpty() && Name->Value && Name->Length > 0)
 				{
 					for (auto* Item : Base->GetChilds())
@@ -2158,7 +2158,7 @@ namespace Mavi
 			}
 			bool Session::Write(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				Core::String Schema = Base->Route->Site->Session.DocumentRoot + FindSessionId(Base);
 
 				FILE* Stream = (FILE*)Core::OS::File::Open(Schema.c_str(), "wb");
@@ -2179,7 +2179,7 @@ namespace Mavi
 			}
 			bool Session::Read(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				Core::String Schema = Base->Route->Site->Session.DocumentRoot + FindSessionId(Base);
 
 				FILE* Stream = (FILE*)Core::OS::File::Open(Schema.c_str(), "rb");
@@ -2233,7 +2233,7 @@ namespace Mavi
 				if (!SessionId.empty())
 					return SessionId;
 
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, SessionId, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				const char* Value = Base->Request.GetCookie(Base->Route->Site->Session.Cookie.Name.c_str());
 				if (!Value)
 					return GenerateSessionId(Base);
@@ -2242,7 +2242,7 @@ namespace Mavi
 			}
 			Core::String& Session::GenerateSessionId(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, SessionId, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				int64_t Time = time(nullptr);
 				SessionId = Compute::Crypto::Hash(Compute::Digests::MD5(), Base->Request.URI + Core::ToString(Time));
 				if (SessionExpires == 0)
@@ -2290,7 +2290,7 @@ namespace Mavi
 			}
 			void Parser::PrepareForNextParsing(Connection* Base, bool ForMultipart)
 			{
-				VI_ASSERT_V(Base != nullptr, "base should be set");
+				VI_ASSERT(Base != nullptr, "base should be set");
 				Multipart = MultipartData();
 				Chunked = ChunkedData();
 				Frame.Request = &Base->Request;
@@ -2311,8 +2311,8 @@ namespace Mavi
 			}
 			int64_t Parser::MultipartParse(const char* Boundary, const char* Buffer, size_t Length)
 			{
-				VI_ASSERT(Buffer != nullptr, -1, "buffer should be set");
-				VI_ASSERT(Boundary != nullptr, -1, "boundary should be set");
+				VI_ASSERT(Buffer != nullptr, "buffer should be set");
+				VI_ASSERT(Boundary != nullptr, "boundary should be set");
 
 				if (!Multipart.Boundary || !Multipart.LookBehind)
 				{
@@ -2529,7 +2529,7 @@ namespace Mavi
 			}
 			int64_t Parser::ParseRequest(const char* BufferStart, size_t Length, size_t Offset)
 			{
-				VI_ASSERT(BufferStart != nullptr, -1, "buffer start should be set");
+				VI_ASSERT(BufferStart != nullptr, "buffer start should be set");
 				const char* Buffer = BufferStart;
 				const char* BufferEnd = BufferStart + Length;
 				int Result;
@@ -2544,7 +2544,7 @@ namespace Mavi
 			}
 			int64_t Parser::ParseResponse(const char* BufferStart, size_t Length, size_t Offset)
 			{
-				VI_ASSERT(BufferStart != nullptr, -1, "buffer start should be set");
+				VI_ASSERT(BufferStart != nullptr, "buffer start should be set");
 				const char* Buffer = BufferStart;
 				const char* BufferEnd = Buffer + Length;
 				int Result;
@@ -2559,7 +2559,7 @@ namespace Mavi
 			}
 			int64_t Parser::ParseDecodeChunked(char* Buffer, size_t* Length)
 			{
-				VI_ASSERT(Buffer != nullptr && Length != nullptr, -1, "buffer should be set");
+				VI_ASSERT(Buffer != nullptr && Length != nullptr, "buffer should be set");
 				size_t Dest = 0, Src = 0, Size = *Length;
 				int64_t Result = -2;
 
@@ -2712,11 +2712,11 @@ namespace Mavi
 			}
 			const char* Parser::Tokenize(const char* Buffer, const char* BufferEnd, const char** Token, size_t* TokenLength, int* Out)
 			{
-				VI_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
-				VI_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
-				VI_ASSERT(Token != nullptr, nullptr, "token should be set");
-				VI_ASSERT(TokenLength != nullptr, nullptr, "token length should be set");
-				VI_ASSERT(Out != nullptr, nullptr, "output should be set");
+				VI_ASSERT(Buffer != nullptr, "buffer should be set");
+				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
+				VI_ASSERT(Token != nullptr, "token should be set");
+				VI_ASSERT(TokenLength != nullptr, "token length should be set");
+				VI_ASSERT(Out != nullptr, "output should be set");
 
 				const char* TokenStart = Buffer;
 				while (BufferEnd - Buffer >= 8)
@@ -2784,9 +2784,9 @@ namespace Mavi
 			}
 			const char* Parser::IsCompleted(const char* Buffer, const char* BufferEnd, size_t Offset, int* Out)
 			{
-				VI_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
-				VI_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
-				VI_ASSERT(Out != nullptr, nullptr, "output should be set");
+				VI_ASSERT(Buffer != nullptr, "buffer should be set");
+				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
+				VI_ASSERT(Out != nullptr, "output should be set");
 
 				int Result = 0;
 				Buffer = Offset < 3 ? Buffer : Buffer + Offset - 3;
@@ -2834,9 +2834,9 @@ namespace Mavi
 			}
 			const char* Parser::ProcessVersion(const char* Buffer, const char* BufferEnd, int* Out)
 			{
-				VI_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
-				VI_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
-				VI_ASSERT(Out != nullptr, nullptr, "output should be set");
+				VI_ASSERT(Buffer != nullptr, "buffer should be set");
+				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
+				VI_ASSERT(Out != nullptr, "output should be set");
 
 				if (BufferEnd - Buffer < 9)
 				{
@@ -2904,9 +2904,9 @@ namespace Mavi
 			}
 			const char* Parser::ProcessHeaders(const char* Buffer, const char* BufferEnd, int* Out)
 			{
-				VI_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
-				VI_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
-				VI_ASSERT(Out != nullptr, nullptr, "output should be set");
+				VI_ASSERT(Buffer != nullptr, "buffer should be set");
+				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
+				VI_ASSERT(Out != nullptr, "output should be set");
 
 				static const char* Mapping =
 					"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
@@ -3037,9 +3037,9 @@ namespace Mavi
 			}
 			const char* Parser::ProcessRequest(const char* Buffer, const char* BufferEnd, int* Out)
 			{
-				VI_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
-				VI_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
-				VI_ASSERT(Out != nullptr, nullptr, "output should be set");
+				VI_ASSERT(Buffer != nullptr, "buffer should be set");
+				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
+				VI_ASSERT(Out != nullptr, "output should be set");
 
 				if (Buffer == BufferEnd)
 				{
@@ -3196,9 +3196,9 @@ namespace Mavi
 			}
 			const char* Parser::ProcessResponse(const char* Buffer, const char* BufferEnd, int* Out)
 			{
-				VI_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
-				VI_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
-				VI_ASSERT(Out != nullptr, nullptr, "output should be set");
+				VI_ASSERT(Buffer != nullptr, "buffer should be set");
+				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
+				VI_ASSERT(Out != nullptr, "output should be set");
 
 				if ((Buffer = ProcessVersion(Buffer, BufferEnd, Out)) == nullptr)
 					return nullptr;
@@ -3516,8 +3516,8 @@ namespace Mavi
 			}
 			bool WebCodec::GetFrame(WebSocketOp* Op, Core::Vector<char>* Message)
 			{
-				VI_ASSERT(Op != nullptr, false, "op should be set");
-				VI_ASSERT(Message != nullptr, false, "message should be set");
+				VI_ASSERT(Op != nullptr, "op should be set");
+				VI_ASSERT(Message != nullptr, "message should be set");
 
 				if (Queue.empty())
 					return false;
@@ -3532,7 +3532,7 @@ namespace Mavi
 
 			Core::String Util::ConnectionResolve(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Root != nullptr && Base->Root->Router != nullptr, "Connection: Close\r\n", "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Root != nullptr && Base->Root->Router != nullptr, "connection should be set");
 				if (Base->Info.KeepAlive <= 0)
 					return "Connection: Close\r\n";
 
@@ -3559,7 +3559,7 @@ namespace Mavi
 			}
 			const char* Util::ContentType(const Core::String& Path, Core::Vector<MimeType>* Types)
 			{
-				VI_ASSERT(Types != nullptr, nullptr, "types should be set");
+				VI_ASSERT(Types != nullptr, "types should be set");
 				static MimeStatic MimeTypes[] = { MimeStatic(".3dm", "x-world/x-3dmf"), MimeStatic(".3dmf", "x-world/x-3dmf"), MimeStatic(".a", "application/octet-stream"), MimeStatic(".aab", "application/x-authorware-bin"), MimeStatic(".aac", "audio/aac"), MimeStatic(".aam", "application/x-authorware-map"), MimeStatic(".aas", "application/x-authorware-seg"), MimeStatic(".aat", "application/font-sfnt"), MimeStatic(".abc", "text/vnd.abc"), MimeStatic(".acgi", "text/html"), MimeStatic(".afl", "video/animaflex"), MimeStatic(".ai", "application/postscript"), MimeStatic(".aif", "audio/x-aiff"), MimeStatic(".aifc", "audio/x-aiff"), MimeStatic(".aiff", "audio/x-aiff"), MimeStatic(".aim", "application/x-aim"), MimeStatic(".aip", "text/x-audiosoft-intra"), MimeStatic(".ani", "application/x-navi-animation"), MimeStatic(".aos", "application/x-nokia-9000-communicator-add-on-software"), MimeStatic(".aps", "application/mime"), MimeStatic(".arc", "application/octet-stream"), MimeStatic(".arj", "application/arj"), MimeStatic(".art", "image/x-jg"), MimeStatic(".asf", "video/x-ms-asf"), MimeStatic(".asm", "text/x-asm"), MimeStatic(".asp", "text/asp"), MimeStatic(".asx", "video/x-ms-asf"), MimeStatic(".au", "audio/x-au"), MimeStatic(".avi", "video/x-msvideo"), MimeStatic(".avs", "video/avs-video"), MimeStatic(".bcpio", "application/x-bcpio"), MimeStatic(".bin", "application/x-binary"), MimeStatic(".bm", "image/bmp"), MimeStatic(".bmp", "image/bmp"), MimeStatic(".boo", "application/book"), MimeStatic(".book", "application/book"), MimeStatic(".boz", "application/x-bzip2"), MimeStatic(".bsh", "application/x-bsh"), MimeStatic(".bz", "application/x-bzip"), MimeStatic(".bz2", "application/x-bzip2"), MimeStatic(".c", "text/x-c"), MimeStatic(".c++", "text/x-c"), MimeStatic(".cat", "application/vnd.ms-pki.seccat"), MimeStatic(".cc", "text/x-c"), MimeStatic(".ccad", "application/clariscad"), MimeStatic(".cco", "application/x-cocoa"), MimeStatic(".cdf", "application/x-cdf"), MimeStatic(".cer", "application/pkix-cert"), MimeStatic(".cff", "application/font-sfnt"), MimeStatic(".cha", "application/x-chat"), MimeStatic(".chat", "application/x-chat"), MimeStatic(".class", "application/x-java-class"), MimeStatic(".com", "application/octet-stream"), MimeStatic(".conf", "text/plain"), MimeStatic(".cpio", "application/x-cpio"), MimeStatic(".cpp", "text/x-c"), MimeStatic(".cpt", "application/x-compactpro"), MimeStatic(".crl", "application/pkcs-crl"), MimeStatic(".crt", "application/x-x509-user-cert"), MimeStatic(".csh", "text/x-script.csh"), MimeStatic(".css", "text/css"), MimeStatic(".csv", "text/csv"), MimeStatic(".cxx", "text/plain"), MimeStatic(".dcr", "application/x-director"), MimeStatic(".deepv", "application/x-deepv"), MimeStatic(".def", "text/plain"), MimeStatic(".der", "application/x-x509-ca-cert"), MimeStatic(".dif", "video/x-dv"), MimeStatic(".dir", "application/x-director"), MimeStatic(".dl", "video/x-dl"), MimeStatic(".dll", "application/octet-stream"), MimeStatic(".doc", "application/msword"), MimeStatic(".dot", "application/msword"), MimeStatic(".dp", "application/commonground"), MimeStatic(".drw", "application/drafting"), MimeStatic(".dump", "application/octet-stream"), MimeStatic(".dv", "video/x-dv"), MimeStatic(".dvi", "application/x-dvi"), MimeStatic(".dwf", "model/vnd.dwf"), MimeStatic(".dwg", "image/vnd.dwg"), MimeStatic(".dxf", "image/vnd.dwg"), MimeStatic(".dxr", "application/x-director"), MimeStatic(".el", "text/x-script.elisp"), MimeStatic(".elc", "application/x-bytecode.elisp"), MimeStatic(".env", "application/x-envoy"), MimeStatic(".eps", "application/postscript"), MimeStatic(".es", "application/x-esrehber"), MimeStatic(".etx", "text/x-setext"), MimeStatic(".evy", "application/x-envoy"), MimeStatic(".exe", "application/octet-stream"), MimeStatic(".f", "text/x-fortran"), MimeStatic(".f77", "text/x-fortran"), MimeStatic(".f90", "text/x-fortran"), MimeStatic(".fdf", "application/vnd.fdf"), MimeStatic(".fif", "image/fif"), MimeStatic(".fli", "video/x-fli"), MimeStatic(".flo", "image/florian"), MimeStatic(".flx", "text/vnd.fmi.flexstor"), MimeStatic(".fmf", "video/x-atomic3d-feature"), MimeStatic(".for", "text/x-fortran"), MimeStatic(".fpx", "image/vnd.fpx"), MimeStatic(".frl", "application/freeloader"), MimeStatic(".funk", "audio/make"), MimeStatic(".g", "text/plain"), MimeStatic(".g3", "image/g3fax"), MimeStatic(".gif", "image/gif"), MimeStatic(".gl", "video/x-gl"), MimeStatic(".gsd", "audio/x-gsm"), MimeStatic(".gsm", "audio/x-gsm"), MimeStatic(".gsp", "application/x-gsp"), MimeStatic(".gss", "application/x-gss"), MimeStatic(".gtar", "application/x-gtar"), MimeStatic(".gz", "application/x-gzip"), MimeStatic(".h", "text/x-h"), MimeStatic(".hdf", "application/x-hdf"), MimeStatic(".help", "application/x-helpfile"), MimeStatic(".hgl", "application/vnd.hp-hpgl"), MimeStatic(".hh", "text/x-h"), MimeStatic(".hlb", "text/x-script"), MimeStatic(".hlp", "application/x-helpfile"), MimeStatic(".hpg", "application/vnd.hp-hpgl"), MimeStatic(".hpgl", "application/vnd.hp-hpgl"), MimeStatic(".hqx", "application/binhex"), MimeStatic(".hta", "application/hta"), MimeStatic(".htc", "text/x-component"), MimeStatic(".htm", "text/html"), MimeStatic(".html", "text/html"), MimeStatic(".htmls", "text/html"), MimeStatic(".htt", "text/webviewhtml"), MimeStatic(".htx", "text/html"), MimeStatic(".ice", "x-conference/x-cooltalk"), MimeStatic(".ico", "image/x-icon"), MimeStatic(".idc", "text/plain"), MimeStatic(".ief", "image/ief"), MimeStatic(".iefs", "image/ief"), MimeStatic(".iges", "model/iges"), MimeStatic(".igs", "model/iges"), MimeStatic(".ima", "application/x-ima"), MimeStatic(".imap", "application/x-httpd-imap"), MimeStatic(".inf", "application/inf"), MimeStatic(".ins", "application/x-internett-signup"), MimeStatic(".ip", "application/x-ip2"), MimeStatic(".isu", "video/x-isvideo"), MimeStatic(".it", "audio/it"), MimeStatic(".iv", "application/x-inventor"), MimeStatic(".ivr", "i-world/i-vrml"), MimeStatic(".ivy", "application/x-livescreen"), MimeStatic(".jam", "audio/x-jam"), MimeStatic(".jav", "text/x-java-source"), MimeStatic(".java", "text/x-java-source"), MimeStatic(".jcm", "application/x-java-commerce"), MimeStatic(".jfif", "image/jpeg"), MimeStatic(".jfif-tbnl", "image/jpeg"), MimeStatic(".jpe", "image/jpeg"), MimeStatic(".jpeg", "image/jpeg"), MimeStatic(".jpg", "image/jpeg"), MimeStatic(".jpm", "image/jpm"), MimeStatic(".jps", "image/x-jps"), MimeStatic(".jpx", "image/jpx"), MimeStatic(".js", "application/x-javascript"), MimeStatic(".json", "application/json"), MimeStatic(".jut", "image/jutvision"), MimeStatic(".kar", "music/x-karaoke"), MimeStatic(".kml", "application/vnd.google-earth.kml+xml"), MimeStatic(".kmz", "application/vnd.google-earth.kmz"), MimeStatic(".ksh", "text/x-script.ksh"), MimeStatic(".la", "audio/x-nspaudio"), MimeStatic(".lam", "audio/x-liveaudio"), MimeStatic(".latex", "application/x-latex"), MimeStatic(".lha", "application/x-lha"), MimeStatic(".lhx", "application/octet-stream"), MimeStatic(".lib", "application/octet-stream"), MimeStatic(".list", "text/plain"), MimeStatic(".lma", "audio/x-nspaudio"), MimeStatic(".log", "text/plain"), MimeStatic(".lsp", "text/x-script.lisp"), MimeStatic(".lst", "text/plain"), MimeStatic(".lsx", "text/x-la-asf"), MimeStatic(".ltx", "application/x-latex"), MimeStatic(".lzh", "application/x-lzh"), MimeStatic(".lzx", "application/x-lzx"), MimeStatic(".m", "text/x-m"), MimeStatic(".m1v", "video/mpeg"), MimeStatic(".m2a", "audio/mpeg"), MimeStatic(".m2v", "video/mpeg"), MimeStatic(".m3u", "audio/x-mpegurl"), MimeStatic(".m4v", "video/x-m4v"), MimeStatic(".man", "application/x-troff-man"), MimeStatic(".map", "application/x-navimap"), MimeStatic(".mar", "text/plain"), MimeStatic(".mbd", "application/mbedlet"), MimeStatic(".mc$", "application/x-magic-cap-package-1.0"), MimeStatic(".mcd", "application/x-mathcad"), MimeStatic(".mcf", "text/mcf"), MimeStatic(".mcp", "application/netmc"), MimeStatic(".me", "application/x-troff-me"), MimeStatic(".mht", "message/rfc822"), MimeStatic(".mhtml", "message/rfc822"), MimeStatic(".mid", "audio/x-midi"), MimeStatic(".midi", "audio/x-midi"), MimeStatic(".mif", "application/x-mif"), MimeStatic(".mime", "www/mime"), MimeStatic(".mjf", "audio/x-vnd.audioexplosion.mjuicemediafile"), MimeStatic(".mjpg", "video/x-motion-jpeg"), MimeStatic(".mm", "application/base64"), MimeStatic(".mme", "application/base64"), MimeStatic(".mod", "audio/x-mod"), MimeStatic(".moov", "video/quicktime"), MimeStatic(".mov", "video/quicktime"), MimeStatic(".movie", "video/x-sgi-movie"), MimeStatic(".mp2", "video/x-mpeg"), MimeStatic(".mp3", "audio/x-mpeg-3"), MimeStatic(".mp4", "video/mp4"), MimeStatic(".mpa", "audio/mpeg"), MimeStatic(".mpc", "application/x-project"), MimeStatic(".mpeg", "video/mpeg"), MimeStatic(".mpg", "video/mpeg"), MimeStatic(".mpga", "audio/mpeg"), MimeStatic(".mpp", "application/vnd.ms-project"), MimeStatic(".mpt", "application/x-project"), MimeStatic(".mpv", "application/x-project"), MimeStatic(".mpx", "application/x-project"), MimeStatic(".mrc", "application/marc"), MimeStatic(".ms", "application/x-troff-ms"), MimeStatic(".mv", "video/x-sgi-movie"), MimeStatic(".my", "audio/make"), MimeStatic(".mzz", "application/x-vnd.audioexplosion.mzz"), MimeStatic(".nap", "image/naplps"), MimeStatic(".naplps", "image/naplps"), MimeStatic(".nc", "application/x-netcdf"), MimeStatic(".ncm", "application/vnd.nokia.configuration-message"), MimeStatic(".nif", "image/x-niff"), MimeStatic(".niff", "image/x-niff"), MimeStatic(".nix", "application/x-mix-transfer"), MimeStatic(".nsc", "application/x-conference"), MimeStatic(".nvd", "application/x-navidoc"), MimeStatic(".o", "application/octet-stream"), MimeStatic(".obj", "application/octet-stream"), MimeStatic(".oda", "application/oda"), MimeStatic(".oga", "audio/ogg"), MimeStatic(".ogg", "audio/ogg"), MimeStatic(".ogv", "video/ogg"), MimeStatic(".omc", "application/x-omc"), MimeStatic(".omcd", "application/x-omcdatamaker"), MimeStatic(".omcr", "application/x-omcregerator"), MimeStatic(".otf", "application/font-sfnt"), MimeStatic(".p", "text/x-pascal"), MimeStatic(".p10", "application/x-pkcs10"), MimeStatic(".p12", "application/x-pkcs12"), MimeStatic(".p7a", "application/x-pkcs7-signature"), MimeStatic(".p7c", "application/x-pkcs7-mime"), MimeStatic(".p7m", "application/x-pkcs7-mime"), MimeStatic(".p7r", "application/x-pkcs7-certreqresp"), MimeStatic(".p7s", "application/pkcs7-signature"), MimeStatic(".part", "application/pro_eng"), MimeStatic(".pas", "text/x-pascal"), MimeStatic(".pbm", "image/x-portable-bitmap"), MimeStatic(".pcl", "application/vnd.hp-pcl"), MimeStatic(".pct", "image/x-pct"), MimeStatic(".pcx", "image/x-pcx"), MimeStatic(".pdb", "chemical/x-pdb"), MimeStatic(".pdf", "application/pdf"), MimeStatic(".pfr", "application/font-tdpfr"), MimeStatic(".pfunk", "audio/make"), MimeStatic(".pgm", "image/x-portable-greymap"), MimeStatic(".pic", "image/pict"), MimeStatic(".pict", "image/pict"), MimeStatic(".pkg", "application/x-newton-compatible-pkg"), MimeStatic(".pko", "application/vnd.ms-pki.pko"), MimeStatic(".pl", "text/x-script.perl"), MimeStatic(".plx", "application/x-pixelscript"), MimeStatic(".pm", "text/x-script.perl-module"), MimeStatic(".pm4", "application/x-pagemaker"), MimeStatic(".pm5", "application/x-pagemaker"), MimeStatic(".png", "image/png"), MimeStatic(".pnm", "image/x-portable-anymap"), MimeStatic(".pot", "application/vnd.ms-powerpoint"), MimeStatic(".pov", "model/x-pov"), MimeStatic(".ppa", "application/vnd.ms-powerpoint"), MimeStatic(".ppm", "image/x-portable-pixmap"), MimeStatic(".pps", "application/vnd.ms-powerpoint"), MimeStatic(".ppt", "application/vnd.ms-powerpoint"), MimeStatic(".ppz", "application/vnd.ms-powerpoint"), MimeStatic(".pre", "application/x-freelance"), MimeStatic(".prt", "application/pro_eng"), MimeStatic(".ps", "application/postscript"), MimeStatic(".psd", "application/octet-stream"), MimeStatic(".pvu", "paleovu/x-pv"), MimeStatic(".pwz", "application/vnd.ms-powerpoint"), MimeStatic(".py", "text/x-script.python"), MimeStatic(".pyc", "application/x-bytecode.python"), MimeStatic(".qcp", "audio/vnd.qcelp"), MimeStatic(".qd3", "x-world/x-3dmf"), MimeStatic(".qd3d", "x-world/x-3dmf"), MimeStatic(".qif", "image/x-quicktime"), MimeStatic(".qt", "video/quicktime"), MimeStatic(".qtc", "video/x-qtc"), MimeStatic(".qti", "image/x-quicktime"), MimeStatic(".qtif", "image/x-quicktime"), MimeStatic(".ra", "audio/x-pn-realaudio"), MimeStatic(".ram", "audio/x-pn-realaudio"), MimeStatic(".rar", "application/x-arj-compressed"), MimeStatic(".ras", "image/x-cmu-raster"), MimeStatic(".rast", "image/cmu-raster"), MimeStatic(".rexx", "text/x-script.rexx"), MimeStatic(".rf", "image/vnd.rn-realflash"), MimeStatic(".rgb", "image/x-rgb"), MimeStatic(".rm", "audio/x-pn-realaudio"), MimeStatic(".rmi", "audio/mid"), MimeStatic(".rmm", "audio/x-pn-realaudio"), MimeStatic(".rmp", "audio/x-pn-realaudio"), MimeStatic(".rng", "application/vnd.nokia.ringing-tone"), MimeStatic(".rnx", "application/vnd.rn-realplayer"), MimeStatic(".roff", "application/x-troff"), MimeStatic(".rp", "image/vnd.rn-realpix"), MimeStatic(".rpm", "audio/x-pn-realaudio-plugin"), MimeStatic(".rt", "text/vnd.rn-realtext"), MimeStatic(".rtf", "application/x-rtf"), MimeStatic(".rtx", "application/x-rtf"), MimeStatic(".rv", "video/vnd.rn-realvideo"), MimeStatic(".s", "text/x-asm"), MimeStatic(".s3m", "audio/s3m"), MimeStatic(".saveme", "application/octet-stream"), MimeStatic(".sbk", "application/x-tbook"), MimeStatic(".scm", "text/x-script.scheme"), MimeStatic(".sdml", "text/plain"), MimeStatic(".sdp", "application/x-sdp"), MimeStatic(".sdr", "application/sounder"), MimeStatic(".sea", "application/x-sea"), MimeStatic(".set", "application/set"), MimeStatic(".sgm", "text/x-sgml"), MimeStatic(".sgml", "text/x-sgml"), MimeStatic(".sh", "text/x-script.sh"), MimeStatic(".shar", "application/x-shar"), MimeStatic(".shtm", "text/html"), MimeStatic(".shtml", "text/html"), MimeStatic(".sid", "audio/x-psid"), MimeStatic(".sil", "application/font-sfnt"), MimeStatic(".sit", "application/x-sit"), MimeStatic(".skd", "application/x-koan"), MimeStatic(".skm", "application/x-koan"), MimeStatic(".skp", "application/x-koan"), MimeStatic(".skt", "application/x-koan"), MimeStatic(".sl", "application/x-seelogo"), MimeStatic(".smi", "application/smil"), MimeStatic(".smil", "application/smil"), MimeStatic(".snd", "audio/x-adpcm"), MimeStatic(".so", "application/octet-stream"), MimeStatic(".sol", "application/solids"), MimeStatic(".spc", "text/x-speech"), MimeStatic(".spl", "application/futuresplash"), MimeStatic(".spr", "application/x-sprite"), MimeStatic(".sprite", "application/x-sprite"), MimeStatic(".src", "application/x-wais-source"), MimeStatic(".ssi", "text/x-server-parsed-html"), MimeStatic(".ssm", "application/streamingmedia"), MimeStatic(".sst", "application/vnd.ms-pki.certstore"), MimeStatic(".step", "application/step"), MimeStatic(".stl", "application/vnd.ms-pki.stl"), MimeStatic(".stp", "application/step"), MimeStatic(".sv4cpio", "application/x-sv4cpio"), MimeStatic(".sv4crc", "application/x-sv4crc"), MimeStatic(".svf", "image/x-dwg"), MimeStatic(".svg", "image/svg+xml"), MimeStatic(".svr", "x-world/x-svr"), MimeStatic(".swf", "application/x-shockwave-flash"), MimeStatic(".t", "application/x-troff"), MimeStatic(".talk", "text/x-speech"), MimeStatic(".tar", "application/x-tar"), MimeStatic(".tbk", "application/x-tbook"), MimeStatic(".tcl", "text/x-script.tcl"), MimeStatic(".tcsh", "text/x-script.tcsh"), MimeStatic(".tex", "application/x-tex"), MimeStatic(".texi", "application/x-texinfo"), MimeStatic(".texinfo", "application/x-texinfo"), MimeStatic(".text", "text/plain"), MimeStatic(".tgz", "application/x-compressed"), MimeStatic(".tif", "image/x-tiff"), MimeStatic(".tiff", "image/x-tiff"), MimeStatic(".torrent", "application/x-bittorrent"), MimeStatic(".tr", "application/x-troff"), MimeStatic(".tsi", "audio/tsp-audio"), MimeStatic(".tsp", "audio/tsplayer"), MimeStatic(".tsv", "text/tab-separated-values"), MimeStatic(".ttf", "application/font-sfnt"), MimeStatic(".turbot", "image/florian"), MimeStatic(".txt", "text/plain"), MimeStatic(".uil", "text/x-uil"), MimeStatic(".uni", "text/uri-list"), MimeStatic(".unis", "text/uri-list"), MimeStatic(".unv", "application/i-deas"), MimeStatic(".uri", "text/uri-list"), MimeStatic(".uris", "text/uri-list"), MimeStatic(".ustar", "application/x-ustar"), MimeStatic(".uu", "text/x-uuencode"), MimeStatic(".uue", "text/x-uuencode"), MimeStatic(".vcd", "application/x-cdlink"), MimeStatic(".vcs", "text/x-vcalendar"), MimeStatic(".vda", "application/vda"), MimeStatic(".vdo", "video/vdo"), MimeStatic(".vew", "application/groupwise"), MimeStatic(".viv", "video/vnd.vivo"), MimeStatic(".vivo", "video/vnd.vivo"), MimeStatic(".vmd", "application/vocaltec-media-desc"), MimeStatic(".vmf", "application/vocaltec-media-resource"), MimeStatic(".voc", "audio/x-voc"), MimeStatic(".vos", "video/vosaic"), MimeStatic(".vox", "audio/voxware"), MimeStatic(".vqe", "audio/x-twinvq-plugin"), MimeStatic(".vqf", "audio/x-twinvq"), MimeStatic(".vql", "audio/x-twinvq-plugin"), MimeStatic(".vrml", "model/vrml"), MimeStatic(".vrt", "x-world/x-vrt"), MimeStatic(".vsd", "application/x-visio"), MimeStatic(".vst", "application/x-visio"), MimeStatic(".vsw", "application/x-visio"), MimeStatic(".w60", "application/wordperfect6.0"), MimeStatic(".w61", "application/wordperfect6.1"), MimeStatic(".w6w", "application/msword"), MimeStatic(".wav", "audio/x-wav"), MimeStatic(".wb1", "application/x-qpro"), MimeStatic(".wbmp", "image/vnd.wap.wbmp"), MimeStatic(".web", "application/vnd.xara"), MimeStatic(".webm", "video/webm"), MimeStatic(".wiz", "application/msword"), MimeStatic(".wk1", "application/x-123"), MimeStatic(".wmf", "windows/metafile"), MimeStatic(".wml", "text/vnd.wap.wml"), MimeStatic(".wmlc", "application/vnd.wap.wmlc"), MimeStatic(".wmls", "text/vnd.wap.wmlscript"), MimeStatic(".wmlsc", "application/vnd.wap.wmlscriptc"), MimeStatic(".woff", "application/font-woff"), MimeStatic(".word", "application/msword"), MimeStatic(".wp", "application/wordperfect"), MimeStatic(".wp5", "application/wordperfect"), MimeStatic(".wp6", "application/wordperfect"), MimeStatic(".wpd", "application/wordperfect"), MimeStatic(".wq1", "application/x-lotus"), MimeStatic(".wri", "application/x-wri"), MimeStatic(".wrl", "model/vrml"), MimeStatic(".wrz", "model/vrml"), MimeStatic(".wsc", "text/scriplet"), MimeStatic(".wsrc", "application/x-wais-source"), MimeStatic(".wtk", "application/x-wintalk"), MimeStatic(".x-png", "image/png"), MimeStatic(".xbm", "image/x-xbm"), MimeStatic(".xdr", "video/x-amt-demorun"), MimeStatic(".xgz", "xgl/drawing"), MimeStatic(".xhtml", "application/xhtml+xml"), MimeStatic(".xif", "image/vnd.xiff"), MimeStatic(".xl", "application/vnd.ms-excel"), MimeStatic(".xla", "application/vnd.ms-excel"), MimeStatic(".xlb", "application/vnd.ms-excel"), MimeStatic(".xlc", "application/vnd.ms-excel"), MimeStatic(".xld", "application/vnd.ms-excel"), MimeStatic(".xlk", "application/vnd.ms-excel"), MimeStatic(".xll", "application/vnd.ms-excel"), MimeStatic(".xlm", "application/vnd.ms-excel"), MimeStatic(".xls", "application/vnd.ms-excel"), MimeStatic(".xlt", "application/vnd.ms-excel"), MimeStatic(".xlv", "application/vnd.ms-excel"), MimeStatic(".xlw", "application/vnd.ms-excel"), MimeStatic(".xm", "audio/xm"), MimeStatic(".xml", "text/xml"), MimeStatic(".xmz", "xgl/movie"), MimeStatic(".xpix", "application/x-vnd.ls-xpix"), MimeStatic(".xpm", "image/x-xpixmap"), MimeStatic(".xsl", "application/xml"), MimeStatic(".xslt", "application/xml"), MimeStatic(".xsr", "video/x-amt-showrun"), MimeStatic(".xwd", "image/x-xwd"), MimeStatic(".xyz", "chemical/x-pdb"), MimeStatic(".z", "application/x-compressed"), MimeStatic(".zip", "application/x-zip-compressed"), MimeStatic(".zoo", "application/octet-stream"), MimeStatic(".zsh", "text/x-script.zsh") };
 
 				size_t PathLength = Path.size();
@@ -3756,7 +3756,7 @@ namespace Mavi
 
 			void Paths::ConstructPath(Connection* Base)
 			{
-				VI_ASSERT_V(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				if (!Base->Route->Override.empty())
 				{
 					Base->Request.Path.assign(Base->Route->Override);
@@ -3847,9 +3847,9 @@ namespace Mavi
 			}
 			void Paths::ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::Stringify* Buffer)
 			{
-				VI_ASSERT_V(Request != nullptr, "connection should be set");
-				VI_ASSERT_V(Response != nullptr, "response should be set");
-				VI_ASSERT_V(Buffer != nullptr, "buffer should be set");
+				VI_ASSERT(Request != nullptr, "connection should be set");
+				VI_ASSERT(Response != nullptr, "response should be set");
+				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 
 				HeaderMapping& Headers = (IsRequest ? Request->Headers : Response->Headers);
 				for (auto& Item : Headers)
@@ -3885,8 +3885,8 @@ namespace Mavi
 			}
 			void Paths::ConstructHeadCache(Connection* Base, Core::Stringify* Buffer)
 			{
-				VI_ASSERT_V(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				VI_ASSERT_V(Buffer != nullptr, "buffer should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 
 				if (!Base->Route->StaticFileMaxAge)
 					return ConstructHeadUncache(Base, Buffer);
@@ -3895,8 +3895,8 @@ namespace Mavi
 			}
 			void Paths::ConstructHeadUncache(Connection* Base, Core::Stringify* Buffer)
 			{
-				VI_ASSERT_V(Base != nullptr, "connection should be set");
-				VI_ASSERT_V(Buffer != nullptr, "buffer should be set");
+				VI_ASSERT(Base != nullptr, "connection should be set");
+				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 
 				Buffer->Append(
 					"Cache-Control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
@@ -3905,8 +3905,8 @@ namespace Mavi
 			}
 			bool Paths::ConstructRoute(MapRouter* Router, Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr, false, "connection should be set");
-				VI_ASSERT(Router != nullptr, false, "router should be set");
+				VI_ASSERT(Base != nullptr, "connection should be set");
+				VI_ASSERT(Router != nullptr, "router should be set");
 
 				if (Router->Sites.empty())
 					return false;
@@ -3997,7 +3997,7 @@ namespace Mavi
 			}
 			bool Paths::ConstructDirectoryEntries(Connection* Base, const Core::FileEntry& A, const Core::FileEntry& B)
 			{
-				VI_ASSERT(Base != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr, "connection should be set");
 				if (A.IsDirectory && !B.IsDirectory)
 					return true;
 
@@ -4043,8 +4043,8 @@ namespace Mavi
 			}
 			bool Parsing::ParseMultipartHeaderValue(Parser* Parser, const char* Data, size_t Length)
 			{
-				VI_ASSERT(Parser != nullptr, true, "parser should be set");
-				VI_ASSERT(Data != nullptr, true, "data should be set");
+				VI_ASSERT(Parser != nullptr, "parser should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
 
 				if (!Length || Parser->Frame.Ignore)
 					return true;
@@ -4081,8 +4081,8 @@ namespace Mavi
 			}
 			bool Parsing::ParseMultipartContentData(Parser* Parser, const char* Data, size_t Length)
 			{
-				VI_ASSERT(Parser != nullptr, true, "parser should be set");
-				VI_ASSERT(Data != nullptr, true, "data should be set");
+				VI_ASSERT(Parser != nullptr, "parser should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
 
 				if (!Length)
 					return true;
@@ -4098,7 +4098,7 @@ namespace Mavi
 			}
 			bool Parsing::ParseMultipartResourceBegin(Parser* Parser)
 			{
-				VI_ASSERT(Parser != nullptr, true, "parser should be set");
+				VI_ASSERT(Parser != nullptr, "parser should be set");
 				if (Parser->Frame.Ignore || !Parser->Frame.Request)
 					return true;
 
@@ -4135,7 +4135,7 @@ namespace Mavi
 			}
 			bool Parsing::ParseMultipartResourceEnd(Parser* Parser)
 			{
-				VI_ASSERT(Parser != nullptr, true, "parser should be set");
+				VI_ASSERT(Parser != nullptr, "parser should be set");
 				if (Parser->Frame.Ignore || !Parser->Frame.Stream || !Parser->Frame.Request)
 					return true;
 
@@ -4150,8 +4150,8 @@ namespace Mavi
 			}
 			bool Parsing::ParseHeaderField(Parser* Parser, const char* Name, size_t Length)
 			{
-				VI_ASSERT(Parser != nullptr, true, "parser should be set");
-				VI_ASSERT(Name != nullptr, true, "name should be set");
+				VI_ASSERT(Parser != nullptr, "parser should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 
 				if (!Length || Parser->Frame.Ignore)
 					return true;
@@ -4161,8 +4161,8 @@ namespace Mavi
 			}
 			bool Parsing::ParseHeaderValue(Parser* Parser, const char* Data, size_t Length)
 			{
-				VI_ASSERT(Parser != nullptr, true, "parser should be set");
-				VI_ASSERT(Data != nullptr, true, "data should be set");
+				VI_ASSERT(Parser != nullptr, "parser should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
 
 				if (!Length || Parser->Frame.Ignore || Parser->Frame.Header.empty())
 					return true;
@@ -4225,8 +4225,8 @@ namespace Mavi
 			}
 			bool Parsing::ParseVersion(Parser* Parser, const char* Data, size_t Length)
 			{
-				VI_ASSERT(Parser != nullptr, true, "parser should be set");
-				VI_ASSERT(Data != nullptr, true, "data should be set");
+				VI_ASSERT(Parser != nullptr, "parser should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
 
 				if (!Length || Parser->Frame.Ignore || !Parser->Frame.Request)
 					return true;
@@ -4236,7 +4236,7 @@ namespace Mavi
 			}
 			bool Parsing::ParseStatusCode(Parser* Parser, size_t Value)
 			{
-				VI_ASSERT(Parser != nullptr, true, "parser should be set");
+				VI_ASSERT(Parser != nullptr, "parser should be set");
 				if (Parser->Frame.Ignore || !Parser->Frame.Response)
 					return true;
 
@@ -4245,8 +4245,8 @@ namespace Mavi
 			}
 			bool Parsing::ParseMethodValue(Parser* Parser, const char* Data, size_t Length)
 			{
-				VI_ASSERT(Parser != nullptr, true, "parser should be set");
-				VI_ASSERT(Data != nullptr, true, "data should be set");
+				VI_ASSERT(Parser != nullptr, "parser should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
 
 				if (!Length || Parser->Frame.Ignore || !Parser->Frame.Request)
 					return true;
@@ -4256,8 +4256,8 @@ namespace Mavi
 			}
 			bool Parsing::ParsePathValue(Parser* Parser, const char* Data, size_t Length)
 			{
-				VI_ASSERT(Parser != nullptr, true, "parser should be set");
-				VI_ASSERT(Data != nullptr, true, "data should be set");
+				VI_ASSERT(Parser != nullptr, "parser should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
 
 				if (!Length || Parser->Frame.Ignore || !Parser->Frame.Request)
 					return true;
@@ -4267,8 +4267,8 @@ namespace Mavi
 			}
 			bool Parsing::ParseQueryValue(Parser* Parser, const char* Data, size_t Length)
 			{
-				VI_ASSERT(Parser != nullptr, true, "parser should be set");
-				VI_ASSERT(Data != nullptr, true, "data should be set");
+				VI_ASSERT(Parser != nullptr, "parser should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
 
 				if (!Length || Parser->Frame.Ignore || !Parser->Frame.Request)
 					return true;
@@ -4278,9 +4278,9 @@ namespace Mavi
 			}
 			int Parsing::ParseContentRange(const char* ContentRange, int64_t* Range1, int64_t* Range2)
 			{
-				VI_ASSERT(ContentRange != nullptr, 0, "content range should be set");
-				VI_ASSERT(Range1 != nullptr, 0, "range 1 should be set");
-				VI_ASSERT(Range2 != nullptr, 0, "range 2 should be set");
+				VI_ASSERT(ContentRange != nullptr, "content range should be set");
+				VI_ASSERT(Range1 != nullptr, "range 1 should be set");
+				VI_ASSERT(Range2 != nullptr, "range 2 should be set");
 
 				return sscanf(ContentRange, "bytes=%" PRId64 "-%" PRId64, Range1, Range2);
 			}
@@ -4304,7 +4304,7 @@ namespace Mavi
 			}
 			bool Permissions::Authorize(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				if (!Base->Route->Callbacks.Authorize || Base->Route->Auth.Type.empty())
 					return true;
 
@@ -4358,7 +4358,7 @@ namespace Mavi
 			}
 			bool Permissions::MethodAllowed(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				for (auto& Item : Base->Route->DisallowedMethods)
 				{
 					if (Item == Base->Request.Method)
@@ -4369,7 +4369,7 @@ namespace Mavi
 			}
 			bool Permissions::WebSocketUpgradeAllowed(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr, "connection should be set");
 				const char* Upgrade = Base->Request.GetHeader("Upgrade");
 				if (!Upgrade)
 					return false;
@@ -4389,7 +4389,7 @@ namespace Mavi
 
 			bool Resources::ResourceHasAlternative(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				if (Base->Route->TryFiles.empty())
 					return false;
 
@@ -4406,7 +4406,7 @@ namespace Mavi
 			}
 			bool Resources::ResourceHidden(Connection* Base, Core::String* Path)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				if (Base->Route->HiddenFiles.empty())
 					return false;
 
@@ -4423,8 +4423,8 @@ namespace Mavi
 			}
 			bool Resources::ResourceIndexed(Connection* Base, Core::FileEntry* Resource)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 
 				if (Base->Route->IndexFiles.empty())
 					return false;
@@ -4457,8 +4457,8 @@ namespace Mavi
 			}
 			bool Resources::ResourceModified(Connection* Base, Core::FileEntry* Resource)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 
 				const char* CacheControl = Base->Request.GetHeader("Cache-Control");
 				if (CacheControl != nullptr && (!Core::Stringify::CaseCompare("no-cache", CacheControl) || !Core::Stringify::CaseCompare("max-age=0", CacheControl)))
@@ -4480,7 +4480,7 @@ namespace Mavi
 			bool Resources::ResourceCompressed(Connection* Base, size_t Size)
 			{
 #ifdef VI_HAS_ZLIB
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				if (!Base->Route->Compression.Enabled || Size < Base->Route->Compression.MinLength)
 					return false;
 
@@ -4502,7 +4502,7 @@ namespace Mavi
 
 			bool Routing::RouteWEBSOCKET(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr, "connection should be set");
 				if (!Base->Route || !Base->Route->AllowWebSocket)
 					return Base->Error(404, "Websocket protocol is not allowed on this server.");
 
@@ -4532,7 +4532,7 @@ namespace Mavi
 			}
 			bool Routing::RouteGET(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
 				{
 					if (Permissions::WebSocketUpgradeAllowed(Base))
@@ -4586,7 +4586,7 @@ namespace Mavi
 			}
 			bool Routing::RoutePOST(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr, "connection should be set");
 				if (!Base->Route)
 					return Base->Error(404, "Requested resource was not found.");
 
@@ -4614,7 +4614,7 @@ namespace Mavi
 			}
 			bool Routing::RoutePUT(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr, "connection should be set");
 				if (!Base->Route || Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(403, "Resource overwrite denied.");
 
@@ -4690,7 +4690,7 @@ namespace Mavi
 			}
 			bool Routing::RoutePATCH(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr, "connection should be set");
 				if (!Base->Route)
 					return Base->Error(403, "Operation denied by server.");
 
@@ -4723,7 +4723,7 @@ namespace Mavi
 			}
 			bool Routing::RouteDELETE(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr, "connection should be set");
 				if (!Base->Route || Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(403, "Operation denied by server.");
 
@@ -4758,7 +4758,7 @@ namespace Mavi
 			}
 			bool Routing::RouteOPTIONS(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr, "connection should be set");
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
@@ -4780,7 +4780,7 @@ namespace Mavi
 
 			bool Logical::ProcessDirectory(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				Core::Vector<Core::FileEntry> Entries;
 				if (!Core::OS::Directory::Scan(Base->Request.Path, &Entries))
 					return Base->Error(500, "System denied to directory listing.");
@@ -4921,7 +4921,7 @@ namespace Mavi
 			}
 			bool Logical::ProcessResource(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				const char* ContentType = Util::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
 				const char* Range = Base->Request.GetHeader("Range");
 				const char* StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
@@ -5014,9 +5014,9 @@ namespace Mavi
 			}
 			bool Logical::ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, size_t Range)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				VI_ASSERT(ContentRange != nullptr, false, "content tange should be set");
-				VI_ASSERT(Deflate || Gzip, false, "uncompressable resource");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(ContentRange != nullptr, "content tange should be set");
+				VI_ASSERT(Deflate || Gzip, "uncompressable resource");
 
 				const char* ContentType = Util::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
 				const char* StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
@@ -5084,7 +5084,7 @@ namespace Mavi
 			}
 			bool Logical::ProcessResourceCache(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
@@ -5112,7 +5112,7 @@ namespace Mavi
 			}
 			bool Logical::ProcessFile(Connection* Base, size_t ContentLength, size_t Range)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
 				if (ContentLength > 0 && Base->Resource.IsReferenced && Base->Resource.Size > 0)
 				{
@@ -5159,8 +5159,8 @@ namespace Mavi
 			}
 			bool Logical::ProcessFileStream(Connection* Base, FILE* Stream, size_t ContentLength, size_t Range)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				VI_ASSERT(Stream != nullptr, false, "stream should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
 #ifdef VI_MICROSOFT
 				if (Range > 0 && _lseeki64(VI_FILENO(Stream), Range, SEEK_SET) == -1)
 				{
@@ -5184,9 +5184,9 @@ namespace Mavi
 			}
 			bool Logical::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, size_t ContentLength)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				VI_ASSERT(Router != nullptr, false, "router should be set");
-				VI_ASSERT(Stream != nullptr, false, "stream should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(Router != nullptr, "router should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
 
             Retry:
                 char Buffer[Core::BLOB_SIZE];
@@ -5230,7 +5230,7 @@ namespace Mavi
 			}
 			bool Logical::ProcessFileCompress(Connection* Base, size_t ContentLength, size_t Range, bool Gzip)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
 				if (ContentLength > 0 && Base->Resource.IsReferenced && Base->Resource.Size > 0)
 				{
@@ -5311,10 +5311,10 @@ namespace Mavi
 			}
 			bool Logical::ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, size_t ContentLength)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				VI_ASSERT(Router != nullptr, false, "router should be set");
-				VI_ASSERT(Stream != nullptr, false, "stream should be set");
-				VI_ASSERT(CStream != nullptr, false, "cstream should be set");
+				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(Router != nullptr, "router should be set");
+				VI_ASSERT(Stream != nullptr, "stream should be set");
+				VI_ASSERT(CStream != nullptr, "cstream should be set");
 #ifdef VI_HAS_ZLIB
 #define FREE_STREAMING { Core::OS::File::Close(Stream); deflateEnd(ZStream); VI_FREE(ZStream); }
 				z_stream* ZStream = (z_stream*)CStream;
@@ -5400,8 +5400,8 @@ namespace Mavi
 			}
 			bool Logical::ProcessWebSocket(Connection* Base, const char* Key)
 			{
-				VI_ASSERT(Base != nullptr, false, "connection should be set");
-				VI_ASSERT(Key != nullptr, false, "key should be set");
+				VI_ASSERT(Base != nullptr, "connection should be set");
+				VI_ASSERT(Key != nullptr, "key should be set");
 
 				const char* Version = Base->Request.GetHeader("Sec-WebSocket-Version");
 				if (!Base->Route || !Version || strcmp(Version, "13") != 0)
@@ -5509,12 +5509,12 @@ namespace Mavi
 			}
 			bool Server::OnConfigure(SocketRouter* NewRouter)
 			{
-				VI_ASSERT(NewRouter != nullptr, false, "router should be set");
+				VI_ASSERT(NewRouter != nullptr, "router should be set");
 				return Update();
 			}
 			bool Server::OnRequestEnded(SocketConnection* Root, bool Check)
 			{
-				VI_ASSERT(Root != nullptr, false, "connection should be set");
+				VI_ASSERT(Root != nullptr, "connection should be set");
 				auto Base = (HTTP::Connection*)Root;
 
 				if (Check)
@@ -5533,7 +5533,7 @@ namespace Mavi
 			}
 			bool Server::OnRequestBegin(SocketConnection* Source)
 			{
-				VI_ASSERT(Source != nullptr, false, "connection should be set");
+				VI_ASSERT(Source != nullptr, "connection should be set");
 				auto* Conf = (MapRouter*)Router;
 				auto* Base = (Connection*)Source;
 
@@ -5671,7 +5671,7 @@ namespace Mavi
 			}
 			bool Server::OnUnlisten()
 			{
-				VI_ASSERT(Router != nullptr, false, "router should be set");
+				VI_ASSERT(Router != nullptr, "router should be set");
 				MapRouter* Root = (MapRouter*)Router;
 
 				for (auto& Site : Root->Sites)
@@ -5694,7 +5694,7 @@ namespace Mavi
 			}
 			SocketConnection* Server::OnAllocate(SocketListener* Host)
 			{
-				VI_ASSERT(Host != nullptr, nullptr, "host should be set");
+				VI_ASSERT(Host != nullptr, "host should be set");
 				return new HTTP::Connection(this);
 			}
 			SocketRouter* Server::OnAllocateRouter()
@@ -5711,14 +5711,14 @@ namespace Mavi
 			}
 			bool Client::Downgrade()
 			{
-				VI_ASSERT(WebSocket != nullptr, false, "websocket should be opened");
-				VI_ASSERT(WebSocket->IsFinished(), false, "websocket connection should be finished");
+				VI_ASSERT(WebSocket != nullptr, "websocket should be opened");
+				VI_ASSERT(WebSocket->IsFinished(), "websocket connection should be finished");
 				VI_CLEAR(WebSocket);
 				return true;
 			}
 			Core::Promise<bool> Client::Consume(size_t MaxSize)
 			{
-				VI_ASSERT(!WebSocket, Core::Promise<bool>(false), "cannot read http over websocket");
+				VI_ASSERT(!WebSocket, "cannot read http over websocket");
 				if (Response.Content.IsFinalized())
 					return Core::Promise<bool>(true);
 				else if (Response.Content.Exceeds)
@@ -5847,8 +5847,8 @@ namespace Mavi
 			}
 			Core::Promise<bool> Client::Upgrade(HTTP::RequestFrame&& Root)
 			{
-				VI_ASSERT(WebSocket != nullptr, Core::Promise<bool>(false), "websocket should be opened");
-				VI_ASSERT(Stream.IsValid(), Core::Promise<bool>(false), "stream should be opened");
+				VI_ASSERT(WebSocket != nullptr, "websocket should be opened");
+				VI_ASSERT(Stream.IsValid(), "stream should be opened");
 
 				Core::String Key = Compute::Codec::Base64Encode(Compute::Crypto::RandomBytes(16));
 				Root.SetHeader("Pragma", "no-cache");
@@ -5873,8 +5873,8 @@ namespace Mavi
 			}
 			Core::Promise<ResponseFrame*> Client::Send(HTTP::RequestFrame&& Root)
 			{
-				VI_ASSERT(!WebSocket || Root.GetHeader("Sec-WebSocket-Key") != nullptr, Core::Promise<ResponseFrame*>(nullptr), "cannot send http request over websocket");
-				VI_ASSERT(Stream.IsValid(), Core::Promise<ResponseFrame*>(nullptr), "stream should be opened");
+				VI_ASSERT(!WebSocket || Root.GetHeader("Sec-WebSocket-Key") != nullptr, "cannot send http request over websocket");
+				VI_ASSERT(Stream.IsValid(), "stream should be opened");
 				VI_DEBUG("[http] %s %s", Root.Method, Root.URI.c_str());
 
 				Core::Promise<ResponseFrame*> Result;

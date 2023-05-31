@@ -418,7 +418,7 @@ namespace Mavi
 		if (Modes & (uint64_t)Init::Core)
 		{
 			if (Modes & (uint64_t)Init::Debug)
-				Core::OS::SetLogFlag(Core::LogOption::Active, true);
+				Core::ErrorHandling::SetFlag(Core::LogOption::Active, true);
 		}
 
 		if (Modes & (uint64_t)Init::Network)
@@ -426,8 +426,8 @@ namespace Mavi
 #ifdef VI_MICROSOFT
 			WSADATA WSAData;
 			WORD VersionRequested = MAKEWORD(2, 2);
-			if (WSAStartup(VersionRequested, &WSAData) != 0)
-				VI_ERR("[mavi] windows socket refs cannot be initialized");
+			int Code = WSAStartup(VersionRequested, &WSAData);
+			VI_PANIC(Code == 0, "WSA initialization failure reason:%i", Code);
 #endif
 		}
 
@@ -501,77 +501,74 @@ namespace Mavi
 		{
 #ifdef VI_HAS_SDL2
 			SDL_SetMainReady();
-			if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) == 0)
-			{
-				SDL_EventState(SDL_QUIT, SDL_ENABLE);
-				SDL_EventState(SDL_APP_TERMINATING, SDL_ENABLE);
-				SDL_EventState(SDL_APP_LOWMEMORY, SDL_ENABLE);
-				SDL_EventState(SDL_APP_WILLENTERBACKGROUND, SDL_ENABLE);
-				SDL_EventState(SDL_APP_DIDENTERBACKGROUND, SDL_ENABLE);
-				SDL_EventState(SDL_APP_WILLENTERFOREGROUND, SDL_ENABLE);
-				SDL_EventState(SDL_APP_DIDENTERFOREGROUND, SDL_ENABLE);
-				SDL_EventState(SDL_APP_DIDENTERFOREGROUND, SDL_ENABLE);
-				SDL_EventState(SDL_WINDOWEVENT, SDL_ENABLE);
-				SDL_EventState(SDL_SYSWMEVENT, SDL_DISABLE);
-				SDL_EventState(SDL_KEYDOWN, SDL_ENABLE);
-				SDL_EventState(SDL_KEYUP, SDL_ENABLE);
-				SDL_EventState(SDL_TEXTEDITING, SDL_ENABLE);
-				SDL_EventState(SDL_TEXTINPUT, SDL_ENABLE);
+			int Code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
+			VI_PANIC(Code == 0, "SDL2 initialization failure reason:%i", Code);
+			SDL_EventState(SDL_QUIT, SDL_ENABLE);
+			SDL_EventState(SDL_APP_TERMINATING, SDL_ENABLE);
+			SDL_EventState(SDL_APP_LOWMEMORY, SDL_ENABLE);
+			SDL_EventState(SDL_APP_WILLENTERBACKGROUND, SDL_ENABLE);
+			SDL_EventState(SDL_APP_DIDENTERBACKGROUND, SDL_ENABLE);
+			SDL_EventState(SDL_APP_WILLENTERFOREGROUND, SDL_ENABLE);
+			SDL_EventState(SDL_APP_DIDENTERFOREGROUND, SDL_ENABLE);
+			SDL_EventState(SDL_APP_DIDENTERFOREGROUND, SDL_ENABLE);
+			SDL_EventState(SDL_WINDOWEVENT, SDL_ENABLE);
+			SDL_EventState(SDL_SYSWMEVENT, SDL_DISABLE);
+			SDL_EventState(SDL_KEYDOWN, SDL_ENABLE);
+			SDL_EventState(SDL_KEYUP, SDL_ENABLE);
+			SDL_EventState(SDL_TEXTEDITING, SDL_ENABLE);
+			SDL_EventState(SDL_TEXTINPUT, SDL_ENABLE);
 #if SDL_VERSION_ATLEAST(2, 0, 4)
-				SDL_EventState(SDL_KEYMAPCHANGED, SDL_DISABLE);
+			SDL_EventState(SDL_KEYMAPCHANGED, SDL_DISABLE);
 #endif
-				SDL_EventState(SDL_MOUSEMOTION, SDL_ENABLE);
-				SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_ENABLE);
-				SDL_EventState(SDL_MOUSEBUTTONUP, SDL_ENABLE);
-				SDL_EventState(SDL_MOUSEWHEEL, SDL_ENABLE);
-				SDL_EventState(SDL_JOYAXISMOTION, SDL_ENABLE);
-				SDL_EventState(SDL_JOYBALLMOTION, SDL_ENABLE);
-				SDL_EventState(SDL_JOYHATMOTION, SDL_ENABLE);
-				SDL_EventState(SDL_JOYBUTTONDOWN, SDL_ENABLE);
-				SDL_EventState(SDL_JOYBUTTONUP, SDL_ENABLE);
-				SDL_EventState(SDL_JOYDEVICEADDED, SDL_ENABLE);
-				SDL_EventState(SDL_JOYDEVICEREMOVED, SDL_ENABLE);
-				SDL_EventState(SDL_CONTROLLERAXISMOTION, SDL_ENABLE);
-				SDL_EventState(SDL_CONTROLLERBUTTONDOWN, SDL_ENABLE);
-				SDL_EventState(SDL_CONTROLLERBUTTONUP, SDL_ENABLE);
-				SDL_EventState(SDL_CONTROLLERDEVICEADDED, SDL_ENABLE);
-				SDL_EventState(SDL_CONTROLLERDEVICEREMOVED, SDL_ENABLE);
-				SDL_EventState(SDL_CONTROLLERDEVICEREMAPPED, SDL_ENABLE);
-				SDL_EventState(SDL_FINGERDOWN, SDL_ENABLE);
-				SDL_EventState(SDL_FINGERUP, SDL_ENABLE);
-				SDL_EventState(SDL_FINGERMOTION, SDL_ENABLE);
-				SDL_EventState(SDL_DOLLARGESTURE, SDL_ENABLE);
-				SDL_EventState(SDL_DOLLARRECORD, SDL_ENABLE);
-				SDL_EventState(SDL_MULTIGESTURE, SDL_ENABLE);
-				SDL_EventState(SDL_CLIPBOARDUPDATE, SDL_DISABLE);
+			SDL_EventState(SDL_MOUSEMOTION, SDL_ENABLE);
+			SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_ENABLE);
+			SDL_EventState(SDL_MOUSEBUTTONUP, SDL_ENABLE);
+			SDL_EventState(SDL_MOUSEWHEEL, SDL_ENABLE);
+			SDL_EventState(SDL_JOYAXISMOTION, SDL_ENABLE);
+			SDL_EventState(SDL_JOYBALLMOTION, SDL_ENABLE);
+			SDL_EventState(SDL_JOYHATMOTION, SDL_ENABLE);
+			SDL_EventState(SDL_JOYBUTTONDOWN, SDL_ENABLE);
+			SDL_EventState(SDL_JOYBUTTONUP, SDL_ENABLE);
+			SDL_EventState(SDL_JOYDEVICEADDED, SDL_ENABLE);
+			SDL_EventState(SDL_JOYDEVICEREMOVED, SDL_ENABLE);
+			SDL_EventState(SDL_CONTROLLERAXISMOTION, SDL_ENABLE);
+			SDL_EventState(SDL_CONTROLLERBUTTONDOWN, SDL_ENABLE);
+			SDL_EventState(SDL_CONTROLLERBUTTONUP, SDL_ENABLE);
+			SDL_EventState(SDL_CONTROLLERDEVICEADDED, SDL_ENABLE);
+			SDL_EventState(SDL_CONTROLLERDEVICEREMOVED, SDL_ENABLE);
+			SDL_EventState(SDL_CONTROLLERDEVICEREMAPPED, SDL_ENABLE);
+			SDL_EventState(SDL_FINGERDOWN, SDL_ENABLE);
+			SDL_EventState(SDL_FINGERUP, SDL_ENABLE);
+			SDL_EventState(SDL_FINGERMOTION, SDL_ENABLE);
+			SDL_EventState(SDL_DOLLARGESTURE, SDL_ENABLE);
+			SDL_EventState(SDL_DOLLARRECORD, SDL_ENABLE);
+			SDL_EventState(SDL_MULTIGESTURE, SDL_ENABLE);
+			SDL_EventState(SDL_CLIPBOARDUPDATE, SDL_DISABLE);
 #if SDL_VERSION_ATLEAST(2, 0, 5)
-				SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
-				SDL_EventState(SDL_DROPTEXT, SDL_ENABLE);
-				SDL_EventState(SDL_DROPBEGIN, SDL_ENABLE);
-				SDL_EventState(SDL_DROPCOMPLETE, SDL_ENABLE);
+			SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
+			SDL_EventState(SDL_DROPTEXT, SDL_ENABLE);
+			SDL_EventState(SDL_DROPBEGIN, SDL_ENABLE);
+			SDL_EventState(SDL_DROPCOMPLETE, SDL_ENABLE);
 #endif
 #if SDL_VERSION_ATLEAST(2, 0, 4)
-				SDL_EventState(SDL_AUDIODEVICEADDED, SDL_DISABLE);
-				SDL_EventState(SDL_AUDIODEVICEREMOVED, SDL_DISABLE);
-				SDL_EventState(SDL_RENDER_DEVICE_RESET, SDL_DISABLE);
+			SDL_EventState(SDL_AUDIODEVICEADDED, SDL_DISABLE);
+			SDL_EventState(SDL_AUDIODEVICEREMOVED, SDL_DISABLE);
+			SDL_EventState(SDL_RENDER_DEVICE_RESET, SDL_DISABLE);
 #endif
-				SDL_EventState(SDL_RENDER_TARGETS_RESET, SDL_DISABLE);
-				SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-				SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-				SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-				SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-				SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-				SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-				SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+			SDL_EventState(SDL_RENDER_TARGETS_RESET, SDL_DISABLE);
+			SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+			SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+			SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+			SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+			SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+			SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+			SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-				const char* Platform = SDL_GetPlatform();
-				if (!strcmp(Platform, "iOS") || !strcmp(Platform, "Android") || !strcmp(Platform, "Unknown"))
-					SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-				else
-					SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-			}
+			const char* Platform = SDL_GetPlatform();
+			if (!strcmp(Platform, "iOS") || !strcmp(Platform, "Android") || !strcmp(Platform, "Unknown"))
+				SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 			else
-				VI_ERR("[mavi] %s", SDL_GetError());
+				SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #else
 			VI_WARN("[mavi] sdl2 cannot be initialized");
 #endif
@@ -616,7 +613,7 @@ namespace Mavi
 			return State >= 0;
 
 		auto* Manager = Core::Memory::GetAllocator();
-		Core::OS::SetLogFlag(Core::LogOption::Async, false);
+		Core::ErrorHandling::SetFlag(Core::LogOption::Async, false);
 		Core::Schedule::Reset();
 
 		if (Modes & (uint64_t)Init::SSL)
@@ -683,7 +680,7 @@ namespace Mavi
 		if (Modes & (uint64_t)Init::Core)
 		{
 			if (Modes & (uint64_t)Init::Debug)
-				Core::OS::SetLogFlag(Core::LogOption::Active, false);
+				Core::ErrorHandling::SetFlag(Core::LogOption::Active, false);
 		}
 #ifdef VI_HAS_ASSIMP
 		Assimp::DefaultLogger::kill();

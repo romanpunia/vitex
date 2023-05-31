@@ -94,11 +94,11 @@ namespace
 		}
 		~StringFactory()
 		{
-			VI_ASSERT_V(Cache.size() == 0, "some strings are still in use");
+			VI_ASSERT(Cache.size() == 0, "some strings are still in use");
 		}
 		const void* GetStringConstant(const char* Buffer, asUINT Length)
 		{
-			VI_ASSERT(Buffer != nullptr, nullptr, "buffer must not be null");
+			VI_ASSERT(Buffer != nullptr, "buffer must not be null");
 
 			asAcquireExclusiveLock();
 			Mavi::Core::String Source(Buffer, Length);
@@ -114,7 +114,7 @@ namespace
 		}
 		int ReleaseStringConstant(const void* Source)
 		{
-			VI_ASSERT(Source != nullptr, asERROR, "source must not be null");
+			VI_ASSERT(Source != nullptr, "source must not be null");
 
 			asAcquireExclusiveLock();
 			auto It = Cache.find(*reinterpret_cast<const Mavi::Core::String*>(Source));
@@ -133,7 +133,7 @@ namespace
 		}
 		int GetRawStringData(const void* Source, char* Buffer, asUINT* Length) const
 		{
-			VI_ASSERT(Source != nullptr, asERROR, "source must not be null");
+			VI_ASSERT(Source != nullptr, "source must not be null");
 			if (Length != nullptr)
 				*Length = (asUINT)reinterpret_cast<const Mavi::Core::String*>(Source)->length();
 
@@ -211,17 +211,17 @@ namespace Mavi
 
 			void String::Construct(Core::String* Current)
 			{
-				VI_ASSERT_V(Current != nullptr, "Current should be set");
+				VI_ASSERT(Current != nullptr, "Current should be set");
 				new(Current) Core::String();
 			}
 			void String::CopyConstruct(const Core::String& Other, Core::String* Current)
 			{
-				VI_ASSERT_V(Current != nullptr, "Current should be set");
+				VI_ASSERT(Current != nullptr, "Current should be set");
 				new(Current) Core::String(Other);
 			}
 			void String::Destruct(Core::String* Current)
 			{
-				VI_ASSERT_V(Current != nullptr, "Current should be set");
+				VI_ASSERT(Current != nullptr, "Current should be set");
 				Current->~basic_string();
 			}
 			Core::String& String::AddAssignTo(const Core::String& Current, Core::String& Dest)
@@ -1090,7 +1090,7 @@ namespace Mavi
 
 			Array::Array(asITypeInfo* Info, void* BufferPtr) noexcept : RefCount(1), GCFlag(false), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
-				VI_ASSERT_V(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
+				VI_ASSERT(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
 				Precache();
 
@@ -1145,7 +1145,7 @@ namespace Mavi
 			}
 			Array::Array(size_t Length, asITypeInfo* Info) noexcept : RefCount(1), GCFlag(false), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
-				VI_ASSERT_V(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
+				VI_ASSERT(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
 				Precache();
 
@@ -1163,7 +1163,7 @@ namespace Mavi
 			}
 			Array::Array(const Array& Other) noexcept : RefCount(1), GCFlag(false), ObjType(Other.ObjType), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
-				VI_ASSERT_V(ObjType && Core::String(ObjType->GetName()) == TYPENAME_ARRAY, "array type is invalid");
+				VI_ASSERT(ObjType && Core::String(ObjType->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
 				Precache();
 
@@ -1176,7 +1176,7 @@ namespace Mavi
 			}
 			Array::Array(size_t Length, void* DefaultValue, asITypeInfo* Info) noexcept : RefCount(1), GCFlag(false), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
-				VI_ASSERT_V(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
+				VI_ASSERT(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
 				Precache();
 
@@ -3178,7 +3178,7 @@ namespace Mavi
 					return;
 				}
 
-				VI_ASSERT_V(TypeId & asTYPEID_OBJHANDLE, "type should be object handle");
+				VI_ASSERT(TypeId & asTYPEID_OBJHANDLE, "type should be object handle");
 				TypeId &= ~asTYPEID_OBJHANDLE;
 
 				asIScriptEngine* Engine = Type->GetEngine();
@@ -3218,7 +3218,7 @@ namespace Mavi
 
 			Weak::Weak(asITypeInfo* _Type) noexcept : WeakRefFlag(nullptr), Type(_Type), Ref(nullptr)
 			{
-				VI_ASSERT_V(Type != nullptr, "type should be set");
+				VI_ASSERT(Type != nullptr, "type should be set");
 				Type->AddRef();
 			}
 			Weak::Weak(const Weak& Other) noexcept
@@ -3422,7 +3422,7 @@ namespace Mavi
 
 			Promise::Promise(asIScriptContext* NewContext) noexcept : Engine(nullptr), Context(NewContext), Value(-1), RefCount(1)
 			{
-				VI_ASSERT_V(Context != nullptr, "context should not be null");
+				VI_ASSERT(Context != nullptr, "context should not be null");
 				Context->AddRef();
 				Engine = Context->GetEngine();
 				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_PROMISE));
@@ -3508,10 +3508,10 @@ namespace Mavi
 			}
 			void Promise::Store(void* RefPointer, int RefTypeId)
 			{
-				VI_ASSERT_V(Value.TypeId == PromiseNULL, "promise should be settled only once");
-				VI_ASSERT_V(RefPointer != nullptr || RefTypeId == asTYPEID_VOID, "input pointer should not be null");
-				VI_ASSERT_V(Engine != nullptr, "promise is malformed (engine is null)");
-				VI_ASSERT_V(Context != nullptr, "promise is malformed (context is null)");
+				VI_ASSERT(Value.TypeId == PromiseNULL, "promise should be settled only once");
+				VI_ASSERT(RefPointer != nullptr || RefTypeId == asTYPEID_VOID, "input pointer should not be null");
+				VI_ASSERT(Engine != nullptr, "promise is malformed (engine is null)");
+				VI_ASSERT(Context != nullptr, "promise is malformed (context is null)");
 
 				Update.lock();
 				if (Value.TypeId == PromiseNULL)
@@ -3576,8 +3576,8 @@ namespace Mavi
 			}
 			void Promise::Store(void* RefPointer, const char* TypeName)
 			{
-				VI_ASSERT_V(Engine != nullptr, "promise is malformed (engine is null)");
-				VI_ASSERT_V(TypeName != nullptr, "typename should not be null");
+				VI_ASSERT(Engine != nullptr, "promise is malformed (engine is null)");
+				VI_ASSERT(TypeName != nullptr, "typename should not be null");
 				Store(RefPointer, Engine->GetTypeIdByDecl(TypeName));
 			}
 			void Promise::StoreVoid()
@@ -3586,8 +3586,8 @@ namespace Mavi
 			}
 			bool Promise::Retrieve(void* RefPointer, int RefTypeId)
 			{
-				VI_ASSERT(Engine != nullptr, false, "promise is malformed (engine is null)");
-				VI_ASSERT(RefPointer != nullptr, false, "output pointer should not be null");
+				VI_ASSERT(Engine != nullptr, "promise is malformed (engine is null)");
+				VI_ASSERT(RefPointer != nullptr, "output pointer should not be null");
 				if (Value.TypeId == PromiseNULL)
 					return false;
 
@@ -3617,7 +3617,7 @@ namespace Mavi
 				{
 					int Size1 = Engine->GetSizeOfPrimitiveType(Value.TypeId);
 					int Size2 = Engine->GetSizeOfPrimitiveType(RefTypeId);
-					VI_ASSERT(Size1 == Size2, false, "cannot map incompatible primitive types");
+					VI_ASSERT(Size1 == Size2, "cannot map incompatible primitive types");
 
 					if (Size1 == Size2)
 					{
@@ -4328,7 +4328,7 @@ namespace Mavi
 			Thread::Thread(asIScriptEngine* Engine, asIScriptFunction* Func) noexcept : Function(Func), VM(VirtualMachine::Get(Engine)), Context(VM ? VM->RequestContext() : nullptr), Flag(false), Status(ThreadState::Execute), RefCount(1)
 			{
 				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_THREAD));
-				VI_ASSERT_V(Context != nullptr, "context should be set");
+				VI_ASSERT(Context != nullptr, "context should be set");
 				if (VM != nullptr && !Context)
 					VM->GetEngine()->WriteMessage(TYPENAME_THREAD, 0, 0, asMSGTYPE_ERROR, "failed to start a thread: no available context");
 			}
@@ -4993,8 +4993,7 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr)
 					return Base->WriteLine(Context->GetStackTrace(3, (size_t)Frames));
-
-				VI_ERR("[vm] no active context for stack tracing");
+				VI_WARN("[vm] no active context for stack tracing");
 			}
 			void ConsoleGetSize(Core::Console* Base, uint32_t& X, uint32_t& Y)
 			{
@@ -5375,7 +5374,7 @@ namespace Mavi
 
 			Application::Application(Desc& I) noexcept : Engine::Application(&I), Context(ImmediateContext::Get())
 			{
-				VI_ASSERT_V(Context != nullptr, "virtual machine should be present at this level");
+				VI_ASSERT(Context != nullptr, "virtual machine should be present at this level");
 				Context->AddRef();
 
 				if (I.Usage & (size_t)Engine::ApplicationSet::ScriptSet)
@@ -6261,7 +6260,8 @@ namespace Mavi
 
 				VI_RELEASE(Base.Hull);
 				Base = Other;
-				VI_ASSIGN(Base.Hull, Other.Hull);
+				if (Base.Hull != nullptr)
+					Base.Hull->AddRef();
 
 				return Base;
 			}
@@ -6752,7 +6752,8 @@ namespace Mavi
 
 				VI_RELEASE(Base.Source);
 				Base = Other;
-				VI_ASSIGN(Base.Source, Other.Source);
+				if (Base.Source != nullptr)
+					Base.Source->AddRef();
 
 				return Base;
 			}
@@ -6801,7 +6802,8 @@ namespace Mavi
 
 				VI_RELEASE(Base.Device);
 				Base = Other;
-				VI_ASSIGN(Base.Device, Other.Device);
+				if (Base.Device != nullptr)
+					Base.Device->AddRef();
 
 				return Base;
 			}
@@ -6838,7 +6840,8 @@ namespace Mavi
 
 				VI_RELEASE(Base.Source);
 				Base = Other;
-				VI_ASSIGN(Base.Source, Other.Source);
+				if (Base.Source != nullptr)
+					Base.Source->AddRef();
 
 				return Base;
 			}
@@ -6854,7 +6857,8 @@ namespace Mavi
 
 				VI_RELEASE(Base.Window);
 				Base = Other;
-				VI_ASSIGN(Base.Window, Other.Window);
+				if (Base.Window != nullptr)
+					Base.Window->AddRef();
 
 				return Base;
 			}
@@ -7309,7 +7313,8 @@ namespace Mavi
 
 				VI_RELEASE(Base.Base);
 				Base = Other;
-				VI_ASSIGN(Base.Base, Other.Base);
+				if (Base.Base != nullptr)
+					Base.Base->AddRef();
 
 				return Base;
 			}
@@ -7460,7 +7465,8 @@ namespace Mavi
 
 				VI_RELEASE(Base.Renderer);
 				Base = Other;
-				VI_ASSIGN(Base.Renderer, Other.Renderer);
+				if (Base.Renderer != nullptr)
+					Base.Renderer->AddRef();
 
 				return Base;
 			}
@@ -7885,12 +7891,18 @@ namespace Mavi
 				VI_RELEASE(Base.Primitives);
 				VI_RELEASE(Base.Shaders);
 				Base = Other;
-				VI_ASSIGN(Base.Device, Other.Device);
-				VI_ASSIGN(Base.Activity, Other.Activity);
-				VI_ASSIGN(Base.VM, Other.VM);
-				VI_ASSIGN(Base.Content, Other.Content);
-				VI_ASSIGN(Base.Primitives, Other.Primitives);
-				VI_ASSIGN(Base.Shaders, Other.Shaders);
+				if (Base.Device != nullptr)
+					Base.Device->AddRef();
+				if (Base.Activity != nullptr)
+					Base.Activity->AddRef();
+				if (Base.VM != nullptr)
+					Base.VM->AddRef();
+				if (Base.Content != nullptr)
+					Base.Content->AddRef();
+				if (Base.Primitives != nullptr)
+					Base.Primitives->AddRef();
+				if (Base.Shaders != nullptr)
+					Base.Shaders->AddRef();
 
 				return Base;
 			}
@@ -8075,8 +8087,10 @@ namespace Mavi
 				VI_RELEASE(Base.Primitives);
 				VI_RELEASE(Base.Shaders);
 				Base = Other;
-				VI_ASSIGN(Base.Primitives, Other.Primitives);
-				VI_ASSIGN(Base.Shaders, Other.Shaders);
+				if (Base.Primitives != nullptr)
+					Base.Primitives->AddRef();
+				if (Base.Shaders != nullptr)
+					Base.Shaders->AddRef();
 
 				return Base;
 			}
@@ -9143,7 +9157,9 @@ namespace Mavi
 			void QuerySetData(Network::HTTP::Query* Base, Core::Schema* Data)
 			{
 				VI_CLEAR(Base->Object);
-				VI_ASSIGN(Base->Object, Data);
+				Base->Object = Data;
+				if (Base->Object != nullptr)
+					Base->Object->AddRef();
 			}
 			Core::Schema* QueryGetData(Network::HTTP::Query* Base)
 			{
@@ -9153,7 +9169,9 @@ namespace Mavi
 			void SessionSetData(Network::HTTP::Session* Base, Core::Schema* Data)
 			{
 				VI_CLEAR(Base->Query);
-				VI_ASSIGN(Base->Query, Data);
+				Base->Query = Data;
+				if (Base->Query != nullptr)
+					Base->Query->AddRef();
 			}
 			Core::Schema* SessionGetData(Network::HTTP::Session* Base)
 			{
@@ -9177,9 +9195,9 @@ namespace Mavi
 			Core::Promise<bool> ClientSend(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame)
 			{
 				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->Send(std::move(Copy)).Then<bool>([](Network::HTTP::ResponseFrame*&& Frame)
+				return Base->Send(std::move(Copy)).Then<bool>([](Network::HTTP::ResponseFrame* Result) -> bool
 				{
-					return Frame != nullptr;
+					return Result != nullptr;
 				});
 			}
 			Core::Promise<Core::Schema*> ClientJSON(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
@@ -9298,7 +9316,7 @@ namespace Mavi
 #endif
 			bool Registry::ImportCTypes(VirtualMachine* VM)
 			{
-				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
+				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
 #ifdef VI_64
 				Engine->RegisterTypedef("usize", "uint64");
@@ -9313,7 +9331,7 @@ namespace Mavi
 			}
 			bool Registry::ImportAny(VirtualMachine* VM)
 			{
-				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
+				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 
 				asIScriptEngine* Engine = VM->GetEngine();
 				Engine->RegisterObjectType("any", sizeof(Any), asOBJ_REF | asOBJ_GC);
@@ -9336,7 +9354,7 @@ namespace Mavi
 			}
 			bool Registry::ImportArray(VirtualMachine* VM)
 			{
-				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
+				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 
 				asIScriptEngine* Engine = VM->GetEngine();
 				Engine->SetTypeInfoUserDataCleanupCallback(Array::CleanupTypeInfoCache, CACHE_ARRAY);
@@ -9392,7 +9410,7 @@ namespace Mavi
 			bool Registry::ImportComplex(VirtualMachine* VM)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
+				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
 				Engine->RegisterObjectType("complex", sizeof(Complex), asOBJ_VALUE | asOBJ_POD | asGetTypeTraits<Complex>() | asOBJ_APP_CLASS_ALLFLOATS);
 				Engine->RegisterObjectProperty("complex", "float R", asOFFSET(Complex, R));
@@ -9418,13 +9436,13 @@ namespace Mavi
 				Engine->RegisterObjectMethod("complex", "void set_ir(const complex &in) property", asMETHOD(Complex, SetIR), asCALL_THISCALL);
 				return true;
 #else
-				VI_ASSERT(false, false, "<complex> is not loaded");
+				VI_ASSERT(false, "<complex> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportDictionary(VirtualMachine* VM)
 			{
-				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
+				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
 				Engine->RegisterObjectType("storable", sizeof(Storable), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_GC | asGetTypeTraits<Storable>());
 				Engine->RegisterObjectBehaviour("storable", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(Dictionary::KeyConstruct), asCALL_CDECL_OBJLAST);
@@ -9652,7 +9670,7 @@ namespace Mavi
 			}
 			bool Registry::ImportException(VirtualMachine* VM)
 			{
-				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
+				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 
 				asIScriptEngine* Engine = VM->GetEngine();
 				TypeClass VExceptionData = VM->SetStructTrivial<Exception::Pointer>("exception_ptr");
@@ -9679,7 +9697,7 @@ namespace Mavi
 			bool Registry::ImportMutex(VirtualMachine* VM)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
+				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
 				Engine->RegisterObjectType("mutex", sizeof(Mutex), asOBJ_REF);
 				Engine->RegisterObjectBehaviour("mutex", asBEHAVE_FACTORY, "mutex@ f()", asFUNCTION(Mutex::Factory), asCALL_CDECL);
@@ -9690,14 +9708,14 @@ namespace Mavi
 				Engine->RegisterObjectMethod("mutex", "void unlock()", asMETHOD(Mutex, Unlock), asCALL_THISCALL);
 				return true;
 #else
-				VI_ASSERT(false, false, "<mutex> is not loaded");
+				VI_ASSERT(false, "<mutex> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportThread(VirtualMachine* VM)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
+				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
 				Engine->RegisterObjectType("thread", 0, asOBJ_REF | asOBJ_GC);
 				Engine->RegisterFuncdef("void thread_event(thread@+)");
@@ -9728,14 +9746,14 @@ namespace Mavi
 				VM->EndNamespace();
 				return true;
 #else
-				VI_ASSERT(false, false, "<thread> is not loaded");
+				VI_ASSERT(false, "<thread> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportBuffers(VirtualMachine* VM)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
+				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
 				Engine->RegisterObjectType("char_buffer", 0, asOBJ_REF);
 				Engine->RegisterObjectBehaviour("char_buffer", asBEHAVE_FACTORY, "char_buffer@ f()", asFUNCTIONPR(CharBuffer::Create, (), CharBuffer*), asCALL_CDECL);
@@ -9777,13 +9795,13 @@ namespace Mavi
 				Engine->RegisterObjectMethod("char_buffer", "string to_string(usize) const", asMETHOD(CharBuffer, ToString), asCALL_THISCALL);
 				return true;
 #else
-				VI_ASSERT(false, false, "<buffers> is not loaded");
+				VI_ASSERT(false, "<buffers> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportRandom(VirtualMachine* VM)
 			{
-				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, false, "manager should be set");
+				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 
 				VM->BeginNamespace("random");
 				VM->SetFunction("string bytes(uint64)", &Random::Getb);
@@ -9801,7 +9819,7 @@ namespace Mavi
 			bool Registry::ImportPromise(VirtualMachine* VM)
 			{
 				asIScriptEngine* Engine = VM->GetEngine();
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Engine->RegisterObjectType("promise<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Promise::TemplateCallback), asCALL_CDECL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(Promise, AddRef), asCALL_THISCALL);
@@ -9850,7 +9868,7 @@ namespace Mavi
 			bool Registry::ImportFormat(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				RefClass VFormat = Engine->SetClass<Format>("format", false);
 				VFormat.SetConstructor<Format>("format@ f()");
 				VFormat.SetConstructorList<Format>("format@ f(int &in) {repeat ?}");
@@ -9858,13 +9876,13 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<format> is not loaded");
+				VI_ASSERT(false, "<format> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportDecimal(VirtualMachine* Engine)
 			{
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 
 				TypeClass VDecimal = Engine->SetStructTrivial<Core::Decimal>("decimal");
 				VDecimal.SetConstructor<Core::Decimal>("void f()");
@@ -9911,7 +9929,7 @@ namespace Mavi
 			}
 			bool Registry::ImportVariant(VirtualMachine* Engine)
 			{
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VVarType = Engine->SetEnum("var_type");
 				VVarType.SetValue("null_t", (int)Core::VarType::Null);
 				VVarType.SetValue("undefined_t", (int)Core::VarType::Undefined);
@@ -9962,7 +9980,7 @@ namespace Mavi
 			}
 			bool Registry::ImportTimestamp(VirtualMachine* Engine)
 			{
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				TypeClass VDateTime = Engine->SetStructTrivial<Core::DateTime>("timestamp");
 				VDateTime.SetConstructor<Core::DateTime>("void f()");
 				VDateTime.SetConstructor<Core::DateTime, uint64_t>("void f(uint64)");
@@ -10019,7 +10037,7 @@ namespace Mavi
 			bool Registry::ImportConsole(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VStdColor = Engine->SetEnum("std_color");
 				VStdColor.SetValue("black", (int)Core::StdColor::Black);
 				VStdColor.SetValue("dark_blue", (int)Core::StdColor::DarkBlue);
@@ -10070,13 +10088,13 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<console> is not loaded");
+				VI_ASSERT(false, "<console> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportSchema(VirtualMachine* Engine)
 			{
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				VI_TYPEREF(Schema, "schema");
 
 				RefClass VSchema = Engine->SetClass<Core::Schema>("schema", true);
@@ -10163,7 +10181,7 @@ namespace Mavi
 			bool Registry::ImportClockTimer(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 
 				RefClass VTimer = Engine->SetClass<Core::Timer>("clock_timer", false);
 				VTimer.SetConstructor<Core::Timer>("clock_timer@ f()");
@@ -10183,14 +10201,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<clock_timer> is not loaded");
+				VI_ASSERT(false, "<clock_timer> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportFileSystem(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VFileMode = Engine->SetEnum("file_mode");
 				VFileMode.SetValue("read_only", (int)Core::FileMode::Read_Only);
 				VFileMode.SetValue("write_only", (int)Core::FileMode::Write_Only);
@@ -10320,14 +10338,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<file_system> is not loaded");
+				VI_ASSERT(false, "<file_system> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportOS(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Engine->BeginNamespace("os::cpu");
 				Enumeration VArch = Engine->SetEnum("arch");
 				VArch.SetValue("x64", (int)Core::OS::CPU::Arch::X64);
@@ -10443,14 +10461,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<os> is not loaded");
+				VI_ASSERT(false, "<os> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportSchedule(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Engine->GetEngine()->RegisterTypedef("task_id", "uint64");
 
 				Enumeration VDifficulty = Engine->SetEnum("difficulty");
@@ -10489,14 +10507,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<schedule> is not loaded");
+				VI_ASSERT(false, "<schedule> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportVertices(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				TypeClass VVertex = Engine->SetPod<Compute::Vertex>("vertex");
 				VVertex.SetProperty<Compute::Vertex>("float position_x", &Compute::Vertex::PositionX);
 				VVertex.SetProperty<Compute::Vertex>("float position_y", &Compute::Vertex::PositionY);
@@ -10565,14 +10583,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<vertices> is not loaded");
+				VI_ASSERT(false, "<vertices> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportVectors(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VCubeFace = Engine->SetEnum("cube_face");
 				VCubeFace.SetValue("positive_x", (int)Compute::CubeFace::PositiveX);
 				VCubeFace.SetValue("negative_x", (int)Compute::CubeFace::NegativeX);
@@ -10896,14 +10914,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<vectors> is not loaded");
+				VI_ASSERT(false, "<vectors> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportShapes(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				TypeClass VRectangle = Engine->SetPod<Compute::Rectangle>("rectangle");
 				VRectangle.SetProperty<Compute::Rectangle>("int64 left", &Compute::Rectangle::Left);
 				VRectangle.SetProperty<Compute::Rectangle>("int64 top", &Compute::Rectangle::Top);
@@ -10953,14 +10971,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<shapes> is not loaded");
+				VI_ASSERT(false, "<shapes> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportKeyFrames(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				TypeClass VJoint = Engine->SetStructTrivial<Compute::Joint>("joint");
 				VJoint.SetProperty<Compute::Joint>("string name", &Compute::Joint::Name);
 				VJoint.SetProperty<Compute::Joint>("matrix4x4 global", &Compute::Joint::Global);
@@ -11041,14 +11059,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<key_frames> is not loaded");
+				VI_ASSERT(false, "<key_frames> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportRegex(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VRegexState = Engine->SetEnum("regex_state");
 				VRegexState.SetValue("preprocessed", (int)Compute::RegexState::Preprocessed);
 				VRegexState.SetValue("match_found", (int)Compute::RegexState::Match_Found);
@@ -11094,14 +11112,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<regex> is not loaded");
+				VI_ASSERT(false, "<regex> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportCrypto(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				VI_TYPEREF(WebToken, "web_token");
 
 				TypeClass VPrivateKey = Engine->SetStructTrivial<Compute::PrivateKey>("private_key");
@@ -11345,14 +11363,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<crypto> is not loaded");
+				VI_ASSERT(false, "<crypto> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportCodec(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VCompression = Engine->SetEnum("compression_cdc");
 				VCompression.SetValue("none", (int)Compute::Compression::None);
 				VCompression.SetValue("best_speed", (int)Compute::Compression::BestSpeed);
@@ -11381,14 +11399,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<codec> is not loaded");
+				VI_ASSERT(false, "<codec> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportGeometric(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VPositioning = Engine->SetEnum("positioning");
 				VPositioning.SetValue("local", (int)Compute::Positioning::Local);
 				VPositioning.SetValue("global", (int)Compute::Positioning::Global);
@@ -11498,14 +11516,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<geometric> is not loaded");
+				VI_ASSERT(false, "<geometric> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportPreprocessor(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VIncludeType = Engine->SetEnum("include_type");
 				VIncludeType.SetValue("error_t", (int)Compute::IncludeType::Error);
 				VIncludeType.SetValue("preprocess_t", (int)Compute::IncludeType::Preprocess);
@@ -11554,14 +11572,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<preprocessor> is not loaded");
+				VI_ASSERT(false, "<preprocessor> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportPhysics(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				RefClass VSimulator = Engine->SetClass<Compute::Simulator>("physics_simulator", false);
 				
 				Enumeration VShape = Engine->SetEnum("physics_shape");
@@ -12264,14 +12282,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<physics> is not loaded");
+				VI_ASSERT(false, "<physics> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportAudio(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				VI_TYPEREF(AudioSource, "audio_source");
 
 				Enumeration VSoundDistanceModel = Engine->SetEnum("sound_distance_model");
@@ -12443,14 +12461,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<audio> is not loaded");
+				VI_ASSERT(false, "<audio> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportActivity(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VAppState = Engine->SetEnum("app_state");
 				VAppState.SetValue("close_window", (int)Graphics::AppState::Close_Window);
 				VAppState.SetValue("terminating", (int)Graphics::AppState::Terminating);
@@ -12942,14 +12960,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<activity> is not loaded");
+				VI_ASSERT(false, "<activity> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportGraphics(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VVSync = Engine->SetEnum("vsync");
 				VVSync.SetValue("off", (int)Graphics::VSync::Off);
 				VVSync.SetValue("frequency_x1", (int)Graphics::VSync::Frequency_X1);
@@ -13908,14 +13926,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<graphics> is not loaded");
+				VI_ASSERT(false, "<graphics> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportNetwork(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				VI_TYPEREF(SocketListener, "socket_listener");
 				VI_TYPEREF(SocketConnection, "socket_connection");
 				VI_TYPEREF(SocketServer, "socket_server");
@@ -14208,14 +14226,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<network> is not loaded");
+				VI_ASSERT(false, "<network> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportHTTP(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				VI_TYPEREF(RouteGroup, "http::route_group");
 				VI_TYPEREF(SiteEntry, "http::site_entry");
 				VI_TYPEREF(MapRouter, "http::map_router");
@@ -14615,14 +14633,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<http> is not loaded");
+				VI_ASSERT(false, "<http> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportSMTP(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 
 				Engine->BeginNamespace("smtp");
 				Enumeration VPriority = Engine->SetEnum("priority");
@@ -14681,52 +14699,52 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<smtp> is not loaded");
+				VI_ASSERT(false, "<smtp> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportPostgreSQL(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 
 				/* TODO: register bindings for <postgresql> module */
 				return true;
 #else
-				VI_ASSERT(false, false, "<postgresql> is not loaded");
+				VI_ASSERT(false, "<postgresql> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportMongoDB(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 
 				/* TODO: register bindings for <mongodb> module */
 				return true;
 #else
-				VI_ASSERT(false, false, "<mongodb> is not loaded");
+				VI_ASSERT(false, "<mongodb> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportVM(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 
 				RefClass VVirtualMachine = Engine->SetClass<VirtualMachine>("virtual_machine", false);
 
 				/* TODO: register bindings for <vm> module */
 				return true;
 #else
-				VI_ASSERT(false, false, "<vm> is not loaded");
+				VI_ASSERT(false, "<vm> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportEngine(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				VI_TYPEREF(Material, "material");
 				VI_TYPEREF(Model, "model");
 				VI_TYPEREF(SkinModel, "skin_model");
@@ -15630,14 +15648,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<engine> is not loaded");
+				VI_ASSERT(false, "<engine> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportComponents(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Engine->SetFunctionDef("void component_resource_event()");
 
 				RefClass VSoftBody = Engine->SetClass<Engine::Components::SoftBody>("soft_body_component", false);
@@ -15941,14 +15959,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<components> is not loaded");
+				VI_ASSERT(false, "<components> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportRenderers(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 
 				RefClass VSoftBody = Engine->SetClass<Engine::Renderers::SoftBody>("soft_body_renderer", false);
 				PopulateRendererInterface<Engine::Renderers::SoftBody, Engine::RenderSystem*>(VSoftBody, "soft_body_renderer@+ f(render_system@+)");
@@ -16255,14 +16273,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<renderers> is not loaded");
+				VI_ASSERT(false, "<renderers> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportUiControl(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				VI_TYPEREF(ModelListenerName, "ui_listener");
 
 				Enumeration VEventPhase = Engine->SetEnum("ui_event_phase");
@@ -16606,14 +16624,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<gui/control> is not loaded");
+				VI_ASSERT(false, "<gui/control> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportUiModel(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Engine->SetFunctionDef("void ui_data_event(ui_event &in, array<variant>@+)");
 
 				RefClass VModel = Engine->SetClass<Engine::GUI::DataModel>("ui_model", false);
@@ -16650,14 +16668,14 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<gui/model> is not loaded");
+				VI_ASSERT(false, "<gui/model> is not loaded");
 				return false;
 #endif
 			}
 			bool Registry::ImportUiContext(VirtualMachine* Engine)
 			{
 #ifdef VI_HAS_BINDINGS
-				VI_ASSERT(Engine != nullptr, false, "manager should be set");
+				VI_ASSERT(Engine != nullptr, "manager should be set");
 
 				RefClass VContext = Engine->SetClass<Engine::GUI::Context>("gui_context", false);
 				VContext.SetMethod("void set_documents_base_tag(const string &in)", &Engine::GUI::Context::SetDocumentsBaseTag);
@@ -16702,7 +16720,7 @@ namespace Mavi
 
 				return true;
 #else
-				VI_ASSERT(false, false, "<gui/context> is not loaded");
+				VI_ASSERT(false, "<gui/context> is not loaded");
 				return false;
 #endif
 			}

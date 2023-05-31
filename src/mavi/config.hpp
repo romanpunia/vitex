@@ -106,33 +106,7 @@ typedef socklen_t socket_size_t;
 #define VI_SORT(Begin, End, Comparator) std::sort(Begin, End, Comparator)
 #endif
 #ifdef NDEBUG
-#if VI_DLEVEL >= 5
-#define VI_TRACE(Format, ...) Mavi::Core::OS::Log((int)Mavi::Core::LogLevel::Trace, 0, nullptr, Format, ##__VA_ARGS__)
-#else
-#define VI_TRACE(Format, ...) ((void)0)
-#endif
-#if VI_DLEVEL >= 4
-#define VI_DEBUG(Format, ...) Mavi::Core::OS::Log((int)Mavi::Core::LogLevel::Debug, 0, nullptr, Format, ##__VA_ARGS__)
-#else
-#define VI_DEBUG(Format, ...) ((void)0)
-#endif
-#if VI_DLEVEL >= 3
-#define VI_INFO(Format, ...) Mavi::Core::OS::Log((int)Mavi::Core::LogLevel::Info, 0, nullptr, Format, ##__VA_ARGS__)
-#else
-#define VI_INFO(Format, ...) ((void)0)
-#endif
-#if VI_DLEVEL >= 2
-#define VI_WARN(Format, ...) Mavi::Core::OS::Log((int)Mavi::Core::LogLevel::Warning, 0, nullptr, Format, ##__VA_ARGS__)
-#else
-#define VI_WARN(Format, ...) ((void)0)
-#endif
-#if VI_DLEVEL >= 1
-#define VI_ERR(Format, ...) Mavi::Core::OS::Log((int)Mavi::Core::LogLevel::Error, 0, nullptr, Format, ##__VA_ARGS__)
-#else
-#define VI_ERR(Format, ...) ((void)0)
-#endif
-#define VI_ASSERT(Condition, Returnable, Format, ...) ((void)0)
-#define VI_ASSERT_V(Condition, Format, ...) ((void)0)
+#define VI_ASSERT(Condition, Format, ...) ((void)0)
 #define VI_MEASURE(Threshold) ((void)0)
 #define VI_MEASURE_LOOP() ((void)0)
 #define VI_WATCH(Ptr, Label) ((void)0)
@@ -144,39 +118,11 @@ typedef socklen_t socket_size_t;
 #define VI_AWAIT(Value) Mavi::Core::Coawait(Value)
 #endif
 #else
-#if VI_DLEVEL >= 5
-#define VI_TRACE(Format, ...) Mavi::Core::OS::Log((int)Mavi::Core::LogLevel::Trace, __LINE__, __FILE__, Format, ##__VA_ARGS__)
-#else
-#define VI_TRACE(Format, ...) ((void)0)
-#endif
-#if VI_DLEVEL >= 4
-#define VI_DEBUG(Format, ...) Mavi::Core::OS::Log((int)Mavi::Core::LogLevel::Debug, __LINE__, __FILE__, Format, ##__VA_ARGS__)
-#else
-#define VI_DEBUG(Format, ...) ((void)0)
-#endif
-#if VI_DLEVEL >= 3
-#define VI_INFO(Format, ...) Mavi::Core::OS::Log((int)Mavi::Core::LogLevel::Info, __LINE__, __FILE__, Format, ##__VA_ARGS__)
-#else
-#define VI_INFO(Format, ...) ((void)0)
-#endif
-#if VI_DLEVEL >= 2
-#define VI_WARN(Format, ...) Mavi::Core::OS::Log((int)Mavi::Core::LogLevel::Warning, __LINE__, __FILE__, Format, ##__VA_ARGS__)
-#else
-#define VI_WARN(Format, ...) ((void)0)
-#endif
-#if VI_DLEVEL >= 1
-#define VI_ERR(Format, ...) Mavi::Core::OS::Log((int)Mavi::Core::LogLevel::Error, __LINE__, __FILE__, Format, ##__VA_ARGS__)
-#define VI_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Mavi::Core::OS::Assert(true, __LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); return Returnable; }
-#define VI_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Mavi::Core::OS::Assert(true, __LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); return; }
-#else
-#define VI_ERR(Format, ...) ((void)0)
-#define VI_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Mavi::Core::OS::Process::Interrupt(); return Returnable; }
-#define VI_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Mavi::Core::OS::Process::Interrupt(); return; }
-#endif
+#define VI_ASSERT(Condition, Format, ...) if (!(Condition)) { Mavi::Core::ErrorHandling::Assert(__LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); }
 #define VI_MEASURE_START(X) _measure_line_##X
 #define VI_MEASURE_PREPARE(X) VI_MEASURE_START(X)
-#define VI_MEASURE(Threshold) auto VI_MEASURE_PREPARE(__LINE__) = Mavi::Core::OS::Timing::Measure(__FILE__, __func__, __LINE__, (uint64_t)(Threshold))
-#define VI_MEASURE_LOOP() Mavi::Core::OS::Timing::MeasureLoop()
+#define VI_MEASURE(Threshold) auto VI_MEASURE_PREPARE(__LINE__) = Mavi::Core::ErrorHandling::Measure(__FILE__, __func__, __LINE__, (uint64_t)(Threshold))
+#define VI_MEASURE_LOOP() Mavi::Core::ErrorHandling::MeasureLoop()
 #define VI_WATCH(Ptr, Label) Mavi::Core::Memory::Watch(Ptr, Mavi::Core::MemoryContext(__FILE__, __func__, Label, __LINE__))
 #define VI_WATCH_AT(Ptr, Function, Label) Mavi::Core::Memory::Watch(Ptr, Mavi::Core::MemoryContext(__FILE__, Function, Label, __LINE__))
 #define VI_UNWATCH(Ptr) Mavi::Core::Memory::Unwatch(Ptr)
@@ -186,14 +132,37 @@ typedef socklen_t socket_size_t;
 #define VI_AWAIT(Value) Mavi::Core::Coawait(Value, __func__, #Value)
 #endif
 #endif
+#if VI_DLEVEL >= 5
+#define VI_TRACE(Format, ...) Mavi::Core::ErrorHandling::Message(Mavi::Core::LogLevel::Trace, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#else
+#define VI_TRACE(Format, ...) ((void)0)
+#endif
+#if VI_DLEVEL >= 4
+#define VI_DEBUG(Format, ...) Mavi::Core::ErrorHandling::Message(Mavi::Core::LogLevel::Debug, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#else
+#define VI_DEBUG(Format, ...) ((void)0)
+#endif
+#if VI_DLEVEL >= 3
+#define VI_INFO(Format, ...) Mavi::Core::ErrorHandling::Message(Mavi::Core::LogLevel::Info, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#else
+#define VI_INFO(Format, ...) ((void)0)
+#endif
+#if VI_DLEVEL >= 2
+#define VI_WARN(Format, ...) Mavi::Core::ErrorHandling::Message(Mavi::Core::LogLevel::Warning, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#else
+#define VI_WARN(Format, ...) ((void)0)
+#endif
+#if VI_DLEVEL >= 1
+#define VI_ERR(Format, ...) Mavi::Core::ErrorHandling::Message(Mavi::Core::LogLevel::Error, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#else
+#define VI_ERR(Format, ...) ((void)0)
+#endif
+#define VI_PANIC(Condition, Format, ...) if (!(Condition)) { Mavi::Core::ErrorHandling::Panic(__LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); }
 #define VI_DELETE(Destructor, Var) { if (Var != nullptr) { (Var)->~Destructor(); VI_FREE((void*)Var); } }
 #define VI_FREE(Ptr) Mavi::Core::Memory::Free(Ptr)
 #define VI_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
 #define VI_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
-#define VI_ASSIGN(FromPtr, ToPtr) { (FromPtr) = ToPtr; if (FromPtr != nullptr) (FromPtr)->AddRef(); }
-#define VI_REASSIGN(FromPtr, ToPtr) { VI_RELEASE(FromPtr); (FromPtr) = ToPtr; if (FromPtr != nullptr) (FromPtr)->AddRef(); }
 #define VI_HASH(Name) Mavi::Core::OS::File::GetHash(Name)
-#define VI_SHUFFLE(Name) Mavi::Core::OS::File::GetIndex<sizeof(Name)>(Name)
 #define VI_STRINGIFY(Text) #Text
 #define VI_COMPONENT_ROOT(Name) virtual const char* GetName() { return Name; } virtual uint64_t GetId() { static uint64_t V = VI_HASH(Name); return V; } static const char* GetTypeName() { return Name; } static uint64_t GetTypeId() { static uint64_t V = VI_HASH(Name); return V; }
 #define VI_COMPONENT(Name) virtual const char* GetName() override { return Name; } virtual uint64_t GetId() override { static uint64_t V = VI_HASH(Name); return V; } static const char* GetTypeName() { return Name; } static uint64_t GetTypeId() { static uint64_t V = VI_HASH(Name); return V; }

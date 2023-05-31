@@ -760,8 +760,8 @@ namespace Mavi
 				template <typename T>
 				int SetTypePropertyByName(const char* Name, const T& Value)
 				{
-					VI_ASSERT(Name != nullptr, (int)Scripting::Errors::INVALID_ARG, "name should be set");
-					VI_ASSERT(Compiler != nullptr, (int)Scripting::Errors::INVALID_ARG, "compiler should be set");
+					VI_ASSERT(Name != nullptr, "name should be set");
+					VI_ASSERT(Compiler != nullptr, "compiler should be set");
 
 					Scripting::Module Base = Compiler->GetModule();
 					if (!Base.IsValid())
@@ -781,8 +781,8 @@ namespace Mavi
 				template <typename T>
 				int SetRefPropertyByName(const char* Name, T* Value)
 				{
-					VI_ASSERT(Name != nullptr, (int)Scripting::Errors::INVALID_ARG, "name should be set");
-					VI_ASSERT(Compiler != nullptr, (int)Scripting::Errors::INVALID_ARG, "compiler should be set");
+					VI_ASSERT(Name != nullptr, "name should be set");
+					VI_ASSERT(Compiler != nullptr, "compiler should be set");
 
 					Scripting::Module Base = Compiler->GetModule();
 					if (!Base.IsValid())
@@ -808,8 +808,8 @@ namespace Mavi
 				template <typename T>
 				int SetTypePropertyByIndex(int Index, const T& Value)
 				{
-					VI_ASSERT(Index >= 0, (int)Scripting::Errors::INVALID_ARG, "index should be greater or equal to zero");
-					VI_ASSERT(Compiler != nullptr, (int)Scripting::Errors::INVALID_ARG, "compiler should be set");
+					VI_ASSERT(Index >= 0, "index should be greater or equal to zero");
+					VI_ASSERT(Compiler != nullptr, "compiler should be set");
 
 					Scripting::Module Base = Compiler->GetModule();
 					if (!Base.IsValid())
@@ -825,8 +825,8 @@ namespace Mavi
 				template <typename T>
 				int SetRefPropertyByIndex(int Index, T* Value)
 				{
-					VI_ASSERT(Index >= 0, (int)Scripting::Errors::INVALID_ARG, "index should be greater or equal to zero");
-					VI_ASSERT(Compiler != nullptr, (int)Scripting::Errors::INVALID_ARG, "compiler should be set");
+					VI_ASSERT(Index >= 0, "index should be greater or equal to zero");
+					VI_ASSERT(Compiler != nullptr, "compiler should be set");
 
 					Scripting::Module Base = Compiler->GetModule();
 					if (!Base.IsValid())

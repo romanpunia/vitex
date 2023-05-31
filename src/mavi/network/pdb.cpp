@@ -31,7 +31,7 @@ namespace Mavi
 				}
 				bool Parse(void* Context, const FilterCallback& Callback)
 				{
-					VI_ASSERT(Callback, false, "callback should be set");
+					VI_ASSERT(Callback, "callback should be set");
 					if (Source[0] == '[')
 					{
 						while (Position < Size)
@@ -84,7 +84,7 @@ namespace Mavi
 			private:
 				void Emplace(void* Context, const FilterCallback& Callback, bool Empties)
 				{
-					VI_ASSERT_V(Callback, "callback should be set");
+					VI_ASSERT(Callback, "callback should be set");
 					if (Records.empty() && !Empties)
 						return;
 
@@ -103,7 +103,7 @@ namespace Mavi
 
 			static void PQlogMessage(TConnection* Base)
 			{
-				VI_ASSERT_V(Base != nullptr, "base should be set");
+				VI_ASSERT(Base != nullptr, "base should be set");
 				char* Message = PQerrorMessage(Base);
 				if (!Message || Message[0] == '\0')
 					return;
@@ -142,7 +142,7 @@ namespace Mavi
 			static Core::Schema* ToSchema(const char* Data, int Size, unsigned int Id);
 			static void ToArrayField(void* Context, ArrayFilter* Subdata, char* Data, size_t Size)
 			{
-				VI_ASSERT_V(Context != nullptr, "context should be set");
+				VI_ASSERT(Context != nullptr, "context should be set");
 				std::pair<Core::Schema*, Oid>* Base = (std::pair<Core::Schema*, Oid>*)Context;
 				if (Subdata != nullptr)
 				{
@@ -364,8 +364,8 @@ namespace Mavi
 #endif
 			Core::String Util::InlineArray(Cluster* Client, Core::Schema* Array)
 			{
-				VI_ASSERT(Client != nullptr, Core::String(), "cluster should be set");
-				VI_ASSERT(Array != nullptr, Core::String(), "array should be set");
+				VI_ASSERT(Client != nullptr, "cluster should be set");
+				VI_ASSERT(Array != nullptr, "array should be set");
 
 				Core::SchemaList Map;
 				Core::String Def;
@@ -402,8 +402,8 @@ namespace Mavi
 			}
 			Core::String Util::InlineQuery(Cluster* Client, Core::Schema* Where, const Core::UnorderedSet<Core::String>& Whitelist, const Core::String& Default)
 			{
-				VI_ASSERT(Client != nullptr, Core::String(), "cluster should be set");
-				VI_ASSERT(Where != nullptr, Core::String(), "array should be set");
+				VI_ASSERT(Client != nullptr, "cluster should be set");
+				VI_ASSERT(Where != nullptr, "array should be set");
 
 				Core::SchemaList Map;
 				Core::String Allow = "abcdefghijklmnopqrstuvwxyz._", Def;
@@ -647,10 +647,10 @@ namespace Mavi
 			int Column::SetValueText(char* Data, size_t Size)
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Data != nullptr, -1, "data should be set");
-				VI_ASSERT(Base != nullptr, -1, "context should be valid");
-				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), -1, "row should be valid");
-				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), -1, "column should be valid");
+				VI_ASSERT(Data != nullptr, "data should be set");
+				VI_ASSERT(Base != nullptr, "context should be valid");
+				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), "row should be valid");
+				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), "column should be valid");
 
 				return PQsetvalue(Base, (int)RowIndex, (int)ColumnIndex, Data, (int)Size);
 #else
@@ -660,9 +660,9 @@ namespace Mavi
 			Core::String Column::GetName() const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, Core::String(), "context should be valid");
-				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), Core::String(), "row should be valid");
-				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), Core::String(), "column should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
+				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), "row should be valid");
+				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), "column should be valid");
 
 				char* Text = PQfname(Base, (int)ColumnIndex);
 				if (!Text)
@@ -712,9 +712,9 @@ namespace Mavi
 			char* Column::GetRaw() const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, nullptr, "context should be valid");
-				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), nullptr, "row should be valid");
-				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), nullptr, "column should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
+				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), "row should be valid");
+				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), "column should be valid");
 
 				return PQgetvalue(Base, (int)RowIndex, (int)ColumnIndex);
 #else
@@ -724,9 +724,9 @@ namespace Mavi
 			int Column::GetFormatId() const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, 0, "context should be valid");
-				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), 0, "row should be valid");
-				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), 0, "column should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
+				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), "row should be valid");
+				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), "column should be valid");
 
 				return PQfformat(Base, (int)ColumnIndex);
 #else
@@ -736,9 +736,9 @@ namespace Mavi
 			int Column::GetModId() const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, -1, "context should be valid");
-				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), -1, "row should be valid");
-				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), -1, "column should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
+				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), "row should be valid");
+				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), "column should be valid");
 
 				return PQfmod(Base, (int)ColumnIndex);
 #else
@@ -748,9 +748,9 @@ namespace Mavi
 			int Column::GetTableIndex() const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, -1, "context should be valid");
-				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), -1, "row should be valid");
-				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), -1, "column should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
+				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), "row should be valid");
+				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), "column should be valid");
 
 				return PQftablecol(Base, (int)ColumnIndex);
 #else
@@ -760,9 +760,9 @@ namespace Mavi
 			ObjectId Column::GetTableId() const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, InvalidOid, "context should be valid");
-				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), InvalidOid, "row should be valid");
-				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), InvalidOid, "column should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
+				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), "row should be valid");
+				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), "column should be valid");
 
 				return PQftable(Base, (int)ColumnIndex);
 #else
@@ -772,9 +772,9 @@ namespace Mavi
 			ObjectId Column::GetTypeId() const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, InvalidOid, "context should be valid");
-				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), InvalidOid, "row should be valid");
-				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), InvalidOid, "column should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
+				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), "row should be valid");
+				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), "column should be valid");
 
 				return PQftype(Base, (int)ColumnIndex);
 #else
@@ -803,9 +803,9 @@ namespace Mavi
 			size_t Column::GetRawSize() const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, 0, "context should be valid");
-				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), 0, "row should be valid");
-				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), 0, "column should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
+				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), "row should be valid");
+				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), "column should be valid");
 
 				int Size = PQgetlength(Base, (int)RowIndex, (int)ColumnIndex);
 				if (Size < 0)
@@ -819,8 +819,8 @@ namespace Mavi
 			Row Column::GetRow() const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, Row(nullptr, std::numeric_limits<size_t>::max()), "context should be valid");
-				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), Row(nullptr, std::numeric_limits<size_t>::max()), "row should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
+				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), "row should be valid");
 
 				return Row(Base, RowIndex);
 #else
@@ -938,7 +938,7 @@ namespace Mavi
 			Column Row::GetColumn(const char* Name) const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Name != nullptr, Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()), "name should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 				if (!Base || RowIndex == std::numeric_limits<size_t>::max())
 					return Column(Base, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
 
@@ -954,9 +954,9 @@ namespace Mavi
 			bool Row::GetColumns(Column* Output, size_t Size) const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Output != nullptr && Size > 0, false, "output should be valid");
-				VI_ASSERT(Base != nullptr, false, "context should be valid");
-				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), false, "row should be valid");
+				VI_ASSERT(Output != nullptr && Size > 0, "output should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
+				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), "row should be valid");
 
 				Size = std::min(GetSize(), Size);
 				for (size_t i = 0; i < Size; i++)
@@ -1104,7 +1104,7 @@ namespace Mavi
 			Core::String Response::GetCommandStatusText() const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, Core::String(), "context should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
 				char* Text = PQcmdStatus(Base);
 				if (!Text)
 					return Core::String();
@@ -1117,7 +1117,7 @@ namespace Mavi
 			Core::String Response::GetStatusText() const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, Core::String(), "context should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
 				char* Text = PQresStatus(PQresultStatus(Base));
 				if (!Text)
 					return Core::String();
@@ -1130,7 +1130,7 @@ namespace Mavi
 			Core::String Response::GetErrorText() const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, Core::String(), "context should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
 				char* Text = PQresultErrorMessage(Base);
 				if (!Text)
 					return Core::String();
@@ -1143,7 +1143,7 @@ namespace Mavi
 			Core::String Response::GetErrorField(FieldCode Field) const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, Core::String(), "context should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
 				int Code;
 				switch (Field)
 				{
@@ -1217,8 +1217,8 @@ namespace Mavi
 			int Response::GetNameIndex(const Core::String& Name) const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, -1, "context should be valid");
-				VI_ASSERT(!Name.empty(), -1, "name should not be empty");
+				VI_ASSERT(Base != nullptr, "context should be valid");
+				VI_ASSERT(!Name.empty(), "name should not be empty");
 
 				return PQfnumber(Base, Name.c_str());
 #else
@@ -1228,7 +1228,7 @@ namespace Mavi
 			QueryExec Response::GetStatus() const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, QueryExec::Empty_Query, "context should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
 				return (QueryExec)PQresultStatus(Base);
 #else
 				return QueryExec::Empty_Query;
@@ -1237,7 +1237,7 @@ namespace Mavi
 			ObjectId Response::GetValueId() const
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Base != nullptr, InvalidOid, "context should be valid");
+				VI_ASSERT(Base != nullptr, "context should be valid");
 				return PQoidValue(Base);
 #else
 				return 0;
@@ -1429,17 +1429,17 @@ namespace Mavi
 			}
 			const Response& Cursor::First() const
 			{
-				VI_ASSERT(!Base.empty(), Base.front(), "index outside of range");
+				VI_ASSERT(!Base.empty(), "index outside of range");
 				return Base.front();
 			}
 			const Response& Cursor::Last() const
 			{
-				VI_ASSERT(!Base.empty(), Base.front(), "index outside of range");
+				VI_ASSERT(!Base.empty(), "index outside of range");
 				return Base.back();
 			}
 			const Response& Cursor::At(size_t Index) const
 			{
-				VI_ASSERT(Index < Base.size(), Base.front(), "index outside of range");
+				VI_ASSERT(Index < Base.size(), "index outside of range");
 				return Base[Index];
 			}
 			Connection* Cursor::GetExecutor() const
@@ -1594,7 +1594,7 @@ namespace Mavi
 						Cache.LongDuration = Duration;
 						break;
 					default:
-						VI_ASSERT_V(false, "cache id should be valid cache category");
+						VI_ASSERT(false, "cache id should be valid cache category");
 						break;
 				}
 			}
@@ -1606,7 +1606,7 @@ namespace Mavi
 			}
 			uint64_t Cluster::AddChannel(const Core::String& Name, const OnNotification& NewCallback)
 			{
-				VI_ASSERT(NewCallback != nullptr, 0, "callback should be set");
+				VI_ASSERT(NewCallback != nullptr, "callback should be set");
 
 				uint64_t Id = Channel++;
 				Update.lock();
@@ -1670,7 +1670,7 @@ namespace Mavi
 			Core::Promise<bool> Cluster::Connect(const Address& URI, size_t Connections)
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(Connections > 0, Core::Promise<bool>(false), "connections count should be at least 1");
+				VI_ASSERT(Connections > 0, "connections count should be at least 1");
 				Update.lock();
 				Source = URI;
 
@@ -1788,7 +1788,7 @@ namespace Mavi
 			Core::Promise<bool> Cluster::Disconnect()
 			{
 #ifdef VI_HAS_POSTGRESQL
-				VI_ASSERT(!Pool.empty(), Core::Promise<bool>(false), "connection should be established");
+				VI_ASSERT(!Pool.empty(), "connection should be established");
 				return Core::Cotask<bool>([this]()
 				{
 					std::unique_lock<std::mutex> Unique(Update);
@@ -1808,7 +1808,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Cluster::Listen(const Core::Vector<Core::String>& Channels)
 			{
-				VI_ASSERT(!Channels.empty(), Core::Promise<bool>(false), "channels should not be empty");
+				VI_ASSERT(!Channels.empty(), "channels should not be empty");
 				Update.lock();
 				Core::Vector<Core::String> Actual;
 				Actual.reserve(Channels.size());
@@ -1841,7 +1841,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Cluster::Unlisten(const Core::Vector<Core::String>& Channels)
 			{
-				VI_ASSERT(!Channels.empty(), Core::Promise<bool>(false), "channels should not be empty");
+				VI_ASSERT(!Channels.empty(), "channels should not be empty");
 				Update.lock();
 				Core::UnorderedMap<Connection*, Core::String> Commands;
 				for (auto& Item : Channels)
@@ -1881,7 +1881,7 @@ namespace Mavi
 			}
 			Core::Promise<Cursor> Cluster::Query(const Core::String& Command, size_t Opts, SessionId Session)
 			{
-				VI_ASSERT(!Command.empty(), Core::Promise<Cursor>(Cursor()), "command should not be empty");
+				VI_ASSERT(!Command.empty(), "command should not be empty");
 
 				bool MayCache = Opts & (size_t)QueryOp::CacheShort || Opts & (size_t)QueryOp::CacheMid || Opts & (size_t)QueryOp::CacheLong;
 				Core::String Reference;
@@ -1953,7 +1953,7 @@ namespace Mavi
 
 				Future.Set(Cursor());
 				VI_RELEASE(Next);
-				VI_ASSERT(false, Future, "[pq] transaction %" PRIu64 " does not exist", (void*)Session);
+				VI_ASSERT(false, "[pq] transaction %" PRIu64 " does not exist", (void*)Session);
 #endif
 				return Future;
 			}
@@ -2008,8 +2008,8 @@ namespace Mavi
 			}
 			bool Cluster::GetCache(const Core::String& CacheOid, Cursor* Data)
 			{
-				VI_ASSERT(!CacheOid.empty(), false, "cache oid should not be empty");
-				VI_ASSERT(Data != nullptr, false, "cursor should be set");
+				VI_ASSERT(!CacheOid.empty(), "cache oid should not be empty");
+				VI_ASSERT(Data != nullptr, "cursor should be set");
 
 				Cache.Context.lock();
 				auto It = Cache.Objects.find(CacheOid);
@@ -2033,8 +2033,8 @@ namespace Mavi
 			}
 			void Cluster::SetCache(const Core::String& CacheOid, Cursor* Data, size_t Opts)
 			{
-				VI_ASSERT_V(!CacheOid.empty(), "cache oid should not be empty");
-				VI_ASSERT_V(Data != nullptr, "cursor should be set");
+				VI_ASSERT(!CacheOid.empty(), "cache oid should not be empty");
+				VI_ASSERT(Data != nullptr, "cursor should be set");
 
 				int64_t Time = time(nullptr);
 				int64_t Timeout = Time;
@@ -2397,8 +2397,8 @@ namespace Mavi
 			}
 			bool Driver::AddConstant(const Core::String& Name, const Core::String& Value)
 			{
-				VI_ASSERT(Constants && Safe, false, "driver should be initialized");
-				VI_ASSERT(!Name.empty(), false, "name should not be empty");
+				VI_ASSERT(Constants && Safe, "driver should be initialized");
+				VI_ASSERT(!Name.empty(), "name should not be empty");
 
 				Safe->lock();
 				Constants->Map[Name] = Value;
@@ -2407,9 +2407,9 @@ namespace Mavi
 			}
 			bool Driver::AddQuery(const Core::String& Name, const char* Buffer, size_t Size)
 			{
-				VI_ASSERT(Queries && Safe, false, "driver should be initialized");
-				VI_ASSERT(!Name.empty(), false, "name should not be empty");
-				VI_ASSERT(Buffer, false, "buffer should be set");
+				VI_ASSERT(Queries && Safe, "driver should be initialized");
+				VI_ASSERT(!Name.empty(), "name should not be empty");
+				VI_ASSERT(Buffer, "buffer should be set");
 
 				if (!Size)
 					return false;
@@ -2545,7 +2545,7 @@ namespace Mavi
 			}
 			bool Driver::RemoveConstant(const Core::String& Name)
 			{
-				VI_ASSERT(Constants && Safe, false, "driver should be initialized");
+				VI_ASSERT(Constants && Safe, "driver should be initialized");
 				Safe->lock();
 				auto It = Constants->Map.find(Name);
 				if (It == Constants->Map.end())
@@ -2560,7 +2560,7 @@ namespace Mavi
 			}
 			bool Driver::RemoveQuery(const Core::String& Name)
 			{
-				VI_ASSERT(Queries && Safe, false, "driver should be initialized");
+				VI_ASSERT(Queries && Safe, "driver should be initialized");
 				Safe->lock();
 				auto It = Queries->Map.find(Name);
 				if (It == Queries->Map.end())
@@ -2575,8 +2575,8 @@ namespace Mavi
 			}
 			bool Driver::LoadCacheDump(Core::Schema* Dump)
 			{
-				VI_ASSERT(Queries && Safe, false, "driver should be initialized");
-				VI_ASSERT(Dump != nullptr, false, "dump should be set");
+				VI_ASSERT(Queries && Safe, "driver should be initialized");
+				VI_ASSERT(Dump != nullptr, "dump should be set");
 
 				size_t Count = 0;
 				std::unique_lock<std::mutex> Unique(*Safe);
@@ -2617,7 +2617,7 @@ namespace Mavi
 			}
 			Core::Schema* Driver::GetCacheDump()
 			{
-				VI_ASSERT(Queries && Safe, nullptr, "driver should be initialized");
+				VI_ASSERT(Queries && Safe, "driver should be initialized");
 				std::unique_lock<std::mutex> Unique(*Safe);
 				Core::Schema* Result = Core::Var::Set::Array();
 				for (auto& Query : Queries->Map)
@@ -2707,7 +2707,7 @@ namespace Mavi
 			}
 			Core::String Driver::GetQuery(Cluster* Base, const Core::String& Name, Core::SchemaArgs* Map, bool Once)
 			{
-				VI_ASSERT(Queries && Safe, Core::String(), "driver should be initialized");
+				VI_ASSERT(Queries && Safe, "driver should be initialized");
 				Safe->lock();
 				auto It = Queries->Map.find(Name);
 				if (It == Queries->Map.end())
@@ -2793,7 +2793,7 @@ namespace Mavi
 			Core::Vector<Core::String> Driver::GetQueries()
 			{
 				Core::Vector<Core::String> Result;
-				VI_ASSERT(Queries && Safe, Result, "driver should be initialized");
+				VI_ASSERT(Queries && Safe, "driver should be initialized");
 
 				Safe->lock();
 				Result.reserve(Queries->Map.size());

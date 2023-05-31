@@ -131,7 +131,7 @@ namespace Mavi
     
 		Location::Location(const Core::String& Src) noexcept : URL(Src), Protocol("file"), Port(-1)
 		{
-			VI_ASSERT_V(!URL.empty(), "url should not be empty");
+			VI_ASSERT(!URL.empty(), "url should not be empty");
 			Core::Stringify(&URL).Replace('\\', '/');
 
 			const char* PathBegin = nullptr;
@@ -324,7 +324,7 @@ namespace Mavi
 
 		DataFrame& DataFrame::operator= (const DataFrame& Other)
 		{
-			VI_ASSERT(this != &Other, *this, "this should not be other");
+			VI_ASSERT(this != &Other, "this should not be other");
 			Message = Other.Message;
 			Start = Other.Start;
 			Finish = Other.Finish;
@@ -337,7 +337,7 @@ namespace Mavi
 
 		EpollHandle::EpollHandle(size_t NewArraySize) noexcept : ArraySize(NewArraySize)
 		{
-			VI_ASSERT_V(ArraySize > 0, "array size should be greater than zero");
+			VI_ASSERT(ArraySize > 0, "array size should be greater than zero");
 #ifdef VI_APPLE
 			Handle = kqueue();
 			Array = VI_MALLOC(struct kevent, sizeof(struct kevent) * ArraySize);
@@ -356,8 +356,8 @@ namespace Mavi
 		}
 		bool EpollHandle::Add(Socket* Fd, bool Readable, bool Writeable)
 		{
-			VI_ASSERT(Handle != INVALID_EPOLL, false, "epoll should be initialized");
-			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, false, "socket should be set and valid");
+			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
+			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
 			VI_TRACE("[net] epoll add fd %i %s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
 #ifdef VI_APPLE
 			struct kevent Event;
@@ -392,8 +392,8 @@ namespace Mavi
 		}
 		bool EpollHandle::Update(Socket* Fd, bool Readable, bool Writeable)
 		{
-			VI_ASSERT(Handle != INVALID_EPOLL, false, "epoll should be initialized");
-			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, false, "socket should be set and valid");
+			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
+			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
 			VI_TRACE("[net] epoll update fd %i %s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
 #ifdef VI_APPLE
 			struct kevent Event;
@@ -428,8 +428,8 @@ namespace Mavi
 		}
 		bool EpollHandle::Remove(Socket* Fd, bool Readable, bool Writeable)
 		{
-			VI_ASSERT(Handle != INVALID_EPOLL, false, "epoll should be initialized");
-			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, false, "socket should be set and valid");
+			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
+			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
 			VI_TRACE("[net] epoll remove fd %i %s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
 #ifdef VI_APPLE
 			struct kevent Event;
@@ -464,7 +464,7 @@ namespace Mavi
 		}
 		int EpollHandle::Wait(EpollFd* Data, size_t DataSize, uint64_t Timeout)
 		{
-			VI_ASSERT(ArraySize <= DataSize, -1, "epollfd array should be less than or equal to internal events buffer");
+			VI_ASSERT(ArraySize <= DataSize, "epollfd array should be less than or equal to internal events buffer");
 			VI_TRACE("[net] epoll wait %i fds (%" PRIu64 " ms)", (int)DataSize, Timeout);
 #ifdef VI_APPLE
 			struct timespec Wait;
@@ -516,8 +516,8 @@ namespace Mavi
 		}
 		Core::String DNS::FindNameFromAddress(const Core::String& Host, const Core::String& Service)
 		{
-			VI_ASSERT(!Host.empty(), Core::String(), "ip address should not be empty");
-			VI_ASSERT(!Service.empty(), Core::String(), "port should be greater than zero");
+			VI_ASSERT(!Host.empty(), "ip address should not be empty");
+			VI_ASSERT(!Service.empty(), "port should be greater than zero");
 			VI_MEASURE((uint64_t)Core::Timings::Networking * 3);
 
 			struct sockaddr_storage Storage;
@@ -558,8 +558,8 @@ namespace Mavi
 		}
 		SocketAddress* DNS::FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType DNS, SocketProtocol Proto, SocketType Type)
 		{
-			VI_ASSERT(!Host.empty(), nullptr, "host should not be empty");
-			VI_ASSERT(!Service.empty(), nullptr, "service should not be empty");
+			VI_ASSERT(!Host.empty(), "host should not be empty");
+			VI_ASSERT(!Service.empty(), "service should not be empty");
 			VI_MEASURE((uint64_t)Core::Timings::Networking * 3);
 
 			struct addrinfo Hints;
@@ -706,7 +706,7 @@ namespace Mavi
 
 		int Utils::Poll(pollfd* Fd, int FdCount, int Timeout)
 		{
-			VI_ASSERT(Fd != nullptr, -1, "poll should be set");
+			VI_ASSERT(Fd != nullptr, "poll should be set");
 			VI_TRACE("[net] poll %i fds (%i ms)", FdCount, Timeout);
 #if defined(VI_MICROSOFT)
 			return WSAPoll(Fd, FdCount, Timeout);
@@ -716,7 +716,7 @@ namespace Mavi
 		}
 		int Utils::Poll(PollFd* Fd, int FdCount, int Timeout)
 		{
-			VI_ASSERT(Fd != nullptr, -1, "poll should be set");
+			VI_ASSERT(Fd != nullptr, "poll should be set");
 			VI_TRACE("[net] poll %i fds (%i ms)", FdCount, Timeout);
 			Core::Vector<pollfd> Fds;
 			Fds.resize(FdCount);
@@ -786,7 +786,7 @@ namespace Mavi
 
 		void Multiplexer::Create(uint64_t DispatchTimeout, size_t MaxEvents)
 		{
-			VI_ASSERT_V(MaxEvents > 0, "array size should be greater than zero");
+			VI_ASSERT(MaxEvents > 0, "array size should be greater than zero");
 			VI_TRACE("[net] initialize multiplexer (%" PRIu64 " events)", (uint64_t)MaxEvents);
 			VI_DELETE(EpollHandle, Handle);
 
@@ -833,7 +833,7 @@ namespace Mavi
 		}
 		int Multiplexer::Dispatch(uint64_t EventTimeout)
 		{
-			VI_ASSERT(Handle != nullptr && Timeouts != nullptr, -1, "driver should be initialized");
+			VI_ASSERT(Handle != nullptr && Timeouts != nullptr, "driver should be initialized");
 			int Count = Handle->Wait(Fds->data(), Fds->size(), EventTimeout);
 			if (Count < 0)
 				return Count;
@@ -865,7 +865,7 @@ namespace Mavi
 		}
 		bool Multiplexer::DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time)
 		{
-			VI_ASSERT(Fd.Base != nullptr, false, "no socket is connected to epoll fd");
+			VI_ASSERT(Fd.Base != nullptr, "no socket is connected to epoll fd");
 			if (Fd.Closed)
 			{
 				VI_DEBUG("[net] sock reset on fd %i", (int)Fd.Base->Fd);
@@ -935,22 +935,22 @@ namespace Mavi
 		}
 		bool Multiplexer::WhenReadable(Socket* Value, PollEventCallback&& WhenReady)
 		{
-			VI_ASSERT(Handle != nullptr, false, "driver should be initialized");
-			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, false, "socket should be set and valid");
+			VI_ASSERT(Handle != nullptr, "driver should be initialized");
+			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, "socket should be set and valid");
 
 			return WhenEvents(Value, true, false, std::move(WhenReady), nullptr);
 		}
 		bool Multiplexer::WhenWriteable(Socket* Value, PollEventCallback&& WhenReady)
 		{
-			VI_ASSERT(Handle != nullptr, false, "driver should be initialized");
-			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, false, "socket should be set and valid");
+			VI_ASSERT(Handle != nullptr, "driver should be initialized");
+			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, "socket should be set and valid");
 
 			return WhenEvents(Value, false, true, nullptr, std::move(WhenReady));
 		}
 		bool Multiplexer::CancelEvents(Socket* Value, SocketPoll Event, bool Safely)
 		{
-			VI_ASSERT(Handle != nullptr, false, "driver should be initialized");
-			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, false, "socket should be set and valid");
+			VI_ASSERT(Handle != nullptr, "driver should be initialized");
+			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, "socket should be set and valid");
 
 			if (Safely)
 				Exclusive.lock();
@@ -988,7 +988,7 @@ namespace Mavi
 		}
 		bool Multiplexer::IsAwaitingEvents(Socket* Value)
 		{
-			VI_ASSERT(Value != nullptr, false, "socket should be set");
+			VI_ASSERT(Value != nullptr, "socket should be set");
 
 			Exclusive.lock();
 			bool Awaits = Value->Events.Readable || Value->Events.Writeable;
@@ -997,7 +997,7 @@ namespace Mavi
 		}
 		bool Multiplexer::IsAwaitingReadable(Socket* Value)
 		{
-			VI_ASSERT(Value != nullptr, false, "socket should be set");
+			VI_ASSERT(Value != nullptr, "socket should be set");
 
 			Exclusive.lock();
 			bool Awaits = Value->Events.Readable;
@@ -1006,7 +1006,7 @@ namespace Mavi
 		}
 		bool Multiplexer::IsAwaitingWriteable(Socket* Value)
 		{
-			VI_ASSERT(Value != nullptr, false, "socket should be set");
+			VI_ASSERT(Value != nullptr, "socket should be set");
 
 			Exclusive.lock();
 			bool Awaits = Value->Events.Writeable;
@@ -1042,7 +1042,7 @@ namespace Mavi
 		}
 		void Multiplexer::TryUnlisten()
 		{
-			VI_ASSERT_V(Activations > 0, "events poller is already inactive");
+			VI_ASSERT(Activations > 0, "events poller is already inactive");
 			if (!--Activations)
 				VI_DEBUG("[net] stop events polling");
 		}
@@ -1169,7 +1169,7 @@ namespace Mavi
 		}
 		Core::String Multiplexer::GetAddress(addrinfo* Info)
 		{
-			VI_ASSERT(Info != nullptr, Core::String(), "address info should be set");
+			VI_ASSERT(Info != nullptr, "address info should be set");
 			char Buffer[INET6_ADDRSTRLEN];
 			inet_ntop(Info->ai_family, GetAddressStorage(Info->ai_addr), Buffer, sizeof(Buffer));
 			VI_TRACE("[net] inet ntop addrinfo 0x%" PRIXPTR ": %s", (void*)Info, Buffer);
@@ -1177,7 +1177,7 @@ namespace Mavi
 		}
 		Core::String Multiplexer::GetAddress(sockaddr* Info)
 		{
-			VI_ASSERT(Info != nullptr, Core::String(), "socket address should be set");
+			VI_ASSERT(Info != nullptr, "socket address should be set");
 			char Buffer[INET6_ADDRSTRLEN];
 			inet_ntop(Info->sa_family, GetAddressStorage(Info), Buffer, sizeof(Buffer));
 			VI_TRACE("[net] inet ntop sockaddr 0x%" PRIXPTR ": %s", (void*)Info, Buffer);
@@ -1185,7 +1185,7 @@ namespace Mavi
 		}
 		int Multiplexer::GetAddressFamily(const char* Address)
 		{
-			VI_ASSERT(Address != nullptr, AF_UNSPEC, "address should be set");
+			VI_ASSERT(Address != nullptr, "address should be set");
 			VI_TRACE("[net] fetch addr family %s", Address);
 
 			struct addrinfo Hints;
@@ -1247,12 +1247,12 @@ namespace Mavi
 		}
 		int Socket::Accept(Socket* OutConnection, char* OutAddr)
 		{
-			VI_ASSERT(OutConnection != nullptr, -1, "socket should be set");
+			VI_ASSERT(OutConnection != nullptr, "socket should be set");
 			return Accept(&OutConnection->Fd, OutAddr);
 		}
 		int Socket::Accept(socket_t* OutFd, char* OutAddr)
 		{
-			VI_ASSERT(OutFd != nullptr, -1, "socket should be set");
+			VI_ASSERT(OutFd != nullptr, "socket should be set");
 
 			sockaddr Address;
 			socket_size_t Length = sizeof(sockaddr);
@@ -1271,7 +1271,7 @@ namespace Mavi
 		}
 		int Socket::AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback)
 		{
-			VI_ASSERT(Callback != nullptr, -1, "callback should be set");
+			VI_ASSERT(Callback != nullptr, "callback should be set");
 
 			bool Success = Multiplexer::WhenReadable(this, [this, WithAddress, Callback = std::move(Callback)](SocketPoll Event) mutable
 			{
@@ -1409,9 +1409,9 @@ namespace Mavi
 		}
 		int64_t Socket::SendFile(FILE* Stream, int64_t Offset, int64_t Size)
 		{
-			VI_ASSERT(Stream != nullptr, -1, "stream should be set");
-			VI_ASSERT(Offset >= 0, -1, "offset should be set and positive");
-			VI_ASSERT(Size > 0, -1, "size should be set and greater than zero");
+			VI_ASSERT(Stream != nullptr, "stream should be set");
+			VI_ASSERT(Offset >= 0, "offset should be set and positive");
+			VI_ASSERT(Size > 0, "size should be set and greater than zero");
 			VI_MEASURE(Core::Timings::Networking);
 			VI_TRACE("[net] fd %i sendfile %" PRId64 " off, %" PRId64 " bytes", (int)Fd, Offset, Size);
 #ifdef VI_APPLE
@@ -1437,9 +1437,9 @@ namespace Mavi
 		}
 		int64_t Socket::SendFileAsync(FILE* Stream, int64_t Offset, int64_t Size, SocketWrittenCallback&& Callback, int TempBuffer)
 		{
-			VI_ASSERT(Stream != nullptr, -1, "stream should be set");
-			VI_ASSERT(Offset >= 0, -1, "offset should be set and positive");
-			VI_ASSERT(Size > 0, -1, "size should be set and greater than zero");
+			VI_ASSERT(Stream != nullptr, "stream should be set");
+			VI_ASSERT(Offset >= 0, "offset should be set and positive");
+			VI_ASSERT(Size > 0, "size should be set and greater than zero");
 
 			while (Size > 0)
 			{
@@ -1477,7 +1477,7 @@ namespace Mavi
 		}
 		int Socket::Write(const char* Buffer, int Size)
 		{
-			VI_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
 			VI_MEASURE(Core::Timings::Networking);
 			VI_TRACE("[net] fd %i write %i bytes", (int)Fd, Size);
 #ifdef VI_HAS_OPENSSL
@@ -1500,7 +1500,7 @@ namespace Mavi
 		}
 		int Socket::WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer, size_t TempOffset)
 		{
-			VI_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
+			VI_ASSERT(Buffer != nullptr && Size > 0, "buffer should be set");
 			size_t Payload = Size;
 			size_t Written = 0;
 
@@ -1555,8 +1555,8 @@ namespace Mavi
 		}
 		int Socket::Read(char* Buffer, int Size)
 		{
-			VI_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			VI_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
+			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
+			VI_ASSERT(Buffer != nullptr && Size > 0, "buffer should be set");
 			VI_MEASURE(Core::Timings::Networking);
 			VI_TRACE("[net] fd %i read %i bytes", (int)Fd, Size);
 #ifdef VI_HAS_OPENSSL
@@ -1579,8 +1579,8 @@ namespace Mavi
 		}
 		int Socket::Read(char* Buffer, int Size, const SocketReadCallback& Callback)
 		{
-			VI_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			VI_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
+			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
+			VI_ASSERT(Buffer != nullptr && Size > 0, "buffer should be set");
 
 			int Offset = 0;
 			while (Size > 0)
@@ -1615,8 +1615,8 @@ namespace Mavi
 		}
 		int Socket::ReadAsync(size_t Size, SocketReadCallback&& Callback, int TempBuffer)
 		{
-			VI_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			VI_ASSERT(Size > 0, -1, "size should be greater than zero");
+			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
+			VI_ASSERT(Size > 0, "size should be greater than zero");
 
 			char Buffer[Core::BLOB_SIZE];
 			int Offset = 0;
@@ -1658,8 +1658,8 @@ namespace Mavi
 		}
 		int Socket::ReadUntil(const char* Match, SocketReadCallback&& Callback)
 		{
-			VI_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			VI_ASSERT(Match != nullptr, -1, "match should be set");
+			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
+			VI_ASSERT(Match != nullptr, "match should be set");
 
 			char Buffer[MAX_READ_UNTIL];
 			size_t Size = strlen(Match), Offset = 0, Index = 0;
@@ -1669,7 +1669,7 @@ namespace Mavi
 				return !Callback || Callback(SocketPoll::Next, Buffer, Size);
 			};
 
-			VI_ASSERT(Size > 0, -1, "match should not be empty");
+			VI_ASSERT(Size > 0, "match should not be empty");
 			while (true)
 			{
 				int Length = Read(Buffer + Offset, 1);
@@ -1708,8 +1708,8 @@ namespace Mavi
 		}
 		int Socket::ReadUntilAsync(const char* Match, SocketReadCallback&& Callback, char* TempBuffer, size_t TempIndex)
 		{
-			VI_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			VI_ASSERT(Match != nullptr, -1, "match should be set");
+			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
+			VI_ASSERT(Match != nullptr, "match should be set");
 
 			char Buffer[MAX_READ_UNTIL];
 			size_t Size = strlen(Match), Offset = 0;
@@ -1719,7 +1719,7 @@ namespace Mavi
 				return !Callback || Callback(SocketPoll::Next, Buffer, Size);
 			};
 
-			VI_ASSERT(Size > 0, -1, "match should not be empty");
+			VI_ASSERT(Size > 0, "match should not be empty");
 			while (true)
 			{
 				int Length = Read(Buffer + Offset, 1);
@@ -1787,7 +1787,7 @@ namespace Mavi
 		}
 		int Socket::Connect(SocketAddress* Address, uint64_t Timeout)
 		{
-			VI_ASSERT(Address && Address->IsUsable(), -1, "address should be set and usable");
+			VI_ASSERT(Address && Address->IsUsable(), "address should be set and usable");
 			VI_MEASURE(Core::Timings::Networking);
 			VI_DEBUG("[net] connect fd %i", (int)Fd);
 			addrinfo* Source = Address->Get();
@@ -1795,7 +1795,7 @@ namespace Mavi
 		}
 		int Socket::ConnectAsync(SocketAddress* Address, SocketConnectedCallback&& Callback)
 		{
-			VI_ASSERT(Address && Address->IsUsable(), -1, "address should be set and usable");
+			VI_ASSERT(Address && Address->IsUsable(), "address should be set and usable");
 			VI_MEASURE(Core::Timings::Networking);
 			VI_DEBUG("[net] connect fd %i", (int)Fd);
 
@@ -1835,7 +1835,7 @@ namespace Mavi
 		}
 		int Socket::Open(SocketAddress* Address)
 		{
-			VI_ASSERT(Address && Address->IsUsable(), -1, "address should be set and usable");
+			VI_ASSERT(Address && Address->IsUsable(), "address should be set and usable");
 			VI_MEASURE(Core::Timings::Networking);
 			VI_DEBUG("[net] assign fd");
 
@@ -1869,7 +1869,7 @@ namespace Mavi
 		}
 		int Socket::Bind(SocketAddress* Address)
 		{
-			VI_ASSERT(Address && Address->IsUsable(), -1, "address should be set and usable");
+			VI_ASSERT(Address && Address->IsUsable(), "address should be set and usable");
 			VI_MEASURE(Core::Timings::Networking);
 			VI_DEBUG("[net] bind fd %i", (int)Fd);
 
@@ -2129,7 +2129,7 @@ namespace Mavi
 		bool SocketConnection::EncryptionInfo(Certificate* Output)
 		{
 #ifdef VI_HAS_OPENSSL
-			VI_ASSERT(Output != nullptr, false, "certificate should be set");
+			VI_ASSERT(Output != nullptr, "certificate should be set");
 			VI_MEASURE(Core::Timings::Networking);
 
 			X509* Certificate = SSL_get_peer_certificate(Stream->GetDevice());
@@ -2222,7 +2222,7 @@ namespace Mavi
 		}
 		void SocketServer::SetBacklog(size_t Value)
 		{
-			VI_ASSERT_V(Value > 0, "backlog must be greater than zero");
+			VI_ASSERT(Value > 0, "backlog must be greater than zero");
 			Backlog = Value;
 		}
 		void SocketServer::Lock()
@@ -2235,7 +2235,7 @@ namespace Mavi
 		}
 		bool SocketServer::Configure(SocketRouter* NewRouter)
 		{
-			VI_ASSERT(State == ServerState::Idle, false, "server should not be running");
+			VI_ASSERT(State == ServerState::Idle, "server should not be running");
 			if (NewRouter != nullptr)
 			{
 				VI_RELEASE(Router);
@@ -2243,7 +2243,7 @@ namespace Mavi
 			}
 			else if (!Router && !(Router = OnAllocateRouter()))
 			{
-				VI_ERR("[net] cannot allocate router");
+				VI_PANIC(false, "router allocation failure");
 				return false;
 			}
 
@@ -2252,7 +2252,7 @@ namespace Mavi
 
 			if (Router->Listeners.empty())
 			{
-				VI_ERR("[net] there are no listeners provided");
+				VI_ASSERT(false, "there are no listeners provided");
 				return false;
 			}
 
@@ -2523,9 +2523,9 @@ namespace Mavi
 		}
 		bool SocketServer::EncryptThenBegin(SocketConnection* Base, SocketListener* Host)
 		{
-			VI_ASSERT(Base != nullptr, false, "socket should be set");
-			VI_ASSERT(Base->Stream != nullptr, false, "socket should be set");
-			VI_ASSERT(Host != nullptr, false, "host should be set");
+			VI_ASSERT(Base != nullptr, "socket should be set");
+			VI_ASSERT(Base->Stream != nullptr, "socket should be set");
+			VI_ASSERT(Host != nullptr, "host should be set");
 
 			if (Router->Certificates.empty())
 				return false;
@@ -2588,7 +2588,7 @@ namespace Mavi
 		}
 		bool SocketServer::Manage(SocketConnection* Base)
 		{
-			VI_ASSERT(Base != nullptr, false, "socket should be set");
+			VI_ASSERT(Base != nullptr, "socket should be set");
 			if (Base->Info.KeepAlive < -1)
 				return false;
 
@@ -2660,7 +2660,7 @@ namespace Mavi
 		}
 		SocketConnection* SocketServer::Pop(SocketListener* Host)
 		{
-			VI_ASSERT(Host != nullptr, nullptr, "host should be set");
+			VI_ASSERT(Host != nullptr, "host should be set");
 			SocketConnection* Result = nullptr;
 			if (!Inactive.empty())
 			{
@@ -2752,8 +2752,8 @@ namespace Mavi
 		}
 		Core::Promise<int> SocketClient::Connect(RemoteHost* Source, bool Async)
 		{
-			VI_ASSERT(Source != nullptr && !Source->Hostname.empty(), Core::Promise<int>(-2), "address should be set");
-			VI_ASSERT(!Stream.IsValid(), Core::Promise<int>(-2), "stream should not be connected");
+			VI_ASSERT(Source != nullptr && !Source->Hostname.empty(), "address should be set");
+			VI_ASSERT(!Stream.IsValid(), "stream should not be connected");
 
 			if (!Async && IsAsync)
 				Multiplexer::SetActive(false);
@@ -2866,7 +2866,7 @@ namespace Mavi
 		}
 		void SocketClient::Encrypt(std::function<void(bool)>&& Callback)
 		{
-			VI_ASSERT_V(Callback != nullptr, "callback should be set");
+			VI_ASSERT(Callback != nullptr, "callback should be set");
 #ifdef VI_HAS_OPENSSL
 			Stage("ssl handshake");
 			if (Stream.GetDevice() || !Context)

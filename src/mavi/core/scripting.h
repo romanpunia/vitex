@@ -737,13 +737,13 @@ namespace Mavi
 			template <typename T>
 			T* GetInstance(void* Object)
 			{
-				VI_ASSERT(Object != nullptr, nullptr, "object should be set");
+				VI_ASSERT(Object != nullptr, "object should be set");
 				return IsHandle() ? *(T**)Object : (T*)Object;
 			}
 			template <typename T>
 			T* GetProperty(void* Object, int Offset)
 			{
-				VI_ASSERT(Object != nullptr, nullptr, "object should be set");
+				VI_ASSERT(Object != nullptr, "object should be set");
 				if (!IsHandle())
 					return reinterpret_cast<T*>(reinterpret_cast<char*>(Object) + Offset);
 
@@ -757,13 +757,13 @@ namespace Mavi
 			template <typename T>
 			static T* GetInstance(void* Object, int TypeId)
 			{
-				VI_ASSERT(Object != nullptr, nullptr, "object should be set");
+				VI_ASSERT(Object != nullptr, "object should be set");
 				return IsHandle(TypeId) ? *(T**)Object : (T*)Object;
 			}
 			template <typename T>
 			static T* GetProperty(void* Object, int Offset, int TypeId)
 			{
-				VI_ASSERT(Object != nullptr, nullptr, "object should be set");
+				VI_ASSERT(Object != nullptr, "object should be set");
 				if (!IsHandle(TypeId))
 					return reinterpret_cast<T*>(reinterpret_cast<char*>(Object) + Offset);
 
@@ -920,13 +920,13 @@ namespace Mavi
 			template <typename T, typename R>
 			int SetProperty(const char* Decl, R T::* Value)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				return SetPropertyAddress(Decl, (int)reinterpret_cast<size_t>(&(((T*)0)->*Value)));
 			}
 			template <typename T, typename R>
 			int SetPropertyArray(const char* Decl, R T::* Value, size_t ElementsCount)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				for (size_t i = 0; i < ElementsCount; i++)
 				{
 					Core::String ElementDecl = Decl + Core::ToString(i);
@@ -940,14 +940,14 @@ namespace Mavi
 			template <typename T>
 			int SetPropertyStatic(const char* Decl, T* Value)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				return SetPropertyStaticAddress(Decl, (void*)Value);
 			}
 			template <typename T, typename R>
 			int SetGetter(const char* Type, const char* Name, R(T::* Value)())
 			{
-				VI_ASSERT(Type != nullptr, -1, "type should be set");
-				VI_ASSERT(Name != nullptr, -1, "name should be set");
+				VI_ASSERT(Type != nullptr, "type should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Method<T, R>(Value);
 				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, FunctionCall::THISCALL);
@@ -958,8 +958,8 @@ namespace Mavi
 			template <typename T, typename R>
 			int SetGetterEx(const char* Type, const char* Name, R(*Value)(T*))
 			{
-				VI_ASSERT(Type != nullptr, -1, "type should be set");
-				VI_ASSERT(Name != nullptr, -1, "name should be set");
+				VI_ASSERT(Type != nullptr, "type should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Function(Value);
 				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, FunctionCall::CDECL_OBJFIRST);
@@ -970,8 +970,8 @@ namespace Mavi
 			template <typename T, typename R>
 			int SetSetter(const char* Type, const char* Name, void(T::* Value)(R))
 			{
-				VI_ASSERT(Type != nullptr, -1, "type should be set");
-				VI_ASSERT(Name != nullptr, -1, "name should be set");
+				VI_ASSERT(Type != nullptr, "type should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Method<T, void, R>(Value);
 				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, FunctionCall::THISCALL);
@@ -982,8 +982,8 @@ namespace Mavi
 			template <typename T, typename R>
 			int SetSetterEx(const char* Type, const char* Name, void(*Value)(T*, R))
 			{
-				VI_ASSERT(Type != nullptr, -1, "type should be set");
-				VI_ASSERT(Name != nullptr, -1, "name should be set");
+				VI_ASSERT(Type != nullptr, "type should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Function(Value);
 				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, FunctionCall::CDECL_OBJFIRST);
@@ -994,8 +994,8 @@ namespace Mavi
 			template <typename T, typename R>
 			int SetArrayGetter(const char* Type, const char* Name, R(T::* Value)(unsigned int))
 			{
-				VI_ASSERT(Type != nullptr, -1, "type should be set");
-				VI_ASSERT(Name != nullptr, -1, "name should be set");
+				VI_ASSERT(Type != nullptr, "type should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Method<T, R, unsigned int>(Value);
 				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, FunctionCall::THISCALL);
@@ -1006,8 +1006,8 @@ namespace Mavi
 			template <typename T, typename R>
 			int SetArrayGetterEx(const char* Type, const char* Name, R(*Value)(T*, unsigned int))
 			{
-				VI_ASSERT(Type != nullptr, -1, "type should be set");
-				VI_ASSERT(Name != nullptr, -1, "name should be set");
+				VI_ASSERT(Type != nullptr, "type should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Function(Value);
 				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, FunctionCall::CDECL_OBJFIRST);
@@ -1018,8 +1018,8 @@ namespace Mavi
 			template <typename T, typename R>
 			int SetArraySetter(const char* Type, const char* Name, void(T::* Value)(unsigned int, R))
 			{
-				VI_ASSERT(Type != nullptr, -1, "type should be set");
-				VI_ASSERT(Name != nullptr, -1, "name should be set");
+				VI_ASSERT(Type != nullptr, "type should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Method<T, void, unsigned int, R>(Value);
 				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, FunctionCall::THISCALL);
@@ -1030,8 +1030,8 @@ namespace Mavi
 			template <typename T, typename R>
 			int SetArraySetterEx(const char* Type, const char* Name, void(*Value)(T*, unsigned int, R))
 			{
-				VI_ASSERT(Type != nullptr, -1, "type should be set");
-				VI_ASSERT(Name != nullptr, -1, "name should be set");
+				VI_ASSERT(Type != nullptr, "type should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Function(Value);
 				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, FunctionCall::CDECL_OBJFIRST);
@@ -1042,10 +1042,10 @@ namespace Mavi
 			template <typename T, typename R, typename... A>
 			int SetOperator(Operators Type, uint32_t Opts, const char* Out, const char* Args, R(T::* Value)(A...))
 			{
-				VI_ASSERT(Out != nullptr, -1, "output should be set");
+				VI_ASSERT(Out != nullptr, "output should be set");
 				Core::Stringify Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
 
-				VI_ASSERT(!Operator.Empty(), -1, "resulting operator should not be empty");
+				VI_ASSERT(!Operator.Empty(), "resulting operator should not be empty");
 				asSFuncPtr* Ptr = Bridge::Method<T, R, A...>(Value);
 				int Result = SetOperatorAddress(Operator.Get(), Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
@@ -1055,10 +1055,10 @@ namespace Mavi
 			template <typename R, typename... A>
 			int SetOperatorEx(Operators Type, uint32_t Opts, const char* Out, const char* Args, R(*Value)(A...))
 			{
-				VI_ASSERT(Out != nullptr, -1, "output should be set");
+				VI_ASSERT(Out != nullptr, "output should be set");
 				Core::Stringify Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
 
-				VI_ASSERT(!Operator.Empty(), -1, "resulting operator should not be empty");
+				VI_ASSERT(!Operator.Empty(), "resulting operator should not be empty");
 				asSFuncPtr* Ptr = Bridge::Function(Value);
 				int Result = SetOperatorAddress(Operator.Get(), Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
@@ -1086,7 +1086,7 @@ namespace Mavi
 			template <typename T, typename R, typename... Args>
 			int SetMethod(const char* Decl, R(T::* Value)(Args...))
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Method<T, R, Args...>(Value);
 				int Result = SetMethodAddress(Decl, Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
@@ -1096,7 +1096,7 @@ namespace Mavi
 			template <typename T, typename R, typename... Args>
 			int SetMethod(const char* Decl, R(T::* Value)(Args...) const)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Method<T, R, Args...>(Value);
 				int Result = SetMethodAddress(Decl, Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
@@ -1106,7 +1106,7 @@ namespace Mavi
 			template <typename R, typename... Args>
 			int SetMethodEx(const char* Decl, R(*Value)(Args...))
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function<R(*)(Args...)>(Value);
 				int Result = SetMethodAddress(Decl, Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
@@ -1116,7 +1116,7 @@ namespace Mavi
 			template <typename R, typename... Args>
 			int SetMethodStatic(const char* Decl, R(*Value)(Args...), FunctionCall Type = FunctionCall::CDECLF)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = (Type == FunctionCall::GENERIC ? Bridge::FunctionGeneric<R(*)(Args...)>(Value) : Bridge::Function<R(*)(Args...)>(Value));
 				int Result = SetMethodStaticAddress(Decl, Ptr, Type);
 				FunctionFactory::ReleaseFunctor(&Ptr);
@@ -1150,7 +1150,7 @@ namespace Mavi
 			template <typename T, typename... Args>
 			int SetConstructor(const char* Decl)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::Function(&Bridge::GetUnmanagedCall<T, Args...>);
 				int Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::CDECLF);
 				FunctionFactory::ReleaseFunctor(&Functor);
@@ -1160,7 +1160,7 @@ namespace Mavi
 			template <typename T, asIScriptGeneric*>
 			int SetConstructor(const char* Decl)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetUnmanagedCall<T, asIScriptGeneric*>);
 				int Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
@@ -1170,7 +1170,7 @@ namespace Mavi
 			template <typename T>
 			int SetConstructorList(const char* Decl)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetUnmanagedListCall<T>);
 				int Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
@@ -1180,7 +1180,7 @@ namespace Mavi
 			template <typename T>
 			int SetConstructorListEx(const char* Decl, void(*Value)(asIScriptGeneric*))
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(Value);
 				int Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
@@ -1190,7 +1190,7 @@ namespace Mavi
 			template <typename T, uint64_t TypeName, typename... Args>
 			int SetGcConstructor(const char* Decl)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::Function(&Bridge::GetManagedCall<T, TypeName, Args...>);
 				int Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::CDECLF);
 				FunctionFactory::ReleaseFunctor(&Functor);
@@ -1200,7 +1200,7 @@ namespace Mavi
 			template <typename T, uint64_t TypeName, asIScriptGeneric*>
 			int SetGcConstructor(const char* Decl)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetManagedCall<T, TypeName, asIScriptGeneric*>);
 				int Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
@@ -1210,7 +1210,7 @@ namespace Mavi
 			template <typename T, uint64_t TypeName>
 			int SetGcConstructorList(const char* Decl)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetManagedListCall<T, TypeName>);
 				int Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
@@ -1220,7 +1220,7 @@ namespace Mavi
 			template <typename T>
 			int SetGcConstructorListEx(const char* Decl, void(*Value)(asIScriptGeneric*))
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(Value);
 				int Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
@@ -1317,7 +1317,7 @@ namespace Mavi
 			template <typename T, typename... Args>
 			int SetConstructor(const char* Decl)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function(&Bridge::GetConstructorCall<T, Args...>);
 				int Result = SetConstructorAddress(Decl, Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
@@ -1327,7 +1327,7 @@ namespace Mavi
 			template <typename T, asIScriptGeneric*>
 			int SetConstructor(const char* Decl)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::FunctionGeneric(&Bridge::GetConstructorCall<T, asIScriptGeneric*>);
 				int Result = SetConstructorAddress(Decl, Ptr, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Ptr);
@@ -1337,7 +1337,7 @@ namespace Mavi
 			template <typename T>
 			int SetConstructorList(const char* Decl)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::FunctionGeneric(&Bridge::GetConstructorListCall<T>);
 				int Result = SetConstructorListAddress(Decl, Ptr, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Ptr);
@@ -1347,7 +1347,7 @@ namespace Mavi
 			template <typename T>
 			int SetDestructor(const char* Decl)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function(&Bridge::GetDestructorCall<T>);
 				int Result = SetDestructorAddress(Decl, Ptr);
 				FunctionFactory::ReleaseFunctor(&Ptr);
@@ -1357,7 +1357,7 @@ namespace Mavi
 			template <typename R, typename... Args>
 			int SetDestructorStatic(const char* Decl, R(*Value)(Args...))
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function<R(*)(Args...)>(Value);
 				int Result = SetDestructorAddress(Decl, Ptr);
 				FunctionFactory::ReleaseFunctor(&Ptr);
@@ -1455,7 +1455,7 @@ namespace Mavi
 			template <typename T>
 			int SetTypeProperty(const char* Name, T* Value)
 			{
-				VI_ASSERT(Name != nullptr, -1, "name should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 				int Index = GetPropertyIndexByName(Name);
 				if (Index < 0)
 					return Index;
@@ -1470,7 +1470,7 @@ namespace Mavi
 			template <typename T>
 			int SetTypeProperty(const char* Name, const T& Value)
 			{
-				VI_ASSERT(Name != nullptr, -1, "name should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 				int Index = GetPropertyIndexByName(Name);
 				if (Index < 0)
 					return Index;
@@ -1485,7 +1485,7 @@ namespace Mavi
 			template <typename T>
 			int SetRefProperty(const char* Name, T* Value)
 			{
-				VI_ASSERT(Name != nullptr, -1, "name should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 				int Index = GetPropertyIndexByName(Name);
 				if (Index < 0)
 					return Index;
@@ -2037,7 +2037,7 @@ namespace Mavi
 			template <typename T>
 			int SetFunction(const char* Decl, T Value)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function<T>(Value);
 				int Result = SetFunctionAddress(Decl, Ptr, FunctionCall::CDECLF);
 				FunctionFactory::ReleaseFunctor(&Ptr);
@@ -2047,7 +2047,7 @@ namespace Mavi
 			template <void(*)(asIScriptGeneric*)>
 			int SetFunction(const char* Decl, void(*Value)(asIScriptGeneric*))
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function<void (*)(asIScriptGeneric*)>(Value);
 				int Result = SetFunctionAddress(Decl, Ptr, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Ptr);
@@ -2057,13 +2057,13 @@ namespace Mavi
 			template <typename T>
 			int SetProperty(const char* Decl, T* Value)
 			{
-				VI_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				return SetPropertyAddress(Decl, (void*)Value);
 			}
 			template <typename T>
 			RefClass SetClass(const char* Name, bool GC)
 			{
-				VI_ASSERT(Name != nullptr, RefClass(nullptr, "", -1), "name should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 				RefClass Class = SetClassAddress(Name, GC ? (size_t)ObjectBehaviours::REF | (size_t)ObjectBehaviours::GC : (size_t)ObjectBehaviours::REF);
 				Class.SetAddRef<T>();
 				Class.SetRelease<T>();
@@ -2080,7 +2080,7 @@ namespace Mavi
 			template <typename T>
 			TypeClass SetStructTrivial(const char* Name)
 			{
-				VI_ASSERT(Name != nullptr, TypeClass(nullptr, "", -1), "name should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 				TypeClass Struct = SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>());
 				Struct.SetOperatorCopy<T>();
 				Struct.SetDestructor<T>("void f()");
@@ -2090,13 +2090,13 @@ namespace Mavi
 			template <typename T>
 			TypeClass SetStruct(const char* Name)
 			{
-				VI_ASSERT(Name != nullptr, TypeClass(nullptr, "", -1), "name should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 				return SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>());
 			}
 			template <typename T>
 			TypeClass SetPod(const char* Name)
 			{
-				VI_ASSERT(Name != nullptr, TypeClass(nullptr, "", -1), "name should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 				return SetPodAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | (size_t)ObjectBehaviours::POD | Bridge::GetTypeTraits<T>());
 			}
 		};

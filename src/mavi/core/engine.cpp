@@ -128,70 +128,70 @@ namespace Mavi
 
 		void Series::Pack(Core::Schema* V, bool Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("b", Core::Var::Boolean(Value));
 		}
 		void Series::Pack(Core::Schema* V, int Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
 		void Series::Pack(Core::Schema* V, unsigned int Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
 		void Series::Pack(Core::Schema* V, unsigned long Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
 		void Series::Pack(Core::Schema* V, float Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("n", Core::Var::Number(Value));
 		}
 		void Series::Pack(Core::Schema* V, double Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("n", Core::Var::Number(Value));
 		}
 		void Series::Pack(Core::Schema* V, int64_t Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
 		void Series::Pack(Core::Schema* V, long double Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("n", Core::Var::Number(Value));
 		}
 		void Series::Pack(Core::Schema* V, unsigned long long Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
 		void Series::Pack(Core::Schema* V, const char* Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("s", Core::Var::String(Value ? Value : ""));
 		}
 		void Series::Pack(Core::Schema* V, const Compute::Vector2& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("x", Core::Var::Number(Value.X));
 			V->SetAttribute("y", Core::Var::Number(Value.Y));
 		}
 		void Series::Pack(Core::Schema* V, const Compute::Vector3& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("x", Core::Var::Number(Value.X));
 			V->SetAttribute("y", Core::Var::Number(Value.Y));
 			V->SetAttribute("z", Core::Var::Number(Value.Z));
 		}
 		void Series::Pack(Core::Schema* V, const Compute::Vector4& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("x", Core::Var::Number(Value.X));
 			V->SetAttribute("y", Core::Var::Number(Value.Y));
 			V->SetAttribute("z", Core::Var::Number(Value.Z));
@@ -199,7 +199,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Compute::Quaternion& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("x", Core::Var::Number(Value.X));
 			V->SetAttribute("y", Core::Var::Number(Value.Y));
 			V->SetAttribute("z", Core::Var::Number(Value.Z));
@@ -207,7 +207,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Compute::Matrix4x4& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("m11", Core::Var::Number(Value.Row[0]));
 			V->SetAttribute("m12", Core::Var::Number(Value.Row[1]));
 			V->SetAttribute("m13", Core::Var::Number(Value.Row[2]));
@@ -227,14 +227,14 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Attenuation& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Series::Pack(V->Set("radius"), Value.Radius);
 			Series::Pack(V->Set("c1"), Value.C1);
 			Series::Pack(V->Set("c2"), Value.C2);
 		}
 		void Series::Pack(Core::Schema* V, const AnimatorState& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Series::Pack(V->Set("looped"), Value.Looped);
 			Series::Pack(V->Set("paused"), Value.Paused);
 			Series::Pack(V->Set("blended"), Value.Blended);
@@ -246,7 +246,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const SpawnerProperties& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Series::Pack(V->Set("iterations"), Value.Iterations);
 
 			Core::Schema* Angular = V->Set("angular");
@@ -293,7 +293,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Compute::KeyAnimatorClip& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Series::Pack(V->Set("name"), Value.Name);
 			Series::Pack(V->Set("rate"), Value.Rate);
 			Series::Pack(V->Set("duration"), Value.Duration);
@@ -301,7 +301,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Compute::AnimatorKey& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Series::Pack(V->Set("position"), Value.Position);
 			Series::Pack(V->Set("rotation"), Value.Rotation);
 			Series::Pack(V->Set("scale"), Value.Scale);
@@ -309,13 +309,13 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Compute::SkinAnimatorKey& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Series::Pack(V->Set("pose"), Value.Pose);
 			Series::Pack(V->Set("time"), Value.Time);
 		}
 		void Series::Pack(Core::Schema* V, const Compute::ElementVertex& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("px", Core::Var::Number(Value.PositionX));
 			V->SetAttribute("py", Core::Var::Number(Value.PositionY));
 			V->SetAttribute("pz", Core::Var::Number(Value.PositionZ));
@@ -332,7 +332,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Compute::Vertex& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("px", Core::Var::Number(Value.PositionX));
 			V->SetAttribute("py", Core::Var::Number(Value.PositionY));
 			V->SetAttribute("pz", Core::Var::Number(Value.PositionZ));
@@ -350,7 +350,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Compute::SkinVertex& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("px", Core::Var::Number(Value.PositionX));
 			V->SetAttribute("py", Core::Var::Number(Value.PositionY));
 			V->SetAttribute("pz", Core::Var::Number(Value.PositionZ));
@@ -376,7 +376,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Compute::Joint& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Series::Pack(V->Set("index"), Value.Index);
 			Series::Pack(V->Set("name"), Value.Name);
 			Series::Pack(V->Set("global"), Value.Global);
@@ -388,17 +388,17 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Ticker& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("delay", Core::Var::Number(Value.Delay));
 		}
 		void Series::Pack(Core::Schema* V, const Core::String& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			V->SetAttribute("s", Core::Var::String(Value));
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<bool>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -408,7 +408,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<int>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -418,7 +418,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<unsigned int>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -428,7 +428,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<float>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -438,7 +438,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<double>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -448,7 +448,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<int64_t>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -458,7 +458,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<long double>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -468,7 +468,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<uint64_t>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -478,7 +478,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::Vector2>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It.X << " " << It.Y << " ";
@@ -488,7 +488,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::Vector3>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It.X << " " << It.Y << " " << It.Z << " ";
@@ -498,7 +498,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::Vector4>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It.X << " " << It.Y << " " << It.Z << " " << It.W << " ";
@@ -508,7 +508,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::Matrix4x4>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 			{
@@ -521,7 +521,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<AnimatorState>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 			{
@@ -540,7 +540,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<SpawnerProperties>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 			{
@@ -567,14 +567,14 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::KeyAnimatorClip>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::Schema* Array = V->Set("clips", Core::Var::Array());
 			for (auto&& It : Value)
 				Series::Pack(Array->Set("clip"), It);
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::AnimatorKey>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 			{
@@ -596,7 +596,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::ElementVertex>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 			{
@@ -620,13 +620,13 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::Joint>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			for (auto&& It : Value)
 				Series::Pack(V->Set("joint"), It);
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::Vertex>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 			{
@@ -652,7 +652,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<Compute::SkinVertex>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 			{
@@ -685,7 +685,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<Ticker>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << It.Delay << " ";
@@ -695,7 +695,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::Vector<Core::String>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::Schema* Array = V->Set("s-array", Core::Var::Array());
 			for (auto&& It : Value)
 				Array->Set("s", Core::Var::String(It));
@@ -704,7 +704,7 @@ namespace Mavi
 		}
 		void Series::Pack(Core::Schema* V, const Core::UnorderedMap<size_t, size_t>& Value)
 		{
-			VI_ASSERT_V(V != nullptr, "schema should be set");
+			VI_ASSERT(V != nullptr, "schema should be set");
 			Core::StringStream Stream;
 			for (auto&& It : Value)
 				Stream << (uint64_t)It.first << " " << (uint64_t)It.second << " ";
@@ -714,7 +714,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, bool* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -723,7 +723,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, int* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -732,7 +732,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, unsigned int* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -741,7 +741,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, unsigned long* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -750,7 +750,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, float* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -759,7 +759,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, double* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -768,7 +768,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, long double* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -777,7 +777,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, int64_t* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -786,7 +786,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, unsigned long long* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -795,7 +795,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::Vector2* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -805,7 +805,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::Vector3* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -816,7 +816,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::Vector4* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -828,7 +828,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::Quaternion* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -840,7 +840,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::Matrix4x4* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -864,7 +864,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Attenuation* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -875,7 +875,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, AnimatorState* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -891,7 +891,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, SpawnerProperties* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -943,7 +943,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::KeyAnimatorClip* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -955,7 +955,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::AnimatorKey* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -967,7 +967,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::SkinAnimatorKey* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -978,7 +978,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::Joint* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -998,7 +998,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::ElementVertex* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1019,7 +1019,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::Vertex* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1041,7 +1041,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Compute::SkinVertex* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1071,7 +1071,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Ticker* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1080,7 +1080,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::String* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1089,7 +1089,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<bool>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1112,7 +1112,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<int>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1135,7 +1135,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<unsigned int>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1158,7 +1158,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<float>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1181,7 +1181,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<double>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1204,7 +1204,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<int64_t>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1227,7 +1227,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<long double>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1250,7 +1250,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<uint64_t>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1273,7 +1273,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::Vector2>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1292,7 +1292,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::Vector3>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1311,7 +1311,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::Vector4>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1330,7 +1330,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::Matrix4x4>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1352,7 +1352,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<AnimatorState>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1380,7 +1380,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<SpawnerProperties>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1416,7 +1416,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::KeyAnimatorClip>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1431,7 +1431,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::AnimatorKey>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1453,7 +1453,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::ElementVertex>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1486,7 +1486,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::Joint>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1543,7 +1543,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<Compute::SkinVertex>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1585,7 +1585,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<Ticker>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1604,7 +1604,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::Vector<Core::String>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1622,7 +1622,7 @@ namespace Mavi
 		}
 		bool Series::Unpack(Core::Schema* V, Core::UnorderedMap<size_t, size_t>* O)
 		{
-			VI_ASSERT(O != nullptr, false, "output should be set");
+			VI_ASSERT(O != nullptr, "output should be set");
 			if (!V)
 				return false;
 
@@ -1648,7 +1648,7 @@ namespace Mavi
 
 		Core::Promise<void> Parallel::Enqueue(const Core::TaskCallback& Callback)
 		{
-			VI_ASSERT(Callback != nullptr, Core::Promise<void>::Ready(), "callback should be set");
+			VI_ASSERT(Callback != nullptr, "callback should be set");
 			auto* Queue = Core::Schedule::Get();
 			if (Queue->GetThreads(Core::Difficulty::Heavy) > 0)
 			{
@@ -1666,7 +1666,7 @@ namespace Mavi
 		}
 		Core::Vector<Core::Promise<void>> Parallel::EnqueueAll(const Core::Vector<Core::TaskCallback>& Callbacks)
 		{
-			VI_ASSERT(!Callbacks.empty(), Core::Vector<Core::Promise<void>>(), "callbacks should not be empty");
+			VI_ASSERT(!Callbacks.empty(), "callbacks should not be empty");
 			Core::Vector<Core::Promise<void>> Result;
 			Result.reserve(Callbacks.size());
 
@@ -1695,7 +1695,7 @@ namespace Mavi
 
 		void PoseBuffer::Fill(SkinModel* Model)
 		{
-			VI_ASSERT_V(Model != nullptr, "model should be set");
+			VI_ASSERT(Model != nullptr, "model should be set");
 			Offsets.clear();
 			Matrices.clear();
 
@@ -1794,7 +1794,7 @@ namespace Mavi
 		}
 		void SkinModel::Synchronize(PoseBuffer* Map)
 		{
-			VI_ASSERT_V(Map != nullptr, "pose buffer should be set");
+			VI_ASSERT(Map != nullptr, "pose buffer should be set");
 			VI_MEASURE(Core::Timings::Atomic);
 
 			for (auto& Mesh : Meshes)
@@ -1919,7 +1919,10 @@ namespace Mavi
 		void Material::SetDiffuseMap(Graphics::Texture2D* New)
 		{
 			VI_TRACE("[engine] material %s set diffuse 0x%" PRIXPTR, Name.c_str(), (void*)New);
-			VI_REASSIGN(DiffuseMap, New);
+			VI_RELEASE(DiffuseMap);
+			DiffuseMap = New;
+			if (DiffuseMap != nullptr)
+				DiffuseMap->AddRef();
 		}
 		Graphics::Texture2D* Material::GetDiffuseMap() const
 		{
@@ -1928,7 +1931,10 @@ namespace Mavi
 		void Material::SetNormalMap(Graphics::Texture2D* New)
 		{
 			VI_TRACE("[engine] material %s set normal 0x%" PRIXPTR, Name.c_str(), (void*)New);
-			VI_REASSIGN(NormalMap, New);
+			VI_RELEASE(NormalMap);
+			NormalMap = New;
+			if (NormalMap != nullptr)
+				NormalMap->AddRef();
 		}
 		Graphics::Texture2D* Material::GetNormalMap() const
 		{
@@ -1937,7 +1943,10 @@ namespace Mavi
 		void Material::SetMetallicMap(Graphics::Texture2D* New)
 		{
 			VI_TRACE("[engine] material %s set metallic 0x%" PRIXPTR, Name.c_str(), (void*)New);
-			VI_REASSIGN(MetallicMap, New);
+			VI_RELEASE(MetallicMap);
+			MetallicMap = New;
+			if (MetallicMap != nullptr)
+				MetallicMap->AddRef();
 		}
 		Graphics::Texture2D* Material::GetMetallicMap() const
 		{
@@ -1946,7 +1955,10 @@ namespace Mavi
 		void Material::SetRoughnessMap(Graphics::Texture2D* New)
 		{
 			VI_TRACE("[engine] material %s set roughness 0x%" PRIXPTR, Name.c_str(), (void*)New);
-			VI_REASSIGN(RoughnessMap, New);
+			VI_RELEASE(RoughnessMap);
+			RoughnessMap = New;
+			if (RoughnessMap != nullptr)
+				RoughnessMap->AddRef();
 		}
 		Graphics::Texture2D* Material::GetRoughnessMap() const
 		{
@@ -1955,7 +1967,10 @@ namespace Mavi
 		void Material::SetHeightMap(Graphics::Texture2D* New)
 		{
 			VI_TRACE("[engine] material %s set height 0x%" PRIXPTR, Name.c_str(), (void*)New);
-			VI_REASSIGN(HeightMap, New);
+			VI_RELEASE(HeightMap);
+			HeightMap = New;
+			if (HeightMap != nullptr)
+				HeightMap->AddRef();
 		}
 		Graphics::Texture2D* Material::GetHeightMap() const
 		{
@@ -1964,7 +1979,10 @@ namespace Mavi
 		void Material::SetOcclusionMap(Graphics::Texture2D* New)
 		{
 			VI_TRACE("[engine] material %s set occlusion 0x%" PRIXPTR, Name.c_str(), (void*)New);
-			VI_REASSIGN(OcclusionMap, New);
+			VI_RELEASE(OcclusionMap);
+			OcclusionMap = New;
+			if (OcclusionMap != nullptr)
+				OcclusionMap->AddRef();
 		}
 		Graphics::Texture2D* Material::GetOcclusionMap() const
 		{
@@ -1973,7 +1991,10 @@ namespace Mavi
 		void Material::SetEmissionMap(Graphics::Texture2D* New)
 		{
 			VI_TRACE("[engine] material %s set emission 0x%" PRIXPTR, Name.c_str(), (void*)New);
-			VI_REASSIGN(EmissionMap, New);
+			VI_RELEASE(EmissionMap);
+			EmissionMap = New;
+			if (EmissionMap != nullptr)
+				EmissionMap->AddRef();
 		}
 		Graphics::Texture2D* Material::GetEmissionMap() const
 		{
@@ -2012,7 +2033,7 @@ namespace Mavi
 
 		Component::Component(Entity* Reference, ActorSet Rule) noexcept : Parent(Reference), Set((size_t)Rule), Indexed(false), Active(true)
 		{
-			VI_ASSERT_V(Reference != nullptr, "entity should be set");
+			VI_ASSERT(Reference != nullptr, "entity should be set");
 		}
 		Component::~Component() noexcept
 		{
@@ -2095,7 +2116,7 @@ namespace Mavi
 
 		Entity::Entity(SceneGraph* NewScene) noexcept : Transform(new Compute::Transform(this)), Scene(NewScene), Active(false)
 		{
-			VI_ASSERT_V(Scene != nullptr, "entity should be created within a scene");
+			VI_ASSERT(Scene != nullptr, "entity should be created within a scene");
 		}
 		Entity::~Entity() noexcept
 		{
@@ -2193,7 +2214,7 @@ namespace Mavi
 		}
 		Component* Entity::AddComponent(Component* In)
 		{
-			VI_ASSERT(In != nullptr, nullptr, "component should be set");
+			VI_ASSERT(In != nullptr, "component should be set");
 			if (In == GetComponent(In->GetId()))
 				return In;
 
@@ -2383,14 +2404,14 @@ namespace Mavi
 
 		Renderer::Renderer(RenderSystem* Lab) noexcept : System(Lab), Active(true)
 		{
-			VI_ASSERT_V(Lab != nullptr, "render system should be set");
+			VI_ASSERT(Lab != nullptr, "render system should be set");
 		}
 		Renderer::~Renderer() noexcept
 		{
 		}
 		void Renderer::SetRenderer(RenderSystem* NewSystem)
 		{
-			VI_ASSERT_V(NewSystem != nullptr, "render system should be set");
+			VI_ASSERT(NewSystem != nullptr, "render system should be set");
 			System = NewSystem;
 		}
 		void Renderer::Deserialize(Core::Schema* Node)
@@ -2436,7 +2457,7 @@ namespace Mavi
 
 		RenderConstants::RenderConstants(Graphics::GraphicsDevice* NewDevice) noexcept : Device(NewDevice)
 		{
-			VI_ASSERT_V(Device != nullptr, "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			Graphics::Shader::Desc F = Graphics::Shader::Desc();
 			if (Device->GetSection("geometry/basic/geometry", &F))
 				Binding.BasicEffect = Device->CreateShader(F);
@@ -2491,9 +2512,9 @@ namespace Mavi
 
 		RenderSystem::RenderSystem(SceneGraph* NewScene, Component* NewComponent) noexcept : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), Owner(NewComponent), MaxQueries(16384), SortingFrequency(2), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3), OccludeeScaling(1.0f), OverflowVisibility(0.0f), Threshold(0.1f), OcclusionCulling(false), PreciseCulling(true), AllowInputLag(false)
 		{
-			VI_ASSERT_V(NewScene != nullptr, "scene should be set");
-			VI_ASSERT_V(NewScene->GetDevice() != nullptr, "graphics device should be set");
-			VI_ASSERT_V(NewScene->GetConstants() != nullptr, "render constants should be set");
+			VI_ASSERT(NewScene != nullptr, "scene should be set");
+			VI_ASSERT(NewScene->GetDevice() != nullptr, "graphics device should be set");
+			VI_ASSERT(NewScene->GetConstants() != nullptr, "render constants should be set");
 			Device = NewScene->GetDevice();
 			Constants = NewScene->GetConstants();
 		}
@@ -2523,7 +2544,7 @@ namespace Mavi
 		}
 		void RenderSystem::RestoreViewBuffer(Viewer* Buffer)
 		{
-			VI_ASSERT_V(Device != nullptr, "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			if (&View != Buffer)
 			{
 				if (Buffer == nullptr)
@@ -2553,7 +2574,7 @@ namespace Mavi
 		}
 		void RenderSystem::Remount(Renderer* Target)
 		{
-			VI_ASSERT_V(Target != nullptr, "renderer should be set");
+			VI_ASSERT(Target != nullptr, "renderer should be set");
 			Target->Deactivate();
 			Target->SetRenderer(this);
 			Target->Activate();
@@ -2691,7 +2712,7 @@ namespace Mavi
 		}
 		size_t RenderSystem::Render(Core::Timer* Time, RenderState Stage, RenderOpt Options)
 		{
-			VI_ASSERT(Time != nullptr, 0, "timer should be set");
+			VI_ASSERT(Time != nullptr, "timer should be set");
 
 			RenderOpt LastOptions = State.Options;
 			RenderState LastTarget = State.Target;
@@ -2795,8 +2816,8 @@ namespace Mavi
 		}
 		bool RenderSystem::CompileBuffers(Graphics::ElementBuffer** Result, const Core::String& Name, size_t ElementSize, size_t ElementsCount)
 		{
-			VI_ASSERT(Result != nullptr, false, "result should be set");
-			VI_ASSERT(!Name.empty(), false, "buffers must have a name");
+			VI_ASSERT(Result != nullptr, "result should be set");
+			VI_ASSERT(!Name.empty(), "buffers must have a name");
 
 			PrimitiveCache* Cache = Scene->GetPrimitives();
 			if (Cache != nullptr)
@@ -2834,7 +2855,7 @@ namespace Mavi
 		}
 		Graphics::Shader* RenderSystem::CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize)
 		{
-			VI_ASSERT(!Desc.Filename.empty(), nullptr, "shader must have a name");
+			VI_ASSERT(!Desc.Filename.empty(), "shader must have a name");
 			ShaderCache* Cache = Scene->GetShaders();
 			if (Cache != nullptr)
 				return Cache->Compile(Desc.Filename, Desc, BufferSize);
@@ -2855,7 +2876,7 @@ namespace Mavi
 		}
 		Renderer* RenderSystem::AddRenderer(Renderer* In)
 		{
-			VI_ASSERT(In != nullptr, nullptr, "renderer should be set");
+			VI_ASSERT(In != nullptr, "renderer should be set");
 			for (auto It = Renderers.begin(); It != Renderers.end(); ++It)
 			{
 				if (*It && (*It)->GetId() == In->GetId())
@@ -2992,7 +3013,7 @@ namespace Mavi
 		}
 		Core::String ShaderCache::Find(Graphics::Shader* Shader)
 		{
-			VI_ASSERT(Shader != nullptr, Core::String(), "shader should be set");
+			VI_ASSERT(Shader != nullptr, "shader should be set");
 			Safe.lock();
 			for (auto& Item : Cache)
 			{
@@ -3076,7 +3097,7 @@ namespace Mavi
 		}
 		bool PrimitiveCache::Compile(Graphics::ElementBuffer** Results, const Core::String& Name, size_t ElementSize, size_t ElementsCount)
 		{
-			VI_ASSERT(Results != nullptr, false, "results should be set");
+			VI_ASSERT(Results != nullptr, "results should be set");
 			if (Get(Results, Name))
 				return false;
 
@@ -3116,7 +3137,7 @@ namespace Mavi
 		}
 		bool PrimitiveCache::Get(Graphics::ElementBuffer** Results, const Core::String& Name)
 		{
-			VI_ASSERT(Results != nullptr, false, "results should be set");
+			VI_ASSERT(Results != nullptr, "results should be set");
 			Safe.lock();
 			auto It = Cache.find(Name);
 			if (It != Cache.end())
@@ -3180,7 +3201,7 @@ namespace Mavi
 		}
 		Core::String PrimitiveCache::Find(Graphics::ElementBuffer** Buffers)
 		{
-			VI_ASSERT(Buffers != nullptr, Core::String(), "buffers should be set");
+			VI_ASSERT(Buffers != nullptr, "buffers should be set");
 			Safe.lock();
 			for (auto& Item : Cache)
 			{
@@ -3239,7 +3260,7 @@ namespace Mavi
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetQuad()
 		{
-			VI_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			if (Quad != nullptr)
 				return Quad;
 
@@ -3271,7 +3292,7 @@ namespace Mavi
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetSphere(BufferType Type)
 		{
-			VI_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			if (Sphere[(size_t)Type] != nullptr)
 				return Sphere[(size_t)Type];
 
@@ -3352,7 +3373,7 @@ namespace Mavi
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetCube(BufferType Type)
 		{
-			VI_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			if (Cube[(size_t)Type] != nullptr)
 				return Cube[(size_t)Type];
 
@@ -3435,7 +3456,7 @@ namespace Mavi
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetBox(BufferType Type)
 		{
-			VI_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			if (Box[(size_t)Type] != nullptr)
 				return Box[(size_t)Type];
 
@@ -3518,7 +3539,7 @@ namespace Mavi
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetSkinBox(BufferType Type)
 		{
-			VI_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			if (SkinBox[(size_t)Type] != nullptr)
 				return SkinBox[(size_t)Type];
 
@@ -3605,25 +3626,25 @@ namespace Mavi
 		}
 		void PrimitiveCache::GetSphereBuffers(Graphics::ElementBuffer** Result)
 		{
-			VI_ASSERT_V(Result != nullptr, "result should be set");
+			VI_ASSERT(Result != nullptr, "result should be set");
 			Result[(size_t)BufferType::Index] = GetSphere(BufferType::Index);
 			Result[(size_t)BufferType::Vertex] = GetSphere(BufferType::Vertex);
 		}
 		void PrimitiveCache::GetCubeBuffers(Graphics::ElementBuffer** Result)
 		{
-			VI_ASSERT_V(Result != nullptr, "result should be set");
+			VI_ASSERT(Result != nullptr, "result should be set");
 			Result[(size_t)BufferType::Index] = GetCube(BufferType::Index);
 			Result[(size_t)BufferType::Vertex] = GetCube(BufferType::Vertex);
 		}
 		void PrimitiveCache::GetBoxBuffers(Graphics::ElementBuffer** Result)
 		{
-			VI_ASSERT_V(Result != nullptr, "result should be set");
+			VI_ASSERT(Result != nullptr, "result should be set");
 			Result[(size_t)BufferType::Index] = GetBox(BufferType::Index);
 			Result[(size_t)BufferType::Vertex] = GetBox(BufferType::Vertex);
 		}
 		void PrimitiveCache::GetSkinBoxBuffers(Graphics::ElementBuffer** Result)
 		{
-			VI_ASSERT_V(Result != nullptr, "result should be set");
+			VI_ASSERT(Result != nullptr, "result should be set");
 			Result[(size_t)BufferType::Index] = GetSkinBox(BufferType::Index);
 			Result[(size_t)BufferType::Vertex] = GetSkinBox(BufferType::Vertex);
 		}
@@ -3862,7 +3883,7 @@ namespace Mavi
 		}
 		void SceneGraph::Configure(const Desc& NewConf)
 		{
-			VI_ASSERT_V(NewConf.Shared.Device != nullptr, "graphics device should be set");
+			VI_ASSERT(NewConf.Shared.Device != nullptr, "graphics device should be set");
 			Transaction([this, NewConf]()
 			{
 				VI_TRACE("[scene] configure 0x%" PRIXPTR, (void*)this);
@@ -3930,7 +3951,7 @@ namespace Mavi
 			Transaction([this]()
 			{
 				auto* Device = Conf.Shared.Device;
-				VI_ASSERT_V(Device != nullptr, "graphics device should be set");
+				VI_ASSERT(Device != nullptr, "graphics device should be set");
 				Graphics::MultiRenderTarget2D::Desc MRT = GetDescMRT();
 				Graphics::RenderTarget2D::Desc RT = GetDescRT();
 				VI_CLEAR(Display.Merger);
@@ -3948,7 +3969,7 @@ namespace Mavi
 		void SceneGraph::FillMaterialBuffers()
 		{
 			auto* Device = Conf.Shared.Device;
-			VI_ASSERT_V(Device != nullptr, "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			Graphics::MappedSubresource Stream;
 			if (!Device->Map(Display.MaterialBuffer, Graphics::ResourceMap::Write_Discard, &Stream))
 				return;
@@ -3969,8 +3990,8 @@ namespace Mavi
 		void SceneGraph::Submit()
 		{
 			auto* Device = Conf.Shared.Device;
-			VI_ASSERT_V(Device != nullptr, "graphics device should be set");
-			VI_ASSERT_V(Conf.Shared.Primitives != nullptr, "primitive cache should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
+			VI_ASSERT(Conf.Shared.Primitives != nullptr, "primitive cache should be set");
 			Conf.Shared.Constants->Render.TexCoord = 1.0f;
 			Conf.Shared.Constants->Render.Transform.Identify();
 			Conf.Shared.Constants->UpdateConstantBuffer(RenderBufferType::Render);
@@ -3990,7 +4011,7 @@ namespace Mavi
 		}
 		void SceneGraph::Dispatch(Core::Timer* Time)
 		{
-			VI_ASSERT_V(Time != nullptr, "time should be set");
+			VI_ASSERT(Time != nullptr, "time should be set");
 			VI_MEASURE(Core::Timings::Pass);
 
 			StepEvents();
@@ -4004,7 +4025,7 @@ namespace Mavi
 		}
 		void SceneGraph::Publish(Core::Timer* Time)
 		{
-			VI_ASSERT_V(Time != nullptr, "timer should be set");
+			VI_ASSERT(Time != nullptr, "timer should be set");
 			VI_MEASURE((uint64_t)Core::Timings::Frame * 2);
 
 			auto* Base = (Components::Camera*)Camera.load();
@@ -4024,8 +4045,8 @@ namespace Mavi
 		}
 		void SceneGraph::StepSimulate(Core::Timer* Time)
 		{
-			VI_ASSERT_V(Time != nullptr, "timer should be set");
-			VI_ASSERT_V(Simulator != nullptr, "simulator should be set");
+			VI_ASSERT(Time != nullptr, "timer should be set");
+			VI_ASSERT(Simulator != nullptr, "simulator should be set");
 			VI_MEASURE(Core::Timings::Frame);
 
 			if (!Active)
@@ -4038,7 +4059,7 @@ namespace Mavi
 		}
 		void SceneGraph::StepSynchronize(Core::Timer* Time)
 		{
-			VI_ASSERT_V(Time != nullptr, "timer should be set");
+			VI_ASSERT(Time != nullptr, "timer should be set");
 			VI_MEASURE(Core::Timings::Frame);
 
 			auto& Storage = Actors[(size_t)ActorType::Synchronize];
@@ -4052,7 +4073,7 @@ namespace Mavi
 		}
 		void SceneGraph::StepAnimate(Core::Timer* Time)
 		{
-			VI_ASSERT_V(Time != nullptr, "timer should be set");
+			VI_ASSERT(Time != nullptr, "timer should be set");
 			VI_MEASURE(Core::Timings::Frame);
 
 			auto& Storage = Actors[(size_t)ActorType::Animate];
@@ -4077,7 +4098,7 @@ namespace Mavi
 		}
 		void SceneGraph::StepGameplay(Core::Timer* Time)
 		{
-			VI_ASSERT_V(Time != nullptr, "timer should be set");
+			VI_ASSERT(Time != nullptr, "timer should be set");
 			VI_MEASURE(Core::Timings::Pass);
 
 			auto& Storage = Actors[(size_t)ActorType::Update];
@@ -4195,12 +4216,12 @@ namespace Mavi
 		}
 		void SceneGraph::RemoveEntity(Entity* Entity)
 		{
-			VI_ASSERT_V(Entity != nullptr, "entity should be set");
+			VI_ASSERT(Entity != nullptr, "entity should be set");
 			UnregisterEntity(Entity);
 		}
 		void SceneGraph::DeleteEntity(Entity* Entity)
 		{
-			VI_ASSERT_V(Entity != nullptr, "entity should be set");
+			VI_ASSERT(Entity != nullptr, "entity should be set");
 			if (!UnregisterEntity(Entity))
 				return;
 
@@ -4212,7 +4233,7 @@ namespace Mavi
 		}
 		void SceneGraph::DeleteMaterial(Material* Value)
 		{
-			VI_ASSERT_V(Value != nullptr, "entity should be set");
+			VI_ASSERT(Value != nullptr, "entity should be set");
 			VI_TRACE("[scene] delete material %s on 0x%" PRIXPTR, (void*)Value->Name.c_str(), (void*)this);
 			Mutate(Value, "pop");
 
@@ -4233,8 +4254,8 @@ namespace Mavi
 		}
 		void SceneGraph::RegisterEntity(Entity* Target)
 		{
-			VI_ASSERT_V(Target != nullptr, "entity should be set");
-			VI_ASSERT_V(Target->Scene == this, "entity be created within this scene");
+			VI_ASSERT(Target != nullptr, "entity should be set");
+			VI_ASSERT(Target->Scene == this, "entity be created within this scene");
 			VI_TRACE("[scene] register entity 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Target, (void*)this);
 
 			Target->Active = true;
@@ -4246,8 +4267,8 @@ namespace Mavi
 		}
 		bool SceneGraph::UnregisterEntity(Entity* Target)
 		{
-			VI_ASSERT(Target != nullptr, false, "entity should be set");
-			VI_ASSERT(Target->GetScene() == this, false, "entity should be attached to current scene");
+			VI_ASSERT(Target != nullptr, "entity should be set");
+			VI_ASSERT(Target->GetScene() == this, "entity should be attached to current scene");
 			VI_TRACE("[scene] unregister entity 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Target, (void*)this);
 
 			Component* Viewer = Camera.load();
@@ -4320,8 +4341,8 @@ namespace Mavi
 		}
 		void SceneGraph::LoadComponent(Component* Base)
 		{
-			VI_ASSERT_V(Base != nullptr, "component should be set");
-			VI_ASSERT_V(Base->Parent != nullptr && Base->Parent->Scene == this, "component should be tied to this scene");
+			VI_ASSERT(Base != nullptr, "component should be set");
+			VI_ASSERT(Base->Parent != nullptr && Base->Parent->Scene == this, "component should be tied to this scene");
 			VI_TRACE("[scene] await component 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Base, (void*)this);
 			std::unique_lock<std::mutex> Unique(Exclusive);
 			++Incomplete[Base];
@@ -4351,8 +4372,8 @@ namespace Mavi
 		}
 		void SceneGraph::CloneEntities(Entity* Instance, Core::Vector<Entity*>* Array)
 		{
-			VI_ASSERT_V(Instance != nullptr, "entity should be set");
-			VI_ASSERT_V(Array != nullptr, "array should be set");
+			VI_ASSERT(Instance != nullptr, "entity should be set");
+			VI_ASSERT(Array != nullptr, "array should be set");
 			VI_TRACE("[scene] clone entity 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Instance, (void*)this);
 
 			Entity* Clone = CloneEntityInstance(Instance);
@@ -4382,7 +4403,7 @@ namespace Mavi
 		}
 		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, const RayCallback& Callback)
 		{
-			VI_ASSERT_V(Callback, "callback should not be empty");
+			VI_ASSERT(Callback, "callback should not be empty");
 			VI_MEASURE(Core::Timings::Pass);
 
 			auto& Array = GetComponents(Section);
@@ -4432,7 +4453,7 @@ namespace Mavi
 		void SceneGraph::SetMRT(TargetType Type, bool Clear)
 		{
 			auto* Device = Conf.Shared.Device;
-			VI_ASSERT_V(Device != nullptr, "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			Graphics::MultiRenderTarget2D* Target = Display.MRT[(size_t)Type];
 			Device->SetTarget(Target);
 
@@ -4448,7 +4469,7 @@ namespace Mavi
 		void SceneGraph::SetRT(TargetType Type, bool Clear)
 		{
 			auto* Device = Conf.Shared.Device;
-			VI_ASSERT_V(Device != nullptr, "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			Graphics::RenderTarget2D* Target = Display.RT[(size_t)Type];
 			Device->SetTarget(Target);
 
@@ -4500,7 +4521,7 @@ namespace Mavi
 		void SceneGraph::ClearMRT(TargetType Type, bool Color, bool Depth)
 		{
 			auto* Device = Conf.Shared.Device;
-			VI_ASSERT_V(Device != nullptr, "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			Graphics::MultiRenderTarget2D* Target = Display.MRT[(size_t)Type];
 			if (Color)
 			{
@@ -4516,7 +4537,7 @@ namespace Mavi
 		void SceneGraph::ClearRT(TargetType Type, bool Color, bool Depth)
 		{
 			auto* Device = Conf.Shared.Device;
-			VI_ASSERT_V(Device != nullptr, "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			Graphics::RenderTarget2D* Target = Display.RT[(size_t)Type];
 			if (Color)
 				Device->Clear(Target, 0, 0, 0, 0);
@@ -4526,10 +4547,10 @@ namespace Mavi
 		}
 		bool SceneGraph::GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out)
 		{
-			VI_ASSERT(In && Out, false, "input and output should be set");
-			VI_ASSERT(Display.VoxelBuffers[0] != nullptr, false, "first voxel buffer should be set");
-			VI_ASSERT(Display.VoxelBuffers[1] != nullptr, false, "second voxel buffer should be set");
-			VI_ASSERT(Display.VoxelBuffers[2] != nullptr, false, "third voxel buffer should be set");
+			VI_ASSERT(In && Out, "input and output should be set");
+			VI_ASSERT(Display.VoxelBuffers[0] != nullptr, "first voxel buffer should be set");
+			VI_ASSERT(Display.VoxelBuffers[1] != nullptr, "second voxel buffer should be set");
+			VI_ASSERT(Display.VoxelBuffers[2] != nullptr, "third voxel buffer should be set");
 
 			for (unsigned int i = 0; i < 3; i++)
 			{
@@ -4541,7 +4562,7 @@ namespace Mavi
 		}
 		MessageCallback* SceneGraph::SetListener(const Core::String& EventName, MessageCallback&& Callback)
 		{
-			VI_ASSERT(Callback != nullptr, nullptr, "callback should be set");
+			VI_ASSERT(Callback != nullptr, "callback should be set");
 			VI_TRACE("[scene] attach listener %s on 0x%" PRIXPTR, EventName.c_str(), (void*)this);
 			MessageCallback* Id = VI_NEW(MessageCallback, std::move(Callback));
 			std::unique_lock<std::mutex> Unique(Exclusive);
@@ -4551,8 +4572,8 @@ namespace Mavi
 		}
 		bool SceneGraph::ClearListener(const Core::String& EventName, MessageCallback* Id)
 		{
-			VI_ASSERT(!EventName.empty(), false, "event name should not be empty");
-			VI_ASSERT(Id != nullptr, false, "callback id should be set");
+			VI_ASSERT(!EventName.empty(), "event name should not be empty");
+			VI_ASSERT(Id != nullptr, "callback id should be set");
 			VI_TRACE("[scene] detach listener %s on 0x%" PRIXPTR, EventName.c_str(), (void*)this);
 
 			std::unique_lock<std::mutex> Unique(Exclusive);
@@ -4581,7 +4602,7 @@ namespace Mavi
 		bool SceneGraph::PushEvent(const Core::String& EventName, Core::VariantArgs&& Args, Component* Target)
 		{
 			VI_TRACE("[scene] push component event %s on 0x%" PRIXPTR " for 0x%" PRIXPTR, EventName.c_str(), (void*)this, (void*)Target);
-			VI_ASSERT(Target != nullptr, false, "target should be set");
+			VI_ASSERT(Target != nullptr, "target should be set");
 			Event Next(EventName, std::move(Args));
 			Next.Args["__vb"] = Core::Var::Integer((int64_t)EventTarget::Component);
 			Next.Args["__vt"] = Core::Var::Pointer((void*)Target);
@@ -4594,7 +4615,7 @@ namespace Mavi
 		bool SceneGraph::PushEvent(const Core::String& EventName, Core::VariantArgs&& Args, Entity* Target)
 		{
 			VI_TRACE("[scene] push entity event %s on 0x%" PRIXPTR " for 0x%" PRIXPTR, EventName.c_str(), (void*)this, (void*)Target);
-			VI_ASSERT(Target != nullptr, false, "target should be set");
+			VI_ASSERT(Target != nullptr, "target should be set");
 			Event Next(EventName, std::move(Args));
 			Next.Args["__vb"] = Core::Var::Integer((int64_t)EventTarget::Entity);
 			Next.Args["__vt"] = Core::Var::Pointer((void*)Target);
@@ -4606,9 +4627,9 @@ namespace Mavi
 		}
 		void SceneGraph::LoadResource(uint64_t Id, Component* Context, const Core::String& Path, const Core::VariantArgs& Keys, const std::function<void(void*)>& Callback)
 		{
-			VI_ASSERT_V(Conf.Shared.Content != nullptr, "content manager should be set");
-			VI_ASSERT_V(Context != nullptr, "component calling this function should be set");
-			VI_ASSERT_V(Callback != nullptr, "callback should be set");
+			VI_ASSERT(Conf.Shared.Content != nullptr, "content manager should be set");
+			VI_ASSERT(Context != nullptr, "component calling this function should be set");
+			VI_ASSERT(Callback != nullptr, "callback should be set");
 
 			LoadComponent(Context);
 			Conf.Shared.Content->LoadAsync(Conf.Shared.Content->GetProcessor(Id), Path, Keys).When([this, Context, Callback](void*&& Result)
@@ -4648,9 +4669,9 @@ namespace Mavi
 		}
 		void SceneGraph::Mutate(Entity* Parent, Entity* Child, const char* Type)
 		{
-			VI_ASSERT_V(Parent != nullptr, "parent should be set");
-			VI_ASSERT_V(Child != nullptr, "child should be set");
-			VI_ASSERT_V(Type != nullptr, "type should be set");
+			VI_ASSERT(Parent != nullptr, "parent should be set");
+			VI_ASSERT(Child != nullptr, "child should be set");
+			VI_ASSERT(Type != nullptr, "type should be set");
 			if (!Conf.Mutations)
 				return;
 
@@ -4663,8 +4684,8 @@ namespace Mavi
 		}
 		void SceneGraph::Mutate(Entity* Target, const char* Type)
 		{
-			VI_ASSERT_V(Target != nullptr, "target should be set");
-			VI_ASSERT_V(Type != nullptr, "type should be set");
+			VI_ASSERT(Target != nullptr, "target should be set");
+			VI_ASSERT(Type != nullptr, "type should be set");
 			if (!Conf.Mutations)
 				return;
 
@@ -4676,8 +4697,8 @@ namespace Mavi
 		}
 		void SceneGraph::Mutate(Component* Target, const char* Type)
 		{
-			VI_ASSERT_V(Target != nullptr, "target should be set");
-			VI_ASSERT_V(Type != nullptr, "type should be set");
+			VI_ASSERT(Target != nullptr, "target should be set");
+			VI_ASSERT(Type != nullptr, "type should be set");
 			NotifyCosmos(Target);
 
 			if (!Conf.Mutations)
@@ -4691,8 +4712,8 @@ namespace Mavi
 		}
 		void SceneGraph::Mutate(Material* Target, const char* Type)
 		{
-			VI_ASSERT_V(Target != nullptr, "target should be set");
-			VI_ASSERT_V(Type != nullptr, "type should be set");
+			VI_ASSERT(Target != nullptr, "target should be set");
+			VI_ASSERT(Type != nullptr, "type should be set");
 			if (!Conf.Mutations)
 				return;
 
@@ -4704,7 +4725,7 @@ namespace Mavi
 		}
 		void SceneGraph::MakeSnapshot(IdxSnapshot* Result)
 		{
-			VI_ASSERT_V(Result != nullptr, "shapshot result should be set");
+			VI_ASSERT(Result != nullptr, "shapshot result should be set");
 			VI_TRACE("[scene] make snapshot on 0x%" PRIXPTR, (void*)this);
 			Result->To.clear();
 			Result->From.clear();
@@ -4720,7 +4741,7 @@ namespace Mavi
 		}
 		void SceneGraph::Transaction(Core::TaskCallback&& Callback)
 		{
-			VI_ASSERT_V(Callback != nullptr, "callback should be set");
+			VI_ASSERT(Callback != nullptr, "callback should be set");
 			bool ExecuteNow = false;
 			{
 				std::unique_lock<std::mutex> Unique(Exclusive);
@@ -4810,7 +4831,7 @@ namespace Mavi
 		void SceneGraph::GenerateVoxelBuffers()
 		{
 			auto* Device = Conf.Shared.Device;
-			VI_ASSERT_V(Device != nullptr, "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			VI_TRACE("[scene] generate voxel buffers %" PRIu64 "v on 0x%" PRIXPTR, (uint64_t)(Conf.VoxelsSize * Conf.VoxelsSize * Conf.VoxelsSize * 3), (void*)this);
 
 			Conf.VoxelsSize = Conf.VoxelsSize - Conf.VoxelsSize % 8;
@@ -4850,7 +4871,7 @@ namespace Mavi
 		void SceneGraph::GenerateDepthBuffers()
 		{
 			auto* Device = Conf.Shared.Device;
-			VI_ASSERT_V(Device != nullptr, "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			VI_TRACE("[scene] generate depth buffers %" PRIu64 "t on 0x%" PRIXPTR, (uint64_t)(Conf.PointsMax + Conf.SpotsMax + Conf.LinesMax), (void*)this);
 
 			for (auto& Item : Display.Points)
@@ -5015,7 +5036,7 @@ namespace Mavi
 		}
 		bool SceneGraph::AddMaterial(Material* Base)
 		{
-			VI_ASSERT(Base != nullptr, false, "base should be set");
+			VI_ASSERT(Base != nullptr, "base should be set");
 			if (Materials.Size() + Conf.GrowMargin > Materials.Capacity())
 			{
 				Transaction([this, Base]()
@@ -5053,7 +5074,7 @@ namespace Mavi
 		}
 		Material* SceneGraph::CloneMaterial(Material* Base)
 		{
-			VI_ASSERT(Base != nullptr, nullptr, "material should be set");
+			VI_ASSERT(Base != nullptr, "material should be set");
 			Material* Result = new Material(*Base);
 			AddMaterial(Result);
 			return Result;
@@ -5110,7 +5131,7 @@ namespace Mavi
 		SparseIndex& SceneGraph::GetStorage(uint64_t Section)
 		{
 			SparseIndex* Storage = Registry[Section];
-			VI_ASSERT(Storage != nullptr, *Registry.begin()->second, "component should be registered by composer");
+			VI_ASSERT(Storage != nullptr, "component should be registered by composer");
 			if (Storage->Data.Size() + Conf.GrowMargin > Storage->Data.Capacity())
 			{
 				Transaction([this, Section]()
@@ -5136,12 +5157,12 @@ namespace Mavi
 		}
 		Material* SceneGraph::GetMaterial(size_t Material)
 		{
-			VI_ASSERT(Material < Materials.Size(), nullptr, "index outside of range");
+			VI_ASSERT(Material < Materials.Size(), "index outside of range");
 			return Materials[Material];
 		}
 		Entity* SceneGraph::GetEntity(size_t Entity)
 		{
-			VI_ASSERT(Entity < Entities.Size(), nullptr, "index outside of range");
+			VI_ASSERT(Entity < Entities.Size(), "index outside of range");
 			return Entities[Entity];
 		}
 		Entity* SceneGraph::GetLastEntity()
@@ -5158,7 +5179,7 @@ namespace Mavi
 		}
 		Entity* SceneGraph::CloneEntityInstance(Entity* Entity)
 		{
-			VI_ASSERT(Entity != nullptr, nullptr, "entity should be set");
+			VI_ASSERT(Entity != nullptr, "entity should be set");
 			VI_MEASURE(Core::Timings::Pass);
 
 			Engine::Entity* Instance = new Engine::Entity(this);
@@ -5206,10 +5227,10 @@ namespace Mavi
 		Graphics::RenderTarget2D::Desc SceneGraph::GetDescRT() const
 		{
 			auto* Device = Conf.Shared.Device;
-			VI_ASSERT(Device != nullptr, Graphics::RenderTarget2D::Desc(), "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			Graphics::RenderTarget2D* Target = Device->GetRenderTarget();
 
-			VI_ASSERT(Target != nullptr, Graphics::RenderTarget2D::Desc(), "render target should be set");
+			VI_ASSERT(Target != nullptr, "render target should be set");
 			Graphics::RenderTarget2D::Desc Desc;
 			Desc.MiscFlags = Graphics::ResourceMisc::Generate_Mips;
 			Desc.Width = (unsigned int)(Target->GetWidth() * Conf.RenderQuality);
@@ -5222,10 +5243,10 @@ namespace Mavi
 		Graphics::MultiRenderTarget2D::Desc SceneGraph::GetDescMRT() const
 		{
 			auto* Device = Conf.Shared.Device;
-			VI_ASSERT(Device != nullptr, Graphics::MultiRenderTarget2D::Desc(), "graphics device should be set");
+			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			Graphics::RenderTarget2D* Target = Device->GetRenderTarget();
 
-			VI_ASSERT(Target != nullptr, Graphics::MultiRenderTarget2D::Desc(), "render target should be set");
+			VI_ASSERT(Target != nullptr, "render target should be set");
 			Graphics::MultiRenderTarget2D::Desc Desc;
 			Desc.MiscFlags = Graphics::ResourceMisc::Generate_Mips;
 			Desc.Width = (unsigned int)(Target->GetWidth() * Conf.RenderQuality);
@@ -5258,14 +5279,14 @@ namespace Mavi
 		Core::Vector<Entity*> SceneGraph::CloneEntityAsArray(Entity* Value)
 		{
 			Core::Vector<Entity*> Array;
-			VI_ASSERT(Value != nullptr, Array, "entity should be set");
+			VI_ASSERT(Value != nullptr, "entity should be set");
 			CloneEntities(Value, &Array);
 			return Array;
 		}
 		Core::Vector<Entity*> SceneGraph::QueryByParent(Entity* Entity) const
 		{
 			Core::Vector<Engine::Entity*> Array;
-			VI_ASSERT(Entity != nullptr, Array, "entity should be set");
+			VI_ASSERT(Entity != nullptr, "entity should be set");
 
 			auto Begin = Entities.Begin(), End = Entities.End();
 			for (auto It = Begin; It != End; ++It)
@@ -5372,7 +5393,7 @@ namespace Mavi
 		}
 		Core::String SceneGraph::AsResourcePath(const Core::String& Path)
 		{
-			VI_ASSERT(Conf.Shared.Content != nullptr, Path, "content manager should be set");
+			VI_ASSERT(Conf.Shared.Content != nullptr, "content manager should be set");
 			return Core::Stringify(Path).Replace(Conf.Shared.Content->GetEnvironment(), "./").Replace('\\', '/').R();
 		}
 		Entity* SceneGraph::AddEntity()
@@ -5383,8 +5404,8 @@ namespace Mavi
 		}
 		bool SceneGraph::AddEntity(Entity* Entity)
 		{
-			VI_ASSERT(Entity != nullptr, false, "entity should be set");
-			VI_ASSERT(Entity->Scene == this, false, "entity should be created for this scene");
+			VI_ASSERT(Entity != nullptr, "entity should be set");
+			VI_ASSERT(Entity->Scene == this, "entity should be created for this scene");
 
 			if (Entities.Size() + Conf.GrowMargin <= Entities.Capacity())
 			{
@@ -5404,7 +5425,7 @@ namespace Mavi
 		}
 		bool SceneGraph::HasEntity(Entity* Entity) const
 		{
-			VI_ASSERT(Entity != nullptr, false, "entity should be set");
+			VI_ASSERT(Entity != nullptr, "entity should be set");
 			for (size_t i = 0; i < Entities.Size(); i++)
 			{
 				if (Entities[i] == Entity)
@@ -5678,7 +5699,7 @@ namespace Mavi
 		}
 		bool ContentManager::Save(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Map)
 		{
-			VI_ASSERT(Object != nullptr, false, "object should be set");
+			VI_ASSERT(Object != nullptr, "object should be set");
 			if (Path.empty())
 			{
 				VI_TRACE("[content] save forward: no path provided");
@@ -5860,7 +5881,7 @@ namespace Mavi
 		}
 		bool ContentManager::Export(const Core::String& Path, const Core::String& Directory, const Core::String& Name)
 		{
-			VI_ASSERT(!Path.empty() && !Directory.empty(), false, "path and directory should not be empty");
+			VI_ASSERT(!Path.empty() && !Directory.empty(), "path and directory should not be empty");
 			auto* Stream = new Core::GzStream();
 			if (!Stream->Open(Core::OS::Path::Resolve(Path, Environment, false).c_str(), Core::FileMode::Write_Only))
 			{
@@ -6034,7 +6055,7 @@ namespace Mavi
 
 		AppData::AppData(ContentManager* Manager, const Core::String& NewPath) noexcept : Content(Manager), Data(nullptr)
 		{
-			VI_ASSERT_V(Manager != nullptr, "content manager should be set");
+			VI_ASSERT(Manager != nullptr, "content manager should be set");
 			Migrate(NewPath);
 		}
 		AppData::~AppData() noexcept
@@ -6043,7 +6064,7 @@ namespace Mavi
 		}
 		void AppData::Migrate(const Core::String& Next)
 		{
-			VI_ASSERT_V(!Next.empty(), "path should not be empty");
+			VI_ASSERT(!Next.empty(), "path should not be empty");
 			VI_TRACE("[appd] migrate %s to %s", Path.c_str(), Next.c_str());
 
 			Safe.lock();
@@ -6154,7 +6175,7 @@ namespace Mavi
 
 		Application::Application(Desc* I) noexcept : Control(I ? *I : Desc())
 		{
-			VI_ASSERT_V(I != nullptr, "desc should be set");
+			VI_ASSERT(I != nullptr, "desc should be set");
 			State = ApplicationState::Staging;
 		}
 		Application::~Application() noexcept
@@ -6258,127 +6279,94 @@ namespace Mavi
 					Control.Activity.Width = (unsigned int)(Display.w / 1.1);
 					Control.Activity.Height = (unsigned int)(Display.h / 1.2);
 				}
+				
+				VI_PANIC(Control.Activity.Width > 0 && Control.Activity.Height > 0, "activity width/height is unacceptable and should be higher than zero");
+				bool Maximized = Control.Activity.Maximized;
+				Control.Activity.GPUAsRenderer = (Control.Usage & (size_t)ApplicationSet::GraphicsSet);
+				Control.Activity.Maximized = false;
 
-				if (Control.Activity.Width > 0 && Control.Activity.Height > 0)
+				if (!Activity)
+					Activity = new Graphics::Activity(Control.Activity);
+
+				if (Control.Activity.GPUAsRenderer)
 				{
-					bool Maximized = Control.Activity.Maximized;
-					Control.Activity.GPUAsRenderer = (Control.Usage & (size_t)ApplicationSet::GraphicsSet);
-					Control.Activity.Maximized = false;
+					VI_PANIC(!Renderer, "graphics device is pre-initialized which is not compatible with GPU as renderer mode");
+					Control.GraphicsDevice.BufferWidth = Control.Activity.Width;
+					Control.GraphicsDevice.BufferHeight = Control.Activity.Height;
+					Control.GraphicsDevice.Window = Activity;
 
-					if (!Activity)
-						Activity = new Graphics::Activity(Control.Activity);
+					if (Content != nullptr && !Control.GraphicsDevice.CacheDirectory.empty())
+						Control.GraphicsDevice.CacheDirectory = Core::OS::Path::ResolveDirectory(Control.GraphicsDevice.CacheDirectory, Content->GetEnvironment(), false);
 
-					if (Control.Activity.GPUAsRenderer)
+					Renderer = Graphics::GraphicsDevice::Create(Control.GraphicsDevice);
+					Compute::Geometric::SetLeftHanded(Renderer->IsLeftHanded());
+
+					if (Content != nullptr)
+						Content->SetDevice(Renderer);
+
+					if (!Cache.Shaders)
+						Cache.Shaders = new ShaderCache(Renderer);
+
+					if (!Cache.Primitives)
+						Cache.Primitives = new PrimitiveCache(Renderer);
+
+					if (!Constants)
+						Constants = new RenderConstants(Renderer);
+				}
+					
+				VI_PANIC(Activity->GetHandle() != nullptr, "activity instance is non-existant");
+				Activity->UserPointer = this;
+				Activity->SetCursorVisibility(Control.Cursor);
+				Activity->Callbacks.KeyState = [this](Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
+				{
+#ifdef VI_USE_RMLUI
+					GUI::Context* GUI = GetGUI();
+					if (GUI != nullptr)
+						GUI->EmitKey(Key, Mod, Virtual, Repeat, Pressed);
+#endif
+					KeyEvent(Key, Mod, Virtual, Repeat, Pressed);
+				};
+				Activity->Callbacks.Input = [this](char* Buffer, int Length)
+				{
+					if (!Buffer)
+						return;
+#ifdef VI_USE_RMLUI
+					GUI::Context* GUI = GetGUI();
+					if (GUI != nullptr)
+						GUI->EmitInput(Buffer, Length);
+#endif
+					InputEvent(Buffer, Length < 0 ? strlen(Buffer) : (size_t)Length);
+				};
+				Activity->Callbacks.CursorWheelState = [this](int X, int Y, bool Normal)
+				{
+#ifdef VI_USE_RMLUI
+					GUI::Context* GUI = GetGUI();
+					if (GUI != nullptr)
+						GUI->EmitWheel(X, Y, Normal, Activity->GetKeyModState());
+#endif
+					WheelEvent(X, Y, Normal);
+				};
+				Activity->Callbacks.WindowStateChange = [this](Graphics::WindowState NewState, int X, int Y)
+				{
+#ifdef VI_USE_RMLUI
+					if (NewState == Graphics::WindowState::Resize)
 					{
-						Control.GraphicsDevice.BufferWidth = Control.Activity.Width;
-						Control.GraphicsDevice.BufferHeight = Control.Activity.Height;
-						Control.GraphicsDevice.Window = Activity;
-
-						if (Content != nullptr && !Control.GraphicsDevice.CacheDirectory.empty())
-							Control.GraphicsDevice.CacheDirectory = Core::OS::Path::ResolveDirectory(Control.GraphicsDevice.CacheDirectory, Content->GetEnvironment(), false);
-
-						if (Renderer != nullptr)
-						{
-							VI_ERR("[engine] graphics device cannot be pre-initialized");
-							return EXIT_JUMP + 1;
-						}
-
-						Renderer = Graphics::GraphicsDevice::Create(Control.GraphicsDevice);
-						if (!Renderer || !Renderer->IsValid())
-						{
-							VI_ERR("[engine] graphics device cannot be created");
-							return EXIT_JUMP + 2;
-						}
-
-						Compute::Geometric::SetLeftHanded(Renderer->IsLeftHanded());
-						if (Content != nullptr)
-							Content->SetDevice(Renderer);
-
-						if (!Cache.Shaders)
-							Cache.Shaders = new ShaderCache(Renderer);
-
-						if (!Cache.Primitives)
-							Cache.Primitives = new PrimitiveCache(Renderer);
-
-						if (!Constants)
-							Constants = new RenderConstants(Renderer);
+						GUI::Context* GUI = GetGUI();
+						if (GUI != nullptr)
+							GUI->EmitResize(X, Y);
 					}
-					else if (!Activity->GetHandle())
-					{
-						VI_ERR("[engine] cannot create activity instance");
-						return EXIT_JUMP + 3;
-					}
-
-					Activity->UserPointer = this;
-					Activity->SetCursorVisibility(Control.Cursor);
-					Activity->Callbacks.KeyState = [this](Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
-					{
-#ifdef VI_USE_RMLUI
-						GUI::Context* GUI = GetGUI();
-						if (GUI != nullptr)
-							GUI->EmitKey(Key, Mod, Virtual, Repeat, Pressed);
 #endif
-						KeyEvent(Key, Mod, Virtual, Repeat, Pressed);
-					};
-					Activity->Callbacks.Input = [this](char* Buffer, int Length)
-					{
-						if (!Buffer)
-							return;
-#ifdef VI_USE_RMLUI
-						GUI::Context* GUI = GetGUI();
-						if (GUI != nullptr)
-							GUI->EmitInput(Buffer, Length);
-#endif
-						InputEvent(Buffer, Length < 0 ? strlen(Buffer) : (size_t)Length);
-					};
-					Activity->Callbacks.CursorWheelState = [this](int X, int Y, bool Normal)
-					{
-#ifdef VI_USE_RMLUI
-						GUI::Context* GUI = GetGUI();
-						if (GUI != nullptr)
-							GUI->EmitWheel(X, Y, Normal, Activity->GetKeyModState());
-#endif
-						WheelEvent(X, Y, Normal);
-					};
-					Activity->Callbacks.WindowStateChange = [this](Graphics::WindowState NewState, int X, int Y)
-					{
-#ifdef VI_USE_RMLUI
-						if (NewState == Graphics::WindowState::Resize)
-						{
-							GUI::Context* GUI = GetGUI();
-							if (GUI != nullptr)
-								GUI->EmitResize(X, Y);
-						}
-#endif
-						WindowEvent(NewState, X, Y);
-					};
-					Control.Activity.Maximized = Maximized;
-				}
-				else
-				{
-					VI_ERR("[engine] cannot detect display to create activity");
-					return EXIT_JUMP + 4;
-				}
+					WindowEvent(NewState, X, Y);
+				};
+				Control.Activity.Maximized = Maximized;
 #endif
 			}
 
-			if (Control.Usage & (size_t)ApplicationSet::AudioSet)
-			{
-				if (!Audio)
-					Audio = new Audio::AudioDevice();
+			if (Control.Usage & (size_t)ApplicationSet::AudioSet && !Audio)
+				Audio = new Audio::AudioDevice();
 
-				if (!Audio->IsValid())
-				{
-					VI_ERR("[engine] audio device cannot be created");
-					return EXIT_JUMP + 5;
-				}
-			}
-
-			if (Control.Usage & (size_t)ApplicationSet::ScriptSet)
-			{
-				if (!VM)
-					VM = new Scripting::VirtualMachine();
-			}
+			if (Control.Usage & (size_t)ApplicationSet::ScriptSet && !VM)
+				VM = new Scripting::VirtualMachine();
 
 			if (Activity != nullptr && Renderer != nullptr && Constants != nullptr && Content != nullptr)
 			{
@@ -6613,8 +6601,8 @@ namespace Mavi
 
 		EffectRenderer::EffectRenderer(RenderSystem* Lab) noexcept : Renderer(Lab), Output(nullptr), Swap(nullptr), MaxSlot(0)
 		{
-			VI_ASSERT_V(Lab != nullptr, "render system should be set");
-			VI_ASSERT_V(Lab->GetDevice() != nullptr, "graphics device should be set");
+			VI_ASSERT(Lab != nullptr, "render system should be set");
+			VI_ASSERT(Lab->GetDevice() != nullptr, "graphics device should be set");
 
 			auto* Device = Lab->GetDevice();
 			DepthStencil = Device->GetDepthStencilState("none");
@@ -6640,19 +6628,19 @@ namespace Mavi
 		}
 		void EffectRenderer::RenderCopyMain(uint32_t Slot, Graphics::Texture2D* Target)
 		{
-			VI_ASSERT_V(Target != nullptr, "texture should be set");
+			VI_ASSERT(Target != nullptr, "texture should be set");
 			Graphics::GraphicsDevice* Device = System->GetDevice();
 			Device->CopyTexture2D(System->GetScene()->GetMRT(TargetType::Main), Slot, &Target);
 		}
 		void EffectRenderer::RenderCopyLast(Graphics::Texture2D* Target)
 		{
-			VI_ASSERT_V(Target != nullptr, "texture should be set");
+			VI_ASSERT(Target != nullptr, "texture should be set");
 			Graphics::GraphicsDevice* Device = System->GetDevice();
 			Device->CopyTexture2D(Output, 0, &Target);
 		}
 		void EffectRenderer::RenderOutput(Graphics::RenderTarget2D* Resource)
 		{
-			VI_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+			VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 			if (Resource != nullptr)
 			{
 				Output = Resource;
@@ -6690,7 +6678,7 @@ namespace Mavi
 		}
 		void EffectRenderer::RenderMerge(Graphics::Shader* Effect, void* Buffer, size_t Count)
 		{
-			VI_ASSERT_V(Count > 0, "count should be greater than zero");
+			VI_ASSERT(Count > 0, "count should be greater than zero");
 			if (!Effect)
 				Effect = Effects.begin()->second;
 
@@ -6807,8 +6795,8 @@ namespace Mavi
 		}
 		size_t EffectRenderer::RenderPass(Core::Timer* Time)
 		{
-			VI_ASSERT(System->GetPrimitives() != nullptr, 0, "primitive cache should be set");
-			VI_ASSERT(System->GetMRT(TargetType::Main) != nullptr, 0, "main render target should be set");
+			VI_ASSERT(System->GetPrimitives() != nullptr, "primitive cache should be set");
+			VI_ASSERT(System->GetMRT(TargetType::Main) != nullptr, "main render target should be set");
 			VI_MEASURE(Core::Timings::Pass);
 
 			if (!System->State.Is(RenderState::Geometric) || System->State.IsSubpass())
@@ -6854,7 +6842,7 @@ namespace Mavi
 		}
 		Graphics::Shader* EffectRenderer::CompileEffect(Graphics::Shader::Desc& Desc, size_t BufferSize)
 		{
-			VI_ASSERT(!Desc.Filename.empty(), nullptr, "cannot compile unnamed shader source");
+			VI_ASSERT(!Desc.Filename.empty(), "cannot compile unnamed shader source");
 			Graphics::Shader* Shader = System->CompileShader(Desc, BufferSize);
 			if (!Shader)
 				return nullptr;
@@ -6880,19 +6868,19 @@ namespace Mavi
 		}
 		unsigned int EffectRenderer::GetMipLevels() const
 		{
-			VI_ASSERT(System->GetRT(TargetType::Main) != nullptr, 0, "main render target should be set");
+			VI_ASSERT(System->GetRT(TargetType::Main) != nullptr, "main render target should be set");
 			Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Main);
 			return System->GetDevice()->GetMipLevel(RT->GetWidth(), RT->GetHeight());
 		}
 		unsigned int EffectRenderer::GetWidth() const
 		{
-			VI_ASSERT(System->GetRT(TargetType::Main) != nullptr, 0, "main render target should be set");
+			VI_ASSERT(System->GetRT(TargetType::Main) != nullptr, "main render target should be set");
 			Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Main);
 			return RT->GetWidth();
 		}
 		unsigned int EffectRenderer::GetHeight() const
 		{
-			VI_ASSERT(System->GetRT(TargetType::Main) != nullptr, 0, "main render target should be set");
+			VI_ASSERT(System->GetRT(TargetType::Main) != nullptr, "main render target should be set");
 			Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Main);
 			return RT->GetHeight();
 		}

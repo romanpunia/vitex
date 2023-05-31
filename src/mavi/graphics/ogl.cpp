@@ -301,7 +301,7 @@ namespace Mavi
 			}
 			Compute::Vertex* OGLMeshBuffer::GetElements(GraphicsDevice* Device) const
 			{
-				VI_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
+				VI_ASSERT(Device != nullptr, "graphics device should be set");
 
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap::Write, &Resource);
@@ -318,7 +318,7 @@ namespace Mavi
 			}
 			Compute::SkinVertex* OGLSkinMeshBuffer::GetElements(GraphicsDevice* Device) const
 			{
-				VI_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
+				VI_ASSERT(Device != nullptr, "graphics device should be set");
 
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap::Write, &Resource);
@@ -525,12 +525,12 @@ namespace Mavi
 
 			OGLCubemap::OGLCubemap(const Desc& I) : Cubemap(I)
 			{
-				VI_ASSERT_V(I.Source != nullptr, "source should be set");
-				VI_ASSERT_V(I.Target < I.Source->GetTargetCount(), "targets count should be less than %i", (int)I.Source->GetTargetCount());
+				VI_ASSERT(I.Source != nullptr, "source should be set");
+				VI_ASSERT(I.Target < I.Source->GetTargetCount(), "targets count should be less than %i", (int)I.Source->GetTargetCount());
 				
 				OGLTexture2D* Target = (OGLTexture2D*)I.Source->GetTarget2D(I.Target);
-				VI_ASSERT_V(Target != nullptr && Target->Resource != GL_NONE, "render target should be valid");
-				VI_ASSERT_V(!((OGLFrameBuffer*)I.Source->GetTargetBuffer())->Backbuffer, "cannot copy from backbuffer directly");
+				VI_ASSERT(Target != nullptr && Target->Resource != GL_NONE, "render target should be valid");
+				VI_ASSERT(!((OGLFrameBuffer*)I.Source->GetTargetBuffer())->Backbuffer, "cannot copy from backbuffer directly");
 
 				glGenFramebuffers(1, &FrameBuffer);
 				Source = Target->Resource;
@@ -559,7 +559,7 @@ namespace Mavi
 #ifdef VI_HAS_SDL2
 				if (!Window)
 				{
-					VI_ASSERT_V(VirtualWindow != nullptr, "cannot initialize virtual activity for device");
+					VI_ASSERT(VirtualWindow != nullptr, "cannot initialize virtual activity for device");
 					Window = VirtualWindow;
 				}
 
@@ -582,21 +582,11 @@ namespace Mavi
 				}
 
 				Context = SDL_GL_CreateContext(Window->GetHandle());
-				if (!Context)
-				{
-					VI_ERR("[ogl] %s", Window->GetError().c_str());
-					return;
-				}
-
+				VI_PANIC(!Context, "OGL context creation failure %s", Window->GetError().c_str());
 				SetAsCurrentDevice();
 #endif
 				static const GLenum ErrorCode = glewInit();
-				if (ErrorCode != GLEW_OK)
-				{
-					VI_ERR("[glew] %s", (const char*)glewGetErrorString(ErrorCode));
-					return;
-				}
-
+				VI_PANIC(ErrorCode == GLEW_OK, "OGL extension layer initialization failure reason:%i", (int)ErrorCode);
 				if (I.Debug)
 				{
 					glEnable(GL_DEBUG_OUTPUT);
@@ -684,7 +674,7 @@ namespace Mavi
 			}
 			void OGLDevice::SetBlendState(BlendState* State)
 			{
-				VI_ASSERT_V(State != nullptr, "blend state should be set");
+				VI_ASSERT(State != nullptr, "blend state should be set");
 				OGLBlendState* NewState = (OGLBlendState*)State;
 				OGLBlendState* OldState = Register.Blend;
 				REG_EXCHANGE(Blend, NewState);
@@ -745,7 +735,7 @@ namespace Mavi
 			}
 			void OGLDevice::SetRasterizerState(RasterizerState* State)
 			{
-				VI_ASSERT_V(State != nullptr, "rasterizer state should be set");
+				VI_ASSERT(State != nullptr, "rasterizer state should be set");
 				OGLRasterizerState* NewState = (OGLRasterizerState*)State;
 				OGLRasterizerState* OldState = Register.Rasterizer;
 				REG_EXCHANGE(Rasterizer, NewState);
@@ -802,7 +792,7 @@ namespace Mavi
 			}
 			void OGLDevice::SetDepthStencilState(DepthStencilState* State)
 			{
-				VI_ASSERT_V(State != nullptr, "depth stencil state should be set");
+				VI_ASSERT(State != nullptr, "depth stencil state should be set");
 				OGLDepthStencilState* NewState = (OGLDepthStencilState*)State;
 				OGLDepthStencilState* OldState = Register.DepthStencil;
 				REG_EXCHANGE(DepthStencil, NewState);
@@ -1004,8 +994,8 @@ namespace Mavi
 			}
 			void OGLDevice::SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
-				VI_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 
 				OGLSamplerState* IResource = (OGLSamplerState*)State;
 				GLuint NewState = (GLuint)(IResource ? IResource->Resource : GL_NONE);
@@ -1023,7 +1013,7 @@ namespace Mavi
 			}
 			void OGLDevice::SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				OGLShader* IResource = (OGLShader*)Resource;
 				glBindBufferBase(GL_UNIFORM_BUFFER, Slot, IResource ? IResource->ConstantBuffer : GL_NONE);
@@ -1035,12 +1025,12 @@ namespace Mavi
 			}
 			void OGLDevice::SetConstantBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 				glBindBufferBase(GL_UNIFORM_BUFFER, Slot, Resource ? ((OGLElementBuffer*)Resource)->Resource : GL_NONE);
 			}
 			void OGLDevice::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, Slot, Resource ? ((OGLElementBuffer*)Resource)->Resource : GL_NONE);
 			}
 			void OGLDevice::SetIndexBuffer(ElementBuffer* Resource, Format FormatMode)
@@ -1060,8 +1050,8 @@ namespace Mavi
 			}
 			void OGLDevice::SetVertexBuffers(ElementBuffer** Resources, unsigned int Count, bool DynamicLinkage)
 			{
-				VI_ASSERT_V(Resources != nullptr || !Count, "invalid vertex buffer array pointer");
-				VI_ASSERT_V(Count <= UNITS_SIZE, "slot should be less than or equal to %i", (int)UNITS_SIZE);
+				VI_ASSERT(Resources != nullptr || !Count, "invalid vertex buffer array pointer");
+				VI_ASSERT(Count <= UNITS_SIZE, "slot should be less than or equal to %i", (int)UNITS_SIZE);
 
 				static OGLElementBuffer* IResources[UNITS_SIZE] = { nullptr };
 				bool HasBuffers = false;
@@ -1107,7 +1097,7 @@ namespace Mavi
 				if (!DynamicLinkage)
 					return;
 
-				VI_ASSERT_V(Count <= Register.Layout->VertexLayout.size(), "too many vertex buffers are being bound: %" PRIu64 " out of %" PRIu64, (uint64_t)Count, (uint64_t)Register.Layout->VertexLayout.size());
+				VI_ASSERT(Count <= Register.Layout->VertexLayout.size(), "too many vertex buffers are being bound: %" PRIu64 " out of %" PRIu64, (uint64_t)Count, (uint64_t)Register.Layout->VertexLayout.size());
 				for (unsigned int i = 0; i < Count; i++)
 				{
 					OGLElementBuffer* IResource = IResources[i];
@@ -1122,8 +1112,8 @@ namespace Mavi
 			}
 			void OGLDevice::SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type)
 			{
-				VI_ASSERT_V(!Resource || !((OGLTexture2D*)Resource)->Backbuffer, "resource 2d should not be back buffer texture");
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(!Resource || !((OGLTexture2D*)Resource)->Backbuffer, "resource 2d should not be back buffer texture");
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
 				GLuint NewResource = (IResource ? IResource->Resource : GL_NONE);
@@ -1137,7 +1127,7 @@ namespace Mavi
 			}
 			void OGLDevice::SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
 				GLuint NewResource = (IResource ? IResource->Resource : GL_NONE);
@@ -1151,7 +1141,7 @@ namespace Mavi
 			}
 			void OGLDevice::SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
 				GLuint NewResource = (IResource ? IResource->Resource : GL_NONE);
@@ -1165,20 +1155,20 @@ namespace Mavi
 			}
 			void OGLDevice::SetWriteable(ElementBuffer** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
-				VI_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 			}
 			void OGLDevice::SetWriteable(Texture2D** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
-				VI_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 
 				for (unsigned int i = 0; i < Count; i++)
 				{
 					OGLTexture2D* IResource = (OGLTexture2D*)Resource[i];
-					VI_ASSERT_V(!IResource || !IResource->Backbuffer, "resource 2d #%i should not be back buffer texture", (int)i);
+					VI_ASSERT(!IResource || !IResource->Backbuffer, "resource 2d #%i should not be back buffer texture", (int)i);
 
 					glActiveTexture(GL_TEXTURE0 + Slot + i);
 					if (!IResource)
@@ -1189,9 +1179,9 @@ namespace Mavi
 			}
 			void OGLDevice::SetWriteable(Texture3D** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
-				VI_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 
 				for (unsigned int i = 0; i < Count; i++)
 				{
@@ -1206,9 +1196,9 @@ namespace Mavi
 			}
 			void OGLDevice::SetWriteable(TextureCube** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
-				VI_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 
 				for (unsigned int i = 0; i < Count; i++)
 				{
@@ -1231,7 +1221,7 @@ namespace Mavi
 			}
 			void OGLDevice::SetTarget(DepthTarget2D* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLDepthTarget2D* IResource = (OGLDepthTarget2D*)Resource;
 				GLenum Target = GL_NONE;
 				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer);
@@ -1240,7 +1230,7 @@ namespace Mavi
 			}
 			void OGLDevice::SetTarget(DepthTargetCube* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLDepthTargetCube* IResource = (OGLDepthTargetCube*)Resource;
 				GLenum Target = GL_NONE;
 				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer);
@@ -1249,13 +1239,13 @@ namespace Mavi
 			}
 			void OGLDevice::SetTarget(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
-				VI_ASSERT_V(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
 
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
 				const Viewport& Viewarea = Resource->GetViewport();
 
-				VI_ASSERT_V(TargetBuffer != nullptr, "target buffer should be set");
+				VI_ASSERT(TargetBuffer != nullptr, "target buffer should be set");
 				if (!TargetBuffer->Backbuffer)
 				{
 					GLenum Targets[8] = { GL_NONE };
@@ -1277,13 +1267,13 @@ namespace Mavi
 			}
 			void OGLDevice::SetTarget(Graphics::RenderTarget* Resource, unsigned int Target)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
-				VI_ASSERT_V(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
 
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
 				const Viewport& Viewarea = Resource->GetViewport();
 
-				VI_ASSERT_V(TargetBuffer != nullptr, "target buffer should be set");
+				VI_ASSERT(TargetBuffer != nullptr, "target buffer should be set");
 				if (!TargetBuffer->Backbuffer)
 				{
 					GLenum Targets[8] = { GL_NONE };
@@ -1303,11 +1293,11 @@ namespace Mavi
 			}
 			void OGLDevice::SetTarget(Graphics::RenderTarget* Resource, float R, float G, float B)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
 				const Viewport& Viewarea = Resource->GetViewport();
 
-				VI_ASSERT_V(TargetBuffer != nullptr, "target buffer should be set");
+				VI_ASSERT(TargetBuffer != nullptr, "target buffer should be set");
 				if (!TargetBuffer->Backbuffer)
 				{
 					glBindFramebuffer(GL_FRAMEBUFFER, TargetBuffer->Buffer);
@@ -1325,11 +1315,11 @@ namespace Mavi
 			}
 			void OGLDevice::SetTarget(Graphics::RenderTarget* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
 				const Viewport& Viewarea = Resource->GetViewport();
 
-				VI_ASSERT_V(TargetBuffer != nullptr, "target buffer should be set");
+				VI_ASSERT(TargetBuffer != nullptr, "target buffer should be set");
 				if (!TargetBuffer->Backbuffer)
 				{
 					glBindFramebuffer(GL_FRAMEBUFFER, TargetBuffer->Buffer);
@@ -1346,13 +1336,13 @@ namespace Mavi
 			}
 			void OGLDevice::SetTargetMap(Graphics::RenderTarget* Resource, bool Enabled[8])
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
-				VI_ASSERT_V(Resource->GetTargetCount() > 1, "render target should have more than one targets");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource->GetTargetCount() > 1, "render target should have more than one targets");
 
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
 				const Viewport& Viewarea = Resource->GetViewport();
 
-				VI_ASSERT_V(TargetBuffer != nullptr, "target buffer should be set");
+				VI_ASSERT(TargetBuffer != nullptr, "target buffer should be set");
 				if (!TargetBuffer->Backbuffer)
 				{
 					GLenum Targets[8] = { GL_NONE };
@@ -1375,18 +1365,18 @@ namespace Mavi
 			}
 			void OGLDevice::SetTargetRect(unsigned int Width, unsigned int Height)
 			{
-				VI_ASSERT_V(Width > 0 && Height > 0, "width and height should be greater than zero");
+				VI_ASSERT(Width > 0 && Height > 0, "width and height should be greater than zero");
 				glBindFramebuffer(GL_FRAMEBUFFER, GL_NONE);
 				glViewport(0, 0, Width, Height);
 			}
 			void OGLDevice::SetViewports(unsigned int Count, Viewport* Value)
 			{
-				VI_ASSERT_V(Count > 0 && Value != nullptr, "at least one viewport should be set");
+				VI_ASSERT(Count > 0 && Value != nullptr, "at least one viewport should be set");
 				glViewport((GLuint)Value->TopLeftX, (GLuint)Value->TopLeftY, (GLuint)Value->Width, (GLuint)Value->Height);
 			}
 			void OGLDevice::SetScissorRects(unsigned int Count, Compute::Rectangle* Value)
 			{
-				VI_ASSERT_V(Count > 0 && Value != nullptr, "at least one scissor rect should be set");
+				VI_ASSERT(Count > 0 && Value != nullptr, "at least one scissor rect should be set");
 				int64_t Height = Value->GetHeight();
 				glScissor((GLuint)Value->GetX(), (GLuint)OGL_GetCoordY(Value->GetY(), Height, (int64_t)Window->GetHeight()), (GLuint)Value->GetWidth(), (GLuint)Height);
 			}
@@ -1398,8 +1388,8 @@ namespace Mavi
 			}
 			void OGLDevice::FlushTexture(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				VI_ASSERT_V(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
-				VI_ASSERT_V(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
+				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
+				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 
 				for (unsigned int i = 0; i < Count; i++)
 				{
@@ -1417,7 +1407,7 @@ namespace Mavi
 			}
 			bool OGLDevice::Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
 				glBindBuffer(IResource->Flags, IResource->Resource);
 
@@ -1431,8 +1421,8 @@ namespace Mavi
 			}
 			bool OGLDevice::Map(Texture2D* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Map != nullptr, false, "map should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
 
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
 				GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
@@ -1462,8 +1452,8 @@ namespace Mavi
 			}
 			bool OGLDevice::Map(Texture3D* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Map != nullptr, false, "map should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
 
 				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
 				GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
@@ -1493,8 +1483,8 @@ namespace Mavi
 			}
 			bool OGLDevice::Map(TextureCube* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Map != nullptr, false, "map should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
 
 				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
 				GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
@@ -1524,8 +1514,8 @@ namespace Mavi
 			}
 			bool OGLDevice::Unmap(Texture2D* Resource, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Map != nullptr, false, "map should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
 
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
 				if ((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write)
@@ -1541,8 +1531,8 @@ namespace Mavi
 			}
 			bool OGLDevice::Unmap(Texture3D* Resource, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Map != nullptr, false, "map should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
 
 				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
 				if ((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write)
@@ -1558,8 +1548,8 @@ namespace Mavi
 			}
 			bool OGLDevice::Unmap(TextureCube* Resource, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Map != nullptr, false, "map should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
 
 				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
 				if ((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write)
@@ -1575,7 +1565,7 @@ namespace Mavi
 			}
 			bool OGLDevice::Unmap(ElementBuffer* Resource, MappedSubresource* Map)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
 				glUnmapBuffer(IResource->Flags);
 				glBindBuffer(IResource->Flags, GL_NONE);
@@ -1583,14 +1573,14 @@ namespace Mavi
 			}
 			bool OGLDevice::UpdateConstantBuffer(ElementBuffer* Resource, void* Data, size_t Size)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
 				CopyConstantBuffer(IResource->Resource, Data, Size);
 				return true;
 			}
 			bool OGLDevice::UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
 				glBindBuffer(IResource->Flags, IResource->Resource);
 				glBufferData(IResource->Flags, (GLsizeiptr)Size, Data, GL_DYNAMIC_DRAW);
@@ -1599,15 +1589,15 @@ namespace Mavi
 			}
 			bool OGLDevice::UpdateBuffer(Shader* Resource, const void* Data)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLShader* IResource = (OGLShader*)Resource;
 				CopyConstantBuffer(IResource->ConstantBuffer, (void*)Data, IResource->ConstantSize);
 				return true;
 			}
 			bool OGLDevice::UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Data != nullptr, false, "data should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
 
 				OGLMeshBuffer* IResource = (OGLMeshBuffer*)Resource;
 				MappedSubresource MappedResource;
@@ -1619,8 +1609,8 @@ namespace Mavi
 			}
 			bool OGLDevice::UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Data != nullptr, false, "data should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
 
 				OGLSkinMeshBuffer* IResource = (OGLSkinMeshBuffer*)Resource;
 				MappedSubresource MappedResource;
@@ -1632,7 +1622,7 @@ namespace Mavi
 			}
 			bool OGLDevice::UpdateBuffer(InstanceBuffer* Resource)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
 				if (IResource->Array.size() <= 0 || IResource->Array.size() > IResource->ElementLimit)
 					return false;
@@ -1647,8 +1637,8 @@ namespace Mavi
 			}
 			bool OGLDevice::UpdateBufferSize(Shader* Resource, size_t Size)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Size > 0, false, "size should be greater than zero");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Size > 0, "size should be greater than zero");
 
 				OGLShader* IResource = (OGLShader*)Resource;
 				if (IResource->ConstantBuffer != GL_NONE)
@@ -1661,8 +1651,8 @@ namespace Mavi
 			}
 			bool OGLDevice::UpdateBufferSize(InstanceBuffer* Resource, size_t Size)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Size > 0, false, "size should be greater than zero");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Size > 0, "size should be greater than zero");
 
 				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
 				ClearBuffer(IResource);
@@ -1685,7 +1675,7 @@ namespace Mavi
 			}
 			void OGLDevice::ClearBuffer(InstanceBuffer* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
 				if (!IResource->Sync)
 					return;
@@ -1703,8 +1693,8 @@ namespace Mavi
 			}
 			void OGLDevice::ClearWritable(Texture2D* Resource, float R, float G, float B)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
-				VI_ASSERT_V(!((OGLTexture2D*)Resource)->Backbuffer, "resource 2d should not be back buffer texture");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(!((OGLTexture2D*)Resource)->Backbuffer, "resource 2d should not be back buffer texture");
 
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
 				GLfloat ClearColor[4] = { R, G, B, 0.0f };
@@ -1716,7 +1706,7 @@ namespace Mavi
 			}
 			void OGLDevice::ClearWritable(Texture3D* Resource, float R, float G, float B)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
 				GLfloat ClearColor[4] = { R, G, B, 0.0f };
 				glClearTexImage(IResource->Resource, 0, GL_RGBA, GL_FLOAT, &ClearColor);
@@ -1727,7 +1717,7 @@ namespace Mavi
 			}
 			void OGLDevice::ClearWritable(TextureCube* Resource, float R, float G, float B)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
 				GLfloat ClearColor[4] = { R, G, B, 0.0f };
 				glClearTexImage(IResource->Resource, 0, GL_RGBA, GL_FLOAT, &ClearColor);
@@ -1739,7 +1729,7 @@ namespace Mavi
 			}
 			void OGLDevice::Clear(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
 				if (TargetBuffer->Backbuffer)
 					return Clear(R, G, B);
@@ -1753,7 +1743,7 @@ namespace Mavi
 			}
 			void OGLDevice::ClearDepth(DepthTarget2D* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLDepthTarget2D* IResource = (OGLDepthTarget2D*)Resource;
 				if (IResource->HasStencilBuffer)
 					glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -1762,7 +1752,7 @@ namespace Mavi
 			}
 			void OGLDevice::ClearDepth(DepthTargetCube* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLDepthTargetCube* IResource = (OGLDepthTargetCube*)Resource;
 				if (IResource->HasStencilBuffer)
 					glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -1771,7 +1761,7 @@ namespace Mavi
 			}
 			void OGLDevice::ClearDepth(Graphics::RenderTarget* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			}
 			void OGLDevice::DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation)
@@ -1780,7 +1770,7 @@ namespace Mavi
 			}
 			void OGLDevice::DrawIndexed(MeshBuffer* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				ElementBuffer* VertexBuffer = Resource->GetVertexBuffer();
 				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
 				SetVertexBuffers(&VertexBuffer, 1);
@@ -1790,7 +1780,7 @@ namespace Mavi
 			}
 			void OGLDevice::DrawIndexed(SkinMeshBuffer* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				ElementBuffer* VertexBuffer = Resource->GetVertexBuffer();
 				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
 				SetVertexBuffers(&VertexBuffer, 1);
@@ -1804,8 +1794,8 @@ namespace Mavi
 			}
 			void OGLDevice::DrawIndexedInstanced(ElementBuffer* Instances, MeshBuffer* Resource, unsigned int InstanceCount)
 			{
-				VI_ASSERT_V(Instances != nullptr, "instances should be set");
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Instances != nullptr, "instances should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 
 				ElementBuffer* VertexBuffers[2] = { Resource->GetVertexBuffer(), Instances };
 				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
@@ -1816,8 +1806,8 @@ namespace Mavi
 			}
 			void OGLDevice::DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, unsigned int InstanceCount)
 			{
-				VI_ASSERT_V(Instances != nullptr, "instances should be set");
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Instances != nullptr, "instances should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 
 				ElementBuffer* VertexBuffers[2] = { Resource->GetVertexBuffer(), Instances };
 				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
@@ -1840,15 +1830,15 @@ namespace Mavi
 			}
 			bool OGLDevice::CopyTexture2D(Texture2D* Resource, Texture2D** Result)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
-				VI_ASSERT(!*Result || !((OGLTexture2D*)(*Result))->Backbuffer, false, "output resource 2d should not be back buffer");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
+				VI_ASSERT(!*Result || !((OGLTexture2D*)(*Result))->Backbuffer, "output resource 2d should not be back buffer");
 
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
 				if (IResource->Backbuffer)
 					return CopyBackBuffer(Result);
 
-				VI_ASSERT(IResource->Resource != GL_NONE, false, "resource should be valid");
+				VI_ASSERT(IResource->Resource != GL_NONE, "resource should be valid");
 
 				int LastTexture = GL_NONE, Width, Height;
 				glGetIntegerv(GL_TEXTURE_BINDING_2D, &LastTexture);
@@ -1877,14 +1867,14 @@ namespace Mavi
 			}
 			bool OGLDevice::CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Texture2D** Result)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				int LastTexture = GL_NONE;
 				glGetIntegerv(GL_TEXTURE_BINDING_2D, &LastTexture);
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
 
-				VI_ASSERT(TargetBuffer != nullptr, false, "target buffer should be set");
+				VI_ASSERT(TargetBuffer != nullptr, "target buffer should be set");
 				if (TargetBuffer->Backbuffer)
 				{
 					if (!*Result)
@@ -1931,8 +1921,8 @@ namespace Mavi
 			}
 			bool OGLDevice::CopyTexture2D(RenderTargetCube* Resource, Compute::CubeFace Face, Texture2D** Result)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
 				int LastTexture = GL_NONE, Width, Height;
@@ -1958,12 +1948,12 @@ namespace Mavi
 			}
 			bool OGLDevice::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, Compute::CubeFace Face, Texture2D** Result)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
 
-				VI_ASSERT(Cube < (uint32_t)IResource->Target, false, "cube index should be less than %i", (int)IResource->Target);
+				VI_ASSERT(Cube < (uint32_t)IResource->Target, "cube index should be less than %i", (int)IResource->Target);
 				int LastTexture = GL_NONE, Width, Height;
 				glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &LastTexture);
 				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[Cube]);
@@ -1987,8 +1977,8 @@ namespace Mavi
 			}
 			bool OGLDevice::CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
 				int LastTexture = GL_NONE, Width, Height;
@@ -2017,12 +2007,12 @@ namespace Mavi
 			}
 			bool OGLDevice::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
 
-				VI_ASSERT(Cube < (uint32_t)IResource->Target, false, "cube index should be less than %i", (int)IResource->Target);
+				VI_ASSERT(Cube < (uint32_t)IResource->Target, "cube index should be less than %i", (int)IResource->Target);
 				int LastTexture = GL_NONE, Width, Height;
 				glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &LastTexture);
 				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[Cube]);
@@ -2049,7 +2039,7 @@ namespace Mavi
 			}
 			bool OGLDevice::CopyTarget(Graphics::RenderTarget* From, unsigned int FromTarget, Graphics::RenderTarget* To, unsigned int ToTarget)
 			{
-				VI_ASSERT(From != nullptr && To != nullptr, false, "from and to should be set");
+				VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
 				OGLTexture2D* Source2D = (OGLTexture2D*)From->GetTarget2D(FromTarget);
 				OGLTextureCube* SourceCube = (OGLTextureCube*)From->GetTargetCube(FromTarget);
 				OGLTexture2D* Dest2D = (OGLTexture2D*)To->GetTarget2D(ToTarget);
@@ -2057,8 +2047,8 @@ namespace Mavi
 				GLuint Source = (Source2D ? Source2D->Resource : (SourceCube ? SourceCube->Resource : GL_NONE));
 				GLuint Dest = (Dest2D ? Dest2D->Resource : (DestCube ? DestCube->Resource : GL_NONE));
 
-				VI_ASSERT(Source != GL_NONE, false, "from should be set");
-				VI_ASSERT(Dest != GL_NONE, false, "to should be set");
+				VI_ASSERT(Source != GL_NONE, "from should be set");
+				VI_ASSERT(Dest != GL_NONE, "to should be set");
 
 				int LastTexture = GL_NONE;
 				uint32_t Width = From->GetWidth();
@@ -2080,9 +2070,9 @@ namespace Mavi
 			}
 			bool OGLDevice::CubemapPush(Cubemap* Resource, TextureCube* Result)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Resource->IsValid(), false, "resource should be valid");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource->IsValid(), "resource should be valid");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				OGLCubemap* IResource = (OGLCubemap*)Resource;
 				OGLTextureCube* Dest = (OGLTextureCube*)Result;
@@ -2123,13 +2113,13 @@ namespace Mavi
 			}
 			bool OGLDevice::CubemapFace(Cubemap* Resource, Compute::CubeFace Face)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Resource->IsValid(), false, "resource should be valid");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource->IsValid(), "resource should be valid");
 
 				OGLCubemap* IResource = (OGLCubemap*)Resource;
 				OGLTextureCube* Dest = (OGLTextureCube*)IResource->Dest;
 
-				VI_ASSERT(IResource->Dest != nullptr, false, "result should be set");
+				VI_ASSERT(IResource->Dest != nullptr, "result should be set");
 
 				GLint LastFrameBuffer = 0, Size = IResource->Meta.Size;
 				glGetIntegerv(GL_FRAMEBUFFER_BINDING, &LastFrameBuffer);
@@ -2144,13 +2134,13 @@ namespace Mavi
 			}
 			bool OGLDevice::CubemapPop(Cubemap* Resource)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Resource->IsValid(), false, "resource should be valid");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource->IsValid(), "resource should be valid");
 
 				OGLCubemap* IResource = (OGLCubemap*)Resource;
 				OGLTextureCube* Dest = (OGLTextureCube*)IResource->Dest;
 
-				VI_ASSERT(IResource->Dest != nullptr, false, "result should be set");
+				VI_ASSERT(IResource->Dest != nullptr, "result should be set");
 				if (IResource->Meta.MipLevels > 0)
 					GenerateMips(Dest);
 
@@ -2158,8 +2148,8 @@ namespace Mavi
 			}
 			bool OGLDevice::CopyBackBuffer(Texture2D** Result)
 			{
-				VI_ASSERT(Result != nullptr, false, "result should be set");
-				VI_ASSERT(!*Result || !((OGLTexture2D*)(*Result))->Backbuffer, false, "output resource 2d should not be back buffer");
+				VI_ASSERT(Result != nullptr, "result should be set");
+				VI_ASSERT(!*Result || !((OGLTexture2D*)(*Result))->Backbuffer, "output resource 2d should not be back buffer");
 				OGLTexture2D* Texture = (OGLTexture2D*)(*Result ? *Result : CreateTexture2D());
 				if (!*Result)
 				{
@@ -2235,7 +2225,7 @@ namespace Mavi
 			}
 			bool OGLDevice::GenerateTexture(Texture2D* Resource)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
 				if (IResource->Backbuffer)
 				{
@@ -2244,7 +2234,7 @@ namespace Mavi
 					return true;
 				}
 
-				VI_ASSERT(IResource->Resource != GL_NONE, false, "resource should be valid");
+				VI_ASSERT(IResource->Resource != GL_NONE, "resource should be valid");
 				int Width, Height;
 				glBindTexture(GL_TEXTURE_2D, IResource->Resource);
 				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
@@ -2258,10 +2248,10 @@ namespace Mavi
 			}
 			bool OGLDevice::GenerateTexture(Texture3D* Resource)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
 
-				VI_ASSERT(IResource->Resource != GL_NONE, false, "resource should be valid");
+				VI_ASSERT(IResource->Resource != GL_NONE, "resource should be valid");
 				int Width, Height, Depth;
 				glBindTexture(GL_TEXTURE_3D, IResource->Resource);
 				glGetTexLevelParameteriv(GL_TEXTURE_3D, 0, GL_TEXTURE_WIDTH, &Width);
@@ -2277,10 +2267,10 @@ namespace Mavi
 			}
 			bool OGLDevice::GenerateTexture(TextureCube* Resource)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
 
-				VI_ASSERT(IResource->Resource != GL_NONE, false, "resource should be valid");
+				VI_ASSERT(IResource->Resource != GL_NONE, "resource should be valid");
 				int Width, Height;
 				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->Resource);
 				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP, 0, GL_TEXTURE_WIDTH, &Width);
@@ -2294,8 +2284,8 @@ namespace Mavi
 			}
 			bool OGLDevice::GetQueryData(Query* Resource, size_t* Result, bool Flush)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				OGLQuery* IResource = (OGLQuery*)Resource;
 				GLint Available = 0;
@@ -2311,8 +2301,8 @@ namespace Mavi
 			}
 			bool OGLDevice::GetQueryData(Query* Resource, bool* Result, bool Flush)
 			{
-				VI_ASSERT(Resource != nullptr, false, "resource should be set");
-				VI_ASSERT(Result != nullptr, false, "result should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
 
 				OGLQuery* IResource = (OGLQuery*)Resource;
 				GLint Available = 0;
@@ -2328,23 +2318,23 @@ namespace Mavi
 			}
 			void OGLDevice::QueryBegin(Query* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLQuery* IResource = (OGLQuery*)Resource;
 				glBeginQuery(IResource->Predicate ? GL_ANY_SAMPLES_PASSED : GL_SAMPLES_PASSED, IResource->Async);
 			}
 			void OGLDevice::QueryEnd(Query* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLQuery* IResource = (OGLQuery*)Resource;
 				glEndQuery(IResource->Predicate ? GL_ANY_SAMPLES_PASSED : GL_SAMPLES_PASSED);
 			}
 			void OGLDevice::GenerateMips(Texture2D* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
 
-				VI_ASSERT_V(!IResource->Backbuffer, "resource 2d should not be back buffer texture");
-				VI_ASSERT_V(IResource->Resource != GL_NONE, "resource should be valid");
+				VI_ASSERT(!IResource->Backbuffer, "resource 2d should not be back buffer texture");
+				VI_ASSERT(IResource->Resource != GL_NONE, "resource should be valid");
 #ifdef glGenerateTextureMipmap
 				glGenerateTextureMipmap(IResource->Resource);
 #elif glGenerateMipmap
@@ -2355,20 +2345,20 @@ namespace Mavi
 			}
 			void OGLDevice::GenerateMips(Texture3D* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
 
-				VI_ASSERT_V(IResource->Resource != GL_NONE, "resource should be valid");
+				VI_ASSERT(IResource->Resource != GL_NONE, "resource should be valid");
 #ifdef glGenerateTextureMipmap
 				glGenerateTextureMipmap(IResource->Resource);
 #endif
 			}
 			void OGLDevice::GenerateMips(TextureCube* Resource)
 			{
-				VI_ASSERT_V(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
 
-				VI_ASSERT_V(IResource->Resource != GL_NONE, "resource should be valid");
+				VI_ASSERT(IResource->Resource != GL_NONE, "resource should be valid");
 #ifdef glGenerateTextureMipmap
 				glGenerateTextureMipmap(IResource->Resource);
 #elif glGenerateMipmap
@@ -2409,7 +2399,7 @@ namespace Mavi
 			}
 			void OGLDevice::ImColor(float X, float Y, float Z, float W)
 			{
-				VI_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
+				VI_ASSERT(!Elements.empty(), "vertex should already be emitted");
 				auto& Element = Elements.front();
 				Element.CX = X;
 				Element.CY = Y;
@@ -2422,7 +2412,7 @@ namespace Mavi
 			}
 			void OGLDevice::ImTexCoord(float X, float Y)
 			{
-				VI_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
+				VI_ASSERT(!Elements.empty(), "vertex should already be emitted");
 				auto& Element = Elements.front();
 				Element.TX = X;
 				Element.TY = 1.0f - Y;
@@ -2434,7 +2424,7 @@ namespace Mavi
 			}
 			void OGLDevice::ImPosition(float X, float Y, float Z)
 			{
-				VI_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
+				VI_ASSERT(!Elements.empty(), "vertex should already be emitted");
 				auto& Element = Elements.front();
 				Element.PX = X;
 				Element.PY = -Y;
@@ -2483,7 +2473,7 @@ namespace Mavi
 			bool OGLDevice::Submit()
 			{
 #ifdef VI_HAS_SDL2
-				VI_ASSERT(Window != nullptr, false, "window should be set");
+				VI_ASSERT(Window != nullptr, "window should be set");
 				SDL_GL_SwapWindow(Window->GetHandle());
 #endif
 				DispatchQueue();
@@ -2837,8 +2827,8 @@ namespace Mavi
 			}
 			MeshBuffer* OGLDevice::CreateMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer)
 			{
-				VI_ASSERT(VertexBuffer != nullptr, nullptr, "vertex buffer should be set");
-				VI_ASSERT(IndexBuffer != nullptr, nullptr, "index buffer should be set");
+				VI_ASSERT(VertexBuffer != nullptr, "vertex buffer should be set");
+				VI_ASSERT(IndexBuffer != nullptr, "index buffer should be set");
 				OGLMeshBuffer* Result = new OGLMeshBuffer(OGLMeshBuffer::Desc());
 				Result->VertexBuffer = VertexBuffer;
 				Result->IndexBuffer = IndexBuffer;
@@ -2870,8 +2860,8 @@ namespace Mavi
 			}
 			SkinMeshBuffer* OGLDevice::CreateSkinMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer)
 			{
-				VI_ASSERT(VertexBuffer != nullptr, nullptr, "vertex buffer should be set");
-				VI_ASSERT(IndexBuffer != nullptr, nullptr, "index buffer should be set");
+				VI_ASSERT(VertexBuffer != nullptr, "vertex buffer should be set");
+				VI_ASSERT(IndexBuffer != nullptr, "index buffer should be set");
 				OGLSkinMeshBuffer* Result = new OGLSkinMeshBuffer(OGLSkinMeshBuffer::Desc());
 				Result->VertexBuffer = VertexBuffer;
 				Result->IndexBuffer = IndexBuffer;
@@ -3020,8 +3010,8 @@ namespace Mavi
 				void* Resources[6];
 				for (unsigned int i = 0; i < 6; i++)
 				{
-					VI_ASSERT(Resource[i] != nullptr, nullptr, "face #%i should be set", (int)i);
-					VI_ASSERT(!((OGLTexture2D*)Resource[i])->Backbuffer, nullptr, "resource 2d should not be back buffer texture");
+					VI_ASSERT(Resource[i] != nullptr, "face #%i should be set", (int)i);
+					VI_ASSERT(!((OGLTexture2D*)Resource[i])->Backbuffer, "resource 2d should not be back buffer texture");
 					Resources[i] = (void*)(OGLTexture2D*)Resource[i];
 				}
 
@@ -3029,8 +3019,8 @@ namespace Mavi
 			}
 			TextureCube* OGLDevice::CreateTextureCube(Texture2D* Resource)
 			{
-				VI_ASSERT(Resource != nullptr, nullptr, "resource should be set");
-				VI_ASSERT(!((OGLTexture2D*)Resource)->Backbuffer, nullptr, "resource 2d should not be back buffer texture");
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(!((OGLTexture2D*)Resource)->Backbuffer, "resource 2d should not be back buffer texture");
 
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
 				unsigned int Width = IResource->Width / 4;
@@ -3107,7 +3097,7 @@ namespace Mavi
 			}
 			TextureCube* OGLDevice::CreateTextureCubeInternal(void* Basis[6])
 			{
-				VI_ASSERT(Basis[0] && Basis[1] && Basis[2] && Basis[3] && Basis[4] && Basis[5], nullptr, "all 6 faces should be set");
+				VI_ASSERT(Basis[0] && Basis[1] && Basis[2] && Basis[3] && Basis[4] && Basis[5], "all 6 faces should be set");
 				OGLTexture2D* Resources[6];
 				for (unsigned int i = 0; i < 6; i++)
 					Resources[i] = (OGLTexture2D*)Basis[i];
@@ -3818,7 +3808,7 @@ namespace Mavi
 			}
 			void OGLDevice::CopyConstantBuffer(GLuint Buffer, void* Data, size_t Size)
 			{
-				VI_ASSERT_V(Data != nullptr, "buffer should not be empty");
+				VI_ASSERT(Data != nullptr, "buffer should not be empty");
 				if (!Size)
 					return;
 
@@ -3828,7 +3818,7 @@ namespace Mavi
 			}
 			int OGLDevice::CreateConstantBuffer(GLuint* Buffer, size_t Size)
 			{
-				VI_ASSERT(Buffer != nullptr, 0, "buffer should be set");
+				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 				glGenBuffers(1, Buffer);
 				glBindBuffer(GL_UNIFORM_BUFFER, *Buffer);
 				glBufferData(GL_UNIFORM_BUFFER, Size, nullptr, GL_DYNAMIC_DRAW);
@@ -4347,7 +4337,7 @@ namespace Mavi
 			}
 			void OGLDevice::GetBackBufferSize(Format Value, int* X, int* Y, int* Z, int* W)
 			{
-				VI_ASSERT_V(X && Y && Z && W, "xyzw should be set");
+				VI_ASSERT(X && Y && Z && W, "xyzw should be set");
 				switch (Value)
 				{
 					case Mavi::Graphics::Format::A8_Unorm:

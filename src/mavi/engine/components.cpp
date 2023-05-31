@@ -131,7 +131,7 @@ namespace Mavi
 			}
 			void RigidBody::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Core::Schema* Shaping = Node->Find("shape");
 				Core::Vector<Compute::Vector3> Vertices;
@@ -179,7 +179,7 @@ namespace Mavi
 			}
 			void RigidBody::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
 				Series::Pack(Node->Set("kinematic"), Kinematic);
@@ -242,8 +242,8 @@ namespace Mavi
 			void RigidBody::Load(btCollisionShape* Shape, float Mass, float Anticipation)
 			{
 				SceneGraph* Scene = Parent->GetScene();
-				VI_ASSERT_V(Scene != nullptr, "scene should be set");
-				VI_ASSERT_V(Shape != nullptr, "collision shape should be set");
+				VI_ASSERT(Scene != nullptr, "scene should be set");
+				VI_ASSERT(Shape != nullptr, "collision shape should be set");
 
 				Compute::RigidBody::Desc I;
 				I.Anticipation = Anticipation;
@@ -436,7 +436,7 @@ namespace Mavi
 			}
 			void SoftBody::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				float Anticipation = 0.0f; bool Extended = false;
 				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
@@ -511,7 +511,7 @@ namespace Mavi
 			}
 			void SoftBody::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
@@ -647,8 +647,8 @@ namespace Mavi
 			void SoftBody::Load(Compute::HullShape* Shape, float Anticipation)
 			{
 				SceneGraph* Scene = Parent->GetScene();
-				VI_ASSERT_V(Scene != nullptr, "scene should be set");
-				VI_ASSERT_V(Shape != nullptr, "collision shape should be set");
+				VI_ASSERT(Scene != nullptr, "scene should be set");
+				VI_ASSERT(Shape != nullptr, "collision shape should be set");
 				VI_RELEASE(Hull);
 				Hull = Shape;
 
@@ -659,11 +659,7 @@ namespace Mavi
 
 				VI_RELEASE(Instance);
 				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
-				if (!Instance)
-				{
-					VI_ERR("[engine] cannot create soft body");
-					return;
-				}
+				VI_PANIC(!Instance, "invalid simulator configuration to create soft bodies");
 
 				Vertices.clear();
 				Indices.clear();
@@ -688,7 +684,7 @@ namespace Mavi
 			void SoftBody::LoadEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation)
 			{
 				SceneGraph* Scene = Parent->GetScene();
-				VI_ASSERT_V(Scene != nullptr, "scene should be set");
+				VI_ASSERT(Scene != nullptr, "scene should be set");
 
 				Compute::SoftBody::Desc I;
 				I.Anticipation = Anticipation;
@@ -697,11 +693,7 @@ namespace Mavi
 
 				VI_RELEASE(Instance);
 				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
-				if (!Instance)
-				{
-					VI_ERR("[engine] cannot create soft body");
-					return;
-				}
+				VI_PANIC(!Instance, "invalid simulator configuration to create soft bodies");
 
 				Vertices.clear();
 				Indices.clear();
@@ -712,7 +704,7 @@ namespace Mavi
 			void SoftBody::LoadPatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation)
 			{
 				SceneGraph* Scene = Parent->GetScene();
-				VI_ASSERT_V(Scene != nullptr, "scene should be set");
+				VI_ASSERT(Scene != nullptr, "scene should be set");
 
 				Compute::SoftBody::Desc I;
 				I.Anticipation = Anticipation;
@@ -721,11 +713,7 @@ namespace Mavi
 
 				VI_RELEASE(Instance);
 				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
-				if (!Instance)
-				{
-					VI_ERR("[engine] cannot create soft body");
-					return;
-				}
+				VI_PANIC(!Instance, "invalid simulator configuration to create soft bodies");
 
 				Vertices.clear();
 				Indices.clear();
@@ -736,7 +724,7 @@ namespace Mavi
 			void SoftBody::LoadRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation)
 			{
 				SceneGraph* Scene = Parent->GetScene();
-				VI_ASSERT_V(Scene != nullptr, "scene should be set");
+				VI_ASSERT(Scene != nullptr, "scene should be set");
 
 				Compute::SoftBody::Desc I;
 				I.Anticipation = Anticipation;
@@ -745,11 +733,7 @@ namespace Mavi
 
 				VI_RELEASE(Instance);
 				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
-				if (!Instance)
-				{
-					VI_ERR("[engine] cannot create soft body");
-					return;
-				}
+				VI_PANIC(!Instance, "invalid simulator configuration to create soft bodies");
 
 				Vertices.clear();
 				Indices.clear();
@@ -777,7 +761,7 @@ namespace Mavi
 			void SoftBody::Regenerate()
 			{
 				SceneGraph* Scene = Parent->GetScene();
-				VI_ASSERT_V(Scene != nullptr, "scene should be set");
+				VI_ASSERT(Scene != nullptr, "scene should be set");
 
 				if (!Instance)
 					return;
@@ -786,8 +770,7 @@ namespace Mavi
 				VI_RELEASE(Instance);
 
 				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
-				if (!Instance)
-					VI_ERR("[engine] cannot regenerate soft body");
+				VI_PANIC(!Instance, "invalid simulator configuration to create soft bodies");
 			}
 			void SoftBody::Clear()
 			{
@@ -872,7 +855,7 @@ namespace Mavi
 			}
 			void SliderConstraint::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				bool Extended, Ghost, Linear;
 				Series::Unpack(Node->Find("extended"), &Extended);
@@ -1016,7 +999,7 @@ namespace Mavi
 			}
 			void SliderConstraint::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("extended"), Instance != nullptr);
 				if (!Instance)
@@ -1071,8 +1054,8 @@ namespace Mavi
 			void SliderConstraint::Load(Entity* Other, bool IsGhosted, bool IsLinear)
 			{
 				SceneGraph* Scene = Parent->GetScene();
-				VI_ASSERT_V(Scene != nullptr, "scene should be set");
-				VI_ASSERT_V(Parent != Other, "parent should not be equal to other");
+				VI_ASSERT(Scene != nullptr, "scene should be set");
+				VI_ASSERT(Parent != Other, "parent should not be equal to other");
 
 				Connection = Other;
 				if (!Connection)
@@ -1136,7 +1119,7 @@ namespace Mavi
 			}
 			void Acceleration::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("amplitude-velocity"), &AmplitudeVelocity);
 				Series::Unpack(Node->Find("amplitude-torque"), &AmplitudeTorque);
@@ -1147,7 +1130,7 @@ namespace Mavi
 			}
 			void Acceleration::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("amplitude-velocity"), AmplitudeVelocity);
 				Series::Pack(Node->Set("amplitude-torque"), AmplitudeTorque);
@@ -1241,7 +1224,7 @@ namespace Mavi
 			}
 			void Model::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
 				Series::Unpack(Node->Find("texcoord"), &TexCoord);
@@ -1286,7 +1269,7 @@ namespace Mavi
 			}
 			void Model::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("model"), Parent->GetScene()->FindResourceId<Engine::Model>(Instance));
 				Series::Pack(Node->Set("texcoord"), TexCoord);
@@ -1379,7 +1362,7 @@ namespace Mavi
 			}
 			void Skin::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
 				Series::Unpack(Node->Find("texcoord"), &TexCoord);
@@ -1425,7 +1408,7 @@ namespace Mavi
 			}
 			void Skin::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("skin-model"), Parent->GetScene()->FindResourceId<Engine::SkinModel>(Instance));
 				Series::Pack(Node->Set("texcoord"), TexCoord);
@@ -1524,7 +1507,7 @@ namespace Mavi
 			}
 			void Emitter::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				SceneGraph* Scene = Parent->GetScene(); size_t Slot = 0;
 				if (Series::Unpack(Node->Find("material"), &Slot))
@@ -1549,7 +1532,7 @@ namespace Mavi
 			}
 			void Emitter::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
@@ -1612,7 +1595,7 @@ namespace Mavi
 			}
 			void Decal::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				size_t Slot = 0;
 				if (Series::Unpack(Node->Find("material"), &Slot))
@@ -1626,7 +1609,7 @@ namespace Mavi
 			}
 			void Decal::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
@@ -1658,7 +1641,7 @@ namespace Mavi
 			}
 			void SkinAnimator::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Series::Unpack(Node->Find("state"), &State);
 
 				Core::String Path;
@@ -1672,7 +1655,7 @@ namespace Mavi
 			}
 			void SkinAnimator::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Series::Pack(Node->Set("state"), State);
 				Series::Pack(Node->Set("path"), Parent->GetScene()->FindResourceId<SkinAnimation>(Animation));
 			}
@@ -1765,7 +1748,9 @@ namespace Mavi
 			void SkinAnimator::SetAnimation(SkinAnimation* New)
 			{
 				VI_RELEASE(Animation);
-				VI_ASSIGN(Animation, New);
+				Animation = New;
+				if (Animation != nullptr)
+					Animation->AddRef();
 			}
 			void SkinAnimator::BlendAnimation(int64_t Clip, int64_t Frame)
 			{
@@ -1864,18 +1849,19 @@ namespace Mavi
 			}
 			const Compute::SkinAnimatorKey* SkinAnimator::GetFrame(int64_t Clip, int64_t Frame)
 			{
-				VI_ASSERT(Animation != nullptr, nullptr, "animation should be set");
+				VI_ASSERT(Animation != nullptr, "animation should be set");
 				auto& Clips = Animation->GetClips();
-				VI_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), nullptr, "clip index outside of range");
-				VI_ASSERT(Frame >= 0 && (size_t)Frame < Clips[(size_t)Clip].Keys.size(), nullptr, "frame index outside of range");
 
+				VI_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), "clip index outside of range");
+				VI_ASSERT(Frame >= 0 && (size_t)Frame < Clips[(size_t)Clip].Keys.size(), "frame index outside of range");
 				return &Clips[(size_t)Clip].Keys[(size_t)Frame];
 			}
 			const Core::Vector<Compute::SkinAnimatorKey>* SkinAnimator::GetClip(int64_t Clip)
 			{
-				VI_ASSERT(Animation != nullptr, nullptr, "animation should be set");
+				VI_ASSERT(Animation != nullptr, "animation should be set");
 				auto& Clips = Animation->GetClips();
-				VI_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), nullptr, "clip index outside of range");
+
+				VI_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), "clip index outside of range");
 				return &Clips[(size_t)Clip].Keys;
 			}
 			Core::String SkinAnimator::GetPath() const
@@ -1932,7 +1918,7 @@ namespace Mavi
 			}
 			void KeyAnimator::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Series::Unpack(Node->Find("state"), &State);
 				Series::Unpack(Node->Find("offset"), &Offset);
 				Series::Unpack(Node->Find("default"), &Default);
@@ -1945,7 +1931,7 @@ namespace Mavi
 			}
 			void KeyAnimator::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Series::Pack(Node->Set("state"), State);
 				Series::Pack(Node->Set("offset"), Offset);
 				Series::Pack(Node->Set("default"), Default);
@@ -2115,14 +2101,13 @@ namespace Mavi
 			}
 			Compute::AnimatorKey* KeyAnimator::GetFrame(int64_t Clip, int64_t Frame)
 			{
-				VI_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), nullptr, "clip index outside of range");
-				VI_ASSERT(Frame >= 0 && (size_t)Frame < Clips[(size_t)Clip].Keys.size(), nullptr, "frame index outside of range");
-
+				VI_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), "clip index outside of range");
+				VI_ASSERT(Frame >= 0 && (size_t)Frame < Clips[(size_t)Clip].Keys.size(), "frame index outside of range");
 				return &Clips[(size_t)Clip].Keys[(size_t)Frame];
 			}
 			Core::Vector<Compute::AnimatorKey>* KeyAnimator::GetClip(int64_t Clip)
 			{
-				VI_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), nullptr, "clip index outside of range");
+				VI_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), "clip index outside of range");
 				return &Clips[(size_t)Clip].Keys;
 			}
 			Core::String KeyAnimator::GetPath()
@@ -2160,7 +2145,7 @@ namespace Mavi
 			}
 			void EmitterAnimator::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("diffuse"), &Diffuse);
 				Series::Unpack(Node->Find("position"), &Position);
@@ -2173,7 +2158,7 @@ namespace Mavi
 			}
 			void EmitterAnimator::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("diffuse"), Diffuse);
 				Series::Pack(Node->Set("position"), Position);
@@ -2474,7 +2459,7 @@ namespace Mavi
 			}
 			void AudioSource::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("velocity"), &Sync.Velocity);
 				Series::Unpack(Node->Find("direction"), &Sync.Direction);
@@ -2533,7 +2518,7 @@ namespace Mavi
 			}
 			void AudioSource::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Core::Schema* Effects = Node->Set("effects", Core::Var::Array());
 				for (auto* Effect : Source->GetEffects())
@@ -2611,12 +2596,12 @@ namespace Mavi
 			}
 			void AudioListener::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Series::Unpack(Node->Find("gain"), &Gain);
 			}
 			void AudioListener::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Series::Pack(Node->Set("gain"), Gain);
 			}
 			void AudioListener::Synchronize(Core::Timer* Time)
@@ -2659,7 +2644,7 @@ namespace Mavi
 			}
 			void PointLight::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Series::Unpack(Node->Find("projection"), &Projection);
 				Series::Unpack(Node->Find("view"), &View);
 				Series::Unpack(Node->Find("size"), &Size);
@@ -2674,7 +2659,7 @@ namespace Mavi
 			}
 			void PointLight::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Series::Pack(Node->Set("projection"), Projection);
 				Series::Pack(Node->Set("view"), View);
 				Series::Pack(Node->Set("size"), Size);
@@ -2735,7 +2720,7 @@ namespace Mavi
 			}
 			void SpotLight::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Series::Unpack(Node->Find("projection"), &Projection);
 				Series::Unpack(Node->Find("view"), &View);
 				Series::Unpack(Node->Find("size"), &Size);
@@ -2751,7 +2736,7 @@ namespace Mavi
 			}
 			void SpotLight::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Series::Pack(Node->Set("projection"), Projection);
 				Series::Pack(Node->Set("view"), View);
 				Series::Pack(Node->Set("size"), Size);
@@ -2819,7 +2804,7 @@ namespace Mavi
 			}
 			void LineLight::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Series::Unpack(Node->Find("diffuse"), &Diffuse);
 				Series::Unpack(Node->Find("emission"), &Emission);
 
@@ -2850,7 +2835,7 @@ namespace Mavi
 			}
 			void LineLight::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 				Series::Pack(Node->Set("diffuse"), Diffuse);
 				Series::Pack(Node->Set("emission"), Emission);
 
@@ -2944,7 +2929,7 @@ namespace Mavi
 			}
 			void SurfaceLight::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				auto* Scene = Parent->GetScene(); Core::String Path;
 				if (!Series::Unpack(Node->Find("diffuse-map"), &Path) || Path.empty())
@@ -3062,7 +3047,7 @@ namespace Mavi
 			}
 			void SurfaceLight::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				auto* Scene = Parent->GetScene();
 				if (!DiffuseMap)
@@ -3132,7 +3117,7 @@ namespace Mavi
 			}
 			bool SurfaceLight::SetDiffuseMap(Graphics::Texture2D* Map)
 			{
-				VI_ASSERT(Parent->GetScene()->GetDevice() != nullptr, false, "graphics device should be set");
+				VI_ASSERT(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
 				if (!Map)
 				{
 					VI_CLEAR(DiffuseMapX[0]);
@@ -3161,7 +3146,7 @@ namespace Mavi
 			}
 			bool SurfaceLight::SetDiffuseMap(Graphics::Texture2D* const MapX[2], Graphics::Texture2D* const MapY[2], Graphics::Texture2D* const MapZ[2])
 			{
-				VI_ASSERT(Parent->GetScene()->GetDevice() != nullptr, false, "graphics device should be set");
+				VI_ASSERT(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
 				if (!MapX[0] || !MapX[1] || !MapY[0] || !MapY[1] || !MapZ[0] || !MapZ[1])
 				{
 					VI_CLEAR(DiffuseMapX[0]);
@@ -3253,7 +3238,7 @@ namespace Mavi
 			}
 			void Illuminator::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("inside-delay"), &Inside.Delay);
 				Series::Unpack(Node->Find("outside-delay"), &Outside.Delay);
@@ -3271,7 +3256,7 @@ namespace Mavi
 			}
 			void Illuminator::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("inside-delay"), Inside.Delay);
 				Series::Pack(Node->Set("outside-delay"), Outside.Delay);
@@ -3319,8 +3304,8 @@ namespace Mavi
 			}
 			void Camera::Activate(Component* New)
 			{
-				VI_ASSERT_V(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
-				VI_ASSERT_V(Parent->GetScene()->GetDevice()->GetRenderTarget() != nullptr, "render target should be set");
+				VI_ASSERT(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
+				VI_ASSERT(Parent->GetScene()->GetDevice()->GetRenderTarget() != nullptr, "render target should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
 				Viewport = Scene->GetDevice()->GetRenderTarget()->GetViewport();
@@ -3329,8 +3314,8 @@ namespace Mavi
 			}
 			void Camera::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
-				VI_ASSERT_V(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
+				VI_ASSERT(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
 
 				int _Mode = 0;
 				if (Series::Unpack(Node->Find("mode"), &_Mode))
@@ -3375,7 +3360,7 @@ namespace Mavi
 			}
 			void Camera::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("mode"), (int)Mode);
 				Series::Pack(Node->Set("projection"), Projection);
@@ -3416,7 +3401,7 @@ namespace Mavi
 			}
 			void Camera::GetViewer(Viewer* Output)
 			{
-				VI_ASSERT_V(Output != nullptr, "viewer should be set");
+				VI_ASSERT(Output != nullptr, "viewer should be set");
 
 				auto& Space = Parent->GetTransform()->GetSpacing(Compute::Positioning::Global);
 				RenderCulling Culling = (Mode == ProjectionMode::Perspective ? RenderCulling::Linear : RenderCulling::Disable);
@@ -3490,7 +3475,7 @@ namespace Mavi
 			}
 			float Camera::GetDistance(Entity* Other)
 			{
-				VI_ASSERT(Other != nullptr, -1.0f, "other should be set");
+				VI_ASSERT(Other != nullptr, "other should be set");
 				return Other->GetTransform()->GetPosition().Distance(View.Position);
 			}
 			float Camera::GetWidth()
@@ -3522,7 +3507,7 @@ namespace Mavi
 			}
 			bool Camera::RayTest(const Compute::Ray& Ray, Entity* Other, Compute::Vector3* Hit)
 			{
-				VI_ASSERT(Other != nullptr, false, "other should be set");
+				VI_ASSERT(Other != nullptr, "other should be set");
 				return Compute::Geometric::CursorRayTest(Ray, Other->GetTransform()->GetBias(), Hit);
 			}
 			bool Camera::RayTest(const Compute::Ray& Ray, const Compute::Matrix4x4& World, Compute::Vector3* Hit)
@@ -3552,7 +3537,7 @@ namespace Mavi
 			}
 			void Scriptable::Deserialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				Core::String Type;
 				if (Series::Unpack(Node->Find("source"), &Type))
@@ -3685,7 +3670,7 @@ namespace Mavi
 			}
 			void Scriptable::Serialize(Core::Schema* Node)
 			{
-				VI_ASSERT_V(Node != nullptr, "schema should be set");
+				VI_ASSERT(Node != nullptr, "schema should be set");
 
 				if (Source == SourceType::Memory)
 					Series::Pack(Node->Set("source"), "memory");
@@ -4000,7 +3985,7 @@ namespace Mavi
 			}
 			Scripting::Function Scriptable::GetFunctionByName(const Core::String& Name, unsigned int Args)
 			{
-				VI_ASSERT(!Name.empty(), nullptr, "name should not be empty");
+				VI_ASSERT(!Name.empty(), "name should not be empty");
 				if (!Compiler)
 					return nullptr;
 
@@ -4012,7 +3997,7 @@ namespace Mavi
 			}
 			Scripting::Function Scriptable::GetFunctionByIndex(int Index, unsigned int Args)
 			{
-				VI_ASSERT(Index >= 0, nullptr, "index should be greater or equal to zero");
+				VI_ASSERT(Index >= 0, "index should be greater or equal to zero");
 				if (!Compiler)
 					return nullptr;
 
@@ -4024,7 +4009,7 @@ namespace Mavi
 			}
 			bool Scriptable::GetPropertyByName(const char* Name, Scripting::PropertyInfo* Result)
 			{
-				VI_ASSERT(Name != nullptr, false, "name should be set");
+				VI_ASSERT(Name != nullptr, "name should be set");
 				if (!Compiler)
 					return false;
 
@@ -4040,7 +4025,7 @@ namespace Mavi
 			}
 			bool Scriptable::GetPropertyByIndex(int Index, Scripting::PropertyInfo* Result)
 			{
-				VI_ASSERT(Index >= 0, false, "index should be greater or equal to zero");
+				VI_ASSERT(Index >= 0, "index should be greater or equal to zero");
 				if (!Compiler)
 					return false;
 

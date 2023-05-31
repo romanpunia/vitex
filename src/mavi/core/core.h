@@ -652,19 +652,20 @@ namespace Mavi
 			char Value[sizeof(V)];
 			bool Empty;
 
-			Option() : Empty(true)
+			Option(Optional Other) : Empty(true)
 			{
+				VI_ASSERT(Other == Optional::None, "only none is accepted for this constructor");
 			}
-			Option(const V& Value) : Empty(false)
+			Option(const V& Other) : Empty(false)
 			{
-				new (Value) V(Value);
+				new (Value) V(Other);
 			}
-			Option(V&& Value) : Empty(false)
+			Option(V&& Other) noexcept : Empty(false)
 			{
-				new (Value) V(std::move(Value));
+				new (Value) V(std::move(Other));
 			}
 			Option(const Option&) = delete;
-			Option(Option&& Other) : Empty(Other.Empty)
+			Option(Option&& Other) noexcept : Empty(Other.Empty)
 			{
 				memcpy(Value, Other.Value, sizeof(Value));
 				Other.Empty = true;
@@ -674,22 +675,22 @@ namespace Mavi
 				if (!Empty)
 					((V*)Value)->~V();
 			}
-			Option& operator= (const V& Value)
+			Option& operator= (const V& Other)
 			{
 				~Option();
-				new (Value) V(Value);
+				new (Value) V(Other);
 				Empty = false;
 				return *this;
 			}
-			Option& operator= (V&& Value)
+			Option& operator= (V&& Other) noexcept
 			{
 				~Option();
-				new (Value) V(std::move(Value));
+				new (Value) V(std::move(Other));
 				Empty = false;
 				return *this;
 			}
 			Option& operator= (const Option&) = delete;
-			Option& operator= (Option&& Other)
+			Option& operator= (Option&& Other) noexcept
 			{
 				if (this == &Other)
 					return *this;
@@ -700,35 +701,32 @@ namespace Mavi
 				Other.Empty = true;
 				return *this;
 			}
-			const V& Unwrap() const
-			{
-				VI_PANIC(IsValue(), "option does not contain any value");
-				return *(V*)Value;
-			}
-			V& Unwrap()
-			{
-				VI_PANIC(IsValue(), "option does not contain any value");
-				return *(V*)Value;
-			}
 			const V& OrPanic(const char* Message) const
 			{
 				VI_ASSERT(Message != nullptr, "panic case message should be set");
 				VI_PANIC(IsValue(), "%s", Message);
 				return *(V*)Value;
 			}
-			V& OrPanic(const char* Message)
+			V&& OrPanic(const char* Message)
 			{
 				VI_ASSERT(Message != nullptr, "panic case message should be set");
 				VI_PANIC(IsValue(), "%s", Message);
-				return *(V*)Value;
+				return std::move(*(V*)Value);
 			}
 			const V& operator* () const
 			{
-				return Unwrap();
+				VI_PANIC(IsValue(), "option does not contain any value");
+				return *(V*)Value;
 			}
-			V& operator* ()
+			V&& operator* ()
 			{
-				return Unwrap();
+				VI_PANIC(IsValue(), "option does not contain any value");
+				return std::move(*(V*)Value);
+			}
+			typename std::remove_pointer<V>::type* operator-> ()
+			{
+				VI_PANIC(IsValue(), "option does not contain any value");
+				return (typename std::remove_pointer<V>::type*)Value;
 			}
 			operator bool() const
 			{
@@ -753,8 +751,9 @@ namespace Mavi
 		{
 			bool Empty;
 
-			Option(bool Fulfilled) : Empty(!Fulfilled)
+			Option(Optional Value) : Empty(Value == Optional::None)
 			{
+				VI_ASSERT(Value != Optional::Error, "only none and value are accepted for this constructor");
 			}
 			Option(const Option&) = delete;
 			Option(Option&& Other) = default;
@@ -811,28 +810,28 @@ namespace Mavi
 		{
 			static_assert(!std::is_same<V, void>::value, "value type should not be void");
 			static_assert(!std::is_same<E, void>::value, "error type should not be void");
-			union Pair { V A; E B; };
-			char Value[sizeof(Pair)];
+			using ValueSize = std::integral_constant<std::size_t, std::max(sizeof(V), sizeof(E))>;
+			char Value[ValueSize::value];
 			char Status;
 
-			Expects(const V& Value) : Status(1)
+			Expects(const V& Other) : Status(1)
 			{
-				new (Value) V(Value);
+				new (Value) V(Other);
 			}
-			Expects(V&& Value) : Status(1)
+			Expects(V&& Other) noexcept : Status(1)
 			{
-				new (Value) V(std::move(Value));
+				new (Value) V(std::move(Other));
 			}
-			Expects(const E& Value) : Status(-1)
+			Expects(const E& Other) noexcept : Status(-1)
 			{
-				new (Value) E(Value);
+				new (Value) E(Other);
 			}
-			Expects(E&& Value) : Status(-1)
+			Expects(E&& Other) noexcept : Status(-1)
 			{
-				new (Value) E(std::move(Value));
+				new (Value) E(std::move(Other));
 			}
 			Expects(const Expects&) = delete;
-			Expects(Expects&& Other) : Status(Other.Status)
+			Expects(Expects&& Other) noexcept : Status(Other.Status)
 			{
 				Other.Status = 0;
 				if (Status > 0)
@@ -847,22 +846,22 @@ namespace Mavi
 				else if (Status < 0)
 					((E*)Value)->~E();
 			}
-			Expects& operator= (const V& Value)
+			Expects& operator= (const V& Other)
 			{
 				~Expects();
-				new (Value) V(Value);
+				new (Value) V(Other);
 				Status = 1;
 				return **this;
 			}
-			Expects& operator= (V&& Value)
+			Expects& operator= (V&& Other) noexcept
 			{
 				~Expects();
-				new (Value) V(std::move(Value));
+				new (Value) V(std::move(Other));
 				Status = 1;
 				return *this;
 			}
 			Expects& operator= (const Expects&) = delete;
-			Expects& operator= (Expects&& Other)
+			Expects& operator= (Expects&& Other) noexcept
 			{
 				if (this == &Other)
 					return *this;
@@ -876,37 +875,27 @@ namespace Mavi
 					memcpy(Value, Other.Value, sizeof(E));
 				return *this;
 			}
-			const V& Unwrap() const
-			{
-				VI_PANIC(IsValue(), "unwrapping value that is not expected");
-				return *(V*)Value;
-			}
-			V& Unwrap()
-			{
-				VI_PANIC(IsValue(), "unwrapping value that is not expected");
-				return *(V*)Value;
-			}
 			const V& OrPanic(const char* Message) const
 			{
 				VI_ASSERT(Message != nullptr, "panic case message should be set");
 				VI_PANIC(IsValue(), "%s", Message);
 				return *(V*)Value;
 			}
-			V& OrPanic(const char* Message)
+			V&& OrPanic(const char* Message)
 			{
 				VI_ASSERT(Message != nullptr, "panic case message should be set");
 				VI_PANIC(IsValue(), "%s", Message);
-				return *(V*)Value;
+				return std::move(*(V*)Value);
 			}
 			const E& Error() const
 			{
 				VI_PANIC(IsError(), "unwrapping value that is not unexpected");
 				return *(E*)Value;
 			}
-			E& Error()
+			E&& Error()
 			{
 				VI_PANIC(IsError(), "unwrapping value that is not unexpected");
-				return *(E*)Value;
+				return std::move(*(E*)Value);
 			}
 			operator bool() const
 			{
@@ -918,11 +907,18 @@ namespace Mavi
 			}
 			const V& operator* () const
 			{
-				return Unwrap();
+				VI_PANIC(IsValue(), "unwrapping value that is not expected");
+				return *(V*)Value;
 			}
-			V& operator* ()
+			V&& operator* ()
 			{
-				return Unwrap();
+				VI_PANIC(IsValue(), "unwrapping value that is not expected");
+				return std::move(*(V*)Value);
+			}
+			typename std::remove_pointer<V>::type* operator-> ()
+			{
+				VI_PANIC(IsValue(), "unwrapping value that is not expected");
+				return (typename std::remove_pointer<V>::type*)Value;
 			}
 			bool IsNone() const
 			{

@@ -12,10 +12,11 @@
 #include <rapidxml.hpp>
 #include <json/document.h>
 #include <tinyfiledialogs.h>
-#include <concurrentqueue.h>
 #pragma warning(push)
 #pragma warning(disable: 4996)
 #pragma warning(disable: 4267)
+#pragma warning(disable: 4554)
+#include <concurrentqueue.h>
 #include <backward.hpp>
 #ifdef VI_USE_FCTX
 #include <fcontext.h>
@@ -856,10 +857,11 @@ namespace Mavi
 			Data.Origin.Line = Line;
 			Data.Type.Level = LogLevel::Error;
 			Data.Type.Fatal = true;
-			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "PANIC! %s(): \"%s\" assertion failed: %s, latest known callstack: %s",
+			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "PANIC! %s(\"%s\") check failed: %s, thread %s %s",
 				Function ? Function : "?",
 				Condition ? Condition : "?",
-				Format ? Format : "condition should be truthful",
+				Format ? Format : "contract is not satisfied",
+				OS::Process::GetThreadId(std::this_thread::get_id()).c_str(),
 				ErrorHandling::GetStackTrace(2, 64).c_str());
 			if (HasFlag(LogOption::Dated))
 				GetDateTime(time(nullptr), Data.Message.Date, sizeof(Data.Message.Date));
@@ -881,7 +883,11 @@ namespace Mavi
 			}
 
 			Pause();
+#ifdef NDEBUG
+			std::terminate();
+#else
 			std::abort();
+#endif
 		}
 		void ErrorHandling::Assert(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
 		{
@@ -893,10 +899,11 @@ namespace Mavi
 			Data.Origin.Line = Line;
 			Data.Type.Level = LogLevel::Error;
 			Data.Type.Fatal = true;
-			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "%s(): \"%s\" assertion failed: %s, latest known callstack: %s",
+			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "ASSERT %s(\"%s\") assertion failed: %s, thread %s %s",
 				Function ? Function : "?",
 				Condition ? Condition : "?",
-				Format ? Format : "condition should be truthful",
+				Format ? Format : "contract is not satisfied",
+				OS::Process::GetThreadId(std::this_thread::get_id()).c_str(),
 				ErrorHandling::GetStackTrace(2, 64).c_str());
 			if (HasFlag(LogOption::Dated))
 				GetDateTime(time(nullptr), Data.Message.Date, sizeof(Data.Message.Date));
@@ -918,7 +925,11 @@ namespace Mavi
 			}
 
 			Pause();
+#ifdef NDEBUG
+			std::terminate();
+#else
 			std::abort();
+#endif
 		}
 		void ErrorHandling::Message(LogLevel Level, int Line, const char* Source, const char* Format, ...)
 		{
@@ -1069,8 +1080,10 @@ namespace Mavi
 				PrettyToken(StdColor::Yellow, "exit"),
 				PrettyToken(StdColor::Yellow, "connect"),
 				PrettyToken(StdColor::Yellow, "reconnect"),
+				PrettyToken(StdColor::Yellow, "ASSERT"),
 				PrettyToken(StdColor::DarkRed, "ERR"),
 				PrettyToken(StdColor::DarkRed, "FATAL"),
+				PrettyToken(StdColor::DarkRed, "PANIC!"),
 				PrettyToken(StdColor::DarkRed, "leak"),
 				PrettyToken(StdColor::DarkRed, "leaking"),
 				PrettyToken(StdColor::DarkRed, "fail"),

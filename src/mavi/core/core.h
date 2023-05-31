@@ -809,7 +809,7 @@ namespace Mavi
 		template <typename V, typename E>
 		struct Expects
 		{
-			static_assert(!std::is_same<T, void>::value, "value type should not be void");
+			static_assert(!std::is_same<V, void>::value, "value type should not be void");
 			static_assert(!std::is_same<E, void>::value, "error type should not be void");
 			union Pair { V A; E B; };
 			char Value[sizeof(Pair)];
@@ -932,7 +932,7 @@ namespace Mavi
 			{
 				return Status > 0;
 			}
-			bool IsValue() const
+			bool IsError() const
 			{
 				return Status < 0;
 			}

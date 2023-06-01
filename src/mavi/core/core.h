@@ -4087,7 +4087,7 @@ namespace Mavi
 		template <typename T>
 		inline Expects<T, std::error_condition> FromString(const Core::String& Other)
 		{
-			static_assert(std::is_arithmetic<T>::value, "conversion can be done only to arithmetic types");
+			static_assert(std::is_integral<T>::value, "conversion can be done only for integral types");
 			T Value;
 			std::from_chars_result Result = std::from_chars(Other.data(), Other.data() + Other.size(), Value);
 			if (Result.ec != std::errc())
@@ -4263,6 +4263,7 @@ namespace Mavi
 		{
 			return FromStringRadix<uint64_t>(Other, 10);
 		}
+#endif
 		template <>
 		inline Expects<float, std::error_condition> FromString<float>(const Core::String& Other)
 		{
@@ -4302,7 +4303,6 @@ namespace Mavi
 				return OS::Error::GetCondition();
 			return Value;
 		}
-#endif
 		template <typename T>
 		inline Core::String ToString(T Other)
 		{

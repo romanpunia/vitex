@@ -765,7 +765,7 @@ namespace Mavi
 			{
 				size_t CallstackSize = Context->GetCallstackSize();
 				Frames.reserve(CallstackSize);
-				for (size_t i = CallstackSize; i-- > 0;)
+				for (size_t i = 0; i < CallstackSize; i++)
 				{
 					int Column = 0;
 					Scripting::Function Next = Context->GetFunction(i);

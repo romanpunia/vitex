@@ -3782,17 +3782,7 @@ namespace Mavi
 			const char* File = nullptr;
 			int ColumnNumber = 0;
 			int LineNumber = Base->GetLineNumber(0, &ColumnNumber, &File);
-			for (auto& Line : Core::Stringify::Split(Core::ErrorHandling::GetStackTrace(1), '\n'))
-			{
-				if (Line.empty())
-					continue;
-
-				if (Line.front() == '#')
-					Stream << "    " << Line << "\n";
-				else
-					Stream << "  " << Line << "\n";
-			}
-
+			Stream << Core::ErrorHandling::GetStackTrace(1) << "\n";
 			if (File != nullptr && LineNumber >= 0)
 				Stream << VM->GetSourceCodeAppendixByPath("caller origin", File, LineNumber, ColumnNumber, 5) << "\n";
 			Output(Stream.str());

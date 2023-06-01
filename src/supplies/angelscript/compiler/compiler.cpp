@@ -1826,7 +1826,7 @@ int asCJITCompiler::CompileFunction(asIScriptFunction* function, asJITFunction* 
 				//const asCString& str = ((asCScriptEngine*)function->GetEngine())->GetConstantString(asBC_WORDARG0(pOp));
 				esi -= sizeof(void*) + sizeof(asDWORD);
 				as<void*>(*esi + sizeof(asDWORD)) = (void*)"";//(void*)str.AddressOf();
-				as<asDWORD>(*esi) = (asDWORD)0;// (asDWORD)str.GetLength();
+				as<asDWORD>(*esi) = (unsigned int)0;// (asDWORD)str.GetLength();
 			} break;
 			case asBC_CALLSYS:
 			case asBC_Thiscall1:

@@ -10,9 +10,9 @@ file(GLOB_RECURSE SOURCE
 		${PROJECT_SOURCE_DIR}/src/mavi/*.cxx*)
 
 #Shader embedding specifics (with compilation)
-set(VI_USE_SHADERS true CACHE BOOL "Enable built-in shaders")
+set(VI_SHADERS true CACHE BOOL "Enable built-in shaders")
 set(BUFFER_OUT "${PROJECT_SOURCE_DIR}/src/mavi/graphics/dynamic/shaders")
-if (VI_USE_SHADERS)
+if (VI_SHADERS)
 	set(BUFFER_DIR "${PROJECT_SOURCE_DIR}/src/shaders")
     set(BUFFER_DATA "#ifndef HAS_SHADER_BATCH\n#define HAS_SHADER_BATCH\n\nnamespace shader_batch\n{\n\tvoid foreach(void* context, void(*callback)(void*, const char*, const unsigned char*, unsigned))\n\t{\n\t\tif (!callback)\n\t\t\treturn;\n")
     file(GLOB_RECURSE BINARIES ${BUFFER_DIR}/*)

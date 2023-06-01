@@ -1,7 +1,7 @@
 #include "audio.h"
 #include "../audio/effects.h"
 #include "../audio/filters.h"
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 #ifdef VI_AL_AT_OPENAL
 #include <OpenAL/al.h>
 #include <OpenAL/alc.h>
@@ -14,7 +14,7 @@
 #endif
 #endif
 #define LOAD_PROC(T, X) ((X) = (T)alGetProcAddress(#X))
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 namespace
 {
 	LPALGENFILTERS alGenFilters = nullptr;
@@ -59,7 +59,7 @@ namespace Mavi
 		void AudioContext::Initialize()
 		{
 			VI_TRACE("[audio] load audio context func addresses");
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 			LOAD_PROC(LPALGENFILTERS, alGenFilters);
 			LOAD_PROC(LPALDELETEFILTERS, alDeleteFilters);
 			LOAD_PROC(LPALISFILTER, alIsFilter);
@@ -100,170 +100,170 @@ namespace Mavi
 		void AudioContext::GenerateBuffers(int Count, unsigned int* Buffers)
 		{
 			VI_TRACE("[audio] generate %i buffers", Count);
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alGenBuffers(Count, Buffers);
 #endif
 		}
 		void AudioContext::SetBufferData(unsigned int Buffer, int Format, const void* Data, int Size, int Frequency)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alBufferData(Buffer, Format, Data, Size, Frequency);
 #endif
 		}
 		void AudioContext::SetSourceData3F(unsigned int Source, SoundEx Value, float F1, float F2, float F3)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alSource3f(Source, (uint32_t)Value, F1, F2, F3);
 #endif
 		}
 		void AudioContext::GetSourceData3F(unsigned int Source, SoundEx Value, float* F1, float* F2, float* F3)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alGetSource3f(Source, (uint32_t)Value, F1, F2, F3);
 #endif
 		}
 		void AudioContext::SetSourceDataVF(unsigned int Source, SoundEx Value, float* FS)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alSourcefv(Source, (uint32_t)Value, FS);
 #endif
 		}
 		void AudioContext::GetSourceDataVF(unsigned int Source, SoundEx Value, float* FS)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alGetSourcefv(Source, (uint32_t)Value, FS);
 #endif
 		}
 		void AudioContext::SetSourceData1F(unsigned int Source, SoundEx Value, float F1)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alSourcef(Source, (uint32_t)Value, F1);
 #endif
 		}
 		void AudioContext::GetSourceData1F(unsigned int Source, SoundEx Value, float* F1)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alGetSourcef(Source, (uint32_t)Value, F1);
 #endif
 		}
 		void AudioContext::SetSourceData3I(unsigned int Source, SoundEx Value, int F1, int F2, int F3)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alSource3i(Source, (uint32_t)Value, F1, F2, F3);
 #endif
 		}
 		void AudioContext::GetSourceData3I(unsigned int Source, SoundEx Value, int* F1, int* F2, int* F3)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alGetSource3i(Source, (uint32_t)Value, F1, F2, F3);
 #endif
 		}
 		void AudioContext::SetSourceDataVI(unsigned int Source, SoundEx Value, int* FS)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alSourceiv(Source, (uint32_t)Value, FS);
 #endif
 		}
 		void AudioContext::GetSourceDataVI(unsigned int Source, SoundEx Value, int* FS)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alGetSourceiv(Source, (uint32_t)Value, FS);
 #endif
 		}
 		void AudioContext::SetSourceData1I(unsigned int Source, SoundEx Value, int F1)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alSourcei(Source, (uint32_t)Value, F1);
 #endif
 		}
 		void AudioContext::GetSourceData1I(unsigned int Source, SoundEx Value, int* F1)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alGetSourcei(Source, (uint32_t)Value, F1);
 #endif
 		}
 		void AudioContext::SetListenerData3F(SoundEx Listener, float F1, float F2, float F3)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alListener3f((uint32_t)Listener, F1, F2, F3);
 #endif
 		}
 		void AudioContext::GetListenerData3F(SoundEx Listener, float* F1, float* F2, float* F3)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alGetListener3f((uint32_t)Listener, F1, F2, F3);
 #endif
 		}
 		void AudioContext::SetListenerDataVF(SoundEx Listener, float* FS)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alListenerfv((uint32_t)Listener, FS);
 #endif
 		}
 		void AudioContext::GetListenerDataVF(SoundEx Listener, float* FS)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alGetListenerfv((uint32_t)Listener, FS);
 #endif
 		}
 		void AudioContext::SetListenerData1F(SoundEx Listener, float F1)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alListenerf((uint32_t)Listener, F1);
 #endif
 		}
 		void AudioContext::GetListenerData1F(SoundEx Listener, float* F1)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alGetListenerf((uint32_t)Listener, F1);
 #endif
 		}
 		void AudioContext::SetListenerData3I(SoundEx Listener, int F1, int F2, int F3)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alListener3i((uint32_t)Listener, F1, F2, F3);
 #endif
 		}
 		void AudioContext::GetListenerData3I(SoundEx Listener, int* F1, int* F2, int* F3)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alGetListener3i((uint32_t)Listener, F1, F2, F3);
 #endif
 		}
 		void AudioContext::SetListenerDataVI(SoundEx Listener, int* FS)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alListeneriv((uint32_t)Listener, FS);
 #endif
 		}
 		void AudioContext::GetListenerDataVI(SoundEx Listener, int* FS)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alGetListeneriv((uint32_t)Listener, FS);
 #endif
 		}
 		void AudioContext::SetListenerData1I(SoundEx Listener, int F1)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alListeneri((uint32_t)Listener, F1);
 #endif
 		}
 		void AudioContext::GetListenerData1I(SoundEx Listener, int* F1)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alGetListeneri((uint32_t)Listener, F1);
 #endif
 		}
 
 		AudioFilter::AudioFilter() noexcept
 		{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 			Filter = AL_FILTER_NULL;
 #endif
 		}
 		AudioFilter::~AudioFilter() noexcept
 		{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 			VI_TRACE("[audio] delete %i filter", (int)Filter);
 			if (alDeleteFilters != nullptr && Filter != AL_FILTER_NULL)
 				alDeleteFilters(1, &Filter);
@@ -271,7 +271,7 @@ namespace Mavi
 		}
 		bool AudioFilter::CreateLocked(const std::function<bool()>& Callback)
 		{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 			if (alDeleteFilters != nullptr && Filter != AL_FILTER_NULL)
 				alDeleteFilters(1, &Filter);
 
@@ -291,7 +291,7 @@ namespace Mavi
 
 		AudioEffect::AudioEffect() noexcept
 		{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 			Effect = AL_EFFECT_NULL;
 			Slot = AL_EFFECTSLOT_NULL;
 #endif
@@ -299,7 +299,7 @@ namespace Mavi
 		AudioEffect::~AudioEffect() noexcept
 		{
 			Unbind();
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 			VI_TRACE("[audio] delete %i effect", (int)Effect);
 			if (alDeleteEffects != nullptr && Effect != AL_EFFECT_NULL)
 				alDeleteEffects(1, &Effect);
@@ -311,7 +311,7 @@ namespace Mavi
 		}
 		bool AudioEffect::CreateLocked(const std::function<bool()>& Callback)
 		{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 			if (alDeleteAuxiliaryEffectSlots != nullptr && Slot != AL_EFFECTSLOT_NULL)
 				alDeleteAuxiliaryEffectSlots(1, &Slot);
 
@@ -350,7 +350,7 @@ namespace Mavi
 			VI_ASSERT(Source != nullptr, "source should not be empty");
 			Source = NewSource;
 			Zone = NewZone;
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 			alSource3i(Source->GetInstance(), AL_AUXILIARY_SEND_FILTER, (ALint)Slot, Zone, (ALint)(Filter ? Filter->Filter : AL_FILTER_NULL));
 #endif
 			return true;
@@ -358,7 +358,7 @@ namespace Mavi
 		bool AudioEffect::Unbind()
 		{
 			VI_ASSERT(Source != nullptr, "source should not be empty");
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 			alSource3i(Source->GetInstance(), AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, Zone, AL_FILTER_NULL);
 #endif
 			return true;
@@ -379,7 +379,7 @@ namespace Mavi
 		}
 		AudioClip::~AudioClip() noexcept
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			VI_TRACE("[audio] delete %i buffer", (int)Buffer);
 			alDeleteBuffers(1, &Buffer);
 			Buffer = 0;
@@ -387,7 +387,7 @@ namespace Mavi
 		}
 		float AudioClip::Length() const
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			int ByteSize = 0, ChannelCount = 0, Bits = 0, Frequency = 0;
 			alGetBufferi(Buffer, AL_SIZE, &ByteSize);
 			alGetBufferi(Buffer, AL_CHANNELS, &ChannelCount);
@@ -404,7 +404,7 @@ namespace Mavi
 		}
 		bool AudioClip::IsMono() const
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (Format == AL_FORMAT_MONO8 || Format == AL_FORMAT_MONO16)
 				return true;
 #endif
@@ -421,7 +421,7 @@ namespace Mavi
 
 		AudioSource::AudioSource() noexcept
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (alIsSource(Instance))
 			{
 				alSourceStop(Instance);
@@ -449,7 +449,7 @@ namespace Mavi
 		{
 			RemoveEffects();
 			VI_RELEASE(Clip);
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			VI_TRACE("[audio] delete %i source", (int)Instance);
 			alSourceStop(Instance);
 			alSourcei(Instance, AL_BUFFER, 0);
@@ -500,7 +500,7 @@ namespace Mavi
 		}
 		void AudioSource::SetClip(AudioClip* NewClip)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			VI_TRACE("[audio] set clip %i on %i source", NewClip ? (int)NewClip->GetBuffer() : 0, (int)Instance);
 			alSourceStop(Instance);
 
@@ -524,12 +524,12 @@ namespace Mavi
 				Effect->Synchronize();
 				if (Effect->Filter != nullptr)
 					Effect->Filter->Synchronize();
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				if (alAuxiliaryEffectSloti != nullptr && Effect->Effect != AL_EFFECT_NULL && Effect->Slot != AL_EFFECTSLOT_NULL)
 					alAuxiliaryEffectSloti(Effect->Slot, AL_EFFECTSLOT_EFFECT, (ALint)Effect->Effect);
 #endif
 			}
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (!Sync->IsRelative)
 				alSource3f(Instance, AL_POSITION, 0, 0, 0);
 			else
@@ -557,7 +557,7 @@ namespace Mavi
 		}
 		void AudioSource::Reset()
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			VI_TRACE("[audio] reset on %i source", (int)Instance);
 			alSource3f(Instance, AL_DIRECTION, 0, 0, 0);
 			alSourcei(Instance, AL_SOURCE_RELATIVE, 0);
@@ -576,28 +576,28 @@ namespace Mavi
 		}
 		void AudioSource::Pause()
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			VI_TRACE("[audio] pause on %i source", (int)Instance);
 			alSourcePause(Instance);
 #endif
 		}
 		void AudioSource::Play()
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			VI_TRACE("[audio] play on %i source", (int)Instance);
 			alSourcePlay(Instance);
 #endif
 		}
 		void AudioSource::Stop()
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			VI_TRACE("[audio] stop on %i source", (int)Instance);
 			alSourceStop(Instance);
 #endif
 		}
 		bool AudioSource::IsPlaying() const
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			int State = 0;
 			alGetSourcei(Instance, AL_SOURCE_STATE, &State);
 			return State == AL_PLAYING;
@@ -634,7 +634,7 @@ namespace Mavi
 
 		AudioDevice::AudioDevice() noexcept
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			Device = (void*)alcOpenDevice(nullptr);
 			VI_TRACE("[audio] open alc device: 0x%" PRIXPTR, (void*)Device);
 			VI_PANIC(Device != nullptr, "audio device cannot be created [ %s ]", alGetString(alGetError()));
@@ -650,7 +650,7 @@ namespace Mavi
 		}
 		AudioDevice::~AudioDevice() noexcept
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (Context != nullptr)
 			{
 				VI_TRACE("[audio] delete alc context: 0x%" PRIXPTR, (void*)Context);
@@ -670,7 +670,7 @@ namespace Mavi
 		void AudioDevice::Offset(AudioSource* Source, float& Seconds, bool Get)
 		{
 			VI_ASSERT(Source != nullptr, "souce should be set");
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_SEC_OFFSET, Seconds);
 			else
@@ -680,7 +680,7 @@ namespace Mavi
 		void AudioDevice::Relative(AudioSource* Source, int& Value, bool Get)
 		{
 			VI_ASSERT(Source != nullptr, "souce should be set");
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (!Get)
 				alSourcei(Source->Instance, AL_SOURCE_RELATIVE, Value);
 			else
@@ -690,7 +690,7 @@ namespace Mavi
 		void AudioDevice::Position(AudioSource* Source, Compute::Vector3& Position, bool Get)
 		{
 			VI_ASSERT(Source != nullptr, "souce should be set");
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (!Get)
 			{
 				alGetSource3f(Source->Instance, AL_POSITION, &Position.X, &Position.Y, &Position.Z);
@@ -703,7 +703,7 @@ namespace Mavi
 		void AudioDevice::Direction(AudioSource* Source, Compute::Vector3& Direction, bool Get)
 		{
 			VI_ASSERT(Source != nullptr, "souce should be set");
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (!Get)
 				alSource3f(Source->Instance, AL_DIRECTION, Direction.X, Direction.Y, Direction.Z);
 			else
@@ -713,7 +713,7 @@ namespace Mavi
 		void AudioDevice::Velocity(AudioSource* Source, Compute::Vector3& Velocity, bool Get)
 		{
 			VI_ASSERT(Source != nullptr, "souce should be set");
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (!Get)
 				alSource3f(Source->Instance, AL_VELOCITY, Velocity.X, Velocity.Y, Velocity.Z);
 			else
@@ -723,7 +723,7 @@ namespace Mavi
 		void AudioDevice::Pitch(AudioSource* Source, float& Value, bool Get)
 		{
 			VI_ASSERT(Source != nullptr, "souce should be set");
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_PITCH, Value);
 			else
@@ -733,7 +733,7 @@ namespace Mavi
 		void AudioDevice::Gain(AudioSource* Source, float& Value, bool Get)
 		{
 			VI_ASSERT(Source != nullptr, "souce should be set");
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_GAIN, Value);
 			else
@@ -743,7 +743,7 @@ namespace Mavi
 		void AudioDevice::ConeInnerAngle(AudioSource* Source, float& Value, bool Get)
 		{
 			VI_ASSERT(Source != nullptr, "souce should be set");
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_CONE_INNER_ANGLE, Value);
 			else
@@ -753,7 +753,7 @@ namespace Mavi
 		void AudioDevice::ConeOuterAngle(AudioSource* Source, float& Value, bool Get)
 		{
 			VI_ASSERT(Source != nullptr, "souce should be set");
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_CONE_OUTER_ANGLE, Value);
 			else
@@ -763,7 +763,7 @@ namespace Mavi
 		void AudioDevice::ConeOuterGain(AudioSource* Source, float& Value, bool Get)
 		{
 			VI_ASSERT(Source != nullptr, "souce should be set");
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_CONE_OUTER_GAIN, Value);
 			else
@@ -773,7 +773,7 @@ namespace Mavi
 		void AudioDevice::Distance(AudioSource* Source, float& Value, bool Get)
 		{
 			VI_ASSERT(Source != nullptr, "souce should be set");
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_MAX_DISTANCE, Value);
 			else
@@ -783,7 +783,7 @@ namespace Mavi
 		void AudioDevice::RefDistance(AudioSource* Source, float& Value, bool Get)
 		{
 			VI_ASSERT(Source != nullptr, "souce should be set");
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (!Get)
 				alSourcef(Source->Instance, AL_REFERENCE_DISTANCE, Value);
 			else
@@ -793,7 +793,7 @@ namespace Mavi
 		void AudioDevice::Loop(AudioSource* Source, int& IsLoop, bool Get)
 		{
 			VI_ASSERT(Source != nullptr, "souce should be set");
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if (!Get)
 				alSourcei(Source->Instance, AL_LOOPING, IsLoop);
 			else
@@ -802,13 +802,13 @@ namespace Mavi
 		}
 		void AudioDevice::SetDistanceModel(SoundDistanceModel Model)
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			alDistanceModel((int)Model);
 #endif
 		}
 		void AudioDevice::GetExceptionCodes(int& ALCCode, int& ALCode) const
 		{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 			if ((ALCCode = alcGetError((ALCdevice*)Device)) != ALC_NO_ERROR)
 				VI_ERR("[audio] %s", alcGetString((ALCdevice*)Device, ALCCode));
 

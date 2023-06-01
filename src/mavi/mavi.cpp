@@ -21,19 +21,19 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #endif
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 #include <SDL2/SDL.h>
 #endif
-#ifdef VI_HAS_POSTGRESQL
+#ifdef VI_POSTGRESQL
 #include <libpq-fe.h>
 #endif
-#ifdef VI_HAS_ASSIMP
+#ifdef VI_ASSIMP
 #include <assimp/DefaultLogger.hpp>
 #endif
-#ifdef VI_HAS_GLEW
+#ifdef VI_GLEW
 #include <GL/glew.h>
 #endif
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 extern "C"
 {
 #include <openssl/ssl.h>
@@ -52,7 +52,7 @@ extern "C"
 
 namespace Mavi
 {
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
     static Core::Vector<std::shared_ptr<std::mutex>>* CryptoLocks = nullptr;
 #if OPENSSL_VERSION_MAJOR >= 3
     static OSSL_PROVIDER* CryptoLegacy = nullptr;
@@ -73,7 +73,7 @@ namespace Mavi
 	}
 	bool Library::HasOpenGL()
 	{
-#ifdef VI_HAS_OPENGL
+#ifdef VI_OPENGL
 		return true;
 #else
 		return false;
@@ -81,7 +81,7 @@ namespace Mavi
 	}
 	bool Library::HasOpenSSL()
 	{
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 		return true;
 #else
 		return false;
@@ -89,7 +89,7 @@ namespace Mavi
 	}
 	bool Library::HasGLEW()
 	{
-#ifdef VI_HAS_GLEW
+#ifdef VI_GLEW
 		return true;
 #else
 		return false;
@@ -97,7 +97,7 @@ namespace Mavi
 	}
 	bool Library::HasZLib()
 	{
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 		return true;
 #else
 		return false;
@@ -105,7 +105,7 @@ namespace Mavi
 	}
 	bool Library::HasAssimp()
 	{
-#ifdef VI_HAS_ASSIMP
+#ifdef VI_ASSIMP
 		return true;
 #else
 		return false;
@@ -113,7 +113,7 @@ namespace Mavi
 	}
 	bool Library::HasMongoDB()
 	{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 		return true;
 #else
 		return false;
@@ -121,7 +121,7 @@ namespace Mavi
 	}
 	bool Library::HasPostgreSQL()
 	{
-#ifdef VI_HAS_POSTGRESQL
+#ifdef VI_POSTGRESQL
 		return true;
 #else
 		return false;
@@ -129,7 +129,7 @@ namespace Mavi
 	}
 	bool Library::HasOpenAL()
 	{
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 		return true;
 #else
 		return false;
@@ -137,7 +137,7 @@ namespace Mavi
 	}
 	bool Library::HasSDL2()
 	{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 		return true;
 #else
 		return false;
@@ -145,7 +145,7 @@ namespace Mavi
 	}
 	bool Library::HasSIMD()
 	{
-#ifdef VI_USE_SIMD
+#ifdef VI_SIMD
 		return true;
 #else
 		return false;
@@ -153,7 +153,7 @@ namespace Mavi
 	}
 	bool Library::HasJIT()
 	{
-#ifdef VI_USE_JIT
+#ifdef VI_JIT
 		return true;
 #else
 		return false;
@@ -161,15 +161,23 @@ namespace Mavi
 	}
 	bool Library::HasBindings()
 	{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 		return true;
 #else
 		return false;
 #endif
 	}
-	bool Library::HasFastMemory()
+	bool Library::HasAllocator()
 	{
-#ifdef VI_HAS_FAST_MEMORY
+#ifdef VI_ALLOCATOR
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Library::HasBacktrace()
+	{
+#ifdef VI_BACKTRACE
 		return true;
 #else
 		return false;
@@ -177,7 +185,7 @@ namespace Mavi
 	}
 	bool Library::HasBullet3()
 	{
-#ifdef VI_USE_BULLET3
+#ifdef VI_BULLET3
 		return true;
 #else
 		return false;
@@ -185,7 +193,7 @@ namespace Mavi
 	}
 	bool Library::HasFreeType()
 	{
-#ifdef VI_HAS_FREETYPE
+#ifdef VI_FREETYPE
 		return true;
 #else
 		return false;
@@ -193,7 +201,7 @@ namespace Mavi
 	}
 	bool Library::HasSPIRV()
 	{
-#ifdef VI_HAS_SPIRV
+#ifdef VI_SPIRV
 		return true;
 #else
 		return false;
@@ -201,7 +209,7 @@ namespace Mavi
 	}
 	bool Library::HasRmlUI()
 	{
-#ifdef VI_USE_RMLUI
+#ifdef VI_RMLUI
 		return true;
 #else
 		return false;
@@ -209,7 +217,7 @@ namespace Mavi
 	}
     bool Library::HasFContext()
     {
-    #ifdef VI_USE_FCTX
+    #ifdef VI_FCTX
         return true;
     #else
         return false;
@@ -217,7 +225,7 @@ namespace Mavi
     }
 	bool Library::HasWindowsEpoll()
 	{
-#ifdef VI_USE_WEPOLL
+#ifdef VI_WEPOLL
 		return true;
 #else
 		return false;
@@ -255,60 +263,58 @@ namespace Mavi
 	{
 		Core::Vector<Core::String> Features;
 		if (HasDirectX())
-			Features.push_back("DirectX");
+			Features.push_back("so:d3d11");
 		if (HasOpenGL())
-			Features.push_back("OpenGL");
+			Features.push_back("so:opengl");
 		if (HasOpenAL())
-			Features.push_back("OpenAL");
+			Features.push_back("so:openal");
 		if (HasOpenSSL())
-			Features.push_back("OpenSSL");
+			Features.push_back("so:openssl");
 		if (HasGLEW())
-			Features.push_back("GLEW");
+			Features.push_back("so:glew");
 		if (HasZLib())
-			Features.push_back("ZLib");
+			Features.push_back("so:zlib");
 		if (HasAssimp())
-			Features.push_back("Assimp");
+			Features.push_back("so:assimp");
 		if (HasMongoDB())
-			Features.push_back("MongoDB");
+			Features.push_back("so:mongoc");
 		if (HasPostgreSQL())
-			Features.push_back("PostgreSQL");
+			Features.push_back("so:pq");
 		if (HasSDL2())
-			Features.push_back("SDL2");
-		if (HasSIMD())
-			Features.push_back("SIMD");
-		if (HasJIT())
-			Features.push_back("JIT");
-		if (HasBindings())
-			Features.push_back("Bindings");
-		if (HasFastMemory())
-			Features.push_back("FastMemory");
-		if (HasBullet3())
-			Features.push_back("Bullet3");
+			Features.push_back("so:sdl2");
 		if (HasFreeType())
-			Features.push_back("FreeType");
+			Features.push_back("so:freetype");
 		if (HasSPIRV())
-			Features.push_back("SPIRV");
+			Features.push_back("so:spirv");
 		if (HasRmlUI())
-			Features.push_back("RmlUI");
+			Features.push_back("lib:rmlui");
 		if (HasFContext())
-			Features.push_back("FContext");
+			Features.push_back("lib:fcontext");
 		if (HasWindowsEpoll())
-			Features.push_back("Wepoll");
+			Features.push_back("lib:wepoll");
+		if (HasBullet3())
+			Features.push_back("lib:bullet3");
+		if (HasBacktrace())
+			Features.push_back("lib:backward-cxx");
+		if (HasSIMD())
+			Features.push_back("feature:simd");
+		if (HasJIT())
+			Features.push_back("feature:as-jit");
+		if (HasBindings())
+			Features.push_back("feature:as-stdlib");
+		if (HasAllocator())
+			Features.push_back("feature:cxx-stdalloc");
 		if (HasShaders())
-			Features.push_back("Shaders");
+			Features.push_back("feature:shaders");
 
 		Core::StringStream Result;
-		Result << "version: " << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_VERSION << " / " << VERSION << "\n";
-		Result << "platform: " << GetPlatform() << " / " << GetBuild() << "\n";
-		Result << "compiler: " << GetCompiler() << "\n";
-		Result << "features: ";
-
+		Result << "library: " << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_VERSION << " / " << VERSION << "\n";
+		Result << "  platform: " << GetPlatform() << " / " << GetBuild() << "\n";
+		Result << "  compiler: " << GetCompiler() << "\n";
+        Result << "configuration:" << "\n";
+        
 		for (size_t i = 0; i < Features.size(); i++)
-		{
-			Result << Features[i];
-			if (i < Features.size() - 1)
-				Result << ", ";
-		}
+			Result << "  " << Features[i] << "\n";
 
 		return Result.str();
 	}
@@ -395,7 +401,7 @@ namespace Mavi
 		if (!Allocator)
 			Allocator = new Core::DebugAllocator();
 #else
-#ifndef VI_HAS_FAST_MEMORY
+#ifndef VI_ALLOCATOR
 		if (!Allocator)
 			Allocator = new Core::DefaultAllocator();
 #else
@@ -433,7 +439,7 @@ namespace Mavi
 
 		if (Modes & (uint64_t)Init::SSL)
 		{
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 			SSL_library_init();
 			SSL_load_error_strings();
 #if OPENSSL_VERSION_MAJOR >= 3
@@ -499,7 +505,7 @@ namespace Mavi
         
 		if (Modes & (uint64_t)Init::SDL2)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			SDL_SetMainReady();
 			int Code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
 			VI_PANIC(Code == 0, "SDL2 initialization failure reason:%i", Code);
@@ -576,7 +582,7 @@ namespace Mavi
 
 		if (Modes & (uint64_t)Init::GLEW)
 		{
-#ifdef VI_HAS_GLEW
+#ifdef VI_GLEW
 			glewExperimental = true;
 #endif
 		}
@@ -591,12 +597,12 @@ namespace Mavi
 			Audio::AudioContext::Initialize();
 
 		Scripting::VirtualMachine::SetMemoryFunctions(Core::Memory::Malloc, Core::Memory::Free);
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 		if (Modes & (uint64_t)Init::SSL)
 		{
 			int64_t Raw = 0;
 			RAND_bytes((unsigned char*)&Raw, sizeof(int64_t));
-#ifdef VI_HAS_POSTGRESQL
+#ifdef VI_POSTGRESQL
 			PQinitOpenSSL(0, 0);
 #endif
 		}
@@ -618,7 +624,7 @@ namespace Mavi
 
 		if (Modes & (uint64_t)Init::SSL)
 		{
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 #if OPENSSL_VERSION_MAJOR >= 3
             OSSL_PROVIDER_unload(CryptoLegacy);
             OSSL_PROVIDER_unload(CryptoDefault);
@@ -657,7 +663,7 @@ namespace Mavi
 
 		if (Modes & (uint64_t)Init::SDL2)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			SDL_Quit();
 #else
 			VI_WARN("[mavi] sdl2 cannot be uninitialized");
@@ -682,7 +688,7 @@ namespace Mavi
 			if (Modes & (uint64_t)Init::Debug)
 				Core::ErrorHandling::SetFlag(Core::LogOption::Active, false);
 		}
-#ifdef VI_HAS_ASSIMP
+#ifdef VI_ASSIMP
 		Assimp::DefaultLogger::kill();
 #endif
 		Core::Console::Reset();

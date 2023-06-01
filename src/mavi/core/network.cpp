@@ -6,7 +6,7 @@
 #include <windows.h>
 #include <ws2tcpip.h>
 #include <io.h>
-#ifdef VI_USE_WEPOLL
+#ifdef VI_WEPOLL
 #include <wepoll.h>
 #endif
 #define ERRNO WSAGetLastError()
@@ -49,7 +49,7 @@
 
 extern "C"
 {
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/crypto.h>
@@ -1298,7 +1298,7 @@ namespace Mavi
 			ClearEvents(false);
 			if (Fd == INVALID_SOCKET)
 				return -1;
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 			if (Device != nullptr)
 			{
 				VI_TRACE("[net] fd %i free ssl device", (int)Fd);
@@ -1345,7 +1345,7 @@ namespace Mavi
 			}
 
 			ClearEvents(false);
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 			if (Device != nullptr)
 			{
 				VI_TRACE("[net] fd %i free ssl device", (int)Fd);
@@ -1480,7 +1480,7 @@ namespace Mavi
 			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
 			VI_MEASURE(Core::Timings::Networking);
 			VI_TRACE("[net] fd %i write %i bytes", (int)Fd, Size);
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 			if (Device != nullptr)
 			{
 				int Value = SSL_write(Device, Buffer, Size);
@@ -1559,7 +1559,7 @@ namespace Mavi
 			VI_ASSERT(Buffer != nullptr && Size > 0, "buffer should be set");
 			VI_MEASURE(Core::Timings::Networking);
 			VI_TRACE("[net] fd %i read %i bytes", (int)Fd, Size);
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 			if (Device != nullptr)
 			{
 				int Value = SSL_read(Device, Buffer, Size);
@@ -1850,7 +1850,7 @@ namespace Mavi
 		}
 		int Socket::Secure(ssl_ctx_st* Context, const char* Hostname)
 		{
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 			VI_MEASURE(Core::Timings::Networking);
 			VI_TRACE("[net] fd %i create ssl device on %s", (int)Fd, Hostname);
 			if (Device != nullptr)
@@ -1977,7 +1977,7 @@ namespace Mavi
 		}
 		int Socket::GetError(int Result)
 		{
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 			if (!Device)
 				return ERRNO;
 
@@ -2075,7 +2075,7 @@ namespace Mavi
 
 		SocketRouter::~SocketRouter() noexcept
 		{
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 			for (auto It = Certificates.begin(); It != Certificates.end(); It++)
 			{
 				if (!It->second.Context)
@@ -2128,7 +2128,7 @@ namespace Mavi
 		}
 		bool SocketConnection::EncryptionInfo(Certificate* Output)
 		{
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 			VI_ASSERT(Output != nullptr, "certificate should be set");
 			VI_MEASURE(Core::Timings::Networking);
 
@@ -2297,7 +2297,7 @@ namespace Mavi
 					return false;
 				}
 			}
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 			for (auto&& It : Router->Certificates)
 			{
 				long Protocol = SSL_OP_ALL;
@@ -2538,7 +2538,7 @@ namespace Mavi
 			if (!Context || Base->Stream->Secure(Context, nullptr) == -1)
 				return false;
 
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 			int Result = SSL_set_fd(Base->Stream->GetDevice(), (int)Base->Stream->GetFd());
 			if (Result != 1)
 				return false;
@@ -2551,7 +2551,7 @@ namespace Mavi
 		}
 		bool SocketServer::TryEncryptThenBegin(SocketConnection* Base)
 		{
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 			int ErrorCode = SSL_accept(Base->Stream->GetDevice());
 			if (ErrorCode != -1)
 				return OnRequestBegin(Base);
@@ -2740,7 +2740,7 @@ namespace Mavi
 				int Result = Stream.Close(false);
 				VI_WARN("[net:%i] socket stream is still active: connection terminated", Result);
 			}
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 			if (Context != nullptr)
 			{
 				SSL_CTX_free(Context);
@@ -2789,7 +2789,7 @@ namespace Mavi
 								Done = [Future](SocketClient*, int Code) mutable { Future.Set(Code); };
 								OnConnect();
 							};
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 							if (Hostname.Secure)
 							{
 								Stage("socket ssl handshake");
@@ -2867,7 +2867,7 @@ namespace Mavi
 		void SocketClient::Encrypt(std::function<void(bool)>&& Callback)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 			Stage("ssl handshake");
 			if (Stream.GetDevice() || !Context)
 			{
@@ -2896,7 +2896,7 @@ namespace Mavi
 		}
 		void SocketClient::TryEncrypt(std::function<void(bool)>&& Callback)
 		{
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 			int ErrorCode = SSL_connect(Stream.GetDevice());
 			if (ErrorCode != -1)
 				return Callback(true);

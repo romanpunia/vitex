@@ -24,10 +24,10 @@
 #include <string>
 extern "C"
 {
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 #include <zlib.h>
 #endif
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/crypto.h>
@@ -1686,7 +1686,7 @@ namespace Mavi
 
 				if (!Response.Content.Data.empty())
 				{
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 					bool Deflate = false, Gzip = false;
 					if (Resources::ResourceCompressed(this, Response.Content.Data.size()))
 					{
@@ -1811,7 +1811,7 @@ namespace Mavi
 			}
 			bool Connection::EncryptionInfo(Certificate* Output)
 			{
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 				VI_ASSERT(Output != nullptr, "certificate should be set");
 				X509* Certificate = SSL_get_peer_certificate(Stream->GetDevice());
 				if (!Certificate)
@@ -4483,7 +4483,7 @@ namespace Mavi
 			}
 			bool Resources::ResourceCompressed(Connection* Base, size_t Size)
 			{
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				if (!Base->Route->Compression.Enabled || Size < Base->Route->Compression.MinLength)
 					return false;
@@ -4860,7 +4860,7 @@ namespace Mavi
 				}
 				Base->Response.Content.Append("</table></pre></body></html>");
 
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 				bool Deflate = false, Gzip = false;
 				if (Resources::ResourceCompressed(Base, Base->Response.Content.Data.size()))
 				{
@@ -4943,7 +4943,7 @@ namespace Mavi
 					snprintf(ContentRange, sizeof(ContentRange), "Content-Range: bytes %" PRId64 "-%" PRId64 "/%" PRId64 "\r\n", Range1, Range1 + ContentLength - 1, (int64_t)Base->Resource.Size);
 					StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error ? Base->Response.StatusCode : 206));
 				}
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 				if (Resources::ResourceCompressed(Base, (size_t)ContentLength))
 				{
 					const char* AcceptEncoding = Base->Request.GetHeader("Accept-Encoding");
@@ -5240,7 +5240,7 @@ namespace Mavi
 				{
 					if (Base->Response.Content.Data.size() >= ContentLength)
 					{
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 						z_stream ZStream;
 						ZStream.zalloc = Z_NULL;
 						ZStream.zfree = Z_NULL;
@@ -5293,7 +5293,7 @@ namespace Mavi
 					return Base->Error(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
 				}
 #endif
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 				Server* Server = Base->Root;
 				z_stream* ZStream = VI_MALLOC(z_stream, sizeof(z_stream));
 				ZStream->zalloc = Z_NULL;
@@ -5319,7 +5319,7 @@ namespace Mavi
 				VI_ASSERT(Router != nullptr, "router should be set");
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				VI_ASSERT(CStream != nullptr, "cstream should be set");
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 #define FREE_STREAMING { Core::OS::File::Close(Stream); deflateEnd(ZStream); VI_FREE(ZStream); }
 				z_stream* ZStream = (z_stream*)CStream;
             Retry:

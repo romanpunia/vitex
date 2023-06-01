@@ -4,7 +4,7 @@
 #include <iostream>
 #ifndef ANGELSCRIPT_H 
 #include <angelscript.h>
-#ifdef VI_USE_JIT
+#ifdef VI_JIT
 #include "../../supplies/angelscript/compiler/compiler.h"
 #endif
 #endif
@@ -3017,7 +3017,7 @@ namespace Mavi
 				});
 				return Stream.str();
 			});
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 			AddToStringCallback("thread", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Bindings::Thread* Source = (Bindings::Thread*)Object;
@@ -3782,7 +3782,7 @@ namespace Mavi
 			const char* File = nullptr;
 			int ColumnNumber = 0;
 			int LineNumber = Base->GetLineNumber(0, &ColumnNumber, &File);
-			for (auto& Line : Core::Stringify::Split(Context->GetStackTrace(16, 64), '\n'))
+			for (auto& Line : Core::Stringify::Split(Core::ErrorHandling::GetStackTrace(1), '\n'))
 			{
 				if (Line.empty())
 					continue;
@@ -4371,38 +4371,6 @@ namespace Mavi
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 			return (Activation)Context->GetState();
-		}
-		Core::String ImmediateContext::GetStackTrace(size_t Skips, size_t MaxFrames) const
-		{
-			Core::String Trace = Core::ErrorHandling::GetStackTrace(Skips, MaxFrames).append("\n");
-			VI_ASSERT(Context != nullptr, "context should be set");
-
-			Core::String ThreadId = Core::OS::Process::GetThreadId(std::this_thread::get_id());
-			Core::StringStream Stream;
-			Stream << "vm stack trace (most recent call last)" << (!ThreadId.empty() ? " in thread " : ":\n");
-			if (!ThreadId.empty())
-				Stream << ThreadId << ":\n";
-
-			for (asUINT TraceIdx = Context->GetCallstackSize(); TraceIdx-- > 0;)
-			{
-				asIScriptFunction* Function = Context->GetFunction(TraceIdx);
-				if (Function != nullptr)
-				{
-					Stream << "#" << TraceIdx << "   ";
-					if (Function->GetFuncType() == asFUNC_SCRIPT)
-						Stream << "source \"" << (Function->GetScriptSectionName() ? Function->GetScriptSectionName() : "") << "\", line " << Context->GetLineNumber(TraceIdx) << ", in " << Function->GetDeclaration();
-					else
-						Stream << "source { native code }, in " << Function->GetDeclaration();
-					Stream << " 0x" << Function;
-				}
-				else
-					Stream << "source { native code } [nullptr]";
-				Stream << "\n";
-			}
-
-			if (!Trace.empty())
-				Stream << Trace.substr(0, Trace.size() - 1);
-			return Stream.str();
 		}
 		int ImmediateContext::DisableSuspends()
 		{
@@ -5871,7 +5839,7 @@ namespace Mavi
 		}
 		bool VirtualMachine::IsTranslatorSupported()
 		{
-#ifdef VI_USE_JIT
+#ifdef VI_JIT
 			return true;
 #else
 			return false;
@@ -6329,7 +6297,7 @@ namespace Mavi
 			{
 				VirtualMachine* VM = Base->GetVM();
 				Core::String Details = Bindings::Exception::Pointer(Core::String(Message)).What();
-				Core::String Trace = Base->GetStackTrace(3, 64);
+				Core::String Trace = Core::ErrorHandling::GetStackTrace(1, 64);
 				if (VM != nullptr && (VM->Debugger != nullptr || VM->SaveSources))
 				{
 					int ColumnNumber = 0; const char* SectionName = "";

@@ -6,6 +6,7 @@
 #include <thread>
 #include <functional>
 #include <iostream>
+#include <fstream>
 #include <csignal>
 #include <bitset>
 #include <sys/stat.h>
@@ -17,8 +18,12 @@
 #pragma warning(disable: 4267)
 #pragma warning(disable: 4554)
 #include <concurrentqueue.h>
+#ifdef VI_BACKTRACE
 #include <backward.hpp>
-#ifdef VI_USE_FCTX
+#elif defined(VI_CXX23)
+#include <stacktrace>
+#endif
+#ifdef VI_FCTX
 #include <fcontext.h>
 #endif
 #ifdef VI_MICROSOFT
@@ -44,14 +49,14 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <dlfcn.h>
-#ifndef VI_USE_FCTX
+#ifndef VI_FCTX
 #include <ucontext.h>
 #endif
 #endif
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 #include <SDL2/SDL.h>
 #endif
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 extern "C"
 {
 #include <zlib.h>
@@ -191,67 +196,6 @@ namespace
 		else
 			strftime(Date, Size, "%Y-%m-%d %H:%M:%S", &DateTime);
 	}
-	void GetLocation(Mavi::Core::StringStream& Stream, const char* Indent, const backward::ResolvedTrace::SourceLoc& Location, void* Address = nullptr)
-	{
-		if (!Location.filename.empty())
-			Stream << Indent << "source \"" << Location.filename << "\", line " << Location.line << ", in " << Location.function;
-		else
-			Stream << Indent << "source ?, line " << Location.line << ", in " << Location.function;
-
-		if (Address != nullptr)
-			Stream << " 0x" << Address << "";
-		else
-			Stream << " nullptr";
-		Stream << "\n";
-	}
-	Mavi::Core::String GetStack(backward::StackTrace& Source)
-	{
-		size_t ThreadId = Source.thread_id();
-		backward::TraceResolver Resolver;
-		Resolver.load_stacktrace(Source);
-
-		Mavi::Core::StringStream Stream;
-		Stream << "stack trace (most recent call last)" << (ThreadId ? " in thread " : ":\n");
-		if (ThreadId)
-			Stream << ThreadId << ":\n";
-
-		for (size_t TraceIdx = Source.size(); TraceIdx > 0; --TraceIdx)
-		{
-			backward::ResolvedTrace Trace = Resolver.resolve(Source[TraceIdx - 1]);
-			Stream << "#" << Trace.idx;
-
-			bool Indentation = true;
-			if (Trace.source.filename.empty())
-			{
-				if (!Trace.object_filename.empty())
-					Stream << "   object \"" << Trace.object_filename << "\", at 0x" << Trace.addr << ", in " << Trace.object_function << "\n";
-				else
-					Stream << "   object ?, at 0x" << Trace.addr << ", in " << Trace.object_function << "\n";
-				Indentation = false;
-			}
-
-			for (size_t InlineIdx = Trace.inliners.size(); InlineIdx > 0; --InlineIdx)
-			{
-				if (!Indentation)
-					Stream << "   ";
-
-				const backward::ResolvedTrace::SourceLoc& Location = Trace.inliners[InlineIdx - 1];
-				GetLocation(Stream, " | ", Location);
-				Indentation = false;
-			}
-
-			if (Trace.source.filename.empty())
-				continue;
-
-			if (!Indentation)
-				Stream << "   ";
-
-			GetLocation(Stream, "   ", Trace.source, Trace.addr);
-		}
-
-		Mavi::Core::String Out(Stream.str());
-		return Out.substr(0, Out.size() - 1);
-	}
 #ifdef VI_APPLE
 #define SYSCTL(fname, ...) std::size_t Size{};if(fname(__VA_ARGS__,nullptr,&Size,nullptr,0))return{};Mavi::Core::Vector<char> Result(Size);if(fname(__VA_ARGS__,Result.data(),&Size,nullptr,0))return{};return Result
 	template <class T>
@@ -339,7 +283,7 @@ namespace Mavi
 
 		struct Cocontext
 		{
-#ifdef VI_USE_FCTX
+#ifdef VI_FCTX
 			fcontext_t Context = nullptr;
 			char* Stack = nullptr;
 #elif VI_MICROSOFT
@@ -351,7 +295,7 @@ namespace Mavi
 #endif
 			Cocontext()
 			{
-#ifndef VI_USE_FCTX
+#ifndef VI_FCTX
 #ifdef VI_MICROSOFT
 				Context = ConvertThreadToFiber(nullptr);
 				Main = true;
@@ -360,7 +304,7 @@ namespace Mavi
 			}
 			Cocontext(Costate* State)
 			{
-#ifdef VI_USE_FCTX
+#ifdef VI_FCTX
 				Stack = VI_MALLOC(char, sizeof(char) * State->Size);
 				Context = make_fcontext(Stack + State->Size, State->Size, [](transfer_t Transfer)
 				{
@@ -383,7 +327,7 @@ namespace Mavi
 			}
 			~Cocontext()
 			{
-#ifdef VI_USE_FCTX
+#ifdef VI_FCTX
 				VI_FREE(Stack);
 #elif VI_MICROSOFT
 				if (Main)
@@ -813,6 +757,116 @@ namespace Mavi
 		std::unordered_map<void*, std::pair<MemoryContext, size_t>>* Memory::Allocations = nullptr;
 		std::mutex* Memory::Mutex = nullptr;
 		Allocator* Memory::Base = nullptr;
+
+		StackTrace::StackTrace(size_t Skips, size_t MaxDepth)
+		{
+			Scripting::ImmediateContext* Context = Scripting::ImmediateContext::Get();
+			if (Context != nullptr)
+			{
+				size_t CallstackSize = Context->GetCallstackSize();
+				Frames.reserve(CallstackSize);
+				for (size_t i = CallstackSize; i-- > 0;)
+				{
+					int Column = 0;
+					Scripting::Function Next = Context->GetFunction(i);
+					Frame Target;
+					Target.File = (Next.GetSectionName() ? Next.GetSectionName() : "[native]");
+					Target.Function = (Next.GetDecl() ? Next.GetDecl() : "[optimized]");
+					Target.Line = Context->GetLineNumber(i, &Column);
+					Target.Column = (uint32_t)Column;
+					Target.Handle = (void*)Next.GetFunction();
+					Target.Native = false;
+					Frames.emplace_back(std::move(Target));
+				}
+			}
+#ifdef VI_BACKTRACE
+			static bool IsPreloaded = false;
+			if (!IsPreloaded)
+			{
+				backward::StackTrace EmptyStack;
+				EmptyStack.load_here();
+				backward::TraceResolver EmptyResolver;
+				EmptyResolver.load_stacktrace(EmptyStack);
+				IsPreloaded = true;
+			}
+
+			backward::StackTrace Stack;
+			Stack.load_here(MaxDepth + Skips + 3);
+			Stack.skip_n_firsts(Skips + 3);
+			Frames.reserve(Stack.size());
+
+			backward::TraceResolver Resolver;
+			Resolver.load_stacktrace(Stack);
+
+			size_t Size = Stack.size();
+			for (size_t i = 0; i < Size; i++)
+			{
+				backward::ResolvedTrace Next = Resolver.resolve(Stack[i]);
+				Frame Target;
+				Target.File = Next.source.filename.empty() ? (Next.object_filename.empty() ? "[external]" : Next.object_filename) : Next.source.filename;
+				Target.Function = Next.source.function.empty() ? "[optimized]" : Next.source.function;
+				Target.Line = (uint32_t)Next.source.line;
+				Target.Column = 0;
+				Target.Handle = Next.addr;
+				Target.Native = true;
+				if (!Next.source.function.empty() && Target.Function.back() != ')')
+					Target.Function += "()";
+				Frames.emplace_back(std::move(Target));
+			}
+#elif defined(VI_CXX23)
+			using StackTraceContainer = std::basic_stacktrace<AllocationInvoker<std::stacktrace_entry>>;
+			StackTraceContainer Stack = StackTraceContainer::current(Skips + 2, MaxDepth + Skips + 2);
+			Frames.reserve((size_t)Stack.size());
+
+			for (auto& Next : Stack)
+			{
+				Frame Target;
+				Target.File = Copy<Core::String>(Next.source_file());
+				Target.Function = Copy<Core::String>(Next.description());
+				Target.Line = (uint32_t)Next.source_line();
+				Target.Column = 0;
+				Target.Handle = (void*)Next.native_handle();
+				Target.Native = true;
+				if (Target.File.empty())
+					Target.File = "[external]";
+				if (Target.Function.empty())
+					Target.Function = "[optimized]";
+				Frames.emplace_back(std::move(Target));
+			}
+#endif
+		}
+		StackTrace::StackPtr::const_iterator StackTrace::begin() const
+		{
+			return Frames.begin();
+		}
+		StackTrace::StackPtr::const_iterator StackTrace::end() const
+		{
+			return Frames.end();
+		}
+		StackTrace::StackPtr::const_reverse_iterator StackTrace::rbegin() const
+		{
+			return Frames.rbegin();
+		}
+		StackTrace::StackPtr::const_reverse_iterator StackTrace::rend() const
+		{
+			return Frames.rend();
+		}
+		StackTrace::operator bool() const
+		{
+			return !Frames.empty();
+		}
+		const StackTrace::StackPtr& StackTrace::Range() const
+		{
+			return Frames;
+		}
+		bool StackTrace::IsEmpty() const
+		{
+			return Frames.empty();
+		}
+		size_t StackTrace::Size() const
+		{
+			return Frames.size();
+		}
 #ifndef NDEBUG
 		static thread_local std::stack<Measurement> MeasuringTree;
 		static thread_local bool IgnoreMeasuring = false;
@@ -857,12 +911,12 @@ namespace Mavi
 			Data.Origin.Line = Line;
 			Data.Type.Level = LogLevel::Error;
 			Data.Type.Fatal = true;
-			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "PANIC! %s(): %s, condition \"%s\" was not met, thread %s %s",
+			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "thread %s PANIC! %s(): %s on \"!(%s)\"\n%s",
+				OS::Process::GetThreadId(std::this_thread::get_id()).c_str(),
 				Function ? Function : "?",
 				Format ? Format : "check failed",
 				Condition ? Condition : "?",
-				OS::Process::GetThreadId(std::this_thread::get_id()).c_str(),
-				ErrorHandling::GetStackTrace(2, 64).c_str());
+				ErrorHandling::GetStackTrace(1).c_str());
 			if (HasFlag(LogOption::Dated))
 				GetDateTime(time(nullptr), Data.Message.Date, sizeof(Data.Message.Date));
 
@@ -899,12 +953,12 @@ namespace Mavi
 			Data.Origin.Line = Line;
 			Data.Type.Level = LogLevel::Error;
 			Data.Type.Fatal = true;
-			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "ASSERT %s(): %s, condition \"%s\" was not met, thread %s %s",
+			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "thread %s ASSERT %s(): %s on \"!(%s)\", %s",
+				OS::Process::GetThreadId(std::this_thread::get_id()).c_str(),
 				Function ? Function : "?",
 				Format ? Format : "assertion failed",
 				Condition ? Condition : "?",
-				OS::Process::GetThreadId(std::this_thread::get_id()).c_str(),
-				ErrorHandling::GetStackTrace(2, 64).c_str());
+				ErrorHandling::GetStackTrace(1).c_str());
 			if (HasFlag(LogOption::Dated))
 				GetDateTime(time(nullptr), Data.Message.Date, sizeof(Data.Message.Date));
 
@@ -1118,6 +1172,7 @@ namespace Mavi
 				PrettyToken(StdColor::Cyan, "in"),
 				PrettyToken(StdColor::Cyan, "of"),
 				PrettyToken(StdColor::Magenta, "query"),
+				PrettyToken(StdColor::Magenta, "vcall"),
 				PrettyToken(StdColor::Blue, "template"),
 			};
 
@@ -1307,17 +1362,27 @@ namespace Mavi
 		}
 		Core::String ErrorHandling::GetStackTrace(size_t Skips, size_t MaxFrames)
 		{
-			static bool IsPreloaded = false;
-			if (!IsPreloaded)
+			StackTrace Stack(Skips, MaxFrames);
+			if (!Stack)
+				return "  * #0 [unavailable]";
+
+			StringStream Stream;
+			size_t Size = Stack.Size();
+			for (auto& Frame : Stack)
 			{
-				IsPreloaded = true;
-				GetStackTrace(0, 8);
+				Stream << "  #" << --Size << " at " << OS::Path::GetFilename(Frame.File.c_str());
+				if (Frame.Line > 0)
+					Stream << ":" << Frame.Line;
+				if (Frame.Column > 0)
+					Stream << "," << Frame.Column;		
+				Stream << " in " << Frame.Function;
+				if (!Frame.Native)
+					Stream << " (vcall)";
+				if (Size > 0)
+					Stream << "\n";
 			}
 
-			backward::StackTrace Stack;
-			Stack.load_here(MaxFrames + Skips);
-			Stack.skip_n_firsts(Skips);
-			return GetStack(Stack);
+			return Stream.str();
 		}
 		const char* ErrorHandling::GetMessageType(const Details& Base)
 		{
@@ -6025,7 +6090,7 @@ namespace Mavi
 		}
 		void Console::Trace(uint32_t MaxFrames)
 		{
-			std::cout << ErrorHandling::GetStackTrace(2, MaxFrames) << '\n';
+			std::cout << ErrorHandling::GetStackTrace(0, MaxFrames) << '\n';
 		}
 		void Console::CaptureTime()
 		{
@@ -6648,7 +6713,7 @@ namespace Mavi
 		bool GzStream::Open(const char* File, FileMode Mode)
 		{
 			VI_ASSERT(File != nullptr, "filename should be set");
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 			VI_MEASURE(Core::Timings::FileSystem);
 			Close();
 
@@ -6685,7 +6750,7 @@ namespace Mavi
 		}
 		bool GzStream::Close()
 		{
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 			VI_MEASURE(Core::Timings::FileSystem);
 			if (Resource != nullptr)
 			{
@@ -6699,7 +6764,7 @@ namespace Mavi
 		bool GzStream::Seek(FileSeek Mode, int64_t Offset)
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 			VI_MEASURE(Core::Timings::FileSystem);
 			switch (Mode)
 			{
@@ -6719,7 +6784,7 @@ namespace Mavi
 		bool GzStream::Move(int64_t Offset)
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[gz] seek fs %i move %" PRId64, GetFd(), Offset);
 			return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
@@ -6730,7 +6795,7 @@ namespace Mavi
 		int GzStream::Flush()
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 			VI_MEASURE(Core::Timings::FileSystem);
 			return gzflush((gzFile)Resource, Z_SYNC_FLUSH);
 #else
@@ -6746,7 +6811,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[gz] fs %i read %i bytes", GetFd(), (int)Length);
 			return gzread((gzFile)Resource, Data, (unsigned int)Length);
@@ -6762,7 +6827,7 @@ namespace Mavi
 
 			va_list Args;
 			va_start(Args, Format);
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 			size_t R = (size_t)gzvprintf((gzFile)Resource, Format, Args);
 #else
 			size_t R = 0;
@@ -6776,7 +6841,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[gz] fs %i write %i bytes", GetFd(), (int)Length);
 			return gzwrite((gzFile)Resource, Data, (unsigned int)Length);
@@ -6787,7 +6852,7 @@ namespace Mavi
 		size_t GzStream::Tell()
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
-#ifdef VI_HAS_ZLIB
+#ifdef VI_ZLIB
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[gz] fs %i tell", GetFd());
 			return gztell((gzFile)Resource);
@@ -7813,7 +7878,7 @@ namespace Mavi
 		Core::String OS::Directory::GetModule()
 		{
 			VI_MEASURE(Core::Timings::FileSystem);
-#ifndef VI_HAS_SDL2
+#ifndef VI_SDL2
 #ifdef VI_MICROSOFT
 			char Buffer[MAX_PATH + 1] = { };
 			if (GetModuleFileNameA(nullptr, Buffer, MAX_PATH) == 0)
@@ -9271,7 +9336,7 @@ namespace Mavi
 
 			Cocontext* Fiber = Routine->Slave;
 			Current = Routine;
-#ifdef VI_USE_FCTX
+#ifdef VI_FCTX
 			Fiber->Context = jump_fcontext(Fiber->Context, (void*)this).fctx;
 #elif VI_MICROSOFT
 			SwitchToFiber(Fiber->Context);
@@ -9380,7 +9445,7 @@ namespace Mavi
 			Coroutine* Routine = Current;
 			if (!Routine || Routine->Master != this)
 				return -1;
-#ifdef VI_USE_FCTX
+#ifdef VI_FCTX
 			Current = nullptr;
 			jump_fcontext(Master->Context, (void*)this);
 #elif VI_MICROSOFT
@@ -9446,7 +9511,7 @@ namespace Mavi
 		}
 		void VI_COCALL Costate::ExecutionEntry(VI_CODATA)
 		{
-#ifdef VI_USE_FCTX
+#ifdef VI_FCTX
 			transfer_t* Transfer = (transfer_t*)Context;
 			Costate* State = (Costate*)Transfer->data;
 			State->Master->Context = Transfer->fctx;
@@ -9468,7 +9533,7 @@ namespace Mavi
 			}
 
 			State->Current = nullptr;
-#ifdef VI_USE_FCTX
+#ifdef VI_FCTX
 			jump_fcontext(State->Master->Context, Context);
 #elif VI_MICROSOFT
 			SwitchToFiber(State->Master->Context);

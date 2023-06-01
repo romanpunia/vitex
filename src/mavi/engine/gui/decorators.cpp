@@ -1,5 +1,5 @@
 #include "../gui.h"
-#ifdef VI_USE_RMLUI
+#ifdef VI_RMLUI
 #include <RmlUi/Core.h>
 #include <Source/Core/TransformState.h>
 

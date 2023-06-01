@@ -409,7 +409,7 @@ namespace Mavi
 		template <typename T>
 		struct AllocationType
 		{
-#ifdef VI_HAS_FAST_MEMORY
+#ifdef VI_ALLOCATOR
 			using type = AllocationInvoker<T>;
 #else
 			using type = std::allocator<T>;
@@ -584,6 +584,37 @@ namespace Mavi
 		typedef std::function<bool(char*, size_t)> SchemaReadCallback;
 		typedef std::function<bool()> ActivityCallback;
 
+		class VI_OUT StackTrace
+		{
+		public:
+			struct VI_OUT Frame
+			{
+				Core::String Function;
+				Core::String File;
+				uint32_t Line;
+				uint32_t Column;
+				void* Handle;
+				bool Native;
+			};
+
+		public:
+			typedef Core::Vector<Frame> StackPtr;
+
+		private:
+			StackPtr Frames;
+
+		public:
+			StackTrace(size_t Skips = 0, size_t MaxDepth = 64);
+			StackPtr::const_iterator begin() const;
+			StackPtr::const_iterator end() const;
+			StackPtr::const_reverse_iterator rbegin() const;
+			StackPtr::const_reverse_iterator rend() const;
+			explicit operator bool() const;
+			const StackPtr& Range() const;
+			bool IsEmpty() const;
+			size_t Size() const;
+		};
+
 		class VI_OUT_TS ErrorHandling
 		{
 		public:
@@ -634,7 +665,7 @@ namespace Mavi
 			static void SetCallback(const std::function<void(Details&)>& Callback);
 			static void SetFlag(LogOption Option, bool Active);
 			static bool HasFlag(LogOption Option);
-			static Core::String GetStackTrace(size_t Skips, size_t MaxFrames = 16);
+			static Core::String GetStackTrace(size_t Skips, size_t MaxFrames = 64);
 			static Core::String GetMeasureTrace();
 			static Tick Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS);
 			static void MeasureLoop();
@@ -1008,7 +1039,7 @@ namespace Mavi
 			{
 				return IsError() ? *(Q*)Value : Q("*no value stored*");
 			}
-#ifdef VI_HAS_FAST_MEMORY
+#ifdef VI_ALLOCATOR
 			template <typename Q>
 			inline typename std::enable_if<std::is_same<Core::String, Q>::value, Core::String>::type GetErrorText() const
 			{
@@ -4048,7 +4079,7 @@ namespace Mavi
 			return Result;
 		}
 #endif
-#ifdef VI_HAS_FAST_MEMORY
+#ifdef VI_ALLOCATOR
 		template <typename O, typename I>
 		inline O Copy(const I& Other)
 		{

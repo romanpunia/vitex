@@ -2,11 +2,11 @@
 #include "../graphics/d3d11.h"
 #include "../graphics/ogl.h"
 #include "../graphics/dynamic/shaders.hpp"
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
 #endif
-#ifdef VI_HAS_SPIRV
+#ifdef VI_SPIRV
 #include <spirv_cross/spirv.hpp>
 #include <spirv_cross/spirv_glsl.hpp>
 #include <spirv_cross/spirv_hlsl.hpp>
@@ -153,7 +153,7 @@ namespace
 #ifdef VI_MICROSOFT
 		return Mavi::Graphics::RenderBackend::D3D11;
 #endif
-#ifdef VI_HAS_GL
+#ifdef VI_GL
 		return Mavi::Graphics::RenderBackend::OGL;
 #endif
 		return Mavi::Graphics::RenderBackend::None;
@@ -201,7 +201,7 @@ namespace Mavi
 		}
 		void Alert::Dispatch()
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			if (View == AlertType::None || !Waiting)
 				return;
 
@@ -254,7 +254,7 @@ namespace Mavi
 		}
 		Surface::~Surface() noexcept
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			if (Handle != nullptr)
 			{
 				SDL_FreeSurface(Handle);
@@ -264,7 +264,7 @@ namespace Mavi
 		}
 		void Surface::SetHandle(SDL_Surface* From)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			if (Handle != nullptr)
 				SDL_FreeSurface(Handle);
 #endif
@@ -272,19 +272,19 @@ namespace Mavi
 		}
 		void Surface::Lock()
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			SDL_LockSurface(Handle);
 #endif
 		}
 		void Surface::Unlock()
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			SDL_UnlockSurface(Handle);
 #endif
 		}
 		int Surface::GetWidth() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "handle should be set");
 			return Handle->w;
 #else
@@ -293,7 +293,7 @@ namespace Mavi
 		}
 		int Surface::GetHeight() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "handle should be set");
 			return Handle->h;
 #else
@@ -302,7 +302,7 @@ namespace Mavi
 		}
 		int Surface::GetPitch() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "handle should be set");
 			return Handle->pitch;
 #else
@@ -311,7 +311,7 @@ namespace Mavi
 		}
 		void* Surface::GetPixels() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "handle should be set");
 			return Handle->pixels;
 #else
@@ -1220,7 +1220,7 @@ namespace Mavi
 		{
 			if (!HLSL || HLSL->empty())
 				return true;
-#ifdef VI_HAS_SPIRV
+#ifdef VI_SPIRV
 			const char* Buffer = HLSL->c_str();
 			int Size = (int)HLSL->size();
 
@@ -1678,7 +1678,7 @@ namespace Mavi
 		Surface* GraphicsDevice::CreateSurface(Texture2D* Base)
 		{
 			VI_ASSERT(Base != nullptr, "texture should be set");
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			int Width = (int)Base->GetWidth();
 			int Height = (int)Base->GetHeight();
 			int BytesPerPixel = GetFormatSize(Base->GetFormatMode());
@@ -1801,7 +1801,7 @@ namespace Mavi
 			if (I.Backend == RenderBackend::D3D11)
 				return new D3D11::D3D11Device(I);
 #endif
-#ifdef VI_HAS_GL
+#ifdef VI_GL
 			if (I.Backend == RenderBackend::OGL)
 				return new OGL::OGLDevice(I);
 #endif
@@ -1847,7 +1847,7 @@ namespace Mavi
 
 		Activity::Activity(const Desc& I) noexcept : Handle(nullptr), Favicon(nullptr), Options(I), Command(0), CX(0), CY(0), Message(this)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			Cursors[(size_t)DisplayCursor::Arrow] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
 			Cursors[(size_t)DisplayCursor::TextInput] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_IBEAM);
 			Cursors[(size_t)DisplayCursor::ResizeAll] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEALL);
@@ -1868,7 +1868,7 @@ namespace Mavi
 		}
 		Activity::~Activity() noexcept
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			for (size_t i = 0; i < (size_t)DisplayCursor::Count; i++)
 				SDL_FreeCursor(Cursors[i]);
 
@@ -1881,7 +1881,7 @@ namespace Mavi
 		}
 		void Activity::ApplySystemTheme()
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 #ifdef VI_MICROSOFT
 			OSVERSIONINFOEX Version;
 			ZeroMemory(&Version, sizeof(OSVERSIONINFOEX));
@@ -1926,14 +1926,14 @@ namespace Mavi
 		}
 		void Activity::SetClipboardText(const Core::String& Text)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			SDL_SetClipboardText(Text.c_str());
 #endif
 		}
 		void Activity::SetCursorPosition(const Compute::Vector2& Position)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			SDL_WarpMouseInWindow(Handle, (int)Position.X, (int)Position.Y);
@@ -1942,7 +1942,7 @@ namespace Mavi
 		}
 		void Activity::SetCursorPosition(float X, float Y)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			SDL_WarpMouseInWindow(Handle, (int)X, (int)Y);
@@ -1951,7 +1951,7 @@ namespace Mavi
 		}
 		void Activity::SetGlobalCursorPosition(const Compute::Vector2& Position)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 			SDL_WarpMouseGlobal((int)Position.X, (int)Position.Y);
@@ -1960,7 +1960,7 @@ namespace Mavi
 		}
 		void Activity::SetGlobalCursorPosition(float X, float Y)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 			SDL_WarpMouseGlobal((int)X, (int)Y);
@@ -1973,7 +1973,7 @@ namespace Mavi
 		}
 		void Activity::SetCursor(DisplayCursor Style)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT((size_t)Style <= (size_t)DisplayCursor::Count, "style should be less than %i", (int)DisplayCursor::Count);
 			if (Style != DisplayCursor::None)
 			{
@@ -1989,35 +1989,35 @@ namespace Mavi
 		}
 		void Activity::SetCursorVisibility(bool Enabled)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			SDL_ShowCursor(Enabled);
 #endif
 		}
 		void Activity::SetGrabbing(bool Enabled)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			SDL_SetWindowGrab(Handle, Enabled ? SDL_TRUE : SDL_FALSE);
 #endif
 		}
 		void Activity::SetFullscreen(bool Enabled)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			SDL_SetWindowFullscreen(Handle, Enabled ? SDL_WINDOW_FULLSCREEN : 0);
 #endif
 		}
 		void Activity::SetBorderless(bool Enabled)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			SDL_SetWindowBordered(Handle, Enabled ? SDL_TRUE : SDL_FALSE);
 #endif
 		}
 		void Activity::SetScreenKeyboard(bool Enabled)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			if (!SDL_HasScreenKeyboardSupport())
 				return;
@@ -2030,7 +2030,7 @@ namespace Mavi
 		}
 		void Activity::BuildLayer(RenderBackend Backend)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			if (Handle != nullptr)
 			{
 				SDL_DestroyWindow(Handle);
@@ -2089,35 +2089,35 @@ namespace Mavi
 		}
 		void Activity::Hide()
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			SDL_HideWindow(Handle);
 #endif
 		}
 		void Activity::Show()
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			SDL_ShowWindow(Handle);
 #endif
 		}
 		void Activity::Maximize()
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			SDL_MaximizeWindow(Handle);
 #endif
 		}
 		void Activity::Minimize()
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			SDL_MinimizeWindow(Handle);
 #endif
 		}
 		void Activity::Focus()
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 #if SDL_VERSION_ATLEAST(2, 0, 5)
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			SDL_SetWindowInputFocus(Handle);
@@ -2126,21 +2126,21 @@ namespace Mavi
 		}
 		void Activity::Move(int X, int Y)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			SDL_SetWindowPosition(Handle, X, Y);
 #endif
 		}
 		void Activity::Resize(int W, int H)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			SDL_SetWindowSize(Handle, W, H);
 #endif
 		}
 		void Activity::SetTitle(const char* Value)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			VI_ASSERT(Value != nullptr, "value should be set");
 			SDL_SetWindowTitle(Handle, Value);
@@ -2148,7 +2148,7 @@ namespace Mavi
 		}
 		void Activity::SetIcon(Surface* Icon)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			if (!Favicon)
 				Favicon = SDL_GetWindowSurface(Handle);
@@ -2158,7 +2158,7 @@ namespace Mavi
 		}
 		void Activity::Load(SDL_SysWMinfo* Base)
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			VI_ASSERT(Base != nullptr, "base should be set");
 			SDL_VERSION(&Base->version);
@@ -2171,7 +2171,7 @@ namespace Mavi
 			VI_MEASURE(Core::Timings::Mixed);
 
 			memcpy((void*)Keys[1], (void*)Keys[0], sizeof(Keys[0]));
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			int Id = SDL_GetWindowID(Handle);
 			Command = (int)SDL_GetModState();
 			GetInputState();
@@ -2607,7 +2607,7 @@ namespace Mavi
 		}
 		bool Activity::IsFullscreen() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			Uint32 Flags = SDL_GetWindowFlags(Handle);
 			return Flags & SDL_WINDOW_FULLSCREEN || Flags & SDL_WINDOW_FULLSCREEN_DESKTOP;
@@ -2627,7 +2627,7 @@ namespace Mavi
 		}
 		bool Activity::IsKeyDown(const KeyMap& Key) const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			if (Key.Mod == KeyMod::None)
 				return Keys[0][(size_t)Key.Key];
 
@@ -2645,7 +2645,7 @@ namespace Mavi
 		}
 		bool Activity::IsKeyDownHit(const KeyMap& Key) const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			if (Key.Mod == KeyMod::None)
 				return Keys[0][(size_t)Key.Key] && !Keys[1][(size_t)Key.Key];
 
@@ -2659,7 +2659,7 @@ namespace Mavi
 		}
 		bool Activity::IsKeyUpHit(const KeyMap& Key) const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			if (Key.Mod == KeyMod::None)
 				return !Keys[0][(size_t)Key.Key] && Keys[1][(size_t)Key.Key];
 
@@ -2673,7 +2673,7 @@ namespace Mavi
 		}
 		bool Activity::IsScreenKeyboardEnabled() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			return SDL_IsScreenKeyboardShown(Handle);
 #else
@@ -2682,7 +2682,7 @@ namespace Mavi
 		}
 		uint32_t Activity::GetX() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 
 			int X, Y;
@@ -2694,7 +2694,7 @@ namespace Mavi
 		}
 		uint32_t Activity::GetY() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 
 			int X, Y;
@@ -2706,7 +2706,7 @@ namespace Mavi
 		}
 		uint32_t Activity::GetWidth() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 
 			int W, H;
@@ -2718,7 +2718,7 @@ namespace Mavi
 		}
 		uint32_t Activity::GetHeight() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 
 			int W, H;
@@ -2730,7 +2730,7 @@ namespace Mavi
 		}
 		float Activity::GetAspectRatio() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 
 			int W, H;
@@ -2742,7 +2742,7 @@ namespace Mavi
 		}
 		KeyMod Activity::GetKeyModState() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			return (KeyMod)SDL_GetModState();
 #else
@@ -2751,7 +2751,7 @@ namespace Mavi
 		}
 		Viewport Activity::GetViewport() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 
 			int W, H;
@@ -2771,7 +2771,7 @@ namespace Mavi
 		}
 		Compute::Vector2 Activity::GetSize() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 
 			int W, H;
@@ -2783,7 +2783,7 @@ namespace Mavi
 		}
 		Compute::Vector2 Activity::GetClientSize() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 
 			int W, H;
@@ -2795,7 +2795,7 @@ namespace Mavi
 		}
 		Compute::Vector2 Activity::GetOffset() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 
 			SDL_DisplayMode Display;
@@ -2808,7 +2808,7 @@ namespace Mavi
 		}
 		Compute::Vector2 Activity::GetGlobalCursorPosition() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 			int X, Y;
@@ -2823,7 +2823,7 @@ namespace Mavi
 		}
 		Compute::Vector2 Activity::GetCursorPosition() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 			int X, Y;
@@ -2839,7 +2839,7 @@ namespace Mavi
 		}
 		Compute::Vector2 Activity::GetCursorPosition(float ScreenWidth, float ScreenHeight) const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			Compute::Vector2 Size = GetSize();
 			return GetCursorPosition() * Compute::Vector2(ScreenWidth, ScreenHeight) / Size;
 #else
@@ -2848,7 +2848,7 @@ namespace Mavi
 		}
 		Compute::Vector2 Activity::GetCursorPosition(const Compute::Vector2& ScreenDimensions) const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			Compute::Vector2 Size = GetSize();
 			return GetCursorPosition() * ScreenDimensions / Size;
 #else
@@ -2857,7 +2857,7 @@ namespace Mavi
 		}
 		Core::String Activity::GetClipboardText() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			char* Text = SDL_GetClipboardText();
 			Core::String Result = (Text ? Text : "");
@@ -2867,7 +2867,7 @@ namespace Mavi
 
 			return Result;
 #else
-			return nullptr;
+			return Core::String();
 #endif
 		}
 		SDL_Window* Activity::GetHandle() const
@@ -2876,7 +2876,7 @@ namespace Mavi
 		}
 		Core::String Activity::GetError() const
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			const char* Error = SDL_GetError();
 			if (!Error)
@@ -2893,7 +2893,7 @@ namespace Mavi
 		}
 		bool* Activity::GetInputState()
 		{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 			int Count;
 			auto* Map = SDL_GetKeyboardState(&Count);
 			if (Count > sizeof(Keys[0]) / sizeof(bool))

@@ -60,8 +60,8 @@ if (FCTX_BIN STREQUAL mach-o)
 endif()
 set(FCTX_SUFFIX ${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM})
 if (EXISTS ${PROJECT_SOURCE_DIR}/src/supplies/fcontext/make_${FCTX_SUFFIX}${FCTX_EXT})
-    set(VI_USE_FCTX ON CACHE BOOL "Enable fcontext implementation for coroutines (otherwise ucontext or WinAPI)")
-    if (VI_USE_FCTX)
+    set(VI_FCTX ON CACHE BOOL "Enable fcontext implementation for coroutines (otherwise ucontext or WinAPI)")
+    if (VI_FCTX)
         set(FCTX_SOURCES
             ${PROJECT_SOURCE_DIR}/src/supplies/fcontext/fcontext.h
             ${PROJECT_SOURCE_DIR}/src/supplies/fcontext/make_${FCTX_SUFFIX}${FCTX_EXT}
@@ -73,7 +73,7 @@ if (EXISTS ${PROJECT_SOURCE_DIR}/src/supplies/fcontext/make_${FCTX_SUFFIX}${FCTX
         message(STATUS "Async fcontext implementation: ucontext or WinAPI")
     endif()
 else()
-    set(VI_USE_FCTX OFF CACHE BOOL "FContext is unavailable")
+    set(VI_FCTX OFF CACHE BOOL "FContext is unavailable")
     message("Async fcontext is unavailable on ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_PROCESSOR}. Fallback to ucontext or WinAPI")
 endif()
 unset(FCTX_BIN)

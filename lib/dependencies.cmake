@@ -11,7 +11,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT MSVC)
 endif()
 
 #Resolve headers and compile options for Bullet3
-if (VI_USE_BULLET3)
+if (VI_BULLET3)
 	target_include_directories(mavi PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/bullet3)
 	target_include_directories(mavi PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/bullet3/BulletCollision/BroadphaseCollision)
 	target_include_directories(mavi PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/bullet3/BulletCollision/CollisionDispatch)
@@ -29,8 +29,8 @@ if (VI_USE_BULLET3)
 	target_include_directories(mavi PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/bullet3/LinearMath/TaskScheduler)
 	target_compile_definitions(mavi PRIVATE
 		-DBT_NO_PROFILE
-		-DVI_USE_BULLET3)
-	target_compile_definitions(mavi PUBLIC -DVI_USE_BULLET3)
+		-DVI_BULLET3)
+	target_compile_definitions(mavi PUBLIC -DVI_BULLET3)
 	if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 		target_compile_definitions(mavi PRIVATE -DBT_NO_SIMD_OPERATOR_OVERLOADS)
 	endif()
@@ -43,17 +43,17 @@ if (VI_USE_BULLET3)
 endif()
 
 #Resolve headers and compile options for RmlUI
-if (VI_USE_RMLUI)
+if (VI_RMLUI)
 	target_include_directories(mavi PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/rmlui)
 	target_include_directories(mavi PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/rmlui/Include)
 	target_compile_definitions(mavi PRIVATE
 			-DRMLUI_STATIC_LIB
 			-DRMLUI_MATRIX_ROW_MAJOR
             -DRMLUI_CUSTOM_CONFIGURATION_FILE="${PROJECT_SOURCE_DIR}/src/mavi/engine/gui/config.hpp")
-	target_compile_definitions(mavi PUBLIC -DVI_USE_RMLUI)
+	target_compile_definitions(mavi PUBLIC -DVI_RMLUI)
 		
 	#Resolve default font engine
-	if (NOT VI_USE_FREETYPE OR (NOT Freetype_FOUND AND NOT FREETYPE_LIBRARIES))
+	if (NOT VI_FREETYPE OR (NOT Freetype_FOUND AND NOT FREETYPE_LIBRARIES))
 		target_compile_definitions(mavi PRIVATE -DRMLUI_NO_FONT_INTERFACE_DEFAULT)
 	else()
 		unset(Freetype_FOUND CACHE)
@@ -62,23 +62,23 @@ if (VI_USE_RMLUI)
 endif()
 
 #Resolve headers and compile options for VCL
-if (VI_USE_SIMD)
+if (VI_SIMD)
 	target_include_directories(mavi PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/vcl)
-	target_compile_definitions(mavi PUBLIC -DVI_USE_SIMD)
+	target_compile_definitions(mavi PUBLIC -DVI_SIMD)
 endif()
 
 #Resolve headers and compile options for Wepoll
 if (WIN32)
 	target_include_directories(mavi PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/wepoll)
-	target_compile_definitions(mavi PUBLIC -DVI_USE_WEPOLL)
+	target_compile_definitions(mavi PUBLIC -DVI_WEPOLL)
 endif()
 
 #Resolve headers for FContext
 target_include_directories(mavi PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/fcontext)
-if (VI_USE_FCTX)
+if (VI_FCTX)
 	target_compile_definitions(mavi PRIVATE
 			-DBOOST_CONTEXT_EXPORT
-			-DVI_USE_FCTX)
+			-DVI_FCTX)
 	if (MSVC)
 		set_source_files_properties(${FCTX_SOURCE_ASSEMBLY} PROPERTIES COMPILE_FLAGS "/safeseh")
 	endif()

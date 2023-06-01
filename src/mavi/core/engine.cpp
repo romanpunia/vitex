@@ -7,7 +7,7 @@
 #include "../network/pdb.h"
 #include "../audio/effects.h"
 #include "../audio/filters.h"
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 #include <SDL2/SDL_syswm.h>
 #undef Complex
 #endif
@@ -6133,7 +6133,7 @@ namespace Mavi
 			if (!ReadAppData(Path))
 			{
 				Safe.unlock();
-				return nullptr;
+				return Core::String();
 			}
 
 			Core::Variant Result = Data->GetVar(Name);
@@ -6203,7 +6203,7 @@ namespace Mavi
 			VI_CLEAR(Scene);
 			VI_CLEAR(VM);
 			VI_CLEAR(Audio);
-#ifdef VI_USE_RMLUI
+#ifdef VI_RMLUI
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
 				Engine::GUI::Subsystem::Release();
 #endif
@@ -6288,7 +6288,7 @@ namespace Mavi
 
 			if (Control.Usage & (size_t)ApplicationSet::ActivitySet)
 			{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 				if (!Control.Activity.Width || !Control.Activity.Height)
 				{
 					SDL_DisplayMode Display;
@@ -6336,7 +6336,7 @@ namespace Mavi
 				Activity->SetCursorVisibility(Control.Cursor);
 				Activity->Callbacks.KeyState = [this](Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
 				{
-#ifdef VI_USE_RMLUI
+#ifdef VI_RMLUI
 					GUI::Context* GUI = GetGUI();
 					if (GUI != nullptr)
 						GUI->EmitKey(Key, Mod, Virtual, Repeat, Pressed);
@@ -6347,7 +6347,7 @@ namespace Mavi
 				{
 					if (!Buffer)
 						return;
-#ifdef VI_USE_RMLUI
+#ifdef VI_RMLUI
 					GUI::Context* GUI = GetGUI();
 					if (GUI != nullptr)
 						GUI->EmitInput(Buffer, Length);
@@ -6356,7 +6356,7 @@ namespace Mavi
 				};
 				Activity->Callbacks.CursorWheelState = [this](int X, int Y, bool Normal)
 				{
-#ifdef VI_USE_RMLUI
+#ifdef VI_RMLUI
 					GUI::Context* GUI = GetGUI();
 					if (GUI != nullptr)
 						GUI->EmitWheel(X, Y, Normal, Activity->GetKeyModState());
@@ -6365,7 +6365,7 @@ namespace Mavi
 				};
 				Activity->Callbacks.WindowStateChange = [this](Graphics::WindowState NewState, int X, int Y)
 				{
-#ifdef VI_USE_RMLUI
+#ifdef VI_RMLUI
 					if (NewState == Graphics::WindowState::Resize)
 					{
 						GUI::Context* GUI = GetGUI();
@@ -6387,7 +6387,7 @@ namespace Mavi
 
 			if (Activity != nullptr && Renderer != nullptr && Constants != nullptr && Content != nullptr)
 			{
-#ifdef VI_USE_RMLUI
+#ifdef VI_RMLUI
 				GUI::Subsystem::SetMetadata(Activity, Constants, Content, nullptr);
 				GUI::Subsystem::SetVirtualMachine(VM);
 #endif
@@ -6416,7 +6416,7 @@ namespace Mavi
 			Core::Timer* Time = new Core::Timer();
 			Time->SetFixedFrames(Control.Framerate.Stable);
 			Time->SetMaxFrames(Control.Framerate.Limit);
-#ifdef VI_USE_RMLUI
+#ifdef VI_RMLUI
 			if (Activity != nullptr && Renderer != nullptr && Constants != nullptr && Content != nullptr)
 				GUI::Subsystem::SetMetadata(Activity, Constants, Content, Time);
 #endif
@@ -6519,7 +6519,7 @@ namespace Mavi
 		}
 		GUI::Context* Application::GetGUI() const
 		{
-#ifdef VI_USE_RMLUI
+#ifdef VI_RMLUI
 			if (!Scene)
 				return nullptr;
 

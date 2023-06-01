@@ -3,18 +3,18 @@
 #include "renderers.h"
 #include "../network/http.h"
 #include <stb_vorbis.h>
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 #ifdef VI_AL_AT_OPENAL
 #include <OpenAL/al.h>
 #else
 #include <AL/al.h>
 #endif
 #endif
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
 #endif
-#ifdef VI_HAS_ASSIMP
+#ifdef VI_ASSIMP
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/matrix4x4.h>
@@ -33,7 +33,7 @@ namespace Mavi
 	{
 		namespace Processors
 		{
-#ifdef VI_HAS_ASSIMP
+#ifdef VI_ASSIMP
 			Compute::Matrix4x4 FromAssimpMatrix(const aiMatrix4x4& Root)
 			{
 				return Compute::Matrix4x4(
@@ -1141,7 +1141,7 @@ namespace Mavi
 			void* AudioClipProcessor::DeserializeWAVE(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 				Core::Vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{
@@ -1159,7 +1159,7 @@ namespace Mavi
 					return nullptr;
 
 				int Format = 0;
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 				switch (WavInfo.format)
 				{
 					case AUDIO_U8:
@@ -1213,7 +1213,7 @@ namespace Mavi
 				}
 
 				int Format = 0;
-#ifdef VI_HAS_OPENAL
+#ifdef VI_OPENAL
 				if (Channels == 2)
 					Format = AL_FORMAT_STEREO16;
 				else
@@ -1496,7 +1496,7 @@ namespace Mavi
 			ModelInfo ModelProcessor::ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts)
 			{
 				ModelInfo Info;
-#ifdef VI_HAS_ASSIMP
+#ifdef VI_ASSIMP
 				Core::Vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{
@@ -1766,7 +1766,7 @@ namespace Mavi
 			Core::Vector<Compute::SkinAnimatorClip> SkinAnimationProcessor::ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts)
 			{
 				Core::Vector<Compute::SkinAnimatorClip> Info;
-#ifdef VI_HAS_ASSIMP
+#ifdef VI_ASSIMP
 				Core::Vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{

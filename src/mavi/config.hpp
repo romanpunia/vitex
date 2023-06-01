@@ -15,7 +15,7 @@
 #ifdef _WIN64
 #define VI_64 1
 #endif
-#ifdef VI_USE_FCTX
+#ifdef VI_FCTX
 #define VI_COCALL
 #define VI_CODATA void* Context
 #else
@@ -38,7 +38,7 @@ typedef void* epoll_handle;
 #if __x86_64__ || __ppc64__
 #define VI_64 1
 #endif
-#ifdef VI_USE_FCTX
+#ifdef VI_FCTX
 #define VI_COCALL
 #define VI_CODATA void* Context
 #else
@@ -76,7 +76,7 @@ typedef socklen_t socket_size_t;
 #if __x86_64__ || __ppc64__
 #define VI_64 1
 #endif
-#ifdef VI_USE_FCTX
+#ifdef VI_FCTX
 #define VI_COCALL
 #define VI_CODATA void* Context
 #else
@@ -97,6 +97,11 @@ typedef socklen_t socket_size_t;
 #if VI_CXX >= 20
 #if __cplusplus >= 202002L || _MSVC_LANG >= 202002L || defined(_HAS_CXX20)
 #define VI_CXX20 1
+#endif
+#endif
+#if VI_CXX >= 23
+#if __cplusplus >= 202004L || _MSVC_LANG >= 202004L || defined(_HAS_CXX23)
+#define VI_CXX23 1
 #endif
 #endif
 #if defined(VI_CXX17) && defined(VI_MICROSOFT)

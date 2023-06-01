@@ -25,7 +25,7 @@
 #endif
 extern "C"
 {
-#ifdef VI_HAS_OPENSSL
+#ifdef VI_OPENSSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/crypto.h>

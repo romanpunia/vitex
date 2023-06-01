@@ -1,7 +1,7 @@
 #include "mdb.h"
 extern "C"
 {
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 #include <mongoc.h>
 #endif
 }
@@ -14,7 +14,7 @@ namespace Mavi
 	{
 		namespace MDB
 		{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 			typedef enum
 			{
 				BSON_FLAG_NONE = 0,
@@ -104,7 +104,7 @@ namespace Mavi
 				Number = Other.Number;
 				Boolean = Other.Boolean;
 				IsValid = Other.IsValid;
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (Other.Source != nullptr)
 					Source = bson_copy(Other.Source);
 				else
@@ -172,7 +172,7 @@ namespace Mavi
 						return String.assign("undefined");
 					case Type::Decimal:
 					{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 						bson_decimal128_t Decimal;
 						Decimal.high = (uint64_t)High;
 						Decimal.low = (uint64_t)Low;
@@ -209,7 +209,7 @@ namespace Mavi
 
 			bool Util::GetId(unsigned char* Id12)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Id12 != nullptr, "id should be set");
 				bson_oid_t ObjectId;
 				bson_oid_init(&ObjectId, nullptr);
@@ -225,7 +225,7 @@ namespace Mavi
 				VI_ASSERT(Value != nullptr, "value should be set");
 				VI_ASSERT(High != nullptr, "high should be set");
 				VI_ASSERT(Low != nullptr, "low should be set");
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				bson_decimal128_t Decimal;
 				if (!bson_decimal128_from_string(Value, &Decimal))
 					return false;
@@ -239,7 +239,7 @@ namespace Mavi
 			}
 			unsigned int Util::GetHashId(unsigned char* Id12)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Id12 != nullptr, "id should be set");
 
 				bson_oid_t Id;
@@ -251,7 +251,7 @@ namespace Mavi
 			}
 			int64_t Util::GetTimeId(unsigned char* Id12)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Id12 != nullptr, "id should be set");
 
 				bson_oid_t Id;
@@ -264,7 +264,7 @@ namespace Mavi
 			}
 			Core::String Util::IdToString(unsigned char* Id12)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Id12 != nullptr, "id should be set");
 
 				bson_oid_t Id;
@@ -281,7 +281,7 @@ namespace Mavi
 			Core::String Util::StringToId(const Core::String& Id24)
 			{
 				VI_ASSERT(Id24.size() == 24, "id should be 24 chars long");
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				bson_oid_t Id;
 				bson_oid_init_from_string(&Id, Id24.c_str());
 
@@ -317,7 +317,7 @@ namespace Mavi
 			}
 			void Document::Cleanup()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base || Store)
 					return;
 
@@ -330,7 +330,7 @@ namespace Mavi
 			}
 			void Document::Join(const Document& Value)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				VI_ASSERT(Value.Base != nullptr, "other schema should be set");
 				bson_concat((bson_t*)Base, (bson_t*)Value.Base);
@@ -340,7 +340,7 @@ namespace Mavi
 			{
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				VI_ASSERT(Callback, "callback should be set");
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				bson_iter_t It;
 				if (!bson_iter_init(&It, Base))
 					return;
@@ -356,7 +356,7 @@ namespace Mavi
 			}
 			bool Document::SetSchema(const char* Key, const Document& Value, size_t ArrayId)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				VI_ASSERT(Value.Base != nullptr, "other schema should be set");
 
@@ -371,7 +371,7 @@ namespace Mavi
 			}
 			bool Document::SetArray(const char* Key, const Document& Value, size_t ArrayId)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				VI_ASSERT(Value.Base != nullptr, "other schema should be set");
 
@@ -386,7 +386,7 @@ namespace Mavi
 			}
 			bool Document::SetString(const char* Key, const char* Value, size_t ArrayId)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				VI_ASSERT(Value != nullptr, "value should be set");
 
@@ -401,7 +401,7 @@ namespace Mavi
 			}
 			bool Document::SetBlob(const char* Key, const char* Value, size_t Length, size_t ArrayId)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				VI_ASSERT(Value != nullptr, "value should be set");
 
@@ -416,7 +416,7 @@ namespace Mavi
 			}
 			bool Document::SetInteger(const char* Key, int64_t Value, size_t ArrayId)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
@@ -430,7 +430,7 @@ namespace Mavi
 			}
 			bool Document::SetNumber(const char* Key, double Value, size_t ArrayId)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
@@ -444,7 +444,7 @@ namespace Mavi
 			}
 			bool Document::SetDecimal(const char* Key, uint64_t High, uint64_t Low, size_t ArrayId)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
@@ -462,7 +462,7 @@ namespace Mavi
 			}
 			bool Document::SetDecimalString(const char* Key, const Core::String& Value, size_t ArrayId)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
@@ -479,7 +479,7 @@ namespace Mavi
 			}
 			bool Document::SetDecimalInteger(const char* Key, int64_t Value, size_t ArrayId)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
@@ -499,7 +499,7 @@ namespace Mavi
 			}
 			bool Document::SetDecimalNumber(const char* Key, double Value, size_t ArrayId)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
@@ -522,7 +522,7 @@ namespace Mavi
 			}
 			bool Document::SetBoolean(const char* Key, bool Value, size_t ArrayId)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
@@ -536,7 +536,7 @@ namespace Mavi
 			}
 			bool Document::SetObjectId(const char* Key, unsigned char Value[12], size_t ArrayId)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				bson_oid_t ObjectId;
@@ -553,7 +553,7 @@ namespace Mavi
 			}
 			bool Document::SetNull(const char* Key, size_t ArrayId)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
@@ -567,7 +567,7 @@ namespace Mavi
 			}
 			bool Document::SetProperty(const char* Key, Property* Value, size_t ArrayId)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				VI_ASSERT(Value != nullptr, "property should be set");
 
@@ -602,7 +602,7 @@ namespace Mavi
 			}
 			bool Document::HasProperty(const char* Key) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				VI_ASSERT(Key != nullptr, "key should be set");
 				return bson_has_field(Base, Key);
@@ -612,7 +612,7 @@ namespace Mavi
 			}
 			bool Document::GetProperty(const char* Key, Property* Output) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				VI_ASSERT(Key != nullptr, "key should be set");
 				VI_ASSERT(Output != nullptr, "property should be set");
@@ -628,7 +628,7 @@ namespace Mavi
 			}
 			bool Document::Clone(void* It, Property* Output)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(It != nullptr, "iterator should be set");
 				VI_ASSERT(Output != nullptr, "property should be set");
 
@@ -735,7 +735,7 @@ namespace Mavi
 			}
 			size_t Document::Count() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base)
 					return 0;
 
@@ -746,7 +746,7 @@ namespace Mavi
 			}
 			Core::String Document::ToRelaxedJSON() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				size_t Length = 0;
 				char* Value = bson_as_relaxed_extended_json(Base, &Length);
@@ -762,7 +762,7 @@ namespace Mavi
 			}
 			Core::String Document::ToExtendedJSON() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				size_t Length = 0;
 				char* Value = bson_as_canonical_extended_json(Base, &Length);
@@ -778,7 +778,7 @@ namespace Mavi
 			}
 			Core::String Document::ToJSON() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				size_t Length = 0;
 				char* Value = bson_as_json(Base, &Length);
@@ -794,7 +794,7 @@ namespace Mavi
 			}
 			Core::String Document::ToIndices() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				char* Value = mongoc_collection_keys_to_index_string(Base);
 				if (!Value)
@@ -810,7 +810,7 @@ namespace Mavi
 			}
 			Core::Schema* Document::ToSchema(bool IsArray) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base)
 					return nullptr;
 
@@ -865,7 +865,7 @@ namespace Mavi
 			}
 			TDocument* Document::Get() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				return Base;
 #else
 				return nullptr;
@@ -873,7 +873,7 @@ namespace Mavi
 			}
 			Document Document::Copy() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base)
 					return nullptr;
 
@@ -889,7 +889,7 @@ namespace Mavi
 			}
 			Document Document::FromDocument(Core::Schema* Src)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Src != nullptr && Src->Value.IsObject(), "schema should be set");
 				bool Array = (Src->Value.GetType() == Core::VarType::Array);
 				Document Result = bson_new();
@@ -947,7 +947,7 @@ namespace Mavi
 			}
 			Document Document::FromEmpty()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				return bson_new();
 #else
 				return nullptr;
@@ -955,7 +955,7 @@ namespace Mavi
 			}
 			Document Document::FromJSON(const Core::String& JSON)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
@@ -974,7 +974,7 @@ namespace Mavi
 			}
 			Document Document::FromBuffer(const unsigned char* Buffer, size_t Length)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 				return bson_new_from_data(Buffer, Length);
 #else
@@ -983,7 +983,7 @@ namespace Mavi
 			}
 			Document Document::FromSource(TDocument* Src)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Src != nullptr, "src should be set");
 				TDocument* Dest = bson_new();
 				bson_steal((bson_t*)Dest, (bson_t*)Src);
@@ -1002,7 +1002,7 @@ namespace Mavi
 			}
 			Address::~Address()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (Base != nullptr)
 					mongoc_uri_destroy(Base);
 				Base = nullptr;
@@ -1013,7 +1013,7 @@ namespace Mavi
 				if (&Other == this)
 					return *this;
 
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (Base != nullptr)
 					mongoc_uri_destroy(Base);
 #endif
@@ -1023,7 +1023,7 @@ namespace Mavi
 			}
 			void Address::SetOption(const char* Name, int64_t Value)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				VI_ASSERT(Name != nullptr, "name should be set");
 
@@ -1032,7 +1032,7 @@ namespace Mavi
 			}
 			void Address::SetOption(const char* Name, bool Value)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				VI_ASSERT(Name != nullptr, "name should be set");
 
@@ -1041,7 +1041,7 @@ namespace Mavi
 			}
 			void Address::SetOption(const char* Name, const char* Value)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				VI_ASSERT(Name != nullptr, "name should be set");
 				VI_ASSERT(Value != nullptr, "value should be set");
@@ -1051,7 +1051,7 @@ namespace Mavi
 			}
 			void Address::SetAuthMechanism(const char* Value)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				VI_ASSERT(Value != nullptr, "value should be set");
 
@@ -1060,7 +1060,7 @@ namespace Mavi
 			}
 			void Address::SetAuthSource(const char* Value)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				VI_ASSERT(Value != nullptr, "value should be set");
 
@@ -1069,7 +1069,7 @@ namespace Mavi
 			}
 			void Address::SetCompressors(const char* Value)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				VI_ASSERT(Value != nullptr, "value should be set");
 
@@ -1078,7 +1078,7 @@ namespace Mavi
 			}
 			void Address::SetDatabase(const char* Value)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				VI_ASSERT(Value != nullptr, "value should be set");
 
@@ -1087,7 +1087,7 @@ namespace Mavi
 			}
 			void Address::SetUsername(const char* Value)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				VI_ASSERT(Value != nullptr, "value should be set");
 
@@ -1096,7 +1096,7 @@ namespace Mavi
 			}
 			void Address::SetPassword(const char* Value)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				VI_ASSERT(Value != nullptr, "value should be set");
 
@@ -1105,7 +1105,7 @@ namespace Mavi
 			}
 			TAddress* Address::Get() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				return Base;
 #else
 				return nullptr;
@@ -1113,7 +1113,7 @@ namespace Mavi
 			}
 			Address Address::FromURI(const char* Value)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Value != nullptr, "value should be set");
 				TAddress* Result = mongoc_uri_new(Value);
 				if (!strstr(Value, MONGOC_URI_SOCKETTIMEOUTMS))
@@ -1139,7 +1139,7 @@ namespace Mavi
 			}
 			Stream::~Stream()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (Base != nullptr)
 					mongoc_bulk_operation_destroy(Base);
 
@@ -1153,7 +1153,7 @@ namespace Mavi
 				if (&Other == this)
 					return *this;
 
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (Base != nullptr)
 					mongoc_bulk_operation_destroy(Base);
 #endif
@@ -1168,7 +1168,7 @@ namespace Mavi
 			}
 			bool Stream::RemoveMany(const Document& Match, const Document& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!NextOperation())
 					return false;
 
@@ -1179,7 +1179,7 @@ namespace Mavi
 			}
 			bool Stream::RemoveOne(const Document& Match, const Document& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!NextOperation())
 					return false;
 
@@ -1190,7 +1190,7 @@ namespace Mavi
 			}
 			bool Stream::ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!NextOperation())
 					return false;
 
@@ -1201,7 +1201,7 @@ namespace Mavi
 			}
 			bool Stream::InsertOne(const Document& Result, const Document& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!NextOperation())
 					return false;
 
@@ -1212,7 +1212,7 @@ namespace Mavi
 			}
 			bool Stream::UpdateOne(const Document& Match, const Document& Result, const Document& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!NextOperation())
 					return false;
 
@@ -1223,7 +1223,7 @@ namespace Mavi
 			}
 			bool Stream::UpdateMany(const Document& Match, const Document& Result, const Document& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!NextOperation())
 					return false;
 
@@ -1239,7 +1239,7 @@ namespace Mavi
 			}
 			bool Stream::Query(const Document& Command)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Command.Get())
 				{
 					VI_ERR("[mongoc] cannot run empty query");
@@ -1355,7 +1355,7 @@ namespace Mavi
 			}
 			bool Stream::NextOperation()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base || !Source)
 					return false;
 
@@ -1379,7 +1379,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Stream::ExecuteWithReply()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base)
 					return Core::Promise<Document>(Document(nullptr));
 
@@ -1401,7 +1401,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Stream::Execute()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base)
 					return Core::Promise<bool>(true);
 
@@ -1419,7 +1419,7 @@ namespace Mavi
 			}
 			size_t Stream::GetHint() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return (size_t)mongoc_bulk_operation_get_hint(Base);
 #else
@@ -1428,7 +1428,7 @@ namespace Mavi
 			}
 			TStream* Stream::Get() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				return Base;
 #else
 				return nullptr;
@@ -1458,7 +1458,7 @@ namespace Mavi
 			}
 			void Cursor::Cleanup()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base)
 					return;
 
@@ -1474,21 +1474,21 @@ namespace Mavi
 			}
 			void Cursor::SetMaxAwaitTime(size_t MaxAwaitTime)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				mongoc_cursor_set_max_await_time_ms(Base, (uint32_t)MaxAwaitTime);
 #endif
 			}
 			void Cursor::SetBatchSize(size_t BatchSize)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				mongoc_cursor_set_batch_size(Base, (uint32_t)BatchSize);
 #endif
 			}
 			bool Cursor::SetLimit(int64_t Limit)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_cursor_set_limit(Base, Limit);
 #else
@@ -1497,7 +1497,7 @@ namespace Mavi
 			}
 			bool Cursor::SetHint(size_t Hint)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_cursor_set_hint(Base, (uint32_t)Hint);
 #else
@@ -1506,7 +1506,7 @@ namespace Mavi
 			}
 			bool Cursor::HasError() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base)
 					return true;
 
@@ -1524,7 +1524,7 @@ namespace Mavi
 			}
 			bool Cursor::HasMoreData() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base)
 					return false;
 
@@ -1535,7 +1535,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Cursor::Next() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base)
 					return Core::Promise<bool>(false);
 
@@ -1552,7 +1552,7 @@ namespace Mavi
 			}
 			int64_t Cursor::GetId() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return (int64_t)mongoc_cursor_get_id(Base);
 #else
@@ -1561,7 +1561,7 @@ namespace Mavi
 			}
 			int64_t Cursor::GetLimit() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return (int64_t)mongoc_cursor_get_limit(Base);
 #else
@@ -1570,7 +1570,7 @@ namespace Mavi
 			}
 			size_t Cursor::GetMaxAwaitTime() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return (size_t)mongoc_cursor_get_max_await_time_ms(Base);
 #else
@@ -1579,7 +1579,7 @@ namespace Mavi
 			}
 			size_t Cursor::GetBatchSize() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return (size_t)mongoc_cursor_get_batch_size(Base);
 #else
@@ -1588,7 +1588,7 @@ namespace Mavi
 			}
 			size_t Cursor::GetHint() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return (size_t)mongoc_cursor_get_hint(Base);
 #else
@@ -1597,7 +1597,7 @@ namespace Mavi
 			}
 			Document Cursor::GetCurrent() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base)
 					return nullptr;
 
@@ -1608,7 +1608,7 @@ namespace Mavi
 			}
 			Cursor Cursor::Clone()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_cursor_clone(Base);
 #else
@@ -1617,7 +1617,7 @@ namespace Mavi
 			}
 			TCursor* Cursor::Get() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				return Base;
 #else
 				return nullptr;
@@ -1740,7 +1740,7 @@ namespace Mavi
 			}
 			Collection::~Collection()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (Base != nullptr)
 					mongoc_collection_destroy(Base);
 				Base = nullptr;
@@ -1751,7 +1751,7 @@ namespace Mavi
 				if (&Other == this)
 					return *this;
 
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (Base != nullptr)
 					mongoc_collection_destroy(Base);
 #endif
@@ -1761,7 +1761,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Collection::Rename(const Core::String& NewDatabaseName, const Core::String& NewCollectionName) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context, NewDatabaseName, NewCollectionName]()
 				{
@@ -1773,7 +1773,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Collection::RenameWithOptions(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context, NewDatabaseName, NewCollectionName, &Options]()
 				{
@@ -1785,7 +1785,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Collection::RenameWithRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context, NewDatabaseName, NewCollectionName]()
 				{
@@ -1797,7 +1797,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Collection::RenameWithOptionsAndRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context, NewDatabaseName, NewCollectionName, &Options]()
 				{
@@ -1809,7 +1809,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Collection::Remove(const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context, &Options]()
 				{
@@ -1821,7 +1821,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Collection::RemoveIndex(const Core::String& Name, const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context, Name, &Options]()
 				{
@@ -1833,7 +1833,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Collection::RemoveMany(const Document& Match, const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<Document>([Context, &Match, &Options]()
 				{
@@ -1852,7 +1852,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Collection::RemoveOne(const Document& Match, const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<Document>([Context, &Match, &Options]()
 				{
@@ -1871,7 +1871,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Collection::ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<Document>([Context, &Match, &Replacement, &Options]()
 				{
@@ -1890,7 +1890,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Collection::InsertMany(Core::Vector<Document>& List, const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(!List.empty(), "insert array should not be empty");
 				Core::Vector<Document> Array(std::move(List));
 				auto* Context = Base;
@@ -1918,7 +1918,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Collection::InsertOne(const Document& Result, const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<Document>([Context, &Result, &Options]()
 				{
@@ -1937,7 +1937,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Collection::UpdateMany(const Document& Match, const Document& Update, const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<Document>([Context, &Match, &Update, &Options]()
 				{
@@ -1956,7 +1956,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Collection::UpdateOne(const Document& Match, const Document& Update, const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<Document>([Context, &Match, &Update, &Options]()
 				{
@@ -1975,7 +1975,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Collection::FindAndModify(const Document& Query, const Document& Sort, const Document& Update, const Document& Fields, bool RemoveAt, bool Upsert, bool New) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<Document>([Context, &Query, &Sort, &Update, &Fields, RemoveAt, Upsert, New]()
 				{
@@ -1994,7 +1994,7 @@ namespace Mavi
 			}
 			Core::Promise<size_t> Collection::CountDocuments(const Document& Match, const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<size_t>([Context, &Match, &Options]()
 				{
@@ -2006,7 +2006,7 @@ namespace Mavi
 			}
 			Core::Promise<size_t> Collection::CountDocumentsEstimated(const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<size_t>([Context, &Options]()
 				{
@@ -2018,7 +2018,7 @@ namespace Mavi
 			}
 			Core::Promise<Cursor> Collection::FindIndexes(const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<Cursor>([Context, &Options]()
 				{
@@ -2030,7 +2030,7 @@ namespace Mavi
 			}
 			Core::Promise<Cursor> Collection::FindMany(const Document& Match, const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<Cursor>([Context, &Match, &Options]()
 				{
@@ -2042,7 +2042,7 @@ namespace Mavi
 			}
 			Core::Promise<Cursor> Collection::FindOne(const Document& Match, const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<Cursor>([Context, &Match, &Options]()
 				{
@@ -2063,7 +2063,7 @@ namespace Mavi
 			}
 			Core::Promise<Cursor> Collection::Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<Cursor>([Context, Flags, &Pipeline, &Options]()
 				{
@@ -2080,7 +2080,7 @@ namespace Mavi
 			}
 			Core::Promise<Response> Collection::Query(const Document& Command, Transaction* Session) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Command.Get())
 				{
 					VI_ERR("[mongoc] cannot run empty query");
@@ -2384,7 +2384,7 @@ namespace Mavi
 			}
 			const char* Collection::GetName() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_collection_get_name(Base);
 #else
@@ -2393,7 +2393,7 @@ namespace Mavi
 			}
 			Stream Collection::CreateStream(Document&& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base)
 					return Stream(nullptr, nullptr, nullptr);
 
@@ -2405,7 +2405,7 @@ namespace Mavi
 			}
 			TCollection* Collection::Get() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				return Base;
 #else
 				return nullptr;
@@ -2421,7 +2421,7 @@ namespace Mavi
 			}
 			Database::~Database()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (Base != nullptr)
 					mongoc_database_destroy(Base);
 				Base = nullptr;
@@ -2432,7 +2432,7 @@ namespace Mavi
 				if (&Other == this)
 					return *this;
 
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (Base != nullptr)
 					mongoc_database_destroy(Base);
 #endif
@@ -2442,7 +2442,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Database::RemoveAllUsers()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context]()
 				{
@@ -2454,7 +2454,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Database::RemoveUser(const Core::String& Name)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context, Name]()
 				{
@@ -2466,7 +2466,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Database::Remove()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context]()
 				{
@@ -2478,7 +2478,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Database::RemoveWithOptions(const Document& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Options.Get())
 					return Remove();
 
@@ -2493,7 +2493,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Database::AddUser(const Core::String& Username, const Core::String& Password, const Document& Roles, const Document& Custom)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context, Username, Password, &Roles, &Custom]()
 				{
@@ -2505,7 +2505,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Database::HasCollection(const Core::String& Name) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context, Name]()
 				{
@@ -2523,7 +2523,7 @@ namespace Mavi
 			}
 			Core::Promise<Cursor> Database::FindCollections(const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<Cursor>([Context, &Options]()
 				{
@@ -2535,7 +2535,7 @@ namespace Mavi
 			}
 			Core::Promise<Collection> Database::CreateCollection(const Core::String& Name, const Document& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base)
 					return Core::Promise<Collection>(Collection(nullptr));
 
@@ -2557,7 +2557,7 @@ namespace Mavi
 			}
 			Core::Vector<Core::String> Database::GetCollectionNames(const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
@@ -2583,7 +2583,7 @@ namespace Mavi
 			}
 			const char* Database::GetName() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_database_get_name(Base);
 #else
@@ -2592,7 +2592,7 @@ namespace Mavi
 			}
 			Collection Database::GetCollection(const Core::String& Name)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_database_get_collection(Base, Name.c_str());
 #else
@@ -2601,7 +2601,7 @@ namespace Mavi
 			}
 			TDatabase* Database::Get() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				return Base;
 #else
 				return nullptr;
@@ -2617,7 +2617,7 @@ namespace Mavi
 			}
 			Watcher::~Watcher()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (Base != nullptr)
 					mongoc_change_stream_destroy(Base);
 				Base = nullptr;
@@ -2628,7 +2628,7 @@ namespace Mavi
 				if (&Other == this)
 					return *this;
 
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (Base != nullptr)
 					mongoc_change_stream_destroy(Base);
 #endif
@@ -2638,7 +2638,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Watcher::Next(Document& Result) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base || !Result.Get())
 					return Core::Promise<bool>(false);
 
@@ -2654,7 +2654,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Watcher::Error(Document& Result) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Base || !Result.Get())
 					return Core::Promise<bool>(false);
 
@@ -2670,7 +2670,7 @@ namespace Mavi
 			}
 			TWatcher* Watcher::Get() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				return Base;
 #else
 				return nullptr;
@@ -2678,7 +2678,7 @@ namespace Mavi
 			}
 			Watcher Watcher::FromConnection(Connection* Connection, const Document& Pipeline, const Document& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Connection)
 					return nullptr;
 
@@ -2689,7 +2689,7 @@ namespace Mavi
 			}
 			Watcher Watcher::FromDatabase(const Database& Database, const Document& Pipeline, const Document& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Database.Get())
 					return nullptr;
 
@@ -2700,7 +2700,7 @@ namespace Mavi
 			}
 			Watcher Watcher::FromCollection(const Collection& Collection, const Document& Pipeline, const Document& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Collection.Get())
 					return nullptr;
 
@@ -2715,7 +2715,7 @@ namespace Mavi
 			}
 			bool Transaction::Push(Document& QueryOptions) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!QueryOptions.Get())
 					QueryOptions = bson_new();
 
@@ -2731,7 +2731,7 @@ namespace Mavi
 			}
 			bool Transaction::Put(TDocument** QueryOptions) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(QueryOptions != nullptr, "query options should be set");
 				if (!*QueryOptions)
 					*QueryOptions = bson_new();
@@ -2748,7 +2748,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Transaction::Start()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context]()
 				{
@@ -2760,7 +2760,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Transaction::Abort()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context]()
 				{
@@ -2772,7 +2772,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Transaction::RemoveMany(const Collection& Source, const Document& Match, Document&& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Push(Options))
 					return Core::Promise<Document>(Document(nullptr));
 
@@ -2783,7 +2783,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Transaction::RemoveOne(const Collection& Source, const Document& Match, Document&& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Push(Options))
 					return Core::Promise<Document>(Document(nullptr));
 
@@ -2794,7 +2794,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Transaction::ReplaceOne(const Collection& Source, const Document& Match, const Document& Replacement, Document&& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Push(Options))
 					return Core::Promise<Document>(Document(nullptr));
 
@@ -2805,7 +2805,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Transaction::InsertMany(const Collection& Source, Core::Vector<Document>& List, Document&& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Push(Options))
 					return Core::Promise<Document>(Document(nullptr));
 
@@ -2816,7 +2816,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Transaction::InsertOne(const Collection& Source, const Document& Result, Document&& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Push(Options))
 					return Core::Promise<Document>(Document(nullptr));
 
@@ -2827,7 +2827,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Transaction::UpdateMany(const Collection& Source, const Document& Match, const Document& Update, Document&& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Push(Options))
 					return Core::Promise<Document>(Document(nullptr));
 
@@ -2838,7 +2838,7 @@ namespace Mavi
 			}
 			Core::Promise<Document> Transaction::UpdateOne(const Collection& Source, const Document& Match, const Document& Update, Document&& Options)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Push(Options))
 					return Core::Promise<Document>(Document(nullptr));
 
@@ -2849,7 +2849,7 @@ namespace Mavi
 			}
 			Core::Promise<Cursor> Transaction::FindMany(const Collection& Source, const Document& Match, Document&& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Push(Options))
 					return Core::Promise<Cursor>(Cursor(nullptr));
 
@@ -2860,7 +2860,7 @@ namespace Mavi
 			}
 			Core::Promise<Cursor> Transaction::FindOne(const Collection& Source, const Document& Match, Document&& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Push(Options))
 					return Core::Promise<Cursor>(Cursor(nullptr));
 
@@ -2871,7 +2871,7 @@ namespace Mavi
 			}
 			Core::Promise<Cursor> Transaction::Aggregate(const Collection& Source, QueryFlags Flags, const Document& Pipeline, Document&& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (!Push(Options))
 					return Core::Promise<Cursor>(Cursor(nullptr));
 
@@ -2886,7 +2886,7 @@ namespace Mavi
 			}
 			Core::Promise<Response> Transaction::Query(const Collection& Source, const Document& Command)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				return Source.Query(Command, this);
 #else
 				return Core::Promise<Response>(Response());
@@ -2894,7 +2894,7 @@ namespace Mavi
 			}
 			Core::Promise<TransactionState> Transaction::Commit()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				auto* Context = Base;
 				return Core::Cotask<TransactionState>([Context]()
 				{
@@ -2917,7 +2917,7 @@ namespace Mavi
 			}
 			TTransaction* Transaction::Get() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				return Base;
 #else
 				return nullptr;
@@ -2930,7 +2930,7 @@ namespace Mavi
 			}
 			Connection::~Connection() noexcept
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				TTransaction* Context = Session.Get();
 				if (Context != nullptr)
 					mongoc_client_session_destroy(Context);
@@ -2941,7 +2941,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Connection::Connect(const Core::String& Address)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Master != nullptr, "connection should be created outside of cluster");
 				if (Connected)
 				{
@@ -2981,7 +2981,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Connection::Connect(Address* URL)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Master != nullptr, "connection should be created outside of cluster");
 				VI_ASSERT(URL && URL->Get(), "url should be valid");
 
@@ -3014,7 +3014,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Connection::Disconnect()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Connected && Base, "connection should be established");
 				return Core::Cotask<bool>([this]()
 				{
@@ -3043,7 +3043,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Connection::MakeTransaction(const std::function<Core::Promise<bool>(Transaction&)>& Callback)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Callback, "callback should not be empty");
 				return Core::Coasync<bool>([this, Callback]() -> Core::Promise<bool>
 				{
@@ -3088,7 +3088,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Connection::MakeCotransaction(const std::function<bool(Transaction&)>& Callback)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Callback, "callback should not be empty");
 				return Core::Coasync<bool>([this, Callback]() -> Core::Promise<bool>
 				{
@@ -3133,7 +3133,7 @@ namespace Mavi
 			}
 			Core::Promise<Cursor> Connection::FindDatabases(const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				return Core::Cotask<Cursor>([this, &Options]()
 				{
 					return mongoc_client_find_databases_with_opts(Base, Options.Get());
@@ -3144,13 +3144,13 @@ namespace Mavi
 			}
 			void Connection::SetProfile(const Core::String& Name)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				mongoc_client_set_appname(Base, Name.c_str());
 #endif
 			}
 			bool Connection::SetServer(bool ForWrites)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
@@ -3169,7 +3169,7 @@ namespace Mavi
 			}
 			Transaction& Connection::GetSession()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (Session.Get() != nullptr)
 					return Session;
 
@@ -3185,7 +3185,7 @@ namespace Mavi
 			}
 			Database Connection::GetDatabase(const Core::String& Name) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_client_get_database(Base, Name.c_str());
 #else
@@ -3194,7 +3194,7 @@ namespace Mavi
 			}
 			Database Connection::GetDefaultDatabase() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_client_get_default_database(Base);
 #else
@@ -3203,7 +3203,7 @@ namespace Mavi
 			}
 			Collection Connection::GetCollection(const char* DatabaseName, const char* Name) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_client_get_collection(Base, DatabaseName, Name);
 #else
@@ -3212,7 +3212,7 @@ namespace Mavi
 			}
 			Address Connection::GetAddress() const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return (TAddress*)mongoc_client_get_uri(Base);
 #else
@@ -3229,7 +3229,7 @@ namespace Mavi
 			}
 			Core::Vector<Core::String> Connection::GetDatabaseNames(const Document& Options) const
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 
 				bson_error_t Error;
@@ -3267,7 +3267,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Cluster::Connect(const Core::String& URI)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (Connected)
 				{
 					return Disconnect().Then<Core::Promise<bool>>([this, URI](bool)
@@ -3306,7 +3306,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Cluster::Connect(Address* URI)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(URI && URI->Get(), "url should be set");
 				if (Connected)
 				{
@@ -3340,7 +3340,7 @@ namespace Mavi
 			}
 			Core::Promise<bool> Cluster::Disconnect()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Connected && Pool, "connection should be established");
 				return Core::Cotask<bool>([this]()
 				{
@@ -3360,7 +3360,7 @@ namespace Mavi
 			}
 			void Cluster::SetProfile(const char* Name)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Pool != nullptr, "connection should be established");
 				VI_ASSERT(Name != nullptr, "name should be set");
 				mongoc_client_pool_set_appname(Pool, Name);
@@ -3368,7 +3368,7 @@ namespace Mavi
 			}
 			void Cluster::Push(Connection** Client)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Client && *Client, "client should be set");
 				mongoc_client_pool_push(Pool, (*Client)->Base);
 				(*Client)->Base = nullptr;
@@ -3381,7 +3381,7 @@ namespace Mavi
 			}
 			Connection* Cluster::Pop()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				TConnection* Base = mongoc_client_pool_pop(Pool);
 				if (!Base)
 					return nullptr;
@@ -3414,7 +3414,7 @@ namespace Mavi
 
 			void Driver::Create()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (State <= 0)
 				{
 					using Map1 = Core::Mapping<Core::UnorderedMap<Core::String, Sequence>>;
@@ -3456,7 +3456,7 @@ namespace Mavi
 			}
 			void Driver::Release()
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				if (State == 1)
 				{
 					Network::Multiplexer::SetActive(false);
@@ -3500,7 +3500,7 @@ namespace Mavi
 				Logger = Callback;
 				if (!Logger || APM)
 					return;
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				mongoc_apm_callbacks_t* Callbacks = mongoc_apm_callbacks_new();
 				mongoc_apm_set_command_started_cb(Callbacks, [](const mongoc_apm_command_started_t* Event)
 				{
@@ -3517,14 +3517,14 @@ namespace Mavi
 			}
 			void Driver::AttachQueryLog(TConnection* Connection)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Connection != nullptr, "connection should be set");
 				mongoc_client_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
 #endif
 			}
 			void Driver::AttachQueryLog(TConnectionPool* Connection)
 			{
-#ifdef VI_HAS_MONGOC
+#ifdef VI_MONGOC
 				VI_ASSERT(Connection != nullptr, "connection pool should be set");
 				mongoc_client_pool_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
 #endif

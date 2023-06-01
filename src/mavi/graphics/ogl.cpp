@@ -1,9 +1,9 @@
 #include "ogl.h"
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 #include <SDL2/SDL_syswm.h>
 #undef DirectColor
 #endif
-#ifdef VI_HAS_GL
+#ifdef VI_GL
 #define SHADER_VERTEX ".text.vertex.gz"
 #define SHADER_PIXEL ".text.pixel.gz"
 #define SHADER_GEOMETRY ".text.geometry.gz"
@@ -556,7 +556,7 @@ namespace Mavi
 
 			OGLDevice::OGLDevice(const Desc& I) : GraphicsDevice(I), ShaderVersion(nullptr), Window(I.Window), Context(nullptr)
 			{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 				if (!Window)
 				{
 					VI_ASSERT(VirtualWindow != nullptr, "cannot initialize virtual activity for device");
@@ -614,14 +614,14 @@ namespace Mavi
 				glDeleteProgram(Immediate.Program);
 				glDeleteVertexArrays(1, &Immediate.VertexArray);
 				glDeleteBuffers(1, &Immediate.VertexBuffer);
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 				if (Context != nullptr)
 					SDL_GL_DeleteContext(Context);
 #endif
 			}
 			void OGLDevice::SetAsCurrentDevice()
 			{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 				SDL_GL_MakeCurrent(Window->GetHandle(), Context);
 				switch (VSyncMode)
 				{
@@ -2472,7 +2472,7 @@ namespace Mavi
 			}
 			bool OGLDevice::Submit()
 			{
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 				VI_ASSERT(Window != nullptr, "window should be set");
 				SDL_GL_SwapWindow(Window->GetHandle());
 #endif

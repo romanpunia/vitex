@@ -1,7 +1,7 @@
 #include "effects.h"
 #include "filters.h"
 #include "../core/engine.h"
-#if defined(VI_HAS_OPENAL)
+#if defined(VI_OPENAL)
 #ifdef VI_AL_AT_OPENAL
 #include <OpenAL/al.h>
 #else
@@ -11,7 +11,7 @@
 #endif
 #endif
 #define LOAD_PROC(T, X) ((X) = (T)alGetProcAddress(#X))
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 namespace
 {
 	LPALGENFILTERS alGenFilters = nullptr;
@@ -59,7 +59,7 @@ namespace Mavi
 			void EffectContext::Initialize()
 			{
 				VI_TRACE("[audio] load effect functions");
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				LOAD_PROC(LPALGENFILTERS, alGenFilters);
 				LOAD_PROC(LPALDELETEFILTERS, alDeleteFilters);
 				LOAD_PROC(LPALISFILTER, alIsFilter);
@@ -123,7 +123,7 @@ namespace Mavi
 
 			Reverb::Reverb()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					EAX = (alGetEnumValue("AL_EFFECT_EAXREVERB") != 0);
@@ -140,7 +140,7 @@ namespace Mavi
 			}
 			void Reverb::Synchronize()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				if (EAX)
 				{
 					float ReflectionsPan3[3];
@@ -284,7 +284,7 @@ namespace Mavi
 
 			Chorus::Chorus()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_CHORUS);
@@ -298,7 +298,7 @@ namespace Mavi
 			}
 			void Chorus::Synchronize()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				alEffectf(Effect, AL_CHORUS_DELAY, Rate);
 				alEffectf(Effect, AL_CHORUS_DEPTH, Depth);
 				alEffectf(Effect, AL_CHORUS_FEEDBACK, Feedback);
@@ -349,7 +349,7 @@ namespace Mavi
 
 			Distortion::Distortion()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_DISTORTION);
@@ -363,7 +363,7 @@ namespace Mavi
 			}
 			void Distortion::Synchronize()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				alEffectf(Effect, AL_DISTORTION_EDGE, Edge);
 				alEffectf(Effect, AL_DISTORTION_GAIN, Gain);
 				alEffectf(Effect, AL_DISTORTION_LOWPASS_CUTOFF, LowpassCutOff);
@@ -410,7 +410,7 @@ namespace Mavi
 
 			Echo::Echo()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_ECHO);
@@ -424,7 +424,7 @@ namespace Mavi
 			}
 			void Echo::Synchronize()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				alEffectf(Effect, AL_ECHO_DELAY, Delay);
 				alEffectf(Effect, AL_ECHO_LRDELAY, LRDelay);
 				alEffectf(Effect, AL_ECHO_DAMPING, Damping);
@@ -471,7 +471,7 @@ namespace Mavi
 
 			Flanger::Flanger()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_FLANGER);
@@ -485,7 +485,7 @@ namespace Mavi
 			}
 			void Flanger::Synchronize()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				alEffectf(Effect, AL_FLANGER_RATE, Rate);
 				alEffectf(Effect, AL_FLANGER_DEPTH, Depth);
 				alEffectf(Effect, AL_FLANGER_FEEDBACK, Feedback);
@@ -536,7 +536,7 @@ namespace Mavi
 
 			FrequencyShifter::FrequencyShifter()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_FREQUENCY_SHIFTER);
@@ -550,7 +550,7 @@ namespace Mavi
 			}
 			void FrequencyShifter::Synchronize()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				alEffectf(Effect, AL_FREQUENCY_SHIFTER_FREQUENCY, Frequency);
 				alEffecti(Effect, AL_FREQUENCY_SHIFTER_LEFT_DIRECTION, LeftDirection);
 				alEffecti(Effect, AL_FREQUENCY_SHIFTER_RIGHT_DIRECTION, RightDirection);
@@ -589,7 +589,7 @@ namespace Mavi
 
 			VocalMorpher::VocalMorpher()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_VOCAL_MORPHER);
@@ -603,7 +603,7 @@ namespace Mavi
 			}
 			void VocalMorpher::Synchronize()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				alEffectf(Effect, AL_VOCAL_MORPHER_RATE, Rate);
 				alEffecti(Effect, AL_VOCAL_MORPHER_PHONEMEA, Phonemea);
 				alEffecti(Effect, AL_VOCAL_MORPHER_PHONEMEA_COARSE_TUNING, PhonemeaCoarseTuning);
@@ -654,7 +654,7 @@ namespace Mavi
 
 			PitchShifter::PitchShifter()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_PITCH_SHIFTER);
@@ -668,7 +668,7 @@ namespace Mavi
 			}
 			void PitchShifter::Synchronize()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				alEffecti(Effect, AL_PITCH_SHIFTER_COARSE_TUNE, CoarseTune);
 				alEffecti(Effect, AL_PITCH_SHIFTER_FINE_TUNE, FineTune);
 #endif
@@ -703,7 +703,7 @@ namespace Mavi
 
 			RingModulator::RingModulator()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_RING_MODULATOR);
@@ -717,7 +717,7 @@ namespace Mavi
 			}
 			void RingModulator::Synchronize()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				alEffectf(Effect, AL_RING_MODULATOR_FREQUENCY, Frequency);
 				alEffectf(Effect, AL_RING_MODULATOR_HIGHPASS_CUTOFF, HighpassCutOff);
 				alEffecti(Effect, AL_RING_MODULATOR_WAVEFORM, Waveform);
@@ -756,7 +756,7 @@ namespace Mavi
 
 			Autowah::Autowah()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_AUTOWAH);
@@ -770,7 +770,7 @@ namespace Mavi
 			}
 			void Autowah::Synchronize()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				alEffectf(Effect, AL_AUTOWAH_ATTACK_TIME, AttackTime);
 				alEffectf(Effect, AL_AUTOWAH_RELEASE_TIME, ReleaseTime);
 				alEffectf(Effect, AL_AUTOWAH_RESONANCE, Resonance);
@@ -813,7 +813,7 @@ namespace Mavi
 
 			Compressor::Compressor()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_COMPRESSOR);
@@ -848,7 +848,7 @@ namespace Mavi
 
 			Equalizer::Equalizer()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_EQUALIZER);
@@ -862,7 +862,7 @@ namespace Mavi
 			}
 			void Equalizer::Synchronize()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				alEffectf(Effect, AL_EQUALIZER_LOW_GAIN, LowGain);
 				alEffectf(Effect, AL_EQUALIZER_LOW_CUTOFF, LowCutOff);
 				alEffectf(Effect, AL_EQUALIZER_MID1_CENTER, Mid1Center);

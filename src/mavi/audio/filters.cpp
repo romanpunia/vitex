@@ -1,6 +1,6 @@
 #include "filters.h"
 #include "../core/engine.h"
-#if defined(VI_HAS_OPENAL)
+#if defined(VI_OPENAL)
 #ifdef VI_AL_AT_OPENAL
 #include <OpenAL/al.h>
 #else
@@ -10,7 +10,7 @@
 #endif
 #endif
 #define LOAD_PROC(T, X) ((X) = (T)alGetProcAddress(#X))
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 namespace
 {
 	LPALGENFILTERS alGenFilters = nullptr;
@@ -58,7 +58,7 @@ namespace Mavi
 			void FilterContext::Initialize()
 			{
 				VI_TRACE("[audio] load filter functions");
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				LOAD_PROC(LPALGENFILTERS, alGenFilters);
 				LOAD_PROC(LPALDELETEFILTERS, alDeleteFilters);
 				LOAD_PROC(LPALISFILTER, alIsFilter);
@@ -97,7 +97,7 @@ namespace Mavi
 
 			Lowpass::Lowpass()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alFilteri(Filter, AL_FILTER_TYPE, AL_FILTER_LOWPASS);
@@ -110,7 +110,7 @@ namespace Mavi
 			}
 			void Lowpass::Synchronize()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				alFilterf(Filter, AL_LOWPASS_GAIN, Gain);
 				alFilterf(Filter, AL_LOWPASS_GAINHF, GainHF);
 #endif
@@ -138,7 +138,7 @@ namespace Mavi
 
 			Highpass::Highpass()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alFilteri(Filter, AL_FILTER_TYPE, AL_FILTER_HIGHPASS);
@@ -151,7 +151,7 @@ namespace Mavi
 			}
 			void Highpass::Synchronize()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				alFilterf(Filter, AL_HIGHPASS_GAIN, Gain);
 				alFilterf(Filter, AL_HIGHPASS_GAINLF, GainLF);
 #endif
@@ -179,7 +179,7 @@ namespace Mavi
 
 			Bandpass::Bandpass()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alFilteri(Filter, AL_FILTER_TYPE, AL_FILTER_BANDPASS);
@@ -192,7 +192,7 @@ namespace Mavi
 			}
 			void Bandpass::Synchronize()
 			{
-#if defined(VI_HAS_OPENAL) && defined(HAS_EFX)
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 				alFilterf(Filter, AL_BANDPASS_GAIN, Gain);
 				alFilterf(Filter, AL_BANDPASS_GAINLF, GainLF);
 				alFilterf(Filter, AL_BANDPASS_GAINHF, GainHF);

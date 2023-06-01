@@ -5,10 +5,10 @@
 #ifdef VI_MICROSOFT
 #include <Windows.h>
 #endif
-#ifdef VI_HAS_OPENGL
-#ifdef VI_HAS_GLEW
+#ifdef VI_OPENGL
+#ifdef VI_GLEW
 #include <GL/glew.h>
-#define VI_HAS_GL
+#define VI_GL
 #ifndef APIENTRY
 #define APIENTRY
 #endif

@@ -1,6 +1,6 @@
 #ifndef VI_ENGINE_GUI_CONFIG_HPP
 #define VI_ENGINE_GUI_CONFIG_HPP
-#ifdef VI_USE_RMLUI
+#ifdef VI_RMLUI
 #include "../../core/core.h"
 #include <utility>
 #include <vector>

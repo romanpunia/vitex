@@ -1,5 +1,5 @@
 #include "bindings.h"
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 #include "network.h"
 #include "../network/http.h"
 #include "../network/smtp.h"
@@ -4263,7 +4263,7 @@ namespace Mavi
 					SchemaEnumRefs(Item, Engine);
 				}
 			}
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 			template <typename T>
 			Core::String GetComponentName(T* Base)
 			{
@@ -4998,10 +4998,7 @@ namespace Mavi
 
 			void ConsoleTrace(Core::Console* Base, uint32_t Frames)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (Context != nullptr)
-					return Base->WriteLine(Context->GetStackTrace(3, (size_t)Frames));
-				VI_WARN("[vm] no active context for stack tracing");
+				Base->WriteLine(Core::ErrorHandling::GetStackTrace(1, (size_t)Frames));
 			}
 			void ConsoleGetSize(Core::Console* Base, uint32_t& X, uint32_t& Y)
 			{
@@ -9446,7 +9443,7 @@ namespace Mavi
 			}
 			bool Registry::ImportComplex(VirtualMachine* VM)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
 				Engine->RegisterObjectType("complex", sizeof(Complex), asOBJ_VALUE | asOBJ_POD | asGetTypeTraits<Complex>() | asOBJ_APP_CLASS_ALLFLOATS);
@@ -9733,7 +9730,7 @@ namespace Mavi
 			}
 			bool Registry::ImportMutex(VirtualMachine* VM)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
 				Engine->RegisterObjectType("mutex", sizeof(Mutex), asOBJ_REF);
@@ -9751,7 +9748,7 @@ namespace Mavi
 			}
 			bool Registry::ImportThread(VirtualMachine* VM)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
 				Engine->RegisterObjectType("thread", 0, asOBJ_REF | asOBJ_GC);
@@ -9789,7 +9786,7 @@ namespace Mavi
 			}
 			bool Registry::ImportBuffers(VirtualMachine* VM)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
 				Engine->RegisterObjectType("char_buffer", 0, asOBJ_REF);
@@ -9904,7 +9901,7 @@ namespace Mavi
 			}
 			bool Registry::ImportFormat(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				RefClass VFormat = Engine->SetClass<Format>("format", false);
 				VFormat.SetConstructor<Format>("format@ f()");
@@ -10073,7 +10070,7 @@ namespace Mavi
 			}
 			bool Registry::ImportConsole(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VStdColor = Engine->SetEnum("std_color");
 				VStdColor.SetValue("black", (int)Core::StdColor::Black);
@@ -10217,7 +10214,7 @@ namespace Mavi
 			}
 			bool Registry::ImportClockTimer(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 
 				RefClass VTimer = Engine->SetClass<Core::Timer>("clock_timer", false);
@@ -10244,7 +10241,7 @@ namespace Mavi
 			}
 			bool Registry::ImportFileSystem(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VFileMode = Engine->SetEnum("file_mode");
 				VFileMode.SetValue("read_only", (int)Core::FileMode::Read_Only);
@@ -10381,7 +10378,7 @@ namespace Mavi
 			}
 			bool Registry::ImportOS(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Engine->BeginNamespace("os::cpu");
 				Enumeration VArch = Engine->SetEnum("arch");
@@ -10506,7 +10503,7 @@ namespace Mavi
 			}
 			bool Registry::ImportSchedule(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Engine->GetEngine()->RegisterTypedef("task_id", "uint64");
 
@@ -10552,7 +10549,7 @@ namespace Mavi
 			}
 			bool Registry::ImportVertices(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				TypeClass VVertex = Engine->SetPod<Compute::Vertex>("vertex");
 				VVertex.SetProperty<Compute::Vertex>("float position_x", &Compute::Vertex::PositionX);
@@ -10628,7 +10625,7 @@ namespace Mavi
 			}
 			bool Registry::ImportVectors(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VCubeFace = Engine->SetEnum("cube_face");
 				VCubeFace.SetValue("positive_x", (int)Compute::CubeFace::PositiveX);
@@ -10959,7 +10956,7 @@ namespace Mavi
 			}
 			bool Registry::ImportShapes(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				TypeClass VRectangle = Engine->SetPod<Compute::Rectangle>("rectangle");
 				VRectangle.SetProperty<Compute::Rectangle>("int64 left", &Compute::Rectangle::Left);
@@ -11016,7 +11013,7 @@ namespace Mavi
 			}
 			bool Registry::ImportKeyFrames(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				TypeClass VJoint = Engine->SetStructTrivial<Compute::Joint>("joint");
 				VJoint.SetProperty<Compute::Joint>("string name", &Compute::Joint::Name);
@@ -11104,7 +11101,7 @@ namespace Mavi
 			}
 			bool Registry::ImportRegex(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VRegexState = Engine->SetEnum("regex_state");
 				VRegexState.SetValue("preprocessed", (int)Compute::RegexState::Preprocessed);
@@ -11157,7 +11154,7 @@ namespace Mavi
 			}
 			bool Registry::ImportCrypto(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				VI_TYPEREF(WebToken, "web_token");
 
@@ -11408,7 +11405,7 @@ namespace Mavi
 			}
 			bool Registry::ImportCodec(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VCompression = Engine->SetEnum("compression_cdc");
 				VCompression.SetValue("none", (int)Compute::Compression::None);
@@ -11444,7 +11441,7 @@ namespace Mavi
 			}
 			bool Registry::ImportGeometric(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VPositioning = Engine->SetEnum("positioning");
 				VPositioning.SetValue("local", (int)Compute::Positioning::Local);
@@ -11561,7 +11558,7 @@ namespace Mavi
 			}
 			bool Registry::ImportPreprocessor(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VIncludeType = Engine->SetEnum("include_type");
 				VIncludeType.SetValue("error_t", (int)Compute::IncludeType::Error);
@@ -11617,7 +11614,7 @@ namespace Mavi
 			}
 			bool Registry::ImportPhysics(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				RefClass VSimulator = Engine->SetClass<Compute::Simulator>("physics_simulator", false);
 				
@@ -12327,7 +12324,7 @@ namespace Mavi
 			}
 			bool Registry::ImportAudio(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				VI_TYPEREF(AudioSource, "audio_source");
 
@@ -12506,7 +12503,7 @@ namespace Mavi
 			}
 			bool Registry::ImportActivity(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VAppState = Engine->SetEnum("app_state");
 				VAppState.SetValue("close_window", (int)Graphics::AppState::Close_Window);
@@ -13005,7 +13002,7 @@ namespace Mavi
 			}
 			bool Registry::ImportGraphics(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Enumeration VVSync = Engine->SetEnum("vsync");
 				VVSync.SetValue("off", (int)Graphics::VSync::Off);
@@ -13971,7 +13968,7 @@ namespace Mavi
 			}
 			bool Registry::ImportNetwork(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				VI_TYPEREF(SocketListener, "socket_listener");
 				VI_TYPEREF(SocketConnection, "socket_connection");
@@ -14271,7 +14268,7 @@ namespace Mavi
 			}
 			bool Registry::ImportHTTP(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				VI_TYPEREF(RouteGroup, "http::route_group");
 				VI_TYPEREF(SiteEntry, "http::site_entry");
@@ -14678,7 +14675,7 @@ namespace Mavi
 			}
 			bool Registry::ImportSMTP(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 
 				Engine->BeginNamespace("smtp");
@@ -14744,7 +14741,7 @@ namespace Mavi
 			}
 			bool Registry::ImportPostgreSQL(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 
 				/* TODO: register bindings for <postgresql> module */
@@ -14756,7 +14753,7 @@ namespace Mavi
 			}
 			bool Registry::ImportMongoDB(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 
 				/* TODO: register bindings for <mongodb> module */
@@ -14768,7 +14765,7 @@ namespace Mavi
 			}
 			bool Registry::ImportVM(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 
 				RefClass VVirtualMachine = Engine->SetClass<VirtualMachine>("virtual_machine", false);
@@ -14782,7 +14779,7 @@ namespace Mavi
 			}
 			bool Registry::ImportEngine(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				VI_TYPEREF(Material, "material");
 				VI_TYPEREF(Model, "model");
@@ -15693,7 +15690,7 @@ namespace Mavi
 			}
 			bool Registry::ImportComponents(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Engine->SetFunctionDef("void component_resource_event()");
 
@@ -16004,7 +16001,7 @@ namespace Mavi
 			}
 			bool Registry::ImportRenderers(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 
 				RefClass VSoftBody = Engine->SetClass<Engine::Renderers::SoftBody>("soft_body_renderer", false);
@@ -16318,7 +16315,7 @@ namespace Mavi
 			}
 			bool Registry::ImportUiControl(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				VI_TYPEREF(ModelListenerName, "ui_listener");
 
@@ -16669,7 +16666,7 @@ namespace Mavi
 			}
 			bool Registry::ImportUiModel(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 				Engine->SetFunctionDef("void ui_data_event(ui_event &in, array<variant>@+)");
 
@@ -16713,7 +16710,7 @@ namespace Mavi
 			}
 			bool Registry::ImportUiContext(VirtualMachine* Engine)
 			{
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 				VI_ASSERT(Engine != nullptr, "manager should be set");
 
 				RefClass VContext = Engine->SetClass<Engine::GUI::Context>("gui_context", false);

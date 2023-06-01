@@ -1739,7 +1739,6 @@ namespace Mavi
 			int Abort();
 			int Suspend();
 			Activation GetState() const;
-			Core::String GetStackTrace(size_t Skips, size_t MaxFrames) const;
 			int DisableSuspends();
 			int EnableSuspends();
 			int PushState();

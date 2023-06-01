@@ -7,8 +7,8 @@ namespace Mavi
 	enum
 	{
 		MAJOR_VERSION = 23,
-		MINOR_VERSION = 37,
-		PATCH_VERSION = 24,
+		MINOR_VERSION = 38,
+		PATCH_VERSION = 25,
 		VERSION = (MAJOR_VERSION) * 10000 + (MINOR_VERSION) * 100 + (PATCH_VERSION)
 	};
 
@@ -52,7 +52,8 @@ namespace Mavi
 		static bool HasSIMD();
 		static bool HasJIT();
 		static bool HasBindings();
-		static bool HasFastMemory();
+		static bool HasAllocator();
+		static bool HasBacktrace();
 		static bool HasFreeType();
 		static bool HasSPIRV();
         static bool HasRmlUI();

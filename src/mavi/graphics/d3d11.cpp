@@ -1,5 +1,5 @@
 #include "d3d11.h"
-#ifdef VI_HAS_SDL2
+#ifdef VI_SDL2
 #include <SDL2/SDL_syswm.h>
 #endif
 #ifdef VI_MICROSOFT
@@ -548,7 +548,7 @@ namespace Mavi
 				}
 				else
 					SwapChainResource.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-#if defined(VI_MICROSOFT) && defined(VI_HAS_SDL2)
+#if defined(VI_MICROSOFT) && defined(VI_SDL2)
 				if (Window != nullptr)
 				{
 					SDL_SysWMinfo Info;

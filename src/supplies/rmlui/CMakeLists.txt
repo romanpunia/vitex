@@ -1,6 +1,6 @@
-set(VI_USE_FREETYPE ON CACHE BOOL "Enable FreeType library")
-set(VI_USE_RMLUI ON CACHE BOOL "Enable RmlUi built-in library")
-if (VI_USE_RMLUI)
+set(VI_FREETYPE ON CACHE BOOL "Enable FreeType library")
+set(VI_RMLUI ON CACHE BOOL "Enable RmlUi built-in library")
+if (VI_RMLUI)
 	#Resolve source targets
 	file(GLOB_RECURSE SOURCE_RMLUI
 			${CMAKE_CURRENT_LIST_DIR}/*.inl*
@@ -22,7 +22,7 @@ if (VI_USE_RMLUI)
 	endif()
 	
 	#Resolve font engine targets
-	if (NOT VI_USE_FREETYPE OR (NOT Freetype_FOUND AND NOT FREETYPE_LIBRARIES))
+	if (NOT VI_FREETYPE OR (NOT Freetype_FOUND AND NOT FREETYPE_LIBRARIES))
 		unset(Freetype_FOUND CACHE)
 		unset(FREETYPE_LIBRARIES CACHE)
 		list(FILTER SOURCE_RMLUI EXCLUDE REGEX "rmlui[\\\/]Source[\\\/]Core[\\\/]FontEngineDefault")

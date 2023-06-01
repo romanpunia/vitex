@@ -903,7 +903,7 @@ namespace Mavi
 					}
 				};
 			};
-#ifdef VI_HAS_BINDINGS
+#ifdef VI_BINDINGS
 			class VI_OUT Mutex
 			{
 			private:

@@ -640,17 +640,16 @@ namespace Mavi
 #elif OPENSSL_VERSION_NUMBER < 0x10000000L
 			ERR_remove_state(0);
 #endif
-#ifdef SSL_COMP_free_compression_methods
+#ifndef OPENSSL_NO_DEPRECATED_1_1_0
 			SSL_COMP_free_compression_methods();
-#endif
 			ENGINE_cleanup();
 			CONF_modules_free();
-			CONF_modules_unload(1);
 			COMP_zlib_cleanup();
 			ERR_free_strings();
 			EVP_cleanup();
 			CRYPTO_cleanup_all_ex_data();
-            
+			CONF_modules_unload(1);
+#endif
 			if (CryptoLocks != nullptr)
 			{
 				VI_DELETE(vector, CryptoLocks);

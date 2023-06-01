@@ -1717,7 +1717,7 @@ namespace Mavi
 
 			struct Frame
 			{
-				Core::Promise<int> Future = Core::Promise<int>::Ready();
+				Core::Promise<int> Future = Core::Promise<int>::Null();
 				Core::String Stacktrace;
 				size_t DenySuspends = 0;
 			} Executor;

@@ -1662,7 +1662,7 @@ namespace Mavi
 			}
 
 			Callback();
-			return Core::Promise<void>::Ready();
+			return Core::Promise<void>::Null();
 		}
 		Core::Vector<Core::Promise<void>> Parallel::EnqueueAll(const Core::Vector<Core::TaskCallback>& Callbacks)
 		{

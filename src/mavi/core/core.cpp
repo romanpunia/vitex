@@ -472,19 +472,19 @@ namespace Mavi
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			if (Address != nullptr)
 			{
-				bool LogActive = OS::HasFlag(LogOption::Active);
+				bool LogActive = ErrorHandling::HasFlag(LogOption::Active);
 				if (!LogActive)
-					OS::SetLogFlag(LogOption::Active, true);
+					ErrorHandling::SetFlag(LogOption::Active, true);
 
 				auto It = Blocks.find(Address);
 				if (It != Blocks.end())
 				{
 					char Date[64];
 					GetDateTime(It->second.Time, Date, sizeof(Date));
-					OS::Log(4, It->second.Origin.Line, It->second.Origin.Source, "[mem] %saddress at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", It->second.Static ? "static " : "", It->first, Date, It->second.TypeName.c_str(), (uint64_t)It->second.Size, It->second.Origin.Function);
+					ErrorHandling::Message(LogLevel::Debug, It->second.Origin.Line, It->second.Origin.Source, "[mem] %saddress at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", It->second.Static ? "static " : "", It->first, Date, It->second.TypeName.c_str(), (uint64_t)It->second.Size, It->second.Origin.Function);
 				}
 
-				OS::SetLogFlag(LogOption::Active, LogActive);
+				ErrorHandling::SetFlag(LogOption::Active, LogActive);
 				return It != Blocks.end();
 			}
 			else if (!Blocks.empty())
@@ -499,9 +499,9 @@ namespace Mavi
 				if (StaticAddresses == Blocks.size())
 					return false;
 
-				bool LogActive = OS::HasFlag(LogOption::Active);
+				bool LogActive = ErrorHandling::HasFlag(LogOption::Active);
 				if (!LogActive)
-					OS::SetLogFlag(LogOption::Active, true);
+					ErrorHandling::SetFlag(LogOption::Active, true);
 
 				size_t TotalMemory = 0;
 				for (auto& Item : Blocks)
@@ -515,10 +515,10 @@ namespace Mavi
 
 					char Date[64];
 					GetDateTime(Item.second.Time, Date, sizeof(Date));
-					OS::Log(4, Item.second.Origin.Line, Item.second.Origin.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", Item.first, Date, Item.second.TypeName.c_str(), (uint64_t)Item.second.Size, Item.second.Origin.Function);
+					ErrorHandling::Message(LogLevel::Debug, Item.second.Origin.Line, Item.second.Origin.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", Item.first, Date, Item.second.TypeName.c_str(), (uint64_t)Item.second.Size, Item.second.Origin.Function);
 				}
 
-				OS::SetLogFlag(LogOption::Active, LogActive);
+				ErrorHandling::SetFlag(LogOption::Active, LogActive);
 				return true;
 			}
 #endif
@@ -6013,7 +6013,6 @@ namespace Mavi
 		}
 		void Console::Detach()
 		{
-			Deallocate();
 			Status = Mode::Detached;
 		}
 		void Console::Flush()

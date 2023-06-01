@@ -756,6 +756,11 @@ namespace Mavi
 			{
 				return IsValue() ? Optional::Value : Optional::None;
 			}
+			void Reset()
+			{
+				~Option();
+				Empty = true;
+			}
 			bool IsNone() const
 			{
 				return Empty;
@@ -804,9 +809,13 @@ namespace Mavi
 			{
 				return IsValue();
 			}
-			operator Optional() const
+			explicit operator Optional() const
 			{
 				return IsValue() ? Optional::Value : Optional::None;
+			}
+			void Reset()
+			{
+				Empty = true;
 			}
 			bool IsNone() const
 			{
@@ -959,6 +968,11 @@ namespace Mavi
 			{
 				VI_ASSERT(IsValue(), "error caused by %s", GetErrorText<E>().c_str());
 				return (typename std::remove_pointer<V>::type*)Value;
+			}
+			void Reset()
+			{
+				~Expects();
+				Status = 0;
 			}
 			bool IsNone() const
 			{
@@ -1877,12 +1891,17 @@ namespace Mavi
 			}
 			T* operator-> ()
 			{
-				VI_ASSERT(Pointer != nullptr, "null pointer access");
+				VI_ASSERT(Pointer != nullptr, "unique pointer invalid access");
 				return Pointer;
 			}
 			T* operator* ()
 			{
-				VI_ASSERT(Pointer != nullptr, "null pointer access");
+				return Pointer;
+			}
+			T* OrPanic(const char* Message)
+			{
+				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
+				VI_PANIC(Pointer != nullptr, "panic is caused by %s", Message);
 				return Pointer;
 			}
 			Unique<T> Reset()
@@ -3449,7 +3468,7 @@ namespace Mavi
 			}
 
 		public:
-			static BasicPromise Ready() noexcept
+			static BasicPromise Null() noexcept
 			{
 				return BasicPromise(false, false);
 			}
@@ -3557,7 +3576,7 @@ namespace Mavi
 				}
 				static BasicPromise get_return_object_on_allocation_failure()
 				{
-					return BasicPromise::Ready();
+					return BasicPromise::Null();
 				}
 			};
 #endif
@@ -3744,7 +3763,7 @@ namespace Mavi
 			}
 
 		public:
-			static BasicPromise Ready() noexcept
+			static BasicPromise Null() noexcept
 			{
 				return BasicPromise((Status*)nullptr);
 			}
@@ -3843,7 +3862,7 @@ namespace Mavi
 				}
 				static BasicPromise get_return_object_on_allocation_failure()
 				{
-					return BasicPromise::Ready();
+					return BasicPromise::Null();
 				}
 			};
 #endif

@@ -173,6 +173,6 @@ typedef socklen_t socket_size_t;
 #define CoreturnVoid co_return
 #else
 #define Coreturn return
-#define CoreturnVoid return Mavi::Core::Promise<void>::Ready()
+#define CoreturnVoid return Mavi::Core::Promise<void>::Null()
 #endif
 #endif

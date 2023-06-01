@@ -127,6 +127,9 @@ Shared objects (so) are optional.
 Mavi is licensed under the MIT license
 
 ## Known Issues
-Script interface covers only these modules for now: Core, Compute, Audio, Network, Network HTTP, Network SMTP, Graphics, Engine, Engine GUI, Engine components, Engine renderers. TODO: Audio effects, Audio filters, Network MongoDB, Network PostgreSQL.
+1. Script bindings cover only these modules for now: Core, Compute, Audio, Network, Network HTTP, Network SMTP, Graphics, Engine, Engine GUI, Engine components, Engine renderers.<br />
+_TODO: Audio effects, Audio filters, Network MongoDB, Network PostgreSQL._
 
-Documentation in it's usual form is non-existant at the moment. In the nearest future that could be changed.
+2. Functions that could fail will be using expects<> or option<> wrappers in the nearest future but at the moment they are not. 
+
+3. Documentation in it's usual form is non-existant at the moment. In the nearest future that could be changed.

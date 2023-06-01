@@ -8655,19 +8655,47 @@ namespace Mavi
 			switch (Type)
 			{
 				case Signal::SIG_INT:
+#ifdef SIGINT
 					return SIGINT;
+#else
+					return -1;
+#endif
 				case Signal::SIG_ILL:
+#ifdef SIGILL
 					return SIGILL;
+#else
+					return -1;
+#endif
 				case Signal::SIG_FPE:
+#ifdef SIGFPE
 					return SIGFPE;
+#else
+					return -1;
+#endif
 				case Signal::SIG_SEGV:
+#ifdef SIGSEGV
 					return SIGSEGV;
+#else
+					return -1;
+#endif
 				case Signal::SIG_TERM:
+#ifdef SIGTERM
 					return SIGTERM;
+#else
+					return -1;
+#endif
 				case Signal::SIG_BREAK:
+#ifdef SIGBREAK
 					return SIGBREAK;
+#else
+					return -1;
+#endif
 				case Signal::SIG_ABRT:
+#ifdef SIGABRT
 					return SIGABRT;
+#else
+					return -1;
+#endif
 				case Signal::SIG_BUS:
 #ifdef SIGBUS
 					return SIGBUS;

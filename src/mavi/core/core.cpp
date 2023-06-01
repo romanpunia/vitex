@@ -7,8 +7,8 @@
 #include <functional>
 #include <iostream>
 #include <fstream>
-#include <csignal>
 #include <bitset>
+#include <signal.h>
 #include <sys/stat.h>
 #include <rapidxml.hpp>
 #include <json/document.h>
@@ -190,7 +190,7 @@ namespace
 	}
 	void GetDateTime(time_t Time, char* Date, size_t Size)
 	{
-		tm DateTime { };
+		tm DateTime{ };
 		if (!LocalTime(&Time, &DateTime))
 			strncpy(Date, "1970-01-01 00:00:00", Size);
 		else
@@ -211,7 +211,7 @@ namespace
 	}
 	Mavi::Core::Vector<char> SysControl(int M1, int M2)
 	{
-		int Name[2] { M1, M2 };
+		int Name[2]{ M1, M2 };
 		SYSCTL(::sysctl, Name, sizeof(Name) / sizeof(*Name));
 	}
 	std::pair<bool, uint64_t> SysExtract(const Mavi::Core::Vector<char>& Data)
@@ -220,12 +220,12 @@ namespace
 		{
 			case sizeof(uint16_t) :
 				return SysDecompose<uint16_t>(Data);
-            case sizeof(uint32_t) :
-                return SysDecompose<uint32_t>(Data);
-            case sizeof(uint64_t) :
-                return SysDecompose<uint64_t>(Data);
-            default:
-                return {};
+				case sizeof(uint32_t) :
+					return SysDecompose<uint32_t>(Data);
+					case sizeof(uint64_t) :
+						return SysDecompose<uint64_t>(Data);
+					default:
+						return {};
 		}
 	}
 #endif
@@ -322,7 +322,7 @@ namespace Mavi
 
 				int X, Y;
 				Pack2_64((void*)State, &X, &Y);
-				makecontext(&Context, (void(*)())&Costate::ExecutionEntry, 2, X, Y);
+				makecontext(&Context, (void(*)()) & Costate::ExecutionEntry, 2, X, Y);
 #endif
 			}
 			~Cocontext()
@@ -1374,7 +1374,7 @@ namespace Mavi
 				if (Frame.Line > 0)
 					Stream << ":" << Frame.Line;
 				if (Frame.Column > 0)
-					Stream << "," << Frame.Column;		
+					Stream << "," << Frame.Column;
 				Stream << " in " << Frame.Function;
 				if (!Frame.Native)
 					Stream << " (vcall)";
@@ -1388,36 +1388,36 @@ namespace Mavi
 		{
 			switch (Base.Type.Level)
 			{
-			case LogLevel::Error:
-				return "ERROR";
-			case LogLevel::Warning:
-				return "WARN";
-			case LogLevel::Info:
-				return "INFO";
-			case LogLevel::Debug:
-				return "DEBUG";
-			case LogLevel::Trace:
-				return "TRACE";
-			default:
-				return "LOG";
+				case LogLevel::Error:
+					return "ERROR";
+				case LogLevel::Warning:
+					return "WARN";
+				case LogLevel::Info:
+					return "INFO";
+				case LogLevel::Debug:
+					return "DEBUG";
+				case LogLevel::Trace:
+					return "TRACE";
+				default:
+					return "LOG";
 			}
 		}
 		StdColor ErrorHandling::GetMessageColor(const Details& Base)
 		{
 			switch (Base.Type.Level)
 			{
-			case LogLevel::Error:
-				return StdColor::DarkRed;
-			case LogLevel::Warning:
-				return StdColor::Orange;
-			case LogLevel::Info:
-				return StdColor::LightBlue;
-			case LogLevel::Debug:
-				return StdColor::Gray;
-			case LogLevel::Trace:
-				return StdColor::Gray;
-			default:
-				return StdColor::LightGray;
+				case LogLevel::Error:
+					return StdColor::DarkRed;
+				case LogLevel::Warning:
+					return StdColor::Orange;
+				case LogLevel::Info:
+					return StdColor::LightBlue;
+				case LogLevel::Debug:
+					return StdColor::Gray;
+				case LogLevel::Trace:
+					return StdColor::Gray;
+				default:
+					return StdColor::LightGray;
 			}
 		}
 		Core::String ErrorHandling::GetMessageText(const Details& Base)
@@ -4143,7 +4143,7 @@ namespace Mavi
 		Core::String& Stringify::ReplaceOf(Core::String& Other, const char* Chars, const char* To, size_t Start)
 		{
 			VI_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, "match list and replacer should not be empty");
-			TextSettle Result { };
+			TextSettle Result{ };
 			size_t Offset = Start, ToSize = strlen(To);
 			while ((Result = FindOf(Other, Chars, Offset)).Found)
 			{
@@ -4156,7 +4156,7 @@ namespace Mavi
 		Core::String& Stringify::ReplaceNotOf(Core::String& Other, const char* Chars, const char* To, size_t Start)
 		{
 			VI_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, "match list and replacer should not be empty");
-			TextSettle Result {};
+			TextSettle Result{};
 			size_t Offset = Start, ToSize = strlen(To);
 			while ((Result = FindNotOf(Other, Chars, Offset)).Found)
 			{
@@ -4170,7 +4170,7 @@ namespace Mavi
 		{
 			VI_ASSERT(!From.empty(), "match should not be empty");
 			size_t Offset = Start;
-			TextSettle Result { };
+			TextSettle Result{ };
 
 			while ((Result = Find(Other, From, Offset)).Found)
 			{
@@ -4191,7 +4191,7 @@ namespace Mavi
 			VI_ASSERT(From != nullptr && To != nullptr, "from and to should not be empty");
 			size_t Offset = Start;
 			size_t Size = strlen(To);
-			TextSettle Result { };
+			TextSettle Result{ };
 
 			while ((Result = Find(Other, From, Offset)).Found)
 			{
@@ -4297,7 +4297,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
 			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', "end should not be empty");
-			
+
 			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
 			for (size_t i = Start; i < Other.size(); i++)
 			{
@@ -4703,7 +4703,7 @@ namespace Mavi
 						break;
 					}
 				}
-				
+
 				while (Skip != '\0' && i < Other.size() && Other.at(i) != Skip)
 					++i;
 
@@ -4732,7 +4732,7 @@ namespace Mavi
 				{
 					if (Other.at(To++) != Ends[EndsOffset])
 						continue;
-					
+
 					if (++EndsOffset >= EndsSize)
 						break;
 				}
@@ -7265,80 +7265,80 @@ namespace Mavi
 			return (int64_t)Process;
 #endif
 		}
-		
+
 		OS::Process::ArgsContext::ArgsContext(int Argc, char** Argv, const Core::String& WhenNoValue) noexcept
-        {
-            Base = OS::Process::GetArgs(Argc, Argv, WhenNoValue);
-        }
-        void OS::Process::ArgsContext::ForEach(const std::function<void(const Core::String&, const Core::String&)>& Callback) const
-        {
-            VI_ASSERT(Callback != nullptr, "callback should not be empty");
-            for (auto& Item : Base)
-                Callback(Item.first, Item.second);
-        }
-        bool OS::Process::ArgsContext::IsEnabled(const Core::String& Option, const Core::String& Shortcut) const
-        {
-            auto It = Base.find(Option);
-            if (It == Base.end() || !IsTrue(It->second))
-                return Shortcut.empty() ? false : IsEnabled(Shortcut);
-                            
-            return true;
-        }
-        bool OS::Process::ArgsContext::IsDisabled(const Core::String& Option, const Core::String& Shortcut) const
-        {
-            auto It = Base.find(Option);
-            if (It == Base.end())
-                return Shortcut.empty() ? true : IsDisabled(Shortcut);
-                            
-            return IsFalse(It->second);
-        }
-        bool OS::Process::ArgsContext::Has(const Core::String& Option, const Core::String& Shortcut) const
-        {
-            if (Base.find(Option) != Base.end())
-                return true;
-                        
-            return Shortcut.empty() ? false : Base.find(Shortcut) != Base.end();
-        }
-        Core::String& OS::Process::ArgsContext::Get(const Core::String& Option, const Core::String& Shortcut)
-        {
-            if (Base.find(Option) != Base.end())
-                return Base[Option];
-                        
-            return Shortcut.empty() ? Base[Option] : Base[Shortcut];
-        }
-        Core::String& OS::Process::ArgsContext::GetIf(const Core::String& Option, const Core::String& Shortcut, const Core::String& WhenEmpty)
-        {
-            if (Base.find(Option) != Base.end())
-                return Base[Option];
-                        
-            if (!Shortcut.empty() && Base.find(Shortcut) != Base.end())
-                return Base[Shortcut];
-                        
-            Core::String& Value = Base[Option];
-            Value = WhenEmpty;
-            return Value;
-        }
-        Core::String& OS::Process::ArgsContext::GetAppPath()
-        {
-            return Get("__path__");
-        }
-        bool OS::Process::ArgsContext::IsTrue(const Core::String& Value) const
-        {
-            if (Value.empty())
-                return false;
+		{
+			Base = OS::Process::GetArgs(Argc, Argv, WhenNoValue);
+		}
+		void OS::Process::ArgsContext::ForEach(const std::function<void(const Core::String&, const Core::String&)>& Callback) const
+		{
+			VI_ASSERT(Callback != nullptr, "callback should not be empty");
+			for (auto& Item : Base)
+				Callback(Item.first, Item.second);
+		}
+		bool OS::Process::ArgsContext::IsEnabled(const Core::String& Option, const Core::String& Shortcut) const
+		{
+			auto It = Base.find(Option);
+			if (It == Base.end() || !IsTrue(It->second))
+				return Shortcut.empty() ? false : IsEnabled(Shortcut);
+
+			return true;
+		}
+		bool OS::Process::ArgsContext::IsDisabled(const Core::String& Option, const Core::String& Shortcut) const
+		{
+			auto It = Base.find(Option);
+			if (It == Base.end())
+				return Shortcut.empty() ? true : IsDisabled(Shortcut);
+
+			return IsFalse(It->second);
+		}
+		bool OS::Process::ArgsContext::Has(const Core::String& Option, const Core::String& Shortcut) const
+		{
+			if (Base.find(Option) != Base.end())
+				return true;
+
+			return Shortcut.empty() ? false : Base.find(Shortcut) != Base.end();
+		}
+		Core::String& OS::Process::ArgsContext::Get(const Core::String& Option, const Core::String& Shortcut)
+		{
+			if (Base.find(Option) != Base.end())
+				return Base[Option];
+
+			return Shortcut.empty() ? Base[Option] : Base[Shortcut];
+		}
+		Core::String& OS::Process::ArgsContext::GetIf(const Core::String& Option, const Core::String& Shortcut, const Core::String& WhenEmpty)
+		{
+			if (Base.find(Option) != Base.end())
+				return Base[Option];
+
+			if (!Shortcut.empty() && Base.find(Shortcut) != Base.end())
+				return Base[Shortcut];
+
+			Core::String& Value = Base[Option];
+			Value = WhenEmpty;
+			return Value;
+		}
+		Core::String& OS::Process::ArgsContext::GetAppPath()
+		{
+			return Get("__path__");
+		}
+		bool OS::Process::ArgsContext::IsTrue(const Core::String& Value) const
+		{
+			if (Value.empty())
+				return false;
 
 			auto MaybeNumber = FromString<uint64_t>(Value);
 			if (MaybeNumber && *MaybeNumber > 0)
-                return true;
-                        
+				return true;
+
 			String Data(Value);
 			Stringify::ToLower(Data);
-            return Data == "on" || Data == "true" || Data == "yes" || Data == "y";
-        }
-        bool OS::Process::ArgsContext::IsFalse(const Core::String& Value) const
-        {
-            if (Value.empty())
-                return true;
+			return Data == "on" || Data == "true" || Data == "yes" || Data == "y";
+		}
+		bool OS::Process::ArgsContext::IsFalse(const Core::String& Value) const
+		{
+			if (Value.empty())
+				return true;
 
 			auto MaybeNumber = FromString<uint64_t>(Value);
 			if (MaybeNumber && *MaybeNumber > 0)
@@ -7346,12 +7346,12 @@ namespace Mavi
 
 			String Data(Value);
 			Stringify::ToLower(Data);
-            return Data == "off" || Data == "false" || Data == "no" || Data == "n";
-        }
+			return Data == "off" || Data == "false" || Data == "no" || Data == "n";
+		}
 
 		OS::CPU::QuantityInfo OS::CPU::GetQuantityInfo()
 		{
-			QuantityInfo Result {};
+			QuantityInfo Result{};
 #ifdef VI_MICROSOFT
 			for (auto&& Info : CPUInfoBuffer())
 			{
@@ -7423,7 +7423,7 @@ namespace Mavi
 				if (Info.Relationship != RelationCache || Info.Cache.Level != Level)
 					continue;
 
-				Cache Type {};
+				Cache Type{};
 				switch (Info.Cache.Type)
 				{
 					case CacheUnified:
@@ -7445,8 +7445,8 @@ namespace Mavi
 
 			return {};
 #elif VI_APPLE
-			static const char* SizeKeys[][3] { {}, {"hw.l1icachesize", "hw.l1dcachesize", "hw.l1cachesize"}, {"hw.l2cachesize"}, {"hw.l3cachesize"} };
-			CacheInfo Result {};
+			static const char* SizeKeys[][3]{ {}, {"hw.l1icachesize", "hw.l1dcachesize", "hw.l1cachesize"}, {"hw.l2cachesize"}, {"hw.l3cachesize"} };
+			CacheInfo Result{};
 
 			const auto CtlCacheLineSize = SysControl("hw.cachelinesize");
 			if (!CtlCacheLineSize.empty())
@@ -7484,7 +7484,7 @@ namespace Mavi
 			std::ifstream LineSize(LineSizePath.c_str());
 			std::ifstream Associativity(AssociativityPath.c_str());
 			std::ifstream Type(TypePath.c_str());
-			CacheInfo Result {};
+			CacheInfo Result{};
 
 			if (Size.is_open() && Size)
 			{
@@ -8506,7 +8506,7 @@ namespace Mavi
 				return Path;
 			else if (!EvenIfExists && IsPathExists(Path.c_str()) && Path.find("..") == std::string::npos)
 				return Path;
-			
+
 			bool Prefixed = Stringify::StartsOf(Path, "/\\");
 			bool Relative = !Prefixed && (Stringify::StartsWith(Path, "./") || Stringify::StartsWith(Path, ".\\"));
 			bool Postfixed = Stringify::EndsOf(Directory, "/\\");
@@ -8648,6 +8648,147 @@ namespace Mavi
 			if (IsDebuggerPresent())
 				__debugbreak();
 #endif
+#endif
+		}
+		int OS::Process::GetSignalId(Signal Type)
+		{
+			switch (Type)
+			{
+				case Signal::SIG_INT:
+					return SIGINT;
+				case Signal::SIG_ILL:
+					return SIGILL;
+				case Signal::SIG_FPE:
+					return SIGFPE;
+				case Signal::SIG_SEGV:
+					return SIGSEGV;
+				case Signal::SIG_TERM:
+					return SIGTERM;
+				case Signal::SIG_BREAK:
+					return SIGBREAK;
+				case Signal::SIG_ABRT:
+					return SIGABRT;
+				case Signal::SIG_BUS:
+#ifdef SIGBUS
+					return SIGBUS;
+#else
+					return -1;
+#endif
+				case Signal::SIG_ALRM:
+#ifdef SIGALRM
+					return SIGALRM;
+#else
+					return -1;
+#endif
+				case Signal::SIG_HUP:
+#ifdef SIGHUP
+					return SIGHUP;
+#else
+					return -1;
+#endif
+				case Signal::SIG_QUIT:
+#ifdef SIGQUIT
+					return SIGQUIT;
+#else
+					return -1;
+#endif
+				case Signal::SIG_TRAP:
+#ifdef SIGTRAP
+					return SIGTRAP;
+#else
+					return -1;
+#endif
+				case Signal::SIG_CONT:
+#ifdef SIGCONT
+					return SIGCONT;
+#else
+					return -1;
+#endif
+				case Signal::SIG_STOP:
+#ifdef SIGSTOP
+					return SIGSTOP;
+#else
+					return -1;
+#endif
+				case Signal::SIG_PIPE:
+#ifdef SIGPIPE
+					return SIGPIPE;
+#else
+					return -1;
+#endif
+				case Signal::SIG_CHLD:
+#ifdef SIGCHLD
+					return SIGCHLD;
+#else
+					return -1;
+#endif
+				case Signal::SIG_USR1:
+#ifdef SIGUSR1
+					return SIGUSR1;
+#else
+					return -1;
+#endif
+				case Signal::SIG_USR2:
+#ifdef SIGUSR2
+					return SIGUSR2;
+#else
+					return -1;
+#endif
+				default:
+					VI_ASSERT(false, "invalid signal type %i", (int)Type);
+					return -1;
+			}
+		}
+		bool OS::Process::SetSignalCallback(Signal Type, SignalCallback Callback)
+		{
+			VI_ASSERT(Callback != nullptr, "callback should be set");
+			int Id = GetSignalId(Type);
+			if (Id == -1)
+				return false;
+			VI_DEBUG("[os] signal %i: callback", Id);
+#ifdef VI_LINUX
+			struct sigaction Handle;
+			Handle.sa_handler = Callback;
+			sigemptyset(&Handle.sa_mask);
+			Handle.sa_flags = 0;
+
+			return sigaction(Id, &Handle, NULL) != -1;
+#else
+			return signal(Id, Callback) != SIG_ERR;
+#endif
+		}
+		bool OS::Process::SetSignalDefault(Signal Type)
+		{
+			int Id = GetSignalId(Type);
+			if (Id == -1)
+				return false;
+			VI_DEBUG("[os] signal %i: default", Id);
+#ifdef VI_LINUX
+			struct sigaction Handle;
+			Handle.sa_handler = SIG_DFL;
+			sigemptyset(&Handle.sa_mask);
+			Handle.sa_flags = 0;
+
+			return sigaction(Id, &Handle, NULL) != -1;
+#else
+			return signal(Id, SIG_DFL) != SIG_ERR;
+#endif
+		}
+		bool OS::Process::SetSignalIgnore(Signal Type)
+		{
+			int Id = GetSignalId(Type);
+			if (Id == -1)
+				return false;
+			VI_DEBUG("[os] signal %i: ignore", Id);
+#ifdef VI_LINUX
+			struct sigaction Handle;
+			Handle.sa_handler = SIG_IGN;
+			sigemptyset(&Handle.sa_mask);
+			Handle.sa_flags = 0;
+
+			return sigaction(Id, &Handle, NULL) != -1;
+#else
+			return signal(Id, SIG_IGN) != SIG_ERR;
 #endif
 		}
 		int OS::Process::ExecutePlain(const String& Command)
@@ -8825,49 +8966,49 @@ namespace Mavi
 
 			return Stream.str();
 		}
-        Core::UnorderedMap<Core::String, Core::String> OS::Process::GetArgs(int ArgsCount, char** Args, const Core::String& WhenNoValue)
-        {
-            Core::UnorderedMap<Core::String, Core::String> Results;
-            VI_ASSERT(Args != nullptr, "arguments should be set");
-            VI_ASSERT(ArgsCount > 0, "arguments count should be greater than zero");
-            
-            Core::Vector<Core::String> Params;
-            for (int i = 0; i < ArgsCount; i++)
-            {
-                VI_ASSERT(Args[i] != nullptr, "argument %i should be set", i);
-                Params.push_back(Args[i]);
-            }
-        
-            for (size_t i = 1; i < Params.size(); i++)
-            {
-                auto& Item = Params[i];
-                if (Item.empty() || Item.front() != '-')
-                    continue;
-                
-                if (Item.size() > 1 && Item[1] == '-')
-                {
-                    Item = Item.substr(2);
-                    size_t Position = Item.find('=');
-                    if (Position != Core::String::npos)
-                    {
-                        Core::String Value = Item.substr(Position + 1);
-                        Results[Item.substr(0, Position)] = Value.empty() ? WhenNoValue : Value;
-                    }
-                    else
-                        Results[Item] = WhenNoValue;
-                }
-                else if (i + 1 < Params.size() && Params[i + 1].front() != '-')
-                {
-                    auto& Value = Params[++i];
-                    Results[Item.substr(1)] = Value.empty() ? WhenNoValue : Value;
-                }
-                else
-                    Results[Item.substr(1)] = WhenNoValue;
-            }
+		Core::UnorderedMap<Core::String, Core::String> OS::Process::GetArgs(int ArgsCount, char** Args, const Core::String& WhenNoValue)
+		{
+			Core::UnorderedMap<Core::String, Core::String> Results;
+			VI_ASSERT(Args != nullptr, "arguments should be set");
+			VI_ASSERT(ArgsCount > 0, "arguments count should be greater than zero");
 
-            Results["__path__"] = Params.front();
-            return Results;
-        }
+			Core::Vector<Core::String> Params;
+			for (int i = 0; i < ArgsCount; i++)
+			{
+				VI_ASSERT(Args[i] != nullptr, "argument %i should be set", i);
+				Params.push_back(Args[i]);
+			}
+
+			for (size_t i = 1; i < Params.size(); i++)
+			{
+				auto& Item = Params[i];
+				if (Item.empty() || Item.front() != '-')
+					continue;
+
+				if (Item.size() > 1 && Item[1] == '-')
+				{
+					Item = Item.substr(2);
+					size_t Position = Item.find('=');
+					if (Position != Core::String::npos)
+					{
+						Core::String Value = Item.substr(Position + 1);
+						Results[Item.substr(0, Position)] = Value.empty() ? WhenNoValue : Value;
+					}
+					else
+						Results[Item] = WhenNoValue;
+				}
+				else if (i + 1 < Params.size() && Params[i + 1].front() != '-')
+				{
+					auto& Value = Params[++i];
+					Results[Item.substr(1)] = Value.empty() ? WhenNoValue : Value;
+				}
+				else
+					Results[Item.substr(1)] = WhenNoValue;
+			}
+
+			Results["__path__"] = Params.front();
+			return Results;
+		}
 
 		void* OS::Symbol::Load(const Core::String& Path)
 		{
@@ -9723,7 +9864,7 @@ namespace Mavi
 
 			if (!Enqueue)
 				return false;
-			
+
 			if (Immediate)
 			{
 				Callback();
@@ -10025,8 +10166,8 @@ namespace Mavi
 #endif
 					return Count > 0;
 				}
-                default:
-                    break;
+				default:
+					break;
 			}
 
 			return false;
@@ -10206,8 +10347,8 @@ namespace Mavi
 					} while (ThreadActive(Thread));
 					break;
 				}
-                default:
-                    break;
+				default:
+					break;
 			}
 
 			if (Thread->Daemon)
@@ -11172,7 +11313,7 @@ namespace Mavi
 			ConvertToJSONB(Value, [&](VarForm Type, const char* Buffer, size_t Length)
 			{
 				for (size_t i = 0; i < Length; i++)
-				    Result.push_back(Buffer[i]);
+					Result.push_back(Buffer[i]);
 			});
 			return Result;
 		}
@@ -11195,7 +11336,7 @@ namespace Mavi
 				VI_DELETE(xml_document, Data);
 				if (Assert)
 					VI_ERR("[xml] %s", Exception.what());
-				
+
 				((void)Exception);
 				return nullptr;
 			}

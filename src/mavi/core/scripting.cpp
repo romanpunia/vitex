@@ -2750,7 +2750,7 @@ namespace Mavi
 				{
 					if (Args.size() > 1)
 					{
-						auto Numeric = Core::FromString<uint64_t>(Args[1]);
+						auto Numeric = Core::FromString<uint32_t>(Args[1]);
 						if (Numeric)
 							ListStackRegisters(Context, *Numeric);
 						else

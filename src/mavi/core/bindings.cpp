@@ -10491,9 +10491,11 @@ namespace Mavi
 				Engine->EndNamespace();
 
 				Engine->BeginNamespace("os::error");
-				Engine->SetFunction("int32 get()", &Core::OS::Error::Get);
-				Engine->SetFunction("string get_name(int32)", &Core::OS::Error::GetName);
+				Engine->SetFunction("int32 get(bool = true)", &Core::OS::Error::Get);
+				Engine->SetFunction("void clear()", &Core::OS::Error::Clear);
+				Engine->SetFunction("bool occurred()", &Core::OS::Error::Occurred);
 				Engine->SetFunction("bool is_error(int32)", &Core::OS::Error::IsError);
+				Engine->SetFunction("string get_name(int32)", &Core::OS::Error::GetName);
 				Engine->EndNamespace();
 
 				return true;

@@ -864,6 +864,7 @@ namespace Mavi
 						{
 							auto Result = VI_AWAIT(((Base->*F)(Data...)));
 							Future->Store((void*)&Result, Id);
+							CoreturnVoid;
 						});
 
 						return Future;
@@ -881,6 +882,7 @@ namespace Mavi
 						{
 							auto Result = VI_AWAIT(((*F)(Data...)));
 							Future->Store((void*)&Result, (int)TypeID);
+							CoreturnVoid;
 						});
 
 						return Future;
@@ -894,6 +896,7 @@ namespace Mavi
 						{
 							auto Result = VI_AWAIT(((*F)(Data...)));
 							Future->Store((void*)&Result, TypeId);
+							CoreturnVoid;
 						});
 
 						return Future;

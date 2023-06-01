@@ -4056,7 +4056,7 @@ namespace Mavi
 #endif
 #ifdef VI_CXX17
 		template <typename T>
-		inline Expects<T, std::error_condition> FromString(const Core::String& Other, int Base)
+		inline Expects<T, std::error_condition> FromStringRadix(const Core::String& Other, int Base)
 		{
 			static_assert(std::is_integral<T>::value, "base can be specified only for integral types");
 			T Value;
@@ -4077,13 +4077,13 @@ namespace Mavi
 		}
 #else
 		template <typename T>
-		inline Expects<T, std::error_condition> FromString(const Core::String& Other, int Base)
+		inline Expects<T, std::error_condition> FromStringRadix(const Core::String& Other, int Base)
 		{
 			static_assert(false, "conversion can be done only to arithmetic types");
 			return std::make_error_condition(std::errc::not_supported);
 		}
 		template <>
-		inline Expects<int8_t, std::error_condition> FromString<int8_t>(const Core::String& Other, int Base)
+		inline Expects<int8_t, std::error_condition> FromStringRadix<int8_t>(const Core::String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4091,14 +4091,16 @@ namespace Mavi
 			long Value = strtol(Start, &End, Base);
 			if (Start == End)
 				return std::make_error_condition(std::errc::invalid_argument);
-			else if (Value < (long)std::numeric_limits<int8_t>::min() || Value >(long)std::numeric_limits<int8_t>::max())
+			else if (Value < (long)std::numeric_limits<int8_t>::min())
+				return std::make_error_condition(std::errc::result_out_of_range);
+			else if (Value > (long)std::numeric_limits<int8_t>::max())
 				return std::make_error_condition(std::errc::result_out_of_range);
 			else if (OS::Error::Occurred())
 				return OS::Error::GetCondition();
 			return (int8_t)Value;
 		}
 		template <>
-		inline Expects<int16_t, std::error_condition> FromString<int16_t>(const Core::String& Other, int Base)
+		inline Expects<int16_t, std::error_condition> FromStringRadix<int16_t>(const Core::String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4106,14 +4108,16 @@ namespace Mavi
 			long Value = strtol(Start, &End, Base);
 			if (Start == End)
 				return std::make_error_condition(std::errc::invalid_argument);
-			else if (Value < (long)std::numeric_limits<int16_t>::min() || Value >(long)std::numeric_limits<int16_t>::max())
+			else if (Value < (long)std::numeric_limits<int16_t>::min())
+				return std::make_error_condition(std::errc::result_out_of_range);
+			else if (Value > (long)std::numeric_limits<int16_t>::max())
 				return std::make_error_condition(std::errc::result_out_of_range);
 			else if (OS::Error::Occurred())
 				return OS::Error::GetCondition();
 			return (int16_t)Value;
 		}
 		template <>
-		inline Expects<int32_t, std::error_condition> FromString<int32_t>(const Core::String& Other, int Base)
+		inline Expects<int32_t, std::error_condition> FromStringRadix<int32_t>(const Core::String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4126,7 +4130,7 @@ namespace Mavi
 			return (int32_t)Value;
 		}
 		template <>
-		inline Expects<int64_t, std::error_condition> FromString<int64_t>(const Core::String& Other, int Base)
+		inline Expects<int64_t, std::error_condition> FromStringRadix<int64_t>(const Core::String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4139,7 +4143,7 @@ namespace Mavi
 			return (int64_t)Value;
 		}
 		template <>
-		inline Expects<uint8_t, std::error_condition> FromString<uint8_t>(const Core::String& Other, int Base)
+		inline Expects<uint8_t, std::error_condition> FromStringRadix<uint8_t>(const Core::String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4154,7 +4158,7 @@ namespace Mavi
 			return (uint8_t)Value;
 		}
 		template <>
-		inline Expects<uint16_t, std::error_condition> FromString<uint16_t>(const Core::String& Other, int Base)
+		inline Expects<uint16_t, std::error_condition> FromStringRadix<uint16_t>(const Core::String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4169,7 +4173,7 @@ namespace Mavi
 			return (uint16_t)Value;
 		}
 		template <>
-		inline Expects<uint32_t, std::error_condition> FromString<uint32_t>(const Core::String& Other, int Base)
+		inline Expects<uint32_t, std::error_condition> FromStringRadix<uint32_t>(const Core::String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4182,7 +4186,7 @@ namespace Mavi
 			return (uint32_t)Value;
 		}
 		template <>
-		inline Expects<uint64_t, std::error_condition> FromString<uint64_t>(const Core::String& Other, int Base)
+		inline Expects<uint64_t, std::error_condition> FromStringRadix<uint64_t>(const Core::String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4203,42 +4207,42 @@ namespace Mavi
 		template <>
 		inline Expects<int8_t, std::error_condition> FromString<int8_t>(const Core::String& Other)
 		{
-			return FromString<int8_t>(Other, 10);
+			return FromStringRadix<int8_t>(Other, 10);
 		}
 		template <>
 		inline Expects<int16_t, std::error_condition> FromString<int16_t>(const Core::String& Other)
 		{
-			return FromString<int16_t>(Other, 10);
+			return FromStringRadix<int16_t>(Other, 10);
 		}
 		template <>
 		inline Expects<int32_t, std::error_condition> FromString<int32_t>(const Core::String& Other)
 		{
-			return FromString<int32_t>(Other, 10);
+			return FromStringRadix<int32_t>(Other, 10);
 		}
 		template <>
 		inline Expects<int64_t, std::error_condition> FromString<int64_t>(const Core::String& Other)
 		{
-			return FromString<int64_t>(Other, 10);
+			return FromStringRadix<int64_t>(Other, 10);
 		}
 		template <>
 		inline Expects<uint8_t, std::error_condition> FromString<uint8_t>(const Core::String& Other)
 		{
-			return FromString<uint8_t>(Other, 10);
+			return FromStringRadix<uint8_t>(Other, 10);
 		}
 		template <>
 		inline Expects<uint16_t, std::error_condition> FromString<uint16_t>(const Core::String& Other)
 		{
-			return FromString<uint16_t>(Other, 10);
+			return FromStringRadix<uint16_t>(Other, 10);
 		}
 		template <>
 		inline Expects<uint32_t, std::error_condition> FromString<uint32_t>(const Core::String& Other)
 		{
-			return FromString<uint32_t>(Other, 10);
+			return FromStringRadix<uint32_t>(Other, 10);
 		}
 		template <>
 		inline Expects<uint64_t, std::error_condition> FromString<uint64_t>(const Core::String& Other)
 		{
-			return FromString<uint64_t>(Other, 10);
+			return FromStringRadix<uint64_t>(Other, 10);
 		}
 		template <>
 		inline Expects<float, std::error_condition> FromString<float>(const Core::String& Other)

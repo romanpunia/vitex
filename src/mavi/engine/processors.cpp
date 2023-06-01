@@ -1045,7 +1045,7 @@ namespace Mavi
 					else
 						Path.assign(Asset->Path);
 
-					if (!Core::Stringify(&Path).EndsWith(Ext))
+					if (!Core::Stringify::EndsWith(Path, Ext))
 						Path.append(Ext);
 
 					if (Content->Save<Engine::Material>(Path, Material, Args))
@@ -1131,9 +1131,9 @@ namespace Mavi
 			}
 			void* AudioClipProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				if (Core::Stringify(&Stream->GetSource()).EndsWith(".wav"))
+				if (Core::Stringify::EndsWith(Stream->GetSource(), ".wav"))
 					return DeserializeWAVE(Stream, Offset, Args);
-				else if (Core::Stringify(&Stream->GetSource()).EndsWith(".ogg"))
+				else if (Core::Stringify::EndsWith(Stream->GetSource(), ".ogg"))
 					return DeserializeOGG(Stream, Offset, Args);
 
 				return nullptr;
@@ -1377,9 +1377,7 @@ namespace Mavi
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Model* Object = nullptr;
 				Core::String& Path = Stream->GetSource();
-				Core::Stringify Location(&Path);
-
-				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
+				if (Core::Stringify::EndsWith(Path, ".xml") || Core::Stringify::EndsWith(Path, ".json") || Core::Stringify::EndsWith(Path, ".jsonb") || Core::Stringify::EndsWith(Path, ".xml.gz") || Core::Stringify::EndsWith(Path, ".json.gz") || Core::Stringify::EndsWith(Path, ".jsonb.gz"))
 				{
 					Core::Schema* Data = Content->Load<Core::Schema>(Path);
 					if (!Data)
@@ -1546,9 +1544,7 @@ namespace Mavi
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				SkinModel* Object = nullptr;
 				Core::String& Path = Stream->GetSource();
-				Core::Stringify Location(&Path);
-
-				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
+				if (Core::Stringify::EndsWith(Path, ".xml") || Core::Stringify::EndsWith(Path, ".json") || Core::Stringify::EndsWith(Path, ".jsonb") || Core::Stringify::EndsWith(Path, ".xml.gz") || Core::Stringify::EndsWith(Path, ".json.gz") || Core::Stringify::EndsWith(Path, ".jsonb.gz"))
 				{
 					Core::Schema* Data = Content->Load<Core::Schema>(Path);
 					if (!Data)
@@ -1669,9 +1665,7 @@ namespace Mavi
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::Vector<Compute::SkinAnimatorClip> Clips;
 				Core::String& Path = Stream->GetSource();
-				Core::Stringify Location(&Path);
-
-				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
+				if (Core::Stringify::EndsWith(Path, ".xml") || Core::Stringify::EndsWith(Path, ".json") || Core::Stringify::EndsWith(Path, ".jsonb") || Core::Stringify::EndsWith(Path, ".xml.gz") || Core::Stringify::EndsWith(Path, ".json.gz") || Core::Stringify::EndsWith(Path, ".jsonb.gz"))
 				{
 					Core::Schema* Data = Content->Load<Core::Schema>(Path);
 					if (!Data)
@@ -1950,10 +1944,12 @@ namespace Mavi
 				for (auto&& It : Certificates)
 				{
 					Core::String Name;
-					if (!Series::Unpack(It, &Name))
+					if (Series::Unpack(It, &Name))
+						Core::Stringify::EvalEnvs(Name, N, D);
+					else
 						Name = "*";
 
-					Network::SocketCertificate* Cert = &Router->Certificates[Core::Stringify(&Name).Eval(N, D).R()];
+					Network::SocketCertificate* Cert = &Router->Certificates[Name];
 					if (Series::Unpack(It->Find("protocol"), &Name))
 					{
 						if (!strcmp(Name.c_str(), "SSL_V2"))
@@ -1983,8 +1979,8 @@ namespace Mavi
 					if (!Series::Unpack(It->Find("chain"), &Cert->Chain))
 						Cert->Chain.clear();
 
-					Core::Stringify(&Cert->Key).Eval(N, D).R();
-					Core::Stringify(&Cert->Chain).Eval(N, D).R();
+					Core::Stringify::EvalEnvs(Cert->Key, N, D);
+					Core::Stringify::EvalEnvs(Cert->Chain, N, D);
 				}
 
 				Core::Vector<Core::Schema*> Listeners = Blob->FindCollection("listen", true);
@@ -1994,11 +1990,12 @@ namespace Mavi
 					if (!Series::Unpack(It, &Name))
 						Name = "*";
 
-					Network::RemoteHost* Host = &Router->Listeners[Core::Stringify(&Name).Eval(N, D).R()];
+					Core::Stringify::EvalEnvs(Name, N, D);
+					Network::RemoteHost* Host = &Router->Listeners[Name];
 					if (!Series::Unpack(It->Find("hostname"), &Host->Hostname))
 						Host->Hostname = "0.0.0.0";
 
-					Core::Stringify(&Host->Hostname).Eval(N, D).R();
+					Core::Stringify::EvalEnvs(Host->Hostname, N, D);
 					if (!Series::Unpack(It->Find("port"), &Host->Port))
 						Host->Port = 80;
 
@@ -2011,8 +2008,9 @@ namespace Mavi
 				{
 					Core::String Name = "*";
 					Series::Unpack(It, &Name);
+					Core::Stringify::EvalEnvs(Name, N, D);
 
-					Network::HTTP::SiteEntry* Site = Router->Site(Core::Stringify(&Name).Eval(N, D).Get());
+					Network::HTTP::SiteEntry* Site = Router->Site(Name.c_str());
 					if (Site == nullptr)
 						continue;
 
@@ -2038,7 +2036,7 @@ namespace Mavi
 						Site->Session.Cookie.HttpOnly = true;
 
 					if (Series::Unpack(It->Fetch("session.document-root"), &Site->Session.DocumentRoot))
-						Core::Stringify(&Site->Session.DocumentRoot).Eval(N, D);
+						Core::Stringify::EvalEnvs(Site->Session.DocumentRoot, N, D);
 
 					if (!Series::Unpack(It->Fetch("session.expires"), &Site->Session.Expires))
 						Site->Session.Expires = 604800;
@@ -2047,7 +2045,7 @@ namespace Mavi
 						Site->MaxResources = 5;
 
                     Series::Unpack(It->Find("resource-root"), &Site->ResourceRoot);
-                    Core::Stringify(&Site->ResourceRoot).Eval(N, D);
+                    Core::Stringify::EvalEnvs(Site->ResourceRoot, N, D);
 
 					Core::UnorderedMap<Core::String, Network::HTTP::RouteEntry*> Aliases;
 					Core::Vector<Core::Schema*> Groups = It->FindCollection("group", true);
@@ -2139,7 +2137,7 @@ namespace Mavi
 								if (Series::Unpack(File, &Pattern))
 								{
 									if (!File->GetAttribute("use"))
-										Core::Stringify(&Pattern).Eval(N, D);
+										Core::Stringify::EvalEnvs(Pattern, N, D);
 
 									Route->IndexFiles.push_back(Pattern);
 								}
@@ -2155,7 +2153,7 @@ namespace Mavi
 								if (Series::Unpack(File, &Pattern))
 								{
 									if (!File->GetAttribute("use"))
-										Core::Stringify(&Pattern).Eval(N, D);
+										Core::Stringify::EvalEnvs(Pattern, N, D);
 
 									Route->TryFiles.push_back(Pattern);
 								}
@@ -2169,7 +2167,7 @@ namespace Mavi
 							{
 								Network::HTTP::ErrorFile Source;
 								if (Series::Unpack(File->Find("file"), &Source.Pattern))
-									Core::Stringify(&Source.Pattern).Eval(N, D);
+									Core::Stringify::EvalEnvs(Source.Pattern, N, D);
 
 								Series::Unpack(File->Find("status"), &Source.StatusCode);
 								Route->ErrorFiles.push_back(Source);
@@ -2220,7 +2218,7 @@ namespace Mavi
 								Route->Compression.MemoryLevel = Compute::Mathi::Clamp(Route->Compression.MemoryLevel, 1, 9);
 
 							if (Series::Unpack(Base->Find("document-root"), &Route->DocumentRoot))
-								Core::Stringify(&Route->DocumentRoot).Eval(N, D);
+								Core::Stringify::EvalEnvs(Route->DocumentRoot, N, D);
 
 							Series::Unpack(Base->Find("override"), &Route->Override);
 							Series::Unpack(Base->Fetch("auth.type"), &Route->Auth.Type);

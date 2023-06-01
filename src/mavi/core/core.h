@@ -20,6 +20,9 @@
 #include <array>
 #include <list>
 #include <sstream>
+#ifdef VI_CXX17
+#include <charconv>
+#endif
 #ifdef VI_CXX20
 #include <coroutine>
 #endif
@@ -647,11 +650,13 @@ namespace Mavi
 		};
 
 		template <typename V>
-		struct Option
+		class Option
 		{
+		private:
 			char Value[sizeof(V)];
 			bool Empty;
 
+		public:
 			Option(Optional Other) : Empty(true)
 			{
 				VI_ASSERT(Other == Optional::None, "only none is accepted for this constructor");
@@ -664,7 +669,11 @@ namespace Mavi
 			{
 				new (Value) V(std::move(Other));
 			}
-			Option(const Option&) = delete;
+			Option(const Option& Other) : Empty(Other.Empty)
+			{
+				if (!Empty)
+					new (Value) V(*(V*)Other.Value);
+			}
 			Option(Option&& Other) noexcept : Empty(Other.Empty)
 			{
 				memcpy(Value, Other.Value, sizeof(Value));
@@ -689,7 +698,18 @@ namespace Mavi
 				Empty = false;
 				return *this;
 			}
-			Option& operator= (const Option&) = delete;
+			Option& operator= (const Option& Other)
+			{
+				if (this == &Other)
+					return *this;
+
+				~Option();
+				Empty = Other.Empty;
+				if (!Empty)
+					new (Value) V(*(V*)Other.Value);
+
+				return *this;
+			}
 			Option& operator= (Option&& Other) noexcept
 			{
 				if (this == &Other)
@@ -703,36 +723,36 @@ namespace Mavi
 			}
 			const V& OrPanic(const char* Message) const
 			{
-				VI_ASSERT(Message != nullptr, "panic case message should be set");
-				VI_PANIC(IsValue(), "%s", Message);
+				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
+				VI_PANIC(IsValue(), "panic is caused by %s", Message);
 				return *(V*)Value;
 			}
 			V&& OrPanic(const char* Message)
 			{
-				VI_ASSERT(Message != nullptr, "panic case message should be set");
-				VI_PANIC(IsValue(), "%s", Message);
+				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
+				VI_PANIC(IsValue(), "panic is caused by %s", Message);
 				return std::move(*(V*)Value);
 			}
 			const V& operator* () const
 			{
-				VI_PANIC(IsValue(), "option does not contain any value");
+				VI_ASSERT(IsValue(), "option does not contain any value");
 				return *(V*)Value;
 			}
 			V&& operator* ()
 			{
-				VI_PANIC(IsValue(), "option does not contain any value");
+				VI_ASSERT(IsValue(), "option does not contain any value");
 				return std::move(*(V*)Value);
 			}
 			typename std::remove_pointer<V>::type* operator-> ()
 			{
-				VI_PANIC(IsValue(), "option does not contain any value");
+				VI_ASSERT(IsValue(), "option does not contain any value");
 				return (typename std::remove_pointer<V>::type*)Value;
 			}
-			operator bool() const
+			explicit operator bool() const
 			{
 				return IsValue();
 			}
-			operator Optional() const
+			explicit operator Optional() const
 			{
 				return IsValue() ? Optional::Value : Optional::None;
 			}
@@ -747,34 +767,27 @@ namespace Mavi
 		};
 
 		template <>
-		struct Option<void>
+		class Option<void>
 		{
+		private:
 			bool Empty;
 
+		public:
 			Option(Optional Value) : Empty(Value == Optional::None)
 			{
 				VI_ASSERT(Value != Optional::Error, "only none and value are accepted for this constructor");
 			}
-			Option(const Option&) = delete;
+			Option(const Option&) = default;
 			Option(Option&& Other) = default;
 			~Option() = default;
-			Option& operator= (bool Fulfilled)
+			Option& operator= (Optional Value)
 			{
-				Empty = !Fulfilled;
+				VI_ASSERT(Value != Optional::Error, "only none and value are accepted for this constructor");
+				Empty = (Value == Optional::None);
 				return *this;
 			}
-			Option& operator= (const Option&) = delete;
+			Option& operator= (const Option&) = default;
 			Option& operator= (Option&& Other) = default;
-			bool Unwrap() const
-			{
-				VI_PANIC(IsValue(), "option does not contain any value");
-				return true;
-			}
-			bool Unwrap()
-			{
-				VI_PANIC(IsValue(), "option does not contain any value");
-				return true;
-			}
 			bool OrPanic(const char* Message) const
 			{
 				VI_ASSERT(Message != nullptr, "panic case message should be set");
@@ -787,7 +800,7 @@ namespace Mavi
 				VI_PANIC(IsValue(), "%s", Message);
 				return true;
 			}
-			operator bool() const
+			explicit operator bool() const
 			{
 				return IsValue();
 			}
@@ -806,14 +819,17 @@ namespace Mavi
 		};
 
 		template <typename V, typename E>
-		struct Expects
+		class Expects
 		{
 			static_assert(!std::is_same<V, void>::value, "value type should not be void");
 			static_assert(!std::is_same<E, void>::value, "error type should not be void");
+
+		private:
 			using ValueSize = std::integral_constant<std::size_t, std::max(sizeof(V), sizeof(E))>;
 			char Value[ValueSize::value];
 			char Status;
 
+		public:
 			Expects(const V& Other) : Status(1)
 			{
 				new (Value) V(Other);
@@ -830,7 +846,13 @@ namespace Mavi
 			{
 				new (Value) E(std::move(Other));
 			}
-			Expects(const Expects&) = delete;
+			Expects(const Expects& Other) : Status(Other.Status)
+			{
+				if (Status > 0)
+					new (Value) V(*(V*)Other.Value);
+				else if (Status < 0)
+					new (Value) E(*(E*)Other.Value);
+			}
 			Expects(Expects&& Other) noexcept : Status(Other.Status)
 			{
 				Other.Status = 0;
@@ -860,7 +882,20 @@ namespace Mavi
 				Status = 1;
 				return *this;
 			}
-			Expects& operator= (const Expects&) = delete;
+			Expects& operator= (const Expects& Other)
+			{
+				if (this == &Other)
+					return *this;
+
+				~Expects();
+				Status = Other.Status;
+				if (Status > 0)
+					new (Value) V(*(V*)Other.Value);
+				else if (Status < 0)
+					new (Value) E(*(E*)Other.Value);
+
+				return *this;
+			}
 			Expects& operator= (Expects&& Other) noexcept
 			{
 				if (this == &Other)
@@ -877,47 +912,52 @@ namespace Mavi
 			}
 			const V& OrPanic(const char* Message) const
 			{
-				VI_ASSERT(Message != nullptr, "panic case message should be set");
-				VI_PANIC(IsValue(), "%s", Message);
+				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
+				VI_PANIC(IsValue(), "%s caused by %s", Message, GetErrorText<E>().c_str());
 				return *(V*)Value;
 			}
 			V&& OrPanic(const char* Message)
 			{
-				VI_ASSERT(Message != nullptr, "panic case message should be set");
-				VI_PANIC(IsValue(), "%s", Message);
+				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
+				VI_PANIC(IsValue(), "%s caused by %s", Message, GetErrorText<E>().c_str());
 				return std::move(*(V*)Value);
 			}
 			const E& Error() const
 			{
-				VI_PANIC(IsError(), "unwrapping value that is not unexpected");
+				VI_ASSERT(IsError(), "outcome does not contain any errors");
 				return *(E*)Value;
 			}
 			E&& Error()
 			{
-				VI_PANIC(IsError(), "unwrapping value that is not unexpected");
+				VI_ASSERT(IsError(), "outcome does not contain any errors");
 				return std::move(*(E*)Value);
 			}
-			operator bool() const
+			Core::String What() const
+			{
+				VI_ASSERT(!IsValue(), "outcome does not contain any errors");
+				return GetErrorText<E>();
+			}
+			explicit operator bool() const
 			{
 				return IsValue();
 			}
-			operator Optional() const
+			explicit operator Optional() const
 			{
 				return (Optional)Status;
 			}
 			const V& operator* () const
 			{
-				VI_PANIC(IsValue(), "unwrapping value that is not expected");
+				VI_ASSERT(IsValue(), "error caused by %s", GetErrorText<E>().c_str());
 				return *(V*)Value;
 			}
 			V&& operator* ()
 			{
-				VI_PANIC(IsValue(), "unwrapping value that is not expected");
+				VI_ASSERT(IsValue(), "error caused by %s", GetErrorText<E>().c_str());
 				return std::move(*(V*)Value);
 			}
 			typename std::remove_pointer<V>::type* operator-> ()
 			{
-				VI_PANIC(IsValue(), "unwrapping value that is not expected");
+				VI_ASSERT(IsValue(), "error caused by %s", GetErrorText<E>().c_str());
 				return (typename std::remove_pointer<V>::type*)Value;
 			}
 			bool IsNone() const
@@ -931,6 +971,40 @@ namespace Mavi
 			bool IsError() const
 			{
 				return Status < 0;
+			}
+
+		private:
+			template <typename Q>
+			inline typename std::enable_if<std::is_base_of<std::exception, Q>::value, Core::String>::type GetErrorText() const
+			{
+				return String(IsError() ?((Q*)Value)->what() : "*no value stored*");
+			}
+			template <typename Q>
+			inline typename std::enable_if<std::is_same<std::error_code, Q>::value, std::string>::type GetErrorText() const
+			{
+				return IsError() ? std::string(((Q*)Value)->message()) : std::string("*no value stored*");
+			}
+			template <typename Q>
+			inline typename std::enable_if<std::is_same<std::error_condition, Q>::value, std::string>::type GetErrorText() const
+			{
+				return IsError() ? std::string(((Q*)Value)->message()) : std::string("*no value stored*");
+			}
+			template <typename Q>
+			inline typename std::enable_if<std::is_same<std::string, Q>::value, std::string>::type GetErrorText() const
+			{
+				return IsError() ? *(Q*)Value : Q("*no value stored*");
+			}
+#ifdef VI_HAS_FAST_MEMORY
+			template <typename Q>
+			inline typename std::enable_if<std::is_same<Core::String, Q>::value, Core::String>::type GetErrorText() const
+			{
+				return IsError() ? *(Q*)Value : Q("*no value stored*");
+			}
+#endif
+			template <typename Q>
+			inline typename std::enable_if<!std::is_base_of<std::exception, Q>::value && !std::is_same<std::error_code, Q>::value && !std::is_same<std::error_condition, Q>::value && !std::is_same<std::string, Q>::value && !std::is_same<Core::String, Q>::value, Core::String>::type GetErrorText() const
+			{
+				return String(IsError() ? "*error cannot be shown*" : "*no value stored*");
 			}
 		};
 
@@ -1091,7 +1165,7 @@ namespace Mavi
 			Variant& operator= (Variant&& Other) noexcept;
 			bool operator== (const Variant& Other) const;
 			bool operator!= (const Variant& Other) const;
-			operator bool() const;
+			explicit operator bool() const;
 			bool IsString(const char* Value) const;
 			bool IsObject() const;
 			bool IsEmpty() const;
@@ -1112,6 +1186,13 @@ namespace Mavi
 		typedef Core::Vector<Schema*> SchemaList;
 		typedef Core::UnorderedMap<Core::String, Variant> VariantArgs;
 		typedef Core::UnorderedMap<Core::String, Schema*> SchemaArgs;
+
+		struct VI_OUT TextSettle
+		{
+			size_t Start = 0;
+			size_t End = 0;
+			bool Found = false;
+		};
 
 		struct VI_OUT FileState
 		{
@@ -1248,162 +1329,85 @@ namespace Mavi
 		struct VI_OUT Stringify
 		{
 		public:
-			struct Settle
-			{
-				size_t Start = 0;
-				size_t End = 0;
-				bool Found = false;
-			};
-
-		private:
-			Core::String* Base;
-			bool Deletable;
-
-		public:
-			Stringify() noexcept;
-			Stringify(int Value) noexcept;
-			Stringify(unsigned int Value) noexcept;
-			Stringify(int64_t Value) noexcept;
-			Stringify(uint64_t Value) noexcept;
-			Stringify(float Value) noexcept;
-			Stringify(double Value) noexcept;
-			Stringify(long double Value) noexcept;
-			Stringify(Core::String&& Buffer) noexcept;
-			Stringify(const Core::String& Buffer) noexcept;
-			Stringify(Core::String* Buffer) noexcept;
-			Stringify(const Core::String* Buffer) noexcept;
-			Stringify(const char* Buffer) noexcept;
-			Stringify(const char* Buffer, size_t Length) noexcept;
-			Stringify(Stringify&& Value) noexcept;
-			Stringify(const Stringify& Value) noexcept;
-			~Stringify() noexcept;
-			Stringify& EscapePrint();
-			Stringify& Escape();
-			Stringify& Unescape();
-			Stringify& Reserve(size_t Count = 1);
-			Stringify& Resize(size_t Count);
-			Stringify& Resize(size_t Count, char Char);
-			Stringify& Clear();
-			Stringify& ToUpper();
-			Stringify& ToLower();
-			Stringify& Clip(size_t Length);
-			Stringify& Compress(const char* SpaceIfNotFollowedOrPrecededByOf, const char* NotInBetweenOf, size_t Start = 0U);
-			Stringify& ReplaceOf(const char* Chars, const char* To, size_t Start = 0U);
-			Stringify& ReplaceNotOf(const char* Chars, const char* To, size_t Start = 0U);
-			Stringify& ReplaceGroups(const Core::String& FromRegex, const Core::String& To);
-			Stringify& Replace(const Core::String& From, const Core::String& To, size_t Start = 0U);
-			Stringify& Replace(const char* From, const char* To, size_t Start = 0U);
-			Stringify& Replace(const char& From, const char& To, size_t Position = 0U);
-			Stringify& Replace(const char& From, const char& To, size_t Position, size_t Count);
-			Stringify& ReplacePart(size_t Start, size_t End, const Core::String& Value);
-			Stringify& ReplacePart(size_t Start, size_t End, const char* Value);
-			Stringify& ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const Core::String& With, size_t Start = 0U);
-			Stringify& ReplaceInBetween(const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start = 0U);
-			Stringify& ReplaceNotInBetween(const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start = 0U);
-			Stringify& ReplaceParts(Core::Vector<std::pair<Core::String, Stringify::Settle>>& Inout, const Core::String& With, const std::function<char(const Core::String&, char, int)>& Surrounding = nullptr);
-			Stringify& ReplaceParts(Core::Vector<Stringify::Settle>& Inout, const Core::String& With, const std::function<char(char, int)>& Surrounding = nullptr);
-			Stringify& RemovePart(size_t Start, size_t End);
-			Stringify& Reverse();
-			Stringify& Reverse(size_t Start, size_t End);
-			Stringify& Substring(size_t Start);
-			Stringify& Substring(size_t Start, size_t Count);
-			Stringify& Substring(const Stringify::Settle& Result);
-			Stringify& Splice(size_t Start, size_t End);
-			Stringify& Trim();
-			Stringify& TrimStart();
-			Stringify& TrimEnd();
-			Stringify& Fill(const char& Char);
-			Stringify& Fill(const char& Char, size_t Count);
-			Stringify& Fill(const char& Char, size_t Start, size_t Count);
-			Stringify& Assign(const char* Raw);
-			Stringify& Assign(const char* Raw, size_t Length);
-			Stringify& Assign(const Core::String& Raw);
-			Stringify& Assign(const Core::String& Raw, size_t Start, size_t Count);
-			Stringify& Assign(const char* Raw, size_t Start, size_t Count);
-			Stringify& Append(const char* Raw);
-			Stringify& Append(const char& Char);
-			Stringify& Append(const char& Char, size_t Count);
-			Stringify& Append(const Core::String& Raw);
-			Stringify& Append(const char* Raw, size_t Count);
-			Stringify& Append(const char* Raw, size_t Start, size_t Count);
-			Stringify& Append(const Core::String& Raw, size_t Start, size_t Count);
-			Stringify& fAppend(const char* Format, ...);
-			Stringify& Insert(const Core::String& Raw, size_t Position);
-			Stringify& Insert(const Core::String& Raw, size_t Position, size_t Start, size_t Count);
-			Stringify& Insert(const Core::String& Raw, size_t Position, size_t Count);
-			Stringify& Insert(const char& Char, size_t Position, size_t Count);
-			Stringify& Insert(const char& Char, size_t Position);
-			Stringify& Erase(size_t Position);
-			Stringify& Erase(size_t Position, size_t Count);
-			Stringify& EraseOffsets(size_t Start, size_t End);
-			Stringify& Eval(const Core::String& Net, const Core::String& Dir);
-			Core::Vector<std::pair<Core::String, Stringify::Settle>> FindInBetween(const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
-			Core::Vector<std::pair<Core::String, Stringify::Settle>> FindStartsWithEndsOf(const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
-			Stringify::Settle ReverseFind(const Core::String& Needle, size_t Offset = 0U) const;
-			Stringify::Settle ReverseFind(const char* Needle, size_t Offset = 0U) const;
-			Stringify::Settle ReverseFind(const char& Needle, size_t Offset = 0U) const;
-			Stringify::Settle ReverseFindUnescaped(const char& Needle, size_t Offset = 0U) const;
-			Stringify::Settle ReverseFindOf(const Core::String& Needle, size_t Offset = 0U) const;
-			Stringify::Settle ReverseFindOf(const char* Needle, size_t Offset = 0U) const;
-			Stringify::Settle Find(const Core::String& Needle, size_t Offset = 0U) const;
-			Stringify::Settle Find(const char* Needle, size_t Offset = 0U) const;
-			Stringify::Settle Find(const char& Needle, size_t Offset = 0U) const;
-			Stringify::Settle FindUnescaped(const char& Needle, size_t Offset = 0U) const;
-			Stringify::Settle FindOf(const Core::String& Needle, size_t Offset = 0U) const;
-			Stringify::Settle FindOf(const char* Needle, size_t Offset = 0U) const;
-			Stringify::Settle FindNotOf(const Core::String& Needle, size_t Offset = 0U) const;
-			Stringify::Settle FindNotOf(const char* Needle, size_t Offset = 0U) const;
-			bool IsPrecededBy(size_t At, const char* Of) const;
-			bool IsFollowedBy(size_t At, const char* Of) const;
-			bool StartsWith(const Core::String& Value, size_t Offset = 0U) const;
-			bool StartsWith(const char* Value, size_t Offset = 0U) const;
-			bool StartsOf(const char* Value, size_t Offset = 0U) const;
-			bool StartsNotOf(const char* Value, size_t Offset = 0U) const;
-			bool EndsWith(const Core::String& Value) const;
-			bool EndsOf(const char* Value) const;
-			bool EndsNotOf(const char* Value) const;
-			bool EndsWith(const char* Value) const;
-			bool EndsWith(const char& Value) const;
-			bool Empty() const;
-			bool HasInteger() const;
-			bool HasNumber() const;
-			bool HasDecimal() const;
-			bool ToBoolean() const;
-			int ToInt() const;
-			long ToLong() const;
-			float ToFloat() const;
-			unsigned int ToUInt() const;
-			unsigned long ToULong() const;
-			int64_t ToInt64() const;
-			double ToDouble() const;
-			long double ToLDouble() const;
-			uint64_t ToUInt64() const;
-			size_t Size() const;
-			size_t Capacity() const;
-			char* Value() const;
-			const char* Get() const;
-			Core::String& R();
-			Core::WideString ToWide() const;
-			Core::Vector<Core::String> Split(const Core::String& With, size_t Start = 0U) const;
-			Core::Vector<Core::String> Split(char With, size_t Start = 0U) const;
-			Core::Vector<Core::String> SplitMax(char With, size_t MaxCount, size_t Start = 0U) const;
-			Core::Vector<Core::String> SplitOf(const char* With, size_t Start = 0U) const;
-			Core::Vector<Core::String> SplitNotOf(const char* With, size_t Start = 0U) const;
-			Stringify& operator = (Stringify&& New) noexcept;
-			Stringify& operator = (const Stringify& New) noexcept;
-
-		public:
-#ifdef VI_HAS_FAST_MEMORY
-			Stringify(const std::string& Value) noexcept;
-#endif
-		public:
+			static Core::String& EscapePrint(Core::String& Other);
+			static Core::String& Escape(Core::String& Other);
+			static Core::String& Unescape(Core::String& Other);
+			static Core::String& ToUpper(Core::String& Other);
+			static Core::String& ToLower(Core::String& Other);
+			static Core::String& Clip(Core::String& Other, size_t Length);
+			static Core::String& Compress(Core::String& Other, const char* SpaceIfNotFollowedOrPrecededByOf, const char* NotInBetweenOf, size_t Start = 0U);
+			static Core::String& ReplaceOf(Core::String& Other, const char* Chars, const char* To, size_t Start = 0U);
+			static Core::String& ReplaceNotOf(Core::String& Other, const char* Chars, const char* To, size_t Start = 0U);
+			static Core::String& ReplaceGroups(Core::String& Other, const Core::String& FromRegex, const Core::String& To);
+			static Core::String& Replace(Core::String& Other, const Core::String& From, const Core::String& To, size_t Start = 0U);
+			static Core::String& Replace(Core::String& Other, const char* From, const char* To, size_t Start = 0U);
+			static Core::String& Replace(Core::String& Other, const char& From, const char& To, size_t Position = 0U);
+			static Core::String& Replace(Core::String& Other, const char& From, const char& To, size_t Position, size_t Count);
+			static Core::String& ReplacePart(Core::String& Other, size_t Start, size_t End, const Core::String& Value);
+			static Core::String& ReplacePart(Core::String& Other, size_t Start, size_t End, const char* Value);
+			static Core::String& ReplaceStartsWithEndsOf(Core::String& Other, const char* Begins, const char* EndsOf, const Core::String& With, size_t Start = 0U);
+			static Core::String& ReplaceInBetween(Core::String& Other, const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start = 0U);
+			static Core::String& ReplaceNotInBetween(Core::String& Other, const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start = 0U);
+			static Core::String& ReplaceParts(Core::String& Other, Core::Vector<std::pair<Core::String, TextSettle>>& Inout, const Core::String& With, const std::function<char(const Core::String&, char, int)>& Surrounding = nullptr);
+			static Core::String& ReplaceParts(Core::String& Other, Core::Vector<TextSettle>& Inout, const Core::String& With, const std::function<char(char, int)>& Surrounding = nullptr);
+			static Core::String& RemovePart(Core::String& Other, size_t Start, size_t End);
+			static Core::String& Reverse(Core::String& Other);
+			static Core::String& Reverse(Core::String& Other, size_t Start, size_t End);
+			static Core::String& Substring(Core::String& Other, const TextSettle& Result);
+			static Core::String& Splice(Core::String& Other, size_t Start, size_t End);
+			static Core::String& Trim(Core::String& Other);
+			static Core::String& TrimStart(Core::String& Other);
+			static Core::String& TrimEnd(Core::String& Other);
+			static Core::String& Fill(Core::String& Other, const char& Char);
+			static Core::String& Fill(Core::String& Other, const char& Char, size_t Count);
+			static Core::String& Fill(Core::String& Other, const char& Char, size_t Start, size_t Count);
+			static Core::String& Append(Core::String& Other, const char* Format, ...);
+			static Core::String& Erase(Core::String& Other, size_t Position);
+			static Core::String& Erase(Core::String& Other, size_t Position, size_t Count);
+			static Core::String& EraseOffsets(Core::String& Other, size_t Start, size_t End);
+			static Core::String& EvalEnvs(Core::String& Other, const Core::String& Net, const Core::String& Dir);
+			static Core::Vector<std::pair<Core::String, TextSettle>> FindInBetween(const Core::String& Other, const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset = 0U);
+			static Core::Vector<std::pair<Core::String, TextSettle>> FindStartsWithEndsOf(const Core::String& Other, const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset = 0U);
+			static TextSettle ReverseFind(const Core::String& Other, const Core::String& Needle, size_t Offset = 0U);
+			static TextSettle ReverseFind(const Core::String& Other, const char* Needle, size_t Offset = 0U);
+			static TextSettle ReverseFind(const Core::String& Other, const char& Needle, size_t Offset = 0U);
+			static TextSettle ReverseFindUnescaped(const Core::String& Other, const char& Needle, size_t Offset = 0U);
+			static TextSettle ReverseFindOf(const Core::String& Other, const Core::String& Needle, size_t Offset = 0U);
+			static TextSettle ReverseFindOf(const Core::String& Other, const char* Needle, size_t Offset = 0U);
+			static TextSettle Find(const Core::String& Other, const Core::String& Needle, size_t Offset = 0U);
+			static TextSettle Find(const Core::String& Other, const char* Needle, size_t Offset = 0U);
+			static TextSettle Find(const Core::String& Other, const char& Needle, size_t Offset = 0U);
+			static TextSettle FindUnescaped(const Core::String& Other, const char& Needle, size_t Offset = 0U);
+			static TextSettle FindOf(const Core::String& Other, const Core::String& Needle, size_t Offset = 0U);
+			static TextSettle FindOf(const Core::String& Other, const char* Needle, size_t Offset = 0U);
+			static TextSettle FindNotOf(const Core::String& Other, const Core::String& Needle, size_t Offset = 0U);
+			static TextSettle FindNotOf(const Core::String& Other, const char* Needle, size_t Offset = 0U);
+			static bool IsPrecededBy(const Core::String& Other, size_t At, const char* Of);
+			static bool IsFollowedBy(const Core::String& Other, size_t At, const char* Of);
+			static bool StartsWith(const Core::String& Other, const Core::String& Value, size_t Offset = 0U);
+			static bool StartsWith(const Core::String& Other, const char* Value, size_t Offset = 0U);
+			static bool StartsOf(const Core::String& Other, const char* Value, size_t Offset = 0U);
+			static bool StartsNotOf(const Core::String& Other, const char* Value, size_t Offset = 0U);
+			static bool EndsWith(const Core::String& Other, const Core::String& Value);
+			static bool EndsOf(const Core::String& Other, const char* Value);
+			static bool EndsNotOf(const Core::String& Other, const char* Value);
+			static bool EndsWith(const Core::String& Other, const char* Value);
+			static bool EndsWith(const Core::String& Other, const char& Value);
+			static bool HasInteger(const Core::String& Other);
+			static bool HasNumber(const Core::String& Other);
+			static bool HasDecimal(const Core::String& Other);
+			static Core::String Text(const char* Format, ...);
+			static Core::WideString ToWide(const Core::String& Other);
+			static Core::Vector<Core::String> Split(const Core::String& Other, const Core::String& With, size_t Start = 0U);
+			static Core::Vector<Core::String> Split(const Core::String& Other, char With, size_t Start = 0U);
+			static Core::Vector<Core::String> SplitMax(const Core::String& Other, char With, size_t MaxCount, size_t Start = 0U);
+			static Core::Vector<Core::String> SplitOf(const Core::String& Other, const char* With, size_t Start = 0U);
+			static Core::Vector<Core::String> SplitNotOf(const Core::String& Other, const char* With, size_t Start = 0U);
 			static bool IsDigit(char Char);
 			static bool IsAlphabetic(char Char);
 			static int CaseCompare(const char* Value1, const char* Value2);
 			static int Match(const char* Pattern, const char* Text);
 			static int Match(const char* Pattern, size_t Length, const char* Text);
-			static Core::String ToString(float Number);
-			static Core::String ToString(double Number);
 			static void ConvertToWide(const char* Input, size_t InputSize, wchar_t* Output, size_t OutputSize);
 		};
 
@@ -1423,7 +1427,7 @@ namespace Mavi
 				Loaded& operator =(Loaded&& Other) noexcept;
 				~Loaded() noexcept;
 				void Close();
-				operator bool() const;
+				explicit operator bool() const;
 
 			private:
 				Loaded(Guard* NewBase) noexcept;
@@ -1442,7 +1446,7 @@ namespace Mavi
 				Stored& operator =(Stored&& Other) noexcept;
 				~Stored() noexcept;
 				void Close();
-				operator bool() const;
+				explicit operator bool() const;
 
 			private:
 				Stored(Guard* NewBase) noexcept;
@@ -1733,9 +1737,15 @@ namespace Mavi
 			class VI_OUT Error
 			{
 			public:
-				static int Get();
-				static Core::String GetName(int Code);
+				static int Get(bool Clear = true);
+				static void Clear();
+				static bool Occurred();
 				static bool IsError(int Code);
+				static std::error_code GetCode();
+				static std::error_code GetCode(int Code);
+				static std::error_condition GetCondition();
+				static std::error_condition GetCondition(int Code);
+				static Core::String GetName(int Code);
 			};
 		};
 
@@ -1861,13 +1871,18 @@ namespace Mavi
 				Other.Pointer = nullptr;
 				return *this;
 			}
+			explicit operator bool() const
+			{
+				return Pointer != nullptr;
+			}
 			T* operator-> ()
 			{
 				VI_ASSERT(Pointer != nullptr, "null pointer access");
 				return Pointer;
 			}
-			operator T* ()
+			T* operator* ()
 			{
+				VI_ASSERT(Pointer != nullptr, "null pointer access");
 				return Pointer;
 			}
 			Unique<T> Reset()
@@ -3052,7 +3067,7 @@ namespace Mavi
 						Base = nullptr;
 					}
 				}
-				operator bool() const
+				explicit operator bool() const
 				{
 					return Base != nullptr;
 				}
@@ -3107,7 +3122,7 @@ namespace Mavi
 						Base = nullptr;
 					}
 				}
-				operator bool() const
+				explicit operator bool() const
 				{
 					return Base != nullptr;
 				}
@@ -4027,30 +4042,249 @@ namespace Mavi
 		template <typename O, typename I>
 		inline O&& Copy(I&& Other)
 		{
+			static_assert(IsIterable<I>::value, "input type should be iterable");
+			static_assert(IsIterable<O>::value, "output type should be iterable");
 			return std::move(Other);
 		}
 		template <typename O, typename I>
 		inline const O& Copy(const I& Other)
 		{
+			static_assert(IsIterable<I>::value, "input type should be iterable");
+			static_assert(IsIterable<O>::value, "output type should be iterable");
 			return Other;
+		}
+#endif
+#ifdef VI_CXX17
+		template <typename T>
+		inline Expects<T, std::error_condition> FromString(const Core::String& Other, int Base)
+		{
+			static_assert(std::is_integral<T>::value, "base can be specified only for integral types");
+			T Value;
+			std::from_chars_result Result = std::from_chars(Other.data(), Other.data() + Other.size(), Value, Base);
+			if (Result.ec != std::errc())
+				return std::make_error_condition(Result.ec);
+			return Value;
+		}
+		template <typename T>
+		inline Expects<T, std::error_condition> FromString(const Core::String& Other)
+		{
+			static_assert(std::is_arithmetic<T>::value, "conversion can be done only to arithmetic types");
+			T Value;
+			std::from_chars_result Result = std::from_chars(Other.data(), Other.data() + Other.size(), Value);
+			if (Result.ec != std::errc())
+				return std::make_error_condition(Result.ec);
+			return Value;
+		}
+#else
+		template <typename T>
+		inline Expects<T, std::error_condition> FromString(const Core::String& Other, int Base)
+		{
+			static_assert(false, "conversion can be done only to arithmetic types");
+			return std::make_error_condition(std::errc::not_supported);
+		}
+		template <>
+		inline Expects<int8_t, std::error_condition> FromString<int8_t>(const Core::String& Other, int Base)
+		{
+			OS::Error::Clear();
+			char* End = nullptr;
+			const char* Start = Other.c_str();
+			long Value = strtol(Start, &End, Base);
+			if (Start == End)
+				return std::make_error_condition(std::errc::invalid_argument);
+			else if (Value < (long)std::numeric_limits<int8_t>::min() || Value >(long)std::numeric_limits<int8_t>::max())
+				return std::make_error_condition(std::errc::result_out_of_range);
+			else if (OS::Error::Occurred())
+				return OS::Error::GetCondition();
+			return (int8_t)Value;
+		}
+		template <>
+		inline Expects<int16_t, std::error_condition> FromString<int16_t>(const Core::String& Other, int Base)
+		{
+			OS::Error::Clear();
+			char* End = nullptr;
+			const char* Start = Other.c_str();
+			long Value = strtol(Start, &End, Base);
+			if (Start == End)
+				return std::make_error_condition(std::errc::invalid_argument);
+			else if (Value < (long)std::numeric_limits<int16_t>::min() || Value >(long)std::numeric_limits<int16_t>::max())
+				return std::make_error_condition(std::errc::result_out_of_range);
+			else if (OS::Error::Occurred())
+				return OS::Error::GetCondition();
+			return (int16_t)Value;
+		}
+		template <>
+		inline Expects<int32_t, std::error_condition> FromString<int32_t>(const Core::String& Other, int Base)
+		{
+			OS::Error::Clear();
+			char* End = nullptr;
+			const char* Start = Other.c_str();
+			long Value = strtol(Start, &End, Base);
+			if (Start == End)
+				return std::make_error_condition(std::errc::invalid_argument);
+			else if (OS::Error::Occurred())
+				return OS::Error::GetCondition();
+			return (int32_t)Value;
+		}
+		template <>
+		inline Expects<int64_t, std::error_condition> FromString<int64_t>(const Core::String& Other, int Base)
+		{
+			OS::Error::Clear();
+			char* End = nullptr;
+			const char* Start = Other.c_str();
+			long long Value = strtoll(Start, &End, Base);
+			if (Start == End)
+				return std::make_error_condition(std::errc::invalid_argument);
+			else if (OS::Error::Occurred())
+				return OS::Error::GetCondition();
+			return (int64_t)Value;
+		}
+		template <>
+		inline Expects<uint8_t, std::error_condition> FromString<uint8_t>(const Core::String& Other, int Base)
+		{
+			OS::Error::Clear();
+			char* End = nullptr;
+			const char* Start = Other.c_str();
+			unsigned long Value = strtoul(Start, &End, Base);
+			if (Start == End)
+				return std::make_error_condition(std::errc::invalid_argument);
+			else if (Value > (unsigned long)std::numeric_limits<uint8_t>::max())
+				return std::make_error_condition(std::errc::result_out_of_range);
+			else if (OS::Error::Occurred())
+				return OS::Error::GetCondition();
+			return (uint8_t)Value;
+		}
+		template <>
+		inline Expects<uint16_t, std::error_condition> FromString<uint16_t>(const Core::String& Other, int Base)
+		{
+			OS::Error::Clear();
+			char* End = nullptr;
+			const char* Start = Other.c_str();
+			unsigned long Value = strtoul(Start, &End, Base);
+			if (Start == End)
+				return std::make_error_condition(std::errc::invalid_argument);
+			else if (Value > (unsigned long)std::numeric_limits<uint16_t>::max())
+				return std::make_error_condition(std::errc::result_out_of_range);
+			else if (OS::Error::Occurred())
+				return OS::Error::GetCondition();
+			return (uint16_t)Value;
+		}
+		template <>
+		inline Expects<uint32_t, std::error_condition> FromString<uint32_t>(const Core::String& Other, int Base)
+		{
+			OS::Error::Clear();
+			char* End = nullptr;
+			const char* Start = Other.c_str();
+			unsigned long Value = strtoul(Start, &End, Base);
+			if (Start == End)
+				return std::make_error_condition(std::errc::invalid_argument);
+			else if (OS::Error::Occurred())
+				return OS::Error::GetCondition();
+			return (uint32_t)Value;
+		}
+		template <>
+		inline Expects<uint64_t, std::error_condition> FromString<uint64_t>(const Core::String& Other, int Base)
+		{
+			OS::Error::Clear();
+			char* End = nullptr;
+			const char* Start = Other.c_str();
+			unsigned long long Value = strtoull(Start, &End, Base);
+			if (Start == End)
+				return std::make_error_condition(std::errc::invalid_argument);
+			else if (OS::Error::Occurred())
+				return OS::Error::GetCondition();
+			return (uint64_t)Value;
+		}
+		template <typename T>
+		inline Expects<T, std::error_condition> FromString(const Core::String& Other)
+		{
+			static_assert(false, "conversion can be done only to arithmetic types");
+			return std::make_error_condition(std::errc::not_supported);
+		}
+		template <>
+		inline Expects<int8_t, std::error_condition> FromString<int8_t>(const Core::String& Other)
+		{
+			return FromString<int8_t>(Other, 10);
+		}
+		template <>
+		inline Expects<int16_t, std::error_condition> FromString<int16_t>(const Core::String& Other)
+		{
+			return FromString<int16_t>(Other, 10);
+		}
+		template <>
+		inline Expects<int32_t, std::error_condition> FromString<int32_t>(const Core::String& Other)
+		{
+			return FromString<int32_t>(Other, 10);
+		}
+		template <>
+		inline Expects<int64_t, std::error_condition> FromString<int64_t>(const Core::String& Other)
+		{
+			return FromString<int64_t>(Other, 10);
+		}
+		template <>
+		inline Expects<uint8_t, std::error_condition> FromString<uint8_t>(const Core::String& Other)
+		{
+			return FromString<uint8_t>(Other, 10);
+		}
+		template <>
+		inline Expects<uint16_t, std::error_condition> FromString<uint16_t>(const Core::String& Other)
+		{
+			return FromString<uint16_t>(Other, 10);
+		}
+		template <>
+		inline Expects<uint32_t, std::error_condition> FromString<uint32_t>(const Core::String& Other)
+		{
+			return FromString<uint32_t>(Other, 10);
+		}
+		template <>
+		inline Expects<uint64_t, std::error_condition> FromString<uint64_t>(const Core::String& Other)
+		{
+			return FromString<uint64_t>(Other, 10);
+		}
+		template <>
+		inline Expects<float, std::error_condition> FromString<float>(const Core::String& Other)
+		{
+			OS::Error::Clear();
+			char* End = nullptr;
+			const char* Start = Other.c_str();
+			float Value = strtof(Start, &End);
+			if (Start == End)
+				return std::make_error_condition(std::errc::invalid_argument);
+			else if (OS::Error::Occurred())
+				return OS::Error::GetCondition();
+			return Value;
+		}
+		template <>
+		inline Expects<double, std::error_condition> FromString<double>(const Core::String& Other)
+		{
+			OS::Error::Clear();
+			char* End = nullptr;
+			const char* Start = Other.c_str();
+			double Value = strtod(Start, &End);
+			if (Start == End)
+				return std::make_error_condition(std::errc::invalid_argument);
+			else if (OS::Error::Occurred())
+				return OS::Error::GetCondition();
+			return Value;
+		}
+		template <>
+		inline Expects<long double, std::error_condition> FromString<long double>(const Core::String& Other)
+		{
+			OS::Error::Clear();
+			char* End = nullptr;
+			const char* Start = Other.c_str();
+			long double Value = strtold(Start, &End);
+			if (Start == End)
+				return std::make_error_condition(std::errc::invalid_argument);
+			else if (OS::Error::Occurred())
+				return OS::Error::GetCondition();
+			return Value;
 		}
 #endif
 		template <typename T>
 		inline Core::String ToString(T Other)
 		{
+			static_assert(std::is_arithmetic<T>::value, "conversion can be done only to arithmetic types");
 			return Core::Copy<Core::String, std::string>(std::to_string(Other));
-		}
-		inline Stringify Form(const char* Format, ...) noexcept
-		{
-			VI_ASSERT(Format != nullptr, "format should be set");
-
-			va_list Args;
-			va_start(Args, Format);
-			char Buffer[BLOB_SIZE];
-			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-			va_end(Args);
-
-			return Stringify(Buffer, Size > BLOB_SIZE ? BLOB_SIZE : (size_t)Size);
 		}
 	}
 }

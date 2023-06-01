@@ -696,9 +696,9 @@ namespace Mavi
 			{
 			public:
 				static void ConstructPath(Connection* Base);
-				static void ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::Stringify* Buffer);
-				static void ConstructHeadCache(Connection* Base, Core::Stringify* Buffer);
-				static void ConstructHeadUncache(Connection* Base, Core::Stringify* Buffer);
+				static void ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::String& Buffer);
+				static void ConstructHeadCache(Connection* Base, Core::String& Buffer);
+				static void ConstructHeadUncache(Connection* Base, Core::String& Buffer);
 				static bool ConstructRoute(MapRouter* Router, Connection* Base);
 				static bool ConstructDirectoryEntries(Connection* Base, const Core::FileEntry& A, const Core::FileEntry& B);
 				static Core::String ConstructContentRange(size_t Offset, size_t Length, size_t ContentLength);

@@ -108,14 +108,14 @@ namespace Mavi
 				if (!Message || Message[0] == '\0')
 					return;
 
-				Core::Stringify Buffer(Message);
-				if (Buffer.Empty())
+				Core::String Buffer(Message);
+				if (Buffer.empty())
 					return;
 
 				Core::String Result;
-				Buffer.Erase(Buffer.Size() - 1);
+				Buffer.erase(Buffer.size() - 1);
 
-				Core::Vector<Core::String> Errors = Buffer.Split('\n');
+				Core::Vector<Core::String> Errors = Core::Stringify::Split(Buffer, '\n');
 				for (auto& Item : Errors)
 					Result += ", " + Item;
 
@@ -126,14 +126,14 @@ namespace Mavi
 				if (!Message || Message[0] == '\0')
 					return;
 
-				Core::Stringify Buffer(Message);
-				if (Buffer.Empty())
+				Core::String Buffer(Message);
+				if (Buffer.empty())
 					return;
 
 				Core::String Result;
-				Buffer.Erase(Buffer.Size() - 1);
+				Buffer.erase(Buffer.size() - 1);
 
-				Core::Vector<Core::String> Errors = Buffer.Split('\n');
+				Core::Vector<Core::String> Errors = Core::Stringify::Split(Buffer, '\n');
 				for (auto& Item : Errors)
 					Result += ", " + Item;
 
@@ -160,14 +160,14 @@ namespace Mavi
 				}
 				else if (Data != nullptr && Size > 0)
 				{
-					Core::Stringify Result(Data, Size);
-					Result.Trim();
+					Core::String Result(Data, Size);
+					Core::Stringify::Trim(Result);
 
-					if (Result.Empty())
+					if (Result.empty())
 						return;
 
-					if (Result.R() != "NULL")
-						Base->first->Push(ToSchema(Result.Get(), (int)Result.Size(), Base->second));
+					if (Result != "NULL")
+						Base->first->Push(ToSchema(Result.c_str(), (int)Result.size(), Base->second));
 					else
 						Base->first->Push(new Core::Schema(Core::Var::Null()));
 				}
@@ -185,9 +185,9 @@ namespace Mavi
 					case OidType::Int4:
 					case OidType::Int8:
 					{
-						Core::Stringify Source(Data, (size_t)Size);
-						if (Source.HasInteger())
-							return Core::Var::Integer(Source.ToInt64());
+						Core::String Source(Data, (size_t)Size);
+						if (Core::Stringify::HasInteger(Source))
+							return Core::Var::Integer(*Core::FromString<int64_t>(Source));
 
 						return Core::Var::String(Data, (size_t)Size);
 					}
@@ -198,18 +198,18 @@ namespace Mavi
 						else if (Data[0] == 'f')
 							return Core::Var::Boolean(false);
 
-						Core::Stringify Source(Data, (size_t)Size);
-						Source.ToLower();
+						Core::String Source(Data, (size_t)Size);
+						Core::Stringify::ToLower(Source);
 
-						bool Value = (Source.R() == "true" || Source.R() == "yes" || Source.R() == "on" || Source.R() == "1");
+						bool Value = (Source == "true" || Source == "yes" || Source == "on" || Source == "1");
 						return Core::Var::Boolean(Value);
 					}
 					case OidType::Float4:
 					case OidType::Float8:
 					{
-						Core::Stringify Source(Data, (size_t)Size);
-						if (Source.HasNumber())
-							return Core::Var::Number(Source.ToDouble());
+						Core::String Source(Data, (size_t)Size);
+						if (Core::Stringify::HasNumber(Source))
+							return Core::Var::Number(*Core::FromString<double>(Source));
 
 						return Core::Var::String(Data, (size_t)Size);
 					}
@@ -439,7 +439,7 @@ namespace Mavi
 									Def += Op;
 							}
 						}
-						else if (!Core::Stringify(&Op).HasNumber())
+						else if (!Core::Stringify::HasNumber(Op))
 						{
 							Def += "?";
 							Map.push_back(Statement);
@@ -1253,11 +1253,11 @@ namespace Mavi
 				if (!Count || Count[0] == '\0')
 					return 0;
 
-				Core::Stringify Copy(Count);
-				if (!Copy.HasInteger())
+				auto Numeric = Core::FromString<uint64_t>(Count);
+				if (!Numeric)
 					return 0;
 
-				return (size_t)Copy.ToInt64();
+				return (size_t)*Numeric;
 #else
 				return 0;
 #endif
@@ -1932,7 +1932,10 @@ namespace Mavi
 				if (!IsInQueue || Next->Session == 0)
 					return Future;
 
-				Core::String Tx = Core::Stringify(Command).Trim().ToUpper().R();
+				Core::String Tx = Command;
+				Core::Stringify::Trim(Tx);
+				Core::Stringify::ToUpper(Tx);
+
 				if (Tx != "COMMIT" && Tx != "ROLLBACK")
 					return Future;
 
@@ -2422,11 +2425,13 @@ namespace Mavi
 				Core::String Erasable = " \r\n\t\'\"()<>=%&^*/+-,.!?:;";
 				Core::String Quotes = "\"'`";
 
-				Core::Stringify Base(&Result.Request);
-				Base.ReplaceInBetween("/*", "*/", "", false).ReplaceStartsWithEndsOf("--", Lines.c_str(), "");
-				Base.Trim().Compress(Erasable.c_str(), Quotes.c_str());
+				Core::String& Base = Result.Request;
+				Core::Stringify::ReplaceInBetween(Base, "/*", "*/", "", false);
+				Core::Stringify::ReplaceStartsWithEndsOf(Base, "--", Lines.c_str(), "");
+				Core::Stringify::Trim(Base);
+				Core::Stringify::Compress(Base, Erasable.c_str(), Quotes.c_str());
 
-				auto Enumerations = Base.FindStartsWithEndsOf("#", Enums.c_str(), Quotes.c_str());
+				auto Enumerations = Core::Stringify::FindStartsWithEndsOf(Base, "#", Enums.c_str(), Quotes.c_str());
 				if (!Enumerations.empty())
 				{
 					int64_t Offset = 0;
@@ -2441,11 +2446,11 @@ namespace Mavi
 						if (It == Constants->Map.end())
 						{
 							VI_ERR("[pq] template query @%s expects constant: %s", Name.c_str(), Item.first.c_str());
-							Base.ReplacePart(Item.second.Start, Item.second.End, "");
+							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, "");
 						}
 						else
 						{
-							Base.ReplacePart(Item.second.Start, Item.second.End, It->second);
+							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, It->second);
 							NewSize = It->second.size();
 						}
 
@@ -2454,11 +2459,11 @@ namespace Mavi
 					}
 				}
 
-				Core::Vector<std::pair<Core::String, Core::Stringify::Settle>> Variables;
-				for (auto& Item : Base.FindInBetween("$<", ">", Quotes.c_str()))
+				Core::Vector<std::pair<Core::String, Core::TextSettle>> Variables;
+				for (auto& Item : Core::Stringify::FindInBetween(Base, "$<", ">", Quotes.c_str()))
 				{
 					Item.first += ";escape";
-					if (Base.IsPrecededBy(Item.second.Start, "-"))
+					if (Core::Stringify::IsPrecededBy(Base, Item.second.Start, "-"))
 					{
 						Item.first += ";negate";
 						--Item.second.Start;
@@ -2467,10 +2472,10 @@ namespace Mavi
 					Variables.emplace_back(std::move(Item));
 				}
 
-				for (auto& Item : Base.FindInBetween("@<", ">", Quotes.c_str()))
+				for (auto& Item : Core::Stringify::FindInBetween(Base, "@<", ">", Quotes.c_str()))
 				{
 					Item.first += ";unsafe";
-					if (Base.IsPrecededBy(Item.second.Start, "-"))
+					if (Core::Stringify::IsPrecededBy(Base, Item.second.Start, "-"))
 					{
 						Item.first += ";negate";
 						--Item.second.Start;
@@ -2479,7 +2484,7 @@ namespace Mavi
 					Variables.emplace_back(std::move(Item));
 				}
 
-				Base.ReplaceParts(Variables, "", [&Erasable](const Core::String& Name, char Left, int Side)
+				Core::Stringify::ReplaceParts(Base, Variables, "", [&Erasable](const Core::String& Name, char Left, int Side)
 				{
 					if (Side < 0 && Name.find(";negate") != Core::String::npos)
 						return '\0';
@@ -2519,25 +2524,27 @@ namespace Mavi
 				size_t Size = 0;
 				for (auto& File : Entries)
 				{
-					Core::Stringify Base(Path + File.Path);
+					Core::String Base(Path + File.Path);
 					if (File.IsDirectory)
 					{
-						AddDirectory(Base.R(), Origin.empty() ? Directory : Origin);
+						AddDirectory(Base, Origin.empty() ? Directory : Origin);
 						continue;
 					}
 
-					if (!Base.EndsWith(".sql"))
+					if (!Core::Stringify::EndsWith(Base, ".sql"))
 						continue;
 
-					char* Buffer = (char*)Core::OS::File::ReadAll(Base.R(), &Size);
+					char* Buffer = (char*)Core::OS::File::ReadAll(Base, &Size);
 					if (!Buffer)
 						continue;
 
-					Base.Replace(Origin.empty() ? Directory : Origin, "").Replace("\\", "/").Replace(".sql", "");
-					if (Base.StartsOf("\\/"))
-						Base.Substring(1);
+					Core::Stringify::Replace(Base, Origin.empty() ? Directory : Origin, "");
+					Core::Stringify::Replace(Base, "\\", "/");
+					Core::Stringify::Replace(Base, ".sql", "");
+					if (Core::Stringify::StartsOf(Base, "\\/"))
+						Base.erase(0, 1);
 
-					AddQuery(Base.R(), Buffer, Size);
+					AddQuery(Base, Buffer, Size);
 					VI_FREE(Buffer);
 				}
 
@@ -2650,13 +2657,13 @@ namespace Mavi
 					return SQL;
 
 				Connection* Remote = Base->GetConnection();
-				Core::Stringify Buffer(SQL);
-				Core::Stringify::Settle Set;
-				Core::String& Src = Buffer.R();
+				Core::String Buffer(SQL);
+				Core::TextSettle Set;
+				Core::String& Src = Buffer;
 				size_t Offset = 0;
 				size_t Next = 0;
 
-				while ((Set = Buffer.Find('?', Offset)).Found)
+				while ((Set = Core::Stringify::Find(Buffer, '?', Offset)).Found)
 				{
 					if (Next >= Map->size())
 					{
@@ -2670,7 +2677,7 @@ namespace Mavi
 						if (Src[Set.Start - 1] == '\\')
 						{
 							Offset = Set.Start;
-							Buffer.Erase(Set.Start - 1, 1);
+							Buffer.erase(Set.Start - 1, 1);
 							continue;
 						}
 						else if (Src[Set.Start - 1] == '$')
@@ -2691,8 +2698,8 @@ namespace Mavi
 						}
 					}
 					Core::String Value = GetSQL(Remote->GetBase(), (*Map)[Next++], Escape, Negate);
-					Buffer.Erase(Set.Start, (Escape ? 1 : 2));
-					Buffer.Insert(Value, Set.Start);
+					Buffer.erase(Set.Start, (Escape ? 1 : 2));
+					Buffer.insert(Set.Start, Value);
 					Offset = Set.Start + Value.size();
 				}
 
@@ -2759,7 +2766,7 @@ namespace Mavi
 				size_t Offset = 0;
 				Safe->unlock();
 
-				Core::Stringify Result(&Origin.Request);
+				Core::String& Result = Origin.Request;
 				for (auto& Word : Origin.Positions)
 				{
 					auto It = Map->find(Word.Key);
@@ -2773,7 +2780,7 @@ namespace Mavi
 					if (Value.empty())
 						continue;
 
-					Result.Insert(Value, Word.Offset + Offset);
+					Result.insert(Word.Offset + Offset, Value);
 					Offset += Value.size();
 				}
 
@@ -2811,8 +2818,10 @@ namespace Mavi
 
 				if (!Base)
 				{
-					Core::Stringify Dest(Src);
-					return Dest.Insert('\'', 0).Append('\'').R();
+					Core::String Dest(Src);
+					Dest.insert(Dest.begin(), '\'');
+					Dest.append(1, '\'');
+					return Dest;
 				}
 
 				char* Subresult = PQescapeLiteral(Base, Src.c_str(), Src.size());

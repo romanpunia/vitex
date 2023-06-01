@@ -1127,8 +1127,13 @@ namespace Mavi
 		}
 		bool GraphicsDevice::AddSection(const Core::String& Name, const Core::String& Code)
 		{
-			Core::Stringify Language(Core::OS::Path::GetExtension(Name.c_str()));
-			Language.Substring(1).Trim().ToLower();
+			Core::String Language(Core::OS::Path::GetExtension(Name.c_str()));
+			if (Language.empty())
+				return false;
+
+			Language.erase(0, 1);
+			Core::Stringify::Trim(Language);
+			Core::Stringify::ToLower(Language);
 			RemoveSection(Name);
 
 			Section* Include = VI_NEW(Section);
@@ -1309,10 +1314,8 @@ namespace Mavi
 					if (HLSL->empty())
 						return true;
 
-					Core::Stringify Parser(HLSL);
-					Parser.ReplaceGroups("layout\\(row_major\\)\\s+", "");
-					Parser.ReplaceGroups("invocations\\s+=\\s+\\d+,\\s+", "");
-
+					Core::Stringify::ReplaceGroups(*HLSL, "layout\\(row_major\\)\\s+", "");
+					Core::Stringify::ReplaceGroups(*HLSL, "invocations\\s+=\\s+\\d+,\\s+", "");
 					return true;
 				}
 				else if (To == ShaderLang::HLSL)

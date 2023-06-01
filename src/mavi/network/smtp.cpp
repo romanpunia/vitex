@@ -66,7 +66,7 @@ namespace Mavi
 				Authorized = false;
 				return ReadResponse(220, [this]()
 				{
-					SendRequest(250, Core::Form("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()).R(), [this]()
+					SendRequest(250, Core::Stringify::Text("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()), [this]()
 					{
 						if (this->Hostname.Secure)
 						{
@@ -80,7 +80,7 @@ namespace Mavi
 									if (!Encrypted)
 										return;
 
-									SendRequest(250, Core::Form("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()).R(), [this]()
+									SendRequest(250, Core::Stringify::Text("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()), [this]()
 									{
 										Success(0);
 									});
@@ -252,7 +252,7 @@ namespace Mavi
 				}
 				else if (CanRequest("PLAIN"))
 				{
-					Core::String Hash = Core::Form("%s^%s^%s", Request.Login.c_str(), Request.Login.c_str(), Request.Password.c_str()).R();
+					Core::String Hash = Core::Stringify::Text("%s^%s^%s", Request.Login.c_str(), Request.Login.c_str(), Request.Password.c_str());
 					char* Escape = (char*)Hash.c_str();
 
 					for (size_t i = 0; i < Hash.size(); i++)
@@ -261,7 +261,7 @@ namespace Mavi
 							Escape[i] = 0;
 					}
 
-					return SendRequest(235, Core::Form("AUTH PLAIN %s\r\n", Compute::Codec::Base64Encode(Hash).c_str()).R(), [this, Callback]()
+					return SendRequest(235, Core::Stringify::Text("AUTH PLAIN %s\r\n", Compute::Codec::Base64Encode(Hash).c_str()), [this, Callback]()
 					{
 						Authorized = true;
 						Callback();
@@ -326,7 +326,7 @@ namespace Mavi
 						EncodedChallenge = Compute::Codec::Base64Encode(reinterpret_cast<const unsigned char*>(DecodedChallenge.c_str()), DecodedChallenge.size());
 
 						VI_FREE((void*)UserBase);
-						SendRequest(235, Core::Form("%s\r\n", EncodedChallenge.c_str()).R(), [this, Callback]()
+						SendRequest(235, Core::Stringify::Text("%s\r\n", EncodedChallenge.c_str()), [this, Callback]()
 						{
 							Authorized = true;
 							Callback();
@@ -338,27 +338,27 @@ namespace Mavi
 					return SendRequest(334, "AUTH DIGEST-MD5\r\n", [this, Callback]()
 					{
 						Core::String EncodedChallenge = Command.c_str() + 4;
-						Core::Stringify DecodedChallenge = Compute::Codec::Base64Decode(EncodedChallenge);
+						Core::String DecodedChallenge = Compute::Codec::Base64Decode(EncodedChallenge);
 
-						Core::Stringify::Settle Result1 = DecodedChallenge.Find("nonce");
+						Core::TextSettle Result1 = Core::Stringify::Find(DecodedChallenge, "nonce");
 						if (!Result1.Found)
 							return (void)Error("smtp has delivered bad digest");
 
-						Core::Stringify::Settle Result2 = DecodedChallenge.Find("\"", Result1.Start + 7);
+						Core::TextSettle Result2 = Core::Stringify::Find(DecodedChallenge, "\"", Result1.Start + 7);
 						if (!Result2.Found)
 							return (void)Error("smtp has delivered bad digest");
 
-						Core::String Nonce = DecodedChallenge.Splice(Result1.Start + 7, Result2.Start).R();
+						Core::String Nonce = DecodedChallenge.substr(Result1.Start + 7, Result2.Start - (Result1.Start + 7));
 						Core::String Realm;
 
-						Result1 = DecodedChallenge.Find("realm");
+						Result1 = Core::Stringify::Find(DecodedChallenge, "realm");
 						if (Result1.Found)
 						{
-							Result2 = DecodedChallenge.Find("\"", Result1.Start + 7);
+							Result2 = Core::Stringify::Find(DecodedChallenge, "\"", Result1.Start + 7);
 							if (!Result2.Found)
 								return (void)Error("smtp has delivered bad digest");
 
-							Realm = DecodedChallenge.Splice(Result1.Start + 7, Result2.Start).R();
+							Realm = DecodedChallenge.substr(Result1.Start + 7, Result2.Start - (Result1.Start + 7));
 						}
 
 						char CNonce[17], NC[9];
@@ -390,7 +390,17 @@ namespace Mavi
 						unsigned char* UserQop = Unicode("auth");
 
 						if (!UserRealm || !UserUsername || !UserPassword || !UserNonce || !UserCNonce || !UserUri || !UserNc || !UserQop)
+						{
+							VI_FREE(UserRealm);
+							VI_FREE(UserUsername);
+							VI_FREE(UserPassword);
+							VI_FREE(UserNonce);
+							VI_FREE(UserCNonce);
+							VI_FREE(UserUri);
+							VI_FREE(UserNc);
+							VI_FREE(UserQop);
 							return (void)Error("smtp auth failed");
+						}
 
 						Compute::MD5Hasher MD5A1A;
 						MD5A1A.Update(UserUsername, (unsigned int)Request.Login.size());
@@ -448,24 +458,24 @@ namespace Mavi
 						VI_FREE(UserA2A);
 						VI_FREE(UserA2B);
 
-						Core::Stringify Content;
+						Core::String Content;
 						if (strstr(Command.c_str(), "charset") != nullptr)
-							Content.fAppend("charset=utf-8,username=\"%s\"", Request.Login.c_str());
+							Core::Stringify::Append(Content, "charset=utf-8,username=\"%s\"", Request.Login.c_str());
 						else
-							Content.fAppend("username=\"%s\"", Request.Login.c_str());
+							Core::Stringify::Append(Content, "username=\"%s\"", Request.Login.c_str());
 
 						if (!Realm.empty())
-							Content.fAppend(",realm=\"%s\"", Realm.c_str());
+							Core::Stringify::Append(Content, ",realm=\"%s\"", Realm.c_str());
 
-						Content.fAppend(",nonce=\"%s\""
+						Core::Stringify::Append(Content, ",nonce=\"%s\""
 							",nc=%s"
 							",cnonce=\"%s\""
 							",digest-uri=\"%s\""
 							",Response=%s"
-							",qop=auth", Nonce.c_str(), NC, CNonce, URI.c_str(), DecodedChallenge.Get());
+							",qop=auth", Nonce.c_str(), NC, CNonce, URI.c_str(), DecodedChallenge.c_str());
 
-						EncodedChallenge = Compute::Codec::Base64Encode(Content.R());
-						SendRequest(334, Core::Form("%s\r\n", EncodedChallenge.c_str()).R(), [this, Callback]()
+						EncodedChallenge = Compute::Codec::Base64Encode(Content);
+						SendRequest(334, Core::Stringify::Text("%s\r\n", EncodedChallenge.c_str()), [this, Callback]()
 						{
 							SendRequest(235, "\r\n", [this, Callback]()
 							{
@@ -496,19 +506,19 @@ namespace Mavi
 				if (!Request.Attachments.empty())
 					Boundary = Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(64));
                 
-				Core::Stringify Content;
-				Content.fAppend("MAIL FROM: <%s>\r\n", Request.SenderAddress.c_str());
+				Core::String Content;
+				Core::Stringify::Append(Content, "MAIL FROM: <%s>\r\n", Request.SenderAddress.c_str());
 
 				for (auto& Item : Request.Recipients)
-					Content.fAppend("RCPT TO: <%s>\r\n", Item.Address.c_str());
+					Core::Stringify::Append(Content, "RCPT TO: <%s>\r\n", Item.Address.c_str());
 
 				for (auto& Item : Request.CCRecipients)
-					Content.fAppend("RCPT TO: <%s>\r\n", Item.Address.c_str());
+					Core::Stringify::Append(Content, "RCPT TO: <%s>\r\n", Item.Address.c_str());
 
 				for (auto& Item : Request.BCCRecipients)
-					Content.fAppend("RCPT TO: <%s>\r\n", Item.Address.c_str());
+					Core::Stringify::Append(Content, "RCPT TO: <%s>\r\n", Item.Address.c_str());
 
-				Stream.WriteAsync(Content.Get(), Content.Size(), [this](SocketPoll Event)
+				Stream.WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -518,40 +528,40 @@ namespace Mavi
 							Pending = (int32_t)Request.Attachments.size();
 							SendRequest(354, "DATA\r\n", [this]()
 							{
-								Core::Stringify Content;
-								Content.fAppend("Date: %s\r\nFrom: ", Core::DateTime::FetchWebDateGMT(time(nullptr)).c_str());
+								Core::String Content;
+								Core::Stringify::Append(Content, "Date: %s\r\nFrom: ", Core::DateTime::FetchWebDateGMT(time(nullptr)).c_str());
 
 								if (!Request.SenderName.empty())
-									Content.Append(Request.SenderName.c_str());
+									Content.append(Request.SenderName.c_str());
 
-								Content.fAppend(" <%s>\r\n", Request.SenderAddress.c_str());
+								Core::Stringify::Append(Content, " <%s>\r\n", Request.SenderAddress.c_str());
 								for (auto& Item : Request.Headers)
-									Content.fAppend("%s: %s\r\n", Item.first.c_str(), Item.second.c_str());
+									Core::Stringify::Append(Content, "%s: %s\r\n", Item.first.c_str(), Item.second.c_str());
 
 								if (!Request.Mailer.empty())
-									Content.fAppend("X-Mailer: %s\r\n", Request.Mailer.c_str());
+									Core::Stringify::Append(Content, "X-Mailer: %s\r\n", Request.Mailer.c_str());
 								else
-									Content.Append("X-Mailer: Lynx\r\n");
+									Content.append("X-Mailer: Lynx\r\n");
 
 								if (!Request.Receiver.empty())
-									Content.fAppend("Reply-To: %s\r\n", Request.Receiver.c_str());
+									Core::Stringify::Append(Content, "Reply-To: %s\r\n", Request.Receiver.c_str());
 
 								if (Request.NoNotification)
-									Content.fAppend("Disposition-Notification-To: %s\r\n", !Request.Receiver.empty() ? Request.Receiver.c_str() : Request.SenderName.c_str());
+									Core::Stringify::Append(Content, "Disposition-Notification-To: %s\r\n", !Request.Receiver.empty() ? Request.Receiver.c_str() : Request.SenderName.c_str());
 
 								switch (Request.Prior)
 								{
 									case Priority::High:
-										Content.Append("X-Priority: 2 (High)\r\n");
+										Content.append("X-Priority: 2 (High)\r\n");
 										break;
 									case Priority::Normal:
-										Content.Append("X-Priority: 3 (Normal)\r\n");
+										Content.append("X-Priority: 3 (Normal)\r\n");
 										break;
 									case Priority::Low:
-										Content.Append("X-Priority: 4 (Low)\r\n");
+										Content.append("X-Priority: 4 (Low)\r\n");
 										break;
 									default:
-										Content.Append("X-Priority: 3 (Normal)\r\n");
+										Content.append("X-Priority: 3 (Normal)\r\n");
 										break;
 								}
 
@@ -572,7 +582,7 @@ namespace Mavi
 									Recipients += '>';
 								}
 
-								Content.fAppend("To: %s\r\n", Recipients.c_str());
+								Core::Stringify::Append(Content, "To: %s\r\n", Recipients.c_str());
 								if (!Request.CCRecipients.empty())
 								{
 									Recipients.clear();
@@ -591,7 +601,7 @@ namespace Mavi
 										Recipients.append(Request.CCRecipients[i].Address);
 										Recipients += '>';
 									}
-									Content.fAppend("Cc: %s\r\n", Recipients.c_str());
+									Core::Stringify::Append(Content, "Cc: %s\r\n", Recipients.c_str());
 								}
 
 								if (!Request.BCCRecipients.empty())
@@ -612,34 +622,34 @@ namespace Mavi
 										Recipients.append(Request.BCCRecipients[i].Address);
 										Recipients += '>';
 									}
-									Content.fAppend("Bcc: %s\r\n", Recipients.c_str());
+									Core::Stringify::Append(Content, "Bcc: %s\r\n", Recipients.c_str());
 								}
 
-								Content.fAppend("Subject: %s\r\nMIME-Version: 1.0\r\n", Request.Subject.c_str());
+								Core::Stringify::Append(Content, "Subject: %s\r\nMIME-Version: 1.0\r\n", Request.Subject.c_str());
 								if (!Request.Attachments.empty())
 								{
-									Content.fAppend("Content-Type: multipart/mixed; boundary=\"%s\"\r\n\r\n", Boundary.c_str());
-									Content.fAppend("--%s\r\n", Boundary.c_str());
+									Core::Stringify::Append(Content, "Content-Type: multipart/mixed; boundary=\"%s\"\r\n\r\n", Boundary.c_str());
+									Core::Stringify::Append(Content, "--%s\r\n", Boundary.c_str());
 								}
 
 								if (Request.AllowHTML)
-									Content.fAppend("Content-Type: text/html; charset=\"%s\"\r\n", Request.Charset.c_str());
+									Core::Stringify::Append(Content, "Content-Type: text/html; charset=\"%s\"\r\n", Request.Charset.c_str());
 								else
-									Content.fAppend("Content-type: text/plain; charset=\"%s\"\r\n", Request.Charset.c_str());
+									Core::Stringify::Append(Content, "Content-type: text/plain; charset=\"%s\"\r\n", Request.Charset.c_str());
 
-								Content.Append("Content-Transfer-Encoding: 7bit\r\n\r\n");
-								Stream.WriteAsync(Content.Get(), Content.Size(), [this](SocketPoll Event)
+								Content.append("Content-Transfer-Encoding: 7bit\r\n\r\n");
+								Stream.WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
 								{
 									if (Packet::IsDone(Event))
 									{
-										Core::Stringify Content;
+										Core::String Content;
 										for (auto& Item : Request.Messages)
-											Content.fAppend("%s\r\n", Item.c_str());
+											Core::Stringify::Append(Content, "%s\r\n", Item.c_str());
 
 										if (Request.Messages.empty())
-											Content.Assign(" \r\n");
+											Content.assign(" \r\n");
 
-										Stream.WriteAsync(Content.Get(), Content.Size(), [this](SocketPoll Event)
+										Stream.WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
 										{
 											if (Packet::IsDone(Event))
 											{
@@ -668,12 +678,12 @@ namespace Mavi
 				{
 					Stage("smtp request delivery");
 
-					Core::Stringify Content;
+					Core::String Content;
 					if (!Request.Attachments.empty())
-						Content.fAppend("\r\n--%s--\r\n", Boundary.c_str());
+						Core::Stringify::Append(Content, "\r\n--%s--\r\n", Boundary.c_str());
 
-					Content.Append("\r\n.\r\n");
-					return !Stream.WriteAsync(Content.Get(), Content.Size(), [this](SocketPoll Event)
+					Content.append("\r\n.\r\n");
+					return !Stream.WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 						{
@@ -694,14 +704,14 @@ namespace Mavi
 				if (Id > 0 && (Name[Id] == '\\' || Name[Id] == '/'))
 					Name = Name - 1;
 
-				Core::String Hash = Core::Form("=?UTF-8?B?%s?=", Compute::Codec::Base64Encode((unsigned char*)Name, Id + 1).c_str()).R();
-				Core::Stringify Content;
-				Content.fAppend("--%s\r\n", Boundary.c_str());
-				Content.fAppend("Content-Type: application/x-msdownload; name=\"%s\"\r\n", Hash.c_str());
-				Content.fAppend("Content-Transfer-Encoding: base64\r\n");
-				Content.fAppend("Content-Disposition: attachment; filename=\"%s\"\r\n\r\n", Hash.c_str());
+				Core::String Hash = Core::Stringify::Text("=?UTF-8?B?%s?=", Compute::Codec::Base64Encode((unsigned char*)Name, Id + 1).c_str());
+				Core::String Content;
+				Core::Stringify::Append(Content, "--%s\r\n", Boundary.c_str());
+				Core::Stringify::Append(Content, "Content-Type: application/x-msdownload; name=\"%s\"\r\n", Hash.c_str());
+				Core::Stringify::Append(Content, "Content-Transfer-Encoding: base64\r\n");
+				Core::Stringify::Append(Content, "Content-Disposition: attachment; filename=\"%s\"\r\n\r\n", Hash.c_str());
 
-				return Stream.WriteAsync(Content.Get(), Content.Size(), [this, Name](SocketPoll Event)
+				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, Name](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{

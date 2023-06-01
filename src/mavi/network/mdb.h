@@ -158,7 +158,7 @@ namespace Mavi
 				TDocument* Get() const;
 				Document Copy() const;
 				Document& Persist(bool Keep = true);
-				operator bool() const
+				explicit operator bool() const
 				{
 					return Base != nullptr;
 				}
@@ -208,7 +208,7 @@ namespace Mavi
 				void SetUsername(const char* Value);
 				void SetPassword(const char* Value);
 				TAddress* Get() const;
-				operator bool() const
+				explicit operator bool() const
 				{
 					return Base != nullptr;
 				}
@@ -245,7 +245,7 @@ namespace Mavi
 				Core::Promise<bool> Execute();
 				size_t GetHint() const;
 				TStream* Get() const;
-				operator bool() const
+				explicit operator bool() const
 				{
 					return Base != nullptr;
 				}
@@ -281,7 +281,7 @@ namespace Mavi
 				Document GetCurrent() const;
 				Cursor Clone();
 				TCursor* Get() const;
-				operator bool() const
+				explicit operator bool() const
 				{
 					return Base != nullptr;
 				}
@@ -315,7 +315,7 @@ namespace Mavi
 				{
 					return GetProperty(Name);
 				}
-				operator bool() const
+				explicit operator bool() const
 				{
 					return IsSuccess();
 				}
@@ -358,7 +358,7 @@ namespace Mavi
 				const char* GetName() const;
 				Stream CreateStream(Document&& Options) const;
 				TCollection* Get() const;
-				operator bool() const
+				explicit operator bool() const
 				{
 					return Base != nullptr;
 				}
@@ -388,7 +388,7 @@ namespace Mavi
 				const char* GetName() const;
 				Collection GetCollection(const Core::String& Name);
 				TDatabase* Get() const;
-				operator bool() const
+				explicit operator bool() const
 				{
 					return Base != nullptr;
 				}
@@ -409,7 +409,7 @@ namespace Mavi
 				Core::Promise<bool> Next(Document& Result) const;
 				Core::Promise<bool> Error(Document& Result) const;
 				TWatcher* Get() const;
-				operator bool() const
+				explicit operator bool() const
 				{
 					return Base != nullptr;
 				}
@@ -445,7 +445,7 @@ namespace Mavi
 				Core::Promise<Response> Query(const Collection& Base, const Document& Command);
 				Core::Promise<TransactionState> Commit();
 				TTransaction* Get() const;
-				operator bool() const
+				explicit operator bool() const
 				{
 					return Base != nullptr;
 				}

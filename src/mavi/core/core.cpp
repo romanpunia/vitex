@@ -857,10 +857,10 @@ namespace Mavi
 			Data.Origin.Line = Line;
 			Data.Type.Level = LogLevel::Error;
 			Data.Type.Fatal = true;
-			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "PANIC! %s(\"%s\") check failed: %s, thread %s %s",
+			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "PANIC! %s(): %s, condition \"%s\" was not met, thread %s %s",
 				Function ? Function : "?",
+				Format ? Format : "check failed",
 				Condition ? Condition : "?",
-				Format ? Format : "contract is not satisfied",
 				OS::Process::GetThreadId(std::this_thread::get_id()).c_str(),
 				ErrorHandling::GetStackTrace(2, 64).c_str());
 			if (HasFlag(LogOption::Dated))
@@ -899,10 +899,10 @@ namespace Mavi
 			Data.Origin.Line = Line;
 			Data.Type.Level = LogLevel::Error;
 			Data.Type.Fatal = true;
-			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "ASSERT %s(\"%s\") assertion failed: %s, thread %s %s",
+			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "ASSERT %s(): %s, condition \"%s\" was not met, thread %s %s",
 				Function ? Function : "?",
+				Format ? Format : "assertion failed",
 				Condition ? Condition : "?",
-				Format ? Format : "contract is not satisfied",
 				OS::Process::GetThreadId(std::this_thread::get_id()).c_str(),
 				ErrorHandling::GetStackTrace(2, 64).c_str());
 			if (HasFlag(LogOption::Dated))
@@ -2777,15 +2777,14 @@ namespace Mavi
 					return true;
 				}
 
-				Stringify Buffer(&Text);
-				if (Buffer.HasNumber())
+				if (Stringify::HasNumber(Text))
 				{
-					if (Buffer.HasDecimal())
-						Move(Var::DecimalString(Buffer.R()));
-					else if (Buffer.HasInteger())
-						Move(Var::Integer(Buffer.ToInt64()));
+					if (Stringify::HasDecimal(Text))
+						Move(Var::DecimalString(Text));
+					else if (Stringify::HasInteger(Text))
+						Move(Var::Integer(*FromString<int64_t>(Text)));
 					else
-						Move(Var::Number(Buffer.ToDouble()));
+						Move(Var::Number(*FromString<double>(Text)));
 
 					return true;
 				}
@@ -2907,7 +2906,11 @@ namespace Mavi
 				return Value.Boolean ? 1 : 0;
 
 			if (Type == VarType::String)
-				return Stringify(GetString(), GetSize()).ToInt64();
+			{
+				auto Result = FromString<int64_t>(Core::String(GetString(), GetSize()));
+				if (Result)
+					return *Result;
+			}
 
 			return 0;
 		}
@@ -2926,7 +2929,11 @@ namespace Mavi
 				return Value.Boolean ? 1.0 : 0.0;
 
 			if (Type == VarType::String)
-				return Stringify(GetString(), GetSize()).ToDouble();
+			{
+				auto Result = FromString<double>(Core::String(GetString(), GetSize()));
+				if (Result)
+					return *Result;
+			}
 
 			return 0.0;
 		}
@@ -3333,7 +3340,16 @@ namespace Mavi
 			T.tm_mon++;
 			T.tm_year += 1900;
 
-			return Stringify(Value).Replace("{s}", T.tm_sec < 10 ? Form("0%i", T.tm_sec).R() : Core::ToString(T.tm_sec)).Replace("{m}", T.tm_min < 10 ? Form("0%i", T.tm_min).R() : Core::ToString(T.tm_min)).Replace("{h}", Core::ToString(T.tm_hour)).Replace("{D}", Core::ToString(T.tm_yday)).Replace("{MD}", T.tm_mday < 10 ? Form("0%i", T.tm_mday).R() : Core::ToString(T.tm_mday)).Replace("{WD}", Core::ToString(T.tm_wday + 1)).Replace("{M}", T.tm_mon < 10 ? Form("0%i", T.tm_mon).R() : Core::ToString(T.tm_mon)).Replace("{Y}", Core::ToString(T.tm_year)).R();
+			String Result = Value;
+			Stringify::Replace(Result, "{s}", T.tm_sec < 10 ? Stringify::Text("0%i", T.tm_sec) : Core::ToString(T.tm_sec));
+			Stringify::Replace(Result, "{m}", T.tm_min < 10 ? Stringify::Text("0%i", T.tm_min) : Core::ToString(T.tm_min));
+			Stringify::Replace(Result, "{h}", Core::ToString(T.tm_hour));
+			Stringify::Replace(Result, "{D}", Core::ToString(T.tm_yday));
+			Stringify::Replace(Result, "{MD}", T.tm_mday < 10 ? Stringify::Text("0%i", T.tm_mday) : Core::ToString(T.tm_mday));
+			Stringify::Replace(Result, "{WD}", Core::ToString(T.tm_wday + 1));
+			Stringify::Replace(Result, "{M}", T.tm_mon < 10 ? Stringify::Text("0%i", T.tm_mon) : Core::ToString(T.tm_mon));
+			Stringify::Replace(Result, "{Y}", Core::ToString(T.tm_year));
+			return Result;
 		}
 		Core::String DateTime::Iso8601()
 		{
@@ -3892,127 +3908,37 @@ namespace Mavi
 			return 0;
 		}
 
-		Stringify::Stringify() noexcept : Deletable(true)
+		Core::String& Stringify::EscapePrint(Core::String& Other)
 		{
-			Base = VI_NEW(Core::String);
-		}
-		Stringify::Stringify(int Value) noexcept : Deletable(true)
-		{
-			Base = VI_NEW(Core::String, Core::ToString(Value));
-		}
-		Stringify::Stringify(unsigned int Value) noexcept : Deletable(true)
-		{
-			Base = VI_NEW(Core::String, Core::ToString(Value));
-		}
-		Stringify::Stringify(int64_t Value) noexcept : Deletable(true)
-		{
-			Base = VI_NEW(Core::String, Core::ToString(Value));
-		}
-		Stringify::Stringify(uint64_t Value) noexcept : Deletable(true)
-		{
-			Base = VI_NEW(Core::String, Core::ToString(Value));
-		}
-		Stringify::Stringify(float Value) noexcept : Deletable(true)
-		{
-			Base = VI_NEW(Core::String, Core::ToString(Value));
-		}
-		Stringify::Stringify(double Value) noexcept : Deletable(true)
-		{
-			Base = VI_NEW(Core::String, Core::ToString(Value));
-		}
-		Stringify::Stringify(long double Value) noexcept : Deletable(true)
-		{
-			Base = VI_NEW(Core::String, Core::ToString(Value));
-		}
-#ifdef VI_HAS_FAST_MEMORY
-		Stringify::Stringify(const std::string& Value) noexcept : Deletable(true)
-		{
-			Base = VI_NEW(Core::String, Core::Copy<Core::String>(Value));
-		}
-#endif
-		Stringify::Stringify(Core::String&& Buffer) noexcept : Deletable(true)
-		{
-			Base = VI_NEW(Core::String, std::move(Buffer));
-		}
-		Stringify::Stringify(const Core::String& Buffer) noexcept : Deletable(true)
-		{
-			Base = VI_NEW(Core::String, Buffer);
-		}
-		Stringify::Stringify(Core::String* Buffer) noexcept
-		{
-			Deletable = (!Buffer);
-			Base = (Deletable ? VI_NEW(Core::String) : Buffer);
-		}
-		Stringify::Stringify(const Core::String* Buffer) noexcept
-		{
-			Deletable = (!Buffer);
-			Base = (Deletable ? VI_NEW(Core::String) : (Core::String*)Buffer);
-		}
-		Stringify::Stringify(const char* Buffer) noexcept : Deletable(true)
-		{
-			if (Buffer != nullptr)
-				Base = VI_NEW(Core::String, Buffer);
-			else
-				Base = VI_NEW(Core::String);
-		}
-		Stringify::Stringify(const char* Buffer, size_t Length) noexcept : Deletable(true)
-		{
-			if (Buffer != nullptr)
-				Base = VI_NEW(Core::String, Buffer, Length);
-			else
-				Base = VI_NEW(Core::String);
-		}
-		Stringify::Stringify(Stringify&& Value) noexcept : Base(Value.Base), Deletable(Value.Deletable)
-		{
-			Value.Base = nullptr;
-			Value.Deletable = false;
-		}
-		Stringify::Stringify(const Stringify& Value) noexcept : Deletable(true)
-		{
-			if (Value.Base != nullptr)
-				Base = VI_NEW(Core::String, *Value.Base);
-			else
-				Base = VI_NEW(Core::String);
-		}
-		Stringify::~Stringify() noexcept
-		{
-			if (Deletable)
-				VI_DELETE(basic_string, Base);
-		}
-		Stringify& Stringify::EscapePrint()
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			for (size_t i = 0; i < Base->size(); i++)
+			for (size_t i = 0; i < Other.size(); i++)
 			{
-				if (Base->at(i) != '%')
+				if (Other.at(i) != '%')
 					continue;
 
-				if (i + 1 < Base->size())
+				if (i + 1 < Other.size())
 				{
-					if (Base->at(i + 1) != '%')
+					if (Other.at(i + 1) != '%')
 					{
-						Base->insert(Base->begin() + i, '%');
+						Other.insert(Other.begin() + i, '%');
 						i++;
 					}
 				}
 				else
 				{
-					Base->append(1, '%');
+					Other.append(1, '%');
 					i++;
 				}
 			}
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::Escape()
+		Core::String& Stringify::Escape(Core::String& Other)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			for (size_t i = 0; i < Base->size(); i++)
+			for (size_t i = 0; i < Other.size(); i++)
 			{
-				char& V = Base->at(i);
+				char& V = Other.at(i);
 				if (V == '\"')
 				{
-					if (i > 0 && Base->at(i - 1) == '\\')
+					if (i > 0 && Other.at(i - 1) == '\\')
 						continue;
 				}
 				else if (V == '\n')
@@ -4032,21 +3958,19 @@ namespace Mavi
 				else
 					continue;
 
-				Base->insert(Base->begin() + i, '\\');
+				Other.insert(Other.begin() + i, '\\');
 				i++;
 			}
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::Unescape()
+		Core::String& Stringify::Unescape(Core::String& Other)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			for (size_t i = 0; i < Base->size(); i++)
+			for (size_t i = 0; i < Other.size(); i++)
 			{
-				if (Base->at(i) != '\\' || i + 1 >= Base->size())
+				if (Other.at(i) != '\\' || i + 1 >= Other.size())
 					continue;
 
-				char& V = Base->at(i + 1);
+				char& V = Other.at(i + 1);
 				if (V == 'n')
 					V = '\n';
 				else if (V == 't')
@@ -4064,72 +3988,37 @@ namespace Mavi
 				else
 					continue;
 
-				Base->erase(Base->begin() + i);
+				Other.erase(Other.begin() + i);
 			}
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::Reserve(size_t Count)
+		Core::String& Stringify::ToUpper(Core::String& Other)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(Count > 0, "count should be greater than Zero");
-
-			Base->reserve(Base->capacity() + Count);
-			return *this;
+			std::transform(Other.begin(), Other.end(), Other.begin(), ::toupper);
+			return Other;
 		}
-		Stringify& Stringify::Resize(size_t Count)
+		Core::String& Stringify::ToLower(Core::String& Other)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			Base->resize(Count);
-			return *this;
+			std::transform(Other.begin(), Other.end(), Other.begin(), ::tolower);
+			return Other;
 		}
-		Stringify& Stringify::Resize(size_t Count, char Char)
+		Core::String& Stringify::Clip(Core::String& Other, size_t Length)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(Count > 0, "count should be greater than Zero");
-
-			Base->resize(Count, Char);
-			return *this;
+			if (Length < Other.size())
+				Other.erase(Length, Other.size() - Length);
+			return Other;
 		}
-		Stringify& Stringify::Clear()
+		Core::String& Stringify::Compress(Core::String& Other, const char* Tokenbase, const char* NotInBetweenOf, size_t Start)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			Base->clear();
-			return *this;
-		}
-		Stringify& Stringify::ToUpper()
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			std::transform(Base->begin(), Base->end(), Base->begin(), ::toupper);
-			return *this;
-		}
-		Stringify& Stringify::ToLower()
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			std::transform(Base->begin(), Base->end(), Base->begin(), ::tolower);
-			return *this;
-		}
-		Stringify& Stringify::Clip(size_t Length)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Length < Base->size())
-				Base->erase(Length, Base->size() - Length);
-
-			return *this;
-		}
-		Stringify& Stringify::Compress(const char* Tokenbase, const char* NotInBetweenOf, size_t Start)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-
 			size_t TokenbaseSize = (Tokenbase ? strlen(Tokenbase) : 0);
 			size_t NiboSize = (NotInBetweenOf ? strlen(NotInBetweenOf) : 0);
 			char Skip = '\0';
 
-			for (size_t i = Start; i < Base->size(); i++)
+			for (size_t i = Start; i < Other.size(); i++)
 			{
 				for (size_t j = 0; j < NiboSize; j++)
 				{
-					char& Next = Base->at(i);
+					char& Next = Other.at(i);
 					if (Next == NotInBetweenOf[j])
 					{
 						Skip = Next;
@@ -4138,24 +4027,24 @@ namespace Mavi
 					}
 				}
 
-				while (Skip != '\0' && i < Base->size() && Base->at(i) != Skip)
+				while (Skip != '\0' && i < Other.size() && Other.at(i) != Skip)
 					++i;
 
 				if (Skip != '\0')
 				{
 					Skip = '\0';
-					if (i >= Base->size())
+					if (i >= Other.size())
 						break;
 				}
 
-				char& Next = Base->at(i);
+				char& Next = Other.at(i);
 				if (Next != ' ' && Next != '\r' && Next != '\n' && Next != '\t')
 					continue;
 
 				bool Removable = false;
 				if (i > 0)
 				{
-					Next = Base->at(i - 1);
+					Next = Other.at(i - 1);
 					for (size_t j = 0; j < TokenbaseSize; j++)
 					{
 						if (Next == Tokenbase[j])
@@ -4166,9 +4055,9 @@ namespace Mavi
 					}
 				}
 
-				if (!Removable && i + 1 < Base->size())
+				if (!Removable && i + 1 < Other.size())
 				{
-					Next = Base->at(i + 1);
+					Next = Other.at(i + 1);
 					for (size_t j = 0; j < TokenbaseSize; j++)
 					{
 						if (Next == Tokenbase[j])
@@ -4180,146 +4069,128 @@ namespace Mavi
 				}
 
 				if (Removable)
-					Base->erase(Base->begin() + i--);
+					Other.erase(Other.begin() + i--);
 				else
-					(*Base)[i] = ' ';
+					Other[i] = ' ';
 			}
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::ReplaceOf(const char* Chars, const char* To, size_t Start)
+		Core::String& Stringify::ReplaceOf(Core::String& Other, const char* Chars, const char* To, size_t Start)
 		{
 			VI_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, "match list and replacer should not be empty");
-
-			Stringify::Settle Result { };
+			TextSettle Result { };
 			size_t Offset = Start, ToSize = strlen(To);
-			while ((Result = FindOf(Chars, Offset)).Found)
+			while ((Result = FindOf(Other, Chars, Offset)).Found)
 			{
-				EraseOffsets(Result.Start, Result.End);
-				Insert(To, Result.Start);
+				EraseOffsets(Other, Result.Start, Result.End);
+				Other.insert(Result.Start, To);
 				Offset = Result.Start + ToSize;
 			}
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::ReplaceNotOf(const char* Chars, const char* To, size_t Start)
+		Core::String& Stringify::ReplaceNotOf(Core::String& Other, const char* Chars, const char* To, size_t Start)
 		{
 			VI_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, "match list and replacer should not be empty");
-
-			Stringify::Settle Result {};
+			TextSettle Result {};
 			size_t Offset = Start, ToSize = strlen(To);
-			while ((Result = FindNotOf(Chars, Offset)).Found)
+			while ((Result = FindNotOf(Other, Chars, Offset)).Found)
 			{
-				EraseOffsets(Result.Start, Result.End);
-				Insert(To, Result.Start);
+				EraseOffsets(Other, Result.Start, Result.End);
+				Other.insert(Result.Start, To);
 				Offset = Result.Start + ToSize;
 			}
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::Replace(const Core::String& From, const Core::String& To, size_t Start)
+		Core::String& Stringify::Replace(Core::String& Other, const Core::String& From, const Core::String& To, size_t Start)
 		{
 			VI_ASSERT(!From.empty(), "match should not be empty");
-
 			size_t Offset = Start;
-			Stringify::Settle Result { };
+			TextSettle Result { };
 
-			while ((Result = Find(From, Offset)).Found)
+			while ((Result = Find(Other, From, Offset)).Found)
 			{
-				EraseOffsets(Result.Start, Result.End);
-				Insert(To, Result.Start);
+				EraseOffsets(Other, Result.Start, Result.End);
+				Other.insert(Result.Start, To);
 				Offset = Result.Start + To.size();
 			}
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::ReplaceGroups(const Core::String& FromRegex, const Core::String& To)
+		Core::String& Stringify::ReplaceGroups(Core::String& Other, const Core::String& FromRegex, const Core::String& To)
 		{
 			Compute::RegexSource Source('(' + FromRegex + ')');
-			Compute::Regex::Replace(&Source, To, *Base);
-			return *this;
+			Compute::Regex::Replace(&Source, To, Other);
+			return Other;
 		}
-		Stringify& Stringify::Replace(const char* From, const char* To, size_t Start)
+		Core::String& Stringify::Replace(Core::String& Other, const char* From, const char* To, size_t Start)
 		{
 			VI_ASSERT(From != nullptr && To != nullptr, "from and to should not be empty");
-
 			size_t Offset = Start;
 			size_t Size = strlen(To);
-			Stringify::Settle Result { };
+			TextSettle Result { };
 
-			while ((Result = Find(From, Offset)).Found)
+			while ((Result = Find(Other, From, Offset)).Found)
 			{
-				EraseOffsets(Result.Start, Result.End);
-				Insert(To, Result.Start);
+				EraseOffsets(Other, Result.Start, Result.End);
+				Other.insert(Result.Start, To);
 				Offset = Result.Start + Size;
 			}
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::Replace(const char& From, const char& To, size_t Position)
+		Core::String& Stringify::Replace(Core::String& Other, const char& From, const char& To, size_t Position)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			for (size_t i = Position; i < Base->size(); i++)
+			for (size_t i = Position; i < Other.size(); i++)
 			{
-				char& C = Base->at(i);
+				char& C = Other.at(i);
 				if (C == From)
 					C = To;
 			}
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::Replace(const char& From, const char& To, size_t Position, size_t Count)
+		Core::String& Stringify::Replace(Core::String& Other, const char& From, const char& To, size_t Position, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(Base->size() >= (Position + Count), "invalid offset");
-
+			VI_ASSERT(Other.size() >= (Position + Count), "invalid offset");
 			size_t Size = Position + Count;
 			for (size_t i = Position; i < Size; i++)
 			{
-				char& C = Base->at(i);
+				char& C = Other.at(i);
 				if (C == From)
 					C = To;
 			}
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::ReplacePart(size_t Start, size_t End, const Core::String& Value)
+		Core::String& Stringify::ReplacePart(Core::String& Other, size_t Start, size_t End, const Core::String& Value)
 		{
-			return ReplacePart(Start, End, Value.c_str());
+			return ReplacePart(Other, Start, End, Value.c_str());
 		}
-		Stringify& Stringify::ReplacePart(size_t Start, size_t End, const char* Value)
+		Core::String& Stringify::ReplacePart(Core::String& Other, size_t Start, size_t End, const char* Value)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(Start < Base->size(), "invalid start");
-			VI_ASSERT(End <= Base->size(), "invalid end");
+			VI_ASSERT(Start < Other.size(), "invalid start");
+			VI_ASSERT(End <= Other.size(), "invalid end");
 			VI_ASSERT(Start < End, "start should be less than end");
 			VI_ASSERT(Value != nullptr, "replacer should not be empty");
-
 			if (Start == 0)
 			{
-				if (Base->size() != End)
-					Base->assign(Value + Base->substr(End, Base->size() - End));
+				if (Other.size() != End)
+					Other.assign(Value + Other.substr(End, Other.size() - End));
 				else
-					Base->assign(Value);
+					Other.assign(Value);
 			}
-			else if (Base->size() == End)
-				Base->assign(Base->substr(0, Start) + Value);
+			else if (Other.size() == End)
+				Other.assign(Other.substr(0, Start) + Value);
 			else
-				Base->assign(Base->substr(0, Start) + Value + Base->substr(End, Base->size() - End));
-
-			return *this;
+				Other.assign(Other.substr(0, Start) + Value + Other.substr(End, Other.size() - End));
+			return Other;
 		}
-		Stringify& Stringify::ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const Core::String& With, size_t Start)
+		Core::String& Stringify::ReplaceStartsWithEndsOf(Core::String& Other, const char* Begins, const char* EndsOf, const Core::String& With, size_t Start)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
 			VI_ASSERT(EndsOf != nullptr && EndsOf[0] != '\0', "end should not be empty");
 
 			size_t BeginsSize = strlen(Begins), EndsOfSize = strlen(EndsOf);
-			for (size_t i = Start; i < Base->size(); i++)
+			for (size_t i = Start; i < Other.size(); i++)
 			{
 				size_t From = i, BeginsOffset = 0;
-				while (BeginsOffset < BeginsSize && From < Base->size() && Base->at(From) == Begins[BeginsOffset])
+				while (BeginsOffset < BeginsSize && From < Other.size() && Other.at(From) == Begins[BeginsOffset])
 				{
 					++From;
 					++BeginsOffset;
@@ -4333,9 +4204,9 @@ namespace Mavi
 				}
 
 				size_t To = From;
-				while (!Matching && To < Base->size())
+				while (!Matching && To < Other.size())
 				{
-					auto& Next = Base->at(To++);
+					auto& Next = Other.at(To++);
 					for (size_t j = 0; j < EndsOfSize; j++)
 					{
 						if (Next == EndsOf[j])
@@ -4346,29 +4217,27 @@ namespace Mavi
 					}
 				}
 
-				if (To >= Base->size())
+				if (To >= Other.size())
 					Matching = true;
 
 				if (!Matching)
 					continue;
 
-				Base->replace(Base->begin() + From - BeginsSize, Base->begin() + To, With);
+				Other.replace(Other.begin() + From - BeginsSize, Other.begin() + To, With);
 				i = With.size();
 			}
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::ReplaceInBetween(const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start)
+		Core::String& Stringify::ReplaceInBetween(Core::String& Other, const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
 			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', "end should not be empty");
 			
 			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
-			for (size_t i = Start; i < Base->size(); i++)
+			for (size_t i = Start; i < Other.size(); i++)
 			{
 				size_t From = i, BeginsOffset = 0;
-				while (BeginsOffset < BeginsSize && From < Base->size() && Base->at(From) == Begins[BeginsOffset])
+				while (BeginsOffset < BeginsSize && From < Other.size() && Other.at(From) == Begins[BeginsOffset])
 				{
 					++From;
 					++BeginsOffset;
@@ -4382,15 +4251,15 @@ namespace Mavi
 				}
 
 				size_t To = From, EndsOffset = 0;
-				while (To < Base->size())
+				while (To < Other.size())
 				{
-					if (Base->at(To++) != Ends[EndsOffset])
+					if (Other.at(To++) != Ends[EndsOffset])
 					{
 						if (!Recursive)
 							continue;
 
 						size_t Substep = To - 1, Suboffset = 0;
-						while (Suboffset < BeginsSize && Substep < Base->size() && Base->at(Substep) == Begins[Suboffset])
+						while (Suboffset < BeginsSize && Substep < Other.size() && Other.at(Substep) == Begins[Suboffset])
 						{
 							++Substep;
 							++Suboffset;
@@ -4414,28 +4283,26 @@ namespace Mavi
 					continue;
 				}
 
-				if (To > Base->size())
-					To = Base->size();
+				if (To > Other.size())
+					To = Other.size();
 
-				Base->replace(Base->begin() + From - BeginsSize, Base->begin() + To, With);
+				Other.replace(Other.begin() + From - BeginsSize, Other.begin() + To, With);
 				i = With.size();
 			}
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::ReplaceNotInBetween(const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start)
+		Core::String& Stringify::ReplaceNotInBetween(Core::String& Other, const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
 			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', "end should not be empty");
 
 			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
 			size_t ReplaceAt = Core::String::npos;
 
-			for (size_t i = Start; i < Base->size(); i++)
+			for (size_t i = Start; i < Other.size(); i++)
 			{
 				size_t From = i, BeginsOffset = 0;
-				while (BeginsOffset < BeginsSize && From < Base->size() && Base->at(From) == Begins[BeginsOffset])
+				while (BeginsOffset < BeginsSize && From < Other.size() && Other.at(From) == Begins[BeginsOffset])
 				{
 					++From;
 					++BeginsOffset;
@@ -4452,22 +4319,22 @@ namespace Mavi
 
 				if (ReplaceAt != Core::String::npos)
 				{
-					Base->replace(Base->begin() + ReplaceAt, Base->begin() + i, With);
+					Other.replace(Other.begin() + ReplaceAt, Other.begin() + i, With);
 					From = ReplaceAt + BeginsSize + With.size();
 					i = From - BeginsSize;
 					ReplaceAt = Core::String::npos;
 				}
 
 				size_t To = From, EndsOffset = 0;
-				while (To < Base->size())
+				while (To < Other.size())
 				{
-					if (Base->at(To++) != Ends[EndsOffset])
+					if (Other.at(To++) != Ends[EndsOffset])
 					{
 						if (!Recursive)
 							continue;
 
 						size_t Substep = To - 1, Suboffset = 0;
-						while (Suboffset < BeginsSize && Substep < Base->size() && Base->at(Substep) == Begins[Suboffset])
+						while (Suboffset < BeginsSize && Substep < Other.size() && Other.at(Substep) == Begins[Suboffset])
 						{
 							++Substep;
 							++Suboffset;
@@ -4488,16 +4355,13 @@ namespace Mavi
 				i = To - 1;
 			}
 
-			if (ReplaceAt == Core::String::npos)
-				return *this;
-
-			Base->replace(Base->begin() + ReplaceAt, Base->end(), With);
-			return *this;
+			if (ReplaceAt != Core::String::npos)
+				Other.replace(Other.begin() + ReplaceAt, Other.end(), With);
+			return Other;
 		}
-		Stringify& Stringify::ReplaceParts(Core::Vector<std::pair<Core::String, Stringify::Settle>>& Inout, const Core::String& With, const std::function<char(const Core::String&, char, int)>& Surrounding)
+		Core::String& Stringify::ReplaceParts(Core::String& Other, Core::Vector<std::pair<Core::String, TextSettle>>& Inout, const Core::String& With, const std::function<char(const Core::String&, char, int)>& Surrounding)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_SORT(Inout.begin(), Inout.end(), [](const std::pair<Core::String, Stringify::Settle>& A, const std::pair<Core::String, Stringify::Settle>& B)
+			VI_SORT(Inout.begin(), Inout.end(), [](const std::pair<Core::String, TextSettle>& A, const std::pair<Core::String, TextSettle>& B)
 			{
 				return A.second.Start < B.second.Start;
 			});
@@ -4516,36 +4380,34 @@ namespace Mavi
 					Core::String Replacement = With;
 					if (Item.second.Start > 0)
 					{
-						char Next = Surrounding(Item.first, Base->at(Item.second.Start - 1), -1);
+						char Next = Surrounding(Item.first, Other.at(Item.second.Start - 1), -1);
 						if (Next != '\0')
 							Replacement.insert(Replacement.begin(), Next);
 					}
 
-					if (Item.second.End < Base->size())
+					if (Item.second.End < Other.size())
 					{
-						char Next = Surrounding(Item.first, Base->at(Item.second.End), 1);
+						char Next = Surrounding(Item.first, Other.at(Item.second.End), 1);
 						if (Next != '\0')
 							Replacement.push_back(Next);
 					}
 
-					ReplacePart(Item.second.Start, Item.second.End, Replacement);
+					ReplacePart(Other, Item.second.Start, Item.second.End, Replacement);
 					Offset += (int64_t)Replacement.size() - (int64_t)Size;
 					Item.second.End = Item.second.Start + Replacement.size();
 				}
 				else
 				{
-					ReplacePart(Item.second.Start, Item.second.End, With);
+					ReplacePart(Other, Item.second.Start, Item.second.End, With);
 					Offset += (int64_t)With.size() - (int64_t)Size;
 					Item.second.End = Item.second.Start + With.size();
 				}
 			}
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::ReplaceParts(Core::Vector<Stringify::Settle>& Inout, const Core::String& With, const std::function<char(char, int)>& Surrounding)
+		Core::String& Stringify::ReplaceParts(Core::String& Other, Core::Vector<TextSettle>& Inout, const Core::String& With, const std::function<char(char, int)>& Surrounding)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");	
-			VI_SORT(Inout.begin(), Inout.end(), [](const Stringify::Settle& A, const Stringify::Settle& B)
+			VI_SORT(Inout.begin(), Inout.end(), [](const TextSettle& A, const TextSettle& B)
 			{
 				return A.Start < B.Start;
 			});
@@ -4564,393 +4426,199 @@ namespace Mavi
 					Core::String Replacement = With;
 					if (Item.Start > 0)
 					{
-						char Next = Surrounding(Base->at(Item.Start - 1), -1);
+						char Next = Surrounding(Other.at(Item.Start - 1), -1);
 						if (Next != '\0')
 							Replacement.insert(Replacement.begin(), Next);
 					}
 
-					if (Item.End < Base->size())
+					if (Item.End < Other.size())
 					{
-						char Next = Surrounding(Base->at(Item.End), 1);
+						char Next = Surrounding(Other.at(Item.End), 1);
 						if (Next != '\0')
 							Replacement.push_back(Next);
 					}
 
-					ReplacePart(Item.Start, Item.End, Replacement);
+					ReplacePart(Other, Item.Start, Item.End, Replacement);
 					Offset += (int64_t)Replacement.size() - (int64_t)Size;
 					Item.End = Item.Start + Replacement.size();
 				}
 				else
 				{
-					ReplacePart(Item.Start, Item.End, With);
+					ReplacePart(Other, Item.Start, Item.End, With);
 					Offset += (int64_t)With.size() - (int64_t)Size;
 					Item.End = Item.Start + With.size();
 				}
 			}
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::RemovePart(size_t Start, size_t End)
+		Core::String& Stringify::RemovePart(Core::String& Other, size_t Start, size_t End)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(Start < Base->size(), "invalid start");
-			VI_ASSERT(End <= Base->size(), "invalid end");
+			VI_ASSERT(Start < Other.size(), "invalid start");
+			VI_ASSERT(End <= Other.size(), "invalid end");
 			VI_ASSERT(Start < End, "start should be less than end");
 
 			if (Start == 0)
 			{
-				if (Base->size() != End)
-					Base->assign(Base->substr(End, Base->size() - End));
+				if (Other.size() != End)
+					Other.assign(Other.substr(End, Other.size() - End));
 				else
-					Base->clear();
+					Other.clear();
 			}
-			else if (Base->size() == End)
-				Base->assign(Base->substr(0, Start));
+			else if (Other.size() == End)
+				Other.assign(Other.substr(0, Start));
 			else
-				Base->assign(Base->substr(0, Start) + Base->substr(End, Base->size() - End));
-
-			return *this;
+				Other.assign(Other.substr(0, Start) + Other.substr(End, Other.size() - End));
+			return Other;
 		}
-		Stringify& Stringify::Reverse()
+		Core::String& Stringify::Reverse(Core::String& Other)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Base->empty())
-				return *this;
-
-			return Reverse(0, Base->size());
+			if (!Other.empty())
+				Reverse(Other, 0, Other.size());
+			return Other;
 		}
-		Stringify& Stringify::Reverse(size_t Start, size_t End)
+		Core::String& Stringify::Reverse(Core::String& Other, size_t Start, size_t End)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(Base->size() >= 2, "length should be at least 2 chars");
-			VI_ASSERT(End < Base->size(), "end should be less than length - 1");
-			VI_ASSERT(Start < Base->size(), "start should be less than length - 1");
+			VI_ASSERT(Other.size() >= 2, "length should be at least 2 chars");
+			VI_ASSERT(End < Other.size(), "end should be less than length - 1");
+			VI_ASSERT(Start < Other.size(), "start should be less than length - 1");
 			VI_ASSERT(Start < End, "start should be less than end");
-
-			std::reverse(Base->begin() + Start, Base->begin() + End);
-			return *this;
+			std::reverse(Other.begin() + Start, Other.begin() + End);
+			return Other;
 		}
-		Stringify& Stringify::Substring(size_t Start)
+		Core::String& Stringify::Substring(Core::String& Other, const TextSettle& Result)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Start < Base->size())
-				Base->assign(Base->substr(Start));
-			else
-				Base->clear();
-
-			return *this;
-		}
-		Stringify& Stringify::Substring(size_t Start, size_t Count)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Count > 0 && Start < Base->size())
-				Base->assign(Base->substr(Start, Count));
-			else
-				Base->clear();
-
-			return *this;
-		}
-		Stringify& Stringify::Substring(const Stringify::Settle& Result)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Result.Found, "result should be found");
-
-			if (Result.Start >= Base->size())
+			if (Result.Start >= Other.size())
 			{
-				Base->clear();
-				return *this;
+				Other.clear();
+				return Other;
 			}
 
 			auto Offset = (int64_t)Result.End;
-			if (Result.End > Base->size())
-				Offset = (int64_t)(Base->size() - Result.Start);
+			if (Result.End > Other.size())
+				Offset = (int64_t)(Other.size() - Result.Start);
 
 			Offset = (int64_t)Result.Start - Offset;
-			Base->assign(Base->substr(Result.Start, (size_t)(Offset < 0 ? -Offset : Offset)));
-			return *this;
+			Other.assign(Other.substr(Result.Start, (size_t)(Offset < 0 ? -Offset : Offset)));
+			return Other;
 		}
-		Stringify& Stringify::Splice(size_t Start, size_t End)
+		Core::String& Stringify::Splice(Core::String& Other, size_t Start, size_t End)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(Start < Base->size(), "result start should be less or equal than length - 1");
-
-			if (End > Base->size())
-				End = (Base->size() - Start);
+			VI_ASSERT(Start < Other.size(), "result start should be less or equal than length - 1");
+			if (End > Other.size())
+				End = (Other.size() - Start);
 
 			int64_t Offset = (int64_t)Start - (int64_t)End;
-			Base->assign(Base->substr(Start, (size_t)(Offset < 0 ? -Offset : Offset)));
-			return *this;
+			Other.assign(Other.substr(Start, (size_t)(Offset < 0 ? -Offset : Offset)));
+			return Other;
 		}
-		Stringify& Stringify::Trim()
+		Core::String& Stringify::Trim(Core::String& Other)
 		{
-			return TrimStart().TrimEnd();
+			TrimStart(Other);
+			TrimEnd(Other);
+			return Other;
 		}
-		Stringify& Stringify::TrimStart()
+		Core::String& Stringify::TrimStart(Core::String& Other)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			Base->erase(Base->begin(), std::find_if(Base->begin(), Base->end(), [](int C) -> int
+			Other.erase(Other.begin(), std::find_if(Other.begin(), Other.end(), [](int C) -> int
 			{
 				if (C < -1 || C > 255)
 					return 1;
 
 				return std::isspace(C) == 0 ? 1 : 0;
 			}));
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::TrimEnd()
+		Core::String& Stringify::TrimEnd(Core::String& Other)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			Base->erase(std::find_if(Base->rbegin(), Base->rend(), [](int C) -> int
+			Other.erase(std::find_if(Other.rbegin(), Other.rend(), [](int C) -> int
 			{
 				if (C < -1 || C > 255)
 					return 1;
 
 				return std::isspace(C) == 0 ? 1 : 0;
-			}).base(), Base->end());
-
-			return *this;
+			}).base(), Other.end());
+			return Other;
 		}
-		Stringify& Stringify::Fill(const char& Char)
+		Core::String& Stringify::Fill(Core::String& Other, const char& Char)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(!Base->empty(), "length should be greater than Zero");
-
-			for (char& i : *Base)
+			for (char& i : Other)
 				i = Char;
-
-			return *this;
+			return Other;
 		}
-		Stringify& Stringify::Fill(const char& Char, size_t Count)
+		Core::String& Stringify::Fill(Core::String& Other, const char& Char, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(!Base->empty(), "length should be greater than Zero");
-
-			Base->assign(Count, Char);
-			return *this;
+			Other.assign(Count, Char);
+			return Other;
 		}
-		Stringify& Stringify::Fill(const char& Char, size_t Start, size_t Count)
+		Core::String& Stringify::Fill(Core::String& Other, const char& Char, size_t Start, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(!Base->empty(), "length should be greater than Zero");
-			VI_ASSERT(Start <= Base->size(), "start should be less or equal than length");
-
-			if (Start + Count > Base->size())
-				Count = Base->size() - Start;
+			VI_ASSERT(!Other.empty(), "length should be greater than Zero");
+			VI_ASSERT(Start <= Other.size(), "start should be less or equal than length");
+			if (Start + Count > Other.size())
+				Count = Other.size() - Start;
 
 			size_t Size = (Start + Count);
 			for (size_t i = Start; i < Size; i++)
-				Base->at(i) = Char;
-
-			return *this;
+				Other.at(i) = Char;
+			return Other;
 		}
-		Stringify& Stringify::Assign(const char* Raw)
+		Core::String& Stringify::Append(Core::String& Other, const char* Format, ...)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Raw != nullptr)
-				Base->assign(Raw);
-			else
-				Base->clear();
-
-			return *this;
-		}
-		Stringify& Stringify::Assign(const char* Raw, size_t Length)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Raw != nullptr)
-				Base->assign(Raw, Length);
-			else
-				Base->clear();
-
-			return *this;
-		}
-		Stringify& Stringify::Assign(const Core::String& Raw)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			Base->assign(Raw);
-			return *this;
-		}
-		Stringify& Stringify::Assign(const Core::String& Raw, size_t Start, size_t Count)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Start >= Raw.size() || !Count)
-				Base->clear();
-			else
-				Base->assign(Raw.substr(Start, Count));
-			return *this;
-		}
-		Stringify& Stringify::Assign(const char* Raw, size_t Start, size_t Count)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(Raw != nullptr, "assign string should be set");
-
-			Base->assign(Raw);
-			return Substring(Start, Count);
-		}
-		Stringify& Stringify::Append(const char* Raw)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(Raw != nullptr, "append string should be set");
-
-			Base->append(Raw);
-			return *this;
-		}
-		Stringify& Stringify::Append(const char& Char)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			Base->append(1, Char);
-			return *this;
-		}
-		Stringify& Stringify::Append(const char& Char, size_t Count)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			Base->append(Count, Char);
-			return *this;
-		}
-		Stringify& Stringify::Append(const Core::String& Raw)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			Base->append(Raw);
-			return *this;
-		}
-		Stringify& Stringify::Append(const char* Raw, size_t Count)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(Raw != nullptr, "append string should be set");
-
-			Base->append(Raw, Count);
-			return *this;
-		}
-		Stringify& Stringify::Append(const char* Raw, size_t Start, size_t Count)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(Raw != nullptr, "append string should be set");
-			VI_ASSERT(Count > 0, "count should be greater than Zero");
-			VI_ASSERT(strlen(Raw) >= Start + Count, "offset should be less than append string length");
-
-			Base->append(Raw + Start, Count - Start);
-			return *this;
-		}
-		Stringify& Stringify::Append(const Core::String& Raw, size_t Start, size_t Count)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(Count > 0, "count should be greater than Zero");
-			VI_ASSERT(Raw.size() >= Start + Count, "offset should be less than append string length");
-
-			Base->append(Raw.substr(Start, Count));
-			return *this;
-		}
-		Stringify& Stringify::fAppend(const char* Format, ...)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Format != nullptr, "format should be set");
-
 			char Buffer[BLOB_SIZE];
 			va_list Args;
 			va_start(Args, Format);
 			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 			va_end(Args);
-
-			return Append(Buffer, Count);
+			Other.append(Buffer, Count);
+			return Other;
 		}
-		Stringify& Stringify::Insert(const Core::String& Raw, size_t Position)
+		Core::String& Stringify::Erase(Core::String& Other, size_t Position)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Position >= Base->size())
-				Position = Base->size();
-
-			Base->insert(Position, Raw);
-			return *this;
+			VI_ASSERT(Position < Other.size(), "position should be less than length");
+			Other.erase(Position);
+			return Other;
 		}
-		Stringify& Stringify::Insert(const Core::String& Raw, size_t Position, size_t Start, size_t Count)
+		Core::String& Stringify::Erase(Core::String& Other, size_t Position, size_t Count)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Position >= Base->size())
-				Position = Base->size();
-
-			if (Raw.size() >= Start + Count)
-				Base->insert(Position, Raw.substr(Start, Count));
-
-			return *this;
+			VI_ASSERT(Position < Other.size(), "position should be less than length");
+			Other.erase(Position, Count);
+			return Other;
 		}
-		Stringify& Stringify::Insert(const Core::String& Raw, size_t Position, size_t Count)
+		Core::String& Stringify::EraseOffsets(Core::String& Other, size_t Start, size_t End)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Position >= Base->size())
-				Position = Base->size();
+			return Erase(Other, Start, End - Start);
+		}
+		Core::String& Stringify::EvalEnvs(Core::String& Other, const Core::String& Net, const Core::String& Dir)
+		{
+			if (Other.empty())
+				return Other;
 
-			if (Count >= Raw.size())
-				Count = Raw.size();
-
-			Base->insert(Position, Raw.substr(0, Count));
-			return *this;
-		}
-		Stringify& Stringify::Insert(const char& Char, size_t Position, size_t Count)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Position >= Base->size())
-				Position = Base->size();
-
-			Base->insert(Position, Count, Char);
-			return *this;
-		}
-		Stringify& Stringify::Insert(const char& Char, size_t Position)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Position >= Base->size())
-				Position = Base->size();
-
-			Base->insert(Base->begin() + Position, Char);
-			return *this;
-		}
-		Stringify& Stringify::Erase(size_t Position)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(Position < Base->size(), "position should be less than length");
-			Base->erase(Position);
-			return *this;
-		}
-		Stringify& Stringify::Erase(size_t Position, size_t Count)
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			VI_ASSERT(Position < Base->size(), "position should be less than length");
-			Base->erase(Position, Count);
-			return *this;
-		}
-		Stringify& Stringify::EraseOffsets(size_t Start, size_t End)
-		{
-			return Erase(Start, End - Start);
-		}
-		Stringify& Stringify::Eval(const Core::String& Net, const Core::String& Dir)
-		{
-			if (Base->empty())
-				return *this;
-
-			if (StartsOf("./\\"))
+			if (StartsOf(Other, "./\\"))
 			{
-				Core::String Result = Core::OS::Path::Resolve(Base->c_str(), Dir, false);
+				Core::String Result = Core::OS::Path::Resolve(Other.c_str(), Dir, false);
 				if (!Result.empty())
-					Assign(Result);
+					Other.assign(Result);
 			}
-			else if (Base->front() == '$' && Base->size() > 1)
+			else if (Other.front() == '$' && Other.size() > 1)
 			{
-				const char* Env = std::getenv(Base->c_str() + 1);
+				const char* Env = std::getenv(Other.c_str() + 1);
 				if (!Env)
 				{
-					VI_WARN("[env] cannot resolve environmental variable [%s]", Base->c_str() + 1);
-					Base->clear();
+					VI_WARN("[env] cannot resolve environmental variable [%s]", Other.c_str() + 1);
+					Other.clear();
 				}
 				else
-					Base->assign(Env);
+					Other.assign(Env);
 			}
 			else
-				Replace("[subnet]", Net);
-
-			return *this;
+				Replace(Other, "[subnet]", Net);
+			return Other;
 		}
-		Core::Vector<std::pair<Core::String, Stringify::Settle>> Stringify::FindInBetween(const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset) const
+		Core::Vector<std::pair<Core::String, TextSettle>> Stringify::FindInBetween(const Core::String& Other, const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset)
 		{
-			Core::Vector<std::pair<Core::String, Stringify::Settle>> Result;
+			Core::Vector<std::pair<Core::String, TextSettle>> Result;
 			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
 			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', "end should not be empty");
 
@@ -4958,11 +4626,11 @@ namespace Mavi
 			size_t NisboSize = (NotInSubBetweenOf ? strlen(NotInSubBetweenOf) : 0);
 			char Skip = '\0';
 
-			for (size_t i = Offset; i < Base->size(); i++)
+			for (size_t i = Offset; i < Other.size(); i++)
 			{
 				for (size_t j = 0; j < NisboSize; j++)
 				{
-					char& Next = Base->at(i);
+					const char& Next = Other.at(i);
 					if (Next == NotInSubBetweenOf[j])
 					{
 						Skip = Next;
@@ -4971,18 +4639,18 @@ namespace Mavi
 					}
 				}
 				
-				while (Skip != '\0' && i < Base->size() && Base->at(i) != Skip)
+				while (Skip != '\0' && i < Other.size() && Other.at(i) != Skip)
 					++i;
 
 				if (Skip != '\0')
 				{
 					Skip = '\0';
-					if (i >= Base->size())
+					if (i >= Other.size())
 						break;
 				}
 
 				size_t From = i, BeginsOffset = 0;
-				while (BeginsOffset < BeginsSize && From < Base->size() && Base->at(From) == Begins[BeginsOffset])
+				while (BeginsOffset < BeginsSize && From < Other.size() && Other.at(From) == Begins[BeginsOffset])
 				{
 					++From;
 					++BeginsOffset;
@@ -4995,9 +4663,9 @@ namespace Mavi
 				}
 
 				size_t To = From, EndsOffset = 0;
-				while (To < Base->size())
+				while (To < Other.size())
 				{
-					if (Base->at(To++) != Ends[EndsOffset])
+					if (Other.at(To++) != Ends[EndsOffset])
 						continue;
 					
 					if (++EndsOffset >= EndsSize)
@@ -5008,19 +4676,19 @@ namespace Mavi
 				if (EndsOffset != EndsSize)
 					continue;
 
-				Settle At;
+				TextSettle At;
 				At.Start = From - BeginsSize;
 				At.End = To;
 				At.Found = true;
 
-				Result.push_back(std::make_pair(Base->substr(From, (To - EndsSize) - From), std::move(At)));
+				Result.push_back(std::make_pair(Other.substr(From, (To - EndsSize) - From), std::move(At)));
 			}
 
 			return Result;
 		}
-		Core::Vector<std::pair<Core::String, Stringify::Settle>> Stringify::FindStartsWithEndsOf(const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset) const
+		Core::Vector<std::pair<Core::String, TextSettle>> Stringify::FindStartsWithEndsOf(const Core::String& Other, const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset)
 		{
-			Core::Vector<std::pair<Core::String, Stringify::Settle>> Result;
+			Core::Vector<std::pair<Core::String, TextSettle>> Result;
 			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
 			VI_ASSERT(EndsOf != nullptr && EndsOf[0] != '\0', "end should not be empty");
 
@@ -5028,11 +4696,11 @@ namespace Mavi
 			size_t NisboSize = (NotInSubBetweenOf ? strlen(NotInSubBetweenOf) : 0);
 			char Skip = '\0';
 
-			for (size_t i = Offset; i < Base->size(); i++)
+			for (size_t i = Offset; i < Other.size(); i++)
 			{
 				for (size_t j = 0; j < NisboSize; j++)
 				{
-					char& Next = Base->at(i);
+					const char& Next = Other.at(i);
 					if (Next == NotInSubBetweenOf[j])
 					{
 						Skip = Next;
@@ -5041,18 +4709,18 @@ namespace Mavi
 					}
 				}
 
-				while (Skip != '\0' && i < Base->size() && Base->at(i) != Skip)
+				while (Skip != '\0' && i < Other.size() && Other.at(i) != Skip)
 					++i;
 
 				if (Skip != '\0')
 				{
 					Skip = '\0';
-					if (i >= Base->size())
+					if (i >= Other.size())
 						break;
 				}
 
 				size_t From = i, BeginsOffset = 0;
-				while (BeginsOffset < BeginsSize && From < Base->size() && Base->at(From) == Begins[BeginsOffset])
+				while (BeginsOffset < BeginsSize && From < Other.size() && Other.at(From) == Begins[BeginsOffset])
 				{
 					++From;
 					++BeginsOffset;
@@ -5066,9 +4734,9 @@ namespace Mavi
 				}
 
 				size_t To = From;
-				while (!Matching && To < Base->size())
+				while (!Matching && To < Other.size())
 				{
-					auto& Next = Base->at(To++);
+					auto& Next = Other.at(To++);
 					for (size_t j = 0; j < EndsOfSize; j++)
 					{
 						if (Next == EndsOf[j])
@@ -5080,34 +4748,33 @@ namespace Mavi
 					}
 				}
 
-				if (To >= Base->size())
+				if (To >= Other.size())
 					Matching = true;
 
 				if (!Matching)
 					continue;
 
-				Settle At;
+				TextSettle At;
 				At.Start = From - BeginsSize;
 				At.End = To;
 				At.Found = true;
 
-				Result.push_back(std::make_pair(Base->substr(From, To - From), std::move(At)));
+				Result.push_back(std::make_pair(Other.substr(From, To - From), std::move(At)));
 			}
 
 			return Result;
 		}
-		Stringify::Settle Stringify::ReverseFind(const Core::String& Needle, size_t Offset) const
+		TextSettle Stringify::ReverseFind(const Core::String& Other, const Core::String& Needle, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Base->empty() || Offset >= Base->size())
-				return { Base->size(), Base->size(), false };
+			if (Other.empty() || Offset >= Other.size())
+				return { Other.size(), Other.size(), false };
 
-			const char* Ptr = Base->c_str() - Offset;
+			const char* Ptr = Other.c_str() - Offset;
 			if (Needle.c_str() > Ptr)
-				return { Base->size(), Base->size(), false };
+				return { Other.size(), Other.size(), false };
 
 			const char* It = nullptr;
-			for (It = Ptr + Base->size() - Needle.size(); It > Ptr; --It)
+			for (It = Ptr + Other.size() - Needle.size(); It > Ptr; --It)
 			{
 				if (strncmp(Ptr, Needle.c_str(), Needle.size()) == 0)
 				{
@@ -5116,191 +4783,177 @@ namespace Mavi
 				}
 			}
 
-			return { Base->size(), Base->size(), false };
+			return { Other.size(), Other.size(), false };
 		}
-		Stringify::Settle Stringify::ReverseFind(const char* Needle, size_t Offset) const
+		TextSettle Stringify::ReverseFind(const Core::String& Other, const char* Needle, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Base->empty() || Offset >= Base->size())
-				return { Base->size(), Base->size(), false };
+			if (Other.empty() || Offset >= Other.size())
+				return { Other.size(), Other.size(), false };
 
 			if (!Needle)
-				return { Base->size(), Base->size(), false };
+				return { Other.size(), Other.size(), false };
 
-			const char* Ptr = Base->c_str() - Offset;
+			const char* Ptr = Other.c_str() - Offset;
 			if (Needle > Ptr)
-				return { Base->size(), Base->size(), false };
+				return { Other.size(), Other.size(), false };
 
 			const char* It = nullptr;
 			size_t Length = strlen(Needle);
-			for (It = Ptr + Base->size() - Length; It > Ptr; --It)
+			for (It = Ptr + Other.size() - Length; It > Ptr; --It)
 			{
 				if (strncmp(Ptr, Needle, Length) == 0)
 					return { (size_t)(It - Ptr), (size_t)(It - Ptr + Length), true };
 			}
 
-			return { Base->size(), Base->size(), false };
+			return { Other.size(), Other.size(), false };
 		}
-		Stringify::Settle Stringify::ReverseFind(const char& Needle, size_t Offset) const
+		TextSettle Stringify::ReverseFind(const Core::String& Other, const char& Needle, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Base->empty() || Offset >= Base->size())
-				return { Base->size(), Base->size(), false };
+			if (Other.empty() || Offset >= Other.size())
+				return { Other.size(), Other.size(), false };
 
-			size_t Size = Base->size() - Offset;
+			size_t Size = Other.size() - Offset;
 			for (size_t i = Size; i-- > 0;)
 			{
-				if (Base->at(i) == Needle)
+				if (Other.at(i) == Needle)
 					return { i, i + 1, true };
 			}
 
-			return { Base->size(), Base->size(), false };
+			return { Other.size(), Other.size(), false };
 		}
-		Stringify::Settle Stringify::ReverseFindUnescaped(const char& Needle, size_t Offset) const
+		TextSettle Stringify::ReverseFindUnescaped(const Core::String& Other, const char& Needle, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Base->empty() || Offset >= Base->size())
-				return { Base->size(), Base->size(), false };
+			if (Other.empty() || Offset >= Other.size())
+				return { Other.size(), Other.size(), false };
 
-			size_t Size = Base->size() - Offset;
+			size_t Size = Other.size() - Offset;
 			for (size_t i = Size; i-- > 0;)
 			{
-				if (Base->at(i) == Needle && ((int64_t)i - 1 < 0 || Base->at(i - 1) != '\\'))
+				if (Other.at(i) == Needle && ((int64_t)i - 1 < 0 || Other.at(i - 1) != '\\'))
 					return { i, i + 1, true };
 			}
 
-			return { Base->size(), Base->size(), false };
+			return { Other.size(), Other.size(), false };
 		}
-		Stringify::Settle Stringify::ReverseFindOf(const Core::String& Needle, size_t Offset) const
+		TextSettle Stringify::ReverseFindOf(const Core::String& Other, const Core::String& Needle, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Base->empty() || Offset >= Base->size())
-				return { Base->size(), Base->size(), false };
+			if (Other.empty() || Offset >= Other.size())
+				return { Other.size(), Other.size(), false };
 
-			size_t Size = Base->size() - Offset;
+			size_t Size = Other.size() - Offset;
 			for (size_t i = Size; i-- > 0;)
 			{
 				for (char k : Needle)
 				{
-					if (Base->at(i) == k)
+					if (Other.at(i) == k)
 						return { i, i + 1, true };
 				}
 			}
 
-			return { Base->size(), Base->size(), false };
+			return { Other.size(), Other.size(), false };
 		}
-		Stringify::Settle Stringify::ReverseFindOf(const char* Needle, size_t Offset) const
+		TextSettle Stringify::ReverseFindOf(const Core::String& Other, const char* Needle, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Base->empty() || Offset >= Base->size())
-				return { Base->size(), Base->size(), false };
+			if (Other.empty() || Offset >= Other.size())
+				return { Other.size(), Other.size(), false };
 
 			if (!Needle)
-				return { Base->size(), Base->size(), false };
+				return { Other.size(), Other.size(), false };
 
 			size_t Length = strlen(Needle);
-			size_t Size = Base->size() - Offset;
+			size_t Size = Other.size() - Offset;
 			for (size_t i = Size; i-- > 0;)
 			{
 				for (size_t k = 0; k < Length; k++)
 				{
-					if (Base->at(i) == Needle[k])
+					if (Other.at(i) == Needle[k])
 						return { i, i + 1, true };
 				}
 			}
 
-			return { Base->size(), Base->size(), false };
+			return { Other.size(), Other.size(), false };
 		}
-		Stringify::Settle Stringify::Find(const Core::String& Needle, size_t Offset) const
+		TextSettle Stringify::Find(const Core::String& Other, const Core::String& Needle, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Base->empty() || Offset >= Base->size())
-				return { Base->size(), Base->size(), false };
+			if (Other.empty() || Offset >= Other.size())
+				return { Other.size(), Other.size(), false };
 
-			const char* It = strstr(Base->c_str() + Offset, Needle.c_str());
+			const char* It = strstr(Other.c_str() + Offset, Needle.c_str());
 			if (It == nullptr)
-				return { Base->size(), Base->size(), false };
+				return { Other.size(), Other.size(), false };
 
-			size_t Set = (size_t)(It - Base->c_str());
+			size_t Set = (size_t)(It - Other.c_str());
 			return { Set, Set + Needle.size(), true };
 		}
-		Stringify::Settle Stringify::Find(const char* Needle, size_t Offset) const
+		TextSettle Stringify::Find(const Core::String& Other, const char* Needle, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Needle != nullptr, "needle should be set");
+			if (Other.empty() || Offset >= Other.size())
+				return { Other.size(), Other.size(), false };
 
-			if (Base->empty() || Offset >= Base->size())
-				return { Base->size(), Base->size(), false };
-
-			const char* It = strstr(Base->c_str() + Offset, Needle);
+			const char* It = strstr(Other.c_str() + Offset, Needle);
 			if (It == nullptr)
-				return { Base->size(), Base->size(), false };
+				return { Other.size(), Other.size(), false };
 
-			size_t Set = (size_t)(It - Base->c_str());
+			size_t Set = (size_t)(It - Other.c_str());
 			return { Set, Set + strlen(Needle), true };
 		}
-		Stringify::Settle Stringify::Find(const char& Needle, size_t Offset) const
+		TextSettle Stringify::Find(const Core::String& Other, const char& Needle, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			for (size_t i = Offset; i < Base->size(); i++)
+			for (size_t i = Offset; i < Other.size(); i++)
 			{
-				if (Base->at(i) == Needle)
+				if (Other.at(i) == Needle)
 					return { i, i + 1, true };
 			}
 
-			return { Base->size(), Base->size(), false };
+			return { Other.size(), Other.size(), false };
 		}
-		Stringify::Settle Stringify::FindUnescaped(const char& Needle, size_t Offset) const
+		TextSettle Stringify::FindUnescaped(const Core::String& Other, const char& Needle, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			for (size_t i = Offset; i < Base->size(); i++)
+			for (size_t i = Offset; i < Other.size(); i++)
 			{
-				if (Base->at(i) == Needle && ((int64_t)i - 1 < 0 || Base->at(i - 1) != '\\'))
+				if (Other.at(i) == Needle && ((int64_t)i - 1 < 0 || Other.at(i - 1) != '\\'))
 					return { i, i + 1, true };
 			}
 
-			return { Base->size(), Base->size(), false };
+			return { Other.size(), Other.size(), false };
 		}
-		Stringify::Settle Stringify::FindOf(const Core::String& Needle, size_t Offset) const
+		TextSettle Stringify::FindOf(const Core::String& Other, const Core::String& Needle, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			for (size_t i = Offset; i < Base->size(); i++)
+			for (size_t i = Offset; i < Other.size(); i++)
 			{
 				for (char k : Needle)
 				{
-					if (Base->at(i) == k)
+					if (Other.at(i) == k)
 						return { i, i + 1, true };
 				}
 			}
 
-			return { Base->size(), Base->size(), false };
+			return { Other.size(), Other.size(), false };
 		}
-		Stringify::Settle Stringify::FindOf(const char* Needle, size_t Offset) const
+		TextSettle Stringify::FindOf(const Core::String& Other, const char* Needle, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Needle != nullptr, "needle should be set");
-
 			size_t Length = strlen(Needle);
-			for (size_t i = Offset; i < Base->size(); i++)
+			for (size_t i = Offset; i < Other.size(); i++)
 			{
 				for (size_t k = 0; k < Length; k++)
 				{
-					if (Base->at(i) == Needle[k])
+					if (Other.at(i) == Needle[k])
 						return { i, i + 1, true };
 				}
 			}
 
-			return { Base->size(), Base->size(), false };
+			return { Other.size(), Other.size(), false };
 		}
-		Stringify::Settle Stringify::FindNotOf(const Core::String& Needle, size_t Offset) const
+		TextSettle Stringify::FindNotOf(const Core::String& Other, const Core::String& Needle, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			for (size_t i = Offset; i < Base->size(); i++)
+			for (size_t i = Offset; i < Other.size(); i++)
 			{
 				bool Result = false;
 				for (char k : Needle)
 				{
-					if (Base->at(i) == k)
+					if (Other.at(i) == k)
 					{
 						Result = true;
 						break;
@@ -5311,20 +4964,18 @@ namespace Mavi
 					return { i, i + 1, true };
 			}
 
-			return { Base->size(), Base->size(), false };
+			return { Other.size(), Other.size(), false };
 		}
-		Stringify::Settle Stringify::FindNotOf(const char* Needle, size_t Offset) const
+		TextSettle Stringify::FindNotOf(const Core::String& Other, const char* Needle, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Needle != nullptr, "needle should be set");
-
 			size_t Length = strlen(Needle);
-			for (size_t i = Offset; i < Base->size(); i++)
+			for (size_t i = Offset; i < Other.size(); i++)
 			{
 				bool Result = false;
 				for (size_t k = 0; k < Length; k++)
 				{
-					if (Base->at(i) == Needle[k])
+					if (Other.at(i) == Needle[k])
 					{
 						Result = true;
 						break;
@@ -5335,18 +4986,16 @@ namespace Mavi
 					return { i, i + 1, true };
 			}
 
-			return { Base->size(), Base->size(), false };
+			return { Other.size(), Other.size(), false };
 		}
-		bool Stringify::IsPrecededBy(size_t At, const char* Of) const
+		bool Stringify::IsPrecededBy(const Core::String& Other, size_t At, const char* Of)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Of != nullptr, "tokenbase should be set");
-
-			if (!At || At - 1 >= Base->size())
+			if (!At || At - 1 >= Other.size())
 				return false;
 
 			size_t Size = strlen(Of);
-			char& Next = Base->at(At - 1);
+			const char& Next = Other.at(At - 1);
 			for (size_t i = 0; i < Size; i++)
 			{
 				if (Next == Of[i])
@@ -5355,16 +5004,14 @@ namespace Mavi
 
 			return false;
 		}
-		bool Stringify::IsFollowedBy(size_t At, const char* Of) const
+		bool Stringify::IsFollowedBy(const Core::String& Other, size_t At, const char* Of)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Of != nullptr, "tokenbase should be set");
-
-			if (At + 1 >= Base->size())
+			if (At + 1 >= Other.size())
 				return false;
 
 			size_t Size = strlen(Of);
-			char& Next = Base->at(At + 1);
+			const char& Next = Other.at(At + 1);
 			for (size_t i = 0; i < Size; i++)
 			{
 				if (Next == Of[i])
@@ -5373,67 +5020,60 @@ namespace Mavi
 
 			return false;
 		}
-		bool Stringify::StartsWith(const Core::String& Value, size_t Offset) const
+		bool Stringify::StartsWith(const Core::String& Other, const Core::String& Value, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Base->size() < Value.size())
+			if (Other.size() < Value.size())
 				return false;
 
 			for (size_t i = Offset; i < Value.size(); i++)
 			{
-				if (Value[i] != Base->at(i))
+				if (Value[i] != Other.at(i))
 					return false;
 			}
 
 			return true;
 		}
-		bool Stringify::StartsWith(const char* Value, size_t Offset) const
+		bool Stringify::StartsWith(const Core::String& Other, const char* Value, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Value != nullptr, "value should be set");
-
 			size_t Length = strlen(Value);
-			if (Base->size() < Length)
+			if (Other.size() < Length)
 				return false;
 
 			for (size_t i = Offset; i < Length; i++)
 			{
-				if (Value[i] != Base->at(i))
+				if (Value[i] != Other.at(i))
 					return false;
 			}
 
 			return true;
 		}
-		bool Stringify::StartsOf(const char* Value, size_t Offset) const
+		bool Stringify::StartsOf(const Core::String& Other, const char* Value, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Value != nullptr, "value should be set");
-
 			size_t Length = strlen(Value);
-			if (Offset >= Base->size())
+			if (Offset >= Other.size())
 				return false;
 
 			for (size_t j = 0; j < Length; j++)
 			{
-				if (Base->at(Offset) == Value[j])
+				if (Other.at(Offset) == Value[j])
 					return true;
 			}
 
 			return false;
 		}
-		bool Stringify::StartsNotOf(const char* Value, size_t Offset) const
+		bool Stringify::StartsNotOf(const Core::String& Other, const char* Value, size_t Offset)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Value != nullptr, "value should be set");
-
 			size_t Length = strlen(Value);
-			if (Offset >= Base->size())
+			if (Offset >= Other.size())
 				return false;
 
 			bool Result = true;
 			for (size_t j = 0; j < Length; j++)
 			{
-				if (Base->at(Offset) == Value[j])
+				if (Other.at(Offset) == Value[j])
 				{
 					Result = false;
 					break;
@@ -5442,79 +5082,65 @@ namespace Mavi
 
 			return Result;
 		}
-		bool Stringify::EndsWith(const Core::String& Value) const
+		bool Stringify::EndsWith(const Core::String& Other, const Core::String& Value)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Base->empty() || Value.size() > Base->size())
+			if (Other.empty() || Value.size() > Other.size())
 				return false;
 
-			return strcmp(Base->c_str() + Base->size() - Value.size(), Value.c_str()) == 0;
+			return strcmp(Other.c_str() + Other.size() - Value.size(), Value.c_str()) == 0;
 		}
-		bool Stringify::EndsWith(const char* Value) const
+		bool Stringify::EndsWith(const Core::String& Other, const char* Value)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Value != nullptr, "value should be set");
-
 			size_t Size = strlen(Value);
-			if (Base->empty() || Size > Base->size())
+			if (Other.empty() || Size > Other.size())
 				return false;
 
-			return strcmp(Base->c_str() + Base->size() - Size, Value) == 0;
+			return strcmp(Other.c_str() + Other.size() - Size, Value) == 0;
 		}
-		bool Stringify::EndsWith(const char& Value) const
+		bool Stringify::EndsWith(const Core::String& Other, const char& Value)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return !Base->empty() && Base->back() == Value;
+			return !Other.empty() && Other.back() == Value;
 		}
-		bool Stringify::EndsOf(const char* Value) const
+		bool Stringify::EndsOf(const Core::String& Other, const char* Value)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Value != nullptr, "value should be set");
-
-			if (Base->empty())
+			if (Other.empty())
 				return false;
 
 			size_t Length = strlen(Value);
 			for (size_t j = 0; j < Length; j++)
 			{
-				if (Base->back() == Value[j])
+				if (Other.back() == Value[j])
 					return true;
 			}
 
 			return false;
 		}
-		bool Stringify::EndsNotOf(const char* Value) const
+		bool Stringify::EndsNotOf(const Core::String& Other, const char* Value)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			VI_ASSERT(Value != nullptr, "value should be set");
-
-			if (Base->empty())
+			if (Other.empty())
 				return true;
 
 			size_t Length = strlen(Value);
 			for (size_t j = 0; j < Length; j++)
 			{
-				if (Base->back() == Value[j])
+				if (Other.back() == Value[j])
 					return false;
 			}
 
 			return true;
 		}
-		bool Stringify::Empty() const
+		bool Stringify::HasInteger(const Core::String& Other)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return Base->empty();
-		}
-		bool Stringify::HasInteger() const
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Base->empty())
+			if (Other.empty())
 				return false;
 
 			bool HadSign = false;
-			for (size_t i = 0; i < Base->size(); i++)
+			for (size_t i = 0; i < Other.size(); i++)
 			{
-				char& V = (*Base)[i];
+				const char& V = Other[i];
 				if (IsDigit(V))
 					continue;
 
@@ -5527,21 +5153,20 @@ namespace Mavi
 				return false;
 			}
 
-			if (HadSign && Base->size() < 2)
+			if (HadSign && Other.size() < 2)
 				return false;
 
 			return true;
 		}
-		bool Stringify::HasNumber() const
+		bool Stringify::HasNumber(const Core::String& Other)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			if (Base->empty() || (Base->size() == 1 && Base->front() == '.'))
+			if (Other.empty() || (Other.size() == 1 && Other.front() == '.'))
 				return false;
 
 			bool HadPoint = false, HadSign = false;
-			for (size_t i = 0; i < Base->size(); i++)
+			for (size_t i = 0; i < Other.size(); i++)
 			{
-				char& V = (*Base)[i];
+				const char& V = Other[i];
 				if (IsDigit(V))
 					continue;
 
@@ -5560,37 +5185,28 @@ namespace Mavi
 				return false;
 			}
 
-			if (HadSign && HadPoint && Base->size() < 3)
+			if (HadSign && HadPoint && Other.size() < 3)
 				return false;
-			else if ((HadSign || HadPoint) && Base->size() < 2)
+			else if ((HadSign || HadPoint) && Other.size() < 2)
 				return false;
 
 			return true;
 		}
-		bool Stringify::HasDecimal() const
+		bool Stringify::HasDecimal(const Core::String& Other)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
+			auto F = Find(Other, '.');
+			if (!F.Found)
+				return HasInteger(Other) && Other.size() >= 19;
 
-			auto F = Find('.');
-			if (F.Found)
-			{
-				auto D1 = Stringify(Base->c_str(), F.End - 1);
-				if (D1.Empty() || !D1.HasInteger())
-					return false;
+			auto D1 = Other.substr(0, F.End - 1);
+			if (D1.empty() || !HasInteger(D1))
+				return false;
 
-				auto D2 = Stringify(Base->c_str() + F.End + 1, Base->size() - F.End - 1);
-				if (D2.Empty() || !D2.HasInteger())
-					return false;
+			auto D2 = Other.substr(F.End + 1, Other.size() - F.End - 1);
+			if (D2.empty() || !HasInteger(D2))
+				return false;
 
-				return D1.Size() >= 19 || D2.Size() > 6;
-			}
-
-			return HasInteger() && Base->size() >= 19;
-		}
-		bool Stringify::ToBoolean() const
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return !strncmp(Base->c_str(), "true", 4) || !strncmp(Base->c_str(), "1", 1);
+			return D1.size() >= 19 || D2.size() > 6;
 		}
 		bool Stringify::IsDigit(char Char)
 		{
@@ -5670,86 +5286,27 @@ namespace Mavi
 
 			return j;
 		}
-		int Stringify::ToInt() const
+		Core::String Stringify::Text(const char* Format, ...)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return (int)strtol(Base->c_str(), nullptr, 10);
+			VI_ASSERT(Format != nullptr, "format should be set");
+			va_list Args;
+			va_start(Args, Format);
+			char Buffer[BLOB_SIZE];
+			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
+			if (Size > BLOB_SIZE)
+				Size = BLOB_SIZE;
+			va_end(Args);
+			return String(Buffer, (size_t)Size);
 		}
-		long Stringify::ToLong() const
+		Core::WideString Stringify::ToWide(const Core::String& Other)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return strtol(Base->c_str(), nullptr, 10);
-		}
-		float Stringify::ToFloat() const
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return strtof(Base->c_str(), nullptr);
-		}
-		unsigned int Stringify::ToUInt() const
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return (unsigned int)ToULong();
-		}
-		unsigned long Stringify::ToULong() const
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return strtoul(Base->c_str(), nullptr, 10);
-		}
-		int64_t Stringify::ToInt64() const
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return strtoll(Base->c_str(), nullptr, 10);
-		}
-		double Stringify::ToDouble() const
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return strtod(Base->c_str(), nullptr);
-		}
-		long double Stringify::ToLDouble() const
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return strtold(Base->c_str(), nullptr);
-		}
-		uint64_t Stringify::ToUInt64() const
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return strtoull(Base->c_str(), nullptr, 10);
-		}
-		size_t Stringify::Size() const
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return Base->size();
-		}
-		size_t Stringify::Capacity() const
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return Base->capacity();
-		}
-		char* Stringify::Value() const
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return (char*)Base->data();
-		}
-		const char* Stringify::Get() const
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return Base->c_str();
-		}
-		Core::String& Stringify::R()
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
-			return *Base;
-		}
-		Core::WideString Stringify::ToWide() const
-		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Core::WideString Output;
-			Output.reserve(Base->size());
+			Output.reserve(Other.size());
 
 			wchar_t W;
-			for (size_t i = 0; i < Base->size();)
+			for (size_t i = 0; i < Other.size();)
 			{
-				char C = Base->at(i);
+				char C = Other.at(i);
 				if ((C & 0x80) == 0)
 				{
 					W = C;
@@ -5758,22 +5315,22 @@ namespace Mavi
 				else if ((C & 0xE0) == 0xC0)
 				{
 					W = (C & 0x1F) << 6;
-					W |= (Base->at(i + 1) & 0x3F);
+					W |= (Other.at(i + 1) & 0x3F);
 					i += 2;
 				}
 				else if ((C & 0xF0) == 0xE0)
 				{
 					W = (C & 0xF) << 12;
-					W |= (Base->at(i + 1) & 0x3F) << 6;
-					W |= (Base->at(i + 2) & 0x3F);
+					W |= (Other.at(i + 1) & 0x3F) << 6;
+					W |= (Other.at(i + 2) & 0x3F);
 					i += 3;
 				}
 				else if ((C & 0xF8) == 0xF0)
 				{
 					W = (C & 0x7) << 18;
-					W |= (Base->at(i + 1) & 0x3F) << 12;
-					W |= (Base->at(i + 2) & 0x3F) << 6;
-					W |= (Base->at(i + 3) & 0x3F);
+					W |= (Other.at(i + 1) & 0x3F) << 12;
+					W |= (Other.at(i + 2) & 0x3F) << 6;
+					W |= (Other.at(i + 3) & 0x3F);
 					i += 4;
 				}
 				else if ((C & 0xFC) == 0xF8)
@@ -5803,103 +5360,98 @@ namespace Mavi
 
 			return Output;
 		}
-		Core::Vector<Core::String> Stringify::Split(const Core::String& With, size_t Start) const
+		Core::Vector<Core::String> Stringify::Split(const Core::String& Other, const Core::String& With, size_t Start)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Core::Vector<Core::String> Output;
-			if (Start >= Base->size())
+			if (Start >= Other.size())
 				return Output;
 
 			size_t Offset = Start;
-			Stringify::Settle Result = Find(With, Offset);
+			TextSettle Result = Find(Other, With, Offset);
 			while (Result.Found)
 			{
-				Output.emplace_back(Base->substr(Offset, Result.Start - Offset));
-				Result = Find(With, Offset = Result.End);
+				Output.emplace_back(Other.substr(Offset, Result.Start - Offset));
+				Result = Find(Other, With, Offset = Result.End);
 			}
 
-			if (Offset < Base->size())
-				Output.emplace_back(Base->substr(Offset));
+			if (Offset < Other.size())
+				Output.emplace_back(Other.substr(Offset));
 
 			return Output;
 		}
-		Core::Vector<Core::String> Stringify::Split(char With, size_t Start) const
+		Core::Vector<Core::String> Stringify::Split(const Core::String& Other, char With, size_t Start)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Core::Vector<Core::String> Output;
-			if (Start >= Base->size())
+			if (Start >= Other.size())
 				return Output;
 
 			size_t Offset = Start;
-			Stringify::Settle Result = Find(With, Start);
+			TextSettle Result = Find(Other, With, Start);
 			while (Result.Found)
 			{
-				Output.emplace_back(Base->substr(Offset, Result.Start - Offset));
-				Result = Find(With, Offset = Result.End);
+				Output.emplace_back(Other.substr(Offset, Result.Start - Offset));
+				Result = Find(Other, With, Offset = Result.End);
 			}
 
-			if (Offset < Base->size())
-				Output.emplace_back(Base->substr(Offset));
+			if (Offset < Other.size())
+				Output.emplace_back(Other.substr(Offset));
 
 			return Output;
 		}
-		Core::Vector<Core::String> Stringify::SplitMax(char With, size_t Count, size_t Start) const
+		Core::Vector<Core::String> Stringify::SplitMax(const Core::String& Other, char With, size_t Count, size_t Start)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Core::Vector<Core::String> Output;
-			if (Start >= Base->size())
+			if (Start >= Other.size())
 				return Output;
 
 			size_t Offset = Start;
-			Stringify::Settle Result = Find(With, Start);
+			TextSettle Result = Find(Other, With, Start);
 			while (Result.Found && Output.size() < Count)
 			{
-				Output.emplace_back(Base->substr(Offset, Result.Start - Offset));
-				Result = Find(With, Offset = Result.End);
+				Output.emplace_back(Other.substr(Offset, Result.Start - Offset));
+				Result = Find(Other, With, Offset = Result.End);
 			}
 
-			if (Offset < Base->size() && Output.size() < Count)
-				Output.emplace_back(Base->substr(Offset));
+			if (Offset < Other.size() && Output.size() < Count)
+				Output.emplace_back(Other.substr(Offset));
 
 			return Output;
 		}
-		Core::Vector<Core::String> Stringify::SplitOf(const char* With, size_t Start) const
+		Core::Vector<Core::String> Stringify::SplitOf(const Core::String& Other, const char* With, size_t Start)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Core::Vector<Core::String> Output;
-			if (Start >= Base->size())
+			if (Start >= Other.size())
 				return Output;
 
 			size_t Offset = Start;
-			Stringify::Settle Result = FindOf(With, Start);
+			TextSettle Result = FindOf(Other, With, Start);
 			while (Result.Found)
 			{
-				Output.emplace_back(Base->substr(Offset, Result.Start - Offset));
-				Result = FindOf(With, Offset = Result.End);
+				Output.emplace_back(Other.substr(Offset, Result.Start - Offset));
+				Result = FindOf(Other, With, Offset = Result.End);
 			}
 
-			if (Offset < Base->size())
-				Output.emplace_back(Base->substr(Offset));
+			if (Offset < Other.size())
+				Output.emplace_back(Other.substr(Offset));
 
 			return Output;
 		}
-		Core::Vector<Core::String> Stringify::SplitNotOf(const char* With, size_t Start) const
+		Core::Vector<Core::String> Stringify::SplitNotOf(const Core::String& Other, const char* With, size_t Start)
 		{
-			VI_ASSERT(Base != nullptr, "cannot parse without context");
 			Core::Vector<Core::String> Output;
-			if (Start >= Base->size())
+			if (Start >= Other.size())
 				return Output;
 
 			size_t Offset = Start;
-			Stringify::Settle Result = FindNotOf(With, Start);
+			TextSettle Result = FindNotOf(Other, With, Start);
 			while (Result.Found)
 			{
-				Output.emplace_back(Base->substr(Offset, Result.Start - Offset));
-				Result = FindNotOf(With, Offset = Result.End);
+				Output.emplace_back(Other.substr(Offset, Result.Start - Offset));
+				Result = FindNotOf(Other, With, Offset = Result.End);
 			}
 
-			if (Offset < Base->size())
-				Output.emplace_back(Base->substr(Offset));
+			if (Offset < Other.size())
+				Output.emplace_back(Other.substr(Offset));
 
 			return Output;
 		}
@@ -5967,51 +5519,6 @@ namespace Mavi
 
 			if (Size < OutputSize)
 				Output[Size] = '\0';
-		}
-		Stringify& Stringify::operator= (Stringify&& Value) noexcept
-		{
-			VI_ASSERT(&Value != this, "cannot set to self");
-			if (Deletable)
-				VI_DELETE(basic_string, Base);
-
-			Base = Value.Base;
-			Deletable = Value.Deletable;
-			Value.Base = nullptr;
-			Value.Deletable = false;
-
-			return *this;
-		}
-		Stringify& Stringify::operator= (const Stringify& Value) noexcept
-		{
-			VI_ASSERT(&Value != this, "cannot set to self");
-			if (Deletable)
-				VI_DELETE(basic_string, Base);
-
-			Deletable = true;
-			if (Value.Base != nullptr)
-				Base = VI_NEW(Core::String, *Value.Base);
-			else
-				Base = VI_NEW(Core::String);
-
-			return *this;
-		}
-		Core::String Stringify::ToString(float Number)
-		{
-			Core::String Result(Core::ToString(Number));
-			Result.erase(Result.find_last_not_of('0') + 1, Core::String::npos);
-			if (!Result.empty() && Result.back() == '.')
-				Result.erase(Result.end() - 1);
-
-			return Result;
-		}
-		Core::String Stringify::ToString(double Number)
-		{
-			Core::String Result(Core::ToString(Number));
-			Result.erase(Result.find_last_not_of('0') + 1, Core::String::npos);
-			if (!Result.empty() && Result.back() == '.')
-				Result.erase(Result.end() - 1);
-
-			return Result;
 		}
 
 		Guard::Loaded::Loaded(Guard* NewBase) noexcept : Base(NewBase)
@@ -7755,25 +7262,27 @@ namespace Mavi
         {
             if (Value.empty())
                 return false;
-                        
-            if (Stringify((Core::String*)&Value).ToUInt64() > 0)
+
+			auto MaybeNumber = FromString<uint64_t>(Value);
+			if (MaybeNumber && *MaybeNumber > 0)
                 return true;
                         
-			Stringify Data(Value);
-            Data.ToLower();
-            return Data.R() == "on" || Data.R() == "true" || Data.R() == "yes" || Data.R() == "y";
+			String Data(Value);
+			Stringify::ToLower(Data);
+            return Data == "on" || Data == "true" || Data == "yes" || Data == "y";
         }
         bool OS::Process::ArgsContext::IsFalse(const Core::String& Value) const
         {
             if (Value.empty())
                 return true;
-                        
-            if (Stringify((Core::String*)&Value).ToUInt64() > 0)
-                return false;
-                        
-			Stringify Data(Value);
-            Data.ToLower();
-            return Data.R() == "off" || Data.R() == "false" || Data.R() == "no" || Data.R() == "n";
+
+			auto MaybeNumber = FromString<uint64_t>(Value);
+			if (MaybeNumber && *MaybeNumber > 0)
+				return false;
+
+			String Data(Value);
+			Stringify::ToLower(Data);
+            return Data == "off" || Data == "false" || Data == "no" || Data == "n";
         }
 
 		OS::CPU::QuantityInfo OS::CPU::GetQuantityInfo()
@@ -8148,8 +7657,7 @@ namespace Mavi
 			Core::String Result = Path::Resolve(Path);
 			Scan(Result, &Entries);
 
-			Stringify R(&Result);
-			if (!R.EndsOf("/\\"))
+			if (!Stringify::EndsOf(Result, "/\\"))
 				Result += VI_SPLITTER;
 
 			for (auto& Entry : Entries)
@@ -8708,7 +8216,7 @@ namespace Mavi
 			if (URL.Protocol == "file")
 			{
 				Stream* Result = nullptr;
-				if (Stringify(&Path).EndsWith(".gz"))
+				if (Stringify::EndsWith(Path, ".gz"))
 					Result = new GzStream();
 				else
 					Result = new FileStream();
@@ -8742,7 +8250,7 @@ namespace Mavi
 			if (Data.Size > UnarchivedMaxSize)
 			{
 				Target = Open(Path, FileMode::Binary_Write_Only);
-				if (Stringify(&Temp).EndsWith(".gz"))
+				if (Stringify::EndsWith(Temp, ".gz"))
 					return Target;
 
 				Stream* Archive = OpenJoin(Temp + ".gz", { Temp });
@@ -8874,7 +8382,7 @@ namespace Mavi
 		Core::Vector<Core::String> OS::File::ReadAsArray(const Core::String& Path)
 		{
 			Core::String Result = ReadAsString(Path);
-			return Stringify(&Result).Split('\n');
+			return Stringify::Split(Result, '\n');
 		}
 
 		bool OS::Path::IsRemote(const char* Path)
@@ -8935,10 +8443,9 @@ namespace Mavi
 			else if (!EvenIfExists && IsPathExists(Path.c_str()) && Path.find("..") == std::string::npos)
 				return Path;
 			
-			Stringify PathData(&Path), DirectoryData(&Directory);
-			bool Prefixed = PathData.StartsOf("/\\");
-			bool Relative = !Prefixed && (PathData.StartsWith("./") || PathData.StartsWith(".\\"));
-			bool Postfixed = DirectoryData.EndsOf("/\\");
+			bool Prefixed = Stringify::StartsOf(Path, "/\\");
+			bool Relative = !Prefixed && (Stringify::StartsWith(Path, "./") || Stringify::StartsWith(Path, ".\\"));
+			bool Postfixed = Stringify::EndsOf(Directory, "/\\");
 
 			Core::String Target = Directory;
 			if (!Prefixed && !Postfixed)
@@ -8954,7 +8461,7 @@ namespace Mavi
 		Core::String OS::Path::ResolveDirectory(const char* Path)
 		{
 			Core::String Result = Resolve(Path);
-			if (!Result.empty() && !Stringify(&Result).EndsOf("/\\"))
+			if (!Result.empty() && !Stringify::EndsOf(Result, "/\\"))
 				Result.append(1, VI_SPLITTER);
 
 			return Result;
@@ -8962,7 +8469,7 @@ namespace Mavi
 		Core::String OS::Path::ResolveDirectory(const Core::String& Path, const Core::String& Directory, bool EvenIfExists)
 		{
 			Core::String Result = Resolve(Path, Directory, EvenIfExists);
-			if (!Result.empty() && !Stringify(&Result).EndsOf("/\\"))
+			if (!Result.empty() && !Stringify::EndsOf(Result, "/\\"))
 				Result.append(1, VI_SPLITTER);
 
 			return Result;
@@ -8991,30 +8498,32 @@ namespace Mavi
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
 
-			Stringify Buffer(Path);
-			Stringify::Settle Result = Buffer.ReverseFindOf("/\\");
+			String Buffer(Path);
+			TextSettle Result = Stringify::ReverseFindOf(Buffer, "/\\");
 			if (!Result.Found)
 				return Path;
 
-			size_t Size = Buffer.Size();
+			size_t Size = Buffer.size();
 			for (size_t i = 0; i < Level; i++)
 			{
-				Stringify::Settle Current = Buffer.ReverseFindOf("/\\", Size - Result.Start);
+				TextSettle Current = Stringify::ReverseFindOf(Buffer, "/\\", Size - Result.Start);
 				if (!Current.Found)
 				{
-					if (Buffer.Splice(0, Result.End).Empty())
+					Stringify::Splice(Buffer, 0, Result.End);
+					if (Buffer.empty())
 						return "/";
 
-					return Buffer.R();
+					return Buffer;
 				}
 
 				Result = Current;
 			}
 
-			if (Buffer.Splice(0, Result.End).Empty())
+			Stringify::Splice(Buffer, 0, Result.End);
+			if (Buffer.empty())
 				return "/";
 
-			return Buffer.R();
+			return Buffer;
 		}
 		const char* OS::Path::GetFilename(const char* Path)
 		{
@@ -9133,17 +8642,17 @@ namespace Mavi
 			PROCESS_INFORMATION Process;
 			ZeroMemory(&Process, sizeof(Process));
 
-			Stringify Exe = Path::Resolve(Path.c_str());
-			if (!Exe.EndsWith(".exe"))
-				Exe.Append(".exe");
+			String Exe = Path::Resolve(Path.c_str());
+			if (!Stringify::EndsWith(Exe, ".exe"))
+				Exe.append(".exe");
 
-			Stringify Args = Form("\"%s\"", Exe.Get());
+			String Args = Stringify::Text("\"%s\"", Exe.c_str());
 			for (const auto& Param : Params)
-				Args.Append(' ').Append(Param);
+				Args.append(1, ' ').append(Param);
 
-			if (!CreateProcessA(Exe.Get(), Args.Value(), nullptr, nullptr, TRUE, CREATE_BREAKAWAY_FROM_JOB | HIGH_PRIORITY_CLASS, nullptr, nullptr, &StartupInfo, &Process))
+			if (!CreateProcessA(Exe.c_str(), (char*)Args.data(), nullptr, nullptr, TRUE, CREATE_BREAKAWAY_FROM_JOB | HIGH_PRIORITY_CLASS, nullptr, nullptr, &StartupInfo, &Process))
 			{
-				VI_ERR("[os] cannot spawn process %s", Exe.Get());
+				VI_ERR("[os] cannot spawn process %s", Exe.c_str());
 				return false;
 			}
 
@@ -9299,34 +8808,34 @@ namespace Mavi
 		void* OS::Symbol::Load(const Core::String& Path)
 		{
 			VI_MEASURE(Core::Timings::FileSystem);
-			Stringify Name(Path);
+			String Name(Path);
 #ifdef VI_MICROSOFT
 			if (Path.empty())
 				return GetModuleHandle(nullptr);
 
-			if (!Name.EndsWith(".dll"))
-				Name.Append(".dll");
+			if (!Stringify::EndsWith(Name, ".dll"))
+				Name.append(".dll");
 
-			VI_DEBUG("[dl] load dll library %s", Name.Get());
-			return (void*)LoadLibrary(Name.Get());
+			VI_DEBUG("[dl] load dll library %s", Name.c_str());
+			return (void*)LoadLibrary(Name.c_str());
 #elif defined(VI_APPLE)
 			if (Path.empty())
 				return (void*)dlopen(nullptr, RTLD_LAZY);
 
-			if (!Name.EndsWith(".dylib"))
-				Name.Append(".dylib");
+			if (!Stringify::EndsWith(Name, ".dylib"))
+				Name.append(".dylib");
 
-			VI_DEBUG("[dl] load dylib library %s", Name.Get());
-			return (void*)dlopen(Name.Get(), RTLD_LAZY);
+			VI_DEBUG("[dl] load dylib library %s", Name.c_str());
+			return (void*)dlopen(Name.c_str(), RTLD_LAZY);
 #elif defined(VI_LINUX)
 			if (Path.empty())
 				return (void*)dlopen(nullptr, RTLD_LAZY);
 
-			if (!Name.EndsWith(".so"))
-				Name.Append(".so");
+			if (!Stringify::EndsWith(Name, ".so"))
+				Name.append(".so");
 
-			VI_DEBUG("[dl] load so library %s", Name.Get());
-			return (void*)dlopen(Name.Get(), RTLD_LAZY);
+			VI_DEBUG("[dl] load so library %s", Name.c_str());
+			return (void*)dlopen(Name.c_str(), RTLD_LAZY);
 #else
 			return nullptr;
 #endif
@@ -9408,7 +8917,7 @@ namespace Mavi
 		}
 		bool OS::Input::Save(const Core::String& Title, const Core::String& DefaultPath, const Core::String& Filter, const Core::String& FilterDescription, Core::String* Result)
 		{
-			Core::Vector<Core::String> Sources = Stringify(&Filter).Split(',');
+			Core::Vector<Core::String> Sources = Stringify::Split(Filter, ',');
 			Core::Vector<char*> Patterns;
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
@@ -9428,7 +8937,7 @@ namespace Mavi
 		}
 		bool OS::Input::Open(const Core::String& Title, const Core::String& DefaultPath, const Core::String& Filter, const Core::String& FilterDescription, bool Multiple, Core::String* Result)
 		{
-			Core::Vector<Core::String> Sources = Stringify(&Filter).Split(',');
+			Core::Vector<Core::String> Sources = Stringify::Split(Filter, ',');
 			Core::Vector<char*> Patterns;
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
@@ -9474,18 +8983,86 @@ namespace Mavi
 			return true;
 		}
 
-		int OS::Error::Get()
+		int OS::Error::Get(bool ClearLastError)
 		{
 #ifdef VI_MICROSOFT
-			int ErrorCode = WSAGetLastError();
-			WSASetLastError(0);
+			int ErrorCode = errno;
+			if (ErrorCode != 0)
+			{
+				if (ClearLastError)
+					errno = 0;
+				return ErrorCode;
+			}
+
+			ErrorCode = GetLastError();
+			if (ErrorCode != ERROR_SUCCESS)
+			{
+				if (ClearLastError)
+					SetLastError(ERROR_SUCCESS);
+				return ErrorCode;
+			}
+
+			ErrorCode = WSAGetLastError();
+			if (ErrorCode != ERROR_SUCCESS)
+			{
+				if (ClearLastError)
+					WSASetLastError(ERROR_SUCCESS);
+			}
 
 			return ErrorCode;
 #else
 			int ErrorCode = errno;
-			errno = 0;
+			if (ErrorCode != 0)
+			{
+				if (ClearLastError)
+					errno = 0;
+			}
 
 			return ErrorCode;
+#endif
+		}
+		bool OS::Error::Occurred()
+		{
+			return IsError(Get(false));
+		}
+		bool OS::Error::IsError(int Code)
+		{
+#ifdef VI_MICROSOFT
+			return Code != ERROR_SUCCESS;
+#else
+			return Code != 0;
+#endif
+		}
+		void OS::Error::Clear()
+		{
+#ifdef VI_MICROSOFT
+			SetLastError(ERROR_SUCCESS);
+			WSASetLastError(ERROR_SUCCESS);
+#endif
+			errno = 0;
+		}
+		std::error_code OS::Error::GetCode()
+		{
+			return GetCode(Get());
+		}
+		std::error_code OS::Error::GetCode(int Code)
+		{
+#ifdef VI_MICROSOFT
+			return std::error_code(Code, std::system_category());
+#else
+			return std::error_code(Code, std::generic_category());
+#endif
+		}
+		std::error_condition OS::Error::GetCondition()
+		{
+			return GetCondition(Get());
+		}
+		std::error_condition OS::Error::GetCondition(int Code)
+		{
+#ifdef VI_MICROSOFT
+			return std::error_condition(Code, std::system_category());
+#else
+			return std::error_condition(Code, std::generic_category());
 #endif
 		}
 		Core::String OS::Error::GetName(int Code)
@@ -9494,27 +9071,20 @@ namespace Mavi
 			LPSTR Buffer = nullptr;
 			size_t Size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, Code, MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), (LPSTR)&Buffer, 0, nullptr);
 			Core::String Result(Buffer, Size);
+			Stringify::Replace(Result, "\r", "");
+			Stringify::Replace(Result, "\n", "");
 			LocalFree(Buffer);
-
-			return Stringify(&Result).Replace("\r", "").Replace("\n", "").R();
+			return Result;
 #else
 			char* Buffer = strerror(Code);
 			return Buffer ? Buffer : "";
 #endif
 		}
-		bool OS::Error::IsError(int Code)
-		{
-#ifdef VI_MICROSOFT
-			return Code != ERROR_SUCCESS;
-#else
-			return Code > 0;
-#endif
-		}
 
-		FileLog::FileLog(const Core::String& Root) noexcept : Offset(-1), Time(0), Path(Root)
+		FileLog::FileLog(const Core::String& Root) noexcept : Offset(-1), Time(0), Source(new FileStream()), Path(Root)
 		{
-			Source = new FileStream();
-			auto V = Stringify(&Path).Replace('\\', '/').Split('/');
+			Stringify::Replace(Path, '\\', '/');
+			auto V = Stringify::Split(Path, '/');
 			if (!V.empty())
 				Name = V.back();
 		}
@@ -9559,16 +9129,19 @@ namespace Mavi
 			if (ValueLength == -1)
 				ValueLength = (int64_t)Value.size();
 
-			auto V = Stringify(&Value).Substring(0, (size_t)ValueLength).Replace("\t", "\n").Replace("\n\n", "\n").Replace("\r", "");
+			Value.erase(ValueLength);
+			Stringify::Replace(Value, "\t", "\n");
+			Stringify::Replace(Value, "\n\n", "\n");
+			Stringify::Replace(Value, "\r", "");
 			VI_FREE(Data);
 
 			if (Value == LastValue)
 				return;
 
 			LastValue = Value;
-			if (V.Find("\n").Found)
+			if (Stringify::Find(Value, "\n").Found)
 			{
-				Core::Vector<Core::String> Lines = V.Split('\n');
+				Core::Vector<Core::String> Lines = Stringify::Split(Value, '\n');
 				for (auto& Line : Lines)
 				{
 					if (Line.empty())
@@ -10809,7 +10382,7 @@ namespace Mavi
 		}
 		Core::Vector<Schema*> Schema::FetchCollection(const Core::String& Notation, bool Deep) const
 		{
-			Core::Vector<Core::String> Names = Stringify(Notation).Split('.');
+			Core::Vector<Core::String> Names = Stringify::Split(Notation, '.');
 			if (Names.empty())
 				return Core::Vector<Schema*>();
 
@@ -10853,10 +10426,9 @@ namespace Mavi
 			if (!Nodes)
 				return nullptr;
 
-			Core::Stringify Number(&Name);
-			if (Number.HasInteger())
+			if (Stringify::HasInteger(Name))
 			{
-				size_t Index = (size_t)Number.ToUInt64();
+				size_t Index = (size_t)*FromString<uint64_t>(Name);
 				if (Index < Nodes->size())
 					return (*Nodes)[Index];
 			}
@@ -10878,7 +10450,7 @@ namespace Mavi
 		}
 		Schema* Schema::Fetch(const Core::String& Notation, bool Deep) const
 		{
-			Core::Vector<Core::String> Names = Stringify(Notation).Split('.');
+			Core::Vector<Core::String> Names = Stringify::Split(Notation, '.');
 			if (Names.empty())
 				return nullptr;
 
@@ -11405,8 +10977,7 @@ namespace Mavi
 			if (!Base->Value.IsObject())
 			{
 				Core::String Value = Base->Value.Serialize();
-				Core::Stringify Safe(&Value);
-				Safe.Escape();
+				Stringify::Escape(Value);
 
 				if (Base->Value.Type != VarType::String && Base->Value.Type != VarType::Binary)
 				{
@@ -11450,8 +11021,7 @@ namespace Mavi
 				if (!Next->Value.IsObject())
 				{
 					Core::String Value = (Next->Value.GetType() == VarType::Undefined ? "null" : Next->Value.Serialize());
-					Core::Stringify Safe(&Value);
-					Safe.Escape();
+					Stringify::Escape(Value);
 
 					if (Array)
 					{

@@ -1093,8 +1093,8 @@ namespace Mavi
 				static void Write(Core::Console* Base, const Core::String& F, Format* Form);
 
 			private:
-				static void FormatBuffer(VirtualMachine* VM, Core::Stringify& Result, Core::String& Offset, void* Ref, int TypeId);
-				static void FormatJSON(VirtualMachine* VM, Core::Stringify& Result, void* Ref, int TypeId);
+				static void FormatBuffer(VirtualMachine* VM, Core::String& Result, Core::String& Offset, void* Ref, int TypeId);
+				static void FormatJSON(VirtualMachine* VM, Core::String& Result, void* Ref, int TypeId);
 			};
 
 			class VI_OUT Application final : public Engine::Application

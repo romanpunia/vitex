@@ -118,24 +118,24 @@ namespace
 		if (!Naming.empty())
 		{
 			Offset.append("\t");
-			Source += Mavi::Core::Form("namespace %s\n{\n", Naming.c_str()).R();
+			Source += Mavi::Core::Stringify::Text("namespace %s\n{\n", Naming.c_str());
 		}
 
 		for (auto It = Namespace.Enums.begin(); It != Namespace.Enums.end(); It++)
 		{
 			auto Copy = It;
-			Source += Mavi::Core::Form("%senum %s\n%s{\n\t%s", Offset.c_str(), It->first.c_str(), Offset.c_str(), Offset.c_str()).R();
-			Source += Mavi::Core::Form("%s", GetCombination(It->second.Values, ",\n\t" + Offset).c_str()).R();
-			Source += Mavi::Core::Form("\n%s}\n%s", Offset.c_str(), ++Copy != Namespace.Enums.end() ? "\n" : "").R();
+			Source += Mavi::Core::Stringify::Text("%senum %s\n%s{\n\t%s", Offset.c_str(), It->first.c_str(), Offset.c_str(), Offset.c_str());
+			Source += Mavi::Core::Stringify::Text("%s", GetCombination(It->second.Values, ",\n\t" + Offset).c_str());
+			Source += Mavi::Core::Stringify::Text("\n%s}\n%s", Offset.c_str(), ++Copy != Namespace.Enums.end() ? "\n" : "");
 		}
 
 		if (!Namespace.Enums.empty() && (!Namespace.Classes.empty() || !Namespace.Funcdefs.empty() || !Namespace.Functions.empty()))
-			Source += Mavi::Core::Form("\n").R();
+			Source += Mavi::Core::Stringify::Text("\n");
 
 		for (auto It = Namespace.Classes.begin(); It != Namespace.Classes.end(); It++)
 		{
 			auto Copy = It;
-			Source += Mavi::Core::Form("%sclass %s%s%s%s%s%s\n%s{\n\t%s",
+			Source += Mavi::Core::Stringify::Text("%sclass %s%s%s%s%s%s\n%s{\n\t%s",
 				Offset.c_str(),
 				It->first.c_str(),
 				It->second.Types.empty() ? "" : "<",
@@ -143,41 +143,41 @@ namespace
 				It->second.Types.empty() ? "" : ">",
 				It->second.Interfaces.empty() ? "" : " : ",
 				It->second.Interfaces.empty() ? "" : GetCombination(It->second.Interfaces, ", ").c_str(),
-				Offset.c_str(), Offset.c_str()).R();
-			Source += Mavi::Core::Form("%s", GetCombinationAll(It->second.Funcdefs, ";\n\t" + Offset, It->second.Props.empty() && It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str()).R();
-			Source += Mavi::Core::Form("%s", GetCombinationAll(It->second.Props, ";\n\t" + Offset, It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str()).R();
-			Source += Mavi::Core::Form("%s", GetCombinationAll(It->second.Methods, ";\n\t" + Offset, ";").c_str()).R();
-			Source += Mavi::Core::Form("\n%s}\n%s", Offset.c_str(), !It->second.Functions.empty() || ++Copy != Namespace.Classes.end() ? "\n" : "").R();
+				Offset.c_str(), Offset.c_str());
+			Source += Mavi::Core::Stringify::Text("%s", GetCombinationAll(It->second.Funcdefs, ";\n\t" + Offset, It->second.Props.empty() && It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str());
+			Source += Mavi::Core::Stringify::Text("%s", GetCombinationAll(It->second.Props, ";\n\t" + Offset, It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str());
+			Source += Mavi::Core::Stringify::Text("%s", GetCombinationAll(It->second.Methods, ";\n\t" + Offset, ";").c_str());
+			Source += Mavi::Core::Stringify::Text("\n%s}\n%s", Offset.c_str(), !It->second.Functions.empty() || ++Copy != Namespace.Classes.end() ? "\n" : "");
 
 			if (It->second.Functions.empty())
 				continue;
 
-			Source += Mavi::Core::Form("%snamespace %s\n%s{\n\t%s", Offset.c_str(), It->first.c_str(), Offset.c_str(), Offset.c_str()).R();
-			Source += Mavi::Core::Form("%s", GetCombinationAll(It->second.Functions, ";\n\t" + Offset, ";").c_str()).R();
-			Source += Mavi::Core::Form("\n%s}\n%s", Offset.c_str(), ++Copy != Namespace.Classes.end() ? "\n" : "").R();
+			Source += Mavi::Core::Stringify::Text("%snamespace %s\n%s{\n\t%s", Offset.c_str(), It->first.c_str(), Offset.c_str(), Offset.c_str());
+			Source += Mavi::Core::Stringify::Text("%s", GetCombinationAll(It->second.Functions, ";\n\t" + Offset, ";").c_str());
+			Source += Mavi::Core::Stringify::Text("\n%s}\n%s", Offset.c_str(), ++Copy != Namespace.Classes.end() ? "\n" : "");
 		}
 
 		if (!Namespace.Funcdefs.empty())
 		{
 			if (!Namespace.Enums.empty() || !Namespace.Classes.empty())
-				Source += Mavi::Core::Form("\n%s", Offset.c_str()).R();
+				Source += Mavi::Core::Stringify::Text("\n%s", Offset.c_str());
 			else
-				Source += Mavi::Core::Form("%s", Offset.c_str()).R();
+				Source += Mavi::Core::Stringify::Text("%s", Offset.c_str());
 		}
 
-		Source += Mavi::Core::Form("%s", GetCombinationAll(Namespace.Funcdefs, ";\n" + Offset, Namespace.Functions.empty() ? ";\n" : "\n\n" + Offset).c_str()).R();
+		Source += Mavi::Core::Stringify::Text("%s", GetCombinationAll(Namespace.Funcdefs, ";\n" + Offset, Namespace.Functions.empty() ? ";\n" : "\n\n" + Offset).c_str());
 		if (!Namespace.Functions.empty() && Namespace.Funcdefs.empty())
 		{
 			if (!Namespace.Enums.empty() || !Namespace.Classes.empty())
-				Source += Mavi::Core::Form("\n").R();
+				Source += Mavi::Core::Stringify::Text("\n");
 			else
-				Source += Mavi::Core::Form("%s", Offset.c_str()).R();
+				Source += Mavi::Core::Stringify::Text("%s", Offset.c_str());
 		}
 
-		Source += Mavi::Core::Form("%s", GetCombinationAll(Namespace.Functions, ";\n" + Offset, ";\n").c_str()).R();
+		Source += Mavi::Core::Stringify::Text("%s", GetCombinationAll(Namespace.Functions, ";\n" + Offset, ";\n").c_str());
 		if (!Naming.empty())
 		{
-			Source += Mavi::Core::Form("}").R();
+			Source += Mavi::Core::Stringify::Text("}");
 			Offset.erase(Offset.begin());
 		}
 		else
@@ -210,17 +210,23 @@ namespace Mavi
 				++Lines;
 				if (Lines >= Line - LeftSide && LeftSide > 0)
 				{
-					Total.push_back(Core::Stringify(Code.substr(Start, Offset - Start)).ReplaceOf("\r\n\t\v", " ").R());
+					Core::String Copy = Code.substr(Start, Offset - Start);
+					Core::Stringify::ReplaceOf(Copy, "\r\n\t\v", " ");
+					Total.push_back(std::move(Copy));
 					--LeftSide; --Max;
 				}
 				else if (Lines == Line)
 				{
-					Total.insert(Total.begin(), Core::Stringify(Code.substr(Start, Offset - Start)).ReplaceOf("\r\n\t\v", " ").R());
+					Core::String Copy = Code.substr(Start, Offset - Start);
+					Core::Stringify::ReplaceOf(Copy, "\r\n\t\v", " ");
+					Total.insert(Total.begin(), std::move(Copy));
 					--Max;
 				}
 				else if (Lines >= Line + (RightSide - BaseRightSide) && RightSide > 0)
 				{
-					Total.push_back(Core::Stringify(Code.substr(Start, Offset - Start)).ReplaceOf("\r\n\t\v", " ").R());
+					Core::String Copy = Code.substr(Start, Offset - Start);
+					Core::Stringify::ReplaceOf(Copy, "\r\n\t\v", " ");
+					Total.push_back(std::move(Copy));
 					--RightSide; --Max;
 				}
 
@@ -233,7 +239,9 @@ namespace Mavi
 		}
 		static Core::String CharTrimEnd(const char* Value)
 		{
-			return Core::Stringify(Value).TrimEnd().R();
+			Core::String Copy = Value;
+			Core::Stringify::TrimEnd(Copy);
+			return Value;
 		}
 
 		uint64_t TypeCache::Set(uint64_t Id, const Core::String& Name)
@@ -399,7 +407,7 @@ namespace Mavi
 				if (End - Start > 0)
 				{
 					Core::String Expression = Replacer(Code.substr(Start, End - Start));
-					Core::Stringify(&Code).ReplacePart(Offset, End, Expression);
+					Core::Stringify::ReplacePart(Code, Offset, End, Expression);
 					Offset += Expression.size();
 				}
 				else
@@ -1200,9 +1208,9 @@ namespace Mavi
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 
-			Core::Stringify Decl = Core::Form("%s& opAssign(const %s &in)", Object.c_str(), Object.c_str());
+			Core::String Decl = Core::Stringify::Text("%s& opAssign(const %s &in)", Object.c_str(), Object.c_str());
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.Size(), (void*)Value);
-			return Engine->RegisterObjectMethod(Object.c_str(), Decl.Get(), *Value, (asECallConvTypes)Type);
+			return Engine->RegisterObjectMethod(Object.c_str(), Decl.c_str(), *Value, (asECallConvTypes)Type);
 		}
 		int BaseClass::SetBehaviourAddress(const char* Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall Type)
 		{
@@ -1336,7 +1344,7 @@ namespace Mavi
 		{
 			return VM;
 		}
-		Core::Stringify BaseClass::GetOperator(Operators Op, const char* Out, const char* Args, bool Const, bool Right)
+		Core::String BaseClass::GetOperator(Operators Op, const char* Out, const char* Args, bool Const, bool Right)
 		{
 			switch (Op)
 			{
@@ -1344,151 +1352,151 @@ namespace Mavi
 					if (Right)
 						return "";
 
-					return Core::Form("%s opNeg()%s", Out, Const ? " const" : "");
+					return Core::Stringify::Text("%s opNeg()%s", Out, Const ? " const" : "");
 				case Operators::Com:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opCom()%s", Out, Const ? " const" : "");
+					return Core::Stringify::Text("%s opCom()%s", Out, Const ? " const" : "");
 				case Operators::PreInc:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opPreInc()%s", Out, Const ? " const" : "");
+					return Core::Stringify::Text("%s opPreInc()%s", Out, Const ? " const" : "");
 				case Operators::PreDec:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opPreDec()%s", Out, Const ? " const" : "");
+					return Core::Stringify::Text("%s opPreDec()%s", Out, Const ? " const" : "");
 				case Operators::PostInc:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opPostInc()%s", Out, Const ? " const" : "");
+					return Core::Stringify::Text("%s opPostInc()%s", Out, Const ? " const" : "");
 				case Operators::PostDec:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opPostDec()%s", Out, Const ? " const" : "");
+					return Core::Stringify::Text("%s opPostDec()%s", Out, Const ? " const" : "");
 				case Operators::Equals:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opEquals(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opEquals(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::Cmp:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opCmp(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opCmp(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::Assign:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::AddAssign:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opAddAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opAddAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::SubAssign:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opSubAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opSubAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::MulAssign:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opMulAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opMulAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::DivAssign:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opDivAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opDivAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::ModAssign:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opModAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opModAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::PowAssign:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opPowAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opPowAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::AndAssign:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opAndAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opAndAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::OrAssign:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opOrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opOrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::XOrAssign:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opXorAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opXorAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::ShlAssign:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opShlAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opShlAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::ShrAssign:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opShrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opShrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::UshrAssign:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opUshrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opUshrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::Add:
-					return Core::Form("%s opAdd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opAdd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case Operators::Sub:
-					return Core::Form("%s opSub%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opSub%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case Operators::Mul:
-					return Core::Form("%s opMul%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opMul%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case Operators::Div:
-					return Core::Form("%s opDiv%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opDiv%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case Operators::Mod:
-					return Core::Form("%s opMod%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opMod%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case Operators::Pow:
-					return Core::Form("%s opPow%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opPow%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case Operators::And:
-					return Core::Form("%s opAnd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opAnd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case Operators::Or:
-					return Core::Form("%s opOr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opOr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case Operators::XOr:
-					return Core::Form("%s opXor%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opXor%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case Operators::Shl:
-					return Core::Form("%s opShl%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opShl%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case Operators::Shr:
-					return Core::Form("%s opShr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opShr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case Operators::Ushr:
-					return Core::Form("%s opUshr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opUshr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case Operators::Index:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opIndex(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opIndex(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::Call:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opCall(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opCall(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::Cast:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opCast(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opCast(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case Operators::ImplCast:
 					if (Right)
 						return "";
 
-					return Core::Form("%s opImplCast(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opImplCast(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				default:
 					return "";
 			}
@@ -2055,9 +2063,9 @@ namespace Mavi
 				if (Name == "compile" && Args.size() == 2)
 				{
 					const Core::String& Key = Args[0];
-					Core::Stringify Value(&Args[1]);
-
-					size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
+					const Core::String& Value = Args[1];
+					auto Numeric = Core::FromString<uint64_t>(Value);
+					size_t Result = Numeric ? (size_t)*Numeric : 0;
 					if (Key == "ALLOW_UNSAFE_REFERENCES")
 						VM->SetProperty(Features::ALLOW_UNSAFE_REFERENCES, Result);
 					else if (Key == "OPTIMIZE_BYTECODE")
@@ -2140,13 +2148,13 @@ namespace Mavi
 				else if (Name == "modify" && Args.size() == 2)
 				{
 					const Core::String& Key = Args[0];
-					Core::Stringify Value(&Args[1]);
-
-					size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
+					const Core::String& Value = Args[1];
+					auto Numeric = Core::FromString<uint64_t>(Value);
+					size_t Result = Numeric ? (size_t)*Numeric : 0;
 					if (Key == "NAME")
-						Scope->SetName(Value.Get());
+						Scope->SetName(Value.c_str());
 					else if (Key == "NAMESPACE")
-						Scope->SetDefaultNamespace(Value.Get());
+						Scope->SetDefaultNamespace(Value.c_str());
 					else if (Key == "ACCESS_MASK")
 						Scope->SetAccessMask((asDWORD)Result);
 				}
@@ -2639,11 +2647,11 @@ namespace Mavi
 					if (Args[0].empty())
 						goto BreakFailure;
 
-					Core::Stringify Number(&Args[1]);
-					if (!Number.HasInteger())
+					auto Numeric = Core::FromString<int>(Args[1]);
+					if (!Numeric)
 						goto BreakFailure;
 
-					AddFileBreakPoint(Args[0], Number.ToInt());
+					AddFileBreakPoint(Args[0], *Numeric);
 					return false;
 				}
 				else if (Args.size() == 1)
@@ -2651,8 +2659,8 @@ namespace Mavi
 					if (Args[0].empty())
 						goto BreakFailure;
 
-					Core::Stringify Number(&Args[0]);
-					if (!Number.HasInteger())
+					auto Numeric = Core::FromString<int>(Args[0]);
+					if (!Numeric)
 					{
 						AddFuncBreakPoint(Args[0]);
 						return false;
@@ -2663,7 +2671,7 @@ namespace Mavi
 					if (!File)
 						goto BreakFailure;
 
-					AddFileBreakPoint(File, Number.ToInt());
+					AddFileBreakPoint(File, *Numeric);
 					return false;
 				}
 
@@ -2689,11 +2697,11 @@ namespace Mavi
 					return false;
 				}
 
-				Core::Stringify Number(&Args[0]);
-				if (!Number.HasInteger())
+				auto Numeric = Core::FromString<uint64_t>(Args[0]);
+				if (!Numeric)
 					goto ClearFailure;
 
-				size_t Offset = (size_t)Number.ToUInt64();
+				size_t Offset = (size_t)*Numeric;
 				if (Offset >= BreakPoints.size())
 					goto ClearFailure;
 
@@ -2742,9 +2750,9 @@ namespace Mavi
 				{
 					if (Args.size() > 1)
 					{
-						Core::Stringify Numeric(&Args[1]);
-						if (Numeric.HasInteger())
-							ListStackRegisters(Context, Numeric.ToUInt());
+						auto Numeric = Core::FromString<uint64_t>(Args[1]);
+						if (Numeric)
+							ListStackRegisters(Context, *Numeric);
 						else
 							Output("  invalid stack level");
 					}
@@ -2818,11 +2826,11 @@ namespace Mavi
 					return false;
 				}
 
-				Core::Stringify Number(Args[0]);
-				if (!Number.HasInteger())
+				auto Numeric = Core::FromString<uint64_t>(Args[0]);
+				if (!Numeric)
 					goto ThreadFailure;
 
-				size_t Index = (size_t)Number.ToUInt64();
+				size_t Index = (size_t)*Numeric;
 				if (Index >= Threads.size())
 					goto ThreadFailure;
 
@@ -3050,9 +3058,10 @@ namespace Mavi
 		void DebuggerContext::AddCommand(const Core::String& Name, const Core::String& Description, ArgsType Type, const CommandCallback& Callback)
 		{
 			Descriptions[Name] = Description;
-			for (auto& Command : Core::Stringify(&Name).Split(','))
+			for (auto& Command : Core::Stringify::Split(Name, ','))
 			{
-				auto& Data = Commands[Core::Stringify(Command).Trim().R()];
+				Core::Stringify::Trim(Command);
+				auto& Data = Commands[Command];
 				Data.Callback = Callback;
 				Data.Description = Description;
 				Data.Arguments = Type;
@@ -3076,8 +3085,11 @@ namespace Mavi
 		}
 		void DebuggerContext::AddToStringCallback(const Core::String& Type, const ToStringTypeCallback& Callback)
 		{
-			for (auto& Item : Core::Stringify(&Type).Split(','))
-				SlowToStringCallbacks[Core::Stringify(Item).Trim().R()] = Callback;
+			for (auto& Item : Core::Stringify::Split(Type, ','))
+			{
+				Core::Stringify::Trim(Item);
+				SlowToStringCallbacks[Item] = Callback;
+			}
 		}
 		void DebuggerContext::LineCallback(asIScriptContext* Base)
 		{
@@ -3396,7 +3408,7 @@ namespace Mavi
 				return;
 
 			Core::String Data = Exception.What();
-			auto ExceptionLines = Core::Stringify(&Data).Split('\n');
+			auto ExceptionLines = Core::Stringify::Split(Data, '\n');
 			if (!Context->WillExceptionBeCaught() && !ExceptionLines.empty())
 				ExceptionLines[0] = "uncaught " + ExceptionLines[0];
 
@@ -3715,7 +3727,7 @@ namespace Mavi
 			if (!File)
 				return Output("source code is not available");
 			
-			auto Lines = Core::Stringify(VM->GetScriptSection(File)).Split('\n');
+			auto Lines = Core::Stringify::Split(VM->GetScriptSection(File), '\n');
 			size_t MaxLineSize = Core::ToString(Lines.size()).size(), LineNumber = 0;
 			for (auto& Line : Lines)
 			{
@@ -3733,7 +3745,8 @@ namespace Mavi
 			for (auto& Interface : VM->DumpRegisteredInterfaces(Context))
 			{
 				Output("  listing generated <" + Interface.first + ">:\n");
-				for (auto& Line : Core::Stringify(&Interface.second).Replace("\t", "  ").Split('\n'))
+				Core::Stringify::Replace(Interface.second, "\t", "  ");
+				for (auto& Line : Core::Stringify::Split(Interface.second, '\n'))
 					Output("    " + Line + "\n");
 				Output("\n");
 			}
@@ -3769,7 +3782,7 @@ namespace Mavi
 			const char* File = nullptr;
 			int ColumnNumber = 0;
 			int LineNumber = Base->GetLineNumber(0, &ColumnNumber, &File);
-			for (auto& Line : Core::Stringify(Context->GetStackTrace(16, 64)).Split('\n'))
+			for (auto& Line : Core::Stringify::Split(Context->GetStackTrace(16, 64), '\n'))
 			{
 				if (Line.empty())
 					continue;
@@ -3923,9 +3936,10 @@ namespace Mavi
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT(Base != nullptr, "context should be set");
 
-			for (auto& Item : Core::Stringify(&Command).Split("&&"))
+			for (auto& Item : Core::Stringify::Split(Command, "&&"))
 			{
-				Core::String Name = Core::Stringify(&Item).Trim().R().substr(0, Item.find(' '));
+				Core::Stringify::Trim(Item);
+				Core::String Name = Item.substr(0, Item.find(' '));
 				auto It = Commands.find(Name);
 				if (It == Commands.end())
 				{
@@ -3951,7 +3965,9 @@ namespace Mavi
 								size_t End = Start;
 								while (++End < Data.size() && !std::isspace(Data[End]) && Data[End] != '\"' && Data[End] != '\'');
 
-								auto Value = Core::Stringify(Data.substr(Start, End - Start)).Trim().R();
+								auto Value = Data.substr(Start, End - Start);
+								Core::Stringify::Trim(Value);
+
 								if (!Value.empty())
 									Args.push_back(Value);
 								Offset = End;
@@ -3964,8 +3980,11 @@ namespace Mavi
 						break;
 					}
 					case ArgsType::Expression:
-						Args.emplace_back(Core::Stringify(Data).Trim().R());
+					{
+						Core::Stringify::Trim(Data);
+						Args.emplace_back(Data);
 						break;
+					}
 					case ArgsType::NoArgs:
 					default:
 						if (Data.empty())
@@ -5044,7 +5063,7 @@ namespace Mavi
 			asITypeInfo* Type = Engine->GetTypeInfoById(TypeId);
 			const char* Name = Type->GetName();
 
-			return Core::Form("%s(0x%" PRIXPTR ")", Name ? Name : "unknown", (uintptr_t)Object).R();
+			return Core::Stringify::Text("%s(0x%" PRIXPTR ")", Name ? Name : "unknown", (uintptr_t)Object);
 		}
 		Core::String VirtualMachine::GetScriptSection(const Core::String& Section)
 		{
@@ -5458,7 +5477,7 @@ namespace Mavi
 				{
 					int EValue;
 					const char* EName = EType->GetEnumValueByIndex(j, &EValue);
-					Enum.Values.push_back(Core::Form("%s = %i", EName ? EName : Core::ToString(j).c_str(), EValue).R());
+					Enum.Values.push_back(Core::Stringify::Text("%s = %i", EName ? EName : Core::ToString(j).c_str(), EValue));
 				}
 			};
 			auto AddObject = [this, &Namespaces](asITypeInfo* EType)
@@ -5507,7 +5526,7 @@ namespace Mavi
 
 					const char* PDecl = Engine->GetTypeDeclaration(PTypeId, true);
 					const char* PMod = (PPrivate ? "private " : (PProtected ? "protected " : nullptr));
-					Class.Props.push_back(Core::Form("%s%s %s", PMod ? PMod : "", PDecl ? PDecl : "__type__", PName ? PName : ("__unnamed" + Core::ToString(j) + "__").c_str()).R());
+					Class.Props.push_back(Core::Stringify::Text("%s%s %s", PMod ? PMod : "", PDecl ? PDecl : "__type__", PName ? PName : ("__unnamed" + Core::ToString(j) + "__").c_str()));
 				}
 
 				for (asUINT j = 0; j < FactoriesCount; j++)
@@ -5788,7 +5807,7 @@ namespace Mavi
 			if (Include.Root.empty())
 				return Sync.General.unlock();
 
-			if (!Core::Stringify(&Include.Root).EndsOf("/\\"))
+			if (!Core::Stringify::EndsOf(Include.Root, "/\\"))
 				Include.Root.append(1, VI_SPLITTER);
 			Sync.General.unlock();
 		}
@@ -5804,11 +5823,11 @@ namespace Mavi
 			for (auto& Module : Addons)
 			{
 				if (Module.second.Exposed)
-					Result.push_back(Core::Form("system(0x%" PRIXPTR "):%s", (void*)&Module.second, Module.first.c_str()).R());
+					Result.push_back(Core::Stringify::Text("system(0x%" PRIXPTR "):%s", (void*)&Module.second, Module.first.c_str()));
 			}
 
 			for (auto& Module : CLibraries)
-				Result.push_back(Core::Form("%s(0x%" PRIXPTR "):%s", Module.second.IsAddon ? "addon" : "clibrary", Module.second.Handle, Module.first.c_str()).R());
+				Result.push_back(Core::Stringify::Text("%s(0x%" PRIXPTR "):%s", Module.second.IsAddon ? "addon" : "clibrary", Module.second.Handle, Module.first.c_str()));
 
 			return Result;
 		}
@@ -5869,7 +5888,7 @@ namespace Mavi
 				Sync.General.lock();
 				for (auto& Item : Addons)
 				{
-					if (Core::Stringify(&Item.first).StartsWith(Namespace))
+					if (Core::Stringify::StartsWith(Item.first, Namespace))
 						Deps.push_back(Item.first);
 				}
 
@@ -5937,7 +5956,7 @@ namespace Mavi
 				if (!Core::OS::File::IsExists(Path.c_str()))
 					return false;
 
-				if (!Core::Stringify(&Path).EndsWith(".as"))
+				if (!Core::Stringify::EndsWith(Path, ".as"))
 					return ImportAddon(Path);
 			}
 
@@ -6080,7 +6099,7 @@ namespace Mavi
 			}
 
 			Core::String Target = Name;
-			if (Core::Stringify(&Target).EndsWith(".as"))
+			if (Core::Stringify::EndsWith(Target, ".as"))
 				Target = Target.substr(0, Target.size() - 3);
 
 			Sync.General.lock();
@@ -6161,16 +6180,22 @@ namespace Mavi
 			if (Lines.empty())
 				return Stream.str();
 
-			Core::Stringify Line = Lines.front();
+			Core::String Line = Lines.front();
 			Lines.erase(Lines.begin());
-			if (Line.Empty())
+			if (Line.empty())
 				return Stream.str();
 
-			Stream << "\n  last " << MaxLines << " lines of " << Label << " code\n";
 			size_t TopSize = (Lines.size() % 2 != 0 ? 1 : 0) + Lines.size() / 2;
+			Stream << "\n  last " << MaxLines << " lines of " << Label << " code\n";
+
 			for (size_t i = 0; i < TopSize; i++)
-				Stream << "  " << LineNumber + i - Lines.size() / 2 << "  " << Core::Stringify(&Lines[i]).TrimEnd().R() << "\n";
-			Stream << "  " << LineNumber << "  " << Line.TrimEnd().R() << "\n  ";
+			{
+				Core::Stringify::TrimEnd(Lines[i]);
+				Stream << "  " << LineNumber + i - Lines.size() / 2 << "  " << Lines[i] << "\n";
+			}
+
+			Core::Stringify::TrimEnd(Line);
+			Stream << "  " << LineNumber << "  " << Line << "\n  ";
 
 			ColumnNumber += 1 + (uint32_t)Core::ToString(LineNumber).size();
 			for (uint32_t i = 0; i < ColumnNumber; i++)
@@ -6178,7 +6203,10 @@ namespace Mavi
 
 			Stream << "^";
 			for (size_t i = TopSize; i < Lines.size(); i++)
-				Stream << "\n  " << LineNumber + i - Lines.size() / 2 + 1 << "  " << Core::Stringify(&Lines[i]).TrimEnd().R();
+			{
+				Core::Stringify::TrimEnd(Lines[i]);
+				Stream << "\n  " << LineNumber + i - Lines.size() / 2 + 1 << "  " << Lines[i];
+			}
 
 			return Stream.str();
 		}
@@ -6225,12 +6253,11 @@ namespace Mavi
 			if (Path.empty())
 				return Path;
 
-			Core::Stringify Src(Path);
-			Core::Stringify::Settle Start = Src.ReverseFindOf("\\/");
-			if (Start.Found)
-				Src.Substring(Start.End);
+			Core::TextSettle Start = Core::Stringify::ReverseFindOf(Path, "\\/");
+			if (!Start.Found)
+				return Path;
 
-			return Src.R();
+			return Path.substr(Start.End);
 		}
 		ImmediateContext* VirtualMachine::RequestContext()
 		{
@@ -6358,11 +6385,11 @@ namespace Mavi
 				if (It != Engine->Callbacks.end())
 				{
 					if (Info->type == asMSGTYPE_WARNING)
-						return It->second(Core::Form("WARN at line %i: %s%s", Info->row, Info->message, SourceCode.c_str()).R());
+						return It->second(Core::Stringify::Text("WARN at line %i: %s%s", Info->row, Info->message, SourceCode.c_str()));
 					else if (Info->type == asMSGTYPE_INFORMATION)
-						return It->second(Core::Form("INFO at line %i: %s%s", Info->row, Info->message, SourceCode.c_str()).R());
+						return It->second(Core::Stringify::Text("INFO at line %i: %s%s", Info->row, Info->message, SourceCode.c_str()));
 
-					return It->second(Core::Form("ERR at line %i: %s%s", Info->row, Info->message, SourceCode.c_str()).R());
+					return It->second(Core::Stringify::Text("ERR at line %i: %s%s", Info->row, Info->message, SourceCode.c_str()));
 				}
 			}
 

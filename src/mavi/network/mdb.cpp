@@ -2099,7 +2099,7 @@ namespace Mavi
 					QueryFlags Flags = QueryFlags::None; Property QFlags;
 					if (Command.GetProperty("flags", &QFlags) && QFlags.Mod == Type::String)
 					{
-						for (auto& Item : Core::Stringify(&QFlags.String).Split(','))
+						for (auto& Item : Core::Stringify::Split(QFlags.String, ','))
 						{
 							if (Item == "tailable-cursor")
 								Flags = Flags | QueryFlags::Tailable_Cursor;
@@ -2134,7 +2134,7 @@ namespace Mavi
 
 					return Aggregate(Flags, Pipeline.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Cursor&& Result)
 					{
-						return Response(Result);
+						return Response(std::move(Result));
 					});
 				}
 				else if (Type.String == "find")
@@ -2155,7 +2155,7 @@ namespace Mavi
 
 					return FindOne(Match.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Cursor&& Result)
 					{
-						return Response(Result);
+						return Response(std::move(Result));
 					});
 				}
 				else if (Type.String == "find-many")
@@ -2176,7 +2176,7 @@ namespace Mavi
 
 					return FindMany(Match.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Cursor&& Result)
 					{
-						return Response(Result);
+						return Response(std::move(Result));
 					});
 				}
 				else if (Type.String == "update")
@@ -2204,7 +2204,7 @@ namespace Mavi
 
 					return UpdateOne(Match.LoseOwnership(), Update.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
 					{
-						return Response(Result);
+						return Response(std::move(Result));
 					});
 				}
 				else if (Type.String == "update-many")
@@ -2232,7 +2232,7 @@ namespace Mavi
 
 					return UpdateMany(Match.LoseOwnership(), Update.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
 					{
-						return Response(Result);
+						return Response(std::move(Result));
 					});
 				}
 				else if (Type.String == "insert")
@@ -2253,7 +2253,7 @@ namespace Mavi
 
 					return InsertOne(Value.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
 					{
-						return Response(Result);
+						return Response(std::move(Result));
 					});
 				}
 				else if (Type.String == "insert-many")
@@ -2281,7 +2281,7 @@ namespace Mavi
 
 					return InsertMany(Data, Options.LoseOwnership()).Then<Response>([](Document&& Result)
 					{
-						return Response(Result);
+						return Response(std::move(Result));
 					});
 				}
 				else if (Type.String == "find-update")
@@ -2302,7 +2302,7 @@ namespace Mavi
 
 					return FindAndModify(Match.LoseOwnership(), Sort.LoseOwnership(), Update.LoseOwnership(), Fields.LoseOwnership(), Remove.Boolean, Upsert.Boolean, New.Boolean).Then<Response>([](Document&& Result)
 					{
-						return Response(Result);
+						return Response(std::move(Result));
 					});
 				}
 				else if (Type.String == "replace")
@@ -2330,7 +2330,7 @@ namespace Mavi
 
 					return ReplaceOne(Match.LoseOwnership(), Value.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
 					{
-						return Response(Result);
+						return Response(std::move(Result));
 					});
 				}
 				else if (Type.String == "remove")
@@ -2351,7 +2351,7 @@ namespace Mavi
 
 					return RemoveOne(Match.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
 					{
-						return Response(Result);
+						return Response(std::move(Result));
 					});
 				}
 				else if (Type.String == "remove-many")
@@ -2372,7 +2372,7 @@ namespace Mavi
 
 					return RemoveMany(Match.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
 					{
-						return Response(Result);
+						return Response(std::move(Result));
 					});
 				}
 
@@ -3506,7 +3506,7 @@ namespace Mavi
 				{
 					const char* Name = mongoc_apm_command_started_get_command_name(Event);
 					char* Command = bson_as_relaxed_extended_json(mongoc_apm_command_started_get_command(Event), nullptr);
-					Core::String Buffer = Core::Form("%s:\n%s\n", Name, Command).R();
+					Core::String Buffer = Core::Stringify::Text("%s:\n%s\n", Name, Command);
 					bson_free(Command);
 
 					if (Logger)
@@ -3555,11 +3555,12 @@ namespace Mavi
 				Core::String Erasable = " \r\n\t\'\"()<>=%&^*/+-,.!?:;";
 				Core::String Quotes = "\"'`";
 
-				Core::Stringify Base(&Result.Request);
-				Base.ReplaceInBetween("/*", "*/", "", false);
-				Base.Trim().Compress(Erasable.c_str(), Quotes.c_str());
+				Core::String& Base = Result.Request;
+				Core::Stringify::ReplaceInBetween(Base, "/*", "*/", "", false);
+				Core::Stringify::Trim(Base);
+				Core::Stringify::Compress(Base, Erasable.c_str(), Quotes.c_str());
 
-				auto Enumerations = Base.FindStartsWithEndsOf("#", Enums.c_str(), Quotes.c_str());
+				auto Enumerations = Core::Stringify::FindStartsWithEndsOf(Base, "#", Enums.c_str(), Quotes.c_str());
 				if (!Enumerations.empty())
 				{
 					int64_t Offset = 0;
@@ -3574,11 +3575,11 @@ namespace Mavi
 						if (It == Constants->Map.end())
 						{
 							VI_ERR("[mongoc] template query @%s expects constant: %s", Name.c_str(), Item.first.c_str());
-							Base.ReplacePart(Item.second.Start, Item.second.End, "");
+							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, "");
 						}
 						else
 						{
-							Base.ReplacePart(Item.second.Start, Item.second.End, It->second);
+							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, It->second);
 							NewSize = It->second.size();
 						}
 
@@ -3587,20 +3588,20 @@ namespace Mavi
 					}
 				}
 
-				Core::Vector<std::pair<Core::String, Core::Stringify::Settle>> Variables;
-				for (auto& Item : Base.FindInBetween("$<", ">", Quotes.c_str()))
+				Core::Vector<std::pair<Core::String, Core::TextSettle>> Variables;
+				for (auto& Item : Core::Stringify::FindInBetween(Base, "$<", ">", Quotes.c_str()))
 				{
 					Item.first += ";escape";
 					Variables.emplace_back(std::move(Item));
 				}
 
-				for (auto& Item : Base.FindInBetween("@<", ">", Quotes.c_str()))
+				for (auto& Item : Core::Stringify::FindInBetween(Base, "@<", ">", Quotes.c_str()))
 				{
 					Item.first += ";unsafe";
 					Variables.emplace_back(std::move(Item));
 				}
 
-				Base.ReplaceParts(Variables, "", [&Erasable](const Core::String&, char Left, int)
+				Core::Stringify::ReplaceParts(Base, Variables, "", [&Erasable](const Core::String&, char Left, int)
 				{
 					return Erasable.find(Left) == Core::String::npos ? ' ' : '\0';
 				});
@@ -3636,22 +3637,27 @@ namespace Mavi
 				size_t Size = 0;
 				for (auto& File : Entries)
 				{
-					Core::Stringify Base(Path + File.Path);
+					Core::String Base(Path + File.Path);
 					if (File.IsDirectory)
 					{
-						AddDirectory(Base.R(), Origin.empty() ? Directory : Origin);
+						AddDirectory(Base, Origin.empty() ? Directory : Origin);
 						continue;
 					}
 
-					if (!Base.EndsWith(".json"))
+					if (!Core::Stringify::EndsWith(Base, ".json"))
 						continue;
 
-					char* Buffer = (char*)Core::OS::File::ReadAll(Base.R(), &Size);
+					char* Buffer = (char*)Core::OS::File::ReadAll(Base, &Size);
 					if (!Buffer)
 						continue;
 
-					Base.Replace(Origin.empty() ? Directory : Origin, "").Replace("\\", "/").Replace(".json", "");
-					AddQuery(Base.Substring(1).R(), Buffer, Size);
+					Core::Stringify::Replace(Base, Origin.empty() ? Directory : Origin, "");
+					Core::Stringify::Replace(Base, "\\", "/");
+					Core::Stringify::Replace(Base, ".json", "");
+					if (Core::Stringify::StartsOf(Base, "\\/"))
+						Base.erase(0, 1);
+
+					AddQuery(Base, Buffer, Size);
 					VI_FREE(Buffer);
 				}
 
@@ -3813,7 +3819,7 @@ namespace Mavi
 				size_t Offset = 0;
 				Safe->unlock();
 
-				Core::Stringify Result(&Origin.Request);
+				Core::String& Result = Origin.Request;
 				for (auto& Word : Origin.Positions)
 				{
 					auto It = Map->find(Word.Key);
@@ -3827,7 +3833,7 @@ namespace Mavi
 					if (Value.empty())
 						continue;
 
-					Result.Insert(Value, Word.Offset + Offset);
+					Result.insert(Word.Offset + Offset, Value);
 					Offset += Value.size();
 				}
 

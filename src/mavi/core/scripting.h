@@ -878,7 +878,7 @@ namespace Mavi
 			VirtualMachine* GetVM() const;
 
 		private:
-			static Core::Stringify GetOperator(Operators Op, const char* Out, const char* Args, bool Const, bool Right);
+			static Core::String GetOperator(Operators Op, const char* Out, const char* Args, bool Const, bool Right);
 
 		public:
 			template <typename T>
@@ -950,7 +950,7 @@ namespace Mavi
 				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Method<T, R>(Value);
-				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, FunctionCall::THISCALL);
+				int Result = SetMethodAddress(Core::Stringify::Text("%s get_%s()", Type, Name).c_str(), Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -962,7 +962,7 @@ namespace Mavi
 				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Function(Value);
-				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				int Result = SetMethodAddress(Core::Stringify::Text("%s get_%s()", Type, Name).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -974,7 +974,7 @@ namespace Mavi
 				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Method<T, void, R>(Value);
-				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, FunctionCall::THISCALL);
+				int Result = SetMethodAddress(Core::Stringify::Text("void set_%s(%s)", Name, Type).c_str(), Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -986,7 +986,7 @@ namespace Mavi
 				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Function(Value);
-				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				int Result = SetMethodAddress(Core::Stringify::Text("void set_%s(%s)", Name, Type).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -998,7 +998,7 @@ namespace Mavi
 				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Method<T, R, unsigned int>(Value);
-				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, FunctionCall::THISCALL);
+				int Result = SetMethodAddress(Core::Stringify::Text("%s get_%s(uint)", Type, Name).c_str(), Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1010,7 +1010,7 @@ namespace Mavi
 				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Function(Value);
-				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				int Result = SetMethodAddress(Core::Stringify::Text("%s get_%s(uint)", Type, Name).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1022,7 +1022,7 @@ namespace Mavi
 				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Method<T, void, unsigned int, R>(Value);
-				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, FunctionCall::THISCALL);
+				int Result = SetMethodAddress(Core::Stringify::Text("void set_%s(uint, %s)", Name, Type).c_str(), Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1034,7 +1034,7 @@ namespace Mavi
 				VI_ASSERT(Name != nullptr, "name should be set");
 
 				asSFuncPtr* Ptr = Bridge::Function(Value);
-				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				int Result = SetMethodAddress(Core::Stringify::Text("void set_%s(uint, %s)", Name, Type).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1043,11 +1043,11 @@ namespace Mavi
 			int SetOperator(Operators Type, uint32_t Opts, const char* Out, const char* Args, R(T::* Value)(A...))
 			{
 				VI_ASSERT(Out != nullptr, "output should be set");
-				Core::Stringify Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
+				Core::String Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
 
-				VI_ASSERT(!Operator.Empty(), "resulting operator should not be empty");
+				VI_ASSERT(!Operator.empty(), "resulting operator should not be empty");
 				asSFuncPtr* Ptr = Bridge::Method<T, R, A...>(Value);
-				int Result = SetOperatorAddress(Operator.Get(), Ptr, FunctionCall::THISCALL);
+				int Result = SetOperatorAddress(Operator.c_str(), Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1056,11 +1056,11 @@ namespace Mavi
 			int SetOperatorEx(Operators Type, uint32_t Opts, const char* Out, const char* Args, R(*Value)(A...))
 			{
 				VI_ASSERT(Out != nullptr, "output should be set");
-				Core::Stringify Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
+				Core::String Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
 
-				VI_ASSERT(!Operator.Empty(), "resulting operator should not be empty");
+				VI_ASSERT(!Operator.empty(), "resulting operator should not be empty");
 				asSFuncPtr* Ptr = Bridge::Function(Value);
-				int Result = SetOperatorAddress(Operator.Get(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				int Result = SetOperatorAddress(Operator.c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;

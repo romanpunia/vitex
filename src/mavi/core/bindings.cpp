@@ -239,9 +239,9 @@ namespace Mavi
 			}
 			Core::String String::Reverse(const Core::String& Value)
 			{
-				Core::Stringify Result(Value);
-				Result.Reverse();
-				return Result.R();
+				Core::String Copy = Value;
+				Core::Stringify::Reverse(Copy);
+				return Copy;
 			}
 			Core::String& String::AssignUInt64To(as_uint64_t Value, Core::String& Dest)
 			{
@@ -401,7 +401,9 @@ namespace Mavi
 			}
 			Core::String String::Replace(const Core::String& A, const Core::String& B, uint64_t Offset, const Core::String& Base)
 			{
-				return Mavi::Core::Stringify(Base).Replace(A, B, (size_t)Offset).R();
+				Core::String Copy = Base;
+				Core::Stringify::Replace(Copy, A, B, (size_t)Offset);
+				return Copy;
 			}
 			as_int64_t String::IntStore(const Core::String& Value, size_t Base)
 			{
@@ -480,11 +482,13 @@ namespace Mavi
 			}
 			float String::FloatStore(const Core::String& Value)
 			{
-				return Core::Stringify(&Value).ToFloat();
+				auto Numeric = Core::FromString<float>(Value);
+				return Numeric ? *Numeric : 0.0f;
 			}
 			double String::DoubleStore(const Core::String& Value)
 			{
-				return Core::Stringify(&Value).ToDouble();
+				auto Numeric = Core::FromString<double>(Value);
+				return Numeric ? *Numeric : 0.0;
 			}
 			Core::String String::Sub(size_t Start, int Count, const Core::String& Current)
 			{
@@ -500,11 +504,15 @@ namespace Mavi
 			}
 			Core::String String::ToLower(const Core::String& Symbol)
 			{
-				return Mavi::Core::Stringify(Symbol).ToLower().R();
+				Core::String Copy = Symbol;
+				Core::Stringify::ToLower(Copy);
+				return Copy;
 			}
 			Core::String String::ToUpper(const Core::String& Symbol)
 			{
-				return Mavi::Core::Stringify(Symbol).ToUpper().R();
+				Core::String Copy = Symbol;
+				Core::Stringify::ToUpper(Copy);
+				return Copy;
 			}
 			Core::String String::ToInt8(char Value)
 			{
@@ -747,7 +755,7 @@ namespace Mavi
 				}
 
 				Data.append(", at location ");
-				Data.append(Core::Form("0x%" PRIXPTR, Function).R());
+				Data.append(Core::Stringify::Text("0x%" PRIXPTR, Function));
 				return Data;
 			}
 			bool Exception::Pointer::Empty() const
@@ -3775,7 +3783,7 @@ namespace Mavi
 			}
 			bool Promise::GeneratorCallback(const Core::String&, Core::String& Code)
 			{
-				Core::Stringify(&Code).Replace("promise<void>", "promise_v");
+				Core::Stringify::Replace(Code, "promise<void>", "promise_v");
 				FunctionFactory::ReplacePreconditions("co_await", Code, [](const Core::String& Expression)
 				{
 					return Expression + ".yield().unwrap()";
@@ -3904,7 +3912,7 @@ namespace Mavi
 			}
 			bool VariantImplCast(Core::Variant& Base)
 			{
-				return Base;
+				return (bool)Base;
 			}
 
 			void SchemaNotifyAllReferences(Core::Schema* Base, asIScriptEngine* Engine, asITypeInfo* Type)
@@ -5021,10 +5029,12 @@ namespace Mavi
 					int TypeId = *(int*)Buffer;
 					Buffer += sizeof(int);
 
-					Core::Stringify Result; Core::String Offset;
+					Core::String Result; Core::String Offset;
 					FormatBuffer(VM, Result, Offset, (void*)Buffer, TypeId);
-					Args.push_back(Result.R()[0] == '\n' ? Result.Substring(1).R() : Result.R());
+					if (!Result.empty() && Result.front() == '\n')
+						Result.erase(0, 1);
 
+					Args.push_back(Result);
 					if (TypeId & (int)TypeId::MASK_OBJECT)
 					{
 						TypeInfo Type = VM->GetTypeInfoById(TypeId);
@@ -5045,102 +5055,106 @@ namespace Mavi
 				if (!Context)
 					return "{}";
 
-				Core::Stringify Result;
+				Core::String Result;
 				FormatJSON(Context->GetVM(), Result, Ref, TypeId);
-				return Result.R();
+				return Result;
 			}
 			Core::String Format::Form(const Core::String& F, const Format& Form)
 			{
-				Core::Stringify Buffer = F;
+				Core::String Buffer = F;
 				size_t Offset = 0;
 
 				for (auto& Item : Form.Args)
 				{
-					auto R = Buffer.FindUnescaped('?', Offset);
+					auto R = Core::Stringify::FindUnescaped(Buffer, '?', Offset);
 					if (!R.Found)
 						break;
 
-					Buffer.ReplacePart(R.Start, R.End, Item);
+					Core::Stringify::ReplacePart(Buffer, R.Start, R.End, Item);
 					Offset = R.End;
 				}
 
-				return Buffer.R();
+				return Buffer;
 			}
 			void Format::WriteLine(Core::Console* Base, const Core::String& F, Format* Form)
 			{
-				Core::Stringify Buffer = F;
+				Core::String Buffer = F;
 				size_t Offset = 0;
 
 				if (Form != nullptr)
 				{
 					for (auto& Item : Form->Args)
 					{
-						auto R = Buffer.FindUnescaped('?', Offset);
+						auto R = Core::Stringify::FindUnescaped(Buffer, '?', Offset);
 						if (!R.Found)
 							break;
 
-						Buffer.ReplacePart(R.Start, R.End, Item);
+						Core::Stringify::ReplacePart(Buffer, R.Start, R.End, Item);
 						Offset = R.End;
 					}
 				}
 
-				Base->sWriteLine(Buffer.R());
+				Base->sWriteLine(Buffer);
 			}
 			void Format::Write(Core::Console* Base, const Core::String& F, Format* Form)
 			{
-				Core::Stringify Buffer = F;
+				Core::String Buffer = F;
 				size_t Offset = 0;
 
 				if (Form != nullptr)
 				{
 					for (auto& Item : Form->Args)
 					{
-						auto R = Buffer.FindUnescaped('?', Offset);
+						auto R = Core::Stringify::FindUnescaped(Buffer, '?', Offset);
 						if (!R.Found)
 							break;
 
-						Buffer.ReplacePart(R.Start, R.End, Item);
+						Core::Stringify::ReplacePart(Buffer, R.Start, R.End, Item);
 						Offset = R.End;
 					}
 				}
 
-				Base->sWrite(Buffer.R());
+				Base->sWrite(Buffer);
 			}
-			void Format::FormatBuffer(VirtualMachine* VM, Core::Stringify& Result, Core::String& Offset, void* Ref, int TypeId)
+			void Format::FormatBuffer(VirtualMachine* VM, Core::String& Result, Core::String& Offset, void* Ref, int TypeId)
 			{
 				if (TypeId < (int)TypeId::BOOL || TypeId >(int)TypeId::DOUBLE)
 				{
 					TypeInfo Type = VM->GetTypeInfoById(TypeId);
 					if (!Ref || VM->IsNullable(TypeId))
 					{
-						Result.Append("null");
+						Result.append("null");
 						return;
 					}
 
 					if (TypeInfo::IsScriptObject(TypeId))
 					{
 						ScriptObject VObject = *(asIScriptObject**)Ref;
-						Core::Stringify Decl;
+						Core::String Decl;
 
 						Offset += '\t';
 						for (unsigned int i = 0; i < VObject.GetPropertiesCount(); i++)
 						{
 							const char* Name = VObject.GetPropertyName(i);
-							Decl.Append(Offset).fAppend("%s: ", Name ? Name : "");
+							Decl.append(Offset);
+							Core::Stringify::Append(Decl, "%s: ", Name ? Name : "");
 							FormatBuffer(VM, Decl, Offset, VObject.GetAddressOfProperty(i), VObject.GetPropertyTypeId(i));
-							Decl.Append(",\n");
+							Decl.append(",\n");
 						}
 
 						Offset = Offset.substr(0, Offset.size() - 1);
-						if (!Decl.Empty())
-							Result.fAppend("\n%s{\n%s\n%s}", Offset.c_str(), Decl.Clip(Decl.Size() - 2).Get(), Offset.c_str());
+						if (!Decl.empty())
+						{
+							Core::Stringify::Clip(Decl, Decl.size() - 2);
+							Core::Stringify::Append(Result, "\n%s{\n%s\n%s}", Offset.c_str(), Decl.c_str(), Offset.c_str());
+						}
 						else
-							Result.Append("{}");
+							Result.append("{}");
 					}
 					else if (strcmp(Type.GetName(), TYPENAME_DICTIONARY) == 0)
 					{
 						Dictionary* Base = *(Dictionary**)Ref;
-						Core::Stringify Decl; Core::String Name;
+						Core::String Decl; Core::String Name;
 
 						Offset += '\t';
 						for (unsigned int i = 0; i < Base->GetSize(); i++)
@@ -5149,102 +5163,113 @@ namespace Mavi
 							if (!Base->GetIndex(i, &Name, &ElementRef, &ElementTypeId))
 								continue;
 
-							Decl.Append(Offset).fAppend("%s: ", Name.c_str());
+							Decl.append(Offset);
+							Core::Stringify::Append(Decl, "%s: ", Name.c_str());
 							FormatBuffer(VM, Decl, Offset, ElementRef, ElementTypeId);
-							Decl.Append(",\n");
+							Decl.append(",\n");
 						}
 
 						Offset = Offset.substr(0, Offset.size() - 1);
-						if (!Decl.Empty())
-							Result.fAppend("\n%s{\n%s\n%s}", Offset.c_str(), Decl.Clip(Decl.Size() - 2).Get(), Offset.c_str());
+						if (!Decl.empty())
+						{
+							Core::Stringify::Clip(Decl, Decl.size() - 2);
+							Core::Stringify::Append(Result, "\n%s{\n%s\n%s}", Offset.c_str(), Decl.c_str(), Offset.c_str());
+						}
 						else
-							Result.Append("{}");
+							Result.append("{}");
 					}
 					else if (strcmp(Type.GetName(), TYPENAME_ARRAY) == 0)
 					{
 						Array* Base = *(Array**)Ref;
 						int ArrayTypeId = Base->GetElementTypeId();
-						Core::Stringify Decl;
+						Core::String Decl;
 
 						Offset += '\t';
 						for (unsigned int i = 0; i < Base->GetSize(); i++)
 						{
-							Decl.Append(Offset);
+							Decl.append(Offset);
 							FormatBuffer(VM, Decl, Offset, Base->At(i), ArrayTypeId);
-							Decl.Append(", ");
+							Decl.append(", ");
 						}
 
 						Offset = Offset.substr(0, Offset.size() - 1);
-						if (!Decl.Empty())
-							Result.fAppend("\n%s[\n%s\n%s]", Offset.c_str(), Decl.Clip(Decl.Size() - 2).Get(), Offset.c_str());
+						if (!Decl.empty())
+						{
+							Core::Stringify::Clip(Decl, Decl.size() - 2);
+							Core::Stringify::Append(Result, "\n%s[\n%s\n%s]", Offset.c_str(), Decl.c_str(), Offset.c_str());
+						}
 						else
-							Result.Append("[]");
+							Result.append("[]");
 					}
 					else if (strcmp(Type.GetName(), TYPENAME_STRING) != 0)
 					{
-						Core::Stringify Decl;
+						Core::String Decl;
 						Offset += '\t';
 
 						Type.ForEachProperty([&Decl, VM, &Offset, Ref, TypeId](TypeInfo* Base, FunctionInfo* Prop)
 						{
-							Decl.Append(Offset).fAppend("%s: ", Prop->Name ? Prop->Name : "");
+							Decl.append(Offset);
+							Core::Stringify::Append(Decl, "%s: ", Prop->Name ? Prop->Name : "");
 							FormatBuffer(VM, Decl, Offset, Base->GetProperty<void>(Ref, Prop->Offset, TypeId), Prop->TypeId);
-							Decl.Append(",\n");
+							Decl.append(",\n");
 						});
 
 						Offset = Offset.substr(0, Offset.size() - 1);
-						if (!Decl.Empty())
-							Result.fAppend("\n%s{\n%s\n%s}", Offset.c_str(), Decl.Clip(Decl.Size() - 2).Get(), Offset.c_str());
+						if (!Decl.empty())
+						{
+							Core::Stringify::Clip(Decl, Decl.size() - 2);
+							Core::Stringify::Append(Result, "\n%s{\n%s\n%s}", Offset.c_str(), Decl.c_str(), Offset.c_str());
+						}
 						else
-							Result.fAppend("{}\n", Type.GetName());
+							Core::Stringify::Append(Result, "{}\n", Type.GetName());
 					}
 					else
-						Result.Append(*(Core::String*)Ref);
+						Result.append(*(Core::String*)Ref);
 				}
 				else
 				{
 					switch (TypeId)
 					{
 						case (int)TypeId::BOOL:
-							Result.fAppend("%s", *(bool*)Ref ? "true" : "false");
+							Core::Stringify::Append(Result, "%s", *(bool*)Ref ? "true" : "false");
 							break;
 						case (int)TypeId::INT8:
-							Result.fAppend("%i", *(char*)Ref);
+							Core::Stringify::Append(Result, "%i", *(char*)Ref);
 							break;
 						case (int)TypeId::INT16:
-							Result.fAppend("%i", *(short*)Ref);
+							Core::Stringify::Append(Result, "%i", *(short*)Ref);
 							break;
 						case (int)TypeId::INT32:
-							Result.fAppend("%i", *(int*)Ref);
+							Core::Stringify::Append(Result, "%i", *(int*)Ref);
 							break;
 						case (int)TypeId::INT64:
-							Result.fAppend("%ll", *(int64_t*)Ref);
+							Core::Stringify::Append(Result, "%ll", *(int64_t*)Ref);
 							break;
 						case (int)TypeId::UINT8:
-							Result.fAppend("%u", *(unsigned char*)Ref);
+							Core::Stringify::Append(Result, "%u", *(unsigned char*)Ref);
 							break;
 						case (int)TypeId::UINT16:
-							Result.fAppend("%u", *(unsigned short*)Ref);
+							Core::Stringify::Append(Result, "%u", *(unsigned short*)Ref);
 							break;
 						case (int)TypeId::UINT32:
-							Result.fAppend("%u", *(unsigned int*)Ref);
+							Core::Stringify::Append(Result, "%u", *(unsigned int*)Ref);
 							break;
 						case (int)TypeId::UINT64:
-							Result.fAppend("%" PRIu64, *(uint64_t*)Ref);
+							Core::Stringify::Append(Result, "%" PRIu64, *(uint64_t*)Ref);
 							break;
 						case (int)TypeId::FLOAT:
-							Result.fAppend("%f", *(float*)Ref);
+							Core::Stringify::Append(Result, "%f", *(float*)Ref);
 							break;
 						case (int)TypeId::DOUBLE:
-							Result.fAppend("%f", *(double*)Ref);
+							Core::Stringify::Append(Result, "%f", *(double*)Ref);
 							break;
 						default:
-							Result.Append("null");
+							Result.append("null");
 							break;
 					}
 				}
 			}
-			void Format::FormatJSON(VirtualMachine* VM, Core::Stringify& Result, void* Ref, int TypeId)
+			void Format::FormatJSON(VirtualMachine* VM, Core::String& Result, void* Ref, int TypeId)
 			{
 				if (TypeId < (int)TypeId::BOOL || TypeId >(int)TypeId::DOUBLE)
 				{
@@ -5253,32 +5278,35 @@ namespace Mavi
 
 					if (!Object)
 					{
-						Result.Append("null");
+						Result.append("null");
 						return;
 					}
 
 					if (TypeInfo::IsScriptObject(TypeId))
 					{
 						ScriptObject VObject = (asIScriptObject*)Object;
-						Core::Stringify Decl;
+						Core::String Decl;
 
 						for (unsigned int i = 0; i < VObject.GetPropertiesCount(); i++)
 						{
 							const char* Name = VObject.GetPropertyName(i);
-							Decl.fAppend("\"%s\":", Name ? Name : "");
+							Core::Stringify::Append(Decl, "\"%s\":", Name ? Name : "");
 							FormatJSON(VM, Decl, VObject.GetAddressOfProperty(i), VObject.GetPropertyTypeId(i));
-							Decl.Append(",");
+							Decl.append(",");
 						}
 
-						if (!Decl.Empty())
-							Result.fAppend("{%s}", Decl.Clip(Decl.Size() - 1).Get());
+						if (!Decl.empty())
+						{
+							Core::Stringify::Clip(Decl, Decl.size() - 1);
+							Core::Stringify::Append(Result, "{%s}", Decl.c_str());
+						}
 						else
-							Result.Append("{}");
+							Result.append("{}");
 					}
 					else if (strcmp(Type.GetName(), TYPENAME_DICTIONARY) == 0)
 					{
 						Dictionary* Base = (Dictionary*)Object;
-						Core::Stringify Decl; Core::String Name;
+						Core::String Decl; Core::String Name;
 
 						for (unsigned int i = 0; i < Base->GetSize(); i++)
 						{
@@ -5286,87 +5314,96 @@ namespace Mavi
 							if (!Base->GetIndex(i, &Name, &ElementRef, &ElementTypeId))
 								continue;
 
-							Decl.fAppend("\"%s\":", Name.c_str());
+							Core::Stringify::Append(Decl, "\"%s\":", Name.c_str());
 							FormatJSON(VM, Decl, ElementRef, ElementTypeId);
-							Decl.Append(",");
+							Decl.append(",");
 						}
 
-						if (!Decl.Empty())
-							Result.fAppend("{%s}", Decl.Clip(Decl.Size() - 1).Get());
+						if (!Decl.empty())
+						{
+							Core::Stringify::Clip(Decl, Decl.size() - 1);
+							Core::Stringify::Append(Result, "{%s}", Decl.c_str());
+						}
 						else
-							Result.Append("{}");
+							Result.append("{}");
 					}
 					else if (strcmp(Type.GetName(), TYPENAME_ARRAY) == 0)
 					{
 						Array* Base = (Array*)Object;
 						int ArrayTypeId = Base->GetElementTypeId();
-						Core::Stringify Decl;
+						Core::String Decl;
 
 						for (unsigned int i = 0; i < Base->GetSize(); i++)
 						{
 							FormatJSON(VM, Decl, Base->At(i), ArrayTypeId);
-							Decl.Append(",");
+							Decl.append(",");
 						}
 
-						if (!Decl.Empty())
-							Result.fAppend("[%s]", Decl.Clip(Decl.Size() - 1).Get());
+						if (!Decl.empty())
+						{
+							Core::Stringify::Clip(Decl, Decl.size() - 1);
+							Core::Stringify::Append(Result, "[%s]", Decl.c_str());
+						}
 						else
-							Result.Append("[]");
+							Result.append("[]");
 					}
 					else if (strcmp(Type.GetName(), TYPENAME_STRING) != 0)
 					{
-						Core::Stringify Decl;
+						Core::String Decl;
 						Type.ForEachProperty([&Decl, VM, Ref, TypeId](TypeInfo* Base, FunctionInfo* Prop)
 						{
-							Decl.fAppend("\"%s\":", Prop->Name ? Prop->Name : "");
+							Core::Stringify::Append(Decl, "\"%s\":", Prop->Name ? Prop->Name : "");
 							FormatJSON(VM, Decl, Base->GetProperty<void>(Ref, Prop->Offset, TypeId), Prop->TypeId);
-							Decl.Append(",");
+							Decl.append(",");
 						});
 
-						if (!Decl.Empty())
-							Result.fAppend("{%s}", Decl.Clip(Decl.Size() - 1).Get());
+						if (!Decl.empty())
+						{
+							Core::Stringify::Clip(Decl, Decl.size() - 1);
+							Core::Stringify::Append(Result, "{%s}", Decl.c_str());
+						}
 						else
-							Result.fAppend("{}", Type.GetName());
+							Core::Stringify::Append(Result, "{}", Type.GetName());
 					}
 					else
-						Result.fAppend("\"%s\"", ((Core::String*)Object)->c_str());
+						Core::Stringify::Append(Result, "\"%s\"", ((Core::String*)Object)->c_str());
 				}
 				else
 				{
 					switch (TypeId)
 					{
 						case (int)TypeId::BOOL:
-							Result.fAppend("%s", *(bool*)Ref ? "true" : "false");
+							Core::Stringify::Append(Result, "%s", *(bool*)Ref ? "true" : "false");
 							break;
 						case (int)TypeId::INT8:
-							Result.fAppend("%i", *(char*)Ref);
+							Core::Stringify::Append(Result, "%i", *(char*)Ref);
 							break;
 						case (int)TypeId::INT16:
-							Result.fAppend("%i", *(short*)Ref);
+							Core::Stringify::Append(Result, "%i", *(short*)Ref);
 							break;
 						case (int)TypeId::INT32:
-							Result.fAppend("%i", *(int*)Ref);
+							Core::Stringify::Append(Result, "%i", *(int*)Ref);
 							break;
 						case (int)TypeId::INT64:
-							Result.fAppend("%ll", *(int64_t*)Ref);
+							Core::Stringify::Append(Result, "%ll", *(int64_t*)Ref);
 							break;
 						case (int)TypeId::UINT8:
-							Result.fAppend("%u", *(unsigned char*)Ref);
+							Core::Stringify::Append(Result, "%u", *(unsigned char*)Ref);
 							break;
 						case (int)TypeId::UINT16:
-							Result.fAppend("%u", *(unsigned short*)Ref);
+							Core::Stringify::Append(Result, "%u", *(unsigned short*)Ref);
 							break;
 						case (int)TypeId::UINT32:
-							Result.fAppend("%u", *(unsigned int*)Ref);
+							Core::Stringify::Append(Result, "%u", *(unsigned int*)Ref);
 							break;
 						case (int)TypeId::UINT64:
-							Result.fAppend("%" PRIu64, *(uint64_t*)Ref);
+							Core::Stringify::Append(Result, "%" PRIu64, *(uint64_t*)Ref);
 							break;
 						case (int)TypeId::FLOAT:
-							Result.fAppend("%f", *(float*)Ref);
+							Core::Stringify::Append(Result, "%f", *(float*)Ref);
 							break;
 						case (int)TypeId::DOUBLE:
-							Result.fAppend("%f", *(double*)Ref);
+							Core::Stringify::Append(Result, "%f", *(double*)Ref);
 							break;
 					}
 				}

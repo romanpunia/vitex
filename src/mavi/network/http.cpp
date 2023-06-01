@@ -79,7 +79,12 @@ namespace Mavi
 				if (Result.empty())
 					return Result;
 
-				return Core::Stringify(Result).Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\n", "<br>").R();
+				Core::String Copy(Result);
+				Core::Stringify::Replace(Copy, "&", "&amp;");
+				Core::Stringify::Replace(Copy, "<", "&lt;");
+				Core::Stringify::Replace(Copy, ">", "&gt;");
+				Core::Stringify::Replace(Copy, "\n", "<br>");
+				return Copy;
 			}
 
 			MimeStatic::MimeStatic(const char* Ext, const char* T) : Extension(Ext), Type(T)
@@ -588,20 +593,20 @@ namespace Mavi
 
 				HTTP::RouteEntry* From = Base;
 				Compute::RegexResult Result;
-				Core::Stringify Src(Pattern);
-				Src.ToLower();
+				Core::String Src(Pattern);
+				Core::Stringify::ToLower(Src);
 
 				for (auto& Group : Groups)
 				{
 					for (auto* Entry : Group->Routes)
 					{
-						Core::Stringify Dest(Entry->URI.GetRegex());
-						Dest.ToLower();
+						Core::String Dest(Entry->URI.GetRegex());
+						Core::Stringify::ToLower(Dest);
 
-						if (Dest.StartsWith("...") && Dest.EndsWith("..."))
+						if (Core::Stringify::StartsWith(Dest, "...") && Core::Stringify::EndsWith(Dest, "..."))
 							continue;
 
-						if (Src.Find(Dest.R()).Found || Compute::Regex::Match(&Entry->URI, Result, Src.R()))
+						if (Core::Stringify::Find(Src, Dest).Found || Compute::Regex::Match(&Entry->URI, Result, Src))
 						{
 							From = Entry;
 							break;
@@ -834,8 +839,10 @@ namespace Mavi
 				if (It != Sites.end())
 					return It->second;
 
-				Core::String Name = Core::Stringify(Pattern).ToLower().R();
-				if (Name.empty())
+				Core::String Name = Pattern;
+				if (!Name.empty())
+					Core::Stringify::ToLower(Name);
+				else
 					Name = "*";
 
 				HTTP::SiteEntry* Result = new HTTP::SiteEntry();
@@ -1021,12 +1028,12 @@ namespace Mavi
 				if (Range == nullptr)
 					return Core::Vector<std::pair<size_t, size_t>>();
 
-				Core::Vector<Core::String> Bases = Core::Stringify(Range).Split(',');
+				Core::Vector<Core::String> Bases = Core::Stringify::Split(Range, ',');
 				Core::Vector<std::pair<size_t, size_t>> Ranges;
 
 				for (auto& Item : Bases)
 				{
-					Core::Stringify::Settle Result = Core::Stringify(&Item).Find('-');
+					Core::TextSettle Result = Core::Stringify::Find(Item, '-');
 					if (!Result.Found)
 						continue;
 
@@ -1600,12 +1607,12 @@ namespace Mavi
 					}
 
 					const char* StatusText = Util::StatusMessage(Response.StatusCode);
-					Core::Stringify Content;
-					Content.fAppend("%s %d %s\r\n", Request.Version, Response.StatusCode, StatusText);
+					Core::String Content;
+					Core::Stringify::Append(Content, "%s %d %s\r\n", Request.Version, Response.StatusCode, StatusText);
 
-					Paths::ConstructHeadUncache(this, &Content);
+					Paths::ConstructHeadUncache(this, Content);
 					if (Route && Route->Callbacks.Headers)
-						Route->Callbacks.Headers(this, Content.R());
+						Route->Callbacks.Headers(this, Content);
 
 					char Date[64];
 					Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Info.Start / 1000);
@@ -1622,42 +1629,42 @@ namespace Mavi
 						snprintf(Buffer, sizeof(Buffer), "<html><head><title>%d %s</title><style>" CSS_MESSAGE_STYLE "%s</style></head><body><div><h1>%d %s</h1></div></body></html>\n", Response.StatusCode, StatusText, Reason.size() <= 128 ? CSS_NORMAL_FONT : CSS_SMALL_FONT, Response.StatusCode, Reason.empty() ? StatusText : Reason.c_str());
 
 						if (Route && Route->Callbacks.Headers)
-							Route->Callbacks.Headers(this, Content.R());
+							Route->Callbacks.Headers(this, Content);
 
-						Content.fAppend("Date: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\nContent-Length: %" PRIu64 "\r\n%s\r\n%s", Date, Util::ConnectionResolve(this).c_str(), Route ? Route->CharSet.c_str() : "utf-8", (uint64_t)strlen(Buffer), Auth.c_str(), Buffer);
+						Core::Stringify::Append(Content, "Date: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\nContent-Length: %" PRIu64 "\r\n%s\r\n%s", Date, Util::ConnectionResolve(this).c_str(), Route ? Route->CharSet.c_str() : "utf-8", (uint64_t)strlen(Buffer), Auth.c_str(), Buffer);
 					}
 					else
 					{
 						if (Route && Route->Callbacks.Headers)
-							Route->Callbacks.Headers(this, Content.R());
+							Route->Callbacks.Headers(this, Content);
 
-						Content.fAppend("Date: %s\r\nAccept-Ranges: bytes\r\n%s%s\r\n", Date, Util::ConnectionResolve(this).c_str(), Auth.c_str());
+						Core::Stringify::Append(Content, "Date: %s\r\nAccept-Ranges: bytes\r\n%s%s\r\n", Date, Util::ConnectionResolve(this).c_str(), Auth.c_str());
 					}
 
-					return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](SocketPoll Event)
+					return Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [this](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 							Root->Manage(this);
 					});
 				}
 
-				Core::Stringify Chunked;
+				Core::String Chunked;
 				Core::String Boundary;
 				const char* ContentType;
-				Chunked.fAppend("%s %d %s\r\n", Request.Version, Response.StatusCode, Util::StatusMessage(Response.StatusCode));
+				Core::Stringify::Append(Chunked, "%s %d %s\r\n", Request.Version, Response.StatusCode, Util::StatusMessage(Response.StatusCode));
 
 				if (!Response.GetHeader("Date"))
 				{
 					char Buffer[64];
 					Core::DateTime::FetchWebDateGMT(Buffer, sizeof(Buffer), Info.Start / 1000);
-					Chunked.fAppend("Date: %s\r\n", Buffer);
+					Core::Stringify::Append(Chunked, "Date: %s\r\n", Buffer);
 				}
 
 				if (!Response.GetHeader("Connection"))
-					Chunked.Append(Util::ConnectionResolve(this));
+					Chunked.append(Util::ConnectionResolve(this));
 
 				if (!Response.GetHeader("Accept-Ranges"))
-					Chunked.Append("Accept-Ranges: bytes\r\n", 22);
+					Chunked.append("Accept-Ranges: bytes\r\n", 22);
 
 				if (!Response.GetHeader("Content-Type"))
 				{
@@ -1669,10 +1676,10 @@ namespace Mavi
 					if (Request.GetHeader("Range") != nullptr)
 					{
 						Boundary = Parsing::ParseMultipartDataBoundary();
-						Chunked.fAppend("Content-Type: multipart/byteranges; boundary=%s; charset=%s\r\n", ContentType, Boundary.c_str(), Route ? Route->CharSet.c_str() : "utf-8");
+						Core::Stringify::Append(Chunked, "Content-Type: multipart/byteranges; boundary=%s; charset=%s\r\n", ContentType, Boundary.c_str(), Route ? Route->CharSet.c_str() : "utf-8");
 					}
 					else
-						Chunked.fAppend("Content-Type: %s; charset=%s\r\n", ContentType, Route ? Route->CharSet.c_str() : "utf-8");
+						Core::Stringify::Append(Chunked, "Content-Type: %s; charset=%s\r\n", ContentType, Route ? Route->CharSet.c_str() : "utf-8");
 				}
 				else
 					ContentType = Response.GetHeader("Content-Type");
@@ -1713,9 +1720,9 @@ namespace Mavi
 									if (!Response.GetHeader("Content-Encoding"))
 									{
 										if (Gzip)
-											Chunked.Append("Content-Encoding: gzip\r\n", 24);
+											Chunked.append("Content-Encoding: gzip\r\n", 24);
 										else
-											Chunked.Append("Content-Encoding: deflate\r\n", 27);
+											Chunked.append("Content-Encoding: deflate\r\n", 27);
 									}
 								}
 							}
@@ -1761,24 +1768,24 @@ namespace Mavi
 						{
 							std::pair<size_t, size_t> Offset = Request.GetRange(Ranges.begin(), Response.Content.Data.size());
 							if (!Response.GetHeader("Content-Range"))
-								Chunked.fAppend("Content-Range: %s\r\n", Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size()).c_str());
+								Core::Stringify::Append(Chunked, "Content-Range: %s\r\n", Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size()).c_str());
 
 							Response.Content.Assign(TextSubstring(Response.Content.Data, Offset.first, Offset.second));
 						}
 					}
 
 					if (!Response.GetHeader("Content-Length"))
-						Chunked.fAppend("Content-Length: %" PRIu64 "\r\n", (uint64_t)Response.Content.Data.size());
+						Core::Stringify::Append(Chunked, "Content-Length: %" PRIu64 "\r\n", (uint64_t)Response.Content.Data.size());
 				}
 				else if (!Response.GetHeader("Content-Length"))
-					Chunked.Append("Content-Length: 0\r\n", 19);
+					Chunked.append("Content-Length: 0\r\n", 19);
 
-				Paths::ConstructHeadFull(&Request, &Response, false, &Chunked);
+				Paths::ConstructHeadFull(&Request, &Response, false, Chunked);
 				if (Route && Route->Callbacks.Headers)
-					Route->Callbacks.Headers(this, Chunked.R());
+					Route->Callbacks.Headers(this, Chunked);
 
-				Chunked.Append("\r\n", 2);
-				return Stream->WriteAsync(Chunked.Get(), (int64_t)Chunked.Size(), [this](SocketPoll Event)
+				Chunked.append("\r\n", 2);
+				return Stream->WriteAsync(Chunked.c_str(), (int64_t)Chunked.size(), [this](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -2049,7 +2056,7 @@ namespace Mavi
 				if (Name->Value && Name->Length > 0)
 				{
 					New->Key.assign(Name->Value, (size_t)Name->Length);
-					if (!Core::Stringify(&New->Key).HasInteger())
+					if (!Core::Stringify::HasInteger(New->Key))
 						Object->Value = Core::Var::Object();
 					else
 						Object->Value = Core::Var::Array();
@@ -2129,7 +2136,7 @@ namespace Mavi
 				if (Name->Value && Name->Length > 0)
 				{
 					Key.assign(Name->Value, (size_t)Name->Length);
-					if (!Core::Stringify(&Key).HasInteger())
+					if (!Core::Stringify::HasInteger(Key))
 						Base->Value = Core::Var::Object();
 					else
 						Base->Value = Core::Var::Array();
@@ -3828,34 +3835,35 @@ namespace Mavi
 				if (!Base->Request.Match.Empty())
 				{
 					auto& Match = Base->Request.Match.Get()[0];
-					Base->Request.Path = Base->Route->DocumentRoot + Core::Stringify(Base->Request.Path).RemovePart((size_t)Match.Start, (size_t)Match.End).R();
+					Core::String Target = Base->Request.Path;
+					Core::Stringify::RemovePart(Base->Request.Path, (size_t)Match.Start, (size_t)Match.End);
+					Base->Request.Path = Base->Route->DocumentRoot + Target;
 				}
 				else
 					Base->Request.Path = Base->Route->DocumentRoot + Base->Request.Path;
 
 				Base->Request.Path = Core::OS::Path::Resolve(Base->Request.Path.c_str());
-				if (Core::Stringify(&Base->Request.Path).EndsOf("/\\"))
+				if (Core::Stringify::EndsOf(Base->Request.Path, "/\\"))
 				{
-					if (!Core::Stringify(&Base->Request.URI).EndsOf("/\\"))
+					if (!Core::Stringify::EndsOf(Base->Request.URI, "/\\"))
 						Base->Request.Path.erase(Base->Request.Path.size() - 1, 1);
 				}
-				else if (Core::Stringify(&Base->Request.URI).EndsOf("/\\"))
+				else if (Core::Stringify::EndsOf(Base->Request.URI, "/\\"))
 					Base->Request.Path.append(1, '/');
 
 				if (Base->Route->Site->Callbacks.OnRewriteURL)
 					Base->Route->Site->Callbacks.OnRewriteURL(Base);
 			}
-			void Paths::ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::Stringify* Buffer)
+			void Paths::ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::String& Buffer)
 			{
 				VI_ASSERT(Request != nullptr, "connection should be set");
 				VI_ASSERT(Response != nullptr, "response should be set");
-				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 
 				HeaderMapping& Headers = (IsRequest ? Request->Headers : Response->Headers);
 				for (auto& Item : Headers)
 				{
 					for (auto& Payload : Item.second)
-						Buffer->fAppend("%s: %s\r\n", Item.first.c_str(), Payload.c_str());
+						Core::Stringify::Append(Buffer, "%s: %s\r\n", Item.first.c_str(), Payload.c_str());
 				}
 
 				if (IsRequest)
@@ -3872,7 +3880,7 @@ namespace Mavi
 					Core::String SameSite = (Item.SameSite.empty() ? "" : "; SameSite=" + Item.SameSite);
 					const char* Secure = (!Item.Secure ? "" : "; Secure");
 					const char* HttpOnly = (!Item.HttpOnly ? "" : "; HttpOnly");
-					Buffer->fAppend("Set-Cookie: %s=%s%s%s%s%s%s%s\r\n",
+					Core::Stringify::Append(Buffer, "Set-Cookie: %s=%s%s%s%s%s%s%s\r\n",
 						Item.Name.c_str(),
 						Item.Value.c_str(),
 						Expires.c_str(),
@@ -3883,22 +3891,18 @@ namespace Mavi
 						HttpOnly);
 				}
 			}
-			void Paths::ConstructHeadCache(Connection* Base, Core::Stringify* Buffer)
+			void Paths::ConstructHeadCache(Connection* Base, Core::String& Buffer)
 			{
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				VI_ASSERT(Buffer != nullptr, "buffer should be set");
-
 				if (!Base->Route->StaticFileMaxAge)
 					return ConstructHeadUncache(Base, Buffer);
 
-				Buffer->fAppend("Cache-Control: max-age=%" PRIu64 "\r\n", Base->Route->StaticFileMaxAge);
+				Core::Stringify::Append(Buffer, "Cache-Control: max-age=%" PRIu64 "\r\n", Base->Route->StaticFileMaxAge);
 			}
-			void Paths::ConstructHeadUncache(Connection* Base, Core::Stringify* Buffer)
+			void Paths::ConstructHeadUncache(Connection* Base, Core::String& Buffer)
 			{
 				VI_ASSERT(Base != nullptr, "connection should be set");
-				VI_ASSERT(Buffer != nullptr, "buffer should be set");
-
-				Buffer->Append(
+				Buffer.append(
 					"Cache-Control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
 					"Pragma: no-cache\r\n"
 					"Expires: 0\r\n", 102);
@@ -3944,29 +3948,29 @@ namespace Mavi
 				{
 					if (!Group->Match.empty())
 					{
-						Core::Stringify URI(&Base->Request.URI);
+						Core::String& URI = Base->Request.URI;
 						if (Group->Mode == RouteMode::Start)
 						{
-							if (!URI.StartsWith(Group->Match))
+							if (!Core::Stringify::StartsWith(URI, Group->Match))
 								continue;
 
-							URI.Substring(Group->Match.size(), URI.Size());
+							URI = URI.substr(Group->Match.size(), URI.size());
 						}
 						else if (Group->Mode == RouteMode::Match)
 						{
-							if (!URI.Find(Group->Match).Found)
+							if (!Core::Stringify::Find(URI, Group->Match).Found)
 								continue;
 						}
 						else if (Group->Mode == RouteMode::End)
 						{
-							if (!URI.EndsWith(Group->Match))
+							if (!Core::Stringify::EndsWith(URI, Group->Match))
 								continue;
 
-							URI.Clip(URI.Size() - Group->Match.size());
+							Core::Stringify::Clip(URI, URI.size() - Group->Match.size());
 						}
 
-						if (URI.Empty())
-							URI.Append('/');
+						if (URI.empty())
+							URI.append(1, '/');
 
 						for (auto* Basis : Group->Routes)
 						{
@@ -3977,7 +3981,7 @@ namespace Mavi
 							}
 						}
 
-						URI.Assign(Base->Request.Where);
+						URI.assign(Base->Request.Where);
 					}
 					else
 					{
@@ -4055,18 +4059,18 @@ namespace Mavi
 				Core::String Value(Data, Length);
 				if (Parser->Frame.Header == "Content-Disposition")
 				{
-					Core::Stringify::Settle Start = Core::Stringify(&Value).Find("name=\"");
+					Core::TextSettle Start = Core::Stringify::Find(Value, "name=\"");
 					if (Start.Found)
 					{
-						Core::Stringify::Settle End = Core::Stringify(&Value).Find('\"', Start.End);
+						Core::TextSettle End = Core::Stringify::Find(Value, '\"', Start.End);
 						if (End.Found)
 							Parser->Frame.Source.Key = Value.substr(Start.End, End.End - Start.End - 1);
 					}
 
-					Start = Core::Stringify(&Value).Find("filename=\"");
+					Start = Core::Stringify::Find(Value, "filename=\"");
 					if (Start.Found)
 					{
-						Core::Stringify::Settle End = Core::Stringify(&Value).Find('\"', Start.End);
+						Core::TextSettle End = Core::Stringify::Find(Value, '\"', Start.End);
 						if (End.Found)
 							Parser->Frame.Source.Name = Value.substr(Start.End, End.End - Start.End - 1);
 					}
@@ -4201,9 +4205,9 @@ namespace Mavi
 				}
 				else
 				{
-					Core::Vector<Core::String> Keys = Core::Stringify(Data, Length).Split(',');
+					Core::Vector<Core::String> Keys = Core::Stringify::Split(Core::String(Data, Length), ',');
 					for (auto& Item : Keys)
-						Core::Stringify(&Item).Trim();
+						Core::Stringify::Trim(Item);
 
 					if (Parser->Frame.Request)
 					{
@@ -4430,7 +4434,7 @@ namespace Mavi
 					return false;
 
 				Core::String Path = Base->Request.Path;
-				if (!Core::Stringify(&Path).EndsOf("/\\"))
+				if (!Core::Stringify::EndsOf(Path, "/\\"))
 				{
 #ifdef VI_MICROSOFT
 					Path.append(1, '\\');
@@ -4661,15 +4665,15 @@ namespace Mavi
 						char Date[64];
 						Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-						Core::Stringify Content;
-						Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
+						Core::String Content;
+						Core::Stringify::Append(Content, "%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
 
 						Core::OS::File::Close(Stream);
 						if (Base->Route->Callbacks.Headers)
-							Base->Route->Callbacks.Headers(Base, Content.R());
+							Base->Route->Callbacks.Headers(Base, Content);
 
-						Content.Append("\r\n", 2);
-						return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
+						Content.append("\r\n", 2);
+						return !Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Finish();
@@ -4706,14 +4710,14 @@ namespace Mavi
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Core::Stringify Content;
-				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
+				Core::String Content;
+				Core::Stringify::Append(Content, "%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
 
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content.R());
+					Base->Route->Callbacks.Headers(Base, Content);
 
-				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
+				Content.append("\r\n", 2);
+				return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(204);
@@ -4741,14 +4745,14 @@ namespace Mavi
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Core::Stringify Content;
-				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%s", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
+				Core::String Content;
+				Core::Stringify::Append(Content, "%s 204 No Content\r\nDate: %s\r\n%s", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
 
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content.R());
+					Base->Route->Callbacks.Headers(Base, Content);
 
-				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
+				Content.append("\r\n", 2);
+				return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(204);
@@ -4762,14 +4766,14 @@ namespace Mavi
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Core::Stringify Content;
-				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sAllow: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
+				Core::String Content;
+				Core::Stringify::Append(Content, "%s 204 No Content\r\nDate: %s\r\n%sAllow: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
 
 				if (Base->Route && Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content.R());
+					Base->Route->Callbacks.Headers(Base, Content);
 
-				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
+				Content.append("\r\n", 2);
+				return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(204);
@@ -4788,16 +4792,16 @@ namespace Mavi
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Core::Stringify Content;
-				Content.fAppend("%s 200 OK\r\nDate: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Route->CharSet.c_str());
+				Core::String Content;
+				Core::Stringify::Append(Content, "%s 200 OK\r\nDate: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Route->CharSet.c_str());
 
-				Paths::ConstructHeadCache(Base, &Content);
+				Paths::ConstructHeadCache(Base, Content);
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content.R());
+					Base->Route->Callbacks.Headers(Base, Content);
 
 				const char* Message = Base->Response.GetHeader("X-Error");
 				if (Message != nullptr)
-					Content.fAppend("X-Error: %s\n\r", Message);
+					Core::Stringify::Append(Content, "X-Error: %s\n\r", Message);
 
 				size_t Size = Base->Request.URI.size() - 1;
 				while (Base->Request.URI[Size] != '/')
@@ -4849,7 +4853,7 @@ namespace Mavi
 
 					Core::String URI = Compute::Codec::URIEncode(Item.Path);
 					Core::String HREF = (Base->Request.URI + ((*(Base->Request.URI.c_str() + 1) != '\0' && Base->Request.URI[Base->Request.URI.size() - 1] != '/') ? "/" : "") + URI);
-					if (Item.IsDirectory && !Core::Stringify(&HREF).EndsOf("/\\"))
+					if (Item.IsDirectory && !Core::Stringify::EndsOf(HREF, "/\\"))
 						HREF.append(1, '/');
 
 					Base->Response.Content.Append("<tr><td><a href=\"" + HREF + "\">" + Item.Path + "</a></td><td>&nbsp;" + dDate + "</td><td>&nbsp;&nbsp;" + dSize + "</td></tr>\n");
@@ -4890,17 +4894,17 @@ namespace Mavi
 								if (!Base->Response.GetHeader("Content-Encoding"))
 								{
 									if (Gzip)
-										Content.Append("Content-Encoding: gzip\r\n", 24);
+										Content.append("Content-Encoding: gzip\r\n", 24);
 									else
-										Content.Append("Content-Encoding: deflate\r\n", 27);
+										Content.append("Content-Encoding: deflate\r\n", 27);
 								}
 							}
 						}
 					}
 				}
 #endif
-				Content.fAppend("Content-Length: %" PRIu64 "\r\n\r\n", (uint64_t)Base->Response.Content.Data.size());
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
+				Core::Stringify::Append(Content, "Content-Length: %" PRIu64 "\r\n\r\n", (uint64_t)Base->Response.Content.Data.size());
+				return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -4971,18 +4975,18 @@ namespace Mavi
 				char ETag[64];
 				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
-				Core::Stringify Content;
-				Content.fAppend("%s %d %s\r\n%s%s%sDate: %s\r\n", Base->Request.Version, Base->Response.StatusCode, StatusMessage, CORS1, CORS2, CORS3, Date);
+				Core::String Content;
+				Core::Stringify::Append(Content, "%s %d %s\r\n%s%s%sDate: %s\r\n", Base->Request.Version, Base->Response.StatusCode, StatusMessage, CORS1, CORS2, CORS3, Date);
 
-				Paths::ConstructHeadCache(Base, &Content);
+				Paths::ConstructHeadCache(Base, Content);
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content.R());
+					Base->Route->Callbacks.Headers(Base, Content);
 
 				const char* Message = Base->Response.GetHeader("X-Error");
 				if (Message != nullptr)
-					Content.fAppend("X-Error: %s\n\r", Message);
+					Core::Stringify::Append(Content, "X-Error: %s\n\r", Message);
 
-				Content.fAppend("Accept-Ranges: bytes\r\n"
+				Core::Stringify::Append(Content, "Accept-Ranges: bytes\r\n"
 					"Last-Modified: %s\r\nEtag: %s\r\n"
 					"Content-Type: %s; charset=%s\r\n"
 					"Content-Length: %" PRId64 "\r\n"
@@ -4990,7 +4994,7 @@ namespace Mavi
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
-					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
+					return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							Base->Finish(200);
@@ -4999,7 +5003,7 @@ namespace Mavi
 					});
 				}
 
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base, ContentLength, Range1](SocketPoll Event)
+				return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base, ContentLength, Range1](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -5040,18 +5044,18 @@ namespace Mavi
 				char ETag[64];
 				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
-				Core::Stringify Content;
-				Content.fAppend("%s %d %s\r\n%s%s%sDate: %s\r\n", Base->Request.Version, Base->Response.StatusCode, StatusMessage, CORS1, CORS2, CORS3, Date);
+				Core::String Content;
+				Core::Stringify::Append(Content, "%s %d %s\r\n%s%s%sDate: %s\r\n", Base->Request.Version, Base->Response.StatusCode, StatusMessage, CORS1, CORS2, CORS3, Date);
 
-				Paths::ConstructHeadCache(Base, &Content);
+				Paths::ConstructHeadCache(Base, Content);
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content.R());
+					Base->Route->Callbacks.Headers(Base, Content);
 
 				const char* Message = Base->Response.GetHeader("X-Error");
 				if (Message != nullptr)
-					Content.fAppend("X-Error: %s\n\r", Message);
+					Core::Stringify::Append(Content, "X-Error: %s\n\r", Message);
 
-				Content.fAppend("Accept-Ranges: bytes\r\n"
+				Core::Stringify::Append(Content, "Accept-Ranges: bytes\r\n"
 					"Last-Modified: %s\r\nEtag: %s\r\n"
 					"Content-Type: %s; charset=%s\r\n"
 					"Content-Encoding: %s\r\n"
@@ -5060,7 +5064,7 @@ namespace Mavi
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
-					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
+					return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							Base->Finish();
@@ -5069,7 +5073,7 @@ namespace Mavi
 					});
 				}
 
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base, Range, ContentLength, Gzip](SocketPoll Event)
+				return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base, Range, ContentLength, Gzip](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -5094,15 +5098,15 @@ namespace Mavi
 				char ETag[64];
 				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
-				Core::Stringify Content;
-				Content.fAppend("%s 304 %s\r\nDate: %s\r\n", Base->Request.Version, HTTP::Util::StatusMessage(304), Date);
+				Core::String Content;
+				Core::Stringify::Append(Content, "%s 304 %s\r\nDate: %s\r\n", Base->Request.Version, HTTP::Util::StatusMessage(304), Date);
 
-				Paths::ConstructHeadCache(Base, &Content);
+				Paths::ConstructHeadCache(Base, Content);
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content.R());
+					Base->Route->Callbacks.Headers(Base, Content);
 
-				Content.fAppend("Accept-Ranges: bytes\r\nLast-Modified: %s\r\nEtag: %s\r\n%s\r\n", LastModified, ETag, Util::ConnectionResolve(Base).c_str());
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
+				Core::Stringify::Append(Content, "Accept-Ranges: bytes\r\nLast-Modified: %s\r\nEtag: %s\r\n%s\r\n", LastModified, ETag, Util::ConnectionResolve(Base).c_str());
+				return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(304);
@@ -5414,8 +5418,8 @@ namespace Mavi
 				char Encoded20[20];
 				Compute::Crypto::Sha1Compute(Buffer, (int)strlen(Buffer), Encoded20);
 
-				Core::Stringify Content;
-				Content.fAppend(
+				Core::String Content;
+				Core::Stringify::Append(Content,
 					"HTTP/1.1 101 Switching Protocols\r\n"
 					"Upgrade: websocket\r\n"
 					"Connection: Upgrade\r\n"
@@ -5426,16 +5430,16 @@ namespace Mavi
 				{
 					const char* Offset = strchr(Protocol, ',');
 					if (Offset != nullptr)
-						Content.fAppend("Sec-WebSocket-Protocol: %.*s\r\n", (int)(Offset - Protocol), Protocol);
+						Core::Stringify::Append(Content, "Sec-WebSocket-Protocol: %.*s\r\n", (int)(Offset - Protocol), Protocol);
 					else
-						Content.fAppend("Sec-WebSocket-Protocol: %s\r\n", Protocol);
+						Core::Stringify::Append(Content, "Sec-WebSocket-Protocol: %s\r\n", Protocol);
 				}
 
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content.R());
+					Base->Route->Callbacks.Headers(Base, Content);
 
-				Content.Append("\r\n", 2);
-				return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
+				Content.append("\r\n", 2);
+				return !Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -5890,7 +5894,7 @@ namespace Mavi
 				};
 				Stage("request delivery");
 
-				Core::Stringify Chunked;
+				Core::String Chunked;
 				if (!Request.GetHeader("Host"))
 				{
 					if (Context != nullptr)
@@ -5936,14 +5940,14 @@ namespace Mavi
 					Request.SetHeader("Content-Length", "0");
 
 				if (!Request.Query.empty())
-					Chunked.fAppend("%s %s?%s %s\r\n", Request.Method, Request.URI.c_str(), Request.Query.c_str(), Request.Version);
+					Core::Stringify::Append(Chunked, "%s %s?%s %s\r\n", Request.Method, Request.URI.c_str(), Request.Query.c_str(), Request.Version);
 				else
-					Chunked.fAppend("%s %s %s\r\n", Request.Method, Request.URI.c_str(), Request.Version);
+					Core::Stringify::Append(Chunked, "%s %s %s\r\n", Request.Method, Request.URI.c_str(), Request.Version);
 
-				Paths::ConstructHeadFull(&Request, &Response, true, &Chunked);
-				Chunked.Append("\r\n");
+				Paths::ConstructHeadFull(&Request, &Response, true, Chunked);
+				Chunked.append("\r\n");
 
-				Stream.WriteAsync(Chunked.Get(), (int64_t)Chunked.Size(), [this](SocketPoll Event)
+				Stream.WriteAsync(Chunked.c_str(), (int64_t)Chunked.size(), [this](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{

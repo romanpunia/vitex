@@ -3374,8 +3374,7 @@ namespace Mavi
 		}
 		bool RegexSource::IsSimple() const
 		{
-			Core::Stringify Tx(&Expression);
-			return !Tx.FindOf("\\+*?|[]").Found;
+			return !Core::Stringify::FindOf(Expression, "\\+*?|[]").Found;
 		}
 		void RegexSource::Compile()
 		{
@@ -3546,13 +3545,13 @@ namespace Mavi
 		}
 		bool Regex::Replace(RegexSource* Value, const Core::String& To, Core::String& Buffer)
 		{
-			Core::Stringify Parser(&Buffer), Emplace;
+			Core::String Emplace;
 			RegexResult Result;
 			size_t Matches = 0;
 
 			bool Expression = (!To.empty() && To.find('$') != Core::String::npos);
 			if (!Expression)
-				Emplace.Assign(To);
+				Emplace.assign(To);
 
 			size_t Start = 0;
 			while (Match(Value, Result, Buffer.c_str() + Start, Buffer.size() - Start))
@@ -3563,17 +3562,17 @@ namespace Mavi
 
 				if (Expression)
 				{
-					Emplace.Assign(To);
+					Emplace.assign(To);
 					for (size_t i = 1; i < Result.Matches.size(); i++)
 					{
 						auto& Item = Result.Matches[i];
-						Emplace.Replace("$" + Core::ToString(i), Core::String(Item.Pointer, (size_t)Item.Length));
+						Core::Stringify::Replace(Emplace, "$" + Core::ToString(i), Core::String(Item.Pointer, (size_t)Item.Length));
 					}
 				}
 
 				auto& Where = Result.Matches.front();
-				Parser.ReplacePart((size_t)Where.Start + Start, (size_t)Where.End + Start, Emplace.R());
-				Start += (size_t)Where.Start + (size_t)Emplace.Size() - (Emplace.Empty() ? 0 : 1);
+				Core::Stringify::ReplacePart(Buffer, (size_t)Where.Start + Start, (size_t)Where.End + Start, Emplace);
+				Start += (size_t)Where.Start + (size_t)Emplace.size() - (Emplace.empty() ? 0 : 1);
 			}
 
 			return Matches > 0;
@@ -7359,7 +7358,7 @@ namespace Mavi
 		}
 		WebToken* Crypto::JWTDecode(const Core::String& Value, const PrivateKey& Key)
 		{
-			Core::Vector<Core::String> Source = Core::Stringify(&Value).Split('.');
+			Core::Vector<Core::String> Source = Core::Stringify::Split(Value, '.');
 			if (Source.size() != 3)
 				return nullptr;
 
@@ -7701,22 +7700,22 @@ namespace Mavi
 			static const char From[] = " $%*+-./:";
 			static const char To[] = "abcdefghi";
 
-			Core::Stringify Result(Base45Encode(Data));
+			Core::String Result(Base45Encode(Data));
 			for (size_t i = 0; i < sizeof(From) - 1; i++)
-				Result.Replace(From[i], To[i]);
+				Core::Stringify::Replace(Result, From[i], To[i]);
 
-			return Result.R();
+			return Result;
 		}
 		Core::String Codec::Bep45Decode(const Core::String& Data)
 		{
 			static const char From[] = "abcdefghi";
 			static const char To[] = " $%*+-./:";
 
-			Core::Stringify Result(Data);
+			Core::String Result(Data);
 			for (size_t i = 0; i < sizeof(From) - 1; i++)
-				Result.Replace(From[i], To[i]);
+				Core::Stringify::Replace(Result, From[i], To[i]);
 
-			return Base45Decode(Result.R());
+			return Base45Decode(Result);
 		}
 		Core::String Codec::Base45Encode(const Core::String& Data)
 		{
@@ -8786,7 +8785,9 @@ namespace Mavi
 					return false;
 				}
 
-				Core::String Template = Core::Stringify(Expression.substr(0, TemplateEnd)).Trim().R();
+				Core::String Template = Expression.substr(0, TemplateEnd);
+				Core::Stringify::Trim(Template);
+
 				if (!ParseArguments(Template, Data.Tokens, false) || Data.Tokens.empty())
 				{
 					VI_ERR("[proc] %s: invalid macro definition at %s", ExpandedPath.c_str(), Template.c_str());
@@ -8797,9 +8798,12 @@ namespace Mavi
 				EmptyParenthesis = Data.Tokens.empty();
 			}
 			
-			Core::Stringify(&Name).Trim();
+			Core::Stringify::Trim(Name);
 			if (TemplateEnd < Expression.size())
-				Data.Expansion = Core::Stringify(Expression.substr(TemplateEnd)).Trim().R();
+			{
+				Data.Expansion = Expression.substr(TemplateEnd);
+				Core::Stringify::Trim(Data.Expansion);
+			}
 
 			if (EmptyParenthesis)
 				Name += "()";
@@ -8863,10 +8867,8 @@ namespace Mavi
 				return ReturnResult(false, Nesting);
 			}
 
-			Core::Stringify Buffer(&Data);
 			ExpandedPath = LastPath;
-			Buffer.Trim();
-
+			Core::Stringify::Trim(Data);
 			return ReturnResult(true, Nesting);
 		}
 		bool Preprocessor::ReturnResult(bool Result, bool WasNested)
@@ -8930,8 +8932,8 @@ namespace Mavi
 						}
 					}
 
-					Core::Stringify(&Result.Name).Trim();
-					Core::Stringify(&Result.Value).Trim();
+					Core::Stringify::Trim(Result.Name);
+					Core::Stringify::Trim(Result.Value);
 					if (Result.Value.size() >= 2)
 					{
 						if (HasStringLiterals && Result.Value.front() == Result.Value.back() && Features.StringLiterals.find(Result.Value.front()) != Core::String::npos)
@@ -9148,14 +9150,23 @@ namespace Mavi
 				size_t Count = Offset;
 				while (Offset < Value.size() && std::isspace(Value[++Offset]));
 
-				Core::String Expression = Core::Stringify(Value.substr(Offset)).Trim().R();
-				if (!Features.StringLiterals.empty() && Expression.front() == Expression.back() && Features.StringLiterals.find(Expression.front()) != Core::String::npos)
-					Expression = Expression.substr(1, Expression.size() - 2);
+				Core::String Right = Value.substr(Offset);
+				Core::String Left = Value.substr(0, Count);
+				Core::Stringify::Trim(Right);
+				Core::Stringify::Trim(Left);
 
-				return std::make_pair(Core::Stringify(Value.substr(0, Count)).Trim().R(), Core::Stringify(&Expression).Trim().R());
+				if (!Features.StringLiterals.empty() && Right.front() == Right.back() && Features.StringLiterals.find(Right.front()) != Core::String::npos)
+				{
+					Right = Right.substr(1, Right.size() - 2);
+					Core::Stringify::Trim(Right);
+				}
+
+				return std::make_pair(Left, Right);
 			}
 
-			return std::make_pair(Core::Stringify(Value).Trim().R(), Core::String());
+			Core::String Expression = Value;
+			Core::Stringify::Trim(Expression);
+			return std::make_pair(Expression, Core::String());
 		}
 		std::pair<Core::String, Core::String> Preprocessor::UnpackExpression(const std::pair<Core::String, Core::String>& Expression)
 		{
@@ -9180,26 +9191,26 @@ namespace Mavi
 				case Condition::Greater:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::Stringify Left(&Parts.first), Right(&Parts.second);
-					return (Left.HasNumber() ? Left.ToDouble() : 0.0) > (Right.HasNumber() ? Right.ToDouble() : 0.0);
+					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
+					return (Left ? *Left : 0.0) > (Right ? *Right : 0.0);
 				}
 				case Condition::GreaterEquals:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::Stringify Left(&Parts.first), Right(&Parts.second);
-					return (Left.HasNumber() ? Left.ToDouble() : 0.0) >= (Right.HasNumber() ? Right.ToDouble() : 0.0);
+					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
+					return (Left ? *Left : 0.0) >= (Right ? *Right : 0.0);
 				}
 				case Condition::Less:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::Stringify Left(&Parts.first), Right(&Parts.second);
-					return (Left.HasNumber() ? Left.ToDouble() : 0.0) < (Right.HasNumber() ? Right.ToDouble() : 0.0);
+					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
+					return (Left ? *Left : 0.0) < (Right ? *Right : 0.0);
 				}
 				case Condition::LessEquals:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::Stringify Left(&Parts.first), Right(&Parts.second);
-					return (Left.HasNumber() ? Left.ToDouble() : 0.0) <= (Right.HasNumber() ? Right.ToDouble() : 0.0);
+					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
+					return (Left ? *Left : 0.0) <= (Right ? *Right : 0.0);
 				}
 				case Condition::NotExists:
 					return !IsDefined(Value.Expression) ? 1 : 0;
@@ -9211,26 +9222,26 @@ namespace Mavi
 				case Condition::NotGreater:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::Stringify Left(&Parts.first), Right(&Parts.second);
-					return (Left.HasNumber() ? Left.ToDouble() : 0.0) <= (Right.HasNumber() ? Right.ToDouble() : 0.0);
+					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
+					return (Left ? *Left : 0.0) <= (Right ? *Right : 0.0);
 				}
 				case Condition::NotGreaterEquals:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::Stringify Left(&Parts.first), Right(&Parts.second);
-					return (Left.HasNumber() ? Left.ToDouble() : 0.0) < (Right.HasNumber() ? Right.ToDouble() : 0.0);
+					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
+					return (Left ? *Left : 0.0) < (Right ? *Right : 0.0);
 				}
 				case Condition::NotLess:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::Stringify Left(&Parts.first), Right(&Parts.second);
-					return (Left.HasNumber() ? Left.ToDouble() : 0.0) >= (Right.HasNumber() ? Right.ToDouble() : 0.0);
+					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
+					return (Left ? *Left : 0.0) >= (Right ? *Right : 0.0);
 				}
 				case Condition::NotLessEquals:
 				{
 					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					Core::Stringify Left(&Parts.first), Right(&Parts.second);
-					return (Left.HasNumber() ? Left.ToDouble() : 0.0) > (Right.HasNumber() ? Right.ToDouble() : 0.0);
+					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
+					return (Left ? *Left : 0.0) > (Right ? *Right : 0.0);
 				}
 				case Condition::Text:
 				default:
@@ -9243,8 +9254,7 @@ namespace Mavi
 				return true;
 
 			Core::Vector<Core::String> Tokens;
-			Core::String Copy = Buffer.substr(0, Size);
-			Core::Stringify Formatter(&Copy);
+			Core::String Formatter = Buffer.substr(0, Size);
 			Buffer.erase(Buffer.begin(), Buffer.begin() + Size);
 
 			for (auto& Item : Defines)
@@ -9254,7 +9264,7 @@ namespace Mavi
 
 				if (Item.second.Tokens.empty())
 				{
-					Formatter.Replace(Item.first, Item.second.Expansion);
+					Core::Stringify::Replace(Formatter, Item.first, Item.second.Expansion);
 					continue;
 				}
 				else if (Size < Item.first.size() + 1)
@@ -9262,12 +9272,12 @@ namespace Mavi
 
 				bool Stringify = Item.second.Expansion.find('#') != Core::String::npos;
 				size_t TemplateStart, Offset = 0; Core::String Needle = Item.first + '(';
-				while ((TemplateStart = Copy.find(Needle, Offset)) != Core::String::npos)
+				while ((TemplateStart = Formatter.find(Needle, Offset)) != Core::String::npos)
 				{
 					int32_t Pose = 1; size_t TemplateEnd = TemplateStart + Needle.size();
-					while (TemplateEnd < Copy.size() && Pose > 0)
+					while (TemplateEnd < Formatter.size() && Pose > 0)
 					{
-						char V = Copy[TemplateEnd++];
+						char V = Formatter[TemplateEnd++];
 						if (V == '(')
 							++Pose;
 						else if (V == ')')
@@ -9285,7 +9295,7 @@ namespace Mavi
 						return false;
 					}
 
-					Core::String Template = Copy.substr(TemplateStart, TemplateEnd - TemplateStart);
+					Core::String Template = Formatter.substr(TemplateStart, TemplateEnd - TemplateStart);
 					Tokens.reserve(Item.second.Tokens.size() + 1);
 					Tokens.clear();
 
@@ -9301,23 +9311,22 @@ namespace Mavi
 						return false;
 					}
 
-					Core::Stringify Body(Item.second.Expansion);
+					Core::String Body(Item.second.Expansion);
 					for (size_t i = 0; i < Item.second.Tokens.size(); i++)
 					{
 						auto& From = Item.second.Tokens[i];
 						auto& To = Tokens[i + 1];
-						Body.Replace(From, To);
-						
+						Core::Stringify::Replace(Body, From, To);		
 						if (Stringify)
-							Body.Replace("#" + From, '\"' + To + '\"');
+							Core::Stringify::Replace(Body, "#" + From, '\"' + To + '\"');
 					}
-					Formatter.ReplacePart(TemplateStart, TemplateEnd, Body.R());
-					Offset = TemplateStart + Body.Size();
+					Core::Stringify::ReplacePart(Formatter, TemplateStart, TemplateEnd, Body);
+					Offset = TemplateStart + Body.size();
 				}
 			}
 
-			Size = Copy.size();
-			Buffer.insert(0, Copy);
+			Size = Formatter.size();
+			Buffer.insert(0, Formatter);
 			return true;
 		}
 		bool Preprocessor::ParseArguments(const Core::String& Value, Core::Vector<Core::String>& Tokens, bool UnpackLiterals)
@@ -9352,7 +9361,9 @@ namespace Mavi
 				else if (V == ',' || Where + 1 >= Data.size())
 				{
 				AddValue:
-					Core::String Subvalue = Core::Stringify(Data.substr(Last, Where + 1 >= Data.size() ? Core::String::npos : Where - Last)).Trim().R();
+					Core::String Subvalue = Data.substr(Last, Where + 1 >= Data.size() ? Core::String::npos : Where - Last);
+					Core::Stringify::Trim(Subvalue);
+
 					if (UnpackLiterals && Subvalue.size() >= 2)
 					{
 						if (!Features.StringLiterals.empty() && Subvalue.front() == Subvalue.back() && Features.StringLiterals.find(Subvalue.front()) != Core::String::npos)
@@ -9515,19 +9526,19 @@ namespace Mavi
 					if (!IsOriginRemote)
 						return Result;
 
-					Core::Stringify URL(&Result.Module);
-					URL.Replace("./", "");
-					URL.Insert(Base, 0);
+					Core::Stringify::Replace(Result.Module, "./", "");
+					Result.Module.insert(0, Base);
 					return Result;
 				}
 			}
 
-			if (!Core::Stringify(Desc.Path).StartsOf("/."))
+			if (!Core::Stringify::StartsOf(Desc.Path, "/."))
 			{
 				if (Desc.Path.empty() || Desc.Root.empty())
 				{
-					Result.Module = Core::Stringify(Desc.Path).Replace('\\', '/').R();
+					Result.Module = Desc.Path;
 					Result.IsAbstract = true;
+					Core::Stringify::Replace(Result.Module, '\\', '/');
 					return Result;
 				}
 
@@ -9556,8 +9567,9 @@ namespace Mavi
 					return Result;
 				}
 
-				Result.Module = Core::Stringify(Desc.Path).Replace('\\', '/').R();;
+				Result.Module = Desc.Path;
 				Result.IsAbstract = true;
+				Core::Stringify::Replace(Result.Module, '\\', '/');
 				return Result;
 			}
 			else if (AsGlobal)

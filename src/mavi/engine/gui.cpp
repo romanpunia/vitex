@@ -447,13 +447,14 @@ namespace Mavi
 
 					if (Proto1 != "file" && Proto2 == "file")
 					{
-						Core::Stringify Buffer(&Result);
-						if (!Buffer.Assign(Path1).EndsWith('/'))
-							Buffer.Append('/');
+						Result.assign(Path1);
+						if (!Core::Stringify::EndsWith(Result, '/'))
+							Result.append(1, '/');
 
-						Buffer.Append(Fixed2).Replace("/////", "//");
-						Core::Stringify::Settle Idx = Buffer.Find("://");
-						Buffer.Replace("//", "/", Idx.Found ? Idx.End : 0);
+						Result.append(Fixed2);
+						Core::Stringify::Replace(Result, "/////", "//");
+						Core::TextSettle Idx = Core::Stringify::Find(Result, "://");
+						Core::Stringify::Replace(Result, "//", "/", Idx.Found ? Idx.End : 0);
 					}
 					else if (Proto1 == "file" && Proto2 == "file")
 					{
@@ -462,7 +463,10 @@ namespace Mavi
 							Result = Core::OS::Path::Resolve(Fixed2, Content->GetEnvironment(), false);
 					}
 					else if (Proto1 == "file" && Proto2 != "file")
-						Result = Core::Stringify(Path2).Replace("/////", "//").R();
+					{
+						Result.assign(Path2);
+						Core::Stringify::Replace(Result, "/////", "//");
+					}
 				}
 				bool LogMessage(Rml::Log::Type Type, const Rml::String& Message) override
 				{
@@ -537,7 +541,7 @@ namespace Mavi
 				}
 				Core::String GetFixedURL(const Core::String& URL, Core::String& Proto)
 				{
-					if (!Core::Stringify(&URL).Find("://").Found)
+					if (!Core::Stringify::Find(URL, "://").Found)
 					{
 						Proto = "file";
 						return URL;
@@ -609,8 +613,11 @@ namespace Mavi
 					ScopedContext* Scope = (ScopedContext*)GetContext();
 					VI_ASSERT(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
 
+					Core::String Where = Path;
+					Core::Stringify::Replace(Where, '|', ':');
+
 					Scripting::Compiler* Compiler = Scope->Basis->Compiler;
-					if (Compiler->LoadFile(Core::Stringify(Path).Replace('|', ':').R()) < 0)
+					if (Compiler->LoadFile(Where) < 0)
 						return;
 
 					Compiler->Compile().When([Scope, Compiler](int&& Status)
@@ -907,13 +914,13 @@ namespace Mavi
 			Core::String IVariant::FromColor4(const Compute::Vector4& Base, bool HEX)
 			{
 				if (!HEX)
-					return Core::Form("%d %d %d %d", (unsigned int)(Base.X * 255.0f), (unsigned int)(Base.Y * 255.0f), (unsigned int)(Base.Z * 255.0f), (unsigned int)(Base.W * 255.0f)).R();
+					return Core::Stringify::Text("%d %d %d %d", (unsigned int)(Base.X * 255.0f), (unsigned int)(Base.Y * 255.0f), (unsigned int)(Base.Z * 255.0f), (unsigned int)(Base.W * 255.0f));
 
-				return Core::Form("#%02x%02x%02x%02x",
+				return Core::Stringify::Text("#%02x%02x%02x%02x",
 					(unsigned int)(Base.X * 255.0f),
 					(unsigned int)(Base.Y * 255.0f),
 					(unsigned int)(Base.Z * 255.0f),
-					(unsigned int)(Base.W * 255.0f)).R();
+					(unsigned int)(Base.W * 255.0f));
 			}
 			Compute::Vector4 IVariant::ToColor3(const Core::String& Value)
 			{
@@ -964,12 +971,12 @@ namespace Mavi
 			Core::String IVariant::FromColor3(const Compute::Vector4& Base, bool HEX)
 			{
 				if (!HEX)
-					return Core::Form("%d %d %d", (unsigned int)(Base.X * 255.0f), (unsigned int)(Base.Y * 255.0f), (unsigned int)(Base.Z * 255.0f)).R();
+					return Core::Stringify::Text("%d %d %d", (unsigned int)(Base.X * 255.0f), (unsigned int)(Base.Y * 255.0f), (unsigned int)(Base.Z * 255.0f));
 
-				return Core::Form("#%02x%02x%02x",
+				return Core::Stringify::Text("#%02x%02x%02x",
 					(unsigned int)(Base.X * 255.0f),
 					(unsigned int)(Base.Y * 255.0f),
-					(unsigned int)(Base.Z * 255.0f)).R();
+					(unsigned int)(Base.Z * 255.0f));
 			}
 			int IVariant::GetVectorType(const Core::String& Value)
 			{
@@ -997,7 +1004,7 @@ namespace Mavi
 			}
 			Core::String IVariant::FromVector4(const Compute::Vector4& Base)
 			{
-				return Core::Form("v4 %f %f %f %f", Base.X, Base.Y, Base.Z, Base.W).R();
+				return Core::Stringify::Text("v4 %f %f %f %f", Base.X, Base.Y, Base.Z, Base.W);
 			}
 			Compute::Vector3 IVariant::ToVector3(const Core::String& Base)
 			{
@@ -1009,7 +1016,7 @@ namespace Mavi
 			}
 			Core::String IVariant::FromVector3(const Compute::Vector3& Base)
 			{
-				return Core::Form("v3 %f %f %f", Base.X, Base.Y, Base.Z).R();
+				return Core::Stringify::Text("v3 %f %f %f", Base.X, Base.Y, Base.Z);
 			}
 			Compute::Vector2 IVariant::ToVector2(const Core::String& Base)
 			{
@@ -1021,7 +1028,7 @@ namespace Mavi
 			}
 			Core::String IVariant::FromVector2(const Compute::Vector2& Base)
 			{
-				return Core::Form("v2 %f %f", Base.X, Base.Y).R();
+				return Core::Stringify::Text("v2 %f %f", Base.X, Base.Y);
 			}
 
 			IEvent::IEvent() : Base(nullptr), Owned(false)
@@ -2170,8 +2177,8 @@ namespace Mavi
 				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Core::Stringify Value(Form->GetValue());
-				if (Value.Empty())
+				Core::String Value(Form->GetValue());
+				if (Value.empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
@@ -2180,19 +2187,19 @@ namespace Mavi
 					return false;
 				}
 
-				if (!Value.HasInteger())
+				if (!Core::Stringify::HasInteger(Value))
 				{
-					Value.ReplaceNotOf(".-0123456789", "");
-					Form->SetValue(Value.R());
+					Core::Stringify::ReplaceNotOf(Value, ".-0123456789", "");
+					Form->SetValue(Value);
 				}
 
-				int32_t N = Value.ToInt();
-				if (N == *Ptr)
+				auto N = Core::FromString<int32_t>(Value);
+				if (!N || *N == *Ptr)
 					return false;
 
 				if (Form->IsPseudoClassSet("focus"))
 				{
-					*Ptr = N;
+					*Ptr = *N;
 					return true;
 				}
 
@@ -2209,8 +2216,8 @@ namespace Mavi
 				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Core::Stringify Value(Form->GetValue());
-				if (Value.Empty())
+				Core::String Value(Form->GetValue());
+				if (Value.empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
@@ -2219,19 +2226,19 @@ namespace Mavi
 					return false;
 				}
 
-				if (!Value.HasInteger())
+				if (!Core::Stringify::HasInteger(Value))
 				{
-					Value.ReplaceNotOf(".0123456789", "");
-					Form->SetValue(Value.R());
+					Core::Stringify::ReplaceNotOf(Value, ".0123456789", "");
+					Form->SetValue(Value);
 				}
 
-				uint32_t N = Value.ToUInt();
-				if (N == *Ptr)
+				auto N = Core::FromString<uint32_t>(Value);
+				if (!N || *N == *Ptr)
 					return false;
 
 				if (Form->IsPseudoClassSet("focus"))
 				{
-					*Ptr = N;
+					*Ptr = *N;
 					return true;
 				}
 
@@ -2268,8 +2275,8 @@ namespace Mavi
 				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Core::Stringify Value(Form->GetValue());
-				if (Value.Empty())
+				Core::String Value(Form->GetValue());
+				if (Value.empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
@@ -2278,19 +2285,19 @@ namespace Mavi
 					return false;
 				}
 
-				if (!Value.HasInteger())
+				if (!Core::Stringify::HasInteger(Value))
 				{
-					Value.ReplaceNotOf(".-0123456789", "");
-					Form->SetValue(Value.R());
+					Core::Stringify::ReplaceNotOf(Value, ".-0123456789", "");
+					Form->SetValue(Value);
 				}
 
-				int64_t N = Value.ToInt64();
-				if (N == *Ptr)
+				auto N = Core::FromString<int64_t>(Value);
+				if (!N || *N == *Ptr)
 					return false;
 
 				if (Form->IsPseudoClassSet("focus"))
 				{
-					*Ptr = N;
+					*Ptr = *N;
 					return true;
 				}
 
@@ -2307,8 +2314,8 @@ namespace Mavi
 				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Core::Stringify Value(Form->GetValue());
-				if (Value.Empty())
+				Core::String Value(Form->GetValue());
+				if (Value.empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
@@ -2317,19 +2324,19 @@ namespace Mavi
 					return false;
 				}
 
-				if (!Value.HasInteger())
+				if (!Core::Stringify::HasInteger(Value))
 				{
-					Value.ReplaceNotOf(".0123456789", "");
-					Form->SetValue(Value.R());
+					Core::Stringify::ReplaceNotOf(Value, ".0123456789", "");
+					Form->SetValue(Value);
 				}
 
-				uint64_t N = Value.ToUInt64();
-				if (N == *Ptr)
+				auto N = Core::FromString<uint64_t>(Value);
+				if (!N || *N == *Ptr)
 					return false;
 
 				if (Form->IsPseudoClassSet("focus"))
 				{
-					*Ptr = N;
+					*Ptr = *N;
 					return true;
 				}
 
@@ -2346,8 +2353,8 @@ namespace Mavi
 				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Core::Stringify Value(Form->GetValue());
-				if (Value.Empty())
+				Core::String Value(Form->GetValue());
+				if (Value.empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
@@ -2356,19 +2363,19 @@ namespace Mavi
 					return false;
 				}
 
-				if (!Value.HasInteger())
+				if (!Core::Stringify::HasInteger(Value))
 				{
-					Value.ReplaceNotOf(".0123456789", "");
-					Form->SetValue(Value.R());
+					Core::Stringify::ReplaceNotOf(Value, ".0123456789", "");
+					Form->SetValue(Value);
 				}
 
-				uint64_t N = Value.ToUInt64();
-				if (N == (uint64_t)*Ptr)
+				auto N = Core::FromString<uint64_t>(Value);
+				if (!N || *N == (uint64_t)*Ptr)
 					return false;
 
 				if (Form->IsPseudoClassSet("focus"))
 				{
-					*Ptr = (size_t)N;
+					*Ptr = (size_t)*N;
 					return true;
 				}
 
@@ -2405,33 +2412,33 @@ namespace Mavi
 				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Core::Stringify Value(Form->GetValue());
-				if (Value.Empty())
+				Core::String Value(Form->GetValue());
+				if (Value.empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
 
-					Form->SetValue(Core::Stringify::ToString(*Ptr));
+					Form->SetValue(Core::ToString(*Ptr));
 					return false;
 				}
 
-				if (!Value.HasNumber())
+				if (!Core::Stringify::HasNumber(Value))
 				{
-					Value.ReplaceNotOf(".-0123456789", "");
-					Form->SetValue(Value.R());
+					Core::Stringify::ReplaceNotOf(Value, ".-0123456789", "");
+					Form->SetValue(Value);
 				}
 
-				float N = Value.ToFloat();
-				if (N == *Ptr)
+				auto N = Core::FromString<float>(Value);
+				if (!N || *N == *Ptr)
 					return false;
 
 				if (Form->IsPseudoClassSet("focus"))
 				{
-					*Ptr = N;
+					*Ptr = *N;
 					return true;
 				}
 
-				Form->SetValue(Core::Stringify::ToString(*Ptr));
+				Form->SetValue(Core::ToString(*Ptr));
 				return false;
 #else
 				return false;
@@ -2459,33 +2466,33 @@ namespace Mavi
 				VI_ASSERT(Ptr != nullptr, "ptr should be set");
 
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Core::Stringify Value(Form->GetValue());
-				if (Value.Empty())
+				Core::String Value(Form->GetValue());
+				if (Value.empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
 
-					Form->SetValue(Core::Stringify::ToString(*Ptr));
+					Form->SetValue(Core::ToString(*Ptr));
 					return false;
 				}
 
-				if (!Value.HasNumber())
+				if (!Core::Stringify::HasNumber(Value))
 				{
-					Value.ReplaceNotOf(".-0123456789", "");
-					Form->SetValue(Value.R());
+					Core::Stringify::ReplaceNotOf(Value, ".-0123456789", "");
+					Form->SetValue(Value);
 				}
 
-				double N = Value.ToDouble();
-				if (N == *Ptr)
+				auto N = Core::FromString<double>(Value);
+				if (!N || *N == *Ptr)
 					return false;
 
 				if (Form->IsPseudoClassSet("focus"))
 				{
-					*Ptr = N;
+					*Ptr = *N;
 					return true;
 				}
 
-				Form->SetValue(Core::Stringify::ToString(*Ptr));
+				Form->SetValue(Core::ToString(*Ptr));
 				return false;
 #else
 				return false;
@@ -2592,11 +2599,10 @@ namespace Mavi
 				if (Value.empty())
 					return nullptr;
 
-				Core::Stringify Buffer(&Value);
-				if (!Buffer.HasInteger())
+				if (!Core::Stringify::HasInteger(Value))
 					return nullptr;
 
-				return (void*)(intptr_t)Buffer.ToInt64();
+				return (void*)(intptr_t)*Core::FromString<int64_t>(Value);
 			}
 
 			IElementDocument::IElementDocument() : IElement()
@@ -2892,7 +2898,12 @@ namespace Mavi
 			}
 			Core::String Subsystem::EscapeHTML(const Core::String& Text)
 			{
-				return Core::Stringify(&Text).Replace("\r\n", "&nbsp;").Replace("\n", "&nbsp;").Replace("<", "&lt;").Replace(">", "&gt;").R();
+				Core::String Copy = Text;
+				Core::Stringify::Replace(Copy, "\r\n", "&nbsp;");
+				Core::Stringify::Replace(Copy, "\n", "&nbsp;");
+				Core::Stringify::Replace(Copy, "<", "&lt;");
+				Core::Stringify::Replace(Copy, ">", "&gt;");
+				return Copy;
 			}
 			Scripting::VirtualMachine* Subsystem::ScriptInterface = nullptr;
 			ContextInstancer* Subsystem::ContextFactory = nullptr;
@@ -3940,11 +3951,11 @@ namespace Mavi
 				if (!Preprocess(Path, Data))
 					goto ErrorState;
 
-				Core::Stringify URL(Path);
-				URL.Replace('\\', '/');
-				URL.Insert("file:///", 0);
+				Core::String URL(Path);
+				Core::Stringify::Replace(URL, '\\', '/');
+				URL.insert(0, "file:///");
 
-				auto* Result = Base->LoadDocumentFromMemory(Data, URL.R());
+				auto* Result = Base->LoadDocumentFromMemory(Data, URL);
 				Loading = State;
 
 				return Result;
@@ -4255,28 +4266,26 @@ namespace Mavi
 			}
 			void Context::Decompose(Core::String& Data)
 			{
-				Core::Stringify::Settle Result, Start, End;
-				Core::Stringify Buffer(&Data);
-
-				while (Result.End < Buffer.Size())
+				Core::TextSettle Result, Start, End;
+				while (Result.End < Data.size())
 				{
-					Start = Buffer.Find("<!--", End.End);
+					Start = Core::Stringify::Find(Data, "<!--", End.End);
 					if (!Start.Found)
 						return;
 
-					End = Buffer.Find("-->", Start.End);
+					End = Core::Stringify::Find(Data, "-->", Start.End);
 					if (!End.Found)
 						return;
 
-					Result = Buffer.Find("#include", Start.End);
+					Result = Core::Stringify::Find(Data, "#include", Start.End);
 					if (!Result.Found)
 						return;
 
 					if (Result.End >= End.Start)
 						continue;
 
-					Buffer.RemovePart(End.Start, End.End);
-					Buffer.RemovePart(Start.Start, Start.End);
+					Core::Stringify::RemovePart(Data, End.Start, End.End);
+					Core::Stringify::RemovePart(Data, Start.Start, Start.End);
 					End.End = Start.Start;
 				}
 			}

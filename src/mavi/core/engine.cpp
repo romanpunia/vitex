@@ -5394,7 +5394,10 @@ namespace Mavi
 		Core::String SceneGraph::AsResourcePath(const Core::String& Path)
 		{
 			VI_ASSERT(Conf.Shared.Content != nullptr, "content manager should be set");
-			return Core::Stringify(Path).Replace(Conf.Shared.Content->GetEnvironment(), "./").Replace('\\', '/').R();
+			Core::String RelPath = Path;
+			Core::Stringify::Replace(RelPath, Conf.Shared.Content->GetEnvironment(), "./");
+			Core::Stringify::Replace(RelPath, '\\', '/');
+			return RelPath;
 		}
 		Entity* SceneGraph::AddEntity()
 		{
@@ -5570,8 +5573,11 @@ namespace Mavi
 			if (File.empty())
 				return;
 
+			Core::Stringify::Replace(File, '\\', '/');
+			Core::Stringify::Replace(File, Environment, "./");
+
 			Mutex.lock();
-			auto It = Assets.find(Core::Stringify(File).Replace('\\', '/').Replace(Environment, "./").R());
+			auto It = Assets.find(File);
 			if (It != Assets.end())
 				Assets.erase(It);
 			Mutex.unlock();
@@ -5580,7 +5586,7 @@ namespace Mavi
 		{
 			Mutex.lock();
 			Environment = Core::OS::Path::ResolveDirectory(Path.c_str());
-			Core::Stringify(&Environment).Replace('\\', '/');
+			Core::Stringify::Replace(Environment, '\\', '/');
 			Core::OS::Directory::SetWorking(Environment.c_str());
 			Mutex.unlock();
 		}
@@ -5596,11 +5602,12 @@ namespace Mavi
 				return nullptr;
 			}
 
-			Core::Stringify File(Path);
-			File.Replace('\\', '/').Replace("./", "");
+			Core::String File(Path);
+			Core::Stringify::Replace(File, '\\', '/');
+			Core::Stringify::Replace(File, "./", "");
 
 			Mutex.lock();
-			auto Docker = Dockers.find(File.R());
+			auto Docker = Dockers.find(File);
 			if (Docker == Dockers.end() || !Docker->second || !Docker->second->Stream)
 			{
 				Mutex.unlock();
@@ -5609,7 +5616,7 @@ namespace Mavi
 			}
 			Mutex.unlock();
 
-			AssetCache* Asset = FindCache(Processor, File.R());
+			AssetCache* Asset = FindCache(Processor, File);
 			if (Asset != nullptr)
 			{
 				VI_TRACE("[content] load dockerized %s: cached", Path.c_str());
@@ -5628,7 +5635,7 @@ namespace Mavi
 			auto* Stream = Docker->second->Stream;
 			Stream->SetVirtualSize(Docker->second->Length);
 			Stream->Seek(Core::FileSeek::Begin, It->second + Docker->second->Offset);
-			Stream->GetSource() = File.R();
+			Stream->GetSource() = File;
 			Mutex.unlock();
 
 			VI_TRACE("[content] load dockerized %s", Path.c_str());
@@ -5909,7 +5916,9 @@ namespace Mavi
 					if (!File)
 						continue;
 
-					Core::String Path = Core::Stringify(Resource).Replace(DirectoryBase, Name).Replace('\\', '/').R();
+					Core::String Path = Resource;
+					Core::Stringify::Replace(Path, DirectoryBase, Name);
+					Core::Stringify::Replace(Path, '\\', '/');
 					if (Name.empty())
 						Path.assign(Path.substr(1));
 
@@ -5963,7 +5972,10 @@ namespace Mavi
 		void* ContentManager::TryToCache(Processor* Root, const Core::String& Path, void* Resource)
 		{
 			VI_TRACE("[content] save 0x%" PRIXPTR " to cache", Resource);
-			Core::String Target = Core::Stringify(Path).Replace('\\', '/').Replace(Environment, "./").R();
+			Core::String Target = Path;
+			Core::Stringify::Replace(Target, '\\', '/');
+			Core::Stringify::Replace(Target, Environment, "./");
+			
 			std::unique_lock<std::mutex> Unique(Mutex);
 			auto& Entries = Assets[Target];
 			auto& Entry = Entries[Root];
@@ -6007,8 +6019,12 @@ namespace Mavi
 			if (Path.empty())
 				return nullptr;
 
+			Core::String RelPath = Path;
+			Core::Stringify::Replace(RelPath, '\\', '/');
+			Core::Stringify::Replace(RelPath, Environment, "./");
+
 			Mutex.lock();
-			auto It = Assets.find(Core::Stringify(Path).Replace('\\', '/').Replace(Environment, "./").R());
+			auto It = Assets.find(RelPath);
 			if (It != Assets.end())
 			{
 				auto KIt = It->second.find(Target);
@@ -6158,7 +6174,8 @@ namespace Mavi
 
 			if (TypeId != nullptr)
 			{
-				Type = Core::Stringify(TypeId).ToUpper().R();
+				Type.assign(TypeId);
+				Core::Stringify::ToUpper(Type);
 				if (Type != "JSON" && Type != "JSONB" && Type != "XML")
 					Type = "JSONB";
 			}

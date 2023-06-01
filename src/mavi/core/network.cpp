@@ -132,7 +132,7 @@ namespace Mavi
 		Location::Location(const Core::String& Src) noexcept : URL(Src), Protocol("file"), Port(-1)
 		{
 			VI_ASSERT(!URL.empty(), "url should not be empty");
-			Core::Stringify(&URL).Replace('\\', '/');
+			Core::Stringify::Replace(URL, '\\', '/');
 
 			const char* PathBegin = nullptr;
 			const char* HostBegin = strchr(URL.c_str(), ':');
@@ -205,7 +205,7 @@ namespace Mavi
 			if (ParametersBegin != nullptr)
 			{
 				const char* ParametersEnd = strchr(++ParametersBegin, '#');
-				Core::Stringify Parameters(ParametersBegin, ParametersEnd ? ParametersEnd - ParametersBegin : strlen(ParametersBegin));
+				Core::String Parameters(ParametersBegin, ParametersEnd ? ParametersEnd - ParametersBegin : strlen(ParametersBegin));
 				Path = Core::String(PathBegin, ParametersBegin - 1);
 
 				if (!ParametersEnd)
@@ -220,9 +220,9 @@ namespace Mavi
 				else
 					Fragment = ParametersEnd + 1;
 
-				for (auto& Item : Parameters.Split('&'))
+				for (auto& Item : Core::Stringify::Split(Parameters, '&'))
 				{
-					Core::Vector<Core::String> KeyValue = Core::Stringify(&Item).Split('=');
+					Core::Vector<Core::String> KeyValue = Core::Stringify::Split(Item, '=');
 					KeyValue[0] = Compute::Codec::URIDecode(KeyValue[0]);
 
 					if (KeyValue.size() >= 2)
@@ -521,7 +521,7 @@ namespace Mavi
 			VI_MEASURE((uint64_t)Core::Timings::Networking * 3);
 
 			struct sockaddr_storage Storage;
-			int Port = Core::Stringify(&Service).ToInt();
+			auto Port = Core::FromString<int>(Service);
 			int Family = Multiplexer::GetAddressFamily(Host.c_str());
 			int Result = -1;
 
@@ -530,14 +530,14 @@ namespace Mavi
 				auto* Base = reinterpret_cast<struct sockaddr_in*>(&Storage);
 				Result = inet_pton(Family, Host.c_str(), &Base->sin_addr.s_addr);
 				Base->sin_family = Family;
-				Base->sin_port = htons(Port);
+				Base->sin_port = Port ? htons(*Port) : 0;
 			}
 			else if (Family == AF_INET6)
 			{
 				auto* Base = reinterpret_cast<struct sockaddr_in6*>(&Storage);
 				Result = inet_pton(Family, Host.c_str(), &Base->sin6_addr);
 				Base->sin6_family = Family;
-				Base->sin6_port = htons(Port);
+				Base->sin6_port = Port ? htons(*Port) : 0;
 			}
 
 			if (Result == -1)
@@ -2334,7 +2334,7 @@ namespace Mavi
 #ifdef SSL_CTX_set_ecdh_auto
 				SSL_CTX_set_ecdh_auto(It.second.Context, 1);
 #endif
-				Core::String ContextId = Compute::Crypto::Hash(Compute::Digests::MD5(), Core::Stringify((int64_t)time(nullptr)).R());
+				Core::String ContextId = Compute::Crypto::Hash(Compute::Digests::MD5(), Core::ToString(time(nullptr)));
 				SSL_CTX_set_session_id_context(It.second.Context, (const unsigned char*)ContextId.c_str(), (unsigned int)ContextId.size());
 
 				if (!It.second.Chain.empty() && !It.second.Key.empty())

@@ -640,7 +640,7 @@ namespace Mavi
 #elif OPENSSL_VERSION_NUMBER < 0x10000000L
 			ERR_remove_state(0);
 #endif
-#ifndef OPENSSL_NO_DEPRECATED_1_1_0
+#if !defined(OPENSSL_NO_DEPRECATED_1_1_0) && OPENSSL_VERSION_MAJOR < 3
 			SSL_COMP_free_compression_methods();
 			ENGINE_cleanup();
 			CONF_modules_free();

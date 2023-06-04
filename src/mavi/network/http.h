@@ -289,6 +289,8 @@ namespace Mavi
 				void Finish();
 				void Next();
 				bool IsFinished();
+				Socket* GetStream();
+				Connection* GetConnection();
 
 			private:
 				void Finalize();

@@ -14500,6 +14500,8 @@ namespace Mavi
 				VWebSocketFrame.SetMethod("void finish()", &Network::HTTP::WebSocketFrame::Finish);
 				VWebSocketFrame.SetMethod("void next()", &Network::HTTP::WebSocketFrame::Next);
 				VWebSocketFrame.SetMethod("bool is_finished() const", &Network::HTTP::WebSocketFrame::IsFinished);
+				VWebSocketFrame.SetMethod("socket@+ get_stream() const", &Network::HTTP::WebSocketFrame::GetStream);
+				VWebSocketFrame.SetMethod("connection@+ get_connection() const", &Network::HTTP::WebSocketFrame::GetConnection);
 
 				VSiteEntry.SetFunctionDef("void net_event(connection@+)");
 				VSiteEntry.SetFunctionDef("void auth_event(connection@+, credentials&in)");

@@ -1000,7 +1000,7 @@ namespace Mavi
 				GetDateTime(time(nullptr), Data.Message.Date, sizeof(Data.Message.Date));
 
 			char Buffer[512] = { '\0' };
-			if (Level == LogLevel::Error)
+			if (Level == LogLevel::Error && HasFlag(LogOption::ReportSysErrors))
 			{
 				int ErrorCode = OS::Error::Get();
 				if (OS::Error::IsError(ErrorCode))

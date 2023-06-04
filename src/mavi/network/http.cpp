@@ -445,6 +445,14 @@ namespace Mavi
 			{
 				return !Busy && !Stream->IsPendingForWrite();
 			}
+			Socket* WebSocketFrame::GetStream()
+			{
+				return Stream;
+			}
+			Connection* WebSocketFrame::GetConnection()
+			{
+				return Stream ? (Connection*)Stream->UserData : nullptr;
+			}
 			bool WebSocketFrame::Enqueue(unsigned int Mask, const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
 				if (IsWriteable())

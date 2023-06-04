@@ -382,6 +382,7 @@ namespace Mavi
 					++Start;
 				}
 
+				int32_t Indexers = 0;
 				int32_t Brackets = 0;
 				size_t End = Start;
 				while (End < Code.size())
@@ -392,11 +393,18 @@ namespace Mavi
 						if (--Brackets < 0)
 							break;
 					}
+					if (V == ']')
+					{
+						if (--Indexers < 0)
+							break;
+					}
 					else if (V == '(')
 						++Brackets;
+					else if (V == '[')
+						++Indexers;
 					else if (V == ';')
 						break;
-					else if (Brackets == 0)
+					else if (Brackets == 0 && Indexers)
 					{
 						if (!isalnum(V) && V != '.' && V != ' ' && V != '_')
 							break;
@@ -1952,7 +1960,7 @@ namespace Mavi
 			if (!IsValid())
 				return Core::Promise<int>(asINVALID_ARG);
 
-			if (!Context)
+			if (!Context || !Context->CanExecuteCall())
 				return ExecuteOnNewContext(std::move(OnArgs), std::move(OnReturn));
 
 			std::unique_lock<std::recursive_mutex> Unique(Context->Exchange);

@@ -179,7 +179,8 @@ namespace Mavi
 			Active = 1 << 0,
 			Pretty = 1 << 1,
 			Async = 1 << 2,
-			Dated = 1 << 3
+			Dated = 1 << 3,
+			ReportSysErrors = 1 << 4
 		};
 
 		enum class Optional : char

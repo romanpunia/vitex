@@ -190,6 +190,28 @@ namespace Mavi
 			Value = 1
 		};
 
+		enum class Signal
+		{
+			SIG_INT,
+			SIG_ILL,
+			SIG_FPE,
+			SIG_SEGV,
+			SIG_TERM,
+			SIG_BREAK,
+			SIG_ABRT,
+			SIG_BUS,
+			SIG_ALRM,
+			SIG_HUP,
+			SIG_QUIT,
+			SIG_TRAP,
+			SIG_CONT,
+			SIG_STOP,
+			SIG_PIPE,
+			SIG_CHLD,
+			SIG_USR1,
+			SIG_USR2
+		};
+
 		template <typename T, typename = void>
 		struct IsIterable : std::false_type { };
 
@@ -584,6 +606,7 @@ namespace Mavi
 		typedef std::function<void(VarForm, const char*, size_t)> SchemaWriteCallback;
 		typedef std::function<bool(char*, size_t)> SchemaReadCallback;
 		typedef std::function<bool()> ActivityCallback;
+		typedef void(*SignalCallback)(int);
 
 		class VI_OUT StackTrace
 		{
@@ -1751,6 +1774,10 @@ namespace Mavi
                 
 			public:
 				static void Interrupt();
+				static bool SetSignalCallback(Signal Type, SignalCallback Callback);
+				static bool SetSignalDefault(Signal Type);
+				static bool SetSignalIgnore(Signal Type);
+				static int GetSignalId(Signal Type);
 				static int ExecutePlain(const String& Command);
 				static ProcessStream* ExecuteWriteOnly(const String& Command);
 				static ProcessStream* ExecuteReadOnly(const String& Command);

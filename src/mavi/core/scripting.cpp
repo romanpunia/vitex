@@ -393,7 +393,7 @@ namespace Mavi
 						if (--Brackets < 0)
 							break;
 					}
-					if (V == ']')
+					else if (V == ']')
 					{
 						if (--Indexers < 0)
 							break;
@@ -404,7 +404,7 @@ namespace Mavi
 						++Indexers;
 					else if (V == ';')
 						break;
-					else if (Brackets == 0 && Indexers)
+					else if (Brackets == 0 && Indexers == 0)
 					{
 						if (!isalnum(V) && V != '.' && V != ' ' && V != '_')
 							break;

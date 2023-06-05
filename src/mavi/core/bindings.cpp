@@ -9195,7 +9195,6 @@ namespace Mavi
 				Engine->RegisterObjectMethod("string", "string& opAddAssign(uint8)", asMETHODPR(Core::String, operator +=, (char), Core::String&), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("string", "string opAdd(uint8) const", asFUNCTIONPR(std::operator +, (const Core::String&, char), Core::String), asCALL_CDECL_OBJFIRST);
 				Engine->RegisterObjectMethod("string", "string opAdd_r(uint8) const", asFUNCTIONPR(std::operator +, (char, const Core::String&), Core::String), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "bool opEquals(const string &in) const", asFUNCTIONPR(std::operator ==, (const Core::String&, const Core::String&), bool), asCALL_CDECL_OBJFIRST);
 				Engine->RegisterObjectMethod("string", "int opCmp(const string &in) const", asMETHODPR(Core::String, compare, (const Core::String&) const, int), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("string", "uint8& opIndex(usize)", asFUNCTION(String::Index), asCALL_CDECL_OBJFIRST);
 				Engine->RegisterObjectMethod("string", "const uint8& opIndex(usize) const", asFUNCTION(String::Index), asCALL_CDECL_OBJFIRST);

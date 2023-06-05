@@ -907,6 +907,9 @@ namespace Mavi
 			class VI_OUT Mutex
 			{
 			private:
+				static int MutexUD;
+
+			private:
 				std::recursive_mutex Base;
 				int Ref;
 
@@ -920,6 +923,7 @@ namespace Mavi
 
 			public:
 				static Mutex* Factory();
+				static bool IsAnyLocked(asIScriptContext* Context);
 			};
 
 			class VI_OUT Thread

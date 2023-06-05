@@ -557,7 +557,7 @@ namespace Mavi
 				}
 #endif
 				HRESULT Code = D3D11CreateDeviceAndSwapChain(nullptr, DriverType, nullptr, CreationFlags, FeatureLevels, ARRAYSIZE(FeatureLevels), D3D11_SDK_VERSION, &SwapChainResource, &SwapChain, &Context, &FeatureLevel, &ImmediateContext);
-				VI_PANIC(Code == S_OK, "D3D11 graphics device creation failure reason:%i", (int)Code);
+				VI_PANIC(Code == S_OK, "D3D11 graphics device creation failure");
 				SetShaderModel(I.ShaderMode == ShaderModel::Auto ? GetSupportedShaderModel() : I.ShaderMode);
 				SetPrimitiveTopology(PrimitiveTopology::Triangle_List);
 				ResizeBuffers(I.BufferWidth, I.BufferHeight);

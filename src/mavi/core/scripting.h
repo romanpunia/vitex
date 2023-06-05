@@ -1805,6 +1805,7 @@ namespace Mavi
 			Function GetSystemFunction();
 			bool IsSuspended() const;
 			bool IsSuspendable() const;
+			bool IsSyncLocked() const;
 			bool CanExecuteCall() const;
 			bool CanExecuteSubcall() const;
 			void* SetUserData(void* Data, size_t Type = 0);

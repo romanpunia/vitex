@@ -4752,7 +4752,12 @@ namespace Mavi
 		}
 		bool ImmediateContext::IsSuspendable() const
 		{
-			return !IsSuspended() && !Executor.DenySuspends;
+			return !IsSuspended() && !IsSyncLocked() && !Executor.DenySuspends;
+		}
+		bool ImmediateContext::IsSyncLocked() const
+		{
+			VI_ASSERT(Context != nullptr, "context should be set");
+			return Bindings::Mutex::IsAnyLocked(Context);
 		}
 		bool ImmediateContext::CanExecuteCall() const
 		{
@@ -6152,12 +6157,12 @@ namespace Mavi
 				return Stream.str();
 
 			size_t TopSize = (Lines.size() % 2 != 0 ? 1 : 0) + Lines.size() / 2;
-			Stream << "\n  last " << MaxLines << " lines of " << Label << " code\n";
+			Stream << "\n  last " << (Lines.size() + 1) << " lines of " << Label << " code\n";
 
 			for (size_t i = 0; i < TopSize; i++)
 			{
 				Core::Stringify::TrimEnd(Lines[i]);
-				Stream << "  " << LineNumber + i - Lines.size() / 2 << "  " << Lines[i] << "\n";
+				Stream << "  " << LineNumber + i - TopSize - 1 << "  " << Lines[i] << "\n";
 			}
 
 			Core::Stringify::TrimEnd(Line);
@@ -6171,7 +6176,7 @@ namespace Mavi
 			for (size_t i = TopSize; i < Lines.size(); i++)
 			{
 				Core::Stringify::TrimEnd(Lines[i]);
-				Stream << "\n  " << LineNumber + i - Lines.size() / 2 + 1 << "  " << Lines[i];
+				Stream << "\n  " << LineNumber + i - TopSize + 1 << "  " << Lines[i];
 			}
 
 			return Stream.str();
@@ -6353,7 +6358,7 @@ namespace Mavi
 					if (Info->type == asMSGTYPE_WARNING)
 						return It->second(Core::Stringify::Text("WARN at line %i: %s%s", Info->row, Info->message, SourceCode.c_str()));
 					else if (Info->type == asMSGTYPE_INFORMATION)
-						return It->second(Core::Stringify::Text("INFO at line %i: %s%s", Info->row, Info->message, SourceCode.c_str()));
+						return It->second(Core::Stringify::Text("INFO %s", Info->message));
 
 					return It->second(Core::Stringify::Text("ERR at line %i: %s%s", Info->row, Info->message, SourceCode.c_str()));
 				}
@@ -6362,7 +6367,7 @@ namespace Mavi
 			if (Info->type == asMSGTYPE_WARNING)
 				VI_WARN("[compiler] %s at line %i: %s%s", Section, Info->row, Info->message, SourceCode.c_str());
 			else if (Info->type == asMSGTYPE_INFORMATION)
-				VI_INFO("[compiler] %s at line %i: %s%s", Section, Info->row, Info->message, SourceCode.c_str());
+				VI_INFO("[compiler] %s", Info->message);
 			else if (Info->type == asMSGTYPE_ERROR)
 				VI_ERR("[compiler] %s at line %i: %s%s", Section, Info->row, Info->message, SourceCode.c_str());
 		}

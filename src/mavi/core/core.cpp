@@ -161,18 +161,6 @@ namespace
 #endif
 namespace
 {
-	struct PrettyToken
-	{
-		Mavi::Core::StdColor Color;
-		const char* Token;
-		char First;
-		size_t Size;
-
-		PrettyToken(Mavi::Core::StdColor BaseColor, const char* Name) : Color(BaseColor), Token(Name), First(*Token), Size(strlen(Name))
-		{
-		}
-	};
-
 	bool IsPathExists(const char* Path)
 	{
 		struct stat Buffer;
@@ -763,17 +751,20 @@ namespace Mavi
 			Scripting::ImmediateContext* Context = Scripting::ImmediateContext::Get();
 			if (Context != nullptr)
 			{
+				Scripting::VirtualMachine* VM = Context->GetVM();
 				size_t CallstackSize = Context->GetCallstackSize();
 				Frames.reserve(CallstackSize);
 				for (size_t i = 0; i < CallstackSize; i++)
 				{
-					int Column = 0;
+					int ColumnNumber = 0;
+					int LineNumber = Context->GetLineNumber(i, &ColumnNumber);
 					Scripting::Function Next = Context->GetFunction(i);
 					Frame Target;
+					Target.Code = (Next.GetSectionName() ? VM->GetSourceCodeAppendixByPath("source", Next.GetSectionName(), (uint32_t)LineNumber, (uint32_t)ColumnNumber, 5) : "");
 					Target.File = (Next.GetSectionName() ? Next.GetSectionName() : "[native]");
 					Target.Function = (Next.GetDecl() ? Next.GetDecl() : "[optimized]");
-					Target.Line = Context->GetLineNumber(i, &Column);
-					Target.Column = (uint32_t)Column;
+					Target.Line = (uint32_t)LineNumber;
+					Target.Column = (uint32_t)ColumnNumber;
 					Target.Handle = (void*)Next.GetFunction();
 					Target.Native = false;
 					Frames.emplace_back(std::move(Target));
@@ -911,12 +902,30 @@ namespace Mavi
 			Data.Origin.Line = Line;
 			Data.Type.Level = LogLevel::Error;
 			Data.Type.Fatal = true;
-			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "thread %s PANIC! %s(): %s on \"!(%s)\"\n%s",
-				OS::Process::GetThreadId(std::this_thread::get_id()).c_str(),
-				Function ? Function : "?",
-				Format ? Format : "check failed",
-				Condition ? Condition : "?",
-				ErrorHandling::GetStackTrace(1).c_str());
+			if (HasFlag(LogOption::ReportSysErrors) || true)
+			{
+				int ErrorCode = OS::Error::Get();
+				if (!OS::Error::IsError(ErrorCode))
+					goto DefaultFormat;
+				
+				Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "thread %s PANIC! %s(): %s on \"!(%s)\", latest system error [%s]\n%s",
+					OS::Process::GetThreadId(std::this_thread::get_id()).c_str(),
+					Function ? Function : "?",
+					Format ? Format : "check failed",
+					Condition ? Condition : "?",
+					OS::Error::GetName(ErrorCode).c_str(),
+					ErrorHandling::GetStackTrace(1).c_str());
+			}
+			else
+			{
+			DefaultFormat:
+				Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "thread %s PANIC! %s(): %s on \"!(%s)\"\n%s",
+					OS::Process::GetThreadId(std::this_thread::get_id()).c_str(),
+					Function ? Function : "?",
+					Format ? Format : "check failed",
+					Condition ? Condition : "?",
+					ErrorHandling::GetStackTrace(1).c_str());
+			}
 			if (HasFlag(LogOption::Dated))
 				GetDateTime(time(nullptr), Data.Message.Date, sizeof(Data.Message.Date));
 
@@ -1003,13 +1012,16 @@ namespace Mavi
 			if (Level == LogLevel::Error && HasFlag(LogOption::ReportSysErrors))
 			{
 				int ErrorCode = OS::Error::Get();
-				if (OS::Error::IsError(ErrorCode))
-					snprintf(Buffer, sizeof(Buffer), "%s, latest system error [%s]", Format, OS::Error::GetName(ErrorCode).c_str());
-				else
-					memcpy(Buffer, Format, std::min(sizeof(Buffer), strlen(Format)));
+				if (!OS::Error::IsError(ErrorCode))
+					goto DefaultFormat;
+
+				snprintf(Buffer, sizeof(Buffer), "%s, latest system error [%s]", Format, OS::Error::GetName(ErrorCode).c_str());
 			}
 			else
+			{
+			DefaultFormat:
 				memcpy(Buffer, Format, std::min(sizeof(Buffer), strlen(Format)));
+			}
 
 			va_list Args;
 			va_start(Args, Format);
@@ -1099,188 +1111,11 @@ namespace Mavi
 			Base->WriteBuffer(GetMessageType(Data));
 			Base->WriteBuffer(" ");
 			if (ParseTokens)
-				ColorifyTokens(Base, Data.Message.Data, StdColor::LightGray);
+				Base->ColorPrintBuffer(StdColor::LightGray, Data.Message.Data, Data.Message.Size);
 			else
 				Base->WriteBuffer(Data.Message.Data);
 			Base->WriteBuffer("\n");
 			Base->ColorEnd();
-		}
-		void ErrorHandling::ColorifyTokens(Console* Base, const char* Buffer, StdColor BaseColor)
-		{
-			static PrettyToken Tokens[] =
-			{
-				PrettyToken(StdColor::DarkGreen, "OK"),
-				PrettyToken(StdColor::Yellow, "execute"),
-				PrettyToken(StdColor::Yellow, "spawn"),
-				PrettyToken(StdColor::Yellow, "acquire"),
-				PrettyToken(StdColor::Yellow, "release"),
-				PrettyToken(StdColor::Yellow, "join"),
-				PrettyToken(StdColor::Yellow, "bind"),
-				PrettyToken(StdColor::Yellow, "assign"),
-				PrettyToken(StdColor::Yellow, "resolve"),
-				PrettyToken(StdColor::Yellow, "prepare"),
-				PrettyToken(StdColor::Yellow, "listen"),
-				PrettyToken(StdColor::Yellow, "unlisten"),
-				PrettyToken(StdColor::Yellow, "accept"),
-				PrettyToken(StdColor::Yellow, "load"),
-				PrettyToken(StdColor::Yellow, "save"),
-				PrettyToken(StdColor::Yellow, "open"),
-				PrettyToken(StdColor::Yellow, "close"),
-				PrettyToken(StdColor::Yellow, "create"),
-				PrettyToken(StdColor::Yellow, "remove"),
-				PrettyToken(StdColor::Yellow, "compile"),
-				PrettyToken(StdColor::Yellow, "transpile"),
-				PrettyToken(StdColor::Yellow, "enter"),
-				PrettyToken(StdColor::Yellow, "exit"),
-				PrettyToken(StdColor::Yellow, "connect"),
-				PrettyToken(StdColor::Yellow, "reconnect"),
-				PrettyToken(StdColor::Yellow, "ASSERT"),
-				PrettyToken(StdColor::DarkRed, "ERR"),
-				PrettyToken(StdColor::DarkRed, "FATAL"),
-				PrettyToken(StdColor::DarkRed, "PANIC!"),
-				PrettyToken(StdColor::DarkRed, "leak"),
-				PrettyToken(StdColor::DarkRed, "leaking"),
-				PrettyToken(StdColor::DarkRed, "fail"),
-				PrettyToken(StdColor::DarkRed, "failure"),
-				PrettyToken(StdColor::DarkRed, "failed"),
-				PrettyToken(StdColor::DarkRed, "error"),
-				PrettyToken(StdColor::DarkRed, "errors"),
-				PrettyToken(StdColor::DarkRed, "not"),
-				PrettyToken(StdColor::DarkRed, "cannot"),
-				PrettyToken(StdColor::DarkRed, "could"),
-				PrettyToken(StdColor::DarkRed, "couldn't"),
-				PrettyToken(StdColor::DarkRed, "wasn't"),
-				PrettyToken(StdColor::DarkRed, "took"),
-				PrettyToken(StdColor::DarkRed, "missing"),
-				PrettyToken(StdColor::DarkRed, "invalid"),
-				PrettyToken(StdColor::DarkRed, "required"),
-				PrettyToken(StdColor::DarkRed, "already"),
-				PrettyToken(StdColor::Cyan, "undefined"),
-				PrettyToken(StdColor::Cyan, "nullptr"),
-				PrettyToken(StdColor::Cyan, "null"),
-				PrettyToken(StdColor::Cyan, "this"),
-				PrettyToken(StdColor::Cyan, "ms"),
-				PrettyToken(StdColor::Cyan, "us"),
-				PrettyToken(StdColor::Cyan, "ns"),
-				PrettyToken(StdColor::Cyan, "on"),
-				PrettyToken(StdColor::Cyan, "from"),
-				PrettyToken(StdColor::Cyan, "to"),
-				PrettyToken(StdColor::Cyan, "for"),
-				PrettyToken(StdColor::Cyan, "and"),
-				PrettyToken(StdColor::Cyan, "or"),
-				PrettyToken(StdColor::Cyan, "at"),
-				PrettyToken(StdColor::Cyan, "in"),
-				PrettyToken(StdColor::Cyan, "of"),
-				PrettyToken(StdColor::Magenta, "query"),
-				PrettyToken(StdColor::Magenta, "vcall"),
-				PrettyToken(StdColor::Blue, "template"),
-			};
-
-			const char* Text = Buffer;
-			size_t Size = strlen(Buffer);
-			size_t Offset = 0;
-
-			Base->ColorBegin(BaseColor);
-			while (Text[Offset] != '\0')
-			{
-				auto& V = Text[Offset];
-				if (Stringify::IsDigit(V))
-				{
-					Base->ColorBegin(StdColor::Yellow);
-					while (Offset < Size)
-					{
-						auto N = std::tolower(Text[Offset]);
-						if (!Stringify::IsDigit(N) && N != '.' && N != 'a' && N != 'b' && N != 'c' && N != 'd' && N != 'e' && N != 'f' && N != 'x')
-							break;
-
-						Base->WriteChar(Text[Offset++]);
-					}
-
-					Base->ColorBegin(BaseColor);
-					continue;
-				}
-				else if (V == '@')
-				{
-					Base->ColorBegin(StdColor::LightBlue);
-					Base->WriteChar(V);
-
-					while (Offset < Size && (Stringify::IsDigit(Text[++Offset]) || Stringify::IsAlphabetic(Text[Offset]) || Text[Offset] == '-' || Text[Offset] == '_'))
-						Base->WriteChar(Text[Offset]);
-
-					Base->ColorBegin(BaseColor);
-					continue;
-				}
-				else if (V == '[' && strstr(Text + Offset + 1, "]") != nullptr)
-				{
-					size_t Iterations = 0, Skips = 0;
-					Base->ColorBegin(StdColor::Cyan);
-					do
-					{
-						Base->WriteChar(Text[Offset]);
-						if (Iterations++ > 0 && Text[Offset] == '[')
-							Skips++;
-					} while (Offset < Size && (Text[Offset++] != ']' || Skips > 0));
-
-					Base->ColorBegin(BaseColor);
-					continue;
-				}
-				else if (V == '\"' && strstr(Text + Offset + 1, "\"") != nullptr)
-				{
-					Base->ColorBegin(StdColor::LightBlue);
-					do
-					{
-						Base->WriteChar(Text[Offset]);
-					} while (Offset < Size && Text[++Offset] != '\"');
-
-					if (Offset < Size)
-						Base->WriteChar(Text[Offset++]);
-					Base->ColorBegin(BaseColor);
-					continue;
-				}
-				else if (V == '\'' && strstr(Text + Offset + 1, "\'") != nullptr)
-				{
-					Base->ColorBegin(StdColor::LightBlue);
-					do
-					{
-						Base->WriteChar(Text[Offset]);
-					} while (Offset < Size && Text[++Offset] != '\'');
-
-					if (Offset < Size)
-						Base->WriteChar(Text[Offset++]);
-					Base->ColorBegin(BaseColor);
-					continue;
-				}
-				else if (Stringify::IsAlphabetic(V) && (!Offset || !Stringify::IsAlphabetic(Text[Offset - 1])))
-				{
-					bool IsMatched = false;
-					for (size_t i = 0; i < sizeof(Tokens) / sizeof(PrettyToken); i++)
-					{
-						auto& Token = Tokens[i];
-						if (V != Token.First || Size - Offset < Token.Size)
-							continue;
-
-						if (Offset + Token.Size < Size && Stringify::IsAlphabetic(Text[Offset + Token.Size]))
-							continue;
-
-						if (memcmp(Text + Offset, Token.Token, Token.Size) == 0)
-						{
-							Base->ColorBegin(Token.Color);
-							for (size_t j = 0; j < Token.Size; j++)
-								Base->WriteChar(Text[Offset++]);
-
-							Base->ColorBegin(BaseColor);
-							IsMatched = true;
-							break;
-						}
-					}
-
-					if (IsMatched)
-						continue;
-				}
-
-				Base->WriteChar(V);
-				++Offset;
-			}
 		}
 		void ErrorHandling::Pause()
 		{
@@ -1378,6 +1213,8 @@ namespace Mavi
 				Stream << " in " << Frame.Function;
 				if (!Frame.Native)
 					Stream << " (vcall)";
+				if (!Frame.Code.empty())
+					Stream << Frame.Code;
 				if (Size > 0)
 					Stream << "\n";
 			}
@@ -5977,6 +5814,75 @@ namespace Mavi
 
 		Console::Console() noexcept : Status(Mode::Detached), Colors(true)
 		{
+			BaseTokens =
+			{
+				ColorToken(StdColor::DarkGreen, "OK"),
+				ColorToken(StdColor::Yellow, "execute"),
+				ColorToken(StdColor::Yellow, "spawn"),
+				ColorToken(StdColor::Yellow, "acquire"),
+				ColorToken(StdColor::Yellow, "release"),
+				ColorToken(StdColor::Yellow, "join"),
+				ColorToken(StdColor::Yellow, "bind"),
+				ColorToken(StdColor::Yellow, "assign"),
+				ColorToken(StdColor::Yellow, "resolve"),
+				ColorToken(StdColor::Yellow, "prepare"),
+				ColorToken(StdColor::Yellow, "listen"),
+				ColorToken(StdColor::Yellow, "unlisten"),
+				ColorToken(StdColor::Yellow, "accept"),
+				ColorToken(StdColor::Yellow, "load"),
+				ColorToken(StdColor::Yellow, "save"),
+				ColorToken(StdColor::Yellow, "open"),
+				ColorToken(StdColor::Yellow, "close"),
+				ColorToken(StdColor::Yellow, "create"),
+				ColorToken(StdColor::Yellow, "remove"),
+				ColorToken(StdColor::Yellow, "compile"),
+				ColorToken(StdColor::Yellow, "transpile"),
+				ColorToken(StdColor::Yellow, "enter"),
+				ColorToken(StdColor::Yellow, "exit"),
+				ColorToken(StdColor::Yellow, "connect"),
+				ColorToken(StdColor::Yellow, "reconnect"),
+				ColorToken(StdColor::Yellow, "ASSERT"),
+				ColorToken(StdColor::DarkRed, "ERR"),
+				ColorToken(StdColor::DarkRed, "FATAL"),
+				ColorToken(StdColor::DarkRed, "PANIC!"),
+				ColorToken(StdColor::DarkRed, "leak"),
+				ColorToken(StdColor::DarkRed, "leaking"),
+				ColorToken(StdColor::DarkRed, "fail"),
+				ColorToken(StdColor::DarkRed, "failure"),
+				ColorToken(StdColor::DarkRed, "failed"),
+				ColorToken(StdColor::DarkRed, "error"),
+				ColorToken(StdColor::DarkRed, "errors"),
+				ColorToken(StdColor::DarkRed, "not"),
+				ColorToken(StdColor::DarkRed, "cannot"),
+				ColorToken(StdColor::DarkRed, "could"),
+				ColorToken(StdColor::DarkRed, "couldn't"),
+				ColorToken(StdColor::DarkRed, "wasn't"),
+				ColorToken(StdColor::DarkRed, "took"),
+				ColorToken(StdColor::DarkRed, "missing"),
+				ColorToken(StdColor::DarkRed, "invalid"),
+				ColorToken(StdColor::DarkRed, "required"),
+				ColorToken(StdColor::DarkRed, "already"),
+				ColorToken(StdColor::Cyan, "undefined"),
+				ColorToken(StdColor::Cyan, "nullptr"),
+				ColorToken(StdColor::Cyan, "null"),
+				ColorToken(StdColor::Cyan, "this"),
+				ColorToken(StdColor::Cyan, "ms"),
+				ColorToken(StdColor::Cyan, "us"),
+				ColorToken(StdColor::Cyan, "ns"),
+				ColorToken(StdColor::Cyan, "on"),
+				ColorToken(StdColor::Cyan, "from"),
+				ColorToken(StdColor::Cyan, "to"),
+				ColorToken(StdColor::Cyan, "for"),
+				ColorToken(StdColor::Cyan, "and"),
+				ColorToken(StdColor::Cyan, "or"),
+				ColorToken(StdColor::Cyan, "at"),
+				ColorToken(StdColor::Cyan, "in"),
+				ColorToken(StdColor::Cyan, "of"),
+				ColorToken(StdColor::Magenta, "query"),
+				ColorToken(StdColor::Magenta, "vcall"),
+				ColorToken(StdColor::Blue, "template"),
+			};
+			Tokens = BaseTokens;
 		}
 		Console::~Console() noexcept
 		{
@@ -6111,6 +6017,12 @@ namespace Mavi
 			printf("\033[%d;%dH", X, Y);
 #endif
 		}
+		void Console::SetColorTokens(Vector<Console::ColorToken>&& AdditionalTokens)
+		{
+			Tokens = std::move(AdditionalTokens);
+			Tokens.reserve(Tokens.size() + BaseTokens.size());
+			Tokens.insert(Tokens.end(), BaseTokens.begin(), BaseTokens.end());
+		}
 		void Console::ColorBegin(StdColor Text, StdColor Background)
 		{
 			if (!Colors)
@@ -6136,6 +6048,118 @@ namespace Mavi
 #else
 			std::cout << "\033[0m";
 #endif
+		}
+		void Console::ColorPrint(StdColor BaseColor, const Core::String& Buffer)
+		{
+			ColorPrintBuffer(BaseColor, Buffer.c_str(), Buffer.size());
+		}
+		void Console::ColorPrintBuffer(StdColor BaseColor, const char* Buffer, size_t Size)
+		{
+			VI_ASSERT(Buffer != nullptr, "buffer should be set");
+			if (!Size)
+				return;
+
+			size_t Offset = 0;
+			ColorBegin(BaseColor);
+			while (Buffer[Offset] != '\0')
+			{
+				auto& V = Buffer[Offset];
+				if (Stringify::IsDigit(V))
+				{
+					ColorBegin(StdColor::Yellow);
+					while (Offset < Size)
+					{
+						auto N = std::tolower(Buffer[Offset]);
+						if (!Stringify::IsDigit(N) && N != '.' && N != 'a' && N != 'b' && N != 'c' && N != 'd' && N != 'e' && N != 'f' && N != 'x')
+							break;
+
+						WriteChar(Buffer[Offset++]);
+					}
+
+					ColorBegin(BaseColor);
+					continue;
+				}
+				else if (V == '@')
+				{
+					ColorBegin(StdColor::LightBlue);
+					WriteChar(V);
+
+					while (Offset < Size && (Stringify::IsDigit(Buffer[++Offset]) || Stringify::IsAlphabetic(Buffer[Offset]) || Buffer[Offset] == '-' || Buffer[Offset] == '_'))
+						WriteChar(Buffer[Offset]);
+
+					ColorBegin(BaseColor);
+					continue;
+				}
+				else if (V == '[' && strstr(Buffer + Offset + 1, "]") != nullptr)
+				{
+					size_t Iterations = 0, Skips = 0;
+					ColorBegin(StdColor::Cyan);
+					do
+					{
+						WriteChar(Buffer[Offset]);
+						if (Iterations++ > 0 && Buffer[Offset] == '[')
+							Skips++;
+					} while (Offset < Size && (Buffer[Offset++] != ']' || Skips > 0));
+
+					ColorBegin(BaseColor);
+					continue;
+				}
+				else if (V == '\"' && strstr(Buffer + Offset + 1, "\"") != nullptr)
+				{
+					ColorBegin(StdColor::LightBlue);
+					do
+					{
+						WriteChar(Buffer[Offset]);
+					} while (Offset < Size && Buffer[++Offset] != '\"');
+
+					if (Offset < Size)
+						WriteChar(Buffer[Offset++]);
+					ColorBegin(BaseColor);
+					continue;
+				}
+				else if (V == '\'' && strstr(Buffer + Offset + 1, "\'") != nullptr)
+				{
+					ColorBegin(StdColor::LightBlue);
+					do
+					{
+						WriteChar(Buffer[Offset]);
+					} while (Offset < Size && Buffer[++Offset] != '\'');
+
+					if (Offset < Size)
+						WriteChar(Buffer[Offset++]);
+					ColorBegin(BaseColor);
+					continue;
+				}
+				else if (Stringify::IsAlphabetic(V) && (!Offset || !Stringify::IsAlphabetic(Buffer[Offset - 1])))
+				{
+					bool IsMatched = false;
+					for (auto& Token : Tokens)
+					{
+						if (V != Token.First || Size - Offset < Token.Size)
+							continue;
+
+						if (Offset + Token.Size < Size && Stringify::IsAlphabetic(Buffer[Offset + Token.Size]))
+							continue;
+
+						if (memcmp(Buffer + Offset, Token.Token, Token.Size) == 0)
+						{
+							ColorBegin(Token.Color);
+							for (size_t j = 0; j < Token.Size; j++)
+								WriteChar(Buffer[Offset++]);
+
+							ColorBegin(BaseColor);
+							IsMatched = true;
+							break;
+						}
+					}
+
+					if (IsMatched)
+						continue;
+				}
+
+				WriteChar(V);
+				++Offset;
+			}
 		}
 		void Console::WriteBuffer(const char* Buffer)
 		{
@@ -9219,15 +9243,7 @@ namespace Mavi
 		int OS::Error::Get(bool ClearLastError)
 		{
 #ifdef VI_MICROSOFT
-			int ErrorCode = errno;
-			if (ErrorCode != 0)
-			{
-				if (ClearLastError)
-					errno = 0;
-				return ErrorCode;
-			}
-
-			ErrorCode = GetLastError();
+			int ErrorCode = GetLastError();
 			if (ErrorCode != ERROR_SUCCESS)
 			{
 				if (ClearLastError)
@@ -9240,6 +9256,14 @@ namespace Mavi
 			{
 				if (ClearLastError)
 					WSASetLastError(ERROR_SUCCESS);
+			}
+
+			ErrorCode = errno;
+			if (ErrorCode != 0)
+			{
+				if (ClearLastError)
+					errno = 0;
+				return ErrorCode;
 			}
 
 			return ErrorCode;

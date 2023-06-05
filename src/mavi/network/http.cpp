@@ -275,6 +275,10 @@ namespace Mavi
 			}
 			void WebSocketFrame::Next()
 			{
+				Core::Schedule::Get()->SetTask(std::bind(&WebSocketFrame::Update, this), Core::Difficulty::Light);
+			}
+			void WebSocketFrame::Update()
+			{
 				Section.lock();
 			Retry:
 				if (State == (uint32_t)WebSocketState::Receive)
@@ -292,10 +296,8 @@ namespace Mavi
 							return true;
 
 						State = (uint32_t)(IsDone ? WebSocketState::Process : WebSocketState::Close);
-						return Core::Schedule::Get()->SetTask([this]()
-						{
-							Next();
-						}, Core::Difficulty::Light) != Core::INVALID_TASK_ID;
+						Next();
+						return true;
 					});
 				}
 				else if (State == (uint32_t)WebSocketState::Process)

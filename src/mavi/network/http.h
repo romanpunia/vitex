@@ -293,6 +293,7 @@ namespace Mavi
 				Connection* GetConnection();
 
 			private:
+				void Update();
 				void Finalize();
 				void Dequeue();
 				void Writeable(bool IsBusy = false, bool Lockup = true);

@@ -26,6 +26,7 @@
 #define EXCEPTION_COPYFAIL "type_error", "cannot copy this type of object"
 #define EXCEPTION_ACCESSINVALID "type_error", "accessing non-existing value"
 #define EXCEPTION_PROMISEREADY "async_error", "trying to settle the promise that is already fullfilled"
+#define EXCEPTION_MUTEXNOTOWNED "sync_error", "trying to unlock the mutex that is not owned by this thread"
 #define TYPENAME_ARRAY "array"
 #define TYPENAME_STRING "string"
 #define TYPENAME_DICTIONARY "dictionary"
@@ -4305,20 +4306,41 @@ namespace Mavi
 			}
 			bool Mutex::TryLock()
 			{
-				return Base.try_lock();
+				if (!Base.try_lock())
+					return false;
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (Context != nullptr)
+					Context->SetUserData((void*)(uintptr_t)((size_t)(uintptr_t)Context->GetUserData(MutexUD) + (size_t)1), MutexUD);
+
+				return true;
 			}
 			void Mutex::Lock()
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
 				while (VM != nullptr && VM->TriggerDebugger(50))
 				{
-					if (Base.try_lock())
+					if (TryLock())
 						return;
 				}
+
 				Base.lock();
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (Context != nullptr)
+					Context->SetUserData((void*)(uintptr_t)((size_t)(uintptr_t)Context->GetUserData(MutexUD) + (size_t)1), MutexUD);
 			}
 			void Mutex::Unlock()
 			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (Context != nullptr)
+				{
+					size_t Size = (size_t)(uintptr_t)Context->GetUserData(MutexUD);
+					if (!Size)
+						Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_MUTEXNOTOWNED));
+					else
+						Context->SetUserData((void*)(uintptr_t)(Size - 1), MutexUD);
+				}
+
 				Base.unlock();
 			}
 			Mutex* Mutex::Factory()
@@ -4332,6 +4354,12 @@ namespace Mavi
 
 				return new(Data) Mutex();
 			}
+			bool Mutex::IsAnyLocked(asIScriptContext* Context)
+			{
+				VI_ASSERT(Context != nullptr, "context should be set");
+				return (size_t)(uintptr_t)Context->GetUserData(MutexUD) != (size_t)0;
+			}
+			int Mutex::MutexUD = 538;
 
 			Thread::Thread(asIScriptEngine* Engine, asIScriptFunction* Func) noexcept : Function(Func), VM(VirtualMachine::Get(Engine)), Context(VM ? VM->RequestContext() : nullptr), Flag(false), Status(ThreadState::Execute), RefCount(1)
 			{

@@ -613,6 +613,7 @@ namespace Mavi
 		public:
 			struct VI_OUT Frame
 			{
+				Core::String Code;
 				Core::String Function;
 				Core::String File;
 				uint32_t Line;
@@ -701,7 +702,6 @@ namespace Mavi
 			static void Enqueue(Details&& Data);
 			static void Dispatch(Details& Data);
 			static void Colorify(Console* Base, Details& Data);
-			static void ColorifyTokens(Console* Base, const char* Buffer, StdColor BaseColor);
 		};
 
 		template <typename V>
@@ -2288,6 +2288,19 @@ namespace Mavi
 
 		class VI_OUT_TS Console final : public Reference<Console>
 		{
+		public:
+			struct ColorToken
+			{
+				StdColor Color;
+				const char* Token;
+				char First;
+				size_t Size;
+
+				ColorToken(StdColor BaseColor, const char* Name) : Color(BaseColor), Token(Name), First(Name ? *Name : '\0'), Size(Name ? strlen(Name) : 0)
+				{
+				}
+			};
+
 		private:
 			enum class Mode
 			{
@@ -2312,6 +2325,8 @@ namespace Mavi
 
 		protected:
 			std::recursive_mutex Session;
+			Vector<ColorToken> BaseTokens;
+			Vector<ColorToken> Tokens;
 			Mode Status;
 			bool Colors;
 
@@ -2335,8 +2350,11 @@ namespace Mavi
 			void CaptureTime();
 			void SetColoring(bool Enabled);
 			void SetCursor(uint32_t X, uint32_t Y);
+			void SetColorTokens(Vector<ColorToken>&& AdditionalTokens);
 			void ColorBegin(StdColor Text, StdColor Background = StdColor::Black);
 			void ColorEnd();
+			void ColorPrint(StdColor BaseColor, const Core::String& Buffer);
+			void ColorPrintBuffer(StdColor BaseColor, const char* Buffer, size_t Size);
 			void WriteBuffer(const char* Buffer);
 			void WriteLine(const Core::String& Line);
 			void WriteChar(char Value);

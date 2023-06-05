@@ -24,6 +24,7 @@
 #define EXCEPTION_TOOLARGESIZE "allocation_error", "too much memory has been requested"
 #define EXCEPTION_TEMPLATEMISMATCH "template_error", "template type does not match the type that was passed to an object"
 #define EXCEPTION_COPYFAIL "type_error", "cannot copy this type of object"
+#define EXCEPTION_NULLPOINTER "type_error", "trying to access a null pointer instance"
 #define EXCEPTION_ACCESSINVALID "type_error", "accessing non-existing value"
 #define EXCEPTION_PROMISEREADY "async_error", "trying to settle the promise that is already fullfilled"
 #define EXCEPTION_MUTEXNOTOWNED "sync_error", "trying to unlock the mutex that is not owned by this thread"
@@ -210,383 +211,80 @@ namespace Mavi
 				return *reinterpret_cast<void**>(From);
 			}
 
-			void String::Construct(Core::String* Current)
+			void String::Create(Core::String* Base)
 			{
-				VI_ASSERT(Current != nullptr, "Current should be set");
-				new(Current) Core::String();
+				VI_ASSERT(Base != nullptr, "base should be set");
+				new(Base) Core::String();
 			}
-			void String::CopyConstruct(const Core::String& Other, Core::String* Current)
+			void String::CreateCopy(Core::String* Base, const Core::String& Other)
 			{
-				VI_ASSERT(Current != nullptr, "Current should be set");
-				new(Current) Core::String(Other);
+				VI_ASSERT(Base != nullptr, "base should be set");
+				new(Base) Core::String(Other);
 			}
-			void String::Destruct(Core::String* Current)
+			void String::Destroy(Core::String* Base)
 			{
-				VI_ASSERT(Current != nullptr, "Current should be set");
-				Current->~basic_string();
+				VI_ASSERT(Base != nullptr, "base should be set");
+				Base->~basic_string();
 			}
-			Core::String& String::AddAssignTo(const Core::String& Current, Core::String& Dest)
+			void String::PopBack(Core::String& Base)
 			{
-				Dest += Current;
-				return Dest;
-			}
-			bool String::IsEmpty(const Core::String& Current)
-			{
-				return Current.empty();
-			}
-			void* String::ToPtr(const Core::String& Value)
-			{
-				return (void*)Value.c_str();
-			}
-			Core::String String::Reverse(const Core::String& Value)
-			{
-				Core::String Copy = Value;
-				Core::Stringify::Reverse(Copy);
-				return Copy;
-			}
-			Core::String& String::AssignUInt64To(as_uint64_t Value, Core::String& Dest)
-			{
-				Dest = Core::ToString(Value);
-				return Dest;
-			}
-			Core::String& String::AddAssignUInt64To(as_uint64_t Value, Core::String& Dest)
-			{
-				Dest += Core::ToString(Value);
-				return Dest;
-			}
-			Core::String String::AddUInt641(const Core::String& Current, as_uint64_t Value)
-			{
-				std::ostringstream Stream;
-				Stream << Value;
-				Stream << Current;
-				return Core::Copy<Core::String>(Stream.str());
-			}
-			Core::String String::AddInt641(as_int64_t Value, const Core::String& Current)
-			{
-				std::ostringstream Stream;
-				Stream << Current;
-				Stream << Value;
-				return Core::Copy<Core::String>(Stream.str());
-			}
-			Core::String& String::AssignInt64To(as_int64_t Value, Core::String& Dest)
-			{
-				Dest = Core::ToString(Value);
-				return Dest;
-			}
-			Core::String& String::AddAssignInt64To(as_int64_t Value, Core::String& Dest)
-			{
-				Dest += Core::ToString(Value);
-				return Dest;
-			}
-			Core::String String::AddInt642(const Core::String& Current, as_int64_t Value)
-			{
-				return Current + Core::ToString(Value);
-			}
-			Core::String String::AddUInt642(as_uint64_t Value, const Core::String& Current)
-			{
-				return Core::ToString(Value) + Current;
-			}
-			Core::String& String::AssignDoubleTo(double Value, Core::String& Dest)
-			{
-				Dest = Core::ToString(Value);
-				return Dest;
-			}
-			Core::String& String::AddAssignDoubleTo(double Value, Core::String& Dest)
-			{
-				Dest += Core::ToString(Value);
-				return Dest;
-			}
-			Core::String& String::AssignFloatTo(float Value, Core::String& Dest)
-			{
-				Dest = Core::ToString(Value);
-				return Dest;
-			}
-			Core::String& String::AddAssignFloatTo(float Value, Core::String& Dest)
-			{
-				Dest += Core::ToString(Value);
-				return Dest;
-			}
-			Core::String& String::AssignBoolTo(bool Value, Core::String& Dest)
-			{
-				Dest = (Value ? "true" : "false");
-				return Dest;
-			}
-			Core::String& String::AddAssignBoolTo(bool Value, Core::String& Dest)
-			{
-				Dest += (Value ? "true" : "false");
-				return Dest;
-			}
-			Core::String String::AddDouble1(const Core::String& Current, double Value)
-			{
-				return Current + Core::ToString(Value);
-			}
-			Core::String String::AddDouble2(double Value, const Core::String& Current)
-			{
-				return Core::ToString(Value) + Current;
-			}
-			Core::String String::AddFloat1(const Core::String& Current, float Value)
-			{
-				return Current + Core::ToString(Value);
-			}
-			Core::String String::AddFloat2(float Value, const Core::String& Current)
-			{
-				return Core::ToString(Value) + Current;
-			}
-			Core::String String::AddBool1(const Core::String& Current, bool Value)
-			{
-				return Current + (Value ? "true" : "false");
-			}
-			Core::String String::AddBool2(bool Value, const Core::String& Current)
-			{
-				return (Value ? "true" : "false") + Current;
-			}
-			char* String::CharAt(size_t Value, Core::String& Current)
-			{
-				if (Value >= Current.size())
-				{
+				if (Base.empty())
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
-					return 0;
-				}
-
-				return &Current[Value];
-			}
-			int String::Cmp(const Core::String& A, const Core::String& B)
-			{
-				int Result = 0;
-				if (A < B)
-					Result = -1;
-				else if (A > B)
-					Result = 1;
-
-				return Result;
-			}
-			int String::FindFirst(const Core::String& Needle, size_t Start, const Core::String& Current)
-			{
-				return (int)Current.find(Needle, (size_t)Start);
-			}
-			int String::FindFirstOf(const Core::String& Needle, size_t Start, const Core::String& Current)
-			{
-				return (int)Current.find_first_of(Needle, (size_t)Start);
-			}
-			int String::FindLastOf(const Core::String& Needle, size_t Start, const Core::String& Current)
-			{
-				return (int)Current.find_last_of(Needle, (size_t)Start);
-			}
-			int String::FindFirstNotOf(const Core::String& Needle, size_t Start, const Core::String& Current)
-			{
-				return (int)Current.find_first_not_of(Needle, (size_t)Start);
-			}
-			int String::FindLastNotOf(const Core::String& Needle, size_t Start, const Core::String& Current)
-			{
-				return (int)Current.find_last_not_of(Needle, (size_t)Start);
-			}
-			int String::FindLast(const Core::String& Needle, int Start, const Core::String& Current)
-			{
-				return (int)Current.rfind(Needle, (size_t)Start);
-			}
-			void String::Insert(size_t Offset, const Core::String& Other, Core::String& Current)
-			{
-				Current.insert(Offset, Other);
-			}
-			void String::Erase(size_t Offset, int Count, Core::String& Current)
-			{
-				Current.erase(Offset, (size_t)(Count < 0 ? Core::String::npos : Count));
-			}
-			size_t String::Length(const Core::String& Current)
-			{
-				return (size_t)Current.length();
-			}
-			void String::Resize(size_t Size, Core::String& Current)
-			{
-				Current.resize(Size);
-			}
-			Core::String String::Replace(const Core::String& A, const Core::String& B, uint64_t Offset, const Core::String& Base)
-			{
-				Core::String Copy = Base;
-				Core::Stringify::Replace(Copy, A, B, (size_t)Offset);
-				return Copy;
-			}
-			as_int64_t String::IntStore(const Core::String& Value, size_t Base)
-			{
-				if (Base != 10 && Base != 16)
-					return 0;
-
-				const char* End = &Value[0];
-				bool Sign = false;
-				if (*End == '-')
-				{
-					Sign = true;
-					End++;
-				}
-				else if (*End == '+')
-					End++;
-
-				as_int64_t Result = 0;
-				if (Base == 10)
-				{
-					while (*End >= '0' && *End <= '9')
-					{
-						Result *= 10;
-						Result += *End++ - '0';
-					}
-				}
 				else
-				{
-					while ((*End >= '0' && *End <= '9') || (*End >= 'a' && *End <= 'f') || (*End >= 'A' && *End <= 'F'))
-					{
-						Result *= 16;
-						if (*End >= '0' && *End <= '9')
-							Result += *End++ - '0';
-						else if (*End >= 'a' && *End <= 'f')
-							Result += *End++ - 'a' + 10;
-						else if (*End >= 'A' && *End <= 'F')
-							Result += *End++ - 'A' + 10;
-					}
-				}
-
-				if (Sign)
-					Result = -Result;
-
-				return Result;
+					Base.pop_back();
 			}
-			as_uint64_t String::UIntStore(const Core::String& Value, size_t Base)
+			Core::String String::Substring1(Core::String& Base, size_t Offset)
 			{
-				if (Base != 10 && Base != 16)
-					return 0;
-
-				const char* End = &Value[0];
-				as_uint64_t Result = 0;
-
-				if (Base == 10)
-				{
-					while (*End >= '0' && *End <= '9')
-					{
-						Result *= 10;
-						Result += *End++ - '0';
-					}
-				}
-				else
-				{
-					while ((*End >= '0' && *End <= '9') || (*End >= 'a' && *End <= 'f') || (*End >= 'A' && *End <= 'F'))
-					{
-						Result *= 16;
-						if (*End >= '0' && *End <= '9')
-							Result += *End++ - '0';
-						else if (*End >= 'a' && *End <= 'f')
-							Result += *End++ - 'a' + 10;
-						else if (*End >= 'A' && *End <= 'F')
-							Result += *End++ - 'A' + 10;
-					}
-				}
-
-				return Result;
+				return Base.substr(Offset);
 			}
-			float String::FloatStore(const Core::String& Value)
+			Core::String String::Substring2(Core::String& Base, size_t Offset, size_t Size)
 			{
-				auto Numeric = Core::FromString<float>(Value);
-				return Numeric ? *Numeric : 0.0f;
+				return Base.substr(Offset, Size);
 			}
-			double String::DoubleStore(const Core::String& Value)
+			Core::String String::FromBuffer(const char* Buffer, size_t MaxSize)
 			{
-				auto Numeric = Core::FromString<double>(Value);
-				return Numeric ? *Numeric : 0.0;
-			}
-			Core::String String::Sub(size_t Start, int Count, const Core::String& Current)
-			{
-				Core::String Result;
-				if (Start < Current.length() && Count != 0)
-					Result = Current.substr(Start, (size_t)(Count < 0 ? Core::String::npos : Count));
-
-				return Result;
-			}
-			bool String::Equals(const Core::String& Left, const Core::String& Right)
-			{
-				return Left == Right;
-			}
-			Core::String String::ToLower(const Core::String& Symbol)
-			{
-				Core::String Copy = Symbol;
-				Core::Stringify::ToLower(Copy);
-				return Copy;
-			}
-			Core::String String::ToUpper(const Core::String& Symbol)
-			{
-				Core::String Copy = Symbol;
-				Core::Stringify::ToUpper(Copy);
-				return Copy;
-			}
-			Core::String String::ToInt8(char Value)
-			{
-				return Core::ToString(Value);
-			}
-			Core::String String::ToInt16(short Value)
-			{
-				return Core::ToString(Value);
-			}
-			Core::String String::ToInt(int Value)
-			{
-				return Core::ToString(Value);
-			}
-			Core::String String::ToInt64(int64_t Value)
-			{
-				return Core::ToString(Value);
-			}
-			Core::String String::ToUInt8(unsigned char Value)
-			{
-				return Core::ToString(Value);
-			}
-			Core::String String::ToUInt16(unsigned short Value)
-			{
-				return Core::ToString(Value);
-			}
-			Core::String String::ToUInt(unsigned int Value)
-			{
-				return Core::ToString(Value);
-			}
-			Core::String String::ToUInt64(uint64_t Value)
-			{
-				return Core::ToString(Value);
-			}
-			Core::String String::ToFloat(float Value)
-			{
-				return Core::ToString(Value);
-			}
-			Core::String String::ToDouble(double Value)
-			{
-				return Core::ToString(Value);
-			}
-			Core::String String::ToPointer(void* Value)
-			{
-				char* Buffer = (char*)Value;
 				if (!Buffer)
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_NULLPOINTER));
 					return Core::String();
+				}
 
-				size_t Size = strlen(Buffer);
-				return Size > 1024 * 1024 * 1024 ? Core::String() : Core::String(Buffer, Size);
+				size_t Size = strnlen(Buffer, MaxSize);
+				return Core::String(Buffer, Size);
 			}
-			char& String::Front(Core::String& Base)
+			char* String::Index(Core::String& Base, size_t Offset)
+			{
+				if (Offset >= Base.size())
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
+					return nullptr;
+				}
+
+				return &Base[Offset];
+			}
+			char* String::Front(Core::String& Base)
 			{
 				if (Base.empty())
 				{
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
-					Base.append(1, '\0');
-					return Base.front();
+					return nullptr;
 				}
 
-				return Base.front();
+				char& Target = Base.front();
+				return &Target;
 			}
-			char& String::Back(Core::String& Base)
+			char* String::Back(Core::String& Base)
 			{
 				if (Base.empty())
 				{
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
-					Base.append(1, '\0');
-					return Base.back();
+					return nullptr;
 				}
 
-				return Base.back();
+				char& Target = Base.back();
+				return &Target;
 			}
-			Array* String::Split(const Core::String& Splitter, const Core::String& Current)
+			Array* String::Split(Core::String& Base, const Core::String& Delimiter)
 			{
 				asIScriptContext* Context = asGetActiveContext();
 				asIScriptEngine* Engine = Context->GetEngine();
@@ -594,37 +292,17 @@ namespace Mavi
 				Array* Array = Array::Create(ArrayType);
 
 				int Offset = 0, Prev = 0, Count = 0;
-				while ((Offset = (int)Current.find(Splitter, Prev)) != (int)Core::String::npos)
+				while ((Offset = (int)Base.find(Delimiter, Prev)) != (int)Core::String::npos)
 				{
 					Array->Resize(Array->GetSize() + 1);
-					((Core::String*)Array->At(Count))->assign(&Current[Prev], Offset - Prev);
-					Prev = Offset + (int)Splitter.length();
+					((Core::String*)Array->At(Count))->assign(&Base[Prev], Offset - Prev);
+					Prev = Offset + (int)Delimiter.size();
 					Count++;
 				}
 
 				Array->Resize(Array->GetSize() + 1);
-				((Core::String*)Array->At(Count))->assign(&Current[Prev]);
+				((Core::String*)Array->At(Count))->assign(&Base[Prev]);
 				return Array;
-			}
-			Core::String String::Join(const Array& Array, const Core::String& Splitter)
-			{
-				Core::String Current = "";
-				if (!Array.GetSize())
-					return Current;
-
-				int i;
-				for (i = 0; i < (int)Array.GetSize() - 1; i++)
-				{
-					Current += *(Core::String*)Array.At(i);
-					Current += Splitter;
-				}
-
-				Current += *(Core::String*)Array.At(i);
-				return Current;
-			}
-			char String::ToChar(const Core::String& Symbol)
-			{
-				return Symbol.empty() ? '\0' : Symbol[0];
 			}
 
 			float Math::FpFromIEEE(uint32_t Raw)
@@ -1293,7 +971,7 @@ namespace Mavi
 				if (Start + Count > Buffer->NumElements)
 					Count = Buffer->NumElements - Start;
 
-				Destruct(Buffer, Start, Start + Count);
+				Destroy(Buffer, Start, Start + Count);
 				memmove(Buffer->Data + Start * (size_t)ElementSize, Buffer->Data + (Start + Count) * (size_t)ElementSize, (size_t)(Buffer->NumElements - Start - Count) * (size_t)ElementSize);
 				Buffer->NumElements -= Count;
 			}
@@ -1332,20 +1010,20 @@ namespace Mavi
 					if (Where < Buffer->NumElements)
 						memcpy(NewBuffer->Data + (Where + Delta) * (size_t)ElementSize, Buffer->Data + Where * (size_t)ElementSize, (size_t)(Buffer->NumElements - Where) * (size_t)ElementSize);
 
-					Construct(NewBuffer, Where, Where + Delta);
+					Create(NewBuffer, Where, Where + Delta);
 					asFreeMem(Buffer);
 					Buffer = NewBuffer;
 				}
 				else if (Delta < 0)
 				{
-					Destruct(Buffer, Where, Where - Delta);
+					Destroy(Buffer, Where, Where - Delta);
 					memmove(Buffer->Data + Where * (size_t)ElementSize, Buffer->Data + (Where - Delta) * (size_t)ElementSize, (size_t)(Buffer->NumElements - (Where - Delta)) * (size_t)ElementSize);
 					Buffer->NumElements += Delta;
 				}
 				else
 				{
 					memmove(Buffer->Data + (Where + Delta) * (size_t)ElementSize, Buffer->Data + Where * (size_t)ElementSize, (size_t)(Buffer->NumElements - Where) * (size_t)ElementSize);
-					Construct(Buffer, Where, Where + Delta);
+					Create(Buffer, Where, Where + Delta);
 					Buffer->NumElements += Delta;
 				}
 			}
@@ -1497,14 +1175,14 @@ namespace Mavi
 
 				(*BufferPtr)->NumElements = NumElements;
 				(*BufferPtr)->MaxElements = NumElements;
-				Construct(*BufferPtr, 0, NumElements);
+				Create(*BufferPtr, 0, NumElements);
 			}
 			void Array::DeleteBuffer(SBuffer* BufferPtr)
 			{
-				Destruct(BufferPtr, 0, BufferPtr->NumElements);
+				Destroy(BufferPtr, 0, BufferPtr->NumElements);
 				asFreeMem(BufferPtr);
 			}
-			void Array::Construct(SBuffer* BufferPtr, size_t Start, size_t End)
+			void Array::Create(SBuffer* BufferPtr, size_t Start, size_t End)
 			{
 				if ((SubTypeId & asTYPEID_MASK_OBJECT) && !(SubTypeId & asTYPEID_OBJHANDLE))
 				{
@@ -1530,7 +1208,7 @@ namespace Mavi
 					memset(D, 0, (size_t)(End - Start) * (size_t)ElementSize);
 				}
 			}
-			void Array::Destruct(SBuffer* BufferPtr, size_t Start, size_t End)
+			void Array::Destroy(SBuffer* BufferPtr, size_t Start, size_t End)
 			{
 				if (SubTypeId & asTYPEID_MASK_OBJECT)
 				{
@@ -2987,11 +2665,11 @@ namespace Mavi
 				unsigned char* buffer = (unsigned char*)Generic->GetArgAddress(0);
 				*(Dictionary**)Generic->GetAddressOfReturnLocation() = Dictionary::Create(buffer);
 			}
-			void Dictionary::KeyConstruct(void* Memory)
+			void Dictionary::KeyCreate(void* Memory)
 			{
 				new(Memory) Storable();
 			}
-			void Dictionary::KeyDestruct(Storable* Obj)
+			void Dictionary::KeyDestroy(Storable* Obj)
 			{
 				asIScriptContext* Context = asGetActiveContext();
 				if (Context)
@@ -3208,19 +2886,19 @@ namespace Mavi
 			{
 				Set(0, 0);
 			}
-			void Ref::Construct(Ref* Base)
+			void Ref::Create(Ref* Base)
 			{
 				new(Base) Ref();
 			}
-			void Ref::Construct(Ref* Base, const Ref& Other)
+			void Ref::Create(Ref* Base, const Ref& Other)
 			{
 				new(Base) Ref(Other);
 			}
-			void Ref::Construct(Ref* Base, void* RefPtr, int TypeId)
+			void Ref::Create(Ref* Base, void* RefPtr, int TypeId)
 			{
 				new(Base) Ref(RefPtr, TypeId);
 			}
-			void Ref::Destruct(Ref* Base)
+			void Ref::Destroy(Ref* Base)
 			{
 				Base->~Ref();
 			}
@@ -3356,18 +3034,18 @@ namespace Mavi
 
 				return true;
 			}
-			void Weak::Construct(asITypeInfo* Type, void* Memory)
+			void Weak::Create1(asITypeInfo* Type, void* Memory)
 			{
 				new(Memory) Weak(Type);
 			}
-			void Weak::Construct2(asITypeInfo* Type, void* RefPtr, void* Memory)
+			void Weak::Create2(asITypeInfo* Type, void* RefPtr, void* Memory)
 			{
 				new(Memory) Weak(RefPtr, Type);
 				asIScriptContext* Context = asGetActiveContext();
 				if (Context && Context->GetState() == asEXECUTION_EXCEPTION)
 					reinterpret_cast<Weak*>(Memory)->~Weak();
 			}
-			void Weak::Destruct(Weak* Obj)
+			void Weak::Destroy(Weak* Obj)
 			{
 				Obj->~Weak();
 			}
@@ -9507,8 +9185,8 @@ namespace Mavi
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
 				Engine->RegisterObjectType("storable", sizeof(Storable), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_GC | asGetTypeTraits<Storable>());
-				Engine->RegisterObjectBehaviour("storable", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(Dictionary::KeyConstruct), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("storable", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(Dictionary::KeyDestruct), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("storable", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(Dictionary::KeyCreate), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("storable", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(Dictionary::KeyDestroy), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectBehaviour("storable", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Storable, EnumReferences), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("storable", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Storable, FreeValue), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("storable", "storable &opAssign(const storable &in)", asFUNCTIONPR(Dictionary::KeyopAssign, (const Storable&, Storable*), Storable&), asCALL_CDECL_OBJLAST);
@@ -9555,10 +9233,10 @@ namespace Mavi
 					return false;
 
 				Engine->RegisterObjectType("ref", sizeof(Ref), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_GC | asGetTypeTraits<Ref>());
-				Engine->RegisterObjectBehaviour("ref", asBEHAVE_CONSTRUCT, "void f()", asFUNCTIONPR(Ref::Construct, (Ref*), void), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectBehaviour("ref", asBEHAVE_CONSTRUCT, "void f(const ref &in)", asFUNCTIONPR(Ref::Construct, (Ref*, const Ref&), void), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectBehaviour("ref", asBEHAVE_CONSTRUCT, "void f(const ?&in)", asFUNCTIONPR(Ref::Construct, (Ref*, void*, int), void), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectBehaviour("ref", asBEHAVE_DESTRUCT, "void f()", asFUNCTIONPR(Ref::Destruct, (Ref*), void), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectBehaviour("ref", asBEHAVE_CONSTRUCT, "void f()", asFUNCTIONPR(Ref::Create, (Ref*), void), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectBehaviour("ref", asBEHAVE_CONSTRUCT, "void f(const ref &in)", asFUNCTIONPR(Ref::Create, (Ref*, const Ref&), void), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectBehaviour("ref", asBEHAVE_CONSTRUCT, "void f(const ?&in)", asFUNCTIONPR(Ref::Create, (Ref*, void*, int), void), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectBehaviour("ref", asBEHAVE_DESTRUCT, "void f()", asFUNCTIONPR(Ref::Destroy, (Ref*), void), asCALL_CDECL_OBJFIRST);
 				Engine->RegisterObjectBehaviour("ref", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Ref, EnumReferences), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("ref", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Ref, ReleaseReferences), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("ref", "void opCast(?&out)", asMETHODPR(Ref, Cast, (void**, int), void), asCALL_THISCALL);
@@ -9575,9 +9253,9 @@ namespace Mavi
 					return false;
 
 				Engine->RegisterObjectType("weak<class T>", sizeof(Weak), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_TEMPLATE | asOBJ_APP_CLASS_DAK);
-				Engine->RegisterObjectBehaviour("weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in)", asFUNCTION(Weak::Construct), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in, T@+)", asFUNCTION(Weak::Construct2), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("weak<T>", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(Weak::Destruct), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in)", asFUNCTION(Weak::Create1), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in, T@+)", asFUNCTION(Weak::Create2), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("weak<T>", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(Weak::Destroy), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectBehaviour("weak<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Weak::TemplateCallback), asCALL_CDECL);
 				Engine->RegisterObjectMethod("weak<T>", "T@ opImplCast()", asMETHOD(Weak, Get), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("weak<T>", "T@ get() const", asMETHODPR(Weak, Get, () const, void*), asCALL_THISCALL);
@@ -9587,9 +9265,9 @@ namespace Mavi
 				Engine->RegisterObjectMethod("weak<T>", "weak<T> &opHndlAssign(T@)", asMETHOD(Weak, Set), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("weak<T>", "bool opEquals(const T@+) const", asMETHOD(Weak, Equals), asCALL_THISCALL);
 				Engine->RegisterObjectType("const_weak<class T>", sizeof(Weak), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_TEMPLATE | asOBJ_APP_CLASS_DAK);
-				Engine->RegisterObjectBehaviour("const_weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in)", asFUNCTION(Weak::Construct), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("const_weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in, const T@+)", asFUNCTION(Weak::Construct2), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("const_weak<T>", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(Weak::Destruct), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("const_weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in)", asFUNCTION(Weak::Create1), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("const_weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in, const T@+)", asFUNCTION(Weak::Create2), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectBehaviour("const_weak<T>", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(Weak::Destroy), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectBehaviour("const_weak<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Weak::TemplateCallback), asCALL_CDECL);
 				Engine->RegisterObjectMethod("const_weak<T>", "const T@ opImplCast() const", asMETHOD(Weak, Get), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("const_weak<T>", "const T@ get() const", asMETHODPR(Weak, Get, () const, void*), asCALL_THISCALL);
@@ -9660,73 +9338,90 @@ namespace Mavi
 
 				Engine->RegisterObjectType("string", sizeof(Core::String), asOBJ_VALUE | asGetTypeTraits<Core::String>());
 				Engine->RegisterStringFactory("string", StringFactory::Get());
-				Engine->RegisterObjectBehaviour("string", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(String::Construct), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("string", asBEHAVE_CONSTRUCT, "void f(const string &in)", asFUNCTION(String::CopyConstruct), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("string", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(String::Destruct), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string &opAssign(const string &in)", asMETHODPR(Core::String, operator =, (const Core::String&), Core::String&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "string &opAddAssign(const string &in)", asFUNCTION(String::AddAssignTo), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "bool opEquals(const string &in) const", asFUNCTIONPR(String::Equals, (const Core::String&, const Core::String&), bool), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "int opCmp(const string &in) const", asFUNCTION(String::Cmp), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectBehaviour("string", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(String::Create), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectBehaviour("string", asBEHAVE_CONSTRUCT, "void f(const string &in)", asFUNCTION(String::CreateCopy), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectBehaviour("string", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(String::Destroy), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "string& opAssign(const string &in)", asMETHODPR(Core::String, operator =, (const Core::String&), Core::String&), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "string& opAddAssign(const string &in)", asMETHODPR(Core::String, operator +=, (const Core::String&), Core::String&), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("string", "string opAdd(const string &in) const", asFUNCTIONPR(std::operator +, (const Core::String&, const Core::String&), Core::String), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "usize size() const", asFUNCTION(String::Length), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "void resize(usize)", asFUNCTION(String::Resize), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "bool empty() const", asFUNCTION(String::IsEmpty), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "uint8 &front()", asFUNCTION(String::Front), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "uint8 &back()", asFUNCTION(String::Back), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "uint8 &opIndex(usize)", asFUNCTION(String::CharAt), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "const uint8 &opIndex(usize) const", asFUNCTION(String::CharAt), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string &opAssign(double)", asFUNCTION(String::AssignDoubleTo), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string &opAddAssign(double)", asFUNCTION(String::AddAssignDoubleTo), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string opAdd(double) const", asFUNCTION(String::AddDouble1), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string opAdd_r(double) const", asFUNCTION(String::AddDouble2), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string &opAssign(float)", asFUNCTION(String::AssignFloatTo), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string &opAddAssign(float)", asFUNCTION(String::AddAssignFloatTo), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string opAdd(float) const", asFUNCTION(String::AddFloat1), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string opAdd_r(float) const", asFUNCTION(String::AddFloat2), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string &opAssign(int64)", asFUNCTION(String::AssignInt64To), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string &opAddAssign(int64)", asFUNCTION(String::AddAssignInt64To), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string opAdd(int64) const", asFUNCTION(String::AddInt641), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string opAdd_r(int64) const", asFUNCTION(String::AddInt642), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string &opAssign(uint64)", asFUNCTION(String::AssignUInt64To), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string &opAddAssign(uint64)", asFUNCTION(String::AddAssignUInt64To), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string opAdd(uint64) const", asFUNCTION(String::AddUInt641), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string opAdd_r(uint64) const", asFUNCTION(String::AddUInt642), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string &opAssign(bool)", asFUNCTION(String::AssignBoolTo), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string &opAddAssign(bool)", asFUNCTION(String::AddAssignBoolTo), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string opAdd(bool) const", asFUNCTION(String::AddBool1), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string opAdd_r(bool) const", asFUNCTION(String::AddBool2), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string needle(usize = 0, int = -1) const", asFUNCTION(String::Sub), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "int find_first(const string &in, usize = 0) const", asFUNCTION(String::FindFirst), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "int find_first_of(const string &in, usize = 0) const", asFUNCTION(String::FindFirstOf), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "int find_first_not_of(const string &in, usize = 0) const", asFUNCTION(String::FindFirstNotOf), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "int find_last(const string &in, int = -1) const", asFUNCTION(String::FindLast), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "int find_last_of(const string &in, int = -1) const", asFUNCTION(String::FindLastOf), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "int find_last_not_of(const string &in, int = -1) const", asFUNCTION(String::FindLastNotOf), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "void insert(usize, const string &in)", asFUNCTION(String::Insert), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "void erase(usize, int Count = -1)", asFUNCTION(String::Erase), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string replace(const string &in, const string &in, usize = 0)", asFUNCTION(String::Replace), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "array<string>@ split(const string &in) const", asFUNCTION(String::Split), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string to_lower() const", asFUNCTION(String::ToLower), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string to_upper() const", asFUNCTION(String::ToUpper), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string reverse() const", asFUNCTION(String::Reverse), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "uptr@ get_ptr() const", asFUNCTION(String::ToPtr), asCALL_CDECL_OBJLAST);
-				Engine->RegisterGlobalFunction("int64 to_int(const string &in, usize = 10)", asFUNCTION(String::IntStore), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("uint64 to_uint(const string &in, usize = 10)", asFUNCTION(String::UIntStore), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float to_float(const string &in)", asFUNCTION(String::FloatStore), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double to_double(const string &in)", asFUNCTION(String::DoubleStore), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("uint8 to_char(const string &in)", asFUNCTION(String::ToChar), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(const array<string> &in, const string &in)", asFUNCTION(String::Join), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(int8)", asFUNCTION(String::ToInt8), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(int16)", asFUNCTION(String::ToInt16), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(int32)", asFUNCTION(String::ToInt), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(int64)", asFUNCTION(String::ToInt64), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(uint8)", asFUNCTION(String::ToUInt8), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(uint16)", asFUNCTION(String::ToUInt16), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(uint32)", asFUNCTION(String::ToUInt), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(uint64)", asFUNCTION(String::ToUInt64), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(float)", asFUNCTION(String::ToFloat), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(double)", asFUNCTION(String::ToDouble), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(uptr@)", asFUNCTION(String::ToPointer), asCALL_CDECL);
+				Engine->RegisterObjectMethod("string", "string& opAddAssign(uint8)", asMETHODPR(Core::String, operator +=, (char), Core::String&), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "string opAdd(uint8) const", asFUNCTIONPR(std::operator +, (const Core::String&, char), Core::String), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "string opAdd_r(uint8) const", asFUNCTIONPR(std::operator +, (char, const Core::String&), Core::String), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("string", "bool opEquals(const string &in) const", asFUNCTIONPR(std::operator ==, (const Core::String&, const Core::String&), bool), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "int opCmp(const string &in) const", asMETHODPR(Core::String, compare, (const Core::String&) const, int), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "uint8& opIndex(usize)", asFUNCTION(String::Index), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "const uint8& opIndex(usize) const", asFUNCTION(String::Index), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "uint8& at(usize)", asFUNCTION(String::Index), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "const uint8& at(usize) const", asFUNCTION(String::Index), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "uint8& front()", asFUNCTION(String::Front), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "const uint8& front() const", asFUNCTION(String::Front), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "uint8& back()", asFUNCTION(String::Back), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "const uint8& back() const", asFUNCTION(String::Back), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "uptr@ data() const", asMETHOD(Core::String, c_str), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "uptr@ c_str() const", asMETHOD(Core::String, c_str), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "bool empty() const", asMETHOD(Core::String, empty), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "usize size() const", asMETHOD(Core::String, size), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "usize max_size() const", asMETHOD(Core::String, max_size), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "usize capacity() const", asMETHOD(Core::String, capacity), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "void reserve(usize)", asMETHODPR(Core::String, reserve, (size_t), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "void resize(usize, uint8 = 0)", asMETHODPR(Core::String, resize, (size_t, char), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "void shrink_to_fit()", asMETHOD(Core::String, shrink_to_fit), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "void clear()", asMETHOD(Core::String, clear), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "string& insert(usize, usize, uint8)", asMETHODPR(Core::String, insert, (size_t, size_t, char), Core::String&), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "string& insert(usize, const string&in)", asMETHODPR(Core::String, insert, (size_t, const Core::String&), Core::String&), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "string& erase(usize, usize)", asMETHODPR(Core::String, erase, (size_t, size_t), Core::String&), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "string& append(usize, uint8)", asMETHODPR(Core::String, append, (size_t, char), Core::String&), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "string& append(const string&in)", asMETHODPR(Core::String, append, (const Core::String&), Core::String&), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "void push(uint8)", asMETHOD(Core::String, push_back), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "void pop()", asFUNCTION(String::PopBack), asCALL_CDECL_OBJFIRST); 
+				Engine->RegisterObjectMethod("string", "bool starts_with(const string&in, usize = 0) const", asFUNCTIONPR(Core::Stringify::StartsWith, (const Core::String&, const Core::String&, size_t), bool), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "bool ends_with(const string&in) const", asFUNCTIONPR(Core::Stringify::EndsWith, (const Core::String&, const Core::String&), bool), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "string& replace(usize, usize, const string&in)", asFUNCTIONPR(Core::Stringify::ReplacePart, (Core::String&, size_t, size_t, const Core::String&), Core::String&), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "string& replace_all(const string&in, const string&in, usize)", asFUNCTIONPR(Core::Stringify::Replace, (Core::String&, const Core::String&, const Core::String&, size_t), Core::String&), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "string substring(usize) const", asFUNCTION(String::Substring1), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "string substring(usize, usize) const", asFUNCTION(String::Substring2), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "string substr(usize) const", asFUNCTION(String::Substring1), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "string substr(usize, usize) const", asFUNCTION(String::Substring2), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "string& trim()", asFUNCTIONPR(Core::Stringify::Trim, (Core::String&), Core::String&), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "string& trim_start()", asFUNCTIONPR(Core::Stringify::TrimStart, (Core::String&), Core::String&), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "string& trim_end()", asFUNCTIONPR(Core::Stringify::TrimEnd, (Core::String&), Core::String&), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "string& to_lower()", asFUNCTIONPR(Core::Stringify::ToLower, (Core::String&), Core::String&), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "string& to_upper()", asFUNCTIONPR(Core::Stringify::ToUpper, (Core::String&), Core::String&), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "string& reverse()", asFUNCTIONPR(Core::Stringify::Reverse, (Core::String&), Core::String&), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "usize rfind(const string&in, usize = 0) const", asMETHODPR(Core::String, rfind, (const Core::String&, size_t) const, size_t), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "usize rfind(uint8, usize = 0) const", asMETHODPR(Core::String, rfind, (char, size_t) const, size_t), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "usize find(const string&in, usize = 0) const", asMETHODPR(Core::String, find, (const Core::String&, size_t) const, size_t), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "usize find(uint8, usize = 0) const", asMETHODPR(Core::String, find, (char, size_t) const, size_t), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "usize find_first_of(const string&in, usize = 0) const", asMETHODPR(Core::String, find_first_of, (const Core::String&, size_t) const, size_t), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "usize find_first_not_of(const string&in, usize = 0) const", asMETHODPR(Core::String, find_first_not_of, (const Core::String&, size_t) const, size_t), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "usize find_last_of(const string&in, usize = 0) const", asMETHODPR(Core::String, find_last_of, (const Core::String&, size_t) const, size_t), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "usize find_last_not_of(const string&in, usize = 0) const", asMETHODPR(Core::String, find_last_not_of, (const Core::String&, size_t) const, size_t), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("string", "array<string>@ split(const string &in) const", asFUNCTION(String::Split), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterGlobalFunction("int8 to_int8(const string&in)", asFUNCTION(String::FromString<int8_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("int16 to_int16(const string&in)", asFUNCTION(String::FromString<int16_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("int32 to_int32(const string&in)", asFUNCTION(String::FromString<int32_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("int64 to_int64(const string&in)", asFUNCTION(String::FromString<int64_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("uint8 to_uint8(const string&in)", asFUNCTION(String::FromString<uint8_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("uint16 to_uint16(const string&in)", asFUNCTION(String::FromString<uint16_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("uint32 to_uint32(const string&in)", asFUNCTION(String::FromString<uint32_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("uint64 to_uint64(const string&in)", asFUNCTION(String::FromString<uint64_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float to_float(const string&in)", asFUNCTION(String::FromString<float>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("double to_double(const string&in)", asFUNCTION(String::FromString<double>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("string to_string(int8)", asFUNCTION(Core::ToString<int8_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("string to_string(int16)", asFUNCTION(Core::ToString<int16_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("string to_string(int32)", asFUNCTION(Core::ToString<int32_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("string to_string(int64)", asFUNCTION(Core::ToString<int64_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("string to_string(uint8)", asFUNCTION(Core::ToString<uint8_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("string to_string(uint16)", asFUNCTION(Core::ToString<uint16_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("string to_string(uint32)", asFUNCTION(Core::ToString<uint32_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("string to_string(uint64)", asFUNCTION(Core::ToString<uint64_t>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("string to_string(float)", asFUNCTION(Core::ToString<float>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("string to_string(double)", asFUNCTION(Core::ToString<double>), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("string to_string(uptr@, usize)", asFUNCTION(String::FromBuffer), asCALL_CDECL);
+				
+				VM->BeginNamespace("string");
+				Engine->RegisterGlobalProperty("const usize npos", (void*)&Core::String::npos);
+				VM->EndNamespace();
 
 				return true;
 			}

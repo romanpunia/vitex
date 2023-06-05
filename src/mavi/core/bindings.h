@@ -161,70 +161,25 @@ namespace Mavi
 			class VI_OUT String
 			{
 			public:
-				static void Construct(Core::String* thisPointer);
-				static void CopyConstruct(const Core::String& other, Core::String* thisPointer);
-				static void Destruct(Core::String* thisPointer);
-				static Core::String& AddAssignTo(const Core::String& str, Core::String& dest);
-				static bool IsEmpty(const Core::String& str);
-				static void* ToPtr(const Core::String& Value);
-				static Core::String Reverse(const Core::String& Value);
-				static Core::String& AssignUInt64To(as_uint64_t i, Core::String& dest);
-				static Core::String& AddAssignUInt64To(as_uint64_t i, Core::String& dest);
-				static Core::String AddUInt641(const Core::String& str, as_uint64_t i);
-				static Core::String AddInt641(as_int64_t i, const Core::String& str);
-				static Core::String& AssignInt64To(as_int64_t i, Core::String& dest);
-				static Core::String& AddAssignInt64To(as_int64_t i, Core::String& dest);
-				static Core::String AddInt642(const Core::String& str, as_int64_t i);
-				static Core::String AddUInt642(as_uint64_t i, const Core::String& str);
-				static Core::String& AssignDoubleTo(double f, Core::String& dest);
-				static Core::String& AddAssignDoubleTo(double f, Core::String& dest);
-				static Core::String& AssignFloatTo(float f, Core::String& dest);
-				static Core::String& AddAssignFloatTo(float f, Core::String& dest);
-				static Core::String& AssignBoolTo(bool b, Core::String& dest);
-				static Core::String& AddAssignBoolTo(bool b, Core::String& dest);
-				static Core::String AddDouble1(const Core::String& str, double f);
-				static Core::String AddDouble2(double f, const Core::String& str);
-				static Core::String AddFloat1(const Core::String& str, float f);
-				static Core::String AddFloat2(float f, const Core::String& str);
-				static Core::String AddBool1(const Core::String& str, bool b);
-				static Core::String AddBool2(bool b, const Core::String& str);
-				static char* CharAt(size_t i, Core::String& str);
-				static int Cmp(const Core::String& a, const Core::String& b);
-				static int FindFirst(const Core::String& sub, size_t start, const Core::String& str);
-				static int FindFirstOf(const Core::String& sub, size_t start, const Core::String& str);
-				static int FindLastOf(const Core::String& sub, size_t start, const Core::String& str);
-				static int FindFirstNotOf(const Core::String& sub, size_t start, const Core::String& str);
-				static int FindLastNotOf(const Core::String& sub, size_t start, const Core::String& str);
-				static int FindLast(const Core::String& sub, int start, const Core::String& str);
-				static void Insert(size_t pos, const Core::String& other, Core::String& str);
-				static void Erase(size_t pos, int count, Core::String& str);
-				static size_t Length(const Core::String& str);
-				static void Resize(size_t l, Core::String& str);
-				static Core::String Replace(const Core::String& a, const Core::String& b, size_t o, const Core::String& base);
-				static as_int64_t IntStore(const Core::String& val, size_t base);
-				static as_uint64_t UIntStore(const Core::String& val, size_t base);
-				static float FloatStore(const Core::String& val);
-				static double DoubleStore(const Core::String& val);
-				static Core::String Sub(size_t start, int count, const Core::String& str);
-				static bool Equals(const Core::String& lhs, const Core::String& rhs);
-				static Core::String ToLower(const Core::String& Symbol);
-				static Core::String ToUpper(const Core::String& Symbol);
-				static Core::String ToInt8(char Value);
-				static Core::String ToInt16(short Value);
-				static Core::String ToInt(int Value);
-				static Core::String ToInt64(int64_t Value);
-				static Core::String ToUInt8(unsigned char Value);
-				static Core::String ToUInt16(unsigned short Value);
-				static Core::String ToUInt(unsigned int Value);
-				static Core::String ToUInt64(uint64_t Value);
-				static Core::String ToFloat(float Value);
-				static Core::String ToDouble(double Value);
-				static Core::String ToPointer(void* Value);
-				static Array* Split(const Core::String& delim, const Core::String& str);
-				static Core::String Join(const Array& array, const Core::String& delim);
-				static char ToChar(const Core::String& Base);
-				static char& Front(Core::String& Base);
-				static char& Back(Core::String& Base);
+				static void Create(Core::String* Base);
+				static void CreateCopy(Core::String* Base, const Core::String& Other);
+				static void Destroy(Core::String* Base);
+				static void PopBack(Core::String& Base);
+				static Core::String Substring1(Core::String& Base, size_t Offset);
+				static Core::String Substring2(Core::String& Base, size_t Offset, size_t Size);
+				static Core::String FromBuffer(const char* Buffer, size_t MaxSize);
+				static char* Index(Core::String& Base, size_t Offset);
+				static char* Front(Core::String& Base);
+				static char* Back(Core::String& Base);
+				static Array* Split(Core::String& Base, const Core::String& Delimiter);
+
+			public:
+				template <typename T>
+				static T FromString(const Core::String& Base)
+				{
+					auto Value = Core::FromString<T>(Base);
+					return Value ? *Value : (T)0;
+				}
 			};
 
 			class VI_OUT Math
@@ -406,8 +361,8 @@ namespace Mavi
 				void CreateBuffer(SBuffer** Buf, size_t NumElements);
 				void DeleteBuffer(SBuffer* Buf);
 				void CopyBuffer(SBuffer* Dst, SBuffer* Src);
-				void Construct(SBuffer* Buf, size_t Start, size_t End);
-				void Destruct(SBuffer* Buf, size_t Start, size_t End);
+				void Create(SBuffer* Buf, size_t Start, size_t End);
+				void Destroy(SBuffer* Buf, size_t Start, size_t End);
 				bool Equals(const void* A, const void* B, asIScriptContext* Ctx, SCache* Cache) const;
 
 			public:
@@ -634,8 +589,8 @@ namespace Mavi
 				static void Setup(asIScriptEngine* engine);
 				static void Factory(asIScriptGeneric* gen);
 				static void ListFactory(asIScriptGeneric* gen);
-				static void KeyConstruct(void* mem);
-				static void KeyDestruct(Storable* obj);
+				static void KeyCreate(void* mem);
+				static void KeyDestroy(Storable* obj);
 				static Storable& KeyopAssign(void* ref, int typeId, Storable* obj);
 				static Storable& KeyopAssign(const Storable& other, Storable* obj);
 				static Storable& KeyopAssign(double val, Storable* obj);
@@ -721,10 +676,10 @@ namespace Mavi
 				void AddRefHandle();
 
 			public:
-				static void Construct(Ref* self);
-				static void Construct(Ref* self, const Ref& o);
-				static void Construct(Ref* self, void* ref, int typeId);
-				static void Destruct(Ref* self);
+				static void Create(Ref* self);
+				static void Create(Ref* self, const Ref& o);
+				static void Create(Ref* self, void* ref, int typeId);
+				static void Destroy(Ref* self);
 			};
 
 			class VI_OUT Weak
@@ -750,9 +705,9 @@ namespace Mavi
 				asITypeInfo* GetRefType() const;
 
 			public:
-				static void Construct(asITypeInfo* type, void* mem);
-				static void Construct2(asITypeInfo* type, void* ref, void* mem);
-				static void Destruct(Weak* obj);
+				static void Create1(asITypeInfo* type, void* mem);
+				static void Create2(asITypeInfo* type, void* ref, void* mem);
+				static void Destroy(Weak* obj);
 				static bool TemplateCallback(asITypeInfo* TI, bool&);
 			};
 

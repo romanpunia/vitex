@@ -298,7 +298,7 @@ namespace Mavi
 				mutable bool GCFlag;
 				asITypeInfo* ObjType;
 				SBuffer* Buffer;
-				int ElementSize;
+				size_t ElementSize;
 				int SubTypeId;
 
 			public:
@@ -308,6 +308,7 @@ namespace Mavi
 				int GetArrayTypeId() const;
 				int GetElementTypeId() const;
 				size_t GetSize() const;
+				size_t GetCapacity() const;
 				bool IsEmpty() const;
 				void Reserve(size_t MaxElements);
 				void Resize(size_t NumElements);
@@ -326,18 +327,13 @@ namespace Mavi
 				void RemoveAt(size_t Index);
 				void RemoveLast();
 				void RemoveRange(size_t start, size_t Count);
-				void SortAsc();
-				void SortDesc();
-				void SortAsc(size_t StartAt, size_t Count);
-				void SortDesc(size_t StartAt, size_t Count);
-				void Sort(size_t StartAt, size_t Count, bool Asc);
-				void Sort(asIScriptFunction* Less, size_t StartAt, size_t Count);
+				void Swap(size_t Index1, size_t Index2);
 				void Reverse();
 				void Clear();
-				int Find(void* Value) const;
-				int Find(size_t StartAt, void* Value) const;
-				int FindByRef(void* Ref) const;
-				int FindByRef(size_t StartAt, void* Ref) const;
+				size_t Find(void* Value) const;
+				size_t Find(size_t StartAt, void* Value) const;
+				size_t FindByRef(void* Ref) const;
+				size_t FindByRef(size_t StartAt, void* Ref) const;
 				void* GetBuffer();
 				int GetRefCount();
 				void SetFlag();
@@ -352,12 +348,12 @@ namespace Mavi
 				Array(const Array& Other) noexcept;
 				~Array() noexcept;
 				bool Less(const void* A, const void* B, bool Asc, asIScriptContext* Ctx, SCache* Cache);
-				void* GetArrayItemPointer(int Index);
+				void* GetArrayItemPointer(size_t Index);
 				void* GetDataPointer(void* Buffer);
 				void Copy(void* Dst, void* Src);
 				void Precache();
 				bool CheckMaxSize(size_t NumElements);
-				void Resize(int Delta, size_t At);
+				void Resize(int64_t Delta, size_t At);
 				void CreateBuffer(SBuffer** Buf, size_t NumElements);
 				void DeleteBuffer(SBuffer* Buf);
 				void CopyBuffer(SBuffer* Dst, SBuffer* Src);

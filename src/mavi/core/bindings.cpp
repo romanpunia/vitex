@@ -931,6 +931,10 @@ namespace Mavi
 			{
 				return Buffer->NumElements;
 			}
+			size_t Array::GetCapacity() const
+			{
+				return Buffer->MaxElements;
+			}
 			bool Array::IsEmpty() const
 			{
 				return Buffer->NumElements == 0;
@@ -975,19 +979,19 @@ namespace Mavi
 				memmove(Buffer->Data + Start * (size_t)ElementSize, Buffer->Data + (Start + Count) * (size_t)ElementSize, (size_t)(Buffer->NumElements - Start - Count) * (size_t)ElementSize);
 				Buffer->NumElements -= Count;
 			}
-			void Array::Resize(int Delta, size_t Where)
+			void Array::Resize(int64_t Delta, size_t Where)
 			{
 				if (Delta < 0)
 				{
-					if (-Delta > (int)Buffer->NumElements)
-						Delta = -(int)Buffer->NumElements;
+					if (-Delta > (int64_t)Buffer->NumElements)
+						Delta = -(int64_t)Buffer->NumElements;
 
-					if (Where > Buffer->NumElements + Delta)
-						Where = Buffer->NumElements + Delta;
+					if (Where > Buffer->NumElements + (size_t)Delta)
+						Where = Buffer->NumElements + (size_t)Delta;
 				}
 				else if (Delta > 0)
 				{
-					if (!CheckMaxSize(Buffer->NumElements + Delta))
+					if (!CheckMaxSize(Buffer->NumElements + (size_t)Delta))
 						return;
 
 					if (Where > Buffer->NumElements)
@@ -997,34 +1001,35 @@ namespace Mavi
 				if (Delta == 0)
 					return;
 
-				if (Buffer->MaxElements < Buffer->NumElements + Delta)
+				if (Buffer->MaxElements < Buffer->NumElements + (size_t)Delta)
 				{
 					size_t Count = (size_t)Buffer->NumElements + (size_t)Delta, Size = (size_t)ElementSize;
 					SBuffer* NewBuffer = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + Size * Count));
 					if (!NewBuffer)
 						return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 					
-					NewBuffer->NumElements = Buffer->NumElements + Delta;
+					NewBuffer->NumElements = Buffer->NumElements + (size_t)Delta;
 					NewBuffer->MaxElements = NewBuffer->NumElements;
 					memcpy(NewBuffer->Data, Buffer->Data, (size_t)Where * (size_t)ElementSize);
 					if (Where < Buffer->NumElements)
-						memcpy(NewBuffer->Data + (Where + Delta) * (size_t)ElementSize, Buffer->Data + Where * (size_t)ElementSize, (size_t)(Buffer->NumElements - Where) * (size_t)ElementSize);
+						memcpy(NewBuffer->Data + (Where + (size_t)Delta) * (size_t)ElementSize, Buffer->Data + Where * (size_t)ElementSize, (size_t)(Buffer->NumElements - Where) * (size_t)ElementSize);
 
-					Create(NewBuffer, Where, Where + Delta);
+					Create(NewBuffer, Where, Where + (size_t)Delta);
 					asFreeMem(Buffer);
 					Buffer = NewBuffer;
 				}
 				else if (Delta < 0)
 				{
-					Destroy(Buffer, Where, Where - Delta);
-					memmove(Buffer->Data + Where * (size_t)ElementSize, Buffer->Data + (Where - Delta) * (size_t)ElementSize, (size_t)(Buffer->NumElements - (Where - Delta)) * (size_t)ElementSize);
-					Buffer->NumElements += Delta;
+					size_t UDelta = (size_t)-Delta;
+					Destroy(Buffer, Where, Where + UDelta);
+					memmove(Buffer->Data + Where * (size_t)ElementSize, Buffer->Data + (Where - UDelta) * (size_t)ElementSize, (size_t)(Buffer->NumElements - (Where - UDelta)) * (size_t)ElementSize);
+					Buffer->NumElements += UDelta;
 				}
 				else
 				{
-					memmove(Buffer->Data + (Where + Delta) * (size_t)ElementSize, Buffer->Data + Where * (size_t)ElementSize, (size_t)(Buffer->NumElements - Where) * (size_t)ElementSize);
-					Create(Buffer, Where, Where + Delta);
-					Buffer->NumElements += Delta;
+					memmove(Buffer->Data + (Where + (size_t)Delta) * (size_t)ElementSize, Buffer->Data + Where * (size_t)ElementSize, (size_t)(Buffer->NumElements - Where) * (size_t)ElementSize);
+					Create(Buffer, Where, Where + (size_t)Delta);
+					Buffer->NumElements += (size_t)Delta;
 				}
 			}
 			bool Array::CheckMaxSize(size_t NumElements)
@@ -1423,11 +1428,11 @@ namespace Mavi
 
 				return false;
 			}
-			int Array::FindByRef(void* RefPtr) const
+			size_t Array::FindByRef(void* RefPtr) const
 			{
 				return FindByRef(0, RefPtr);
 			}
-			int Array::FindByRef(size_t StartAt, void* RefPtr) const
+			size_t Array::FindByRef(size_t StartAt, void* RefPtr) const
 			{
 				size_t Size = GetSize();
 				if (SubTypeId & asTYPEID_OBJHANDLE)
@@ -1436,7 +1441,7 @@ namespace Mavi
 					for (size_t i = StartAt; i < Size; i++)
 					{
 						if (*(void**)At(i) == RefPtr)
-							return (int)i;
+							return i;
 					}
 				}
 				else
@@ -1444,17 +1449,17 @@ namespace Mavi
 					for (size_t i = StartAt; i < Size; i++)
 					{
 						if (At(i) == RefPtr)
-							return (int)i;
+							return i;
 					}
 				}
 
-				return -1;
+				return std::string::npos;
 			}
-			int Array::Find(void* Value) const
+			size_t Array::Find(void* Value) const
 			{
 				return Find(0, Value);
 			}
-			int Array::Find(size_t StartAt, void* Value) const
+			size_t Array::Find(size_t StartAt, void* Value) const
 			{
 				SCache* Cache = 0;
 				if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
@@ -1474,7 +1479,7 @@ namespace Mavi
 							Bindings::Exception::Throw(Bindings::Exception::Pointer("template_error", Swap));
 						}
 
-						return -1;
+						return std::string::npos;
 					}
 				}
 
@@ -1496,13 +1501,13 @@ namespace Mavi
 						CmpContext = ObjType->GetEngine()->CreateContext();
 				}
 
-				int Result = -1;
+				size_t Result = std::string::npos;
 				size_t Size = GetSize();
 				for (size_t i = StartAt; i < Size; i++)
 				{
 					if (Equals(At(i), Value, CmpContext, Cache))
 					{
-						Result = (int)i;
+						Result = i;
 						break;
 					}
 				}
@@ -1526,7 +1531,7 @@ namespace Mavi
 			{
 				memcpy(Dest, Src, ElementSize);
 			}
-			void* Array::GetArrayItemPointer(int Index)
+			void* Array::GetArrayItemPointer(size_t Index)
 			{
 				return Buffer->Data + Index * ElementSize;
 			}
@@ -1537,168 +1542,15 @@ namespace Mavi
 				else
 					return BufferPtr;
 			}
-			void Array::SortAsc()
+			void Array::Swap(size_t Index1, size_t Index2)
 			{
-				Sort(0, GetSize(), true);
-			}
-			void Array::SortAsc(size_t StartAt, size_t Count)
-			{
-				Sort(StartAt, Count, true);
-			}
-			void Array::SortDesc()
-			{
-				Sort(0, GetSize(), false);
-			}
-			void Array::SortDesc(size_t StartAt, size_t Count)
-			{
-				Sort(StartAt, Count, false);
-			}
-			void Array::Sort(size_t StartAt, size_t Count, bool Asc)
-			{
-				SCache* Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(CACHE_ARRAY));
-				if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
-				{
-					if (!Cache || Cache->CmpFunc == 0)
-					{
-						asIScriptContext* Context = asGetActiveContext();
-						asITypeInfo* SubType = ObjType->GetEngine()->GetTypeInfoById(SubTypeId);
-						if (Context)
-						{
-							char Swap[512];
-							if (Cache && Cache->CmpFuncReturnCode == asMULTIPLE_FUNCTIONS)
-								snprintf(Swap, 512, "Type '%s' has multiple matching opCmp methods", SubType->GetName());
-							else
-								snprintf(Swap, 512, "Type '%s' does not have a matching opCmp method", SubType->GetName());
-							Bindings::Exception::Throw(Bindings::Exception::Pointer("template_error", Swap));
-						}
-
-						return;
-					}
-				}
-
-				if (Count < 2)
-					return;
-
-				int Start = (int)StartAt;
-				int End = (int)StartAt + (int)Count;
-
-				if (Start >= (int)Buffer->NumElements || End > (int)Buffer->NumElements)
+				if (Index1 >= GetSize() || Index2 >= GetSize())
 					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 
 				unsigned char Swap[16];
-				asIScriptContext* CmpContext = 0;
-				bool IsNested = false;
-
-				if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
-				{
-					CmpContext = asGetActiveContext();
-					if (CmpContext)
-					{
-						if (CmpContext->GetEngine() == ObjType->GetEngine() && CmpContext->PushState() >= 0)
-							IsNested = true;
-						else
-							CmpContext = 0;
-					}
-
-					if (CmpContext == 0)
-						CmpContext = ObjType->GetEngine()->RequestContext();
-				}
-
-				for (int i = Start + 1; i < End; i++)
-				{
-					Copy(Swap, GetArrayItemPointer(i));
-					int j = i - 1;
-
-					while (j >= Start && Less(GetDataPointer(Swap), At(j), Asc, CmpContext, Cache))
-					{
-						Copy(GetArrayItemPointer(j + 1), GetArrayItemPointer(j));
-						j--;
-					}
-
-					Copy(GetArrayItemPointer(j + 1), Swap);
-				}
-
-				if (CmpContext)
-				{
-					if (IsNested)
-					{
-						asEContextState State = CmpContext->GetState();
-						CmpContext->PopState();
-						if (State == asEXECUTION_ABORTED)
-							CmpContext->Abort();
-					}
-					else
-						ObjType->GetEngine()->ReturnContext(CmpContext);
-				}
-			}
-			void Array::Sort(asIScriptFunction* Function, size_t StartAt, size_t Count)
-			{
-				if (Count < 2)
-					return;
-
-				size_t Start = StartAt;
-				size_t End = as_uint64_t(StartAt) + as_uint64_t(Count) >= (as_uint64_t(1) << 32) ? 0xFFFFFFFF : StartAt + Count;
-				if (End > Buffer->NumElements)
-					End = Buffer->NumElements;
-
-				if (Start >= Buffer->NumElements)
-					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
-
-				unsigned char Swap[16];
-				asIScriptContext* CmpContext = 0;
-				bool IsNested = false;
-
-				CmpContext = asGetActiveContext();
-				if (CmpContext)
-				{
-					if (CmpContext->GetEngine() == ObjType->GetEngine() && CmpContext->PushState() >= 0)
-						IsNested = true;
-					else
-						CmpContext = 0;
-				}
-
-				if (CmpContext == 0)
-					CmpContext = ObjType->GetEngine()->RequestContext();
-
-				if (!CmpContext)
-					return;
-
-				auto* CmpContextVM = ImmediateContext::Get(CmpContext);
-				for (size_t i = Start + 1; i < End; i++)
-				{
-					Copy(Swap, GetArrayItemPointer((int)i));
-					size_t j = i - 1;
-
-					while (j != 0xFFFFFFFF && j >= Start)
-					{
-						CmpContext->Prepare(Function);
-						CmpContext->SetArgAddress(0, GetDataPointer(Swap));
-						CmpContext->SetArgAddress(1, At(j));
-						int Result = CmpContextVM->ExecuteNext();
-						if (Result != asEXECUTION_FINISHED)
-							break;
-
-						if (*(bool*)(CmpContext->GetAddressOfReturnValue()))
-						{
-							Copy(GetArrayItemPointer((int)j + 1), GetArrayItemPointer((int)j));
-							j--;
-						}
-						else
-							break;
-					}
-
-					Copy(GetArrayItemPointer((int)j + 1), Swap);
-				}
-
-				if (IsNested)
-				{
-					asEContextState State = CmpContext->GetState();
-					CmpContext->PopState();
-					if (State == asEXECUTION_ABORTED)
-						CmpContext->Abort();
-				}
-				else
-					ObjType->GetEngine()->ReturnContext(CmpContext);
+				Copy(Swap, GetArrayItemPointer(Index1));
+				Copy(GetArrayItemPointer(Index1), GetArrayItemPointer(Index2));
+				Copy(GetArrayItemPointer(Index2), Swap);
 			}
 			void Array::CopyBuffer(SBuffer* Dest, SBuffer* Src)
 			{
@@ -1906,8 +1758,7 @@ namespace Mavi
 					return 0;
 				}
 
-				Array* a = new(Memory) Array(Length, Info);
-				return a;
+				return new(Memory) Array(Length, Info);
 			}
 			Array* Array::Create(asITypeInfo* Info, void* InitList)
 			{
@@ -1918,8 +1769,7 @@ namespace Mavi
 					return 0;
 				}
 
-				Array* a = new(Memory) Array(Info, InitList);
-				return a;
+				return new(Memory) Array(Info, InitList);
 			}
 			Array* Array::Create(asITypeInfo* Info, size_t length, void* DefaultValue)
 			{
@@ -1930,8 +1780,7 @@ namespace Mavi
 					return 0;
 				}
 
-				Array* a = new(Memory) Array(length, DefaultValue, Info);
-				return a;
+				return new(Memory) Array(length, DefaultValue, Info);
 			}
 			Array* Array::Create(asITypeInfo* Info)
 			{
@@ -9101,49 +8950,47 @@ namespace Mavi
 				Engine->RegisterObjectType("array<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Array::TemplateCallback), asCALL_CDECL);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_FACTORY, "array<T>@ f(int&in)", asFUNCTIONPR(Array::Create, (asITypeInfo*), Array*), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_FACTORY, "array<T>@ f(int&in, usize length) explicit", asFUNCTIONPR(Array::Create, (asITypeInfo*, size_t), Array*), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_FACTORY, "array<T>@ f(int&in, usize length, const T &in Value)", asFUNCTIONPR(Array::Create, (asITypeInfo*, size_t, void*), Array*), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_LIST_FACTORY, "array<T>@ f(int&in Type, int&in InitList) {repeat T}", asFUNCTIONPR(Array::Create, (asITypeInfo*, void*), Array*), asCALL_CDECL);
+				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_FACTORY, "array<T>@ f(int&in, usize) explicit", asFUNCTIONPR(Array::Create, (asITypeInfo*, size_t), Array*), asCALL_CDECL);
+				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_FACTORY, "array<T>@ f(int&in, usize, const T&in)", asFUNCTIONPR(Array::Create, (asITypeInfo*, size_t, void*), Array*), asCALL_CDECL);
+				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_LIST_FACTORY, "array<T>@ f(int&in, int&in) {repeat T}", asFUNCTIONPR(Array::Create, (asITypeInfo*, void*), Array*), asCALL_CDECL);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(Array, AddRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(Array, Release), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "T &opIndex(usize Index)", asMETHODPR(Array, At, (size_t), void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "const T &opIndex(usize Index) const", asMETHODPR(Array, At, (size_t) const, const void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "T &front()", asMETHODPR(Array, Front, (), void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "const T &front() const", asMETHODPR(Array, Front, () const, const void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "array<T> &opAssign(const array<T>&in)", asMETHOD(Array, operator=), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "T &back()", asMETHODPR(Array, Back, (), void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "const T &back() const", asMETHODPR(Array, Back, () const, const void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void insert_at(usize Index, const T&in Value)", asMETHODPR(Array, InsertAt, (size_t, void*), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void insert_at(usize Index, const array<T>& Array)", asMETHODPR(Array, InsertAt, (size_t, const Array&), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void insert_last(const T&in Value)", asMETHOD(Array, InsertLast), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void push(const T&in Value)", asMETHOD(Array, InsertLast), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void pop()", asMETHOD(Array, RemoveLast), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void remove_at(usize Index)", asMETHOD(Array, RemoveAt), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void remove_last()", asMETHOD(Array, RemoveLast), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void remove_range(usize Start, usize Count)", asMETHOD(Array, RemoveRange), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "usize size() const", asMETHOD(Array, GetSize), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void reserve(usize length)", asMETHOD(Array, Reserve), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void resize(usize length)", asMETHODPR(Array, Resize, (size_t), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void clear()", asMETHODPR(Array, Clear, (), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void sort_asc()", asMETHODPR(Array, SortAsc, (), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void sort_asc(usize StartAt, usize Count)", asMETHODPR(Array, SortAsc, (size_t, size_t), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void sort_desc()", asMETHODPR(Array, SortDesc, (), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void sort_desc(usize StartAt, usize Count)", asMETHODPR(Array, SortDesc, (size_t, size_t), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void reverse()", asMETHOD(Array, Reverse), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "usize find(const T&in if_handle_then_const Value) const", asMETHODPR(Array, Find, (void*) const, int), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "usize find(usize StartAt, const T&in if_handle_then_const Value) const", asMETHODPR(Array, Find, (size_t, void*) const, int), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "usize find_by_ref(const T&in if_handle_then_const Value) const", asMETHODPR(Array, FindByRef, (void*) const, int), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "usize find_by_ref(usize StartAt, const T&in if_handle_then_const Value) const", asMETHODPR(Array, FindByRef, (size_t, void*) const, int), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "bool opEquals(const array<T>&in) const", asMETHOD(Array, operator==), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "bool empty() const", asMETHOD(Array, IsEmpty), asCALL_THISCALL);
-				Engine->RegisterFuncdef("bool array<T>::less(const T&in if_handle_then_const a, const T&in if_handle_then_const b)");
-				Engine->RegisterObjectMethod("array<T>", "void sort(const less &in, usize StartAt = 0, usize Count = usize(-1))", asMETHODPR(Array, Sort, (asIScriptFunction*, size_t, size_t), void), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Array, GetRefCount), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Array, SetFlag), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Array, GetFlag), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Array, EnumReferences), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Array, ReleaseAllHandles), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "bool opEquals(const array<T>&in) const", asMETHOD(Array, operator==), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "array<T>& opAssign(const array<T>&in)", asMETHOD(Array, operator=), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "T& opIndex(usize)", asMETHODPR(Array, At, (size_t), void*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "const T& opIndex(usize) const", asMETHODPR(Array, At, (size_t) const, const void*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "T& front()", asMETHODPR(Array, Front, (), void*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "const T& front() const", asMETHODPR(Array, Front, () const, const void*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "T& back()", asMETHODPR(Array, Back, (), void*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "const T& back() const", asMETHODPR(Array, Back, () const, const void*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "bool empty() const", asMETHOD(Array, IsEmpty), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "usize size() const", asMETHOD(Array, GetSize), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "usize capacity() const", asMETHOD(Array, GetCapacity), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "void reserve(usize)", asMETHOD(Array, Reserve), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "void resize(usize)", asMETHODPR(Array, Resize, (size_t), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "void clear()", asMETHODPR(Array, Clear, (), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "void push(const T&in)", asMETHOD(Array, InsertLast), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "void pop()", asMETHOD(Array, RemoveLast), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "void insert(usize, const T&in)", asMETHODPR(Array, InsertAt, (size_t, void*), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "void insert(usize, const array<T>&)", asMETHODPR(Array, InsertAt, (size_t, const Array&), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "void erase(usize)", asMETHOD(Array, RemoveAt), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "void erase(usize, usize)", asMETHOD(Array, RemoveRange), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "void reverse()", asMETHOD(Array, Reverse), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "void swap(usize, usize)", asMETHOD(Array, Swap), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "usize find(const T&in if_handle_then_const) const", asMETHODPR(Array, Find, (void*) const, size_t), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "usize find(usize, const T&in if_handle_then_const) const", asMETHODPR(Array, Find, (size_t, void*) const, size_t), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "usize find_ref(const T&in if_handle_then_const) const", asMETHODPR(Array, FindByRef, (void*) const, size_t), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("array<T>", "usize find_ref(usize, const T&in if_handle_then_const) const", asMETHODPR(Array, FindByRef, (size_t, void*) const, size_t), asCALL_THISCALL);
 				Engine->RegisterDefaultArrayType("array<T>");
+
+				VM->BeginNamespace("array");
+				Engine->RegisterGlobalProperty("const usize npos", (void*)&Core::String::npos);
+				VM->EndNamespace();
 
 				return true;
 			}
@@ -9174,6 +9021,7 @@ namespace Mavi
 				Engine->RegisterObjectMethod("complex", "complex get_ir() const property", asMETHOD(Complex, GetIR), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("complex", "void set_ri(const complex &in) property", asMETHOD(Complex, SetRI), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("complex", "void set_ir(const complex &in) property", asMETHOD(Complex, SetIR), asCALL_THISCALL);
+
 				return true;
 #else
 				VI_ASSERT(false, "<complex> is not loaded");
@@ -9189,9 +9037,9 @@ namespace Mavi
 				Engine->RegisterObjectBehaviour("storable", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(Dictionary::KeyDestroy), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectBehaviour("storable", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Storable, EnumReferences), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("storable", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Storable, FreeValue), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("storable", "storable &opAssign(const storable &in)", asFUNCTIONPR(Dictionary::KeyopAssign, (const Storable&, Storable*), Storable&), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("storable", "storable &opAssign(const storable&in)", asFUNCTIONPR(Dictionary::KeyopAssign, (const Storable&, Storable*), Storable&), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("storable", "storable &opHndlAssign(const ?&in)", asFUNCTIONPR(Dictionary::KeyopAssign, (void*, int, Storable*), Storable&), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("storable", "storable &opHndlAssign(const storable &in)", asFUNCTIONPR(Dictionary::KeyopAssign, (const Storable&, Storable*), Storable&), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("storable", "storable &opHndlAssign(const storable&in)", asFUNCTIONPR(Dictionary::KeyopAssign, (const Storable&, Storable*), Storable&), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("storable", "storable &opAssign(const ?&in)", asFUNCTIONPR(Dictionary::KeyopAssign, (void*, int, Storable*), Storable&), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("storable", "storable &opAssign(double)", asFUNCTIONPR(Dictionary::KeyopAssign, (double, Storable*), Storable&), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("storable", "storable &opAssign(int64)", asFUNCTIONPR(Dictionary::KeyopAssign, (as_int64_t, Storable*), Storable&), asCALL_CDECL_OBJLAST);
@@ -9205,23 +9053,23 @@ namespace Mavi
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_LIST_FACTORY, "dictionary @f(int &in) {repeat {string, ?}}", asFUNCTION(Dictionary::ListFactory), asCALL_GENERIC);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_ADDREF, "void f()", asMETHOD(Dictionary, AddRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_RELEASE, "void f()", asMETHOD(Dictionary, Release), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "dictionary &opAssign(const dictionary &in)", asMETHODPR(Dictionary, operator=, (const Dictionary&), Dictionary&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "void set(const string &in, const ?&in)", asMETHODPR(Dictionary, Set, (const Core::String&, void*, int), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "bool get(const string &in, ?&out) const", asMETHODPR(Dictionary, Get, (const Core::String&, void*, int) const, bool), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "bool exists(const string &in) const", asMETHOD(Dictionary, Exists), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "bool empty() const", asMETHOD(Dictionary, IsEmpty), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "bool at(usize, string&out, ?&out) const", asMETHOD(Dictionary, TryGetIndex), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "usize size() const", asMETHOD(Dictionary, GetSize), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "bool delete(const string &in)", asMETHOD(Dictionary, Delete), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "void delete_all()", asMETHOD(Dictionary, DeleteAll), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "array<string>@ get_keys() const", asMETHOD(Dictionary, GetKeys), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "storable &opIndex(const string &in)", asMETHODPR(Dictionary, operator[], (const Core::String&), Storable*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "const storable &opIndex(const string &in) const", asMETHODPR(Dictionary, operator[], (const Core::String&) const, const Storable*), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Dictionary, GetRefCount), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Dictionary, SetGCFlag), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Dictionary, GetGCFlag), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Dictionary, EnumReferences), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Dictionary, ReleaseAllReferences), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "dictionary &opAssign(const dictionary &in)", asMETHODPR(Dictionary, operator=, (const Dictionary&), Dictionary&), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "storable& opIndex(const string&in)", asMETHODPR(Dictionary, operator[], (const Core::String&), Storable*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "const storable& opIndex(const string&in) const", asMETHODPR(Dictionary, operator[], (const Core::String&) const, const Storable*), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "void set(const string&in, const ?&in)", asMETHODPR(Dictionary, Set, (const Core::String&, void*, int), void), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "bool get(const string&in, ?&out) const", asMETHODPR(Dictionary, Get, (const Core::String&, void*, int) const, bool), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "bool exists(const string&in) const", asMETHOD(Dictionary, Exists), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "bool empty() const", asMETHOD(Dictionary, IsEmpty), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "bool at(usize, string&out, ?&out) const", asMETHOD(Dictionary, TryGetIndex), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "usize size() const", asMETHOD(Dictionary, GetSize), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "bool erase(const string&in)", asMETHOD(Dictionary, Delete), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "void clear()", asMETHOD(Dictionary, DeleteAll), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "array<string>@ get_keys() const", asMETHOD(Dictionary, GetKeys), asCALL_THISCALL);
 
 				Dictionary::Setup(Engine);
 				return true;

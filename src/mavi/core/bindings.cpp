@@ -496,7 +496,7 @@ namespace Mavi
 				return true;
 			}
 
-			Any::Any(asIScriptEngine* _Engine) noexcept : RefCount(1), GCFlag(false), Engine(_Engine) 
+			Any::Any(asIScriptEngine* _Engine) noexcept : RefCount(1), Engine(_Engine) 
 			{
 				Value.TypeId = 0;
 				Value.Integer = 0;
@@ -675,34 +675,30 @@ namespace Mavi
 			{
 				FreeObject();
 			}
-			int Any::AddRef() const
+			void Any::AddRef()
 			{
-				GCFlag = false;
-				return asAtomicInc(RefCount);
+				RefCount = (RefCount & 0x7FFFFFFF) + 1;
 			}
-			int Any::Release() const
+			void Any::Release()
 			{
-				GCFlag = false;
-				if (asAtomicDec(RefCount) == 0)
+				RefCount &= 0x7FFFFFFF;
+				if (--RefCount <= 0)
 				{
 					this->~Any();
 					asFreeMem((void*)this);
-					return 0;
 				}
-
-				return RefCount;
 			}
 			int Any::GetRefCount()
 			{
-				return RefCount;
+				return (RefCount & 0x7FFFFFFF);
 			}
 			void Any::SetFlag()
 			{
-				GCFlag = true;
+				RefCount |= 0x80000000;
 			}
 			bool Any::GetFlag()
 			{
-				return GCFlag;
+				return (RefCount & 0x80000000) ? true : false;
 			}
 			Core::Unique<Any> Any::Create()
 			{
@@ -775,7 +771,7 @@ namespace Mavi
 				return *Self = *Other;
 			}
 
-			Array::Array(asITypeInfo* Info, void* BufferPtr) noexcept : RefCount(1), GCFlag(false), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
+			Array::Array(asITypeInfo* Info, void* BufferPtr) noexcept : RefCount(1), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
 				VI_ASSERT(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
@@ -830,7 +826,7 @@ namespace Mavi
 				if (ObjType->GetFlags() & asOBJ_GC)
 					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 			}
-			Array::Array(size_t Length, asITypeInfo* Info) noexcept : RefCount(1), GCFlag(false), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
+			Array::Array(size_t Length, asITypeInfo* Info) noexcept : RefCount(1), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
 				VI_ASSERT(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
@@ -848,7 +844,7 @@ namespace Mavi
 				if (ObjType->GetFlags() & asOBJ_GC)
 					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 			}
-			Array::Array(const Array& Other) noexcept : RefCount(1), GCFlag(false), ObjType(Other.ObjType), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
+			Array::Array(const Array& Other) noexcept : RefCount(1), ObjType(Other.ObjType), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
 				VI_ASSERT(ObjType && Core::String(ObjType->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
@@ -861,7 +857,7 @@ namespace Mavi
 				CreateBuffer(&Buffer, 0);
 				*this = Other;
 			}
-			Array::Array(size_t Length, void* DefaultValue, asITypeInfo* Info) noexcept : RefCount(1), GCFlag(false), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
+			Array::Array(size_t Length, void* DefaultValue, asITypeInfo* Info) noexcept : RefCount(1), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
 				VI_ASSERT(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
@@ -1723,15 +1719,14 @@ namespace Mavi
 			{
 				Resize(0);
 			}
-			void Array::AddRef() const
+			void Array::AddRef()
 			{
-				GCFlag = false;
-				asAtomicInc(RefCount);
+				RefCount = (RefCount & 0x7FFFFFFF) + 1;
 			}
-			void Array::Release() const
+			void Array::Release()
 			{
-				GCFlag = false;
-				if (asAtomicDec(RefCount) == 0)
+				RefCount &= 0x7FFFFFFF;
+				if (--RefCount <= 0)
 				{
 					this->~Array();
 					asFreeMem(const_cast<Array*>(this));
@@ -1739,15 +1734,15 @@ namespace Mavi
 			}
 			int Array::GetRefCount()
 			{
-				return RefCount;
+				return (RefCount & 0x7FFFFFFF);
 			}
 			void Array::SetFlag()
 			{
-				GCFlag = true;
+				RefCount |= 0x80000000;
 			}
 			bool Array::GetFlag()
 			{
-				return GCFlag;
+				return (RefCount & 0x80000000) ? true : false;
 			}
 			Array* Array::Create(asITypeInfo* Info, size_t Length)
 			{
@@ -2250,17 +2245,16 @@ namespace Mavi
 			}
 			Dictionary::~Dictionary() noexcept
 			{
-				DeleteAll();
+				Clear();
 			}
-			void Dictionary::AddRef() const
+			void Dictionary::AddRef()
 			{
-				GCFlag = false;
-				asAtomicInc(RefCount);
+				RefCount = (RefCount & 0x7FFFFFFF) + 1;
 			}
-			void Dictionary::Release() const
+			void Dictionary::Release()
 			{
-				GCFlag = false;
-				if (asAtomicDec(RefCount) == 0)
+				RefCount &= 0x7FFFFFFF;
+				if (--RefCount <= 0)
 				{
 					this->~Dictionary();
 					asFreeMem(const_cast<Dictionary*>(this));
@@ -2268,15 +2262,15 @@ namespace Mavi
 			}
 			int Dictionary::GetRefCount()
 			{
-				return RefCount;
+				return (RefCount & 0x7FFFFFFF);
 			}
-			void Dictionary::SetGCFlag()
+			void Dictionary::SetFlag()
 			{
-				GCFlag = true;
+				RefCount |= 0x80000000;
 			}
-			bool Dictionary::GetGCFlag()
+			bool Dictionary::GetFlag()
 			{
-				return GCFlag;
+				return (RefCount & 0x80000000) ? true : false;
 			}
 			void Dictionary::EnumReferences(asIScriptEngine* _Engine)
 			{
@@ -2295,11 +2289,11 @@ namespace Mavi
 			}
 			void Dictionary::ReleaseAllReferences(asIScriptEngine*)
 			{
-				DeleteAll();
+				Clear();
 			}
 			Dictionary& Dictionary::operator =(const Dictionary& Other) noexcept
 			{
-				DeleteAll();
+				Clear();
 				for (auto It = Other.Data.begin(); It != Other.Data.end(); ++It)
 				{
 					auto& Key = It->second;
@@ -2410,7 +2404,7 @@ namespace Mavi
 			{
 				return size_t(Data.size());
 			}
-			bool Dictionary::Delete(const Core::String& Key)
+			bool Dictionary::Erase(const Core::String& Key)
 			{
 				auto It = Data.find(Key);
 				if (It != Data.end())
@@ -2422,7 +2416,7 @@ namespace Mavi
 
 				return false;
 			}
-			void Dictionary::DeleteAll()
+			void Dictionary::Clear()
 			{
 				for (auto It = Data.begin(); It != Data.end(); ++It)
 					It->second.FreeValue(Engine);
@@ -2480,7 +2474,6 @@ namespace Mavi
 			void Dictionary::Init(asIScriptEngine* Engine_)
 			{
 				RefCount = 1;
-				GCFlag = false;
 				Engine = Engine_;
 
 				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(CACHE_MAP));
@@ -3888,7 +3881,7 @@ namespace Mavi
 			}
 			int Mutex::MutexUD = 538;
 
-			Thread::Thread(asIScriptEngine* Engine, asIScriptFunction* Func) noexcept : Function(Func), VM(VirtualMachine::Get(Engine)), Context(VM ? VM->RequestContext() : nullptr), Flag(false), Status(ThreadState::Execute), RefCount(1)
+			Thread::Thread(asIScriptEngine* Engine, asIScriptFunction* Func) noexcept : Function(Func), VM(VirtualMachine::Get(Engine)), Context(VM ? VM->RequestContext() : nullptr), Status(ThreadState::Execute), RefCount(1)
 			{
 				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_THREAD));
 				VI_ASSERT(Context != nullptr, "context should be set");
@@ -3939,11 +3932,6 @@ namespace Mavi
 
 				asThreadCleanup();
 			}
-			void Thread::AddRef()
-			{
-				Flag = false;
-				asAtomicInc(RefCount);
-			}
 			bool Thread::Suspend()
 			{
 				std::unique_lock<std::recursive_mutex> Unique(Mutex);
@@ -3964,27 +3952,31 @@ namespace Mavi
 				VI_DEBUG("[vm] resume thread at %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
 				return true;
 			}
+			void Thread::AddRef()
+			{
+				RefCount = (RefCount & 0x7FFFFFFF) + 1;
+			}
 			void Thread::Release()
 			{
-				Flag = false;
-				if (asAtomicDec(RefCount) <= 0)
+				RefCount &= 0x7FFFFFFF;
+				if (--RefCount <= 0)
 				{
 					ReleaseReferences(nullptr);
 					this->~Thread();
 					asFreeMem((void*)this);
 				}
 			}
-			void Thread::SetGCFlag()
+			void Thread::SetFlag()
 			{
-				Flag = true;
+				RefCount |= 0x80000000;
 			}
-			bool Thread::GetGCFlag()
+			bool Thread::GetFlag()
 			{
-				return Flag;
+				return (RefCount & 0x80000000) ? true : false;
 			}
 			int Thread::GetRefCount()
 			{
-				return RefCount;
+				return (RefCount & 0x7FFFFFFF);
 			}
 			void Thread::EnumReferences(asIScriptEngine* Engine)
 			{
@@ -9054,8 +9046,8 @@ namespace Mavi
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_ADDREF, "void f()", asMETHOD(Dictionary, AddRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_RELEASE, "void f()", asMETHOD(Dictionary, Release), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Dictionary, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Dictionary, SetGCFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Dictionary, GetGCFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Dictionary, SetFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Dictionary, GetFlag), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Dictionary, EnumReferences), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Dictionary, ReleaseAllReferences), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "dictionary &opAssign(const dictionary &in)", asMETHODPR(Dictionary, operator=, (const Dictionary&), Dictionary&), asCALL_THISCALL);
@@ -9067,8 +9059,8 @@ namespace Mavi
 				Engine->RegisterObjectMethod("dictionary", "bool empty() const", asMETHOD(Dictionary, IsEmpty), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "bool at(usize, string&out, ?&out) const", asMETHOD(Dictionary, TryGetIndex), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "usize size() const", asMETHOD(Dictionary, GetSize), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "bool erase(const string&in)", asMETHOD(Dictionary, Delete), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "void clear()", asMETHOD(Dictionary, DeleteAll), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "bool erase(const string&in)", asMETHOD(Dictionary, Erase), asCALL_THISCALL);
+				Engine->RegisterObjectMethod("dictionary", "void clear()", asMETHOD(Dictionary, Clear), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "array<string>@ get_keys() const", asMETHOD(Dictionary, GetKeys), asCALL_THISCALL);
 
 				Dictionary::Setup(Engine);
@@ -9326,8 +9318,8 @@ namespace Mavi
 				Engine->RegisterObjectBehaviour("thread", asBEHAVE_FACTORY, "thread@ f(thread_event@)", asFUNCTION(Thread::Create), asCALL_GENERIC);
 				Engine->RegisterObjectBehaviour("thread", asBEHAVE_ADDREF, "void f()", asMETHOD(Thread, AddRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("thread", asBEHAVE_RELEASE, "void f()", asMETHOD(Thread, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Thread, SetGCFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Thread, GetGCFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("thread", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Thread, SetFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("thread", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Thread, GetFlag), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("thread", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Thread, GetRefCount), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("thread", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Thread, EnumReferences), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("thread", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Thread, ReleaseReferences), asCALL_THISCALL);
@@ -10033,6 +10025,8 @@ namespace Mavi
 				Engine->EndNamespace();
 
 				Engine->BeginNamespace("os::process");
+				Engine->SetFunction("void abort()", &Core::OS::Process::Abort);
+				Engine->SetFunction("void exit(int)", &Core::OS::Process::Exit);
 				Engine->SetFunction("void interrupt()", &Core::OS::Process::Interrupt);
 				Engine->SetFunction("process_stream@+ execute_write_only(const string &in)", &Core::OS::Process::ExecuteWriteOnly);
 				Engine->SetFunction("process_stream@+ execute_read_only(const string &in)", &Core::OS::Process::ExecuteReadOnly);

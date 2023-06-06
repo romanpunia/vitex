@@ -945,12 +945,8 @@ namespace Mavi
 				Dispatch(Data);
 			}
 
-			Pause();
-#ifdef NDEBUG
-			std::terminate();
-#else
-			std::abort();
-#endif
+			ErrorHandling::Pause();
+			OS::Process::Abort();
 		}
 		void ErrorHandling::Assert(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
 		{
@@ -987,12 +983,8 @@ namespace Mavi
 				Dispatch(Data);
 			}
 
-			Pause();
-#ifdef NDEBUG
-			std::terminate();
-#else
-			std::abort();
-#endif
+			ErrorHandling::Pause();
+			OS::Process::Abort();
 		}
 		void ErrorHandling::Message(LogLevel Level, int Line, const char* Source, const char* Format, ...)
 		{
@@ -8658,6 +8650,21 @@ namespace Mavi
 			return VI_FILENO(Stream);
 		}
 
+		void OS::Process::Abort()
+		{
+#ifdef NDEBUG
+			VI_DEBUG("[os] process terminate on thread %s", GetThreadId(std::this_thread::get_id()).c_str());
+			std::terminate();
+#else
+			VI_DEBUG("[os] process abort on thread %s", GetThreadId(std::this_thread::get_id()).c_str());
+			std::abort();
+#endif
+		}
+		void OS::Process::Exit(int Code)
+		{
+			VI_DEBUG("[os] process exit:%i on thread %s", Code, GetThreadId(std::this_thread::get_id()).c_str());
+			std::exit(Code);
+		}
 		void OS::Process::Interrupt()
 		{
 #ifndef NDEBUG

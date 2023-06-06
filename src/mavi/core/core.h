@@ -1773,6 +1773,8 @@ namespace Mavi
                 };
                 
 			public:
+				static void Abort();
+				static void Exit(int Code);
 				static void Interrupt();
 				static bool SetSignalCallback(Signal Type, SignalCallback Callback);
 				static bool SetSignalDefault(Signal Type);

@@ -198,17 +198,16 @@ namespace Mavi
 				friend Promise;
 
 			protected:
-				mutable int RefCount;
-				mutable bool GCFlag;
 				asIScriptEngine* Engine;
 				Dynamic Value;
+				std::atomic<int> RefCount;
 
 			public:
 				Any(asIScriptEngine* Engine) noexcept;
 				Any(void* Ref, int RefTypeId, asIScriptEngine* Engine) noexcept;
 				Any(const Any&) noexcept;
-				int AddRef() const;
-				int Release() const;
+				void AddRef();
+				void Release();
 				Any& operator= (const Any&) noexcept;
 				int CopyFrom(const Any* Other);
 				void Store(void* Ref, int RefTypeId);
@@ -294,16 +293,15 @@ namespace Mavi
 				};
 
 			protected:
-				mutable int RefCount;
-				mutable bool GCFlag;
 				asITypeInfo* ObjType;
 				SBuffer* Buffer;
 				size_t ElementSize;
+				std::atomic<int> RefCount;
 				int SubTypeId;
 
 			public:
-				void AddRef() const;
-				void Release() const;
+				void AddRef();
+				void Release();
 				asITypeInfo* GetArrayObjectType() const;
 				int GetArrayTypeId() const;
 				int GetElementTypeId() const;
@@ -541,13 +539,12 @@ namespace Mavi
 
 			protected:
 				asIScriptEngine* Engine;
-				mutable int RefCount;
-				mutable bool GCFlag;
 				InternalMap Data;
+				std::atomic<int> RefCount;
 
 			public:
-				void AddRef() const;
-				void Release() const;
+				void AddRef();
+				void Release();
 				Dictionary& operator= (const Dictionary& Other) noexcept;
 				void Set(const Core::String& Key, void* Value, int TypeId);
 				bool Get(const Core::String& Key, void* Value, int TypeId) const;
@@ -559,15 +556,15 @@ namespace Mavi
 				bool Exists(const Core::String& Key) const;
 				bool IsEmpty() const;
 				size_t GetSize() const;
-				bool Delete(const Core::String& Key);
-				void DeleteAll();
+				bool Erase(const Core::String& Key);
+				void Clear();
 				Array* GetKeys() const;
 				LocalIterator Begin() const;
 				LocalIterator End() const;
 				LocalIterator Find(const Core::String& Key) const;
 				int GetRefCount();
-				void SetGCFlag();
-				bool GetGCFlag();
+				void SetFlag();
+				bool GetFlag();
 				void EnumReferences(asIScriptEngine* Engine);
 				void ReleaseAllReferences(asIScriptEngine* Engine);
 
@@ -907,13 +904,12 @@ namespace Mavi
 				VirtualMachine* VM;
 				ImmediateContext* Context;
 				ThreadState Status;
-				bool Flag;
-				int RefCount;
+				std::atomic<int> RefCount;
 
 			public:
 				Thread(asIScriptEngine* Engine, asIScriptFunction* Function) noexcept;
 				void EnumReferences(asIScriptEngine* Engine);
-				void SetGCFlag();
+				void SetFlag();
 				void ReleaseReferences(asIScriptEngine* Engine);
 				void AddRef();
 				void Release();
@@ -924,7 +920,7 @@ namespace Mavi
 				bool Pop(void* Ref, int TypeId, uint64_t Timeout);
 				bool IsActive();
 				bool Start();
-				bool GetGCFlag();
+				bool GetFlag();
 				int GetRefCount();
 				int Join(uint64_t Timeout);
 				int Join();

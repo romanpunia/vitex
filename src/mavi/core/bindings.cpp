@@ -958,7 +958,7 @@ namespace Mavi
 				if (!CheckMaxSize(NumElements))
 					return;
 
-				Resize((int)NumElements - (int)Buffer->NumElements, (size_t)-1);
+				Resize((int64_t)NumElements - (int64_t)Buffer->NumElements, (size_t)-1);
 			}
 			void Array::RemoveRange(size_t Start, size_t Count)
 			{
@@ -982,12 +982,12 @@ namespace Mavi
 					if (-Delta > (int64_t)Buffer->NumElements)
 						Delta = -(int64_t)Buffer->NumElements;
 
-					if (Where > Buffer->NumElements + (size_t)Delta)
-						Where = Buffer->NumElements + (size_t)Delta;
+					if (Where > Buffer->NumElements + Delta)
+						Where = Buffer->NumElements + Delta;
 				}
 				else if (Delta > 0)
 				{
-					if (!CheckMaxSize(Buffer->NumElements + (size_t)Delta))
+					if (!CheckMaxSize(Buffer->NumElements + Delta))
 						return;
 
 					if (Where > Buffer->NumElements)
@@ -997,35 +997,34 @@ namespace Mavi
 				if (Delta == 0)
 					return;
 
-				if (Buffer->MaxElements < Buffer->NumElements + (size_t)Delta)
+				if (Buffer->MaxElements < Buffer->NumElements + Delta)
 				{
 					size_t Count = (size_t)Buffer->NumElements + (size_t)Delta, Size = (size_t)ElementSize;
 					SBuffer* NewBuffer = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + Size * Count));
 					if (!NewBuffer)
 						return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-					
-					NewBuffer->NumElements = Buffer->NumElements + (size_t)Delta;
+
+					NewBuffer->NumElements = Buffer->NumElements + Delta;
 					NewBuffer->MaxElements = NewBuffer->NumElements;
 					memcpy(NewBuffer->Data, Buffer->Data, (size_t)Where * (size_t)ElementSize);
 					if (Where < Buffer->NumElements)
-						memcpy(NewBuffer->Data + (Where + (size_t)Delta) * (size_t)ElementSize, Buffer->Data + Where * (size_t)ElementSize, (size_t)(Buffer->NumElements - Where) * (size_t)ElementSize);
+						memcpy(NewBuffer->Data + (Where + Delta) * (size_t)ElementSize, Buffer->Data + Where * (size_t)ElementSize, (size_t)(Buffer->NumElements - Where) * (size_t)ElementSize);
 
-					Create(NewBuffer, Where, Where + (size_t)Delta);
+					Create(NewBuffer, Where, Where + Delta);
 					asFreeMem(Buffer);
 					Buffer = NewBuffer;
 				}
 				else if (Delta < 0)
 				{
-					size_t UDelta = (size_t)-Delta;
-					Destroy(Buffer, Where, Where + UDelta);
-					memmove(Buffer->Data + Where * (size_t)ElementSize, Buffer->Data + (Where - UDelta) * (size_t)ElementSize, (size_t)(Buffer->NumElements - (Where - UDelta)) * (size_t)ElementSize);
-					Buffer->NumElements += UDelta;
+					Destroy(Buffer, Where, Where - Delta);
+					memmove(Buffer->Data + Where * (size_t)ElementSize, Buffer->Data + (Where - Delta) * (size_t)ElementSize, (size_t)(Buffer->NumElements - (Where - Delta)) * (size_t)ElementSize);
+					Buffer->NumElements += Delta;
 				}
 				else
 				{
-					memmove(Buffer->Data + (Where + (size_t)Delta) * (size_t)ElementSize, Buffer->Data + Where * (size_t)ElementSize, (size_t)(Buffer->NumElements - Where) * (size_t)ElementSize);
-					Create(Buffer, Where, Where + (size_t)Delta);
-					Buffer->NumElements += (size_t)Delta;
+					memmove(Buffer->Data + (Where + Delta) * (size_t)ElementSize, Buffer->Data + Where * (size_t)ElementSize, (size_t)(Buffer->NumElements - Where) * (size_t)ElementSize);
+					Create(Buffer, Where, Where + Delta);
+					Buffer->NumElements += Delta;
 				}
 			}
 			bool Array::CheckMaxSize(size_t NumElements)

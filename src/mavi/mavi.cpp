@@ -59,7 +59,6 @@ namespace Mavi
     static OSSL_PROVIDER* CryptoDefault = nullptr;
 #endif
 #endif
-	static Core::Allocator* Allocator = nullptr;
 	static uint64_t Modes = 0;
 	static int State = 0;
 
@@ -395,30 +394,20 @@ namespace Mavi
 #endif
 		return "OS with C/C++ support";
 	}
-	Core::Allocator* Library::GetAllocator()
-	{
-#ifndef NDEBUG
-		if (!Allocator)
-			Allocator = new Core::DebugAllocator();
-#else
-#ifndef VI_ALLOCATOR
-		if (!Allocator)
-			Allocator = new Core::DefaultAllocator();
-#else
-		if (!Allocator)
-			Allocator = new Core::PoolAllocator();
-#endif
-#endif
-		return Allocator;
-	}
 
-	bool Initialize(size_t Modules, Core::Allocator* Allocator)
+	bool Initialize(size_t Modules, Core::GlobalAllocator* Allocator)
 	{
 		State++;
 		if (State > 1)
 			return true;
-
-		Core::Memory::SetAllocator(Allocator);
+#ifndef NDEBUG
+		if (!Allocator)
+			Allocator = new Core::DebugAllocator();
+#else
+		if (!Allocator)
+			Allocator = new Core::DefaultAllocator();
+#endif
+		Core::Memory::SetGlobalAllocator(Allocator);
 		Modes = Modules;
 
 		if (Modes & (uint64_t)Init::Core)
@@ -618,7 +607,7 @@ namespace Mavi
 		if (State > 0 || State < 0)
 			return State >= 0;
 
-		auto* Manager = Core::Memory::GetAllocator();
+		auto* Allocator = Core::Memory::GetGlobalAllocator();
 		Core::ErrorHandling::SetFlag(Core::LogOption::Async, false);
 		Core::Schedule::Reset();
 
@@ -691,13 +680,10 @@ namespace Mavi
 		Assimp::DefaultLogger::kill();
 #endif
 		Core::Console::Reset();
-		Core::Memory::SetAllocator(nullptr);
+		Core::Memory::SetGlobalAllocator(nullptr);
 
-		if (Manager != nullptr && Manager == Allocator && Allocator->IsFinalizable())
-		{
+		if (Allocator != nullptr && Allocator->IsFinalizable())
 			delete Allocator;
-			Allocator = nullptr;
-		}
 
 		return true;
 	}

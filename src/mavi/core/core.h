@@ -242,11 +242,13 @@ namespace Mavi
 			MemoryContext(const char* NewSource, const char* NewFunction, const char* NewTypeName, int NewLine);
 		};
 
-		class VI_OUT_TS Allocator
+		class VI_OUT_TS GlobalAllocator
 		{
 		public:
-			virtual ~Allocator() = default;
+			virtual ~GlobalAllocator() = default;
+			virtual Unique<void> Allocate(size_t Size) noexcept = 0;
 			virtual Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept = 0;
+			virtual void Transfer(Unique<void> Address, size_t Size) noexcept = 0;
 			virtual void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept = 0;
 			virtual void Free(Unique<void> Address) noexcept = 0;
 			virtual void Watch(MemoryContext&& Origin, void* Address) noexcept = 0;
@@ -256,7 +258,7 @@ namespace Mavi
 			virtual bool IsFinalizable() noexcept = 0;
 		};
 
-		class VI_OUT_TS DebugAllocator final : public Allocator
+		class VI_OUT_TS DebugAllocator final : public GlobalAllocator
 		{
 		public:
 			struct VI_OUT_TS TracingBlock
@@ -278,8 +280,10 @@ namespace Mavi
 
 		public:
 			~DebugAllocator() override = default;
+			Unique<void> Allocate(size_t Size) noexcept override;
 			Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept override;
 			void Free(Unique<void> Address) noexcept override;
+			void Transfer(Unique<void> Address, size_t Size) noexcept override;
 			void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept override;
 			void Watch(MemoryContext&& Origin, void* Address) noexcept override;
 			void Unwatch(void* Address) noexcept override;
@@ -291,12 +295,14 @@ namespace Mavi
 			const std::unordered_map<void*, TracingBlock>& GetBlocks() const;
 		};
 		
-		class VI_OUT_TS DefaultAllocator final : public Allocator
+		class VI_OUT_TS DefaultAllocator final : public GlobalAllocator
 		{
 		public:
 			~DefaultAllocator() override = default;
+			Unique<void> Allocate(size_t Size) noexcept override;
 			Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept override;
 			void Free(Unique<void> Address) noexcept override;
+			void Transfer(Unique<void> Address, size_t Size) noexcept override;
 			void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept override;
 			void Watch(MemoryContext&& Origin, void* Address) noexcept override;
 			void Unwatch(void* Address) noexcept override;
@@ -305,7 +311,7 @@ namespace Mavi
 			bool IsFinalizable() noexcept override;
 		};
 
-		class VI_OUT_TS PoolAllocator final : public Allocator
+		class VI_OUT_TS CachedAllocator final : public GlobalAllocator
 		{
 		public:
 			struct PageCache;
@@ -341,10 +347,12 @@ namespace Mavi
 			size_t ElementsPerAllocation;
 
 		public:
-			PoolAllocator(uint64_t MinimalLifeTimeMs = 2000, size_t MaxElementsPerAllocation = 1024, size_t ElementsReducingBaseBytes = 300, double ElementsReducingFactorRate = 5.0);
-			~PoolAllocator() noexcept override;
+			CachedAllocator(uint64_t MinimalLifeTimeMs = 2000, size_t MaxElementsPerAllocation = 1024, size_t ElementsReducingBaseBytes = 300, double ElementsReducingFactorRate = 5.0);
+			~CachedAllocator() noexcept override;
+			Unique<void> Allocate(size_t Size) noexcept override;
 			Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept override;
 			void Free(Unique<void> Address) noexcept override;
+			void Transfer(Unique<void> Address, size_t Size) noexcept override;
 			void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept override;
 			void Watch(MemoryContext&& Origin, void* Address) noexcept override;
 			void Unwatch(void* Address) noexcept override;
@@ -358,12 +366,52 @@ namespace Mavi
 			size_t GetElementsCount(PageGroup& Page, size_t Size);
 		};
 
+		class VI_OUT LocalAllocator
+		{
+		public:
+			virtual ~LocalAllocator() = default;
+			virtual Unique<void> Allocate(size_t Size) noexcept = 0;
+			virtual void Free(Unique<void> Address) noexcept = 0;
+			virtual void Reset() noexcept = 0;
+			virtual bool IsValid(void* Address) noexcept = 0;
+		};
+
+		class VI_OUT ArenaAllocator final : public LocalAllocator
+		{
+		private:
+			struct Region 
+			{
+				char* FreeAddress;
+				char* BaseAddress;
+				Region* UpperAddress;
+				Region* LowerAddress;
+				size_t Size;
+			};
+
+		private:
+			Region* Top;
+			Region* Bottom;
+			size_t Sizing;
+
+		public:
+			ArenaAllocator(size_t Size);
+			~ArenaAllocator() noexcept override;
+			Unique<void> Allocate(size_t Size) noexcept override;
+			void Free(Unique<void> Address) noexcept override;
+			void Reset() noexcept override;
+			bool IsValid(void* Address) noexcept override;
+
+		private:
+			void NextRegion(size_t Size) noexcept;
+			void FlushRegions() noexcept;
+		};
+
 		class VI_OUT_TS Memory
 		{
 		private:
 			static std::unordered_map<void*, std::pair<MemoryContext, size_t>>* Allocations;
 			static std::mutex* Mutex;
-			static Allocator* Base;
+			static GlobalAllocator* Global;
 
 		public:
 			static Unique<void> Malloc(size_t Size) noexcept;
@@ -371,9 +419,11 @@ namespace Mavi
 			static void Free(Unique<void> Address) noexcept;
 			static void Watch(void* Address, MemoryContext&& Origin) noexcept;
 			static void Unwatch(void* Address) noexcept;
-			static void SetAllocator(Allocator* NewAllocator);
+			static void SetGlobalAllocator(GlobalAllocator* NewAllocator);
+			static void SetLocalAllocator(LocalAllocator* NewAllocator);
 			static bool IsValidAddress(void* Address);
-			static Allocator* GetAllocator();
+			static GlobalAllocator* GetGlobalAllocator();
+			static LocalAllocator* GetLocalAllocator();
 
 		private:
 			static void Initialize();
@@ -1990,6 +2040,30 @@ namespace Mavi
 			{
 				VI_CLEAR(Pointer);
 			}
+		};
+
+		template <typename T>
+		class UAlloc
+		{
+			static_assert(std::is_base_of<LocalAllocator, T>::value, "unique allocator type should be based on local allocator");
+
+		private:
+			T& Allocator;
+
+		public:
+			UAlloc(T& NewAllocator) noexcept : Allocator(NewAllocator)
+			{
+				Memory::SetLocalAllocator(&NewAllocator);
+			}
+			UAlloc(const UAlloc& Other) noexcept = delete;
+			UAlloc(UAlloc&& Other) noexcept = delete;
+			~UAlloc()
+			{
+				Memory::SetLocalAllocator(nullptr);
+				Allocator.Reset();
+			}
+			UAlloc& operator= (const UAlloc& Other) noexcept = delete;
+			UAlloc& operator= (UAlloc&& Other) noexcept = delete;
 		};
 
 		template <typename T>

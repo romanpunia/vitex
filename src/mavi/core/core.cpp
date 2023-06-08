@@ -342,6 +342,11 @@ namespace Mavi
 		{
 		}
 
+		void* DebugAllocator::Allocate(size_t Size) noexcept
+		{
+			VI_ASSERT(false, "invalid allocator malloc call without memory context");
+			return nullptr;
+		}
 		void* DebugAllocator::Allocate(MemoryContext&& Origin, size_t Size) noexcept
 		{
 			void* Address = malloc(Size);
@@ -359,6 +364,10 @@ namespace Mavi
 
 			Blocks.erase(It);
 			free(Address);
+		}
+		void DebugAllocator::Transfer(Unique<void> Address, size_t Size) noexcept
+		{
+			VI_ASSERT(false, "invalid allocator transfer call without memory context");
 		}
 		void DebugAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
 		{
@@ -474,6 +483,12 @@ namespace Mavi
 			return Blocks;
 		}
 
+		void* DefaultAllocator::Allocate(size_t Size) noexcept
+		{
+			void* Address = malloc(Size);
+			VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
+			return Address;
+		}
 		void* DefaultAllocator::Allocate(MemoryContext&& Origin, size_t Size) noexcept
 		{
 			void* Address = malloc(Size);
@@ -483,6 +498,9 @@ namespace Mavi
 		void DefaultAllocator::Free(void* Address) noexcept
 		{
 			free(Address);
+		}
+		void DefaultAllocator::Transfer(Unique<void> Address, size_t Size) noexcept
+		{
 		}
 		void DefaultAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
 		{
@@ -505,13 +523,13 @@ namespace Mavi
 			return true;
 		}
 
-		PoolAllocator::PoolAllocator(uint64_t MinimalLifeTimeMs, size_t MaxElementsPerAllocation, size_t ElementsReducingBaseBytes, double ElementsReducingFactorRate) : MinimalLifeTime(MinimalLifeTimeMs), ElementsReducingFactor(ElementsReducingFactorRate), ElementsReducingBase(ElementsReducingBaseBytes), ElementsPerAllocation(MaxElementsPerAllocation)
+		CachedAllocator::CachedAllocator(uint64_t MinimalLifeTimeMs, size_t MaxElementsPerAllocation, size_t ElementsReducingBaseBytes, double ElementsReducingFactorRate) : MinimalLifeTime(MinimalLifeTimeMs), ElementsReducingFactor(ElementsReducingFactorRate), ElementsReducingBase(ElementsReducingBaseBytes), ElementsPerAllocation(MaxElementsPerAllocation)
 		{
 			VI_ASSERT(ElementsPerAllocation > 0, "elements count per allocation should be greater then zero");
 			VI_ASSERT(ElementsReducingFactor > 1.0, "elements reducing factor should be greater then zero");
 			VI_ASSERT(ElementsReducingBase > 0, "elements reducing base should be greater then zero");
 		}
-		PoolAllocator::~PoolAllocator() noexcept
+		CachedAllocator::~CachedAllocator() noexcept
 		{
 			for (auto& Page : Pages)
 			{
@@ -523,7 +541,7 @@ namespace Mavi
 			}
 			Pages.clear();
 		}
-		void* PoolAllocator::Allocate(MemoryContext&&, size_t Size) noexcept
+		void* CachedAllocator::Allocate(size_t Size) noexcept
 		{
 			std::unique_lock<std::recursive_mutex> Unique(Mutex);
 			auto* Cache = GetPageCache(Size);
@@ -534,7 +552,11 @@ namespace Mavi
 			Cache->Addresses.pop_back();
 			return Address->Address;
 		}
-		void PoolAllocator::Free(void* Address) noexcept
+		void* CachedAllocator::Allocate(MemoryContext&&, size_t Size) noexcept
+		{
+			return Allocate(Size);
+		}
+		void CachedAllocator::Free(void* Address) noexcept
 		{
 			char* SourceAddress = nullptr;
 			PageAddress* Source = (PageAddress*)((char*)Address - sizeof(PageAddress));
@@ -555,27 +577,30 @@ namespace Mavi
 				free(Cache);
 			}
 		}
-		void PoolAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
+		void CachedAllocator::Transfer(Unique<void> Address, size_t Size) noexcept
 		{
 		}
-		void PoolAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
+		void CachedAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
 		{
 		}
-		void PoolAllocator::Unwatch(void* Address) noexcept
+		void CachedAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
 		{
 		}
-		void PoolAllocator::Finalize() noexcept
+		void CachedAllocator::Unwatch(void* Address) noexcept
 		{
 		}
-		bool PoolAllocator::IsValid(void* Address) noexcept
+		void CachedAllocator::Finalize() noexcept
+		{
+		}
+		bool CachedAllocator::IsValid(void* Address) noexcept
 		{
 			return true;
 		}
-		bool PoolAllocator::IsFinalizable() noexcept
+		bool CachedAllocator::IsFinalizable() noexcept
 		{
 			return false;
 		}
-		PoolAllocator::PageCache* PoolAllocator::GetPageCache(size_t Size)
+		CachedAllocator::PageCache* CachedAllocator::GetPageCache(size_t Size)
 		{
 			auto& Page = Pages[Size];
 			for (auto* Cache : Page)
@@ -606,11 +631,11 @@ namespace Mavi
 			Page.push_back(Cache);
 			return Cache;
 		}
-		int64_t PoolAllocator::GetClock()
+		int64_t CachedAllocator::GetClock()
 		{
 			return (int64_t)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		}
-		size_t PoolAllocator::GetElementsCount(PageGroup& Page, size_t Size)
+		size_t CachedAllocator::GetElementsCount(PageGroup& Page, size_t Size)
 		{
 			double Frequency;
 			if (Pages.size() > 1)
@@ -645,6 +670,106 @@ namespace Mavi
 			return (size_t)Total;
 		}
 
+		ArenaAllocator::ArenaAllocator(size_t Size) : Top(nullptr), Bottom(nullptr), Sizing(Size)
+		{
+			NextRegion(Sizing);
+		}
+		ArenaAllocator::~ArenaAllocator() noexcept
+		{
+			FlushRegions();
+		}
+		void* ArenaAllocator::Allocate(size_t Size) noexcept
+		{
+		Retry:
+			char* MaxAddress = Bottom->BaseAddress + Bottom->Size;
+			char* OffsetAddress = Bottom->FreeAddress;
+			size_t Leftovers = MaxAddress - OffsetAddress;
+			if (Leftovers < Size)
+			{
+				NextRegion(Size);
+				goto Retry;
+			}
+
+			char* Address = OffsetAddress;
+			Bottom->FreeAddress = Address + Size;
+			return Address;
+		}
+		void ArenaAllocator::Free(void* Address) noexcept
+		{
+			VI_ASSERT(IsValid(Address), "address is not valid");
+		}
+		void ArenaAllocator::Reset() noexcept
+		{
+			size_t TotalSize = 0;
+			Region* Next = Top;
+			while (Next != nullptr)
+			{
+				TotalSize += Next->Size;
+				Next->FreeAddress = Next->BaseAddress;
+				Next = Next->LowerAddress;
+			}
+
+			if (TotalSize > Sizing)
+			{
+				Sizing = TotalSize;
+				FlushRegions();
+				NextRegion(Sizing);
+			}
+		}
+		bool ArenaAllocator::IsValid(void* Address) noexcept
+		{
+			char* Target = (char*)Address;
+			Region* Next = Top;
+			while (Next != nullptr)
+			{
+				if (Target >= Next->BaseAddress && Target <= Next->BaseAddress + Next->Size)
+					return true;
+
+				Next = Next->LowerAddress;
+			}
+
+			return false;
+		}
+		void ArenaAllocator::NextRegion(size_t Size) noexcept
+		{
+			LocalAllocator* Current = Memory::GetLocalAllocator();
+			Memory::SetLocalAllocator(nullptr);
+
+			Region* Next = VI_MALLOC(Region, sizeof(Region) + Size);
+			Next->BaseAddress = (char*)Next + sizeof(Region);
+			Next->FreeAddress = Next->BaseAddress;
+			Next->UpperAddress = Bottom;
+			Next->LowerAddress = nullptr;
+			Next->Size = Size;
+
+			if (!Top)
+				Top = Next;
+			if (Bottom != nullptr)
+				Bottom->LowerAddress = Next;
+
+			Bottom = Next;
+			Memory::SetLocalAllocator(Current);
+		}
+		void ArenaAllocator::FlushRegions() noexcept
+		{
+			LocalAllocator* Current = Memory::GetLocalAllocator();
+			Memory::SetLocalAllocator(nullptr);
+
+			Region* Next = Bottom;
+			Bottom = nullptr;
+			Top = nullptr;
+
+			while (Next != nullptr)
+			{
+				void* Address = (void*)Next;
+				Next = Next->UpperAddress;
+				VI_FREE(Address);
+			}
+
+			Memory::SetLocalAllocator(Current);
+		}
+
+		static thread_local LocalAllocator* Local = nullptr;
 		void Memory::Initialize()
 		{
 			if (!Allocations)
@@ -669,20 +794,46 @@ namespace Mavi
 		}
 		void* Memory::Malloc(size_t Size) noexcept
 		{
-			return MallocContext(Size, MemoryContext());
-		}
-		void* Memory::MallocContext(size_t Size, MemoryContext&& Origin) noexcept
-		{
 			VI_ASSERT(Size > 0, "cannot allocate zero bytes");
-			if (Base != nullptr)
+			if (Local != nullptr)
 			{
-				void* Address = Base->Allocate(std::move(Origin), Size);
-				VI_PANIC(Address != nullptr, "application is out of memory allocating %" PRIu64 " bytes", (uint64_t)Size);
+				void* Address = Local->Allocate(Size);
+				VI_PANIC(Address != nullptr, "application is out of local memory allocating %" PRIu64 " bytes", (uint64_t)Size);
+				return Address;
+			}
+			else if (Global != nullptr)
+			{
+				void* Address = Global->Allocate(Size);
+				VI_PANIC(Address != nullptr, "application is out of global memory allocating %" PRIu64 " bytes", (uint64_t)Size);
 				return Address;
 			}
 
 			void* Address = malloc(Size);
-			VI_PANIC(Address != nullptr, "application is out of memory allocating %" PRIu64 " bytes", (uint64_t)Size);
+			VI_PANIC(Address != nullptr, "application is out of system memory allocating %" PRIu64 " bytes", (uint64_t)Size);
+			Initialize();
+
+			std::unique_lock<std::mutex> Unique(*Mutex);
+			(*Allocations)[Address].second = Size;
+			return Address;
+		}
+		void* Memory::MallocContext(size_t Size, MemoryContext&& Origin) noexcept
+		{
+			VI_ASSERT(Size > 0, "cannot allocate zero bytes");
+			if (Local != nullptr)
+			{
+				void* Address = Local->Allocate(Size);
+				VI_PANIC(Address != nullptr, "application is out of global memory allocating %" PRIu64 " bytes", (uint64_t)Size);
+				return Address;
+			}
+			else if (Global != nullptr)
+			{
+				void* Address = Global->Allocate(std::move(Origin), Size);
+				VI_PANIC(Address != nullptr, "application is out of global memory allocating %" PRIu64 " bytes", (uint64_t)Size);
+				return Address;
+			}
+
+			void* Address = malloc(Size);
+			VI_PANIC(Address != nullptr, "application is out of system memory allocating %" PRIu64 " bytes", (uint64_t)Size);
 			Initialize();
 
 			std::unique_lock<std::mutex> Unique(*Mutex);
@@ -696,8 +847,10 @@ namespace Mavi
 			if (!Address)
 				return;
 
-			if (Base != nullptr)
-				return Base->Free(Address);
+			if (Local != nullptr)
+				return Local->Free(Address);
+			else if (Global != nullptr)
+				return Global->Free(Address);
 
 			if (Allocations != nullptr)
 			{
@@ -708,43 +861,59 @@ namespace Mavi
 		}
 		void Memory::Watch(void* Address, MemoryContext&& Origin) noexcept
 		{
-			VI_ASSERT(Base != nullptr, "allocator should be set");
+			VI_ASSERT(Global != nullptr, "allocator should be set");
 			VI_ASSERT(Address != nullptr, "address should be set");
-			Base->Watch(std::move(Origin), Address);
+			Global->Watch(std::move(Origin), Address);
 		}
 		void Memory::Unwatch(void* Address) noexcept
 		{
-			VI_ASSERT(Base != nullptr, "allocator should be set");
+			VI_ASSERT(Global != nullptr, "allocator should be set");
 			VI_ASSERT(Address != nullptr, "address should be set");
-			Base->Unwatch(Address);
+			Global->Unwatch(Address);
 		}
-		void Memory::SetAllocator(Allocator* NewAllocator)
+		void Memory::SetGlobalAllocator(GlobalAllocator* NewAllocator)
 		{
-			if (Base != nullptr)
-				Base->Finalize();
+			if (Global != nullptr)
+				Global->Finalize();
 
-			Base = NewAllocator;
-			if (Base != nullptr && Allocations != nullptr)
+			Global = NewAllocator;
+			if (Global != nullptr && Allocations != nullptr)
 			{
+#ifndef NDEBUG
 				for (auto& Item : *Allocations)
-					Base->Transfer(Item.first, MemoryContext(Item.second.first), Item.second.second);
+					Global->Transfer(Item.first, MemoryContext(Item.second.first), Item.second.second);
+#else
+				for (auto& Item : *Allocations)
+					Global->Transfer(Item.first, Item.second.second);
+#endif
 			}
 			else
 				Uninitialize();
 		}
+		void Memory::SetLocalAllocator(LocalAllocator* NewAllocator)
+		{
+			Local = NewAllocator;
+		}
 		bool Memory::IsValidAddress(void* Address)
 		{
-			VI_ASSERT(Base != nullptr, "allocator should be set");
+			VI_ASSERT(Global != nullptr, "allocator should be set");
 			VI_ASSERT(Address != nullptr, "address should be set");
-			return Base->IsValid(Address);
+			if (Local != nullptr && Local->IsValid(Address))
+				return true;
+
+			return Global->IsValid(Address);
 		}
-		Allocator* Memory::GetAllocator()
+		GlobalAllocator* Memory::GetGlobalAllocator()
 		{
-			return Base;
+			return Global;
+		}
+		LocalAllocator* Memory::GetLocalAllocator()
+		{
+			return Local;
 		}
 		std::unordered_map<void*, std::pair<MemoryContext, size_t>>* Memory::Allocations = nullptr;
 		std::mutex* Memory::Mutex = nullptr;
-		Allocator* Memory::Base = nullptr;
+		GlobalAllocator* Memory::Global = nullptr;
 
 		StackTrace::StackTrace(size_t Skips, size_t MaxDepth)
 		{

@@ -71,10 +71,9 @@ namespace Mavi
 		static const char* GetBuild();
 		static const char* GetCompiler();
 		static const char* GetPlatform();
-		static Core::Allocator* GetAllocator();
 	};
 
-	VI_OUT bool Initialize(size_t Modules = (size_t)Preset::App, Core::Allocator* Allocator = Library::GetAllocator());
+	VI_OUT bool Initialize(size_t Modules = (size_t)Preset::App, Core::GlobalAllocator* Allocator = nullptr);
 	VI_OUT bool Uninitialize();
 }
 #endif

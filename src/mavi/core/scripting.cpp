@@ -4756,8 +4756,12 @@ namespace Mavi
 		}
 		bool ImmediateContext::IsSyncLocked() const
 		{
+#ifdef VI_BINDINGS
 			VI_ASSERT(Context != nullptr, "context should be set");
 			return Bindings::Mutex::IsAnyLocked(Context);
+#else
+			return false;
+#endif
 		}
 		bool ImmediateContext::CanExecuteCall() const
 		{

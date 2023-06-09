@@ -243,7 +243,7 @@ namespace Mavi
 			class VI_OUT WebSocketFrame final : public Core::Reference<WebSocketFrame>
 			{
 				friend class Connection;
-				friend class Util;
+				friend class Utils;
 
 			private:
 				struct Message
@@ -687,7 +687,7 @@ namespace Mavi
 				bool GetFrame(WebSocketOp* Op, Core::Vector<char>* Message);
 			};
 
-			class VI_OUT_TS Util
+			class VI_OUT_TS Utils
 			{
 			public:
 				static Core::String ConnectionResolve(Connection* Base);
@@ -777,7 +777,7 @@ namespace Mavi
 			{
 				friend Connection;
 				friend Logical;
-				friend Util;
+				friend Utils;
 
 			public:
 				Server();

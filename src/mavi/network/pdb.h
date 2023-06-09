@@ -216,14 +216,7 @@ namespace Mavi
 			{
 				return static_cast<size_t>(static_cast<size_t>(A) | static_cast<size_t>(B));
 			}
-
-			class VI_OUT_TS Util
-			{
-			public:
-				static Core::String InlineArray(Cluster* Client, Core::Unique<Core::Schema> Array);
-				static Core::String InlineQuery(Cluster* Client, Core::Unique<Core::Schema> Where, const Core::UnorderedSet<Core::String>& Whitelist, const Core::String& Default = "TRUE");
-			};
-
+			
 			class VI_OUT Address
 			{
 			private:
@@ -580,6 +573,8 @@ namespace Mavi
 			class VI_OUT_TS Utils
 			{
 			public:
+				static Core::String InlineArray(Cluster* Client, Core::Unique<Core::Schema> Array);
+				static Core::String InlineQuery(Cluster* Client, Core::Unique<Core::Schema> Where, const Core::UnorderedSet<Core::String>& Whitelist, const Core::String& Default = "TRUE");
 				static Core::String GetCharArray(TConnection* Base, const Core::String& Src) noexcept;
 				static Core::String GetByteArray(TConnection* Base, const char* Src, size_t Size) noexcept;
 				static Core::String GetSQL(TConnection* Base, Core::Schema* Source, bool Escape, bool Negate) noexcept;

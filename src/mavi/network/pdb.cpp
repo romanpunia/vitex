@@ -362,101 +362,6 @@ namespace Mavi
 				}
 			}
 #endif
-			Core::String Util::InlineArray(Cluster* Client, Core::Schema* Array)
-			{
-				VI_ASSERT(Client != nullptr, "cluster should be set");
-				VI_ASSERT(Array != nullptr, "array should be set");
-
-				Core::SchemaList Map;
-				Core::String Def;
-
-				for (auto* Item : Array->GetChilds())
-				{
-					if (Item->Value.IsObject())
-					{
-						if (Item->IsEmpty())
-							continue;
-
-						Def += '(';
-						for (auto* Sub : Item->GetChilds())
-						{
-							Map.push_back(Sub);
-							Def += "?,";
-						}
-						Def.erase(Def.end() - 1);
-						Def += "),";
-					}
-					else
-					{
-						Map.push_back(Item);
-						Def += "?,";
-					}
-				}
-
-				Core::String Result = PDB::Driver::Get()->Emplace(Client, Def, &Map, false);
-				if (!Result.empty() && Result.back() == ',')
-					Result.erase(Result.end() - 1);
-
-				VI_RELEASE(Array);
-				return Result;
-			}
-			Core::String Util::InlineQuery(Cluster* Client, Core::Schema* Where, const Core::UnorderedSet<Core::String>& Whitelist, const Core::String& Default)
-			{
-				VI_ASSERT(Client != nullptr, "cluster should be set");
-				VI_ASSERT(Where != nullptr, "array should be set");
-
-				Core::SchemaList Map;
-				Core::String Allow = "abcdefghijklmnopqrstuvwxyz._", Def;
-				for (auto* Statement : Where->GetChilds())
-				{
-					Core::String Op = Statement->Value.GetBlob();
-					if (Op == "=" || Op == "<>" || Op == "<=" || Op == "<" || Op == ">" || Op == ">=" || Op == "+" || Op == "-" || Op == "*" || Op == "/" || Op == "(" || Op == ")" || Op == "TRUE" || Op == "FALSE")
-						Def += Op;
-					else if (Op == "~==")
-						Def += " LIKE ";
-					else if (Op == "~=")
-						Def += " ILIKE ";
-					else if (Op == "[")
-						Def += " ANY(";
-					else if (Op == "]")
-						Def += ")";
-					else if (Op == "&")
-						Def += " AND ";
-					else if (Op == "|")
-						Def += " OR ";
-					else if (Op == "TRUE")
-						Def += " TRUE ";
-					else if (Op == "FALSE")
-						Def += " FALSE ";
-					else if (!Op.empty())
-					{
-						if (Op.front() == '@')
-						{
-							Op = Op.substr(1);
-							if (Whitelist.empty() || Whitelist.find(Op) != Whitelist.end())
-							{
-								if (Op.find_first_not_of(Allow) == Core::String::npos)
-									Def += Op;
-							}
-						}
-						else if (!Core::Stringify::HasNumber(Op))
-						{
-							Def += "?";
-							Map.push_back(Statement);
-						}
-						else
-							Def += Op;
-					}
-				}
-
-				Core::String Result = PDB::Driver::Get()->Emplace(Client, Def, &Map, false);
-				if (Result.empty())
-					Result = Default;
-
-				VI_RELEASE(Where);
-				return Result;
-			}
-
 			Address::Address()
 			{
 			}
@@ -2339,6 +2244,100 @@ namespace Mavi
 				return true;
 			}
 
+			Core::String Utils::InlineArray(Cluster* Client, Core::Schema* Array)
+			{
+				VI_ASSERT(Client != nullptr, "cluster should be set");
+				VI_ASSERT(Array != nullptr, "array should be set");
+
+				Core::SchemaList Map;
+				Core::String Def;
+
+				for (auto* Item : Array->GetChilds())
+				{
+					if (Item->Value.IsObject())
+					{
+						if (Item->IsEmpty())
+							continue;
+
+						Def += '(';
+						for (auto* Sub : Item->GetChilds())
+						{
+							Map.push_back(Sub);
+							Def += "?,";
+						}
+						Def.erase(Def.end() - 1);
+						Def += "),";
+					}
+					else
+					{
+						Map.push_back(Item);
+						Def += "?,";
+					}
+				}
+
+				Core::String Result = PDB::Driver::Get()->Emplace(Client, Def, &Map, false);
+				if (!Result.empty() && Result.back() == ',')
+					Result.erase(Result.end() - 1);
+
+				VI_RELEASE(Array);
+				return Result;
+			}
+			Core::String Utils::InlineQuery(Cluster* Client, Core::Schema* Where, const Core::UnorderedSet<Core::String>& Whitelist, const Core::String& Default)
+			{
+				VI_ASSERT(Client != nullptr, "cluster should be set");
+				VI_ASSERT(Where != nullptr, "array should be set");
+
+				Core::SchemaList Map;
+				Core::String Allow = "abcdefghijklmnopqrstuvwxyz._", Def;
+				for (auto* Statement : Where->GetChilds())
+				{
+					Core::String Op = Statement->Value.GetBlob();
+					if (Op == "=" || Op == "<>" || Op == "<=" || Op == "<" || Op == ">" || Op == ">=" || Op == "+" || Op == "-" || Op == "*" || Op == "/" || Op == "(" || Op == ")" || Op == "TRUE" || Op == "FALSE")
+						Def += Op;
+					else if (Op == "~==")
+						Def += " LIKE ";
+					else if (Op == "~=")
+						Def += " ILIKE ";
+					else if (Op == "[")
+						Def += " ANY(";
+					else if (Op == "]")
+						Def += ")";
+					else if (Op == "&")
+						Def += " AND ";
+					else if (Op == "|")
+						Def += " OR ";
+					else if (Op == "TRUE")
+						Def += " TRUE ";
+					else if (Op == "FALSE")
+						Def += " FALSE ";
+					else if (!Op.empty())
+					{
+						if (Op.front() == '@')
+						{
+							Op = Op.substr(1);
+							if (Whitelist.empty() || Whitelist.find(Op) != Whitelist.end())
+							{
+								if (Op.find_first_not_of(Allow) == Core::String::npos)
+									Def += Op;
+							}
+						}
+						else if (!Core::Stringify::HasNumber(Op))
+						{
+							Def += "?";
+							Map.push_back(Statement);
+						}
+						else
+							Def += Op;
+					}
+				}
+
+				Core::String Result = PDB::Driver::Get()->Emplace(Client, Def, &Map, false);
+				if (Result.empty())
+					Result = Default;
+
+				VI_RELEASE(Where);
+				return Result;
+			}
 			Core::String Utils::GetCharArray(TConnection* Base, const Core::String& Src) noexcept
 			{
 #ifdef VI_POSTGRESQL

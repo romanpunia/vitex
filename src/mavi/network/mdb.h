@@ -106,17 +106,6 @@ namespace Mavi
 				Property operator [](const char* Name) const;
 			};
 
-			class VI_OUT_TS Util
-			{
-			public:
-				static bool GetId(unsigned char* Id12);
-				static bool GetDecimal(const char* Value, int64_t* High, int64_t* Low);
-				static unsigned int GetHashId(unsigned char* Id12);
-				static int64_t GetTimeId(unsigned char* Id12);
-				static Core::String IdToString(unsigned char* Id12);
-				static Core::String StringToId(const Core::String& Id24);
-			};
-
 			class VI_OUT Document
 			{
 			private:
@@ -507,6 +496,12 @@ namespace Mavi
 			class VI_OUT_TS Utils
 			{
 			public:
+				static bool GetId(unsigned char* Id12) noexcept;
+				static bool GetDecimal(const char* Value, int64_t* High, int64_t* Low) noexcept;
+				static unsigned int GetHashId(unsigned char* Id12) noexcept;
+				static int64_t GetTimeId(unsigned char* Id12) noexcept;
+				static Core::String IdToString(unsigned char* Id12) noexcept;
+				static Core::String StringToId(const Core::String& Id24) noexcept;
 				static Core::String GetJSON(Core::Schema* Source, bool Escape) noexcept;
 			};
 

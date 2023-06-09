@@ -207,90 +207,6 @@ namespace Mavi
 				return Result;
 			}
 
-			bool Util::GetId(unsigned char* Id12)
-			{
-#ifdef VI_MONGOC
-				VI_ASSERT(Id12 != nullptr, "id should be set");
-				bson_oid_t ObjectId;
-				bson_oid_init(&ObjectId, nullptr);
-
-				memcpy((void*)Id12, (void*)ObjectId.bytes, sizeof(char) * 12);
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Util::GetDecimal(const char* Value, int64_t* High, int64_t* Low)
-			{
-				VI_ASSERT(Value != nullptr, "value should be set");
-				VI_ASSERT(High != nullptr, "high should be set");
-				VI_ASSERT(Low != nullptr, "low should be set");
-#ifdef VI_MONGOC
-				bson_decimal128_t Decimal;
-				if (!bson_decimal128_from_string(Value, &Decimal))
-					return false;
-
-				*High = Decimal.high;
-				*Low = Decimal.low;
-				return true;
-#else
-				return false;
-#endif
-			}
-			unsigned int Util::GetHashId(unsigned char* Id12)
-			{
-#ifdef VI_MONGOC
-				VI_ASSERT(Id12 != nullptr, "id should be set");
-
-				bson_oid_t Id;
-				memcpy((void*)Id.bytes, (void*)Id12, sizeof(char) * 12);
-				return bson_oid_hash(&Id);
-#else
-				return 0;
-#endif
-			}
-			int64_t Util::GetTimeId(unsigned char* Id12)
-			{
-#ifdef VI_MONGOC
-				VI_ASSERT(Id12 != nullptr, "id should be set");
-
-				bson_oid_t Id;
-				memcpy((void*)Id.bytes, (void*)Id12, sizeof(char) * 12);
-
-				return bson_oid_get_time_t(&Id);
-#else
-				return 0;
-#endif
-			}
-			Core::String Util::IdToString(unsigned char* Id12)
-			{
-#ifdef VI_MONGOC
-				VI_ASSERT(Id12 != nullptr, "id should be set");
-
-				bson_oid_t Id;
-				memcpy(Id.bytes, Id12, sizeof(unsigned char) * 12);
-
-				char Result[25];
-				bson_oid_to_string(&Id, Result);
-
-				return Core::String(Result, 24);
-#else
-				return "";
-#endif
-			}
-			Core::String Util::StringToId(const Core::String& Id24)
-			{
-				VI_ASSERT(Id24.size() == 24, "id should be 24 chars long");
-#ifdef VI_MONGOC
-				bson_oid_t Id;
-				bson_oid_init_from_string(&Id, Id24.c_str());
-
-				return Core::String((const char*)Id.bytes, 12);
-#else
-				return "";
-#endif
-			}
-
 			Document::Document(TDocument* NewBase) : Base(NewBase), Store(false)
 			{
 			}
@@ -3401,6 +3317,89 @@ namespace Mavi
 				return SrcAddress;
 			}
 
+			bool Utils::GetId(unsigned char* Id12) noexcept
+			{
+#ifdef VI_MONGOC
+				VI_ASSERT(Id12 != nullptr, "id should be set");
+				bson_oid_t ObjectId;
+				bson_oid_init(&ObjectId, nullptr);
+
+				memcpy((void*)Id12, (void*)ObjectId.bytes, sizeof(char) * 12);
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Utils::GetDecimal(const char* Value, int64_t* High, int64_t* Low) noexcept
+			{
+				VI_ASSERT(Value != nullptr, "value should be set");
+				VI_ASSERT(High != nullptr, "high should be set");
+				VI_ASSERT(Low != nullptr, "low should be set");
+#ifdef VI_MONGOC
+				bson_decimal128_t Decimal;
+				if (!bson_decimal128_from_string(Value, &Decimal))
+					return false;
+
+				*High = Decimal.high;
+				*Low = Decimal.low;
+				return true;
+#else
+				return false;
+#endif
+			}
+			unsigned int Utils::GetHashId(unsigned char* Id12) noexcept
+			{
+#ifdef VI_MONGOC
+				VI_ASSERT(Id12 != nullptr, "id should be set");
+
+				bson_oid_t Id;
+				memcpy((void*)Id.bytes, (void*)Id12, sizeof(char) * 12);
+				return bson_oid_hash(&Id);
+#else
+				return 0;
+#endif
+			}
+			int64_t Utils::GetTimeId(unsigned char* Id12) noexcept
+			{
+#ifdef VI_MONGOC
+				VI_ASSERT(Id12 != nullptr, "id should be set");
+
+				bson_oid_t Id;
+				memcpy((void*)Id.bytes, (void*)Id12, sizeof(char) * 12);
+
+				return bson_oid_get_time_t(&Id);
+#else
+				return 0;
+#endif
+			}
+			Core::String Utils::IdToString(unsigned char* Id12) noexcept
+			{
+#ifdef VI_MONGOC
+				VI_ASSERT(Id12 != nullptr, "id should be set");
+
+				bson_oid_t Id;
+				memcpy(Id.bytes, Id12, sizeof(unsigned char) * 12);
+
+				char Result[25];
+				bson_oid_to_string(&Id, Result);
+
+				return Core::String(Result, 24);
+#else
+				return "";
+#endif
+			}
+			Core::String Utils::StringToId(const Core::String& Id24) noexcept
+			{
+				VI_ASSERT(Id24.size() == 24, "id should be 24 chars long");
+#ifdef VI_MONGOC
+				bson_oid_t Id;
+				bson_oid_init_from_string(&Id, Id24.c_str());
+
+				return Core::String((const char*)Id.bytes, 12);
+#else
+				return "";
+#endif
+			}
 			Core::String Utils::GetJSON(Core::Schema* Source, bool Escape) noexcept
 			{
 				VI_ASSERT(Source != nullptr, "source should be set");
@@ -3457,7 +3456,7 @@ namespace Mavi
 							return "\"" + Base + "\"";
 						}
 
-						return "{\"$oid\":\"" + Util::IdToString(Source->Value.GetBinary()) + "\"}";
+						return "{\"$oid\":\"" + Utils::IdToString(Source->Value.GetBinary()) + "\"}";
 					}
 					case Core::VarType::Null:
 					case Core::VarType::Undefined:

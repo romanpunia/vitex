@@ -5650,7 +5650,8 @@ namespace Mavi
 			FillConsoleOutputAttribute((HANDLE)Wnd, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE, Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
 			SetConsoleCursorPosition((HANDLE)Wnd, TopLeft);
 #else
-			(void)std::system("clear");
+			int ExitCode = std::system("clear");
+			(void)ExitCode;
 #endif
 		}
 		void Console::Attach()
@@ -10264,7 +10265,6 @@ namespace Mavi
 		{
 			return HasInstance() && Get()->Active;
 		}
-		Schedule* Schedule::Singleton = nullptr;
 
 		Schema::Schema(const Variant& Base) noexcept : Nodes(nullptr), Parent(nullptr), Saved(true), Value(Base)
 		{

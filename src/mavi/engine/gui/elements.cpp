@@ -34,7 +34,7 @@ namespace Mavi
 			};
 
 			static Rml::ElementInstancerGeneric<ExpandElement>* IExpandInstancer = nullptr;
-			void Subsystem::CreateElements()
+			void Subsystem::CreateElements() noexcept
 			{
 				if (!IExpandInstancer)
 				{
@@ -42,7 +42,7 @@ namespace Mavi
 					Rml::Factory::RegisterElementInstancer("expand", IExpandInstancer);
 				}
 			}
-			void Subsystem::ReleaseElements()
+			void Subsystem::ReleaseElements() noexcept
 			{
 				VI_DELETE(ElementInstancerGeneric, IExpandInstancer);
 				IExpandInstancer = nullptr;

@@ -1901,7 +1901,7 @@ namespace Mavi
 			void* ServerProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				Core::String N = Network::Multiplexer::GetLocalAddress();
+				Core::String N = Network::Utils::GetLocalAddress();
 				Core::String D = Core::OS::Path::GetDirectory(Stream->GetSource().c_str());
 				auto* Blob = Content->Load<Core::Schema>(Stream->GetSource());
 				auto* Router = new Network::HTTP::MapRouter();

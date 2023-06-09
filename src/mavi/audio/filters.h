@@ -8,7 +8,7 @@ namespace Mavi
 	{
 		namespace Filters
 		{
-			class VI_OUT FilterContext
+			class VI_OUT FilterContext final : public Core::Singletonish
 			{
 			public:
 				static void Initialize();

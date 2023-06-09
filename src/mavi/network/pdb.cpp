@@ -393,7 +393,7 @@ namespace Mavi
 					}
 				}
 
-				Core::String Result = PDB::Driver::Emplace(Client, Def, &Map, false);
+				Core::String Result = PDB::Driver::Get()->Emplace(Client, Def, &Map, false);
 				if (!Result.empty() && Result.back() == ',')
 					Result.erase(Result.end() - 1);
 
@@ -449,7 +449,7 @@ namespace Mavi
 					}
 				}
 
-				Core::String Result = PDB::Driver::Emplace(Client, Def, &Map, false);
+				Core::String Result = PDB::Driver::Get()->Emplace(Client, Def, &Map, false);
 				if (Result.empty())
 					Result = Default;
 
@@ -1548,7 +1548,7 @@ namespace Mavi
 
 			Cluster::Cluster()
 			{
-				Driver::Create();
+				Multiplexer::Get()->Activate();
 			}
 			Cluster::~Cluster() noexcept
 			{
@@ -1568,7 +1568,7 @@ namespace Mavi
 				}
 
 				Update.unlock();
-				Driver::Release();
+				Multiplexer::Get()->Deactivate();
 			}
 			void Cluster::ClearCache()
 			{
@@ -1691,7 +1691,7 @@ namespace Mavi
 					const char** Values = Source.CreateValues();
 					std::unique_lock<std::mutex> Unique(Update);
 					Core::UnorderedMap<socket_t, TConnection*> Queue;
-					Core::Vector<Utils::PollFd> Sockets;
+					Core::Vector<Network::Utils::PollFd> Sockets;
 					TConnection* Error = nullptr;
 
 					VI_DEBUG("[pq] try connect using %i connections", (int)Connections);
@@ -1709,7 +1709,7 @@ namespace Mavi
 							goto Failure;
 						}
 
-						Utils::PollFd Fd;
+						Network::Utils::PollFd Fd;
 						Fd.Fd = (socket_t)PQsocket(Base);
 
 						Queue[Fd.Fd] = Base;
@@ -1720,8 +1720,8 @@ namespace Mavi
 					{
 						for (auto It = Sockets.begin(); It != Sockets.end(); It++)
 						{
-							Utils::PollFd& Fd = *It; TConnection* Base = Queue[Fd.Fd];
-							if (Fd.Events == 0 || Fd.Returns & Utils::Input || Fd.Returns & Utils::Output)
+							Network::Utils::PollFd& Fd = *It; TConnection* Base = Queue[Fd.Fd];
+							if (Fd.Events == 0 || Fd.Returns & Network::Utils::Input || Fd.Returns & Network::Utils::Output)
 							{
 								bool Ready = false;
 								switch (PQconnectPoll(Base))
@@ -1732,10 +1732,10 @@ namespace Mavi
 										Error = Base;
 										goto Failure;
 									case PGRES_POLLING_WRITING:
-										Fd.Events = Utils::Output;
+										Fd.Events = Network::Utils::Output;
 										break;
 									case PGRES_POLLING_READING:
-										Fd.Events = Utils::Input;
+										Fd.Events = Network::Utils::Input;
 										break;
 									case PGRES_POLLING_OK:
 									{
@@ -1759,13 +1759,13 @@ namespace Mavi
 								if (Ready)
 									break;
 							}
-							else if (Fd.Returns & Utils::Error || Fd.Returns & Utils::Hangup)
+							else if (Fd.Returns & Network::Utils::Error || Fd.Returns & Network::Utils::Hangup)
 							{
 								Error = Base;
 								goto Failure;
 							}
 						}
-					} while (!Sockets.empty() && Utils::Poll(Sockets.data(), (int)Sockets.size(), 50) >= 0);
+					} while (!Sockets.empty() && Network::Utils::Poll(Sockets.data(), (int)Sockets.size(), 50) >= 0);
 
 					VI_FREE(Keys);
 					VI_FREE(Values);
@@ -1870,14 +1870,14 @@ namespace Mavi
 			Core::Promise<Cursor> Cluster::EmplaceQuery(const Core::String& Command, Core::SchemaList* Map, size_t Opts, SessionId Session)
 			{
 				bool Once = !(Opts & (size_t)QueryOp::ReuseArgs);
-				return Query(Driver::Emplace(this, Command, Map, Once), Opts, Session);
+				return Query(Driver::Get()->Emplace(this, Command, Map, Once), Opts, Session);
 			}
 			Core::Promise<Cursor> Cluster::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, size_t Opts, SessionId Session)
 			{
 				VI_DEBUG("[pq] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 
 				bool Once = !(Opts & (size_t)QueryOp::ReuseArgs);
-				return Query(Driver::GetQuery(this, Name, Map, Once), Opts, Session);
+				return Query(Driver::Get()->GetQuery(this, Name, Map, Once), Opts, Session);
 			}
 			Core::Promise<Cursor> Cluster::Query(const Core::String& Command, size_t Opts, SessionId Session)
 			{
@@ -1893,7 +1893,7 @@ namespace Mavi
 
 					if (GetCache(Reference, &Result))
 					{
-						Driver::LogQuery(Command);
+						Driver::Get()->LogQuery(Command);
 						VI_DEBUG("[pq] OK execute on NULL (memory-cache)");
 
 						return Core::Promise<Cursor>(std::move(Result));
@@ -1927,7 +1927,7 @@ namespace Mavi
 				}
 				Update.unlock();
 
-				Driver::LogQuery(Command);
+				Driver::Get()->LogQuery(Command);
 #ifndef NDEBUG
 				if (!IsInQueue || Next->Session == 0)
 					return Future;
@@ -2202,7 +2202,7 @@ namespace Mavi
 			}
 			bool Cluster::Reprocess(Connection* Source)
 			{
-				return Mavi::Network::Multiplexer::WhenReadable(Source->Stream, [this, Source](SocketPoll Event)
+				return Multiplexer::Get()->WhenReadable(Source->Stream, [this, Source](SocketPoll Event)
 				{
 					if (!Packet::IsSkip(Event))
 						Dispatch(Source, !Packet::IsError(Event));
@@ -2214,8 +2214,9 @@ namespace Mavi
 				Base->State = QueryState::Busy;
 				if (PQflush(Base->Base) == 1)
 				{
-					Mavi::Network::Multiplexer::CancelEvents(Base->Stream);
-					return Mavi::Network::Multiplexer::WhenWriteable(Base->Stream, [this, Base](SocketPoll Event)
+					auto* Stream = Multiplexer::Get();
+					Stream->CancelEvents(Base->Stream);
+					return Stream->WhenWriteable(Base->Stream, [this, Base](SocketPoll Event)
 					{
 						if (!Packet::IsSkip(Event))
 							Flush(Base, true);
@@ -2338,479 +2339,7 @@ namespace Mavi
 				return true;
 			}
 
-			void Driver::Create()
-			{
-#ifdef VI_POSTGRESQL
-				if (State <= 0)
-				{
-					using Map1 = Core::Mapping<Core::UnorderedMap<Core::String, Sequence>>;
-					using Map2 = Core::Mapping<Core::UnorderedMap<Core::String, Core::String>>;
-					Network::Multiplexer::SetActive(true);
-
-					Queries = VI_NEW(Map1);
-					Constants = VI_NEW(Map2);
-					Safe = VI_NEW(std::mutex);
-					State = 1;
-				}
-				else
-					State++;
-#endif
-			}
-			void Driver::Release()
-			{
-#ifdef VI_POSTGRESQL
-				if (State == 1)
-				{
-					Network::Multiplexer::SetActive(false);
-					if (Safe != nullptr)
-						Safe->lock();
-
-					State = 0;
-					if (Queries != nullptr)
-					{
-						VI_DELETE(Mapping, Queries);
-						Queries = nullptr;
-					}
-
-					if (Constants != nullptr)
-					{
-						VI_DELETE(Mapping, Constants);
-						Constants = nullptr;
-					}
-
-					if (Safe != nullptr)
-					{
-						Safe->unlock();
-						VI_DELETE(mutex, Safe);
-						Safe = nullptr;
-					}
-				}
-				else if (State > 0)
-					State--;
-#endif
-			}
-			void Driver::SetQueryLog(const OnQueryLog& Callback)
-			{
-				Logger = Callback;
-			}
-			void Driver::LogQuery(const Core::String& Command)
-			{
-				if (Logger)
-					Logger(Command + '\n');
-			}
-			bool Driver::AddConstant(const Core::String& Name, const Core::String& Value)
-			{
-				VI_ASSERT(Constants && Safe, "driver should be initialized");
-				VI_ASSERT(!Name.empty(), "name should not be empty");
-
-				Safe->lock();
-				Constants->Map[Name] = Value;
-				Safe->unlock();
-				return true;
-			}
-			bool Driver::AddQuery(const Core::String& Name, const char* Buffer, size_t Size)
-			{
-				VI_ASSERT(Queries && Safe, "driver should be initialized");
-				VI_ASSERT(!Name.empty(), "name should not be empty");
-				VI_ASSERT(Buffer, "buffer should be set");
-
-				if (!Size)
-					return false;
-
-				Sequence Result;
-				Result.Request.assign(Buffer, Size);
-
-				Core::String Lines = "\r\n";
-				Core::String Enums = " \r\n\t\'\"()<>=%&^*/+-,!?:;";
-				Core::String Erasable = " \r\n\t\'\"()<>=%&^*/+-,.!?:;";
-				Core::String Quotes = "\"'`";
-
-				Core::String& Base = Result.Request;
-				Core::Stringify::ReplaceInBetween(Base, "/*", "*/", "", false);
-				Core::Stringify::ReplaceStartsWithEndsOf(Base, "--", Lines.c_str(), "");
-				Core::Stringify::Trim(Base);
-				Core::Stringify::Compress(Base, Erasable.c_str(), Quotes.c_str());
-
-				auto Enumerations = Core::Stringify::FindStartsWithEndsOf(Base, "#", Enums.c_str(), Quotes.c_str());
-				if (!Enumerations.empty())
-				{
-					int64_t Offset = 0;
-					std::unique_lock<std::mutex> Unique(*Safe);
-					for (auto& Item : Enumerations)
-					{
-						size_t Size = Item.second.End - Item.second.Start, NewSize = 0;
-						Item.second.Start = (size_t)((int64_t)Item.second.Start + Offset);
-						Item.second.End = (size_t)((int64_t)Item.second.End + Offset);
-
-						auto It = Constants->Map.find(Item.first);
-						if (It == Constants->Map.end())
-						{
-							VI_ERR("[pq] template query @%s expects constant: %s", Name.c_str(), Item.first.c_str());
-							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, "");
-						}
-						else
-						{
-							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, It->second);
-							NewSize = It->second.size();
-						}
-
-						Offset += (int64_t)NewSize - (int64_t)Size;
-						Item.second.End = Item.second.Start + NewSize;
-					}
-				}
-
-				Core::Vector<std::pair<Core::String, Core::TextSettle>> Variables;
-				for (auto& Item : Core::Stringify::FindInBetween(Base, "$<", ">", Quotes.c_str()))
-				{
-					Item.first += ";escape";
-					if (Core::Stringify::IsPrecededBy(Base, Item.second.Start, "-"))
-					{
-						Item.first += ";negate";
-						--Item.second.Start;
-					}
-
-					Variables.emplace_back(std::move(Item));
-				}
-
-				for (auto& Item : Core::Stringify::FindInBetween(Base, "@<", ">", Quotes.c_str()))
-				{
-					Item.first += ";unsafe";
-					if (Core::Stringify::IsPrecededBy(Base, Item.second.Start, "-"))
-					{
-						Item.first += ";negate";
-						--Item.second.Start;
-					}
-
-					Variables.emplace_back(std::move(Item));
-				}
-
-				Core::Stringify::ReplaceParts(Base, Variables, "", [&Erasable](const Core::String& Name, char Left, int Side)
-				{
-					if (Side < 0 && Name.find(";negate") != Core::String::npos)
-						return '\0';
-
-					return Erasable.find(Left) == Core::String::npos ? ' ' : '\0';
-				});
-
-				for (auto& Item : Variables)
-				{
-					Pose Position;
-					Position.Negate = Item.first.find(";negate") != Core::String::npos;
-					Position.Escape = Item.first.find(";escape") != Core::String::npos;
-					Position.Offset = Item.second.Start;
-					Position.Key = Item.first.substr(0, Item.first.find(';'));
-					Result.Positions.emplace_back(std::move(Position));
-				}
-
-				if (Variables.empty())
-					Result.Cache = Result.Request;
-
-				Safe->lock();
-				Queries->Map[Name] = std::move(Result);
-				Safe->unlock();
-
-				return true;
-			}
-			bool Driver::AddDirectory(const Core::String& Directory, const Core::String& Origin)
-			{
-				Core::Vector<Core::FileEntry> Entries;
-				if (!Core::OS::Directory::Scan(Directory, &Entries))
-					return false;
-
-				Core::String Path = Directory;
-				if (Path.back() != '/' && Path.back() != '\\')
-					Path.append(1, '/');
-
-				size_t Size = 0;
-				for (auto& File : Entries)
-				{
-					Core::String Base(Path + File.Path);
-					if (File.IsDirectory)
-					{
-						AddDirectory(Base, Origin.empty() ? Directory : Origin);
-						continue;
-					}
-
-					if (!Core::Stringify::EndsWith(Base, ".sql"))
-						continue;
-
-					char* Buffer = (char*)Core::OS::File::ReadAll(Base, &Size);
-					if (!Buffer)
-						continue;
-
-					Core::Stringify::Replace(Base, Origin.empty() ? Directory : Origin, "");
-					Core::Stringify::Replace(Base, "\\", "/");
-					Core::Stringify::Replace(Base, ".sql", "");
-					if (Core::Stringify::StartsOf(Base, "\\/"))
-						Base.erase(0, 1);
-
-					AddQuery(Base, Buffer, Size);
-					VI_FREE(Buffer);
-				}
-
-				return true;
-			}
-			bool Driver::RemoveConstant(const Core::String& Name)
-			{
-				VI_ASSERT(Constants && Safe, "driver should be initialized");
-				Safe->lock();
-				auto It = Constants->Map.find(Name);
-				if (It == Constants->Map.end())
-				{
-					Safe->unlock();
-					return false;
-				}
-
-				Constants->Map.erase(It);
-				Safe->unlock();
-				return true;
-			}
-			bool Driver::RemoveQuery(const Core::String& Name)
-			{
-				VI_ASSERT(Queries && Safe, "driver should be initialized");
-				Safe->lock();
-				auto It = Queries->Map.find(Name);
-				if (It == Queries->Map.end())
-				{
-					Safe->unlock();
-					return false;
-				}
-
-				Queries->Map.erase(It);
-				Safe->unlock();
-				return true;
-			}
-			bool Driver::LoadCacheDump(Core::Schema* Dump)
-			{
-				VI_ASSERT(Queries && Safe, "driver should be initialized");
-				VI_ASSERT(Dump != nullptr, "dump should be set");
-
-				size_t Count = 0;
-				std::unique_lock<std::mutex> Unique(*Safe);
-				Queries->Map.clear();
-
-				for (auto* Data : Dump->GetChilds())
-				{
-					Sequence Result;
-					Result.Cache = Data->GetVar("cache").GetBlob();
-					Result.Request = Data->GetVar("request").GetBlob();
-
-					if (Result.Request.empty())
-						Result.Request = Result.Cache;
-
-					Core::Schema* Positions = Data->Get("positions");
-					if (Positions != nullptr)
-					{
-						for (auto* Position : Positions->GetChilds())
-						{
-							Pose Next;
-							Next.Key = Position->GetVar(0).GetBlob();
-							Next.Offset = (size_t)Position->GetVar(1).GetInteger();
-							Next.Escape = Position->GetVar(2).GetBoolean();
-							Next.Negate = Position->GetVar(3).GetBoolean();
-							Result.Positions.emplace_back(std::move(Next));
-						}
-					}
-
-					Core::String Name = Data->GetVar("name").GetBlob();
-					Queries->Map[Name] = std::move(Result);
-					++Count;
-				}
-
-				if (Count > 0)
-					VI_DEBUG("[pq] OK load %" PRIu64 " parsed query templates", (uint64_t)Count);
-
-				return Count > 0;
-			}
-			Core::Schema* Driver::GetCacheDump()
-			{
-				VI_ASSERT(Queries && Safe, "driver should be initialized");
-				std::unique_lock<std::mutex> Unique(*Safe);
-				Core::Schema* Result = Core::Var::Set::Array();
-				for (auto& Query : Queries->Map)
-				{
-					Core::Schema* Data = Result->Push(Core::Var::Set::Object());
-					Data->Set("name", Core::Var::String(Query.first));
-
-					if (Query.second.Cache.empty())
-						Data->Set("request", Core::Var::String(Query.second.Request));
-					else
-						Data->Set("cache", Core::Var::String(Query.second.Cache));
-
-					auto* Positions = Data->Set("positions", Core::Var::Set::Array());
-					for (auto& Position : Query.second.Positions)
-					{
-						auto* Next = Positions->Push(Core::Var::Set::Array());
-						Next->Push(Core::Var::String(Position.Key));
-						Next->Push(Core::Var::Integer(Position.Offset));
-						Next->Push(Core::Var::Boolean(Position.Escape));
-						Next->Push(Core::Var::Boolean(Position.Negate));
-					}
-				}
-
-				VI_DEBUG("[pq] OK save %" PRIu64 " parsed query templates", (uint64_t)Queries->Map.size());
-				return Result;
-			}
-			Core::String Driver::Emplace(Cluster* Base, const Core::String& SQL, Core::SchemaList* Map, bool Once)
-			{
-				if (!Map || Map->empty())
-					return SQL;
-
-				Connection* Remote = Base->GetConnection();
-				Core::String Buffer(SQL);
-				Core::TextSettle Set;
-				Core::String& Src = Buffer;
-				size_t Offset = 0;
-				size_t Next = 0;
-
-				while ((Set = Core::Stringify::Find(Buffer, '?', Offset)).Found)
-				{
-					if (Next >= Map->size())
-					{
-						VI_ERR("[pq] emplace query \"%.64s\" expects at least %" PRIu64 " args", SQL.c_str(), (uint64_t)(Next)+1);
-						break;
-					}
-
-					bool Escape = true, Negate = false;
-					if (Set.Start > 0)
-					{
-						if (Src[Set.Start - 1] == '\\')
-						{
-							Offset = Set.Start;
-							Buffer.erase(Set.Start - 1, 1);
-							continue;
-						}
-						else if (Src[Set.Start - 1] == '$')
-						{
-							if (Set.Start > 1 && Src[Set.Start - 2] == '-')
-							{
-								Negate = true;
-								Set.Start--;
-							}
-
-							Escape = false;
-							Set.Start--;
-						}
-						else if (Src[Set.Start - 1] == '-')
-						{
-							Negate = true;
-							Set.Start--;
-						}
-					}
-					Core::String Value = GetSQL(Remote->GetBase(), (*Map)[Next++], Escape, Negate);
-					Buffer.erase(Set.Start, (Escape ? 1 : 2));
-					Buffer.insert(Set.Start, Value);
-					Offset = Set.Start + Value.size();
-				}
-
-				if (!Once)
-					return Src;
-
-				for (auto* Item : *Map)
-					VI_RELEASE(Item);
-				Map->clear();
-
-				return Src;
-			}
-			Core::String Driver::GetQuery(Cluster* Base, const Core::String& Name, Core::SchemaArgs* Map, bool Once)
-			{
-				VI_ASSERT(Queries && Safe, "driver should be initialized");
-				Safe->lock();
-				auto It = Queries->Map.find(Name);
-				if (It == Queries->Map.end())
-				{
-					Safe->unlock();
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							VI_RELEASE(Item.second);
-						Map->clear();
-					}
-
-					VI_ERR("[pq] template query %s does not exist", Name.c_str());
-					return Core::String();
-				}
-
-				if (!It->second.Cache.empty())
-				{
-					Core::String Result = It->second.Cache;
-					Safe->unlock();
-
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							VI_RELEASE(Item.second);
-						Map->clear();
-					}
-
-					return Result;
-				}
-
-				if (!Map || Map->empty())
-				{
-					Core::String Result = It->second.Request;
-					Safe->unlock();
-
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							VI_RELEASE(Item.second);
-						Map->clear();
-					}
-
-					return Result;
-				}
-
-				Connection* Remote = Base->GetConnection();
-				Sequence Origin = It->second;
-				size_t Offset = 0;
-				Safe->unlock();
-
-				Core::String& Result = Origin.Request;
-				for (auto& Word : Origin.Positions)
-				{
-					auto It = Map->find(Word.Key);
-					if (It == Map->end())
-					{
-						VI_ERR("[pq] template query @%s expects parameter: %s", Name.c_str(), Word.Key.c_str());
-						continue;
-					}
-
-					Core::String Value = GetSQL(Remote->GetBase(), It->second, Word.Escape, Word.Negate);
-					if (Value.empty())
-						continue;
-
-					Result.insert(Word.Offset + Offset, Value);
-					Offset += Value.size();
-				}
-
-				if (Once)
-				{
-					for (auto& Item : *Map)
-						VI_RELEASE(Item.second);
-					Map->clear();
-				}
-
-				Core::String Data = Origin.Request;
-				if (Data.empty())
-					VI_ERR("[pq] could not construct query: \"%s\"", Name.c_str());
-
-				return Data;
-			}
-			Core::Vector<Core::String> Driver::GetQueries()
-			{
-				Core::Vector<Core::String> Result;
-				VI_ASSERT(Queries && Safe, "driver should be initialized");
-
-				Safe->lock();
-				Result.reserve(Queries->Map.size());
-				for (auto& Item : Queries->Map)
-					Result.push_back(Item.first);
-				Safe->unlock();
-
-				return Result;
-			}
-			Core::String Driver::GetCharArray(TConnection* Base, const Core::String& Src)
+			Core::String Utils::GetCharArray(TConnection* Base, const Core::String& Src) noexcept
 			{
 #ifdef VI_POSTGRESQL
 				if (Src.empty())
@@ -2833,7 +2362,7 @@ namespace Mavi
 				return "'" + Src + "'";
 #endif
 			}
-			Core::String Driver::GetByteArray(TConnection* Base, const char* Src, size_t Size)
+			Core::String Utils::GetByteArray(TConnection* Base, const char* Src, size_t Size) noexcept
 			{
 #ifdef VI_POSTGRESQL
 				if (!Src || !Size)
@@ -2854,7 +2383,7 @@ namespace Mavi
 				return "'\\x" + Compute::Codec::HexEncode(Src, Size) + "'::bytea";
 #endif
 			}
-			Core::String Driver::GetSQL(TConnection* Base, Core::Schema* Source, bool Escape, bool Negate)
+			Core::String Utils::GetSQL(TConnection* Base, Core::Schema* Source, bool Escape, bool Negate) noexcept
 			{
 				if (!Source)
 					return "NULL";
@@ -2918,12 +2447,413 @@ namespace Mavi
 
 				return "NULL";
 			}
-			Core::Mapping<Core::UnorderedMap<Core::String, Driver::Sequence>>* Driver::Queries = nullptr;
-			Core::Mapping<Core::UnorderedMap<Core::String, Core::String>>* Driver::Constants = nullptr;
-			std::mutex* Driver::Safe = nullptr;
-			std::atomic<bool> Driver::Active(false);
-			std::atomic<int> Driver::State(0);
-			OnQueryLog Driver::Logger = nullptr;
+
+			Driver::Driver() noexcept : Active(false), Logger(nullptr)
+			{
+				Network::Multiplexer::Get()->Activate();
+			}
+			Driver::~Driver() noexcept
+			{
+				Network::Multiplexer::Get()->Deactivate();
+			}
+			void Driver::SetQueryLog(const OnQueryLog& Callback) noexcept
+			{
+				Logger = Callback;
+			}
+			void Driver::LogQuery(const Core::String& Command) noexcept
+			{
+				if (Logger)
+					Logger(Command + '\n');
+			}
+			bool Driver::AddConstant(const Core::String& Name, const Core::String& Value) noexcept
+			{
+				VI_ASSERT(!Name.empty(), "name should not be empty");
+				std::unique_lock<std::mutex> Unique(Exclusive);
+				Constants[Name] = Value;
+				return true;
+			}
+			bool Driver::AddQuery(const Core::String& Name, const char* Buffer, size_t Size) noexcept
+			{
+				VI_ASSERT(!Name.empty(), "name should not be empty");
+				VI_ASSERT(Buffer, "buffer should be set");
+
+				if (!Size)
+					return false;
+
+				Sequence Result;
+				Result.Request.assign(Buffer, Size);
+
+				Core::String Lines = "\r\n";
+				Core::String Enums = " \r\n\t\'\"()<>=%&^*/+-,!?:;";
+				Core::String Erasable = " \r\n\t\'\"()<>=%&^*/+-,.!?:;";
+				Core::String Quotes = "\"'`";
+
+				Core::String& Base = Result.Request;
+				Core::Stringify::ReplaceInBetween(Base, "/*", "*/", "", false);
+				Core::Stringify::ReplaceStartsWithEndsOf(Base, "--", Lines.c_str(), "");
+				Core::Stringify::Trim(Base);
+				Core::Stringify::Compress(Base, Erasable.c_str(), Quotes.c_str());
+
+				auto Enumerations = Core::Stringify::FindStartsWithEndsOf(Base, "#", Enums.c_str(), Quotes.c_str());
+				if (!Enumerations.empty())
+				{
+					int64_t Offset = 0;
+					std::unique_lock<std::mutex> Unique(Exclusive);
+					for (auto& Item : Enumerations)
+					{
+						size_t Size = Item.second.End - Item.second.Start, NewSize = 0;
+						Item.second.Start = (size_t)((int64_t)Item.second.Start + Offset);
+						Item.second.End = (size_t)((int64_t)Item.second.End + Offset);
+
+						auto It = Constants.find(Item.first);
+						if (It == Constants.end())
+						{
+							VI_ERR("[pq] template query @%s expects constant: %s", Name.c_str(), Item.first.c_str());
+							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, "");
+						}
+						else
+						{
+							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, It->second);
+							NewSize = It->second.size();
+						}
+
+						Offset += (int64_t)NewSize - (int64_t)Size;
+						Item.second.End = Item.second.Start + NewSize;
+					}
+				}
+
+				Core::Vector<std::pair<Core::String, Core::TextSettle>> Variables;
+				for (auto& Item : Core::Stringify::FindInBetween(Base, "$<", ">", Quotes.c_str()))
+				{
+					Item.first += ";escape";
+					if (Core::Stringify::IsPrecededBy(Base, Item.second.Start, "-"))
+					{
+						Item.first += ";negate";
+						--Item.second.Start;
+					}
+
+					Variables.emplace_back(std::move(Item));
+				}
+
+				for (auto& Item : Core::Stringify::FindInBetween(Base, "@<", ">", Quotes.c_str()))
+				{
+					Item.first += ";unsafe";
+					if (Core::Stringify::IsPrecededBy(Base, Item.second.Start, "-"))
+					{
+						Item.first += ";negate";
+						--Item.second.Start;
+					}
+
+					Variables.emplace_back(std::move(Item));
+				}
+
+				Core::Stringify::ReplaceParts(Base, Variables, "", [&Erasable](const Core::String& Name, char Left, int Side)
+				{
+					if (Side < 0 && Name.find(";negate") != Core::String::npos)
+						return '\0';
+
+					return Erasable.find(Left) == Core::String::npos ? ' ' : '\0';
+				});
+
+				for (auto& Item : Variables)
+				{
+					Pose Position;
+					Position.Negate = Item.first.find(";negate") != Core::String::npos;
+					Position.Escape = Item.first.find(";escape") != Core::String::npos;
+					Position.Offset = Item.second.Start;
+					Position.Key = Item.first.substr(0, Item.first.find(';'));
+					Result.Positions.emplace_back(std::move(Position));
+				}
+
+				if (Variables.empty())
+					Result.Cache = Result.Request;
+
+				std::unique_lock<std::mutex> Unique(Exclusive);
+				Queries[Name] = std::move(Result);
+				return true;
+			}
+			bool Driver::AddDirectory(const Core::String& Directory, const Core::String& Origin) noexcept
+			{
+				Core::Vector<Core::FileEntry> Entries;
+				if (!Core::OS::Directory::Scan(Directory, &Entries))
+					return false;
+
+				Core::String Path = Directory;
+				if (Path.back() != '/' && Path.back() != '\\')
+					Path.append(1, '/');
+
+				size_t Size = 0;
+				for (auto& File : Entries)
+				{
+					Core::String Base(Path + File.Path);
+					if (File.IsDirectory)
+					{
+						AddDirectory(Base, Origin.empty() ? Directory : Origin);
+						continue;
+					}
+
+					if (!Core::Stringify::EndsWith(Base, ".sql"))
+						continue;
+
+					char* Buffer = (char*)Core::OS::File::ReadAll(Base, &Size);
+					if (!Buffer)
+						continue;
+
+					Core::Stringify::Replace(Base, Origin.empty() ? Directory : Origin, "");
+					Core::Stringify::Replace(Base, "\\", "/");
+					Core::Stringify::Replace(Base, ".sql", "");
+					if (Core::Stringify::StartsOf(Base, "\\/"))
+						Base.erase(0, 1);
+
+					AddQuery(Base, Buffer, Size);
+					VI_FREE(Buffer);
+				}
+
+				return true;
+			}
+			bool Driver::RemoveConstant(const Core::String& Name) noexcept
+			{
+				std::unique_lock<std::mutex> Unique(Exclusive);
+				auto It = Constants.find(Name);
+				if (It == Constants.end())
+					return false;
+
+				Constants.erase(It);
+				return true;
+			}
+			bool Driver::RemoveQuery(const Core::String& Name) noexcept
+			{
+				std::unique_lock<std::mutex> Unique(Exclusive);
+				auto It = Queries.find(Name);
+				if (It == Queries.end())
+					return false;
+
+				Queries.erase(It);
+				return true;
+			}
+			bool Driver::LoadCacheDump(Core::Schema* Dump) noexcept
+			{
+				VI_ASSERT(Dump != nullptr, "dump should be set");
+				size_t Count = 0;
+				std::unique_lock<std::mutex> Unique(Exclusive);
+				Queries.clear();
+
+				for (auto* Data : Dump->GetChilds())
+				{
+					Sequence Result;
+					Result.Cache = Data->GetVar("cache").GetBlob();
+					Result.Request = Data->GetVar("request").GetBlob();
+
+					if (Result.Request.empty())
+						Result.Request = Result.Cache;
+
+					Core::Schema* Positions = Data->Get("positions");
+					if (Positions != nullptr)
+					{
+						for (auto* Position : Positions->GetChilds())
+						{
+							Pose Next;
+							Next.Key = Position->GetVar(0).GetBlob();
+							Next.Offset = (size_t)Position->GetVar(1).GetInteger();
+							Next.Escape = Position->GetVar(2).GetBoolean();
+							Next.Negate = Position->GetVar(3).GetBoolean();
+							Result.Positions.emplace_back(std::move(Next));
+						}
+					}
+
+					Core::String Name = Data->GetVar("name").GetBlob();
+					Queries[Name] = std::move(Result);
+					++Count;
+				}
+
+				if (Count > 0)
+					VI_DEBUG("[pq] OK load %" PRIu64 " parsed query templates", (uint64_t)Count);
+
+				return Count > 0;
+			}
+			Core::Schema* Driver::GetCacheDump() noexcept
+			{
+				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::Schema* Result = Core::Var::Set::Array();
+				for (auto& Query : Queries)
+				{
+					Core::Schema* Data = Result->Push(Core::Var::Set::Object());
+					Data->Set("name", Core::Var::String(Query.first));
+
+					if (Query.second.Cache.empty())
+						Data->Set("request", Core::Var::String(Query.second.Request));
+					else
+						Data->Set("cache", Core::Var::String(Query.second.Cache));
+
+					auto* Positions = Data->Set("positions", Core::Var::Set::Array());
+					for (auto& Position : Query.second.Positions)
+					{
+						auto* Next = Positions->Push(Core::Var::Set::Array());
+						Next->Push(Core::Var::String(Position.Key));
+						Next->Push(Core::Var::Integer(Position.Offset));
+						Next->Push(Core::Var::Boolean(Position.Escape));
+						Next->Push(Core::Var::Boolean(Position.Negate));
+					}
+				}
+
+				VI_DEBUG("[pq] OK save %" PRIu64 " parsed query templates", (uint64_t)Queries.size());
+				return Result;
+			}
+			Core::String Driver::Emplace(Cluster* Base, const Core::String& SQL, Core::SchemaList* Map, bool Once) noexcept
+			{
+				if (!Map || Map->empty())
+					return SQL;
+
+				Connection* Remote = Base->GetConnection();
+				Core::String Buffer(SQL);
+				Core::TextSettle Set;
+				Core::String& Src = Buffer;
+				size_t Offset = 0;
+				size_t Next = 0;
+
+				while ((Set = Core::Stringify::Find(Buffer, '?', Offset)).Found)
+				{
+					if (Next >= Map->size())
+					{
+						VI_ERR("[pq] emplace query \"%.64s\" expects at least %" PRIu64 " args", SQL.c_str(), (uint64_t)(Next)+1);
+						break;
+					}
+
+					bool Escape = true, Negate = false;
+					if (Set.Start > 0)
+					{
+						if (Src[Set.Start - 1] == '\\')
+						{
+							Offset = Set.Start;
+							Buffer.erase(Set.Start - 1, 1);
+							continue;
+						}
+						else if (Src[Set.Start - 1] == '$')
+						{
+							if (Set.Start > 1 && Src[Set.Start - 2] == '-')
+							{
+								Negate = true;
+								Set.Start--;
+							}
+
+							Escape = false;
+							Set.Start--;
+						}
+						else if (Src[Set.Start - 1] == '-')
+						{
+							Negate = true;
+							Set.Start--;
+						}
+					}
+					Core::String Value = Utils::GetSQL(Remote->GetBase(), (*Map)[Next++], Escape, Negate);
+					Buffer.erase(Set.Start, (Escape ? 1 : 2));
+					Buffer.insert(Set.Start, Value);
+					Offset = Set.Start + Value.size();
+				}
+
+				if (!Once)
+					return Src;
+
+				for (auto* Item : *Map)
+					VI_RELEASE(Item);
+				Map->clear();
+
+				return Src;
+			}
+			Core::String Driver::GetQuery(Cluster* Base, const Core::String& Name, Core::SchemaArgs* Map, bool Once) noexcept
+			{
+				Exclusive.lock();
+				auto It = Queries.find(Name);
+				if (It == Queries.end())
+				{
+					Exclusive.unlock();
+					if (Once && Map != nullptr)
+					{
+						for (auto& Item : *Map)
+							VI_RELEASE(Item.second);
+						Map->clear();
+					}
+
+					VI_ERR("[pq] template query %s does not exist", Name.c_str());
+					return Core::String();
+				}
+
+				if (!It->second.Cache.empty())
+				{
+					Core::String Result = It->second.Cache;
+					Exclusive.unlock();
+
+					if (Once && Map != nullptr)
+					{
+						for (auto& Item : *Map)
+							VI_RELEASE(Item.second);
+						Map->clear();
+					}
+
+					return Result;
+				}
+
+				if (!Map || Map->empty())
+				{
+					Core::String Result = It->second.Request;
+					Exclusive.unlock();
+
+					if (Once && Map != nullptr)
+					{
+						for (auto& Item : *Map)
+							VI_RELEASE(Item.second);
+						Map->clear();
+					}
+
+					return Result;
+				}
+
+				Connection* Remote = Base->GetConnection();
+				Sequence Origin = It->second;
+				size_t Offset = 0;
+				Exclusive.unlock();
+
+				Core::String& Result = Origin.Request;
+				for (auto& Word : Origin.Positions)
+				{
+					auto It = Map->find(Word.Key);
+					if (It == Map->end())
+					{
+						VI_ERR("[pq] template query @%s expects parameter: %s", Name.c_str(), Word.Key.c_str());
+						continue;
+					}
+
+					Core::String Value = Utils::GetSQL(Remote->GetBase(), It->second, Word.Escape, Word.Negate);
+					if (Value.empty())
+						continue;
+
+					Result.insert(Word.Offset + Offset, Value);
+					Offset += Value.size();
+				}
+
+				if (Once)
+				{
+					for (auto& Item : *Map)
+						VI_RELEASE(Item.second);
+					Map->clear();
+				}
+
+				Core::String Data = Origin.Request;
+				if (Data.empty())
+					VI_ERR("[pq] could not construct query: \"%s\"", Name.c_str());
+
+				return Data;
+			}
+			Core::Vector<Core::String> Driver::GetQueries() noexcept
+			{
+				Core::Vector<Core::String> Result;
+				std::unique_lock<std::mutex> Unique(Exclusive);
+				Result.reserve(Queries.size());
+				for (auto& Item : Queries)
+					Result.push_back(Item.first);
+
+				return Result;
+			}
 		}
 	}
 }

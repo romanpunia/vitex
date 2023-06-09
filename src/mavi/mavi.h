@@ -15,14 +15,13 @@ namespace Mavi
 	enum class Init
 	{
 		Core = 1,
-		Debug = 2,
-		Network = 4,
-		SSL = 8,
-		SDL2 = 16,
-		Compute = 32,
-		Locale = 64,
-		Audio = 128,
-		GLEW = 256
+		Network = 2,
+		SSL = 4,
+		SDL2 = 8,
+		Compute = 16,
+		Locale = 32,
+		Audio = 64,
+		GLEW = 128
 	};
 
 	constexpr inline Init operator |(Init A, Init B)
@@ -32,48 +31,65 @@ namespace Mavi
 
 	enum class Preset : size_t
 	{
-		Game = (size_t)(Init::Core | Init::Debug | Init::Network | Init::SSL | Init::Compute | Init::Locale | Init::SDL2 | Init::Audio | Init::GLEW),
-		App = (size_t)(Init::Core | Init::Debug | Init::Network | Init::SSL | Init::Compute | Init::Locale)
+		App = (size_t)(Init::Core | Init::Network | Init::SSL | Init::Compute | Init::Locale),
+		Game = (size_t)App | (size_t)(Init::SDL2 | Init::Audio | Init::GLEW)
 	};
 
-	class VI_OUT_TS Library
+	class VI_OUT_TS Runtime final : public Core::Singletonish
 	{
-	public:
-		static bool HasDirectX();
-		static bool HasOpenGL();
-		static bool HasOpenSSL();
-		static bool HasGLEW();
-		static bool HasZLib();
-		static bool HasAssimp();
-		static bool HasMongoDB();
-		static bool HasPostgreSQL();
-		static bool HasOpenAL();
-		static bool HasSDL2();
-		static bool HasSIMD();
-		static bool HasJIT();
-		static bool HasBindings();
-		static bool HasAllocator();
-		static bool HasBacktrace();
-		static bool HasFreeType();
-		static bool HasSPIRV();
-        static bool HasRmlUI();
-		static bool HasBullet3();
-        static bool HasFContext();
-		static bool HasWindowsEpoll();
-		static bool HasShaders();
-		static int GetMajorVersion();
-		static int GetMinorVersion();
-		static int GetPatchVersion();
-		static int GetVersion();
-		static int GetDebugLevel();
-		static int GetArchitecture();
-		static Core::String GetDetails();
-		static const char* GetBuild();
-		static const char* GetCompiler();
-		static const char* GetPlatform();
-	};
+	private:
+		static Runtime* Instance;
 
-	VI_OUT bool Initialize(size_t Modules = (size_t)Preset::App, Core::GlobalAllocator* Allocator = nullptr);
-	VI_OUT bool Uninitialize();
+	private:
+		struct
+		{
+			Core::Vector<std::shared_ptr<std::mutex>> Locks;
+			void* LegacyProvider = nullptr;
+			void* DefaultProvider = nullptr;
+		} Crypto;
+
+	private:
+		size_t Modes;
+
+	public:
+		Runtime(size_t Modules = (size_t)Preset::App, Core::GlobalAllocator* Allocator = nullptr) noexcept;
+		~Runtime() noexcept;
+		bool HasDirectX() const noexcept;
+		bool HasOpenGL() const noexcept;
+		bool HasOpenSSL() const noexcept;
+		bool HasGLEW() const noexcept;
+		bool HasZLib() const noexcept;
+		bool HasAssimp() const noexcept;
+		bool HasMongoDB() const noexcept;
+		bool HasPostgreSQL() const noexcept;
+		bool HasOpenAL() const noexcept;
+		bool HasSDL2() const noexcept;
+		bool HasSIMD() const noexcept;
+		bool HasJIT() const noexcept;
+		bool HasBindings() const noexcept;
+		bool HasAllocator() const noexcept;
+		bool HasBacktrace() const noexcept;
+		bool HasFreeType() const noexcept;
+		bool HasSPIRV() const noexcept;
+        bool HasRmlUI() const noexcept;
+		bool HasBullet3() const noexcept;
+        bool HasFContext() const noexcept;
+		bool HasWindowsEpoll() const noexcept;
+		bool HasShaders() const noexcept;
+		int GetMajorVersion() const noexcept;
+		int GetMinorVersion() const noexcept;
+		int GetPatchVersion() const noexcept;
+		int GetVersion() const noexcept;
+		int GetDebugLevel() const noexcept;
+		int GetArchitecture() const noexcept;
+		size_t GetModes() const noexcept;
+		Core::String GetDetails() const noexcept;
+		const char* GetBuild() const noexcept;
+		const char* GetCompiler() const noexcept;
+		const char* GetPlatform() const noexcept;
+
+	public:
+		static Runtime* Get() noexcept;
+	};
 }
 #endif

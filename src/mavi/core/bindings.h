@@ -67,7 +67,7 @@ namespace Mavi
 				}
 			};
 
-			class VI_OUT_TS Registry
+			class VI_OUT_TS Registry final : public Core::Singletonish
 			{
 			public:
 				static bool ImportCTypes(VirtualMachine* VM);
@@ -120,7 +120,7 @@ namespace Mavi
 				static bool ImportUiModel(VirtualMachine* Engine);
 				static bool ImportUiControl(VirtualMachine* Engine);
 				static bool ImportUiContext(VirtualMachine* Engine);
-				static bool Release();
+				static bool Cleanup();
 			};
 
 			class VI_OUT Exception

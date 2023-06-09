@@ -176,14 +176,6 @@ namespace
 				V = '\?';
 		}
 	}
-	void GetDateTime(time_t Time, char* Date, size_t Size)
-	{
-		tm DateTime{ };
-		if (!LocalTime(&Time, &DateTime))
-			strncpy(Date, "1970-01-01 00:00:00", Size);
-		else
-			strftime(Date, Size, "%Y-%m-%d %H:%M:%S", &DateTime);
-	}
 #ifdef VI_APPLE
 #define SYSCTL(fname, ...) std::size_t Size{};if(fname(__VA_ARGS__,nullptr,&Size,nullptr,0))return{};Mavi::Core::Vector<char> Result(Size);if(fname(__VA_ARGS__,Result.data(),&Size,nullptr,0))return{};return Result
 	template <class T>
@@ -335,463 +327,7 @@ namespace Mavi
 		{
 		}
 
-		DebugAllocator::TracingBlock::TracingBlock() : Time(0), Size(0), Active(false)
-		{
-		}
-		DebugAllocator::TracingBlock::TracingBlock(const char* NewTypeName, MemoryContext&& NewOrigin, time_t NewTime, size_t NewSize, bool IsActive, bool IsStatic) : TypeName(NewTypeName ? NewTypeName : "void"), Origin(std::move(NewOrigin)), Time(NewTime), Size(NewSize), Active(IsActive), Static(IsStatic)
-		{
-		}
-
-		void* DebugAllocator::Allocate(size_t Size) noexcept
-		{
-			VI_ASSERT(false, "invalid allocator malloc call without memory context");
-			return nullptr;
-		}
-		void* DebugAllocator::Allocate(MemoryContext&& Origin, size_t Size) noexcept
-		{
-			void* Address = malloc(Size);
-			VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
-
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), Size, true, false);
-			return Address;
-		}
-		void DebugAllocator::Free(void* Address) noexcept
-		{
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto It = Blocks.find(Address);
-			VI_ASSERT(It != Blocks.end() && It->second.Active, "cannot free memory that was not allocated by this allocator at 0x%" PRIXPTR, Address);
-
-			Blocks.erase(It);
-			free(Address);
-		}
-		void DebugAllocator::Transfer(Unique<void> Address, size_t Size) noexcept
-		{
-			VI_ASSERT(false, "invalid allocator transfer call without memory context");
-		}
-		void DebugAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
-		{
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), Size, true, true);
-		}
-		void DebugAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
-		{
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto It = Blocks.find(Address);
-
-			VI_ASSERT(It == Blocks.end() || !It->second.Active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, Address);
-			Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), sizeof(void*), false, false);
-		}
-		void DebugAllocator::Unwatch(void* Address) noexcept
-		{
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto It = Blocks.find(Address);
-
-			VI_ASSERT(It != Blocks.end() && !It->second.Active, "address at 0x%" PRIXPTR " cannot be cleared from tracking because it was not allocated by this allocator", Address);
-			Blocks.erase(It);
-		}
-		void DebugAllocator::Finalize() noexcept
-		{
-			Dump(nullptr);
-		}
-		bool DebugAllocator::IsValid(void* Address) noexcept
-		{
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto It = Blocks.find(Address);
-
-			VI_ASSERT(It != Blocks.end(), "address at 0x%" PRIXPTR " cannot be used as it was already freed");
-			return It != Blocks.end();
-		}
-		bool DebugAllocator::IsFinalizable() noexcept
-		{
-			return true;
-		}
-		bool DebugAllocator::Dump(void* Address)
-		{
-#if VI_DLEVEL >= 4
-			VI_TRACE("[mem] dump internal memory state on 0x%" PRIXPTR, Address);
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			if (Address != nullptr)
-			{
-				bool LogActive = ErrorHandling::HasFlag(LogOption::Active);
-				if (!LogActive)
-					ErrorHandling::SetFlag(LogOption::Active, true);
-
-				auto It = Blocks.find(Address);
-				if (It != Blocks.end())
-				{
-					char Date[64];
-					GetDateTime(It->second.Time, Date, sizeof(Date));
-					ErrorHandling::Message(LogLevel::Debug, It->second.Origin.Line, It->second.Origin.Source, "[mem] %saddress at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", It->second.Static ? "static " : "", It->first, Date, It->second.TypeName.c_str(), (uint64_t)It->second.Size, It->second.Origin.Function);
-				}
-
-				ErrorHandling::SetFlag(LogOption::Active, LogActive);
-				return It != Blocks.end();
-			}
-			else if (!Blocks.empty())
-			{
-				size_t StaticAddresses = 0;
-				for (auto& Item : Blocks)
-				{
-					if (Item.second.Static || Item.second.TypeName.find("ontainer_proxy") != std::string::npos || Item.second.TypeName.find("ist_node") != std::string::npos)
-						++StaticAddresses;
-				}
-
-				if (StaticAddresses == Blocks.size())
-					return false;
-
-				bool LogActive = ErrorHandling::HasFlag(LogOption::Active);
-				if (!LogActive)
-					ErrorHandling::SetFlag(LogOption::Active, true);
-
-				size_t TotalMemory = 0;
-				for (auto& Item : Blocks)
-					TotalMemory += Item.second.Size;
-
-				VI_DEBUG("[mem] %" PRIu64 " addresses are still used (%" PRIu64 " bytes)", (uint64_t)(Blocks.size() - StaticAddresses), (uint64_t)TotalMemory);
-				for (auto& Item : Blocks)
-				{
-					if (Item.second.Static || Item.second.TypeName.find("ontainer_proxy") != std::string::npos || Item.second.TypeName.find("ist_node") != std::string::npos)
-						continue;
-
-					char Date[64];
-					GetDateTime(Item.second.Time, Date, sizeof(Date));
-					ErrorHandling::Message(LogLevel::Debug, Item.second.Origin.Line, Item.second.Origin.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s()", Item.first, Date, Item.second.TypeName.c_str(), (uint64_t)Item.second.Size, Item.second.Origin.Function);
-				}
-
-				ErrorHandling::SetFlag(LogOption::Active, LogActive);
-				return true;
-			}
-#endif
-			return false;
-		}
-		bool DebugAllocator::FindBlock(void* Address, TracingBlock* Output)
-		{
-			VI_ASSERT(Address != nullptr, "address should not be null");
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto It = Blocks.find(Address);
-			if (It == Blocks.end())
-				return false;
-
-			if (Output != nullptr)
-				*Output = It->second;
-
-			return true;
-		}
-		const std::unordered_map<void*, DebugAllocator::TracingBlock>& DebugAllocator::GetBlocks() const
-		{
-			return Blocks;
-		}
-
-		void* DefaultAllocator::Allocate(size_t Size) noexcept
-		{
-			void* Address = malloc(Size);
-			VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
-			return Address;
-		}
-		void* DefaultAllocator::Allocate(MemoryContext&& Origin, size_t Size) noexcept
-		{
-			void* Address = malloc(Size);
-			VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
-			return Address;
-		}
-		void DefaultAllocator::Free(void* Address) noexcept
-		{
-			free(Address);
-		}
-		void DefaultAllocator::Transfer(Unique<void> Address, size_t Size) noexcept
-		{
-		}
-		void DefaultAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
-		{
-		}
-		void DefaultAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
-		{
-		}
-		void DefaultAllocator::Unwatch(void* Address) noexcept
-		{
-		}
-		void DefaultAllocator::Finalize() noexcept
-		{
-		}
-		bool DefaultAllocator::IsValid(void* Address) noexcept
-		{
-			return true;
-		}
-		bool DefaultAllocator::IsFinalizable() noexcept
-		{
-			return true;
-		}
-
-		CachedAllocator::CachedAllocator(uint64_t MinimalLifeTimeMs, size_t MaxElementsPerAllocation, size_t ElementsReducingBaseBytes, double ElementsReducingFactorRate) : MinimalLifeTime(MinimalLifeTimeMs), ElementsReducingFactor(ElementsReducingFactorRate), ElementsReducingBase(ElementsReducingBaseBytes), ElementsPerAllocation(MaxElementsPerAllocation)
-		{
-			VI_ASSERT(ElementsPerAllocation > 0, "elements count per allocation should be greater then zero");
-			VI_ASSERT(ElementsReducingFactor > 1.0, "elements reducing factor should be greater then zero");
-			VI_ASSERT(ElementsReducingBase > 0, "elements reducing base should be greater then zero");
-		}
-		CachedAllocator::~CachedAllocator() noexcept
-		{
-			for (auto& Page : Pages)
-			{
-				for (auto* Cache : Page.second)
-				{
-					Cache->~PageCache();
-					free(Cache);
-				}
-			}
-			Pages.clear();
-		}
-		void* CachedAllocator::Allocate(size_t Size) noexcept
-		{
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			auto* Cache = GetPageCache(Size);
-			if (!Cache)
-				return nullptr;
-
-			PageAddress* Address = Cache->Addresses.back();
-			Cache->Addresses.pop_back();
-			return Address->Address;
-		}
-		void* CachedAllocator::Allocate(MemoryContext&&, size_t Size) noexcept
-		{
-			return Allocate(Size);
-		}
-		void CachedAllocator::Free(void* Address) noexcept
-		{
-			char* SourceAddress = nullptr;
-			PageAddress* Source = (PageAddress*)((char*)Address - sizeof(PageAddress));
-			memcpy(&SourceAddress, (char*)Source + sizeof(void*), sizeof(void*));
-			if (SourceAddress != Address)
-				return free(Address);
-
-			PageCache* Cache = nullptr;
-			memcpy(&Cache, Source, sizeof(void*));
-
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
-			Cache->Addresses.push_back(Source);
-
-			if (Cache->Addresses.size() >= Cache->Capacity && (Cache->Capacity == 1 || GetClock() - Cache->Timing > (int64_t)MinimalLifeTime))
-			{
-				Cache->Page.erase(std::find(Cache->Page.begin(), Cache->Page.end(), Cache));
-				Cache->~PageCache();
-				free(Cache);
-			}
-		}
-		void CachedAllocator::Transfer(Unique<void> Address, size_t Size) noexcept
-		{
-		}
-		void CachedAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
-		{
-		}
-		void CachedAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
-		{
-		}
-		void CachedAllocator::Unwatch(void* Address) noexcept
-		{
-		}
-		void CachedAllocator::Finalize() noexcept
-		{
-		}
-		bool CachedAllocator::IsValid(void* Address) noexcept
-		{
-			return true;
-		}
-		bool CachedAllocator::IsFinalizable() noexcept
-		{
-			return false;
-		}
-		CachedAllocator::PageCache* CachedAllocator::GetPageCache(size_t Size)
-		{
-			auto& Page = Pages[Size];
-			for (auto* Cache : Page)
-			{
-				if (!Cache->Addresses.empty())
-					return Cache;
-			}
-
-			size_t AddressSize = sizeof(PageAddress) + Size;
-			size_t PageElements = GetElementsCount(Page, Size);
-			size_t PageSize = sizeof(PageCache) + AddressSize * PageElements;
-			PageCache* Cache = (PageCache*)malloc(PageSize);
-			VI_ASSERT(Cache != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)PageSize);
-
-			if (!Cache)
-				return nullptr;
-
-			char* BaseAddress = (char*)Cache + sizeof(PageCache);
-			new(Cache) PageCache(Page, GetClock(), PageElements);
-			for (size_t i = 0; i < PageElements; i++)
-			{
-				PageAddress* Next = (PageAddress*)(BaseAddress + AddressSize * i);
-				Next->Address = (void*)(BaseAddress + AddressSize * i + sizeof(PageAddress));
-				Next->Cache = Cache;
-				Cache->Addresses[i] = Next;
-			}
-
-			Page.push_back(Cache);
-			return Cache;
-		}
-		int64_t CachedAllocator::GetClock()
-		{
-			return (int64_t)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		}
-		size_t CachedAllocator::GetElementsCount(PageGroup& Page, size_t Size)
-		{
-			double Frequency;
-			if (Pages.size() > 1)
-			{
-				Frequency = 0.0;
-				for (auto& Next : Pages)
-				{
-					if (Next.second != Page)
-						Frequency += (double)Next.second.size();
-				}
-
-				Frequency /= (double)Pages.size() - 1;
-				if (Frequency < 1.0)
-					Frequency = std::max(1.0, (double)Page.size());
-				else
-					Frequency = std::max(1.0, (double)Page.size() / Frequency);
-			}
-			else
-				Frequency = 1.0;
-
-			double Total = (double)ElementsPerAllocation;
-			double Reducing = (double)Size / (double)ElementsReducingBase;
-			if (Reducing > 1.0)
-			{
-				Total /= ElementsReducingFactor * Reducing;
-				if (Total < 1.0)
-					Total = 1.0;
-			}
-			else if (Frequency > 1.0)
-				Total *= Frequency;
-
-			return (size_t)Total;
-		}
-
-		ArenaAllocator::ArenaAllocator(size_t Size) : Top(nullptr), Bottom(nullptr), Sizing(Size)
-		{
-			NextRegion(Sizing);
-		}
-		ArenaAllocator::~ArenaAllocator() noexcept
-		{
-			FlushRegions();
-		}
-		void* ArenaAllocator::Allocate(size_t Size) noexcept
-		{
-		Retry:
-			char* MaxAddress = Bottom->BaseAddress + Bottom->Size;
-			char* OffsetAddress = Bottom->FreeAddress;
-			size_t Leftovers = MaxAddress - OffsetAddress;
-			if (Leftovers < Size)
-			{
-				NextRegion(Size);
-				goto Retry;
-			}
-
-			char* Address = OffsetAddress;
-			Bottom->FreeAddress = Address + Size;
-			return Address;
-		}
-		void ArenaAllocator::Free(void* Address) noexcept
-		{
-			VI_ASSERT(IsValid(Address), "address is not valid");
-		}
-		void ArenaAllocator::Reset() noexcept
-		{
-			size_t TotalSize = 0;
-			Region* Next = Top;
-			while (Next != nullptr)
-			{
-				TotalSize += Next->Size;
-				Next->FreeAddress = Next->BaseAddress;
-				Next = Next->LowerAddress;
-			}
-
-			if (TotalSize > Sizing)
-			{
-				Sizing = TotalSize;
-				FlushRegions();
-				NextRegion(Sizing);
-			}
-		}
-		bool ArenaAllocator::IsValid(void* Address) noexcept
-		{
-			char* Target = (char*)Address;
-			Region* Next = Top;
-			while (Next != nullptr)
-			{
-				if (Target >= Next->BaseAddress && Target <= Next->BaseAddress + Next->Size)
-					return true;
-
-				Next = Next->LowerAddress;
-			}
-
-			return false;
-		}
-		void ArenaAllocator::NextRegion(size_t Size) noexcept
-		{
-			LocalAllocator* Current = Memory::GetLocalAllocator();
-			Memory::SetLocalAllocator(nullptr);
-
-			Region* Next = VI_MALLOC(Region, sizeof(Region) + Size);
-			Next->BaseAddress = (char*)Next + sizeof(Region);
-			Next->FreeAddress = Next->BaseAddress;
-			Next->UpperAddress = Bottom;
-			Next->LowerAddress = nullptr;
-			Next->Size = Size;
-
-			if (!Top)
-				Top = Next;
-			if (Bottom != nullptr)
-				Bottom->LowerAddress = Next;
-
-			Bottom = Next;
-			Memory::SetLocalAllocator(Current);
-		}
-		void ArenaAllocator::FlushRegions() noexcept
-		{
-			LocalAllocator* Current = Memory::GetLocalAllocator();
-			Memory::SetLocalAllocator(nullptr);
-
-			Region* Next = Bottom;
-			Bottom = nullptr;
-			Top = nullptr;
-
-			while (Next != nullptr)
-			{
-				void* Address = (void*)Next;
-				Next = Next->UpperAddress;
-				VI_FREE(Address);
-			}
-
-			Memory::SetLocalAllocator(Current);
-		}
-
 		static thread_local LocalAllocator* Local = nullptr;
-		void Memory::Initialize()
-		{
-			if (!Allocations)
-				Allocations = new std::unordered_map<void*, std::pair<MemoryContext, size_t>>();
-
-			if (!Mutex)
-				Mutex = new std::mutex();
-		}
-		void Memory::Uninitialize()
-		{
-			if (Allocations != nullptr)
-			{
-				delete Allocations;
-				Allocations = nullptr;
-			}
-
-			if (Mutex != nullptr)
-			{
-				delete Mutex;
-				Mutex = nullptr;
-			}
-		}
 		void* Memory::Malloc(size_t Size) noexcept
 		{
 			VI_ASSERT(Size > 0, "cannot allocate zero bytes");
@@ -807,13 +343,13 @@ namespace Mavi
 				VI_PANIC(Address != nullptr, "application is out of global memory allocating %" PRIu64 " bytes", (uint64_t)Size);
 				return Address;
 			}
+			else if (!Context)
+				Context = new State();
 
 			void* Address = malloc(Size);
 			VI_PANIC(Address != nullptr, "application is out of system memory allocating %" PRIu64 " bytes", (uint64_t)Size);
-			Initialize();
-
-			std::unique_lock<std::mutex> Unique(*Mutex);
-			(*Allocations)[Address].second = Size;
+			std::unique_lock<std::mutex> Unique(Context->Mutex);
+			Context->Allocations[Address].second = Size;
 			return Address;
 		}
 		void* Memory::MallocContext(size_t Size, MemoryContext&& Origin) noexcept
@@ -831,13 +367,13 @@ namespace Mavi
 				VI_PANIC(Address != nullptr, "application is out of global memory allocating %" PRIu64 " bytes", (uint64_t)Size);
 				return Address;
 			}
+			else if (!Context)
+				Context = new State();
 
 			void* Address = malloc(Size);
 			VI_PANIC(Address != nullptr, "application is out of system memory allocating %" PRIu64 " bytes", (uint64_t)Size);
-			Initialize();
-
-			std::unique_lock<std::mutex> Unique(*Mutex);
-			auto& Item = (*Allocations)[Address];
+			std::unique_lock<std::mutex> Unique(Context->Mutex);
+			auto& Item = Context->Allocations[Address];
 			Item.first = std::move(Origin);
 			Item.second = Size;
 			return Address;
@@ -851,13 +387,12 @@ namespace Mavi
 				return Local->Free(Address);
 			else if (Global != nullptr)
 				return Global->Free(Address);
+			else if (!Context)
+				Context = new State();
 
-			if (Allocations != nullptr)
-			{
-				std::unique_lock<std::mutex> Unique(*Mutex);
-				Allocations->erase(Address);
-				free(Address);
-			}
+			std::unique_lock<std::mutex> Unique(Context->Mutex);
+			Context->Allocations.erase(Address);
+			free(Address);
 		}
 		void Memory::Watch(void* Address, MemoryContext&& Origin) noexcept
 		{
@@ -871,30 +406,36 @@ namespace Mavi
 			VI_ASSERT(Address != nullptr, "address should be set");
 			Global->Unwatch(Address);
 		}
-		void Memory::SetGlobalAllocator(GlobalAllocator* NewAllocator)
+		void Memory::Cleanup() noexcept
+		{
+			SetGlobalAllocator(nullptr);
+		}
+		void Memory::SetGlobalAllocator(GlobalAllocator* NewAllocator) noexcept
 		{
 			if (Global != nullptr)
 				Global->Finalize();
 
 			Global = NewAllocator;
-			if (Global != nullptr && Allocations != nullptr)
+			if (Global != nullptr && Context != nullptr)
 			{
+				for (auto& Item : Context->Allocations)
+				{
 #ifndef NDEBUG
-				for (auto& Item : *Allocations)
 					Global->Transfer(Item.first, MemoryContext(Item.second.first), Item.second.second);
 #else
-				for (auto& Item : *Allocations)
 					Global->Transfer(Item.first, Item.second.second);
 #endif
+				}
 			}
-			else
-				Uninitialize();
+
+			delete Context;
+			Context = nullptr;
 		}
-		void Memory::SetLocalAllocator(LocalAllocator* NewAllocator)
+		void Memory::SetLocalAllocator(LocalAllocator* NewAllocator) noexcept
 		{
 			Local = NewAllocator;
 		}
-		bool Memory::IsValidAddress(void* Address)
+		bool Memory::IsValidAddress(void* Address) noexcept
 		{
 			VI_ASSERT(Global != nullptr, "allocator should be set");
 			VI_ASSERT(Address != nullptr, "address should be set");
@@ -903,17 +444,16 @@ namespace Mavi
 
 			return Global->IsValid(Address);
 		}
-		GlobalAllocator* Memory::GetGlobalAllocator()
+		GlobalAllocator* Memory::GetGlobalAllocator() noexcept
 		{
 			return Global;
 		}
-		LocalAllocator* Memory::GetLocalAllocator()
+		LocalAllocator* Memory::GetLocalAllocator() noexcept
 		{
 			return Local;
 		}
-		std::unordered_map<void*, std::pair<MemoryContext, size_t>>* Memory::Allocations = nullptr;
-		std::mutex* Memory::Mutex = nullptr;
 		GlobalAllocator* Memory::Global = nullptr;
+		Memory::State* Memory::Context = nullptr;
 
 		StackTrace::StackTrace(size_t Skips, size_t MaxDepth)
 		{
@@ -1029,8 +569,8 @@ namespace Mavi
 		}
 #ifndef NDEBUG
 		static thread_local std::stack<Measurement> MeasuringTree;
-		static thread_local bool IgnoreMeasuring = false;
 #endif
+		static thread_local bool IgnoreLogging = false;
 		ErrorHandling::Tick::Tick(bool Active) noexcept : IsCounting(Active)
 		{
 		}
@@ -1041,7 +581,7 @@ namespace Mavi
 		ErrorHandling::Tick::~Tick() noexcept
 		{
 #ifndef NDEBUG
-			if (IgnoreMeasuring || !IsCounting)
+			if (IgnoreLogging || !IsCounting)
 				return;
 
 			VI_ASSERT(!MeasuringTree.empty(), "debug frame should be set");
@@ -1060,12 +600,8 @@ namespace Mavi
 			return *this;
 		}
 
-		static thread_local bool IgnoreLogging = false;
-		void ErrorHandling::Panic(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
+		void ErrorHandling::Panic(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...) noexcept
 		{
-			if (!HasFlag(LogOption::Active) && !Callback)
-				return;
-
 			Details Data;
 			Data.Origin.File = Source ? OS::Path::GetFilename(Source) : nullptr;
 			Data.Origin.Line = Line;
@@ -1096,7 +632,7 @@ namespace Mavi
 					ErrorHandling::GetStackTrace(1).c_str());
 			}
 			if (HasFlag(LogOption::Dated))
-				GetDateTime(time(nullptr), Data.Message.Date, sizeof(Data.Message.Date));
+				DateTime::FetchDateTime(Data.Message.Date, sizeof(Data.Message.Date), time(nullptr));
 
 			if (Format != nullptr)
 			{
@@ -1117,24 +653,21 @@ namespace Mavi
 			ErrorHandling::Pause();
 			OS::Process::Abort();
 		}
-		void ErrorHandling::Assert(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
+		void ErrorHandling::Assert(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...) noexcept
 		{
-			if (!HasFlag(LogOption::Active) && !Callback)
-				return;
-
 			Details Data;
 			Data.Origin.File = Source ? OS::Path::GetFilename(Source) : nullptr;
 			Data.Origin.Line = Line;
 			Data.Type.Level = LogLevel::Error;
 			Data.Type.Fatal = true;
-			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "thread %s ASSERT %s(): %s on \"!(%s)\", %s",
+			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "thread %s ASSERT %s(): %s on \"!(%s)\"\n%s",
 				OS::Process::GetThreadId(std::this_thread::get_id()).c_str(),
 				Function ? Function : "?",
 				Format ? Format : "assertion failed",
 				Condition ? Condition : "?",
 				ErrorHandling::GetStackTrace(1).c_str());
 			if (HasFlag(LogOption::Dated))
-				GetDateTime(time(nullptr), Data.Message.Date, sizeof(Data.Message.Date));
+				DateTime::FetchDateTime(Data.Message.Date, sizeof(Data.Message.Date), time(nullptr));
 
 			if (Format != nullptr)
 			{
@@ -1155,10 +688,10 @@ namespace Mavi
 			ErrorHandling::Pause();
 			OS::Process::Abort();
 		}
-		void ErrorHandling::Message(LogLevel Level, int Line, const char* Source, const char* Format, ...)
+		void ErrorHandling::Message(LogLevel Level, int Line, const char* Source, const char* Format, ...) noexcept
 		{
 			VI_ASSERT(Format != nullptr, "format string should be set");
-			if (IgnoreLogging || (!HasFlag(LogOption::Active) && !Callback))
+			if (IgnoreLogging || (!HasFlag(LogOption::Active) && !HasCallback()))
 				return;
 
 			Details Data;
@@ -1167,7 +700,7 @@ namespace Mavi
 			Data.Type.Level = Level;
 			Data.Type.Fatal = false;
 			if (HasFlag(LogOption::Dated))
-				GetDateTime(time(nullptr), Data.Message.Date, sizeof(Data.Message.Date));
+				DateTime::FetchDateTime(Data.Message.Date, sizeof(Data.Message.Date), time(nullptr));
 
 			char Buffer[512] = { '\0' };
 			if (Level == LogLevel::Error && HasFlag(LogOption::ReportSysErrors))
@@ -1195,54 +728,36 @@ namespace Mavi
 			EscapeText(Data.Message.Data, (size_t)Data.Message.Size);
 			Enqueue(std::move(Data));
 		}
-		void ErrorHandling::Enqueue(Details&& Data)
+		void ErrorHandling::Enqueue(Details&& Data) noexcept
 		{
-			if (HasFlag(LogOption::Async) && Schedule::IsPresentAndActive())
+			if (HasFlag(LogOption::Async) && Schedule::IsAvailable())
 				Schedule::Get()->SetTask([Data = std::move(Data)]() mutable { Dispatch(Data); });
 			else
 				Dispatch(Data);
 		}
-		void ErrorHandling::Dispatch(Details& Data)
+		void ErrorHandling::Dispatch(Details& Data) noexcept
 		{
-			if (Callback)
+			if (HasCallback())
 			{
 				IgnoreLogging = true;
-#ifndef NDEBUG
-				if (!IgnoreMeasuring)
-				{
-					IgnoreMeasuring = true;
-					Callback(Data);
-					IgnoreMeasuring = false;
-				}
-#else
-				Callback(Data);
-#endif
+				Context->Callback(Data);
 				IgnoreLogging = false;
 			}
-
-			if (!Console::IsPresent())
-			{
 #if defined(VI_MICROSOFT) && !defined(NDEBUG)
-				OutputDebugStringA(GetMessageText(Data).c_str());
+			OutputDebugStringA(GetMessageText(Data).c_str());
 #endif
+			if (!Console::IsAvailable())
 				return;
-			}
 
 			Console* Base = Console::Get();
 			Base->Begin();
 			if (!HasFlag(LogOption::Pretty))
-			{
-				String Text = GetMessageText(Data);
-#if defined(VI_MICROSOFT) && !defined(NDEBUG)
-				OutputDebugStringA(Text.c_str());
-#endif
-				Base->Write(Text);
-			}
+				Base->Write(GetMessageText(Data));
 			else
 				Colorify(Base, Data);
 			Base->End();
 		}
-		void ErrorHandling::Colorify(Console* Base, Details& Data)
+		void ErrorHandling::Colorify(Console* Base, Details& Data) noexcept
 		{
 #if VI_DLEVEL < 5
 			bool ParseTokens = Data.Type.Level != LogLevel::Trace && Data.Type.Level != LogLevel::Debug;
@@ -1278,32 +793,50 @@ namespace Mavi
 			Base->WriteBuffer("\n");
 			Base->ColorEnd();
 		}
-		void ErrorHandling::Pause()
+		void ErrorHandling::Pause() noexcept
 		{
 			OS::Process::Interrupt();
 		}
-		void ErrorHandling::SetCallback(const std::function<void(Details&)>& _Callback)
+		void ErrorHandling::Cleanup() noexcept
 		{
-			Callback = _Callback;
+			delete Context;
+			Context = nullptr;
 		}
-		void ErrorHandling::SetFlag(LogOption Option, bool Active)
+		void ErrorHandling::SetCallback(const std::function<void(Details&)>& _Callback) noexcept
 		{
+			if (!Context)
+				Context = new State();
+
+			Context->Callback = _Callback;
+		}
+		void ErrorHandling::SetFlag(LogOption Option, bool Active) noexcept
+		{
+			if (!Context)
+				Context = new State();
+
 			if (Active)
-				Flags = Flags | (uint32_t)Option;
+				Context->Flags = Context->Flags | (uint32_t)Option;
 			else
-				Flags = Flags & ~(uint32_t)Option;
+				Context->Flags = Context->Flags & ~(uint32_t)Option;
 		}
-		bool ErrorHandling::HasFlag(LogOption Option)
+		bool ErrorHandling::HasFlag(LogOption Option) noexcept
 		{
-			return Flags & (uint32_t)Option;
+			if (!Context)
+				return ((uint32_t)LogOption::Pretty) & (uint32_t)Option;
+
+			return Context->Flags & (uint32_t)Option;
 		}
-		ErrorHandling::Tick ErrorHandling::Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS)
+		bool ErrorHandling::HasCallback() noexcept
+		{
+			return Context != nullptr && Context->Callback != nullptr;
+		}
+		ErrorHandling::Tick ErrorHandling::Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS) noexcept
 		{
 #ifndef NDEBUG
 			VI_ASSERT(File != nullptr, "file should be set");
 			VI_ASSERT(Function != nullptr, "function should be set");
 			VI_ASSERT(ThresholdMS > 0 || ThresholdMS == (uint64_t)Core::Timings::Infinite, "threshold time should be greater than Zero");
-			if (IgnoreMeasuring)
+			if (IgnoreLogging)
 				return ErrorHandling::Tick(false);
 
 			Measurement Next;
@@ -1319,10 +852,10 @@ namespace Mavi
 			return ErrorHandling::Tick(false);
 #endif
 		}
-		void ErrorHandling::MeasureLoop()
+		void ErrorHandling::MeasureLoop() noexcept
 		{
 #ifndef NDEBUG
-			if (!IgnoreMeasuring)
+			if (!IgnoreLogging)
 			{
 				VI_ASSERT(!MeasuringTree.empty(), "debug frame should be set");
 				auto& Next = MeasuringTree.top();
@@ -1330,7 +863,7 @@ namespace Mavi
 			}
 #endif
 		}
-		Core::String ErrorHandling::GetMeasureTrace()
+		Core::String ErrorHandling::GetMeasureTrace() noexcept
 		{
 #ifndef NDEBUG
 			auto Source = MeasuringTree;
@@ -1356,7 +889,7 @@ namespace Mavi
 			return Core::String();
 #endif
 		}
-		Core::String ErrorHandling::GetStackTrace(size_t Skips, size_t MaxFrames)
+		Core::String ErrorHandling::GetStackTrace(size_t Skips, size_t MaxFrames) noexcept
 		{
 			StackTrace Stack(Skips, MaxFrames);
 			if (!Stack)
@@ -1382,7 +915,7 @@ namespace Mavi
 
 			return Stream.str();
 		}
-		const char* ErrorHandling::GetMessageType(const Details& Base)
+		const char* ErrorHandling::GetMessageType(const Details& Base) noexcept
 		{
 			switch (Base.Type.Level)
 			{
@@ -1400,7 +933,7 @@ namespace Mavi
 					return "LOG";
 			}
 		}
-		StdColor ErrorHandling::GetMessageColor(const Details& Base)
+		StdColor ErrorHandling::GetMessageColor(const Details& Base) noexcept
 		{
 			switch (Base.Type.Level)
 			{
@@ -1418,7 +951,7 @@ namespace Mavi
 					return StdColor::LightGray;
 			}
 		}
-		Core::String ErrorHandling::GetMessageText(const Details& Base)
+		Core::String ErrorHandling::GetMessageText(const Details& Base) noexcept
 		{
 			Core::StringStream Stream;
 			if (HasFlag(LogOption::Dated))
@@ -1438,9 +971,7 @@ namespace Mavi
 			Stream << Base.Message.Data << '\n';
 			return Stream.str();
 		}
-		std::function<void(ErrorHandling::Details&)> ErrorHandling::Callback;
-		std::mutex ErrorHandling::Buffer;
-		uint32_t ErrorHandling::Flags = (uint32_t)LogOption::Pretty;
+		ErrorHandling::State* ErrorHandling::Context = nullptr;
 
 		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept : State(Coactive::Active), Dead(0), Callback(Procedure), Slave(VI_NEW(Cocontext, Base)), Master(Base)
 		{
@@ -3936,6 +3467,14 @@ namespace Mavi
 #endif
 			return true;
 		}
+		void DateTime::FetchDateTime(char* Date, size_t Size, int64_t TargetTime)
+		{
+			tm Data{ }; time_t Time = (time_t)TargetTime;
+			if (!LocalTime(&Time, &Data))
+				strncpy(Date, "1970-01-01 00:00:00", Size);
+			else
+				strftime(Date, Size, "%Y-%m-%d %H:%M:%S", &Data);
+		}
 		int64_t DateTime::ParseWebDate(const char* Date)
 		{
 			static const char* MonthNames[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
@@ -5913,57 +5452,11 @@ namespace Mavi
 			return Result;
 		}
 
-		bool Composer::Clear()
+		Core::UnorderedSet<uint64_t> Composer::Fetch(uint64_t Id) noexcept
 		{
-			if (!Factory)
-				return false;
-
-			VI_DELETE(Mapping, Factory);
-			Factory = nullptr;
-			return true;
-		}
-		bool Composer::Pop(const Core::String& Hash)
-		{
-			VI_ASSERT(Factory != nullptr, "composer should be initialized");
-			VI_TRACE("[composer] pop %s", Hash.c_str());
-
-			auto It = Factory->Map.find(VI_HASH(Hash));
-			if (It == Factory->Map.end())
-				return false;
-
-			Factory->Map.erase(It);
-			if (!Factory->Map.empty())
-				return true;
-
-			VI_DELETE(Mapping, Factory);
-			Factory = nullptr;
-			return true;
-		}
-		void Composer::Push(uint64_t TypeId, uint64_t Tag, void* Callback)
-		{
-			using Map = Mapping<Core::UnorderedMap<uint64_t, std::pair<uint64_t, void*>>>;
-			if (!Factory)
-				Factory = VI_NEW(Map);
-
-			if (Factory->Map.find(TypeId) == Factory->Map.end())
-				Factory->Map[TypeId] = std::make_pair(Tag, Callback);
-			VI_TRACE("[composer] push type %" PRIu64 " tagged as %" PRIu64, TypeId, Tag);
-		}
-		void* Composer::Find(uint64_t TypeId)
-		{
-			VI_ASSERT(Factory != nullptr, "composer should be initialized");
-			auto It = Factory->Map.find(TypeId);
-			if (It != Factory->Map.end())
-				return It->second.second;
-
-			return nullptr;
-		}
-		Core::UnorderedSet<uint64_t> Composer::Fetch(uint64_t Id)
-		{
-			VI_ASSERT(Factory != nullptr, "composer should be initialized");
-
+			VI_ASSERT(Context != nullptr, "composer should be initialized");
 			Core::UnorderedSet<uint64_t> Hashes;
-			for (auto& Item : Factory->Map)
+			for (auto& Item : Context->Factory)
 			{
 				if (Item.second.first == Id)
 					Hashes.insert(Item.first);
@@ -5971,7 +5464,42 @@ namespace Mavi
 
 			return Hashes;
 		}
-		Mapping<Core::UnorderedMap<uint64_t, std::pair<uint64_t, void*>>>* Composer::Factory = nullptr;
+		bool Composer::Pop(const Core::String& Hash) noexcept
+		{
+			VI_ASSERT(Context != nullptr, "composer should be initialized");
+			VI_TRACE("[composer] pop %s", Hash.c_str());
+
+			auto It = Context->Factory.find(VI_HASH(Hash));
+			if (It == Context->Factory.end())
+				return false;
+
+			Context->Factory.erase(It);
+			return true;
+		}
+		void Composer::Cleanup() noexcept
+		{
+			VI_DELETE(State, Context);
+			Context = nullptr;
+		}
+		void Composer::Push(uint64_t TypeId, uint64_t Tag, void* Callback) noexcept
+		{
+			VI_TRACE("[composer] push type %" PRIu64 " tagged as %" PRIu64, TypeId, Tag);
+			if (!Context)
+				Context = VI_NEW(State);
+
+			if (Context->Factory.find(TypeId) == Context->Factory.end())
+				Context->Factory[TypeId] = std::make_pair(Tag, Callback);
+		}
+		void* Composer::Find(uint64_t TypeId) noexcept
+		{
+			VI_ASSERT(Context != nullptr, "composer should be initialized");
+			auto It = Context->Factory.find(TypeId);
+			if (It != Context->Factory.end())
+				return It->second.second;
+
+			return nullptr;
+		}
+		Composer::State* Composer::Context = nullptr;
 
 		Console::Console() noexcept : Status(Mode::Detached), Colors(true)
 		{
@@ -6048,8 +5576,6 @@ namespace Mavi
 		Console::~Console() noexcept
 		{
 			Deallocate();
-			if (Singleton == this)
-				Singleton = nullptr;
 		}
 		void Console::Allocate()
 		{
@@ -6482,26 +6008,10 @@ namespace Mavi
 		{
 			return (char)getchar();
 		}
-		bool Console::IsPresent()
+		bool Console::IsAvailable()
 		{
-			return Singleton != nullptr && Singleton->Status != Mode::Detached;
+			return HasInstance() && Get()->Status != Mode::Detached;
 		}
-		bool Console::Reset()
-		{
-			if (!Singleton)
-				return false;
-
-			VI_RELEASE(Singleton);
-			return true;
-		}
-		Console* Console::Get()
-		{
-			if (Singleton == nullptr)
-				Singleton = new Console();
-
-			return Singleton;
-		}
-		Console* Console::Singleton = nullptr;
 
 		static float UnitsToSeconds = 1000000.0f;
 		static float UnitsToMills = 1000.0f;
@@ -9951,8 +9461,6 @@ namespace Mavi
 
 			VI_RELEASE(Dispatcher.State);
 			Scripting::VirtualMachine::CleanupThisThread();
-			if (Singleton == this)
-				Singleton = nullptr;
 		}
 		TaskId Schedule::GetTaskId()
 		{
@@ -10752,24 +10260,9 @@ namespace Mavi
 		{
 			return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
 		}
-		bool Schedule::IsPresentAndActive()
+		bool Schedule::IsAvailable()
 		{
-			return Singleton != nullptr && Singleton->Active;
-		}
-		bool Schedule::Reset()
-		{
-			if (!Singleton)
-				return false;
-
-			VI_RELEASE(Singleton);
-			return true;
-		}
-		Schedule* Schedule::Get()
-		{
-			if (Singleton == nullptr)
-				Singleton = new Schedule();
-
-			return Singleton;
+			return HasInstance() && Get()->Active;
 		}
 		Schedule* Schedule::Singleton = nullptr;
 

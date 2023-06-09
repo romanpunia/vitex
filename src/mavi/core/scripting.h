@@ -2023,7 +2023,7 @@ namespace Mavi
 			static VirtualMachine* Get(asIScriptEngine* Engine);
 			static VirtualMachine* Get();
 			static size_t GetDefaultAccessMask();
-			static void FreeProxy();
+			static void Cleanup();
 
 		private:
 			static Core::String GetLibraryName(const Core::String& Path);

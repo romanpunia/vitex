@@ -216,9 +216,7 @@ namespace Mavi
 		struct IsIterable : std::false_type { };
 
 		template <typename T>
-		struct IsIterable<T, std::void_t<decltype(std::begin(std::declval<T&>())), decltype(std::end(std::declval<T&>()))>> : std::true_type
-		{
-		};
+		struct IsIterable<T, std::void_t<decltype(std::begin(std::declval<T&>())), decltype(std::end(std::declval<T&>()))>> : std::true_type { };
 
 		template <typename T>
 		using Unique = T*;
@@ -230,6 +228,8 @@ namespace Mavi
 
 			~Mapping() = default;
 		};
+
+		struct Singletonish { };
 
 		struct VI_OUT MemoryContext
 		{
@@ -258,114 +258,6 @@ namespace Mavi
 			virtual bool IsFinalizable() noexcept = 0;
 		};
 
-		class VI_OUT_TS DebugAllocator final : public GlobalAllocator
-		{
-		public:
-			struct VI_OUT_TS TracingBlock
-			{
-				std::string TypeName;
-				MemoryContext Origin;
-				time_t Time;
-				size_t Size;
-				bool Active;
-				bool Static;
-
-				TracingBlock();
-				TracingBlock(const char* NewTypeName, MemoryContext&& NewOrigin, time_t NewTime, size_t NewSize, bool IsActive, bool IsStatic);
-			};
-
-		private:
-			std::unordered_map<void*, TracingBlock> Blocks;
-			std::recursive_mutex Mutex;
-
-		public:
-			~DebugAllocator() override = default;
-			Unique<void> Allocate(size_t Size) noexcept override;
-			Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept override;
-			void Free(Unique<void> Address) noexcept override;
-			void Transfer(Unique<void> Address, size_t Size) noexcept override;
-			void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept override;
-			void Watch(MemoryContext&& Origin, void* Address) noexcept override;
-			void Unwatch(void* Address) noexcept override;
-			void Finalize() noexcept override;
-			bool IsValid(void* Address) noexcept override;
-			bool IsFinalizable() noexcept override;
-			bool Dump(void* Address);
-			bool FindBlock(void* Address, TracingBlock* Output);
-			const std::unordered_map<void*, TracingBlock>& GetBlocks() const;
-		};
-		
-		class VI_OUT_TS DefaultAllocator final : public GlobalAllocator
-		{
-		public:
-			~DefaultAllocator() override = default;
-			Unique<void> Allocate(size_t Size) noexcept override;
-			Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept override;
-			void Free(Unique<void> Address) noexcept override;
-			void Transfer(Unique<void> Address, size_t Size) noexcept override;
-			void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept override;
-			void Watch(MemoryContext&& Origin, void* Address) noexcept override;
-			void Unwatch(void* Address) noexcept override;
-			void Finalize() noexcept override;
-			bool IsValid(void* Address) noexcept override;
-			bool IsFinalizable() noexcept override;
-		};
-
-		class VI_OUT_TS CachedAllocator final : public GlobalAllocator
-		{
-		public:
-			struct PageCache;
-
-			using PageGroup = std::vector<PageCache*>;
-
-			struct PageAddress
-			{
-				PageCache* Cache;
-				void* Address;
-			};
-
-			struct PageCache
-			{
-				std::vector<PageAddress*> Addresses;
-				PageGroup& Page;
-				int64_t Timing;
-				size_t Capacity;
-
-				inline PageCache(PageGroup& NewPage, int64_t Time, size_t Size) : Page(NewPage), Timing(Time), Capacity(Size)
-				{
-					Addresses.resize(Capacity);
-				}
-				~PageCache() = default;
-			};
-
-		private:
-			std::unordered_map<size_t, PageGroup> Pages;
-			std::recursive_mutex Mutex;
-			uint64_t MinimalLifeTime;
-			double ElementsReducingFactor;
-			size_t ElementsReducingBase;
-			size_t ElementsPerAllocation;
-
-		public:
-			CachedAllocator(uint64_t MinimalLifeTimeMs = 2000, size_t MaxElementsPerAllocation = 1024, size_t ElementsReducingBaseBytes = 300, double ElementsReducingFactorRate = 5.0);
-			~CachedAllocator() noexcept override;
-			Unique<void> Allocate(size_t Size) noexcept override;
-			Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept override;
-			void Free(Unique<void> Address) noexcept override;
-			void Transfer(Unique<void> Address, size_t Size) noexcept override;
-			void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept override;
-			void Watch(MemoryContext&& Origin, void* Address) noexcept override;
-			void Unwatch(void* Address) noexcept override;
-			void Finalize() noexcept override;
-			bool IsValid(void* Address) noexcept override;
-			bool IsFinalizable() noexcept override;
-
-		private:
-			PageCache* GetPageCache(size_t Size);
-			int64_t GetClock();
-			size_t GetElementsCount(PageGroup& Page, size_t Size);
-		};
-
 		class VI_OUT LocalAllocator
 		{
 		public:
@@ -376,42 +268,18 @@ namespace Mavi
 			virtual bool IsValid(void* Address) noexcept = 0;
 		};
 
-		class VI_OUT ArenaAllocator final : public LocalAllocator
+		class VI_OUT_TS Memory final : public Singletonish
 		{
 		private:
-			struct Region 
+			struct State
 			{
-				char* FreeAddress;
-				char* BaseAddress;
-				Region* UpperAddress;
-				Region* LowerAddress;
-				size_t Size;
+				std::unordered_map<void*, std::pair<MemoryContext, size_t>> Allocations;
+				std::mutex Mutex;
 			};
 
 		private:
-			Region* Top;
-			Region* Bottom;
-			size_t Sizing;
-
-		public:
-			ArenaAllocator(size_t Size);
-			~ArenaAllocator() noexcept override;
-			Unique<void> Allocate(size_t Size) noexcept override;
-			void Free(Unique<void> Address) noexcept override;
-			void Reset() noexcept override;
-			bool IsValid(void* Address) noexcept override;
-
-		private:
-			void NextRegion(size_t Size) noexcept;
-			void FlushRegions() noexcept;
-		};
-
-		class VI_OUT_TS Memory
-		{
-		private:
-			static std::unordered_map<void*, std::pair<MemoryContext, size_t>>* Allocations;
-			static std::mutex* Mutex;
 			static GlobalAllocator* Global;
+			static State* Context;
 
 		public:
 			static Unique<void> Malloc(size_t Size) noexcept;
@@ -419,19 +287,16 @@ namespace Mavi
 			static void Free(Unique<void> Address) noexcept;
 			static void Watch(void* Address, MemoryContext&& Origin) noexcept;
 			static void Unwatch(void* Address) noexcept;
-			static void SetGlobalAllocator(GlobalAllocator* NewAllocator);
-			static void SetLocalAllocator(LocalAllocator* NewAllocator);
-			static bool IsValidAddress(void* Address);
-			static GlobalAllocator* GetGlobalAllocator();
-			static LocalAllocator* GetLocalAllocator();
-
-		private:
-			static void Initialize();
-			static void Uninitialize();
+			static void Cleanup() noexcept;
+			static void SetGlobalAllocator(GlobalAllocator* NewAllocator) noexcept;
+			static void SetLocalAllocator(LocalAllocator* NewAllocator) noexcept;
+			static bool IsValidAddress(void* Address) noexcept;
+			static GlobalAllocator* GetGlobalAllocator() noexcept;
+			static LocalAllocator* GetLocalAllocator() noexcept;
 		};
 
 		template <typename T>
-		class AllocationInvoker
+		class StandardAllocator
 		{
 		public:
 			typedef T value_type;
@@ -440,13 +305,13 @@ namespace Mavi
 			template <typename U>
 			struct rebind
 			{
-				typedef AllocationInvoker<U> other;
+				typedef StandardAllocator<U> other;
 			};
 
 		public:
-			AllocationInvoker() = default;
-			~AllocationInvoker() = default;
-			AllocationInvoker(const AllocationInvoker&) = default;
+			StandardAllocator() = default;
+			~StandardAllocator() = default;
+			StandardAllocator(const StandardAllocator&) = default;
 			value_type* allocate(size_t Count)
 			{
 				return VI_MALLOC(T, Count * sizeof(T));
@@ -463,18 +328,18 @@ namespace Mavi
 			{
 				return std::numeric_limits<size_t>::max() / sizeof(T);
 			}
-			bool operator== (const AllocationInvoker&)
+			bool operator== (const StandardAllocator&)
 			{
 				return true;
 			}
-			bool operator!=(const AllocationInvoker&)
+			bool operator!=(const StandardAllocator&)
 			{
 				return false;
 			}
 
 		public:
 			template <typename U>
-			AllocationInvoker(const AllocationInvoker<U>&)
+			StandardAllocator(const StandardAllocator<U>&)
 			{
 			}
 		};
@@ -483,7 +348,7 @@ namespace Mavi
 		struct AllocationType
 		{
 #ifdef VI_ALLOCATOR
-			using type = AllocationInvoker<T>;
+			using type = StandardAllocator<T>;
 #else
 			using type = std::allocator<T>;
 #endif
@@ -690,7 +555,7 @@ namespace Mavi
 			size_t Size() const;
 		};
 
-		class VI_OUT_TS ErrorHandling
+		class VI_OUT_TS ErrorHandling final : public Singletonish
 		{
 		public:
 			struct VI_OUT Details
@@ -728,30 +593,37 @@ namespace Mavi
 			};
 
 		private:
-			static std::function<void(Details&)> Callback;
-			static std::mutex Buffer;
-			static uint32_t Flags;
-
-		public:
-			static void Panic(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
-			static void Assert(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
-			static void Message(LogLevel Level, int Line, const char* Source, const char* Format, ...);
-			static void Pause();
-			static void SetCallback(const std::function<void(Details&)>& Callback);
-			static void SetFlag(LogOption Option, bool Active);
-			static bool HasFlag(LogOption Option);
-			static Core::String GetStackTrace(size_t Skips, size_t MaxFrames = 64);
-			static Core::String GetMeasureTrace();
-			static Tick Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS);
-			static void MeasureLoop();
-			static const char* GetMessageType(const Details& Base);
-			static StdColor GetMessageColor(const Details& Base);
-			static Core::String GetMessageText(const Details& Base);
+			struct State
+			{
+				std::function<void(Details&)> Callback;
+				uint32_t Flags = (uint32_t)LogOption::Pretty;
+			};
 
 		private:
-			static void Enqueue(Details&& Data);
-			static void Dispatch(Details& Data);
-			static void Colorify(Console* Base, Details& Data);
+			static State* Context;
+
+		public:
+			static void Panic(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...) noexcept;
+			static void Assert(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...) noexcept;
+			static void Message(LogLevel Level, int Line, const char* Source, const char* Format, ...) noexcept;
+			static void Pause() noexcept;
+			static void Cleanup() noexcept;
+			static void SetCallback(const std::function<void(Details&)>& Callback) noexcept;
+			static void SetFlag(LogOption Option, bool Active) noexcept;
+			static bool HasFlag(LogOption Option) noexcept;
+			static bool HasCallback() noexcept;
+			static Core::String GetStackTrace(size_t Skips, size_t MaxFrames = 64) noexcept;
+			static Core::String GetMeasureTrace() noexcept;
+			static Tick Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS) noexcept;
+			static void MeasureLoop() noexcept;
+			static const char* GetMessageType(const Details& Base) noexcept;
+			static StdColor GetMessageColor(const Details& Base) noexcept;
+			static Core::String GetMessageText(const Details& Base) noexcept;
+
+		private:
+			static void Enqueue(Details&& Data) noexcept;
+			static void Dispatch(Details& Data) noexcept;
+			static void Colorify(Console* Base, Details& Data) noexcept;
 		};
 
 		template <typename V>
@@ -1442,6 +1314,7 @@ namespace Mavi
 			static Core::String FetchWebDateTime(int64_t TimeStamp);
 			static bool FetchWebDateGMT(char* Buffer, size_t Length, int64_t Time);
 			static bool FetchWebDateTime(char* Buffer, size_t Length, int64_t Time);
+			static void FetchDateTime(char* Buffer, size_t Length, int64_t Time);
 			static int64_t ParseWebDate(const char* Date);
 		};
 
@@ -1874,28 +1747,35 @@ namespace Mavi
 			};
 		};
 
-		class VI_OUT_TS Composer
+		class VI_OUT_TS Composer : public Singletonish
 		{
 		private:
-			static Mapping<Core::UnorderedMap<uint64_t, std::pair<uint64_t, void*>>>* Factory;
-
-		public:
-			static bool Clear();
-			static bool Pop(const Core::String& Hash);
-			static Core::UnorderedSet<uint64_t> Fetch(uint64_t Id);
+			struct State
+			{
+				Core::UnorderedMap<uint64_t, std::pair<uint64_t, void*>> Factory;
+				std::mutex Mutex;
+			};
 
 		private:
-			static void Push(uint64_t TypeId, uint64_t Tag, void* Callback);
-			static void* Find(uint64_t TypeId);
+			static State* Context;
+
+		public:
+			static Core::UnorderedSet<uint64_t> Fetch(uint64_t Id) noexcept;
+			static bool Pop(const Core::String& Hash) noexcept;
+			static void Cleanup() noexcept;
+
+		private:
+			static void Push(uint64_t TypeId, uint64_t Tag, void* Callback) noexcept;
+			static void* Find(uint64_t TypeId) noexcept;
 
 		public:
 			template <typename T, typename... Args>
-			static Unique<T> Create(const Core::String& Hash, Args... Data)
+			static Unique<T> Create(const Core::String& Hash, Args... Data) noexcept
 			{
 				return Create<T, Args...>(VI_HASH(Hash), Data...);
 			}
 			template <typename T, typename... Args>
-			static Unique<T> Create(uint64_t Id, Args... Data)
+			static Unique<T> Create(uint64_t Id, Args... Data) noexcept
 			{
 				void* (*Callable)(Args...) = nullptr;
 				reinterpret_cast<void*&>(Callable) = Find(Id);
@@ -1906,7 +1786,7 @@ namespace Mavi
 				return (T*)Callable(Data...);
 			}
 			template <typename T, typename... Args>
-			static void Push(uint64_t Tag)
+			static void Push(uint64_t Tag) noexcept
 			{
 				auto Callable = &Composer::Callee<T, Args...>;
 				void* Result = reinterpret_cast<void*&>(Callable);
@@ -1915,7 +1795,7 @@ namespace Mavi
 
 		private:
 			template <typename T, typename... Args>
-			static Unique<void> Callee(Args... Data)
+			static Unique<void> Callee(Args... Data) noexcept
 			{
 				return (void*)new T(Data...);
 			}
@@ -1963,6 +1843,84 @@ namespace Mavi
 				VI_ASSERT(__vcnt > 0 && Memory::IsValidAddress((void*)(T*)this), "address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
 				if (!--__vcnt)
 					delete (T*)this;
+			}
+		};
+
+		template <typename T>
+		class Singleton : public Reference<T>
+		{
+		private:
+			enum class Action
+			{
+				Destroy,
+				Restore,
+				Create,
+				Store,
+				Fetch
+			};
+
+		public:
+			Singleton() noexcept
+			{
+				UpdateInstance((T*)this, Action::Store);
+			}
+			virtual ~Singleton() noexcept
+			{
+				if (UpdateInstance(nullptr, Action::Fetch) == (T*)this)
+					UpdateInstance(nullptr, Action::Restore);
+			}
+
+		public:
+			static bool CleanupInstance() noexcept
+			{
+				return !UpdateInstance(nullptr, Action::Destroy);
+			}
+			static bool HasInstance() noexcept
+			{
+				return UpdateInstance(nullptr, Action::Fetch) != nullptr;
+			}
+			static T* Get() noexcept
+			{
+				return UpdateInstance(nullptr, Action::Create);
+			}
+
+		private:
+			template <typename Q>
+			static typename std::enable_if<std::is_default_constructible<Q>::value, void>::type CreateInstance(Q*& Instance) noexcept
+			{
+				if (!Instance)
+					Instance = new Q();
+			}
+			template <typename Q>
+			static typename std::enable_if<!std::is_default_constructible<Q>::value, void>::type CreateInstance(Q*& Instance) noexcept
+			{
+			}
+			static T* UpdateInstance(T* Other, Action Type) noexcept
+			{
+				static T* Instance = nullptr;
+				switch (Type)
+				{
+					case Action::Destroy:
+						VI_RELEASE(Instance);
+						return nullptr;
+					case Action::Restore:
+						Instance = nullptr;
+						return nullptr;
+					case Action::Create:
+						CreateInstance<T>(Instance);
+						return Instance;
+					case Action::Fetch:
+						return Instance;
+					case Action::Store:
+						if (Other == Instance)
+							return Instance;
+
+						VI_RELEASE(Instance);		
+						Instance = Other;
+						return Instance;
+					default:
+						return nullptr;
+				}
 			}
 		};
 
@@ -2362,7 +2320,7 @@ namespace Mavi
 			}
 		};
 
-		class VI_OUT_TS Console final : public Reference<Console>
+		class VI_OUT_TS Console final : public Singleton<Console>
 		{
 		public:
 			struct ColorToken
@@ -2385,7 +2343,6 @@ namespace Mavi
 				Detached
 			};
 
-		private:
 			struct
 			{
 				FILE* Input = nullptr;
@@ -2406,11 +2363,9 @@ namespace Mavi
 			Mode Status;
 			bool Colors;
 
-		private:
-			Console() noexcept;
-
 		public:
-			~Console() noexcept;
+			Console() noexcept;
+			virtual ~Console() noexcept override;
 			void Begin();
 			void End();
 			void Hide();
@@ -2448,12 +2403,7 @@ namespace Mavi
 			char ReadChar();
 
 		public:
-			static Console* Get();
-			static bool Reset();
-			static bool IsPresent();
-
-		private:
-			static Console* Singleton;
+			static bool IsAvailable();
 		};
 
 		class VI_OUT Timer final : public Reference<Timer>
@@ -2825,7 +2775,7 @@ namespace Mavi
 			static bool GenerateNamingTable(const Schema* Current, Core::UnorderedMap<Core::String, size_t>* Map, size_t& Index);
 		};
 
-		class VI_OUT_TS Schedule final : public Reference<Schedule>
+		class VI_OUT_TS Schedule final : public Singleton<Schedule>
 		{
 		private:
 			struct ThreadPtr
@@ -2900,11 +2850,9 @@ namespace Mavi
 			bool Active;
 			bool Immediate;
 
-		private:
-			Schedule() noexcept;
-
 		public:
-			~Schedule() noexcept;
+			Schedule() noexcept;
+			virtual ~Schedule() noexcept override;
 			TaskId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
 			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
 			TaskId SetSeqInterval(uint64_t Milliseconds, const SeqTaskCallback& Callback, Difficulty Type = Difficulty::Light);
@@ -2938,8 +2886,6 @@ namespace Mavi
 			void InitializeThread(size_t GlobalIndex, size_t LocalIndex);
 			size_t UpdateThreadGlobalCounter(int64_t Index);
 			size_t UpdateThreadLocalCounter(int64_t Index);
-
-		private:
 			bool PostDebug(Difficulty Type, ThreadTask State, size_t Tasks);
 			bool PostDebug(ThreadPtr* Ptr, ThreadTask State, size_t Tasks);
 			bool ProcessTick(Difficulty Type);
@@ -2953,12 +2899,7 @@ namespace Mavi
 
 		public:
 			static std::chrono::microseconds GetClock();
-			static Schedule* Get();
-			static bool Reset();
-			static bool IsPresentAndActive();
-
-		private:
-			static Schedule* Singleton;
+			static bool IsAvailable();
 		};
 
 		template <typename T>
@@ -3356,7 +3297,7 @@ namespace Mavi
 		{
 			inline void operator()(TaskCallback&& Callback)
 			{
-				if (Schedule::IsPresentAndActive())
+				if (Schedule::IsAvailable())
 					Schedule::Get()->SetTask(std::move(Callback), Difficulty::Light);
 				else
 					Callback();

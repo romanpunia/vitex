@@ -1,8 +1,10 @@
 #include "mavi.h"
+#include "core/allocators/allocators.h"
 #include "core/compute.h"
 #include "core/audio.h"
 #include "core/network.h"
 #include "core/scripting.h"
+#include "engine/gui.h"
 #include "network/pdb.h"
 #include "network/mdb.h"
 #include <clocale>
@@ -52,370 +54,19 @@ extern "C"
 
 namespace Mavi
 {
-#ifdef VI_OPENSSL
-    static Core::Vector<std::shared_ptr<std::mutex>>* CryptoLocks = nullptr;
-#if OPENSSL_VERSION_MAJOR >= 3
-    static OSSL_PROVIDER* CryptoLegacy = nullptr;
-    static OSSL_PROVIDER* CryptoDefault = nullptr;
-#endif
-#endif
-	static uint64_t Modes = 0;
-	static int State = 0;
-
-	bool Library::HasDirectX()
+	Runtime::Runtime(size_t Modules, Core::GlobalAllocator* Allocator) noexcept : Modes(Modules)
 	{
-#ifdef VI_MICROSOFT
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasOpenGL()
-	{
-#ifdef VI_OPENGL
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasOpenSSL()
-	{
-#ifdef VI_OPENSSL
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasGLEW()
-	{
-#ifdef VI_GLEW
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasZLib()
-	{
-#ifdef VI_ZLIB
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasAssimp()
-	{
-#ifdef VI_ASSIMP
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasMongoDB()
-	{
-#ifdef VI_MONGOC
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasPostgreSQL()
-	{
-#ifdef VI_POSTGRESQL
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasOpenAL()
-	{
-#ifdef VI_OPENAL
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasSDL2()
-	{
-#ifdef VI_SDL2
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasSIMD()
-	{
-#ifdef VI_SIMD
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasJIT()
-	{
-#ifdef VI_JIT
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasBindings()
-	{
-#ifdef VI_BINDINGS
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasAllocator()
-	{
-#ifdef VI_ALLOCATOR
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasBacktrace()
-	{
-#ifdef VI_BACKTRACE
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasBullet3()
-	{
-#ifdef VI_BULLET3
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasFreeType()
-	{
-#ifdef VI_FREETYPE
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasSPIRV()
-	{
-#ifdef VI_SPIRV
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasRmlUI()
-	{
-#ifdef VI_RMLUI
-		return true;
-#else
-		return false;
-#endif
-	}
-    bool Library::HasFContext()
-    {
-    #ifdef VI_FCTX
-        return true;
-    #else
-        return false;
-    #endif
-    }
-	bool Library::HasWindowsEpoll()
-	{
-#ifdef VI_WEPOLL
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Library::HasShaders()
-	{
-		return HasSPIRV();
-	}
-	int Library::GetMajorVersion()
-	{
-		return (int)MAJOR_VERSION;
-	}
-	int Library::GetMinorVersion()
-	{
-		return (int)MINOR_VERSION;
-	}
-	int Library::GetPatchVersion()
-	{
-		return (int)PATCH_VERSION;
-	}
-	int Library::GetVersion()
-	{
-		return (int)VERSION;
-	}
-	int Library::GetDebugLevel()
-	{
-		return VI_DLEVEL;
-	}
-	int Library::GetArchitecture()
-	{
-		return (int)sizeof(size_t);
-	}
-	Core::String Library::GetDetails()
-	{
-		Core::Vector<Core::String> Features;
-		if (HasDirectX())
-			Features.push_back("so:d3d11");
-		if (HasOpenGL())
-			Features.push_back("so:opengl");
-		if (HasOpenAL())
-			Features.push_back("so:openal");
-		if (HasOpenSSL())
-			Features.push_back("so:openssl");
-		if (HasGLEW())
-			Features.push_back("so:glew");
-		if (HasZLib())
-			Features.push_back("so:zlib");
-		if (HasAssimp())
-			Features.push_back("so:assimp");
-		if (HasMongoDB())
-			Features.push_back("so:mongoc");
-		if (HasPostgreSQL())
-			Features.push_back("so:pq");
-		if (HasSDL2())
-			Features.push_back("so:sdl2");
-		if (HasFreeType())
-			Features.push_back("so:freetype");
-		if (HasSPIRV())
-			Features.push_back("so:spirv");
-		if (HasRmlUI())
-			Features.push_back("lib:rmlui");
-		if (HasFContext())
-			Features.push_back("lib:fcontext");
-		if (HasWindowsEpoll())
-			Features.push_back("lib:wepoll");
-		if (HasBullet3())
-			Features.push_back("lib:bullet3");
-		if (HasBacktrace())
-			Features.push_back("lib:backward-cxx");
-		if (HasSIMD())
-			Features.push_back("feature:simd");
-		if (HasJIT())
-			Features.push_back("feature:as-jit");
-		if (HasBindings())
-			Features.push_back("feature:as-stdlib");
-		if (HasAllocator())
-			Features.push_back("feature:cxx-stdalloc");
-		if (HasShaders())
-			Features.push_back("feature:shaders");
-
-		Core::StringStream Result;
-		Result << "library: " << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_VERSION << " / " << VERSION << "\n";
-		Result << "  platform: " << GetPlatform() << " / " << GetBuild() << "\n";
-		Result << "  compiler: " << GetCompiler() << "\n";
-        Result << "configuration:" << "\n";
-        
-		for (size_t i = 0; i < Features.size(); i++)
-			Result << "  " << Features[i] << "\n";
-
-		return Result.str();
-	}
-	const char* Library::GetBuild()
-	{
+		VI_ASSERT(!Instance, "mavi runtime should not be already initialized");
+		Instance = this;
 #ifndef NDEBUG
-		return "Debug";
-#else
-		return "Release";
-#endif
-	}
-	const char* Library::GetCompiler()
-	{
-#ifdef _MSC_VER
-#ifdef VI_64
-		return "Visual C++ 64-bit";
-#else
-		return "Visual C++ 32-bit";
-#endif
-#endif
-#ifdef __clang__
-#ifdef VI_64
-		return "Clang 64-bit";
-#else
-		return "Clang 32-bit";
-#endif
-#endif
-#ifdef __EMSCRIPTEN__
-#ifdef VI_64
-		return "Emscripten 64-bit";
-#else
-		return "Emscripten 32-bit";
-#endif
-#endif
-#ifdef __MINGW32__
-		return "MinGW 32-bit";
-#endif
-#ifdef __MINGW64__
-		return "MinGW 64-bit";
-#endif
-#ifdef __GNUC__
-#ifdef VI_64
-		return "GCC 64-bit";
-#else
-		return "GCC 32-bit";
-#endif
-#endif
-		return "C/C++ compiler";
-	}
-	const char* Library::GetPlatform()
-	{
-#ifdef __ANDROID__
-		return "Android";
-#endif
-#ifdef __linux__
-		return "Linux";
-#endif
-#ifdef __APPLE__
-		return "Darwin";
-#endif
-#ifdef __ros__
-		return "Akaros";
-#endif
-#ifdef _WIN32
-		return "Win32";
-#endif
-#ifdef _WIN64
-		return "Win64";
-#endif
-#ifdef __native_client__
-		return "NaCL";
-#endif
-#ifdef __asmjs__
-		return "AsmJS";
-#endif
-#ifdef __Fuchsia__
-		return "Fuschia";
-#endif
-		return "OS with C/C++ support";
-	}
-
-	bool Initialize(size_t Modules, Core::GlobalAllocator* Allocator)
-	{
-		State++;
-		if (State > 1)
-			return true;
-#ifndef NDEBUG
+		Core::ErrorHandling::SetFlag(Core::LogOption::Active, true);
 		if (!Allocator)
-			Allocator = new Core::DebugAllocator();
+			Allocator = new Core::Allocators::DebugAllocator();
 #else
 		if (!Allocator)
-			Allocator = new Core::DefaultAllocator();
+			Allocator = new Core::Allocators::DefaultAllocator();
 #endif
 		Core::Memory::SetGlobalAllocator(Allocator);
-		Modes = Modules;
-
-		if (Modes & (uint64_t)Init::Core)
-		{
-			if (Modes & (uint64_t)Init::Debug)
-				Core::ErrorHandling::SetFlag(Core::LogOption::Active, true);
-		}
-
 		if (Modes & (uint64_t)Init::Network)
 		{
 #ifdef VI_MICROSOFT
@@ -432,23 +83,23 @@ namespace Mavi
 			SSL_library_init();
 			SSL_load_error_strings();
 #if OPENSSL_VERSION_MAJOR >= 3
-			CryptoDefault = OSSL_PROVIDER_load(nullptr, "default");
-            CryptoLegacy = OSSL_PROVIDER_load(nullptr, "legacy");
-            
-			if (!CryptoLegacy || !CryptoDefault)
+			Crypto.DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
+			Crypto.LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
+
+			if (!Crypto.LegacyProvider || !Crypto.DefaultProvider)
 			{
 				Core::String Path = Core::OS::Directory::GetModule();
 				bool IsModuleDirectory = true;
 			Retry:
 				OSSL_PROVIDER_set_default_search_path(nullptr, Path.c_str());
 
-				if (!CryptoDefault)
-					CryptoDefault = OSSL_PROVIDER_load(nullptr, "default");
+				if (!Crypto.DefaultProvider)
+					Crypto.DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
 
-				if (!CryptoLegacy)
-					CryptoLegacy = OSSL_PROVIDER_load(nullptr, "legacy");
+				if (!Crypto.LegacyProvider)
+					Crypto.LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
 
-				if (!CryptoLegacy || !CryptoDefault)
+				if (!Crypto.LegacyProvider || !Crypto.DefaultProvider)
 				{
 					if (IsModuleDirectory)
 					{
@@ -462,15 +113,14 @@ namespace Mavi
 					ERR_clear_error();
 			}
 #else
-            FIPS_mode_set(1);
+			FIPS_mode_set(1);
 #endif
 			RAND_poll();
 
 			int Count = CRYPTO_num_locks();
-			CryptoLocks = VI_NEW(Core::Vector<std::shared_ptr<std::mutex>>);
-			CryptoLocks->reserve(Count);
+			Crypto.Locks.reserve(Count);
 			for (int i = 0; i < Count; i++)
-				CryptoLocks->push_back(std::make_shared<std::mutex>());
+				Crypto.Locks.push_back(std::make_shared<std::mutex>());
 
 			CRYPTO_set_id_callback([]() -> long unsigned int
 			{
@@ -483,15 +133,15 @@ namespace Mavi
 			CRYPTO_set_locking_callback([](int Mode, int Id, const char* File, int Line)
 			{
 				if (Mode & CRYPTO_LOCK)
-					CryptoLocks->at(Id)->lock();
+					Crypto.Locks.at(Id)->lock();
 				else
-					CryptoLocks->at(Id)->unlock();
+					Crypto.Locks.at(Id)->unlock();
 			});
 #else
 			VI_WARN("[mavi] openssl ssl cannot be initialized");
 #endif
 		}
-        
+
 		if (Modes & (uint64_t)Init::SDL2)
 		{
 #ifdef VI_SDL2
@@ -582,43 +232,43 @@ namespace Mavi
 				VI_WARN("[mavi] en-US locale cannot be initialized");
 		}
 
-		if (Modes & (uint64_t)Init::Audio)
-			Audio::AudioContext::Initialize();
-
-		Scripting::VirtualMachine::SetMemoryFunctions(Core::Memory::Malloc, Core::Memory::Free);
-#ifdef VI_OPENSSL
 		if (Modes & (uint64_t)Init::SSL)
 		{
+#ifdef VI_OPENSSL
 			int64_t Raw = 0;
 			RAND_bytes((unsigned char*)&Raw, sizeof(int64_t));
 #ifdef VI_POSTGRESQL
 			PQinitOpenSSL(0, 0);
 #endif
-		}
 #endif
+		}
+
+		if (Modes & (uint64_t)Init::Audio)
+			Audio::AudioContext::Initialize();
+
+		Scripting::VirtualMachine::SetMemoryFunctions(Core::Memory::Malloc, Core::Memory::Free);
 #ifndef VI_MICROSOFT
 		signal(SIGPIPE, SIG_IGN);
 #endif
-		return true;
 	}
-	bool Uninitialize()
+	Runtime::~Runtime() noexcept
 	{
-		State--;
-		if (State > 0 || State < 0)
-			return State >= 0;
-
 		auto* Allocator = Core::Memory::GetGlobalAllocator();
 		Core::ErrorHandling::SetFlag(Core::LogOption::Async, false);
-		Core::Schedule::Reset();
-
+		Network::MDB::Driver::CleanupInstance();
+		Network::PDB::Driver::CleanupInstance();
+		Network::Multiplexer::CleanupInstance();
+		Network::DNS::CleanupInstance();
+		Engine::Application::CleanupInstance();
+		Engine::GUI::Subsystem::CleanupInstance();
+		Core::Schedule::CleanupInstance();
+		Core::Console::CleanupInstance();
+#ifdef VI_OPENSSL
 		if (Modes & (uint64_t)Init::SSL)
 		{
-#ifdef VI_OPENSSL
 #if OPENSSL_VERSION_MAJOR >= 3
-            OSSL_PROVIDER_unload(CryptoLegacy);
-            OSSL_PROVIDER_unload(CryptoDefault);
-            CryptoLegacy = nullptr;
-            CryptoDefault = nullptr;
+			OSSL_PROVIDER_unload((OSSL_PROVIDER*)Crypto.LegacyProvider);
+			OSSL_PROVIDER_unload((OSSL_PROVIDER*)Crypto.DefaultProvider);
 #else
 			FIPS_mode_set(0);
 #endif
@@ -639,52 +289,372 @@ namespace Mavi
 			CRYPTO_cleanup_all_ex_data();
 			CONF_modules_unload(1);
 #endif
-			if (CryptoLocks != nullptr)
-			{
-				VI_DELETE(vector, CryptoLocks);
-				CryptoLocks = nullptr;
-			}
-#else
-			VI_WARN("[mavi] openssl ssl cannot be uninitialized");
-#endif
+			Crypto.LegacyProvider = nullptr;
+			Crypto.DefaultProvider = nullptr;
+			Crypto.Locks.clear();
 		}
-
-		if (Modes & (uint64_t)Init::SDL2)
-		{
+#endif
 #ifdef VI_SDL2
+		if (Modes & (uint64_t)Init::SDL2)
 			SDL_Quit();
-#else
-			VI_WARN("[mavi] sdl2 cannot be uninitialized");
 #endif
-		}
-
-		if (Modes & (uint64_t)Init::Network)
-		{
-			Network::MDB::Driver::Release();
-			Network::PDB::Driver::Release();
-			Network::Multiplexer::Release();
 #ifdef VI_MICROSOFT
+		if (Modes & (uint64_t)Init::Network)
 			WSACleanup();
 #endif
-		}
-
-		Scripting::VirtualMachine::FreeProxy();
-		Core::Composer::Clear();
-
-		if (Modes & (uint64_t)Init::Core)
-		{
-			if (Modes & (uint64_t)Init::Debug)
-				Core::ErrorHandling::SetFlag(Core::LogOption::Active, false);
-		}
 #ifdef VI_ASSIMP
 		Assimp::DefaultLogger::kill();
 #endif
-		Core::Console::Reset();
-		Core::Memory::SetGlobalAllocator(nullptr);
+		Scripting::VirtualMachine::Cleanup();
+		Core::Composer::Cleanup();
+		Core::ErrorHandling::Cleanup();
+		Core::Memory::Cleanup();
 
 		if (Allocator != nullptr && Allocator->IsFinalizable())
 			delete Allocator;
 
-		return true;
+		if (Instance == this)
+			Instance = nullptr;
 	}
+	bool Runtime::HasDirectX() const noexcept
+	{
+#ifdef VI_MICROSOFT
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasOpenGL() const noexcept
+	{
+#ifdef VI_OPENGL
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasOpenSSL() const noexcept
+	{
+#ifdef VI_OPENSSL
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasGLEW() const noexcept
+	{
+#ifdef VI_GLEW
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasZLib() const noexcept
+	{
+#ifdef VI_ZLIB
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasAssimp() const noexcept
+	{
+#ifdef VI_ASSIMP
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasMongoDB() const noexcept
+	{
+#ifdef VI_MONGOC
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasPostgreSQL() const noexcept
+	{
+#ifdef VI_POSTGRESQL
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasOpenAL() const noexcept
+	{
+#ifdef VI_OPENAL
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasSDL2() const noexcept
+	{
+#ifdef VI_SDL2
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasSIMD() const noexcept
+	{
+#ifdef VI_SIMD
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasJIT() const noexcept
+	{
+#ifdef VI_JIT
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasBindings() const noexcept
+	{
+#ifdef VI_BINDINGS
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasAllocator() const noexcept
+	{
+#ifdef VI_ALLOCATOR
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasBacktrace() const noexcept
+	{
+#ifdef VI_BACKTRACE
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasBullet3() const noexcept
+	{
+#ifdef VI_BULLET3
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasFreeType() const noexcept
+	{
+#ifdef VI_FREETYPE
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasSPIRV() const noexcept
+	{
+#ifdef VI_SPIRV
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasRmlUI() const noexcept
+	{
+#ifdef VI_RMLUI
+		return true;
+#else
+		return false;
+#endif
+	}
+    bool Runtime::HasFContext() const noexcept
+    {
+    #ifdef VI_FCTX
+        return true;
+    #else
+        return false;
+    #endif
+    }
+	bool Runtime::HasWindowsEpoll() const noexcept
+	{
+#ifdef VI_WEPOLL
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasShaders() const noexcept
+	{
+		return HasSPIRV();
+	}
+	int Runtime::GetMajorVersion() const noexcept
+	{
+		return (int)MAJOR_VERSION;
+	}
+	int Runtime::GetMinorVersion() const noexcept
+	{
+		return (int)MINOR_VERSION;
+	}
+	int Runtime::GetPatchVersion() const noexcept
+	{
+		return (int)PATCH_VERSION;
+	}
+	int Runtime::GetVersion() const noexcept
+	{
+		return (int)VERSION;
+	}
+	int Runtime::GetDebugLevel() const noexcept
+	{
+		return VI_DLEVEL;
+	}
+	int Runtime::GetArchitecture() const noexcept
+	{
+		return (int)sizeof(size_t);
+	}
+	size_t Runtime::GetModes() const noexcept
+	{
+		return Modes;
+	}
+	Core::String Runtime::GetDetails() const noexcept
+	{
+		Core::Vector<Core::String> Features;
+		if (HasDirectX())
+			Features.push_back("so:d3d11");
+		if (HasOpenGL())
+			Features.push_back("so:opengl");
+		if (HasOpenAL())
+			Features.push_back("so:openal");
+		if (HasOpenSSL())
+			Features.push_back("so:openssl");
+		if (HasGLEW())
+			Features.push_back("so:glew");
+		if (HasZLib())
+			Features.push_back("so:zlib");
+		if (HasAssimp())
+			Features.push_back("so:assimp");
+		if (HasMongoDB())
+			Features.push_back("so:mongoc");
+		if (HasPostgreSQL())
+			Features.push_back("so:pq");
+		if (HasSDL2())
+			Features.push_back("so:sdl2");
+		if (HasFreeType())
+			Features.push_back("so:freetype");
+		if (HasSPIRV())
+			Features.push_back("so:spirv");
+		if (HasRmlUI())
+			Features.push_back("lib:rmlui");
+		if (HasFContext())
+			Features.push_back("lib:fcontext");
+		if (HasWindowsEpoll())
+			Features.push_back("lib:wepoll");
+		if (HasBullet3())
+			Features.push_back("lib:bullet3");
+		if (HasBacktrace())
+			Features.push_back("lib:backward-cxx");
+		if (HasSIMD())
+			Features.push_back("feature:simd");
+		if (HasJIT())
+			Features.push_back("feature:as-jit");
+		if (HasBindings())
+			Features.push_back("feature:as-stdlib");
+		if (HasAllocator())
+			Features.push_back("feature:cxx-stdalloc");
+		if (HasShaders())
+			Features.push_back("feature:shaders");
+
+		Core::StringStream Result;
+		Result << "library: " << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_VERSION << " / " << VERSION << "\n";
+		Result << "  platform: " << GetPlatform() << " / " << GetBuild() << "\n";
+		Result << "  compiler: " << GetCompiler() << "\n";
+        Result << "configuration:" << "\n";
+        
+		for (size_t i = 0; i < Features.size(); i++)
+			Result << "  " << Features[i] << "\n";
+
+		return Result.str();
+	}
+	const char* Runtime::GetBuild() const noexcept
+	{
+#ifndef NDEBUG
+		return "Debug";
+#else
+		return "Release";
+#endif
+	}
+	const char* Runtime::GetCompiler() const noexcept
+	{
+#ifdef _MSC_VER
+#ifdef VI_64
+		return "Visual C++ 64-bit";
+#else
+		return "Visual C++ 32-bit";
+#endif
+#endif
+#ifdef __clang__
+#ifdef VI_64
+		return "Clang 64-bit";
+#else
+		return "Clang 32-bit";
+#endif
+#endif
+#ifdef __EMSCRIPTEN__
+#ifdef VI_64
+		return "Emscripten 64-bit";
+#else
+		return "Emscripten 32-bit";
+#endif
+#endif
+#ifdef __MINGW32__
+		return "MinGW 32-bit";
+#endif
+#ifdef __MINGW64__
+		return "MinGW 64-bit";
+#endif
+#ifdef __GNUC__
+#ifdef VI_64
+		return "GCC 64-bit";
+#else
+		return "GCC 32-bit";
+#endif
+#endif
+		return "C/C++ compiler";
+	}
+	const char* Runtime::GetPlatform() const noexcept
+	{
+#ifdef __ANDROID__
+		return "Android";
+#endif
+#ifdef __linux__
+		return "Linux";
+#endif
+#ifdef __APPLE__
+		return "Darwin";
+#endif
+#ifdef __ros__
+		return "Akaros";
+#endif
+#ifdef _WIN32
+		return "Win32";
+#endif
+#ifdef _WIN64
+		return "Win64";
+#endif
+#ifdef __native_client__
+		return "NaCL";
+#endif
+#ifdef __asmjs__
+		return "AsmJS";
+#endif
+#ifdef __Fuchsia__
+		return "Fuschia";
+#endif
+		return "OS with C/C++ support";
+	}
+	Runtime* Runtime::Get() noexcept
+	{
+		return Instance;
+	}
+	Runtime* Runtime::Instance = nullptr;
 }

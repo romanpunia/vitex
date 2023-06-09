@@ -289,7 +289,7 @@ namespace Mavi
 						goto Retry;
 					}
 
-					Multiplexer::WhenReadable(Stream, [this](SocketPoll Event)
+					Multiplexer::Get()->WhenReadable(Stream, [this](SocketPoll Event)
 					{
 						bool IsDone = Packet::IsDone(Event);
 						if (!IsDone && !Packet::IsError(Event))

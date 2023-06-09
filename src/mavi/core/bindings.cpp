@@ -6915,7 +6915,7 @@ namespace Mavi
 				if (!Delegate.IsValid())
 					return false;
 
-				return Network::Multiplexer::WhenReadable(Base, [Base, Delegate](Network::SocketPoll Poll) mutable
+				return Network::Multiplexer::Get()->WhenReadable(Base, [Base, Delegate](Network::SocketPoll Poll) mutable
 				{
 					Delegate([Base, Poll](ImmediateContext* Context)
 					{
@@ -6930,7 +6930,7 @@ namespace Mavi
 				if (!Delegate.IsValid())
 					return false;
 
-				return Network::Multiplexer::WhenWriteable(Base, [Base, Delegate](Network::SocketPoll Poll) mutable
+				return Network::Multiplexer::Get()->WhenWriteable(Base, [Base, Delegate](Network::SocketPoll Poll) mutable
 				{
 					Delegate([Base, Poll](ImmediateContext* Context)
 					{
@@ -13712,31 +13712,30 @@ namespace Mavi
 				Engine->SetFunction("bool will_continue(socket_poll)", &Network::Packet::WillContinue);
 				Engine->EndNamespace();
 
-				Engine->BeginNamespace("dns");
-				Engine->SetFunction("string find_name_from_address(const string &in, const string &in)", &Network::DNS::FindNameFromAddress);
-				Engine->SetFunction("string find_address_from_name(const string &in, const string &in, dns_type, socket_protocol, socket_type)", &Network::DNS::FindAddressFromName);
-				Engine->SetFunction("void release()", &Network::DNS::Release);
-				Engine->EndNamespace();
+				RefClass VDNS = Engine->SetClass<Network::DNS>("dns", false);
+				VDNS.SetConstructor<Network::DNS>("dns@ f()");
+				VDNS.SetMethod("string find_name_from_address(const string &in, const string &in)", &Network::DNS::FindNameFromAddress);
+				VDNS.SetMethod("string find_address_from_name(const string &in, const string &in, dns_type, socket_protocol, socket_type)", &Network::DNS::FindAddressFromName);
+				VDNS.SetMethodStatic("dns@+ get()", &Network::DNS::Get);
 
-				Engine->BeginNamespace("multiplexer");
-				Engine->SetFunctionDef("void poll_event(socket@+, socket_poll)");
-				Engine->SetFunction("void create(uint64 = 50, usize = 256)", &Network::Multiplexer::Create);
-				Engine->SetFunction("void release()", &Network::Multiplexer::Release);
-				Engine->SetFunction("void set_active(bool)", &Network::Multiplexer::SetActive);
-				Engine->SetFunction("int dispatch(uint64)", &Network::Multiplexer::Dispatch);
-				Engine->SetFunction("bool when_readable(socket@+, poll_event@+)", &MultiplexerWhenReadable);
-				Engine->SetFunction("bool when_writeable(socket@+, poll_event@+)", &MultiplexerWhenWriteable);
-				Engine->SetFunction("bool cancel_events(socket@+, socket_poll = socket_poll::cancel, bool = true)", &Network::Multiplexer::CancelEvents);
-				Engine->SetFunction("bool clear_events(socket@+)", &Network::Multiplexer::ClearEvents);
-				Engine->SetFunction("bool is_awaiting_events(socket@+)", &Network::Multiplexer::IsAwaitingEvents);
-				Engine->SetFunction("bool is_awaiting_readable(socket@+)", &Network::Multiplexer::IsAwaitingReadable);
-				Engine->SetFunction("bool is_awaiting_writeable(socket@+)", &Network::Multiplexer::IsAwaitingWriteable);
-				Engine->SetFunction("bool is_listening()", &Network::Multiplexer::IsListening);
-				Engine->SetFunction("bool is_active()", &Network::Multiplexer::IsActive);
-				Engine->SetFunction("usize get_activations()", &Network::Multiplexer::GetActivations);
-				Engine->SetFunction("string get_local_address()", &Network::Multiplexer::GetLocalAddress);
-				Engine->SetFunction<Core::String(addrinfo*)>("string get_address(uptr@)", &Network::Multiplexer::GetAddress);
-				Engine->EndNamespace();
+				RefClass VMultiplexer = Engine->SetClass<Network::Multiplexer>("multiplexer", false);
+				VMultiplexer.SetFunctionDef("void poll_event(socket@+, socket_poll)");
+				VMultiplexer.SetConstructor<Network::Multiplexer>("multiplexer@ f()");
+				VMultiplexer.SetConstructor<Network::Multiplexer, uint64_t, size_t>("multiplexer@ f(uint64, usize)");
+				VMultiplexer.SetMethod("void rescale(usize)", &Network::Multiplexer::Rescale);
+				VMultiplexer.SetMethod("void activate()", &Network::Multiplexer::Activate);
+				VMultiplexer.SetMethod("void deactivate()", &Network::Multiplexer::Deactivate);
+				VMultiplexer.SetMethod("int dispatch(uint64)", &Network::Multiplexer::Dispatch);
+				VMultiplexer.SetMethodEx("bool when_readable(socket@+, poll_event@+)", &MultiplexerWhenReadable);
+				VMultiplexer.SetMethodEx("bool when_writeable(socket@+, poll_event@+)", &MultiplexerWhenWriteable);
+				VMultiplexer.SetMethod("bool cancel_events(socket@+, socket_poll = socket_poll::cancel, bool = true)", &Network::Multiplexer::CancelEvents);
+				VMultiplexer.SetMethod("bool clear_events(socket@+)", &Network::Multiplexer::ClearEvents);
+				VMultiplexer.SetMethod("bool is_awaiting_events(socket@+)", &Network::Multiplexer::IsAwaitingEvents);
+				VMultiplexer.SetMethod("bool is_awaiting_readable(socket@+)", &Network::Multiplexer::IsAwaitingReadable);
+				VMultiplexer.SetMethod("bool is_awaiting_writeable(socket@+)", &Network::Multiplexer::IsAwaitingWriteable);
+				VMultiplexer.SetMethod("bool is_listening()", &Network::Multiplexer::IsListening);
+				VMultiplexer.SetMethod("usize get_activations()", &Network::Multiplexer::GetActivations);
+				VMultiplexer.SetMethodStatic("multiplexer@+ get()", &Network::Multiplexer::Get);
 
 				RefClass VSocketListener = Engine->SetClass<Network::SocketListener>("socket_listener", true);
 				VSocketListener.SetProperty<Network::SocketListener>("string name", &Network::SocketListener::Name);
@@ -16325,7 +16324,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::Release()
+			bool Registry::Cleanup()
 			{
 				StringFactory::Free();
 				return false;

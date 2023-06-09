@@ -6203,25 +6203,12 @@ namespace Mavi
 			VI_CLEAR(Scene);
 			VI_CLEAR(VM);
 			VI_CLEAR(Audio);
-#ifdef VI_RMLUI
-			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
-				Engine::GUI::Subsystem::Release();
-#endif
 			VI_CLEAR(Cache.Shaders);
 			VI_CLEAR(Cache.Primitives);
 			VI_CLEAR(Content);
 			VI_CLEAR(Constants);
 			VI_CLEAR(Renderer);
 			VI_CLEAR(Activity);
-
-			if (Control.Usage & (size_t)ApplicationSet::NetworkSet)
-			{
-				Network::MDB::Driver::Release();
-				Network::PDB::Driver::Release();
-				Network::Multiplexer::Release();
-			}
-
-			Host = nullptr;
 		}
 		void Application::ScriptHook()
 		{
@@ -6255,7 +6242,6 @@ namespace Mavi
 		}
 		int Application::Start()
 		{
-			Host = this;
 			ComposeEvent();
 			Compose();
 
@@ -6388,13 +6374,14 @@ namespace Mavi
 			if (Activity != nullptr && Renderer != nullptr && Constants != nullptr && Content != nullptr)
 			{
 #ifdef VI_RMLUI
-				GUI::Subsystem::SetMetadata(Activity, Constants, Content, nullptr);
-				GUI::Subsystem::SetVirtualMachine(VM);
+				auto* Subsystem = GUI::Subsystem::Get();
+				Subsystem->SetMetadata(Activity, Constants, Content, nullptr);
+				Subsystem->SetVirtualMachine(VM);
 #endif
 			}
 
 			if (Control.Usage & (size_t)ApplicationSet::NetworkSet)
-				Network::Multiplexer::Create(Control.PollingTimeout, Control.PollingEvents);
+				new Network::Multiplexer(Control.PollingTimeout, Control.PollingEvents);
 
 			if (Control.Usage & (size_t)ApplicationSet::ScriptSet)
 				ScriptHook();
@@ -6416,10 +6403,7 @@ namespace Mavi
 			Core::Timer* Time = new Core::Timer();
 			Time->SetFixedFrames(Control.Framerate.Stable);
 			Time->SetMaxFrames(Control.Framerate.Limit);
-#ifdef VI_RMLUI
-			if (Activity != nullptr && Renderer != nullptr && Constants != nullptr && Content != nullptr)
-				GUI::Subsystem::SetMetadata(Activity, Constants, Content, Time);
-#endif
+
 			Core::Schedule::Desc Policy;
 			Policy.Coroutines = Control.Coroutines;
 			Policy.Memory = Control.Stack;
@@ -6610,11 +6594,6 @@ namespace Mavi
 			Core::Composer::Push<Audio::Filters::Bandpass>(AsFilter);
 			Core::Composer::Push<Audio::Filters::Highpass>(AsFilter);
 		}
-		Application* Application::Get()
-		{
-			return Host;
-		}
-		Application* Application::Host = nullptr;
 
 		EffectRenderer::EffectRenderer(RenderSystem* Lab) noexcept : Renderer(Lab), Output(nullptr), Swap(nullptr), MaxSlot(0)
 		{

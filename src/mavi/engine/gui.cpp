@@ -265,7 +265,7 @@ namespace Mavi
 				{
 					HasTransform = (NewTransform != nullptr);
 					if (HasTransform)
-						Transform = Subsystem::ToMatrix(NewTransform);
+						Transform = Utils::ToMatrix(NewTransform);
 				}
 				void Attach(RenderConstants* NewConstants, ContentManager* NewContent)
 				{
@@ -305,7 +305,7 @@ namespace Mavi
 				}
 				void ResizeBuffers(int Width, int Height)
 				{
-					Subsystem::ResizeDecorators(Width, Height);
+					Subsystem::Get()->ResizeDecorators(Width, Height);
 				}
 				ContentManager* GetContent()
 				{
@@ -339,7 +339,7 @@ namespace Mavi
 					{
 						if (!Core::OS::File::IsExists(Target.c_str()))
 						{
-							ContentManager* Content = (Subsystem::GetRenderInterface() ? Subsystem::GetRenderInterface()->GetContent() : nullptr);
+							ContentManager* Content = (Subsystem::Get()->GetRenderInterface() ? Subsystem::Get()->GetRenderInterface()->GetContent() : nullptr);
 							Target = (Content ? Core::OS::Path::Resolve(Path, Content->GetEnvironment(), false) : Core::OS::Path::Resolve(Path.c_str()));
 							Target = (Target.empty() ? Path.c_str() : Target.c_str());
 						}
@@ -438,7 +438,7 @@ namespace Mavi
 				}
 				void JoinPath(Rml::String& Result, const Rml::String& Path1, const Rml::String& Path2) override
 				{
-					ContentManager* Content = (Subsystem::GetRenderInterface() ? Subsystem::GetRenderInterface()->GetContent() : nullptr);
+					ContentManager* Content = (Subsystem::Get()->GetRenderInterface() ? Subsystem::Get()->GetRenderInterface()->GetContent() : nullptr);
 					VI_ASSERT(Content != nullptr, "activity should be set");
 
 					Core::String Proto1, Proto2;
@@ -2706,162 +2706,7 @@ namespace Mavi
 				return (Rml::ElementDocument*)Base;
 			}
 
-			bool Subsystem::Create()
-			{
-#ifdef VI_RMLUI
-				State++;
-				if (State > 1)
-					return true;
-
-				RenderInterface = VI_NEW(RenderSubsystem);
-				Rml::SetRenderInterface(RenderInterface);
-
-				FileInterface = VI_NEW(FileSubsystem);
-				Rml::SetFileInterface(FileInterface);
-
-				SystemInterface = VI_NEW(MainSubsystem);
-				Rml::SetSystemInterface(SystemInterface);
-
-				bool Result = Rml::Initialise();
-
-				ContextFactory = VI_NEW(ContextInstancer);
-				Rml::Factory::RegisterContextInstancer(ContextFactory);
-
-				ListenerFactory = VI_NEW(ListenerInstancer);
-				Rml::Factory::RegisterEventListenerInstancer(ListenerFactory);
-
-				DocumentFactory = VI_NEW(DocumentInstancer);
-				Rml::Factory::RegisterElementInstancer("body", DocumentFactory);
-
-				CreateElements();
-				return Result;
-#else
-				return false;
-#endif
-			}
-			bool Subsystem::Release()
-			{
-#ifdef VI_RMLUI
-				State--;
-				if (State > 0 || State < 0)
-					return State >= 0;
-
-				Rml::Shutdown();
-				if (HasDecorators)
-				{
-					HasDecorators = false;
-					ReleaseDecorators();
-				}
-
-				VI_DELETE(MainSubsystem, SystemInterface);
-				SystemInterface = nullptr;
-				Rml::SetSystemInterface(nullptr);
-
-				VI_DELETE(FileSubsystem, FileInterface);
-				FileInterface = nullptr;
-				Rml::SetFileInterface(nullptr);
-
-				VI_DELETE(RenderSubsystem, RenderInterface);
-				RenderInterface = nullptr;
-				Rml::SetRenderInterface(nullptr);
-
-				VI_DELETE(DocumentInstancer, DocumentFactory);
-				DocumentFactory = nullptr;
-
-				VI_DELETE(ListenerInstancer, ListenerFactory);
-				ListenerFactory = nullptr;
-
-				VI_DELETE(ContextInstancer, ContextFactory);
-				ContextFactory = nullptr;
-
-				ReleaseElements();
-
-				ScriptInterface = nullptr;
-				return true;
-#else
-				return false;
-#endif
-			}
-			void Subsystem::SetMetadata(Graphics::Activity* Activity, RenderConstants* Constants, ContentManager* Content, Core::Timer* Time)
-			{
-#ifdef VI_RMLUI
-				if (State == 0 && !Create())
-					return;
-
-				if (RenderInterface != nullptr)
-				{
-					RenderInterface->Attach(Constants, Content);
-					if (!HasDecorators && Content && Content->GetDevice())
-					{
-						HasDecorators = true;
-						CreateDecorators(Constants);
-					}
-				}
-
-				if (SystemInterface != nullptr)
-					SystemInterface->Attach(Activity, Time);
-#endif
-			}
-			void Subsystem::SetTranslator(const Core::String& Name, const TranslationCallback& Callback)
-			{
-#ifdef VI_RMLUI
-				VI_ASSERT(SystemInterface != nullptr, "system interface should be valid");
-				SystemInterface->SetTranslator(Name, Callback);
-#endif
-			}
-			void Subsystem::SetVirtualMachine(Scripting::VirtualMachine* VM)
-			{
-				ScriptInterface = VM;
-			}
-			RenderSubsystem* Subsystem::GetRenderInterface()
-			{
-				return RenderInterface;
-			}
-			FileSubsystem* Subsystem::GetFileInterface()
-			{
-				return FileInterface;
-			}
-			MainSubsystem* Subsystem::GetSystemInterface()
-			{
-				return SystemInterface;
-			}
-			Graphics::GraphicsDevice* Subsystem::GetDevice()
-			{
-#ifdef VI_RMLUI
-				VI_ASSERT(RenderInterface != nullptr, "render interface should be valid");
-				return RenderInterface->GetDevice();
-#else
-				return nullptr;
-#endif
-			}
-			Graphics::Texture2D* Subsystem::GetBackground()
-			{
-#ifdef VI_RMLUI
-				VI_ASSERT(RenderInterface != nullptr, "render interface should be valid");
-				return RenderInterface->Background;
-#else
-				return nullptr;
-#endif
-			}
-			Compute::Matrix4x4* Subsystem::GetTransform()
-			{
-#ifdef VI_RMLUI
-				VI_ASSERT(RenderInterface != nullptr, "render interface should be valid");
-				return RenderInterface->GetTransform();
-#else
-				return nullptr;
-#endif
-			}
-			Compute::Matrix4x4* Subsystem::GetProjection()
-			{
-#ifdef VI_RMLUI
-				VI_ASSERT(RenderInterface != nullptr, "render interface should be valid");
-				return RenderInterface->GetProjection();
-#else
-				return nullptr;
-#endif
-			}
-			Compute::Matrix4x4 Subsystem::ToMatrix(const void* Matrix)
+			Compute::Matrix4x4 Utils::ToMatrix(const void* Matrix) noexcept
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(Matrix != nullptr, "matrix should be set");
@@ -2896,7 +2741,7 @@ namespace Mavi
 				return Compute::Matrix4x4();
 #endif
 			}
-			Core::String Subsystem::EscapeHTML(const Core::String& Text)
+			Core::String Utils::EscapeHTML(const Core::String& Text) noexcept
 			{
 				Core::String Copy = Text;
 				Core::Stringify::Replace(Copy, "\r\n", "&nbsp;");
@@ -2905,16 +2750,144 @@ namespace Mavi
 				Core::Stringify::Replace(Copy, ">", "&gt;");
 				return Copy;
 			}
-			Scripting::VirtualMachine* Subsystem::ScriptInterface = nullptr;
-			ContextInstancer* Subsystem::ContextFactory = nullptr;
-			DocumentInstancer* Subsystem::DocumentFactory = nullptr;
-			ListenerInstancer* Subsystem::ListenerFactory = nullptr;
-			RenderSubsystem* Subsystem::RenderInterface = nullptr;
-			FileSubsystem* Subsystem::FileInterface = nullptr;
-			MainSubsystem* Subsystem::SystemInterface = nullptr;
-			uint64_t Subsystem::Id = 0;
-			bool Subsystem::HasDecorators = false;
-			int Subsystem::State = 0;
+
+			Subsystem::Subsystem() noexcept : ScriptInterface(nullptr), ContextFactory(nullptr), DocumentFactory(nullptr), ListenerFactory(nullptr), RenderInterface(nullptr), FileInterface(nullptr), SystemInterface(nullptr), Id(0), HasDecorators(false)
+			{
+#ifdef VI_RMLUI
+				RenderInterface = VI_NEW(RenderSubsystem);
+				Rml::SetRenderInterface(RenderInterface);
+
+				FileInterface = VI_NEW(FileSubsystem);
+				Rml::SetFileInterface(FileInterface);
+
+				SystemInterface = VI_NEW(MainSubsystem);
+				Rml::SetSystemInterface(SystemInterface);
+
+				bool Result = Rml::Initialise();
+
+				ContextFactory = VI_NEW(ContextInstancer);
+				Rml::Factory::RegisterContextInstancer(ContextFactory);
+
+				ListenerFactory = VI_NEW(ListenerInstancer);
+				Rml::Factory::RegisterEventListenerInstancer(ListenerFactory);
+
+				DocumentFactory = VI_NEW(DocumentInstancer);
+				Rml::Factory::RegisterElementInstancer("body", DocumentFactory);
+
+				CreateElements();
+#endif
+			}
+			Subsystem::~Subsystem() noexcept
+			{
+#ifdef VI_RMLUI
+				Rml::Shutdown();
+				if (HasDecorators)
+				{
+					HasDecorators = false;
+					ReleaseDecorators();
+				}
+
+				VI_DELETE(MainSubsystem, SystemInterface);
+				SystemInterface = nullptr;
+				Rml::SetSystemInterface(nullptr);
+
+				VI_DELETE(FileSubsystem, FileInterface);
+				FileInterface = nullptr;
+				Rml::SetFileInterface(nullptr);
+
+				VI_DELETE(RenderSubsystem, RenderInterface);
+				RenderInterface = nullptr;
+				Rml::SetRenderInterface(nullptr);
+
+				VI_DELETE(DocumentInstancer, DocumentFactory);
+				DocumentFactory = nullptr;
+
+				VI_DELETE(ListenerInstancer, ListenerFactory);
+				ListenerFactory = nullptr;
+
+				VI_DELETE(ContextInstancer, ContextFactory);
+				ContextFactory = nullptr;
+
+				ReleaseElements();
+				ScriptInterface = nullptr;
+#endif
+			}
+			void Subsystem::SetMetadata(Graphics::Activity* Activity, RenderConstants* Constants, ContentManager* Content, Core::Timer* Time) noexcept
+			{
+#ifdef VI_RMLUI
+				if (RenderInterface != nullptr)
+				{
+					RenderInterface->Attach(Constants, Content);
+					if (!HasDecorators && Content && Content->GetDevice())
+					{
+						HasDecorators = true;
+						CreateDecorators(Constants);
+					}
+				}
+
+				if (SystemInterface != nullptr)
+					SystemInterface->Attach(Activity, Time);
+#endif
+			}
+			void Subsystem::SetTranslator(const Core::String& Name, const TranslationCallback& Callback) noexcept
+			{
+#ifdef VI_RMLUI
+				VI_ASSERT(SystemInterface != nullptr, "system interface should be valid");
+				SystemInterface->SetTranslator(Name, Callback);
+#endif
+			}
+			void Subsystem::SetVirtualMachine(Scripting::VirtualMachine* VM) noexcept
+			{
+				ScriptInterface = VM;
+			}
+			RenderSubsystem* Subsystem::GetRenderInterface() noexcept
+			{
+				return RenderInterface;
+			}
+			FileSubsystem* Subsystem::GetFileInterface() noexcept
+			{
+				return FileInterface;
+			}
+			MainSubsystem* Subsystem::GetSystemInterface() noexcept
+			{
+				return SystemInterface;
+			}
+			Graphics::GraphicsDevice* Subsystem::GetDevice() noexcept
+			{
+#ifdef VI_RMLUI
+				VI_ASSERT(RenderInterface != nullptr, "render interface should be valid");
+				return RenderInterface->GetDevice();
+#else
+				return nullptr;
+#endif
+			}
+			Graphics::Texture2D* Subsystem::GetBackground() noexcept
+			{
+#ifdef VI_RMLUI
+				VI_ASSERT(RenderInterface != nullptr, "render interface should be valid");
+				return RenderInterface->Background;
+#else
+				return nullptr;
+#endif
+			}
+			Compute::Matrix4x4* Subsystem::GetTransform() noexcept
+			{
+#ifdef VI_RMLUI
+				VI_ASSERT(RenderInterface != nullptr, "render interface should be valid");
+				return RenderInterface->GetTransform();
+#else
+				return nullptr;
+#endif
+			}
+			Compute::Matrix4x4* Subsystem::GetProjection() noexcept
+			{
+#ifdef VI_RMLUI
+				VI_ASSERT(RenderInterface != nullptr, "render interface should be valid");
+				return RenderInterface->GetProjection();
+#else
+				return nullptr;
+#endif
+			}
 
 			DataModel::DataModel(Rml::DataModelConstructor* Ref) : Base(nullptr)
 			{
@@ -3523,8 +3496,7 @@ namespace Mavi
 			Context::Context(const Compute::Vector2& Size) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
 			{
 #ifdef VI_RMLUI
-				Base = (ScopedContext*)Rml::CreateContext(Core::ToString(Subsystem::Id++), Rml::Vector2i((int)Size.X, (int)Size.Y));
-
+				Base = (ScopedContext*)Rml::CreateContext(Core::ToString(Subsystem::Get()->Id++), Rml::Vector2i((int)Size.X, (int)Size.Y));
 				VI_ASSERT(Base != nullptr, "context cannot be created");
 				Base->Basis = this;
 				CreateVM();
@@ -3537,8 +3509,7 @@ namespace Mavi
 				VI_ASSERT(Device->GetRenderTarget() != nullptr, "graphics device should be set");
 
 				Graphics::RenderTarget2D* Target = Device->GetRenderTarget();
-				Base = (ScopedContext*)Rml::CreateContext(Core::ToString(Subsystem::Id++), Rml::Vector2i((int)Target->GetWidth(), (int)Target->GetHeight()));
-
+				Base = (ScopedContext*)Rml::CreateContext(Core::ToString(Subsystem::Get()->Id++), Rml::Vector2i((int)Target->GetWidth(), (int)Target->GetHeight()));
 				VI_ASSERT(Base != nullptr, "context cannot be created");
 				Base->Basis = this;
 				CreateVM();
@@ -3621,7 +3592,7 @@ namespace Mavi
 			void Context::EmitResize(int Width, int Height)
 			{
 #ifdef VI_RMLUI
-				RenderSubsystem* Renderer = Subsystem::GetRenderInterface();
+				RenderSubsystem* Renderer = Subsystem::Get()->GetRenderInterface();
 				if (Renderer != nullptr)
 					Renderer->ResizeBuffers(Width, Height);
 
@@ -3649,8 +3620,8 @@ namespace Mavi
 			void Context::RenderLists(Graphics::Texture2D* Target)
 			{
 #ifdef VI_RMLUI
-				VI_ASSERT(Subsystem::GetRenderInterface() != nullptr, "render interface should be valid");
-				RenderSubsystem* Renderer = Subsystem::GetRenderInterface();
+				VI_ASSERT(Subsystem::Get()->GetRenderInterface() != nullptr, "render interface should be valid");
+				RenderSubsystem* Renderer = Subsystem::Get()->GetRenderInterface();
 				Renderer->Background = Target;
 				Base->Render();
 #endif
@@ -3725,13 +3696,13 @@ namespace Mavi
 			bool Context::Initialize(const Core::String& ConfPath)
 			{
 #ifdef VI_RMLUI
-				VI_ASSERT(Subsystem::RenderInterface != nullptr, "render interface should be set");
-				VI_ASSERT(Subsystem::RenderInterface->GetContent() != nullptr, "content manager should be set");
+				VI_ASSERT(Subsystem::Get()->RenderInterface != nullptr, "render interface should be set");
+				VI_ASSERT(Subsystem::Get()->RenderInterface->GetContent() != nullptr, "content manager should be set");
 
 				bool State = Loading;
 				Loading = true;
 
-				ContentManager* Content = Subsystem::RenderInterface->GetContent();
+				ContentManager* Content = Subsystem::Get()->RenderInterface->GetContent();
 				Core::Schema* Sheet = Content->Load<Core::Schema>(ConfPath);
 				if (!Sheet)
 				{
@@ -3769,11 +3740,11 @@ namespace Mavi
 			bool Context::LoadFontFace(const Core::String& Path, bool UseAsFallback)
 			{
 #ifdef VI_RMLUI
-				VI_ASSERT(Subsystem::GetSystemInterface() != nullptr, "system interface should be set");
+				VI_ASSERT(Subsystem::Get()->GetSystemInterface() != nullptr, "system interface should be set");
 				bool State = Loading;
 				Loading = true;
 
-				bool Result = Subsystem::GetSystemInterface()->AddFontFace(Path, UseAsFallback);
+				bool Result = Subsystem::Get()->GetSystemInterface()->AddFontFace(Path, UseAsFallback);
 				Loading = State;
 
 				return Result;
@@ -3784,7 +3755,7 @@ namespace Mavi
 			Core::UnorderedMap<Core::String, bool>* Context::GetFontFaces()
 			{
 #ifdef VI_RMLUI
-				return Subsystem::GetSystemInterface()->GetFontFaces();
+				return Subsystem::Get()->GetSystemInterface()->GetFontFaces();
 #else
 				return nullptr;
 #endif
@@ -4291,10 +4262,10 @@ namespace Mavi
 			}
 			void Context::CreateVM()
 			{
-				if (!Subsystem::ScriptInterface || Compiler != nullptr)
+				if (!Subsystem::Get()->ScriptInterface || Compiler != nullptr)
 					return;
 
-				Compiler = Subsystem::ScriptInterface->CreateCompiler();
+				Compiler = Subsystem::Get()->ScriptInterface->CreateCompiler();
 				ClearVM();
 			}
 			void Context::ClearVM()

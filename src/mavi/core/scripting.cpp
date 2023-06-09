@@ -1217,7 +1217,7 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 
 			Core::String Decl = Core::Stringify::Text("%s& opAssign(const %s &in)", Object.c_str(), Object.c_str());
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.Size(), (void*)Value);
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
 			return Engine->RegisterObjectMethod(Object.c_str(), Decl.c_str(), *Value, (asECallConvTypes)Type);
 		}
 		int BaseClass::SetBehaviourAddress(const char* Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall Type)
@@ -6198,9 +6198,9 @@ namespace Mavi
 		{
 			return Debugger;
 		}
-		void VirtualMachine::FreeProxy()
+		void VirtualMachine::Cleanup()
 		{
-			Bindings::Registry::Release();
+			Bindings::Registry::Cleanup();
 			TypeCache::FreeProxy();
 			CleanupThisThread();
 		}

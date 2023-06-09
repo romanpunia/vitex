@@ -101,7 +101,7 @@ namespace Mavi
 			bool IsLooped = false;
 		};
 
-		class VI_OUT AudioContext
+		class VI_OUT AudioContext final : public Core::Singletonish
 		{
 		public:
 			static void Initialize();

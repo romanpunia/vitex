@@ -577,7 +577,15 @@ namespace Mavi
 				Connection* IsListens(const Core::String& Name);
 			};
 
-			class VI_OUT_TS Driver
+			class VI_OUT_TS Utils
+			{
+			public:
+				static Core::String GetCharArray(TConnection* Base, const Core::String& Src) noexcept;
+				static Core::String GetByteArray(TConnection* Base, const char* Src, size_t Size) noexcept;
+				static Core::String GetSQL(TConnection* Base, Core::Schema* Source, bool Escape, bool Negate) noexcept;
+			};
+
+			class VI_OUT_TS Driver final : public Core::Singleton<Driver>
 			{
 			private:
 				struct Pose
@@ -596,31 +604,27 @@ namespace Mavi
 				};
 
 			private:
-				static Core::Mapping<Core::UnorderedMap<Core::String, Sequence>>* Queries;
-				static Core::Mapping<Core::UnorderedMap<Core::String, Core::String>>* Constants;
-				static std::mutex* Safe;
-				static std::atomic<bool> Active;
-				static std::atomic<int> State;
-				static OnQueryLog Logger;
+				Core::UnorderedMap<Core::String, Sequence> Queries;
+				Core::UnorderedMap<Core::String, Core::String> Constants;
+				std::mutex Exclusive;
+				std::atomic<bool> Active;
+				OnQueryLog Logger;
 
 			public:
-				static void Create();
-				static void Release();
-				static void SetQueryLog(const OnQueryLog& Callback);
-				static void LogQuery(const Core::String& Command);
-				static bool AddConstant(const Core::String& Name, const Core::String& Value);
-				static bool AddQuery(const Core::String& Name, const char* Buffer, size_t Size);
-				static bool AddDirectory(const Core::String& Directory, const Core::String& Origin = "");
-				static bool RemoveConstant(const Core::String& Name);
-				static bool RemoveQuery(const Core::String& Name);
-				static bool LoadCacheDump(Core::Schema* Dump);
-				static Core::Schema* GetCacheDump();
-				static Core::String Emplace(Cluster* Base, const Core::String& SQL, Core::SchemaList* Map, bool Once = true);
-				static Core::String GetQuery(Cluster* Base, const Core::String& Name, Core::SchemaArgs* Map, bool Once = true);
-				static Core::String GetCharArray(TConnection* Base, const Core::String& Src);
-				static Core::String GetByteArray(TConnection* Base, const char* Src, size_t Size);
-				static Core::String GetSQL(TConnection* Base, Core::Schema* Source, bool Escape, bool Negate);
-				static Core::Vector<Core::String> GetQueries();
+				Driver() noexcept;
+				virtual ~Driver() noexcept override;
+				void SetQueryLog(const OnQueryLog& Callback) noexcept;
+				void LogQuery(const Core::String& Command) noexcept;
+				bool AddConstant(const Core::String& Name, const Core::String& Value) noexcept;
+				bool AddQuery(const Core::String& Name, const char* Buffer, size_t Size) noexcept;
+				bool AddDirectory(const Core::String& Directory, const Core::String& Origin = "") noexcept;
+				bool RemoveConstant(const Core::String& Name) noexcept;
+				bool RemoveQuery(const Core::String& Name) noexcept;
+				bool LoadCacheDump(Core::Schema* Dump) noexcept;
+				Core::Schema* GetCacheDump() noexcept;
+				Core::String Emplace(Cluster* Base, const Core::String& SQL, Core::SchemaList* Map, bool Once = true) noexcept;
+				Core::String GetQuery(Cluster* Base, const Core::String& Name, Core::SchemaArgs* Map, bool Once = true) noexcept;
+				Core::Vector<Core::String> GetQueries() noexcept;
 			};
 		}
 	}

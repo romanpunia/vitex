@@ -1235,7 +1235,7 @@ namespace Mavi
 			bool Stream::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once)
 			{
 				VI_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
-				return Query(Driver::GetQuery(Name, Map, Once));
+				return Query(Driver::Get()->GetQuery(Name, Map, Once));
 			}
 			bool Stream::Query(const Document& Command)
 			{
@@ -1705,17 +1705,17 @@ namespace Mavi
 					return Result;
 				}
 
-				return Core::Coasync<Property>([this, Name]() mutable -> Core::Promise<Property>
+				return NetCursor.Next().Then<Property>([this, Name](bool&& HasResults) mutable -> Property
 				{
 					Property Result;
-					if (!VI_AWAIT(NetCursor.Next()))
-						Coreturn Result;
+					if (!HasResults)
+						return Result;
 
 					Document Source = NetCursor.GetCurrent();
 					if (Source)
 						Source.GetProperty(Name, &Result);
 
-					Coreturn Result;
+					return Result;
 				});
 			}
 			Cursor&& Response::GetCursor()
@@ -2076,7 +2076,7 @@ namespace Mavi
 			Core::Promise<Response> Collection::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once, Transaction* Session) const
 			{
 				VI_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
-				return Query(Driver::GetQuery(Name, Map, Once), Session);
+				return Query(Driver::Get()->GetQuery(Name, Map, Once), Session);
 			}
 			Core::Promise<Response> Collection::Query(const Document& Command, Transaction* Session) const
 			{
@@ -2882,7 +2882,7 @@ namespace Mavi
 			}
 			Core::Promise<Response> Transaction::TemplateQuery(const Collection& Source, const Core::String& Name, Core::SchemaArgs* Map, bool Once)
 			{
-				return Query(Source, Driver::GetQuery(Name, Map, Once));
+				return Query(Source, Driver::Get()->GetQuery(Name, Map, Once));
 			}
 			Core::Promise<Response> Transaction::Query(const Collection& Source, const Document& Command)
 			{
@@ -2926,7 +2926,6 @@ namespace Mavi
 
 			Connection::Connection() : Connected(false), Session(nullptr), Base(nullptr), Master(nullptr)
 			{
-				Driver::Create();
 			}
 			Connection::~Connection() noexcept
 			{
@@ -2937,7 +2936,6 @@ namespace Mavi
 #endif
 				if (Connected && Base != nullptr)
 					Disconnect();
-				Driver::Release();
 			}
 			Core::Promise<bool> Connection::Connect(const Core::String& Address)
 			{
@@ -2971,7 +2969,7 @@ namespace Mavi
 						return false;
 					}
 
-					Driver::AttachQueryLog(Base);
+					Driver::Get()->AttachQueryLog(Base);
 					Connected = true;
 					return true;
 				});
@@ -3004,7 +3002,7 @@ namespace Mavi
 						return false;
 					}
 
-					Driver::AttachQueryLog(Base);
+					Driver::Get()->AttachQueryLog(Base);
 					Connected = true;
 					return true;
 				});
@@ -3258,12 +3256,10 @@ namespace Mavi
 
 			Cluster::Cluster() : Connected(false), Pool(nullptr), SrcAddress(nullptr)
 			{
-				Driver::Create();
 			}
 			Cluster::~Cluster() noexcept
 			{
 				Disconnect();
-				Driver::Release();
 			}
 			Core::Promise<bool> Cluster::Connect(const Core::String& URI)
 			{
@@ -3296,7 +3292,7 @@ namespace Mavi
 						return false;
 					}
 
-					Driver::AttachQueryLog(Pool);
+					Driver::Get()->AttachQueryLog(Pool);
 					Connected = true;
 					return true;
 				});
@@ -3330,7 +3326,7 @@ namespace Mavi
 						return false;
 					}
 
-					Driver::AttachQueryLog(Pool);
+					Driver::Get()->AttachQueryLog(Pool);
 					Connected = true;
 					return true;
 				});
@@ -3405,465 +3401,7 @@ namespace Mavi
 				return SrcAddress;
 			}
 
-			Driver::Sequence::Sequence() : Cache(nullptr)
-			{
-			}
-			Driver::Sequence::Sequence(const Sequence& Other) : Positions(Other.Positions), Request(Other.Request), Cache(Other.Cache.Copy())
-			{
-			}
-
-			void Driver::Create()
-			{
-#ifdef VI_MONGOC
-				if (State <= 0)
-				{
-					using Map1 = Core::Mapping<Core::UnorderedMap<Core::String, Sequence>>;
-					using Map2 = Core::Mapping<Core::UnorderedMap<Core::String, Core::String>>;
-					Network::Multiplexer::SetActive(true);
-
-					Queries = VI_NEW(Map1);
-					Constants = VI_NEW(Map2);
-					Safe = VI_NEW(std::mutex);
-					mongoc_log_set_handler([](mongoc_log_level_t Level, const char* Domain, const char* Message, void*)
-					{
-						switch (Level)
-						{
-							case MONGOC_LOG_LEVEL_ERROR:
-								VI_ERR("[mongoc] [%s] %s", Domain, Message);
-								break;
-							case MONGOC_LOG_LEVEL_WARNING:
-								VI_WARN("[mongoc] [%s] %s", Domain, Message);
-								break;
-							case MONGOC_LOG_LEVEL_INFO:
-								VI_INFO("[mongoc] [%s] %s", Domain, Message);
-								break;
-							case MONGOC_LOG_LEVEL_CRITICAL:
-								VI_ERR("[mongocerr] [%s] %s", Domain, Message);
-								break;
-							case MONGOC_LOG_LEVEL_MESSAGE:
-								VI_DEBUG("[mongoc] [%s] %s", Domain, Message);
-								break;
-							default:
-								break;
-						}
-					}, nullptr);
-					mongoc_init();
-					State = 1;
-				}
-				else
-					State++;
-#endif
-			}
-			void Driver::Release()
-			{
-#ifdef VI_MONGOC
-				if (State == 1)
-				{
-					Network::Multiplexer::SetActive(false);
-					if (Safe != nullptr)
-						Safe->lock();
-
-					if (APM != nullptr)
-					{
-						mongoc_apm_callbacks_destroy((mongoc_apm_callbacks_t*)APM);
-						APM = nullptr;
-					}
-
-					State = 0;
-					if (Queries != nullptr)
-					{
-						VI_DELETE(Mapping, Queries);
-						Queries = nullptr;
-					}
-
-					if (Constants != nullptr)
-					{
-						VI_DELETE(Mapping, Constants);
-						Constants = nullptr;
-					}
-
-					if (Safe != nullptr)
-					{
-						Safe->unlock();
-						VI_DELETE(mutex, Safe);
-						Safe = nullptr;
-					}
-
-					mongoc_cleanup();
-				}
-				else if (State > 0)
-					State--;
-#endif
-			}
-			void Driver::SetQueryLog(const OnQueryLog& Callback)
-			{
-				Logger = Callback;
-				if (!Logger || APM)
-					return;
-#ifdef VI_MONGOC
-				mongoc_apm_callbacks_t* Callbacks = mongoc_apm_callbacks_new();
-				mongoc_apm_set_command_started_cb(Callbacks, [](const mongoc_apm_command_started_t* Event)
-				{
-					const char* Name = mongoc_apm_command_started_get_command_name(Event);
-					char* Command = bson_as_relaxed_extended_json(mongoc_apm_command_started_get_command(Event), nullptr);
-					Core::String Buffer = Core::Stringify::Text("%s:\n%s\n", Name, Command);
-					bson_free(Command);
-
-					if (Logger)
-						Logger(Buffer);
-				});
-				APM = (void*)Callbacks;
-#endif
-			}
-			void Driver::AttachQueryLog(TConnection* Connection)
-			{
-#ifdef VI_MONGOC
-				VI_ASSERT(Connection != nullptr, "connection should be set");
-				mongoc_client_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
-#endif
-			}
-			void Driver::AttachQueryLog(TConnectionPool* Connection)
-			{
-#ifdef VI_MONGOC
-				VI_ASSERT(Connection != nullptr, "connection pool should be set");
-				mongoc_client_pool_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
-#endif
-			}
-			bool Driver::AddConstant(const Core::String& Name, const Core::String& Value)
-			{
-				VI_ASSERT(Constants && Safe, "driver should be initialized");
-				VI_ASSERT(!Name.empty(), "name should not be empty");
-
-				Safe->lock();
-				Constants->Map[Name] = Value;
-				Safe->unlock();
-				return true;
-			}
-			bool Driver::AddQuery(const Core::String& Name, const char* Buffer, size_t Size)
-			{
-				VI_ASSERT(Queries && Safe, "driver should be initialized");
-				VI_ASSERT(!Name.empty(), "name should not be empty");
-				VI_ASSERT(Buffer, "buffer should be set");
-
-				if (!Size)
-					return false;
-
-				Sequence Result;
-				Result.Request.assign(Buffer, Size);
-
-				Core::String Enums = " \r\n\t\'\"()<>=%&^*/+-,!?:;";
-				Core::String Erasable = " \r\n\t\'\"()<>=%&^*/+-,.!?:;";
-				Core::String Quotes = "\"'`";
-
-				Core::String& Base = Result.Request;
-				Core::Stringify::ReplaceInBetween(Base, "/*", "*/", "", false);
-				Core::Stringify::Trim(Base);
-				Core::Stringify::Compress(Base, Erasable.c_str(), Quotes.c_str());
-
-				auto Enumerations = Core::Stringify::FindStartsWithEndsOf(Base, "#", Enums.c_str(), Quotes.c_str());
-				if (!Enumerations.empty())
-				{
-					int64_t Offset = 0;
-					std::unique_lock<std::mutex> Unique(*Safe);
-					for (auto& Item : Enumerations)
-					{
-						size_t Size = Item.second.End - Item.second.Start, NewSize = 0;
-						Item.second.Start = (size_t)((int64_t)Item.second.Start + Offset);
-						Item.second.End = (size_t)((int64_t)Item.second.End + Offset);
-
-						auto It = Constants->Map.find(Item.first);
-						if (It == Constants->Map.end())
-						{
-							VI_ERR("[mongoc] template query @%s expects constant: %s", Name.c_str(), Item.first.c_str());
-							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, "");
-						}
-						else
-						{
-							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, It->second);
-							NewSize = It->second.size();
-						}
-
-						Offset += (int64_t)NewSize - (int64_t)Size;
-						Item.second.End = Item.second.Start + NewSize;
-					}
-				}
-
-				Core::Vector<std::pair<Core::String, Core::TextSettle>> Variables;
-				for (auto& Item : Core::Stringify::FindInBetween(Base, "$<", ">", Quotes.c_str()))
-				{
-					Item.first += ";escape";
-					Variables.emplace_back(std::move(Item));
-				}
-
-				for (auto& Item : Core::Stringify::FindInBetween(Base, "@<", ">", Quotes.c_str()))
-				{
-					Item.first += ";unsafe";
-					Variables.emplace_back(std::move(Item));
-				}
-
-				Core::Stringify::ReplaceParts(Base, Variables, "", [&Erasable](const Core::String&, char Left, int)
-				{
-					return Erasable.find(Left) == Core::String::npos ? ' ' : '\0';
-				});
-
-				for (auto& Item : Variables)
-				{
-					Pose Position;
-					Position.Escape = Item.first.find(";escape") != Core::String::npos;
-					Position.Offset = Item.second.Start;
-					Position.Key = Item.first.substr(0, Item.first.find(';'));
-					Result.Positions.emplace_back(std::move(Position));
-				}
-
-				if (Variables.empty())
-					Result.Cache = Document::FromJSON(Result.Request);
-
-				Safe->lock();
-				Queries->Map[Name] = std::move(Result);
-				Safe->unlock();
-
-				return true;
-			}
-			bool Driver::AddDirectory(const Core::String& Directory, const Core::String& Origin)
-			{
-				Core::Vector<Core::FileEntry> Entries;
-				if (!Core::OS::Directory::Scan(Directory, &Entries))
-					return false;
-
-				Core::String Path = Directory;
-				if (Path.back() != '/' && Path.back() != '\\')
-					Path.append(1, '/');
-
-				size_t Size = 0;
-				for (auto& File : Entries)
-				{
-					Core::String Base(Path + File.Path);
-					if (File.IsDirectory)
-					{
-						AddDirectory(Base, Origin.empty() ? Directory : Origin);
-						continue;
-					}
-
-					if (!Core::Stringify::EndsWith(Base, ".json"))
-						continue;
-
-					char* Buffer = (char*)Core::OS::File::ReadAll(Base, &Size);
-					if (!Buffer)
-						continue;
-
-					Core::Stringify::Replace(Base, Origin.empty() ? Directory : Origin, "");
-					Core::Stringify::Replace(Base, "\\", "/");
-					Core::Stringify::Replace(Base, ".json", "");
-					if (Core::Stringify::StartsOf(Base, "\\/"))
-						Base.erase(0, 1);
-
-					AddQuery(Base, Buffer, Size);
-					VI_FREE(Buffer);
-				}
-
-				return true;
-			}
-			bool Driver::RemoveConstant(const Core::String& Name)
-			{
-				VI_ASSERT(Constants && Safe, "driver should be initialized");
-				Safe->lock();
-				auto It = Constants->Map.find(Name);
-				if (It == Constants->Map.end())
-				{
-					Safe->unlock();
-					return false;
-				}
-
-				Constants->Map.erase(It);
-				Safe->unlock();
-				return true;
-			}
-			bool Driver::RemoveQuery(const Core::String& Name)
-			{
-				VI_ASSERT(Queries && Safe, "driver should be initialized");
-				Safe->lock();
-				auto It = Queries->Map.find(Name);
-				if (It == Queries->Map.end())
-				{
-					Safe->unlock();
-					return false;
-				}
-
-				Queries->Map.erase(It);
-				Safe->unlock();
-				return true;
-			}
-			bool Driver::LoadCacheDump(Core::Schema* Dump)
-			{
-				VI_ASSERT(Queries && Safe, "driver should be initialized");
-				VI_ASSERT(Dump != nullptr, "dump should be set");
-
-				size_t Count = 0;
-				std::unique_lock<std::mutex> Unique(*Safe);
-				Queries->Map.clear();
-
-				for (auto* Data : Dump->GetChilds())
-				{
-					Sequence Result;
-					Result.Request = Data->GetVar("request").GetBlob();
-
-					auto* Cache = Data->Get("cache");
-					if (Cache != nullptr && Cache->Value.IsObject())
-					{
-						Result.Cache = Document::FromDocument(Cache);
-						Result.Request = Result.Cache.ToJSON();
-					}
-
-					Core::Schema* Positions = Data->Get("positions");
-					if (Positions != nullptr)
-					{
-						for (auto* Position : Positions->GetChilds())
-						{
-							Pose Next;
-							Next.Key = Position->GetVar(0).GetBlob();
-							Next.Offset = (size_t)Position->GetVar(1).GetInteger();
-							Next.Escape = Position->GetVar(2).GetBoolean();
-							Result.Positions.emplace_back(std::move(Next));
-						}
-					}
-
-					Core::String Name = Data->GetVar("name").GetBlob();
-					Queries->Map[Name] = std::move(Result);
-					++Count;
-				}
-
-				if (Count > 0)
-					VI_DEBUG("[pq] OK load %" PRIu64 " parsed query templates", (uint64_t)Count);
-
-				return Count > 0;
-			}
-			Core::Schema* Driver::GetCacheDump()
-			{
-				VI_ASSERT(Queries && Safe, "driver should be initialized");
-				std::unique_lock<std::mutex> Unique(*Safe);
-				Core::Schema* Result = Core::Var::Set::Array();
-				for (auto& Query : Queries->Map)
-				{
-					Core::Schema* Data = Result->Push(Core::Var::Set::Object());
-					Data->Set("name", Core::Var::String(Query.first));
-
-					auto* Cache = Query.second.Cache.ToSchema();
-					if (Cache != nullptr)
-						Data->Set("cache", Cache);
-					else
-						Data->Set("request", Core::Var::String(Query.second.Request));
-
-					auto* Positions = Data->Set("positions", Core::Var::Set::Array());
-					for (auto& Position : Query.second.Positions)
-					{
-						auto* Next = Positions->Push(Core::Var::Set::Array());
-						Next->Push(Core::Var::String(Position.Key));
-						Next->Push(Core::Var::Integer(Position.Offset));
-						Next->Push(Core::Var::Boolean(Position.Escape));
-					}
-				}
-
-				VI_DEBUG("[pq] OK save %" PRIu64 " parsed query templates", (uint64_t)Queries->Map.size());
-				return Result;
-			}
-			Document Driver::GetQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once)
-			{
-				VI_ASSERT(Queries && Safe, "driver should be initialized");
-				Safe->lock();
-				auto It = Queries->Map.find(Name);
-				if (It == Queries->Map.end())
-				{
-					Safe->unlock();
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							VI_RELEASE(Item.second);
-						Map->clear();
-					}
-
-					VI_ERR("[mongoc] template query %s does not exist", Name.c_str());
-					return nullptr;
-				}
-
-				if (It->second.Cache.Get() != nullptr)
-				{
-					Document Result = It->second.Cache.Copy();
-					Safe->unlock();
-
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							VI_RELEASE(Item.second);
-						Map->clear();
-					}
-
-					return Result;
-				}
-
-				if (!Map || Map->empty())
-				{
-					Document Result = Document::FromJSON(It->second.Request);
-					Safe->unlock();
-
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							VI_RELEASE(Item.second);
-						Map->clear();
-					}
-
-					return Result;
-				}
-
-				Sequence Origin = It->second;
-				size_t Offset = 0;
-				Safe->unlock();
-
-				Core::String& Result = Origin.Request;
-				for (auto& Word : Origin.Positions)
-				{
-					auto It = Map->find(Word.Key);
-					if (It == Map->end())
-					{
-						VI_ERR("[mongoc] template query @%s expects parameter: %s", Name.c_str(), Word.Key.c_str());
-						continue;
-					}
-
-					Core::String Value = GetJSON(It->second, Word.Escape);
-					if (Value.empty())
-						continue;
-
-					Result.insert(Word.Offset + Offset, Value);
-					Offset += Value.size();
-				}
-
-				if (Once)
-				{
-					for (auto& Item : *Map)
-						VI_RELEASE(Item.second);
-					Map->clear();
-				}
-
-				Document Data = Document::FromJSON(Origin.Request);
-				if (!Data.Get())
-					VI_ERR("[mongoc] could not construct query: \"%s\"", Name.c_str());
-
-				return Data;
-			}
-			Core::Vector<Core::String> Driver::GetQueries()
-			{
-				Core::Vector<Core::String> Result;
-				VI_ASSERT(Queries && Safe, "driver should be initialized");
-
-				Safe->lock();
-				Result.reserve(Queries->Map.size());
-				for (auto& Item : Queries->Map)
-					Result.push_back(Item.first);
-				Safe->unlock();
-
-				return Result;
-			}
-			Core::String Driver::GetJSON(Core::Schema* Source, bool Escape)
+			Core::String Utils::GetJSON(Core::Schema* Source, bool Escape) noexcept
 			{
 				VI_ASSERT(Source != nullptr, "source should be set");
 				switch (Source->Value.GetType())
@@ -3930,12 +3468,401 @@ namespace Mavi
 
 				return "";
 			}
-			Core::Mapping<Core::UnorderedMap<Core::String, Driver::Sequence>>* Driver::Queries = nullptr;
-			Core::Mapping<Core::UnorderedMap<Core::String, Core::String>>* Driver::Constants = nullptr;
-			std::mutex* Driver::Safe = nullptr;
-			std::atomic<int> Driver::State(0);
-			OnQueryLog Driver::Logger = nullptr;
-			void* Driver::APM = nullptr;
+
+			Driver::Sequence::Sequence() : Cache(nullptr)
+			{
+			}
+			Driver::Sequence::Sequence(const Sequence& Other) : Positions(Other.Positions), Request(Other.Request), Cache(Other.Cache.Copy())
+			{
+			}
+
+			Driver::Driver() noexcept : Logger(nullptr), APM(nullptr)
+			{
+#ifdef VI_MONGOC
+				VI_TRACE("[mdb] OK initialize driver");
+				mongoc_log_set_handler([](mongoc_log_level_t Level, const char* Domain, const char* Message, void*)
+				{
+					switch (Level)
+					{
+						case MONGOC_LOG_LEVEL_ERROR:
+							VI_ERR("[mongoc] [%s] %s", Domain, Message);
+							break;
+						case MONGOC_LOG_LEVEL_WARNING:
+							VI_WARN("[mongoc] [%s] %s", Domain, Message);
+							break;
+						case MONGOC_LOG_LEVEL_INFO:
+							VI_INFO("[mongoc] [%s] %s", Domain, Message);
+							break;
+						case MONGOC_LOG_LEVEL_CRITICAL:
+							VI_ERR("[mongocerr] [%s] %s", Domain, Message);
+							break;
+						case MONGOC_LOG_LEVEL_MESSAGE:
+							VI_DEBUG("[mongoc] [%s] %s", Domain, Message);
+							break;
+						default:
+							break;
+					}
+				}, nullptr);
+				mongoc_init();
+#endif
+			}
+			Driver::~Driver() noexcept
+			{
+#ifdef VI_MONGOC
+				VI_TRACE("[mdb] cleanup driver");
+				if (APM != nullptr)
+				{
+					mongoc_apm_callbacks_destroy((mongoc_apm_callbacks_t*)APM);
+					APM = nullptr;
+				}
+				mongoc_cleanup();
+#endif
+			}
+			void Driver::SetQueryLog(const OnQueryLog& Callback) noexcept
+			{
+				Logger = Callback;
+				if (!Logger || APM)
+					return;
+#ifdef VI_MONGOC
+				mongoc_apm_callbacks_t* Callbacks = mongoc_apm_callbacks_new();
+				mongoc_apm_set_command_started_cb(Callbacks, [](const mongoc_apm_command_started_t* Event)
+				{
+					const char* Name = mongoc_apm_command_started_get_command_name(Event);
+					char* Command = bson_as_relaxed_extended_json(mongoc_apm_command_started_get_command(Event), nullptr);
+					Core::String Buffer = Core::Stringify::Text("%s:\n%s\n", Name, Command);
+					bson_free(Command);
+
+					auto* Base = Driver::Get();
+					if (Base->Logger)
+						Base->Logger(Buffer);
+				});
+				APM = (void*)Callbacks;
+#endif
+			}
+			void Driver::AttachQueryLog(TConnection* Connection) noexcept
+			{
+#ifdef VI_MONGOC
+				VI_ASSERT(Connection != nullptr, "connection should be set");
+				mongoc_client_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
+#endif
+			}
+			void Driver::AttachQueryLog(TConnectionPool* Connection) noexcept
+			{
+#ifdef VI_MONGOC
+				VI_ASSERT(Connection != nullptr, "connection pool should be set");
+				mongoc_client_pool_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
+#endif
+			}
+			bool Driver::AddConstant(const Core::String& Name, const Core::String& Value) noexcept
+			{
+				VI_ASSERT(!Name.empty(), "name should not be empty");
+				std::unique_lock<std::mutex> Unique(Exclusive);
+				Constants[Name] = Value;
+				return true;
+			}
+			bool Driver::AddQuery(const Core::String& Name, const char* Buffer, size_t Size) noexcept
+			{
+				VI_ASSERT(!Name.empty(), "name should not be empty");
+				VI_ASSERT(Buffer, "buffer should be set");
+				if (!Size)
+					return false;
+
+				Sequence Result;
+				Result.Request.assign(Buffer, Size);
+
+				Core::String Enums = " \r\n\t\'\"()<>=%&^*/+-,!?:;";
+				Core::String Erasable = " \r\n\t\'\"()<>=%&^*/+-,.!?:;";
+				Core::String Quotes = "\"'`";
+
+				Core::String& Base = Result.Request;
+				Core::Stringify::ReplaceInBetween(Base, "/*", "*/", "", false);
+				Core::Stringify::Trim(Base);
+				Core::Stringify::Compress(Base, Erasable.c_str(), Quotes.c_str());
+
+				auto Enumerations = Core::Stringify::FindStartsWithEndsOf(Base, "#", Enums.c_str(), Quotes.c_str());
+				if (!Enumerations.empty())
+				{
+					int64_t Offset = 0;
+					std::unique_lock<std::mutex> Unique(Exclusive);
+					for (auto& Item : Enumerations)
+					{
+						size_t Size = Item.second.End - Item.second.Start, NewSize = 0;
+						Item.second.Start = (size_t)((int64_t)Item.second.Start + Offset);
+						Item.second.End = (size_t)((int64_t)Item.second.End + Offset);
+
+						auto It = Constants.find(Item.first);
+						if (It == Constants.end())
+						{
+							VI_ERR("[mongoc] template query @%s expects constant: %s", Name.c_str(), Item.first.c_str());
+							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, "");
+						}
+						else
+						{
+							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, It->second);
+							NewSize = It->second.size();
+						}
+
+						Offset += (int64_t)NewSize - (int64_t)Size;
+						Item.second.End = Item.second.Start + NewSize;
+					}
+				}
+
+				Core::Vector<std::pair<Core::String, Core::TextSettle>> Variables;
+				for (auto& Item : Core::Stringify::FindInBetween(Base, "$<", ">", Quotes.c_str()))
+				{
+					Item.first += ";escape";
+					Variables.emplace_back(std::move(Item));
+				}
+
+				for (auto& Item : Core::Stringify::FindInBetween(Base, "@<", ">", Quotes.c_str()))
+				{
+					Item.first += ";unsafe";
+					Variables.emplace_back(std::move(Item));
+				}
+
+				Core::Stringify::ReplaceParts(Base, Variables, "", [&Erasable](const Core::String&, char Left, int)
+				{
+					return Erasable.find(Left) == Core::String::npos ? ' ' : '\0';
+				});
+
+				for (auto& Item : Variables)
+				{
+					Pose Position;
+					Position.Escape = Item.first.find(";escape") != Core::String::npos;
+					Position.Offset = Item.second.Start;
+					Position.Key = Item.first.substr(0, Item.first.find(';'));
+					Result.Positions.emplace_back(std::move(Position));
+				}
+
+				if (Variables.empty())
+					Result.Cache = Document::FromJSON(Result.Request);
+
+				std::unique_lock<std::mutex> Unique(Exclusive);
+				Queries[Name] = std::move(Result);
+				return true;
+			}
+			bool Driver::AddDirectory(const Core::String& Directory, const Core::String& Origin) noexcept
+			{
+				Core::Vector<Core::FileEntry> Entries;
+				if (!Core::OS::Directory::Scan(Directory, &Entries))
+					return false;
+
+				Core::String Path = Directory;
+				if (Path.back() != '/' && Path.back() != '\\')
+					Path.append(1, '/');
+
+				size_t Size = 0;
+				for (auto& File : Entries)
+				{
+					Core::String Base(Path + File.Path);
+					if (File.IsDirectory)
+					{
+						AddDirectory(Base, Origin.empty() ? Directory : Origin);
+						continue;
+					}
+
+					if (!Core::Stringify::EndsWith(Base, ".json"))
+						continue;
+
+					char* Buffer = (char*)Core::OS::File::ReadAll(Base, &Size);
+					if (!Buffer)
+						continue;
+
+					Core::Stringify::Replace(Base, Origin.empty() ? Directory : Origin, "");
+					Core::Stringify::Replace(Base, "\\", "/");
+					Core::Stringify::Replace(Base, ".json", "");
+					if (Core::Stringify::StartsOf(Base, "\\/"))
+						Base.erase(0, 1);
+
+					AddQuery(Base, Buffer, Size);
+					VI_FREE(Buffer);
+				}
+
+				return true;
+			}
+			bool Driver::RemoveConstant(const Core::String& Name) noexcept
+			{
+				std::unique_lock<std::mutex> Unique(Exclusive);
+				auto It = Constants.find(Name);
+				if (It == Constants.end())
+					return false;
+
+				Constants.erase(It);
+				return true;
+			}
+			bool Driver::RemoveQuery(const Core::String& Name) noexcept
+			{
+				std::unique_lock<std::mutex> Unique(Exclusive);
+				auto It = Queries.find(Name);
+				if (It == Queries.end())
+					return false;
+
+				Queries.erase(It);
+				return true;
+			}
+			bool Driver::LoadCacheDump(Core::Schema* Dump) noexcept
+			{
+				VI_ASSERT(Dump != nullptr, "dump should be set");
+				size_t Count = 0;
+				std::unique_lock<std::mutex> Unique(Exclusive);
+				Queries.clear();
+
+				for (auto* Data : Dump->GetChilds())
+				{
+					Sequence Result;
+					Result.Request = Data->GetVar("request").GetBlob();
+
+					auto* Cache = Data->Get("cache");
+					if (Cache != nullptr && Cache->Value.IsObject())
+					{
+						Result.Cache = Document::FromDocument(Cache);
+						Result.Request = Result.Cache.ToJSON();
+					}
+
+					Core::Schema* Positions = Data->Get("positions");
+					if (Positions != nullptr)
+					{
+						for (auto* Position : Positions->GetChilds())
+						{
+							Pose Next;
+							Next.Key = Position->GetVar(0).GetBlob();
+							Next.Offset = (size_t)Position->GetVar(1).GetInteger();
+							Next.Escape = Position->GetVar(2).GetBoolean();
+							Result.Positions.emplace_back(std::move(Next));
+						}
+					}
+
+					Core::String Name = Data->GetVar("name").GetBlob();
+					Queries[Name] = std::move(Result);
+					++Count;
+				}
+
+				if (Count > 0)
+					VI_DEBUG("[mdb] OK load %" PRIu64 " parsed query templates", (uint64_t)Count);
+
+				return Count > 0;
+			}
+			Core::Schema* Driver::GetCacheDump() noexcept
+			{
+				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::Schema* Result = Core::Var::Set::Array();
+				for (auto& Query : Queries)
+				{
+					Core::Schema* Data = Result->Push(Core::Var::Set::Object());
+					Data->Set("name", Core::Var::String(Query.first));
+
+					auto* Cache = Query.second.Cache.ToSchema();
+					if (Cache != nullptr)
+						Data->Set("cache", Cache);
+					else
+						Data->Set("request", Core::Var::String(Query.second.Request));
+
+					auto* Positions = Data->Set("positions", Core::Var::Set::Array());
+					for (auto& Position : Query.second.Positions)
+					{
+						auto* Next = Positions->Push(Core::Var::Set::Array());
+						Next->Push(Core::Var::String(Position.Key));
+						Next->Push(Core::Var::Integer(Position.Offset));
+						Next->Push(Core::Var::Boolean(Position.Escape));
+					}
+				}
+
+				VI_DEBUG("[mdb] OK save %" PRIu64 " parsed query templates", (uint64_t)Queries.size());
+				return Result;
+			}
+			Document Driver::GetQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once) noexcept
+			{
+				Exclusive.lock();
+				auto It = Queries.find(Name);
+				if (It == Queries.end())
+				{
+					Exclusive.unlock();
+					if (Once && Map != nullptr)
+					{
+						for (auto& Item : *Map)
+							VI_RELEASE(Item.second);
+						Map->clear();
+					}
+
+					VI_ERR("[mongoc] template query %s does not exist", Name.c_str());
+					return nullptr;
+				}
+
+				if (It->second.Cache.Get() != nullptr)
+				{
+					Document Result = It->second.Cache.Copy();
+					Exclusive.unlock();
+
+					if (Once && Map != nullptr)
+					{
+						for (auto& Item : *Map)
+							VI_RELEASE(Item.second);
+						Map->clear();
+					}
+
+					return Result;
+				}
+
+				if (!Map || Map->empty())
+				{
+					Document Result = Document::FromJSON(It->second.Request);
+					Exclusive.unlock();
+
+					if (Once && Map != nullptr)
+					{
+						for (auto& Item : *Map)
+							VI_RELEASE(Item.second);
+						Map->clear();
+					}
+
+					return Result;
+				}
+
+				Sequence Origin = It->second;
+				size_t Offset = 0;
+				Exclusive.unlock();
+
+				Core::String& Result = Origin.Request;
+				for (auto& Word : Origin.Positions)
+				{
+					auto It = Map->find(Word.Key);
+					if (It == Map->end())
+					{
+						VI_ERR("[mongoc] template query @%s expects parameter: %s", Name.c_str(), Word.Key.c_str());
+						continue;
+					}
+
+					Core::String Value = Utils::GetJSON(It->second, Word.Escape);
+					if (Value.empty())
+						continue;
+
+					Result.insert(Word.Offset + Offset, Value);
+					Offset += Value.size();
+				}
+
+				if (Once)
+				{
+					for (auto& Item : *Map)
+						VI_RELEASE(Item.second);
+					Map->clear();
+				}
+
+				Document Data = Document::FromJSON(Origin.Request);
+				if (!Data.Get())
+					VI_ERR("[mongoc] could not construct query: \"%s\"", Name.c_str());
+
+				return Data;
+			}
+			Core::Vector<Core::String> Driver::GetQueries() noexcept
+			{
+				Core::Vector<Core::String> Result;
+				std::unique_lock<std::mutex> Unique(Exclusive);
+				Result.reserve(Queries.size());
+				for (auto& Item : Queries)
+					Result.push_back(Item.first);
+
+				return Result;
+			}
 		}
 	}
 }

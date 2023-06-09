@@ -1716,7 +1716,7 @@ namespace Mavi
 			}
 		};
 
-		class VI_OUT Application : public Core::Reference<Application>
+		class VI_OUT Application : public Core::Singleton<Application>
 		{
 		public:
 			struct Desc
@@ -1755,9 +1755,6 @@ namespace Mavi
 				ShaderCache* Shaders = nullptr;
 				PrimitiveCache* Primitives = nullptr;
 			} Cache;
-
-		private:
-			static Application* Host;
 
 		private:
 			ApplicationState State = ApplicationState::Terminated;
@@ -1821,9 +1818,6 @@ namespace Mavi
 
 				return ExitCode;
 			}
-
-		public:
-			static Application* Get();
 		};
 
 		template <typename Geometry, typename Instance>

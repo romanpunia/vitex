@@ -369,7 +369,14 @@ namespace Mavi
 				Rml::ElementDocument* GetElementDocument() const;
 			};
 
-			class VI_OUT Subsystem
+			class VI_OUT Utils
+			{
+			public:
+				static Compute::Matrix4x4 ToMatrix(const void* Matrix) noexcept;
+				static Core::String EscapeHTML(const Core::String& Text) noexcept;
+			};
+
+			class VI_OUT Subsystem final : public Core::Singleton<Subsystem>
 			{
 				friend RenderSubsystem;
 				friend DocumentSubsystem;
@@ -377,39 +384,36 @@ namespace Mavi
 				friend Context;
 
 			private:
-				static Scripting::VirtualMachine* ScriptInterface;
-				static ContextInstancer* ContextFactory;
-				static DocumentInstancer* DocumentFactory;
-				static ListenerInstancer* ListenerFactory;
-				static RenderSubsystem* RenderInterface;
-				static FileSubsystem* FileInterface;
-				static MainSubsystem* SystemInterface;
-				static uint64_t Id;
-				static bool HasDecorators;
-				static int State;
+				Scripting::VirtualMachine* ScriptInterface;
+				ContextInstancer* ContextFactory;
+				DocumentInstancer* DocumentFactory;
+				ListenerInstancer* ListenerFactory;
+				RenderSubsystem* RenderInterface;
+				FileSubsystem* FileInterface;
+				MainSubsystem* SystemInterface;
+				uint64_t Id;
+				bool HasDecorators;
 
 			public:
-				static bool Create();
-				static bool Release();
-				static void SetMetadata(Graphics::Activity* Activity, RenderConstants* Constants, ContentManager* Content, Core::Timer* Time);
-				static void SetTranslator(const Core::String& Name, const TranslationCallback& Callback);
-				static void SetVirtualMachine(Scripting::VirtualMachine* VM);
-				static RenderSubsystem* GetRenderInterface();
-				static FileSubsystem* GetFileInterface();
-				static MainSubsystem* GetSystemInterface();
-				static Graphics::GraphicsDevice* GetDevice();
-				static Graphics::Texture2D* GetBackground();
-				static Compute::Matrix4x4* GetTransform();
-				static Compute::Matrix4x4* GetProjection();
-				static Compute::Matrix4x4 ToMatrix(const void* Matrix);
-				static Core::String EscapeHTML(const Core::String& Text);
+				Subsystem() noexcept;
+				virtual ~Subsystem() noexcept override;
+				void SetMetadata(Graphics::Activity* Activity, RenderConstants* Constants, ContentManager* Content, Core::Timer* Time) noexcept;
+				void SetTranslator(const Core::String& Name, const TranslationCallback& Callback) noexcept;
+				void SetVirtualMachine(Scripting::VirtualMachine* VM) noexcept;
+				RenderSubsystem* GetRenderInterface() noexcept;
+				FileSubsystem* GetFileInterface() noexcept;
+				MainSubsystem* GetSystemInterface() noexcept;
+				Graphics::GraphicsDevice* GetDevice() noexcept;
+				Graphics::Texture2D* GetBackground() noexcept;
+				Compute::Matrix4x4* GetTransform() noexcept;
+				Compute::Matrix4x4* GetProjection() noexcept;
 
 			private:
-				static void ResizeDecorators(int Width, int Height);
-				static void CreateDecorators(RenderConstants* Constants);
-				static void ReleaseDecorators();
-				static void CreateElements();
-				static void ReleaseElements();
+				void ResizeDecorators(int Width, int Height) noexcept;
+				void CreateDecorators(RenderConstants* Constants) noexcept;
+				void ReleaseDecorators() noexcept;
+				void CreateElements() noexcept;
+				void ReleaseElements() noexcept;
 			};
 
 			class VI_OUT DataModel final : public Core::Reference<DataModel>

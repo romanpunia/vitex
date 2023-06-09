@@ -166,11 +166,15 @@ namespace Mavi
 			size_t ArraySize;
 
 			EpollHandle(size_t NewArraySize) noexcept;
+			EpollHandle(const EpollHandle& Other) noexcept;
+			EpollHandle(EpollHandle&& Other) noexcept;
 			~EpollHandle() noexcept;
-			bool Add(Socket* Fd, bool Readable, bool Writeable);
-			bool Update(Socket* Fd, bool Readable, bool Writeable);
-			bool Remove(Socket* Fd, bool Readable, bool Writeable);
-			int Wait(EpollFd* Data, size_t DataSize, uint64_t Timeout);
+			EpollHandle& operator= (const EpollHandle& Other) noexcept;
+			EpollHandle& operator= (EpollHandle&& Other) noexcept;
+			bool Add(Socket* Fd, bool Readable, bool Writeable) noexcept;
+			bool Update(Socket* Fd, bool Readable, bool Writeable) noexcept;
+			bool Remove(Socket* Fd, bool Readable, bool Writeable) noexcept;
+			int Wait(EpollFd* Data, size_t DataSize, uint64_t Timeout) noexcept;
 		};
 
 		class VI_OUT_TS Packet
@@ -214,18 +218,6 @@ namespace Mavi
 			}
 		};
 
-		class VI_OUT_TS DNS
-		{
-		private:
-			static Core::Mapping<Core::UnorderedMap<Core::String, std::pair<int64_t, SocketAddress*>>>* Names;
-			static std::mutex Exclusive;
-
-		public:
-			static Core::String FindNameFromAddress(const Core::String& Host, const Core::String& Service);
-			static SocketAddress* FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType DNS, SocketProtocol Proto, SocketType Type);
-			static void Release();
-		};
-
 		class VI_OUT_TS Utils
 		{
 		public:
@@ -250,51 +242,66 @@ namespace Mavi
 			};
 
 		public:
-			static int Poll(pollfd* Fd, int FdCount, int Timeout);
-			static int Poll(PollFd* Fd, int FdCount, int Timeout);
-			static int64_t Clock();
+			static int Poll(pollfd* Fd, int FdCount, int Timeout) noexcept;
+			static int Poll(PollFd* Fd, int FdCount, int Timeout) noexcept;
+			static Core::String GetLocalAddress() noexcept;
+			static Core::String GetAddress(addrinfo* Info) noexcept;
+			static Core::String GetAddress(sockaddr* Info) noexcept;
+			static int GetAddressFamily(const char* Address) noexcept;
+			static int64_t Clock() noexcept;
 		};
 
-		class VI_OUT_TS Multiplexer
+		class VI_OUT_TS DNS final : public Core::Singleton<DNS>
 		{
 		private:
-			static Core::Mapping<Core::OrderedMap<std::chrono::microseconds, Socket*>>* Timeouts;
-			static Core::Vector<EpollFd>* Fds;
-			static std::atomic<size_t> Activations;
-			static std::mutex Exclusive;
-			static EpollHandle* Handle;
-			static uint64_t DefaultTimeout;
+			Core::UnorderedMap<Core::String, std::pair<int64_t, SocketAddress*>> Names;
+			std::mutex Exclusive;
 
 		public:
-			static void Create(uint64_t DispatchTimeout = 50, size_t MaxEvents = 256);
-			static void Release();
-			static void SetActive(bool Active);
-			static int Dispatch(uint64_t Timeout);
-			static bool WhenReadable(Socket* Value, PollEventCallback&& WhenReady);
-			static bool WhenWriteable(Socket* Value, PollEventCallback&& WhenReady);
-			static bool CancelEvents(Socket* Value, SocketPoll Event = SocketPoll::Cancel, bool Safely = true);
-			static bool ClearEvents(Socket* Value);
-			static bool IsAwaitingEvents(Socket* Value);
-			static bool IsAwaitingReadable(Socket* Value);
-			static bool IsAwaitingWriteable(Socket* Value);
-			static bool IsListening();
-			static bool IsActive();
-			static size_t GetActivations();
-			static Core::String GetLocalAddress();
-			static Core::String GetAddress(addrinfo* Info);
-			static Core::String GetAddress(sockaddr* Info);
-			static int GetAddressFamily(const char* Address);
+			DNS() noexcept;
+			virtual ~DNS() noexcept override;
+			Core::String FindNameFromAddress(const Core::String& Host, const Core::String& Service);
+			SocketAddress* FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType TestType, SocketProtocol Proto, SocketType Type);
+		};
+
+		class VI_OUT_TS Multiplexer final : public Core::Singleton<Multiplexer>
+		{
+		private:
+			Core::OrderedMap<std::chrono::microseconds, Socket*> Timeouts;
+			Core::Vector<EpollFd> Fds;
+			std::atomic<size_t> Activations;
+			std::mutex Exclusive;
+			EpollHandle Handle;
+			uint64_t DefaultTimeout;
+
+		public:
+			Multiplexer() noexcept;
+			Multiplexer(uint64_t DispatchTimeout, size_t MaxEvents) noexcept;
+			virtual ~Multiplexer() noexcept override;
+			void Rescale(size_t MaxEvents) noexcept;
+			void Activate() noexcept;
+			void Deactivate() noexcept;
+			int Dispatch(uint64_t Timeout) noexcept;
+			bool WhenReadable(Socket* Value, PollEventCallback&& WhenReady) noexcept;
+			bool WhenWriteable(Socket* Value, PollEventCallback&& WhenReady) noexcept;
+			bool CancelEvents(Socket* Value, SocketPoll Event = SocketPoll::Cancel, bool Safely = true) noexcept;
+			bool ClearEvents(Socket* Value) noexcept;
+			bool IsAwaitingEvents(Socket* Value) noexcept;
+			bool IsAwaitingReadable(Socket* Value) noexcept;
+			bool IsAwaitingWriteable(Socket* Value) noexcept;
+			bool IsListening() noexcept;
+			size_t GetActivations() noexcept;
 
 		private:
-			static bool WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable);
-			static bool DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time);
-			static void AddTimeout(Socket* Value, const std::chrono::microseconds& Time);
-			static void UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time);
-			static void RemoveTimeout(Socket* Value);
-			static void TryDispatch();
-			static void TryEnqueue();
-			static void TryListen();
-			static void TryUnlisten();
+			bool WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable) noexcept;
+			bool DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time) noexcept;
+			void AddTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept;
+			void UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept;
+			void RemoveTimeout(Socket* Value) noexcept;
+			void TryDispatch() noexcept;
+			void TryEnqueue() noexcept;
+			void TryListen() noexcept;
+			void TryUnlisten() noexcept;
 		};
 
 		class VI_OUT SocketAddress final : public Core::Reference<SocketAddress>

@@ -8,7 +8,7 @@ namespace Mavi
 	{
 		namespace Effects
 		{
-			class VI_OUT EffectContext
+			class VI_OUT EffectContext final : public Core::Singletonish
 			{
 			public:
 				static void Initialize();

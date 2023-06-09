@@ -9,28 +9,35 @@ namespace Mavi
 	{
 		namespace GUI
 		{
-			static void SetWorldViewProjection(RenderConstants* Constants, Rml::Element* Element, const Rml::Vector2f& Position, const Rml::Vector2f& Size, const Compute::Vector2& Mul = 1.0f)
+			static class BoxShadowInstancer* IBoxShadow = nullptr;
+			static class BoxBlurInstancer* IBoxBlur = nullptr;
+
+			class DecoratorUtils
 			{
-				VI_ASSERT(Constants != nullptr, "graphics device should be set");
-				VI_ASSERT(Element != nullptr, "element should be set");
-
-				Compute::Vector3 Scale(Size.x / 2.0f, Size.y / 2.0f);
-				Compute::Vector3 Offset(Position.x + Scale.X, Position.y + Scale.Y);
-				Compute::Matrix4x4& Ortho = *Subsystem::GetProjection();
-
-				const Rml::TransformState* State = Element->GetTransformState();
-				if (State != nullptr && State->GetTransform() != nullptr)
+			public:
+				static void SetWorldViewProjection(RenderConstants* Constants, Rml::Element* Element, const Rml::Vector2f& Position, const Rml::Vector2f& Size, const Compute::Vector2& Mul = 1.0f)
 				{
-					Compute::Matrix4x4 View = Subsystem::ToMatrix(State->GetTransform());
-					Constants->Render.Transform = Compute::Matrix4x4::CreateTranslatedScale(Offset, Scale + Mul) * View * Ortho;
-					Constants->Render.World = (Compute::Matrix4x4::CreateTranslation(Compute::Vector2(Position.x, Position.y)) * View * Ortho).Inv();
+					VI_ASSERT(Constants != nullptr, "graphics device should be set");
+					VI_ASSERT(Element != nullptr, "element should be set");
+
+					Compute::Vector3 Scale(Size.x / 2.0f, Size.y / 2.0f);
+					Compute::Vector3 Offset(Position.x + Scale.X, Position.y + Scale.Y);
+					Compute::Matrix4x4& Ortho = *Subsystem::Get()->GetProjection();
+
+					const Rml::TransformState* State = Element->GetTransformState();
+					if (State != nullptr && State->GetTransform() != nullptr)
+					{
+						Compute::Matrix4x4 View = Utils::ToMatrix(State->GetTransform());
+						Constants->Render.Transform = Compute::Matrix4x4::CreateTranslatedScale(Offset, Scale + Mul) * View * Ortho;
+						Constants->Render.World = (Compute::Matrix4x4::CreateTranslation(Compute::Vector2(Position.x, Position.y)) * View * Ortho).Inv();
+					}
+					else
+					{
+						Constants->Render.Transform = Compute::Matrix4x4::CreateTranslatedScale(Offset, Scale + Mul) * Ortho;
+						Constants->Render.World = (Compute::Matrix4x4::CreateTranslation(Compute::Vector2(Position.x, Position.y)) * Ortho).Inv();
+					}
 				}
-				else
-				{
-					Constants->Render.Transform = Compute::Matrix4x4::CreateTranslatedScale(Offset, Scale + Mul) * Ortho;
-					Constants->Render.World = (Compute::Matrix4x4::CreateTranslation(Compute::Vector2(Position.x, Position.y)) * Ortho).Inv();
-				}
-			}
+			};
 
 			class BoxShadowInstancer final : public Rml::DecoratorInstancer
 			{
@@ -62,7 +69,7 @@ namespace Mavi
 				BoxShadowInstancer(RenderConstants* NewConstants);
 				~BoxShadowInstancer() override;
 				Rml::SharedPtr<Rml::Decorator> InstanceDecorator(const Rml::String& Name, const Rml::PropertyDictionary& Props, const Rml::DecoratorInstancerInterface& Interface) override;
-			}*IBoxShadow = nullptr;
+			};
 
 			class BoxBlurInstancer final : public Rml::DecoratorInstancer
 			{
@@ -93,7 +100,7 @@ namespace Mavi
 				BoxBlurInstancer(RenderConstants* NewConstants);
 				~BoxBlurInstancer() override;
 				Rml::SharedPtr<Rml::Decorator> InstanceDecorator(const Rml::String& Name, const Rml::PropertyDictionary& Props, const Rml::DecoratorInstancerInterface& Interface) override;
-			}*IBoxBlur = nullptr;
+			};
 
 			class BoxShadow final : public Rml::Decorator
 			{
@@ -137,7 +144,7 @@ namespace Mavi
 					IBoxShadow->RenderPass.Radius.W = Element->GetProperty<float>("border-top-left-radius");
 
 					RenderConstants* Constants = IBoxShadow->Constants;
-					SetWorldViewProjection(Constants, Element, Position, Size, Offset.Abs() + Radius + 4096.0f);
+					DecoratorUtils::SetWorldViewProjection(Constants, Element, Position, Size, Offset.Abs() + Radius + 4096.0f);
 					Constants->UpdateConstantBuffer(RenderBufferType::Render);
 
 					Device->SetShader(IBoxShadow->Shader, VI_VS | VI_PS);
@@ -171,7 +178,7 @@ namespace Mavi
 				void RenderElement(Rml::Element* Element, Rml::DecoratorDataHandle ElementData) const override
 				{
 					VI_ASSERT(Element != nullptr, "element should be set");
-					Graphics::Texture2D* Background = Subsystem::GetBackground();
+					Graphics::Texture2D* Background = Subsystem::Get()->GetBackground();
 					if (!Background)
 						return;
 
@@ -193,7 +200,7 @@ namespace Mavi
 					IBoxBlur->RenderPass.Radius.W = Element->GetProperty<float>("border-top-left-radius");
 
 					RenderConstants* Constants = IBoxBlur->Constants;
-					SetWorldViewProjection(Constants, Element, Position, Size);
+					DecoratorUtils::SetWorldViewProjection(Constants, Element, Position, Size);
 					Constants->UpdateConstantBuffer(RenderBufferType::Render);
 
 					Device->CopyTexture2D(Background, &IBoxBlur->Background);
@@ -319,12 +326,12 @@ namespace Mavi
 				return Rml::MakeShared<BoxBlur>(Compute::Vector4(IColor.red, IColor.green, IColor.blue, IColor.alpha), ISoftness);
 			}
 
-			void Subsystem::ResizeDecorators(int Width, int Height)
+			void Subsystem::ResizeDecorators(int Width, int Height) noexcept
 			{
 				if (IBoxBlur != nullptr)
 					VI_CLEAR(IBoxBlur->Background);
 			}
-			void Subsystem::CreateDecorators(RenderConstants* Constants)
+			void Subsystem::CreateDecorators(RenderConstants* Constants) noexcept
 			{
 				VI_ASSERT(Constants != nullptr, "render constants should be set");
 				if (!IBoxShadow)
@@ -339,7 +346,7 @@ namespace Mavi
 					Rml::Factory::RegisterDecoratorInstancer("box-blur", IBoxBlur);
 				}
 			}
-			void Subsystem::ReleaseDecorators()
+			void Subsystem::ReleaseDecorators() noexcept
 			{
 				VI_DELETE(BoxShadowInstancer, IBoxShadow);
 				IBoxShadow = nullptr;

@@ -346,15 +346,66 @@ namespace Mavi
 			Array = VI_MALLOC(epoll_event, sizeof(epoll_event) * ArraySize);
 #endif
 		}
+		EpollHandle::EpollHandle(const EpollHandle& Other) noexcept : ArraySize(Other.ArraySize)
+		{
+			VI_ASSERT(ArraySize > 0, "array size should be greater than zero");
+#ifdef VI_APPLE
+			Handle = kqueue();
+			Array = VI_MALLOC(struct kevent, sizeof(struct kevent) * ArraySize);
+#else
+			Handle = epoll_create(1);
+			Array = VI_MALLOC(epoll_event, sizeof(epoll_event) * ArraySize);
+#endif
+		}
+		EpollHandle::EpollHandle(EpollHandle&& Other) noexcept : Array(Other.Array), Handle(Other.Handle), ArraySize(Other.ArraySize)
+		{
+			Other.Handle = INVALID_EPOLL;
+			Other.Array = nullptr;
+		}
 		EpollHandle::~EpollHandle() noexcept
 		{
 			if (Handle != INVALID_EPOLL)
+			{
 				epoll_close(Handle);
+				Handle = INVALID_EPOLL;
+			}
 
 			if (Array != nullptr)
+			{
 				VI_FREE(Array);
+				Array = nullptr;
+			}
 		}
-		bool EpollHandle::Add(Socket* Fd, bool Readable, bool Writeable)
+		EpollHandle& EpollHandle::operator= (const EpollHandle& Other) noexcept
+		{
+			if (this == &Other)
+				return *this;
+
+			this->~EpollHandle();
+			ArraySize = Other.ArraySize;
+#ifdef VI_APPLE
+			Handle = kqueue();
+			Array = VI_MALLOC(struct kevent, sizeof(struct kevent) * ArraySize);
+#else
+			Handle = epoll_create(1);
+			Array = VI_MALLOC(epoll_event, sizeof(epoll_event) * ArraySize);
+#endif
+			return *this;
+		}
+		EpollHandle& EpollHandle::operator= (EpollHandle&& Other) noexcept
+		{
+			if (this == &Other)
+				return *this;
+
+			this->~EpollHandle();
+			Array = Other.Array;
+			Handle = Other.Handle;
+			ArraySize = Other.ArraySize;
+			Other.Handle = INVALID_EPOLL;
+			Other.Array = nullptr;
+			return *this;
+		}
+		bool EpollHandle::Add(Socket* Fd, bool Readable, bool Writeable) noexcept
 		{
 			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
 			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
@@ -390,7 +441,7 @@ namespace Mavi
 			return epoll_ctl(Handle, EPOLL_CTL_ADD, Fd->Fd, &Event) == 0;
 #endif
 		}
-		bool EpollHandle::Update(Socket* Fd, bool Readable, bool Writeable)
+		bool EpollHandle::Update(Socket* Fd, bool Readable, bool Writeable) noexcept
 		{
 			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
 			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
@@ -426,7 +477,7 @@ namespace Mavi
 			return epoll_ctl(Handle, EPOLL_CTL_MOD, Fd->Fd, &Event) == 0;
 #endif
 		}
-		bool EpollHandle::Remove(Socket* Fd, bool Readable, bool Writeable)
+		bool EpollHandle::Remove(Socket* Fd, bool Readable, bool Writeable) noexcept
 		{
 			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
 			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
@@ -462,7 +513,7 @@ namespace Mavi
 			return epoll_ctl(Handle, EPOLL_CTL_DEL, Fd->Fd, &Event) == 0;
 #endif
 		}
-		int EpollHandle::Wait(EpollFd* Data, size_t DataSize, uint64_t Timeout)
+		int EpollHandle::Wait(EpollFd* Data, size_t DataSize, uint64_t Timeout) noexcept
 		{
 			VI_ASSERT(ArraySize <= DataSize, "epollfd array should be less than or equal to internal events buffer");
 			VI_TRACE("[net] epoll wait %i fds (%" PRIu64 " ms)", (int)DataSize, Timeout);
@@ -501,18 +552,164 @@ namespace Mavi
 			return Count;
 		}
 
-		void DNS::Release()
+		int Utils::Poll(pollfd* Fd, int FdCount, int Timeout) noexcept
+		{
+			VI_ASSERT(Fd != nullptr, "poll should be set");
+			VI_TRACE("[net] poll %i fds (%i ms)", FdCount, Timeout);
+#if defined(VI_MICROSOFT)
+			return WSAPoll(Fd, FdCount, Timeout);
+#else
+			return poll(Fd, FdCount, Timeout);
+#endif
+		}
+		int Utils::Poll(PollFd* Fd, int FdCount, int Timeout) noexcept
+		{
+			VI_ASSERT(Fd != nullptr, "poll should be set");
+			VI_TRACE("[net] poll %i fds (%i ms)", FdCount, Timeout);
+			Core::Vector<pollfd> Fds;
+			Fds.resize(FdCount);
+
+			for (size_t i = 0; i < (size_t)FdCount; i++)
+			{
+				auto& Next = Fds[i];
+				Next.revents = 0;
+				Next.events = 0;
+
+				auto& Base = Fd[i];
+				Next.fd = Base.Fd;
+
+				if (Base.Events & InputNormal)
+					Next.events |= POLLRDNORM;
+				if (Base.Events & InputBand)
+					Next.events |= POLLRDBAND;
+				if (Base.Events & InputPriority)
+					Next.events |= POLLPRI;
+				if (Base.Events & Input)
+					Next.events |= POLLIN;
+				if (Base.Events & OutputNormal)
+					Next.events |= POLLWRNORM;
+				if (Base.Events & OutputBand)
+					Next.events |= POLLWRBAND;
+				if (Base.Events & Output)
+					Next.events |= POLLOUT;
+				if (Base.Events & Error)
+					Next.events |= POLLERR;
+				if (Base.Events & Hangup)
+					Next.events |= POLLHUP;
+			}
+
+			int Size = Poll(Fds.data(), FdCount, Timeout);
+			for (size_t i = 0; i < (size_t)FdCount; i++)
+			{
+				auto& Next = Fd[i];
+				Next.Returns = 0;
+
+				auto& Base = Fds[i];
+				if (Base.revents & POLLRDNORM)
+					Next.Returns |= InputNormal;
+				if (Base.revents & POLLRDBAND)
+					Next.Returns |= InputBand;
+				if (Base.revents & POLLPRI)
+					Next.Returns |= InputPriority;
+				if (Base.revents & POLLIN)
+					Next.Returns |= Input;
+				if (Base.revents & POLLWRNORM)
+					Next.Returns |= OutputNormal;
+				if (Base.revents & POLLWRBAND)
+					Next.Returns |= OutputBand;
+				if (Base.revents & POLLOUT)
+					Next.Returns |= Output;
+				if (Base.revents & POLLERR)
+					Next.Returns |= Error;
+				if (Base.revents & POLLHUP)
+					Next.Returns |= Hangup;
+			}
+
+			return Size;
+		}
+		Core::String Utils::GetLocalAddress() noexcept
+		{
+			char Buffer[Core::CHUNK_SIZE];
+			if (gethostname(Buffer, sizeof(Buffer)) == SOCKET_ERROR)
+				return "127.0.0.1";
+
+			struct addrinfo Hints = { };
+			Hints.ai_family = AF_INET;
+			Hints.ai_socktype = SOCK_STREAM;
+
+			struct sockaddr_in Address = { };
+			struct addrinfo* Results = nullptr;
+
+			bool Success = (getaddrinfo(Buffer, nullptr, &Hints, &Results) == 0);
+			if (Success)
+			{
+				if (Results != nullptr)
+					memcpy(&Address, Results->ai_addr, sizeof(Address));
+			}
+
+			if (Results != nullptr)
+				freeaddrinfo(Results);
+
+			if (!Success)
+				return "127.0.0.1";
+
+			char Result[INET_ADDRSTRLEN];
+			if (!inet_ntop(AF_INET, &(Address.sin_addr), Result, INET_ADDRSTRLEN))
+				return "127.0.0.1";
+
+			return Result;
+		}
+		Core::String Utils::GetAddress(addrinfo* Info) noexcept
+		{
+			VI_ASSERT(Info != nullptr, "address info should be set");
+			char Buffer[INET6_ADDRSTRLEN];
+			inet_ntop(Info->ai_family, GetAddressStorage(Info->ai_addr), Buffer, sizeof(Buffer));
+			VI_TRACE("[net] inet ntop addrinfo 0x%" PRIXPTR ": %s", (void*)Info, Buffer);
+			return Buffer;
+		}
+		Core::String Utils::GetAddress(sockaddr* Info) noexcept
+		{
+			VI_ASSERT(Info != nullptr, "socket address should be set");
+			char Buffer[INET6_ADDRSTRLEN];
+			inet_ntop(Info->sa_family, GetAddressStorage(Info), Buffer, sizeof(Buffer));
+			VI_TRACE("[net] inet ntop sockaddr 0x%" PRIXPTR ": %s", (void*)Info, Buffer);
+			return Buffer;
+		}
+		int Utils::GetAddressFamily(const char* Address) noexcept
+		{
+			VI_ASSERT(Address != nullptr, "address should be set");
+			VI_TRACE("[net] fetch addr family %s", Address);
+
+			struct addrinfo Hints;
+			memset(&Hints, 0, sizeof(Hints));
+			Hints.ai_family = AF_UNSPEC;
+			Hints.ai_socktype = SOCK_STREAM;
+			Hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
+
+			struct addrinfo* Result;
+			if (getaddrinfo(Address, 0, &Hints, &Result) != 0)
+				return AF_UNSPEC;
+
+			int Family = Result->ai_family;
+			freeaddrinfo(Result);
+
+			return Family;
+		}
+		int64_t Utils::Clock() noexcept
+		{
+			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		}
+
+		DNS::DNS() noexcept
+		{
+			VI_TRACE("[dns] OK initialize cache");
+		}
+		DNS::~DNS() noexcept
 		{
 			VI_TRACE("[dns] cleanup cache");
-			Exclusive.lock();
-			if (Names != nullptr)
-			{
-				for (auto& Item : Names->Map)
-					VI_RELEASE(Item.second.second);
-				VI_DELETE(Mapping, Names);
-				Names = nullptr;
-			}
-			Exclusive.unlock();
+			for (auto& Item : Names)
+				VI_RELEASE(Item.second.second);
+			Names.clear();
 		}
 		Core::String DNS::FindNameFromAddress(const Core::String& Host, const Core::String& Service)
 		{
@@ -522,7 +719,7 @@ namespace Mavi
 
 			struct sockaddr_storage Storage;
 			auto Port = Core::FromString<int>(Service);
-			int Family = Multiplexer::GetAddressFamily(Host.c_str());
+			int Family = Utils::GetAddressFamily(Host.c_str());
 			int Result = -1;
 
 			if (Family == AF_INET)
@@ -624,14 +821,8 @@ namespace Mavi
 			Core::String Identity = XProto + '_' + XType + '@' + Host + ':' + Service;
 			{
 				std::unique_lock<std::mutex> Unique(Exclusive);
-				if (!Names)
-				{
-					using Map = Core::Mapping<Core::UnorderedMap<Core::String, std::pair<int64_t, SocketAddress*>>>;
-					Names = VI_NEW(Map);
-				}
-
-				auto It = Names->Map.find(Identity);
-				if (It != Names->Map.end() && It->second.first > Time)
+				auto It = Names.find(Identity);
+				if (It != Names.end() && It->second.first > Time)
 					return It->second.second;
 			}
 
@@ -680,161 +871,49 @@ namespace Mavi
 			}
 
 			SocketAddress* Result = new SocketAddress(Addresses, Good);
-			VI_DEBUG("[net] dns resolved for identity %s (address %s is used)", Identity.c_str(), Multiplexer::GetAddress(Good).c_str());
+			VI_DEBUG("[net] dns resolved for identity %s (address %s is used)", Identity.c_str(), Utils::GetAddress(Good).c_str());
 
 			std::unique_lock<std::mutex> Unique(Exclusive);
-			if (!Names)
-			{
-				using Map = Core::Mapping<Core::UnorderedMap<Core::String, std::pair<int64_t, SocketAddress*>>>;
-				Names = VI_NEW(Map);
-			}
-
-			auto It = Names->Map.find(Identity);
-			if (It != Names->Map.end())
+			auto It = Names.find(Identity);
+			if (It != Names.end())
 			{
 				VI_RELEASE(Result);
 				It->second.first = Time + DNS_TIMEOUT;
 				Result = It->second.second;
 			}
 			else
-				Names->Map[Identity] = std::make_pair(Time + DNS_TIMEOUT, Result);
+				Names[Identity] = std::make_pair(Time + DNS_TIMEOUT, Result);
 
 			return Result;
 		}
-		Core::Mapping<Core::UnorderedMap<Core::String, std::pair<int64_t, SocketAddress*>>>* DNS::Names = nullptr;
-		std::mutex DNS::Exclusive;
 
-		int Utils::Poll(pollfd* Fd, int FdCount, int Timeout)
+		Multiplexer::Multiplexer() noexcept : Multiplexer(50, 256)
 		{
-			VI_ASSERT(Fd != nullptr, "poll should be set");
-			VI_TRACE("[net] poll %i fds (%i ms)", FdCount, Timeout);
-#if defined(VI_MICROSOFT)
-			return WSAPoll(Fd, FdCount, Timeout);
-#else
-			return poll(Fd, FdCount, Timeout);
-#endif
 		}
-		int Utils::Poll(PollFd* Fd, int FdCount, int Timeout)
+		Multiplexer::Multiplexer(uint64_t DispatchTimeout, size_t MaxEvents) noexcept : Handle(MaxEvents), Activations(0), DefaultTimeout(DispatchTimeout)
 		{
-			VI_ASSERT(Fd != nullptr, "poll should be set");
-			VI_TRACE("[net] poll %i fds (%i ms)", FdCount, Timeout);
-			Core::Vector<pollfd> Fds;
-			Fds.resize(FdCount);
-
-			for (size_t i = 0; i < (size_t)FdCount; i++)
-			{
-				auto& Next = Fds[i];
-				Next.revents = 0;
-				Next.events = 0;
-
-				auto& Base = Fd[i];
-				Next.fd = Base.Fd;
-
-				if (Base.Events & InputNormal)
-					Next.events |= POLLRDNORM;
-				if (Base.Events & InputBand)
-					Next.events |= POLLRDBAND;
-				if (Base.Events & InputPriority)
-					Next.events |= POLLPRI;
-				if (Base.Events & Input)
-					Next.events |= POLLIN;
-				if (Base.Events & OutputNormal)
-					Next.events |= POLLWRNORM;
-				if (Base.Events & OutputBand)
-					Next.events |= POLLWRBAND;
-				if (Base.Events & Output)
-					Next.events |= POLLOUT;
-				if (Base.Events & Error)
-					Next.events |= POLLERR;
-				if (Base.Events & Hangup)
-					Next.events |= POLLHUP;
-			}
-
-			int Size = Poll(Fds.data(), FdCount, Timeout);
-			for (size_t i = 0; i < (size_t)FdCount; i++)
-			{
-				auto& Next = Fd[i];
-				Next.Returns = 0;
-
-				auto& Base = Fds[i];
-				if (Base.revents & POLLRDNORM)
-					Next.Returns |= InputNormal;
-				if (Base.revents & POLLRDBAND)
-					Next.Returns |= InputBand;
-				if (Base.revents & POLLPRI)
-					Next.Returns |= InputPriority;
-				if (Base.revents & POLLIN)
-					Next.Returns |= Input;
-				if (Base.revents & POLLWRNORM)
-					Next.Returns |= OutputNormal;
-				if (Base.revents & POLLWRBAND)
-					Next.Returns |= OutputBand;
-				if (Base.revents & POLLOUT)
-					Next.Returns |= Output;
-				if (Base.revents & POLLERR)
-					Next.Returns |= Error;
-				if (Base.revents & POLLHUP)
-					Next.Returns |= Hangup;
-			}
-
-			return Size;
+			VI_TRACE("[net] OK initialize multiplexer (%" PRIu64 " events)", (uint64_t)MaxEvents);
+			Fds.resize(MaxEvents);
 		}
-		int64_t Utils::Clock()
-		{
-			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		}
-
-		void Multiplexer::Create(uint64_t DispatchTimeout, size_t MaxEvents)
-		{
-			VI_ASSERT(MaxEvents > 0, "array size should be greater than zero");
-			VI_TRACE("[net] initialize multiplexer (%" PRIu64 " events)", (uint64_t)MaxEvents);
-			VI_DELETE(EpollHandle, Handle);
-
-			using Map = Core::Mapping<Core::OrderedMap<std::chrono::microseconds, Socket*>>;
-			if (!Timeouts)
-				Timeouts = VI_NEW(Map);
-
-			if (!Fds)
-				Fds = VI_NEW(Core::Vector<EpollFd>);
-			
-			DefaultTimeout = DispatchTimeout;
-			Handle = VI_NEW(EpollHandle, (int)MaxEvents);
-			Fds->resize(MaxEvents);
-		}
-		void Multiplexer::Release()
+		Multiplexer::~Multiplexer() noexcept
 		{
 			VI_TRACE("[net] free multiplexer");
-			if (Timeouts != nullptr)
-			{
-				VI_DELETE(Mapping, Timeouts);
-				Timeouts = nullptr;
-			}
-
-			if (Fds != nullptr)
-			{
-				VI_DELETE(vector, Fds);
-				Fds = nullptr;
-			}
-
-			if (Handle != nullptr)
-			{
-				VI_DELETE(EpollHandle, Handle);
-				Handle = nullptr;
-			}
-
-			DNS::Release();
 		}
-		void Multiplexer::SetActive(bool Active)
+		void Multiplexer::Rescale(size_t MaxEvents) noexcept
 		{
-			if (Active)
-				TryListen();
-			else
-				TryUnlisten();
+			Handle = EpollHandle(MaxEvents);
 		}
-		int Multiplexer::Dispatch(uint64_t EventTimeout)
+		void Multiplexer::Activate() noexcept
 		{
-			VI_ASSERT(Handle != nullptr && Timeouts != nullptr, "driver should be initialized");
-			int Count = Handle->Wait(Fds->data(), Fds->size(), EventTimeout);
+			TryListen();
+		}
+		void Multiplexer::Deactivate() noexcept
+		{
+			TryUnlisten();
+		}
+		int Multiplexer::Dispatch(uint64_t EventTimeout) noexcept
+		{
+			int Count = Handle.Wait(Fds.data(), Fds.size(), EventTimeout);
 			if (Count < 0)
 				return Count;
 
@@ -843,27 +922,27 @@ namespace Mavi
 			auto Time = Core::Schedule::GetClock();
 
 			for (size_t i = 0; i < Size; i++)
-				DispatchEvents(Fds->at(i), Time);
+				DispatchEvents(Fds.at(i), Time);
 
 			VI_MEASURE(Core::Timings::FileSystem);
-			if (Timeouts->Map.empty())
+			if (Timeouts.empty())
 				return Count;
 
 			std::unique_lock<std::mutex> Unique(Exclusive);
-			while (!Timeouts->Map.empty())
+			while (!Timeouts.empty())
 			{
-				auto It = Timeouts->Map.begin();
+				auto It = Timeouts.begin();
 				if (It->first > Time)
 					break;
 
 				VI_DEBUG("[net] sock timeout on fd %i", (int)It->second->Fd);
 				CancelEvents(It->second, SocketPoll::Timeout, false);
-				Timeouts->Map.erase(It);
+				Timeouts.erase(It);
 			}
 
 			return Count;
 		}
-		bool Multiplexer::DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time)
+		bool Multiplexer::DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time) noexcept
 		{
 			VI_ASSERT(Fd.Base != nullptr, "no socket is connected to epoll fd");
 			if (Fd.Closed)
@@ -933,31 +1012,25 @@ namespace Mavi
 
 			return Exists;
 		}
-		bool Multiplexer::WhenReadable(Socket* Value, PollEventCallback&& WhenReady)
+		bool Multiplexer::WhenReadable(Socket* Value, PollEventCallback&& WhenReady) noexcept
 		{
-			VI_ASSERT(Handle != nullptr, "driver should be initialized");
 			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, "socket should be set and valid");
-
 			return WhenEvents(Value, true, false, std::move(WhenReady), nullptr);
 		}
-		bool Multiplexer::WhenWriteable(Socket* Value, PollEventCallback&& WhenReady)
+		bool Multiplexer::WhenWriteable(Socket* Value, PollEventCallback&& WhenReady) noexcept
 		{
-			VI_ASSERT(Handle != nullptr, "driver should be initialized");
 			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, "socket should be set and valid");
-
 			return WhenEvents(Value, false, true, nullptr, std::move(WhenReady));
 		}
-		bool Multiplexer::CancelEvents(Socket* Value, SocketPoll Event, bool Safely)
+		bool Multiplexer::CancelEvents(Socket* Value, SocketPoll Event, bool Safely) noexcept
 		{
-			VI_ASSERT(Handle != nullptr, "driver should be initialized");
 			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, "socket should be set and valid");
-
 			if (Safely)
 				Exclusive.lock();
 
 			auto WhenReadable = std::move(Value->Events.ReadCallback);
 			auto WhenWriteable = std::move(Value->Events.WriteCallback);
-			bool Success = Handle->Remove(Value, true, true);
+			bool Success = Handle.Remove(Value, true, true);
 			Value->Events.Readable = false;
 			Value->Events.Writeable = false;
 			
@@ -982,11 +1055,11 @@ namespace Mavi
 
 			return Success;
 		}
-		bool Multiplexer::ClearEvents(Socket* Value)
+		bool Multiplexer::ClearEvents(Socket* Value) noexcept
 		{
 			return CancelEvents(Value, SocketPoll::Finish);
 		}
-		bool Multiplexer::IsAwaitingEvents(Socket* Value)
+		bool Multiplexer::IsAwaitingEvents(Socket* Value) noexcept
 		{
 			VI_ASSERT(Value != nullptr, "socket should be set");
 
@@ -995,7 +1068,7 @@ namespace Mavi
 			Exclusive.unlock();
 			return Awaits;
 		}
-		bool Multiplexer::IsAwaitingReadable(Socket* Value)
+		bool Multiplexer::IsAwaitingReadable(Socket* Value) noexcept
 		{
 			VI_ASSERT(Value != nullptr, "socket should be set");
 
@@ -1004,7 +1077,7 @@ namespace Mavi
 			Exclusive.unlock();
 			return Awaits;
 		}
-		bool Multiplexer::IsAwaitingWriteable(Socket* Value)
+		bool Multiplexer::IsAwaitingWriteable(Socket* Value) noexcept
 		{
 			VI_ASSERT(Value != nullptr, "socket should be set");
 
@@ -1013,26 +1086,22 @@ namespace Mavi
 			Exclusive.unlock();
 			return Awaits;
 		}
-		bool Multiplexer::IsListening()
+		bool Multiplexer::IsListening() noexcept
 		{
 			return Activations > 0;
 		}
-		bool Multiplexer::IsActive()
-		{
-			return Handle != nullptr;
-		}
-		void Multiplexer::TryDispatch()
+		void Multiplexer::TryDispatch() noexcept
 		{
 			Dispatch(DefaultTimeout);
 			TryEnqueue();
 		}
-		void Multiplexer::TryEnqueue()
+		void Multiplexer::TryEnqueue() noexcept
 		{
 			auto* Queue = Core::Schedule::Get();
 			if (Queue->CanEnqueue() && Activations > 0)
-				Queue->SetTask(&Multiplexer::TryDispatch);
+				Queue->SetTask(std::bind(&Multiplexer::TryDispatch, this));
 		}
-		void Multiplexer::TryListen()
+		void Multiplexer::TryListen() noexcept
 		{
 			if (!Activations++)
 			{
@@ -1040,13 +1109,13 @@ namespace Mavi
 				TryEnqueue();
 			}
 		}
-		void Multiplexer::TryUnlisten()
+		void Multiplexer::TryUnlisten() noexcept
 		{
 			VI_ASSERT(Activations > 0, "events poller is already inactive");
 			if (!--Activations)
 				VI_DEBUG("[net] stop events polling");
 		}
-		bool Multiplexer::WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable)
+		bool Multiplexer::WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable) noexcept
 		{
 			bool Success = false;
 			bool Update = false;
@@ -1084,9 +1153,9 @@ namespace Mavi
 					AddTimeout(Value, Core::Schedule::GetClock() + std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::milliseconds(Value->Timeout)));
 
 				if (Update)
-					Success = Handle->Update(Value, Value->Events.Readable, Value->Events.Writeable);
+					Success = Handle.Update(Value, Value->Events.Readable, Value->Events.Writeable);
 				else
-					Success = Handle->Add(Value, Value->Events.Readable, Value->Events.Writeable);
+					Success = Handle.Add(Value, Value->Events.Readable, Value->Events.Writeable);
 			}
 
 			if (WhenWriteable || WhenReadable)
@@ -1103,22 +1172,22 @@ namespace Mavi
 
 			return Success;
 		}
-		void Multiplexer::AddTimeout(Socket* Value, const std::chrono::microseconds& Time)
+		void Multiplexer::AddTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept
 		{
 			Value->Events.ExpiresAt = Time;
-			Timeouts->Map.insert(std::make_pair(Time, Value));
+			Timeouts.insert(std::make_pair(Time, Value));
 		}
-		void Multiplexer::UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time)
+		void Multiplexer::UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept
 		{
 			RemoveTimeout(Value);
 			AddTimeout(Value, Time);
 		}
-		void Multiplexer::RemoveTimeout(Socket* Value)
+		void Multiplexer::RemoveTimeout(Socket* Value) noexcept
 		{
-			auto It = Timeouts->Map.find(Value->Events.ExpiresAt);
-			if (It == Timeouts->Map.end())
+			auto It = Timeouts.find(Value->Events.ExpiresAt);
+			if (It == Timeouts.end())
 			{
-				for (auto I = Timeouts->Map.begin(); I != Timeouts->Map.end(); ++I)
+				for (auto I = Timeouts.begin(); I != Timeouts.end(); ++I)
 				{
 					if (I->second == Value)
 					{
@@ -1128,87 +1197,13 @@ namespace Mavi
 				}
 			}
 
-			if (It != Timeouts->Map.end())
-				Timeouts->Map.erase(It);
+			if (It != Timeouts.end())
+				Timeouts.erase(It);
 		}
-		size_t Multiplexer::GetActivations()
+		size_t Multiplexer::GetActivations() noexcept
 		{
 			return Activations;
 		}
-		Core::String Multiplexer::GetLocalAddress()
-		{
-			char Buffer[Core::CHUNK_SIZE];
-			if (gethostname(Buffer, sizeof(Buffer)) == SOCKET_ERROR)
-				return "127.0.0.1";
-
-			struct addrinfo Hints = { };
-			Hints.ai_family = AF_INET;
-			Hints.ai_socktype = SOCK_STREAM;
-
-			struct sockaddr_in Address = { };
-			struct addrinfo* Results = nullptr;
-
-			bool Success = (getaddrinfo(Buffer, nullptr, &Hints, &Results) == 0);
-			if (Success)
-			{
-				if (Results != nullptr)
-					memcpy(&Address, Results->ai_addr, sizeof(Address));
-			}
-
-			if (Results != nullptr)
-				freeaddrinfo(Results);
-
-			if (!Success)
-				return "127.0.0.1";
-
-			char Result[INET_ADDRSTRLEN];
-			if (!inet_ntop(AF_INET, &(Address.sin_addr), Result, INET_ADDRSTRLEN))
-				return "127.0.0.1";
-
-			return Result;
-		}
-		Core::String Multiplexer::GetAddress(addrinfo* Info)
-		{
-			VI_ASSERT(Info != nullptr, "address info should be set");
-			char Buffer[INET6_ADDRSTRLEN];
-			inet_ntop(Info->ai_family, GetAddressStorage(Info->ai_addr), Buffer, sizeof(Buffer));
-			VI_TRACE("[net] inet ntop addrinfo 0x%" PRIXPTR ": %s", (void*)Info, Buffer);
-			return Buffer;
-		}
-		Core::String Multiplexer::GetAddress(sockaddr* Info)
-		{
-			VI_ASSERT(Info != nullptr, "socket address should be set");
-			char Buffer[INET6_ADDRSTRLEN];
-			inet_ntop(Info->sa_family, GetAddressStorage(Info), Buffer, sizeof(Buffer));
-			VI_TRACE("[net] inet ntop sockaddr 0x%" PRIXPTR ": %s", (void*)Info, Buffer);
-			return Buffer;
-		}
-		int Multiplexer::GetAddressFamily(const char* Address)
-		{
-			VI_ASSERT(Address != nullptr, "address should be set");
-			VI_TRACE("[net] fetch addr family %s", Address);
-
-			struct addrinfo Hints;
-			memset(&Hints, 0, sizeof(Hints));
-			Hints.ai_family = AF_UNSPEC;
-			Hints.ai_socktype = SOCK_STREAM;
-			Hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
-
-			struct addrinfo* Result;
-			if (getaddrinfo(Address, 0, &Hints, &Result) != 0)
-				return AF_UNSPEC;
-
-			int Family = Result->ai_family;
-			freeaddrinfo(Result);
-
-			return Family;
-		}
-		EpollHandle* Multiplexer::Handle = nullptr;
-		Core::Mapping<Core::OrderedMap<std::chrono::microseconds, Socket*>>* Multiplexer::Timeouts = nullptr;
-		Core::Vector<EpollFd>* Multiplexer::Fds = nullptr;
-		std::atomic<size_t> Multiplexer::Activations(0);
-		std::mutex Multiplexer::Exclusive;
-		uint64_t Multiplexer::DefaultTimeout = 50;
 
 		SocketAddress::SocketAddress(addrinfo* NewNames, addrinfo* NewUsable) : Names(NewNames), Usable(NewUsable)
 		{
@@ -1235,7 +1230,7 @@ namespace Mavi
 			if (!Usable)
 				return Core::String();
 
-			return Multiplexer::GetAddress(Usable);
+			return Utils::GetAddress(Usable);
 		}
 
 		Socket::Socket() noexcept : Device(nullptr), Fd(INVALID_SOCKET), Timeout(0), Income(0), Outcome(0), UserData(nullptr)
@@ -1273,7 +1268,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 
-			bool Success = Multiplexer::WhenReadable(this, [this, WithAddress, Callback = std::move(Callback)](SocketPoll Event) mutable
+			bool Success = Multiplexer::Get()->WhenReadable(this, [this, WithAddress, Callback = std::move(Callback)](SocketPoll Event) mutable
 			{
 				if (!Packet::IsDone(Event))
 					return;
@@ -1384,7 +1379,7 @@ namespace Mavi
 				if (Length == -2)
 				{
 					Timeout = 500;
-					Multiplexer::WhenReadable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::Get()->WhenReadable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsSkip(Event))
 						TryCloseAsync(std::move(Callback), Packet::IsDone(Event));
@@ -1446,7 +1441,7 @@ namespace Mavi
 				int64_t Length = SendFile(Stream, Offset, Size);
 				if (Length == -2)
 				{
-					Multiplexer::WhenWriteable(this, [this, TempBuffer, Stream, Offset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::Get()->WhenWriteable(this, [this, TempBuffer, Stream, Offset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (Packet::IsDone(Event))
 							SendFileAsync(Stream, Offset, Size, std::move(Callback), ++TempBuffer);
@@ -1515,7 +1510,7 @@ namespace Mavi
 						memcpy(TempBuffer, Buffer, Payload);
 					}
 
-					Multiplexer::WhenWriteable(this, [this, TempBuffer, TempOffset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::Get()->WhenWriteable(this, [this, TempBuffer, TempOffset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsDone(Event))
 						{
@@ -1626,7 +1621,7 @@ namespace Mavi
 				int Length = Read(Buffer, (int)(Size > sizeof(Buffer) ? sizeof(Buffer) : Size));
 				if (Length == -2)
 				{
-					Multiplexer::WhenReadable(this, [this, Size, TempBuffer, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::Get()->WhenReadable(this, [this, Size, TempBuffer, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (Packet::IsDone(Event))
 						ReadAsync(Size, std::move(Callback), ++TempBuffer);
@@ -1732,7 +1727,7 @@ namespace Mavi
 						TempBuffer[Size] = '\0';
 					}
 
-					Multiplexer::WhenReadable(this, [this, TempBuffer, TempIndex, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::Get()->WhenReadable(this, [this, TempBuffer, TempIndex, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsDone(Event))
 						{
@@ -1821,7 +1816,7 @@ namespace Mavi
 			if (!Callback)
 				return -2;
 
-			Multiplexer::WhenWriteable(this, [Callback = std::move(Callback)](SocketPoll Event) mutable
+			Multiplexer::Get()->WhenWriteable(this, [Callback = std::move(Callback)](SocketPoll Event) mutable
 			{
 				if (Packet::IsDone(Event))
 					Callback(0);
@@ -1887,9 +1882,9 @@ namespace Mavi
 			VI_MEASURE(Core::Timings::Networking);
 			VI_TRACE("[net] fd %i clear events %s", (int)Fd, Gracefully ? "gracefully" : "forcefully");
 			if (Gracefully)
-				Multiplexer::CancelEvents(this, SocketPoll::Reset);
+				Multiplexer::Get()->CancelEvents(this, SocketPoll::Reset);
 			else
-				Multiplexer::ClearEvents(this);
+				Multiplexer::Get()->ClearEvents(this);
 			return 0;
 		}
 		int Socket::MigrateTo(socket_t NewFd, bool Gracefully)
@@ -2037,15 +2032,15 @@ namespace Mavi
 		}
 		bool Socket::IsPendingForRead()
 		{
-			return Multiplexer::IsAwaitingReadable(this);
+			return Multiplexer::Get()->IsAwaitingReadable(this);
 		}
 		bool Socket::IsPendingForWrite()
 		{
-			return Multiplexer::IsAwaitingWriteable(this);
+			return Multiplexer::Get()->IsAwaitingWriteable(this);
 		}
 		bool Socket::IsPending()
 		{
-			return Multiplexer::IsAwaitingEvents(this);
+			return Multiplexer::Get()->IsAwaitingEvents(this);
 		}
 		Core::String Socket::GetRemoteAddress()
 		{
@@ -2205,15 +2200,12 @@ namespace Mavi
 
 		SocketServer::SocketServer() noexcept : Backlog(1024)
 		{
-			Multiplexer::SetActive(true);
-#ifndef VI_MICROSOFT
-			signal(SIGPIPE, SIG_IGN);
-#endif
+			Multiplexer::Get()->Activate();
 		}
 		SocketServer::~SocketServer() noexcept
 		{
 			Unlisten();
-			Multiplexer::SetActive(false);
+			Multiplexer::Get()->Deactivate();
 		}
 		void SocketServer::SetRouter(SocketRouter* New)
 		{
@@ -2256,12 +2248,13 @@ namespace Mavi
 				return false;
 			}
 
+			DNS* Service = DNS::Get();
 			for (auto&& It : Router->Listeners)
 			{
 				if (It.second.Hostname.empty())
 					continue;
 
-				SocketAddress* Source = DNS::FindAddressFromName(It.second.Hostname, Core::ToString(It.second.Port), DNSType::Listen, SocketProtocol::TCP, SocketType::Stream);
+				SocketAddress* Source = Service->FindAddressFromName(It.second.Hostname, Core::ToString(It.second.Port), DNSType::Listen, SocketProtocol::TCP, SocketType::Stream);
 				if (!Source)
 				{
 					VI_ERR("[net] cannot resolve %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
@@ -2561,7 +2554,7 @@ namespace Mavi
 				case SSL_ERROR_WANT_ACCEPT:
 				case SSL_ERROR_WANT_READ:
 				{
-					return Multiplexer::WhenReadable(Base->Stream, [this, Base](SocketPoll Event)
+					return Multiplexer::Get()->WhenReadable(Base->Stream, [this, Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							OnRequestBegin(Base);
@@ -2571,7 +2564,7 @@ namespace Mavi
 				}
 				case SSL_ERROR_WANT_WRITE:
 				{
-					return Multiplexer::WhenWriteable(Base->Stream, [this, Base](SocketPoll Event)
+					return Multiplexer::Get()->WhenWriteable(Base->Stream, [this, Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							OnRequestBegin(Base);
@@ -2748,7 +2741,7 @@ namespace Mavi
 			}
 #endif
 			if (IsAsync)
-				Multiplexer::SetActive(false);
+				Multiplexer::Get()->Deactivate();
 		}
 		Core::Promise<int> SocketClient::Connect(RemoteHost* Source, bool Async)
 		{
@@ -2756,7 +2749,7 @@ namespace Mavi
 			VI_ASSERT(!Stream.IsValid(), "stream should not be connected");
 
 			if (!Async && IsAsync)
-				Multiplexer::SetActive(false);
+				Multiplexer::Get()->Deactivate();
 
 			Stage("dns resolve");
 			IsAsync = Async;
@@ -2839,14 +2832,14 @@ namespace Mavi
 
 			if (Async)
 			{
-				Multiplexer::SetActive(true);
+				Multiplexer::Get()->Activate();
 				Core::Cotask<SocketAddress*>([this]()
 				{
-					return DNS::FindAddressFromName(Hostname.Hostname, Core::ToString(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
+					return DNS::Get()->FindAddressFromName(Hostname.Hostname, Core::ToString(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
 				}).When(std::move(RemoteConnect));
 			}
 			else
-				RemoteConnect(DNS::FindAddressFromName(Hostname.Hostname, Core::ToString(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream));
+				RemoteConnect(DNS::Get()->FindAddressFromName(Hostname.Hostname, Core::ToString(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream));
 
 			return Future;
 		}
@@ -2905,7 +2898,7 @@ namespace Mavi
 			{
 				case SSL_ERROR_WANT_READ:
 				{
-					Multiplexer::WhenReadable(&Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::Get()->WhenReadable(&Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsDone(Event))
 						{
@@ -2920,7 +2913,7 @@ namespace Mavi
 				case SSL_ERROR_WANT_CONNECT:
 				case SSL_ERROR_WANT_WRITE:
 				{
-					Multiplexer::WhenWriteable(&Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::Get()->WhenWriteable(&Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsDone(Event))
 						{

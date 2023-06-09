@@ -504,7 +504,13 @@ namespace Mavi
 				Address& GetAddress();
 			};
 
-			class VI_OUT_TS Driver
+			class VI_OUT_TS Utils
+			{
+			public:
+				static Core::String GetJSON(Core::Schema* Source, bool Escape) noexcept;
+			};
+
+			class VI_OUT_TS Driver final : public Core::Singleton<Driver>
 			{
 			private:
 				struct Pose
@@ -526,31 +532,27 @@ namespace Mavi
 				};
 
 			private:
-				static Core::Mapping<Core::UnorderedMap<Core::String, Sequence>>* Queries;
-				static Core::Mapping<Core::UnorderedMap<Core::String, Core::String>>* Constants;
-				static std::mutex* Safe;
-				static std::atomic<int> State;
-				static OnQueryLog Logger;
-				static void* APM;
+				Core::UnorderedMap<Core::String, Sequence> Queries;
+				Core::UnorderedMap<Core::String, Core::String> Constants;
+				std::mutex Exclusive;
+				OnQueryLog Logger;
+				void* APM;
 
 			public:
-				static void Create();
-				static void Release();
-				static void SetQueryLog(const OnQueryLog& Callback);
-				static void AttachQueryLog(TConnection* Connection);
-				static void AttachQueryLog(TConnectionPool* Connection);
-				static bool AddConstant(const Core::String& Name, const Core::String& Value);
-				static bool AddQuery(const Core::String& Name, const char* Buffer, size_t Size);
-				static bool AddDirectory(const Core::String& Directory, const Core::String& Origin = "");
-				static bool RemoveConstant(const Core::String& Name);
-				static bool RemoveQuery(const Core::String& Name);
-				static bool LoadCacheDump(Core::Schema* Dump);
-				static Core::Schema* GetCacheDump();
-				static Document GetQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
-				static Core::Vector<Core::String> GetQueries();
-
-			private:
-				static Core::String GetJSON(Core::Schema* Source, bool Escape);
+				Driver() noexcept;
+				virtual ~Driver() noexcept override;
+				void SetQueryLog(const OnQueryLog& Callback) noexcept;
+				void AttachQueryLog(TConnection* Connection) noexcept;
+				void AttachQueryLog(TConnectionPool* Connection) noexcept;
+				bool AddConstant(const Core::String& Name, const Core::String& Value) noexcept;
+				bool AddQuery(const Core::String& Name, const char* Buffer, size_t Size) noexcept;
+				bool AddDirectory(const Core::String& Directory, const Core::String& Origin = "") noexcept;
+				bool RemoveConstant(const Core::String& Name) noexcept;
+				bool RemoveQuery(const Core::String& Name) noexcept;
+				bool LoadCacheDump(Core::Schema* Dump) noexcept;
+				Core::Schema* GetCacheDump() noexcept;
+				Document GetQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true) noexcept;
+				Core::Vector<Core::String> GetQueries() noexcept;
 			};
 		}
 	}

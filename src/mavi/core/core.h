@@ -359,7 +359,7 @@ namespace Mavi
 		{
 			static_assert(std::is_unsigned<T>::value, "Q needs to be unsigned integer");
 
-			T operator()(const void* Address, size_t Size) const noexcept
+			inline T operator()(const void* Address, size_t Size) const noexcept
 			{
 				const auto Data = static_cast<const unsigned char*>(Address);
 				auto State = OffsetBasis;
@@ -394,10 +394,9 @@ namespace Mavi
 			typedef float argument_type;
 			typedef size_t result_type;
 
-			result_type operator()(const T& Value) const noexcept
+			inline result_type operator()(const T& Value) const noexcept
 			{
-				auto Hasher = std::hash<T>();
-				return Hasher(Value);
+				return std::hash<T>()(Value);
 			}
 		};
 
@@ -408,7 +407,7 @@ namespace Mavi
 			typedef T second_argument_type;
 			typedef bool result_type;
 
-			result_type operator()(const T& Left, const T& Right) const noexcept
+			inline result_type operator()(const T& Left, const T& Right) const noexcept
 			{
 				auto Comparator = std::equal_to<T>();
 				return Comparator(Left, Right);
@@ -428,24 +427,24 @@ namespace Mavi
 			typedef bool result_type;
 			using is_transparent = void;
 
-			result_type operator()(const String& Left, const String& Right) const noexcept
+			inline result_type operator()(const String& Left, const String& Right) const noexcept
 			{
 				return Left == Right;
 			}
-			result_type operator()(const char* Left, const String& Right) const noexcept
+			inline result_type operator()(const char* Left, const String& Right) const noexcept
 			{
 				return Right.compare(Left) == 0;
 			}
-			result_type operator()(const String& Left, const char* Right) const noexcept
+			inline result_type operator()(const String& Left, const char* Right) const noexcept
 			{
 				return Left.compare(Right) == 0;
 			}
 #ifdef VI_CXX17
-			result_type operator()(const std::string_view& Left, const String& Right) const noexcept
+			inline result_type operator()(const std::string_view& Left, const String& Right) const noexcept
 			{
 				return Left == Right;
 			}
-			result_type operator()(const String& Left, const std::string_view& Right) const noexcept
+			inline result_type operator()(const String& Left, const std::string_view& Right) const noexcept
 			{
 				return Left == Right;
 			}
@@ -459,21 +458,18 @@ namespace Mavi
 			typedef size_t result_type;
 			using is_transparent = void;
 
-			result_type operator()(const char* Value) const noexcept
+			inline result_type operator()(const char* Value) const noexcept
 			{
-				auto Hasher = FNV1A<8 * sizeof(size_t)>();
-				return Hasher(Value, strlen(Value));
+				return FNV1A<8 * sizeof(size_t)>()(Value, strlen(Value));
 			}
-			result_type operator()(const String& Value) const noexcept
+			inline result_type operator()(const String& Value) const noexcept
 			{
-				auto Hasher = FNV1A<8 * sizeof(size_t)>();
-				return Hasher(Value.c_str(), Value.size());
+				return FNV1A<8 * sizeof(size_t)>()(Value.c_str(), Value.size());
 			}
 #ifdef VI_CXX17
-			result_type operator()(const std::string_view& Value) const noexcept
+			inline result_type operator()(const std::string_view& Value) const noexcept
 			{
-				auto Hasher = FNV1A<8 * sizeof(size_t)>();
-				return Hasher(Value.data(), Value.size());
+				return FNV1A<8 * sizeof(size_t)>()(Value.data(), Value.size());
 			}
 #endif
 		};
@@ -484,10 +480,9 @@ namespace Mavi
 			typedef float argument_type;
 			typedef size_t result_type;
 
-			result_type operator()(const WideString& Value) const noexcept
+			inline result_type operator()(const WideString& Value) const noexcept
 			{
-				auto Hasher = FNV1A<8 * sizeof(std::size_t)>();
-				return Hasher(Value.c_str(), Value.size());
+				return FNV1A<8 * sizeof(std::size_t)>()(Value.c_str(), Value.size());
 			}
 		};
 

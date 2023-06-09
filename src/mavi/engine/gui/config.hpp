@@ -50,7 +50,7 @@ namespace Rml
 		return std::make_move_iterator(It);
 	}
 	template <typename T>
-	using Hash = std::hash<T>;
+	using Hash = typename Mavi::Core::Hasher<T>;
 	template <typename T>
 	using Function = std::function<T>;
 	using String = Mavi::Core::String;

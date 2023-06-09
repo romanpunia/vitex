@@ -94,7 +94,7 @@ Dependency options
 + **VI_BULLET3** will enable built-in Bullet3 library and physics interfaces, defaults to true
 + **VI_RMLUI** will enable built-in RmlUi library and gui interfaces, defaults to true
 + **VI_BINDINGS** will enable full script bindings otherwise only essentials will be used to reduce lib size, defaults to true
-+ **VI_ALLOCATOR** will enable custom allocator for all used standard containers, making them incompatible with std::allocator based ones but adding opportunity to use pool allocator, defaults to false
++ **VI_ALLOCATOR** will enable custom allocator for all used standard containers, making them incompatible with std::allocator based ones but adding opportunity to use pool allocator, defaults to true
 + **VI_BACKTRACE** will enable stacktrace that will be produced by backward-cpp, on some lightweight linux platforms it might be unavailable, defaults to true
 
 ## Dependencies

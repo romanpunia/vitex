@@ -13722,7 +13722,7 @@ namespace Mavi
 				VMultiplexer.SetFunctionDef("void poll_event(socket@+, socket_poll)");
 				VMultiplexer.SetConstructor<Network::Multiplexer>("multiplexer@ f()");
 				VMultiplexer.SetConstructor<Network::Multiplexer, uint64_t, size_t>("multiplexer@ f(uint64, usize)");
-				VMultiplexer.SetMethod("void rescale(usize)", &Network::Multiplexer::Rescale);
+				VMultiplexer.SetMethod("void rescale(uint64, usize)", &Network::Multiplexer::Rescale);
 				VMultiplexer.SetMethod("void activate()", &Network::Multiplexer::Activate);
 				VMultiplexer.SetMethod("void deactivate()", &Network::Multiplexer::Deactivate);
 				VMultiplexer.SetMethod("int dispatch(uint64)", &Network::Multiplexer::Dispatch);

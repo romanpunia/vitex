@@ -409,8 +409,7 @@ namespace Mavi
 
 			inline result_type operator()(const T& Left, const T& Right) const noexcept
 			{
-				auto Comparator = std::equal_to<T>();
-				return Comparator(Left, Right);
+				return std::equal_to<T>()(Left, Right);
 			}
 		};
 

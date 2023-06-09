@@ -20,6 +20,16 @@
 
 namespace Rml
 {
+	template <typename T, typename Enable = void>
+	struct MixedHasher
+	{
+		inline size_t operator()(const T& Value) const
+		{
+			auto Result = Mavi::Core::Hasher<T>()(Value);
+			return robin_hood::hash_int(static_cast<robin_hood::detail::SizeT>(Result));
+		}
+	};
+
 	template <typename T>
 	using Vector = Mavi::Core::Vector<T>;
 	template <typename T, size_t N = 1>
@@ -34,12 +44,12 @@ namespace Rml
 	using Pair = std::pair<T1, T2>;
 	template <typename Key, typename Value>
 	using UnorderedMultimap = Mavi::Core::UnorderedMultiMap<Key, Value>;
-	template < typename Key, typename Value>
-	using UnorderedMap = robin_hood::unordered_flat_map<Key, Value>;
+	template <typename Key, typename Value>
+	using UnorderedMap = robin_hood::unordered_flat_map<Key, Value, MixedHasher<Key>, Mavi::Core::EqualTo<Key>>;
 	template <typename Key, typename Value>
 	using SmallUnorderedMap = itlib::flat_map<Key, Value>;
 	template <typename T>
-	using UnorderedSet = robin_hood::unordered_flat_set<T>;
+	using UnorderedSet = robin_hood::unordered_flat_set<T, MixedHasher<T>, Mavi::Core::EqualTo<T>>;
 	template <typename T>
 	using SmallUnorderedSet = itlib::flat_set<T>;
 	template <typename T>

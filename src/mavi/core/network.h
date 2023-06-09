@@ -278,7 +278,7 @@ namespace Mavi
 			Multiplexer() noexcept;
 			Multiplexer(uint64_t DispatchTimeout, size_t MaxEvents) noexcept;
 			virtual ~Multiplexer() noexcept override;
-			void Rescale(size_t MaxEvents) noexcept;
+			void Rescale(uint64_t DispatchTimeout, size_t MaxEvents) noexcept;
 			void Activate() noexcept;
 			void Deactivate() noexcept;
 			int Dispatch(uint64_t Timeout) noexcept;

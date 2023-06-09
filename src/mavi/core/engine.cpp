@@ -6199,7 +6199,10 @@ namespace Mavi
 		{
 			if (Renderer != nullptr)
 				Renderer->FlushState();
-
+#ifdef VI_RMLUI
+			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
+				Engine::GUI::Subsystem::CleanupInstance();
+#endif
 			VI_CLEAR(Scene);
 			VI_CLEAR(VM);
 			VI_CLEAR(Audio);
@@ -6371,17 +6374,26 @@ namespace Mavi
 			if (Control.Usage & (size_t)ApplicationSet::ScriptSet && !VM)
 				VM = new Scripting::VirtualMachine();
 
+			Core::Timer* Time = new Core::Timer();
+			Time->SetFixedFrames(Control.Framerate.Stable);
+			Time->SetMaxFrames(Control.Framerate.Limit);
+
 			if (Activity != nullptr && Renderer != nullptr && Constants != nullptr && Content != nullptr)
 			{
 #ifdef VI_RMLUI
 				auto* Subsystem = GUI::Subsystem::Get();
-				Subsystem->SetMetadata(Activity, Constants, Content, nullptr);
+				Subsystem->SetMetadata(Activity, Constants, Content, Time);
 				Subsystem->SetVirtualMachine(VM);
 #endif
 			}
 
 			if (Control.Usage & (size_t)ApplicationSet::NetworkSet)
-				new Network::Multiplexer(Control.PollingTimeout, Control.PollingEvents);
+			{
+				if (Network::Multiplexer::HasInstance())
+					Network::Multiplexer::Get()->Rescale(Control.PollingTimeout, Control.PollingEvents);
+				else
+					new Network::Multiplexer(Control.PollingTimeout, Control.PollingEvents);
+			}
 
 			if (Control.Usage & (size_t)ApplicationSet::ScriptSet)
 				ScriptHook();
@@ -6391,7 +6403,10 @@ namespace Mavi
 
 			Initialize();
 			if (State == ApplicationState::Terminated)
+			{
+				VI_RELEASE(Time);
 				return ExitCode != 0 ? ExitCode : EXIT_JUMP + 6;
+			}
 
 			State = ApplicationState::Active;
 			if (!Control.Threads)
@@ -6400,10 +6415,6 @@ namespace Mavi
 				Control.Threads = std::max<uint32_t>(2, Quantity.Logical) - 1;
 			}
 		
-			Core::Timer* Time = new Core::Timer();
-			Time->SetFixedFrames(Control.Framerate.Stable);
-			Time->SetMaxFrames(Control.Framerate.Limit);
-
 			Core::Schedule::Desc Policy;
 			Policy.Coroutines = Control.Coroutines;
 			Policy.Memory = Control.Stack;

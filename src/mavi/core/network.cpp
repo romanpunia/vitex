@@ -899,8 +899,9 @@ namespace Mavi
 		{
 			VI_TRACE("[net] free multiplexer");
 		}
-		void Multiplexer::Rescale(size_t MaxEvents) noexcept
+		void Multiplexer::Rescale(uint64_t DispatchTimeout, size_t MaxEvents) noexcept
 		{
+			DefaultTimeout = DispatchTimeout;
 			Handle = EpollHandle(MaxEvents);
 		}
 		void Multiplexer::Activate() noexcept

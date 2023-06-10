@@ -227,11 +227,595 @@ namespace Mavi
 {
 	namespace Core
 	{
+		namespace Allocators
+		{
+			DebugAllocator::TracingBlock::TracingBlock() : Thread(std::this_thread::get_id()), Time(0), Size(0), Active(false)
+			{
+			}
+			DebugAllocator::TracingBlock::TracingBlock(const char* NewTypeName, MemoryContext&& NewOrigin, time_t NewTime, size_t NewSize, bool IsActive, bool IsStatic) : Thread(std::this_thread::get_id()), TypeName(NewTypeName ? NewTypeName : "void"), Origin(std::move(NewOrigin)), Time(NewTime), Size(NewSize), Active(IsActive), Static(IsStatic)
+			{
+			}
+
+			void* DebugAllocator::Allocate(size_t Size) noexcept
+			{
+				return Allocate(MemoryContext("[unknown]", "[external]", "void", 0), Size);
+			}
+			void* DebugAllocator::Allocate(MemoryContext&& Origin, size_t Size) noexcept
+			{
+				void* Address = malloc(Size);
+				VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
+
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), Size, true, false);
+				return Address;
+			}
+			void DebugAllocator::Free(void* Address) noexcept
+			{
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				auto It = Blocks.find(Address);
+				VI_ASSERT(It != Blocks.end() && It->second.Active, "cannot free memory that was not allocated by this allocator at 0x%" PRIXPTR, Address);
+
+				Blocks.erase(It);
+				free(Address);
+			}
+			void DebugAllocator::Transfer(Unique<void> Address, size_t Size) noexcept
+			{
+				VI_ASSERT(false, "invalid allocator transfer call without memory context");
+			}
+			void DebugAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
+			{
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), Size, true, true);
+			}
+			void DebugAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
+			{
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				auto It = Blocks.find(Address);
+
+				VI_ASSERT(It == Blocks.end() || !It->second.Active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, Address);
+				Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), sizeof(void*), false, false);
+			}
+			void DebugAllocator::Unwatch(void* Address) noexcept
+			{
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				auto It = Blocks.find(Address);
+
+				VI_ASSERT(It != Blocks.end() && !It->second.Active, "address at 0x%" PRIXPTR " cannot be cleared from tracking because it was not allocated by this allocator", Address);
+				Blocks.erase(It);
+			}
+			void DebugAllocator::Finalize() noexcept
+			{
+				Dump(nullptr);
+			}
+			bool DebugAllocator::IsValid(void* Address) noexcept
+			{
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				auto It = Blocks.find(Address);
+
+				VI_ASSERT(It != Blocks.end(), "address at 0x%" PRIXPTR " cannot be used as it was already freed");
+				return It != Blocks.end();
+			}
+			bool DebugAllocator::IsFinalizable() noexcept
+			{
+				return true;
+			}
+			bool DebugAllocator::Dump(void* Address)
+			{
+#if VI_DLEVEL >= 4
+				VI_TRACE("[mem] dump internal memory state on 0x%" PRIXPTR, Address);
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				if (Address != nullptr)
+				{
+					bool LogActive = ErrorHandling::HasFlag(LogOption::Active);
+					if (!LogActive)
+						ErrorHandling::SetFlag(LogOption::Active, true);
+
+					auto It = Blocks.find(Address);
+					if (It != Blocks.end())
+					{
+						char Date[64];
+						DateTime::FetchDateTime(Date, sizeof(Date), It->second.Time);
+						ErrorHandling::Message(LogLevel::Debug, It->second.Origin.Line, It->second.Origin.Source, "[mem] %saddress at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
+							It->second.Static ? "static " : "",
+							It->first, Date, It->second.TypeName.c_str(),
+							(uint64_t)It->second.Size,
+							It->second.Origin.Function,
+							OS::Process::GetThreadId(It->second.Thread).c_str());
+					}
+
+					ErrorHandling::SetFlag(LogOption::Active, LogActive);
+					return It != Blocks.end();
+				}
+				else if (!Blocks.empty())
+				{
+					size_t StaticAddresses = 0;
+					for (auto& Item : Blocks)
+					{
+						if (Item.second.Static || Item.second.TypeName.find("ontainer_proxy") != std::string::npos || Item.second.TypeName.find("ist_node") != std::string::npos)
+							++StaticAddresses;
+					}
+
+					if (StaticAddresses == Blocks.size())
+						return false;
+
+					bool LogActive = ErrorHandling::HasFlag(LogOption::Active);
+					if (!LogActive)
+						ErrorHandling::SetFlag(LogOption::Active, true);
+
+					size_t TotalMemory = 0;
+					for (auto& Item : Blocks)
+						TotalMemory += Item.second.Size;
+
+					VI_DEBUG("[mem] %" PRIu64 " addresses are still used (%" PRIu64 " bytes)", (uint64_t)(Blocks.size() - StaticAddresses), (uint64_t)TotalMemory);
+					for (auto& Item : Blocks)
+					{
+						if (Item.second.Static || Item.second.TypeName.find("ontainer_proxy") != std::string::npos || Item.second.TypeName.find("ist_node") != std::string::npos)
+							continue;
+
+						char Date[64];
+						DateTime::FetchDateTime(Date, sizeof(Date), Item.second.Time);
+						ErrorHandling::Message(LogLevel::Debug, Item.second.Origin.Line, Item.second.Origin.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
+							Item.first,
+							Date,
+							Item.second.TypeName.c_str(),
+							(uint64_t)Item.second.Size,
+							Item.second.Origin.Function,
+							OS::Process::GetThreadId(Item.second.Thread).c_str());
+					}
+
+					ErrorHandling::SetFlag(LogOption::Active, LogActive);
+					return true;
+				}
+#endif
+				return false;
+			}
+			bool DebugAllocator::FindBlock(void* Address, TracingBlock* Output)
+			{
+				VI_ASSERT(Address != nullptr, "address should not be null");
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				auto It = Blocks.find(Address);
+				if (It == Blocks.end())
+					return false;
+
+				if (Output != nullptr)
+					*Output = It->second;
+
+				return true;
+			}
+			const std::unordered_map<void*, DebugAllocator::TracingBlock>& DebugAllocator::GetBlocks() const
+			{
+				return Blocks;
+			}
+
+			void* DefaultAllocator::Allocate(size_t Size) noexcept
+			{
+				void* Address = malloc(Size);
+				VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
+				return Address;
+			}
+			void* DefaultAllocator::Allocate(MemoryContext&& Origin, size_t Size) noexcept
+			{
+				void* Address = malloc(Size);
+				VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
+				return Address;
+			}
+			void DefaultAllocator::Free(void* Address) noexcept
+			{
+				free(Address);
+			}
+			void DefaultAllocator::Transfer(Unique<void> Address, size_t Size) noexcept
+			{
+			}
+			void DefaultAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
+			{
+			}
+			void DefaultAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
+			{
+			}
+			void DefaultAllocator::Unwatch(void* Address) noexcept
+			{
+			}
+			void DefaultAllocator::Finalize() noexcept
+			{
+			}
+			bool DefaultAllocator::IsValid(void* Address) noexcept
+			{
+				return true;
+			}
+			bool DefaultAllocator::IsFinalizable() noexcept
+			{
+				return true;
+			}
+
+			CachedAllocator::CachedAllocator(uint64_t MinimalLifeTimeMs, size_t MaxElementsPerAllocation, size_t ElementsReducingBaseBytes, double ElementsReducingFactorRate) : MinimalLifeTime(MinimalLifeTimeMs), ElementsReducingFactor(ElementsReducingFactorRate), ElementsReducingBase(ElementsReducingBaseBytes), ElementsPerAllocation(MaxElementsPerAllocation)
+			{
+				VI_ASSERT(ElementsPerAllocation > 0, "elements count per allocation should be greater then zero");
+				VI_ASSERT(ElementsReducingFactor > 1.0, "elements reducing factor should be greater then zero");
+				VI_ASSERT(ElementsReducingBase > 0, "elements reducing base should be greater then zero");
+			}
+			CachedAllocator::~CachedAllocator() noexcept
+			{
+				for (auto& Page : Pages)
+				{
+					for (auto* Cache : Page.second)
+					{
+						Cache->~PageCache();
+						free(Cache);
+					}
+				}
+				Pages.clear();
+			}
+			void* CachedAllocator::Allocate(size_t Size) noexcept
+			{
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				auto* Cache = GetPageCache(Size);
+				if (!Cache)
+					return nullptr;
+
+				PageAddress* Address = Cache->Addresses.back();
+				Cache->Addresses.pop_back();
+				return Address->Address;
+			}
+			void* CachedAllocator::Allocate(MemoryContext&&, size_t Size) noexcept
+			{
+				return Allocate(Size);
+			}
+			void CachedAllocator::Free(void* Address) noexcept
+			{
+				char* SourceAddress = nullptr;
+				PageAddress* Source = (PageAddress*)((char*)Address - sizeof(PageAddress));
+				memcpy(&SourceAddress, (char*)Source + sizeof(void*), sizeof(void*));
+				if (SourceAddress != Address)
+					return free(Address);
+
+				PageCache* Cache = nullptr;
+				memcpy(&Cache, Source, sizeof(void*));
+
+				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Cache->Addresses.push_back(Source);
+
+				if (Cache->Addresses.size() >= Cache->Capacity && (Cache->Capacity == 1 || GetClock() - Cache->Timing > (int64_t)MinimalLifeTime))
+				{
+					Cache->Page.erase(std::find(Cache->Page.begin(), Cache->Page.end(), Cache));
+					Cache->~PageCache();
+					free(Cache);
+				}
+			}
+			void CachedAllocator::Transfer(Unique<void> Address, size_t Size) noexcept
+			{
+			}
+			void CachedAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
+			{
+			}
+			void CachedAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
+			{
+			}
+			void CachedAllocator::Unwatch(void* Address) noexcept
+			{
+			}
+			void CachedAllocator::Finalize() noexcept
+			{
+			}
+			bool CachedAllocator::IsValid(void* Address) noexcept
+			{
+				return true;
+			}
+			bool CachedAllocator::IsFinalizable() noexcept
+			{
+				return false;
+			}
+			CachedAllocator::PageCache* CachedAllocator::GetPageCache(size_t Size)
+			{
+				auto& Page = Pages[Size];
+				for (auto* Cache : Page)
+				{
+					if (!Cache->Addresses.empty())
+						return Cache;
+				}
+
+				size_t AddressSize = sizeof(PageAddress) + Size;
+				size_t PageElements = GetElementsCount(Page, Size);
+				size_t PageSize = sizeof(PageCache) + AddressSize * PageElements;
+				PageCache* Cache = (PageCache*)malloc(PageSize);
+				VI_ASSERT(Cache != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)PageSize);
+
+				if (!Cache)
+					return nullptr;
+
+				char* BaseAddress = (char*)Cache + sizeof(PageCache);
+				new(Cache) PageCache(Page, GetClock(), PageElements);
+				for (size_t i = 0; i < PageElements; i++)
+				{
+					PageAddress* Next = (PageAddress*)(BaseAddress + AddressSize * i);
+					Next->Address = (void*)(BaseAddress + AddressSize * i + sizeof(PageAddress));
+					Next->Cache = Cache;
+					Cache->Addresses[i] = Next;
+				}
+
+				Page.push_back(Cache);
+				return Cache;
+			}
+			int64_t CachedAllocator::GetClock()
+			{
+				return (int64_t)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			}
+			size_t CachedAllocator::GetElementsCount(PageGroup& Page, size_t Size)
+			{
+				double Frequency;
+				if (Pages.size() > 1)
+				{
+					Frequency = 0.0;
+					for (auto& Next : Pages)
+					{
+						if (Next.second != Page)
+							Frequency += (double)Next.second.size();
+					}
+
+					Frequency /= (double)Pages.size() - 1;
+					if (Frequency < 1.0)
+						Frequency = std::max(1.0, (double)Page.size());
+					else
+						Frequency = std::max(1.0, (double)Page.size() / Frequency);
+				}
+				else
+					Frequency = 1.0;
+
+				double Total = (double)ElementsPerAllocation;
+				double Reducing = (double)Size / (double)ElementsReducingBase;
+				if (Reducing > 1.0)
+				{
+					Total /= ElementsReducingFactor * Reducing;
+					if (Total < 1.0)
+						Total = 1.0;
+				}
+				else if (Frequency > 1.0)
+					Total *= Frequency;
+
+				return (size_t)Total;
+			}
+
+			LinearAllocator::LinearAllocator(size_t Size) : Top(nullptr), Bottom(nullptr), LatestSize(0), Sizing(Size)
+			{
+				if (Sizing > 0)
+					NextRegion(Sizing);
+			}
+			LinearAllocator::~LinearAllocator() noexcept
+			{
+				FlushRegions();
+			}
+			void* LinearAllocator::Allocate(size_t Size) noexcept
+			{
+				if (!Bottom)
+					NextRegion(Size);
+			Retry:
+				char* MaxAddress = Bottom->BaseAddress + Bottom->Size;
+				char* OffsetAddress = Bottom->FreeAddress;
+				size_t Leftovers = MaxAddress - OffsetAddress;
+				if (Leftovers < Size)
+				{
+					NextRegion(Size);
+					goto Retry;
+				}
+
+				char* Address = OffsetAddress;
+				Bottom->FreeAddress = Address + Size;
+				LatestSize = Size;
+				return Address;
+			}
+			void LinearAllocator::Free(void* Address) noexcept
+			{
+				VI_ASSERT(IsValid(Address), "address is not valid");
+				char* OriginAddress = Bottom->FreeAddress - LatestSize;
+				if (OriginAddress == Address)
+				{
+					Bottom->FreeAddress = OriginAddress;
+					LatestSize = 0;
+				}
+			}
+			void LinearAllocator::Reset() noexcept
+			{
+				size_t TotalSize = 0;
+				Region* Next = Top;
+				while (Next != nullptr)
+				{
+					TotalSize += Next->Size;
+					Next->FreeAddress = Next->BaseAddress;
+					Next = Next->LowerAddress;
+				}
+
+				if (TotalSize > Sizing)
+				{
+					Sizing = TotalSize;
+					FlushRegions();
+					NextRegion(Sizing);
+				}
+			}
+			bool LinearAllocator::IsValid(void* Address) noexcept
+			{
+				char* Target = (char*)Address;
+				Region* Next = Top;
+				while (Next != nullptr)
+				{
+					if (Target >= Next->BaseAddress && Target <= Next->BaseAddress + Next->Size)
+						return true;
+
+					Next = Next->LowerAddress;
+				}
+
+				return false;
+			}
+			void LinearAllocator::NextRegion(size_t Size) noexcept
+			{
+				LocalAllocator* Current = Memory::GetLocalAllocator();
+				Memory::SetLocalAllocator(nullptr);
+
+				Region* Next = VI_MALLOC(Region, sizeof(Region) + Size);
+				Next->BaseAddress = (char*)Next + sizeof(Region);
+				Next->FreeAddress = Next->BaseAddress;
+				Next->UpperAddress = Bottom;
+				Next->LowerAddress = nullptr;
+				Next->Size = Size;
+
+				if (!Top)
+					Top = Next;
+				if (Bottom != nullptr)
+					Bottom->LowerAddress = Next;
+
+				Bottom = Next;
+				Memory::SetLocalAllocator(Current);
+			}
+			void LinearAllocator::FlushRegions() noexcept
+			{
+				LocalAllocator* Current = Memory::GetLocalAllocator();
+				Memory::SetLocalAllocator(nullptr);
+
+				Region* Next = Bottom;
+				Bottom = nullptr;
+				Top = nullptr;
+
+				while (Next != nullptr)
+				{
+					void* Address = (void*)Next;
+					Next = Next->UpperAddress;
+					VI_FREE(Address);
+				}
+
+				Memory::SetLocalAllocator(Current);
+			}
+			size_t LinearAllocator::GetLeftovers() const noexcept
+			{
+				if (!Bottom)
+					return 0;
+
+				char* MaxAddress = Bottom->BaseAddress + Bottom->Size;
+				char* OffsetAddress = Bottom->FreeAddress;
+				return MaxAddress - OffsetAddress;
+			}
+
+			StackAllocator::StackAllocator(size_t Size) : Top(nullptr), Bottom(nullptr), Sizing(Size)
+			{
+				if (Sizing > 0)
+					NextRegion(Sizing);
+			}
+			StackAllocator::~StackAllocator() noexcept
+			{
+				FlushRegions();
+			}
+			void* StackAllocator::Allocate(size_t Size) noexcept
+			{
+				Size = Size + sizeof(size_t);
+				if (!Bottom)
+					NextRegion(Size);
+			Retry:
+				char* MaxAddress = Bottom->BaseAddress + Bottom->Size;
+				char* OffsetAddress = Bottom->FreeAddress;
+				size_t Leftovers = MaxAddress - OffsetAddress;
+				if (Leftovers < Size)
+				{
+					NextRegion(Size);
+					goto Retry;
+				}
+
+				char* Address = OffsetAddress;
+				Bottom->FreeAddress = Address + Size;
+				*(size_t*)Address = Size;
+				return Address + sizeof(size_t);
+			}
+			void StackAllocator::Free(void* Address) noexcept
+			{
+				VI_ASSERT(IsValid(Address), "address is not valid");
+				char* OffsetAddress = (char*)Address - sizeof(size_t);
+				char* OriginAddress = Bottom->FreeAddress - *(size_t*)OffsetAddress;
+				if (OriginAddress == OffsetAddress)
+					Bottom->FreeAddress = OriginAddress;
+			}
+			void StackAllocator::Reset() noexcept
+			{
+				size_t TotalSize = 0;
+				Region* Next = Top;
+				while (Next != nullptr)
+				{
+					TotalSize += Next->Size;
+					Next->FreeAddress = Next->BaseAddress;
+					Next = Next->LowerAddress;
+				}
+
+				if (TotalSize > Sizing)
+				{
+					Sizing = TotalSize;
+					FlushRegions();
+					NextRegion(Sizing);
+				}
+			}
+			bool StackAllocator::IsValid(void* Address) noexcept
+			{
+				char* Target = (char*)Address;
+				Region* Next = Top;
+				while (Next != nullptr)
+				{
+					if (Target >= Next->BaseAddress && Target <= Next->BaseAddress + Next->Size)
+						return true;
+
+					Next = Next->LowerAddress;
+				}
+
+				return false;
+			}
+			void StackAllocator::NextRegion(size_t Size) noexcept
+			{
+				LocalAllocator* Current = Memory::GetLocalAllocator();
+				Memory::SetLocalAllocator(nullptr);
+
+				Region* Next = VI_MALLOC(Region, sizeof(Region) + Size);
+				Next->BaseAddress = (char*)Next + sizeof(Region);
+				Next->FreeAddress = Next->BaseAddress;
+				Next->UpperAddress = Bottom;
+				Next->LowerAddress = nullptr;
+				Next->Size = Size;
+
+				if (!Top)
+					Top = Next;
+				if (Bottom != nullptr)
+					Bottom->LowerAddress = Next;
+
+				Bottom = Next;
+				Memory::SetLocalAllocator(Current);
+			}
+			void StackAllocator::FlushRegions() noexcept
+			{
+				LocalAllocator* Current = Memory::GetLocalAllocator();
+				Memory::SetLocalAllocator(nullptr);
+
+				Region* Next = Bottom;
+				Bottom = nullptr;
+				Top = nullptr;
+
+				while (Next != nullptr)
+				{
+					void* Address = (void*)Next;
+					Next = Next->UpperAddress;
+					VI_FREE(Address);
+				}
+
+				Memory::SetLocalAllocator(Current);
+			}
+			size_t StackAllocator::GetLeftovers() const noexcept
+			{
+				if (!Bottom)
+					return 0;
+
+				char* MaxAddress = Bottom->BaseAddress + Bottom->Size;
+				char* OffsetAddress = Bottom->FreeAddress;
+				return MaxAddress - OffsetAddress;
+			}
+		}
+
 		typedef moodycamel::ConcurrentQueue<TaskCallback> FastQueue;
 		typedef moodycamel::ConsumerToken ReceiveToken;
-#ifndef NDEBUG
+
 		struct Measurement
 		{
+#ifndef NDEBUG
 			const char* File = nullptr;
 			const char* Function = nullptr;
 			void* Id = nullptr;
@@ -251,8 +835,9 @@ namespace Mavi
 				Core::String BackTrace = ErrorHandling::GetMeasureTrace();
 				VI_WARN("[stall] operation took %" PRIu64 " ms (%" PRIu64 " us), back trace %s", Delta / 1000, Delta, BackTrace.c_str());
 			}
-		};
 #endif
+		};
+
 		struct ConcurrentQueue
 		{
 			Core::OrderedMap<std::chrono::microseconds, Timeout> Timers;
@@ -9446,7 +10031,7 @@ namespace Mavi
 			Threads[((size_t)Difficulty::Coroutine)] = Chain;
 			Threads[((size_t)Difficulty::Light)] = Light;
 			Threads[((size_t)Difficulty::Heavy)] = Heavy;
-			Coroutines = std::min<size_t>(Cores * 8, 256);
+			MaxCoroutines = std::min<size_t>(Cores * 8, 256);
 		}
 
 		Schedule::Schedule() noexcept : Generation(0), Debug(nullptr), Enqueue(true), Terminate(false), Active(false), Immediate(false)
@@ -9494,7 +10079,7 @@ namespace Mavi
 			if (!Enqueue || Immediate)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
-			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
+			PostDebug(ThreadTask::EnqueueTimer, 1);
 #endif
 			VI_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
@@ -9517,7 +10102,7 @@ namespace Mavi
 			if (!Enqueue || Immediate)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
-			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
+			PostDebug(ThreadTask::EnqueueTimer, 1);
 #endif
 			VI_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
@@ -9556,7 +10141,7 @@ namespace Mavi
 			if (!Enqueue || Immediate)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
-			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
+			PostDebug(ThreadTask::EnqueueTimer, 1);
 #endif
 			VI_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
@@ -9579,7 +10164,7 @@ namespace Mavi
 			if (!Enqueue || Immediate)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
-			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
+			PostDebug(ThreadTask::EnqueueTimer, 1);
 #endif
 			VI_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
@@ -9608,7 +10193,7 @@ namespace Mavi
 				return true;
 			}
 #ifndef NDEBUG
-			PostDebug(Type, ThreadTask::EnqueueTask, 1);
+			PostDebug(ThreadTask::EnqueueTask, 1);
 #endif
 			VI_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Type];
@@ -9631,7 +10216,7 @@ namespace Mavi
 				return true;
 			}
 #ifndef NDEBUG
-			PostDebug(Type, ThreadTask::EnqueueTask, 1);
+			PostDebug(ThreadTask::EnqueueTask, 1);
 #endif
 			VI_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Type];
@@ -9670,7 +10255,7 @@ namespace Mavi
 				return true;
 			}
 #ifndef NDEBUG
-			PostDebug(Difficulty::Coroutine, ThreadTask::EnqueueCoroutine, 1);
+			PostDebug(ThreadTask::EnqueueCoroutine, 1);
 #endif
 			VI_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Coroutine];
@@ -9715,8 +10300,8 @@ namespace Mavi
 		bool Schedule::Start(const Desc& NewPolicy)
 		{
 			VI_ASSERT(!Active, "queue should be stopped");
-			VI_ASSERT(NewPolicy.Memory > 0, "stack memory should not be zero");
-			VI_ASSERT(NewPolicy.Coroutines > 0, "there must be at least one coroutine");
+			VI_ASSERT(NewPolicy.StackSize > 0, "stack size should not be zero");
+			VI_ASSERT(NewPolicy.MaxCoroutines > 0, "there must be at least one coroutine");
 			VI_TRACE("[schedule] start 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(std::this_thread::get_id()).c_str());
 
 			Policy = NewPolicy;
@@ -9725,7 +10310,7 @@ namespace Mavi
 
 			if (!Policy.Parallel)
 			{
-				InitializeThread(0, 0);
+				InitializeThread(nullptr, true);
 				return true;
 			}
 
@@ -9829,7 +10414,7 @@ namespace Mavi
 					if (It->first >= Clock)
 						return true;
 #ifndef NDEBUG
-					PostDebug(Type, ThreadTask::ProcessTimer, 1);
+					PostDebug(ThreadTask::ProcessTimer, 1);
 #endif
 					if (It->second.Alive && Active)
 					{
@@ -9845,18 +10430,18 @@ namespace Mavi
 						Queue->Timers.erase(It);
 					}
 #ifndef NDEBUG
-					PostDebug(Type, ThreadTask::Awake, 0);
+					PostDebug(ThreadTask::Awake, 0);
 #endif
 					return true;
 				}
 				case Difficulty::Coroutine:
 				{
-					Dispatcher.Events.resize(Policy.Coroutines);
+					Dispatcher.Events.resize(Policy.MaxCoroutines);
 					if (!Dispatcher.State)
-						Dispatcher.State = new Costate(Policy.Memory);
+						Dispatcher.State = new Costate(Policy.StackSize);
 
 					size_t Pending = Dispatcher.State->GetCount();
-					size_t Left = Policy.Coroutines - Pending;
+					size_t Left = Policy.MaxCoroutines - Pending;
 					size_t Count = Left, Passes = Pending;
 
 					while (Left > 0 && Count > 0)
@@ -9865,7 +10450,7 @@ namespace Mavi
 						Left -= Count;
 						Passes += Count;
 #ifndef NDEBUG
-						PostDebug(Type, ThreadTask::ConsumeCoroutine, Count);
+						PostDebug(ThreadTask::ConsumeCoroutine, Count);
 #endif
 						for (size_t i = 0; i < Count; ++i)
 						{
@@ -9875,12 +10460,12 @@ namespace Mavi
 						}
 					}
 #ifndef NDEBUG
-					PostDebug(Type, ThreadTask::ProcessCoroutine, Dispatcher.State->GetCount());
+					PostDebug(ThreadTask::ProcessCoroutine, Dispatcher.State->GetCount());
 #endif
 					while (Dispatcher.State->Dispatch() > 0)
 						++Passes;
 #ifndef NDEBUG
-					PostDebug(Type, ThreadTask::Awake, 0);
+					PostDebug(ThreadTask::Awake, 0);
 #endif
 					return Passes > 0;
 				}
@@ -9889,7 +10474,7 @@ namespace Mavi
 				{
 					size_t Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Tasks, EVENTS_SIZE);
 #ifndef NDEBUG
-					PostDebug(Type, ThreadTask::ProcessTask, Count);
+					PostDebug(ThreadTask::ProcessTask, Count);
 #endif
 					for (size_t i = 0; i < Count; ++i)
 					{
@@ -9899,7 +10484,7 @@ namespace Mavi
 							Data();
 					}
 #ifndef NDEBUG
-					PostDebug(Type, ThreadTask::Awake, 0);
+					PostDebug(ThreadTask::Awake, 0);
 #endif
 					return Count > 0;
 				}
@@ -9913,7 +10498,7 @@ namespace Mavi
 		{
 			auto* Queue = Queues[(size_t)Type];
 			Core::String ThreadId = OS::Process::GetThreadId(Thread->Id);
-			InitializeThread(Thread->GlobalIndex, Thread->LocalIndex);
+			InitializeThread(Thread, true);
 
 			switch (Type)
 			{
@@ -9929,7 +10514,7 @@ namespace Mavi
 						std::unique_lock<std::mutex> Lock(Queue->Update);
 					Retry:
 #ifndef NDEBUG
-						PostDebug(Thread, ThreadTask::Awake, 0);
+						PostDebug(ThreadTask::Awake, 0);
 #endif
 						std::chrono::microseconds When = std::chrono::microseconds(0);
 						if (!Queue->Timers.empty())
@@ -9939,7 +10524,7 @@ namespace Mavi
 							if (It->first <= Clock)
 							{
 #ifndef NDEBUG
-								PostDebug(Thread, ThreadTask::ProcessTimer, 1);
+								PostDebug(ThreadTask::ProcessTimer, 1);
 #endif
 								if (It->second.Alive)
 								{
@@ -9967,7 +10552,7 @@ namespace Mavi
 						else
 							When = Policy.Timeout;
 #ifndef NDEBUG
-						PostDebug(Thread, ThreadTask::Sleep, 0);
+						PostDebug(ThreadTask::Sleep, 0);
 #endif
 						Queue->Notify.wait_for(Lock, When);
 					} while (ThreadActive(Thread));
@@ -9981,7 +10566,7 @@ namespace Mavi
 						VI_DEBUG("[schedule] spawn thread %s (coroutines)", ThreadId.c_str());
 
 					ReceiveToken Token(Queue->Tasks);
-					Costate* State = new Costate(Policy.Memory);
+					Costate* State = new Costate(Policy.StackSize);
 					State->NotifyLock = [Thread]()
 					{
 						Thread->Update.lock();
@@ -9993,21 +10578,21 @@ namespace Mavi
 					};
 
 					Core::Vector<TaskCallback> Events;
-					Events.resize(Policy.Coroutines);
+					Events.resize(Policy.MaxCoroutines);
 
 					do
 					{
-						size_t Left = Policy.Coroutines - State->GetCount();
+						size_t Left = Policy.MaxCoroutines - State->GetCount();
 						size_t Count = Left;
 #ifndef NDEBUG
-						PostDebug(Thread, ThreadTask::Awake, 0);
+						PostDebug(ThreadTask::Awake, 0);
 #endif
 						while (Left > 0 && Count > 0)
 						{
 							Count = Queue->Tasks.try_dequeue_bulk(Token, Events.begin(), Left);
 							Left -= Count;
 #ifndef NDEBUG
-							PostDebug(Type, ThreadTask::EnqueueCoroutine, Count);
+							PostDebug(ThreadTask::EnqueueCoroutine, Count);
 #endif
 							for (size_t i = 0; i < Count; ++i)
 							{
@@ -10017,14 +10602,14 @@ namespace Mavi
 							}
 						}
 #ifndef NDEBUG
-						PostDebug(Type, ThreadTask::ProcessCoroutine, State->GetCount());
+						PostDebug(ThreadTask::ProcessCoroutine, State->GetCount());
 #endif
 						{
 							VI_MEASURE(Core::Timings::Frame);
 							State->Dispatch();
 						}
 #ifndef NDEBUG
-						PostDebug(Thread, ThreadTask::Sleep, 0);
+						PostDebug(ThreadTask::Sleep, 0);
 #endif
 						std::unique_lock<std::mutex> Lock(Thread->Update);
 						Thread->Notify.wait_for(Lock, Policy.Timeout, [this, Queue, State, Thread]()
@@ -10032,7 +10617,7 @@ namespace Mavi
 							if (!ThreadActive(Thread) || State->HasActive())
 								return true;
 
-							if (State->GetCount() >= Policy.Coroutines)
+							if (State->GetCount() >= Policy.MaxCoroutines)
 								return false;
 
 							return Queue->Tasks.size_approx() > 0 || State->HasActive();
@@ -10056,14 +10641,14 @@ namespace Mavi
 					do
 					{
 #ifndef NDEBUG
-						PostDebug(Thread, ThreadTask::Awake, 0);
+						PostDebug(ThreadTask::Awake, 0);
 #endif
 						size_t Count = 0;
 						do
 						{
 							Count = Queue->Tasks.try_dequeue_bulk(Token, Events, EVENTS_SIZE);
 #ifndef NDEBUG
-							PostDebug(Thread, ThreadTask::ProcessTask, Count);
+							PostDebug(ThreadTask::ProcessTask, Count);
 #endif
 							for (size_t i = 0; i < Count; ++i)
 							{
@@ -10074,7 +10659,7 @@ namespace Mavi
 							}
 						} while (Count > 0);
 #ifndef NDEBUG
-						PostDebug(Thread, ThreadTask::Sleep, 0);
+						PostDebug(ThreadTask::Sleep, 0);
 #endif
 						std::unique_lock<std::mutex> Lock(Queue->Update);
 						Queue->Notify.wait_for(Lock, Policy.Timeout, [this, Queue, Thread]()
@@ -10094,6 +10679,7 @@ namespace Mavi
 				VI_DEBUG("[schedule] join thread %s", ThreadId.c_str());
 
 			Scripting::VirtualMachine::CleanupThisThread();
+			InitializeThread(nullptr, true);
 			return true;
 		}
 		bool Schedule::ThreadActive(ThreadPtr* Thread)
@@ -10116,12 +10702,7 @@ namespace Mavi
 		}
 		bool Schedule::PushThread(Difficulty Type, size_t GlobalIndex, size_t LocalIndex, bool IsDaemon)
 		{
-			ThreadPtr* Thread = VI_NEW(ThreadPtr);
-			Thread->Daemon = IsDaemon;
-			Thread->Type = Type;
-			Thread->GlobalIndex = GlobalIndex;
-			Thread->LocalIndex = LocalIndex;
-
+			ThreadPtr* Thread = VI_NEW(ThreadPtr, Type, Policy.PreallocatedSize, GlobalIndex, LocalIndex, IsDaemon);
 			if (!Thread->Daemon)
 			{
 				Thread->Handle = std::thread(&Schedule::ProcessLoop, this, Type, Thread);
@@ -10130,7 +10711,7 @@ namespace Mavi
 			else
 				Thread->Id = std::this_thread::get_id();
 #ifndef NDEBUG
-			PostDebug(Thread, ThreadTask::Spawn, 0);
+			PostDebug(ThreadTask::Spawn, 0);
 #endif
 			Threads[(size_t)Type].emplace_back(Thread);
 			return Thread->Daemon ? ProcessLoop(Type, Thread) : Thread->Handle.joinable();
@@ -10146,7 +10727,7 @@ namespace Mavi
 			if (Thread->Handle.joinable())
 				Thread->Handle.join();
 #ifndef NDEBUG
-			PostDebug(Thread, ThreadTask::Despawn, 0);
+			PostDebug(ThreadTask::Despawn, 0);
 #endif
 			return true;
 		}
@@ -10178,60 +10759,23 @@ namespace Mavi
 		{
 			return HasTasks(Difficulty::Light) || HasTasks(Difficulty::Heavy) || HasTasks(Difficulty::Coroutine) || HasTasks(Difficulty::Clock);
 		}
-		bool Schedule::PostDebug(Difficulty Type, ThreadTask State, size_t Tasks)
+		bool Schedule::PostDebug(ThreadTask State, size_t Tasks)
 		{
 			if (!Debug)
 				return false;
 
-			ThreadDebug Data;
-			Data.Id = std::this_thread::get_id();
-			Data.Type = Type;
-			Data.State = State;
-			Data.Tasks = Tasks;
-
-			Debug(Data);
+			Debug(ThreadMessage(GetThread(), State, Tasks));
 			return true;
-		}
-		bool Schedule::PostDebug(ThreadPtr* Ptr, ThreadTask State, size_t Tasks)
-		{
-			if (!Debug)
-				return false;
-
-			ThreadDebug Data;
-			Data.Id = Ptr->Id;
-			Data.Type = Ptr->Type;
-			Data.State = State;
-			Data.Tasks = Tasks;
-
-			Debug(Data);
-			return true;
-		}
-		void Schedule::InitializeThread(size_t GlobalIndex, size_t LocalIndex)
-		{
-			UpdateThreadGlobalCounter((int64_t)GlobalIndex);
-			UpdateThreadLocalCounter((int64_t)LocalIndex);
-		}
-		size_t Schedule::UpdateThreadGlobalCounter(int64_t NewIndex)
-		{
-			static thread_local size_t Index = (size_t)-1;
-			if (NewIndex != -2)
-				Index = NewIndex;
-			return Index;
-		}
-		size_t Schedule::UpdateThreadLocalCounter(int64_t NewIndex)
-		{
-			static thread_local size_t Index = (size_t)-1;
-			if (NewIndex != -2)
-				Index = NewIndex;
-			return Index;
 		}
 		size_t Schedule::GetThreadGlobalIndex()
 		{
-			return UpdateThreadGlobalCounter(-2);
+			auto* Thread = GetThread();
+			return Thread ? Thread->GlobalIndex : 0;
 		}
 		size_t Schedule::GetThreadLocalIndex()
 		{
-			return UpdateThreadLocalCounter(-2);
+			auto* Thread = GetThread();
+			return Thread ? Thread->LocalIndex : 0;
 		}
 		size_t Schedule::GetTotalThreads() const
 		{
@@ -10245,6 +10789,17 @@ namespace Mavi
 		{
 			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			return Threads[(size_t)Type].size();
+		}
+		const Schedule::ThreadPtr* Schedule::InitializeThread(ThreadPtr* Source, bool Update) const
+		{
+			static thread_local ThreadPtr* Pointer = nullptr;
+			if (Update)
+				Pointer = Source;
+			return Pointer;
+		}
+		const Schedule::ThreadPtr* Schedule::GetThread() const
+		{
+			return InitializeThread(nullptr, false);
 		}
 		const Schedule::Desc& Schedule::GetPolicy() const
 		{

@@ -517,6 +517,181 @@ namespace Mavi
 		typedef std::function<bool()> ActivityCallback;
 		typedef void(*SignalCallback)(int);
 
+		namespace Allocators
+		{
+			class VI_OUT_TS DebugAllocator final : public GlobalAllocator
+			{
+			public:
+				struct VI_OUT_TS TracingBlock
+				{
+					std::thread::id Thread;
+					std::string TypeName;
+					MemoryContext Origin;
+					time_t Time;
+					size_t Size;
+					bool Active;
+					bool Static;
+
+					TracingBlock();
+					TracingBlock(const char* NewTypeName, MemoryContext&& NewOrigin, time_t NewTime, size_t NewSize, bool IsActive, bool IsStatic);
+				};
+
+			private:
+				std::unordered_map<void*, TracingBlock> Blocks;
+				std::recursive_mutex Mutex;
+
+			public:
+				~DebugAllocator() override = default;
+				Unique<void> Allocate(size_t Size) noexcept override;
+				Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept override;
+				void Free(Unique<void> Address) noexcept override;
+				void Transfer(Unique<void> Address, size_t Size) noexcept override;
+				void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept override;
+				void Watch(MemoryContext&& Origin, void* Address) noexcept override;
+				void Unwatch(void* Address) noexcept override;
+				void Finalize() noexcept override;
+				bool IsValid(void* Address) noexcept override;
+				bool IsFinalizable() noexcept override;
+				bool Dump(void* Address);
+				bool FindBlock(void* Address, TracingBlock* Output);
+				const std::unordered_map<void*, TracingBlock>& GetBlocks() const;
+			};
+
+			class VI_OUT_TS DefaultAllocator final : public GlobalAllocator
+			{
+			public:
+				~DefaultAllocator() override = default;
+				Unique<void> Allocate(size_t Size) noexcept override;
+				Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept override;
+				void Free(Unique<void> Address) noexcept override;
+				void Transfer(Unique<void> Address, size_t Size) noexcept override;
+				void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept override;
+				void Watch(MemoryContext&& Origin, void* Address) noexcept override;
+				void Unwatch(void* Address) noexcept override;
+				void Finalize() noexcept override;
+				bool IsValid(void* Address) noexcept override;
+				bool IsFinalizable() noexcept override;
+			};
+
+			class VI_OUT_TS CachedAllocator final : public GlobalAllocator
+			{
+			private:
+				struct PageCache;
+
+				using PageGroup = std::vector<PageCache*>;
+
+				struct PageAddress
+				{
+					PageCache* Cache;
+					void* Address;
+				};
+
+				struct PageCache
+				{
+					std::vector<PageAddress*> Addresses;
+					PageGroup& Page;
+					int64_t Timing;
+					size_t Capacity;
+
+					inline PageCache(PageGroup& NewPage, int64_t Time, size_t Size) : Page(NewPage), Timing(Time), Capacity(Size)
+					{
+						Addresses.resize(Capacity);
+					}
+					~PageCache() = default;
+				};
+
+			private:
+				std::unordered_map<size_t, PageGroup> Pages;
+				std::recursive_mutex Mutex;
+				uint64_t MinimalLifeTime;
+				double ElementsReducingFactor;
+				size_t ElementsReducingBase;
+				size_t ElementsPerAllocation;
+
+			public:
+				CachedAllocator(uint64_t MinimalLifeTimeMs = 2000, size_t MaxElementsPerAllocation = 1024, size_t ElementsReducingBaseBytes = 300, double ElementsReducingFactorRate = 5.0);
+				~CachedAllocator() noexcept override;
+				Unique<void> Allocate(size_t Size) noexcept override;
+				Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept override;
+				void Free(Unique<void> Address) noexcept override;
+				void Transfer(Unique<void> Address, size_t Size) noexcept override;
+				void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept override;
+				void Watch(MemoryContext&& Origin, void* Address) noexcept override;
+				void Unwatch(void* Address) noexcept override;
+				void Finalize() noexcept override;
+				bool IsValid(void* Address) noexcept override;
+				bool IsFinalizable() noexcept override;
+
+			private:
+				PageCache* GetPageCache(size_t Size);
+				int64_t GetClock();
+				size_t GetElementsCount(PageGroup& Page, size_t Size);
+			};
+
+			class VI_OUT LinearAllocator final : public LocalAllocator
+			{
+			private:
+				struct Region
+				{
+					char* FreeAddress;
+					char* BaseAddress;
+					Region* UpperAddress;
+					Region* LowerAddress;
+					size_t Size;
+				};
+
+			private:
+				Region* Top;
+				Region* Bottom;
+				size_t LatestSize;
+				size_t Sizing;
+
+			public:
+				LinearAllocator(size_t Size);
+				~LinearAllocator() noexcept override;
+				Unique<void> Allocate(size_t Size) noexcept override;
+				void Free(Unique<void> Address) noexcept override;
+				void Reset() noexcept override;
+				bool IsValid(void* Address) noexcept override;
+				size_t GetLeftovers() const noexcept;
+
+			private:
+				void NextRegion(size_t Size) noexcept;
+				void FlushRegions() noexcept;
+			};
+
+			class VI_OUT StackAllocator final : public LocalAllocator
+			{
+			private:
+				struct Region
+				{
+					char* FreeAddress;
+					char* BaseAddress;
+					Region* UpperAddress;
+					Region* LowerAddress;
+					size_t Size;
+				};
+
+			private:
+				Region* Top;
+				Region* Bottom;
+				size_t Sizing;
+
+			public:
+				StackAllocator(size_t Size);
+				~StackAllocator() noexcept override;
+				Unique<void> Allocate(size_t Size) noexcept override;
+				void Free(Unique<void> Address) noexcept override;
+				void Reset() noexcept override;
+				bool IsValid(void* Address) noexcept override;
+				size_t GetLeftovers() const noexcept;
+
+			private:
+				void NextRegion(size_t Size) noexcept;
+				void FlushRegions() noexcept;
+			};
+		}
+
 		class VI_OUT StackTrace
 		{
 		public:
@@ -618,6 +793,52 @@ namespace Mavi
 			static void Enqueue(Details&& Data) noexcept;
 			static void Dispatch(Details& Data) noexcept;
 			static void Colorify(Console* Base, Details& Data) noexcept;
+		};
+
+		template <typename T>
+		class Bitmask
+		{
+			static_assert(std::is_integral<T>::value, "value should be of integral type to have bitmask applications");
+
+		public:
+			static T Mark(T Other)
+			{
+				return Other | (T)Highbit<T>();
+			}
+			static T Unmark(T Other)
+			{
+				return Other & (T)Lowbit<T>();
+			}
+			static T Value(T Other)
+			{
+				return Other & (T)Lowbit<T>();
+			}
+			static bool IsMarked(T Other)
+			{
+				return (bool)(Other & (T)Highbit<T>());
+			}
+
+		private:
+			template <typename Q>
+			static typename std::enable_if<sizeof(Q) == sizeof(uint64_t), uint64_t>::type Highbit()
+			{
+				return 0x8000000000000000;
+			}
+			template <typename Q>
+			static typename std::enable_if<sizeof(Q) < sizeof(uint64_t), uint32_t>::type Highbit()
+			{
+				return 0x80000000;
+			}
+			template <typename Q>
+			static typename std::enable_if<sizeof(Q) == sizeof(uint64_t), uint64_t>::type Lowbit()
+			{
+				return 0x7FFFFFFFFFFFFFFF;
+			}
+			template <typename Q>
+			static typename std::enable_if<sizeof(Q) < sizeof(uint64_t), uint32_t>::type Lowbit()
+			{
+				return 0x7FFFFFFF;
+			}
 		};
 
 		template <typename V>
@@ -1817,23 +2038,23 @@ namespace Mavi
 			}
 			bool IsMarkedRef() const noexcept
 			{
-				return (bool)(__vcnt.load() & 0x80000000);
+				return Bitmask<uint32_t>::IsMarked(__vcnt.load());
 			}
 			uint32_t GetRefCount() const noexcept
 			{
-				return __vcnt.load() & 0x7FFFFFFF;
+				return Bitmask<uint32_t>::Value(__vcnt.load());
 			}
 			void MarkRef() noexcept
 			{
-				__vcnt |= 0x80000000;
+				__vcnt = Bitmask<uint32_t>::Unmark(__vcnt.load());
 			}
 			void AddRef() noexcept
 			{
-				__vcnt = (__vcnt.load() & 0x7FFFFFFF) + 1;
+				__vcnt = Bitmask<uint32_t>::Value(__vcnt.load()) + 1;
 			}
 			void Release() noexcept
 			{
-				__vcnt &= 0x7FFFFFFF;
+				__vcnt = Bitmask<uint32_t>::Unmark(__vcnt.load());
 				VI_ASSERT(__vcnt > 0 && Memory::IsValidAddress((void*)(T*)this), "address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
 				if (!--__vcnt)
 					delete (T*)this;
@@ -2771,19 +2992,6 @@ namespace Mavi
 
 		class VI_OUT_TS Schedule final : public Singleton<Schedule>
 		{
-		private:
-			struct ThreadPtr
-			{
-				std::condition_variable Notify;
-				std::mutex Update;
-				std::thread Handle;
-				std::thread::id Id;
-				Difficulty Type = Difficulty::Count;
-				size_t GlobalIndex = 0;
-				size_t LocalIndex = 0;
-				bool Daemon = false;
-			};
-
 		public:
 			enum class ThreadTask
 			{
@@ -2800,29 +3008,50 @@ namespace Mavi
 				Despawn
 			};
 
-			struct VI_OUT ThreadDebug
+			struct VI_OUT ThreadPtr
 			{
-				std::thread::id Id = std::thread::id();
-				Difficulty Type = Difficulty::Count;
-				ThreadTask State = ThreadTask::Spawn;
-				size_t Tasks = 0;
+				std::condition_variable Notify;
+				std::mutex Update;
+				std::thread Handle;
+				std::thread::id Id;
+				Allocators::LinearAllocator Allocator;
+				Difficulty Type;
+				size_t GlobalIndex;
+				size_t LocalIndex;
+				bool Daemon;
+
+				ThreadPtr(Difficulty NewType, size_t PreallocatedSize, size_t NewGlobalIndex, size_t NewLocalIndex, bool IsDaemon) : Allocator(PreallocatedSize), Type(NewType), GlobalIndex(NewGlobalIndex), LocalIndex(NewLocalIndex)
+				{
+				}
+				~ThreadPtr() = default;
 			};
 
-			typedef std::function<void(const ThreadDebug&)> ThreadDebugCallback;
+			struct VI_OUT ThreadMessage
+			{
+				const ThreadPtr* Thread;
+				ThreadTask State;
+				size_t Tasks;
 
-		public:
+				ThreadMessage(const ThreadPtr* NewThread, ThreadTask NewState, size_t NewTasks) : Thread(NewThread), State(NewState), Tasks(NewTasks)
+				{
+				}
+			};
+
 			struct VI_OUT Desc
 			{
 				std::chrono::milliseconds Timeout = std::chrono::milliseconds(2000);
 				size_t Threads[(size_t)Difficulty::Count] = { 1, 1, 1, 1 };
-				size_t Memory = STACK_SIZE;
-				size_t Coroutines = 16;
+				size_t PreallocatedSize = 0;
+				size_t StackSize = STACK_SIZE;
+				size_t MaxCoroutines = 16;
 				ActivityCallback Ping = nullptr;
 				bool Parallel = true;
 
 				Desc();
 				void SetThreads(size_t Cores);
 			};
+
+			typedef std::function<void(const ThreadMessage&)> ThreadDebugCallback;
 
 		private:
 			struct
@@ -2874,14 +3103,12 @@ namespace Mavi
 			size_t GetThreadLocalIndex();
 			size_t GetTotalThreads() const;
 			size_t GetThreads(Difficulty Type) const;
+			const ThreadPtr* GetThread() const;
 			const Desc& GetPolicy() const;
 
 		private:
-			void InitializeThread(size_t GlobalIndex, size_t LocalIndex);
-			size_t UpdateThreadGlobalCounter(int64_t Index);
-			size_t UpdateThreadLocalCounter(int64_t Index);
-			bool PostDebug(Difficulty Type, ThreadTask State, size_t Tasks);
-			bool PostDebug(ThreadPtr* Ptr, ThreadTask State, size_t Tasks);
+			const ThreadPtr* InitializeThread(ThreadPtr* Source, bool Update) const;
+			bool PostDebug(ThreadTask State, size_t Tasks);
 			bool ProcessTick(Difficulty Type);
 			bool ProcessLoop(Difficulty Type, ThreadPtr* Thread);
 			bool ThreadActive(ThreadPtr* Thread);
@@ -2894,6 +3121,29 @@ namespace Mavi
 		public:
 			static std::chrono::microseconds GetClock();
 			static bool IsAvailable();
+		};
+
+		template <>
+		class UAlloc<Schedule>
+		{
+		private:
+			Schedule::ThreadPtr* Thread;
+
+		public:
+			UAlloc() noexcept : Thread((Schedule::ThreadPtr*)Schedule::Get()->GetThread())
+			{
+				VI_PANIC(!Thread, "this thread is not a scheduler thread");
+				Memory::SetLocalAllocator(&Thread->Allocator);
+			}
+			UAlloc(const UAlloc& Other) noexcept = delete;
+			UAlloc(UAlloc&& Other) noexcept = delete;
+			~UAlloc()
+			{
+				Memory::SetLocalAllocator(nullptr);
+				Thread->Allocator.Reset();
+			}
+			UAlloc& operator= (const UAlloc& Other) noexcept = delete;
+			UAlloc& operator= (UAlloc&& Other) noexcept = delete;
 		};
 
 		template <typename T>

@@ -200,7 +200,7 @@ namespace Mavi
 			protected:
 				asIScriptEngine* Engine;
 				Dynamic Value;
-				std::atomic<int> RefCount;
+				std::atomic<uint32_t> RefCount;
 
 			public:
 				Any(asIScriptEngine* Engine) noexcept;
@@ -296,7 +296,7 @@ namespace Mavi
 				asITypeInfo* ObjType;
 				SBuffer* Buffer;
 				size_t ElementSize;
-				std::atomic<int> RefCount;
+				std::atomic<uint32_t> RefCount;
 				int SubTypeId;
 
 			public:
@@ -540,7 +540,7 @@ namespace Mavi
 			protected:
 				asIScriptEngine* Engine;
 				InternalMap Data;
-				std::atomic<int> RefCount;
+				std::atomic<uint32_t> RefCount;
 
 			public:
 				void AddRef();
@@ -727,7 +727,7 @@ namespace Mavi
 				asIScriptEngine* Engine;
 				asIScriptContext* Context;
 				FunctionDelegate Delegate;
-				std::atomic<int> RefCount;
+				std::atomic<uint32_t> RefCount;
 				std::mutex Update;
 				Dynamic Value;
 
@@ -904,7 +904,7 @@ namespace Mavi
 				VirtualMachine* VM;
 				ImmediateContext* Context;
 				ThreadState Status;
-				std::atomic<int> RefCount;
+				std::atomic<uint32_t> RefCount;
 
 			public:
 				Thread(asIScriptEngine* Engine, asIScriptFunction* Function) noexcept;

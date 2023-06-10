@@ -6415,10 +6415,7 @@ namespace Mavi
 				Control.Threads = std::max<uint32_t>(2, Quantity.Logical) - 1;
 			}
 		
-			Core::Schedule::Desc Policy;
-			Policy.Coroutines = Control.Coroutines;
-			Policy.Memory = Control.Stack;
-			Policy.Parallel = Control.Parallel;
+			Core::Schedule::Desc& Policy = Control.Scheduler;
 			Policy.Ping = Control.Daemon ? std::bind(&Application::Status, this) : (Core::ActivityCallback)nullptr;
 			Policy.SetThreads(Control.Threads);
 			Queue->Start(Policy);
@@ -6431,7 +6428,7 @@ namespace Mavi
 			}
 
 			VI_MEASURE(Core::Timings::Infinite);
-			if (Activity != nullptr && Control.Parallel)
+			if (Activity != nullptr && Policy.Parallel)
 			{
 				Time->Reset();
 				while (State == ApplicationState::Active)
@@ -6445,7 +6442,7 @@ namespace Mavi
 						Publish(Time);
 				}
 			}
-			else if (Activity != nullptr && !Control.Parallel)
+			else if (Activity != nullptr && !Policy.Parallel)
 			{
 				Time->Reset();
 				while (State == ApplicationState::Active)
@@ -6461,7 +6458,7 @@ namespace Mavi
 						Publish(Time);
 				}
 			}
-			else if (!Activity && Control.Parallel)
+			else if (!Activity && Policy.Parallel)
 			{
 				Time->Reset();
 				while (State == ApplicationState::Active)
@@ -6473,7 +6470,7 @@ namespace Mavi
 					Publish(Time);
 				}
 			}
-			else if (!Activity && !Control.Parallel)
+			else if (!Activity && !Policy.Parallel)
 			{
 				Time->Reset();
 				while (State == ApplicationState::Active)
@@ -6488,8 +6485,11 @@ namespace Mavi
 				}
 			}
 
-			while (Control.Parallel && Content != nullptr && Content->IsBusy())
-				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			if (Policy.Parallel && Content != nullptr)
+			{
+				while (Content->IsBusy())
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
 
 			VI_RELEASE(Time);
 			CloseEvent();

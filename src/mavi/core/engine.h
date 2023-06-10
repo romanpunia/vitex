@@ -1729,13 +1729,12 @@ namespace Mavi
 
 				Graphics::GraphicsDevice::Desc GraphicsDevice;
 				Graphics::Activity::Desc Activity;
+				Core::Schedule::Desc Scheduler;
 				Core::String Preferences;
 				Core::String Environment;
 				Core::String Directory;
-				size_t Stack = Core::STACK_SIZE;
 				size_t PollingTimeout = 100;
 				size_t PollingEvents = 256;
-				size_t Coroutines = 96;
 				size_t Threads = 0;
 				size_t Usage =
 					(size_t)ApplicationSet::GraphicsSet |
@@ -1745,7 +1744,6 @@ namespace Mavi
 					(size_t)ApplicationSet::ContentSet |
 					(size_t)ApplicationSet::NetworkSet;
 				bool Daemon = false;
-				bool Parallel = true;
 				bool Cursor = true;
 			};
 

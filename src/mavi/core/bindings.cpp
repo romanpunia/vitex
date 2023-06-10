@@ -677,12 +677,12 @@ namespace Mavi
 			}
 			void Any::AddRef()
 			{
-				RefCount = (RefCount & 0x7FFFFFFF) + 1;
+				RefCount = Core::Bitmask<uint32_t>::Value(RefCount.load()) + 1;
 			}
 			void Any::Release()
 			{
-				RefCount &= 0x7FFFFFFF;
-				if (--RefCount <= 0)
+				RefCount = Core::Bitmask<uint32_t>::Unmark(RefCount.load());
+				if (!--RefCount)
 				{
 					this->~Any();
 					asFreeMem((void*)this);
@@ -690,15 +690,15 @@ namespace Mavi
 			}
 			int Any::GetRefCount()
 			{
-				return (RefCount & 0x7FFFFFFF);
+				return Core::Bitmask<uint32_t>::Value(RefCount.load());
 			}
 			void Any::SetFlag()
 			{
-				RefCount |= 0x80000000;
+				RefCount = Core::Bitmask<uint32_t>::Mark(RefCount.load());
 			}
 			bool Any::GetFlag()
 			{
-				return (RefCount & 0x80000000) ? true : false;
+				return Core::Bitmask<uint32_t>::IsMarked(RefCount.load());
 			}
 			Core::Unique<Any> Any::Create()
 			{
@@ -1720,12 +1720,12 @@ namespace Mavi
 			}
 			void Array::AddRef()
 			{
-				RefCount = (RefCount & 0x7FFFFFFF) + 1;
+				RefCount = Core::Bitmask<uint32_t>::Value(RefCount.load()) + 1;
 			}
 			void Array::Release()
 			{
-				RefCount &= 0x7FFFFFFF;
-				if (--RefCount <= 0)
+				RefCount = Core::Bitmask<uint32_t>::Unmark(RefCount.load());
+				if (!--RefCount)
 				{
 					this->~Array();
 					asFreeMem(const_cast<Array*>(this));
@@ -1733,15 +1733,15 @@ namespace Mavi
 			}
 			int Array::GetRefCount()
 			{
-				return (RefCount & 0x7FFFFFFF);
+				return Core::Bitmask<uint32_t>::Value(RefCount.load());
 			}
 			void Array::SetFlag()
 			{
-				RefCount |= 0x80000000;
+				RefCount = Core::Bitmask<uint32_t>::Mark(RefCount.load());
 			}
 			bool Array::GetFlag()
 			{
-				return (RefCount & 0x80000000) ? true : false;
+				return Core::Bitmask<uint32_t>::IsMarked(RefCount.load());
 			}
 			Array* Array::Create(asITypeInfo* Info, size_t Length)
 			{
@@ -2248,12 +2248,12 @@ namespace Mavi
 			}
 			void Dictionary::AddRef()
 			{
-				RefCount = (RefCount & 0x7FFFFFFF) + 1;
+				RefCount = Core::Bitmask<uint32_t>::Value(RefCount.load()) + 1;
 			}
 			void Dictionary::Release()
 			{
-				RefCount &= 0x7FFFFFFF;
-				if (--RefCount <= 0)
+				RefCount = Core::Bitmask<uint32_t>::Unmark(RefCount.load());
+				if (!--RefCount)
 				{
 					this->~Dictionary();
 					asFreeMem(const_cast<Dictionary*>(this));
@@ -2261,15 +2261,15 @@ namespace Mavi
 			}
 			int Dictionary::GetRefCount()
 			{
-				return (RefCount & 0x7FFFFFFF);
+				return Core::Bitmask<uint32_t>::Value(RefCount.load());
 			}
 			void Dictionary::SetFlag()
 			{
-				RefCount |= 0x80000000;
+				RefCount = Core::Bitmask<uint32_t>::Mark(RefCount.load());
 			}
 			bool Dictionary::GetFlag()
 			{
-				return (RefCount & 0x80000000) ? true : false;
+				return Core::Bitmask<uint32_t>::IsMarked(RefCount.load());
 			}
 			void Dictionary::EnumReferences(asIScriptEngine* _Engine)
 			{
@@ -2957,8 +2957,8 @@ namespace Mavi
 			}
 			void Promise::Release()
 			{
-				RefCount &= 0x7FFFFFFF;
-				if (--RefCount <= 0)
+				RefCount = Core::Bitmask<uint32_t>::Unmark(RefCount.load());
+				if (!--RefCount)
 				{
 					ReleaseReferences(nullptr);
 					this->~Promise();
@@ -2967,7 +2967,7 @@ namespace Mavi
 			}
 			void Promise::AddRef()
 			{
-				RefCount = (RefCount & 0x7FFFFFFF) + 1;
+				RefCount = Core::Bitmask<uint32_t>::Value(RefCount.load()) + 1;
 			}
 			void Promise::EnumReferences(asIScriptEngine* OtherEngine)
 			{
@@ -3012,15 +3012,15 @@ namespace Mavi
 			}
 			void Promise::SetFlag()
 			{
-				RefCount |= 0x80000000;
+				RefCount = Core::Bitmask<uint32_t>::Mark(RefCount.load());
 			}
 			bool Promise::GetFlag()
 			{
-				return (RefCount & 0x80000000) ? true : false;
+				return Core::Bitmask<uint32_t>::IsMarked(RefCount.load());
 			}
 			int Promise::GetRefCount()
 			{
-				return (RefCount & 0x7FFFFFFF);
+				return Core::Bitmask<uint32_t>::Value(RefCount.load());
 			}
 			int Promise::GetTypeId()
 			{
@@ -3953,12 +3953,12 @@ namespace Mavi
 			}
 			void Thread::AddRef()
 			{
-				RefCount = (RefCount & 0x7FFFFFFF) + 1;
+				RefCount = Core::Bitmask<uint32_t>::Value(RefCount.load()) + 1;
 			}
 			void Thread::Release()
 			{
-				RefCount &= 0x7FFFFFFF;
-				if (--RefCount <= 0)
+				RefCount = Core::Bitmask<uint32_t>::Unmark(RefCount.load());
+				if (!--RefCount)
 				{
 					ReleaseReferences(nullptr);
 					this->~Thread();
@@ -3967,15 +3967,15 @@ namespace Mavi
 			}
 			void Thread::SetFlag()
 			{
-				RefCount |= 0x80000000;
+				RefCount = Core::Bitmask<uint32_t>::Mark(RefCount.load());
 			}
 			bool Thread::GetFlag()
 			{
-				return (RefCount & 0x80000000) ? true : false;
+				return Core::Bitmask<uint32_t>::IsMarked(RefCount.load());
 			}
 			int Thread::GetRefCount()
 			{
-				return (RefCount & 0x7FFFFFFF);
+				return Core::Bitmask<uint32_t>::Value(RefCount.load());
 			}
 			void Thread::EnumReferences(asIScriptEngine* Engine)
 			{
@@ -10077,8 +10077,9 @@ namespace Mavi
 				VDifficulty.SetValue("clock", (int)Core::Difficulty::Clock);
 
 				TypeClass VDesc = Engine->SetStructTrivial<Core::Schedule::Desc>("schedule_policy");
-				VDesc.SetProperty("usize memory", &Core::Schedule::Desc::Memory);
-				VDesc.SetProperty("usize coroutines", &Core::Schedule::Desc::Coroutines);
+				VDesc.SetProperty("usize preallocated_size", &Core::Schedule::Desc::PreallocatedSize);
+				VDesc.SetProperty("usize stack_size", &Core::Schedule::Desc::StackSize);
+				VDesc.SetProperty("usize max_coroutines", &Core::Schedule::Desc::MaxCoroutines);
 				VDesc.SetProperty("bool parallel", &Core::Schedule::Desc::Parallel);
 				VDesc.SetConstructor<Core::Schedule::Desc>("void f()");
 				VDesc.SetMethod("void set_threads(usize)", &Core::Schedule::Desc::SetThreads);
@@ -15167,17 +15168,15 @@ namespace Mavi
 				VApplicationDesc.SetProperty<Application::Desc>("application_frame_info framerate", &Application::Desc::Framerate);
 				VApplicationDesc.SetProperty<Application::Desc>("graphics_device_desc graphics", &Application::Desc::GraphicsDevice);
 				VApplicationDesc.SetProperty<Application::Desc>("activity_desc window", &Application::Desc::Activity);
+				VApplicationDesc.SetProperty<Application::Desc>("schedule_policy scheduler", &Application::Desc::Scheduler);
 				VApplicationDesc.SetProperty<Application::Desc>("string preferences", &Application::Desc::Preferences);
 				VApplicationDesc.SetProperty<Application::Desc>("string environment", &Application::Desc::Environment);
 				VApplicationDesc.SetProperty<Application::Desc>("string directory", &Application::Desc::Directory);
-				VApplicationDesc.SetProperty<Application::Desc>("usize stack", &Application::Desc::Stack);
 				VApplicationDesc.SetProperty<Application::Desc>("usize polling_timeout", &Application::Desc::PollingTimeout);
 				VApplicationDesc.SetProperty<Application::Desc>("usize polling_events", &Application::Desc::PollingEvents);
-				VApplicationDesc.SetProperty<Application::Desc>("usize coroutines", &Application::Desc::Coroutines);
 				VApplicationDesc.SetProperty<Application::Desc>("usize threads", &Application::Desc::Threads);
 				VApplicationDesc.SetProperty<Application::Desc>("usize usage", &Application::Desc::Usage);
 				VApplicationDesc.SetProperty<Application::Desc>("bool daemon", &Application::Desc::Daemon);
-				VApplicationDesc.SetProperty<Application::Desc>("bool parallel", &Application::Desc::Parallel);
 				VApplicationDesc.SetProperty<Application::Desc>("bool cursor", &Application::Desc::Cursor);
 				VApplicationDesc.SetConstructor<Application::Desc>("void f()");
 

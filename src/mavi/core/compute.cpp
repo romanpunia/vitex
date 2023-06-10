@@ -14405,10 +14405,8 @@ namespace Mavi
 #ifdef VI_BULLET3
 			btCollisionShape* Shape = VI_NEW(btBoxShape, V3_TO_BT(Scale));
 			VI_TRACE("[sim] save cube shape 0x%" PRIXPTR, (void*)Shape);
-			Safe.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
-			Safe.unlock();
-
 			return Shape;
 #else
 			return nullptr;
@@ -14419,10 +14417,8 @@ namespace Mavi
 #ifdef VI_BULLET3
 			btCollisionShape* Shape = VI_NEW(btSphereShape, Radius);
 			VI_TRACE("[sim] save sphere shape 0x%" PRIXPTR, (void*)Shape);
-			Safe.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
-			Safe.unlock();
-
 			return Shape;
 #else
 			return nullptr;
@@ -14433,10 +14429,8 @@ namespace Mavi
 #ifdef VI_BULLET3
 			btCollisionShape* Shape = VI_NEW(btCapsuleShape, Radius, Height);
 			VI_TRACE("[sim] save capsule shape 0x%" PRIXPTR, (void*)Shape);
-			Safe.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
-			Safe.unlock();
-
 			return Shape;
 #else
 			return nullptr;
@@ -14447,10 +14441,8 @@ namespace Mavi
 #ifdef VI_BULLET3
 			btCollisionShape* Shape = VI_NEW(btConeShape, Radius, Height);
 			VI_TRACE("[sim] save cone shape 0x%" PRIXPTR, (void*)Shape);
-			Safe.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
-			Safe.unlock();
-
 			return Shape;
 #else
 			return nullptr;
@@ -14461,10 +14453,8 @@ namespace Mavi
 #ifdef VI_BULLET3
 			btCollisionShape* Shape = VI_NEW(btCylinderShape, V3_TO_BT(Scale));
 			VI_TRACE("[sim] save cylinder shape 0x%" PRIXPTR, (void*)Shape);
-			Safe.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
-			Safe.unlock();
-
 			return Shape;
 #else
 			return nullptr;
@@ -14482,10 +14472,8 @@ namespace Mavi
 			Shape->setMargin(0);
 
 			VI_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Shape, (uint64_t)Vertices.size());
-			Safe.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
-			Safe.unlock();
-
 			return Shape;
 #else
 			return nullptr;
@@ -14503,10 +14491,8 @@ namespace Mavi
 			Shape->setMargin(0);
 
 			VI_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Shape, (uint64_t)Vertices.size());
-			Safe.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
-			Safe.unlock();
-
 			return Shape;
 #else
 			return nullptr;
@@ -14524,10 +14510,8 @@ namespace Mavi
 			Shape->setMargin(0);
 
 			VI_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Shape, (uint64_t)Vertices.size());
-			Safe.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
-			Safe.unlock();
-
 			return Shape;
 #else
 			return nullptr;
@@ -14545,10 +14529,8 @@ namespace Mavi
 			Shape->setMargin(0);
 
 			VI_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Shape, (uint64_t)Vertices.size());
-			Safe.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
-			Safe.unlock();
-
 			return Shape;
 #else
 			return nullptr;
@@ -14566,10 +14548,8 @@ namespace Mavi
 			Shape->setMargin(0);
 
 			VI_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Shape, (uint64_t)Vertices.size());
-			Safe.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
-			Safe.unlock();
-
 			return Shape;
 #else
 			return nullptr;
@@ -14592,10 +14572,8 @@ namespace Mavi
 			Hull->setMargin(0);
 
 			VI_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Hull, (uint64_t)Base->getNumPoints());
-			Safe.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Shapes[Hull] = 1;
-			Safe.unlock();
-
 			return Hull;
 #else
 			return nullptr;
@@ -14667,16 +14645,12 @@ namespace Mavi
 		{
 #ifdef VI_BULLET3
 			VI_ASSERT(Value != nullptr, "shape should be set");
-			Safe.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			auto It = Shapes.find(Value);
 			if (It == Shapes.end())
-			{
-				Safe.unlock();
 				return nullptr;
-			}
 
 			It->second++;
-			Safe.unlock();
 			return Value;
 #else
 			return nullptr;
@@ -14688,20 +14662,19 @@ namespace Mavi
 			if (!Value || !*Value)
 				return;
 
-			Safe.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			auto It = Shapes.find(*Value);
-			if (It != Shapes.end())
-			{
-				*Value = nullptr;
-				if (It->second-- <= 1)
-				{
-					btCollisionShape* Item = (btCollisionShape*)It->first;
-					VI_TRACE("[sim] free shape 0x%" PRIXPTR, (void*)Item);
-					VI_DELETE(btCollisionShape, Item);
-					Shapes.erase(It);
-				}
-			}
-			Safe.unlock();
+			if (It == Shapes.end())
+				return;
+
+			*Value = nullptr;
+			if (It->second-- > 1)
+				return;
+
+			btCollisionShape* Item = (btCollisionShape*)It->first;
+			VI_TRACE("[sim] free shape 0x%" PRIXPTR, (void*)Item);
+			VI_DELETE(btCollisionShape, Item);
+			Shapes.erase(It);
 #endif
 		}
 		Core::Vector<Vector3> Simulator::GetShapeVertices(btCollisionShape* Value) const

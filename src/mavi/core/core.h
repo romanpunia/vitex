@@ -1618,76 +1618,6 @@ namespace Mavi
 			static void ConvertToWide(const char* Input, size_t InputSize, wchar_t* Output, size_t OutputSize);
 		};
 
-		class VI_OUT_TS Guard
-		{
-		public:
-			class VI_OUT Loaded
-			{
-			public:
-				friend Guard;
-
-			private:
-				Guard* Base;
-
-			public:
-				Loaded(Loaded&& Other) noexcept;
-				Loaded& operator =(Loaded&& Other) noexcept;
-				~Loaded() noexcept;
-				void Close();
-				explicit operator bool() const;
-
-			private:
-				Loaded(Guard* NewBase) noexcept;
-			};
-
-			class VI_OUT Stored
-			{
-			public:
-				friend Guard;
-
-			private:
-				Guard* Base;
-
-			public:
-				Stored(Stored&& Other) noexcept;
-				Stored& operator =(Stored&& Other) noexcept;
-				~Stored() noexcept;
-				void Close();
-				explicit operator bool() const;
-
-			private:
-				Stored(Guard* NewBase) noexcept;
-			};
-
-		public:
-			friend Loaded;
-			friend Stored;
-
-		private:
-			std::condition_variable Condition;
-			std::mutex Mutex;
-			uint32_t Readers;
-			uint32_t Writers;
-
-		public:
-			Guard() noexcept;
-			Guard(const Guard& Other) = delete;
-			Guard(Guard&& Other) = delete;
-			~Guard() noexcept = default;
-			Guard& operator =(const Guard& Other) = delete;
-			Guard& operator =(Guard&& Other) = delete;
-			Loaded TryLoad();
-			Loaded Load();
-			Stored TryStore();
-			Stored Store();
-			bool TryLoadLock();
-			void LoadLock();
-			void LoadUnlock();
-			bool TryStoreLock();
-			void StoreLock();
-			void StoreUnlock();
-		};
-
 		class VI_OUT_TS Var
 		{
 		public:
@@ -2212,6 +2142,39 @@ namespace Mavi
 			inline typename std::enable_if<!std::is_trivially_default_constructible<Q>::value && std::is_base_of<Reference<Q>, Q>::value, void>::type Cleanup()
 			{
 				VI_CLEAR(Pointer);
+			}
+		};
+
+		template <typename T>
+		class UMutex
+		{
+			static_assert(std::is_same<std::mutex, T>::value, "unique mutex type should be one of: std::mutex, std::recursive_mutex");
+
+		private:
+			T& Mutex;
+			bool Owns;
+
+		public:
+			UMutex(T& NewMutex) noexcept : Mutex(NewMutex), Owns(true)
+			{
+				Mutex.lock();
+			}
+			UMutex(const UMutex& Other) noexcept = delete;
+			UMutex(UMutex&& Other) noexcept = delete;
+			~UMutex()
+			{
+				if (Owns)
+					Mutex.unlock();
+			}
+			UMutex& operator= (const UMutex& Other) noexcept = delete;
+			UMutex& operator= (UMutex&& Other) noexcept = delete;
+			void Toggle()
+			{
+				if (Owns)
+					Mutex.unlock();
+				else
+					Mutex.lock();
+				Owns = !Owns;
 			}
 		};
 
@@ -3386,157 +3349,6 @@ namespace Mavi
 			}
 		};
 
-		template <typename T>
-		class Guarded
-		{
-		public:
-			class Loaded
-			{
-			public:
-				friend Guarded;
-
-			private:
-				Guarded* Base;
-
-			public:
-				Loaded(Loaded&& Other) noexcept : Base(Other.Base)
-				{
-					Other.Base = nullptr;
-				}
-				Loaded& operator =(Loaded&& Other) noexcept
-				{
-					if (&Other == this)
-						return *this;
-
-					Base = Other.Base;
-					Other.Base = nullptr;
-					return *this;
-				}
-				~Loaded() noexcept
-				{
-					Close();
-				}
-				void Close()
-				{
-					if (Base != nullptr)
-					{
-						Base->Mutex.LoadUnlock();
-						Base = nullptr;
-					}
-				}
-				explicit operator bool() const
-				{
-					return Base != nullptr;
-				}
-				const T& operator*() const
-				{
-					VI_ASSERT(Base != nullptr, "value was not loaded");
-					return Base->Value;
-				}
-				const T& Unwrap() const
-				{
-					VI_ASSERT(Base != nullptr, "value was not loaded");
-					return Base->Value;
-				}
-
-			private:
-				Loaded(Guarded* NewBase) noexcept : Base(NewBase)
-				{
-				}
-			};
-
-			class Stored
-			{
-			public:
-				friend Guarded;
-
-			private:
-				Guarded* Base;
-
-			public:
-				Stored(Stored&& Other) noexcept : Base(Other.Base)
-				{
-					Other.Base = nullptr;
-				}
-				Stored& operator =(Stored&& Other) noexcept
-				{
-					if (&Other == this)
-						return *this;
-
-					Base = Other.Base;
-					Other.Base = nullptr;
-					return *this;
-				}
-				~Stored() noexcept
-				{
-					Close();
-				}
-				void Close()
-				{
-					if (Base != nullptr)
-					{
-						Base->Mutex.StoreUnlock();
-						Base = nullptr;
-					}
-				}
-				explicit operator bool() const
-				{
-					return Base != nullptr;
-				}
-				T& operator*()
-				{
-					VI_ASSERT(Base != nullptr, "value was not stored");
-					return Base->Value;
-				}
-				T& Unwrap()
-				{
-					VI_ASSERT(Base != nullptr, "value was not stored");
-					return Base->Value;
-				}
-
-			private:
-				Stored(Guarded* NewBase) noexcept : Base(NewBase)
-				{
-				}
-			};
-
-		public:
-			friend Loaded;
-			friend Stored;
-
-		private:
-			Guard Mutex;
-			T Value;
-
-		public:
-			Guarded(const T& NewValue) noexcept : Value(NewValue)
-			{
-			}
-			Guarded(const Guarded& Other) = delete;
-			Guarded(Guarded&& Other) = delete;
-			~Guarded() noexcept = default;
-			Guarded& operator =(const Guarded& Other) = delete;
-			Guarded& operator =(Guarded&& Other) = delete;
-			Loaded TryLoad()
-			{
-				return Mutex.TryLoadLock() ? Loaded(this) : Loaded(nullptr);
-			}
-			Loaded Load()
-			{
-				Mutex.LoadLock();
-				return Loaded(this);
-			}
-			Stored TryStore()
-			{
-				return Mutex.TryStoreLock() ? Stored(this) : Stored(nullptr);
-			}
-			Stored Store()
-			{
-				Mutex.StoreLock();
-				return Stored(this);
-			}
-		};
-
 		struct VI_OUT_TS ParallelExecutor
 		{
 			inline void operator()(TaskCallback&& Callback)
@@ -3793,7 +3605,7 @@ namespace Mavi
 			}
 			void When(std::function<void(T&&)>&& Callback) const noexcept
 			{
-				VI_ASSERT(Callback, "callback should be set");
+				VI_ASSERT(Data != nullptr && Callback, "callback should be set");
 				if (!IsPending())
 					return Callback(std::move(Data->Unwrap()));
 
@@ -3845,9 +3657,7 @@ namespace Mavi
 			template <typename R>
 			BasicPromise<R, Executor> Then(std::function<void(BasicPromise<R, Executor>&, T&&)>&& Callback) const noexcept
 			{
-				using OtherPromise = BasicPromise<R, Executor>;
 				VI_ASSERT(Data != nullptr && Callback, "async should be pending");
-
 				BasicPromise<R, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
 				{
@@ -3860,11 +3670,8 @@ namespace Mavi
 			template <typename R>
 			BasicPromise<typename Unwrap<R>::type, Executor> Then(std::function<R(T&&)>&& Callback) const noexcept
 			{
-				using F = typename Unwrap<R>::type;
-				using OtherPromise = BasicPromise<F, Executor>;
 				VI_ASSERT(Data != nullptr && Callback, "async should be pending");
-
-				BasicPromise<F, Executor> Result; Status* Copy = AddRef();
+				BasicPromise<typename Unwrap<R>::type, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
 				{
 					Result.Set(std::move(Callback(std::move(Copy->Unwrap()))));
@@ -4134,10 +3941,15 @@ namespace Mavi
 			template <typename R>
 			BasicPromise<R, Executor> Then(std::function<void(BasicPromise<R, Executor>&)>&& Callback) const noexcept
 			{
-				using OtherPromise = BasicPromise<R, Executor>;
-				VI_ASSERT(Data != nullptr && Callback, "async should be pending");
+				VI_ASSERT(Callback, "callback should be set");
+				BasicPromise<R, Executor> Result;
+				if (!IsPending())
+				{
+					Callback(Result);
+					return Result;
+				}
 
-				BasicPromise<R, Executor> Result; Status* Copy = AddRef();
+				Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
 				{
 					Callback(Result);
@@ -4149,11 +3961,16 @@ namespace Mavi
 			template <typename R>
 			BasicPromise<typename Unwrap<R>::type, Executor> Then(std::function<R()>&& Callback) const noexcept
 			{
-				using F = typename Unwrap<R>::type;
-				using OtherPromise = BasicPromise<F, Executor>;
-				VI_ASSERT(Data != nullptr && Callback, "async should be pending");
-
-				BasicPromise<F, Executor> Result; Status* Copy = AddRef();
+				VI_ASSERT(Callback, "callback should be set");
+				BasicPromise<typename Unwrap<R>::type, Executor> Result;
+				if (!IsPending())
+				{
+					Callback();
+					Result.Set();
+					return Result;
+				}
+				
+				Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
 				{
 					Callback();

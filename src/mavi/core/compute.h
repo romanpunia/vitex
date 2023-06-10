@@ -2621,7 +2621,7 @@ namespace Mavi
 			btDiscreteDynamicsWorld* World;
 			btCollisionDispatcher* Dispatcher;
 			btSoftBodySolver* SoftSolver;
-			std::mutex Safe;
+			std::mutex Exclusive;
 
 		public:
 			float Speedup;

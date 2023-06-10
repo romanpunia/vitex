@@ -3041,66 +3041,61 @@ namespace Mavi
 				VI_ASSERT(Engine != nullptr, "promise is malformed (engine is null)");
 				VI_ASSERT(Context != nullptr, "promise is malformed (context is null)");
 
-				Update.lock();
+				Core::UMutex<std::mutex> Unique(Update);
 				if (Value.TypeId == PromiseNULL)
+					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_PROMISEREADY));
+
+				if ((RefTypeId & asTYPEID_MASK_OBJECT))
 				{
-					if ((RefTypeId & asTYPEID_MASK_OBJECT))
-					{
-						asITypeInfo* Type = Engine->GetTypeInfoById(RefTypeId);
-						if (Type != nullptr)
-							Type->AddRef();
-					}
+					asITypeInfo* Type = Engine->GetTypeInfoById(RefTypeId);
+					if (Type != nullptr)
+						Type->AddRef();
+				}
 
-					Value.TypeId = RefTypeId;
-					if (Value.TypeId & asTYPEID_OBJHANDLE)
-					{
-						Value.Object = *(void**)RefPointer;
-					}
-					else if (Value.TypeId & asTYPEID_MASK_OBJECT)
-					{
-						Value.Object = Engine->CreateScriptObjectCopy(RefPointer, Engine->GetTypeInfoById(Value.TypeId));
-					}
-					else
-					{
-						Value.Integer = 0;
-						int Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
-						memcpy(&Value.Integer, RefPointer, Size);
-					}
-
-					bool SuspendOwned = Context->GetUserData(PromiseUD) == (void*)this;
-					if (SuspendOwned)
-						Context->SetUserData(nullptr, PromiseUD);
-
-					ImmediateContext* Immediate = ImmediateContext::Get(Context);
-					bool WantsResume = (Immediate->IsSuspended() && SuspendOwned);
-					Promise* Base = this;
-					Update.unlock();
-
-					if (Delegate.IsValid())
-					{
-						auto NewDelegate = std::move(Delegate);
-						NewDelegate([Base](ImmediateContext* Context)
-						{
-							Context->SetArgAddress(0, Base->GetAddressOfObject());
-						});
-					}
-
-					if (WantsResume)
-					{
-						Core::Schedule::Get()->SetTask([Base, Immediate]()
-						{
-							Immediate->Resume();
-							Base->Release();
-						}, Core::Difficulty::Light);
-					}
-					else if (SuspendOwned)
-						Release();
+				Value.TypeId = RefTypeId;
+				if (Value.TypeId & asTYPEID_OBJHANDLE)
+				{
+					Value.Object = *(void**)RefPointer;
+				}
+				else if (Value.TypeId & asTYPEID_MASK_OBJECT)
+				{
+					Value.Object = Engine->CreateScriptObjectCopy(RefPointer, Engine->GetTypeInfoById(Value.TypeId));
 				}
 				else
 				{
-					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_PROMISEREADY));
-					Update.unlock();
+					Value.Integer = 0;
+					int Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
+					memcpy(&Value.Integer, RefPointer, Size);
 				}
+
+				bool SuspendOwned = Context->GetUserData(PromiseUD) == (void*)this;
+				if (SuspendOwned)
+					Context->SetUserData(nullptr, PromiseUD);
+
+				ImmediateContext* Immediate = ImmediateContext::Get(Context);
+				bool WantsResume = (Immediate->IsSuspended() && SuspendOwned);
+				Promise* Base = this;
+				Unique.Toggle();
+
+				if (Delegate.IsValid())
+				{
+					auto NewDelegate = std::move(Delegate);
+					NewDelegate([Base](ImmediateContext* Context)
+					{
+						Context->SetArgAddress(0, Base->GetAddressOfObject());
+					});
+				}
+
+				if (WantsResume)
+				{
+					Core::Schedule::Get()->SetTask([Base, Immediate]()
+					{
+						Immediate->Resume();
+						Base->Release();
+					}, Core::Difficulty::Light);
+				}
+				else if (SuspendOwned)
+					Release();
 			}
 			void Promise::Store(void* RefPointer, const char* TypeName)
 			{

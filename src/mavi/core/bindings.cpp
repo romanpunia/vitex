@@ -3999,7 +3999,7 @@ namespace Mavi
 					return -1;
 
 				VI_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
-				Unique.Unlocked([this]()
+				Unique.Negated([this]()
 				{
 					while (Procedure.joinable() && VM != nullptr && VM->TriggerDebugger(50));
 					Procedure.join();

@@ -2179,7 +2179,7 @@ namespace Mavi
 
 		public:
 			template <typename F>
-			inline void Unlocked(F&& Callback)
+			inline void Negated(F&& Callback)
 			{
 				if (Owns)
 				{

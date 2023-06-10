@@ -5465,7 +5465,7 @@ namespace Mavi
 					if (!Entry.second)
 						continue;
 
-					Unique.Unlocked([&Entry]()
+					Unique.Negated([&Entry]()
 					{
 						if (Entry.first != nullptr)
 							Entry.first->Free(Entry.second);

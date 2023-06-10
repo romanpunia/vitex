@@ -5906,7 +5906,7 @@ namespace Mavi
 				return true;
 			}
 
-			Unique.Unlocked([&Output, &Path]()
+			Unique.Negated([&Output, &Path]()
 			{
 				Output.assign(Core::OS::File::ReadAsString(Path));
 			});

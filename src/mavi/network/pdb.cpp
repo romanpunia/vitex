@@ -1971,7 +1971,7 @@ namespace Mavi
 					Request* Current = Target->Current;
 					Target->Current = nullptr;
 
-					Unique.Unlocked([&Current]() { Current->Failure(); });
+					Unique.Negated([&Current]() { Current->Failure(); });
 					VI_ERR("[pqerr] query reset on 0x%" PRIXPTR ": connection lost", (uintptr_t)Target->Base);
 					VI_RELEASE(Current);
 				}
@@ -2065,7 +2065,7 @@ namespace Mavi
 				Request* Item = Base->Current;
 				Base->Current = nullptr;
 				PQlogMessage(Base->Base);
-				Unique.Unlocked([&Item]() { Item->Failure(); });
+				Unique.Negated([&Item]() { Item->Failure(); });
 				VI_RELEASE(Item);
 				return true;
 #else
@@ -2166,7 +2166,7 @@ namespace Mavi
 								TryUnassign(Source, Item);
 							}
 
-							Unique.Unlocked([&Item, &Future, &Results]()
+							Unique.Negated([&Item, &Future, &Results]()
 							{
 								Item->Finalize(Results);
 								Future.Set(std::move(Results));

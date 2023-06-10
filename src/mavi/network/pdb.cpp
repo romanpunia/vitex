@@ -1457,7 +1457,7 @@ namespace Mavi
 			}
 			Cluster::~Cluster() noexcept
 			{
-				Update.lock();
+				Core::UMutex<std::mutex> Unique(Update);
 #ifdef VI_POSTGRESQL
 				for (auto& Item : Pool)
 				{
@@ -1471,15 +1471,12 @@ namespace Mavi
 					Item->Failure();
 					VI_RELEASE(Item);
 				}
-
-				Update.unlock();
 				Multiplexer::Get()->Deactivate();
 			}
 			void Cluster::ClearCache()
 			{
-				Cache.Context.lock();
+				Core::UMutex<std::mutex> Unique(Cache.Context);
 				Cache.Objects.clear();
-				Cache.Context.unlock();
 			}
 			void Cluster::SetCacheCleanup(uint64_t Interval)
 			{
@@ -1505,34 +1502,27 @@ namespace Mavi
 			}
 			void Cluster::SetWhenReconnected(const OnReconnect& NewCallback)
 			{
-				Update.lock();
+				Core::UMutex<std::mutex> Unique(Update);
 				Reconnected = NewCallback;
-				Update.unlock();
 			}
 			uint64_t Cluster::AddChannel(const Core::String& Name, const OnNotification& NewCallback)
 			{
 				VI_ASSERT(NewCallback != nullptr, "callback should be set");
 
 				uint64_t Id = Channel++;
-				Update.lock();
+				Core::UMutex<std::mutex> Unique(Update);
 				Listeners[Name][Id] = NewCallback;
-				Update.unlock();
-
 				return Id;
 			}
 			bool Cluster::RemoveChannel(const Core::String& Name, uint64_t Id)
 			{
-				Update.lock();
+				Core::UMutex<std::mutex> Unique(Update);
 				auto& Base = Listeners[Name];
 				auto It = Base.find(Id);
 				if (It == Base.end())
-				{
-					Update.unlock();
 					return false;
-				}
 
 				Base.erase(It);
-				Update.unlock();
 				return true;
 			}
 			Core::Promise<SessionId> Cluster::TxBegin(Isolation Type)
@@ -1576,25 +1566,24 @@ namespace Mavi
 			{
 #ifdef VI_POSTGRESQL
 				VI_ASSERT(Connections > 0, "connections count should be at least 1");
-				Update.lock();
+				Core::UMutex<std::mutex> Unique(Update);
 				Source = URI;
 
 				if (!Pool.empty())
 				{
-					Update.unlock();
+					Unique.Negate();
 					return Disconnect().Then<Core::Promise<bool>>([this, URI, Connections](bool)
 					{
 						return this->Connect(URI, Connections);
 					});
 				}
 
-				Update.unlock();
 				return Core::Cotask<bool>([this, Connections]()
 				{
 					VI_MEASURE(Core::Timings::Intensive);
 					const char** Keys = Source.CreateKeys();
 					const char** Values = Source.CreateValues();
-					std::unique_lock<std::mutex> Unique(Update);
+					Core::UMutex<std::mutex> Unique(Update);
 					Core::UnorderedMap<socket_t, TConnection*> Queue;
 					Core::Vector<Network::Utils::PollFd> Sockets;
 					TConnection* Error = nullptr;
@@ -1696,7 +1685,7 @@ namespace Mavi
 				VI_ASSERT(!Pool.empty(), "connection should be established");
 				return Core::Cotask<bool>([this]()
 				{
-					std::unique_lock<std::mutex> Unique(Update);
+					Core::UMutex<std::mutex> Unique(Update);
 					for (auto& Item : Pool)
 					{
 						Item.first->ClearEvents(false);
@@ -1714,15 +1703,16 @@ namespace Mavi
 			Core::Promise<bool> Cluster::Listen(const Core::Vector<Core::String>& Channels)
 			{
 				VI_ASSERT(!Channels.empty(), "channels should not be empty");
-				Update.lock();
 				Core::Vector<Core::String> Actual;
-				Actual.reserve(Channels.size());
-				for (auto& Item : Channels)
 				{
-					if (!IsListens(Item))
-						Actual.push_back(Item);
+					Core::UMutex<std::mutex> Unique(Update);
+					Actual.reserve(Channels.size());
+					for (auto& Item : Channels)
+					{
+						if (!IsListens(Item))
+							Actual.push_back(Item);
+					}
 				}
-				Update.unlock();
 
 				if (Actual.empty())
 					return Core::Promise<bool>(true);
@@ -1737,29 +1727,29 @@ namespace Mavi
 					if (!Base || !Result.IsSuccess())
 					    return false;
 
-					Update.lock();
+					Core::UMutex<std::mutex> Unique(Update);
 					for (auto& Item : Actual)
 						Base->Listens.insert(Item);
-					Update.unlock();
 					return true;
 				});
 			}
 			Core::Promise<bool> Cluster::Unlisten(const Core::Vector<Core::String>& Channels)
 			{
 				VI_ASSERT(!Channels.empty(), "channels should not be empty");
-				Update.lock();
 				Core::UnorderedMap<Connection*, Core::String> Commands;
-				for (auto& Item : Channels)
 				{
-					Connection* Next = IsListens(Item);
-					if (Next != nullptr)
+					Core::UMutex<std::mutex> Unique(Update);
+					for (auto& Item : Channels)
 					{
-						Commands[Next] += "UNLISTEN " + Item + ';';
-						Next->Listens.erase(Item);
+						Connection* Next = IsListens(Item);
+						if (Next != nullptr)
+						{
+							Commands[Next] += "UNLISTEN " + Item + ';';
+							Next->Listens.erase(Item);
+						}
 					}
 				}
 
-				Update.unlock();
 				if (Commands.empty())
 					return Core::Promise<bool>(true);
 
@@ -1819,19 +1809,18 @@ namespace Mavi
 
 				Core::Promise<Cursor> Future = Next->Future;
 				bool IsInQueue = true;
-
-				Update.lock();
-				Requests.push_back(Next);
-				for (auto& Item : Pool)
 				{
-					if (Consume(Item.second))
+					Core::UMutex<std::mutex> Unique(Update);
+					Requests.push_back(Next);
+					for (auto& Item : Pool)
 					{
-						IsInQueue = false;
-						break;
+						if (Consume(Item.second, Unique))
+						{
+							IsInQueue = false;
+							break;
+						}
 					}
 				}
-				Update.unlock();
-
 				Driver::Get()->LogQuery(Command);
 #ifndef NDEBUG
 				if (!IsInQueue || Next->Session == 0)
@@ -1843,22 +1832,18 @@ namespace Mavi
 
 				if (Tx != "COMMIT" && Tx != "ROLLBACK")
 					return Future;
-
-				Update.lock();
-				for (auto& Item : Pool)
 				{
-					if (Item.second->InSession && Item.second == Next->Session)
+					Core::UMutex<std::mutex> Unique(Update);
+					for (auto& Item : Pool)
 					{
-						Update.unlock();
-						return Future;
+						if (Item.second->InSession && Item.second == Next->Session)
+							return Future;
 					}
+
+					auto It = std::find(Requests.begin(), Requests.end(), Next);
+					if (It != Requests.end())
+						Requests.erase(It);
 				}
-
-				auto It = std::find(Requests.begin(), Requests.end(), Next);
-				if (It != Requests.end())
-					Requests.erase(It);
-				Update.unlock();
-
 				Future.Set(Cursor());
 				VI_RELEASE(Next);
 				VI_ASSERT(false, "[pq] transaction %" PRIu64 " does not exist", (void*)Session);
@@ -1867,18 +1852,13 @@ namespace Mavi
 			}
 			Connection* Cluster::GetConnection(QueryState State)
 			{
-				Update.lock();
+				Core::UMutex<std::mutex> Unique(Update);
 				for (auto& Item : Pool)
 				{
 					if (Item.second->State == State)
-					{
-						Connection* Base = Item.second;
-						Update.unlock();
-						return Base;
-					}
+						return Item.second;
 				}
 
-				Update.unlock();
 				return nullptr;
 			}
 			Connection* Cluster::GetConnection() const
@@ -1919,25 +1899,21 @@ namespace Mavi
 				VI_ASSERT(!CacheOid.empty(), "cache oid should not be empty");
 				VI_ASSERT(Data != nullptr, "cursor should be set");
 
-				Cache.Context.lock();
+				Core::UMutex<std::mutex> Unique(Cache.Context);
 				auto It = Cache.Objects.find(CacheOid);
-				if (It != Cache.Objects.end())
+				if (It == Cache.Objects.end())
+					return false;
+
+				int64_t Time = time(nullptr);
+				if (It->second.first < Time)
 				{
-					int64_t Time = time(nullptr);
-					if (It->second.first < Time)
-					{
-						*Data = std::move(It->second.second);
-						Cache.Objects.erase(It);
-					}
-					else
-						*Data = It->second.second.Copy();
-
-					Cache.Context.unlock();
-					return true;
+					*Data = std::move(It->second.second);
+					Cache.Objects.erase(It);
 				}
+				else
+					*Data = It->second.second.Copy();
 
-				Cache.Context.unlock();
-				return false;
+				return true;
 			}
 			void Cluster::SetCache(const Core::String& CacheOid, Cursor* Data, size_t Opts)
 			{
@@ -1953,7 +1929,7 @@ namespace Mavi
 				else if (Opts & (size_t)QueryOp::CacheLong)
 					Timeout += Cache.LongDuration;
 
-				Cache.Context.lock();
+				Core::UMutex<std::mutex> Unique(Cache.Context);
 				if (Cache.NextCleanup < Time)
 				{
 					Cache.NextCleanup = Time + Cache.CleanupDuration;
@@ -1974,7 +1950,6 @@ namespace Mavi
 				}
 				else
 					Cache.Objects[CacheOid] = std::make_pair(Timeout, Data->Copy());
-				Cache.Context.unlock();
 			}
 			void Cluster::TryUnassign(Connection* Base, Request* Context)
 			{
@@ -1990,16 +1965,13 @@ namespace Mavi
 				const char** Keys = Source.CreateKeys();
 				const char** Values = Source.CreateValues();
 
-				Update.lock();
+				Core::UMutex<std::mutex> Unique(Update);
 				if (Target->Current != nullptr)
 				{
 					Request* Current = Target->Current;
 					Target->Current = nullptr;
 
-					Update.unlock();
-					Current->Failure();
-					Update.lock();
-
+					Unique.Unlocked([&Current]() { Current->Failure(); });
 					VI_ERR("[pqerr] query reset on 0x%" PRIXPTR ": connection lost", (uintptr_t)Target->Base);
 					VI_RELEASE(Current);
 				}
@@ -2014,7 +1986,6 @@ namespace Mavi
 
 				if (!Target->Base || PQstatus(Target->Base) != ConnStatusType::CONNECTION_OK)
 				{
-					Update.unlock();
 					if (Target != nullptr)
 						PQlogMessage(Target->Base);
 		
@@ -2036,8 +2007,8 @@ namespace Mavi
 				Target->Stream->MigrateTo((socket_t)PQsocket(Target->Base));
 				PQsetnonblocking(Target->Base, 1);
 				PQsetNoticeProcessor(Target->Base, PQlogNotice, nullptr);
-				Consume(Target);
-				Update.unlock();
+				Consume(Target, Unique);
+				Unique.Negate();
 				
 				bool Success = Reprocess(Target);
 				if (!Channels.empty())
@@ -2061,7 +2032,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Cluster::Consume(Connection* Base)
+			bool Cluster::Consume(Connection* Base, Core::UMutex<std::mutex>& Unique)
 			{
 #ifdef VI_POSTGRESQL
 				if (Base->State != QueryState::Idle || Requests.empty())
@@ -2094,11 +2065,7 @@ namespace Mavi
 				Request* Item = Base->Current;
 				Base->Current = nullptr;
 				PQlogMessage(Base->Base);
-
-				Update.unlock();
-				Item->Failure();
-				Update.lock();
-
+				Unique.Unlocked([&Item]() { Item->Failure(); });
 				VI_RELEASE(Item);
 				return true;
 #else
@@ -2137,12 +2104,10 @@ namespace Mavi
 			{
 #ifdef VI_POSTGRESQL
 				VI_MEASURE(Core::Timings::Intensive);
-				Update.lock();
+				Core::UMutex<std::mutex> Unique(Update);
 				if (!Connected)
 				{
 					Source->State = QueryState::Lost;
-					Update.unlock();
-
 					return Core::Schedule::Get()->SetTask([this, Source]()
 					{
 						Reestablish(Source);
@@ -2150,8 +2115,7 @@ namespace Mavi
 				}
 
 			Retry:
-				Consume(Source);
-
+				Consume(Source, Unique);
 				if (PQconsumeInput(Source->Base) != 1)
 				{
 					PQlogMessage(Source->Base);
@@ -2202,10 +2166,11 @@ namespace Mavi
 								TryUnassign(Source, Item);
 							}
 
-							Update.unlock();
-							Item->Finalize(Results);
-							Future.Set(std::move(Results));
-							Update.lock();
+							Unique.Unlocked([&Item, &Future, &Results]()
+							{
+								Item->Finalize(Results);
+								Future.Set(std::move(Results));
+							});
 							VI_RELEASE(Item);
 						}
 						else
@@ -2214,12 +2179,11 @@ namespace Mavi
 					else
 						Source->State = (Frame.IsExists() ? QueryState::Busy : QueryState::Idle);
 
-					if (Source->State == QueryState::Busy || Consume(Source))
+					if (Source->State == QueryState::Busy || Consume(Source, Unique))
 						goto Retry;
 				}
 
 			Finalize:
-				Update.unlock();
 				return Reprocess(Source);
 #else
 				return false;
@@ -2467,7 +2431,7 @@ namespace Mavi
 			bool Driver::AddConstant(const Core::String& Name, const Core::String& Value) noexcept
 			{
 				VI_ASSERT(!Name.empty(), "name should not be empty");
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				Constants[Name] = Value;
 				return true;
 			}
@@ -2497,7 +2461,7 @@ namespace Mavi
 				if (!Enumerations.empty())
 				{
 					int64_t Offset = 0;
-					std::unique_lock<std::mutex> Unique(Exclusive);
+					Core::UMutex<std::mutex> Unique(Exclusive);
 					for (auto& Item : Enumerations)
 					{
 						size_t Size = Item.second.End - Item.second.Start, NewSize = 0;
@@ -2567,7 +2531,7 @@ namespace Mavi
 				if (Variables.empty())
 					Result.Cache = Result.Request;
 
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				Queries[Name] = std::move(Result);
 				return true;
 			}
@@ -2612,7 +2576,7 @@ namespace Mavi
 			}
 			bool Driver::RemoveConstant(const Core::String& Name) noexcept
 			{
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				auto It = Constants.find(Name);
 				if (It == Constants.end())
 					return false;
@@ -2622,7 +2586,7 @@ namespace Mavi
 			}
 			bool Driver::RemoveQuery(const Core::String& Name) noexcept
 			{
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				auto It = Queries.find(Name);
 				if (It == Queries.end())
 					return false;
@@ -2634,7 +2598,7 @@ namespace Mavi
 			{
 				VI_ASSERT(Dump != nullptr, "dump should be set");
 				size_t Count = 0;
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				Queries.clear();
 
 				for (auto* Data : Dump->GetChilds())
@@ -2672,7 +2636,7 @@ namespace Mavi
 			}
 			Core::Schema* Driver::GetCacheDump() noexcept
 			{
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				Core::Schema* Result = Core::Var::Set::Array();
 				for (auto& Query : Queries)
 				{
@@ -2761,11 +2725,10 @@ namespace Mavi
 			}
 			Core::String Driver::GetQuery(Cluster* Base, const Core::String& Name, Core::SchemaArgs* Map, bool Once) noexcept
 			{
-				Exclusive.lock();
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				auto It = Queries.find(Name);
 				if (It == Queries.end())
 				{
-					Exclusive.unlock();
 					if (Once && Map != nullptr)
 					{
 						for (auto& Item : *Map)
@@ -2780,8 +2743,6 @@ namespace Mavi
 				if (!It->second.Cache.empty())
 				{
 					Core::String Result = It->second.Cache;
-					Exclusive.unlock();
-
 					if (Once && Map != nullptr)
 					{
 						for (auto& Item : *Map)
@@ -2795,8 +2756,6 @@ namespace Mavi
 				if (!Map || Map->empty())
 				{
 					Core::String Result = It->second.Request;
-					Exclusive.unlock();
-
 					if (Once && Map != nullptr)
 					{
 						for (auto& Item : *Map)
@@ -2810,7 +2769,7 @@ namespace Mavi
 				Connection* Remote = Base->GetConnection();
 				Sequence Origin = It->second;
 				size_t Offset = 0;
-				Exclusive.unlock();
+				Unique.Negate();
 
 				Core::String& Result = Origin.Request;
 				for (auto& Word : Origin.Positions)
@@ -2846,7 +2805,7 @@ namespace Mavi
 			Core::Vector<Core::String> Driver::GetQueries() noexcept
 			{
 				Core::Vector<Core::String> Result;
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				Result.reserve(Queries.size());
 				for (auto& Item : Queries)
 					Result.push_back(Item.first);

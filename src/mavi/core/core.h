@@ -2148,7 +2148,7 @@ namespace Mavi
 		template <typename T>
 		class UMutex
 		{
-			static_assert(std::is_same<std::mutex, T>::value, "unique mutex type should be one of: std::mutex, std::recursive_mutex");
+			static_assert(std::is_same<std::mutex, T>::value || std::is_same<std::recursive_mutex, T>::value, "unique mutex type should be one of: std::mutex, std::recursive_mutex");
 
 		private:
 			T& Mutex;
@@ -2168,13 +2168,31 @@ namespace Mavi
 			}
 			UMutex& operator= (const UMutex& Other) noexcept = delete;
 			UMutex& operator= (UMutex&& Other) noexcept = delete;
-			void Toggle()
+			inline void Negate()
 			{
 				if (Owns)
 					Mutex.unlock();
 				else
 					Mutex.lock();
 				Owns = !Owns;
+			}
+
+		public:
+			template <typename F>
+			inline void Unlocked(F&& Callback)
+			{
+				if (Owns)
+				{
+					Mutex.unlock();
+					Callback();
+					Mutex.lock();
+				}
+				else
+				{
+					Mutex.lock();
+					Callback();
+					Mutex.unlock();
+				}
 			}
 		};
 
@@ -2544,8 +2562,6 @@ namespace Mavi
 		public:
 			Console() noexcept;
 			virtual ~Console() noexcept override;
-			void Begin();
-			void End();
 			void Hide();
 			void Show();
 			void Clear();
@@ -2579,6 +2595,14 @@ namespace Mavi
 			bool ReadLine(Core::String& Data, size_t Size);
 			Core::String Read(size_t Size);
 			char ReadChar();
+
+		public:
+			template <typename F>
+			void Synced(F&& Callback)
+			{
+				UMutex<std::recursive_mutex> Unique(Session);
+				Callback(this);
+			}
 
 		public:
 			static bool IsAvailable();
@@ -2826,8 +2850,7 @@ namespace Mavi
 			size_t Size;
 
 		public:
-			std::function<void()> NotifyLock;
-			std::function<void()> NotifyUnlock;
+			std::mutex* ExternalMutex;
 
 		public:
 			Costate(size_t StackSize = STACK_SIZE) noexcept;
@@ -2983,7 +3006,7 @@ namespace Mavi
 				size_t LocalIndex;
 				bool Daemon;
 
-				ThreadPtr(Difficulty NewType, size_t PreallocatedSize, size_t NewGlobalIndex, size_t NewLocalIndex, bool IsDaemon) : Allocator(PreallocatedSize), Type(NewType), GlobalIndex(NewGlobalIndex), LocalIndex(NewLocalIndex)
+				ThreadPtr(Difficulty NewType, size_t PreallocatedSize, size_t NewGlobalIndex, size_t NewLocalIndex, bool IsDaemon) : Allocator(PreallocatedSize), Type(NewType), GlobalIndex(NewGlobalIndex), LocalIndex(NewLocalIndex), Daemon(IsDaemon)
 				{
 				}
 				~ThreadPtr() = default;
@@ -3572,7 +3595,7 @@ namespace Mavi
 			void Set(const T& Other)
 			{
 				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
-				std::unique_lock<std::mutex> Unique(Data->Update);
+				Core::UMutex<std::mutex> Unique(Data->Update);
 				bool Async = (Data->Code != Deferred::Waiting);
 				Data->Emplace(Other);
 				Data->Code = Deferred::Ready;
@@ -3581,7 +3604,7 @@ namespace Mavi
 			void Set(T&& Other)
 			{
 				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
-				std::unique_lock<std::mutex> Unique(Data->Update);
+				Core::UMutex<std::mutex> Unique(Data->Update);
 				bool Async = (Data->Code != Deferred::Waiting);
 				Data->Emplace(std::move(Other));
 				Data->Code = Deferred::Ready;
@@ -3594,7 +3617,7 @@ namespace Mavi
 				Other.When([Copy](T&& Value) mutable
 				{
 					{
-						std::unique_lock<std::mutex> Unique(Copy->Update);
+						Core::UMutex<std::mutex> Unique(Copy->Update);
 						bool Async = (Copy->Code != Deferred::Waiting);
 						Copy->Emplace(std::move(Value));
 						Copy->Code = Deferred::Ready;
@@ -3700,7 +3723,7 @@ namespace Mavi
 			}
 			void Store(TaskCallback&& Callback) const noexcept
 			{
-				std::unique_lock<std::mutex> Unique(Data->Update);
+				Core::UMutex<std::mutex> Unique(Data->Update);
 				Data->Event = std::move(Callback);
 				if (Data->Code == Deferred::Ready)
 					Execute(Data, false);
@@ -3868,7 +3891,7 @@ namespace Mavi
 			void Set()
 			{
 				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
-				std::unique_lock<std::mutex> Unique(Data->Update);
+				Core::UMutex<std::mutex> Unique(Data->Update);
 				bool Async = (Data->Code != Deferred::Waiting);
 				Data->Code = Deferred::Ready;
 				Execute(Data, Async);
@@ -3880,7 +3903,7 @@ namespace Mavi
 				Other.When([Copy]() mutable
 				{
 					{
-						std::unique_lock<std::mutex> Unique(Copy->Update);
+						Core::UMutex<std::mutex> Unique(Copy->Update);
 						bool Async = (Copy->Code != Deferred::Waiting);
 						Copy->Code = Deferred::Ready;
 						Execute(Copy, Async);
@@ -3999,7 +4022,7 @@ namespace Mavi
 			}
 			void Store(TaskCallback&& Callback) const noexcept
 			{
-				std::unique_lock<std::mutex> Unique(Data->Update);
+				Core::UMutex<std::mutex> Unique(Data->Update);
 				Data->Event = std::move(Callback);
 				if (Data->Code == Deferred::Ready)
 					Execute(Data, false);

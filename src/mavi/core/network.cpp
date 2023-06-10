@@ -820,7 +820,7 @@ namespace Mavi
 			int64_t Time = time(nullptr);
 			Core::String Identity = XProto + '_' + XType + '@' + Host + ':' + Service;
 			{
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				auto It = Names.find(Identity);
 				if (It != Names.end() && It->second.first > Time)
 					return It->second.second;
@@ -873,7 +873,7 @@ namespace Mavi
 			SocketAddress* Result = new SocketAddress(Addresses, Good);
 			VI_DEBUG("[net] dns resolved for identity %s (address %s is used)", Identity.c_str(), Utils::GetAddress(Good).c_str());
 
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto It = Names.find(Identity);
 			if (It != Names.end())
 			{
@@ -929,7 +929,7 @@ namespace Mavi
 			if (Timeouts.empty())
 				return Count;
 
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			while (!Timeouts.empty())
 			{
 				auto It = Timeouts.begin();
@@ -949,7 +949,7 @@ namespace Mavi
 			if (Fd.Closed)
 			{
 				VI_DEBUG("[net] sock reset on fd %i", (int)Fd.Base->Fd);
-				CancelEvents(Fd.Base, SocketPoll::Reset);
+				CancelEvents(Fd.Base, SocketPoll::Reset, true);
 				return false;
 			}
 
@@ -959,11 +959,10 @@ namespace Mavi
 				return false;
 			}
 
-			Exclusive.lock();
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			bool Exists = ((!Fd.Readable && Fd.Base->Events.Readable) || (!Fd.Writeable && Fd.Base->Events.Writeable));
 			auto WhenReadable = std::move(Fd.Base->Events.ReadCallback);
 			auto WhenWriteable = std::move(Fd.Base->Events.WriteCallback);
-
 			if (Exists)
 			{
 				if (Fd.Base->Timeout > 0)
@@ -981,8 +980,8 @@ namespace Mavi
 
 				CancelEvents(Fd.Base, SocketPoll::Finish, false);
 			}
-			Exclusive.unlock();
 
+			Unique.Negate();
 			if (Fd.Readable && Fd.Writeable)
 			{
 				Core::Schedule::Get()->SetTask([WhenReadable = std::move(WhenReadable), WhenWriteable = std::move(WhenWriteable)]() mutable
@@ -1023,25 +1022,19 @@ namespace Mavi
 			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, "socket should be set and valid");
 			return WhenEvents(Value, false, true, nullptr, std::move(WhenReady));
 		}
-		bool Multiplexer::CancelEvents(Socket* Value, SocketPoll Event, bool Safely) noexcept
+		bool Multiplexer::CancelEvents(Socket* Value, SocketPoll Event, bool EraseTimeout) noexcept
 		{
 			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, "socket should be set and valid");
-			if (Safely)
-				Exclusive.lock();
-
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			auto WhenReadable = std::move(Value->Events.ReadCallback);
 			auto WhenWriteable = std::move(Value->Events.WriteCallback);
 			bool Success = Handle.Remove(Value, true, true);
 			Value->Events.Readable = false;
 			Value->Events.Writeable = false;
-			
-			if (Safely)
-			{
-				if (Value->Timeout > 0 && Value->Events.ExpiresAt > std::chrono::microseconds(0))
-					RemoveTimeout(Value);
-				Exclusive.unlock();
-			}
+			if (EraseTimeout && Value->Timeout > 0 && Value->Events.ExpiresAt > std::chrono::microseconds(0))
+				RemoveTimeout(Value);
 
+			Unique.Negate();
 			if (!Packet::IsDone(Event) && (WhenWriteable || WhenReadable))
 			{
 				Core::Schedule::Get()->SetTask([Event, WhenReadable = std::move(WhenReadable), WhenWriteable = std::move(WhenWriteable)]() mutable
@@ -1058,34 +1051,25 @@ namespace Mavi
 		}
 		bool Multiplexer::ClearEvents(Socket* Value) noexcept
 		{
-			return CancelEvents(Value, SocketPoll::Finish);
+			return CancelEvents(Value, SocketPoll::Finish, true);
 		}
 		bool Multiplexer::IsAwaitingEvents(Socket* Value) noexcept
 		{
 			VI_ASSERT(Value != nullptr, "socket should be set");
-
-			Exclusive.lock();
-			bool Awaits = Value->Events.Readable || Value->Events.Writeable;
-			Exclusive.unlock();
-			return Awaits;
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
+			return Value->Events.Readable || Value->Events.Writeable;
 		}
 		bool Multiplexer::IsAwaitingReadable(Socket* Value) noexcept
 		{
 			VI_ASSERT(Value != nullptr, "socket should be set");
-
-			Exclusive.lock();
-			bool Awaits = Value->Events.Readable;
-			Exclusive.unlock();
-			return Awaits;
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
+			return Value->Events.Readable;
 		}
 		bool Multiplexer::IsAwaitingWriteable(Socket* Value) noexcept
 		{
 			VI_ASSERT(Value != nullptr, "socket should be set");
-
-			Exclusive.lock();
-			bool Awaits = Value->Events.Writeable;
-			Exclusive.unlock();
-			return Awaits;
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
+			return Value->Events.Writeable;
 		}
 		bool Multiplexer::IsListening() noexcept
 		{
@@ -1118,46 +1102,41 @@ namespace Mavi
 		}
 		bool Multiplexer::WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable) noexcept
 		{
-			bool Success = false;
 			bool Update = false;
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
+			if (Readable)
 			{
-				std::unique_lock<std::mutex> Unique(Exclusive);
-				if (Readable)
+				if (!Value->Events.Readable)
 				{
-					if (!Value->Events.Readable)
-					{
-						Value->Events.ReadCallback = std::move(WhenReadable);
-						Value->Events.Readable = true;
-					}
-					else
-					{
-						Value->Events.ReadCallback.swap(WhenReadable);
-						Update = true;
-					}
+					Value->Events.ReadCallback = std::move(WhenReadable);
+					Value->Events.Readable = true;
 				}
-
-				if (Writeable)
-				{
-					if (!Value->Events.Writeable)
-					{
-						Value->Events.WriteCallback = std::move(WhenWriteable);
-						Value->Events.Writeable = true;
-					}
-					else
-					{
-						Value->Events.WriteCallback.swap(WhenWriteable);
-						Update = true;
-					}
-				}
-
-				if (Value->Timeout > 0)
-					AddTimeout(Value, Core::Schedule::GetClock() + std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::milliseconds(Value->Timeout)));
-
-				if (Update)
-					Success = Handle.Update(Value, Value->Events.Readable, Value->Events.Writeable);
 				else
-					Success = Handle.Add(Value, Value->Events.Readable, Value->Events.Writeable);
+				{
+					Value->Events.ReadCallback.swap(WhenReadable);
+					Update = true;
+				}
 			}
+
+			if (Writeable)
+			{
+				if (!Value->Events.Writeable)
+				{
+					Value->Events.WriteCallback = std::move(WhenWriteable);
+					Value->Events.Writeable = true;
+				}
+				else
+				{
+					Value->Events.WriteCallback.swap(WhenWriteable);
+					Update = true;
+				}
+			}
+
+			if (Value->Timeout > 0)
+				AddTimeout(Value, Core::Schedule::GetClock() + std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::milliseconds(Value->Timeout)));
+
+			bool Success = (Update ? Handle.Update(Value, Value->Events.Readable, Value->Events.Writeable) : Handle.Add(Value, Value->Events.Readable, Value->Events.Writeable));
+			Unique.Negate();
 
 			if (WhenWriteable || WhenReadable)
 			{
@@ -1883,7 +1862,7 @@ namespace Mavi
 			VI_MEASURE(Core::Timings::Networking);
 			VI_TRACE("[net] fd %i clear events %s", (int)Fd, Gracefully ? "gracefully" : "forcefully");
 			if (Gracefully)
-				Multiplexer::Get()->CancelEvents(this, SocketPoll::Reset);
+				Multiplexer::Get()->CancelEvents(this, SocketPoll::Reset, true);
 			else
 				Multiplexer::Get()->ClearEvents(this);
 			return 0;
@@ -2218,14 +2197,6 @@ namespace Mavi
 			VI_ASSERT(Value > 0, "backlog must be greater than zero");
 			Backlog = Value;
 		}
-		void SocketServer::Lock()
-		{
-			Sync.lock();
-		}
-		void SocketServer::Unlock()
-		{
-			Sync.unlock();
-		}
 		bool SocketServer::Configure(SocketRouter* NewRouter)
 		{
 			VI_ASSERT(State == ServerState::Idle, "server should not be running");
@@ -2393,18 +2364,16 @@ namespace Mavi
 
 			do
 			{
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				if (TimeoutSeconds > 0 && time(nullptr) - Timeout > (int64_t)TimeoutSeconds)
 				{
 					VI_ERR("[stall] server has stalled connections: %i (these connections will be ignored)", (int)Active.size());
-					Sync.lock();
 					OnStall(Active);
-					Sync.unlock();
 					break;
 				}
 
-				Sync.lock();
 				auto Copy = Active;
-				Sync.unlock();
+				Unique.Negate();
 
 				for (auto* Base : Copy)
 				{
@@ -2471,12 +2440,10 @@ namespace Mavi
 			if (Inactive.empty())
 				return false;
 
-			Sync.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			for (auto* Item : Inactive)
 				VI_RELEASE(Item);
 			Inactive.clear();
-			Sync.unlock();
-
 			return true;
 		}
 		bool SocketServer::Refuse(SocketConnection* Base)
@@ -2640,7 +2607,7 @@ namespace Mavi
 		void SocketServer::Push(SocketConnection* Base)
 		{
 			VI_MEASURE(Core::Timings::Pass);
-			Sync.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto It = Active.find(Base);
 			if (It != Active.end())
 				Active.erase(It);
@@ -2650,7 +2617,6 @@ namespace Mavi
 				Inactive.insert(Base);
 			else
 				VI_RELEASE(Base);
-			Sync.unlock();
 		}
 		SocketConnection* SocketServer::Pop(SocketListener* Host)
 		{
@@ -2658,7 +2624,7 @@ namespace Mavi
 			SocketConnection* Result = nullptr;
 			if (!Inactive.empty())
 			{
-				Sync.lock();
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				if (!Inactive.empty())
 				{
 					auto It = Inactive.begin();
@@ -2666,7 +2632,6 @@ namespace Mavi
 					Inactive.erase(It);
 					Active.insert(Result);
 				}
-				Sync.unlock();
 			}
 
 			if (!Result)
@@ -2678,9 +2643,8 @@ namespace Mavi
 				Result->Stream = new Socket();
 				Result->Stream->UserData = Result;
 
-				Sync.lock();
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				Active.insert(Result);
-				Sync.unlock();
 			}
 
 			VI_RELEASE(Result->Host);

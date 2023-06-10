@@ -1606,7 +1606,7 @@ namespace Mavi
 			size_t MaxElements;
 			RenderBackend Backend;
 			DirectBuffer Direct;
-			std::recursive_mutex Mutex;
+			std::recursive_mutex Exclusive;
 			bool ShaderCache;
 			bool Debug;
 

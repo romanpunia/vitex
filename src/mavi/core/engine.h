@@ -1238,7 +1238,7 @@ namespace Mavi
 		private:
 			Core::UnorderedMap<Core::String, SCache> Cache;
 			Graphics::GraphicsDevice* Device;
-			std::mutex Safe;
+			std::mutex Exclusive;
 
 		public:
 			ShaderCache(Graphics::GraphicsDevice* Device) noexcept;
@@ -1271,7 +1271,7 @@ namespace Mavi
 			Graphics::ElementBuffer* Quad;
 			Model* BoxModel;
 			SkinModel* SkinBoxModel;
-			std::recursive_mutex Safe;
+			std::recursive_mutex Exclusive;
 
 		public:
 			PrimitiveCache(Graphics::GraphicsDevice* Device) noexcept;
@@ -1305,7 +1305,7 @@ namespace Mavi
 			Core::UnorderedMap<Core::Stream*, size_t> Streams;
 			Graphics::GraphicsDevice* Device;
 			Core::String Environment, Base;
-			std::mutex Mutex;
+			std::mutex Exclusive;
 			size_t Queue;
 
 		public:
@@ -1401,7 +1401,7 @@ namespace Mavi
 			ContentManager* Content;
 			Core::Schema* Data;
 			Core::String Path;
-			std::mutex Safe;
+			std::mutex Exclusive;
 
 		public:
 			AppData(ContentManager* Manager, const Core::String& Path) noexcept;

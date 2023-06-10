@@ -562,7 +562,7 @@ namespace Mavi
 				void SetCache(const Core::String& CacheOid, Cursor* Data, size_t QueryOpts);
 				void TryUnassign(Connection* Base, Request* Context);
 				bool Reestablish(Connection* Base);
-				bool Consume(Connection* Base);
+				bool Consume(Connection* Base, Core::UMutex<std::mutex>& Unique);
 				bool Reprocess(Connection* Base);
 				bool Flush(Connection* Base, bool ListenForResults);
 				bool Dispatch(Connection* Base, bool Connected);

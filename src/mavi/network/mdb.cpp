@@ -3555,7 +3555,7 @@ namespace Mavi
 			bool Driver::AddConstant(const Core::String& Name, const Core::String& Value) noexcept
 			{
 				VI_ASSERT(!Name.empty(), "name should not be empty");
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				Constants[Name] = Value;
 				return true;
 			}
@@ -3582,7 +3582,7 @@ namespace Mavi
 				if (!Enumerations.empty())
 				{
 					int64_t Offset = 0;
-					std::unique_lock<std::mutex> Unique(Exclusive);
+					Core::UMutex<std::mutex> Unique(Exclusive);
 					for (auto& Item : Enumerations)
 					{
 						size_t Size = Item.second.End - Item.second.Start, NewSize = 0;
@@ -3636,7 +3636,7 @@ namespace Mavi
 				if (Variables.empty())
 					Result.Cache = Document::FromJSON(Result.Request);
 
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				Queries[Name] = std::move(Result);
 				return true;
 			}
@@ -3681,7 +3681,7 @@ namespace Mavi
 			}
 			bool Driver::RemoveConstant(const Core::String& Name) noexcept
 			{
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				auto It = Constants.find(Name);
 				if (It == Constants.end())
 					return false;
@@ -3691,7 +3691,7 @@ namespace Mavi
 			}
 			bool Driver::RemoveQuery(const Core::String& Name) noexcept
 			{
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				auto It = Queries.find(Name);
 				if (It == Queries.end())
 					return false;
@@ -3703,7 +3703,7 @@ namespace Mavi
 			{
 				VI_ASSERT(Dump != nullptr, "dump should be set");
 				size_t Count = 0;
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				Queries.clear();
 
 				for (auto* Data : Dump->GetChilds())
@@ -3743,7 +3743,7 @@ namespace Mavi
 			}
 			Core::Schema* Driver::GetCacheDump() noexcept
 			{
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				Core::Schema* Result = Core::Var::Set::Array();
 				for (auto& Query : Queries)
 				{
@@ -3771,11 +3771,10 @@ namespace Mavi
 			}
 			Document Driver::GetQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once) noexcept
 			{
-				Exclusive.lock();
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				auto It = Queries.find(Name);
 				if (It == Queries.end())
 				{
-					Exclusive.unlock();
 					if (Once && Map != nullptr)
 					{
 						for (auto& Item : *Map)
@@ -3790,8 +3789,6 @@ namespace Mavi
 				if (It->second.Cache.Get() != nullptr)
 				{
 					Document Result = It->second.Cache.Copy();
-					Exclusive.unlock();
-
 					if (Once && Map != nullptr)
 					{
 						for (auto& Item : *Map)
@@ -3805,8 +3802,6 @@ namespace Mavi
 				if (!Map || Map->empty())
 				{
 					Document Result = Document::FromJSON(It->second.Request);
-					Exclusive.unlock();
-
 					if (Once && Map != nullptr)
 					{
 						for (auto& Item : *Map)
@@ -3819,7 +3814,7 @@ namespace Mavi
 
 				Sequence Origin = It->second;
 				size_t Offset = 0;
-				Exclusive.unlock();
+				Unique.Negate();
 
 				Core::String& Result = Origin.Request;
 				for (auto& Word : Origin.Positions)
@@ -3855,7 +3850,7 @@ namespace Mavi
 			Core::Vector<Core::String> Driver::GetQueries() noexcept
 			{
 				Core::Vector<Core::String> Result;
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				Result.reserve(Queries.size());
 				for (auto& Item : Queries)
 					Result.push_back(Item.first);

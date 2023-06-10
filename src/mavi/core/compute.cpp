@@ -14405,7 +14405,7 @@ namespace Mavi
 #ifdef VI_BULLET3
 			btCollisionShape* Shape = VI_NEW(btBoxShape, V3_TO_BT(Scale));
 			VI_TRACE("[sim] save cube shape 0x%" PRIXPTR, (void*)Shape);
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
 			return Shape;
 #else
@@ -14417,7 +14417,7 @@ namespace Mavi
 #ifdef VI_BULLET3
 			btCollisionShape* Shape = VI_NEW(btSphereShape, Radius);
 			VI_TRACE("[sim] save sphere shape 0x%" PRIXPTR, (void*)Shape);
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
 			return Shape;
 #else
@@ -14429,7 +14429,7 @@ namespace Mavi
 #ifdef VI_BULLET3
 			btCollisionShape* Shape = VI_NEW(btCapsuleShape, Radius, Height);
 			VI_TRACE("[sim] save capsule shape 0x%" PRIXPTR, (void*)Shape);
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
 			return Shape;
 #else
@@ -14441,7 +14441,7 @@ namespace Mavi
 #ifdef VI_BULLET3
 			btCollisionShape* Shape = VI_NEW(btConeShape, Radius, Height);
 			VI_TRACE("[sim] save cone shape 0x%" PRIXPTR, (void*)Shape);
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
 			return Shape;
 #else
@@ -14453,7 +14453,7 @@ namespace Mavi
 #ifdef VI_BULLET3
 			btCollisionShape* Shape = VI_NEW(btCylinderShape, V3_TO_BT(Scale));
 			VI_TRACE("[sim] save cylinder shape 0x%" PRIXPTR, (void*)Shape);
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
 			return Shape;
 #else
@@ -14472,7 +14472,7 @@ namespace Mavi
 			Shape->setMargin(0);
 
 			VI_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Shape, (uint64_t)Vertices.size());
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
 			return Shape;
 #else
@@ -14491,7 +14491,7 @@ namespace Mavi
 			Shape->setMargin(0);
 
 			VI_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Shape, (uint64_t)Vertices.size());
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
 			return Shape;
 #else
@@ -14510,7 +14510,7 @@ namespace Mavi
 			Shape->setMargin(0);
 
 			VI_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Shape, (uint64_t)Vertices.size());
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
 			return Shape;
 #else
@@ -14529,7 +14529,7 @@ namespace Mavi
 			Shape->setMargin(0);
 
 			VI_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Shape, (uint64_t)Vertices.size());
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
 			return Shape;
 #else
@@ -14548,7 +14548,7 @@ namespace Mavi
 			Shape->setMargin(0);
 
 			VI_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Shape, (uint64_t)Vertices.size());
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
 			return Shape;
 #else
@@ -14572,7 +14572,7 @@ namespace Mavi
 			Hull->setMargin(0);
 
 			VI_TRACE("[sim] save convext-hull shape 0x%" PRIXPTR " (%" PRIu64 " vertices)", (void*)Hull, (uint64_t)Base->getNumPoints());
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Hull] = 1;
 			return Hull;
 #else
@@ -14645,7 +14645,7 @@ namespace Mavi
 		{
 #ifdef VI_BULLET3
 			VI_ASSERT(Value != nullptr, "shape should be set");
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto It = Shapes.find(Value);
 			if (It == Shapes.end())
 				return nullptr;
@@ -14662,7 +14662,7 @@ namespace Mavi
 			if (!Value || !*Value)
 				return;
 
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto It = Shapes.find(*Value);
 			if (It == Shapes.end())
 				return;

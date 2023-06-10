@@ -3042,7 +3042,7 @@ namespace Mavi
 				VI_ASSERT(Context != nullptr, "promise is malformed (context is null)");
 
 				Core::UMutex<std::mutex> Unique(Update);
-				if (Value.TypeId == PromiseNULL)
+				if (Value.TypeId != PromiseNULL)
 					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_PROMISEREADY));
 
 				if ((RefTypeId & asTYPEID_MASK_OBJECT))
@@ -3075,7 +3075,7 @@ namespace Mavi
 				ImmediateContext* Immediate = ImmediateContext::Get(Context);
 				bool WantsResume = (Immediate->IsSuspended() && SuspendOwned);
 				Promise* Base = this;
-				Unique.Toggle();
+				Unique.Negate();
 
 				if (Delegate.IsValid())
 				{
@@ -3174,7 +3174,7 @@ namespace Mavi
 			}
 			Promise* Promise::YieldIf()
 			{
-				std::unique_lock<std::mutex> Unique(Update);
+				Core::UMutex<std::mutex> Unique(Update);
 				ImmediateContext* TargetContext = ImmediateContext::Get(Context);
 				if (Value.TypeId == PromiseNULL && TargetContext != nullptr && !TargetContext->Suspend())
 				{
@@ -3854,7 +3854,6 @@ namespace Mavi
 					else
 						Context->SetUserData((void*)(uintptr_t)(Size - 1), MutexUD);
 				}
-
 				Base.unlock();
 			}
 			Mutex* Mutex::Factory()
@@ -3894,7 +3893,7 @@ namespace Mavi
 					Context->SetUserData(Base, ContextUD);
 				}).When([Base](int&& State)
 				{
-					std::unique_lock<std::recursive_mutex> Unique(Base->Mutex);
+					Core::UMutex<std::recursive_mutex> Unique(Base->Mutex);
 					Base->Context->SetUserData(nullptr, ContextUD);
 
 					if (State != asEXECUTION_SUSPENDED)
@@ -3915,7 +3914,7 @@ namespace Mavi
 			}
 			void Thread::ResumeRoutine()
 			{
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				Status = ThreadState::Resume;
 
 				if (Context->IsSuspended())
@@ -3928,7 +3927,7 @@ namespace Mavi
 			}
 			bool Thread::Suspend()
 			{
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				Status = ThreadState::Resume;
 				if (Context->IsSuspended())
 					return true;
@@ -3937,7 +3936,7 @@ namespace Mavi
 			}
 			bool Thread::Resume()
 			{
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				if (!Context->IsSuspended())
 					return false;
 
@@ -3995,17 +3994,17 @@ namespace Mavi
 				if (std::this_thread::get_id() == Procedure.get_id())
 					return -1;
 
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				if (!Procedure.joinable())
 					return -1;
 
 				VI_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
-				Mutex.unlock();
-
-				while (Procedure.joinable() && VM != nullptr && VM->TriggerDebugger(50));
-				Procedure.join();
-
-				Mutex.lock();
+				Unique.Unlocked([this]()
+				{
+					while (Procedure.joinable() && VM != nullptr && VM->TriggerDebugger(50));
+					Procedure.join();
+				});
+;
 				if (!Except.Empty())
 					Exception::Throw(Except);
 				return 1;
@@ -4033,9 +4032,8 @@ namespace Mavi
 				void* Data = asAllocMem(sizeof(Any));
 				Any* Next = new(Data) Any(Ref, TypeId, VirtualMachine::Get()->GetEngine());
 				auto& Source = Pipe[(GetThread() == this ? 1 : 0)];
-				Source.Mutex.lock();
+				Core::UMutex<std::mutex> Unique(Source.Mutex);
 				Source.Queue.push_back(Next);
-				Source.Mutex.unlock();
 				Source.CV.notify_one();
 			}
 			bool Thread::Pop(void* Ref, int TypeId)
@@ -4067,12 +4065,12 @@ namespace Mavi
 			}
 			bool Thread::IsActive()
 			{
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				return !Context->IsSuspended();
 			}
 			bool Thread::Start()
 			{
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				if (!Function || !Context->CanExecuteCall())
 					return false;
 
@@ -4089,17 +4087,16 @@ namespace Mavi
 				for (int i = 0; i < 2; i++)
 				{
 					auto& Source = Pipe[i];
-					Source.Mutex.lock();
+					Core::UMutex<std::mutex> Unique(Source.Mutex);
 					for (auto Any : Source.Queue)
 					{
 						if (Any != nullptr)
 							Any->Release();
 					}
 					Source.Queue.clear();
-					Source.Mutex.unlock();
 				}
 
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				if (Function)
 					Function->Release();
 
@@ -9647,8 +9644,6 @@ namespace Mavi
 				VStdColor.SetValue("white", (int)Core::StdColor::White);
 
 				RefClass VConsole = Engine->SetClass<Core::Console>("console", false);
-				VConsole.SetMethod("void begin()", &Core::Console::Begin);
-				VConsole.SetMethod("void end()", &Core::Console::End);
 				VConsole.SetMethod("void hide()", &Core::Console::Hide);
 				VConsole.SetMethod("void show()", &Core::Console::Show);
 				VConsole.SetMethod("void clear()", &Core::Console::Clear);
@@ -13790,8 +13785,6 @@ namespace Mavi
 				VSocketServer.SetGcConstructor<Network::SocketServer, SocketServer>("socket_server@ f()");
 				VSocketServer.SetMethodEx("void set_router(socket_router@+)", &SocketServerSetRouter);
 				VSocketServer.SetMethod("void set_backlog(usize)", &Network::SocketServer::SetBacklog);
-				VSocketServer.SetMethod("void lock()", &Network::SocketServer::Lock);
-				VSocketServer.SetMethod("void unlock()", &Network::SocketServer::Unlock);
 				VSocketServer.SetMethodEx("bool configure(socket_router@+)", &SocketServerConfigure);
 				VSocketServer.SetMethod("bool unlisten(uint64 = 5)", &Network::SocketServer::Unlisten);
 				VSocketServer.SetMethod("bool listen()", &Network::SocketServer::Listen);
@@ -14185,8 +14178,6 @@ namespace Mavi
 				VServer.SetMethod("void update()", &Network::HTTP::Server::Update);
 				VServer.SetMethodEx("void set_router(map_router@+)", &SocketServerSetRouter);
 				VServer.SetMethod("void set_backlog(usize)", &Network::SocketServer::SetBacklog);
-				VServer.SetMethod("void lock()", &Network::SocketServer::Lock);
-				VServer.SetMethod("void unlock()", &Network::SocketServer::Unlock);
 				VServer.SetMethodEx("bool configure(map_router@+)", &SocketServerConfigure);
 				VServer.SetMethod("bool unlisten(uint64 = 5)", &Network::SocketServer::Unlisten);
 				VServer.SetMethod("bool listen()", &Network::SocketServer::Listen);

@@ -123,12 +123,12 @@ namespace Mavi
 			void WebSocketFrame::Send(unsigned int Mask, const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
 				VI_ASSERT(Buffer != nullptr, "buffer should be set");
-
-				Section.lock();
+				Core::UMutex<std::mutex> Unique(Section);
 				if (Enqueue(Mask, Buffer, Size, Opcode, Callback))
-					return Section.unlock();
-				Writeable(true, false);
-				Section.unlock();
+					return;
+
+				Busy = true;
+				Unique.Negate();
 
 				unsigned char Header[14];
 				size_t HeaderLength = 1;
@@ -174,7 +174,7 @@ namespace Mavi
 								if (Packet::IsDone(Event) || Packet::IsSkip(Event))
 								{
 									bool Ignore = IsIgnore();
-									Writeable();
+									Busy = false;
 
 									if (Callback)
 										Callback(this);
@@ -184,7 +184,7 @@ namespace Mavi
 								}
 								else if (Packet::IsError(Event))
 								{
-									Writeable();
+									Busy = false;
 									if (Callback)
 										Callback(this);
 
@@ -200,7 +200,7 @@ namespace Mavi
 						else
 						{
 							bool Ignore = IsIgnore();
-							Writeable();
+							Busy = false;
 
 							if (Callback)
 								Callback(this);
@@ -211,7 +211,7 @@ namespace Mavi
 					}
 					else if (Packet::IsError(Event))
 					{
-						Writeable();
+						Busy = false;
 						if (Callback)
 							Callback(this);
 
@@ -225,7 +225,7 @@ namespace Mavi
 					else if (Packet::IsSkip(Event))
 					{
 						bool Ignore = IsIgnore();
-						Writeable();
+									Busy = false;
 
 						if (Callback)
 							Callback(this);
@@ -237,13 +237,13 @@ namespace Mavi
 			}
 			void WebSocketFrame::Dequeue()
 			{
-				Section.lock();
+				Core::UMutex<std::mutex> Unique(Section);
 				if (!IsWriteable() || Messages.empty())
-					return Section.unlock();
+					return;
 
 				Message Next = std::move(Messages.front());
 				Messages.pop();
-				Section.unlock();
+				Unique.Negate();
 
 				Send(Next.Mask, Next.Buffer, Next.Size, Next.Opcode, Next.Callback);
 				VI_FREE(Next.Buffer);
@@ -279,7 +279,7 @@ namespace Mavi
 			}
 			void WebSocketFrame::Update()
 			{
-				Section.lock();
+				Core::UMutex<std::mutex> Unique(Section);
 			Retry:
 				if (State == (uint32_t)WebSocketState::Receive)
 				{
@@ -339,7 +339,7 @@ namespace Mavi
 
 						if (Receive)
 						{
-							Section.unlock();
+							Unique.Negate();
 							if (Receive(this, Opcode, Codec->Data.data(), (int64_t)Codec->Data.size()))
 								return;
 
@@ -349,7 +349,7 @@ namespace Mavi
 					else if (Opcode == WebSocketOp::Ping)
 					{
 						VI_DEBUG("[websocket] sock %i frame ping", (int)Stream->GetFd());
-						Section.unlock();
+						Unique.Negate();
 						if (Receive && Receive(this, Opcode, "", 0))
 							return;
 
@@ -361,7 +361,7 @@ namespace Mavi
 					else if (Opcode == WebSocketOp::Close)
 					{
 						VI_DEBUG("[websocket] sock %i frame close", (int)Stream->GetFd());
-						Section.unlock();
+						Unique.Negate();
 						if (Receive && Receive(this, Opcode, "", 0))
 							return;
 
@@ -369,7 +369,7 @@ namespace Mavi
 					}
 					else if (Receive)
 					{
-						Section.unlock();
+						Unique.Negate();
 						if (Receive(this, Opcode, "", 0))
 							return;
 
@@ -385,13 +385,13 @@ namespace Mavi
 					{
 						WebSocketCallback Callback = std::move(BeforeDisconnect);
                         BeforeDisconnect = nullptr;
-						Section.unlock();
+						Unique.Negate();
 						return Callback(this);
 					}
 					else if (!Disconnect)
 					{
 						Active = false;
-						Section.unlock();
+						Unique.Negate();
 						if (Lifetime.Close)
 							Lifetime.Close(this);
 						return;
@@ -401,7 +401,7 @@ namespace Mavi
 						WebSocketCallback Callback = std::move(Disconnect);
                         Disconnect = nullptr;
 						Receive = nullptr;
-						Section.unlock();
+						Unique.Negate();
 						return Callback(this);
 					}
 				}
@@ -415,25 +415,15 @@ namespace Mavi
 
 						WebSocketCallback Callback = std::move(Connect);
                         Connect = nullptr;
-						Section.unlock();
+						Unique.Negate();
 						return Callback(this);
 					}
 					else
 					{
-						Section.unlock();
+						Unique.Negate();
 						return Finish();
 					}
 				}
-				Section.unlock();
-			}
-			void WebSocketFrame::Writeable(bool IsBusy, bool Lockup)
-			{
-				if (Lockup)
-					Section.lock();
-	
-				Busy = IsBusy;
-				if (Lockup)
-					Section.unlock();
 			}
 			bool WebSocketFrame::IsFinished()
 			{
@@ -1583,12 +1573,12 @@ namespace Mavi
 			}
 			bool Connection::Finish()
 			{
-				Info.Sync.lock();
+				Core::UMutex<std::mutex> Unique(Info.Sync);
 				if (WebSocket != nullptr)
 				{
 					if (!WebSocket->IsFinished())
 					{
-						Info.Sync.unlock();
+						Unique.Negate();
 						WebSocket->Finish();
 						return false;
 					}
@@ -1596,7 +1586,7 @@ namespace Mavi
 					VI_CLEAR(WebSocket);
 				}
 
-				Info.Sync.unlock();
+				Unique.Negate();
 				if (Response.StatusCode < 0 || Stream->Outcome > 0 || !Stream->IsValid())
 					return Root->Manage(this);
 

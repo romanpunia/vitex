@@ -826,18 +826,16 @@ namespace Mavi
 		void GraphicsDevice::Lockup(RenderThreadCallback&& Callback)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
-			Mutex.lock();
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			Callback(this);
-			Mutex.unlock();
 		}
 		void GraphicsDevice::Enqueue(RenderThreadCallback&& Callback)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			if (RenderThread != std::this_thread::get_id())
 			{
-				Mutex.lock();
+				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				Queue.emplace(std::move(Callback));
-				Mutex.unlock();
 			}
 			else
 				Callback(this);
@@ -848,7 +846,7 @@ namespace Mavi
 			if (Queue.empty())
 				return;
 
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			while (!Queue.empty())
 			{
 				Queue.front()(this);

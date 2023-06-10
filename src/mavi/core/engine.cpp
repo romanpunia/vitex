@@ -2988,44 +2988,34 @@ namespace Mavi
 			else if (BufferSize > 0)
 				Device->UpdateBufferSize(Shader, BufferSize);
 
-			Safe.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			SCache& Result = Cache[Name];
 			Result.Shader = Shader;
 			Result.Count = 1;
-			Safe.unlock();
-
 			return Shader;
 		}
 		Graphics::Shader* ShaderCache::Get(const Core::String& Name)
 		{
-			Safe.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto It = Cache.find(Name);
 			if (It != Cache.end())
 			{
 				It->second.Count++;
-				Safe.unlock();
-
 				return It->second.Shader;
 			}
 
-			Safe.unlock();
 			return nullptr;
 		}
 		Core::String ShaderCache::Find(Graphics::Shader* Shader)
 		{
 			VI_ASSERT(Shader != nullptr, "shader should be set");
-			Safe.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			for (auto& Item : Cache)
 			{
 				if (Item.second.Shader == Shader)
-				{
-					Core::String Result = Item.first;
-					Safe.unlock();
-					return Result;
-				}
+					return Item.first;
 			}
 
-			Safe.unlock();
 			return Core::String();
 		}
 		const Core::UnorderedMap<Core::String, ShaderCache::SCache>& ShaderCache::GetCaches() const
@@ -3034,54 +3024,34 @@ namespace Mavi
 		}
 		bool ShaderCache::Has(const Core::String& Name)
 		{
-			Safe.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto It = Cache.find(Name);
-			if (It != Cache.end())
-			{
-				Safe.unlock();
-				return true;
-			}
-
-			Safe.unlock();
-			return false;
+			return It != Cache.end();
 		}
 		bool ShaderCache::Free(const Core::String& Name, Graphics::Shader* Shader)
 		{
-			Safe.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto It = Cache.find(Name);
 			if (It == Cache.end())
-			{
-				Safe.unlock();
 				return false;
-			}
 
 			if (Shader != nullptr && Shader != It->second.Shader)
-			{
-				Safe.unlock();
 				return false;
-			}
 
 			It->second.Count--;
 			if (It->second.Count > 0)
-			{
-				Safe.unlock();
 				return true;
-			}
 
 			VI_RELEASE(It->second.Shader);
 			Cache.erase(It);
-			Safe.unlock();
-
 			return true;
 		}
 		void ShaderCache::ClearCache()
 		{
-			Safe.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			for (auto It = Cache.begin(); It != Cache.end(); ++It)
 				VI_CLEAR(It->second.Shader);
-
 			Cache.clear();
-			Safe.unlock();
 		}
 
 		PrimitiveCache::PrimitiveCache(Graphics::GraphicsDevice* Ref) noexcept : Device(Ref), Quad(nullptr), BoxModel(nullptr), SkinBoxModel(nullptr)
@@ -3126,94 +3096,64 @@ namespace Mavi
 				return false;
 			}
 
-			Safe.lock();
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			SCache& Result = Cache[Name];
 			Result.Buffers[(size_t)BufferType::Index] = Results[(size_t)BufferType::Index] = IndexBuffer;
 			Result.Buffers[(size_t)BufferType::Vertex] = Results[(size_t)BufferType::Vertex] = VertexBuffer;
 			Result.Count = 1;
-			Safe.unlock();
-
 			return true;
 		}
 		bool PrimitiveCache::Get(Graphics::ElementBuffer** Results, const Core::String& Name)
 		{
 			VI_ASSERT(Results != nullptr, "results should be set");
-			Safe.lock();
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			auto It = Cache.find(Name);
-			if (It != Cache.end())
-			{
-				It->second.Count++;
-				Safe.unlock();
+			if (It == Cache.end())
+				return false;
 
-				Results[(size_t)BufferType::Index] = It->second.Buffers[(size_t)BufferType::Index];
-				Results[(size_t)BufferType::Vertex] = It->second.Buffers[(size_t)BufferType::Vertex];
-				return true;
-			}
-
-			Safe.unlock();
-			return false;
+			It->second.Count++;
+			Results[(size_t)BufferType::Index] = It->second.Buffers[(size_t)BufferType::Index];
+			Results[(size_t)BufferType::Vertex] = It->second.Buffers[(size_t)BufferType::Vertex];
+			return true;
 		}
 		bool PrimitiveCache::Has(const Core::String& Name)
 		{
-			Safe.lock();
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			auto It = Cache.find(Name);
-			if (It != Cache.end())
-			{
-				Safe.unlock();
-				return true;
-			}
-
-			Safe.unlock();
-			return false;
+			return It != Cache.end();
 		}
 		bool PrimitiveCache::Free(const Core::String& Name, Graphics::ElementBuffer** Buffers)
 		{
-			Safe.lock();
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			auto It = Cache.find(Name);
 			if (It == Cache.end())
-			{
-				Safe.unlock();
 				return false;
-			}
 
 			if (Buffers != nullptr)
 			{
 				if ((Buffers[0] != nullptr && Buffers[0] != It->second.Buffers[0]) || (Buffers[1] != nullptr && Buffers[1] != It->second.Buffers[1]))
-				{
-					Safe.unlock();
 					return false;
-				}
 			}
 
 			It->second.Count--;
 			if (It->second.Count > 0)
-			{
-				Safe.unlock();
 				return true;
-			}
 
 			VI_RELEASE(It->second.Buffers[0]);
 			VI_RELEASE(It->second.Buffers[1]);
 			Cache.erase(It);
-			Safe.unlock();
-
 			return true;
 		}
 		Core::String PrimitiveCache::Find(Graphics::ElementBuffer** Buffers)
 		{
 			VI_ASSERT(Buffers != nullptr, "buffers should be set");
-			Safe.lock();
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			for (auto& Item : Cache)
 			{
 				if (Item.second.Buffers[0] == Buffers[0] && Item.second.Buffers[1] == Buffers[1])
-				{
-					Core::String Result = Item.first;
-					Safe.unlock();
-					return Result;
-				}
+					return Item.first;
 			}
 
-			Safe.unlock();
 			return Core::String();
 		}
 		Model* PrimitiveCache::GetBoxModel()
@@ -3221,7 +3161,7 @@ namespace Mavi
 			if (BoxModel != nullptr)
 				return BoxModel;
 
-			std::unique_lock<std::recursive_mutex> Unique(Safe);
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			if (BoxModel != nullptr)
 				return BoxModel;
 
@@ -3242,7 +3182,7 @@ namespace Mavi
 			if (SkinBoxModel != nullptr)
 				return SkinBoxModel;
 
-			std::unique_lock<std::recursive_mutex> Unique(Safe);
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			if (SkinBoxModel != nullptr)
 				return SkinBoxModel;
 
@@ -3283,7 +3223,7 @@ namespace Mavi
 			F.ElementWidth = sizeof(Compute::ShapeVertex);
 			F.Elements = &Elements[0];
 
-			std::unique_lock<std::recursive_mutex> Unique(Safe);
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			if (Quad != nullptr)
 				return Quad;
 
@@ -3325,7 +3265,7 @@ namespace Mavi
 				F.ElementWidth = sizeof(int);
 				F.Elements = &Indices[0];
 
-				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!Sphere[(size_t)BufferType::Index])
 					Sphere[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
 
@@ -3362,7 +3302,7 @@ namespace Mavi
 				F.ElementWidth = sizeof(Compute::ShapeVertex);
 				F.Elements = &Elements[0];
 
-				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!Sphere[(size_t)BufferType::Vertex])
 					Sphere[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
 
@@ -3400,7 +3340,7 @@ namespace Mavi
 				F.ElementWidth = sizeof(int);
 				F.Elements = &Indices[0];
 
-				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!Cube[(size_t)BufferType::Index])
 					Cube[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
 
@@ -3445,7 +3385,7 @@ namespace Mavi
 				F.ElementWidth = sizeof(Compute::ShapeVertex);
 				F.Elements = &Elements[0];
 
-				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!Cube[(size_t)BufferType::Vertex])
 					Cube[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
 
@@ -3483,7 +3423,7 @@ namespace Mavi
 				F.ElementWidth = sizeof(int);
 				F.Elements = &Indices[0];
 
-				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!Box[(size_t)BufferType::Index])
 					Box[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
 
@@ -3528,7 +3468,7 @@ namespace Mavi
 				F.ElementWidth = sizeof(Compute::Vertex);
 				F.Elements = &Elements[0];
 
-				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!Box[(size_t)BufferType::Vertex])
 					Box[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
 
@@ -3566,7 +3506,7 @@ namespace Mavi
 				F.ElementWidth = sizeof(int);
 				F.Elements = &Indices[0];
 
-				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!SkinBox[(size_t)BufferType::Index])
 					SkinBox[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
 
@@ -3611,7 +3551,7 @@ namespace Mavi
 				F.ElementWidth = sizeof(Compute::SkinVertex);
 				F.Elements = &Elements[0];
 
-				std::unique_lock<std::recursive_mutex> Unique(Safe);
+				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!SkinBox[(size_t)BufferType::Vertex])
 					SkinBox[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
 
@@ -3650,7 +3590,7 @@ namespace Mavi
 		}
 		void PrimitiveCache::ClearCache()
 		{
-			Safe.lock();
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			for (auto It = Cache.begin(); It != Cache.end(); ++It)
 			{
 				VI_CLEAR(It->second.Buffers[0]);
@@ -3669,7 +3609,6 @@ namespace Mavi
 			VI_CLEAR(SkinBox[(size_t)BufferType::Index]);
 			VI_CLEAR(SkinBox[(size_t)BufferType::Vertex]);
 			VI_CLEAR(Quad);
-			Safe.unlock();
 		}
 
 		template <typename T>
@@ -4153,7 +4092,7 @@ namespace Mavi
 				if (Next->Type.Components.empty())
 					return;
 
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				for (auto& Item : *Next)
 				{
 					if (Item.second->IsCullable())
@@ -4344,20 +4283,20 @@ namespace Mavi
 			VI_ASSERT(Base != nullptr, "component should be set");
 			VI_ASSERT(Base->Parent != nullptr && Base->Parent->Scene == this, "component should be tied to this scene");
 			VI_TRACE("[scene] await component 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Base, (void*)this);
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			++Incomplete[Base];
 		}
 		void SceneGraph::UnloadComponentAll(Component* Base)
 		{
 			VI_TRACE("[scene] resolve component 0x%" PRIXPTR " on 0x%" PRIXPTR " fully", (void*)Base, (void*)this);
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto It = Incomplete.find(Base);
 			if (It != Incomplete.end())
 				Incomplete.erase(It);
 		}
 		bool SceneGraph::UnloadComponent(Component* Base)
 		{
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto It = Incomplete.find(Base);
 			if (It == Incomplete.end())
 				return false;
@@ -4565,7 +4504,7 @@ namespace Mavi
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			VI_TRACE("[scene] attach listener %s on 0x%" PRIXPTR, EventName.c_str(), (void*)this);
 			MessageCallback* Id = VI_NEW(MessageCallback, std::move(Callback));
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Listeners[EventName].insert(Id);
 
 			return Id;
@@ -4576,7 +4515,7 @@ namespace Mavi
 			VI_ASSERT(Id != nullptr, "callback id should be set");
 			VI_TRACE("[scene] detach listener %s on 0x%" PRIXPTR, EventName.c_str(), (void*)this);
 
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto& Source = Listeners[EventName];
 			auto It = Source.find(Id);
 			if (It == Source.end())
@@ -4594,7 +4533,7 @@ namespace Mavi
 			Next.Args["__vb"] = Core::Var::Integer((int64_t)(Propagate ? EventTarget::Scene : EventTarget::Listener));
 			Next.Args["__vt"] = Core::Var::Pointer((void*)this);
 
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Events.push(std::move(Next));
 
 			return true;
@@ -4607,7 +4546,7 @@ namespace Mavi
 			Next.Args["__vb"] = Core::Var::Integer((int64_t)EventTarget::Component);
 			Next.Args["__vt"] = Core::Var::Pointer((void*)Target);
 
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Events.push(std::move(Next));
 
 			return true;
@@ -4620,7 +4559,7 @@ namespace Mavi
 			Next.Args["__vb"] = Core::Var::Integer((int64_t)EventTarget::Entity);
 			Next.Args["__vt"] = Core::Var::Pointer((void*)Target);
 
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Events.push(std::move(Next));
 
 			return true;
@@ -4744,7 +4683,7 @@ namespace Mavi
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			bool ExecuteNow = false;
 			{
-				std::unique_lock<std::mutex> Unique(Exclusive);
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				if (!Tasks.empty() || !Events.empty())
 					Transactions.emplace(std::move(Callback));
 				else
@@ -4942,7 +4881,7 @@ namespace Mavi
 			if (!Base->IsCullable())
 				return;
 
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Changes[Base->GetId()].insert(Base);
 		}
 		void SceneGraph::ClearCosmos(Component* Base)
@@ -4951,7 +4890,7 @@ namespace Mavi
 				return;
 
 			uint64_t Id = Base->GetId();
-			std::unique_lock<std::mutex> Unique(Exclusive);
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Changes[Id].erase(Base);
 
 			if (Base->Indexed)
@@ -5518,7 +5457,7 @@ namespace Mavi
 		void ContentManager::ClearCache()
 		{
 			VI_TRACE("[content] clear cache on 0x%" PRIXPTR, (void*)this);
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			for (auto& Entries : Assets)
 			{
 				for (auto& Entry : Entries.second)
@@ -5526,45 +5465,39 @@ namespace Mavi
 					if (!Entry.second)
 						continue;
 
-					Mutex.unlock();
-					if (Entry.first != nullptr)
-						Entry.first->Free(Entry.second);
-					Mutex.lock();
-
+					Unique.Unlocked([&Entry]()
+					{
+						if (Entry.first != nullptr)
+							Entry.first->Free(Entry.second);
+					});
 					VI_DELETE(AssetCache, Entry.second);
 				}
 			}
-
 			Assets.clear();
-			Mutex.unlock();
 		}
 		void ContentManager::ClearDockers()
 		{
 			VI_TRACE("[content] clear dockers on 0x%" PRIXPTR, (void*)this);
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			for (auto It = Dockers.begin(); It != Dockers.end(); ++It)
 				VI_DELETE(AssetArchive, It->second);
-
 			Dockers.clear();
-			Mutex.unlock();
 		}
 		void ContentManager::ClearStreams()
 		{
 			VI_TRACE("[content] clear streams on 0x%" PRIXPTR, (void*)this);
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			for (auto It = Streams.begin(); It != Streams.end(); ++It)
 				VI_RELEASE(It->first);
 			Streams.clear();
-			Mutex.unlock();
 		}
 		void ContentManager::ClearProcessors()
 		{
 			VI_TRACE("[content] clear processors on 0x%" PRIXPTR, (void*)this);
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			for (auto It = Processors.begin(); It != Processors.end(); ++It)
 				VI_RELEASE(It->second);
 			Processors.clear();
-			Mutex.unlock();
 		}
 		void ContentManager::ClearPath(const Core::String& Path)
 		{
@@ -5575,20 +5508,17 @@ namespace Mavi
 
 			Core::Stringify::Replace(File, '\\', '/');
 			Core::Stringify::Replace(File, Environment, "./");
-
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto It = Assets.find(File);
 			if (It != Assets.end())
 				Assets.erase(It);
-			Mutex.unlock();
 		}
 		void ContentManager::SetEnvironment(const Core::String& Path)
 		{
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Environment = Core::OS::Path::ResolveDirectory(Path.c_str());
 			Core::Stringify::Replace(Environment, '\\', '/');
 			Core::OS::Directory::SetWorking(Environment.c_str());
-			Mutex.unlock();
 		}
 		void ContentManager::SetDevice(Graphics::GraphicsDevice* NewDevice)
 		{
@@ -5606,28 +5536,28 @@ namespace Mavi
 			Core::Stringify::Replace(File, '\\', '/');
 			Core::Stringify::Replace(File, "./", "");
 
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto Docker = Dockers.find(File);
 			if (Docker == Dockers.end() || !Docker->second || !Docker->second->Stream)
 			{
-				Mutex.unlock();
 				VI_TRACE("[content] load dockerized %s: no docker provided", Path.c_str());
 				return nullptr;
 			}
-			Mutex.unlock();
 
-			AssetCache* Asset = FindCache(Processor, File);
-			if (Asset != nullptr)
+			Unique.Negate();
 			{
-				VI_TRACE("[content] load dockerized %s: cached", Path.c_str());
-				return Processor->Duplicate(Asset, Map);
+				AssetCache* Asset = FindCache(Processor, File);
+				if (Asset != nullptr)
+				{
+					VI_TRACE("[content] load dockerized %s: cached", Path.c_str());
+					return Processor->Duplicate(Asset, Map);
+				}
 			}
+			Unique.Negate();
 
-			Mutex.lock();
 			auto It = Streams.find(Docker->second->Stream);
 			if (It == Streams.end())
 			{
-				Mutex.unlock();
 				VI_ERR("[engine] cannot resolve stream offset for \"%s\"", Path.c_str());
 				return nullptr;
 			}
@@ -5636,7 +5566,7 @@ namespace Mavi
 			Stream->SetVirtualSize(Docker->second->Length);
 			Stream->Seek(Core::FileSeek::Begin, It->second + Docker->second->Offset);
 			Stream->GetSource() = File;
-			Mutex.unlock();
+			Unique.Negate();
 
 			VI_TRACE("[content] load dockerized %s", Path.c_str());
 			return Processor->Deserialize(Stream, It->second + Docker->second->Offset, Map);
@@ -5665,7 +5595,7 @@ namespace Mavi
 			Core::String File = Path;
 			if (!Core::OS::Path::IsRemote(File.c_str()))
 			{
-				Mutex.lock();
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				File = Core::OS::Path::Resolve(File, Environment, false);
 				if (Core::OS::File::IsExists(File.c_str()))
 				{
@@ -5675,7 +5605,6 @@ namespace Mavi
 					if (Core::OS::File::IsExists(Subpath.c_str()))
 						File = Subpath;
 				}
-				Mutex.unlock();
 
 				if (File.empty())
 				{
@@ -5719,11 +5648,11 @@ namespace Mavi
 				return false;
 			}
 
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Core::String Directory = Core::OS::Path::GetDirectory(Path.c_str());
 			Core::String File = Core::OS::Path::Resolve(Directory, Environment, false);
 			File.append(Path.substr(Directory.size()));
-			Mutex.unlock();
+			Unique.Negate();
 
 			if (!File.empty())
 				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(File.c_str()));
@@ -5771,7 +5700,7 @@ namespace Mavi
 		}
 		Processor* ContentManager::AddProcessor(Processor* Value, uint64_t Id)
 		{
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto It = Processors.find(Id);
 			if (It != Processors.end())
 			{
@@ -5781,42 +5710,33 @@ namespace Mavi
 			else
 				Processors[Id] = Value;
 
-			Mutex.unlock();
 			return Value;
 		}
 		Processor* ContentManager::GetProcessor(uint64_t Id)
 		{
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto It = Processors.find(Id);
 			if (It != Processors.end())
-			{
-				Mutex.unlock();
 				return It->second;
-			}
 
-			Mutex.unlock();
 			return nullptr;
 		}
 		bool ContentManager::RemoveProcessor(uint64_t Id)
 		{
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto It = Processors.find(Id);
 			if (It == Processors.end())
-			{
-				Mutex.unlock();
 				return false;
-			}
 
 			VI_RELEASE(It->second);
 			Processors.erase(It);
-			Mutex.unlock();
 			return true;
 		}
 		bool ContentManager::Import(const Core::String& Path)
 		{
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Core::String File = Core::OS::Path::Resolve(Path, Environment, false);
-			Mutex.unlock();
+			Unique.Negate();
 
 			if (File.empty())
 			{
@@ -5859,7 +5779,7 @@ namespace Mavi
 				return false;
 			}
 
-			Mutex.lock();
+			Unique.Negate();
 			for (uint64_t i = 0; i < Size; i++)
 			{
 				AssetArchive* Docker = VI_NEW(AssetArchive);
@@ -5882,8 +5802,6 @@ namespace Mavi
 			}
 
 			Streams[Stream] = Stream->Tell();
-			Mutex.unlock();
-
 			return true;
 		}
 		bool ContentManager::Export(const Core::String& Path, const Core::String& Directory, const Core::String& Name)
@@ -5897,9 +5815,9 @@ namespace Mavi
 				return false;
 			}
 
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			Core::String DirectoryBase = Core::OS::Path::Resolve(Directory, Environment, false);
-			Mutex.unlock();
+			Unique.Negate();
 
 			auto Tree = new Core::FileTree(DirectoryBase);
 			Stream->Write("\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16);
@@ -5974,9 +5892,8 @@ namespace Mavi
 			VI_TRACE("[content] save 0x%" PRIXPTR " to cache", Resource);
 			Core::String Target = Path;
 			Core::Stringify::Replace(Target, '\\', '/');
-			Core::Stringify::Replace(Target, Environment, "./");
-			
-			std::unique_lock<std::mutex> Unique(Mutex);
+			Core::Stringify::Replace(Target, Environment, "./");		
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto& Entries = Assets[Target];
 			auto& Entry = Entries[Root];
 			void* Existing = nullptr;
@@ -5993,22 +5910,18 @@ namespace Mavi
 		}
 		bool ContentManager::IsBusy()
 		{
-			Mutex.lock();
-			bool Busy = Queue > 0;
-			Mutex.unlock();
-			return Busy;
+			Core::UMutex<std::mutex> Unique(Exclusive);
+			return Queue > 0;
 		}
 		void ContentManager::Enqueue()
 		{
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			++Queue;
-			Mutex.unlock();
 		}
 		void ContentManager::Dequeue()
 		{
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			--Queue;
-			Mutex.unlock();
 		}
 		const Core::UnorderedMap<uint64_t, Processor*>& ContentManager::GetProcessors() const
 		{
@@ -6022,20 +5935,15 @@ namespace Mavi
 			Core::String RelPath = Path;
 			Core::Stringify::Replace(RelPath, '\\', '/');
 			Core::Stringify::Replace(RelPath, Environment, "./");
-
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto It = Assets.find(RelPath);
 			if (It != Assets.end())
 			{
 				auto KIt = It->second.find(Target);
 				if (KIt != It->second.end())
-				{
-					Mutex.unlock();
 					return KIt->second;
-				}
 			}
 
-			Mutex.unlock();
 			return nullptr;
 		}
 		AssetCache* ContentManager::FindCache(Processor* Target, void* Resource)
@@ -6043,7 +5951,7 @@ namespace Mavi
 			if (!Resource)
 				return nullptr;
 
-			Mutex.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			for (auto& It : Assets)
 			{
 				auto KIt = It.second.find(Target);
@@ -6051,13 +5959,9 @@ namespace Mavi
 					continue;
 
 				if (KIt->second && KIt->second->Resource == Resource)
-				{
-					Mutex.unlock();
 					return KIt->second;
-				}
 			}
 
-			Mutex.unlock();
 			return nullptr;
 		}
 		Graphics::GraphicsDevice* ContentManager::GetDevice() const
@@ -6083,29 +5987,25 @@ namespace Mavi
 			VI_ASSERT(!Next.empty(), "path should not be empty");
 			VI_TRACE("[appd] migrate %s to %s", Path.c_str(), Next.c_str());
 
-			Safe.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			if (Data != nullptr)
 			{
 				if (!Path.empty())
 					Core::OS::File::Remove(Path.c_str());
-
 				WriteAppData(Next);
 			}
 			else
 				ReadAppData(Next);
 			Path = Next;
-			Safe.unlock();
 		}
 		void AppData::SetKey(const Core::String& Name, Core::Schema* Value)
 		{
 			VI_TRACE("[appd] set %s = %s", Name.c_str(), Value ? Core::Schema::ToJSON(Value).c_str() : "NULL");
-			Safe.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			if (!Data)
 				Data = Core::Var::Set::Object();
-
 			Data->Set(Name, Value);
 			WriteAppData(Path);
-			Safe.unlock();
 		}
 		void AppData::SetText(const Core::String& Name, const Core::String& Value)
 		{
@@ -6113,45 +6013,30 @@ namespace Mavi
 		}
 		Core::Schema* AppData::GetKey(const Core::String& Name)
 		{
-			Safe.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			if (!ReadAppData(Path))
-			{
-				Safe.unlock();
 				return nullptr;
-			}
 
 			Core::Schema* Result = Data->Get(Name);
 			if (Result != nullptr)
 				Result = Result->Copy();
-
-			Safe.unlock();
 			return Result;
 		}
 		Core::String AppData::GetText(const Core::String& Name)
 		{
-			Safe.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			if (!ReadAppData(Path))
-			{
-				Safe.unlock();
 				return Core::String();
-			}
 
-			Core::Variant Result = Data->GetVar(Name);
-			Safe.unlock();
-			return Result.GetBlob();
+			return Data->GetVar(Name).GetBlob();
 		}
 		bool AppData::Has(const Core::String& Name)
 		{
-			Safe.lock();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			if (!ReadAppData(Path))
-			{
-				Safe.unlock();
 				return false;
-			}
 
-			bool Result = Data->Has(Name);
-			Safe.unlock();
-			return Result;
+			return Data->Has(Name);
 		}
 		bool AppData::ReadAppData(const Core::String& Next)
 		{

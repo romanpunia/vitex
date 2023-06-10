@@ -296,7 +296,6 @@ namespace Mavi
 				void Update();
 				void Finalize();
 				void Dequeue();
-				void Writeable(bool IsBusy = false, bool Lockup = true);
 				bool Enqueue(unsigned int Mask, const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
 				bool IsWriteable();
 				bool IsIgnore();

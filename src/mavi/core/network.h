@@ -270,7 +270,7 @@ namespace Mavi
 			Core::OrderedMap<std::chrono::microseconds, Socket*> Timeouts;
 			Core::Vector<EpollFd> Fds;
 			std::atomic<size_t> Activations;
-			std::mutex Exclusive;
+			std::recursive_mutex Exclusive;
 			EpollHandle Handle;
 			uint64_t DefaultTimeout;
 
@@ -284,7 +284,7 @@ namespace Mavi
 			int Dispatch(uint64_t Timeout) noexcept;
 			bool WhenReadable(Socket* Value, PollEventCallback&& WhenReady) noexcept;
 			bool WhenWriteable(Socket* Value, PollEventCallback&& WhenReady) noexcept;
-			bool CancelEvents(Socket* Value, SocketPoll Event = SocketPoll::Cancel, bool Safely = true) noexcept;
+			bool CancelEvents(Socket* Value, SocketPoll Event = SocketPoll::Cancel, bool EraseTimeout = true) noexcept;
 			bool ClearEvents(Socket* Value) noexcept;
 			bool IsAwaitingEvents(Socket* Value) noexcept;
 			bool IsAwaitingReadable(Socket* Value) noexcept;
@@ -468,7 +468,7 @@ namespace Mavi
 			Core::Vector<SocketListener*> Listeners;
 			SocketRouter* Router = nullptr;
 			ServerState State = ServerState::Idle;
-			std::mutex Sync;
+			std::mutex Exclusive;
 			size_t Backlog;
 			
 		public:
@@ -476,8 +476,6 @@ namespace Mavi
 			virtual ~SocketServer() noexcept;
 			void SetRouter(SocketRouter* New);
 			void SetBacklog(size_t Value);
-			void Lock();
-			void Unlock();
 			bool Configure(SocketRouter* New);
 			bool Unlisten(uint64_t TimeoutSeconds = 5);
 			bool Listen();

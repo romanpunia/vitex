@@ -1963,7 +1963,7 @@ namespace Mavi
 			if (!Context || !Context->CanExecuteCall())
 				return ExecuteOnNewContext(std::move(OnArgs), std::move(OnReturn));
 
-			std::unique_lock<std::recursive_mutex> Unique(Context->Exchange);
+			Core::UMutex<std::recursive_mutex> Unique(Context->Exchange);
 			if (!Context->CanExecuteCall())
 				return ExecuteOnNewContext(std::move(OnArgs), std::move(OnReturn));
 
@@ -3114,8 +3114,9 @@ namespace Mavi
 			ThreadData Thread = GetThread(Context);
 			if (State == asEXECUTION_EXCEPTION)
 				ForceSwitchThreads = 1;
+
 		Retry:
-			ThreadBarrier.lock();
+			Core::UMutex<std::recursive_mutex> Unique(ThreadBarrier);
 			if (ForceSwitchThreads > 0)
 			{
 				if (State == asEXECUTION_EXCEPTION)
@@ -3131,7 +3132,7 @@ namespace Mavi
 				}
 				else
 				{
-					ThreadBarrier.unlock();
+					Unique.Negate();
 					std::this_thread::sleep_for(std::chrono::milliseconds(10));
 					goto Retry;
 				}
@@ -3140,13 +3141,13 @@ namespace Mavi
 			{
 				LastContext = Context;
 				if (!CheckBreakPoint(Context))
-					return ThreadBarrier.unlock();
+					return;
 			}
 			else if (Action == DebugAction::Switch)
 			{
 				if (LastContext != Thread.Context)
 				{
-					ThreadBarrier.unlock();
+					Unique.Negate();
 					std::this_thread::sleep_for(std::chrono::milliseconds(10));
 					goto Retry;
 				}
@@ -3161,13 +3162,13 @@ namespace Mavi
 			{
 				LastContext = Context;
 				if (Base->GetCallstackSize() > LastCommandAtStackLevel && !CheckBreakPoint(Context))
-					return ThreadBarrier.unlock();
+					return;
 			}
 			else if (Action == DebugAction::StepOut)
 			{
 				LastContext = Context;
 				if (Base->GetCallstackSize() >= LastCommandAtStackLevel && !CheckBreakPoint(Context))
-					return ThreadBarrier.unlock();
+					return;
 			}
 			else if (Action == DebugAction::StepInto)
 			{
@@ -3185,11 +3186,9 @@ namespace Mavi
 				LastContext = Context;
 
 			Input(Context);
-			bool Switching = (Action == DebugAction::Switch || ForceSwitchThreads > 0);
-			ThreadBarrier.unlock();
-
-			if (Switching)
+			if (Action == DebugAction::Switch || ForceSwitchThreads > 0)
 			{
+				Unique.Negate();
 				std::this_thread::sleep_for(std::chrono::milliseconds(10));
 				goto Retry;
 			}
@@ -3916,15 +3915,11 @@ namespace Mavi
 		}
 		bool DebuggerContext::Interrupt()
 		{
-			ThreadBarrier.lock();
+			Core::UMutex<std::recursive_mutex> Unique(ThreadBarrier);
 			if (Action != DebugAction::Continue && Action != DebugAction::StepInto && Action != DebugAction::StepOut)
-			{
-				ThreadBarrier.unlock();
 				return false;
-			}
 
 			Action = DebugAction::Interrupt;
-			ThreadBarrier.unlock();
 			return true;
 		}
 		bool DebuggerContext::InterpretCommand(const Core::String& Command, ImmediateContext* Context)
@@ -4162,7 +4157,7 @@ namespace Mavi
 		}
 		void DebuggerContext::ClearThread(ImmediateContext* Context)
 		{
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			Core::UMutex<std::recursive_mutex> Unique(Mutex);
 			for (auto It = Threads.begin(); It != Threads.end(); It++)
 			{
 				if (It->Context == Context)
@@ -4215,7 +4210,7 @@ namespace Mavi
 		}
 		DebuggerContext::ThreadData DebuggerContext::GetThread(ImmediateContext* Context)
 		{
-			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			Core::UMutex<std::recursive_mutex> Unique(Mutex);
 			for (auto& Thread : Threads)
 			{
 				if (Thread.Context == Context)
@@ -4261,7 +4256,7 @@ namespace Mavi
 			VI_ASSERT(Function.IsValid(), "function should be set");
 			VI_ASSERT(!Core::Costate::IsCoroutine(), "cannot safely execute in coroutine");
 
-			std::unique_lock<std::recursive_mutex> Unique(Exchange);
+			Core::UMutex<std::recursive_mutex> Unique(Exchange);
 			if (!CanExecuteCall())
 				return Core::Promise<int>(asCONTEXT_ACTIVE);
 
@@ -4282,7 +4277,7 @@ namespace Mavi
 			VI_ASSERT(Function.IsValid(), "function should be set");
 			VI_ASSERT(!Core::Costate::IsCoroutine(), "cannot safely execute in coroutine");
 
-			std::unique_lock<std::recursive_mutex> Unique(Exchange);
+			Core::UMutex<std::recursive_mutex> Unique(Exchange);
 			if (!CanExecuteCall())
 				return asCONTEXT_ACTIVE;
 
@@ -4303,7 +4298,7 @@ namespace Mavi
 			VI_ASSERT(Function.IsValid(), "function should be set");
 			VI_ASSERT(!Core::Costate::IsCoroutine(), "cannot safely execute in coroutine");
 
-			std::unique_lock<std::recursive_mutex> Unique(Exchange);
+			Core::UMutex<std::recursive_mutex> Unique(Exchange);
 			if (!CanExecuteSubcall())
 			{
 				VI_ASSERT(false, "context should be active");
@@ -4344,7 +4339,7 @@ namespace Mavi
 			if (Result == asEXECUTION_SUSPENDED)
 				return Result;
 
-			std::unique_lock<std::recursive_mutex> Unique(Exchange);
+			Core::UMutex<std::recursive_mutex> Unique(Exchange);
 			if (Executor.Future.IsPending())
 				Executor.Future.Set(Result);
 			return Result;
@@ -4411,7 +4406,7 @@ namespace Mavi
 		}
 		bool ImmediateContext::IsPending()
 		{
-			std::unique_lock<std::recursive_mutex> Unique(Exchange);
+			Core::UMutex<std::recursive_mutex> Unique(Exchange);
 			return Executor.Future.IsPending();
 		}
 		int ImmediateContext::SetObject(void* Object)
@@ -4737,7 +4732,7 @@ namespace Mavi
 		}
 		Core::String ImmediateContext::GetExceptionStackTrace()
 		{
-			std::unique_lock<std::recursive_mutex> Unique(Exchange);
+			Core::UMutex<std::recursive_mutex> Unique(Exchange);
 			return Executor.Stacktrace;
 		}
 		Function ImmediateContext::GetSystemFunction()
@@ -5042,7 +5037,7 @@ namespace Mavi
 		}
 		Core::String VirtualMachine::GetScriptSection(const Core::String& Section)
 		{
-			std::unique_lock<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			auto It = Sections.find(Section);
 			if (It == Sections.end())
 				return Core::String();
@@ -5077,7 +5072,7 @@ namespace Mavi
 		bool VirtualMachine::SetByteCodeTranslator(unsigned int Options)
 		{
 #ifdef HAS_AS_JIT
-			std::unique_lock<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			asCJITCompiler* Context = (asCJITCompiler*)Translator;
 			bool TranslatorActive = (Options != (unsigned int)TranslationOptions::Disabled);
 			VI_DELETE(asCJITCompiler, Context);
@@ -5096,12 +5091,11 @@ namespace Mavi
 		}
 		void VirtualMachine::SetCodeGenerator(const Core::String& Name, GeneratorCallback&& Callback)
 		{
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			if (Callback != nullptr)
 				Generators[Name] = std::move(Callback);
 			else
 				Generators.erase(Name);
-			Sync.General.unlock();
 		}
 		void VirtualMachine::SetPreserveSourceCode(bool Enabled)
 		{
@@ -5117,12 +5111,13 @@ namespace Mavi
 		}
 		void VirtualMachine::SetDebugger(DebuggerContext* Context)
 		{
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique1(Sync.General);
 			VI_RELEASE(Debugger);
 			Debugger = Context;
 			if (Debugger != nullptr)
 				Debugger->SetEngine(this);
-			Sync.Pool.lock();
+
+			Core::UMutex<std::mutex> Unique2(Sync.Pool);
 			for (auto* Next : Stacks)
 			{
 				if (Debugger != nullptr)
@@ -5130,28 +5125,24 @@ namespace Mavi
 				else
 					DetachDebuggerFromContext(Next);
 			}
-			Sync.Pool.unlock();
-			Sync.General.unlock();
 		}
 		void VirtualMachine::ClearCache()
 		{
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			for (auto Data : Datas)
 				VI_RELEASE(Data.second);
 
 			Opcodes.clear();
 			Datas.clear();
 			Files.clear();
-			Sync.General.unlock();
 		}
 		void VirtualMachine::ClearSections()
 		{
 			if (Debugger != nullptr || SaveSources)
 				return;
 
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			Sections.clear();
-			Sync.General.unlock();
 		}
 		void VirtualMachine::SetCompilerErrorCallback(const WhenErrorCallback& Callback)
 		{
@@ -5159,32 +5150,28 @@ namespace Mavi
 		}
 		void VirtualMachine::SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc)
 		{
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			Include = NewDesc;
-			Sync.General.unlock();
 		}
 		void VirtualMachine::SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc)
 		{
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			Proc = NewDesc;
-			Sync.General.unlock();
 		}
 		void VirtualMachine::SetProcessorOptions(Compute::Preprocessor* Processor)
 		{
 			VI_ASSERT(Processor != nullptr, "preprocessor should be set");
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			Processor->SetIncludeOptions(Include);
 			Processor->SetFeatures(Proc);
-			Sync.General.unlock();
 		}
 		void VirtualMachine::SetCompileCallback(const Core::String& Section, CompileCallback&& Callback)
 		{
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			if (Callback != nullptr)
 				Callbacks[Section] = std::move(Callback);
 			else
 				Callbacks.erase(Section);
-			Sync.General.unlock();
 		}
 		void VirtualMachine::AttachDebuggerToContext(asIScriptContext* Context)
 		{
@@ -5207,19 +5194,14 @@ namespace Mavi
 			if (!Cached)
 				return false;
 
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			auto It = Opcodes.find(Info->Name);
 			if (It == Opcodes.end())
-			{
-				Sync.General.unlock();
 				return false;
-			}
 
 			Info->Data = It->second.Data;
 			Info->Debug = It->second.Debug;
 			Info->Valid = true;
-
-			Sync.General.unlock();
 			return true;
 		}
 		void VirtualMachine::SetByteCodeCache(ByteCodeInfo* Info)
@@ -5229,9 +5211,8 @@ namespace Mavi
 			if (!Cached)
 				return;
 
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			Opcodes[Info->Name] = *Info;
-			Sync.General.unlock();
 		}
 		int VirtualMachine::SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object)
 		{
@@ -5260,37 +5241,26 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_ASSERT(!Name.empty(), "name should not be empty");
 
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			if (!Engine->GetModule(Name.c_str()))
-			{
-				Sync.General.unlock();
 				return Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
-			}
 
 			Core::String Result;
 			while (Result.size() < 1024)
 			{
 				Result = Name + Core::ToString(Scope++);
 				if (!Engine->GetModule(Result.c_str()))
-				{
-					Sync.General.unlock();
 					return Engine->GetModule(Result.c_str(), asGM_ALWAYS_CREATE);
-				}
 			}
 
-			Sync.General.unlock();
 			return nullptr;
 		}
 		asIScriptModule* VirtualMachine::CreateModule(const Core::String& Name)
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_ASSERT(!Name.empty(), "name should not be empty");
-
-			Sync.General.lock();
-			asIScriptModule* Result = Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
-			Sync.General.unlock();
-
-			return Result;
+			Core::UMutex<std::mutex> Unique(Sync.General);
+			return Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
 		}
 		void* VirtualMachine::CreateObject(const TypeInfo& Type)
 		{
@@ -5326,11 +5296,8 @@ namespace Mavi
 		}
 		int VirtualMachine::Collect(size_t NumIterations)
 		{
-			Sync.General.lock();
-			int R = Engine->GarbageCollect(asGC_FULL_CYCLE | asGC_DETECT_GARBAGE | asGC_DESTROY_GARBAGE, (asUINT)NumIterations);
-			Sync.General.unlock();
-
-			return R;
+			Core::UMutex<std::mutex> Unique(Sync.General);
+			return Engine->GarbageCollect(asGC_FULL_CYCLE | asGC_DETECT_GARBAGE | asGC_DESTROY_GARBAGE, (asUINT)NumIterations);
 		}
 		void VirtualMachine::GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const
 		{
@@ -5410,7 +5377,7 @@ namespace Mavi
 				return false;
 			}
 
-			std::unique_lock<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			for (auto& Item : Generators)
 			{
 				VI_TRACE("[vm] generate source code for %s generator at %s (%" PRIu64 " bytes)", Item.first.c_str(), Path.empty() ? "<anonymous>" : Path.c_str(), (uint64_t)InoutBuffer.size());
@@ -5624,9 +5591,9 @@ namespace Mavi
 			VI_ASSERT(Module != nullptr, "module should be set");
 			VI_ASSERT(CodeLength > 0, "code should not be empty");
 
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			Sections[Name] = Core::String(Code, CodeLength);
-			Sync.General.unlock();
+			Unique.Negate();
 
 			return Module->AddScriptSection(Name, Code, CodeLength, LineOffset);
 		}
@@ -5679,13 +5646,13 @@ namespace Mavi
 		{
 			VI_ASSERT(Namespace != nullptr, "namespace name should be set");
 			const char* Prev = Engine->GetDefaultNamespace();
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			if (Prev != nullptr)
 				DefaultNamespace = Prev;
 			else
 				DefaultNamespace.clear();
-			Sync.General.unlock();
 
+			Unique.Negate();
 			return Engine->SetDefaultNamespace(Namespace);
 		}
 		int VirtualMachine::BeginNamespaceIsolated(const char* Namespace, size_t DefaultMask)
@@ -5701,11 +5668,8 @@ namespace Mavi
 		}
 		int VirtualMachine::EndNamespace()
 		{
-			Sync.General.lock();
-			int R = Engine->SetDefaultNamespace(DefaultNamespace.c_str());
-			Sync.General.unlock();
-
-			return R;
+			Core::UMutex<std::mutex> Unique(Sync.General);
+			return Engine->SetDefaultNamespace(DefaultNamespace.c_str());
 		}
 		int VirtualMachine::Namespace(const char* Namespace, const std::function<int(VirtualMachine*)>& Callback)
 		{
@@ -5777,14 +5741,13 @@ namespace Mavi
 		}
 		void VirtualMachine::SetModuleDirectory(const Core::String& Value)
 		{
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			Include.Root = Value;
 			if (Include.Root.empty())
-				return Sync.General.unlock();
+				return;
 
 			if (!Core::Stringify::EndsOf(Include.Root, "/\\"))
 				Include.Root.append(1, VI_SPLITTER);
-			Sync.General.unlock();
 		}
 		const Core::String& VirtualMachine::GetModuleDirectory() const
 		{
@@ -5792,7 +5755,7 @@ namespace Mavi
 		}
 		Core::Vector<Core::String> VirtualMachine::GetExposedAddons()
 		{
-			std::unique_lock<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			Core::Vector<Core::String> Result;
 			Result.reserve(Addons.size() + CLibraries.size());
 			for (auto& Module : Addons)
@@ -5820,7 +5783,7 @@ namespace Mavi
 		}
 		bool VirtualMachine::HasLibrary(const Core::String& Name, bool IsAddon)
 		{
-			std::unique_lock<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			auto It = CLibraries.find(Name);
 			if (It == CLibraries.end())
 				return false;
@@ -5829,7 +5792,7 @@ namespace Mavi
 		}
 		bool VirtualMachine::HasSystemAddon(const Core::String& Name)
 		{
-			std::unique_lock<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			auto It = Addons.find(Name);
 			if (It == Addons.end())
 				return false;
@@ -5855,12 +5818,11 @@ namespace Mavi
 		bool VirtualMachine::AddSystemAddon(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const AddonCallback& Callback)
 		{
 			VI_ASSERT(!Name.empty(), "name should not be empty");
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			if (Dependencies.empty() && !Callback)
 			{
 				Core::String Namespace = Name + '/';
 				Core::Vector<Core::String> Deps;
-
-				Sync.General.lock();
 				for (auto& Item : Addons)
 				{
 					if (Core::Stringify::StartsWith(Item.first, Namespace))
@@ -5868,10 +5830,7 @@ namespace Mavi
 				}
 
 				if (Addons.empty())
-				{
-					Sync.General.unlock();
 					return false;
-				}
 
 				auto It = Addons.find(Name);
 				if (It == Addons.end())
@@ -5888,7 +5847,6 @@ namespace Mavi
 			}
 			else
 			{
-				Sync.General.lock();
 				auto It = Addons.find(Name);
 				if (It != Addons.end())
 				{
@@ -5910,7 +5868,6 @@ namespace Mavi
 				}
 			}
 
-			Sync.General.unlock();
 			return true;
 		}
 		bool VirtualMachine::ImportFile(const Core::String& Path, bool IsRemote, Core::String& Output)
@@ -5941,20 +5898,19 @@ namespace Mavi
 				return true;
 			}
 
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			auto It = Files.find(Path);
 			if (It != Files.end())
 			{
 				Output.assign(It->second);
-				Sync.General.unlock();
 				return true;
 			}
 
-			Sync.General.unlock();
-			Output.assign(Core::OS::File::ReadAsString(Path));
-			Sync.General.lock();
+			Unique.Unlocked([&Output, &Path]()
+			{
+				Output.assign(Core::OS::File::ReadAsString(Path));
+			});
 			Files.insert(std::make_pair(Path, Output));
-			Sync.General.unlock();
 			return true;
 		}
 		bool VirtualMachine::ImportCFunction(const Core::Vector<Core::String>& Sources, const Core::String& Func, const Core::String& Decl)
@@ -5997,7 +5953,7 @@ namespace Mavi
 				return true;
 			};
 
-			std::unique_lock<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			auto It = CLibraries.end();
 			for (auto& Item : Sources)
 			{
@@ -6030,15 +5986,12 @@ namespace Mavi
 			if (!Engine)
 				return false;
 
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			auto Core = CLibraries.find(Name);
 			if (Core != CLibraries.end())
-			{
-				Sync.General.unlock();
 				return true;
-			}
-			Sync.General.unlock();
 
+			Unique.Negate();
 			void* Handle = Core::OS::Symbol::Load(Path);
 			if (!Handle)
 			{
@@ -6058,10 +6011,8 @@ namespace Mavi
 				return false;
 			}
 
-			Sync.General.lock();
+			Unique.Negate();
 			CLibraries.insert({ Name, std::move(Library) });
-			Sync.General.unlock();
-
 			VI_DEBUG("[vm] load library %s", Path.c_str());
 			return true;
 		}
@@ -6077,24 +6028,20 @@ namespace Mavi
 			if (Core::Stringify::EndsWith(Target, ".as"))
 				Target = Target.substr(0, Target.size() - 3);
 
-			Sync.General.lock();
+			Core::UMutex<std::mutex> Unique(Sync.General);
 			auto It = Addons.find(Target);
 			if (It == Addons.end())
 			{
-				Sync.General.unlock();
 				VI_ERR("[vm] cannot find script system addon %s", Name.c_str());
 				return false;
 			}
 
 			if (It->second.Exposed)
-			{
-				Sync.General.unlock();
 				return true;
-			}
 
 			Addon Base = It->second;
 			It->second.Exposed = true;
-			Sync.General.unlock();
+			Unique.Negate();
 
 			for (auto& Item : Base.Dependencies)
 			{
@@ -6236,45 +6183,38 @@ namespace Mavi
 		}
 		ImmediateContext* VirtualMachine::RequestContext()
 		{
-			Sync.Pool.lock();
+			Core::UMutex<std::mutex> Unique(Sync.Pool);
 			if (Threads.empty())
 			{
-				Sync.Pool.unlock();
+				Unique.Negate();
 				return CreateContext();
 			}
 
 			ImmediateContext* Context = *Threads.rbegin();
 			Threads.pop_back();
-			Sync.Pool.unlock();
 			return Context;
 		}
 		void VirtualMachine::ReturnContext(ImmediateContext* Context)
 		{
-			Sync.Pool.lock();
+			Core::UMutex<std::mutex> Unique(Sync.Pool);
 			Threads.push_back(Context);
 			Context->Unprepare();
-			Sync.Pool.unlock();
 		}
 		asIScriptContext* VirtualMachine::RequestRawContext(asIScriptEngine* Engine, void* Data)
 		{
 			VirtualMachine* VM = VirtualMachine::Get(Engine);
-			if (!VM)
-			{
-			CreateNewContext:
+			if (!VM || VM->Stacks.empty())
 				return Engine->CreateContext();
-			}
 
-			VM->Sync.Pool.lock();
+			Core::UMutex<std::mutex> Unique(VM->Sync.Pool);
 			if (VM->Stacks.empty())
 			{
-				VM->Sync.Pool.unlock();
-				goto CreateNewContext;
+				Unique.Negate();
+				return Engine->CreateContext();
 			}
 
 			asIScriptContext* Context = *VM->Stacks.rbegin();
 			VM->Stacks.pop_back();
-			VM->Sync.Pool.unlock();
-
 			return Context;
 		}
 		void VirtualMachine::ReturnRawContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data)
@@ -6282,10 +6222,9 @@ namespace Mavi
 			VirtualMachine* VM = VirtualMachine::Get(Engine);
 			VI_ASSERT(VM != nullptr, "engine should be set");
 
-			VM->Sync.Pool.lock();
+			Core::UMutex<std::mutex> Unique(VM->Sync.Pool);
 			VM->Stacks.push_back(Context);
 			Context->Unprepare();
-			VM->Sync.Pool.unlock();
 		}
 		void VirtualMachine::LineHandler(asIScriptContext* Context, void*)
 		{
@@ -6317,9 +6256,10 @@ namespace Mavi
 				}
 
 				VI_ERR("[vm] uncaught exception %s, callstack:\n%.*s", Details.empty() ? "unknown" : Details.c_str(), (int)Trace.size(), Trace.c_str());
-				Base->Exchange.lock();
+				Core::UMutex<std::recursive_mutex> Unique(Base->Exchange);
 				Base->Executor.Stacktrace = Trace;
-				Base->Exchange.unlock();
+				Unique.Negate();
+
 				if (Base->Callbacks.Exception)
 					Base->Callbacks.Exception(Base);
 			}

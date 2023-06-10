@@ -245,13 +245,13 @@ namespace Mavi
 				void* Address = malloc(Size);
 				VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
 
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), Size, true, false);
 				return Address;
 			}
 			void DebugAllocator::Free(void* Address) noexcept
 			{
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				auto It = Blocks.find(Address);
 				VI_ASSERT(It != Blocks.end() && It->second.Active, "cannot free memory that was not allocated by this allocator at 0x%" PRIXPTR, Address);
 
@@ -264,12 +264,12 @@ namespace Mavi
 			}
 			void DebugAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
 			{
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), Size, true, true);
 			}
 			void DebugAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
 			{
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				auto It = Blocks.find(Address);
 
 				VI_ASSERT(It == Blocks.end() || !It->second.Active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, Address);
@@ -277,7 +277,7 @@ namespace Mavi
 			}
 			void DebugAllocator::Unwatch(void* Address) noexcept
 			{
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				auto It = Blocks.find(Address);
 
 				VI_ASSERT(It != Blocks.end() && !It->second.Active, "address at 0x%" PRIXPTR " cannot be cleared from tracking because it was not allocated by this allocator", Address);
@@ -289,7 +289,7 @@ namespace Mavi
 			}
 			bool DebugAllocator::IsValid(void* Address) noexcept
 			{
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				auto It = Blocks.find(Address);
 
 				VI_ASSERT(It != Blocks.end(), "address at 0x%" PRIXPTR " cannot be used as it was already freed");
@@ -303,7 +303,7 @@ namespace Mavi
 			{
 #if VI_DLEVEL >= 4
 				VI_TRACE("[mem] dump internal memory state on 0x%" PRIXPTR, Address);
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				if (Address != nullptr)
 				{
 					bool LogActive = ErrorHandling::HasFlag(LogOption::Active);
@@ -372,7 +372,7 @@ namespace Mavi
 			bool DebugAllocator::FindBlock(void* Address, TracingBlock* Output)
 			{
 				VI_ASSERT(Address != nullptr, "address should not be null");
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				auto It = Blocks.find(Address);
 				if (It == Blocks.end())
 					return false;
@@ -447,7 +447,7 @@ namespace Mavi
 			}
 			void* CachedAllocator::Allocate(size_t Size) noexcept
 			{
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				auto* Cache = GetPageCache(Size);
 				if (!Cache)
 					return nullptr;
@@ -471,7 +471,7 @@ namespace Mavi
 				PageCache* Cache = nullptr;
 				memcpy(&Cache, Source, sizeof(void*));
 
-				std::unique_lock<std::recursive_mutex> Unique(Mutex);
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
 				Cache->Addresses.push_back(Source);
 
 				if (Cache->Addresses.size() >= Cache->Capacity && (Cache->Capacity == 1 || GetClock() - Cache->Timing > (int64_t)MinimalLifeTime))
@@ -933,7 +933,7 @@ namespace Mavi
 
 			void* Address = malloc(Size);
 			VI_PANIC(Address != nullptr, "application is out of system memory allocating %" PRIu64 " bytes", (uint64_t)Size);
-			std::unique_lock<std::mutex> Unique(Context->Mutex);
+			Core::UMutex<std::mutex> Unique(Context->Mutex);
 			Context->Allocations[Address].second = Size;
 			return Address;
 		}
@@ -957,7 +957,7 @@ namespace Mavi
 
 			void* Address = malloc(Size);
 			VI_PANIC(Address != nullptr, "application is out of system memory allocating %" PRIu64 " bytes", (uint64_t)Size);
-			std::unique_lock<std::mutex> Unique(Context->Mutex);
+			Core::UMutex<std::mutex> Unique(Context->Mutex);
 			auto& Item = Context->Allocations[Address];
 			Item.first = std::move(Origin);
 			Item.second = Size;
@@ -975,7 +975,7 @@ namespace Mavi
 			else if (!Context)
 				Context = new State();
 
-			std::unique_lock<std::mutex> Unique(Context->Mutex);
+			Core::UMutex<std::mutex> Unique(Context->Mutex);
 			Context->Allocations.erase(Address);
 			free(Address);
 		}
@@ -1334,13 +1334,13 @@ namespace Mavi
 			if (!Console::IsAvailable())
 				return;
 
-			Console* Base = Console::Get();
-			Base->Begin();
-			if (!HasFlag(LogOption::Pretty))
-				Base->Write(GetMessageText(Data));
-			else
-				Colorify(Base, Data);
-			Base->End();
+			Console::Get()->Synced([&Data](Console* Base)
+			{
+				if (!HasFlag(LogOption::Pretty))
+					Base->Write(GetMessageText(Data));
+				else
+					Colorify(Base, Data);
+			});
 		}
 		void ErrorHandling::Colorify(Console* Base, Details& Data) noexcept
 		{
@@ -6062,14 +6062,6 @@ namespace Mavi
 #endif
 			Status = Mode::Detached;
 		}
-		void Console::Begin()
-		{
-			Session.lock();
-		}
-		void Console::End()
-		{
-			Session.unlock();
-		}
 		void Console::Hide()
 		{
 #ifdef VI_MICROSOFT
@@ -6317,8 +6309,8 @@ namespace Mavi
 		}
 		void Console::fWriteLine(const char* Format, ...)
 		{
+			VI_ASSERT(Format != nullptr, "format should be set");
 			char Buffer[BLOB_SIZE] = { '\0' };
-
 			va_list Args;
 			va_start(Args, Format);
 #ifdef VI_MICROSOFT
@@ -6332,8 +6324,8 @@ namespace Mavi
 		}
 		void Console::fWrite(const char* Format, ...)
 		{
+			VI_ASSERT(Format != nullptr, "format should be set");
 			char Buffer[BLOB_SIZE] = { '\0' };
-
 			va_list Args;
 			va_start(Args, Format);
 #ifdef VI_MICROSOFT
@@ -6347,20 +6339,17 @@ namespace Mavi
 		}
 		void Console::sWriteLine(const Core::String& Line)
 		{
-			Session.lock();
+			UMutex<std::recursive_mutex> Unique(Session);
 			std::cout << Line << '\n';
-			Session.unlock();
 		}
 		void Console::sWrite(const Core::String& Line)
 		{
-			Session.lock();
+			UMutex<std::recursive_mutex> Unique(Session);
 			std::cout << Line;
-			Session.unlock();
 		}
 		void Console::sfWriteLine(const char* Format, ...)
 		{
 			VI_ASSERT(Format != nullptr, "format should be set");
-
 			char Buffer[BLOB_SIZE] = { '\0' };
 			va_list Args;
 			va_start(Args, Format);
@@ -6371,14 +6360,12 @@ namespace Mavi
 #endif
 			va_end(Args);
 
-			Session.lock();
+			UMutex<std::recursive_mutex> Unique(Session);
 			std::cout << Buffer << '\n';
-			Session.unlock();
 		}
 		void Console::sfWrite(const char* Format, ...)
 		{
 			VI_ASSERT(Format != nullptr, "format should be set");
-
 			char Buffer[BLOB_SIZE] = { '\0' };
 			va_list Args;
 			va_start(Args, Format);
@@ -6389,9 +6376,8 @@ namespace Mavi
 #endif
 			va_end(Args);
 
-			Session.lock();
+			UMutex<std::recursive_mutex> Unique(Session);
 			std::cout << Buffer;
-			Session.unlock();
 		}
 		void Console::GetSize(uint32_t* Width, uint32_t* Height)
 		{
@@ -9554,7 +9540,7 @@ namespace Mavi
 		}
 
 		static thread_local Costate* Cothread = nullptr;
-		Costate::Costate(size_t StackSize) noexcept : Thread(std::this_thread::get_id()), Current(nullptr), Master(VI_NEW(Cocontext)), Size(StackSize)
+		Costate::Costate(size_t StackSize) noexcept : Thread(std::this_thread::get_id()), Current(nullptr), Master(VI_NEW(Cocontext)), Size(StackSize), ExternalMutex(nullptr)
 		{
 			VI_TRACE("[co] spawn coroutine state 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(Thread).c_str());
 		}
@@ -9699,17 +9685,20 @@ namespace Mavi
 			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
 			VI_ASSERT(Routine->Dead < 1, "coroutine should not be dead");
 
-			bool MustLock = (Thread != std::this_thread::get_id());
-			if (MustLock && NotifyLock)
-				NotifyLock();
-
-			int Result = (Routine->State == Coactive::Inactive ? 1 : -1);
-			if (Result == 1)
-				Routine->State = Coactive::Resumable;
-
-			if (MustLock && NotifyUnlock)
-				NotifyUnlock();
-
+			int Result;
+			if (Thread != std::this_thread::get_id() && ExternalMutex != nullptr)
+			{
+				UMutex<std::mutex> Unique(*ExternalMutex);
+				Result = (Routine->State == Coactive::Inactive ? 1 : -1);
+				if (Result == 1)
+					Routine->State = Coactive::Resumable;
+			}
+			else
+			{
+				Result = (Routine->State == Coactive::Inactive ? 1 : -1);
+				if (Result == 1)
+					Routine->State = Coactive::Resumable;
+			}
 			return Result;
 		}
 		int Costate::Deactivate(Coroutine* Routine)
@@ -9951,7 +9940,7 @@ namespace Mavi
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
 			{
-				std::unique_lock<std::mutex> Lock(Queue->Update);
+				Core::UMutex<std::mutex> Lock(Queue->Update);
 				Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, true, Type)));
 				Queue->Notify.notify_all();
 			}
@@ -9974,7 +9963,7 @@ namespace Mavi
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
 			{
-				std::unique_lock<std::mutex> Lock(Queue->Update);
+				Core::UMutex<std::mutex> Lock(Queue->Update);
 				Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, true, Type)));
 				Queue->Notify.notify_all();
 			}
@@ -10013,7 +10002,7 @@ namespace Mavi
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
 			{
-				std::unique_lock<std::mutex> Lock(Queue->Update);
+				Core::UMutex<std::mutex> Lock(Queue->Update);
 				Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, false, Type)));
 				Queue->Notify.notify_all();
 			}
@@ -10036,7 +10025,7 @@ namespace Mavi
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
 			{
-				std::unique_lock<std::mutex> Lock(Queue->Update);
+				Core::UMutex<std::mutex> Lock(Queue->Update);
 				Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, false, Type)));
 				Queue->Notify.notify_all();
 			}
@@ -10061,7 +10050,7 @@ namespace Mavi
 #endif
 			VI_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Type];
-			std::unique_lock<std::mutex> Lock(Queue->Update);
+			Core::UMutex<std::mutex> Lock(Queue->Update);
 			Queue->Tasks.enqueue(Callback);
 			Queue->Notify.notify_all();
 			return true;
@@ -10149,7 +10138,7 @@ namespace Mavi
 		{
 			VI_MEASURE(Core::Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
-			std::unique_lock<std::mutex> Lock(Queue->Update);
+			Core::UMutex<std::mutex> Lock(Queue->Update);
 			for (auto It = Queue->Timers.begin(); It != Queue->Timers.end(); ++It)
 			{
 				if (It->second.Id == Target)
@@ -10193,12 +10182,9 @@ namespace Mavi
 		bool Schedule::Stop()
 		{
 			VI_TRACE("[schedule] stop 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(std::this_thread::get_id()).c_str());
-			Exclusive.lock();
+			UMutex<std::mutex> Unique(Exclusive);
 			if (!Active && !Terminate)
-			{
-				Exclusive.unlock();
 				return false;
-			}
 
 			Active = Enqueue = false;
 			Wakeup();
@@ -10210,7 +10196,6 @@ namespace Mavi
 					if (!PopThread(Thread))
 					{
 						Terminate = true;
-						Exclusive.unlock();
 						return false;
 					}
 				}
@@ -10219,15 +10204,13 @@ namespace Mavi
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
 				auto* Queue = Queues[i];
-				std::unique_lock<std::mutex> Lock(Queue->Update);
+				Core::UMutex<std::mutex> Lock(Queue->Update);
 				Queue->Timers.clear();
 			}
 
 			Terminate = false;
 			Enqueue = true;
 			ChunkCleanup();
-			Exclusive.unlock();
-
 			return true;
 		}
 		bool Schedule::Wakeup()
@@ -10431,15 +10414,7 @@ namespace Mavi
 
 					ReceiveToken Token(Queue->Tasks);
 					Costate* State = new Costate(Policy.StackSize);
-					State->NotifyLock = [Thread]()
-					{
-						Thread->Update.lock();
-					};
-					State->NotifyUnlock = [Thread]()
-					{
-						Thread->Notify.notify_all();
-						Thread->Update.unlock();
-					};
+					State->ExternalMutex = &Thread->Update;
 
 					Core::Vector<TaskCallback> Events;
 					Events.resize(Policy.MaxCoroutines);

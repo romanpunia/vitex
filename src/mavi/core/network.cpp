@@ -1502,11 +1502,11 @@ namespace Mavi
 		{
 			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
 			VI_MEASURE(Core::Timings::Networking);
-			VI_TRACE("[net] fd %i write %i bytes", (int)Fd, Size);
+			VI_TRACE("[net] fd %i write %i bytes", (int)Fd, (int)Size);
 #ifdef VI_OPENSSL
 			if (Device != nullptr)
 			{
-				int Value = SSL_write(Device, Buffer, Size);
+				int Value = SSL_write(Device, Buffer, (int)Size);
 				if (Value <= 0)
 					return Utils::GetLastError(Device, Value);
 
@@ -1515,7 +1515,7 @@ namespace Mavi
 				return Written;
 			}
 #endif
-			int Value = send(Fd, Buffer, Size, 0);
+			int Value = send(Fd, Buffer, (int)Size, 0);
 			if (Value <= 0)
 				return Utils::GetLastError(Device, Value);
 
@@ -1583,7 +1583,7 @@ namespace Mavi
 			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
 			VI_ASSERT(Buffer != nullptr && Size > 0, "buffer should be set");
 			VI_MEASURE(Core::Timings::Networking);
-			VI_TRACE("[net] fd %i read %i bytes", (int)Fd, Size);
+			VI_TRACE("[net] fd %i read %i bytes", (int)Fd, (int)Size);
 #ifdef VI_OPENSSL
 			if (Device != nullptr)
 			{

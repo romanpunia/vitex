@@ -11568,7 +11568,7 @@ namespace Mavi
 			catch (const rapidxml::parse_error& Exception)
 			{
 				char* Position = Exception.where<char>();
-				int Offset = (Position ? Buffer - Position : 0);
+				int Offset = (int)(Position ? Buffer - Position : 0);
 				return Exceptions::ParserException(ParserError::XMLParsingError, Offset, Exception.what());
 			}
 			catch (const std::exception& Exception)

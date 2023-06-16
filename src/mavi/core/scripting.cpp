@@ -659,7 +659,7 @@ namespace Mavi
 			bool IsPrivate;
 			bool IsProtected;
 			bool IsReference;
-			int R = Info->GetProperty(Index, &Name, &TypeId, &IsPrivate, &IsProtected, &Offset, &IsReference, &AccessMask);
+			int R = Info->GetProperty((asUINT)Index, &Name, &TypeId, &IsPrivate, &IsProtected, &Offset, &IsReference, &AccessMask);
 			if (Out != nullptr)
 			{
 				Out->Name = Name;
@@ -950,7 +950,7 @@ namespace Mavi
 		const char* Function::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
-			return Ptr->GetVarDecl(Index, IncludeNamespace);
+			return Ptr->GetVarDecl((asUINT)Index, IncludeNamespace);
 		}
 		int Function::FindNextLineWithCode(int Line) const
 		{

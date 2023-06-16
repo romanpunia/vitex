@@ -187,7 +187,8 @@ namespace Mavi
 		{
 			Error = -1,
 			None = 0,
-			Value = 1
+			Value = 1,
+			OK = 1
 		};
 
 		enum class Signal
@@ -210,6 +211,39 @@ namespace Mavi
 			SIG_CHLD,
 			SIG_USR1,
 			SIG_USR2
+		};
+
+		enum class ParserError
+		{
+			BadVersion,
+			BadDictionary,
+			BadNameIndex,
+			BadName,
+			BadKeyName,
+			BadKeyType,
+			BadValue,
+			BadString,
+			BadInteger,
+			BadDouble,
+			BadBoolean,
+			XMLParsingError,
+			JSONDocumentEmpty,
+			JSONDocumentRootNotSingular,
+			JSONValueInvalid,
+			JSONObjectMissName,
+			JSONObjectMissColon,
+			JSONObjectMissCommaOrCurlyBracket,
+			JSONArrayMissCommaOrSquareBracket,
+			JSONStringUnicodeEscapeInvalidHex,
+			JSONStringUnicodeSurrogateInvalid,
+			JSONStringEscapeInvalid,
+			JSONStringMissQuotationMark,
+			JSONStringInvalidEncoding,
+			JSONNumberTooBig,
+			JSONNumberMissFraction,
+			JSONNumberMissExponent,
+			JSONTermination,
+			JSONUnspecificSyntaxError
 		};
 
 		template <typename T, typename = void>
@@ -510,8 +544,7 @@ namespace Mavi
 		using OrderedMap = std::map<K, V, Comparator, typename AllocationType<typename std::map<K, V>::value_type>::type>;
 
 		typedef std::function<void()> TaskCallback;
-		typedef std::function<void(size_t)> SeqTaskCallback;
-		typedef std::function<Core::String(const Core::String&)> SchemaNameCallback;
+		typedef std::function<String(const String&)> SchemaNameCallback;
 		typedef std::function<void(VarForm, const char*, size_t)> SchemaWriteCallback;
 		typedef std::function<bool(char*, size_t)> SchemaReadCallback;
 		typedef std::function<bool()> ActivityCallback;
@@ -692,14 +725,31 @@ namespace Mavi
 			};
 		}
 
+		namespace Exceptions
+		{
+			class ParserException : public std::exception
+			{
+			public:
+				String Info;
+				ParserError Type;
+				int Offset;
+
+			public:
+				ParserException(ParserError NewType);
+				ParserException(ParserError NewType, int NewOffset);
+				ParserException(ParserError NewType, int NewOffset, const char* NewMessage);
+				const char* what() const override;
+			};
+		}
+
 		class VI_OUT StackTrace
 		{
 		public:
 			struct VI_OUT Frame
 			{
-				Core::String Code;
-				Core::String Function;
-				Core::String File;
+				String Code;
+				String Function;
+				String File;
 				uint32_t Line;
 				uint32_t Column;
 				void* Handle;
@@ -707,7 +757,7 @@ namespace Mavi
 			};
 
 		public:
-			typedef Core::Vector<Frame> StackPtr;
+			typedef Vector<Frame> StackPtr;
 
 		private:
 			StackPtr Frames;
@@ -781,13 +831,13 @@ namespace Mavi
 			static void SetFlag(LogOption Option, bool Active) noexcept;
 			static bool HasFlag(LogOption Option) noexcept;
 			static bool HasCallback() noexcept;
-			static Core::String GetStackTrace(size_t Skips, size_t MaxFrames = 64) noexcept;
-			static Core::String GetMeasureTrace() noexcept;
+			static String GetStackTrace(size_t Skips, size_t MaxFrames = 64) noexcept;
+			static String GetMeasureTrace() noexcept;
 			static Tick Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS) noexcept;
 			static void MeasureLoop() noexcept;
 			static const char* GetMessageType(const Details& Base) noexcept;
 			static StdColor GetMessageColor(const Details& Base) noexcept;
-			static Core::String GetMessageText(const Details& Base) noexcept;
+			static String GetMessageText(const Details& Base) noexcept;
 
 		private:
 			static void Enqueue(Details&& Data) noexcept;
@@ -844,6 +894,8 @@ namespace Mavi
 		template <typename V>
 		class Option
 		{
+			static_assert(!std::is_same<V, Optional>::value, "value type should not be optional type");
+
 		private:
 			char Value[sizeof(V)];
 			bool Empty;
@@ -851,7 +903,7 @@ namespace Mavi
 		public:
 			Option(Optional Other) : Empty(true)
 			{
-				VI_ASSERT(Other == Optional::None, "only none is accepted for this constructor");
+				VI_ASSERT(Other != Optional::Error, "only none and value are accepted for this constructor");
 			}
 			Option(const V& Other) : Empty(false)
 			{
@@ -876,16 +928,23 @@ namespace Mavi
 				if (!Empty)
 					((V*)Value)->~V();
 			}
+			Option& operator= (Optional Value)
+			{
+				VI_ASSERT(Value != Optional::Error, "only none and value are accepted for this constructor");
+				this->~Option();
+				Empty = true;
+				return *this;
+			}
 			Option& operator= (const V& Other)
 			{
-				~Option();
+				this->~Option();
 				new (Value) V(Other);
 				Empty = false;
 				return *this;
 			}
 			Option& operator= (V&& Other) noexcept
 			{
-				~Option();
+				this->~Option();
 				new (Value) V(std::move(Other));
 				Empty = false;
 				return *this;
@@ -895,7 +954,7 @@ namespace Mavi
 				if (this == &Other)
 					return *this;
 
-				~Option();
+				this->~Option();
 				Empty = Other.Empty;
 				if (!Empty)
 					new (Value) V(*(V*)Other.Value);
@@ -907,7 +966,7 @@ namespace Mavi
 				if (this == &Other)
 					return *this;
 
-				~Option();
+				this->~Option();
 				memcpy(Value, Other.Value, sizeof(Value));
 				Empty = Other.Empty;
 				Other.Empty = true;
@@ -935,10 +994,13 @@ namespace Mavi
 				VI_ASSERT(IsValue(), "option does not contain any value");
 				return std::move(*(V*)Value);
 			}
+			const typename std::remove_pointer<V>::type* operator-> () const
+			{
+				return GetConstReference<V>();
+			}
 			typename std::remove_pointer<V>::type* operator-> ()
 			{
-				VI_ASSERT(IsValue(), "option does not contain any value");
-				return (typename std::remove_pointer<V>::type*)Value;
+				return GetReference<V>();
 			}
 			explicit operator bool() const
 			{
@@ -950,7 +1012,7 @@ namespace Mavi
 			}
 			void Reset()
 			{
-				~Option();
+				this->~Option();
 				Empty = true;
 			}
 			bool IsNone() const
@@ -960,6 +1022,32 @@ namespace Mavi
 			bool IsValue() const
 			{
 				return !Empty;
+			}
+
+		private:
+			template <typename Q>
+			inline typename std::enable_if<std::is_pointer<Q>::value, Q>::type GetReference()
+			{
+				Q&& Data = this->operator*();
+				return Data;
+			}
+			template <typename Q>
+			inline typename std::enable_if<!std::is_pointer<Q>::value, Q*>::type GetReference()
+			{
+				Q&& Data = this->operator*();
+				return &Data;
+			}
+			template <typename Q>
+			inline typename std::enable_if<std::is_pointer<Q>::value, const Q>::type GetConstReference() const
+			{
+				const Q& Data = this->operator*();
+				return Data;
+			}
+			template <typename Q>
+			inline typename std::enable_if<!std::is_pointer<Q>::value, const Q*>::type GetConstReference() const
+			{
+				const Q& Data = this->operator*();
+				return &Data;
 			}
 		};
 
@@ -1022,8 +1110,8 @@ namespace Mavi
 		template <typename V, typename E>
 		class Expects
 		{
-			static_assert(!std::is_same<V, void>::value, "value type should not be void");
 			static_assert(!std::is_same<E, void>::value, "error type should not be void");
+			static_assert(!std::is_same<E, V>::value, "error type should not be value type");
 
 		private:
 			using ValueSize = std::integral_constant<std::size_t, std::max(sizeof(V), sizeof(E))>;
@@ -1071,16 +1159,30 @@ namespace Mavi
 			}
 			Expects& operator= (const V& Other)
 			{
-				~Expects();
+				this->~Expects();
 				new (Value) V(Other);
 				Status = 1;
 				return **this;
 			}
 			Expects& operator= (V&& Other) noexcept
 			{
-				~Expects();
+				this->~Expects();
 				new (Value) V(std::move(Other));
 				Status = 1;
+				return *this;
+			}
+			Expects& operator= (const E& Other)
+			{
+				this->~Expects();
+				new (Value) E(Other);
+				Status = -1;
+				return **this;
+			}
+			Expects& operator= (E&& Other) noexcept
+			{
+				this->~Expects();
+				new (Value) E(std::move(Other));
+				Status = -1;
 				return *this;
 			}
 			Expects& operator= (const Expects& Other)
@@ -1088,7 +1190,7 @@ namespace Mavi
 				if (this == &Other)
 					return *this;
 
-				~Expects();
+				this->~Expects();
 				Status = Other.Status;
 				if (Status > 0)
 					new (Value) V(*(V*)Other.Value);
@@ -1102,7 +1204,7 @@ namespace Mavi
 				if (this == &Other)
 					return *this;
 
-				~Expects();
+				this->~Expects();
 				Status = Other.Status;
 				Other.Status = 0;
 				if (Status > 0)
@@ -1133,7 +1235,13 @@ namespace Mavi
 				VI_ASSERT(IsError(), "outcome does not contain any errors");
 				return std::move(*(E*)Value);
 			}
-			Core::String What() const
+			void Report(const char* Message) const
+			{
+				VI_ASSERT(Message != nullptr && Message[0] != '\0', "report case message should be set");
+				if (IsError())
+					VI_ERR("%s caused by %s", Message, GetErrorText<E>().c_str());
+			}
+			String What() const
 			{
 				VI_ASSERT(!IsValue(), "outcome does not contain any errors");
 				return GetErrorText<E>();
@@ -1156,14 +1264,17 @@ namespace Mavi
 				VI_ASSERT(IsValue(), "error caused by %s", GetErrorText<E>().c_str());
 				return std::move(*(V*)Value);
 			}
+			const typename std::remove_pointer<V>::type* operator-> () const
+			{
+				return GetConstReference<V>();
+			}
 			typename std::remove_pointer<V>::type* operator-> ()
 			{
-				VI_ASSERT(IsValue(), "error caused by %s", GetErrorText<E>().c_str());
-				return (typename std::remove_pointer<V>::type*)Value;
+				return GetReference<V>();
 			}
 			void Reset()
 			{
-				~Expects();
+				this->~Expects();
 				Status = 0;
 			}
 			bool IsNone() const
@@ -1181,19 +1292,43 @@ namespace Mavi
 
 		private:
 			template <typename Q>
-			inline typename std::enable_if<std::is_base_of<std::exception, Q>::value, Core::String>::type GetErrorText() const
+			inline typename std::enable_if<std::is_pointer<Q>::value, Q>::type GetReference()
+			{
+				Q&& Data = this->operator*();
+				return Data;
+			}
+			template <typename Q>
+			inline typename std::enable_if<!std::is_pointer<Q>::value, Q*>::type GetReference()
+			{
+				Q&& Data = this->operator*();
+				return &Data;
+			}
+			template <typename Q>
+			inline typename std::enable_if<std::is_pointer<Q>::value, const Q>::type GetConstReference() const
+			{
+				const Q& Data = this->operator*();
+				return Data;
+			}
+			template <typename Q>
+			inline typename std::enable_if<!std::is_pointer<Q>::value, const Q*>::type GetConstReference() const
+			{
+				const Q& Data = this->operator*();
+				return &Data;
+			}
+			template <typename Q>
+			inline typename std::enable_if<std::is_base_of<std::exception, Q>::value, String>::type GetErrorText() const
 			{
 				return String(IsError() ?((Q*)Value)->what() : "*no value stored*");
 			}
 			template <typename Q>
 			inline typename std::enable_if<std::is_same<std::error_code, Q>::value, std::string>::type GetErrorText() const
 			{
-				return IsError() ? std::string(((Q*)Value)->message()) : std::string("*no value stored*");
+				return IsError() ? ((Q*)Value)->message() : std::string("*no value stored*");
 			}
 			template <typename Q>
 			inline typename std::enable_if<std::is_same<std::error_condition, Q>::value, std::string>::type GetErrorText() const
 			{
-				return IsError() ? std::string(((Q*)Value)->message()) : std::string("*no value stored*");
+				return IsError() ? ((Q*)Value)->message() : std::string("*no value stored*");
 			}
 			template <typename Q>
 			inline typename std::enable_if<std::is_same<std::string, Q>::value, std::string>::type GetErrorText() const
@@ -1202,17 +1337,190 @@ namespace Mavi
 			}
 #ifdef VI_ALLOCATOR
 			template <typename Q>
-			inline typename std::enable_if<std::is_same<Core::String, Q>::value, Core::String>::type GetErrorText() const
+			inline typename std::enable_if<std::is_same<String, Q>::value, String>::type GetErrorText() const
 			{
 				return IsError() ? *(Q*)Value : Q("*no value stored*");
 			}
 #endif
 			template <typename Q>
-			inline typename std::enable_if<!std::is_base_of<std::exception, Q>::value && !std::is_same<std::error_code, Q>::value && !std::is_same<std::error_condition, Q>::value && !std::is_same<std::string, Q>::value && !std::is_same<Core::String, Q>::value, Core::String>::type GetErrorText() const
+			inline typename std::enable_if<!std::is_base_of<std::exception, Q>::value && !std::is_same<std::error_code, Q>::value && !std::is_same<std::error_condition, Q>::value && !std::is_same<std::string, Q>::value && !std::is_same<String, Q>::value, String>::type GetErrorText() const
 			{
 				return String(IsError() ? "*error cannot be shown*" : "*no value stored*");
 			}
 		};
+
+		template <typename E>
+		class Expects<void, E>
+		{
+			static_assert(!std::is_same<E, void>::value, "error type should not be void");
+
+		private:
+			char Value[sizeof(E)];
+			char Status;
+
+		public:
+			Expects(Optional Type) : Status(1)
+			{
+				VI_ASSERT(Type == Optional::Value, "only value is accepted for this constructor");
+			}
+			Expects(const E& Other) noexcept : Status(-1)
+			{
+				new (Value) E(Other);
+			}
+			Expects(E&& Other) noexcept : Status(-1)
+			{
+				new (Value) E(std::move(Other));
+			}
+			Expects(const Expects& Other) : Status(Other.Status)
+			{
+				if (Status < 0)
+					new (Value) E(*(E*)Other.Value);
+			}
+			Expects(Expects&& Other) noexcept : Status(Other.Status)
+			{
+				Other.Status = 0;
+				if (Status < 0)
+					memcpy(Value, Other.Value, sizeof(E));
+			}
+			~Expects()
+			{
+				if (Status < 0)
+					((E*)Value)->~E();
+			}
+			Expects& operator= (Optional Type)
+			{
+				VI_ASSERT(Type == Optional::Value, "only value is accepted for this operator");
+				this->~Expects();
+				Status = 1;
+				return **this;
+			}
+			Expects& operator= (const E& Other)
+			{
+				this->~Expects();
+				new (Value) E(Other);
+				Status = -1;
+				return **this;
+			}
+			Expects& operator= (E&& Other) noexcept
+			{
+				this->~Expects();
+				new (Value) E(std::move(Other));
+				Status = -1;
+				return *this;
+			}
+			Expects& operator= (const Expects& Other)
+			{
+				if (this == &Other)
+					return *this;
+
+				this->~Expects();
+				Status = Other.Status;
+				if (Status < 0)
+					new (Value) E(*(E*)Other.Value);
+
+				return *this;
+			}
+			Expects& operator= (Expects&& Other) noexcept
+			{
+				if (this == &Other)
+					return *this;
+
+				this->~Expects();
+				Status = Other.Status;
+				Other.Status = 0;
+				if (Status < 0)
+					memcpy(Value, Other.Value, sizeof(E));
+				return *this;
+			}
+			void OrPanic(const char* Message) const
+			{
+				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
+				VI_PANIC(IsValue(), "%s caused by %s", Message, GetErrorText<E>().c_str());
+			}
+			const E& Error() const
+			{
+				VI_ASSERT(IsError(), "outcome does not contain any errors");
+				return *(E*)Value;
+			}
+			E&& Error()
+			{
+				VI_ASSERT(IsError(), "outcome does not contain any errors");
+				return std::move(*(E*)Value);
+			}
+			void Report(const char* Message) const
+			{
+				VI_ASSERT(Message != nullptr && Message[0] != '\0', "report case message should be set");
+				if (IsError())
+					VI_ERR("%s caused by %s", Message, GetErrorText<E>().c_str());
+			}
+			String What() const
+			{
+				VI_ASSERT(!IsValue(), "outcome does not contain any errors");
+				return GetErrorText<E>();
+			}
+			explicit operator bool() const
+			{
+				return IsValue();
+			}
+			explicit operator Optional() const
+			{
+				return (Optional)Status;
+			}
+			void Reset()
+			{
+				this->~Expects();
+				Status = 0;
+			}
+			bool IsNone() const
+			{
+				return !Status;
+			}
+			bool IsValue() const
+			{
+				return Status > 0;
+			}
+			bool IsError() const
+			{
+				return Status < 0;
+			}
+
+		private:
+			template <typename Q>
+			inline typename std::enable_if<std::is_base_of<std::exception, Q>::value, String>::type GetErrorText() const
+			{
+				return String(IsError() ? ((Q*)Value)->what() : "*no value stored*");
+			}
+			template <typename Q>
+			inline typename std::enable_if<std::is_same<std::error_code, Q>::value, std::string>::type GetErrorText() const
+			{
+				return IsError() ? ((Q*)Value)->message() : std::string("*no value stored*");
+			}
+			template <typename Q>
+			inline typename std::enable_if<std::is_same<std::error_condition, Q>::value, std::string>::type GetErrorText() const
+			{
+				return IsError() ? ((Q*)Value)->message() : std::string("*no value stored*");
+			}
+			template <typename Q>
+			inline typename std::enable_if<std::is_same<std::string, Q>::value, std::string>::type GetErrorText() const
+			{
+				return IsError() ? *(Q*)Value : Q("*no value stored*");
+			}
+#ifdef VI_ALLOCATOR
+			template <typename Q>
+			inline typename std::enable_if<std::is_same<String, Q>::value, String>::type GetErrorText() const
+			{
+				return IsError() ? *(Q*)Value : Q("*no value stored*");
+			}
+#endif
+			template <typename Q>
+			inline typename std::enable_if<!std::is_base_of<std::exception, Q>::value && !std::is_same<std::error_code, Q>::value && !std::is_same<std::error_condition, Q>::value && !std::is_same<std::string, Q>::value && !std::is_same<String, Q>::value, String>::type GetErrorText() const
+			{
+				return String(IsError() ? "*error cannot be shown*" : "*no value stored*");
+			}
+		};
+
+		template <typename V>
+		using Expected = Expects<V, std::error_condition>;
 
 		struct VI_OUT Coroutine
 		{
@@ -1237,7 +1545,7 @@ namespace Mavi
 		struct VI_OUT Decimal
 		{
 		private:
-			Core::DoubleQueue<char> Source;
+			DoubleQueue<char> Source;
 			int Length;
 			char Sign;
 			bool Invalid;
@@ -1245,7 +1553,7 @@ namespace Mavi
 		public:
 			Decimal() noexcept;
 			Decimal(const char* Value) noexcept;
-			Decimal(const Core::String& Value) noexcept;
+			Decimal(const String& Value) noexcept;
 			Decimal(int32_t Value) noexcept;
 			Decimal(uint32_t Value) noexcept;
 			Decimal(int64_t Value) noexcept;
@@ -1268,8 +1576,8 @@ namespace Mavi
 			float ToFloat() const;
 			int64_t ToInt64() const;
 			uint64_t ToUInt64() const;
-			Core::String ToString() const;
-			Core::String Exp() const;
+			String ToString() const;
+			String Exp() const;
 			int Decimals() const;
 			int Ints() const;
 			int Size() const;
@@ -1290,7 +1598,7 @@ namespace Mavi
 			bool operator>= (const Decimal& Right) const;
 			bool operator< (const Decimal& Right) const;
 			bool operator<= (const Decimal& Right) const;
-			explicit operator double () const
+			explicit operator double() const
 			{
 				return ToDouble();
 			}
@@ -1306,7 +1614,7 @@ namespace Mavi
 			{
 				return ToUInt64();
 			}
-			explicit operator Core::String() const
+			explicit operator String() const
 			{
 				return ToString();
 			}
@@ -1355,9 +1663,9 @@ namespace Mavi
 			Variant(const Variant& Other) noexcept;
 			Variant(Variant&& Other) noexcept;
 			~Variant() noexcept;
-			bool Deserialize(const Core::String& Value, bool Strict = false);
-			Core::String Serialize() const;
-			Core::String GetBlob() const;
+			bool Deserialize(const String& Value, bool Strict = false);
+			String Serialize() const;
+			String GetBlob() const;
 			Decimal GetDecimal() const;
 			void* GetPointer() const;
 			const char* GetString() const;
@@ -1388,10 +1696,10 @@ namespace Mavi
 			static size_t GetMaxSmallStringSize();
 		};
 
-		typedef Core::Vector<Variant> VariantList;
-		typedef Core::Vector<Schema*> SchemaList;
-		typedef Core::UnorderedMap<Core::String, Variant> VariantArgs;
-		typedef Core::UnorderedMap<Core::String, Schema*> SchemaArgs;
+		typedef Vector<Variant> VariantList;
+		typedef Vector<Schema*> SchemaList;
+		typedef UnorderedMap<String, Variant> VariantArgs;
+		typedef UnorderedMap<String, Schema*> SchemaArgs;
 
 		struct VI_OUT TextSettle
 		{
@@ -1418,14 +1726,13 @@ namespace Mavi
 		struct VI_OUT Timeout
 		{
 			std::chrono::microseconds Expires;
-			SeqTaskCallback Callback;
+			TaskCallback Callback;
 			Difficulty Type;
 			TaskId Id;
-			size_t Invocations;
 			bool Alive;
 
-			Timeout(const SeqTaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept;
-			Timeout(SeqTaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept;
+			Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept;
+			Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept;
 			Timeout(const Timeout& Other) noexcept;
 			Timeout(Timeout&& Other) noexcept;
 			Timeout& operator= (const Timeout& Other) noexcept;
@@ -1434,7 +1741,6 @@ namespace Mavi
 
 		struct VI_OUT FileEntry
 		{
-			Core::String Path;
 			size_t Size = 0;
 			int64_t LastModified = 0;
 			int64_t CreationTime = 0;
@@ -1480,9 +1786,9 @@ namespace Mavi
 			bool operator >(const DateTime& Right);
 			bool operator <(const DateTime& Right);
 			bool operator ==(const DateTime& Right);
-			Core::String Format(const Core::String& Value);
-			Core::String Date(const Core::String& Value);
-			Core::String Iso8601();
+			String Format(const String& Value);
+			String Date(const String& Value);
+			String Iso8601();
 			DateTime Now();
 			DateTime FromNanoseconds(uint64_t Value);
 			DateTime FromMicroseconds(uint64_t Value);
@@ -1525,8 +1831,8 @@ namespace Mavi
 			void Rebuild();
 
 		public:
-			static Core::String FetchWebDateGMT(int64_t TimeStamp);
-			static Core::String FetchWebDateTime(int64_t TimeStamp);
+			static String FetchWebDateGMT(int64_t TimeStamp);
+			static String FetchWebDateTime(int64_t TimeStamp);
 			static bool FetchWebDateGMT(char* Buffer, size_t Length, int64_t Time);
 			static bool FetchWebDateTime(char* Buffer, size_t Length, int64_t Time);
 			static void FetchDateTime(char* Buffer, size_t Length, int64_t Time);
@@ -1536,80 +1842,80 @@ namespace Mavi
 		struct VI_OUT Stringify
 		{
 		public:
-			static Core::String& EscapePrint(Core::String& Other);
-			static Core::String& Escape(Core::String& Other);
-			static Core::String& Unescape(Core::String& Other);
-			static Core::String& ToUpper(Core::String& Other);
-			static Core::String& ToLower(Core::String& Other);
-			static Core::String& Clip(Core::String& Other, size_t Length);
-			static Core::String& Compress(Core::String& Other, const char* SpaceIfNotFollowedOrPrecededByOf, const char* NotInBetweenOf, size_t Start = 0U);
-			static Core::String& ReplaceOf(Core::String& Other, const char* Chars, const char* To, size_t Start = 0U);
-			static Core::String& ReplaceNotOf(Core::String& Other, const char* Chars, const char* To, size_t Start = 0U);
-			static Core::String& ReplaceGroups(Core::String& Other, const Core::String& FromRegex, const Core::String& To);
-			static Core::String& Replace(Core::String& Other, const Core::String& From, const Core::String& To, size_t Start = 0U);
-			static Core::String& Replace(Core::String& Other, const char* From, const char* To, size_t Start = 0U);
-			static Core::String& Replace(Core::String& Other, const char& From, const char& To, size_t Position = 0U);
-			static Core::String& Replace(Core::String& Other, const char& From, const char& To, size_t Position, size_t Count);
-			static Core::String& ReplacePart(Core::String& Other, size_t Start, size_t End, const Core::String& Value);
-			static Core::String& ReplacePart(Core::String& Other, size_t Start, size_t End, const char* Value);
-			static Core::String& ReplaceStartsWithEndsOf(Core::String& Other, const char* Begins, const char* EndsOf, const Core::String& With, size_t Start = 0U);
-			static Core::String& ReplaceInBetween(Core::String& Other, const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start = 0U);
-			static Core::String& ReplaceNotInBetween(Core::String& Other, const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start = 0U);
-			static Core::String& ReplaceParts(Core::String& Other, Core::Vector<std::pair<Core::String, TextSettle>>& Inout, const Core::String& With, const std::function<char(const Core::String&, char, int)>& Surrounding = nullptr);
-			static Core::String& ReplaceParts(Core::String& Other, Core::Vector<TextSettle>& Inout, const Core::String& With, const std::function<char(char, int)>& Surrounding = nullptr);
-			static Core::String& RemovePart(Core::String& Other, size_t Start, size_t End);
-			static Core::String& Reverse(Core::String& Other);
-			static Core::String& Reverse(Core::String& Other, size_t Start, size_t End);
-			static Core::String& Substring(Core::String& Other, const TextSettle& Result);
-			static Core::String& Splice(Core::String& Other, size_t Start, size_t End);
-			static Core::String& Trim(Core::String& Other);
-			static Core::String& TrimStart(Core::String& Other);
-			static Core::String& TrimEnd(Core::String& Other);
-			static Core::String& Fill(Core::String& Other, const char& Char);
-			static Core::String& Fill(Core::String& Other, const char& Char, size_t Count);
-			static Core::String& Fill(Core::String& Other, const char& Char, size_t Start, size_t Count);
-			static Core::String& Append(Core::String& Other, const char* Format, ...);
-			static Core::String& Erase(Core::String& Other, size_t Position);
-			static Core::String& Erase(Core::String& Other, size_t Position, size_t Count);
-			static Core::String& EraseOffsets(Core::String& Other, size_t Start, size_t End);
-			static Core::String& EvalEnvs(Core::String& Other, const Core::String& Net, const Core::String& Dir);
-			static Core::Vector<std::pair<Core::String, TextSettle>> FindInBetween(const Core::String& Other, const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset = 0U);
-			static Core::Vector<std::pair<Core::String, TextSettle>> FindStartsWithEndsOf(const Core::String& Other, const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset = 0U);
-			static TextSettle ReverseFind(const Core::String& Other, const Core::String& Needle, size_t Offset = 0U);
-			static TextSettle ReverseFind(const Core::String& Other, const char* Needle, size_t Offset = 0U);
-			static TextSettle ReverseFind(const Core::String& Other, const char& Needle, size_t Offset = 0U);
-			static TextSettle ReverseFindUnescaped(const Core::String& Other, const char& Needle, size_t Offset = 0U);
-			static TextSettle ReverseFindOf(const Core::String& Other, const Core::String& Needle, size_t Offset = 0U);
-			static TextSettle ReverseFindOf(const Core::String& Other, const char* Needle, size_t Offset = 0U);
-			static TextSettle Find(const Core::String& Other, const Core::String& Needle, size_t Offset = 0U);
-			static TextSettle Find(const Core::String& Other, const char* Needle, size_t Offset = 0U);
-			static TextSettle Find(const Core::String& Other, const char& Needle, size_t Offset = 0U);
-			static TextSettle FindUnescaped(const Core::String& Other, const char& Needle, size_t Offset = 0U);
-			static TextSettle FindOf(const Core::String& Other, const Core::String& Needle, size_t Offset = 0U);
-			static TextSettle FindOf(const Core::String& Other, const char* Needle, size_t Offset = 0U);
-			static TextSettle FindNotOf(const Core::String& Other, const Core::String& Needle, size_t Offset = 0U);
-			static TextSettle FindNotOf(const Core::String& Other, const char* Needle, size_t Offset = 0U);
-			static bool IsPrecededBy(const Core::String& Other, size_t At, const char* Of);
-			static bool IsFollowedBy(const Core::String& Other, size_t At, const char* Of);
-			static bool StartsWith(const Core::String& Other, const Core::String& Value, size_t Offset = 0U);
-			static bool StartsWith(const Core::String& Other, const char* Value, size_t Offset = 0U);
-			static bool StartsOf(const Core::String& Other, const char* Value, size_t Offset = 0U);
-			static bool StartsNotOf(const Core::String& Other, const char* Value, size_t Offset = 0U);
-			static bool EndsWith(const Core::String& Other, const Core::String& Value);
-			static bool EndsOf(const Core::String& Other, const char* Value);
-			static bool EndsNotOf(const Core::String& Other, const char* Value);
-			static bool EndsWith(const Core::String& Other, const char* Value);
-			static bool EndsWith(const Core::String& Other, const char& Value);
-			static bool HasInteger(const Core::String& Other);
-			static bool HasNumber(const Core::String& Other);
-			static bool HasDecimal(const Core::String& Other);
-			static Core::String Text(const char* Format, ...);
-			static Core::WideString ToWide(const Core::String& Other);
-			static Core::Vector<Core::String> Split(const Core::String& Other, const Core::String& With, size_t Start = 0U);
-			static Core::Vector<Core::String> Split(const Core::String& Other, char With, size_t Start = 0U);
-			static Core::Vector<Core::String> SplitMax(const Core::String& Other, char With, size_t MaxCount, size_t Start = 0U);
-			static Core::Vector<Core::String> SplitOf(const Core::String& Other, const char* With, size_t Start = 0U);
-			static Core::Vector<Core::String> SplitNotOf(const Core::String& Other, const char* With, size_t Start = 0U);
+			static String& EscapePrint(String& Other);
+			static String& Escape(String& Other);
+			static String& Unescape(String& Other);
+			static String& ToUpper(String& Other);
+			static String& ToLower(String& Other);
+			static String& Clip(String& Other, size_t Length);
+			static String& Compress(String& Other, const char* SpaceIfNotFollowedOrPrecededByOf, const char* NotInBetweenOf, size_t Start = 0U);
+			static String& ReplaceOf(String& Other, const char* Chars, const char* To, size_t Start = 0U);
+			static String& ReplaceNotOf(String& Other, const char* Chars, const char* To, size_t Start = 0U);
+			static String& ReplaceGroups(String& Other, const String& FromRegex, const String& To);
+			static String& Replace(String& Other, const String& From, const String& To, size_t Start = 0U);
+			static String& Replace(String& Other, const char* From, const char* To, size_t Start = 0U);
+			static String& Replace(String& Other, const char& From, const char& To, size_t Position = 0U);
+			static String& Replace(String& Other, const char& From, const char& To, size_t Position, size_t Count);
+			static String& ReplacePart(String& Other, size_t Start, size_t End, const String& Value);
+			static String& ReplacePart(String& Other, size_t Start, size_t End, const char* Value);
+			static String& ReplaceStartsWithEndsOf(String& Other, const char* Begins, const char* EndsOf, const String& With, size_t Start = 0U);
+			static String& ReplaceInBetween(String& Other, const char* Begins, const char* Ends, const String& With, bool Recursive, size_t Start = 0U);
+			static String& ReplaceNotInBetween(String& Other, const char* Begins, const char* Ends, const String& With, bool Recursive, size_t Start = 0U);
+			static String& ReplaceParts(String& Other, Vector<std::pair<String, TextSettle>>& Inout, const String& With, const std::function<char(const String&, char, int)>& Surrounding = nullptr);
+			static String& ReplaceParts(String& Other, Vector<TextSettle>& Inout, const String& With, const std::function<char(char, int)>& Surrounding = nullptr);
+			static String& RemovePart(String& Other, size_t Start, size_t End);
+			static String& Reverse(String& Other);
+			static String& Reverse(String& Other, size_t Start, size_t End);
+			static String& Substring(String& Other, const TextSettle& Result);
+			static String& Splice(String& Other, size_t Start, size_t End);
+			static String& Trim(String& Other);
+			static String& TrimStart(String& Other);
+			static String& TrimEnd(String& Other);
+			static String& Fill(String& Other, const char& Char);
+			static String& Fill(String& Other, const char& Char, size_t Count);
+			static String& Fill(String& Other, const char& Char, size_t Start, size_t Count);
+			static String& Append(String& Other, const char* Format, ...);
+			static String& Erase(String& Other, size_t Position);
+			static String& Erase(String& Other, size_t Position, size_t Count);
+			static String& EraseOffsets(String& Other, size_t Start, size_t End);
+			static String& EvalEnvs(String& Other, const String& Net, const String& Dir);
+			static Vector<std::pair<String, TextSettle>> FindInBetween(const String& Other, const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset = 0U);
+			static Vector<std::pair<String, TextSettle>> FindStartsWithEndsOf(const String& Other, const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset = 0U);
+			static TextSettle ReverseFind(const String& Other, const String& Needle, size_t Offset = 0U);
+			static TextSettle ReverseFind(const String& Other, const char* Needle, size_t Offset = 0U);
+			static TextSettle ReverseFind(const String& Other, const char& Needle, size_t Offset = 0U);
+			static TextSettle ReverseFindUnescaped(const String& Other, const char& Needle, size_t Offset = 0U);
+			static TextSettle ReverseFindOf(const String& Other, const String& Needle, size_t Offset = 0U);
+			static TextSettle ReverseFindOf(const String& Other, const char* Needle, size_t Offset = 0U);
+			static TextSettle Find(const String& Other, const String& Needle, size_t Offset = 0U);
+			static TextSettle Find(const String& Other, const char* Needle, size_t Offset = 0U);
+			static TextSettle Find(const String& Other, const char& Needle, size_t Offset = 0U);
+			static TextSettle FindUnescaped(const String& Other, const char& Needle, size_t Offset = 0U);
+			static TextSettle FindOf(const String& Other, const String& Needle, size_t Offset = 0U);
+			static TextSettle FindOf(const String& Other, const char* Needle, size_t Offset = 0U);
+			static TextSettle FindNotOf(const String& Other, const String& Needle, size_t Offset = 0U);
+			static TextSettle FindNotOf(const String& Other, const char* Needle, size_t Offset = 0U);
+			static bool IsPrecededBy(const String& Other, size_t At, const char* Of);
+			static bool IsFollowedBy(const String& Other, size_t At, const char* Of);
+			static bool StartsWith(const String& Other, const String& Value, size_t Offset = 0U);
+			static bool StartsWith(const String& Other, const char* Value, size_t Offset = 0U);
+			static bool StartsOf(const String& Other, const char* Value, size_t Offset = 0U);
+			static bool StartsNotOf(const String& Other, const char* Value, size_t Offset = 0U);
+			static bool EndsWith(const String& Other, const String& Value);
+			static bool EndsOf(const String& Other, const char* Value);
+			static bool EndsNotOf(const String& Other, const char* Value);
+			static bool EndsWith(const String& Other, const char* Value);
+			static bool EndsWith(const String& Other, const char& Value);
+			static bool HasInteger(const String& Other);
+			static bool HasNumber(const String& Other);
+			static bool HasDecimal(const String& Other);
+			static String Text(const char* Format, ...);
+			static WideString ToWide(const String& Other);
+			static Vector<String> Split(const String& Other, const String& With, size_t Start = 0U);
+			static Vector<String> Split(const String& Other, char With, size_t Start = 0U);
+			static Vector<String> SplitMax(const String& Other, char With, size_t MaxCount, size_t Start = 0U);
+			static Vector<String> SplitOf(const String& Other, const char* With, size_t Start = 0U);
+			static Vector<String> SplitNotOf(const String& Other, const char* With, size_t Start = 0U);
 			static bool IsDigit(char Char);
 			static bool IsAlphabetic(char Char);
 			static int CaseCompare(const char* Value1, const char* Value2);
@@ -1740,43 +2046,43 @@ namespace Mavi
 			class VI_OUT Directory
 			{
 			public:
-				static void SetWorking(const char* Path);
-				static bool Patch(const Core::String& Path);
-				static bool Scan(const Core::String& Path, Core::Vector<FileEntry>* Entries);
-				static bool Each(const char* Path, const std::function<bool(FileEntry*)>& Callback);
-				static bool Create(const char* Path);
-				static bool Remove(const char* Path);
 				static bool IsExists(const char* Path);
-				static Core::String GetModule();
-				static Core::String GetWorking();
-				static Core::Vector<Core::String> GetMounts();
+				static Expected<void> SetWorking(const char* Path);
+				static Expected<void> Patch(const String& Path);
+				static Expected<void> Scan(const String& Path, Vector<std::pair<String, FileEntry>>* Entries);
+				static Expected<void> Create(const char* Path);
+				static Expected<void> Remove(const char* Path);
+				static Expected<String> GetModule();
+				static Expected<String> GetWorking();
+				static Vector<String> GetMounts();
 			};
 
 			class VI_OUT File
 			{
 			public:
-				static bool Write(const Core::String& Path, const char* Data, size_t Length);
-				static bool Write(const Core::String& Path, const Core::String& Data);
-				static bool State(const Core::String& Path, FileEntry* Resource);
-				static bool Move(const char* From, const char* To);
-				static bool Copy(const char* From, const char* To);
-				static bool Remove(const char* Path);
 				static bool IsExists(const char* Path);
-				static void Close(Unique<void> Stream);
-				static int Compare(const Core::String& FirstPath, const Core::String& SecondPath);
-				static size_t Join(const Core::String& To, const Core::Vector<Core::String>& Paths);
-				static uint64_t GetHash(const Core::String& Data);
+				static int Compare(const String& FirstPath, const String& SecondPath);
+				static uint64_t GetHash(const String& Data);
 				static uint64_t GetIndex(const char* Data, size_t Size);
-				static FileState GetProperties(const char* Path);
-				static Unique<Stream> OpenJoin(const Core::String& Path, const Core::Vector<Core::String>& Paths);
-				static Unique<Stream> OpenArchive(const Core::String& Path, size_t UnarchivedMaxSize = 128 * 1024 * 1024);
-				static Unique<Stream> Open(const Core::String& Path, FileMode Mode, bool Async = false);
-				static Unique<void> Open(const char* Path, const char* Mode);
-				static Unique<unsigned char> ReadChunk(Stream* Stream, size_t Length);
-				static Unique<unsigned char> ReadAll(const Core::String& Path, size_t* ByteLength);
-				static Unique<unsigned char> ReadAll(Stream* Stream, size_t* ByteLength);
-				static Core::String ReadAsString(const Core::String& Path);
-				static Core::Vector<Core::String> ReadAsArray(const Core::String& Path);
+				static Expected<void> Write(const String& Path, const char* Data, size_t Length);
+				static Expected<void> Write(const String& Path, const String& Data);
+				static Expected<void> Move(const char* From, const char* To);
+				static Expected<void> Copy(const char* From, const char* To);
+				static Expected<void> Remove(const char* Path);
+				static Expected<void> Close(Unique<void> Stream);
+				static Expected<void> GetState(const String& Path, FileEntry* Output);
+				static Expected<size_t> Join(const String& To, const Vector<String>& Paths);
+				static Expected<FileState> GetProperties(const char* Path);
+				static Expected<FileEntry> GetState(const String& Path);
+				static Expected<Unique<Stream>> OpenJoin(const String& Path, const Vector<String>& Paths);
+				static Expected<Unique<Stream>> OpenArchive(const String& Path, size_t UnarchivedMaxSize = 128 * 1024 * 1024);
+				static Expected<Unique<Stream>> Open(const String& Path, FileMode Mode, bool Async = false);
+				static Expected<Unique<FILE>> Open(const char* Path, const char* Mode);
+				static Expected<Unique<unsigned char>> ReadChunk(Stream* Stream, size_t Length);
+				static Expected<Unique<unsigned char>> ReadAll(const String& Path, size_t* ByteLength);
+				static Expected<Unique<unsigned char>> ReadAll(Stream* Stream, size_t* ByteLength);
+				static Expected<String> ReadAsString(const String& Path);
+				static Expected<Vector<String>> ReadAsArray(const String& Path);
 
 			public:
 				template <size_t Size>
@@ -1799,14 +2105,14 @@ namespace Mavi
 				static bool IsRemote(const char* Path);
 				static bool IsRelative(const char* Path);
 				static bool IsAbsolute(const char* Path);
-				static Core::String Resolve(const char* Path);
-				static Core::String Resolve(const Core::String& Path, const Core::String& Directory, bool EvenIfExists);
-				static Core::String ResolveDirectory(const char* Path);
-				static Core::String ResolveDirectory(const Core::String& Path, const Core::String& Directory, bool EvenIfExists);
-				static Core::String GetDirectory(const char* Path, size_t Level = 0);
-				static Core::String GetNonExistant(const Core::String& Path);
 				static const char* GetFilename(const char* Path);
 				static const char* GetExtension(const char* Path);
+				static String GetDirectory(const char* Path, size_t Level = 0);
+				static String GetNonExistant(const String& Path);
+				static Expected<String> Resolve(const char* Path);
+				static Expected<String> Resolve(const String& Path, const String& Directory, bool EvenIfExists);
+				static Expected<String> ResolveDirectory(const char* Path);
+				static Expected<String> ResolveDirectory(const String& Path, const String& Directory, bool EvenIfExists);
 			};
 
 			class VI_OUT Net
@@ -1823,58 +2129,59 @@ namespace Mavi
                 struct VI_OUT ArgsContext
                 {
 				public:
-                    Core::UnorderedMap<Core::String, Core::String> Base;
+                    UnorderedMap<String, String> Base;
                     
 				public:
-					ArgsContext(int Argc, char** Argv, const Core::String& WhenNoValue = "1") noexcept;
-					void ForEach(const std::function<void(const Core::String&, const Core::String&)>& Callback) const;
-					bool IsEnabled(const Core::String& Option, const Core::String& Shortcut = "") const;
-					bool IsDisabled(const Core::String& Option, const Core::String& Shortcut = "") const;
-					bool Has(const Core::String& Option, const Core::String& Shortcut = "") const;
-					Core::String& Get(const Core::String& Option, const Core::String& Shortcut = "");
-					Core::String& GetIf(const Core::String& Option, const Core::String& Shortcut, const Core::String& WhenEmpty);
-					Core::String& GetAppPath();
+					ArgsContext(int Argc, char** Argv, const String& WhenNoValue = "1") noexcept;
+					void ForEach(const std::function<void(const String&, const String&)>& Callback) const;
+					bool IsEnabled(const String& Option, const String& Shortcut = "") const;
+					bool IsDisabled(const String& Option, const String& Shortcut = "") const;
+					bool Has(const String& Option, const String& Shortcut = "") const;
+					String& Get(const String& Option, const String& Shortcut = "");
+					String& GetIf(const String& Option, const String& Shortcut, const String& WhenEmpty);
+					String& GetAppPath();
                     
                 private:
-					bool IsTrue(const Core::String& Value) const;
-					bool IsFalse(const Core::String& Value) const;
+					bool IsTrue(const String& Value) const;
+					bool IsFalse(const String& Value) const;
                 };
                 
 			public:
 				static void Abort();
-				static void Exit(int Code);
 				static void Interrupt();
+				static void Exit(int Code);
 				static bool SetSignalCallback(Signal Type, SignalCallback Callback);
 				static bool SetSignalDefault(Signal Type);
 				static bool SetSignalIgnore(Signal Type);
 				static int GetSignalId(Signal Type);
 				static int ExecutePlain(const String& Command);
-				static ProcessStream* ExecuteWriteOnly(const String& Command);
-				static ProcessStream* ExecuteReadOnly(const String& Command);
-				static bool Spawn(const Core::String& Path, const Core::Vector<Core::String>& Params, ChildProcess* Result);
+				static bool Spawn(const String& Path, const Vector<String>& Params, ChildProcess* Result);
 				static bool Await(ChildProcess* Process, int* ExitCode);
 				static bool Free(ChildProcess* Process);
-                static Core::String GetThreadId(const std::thread::id& Id);
-                static Core::UnorderedMap<Core::String, Core::String> GetArgs(int Argc, char** Argv, const Core::String& WhenNoValue = "1");
+				static Expected<Unique<ProcessStream>> ExecuteWriteOnly(const String& Command);
+				static Expected<Unique<ProcessStream>> ExecuteReadOnly(const String& Command);
+				static Expected<String> GetEnv(const String& Name);
+                static String GetThreadId(const std::thread::id& Id);
+                static UnorderedMap<String, String> GetArgs(int Argc, char** Argv, const String& WhenNoValue = "1");
 			};
 
 			class VI_OUT Symbol
 			{
 			public:
-				static Unique<void> Load(const Core::String& Path = "");
-				static Unique<void> LoadFunction(void* Handle, const Core::String& Name);
-				static bool Unload(void* Handle);
+				static Expected<Unique<void>> Load(const String& Path = "");
+				static Expected<Unique<void>> LoadFunction(void* Handle, const String& Name);
+				static Expected<void> Unload(void* Handle);
 			};
 
 			class VI_OUT Input
 			{
 			public:
-				static bool Text(const Core::String& Title, const Core::String& Message, const Core::String& DefaultInput, Core::String* Result);
-				static bool Password(const Core::String& Title, const Core::String& Message, Core::String* Result);
-				static bool Save(const Core::String& Title, const Core::String& DefaultPath, const Core::String& Filter, const Core::String& FilterDescription, Core::String* Result);
-				static bool Open(const Core::String& Title, const Core::String& DefaultPath, const Core::String& Filter, const Core::String& FilterDescription, bool Multiple, Core::String* Result);
-				static bool Folder(const Core::String& Title, const Core::String& DefaultPath, Core::String* Result);
-				static bool Color(const Core::String& Title, const Core::String& DefaultHexRGB, Core::String* Result);
+				static bool Text(const String& Title, const String& Message, const String& DefaultInput, String* Result);
+				static bool Password(const String& Title, const String& Message, String* Result);
+				static bool Save(const String& Title, const String& DefaultPath, const String& Filter, const String& FilterDescription, String* Result);
+				static bool Open(const String& Title, const String& DefaultPath, const String& Filter, const String& FilterDescription, bool Multiple, String* Result);
+				static bool Folder(const String& Title, const String& DefaultPath, String* Result);
+				static bool Color(const String& Title, const String& DefaultHexRGB, String* Result);
 			};
 
 			class VI_OUT Error
@@ -1884,11 +2191,10 @@ namespace Mavi
 				static void Clear();
 				static bool Occurred();
 				static bool IsError(int Code);
-				static std::error_code GetCode();
-				static std::error_code GetCode(int Code);
 				static std::error_condition GetCondition();
 				static std::error_condition GetCondition(int Code);
-				static Core::String GetName(int Code);
+				static std::error_condition GetConditionOr(std::errc Code = std::errc::invalid_argument);
+				static String GetName(int Code);
 			};
 		};
 
@@ -1897,7 +2203,7 @@ namespace Mavi
 		private:
 			struct State
 			{
-				Core::UnorderedMap<uint64_t, std::pair<uint64_t, void*>> Factory;
+				UnorderedMap<uint64_t, std::pair<uint64_t, void*>> Factory;
 				std::mutex Mutex;
 			};
 
@@ -1905,8 +2211,8 @@ namespace Mavi
 			static State* Context;
 
 		public:
-			static Core::UnorderedSet<uint64_t> Fetch(uint64_t Id) noexcept;
-			static bool Pop(const Core::String& Hash) noexcept;
+			static UnorderedSet<uint64_t> Fetch(uint64_t Id) noexcept;
+			static bool Pop(const String& Hash) noexcept;
 			static void Cleanup() noexcept;
 
 		private:
@@ -1915,7 +2221,7 @@ namespace Mavi
 
 		public:
 			template <typename T, typename... Args>
-			static Unique<T> Create(const Core::String& Hash, Args... Data) noexcept
+			static Unique<T> Create(const String& Hash, Args... Data) noexcept
 			{
 				return Create<T, Args...>(VI_HASH(Hash), Data...);
 			}
@@ -1976,7 +2282,7 @@ namespace Mavi
 			}
 			void MarkRef() noexcept
 			{
-				__vcnt = Bitmask<uint32_t>::Unmark(__vcnt.load());
+				__vcnt = Bitmask<uint32_t>::Mark(__vcnt.load());
 			}
 			void AddRef() noexcept
 			{
@@ -2220,302 +2526,6 @@ namespace Mavi
 			UAlloc& operator= (UAlloc&& Other) noexcept = delete;
 		};
 
-		template <typename T>
-		class Reactive
-		{
-		public:
-			typedef std::function<void(T&)> SimpleSetterCallback;
-			typedef std::function<void(T&, const T&)> ComplexSetterCallback;
-			typedef std::function<T()> SimpleGetterCallback;
-			typedef std::function<T(bool&)> ComplexGetterCallback;
-
-		private:
-			Core::UnorderedMap<size_t, ComplexSetterCallback> Setters;
-			ComplexGetterCallback Getter;
-			size_t Index;
-			bool IsSet;
-
-		private:
-			T Value;
-
-		public:
-			Reactive() : Index(0), IsSet(false)
-			{
-			}
-			Reactive(const T& NewValue) noexcept : Index(0), IsSet(true), Value(NewValue)
-			{
-			}
-			Reactive(T&& NewValue) noexcept : Index(0), IsSet(true), Value(std::move(NewValue))
-			{
-			}
-			Reactive(const Reactive& Other) = delete;
-			Reactive(Reactive&& Other) = default;
-			~Reactive() = default;
-			Reactive& operator= (const T& Other)
-			{
-				SetValue(Other);
-				return *this;
-			}
-			Reactive& operator= (T&& Other)
-			{
-				SetValue(std::move(Other));
-				return *this;
-			}
-			Reactive& operator= (const Reactive& Other) = delete;
-			Reactive& operator= (Reactive&& Other) = default;
-			T* operator-> ()
-			{
-				T& Current = GetValue();
-				return &Current;
-			}
-			operator const T& () const
-			{
-				return GetValue();
-			}
-			size_t WhenSet(ComplexSetterCallback&& NewCallback)
-			{
-				size_t Id = Index++;
-				Setters[Id] = std::move(NewCallback);
-				return Id;
-			}
-			size_t WhenSet(const ComplexSetterCallback& NewCallback)
-			{
-				size_t Id = Index++;
-				Setters[Id] = NewCallback;
-				return Id;
-			}
-			size_t WhenSet(SimpleSetterCallback&& NewCallback)
-			{
-				return WhenSet([NewCallback = std::move(NewCallback)](T& New, const T&) { NewCallback(New); });
-			}
-			size_t WhenSet(const SimpleSetterCallback& NewCallback)
-			{
-				return WhenSet([NewCallback](T& New, const T&) { NewCallback(New); });
-			}
-			void WhenGet(ComplexGetterCallback&& NewCallback)
-			{
-				Getter = std::move(NewCallback);
-			}
-			void WhenGet(const ComplexGetterCallback& NewCallback)
-			{
-				Getter = NewCallback;
-			}
-			void WhenGet(SimpleGetterCallback&& NewCallback)
-			{
-				Getter = [NewCallback = std::move(NewCallback)](bool& IsSet)->T
-				{
-					IsSet = true;
-					return NewCallback();
-				};
-			}
-			void WhenGet(const SimpleGetterCallback& NewCallback)
-			{
-				Getter = [NewCallback](bool& IsSet) -> T
-				{
-					IsSet = true;
-					return NewCallback();
-				};
-			}
-			void ClearWhenSet(size_t Id)
-			{
-				Setters.erase(Id);
-			}
-			void ClearWhenGet(size_t Id)
-			{
-				Getter = nullptr;
-			}
-			void Notify(const T& Other)
-			{
-				T OldValue = GetValue();
-				Value = Other;
-
-				for (auto& Item : Setters)
-					Item.second(Value, OldValue);
-			}
-			void Notify()
-			{
-				Notify(GetValue());
-			}
-
-		public:
-			inline typename std::enable_if<std::is_arithmetic<T>::value || std::is_same<T, Core::String>::value || std::is_same<T, Core::String>::value, Reactive&>::type operator+= (const T& Other)
-			{
-				T Temporary = GetValue() + Other;
-				SetValue(std::move(Temporary));
-				return *this;
-			}
-
-		private:
-			void SetValue(const T& Other)
-			{
-				if (&Value == &Other)
-					return;
-
-				Notify(Other);
-				Value = Other;
-			}
-			void SetValue(T&& Other)
-			{
-				if (&Value == &Other)
-					return;
-
-				Notify(Other);
-				Value = std::move(Other);
-			}
-			T& GetValue()
-			{
-				if (!IsSet && Getter)
-					Value = std::move(Getter(IsSet));
-
-				return Value;
-			}
-		};
-
-		template <typename T>
-		class Reactive<T*>
-		{
-		public:
-			typedef std::function<void(T*&)> SimpleSetterCallback;
-			typedef std::function<void(T*&, const T*)> ComplexSetterCallback;
-			typedef std::function<T* ()> SimpleGetterCallback;
-			typedef std::function<T* (bool&)> ComplexGetterCallback;
-
-		private:
-			Core::UnorderedMap<size_t, ComplexSetterCallback> Setters;
-			ComplexGetterCallback Getter;
-			size_t Index;
-			bool IsSet;
-
-		private:
-			UPtr<T> Value;
-
-		public:
-			Reactive() : Index(0), IsSet(false), Value(nullptr)
-			{
-			}
-			Reactive(T* NewValue) noexcept : Index(0), IsSet(NewValue != nullptr), Value(NewValue)
-			{
-			}
-			Reactive(const Reactive& Other) = delete;
-			Reactive(Reactive&& Other) = default;
-			~Reactive() = default;
-			Reactive& operator= (T* Other)
-			{
-				SetValue(Other);
-				return *this;
-			}
-			Reactive& operator= (UPtr<T>&& Other)
-			{
-				SetValue(std::move(Other));
-				return *this;
-			}
-			Reactive& operator= (const Reactive& Other) = delete;
-			Reactive& operator= (Reactive&& Other) = default;
-			T* operator-> ()
-			{
-				T*& Current = GetValue();
-				VI_ASSERT(Current != nullptr, "null pointer access");
-				return Current;
-			}
-			operator T* ()
-			{
-				return GetValue();
-			}
-			Unique<T> Reset()
-			{
-				return Value.Reset();
-			}
-			size_t WhenSet(ComplexSetterCallback&& NewCallback)
-			{
-				size_t Id = Index++;
-				Setters[Id] = std::move(NewCallback);
-				return Id;
-			}
-			size_t WhenSet(const ComplexSetterCallback& NewCallback)
-			{
-				size_t Id = Index++;
-				Setters[Id] = NewCallback;
-				return Id;
-			}
-			size_t WhenSet(SimpleSetterCallback&& NewCallback)
-			{
-				return WhenSet([NewCallback = std::move(NewCallback)](T*& New, const T*) { NewCallback(New); });
-			}
-			size_t WhenSet(const SimpleSetterCallback& NewCallback)
-			{
-				return WhenSet([NewCallback](T*& New, const T*) { NewCallback(New); });
-			}
-			void WhenGet(ComplexGetterCallback&& NewCallback)
-			{
-				Getter = std::move(NewCallback);
-			}
-			void WhenGet(const ComplexGetterCallback& NewCallback)
-			{
-				Getter = NewCallback;
-			}
-			void WhenGet(SimpleGetterCallback&& NewCallback)
-			{
-				Getter = [NewCallback = std::move(NewCallback)](bool& IsSet)->T
-				{
-					IsSet = true;
-					return NewCallback();
-				};
-			}
-			void WhenGet(const SimpleGetterCallback& NewCallback)
-			{
-				Getter = [NewCallback](bool& IsSet) -> T
-				{
-					IsSet = true;
-					return NewCallback();
-				};
-			}
-			void ClearWhenSet(size_t Id)
-			{
-				Setters.erase(Id);
-			}
-			void ClearWhenGet(size_t Id)
-			{
-				Getter = nullptr;
-			}
-			void Notify(T* Other)
-			{
-				const T* OldValue = GetValue();
-				Value = Other;
-
-				for (auto& Item : Setters)
-					Item.second(Value, OldValue);
-			}
-			void Notify()
-			{
-				Notify(Value);
-			}
-
-		private:
-			void SetValue(T* Other)
-			{
-				if (Value == Other)
-					return;
-
-				Notify(Other);
-				Value = Other;
-			}
-			void SetValue(UPtr<T>&& Other)
-			{
-				if (&Value == &Other)
-					return;
-
-				Notify(Other);
-				Value = std::move(Other);
-			}
-			T*& GetValue()
-			{
-				if (!IsSet && Getter)
-					Value = Getter(IsSet);
-
-				return Value;
-			}
-		};
-
 		class VI_OUT_TS Console final : public Singleton<Console>
 		{
 		public:
@@ -2578,22 +2588,22 @@ namespace Mavi
 			void SetColorTokens(Vector<ColorToken>&& AdditionalTokens);
 			void ColorBegin(StdColor Text, StdColor Background = StdColor::Black);
 			void ColorEnd();
-			void ColorPrint(StdColor BaseColor, const Core::String& Buffer);
+			void ColorPrint(StdColor BaseColor, const String& Buffer);
 			void ColorPrintBuffer(StdColor BaseColor, const char* Buffer, size_t Size);
 			void WriteBuffer(const char* Buffer);
-			void WriteLine(const Core::String& Line);
+			void WriteLine(const String& Line);
 			void WriteChar(char Value);
-			void Write(const Core::String& Line);
+			void Write(const String& Line);
 			void fWriteLine(const char* Format, ...);
 			void fWrite(const char* Format, ...);
-			void sWriteLine(const Core::String& Line);
-			void sWrite(const Core::String& Line);
+			void sWriteLine(const String& Line);
+			void sWrite(const String& Line);
 			void sfWriteLine(const char* Format, ...);
 			void sfWrite(const char* Format, ...);
 			void GetSize(uint32_t* Width, uint32_t* Height);
 			double GetCapturedTime() const;
-			bool ReadLine(Core::String& Data, size_t Size);
-			Core::String Read(size_t Size);
+			bool ReadLine(String& Data, size_t Size);
+			String Read(size_t Size);
 			char ReadChar();
 
 		public:
@@ -2642,7 +2652,7 @@ namespace Mavi
 			} Fixed;
 
 		private:
-			Core::SingleQueue<Capture> Captures;
+			SingleQueue<Capture> Captures;
 			Units MinDelta = Units(0);
 			Units MaxDelta = Units(0);
 			float FixedFrames = 0.0f;
@@ -2681,31 +2691,31 @@ namespace Mavi
 		class VI_OUT Stream : public Reference<Stream>
 		{
 		protected:
-			Core::String Path;
+			String Path;
 			size_t VirtualSize;
 
 		public:
 			Stream() noexcept;
 			virtual ~Stream() noexcept = default;
-			virtual bool Clear() = 0;
-			virtual bool Open(const char* File, FileMode Mode) = 0;
-			virtual bool Close() = 0;
-			virtual bool Seek(FileSeek Mode, int64_t Offset) = 0;
-			virtual bool Move(int64_t Offset) = 0;
-			virtual int Flush() = 0;
+			virtual Expected<void> Clear() = 0;
+			virtual Expected<void> Open(const char* File, FileMode Mode) = 0;
+			virtual Expected<void> Close() = 0;
+			virtual Expected<void> Seek(FileSeek Mode, int64_t Offset) = 0;
+			virtual Expected<void> Move(int64_t Offset) = 0;
+			virtual Expected<void> Flush() = 0;
 			virtual size_t ReadAny(const char* Format, ...) = 0;
 			virtual size_t Read(char* Buffer, size_t Length) = 0;
 			virtual size_t WriteAny(const char* Format, ...) = 0;
 			virtual size_t Write(const char* Buffer, size_t Length) = 0;
 			virtual size_t Tell() = 0;
-			virtual int GetFd() const = 0;
-			virtual void* GetBuffer() const = 0;
+			virtual socket_t GetFd() const = 0;
+			virtual void* GetResource() const = 0;
 			virtual bool IsSized() const = 0;
 			void SetVirtualSize(size_t Size);
 			size_t ReadAll(const std::function<void(char*, size_t)>& Callback);
 			size_t GetVirtualSize() const;
 			size_t GetSize();
-			Core::String& GetSource();
+			String& GetSource();
 		};
 
 		class VI_OUT FileStream : public Stream
@@ -2716,19 +2726,19 @@ namespace Mavi
 		public:
 			FileStream() noexcept;
 			~FileStream() noexcept override;
-			virtual bool Clear() override;
-			virtual bool Open(const char* File, FileMode Mode) override;
-			virtual bool Close() override;
-			bool Seek(FileSeek Mode, int64_t Offset) override;
-			bool Move(int64_t Offset) override;
-			int Flush() override;
+			virtual Expected<void> Clear() override;
+			virtual Expected<void> Open(const char* File, FileMode Mode) override;
+			virtual Expected<void> Close() override;
+			Expected<void> Seek(FileSeek Mode, int64_t Offset) override;
+			Expected<void> Move(int64_t Offset) override;
+			Expected<void> Flush() override;
 			size_t ReadAny(const char* Format, ...) override;
 			size_t Read(char* Buffer, size_t Length) override;
 			size_t WriteAny(const char* Format, ...) override;
 			size_t Write(const char* Buffer, size_t Length) override;
 			size_t Tell() override;
-			int GetFd() const override;
-			void* GetBuffer() const override;
+			socket_t GetFd() const override;
+			void* GetResource() const override;
 			virtual bool IsSized() const override;
 		};
 
@@ -2740,19 +2750,19 @@ namespace Mavi
 		public:
 			GzStream() noexcept;
 			~GzStream() noexcept override;
-			bool Clear() override;
-			bool Open(const char* File, FileMode Mode) override;
-			bool Close() override;
-			bool Seek(FileSeek Mode, int64_t Offset) override;
-			bool Move(int64_t Offset) override;
-			int Flush() override;
+			Expected<void> Clear() override;
+			Expected<void> Open(const char* File, FileMode Mode) override;
+			Expected<void> Close() override;
+			Expected<void> Seek(FileSeek Mode, int64_t Offset) override;
+			Expected<void> Move(int64_t Offset) override;
+			Expected<void> Flush() override;
 			size_t ReadAny(const char* Format, ...) override;
 			size_t Read(char* Buffer, size_t Length) override;
 			size_t WriteAny(const char* Format, ...) override;
 			size_t Write(const char* Buffer, size_t Length) override;
 			size_t Tell() override;
-			int GetFd() const override;
-			void* GetBuffer() const override;
+			socket_t GetFd() const override;
+			void* GetResource() const override;
 			bool IsSized() const override;
 		};
 
@@ -2760,29 +2770,29 @@ namespace Mavi
 		{
 		protected:
 			void* Resource;
-			Core::UnorderedMap<Core::String, Core::String> Headers;
-			Core::Vector<char> Chunk;
+			UnorderedMap<String, String> Headers;
+			Vector<char> Chunk;
 			size_t Offset;
 			size_t Size;
 			bool Async;
 
 		public:
 			WebStream(bool IsAsync) noexcept;
-			WebStream(bool IsAsync, Core::UnorderedMap<Core::String, Core::String>&& NewHeaders) noexcept;
+			WebStream(bool IsAsync, UnorderedMap<String, String>&& NewHeaders) noexcept;
 			~WebStream() noexcept override;
-			bool Clear() override;
-			bool Open(const char* File, FileMode Mode) override;
-			bool Close() override;
-			bool Seek(FileSeek Mode, int64_t Offset) override;
-			bool Move(int64_t Offset) override;
-			int Flush() override;
+			Expected<void> Clear() override;
+			Expected<void> Open(const char* File, FileMode Mode) override;
+			Expected<void> Close() override;
+			Expected<void> Seek(FileSeek Mode, int64_t Offset) override;
+			Expected<void> Move(int64_t Offset) override;
+			Expected<void> Flush() override;
 			size_t ReadAny(const char* Format, ...) override;
 			size_t Read(char* Buffer, size_t Length) override;
 			size_t WriteAny(const char* Format, ...) override;
 			size_t Write(const char* Buffer, size_t Length) override;
 			size_t Tell() override;
-			int GetFd() const override;
-			void* GetBuffer() const override;
+			socket_t GetFd() const override;
+			void* GetResource() const override;
 			bool IsSized() const override;
 		};
 
@@ -2794,46 +2804,29 @@ namespace Mavi
 		public:
 			ProcessStream() noexcept;
 			~ProcessStream() noexcept = default;
-			bool Clear() override;
-			bool Open(const char* File, FileMode Mode) override;
-			bool Close() override;
+			Expected<void> Clear() override;
+			Expected<void> Open(const char* File, FileMode Mode) override;
+			Expected<void> Close() override;
 			bool IsSized() const override;
 			int GetExitCode() const;
 
 		private:
-			static void* OpenPipe(const char* File, const char* Mode);
+			static FILE* OpenPipe(const char* File, const char* Mode);
 			static int ClosePipe(void* Fd);
-		};
-
-		class VI_OUT FileLog final : public Reference<FileLog>
-		{
-		private:
-			Core::String LastValue;
-			size_t Offset;
-			int64_t Time;
-
-		public:
-			Stream* Source = nullptr;
-			Core::String Path, Name;
-
-		public:
-			FileLog(const Core::String& Root) noexcept;
-			~FileLog() noexcept;
-			void Process(const std::function<bool(FileLog*, const char*, int64_t)>& Callback);
 		};
 
 		class VI_OUT FileTree final : public Reference<FileTree>
 		{
 		public:
-			Core::Vector<FileTree*> Directories;
-			Core::Vector<Core::String> Files;
-			Core::String Path;
+			Vector<FileTree*> Directories;
+			Vector<String> Files;
+			String Path;
 
 		public:
-			FileTree(const Core::String& Path) noexcept;
+			FileTree(const String& Path) noexcept;
 			~FileTree() noexcept;
 			void Loop(const std::function<bool(const FileTree*)>& Callback) const;
-			const FileTree* Find(const Core::String& Path) const;
+			const FileTree* Find(const String& Path) const;
 			size_t GetFiles() const;
 		};
 
@@ -2842,8 +2835,8 @@ namespace Mavi
 			friend Cocontext;
 
 		private:
-			Core::UnorderedSet<Coroutine*> Cached;
-			Core::UnorderedSet<Coroutine*> Used;
+			UnorderedSet<Coroutine*> Cached;
+			UnorderedSet<Coroutine*> Used;
 			std::thread::id Thread;
 			Coroutine* Current;
 			Cocontext* Master;
@@ -2893,53 +2886,53 @@ namespace Mavi
 		class VI_OUT Schema final : public Reference<Schema>
 		{
 		protected:
-			Core::Vector<Schema*>* Nodes;
+			Vector<Schema*>* Nodes;
 			Schema* Parent;
 			bool Saved;
 
 		public:
-			Core::String Key;
+			String Key;
 			Variant Value;
 
 		public:
 			Schema(const Variant& Base) noexcept;
 			Schema(Variant&& Base) noexcept;
 			~Schema() noexcept;
-			Core::UnorderedMap<Core::String, size_t> GetNames() const;
-			Core::Vector<Schema*> FindCollection(const Core::String& Name, bool Deep = false) const;
-			Core::Vector<Schema*> FetchCollection(const Core::String& Notation, bool Deep = false) const;
-			Core::Vector<Schema*> GetAttributes() const;
-			Core::Vector<Schema*>& GetChilds();
-			Schema* Find(const Core::String& Name, bool Deep = false) const;
-			Schema* Fetch(const Core::String& Notation, bool Deep = false) const;
-			Variant FetchVar(const Core::String& Key, bool Deep = false) const;
+			UnorderedMap<String, size_t> GetNames() const;
+			Vector<Schema*> FindCollection(const String& Name, bool Deep = false) const;
+			Vector<Schema*> FetchCollection(const String& Notation, bool Deep = false) const;
+			Vector<Schema*> GetAttributes() const;
+			Vector<Schema*>& GetChilds();
+			Schema* Find(const String& Name, bool Deep = false) const;
+			Schema* Fetch(const String& Notation, bool Deep = false) const;
+			Variant FetchVar(const String& Key, bool Deep = false) const;
 			Variant GetVar(size_t Index) const;
-			Variant GetVar(const Core::String& Key) const;
-			Variant GetAttributeVar(const Core::String& Key) const;
+			Variant GetVar(const String& Key) const;
+			Variant GetAttributeVar(const String& Key) const;
 			Schema* GetParent() const;
-			Schema* GetAttribute(const Core::String& Key) const;
+			Schema* GetAttribute(const String& Key) const;
 			Schema* Get(size_t Index) const;
-			Schema* Get(const Core::String& Key) const;
-			Schema* Set(const Core::String& Key);
-			Schema* Set(const Core::String& Key, const Variant& Value);
-			Schema* Set(const Core::String& Key, Variant&& Value);
-			Schema* Set(const Core::String& Key, Unique<Schema> Value);
-			Schema* SetAttribute(const Core::String& Key, const Variant& Value);
-			Schema* SetAttribute(const Core::String& Key, Variant&& Value);
+			Schema* Get(const String& Key) const;
+			Schema* Set(const String& Key);
+			Schema* Set(const String& Key, const Variant& Value);
+			Schema* Set(const String& Key, Variant&& Value);
+			Schema* Set(const String& Key, Unique<Schema> Value);
+			Schema* SetAttribute(const String& Key, const Variant& Value);
+			Schema* SetAttribute(const String& Key, Variant&& Value);
 			Schema* Push(const Variant& Value);
 			Schema* Push(Variant&& Value);
 			Schema* Push(Unique<Schema> Value);
 			Schema* Pop(size_t Index);
-			Schema* Pop(const Core::String& Name);
+			Schema* Pop(const String& Name);
 			Unique<Schema> Copy() const;
-			bool Rename(const Core::String& Name, const Core::String& NewName);
-			bool Has(const Core::String& Name) const;
-			bool HasAttribute(const Core::String& Name) const;
+			bool Rename(const String& Name, const String& NewName);
+			bool Has(const String& Name) const;
+			bool HasAttribute(const String& Name) const;
 			bool IsEmpty() const;
 			bool IsAttribute() const;
 			bool IsSaved() const;
 			size_t Size() const;
-			Core::String GetName() const;
+			String GetName() const;
 			void Join(Schema* Other, bool AppendOnly);
 			void Reserve(size_t Size);
 			void Unlink();
@@ -2948,32 +2941,32 @@ namespace Mavi
 
 		protected:
 			void Allocate();
-			void Allocate(const Core::Vector<Schema*>& Other);
+			void Allocate(const Vector<Schema*>& Other);
 
 		private:
 			void Attach(Schema* Root);
 
 		public:
-			static bool Transform(Schema* Value, const SchemaNameCallback& Callback);
-			static bool ConvertToXML(Schema* Value, const SchemaWriteCallback& Callback);
-			static bool ConvertToJSON(Schema* Value, const SchemaWriteCallback& Callback);
-			static bool ConvertToJSONB(Schema* Value, const SchemaWriteCallback& Callback);
-			static Core::String ToXML(Schema* Value);
-			static Core::String ToJSON(Schema* Value);
-			static Core::Vector<char> ToJSONB(Schema* Value);
-			static Unique<Schema> ConvertFromXML(const char* Buffer, bool Assert = true);
-			static Unique<Schema> ConvertFromJSON(const char* Buffer, size_t Size, bool Assert = true);
-			static Unique<Schema> ConvertFromJSONB(const SchemaReadCallback& Callback, bool Assert = true);
-			static Unique<Schema> FromXML(const Core::String& Text, bool Assert = true);
-			static Unique<Schema> FromJSON(const Core::String& Text, bool Assert = true);
-			static Unique<Schema> FromJSONB(const Core::Vector<char>& Binary, bool Assert = true);
+			static void Transform(Schema* Value, const SchemaNameCallback& Callback);
+			static void ConvertToXML(Schema* Value, const SchemaWriteCallback& Callback);
+			static void ConvertToJSON(Schema* Value, const SchemaWriteCallback& Callback);
+			static void ConvertToJSONB(Schema* Value, const SchemaWriteCallback& Callback);
+			static String ToXML(Schema* Value);
+			static String ToJSON(Schema* Value);
+			static Vector<char> ToJSONB(Schema* Value);
+			static Expects<Unique<Schema>, Exceptions::ParserException> ConvertFromXML(const char* Buffer);
+			static Expects<Unique<Schema>, Exceptions::ParserException> ConvertFromJSON(const char* Buffer, size_t Size);
+			static Expects<Unique<Schema>, Exceptions::ParserException> ConvertFromJSONB(const SchemaReadCallback& Callback);
+			static Expects<Unique<Schema>, Exceptions::ParserException> FromXML(const String& Text);
+			static Expects<Unique<Schema>, Exceptions::ParserException> FromJSON(const String& Text);
+			static Expects<Unique<Schema>, Exceptions::ParserException> FromJSONB(const Vector<char>& Binary);
 
 		private:
-			static bool ProcessConvertionFromXML(void* Base, Schema* Current);
-			static bool ProcessConvertionFromJSON(void* Base, Schema* Current);
-			static bool ProcessConvertionFromJSONB(Schema* Current, Core::UnorderedMap<size_t, Core::String>* Map, const SchemaReadCallback& Callback);
-			static bool ProcessConvertionToJSONB(Schema* Current, Core::UnorderedMap<Core::String, size_t>* Map, const SchemaWriteCallback& Callback);
-			static bool GenerateNamingTable(const Schema* Current, Core::UnorderedMap<Core::String, size_t>* Map, size_t& Index);
+			static Expects<void, Exceptions::ParserException> ProcessConvertionFromJSONB(Schema* Current, UnorderedMap<size_t, String>* Map, const SchemaReadCallback& Callback);
+			static void ProcessConvertionFromXML(void* Base, Schema* Current);
+			static void ProcessConvertionFromJSON(void* Base, Schema* Current);
+			static void ProcessConvertionToJSONB(Schema* Current, UnorderedMap<String, size_t>* Map, const SchemaWriteCallback& Callback);
+			static void GenerateNamingTable(const Schema* Current, UnorderedMap<String, size_t>* Map, size_t& Index);
 		};
 
 		class VI_OUT_TS Schedule final : public Singleton<Schedule>
@@ -3042,14 +3035,14 @@ namespace Mavi
 		private:
 			struct
 			{
-				Core::Vector<TaskCallback> Events;
+				Vector<TaskCallback> Events;
 				TaskCallback Tasks[EVENTS_SIZE];
 				Costate* State = nullptr;
 			} Dispatcher;
 
 		private:
 			ConcurrentQueue* Queues[(size_t)Difficulty::Count];
-			Core::Vector<ThreadPtr*> Threads[(size_t)Difficulty::Count];
+			Vector<ThreadPtr*> Threads[(size_t)Difficulty::Count];
 			std::atomic<TaskId> Generation;
 			std::mutex Exclusive;
 			ThreadDebugCallback Debug;
@@ -3064,12 +3057,8 @@ namespace Mavi
 			virtual ~Schedule() noexcept override;
 			TaskId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
 			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
-			TaskId SetSeqInterval(uint64_t Milliseconds, const SeqTaskCallback& Callback, Difficulty Type = Difficulty::Light);
-			TaskId SetSeqInterval(uint64_t Milliseconds, SeqTaskCallback&& Callback, Difficulty Type = Difficulty::Light);
 			TaskId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
 			TaskId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
-			TaskId SetSeqTimeout(uint64_t Milliseconds, const SeqTaskCallback& Callback, Difficulty Type = Difficulty::Light);
-			TaskId SetSeqTimeout(uint64_t Milliseconds, SeqTaskCallback&& Callback, Difficulty Type = Difficulty::Light);
 			bool SetTask(const TaskCallback& Callback, Difficulty Type = Difficulty::Heavy);
 			bool SetTask(TaskCallback&& Callback, Difficulty Type = Difficulty::Heavy);
 			bool SetCoroutine(const TaskCallback& Callback);
@@ -3503,8 +3492,8 @@ namespace Mavi
 				{
 #ifndef NDEBUG
 					int64_t Diff = (Schedule::GetClock() - Time).count();
-					if (Diff > (int64_t)Core::Timings::Hangup * 1000)
-						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us)\t\nexpected: %" PRIu64 " ms at most", Diff / 1000, Diff, (uint64_t)Core::Timings::Hangup);
+					if (Diff > (int64_t)Timings::Hangup * 1000)
+						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us)\t\nexpected: %" PRIu64 " ms at most", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
 					VI_UNWATCH((void*)&Value);
 #endif
 					return Value;
@@ -3595,7 +3584,7 @@ namespace Mavi
 			void Set(const T& Other)
 			{
 				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
-				Core::UMutex<std::mutex> Unique(Data->Update);
+				UMutex<std::mutex> Unique(Data->Update);
 				bool Async = (Data->Code != Deferred::Waiting);
 				Data->Emplace(Other);
 				Data->Code = Deferred::Ready;
@@ -3604,7 +3593,7 @@ namespace Mavi
 			void Set(T&& Other)
 			{
 				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
-				Core::UMutex<std::mutex> Unique(Data->Update);
+				UMutex<std::mutex> Unique(Data->Update);
 				bool Async = (Data->Code != Deferred::Waiting);
 				Data->Emplace(std::move(Other));
 				Data->Code = Deferred::Ready;
@@ -3617,7 +3606,7 @@ namespace Mavi
 				Other.When([Copy](T&& Value) mutable
 				{
 					{
-						Core::UMutex<std::mutex> Unique(Copy->Update);
+						UMutex<std::mutex> Unique(Copy->Update);
 						bool Async = (Copy->Code != Deferred::Waiting);
 						Copy->Emplace(std::move(Value));
 						Copy->Code = Deferred::Ready;
@@ -3723,7 +3712,7 @@ namespace Mavi
 			}
 			void Store(TaskCallback&& Callback) const noexcept
 			{
-				Core::UMutex<std::mutex> Unique(Data->Update);
+				UMutex<std::mutex> Unique(Data->Update);
 				Data->Event = std::move(Callback);
 				if (Data->Code == Deferred::Ready)
 					Execute(Data, false);
@@ -3813,8 +3802,8 @@ namespace Mavi
 				{
 #ifndef NDEBUG
 					int64_t Diff = (Schedule::GetClock() - Time).count();
-					if (Diff > (int64_t)Core::Timings::Hangup * 1000)
-						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us)\t\nexpected: %" PRIu64 " ms at most", Diff / 1000, Diff, (uint64_t)Core::Timings::Hangup);
+					if (Diff > (int64_t)Timings::Hangup * 1000)
+						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us)\t\nexpected: %" PRIu64 " ms at most", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
 					VI_UNWATCH((void*)&Value);
 #endif
 					return Value;
@@ -3891,7 +3880,7 @@ namespace Mavi
 			void Set()
 			{
 				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
-				Core::UMutex<std::mutex> Unique(Data->Update);
+				UMutex<std::mutex> Unique(Data->Update);
 				bool Async = (Data->Code != Deferred::Waiting);
 				Data->Code = Deferred::Ready;
 				Execute(Data, Async);
@@ -3903,7 +3892,7 @@ namespace Mavi
 				Other.When([Copy]() mutable
 				{
 					{
-						Core::UMutex<std::mutex> Unique(Copy->Update);
+						UMutex<std::mutex> Unique(Copy->Update);
 						bool Async = (Copy->Code != Deferred::Waiting);
 						Copy->Code = Deferred::Ready;
 						Execute(Copy, Async);
@@ -4022,7 +4011,7 @@ namespace Mavi
 			}
 			void Store(TaskCallback&& Callback) const noexcept
 			{
-				Core::UMutex<std::mutex> Unique(Data->Update);
+				UMutex<std::mutex> Unique(Data->Update);
 				Data->Event = std::move(Callback);
 				if (Data->Code == Deferred::Ready)
 					Execute(Data, false);
@@ -4054,7 +4043,13 @@ namespace Mavi
 
 		template <typename T, typename Executor = ParallelExecutor>
 		using Promise = BasicPromise<T, Executor>;
-		
+
+		template <typename T, typename E, typename Executor = ParallelExecutor>
+		using ExpectsPromise = BasicPromise<Expects<T, E>, Executor>;
+
+		template <typename T, typename Executor = ParallelExecutor>
+		using ExpectedPromise = BasicPromise<Expected<T>, Executor>;
+
 		inline bool Cosuspend() noexcept
 		{
 			VI_ASSERT(Costate::Get() != nullptr, "cannot call suspend outside coroutine");
@@ -4193,8 +4188,8 @@ namespace Mavi
 			if (Function != nullptr && Expression != nullptr)
 			{
 				int64_t Diff = (Schedule::GetClock() - Time).count();
-				if (Diff > (int64_t)Core::Timings::Hangup * 1000)
-					VI_WARN("[stall] %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us) out of % " PRIu64 "ms budget", Function, Expression, Diff / 1000, Diff, (uint64_t)Core::Timings::Hangup);
+				if (Diff > (int64_t)Timings::Hangup * 1000)
+					VI_WARN("[stall] %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us) out of % " PRIu64 "ms budget", Function, Expression, Diff / 1000, Diff, (uint64_t)Timings::Hangup);
 				VI_UNWATCH((void*)&Future);
 			}
 #endif
@@ -4259,7 +4254,7 @@ namespace Mavi
 #endif
 #ifdef VI_CXX17
 		template <typename T>
-		inline Expects<T, std::error_condition> FromStringRadix(const Core::String& Other, int Base)
+		inline Expected<T> FromStringRadix(const String& Other, int Base)
 		{
 			static_assert(std::is_integral<T>::value, "base can be specified only for integral types");
 			T Value;
@@ -4269,7 +4264,7 @@ namespace Mavi
 			return Value;
 		}
 		template <typename T>
-		inline Expects<T, std::error_condition> FromString(const Core::String& Other)
+		inline Expected<T> FromString(const String& Other)
 		{
 			static_assert(std::is_integral<T>::value, "conversion can be done only for integral types");
 			T Value;
@@ -4280,13 +4275,13 @@ namespace Mavi
 		}
 #else
 		template <typename T>
-		inline Expects<T, std::error_condition> FromStringRadix(const Core::String& Other, int Base)
+		inline Expected<T> FromStringRadix(const String& Other, int Base)
 		{
 			static_assert(false, "conversion can be done only to arithmetic types");
 			return std::make_error_condition(std::errc::not_supported);
 		}
 		template <>
-		inline Expects<int8_t, std::error_condition> FromStringRadix<int8_t>(const Core::String& Other, int Base)
+		inline Expected<int8_t> FromStringRadix<int8_t>(const String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4303,7 +4298,7 @@ namespace Mavi
 			return (int8_t)Value;
 		}
 		template <>
-		inline Expects<int16_t, std::error_condition> FromStringRadix<int16_t>(const Core::String& Other, int Base)
+		inline Expected<int16_t> FromStringRadix<int16_t>(const String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4320,7 +4315,7 @@ namespace Mavi
 			return (int16_t)Value;
 		}
 		template <>
-		inline Expects<int32_t, std::error_condition> FromStringRadix<int32_t>(const Core::String& Other, int Base)
+		inline Expected<int32_t> FromStringRadix<int32_t>(const String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4333,7 +4328,7 @@ namespace Mavi
 			return (int32_t)Value;
 		}
 		template <>
-		inline Expects<int64_t, std::error_condition> FromStringRadix<int64_t>(const Core::String& Other, int Base)
+		inline Expected<int64_t> FromStringRadix<int64_t>(const String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4346,7 +4341,7 @@ namespace Mavi
 			return (int64_t)Value;
 		}
 		template <>
-		inline Expects<uint8_t, std::error_condition> FromStringRadix<uint8_t>(const Core::String& Other, int Base)
+		inline Expected<uint8_t> FromStringRadix<uint8_t>(const String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4361,7 +4356,7 @@ namespace Mavi
 			return (uint8_t)Value;
 		}
 		template <>
-		inline Expects<uint16_t, std::error_condition> FromStringRadix<uint16_t>(const Core::String& Other, int Base)
+		inline Expected<uint16_t> FromStringRadix<uint16_t>(const String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4376,7 +4371,7 @@ namespace Mavi
 			return (uint16_t)Value;
 		}
 		template <>
-		inline Expects<uint32_t, std::error_condition> FromStringRadix<uint32_t>(const Core::String& Other, int Base)
+		inline Expected<uint32_t> FromStringRadix<uint32_t>(const String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4389,7 +4384,7 @@ namespace Mavi
 			return (uint32_t)Value;
 		}
 		template <>
-		inline Expects<uint64_t, std::error_condition> FromStringRadix<uint64_t>(const Core::String& Other, int Base)
+		inline Expected<uint64_t> FromStringRadix<uint64_t>(const String& Other, int Base)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4402,54 +4397,54 @@ namespace Mavi
 			return (uint64_t)Value;
 		}
 		template <typename T>
-		inline Expects<T, std::error_condition> FromString(const Core::String& Other)
+		inline Expected<T> FromString(const String& Other)
 		{
 			static_assert(false, "conversion can be done only to arithmetic types");
 			return std::make_error_condition(std::errc::not_supported);
 		}
 		template <>
-		inline Expects<int8_t, std::error_condition> FromString<int8_t>(const Core::String& Other)
+		inline Expected<int8_t> FromString<int8_t>(const String& Other)
 		{
 			return FromStringRadix<int8_t>(Other, 10);
 		}
 		template <>
-		inline Expects<int16_t, std::error_condition> FromString<int16_t>(const Core::String& Other)
+		inline Expected<int16_t> FromString<int16_t>(const String& Other)
 		{
 			return FromStringRadix<int16_t>(Other, 10);
 		}
 		template <>
-		inline Expects<int32_t, std::error_condition> FromString<int32_t>(const Core::String& Other)
+		inline Expected<int32_t> FromString<int32_t>(const String& Other)
 		{
 			return FromStringRadix<int32_t>(Other, 10);
 		}
 		template <>
-		inline Expects<int64_t, std::error_condition> FromString<int64_t>(const Core::String& Other)
+		inline Expected<int64_t> FromString<int64_t>(const String& Other)
 		{
 			return FromStringRadix<int64_t>(Other, 10);
 		}
 		template <>
-		inline Expects<uint8_t, std::error_condition> FromString<uint8_t>(const Core::String& Other)
+		inline Expected<uint8_t> FromString<uint8_t>(const String& Other)
 		{
 			return FromStringRadix<uint8_t>(Other, 10);
 		}
 		template <>
-		inline Expects<uint16_t, std::error_condition> FromString<uint16_t>(const Core::String& Other)
+		inline Expected<uint16_t> FromString<uint16_t>(const String& Other)
 		{
 			return FromStringRadix<uint16_t>(Other, 10);
 		}
 		template <>
-		inline Expects<uint32_t, std::error_condition> FromString<uint32_t>(const Core::String& Other)
+		inline Expected<uint32_t> FromString<uint32_t>(const String& Other)
 		{
 			return FromStringRadix<uint32_t>(Other, 10);
 		}
 		template <>
-		inline Expects<uint64_t, std::error_condition> FromString<uint64_t>(const Core::String& Other)
+		inline Expected<uint64_t> FromString<uint64_t>(const String& Other)
 		{
 			return FromStringRadix<uint64_t>(Other, 10);
 		}
 #endif
 		template <>
-		inline Expects<float, std::error_condition> FromString<float>(const Core::String& Other)
+		inline Expected<float> FromString<float>(const String& Other)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4462,7 +4457,7 @@ namespace Mavi
 			return Value;
 		}
 		template <>
-		inline Expects<double, std::error_condition> FromString<double>(const Core::String& Other)
+		inline Expected<double> FromString<double>(const String& Other)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4475,7 +4470,7 @@ namespace Mavi
 			return Value;
 		}
 		template <>
-		inline Expects<long double, std::error_condition> FromString<long double>(const Core::String& Other)
+		inline Expected<long double> FromString<long double>(const String& Other)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
@@ -4488,10 +4483,10 @@ namespace Mavi
 			return Value;
 		}
 		template <typename T>
-		inline Core::String ToString(T Other)
+		inline String ToString(T Other)
 		{
 			static_assert(std::is_arithmetic<T>::value, "conversion can be done only to arithmetic types");
-			return Core::Copy<Core::String, std::string>(std::to_string(Other));
+			return Copy<String, std::string>(std::to_string(Other));
 		}
 	}
 }

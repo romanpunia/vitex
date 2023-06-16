@@ -2531,11 +2531,19 @@ namespace Mavi
 					return Result;
 				}
 
-				Core::String Name = GetProgramName(F);
+				auto Name = GetProgramName(F);
+				if (!Name)
+				{
+					VI_ERR("[ogl] shader name generation failed");
+					return Result;
+				}
+
+				Core::String ProgramName = *Name;
+
 				Core::String VertexEntry = GetShaderMain(ShaderType::Vertex);
 				if (F.Data.find(VertexEntry) != Core::String::npos)
 				{
-					Core::String Stage = Name + SHADER_VERTEX, Bytecode;
+					Core::String Stage = ProgramName + SHADER_VERTEX, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						VI_DEBUG("[ogl] transpile %s vertex shader source", Stage.c_str());
@@ -2577,7 +2585,7 @@ namespace Mavi
 				Core::String PixelEntry = GetShaderMain(ShaderType::Pixel);
 				if (F.Data.find(PixelEntry) != Core::String::npos)
 				{
-					Core::String Stage = Name + SHADER_PIXEL, Bytecode;
+					Core::String Stage = ProgramName + SHADER_PIXEL, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						VI_DEBUG("[ogl] transpile %s pixel shader source", Stage.c_str());
@@ -2619,7 +2627,7 @@ namespace Mavi
 				Core::String GeometryEntry = GetShaderMain(ShaderType::Geometry);
 				if (F.Data.find(GeometryEntry) != Core::String::npos)
 				{
-					Core::String Stage = Name + SHADER_GEOMETRY, Bytecode;
+					Core::String Stage = ProgramName + SHADER_GEOMETRY, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						VI_DEBUG("[ogl] transpile %s geometry shader source", Stage.c_str());
@@ -2661,7 +2669,7 @@ namespace Mavi
 				Core::String ComputeEntry = GetShaderMain(ShaderType::Compute);
 				if (F.Data.find(ComputeEntry) != Core::String::npos)
 				{
-					Core::String Stage = Name + SHADER_COMPUTE, Bytecode;
+					Core::String Stage = ProgramName + SHADER_COMPUTE, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						VI_DEBUG("[ogl] transpile %s compute shader source", Stage.c_str());
@@ -2703,7 +2711,7 @@ namespace Mavi
 				Core::String HullEntry = GetShaderMain(ShaderType::Hull);
 				if (F.Data.find(HullEntry) != Core::String::npos)
 				{
-					Core::String Stage = Name + SHADER_HULL, Bytecode;
+					Core::String Stage = ProgramName + SHADER_HULL, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						VI_DEBUG("[ogl] transpile %s hull shader source", Stage.c_str());
@@ -2745,7 +2753,7 @@ namespace Mavi
 				Core::String DomainEntry = GetShaderMain(ShaderType::Domain);
 				if (F.Data.find(DomainEntry) != Core::String::npos)
 				{
-					Core::String Stage = Name + SHADER_DOMAIN, Bytecode;
+					Core::String Stage = ProgramName + SHADER_DOMAIN, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						VI_DEBUG("[ogl] transpile %s domain shader source", Stage.c_str());

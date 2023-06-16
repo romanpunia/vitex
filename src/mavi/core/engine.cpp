@@ -3654,58 +3654,72 @@ namespace Mavi
 		{
 			if (Shared.Constants != nullptr)
 			{
-				bool Cleanup = Shared.Constants->GetRefCount() == 1;
-				Shared.Constants->Release();
-				if (Cleanup)
-					Shared.Constants = nullptr;
+				if (Shared.Constants->GetRefCount() == 1)
+				{
+					VI_CLEAR(Shared.Constants);
+				}
+				else
+					VI_RELEASE(Shared.Constants);
 			}
 
 			if (Shared.Shaders != nullptr)
 			{
-				bool Cleanup = Shared.Shaders->GetRefCount() == 1;
-				Shared.Shaders->Release();
-				if (Cleanup)
-					Shared.Shaders = nullptr;
+				if (Shared.Shaders->GetRefCount() == 1)
+				{
+					VI_CLEAR(Shared.Shaders);
+				}
+				else
+					VI_RELEASE(Shared.Shaders);
 			}
 
 			if (Shared.Primitives != nullptr)
 			{
-				bool Cleanup = Shared.Primitives->GetRefCount() == 1;
-				Shared.Primitives->Release();
-				if (Cleanup)
-					Shared.Primitives = nullptr;
+				if (Shared.Primitives->GetRefCount() == 1)
+				{
+					VI_CLEAR(Shared.Primitives);
+				}
+				else
+					VI_RELEASE(Shared.Primitives);
 			}
 
 			if (Shared.Content != nullptr)
 			{
-				bool Cleanup = Shared.Content->GetRefCount() == 1;
-				Shared.Content->Release();
-				if (Cleanup)
-					Shared.Content = nullptr;
+				if (Shared.Content->GetRefCount() == 1)
+				{
+					VI_CLEAR(Shared.Content);
+				}
+				else
+					VI_RELEASE(Shared.Content);
 			}
 
 			if (Shared.Device != nullptr)
 			{
-				bool Cleanup = Shared.Device->GetRefCount() == 1;
-				Shared.Device->Release();
-				if (Cleanup)
-					Shared.Device = nullptr;
+				if (Shared.Device->GetRefCount() == 1)
+				{
+					VI_CLEAR(Shared.Device);
+				}
+				else
+					VI_RELEASE(Shared.Device);
 			}
 
 			if (Shared.Activity != nullptr)
 			{
-				bool Cleanup = Shared.Activity->GetRefCount() == 1;
-				Shared.Activity->Release();
-				if (Cleanup)
-					Shared.Activity = nullptr;
+				if (Shared.Activity->GetRefCount() == 1)
+				{
+					VI_CLEAR(Shared.Activity);
+				}
+				else
+					VI_RELEASE(Shared.Activity);
 			}
 
 			if (Shared.VM != nullptr)
 			{
-				bool Cleanup = Shared.VM->GetRefCount() == 1;
-				Shared.VM->Release();
-				if (Cleanup)
-					Shared.VM = nullptr;
+				if (Shared.VM->GetRefCount() == 1)
+				{
+					VI_CLEAR(Shared.VM);
+				}
+				else
+					VI_RELEASE(Shared.VM);
 			}
 		}
 		SceneGraph::Desc SceneGraph::Desc::Get(Application* Base)
@@ -5443,8 +5457,15 @@ namespace Mavi
 
 		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) noexcept : Device(NewDevice), Queue(0)
 		{
-			Core::String Directory = Core::OS::Directory::GetWorking();
-			Base = Core::OS::Path::ResolveDirectory(Directory.c_str());
+			auto Directory = Core::OS::Directory::GetWorking();
+			if (!Directory)
+				return;
+
+			Directory = Core::OS::Path::ResolveDirectory(Directory->c_str());
+			if (!Directory)
+				return;
+
+			Base = *Directory;
 			SetEnvironment(Base);
 		}
 		ContentManager::~ContentManager() noexcept
@@ -5502,23 +5523,29 @@ namespace Mavi
 		void ContentManager::ClearPath(const Core::String& Path)
 		{
 			VI_TRACE("[content] clear path %s on 0x%" PRIXPTR, Path.c_str(), (void*)this);
-			Core::String File = Core::OS::Path::Resolve(Path, Environment, false);
-			if (File.empty())
+			auto File = Core::OS::Path::Resolve(Path, Environment, false);
+			if (!File)
 				return;
 
-			Core::Stringify::Replace(File, '\\', '/');
-			Core::Stringify::Replace(File, Environment, "./");
+			Core::String Target = *File;
+			Core::Stringify::Replace(Target, '\\', '/');
+			Core::Stringify::Replace(Target, Environment, "./");
 			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto It = Assets.find(File);
+			auto It = Assets.find(Target);
 			if (It != Assets.end())
 				Assets.erase(It);
 		}
 		void ContentManager::SetEnvironment(const Core::String& Path)
 		{
+			auto Target = Core::OS::Path::ResolveDirectory(Path.c_str());
+			if (!Target)
+				return;
+
+			Core::String NewPath = *Target;
+			Core::Stringify::Replace(NewPath, '\\', '/');
+			Core::OS::Directory::SetWorking(NewPath.c_str());
 			Core::UMutex<std::mutex> Unique(Exclusive);
-			Environment = Core::OS::Path::ResolveDirectory(Path.c_str());
-			Core::Stringify::Replace(Environment, '\\', '/');
-			Core::OS::Directory::SetWorking(Environment.c_str());
+			Environment = NewPath;
 		}
 		void ContentManager::SetDevice(Graphics::GraphicsDevice* NewDevice)
 		{
@@ -5595,15 +5622,15 @@ namespace Mavi
 			Core::String File = Path;
 			if (!Core::OS::Path::IsRemote(File.c_str()))
 			{
-				Core::UMutex<std::mutex> Unique(Exclusive);
-				File = Core::OS::Path::Resolve(File, Environment, false);
-				if (Core::OS::File::IsExists(File.c_str()))
+				auto Subfile = Core::OS::Path::Resolve(File, Environment, false);
+				if (Subfile && Core::OS::File::IsExists(Subfile->c_str()))
 				{
-					Core::String Subpath = Environment + File;
-					Subpath = Core::OS::Path::Resolve(Subpath.c_str());
-
-					if (Core::OS::File::IsExists(Subpath.c_str()))
-						File = Subpath;
+					auto Subtarget = Environment + *Subfile;
+					auto Subpath = Core::OS::Path::Resolve(Subtarget.c_str());
+					if (Subpath && Core::OS::File::IsExists(Subpath->c_str()))
+						File = *Subpath;
+					else
+						File = *Subfile;
 				}
 
 				if (File.empty())
@@ -5620,14 +5647,14 @@ namespace Mavi
 				return Processor->Duplicate(Asset, Map);
 			}
 
-			auto* Stream = Core::OS::File::Open(File, Core::FileMode::Binary_Read_Only);
+			auto Stream = Core::OS::File::Open(File, Core::FileMode::Binary_Read_Only);
 			if (!Stream)
 			{
 				VI_TRACE("[content] load forward %s: non-existant", Path.c_str());
 				return nullptr;
 			}
 
-			Object = Processor->Deserialize(Stream, 0, Map);
+			Object = Processor->Deserialize(*Stream, 0, Map);
 			VI_TRACE("[content] load forward %s: 0x%" PRIXPTR, Path.c_str(), Object);
 			VI_RELEASE(Stream);
 
@@ -5648,29 +5675,34 @@ namespace Mavi
 				return false;
 			}
 
-			Core::UMutex<std::mutex> Unique(Exclusive);
 			Core::String Directory = Core::OS::Path::GetDirectory(Path.c_str());
-			Core::String File = Core::OS::Path::Resolve(Directory, Environment, false);
-			File.append(Path.substr(Directory.size()));
-			Unique.Negate();
+			auto File = Core::OS::Path::Resolve(Directory, Environment, false);
+			if (!File)
+			{
+				VI_ERR("[engine] cannot resolve \"%s\"", Path.c_str());
+				return false;
+			}
 
-			if (!File.empty())
-				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(File.c_str()));
+			Core::String Target = *File;
+			Target.append(Path.substr(Directory.size()));
+
+			if (!Target.empty())
+				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(Target.c_str()));
 			else
 				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(Path.c_str()));
 
-			auto* Stream = Core::OS::File::Open(File, Core::FileMode::Binary_Write_Only);
+			auto Stream = Core::OS::File::Open(Target, Core::FileMode::Binary_Write_Only);
 			if (!Stream)
 			{
 				Stream = Core::OS::File::Open(Path, Core::FileMode::Binary_Write_Only);
 				if (!Stream)
 				{
-					VI_ERR("[engine] cannot open stream for writing at \"%s\" or \"%s\"", File.c_str(), Path.c_str());
+					VI_ERR("[engine] cannot open stream for writing at \"%s\" or \"%s\"", Target.c_str(), Path.c_str());
 					return false;
 				}
 			}
 
-			bool Result = Processor->Serialize(Stream, Object, Map);
+			bool Result = Processor->Serialize(*Stream, Object, Map);
 			VI_TRACE("[content] save forward %s: %s", Path.c_str(), Result ? "OK" : "cannot be saved");
 			VI_RELEASE(Stream);
 
@@ -5734,20 +5766,17 @@ namespace Mavi
 		}
 		bool ContentManager::Import(const Core::String& Path)
 		{
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			Core::String File = Core::OS::Path::Resolve(Path, Environment, false);
-			Unique.Negate();
-
-			if (File.empty())
+			auto File = Core::OS::Path::Resolve(Path, Environment, false);
+			if (!File)
 			{
 				VI_ERR("[engine] file \"%s\" wasn't found", Path.c_str());
 				return false;
 			}
 
 			auto* Stream = new Core::GzStream();
-			if (!Stream->Open(File.c_str(), Core::FileMode::Binary_Read_Only))
+			if (!Stream->Open(File->c_str(), Core::FileMode::Binary_Read_Only))
 			{
-				VI_ERR("[engine] cannot open \"%s\" for reading", File.c_str());
+				VI_ERR("[engine] cannot open \"%s\" for reading", File->c_str());
 				VI_RELEASE(Stream);
 
 				return false;
@@ -5756,7 +5785,7 @@ namespace Mavi
 			char Buffer[16];
 			if (Stream->Read(Buffer, 16) != 16)
 			{
-				VI_ERR("[engine] file \"%s\" has corrupted header", File.c_str());
+				VI_ERR("[engine] file \"%s\" has corrupted header", File->c_str());
 				VI_RELEASE(Stream);
 
 				return false;
@@ -5764,7 +5793,7 @@ namespace Mavi
 
 			if (memcmp(Buffer, "\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16) != 0)
 			{
-				VI_ERR("[engine] file \"%s\" header version is corrupted", File.c_str());
+				VI_ERR("[engine] file \"%s\" header version is corrupted", File->c_str());
 				VI_RELEASE(Stream);
 
 				return false;
@@ -5773,13 +5802,13 @@ namespace Mavi
 			uint64_t Size = 0;
 			if (Stream->Read((char*)&Size, sizeof(uint64_t)) != sizeof(uint64_t))
 			{
-				VI_ERR("[engine] file \"%s\" has corrupted dock size", File.c_str());
+				VI_ERR("[engine] file \"%s\" has corrupted dock size", File->c_str());
 				VI_RELEASE(Stream);
 
 				return false;
 			}
 
-			Unique.Negate();
+			Core::UMutex<std::mutex> Unique(Exclusive);
 			for (uint64_t i = 0; i < Size; i++)
 			{
 				AssetArchive* Docker = VI_NEW(AssetArchive);
@@ -5807,19 +5836,30 @@ namespace Mavi
 		bool ContentManager::Export(const Core::String& Path, const Core::String& Directory, const Core::String& Name)
 		{
 			VI_ASSERT(!Path.empty() && !Directory.empty(), "path and directory should not be empty");
+			auto TargetPath = Core::OS::Path::Resolve(Path, Environment, false);
+			if (!TargetPath)
+			{
+				VI_ERR("[engine] cannot resolve \"%s\"", Path.c_str());
+				return false;
+			}
+
 			auto* Stream = new Core::GzStream();
-			if (!Stream->Open(Core::OS::Path::Resolve(Path, Environment, false).c_str(), Core::FileMode::Write_Only))
+			if (!Stream->Open(TargetPath->c_str(), Core::FileMode::Write_Only))
 			{
 				VI_ERR("[engine] cannot open \"%s\" for writing", Path.c_str());
 				VI_RELEASE(Stream);
 				return false;
 			}
 
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			Core::String DirectoryBase = Core::OS::Path::Resolve(Directory, Environment, false);
-			Unique.Negate();
+			auto DirectoryBase = Core::OS::Path::Resolve(Directory, Environment, false);
+			if (!DirectoryBase)
+			{
+				VI_ERR("[engine] cannot resolve target path for \"%s\"", Path.c_str());
+				VI_RELEASE(Stream);
+				return false;
+			}
 
-			auto Tree = new Core::FileTree(DirectoryBase);
+			auto Tree = new Core::FileTree(*DirectoryBase);
 			Stream->Write("\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16);
 
 			uint64_t Size = Tree->GetFiles();
@@ -5830,12 +5870,12 @@ namespace Mavi
 			{
 				for (auto& Resource : Tree->Files)
 				{
-					auto* File = Core::OS::File::Open(Resource, Core::FileMode::Binary_Read_Only);
+					auto File = Core::OS::File::Open(Resource, Core::FileMode::Binary_Read_Only);
 					if (!File)
 						continue;
 
 					Core::String Path = Resource;
-					Core::Stringify::Replace(Path, DirectoryBase, Name);
+					Core::Stringify::Replace(Path, *DirectoryBase, Name);
 					Core::Stringify::Replace(Path, '\\', '/');
 					if (Name.empty())
 						Path.assign(Path.substr(1));
@@ -5850,7 +5890,6 @@ namespace Mavi
 					Offset += Length;
 					if (Size > 0)
 						Stream->Write((char*)Path.c_str(), sizeof(char) * (size_t)Size);
-
 					VI_RELEASE(File);
 				}
 
@@ -5860,7 +5899,7 @@ namespace Mavi
 			{
 				for (auto& Resource : Tree->Files)
 				{
-					auto* File = Core::OS::File::Open(Resource, Core::FileMode::Binary_Read_Only);
+					auto File = Core::OS::File::Open(Resource, Core::FileMode::Binary_Read_Only);
 					if (!File)
 						continue;
 
@@ -5875,7 +5914,6 @@ namespace Mavi
 						Stream->Write(Buffer, Offset);
 						Size -= Offset;
 					}
-
 					VI_RELEASE(File);
 				}
 
@@ -5884,7 +5922,6 @@ namespace Mavi
 
 			VI_RELEASE(Tree);
 			VI_RELEASE(Stream);
-
 			return true;
 		}
 		void* ContentManager::TryToCache(Processor* Root, const Core::String& Path, void* Resource)
@@ -6150,13 +6187,20 @@ namespace Mavi
 				Content->AddProcessor<Processors::SchemaProcessor, Core::Schema>();
 				Content->AddProcessor<Processors::ServerProcessor, Network::HTTP::Server>();
 				Content->AddProcessor<Processors::HullShapeProcessor, Compute::HullShape>();
-				Content->SetEnvironment(Control.Environment.empty() ? Core::OS::Directory::GetWorking() + Control.Directory : Control.Environment + Control.Directory);
-				
-				if (!Control.Preferences.empty())
+
+				if (Control.Environment.empty())
 				{
-					Core::String Path = Core::OS::Path::Resolve(Control.Preferences, Content->GetEnvironment(), false);
-					if (!Database)
-						Database = new AppData(Content, Path);
+					auto Directory = Core::OS::Directory::GetWorking();
+					if (Directory)
+						Content->SetEnvironment(*Directory + Control.Directory);
+				}
+				else
+					Content->SetEnvironment(Control.Environment + Control.Directory);
+				
+				if (!Control.Preferences.empty() && !Database)
+				{
+					auto Path = Core::OS::Path::Resolve(Control.Preferences, Content->GetEnvironment(), false);
+					Database = new AppData(Content, Path ? *Path : Control.Preferences);
 				}
 			}
 
@@ -6187,7 +6231,11 @@ namespace Mavi
 					Control.GraphicsDevice.Window = Activity;
 
 					if (Content != nullptr && !Control.GraphicsDevice.CacheDirectory.empty())
-						Control.GraphicsDevice.CacheDirectory = Core::OS::Path::ResolveDirectory(Control.GraphicsDevice.CacheDirectory, Content->GetEnvironment(), false);
+					{
+						auto Directory = Core::OS::Path::ResolveDirectory(Control.GraphicsDevice.CacheDirectory, Content->GetEnvironment(), false);
+						if (Directory)
+							Control.GraphicsDevice.CacheDirectory = *Directory;
+					}
 
 					Renderer = Graphics::GraphicsDevice::Create(Control.GraphicsDevice);
 					Compute::Geometric::SetLeftHanded(Renderer->IsLeftHanded());

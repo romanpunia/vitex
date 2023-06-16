@@ -340,14 +340,18 @@ namespace Mavi
 						if (!Core::OS::File::IsExists(Target.c_str()))
 						{
 							ContentManager* Content = (Subsystem::Get()->GetRenderInterface() ? Subsystem::Get()->GetRenderInterface()->GetContent() : nullptr);
-							Target = (Content ? Core::OS::Path::Resolve(Path, Content->GetEnvironment(), false) : Core::OS::Path::Resolve(Path.c_str()));
-							Target = (Target.empty() ? Path.c_str() : Target.c_str());
+							auto Subpath = (Content ? Core::OS::Path::Resolve(Path, Content->GetEnvironment(), false) : Core::OS::Path::Resolve(Path.c_str()));
+							Target = (Subpath ? *Subpath : Path);
 						}
 					}
 					else if (URL.Protocol != "http" && URL.Protocol != "https")
 						return (Rml::FileHandle)nullptr;
 
-					return (Rml::FileHandle)Core::OS::File::Open(Target, Core::FileMode::Binary_Read_Only);
+					auto Stream = Core::OS::File::Open(Target, Core::FileMode::Binary_Read_Only);
+					if (!Stream)
+						return (Rml::FileHandle)nullptr;
+
+					return (Rml::FileHandle)*Stream;
 				}
 				void Close(Rml::FileHandle File) override
 				{
@@ -364,7 +368,7 @@ namespace Mavi
 				{
 					Core::Stream* Stream = (Core::Stream*)File;
 					VI_ASSERT(Stream != nullptr, "stream should be set");
-					return Stream->Seek((Core::FileSeek)Origin, Offset) == 0;
+					return !!Stream->Seek((Core::FileSeek)Origin, Offset);
 				}
 				size_t Tell(Rml::FileHandle File) override
 				{
@@ -458,9 +462,11 @@ namespace Mavi
 					}
 					else if (Proto1 == "file" && Proto2 == "file")
 					{
-						Result = Core::OS::Path::Resolve(Fixed2, Core::OS::Path::GetDirectory(Fixed1.c_str()), false);
-						if (Result.empty())
-							Result = Core::OS::Path::Resolve(Fixed2, Content->GetEnvironment(), false);
+						auto Path = Core::OS::Path::Resolve(Fixed2, Core::OS::Path::GetDirectory(Fixed1.c_str()), false);
+						if (!Path)
+							Path = Core::OS::Path::Resolve(Fixed2, Content->GetEnvironment(), false);
+						if (Path)
+							Result = *Path;
 					}
 					else if (Proto1 == "file" && Proto2 != "file")
 					{
@@ -594,18 +600,24 @@ namespace Mavi
 					VI_ASSERT(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
 
 					Scope->Basis->AddRef();
-					Scope->Basis->Compiler->CompileFunction(Content).When([Scope](Scripting::Function&& Function)
+					Scope->Basis->Compiler->CompileFunction(Content).When([Scope](Scripting::ExpectedReturn<Scripting::Function>&& Function)
 					{
-						Scripting::FunctionDelegate Delegate(Function);
-						Function.Release();
+						if (!Function)
+							return;
 
-						if (!Delegate.IsValid())
-							return Scope->Basis->Release();
-
-						Delegate(nullptr, [Scope](Scripting::ImmediateContext*)
+						Scripting::FunctionDelegate Delegate(*Function);
+						VI_RELEASE(Function);
+						if (Delegate.IsValid())
 						{
-							Scope->Basis->Release();
-						});	
+							Delegate(nullptr, [Scope](Scripting::ImmediateContext*)
+							{
+								VI_RELEASE(Scope->Basis);
+							});
+						}
+						else
+						{
+							VI_RELEASE(Scope->Basis);
+						}
 					});
 				}
 				void LoadExternalScript(const Rml::String& Path) override
@@ -617,12 +629,12 @@ namespace Mavi
 					Core::Stringify::Replace(Where, '|', ':');
 
 					Scripting::Compiler* Compiler = Scope->Basis->Compiler;
-					if (Compiler->LoadFile(Where) < 0)
+					if (!Compiler->LoadFile(Where))
 						return;
 
-					Compiler->Compile().When([Scope, Compiler](int&& Status)
+					Compiler->Compile().When([Scope, Compiler](Scripting::ExpectedReturn<void>&& Status)
 					{
-						if (Status < 0)
+						if (!Status)
 							return;
 
 						Scripting::Function Main = Compiler->GetModule().GetFunctionByName("main");
@@ -638,7 +650,7 @@ namespace Mavi
 								Context->SetArgObject(0, Scope->Basis);
 						}, [Scope](Scripting::ImmediateContext*)
 						{
-							Scope->Basis->Release();
+							VI_RELEASE(Scope->Basis);
 						});
 					});
 				}
@@ -697,7 +709,7 @@ namespace Mavi
 						Context->SetArgObject(0, &Event);
 					}, [Scope, Ptr](Scripting::ImmediateContext*)
 					{
-						Scope->Basis->Release();
+						VI_RELEASE(Scope->Basis);
 						delete Ptr;
 					});
 				}
@@ -706,13 +718,17 @@ namespace Mavi
 					if (Function.IsValid())
 						return true;
 
-					Core::String Name = "__vf" + Compute::Crypto::Hash(Compute::Digests::MD5(), Memory);
+					auto Hash = Compute::Crypto::Hash(Compute::Digests::MD5(), Memory);
+					if (!Hash)
+						return false;
+
+					Core::String Name = "__vf" + *Hash;
 					Core::String Eval = "void " + Name + "(ui_event&in event){\n";
 					Eval.append(Memory);
 					Eval += "\n;}";
 
 					Scripting::Module Module = Scope->Basis->Compiler->GetModule();
-					return Module.CompileFunction(Name.c_str(), Eval.c_str(), -1, (size_t)Scripting::CompileFlags::ADD_TO_MODULE, &Function) >= 0;
+					return !!Module.CompileFunction(Name.c_str(), Eval.c_str(), -1, (size_t)Scripting::CompileFlags::ADD_TO_MODULE, &Function);
 				}
 			};
 
@@ -3662,8 +3678,8 @@ namespace Mavi
 						return false;
 					}
 
-					Core::String Target = Core::OS::Path::Resolve(Path, Relative, false);
-					if (!LoadFontFace(Target.empty() ? Path : Target, Face->GetAttribute("fallback") != nullptr))
+					auto Target = Core::OS::Path::Resolve(Path, Relative, false);
+					if (!LoadFontFace(Target ? *Target : Path, Face->GetAttribute("fallback") != nullptr))
 					{
 						Loading = State;
 						return false;
@@ -3679,8 +3695,8 @@ namespace Mavi
 						return false;
 					}
 
-					Core::String Target = Core::OS::Path::Resolve(Path, Relative, false);
-					IElementDocument Result = LoadDocument(Target.empty() ? Path : Target);
+					auto Target = Core::OS::Path::Resolve(Path, Relative, false);
+					IElementDocument Result = LoadDocument(Target ? *Target : Path);
 					if (!Result.IsValid())
 					{
 						Loading = State;
@@ -3710,8 +3726,8 @@ namespace Mavi
 					return false;
 				}
 
-				Core::String TargetPath = Core::OS::Path::ResolveDirectory(Core::OS::Path::GetDirectory(ConfPath.c_str()), Content->GetEnvironment(), true);
-				bool Result = Initialize(Sheet, TargetPath);
+				auto TargetPath = Core::OS::Path::ResolveDirectory(Core::OS::Path::GetDirectory(ConfPath.c_str()), Content->GetEnvironment(), true);
+				bool Result = Initialize(Sheet, TargetPath ? *TargetPath : Core::String());
 				VI_RELEASE(Sheet);
 
 				Loading = State;
@@ -3904,9 +3920,8 @@ namespace Mavi
 				ClearVM();
 				Elements.clear();
 
-				size_t Length = 0;
-				unsigned char* Buffer = Core::OS::File::ReadAll(Path, &Length);
-				if (!Buffer)
+				auto File = Core::OS::File::ReadAsString(Path);
+				if (!File)
 				{
 				ErrorState:
 					Base->UnloadAllDocuments();
@@ -3915,9 +3930,7 @@ namespace Mavi
 					return nullptr;
 				}
 
-				Core::String Data((const char*)Buffer, Length);
-				VI_FREE(Buffer);
-
+				Core::String Data = *File;
 				Decompose(Data);
 				if (!Preprocess(Path, Data))
 					goto ErrorState;
@@ -4209,7 +4222,10 @@ namespace Mavi
 				Compute::IncludeDesc Desc = Compute::IncludeDesc();
 				Desc.Exts.push_back(".html");
 				Desc.Exts.push_back(".htm");
-				Desc.Root = Core::OS::Directory::GetWorking();
+
+				auto Directory = Core::OS::Directory::GetWorking();
+				if (Directory)
+					Desc.Root = *Directory;
 
 				Compute::Preprocessor* Processor = new Compute::Preprocessor();
 				Processor->SetIncludeCallback([this](Compute::Preprocessor* P, const Compute::IncludeResult& File, Core::String& Output)
@@ -4220,10 +4236,11 @@ namespace Mavi
 					if (File.IsAbstract && !File.IsFile)
 						return Compute::IncludeType::Error;
 
-					Output.assign(Core::OS::File::ReadAsString(File.Module));
-					if (Output.empty())
+					auto Data = Core::OS::File::ReadAsString(File.Module);
+					if (!Data)
 						return Compute::IncludeType::Error;
 
+					Output.assign(*Data);
 					this->Decompose(Output);
 					return Compute::IncludeType::Preprocess;
 				});

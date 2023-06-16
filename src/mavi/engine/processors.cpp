@@ -45,8 +45,18 @@ namespace Mavi
 			Core::String GetMeshName(const Core::String& Name, ModelInfo* Info)
 			{
 				if (Name.empty())
-					return Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(8)).substr(0, 8);
-				
+				{
+					auto Random = Compute::Crypto::RandomBytes(8);
+					if (!Random)
+						return "NULL";
+
+					auto Hash = Compute::Crypto::Hash(Compute::Digests::MD5(), *Random);
+					if (!Hash)
+						return "NULL";
+
+					return Hash->substr(0, 8);
+				}
+
 				Core::String Result = Name;
 				for (auto&& Data : Info->Meshes)
 				{
@@ -1041,7 +1051,7 @@ namespace Mavi
 					Core::String Path;
 					AssetCache* Asset = Content->FindCache<Engine::Material>(Material);
 					if (!Asset)
-						Path.assign("./materials/" + Material->GetName() + "_" + Compute::Codec::HexEncode(Compute::Crypto::RandomBytes(6)));
+						Path.assign("./materials/" + Material->GetName() + ".modified");
 					else
 						Path.assign(Asset->Path);
 
@@ -1794,13 +1804,13 @@ namespace Mavi
 			void* SchemaProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				auto* Object = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, size_t Size)
+				auto Object = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, size_t Size)
 				{
 					return Size > 0 ? Stream->Read(Buffer, Size) == Size : true;
-				}, false);
+				});
 
-				if (Object != nullptr)
-					return Object;
+				if (Object)
+					return *Object;
 				
 				Core::String Data;
 				Stream->Seek(Core::FileSeek::Begin, Offset);
@@ -1809,11 +1819,11 @@ namespace Mavi
 					Data.append(Buffer, Size);
 				});
 
-				Object = Core::Schema::ConvertFromJSON(Data.data(), Data.size(), false);
+				Object = Core::Schema::ConvertFromJSON(Data.data(), Data.size());
 				if (!Object)
-					Object = Core::Schema::ConvertFromXML(Data.data(), false);
+					Object = Core::Schema::ConvertFromXML(Data.data());
 
-				return Object;
+				return Object ? *Object : nullptr;
 			}
 			bool SchemaProcessor::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{

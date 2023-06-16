@@ -82,6 +82,134 @@ namespace Mavi
 			Speed_Of_Sound = 0xC003
 		};
 
+		enum class FilterEx
+		{
+			Lowpass_Gain = 0x0001,
+			Lowpass_Gain_HF = 0x0002,
+			Highpass_Gain = 0x0001,
+			Highpass_Gain_LF = 0x0002,
+			Bandpass_Gain = 0x0001,
+			Bandpass_Gain_LF = 0x0002,
+			Bandpass_Gain_HF = 0x0003,
+			Filter_Type = 0x8001,
+			Filter_Null = 0x0000,
+			Filter_Lowpass = 0x0001,
+			Filter_Highpass = 0x0002,
+			Filter_Bandpass = 0x0003
+		};
+
+		enum class EffectEx
+		{
+			Reverb_Density = 0x0001,
+			Reverb_Diffusion = 0x0002,
+			Reverb_Gain = 0x0003,
+			Reverb_Gain_HF = 0x0004,
+			Reverb_Decay_Time = 0x0005,
+			Reverb_Decay_HF_Ratio = 0x0006,
+			Reverb_Reflections_Gain = 0x0007,
+			Reverb_Reflections_Delay = 0x0008,
+			Reverb_Late_Reverb_Gain = 0x0009,
+			Reverb_Late_Reverb_Delay = 0x000A,
+			Reverb_Air_Absorption_Gain_HF = 0x000B,
+			Reverb_Room_Rolloff_Factor = 0x000C,
+			Reverb_Decay_HF_Limit = 0x000D,
+			EAXReverb_Density = 0x0001,
+			EAXReverb_Diffusion = 0x0002,
+			EAXReverb_Gain = 0x0003,
+			EAXReverb_Gain_HF = 0x0004,
+			EAXReverb_Gain_LF = 0x0005,
+			EAXReverb_Decay_Time = 0x0006,
+			EAXReverb_Decay_HF_Ratio = 0x0007,
+			EAXReverb_Decay_LF_Ratio = 0x0008,
+			EAXReverb_Reflections_Gain = 0x0009,
+			EAXReverb_Reflections_Delay = 0x000A,
+			EAXReverb_Reflections_Pan = 0x000B,
+			EAXReverb_Late_Reverb_Gain = 0x000C,
+			EAXReverb_Late_Reverb_Delay = 0x000D,
+			EAXReverb_Late_Reverb_Pan = 0x000E,
+			EAXReverb_Echo_Time = 0x000F,
+			EAXReverb_Echo_Depth = 0x0010,
+			EAXReverb_Modulation_Time = 0x0011,
+			EAXReverb_Modulation_Depth = 0x0012,
+			EAXReverb_Air_Absorption_Gain_HF = 0x0013,
+			EAXReverb_HF_Reference = 0x0014,
+			EAXReverb_LF_Reference = 0x0015,
+			EAXReverb_Room_Rolloff_Factor = 0x0016,
+			EAXReverb_Decay_HF_Limit = 0x0017,
+			Chorus_Waveform = 0x0001,
+			Chorus_Phase = 0x0002,
+			Chorus_Rate = 0x0003,
+			Chorus_Depth = 0x0004,
+			Chorus_Feedback = 0x0005,
+			Chorus_Delay = 0x0006,
+			Distortion_Edge = 0x0001,
+			Distortion_Gain = 0x0002,
+			Distortion_Lowpass_Cutoff = 0x0003,
+			Distortion_EQ_Center = 0x0004,
+			Distortion_EQ_Bandwidth = 0x0005,
+			Echo_Delay = 0x0001,
+			Echo_LR_Delay = 0x0002,
+			Echo_Damping = 0x0003,
+			Echo_Feedback = 0x0004,
+			Echo_Spread = 0x0005,
+			Flanger_Waveform = 0x0001,
+			Flanger_Phase = 0x0002,
+			Flanger_Rate = 0x0003,
+			Flanger_Depth = 0x0004,
+			Flanger_Feedback = 0x0005,
+			Flanger_Delay = 0x0006,
+			Frequency_Shifter_Frequency = 0x0001,
+			Frequency_Shifter_Left_Direction = 0x0002,
+			Frequency_Shifter_Right_Direction = 0x0003,
+			Vocmorpher_Phoneme_A = 0x0001,
+			Vocmorpher_Phoneme_A_Coarse_Tuning = 0x0002,
+			Vocmorpher_Phoneme_B = 0x0003,
+			Vocmorpher_Phoneme_B_Coarse_Tuning = 0x0004,
+			Vocmorpher_Waveform = 0x0005,
+			Vocmorpher_Rate = 0x0006,
+			Pitch_Shifter_Coarse_Tune = 0x0001,
+			Pitch_Shifter_Fine_Tune = 0x0002,
+			Ring_Modulator_Frequency = 0x0001,
+			Ring_Modulator_Highpass_Cutoff = 0x0002,
+			Ring_Modulator_Waveform = 0x0003,
+			Autowah_Attack_Time = 0x0001,
+			Autowah_Release_Time = 0x0002,
+			Autowah_Resonance = 0x0003,
+			Autowah_Peak_Gain = 0x0004,
+			Compressor_ON_OFF = 0x0001,
+			Equalizer_LOW_Gain = 0x0001,
+			Equalizer_LOW_Cutoff = 0x0002,
+			Equalizer_MID1_Gain = 0x0003,
+			Equalizer_MID1_Center = 0x0004,
+			Equalizer_MID1_Width = 0x0005,
+			Equalizer_MID2_Gain = 0x0006,
+			Equalizer_MID2_Center = 0x0007,
+			Equalizer_MID2_Width = 0x0008,
+			Equalizer_HIGH_Gain = 0x0009,
+			Equalizer_HIGH_Cutoff = 0x000A,
+			Effect_First_Parameter = 0x0000,
+			Effect_Last_Parameter = 0x8000,
+			Effect_Type = 0x8001,
+			Effect_Null = 0x0000,
+			Effect_Reverb = 0x0001,
+			Effect_Chorus = 0x0002,
+			Effect_Distortion = 0x0003,
+			Effect_Echo = 0x0004,
+			Effect_Flanger = 0x0005,
+			Effect_Frequency_Shifter = 0x0006,
+			Effect_Vocmorpher = 0x0007,
+			Effect_Pitch_Shifter = 0x0008,
+			Effect_Ring_Modulator = 0x0009,
+			Effect_Autowah = 0x000A,
+			Effect_Compressor = 0x000B,
+			Effect_Equalizer = 0x000C,
+			Effect_EAXReverb = 0x8000,
+			Effect_Slot_Effect = 0x0001,
+			Effect_Slot_Gain = 0x0002,
+			Effect_Slot_Auxiliary_Send_Auto = 0x0003,
+			Effect_Slot_Null = 0x0000
+		};
+
 		struct VI_OUT AudioSync
 		{
 			Compute::Vector3 Direction;
@@ -106,6 +234,11 @@ namespace Mavi
 		public:
 			static void Initialize();
 			static void GenerateBuffers(int Count, unsigned int* Buffers);
+			static void SetFilter1I(unsigned int Filter, FilterEx Value, int F1);
+			static void SetFilter1F(unsigned int Filter, FilterEx Value, float F1);
+			static void SetEffect1I(unsigned int Effect, EffectEx Value, int F1);
+			static void SetEffect1F(unsigned int Effect, EffectEx Value, float F1);
+			static void SetEffectVF(unsigned int Effect, EffectEx Value, float* FS);
 			static void SetBufferData(unsigned int Buffer, int Format, const void* Data, int Size, int Frequency);
 			static void SetSourceData3F(unsigned int Source, SoundEx Value, float F1, float F2, float F3);
 			static void GetSourceData3F(unsigned int Source, SoundEx Value, float* F1, float* F2, float* F3);
@@ -131,6 +264,7 @@ namespace Mavi
 			static void GetListenerDataVI(SoundEx Listener, int* FS);
 			static void SetListenerData1I(SoundEx Listener, int F1);
 			static void GetListenerData1I(SoundEx Listener, int* F1);
+			static uint32_t GetEnumValue(const char* Name);
 		};
 
 		class VI_OUT AudioFilter : public Core::Reference<AudioFilter>

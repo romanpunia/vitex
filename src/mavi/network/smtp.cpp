@@ -47,6 +47,34 @@ namespace Mavi
 			{
 				AutoEncrypt = false;
 			}
+			Core::ExpectedPromise<void> Client::Send(RequestFrame&& Root)
+			{
+				if (!Stream.IsValid())
+					return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::bad_file_descriptor));
+
+				Core::ExpectedPromise<void> Result;
+				if (&Request != &Root)
+					Request = std::move(Root);
+
+				VI_DEBUG("[smtp] message to %s", Root.Receiver.c_str());
+				Done = [this, Result](SocketClient*, const Core::Option<std::error_condition>& ErrorCode) mutable
+				{
+					if (!Buffer.empty())
+						VI_DEBUG("[smtp] %i responded\n%.*s", (int)Stream.GetFd(), (int)Buffer.size(), Buffer.data());
+
+					Buffer.clear();
+					if (ErrorCode)
+						Result.Set(*ErrorCode);
+					else
+						Result.Set(Core::Optional::OK);
+				};
+				if (!Authorized && Request.Authenticate && CanRequest("AUTH"))
+					Authorize(std::bind(&Client::PrepareAndSend, this));
+				else
+					PrepareAndSend();
+
+				return Result;
+			}
 			bool Client::OnResolveHost(RemoteHost* Address)
 			{
 				VI_ASSERT(Address != nullptr, "address should be set");
@@ -75,20 +103,20 @@ namespace Mavi
 
 							SendRequest(220, "STARTTLS\r\n", [this]()
 							{
-								Encrypt([this](bool Encrypted)
+								Encrypt([this](const Core::Option<std::error_condition>& ErrorCode)
 								{
-									if (!Encrypted)
+									if (ErrorCode)
 										return;
 
 									SendRequest(250, Core::Stringify::Text("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()), [this]()
 									{
-										Success(0);
+										Report(Core::Optional::OK);
 									});
 								});
 							});
 						}
 						else
-							Success(0);
+							Report(Core::Optional::OK);
 					});
 				});
 			}
@@ -97,37 +125,8 @@ namespace Mavi
 				return SendRequest(221, "QUIT\r\n", [this]()
 				{
 					Authorized = false;
-					Stream.CloseAsync(true, [this]
-					{
-						Success(0);
-					});
+					Stream.CloseAsync(true, [this](const Core::Option<std::error_condition>&) { Report(Core::Optional::OK); });
 				}) || true;
-			}
-			Core::Promise<int> Client::Send(RequestFrame&& Root)
-			{
-				if (!Stream.IsValid())
-					return Core::Promise<int>(-1);
-
-				Core::Promise<int> Result;
-				if (&Request != &Root)
-					Request = std::move(Root);
-
-				VI_DEBUG("[smtp] message to %s", Root.Receiver.c_str());
-				Done = [this, Result](SocketClient*, int Code) mutable
-				{
-					if (!Buffer.empty())
-						VI_DEBUG("[smtp] %i responded\n%.*s", (int)Stream.GetFd(), (int)Buffer.size(), Buffer.data());
-
-					Buffer.clear();
-					Result.Set(Code);
-				};
-
-				if (!Authorized && Request.Authenticate && CanRequest("AUTH"))
-					Authorize(std::bind(&Client::PrepareAndSend, this));
-				else
-					PrepareAndSend();
-
-				return Result;
 			}
 			bool Client::ReadResponses(int Code, const ReplyCallback& Callback)
 			{
@@ -504,8 +503,20 @@ namespace Mavi
 				}
 
 				if (!Request.Attachments.empty())
-					Boundary = Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(64));
-                
+				{
+					auto Random = Compute::Crypto::RandomBytes(64);
+					if (Random)
+					{
+						auto Hash = Compute::Crypto::Hash(Compute::Digests::MD5(), *Random);
+						if (Hash)
+							Boundary = *Hash;
+						else
+							Boundary = "0x00000000";
+					}
+					else
+						Boundary = "0x00000000";
+				}
+
 				Core::String Content;
 				Core::Stringify::Append(Content, "MAIL FROM: <%s>\r\n", Request.SenderAddress.c_str());
 
@@ -689,7 +700,7 @@ namespace Mavi
 						{
 							ReadResponses(250, [this]()
 							{
-								Success(0);
+								Report(Core::Optional::OK);
 							});
 						}
 						else if (Packet::IsErrorOrSkip(Event))
@@ -715,11 +726,14 @@ namespace Mavi
 				{
 					if (Packet::IsDone(Event))
 					{
-						AttachmentFile = (FILE*)Core::OS::File::Open(Name, "rb");
-						if (AttachmentFile != nullptr)
-							Error("cannot open attachment resource");
-						else
+						auto File = Core::OS::File::Open(Name, "rb");
+						if (File)
+						{
+							AttachmentFile = *File;
 							ProcessAttachment();
+						}
+						else
+							Error("cannot open attachment resource");
 					}
 					else if (Packet::IsErrorOrSkip(Event))
 						Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));

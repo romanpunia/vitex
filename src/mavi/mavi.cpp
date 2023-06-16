@@ -53,7 +53,7 @@ extern "C"
 
 namespace Mavi
 {
-	Runtime::Runtime(size_t Modules, Core::GlobalAllocator* Allocator) noexcept : Modes(Modules)
+	Runtime::Runtime(size_t Modules, Core::GlobalAllocator* Allocator) noexcept : Crypto(nullptr), Modes(Modules)
 	{
 		VI_ASSERT(!Instance, "mavi runtime should not be already initialized");
 		Instance = this;
@@ -82,23 +82,25 @@ namespace Mavi
 			SSL_library_init();
 			SSL_load_error_strings();
 #if OPENSSL_VERSION_MAJOR >= 3
-			Crypto.DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
-			Crypto.LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
+			Crypto = VI_NEW(CryptoData);
+			Crypto->DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
+			Crypto->LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
 
-			if (!Crypto.LegacyProvider || !Crypto.DefaultProvider)
+			if (!Crypto->LegacyProvider || !Crypto->DefaultProvider)
 			{
-				Core::String Path = Core::OS::Directory::GetModule();
+				auto Path = Core::OS::Directory::GetModule();
 				bool IsModuleDirectory = true;
 			Retry:
-				OSSL_PROVIDER_set_default_search_path(nullptr, Path.c_str());
+				if (Path)
+					OSSL_PROVIDER_set_default_search_path(nullptr, Path->c_str());
 
-				if (!Crypto.DefaultProvider)
-					Crypto.DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
+				if (!Crypto->DefaultProvider)
+					Crypto->DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
 
-				if (!Crypto.LegacyProvider)
-					Crypto.LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
+				if (!Crypto->LegacyProvider)
+					Crypto->LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
 
-				if (!Crypto.LegacyProvider || !Crypto.DefaultProvider)
+				if (!Crypto->LegacyProvider || !Crypto->DefaultProvider)
 				{
 					if (IsModuleDirectory)
 					{
@@ -117,9 +119,9 @@ namespace Mavi
 			RAND_poll();
 
 			int Count = CRYPTO_num_locks();
-			Crypto.Locks.reserve(Count);
+			Crypto->Locks.reserve(Count);
 			for (int i = 0; i < Count; i++)
-				Crypto.Locks.push_back(std::make_shared<std::mutex>());
+				Crypto->Locks.push_back(std::make_shared<std::mutex>());
 
 			CRYPTO_set_id_callback([]() -> long unsigned int
 			{
@@ -132,9 +134,9 @@ namespace Mavi
 			CRYPTO_set_locking_callback([](int Mode, int Id, const char* File, int Line)
 			{
 				if (Mode & CRYPTO_LOCK)
-					Crypto.Locks.at(Id)->lock();
+					Crypto->Locks.at(Id)->lock();
 				else
-					Crypto.Locks.at(Id)->unlock();
+					Crypto->Locks.at(Id)->unlock();
 			});
 #else
 			VI_WARN("[mavi] openssl ssl cannot be initialized");
@@ -266,8 +268,8 @@ namespace Mavi
 		if (Modes & (uint64_t)Init::SSL)
 		{
 #if OPENSSL_VERSION_MAJOR >= 3
-			OSSL_PROVIDER_unload((OSSL_PROVIDER*)Crypto.LegacyProvider);
-			OSSL_PROVIDER_unload((OSSL_PROVIDER*)Crypto.DefaultProvider);
+			OSSL_PROVIDER_unload((OSSL_PROVIDER*)Crypto->LegacyProvider);
+			OSSL_PROVIDER_unload((OSSL_PROVIDER*)Crypto->DefaultProvider);
 #else
 			FIPS_mode_set(0);
 #endif
@@ -288,9 +290,8 @@ namespace Mavi
 			CRYPTO_cleanup_all_ex_data();
 			CONF_modules_unload(1);
 #endif
-			Crypto.LegacyProvider = nullptr;
-			Crypto.DefaultProvider = nullptr;
-			Crypto.Locks.clear();
+			VI_DELETE(CryptoData, Crypto);
+			Crypto = nullptr;
 		}
 #endif
 #ifdef VI_SDL2

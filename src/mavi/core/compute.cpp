@@ -7003,27 +7003,33 @@ namespace Mavi
 			return "0x?";
 #endif
 		}
-		Core::String Crypto::RandomBytes(size_t Length)
+		Core::Option<Core::String> Crypto::RandomBytes(size_t Length)
 		{
 #ifdef VI_OPENSSL
 			VI_TRACE("[crypto] fill random %" PRIu64 " bytes", (uint64_t)Length);
 			unsigned char* Buffer = VI_MALLOC(unsigned char, sizeof(unsigned char) * Length);
 			if (RAND_bytes(Buffer, (int)Length) != 1)
+			{
 				DisplayCryptoLog();
+				return Core::Optional::None;
+			}
 
 			Core::String Output((const char*)Buffer, Length);
 			VI_FREE(Buffer);
-
 			return Output;
 #else
-			return Core::String();
+			return Core::Optional::None;
 #endif
 		}
-		Core::String Crypto::Hash(Digest Type, const Core::String& Value)
+		Core::Option<Core::String> Crypto::Hash(Digest Type, const Core::String& Value)
 		{
-			return Codec::HexEncode(Crypto::HashBinary(Type, Value));
+			auto Data = Crypto::HashBinary(Type, Value);
+			if (!Data)
+				return Data;
+
+			return Codec::HexEncode(*Data);
 		}
-		Core::String Crypto::HashBinary(Digest Type, const Core::String& Value)
+		Core::Option<Core::String> Crypto::HashBinary(Digest Type, const Core::String& Value)
 		{
 			VI_ASSERT(Type != nullptr, "type should be set");
 #ifdef VI_OPENSSL
@@ -7033,7 +7039,7 @@ namespace Mavi
 			if (!Context)
 			{
 				DisplayCryptoLog();
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			Core::String Result;
@@ -7048,16 +7054,16 @@ namespace Mavi
 			if (!OK)
 			{
 				DisplayCryptoLog();
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			Result.resize((size_t)Size);
 			return Result;
 #else
-			return Value;
+			return Core::Optional::None;
 #endif
 		}
-		Core::String Crypto::Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
+		Core::Option<Core::String> Crypto::Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
@@ -7073,7 +7079,7 @@ namespace Mavi
 			if (!Pointer)
 			{
 				DisplayCryptoLog();
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			return Core::String((const char*)Result, Size);
@@ -7083,7 +7089,7 @@ namespace Mavi
 			if (!Context)
 			{
 				DisplayCryptoLog();
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			unsigned char Result[EVP_MAX_MD_SIZE];
@@ -7091,14 +7097,14 @@ namespace Mavi
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_free(Context);
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			if (1 != HMAC_Update(Context, (const unsigned char*)Value, (int)Length))
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_free(Context);
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			unsigned int Size = sizeof(Result);
@@ -7106,7 +7112,7 @@ namespace Mavi
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_free(Context);
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			Core::String Output((const char*)Result, Size);
@@ -7123,14 +7129,14 @@ namespace Mavi
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_cleanup(&Context);
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			if (1 != HMAC_Update(&Context, (const unsigned char*)Value, (int)Length))
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_cleanup(&Context);
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			unsigned int Size = sizeof(Result);
@@ -7138,7 +7144,7 @@ namespace Mavi
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_cleanup(&Context);
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			Core::String Output((const char*)Result, Size);
@@ -7147,14 +7153,14 @@ namespace Mavi
 			return Output;
 #endif
 #else
-			return Value;
+			return Core::Optional::None;
 #endif
 		}
-		Core::String Crypto::Sign(Digest Type, const Core::String& Value, const PrivateKey& Key)
+		Core::Option<Core::String> Crypto::Sign(Digest Type, const Core::String& Value, const PrivateKey& Key)
 		{
 			return Sign(Type, Value.c_str(), (uint64_t)Value.size(), Key);
 		}
-		Core::String Crypto::HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
+		Core::Option<Core::String> Crypto::HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
@@ -7168,20 +7174,20 @@ namespace Mavi
 			if (!::HMAC((const EVP_MD*)Type, LocalKey.Key, (int)LocalKey.Size, (const unsigned char*)Value, Length, Result, &Size))
 			{
 				DisplayCryptoLog();
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			Core::String Output((const char*)Result, Size);
 			return Output;
 #else
-			return (const char*)Value;
+			return Core::Optional::None;
 #endif
 		}
-		Core::String Crypto::HMAC(Digest Type, const Core::String& Value, const PrivateKey& Key)
+		Core::Option<Core::String> Crypto::HMAC(Digest Type, const Core::String& Value, const PrivateKey& Key)
 		{
 			return Crypto::HMAC(Type, Value.c_str(), Value.size(), Key);
 		}
-		Core::String Crypto::Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		Core::Option<Core::String> Crypto::Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
 			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
 			VI_ASSERT(Value != nullptr, "value should be set");
@@ -7189,13 +7195,13 @@ namespace Mavi
 			VI_TRACE("[crypto] %s encrypt%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
 
 			if (!Length)
-				return Core::String();
+				return Core::Optional::None;
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
 			{
 				DisplayCryptoLog();
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
@@ -7205,7 +7211,7 @@ namespace Mavi
 				{
 					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return Core::String();
+					return Core::Optional::None;
 				}
 			}
 
@@ -7214,7 +7220,7 @@ namespace Mavi
 			{
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			int Size1 = (int)Length, Size2 = 0;
@@ -7225,7 +7231,7 @@ namespace Mavi
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				VI_FREE(Buffer);
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			if (1 != EVP_EncryptFinal_ex(Context, Buffer + Size2, &Size1))
@@ -7233,7 +7239,7 @@ namespace Mavi
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				VI_FREE(Buffer);
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			Core::String Output((const char*)Buffer, Size1 + Size2);
@@ -7242,14 +7248,14 @@ namespace Mavi
 
 			return Output;
 #else
-			return (const char*)Value;
+			return Core::Optional::None;
 #endif
 		}
-		Core::String Crypto::Encrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		Core::Option<Core::String> Crypto::Encrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
 			return Encrypt(Type, Value.c_str(), Value.size(), Key, Salt);
 		}
-		Core::String Crypto::Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		Core::Option<Core::String> Crypto::Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
 			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
 			VI_ASSERT(Value != nullptr, "value should be set");
@@ -7257,13 +7263,13 @@ namespace Mavi
 			VI_TRACE("[crypto] %s decrypt%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
 
 			if (!Length)
-				return Core::String();
+				return Core::Optional::None;
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
 			{
 				DisplayCryptoLog();
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
@@ -7273,7 +7279,7 @@ namespace Mavi
 				{
 					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return Core::String();
+					return Core::Optional::None;
 				}
 			}
 
@@ -7282,7 +7288,7 @@ namespace Mavi
 			{
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			int Size1 = (int)Length, Size2 = 0;
@@ -7293,7 +7299,7 @@ namespace Mavi
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				VI_FREE(Buffer);
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			if (1 != EVP_DecryptFinal_ex(Context, Buffer + Size2, &Size1))
@@ -7301,7 +7307,7 @@ namespace Mavi
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				VI_FREE(Buffer);
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			Core::String Output((const char*)Buffer, Size1 + Size2);
@@ -7310,14 +7316,14 @@ namespace Mavi
 
 			return Output;
 #else
-			return (const char*)Value;
+			return Core::Optional::None;
 #endif
 		}
-		Core::String Crypto::Decrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		Core::Option<Core::String> Crypto::Decrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
 			return Decrypt(Type, Value.c_str(), (uint64_t)Value.size(), Key, Salt);
 		}
-		Core::String Crypto::JWTSign(const Core::String& Alg, const Core::String& Payload, const PrivateKey& Key)
+		Core::Option<Core::String> Crypto::JWTSign(const Core::String& Alg, const Core::String& Payload, const PrivateKey& Key)
 		{
 			Digest Hash = nullptr;
 			if (Alg == "HS256")
@@ -7329,7 +7335,7 @@ namespace Mavi
 
 			return Crypto::HMAC(Hash, Payload, Key);
 		}
-		Core::String Crypto::JWTEncode(WebToken* Src, const PrivateKey& Key)
+		Core::Option<Core::String> Crypto::JWTEncode(WebToken* Src, const PrivateKey& Key)
 		{
 			VI_ASSERT(Src != nullptr, "web token should be set");
 			VI_ASSERT(Src->Header != nullptr, "web token header should be set");
@@ -7337,49 +7343,45 @@ namespace Mavi
 
 			Core::String Alg = Src->Header->GetVar("alg").GetBlob();
 			if (Alg.empty())
-				return Core::String();
+				return Core::Optional::None;
 
 			Core::String Header;
-			Core::Schema::ConvertToJSON(Src->Header, [&Header](Core::VarForm, const char* Buffer, size_t Size)
-			{
-				Header.append(Buffer, Size);
-			});
+			Core::Schema::ConvertToJSON(Src->Header, [&Header](Core::VarForm, const char* Buffer, size_t Size) { Header.append(Buffer, Size); });
 
 			Core::String Payload;
-			Core::Schema::ConvertToJSON(Src->Payload, [&Payload](Core::VarForm, const char* Buffer, size_t Size)
-			{
-				Payload.append(Buffer, Size);
-			});
+			Core::Schema::ConvertToJSON(Src->Payload, [&Payload](Core::VarForm, const char* Buffer, size_t Size) { Payload.append(Buffer, Size); });
 
 			Core::String Data = Codec::Base64URLEncode(Header) + '.' + Codec::Base64URLEncode(Payload);
-			Src->Signature = JWTSign(Alg, Data, Key);
+			auto Signature = JWTSign(Alg, Data, Key);
+			if (!Signature)
+				return Core::Optional::None;
 
+			Src->Signature = *Signature;
 			return Data + '.' + Codec::Base64URLEncode(Src->Signature);
 		}
-		WebToken* Crypto::JWTDecode(const Core::String& Value, const PrivateKey& Key)
+		Core::Option<WebToken*> Crypto::JWTDecode(const Core::String& Value, const PrivateKey& Key)
 		{
 			Core::Vector<Core::String> Source = Core::Stringify::Split(Value, '.');
 			if (Source.size() != 3)
-				return nullptr;
+				return Core::Optional::None;
 
 			size_t Offset = Source[0].size() + Source[1].size() + 1;
 			Source[0] = Codec::Base64URLDecode(Source[0]);
-			Core::Schema* Header = Core::Schema::ConvertFromJSON(Source[0].c_str(), Source[0].size());
-
+			auto Header = Core::Schema::ConvertFromJSON(Source[0].c_str(), Source[0].size());
 			if (!Header)
-				return nullptr;
+				return Core::Optional::None;
 
 			Source[1] = Codec::Base64URLDecode(Source[1]);
-			Core::Schema* Payload = Core::Schema::ConvertFromJSON(Source[1].c_str(), Source[1].size());
-
+			auto Payload = Core::Schema::ConvertFromJSON(Source[1].c_str(), Source[1].size());
 			if (!Payload)
 			{
 				VI_RELEASE(Header);
-				return nullptr;
+				return Core::Optional::None;
 			}
 
 			Source[0] = Header->GetVar("alg").GetBlob();
-			if (Codec::Base64URLEncode(JWTSign(Source[0], Value.substr(0, Offset), Key)) != Source[2])
+			auto Signature = JWTSign(Source[0], Value.substr(0, Offset), Key);
+			if (!Signature || Codec::Base64URLEncode(*Signature) != Source[2])
 			{
 				VI_RELEASE(Header);
 				return nullptr;
@@ -7387,28 +7389,36 @@ namespace Mavi
 
 			WebToken* Result = new WebToken();
 			Result->Signature = Codec::Base64URLDecode(Source[2]);
-			Result->Header = Header;
-			Result->Payload = Payload;
+			Result->Header = *Header;
+			Result->Payload = *Payload;
 
 			return Result;
 		}
-		Core::String Crypto::DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt)
+		Core::Option<Core::String> Crypto::DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt)
 		{
 			VI_ASSERT(Src != nullptr, "schema should be set");
 			Core::String Result;
-			Core::Schema::ConvertToJSON(Src, [&Result](Core::VarForm, const char* Buffer, size_t Size)
-			{
-				Result.append(Buffer, Size);
-			});
+			Core::Schema::ConvertToJSON(Src, [&Result](Core::VarForm, const char* Buffer, size_t Size) { Result.append(Buffer, Size); });
 
-			Result = Codec::Bep45Encode(Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt));
+			auto Data = Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt);
+			if (!Data)
+				return Data;
+
+			Result = Codec::Bep45Encode(*Data);
 			return Result;
 		}
-		Core::Schema* Crypto::DocDecrypt(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt)
+		Core::Option<Core::Schema*> Crypto::DocDecrypt(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt)
 		{
 			VI_ASSERT(!Value.empty(), "value should not be empty");
-			Core::String Source = Decrypt(Ciphers::AES_256_CBC(), Codec::Bep45Decode(Value), Key, Salt);
-			return Core::Schema::ConvertFromJSON(Source.c_str(), Source.size());
+			auto Source = Decrypt(Ciphers::AES_256_CBC(), Codec::Bep45Decode(Value), Key, Salt);
+			if (!Source)
+				return Core::Optional::None;
+
+			auto Result = Core::Schema::ConvertFromJSON(Source->c_str(), Source->size());
+			if (!Result)
+				return Core::Optional::None;
+
+			return *Result;
 		}
 		unsigned char Crypto::RandomUC()
 		{
@@ -7585,6 +7595,7 @@ namespace Mavi
 		Core::String Codec::Move(const Core::String& Text, int Offset)
 		{
 			Core::String Result;
+			Result.reserve(Text.size());
 			for (size_t i = 0; i < Text.size(); i++)
 			{
 				if (Text[i] != 0)
@@ -7864,7 +7875,7 @@ namespace Mavi
 
 			return Result;
 		}
-		Core::String Codec::Compress(const Core::String& Data, Compression Type)
+		Core::Option<Core::String> Codec::Compress(const Core::String& Data, Compression Type)
 		{
 #ifdef VI_ZLIB
 			VI_TRACE("[codec] compress %" PRIu64 " bytes", (uint64_t)Data.size());
@@ -7873,17 +7884,17 @@ namespace Mavi
 			if (compress2(Buffer, &Size, (const Bytef*)Data.data(), (uLong)Data.size(), (int)Type) != Z_OK)
 			{
 				VI_FREE(Buffer);
-				return Core::String();
+				return Core::Optional::None;
 			}
 
 			Core::String Output((char*)Buffer, (size_t)Size);
 			VI_FREE(Buffer);
 			return Output;
 #else
-			return Data;
+			return Core::Optional::None;
 #endif
 		}
-		Core::String Codec::Decompress(const Core::String& Data)
+		Core::Option<Core::String> Codec::Decompress(const Core::String& Data)
 		{
 #ifdef VI_ZLIB
 			VI_TRACE("[codec] decompress %" PRIu64 " bytes", (uint64_t)Data.size());
@@ -7903,18 +7914,15 @@ namespace Mavi
 				else if (Code != Z_OK)
 				{
 					VI_FREE(Buffer);
-					return Core::String();
+					return Core::Optional::None;
 				}
 
 				Core::String Output((char*)Buffer, (size_t)Size);
 				VI_FREE(Buffer);
 				return Output;
 			}
-
-			return Core::String();
-#else
-			return Data;
 #endif
+			return Core::Optional::None;
 		}
 		Core::String Codec::HexEncode(const char* Value, size_t Size)
 		{
@@ -8657,21 +8665,39 @@ namespace Mavi
 		void WebToken::SetRefreshToken(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt)
 		{
 			VI_RELEASE(Token);
-			Token = Crypto::DocDecrypt(Value, Key, Salt);
-			Refresher.assign(Value);
+			auto NewToken = Crypto::DocDecrypt(Value, Key, Salt);
+			if (NewToken)
+			{
+				Token = *NewToken;
+				Refresher.assign(Value);
+			}
+			else
+			{
+				Token = nullptr;
+				Refresher.clear();
+			}
 		}
 		bool WebToken::Sign(const PrivateKey& Key)
 		{
 			VI_ASSERT(Header != nullptr, "header should be set");
 			VI_ASSERT(Payload != nullptr, "payload should be set");
-			if (Data.empty())
-				Data = Crypto::JWTEncode(this, Key);
+			if (!Data.empty())
+				return true;
 
+			auto NewData = Crypto::JWTEncode(this, Key);
+			if (!NewData)
+				return false;
+
+			Data = *NewData;
 			return !Data.empty();
 		}
-		Core::String WebToken::GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt)
+		Core::Option<Core::String> WebToken::GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt)
 		{
-			Refresher = Crypto::DocEncrypt(Token, Key, Salt);
+			auto NewToken = Crypto::DocEncrypt(Token, Key, Salt);
+			if (!NewToken)
+				return NewToken;
+
+			Refresher = *NewToken;
 			return Refresher;
 		}
 		bool WebToken::IsValid() const
@@ -9515,7 +9541,16 @@ namespace Mavi
 			IncludeResult Result;
 			if (!AsGlobal)
 			{
-				Core::String Base = (Desc.From.empty() ? Core::OS::Directory::GetWorking() : Core::OS::Path::GetDirectory(Desc.From.c_str()));
+				Core::String Base;
+				if (Desc.From.empty())
+				{
+					auto Directory = Core::OS::Directory::GetWorking();
+					if (Directory)
+						Base = *Directory;
+				}
+				else
+					Base = Core::OS::Path::GetDirectory(Desc.From.c_str());
+
 				bool IsOriginRemote = (Desc.From.empty() ? false : Core::OS::Path::IsRemote(Base.c_str()));
 				bool IsPathRemote = (Desc.Path.empty() ? false : Core::OS::Path::IsRemote(Desc.Path.c_str()));
 				if (IsOriginRemote || IsPathRemote)
@@ -9542,19 +9577,29 @@ namespace Mavi
 					return Result;
 				}
 
-				Result.Module = Core::OS::Path::Resolve(Desc.Path, Desc.Root, false);
-				if (Core::OS::File::IsExists(Result.Module.c_str()))
+				auto Module = Core::OS::Path::Resolve(Desc.Path, Desc.Root, false);
+				if (Module)
 				{
-					Result.IsAbstract = true;
-					Result.IsFile = true;
-					return Result;
+					Result.Module = *Module;
+					if (Core::OS::File::IsExists(Result.Module.c_str()))
+					{
+						Result.IsAbstract = true;
+						Result.IsFile = true;
+						return Result;
+					}
 				}
 
 				for (auto It : Desc.Exts)
 				{
 					Core::String File(Result.Module);
 					if (Result.Module.empty())
-						File.assign(Core::OS::Path::Resolve(Desc.Path + It, Desc.Root, false));
+					{
+						auto Target = Core::OS::Path::Resolve(Desc.Path + It, Desc.Root, false);
+						if (!Target)
+							continue;
+
+						File.assign(*Target);
+					}
 					else
 						File.append(It);
 
@@ -9575,19 +9620,38 @@ namespace Mavi
 			else if (AsGlobal)
 				return Result;
 
-			Core::String Base = (Desc.From.empty() ? Core::OS::Directory::GetWorking() : Core::OS::Path::GetDirectory(Desc.From.c_str()));
-			Result.Module = Core::OS::Path::Resolve(Desc.Path, Base, false);
-			if (Core::OS::File::IsExists(Result.Module.c_str()))
+			Core::String Base;
+			if (Desc.From.empty())
 			{
-				Result.IsFile = true;
-				return Result;
+				auto Directory = Core::OS::Directory::GetWorking();
+				if (Directory)
+					Base = *Directory;
+			}
+			else
+				Base = Core::OS::Path::GetDirectory(Desc.From.c_str());
+
+			auto Module = Core::OS::Path::Resolve(Desc.Path, Base, false);
+			if (Module)
+			{
+				Result.Module = *Module;
+				if (Core::OS::File::IsExists(Result.Module.c_str()))
+				{
+					Result.IsFile = true;
+					return Result;
+				}
 			}
 
 			for (auto It : Desc.Exts)
 			{
 				Core::String File(Result.Module);
 				if (Result.Module.empty())
-					File.assign(Core::OS::Path::Resolve(Desc.Path + It, Desc.Root, false));
+				{
+					auto Target = Core::OS::Path::Resolve(Desc.Path + It, Desc.Root, false);
+					if (!Target)
+						continue;
+
+					File.assign(*Target);
+				}
 				else
 					File.append(It);
 

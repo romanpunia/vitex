@@ -538,7 +538,7 @@ namespace Mavi
 				Core::String& GenerateSessionId(Connection* Base);
 
 			public:
-				static bool InvalidateCache(const Core::String& Path);
+				static Core::Expected<void> InvalidateCache(const Core::String& Path);
 			};
 
 			class VI_OUT Parser final : public Core::Reference<Parser>
@@ -702,7 +702,7 @@ namespace Mavi
 				static void ConstructHeadCache(Connection* Base, Core::String& Buffer);
 				static void ConstructHeadUncache(Connection* Base, Core::String& Buffer);
 				static bool ConstructRoute(MapRouter* Router, Connection* Base);
-				static bool ConstructDirectoryEntries(Connection* Base, const Core::FileEntry& A, const Core::FileEntry& B);
+				static bool ConstructDirectoryEntries(Connection* Base, const Core::String& NameA, const Core::FileEntry& A, const Core::String& NameB, const Core::FileEntry& B);
 				static Core::String ConstructContentRange(size_t Offset, size_t Length, size_t ContentLength);
 			};
 
@@ -781,15 +781,15 @@ namespace Mavi
 			public:
 				Server();
 				~Server() override = default;
-				bool Update();
+				Core::Expected<void> Update();
 
 			private:
-				bool OnConfigure(SocketRouter* New) override;
-				bool OnRequestEnded(SocketConnection* Base, bool Check) override;
-				bool OnRequestBegin(SocketConnection* Base) override;
-				bool OnStall(Core::UnorderedSet<SocketConnection*>& Data) override;
-				bool OnListen() override;
-				bool OnUnlisten() override;
+				Core::Expected<void> OnConfigure(SocketRouter* New) override;
+				Core::Expected<void> OnUnlisten() override;
+				void OnRequestOpen(SocketConnection* Base) override;
+				bool OnRequestCleanup(SocketConnection* Base) override;
+				void OnRequestStall(SocketConnection* Data) override;
+				void OnRequestClose(SocketConnection* Base) override;
 				SocketConnection* OnAllocate(SocketListener* Host) override;
 				SocketRouter* OnAllocateRouter() override;
 			};
@@ -800,7 +800,7 @@ namespace Mavi
 				WebSocketFrame* WebSocket;
 				RequestFrame Request;
 				ResponseFrame Response;
-				Core::Promise<bool> Future;
+				Core::ExpectedPromise<void> Future;
 
             public:
                 char RemoteAddress[48] = { };
@@ -808,13 +808,13 @@ namespace Mavi
 			public:
 				Client(int64_t ReadTimeout);
 				~Client() override;
-				bool Downgrade();
-				Core::Promise<bool> Consume(size_t MaxSize = PAYLOAD_SIZE);
-				Core::Promise<bool> Fetch(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
-				Core::Promise<bool> Upgrade(HTTP::RequestFrame&& Root);
-				Core::Promise<ResponseFrame*> Send(HTTP::RequestFrame&& Root);
-				Core::Promise<Core::Unique<Core::Schema>> JSON(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
-				Core::Promise<Core::Unique<Core::Schema>> XML(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectedPromise<void> Consume(size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectedPromise<void> Fetch(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectedPromise<void> Upgrade(HTTP::RequestFrame&& Root);
+				Core::ExpectedPromise<ResponseFrame*> Send(HTTP::RequestFrame&& Root);
+				Core::ExpectedPromise<Core::Unique<Core::Schema>> JSON(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectedPromise<Core::Unique<Core::Schema>> XML(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
+				void Downgrade();
 				WebSocketFrame* GetWebSocket();
 				RequestFrame* GetRequest();
 				ResponseFrame* GetResponse();

@@ -6,9 +6,9 @@ namespace Mavi
 {
 	enum
 	{
-		MAJOR_VERSION = 24,
-		MINOR_VERSION = 42,
-		PATCH_VERSION = 33,
+		MAJOR_VERSION = 25,
+		MINOR_VERSION = 43,
+		PATCH_VERSION = 34,
 		VERSION = (MAJOR_VERSION) * 10000 + (MINOR_VERSION) * 100 + (PATCH_VERSION)
 	};
 
@@ -41,14 +41,15 @@ namespace Mavi
 		static Runtime* Instance;
 
 	private:
-		struct
+		struct CryptoData
 		{
 			Core::Vector<std::shared_ptr<std::mutex>> Locks;
 			void* LegacyProvider = nullptr;
 			void* DefaultProvider = nullptr;
-		} Crypto;
+		};
 
 	private:
+		CryptoData* Crypto;
 		size_t Modes;
 
 	public:

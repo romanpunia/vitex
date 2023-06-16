@@ -1,54 +1,6 @@
 #include "effects.h"
 #include "filters.h"
 #include "../core/engine.h"
-#if defined(VI_OPENAL)
-#ifdef VI_AL_AT_OPENAL
-#include <OpenAL/al.h>
-#else
-#include <AL/al.h>
-#include <AL/efx.h>
-#define HAS_EFX
-#endif
-#endif
-#define LOAD_PROC(T, X) ((X) = (T)alGetProcAddress(#X))
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-namespace
-{
-	LPALGENFILTERS alGenFilters = nullptr;
-	LPALDELETEFILTERS alDeleteFilters = nullptr;
-	LPALISFILTER alIsFilter = nullptr;
-	LPALFILTERI alFilteri = nullptr;
-	LPALFILTERIV alFilteriv = nullptr;
-	LPALFILTERF alFilterf = nullptr;
-	LPALFILTERFV alFilterfv = nullptr;
-	LPALGETFILTERI alGetFilteri = nullptr;
-	LPALGETFILTERIV alGetFilteriv = nullptr;
-	LPALGETFILTERF alGetFilterf = nullptr;
-	LPALGETFILTERFV alGetFilterfv = nullptr;
-	LPALGENEFFECTS alGenEffects = nullptr;
-	LPALDELETEEFFECTS alDeleteEffects = nullptr;
-	LPALISEFFECT alIsEffect = nullptr;
-	LPALEFFECTI alEffecti = nullptr;
-	LPALEFFECTIV alEffectiv = nullptr;
-	LPALEFFECTF alEffectf = nullptr;
-	LPALEFFECTFV alEffectfv = nullptr;
-	LPALGETEFFECTI alGetEffecti = nullptr;
-	LPALGETEFFECTIV alGetEffectiv = nullptr;
-	LPALGETEFFECTF alGetEffectf = nullptr;
-	LPALGETEFFECTFV alGetEffectfv = nullptr;
-	LPALGENAUXILIARYEFFECTSLOTS alGenAuxiliaryEffectSlots = nullptr;
-	LPALDELETEAUXILIARYEFFECTSLOTS alDeleteAuxiliaryEffectSlots = nullptr;
-	LPALISAUXILIARYEFFECTSLOT alIsAuxiliaryEffectSlot = nullptr;
-	LPALAUXILIARYEFFECTSLOTI alAuxiliaryEffectSloti = nullptr;
-	LPALAUXILIARYEFFECTSLOTIV alAuxiliaryEffectSlotiv = nullptr;
-	LPALAUXILIARYEFFECTSLOTF alAuxiliaryEffectSlotf = nullptr;
-	LPALAUXILIARYEFFECTSLOTFV alAuxiliaryEffectSlotfv = nullptr;
-	LPALGETAUXILIARYEFFECTSLOTI alGetAuxiliaryEffectSloti = nullptr;
-	LPALGETAUXILIARYEFFECTSLOTIV alGetAuxiliaryEffectSlotiv = nullptr;
-	LPALGETAUXILIARYEFFECTSLOTF alGetAuxiliaryEffectSlotf = nullptr;
-	LPALGETAUXILIARYEFFECTSLOTFV alGetAuxiliaryEffectSlotfv = nullptr;
-}
-#endif
 
 namespace Mavi
 {
@@ -56,46 +8,6 @@ namespace Mavi
 	{
 		namespace Effects
 		{
-			void EffectContext::Initialize()
-			{
-				VI_TRACE("[audio] load effect functions");
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-				LOAD_PROC(LPALGENFILTERS, alGenFilters);
-				LOAD_PROC(LPALDELETEFILTERS, alDeleteFilters);
-				LOAD_PROC(LPALISFILTER, alIsFilter);
-				LOAD_PROC(LPALFILTERI, alFilteri);
-				LOAD_PROC(LPALFILTERIV, alFilteriv);
-				LOAD_PROC(LPALFILTERF, alFilterf);
-				LOAD_PROC(LPALFILTERFV, alFilterfv);
-				LOAD_PROC(LPALGETFILTERI, alGetFilteri);
-				LOAD_PROC(LPALGETFILTERIV, alGetFilteriv);
-				LOAD_PROC(LPALGETFILTERF, alGetFilterf);
-				LOAD_PROC(LPALGETFILTERFV, alGetFilterfv);
-				LOAD_PROC(LPALGENEFFECTS, alGenEffects);
-				LOAD_PROC(LPALDELETEEFFECTS, alDeleteEffects);
-				LOAD_PROC(LPALISEFFECT, alIsEffect);
-				LOAD_PROC(LPALEFFECTI, alEffecti);
-				LOAD_PROC(LPALEFFECTIV, alEffectiv);
-				LOAD_PROC(LPALEFFECTF, alEffectf);
-				LOAD_PROC(LPALEFFECTFV, alEffectfv);
-				LOAD_PROC(LPALGETEFFECTI, alGetEffecti);
-				LOAD_PROC(LPALGETEFFECTIV, alGetEffectiv);
-				LOAD_PROC(LPALGETEFFECTF, alGetEffectf);
-				LOAD_PROC(LPALGETEFFECTFV, alGetEffectfv);
-				LOAD_PROC(LPALGENAUXILIARYEFFECTSLOTS, alGenAuxiliaryEffectSlots);
-				LOAD_PROC(LPALDELETEAUXILIARYEFFECTSLOTS, alDeleteAuxiliaryEffectSlots);
-				LOAD_PROC(LPALISAUXILIARYEFFECTSLOT, alIsAuxiliaryEffectSlot);
-				LOAD_PROC(LPALAUXILIARYEFFECTSLOTI, alAuxiliaryEffectSloti);
-				LOAD_PROC(LPALAUXILIARYEFFECTSLOTIV, alAuxiliaryEffectSlotiv);
-				LOAD_PROC(LPALAUXILIARYEFFECTSLOTF, alAuxiliaryEffectSlotf);
-				LOAD_PROC(LPALAUXILIARYEFFECTSLOTFV, alAuxiliaryEffectSlotfv);
-				LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTI, alGetAuxiliaryEffectSloti);
-				LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTIV, alGetAuxiliaryEffectSlotiv);
-				LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTF, alGetAuxiliaryEffectSlotf);
-				LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTFV, alGetAuxiliaryEffectSlotfv);
-#endif
-			}
-
 			AudioFilter* GetFilterDeserialized(Core::Schema* Node)
 			{
 				Core::Schema* Filter = Node->Find("filter");
@@ -123,24 +35,21 @@ namespace Mavi
 
 			Reverb::Reverb()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
-					EAX = (alGetEnumValue("AL_EFFECT_EAXREVERB") != 0);
+					EAX = (AudioContext::GetEnumValue("AL_EFFECT_EAXREVERB") != 0);
 					if (EAX)
-						alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB);
+						AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_EAXReverb);
 					else
-						alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
+						AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Reverb);
 					return true;
 				});
-#endif
 			}
 			Reverb::~Reverb()
 			{
 			}
 			void Reverb::Synchronize()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				if (EAX)
 				{
 					float ReflectionsPan3[3];
@@ -149,47 +58,46 @@ namespace Mavi
 					float LateReverbPan3[3];
 					LateReverbPan.Get3(LateReverbPan3);
 
-					alEffectfv(Effect, AL_EAXREVERB_REFLECTIONS_PAN, ReflectionsPan3);
-					alEffectfv(Effect, AL_EAXREVERB_LATE_REVERB_PAN, LateReverbPan3);
-					alEffectf(Effect, AL_EAXREVERB_DENSITY, Density);
-					alEffectf(Effect, AL_EAXREVERB_DIFFUSION, Diffusion);
-					alEffectf(Effect, AL_EAXREVERB_GAIN, Gain);
-					alEffectf(Effect, AL_EAXREVERB_GAINHF, GainHF);
-					alEffectf(Effect, AL_EAXREVERB_GAINLF, GainLF);
-					alEffectf(Effect, AL_EAXREVERB_DECAY_TIME, DecayTime);
-					alEffectf(Effect, AL_EAXREVERB_DECAY_HFRATIO, DecayHFRatio);
-					alEffectf(Effect, AL_EAXREVERB_DECAY_LFRATIO, DecayLFRatio);
-					alEffectf(Effect, AL_EAXREVERB_REFLECTIONS_GAIN, ReflectionsGain);
-					alEffectf(Effect, AL_EAXREVERB_REFLECTIONS_DELAY, ReflectionsDelay);
-					alEffectf(Effect, AL_EAXREVERB_LATE_REVERB_GAIN, LateReverbGain);
-					alEffectf(Effect, AL_EAXREVERB_LATE_REVERB_DELAY, LateReverbDelay);
-					alEffectf(Effect, AL_EAXREVERB_ECHO_TIME, EchoTime);
-					alEffectf(Effect, AL_EAXREVERB_ECHO_DEPTH, EchoDepth);
-					alEffectf(Effect, AL_EAXREVERB_MODULATION_TIME, ModulationTime);
-					alEffectf(Effect, AL_EAXREVERB_MODULATION_DEPTH, ModulationDepth);
-					alEffectf(Effect, AL_EAXREVERB_AIR_ABSORPTION_GAINHF, AirAbsorptionGainHF);
-					alEffectf(Effect, AL_EAXREVERB_HFREFERENCE, HFReference);
-					alEffectf(Effect, AL_EAXREVERB_LFREFERENCE, LFReference);
-					alEffectf(Effect, AL_EAXREVERB_ROOM_ROLLOFF_FACTOR, RoomRolloffFactor);
-					alEffecti(Effect, AL_EAXREVERB_DECAY_HFLIMIT, IsDecayHFLimited ? 1 : 0);
+					AudioContext::SetEffectVF(Effect, EffectEx::EAXReverb_Reflections_Pan, ReflectionsPan3);
+					AudioContext::SetEffectVF(Effect, EffectEx::EAXReverb_Late_Reverb_Pan, LateReverbPan3);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Density, Density);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Diffusion, Diffusion);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Gain, Gain);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Gain_HF, GainHF);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Gain_LF, GainLF);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Decay_Time, DecayTime);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Decay_HF_Ratio, DecayHFRatio);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Decay_LF_Ratio, DecayLFRatio);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Reflections_Gain, ReflectionsGain);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Reflections_Delay, ReflectionsDelay);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Late_Reverb_Gain, LateReverbGain);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Late_Reverb_Delay, LateReverbDelay);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Echo_Time, EchoTime);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Echo_Depth, EchoDepth);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Modulation_Time, ModulationTime);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Modulation_Depth, ModulationDepth);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Air_Absorption_Gain_HF, AirAbsorptionGainHF);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_HF_Reference, HFReference);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_LF_Reference, LFReference);
+					AudioContext::SetEffect1F(Effect, EffectEx::EAXReverb_Room_Rolloff_Factor, RoomRolloffFactor);
+					AudioContext::SetEffect1I(Effect, EffectEx::EAXReverb_Decay_HF_Limit, IsDecayHFLimited ? 1 : 0);
 				}
 				else
 				{
-					alEffectf(Effect, AL_REVERB_DENSITY, Density);
-					alEffectf(Effect, AL_REVERB_DIFFUSION, Diffusion);
-					alEffectf(Effect, AL_REVERB_GAIN, Gain);
-					alEffectf(Effect, AL_REVERB_GAINHF, GainHF);
-					alEffectf(Effect, AL_REVERB_DECAY_TIME, DecayTime);
-					alEffectf(Effect, AL_REVERB_DECAY_HFRATIO, DecayHFRatio);
-					alEffectf(Effect, AL_REVERB_REFLECTIONS_GAIN, ReflectionsGain);
-					alEffectf(Effect, AL_REVERB_REFLECTIONS_DELAY, ReflectionsDelay);
-					alEffectf(Effect, AL_REVERB_LATE_REVERB_GAIN, LateReverbGain);
-					alEffectf(Effect, AL_REVERB_LATE_REVERB_DELAY, LateReverbDelay);
-					alEffectf(Effect, AL_REVERB_AIR_ABSORPTION_GAINHF, AirAbsorptionGainHF);
-					alEffectf(Effect, AL_REVERB_ROOM_ROLLOFF_FACTOR, RoomRolloffFactor);
-					alEffecti(Effect, AL_REVERB_DECAY_HFLIMIT, IsDecayHFLimited ? 1 : 0);
+					AudioContext::SetEffect1F(Effect, EffectEx::Reverb_Density, Density);
+					AudioContext::SetEffect1F(Effect, EffectEx::Reverb_Diffusion, Diffusion);
+					AudioContext::SetEffect1F(Effect, EffectEx::Reverb_Gain, Gain);
+					AudioContext::SetEffect1F(Effect, EffectEx::Reverb_Gain_HF, GainHF);
+					AudioContext::SetEffect1F(Effect, EffectEx::Reverb_Decay_Time, DecayTime);
+					AudioContext::SetEffect1F(Effect, EffectEx::Reverb_Decay_HF_Ratio, DecayHFRatio);
+					AudioContext::SetEffect1F(Effect, EffectEx::Reverb_Reflections_Gain, ReflectionsGain);
+					AudioContext::SetEffect1F(Effect, EffectEx::Reverb_Reflections_Delay, ReflectionsDelay);
+					AudioContext::SetEffect1F(Effect, EffectEx::Reverb_Late_Reverb_Gain, LateReverbGain);
+					AudioContext::SetEffect1F(Effect, EffectEx::Reverb_Late_Reverb_Delay, LateReverbDelay);
+					AudioContext::SetEffect1F(Effect, EffectEx::Reverb_Air_Absorption_Gain_HF, AirAbsorptionGainHF);
+					AudioContext::SetEffect1F(Effect, EffectEx::Reverb_Room_Rolloff_Factor, RoomRolloffFactor);
+					AudioContext::SetEffect1I(Effect, EffectEx::Reverb_Decay_HF_Limit, IsDecayHFLimited ? 1 : 0);
 				}
-#endif
 			}
 			void Reverb::Deserialize(Core::Schema* Node)
 			{
@@ -284,13 +192,11 @@ namespace Mavi
 
 			Chorus::Chorus()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
-					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_CHORUS);
+					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Chorus);
 					return true;
 				});
-#endif
 			}
 			Chorus::~Chorus()
 			{
@@ -298,14 +204,12 @@ namespace Mavi
 			}
 			void Chorus::Synchronize()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-				alEffectf(Effect, AL_CHORUS_DELAY, Rate);
-				alEffectf(Effect, AL_CHORUS_DEPTH, Depth);
-				alEffectf(Effect, AL_CHORUS_FEEDBACK, Feedback);
-				alEffectf(Effect, AL_CHORUS_DELAY, Delay);
-				alEffecti(Effect, AL_CHORUS_WAVEFORM, Waveform);
-				alEffecti(Effect, AL_CHORUS_PHASE, Phase);
-#endif
+				AudioContext::SetEffect1F(Effect, EffectEx::Chorus_Rate, Rate);
+				AudioContext::SetEffect1F(Effect, EffectEx::Chorus_Depth, Depth);
+				AudioContext::SetEffect1F(Effect, EffectEx::Chorus_Feedback, Feedback);
+				AudioContext::SetEffect1F(Effect, EffectEx::Chorus_Delay, Delay);
+				AudioContext::SetEffect1I(Effect, EffectEx::Chorus_Waveform, Waveform);
+				AudioContext::SetEffect1I(Effect, EffectEx::Chorus_Phase, Phase);
 			}
 			void Chorus::Deserialize(Core::Schema* Node)
 			{
@@ -349,13 +253,11 @@ namespace Mavi
 
 			Distortion::Distortion()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
-					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_DISTORTION);
+					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Distortion);
 					return true;
 				});
-#endif
 			}
 			Distortion::~Distortion()
 			{
@@ -363,13 +265,11 @@ namespace Mavi
 			}
 			void Distortion::Synchronize()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-				alEffectf(Effect, AL_DISTORTION_EDGE, Edge);
-				alEffectf(Effect, AL_DISTORTION_GAIN, Gain);
-				alEffectf(Effect, AL_DISTORTION_LOWPASS_CUTOFF, LowpassCutOff);
-				alEffectf(Effect, AL_DISTORTION_EQCENTER, EQCenter);
-				alEffectf(Effect, AL_DISTORTION_EQBANDWIDTH, EQBandwidth);
-#endif
+				AudioContext::SetEffect1F(Effect, EffectEx::Distortion_Edge, Edge);
+				AudioContext::SetEffect1F(Effect, EffectEx::Distortion_Gain, Gain);
+				AudioContext::SetEffect1F(Effect, EffectEx::Distortion_Lowpass_Cutoff, LowpassCutOff);
+				AudioContext::SetEffect1F(Effect, EffectEx::Distortion_EQ_Center, EQCenter);
+				AudioContext::SetEffect1F(Effect, EffectEx::Distortion_EQ_Bandwidth, EQBandwidth);
 			}
 			void Distortion::Deserialize(Core::Schema* Node)
 			{
@@ -410,13 +310,11 @@ namespace Mavi
 
 			Echo::Echo()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
-					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_ECHO);
+					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Echo);
 					return true;
 				});
-#endif
 			}
 			Echo::~Echo()
 			{
@@ -424,13 +322,11 @@ namespace Mavi
 			}
 			void Echo::Synchronize()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-				alEffectf(Effect, AL_ECHO_DELAY, Delay);
-				alEffectf(Effect, AL_ECHO_LRDELAY, LRDelay);
-				alEffectf(Effect, AL_ECHO_DAMPING, Damping);
-				alEffectf(Effect, AL_ECHO_FEEDBACK, Feedback);
-				alEffectf(Effect, AL_ECHO_SPREAD, Spread);
-#endif
+				AudioContext::SetEffect1F(Effect, EffectEx::Echo_Delay, Delay);
+				AudioContext::SetEffect1F(Effect, EffectEx::Echo_LR_Delay, LRDelay);
+				AudioContext::SetEffect1F(Effect, EffectEx::Echo_Damping, Damping);
+				AudioContext::SetEffect1F(Effect, EffectEx::Echo_Feedback, Feedback);
+				AudioContext::SetEffect1F(Effect, EffectEx::Echo_Spread, Spread);
 			}
 			void Echo::Deserialize(Core::Schema* Node)
 			{
@@ -471,13 +367,11 @@ namespace Mavi
 
 			Flanger::Flanger()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
-					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_FLANGER);
+					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Flanger);
 					return true;
 				});
-#endif
 			}
 			Flanger::~Flanger()
 			{
@@ -485,14 +379,12 @@ namespace Mavi
 			}
 			void Flanger::Synchronize()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-				alEffectf(Effect, AL_FLANGER_RATE, Rate);
-				alEffectf(Effect, AL_FLANGER_DEPTH, Depth);
-				alEffectf(Effect, AL_FLANGER_FEEDBACK, Feedback);
-				alEffectf(Effect, AL_FLANGER_DELAY, Delay);
-				alEffecti(Effect, AL_FLANGER_WAVEFORM, Waveform);
-				alEffecti(Effect, AL_FLANGER_PHASE, Phase);
-#endif
+				AudioContext::SetEffect1F(Effect, EffectEx::Flanger_Rate, Rate);
+				AudioContext::SetEffect1F(Effect, EffectEx::Flanger_Depth, Depth);
+				AudioContext::SetEffect1F(Effect, EffectEx::Flanger_Feedback, Feedback);
+				AudioContext::SetEffect1F(Effect, EffectEx::Flanger_Delay, Delay);
+				AudioContext::SetEffect1I(Effect, EffectEx::Flanger_Waveform, Waveform);
+				AudioContext::SetEffect1I(Effect, EffectEx::Flanger_Phase, Phase);
 			}
 			void Flanger::Deserialize(Core::Schema* Node)
 			{
@@ -536,13 +428,11 @@ namespace Mavi
 
 			FrequencyShifter::FrequencyShifter()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
-					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_FREQUENCY_SHIFTER);
+					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Frequency_Shifter);
 					return true;
 				});
-#endif
 			}
 			FrequencyShifter::~FrequencyShifter()
 			{
@@ -550,11 +440,9 @@ namespace Mavi
 			}
 			void FrequencyShifter::Synchronize()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-				alEffectf(Effect, AL_FREQUENCY_SHIFTER_FREQUENCY, Frequency);
-				alEffecti(Effect, AL_FREQUENCY_SHIFTER_LEFT_DIRECTION, LeftDirection);
-				alEffecti(Effect, AL_FREQUENCY_SHIFTER_RIGHT_DIRECTION, RightDirection);
-#endif
+				AudioContext::SetEffect1F(Effect, EffectEx::Frequency_Shifter_Frequency, Frequency);
+				AudioContext::SetEffect1I(Effect, EffectEx::Frequency_Shifter_Left_Direction, LeftDirection);
+				AudioContext::SetEffect1I(Effect, EffectEx::Frequency_Shifter_Right_Direction, RightDirection);
 			}
 			void FrequencyShifter::Deserialize(Core::Schema* Node)
 			{
@@ -589,13 +477,11 @@ namespace Mavi
 
 			VocalMorpher::VocalMorpher()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
-					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_VOCAL_MORPHER);
+					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Vocmorpher);
 					return true;
 				});
-#endif
 			}
 			VocalMorpher::~VocalMorpher()
 			{
@@ -603,14 +489,12 @@ namespace Mavi
 			}
 			void VocalMorpher::Synchronize()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-				alEffectf(Effect, AL_VOCAL_MORPHER_RATE, Rate);
-				alEffecti(Effect, AL_VOCAL_MORPHER_PHONEMEA, Phonemea);
-				alEffecti(Effect, AL_VOCAL_MORPHER_PHONEMEA_COARSE_TUNING, PhonemeaCoarseTuning);
-				alEffecti(Effect, AL_VOCAL_MORPHER_PHONEMEB, Phonemeb);
-				alEffecti(Effect, AL_VOCAL_MORPHER_PHONEMEB_COARSE_TUNING, PhonemebCoarseTuning);
-				alEffecti(Effect, AL_VOCAL_MORPHER_WAVEFORM, Waveform);
-#endif
+				AudioContext::SetEffect1F(Effect, EffectEx::Vocmorpher_Rate, Rate);
+				AudioContext::SetEffect1I(Effect, EffectEx::Vocmorpher_Phoneme_A, Phonemea);
+				AudioContext::SetEffect1I(Effect, EffectEx::Vocmorpher_Phoneme_A_Coarse_Tuning, PhonemeaCoarseTuning);
+				AudioContext::SetEffect1I(Effect, EffectEx::Vocmorpher_Phoneme_B, Phonemeb);
+				AudioContext::SetEffect1I(Effect, EffectEx::Vocmorpher_Phoneme_B_Coarse_Tuning, PhonemebCoarseTuning);
+				AudioContext::SetEffect1I(Effect, EffectEx::Vocmorpher_Waveform, Waveform);
 			}
 			void VocalMorpher::Deserialize(Core::Schema* Node)
 			{
@@ -654,13 +538,11 @@ namespace Mavi
 
 			PitchShifter::PitchShifter()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
-					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_PITCH_SHIFTER);
+					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Pitch_Shifter);
 					return true;
 				});
-#endif
 			}
 			PitchShifter::~PitchShifter()
 			{
@@ -668,10 +550,8 @@ namespace Mavi
 			}
 			void PitchShifter::Synchronize()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-				alEffecti(Effect, AL_PITCH_SHIFTER_COARSE_TUNE, CoarseTune);
-				alEffecti(Effect, AL_PITCH_SHIFTER_FINE_TUNE, FineTune);
-#endif
+				AudioContext::SetEffect1I(Effect, EffectEx::Pitch_Shifter_Coarse_Tune, CoarseTune);
+				AudioContext::SetEffect1I(Effect, EffectEx::Pitch_Shifter_Fine_Tune, FineTune);
 			}
 			void PitchShifter::Deserialize(Core::Schema* Node)
 			{
@@ -703,13 +583,11 @@ namespace Mavi
 
 			RingModulator::RingModulator()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
-					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_RING_MODULATOR);
+					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Ring_Modulator);
 					return true;
 				});
-#endif
 			}
 			RingModulator::~RingModulator()
 			{
@@ -717,11 +595,9 @@ namespace Mavi
 			}
 			void RingModulator::Synchronize()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-				alEffectf(Effect, AL_RING_MODULATOR_FREQUENCY, Frequency);
-				alEffectf(Effect, AL_RING_MODULATOR_HIGHPASS_CUTOFF, HighpassCutOff);
-				alEffecti(Effect, AL_RING_MODULATOR_WAVEFORM, Waveform);
-#endif
+				AudioContext::SetEffect1F(Effect, EffectEx::Ring_Modulator_Frequency, Frequency);
+				AudioContext::SetEffect1F(Effect, EffectEx::Ring_Modulator_Highpass_Cutoff, HighpassCutOff);
+				AudioContext::SetEffect1I(Effect, EffectEx::Ring_Modulator_Waveform, Waveform);
 			}
 			void RingModulator::Deserialize(Core::Schema* Node)
 			{
@@ -756,13 +632,11 @@ namespace Mavi
 
 			Autowah::Autowah()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
-					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_AUTOWAH);
+					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Autowah);
 					return true;
 				});
-#endif
 			}
 			Autowah::~Autowah()
 			{
@@ -770,12 +644,10 @@ namespace Mavi
 			}
 			void Autowah::Synchronize()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-				alEffectf(Effect, AL_AUTOWAH_ATTACK_TIME, AttackTime);
-				alEffectf(Effect, AL_AUTOWAH_RELEASE_TIME, ReleaseTime);
-				alEffectf(Effect, AL_AUTOWAH_RESONANCE, Resonance);
-				alEffectf(Effect, AL_AUTOWAH_PEAK_GAIN, PeakGain);
-#endif
+				AudioContext::SetEffect1F(Effect, EffectEx::Autowah_Attack_Time, AttackTime);
+				AudioContext::SetEffect1F(Effect, EffectEx::Autowah_Release_Time, ReleaseTime);
+				AudioContext::SetEffect1F(Effect, EffectEx::Autowah_Resonance, Resonance);
+				AudioContext::SetEffect1F(Effect, EffectEx::Autowah_Peak_Gain, PeakGain);
 			}
 			void Autowah::Deserialize(Core::Schema* Node)
 			{
@@ -813,14 +685,12 @@ namespace Mavi
 
 			Compressor::Compressor()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
-					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_COMPRESSOR);
-					alEffecti(Effect, AL_COMPRESSOR_ONOFF, 1);
+					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Compressor);
+					AudioContext::SetEffect1I(Effect, EffectEx::Compressor_ON_OFF, 1);
 					return true;
 				});
-#endif
 			}
 			Compressor::~Compressor()
 			{
@@ -848,13 +718,11 @@ namespace Mavi
 
 			Equalizer::Equalizer()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
-					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_EQUALIZER);
+					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Equalizer);
 					return true;
 				});
-#endif
 			}
 			Equalizer::~Equalizer()
 			{
@@ -862,17 +730,15 @@ namespace Mavi
 			}
 			void Equalizer::Synchronize()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-				alEffectf(Effect, AL_EQUALIZER_LOW_GAIN, LowGain);
-				alEffectf(Effect, AL_EQUALIZER_LOW_CUTOFF, LowCutOff);
-				alEffectf(Effect, AL_EQUALIZER_MID1_CENTER, Mid1Center);
-				alEffectf(Effect, AL_EQUALIZER_MID1_WIDTH, Mid1Width);
-				alEffectf(Effect, AL_EQUALIZER_MID2_GAIN, Mid2Gain);
-				alEffectf(Effect, AL_EQUALIZER_MID2_CENTER, Mid2Center);
-				alEffectf(Effect, AL_EQUALIZER_MID2_WIDTH, Mid2Width);
-				alEffectf(Effect, AL_EQUALIZER_HIGH_GAIN, HighGain);
-				alEffectf(Effect, AL_EQUALIZER_HIGH_CUTOFF, HighCutOff);
-#endif
+				AudioContext::SetEffect1F(Effect, EffectEx::Equalizer_LOW_Gain, LowGain);
+				AudioContext::SetEffect1F(Effect, EffectEx::Equalizer_LOW_Cutoff, LowCutOff);
+				AudioContext::SetEffect1F(Effect, EffectEx::Equalizer_MID1_Center, Mid1Center);
+				AudioContext::SetEffect1F(Effect, EffectEx::Equalizer_MID1_Width, Mid1Width);
+				AudioContext::SetEffect1F(Effect, EffectEx::Equalizer_MID2_Gain, Mid2Gain);
+				AudioContext::SetEffect1F(Effect, EffectEx::Equalizer_MID2_Center, Mid2Center);
+				AudioContext::SetEffect1F(Effect, EffectEx::Equalizer_MID2_Width, Mid2Width);
+				AudioContext::SetEffect1F(Effect, EffectEx::Equalizer_HIGH_Gain, HighGain);
+				AudioContext::SetEffect1F(Effect, EffectEx::Equalizer_HIGH_Cutoff, HighCutOff);
 			}
 			void Equalizer::Deserialize(Core::Schema* Node)
 			{

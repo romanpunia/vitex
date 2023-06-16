@@ -1501,22 +1501,22 @@ namespace Mavi
 		public:
 			static const char* GetDigestName(Digest Type);
 			static const char* GetCipherName(Cipher Type);
-			static Core::String RandomBytes(size_t Length);
-			static Core::String Hash(Digest Type, const Core::String& Value);
-			static Core::String HashBinary(Digest Type, const Core::String& Value);
-			static Core::String Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
-			static Core::String Sign(Digest Type, const Core::String& Value, const PrivateKey& Key);
-			static Core::String HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
-			static Core::String HMAC(Digest Type, const Core::String& Value, const PrivateKey& Key);
-			static Core::String Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static Core::String Encrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static Core::String Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static Core::String Decrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static Core::String JWTSign(const Core::String& Algo, const Core::String& Payload, const PrivateKey& Key);
-			static Core::String JWTEncode(WebToken* Src, const PrivateKey& Key);
-			static Core::Unique<WebToken> JWTDecode(const Core::String& Value, const PrivateKey& Key);
-			static Core::String DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt);
-			static Core::Unique<Core::Schema> DocDecrypt(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt);
+			static Core::Option<Core::String> RandomBytes(size_t Length);
+			static Core::Option<Core::String> Hash(Digest Type, const Core::String& Value);
+			static Core::Option<Core::String> HashBinary(Digest Type, const Core::String& Value);
+			static Core::Option<Core::String> Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
+			static Core::Option<Core::String> Sign(Digest Type, const Core::String& Value, const PrivateKey& Key);
+			static Core::Option<Core::String> HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
+			static Core::Option<Core::String> HMAC(Digest Type, const Core::String& Value, const PrivateKey& Key);
+			static Core::Option<Core::String> Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static Core::Option<Core::String> Encrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static Core::Option<Core::String> Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static Core::Option<Core::String> Decrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static Core::Option<Core::String> JWTSign(const Core::String& Algo, const Core::String& Payload, const PrivateKey& Key);
+			static Core::Option<Core::String> JWTEncode(WebToken* Src, const PrivateKey& Key);
+			static Core::Option<Core::Unique<WebToken>> JWTDecode(const Core::String& Value, const PrivateKey& Key);
+			static Core::Option<Core::String> DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt);
+			static Core::Option<Core::Unique<Core::Schema>> DocDecrypt(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt);
 			static unsigned char RandomUC();
 			static uint64_t CRC32(const Core::String& Data);
 			static uint64_t Random(uint64_t Min, uint64_t Max);
@@ -1547,8 +1547,8 @@ namespace Mavi
 			static Core::String Base64URLDecode(const unsigned char* Value, size_t Length);
 			static Core::String Base64URLDecode(const Core::String& Value);
 			static Core::String Shuffle(const char* Value, size_t Size, uint64_t Mask);
-			static Core::String Compress(const Core::String& Data, Compression Type = Compression::Default);
-			static Core::String Decompress(const Core::String& Data);
+			static Core::Option<Core::String> Compress(const Core::String& Data, Compression Type = Compression::Default);
+			static Core::Option<Core::String> Decompress(const Core::String& Data);
 			static Core::String HexEncode(const char* Value, size_t Size);
 			static Core::String HexEncode(const Core::String& Value);
 			static Core::String HexDecode(const char* Value, size_t Size);
@@ -1662,7 +1662,7 @@ namespace Mavi
 			void SetCreated(int64_t Value);
 			void SetRefreshToken(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt);
 			bool Sign(const PrivateKey& Key);
-			Core::String GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt);
+			Core::Option<Core::String> GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt);
 			bool IsValid() const;
 		};
 

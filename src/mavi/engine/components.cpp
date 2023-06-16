@@ -157,7 +157,7 @@ namespace Mavi
 						{
 							if (Instance != nullptr)
 								DeserializeBody(Node);
-							Node->Release();
+							VI_RELEASE(Node);
 						});
 					}
 					else if (Series::Unpack(Shaping->Find("type"), &Type))
@@ -467,7 +467,7 @@ namespace Mavi
 						{
 							if (Instance != nullptr)
 								DeserializeBody(Node);
-							Node->Release();
+							VI_RELEASE(Node);
 						});
 					}
 				}
@@ -1263,8 +1263,7 @@ namespace Mavi
 							}
 						}
 					}
-
-					Node->Release();
+					VI_RELEASE(Node);
 				});
 			}
 			void Model::Serialize(Core::Schema* Node)
@@ -1402,8 +1401,7 @@ namespace Mavi
 							}
 						}
 					}
-
-					Node->Release();
+					VI_RELEASE(Node);
 				});
 			}
 			void Skin::Serialize(Core::Schema* Node)
@@ -2513,7 +2511,7 @@ namespace Mavi
 
 					ApplyPlayingPosition();
 					Synchronize(nullptr);
-					Node->Release();
+					VI_RELEASE(Node);
 				});
 			}
 			void AudioSource::Serialize(Core::Schema* Node)
@@ -3556,9 +3554,143 @@ namespace Mavi
 						Invoke = InvokeType::Normal;
 				}
 
-				if (!Series::Unpack(Node->Find("resource"), &Resource) || Resource.empty() || LoadSource() < 0)
+				if (!Series::Unpack(Node->Find("resource"), &Resource) || Resource.empty())
 					return;
 
+				auto Success = LoadSource().Get();
+				if (Success)
+					DeserializeCall(Node).Wait();
+			}
+			void Scriptable::Serialize(Core::Schema* Node)
+			{
+				VI_ASSERT(Node != nullptr, "schema should be set");
+
+				if (Source == SourceType::Memory)
+					Series::Pack(Node->Set("source"), "memory");
+				else if (Source == SourceType::Resource)
+					Series::Pack(Node->Set("source"), "resource");
+
+				if (Invoke == InvokeType::Typeless)
+					Series::Pack(Node->Set("invoke"), "typeless");
+				else if (Invoke == InvokeType::Normal)
+					Series::Pack(Node->Set("invoke"), "normal");
+
+				Series::Pack(Node->Set("resource"), Parent->GetScene()->AsResourcePath(Resource));
+				SerializeCall(Node).Wait();
+			}
+			void Scriptable::Activate(Component* New)
+			{
+				if (!Parent->GetScene()->IsActive())
+					return;
+
+				Call(Entry.Awake, [this, &New](Scripting::ImmediateContext* Context)
+				{
+					if (Invoke == InvokeType::Typeless)
+						return;
+
+					Component* Current = this;
+					Context->SetArgObject(0, Current);
+					Context->SetArgObject(1, New);
+				});
+			}
+			void Scriptable::Deactivate()
+			{
+				Call(Entry.Asleep, [this](Scripting::ImmediateContext* Context)
+				{
+					if (Invoke == InvokeType::Typeless)
+						return;
+
+					Component* Current = this;
+					Context->SetArgObject(0, Current);
+				});
+			}
+			void Scriptable::Update(Core::Timer* Time)
+			{
+				Call(Entry.Update, [this, &Time](Scripting::ImmediateContext* Context)
+				{
+					if (Invoke == InvokeType::Typeless)
+						return;
+
+					Component* Current = this;
+					Context->SetArgObject(0, Current);
+					Context->SetArgObject(1, Time);
+				});
+			}
+			void Scriptable::Message(const Core::String& Name, Core::VariantArgs& Args)
+			{
+				Call(Entry.Message, [this, Name, Args](Scripting::ImmediateContext* Context)
+				{
+					if (Invoke == InvokeType::Typeless)
+						return;
+
+					Scripting::Bindings::Dictionary* Map = Scripting::Bindings::Dictionary::Create(Compiler->GetVM()->GetEngine());
+					if (Map != nullptr)
+					{
+						int TypeId = Compiler->GetVM()->GetTypeIdByDecl("variant");
+						for (auto& Item : Args)
+						{
+							Core::Variant Next = std::move(Item.second);
+							Map->Set(Item.first, &Next, TypeId);
+						}
+					}
+
+					Component* Current = this;
+					Context->SetArgObject(0, Current);
+					Context->SetArgObject(1, Map);
+				});
+			}
+			Component* Scriptable::Copy(Entity* New) const
+			{
+				Scriptable* Target = new Scriptable(New);
+				Target->Invoke = Invoke;
+				Target->LoadSource(Source, Resource);
+
+				if (!Compiler || !Target->Compiler)
+					return Target;
+
+				Scripting::Module From = Compiler->GetModule();
+				Scripting::Module To = Target->Compiler->GetModule();
+				Scripting::VirtualMachine* VM = Compiler->GetVM();
+
+				if (!From.IsValid() || !To.IsValid())
+					return Target;
+
+				int Count = (int)From.GetPropertiesCount();
+				for (int i = 0; i < Count; i++)
+				{
+					Scripting::PropertyInfo fSource;
+					if (!From.GetProperty(i, &fSource))
+						continue;
+
+					Scripting::PropertyInfo Dest;
+					if (!To.GetProperty(i, &Dest))
+						continue;
+
+					if (fSource.TypeId != Dest.TypeId)
+						continue;
+
+					if (fSource.TypeId < (int)Scripting::TypeId::BOOL || fSource.TypeId >(int)Scripting::TypeId::DOUBLE)
+					{
+						Scripting::TypeInfo Type = VM->GetTypeInfoById(fSource.TypeId);
+						if (fSource.Pointer != nullptr && Type.IsValid())
+						{
+							void* Object = VM->CreateObjectCopy(fSource.Pointer, Type);
+							if (Object != nullptr)
+								VM->AssignObject(Dest.Pointer, Object, Type);
+						}
+					}
+					else
+					{
+						auto Size = VM->GetSizeOfPrimitiveType(fSource.TypeId);
+						if (Size)
+							memcpy(Dest.Pointer, fSource.Pointer, *Size);
+					}
+				}
+
+				return Target;
+			}
+			Scripting::ExpectedFuture<Scripting::Activation> Scriptable::DeserializeCall(Core::Schema* Node)
+			{
 				Core::Schema* Cache = Node->Find("cache");
 				if (Cache != nullptr)
 				{
@@ -3658,7 +3790,7 @@ namespace Mavi
 					}
 				}
 
-				Call(Entry.Deserialize, [this, &Node](Scripting::ImmediateContext* Context)
+				return Call(Entry.Deserialize, [this, Node](Scripting::ImmediateContext* Context)
 				{
 					if (Invoke == InvokeType::Typeless)
 						return;
@@ -3666,86 +3798,76 @@ namespace Mavi
 					Component* Current = this;
 					Context->SetArgObject(0, Current);
 					Context->SetArgObject(1, Node);
-				}).Wait();
+				});
 			}
-			void Scriptable::Serialize(Core::Schema* Node)
+			Scripting::ExpectedFuture<Scripting::Activation> Scriptable::SerializeCall(Core::Schema* Node)
 			{
-				VI_ASSERT(Node != nullptr, "schema should be set");
-
-				if (Source == SourceType::Memory)
-					Series::Pack(Node->Set("source"), "memory");
-				else if (Source == SourceType::Resource)
-					Series::Pack(Node->Set("source"), "resource");
-
-				if (Invoke == InvokeType::Typeless)
-					Series::Pack(Node->Set("invoke"), "typeless");
-				else if (Invoke == InvokeType::Normal)
-					Series::Pack(Node->Set("invoke"), "normal");
-
-				int Count = GetPropertiesCount();
-				Series::Pack(Node->Set("resource"), Parent->GetScene()->AsResourcePath(Resource));
-
-				Core::Schema* Cache = Node->Set("cache");
-				for (int i = 0; i < Count; i++)
+				auto HasProperties = GetPropertiesCount();
+				if (HasProperties)
 				{
-					Scripting::PropertyInfo Result;
-					if (!GetPropertyByIndex(i, &Result) || !Result.Name || !Result.Pointer)
-						continue;
-
-					Core::Schema* Var = Core::Var::Set::Object();
-					Series::Pack(Var->Set("type"), Result.TypeId);
-
-					switch ((Scripting::TypeId)Result.TypeId)
+					size_t Count = *HasProperties;
+					Core::Schema* Cache = Node->Set("cache");
+					for (size_t i = 0; i < Count; i++)
 					{
-						case Scripting::TypeId::BOOL:
-							Series::Pack(Var->Set("data"), *(bool*)Result.Pointer);
-							break;
-						case Scripting::TypeId::INT8:
-							Series::Pack(Var->Set("data"), (int64_t) * (char*)Result.Pointer);
-							break;
-						case Scripting::TypeId::INT16:
-							Series::Pack(Var->Set("data"), (int64_t) * (short*)Result.Pointer);
-							break;
-						case Scripting::TypeId::INT32:
-							Series::Pack(Var->Set("data"), (int64_t) * (int*)Result.Pointer);
-							break;
-						case Scripting::TypeId::INT64:
-							Series::Pack(Var->Set("data"), *(int64_t*)Result.Pointer);
-							break;
-						case Scripting::TypeId::UINT8:
-							Series::Pack(Var->Set("data"), (int64_t) * (unsigned char*)Result.Pointer);
-							break;
-						case Scripting::TypeId::UINT16:
-							Series::Pack(Var->Set("data"), (int64_t) * (unsigned short*)Result.Pointer);
-							break;
-						case Scripting::TypeId::UINT32:
-							Series::Pack(Var->Set("data"), (int64_t) * (unsigned int*)Result.Pointer);
-							break;
-						case Scripting::TypeId::UINT64:
-							Series::Pack(Var->Set("data"), (int64_t) * (uint64_t*)Result.Pointer);
-							break;
-						case Scripting::TypeId::FLOAT:
-							Series::Pack(Var->Set("data"), (double)*(float*)Result.Pointer);
-							break;
-						case Scripting::TypeId::DOUBLE:
-							Series::Pack(Var->Set("data"), *(double*)Result.Pointer);
-							break;
-						default:
-						{
-							Scripting::TypeInfo Type = GetCompiler()->GetVM()->GetTypeInfoById(Result.TypeId);
-							if (Type.IsValid() && strcmp(Type.GetName(), "String") == 0)
-								Series::Pack(Var->Set("data"), *(Core::String*)Result.Pointer);
-							else
-								VI_CLEAR(Var);
-							break;
-						}
-					}
+						Scripting::PropertyInfo Result;
+						if (!GetPropertyByIndex(i, &Result) || !Result.Name || !Result.Pointer)
+							continue;
 
-					if (Var != nullptr)
-						Cache->Set(Result.Name, Var);
+						Core::Schema* Var = Core::Var::Set::Object();
+						Series::Pack(Var->Set("type"), Result.TypeId);
+
+						switch ((Scripting::TypeId)Result.TypeId)
+						{
+							case Scripting::TypeId::BOOL:
+								Series::Pack(Var->Set("data"), *(bool*)Result.Pointer);
+								break;
+							case Scripting::TypeId::INT8:
+								Series::Pack(Var->Set("data"), (int64_t) * (char*)Result.Pointer);
+								break;
+							case Scripting::TypeId::INT16:
+								Series::Pack(Var->Set("data"), (int64_t) * (short*)Result.Pointer);
+								break;
+							case Scripting::TypeId::INT32:
+								Series::Pack(Var->Set("data"), (int64_t) * (int*)Result.Pointer);
+								break;
+							case Scripting::TypeId::INT64:
+								Series::Pack(Var->Set("data"), *(int64_t*)Result.Pointer);
+								break;
+							case Scripting::TypeId::UINT8:
+								Series::Pack(Var->Set("data"), (int64_t) * (unsigned char*)Result.Pointer);
+								break;
+							case Scripting::TypeId::UINT16:
+								Series::Pack(Var->Set("data"), (int64_t) * (unsigned short*)Result.Pointer);
+								break;
+							case Scripting::TypeId::UINT32:
+								Series::Pack(Var->Set("data"), (int64_t) * (unsigned int*)Result.Pointer);
+								break;
+							case Scripting::TypeId::UINT64:
+								Series::Pack(Var->Set("data"), (int64_t) * (uint64_t*)Result.Pointer);
+								break;
+							case Scripting::TypeId::FLOAT:
+								Series::Pack(Var->Set("data"), (double)*(float*)Result.Pointer);
+								break;
+							case Scripting::TypeId::DOUBLE:
+								Series::Pack(Var->Set("data"), *(double*)Result.Pointer);
+								break;
+							default:
+							{
+								Scripting::TypeInfo Type = GetCompiler()->GetVM()->GetTypeInfoById(Result.TypeId);
+								if (Type.IsValid() && strcmp(Type.GetName(), "String") == 0)
+									Series::Pack(Var->Set("data"), *(Core::String*)Result.Pointer);
+								else
+									VI_CLEAR(Var);
+								break;
+							}
+						}
+
+						if (Var != nullptr)
+							Cache->Set(Result.Name, Var);
+					}
 				}
 
-				Call(Entry.Serialize, [this, &Node](Scripting::ImmediateContext* Context)
+				return Call(Entry.Serialize, [this, &Node](Scripting::ImmediateContext* Context)
 				{
 					if (Invoke == InvokeType::Typeless)
 						return;
@@ -3753,143 +3875,32 @@ namespace Mavi
 					Component* Current = this;
 					Context->SetArgObject(0, Current);
 					Context->SetArgObject(1, Node);
-				}).Wait();
-			}
-			void Scriptable::Activate(Component* New)
-			{
-				if (!Parent->GetScene()->IsActive())
-					return;
-
-				Call(Entry.Awake, [this, &New](Scripting::ImmediateContext* Context)
-				{
-					if (Invoke == InvokeType::Typeless)
-						return;
-
-					Component* Current = this;
-					Context->SetArgObject(0, Current);
-					Context->SetArgObject(1, New);
 				});
 			}
-			void Scriptable::Deactivate()
-			{
-				Call(Entry.Asleep, [this](Scripting::ImmediateContext* Context)
-				{
-					if (Invoke == InvokeType::Typeless)
-						return;
-
-					Component* Current = this;
-					Context->SetArgObject(0, Current);
-				});
-			}
-			void Scriptable::Update(Core::Timer* Time)
-			{
-				Call(Entry.Update, [this, &Time](Scripting::ImmediateContext* Context)
-				{
-					if (Invoke == InvokeType::Typeless)
-						return;
-
-					Component* Current = this;
-					Context->SetArgObject(0, Current);
-					Context->SetArgObject(1, Time);
-				});
-			}
-			void Scriptable::Message(const Core::String& Name, Core::VariantArgs& Args)
-			{
-				Call(Entry.Message, [this, Name, Args](Scripting::ImmediateContext* Context)
-				{
-					if (Invoke == InvokeType::Typeless)
-						return;
-
-					Scripting::Bindings::Dictionary* Map = Scripting::Bindings::Dictionary::Create(Compiler->GetVM()->GetEngine());
-					if (Map != nullptr)
-					{
-						int TypeId = Compiler->GetVM()->GetTypeIdByDecl("variant");
-						for (auto& Item : Args)
-						{
-							Core::Variant Next = std::move(Item.second);
-							Map->Set(Item.first, &Next, TypeId);
-						}
-					}
-
-					Component* Current = this;
-					Context->SetArgObject(0, Current);
-					Context->SetArgObject(1, Map);
-				});
-			}
-			Component* Scriptable::Copy(Entity* New) const
-			{
-				Scriptable* Target = new Scriptable(New);
-				Target->Invoke = Invoke;
-				Target->LoadSource(Source, Resource);
-
-				if (!Compiler || !Target->Compiler)
-					return Target;
-
-				Scripting::Module From = Compiler->GetModule();
-				Scripting::Module To = Target->Compiler->GetModule();
-				Scripting::VirtualMachine* VM = Compiler->GetVM();
-
-				if (!From.IsValid() || !To.IsValid())
-					return Target;
-
-				int Count = (int)From.GetPropertiesCount();
-				for (int i = 0; i < Count; i++)
-				{
-					Scripting::PropertyInfo fSource;
-					if (From.GetProperty(i, &fSource) < 0)
-						continue;
-
-					Scripting::PropertyInfo Dest;
-					if (To.GetProperty(i, &Dest) < 0)
-						continue;
-
-					if (fSource.TypeId != Dest.TypeId)
-						continue;
-
-					if (fSource.TypeId < (int)Scripting::TypeId::BOOL || fSource.TypeId >(int)Scripting::TypeId::DOUBLE)
-					{
-						Scripting::TypeInfo Type = VM->GetTypeInfoById(fSource.TypeId);
-						if (fSource.Pointer != nullptr && Type.IsValid())
-						{
-							void* Object = VM->CreateObjectCopy(fSource.Pointer, Type);
-							if (Object != nullptr)
-								VM->AssignObject(Dest.Pointer, Object, Type);
-						}
-					}
-					else
-					{
-						int Size = VM->GetSizeOfPrimitiveType(fSource.TypeId);
-						if (Size > 0)
-							memcpy(Dest.Pointer, fSource.Pointer, (size_t)Size);
-					}
-				}
-
-				return Target;
-			}
-			Core::Promise<int> Scriptable::Call(const Core::String& Name, unsigned int Args, Scripting::ArgsCallback&& OnArgs)
+			Scripting::ExpectedFuture<Scripting::Activation> Scriptable::Call(const Core::String& Name, size_t Args, Scripting::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
-					return Core::Promise<int>((int)Scripting::Errors::INVALID_CONFIGURATION);
+					return Scripting::ExpectedFuture<Scripting::Activation>(Scripting::Errors::INVALID_CONFIGURATION);
 
 				return Call(GetFunctionByName(Name, Args).GetFunction(), std::move(OnArgs));
 			}
-			Core::Promise<int> Scriptable::Call(asIScriptFunction* Function, Scripting::ArgsCallback&& OnArgs)
+			Scripting::ExpectedFuture<Scripting::Activation> Scriptable::Call(asIScriptFunction* Function, Scripting::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
-					return Core::Promise<int>((int)Scripting::Errors::INVALID_CONFIGURATION);
+					return Scripting::ExpectedFuture<Scripting::Activation>(Scripting::Errors::INVALID_CONFIGURATION);
 
 				Scripting::FunctionDelegate Delegate(Function);
 				if (!Delegate.IsValid())
-					return Core::Promise<int>((int)Scripting::Errors::INVALID_ARG);
+					return Scripting::ExpectedFuture<Scripting::Activation>(Scripting::Errors::NO_FUNCTION);
 
 				Protect();
-				return Delegate(std::move(OnArgs)).Then<int>([this](int&& Result)
+				return Delegate(std::move(OnArgs)).Then<Scripting::ExpectedReturn<Scripting::Activation>>([this](Scripting::ExpectedReturn<Scripting::Activation>&& Result)
 				{
 					Unprotect();
 					return Result;
 				});
 			}
-			Core::Promise<int> Scriptable::CallEntry(const Core::String& Name)
+			Scripting::ExpectedFuture<Scripting::Activation> Scriptable::CallEntry(const Core::String& Name)
 			{
 				return Call(GetFunctionByName(Name, Invoke == InvokeType::Typeless ? 0 : 1).GetFunction(), [this](Scripting::ImmediateContext* Context)
 				{
@@ -3900,18 +3911,18 @@ namespace Mavi
 					Context->SetArgObject(0, Current);
 				});
 			}
-			int Scriptable::LoadSource()
+			Scripting::ExpectedFuture<void> Scriptable::LoadSource()
 			{
 				return LoadSource(Source, Resource);
 			}
-			int Scriptable::LoadSource(SourceType Type, const Core::String& Data)
+			Scripting::ExpectedFuture<void> Scriptable::LoadSource(SourceType Type, const Core::String& Data)
 			{
 				SceneGraph* Scene = Parent->GetScene();
 				if (!Compiler)
 				{
 					auto* VM = Scene->GetConf().Shared.VM;
 					if (!VM)
-						return (int)Scripting::Errors::INVALID_CONFIGURATION;
+						return Scripting::ExpectedFuture<void>(Scripting::Errors::INVALID_CONFIGURATION);
 
 					Compiler = VM->CreateCompiler();
 					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const Core::String& Name, const Core::Vector<Core::String>& Args)
@@ -3937,18 +3948,18 @@ namespace Mavi
 					Entry.Update = nullptr;
 					Entry.Message = nullptr;
 					Compiler->Clear();
-					return (int)Scripting::Errors::SUCCESS;
+					return Scripting::ExpectedFuture<void>(Scripting::Errors::NO_MODULE);
 				}
 
-				int R = Compiler->Prepare("base", Source == SourceType::Resource ? Resource : "anonymous", true, true);
-				if (R < 0)
-					return R;
+				auto Status = Compiler->Prepare("base", Source == SourceType::Resource ? Resource : "anonymous", true, true);
+				if (!Status)
+					return Scripting::ExpectedFuture<void>(Status);
 
-				R = (Source == SourceType::Resource ? Compiler->LoadFile(Resource) : Compiler->LoadCode("anonymous", Resource));
-				if (R < 0)
-					return R;
+				Status = (Source == SourceType::Resource ? Compiler->LoadFile(Resource) : Compiler->LoadCode("anonymous", Resource));
+				if (!Status)
+					return Scripting::ExpectedFuture<void>(Status);
 
-				Compiler->Compile().When([this](int&&)
+				return Compiler->Compile().Then<Scripting::ExpectedReturn<void>>([this](Scripting::ExpectedReturn<void>&& Result)
 				{
 					Entry.Animate = GetFunctionByName("animate", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
 					Entry.Serialize = GetFunctionByName("serialize", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
@@ -3958,8 +3969,30 @@ namespace Mavi
 					Entry.Synchronize = GetFunctionByName("synchronize", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
 					Entry.Update = GetFunctionByName("update", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
 					Entry.Message = GetFunctionByName("message", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
+					return Result;
 				});
-				return 0;
+			}
+			Scripting::ExpectedReturn<size_t> Scriptable::GetPropertiesCount()
+			{
+				if (!Compiler)
+					return Scripting::Errors::INVALID_CONFIGURATION;
+
+				Scripting::Module Base = Compiler->GetModule();
+				if (!Base.IsValid())
+					return Scripting::Errors::NO_MODULE;
+
+				return Base.GetPropertiesCount();
+			}
+			Scripting::ExpectedReturn<size_t> Scriptable::GetFunctionsCount()
+			{
+				if (!Compiler)
+					return Scripting::Errors::INVALID_CONFIGURATION;
+
+				Scripting::Module Base = Compiler->GetModule();
+				if (!Base.IsValid())
+					return Scripting::Errors::NO_MODULE;
+
+				return Base.GetFunctionCount();
 			}
 			void Scriptable::SetInvocation(InvokeType Type)
 			{
@@ -3976,14 +4009,14 @@ namespace Mavi
 			}
 			void Scriptable::Unprotect()
 			{
-				GetEntity()->Release();
-				Release();
+				VI_RELEASE(GetEntity());
+				VI_RELEASE(this);
 			}
 			Scripting::Compiler* Scriptable::GetCompiler()
 			{
 				return Compiler;
 			}
-			Scripting::Function Scriptable::GetFunctionByName(const Core::String& Name, unsigned int Args)
+			Scripting::Function Scriptable::GetFunctionByName(const Core::String& Name, size_t Args)
 			{
 				VI_ASSERT(!Name.empty(), "name should not be empty");
 				if (!Compiler)
@@ -3995,7 +4028,7 @@ namespace Mavi
 
 				return Result;
 			}
-			Scripting::Function Scriptable::GetFunctionByIndex(int Index, unsigned int Args)
+			Scripting::Function Scriptable::GetFunctionByIndex(size_t Index, size_t Args)
 			{
 				VI_ASSERT(Index >= 0, "index should be greater or equal to zero");
 				if (!Compiler)
@@ -4017,20 +4050,20 @@ namespace Mavi
 				if (!Base.IsValid())
 					return false;
 
-				int Index = Base.GetPropertyIndexByName(Name);
-				if (Index < 0 || Base.GetProperty(Index, Result) < 0)
+				auto Index = Base.GetPropertyIndexByName(Name);
+				if (!Index || !Base.GetProperty(*Index, Result))
 					return false;
 
 				return true;
 			}
-			bool Scriptable::GetPropertyByIndex(int Index, Scripting::PropertyInfo* Result)
+			bool Scriptable::GetPropertyByIndex(size_t Index, Scripting::PropertyInfo* Result)
 			{
 				VI_ASSERT(Index >= 0, "index should be greater or equal to zero");
 				if (!Compiler)
 					return false;
 
 				Scripting::Module Base = Compiler->GetModule();
-				if (!Base.IsValid() || Base.GetProperty(Index, Result) < 0)
+				if (!Base.IsValid() || !Base.GetProperty(Index, Result))
 					return false;
 
 				return true;
@@ -4042,28 +4075,6 @@ namespace Mavi
 			Scriptable::InvokeType Scriptable::GetInvokeType()
 			{
 				return Invoke;
-			}
-			int Scriptable::GetPropertiesCount()
-			{
-				if (!Compiler)
-					return (int)Scripting::Errors::INVALID_ARG;
-
-				Scripting::Module Base = Compiler->GetModule();
-				if (!Base.IsValid())
-					return 0;
-
-				return (int)Base.GetPropertiesCount();
-			}
-			int Scriptable::GetFunctionsCount()
-			{
-				if (!Compiler)
-					return (int)Scripting::Errors::INVALID_ARG;
-
-				Scripting::Module Base = Compiler->GetModule();
-				if (!Base.IsValid())
-					return 0;
-
-				return (int)Base.GetFunctionCount();
 			}
 			const Core::String& Scriptable::GetSource()
 			{

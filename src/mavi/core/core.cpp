@@ -245,13 +245,13 @@ namespace Mavi
 				void* Address = malloc(Size);
 				VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
 
-				Core::UMutex<std::recursive_mutex> Unique(Mutex);
+				UMutex<std::recursive_mutex> Unique(Mutex);
 				Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), Size, true, false);
 				return Address;
 			}
 			void DebugAllocator::Free(void* Address) noexcept
 			{
-				Core::UMutex<std::recursive_mutex> Unique(Mutex);
+				UMutex<std::recursive_mutex> Unique(Mutex);
 				auto It = Blocks.find(Address);
 				VI_ASSERT(It != Blocks.end() && It->second.Active, "cannot free memory that was not allocated by this allocator at 0x%" PRIXPTR, Address);
 
@@ -264,12 +264,12 @@ namespace Mavi
 			}
 			void DebugAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
 			{
-				Core::UMutex<std::recursive_mutex> Unique(Mutex);
+				UMutex<std::recursive_mutex> Unique(Mutex);
 				Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), Size, true, true);
 			}
 			void DebugAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
 			{
-				Core::UMutex<std::recursive_mutex> Unique(Mutex);
+				UMutex<std::recursive_mutex> Unique(Mutex);
 				auto It = Blocks.find(Address);
 
 				VI_ASSERT(It == Blocks.end() || !It->second.Active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, Address);
@@ -277,7 +277,7 @@ namespace Mavi
 			}
 			void DebugAllocator::Unwatch(void* Address) noexcept
 			{
-				Core::UMutex<std::recursive_mutex> Unique(Mutex);
+				UMutex<std::recursive_mutex> Unique(Mutex);
 				auto It = Blocks.find(Address);
 
 				VI_ASSERT(It != Blocks.end() && !It->second.Active, "address at 0x%" PRIXPTR " cannot be cleared from tracking because it was not allocated by this allocator", Address);
@@ -289,7 +289,7 @@ namespace Mavi
 			}
 			bool DebugAllocator::IsValid(void* Address) noexcept
 			{
-				Core::UMutex<std::recursive_mutex> Unique(Mutex);
+				UMutex<std::recursive_mutex> Unique(Mutex);
 				auto It = Blocks.find(Address);
 
 				VI_ASSERT(It != Blocks.end(), "address at 0x%" PRIXPTR " cannot be used as it was already freed");
@@ -303,7 +303,7 @@ namespace Mavi
 			{
 #if VI_DLEVEL >= 4
 				VI_TRACE("[mem] dump internal memory state on 0x%" PRIXPTR, Address);
-				Core::UMutex<std::recursive_mutex> Unique(Mutex);
+				UMutex<std::recursive_mutex> Unique(Mutex);
 				if (Address != nullptr)
 				{
 					bool LogActive = ErrorHandling::HasFlag(LogOption::Active);
@@ -372,7 +372,7 @@ namespace Mavi
 			bool DebugAllocator::FindBlock(void* Address, TracingBlock* Output)
 			{
 				VI_ASSERT(Address != nullptr, "address should not be null");
-				Core::UMutex<std::recursive_mutex> Unique(Mutex);
+				UMutex<std::recursive_mutex> Unique(Mutex);
 				auto It = Blocks.find(Address);
 				if (It == Blocks.end())
 					return false;
@@ -447,7 +447,7 @@ namespace Mavi
 			}
 			void* CachedAllocator::Allocate(size_t Size) noexcept
 			{
-				Core::UMutex<std::recursive_mutex> Unique(Mutex);
+				UMutex<std::recursive_mutex> Unique(Mutex);
 				auto* Cache = GetPageCache(Size);
 				if (!Cache)
 					return nullptr;
@@ -471,7 +471,7 @@ namespace Mavi
 				PageCache* Cache = nullptr;
 				memcpy(&Cache, Source, sizeof(void*));
 
-				Core::UMutex<std::recursive_mutex> Unique(Mutex);
+				UMutex<std::recursive_mutex> Unique(Mutex);
 				Cache->Addresses.push_back(Source);
 
 				if (Cache->Addresses.size() >= Cache->Capacity && (Cache->Capacity == 1 || GetClock() - Cache->Timing > (int64_t)MinimalLifeTime))
@@ -810,6 +810,127 @@ namespace Mavi
 			}
 		}
 
+		namespace Exceptions
+		{
+			ParserException::ParserException(ParserError NewType) : ParserException(NewType, -1, nullptr)
+			{
+			}
+			ParserException::ParserException(ParserError NewType, int NewOffset) : ParserException(NewType, NewOffset, nullptr)
+			{
+			}
+			ParserException::ParserException(ParserError NewType, int NewOffset, const char* NewMessage) : std::exception(), Type(NewType), Offset(NewOffset)
+			{
+				if (!NewMessage || NewMessage[0] == '\0')
+				{ 
+					switch (Type)
+					{
+						case ParserError::BadVersion:
+							Info = "corrupted JSONB version header";
+							break;
+						case ParserError::BadDictionary:
+							Info = "corrupted JSONB dictionary body";
+							break;
+						case ParserError::BadNameIndex:
+							Info = "invalid JSONB dictionary name index";
+							break;
+						case ParserError::BadName:
+							Info = "invalid JSONB name";
+							break;
+						case ParserError::BadKeyName:
+							Info = "invalid JSONB key name";
+							break;
+						case ParserError::BadKeyType:
+							Info = "invalid JSONB key type";
+							break;
+						case ParserError::BadValue:
+							Info = "invalid JSONB value for specified key";
+							break;
+						case ParserError::BadString:
+							Info = "invalid JSONB value string";
+							break;
+						case ParserError::BadInteger:
+							Info = "invalid JSONB value integer";
+							break;
+						case ParserError::BadDouble:
+							Info = "invalid JSONB value double";
+							break;
+						case ParserError::BadBoolean:
+							Info = "invalid JSONB value boolean";
+							break;
+						case ParserError::XMLParsingError:
+							Info = "XML document is invalid";
+							break;
+						case ParserError::JSONDocumentEmpty:
+							Info = "the JSON document is empty";
+							break;
+						case ParserError::JSONDocumentRootNotSingular:
+							Info = "the JSON document root must not follow by other values";
+							break;
+						case ParserError::JSONValueInvalid:
+							Info = "the JSON document contains an invalid value";
+							break;
+						case ParserError::JSONObjectMissName:
+							Info = "missing a name for a JSON object member";
+							break;
+						case ParserError::JSONObjectMissColon:
+							Info = "missing a colon after a name of a JSON object member";
+							break;
+						case ParserError::JSONObjectMissCommaOrCurlyBracket:
+							Info = "missing a comma or '}' after a JSON object member";
+							break;
+						case ParserError::JSONArrayMissCommaOrSquareBracket:
+							Info = "missing a comma or ']' after a JSON array element";
+							break;
+						case ParserError::JSONStringUnicodeEscapeInvalidHex:
+							Info = "incorrect hex digit after \\u escape in a JSON string";
+							break;
+						case ParserError::JSONStringUnicodeSurrogateInvalid:
+							Info = "the surrogate pair in a JSON string is invalid";
+							break;
+						case ParserError::JSONStringEscapeInvalid:
+							Info = "invalid escape character in a JSON string";
+							break;
+						case ParserError::JSONStringMissQuotationMark:
+							Info = "missing a closing quotation mark in a JSON string";
+							break;
+						case ParserError::JSONStringInvalidEncoding:
+							Info = "invalid encoding in a JSON string";
+							break;
+						case ParserError::JSONNumberTooBig:
+							Info = "JSON number too big to be stored in double";
+							break;
+						case ParserError::JSONNumberMissFraction:
+							Info = "missing fraction part in a JSON number";
+							break;
+						case ParserError::JSONNumberMissExponent:
+							Info = "missing exponent in a JSON number";
+							break;
+						case ParserError::JSONTermination:
+							Info = "unexpected end of file while parsing a JSON document";
+							break;
+						case ParserError::JSONUnspecificSyntaxError:
+							Info = "unspecified JSON syntax error";
+							break;
+						default:
+							Info = "(unrecognized condition)";
+							break;
+					}
+				}
+				else
+					Info = NewMessage;
+
+				if (Offset >= 0)
+				{
+					Info += " at offset ";
+					Info += ToString(Offset);
+				}
+			}
+			const char* ParserException::what() const
+			{
+				return Info.c_str();
+			}
+		}
+
 		typedef moodycamel::ConcurrentQueue<TaskCallback> FastQueue;
 		typedef moodycamel::ConsumerToken ReceiveToken;
 
@@ -825,14 +946,14 @@ namespace Mavi
 
 			void NotifyOfOverConsumption()
 			{
-				if (Threshold == (uint64_t)Core::Timings::Infinite)
+				if (Threshold == (uint64_t)Timings::Infinite)
 					return;
 
 				uint64_t Delta = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Time;
 				if (Delta <= Threshold)
 					return;
 
-				Core::String BackTrace = ErrorHandling::GetMeasureTrace();
+				String BackTrace = ErrorHandling::GetMeasureTrace();
 				VI_WARN("[stall] operation took %" PRIu64 " ms (%" PRIu64 " us), back trace %s", Delta / 1000, Delta, BackTrace.c_str());
 			}
 #endif
@@ -840,7 +961,7 @@ namespace Mavi
 
 		struct ConcurrentQueue
 		{
-			Core::OrderedMap<std::chrono::microseconds, Timeout> Timers;
+			OrderedMap<std::chrono::microseconds, Timeout> Timers;
 			std::condition_variable Notify;
 			std::mutex Update;
 			FastQueue Tasks;
@@ -933,7 +1054,7 @@ namespace Mavi
 
 			void* Address = malloc(Size);
 			VI_PANIC(Address != nullptr, "application is out of system memory allocating %" PRIu64 " bytes", (uint64_t)Size);
-			Core::UMutex<std::mutex> Unique(Context->Mutex);
+			UMutex<std::mutex> Unique(Context->Mutex);
 			Context->Allocations[Address].second = Size;
 			return Address;
 		}
@@ -957,7 +1078,7 @@ namespace Mavi
 
 			void* Address = malloc(Size);
 			VI_PANIC(Address != nullptr, "application is out of system memory allocating %" PRIu64 " bytes", (uint64_t)Size);
-			Core::UMutex<std::mutex> Unique(Context->Mutex);
+			UMutex<std::mutex> Unique(Context->Mutex);
 			auto& Item = Context->Allocations[Address];
 			Item.first = std::move(Origin);
 			Item.second = Size;
@@ -975,7 +1096,7 @@ namespace Mavi
 			else if (!Context)
 				Context = new State();
 
-			Core::UMutex<std::mutex> Unique(Context->Mutex);
+			UMutex<std::mutex> Unique(Context->Mutex);
 			Context->Allocations.erase(Address);
 			free(Address);
 		}
@@ -1054,8 +1175,16 @@ namespace Mavi
 					int LineNumber = Context->GetLineNumber(i, &ColumnNumber);
 					Scripting::Function Next = Context->GetFunction(i);
 					Frame Target;
-					Target.Code = (Next.GetSectionName() ? VM->GetSourceCodeAppendixByPath("source", Next.GetSectionName(), (uint32_t)LineNumber, (uint32_t)ColumnNumber, 5) : "");
-					Target.File = (Next.GetSectionName() ? Next.GetSectionName() : "[native]");
+					if (Next.GetSectionName())
+					{
+						const char* SectionName = Next.GetSectionName();
+						auto SourceCode = VM->GetSourceCodeAppendixByPath("source", SectionName, (uint32_t)LineNumber, (uint32_t)ColumnNumber, 5);
+						if (SourceCode)
+							Target.Code = *SourceCode;
+						Target.File = SectionName;
+					}
+					else
+						Target.File = "[native]";
 					Target.Function = (Next.GetDecl() ? Next.GetDecl() : "[optimized]");
 					Target.Line = (uint32_t)LineNumber;
 					Target.Column = (uint32_t)ColumnNumber;
@@ -1106,8 +1235,8 @@ namespace Mavi
 			for (auto& Next : Stack)
 			{
 				Frame Target;
-				Target.File = Copy<Core::String>(Next.source_file());
-				Target.Function = Copy<Core::String>(Next.description());
+				Target.File = Copy<String>(Next.source_file());
+				Target.Function = Copy<String>(Next.description());
 				Target.Line = (uint32_t)Next.source_line();
 				Target.Column = 0;
 				Target.Handle = (void*)Next.native_handle();
@@ -1231,6 +1360,9 @@ namespace Mavi
 
 			if (Data.Message.Size > 0)
 			{
+#ifndef NDEBUG
+				Console::Get()->Show();
+#endif
 				EscapeText(Data.Message.Data, (size_t)Data.Message.Size);
 				Dispatch(Data);
 			}
@@ -1266,6 +1398,9 @@ namespace Mavi
 
 			if (Data.Message.Size > 0)
 			{
+#ifndef NDEBUG
+				Console::Get()->Show();
+#endif
 				EscapeText(Data.Message.Data, (size_t)Data.Message.Size);
 				Dispatch(Data);
 			}
@@ -1420,7 +1555,7 @@ namespace Mavi
 #ifndef NDEBUG
 			VI_ASSERT(File != nullptr, "file should be set");
 			VI_ASSERT(Function != nullptr, "function should be set");
-			VI_ASSERT(ThresholdMS > 0 || ThresholdMS == (uint64_t)Core::Timings::Infinite, "threshold time should be greater than Zero");
+			VI_ASSERT(ThresholdMS > 0 || ThresholdMS == (uint64_t)Timings::Infinite, "threshold time should be greater than Zero");
 			if (IgnoreLogging)
 				return ErrorHandling::Tick(false);
 
@@ -1448,33 +1583,34 @@ namespace Mavi
 			}
 #endif
 		}
-		Core::String ErrorHandling::GetMeasureTrace() noexcept
+		String ErrorHandling::GetMeasureTrace() noexcept
 		{
 #ifndef NDEBUG
 			auto Source = MeasuringTree;
-			Core::StringStream Stream;
+			StringStream Stream;
 			Stream << "in thread " << std::this_thread::get_id() << ":\n";
 
 			size_t Size = Source.size();
 			for (size_t TraceIdx = Source.size(); TraceIdx > 0; --TraceIdx)
 			{
-				auto& Next = Source.top();
-				Stream << "\t#" << (Size - TraceIdx) + 1 << " source \"" << Next.File << "\", line " << Next.Line << ", in " << Next.Function;
-				if (Next.Id != nullptr)
-					Stream << " (0x" << Next.Id;
-				else
-					Stream << " (nullptr";
-				Stream << "), at most " << Next.Threshold / 1000 << " ms\n";
+				auto& Frame = Source.top();
+				Stream << "  #" << (Size - TraceIdx) + 1 << " at " << OS::Path::GetFilename(Frame.File);
+				if (Frame.Line > 0)
+					Stream << ":" << Frame.Line;
+				Stream << " in " << Frame.Function << "()";
+				if (Frame.Id != nullptr)
+					Stream << " pointed here 0x" << Frame.Id;
+				Stream << ", at most " << Frame.Threshold / 1000 << " ms\n";
 				Source.pop();
 			}
 
-			Core::String Out(Stream.str());
+			String Out(Stream.str());
 			return Out.substr(0, Out.size() - 1);
 #else
-			return Core::String();
+			return String();
 #endif
 		}
-		Core::String ErrorHandling::GetStackTrace(size_t Skips, size_t MaxFrames) noexcept
+		String ErrorHandling::GetStackTrace(size_t Skips, size_t MaxFrames) noexcept
 		{
 			StackTrace Stack(Skips, MaxFrames);
 			if (!Stack)
@@ -1493,7 +1629,15 @@ namespace Mavi
 				if (!Frame.Native)
 					Stream << " (vcall)";
 				if (!Frame.Code.empty())
-					Stream << Frame.Code;
+				{
+					auto Lines = Stringify::Split(Frame.Code, '\n');
+					for (size_t i = 0; i < Lines.size(); i++)
+					{
+						Stream << "  " << Lines[i];
+						if (i + 1 < Lines.size())
+							Stream << "\n";
+					}
+				}
 				if (Size > 0)
 					Stream << "\n";
 			}
@@ -1536,9 +1680,9 @@ namespace Mavi
 					return StdColor::LightGray;
 			}
 		}
-		Core::String ErrorHandling::GetMessageText(const Details& Base) noexcept
+		String ErrorHandling::GetMessageText(const Details& Base) noexcept
 		{
-			Core::StringStream Stream;
+			StringStream Stream;
 			if (HasFlag(LogOption::Dated))
 			{
 				Stream << Base.Message.Date;
@@ -1631,7 +1775,7 @@ namespace Mavi
 
 			Unlead();
 		}
-		Decimal::Decimal(const Core::String& Value) noexcept : Decimal(Value.c_str())
+		Decimal::Decimal(const String& Value) noexcept : Decimal(Value.c_str())
 		{
 		}
 		Decimal::Decimal(int32_t Value) noexcept : Decimal(Core::ToString(Value))
@@ -1709,7 +1853,7 @@ namespace Mavi
 				{
 					if (Precision != 0)
 					{
-						Core::String Result = "0.";
+						String Result = "0.";
 						Result.reserve(3 + (size_t)Precision);
 						for (int i = 1; i < Precision; i++)
 							Result += '0';
@@ -1817,7 +1961,7 @@ namespace Mavi
 			if (Invalid || Source.empty())
 				return 0;
 
-			Core::String Result;
+			String Result;
 			if (Sign == '-')
 				Result += Sign;
 
@@ -1842,7 +1986,7 @@ namespace Mavi
 			if (Invalid || Source.empty())
 				return 0;
 
-			Core::String Result;
+			String Result;
 			int Offset = 0, Size = Length;
 			while ((Source[Offset] == '0') && (Size > 0))
 			{
@@ -1859,12 +2003,12 @@ namespace Mavi
 
 			return strtoull(Result.c_str(), nullptr, 10);
 		}
-		Core::String Decimal::ToString() const
+		String Decimal::ToString() const
 		{
 			if (Invalid || Source.empty())
 				return "NaN";
 
-			Core::String Result;
+			String Result;
 			if (Sign == '-')
 				Result += Sign;
 
@@ -1884,12 +2028,12 @@ namespace Mavi
 
 			return Result;
 		}
-		Core::String Decimal::Exp() const
+		String Decimal::Exp() const
 		{
 			if (Invalid)
 				return "NaN";
 
-			Core::String Result;
+			String Result;
 			int Compare = Decimal::CompareNum(*this, Decimal(1));
 			if (Compare == 0)
 			{
@@ -2909,7 +3053,7 @@ namespace Mavi
 		{
 			Free();
 		}
-		bool Variant::Deserialize(const Core::String& Text, bool Strict)
+		bool Variant::Deserialize(const String& Text, bool Strict)
 		{
 			Free();
 			if (!Strict)
@@ -2971,14 +3115,14 @@ namespace Mavi
 
 			if (Text.size() > 2 && Text.front() == PREFIX_BINARY[0] && Text.back() == PREFIX_BINARY[0])
 			{
-				Move(Var::Binary(Compute::Codec::Bep45Decode(Core::String(Text.substr(1).c_str(), Text.size() - 2))));
+				Move(Var::Binary(Compute::Codec::Bep45Decode(String(Text.substr(1).c_str(), Text.size() - 2))));
 				return true;
 			}
 
 			Move(Var::String(Text));
 			return true;
 		}
-		Core::String Variant::Serialize() const
+		String Variant::Serialize() const
 		{
 			switch (Type)
 			{
@@ -2993,9 +3137,9 @@ namespace Mavi
 				case VarType::Pointer:
 					return PREFIX_ENUM "void*" PREFIX_ENUM;
 				case VarType::String:
-					return Core::String(GetString(), GetSize());
+					return String(GetString(), GetSize());
 				case VarType::Binary:
-					return PREFIX_BINARY + Compute::Codec::Bep45Encode(Core::String(GetString(), GetSize())) + PREFIX_BINARY;
+					return PREFIX_BINARY + Compute::Codec::Bep45Encode(String(GetString(), GetSize())) + PREFIX_BINARY;
 				case VarType::Decimal:
 				{
 					auto* Data = ((Decimal*)Value.Pointer);
@@ -3005,19 +3149,19 @@ namespace Mavi
 					return Data->ToString();
 				}
 				case VarType::Integer:
-					return ToString(Value.Integer);
+					return Core::ToString(Value.Integer);
 				case VarType::Number:
-					return ToString(Value.Number);
+					return Core::ToString(Value.Number);
 				case VarType::Boolean:
 					return Value.Boolean ? "true" : "false";
 				default:
 					return "";
 			}
 		}
-		Core::String Variant::GetBlob() const
+		String Variant::GetBlob() const
 		{
 			if (Type == VarType::String || Type == VarType::Binary)
-				return Core::String(GetString(), Size);
+				return String(GetString(), Size);
 
 			if (Type == VarType::Decimal)
 				return ((Decimal*)Value.Pointer)->ToString();
@@ -3086,7 +3230,7 @@ namespace Mavi
 
 			if (Type == VarType::String)
 			{
-				auto Result = FromString<int64_t>(Core::String(GetString(), GetSize()));
+				auto Result = FromString<int64_t>(String(GetString(), GetSize()));
 				if (Result)
 					return *Result;
 			}
@@ -3109,7 +3253,7 @@ namespace Mavi
 
 			if (Type == VarType::String)
 			{
-				auto Result = FromString<double>(Core::String(GetString(), GetSize()));
+				auto Result = FromString<double>(String(GetString(), GetSize()));
 				if (Result)
 					return *Result;
 			}
@@ -3391,16 +3535,16 @@ namespace Mavi
 			return sizeof(Tag::String) - 1;
 		}
 
-		Timeout::Timeout(const SeqTaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept : Expires(NewTimeout), Callback(NewCallback), Type(NewType), Id(NewId), Invocations(0), Alive(NewAlive)
+		Timeout::Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept : Expires(NewTimeout), Callback(NewCallback), Type(NewType), Id(NewId), Alive(NewAlive)
 		{
 		}
-		Timeout::Timeout(SeqTaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept : Expires(NewTimeout), Callback(std::move(NewCallback)), Type(NewType), Id(NewId), Invocations(0), Alive(NewAlive)
+		Timeout::Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept : Expires(NewTimeout), Callback(std::move(NewCallback)), Type(NewType), Id(NewId), Alive(NewAlive)
 		{
 		}
-		Timeout::Timeout(const Timeout& Other) noexcept : Expires(Other.Expires), Callback(Other.Callback), Type(Other.Type), Id(Other.Id), Invocations(Other.Invocations), Alive(Other.Alive)
+		Timeout::Timeout(const Timeout& Other) noexcept : Expires(Other.Expires), Callback(Other.Callback), Type(Other.Type), Id(Other.Id), Alive(Other.Alive)
 		{
 		}
-		Timeout::Timeout(Timeout&& Other) noexcept : Expires(Other.Expires), Callback(std::move(Other.Callback)), Type(Other.Type), Id(Other.Id), Invocations(Other.Invocations), Alive(Other.Alive)
+		Timeout::Timeout(Timeout&& Other) noexcept : Expires(Other.Expires), Callback(std::move(Other.Callback)), Type(Other.Type), Id(Other.Id), Alive(Other.Alive)
 		{
 		}
 		Timeout& Timeout::operator= (const Timeout& Other) noexcept
@@ -3409,7 +3553,6 @@ namespace Mavi
 			Expires = Other.Expires;
 			Id = Other.Id;
 			Alive = Other.Alive;
-			Invocations = Other.Invocations;
 			Type = Other.Type;
 			return *this;
 		}
@@ -3419,7 +3562,6 @@ namespace Mavi
 			Expires = Other.Expires;
 			Id = Other.Id;
 			Alive = Other.Alive;
-			Invocations = Other.Invocations;
 			Type = Other.Type;
 			return *this;
 		}
@@ -3497,7 +3639,7 @@ namespace Mavi
 		{
 			return Time == Right.Time;
 		}
-		Core::String DateTime::Format(const Core::String& Value)
+		String DateTime::Format(const String& Value)
 		{
 			if (DateRebuild)
 				Rebuild();
@@ -3506,7 +3648,7 @@ namespace Mavi
 			strftime(Buffer, sizeof(Buffer), Value.c_str(), &DateValue);
 			return Buffer;
 		}
-		Core::String DateTime::Date(const Core::String& Value)
+		String DateTime::Date(const String& Value)
 		{
 			auto Offset = std::chrono::system_clock::to_time_t(std::chrono::system_clock::time_point(Time));
 			if (DateRebuild)
@@ -3530,7 +3672,7 @@ namespace Mavi
 			Stringify::Replace(Result, "{Y}", Core::ToString(T.tm_year));
 			return Result;
 		}
-		Core::String DateTime::Iso8601()
+		String DateTime::Iso8601()
 		{
 			if (DateRebuild)
 				Rebuild();
@@ -3933,7 +4075,7 @@ namespace Mavi
 
 			return std::chrono::duration_cast<_Years>(Time).count();
 		}
-		Core::String DateTime::FetchWebDateGMT(int64_t TimeStamp)
+		String DateTime::FetchWebDateGMT(int64_t TimeStamp)
 		{
 			auto Time = (time_t)TimeStamp;
 			struct tm Date { };
@@ -3948,7 +4090,7 @@ namespace Mavi
 			strftime(Buffer, sizeof(Buffer), "%a, %d %b %Y %H:%M:%S GMT", &Date);
 			return Buffer;
 		}
-		Core::String DateTime::FetchWebDateTime(int64_t TimeStamp)
+		String DateTime::FetchWebDateTime(int64_t TimeStamp)
 		{
 			auto Time = (time_t)TimeStamp;
 			struct tm Date { };
@@ -4095,7 +4237,7 @@ namespace Mavi
 			return 0;
 		}
 
-		Core::String& Stringify::EscapePrint(Core::String& Other)
+		String& Stringify::EscapePrint(String& Other)
 		{
 			for (size_t i = 0; i < Other.size(); i++)
 			{
@@ -4118,7 +4260,7 @@ namespace Mavi
 			}
 			return Other;
 		}
-		Core::String& Stringify::Escape(Core::String& Other)
+		String& Stringify::Escape(String& Other)
 		{
 			for (size_t i = 0; i < Other.size(); i++)
 			{
@@ -4150,7 +4292,7 @@ namespace Mavi
 			}
 			return Other;
 		}
-		Core::String& Stringify::Unescape(Core::String& Other)
+		String& Stringify::Unescape(String& Other)
 		{
 			for (size_t i = 0; i < Other.size(); i++)
 			{
@@ -4179,23 +4321,23 @@ namespace Mavi
 			}
 			return Other;
 		}
-		Core::String& Stringify::ToUpper(Core::String& Other)
+		String& Stringify::ToUpper(String& Other)
 		{
 			std::transform(Other.begin(), Other.end(), Other.begin(), ::toupper);
 			return Other;
 		}
-		Core::String& Stringify::ToLower(Core::String& Other)
+		String& Stringify::ToLower(String& Other)
 		{
 			std::transform(Other.begin(), Other.end(), Other.begin(), ::tolower);
 			return Other;
 		}
-		Core::String& Stringify::Clip(Core::String& Other, size_t Length)
+		String& Stringify::Clip(String& Other, size_t Length)
 		{
 			if (Length < Other.size())
 				Other.erase(Length, Other.size() - Length);
 			return Other;
 		}
-		Core::String& Stringify::Compress(Core::String& Other, const char* Tokenbase, const char* NotInBetweenOf, size_t Start)
+		String& Stringify::Compress(String& Other, const char* Tokenbase, const char* NotInBetweenOf, size_t Start)
 		{
 			size_t TokenbaseSize = (Tokenbase ? strlen(Tokenbase) : 0);
 			size_t NiboSize = (NotInBetweenOf ? strlen(NotInBetweenOf) : 0);
@@ -4262,7 +4404,7 @@ namespace Mavi
 			}
 			return Other;
 		}
-		Core::String& Stringify::ReplaceOf(Core::String& Other, const char* Chars, const char* To, size_t Start)
+		String& Stringify::ReplaceOf(String& Other, const char* Chars, const char* To, size_t Start)
 		{
 			VI_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, "match list and replacer should not be empty");
 			TextSettle Result{ };
@@ -4275,7 +4417,7 @@ namespace Mavi
 			}
 			return Other;
 		}
-		Core::String& Stringify::ReplaceNotOf(Core::String& Other, const char* Chars, const char* To, size_t Start)
+		String& Stringify::ReplaceNotOf(String& Other, const char* Chars, const char* To, size_t Start)
 		{
 			VI_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, "match list and replacer should not be empty");
 			TextSettle Result{};
@@ -4288,7 +4430,7 @@ namespace Mavi
 			}
 			return Other;
 		}
-		Core::String& Stringify::Replace(Core::String& Other, const Core::String& From, const Core::String& To, size_t Start)
+		String& Stringify::Replace(String& Other, const String& From, const String& To, size_t Start)
 		{
 			VI_ASSERT(!From.empty(), "match should not be empty");
 			size_t Offset = Start;
@@ -4302,13 +4444,13 @@ namespace Mavi
 			}
 			return Other;
 		}
-		Core::String& Stringify::ReplaceGroups(Core::String& Other, const Core::String& FromRegex, const Core::String& To)
+		String& Stringify::ReplaceGroups(String& Other, const String& FromRegex, const String& To)
 		{
 			Compute::RegexSource Source('(' + FromRegex + ')');
 			Compute::Regex::Replace(&Source, To, Other);
 			return Other;
 		}
-		Core::String& Stringify::Replace(Core::String& Other, const char* From, const char* To, size_t Start)
+		String& Stringify::Replace(String& Other, const char* From, const char* To, size_t Start)
 		{
 			VI_ASSERT(From != nullptr && To != nullptr, "from and to should not be empty");
 			size_t Offset = Start;
@@ -4323,7 +4465,7 @@ namespace Mavi
 			}
 			return Other;
 		}
-		Core::String& Stringify::Replace(Core::String& Other, const char& From, const char& To, size_t Position)
+		String& Stringify::Replace(String& Other, const char& From, const char& To, size_t Position)
 		{
 			for (size_t i = Position; i < Other.size(); i++)
 			{
@@ -4333,7 +4475,7 @@ namespace Mavi
 			}
 			return Other;
 		}
-		Core::String& Stringify::Replace(Core::String& Other, const char& From, const char& To, size_t Position, size_t Count)
+		String& Stringify::Replace(String& Other, const char& From, const char& To, size_t Position, size_t Count)
 		{
 			VI_ASSERT(Other.size() >= (Position + Count), "invalid offset");
 			size_t Size = Position + Count;
@@ -4345,11 +4487,11 @@ namespace Mavi
 			}
 			return Other;
 		}
-		Core::String& Stringify::ReplacePart(Core::String& Other, size_t Start, size_t End, const Core::String& Value)
+		String& Stringify::ReplacePart(String& Other, size_t Start, size_t End, const String& Value)
 		{
 			return ReplacePart(Other, Start, End, Value.c_str());
 		}
-		Core::String& Stringify::ReplacePart(Core::String& Other, size_t Start, size_t End, const char* Value)
+		String& Stringify::ReplacePart(String& Other, size_t Start, size_t End, const char* Value)
 		{
 			VI_ASSERT(Start < Other.size(), "invalid start");
 			VI_ASSERT(End <= Other.size(), "invalid end");
@@ -4368,7 +4510,7 @@ namespace Mavi
 				Other.assign(Other.substr(0, Start) + Value + Other.substr(End, Other.size() - End));
 			return Other;
 		}
-		Core::String& Stringify::ReplaceStartsWithEndsOf(Core::String& Other, const char* Begins, const char* EndsOf, const Core::String& With, size_t Start)
+		String& Stringify::ReplaceStartsWithEndsOf(String& Other, const char* Begins, const char* EndsOf, const String& With, size_t Start)
 		{
 			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
 			VI_ASSERT(EndsOf != nullptr && EndsOf[0] != '\0', "end should not be empty");
@@ -4415,7 +4557,7 @@ namespace Mavi
 			}
 			return Other;
 		}
-		Core::String& Stringify::ReplaceInBetween(Core::String& Other, const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start)
+		String& Stringify::ReplaceInBetween(String& Other, const char* Begins, const char* Ends, const String& With, bool Recursive, size_t Start)
 		{
 			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
 			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', "end should not be empty");
@@ -4478,13 +4620,13 @@ namespace Mavi
 			}
 			return Other;
 		}
-		Core::String& Stringify::ReplaceNotInBetween(Core::String& Other, const char* Begins, const char* Ends, const Core::String& With, bool Recursive, size_t Start)
+		String& Stringify::ReplaceNotInBetween(String& Other, const char* Begins, const char* Ends, const String& With, bool Recursive, size_t Start)
 		{
 			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
 			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', "end should not be empty");
 
 			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
-			size_t ReplaceAt = Core::String::npos;
+			size_t ReplaceAt = String::npos;
 
 			for (size_t i = Start; i < Other.size(); i++)
 			{
@@ -4498,18 +4640,18 @@ namespace Mavi
 				size_t Nesting = 1;
 				if (BeginsOffset != BeginsSize)
 				{
-					if (ReplaceAt == Core::String::npos)
+					if (ReplaceAt == String::npos)
 						ReplaceAt = i;
 
 					continue;
 				}
 
-				if (ReplaceAt != Core::String::npos)
+				if (ReplaceAt != String::npos)
 				{
 					Other.replace(Other.begin() + ReplaceAt, Other.begin() + i, With);
 					From = ReplaceAt + BeginsSize + With.size();
 					i = From - BeginsSize;
-					ReplaceAt = Core::String::npos;
+					ReplaceAt = String::npos;
 				}
 
 				size_t To = From, EndsOffset = 0;
@@ -4542,13 +4684,13 @@ namespace Mavi
 				i = To - 1;
 			}
 
-			if (ReplaceAt != Core::String::npos)
+			if (ReplaceAt != String::npos)
 				Other.replace(Other.begin() + ReplaceAt, Other.end(), With);
 			return Other;
 		}
-		Core::String& Stringify::ReplaceParts(Core::String& Other, Core::Vector<std::pair<Core::String, TextSettle>>& Inout, const Core::String& With, const std::function<char(const Core::String&, char, int)>& Surrounding)
+		String& Stringify::ReplaceParts(String& Other, Vector<std::pair<String, TextSettle>>& Inout, const String& With, const std::function<char(const String&, char, int)>& Surrounding)
 		{
-			VI_SORT(Inout.begin(), Inout.end(), [](const std::pair<Core::String, TextSettle>& A, const std::pair<Core::String, TextSettle>& B)
+			VI_SORT(Inout.begin(), Inout.end(), [](const std::pair<String, TextSettle>& A, const std::pair<String, TextSettle>& B)
 			{
 				return A.second.Start < B.second.Start;
 			});
@@ -4564,7 +4706,7 @@ namespace Mavi
 				Item.second.End = (size_t)((int64_t)Item.second.End + Offset);
 				if (Surrounding != nullptr)
 				{
-					Core::String Replacement = With;
+					String Replacement = With;
 					if (Item.second.Start > 0)
 					{
 						char Next = Surrounding(Item.first, Other.at(Item.second.Start - 1), -1);
@@ -4592,7 +4734,7 @@ namespace Mavi
 			}
 			return Other;
 		}
-		Core::String& Stringify::ReplaceParts(Core::String& Other, Core::Vector<TextSettle>& Inout, const Core::String& With, const std::function<char(char, int)>& Surrounding)
+		String& Stringify::ReplaceParts(String& Other, Vector<TextSettle>& Inout, const String& With, const std::function<char(char, int)>& Surrounding)
 		{
 			VI_SORT(Inout.begin(), Inout.end(), [](const TextSettle& A, const TextSettle& B)
 			{
@@ -4610,7 +4752,7 @@ namespace Mavi
 				Item.End = (size_t)((int64_t)Item.End + Offset);
 				if (Surrounding != nullptr)
 				{
-					Core::String Replacement = With;
+					String Replacement = With;
 					if (Item.Start > 0)
 					{
 						char Next = Surrounding(Other.at(Item.Start - 1), -1);
@@ -4638,7 +4780,7 @@ namespace Mavi
 			}
 			return Other;
 		}
-		Core::String& Stringify::RemovePart(Core::String& Other, size_t Start, size_t End)
+		String& Stringify::RemovePart(String& Other, size_t Start, size_t End)
 		{
 			VI_ASSERT(Start < Other.size(), "invalid start");
 			VI_ASSERT(End <= Other.size(), "invalid end");
@@ -4657,13 +4799,13 @@ namespace Mavi
 				Other.assign(Other.substr(0, Start) + Other.substr(End, Other.size() - End));
 			return Other;
 		}
-		Core::String& Stringify::Reverse(Core::String& Other)
+		String& Stringify::Reverse(String& Other)
 		{
 			if (!Other.empty())
 				Reverse(Other, 0, Other.size());
 			return Other;
 		}
-		Core::String& Stringify::Reverse(Core::String& Other, size_t Start, size_t End)
+		String& Stringify::Reverse(String& Other, size_t Start, size_t End)
 		{
 			VI_ASSERT(Other.size() >= 2, "length should be at least 2 chars");
 			VI_ASSERT(End < Other.size(), "end should be less than length - 1");
@@ -4672,7 +4814,7 @@ namespace Mavi
 			std::reverse(Other.begin() + Start, Other.begin() + End);
 			return Other;
 		}
-		Core::String& Stringify::Substring(Core::String& Other, const TextSettle& Result)
+		String& Stringify::Substring(String& Other, const TextSettle& Result)
 		{
 			VI_ASSERT(Result.Found, "result should be found");
 			if (Result.Start >= Other.size())
@@ -4689,7 +4831,7 @@ namespace Mavi
 			Other.assign(Other.substr(Result.Start, (size_t)(Offset < 0 ? -Offset : Offset)));
 			return Other;
 		}
-		Core::String& Stringify::Splice(Core::String& Other, size_t Start, size_t End)
+		String& Stringify::Splice(String& Other, size_t Start, size_t End)
 		{
 			VI_ASSERT(Start < Other.size(), "result start should be less or equal than length - 1");
 			if (End > Other.size())
@@ -4699,13 +4841,13 @@ namespace Mavi
 			Other.assign(Other.substr(Start, (size_t)(Offset < 0 ? -Offset : Offset)));
 			return Other;
 		}
-		Core::String& Stringify::Trim(Core::String& Other)
+		String& Stringify::Trim(String& Other)
 		{
 			TrimStart(Other);
 			TrimEnd(Other);
 			return Other;
 		}
-		Core::String& Stringify::TrimStart(Core::String& Other)
+		String& Stringify::TrimStart(String& Other)
 		{
 			Other.erase(Other.begin(), std::find_if(Other.begin(), Other.end(), [](int C) -> int
 			{
@@ -4716,7 +4858,7 @@ namespace Mavi
 			}));
 			return Other;
 		}
-		Core::String& Stringify::TrimEnd(Core::String& Other)
+		String& Stringify::TrimEnd(String& Other)
 		{
 			Other.erase(std::find_if(Other.rbegin(), Other.rend(), [](int C) -> int
 			{
@@ -4727,18 +4869,18 @@ namespace Mavi
 			}).base(), Other.end());
 			return Other;
 		}
-		Core::String& Stringify::Fill(Core::String& Other, const char& Char)
+		String& Stringify::Fill(String& Other, const char& Char)
 		{
 			for (char& i : Other)
 				i = Char;
 			return Other;
 		}
-		Core::String& Stringify::Fill(Core::String& Other, const char& Char, size_t Count)
+		String& Stringify::Fill(String& Other, const char& Char, size_t Count)
 		{
 			Other.assign(Count, Char);
 			return Other;
 		}
-		Core::String& Stringify::Fill(Core::String& Other, const char& Char, size_t Start, size_t Count)
+		String& Stringify::Fill(String& Other, const char& Char, size_t Start, size_t Count)
 		{
 			VI_ASSERT(!Other.empty(), "length should be greater than Zero");
 			VI_ASSERT(Start <= Other.size(), "start should be less or equal than length");
@@ -4750,7 +4892,7 @@ namespace Mavi
 				Other.at(i) = Char;
 			return Other;
 		}
-		Core::String& Stringify::Append(Core::String& Other, const char* Format, ...)
+		String& Stringify::Append(String& Other, const char* Format, ...)
 		{
 			VI_ASSERT(Format != nullptr, "format should be set");
 			char Buffer[BLOB_SIZE];
@@ -4761,32 +4903,32 @@ namespace Mavi
 			Other.append(Buffer, Count);
 			return Other;
 		}
-		Core::String& Stringify::Erase(Core::String& Other, size_t Position)
+		String& Stringify::Erase(String& Other, size_t Position)
 		{
 			VI_ASSERT(Position < Other.size(), "position should be less than length");
 			Other.erase(Position);
 			return Other;
 		}
-		Core::String& Stringify::Erase(Core::String& Other, size_t Position, size_t Count)
+		String& Stringify::Erase(String& Other, size_t Position, size_t Count)
 		{
 			VI_ASSERT(Position < Other.size(), "position should be less than length");
 			Other.erase(Position, Count);
 			return Other;
 		}
-		Core::String& Stringify::EraseOffsets(Core::String& Other, size_t Start, size_t End)
+		String& Stringify::EraseOffsets(String& Other, size_t Start, size_t End)
 		{
 			return Erase(Other, Start, End - Start);
 		}
-		Core::String& Stringify::EvalEnvs(Core::String& Other, const Core::String& Net, const Core::String& Dir)
+		String& Stringify::EvalEnvs(String& Other, const String& Net, const String& Dir)
 		{
 			if (Other.empty())
 				return Other;
 
 			if (StartsOf(Other, "./\\"))
 			{
-				Core::String Result = Core::OS::Path::Resolve(Other.c_str(), Dir, false);
-				if (!Result.empty())
-					Other.assign(Result);
+				Expected<String> Result = OS::Path::Resolve(Other.c_str(), Dir, false);
+				if (Result)
+					Other.assign(*Result);
 			}
 			else if (Other.front() == '$' && Other.size() > 1)
 			{
@@ -4801,11 +4943,12 @@ namespace Mavi
 			}
 			else
 				Replace(Other, "[subnet]", Net);
+
 			return Other;
 		}
-		Core::Vector<std::pair<Core::String, TextSettle>> Stringify::FindInBetween(const Core::String& Other, const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset)
+		Vector<std::pair<String, TextSettle>> Stringify::FindInBetween(const String& Other, const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset)
 		{
-			Core::Vector<std::pair<Core::String, TextSettle>> Result;
+			Vector<std::pair<String, TextSettle>> Result;
 			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
 			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', "end should not be empty");
 
@@ -4873,9 +5016,9 @@ namespace Mavi
 
 			return Result;
 		}
-		Core::Vector<std::pair<Core::String, TextSettle>> Stringify::FindStartsWithEndsOf(const Core::String& Other, const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset)
+		Vector<std::pair<String, TextSettle>> Stringify::FindStartsWithEndsOf(const String& Other, const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset)
 		{
-			Core::Vector<std::pair<Core::String, TextSettle>> Result;
+			Vector<std::pair<String, TextSettle>> Result;
 			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
 			VI_ASSERT(EndsOf != nullptr && EndsOf[0] != '\0', "end should not be empty");
 
@@ -4951,7 +5094,7 @@ namespace Mavi
 
 			return Result;
 		}
-		TextSettle Stringify::ReverseFind(const Core::String& Other, const Core::String& Needle, size_t Offset)
+		TextSettle Stringify::ReverseFind(const String& Other, const String& Needle, size_t Offset)
 		{
 			if (Other.empty() || Offset >= Other.size())
 				return { Other.size(), Other.size(), false };
@@ -4972,7 +5115,7 @@ namespace Mavi
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::ReverseFind(const Core::String& Other, const char* Needle, size_t Offset)
+		TextSettle Stringify::ReverseFind(const String& Other, const char* Needle, size_t Offset)
 		{
 			if (Other.empty() || Offset >= Other.size())
 				return { Other.size(), Other.size(), false };
@@ -4994,7 +5137,7 @@ namespace Mavi
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::ReverseFind(const Core::String& Other, const char& Needle, size_t Offset)
+		TextSettle Stringify::ReverseFind(const String& Other, const char& Needle, size_t Offset)
 		{
 			if (Other.empty() || Offset >= Other.size())
 				return { Other.size(), Other.size(), false };
@@ -5008,7 +5151,7 @@ namespace Mavi
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::ReverseFindUnescaped(const Core::String& Other, const char& Needle, size_t Offset)
+		TextSettle Stringify::ReverseFindUnescaped(const String& Other, const char& Needle, size_t Offset)
 		{
 			if (Other.empty() || Offset >= Other.size())
 				return { Other.size(), Other.size(), false };
@@ -5022,7 +5165,7 @@ namespace Mavi
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::ReverseFindOf(const Core::String& Other, const Core::String& Needle, size_t Offset)
+		TextSettle Stringify::ReverseFindOf(const String& Other, const String& Needle, size_t Offset)
 		{
 			if (Other.empty() || Offset >= Other.size())
 				return { Other.size(), Other.size(), false };
@@ -5039,7 +5182,7 @@ namespace Mavi
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::ReverseFindOf(const Core::String& Other, const char* Needle, size_t Offset)
+		TextSettle Stringify::ReverseFindOf(const String& Other, const char* Needle, size_t Offset)
 		{
 			if (Other.empty() || Offset >= Other.size())
 				return { Other.size(), Other.size(), false };
@@ -5060,7 +5203,7 @@ namespace Mavi
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::Find(const Core::String& Other, const Core::String& Needle, size_t Offset)
+		TextSettle Stringify::Find(const String& Other, const String& Needle, size_t Offset)
 		{
 			if (Other.empty() || Offset >= Other.size())
 				return { Other.size(), Other.size(), false };
@@ -5072,7 +5215,7 @@ namespace Mavi
 			size_t Set = (size_t)(It - Other.c_str());
 			return { Set, Set + Needle.size(), true };
 		}
-		TextSettle Stringify::Find(const Core::String& Other, const char* Needle, size_t Offset)
+		TextSettle Stringify::Find(const String& Other, const char* Needle, size_t Offset)
 		{
 			VI_ASSERT(Needle != nullptr, "needle should be set");
 			if (Other.empty() || Offset >= Other.size())
@@ -5085,7 +5228,7 @@ namespace Mavi
 			size_t Set = (size_t)(It - Other.c_str());
 			return { Set, Set + strlen(Needle), true };
 		}
-		TextSettle Stringify::Find(const Core::String& Other, const char& Needle, size_t Offset)
+		TextSettle Stringify::Find(const String& Other, const char& Needle, size_t Offset)
 		{
 			for (size_t i = Offset; i < Other.size(); i++)
 			{
@@ -5095,7 +5238,7 @@ namespace Mavi
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::FindUnescaped(const Core::String& Other, const char& Needle, size_t Offset)
+		TextSettle Stringify::FindUnescaped(const String& Other, const char& Needle, size_t Offset)
 		{
 			for (size_t i = Offset; i < Other.size(); i++)
 			{
@@ -5105,7 +5248,7 @@ namespace Mavi
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::FindOf(const Core::String& Other, const Core::String& Needle, size_t Offset)
+		TextSettle Stringify::FindOf(const String& Other, const String& Needle, size_t Offset)
 		{
 			for (size_t i = Offset; i < Other.size(); i++)
 			{
@@ -5118,7 +5261,7 @@ namespace Mavi
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::FindOf(const Core::String& Other, const char* Needle, size_t Offset)
+		TextSettle Stringify::FindOf(const String& Other, const char* Needle, size_t Offset)
 		{
 			VI_ASSERT(Needle != nullptr, "needle should be set");
 			size_t Length = strlen(Needle);
@@ -5133,7 +5276,7 @@ namespace Mavi
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::FindNotOf(const Core::String& Other, const Core::String& Needle, size_t Offset)
+		TextSettle Stringify::FindNotOf(const String& Other, const String& Needle, size_t Offset)
 		{
 			for (size_t i = Offset; i < Other.size(); i++)
 			{
@@ -5153,7 +5296,7 @@ namespace Mavi
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::FindNotOf(const Core::String& Other, const char* Needle, size_t Offset)
+		TextSettle Stringify::FindNotOf(const String& Other, const char* Needle, size_t Offset)
 		{
 			VI_ASSERT(Needle != nullptr, "needle should be set");
 			size_t Length = strlen(Needle);
@@ -5175,7 +5318,7 @@ namespace Mavi
 
 			return { Other.size(), Other.size(), false };
 		}
-		bool Stringify::IsPrecededBy(const Core::String& Other, size_t At, const char* Of)
+		bool Stringify::IsPrecededBy(const String& Other, size_t At, const char* Of)
 		{
 			VI_ASSERT(Of != nullptr, "tokenbase should be set");
 			if (!At || At - 1 >= Other.size())
@@ -5191,7 +5334,7 @@ namespace Mavi
 
 			return false;
 		}
-		bool Stringify::IsFollowedBy(const Core::String& Other, size_t At, const char* Of)
+		bool Stringify::IsFollowedBy(const String& Other, size_t At, const char* Of)
 		{
 			VI_ASSERT(Of != nullptr, "tokenbase should be set");
 			if (At + 1 >= Other.size())
@@ -5207,7 +5350,7 @@ namespace Mavi
 
 			return false;
 		}
-		bool Stringify::StartsWith(const Core::String& Other, const Core::String& Value, size_t Offset)
+		bool Stringify::StartsWith(const String& Other, const String& Value, size_t Offset)
 		{
 			if (Other.size() < Value.size())
 				return false;
@@ -5220,7 +5363,7 @@ namespace Mavi
 
 			return true;
 		}
-		bool Stringify::StartsWith(const Core::String& Other, const char* Value, size_t Offset)
+		bool Stringify::StartsWith(const String& Other, const char* Value, size_t Offset)
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			size_t Length = strlen(Value);
@@ -5235,7 +5378,7 @@ namespace Mavi
 
 			return true;
 		}
-		bool Stringify::StartsOf(const Core::String& Other, const char* Value, size_t Offset)
+		bool Stringify::StartsOf(const String& Other, const char* Value, size_t Offset)
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			size_t Length = strlen(Value);
@@ -5250,7 +5393,7 @@ namespace Mavi
 
 			return false;
 		}
-		bool Stringify::StartsNotOf(const Core::String& Other, const char* Value, size_t Offset)
+		bool Stringify::StartsNotOf(const String& Other, const char* Value, size_t Offset)
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			size_t Length = strlen(Value);
@@ -5269,14 +5412,14 @@ namespace Mavi
 
 			return Result;
 		}
-		bool Stringify::EndsWith(const Core::String& Other, const Core::String& Value)
+		bool Stringify::EndsWith(const String& Other, const String& Value)
 		{
 			if (Other.empty() || Value.size() > Other.size())
 				return false;
 
 			return strcmp(Other.c_str() + Other.size() - Value.size(), Value.c_str()) == 0;
 		}
-		bool Stringify::EndsWith(const Core::String& Other, const char* Value)
+		bool Stringify::EndsWith(const String& Other, const char* Value)
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			size_t Size = strlen(Value);
@@ -5285,11 +5428,11 @@ namespace Mavi
 
 			return strcmp(Other.c_str() + Other.size() - Size, Value) == 0;
 		}
-		bool Stringify::EndsWith(const Core::String& Other, const char& Value)
+		bool Stringify::EndsWith(const String& Other, const char& Value)
 		{
 			return !Other.empty() && Other.back() == Value;
 		}
-		bool Stringify::EndsOf(const Core::String& Other, const char* Value)
+		bool Stringify::EndsOf(const String& Other, const char* Value)
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			if (Other.empty())
@@ -5304,7 +5447,7 @@ namespace Mavi
 
 			return false;
 		}
-		bool Stringify::EndsNotOf(const Core::String& Other, const char* Value)
+		bool Stringify::EndsNotOf(const String& Other, const char* Value)
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			if (Other.empty())
@@ -5319,7 +5462,7 @@ namespace Mavi
 
 			return true;
 		}
-		bool Stringify::HasInteger(const Core::String& Other)
+		bool Stringify::HasInteger(const String& Other)
 		{
 			if (Other.empty())
 				return false;
@@ -5345,7 +5488,7 @@ namespace Mavi
 
 			return true;
 		}
-		bool Stringify::HasNumber(const Core::String& Other)
+		bool Stringify::HasNumber(const String& Other)
 		{
 			if (Other.empty() || (Other.size() == 1 && Other.front() == '.'))
 				return false;
@@ -5379,7 +5522,7 @@ namespace Mavi
 
 			return true;
 		}
-		bool Stringify::HasDecimal(const Core::String& Other)
+		bool Stringify::HasDecimal(const String& Other)
 		{
 			auto F = Find(Other, '.');
 			if (!F.Found)
@@ -5473,7 +5616,7 @@ namespace Mavi
 
 			return j;
 		}
-		Core::String Stringify::Text(const char* Format, ...)
+		String Stringify::Text(const char* Format, ...)
 		{
 			VI_ASSERT(Format != nullptr, "format should be set");
 			va_list Args;
@@ -5485,9 +5628,9 @@ namespace Mavi
 			va_end(Args);
 			return String(Buffer, (size_t)Size);
 		}
-		Core::WideString Stringify::ToWide(const Core::String& Other)
+		WideString Stringify::ToWide(const String& Other)
 		{
-			Core::WideString Output;
+			WideString Output;
 			Output.reserve(Other.size());
 
 			wchar_t W;
@@ -5547,9 +5690,9 @@ namespace Mavi
 
 			return Output;
 		}
-		Core::Vector<Core::String> Stringify::Split(const Core::String& Other, const Core::String& With, size_t Start)
+		Vector<String> Stringify::Split(const String& Other, const String& With, size_t Start)
 		{
-			Core::Vector<Core::String> Output;
+			Vector<String> Output;
 			if (Start >= Other.size())
 				return Output;
 
@@ -5566,9 +5709,9 @@ namespace Mavi
 
 			return Output;
 		}
-		Core::Vector<Core::String> Stringify::Split(const Core::String& Other, char With, size_t Start)
+		Vector<String> Stringify::Split(const String& Other, char With, size_t Start)
 		{
-			Core::Vector<Core::String> Output;
+			Vector<String> Output;
 			if (Start >= Other.size())
 				return Output;
 
@@ -5585,9 +5728,9 @@ namespace Mavi
 
 			return Output;
 		}
-		Core::Vector<Core::String> Stringify::SplitMax(const Core::String& Other, char With, size_t Count, size_t Start)
+		Vector<String> Stringify::SplitMax(const String& Other, char With, size_t Count, size_t Start)
 		{
-			Core::Vector<Core::String> Output;
+			Vector<String> Output;
 			if (Start >= Other.size())
 				return Output;
 
@@ -5604,9 +5747,9 @@ namespace Mavi
 
 			return Output;
 		}
-		Core::Vector<Core::String> Stringify::SplitOf(const Core::String& Other, const char* With, size_t Start)
+		Vector<String> Stringify::SplitOf(const String& Other, const char* With, size_t Start)
 		{
-			Core::Vector<Core::String> Output;
+			Vector<String> Output;
 			if (Start >= Other.size())
 				return Output;
 
@@ -5623,9 +5766,9 @@ namespace Mavi
 
 			return Output;
 		}
-		Core::Vector<Core::String> Stringify::SplitNotOf(const Core::String& Other, const char* With, size_t Start)
+		Vector<String> Stringify::SplitNotOf(const String& Other, const char* With, size_t Start)
 		{
-			Core::Vector<Core::String> Output;
+			Vector<String> Output;
 			if (Start >= Other.size())
 				return Output;
 
@@ -5901,10 +6044,10 @@ namespace Mavi
 			return Result;
 		}
 
-		Core::UnorderedSet<uint64_t> Composer::Fetch(uint64_t Id) noexcept
+		UnorderedSet<uint64_t> Composer::Fetch(uint64_t Id) noexcept
 		{
 			VI_ASSERT(Context != nullptr, "composer should be initialized");
-			Core::UnorderedSet<uint64_t> Hashes;
+			UnorderedSet<uint64_t> Hashes;
 			for (auto& Item : Context->Factory)
 			{
 				if (Item.second.first == Id)
@@ -5913,7 +6056,7 @@ namespace Mavi
 
 			return Hashes;
 		}
-		bool Composer::Pop(const Core::String& Hash) noexcept
+		bool Composer::Pop(const String& Hash) noexcept
 		{
 			VI_ASSERT(Context != nullptr, "composer should be initialized");
 			VI_TRACE("[composer] pop %s", Hash.c_str());
@@ -6065,8 +6208,8 @@ namespace Mavi
 		void Console::Hide()
 		{
 #ifdef VI_MICROSOFT
-			::ShowWindow(::GetConsoleWindow(), SW_HIDE);
 			VI_TRACE("[console] hide window");
+			::ShowWindow(::GetConsoleWindow(), SW_HIDE);
 #endif
 		}
 		void Console::Show()
@@ -6178,7 +6321,7 @@ namespace Mavi
 			std::cout << "\033[0m";
 #endif
 		}
-		void Console::ColorPrint(StdColor BaseColor, const Core::String& Buffer)
+		void Console::ColorPrint(StdColor BaseColor, const String& Buffer)
 		{
 			ColorPrintBuffer(BaseColor, Buffer.c_str(), Buffer.size());
 		}
@@ -6295,7 +6438,7 @@ namespace Mavi
 			VI_ASSERT(Buffer != nullptr, "buffer should be set");
 			std::cout << Buffer;
 		}
-		void Console::WriteLine(const Core::String& Line)
+		void Console::WriteLine(const String& Line)
 		{
 			std::cout << Line << '\n';
 		}
@@ -6303,7 +6446,7 @@ namespace Mavi
 		{
 			std::cout << Value;
 		}
-		void Console::Write(const Core::String& Line)
+		void Console::Write(const String& Line)
 		{
 			std::cout << Line;
 		}
@@ -6337,12 +6480,12 @@ namespace Mavi
 
 			std::cout << Buffer;
 		}
-		void Console::sWriteLine(const Core::String& Line)
+		void Console::sWriteLine(const String& Line)
 		{
 			UMutex<std::recursive_mutex> Unique(Session);
 			std::cout << Line << '\n';
 		}
-		void Console::sWrite(const Core::String& Line)
+		void Console::sWrite(const String& Line)
 		{
 			UMutex<std::recursive_mutex> Unique(Session);
 			std::cout << Line;
@@ -6405,7 +6548,7 @@ namespace Mavi
 		{
 			return (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0 - Cache.Time;
 		}
-		bool Console::ReadLine(Core::String& Data, size_t Size)
+		bool Console::ReadLine(String& Data, size_t Size)
 		{
 			VI_ASSERT(Status != Mode::Detached, "console should be shown at least once");
 			VI_ASSERT(Size > 0, "read length should be greater than zero");
@@ -6433,9 +6576,9 @@ namespace Mavi
 
 			return Success;
 		}
-		Core::String Console::Read(size_t Size)
+		String Console::Read(size_t Size)
 		{
-			Core::String Data;
+			String Data;
 			Data.reserve(Size);
 			ReadLine(Data, Size);
 			return Data;
@@ -6640,7 +6783,7 @@ namespace Mavi
 
 			return Size;
 		}
-		Core::String& Stream::GetSource()
+		String& Stream::GetSource()
 		{
 			return Path;
 		}
@@ -6652,116 +6795,145 @@ namespace Mavi
 		{
 			Close();
 		}
-		bool FileStream::Clear()
+		Expected<void> FileStream::Clear()
 		{
 			VI_TRACE("[io] fs %i clear", GetFd());
-			if (!Close())
-				return false;
+			auto Result = Close();
+			if (!Result)
+				return Result;
 
 			if (Path.empty())
-				return false;
+				return std::make_error_condition(std::errc::invalid_argument);
 
-			Resource = (FILE*)OS::File::Open(Path.c_str(), "w");
-			return Resource != nullptr;
+			auto Target = OS::File::Open(Path.c_str(), "w");
+			if (!Target)
+				return Target.Error();
+			
+			Resource = *Target;
+			return Optional::OK;
 		}
-		bool FileStream::Open(const char* File, FileMode Mode)
+		Expected<void> FileStream::Open(const char* File, FileMode Mode)
 		{
 			VI_ASSERT(File != nullptr, "filename should be set");
+			VI_MEASURE(Timings::FileSystem);
+			auto Result = Close();
+			if (!Result)
+				return Result;
 
-			Close();
-			Path = OS::Path::Resolve(File);
-
+			const char* Type = nullptr;
 			switch (Mode)
 			{
 				case FileMode::Read_Only:
-					Resource = (FILE*)OS::File::Open(Path.c_str(), "r");
+					Type = "r";
 					break;
 				case FileMode::Write_Only:
-					Resource = (FILE*)OS::File::Open(Path.c_str(), "w");
+					Type = "w";
 					break;
 				case FileMode::Append_Only:
-					Resource = (FILE*)OS::File::Open(Path.c_str(), "a");
+					Type = "a";
 					break;
 				case FileMode::Read_Write:
-					Resource = (FILE*)OS::File::Open(Path.c_str(), "r+");
+					Type = "r+";
 					break;
 				case FileMode::Write_Read:
-					Resource = (FILE*)OS::File::Open(Path.c_str(), "w+");
+					Type = "w+";
 					break;
 				case FileMode::Read_Append_Write:
-					Resource = (FILE*)OS::File::Open(Path.c_str(), "a+");
+					Type = "a+";
 					break;
 				case FileMode::Binary_Read_Only:
-					Resource = (FILE*)OS::File::Open(Path.c_str(), "rb");
+					Type = "rb";
 					break;
 				case FileMode::Binary_Write_Only:
-					Resource = (FILE*)OS::File::Open(Path.c_str(), "wb");
+					Type = "wb";
 					break;
 				case FileMode::Binary_Append_Only:
-					Resource = (FILE*)OS::File::Open(Path.c_str(), "ab");
+					Type = "ab";
 					break;
 				case FileMode::Binary_Read_Write:
-					Resource = (FILE*)OS::File::Open(Path.c_str(), "rb+");
+					Type = "rb+";
 					break;
 				case FileMode::Binary_Write_Read:
-					Resource = (FILE*)OS::File::Open(Path.c_str(), "wb+");
+					Type = "wb+";
 					break;
 				case FileMode::Binary_Read_Append_Write:
-					Resource = (FILE*)OS::File::Open(Path.c_str(), "ab+");
+					Type = "ab+";
 					break;
-			}
+				default:
+					break;
+			} 
 
-			return Resource != nullptr;
+			VI_PANIC(Type != nullptr, "file open cannot be issued with mode:%i", (int)Mode);
+			Expected<String> TargetPath = OS::Path::Resolve(File);
+			if (!TargetPath)
+				return TargetPath.Error();
+
+			auto Target = OS::File::Open(TargetPath->c_str(), Type);
+			if (!Target)
+				return Target.Error();
+
+			Resource = *Target;
+			Path = *TargetPath;
+			return Optional::OK;
 		}
-		bool FileStream::Close()
+		Expected<void> FileStream::Close()
 		{
-			if (Resource != nullptr)
-			{
-				OS::File::Close(Resource);
-				Resource = nullptr;
-			}
+			if (!Resource)
+				return Optional::OK;
 
-			return true;
+			void* Target = Resource;
+			Resource = nullptr;
+			return OS::File::Close(Target);
 		}
-		bool FileStream::Seek(FileSeek Mode, int64_t Offset)
+		Expected<void> FileStream::Seek(FileSeek Mode, int64_t Offset)
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 
 			switch (Mode)
 			{
 				case FileSeek::Begin:
 					VI_TRACE("[io] seek fs %i begin %" PRId64, GetFd(), Offset);
-					return fseek(Resource, (long)Offset, SEEK_SET) == 0;
+					if (fseek(Resource, (long)Offset, SEEK_SET) != 0)
+						return OS::Error::GetConditionOr();
+					return Optional::OK;
 				case FileSeek::Current:
 					VI_TRACE("[io] seek fs %i move %" PRId64, GetFd(), Offset);
-					return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
+					if (fseek(Resource, (long)Offset, SEEK_CUR) != 0)
+						return OS::Error::GetConditionOr();
+					return Optional::OK;
 				case FileSeek::End:
 					VI_TRACE("[io] seek fs %i end %" PRId64, GetFd(), Offset);
-					return fseek(Resource, (long)Offset, SEEK_END) == 0;
+					if (fseek(Resource, (long)Offset, SEEK_END) != 0)
+						return OS::Error::GetConditionOr();
+					return Optional::OK;
 				default:
-					return false;
+					return std::make_error_condition(std::errc::invalid_argument);
 			}
 		}
-		bool FileStream::Move(int64_t Offset)
+		Expected<void> FileStream::Move(int64_t Offset)
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] seek fs %i move %" PRId64, GetFd(), Offset);
-			return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
+			if (fseek(Resource, (long)Offset, SEEK_CUR) != 0)
+				return OS::Error::GetConditionOr();
+			return Optional::OK;
 		}
-		int FileStream::Flush()
+		Expected<void> FileStream::Flush()
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] flush fs %i", GetFd());
-			return fflush(Resource);
+			if (fflush(Resource) != 0)
+				return OS::Error::GetConditionOr();
+			return Optional::OK;
 		}
 		size_t FileStream::ReadAny(const char* Format, ...)
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_ASSERT(Format != nullptr, "format should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 
 			va_list Args;
 			va_start(Args, Format);
@@ -6775,7 +6947,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] fs %i read %i bytes", GetFd(), (int)Length);
 			return fread(Data, 1, Length, Resource);
 		}
@@ -6783,7 +6955,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_ASSERT(Format != nullptr, "format should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 
 			va_list Args;
 			va_start(Args, Format);
@@ -6797,23 +6969,23 @@ namespace Mavi
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] fs %i write %i bytes", GetFd(), (int)Length);
 			return fwrite(Data, 1, Length, Resource);
 		}
 		size_t FileStream::Tell()
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] fs %i tell", GetFd());
 			return ftell(Resource);
 		}
-		int FileStream::GetFd() const
+		socket_t FileStream::GetFd() const
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
-			return VI_FILENO(Resource);
+			return (socket_t)VI_FILENO(Resource);
 		}
-		void* FileStream::GetBuffer() const
+		void* FileStream::GetResource() const
 		{
 			return (void*)Resource;
 		}
@@ -6829,108 +7001,132 @@ namespace Mavi
 		{
 			Close();
 		}
-		bool GzStream::Clear()
+		Expected<void> GzStream::Clear()
 		{
 			VI_TRACE("[gz] fs %i clear", GetFd());
-			if (!Close())
-				return false;
+			auto Result = Close();
+			if (!Result)
+				return Result;
 
 			if (Path.empty())
-				return false;
+				return std::make_error_condition(std::errc::invalid_argument);
 
-			OS::File::Close(OS::File::Open(Path.c_str(), "w"));
+			auto Target = OS::File::Open(Path.c_str(), "w");
+			if (!Target)
+				return Target.Error();
+
+			Result = OS::File::Close(*Target);
+			if (!Result)
+				return Result;
+
 			return Open(Path.c_str(), FileMode::Binary_Write_Only);
 		}
-		bool GzStream::Open(const char* File, FileMode Mode)
+		Expected<void> GzStream::Open(const char* File, FileMode Mode)
 		{
 			VI_ASSERT(File != nullptr, "filename should be set");
 #ifdef VI_ZLIB
-			VI_MEASURE(Core::Timings::FileSystem);
-			Close();
+			VI_MEASURE(Timings::FileSystem);
+			auto Result = Close();
+			if (!Result)
+				return Result;
 
-			Path = OS::Path::Resolve(File);
+			const char* Type = nullptr;
 			switch (Mode)
 			{
 				case FileMode::Binary_Read_Only:
 				case FileMode::Read_Only:
-					Resource = gzopen(Path.c_str(), "rb");
-					VI_DEBUG("[gz] open rb %s", Path.c_str());
+					Type = "rb";
 					break;
 				case FileMode::Binary_Write_Only:
 				case FileMode::Write_Only:
-					Resource = gzopen(Path.c_str(), "wb");
-					VI_DEBUG("[gz] open wb %s", Path.c_str());
+					Type = "wb";
 					break;
-				case FileMode::Append_Only:
-				case FileMode::Binary_Append_Only:
-				case FileMode::Read_Write:
-				case FileMode::Write_Read:
-				case FileMode::Read_Append_Write:
-				case FileMode::Binary_Read_Write:
-				case FileMode::Binary_Write_Read:
-				case FileMode::Binary_Read_Append_Write:
-					VI_ERR("[gz] compressed stream supports only rb and wb modes");
-					Close();
+				default:
 					break;
 			}
 
-			return Resource != nullptr;
+			VI_PANIC(Type != nullptr, "file open cannot be issued with mode:%i", (int)Mode);
+			Expected<String> TargetPath = OS::Path::Resolve(File);
+			if (!TargetPath)
+				return TargetPath.Error();
+
+			VI_DEBUG("[gz] open %s %s", Type, TargetPath->c_str());
+			Resource = gzopen(TargetPath->c_str(), Type);
+			if (!Resource)
+				return std::make_error_condition(std::errc::no_such_file_or_directory);
+
+			Path = *TargetPath;
+			return Optional::OK;
 #else
-			return false;
+			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		bool GzStream::Close()
+		Expected<void> GzStream::Close()
 		{
 #ifdef VI_ZLIB
-			VI_MEASURE(Core::Timings::FileSystem);
-			if (Resource != nullptr)
-			{
-				VI_DEBUG("[gz] close 0x%" PRIXPTR, (uintptr_t)Resource);
-				gzclose((gzFile)Resource);
-				Resource = nullptr;
-			}
+			VI_MEASURE(Timings::FileSystem);
+			if (!Resource)
+				return Optional::OK;
+
+			VI_DEBUG("[gz] close 0x%" PRIXPTR, (uintptr_t)Resource);
+			if (gzclose((gzFile)Resource) != Z_OK)
+				return std::make_error_condition(std::errc::bad_file_descriptor);
+
+			Resource = nullptr;
+			return Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
 #endif
-			return true;
 		}
-		bool GzStream::Seek(FileSeek Mode, int64_t Offset)
+		Expected<void> GzStream::Seek(FileSeek Mode, int64_t Offset)
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 #ifdef VI_ZLIB
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			switch (Mode)
 			{
 				case FileSeek::Begin:
 					VI_TRACE("[gz] seek fs %i begin %" PRId64, GetFd(), Offset);
-					return gzseek((gzFile)Resource, (long)Offset, SEEK_SET) == 0;
+					if (gzseek((gzFile)Resource, (long)Offset, SEEK_SET) != 0)
+						return OS::Error::GetConditionOr();
+					return Optional::OK;
 				case FileSeek::Current:
 					VI_TRACE("[gz] seek fs %i move %" PRId64, GetFd(), Offset);
-					return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
+					if (gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) != 0)
+						return OS::Error::GetConditionOr();
+					return Optional::OK;
 				case FileSeek::End:
-					VI_ASSERT(false, "gz seek from end is not supported");
-					return gzseek((gzFile)Resource, (long)Offset, SEEK_END) == 0;
+					return std::make_error_condition(std::errc::not_supported);
+				default:
+					return std::make_error_condition(std::errc::invalid_argument);
 			}
+#else
+			return std::make_error_condition(std::errc::not_supported);
 #endif
-			return false;
 		}
-		bool GzStream::Move(int64_t Offset)
+		Expected<void> GzStream::Move(int64_t Offset)
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 #ifdef VI_ZLIB
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[gz] seek fs %i move %" PRId64, GetFd(), Offset);
-			return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
+			if (gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) != 0)
+				return OS::Error::GetConditionOr();
+			return Optional::OK;
 #else
-			return false;
+			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		int GzStream::Flush()
+		Expected<void> GzStream::Flush()
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 #ifdef VI_ZLIB
-			VI_MEASURE(Core::Timings::FileSystem);
-			return gzflush((gzFile)Resource, Z_SYNC_FLUSH);
+			VI_MEASURE(Timings::FileSystem);
+			if (gzflush((gzFile)Resource, Z_SYNC_FLUSH) != Z_OK)
+				return OS::Error::GetConditionOr();
+			return Optional::OK;
 #else
-			return 0;
+			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
 		size_t GzStream::ReadAny(const char* Format, ...)
@@ -6943,7 +7139,7 @@ namespace Mavi
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 #ifdef VI_ZLIB
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[gz] fs %i read %i bytes", GetFd(), (int)Length);
 			return gzread((gzFile)Resource, Data, (unsigned int)Length);
 #else
@@ -6954,7 +7150,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_ASSERT(Format != nullptr, "format should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 
 			va_list Args;
 			va_start(Args, Format);
@@ -6973,7 +7169,7 @@ namespace Mavi
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 #ifdef VI_ZLIB
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[gz] fs %i write %i bytes", GetFd(), (int)Length);
 			return gzwrite((gzFile)Resource, Data, (unsigned int)Length);
 #else
@@ -6984,21 +7180,22 @@ namespace Mavi
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 #ifdef VI_ZLIB
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[gz] fs %i tell", GetFd());
-			return gztell((gzFile)Resource);
+			auto Value = gztell((gzFile)Resource);
+			return (Value > 0 ? (size_t)Value : 0);
 #else
 			return 0;
 #endif
 		}
-		int GzStream::GetFd() const
+		socket_t GzStream::GetFd() const
 		{
 			VI_ASSERT(false, "gz fd fetch is not supported");
-			return -1;
+			return (socket_t)-1;
 		}
-		void* GzStream::GetBuffer() const
+		void* GzStream::GetResource() const
 		{
-			return (void*)Resource;
+			return Resource;
 		}
 		bool GzStream::IsSized() const
 		{
@@ -7008,7 +7205,7 @@ namespace Mavi
 		WebStream::WebStream(bool IsAsync) noexcept : Resource(nullptr), Offset(0), Size(0), Async(IsAsync)
 		{
 		}
-		WebStream::WebStream(bool IsAsync, Core::UnorderedMap<Core::String, Core::String>&& NewHeaders) noexcept : WebStream(IsAsync)
+		WebStream::WebStream(bool IsAsync, UnorderedMap<String, String>&& NewHeaders) noexcept : WebStream(IsAsync)
 		{
 			Headers = std::move(NewHeaders);
 		}
@@ -7016,98 +7213,93 @@ namespace Mavi
 		{
 			Close();
 		}
-		bool WebStream::Clear()
+		Expected<void> WebStream::Clear()
 		{
 			VI_ASSERT(false, "web clear is not supported");
-			return false;
+			return std::make_error_condition(std::errc::not_supported);
 		}
-		bool WebStream::Open(const char* File, FileMode Mode)
+		Expected<void> WebStream::Open(const char* File, FileMode Mode)
 		{
 			VI_ASSERT(File != nullptr, "filename should be set");
-			Close();
+			auto Result = Close();
+			if (!Result)
+				return Result;
 
+			const char* Type = nullptr;
+			switch (Mode)
+			{
+				case FileMode::Binary_Read_Only:
+				case FileMode::Read_Only:
+					Type = "rb";
+					break;
+				default:
+					break;
+			}
+
+			VI_PANIC(Type != nullptr, "file open cannot be issued with mode:%i", (int)Mode);
 			Network::Location URL(File);
 			if (URL.Protocol != "http" && URL.Protocol != "https")
-				return false;
+				return std::make_error_condition(std::errc::address_family_not_supported);
 
 			Network::RemoteHost Address;
 			Address.Hostname = URL.Hostname;
 			Address.Secure = (URL.Protocol == "https");
 			Address.Port = (URL.Port < 0 ? (Address.Secure ? 443 : 80) : URL.Port);
 
-			switch (Mode)
+			auto* Client = new Network::HTTP::Client(30000);
+			Result = Client->Connect(&Address, false).Get();
+			if (!Result)
 			{
-				case FileMode::Binary_Read_Only:
-				case FileMode::Read_Only:
-				{
-					auto* Client = new Network::HTTP::Client(30000);
-					if (Client->Connect(&Address, false).Get() != 0)
-					{
-						VI_RELEASE(Client);
-						break;
-					}
-
-					Network::HTTP::RequestFrame Request;
-					Request.URI.assign(URL.Path);
-
-					for (auto& Item : URL.Query)
-						Request.Query += Item.first + "=" + Item.second;
-
-					for (auto& Item : Headers)
-						Request.SetHeader(Item.first, Item.second);
-
-					Network::HTTP::ResponseFrame* Response = Client->Send(std::move(Request)).Get();
-					if (!Response || Response->StatusCode < 0)
-					{
-						VI_RELEASE(Client);
-						break;
-					}
-
-					Resource = Client;
-					if (Response->Content.Limited)
-						Size = Response->Content.Length;
-
-					VI_DEBUG("[http] open ws %s", File);
-					break;
-				}
-				case FileMode::Binary_Write_Only:
-				case FileMode::Write_Only:
-				case FileMode::Read_Write:
-				case FileMode::Write_Read:
-				case FileMode::Append_Only:
-				case FileMode::Read_Append_Write:
-				case FileMode::Binary_Append_Only:
-				case FileMode::Binary_Read_Write:
-				case FileMode::Binary_Write_Read:
-				case FileMode::Binary_Read_Append_Write:
-					Close();
-					VI_ASSERT(false, "web stream supports only rb and r modes");
-					break;
+				VI_RELEASE(Client);
+				return Result;
 			}
 
-			return Resource != nullptr;
+			Network::HTTP::RequestFrame Request;
+			Request.URI.assign(URL.Path);
+
+			for (auto& Item : URL.Query)
+				Request.Query += Item.first + "=" + Item.second;
+
+			for (auto& Item : Headers)
+				Request.SetHeader(Item.first, Item.second);
+
+			auto Response = Client->Send(std::move(Request)).Get();
+			if (!Response || Response->StatusCode < 0)
+			{
+				VI_RELEASE(Client);
+				return Response ? std::make_error_condition(std::errc::protocol_error) : Response.Error();
+			}
+			else if (Response->Content.Limited)
+				Size = Response->Content.Length;
+
+			VI_DEBUG("[http] open %s %s", Type, File);
+			Resource = Client;
+			Path = File;
+
+			return Optional::OK;
 		}
-		bool WebStream::Close()
+		Expected<void> WebStream::Close()
 		{
 			auto* Client = (Network::HTTP::Client*)Resource;
-			if (Client != nullptr)
-				Client->Close().Wait();
-
-			VI_RELEASE(Client);
 			Resource = nullptr;
 			Offset = Size = 0;
 			Chunk.clear();
 
-			return true;
+			if (!Client)
+				return Optional::OK;
+
+			auto Result = Client->Close().Get();
+			VI_RELEASE(Client);
+			return Result;
 		}
-		bool WebStream::Seek(FileSeek Mode, int64_t NewOffset)
+		Expected<void> WebStream::Seek(FileSeek Mode, int64_t NewOffset)
 		{
 			switch (Mode)
 			{
 				case FileSeek::Begin:
 					VI_TRACE("[http] seek fd %i begin %" PRId64, GetFd(), (int)NewOffset);
 					Offset = NewOffset;
-					return true;
+					return Optional::OK;
 				case FileSeek::Current:
 					VI_TRACE("[http] seek fd %i move %" PRId64, GetFd(), (int)NewOffset);
 					if (NewOffset < 0)
@@ -7117,31 +7309,31 @@ namespace Mavi
 						{
 							Pointer -= Offset;
 							if (Pointer > Size)
-								return false;
+								return std::make_error_condition(std::errc::result_out_of_range);
 
 							Offset = Size - Pointer;
 						}
 					}
 					else
 						Offset += NewOffset;
-					return true;
+					return Optional::OK;
 				case FileSeek::End:
 					VI_TRACE("[http] seek fd %i end %" PRId64, GetFd(), (int)NewOffset);
 					Offset = Size - NewOffset;
-					return true;
+					return Optional::OK;
+				default:
+					return std::make_error_condition(std::errc::not_supported);
 			}
-
-			return false;
 		}
-		bool WebStream::Move(int64_t Offset)
+		Expected<void> WebStream::Move(int64_t Offset)
 		{
 			VI_ASSERT(false, "web move is not supported");
-			return false;
+			return std::make_error_condition(std::errc::not_supported);
 		}
-		int WebStream::Flush()
+		Expected<void> WebStream::Flush()
 		{
 			VI_ASSERT(false, "web flush is not supported");
-			return 0;
+			return std::make_error_condition(std::errc::not_supported);
 		}
 		size_t WebStream::ReadAny(const char* Format, ...)
 		{
@@ -7196,14 +7388,14 @@ namespace Mavi
 			VI_TRACE("[http] fd %i tell", GetFd());
 			return (size_t)Offset;
 		}
-		int WebStream::GetFd() const
+		socket_t WebStream::GetFd() const
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
-			return (int)((Network::HTTP::Client*)Resource)->GetStream()->GetFd();
+			return ((Network::HTTP::Client*)Resource)->GetStream()->GetFd();
 		}
-		void* WebStream::GetBuffer() const
+		void* WebStream::GetResource() const
 		{
-			return (void*)Resource;
+			return Resource;
 		}
 		bool WebStream::IsSized() const
 		{
@@ -7213,60 +7405,70 @@ namespace Mavi
 		ProcessStream::ProcessStream() noexcept : FileStream(), ExitCode(-1)
 		{
 		}
-		bool ProcessStream::Clear()
+		Expected<void> ProcessStream::Clear()
 		{
 			VI_ASSERT(false, "process clear is not supported");
-			return false;
+			return std::make_error_condition(std::errc::not_supported);
 		}
-		bool ProcessStream::Open(const char* File, FileMode Mode)
+		Expected<void> ProcessStream::Open(const char* File, FileMode Mode)
 		{
 			VI_ASSERT(File != nullptr, "command should be set");
-			Close();
-			Path = File;
+			auto Result = Close();
+			if (!Result)
+				return Result;
 
+			const char* Type = nullptr;
 			switch (Mode)
 			{
 				case FileMode::Read_Only:
-					Resource = (FILE*)OpenPipe(Path.c_str(), "r");
+					Type = "r";
 					break;
 				case FileMode::Write_Only:
-					Resource = (FILE*)OpenPipe(Path.c_str(), "w");
+					Type = "w";
 					break;
 				case FileMode::Append_Only:
-					Resource = (FILE*)OpenPipe(Path.c_str(), "a");
+					Type = "a";
 					break;
 				case FileMode::Read_Write:
-					Resource = (FILE*)OpenPipe(Path.c_str(), "r+");
+					Type = "r+";
 					break;
 				case FileMode::Write_Read:
-					Resource = (FILE*)OpenPipe(Path.c_str(), "w+");
+					Type = "w+";
 					break;
 				case FileMode::Read_Append_Write:
-					Resource = (FILE*)OpenPipe(Path.c_str(), "a+");
+					Type = "a+";
 					break;
 				case FileMode::Binary_Read_Only:
-					Resource = (FILE*)OpenPipe(Path.c_str(), "rb");
+					Type = "rb";
 					break;
 				case FileMode::Binary_Write_Only:
-					Resource = (FILE*)OpenPipe(Path.c_str(), "wb");
+					Type = "wb";
 					break;
 				case FileMode::Binary_Append_Only:
-					Resource = (FILE*)OpenPipe(Path.c_str(), "ab");
+					Type = "ab";
 					break;
 				case FileMode::Binary_Read_Write:
-					Resource = (FILE*)OpenPipe(Path.c_str(), "rb+");
+					Type = "rb+";
 					break;
 				case FileMode::Binary_Write_Read:
-					Resource = (FILE*)OpenPipe(Path.c_str(), "wb+");
+					Type = "wb+";
 					break;
 				case FileMode::Binary_Read_Append_Write:
-					Resource = (FILE*)OpenPipe(Path.c_str(), "ab+");
+					Type = "ab+";
+					break;
+				default:
 					break;
 			}
 
-			return Resource != nullptr;
+			VI_PANIC(Type != nullptr, "file open cannot be issued with mode:%i", (int)Mode);
+			Resource = OpenPipe(File, Type);
+			if (!Resource)
+				return OS::Error::GetConditionOr();
+
+			Path = File;
+			return Optional::OK;
 		}
-		bool ProcessStream::Close()
+		Expected<void> ProcessStream::Close()
 		{
 			if (Resource != nullptr)
 			{
@@ -7274,7 +7476,7 @@ namespace Mavi
 				Resource = nullptr;
 			}
 
-			return ExitCode == 0;
+			return Optional::OK;
 		}
 		bool ProcessStream::IsSized() const
 		{
@@ -7284,9 +7486,9 @@ namespace Mavi
 		{
 			return ExitCode;
 		}
-		void* ProcessStream::OpenPipe(const char* Path, const char* Mode)
+		FILE* ProcessStream::OpenPipe(const char* Path, const char* Mode)
 		{
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			VI_ASSERT(Path != nullptr && Mode != nullptr, "path and mode should be set");
 #ifdef VI_MICROSOFT
 			wchar_t Buffer[CHUNK_SIZE], Type[20];
@@ -7296,10 +7498,8 @@ namespace Mavi
 			FILE* Stream = _wpopen(Buffer, Type);
 			if (Stream != nullptr)
 				VI_DEBUG("[io] open ps %i %s %s", VI_FILENO(Stream), Mode, Path);
-			else
-				VI_WARN("[io] open ps %s %s: cannot be opened", Mode, Path);
 
-			return (void*)Stream;
+			return Stream;
 #elif defined(VI_LINUX)
 			FILE* Stream = popen(Path, Mode);
 			if (Stream != nullptr)
@@ -7307,12 +7507,9 @@ namespace Mavi
 
 			if (Stream != nullptr)
 				VI_DEBUG("[io] open ps %i %s %s", VI_FILENO(Stream), Mode, Path);
-			else
-				VI_WARN("[io] open ps %s %s: cannot be opened", Mode, Path);
 
-			return (void*)Stream;
+			return Stream;
 #else
-			VI_ERR("[io] open ps %s %s: not supported", Mode, Path);
 			return nullptr;
 #endif
 		}
@@ -7329,24 +7526,30 @@ namespace Mavi
 #endif
 		}
 
-		FileTree::FileTree(const Core::String& Folder) noexcept
+		FileTree::FileTree(const String& Folder) noexcept
 		{
-			Path = OS::Path::Resolve(Folder.c_str());
-			if (!Path.empty())
+			auto Target = OS::Path::Resolve(Folder.c_str());
+			if (Target)
 			{
-				OS::Directory::Each(Path.c_str(), [this](FileEntry* Entry) -> bool
+				Vector<std::pair<String, FileEntry>> Entries;
+				if (!OS::Directory::Scan(Target->c_str(), &Entries))
+					return;
+				
+				Directories.reserve(Entries.size());
+				Files.reserve(Entries.size());
+				Path = *Target;
+				
+				for (auto& Item : Entries)
 				{
-					if (Entry->IsDirectory)
-						Directories.push_back(new FileTree(Entry->Path));
+					if (!Item.second.IsDirectory)
+						Files.emplace_back(std::move(Item.first));
 					else
-						Files.emplace_back(OS::Path::Resolve(Entry->Path.c_str()));
-
-					return true;
-				});
+						Directories.push_back(new FileTree(Item.first));
+				}
 			}
 			else
 			{
-				Core::Vector<Core::String> Drives = OS::Directory::GetMounts();
+				Vector<String> Drives = OS::Directory::GetMounts();
 				for (auto& Drive : Drives)
 					Directories.push_back(new FileTree(Drive));
 			}
@@ -7365,7 +7568,7 @@ namespace Mavi
 			for (auto& Directory : Directories)
 				Directory->Loop(Callback);
 		}
-		const FileTree* FileTree::Find(const Core::String& V) const
+		const FileTree* FileTree::Find(const String& V) const
 		{
 			if (Path == V)
 				return this;
@@ -7397,17 +7600,17 @@ namespace Mavi
 #endif
 		}
 
-		OS::Process::ArgsContext::ArgsContext(int Argc, char** Argv, const Core::String& WhenNoValue) noexcept
+		OS::Process::ArgsContext::ArgsContext(int Argc, char** Argv, const String& WhenNoValue) noexcept
 		{
 			Base = OS::Process::GetArgs(Argc, Argv, WhenNoValue);
 		}
-		void OS::Process::ArgsContext::ForEach(const std::function<void(const Core::String&, const Core::String&)>& Callback) const
+		void OS::Process::ArgsContext::ForEach(const std::function<void(const String&, const String&)>& Callback) const
 		{
 			VI_ASSERT(Callback != nullptr, "callback should not be empty");
 			for (auto& Item : Base)
 				Callback(Item.first, Item.second);
 		}
-		bool OS::Process::ArgsContext::IsEnabled(const Core::String& Option, const Core::String& Shortcut) const
+		bool OS::Process::ArgsContext::IsEnabled(const String& Option, const String& Shortcut) const
 		{
 			auto It = Base.find(Option);
 			if (It == Base.end() || !IsTrue(It->second))
@@ -7415,7 +7618,7 @@ namespace Mavi
 
 			return true;
 		}
-		bool OS::Process::ArgsContext::IsDisabled(const Core::String& Option, const Core::String& Shortcut) const
+		bool OS::Process::ArgsContext::IsDisabled(const String& Option, const String& Shortcut) const
 		{
 			auto It = Base.find(Option);
 			if (It == Base.end())
@@ -7423,21 +7626,21 @@ namespace Mavi
 
 			return IsFalse(It->second);
 		}
-		bool OS::Process::ArgsContext::Has(const Core::String& Option, const Core::String& Shortcut) const
+		bool OS::Process::ArgsContext::Has(const String& Option, const String& Shortcut) const
 		{
 			if (Base.find(Option) != Base.end())
 				return true;
 
 			return Shortcut.empty() ? false : Base.find(Shortcut) != Base.end();
 		}
-		Core::String& OS::Process::ArgsContext::Get(const Core::String& Option, const Core::String& Shortcut)
+		String& OS::Process::ArgsContext::Get(const String& Option, const String& Shortcut)
 		{
 			if (Base.find(Option) != Base.end())
 				return Base[Option];
 
 			return Shortcut.empty() ? Base[Option] : Base[Shortcut];
 		}
-		Core::String& OS::Process::ArgsContext::GetIf(const Core::String& Option, const Core::String& Shortcut, const Core::String& WhenEmpty)
+		String& OS::Process::ArgsContext::GetIf(const String& Option, const String& Shortcut, const String& WhenEmpty)
 		{
 			if (Base.find(Option) != Base.end())
 				return Base[Option];
@@ -7445,15 +7648,15 @@ namespace Mavi
 			if (!Shortcut.empty() && Base.find(Shortcut) != Base.end())
 				return Base[Shortcut];
 
-			Core::String& Value = Base[Option];
+			String& Value = Base[Option];
 			Value = WhenEmpty;
 			return Value;
 		}
-		Core::String& OS::Process::ArgsContext::GetAppPath()
+		String& OS::Process::ArgsContext::GetAppPath()
 		{
 			return Get("__path__");
 		}
-		bool OS::Process::ArgsContext::IsTrue(const Core::String& Value) const
+		bool OS::Process::ArgsContext::IsTrue(const String& Value) const
 		{
 			if (Value.empty())
 				return false;
@@ -7466,7 +7669,7 @@ namespace Mavi
 			Stringify::ToLower(Data);
 			return Data == "on" || Data == "true" || Data == "yes" || Data == "y";
 		}
-		bool OS::Process::ArgsContext::IsFalse(const Core::String& Value) const
+		bool OS::Process::ArgsContext::IsFalse(const String& Value) const
 		{
 			if (Value.empty())
 				return true;
@@ -7530,8 +7733,8 @@ namespace Mavi
 			if (!Info.is_open() || !Info)
 				return Result;
 
-			Core::Vector<unsigned int> Packages;
-			for (Core::String Line; std::getline(Info, Line);)
+			Vector<unsigned int> Packages;
+			for (String Line; std::getline(Info, Line);)
 			{
 				if (Line.find("physical id") == 0)
 				{
@@ -7606,11 +7809,11 @@ namespace Mavi
 
 			return Result;
 #else
-			Core::String Prefix("/sys/devices/system/cpu/cpu0/cache/index" + Core::ToString(Level) + '/');
-			Core::String SizePath(Prefix + "size");
-			Core::String LineSizePath(Prefix + "coherency_line_size");
-			Core::String AssociativityPath(Prefix + "associativity");
-			Core::String TypePath(Prefix + "type");
+			String Prefix("/sys/devices/system/cpu/cpu0/cache/index" + Core::ToString(Level) + '/');
+			String SizePath(Prefix + "size");
+			String LineSizePath(Prefix + "coherency_line_size");
+			String AssociativityPath(Prefix + "associativity");
+			String TypePath(Prefix + "type");
 			std::ifstream Size(SizePath.c_str());
 			std::ifstream LineSize(LineSizePath.c_str());
 			std::ifstream Associativity(AssociativityPath.c_str());
@@ -7646,7 +7849,7 @@ namespace Mavi
 
 			if (Type.is_open() && Type)
 			{
-				Core::String Temp;
+				String Temp;
 				Type >> Temp;
 
 				if (Temp.find("nified") == 1)
@@ -7737,7 +7940,7 @@ namespace Mavi
 			if (!Info.is_open() || !Info)
 				return 0;
 
-			for (Core::String Line; std::getline(Info, Line);)
+			for (String Line; std::getline(Info, Line);)
 			{
 				if (Line.find("cpu MHz") == 0)
 				{
@@ -7750,123 +7953,99 @@ namespace Mavi
 #endif
 		}
 
-		void OS::Directory::SetWorking(const char* Path)
+		bool OS::Directory::IsExists(const char* Path)
+		{
+			VI_ASSERT(Path != nullptr, "path should be set");
+			VI_MEASURE(Timings::FileSystem);
+			VI_TRACE("[io] check path %s", Path);
+
+			auto TargetPath = Path::Resolve(Path);
+			if (!TargetPath)
+				return false;
+
+			struct stat Buffer;
+			if (stat(TargetPath->c_str(), &Buffer) != 0)
+				return false;
+
+			return Buffer.st_mode & S_IFDIR;
+		}
+		Expected<void> OS::Directory::SetWorking(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_TRACE("[io] set working dir %s", Path);
 #ifdef VI_MICROSOFT
-			if (!SetCurrentDirectoryA(Path))
-				VI_ERR("[io] cannot set current directory");
+			if (SetCurrentDirectoryA(Path) != TRUE)
+				return OS::Error::GetConditionOr();
+
+			return Optional::OK;
 #elif defined(VI_LINUX)
 			if (chdir(Path) != 0)
-				VI_ERR("[io] cannot set current directory");
+				return OS::Error::GetConditionOr();
+
+			return Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		bool OS::Directory::Patch(const Core::String& Path)
+		Expected<void> OS::Directory::Patch(const String& Path)
 		{
 			if (IsExists(Path.c_str()))
-				return true;
+				return Optional::OK;
 
 			return Create(Path.c_str());
 		}
-		bool OS::Directory::Scan(const Core::String& Path, Core::Vector<FileEntry>* Entries)
+		Expected<void> OS::Directory::Scan(const String& Path, Vector<std::pair<String, FileEntry>>* Entries)
 		{
 			VI_ASSERT(Entries != nullptr, "entries should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] scan dir %s", Path.c_str());
-
-			FileEntry Entry;
 #if defined(VI_MICROSOFT)
-			struct Dirent
-			{
-				char Directory[CHUNK_SIZE];
-			};
-
-			struct Directory
-			{
-				HANDLE Handle;
-				WIN32_FIND_DATAW Info;
-				Dirent Result;
-			};
-
 			wchar_t Buffer[CHUNK_SIZE];
 			Stringify::ConvertToWide(Path.c_str(), Path.size(), Buffer, CHUNK_SIZE);
 
-			auto* Value = VI_MALLOC(Directory, sizeof(Directory));
 			DWORD Attributes = GetFileAttributesW(Buffer);
-			if (Attributes != 0xFFFFFFFF && ((Attributes & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY))
-			{
-				wcscat(Buffer, L"\\*");
-				Value->Handle = FindFirstFileW(Buffer, &Value->Info);
-				Value->Result.Directory[0] = '\0';
-			}
-			else
-			{
-				VI_FREE(Value);
-				return false;
-			}
+			if (Attributes == 0xFFFFFFFF || (Attributes & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY)
+				return std::make_error_condition(std::errc::not_a_directory);
 
-			while (true)
+			wcscat(Buffer, L"\\*");
+			WIN32_FIND_DATAW Info;
+			HANDLE Handle = FindFirstFileW(Buffer, &Info);
+
+			do
 			{
-				Dirent* Next = &Value->Result;
-				WideCharToMultiByte(CP_UTF8, 0, Value->Info.cFileName, -1, Next->Directory, sizeof(Next->Directory), nullptr, nullptr);
-				if (strcmp(Next->Directory, ".") != 0 && strcmp(Next->Directory, "..") != 0 && File::State(Path + '/' + Next->Directory, &Entry))
+				char Directory[CHUNK_SIZE] = { 0 };
+				WideCharToMultiByte(CP_UTF8, 0, Info.cFileName, -1, Directory, sizeof(Directory), nullptr, nullptr);
+				if (strcmp(Directory, ".") != 0 && strcmp(Directory, "..") != 0)
 				{
-					Entry.Path = Next->Directory;
-					Entries->push_back(Entry);
+					auto State = File::GetState(Path + '/' + Directory);
+					if (State)
+						Entries->push_back(std::make_pair<String, FileEntry>(Directory, std::move(*State)));
 				}
-
-				if (!FindNextFileW(Value->Handle, &Value->Info))
-				{
-					FindClose(Value->Handle);
-					Value->Handle = INVALID_HANDLE_VALUE;
-					break;
-				}
-			}
-
-			if (Value->Handle != INVALID_HANDLE_VALUE)
-				FindClose(Value->Handle);
-			VI_FREE(Value);
+			} while (FindNextFileW(Handle, &Info) == TRUE);
+			FindClose(Handle);
 #else
-			DIR* Value = opendir(Path.c_str());
-			if (!Value)
-				return false;
+			DIR* Handle = opendir(Path.c_str());
+			if (!Handle)
+				return OS::Error::GetConditionOr();
 
-			dirent* Dirent = nullptr;
-			while ((Dirent = readdir(Value)) != nullptr)
+			dirent* Next = nullptr;
+			while ((Next = readdir(Handle)) != nullptr)
 			{
-				if (strcmp(Dirent->d_name, ".") && strcmp(Dirent->d_name, "..") && File::State(Path + '/' + Dirent->d_name, &Entry))
+				if (strcmp(Next->d_name, ".") != 0 && strcmp(Next->d_name, "..") != 0)
 				{
-					Entry.Path = Dirent->d_name;
-					Entries->push_back(Entry);
+					auto State = File::GetState(Path + '/' + Next->d_name);
+					if (State)
+						Entries->push_back(std::make_pair<String, FileEntry>(Next->d_name, std::move(*State)));
 				}
 			}
-			closedir(Value);
+			closedir(Handle);
 #endif
-			return true;
+			return Optional::OK;
 		}
-		bool OS::Directory::Each(const char* Path, const std::function<bool(FileEntry*)>& Callback)
+		Expected<void> OS::Directory::Create(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
-			Core::Vector<FileEntry> Entries;
-			Core::String Result = Path::Resolve(Path);
-			Scan(Result, &Entries);
-
-			if (!Stringify::EndsOf(Result, "/\\"))
-				Result += VI_SPLITTER;
-
-			for (auto& Entry : Entries)
-			{
-				if (!Callback(&Entry))
-					break;
-			}
-
-			return true;
-		}
-		bool OS::Directory::Create(const char* Path)
-		{
-			VI_ASSERT(Path != nullptr, "path should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			VI_DEBUG("[io] create dir %s", Path);
 #ifdef VI_MICROSOFT
 			wchar_t Buffer[CHUNK_SIZE];
@@ -7874,48 +8053,55 @@ namespace Mavi
 
 			size_t Length = wcslen(Buffer);
 			if (!Length)
-				return false;
+				return std::make_error_condition(std::errc::invalid_argument);
 
 			if (::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS)
-				return true;
+				return Optional::OK;
 
 			size_t Index = Length - 1;
 			while (Index > 0 && Buffer[Index] != '/' && Buffer[Index] != '\\')
 				Index--;
 
-			if (Index > 0 && !Create(Core::String(Path).substr(0, Index).c_str()))
-				return false;
+			String Subpath(Path);
+			Subpath.erase(0, Index);
+			if (Index > 0 && !Create(Subpath.c_str()))
+				return OS::Error::GetConditionOr();
 
-			return ::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS;
+			if (::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS)
+				return Optional::OK;
 #else
 			if (mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
-				return true;
+				return Optional::OK;
 
 			size_t Index = strlen(Path) - 1;
 			while (Index > 0 && Path[Index] != '/' && Path[Index] != '\\')
 				Index--;
 
-			if (Index > 0 && !Create(Core::String(Path).substr(0, Index).c_str()))
-				return false;
+			String Subpath(Path);
+			Subpath.erase(0, Index);
+			if (Index > 0 && !Create(Subpath.c_str()))
+				return OS::Error::GetConditionOr();
 
-			return mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST;
+			if (mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
+				return Optional::OK;
 #endif
+			return OS::Error::GetConditionOr();
 		}
-		bool OS::Directory::Remove(const char* Path)
+		Expected<void> OS::Directory::Remove(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			VI_DEBUG("[io] remove dir %s", Path);
-
 #ifdef VI_MICROSOFT
 			WIN32_FIND_DATA FileInformation;
-			Core::String FilePath, Pattern = Core::String(Path) + "\\*.*";
+			String FilePath, Pattern = String(Path) + "\\*.*";
 			HANDLE Handle = ::FindFirstFile(Pattern.c_str(), &FileInformation);
 
 			if (Handle == INVALID_HANDLE_VALUE)
 			{
+				auto Condition = OS::Error::GetConditionOr();
 				::FindClose(Handle);
-				return false;
+				return Condition;
 			}
 
 			do
@@ -7923,97 +8109,105 @@ namespace Mavi
 				if (!strcmp(FileInformation.cFileName, ".") || !strcmp(FileInformation.cFileName, ".."))
 					continue;
 
-				FilePath = Core::String(Path) + "\\" + FileInformation.cFileName;
+				FilePath = String(Path) + "\\" + FileInformation.cFileName;
 				if (FileInformation.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 				{
-					if (Remove(FilePath.c_str()))
+					auto Result = Remove(FilePath.c_str());
+					if (Result)
 						continue;
 
 					::FindClose(Handle);
-					return false;
+					return Result;
 				}
 
 				if (::SetFileAttributes(FilePath.c_str(), FILE_ATTRIBUTE_NORMAL) == FALSE)
 				{
+					auto Condition = OS::Error::GetConditionOr();
 					::FindClose(Handle);
-					return false;
+					return Condition;
 				}
 
 				if (::DeleteFile(FilePath.c_str()) == FALSE)
 				{
+					auto Condition = OS::Error::GetConditionOr();
 					::FindClose(Handle);
-					return false;
+					return Condition;
 				}
 			} while (::FindNextFile(Handle, &FileInformation) != FALSE);
+
 			::FindClose(Handle);
-
 			if (::GetLastError() != ERROR_NO_MORE_FILES)
-				return false;
+				return OS::Error::GetConditionOr();
 
-			if (::SetFileAttributes(Path, FILE_ATTRIBUTE_NORMAL) == FALSE)
-				return false;
-
-			return ::RemoveDirectory(Path) != FALSE;
+			if (::SetFileAttributes(Path, FILE_ATTRIBUTE_NORMAL) == FALSE || ::RemoveDirectory(Path) == FALSE)
+				return OS::Error::GetConditionOr();
 #elif defined VI_LINUX
-			DIR* Root = opendir(Path);
+			DIR* Handle = opendir(Path);
 			size_t Size = strlen(Path);
 
-			if (!Root)
-				return rmdir(Path) == 0;
+			if (!Handle)
+			{
+				if (rmdir(Path) != 0)
+					return OS::Error::GetConditionOr();
+
+				return Optional::OK;
+			}
 
 			struct dirent* It;
-			while ((It = readdir(Root)))
+			while ((It = readdir(Handle)))
 			{
-				char* Buffer; bool Next = false; size_t Length;
 				if (!strcmp(It->d_name, ".") || !strcmp(It->d_name, ".."))
 					continue;
 
-				Length = Size + strlen(It->d_name) + 2;
-				Buffer = VI_MALLOC(char, Length);
-
-				if (!Buffer)
-					continue;
-
-				struct stat State;
+				size_t Length = Size + strlen(It->d_name) + 2;
+				char* Buffer = VI_MALLOC(char, Length);
 				snprintf(Buffer, Length, "%s/%s", Path, It->d_name);
 
-				if (!stat(Buffer, &State))
+				struct stat State;
+				if (stat(Buffer, &State) != 0)
 				{
-					if (S_ISDIR(State.st_mode))
-						Next = Remove(Buffer);
-					else
-						Next = (unlink(Buffer) == 0);
+					auto Condition = OS::Error::GetConditionOr();
+					VI_FREE(Buffer);
+					closedir(Handle);
+					return Condition;
+				}
+
+				if (S_ISDIR(State.st_mode))
+				{
+					auto Result = Remove(Buffer);
+					VI_FREE(Buffer);
+					if (Result)
+						continue;
+
+					closedir(Handle);
+					return Result;
+				}
+
+				if (unlink(Buffer) != 0)
+				{
+					auto Condition = OS::Error::GetConditionOr();
+					VI_FREE(Buffer);
+					closedir(Handle);
+					return Condition;
 				}
 
 				VI_FREE(Buffer);
-				if (!Next)
-					break;
 			}
 
-			closedir(Root);
-			return rmdir(Path) == 0;
+			closedir(Handle);
+			if (rmdir(Path) != 0)
+				return OS::Error::GetConditionOr();
 #endif
+			return Optional::OK;
 		}
-		bool OS::Directory::IsExists(const char* Path)
+		Expected<String> OS::Directory::GetModule()
 		{
-			VI_ASSERT(Path != nullptr, "path should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
-			VI_TRACE("[io] check path %s", Path);
-
-			struct stat Buffer;
-			if (stat(Path::Resolve(Path).c_str(), &Buffer) != 0)
-				return false;
-
-			return Buffer.st_mode & S_IFDIR;
-		}
-		Core::String OS::Directory::GetModule()
-		{
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 #ifndef VI_SDL2
 #ifdef VI_MICROSOFT
 			char Buffer[MAX_PATH + 1] = { };
 			if (GetModuleFileNameA(nullptr, Buffer, MAX_PATH) == 0)
-				return Core::String();
+				return OS::Error::GetConditionOr();
 #else
 #ifdef PATH_MAX
 			char Buffer[PATH_MAX + 1] = { };
@@ -8025,11 +8219,11 @@ namespace Mavi
 #ifdef VI_APPLE
 			uint32_t BufferSize = sizeof(Buffer) - 1;
 			if (_NSGetExecutablePath(Buffer, &BufferSize) != 0)
-				return Core::String();
+				return OS::Error::GetConditionOr();
 #elif defined(VI_SOLARIS)
 			const char* TempBuffer = getexecname();
 			if (!TempBuffer || *TempBuffer == '\0')
-				return Core::String();
+				return OS::Error::GetConditionOr();
 
 			TempBuffer = OS::Path::GetDirectory(TempBuffer);
 			size_t TempBufferSize = strlen(TempBuffer);
@@ -8037,10 +8231,10 @@ namespace Mavi
 #else
 			size_t BufferSize = sizeof(Buffer) - 1;
 			if (readlink("/proc/self/exe", Buffer, BufferSize) == -1 && readlink("/proc/curproc/file", Buffer, BufferSize) == -1 && readlink("/proc/curproc/exe", Buffer, BufferSize) == -1)
-				return Core::String();
+				return OS::Error::GetConditionOr();
 #endif
 #endif
-			Core::String Result = Path::GetDirectory(Buffer);
+			String Result = OS::Path::GetDirectory(Buffer);
 			if (!Result.empty() && Result.back() != '/' && Result.back() != '\\')
 				Result += VI_SPLITTER;
 
@@ -8048,20 +8242,22 @@ namespace Mavi
 			return Result;
 #else
 			char* Buffer = SDL_GetBasePath();
-			Core::String Result = Buffer;
-			SDL_free(Buffer);
+			if (!Buffer)
+				return std::make_error_condition(std::errc::io_error);
 
+			String Result = Buffer;
+			SDL_free(Buffer);
 			VI_TRACE("[io] fetch module dir %s", Result.c_str());
 			return Result;
 #endif
 		}
-		Core::String OS::Directory::GetWorking()
+		Expected<String> OS::Directory::GetWorking()
 		{
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 #ifdef VI_MICROSOFT
 			char Buffer[MAX_PATH + 1] = { };
 			if (GetCurrentDirectoryA(MAX_PATH, Buffer) == 0)
-				return Core::String();
+				return OS::Error::GetConditionOr();
 #else
 #ifdef PATH_MAX
 			char Buffer[PATH_MAX + 1] = { };
@@ -8071,29 +8267,32 @@ namespace Mavi
 			char Buffer[CHUNK_SIZE + 1] = { };
 #endif
 			if (!getcwd(Buffer, sizeof(Buffer)))
-				return Core::String();
+				return OS::Error::GetConditionOr();
 #endif
-			Core::String Result = Buffer;
+			String Result = Buffer;
 			if (!Result.empty() && Result.back() != '/' && Result.back() != '\\')
 				Result += VI_SPLITTER;
 
 			VI_TRACE("[io] fetch working dir %s", Result.c_str());
 			return Result;
 		}
-		Core::Vector<Core::String> OS::Directory::GetMounts()
+		Vector<String> OS::Directory::GetMounts()
 		{
 			VI_TRACE("[io] fetch mount points");
-			Core::Vector<Core::String> Output;
+			Vector<String> Output;
 #ifdef VI_MICROSOFT
 			DWORD DriveMask = GetLogicalDrives();
-			int Offset = (int)'A';
-
+			char Offset = 'A';
 			while (DriveMask)
 			{
 				if (DriveMask & 1)
-					Output.push_back(Core::String(1, (char)Offset) + '\\');
+				{
+					String Letter(1, Offset);
+					Letter.append(":\\");
+					Output.push_back(std::move(Letter));
+				}
 				DriveMask >>= 1;
-				Offset++;
+				++Offset;
 			}
 
 			return Output;
@@ -8103,161 +8302,29 @@ namespace Mavi
 #endif
 		}
 
-		bool OS::File::State(const Core::String& Path, FileEntry* Resource)
-		{
-			VI_ASSERT(Resource != nullptr, "resource should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
-
-			*Resource = FileEntry();
-			Resource->Path = Path;
-#if defined(VI_MICROSOFT)
-			wchar_t Buffer[CHUNK_SIZE];
-			Stringify::ConvertToWide(Path.c_str(), Path.size(), Buffer, CHUNK_SIZE);
-
-			WIN32_FILE_ATTRIBUTE_DATA Info;
-			if (GetFileAttributesExW(Buffer, GetFileExInfoStandard, &Info) == 0)
-			{
-				VI_TRACE("[io] stat %s: non-existant", Path.c_str());
-				return false;
-			}
-
-			Resource->Size = MAKEUQUAD(Info.nFileSizeLow, Info.nFileSizeHigh);
-			Resource->LastModified = SYS2UNIX_TIME(Info.ftLastWriteTime.dwLowDateTime, Info.ftLastWriteTime.dwHighDateTime);
-			Resource->CreationTime = SYS2UNIX_TIME(Info.ftCreationTime.dwLowDateTime, Info.ftCreationTime.dwHighDateTime);
-			if (Resource->CreationTime > Resource->LastModified)
-				Resource->LastModified = Resource->CreationTime;
-
-			Resource->IsDirectory = Info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
-			VI_TRACE("[io] stat %s: %s %" PRIu64 " bytes", Path.c_str(), Resource->IsDirectory ? "dir" : "file", (uint64_t)Resource->Size);
-
-			if (Resource->IsDirectory)
-			{
-				Resource->IsExists = true;
-				return true;
-			}
-
-			if (Path.empty())
-				return false;
-
-			int End = Path.back();
-			if (isalnum(End) || strchr("_-", End) != nullptr)
-			{
-				Resource->IsExists = true;
-				return true;
-			}
-
-			return false;
-#else
-			struct stat State;
-			if (stat(Path.c_str(), &State) != 0)
-			{
-				VI_TRACE("[io] stat %s: non-existant", Path.c_str());
-				return false;
-			}
-
-			struct tm Time;
-			LocalTime(&State.st_ctime, &Time);
-			Resource->CreationTime = mktime(&Time);
-			Resource->Size = (size_t)(State.st_size);
-			Resource->LastModified = State.st_mtime;
-			Resource->IsDirectory = S_ISDIR(State.st_mode);
-			Resource->IsExists = true;
-
-			VI_TRACE("[io] stat %s: %s %" PRIu64 " bytes", Path.c_str(), Resource->IsDirectory ? "dir" : "file", (uint64_t)Resource->Size);
-			return true;
-#endif
-		}
-		bool OS::File::Write(const Core::String& Path, const char* Data, size_t Length)
-		{
-			VI_ASSERT(Data != nullptr, "data should be set");
-			auto* Stream = Open(Path, FileMode::Binary_Write_Only);
-			if (!Stream)
-				return false;
-
-			VI_MEASURE(Core::Timings::FileSystem);
-			size_t Size = Stream->Write(Data, Length);
-			VI_RELEASE(Stream);
-
-			return Size == Length;
-		}
-		bool OS::File::Write(const Core::String& Path, const Core::String& Data)
-		{
-			auto* Stream = Open(Path, FileMode::Binary_Write_Only);
-			if (!Stream)
-				return false;
-
-			VI_MEASURE(Core::Timings::FileSystem);
-			size_t Size = Stream->Write(Data.data(), Data.size());
-			VI_RELEASE(Stream);
-
-			return Size == Data.size();
-		}
-		bool OS::File::Copy(const char* From, const char* To)
-		{
-			VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
-			VI_DEBUG("[io] copy file from %s to %s", From, To);
-			std::ifstream Source(From, std::ios::binary);
-			if (!Source)
-				return false;
-
-			if (!OS::Directory::Patch(OS::Path::GetDirectory(To)))
-				return false;
-
-			std::ofstream Destination(To, std::ios::binary);
-			if (!Source)
-				return false;
-
-			Destination << Source.rdbuf();
-			return true;
-		}
-		bool OS::File::Move(const char* From, const char* To)
-		{
-			VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
-			VI_DEBUG("[io] move file from %s to %s", From, To);
-#ifdef VI_MICROSOFT
-			return MoveFileA(From, To) != 0;
-#elif defined VI_LINUX
-			return !rename(From, To);
-#else
-			return false;
-#endif
-		}
-		bool OS::File::Remove(const char* Path)
-		{
-			VI_ASSERT(Path != nullptr, "path should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
-			VI_DEBUG("[io] remove file %s", Path);
-#ifdef VI_MICROSOFT
-			SetFileAttributesA(Path, 0);
-			return DeleteFileA(Path) != 0;
-#elif defined VI_LINUX
-			return unlink(Path) == 0;
-#else
-			return false;
-#endif
-		}
 		bool OS::File::IsExists(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] check path %s", Path);
-			return IsPathExists(OS::Path::Resolve(Path).c_str());
+			auto TargetPath = OS::Path::Resolve(Path);
+			return TargetPath && IsPathExists(TargetPath->c_str());
 		}
-		void OS::File::Close(void* Stream)
-		{
-			VI_ASSERT(Stream != nullptr, "stream should be set");
-			VI_DEBUG("[io] close fs %i", VI_FILENO((FILE*)Stream));
-			fclose((FILE*)Stream);
-		}
-		int OS::File::Compare(const Core::String& FirstPath, const Core::String& SecondPath)
+		int OS::File::Compare(const String& FirstPath, const String& SecondPath)
 		{
 			VI_ASSERT(!FirstPath.empty(), "first path should not be empty");
 			VI_ASSERT(!SecondPath.empty(), "second path should not be empty");
 
-			size_t Size1 = GetProperties(FirstPath.c_str()).Size;
-			size_t Size2 = GetProperties(SecondPath.c_str()).Size;
+			auto Props1 = GetProperties(FirstPath.c_str());
+			auto Props2 = GetProperties(SecondPath.c_str());
+			if (!Props1 && !Props2)
+				return 0;
+			else if (Props1)
+				return 1;
+			else if (Props2)
+				return -1;
+
+			size_t Size1 = Props1->Size, Size2 = Props2->Size;
 			VI_TRACE("[io] compare paths { %s (%" PRIu64 "), %s (%" PRIu64 ") }", FirstPath.c_str(), Size1, SecondPath.c_str(), Size2);
 
 			if (Size1 > Size2)
@@ -8265,14 +8332,14 @@ namespace Mavi
 			else if (Size1 < Size2)
 				return -1;
 
-			FILE* First = (FILE*)Open(FirstPath.c_str(), "rb");
+			auto First = Open(FirstPath.c_str(), "rb");
 			if (!First)
 				return -1;
 
-			FILE* Second = (FILE*)Open(SecondPath.c_str(), "rb");
+			auto Second = Open(SecondPath.c_str(), "rb");
 			if (!Second)
 			{
-				OS::File::Close(First);
+				OS::File::Close(*First);
 				return -1;
 			}
 
@@ -8283,9 +8350,9 @@ namespace Mavi
 
 			do
 			{
-				VI_MEASURE(Core::Timings::FileSystem);
-				size_t S1 = fread(Buffer1, sizeof(char), Size, First);
-				size_t S2 = fread(Buffer2, sizeof(char), Size, Second);
+				VI_MEASURE(Timings::FileSystem);
+				size_t S1 = fread(Buffer1, sizeof(char), Size, (FILE*)*First);
+				size_t S2 = fread(Buffer2, sizeof(char), Size, (FILE*)*Second);
 				if (S1 == S2)
 				{
 					if (S1 == 0)
@@ -8299,45 +8366,17 @@ namespace Mavi
 					Diff = -1;
 			} while (Diff == 0);
 
-			OS::File::Close(First);
-			OS::File::Close(Second);
+			OS::File::Close(*First);
+			OS::File::Close(*Second);
 			return Diff;
 		}
-		size_t OS::File::Join(const Core::String& To, const Core::Vector<Core::String>& Paths)
-		{
-			VI_ASSERT(!To.empty(), "to should not be empty");
-			VI_ASSERT(!Paths.empty(), "paths to join should not be empty");
-			VI_TRACE("[io] join %i path to %s", (int)Paths.size(), To.c_str());
-
-			Stream* Target = Open(To, FileMode::Binary_Write_Only);
-			if (!Target)
-				return 0;
-
-			size_t Total = 0;
-			for (auto& Path : Paths)
-			{
-				Stream* Base = Open(Path, FileMode::Binary_Read_Only);
-				if (!Base)
-					continue;
-
-				Total += Base->ReadAll([&Target](char* Buffer, size_t Size)
-				{
-					Target->Write(Buffer, Size);
-				});
-				VI_RELEASE(Base);
-			}
-
-			VI_RELEASE(Target);
-			return Total;
-		}
-		uint64_t OS::File::GetHash(const Core::String& Data)
+		uint64_t OS::File::GetHash(const String& Data)
 		{
 			return Compute::Crypto::CRC32(Data);
 		}
 		uint64_t OS::File::GetIndex(const char* Data, size_t Size)
 		{
 			VI_ASSERT(Data != nullptr, "data buffer should be set");
-
 			uint64_t Result = 0xcbf29ce484222325;
 			for (size_t i = 0; i < Size; i++)
 			{
@@ -8347,20 +8386,169 @@ namespace Mavi
 
 			return Result;
 		}
-		FileState OS::File::GetProperties(const char* Path)
+		Expected<void> OS::File::Write(const String& Path, const char* Data, size_t Length)
 		{
-			FileState State;
-			struct stat Buffer;
+			VI_ASSERT(Data != nullptr, "data should be set");
+			VI_MEASURE(Timings::FileSystem);
+			auto Stream = Open(Path, FileMode::Binary_Write_Only);
+			if (!Stream)
+				return Stream.Error();
 
+			size_t Size = Stream->Write(Data, Length);
+			VI_RELEASE(Stream);
+
+			if (Size != Length)
+				return std::make_error_condition(std::errc::broken_pipe);
+
+			return Optional::OK;
+		}
+		Expected<void> OS::File::Write(const String& Path, const String& Data)
+		{
+			return Write(Path, Data.c_str(), Data.size());
+		}
+		Expected<void> OS::File::Copy(const char* From, const char* To)
+		{
+			VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
+			VI_MEASURE(Timings::FileSystem);
+			VI_DEBUG("[io] copy file from %s to %s", From, To);
+			std::ifstream Source(From, std::ios::binary);
+			if (!Source)
+				return std::make_error_condition(std::errc::bad_file_descriptor);
+			
+			auto Result = OS::Directory::Patch(OS::Path::GetDirectory(To));
+			if (!Result)
+				return Result;
+
+			std::ofstream Destination(To, std::ios::binary);
+			if (!Source)
+				return std::make_error_condition(std::errc::bad_file_descriptor);
+
+			Destination << Source.rdbuf();
+			return Optional::OK;
+		}
+		Expected<void> OS::File::Move(const char* From, const char* To)
+		{
+			VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
+			VI_MEASURE(Timings::FileSystem);
+			VI_DEBUG("[io] move file from %s to %s", From, To);
+#ifdef VI_MICROSOFT
+			if (MoveFileA(From, To) != TRUE)
+				return OS::Error::GetConditionOr();
+
+			return Optional::OK;
+#elif defined VI_LINUX
+			if (rename(From, To) != 0)
+				return OS::Error::GetConditionOr();
+
+			return Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		Expected<void> OS::File::Remove(const char* Path)
+		{
 			VI_ASSERT(Path != nullptr, "path should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
+			VI_DEBUG("[io] remove file %s", Path);
+#ifdef VI_MICROSOFT
+			SetFileAttributesA(Path, 0);
+			if (DeleteFileA(Path) != TRUE)
+				return OS::Error::GetConditionOr();
 
-			if (stat(Path, &Buffer) != 0)
+			return Optional::OK;
+#elif defined VI_LINUX
+			if (unlink(Path) != 0)
+				return OS::Error::GetConditionOr();
+
+			return Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		Expected<void> OS::File::Close(void* Stream)
+		{
+			VI_ASSERT(Stream != nullptr, "stream should be set");
+			VI_DEBUG("[io] close fs %i", VI_FILENO((FILE*)Stream));
+			if (fclose((FILE*)Stream) != 0)
+				return OS::Error::GetConditionOr();
+
+			return Optional::OK;
+		}
+		Expected<void> OS::File::GetState(const String& Path, FileEntry* File)
+		{
+			VI_MEASURE(Timings::FileSystem);
+#if defined(VI_MICROSOFT)
+			wchar_t Buffer[CHUNK_SIZE];
+			Stringify::ConvertToWide(Path.c_str(), Path.size(), Buffer, CHUNK_SIZE);
+
+			WIN32_FILE_ATTRIBUTE_DATA Info;
+			if (GetFileAttributesExW(Buffer, GetFileExInfoStandard, &Info) == 0)
+				return OS::Error::GetConditionOr();
+
+			File->Size = MAKEUQUAD(Info.nFileSizeLow, Info.nFileSizeHigh);
+			File->LastModified = SYS2UNIX_TIME(Info.ftLastWriteTime.dwLowDateTime, Info.ftLastWriteTime.dwHighDateTime);
+			File->CreationTime = SYS2UNIX_TIME(Info.ftCreationTime.dwLowDateTime, Info.ftCreationTime.dwHighDateTime);
+			File->IsDirectory = Info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
+			File->IsExists = File->IsReferenced = false;
+			if (File->CreationTime > File->LastModified)
+				File->LastModified = File->CreationTime;
+			if (File->IsDirectory)
+				File->IsExists = true;
+			else if (!Path.empty())
+				File->IsExists = (isalnum(Path.back()) || strchr("_-", Path.back()) != nullptr);
+#else
+			struct stat State;
+			if (stat(Path.c_str(), &State) != 0)
+				return OS::Error::GetConditionOr();
+
+			struct tm Time;
+			LocalTime(&State.st_ctime, &Time);
+
+			File->Size = (size_t)(State.st_size);
+			File->LastModified = State.st_mtime;
+			File->CreationTime = mktime(&Time);
+			File->IsDirectory = S_ISDIR(State.st_mode);
+			File->IsReferenced = false;
+			File->IsExists = true;
+#endif
+			VI_TRACE("[io] stat %s: %s %" PRIu64 " bytes", Path.c_str(), File->IsDirectory ? "dir" : "file", (uint64_t)File->Size);
+			return Core::Optional::OK;
+		}
+		Expected<size_t> OS::File::Join(const String& To, const Vector<String>& Paths)
+		{
+			VI_ASSERT(!To.empty(), "to should not be empty");
+			VI_ASSERT(!Paths.empty(), "paths to join should not be empty");
+			VI_TRACE("[io] join %i path to %s", (int)Paths.size(), To.c_str());
+
+			auto Target = Open(To, FileMode::Binary_Write_Only);
+			if (!Target)
+				return Target.Error();
+
+			size_t Total = 0;
+			Stream* Streamer = *Target;
+			for (auto& Path : Paths)
 			{
-				VI_TRACE("[io] stat %s: non-existant", Path);
-				return State;
+				auto Base = Open(Path, FileMode::Binary_Read_Only);
+				if (Base)
+				{
+					Total += Base->ReadAll([&Streamer](char* Buffer, size_t Size) { Streamer->Write(Buffer, Size); });
+					VI_RELEASE(Base);
+				}
 			}
 
+			VI_RELEASE(Target);
+			return Total;
+		}
+		Expected<FileState> OS::File::GetProperties(const char* Path)
+		{
+			VI_ASSERT(Path != nullptr, "path should be set");
+			VI_MEASURE(Timings::FileSystem);
+
+			struct stat Buffer;
+			if (stat(Path, &Buffer) != 0)
+				return OS::Error::GetConditionOr();
+
+			FileState State;
 			State.Exists = true;
 			State.Size = Buffer.st_size;
 			State.Links = Buffer.st_nlink;
@@ -8376,9 +8564,18 @@ namespace Mavi
 			VI_TRACE("[io] stat %s: %" PRIu64 " bytes", Path, (uint64_t)State.Size);
 			return State;
 		}
-		void* OS::File::Open(const char* Path, const char* Mode)
+		Expected<FileEntry> OS::File::GetState(const String& Path)
 		{
-			VI_MEASURE(Core::Timings::FileSystem);
+			FileEntry File;
+			auto Status = GetState(Path, &File);
+			if (!Status)
+				return Status.Error();
+
+			return File;
+		}
+		Expected<FILE*> OS::File::Open(const char* Path, const char* Mode)
+		{
+			VI_MEASURE(Timings::FileSystem);
 			VI_ASSERT(Path != nullptr && Mode != nullptr, "path and mode should be set");
 #ifdef VI_MICROSOFT
 			wchar_t Buffer[CHUNK_SIZE], Type[20];
@@ -8386,174 +8583,166 @@ namespace Mavi
 			Stringify::ConvertToWide(Mode, strlen(Mode), Type, 20);
 
 			FILE* Stream = _wfopen(Buffer, Type);
-			if (Stream != nullptr)
-				VI_DEBUG("[io] open fs %i %s %s", VI_FILENO(Stream), Mode, Path);
-			else
-				VI_WARN("[io] open fs %s %s: cannot be opened", Mode, Path);
+			if (!Stream)
+				return OS::Error::GetConditionOr();
 
-			return (void*)Stream;
+			VI_DEBUG("[io] open fs %i %s %s", VI_FILENO(Stream), Mode, Path);
+			return Stream;
 #else
 			FILE* Stream = fopen(Path, Mode);
-			if (Stream != nullptr)
-				fcntl(VI_FILENO(Stream), F_SETFD, FD_CLOEXEC);
+			if (!Stream)
+				return OS::Error::GetConditionOr();
 
-			if (Stream != nullptr)
-				VI_DEBUG("[io] open fs %i %s %s", VI_FILENO(Stream), Mode, Path);
-			else
-				VI_WARN("[io] open fs %s %s: cannot be opened", Mode, Path);
-
-			return (void*)Stream;
+			VI_DEBUG("[io] open fs %i %s %s", VI_FILENO(Stream), Mode, Path);
+			fcntl(VI_FILENO(Stream), F_SETFD, FD_CLOEXEC);
+			return Stream;
 #endif
 		}
-		Stream* OS::File::Open(const Core::String& Path, FileMode Mode, bool Async)
+		Expected<Stream*> OS::File::Open(const String& Path, FileMode Mode, bool Async)
 		{
 			Network::Location URL(Path);
 			if (URL.Protocol == "file")
 			{
-				Stream* Result = nullptr;
+				Stream* Target = nullptr;
 				if (Stringify::EndsWith(Path, ".gz"))
-					Result = new GzStream();
+					Target = new GzStream();
 				else
-					Result = new FileStream();
+					Target = new FileStream();
 
-				if (Result->Open(Path.c_str(), Mode))
-					return Result;
+				auto Result = Target->Open(Path.c_str(), Mode);
+				if (!Result)
+				{
+					VI_RELEASE(Target);
+					return Result.Error();
+				}
 
-				VI_RELEASE(Result);
+				return Target;
 			}
 			else if (URL.Protocol == "http" || URL.Protocol == "https")
 			{
-				Stream* Result = new WebStream(Async);
-				if (Result->Open(Path.c_str(), Mode))
-					return Result;
+				Stream* Target = new WebStream(Async);
+				auto Result = Target->Open(Path.c_str(), Mode);
+				if (!Result)
+				{
+					VI_RELEASE(Target);
+					return Result.Error();
+				}
 
-				VI_RELEASE(Result);
+				return Target;
 			}
 
-			return nullptr;
+			return std::make_error_condition(std::errc::invalid_argument);
 		}
-		Stream* OS::File::OpenArchive(const Core::String& Path, size_t UnarchivedMaxSize)
+		Expected<Stream*> OS::File::OpenArchive(const String& Path, size_t UnarchivedMaxSize)
 		{
-			FileEntry Data;
-			if (!OS::File::State(Path, &Data))
+			auto State = OS::File::GetState(Path);
+			if (!State)
 				return Open(Path, FileMode::Binary_Write_Only);
 
-			Core::String Temp = Path::GetNonExistant(Path);
+			String Temp = Path::GetNonExistant(Path);
 			Move(Path.c_str(), Temp.c_str());
 
-			Stream* Target = nullptr;
-			if (Data.Size > UnarchivedMaxSize)
+			if (State->Size <= UnarchivedMaxSize)
 			{
-				Target = Open(Path, FileMode::Binary_Write_Only);
-				if (Stringify::EndsWith(Temp, ".gz"))
-					return Target;
-
-				Stream* Archive = OpenJoin(Temp + ".gz", { Temp });
-				if (Archive != nullptr)
+				auto Target = OpenJoin(Path, { Temp });
+				if (Target)
 					Remove(Temp.c_str());
-				VI_RELEASE(Archive);
+				return Target;
 			}
-			else
+
+			auto Target = Open(Path, FileMode::Binary_Write_Only);
+			if (Stringify::EndsWith(Temp, ".gz"))
+				return Target;
+
+			auto Archive = OpenJoin(Temp + ".gz", { Temp });
+			if (Archive)
 			{
-				Target = OpenJoin(Path, { Temp });
-				if (Target != nullptr)
-					Remove(Temp.c_str());
+				Remove(Temp.c_str());
+				VI_RELEASE(Archive);
 			}
 
 			return Target;
 		}
-		Stream* OS::File::OpenJoin(const Core::String& To, const Core::Vector<Core::String>& Paths)
+		Expected<Stream*> OS::File::OpenJoin(const String& To, const Vector<String>& Paths)
 		{
 			VI_ASSERT(!To.empty(), "to should not be empty");
 			VI_ASSERT(!Paths.empty(), "paths to join should not be empty");
 			VI_TRACE("[io] open join %i path to %s", (int)Paths.size(), To.c_str());
 
-			Stream* Target = Open(To, FileMode::Binary_Write_Only);
+			auto Target = Open(To, FileMode::Binary_Write_Only);
 			if (!Target)
-				return nullptr;
+				return Target;
 
+			Stream* Streamer = *Target;
 			for (auto& Path : Paths)
 			{
-				Stream* Base = Open(Path, FileMode::Binary_Read_Only);
-				if (!Base)
-					continue;
-
-				Base->ReadAll([&Target](char* Buffer, size_t Size)
+				auto Base = Open(Path, FileMode::Binary_Read_Only);
+				if (Base)
 				{
-					Target->Write(Buffer, Size);
-				});
-				VI_RELEASE(Base);
+					Base->ReadAll([&Streamer](char* Buffer, size_t Size) { Streamer->Write(Buffer, Size); });
+					VI_RELEASE(Base);
+				}
 			}
 
 			return Target;
 		}
-		unsigned char* OS::File::ReadAll(const Core::String& Path, size_t* Length)
+		Expected<unsigned char*> OS::File::ReadAll(const String& Path, size_t* Length)
 		{
-			auto* Stream = Open(Path, FileMode::Binary_Read_Only);
-			if (!Stream)
-				return nullptr;
+			auto Base = Open(Path, FileMode::Binary_Read_Only);
+			if (!Base)
+				return Base.Error();
 
-			return ReadAll(Stream, Length);
+			auto Result = ReadAll(*Base, Length);
+			VI_RELEASE(Base);
+			return Result;
 		}
-		unsigned char* OS::File::ReadAll(Stream* Stream, size_t* Length)
+		Expected<unsigned char*> OS::File::ReadAll(Stream* Stream, size_t* Length)
 		{
 			VI_ASSERT(Stream != nullptr, "path should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
 			VI_TRACE("[io] fd %i read-all", Stream->GetFd());
+			if (Length != nullptr)
+				*Length = 0;
 
-			size_t Size = Stream->GetSize();
-			if (Size > 0)
+			bool IsVirtual = Stream->GetVirtualSize() > 0;
+			if (IsVirtual || Stream->IsSized())
 			{
+				size_t Size = IsVirtual ? Stream->GetVirtualSize() : Stream->GetSize();
 				auto* Bytes = VI_MALLOC(unsigned char, sizeof(unsigned char) * (Size + 1));
 				if (!Stream->Read((char*)Bytes, Size))
 				{
-					VI_RELEASE(Stream);
+					auto Condition = OS::Error::GetConditionOr();
 					VI_FREE(Bytes);
-
-					if (Length != nullptr)
-						*Length = 0;
-
-					return nullptr;
+					return Condition;
 				}
 
 				Bytes[Size] = '\0';
 				if (Length != nullptr)
 					*Length = Size;
 
-				VI_RELEASE(Stream);
 				return Bytes;
 			}
-			else
+
+			Core::String Data;
+			Stream->ReadAll([&Data](char* Buffer, size_t Length)
 			{
-				Core::String Data;
-				Stream->ReadAll([&Data](char* Buffer, size_t Length)
-				{
-					Data.reserve(Data.size() + Length);
-					Data.append(Buffer, Length);
-				});
+				Data.reserve(Data.size() + Length);
+				Data.append(Buffer, Length);
+			});
 
-				Size = Data.size();
-				if (Data.empty())
-				{
-					VI_RELEASE(Stream);
-					if (Length != nullptr)
-						*Length = 0;
+			size_t Size = Data.size();
+			if (Data.empty())
+				return OS::Error::GetConditionOr();
 
-					return nullptr;
-				}
+			auto* Bytes = VI_MALLOC(unsigned char, sizeof(unsigned char) * (Data.size() + 1));
+			memcpy(Bytes, Data.data(), sizeof(unsigned char) * Data.size());
+			Bytes[Size] = '\0';
+			if (Length != nullptr)
+				*Length = Size;
 
-				auto* Bytes = VI_MALLOC(unsigned char, sizeof(unsigned char) * (Data.size() + 1));
-				memcpy(Bytes, Data.data(), sizeof(unsigned char) * Data.size());
-				Bytes[Size] = '\0';
-
-				if (Length != nullptr)
-					*Length = Size;
-
-				VI_RELEASE(Stream);
-				return Bytes;
-			}
+			return Bytes;
 		}
-		unsigned char* OS::File::ReadChunk(Stream* Stream, size_t Length)
+		Expected<unsigned char*> OS::File::ReadChunk(Stream* Stream, size_t Length)
 		{
 			VI_ASSERT(Stream != nullptr, "stream should be set");
 			auto* Bytes = VI_MALLOC(unsigned char, (Length + 1));
@@ -8562,22 +8751,26 @@ namespace Mavi
 
 			return Bytes;
 		}
-		Core::String OS::File::ReadAsString(const Core::String& Path)
+		Expected<String> OS::File::ReadAsString(const String& Path)
 		{
 			size_t Length = 0;
-			char* Data = (char*)ReadAll(Path, &Length);
-			if (!Data)
-				return Core::String();
+			auto FileData = ReadAll(Path, &Length);
+			if (!FileData)
+				return FileData.Error();
 
-			Core::String Output = Core::String(Data, Length);
+			auto* Data = (char*)*FileData;
+			String Output(Data, Length);
 			VI_FREE(Data);
 
 			return Output;
 		}
-		Core::Vector<Core::String> OS::File::ReadAsArray(const Core::String& Path)
+		Expected<Vector<String>> OS::File::ReadAsArray(const String& Path)
 		{
-			Core::String Result = ReadAsString(Path);
-			return Stringify::Split(Result, '\n');
+			Expected<String> Result = ReadAsString(Path);
+			if (!Result)
+				return Result.Error();
+
+			return Stringify::Split(*Result, '\n');
 		}
 
 		bool OS::Path::IsRemote(const char* Path)
@@ -8609,28 +8802,23 @@ namespace Mavi
 			return Path[0] == '/' || Path[0] == '\\';
 #endif
 		}
-		Core::String OS::Path::Resolve(const char* Path)
+		Expected<String> OS::Path::Resolve(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			char Buffer[BLOB_SIZE] = { };
 #ifdef VI_MICROSOFT
 			if (GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr) == 0)
-			{
-				VI_TRACE("[io] resolve %s path: non-existant", Path);
-				return Path;
-			}
+				return OS::Error::GetConditionOr();
 #else
 			if (!realpath(Path, Buffer))
-			{
-				VI_TRACE("[io] resolve %s path: non-existant", Path);
-				return Path;
-			}
+				return OS::Error::GetConditionOr();
 #endif
-			VI_TRACE("[io] resolve %s path: %s", Path, Buffer);
-			return Buffer;
+			String Output(Buffer, strnlen(Buffer, BLOB_SIZE));
+			VI_TRACE("[io] resolve %s path: %s", Path, Output.c_str());
+			return Output;
 		}
-		Core::String OS::Path::Resolve(const Core::String& Path, const Core::String& Directory, bool EvenIfExists)
+		Expected<String> OS::Path::Resolve(const String& Path, const String& Directory, bool EvenIfExists)
 		{
 			VI_ASSERT(!Path.empty() && !Directory.empty(), "path and directory should not be empty");
 			if (IsAbsolute(Path.c_str()))
@@ -8642,7 +8830,7 @@ namespace Mavi
 			bool Relative = !Prefixed && (Stringify::StartsWith(Path, "./") || Stringify::StartsWith(Path, ".\\"));
 			bool Postfixed = Stringify::EndsOf(Directory, "/\\");
 
-			Core::String Target = Directory;
+			String Target = Directory;
 			if (!Prefixed && !Postfixed)
 				Target.append(1, VI_SPLITTER);
 
@@ -8653,43 +8841,54 @@ namespace Mavi
 
 			return Resolve(Target.c_str());
 		}
-		Core::String OS::Path::ResolveDirectory(const char* Path)
+		Expected<String> OS::Path::ResolveDirectory(const char* Path)
 		{
-			Core::String Result = Resolve(Path);
-			if (!Result.empty() && !Stringify::EndsOf(Result, "/\\"))
-				Result.append(1, VI_SPLITTER);
+			Expected<String> Result = Resolve(Path);
+			if (!Result)
+				return Result;
+
+			if (!Result->empty() && !Stringify::EndsOf(*Result, "/\\"))
+				Result->append(1, VI_SPLITTER);
 
 			return Result;
 		}
-		Core::String OS::Path::ResolveDirectory(const Core::String& Path, const Core::String& Directory, bool EvenIfExists)
+		Expected<String> OS::Path::ResolveDirectory(const String& Path, const String& Directory, bool EvenIfExists)
 		{
-			Core::String Result = Resolve(Path, Directory, EvenIfExists);
-			if (!Result.empty() && !Stringify::EndsOf(Result, "/\\"))
-				Result.append(1, VI_SPLITTER);
+			Expected<String> Result = Resolve(Path, Directory, EvenIfExists);
+			if (!Result)
+				return Result;
+
+			if (!Result->empty() && !Stringify::EndsOf(*Result, "/\\"))
+				Result->append(1, VI_SPLITTER);
 
 			return Result;
 		}
-		Core::String OS::Path::GetNonExistant(const Core::String& Path)
+		String OS::Path::GetNonExistant(const String& Path)
 		{
 			VI_ASSERT(!Path.empty(), "path should not be empty");
 			const char* Extension = GetExtension(Path.c_str());
 			bool IsTrueFile = Extension != nullptr && *Extension != '\0';
 			size_t ExtensionAt = IsTrueFile ? Path.rfind(Extension) : Path.size();
-			if (ExtensionAt == Core::String::npos)
+			if (ExtensionAt == String::npos)
 				return Path;
 
-			Core::String First = Path.substr(0, ExtensionAt).append(1, '.');
-			Core::String Second = IsTrueFile ? Extension : Core::String();
-			Core::String Filename = Path;
+			String First = Path.substr(0, ExtensionAt).append(1, '.');
+			String Second = IsTrueFile ? Extension : String();
+			String Filename = Path;
 			size_t Nonce = 0;
-			FileEntry Data;
 
-			while (OS::File::State(Filename, &Data) && Data.Size > 0)
+			while (true)
+			{
+				auto Data = OS::File::GetState(Filename);
+				if (!Data || !Data->Size)
+					break;
+
 				Filename = First + Core::ToString(++Nonce) + Second;
+			}
 
 			return Filename;
 		}
-		Core::String OS::Path::GetDirectory(const char* Path, size_t Level)
+		String OS::Path::GetDirectory(const char* Path, size_t Level)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
 
@@ -8971,31 +9170,33 @@ namespace Mavi
 			VI_DEBUG("[os] execute sp:command [ %s ]", Command.c_str());
 			return system(Command.c_str());
 		}
-		ProcessStream* OS::Process::ExecuteWriteOnly(const String& Command)
+		Expected<ProcessStream*> OS::Process::ExecuteWriteOnly(const String& Command)
 		{
 			VI_ASSERT(!Command.empty(), "format should be set");
 			VI_DEBUG("[os] execute wo:command [ %s ]", Command.c_str());
 			ProcessStream* Stream = new ProcessStream();
-			if (Stream->Open(Command.c_str(), FileMode::Write_Only))
+			auto Result = Stream->Open(Command.c_str(), FileMode::Write_Only);
+			if (Result)
 				return Stream;
 
 			VI_RELEASE(Stream);
-			return nullptr;
+			return Result.Error();
 		}
-		ProcessStream* OS::Process::ExecuteReadOnly(const String& Command)
+		Expected<ProcessStream*> OS::Process::ExecuteReadOnly(const String& Command)
 		{
 			VI_ASSERT(!Command.empty(), "format should be set");
 			VI_DEBUG("[os] execute ro:command [ %s ]", Command.c_str());
 			ProcessStream* Stream = new ProcessStream();
-			if (Stream->Open(Command.c_str(), FileMode::Read_Only))
+			auto Result = Stream->Open(Command.c_str(), FileMode::Read_Only);
+			if (Result)
 				return Stream;
 
 			VI_RELEASE(Stream);
-			return nullptr;
+			return Result.Error();
 		}
-		bool OS::Process::Spawn(const Core::String& Path, const Core::Vector<Core::String>& Params, ChildProcess* Child)
+		bool OS::Process::Spawn(const String& Path, const Vector<String>& Params, ChildProcess* Child)
 		{
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 #ifdef VI_MICROSOFT
 			HANDLE Job = CreateJobObject(nullptr, nullptr);
 			if (Job == nullptr)
@@ -9021,17 +9222,23 @@ namespace Mavi
 			PROCESS_INFORMATION Process;
 			ZeroMemory(&Process, sizeof(Process));
 
-			String Exe = Path::Resolve(Path.c_str());
-			if (!Stringify::EndsWith(Exe, ".exe"))
-				Exe.append(".exe");
+			auto Exe = Path::Resolve(Path.c_str());
+			if (!Exe)
+			{
+				VI_ERR("[os] cannot spawn process: unknown path %s", Path.c_str());
+				return false;
+			}
 
-			String Args = Stringify::Text("\"%s\"", Exe.c_str());
+			if (!Stringify::EndsWith(*Exe, ".exe"))
+				Exe->append(".exe");
+
+			String Args = Stringify::Text("\"%s\"", Exe->c_str());
 			for (const auto& Param : Params)
 				Args.append(1, ' ').append(Param);
 
-			if (!CreateProcessA(Exe.c_str(), (char*)Args.data(), nullptr, nullptr, TRUE, CREATE_BREAKAWAY_FROM_JOB | HIGH_PRIORITY_CLASS, nullptr, nullptr, &StartupInfo, &Process))
+			if (!CreateProcessA(Exe->c_str(), (char*)Args.data(), nullptr, nullptr, TRUE, CREATE_BREAKAWAY_FROM_JOB | HIGH_PRIORITY_CLASS, nullptr, nullptr, &StartupInfo, &Process))
 			{
-				VI_ERR("[os] cannot spawn process %s", Exe.c_str());
+				VI_ERR("[os] cannot spawn process %s", Exe->c_str());
 				return false;
 			}
 
@@ -9056,7 +9263,7 @@ namespace Mavi
 			pid_t ProcessId = fork();
 			if (ProcessId == 0)
 			{
-				Core::Vector<char*> Args;
+				Vector<char*> Args;
 				for (auto It = Params.begin(); It != Params.end(); ++It)
 					Args.push_back((char*)It->c_str());
 				Args.push_back(nullptr);
@@ -9133,20 +9340,29 @@ namespace Mavi
 			Child->Valid = false;
 			return true;
 		}
-		Core::String OS::Process::GetThreadId(const std::thread::id& Id)
+		String OS::Process::GetThreadId(const std::thread::id& Id)
 		{
-			Core::StringStream Stream;
+			StringStream Stream;
 			Stream << Id;
 
 			return Stream.str();
 		}
-		Core::UnorderedMap<Core::String, Core::String> OS::Process::GetArgs(int ArgsCount, char** Args, const Core::String& WhenNoValue)
+		Expected<String> OS::Process::GetEnv(const String& Name)
 		{
-			Core::UnorderedMap<Core::String, Core::String> Results;
+			char* Value = std::getenv(Name.c_str());
+			if (!Value)
+				return OS::Error::GetConditionOr();
+
+			String Output(Value, strlen(Value));
+			return Output;
+		}
+		UnorderedMap<String, String> OS::Process::GetArgs(int ArgsCount, char** Args, const String& WhenNoValue)
+		{
+			UnorderedMap<String, String> Results;
 			VI_ASSERT(Args != nullptr, "arguments should be set");
 			VI_ASSERT(ArgsCount > 0, "arguments count should be greater than zero");
 
-			Core::Vector<Core::String> Params;
+			Vector<String> Params;
 			for (int i = 0; i < ArgsCount; i++)
 			{
 				VI_ASSERT(Args[i] != nullptr, "argument %i should be set", i);
@@ -9163,9 +9379,9 @@ namespace Mavi
 				{
 					Item = Item.substr(2);
 					size_t Position = Item.find('=');
-					if (Position != Core::String::npos)
+					if (Position != String::npos)
 					{
-						Core::String Value = Item.substr(Position + 1);
+						String Value = Item.substr(Position + 1);
 						Results[Item.substr(0, Position)] = Value.empty() ? WhenNoValue : Value;
 					}
 					else
@@ -9184,91 +9400,110 @@ namespace Mavi
 			return Results;
 		}
 
-		void* OS::Symbol::Load(const Core::String& Path)
+		Expected<void*> OS::Symbol::Load(const String& Path)
 		{
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			String Name(Path);
 #ifdef VI_MICROSOFT
 			if (Path.empty())
-				return GetModuleHandle(nullptr);
+			{
+				HMODULE Module = GetModuleHandle(nullptr);
+				if (!Module)
+					return OS::Error::GetConditionOr();
 
-			if (!Stringify::EndsWith(Name, ".dll"))
+				return (void*)Module;
+			}
+			else if (!Stringify::EndsWith(Name, ".dll"))
 				Name.append(".dll");
 
 			VI_DEBUG("[dl] load dll library %s", Name.c_str());
-			return (void*)LoadLibrary(Name.c_str());
+			HMODULE Module = LoadLibrary(Name.c_str());
+			if (!Module)
+				return OS::Error::GetConditionOr();
+
+			return (void*)Module;
 #elif defined(VI_APPLE)
 			if (Path.empty())
-				return (void*)dlopen(nullptr, RTLD_LAZY);
+			{
+				void* Module = (void*)dlopen(nullptr, RTLD_LAZY);
+				if (!Module)
+					return OS::Error::GetConditionOr();
 
-			if (!Stringify::EndsWith(Name, ".dylib"))
+				return (void*)Module;
+			}
+			else if (!Stringify::EndsWith(Name, ".dylib"))
 				Name.append(".dylib");
 
 			VI_DEBUG("[dl] load dylib library %s", Name.c_str());
-			return (void*)dlopen(Name.c_str(), RTLD_LAZY);
+			void* Module = (void*)dlopen(Name.c_str(), RTLD_LAZY);
+			if (!Module)
+				return OS::Error::GetConditionOr();
+
+			return (void*)Module;
 #elif defined(VI_LINUX)
 			if (Path.empty())
-				return (void*)dlopen(nullptr, RTLD_LAZY);
+			{
+				void* Module = (void*)dlopen(nullptr, RTLD_LAZY);
+				if (!Module)
+					return OS::Error::GetConditionOr();
 
-			if (!Stringify::EndsWith(Name, ".so"))
+				return (void*)Module;
+			}
+			else if (!Stringify::EndsWith(Name, ".so"))
 				Name.append(".so");
 
 			VI_DEBUG("[dl] load so library %s", Name.c_str());
-			return (void*)dlopen(Name.c_str(), RTLD_LAZY);
+			void* Module = (void*)dlopen(Name.c_str(), RTLD_LAZY);
+			if (!Module)
+				return OS::Error::GetConditionOr();
+
+			return (void*)Module;
 #else
-			return nullptr;
+			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		void* OS::Symbol::LoadFunction(void* Handle, const Core::String& Name)
+		Expected<void*> OS::Symbol::LoadFunction(void* Handle, const String& Name)
 		{
 			VI_ASSERT(Handle != nullptr && !Name.empty(), "handle should be set and name should not be empty");
 			VI_DEBUG("[dl] load function %s", Name.c_str());
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 #ifdef VI_MICROSOFT
 			void* Result = (void*)GetProcAddress((HMODULE)Handle, Name.c_str());
 			if (!Result)
-			{
-				LPVOID Buffer;
-				FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&Buffer, 0, nullptr);
-				LPVOID Display = (LPVOID)LocalAlloc(LMEM_ZEROINIT, (::lstrlen((LPCTSTR)Buffer) + 40) * sizeof(TCHAR));
-				Core::String Text((LPCTSTR)Display);
-				LocalFree(Buffer);
-				LocalFree(Display);
-
-				if (!Text.empty())
-					VI_ERR("[dlerr] %s", Text.c_str());
-			}
+				return OS::Error::GetConditionOr();
 
 			return Result;
 #elif defined(VI_LINUX)
 			void* Result = (void*)dlsym(Handle, Name.c_str());
 			if (!Result)
-			{
-				const char* Text = dlerror();
-				if (Text != nullptr)
-					VI_ERR("[dlerr] %s", Text);
-			}
+				return OS::Error::GetConditionOr();
 
 			return Result;
 #else
-			return nullptr;
+			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		bool OS::Symbol::Unload(void* Handle)
+		Expected<void> OS::Symbol::Unload(void* Handle)
 		{
 			VI_ASSERT(Handle != nullptr, "handle should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
+			VI_MEASURE(Timings::FileSystem);
 			VI_DEBUG("[dl] unload library 0x%" PRIXPTR, Handle);
 #ifdef VI_MICROSOFT
-			return (FreeLibrary((HMODULE)Handle) != 0);
+			if (FreeLibrary((HMODULE)Handle) != TRUE)
+				return OS::Error::GetConditionOr();
+
+			return Optional::OK;
 #elif defined(VI_LINUX)
-			return (dlclose(Handle) == 0);
+			if (dlclose(Handle) != 0)
+				return OS::Error::GetConditionOr();
+
+			return Optional::OK;
 #else
-			return false;
+			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
 
-		bool OS::Input::Text(const Core::String& Title, const Core::String& Message, const Core::String& DefaultInput, Core::String* Result)
+		bool OS::Input::Text(const String& Title, const String& Message, const String& DefaultInput, String* Result)
 		{
 			VI_TRACE("[dg] open input { title: %s, message: %s }", Title.c_str(), Message.c_str());
 			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), DefaultInput.c_str());
@@ -9281,7 +9516,7 @@ namespace Mavi
 
 			return true;
 		}
-		bool OS::Input::Password(const Core::String& Title, const Core::String& Message, Core::String* Result)
+		bool OS::Input::Password(const String& Title, const String& Message, String* Result)
 		{
 			VI_TRACE("[dg] open password { title: %s, message: %s }", Title.c_str(), Message.c_str());
 			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), nullptr);
@@ -9294,10 +9529,10 @@ namespace Mavi
 
 			return true;
 		}
-		bool OS::Input::Save(const Core::String& Title, const Core::String& DefaultPath, const Core::String& Filter, const Core::String& FilterDescription, Core::String* Result)
+		bool OS::Input::Save(const String& Title, const String& DefaultPath, const String& Filter, const String& FilterDescription, String* Result)
 		{
-			Core::Vector<Core::String> Sources = Stringify::Split(Filter, ',');
-			Core::Vector<char*> Patterns;
+			Vector<String> Sources = Stringify::Split(Filter, ',');
+			Vector<char*> Patterns;
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
 
@@ -9314,10 +9549,10 @@ namespace Mavi
 
 			return true;
 		}
-		bool OS::Input::Open(const Core::String& Title, const Core::String& DefaultPath, const Core::String& Filter, const Core::String& FilterDescription, bool Multiple, Core::String* Result)
+		bool OS::Input::Open(const String& Title, const String& DefaultPath, const String& Filter, const String& FilterDescription, bool Multiple, String* Result)
 		{
-			Core::Vector<Core::String> Sources = Stringify::Split(Filter, ',');
-			Core::Vector<char*> Patterns;
+			Vector<String> Sources = Stringify::Split(Filter, ',');
+			Vector<char*> Patterns;
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
 
@@ -9334,7 +9569,7 @@ namespace Mavi
 
 			return true;
 		}
-		bool OS::Input::Folder(const Core::String& Title, const Core::String& DefaultPath, Core::String* Result)
+		bool OS::Input::Folder(const String& Title, const String& DefaultPath, String* Result)
 		{
 			VI_TRACE("[dg] open folder { title: %s }", Title.c_str());
 			const char* Data = tinyfd_selectFolderDialog(Title.c_str(), DefaultPath.c_str());
@@ -9347,7 +9582,7 @@ namespace Mavi
 
 			return true;
 		}
-		bool OS::Input::Color(const Core::String& Title, const Core::String& DefaultHexRGB, Core::String* Result)
+		bool OS::Input::Color(const String& Title, const String& DefaultHexRGB, String* Result)
 		{
 			VI_TRACE("[dg] open color { title: %s }", Title.c_str());
 			unsigned char RGB[3] = { 0, 0, 0 };
@@ -9420,18 +9655,6 @@ namespace Mavi
 #endif
 			errno = 0;
 		}
-		std::error_code OS::Error::GetCode()
-		{
-			return GetCode(Get());
-		}
-		std::error_code OS::Error::GetCode(int Code)
-		{
-#ifdef VI_MICROSOFT
-			return std::error_code(Code, std::system_category());
-#else
-			return std::error_code(Code, std::generic_category());
-#endif
-		}
 		std::error_condition OS::Error::GetCondition()
 		{
 			return GetCondition(Get());
@@ -9444,12 +9667,19 @@ namespace Mavi
 			return std::error_condition(Code, std::generic_category());
 #endif
 		}
-		Core::String OS::Error::GetName(int Code)
+		std::error_condition OS::Error::GetConditionOr(std::errc Code)
+		{
+			if (!Occurred())
+				return std::make_error_condition(Code);
+
+			return GetCondition(Get());
+		}
+		String OS::Error::GetName(int Code)
 		{
 #ifdef VI_MICROSOFT
 			LPSTR Buffer = nullptr;
 			size_t Size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, Code, MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), (LPSTR)&Buffer, 0, nullptr);
-			Core::String Result(Buffer, Size);
+			String Result(Buffer, Size);
 			Stringify::Replace(Result, "\r", "");
 			Stringify::Replace(Result, "\n", "");
 			LocalFree(Buffer);
@@ -9458,85 +9688,6 @@ namespace Mavi
 			char* Buffer = strerror(Code);
 			return Buffer ? Buffer : "";
 #endif
-		}
-
-		FileLog::FileLog(const Core::String& Root) noexcept : Offset(-1), Time(0), Source(new FileStream()), Path(Root)
-		{
-			Stringify::Replace(Path, '\\', '/');
-			auto V = Stringify::Split(Path, '/');
-			if (!V.empty())
-				Name = V.back();
-		}
-		FileLog::~FileLog() noexcept
-		{
-			VI_RELEASE(Source);
-		}
-		void FileLog::Process(const std::function<bool(FileLog*, const char*, int64_t)>& Callback)
-		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			FileEntry State;
-			if (Source->GetBuffer() && (!OS::File::State(Path, &State) || State.LastModified == Time))
-				return;
-
-			Source->Open(Path.c_str(), FileMode::Binary_Read_Only);
-			Time = State.LastModified;
-
-			size_t Length = Source->GetSize();
-			if (Length <= Offset || Offset <= 0)
-			{
-				Offset = Length;
-				return;
-			}
-
-			size_t Delta = Length - Offset;
-			Source->Seek(FileSeek::Begin, Length - Delta);
-
-			char* Data = VI_MALLOC(char, sizeof(char) * (Delta + 1));
-			Source->Read(Data, sizeof(char) * Delta);
-
-			Core::String Value = Data;
-			int64_t ValueLength = -1;
-			for (size_t i = Value.size(); i > 0; i--)
-			{
-				if (Value[i] == '\n' && ValueLength == -1)
-					ValueLength = i;
-
-				if ((int)Value[i] < 0)
-					Value[i] = ' ';
-			}
-
-			if (ValueLength == -1)
-				ValueLength = (int64_t)Value.size();
-
-			Value.erase(ValueLength);
-			Stringify::Replace(Value, "\t", "\n");
-			Stringify::Replace(Value, "\n\n", "\n");
-			Stringify::Replace(Value, "\r", "");
-			VI_FREE(Data);
-
-			if (Value == LastValue)
-				return;
-
-			LastValue = Value;
-			if (Stringify::Find(Value, "\n").Found)
-			{
-				Core::Vector<Core::String> Lines = Stringify::Split(Value, '\n');
-				for (auto& Line : Lines)
-				{
-					if (Line.empty())
-						continue;
-
-					if (!Callback(this, Line.c_str(), (int64_t)Line.size()))
-					{
-						Offset = Length;
-						return;
-					}
-				}
-			}
-			else if (!Value.empty())
-				Callback(this, Value.c_str(), (int64_t)Value.size());
-
-			Offset = Length;
 		}
 
 		static thread_local Costate* Cothread = nullptr;
@@ -9864,7 +10015,7 @@ namespace Mavi
 
 		Schedule::Desc::Desc()
 		{
-			auto Quantity = Core::OS::CPU::GetQuantityInfo();
+			auto Quantity = OS::CPU::GetQuantityInfo();
 			SetThreads(std::max<uint32_t>(2, Quantity.Logical) - 1);
 		}
 		void Schedule::Desc::SetThreads(size_t Cores)
@@ -9910,22 +10061,27 @@ namespace Mavi
 		}
 		TaskId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type)
 		{
+			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			VI_ASSERT(Callback, "callback should not be empty");
-			return SetSeqInterval(Milliseconds, [Callback](size_t)
-			{
-				Callback();
-			}, Type);
+
+			if (!Enqueue || Immediate)
+				return INVALID_TASK_ID;
+#ifndef NDEBUG
+			PostDebug(ThreadTask::EnqueueTimer, 1);
+#endif
+			VI_MEASURE(Timings::Atomic);
+			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
+			auto Expires = GetClock() + Duration;
+			auto Id = GetTaskId();
+			auto Queue = Queues[(size_t)Difficulty::Clock];
+
+			UMutex<std::mutex> Lock(Queue->Update);
+			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, true, Type)));
+			Queue->Notify.notify_one();
+			return Id;
 		}
 		TaskId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
 		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			return SetSeqInterval(Milliseconds, [Callback = std::move(Callback)](size_t) mutable
-			{
-				Callback();
-			}, Type);
-		}
-		TaskId Schedule::SetSeqInterval(uint64_t Milliseconds, const SeqTaskCallback& Callback, Difficulty Type)
-		{
 			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			VI_ASSERT(Callback, "callback should not be empty");
 
@@ -9934,60 +10090,40 @@ namespace Mavi
 #ifndef NDEBUG
 			PostDebug(ThreadTask::EnqueueTimer, 1);
 #endif
-			VI_MEASURE(Core::Timings::Atomic);
-			auto Queue = Queues[(size_t)Difficulty::Clock];
+			VI_MEASURE(Timings::Atomic);
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
-			{
-				Core::UMutex<std::mutex> Lock(Queue->Update);
-				Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, true, Type)));
-				Queue->Notify.notify_all();
-			}
-			Queue->Notify.notify_all();
-			return Id;
-		}
-		TaskId Schedule::SetSeqInterval(uint64_t Milliseconds, SeqTaskCallback&& Callback, Difficulty Type)
-		{
-			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
-			VI_ASSERT(Callback, "callback should not be empty");
+			auto Queue = Queues[(size_t)Difficulty::Clock];
 
-			if (!Enqueue || Immediate)
-				return INVALID_TASK_ID;
-#ifndef NDEBUG
-			PostDebug(ThreadTask::EnqueueTimer, 1);
-#endif
-			VI_MEASURE(Core::Timings::Atomic);
-			auto Queue = Queues[(size_t)Difficulty::Clock];
-			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
-			auto Expires = GetClock() + Duration;
-			auto Id = GetTaskId();
-			{
-				Core::UMutex<std::mutex> Lock(Queue->Update);
-				Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, true, Type)));
-				Queue->Notify.notify_all();
-			}
-			Queue->Notify.notify_all();
+			UMutex<std::mutex> Lock(Queue->Update);
+			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, true, Type)));
+			Queue->Notify.notify_one();
 			return Id;
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type)
 		{
+			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			VI_ASSERT(Callback, "callback should not be empty");
-			return SetSeqTimeout(Milliseconds, [Callback](size_t)
-			{
-				Callback();
-			}, Type);
+
+			if (!Enqueue || Immediate)
+				return INVALID_TASK_ID;
+#ifndef NDEBUG
+			PostDebug(ThreadTask::EnqueueTimer, 1);
+#endif
+			VI_MEASURE(Timings::Atomic);
+			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
+			auto Expires = GetClock() + Duration;
+			auto Id = GetTaskId();
+			auto Queue = Queues[(size_t)Difficulty::Clock];
+
+			UMutex<std::mutex> Lock(Queue->Update);
+			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, false, Type)));
+			Queue->Notify.notify_one();
+			return Id;
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
 		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			return SetSeqTimeout(Milliseconds, [Callback = std::move(Callback)](size_t) mutable
-			{
-				Callback();
-			}, Type);
-		}
-		TaskId Schedule::SetSeqTimeout(uint64_t Milliseconds, const SeqTaskCallback& Callback, Difficulty Type)
-		{
 			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			VI_ASSERT(Callback, "callback should not be empty");
 
@@ -9996,40 +10132,15 @@ namespace Mavi
 #ifndef NDEBUG
 			PostDebug(ThreadTask::EnqueueTimer, 1);
 #endif
-			VI_MEASURE(Core::Timings::Atomic);
-			auto Queue = Queues[(size_t)Difficulty::Clock];
+			VI_MEASURE(Timings::Atomic);
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
-			{
-				Core::UMutex<std::mutex> Lock(Queue->Update);
-				Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, false, Type)));
-				Queue->Notify.notify_all();
-			}
-			Queue->Notify.notify_all();
-			return Id;
-		}
-		TaskId Schedule::SetSeqTimeout(uint64_t Milliseconds, SeqTaskCallback&& Callback, Difficulty Type)
-		{
-			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
-			VI_ASSERT(Callback, "callback should not be empty");
+			auto Queue = Queues[(size_t)Difficulty::Clock];
 
-			if (!Enqueue || Immediate)
-				return INVALID_TASK_ID;
-#ifndef NDEBUG
-			PostDebug(ThreadTask::EnqueueTimer, 1);
-#endif
-			VI_MEASURE(Core::Timings::Atomic);
-			auto Queue = Queues[(size_t)Difficulty::Clock];
-			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
-			auto Expires = GetClock() + Duration;
-			auto Id = GetTaskId();
-			{
-				Core::UMutex<std::mutex> Lock(Queue->Update);
-				Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, false, Type)));
-				Queue->Notify.notify_all();
-			}
-			Queue->Notify.notify_all();
+			UMutex<std::mutex> Lock(Queue->Update);
+			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, false, Type)));
+			Queue->Notify.notify_one();
 			return Id;
 		}
 		bool Schedule::SetTask(const TaskCallback& Callback, Difficulty Type)
@@ -10048,11 +10159,12 @@ namespace Mavi
 #ifndef NDEBUG
 			PostDebug(ThreadTask::EnqueueTask, 1);
 #endif
-			VI_MEASURE(Core::Timings::Atomic);
+			VI_MEASURE(Timings::Atomic);
 			auto Queue = Queues[(size_t)Type];
-			Core::UMutex<std::mutex> Lock(Queue->Update);
 			Queue->Tasks.enqueue(Callback);
-			Queue->Notify.notify_all();
+
+			UMutex<std::mutex> Lock(Queue->Update);
+			Queue->Notify.notify_one();
 			return true;
 		}
 		bool Schedule::SetTask(TaskCallback&& Callback, Difficulty Type)
@@ -10071,10 +10183,12 @@ namespace Mavi
 #ifndef NDEBUG
 			PostDebug(ThreadTask::EnqueueTask, 1);
 #endif
-			VI_MEASURE(Core::Timings::Atomic);
+			VI_MEASURE(Timings::Atomic);
 			auto Queue = Queues[(size_t)Type];
 			Queue->Tasks.enqueue(std::move(Callback));
-			Queue->Notify.notify_all();
+
+			UMutex<std::mutex> Lock(Queue->Update);
+			Queue->Notify.notify_one();
 			return true;
 		}
 		bool Schedule::SetCoroutine(const TaskCallback& Callback)
@@ -10089,11 +10203,13 @@ namespace Mavi
 				return true;
 			}
 
-			VI_MEASURE(Core::Timings::Atomic);
+			VI_MEASURE(Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Coroutine];
 			Queue->Tasks.enqueue(Callback);
+
+			UMutex<std::mutex> Lock(Queue->Update);
 			for (auto* Thread : Threads[(size_t)Difficulty::Coroutine])
-				Thread->Notify.notify_all();
+				Thread->Notify.notify_one();
 			return true;
 		}
 		bool Schedule::SetCoroutine(TaskCallback&& Callback)
@@ -10110,11 +10226,13 @@ namespace Mavi
 #ifndef NDEBUG
 			PostDebug(ThreadTask::EnqueueCoroutine, 1);
 #endif
-			VI_MEASURE(Core::Timings::Atomic);
+			VI_MEASURE(Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Coroutine];
 			Queue->Tasks.enqueue(std::move(Callback));
+
+			UMutex<std::mutex> Lock(Queue->Update);
 			for (auto* Thread : Threads[(size_t)Difficulty::Coroutine])
-				Thread->Notify.notify_all();
+				Thread->Notify.notify_one();
 			return true;
 		}
 		bool Schedule::SetDebugCallback(const ThreadDebugCallback& Callback)
@@ -10136,9 +10254,9 @@ namespace Mavi
 		}
 		bool Schedule::ClearTimeout(TaskId Target)
 		{
-			VI_MEASURE(Core::Timings::Atomic);
+			VI_MEASURE(Timings::Atomic);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
-			Core::UMutex<std::mutex> Lock(Queue->Update);
+			UMutex<std::mutex> Lock(Queue->Update);
 			for (auto It = Queue->Timers.begin(); It != Queue->Timers.end(); ++It)
 			{
 				if (It->second.Id == Target)
@@ -10204,7 +10322,7 @@ namespace Mavi
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
 				auto* Queue = Queues[i];
-				Core::UMutex<std::mutex> Lock(Queue->Update);
+				UMutex<std::mutex> Lock(Queue->Update);
 				Queue->Timers.clear();
 			}
 
@@ -10220,6 +10338,7 @@ namespace Mavi
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
 				auto* Queue = Queues[i];
+				UMutex<std::mutex> Lock(Queue->Update);
 				Queue->Notify.notify_all();
 
 				for (auto* Thread : Threads[i])
@@ -10234,7 +10353,7 @@ namespace Mavi
 		bool Schedule::Dispatch()
 		{
 			size_t Passes = 0;
-			VI_MEASURE(Core::Timings::Intensive);
+			VI_MEASURE(Timings::Intensive);
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
 				if (ProcessTick((Difficulty)i))
@@ -10268,12 +10387,17 @@ namespace Mavi
 						Timeout Next(std::move(It->second));
 						Queue->Timers.erase(It);
 
-						SetTask(std::bind(Next.Callback, ++Next.Invocations), Next.Type);
-						Queue->Timers.emplace(std::make_pair(GetTimeout(Clock + Next.Expires), std::move(Next)));
+						SetTask([this, Queue, Next = std::move(Next)]() mutable
+						{
+							Next.Callback();
+							UMutex<std::mutex> Lock(Queue->Update);
+							Queue->Timers.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
+							Queue->Notify.notify_one();
+						});
 					}
 					else
 					{
-						SetTask(std::bind(It->second.Callback, ++It->second.Invocations), It->second.Type);
+						SetTask(std::move(It->second.Callback), It->second.Type);
 						Queue->Timers.erase(It);
 					}
 #ifndef NDEBUG
@@ -10325,7 +10449,7 @@ namespace Mavi
 #endif
 					for (size_t i = 0; i < Count; ++i)
 					{
-						VI_MEASURE(Type == Difficulty::Heavy ? Core::Timings::Intensive : Core::Timings::FileSystem);
+						VI_MEASURE(Type == Difficulty::Heavy ? Timings::Intensive : Timings::FileSystem);
 						TaskCallback Data(std::move(Dispatcher.Tasks[i]));
 						if (Data != nullptr)
 							Data();
@@ -10344,7 +10468,7 @@ namespace Mavi
 		bool Schedule::ProcessLoop(Difficulty Type, ThreadPtr* Thread)
 		{
 			auto* Queue = Queues[(size_t)Type];
-			Core::String ThreadId = OS::Process::GetThreadId(Thread->Id);
+			String ThreadId = OS::Process::GetThreadId(Thread->Id);
 			InitializeThread(Thread, true);
 
 			switch (Type)
@@ -10378,12 +10502,17 @@ namespace Mavi
 									Timeout Next(std::move(It->second));
 									Queue->Timers.erase(It);
 
-									SetTask(std::bind(Next.Callback, ++Next.Invocations), Next.Type);
-									Queue->Timers.emplace(std::make_pair(GetTimeout(Clock + Next.Expires), std::move(Next)));
+									SetTask([this, Queue, Next = std::move(Next)]() mutable
+									{
+										Next.Callback();
+										UMutex<std::mutex> Lock(Queue->Update);
+										Queue->Timers.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
+										Queue->Notify.notify_one();
+									});
 								}
 								else
 								{
-									SetTask(std::bind(It->second.Callback, ++It->second.Invocations), It->second.Type);
+									SetTask(std::move(It->second.Callback), It->second.Type);
 									Queue->Timers.erase(It);
 								}
 
@@ -10416,7 +10545,7 @@ namespace Mavi
 					Costate* State = new Costate(Policy.StackSize);
 					State->ExternalMutex = &Thread->Update;
 
-					Core::Vector<TaskCallback> Events;
+					Vector<TaskCallback> Events;
 					Events.resize(Policy.MaxCoroutines);
 
 					do
@@ -10444,7 +10573,7 @@ namespace Mavi
 						PostDebug(ThreadTask::ProcessCoroutine, State->GetCount());
 #endif
 						{
-							VI_MEASURE(Core::Timings::Frame);
+							VI_MEASURE(Timings::Frame);
 							State->Dispatch();
 						}
 #ifndef NDEBUG
@@ -10491,7 +10620,7 @@ namespace Mavi
 #endif
 							for (size_t i = 0; i < Count; ++i)
 							{
-								VI_MEASURE(Core::Timings::Intensive);
+								VI_MEASURE(Timings::Intensive);
 								TaskCallback Data(std::move(Events[i]));
 								if (Data != nullptr)
 									Data();
@@ -10671,17 +10800,17 @@ namespace Mavi
 			Unlink();
 			Clear();
 		}
-		Core::UnorderedMap<Core::String, size_t> Schema::GetNames() const
+		UnorderedMap<String, size_t> Schema::GetNames() const
 		{
-			Core::UnorderedMap<Core::String, size_t> Mapping;
+			UnorderedMap<String, size_t> Mapping;
 			size_t Index = 0;
 
 			GenerateNamingTable(this, &Mapping, Index);
 			return Mapping;
 		}
-		Core::Vector<Schema*> Schema::FindCollection(const Core::String& Name, bool Deep) const
+		Vector<Schema*> Schema::FindCollection(const String& Name, bool Deep) const
 		{
-			Core::Vector<Schema*> Result;
+			Vector<Schema*> Result;
 			if (!Nodes)
 				return Result;
 
@@ -10693,38 +10822,38 @@ namespace Mavi
 				if (!Deep)
 					continue;
 
-				Core::Vector<Schema*> New = Value->FindCollection(Name);
+				Vector<Schema*> New = Value->FindCollection(Name);
 				for (auto& Subvalue : New)
 					Result.push_back(Subvalue);
 			}
 
 			return Result;
 		}
-		Core::Vector<Schema*> Schema::FetchCollection(const Core::String& Notation, bool Deep) const
+		Vector<Schema*> Schema::FetchCollection(const String& Notation, bool Deep) const
 		{
-			Core::Vector<Core::String> Names = Stringify::Split(Notation, '.');
+			Vector<String> Names = Stringify::Split(Notation, '.');
 			if (Names.empty())
-				return Core::Vector<Schema*>();
+				return Vector<Schema*>();
 
 			if (Names.size() == 1)
 				return FindCollection(*Names.begin());
 
 			Schema* Current = Find(*Names.begin(), Deep);
 			if (!Current)
-				return Core::Vector<Schema*>();
+				return Vector<Schema*>();
 
 			for (auto It = Names.begin() + 1; It != Names.end() - 1; ++It)
 			{
 				Current = Current->Find(*It, Deep);
 				if (!Current)
-					return Core::Vector<Schema*>();
+					return Vector<Schema*>();
 			}
 
 			return Current->FindCollection(*(Names.end() - 1), Deep);
 		}
-		Core::Vector<Schema*> Schema::GetAttributes() const
+		Vector<Schema*> Schema::GetAttributes() const
 		{
-			Core::Vector<Schema*> Attributes;
+			Vector<Schema*> Attributes;
 			if (!Nodes)
 				return Attributes;
 
@@ -10736,12 +10865,12 @@ namespace Mavi
 
 			return Attributes;
 		}
-		Core::Vector<Schema*>& Schema::GetChilds()
+		Vector<Schema*>& Schema::GetChilds()
 		{
 			Allocate();
 			return *Nodes;
 		}
-		Schema* Schema::Find(const Core::String& Name, bool Deep) const
+		Schema* Schema::Find(const String& Name, bool Deep) const
 		{
 			if (!Nodes)
 				return nullptr;
@@ -10768,9 +10897,9 @@ namespace Mavi
 
 			return nullptr;
 		}
-		Schema* Schema::Fetch(const Core::String& Notation, bool Deep) const
+		Schema* Schema::Fetch(const String& Notation, bool Deep) const
 		{
-			Core::Vector<Core::String> Names = Stringify::Split(Notation, '.');
+			Vector<String> Names = Stringify::Split(Notation, '.');
 			if (Names.empty())
 				return nullptr;
 
@@ -10791,11 +10920,11 @@ namespace Mavi
 		{
 			return Parent;
 		}
-		Schema* Schema::GetAttribute(const Core::String& Name) const
+		Schema* Schema::GetAttribute(const String& Name) const
 		{
 			return Get(':' + Name);
 		}
-		Variant Schema::FetchVar(const Core::String& fKey, bool Deep) const
+		Variant Schema::FetchVar(const String& fKey, bool Deep) const
 		{
 			Schema* Result = Fetch(fKey, Deep);
 			if (!Result)
@@ -10811,7 +10940,7 @@ namespace Mavi
 
 			return Result->Value;
 		}
-		Variant Schema::GetVar(const Core::String& fKey) const
+		Variant Schema::GetVar(const String& fKey) const
 		{
 			Schema* Result = Get(fKey);
 			if (!Result)
@@ -10819,7 +10948,7 @@ namespace Mavi
 
 			return Result->Value;
 		}
-		Variant Schema::GetAttributeVar(const Core::String& Key) const
+		Variant Schema::GetAttributeVar(const String& Key) const
 		{
 			return GetVar(':' + Key);
 		}
@@ -10830,7 +10959,7 @@ namespace Mavi
 
 			return (*Nodes)[Index];
 		}
-		Schema* Schema::Get(const Core::String& Name) const
+		Schema* Schema::Get(const String& Name) const
 		{
 			VI_ASSERT(!Name.empty(), "name should not be empty");
 			if (!Nodes)
@@ -10844,11 +10973,11 @@ namespace Mavi
 
 			return nullptr;
 		}
-		Schema* Schema::Set(const Core::String& Name)
+		Schema* Schema::Set(const String& Name)
 		{
 			return Set(Name, Var::Object());
 		}
-		Schema* Schema::Set(const Core::String& Name, const Variant& Base)
+		Schema* Schema::Set(const String& Name, const Variant& Base)
 		{
 			if (Value.Type == VarType::Object && Nodes != nullptr)
 			{
@@ -10874,7 +11003,7 @@ namespace Mavi
 			Nodes->push_back(Result);
 			return Result;
 		}
-		Schema* Schema::Set(const Core::String& Name, Variant&& Base)
+		Schema* Schema::Set(const String& Name, Variant&& Base)
 		{
 			if (Value.Type == VarType::Object && Nodes != nullptr)
 			{
@@ -10900,7 +11029,7 @@ namespace Mavi
 			Nodes->push_back(Result);
 			return Result;
 		}
-		Schema* Schema::Set(const Core::String& Name, Schema* Base)
+		Schema* Schema::Set(const String& Name, Schema* Base)
 		{
 			if (!Base)
 				return Set(Name, Var::Null());
@@ -10930,11 +11059,11 @@ namespace Mavi
 			Nodes->push_back(Base);
 			return Base;
 		}
-		Schema* Schema::SetAttribute(const Core::String& Name, const Variant& fValue)
+		Schema* Schema::SetAttribute(const String& Name, const Variant& fValue)
 		{
 			return Set(':' + Name, fValue);
 		}
-		Schema* Schema::SetAttribute(const Core::String& Name, Variant&& fValue)
+		Schema* Schema::SetAttribute(const String& Name, Variant&& fValue)
 		{
 			return Set(':' + Name, std::move(fValue));
 		}
@@ -10980,7 +11109,7 @@ namespace Mavi
 
 			return this;
 		}
-		Schema* Schema::Pop(const Core::String& Name)
+		Schema* Schema::Pop(const String& Name)
 		{
 			if (!Nodes)
 				return this;
@@ -11016,7 +11145,7 @@ namespace Mavi
 
 			return New;
 		}
-		bool Schema::Rename(const Core::String& Name, const Core::String& NewName)
+		bool Schema::Rename(const String& Name, const String& NewName)
 		{
 			VI_ASSERT(!Name.empty() && !NewName.empty(), "name and new name should not be empty");
 
@@ -11027,11 +11156,11 @@ namespace Mavi
 			Result->Key = NewName;
 			return true;
 		}
-		bool Schema::Has(const Core::String& Name) const
+		bool Schema::Has(const String& Name) const
 		{
 			return Fetch(Name) != nullptr;
 		}
-		bool Schema::HasAttribute(const Core::String& Name) const
+		bool Schema::HasAttribute(const String& Name) const
 		{
 			return Fetch(':' + Name) != nullptr;
 		}
@@ -11054,14 +11183,14 @@ namespace Mavi
 		{
 			return Nodes ? Nodes->size() : 0;
 		}
-		Core::String Schema::GetName() const
+		String Schema::GetName() const
 		{
 			return IsAttribute() ? Key.substr(1) : Key;
 		}
 		void Schema::Join(Schema* Other, bool AppendOnly)
 		{
 			VI_ASSERT(Other != nullptr && Value.IsObject(), "other should be object and not empty");
-			auto FillArena = [](UnorderedMap<Core::String, Schema*>& Nodes, Schema* Base)
+			auto FillArena = [](UnorderedMap<String, Schema*>& Nodes, Schema* Base)
 			{
 				if (!Base->Nodes)
 					return;
@@ -11082,7 +11211,7 @@ namespace Mavi
 
 			if (!AppendOnly)
 			{
-				UnorderedMap<Core::String, Schema*> Subnodes;
+				UnorderedMap<String, Schema*> Subnodes;
 				Subnodes.reserve(Nodes->capacity());
 				FillArena(Subnodes, this);
 				FillArena(Subnodes, Other);
@@ -11183,34 +11312,32 @@ namespace Mavi
 		void Schema::Allocate()
 		{
 			if (!Nodes)
-				Nodes = VI_NEW(Core::Vector<Schema*>);
+				Nodes = VI_NEW(Vector<Schema*>);
 		}
-		void Schema::Allocate(const Core::Vector<Schema*>& Other)
+		void Schema::Allocate(const Vector<Schema*>& Other)
 		{
 			if (!Nodes)
-				Nodes = VI_NEW(Core::Vector<Schema*>, Other);
+				Nodes = VI_NEW(Vector<Schema*>, Other);
 			else
 				*Nodes = Other;
 		}
-		bool Schema::Transform(Schema* Value, const SchemaNameCallback& Callback)
+		void Schema::Transform(Schema* Value, const SchemaNameCallback& Callback)
 		{
 			VI_ASSERT(!!Callback, "callback should not be empty");
 			if (!Value)
-				return false;
+				return;
 
 			Value->Key = Callback(Value->Key);
 			if (!Value->Nodes)
-				return true;
+				return;
 
 			for (auto* Item : *Value->Nodes)
 				Transform(Item, Callback);
-
-			return true;
 		}
-		bool Schema::ConvertToXML(Schema* Base, const SchemaWriteCallback& Callback)
+		void Schema::ConvertToXML(Schema* Base, const SchemaWriteCallback& Callback)
 		{
 			VI_ASSERT(Base != nullptr && Callback, "base should be set and callback should not be empty");
-			Core::Vector<Schema*> Attributes = Base->GetAttributes();
+			Vector<Schema*> Attributes = Base->GetAttributes();
 			bool Scalable = (Base->Value.GetSize() > 0 || ((size_t)(Base->Nodes ? Base->Nodes->size() : 0) > (size_t)Attributes.size()));
 			Callback(VarForm::Write_Tab, "", 0);
 			Callback(VarForm::Dummy, "<", 1);
@@ -11228,8 +11355,8 @@ namespace Mavi
 
 			for (auto It = Attributes.begin(); It != Attributes.end(); ++It)
 			{
-				Core::String Key = (*It)->GetName();
-				Core::String Value = (*It)->Value.Serialize();
+				String Key = (*It)->GetName();
+				String Value = (*It)->Value.Serialize();
 
 				Callback(VarForm::Dummy, Key.c_str(), Key.size());
 				Callback(VarForm::Dummy, "=\"", 2);
@@ -11255,7 +11382,7 @@ namespace Mavi
 			Callback(VarForm::Tab_Increase, "", 0);
 			if (Base->Value.GetSize() > 0)
 			{
-				Core::String Text = Base->Value.Serialize();
+				String Text = Base->Value.Serialize();
 				if (Base->Nodes != nullptr && !Base->Nodes->empty())
 				{
 					Callback(VarForm::Write_Line, "", 0);
@@ -11280,7 +11407,7 @@ namespace Mavi
 
 			Callback(VarForm::Tab_Decrease, "", 0);
 			if (!Scalable)
-				return true;
+				return;
 
 			if (Base->Nodes != nullptr && !Base->Nodes->empty())
 				Callback(VarForm::Write_Tab, "", 0);
@@ -11288,15 +11415,13 @@ namespace Mavi
 			Callback(VarForm::Dummy, "</", 2);
 			Callback(VarForm::Dummy, Base->Key.c_str(), Base->Key.size());
 			Callback(Base->Parent ? VarForm::Write_Line : VarForm::Dummy, ">", 1);
-
-			return true;
 		}
-		bool Schema::ConvertToJSON(Schema* Base, const SchemaWriteCallback& Callback)
+		void Schema::ConvertToJSON(Schema* Base, const SchemaWriteCallback& Callback)
 		{
 			VI_ASSERT(Base != nullptr && Callback, "base should be set and callback should not be empty");
 			if (!Base->Value.IsObject())
 			{
-				Core::String Value = Base->Value.Serialize();
+				String Value = Base->Value.Serialize();
 				Stringify::Escape(Value);
 
 				if (Base->Value.Type != VarType::String && Base->Value.Type != VarType::Binary)
@@ -11312,8 +11437,7 @@ namespace Mavi
 					Callback(VarForm::Dummy, Value.c_str(), Value.size());
 					Callback(VarForm::Dummy, "\"", 1);
 				}
-
-				return true;
+				return;
 			}
 
 			size_t Size = (Base->Nodes ? Base->Nodes->size() : 0);
@@ -11340,7 +11464,7 @@ namespace Mavi
 
 				if (!Next->Value.IsObject())
 				{
-					Core::String Value = (Next->Value.GetType() == VarType::Undefined ? "null" : Next->Value.Serialize());
+					String Value = (Next->Value.GetType() == VarType::Undefined ? "null" : Next->Value.Serialize());
 					Stringify::Escape(Value);
 
 					if (Array)
@@ -11377,15 +11501,13 @@ namespace Mavi
 				Callback(VarForm::Write_Tab, "", 0);
 
 			Callback(VarForm::Dummy, Array ? "]" : "}", 1);
-			return true;
 		}
-		bool Schema::ConvertToJSONB(Schema* Base, const SchemaWriteCallback& Callback)
+		void Schema::ConvertToJSONB(Schema* Base, const SchemaWriteCallback& Callback)
 		{
 			VI_ASSERT(Base != nullptr && Callback, "base should be set and callback should not be empty");
-			Core::UnorderedMap<Core::String, size_t> Mapping = Base->GetNames();
+			UnorderedMap<String, size_t> Mapping = Base->GetNames();
 			uint32_t Set = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)Mapping.size());
 			uint64_t Version = OS::CPU::ToEndianness<uint64_t>(OS::CPU::Endian::Little, JSONB_VERSION);
-
 			Callback(VarForm::Dummy, (const char*)&Version, sizeof(uint64_t));
 			Callback(VarForm::Dummy, (const char*)&Set, sizeof(uint32_t));
 
@@ -11400,109 +11522,74 @@ namespace Mavi
 				if (Size > 0)
 					Callback(VarForm::Dummy, It->first.c_str(), sizeof(char) * (size_t)Size);
 			}
-
 			ProcessConvertionToJSONB(Base, &Mapping, Callback);
-			return true;
 		}
-		Core::String Schema::ToXML(Schema* Value)
+		String Schema::ToXML(Schema* Value)
 		{
-			Core::String Result;
-			ConvertToXML(Value, [&](VarForm Type, const char* Buffer, size_t Length)
-			{
-				Result.append(Buffer, Length);
-			});
+			String Result;
+			ConvertToXML(Value, [&](VarForm Type, const char* Buffer, size_t Length) { Result.append(Buffer, Length); });
 			return Result;
 		}
-		Core::String Schema::ToJSON(Schema* Value)
+		String Schema::ToJSON(Schema* Value)
 		{
-			Core::String Result;
-			ConvertToJSON(Value, [&](VarForm Type, const char* Buffer, size_t Length)
-			{
-				Result.append(Buffer, Length);
-			});
+			String Result;
+			ConvertToJSON(Value, [&](VarForm Type, const char* Buffer, size_t Length) { Result.append(Buffer, Length); });
 			return Result;
 		}
-		Core::Vector<char> Schema::ToJSONB(Schema* Value)
+		Vector<char> Schema::ToJSONB(Schema* Value)
 		{
-			Core::Vector<char> Result;
+			Vector<char> Result;
 			ConvertToJSONB(Value, [&](VarForm Type, const char* Buffer, size_t Length)
 			{
-				for (size_t i = 0; i < Length; i++)
-					Result.push_back(Buffer[i]);
+				if (!Length)
+					return;
+
+				size_t Offset = Result.size();
+				Result.resize(Offset + Length);
+				memcpy(&Result[Offset], Buffer, Length);
 			});
 			return Result;
 		}
-		Schema* Schema::ConvertFromXML(const char* Buffer, bool Assert)
+		Expects<Schema*, Exceptions::ParserException> Schema::ConvertFromXML(const char* Buffer)
 		{
 			VI_ASSERT(Buffer != nullptr, "buffer should not be null");
 			if (*Buffer == '\0')
-				return nullptr;
+				return Exceptions::ParserException(ParserError::XMLParsingError, 0, "empty XML buffer");
 
-			rapidxml::xml_document<>* Data = VI_NEW(rapidxml::xml_document<>);
-			if (!Data)
-				return nullptr;
-
+			rapidxml::xml_document<char> Data;
 			try
 			{
-				Data->parse<rapidxml::parse_trim_whitespace>((char*)Buffer);
+				Data.parse<rapidxml::parse_trim_whitespace>((char*)Buffer);
 			}
 			catch (const std::runtime_error& Exception)
 			{
-				VI_DELETE(xml_document, Data);
-				if (Assert)
-					VI_ERR("[xml] %s", Exception.what());
-
-				((void)Exception);
-				return nullptr;
+				return Exceptions::ParserException(ParserError::XMLParsingError, 0, Exception.what());
 			}
 			catch (const rapidxml::parse_error& Exception)
 			{
-				VI_DELETE(xml_document, Data);
-				if (Assert)
-					VI_ERR("[xml] %s", Exception.what());
-
-				((void)Exception);
-				return nullptr;
+				char* Position = Exception.where<char>();
+				int Offset = (Position ? Buffer - Position : 0);
+				return Exceptions::ParserException(ParserError::XMLParsingError, Offset, Exception.what());
 			}
 			catch (const std::exception& Exception)
 			{
-				VI_DELETE(xml_document, Data);
-				if (Assert)
-					VI_ERR("[xml] %s", Exception.what());
-
-				((void)Exception);
-				return nullptr;
+				return Exceptions::ParserException(ParserError::XMLParsingError, 0, Exception.what());
 			}
 			catch (...)
 			{
-				VI_DELETE(xml_document, Data);
-				if (Assert)
-					VI_ERR("[xml] cannot parse supplied XML");
-
-				return nullptr;
+				return Exceptions::ParserException(ParserError::XMLParsingError, 0, "(unknown error)");
 			}
 
-			rapidxml::xml_node<>* Base = Data->first_node();
+			rapidxml::xml_node<char>* Base = Data.first_node();
 			if (!Base)
-			{
-				Data->clear();
-				VI_DELETE(xml_document, Data);
-
-				return nullptr;
-			}
+				return Exceptions::ParserException(ParserError::XMLParsingError, 0, "invalid XML structure");
 
 			Schema* Result = Var::Set::Array();
 			Result->Key = Base->name();
-
-			if (!ProcessConvertionFromXML((void*)Base, Result))
-				VI_CLEAR(Result);
-
-			Data->clear();
-			VI_DELETE(xml_document, Data);
-
+			ProcessConvertionFromXML((void*)Base, Result);
 			return Result;
 		}
-		Schema* Schema::ConvertFromJSON(const char* Buffer, size_t Size, bool Assert)
+		Expects<Schema*, Exceptions::ParserException> Schema::ConvertFromJSON(const char* Buffer, size_t Size)
 		{
 			VI_ASSERT(Buffer != nullptr, "buffer should not be null");
 			if (!Size)
@@ -11511,71 +11598,49 @@ namespace Mavi
 			rapidjson::Document Base;
 			Base.Parse(Buffer, Size);
 
-			Core::Schema* Result = nullptr;
+			Schema* Result = nullptr;
 			if (Base.HasParseError())
 			{
-				if (!Assert)
-					return nullptr;
-
 				int Offset = (int)Base.GetErrorOffset();
 				switch (Base.GetParseError())
 				{
 					case rapidjson::kParseErrorDocumentEmpty:
-						VI_ERR("[json:%i] the document is empty", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONDocumentEmpty, Offset);
 					case rapidjson::kParseErrorDocumentRootNotSingular:
-						VI_ERR("[json:%i] the document root must not follow by other values", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONDocumentRootNotSingular, Offset);
 					case rapidjson::kParseErrorValueInvalid:
-						VI_ERR("[json:%i] invalid value", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONValueInvalid, Offset);
 					case rapidjson::kParseErrorObjectMissName:
-						VI_ERR("[json:%i] missing a name for object member", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONObjectMissName, Offset);
 					case rapidjson::kParseErrorObjectMissColon:
-						VI_ERR("[json:%i] missing a colon after a name of object member", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONObjectMissColon, Offset);
 					case rapidjson::kParseErrorObjectMissCommaOrCurlyBracket:
-						VI_ERR("[json:%i] missing a comma or '}' after an object member", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONObjectMissCommaOrCurlyBracket, Offset);
 					case rapidjson::kParseErrorArrayMissCommaOrSquareBracket:
-						VI_ERR("[json:%i] missing a comma or ']' after an array element", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONArrayMissCommaOrSquareBracket, Offset);
 					case rapidjson::kParseErrorStringUnicodeEscapeInvalidHex:
-						VI_ERR("[json:%i] incorrect hex digit after \\u escape in string", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONStringUnicodeEscapeInvalidHex, Offset);
 					case rapidjson::kParseErrorStringUnicodeSurrogateInvalid:
-						VI_ERR("[json:%i] the surrogate pair in string is invalid", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONStringUnicodeSurrogateInvalid, Offset);
 					case rapidjson::kParseErrorStringEscapeInvalid:
-						VI_ERR("[json:%i] invalid escape character in string", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONStringEscapeInvalid, Offset);
 					case rapidjson::kParseErrorStringMissQuotationMark:
-						VI_ERR("[json:%i] missing a closing quotation mark in string", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONStringMissQuotationMark, Offset);
 					case rapidjson::kParseErrorStringInvalidEncoding:
-						VI_ERR("[json:%i] invalid encoding in string", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONStringInvalidEncoding, Offset);
 					case rapidjson::kParseErrorNumberTooBig:
-						VI_ERR("[json:%i] number too big to be stored in double", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONNumberTooBig, Offset);
 					case rapidjson::kParseErrorNumberMissFraction:
-						VI_ERR("[json:%i] miss fraction part in number", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONNumberMissFraction, Offset);
 					case rapidjson::kParseErrorNumberMissExponent:
-						VI_ERR("[json:%i] miss exponent in number", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONNumberMissExponent, Offset);
 					case rapidjson::kParseErrorTermination:
-						VI_ERR("[json:%i] parsing was terminated", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONTermination, Offset);
 					case rapidjson::kParseErrorUnspecificSyntaxError:
-						VI_ERR("[json:%i] unspecific syntax error", Offset);
-						break;
+						return Exceptions::ParserException(ParserError::JSONUnspecificSyntaxError, Offset);
 					default:
-						break;
+						return Exceptions::ParserException(ParserError::BadValue);
 				}
-
-				return nullptr;
 			}
 
 			rapidjson::Type Type = Base.GetType();
@@ -11592,13 +11657,11 @@ namespace Mavi
 					break;
 				case rapidjson::kObjectType:
 					Result = Var::Set::Object();
-					if (!ProcessConvertionFromJSON((void*)&Base, Result))
-						VI_CLEAR(Result);
+					ProcessConvertionFromJSON((void*)&Base, Result);
 					break;
 				case rapidjson::kArrayType:
 					Result = Var::Set::Array();
-					if (!ProcessConvertionFromJSON((void*)&Base, Result))
-						VI_CLEAR(Result);
+					ProcessConvertionFromJSON((void*)&Base, Result);
 					break;
 				case rapidjson::kStringType:
 				{
@@ -11622,58 +11685,33 @@ namespace Mavi
 
 			return Result;
 		}
-		Schema* Schema::ConvertFromJSONB(const SchemaReadCallback& Callback, bool Assert)
+		Expects<Schema*, Exceptions::ParserException> Schema::ConvertFromJSONB(const SchemaReadCallback& Callback)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
 			uint64_t Version = 0;
 			if (!Callback((char*)&Version, sizeof(uint64_t)))
-			{
-				if (Assert)
-					VI_ERR("[jsonb] form cannot be defined");
-
-				return nullptr;
-			}
+				return Exceptions::ParserException(ParserError::BadVersion);
 
 			Version = OS::CPU::ToEndianness<uint64_t>(OS::CPU::Endian::Little, Version);
 			if (Version != JSONB_VERSION)
-			{
-				if (Assert)
-					VI_ERR("[jsonb] version %" PRIu64 " is not valid", Version);
-
-				return nullptr;
-			}
+				return Exceptions::ParserException(ParserError::BadVersion);
 
 			uint32_t Set = 0;
 			if (!Callback((char*)&Set, sizeof(uint32_t)))
-			{
-				if (Assert)
-					VI_ERR("[jsonb] name map is undefined");
+				return Exceptions::ParserException(ParserError::BadDictionary);
 
-				return nullptr;
-			}
-
-			Core::UnorderedMap<size_t, Core::String> Map;
+			UnorderedMap<size_t, String> Map;
 			Set = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Set);
 
 			for (uint32_t i = 0; i < Set; ++i)
 			{
 				uint32_t Index = 0;
 				if (!Callback((char*)&Index, sizeof(uint32_t)))
-				{
-					if (Assert)
-						VI_ERR("[jsonb] name index is undefined");
-
-					return nullptr;
-				}
+					return Exceptions::ParserException(ParserError::BadNameIndex);
 
 				uint16_t Size = 0;
 				if (!Callback((char*)&Size, sizeof(uint16_t)))
-				{
-					if (Assert)
-						VI_ERR("[jsonb] name size is undefined");
-
-					return nullptr;
-				}
+					return Exceptions::ParserException(ParserError::BadName);
 
 				Index = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Index);
 				Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
@@ -11681,40 +11719,36 @@ namespace Mavi
 				if (Size <= 0)
 					continue;
 
-				Core::String Name;
+				String Name;
 				Name.resize((size_t)Size);
 				if (!Callback((char*)Name.c_str(), sizeof(char) * Size))
-				{
-					if (Assert)
-						VI_ERR("[jsonb] name data is undefined");
-
-					return nullptr;
-				}
+					return Exceptions::ParserException(ParserError::BadName);
 
 				Map.insert({ Index, Name });
 			}
 
 			Schema* Current = Var::Set::Object();
-			if (!ProcessConvertionFromJSONB(Current, &Map, Callback))
+			auto Status = ProcessConvertionFromJSONB(Current, &Map, Callback);
+			if (!Status)
 			{
 				VI_RELEASE(Current);
-				return nullptr;
+				return Status.Error();
 			}
 
 			return Current;
 		}
-		Schema* Schema::FromXML(const Core::String& Text, bool Assert)
+		Expects<Schema*, Exceptions::ParserException> Schema::FromXML(const String& Text)
 		{
-			return ConvertFromXML(Text.c_str(), Assert);
+			return ConvertFromXML(Text.c_str());
 		}
-		Schema* Schema::FromJSON(const Core::String& Text, bool Assert)
+		Expects<Schema*, Exceptions::ParserException> Schema::FromJSON(const String& Text)
 		{
-			return ConvertFromJSON(Text.c_str(), Text.size(), Assert);
+			return ConvertFromJSON(Text.c_str(), Text.size());
 		}
-		Schema* Schema::FromJSONB(const Core::Vector<char>& Binary, bool Assert)
+		Expects<Schema*, Exceptions::ParserException> Schema::FromJSONB(const Vector<char>& Binary)
 		{
 			size_t Offset = 0;
-			return Core::Schema::ConvertFromJSONB([&Binary, &Offset](char* Buffer, size_t Length)
+			return ConvertFromJSONB([&Binary, &Offset](char* Buffer, size_t Length)
 			{
 				Offset += Length;
 				if (Offset >= Binary.size())
@@ -11722,9 +11756,131 @@ namespace Mavi
 
 				memcpy((void*)Buffer, Binary.data() + Offset, Length);
 				return true;
-			}, Assert);
+			});
 		}
-		bool Schema::ProcessConvertionFromXML(void* Base, Schema* Current)
+		Expects<void, Exceptions::ParserException> Schema::ProcessConvertionFromJSONB(Schema* Current, UnorderedMap<size_t, String>* Map, const SchemaReadCallback& Callback)
+		{
+			uint32_t Id = 0;
+			if (!Callback((char*)&Id, sizeof(uint32_t)))
+				return Exceptions::ParserException(ParserError::BadKeyName);
+
+			auto It = Map->find((size_t)OS::CPU::ToEndianness(OS::CPU::Endian::Little, Id));
+			if (It != Map->end())
+				Current->Key = It->second;
+
+			if (!Callback((char*)&Current->Value.Type, sizeof(VarType)))
+				return Exceptions::ParserException(ParserError::BadKeyType);
+
+			switch (Current->Value.Type)
+			{
+				case VarType::Object:
+				case VarType::Array:
+				{
+					uint32_t Count = 0;
+					if (!Callback((char*)&Count, sizeof(uint32_t)))
+						return Exceptions::ParserException(ParserError::BadValue);
+
+					Count = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Count);
+					if (!Count)
+						break;
+
+					Current->Allocate();
+					Current->Nodes->resize((size_t)Count);
+
+					for (auto*& Item : *Current->Nodes)
+					{
+						Item = Var::Set::Object();
+						Item->Parent = Current;
+						Item->Saved = true;
+
+						auto Status = ProcessConvertionFromJSONB(Item, Map, Callback);
+						if (!Status)
+							return Status;
+					}
+					break;
+				}
+				case VarType::String:
+				{
+					uint32_t Size = 0;
+					if (!Callback((char*)&Size, sizeof(uint32_t)))
+						return Exceptions::ParserException(ParserError::BadValue);
+
+					String Buffer;
+					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
+					Buffer.resize((size_t)Size);
+
+					if (!Callback((char*)Buffer.c_str(), (size_t)Size * sizeof(char)))
+						return Exceptions::ParserException(ParserError::BadString);
+
+					Current->Value = Var::String(Buffer);
+					break;
+				}
+				case VarType::Binary:
+				{
+					uint32_t Size = 0;
+					if (!Callback((char*)&Size, sizeof(uint32_t)))
+						return Exceptions::ParserException(ParserError::BadValue);
+
+					String Buffer;
+					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
+					Buffer.resize(Size);
+
+					if (!Callback((char*)Buffer.c_str(), (size_t)Size * sizeof(char)))
+						return Exceptions::ParserException(ParserError::BadString);
+
+					Current->Value = Var::Binary(Buffer);
+					break;
+				}
+				case VarType::Integer:
+				{
+					int64_t Integer = 0;
+					if (!Callback((char*)&Integer, sizeof(int64_t)))
+						return Exceptions::ParserException(ParserError::BadInteger);
+
+					Current->Value = Var::Integer(OS::CPU::ToEndianness(OS::CPU::Endian::Little, Integer));
+					break;
+				}
+				case VarType::Number:
+				{
+					double Number = 0.0;
+					if (!Callback((char*)&Number, sizeof(double)))
+						return Exceptions::ParserException(ParserError::BadDouble);
+
+					Current->Value = Var::Number(OS::CPU::ToEndianness(OS::CPU::Endian::Little, Number));
+					break;
+				}
+				case VarType::Decimal:
+				{
+					uint16_t Size = 0;
+					if (!Callback((char*)&Size, sizeof(uint16_t)))
+						return Exceptions::ParserException(ParserError::BadValue);
+
+					String Buffer;
+					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
+					Buffer.resize((size_t)Size);
+
+					if (!Callback((char*)Buffer.c_str(), (size_t)Size * sizeof(char)))
+						return Exceptions::ParserException(ParserError::BadString);
+
+					Current->Value = Var::Decimal(Buffer);
+					break;
+				}
+				case VarType::Boolean:
+				{
+					bool Boolean = false;
+					if (!Callback((char*)&Boolean, sizeof(bool)))
+						return Exceptions::ParserException(ParserError::BadBoolean);
+
+					Current->Value = Var::Boolean(Boolean);
+					break;
+				}
+				default:
+					break;
+			}
+
+			return Core::Optional::OK;
+		}
+		void Schema::ProcessConvertionFromXML(void* Base, Schema* Current)
 		{
 			VI_ASSERT(Base != nullptr && Current != nullptr, "base and current should be set");
 
@@ -11738,19 +11894,17 @@ namespace Mavi
 				ProcessConvertionFromXML((void*)It, Subresult);
 
 				if (It->value_size() > 0)
-					Subresult->Value.Deserialize(Core::String(It->value(), It->value_size()));
+					Subresult->Value.Deserialize(String(It->value(), It->value_size()));
 			}
-
-			return true;
 		}
-		bool Schema::ProcessConvertionFromJSON(void* Base, Schema* Current)
+		void Schema::ProcessConvertionFromJSON(void* Base, Schema* Current)
 		{
 			VI_ASSERT(Base != nullptr && Current != nullptr, "base and current should be set");
 
 			auto Ref = (rapidjson::Value*)Base;
 			if (!Ref->IsArray())
 			{
-				Core::String Name;
+				String Name;
 				Current->Reserve((size_t)Ref->MemberCount());
 
 				VarType Type = Current->Value.Type;
@@ -11803,7 +11957,7 @@ namespace Mavi
 			}
 			else
 			{
-				Core::String Value;
+				String Value;
 				Current->Reserve((size_t)Ref->Size());
 
 				for (auto It = Ref->Begin(); It != Ref->End(); ++It)
@@ -11845,10 +11999,8 @@ namespace Mavi
 					}
 				}
 			}
-
-			return true;
 		}
-		bool Schema::ProcessConvertionToJSONB(Schema* Current, Core::UnorderedMap<Core::String, size_t>* Map, const SchemaWriteCallback& Callback)
+		void Schema::ProcessConvertionToJSONB(Schema* Current, UnorderedMap<String, size_t>* Map, const SchemaWriteCallback& Callback)
 		{
 			uint32_t Id = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)Map->at(Current->Key));
 			Callback(VarForm::Dummy, (const char*)&Id, sizeof(uint32_t));
@@ -11878,7 +12030,7 @@ namespace Mavi
 				}
 				case VarType::Decimal:
 				{
-					Core::String Number = ((Decimal*)Current->Value.Value.Pointer)->ToString();
+					String Number = ((Decimal*)Current->Value.Value.Pointer)->ToString();
 					uint16_t Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint16_t)Number.size());
 					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint16_t));
 					Callback(VarForm::Dummy, Number.c_str(), (size_t)Size * sizeof(char));
@@ -11904,178 +12056,18 @@ namespace Mavi
 				default:
 					break;
 			}
-
-			return true;
 		}
-		bool Schema::ProcessConvertionFromJSONB(Schema* Current, Core::UnorderedMap<size_t, Core::String>* Map, const SchemaReadCallback& Callback)
-		{
-			uint32_t Id = 0;
-			if (!Callback((char*)&Id, sizeof(uint32_t)))
-			{
-				VI_ERR("[jsonb] key name index is undefined");
-				return false;
-			}
-
-			auto It = Map->find((size_t)OS::CPU::ToEndianness(OS::CPU::Endian::Little, Id));
-			if (It != Map->end())
-				Current->Key = It->second;
-
-			if (!Callback((char*)&Current->Value.Type, sizeof(VarType)))
-			{
-				VI_ERR("[jsonb] key type is undefined");
-				return false;
-			}
-
-			switch (Current->Value.Type)
-			{
-				case VarType::Object:
-				case VarType::Array:
-				{
-					uint32_t Count = 0;
-					if (!Callback((char*)&Count, sizeof(uint32_t)))
-					{
-						VI_ERR("[jsonb] key value size is undefined");
-						return false;
-					}
-
-					Count = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Count);
-					if (!Count)
-						break;
-
-					Current->Allocate();
-					Current->Nodes->resize((size_t)Count);
-
-					for (auto*& Item : *Current->Nodes)
-					{
-						Item = Var::Set::Object();
-						Item->Parent = Current;
-						Item->Saved = true;
-
-						ProcessConvertionFromJSONB(Item, Map, Callback);
-					}
-					break;
-				}
-				case VarType::String:
-				{
-					uint32_t Size = 0;
-					if (!Callback((char*)&Size, sizeof(uint32_t)))
-					{
-						VI_ERR("[jsonb] key value size is undefined");
-						return false;
-					}
-
-					Core::String Buffer;
-					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
-					Buffer.resize((size_t)Size);
-
-					if (!Callback((char*)Buffer.c_str(), (size_t)Size * sizeof(char)))
-					{
-						VI_ERR("[jsonb] key value data is undefined");
-						return false;
-					}
-
-					Current->Value = Var::String(Buffer);
-					break;
-				}
-				case VarType::Binary:
-				{
-					uint32_t Size = 0;
-					if (!Callback((char*)&Size, sizeof(uint32_t)))
-					{
-						VI_ERR("[jsonb] key value size is undefined");
-						return false;
-					}
-
-					Core::String Buffer;
-					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
-					Buffer.resize(Size);
-
-					if (!Callback((char*)Buffer.c_str(), (size_t)Size * sizeof(char)))
-					{
-						VI_ERR("[jsonb] key value data is undefined");
-						return false;
-					}
-
-					Current->Value = Var::Binary(Buffer);
-					break;
-				}
-				case VarType::Integer:
-				{
-					int64_t Integer = 0;
-					if (!Callback((char*)&Integer, sizeof(int64_t)))
-					{
-						VI_ERR("[jsonb] key value is undefined");
-						return false;
-					}
-
-					Current->Value = Var::Integer(OS::CPU::ToEndianness(OS::CPU::Endian::Little, Integer));
-					break;
-				}
-				case VarType::Number:
-				{
-					double Number = 0.0;
-					if (!Callback((char*)&Number, sizeof(double)))
-					{
-						VI_ERR("[jsonb] key value is undefined");
-						return false;
-					}
-
-					Current->Value = Var::Number(OS::CPU::ToEndianness(OS::CPU::Endian::Little, Number));
-					break;
-				}
-				case VarType::Decimal:
-				{
-					uint16_t Size = 0;
-					if (!Callback((char*)&Size, sizeof(uint16_t)))
-					{
-						VI_ERR("[jsonb] key value size is undefined");
-						return false;
-					}
-
-					Core::String Buffer;
-					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
-					Buffer.resize((size_t)Size);
-
-					if (!Callback((char*)Buffer.c_str(), (size_t)Size * sizeof(char)))
-					{
-						VI_ERR("[jsonb] key value data is undefined");
-						return false;
-					}
-
-					Current->Value = Var::Decimal(Buffer);
-					break;
-				}
-				case VarType::Boolean:
-				{
-					bool Boolean = false;
-					if (!Callback((char*)&Boolean, sizeof(bool)))
-					{
-						VI_ERR("[jsonb] key value is undefined");
-						return false;
-					}
-
-					Current->Value = Var::Boolean(Boolean);
-					break;
-				}
-				default:
-					break;
-			}
-
-			return true;
-		}
-		bool Schema::GenerateNamingTable(const Schema* Current, Core::UnorderedMap<Core::String, size_t>* Map, size_t& Index)
+		void Schema::GenerateNamingTable(const Schema* Current, UnorderedMap<String, size_t>* Map, size_t& Index)
 		{
 			auto M = Map->find(Current->Key);
 			if (M == Map->end())
 				Map->insert({ Current->Key, Index++ });
 
 			if (!Current->Nodes)
-				return true;
+				return;
 
 			for (auto Schema : *Current->Nodes)
 				GenerateNamingTable(Schema, Map, Index);
-
-			return true;
 		}
 	}
 }

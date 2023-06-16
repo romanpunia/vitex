@@ -286,10 +286,10 @@ namespace Mavi
 
 				struct SCache
 				{
-					asIScriptFunction* CmpFunc;
-					asIScriptFunction* EqFunc;
-					int CmpFuncReturnCode;
-					int EqFuncReturnCode;
+					asIScriptFunction* Comparator;
+					asIScriptFunction* Equals;
+					int ComparatorReturnCode;
+					int EqualsReturnCode;
 				};
 
 			protected:
@@ -900,7 +900,7 @@ namespace Mavi
 				Exception::Pointer Except;
 				std::thread Procedure;
 				std::recursive_mutex Mutex;
-				asIScriptFunction* Function;
+				FunctionDelegate Function;
 				VirtualMachine* VM;
 				ImmediateContext* Context;
 				ThreadState Status;
@@ -1054,22 +1054,32 @@ namespace Mavi
 			class VI_OUT Application final : public Engine::Application
 			{
 			public:
-				asIScriptFunction* OnScriptHook = nullptr;
-				asIScriptFunction* OnKeyEvent = nullptr;
-				asIScriptFunction* OnInputEvent = nullptr;
-				asIScriptFunction* OnWheelEvent = nullptr;
-				asIScriptFunction* OnWindowEvent = nullptr;
-				asIScriptFunction* OnCloseEvent = nullptr;
-				asIScriptFunction* OnComposeEvent = nullptr;
-				asIScriptFunction* OnDispatch = nullptr;
-				asIScriptFunction* OnPublish = nullptr;
-				asIScriptFunction* OnInitialize = nullptr;
-				asIScriptFunction* OnGetGUI = nullptr;
-				ImmediateContext* Context;
+				FunctionDelegate OnScriptHook;
+				FunctionDelegate OnKeyEvent;
+				FunctionDelegate OnInputEvent;
+				FunctionDelegate OnWheelEvent;
+				FunctionDelegate OnWindowEvent;
+				FunctionDelegate OnCloseEvent;
+				FunctionDelegate OnComposeEvent;
+				FunctionDelegate OnDispatch;
+				FunctionDelegate OnPublish;
+				FunctionDelegate OnInitialize;
+				FunctionDelegate OnGetGUI;
 
 			public:
 				Application(Desc& I) noexcept;
-				~Application() noexcept override;
+				virtual ~Application() noexcept override;
+				void SetOnScriptHook(asIScriptFunction* Callback);
+				void SetOnKeyEvent(asIScriptFunction* Callback);
+				void SetOnInputEvent(asIScriptFunction* Callback);
+				void SetOnWheelEvent(asIScriptFunction* Callback);
+				void SetOnWindowEvent(asIScriptFunction* Callback);
+				void SetOnCloseEvent(asIScriptFunction* Callback);
+				void SetOnComposeEvent(asIScriptFunction* Callback);
+				void SetOnDispatch(asIScriptFunction* Callback);
+				void SetOnPublish(asIScriptFunction* Callback);
+				void SetOnInitialize(asIScriptFunction* Callback);
+				void SetOnGetGUI(asIScriptFunction* Callback);
 				void ScriptHook() override;
 				void KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed) override;
 				void InputEvent(char* Buffer, size_t Length) override;

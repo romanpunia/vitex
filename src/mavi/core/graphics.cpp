@@ -780,9 +780,9 @@ namespace Mavi
 			RenderThread = std::this_thread::get_id();
 			if (!I.CacheDirectory.empty())
 			{
-				Caches = Core::OS::Path::ResolveDirectory(I.CacheDirectory.c_str());
-				if (!Core::OS::Directory::IsExists(Caches.c_str()))
-					Caches.clear();
+				auto Directory = Core::OS::Path::ResolveDirectory(I.CacheDirectory.c_str());
+				if (Directory && Core::OS::Directory::IsExists(Directory->c_str()))
+					Caches = *Directory;
 			}
 
 			if (!I.Window)
@@ -1174,8 +1174,11 @@ namespace Mavi
 			Desc.Exts.push_back(".glsl");
 			Desc.Exts.push_back(".msl");
 			Desc.Exts.push_back(".spv");
-			Desc.Root = Core::OS::Directory::GetWorking();
 			Subresult.Features.Pragmas = false;
+
+			auto Directory = Core::OS::Directory::GetWorking();
+			if (Directory)
+				Desc.Root = *Directory;
 
 			Compute::Preprocessor* Processor = new Compute::Preprocessor();
 			Processor->SetIncludeCallback([this, &Subresult](Compute::Preprocessor* P, const Compute::IncludeResult& File, Core::String& Output)
@@ -1200,8 +1203,12 @@ namespace Mavi
 					return Compute::IncludeType::Preprocess;
 				}
 
-				Output.assign(Core::OS::File::ReadAsString(File.Module));
-				return Output.empty() ? Compute::IncludeType::Error : Compute::IncludeType::Preprocess;
+				auto Data = Core::OS::File::ReadAsString(File.Module);
+				if (!Data)
+					return Compute::IncludeType::Error;
+
+				Output.assign(*Data);
+				return Compute::IncludeType::Preprocess;
 			});
 			Processor->SetIncludeOptions(Desc);
 			Processor->SetFeatures(Subresult.Features);
@@ -1572,7 +1579,7 @@ namespace Mavi
 		{
 			return CompileFlags;
 		}
-		Core::String GraphicsDevice::GetProgramName(const Shader::Desc& Desc)
+		Core::Option<Core::String> GraphicsDevice::GetProgramName(const Shader::Desc& Desc)
 		{
 			Core::String Result = Desc.Filename;
 			for (auto& Item : Desc.Defines)
@@ -1614,6 +1621,10 @@ namespace Mavi
 					break;
 			}
 
+			auto Hash = Compute::Crypto::Hash(Compute::Digests::MD5(), Result);
+			if (!Hash)
+				return Hash;
+
 			Core::String Postfix;
 			switch (Backend)
 			{
@@ -1627,7 +1638,7 @@ namespace Mavi
                     break;
 			}
 
-			return Compute::Crypto::Hash(Compute::Digests::MD5(), Result) + Postfix;
+			return *Hash + Postfix;
 		}
 		Core::String GraphicsDevice::GetShaderMain(ShaderType Type) const
 		{

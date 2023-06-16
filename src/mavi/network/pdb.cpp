@@ -289,9 +289,9 @@ namespace Mavi
 					case OidType::JSON:
 					case OidType::JSONB:
 					{
-						Core::Schema* Result = Core::Schema::ConvertFromJSON(Data, (size_t)Size);
-						if (Result != nullptr)
-							return Result;
+						auto Result = Core::Schema::ConvertFromJSON(Data, (size_t)Size);
+						if (Result)
+							return *Result;
 
 						return new Core::Schema(Core::Var::String(Data, (size_t)Size));
 					}
@@ -528,7 +528,8 @@ namespace Mavi
 				if (Data.empty())
 					return nullptr;
 
-				return Core::Schema::ConvertFromJSON(Data.c_str(), Data.size());
+				auto Result = Core::Schema::ConvertFromJSON(Data.c_str(), Data.size());
+				return Result ? *Result : nullptr;
 #else
 				return nullptr;
 #endif
@@ -1880,7 +1881,8 @@ namespace Mavi
 			}
 			Core::String Cluster::GetCacheOid(const Core::String& Payload, size_t Opts)
 			{
-				Core::String Reference = Compute::Codec::HexEncode(Compute::Crypto::Hash(Compute::Digests::SHA256(), Payload));
+				auto Hash = Compute::Crypto::Hash(Compute::Digests::SHA256(), Payload);
+				Core::String Reference = Hash ? Compute::Codec::HexEncode(*Hash) : Compute::Codec::HexEncode(Payload.substr(0, 32));
 				if (Opts & (size_t)QueryOp::CacheShort)
 					Reference.append(".s");
 				else if (Opts & (size_t)QueryOp::CacheMid)
@@ -2537,7 +2539,7 @@ namespace Mavi
 			}
 			bool Driver::AddDirectory(const Core::String& Directory, const Core::String& Origin) noexcept
 			{
-				Core::Vector<Core::FileEntry> Entries;
+				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
 				if (!Core::OS::Directory::Scan(Directory, &Entries))
 					return false;
 
@@ -2548,8 +2550,8 @@ namespace Mavi
 				size_t Size = 0;
 				for (auto& File : Entries)
 				{
-					Core::String Base(Path + File.Path);
-					if (File.IsDirectory)
+					Core::String Base(Path + File.first);
+					if (File.second.IsDirectory)
 					{
 						AddDirectory(Base, Origin.empty() ? Directory : Origin);
 						continue;
@@ -2558,7 +2560,7 @@ namespace Mavi
 					if (!Core::Stringify::EndsWith(Base, ".sql"))
 						continue;
 
-					char* Buffer = (char*)Core::OS::File::ReadAll(Base, &Size);
+					auto Buffer = Core::OS::File::ReadAll(Base, &Size);
 					if (!Buffer)
 						continue;
 
@@ -2568,8 +2570,8 @@ namespace Mavi
 					if (Core::Stringify::StartsOf(Base, "\\/"))
 						Base.erase(0, 1);
 
-					AddQuery(Base, Buffer, Size);
-					VI_FREE(Buffer);
+					AddQuery(Base, (char*)*Buffer, Size);
+					VI_FREE(*Buffer);
 				}
 
 				return true;

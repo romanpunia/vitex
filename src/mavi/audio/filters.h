@@ -8,12 +8,6 @@ namespace Mavi
 	{
 		namespace Filters
 		{
-			class VI_OUT FilterContext final : public Core::Singletonish
-			{
-			public:
-				static void Initialize();
-			};
-
 			class VI_OUT Lowpass final : public AudioFilter
 			{
 			public:

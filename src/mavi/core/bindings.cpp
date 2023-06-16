@@ -50,7 +50,7 @@
 #define TYPENAME_ANIMATORKEY "animator_key"
 #define TYPENAME_SKINANIMATORCLIP "skin_animator_clip"
 #define TYPENAME_PHYSICSHULLSHAPE "physics_hull_shape"
-#define TYPENAME_FILEENTRY "file_entry"
+#define TYPENAME_FILELINK "file_link"
 #define TYPENAME_REGEXMATCH "regex_match"
 #define TYPENAME_REGEXSOURCE "regex_source"
 #define TYPENAME_INPUTLAYOUTATTRIBUTE "input_layout_attribute"
@@ -163,6 +163,11 @@ namespace
 		}
 	};
 	StringFactory* StringFactory::Base = nullptr;
+
+	struct FileLink : public Mavi::Core::FileEntry
+	{
+		Mavi::Core::String Path;
+	};
 }
 
 namespace Mavi
@@ -171,6 +176,13 @@ namespace Mavi
 	{
 		namespace Bindings
 		{
+			template <typename T>
+			int ToErrorCode(const Core::Expected<T>& Status)
+			{
+				int Code = Status.Error().value();
+				Status.Report("failure");
+				return Code > 0 ? -Code : Code;
+			}
 			void PointerToHandleCast(void* From, void** To, int TypeId)
 			{
 				if (!(TypeId & asTYPEID_OBJHANDLE))
@@ -566,9 +578,9 @@ namespace Mavi
 			{
 				if ((RefTypeId & asTYPEID_MASK_OBJECT))
 				{
-					asITypeInfo* T = Engine->GetTypeInfoById(RefTypeId);
-					if (T)
-						T->AddRef();
+					asITypeInfo* Info = Engine->GetTypeInfoById(RefTypeId);
+					if (Info)
+						Info->AddRef();
 				}
 
 				FreeObject();
@@ -646,12 +658,9 @@ namespace Mavi
 			{
 				if (Value.TypeId & asTYPEID_MASK_OBJECT)
 				{
-					asITypeInfo* T = Engine->GetTypeInfoById(Value.TypeId);
-					Engine->ReleaseScriptObject(Value.Object, T);
-
-					if (T)
-						T->Release();
-
+					asITypeInfo* Type = Engine->GetTypeInfoById(Value.TypeId);
+					Engine->ReleaseScriptObject(Value.Object, Type);
+					VI_RELEASE(Type);
 					Value.Object = 0;
 					Value.TypeId = 0;
 				}
@@ -662,13 +671,12 @@ namespace Mavi
 				{
 					asITypeInfo* SubType = Engine->GetTypeInfoById(Value.TypeId);
 					if ((SubType->GetFlags() & asOBJ_REF))
-						InEngine->GCEnumCallback(Value.Object);
+						FunctionFactory::GCEnumCallback(InEngine, Value.Object);
 					else if ((SubType->GetFlags() & asOBJ_VALUE) && (SubType->GetFlags() & asOBJ_GC))
 						Engine->ForwardGCEnumReferences(Value.Object, SubType);
 
 					asITypeInfo* T = InEngine->GetTypeInfoById(Value.TypeId);
-					if (T != nullptr)
-						InEngine->GCEnumCallback(T);
+					FunctionFactory::GCEnumCallback(InEngine, T);
 				}
 			}
 			void Any::ReleaseAllHandles(asIScriptEngine*)
@@ -885,8 +893,7 @@ namespace Mavi
 					DeleteBuffer(Buffer);
 					Buffer = nullptr;
 				}
-				if (ObjType)
-					ObjType->Release();
+				VI_RELEASE(ObjType);
 			}
 			Array& Array::operator=(const Array& Other) noexcept
 			{
@@ -1261,9 +1268,9 @@ namespace Mavi
 							return false;
 					}
 
-					if (Cache && Cache->CmpFunc)
+					if (Cache && Cache->Comparator)
 					{
-						Context->Prepare(Cache->CmpFunc);
+						Context->Prepare(Cache->Comparator);
 						if (SubTypeId & asTYPEID_OBJHANDLE)
 						{
 							Context->SetObject(*((void**)A));
@@ -1275,7 +1282,8 @@ namespace Mavi
 							Context->SetArgObject(0, (void*)B);
 						}
 
-						if (ImmediateContext::Get(Context)->ExecuteNext() == asEXECUTION_FINISHED)
+						auto Status = ImmediateContext::Get(Context)->ExecuteNext();
+						if (Status && *Status == Activation::Finished)
 							return (int)Context->GetReturnDWord() < 0;
 					}
 				}
@@ -1347,7 +1355,7 @@ namespace Mavi
 							CmpContext->Abort();
 					}
 					else
-						CmpContext->Release();
+						VI_RELEASE(CmpContext);
 				}
 
 				return IsEqual;
@@ -1380,9 +1388,9 @@ namespace Mavi
 							return true;
 					}
 
-					if (Cache && Cache->EqFunc)
+					if (Cache && Cache->Equals)
 					{
-						Context->Prepare(Cache->EqFunc);
+						Context->Prepare(Cache->Equals);
 						if (SubTypeId & asTYPEID_OBJHANDLE)
 						{
 							Context->SetObject(*((void**)A));
@@ -1394,15 +1402,16 @@ namespace Mavi
 							Context->SetArgObject(0, (void*)B);
 						}
 
-						if (ImmediateContext::Get(Context)->ExecuteNext() == asEXECUTION_FINISHED)
+						auto Status = ImmediateContext::Get(Context)->ExecuteNext();
+						if (Status && *Status == Activation::Finished)
 							return Context->GetReturnByte() != 0;
 
 						return false;
 					}
 
-					if (Cache && Cache->CmpFunc)
+					if (Cache && Cache->Comparator)
 					{
-						Context->Prepare(Cache->CmpFunc);
+						Context->Prepare(Cache->Comparator);
 						if (SubTypeId & asTYPEID_OBJHANDLE)
 						{
 							Context->SetObject(*((void**)A));
@@ -1414,7 +1423,8 @@ namespace Mavi
 							Context->SetArgObject(0, (void*)B);
 						}
 
-						if (ImmediateContext::Get(Context)->ExecuteNext() == asEXECUTION_FINISHED)
+						auto Status = ImmediateContext::Get(Context)->ExecuteNext();
+						if (Status && *Status == Activation::Finished)
 							return (int)Context->GetReturnDWord() == 0;
 
 						return false;
@@ -1460,14 +1470,14 @@ namespace Mavi
 				if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
 				{
 					Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(CACHE_ARRAY));
-					if (!Cache || (Cache->CmpFunc == 0 && Cache->EqFunc == 0))
+					if (!Cache || (Cache->Comparator == 0 && Cache->Equals == 0))
 					{
 						asIScriptContext* Context = asGetActiveContext();
 						asITypeInfo* SubType = ObjType->GetEngine()->GetTypeInfoById(SubTypeId);
 						if (Context)
 						{
 							char Swap[512];
-							if (Cache && Cache->EqFuncReturnCode == asMULTIPLE_FUNCTIONS)
+							if (Cache && Cache->EqualsReturnCode == asMULTIPLE_FUNCTIONS)
 								snprintf(Swap, 512, "Type '%s' has multiple matching opEquals or opCmp methods", SubType->GetName());
 							else
 								snprintf(Swap, 512, "Type '%s' does not have a matching opEquals or opCmp method", SubType->GetName());
@@ -1517,7 +1527,7 @@ namespace Mavi
 							CmpContext->Abort();
 					}
 					else
-						CmpContext->Release();
+						VI_RELEASE(CmpContext);
 				}
 
 				return Result;
@@ -1660,32 +1670,32 @@ namespace Mavi
 
 							if (IsCmp)
 							{
-								if (Cache->CmpFunc || Cache->CmpFuncReturnCode)
+								if (Cache->Comparator || Cache->ComparatorReturnCode)
 								{
-									Cache->CmpFunc = 0;
-									Cache->CmpFuncReturnCode = asMULTIPLE_FUNCTIONS;
+									Cache->Comparator = 0;
+									Cache->ComparatorReturnCode = asMULTIPLE_FUNCTIONS;
 								}
 								else
-									Cache->CmpFunc = Function;
+									Cache->Comparator = Function;
 							}
 							else if (IsEquals)
 							{
-								if (Cache->EqFunc || Cache->EqFuncReturnCode)
+								if (Cache->Equals || Cache->EqualsReturnCode)
 								{
-									Cache->EqFunc = 0;
-									Cache->EqFuncReturnCode = asMULTIPLE_FUNCTIONS;
+									Cache->Equals = 0;
+									Cache->EqualsReturnCode = asMULTIPLE_FUNCTIONS;
 								}
 								else
-									Cache->EqFunc = Function;
+									Cache->Equals = Function;
 							}
 						}
 					}
 				}
 
-				if (Cache->EqFunc == 0 && Cache->EqFuncReturnCode == 0)
-					Cache->EqFuncReturnCode = asNO_FUNCTION;
-				if (Cache->CmpFunc == 0 && Cache->CmpFuncReturnCode == 0)
-					Cache->CmpFuncReturnCode = asNO_FUNCTION;
+				if (Cache->Equals == 0 && Cache->EqualsReturnCode == 0)
+					Cache->EqualsReturnCode = asNO_FUNCTION;
+				if (Cache->Comparator == 0 && Cache->ComparatorReturnCode == 0)
+					Cache->ComparatorReturnCode = asNO_FUNCTION;
 
 				ObjType->SetUserData(Cache, CACHE_ARRAY);
 				asReleaseExclusiveLock();
@@ -1699,10 +1709,7 @@ namespace Mavi
 					if ((SubType->GetFlags() & asOBJ_REF))
 					{
 						for (size_t n = 0; n < Buffer->NumElements; n++)
-						{
-							if (D[n])
-								Engine->GCEnumCallback(D[n]);
-						}
+							FunctionFactory::GCEnumCallback(Engine, D[n]);
 					}
 					else if ((SubType->GetFlags() & asOBJ_VALUE) && (SubType->GetFlags() & asOBJ_GC))
 					{
@@ -1900,11 +1907,9 @@ namespace Mavi
 			}
 			void Storable::EnumReferences(asIScriptEngine* _Engine)
 			{
-				if (Value.Object != nullptr)
-					_Engine->GCEnumCallback(Value.Object);
-
+				FunctionFactory::GCEnumCallback(_Engine, Value.Object);
 				if (Value.TypeId)
-					_Engine->GCEnumCallback(_Engine->GetTypeInfoById(Value.TypeId));
+					FunctionFactory::GCEnumCallback(_Engine, _Engine->GetTypeInfoById(Value.TypeId));
 			}
 			void Storable::Set(asIScriptEngine* Engine, void* Pointer, int _TypeId)
 			{
@@ -2282,7 +2287,7 @@ namespace Mavi
 						if ((SubType->GetFlags() & asOBJ_VALUE) && (SubType->GetFlags() & asOBJ_GC))
 							Engine->ForwardGCEnumReferences(Key.Value.Object, SubType);
 						else
-							_Engine->GCEnumCallback(Key.Value.Object);
+							FunctionFactory::GCEnumCallback(_Engine, Key.Value.Object);
 					}
 				}
 			}
@@ -2598,7 +2603,6 @@ namespace Mavi
 				{
 					asIScriptEngine* Engine = Type->GetEngine();
 					Engine->ReleaseScriptObject(Pointer, Type);
-					Engine->Release();
 					Pointer = nullptr;
 					Type = 0;
 				}
@@ -2609,7 +2613,6 @@ namespace Mavi
 				{
 					asIScriptEngine* Engine = Type->GetEngine();
 					Engine->AddRefScriptObject(Pointer, Type);
-					Engine->AddRef();
 				}
 			}
 			Ref& Ref::operator =(const Ref& Other) noexcept
@@ -2717,11 +2720,9 @@ namespace Mavi
 			}
 			void Ref::EnumReferences(asIScriptEngine* _Engine)
 			{
-				if (Pointer)
-					_Engine->GCEnumCallback(Pointer);
-
+				FunctionFactory::GCEnumCallback(_Engine, Pointer);
 				if (Type)
-					_Engine->GCEnumCallback(Type);
+					FunctionFactory::GCEnumCallback(_Engine, Type);
 			}
 			void Ref::ReleaseReferences(asIScriptEngine* _Engine)
 			{
@@ -2773,11 +2774,8 @@ namespace Mavi
 			}
 			Weak::~Weak() noexcept
 			{
-				if (Type)
-					Type->Release();
-
-				if (WeakRefFlag)
-					WeakRefFlag->Release();
+				VI_RELEASE(Type);
+				VI_RELEASE(WeakRefFlag);
 			}
 			Weak& Weak::operator =(const Weak& Other) noexcept
 			{
@@ -2791,9 +2789,7 @@ namespace Mavi
 				}
 
 				Ref = Other.Ref;
-				if (WeakRefFlag)
-					WeakRefFlag->Release();
-
+				VI_RELEASE(WeakRefFlag);
 				WeakRefFlag = Other.WeakRefFlag;
 				if (WeakRefFlag)
 					WeakRefFlag->AddRef();
@@ -2802,9 +2798,7 @@ namespace Mavi
 			}
 			Weak& Weak::Set(void* NewRef)
 			{
-				if (WeakRefFlag)
-					WeakRefFlag->Release();
-
+				VI_RELEASE(WeakRefFlag);
 				Ref = NewRef;
 				if (NewRef)
 				{
@@ -2917,7 +2911,7 @@ namespace Mavi
 
 			Core::String Random::Getb(uint64_t Size)
 			{
-				return Compute::Codec::HexEncode(Compute::Crypto::RandomBytes((size_t)Size)).substr(0, (size_t)Size);
+				return Compute::Codec::HexEncode(*Compute::Crypto::RandomBytes((size_t)Size)).substr(0, (size_t)Size);
 			}
 			double Random::Betweend(double Min, double Max)
 			{
@@ -2975,20 +2969,16 @@ namespace Mavi
 				{
 					asITypeInfo* SubType = Engine->GetTypeInfoById(Value.TypeId);
 					if ((SubType->GetFlags() & asOBJ_REF))
-						OtherEngine->GCEnumCallback(Value.Object);
+						FunctionFactory::GCEnumCallback(OtherEngine, Value.Object);
 					else if ((SubType->GetFlags() & asOBJ_VALUE) && (SubType->GetFlags() & asOBJ_GC))
 						Engine->ForwardGCEnumReferences(Value.Object, SubType);
 
 					asITypeInfo* Type = OtherEngine->GetTypeInfoById(Value.TypeId);
-					if (Type != nullptr)
-						OtherEngine->GCEnumCallback(Type);
+					FunctionFactory::GCEnumCallback(OtherEngine, Type);
 				}
 
-				if (Delegate.IsValid())
-				{
-					OtherEngine->GCEnumCallback(Delegate.Callback);
-					OtherEngine->GCEnumCallback(Delegate.DelegateObject);
-				}
+				FunctionFactory::GCEnumCallback(OtherEngine, Context);
+				FunctionFactory::GCEnumCallback(OtherEngine, &Delegate);
 			}
 			void Promise::ReleaseReferences(asIScriptEngine*)
 			{
@@ -2996,19 +2986,13 @@ namespace Mavi
 				{
 					asITypeInfo* Type = Engine->GetTypeInfoById(Value.TypeId);
 					Engine->ReleaseScriptObject(Value.Object, Type);
-					if (Type != nullptr)
-						Type->Release();
+					VI_RELEASE(Type);
 					Value.Clean();
 				}
 
 				if (Delegate.IsValid())
 					Delegate.Release();
-
-				if (Context != nullptr)
-				{
-					Context->Release();
-					Context = nullptr;
-				}
+				VI_CLEAR(Context);
 			}
 			void Promise::SetFlag()
 			{
@@ -3091,7 +3075,7 @@ namespace Mavi
 					Core::Schedule::Get()->SetTask([Base, Immediate]()
 					{
 						Immediate->Resume();
-						Base->Release();
+						VI_RELEASE(Base);
 					}, Core::Difficulty::Light);
 				}
 				else if (SuspendOwned)
@@ -3176,7 +3160,7 @@ namespace Mavi
 			{
 				Core::UMutex<std::mutex> Unique(Update);
 				ImmediateContext* TargetContext = ImmediateContext::Get(Context);
-				if (Value.TypeId == PromiseNULL && TargetContext != nullptr && !TargetContext->Suspend())
+				if (Value.TypeId == PromiseNULL && TargetContext != nullptr && TargetContext->Suspend())
 				{
 					Context->SetUserData(this, PromiseUD);
 					AddRef();
@@ -3737,24 +3721,30 @@ namespace Mavi
 			}
 			Core::Schema* SchemaFromJSON(const Core::String& Value)
 			{
-				return Core::Schema::ConvertFromJSON(Value.c_str(), Value.size(), false);
+				auto Result = Core::Schema::ConvertFromJSON(Value.c_str(), Value.size());
+				return Result ? *Result : nullptr;
 			}
 			Core::Schema* SchemaFromXML(const Core::String& Value)
 			{
-				return Core::Schema::ConvertFromXML(Value.c_str(), false);
+				auto Result = Core::Schema::ConvertFromXML(Value.c_str());
+				return Result ? *Result : nullptr;
 			}
 			Core::Schema* SchemaImport(const Core::String& Value)
 			{
-				Core::String Data = Core::OS::File::ReadAsString(Value);
-				Core::Schema* Output = Core::Schema::FromJSON(Value, false);
-				if (Output != nullptr)
-					return Output;
+				auto Data = Core::OS::File::ReadAsString(Value);
+				if (!Data)
+					return nullptr;
 
-				Output = Core::Schema::FromXML(Value, false);
-				if (Output != nullptr)
-					return Output;
+				auto Output = Core::Schema::FromJSON(*Data);
+				if (Output)
+					return *Output;
+
+				Output = Core::Schema::FromXML(Value);
+				if (Output)
+					return *Output;
 					
-				return Core::Schema::FromJSONB(Core::Vector<char>(Value.begin(), Value.end()), false);
+				Output = Core::Schema::FromJSONB(Core::Vector<char>(Value.begin(), Value.end()));
+				return Output ? *Output : nullptr;
 			}
 			Core::Schema* SchemaCopyAssign(Core::Schema* Base, const Core::Variant& Other)
 			{
@@ -3771,10 +3761,10 @@ namespace Mavi
 			}
 			void SchemaEnumRefs(Core::Schema* Base, asIScriptEngine* Engine)
 			{
-				Engine->GCEnumCallback(Base->GetParent());
+				FunctionFactory::GCEnumCallback(Engine, Base->GetParent());
 				for (auto* Item : Base->GetChilds())
 				{
-					Engine->GCEnumCallback(Item);
+					FunctionFactory::GCEnumCallback(Engine, Item);
 					SchemaEnumRefs(Item, Engine);
 				}
 			}
@@ -3883,20 +3873,20 @@ namespace Mavi
 			}
 			void Thread::InvokeRoutine()
 			{
-				if (!Function)
+				if (!Function.IsValid())
 					return Release();
 
 				Thread* Base = this;
-				Context->ExecuteCall(Function, [Base](ImmediateContext* Context)
+				Context->ExecuteCall(Function.Callable(), [Base](ImmediateContext* Context)
 				{
 					Context->SetArgObject(0, Base);
 					Context->SetUserData(Base, ContextUD);
-				}).When([Base](int&& State)
+				}).When([Base](ExpectedReturn<Activation>&& Status)
 				{
 					Core::UMutex<std::recursive_mutex> Unique(Base->Mutex);
 					Base->Context->SetUserData(nullptr, ContextUD);
 
-					if (State != asEXECUTION_SUSPENDED)
+					if (!Status || *Status != Activation::Suspended)
 					{
 						Base->Except = Exception::Pointer(Base->Context->GetContext());
 						Base->Context->Unprepare();
@@ -3907,8 +3897,7 @@ namespace Mavi
 						Base->Status = ThreadState::Release;
 						return;
 					}
-
-					Base->Release();
+					VI_RELEASE(Base);
 				});
 				asThreadCleanup();
 			}
@@ -3932,7 +3921,7 @@ namespace Mavi
 				if (Context->IsSuspended())
 					return true;
 
-				return !Context->Suspend();
+				return !!Context->Suspend();
 			}
 			bool Thread::Resume()
 			{
@@ -3976,18 +3965,9 @@ namespace Mavi
 				for (int i = 0; i < 2; i++)
 				{
 					for (auto Any : Pipe[i].Queue)
-					{
-						if (Any != nullptr)
-							Engine->GCEnumCallback(Any);
-					}
+						FunctionFactory::GCEnumCallback(Engine, Any);
 				}
-
-				Engine->GCEnumCallback(Engine);
-				if (Context != nullptr)
-					Engine->GCEnumCallback(Context);
-
-				if (Function != nullptr)
-					Engine->GCEnumCallback(Function);
+				FunctionFactory::GCEnumCallback(Engine, &Function);
 			}
 			int Thread::Join(uint64_t Timeout)
 			{
@@ -4059,8 +4039,7 @@ namespace Mavi
 					return false;
 
 				Source.Queue.erase(Source.Queue.begin());
-				Result->Release();
-
+				VI_RELEASE(Result);
 				return true;
 			}
 			bool Thread::IsActive()
@@ -4071,7 +4050,7 @@ namespace Mavi
 			bool Thread::Start()
 			{
 				Core::UMutex<std::recursive_mutex> Unique(Mutex);
-				if (!Function || !Context->CanExecuteCall())
+				if (!Function.IsValid() || !Context->CanExecuteCall())
 					return false;
 
 				Join();
@@ -4089,20 +4068,14 @@ namespace Mavi
 					auto& Source = Pipe[i];
 					Core::UMutex<std::mutex> Unique(Source.Mutex);
 					for (auto Any : Source.Queue)
-					{
-						if (Any != nullptr)
-							Any->Release();
-					}
+						VI_RELEASE(Any);
 					Source.Queue.clear();
 				}
 
 				Core::UMutex<std::recursive_mutex> Unique(Mutex);
-				if (Function)
-					Function->Release();
-
+				Function.Release();
 				VM->ReturnContext(Context);
 				VM = nullptr;
-				Function = nullptr;
 			}
 			void Thread::Create(asIScriptGeneric* Generic)
 			{
@@ -4135,7 +4108,7 @@ namespace Mavi
 				if (Context->IsSuspended())
 					return true;
 
-				return !Context->Suspend();
+				return !!Context->Suspend();
 			}
 			Core::String Thread::GetThreadId()
 			{
@@ -4578,10 +4551,14 @@ namespace Mavi
 						else
 							Buffer += sizeof(void*);
 					}
-					else if (TypeId == 0)
-						Buffer += sizeof(void*);
+					else if (TypeId != 0)
+					{
+						auto Sizing = VM->GetSizeOfPrimitiveType(TypeId);
+						if (Sizing)
+							Buffer += *Sizing;
+					}
 					else
-						Buffer += VM->GetSizeOfPrimitiveType(TypeId);
+						Buffer += sizeof(void*);
 				}
 			}
 			Core::String Format::JSON(void* Ref, int TypeId)
@@ -4944,13 +4921,10 @@ namespace Mavi
 				}
 			}
 
-			Application::Application(Desc& I) noexcept : Engine::Application(&I), Context(ImmediateContext::Get())
+			Application::Application(Desc& I) noexcept : Engine::Application(&I)
 			{
-				VI_ASSERT(Context != nullptr, "virtual machine should be present at this level");
-				Context->AddRef();
-
 				if (I.Usage & (size_t)Engine::ApplicationSet::ScriptSet)
-					VM = Context->GetVM();
+					VM = VirtualMachine::Get();
 
 				if (I.Usage & (size_t)Engine::ApplicationSet::ContentSet)
 				{
@@ -4971,33 +4945,80 @@ namespace Mavi
 			}
 			Application::~Application() noexcept
 			{
+				OnScriptHook.Release();
+				OnKeyEvent.Release();
+				OnInputEvent.Release();
+				OnWheelEvent.Release();
+				OnWindowEvent.Release();
+				OnCloseEvent.Release();
+				OnComposeEvent.Release();
+				OnDispatch.Release();
+				OnPublish.Release();
+				OnInitialize.Release();
+				OnGetGUI.Release();
 				VM = nullptr;
-				VI_CLEAR(OnScriptHook);
-				VI_CLEAR(OnKeyEvent);
-				VI_CLEAR(OnInputEvent);
-				VI_CLEAR(OnWheelEvent);
-				VI_CLEAR(OnWindowEvent);
-				VI_CLEAR(OnCloseEvent);
-				VI_CLEAR(OnComposeEvent);
-				VI_CLEAR(OnDispatch);
-				VI_CLEAR(OnPublish);
-				VI_CLEAR(OnInitialize);
-				VI_CLEAR(OnGetGUI);
-				VI_CLEAR(Context);
+			}
+			void Application::SetOnScriptHook(asIScriptFunction* Callback)
+			{
+				OnScriptHook = FunctionDelegate(Callback);
+			}
+			void Application::SetOnKeyEvent(asIScriptFunction* Callback)
+			{
+				OnKeyEvent = FunctionDelegate(Callback);
+			}
+			void Application::SetOnInputEvent(asIScriptFunction* Callback)
+			{
+				OnInputEvent = FunctionDelegate(Callback);
+			}
+			void Application::SetOnWheelEvent(asIScriptFunction* Callback)
+			{
+				OnWheelEvent = FunctionDelegate(Callback);
+			}
+			void Application::SetOnWindowEvent(asIScriptFunction* Callback)
+			{
+				OnWindowEvent = FunctionDelegate(Callback);
+			}
+			void Application::SetOnCloseEvent(asIScriptFunction* Callback)
+			{
+				OnCloseEvent = FunctionDelegate(Callback);
+			}
+			void Application::SetOnComposeEvent(asIScriptFunction* Callback)
+			{
+				OnComposeEvent = FunctionDelegate(Callback);
+			}
+			void Application::SetOnDispatch(asIScriptFunction* Callback)
+			{
+				OnDispatch = FunctionDelegate(Callback);
+			}
+			void Application::SetOnPublish(asIScriptFunction* Callback)
+			{
+				OnPublish = FunctionDelegate(Callback);
+			}
+			void Application::SetOnInitialize(asIScriptFunction* Callback)
+			{
+				OnInitialize = FunctionDelegate(Callback);
+			}
+			void Application::SetOnGetGUI(asIScriptFunction* Callback)
+			{
+				OnGetGUI = FunctionDelegate(Callback);
 			}
 			void Application::ScriptHook()
 			{
-				if (!OnScriptHook)
+				if (!OnScriptHook.IsValid())
 					return;
 
-				Context->ExecuteSubcall(OnScriptHook, nullptr);
+				auto* Context = ImmediateContext::Get();
+				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
+				Context->ExecuteSubcall(OnScriptHook.Callable(), nullptr);
 			}
 			void Application::KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
 			{
-				if (!OnKeyEvent)
+				if (!OnKeyEvent.IsValid())
 					return;
 
-				Context->ExecuteSubcall(OnKeyEvent, [Key, Mod, Virtual, Repeat, Pressed](ImmediateContext* Context)
+				auto* Context = ImmediateContext::Get();
+				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
+				Context->ExecuteSubcall(OnKeyEvent.Callable(), [Key, Mod, Virtual, Repeat, Pressed](ImmediateContext* Context)
 				{
 					Context->SetArg32(0, (int)Key);
 					Context->SetArg32(1, (int)Mod);
@@ -5008,21 +5029,25 @@ namespace Mavi
 			}
 			void Application::InputEvent(char* Buffer, size_t Length)
 			{
-				if (!OnInputEvent)
+				if (!OnInputEvent.IsValid())
 					return;
 
 				Core::String Text(Buffer, Length);
-				Context->ExecuteSubcall(OnInputEvent, [&Text](ImmediateContext* Context)
+				auto* Context = ImmediateContext::Get();
+				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
+				Context->ExecuteSubcall(OnInputEvent.Callable(), [&Text](ImmediateContext* Context)
 				{
 					Context->SetArgObject(0, (void*)&Text);
 				});
 			}
 			void Application::WheelEvent(int X, int Y, bool Normal)
 			{
-				if (!OnWheelEvent)
+				if (!OnWheelEvent.IsValid())
 					return;
 
-				Context->ExecuteSubcall(OnWheelEvent, [X, Y, Normal](ImmediateContext* Context)
+				auto* Context = ImmediateContext::Get();
+				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
+				Context->ExecuteSubcall(OnWheelEvent.Callable(), [X, Y, Normal](ImmediateContext* Context)
 				{
 					Context->SetArg32(0, X);
 					Context->SetArg32(1, Y);
@@ -5031,10 +5056,12 @@ namespace Mavi
 			}
 			void Application::WindowEvent(Graphics::WindowState NewState, int X, int Y)
 			{
-				if (!OnWindowEvent)
+				if (!OnWindowEvent.IsValid())
 					return;
 
-				Context->ExecuteSubcall(OnWindowEvent, [NewState, X, Y](ImmediateContext* Context)
+				auto* Context = ImmediateContext::Get();
+				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
+				Context->ExecuteSubcall(OnWindowEvent.Callable(), [NewState, X, Y](ImmediateContext* Context)
 				{
 					Context->SetArg32(0, (int)NewState);
 					Context->SetArg32(1, X);
@@ -5043,51 +5070,63 @@ namespace Mavi
 			}
 			void Application::CloseEvent()
 			{
-				if (!OnCloseEvent)
+				if (!OnCloseEvent.IsValid())
 					return;
 
-				Context->ExecuteSubcall(OnCloseEvent, nullptr);
+				auto* Context = ImmediateContext::Get();
+				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
+				Context->ExecuteSubcall(OnCloseEvent.Callable(), nullptr);
 			}
 			void Application::ComposeEvent()
 			{
-				if (!OnComposeEvent)
+				if (!OnComposeEvent.IsValid())
 					return;
 
-				Context->ExecuteSubcall(OnComposeEvent, nullptr);
+				auto* Context = ImmediateContext::Get();
+				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
+				Context->ExecuteSubcall(OnComposeEvent.Callable(), nullptr);
 			}
 			void Application::Dispatch(Core::Timer* Time)
 			{
-				if (!OnDispatch)
+				if (!OnDispatch.IsValid())
 					return;
 
-				Context->ExecuteSubcall(OnDispatch, [Time](ImmediateContext* Context)
+				auto* Context = ImmediateContext::Get();
+				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
+				Context->ExecuteSubcall(OnDispatch.Callable(), [Time](ImmediateContext* Context)
 				{
 					Context->SetArgObject(0, (void*)Time);
 				});
 			}
 			void Application::Publish(Core::Timer* Time)
 			{
-				if (!OnPublish)
+				if (!OnPublish.IsValid())
 					return;
 
-				Context->ExecuteSubcall(OnPublish, [Time](ImmediateContext* Context)
+				auto* Context = ImmediateContext::Get();
+				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
+				Context->ExecuteSubcall(OnPublish.Callable(), [Time](ImmediateContext* Context)
 				{
 					Context->SetArgObject(0, (void*)Time);
 				});
 			}
 			void Application::Initialize()
 			{
-				if (!OnInitialize)
+				if (!OnInitialize.IsValid())
 					return;
 
-				Context->ExecuteSubcall(OnInitialize, nullptr);
+				auto* Context = ImmediateContext::Get();
+				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
+				Context->ExecuteSubcall(OnInitialize.Callable(), nullptr);
 			}
 			Engine::GUI::Context* Application::GetGUI() const
 			{
-				if (!OnGetGUI)
+				if (!OnGetGUI.IsValid())
 					return Engine::Application::GetGUI();
 
-				Context->ExecuteSubcall(OnGetGUI, nullptr);
+				auto* Context = ImmediateContext::Get();
+				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
+				Context->ExecuteSubcall(OnGetGUI.Callable(), nullptr);
 				return Context->GetReturnObject<Engine::GUI::Context>();
 			}
 			bool Application::WantsRestart(int ExitCode)
@@ -5097,7 +5136,7 @@ namespace Mavi
 
 			bool StreamOpen(Core::Stream* Base, const Core::String& Path, Core::FileMode Mode)
 			{
-				return Base->Open(Path.c_str(), Mode);
+				return !!Base->Open(Path.c_str(), Mode);
 			}
 			Core::String StreamRead(Core::Stream* Base, size_t Size)
 			{
@@ -5117,7 +5156,7 @@ namespace Mavi
 
 			bool FileStreamOpen(Core::FileStream* Base, const Core::String& Path, Core::FileMode Mode)
 			{
-				return Base->Open(Path.c_str(), Mode);
+				return !!Base->Open(Path.c_str(), Mode);
 			}
 			Core::String FileStreamRead(Core::FileStream* Base, size_t Size)
 			{
@@ -5137,7 +5176,7 @@ namespace Mavi
 
 			bool GzStreamOpen(Core::GzStream* Base, const Core::String& Path, Core::FileMode Mode)
 			{
-				return Base->Open(Path.c_str(), Mode);
+				return !!Base->Open(Path.c_str(), Mode);
 			}
 			Core::String GzStreamRead(Core::GzStream* Base, size_t Size)
 			{
@@ -5157,7 +5196,7 @@ namespace Mavi
 
 			bool WebStreamOpen(Core::WebStream* Base, const Core::String& Path, Core::FileMode Mode)
 			{
-				return Base->Open(Path.c_str(), Mode);
+				return !!Base->Open(Path.c_str(), Mode);
 			}
 			Core::String WebStreamRead(Core::WebStream* Base, size_t Size)
 			{
@@ -5177,7 +5216,7 @@ namespace Mavi
 
 			bool ProcessStreamOpen(Core::ProcessStream* Base, const Core::String& Path, Core::FileMode Mode)
 			{
-				return Base->Open(Path.c_str(), Mode);
+				return !!Base->Open(Path.c_str(), Mode);
 			}
 			Core::String ProcessStreamRead(Core::ProcessStream* Base, size_t Size)
 			{
@@ -5201,10 +5240,7 @@ namespace Mavi
 				if (!Delegate.IsValid())
 					return Core::INVALID_TASK_ID;
 
-				return Base->SetSeqInterval(Mills, [Delegate](size_t InvocationId) mutable
-				{
-					Delegate(nullptr);
-				}, Type);
+				return Base->SetInterval(Mills, [Delegate]() mutable { Delegate(nullptr); }, Type);
 			}
 			Core::TaskId ScheduleSetTimeout(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback, Core::Difficulty Type)
 			{
@@ -5212,10 +5248,7 @@ namespace Mavi
 				if (!Delegate.IsValid())
 					return Core::INVALID_TASK_ID;
 
-				return Base->SetTimeout(Mills, [Delegate]() mutable
-				{
-					Delegate(nullptr);
-				}, Type);
+				return Base->SetTimeout(Mills, [Delegate]() mutable { Delegate(nullptr); }, Type);
 			}
 			bool ScheduleSetImmediate(Core::Schedule* Base, asIScriptFunction* Callback, Core::Difficulty Type)
 			{
@@ -5223,19 +5256,27 @@ namespace Mavi
 				if (!Delegate.IsValid())
 					return Core::INVALID_TASK_ID;
 
-				return Base->SetTask([Delegate]() mutable
-				{
-					Delegate(nullptr);
-				}, Type);
+				return Base->SetTask([Delegate]() mutable { Delegate(nullptr); }, Type);
 			}
 
 			Array* OSDirectoryScan(const Core::String& Path)
 			{
-				Core::Vector<Core::FileEntry> Entries;
-				Core::OS::Directory::Scan(Path, &Entries);
+				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
+				if (!Core::OS::Directory::Scan(Path, &Entries))
+					return nullptr;
 
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_FILEENTRY ">@");
-				return Array::Compose<Core::FileEntry>(Type.GetTypeInfo(), Entries);
+				Core::Vector<FileLink> Results;
+				Results.reserve(Entries.size());
+				for (auto& Item : Entries)
+				{
+					FileLink Next;
+					(*(Core::FileEntry*)&Next) = Item.second;
+					Next.Path = std::move(Item.first);
+					Results.emplace_back(std::move(Next));
+				}
+
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_FILELINK ">@");
+				return Array::Compose<FileLink>(Type.GetTypeInfo(), Results);
 			}
 			Array* OSDirectoryGetMounts(const Core::String& Path)
 			{
@@ -5244,36 +5285,54 @@ namespace Mavi
 			}
 			bool OSDirectoryCreate(const Core::String& Path)
 			{
-				return Core::OS::Directory::Create(Path.c_str());
+				return !!Core::OS::Directory::Create(Path.c_str());
 			}
 			bool OSDirectoryRemove(const Core::String& Path)
 			{
-				return Core::OS::Directory::Remove(Path.c_str());
+				return !!Core::OS::Directory::Remove(Path.c_str());
 			}
 			bool OSDirectoryIsExists(const Core::String& Path)
 			{
 				return Core::OS::Directory::IsExists(Path.c_str());
 			}
-			void OSDirectorySetWorking(const Core::String& Path)
+			bool OSDirectorySetWorking(const Core::String& Path)
 			{
-				return Core::OS::Directory::SetWorking(Path.c_str());
+				return !!Core::OS::Directory::SetWorking(Path.c_str());
+			}
+			bool OSDirectoryPatch(const Core::String& Path)
+			{
+				return !!Core::OS::Directory::Patch(Path);
+			}
+			Core::String OSDirectoryGetModule()
+			{
+				auto Value = Core::OS::Directory::GetModule();
+				return Value ? *Value : Core::String();
+			}
+			Core::String OSDirectoryGetWorking()
+			{
+				auto Value = Core::OS::Directory::GetWorking();
+				return Value ? *Value : Core::String();
 			}
 
+			bool OSFileWrite(const Core::String& Path, const Core::String& Data)
+			{
+				return !!Core::OS::File::Write(Path, Data);
+			}
 			bool OSFileState(const Core::String& Path, Core::FileEntry& Data)
 			{
-				return Core::OS::File::State(Path.c_str(), &Data);
+				return !!Core::OS::File::GetState(Path.c_str(), &Data);
 			}
 			bool OSFileMove(const Core::String& From, const Core::String& To)
 			{
-				return Core::OS::File::Move(From.c_str(), To.c_str());
+				return !!Core::OS::File::Move(From.c_str(), To.c_str());
 			}
 			bool OSFileCopy(const Core::String& From, const Core::String& To)
 			{
-				return Core::OS::File::Copy(From.c_str(), To.c_str());
+				return !!Core::OS::File::Copy(From.c_str(), To.c_str());
 			}
 			bool OSFileRemove(const Core::String& Path)
 			{
-				return Core::OS::File::Remove(Path.c_str());
+				return !!Core::OS::File::Remove(Path.c_str());
 			}
 			bool OSFileIsExists(const Core::String& Path)
 			{
@@ -5281,20 +5340,42 @@ namespace Mavi
 			}
 			size_t OSFileJoin(const Core::String& From, Array* Paths)
 			{
-				return Core::OS::File::Join(From.c_str(), Array::Decompose<Core::String>(Paths));
+				auto Size = Core::OS::File::Join(From.c_str(), Array::Decompose<Core::String>(Paths));
+				return Size ? *Size : 0;
+			}
+			Core::String OSFileReadAsString(const Core::String& Path)
+			{
+				auto Value = Core::OS::File::ReadAsString(Path);
+				return Value ? *Value : Core::String();
 			}
 			Core::FileState OSFileGetProperties(const Core::String& Path)
 			{
-				return Core::OS::File::GetProperties(Path.c_str());
+				auto State = Core::OS::File::GetProperties(Path.c_str());
+				return State ? *State : Core::FileState();
 			}
 			Core::Stream* OSFileOpenJoin(const Core::String& From, Array* Paths)
 			{
-				return Core::OS::File::OpenJoin(From.c_str(), Array::Decompose<Core::String>(Paths));
+				auto Stream = Core::OS::File::OpenJoin(From.c_str(), Array::Decompose<Core::String>(Paths));
+				return Stream ? *Stream : nullptr;
+			}
+			Core::Stream* OSFileOpenArchive(const Core::String& Path, size_t UnarchivedMaxSize)
+			{
+				auto Stream = Core::OS::File::OpenArchive(Path.c_str(), UnarchivedMaxSize);
+				return Stream ? *Stream : nullptr;
+			}
+			Core::Stream* OSFileOpen(const Core::String& Path, Core::FileMode Mode, bool Async)
+			{
+				auto Stream = Core::OS::File::Open(Path.c_str(), Mode, Async);
+				return Stream ? *Stream : nullptr;
 			}
 			Array* OSFileReadAsArray(const Core::String& Path)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
-				return Array::Compose<Core::String>(Type.GetTypeInfo(), Core::OS::File::ReadAsArray(Path));
+				auto Data = Core::OS::File::ReadAsArray(Path);
+				if (!Data)
+					return nullptr;
+
+				return Array::Compose<Core::String>(Type.GetTypeInfo(), *Data);
 			}
 
 			bool OSPathIsRemote(const Core::String& Path)
@@ -5309,13 +5390,37 @@ namespace Mavi
 			{
 				return Core::OS::Path::IsAbsolute(Path.c_str());
 			}
-			Core::String OSPathResolve(const Core::String& Path)
+			Core::String OSPathResolve1(const Core::String& Path)
 			{
-				return Core::OS::Path::Resolve(Path.c_str());
+				auto Result = Core::OS::Path::Resolve(Path.c_str());
+				if (Result)
+					return *Result;
+
+				return Core::String();
 			}
-			Core::String OSPathResolveDirectory(const Core::String& Path)
+			Core::String OSPathResolveDirectory1(const Core::String& Path)
 			{
-				return Core::OS::Path::ResolveDirectory(Path.c_str());
+				auto Result = Core::OS::Path::ResolveDirectory(Path.c_str());
+				if (Result)
+					return *Result;
+
+				return Core::String();
+			}
+			Core::String OSPathResolve2(const Core::String& Path, const Core::String& Directory, bool EvenIfExists)
+			{
+				auto Result = Core::OS::Path::Resolve(Path, Directory, EvenIfExists);
+				if (Result)
+					return *Result;
+
+				return Core::String();
+			}
+			Core::String OSPathResolveDirectory2(const Core::String& Path, const Core::String& Directory, bool EvenIfExists)
+			{
+				auto Result = Core::OS::Path::ResolveDirectory(Path, Directory, EvenIfExists);
+				if (Result)
+					return *Result;
+
+				return Core::String();
 			}
 			Core::String OSPathGetDirectory(const Core::String& Path, size_t Level)
 			{
@@ -5356,7 +5461,32 @@ namespace Mavi
 
 				return (void*)Result;
 			}
-			
+			Core::ProcessStream* OSProcessExecuteWriteOnly(const Core::String& Path)
+			{
+				auto Stream = Core::OS::Process::ExecuteWriteOnly(Path);
+				return Stream ? *Stream : nullptr;
+			}
+			Core::ProcessStream* OSProcessExecuteReadOnly(const Core::String& Path)
+			{
+				auto Stream = Core::OS::Process::ExecuteReadOnly(Path);
+				return Stream ? *Stream : nullptr;
+			}
+
+			void* OSSymbolLoad(const Core::String& Path)
+			{
+				auto Handle = Core::OS::Symbol::Load(Path);
+				return Handle ? *Handle : nullptr;
+			}
+			void* OSSymbolLoadFunction(void* LibHandle, const Core::String& Path)
+			{
+				auto Handle = Core::OS::Symbol::LoadFunction(LibHandle, Path);
+				return Handle ? *Handle : nullptr;
+			}
+			bool OSSymbolUnload(void* Handle)
+			{
+				return !!Core::OS::Symbol::Unload(Handle);
+			}
+
 			Compute::Vector2& Vector2MulEq1(Compute::Vector2& A, const Compute::Vector2& B)
 			{
 				return A *= B;
@@ -5732,28 +5862,104 @@ namespace Mavi
 				return Copy;
 			}
 
+			Core::String WebTokenGetRefreshToken(Compute::WebToken* Base, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt)
+			{
+				auto Value = Base->GetRefreshToken(Key, Salt);
+				return Value ? *Value : Core::String();
+			}
 			void WebTokenSetAudience(Compute::WebToken* Base, Array* Data)
 			{
 				Base->SetAudience(Array::Decompose<Core::String>(Data));
 			}
 
+			Core::String CryptoRandomBytes(size_t Size)
+			{
+				auto Value = Compute::Crypto::RandomBytes(Size);
+				return Value ? *Value : Core::String();
+			}
+			Core::String CryptoHash(Compute::Digest Type, const Core::String& Data)
+			{
+				auto Value = Compute::Crypto::Hash(Type, Data);
+				return Value ? *Value : Core::String();
+			}
+			Core::String CryptoHashBinary(Compute::Digest Type, const Core::String& Data)
+			{
+				auto Value = Compute::Crypto::HashBinary(Type, Data);
+				return Value ? *Value : Core::String();
+			}
+			Core::String CryptoSign(Compute::Digest Type, const Core::String& Data, const Compute::PrivateKey& Key)
+			{
+				auto Value = Compute::Crypto::Sign(Type, Data, Key);
+				return Value ? *Value : Core::String();
+			}
+			Core::String CryptoHMAC(Compute::Digest Type, const Core::String& Data, const Compute::PrivateKey& Key)
+			{
+				auto Value = Compute::Crypto::HMAC(Type, Data, Key);
+				return Value ? *Value : Core::String();
+			}
+			Core::String CryptoEncrypt(Compute::Cipher Type, const Core::String& Data, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, int Complexity)
+			{
+				auto Value = Compute::Crypto::Encrypt(Type, Data, Key, Salt, Complexity);
+				return Value ? *Value : Core::String();
+			}
+			Core::String CryptoDecrypt(Compute::Cipher Type, const Core::String& Data, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, int Complexity)
+			{
+				auto Value = Compute::Crypto::Decrypt(Type, Data, Key, Salt, Complexity);
+				return Value ? *Value : Core::String();
+			}
+			Core::String CryptoJWTSign(const Core::String& Algo, const Core::String& Data, const Compute::PrivateKey& Key)
+			{
+				auto Value = Compute::Crypto::JWTSign(Algo, Data, Key);
+				return Value ? *Value : Core::String();
+			}
+			Core::String CryptoJWTEncode(Compute::WebToken* Base, const Compute::PrivateKey& Key)
+			{
+				auto Value = Compute::Crypto::JWTEncode(Base, Key);
+				return Value ? *Value : Core::String();
+			}
+			Compute::WebToken* CryptoJWTDecode(const Core::String& Data, const Compute::PrivateKey& Key)
+			{
+				auto Value = Compute::Crypto::JWTDecode(Data, Key);
+				return Value ? *Value : nullptr;
+			}
+			Core::String CryptoDocEncrypt(Core::Schema* Base, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt)
+			{
+				auto Value = Compute::Crypto::DocEncrypt(Base, Key, Salt);
+				return Value ? *Value : Core::String();
+			}
+			Core::Schema* CryptoDocDecrypt(const Core::String& Data, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt)
+			{
+				auto Value = Compute::Crypto::DocDecrypt(Data, Key, Salt);
+				return Value ? *Value : nullptr;
+			}
+
+			Core::String CodecCompress(const Core::String& Data, Compute::Compression Type)
+			{
+				auto Value = Compute::Codec::Compress(Data, Type);
+				return Value ? *Value : Core::String();
+			}
+			Core::String CodecDecompress(const Core::String& Data)
+			{
+				auto Value = Compute::Codec::Decompress(Data);
+				return Value ? *Value : Core::String();
+			}
+
 			void CosmosQueryIndex(Compute::Cosmos* Base, asIScriptFunction* Overlaps, asIScriptFunction* Match)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Overlaps || !Match)
+				FunctionDelegate OverlapsCallback(Overlaps);
+				FunctionDelegate MatchCallback(Match);
+				if (!Context || !OverlapsCallback.IsValid() || !MatchCallback.IsValid())
 					return;
 
 				Compute::Cosmos::Iterator Iterator;
-				Base->QueryIndex<void>(Iterator, [Context, Overlaps](const Compute::Bounding& Box)
+				Base->QueryIndex<void>(Iterator, [Context, &OverlapsCallback](const Compute::Bounding& Box)
 				{
-					Context->ExecuteSubcall(Overlaps, [&Box](ImmediateContext* Context) { Context->SetArgObject(0, (void*)&Box); });
+					Context->ExecuteSubcall(OverlapsCallback.Callable(), [&Box](ImmediateContext* Context) { Context->SetArgObject(0, (void*)&Box); });
 					return (bool)Context->GetReturnByte();
-				}, [Context, Match](void* Item)
+				}, [Context, &MatchCallback](void* Item)
 				{
-					Context->ExecuteSubcall(Match, [Item](ImmediateContext* Context)
-					{
-						Context->SetArgAddress(0, Item);
-					});
+					Context->ExecuteSubcall(MatchCallback.Callable(), [Item](ImmediateContext* Context) { Context->SetArgAddress(0, Item); });
 				});
 			}
 
@@ -5771,41 +5977,39 @@ namespace Mavi
 			void PreprocessorSetIncludeCallback(Compute::Preprocessor* Base, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Context || !Delegate.IsValid())
 					return Base->SetIncludeCallback(nullptr);
 
-				Base->SetIncludeCallback([Context, Callback](Compute::Preprocessor* Base, const Compute::IncludeResult& File, Core::String& Output)
+				Base->SetIncludeCallback([Context, Delegate](Compute::Preprocessor* Base, const Compute::IncludeResult& File, Core::String& Output)
 				{
-					Context->ExecuteSubcall(Callback, [Base, &File, &Output](ImmediateContext* Context)
+					Context->ExecuteSubcall(Delegate.Callable(), [Base, &File, &Output](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArgObject(1, (void*)&File);
 						Context->SetArgObject(2, &Output);
 					});
-
 					return (Compute::IncludeType)Context->GetReturnDWord();
 				});
 			}
 			void PreprocessorSetPragmaCallback(Compute::Preprocessor* Base, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Context || !Delegate.IsValid())
 					return Base->SetPragmaCallback(nullptr);
 
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
-				Base->SetPragmaCallback([Type, Context, Callback](Compute::Preprocessor* Base, const Core::String& Name, const Core::Vector<Core::String>& Args)
+				Base->SetPragmaCallback([Type, Context, Delegate](Compute::Preprocessor* Base, const Core::String& Name, const Core::Vector<Core::String>& Args)
 				{
 					Array* Params = Array::Compose<Core::String>(Type.GetTypeInfo(), Args);
-					Context->ExecuteSubcall(Callback, [Base, &Name, &Params](ImmediateContext* Context)
+					Context->ExecuteSubcall(Delegate.Callable(), [Base, &Name, &Params](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArgObject(1, (void*)&Name);
 						Context->SetArgObject(2, Params);
 					});
-
-					if (Params != nullptr)
-						Params->Release();
-
+					VI_RELEASE(Params);
 					return (bool)Context->GetReturnWord();
 				});
 			}
@@ -5899,12 +6103,13 @@ namespace Mavi
 			void AlertResult(Graphics::Alert& Base, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Context || !Delegate.IsValid())
 					return Base.Result(nullptr);
 
-				Base.Result([Context, Callback](int Id)
+				Base.Result([Context, Delegate](int Id)
 				{
-					Context->ExecuteSubcall(Callback, [Id](ImmediateContext* Context)
+					Context->ExecuteSubcall(Delegate.Callable(), [Id](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, Id);
 					});
@@ -5920,9 +6125,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.AppStateChange = [Context, Callback](Graphics::AppState Type)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.AppStateChange = [Context, Delegate](Graphics::AppState Type)
 					{
-						Context->ExecuteSubcall(Callback, [Type](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [Type](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, (int)Type);
 						});
@@ -5936,9 +6142,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.WindowStateChange = [Context, Callback](Graphics::WindowState State, int X, int Y)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.WindowStateChange = [Context, Delegate](Graphics::WindowState State, int X, int Y)
 					{
-						Context->ExecuteSubcall(Callback, [State, X, Y](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [State, X, Y](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, (int)State);
 							Context->SetArg32(1, X);
@@ -5954,9 +6161,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.KeyState = [Context, Callback](Graphics::KeyCode Code, Graphics::KeyMod Mod, int X, int Y, bool Value)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.KeyState = [Context, Delegate](Graphics::KeyCode Code, Graphics::KeyMod Mod, int X, int Y, bool Value)
 					{
-						Context->ExecuteSubcall(Callback, [Code, Mod, X, Y, Value](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [Code, Mod, X, Y, Value](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, (int)Code);
 							Context->SetArg32(1, (int)Mod);
@@ -5974,10 +6182,11 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.InputEdit = [Context, Callback](char* Buffer, int X, int Y)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.InputEdit = [Context, Delegate](char* Buffer, int X, int Y)
 					{
 						Core::String Text = (Buffer ? Buffer : Core::String());
-						Context->ExecuteSubcall(Callback, [Text, X, Y](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [Text, X, Y](ImmediateContext* Context)
 						{
 							Context->SetArgObject(0, (void*)&Text);
 							Context->SetArg32(1, X);
@@ -5993,10 +6202,11 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.Input = [Context, Callback](char* Buffer, int X)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.Input = [Context, Delegate](char* Buffer, int X)
 					{
 						Core::String Text = (Buffer ? Buffer : Core::String());
-						Context->ExecuteSubcall(Callback, [Text, X](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [Text, X](ImmediateContext* Context)
 						{
 							Context->SetArgObject(0, (void*)&Text);
 							Context->SetArg32(1, X);
@@ -6011,9 +6221,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.CursorMove = [Context, Callback](int X, int Y, int Z, int W)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.CursorMove = [Context, Delegate](int X, int Y, int Z, int W)
 					{
-						Context->ExecuteSubcall(Callback, [X, Y, Z, W](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [X, Y, Z, W](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6030,9 +6241,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.CursorWheelState = [Context, Callback](int X, int Y, bool Z)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.CursorWheelState = [Context, Delegate](int X, int Y, bool Z)
 					{
-						Context->ExecuteSubcall(Callback, [X, Y, Z](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [X, Y, Z](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6048,9 +6260,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.JoyStickAxisMove = [Context, Callback](int X, int Y, int Z)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.JoyStickAxisMove = [Context, Delegate](int X, int Y, int Z)
 					{
-						Context->ExecuteSubcall(Callback, [X, Y, Z](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [X, Y, Z](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6066,9 +6279,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.JoyStickBallMove = [Context, Callback](int X, int Y, int Z, int W)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.JoyStickBallMove = [Context, Delegate](int X, int Y, int Z, int W)
 					{
-						Context->ExecuteSubcall(Callback, [X, Y, Z, W](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [X, Y, Z, W](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6085,9 +6299,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.JoyStickHatMove = [Context, Callback](Graphics::JoyStickHat Type, int X, int Y)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.JoyStickHatMove = [Context, Delegate](Graphics::JoyStickHat Type, int X, int Y)
 					{
-						Context->ExecuteSubcall(Callback, [Type, X, Y](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [Type, X, Y](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, (int)Type);
 							Context->SetArg32(1, X);
@@ -6103,9 +6318,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.JoyStickKeyState = [Context, Callback](int X, int Y, bool Z)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.JoyStickKeyState = [Context, Delegate](int X, int Y, bool Z)
 					{
-						Context->ExecuteSubcall(Callback, [X, Y, Z](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [X, Y, Z](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6121,9 +6337,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.JoyStickState = [Context, Callback](int X, bool Y)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.JoyStickState = [Context, Delegate](int X, bool Y)
 					{
-						Context->ExecuteSubcall(Callback, [X, Y](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [X, Y](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg8(1, Y);
@@ -6138,9 +6355,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.ControllerAxisMove = [Context, Callback](int X, int Y, int Z)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.ControllerAxisMove = [Context, Delegate](int X, int Y, int Z)
 					{
-						Context->ExecuteSubcall(Callback, [X, Y, Z](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [X, Y, Z](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6156,9 +6374,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.ControllerKeyState = [Context, Callback](int X, int Y, bool Z)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.ControllerKeyState = [Context, Delegate](int X, int Y, bool Z)
 					{
-						Context->ExecuteSubcall(Callback, [X, Y, Z](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [X, Y, Z](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6174,9 +6393,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.ControllerState = [Context, Callback](int X, int Y)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.ControllerState = [Context, Delegate](int X, int Y)
 					{
-						Context->ExecuteSubcall(Callback, [X, Y](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [X, Y](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6191,9 +6411,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.TouchMove = [Context, Callback](int X, int Y, float Z, float W, float X1, float Y1, float Z1)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.TouchMove = [Context, Delegate](int X, int Y, float Z, float W, float X1, float Y1, float Z1)
 					{
-						Context->ExecuteSubcall(Callback, [X, Y, Z, W, X1, Y1, Z1](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [X, Y, Z, W, X1, Y1, Z1](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6213,9 +6434,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.TouchState = [Context, Callback](int X, int Y, float Z, float W, float X1, float Y1, float Z1, bool W1)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.TouchState = [Context, Delegate](int X, int Y, float Z, float W, float X1, float Y1, float Z1, bool W1)
 					{
-						Context->ExecuteSubcall(Callback, [X, Y, Z, W, X1, Y1, Z1, W1](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [X, Y, Z, W, X1, Y1, Z1, W1](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6236,9 +6458,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.GestureState = [Context, Callback](int X, int Y, int Z, float W, float X1, float Y1, bool Z1)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.GestureState = [Context, Delegate](int X, int Y, int Z, float W, float X1, float Y1, bool Z1)
 					{
-						Context->ExecuteSubcall(Callback, [X, Y, Z, W, X1, Y1, Z1](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [X, Y, Z, W, X1, Y1, Z1](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6258,9 +6481,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.MultiGestureState = [Context, Callback](int X, int Y, float Z, float W, float X1, float Y1)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.MultiGestureState = [Context, Delegate](int X, int Y, float Z, float W, float X1, float Y1)
 					{
-						Context->ExecuteSubcall(Callback, [X, Y, Z, W, X1, Y1](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [X, Y, Z, W, X1, Y1](ImmediateContext* Context)
 						{
 							Context->SetArg32(0, X);
 							Context->SetArg32(1, Y);
@@ -6279,9 +6503,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.DropFile = [Context, Callback](const Core::String& Text)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.DropFile = [Context, Delegate](const Core::String& Text)
 					{
-						Context->ExecuteSubcall(Callback, [Text](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [Text](ImmediateContext* Context)
 						{
 							Context->SetArgObject(0, (void*)&Text);
 						});
@@ -6295,9 +6520,10 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (Context != nullptr && Callback != nullptr)
 				{
-					Base->Callbacks.DropText = [Context, Callback](const Core::String& Text)
+					FunctionDelegate Delegate(Callback);
+					Base->Callbacks.DropText = [Context, Delegate](const Core::String& Text)
 					{
-						Context->ExecuteSubcall(Callback, [Text](ImmediateContext* Context)
+						Context->ExecuteSubcall(Delegate.Callable(), [Text](ImmediateContext* Context)
 						{
 							Context->SetArgObject(0, (void*)&Text);
 						});
@@ -6687,16 +6913,16 @@ namespace Mavi
 			int SocketAccept1(Network::Socket* Base, Network::Socket* Fd, Core::String& Address)
 			{
 				char IpAddress[64];
-				int Status = Base->Accept(Fd, IpAddress);
+				auto Status = Base->Accept(Fd, IpAddress);
 				Address = IpAddress;
-				return Status;
+				return Status ? 0 : ToErrorCode(Status);
 			}
 			int SocketAccept2(Network::Socket* Base, socket_t& Fd, Core::String& Address)
 			{
 				char IpAddress[64];
-				int Status = Base->Accept(&Fd, IpAddress);
+				auto Status = Base->Accept(&Fd, IpAddress);
 				Address = IpAddress;
-				return Status;
+				return Status ? 0 : ToErrorCode(Status);
 			}
 			int SocketAcceptAsync(Network::Socket* Base, bool WithAddress, asIScriptFunction* Callback)
 			{
@@ -6704,7 +6930,7 @@ namespace Mavi
 				if (!Delegate.IsValid())
 					return -1;
 
-				return Base->AcceptAsync(WithAddress, [Delegate](socket_t Fd, char* Address) mutable
+				auto Status = Base->AcceptAsync(WithAddress, [Delegate](socket_t Fd, char* Address) mutable
 				{
 					Core::String IpAddress = Address; bool Result = false;
 					Delegate([Fd, IpAddress](ImmediateContext* Context)
@@ -6721,6 +6947,7 @@ namespace Mavi
 					}).Wait();
 					return Result;
 				});
+				return Status ? 0 : ToErrorCode(Status);
 			}
 			int SocketCloseAsync(Network::Socket* Base, bool Graceful, asIScriptFunction* Callback)
 			{
@@ -6728,7 +6955,7 @@ namespace Mavi
 				if (!Delegate.IsValid())
 					return -1;
 
-				return Base->CloseAsync(Graceful, [Delegate]() mutable
+				auto Status = Base->CloseAsync(Graceful, [Delegate](const Core::Option<std::error_condition>&) mutable
 				{
 					bool Result = false;
 					Delegate(nullptr, [&Result](ImmediateContext* Context) mutable
@@ -6737,6 +6964,7 @@ namespace Mavi
 					});
 					return Result;
 				});
+				return Status ? 0 : ToErrorCode(Status);
 			}
 			int64_t SocketSendFileAsync(Network::Socket* Base, FILE* Stream, int64_t Offset, int64_t Size, asIScriptFunction* Callback)
 			{
@@ -6744,17 +6972,19 @@ namespace Mavi
 				if (!Delegate.IsValid())
 					return -1;
 
-				return Base->SendFileAsync(Stream, Offset, Size, [Delegate](Network::SocketPoll Poll) mutable
+				auto Status = Base->SendFileAsync(Stream, Offset, Size, [Delegate](Network::SocketPoll Poll) mutable
 				{
 					Delegate([Poll](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
 					});
 				});
+				return Status ? (int64_t)*Status : (int64_t)ToErrorCode(Status);
 			}
 			int SocketWrite(Network::Socket* Base, const Core::String& Data)
 			{
-				return Base->Write(Data.data(), (int)Data.size());
+				auto Written = Base->Write(Data.data(), (int)Data.size());
+				return Written ? (int)*Written : ToErrorCode(Written);
 			}
 			int SocketWriteAsync(Network::Socket* Base, const Core::String& Data, asIScriptFunction* Callback)
 			{
@@ -6762,29 +6992,32 @@ namespace Mavi
 				if (!Delegate.IsValid())
 					return -1;
 
-				return Base->WriteAsync(Data.data(), Data.size(), [Delegate](Network::SocketPoll Poll) mutable
+				auto Written = Base->WriteAsync(Data.data(), Data.size(), [Delegate](Network::SocketPoll Poll) mutable
 				{
 					Delegate([Poll](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
 					}).Wait();
 				});
+				return Written ? (int)*Written : ToErrorCode(Written);
 			}
 			int SocketRead1(Network::Socket* Base, Core::String& Data, int Size)
 			{
 				Data.resize(Size);
-				return Base->Read((char*)Data.data(), Size);
+				auto Received = Base->Read((char*)Data.data(), Size);
+				return Received ? (int)*Received : ToErrorCode(Received);
 			}
 			int SocketRead2(Network::Socket* Base, Core::String& Data, int Size, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Context || !Delegate.IsValid())
 					return -1;
 
-				return Base->Read((char*)Data.data(), (int)Data.size(), [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
+				auto Received = Base->Read((char*)Data.data(), (int)Data.size(), [Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
 					Core::String Source(Data, Size);
-					Context->ExecuteSubcall(Callback, [Poll, Source](ImmediateContext* Context)
+					Context->ExecuteSubcall(Delegate.Callable(), [Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
 						Context->SetArgObject(1, (void*)&Source);
@@ -6792,6 +7025,7 @@ namespace Mavi
 
 					return (bool)Context->GetReturnWord();
 				});
+				return Received ? (int)*Received : ToErrorCode(Received);
 			}
 			int SocketReadAsync(Network::Socket* Base, size_t Size, asIScriptFunction* Callback)
 			{
@@ -6799,7 +7033,7 @@ namespace Mavi
 				if (!Delegate.IsValid())
 					return -1;
 
-				return Base->ReadAsync(Size, [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
+				auto Received = Base->ReadAsync(Size, [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
 				{
 					Core::String Source(Data, Size); bool Result = false;
 					Delegate([Poll, Source](ImmediateContext* Context)
@@ -6813,17 +7047,19 @@ namespace Mavi
 
 					return Result;
 				});
+				return Received ? (int)*Received : ToErrorCode(Received);
 			}
 			int SocketReadUntil(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Context || !Delegate.IsValid())
 					return -1;
 
-				return Base->ReadUntil(Data.c_str(), [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
+				auto Received = Base->ReadUntil(Data.c_str(), [Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
 					Core::String Source(Data, Size);
-					Context->ExecuteSubcall(Callback, [Poll, Source](ImmediateContext* Context)
+					Context->ExecuteSubcall(Delegate.Callable(), [Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
 						Context->SetArgObject(1, (void*)&Source);
@@ -6831,6 +7067,7 @@ namespace Mavi
 
 					return (bool)Context->GetReturnWord();
 				});
+				return Received ? (int)*Received : ToErrorCode(Received);
 			}
 			int SocketReadUntilAsync(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
 			{
@@ -6838,7 +7075,7 @@ namespace Mavi
 				if (!Delegate.IsValid())
 					return -1;
 
-				return Base->ReadUntilAsync(Data.c_str(), [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
+				auto Received = Base->ReadUntilAsync(Data.c_str(), [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
 				{
 					Core::String Source(Data, Size); bool Result = false;
 					Delegate([Poll, Source](ImmediateContext* Context)
@@ -6852,6 +7089,7 @@ namespace Mavi
 
 					return Result;
 				});
+				return Received ? (int)*Received : ToErrorCode(Received);
 			}
 			int SocketConnectAsync(Network::Socket* Base, Network::SocketAddress* Address, asIScriptFunction* Callback)
 			{
@@ -6859,12 +7097,12 @@ namespace Mavi
 				if (!Delegate.IsValid())
 					return -1;
 
-				return Base->ConnectAsync(Address, [Delegate](int Code) mutable
+				auto Status = Base->ConnectAsync(Address, [Delegate](const Core::Option<std::error_condition>& ErrorCode) mutable
 				{
 					bool Result = false;
-					Delegate([Code](ImmediateContext* Context)
+					Delegate([&ErrorCode](ImmediateContext* Context)
 					{
-						Context->SetArg32(0, (int)Code);
+						Context->SetArg32(0, ErrorCode ? ErrorCode->value() : 0);
 					}, [&Result](ImmediateContext* Context) mutable
 					{
 						Result = (bool)Context->GetReturnByte();
@@ -6872,10 +7110,123 @@ namespace Mavi
 
 					return Result;
 				});
+				return Status ? 0 : ToErrorCode(Status);
 			}
 			int SocketSecure(Network::Socket* Base, ssl_ctx_st* Context, const Core::String& Value)
 			{
-				return Base->Secure(Context, Value.c_str());
+				auto Status = Base->Secure(Context, Value.c_str());
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketClose(Network::Socket* Base, bool Gracefully)
+			{
+				auto Status = Base->Close(Gracefully);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int64_t SocketSendFile(Network::Socket* Base, Core::FileStream* Stream, int64_t Offset, int64_t Size)
+			{
+				auto Status = Base->SendFile((FILE*)Stream->GetResource(), Offset, Size);
+				return Status ? (int64_t)*Status : (int64_t)ToErrorCode(Status);
+			}
+			int SocketConnect(Network::Socket* Base, Network::SocketAddress* Address, uint64_t Timeout)
+			{
+				auto Status = Base->Connect(Address, Timeout);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketOpen(Network::Socket* Base, Network::SocketAddress* Address)
+			{
+				auto Status = Base->Open(Address);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketBind(Network::Socket* Base, Network::SocketAddress* Address)
+			{
+				auto Status = Base->Bind(Address);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketListen(Network::Socket* Base, int Backlog)
+			{
+				auto Status = Base->Listen(Backlog);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketClearEvents(Network::Socket* Base, bool Gracefully)
+			{
+				auto Status = Base->ClearEvents(Gracefully);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketMigrateTo(Network::Socket* Base, size_t Fd, bool Gracefully)
+			{
+				auto Status = Base->MigrateTo((socket_t)Fd, Gracefully);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketSetCloseOnExec(Network::Socket* Base)
+			{
+				auto Status = Base->SetCloseOnExec();
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketSetTimeWait(Network::Socket* Base, int Timeout)
+			{
+				auto Status = Base->SetTimeWait(Timeout);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketSetAnyFlag(Network::Socket* Base, int Level, int Option, int Value)
+			{
+				auto Status = Base->SetAnyFlag(Level, Option, Value);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketSetSocketFlag(Network::Socket* Base, int Option, int Value)
+			{
+				auto Status = Base->SetSocketFlag(Option, Value);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketSetBlocking(Network::Socket* Base, bool Active)
+			{
+				auto Status = Base->SetBlocking(Active);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketSetNoDelay(Network::Socket* Base, bool Active)
+			{
+				auto Status = Base->SetNoDelay(Active);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketSetKeepAlive(Network::Socket* Base, bool Active)
+			{
+				auto Status = Base->SetKeepAlive(Active);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketSetTimeout(Network::Socket* Base, int Timeout)
+			{
+				auto Status = Base->SetTimeout(Timeout);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketGetAnyFlag(Network::Socket* Base, int Level, int Option, int* Value)
+			{
+				auto Status = Base->GetAnyFlag(Level, Option, Value);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketGetSocketFlag(Network::Socket* Base, int Option, int* Value)
+			{
+				auto Status = Base->GetSocketFlag(Option, Value);
+				return Status ? 0 : ToErrorCode(Status);
+			}
+			int SocketGetPort(Network::Socket* Base)
+			{
+				auto Status = Base->GetPort();
+				return Status ? *Status : ToErrorCode(Status);
+			}
+			Core::String SocketGetRemoteAddress(Network::Socket* Base)
+			{
+				auto Status = Base->GetRemoteAddress();
+				return Status ? *Status : Core::String();
+			}
+
+			Core::String DNSFindNameFromAddress(Network::DNS* Base, const Core::String& Host, const Core::String& Service)
+			{
+				auto Result = Base->FindNameFromAddress(Host, Service);
+				return Result ? *Result : Core::String();
+			}
+			Network::SocketAddress* DNSFindAddressFromName(Network::DNS* Base, const Core::String& Host, const Core::String& Service, Network::DNSType TestType, Network::SocketProtocol Protocol, Network::SocketType Type)
+			{
+				auto Result = Base->FindAddressFromName(Host, Service, TestType, Protocol, Type);
+				return Result ? *Result : nullptr;
 			}
 
 			Network::EpollFd& EpollFdCopy(Network::EpollFd& Base, Network::EpollFd& Other)
@@ -6963,7 +7314,24 @@ namespace Mavi
 			{
 				if (Router != nullptr)
 					Router->AddRef();
-				return Server->Configure(Router);
+				return !!Server->Configure(Router);
+			}
+			bool SocketServerListen(Network::SocketServer* Server)
+			{
+				return !!Server->Listen();
+			}
+			bool SocketServerUnlisten(Network::SocketServer* Server, uint64_t Timeout)
+			{
+				return !!Server->Unlisten(Timeout);
+			}
+
+			Core::Promise<int> SocketClientConnect(Network::SocketClient* Client, Network::RemoteHost* Host, bool Async)
+			{
+				return Client->Connect(Host, Async).Then<int>([](Core::Expected<void>&& Result) { return Result ? 0 : ToErrorCode(Result); });
+			}
+			Core::Promise<int> SocketClientClose(Network::SocketClient* Client)
+			{
+				return Client->Close().Then<int>([](Core::Expected<void>&& Result) { return Result ? 0 : ToErrorCode(Result); });
 			}
 
 			Core::String SocketConnectionGetRemoteAddress(Network::SocketConnection* Base)
@@ -7290,12 +7658,13 @@ namespace Mavi
 			void RenderSystemQuerySync(Engine::RenderSystem* Base, uint64_t Id, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Callback || !Context)
+				FunctionDelegate Delegate(Callback);
+				if (!Context || !Delegate.IsValid())
 					return;
 
-				Base->QueryBasicSync(Id, [Context, Callback](Engine::Component* Item)
+				Base->QueryBasicSync(Id, [Context, Delegate](Engine::Component* Item)
 				{
-					Context->ExecuteSubcall(Callback, [Item](ImmediateContext* Context)
+					Context->ExecuteSubcall(Delegate.Callable(), [Item](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, (void*)Item);
 					});
@@ -7491,12 +7860,13 @@ namespace Mavi
 			void SceneGraphRayTest(Engine::SceneGraph* Base, uint64_t Id, const Compute::Ray& Ray, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Context || !Delegate.IsValid())
 					return;
 
-				Base->RayTest(Id, Ray, [Context, Callback](Engine::Component* Source, const Compute::Vector3& Where)
+				Base->RayTest(Id, Ray, [Context, Delegate](Engine::Component* Source, const Compute::Vector3& Where)
 				{
-					Context->ExecuteSubcall(Callback, [&Source, &Where](ImmediateContext* Context)
+					Context->ExecuteSubcall(Delegate.Callable(), [&Source, &Where](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, (void*)Source);
 						Context->SetArgObject(1, (void*)&Where);
@@ -7560,7 +7930,7 @@ namespace Mavi
 					{
 						Context->SetArgObject(0, (void*)&Name);
 						Context->SetArgObject(1, (void*)Args);
-					}).When([Args](int&&)
+					}).When([Args](ExpectedReturn<Activation>&&)
 					{
 						VI_RELEASE(Args);
 					});
@@ -7637,13 +8007,14 @@ namespace Mavi
 			Array* SceneGraphQueryByMatch(Engine::SceneGraph* Base, uint64_t Id, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Callback)
+				FunctionDelegate Delegate(Callback);
+				if (!Context || !Delegate.IsValid())
 					return nullptr;
 
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_COMPONENT "@>@");
-				return Array::Compose(Type.GetTypeInfo(), Base->QueryByMatch(Id, [Context, Callback](const Compute::Bounding& Source)
+				return Array::Compose(Type.GetTypeInfo(), Base->QueryByMatch(Id, [Context, Delegate](const Compute::Bounding& Source)
 				{
-					Context->ExecuteSubcall(Callback, [&Source](ImmediateContext* Context)
+					Context->ExecuteSubcall(Delegate.Callable(), [&Source](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, (void*)&Source);
 					});
@@ -7787,7 +8158,7 @@ namespace Mavi
 					{
 						Context->SetArgObject(0, &Event);
 						Context->SetArgObject(1, &Data);
-					}).When([Event](int&&) mutable
+					}).When([Event](ExpectedReturn<Activation>&&) mutable
 					{
 						Event.Release();
 					});
@@ -7838,7 +8209,7 @@ namespace Mavi
 					Listener->Delegate([Event](ImmediateContext* Context) mutable
 					{
 						Context->SetArgObject(0, &Event);
-					}).When([Event](int&&) mutable
+					}).When([Event](ExpectedReturn<Activation>&&) mutable
 					{
 						Event.Release();
 					});
@@ -8757,30 +9128,27 @@ namespace Mavi
 			Core::Promise<bool> ClientFetch(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
 			{
 				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->Fetch(std::move(Copy), MaxSize);
+				return Base->Fetch(std::move(Copy), MaxSize).Then<bool>([](Core::Expected<void>&& Result) { return !!Result; });
 			}
 			Core::Promise<bool> ClientUpgrade(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame)
 			{
 				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->Upgrade(std::move(Copy));
+				return Base->Upgrade(std::move(Copy)).Then<bool>([](Core::Expected<void>&& Result) { return !!Result; });
 			}
 			Core::Promise<bool> ClientSend(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame)
 			{
 				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->Send(std::move(Copy)).Then<bool>([](Network::HTTP::ResponseFrame* Result) -> bool
-				{
-					return Result != nullptr;
-				});
+				return Base->Send(std::move(Copy)).Then<bool>([](Core::Expected<Network::HTTP::ResponseFrame*>&& Result) { return !!Result; });
 			}
 			Core::Promise<Core::Schema*> ClientJSON(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
 			{
 				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->JSON(std::move(Copy), MaxSize);
+				return Base->JSON(std::move(Copy), MaxSize).Then<Core::Schema*>([](Core::Expected<Core::Schema*>&& Result) { return Result ? *Result : (Core::Schema*)nullptr; });
 			}
 			Core::Promise<Core::Schema*> ClientXML(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
 			{
 				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->XML(std::move(Copy), MaxSize);
+				return Base->XML(std::move(Copy), MaxSize).Then<Core::Schema*>([](Core::Expected<Core::Schema*>&& Result) { return Result ? *Result : (Core::Schema*)nullptr; });
 			}
 			
 			Array* SMTPRequestGetRecipients(Network::SMTP::RequestFrame* Base)
@@ -8883,7 +9251,7 @@ namespace Mavi
 			Core::Promise<int> SMTPClientSend(Network::SMTP::Client* Base, const Network::SMTP::RequestFrame& Frame)
 			{
 				Network::SMTP::RequestFrame Copy = Frame;
-				return Base->Send(std::move(Copy));
+				return Base->Send(std::move(Copy)).Then<int>([](Core::Expected<void>&& Result) { return Result ? (int)0 : ToErrorCode(Result); });
 			}
 #endif
 			bool Registry::ImportCTypes(VirtualMachine* VM)
@@ -9248,6 +9616,7 @@ namespace Mavi
 				Engine->RegisterGlobalFunction("string to_string(float)", asFUNCTION(Core::ToString<float>), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string to_string(double)", asFUNCTION(Core::ToString<double>), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string to_string(uptr@, usize)", asFUNCTION(String::FromBuffer), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("uint64 component_id(const string &in)", asFUNCTION(Core::OS::File::GetHash), asCALL_CDECL);
 				
 				VM->BeginNamespace("string");
 				Engine->RegisterGlobalProperty("const usize npos", (void*)&Core::String::npos);
@@ -9260,7 +9629,7 @@ namespace Mavi
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 
 				asIScriptEngine* Engine = VM->GetEngine();
-				TypeClass VExceptionData = VM->SetStructTrivial<Exception::Pointer>("exception_ptr");
+				TypeClass VExceptionData = *VM->SetStructTrivial<Exception::Pointer>("exception_ptr");
 				VExceptionData.SetProperty("string type", &Exception::Pointer::Type);
 				VExceptionData.SetProperty("string message", &Exception::Pointer::Message);
 				VExceptionData.SetProperty("string origin", &Exception::Pointer::Origin);
@@ -9445,18 +9814,18 @@ namespace Mavi
 				if (HasCallbacks)
 				{
 					Engine->RegisterFuncdef("void promise<T>::when_callback(T&in)");
-					Engine->RegisterObjectMethod("promise<T>", "void when(when_callback@+)", asMETHOD(Promise, When), asCALL_THISCALL);
+					Engine->RegisterObjectMethod("promise<T>", "void when(when_callback@)", asMETHOD(Promise, When), asCALL_THISCALL);
 					Engine->RegisterFuncdef("void promise_v::when_callback()");
-					Engine->RegisterObjectMethod("promise_v", "void when(when_callback@+)", asMETHOD(Promise, When), asCALL_THISCALL);
+					Engine->RegisterObjectMethod("promise_v", "void when(when_callback@)", asMETHOD(Promise, When), asCALL_THISCALL);
 				}
 
 				return true;
 			}
-			bool Registry::ImportFormat(VirtualMachine* Engine)
+			bool Registry::ImportFormat(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				RefClass VFormat = Engine->SetClass<Format>("format", false);
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				RefClass VFormat = *VM->SetClass<Format>("format", false);
 				VFormat.SetConstructor<Format>("format@ f()");
 				VFormat.SetConstructorList<Format>("format@ f(int &in) {repeat ?}");
 				VFormat.SetMethodStatic("string to_json(const ? &in)", &Format::JSON);
@@ -9467,11 +9836,11 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportDecimal(VirtualMachine* Engine)
+			bool Registry::ImportDecimal(VirtualMachine* VM)
 			{
-				VI_ASSERT(Engine != nullptr, "manager should be set");
+				VI_ASSERT(VM != nullptr, "manager should be set");
 
-				TypeClass VDecimal = Engine->SetStructTrivial<Core::Decimal>("decimal");
+				TypeClass VDecimal = *VM->SetStructTrivial<Core::Decimal>("decimal");
 				VDecimal.SetConstructor<Core::Decimal>("void f()");
 				VDecimal.SetConstructor<Core::Decimal, int32_t>("void f(int)");
 				VDecimal.SetConstructor<Core::Decimal, int32_t>("void f(uint)");
@@ -9514,10 +9883,10 @@ namespace Mavi
 
 				return true;
 			}
-			bool Registry::ImportVariant(VirtualMachine* Engine)
+			bool Registry::ImportVariant(VirtualMachine* VM)
 			{
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				Enumeration VVarType = Engine->SetEnum("var_type");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				Enumeration VVarType = *VM->SetEnum("var_type");
 				VVarType.SetValue("null_t", (int)Core::VarType::Null);
 				VVarType.SetValue("undefined_t", (int)Core::VarType::Undefined);
 				VVarType.SetValue("object_t", (int)Core::VarType::Object);
@@ -9529,7 +9898,7 @@ namespace Mavi
 				VVarType.SetValue("decimal_t", (int)Core::VarType::Decimal);
 				VVarType.SetValue("boolean_t", (int)Core::VarType::Boolean);
 
-				TypeClass VVariant = Engine->SetStructTrivial<Core::Variant>("variant");
+				TypeClass VVariant = *VM->SetStructTrivial<Core::Variant>("variant");
 				VVariant.SetConstructor<Core::Variant>("void f()");
 				VVariant.SetConstructor<Core::Variant, const Core::Variant&>("void f(const variant &in)");
 				VVariant.SetMethod("bool deserialize(const string &in, bool = false)", &Core::Variant::Deserialize);
@@ -9547,28 +9916,28 @@ namespace Mavi
 				VVariant.SetOperatorEx(Operators::Equals, (uint32_t)Position::Const, "bool", "const variant &in", &VariantEquals);
 				VVariant.SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "bool", "", &VariantImplCast);
 
-				Engine->BeginNamespace("var");
-				Engine->SetFunction("variant auto_t(const string &in, bool = false)", &Core::Var::Auto);
-				Engine->SetFunction("variant null_t()", &Core::Var::Null);
-				Engine->SetFunction("variant undefined_t()", &Core::Var::Undefined);
-				Engine->SetFunction("variant object_t()", &Core::Var::Object);
-				Engine->SetFunction("variant array_t()", &Core::Var::Array);
-				Engine->SetFunction("variant pointer_t(uptr@)", &Core::Var::Pointer);
-				Engine->SetFunction("variant integer_t(int64)", &Core::Var::Integer);
-				Engine->SetFunction("variant number_t(double)", &Core::Var::Number);
-				Engine->SetFunction("variant boolean_t(bool)", &Core::Var::Boolean);
-				Engine->SetFunction<Core::Variant(const Core::String&)>("variant string_t(const string &in)", &Core::Var::String);
-				Engine->SetFunction<Core::Variant(const Core::String&)>("variant binary_t(const string &in)", &Core::Var::Binary);
-				Engine->SetFunction<Core::Variant(const Core::String&)>("variant decimal_t(const string &in)", &Core::Var::DecimalString);
-				Engine->SetFunction<Core::Variant(const Core::Decimal&)>("variant decimal_t(const decimal &in)", &Core::Var::Decimal);
-				Engine->EndNamespace();
+				VM->BeginNamespace("var");
+				VM->SetFunction("variant auto_t(const string &in, bool = false)", &Core::Var::Auto);
+				VM->SetFunction("variant null_t()", &Core::Var::Null);
+				VM->SetFunction("variant undefined_t()", &Core::Var::Undefined);
+				VM->SetFunction("variant object_t()", &Core::Var::Object);
+				VM->SetFunction("variant array_t()", &Core::Var::Array);
+				VM->SetFunction("variant pointer_t(uptr@)", &Core::Var::Pointer);
+				VM->SetFunction("variant integer_t(int64)", &Core::Var::Integer);
+				VM->SetFunction("variant number_t(double)", &Core::Var::Number);
+				VM->SetFunction("variant boolean_t(bool)", &Core::Var::Boolean);
+				VM->SetFunction<Core::Variant(const Core::String&)>("variant string_t(const string &in)", &Core::Var::String);
+				VM->SetFunction<Core::Variant(const Core::String&)>("variant binary_t(const string &in)", &Core::Var::Binary);
+				VM->SetFunction<Core::Variant(const Core::String&)>("variant decimal_t(const string &in)", &Core::Var::DecimalString);
+				VM->SetFunction<Core::Variant(const Core::Decimal&)>("variant decimal_t(const decimal &in)", &Core::Var::Decimal);
+				VM->EndNamespace();
 
 				return true;
 			}
-			bool Registry::ImportTimestamp(VirtualMachine* Engine)
+			bool Registry::ImportTimestamp(VirtualMachine* VM)
 			{
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				TypeClass VDateTime = Engine->SetStructTrivial<Core::DateTime>("timestamp");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				TypeClass VDateTime = *VM->SetStructTrivial<Core::DateTime>("timestamp");
 				VDateTime.SetConstructor<Core::DateTime>("void f()");
 				VDateTime.SetConstructor<Core::DateTime, uint64_t>("void f(uint64)");
 				VDateTime.SetConstructor<Core::DateTime, const Core::DateTime&>("void f(const timestamp &in)");
@@ -9621,11 +9990,11 @@ namespace Mavi
 
 				return true;
 			}
-			bool Registry::ImportConsole(VirtualMachine* Engine)
+			bool Registry::ImportConsole(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				Enumeration VStdColor = Engine->SetEnum("std_color");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				Enumeration VStdColor = *VM->SetEnum("std_color");
 				VStdColor.SetValue("black", (int)Core::StdColor::Black);
 				VStdColor.SetValue("dark_blue", (int)Core::StdColor::DarkBlue);
 				VStdColor.SetValue("dark_green", (int)Core::StdColor::DarkGreen);
@@ -9643,7 +10012,7 @@ namespace Mavi
 				VStdColor.SetValue("yellow", (int)Core::StdColor::Yellow);
 				VStdColor.SetValue("white", (int)Core::StdColor::White);
 
-				RefClass VConsole = Engine->SetClass<Core::Console>("console", false);
+				RefClass VConsole = *VM->SetClass<Core::Console>("console", false);
 				VConsole.SetMethod("void hide()", &Core::Console::Hide);
 				VConsole.SetMethod("void show()", &Core::Console::Show);
 				VConsole.SetMethod("void clear()", &Core::Console::Clear);
@@ -9677,12 +10046,12 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportSchema(VirtualMachine* Engine)
+			bool Registry::ImportSchema(VirtualMachine* VM)
 			{
-				VI_ASSERT(Engine != nullptr, "manager should be set");
+				VI_ASSERT(VM != nullptr, "manager should be set");
 				VI_TYPEREF(Schema, "schema");
 
-				RefClass VSchema = Engine->SetClass<Core::Schema>("schema", true);
+				RefClass VSchema = *VM->SetClass<Core::Schema>("schema", true);
 				VSchema.SetProperty<Core::Schema>("string key", &Core::Schema::Key);
 				VSchema.SetProperty<Core::Schema>("variant value", &Core::Schema::Value);
 				VSchema.SetGcConstructor<Core::Schema, Schema, const Core::Variant&>("schema@ f(const variant &in)");
@@ -9744,31 +10113,31 @@ namespace Mavi
 					Base->Clear();
 				});
 
-				Engine->BeginNamespace("var::set");
-				Engine->SetFunction("schema@ auto_t(const string &in, bool = false)", &Core::Var::Auto);
-				Engine->SetFunction("schema@ null_t()", &Core::Var::Set::Null);
-				Engine->SetFunction("schema@ undefined_t()", &Core::Var::Set::Undefined);
-				Engine->SetFunction("schema@ object_t()", &Core::Var::Set::Object);
-				Engine->SetFunction("schema@ array_t()", &Core::Var::Set::Array);
-				Engine->SetFunction("schema@ pointer_t(uptr@)", &Core::Var::Set::Pointer);
-				Engine->SetFunction("schema@ integer_t(int64)", &Core::Var::Set::Integer);
-				Engine->SetFunction("schema@ number_t(double)", &Core::Var::Set::Number);
-				Engine->SetFunction("schema@ boolean_t(bool)", &Core::Var::Set::Boolean);
-				Engine->SetFunction<Core::Schema* (const Core::String&)>("schema@ string_t(const string &in)", &Core::Var::Set::String);
-				Engine->SetFunction<Core::Schema* (const Core::String&)>("schema@ binary_t(const string &in)", &Core::Var::Set::Binary);
-				Engine->SetFunction<Core::Schema* (const Core::String&)>("schema@ decimal_t(const string &in)", &Core::Var::Set::DecimalString);
-				Engine->SetFunction<Core::Schema* (const Core::Decimal&)>("schema@ decimal_t(const decimal &in)", &Core::Var::Set::Decimal);
-				Engine->SetFunction("schema@+ as(schema@+)", &SchemaInit);
-				Engine->EndNamespace();
+				VM->BeginNamespace("var::set");
+				VM->SetFunction("schema@ auto_t(const string &in, bool = false)", &Core::Var::Auto);
+				VM->SetFunction("schema@ null_t()", &Core::Var::Set::Null);
+				VM->SetFunction("schema@ undefined_t()", &Core::Var::Set::Undefined);
+				VM->SetFunction("schema@ object_t()", &Core::Var::Set::Object);
+				VM->SetFunction("schema@ array_t()", &Core::Var::Set::Array);
+				VM->SetFunction("schema@ pointer_t(uptr@)", &Core::Var::Set::Pointer);
+				VM->SetFunction("schema@ integer_t(int64)", &Core::Var::Set::Integer);
+				VM->SetFunction("schema@ number_t(double)", &Core::Var::Set::Number);
+				VM->SetFunction("schema@ boolean_t(bool)", &Core::Var::Set::Boolean);
+				VM->SetFunction<Core::Schema* (const Core::String&)>("schema@ string_t(const string &in)", &Core::Var::Set::String);
+				VM->SetFunction<Core::Schema* (const Core::String&)>("schema@ binary_t(const string &in)", &Core::Var::Set::Binary);
+				VM->SetFunction<Core::Schema* (const Core::String&)>("schema@ decimal_t(const string &in)", &Core::Var::Set::DecimalString);
+				VM->SetFunction<Core::Schema* (const Core::Decimal&)>("schema@ decimal_t(const decimal &in)", &Core::Var::Set::Decimal);
+				VM->SetFunction("schema@+ as(schema@+)", &SchemaInit);
+				VM->EndNamespace();
 
 				return true;
 			}
-			bool Registry::ImportClockTimer(VirtualMachine* Engine)
+			bool Registry::ImportClockTimer(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
+				VI_ASSERT(VM != nullptr, "manager should be set");
 
-				RefClass VTimer = Engine->SetClass<Core::Timer>("clock_timer", false);
+				RefClass VTimer = *VM->SetClass<Core::Timer>("clock_timer", false);
 				VTimer.SetConstructor<Core::Timer>("clock_timer@ f()");
 				VTimer.SetMethod("void set_fixed_frames(float)", &Core::Timer::SetFixedFrames);
 				VTimer.SetMethod("void begin()", &Core::Timer::Begin);
@@ -9790,11 +10159,11 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportFileSystem(VirtualMachine* Engine)
+			bool Registry::ImportFileSystem(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				Enumeration VFileMode = Engine->SetEnum("file_mode");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				Enumeration VFileMode = *VM->SetEnum("file_mode");
 				VFileMode.SetValue("read_only", (int)Core::FileMode::Read_Only);
 				VFileMode.SetValue("write_only", (int)Core::FileMode::Write_Only);
 				VFileMode.SetValue("append_only", (int)Core::FileMode::Append_Only);
@@ -9808,12 +10177,12 @@ namespace Mavi
 				VFileMode.SetValue("binary_write_read", (int)Core::FileMode::Binary_Write_Read);
 				VFileMode.SetValue("binary_read_append_write", (int)Core::FileMode::Binary_Read_Append_Write);
 
-				Enumeration VFileSeek = Engine->SetEnum("file_seek");
+				Enumeration VFileSeek = *VM->SetEnum("file_seek");
 				VFileSeek.SetValue("begin", (int)Core::FileSeek::Begin);
 				VFileSeek.SetValue("current", (int)Core::FileSeek::Current);
 				VFileSeek.SetValue("end", (int)Core::FileSeek::End);
 
-				TypeClass VFileState = Engine->SetPod<Core::FileState>("file_state");
+				TypeClass VFileState = *VM->SetPod<Core::FileState>("file_state");
 				VFileState.SetProperty("usize size", &Core::FileState::Size);
 				VFileState.SetProperty("usize links", &Core::FileState::Links);
 				VFileState.SetProperty("usize permissions", &Core::FileState::Permissions);
@@ -9827,9 +10196,8 @@ namespace Mavi
 				VFileState.SetProperty("bool exists", &Core::FileState::Exists);
 				VFileState.SetConstructor<Core::FileState>("void f()");
 
-				TypeClass VFileEntry = Engine->SetStructTrivial<Core::FileEntry>("file_entry");
+				TypeClass VFileEntry = *VM->SetStructTrivial<Core::FileEntry>("file_entry");
 				VFileEntry.SetConstructor<Core::FileEntry>("void f()");
-				VFileEntry.SetProperty("string path", &Core::FileEntry::Path);
 				VFileEntry.SetProperty("usize size", &Core::FileEntry::Size);
 				VFileEntry.SetProperty("int64 last_modified", &Core::FileEntry::LastModified);
 				VFileEntry.SetProperty("int64 creation_time", &Core::FileEntry::CreationTime);
@@ -9837,7 +10205,17 @@ namespace Mavi
 				VFileEntry.SetProperty("bool is_directory", &Core::FileEntry::IsDirectory);
 				VFileEntry.SetProperty("bool is_exists", &Core::FileEntry::IsExists);
 
-				RefClass VStream = Engine->SetClass<Core::Stream>("base_stream", false);
+				TypeClass VFileLink = *VM->SetStructTrivial<FileLink>("file_link");
+				VFileLink.SetConstructor<FileLink>("void f()");
+				VFileLink.SetProperty("string path", &FileLink::Path);
+				VFileLink.SetProperty("usize size", &FileLink::Size);
+				VFileLink.SetProperty("int64 last_modified", &FileLink::LastModified);
+				VFileLink.SetProperty("int64 creation_time", &FileLink::CreationTime);
+				VFileLink.SetProperty("bool is_referenced", &FileLink::IsReferenced);
+				VFileLink.SetProperty("bool is_directory", &FileLink::IsDirectory);
+				VFileLink.SetProperty("bool is_exists", &FileLink::IsExists);
+
+				RefClass VStream = *VM->SetClass<Core::Stream>("base_stream", false);
 				VStream.SetMethod("bool clear()", &Core::Stream::Clear);
 				VStream.SetMethod("bool close()", &Core::Stream::Close);
 				VStream.SetMethod("bool seek(file_seek, int64)", &Core::Stream::Seek);
@@ -9851,7 +10229,7 @@ namespace Mavi
 				VStream.SetMethodEx("usize write(const string &in)", &StreamWrite);
 				VStream.SetMethodEx("string read(usize)", &StreamRead);
 
-				RefClass VFileStream = Engine->SetClass<Core::FileStream>("file_stream", false);
+				RefClass VFileStream = *VM->SetClass<Core::FileStream>("file_stream", false);
 				VFileStream.SetConstructor<Core::FileStream>("file_stream@ f()");
 				VFileStream.SetMethod("bool clear()", &Core::FileStream::Clear);
 				VFileStream.SetMethod("bool close()", &Core::FileStream::Close);
@@ -9866,7 +10244,7 @@ namespace Mavi
 				VFileStream.SetMethodEx("usize write(const string &in)", &FileStreamWrite);
 				VFileStream.SetMethodEx("string read(usize)", &FileStreamRead);
 
-				RefClass VGzStream = Engine->SetClass<Core::GzStream>("gz_stream", false);
+				RefClass VGzStream = *VM->SetClass<Core::GzStream>("gz_stream", false);
 				VGzStream.SetConstructor<Core::GzStream>("gz_stream@ f()");
 				VGzStream.SetMethod("bool clear()", &Core::GzStream::Clear);
 				VGzStream.SetMethod("bool close()", &Core::GzStream::Close);
@@ -9881,7 +10259,7 @@ namespace Mavi
 				VGzStream.SetMethodEx("usize write(const string &in)", &GzStreamWrite);
 				VGzStream.SetMethodEx("string read(usize)", &GzStreamRead);
 
-				RefClass VWebStream = Engine->SetClass<Core::WebStream>("web_stream", false);
+				RefClass VWebStream = *VM->SetClass<Core::WebStream>("web_stream", false);
 				VWebStream.SetConstructor<Core::WebStream, bool>("web_stream@ f(bool)");
 				VWebStream.SetMethod("bool clear()", &Core::WebStream::Clear);
 				VWebStream.SetMethod("bool close()", &Core::WebStream::Close);
@@ -9896,7 +10274,7 @@ namespace Mavi
 				VWebStream.SetMethodEx("usize write(const string &in)", &WebStreamWrite);
 				VWebStream.SetMethodEx("string read(usize)", &WebStreamRead);
 
-				RefClass VProcessStream = Engine->SetClass<Core::ProcessStream>("process_stream", false);
+				RefClass VProcessStream = *VM->SetClass<Core::ProcessStream>("process_stream", false);
 				VProcessStream.SetConstructor<Core::ProcessStream>("process_stream@ f()");
 				VProcessStream.SetMethod("bool clear()", &Core::ProcessStream::Clear);
 				VProcessStream.SetMethod("bool close()", &Core::ProcessStream::Close);
@@ -9927,126 +10305,126 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportOS(VirtualMachine* Engine)
+			bool Registry::ImportOS(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				Engine->BeginNamespace("os::cpu");
-				Enumeration VArch = Engine->SetEnum("arch");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				VM->BeginNamespace("os::cpu");
+				Enumeration VArch = *VM->SetEnum("arch");
 				VArch.SetValue("x64", (int)Core::OS::CPU::Arch::X64);
 				VArch.SetValue("arm", (int)Core::OS::CPU::Arch::ARM);
 				VArch.SetValue("itanium", (int)Core::OS::CPU::Arch::Itanium);
 				VArch.SetValue("x86", (int)Core::OS::CPU::Arch::X86);
 				VArch.SetValue("unknown", (int)Core::OS::CPU::Arch::Unknown);
 
-				Enumeration VEndian = Engine->SetEnum("endian");
+				Enumeration VEndian = *VM->SetEnum("endian");
 				VEndian.SetValue("little", (int)Core::OS::CPU::Endian::Little);
 				VEndian.SetValue("big", (int)Core::OS::CPU::Endian::Big);
 
-				Enumeration VCache = Engine->SetEnum("cache");
+				Enumeration VCache = *VM->SetEnum("cache");
 				VCache.SetValue("unified", (int)Core::OS::CPU::Cache::Unified);
 				VCache.SetValue("instruction", (int)Core::OS::CPU::Cache::Instruction);
 				VCache.SetValue("data", (int)Core::OS::CPU::Cache::Data);
 				VCache.SetValue("trace", (int)Core::OS::CPU::Cache::Trace);
 
-				TypeClass VQuantityInfo = Engine->SetPod<Core::OS::CPU::QuantityInfo>("quantity_info");
+				TypeClass VQuantityInfo = *VM->SetPod<Core::OS::CPU::QuantityInfo>("quantity_info");
 				VQuantityInfo.SetProperty("uint32 logical", &Core::OS::CPU::QuantityInfo::Logical);
 				VQuantityInfo.SetProperty("uint32 physical", &Core::OS::CPU::QuantityInfo::Physical);
 				VQuantityInfo.SetProperty("uint32 packages", &Core::OS::CPU::QuantityInfo::Packages);
 				VQuantityInfo.SetConstructor<Core::OS::CPU::QuantityInfo>("void f()");
 
-				TypeClass VCacheInfo = Engine->SetPod<Core::OS::CPU::CacheInfo>("cache_info");
+				TypeClass VCacheInfo = *VM->SetPod<Core::OS::CPU::CacheInfo>("cache_info");
 				VCacheInfo.SetProperty("usize size", &Core::OS::CPU::CacheInfo::Size);
 				VCacheInfo.SetProperty("usize line_size", &Core::OS::CPU::CacheInfo::LineSize);
 				VCacheInfo.SetProperty("uint8 associativity", &Core::OS::CPU::CacheInfo::Associativity);
 				VCacheInfo.SetProperty("cache type", &Core::OS::CPU::CacheInfo::Type);
 				VCacheInfo.SetConstructor<Core::OS::CPU::CacheInfo>("void f()");
 
-				Engine->SetFunction("quantity_info get_quantity_info()", &Core::OS::CPU::GetQuantityInfo);
-				Engine->SetFunction("cache_info get_cache_info(uint32)", &Core::OS::CPU::GetCacheInfo);
-				Engine->SetFunction("arch get_arch()", &Core::OS::CPU::GetArch);
-				Engine->SetFunction("endian get_endianness()", &Core::OS::CPU::GetEndianness);
-				Engine->SetFunction("usize get_frequency()", &Core::OS::CPU::GetFrequency);
-				Engine->EndNamespace();
+				VM->SetFunction("quantity_info get_quantity_info()", &Core::OS::CPU::GetQuantityInfo);
+				VM->SetFunction("cache_info get_cache_info(uint32)", &Core::OS::CPU::GetCacheInfo);
+				VM->SetFunction("arch get_arch()", &Core::OS::CPU::GetArch);
+				VM->SetFunction("endian get_endianness()", &Core::OS::CPU::GetEndianness);
+				VM->SetFunction("usize get_frequency()", &Core::OS::CPU::GetFrequency);
+				VM->EndNamespace();
 
-				Engine->BeginNamespace("os::directory");
-				Engine->SetFunction("array<file_entry>@ scan(const string &in)", &OSDirectoryScan);
-				Engine->SetFunction("array<string>@ get_mounts(const string &in)", &OSDirectoryGetMounts);
-				Engine->SetFunction("bool create(const string &in)", &OSDirectoryCreate);
-				Engine->SetFunction("bool remove(const string &in)", &OSDirectoryRemove);
-				Engine->SetFunction("bool is_exists(const string &in)", &OSDirectoryIsExists);
-				Engine->SetFunction("string get_module()", &Core::OS::Directory::GetModule);
-				Engine->SetFunction("string get_working()", &Core::OS::Directory::GetWorking);
-				Engine->SetFunction("bool patch(const string &in)", &Core::OS::Directory::Patch);
-				Engine->SetFunction("void set_working(const string &in)", &OSDirectorySetWorking);
-				Engine->EndNamespace();
+				VM->BeginNamespace("os::directory");
+				VM->SetFunction("array<file_state>@ scan(const string &in)", &OSDirectoryScan);
+				VM->SetFunction("array<string>@ get_mounts(const string &in)", &OSDirectoryGetMounts);
+				VM->SetFunction("bool create(const string &in)", &OSDirectoryCreate);
+				VM->SetFunction("bool remove(const string &in)", &OSDirectoryRemove);
+				VM->SetFunction("bool is_exists(const string &in)", &OSDirectoryIsExists);
+				VM->SetFunction("string get_module()", &OSDirectoryGetModule);
+				VM->SetFunction("string get_working()", &OSDirectoryGetWorking);
+				VM->SetFunction("bool patch(const string &in)", &OSDirectoryPatch);
+				VM->SetFunction("bool set_working(const string &in)", &OSDirectorySetWorking);
+				VM->EndNamespace();
 
-				Engine->BeginNamespace("os::file");
-				Engine->SetFunction<bool(const Core::String&, const Core::String&)>("bool write(const string &in, const string &in)", &Core::OS::File::Write);
-				Engine->SetFunction("bool state(const string &in, file_entry &out)", &OSFileState);
-				Engine->SetFunction("bool move(const string &in, const string &in)", &OSFileMove);
-				Engine->SetFunction("bool copy(const string &in, const string &in)", &OSFileCopy);
-				Engine->SetFunction("bool remove(const string &in)", &OSFileRemove);
-				Engine->SetFunction("bool is_exists(const string &in)", &OSFileIsExists);
-				Engine->SetFunction("file_state get_properties(const string &in)", &OSFileGetProperties);
-				Engine->SetFunction("string read_as_string(const string &in)", &Core::OS::File::ReadAsString);
-				Engine->SetFunction("array<string>@ read_as_array(const string &in)", &OSFileReadAsArray);
-				Engine->SetFunction("usize join(const string &in, array<string>@+)", &OSFileJoin);
-				Engine->SetFunction("int32 compare(const string &in, const string &in)", &Core::OS::File::Compare);
-				Engine->SetFunction("int64 get_hash(const string &in)", &Core::OS::File::GetHash);
-				Engine->SetFunction("base_stream@ open_join(const string &in, array<string>@+)", &OSFileOpenJoin);
-				Engine->SetFunction("base_stream@ open_archive(const string &in, usize)", &Core::OS::File::OpenArchive);
-				Engine->SetFunction<Core::Stream*(const Core::String&, Core::FileMode, bool)>("base_stream@ open(const string &in, file_mode, bool = false)", &Core::OS::File::Open);
-				Engine->EndNamespace();
+				VM->BeginNamespace("os::file");
+				VM->SetFunction("bool write(const string &in, const string &in)", &OSFileWrite);
+				VM->SetFunction("bool state(const string &in, file_entry &out)", &OSFileState);
+				VM->SetFunction("bool move(const string &in, const string &in)", &OSFileMove);
+				VM->SetFunction("bool copy(const string &in, const string &in)", &OSFileCopy);
+				VM->SetFunction("bool remove(const string &in)", &OSFileRemove);
+				VM->SetFunction("bool is_exists(const string &in)", &OSFileIsExists);
+				VM->SetFunction("file_state get_properties(const string &in)", &OSFileGetProperties);
+				VM->SetFunction("string read_as_string(const string &in)", &OSFileReadAsString);
+				VM->SetFunction("array<string>@ read_as_array(const string &in)", &OSFileReadAsArray);
+				VM->SetFunction("usize join(const string &in, array<string>@+)", &OSFileJoin);
+				VM->SetFunction("int32 compare(const string &in, const string &in)", &Core::OS::File::Compare);
+				VM->SetFunction("int64 get_hash(const string &in)", &Core::OS::File::GetHash);
+				VM->SetFunction("base_stream@ open_join(const string &in, array<string>@+)", &OSFileOpenJoin);
+				VM->SetFunction("base_stream@ open_archive(const string &in, usize = 134217728)", &OSFileOpenArchive);
+				VM->SetFunction("base_stream@ open(const string &in, file_mode, bool = false)", &OSFileOpen);
+				VM->EndNamespace();
 
-				Engine->BeginNamespace("os::path");
-				Engine->SetFunction("bool is_remote(const string &in)", &OSPathIsRemote);
-				Engine->SetFunction("bool is_relative(const string &in)", &OSPathIsRelative);
-				Engine->SetFunction("bool is_absolute(const string &in)", &OSPathIsAbsolute);
-				Engine->SetFunction("string resolve(const string &in)", &OSPathResolve);
-				Engine->SetFunction("string resolve_directory(const string &in)", &OSPathResolveDirectory);
-				Engine->SetFunction("string get_directory(const string &in, usize = 0)", &OSPathGetDirectory);
-				Engine->SetFunction("string get_filename(const string &in)", &OSPathGetFilename);
-				Engine->SetFunction("string get_extension(const string &in)", &OSPathGetExtension);
-				Engine->SetFunction("string get_non_existant(const string &in)", &Core::OS::Path::GetNonExistant);
-				Engine->SetFunction<Core::String(const Core::String&, const Core::String&, bool)>("string resolve(const string &in, const string &in, bool)", &Core::OS::Path::Resolve);
-				Engine->SetFunction<Core::String(const Core::String&, const Core::String&, bool)>("string resolve_directory(const string &in, const string &in, bool)", &Core::OS::Path::ResolveDirectory);
-				Engine->EndNamespace();
+				VM->BeginNamespace("os::path");
+				VM->SetFunction("bool is_remote(const string &in)", &OSPathIsRemote);
+				VM->SetFunction("bool is_relative(const string &in)", &OSPathIsRelative);
+				VM->SetFunction("bool is_absolute(const string &in)", &OSPathIsAbsolute);
+				VM->SetFunction("string resolve(const string &in)", &OSPathResolve1);
+				VM->SetFunction("string resolve_directory(const string &in)", &OSPathResolveDirectory1);
+				VM->SetFunction("string get_directory(const string &in, usize = 0)", &OSPathGetDirectory);
+				VM->SetFunction("string get_filename(const string &in)", &OSPathGetFilename);
+				VM->SetFunction("string get_extension(const string &in)", &OSPathGetExtension);
+				VM->SetFunction("string get_non_existant(const string &in)", &Core::OS::Path::GetNonExistant);
+				VM->SetFunction("string resolve(const string &in, const string &in, bool)", &OSPathResolve2);
+				VM->SetFunction("string resolve_directory(const string &in, const string &in, bool)", &OSPathResolveDirectory2);
+				VM->EndNamespace();
 
-				Engine->BeginNamespace("os::process");
-				Engine->SetFunction("void abort()", &Core::OS::Process::Abort);
-				Engine->SetFunction("void exit(int)", &Core::OS::Process::Exit);
-				Engine->SetFunction("void interrupt()", &Core::OS::Process::Interrupt);
-				Engine->SetFunction("process_stream@+ execute_write_only(const string &in)", &Core::OS::Process::ExecuteWriteOnly);
-				Engine->SetFunction("process_stream@+ execute_read_only(const string &in)", &Core::OS::Process::ExecuteReadOnly);
-				Engine->SetFunction("int execute_plain(const string &in)", &Core::OS::Process::ExecutePlain);
-				Engine->SetFunction("int await(uptr@)", &OSProcessAwait);
-				Engine->SetFunction("bool free(uptr@)", &OSProcessFree);
-				Engine->SetFunction("uptr@ spawn(const string &in, array<string>@+)", &OSProcessSpawn);
-				Engine->EndNamespace();
+				VM->BeginNamespace("os::process");
+				VM->SetFunction("void abort()", &Core::OS::Process::Abort);
+				VM->SetFunction("void exit(int)", &Core::OS::Process::Exit);
+				VM->SetFunction("void interrupt()", &Core::OS::Process::Interrupt);
+				VM->SetFunction("process_stream@+ execute_write_only(const string &in)", &OSProcessExecuteWriteOnly);
+				VM->SetFunction("process_stream@+ execute_read_only(const string &in)", &OSProcessExecuteReadOnly);
+				VM->SetFunction("int execute_plain(const string &in)", &Core::OS::Process::ExecutePlain);
+				VM->SetFunction("int await(uptr@)", &OSProcessAwait);
+				VM->SetFunction("bool free(uptr@)", &OSProcessFree);
+				VM->SetFunction("uptr@ spawn(const string &in, array<string>@+)", &OSProcessSpawn);
+				VM->EndNamespace();
 
-				Engine->BeginNamespace("os::symbol");
-				Engine->SetFunction("uptr@ load(const string &in)", &Core::OS::Symbol::Load);
-				Engine->SetFunction("uptr@ load_function(uptr@, const string &in)", &Core::OS::Symbol::LoadFunction);
-				Engine->SetFunction("bool unload(uptr@)", &Core::OS::Symbol::Unload);
-				Engine->EndNamespace();
+				VM->BeginNamespace("os::symbol");
+				VM->SetFunction("uptr@ load(const string &in)", &OSSymbolLoad);
+				VM->SetFunction("uptr@ load_function(uptr@, const string &in)", &OSSymbolLoadFunction);
+				VM->SetFunction("bool unload(uptr@)", &OSSymbolUnload);
+				VM->EndNamespace();
 
-				Engine->BeginNamespace("os::input");
-				Engine->SetFunction("bool text(const string &in, const string &in, const string &in, string &out)", &Core::OS::Input::Text);
-				Engine->SetFunction("bool password(const string &in, const string &in, string &out)", &Core::OS::Input::Password);
-				Engine->SetFunction("bool save(const string &in, const string &in, const string &in, const string &in, string &out)", &Core::OS::Input::Save);
-				Engine->SetFunction("bool open(const string &in, const string &in, const string &in, const string &in, bool, string &out)", &Core::OS::Input::Open);
-				Engine->SetFunction("bool folder(const string &in, const string &in, string &out)", &Core::OS::Input::Folder);
-				Engine->SetFunction("bool color(const string &in, const string &in, string &out)", &Core::OS::Input::Color);
-				Engine->EndNamespace();
+				VM->BeginNamespace("os::input");
+				VM->SetFunction("bool text(const string &in, const string &in, const string &in, string &out)", &Core::OS::Input::Text);
+				VM->SetFunction("bool password(const string &in, const string &in, string &out)", &Core::OS::Input::Password);
+				VM->SetFunction("bool save(const string &in, const string &in, const string &in, const string &in, string &out)", &Core::OS::Input::Save);
+				VM->SetFunction("bool open(const string &in, const string &in, const string &in, const string &in, bool, string &out)", &Core::OS::Input::Open);
+				VM->SetFunction("bool folder(const string &in, const string &in, string &out)", &Core::OS::Input::Folder);
+				VM->SetFunction("bool color(const string &in, const string &in, string &out)", &Core::OS::Input::Color);
+				VM->EndNamespace();
 
-				Engine->BeginNamespace("os::error");
-				Engine->SetFunction("int32 get(bool = true)", &Core::OS::Error::Get);
-				Engine->SetFunction("void clear()", &Core::OS::Error::Clear);
-				Engine->SetFunction("bool occurred()", &Core::OS::Error::Occurred);
-				Engine->SetFunction("bool is_error(int32)", &Core::OS::Error::IsError);
-				Engine->SetFunction("string get_name(int32)", &Core::OS::Error::GetName);
-				Engine->EndNamespace();
+				VM->BeginNamespace("os::error");
+				VM->SetFunction("int32 get(bool = true)", &Core::OS::Error::Get);
+				VM->SetFunction("void clear()", &Core::OS::Error::Clear);
+				VM->SetFunction("bool occurred()", &Core::OS::Error::Occurred);
+				VM->SetFunction("bool is_error(int32)", &Core::OS::Error::IsError);
+				VM->SetFunction("string get_name(int32)", &Core::OS::Error::GetName);
+				VM->EndNamespace();
 
 				return true;
 #else
@@ -10054,19 +10432,19 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportSchedule(VirtualMachine* Engine)
+			bool Registry::ImportSchedule(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				Engine->GetEngine()->RegisterTypedef("task_id", "uint64");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				VM->GetEngine()->RegisterTypedef("task_id", "uint64");
 
-				Enumeration VDifficulty = Engine->SetEnum("difficulty");
+				Enumeration VDifficulty = *VM->SetEnum("difficulty");
 				VDifficulty.SetValue("coroutine", (int)Core::Difficulty::Coroutine);
 				VDifficulty.SetValue("light", (int)Core::Difficulty::Light);
 				VDifficulty.SetValue("heavy", (int)Core::Difficulty::Heavy);
 				VDifficulty.SetValue("clock", (int)Core::Difficulty::Clock);
 
-				TypeClass VDesc = Engine->SetStructTrivial<Core::Schedule::Desc>("schedule_policy");
+				TypeClass VDesc = *VM->SetStructTrivial<Core::Schedule::Desc>("schedule_policy");
 				VDesc.SetProperty("usize preallocated_size", &Core::Schedule::Desc::PreallocatedSize);
 				VDesc.SetProperty("usize stack_size", &Core::Schedule::Desc::StackSize);
 				VDesc.SetProperty("usize max_coroutines", &Core::Schedule::Desc::MaxCoroutines);
@@ -10074,11 +10452,11 @@ namespace Mavi
 				VDesc.SetConstructor<Core::Schedule::Desc>("void f()");
 				VDesc.SetMethod("void set_threads(usize)", &Core::Schedule::Desc::SetThreads);
 
-				RefClass VSchedule = Engine->SetClass<Core::Schedule>("schedule", false);
+				RefClass VSchedule = *VM->SetClass<Core::Schedule>("schedule", false);
 				VSchedule.SetFunctionDef("void task_event()");
-				VSchedule.SetMethodEx("task_id set_interval(uint64, task_event@+, difficulty = difficulty::light)", &ScheduleSetInterval);
-				VSchedule.SetMethodEx("task_id set_timeout(uint64, task_event@+, difficulty = difficulty::light)", &ScheduleSetTimeout);
-				VSchedule.SetMethodEx("bool set_immediate(task_event@+, difficulty = difficulty::heavy)", &ScheduleSetImmediate);
+				VSchedule.SetMethodEx("task_id set_interval(uint64, task_event@, difficulty = difficulty::light)", &ScheduleSetInterval);
+				VSchedule.SetMethodEx("task_id set_timeout(uint64, task_event@, difficulty = difficulty::light)", &ScheduleSetTimeout);
+				VSchedule.SetMethodEx("bool set_immediate(task_event@, difficulty = difficulty::heavy)", &ScheduleSetImmediate);
 				VSchedule.SetMethod("bool clear_timeout(task_id)", &Core::Schedule::ClearTimeout);
 				VSchedule.SetMethod("bool dispatch()", &Core::Schedule::Dispatch);
 				VSchedule.SetMethod("bool start(const schedule_policy &in)", &Core::Schedule::Start);
@@ -10101,11 +10479,11 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportVertices(VirtualMachine* Engine)
+			bool Registry::ImportVertices(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				TypeClass VVertex = Engine->SetPod<Compute::Vertex>("vertex");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				TypeClass VVertex = *VM->SetPod<Compute::Vertex>("vertex");
 				VVertex.SetProperty<Compute::Vertex>("float position_x", &Compute::Vertex::PositionX);
 				VVertex.SetProperty<Compute::Vertex>("float position_y", &Compute::Vertex::PositionY);
 				VVertex.SetProperty<Compute::Vertex>("float position_z", &Compute::Vertex::PositionZ);
@@ -10122,7 +10500,7 @@ namespace Mavi
 				VVertex.SetProperty<Compute::Vertex>("float bitangent_z", &Compute::Vertex::BitangentZ);
 				VVertex.SetConstructor<Compute::Vertex>("void f()");
 
-				TypeClass VSkinVertex = Engine->SetPod<Compute::SkinVertex>("skin_vertex");
+				TypeClass VSkinVertex = *VM->SetPod<Compute::SkinVertex>("skin_vertex");
 				VSkinVertex.SetProperty<Compute::SkinVertex>("float position_x", &Compute::SkinVertex::PositionX);
 				VSkinVertex.SetProperty<Compute::SkinVertex>("float position_y", &Compute::SkinVertex::PositionY);
 				VSkinVertex.SetProperty<Compute::SkinVertex>("float position_z", &Compute::SkinVertex::PositionZ);
@@ -10147,7 +10525,7 @@ namespace Mavi
 				VSkinVertex.SetProperty<Compute::SkinVertex>("float joint_bias3", &Compute::SkinVertex::JointBias3);
 				VSkinVertex.SetConstructor<Compute::SkinVertex>("void f()");
 
-				TypeClass VShapeVertex = Engine->SetPod<Compute::ShapeVertex>("shape_vertex");
+				TypeClass VShapeVertex = *VM->SetPod<Compute::ShapeVertex>("shape_vertex");
 				VShapeVertex.SetProperty<Compute::ShapeVertex>("float position_x", &Compute::ShapeVertex::PositionX);
 				VShapeVertex.SetProperty<Compute::ShapeVertex>("float position_y", &Compute::ShapeVertex::PositionY);
 				VShapeVertex.SetProperty<Compute::ShapeVertex>("float position_z", &Compute::ShapeVertex::PositionZ);
@@ -10155,7 +10533,7 @@ namespace Mavi
 				VShapeVertex.SetProperty<Compute::ShapeVertex>("float texcoord_y", &Compute::ShapeVertex::TexCoordY);
 				VShapeVertex.SetConstructor<Compute::ShapeVertex>("void f()");
 
-				TypeClass VElementVertex = Engine->SetPod<Compute::ElementVertex>("element_vertex");
+				TypeClass VElementVertex = *VM->SetPod<Compute::ElementVertex>("element_vertex");
 				VElementVertex.SetProperty<Compute::ElementVertex>("float position_x", &Compute::ElementVertex::PositionX);
 				VElementVertex.SetProperty<Compute::ElementVertex>("float position_y", &Compute::ElementVertex::PositionY);
 				VElementVertex.SetProperty<Compute::ElementVertex>("float position_z", &Compute::ElementVertex::PositionZ);
@@ -10177,11 +10555,11 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportVectors(VirtualMachine* Engine)
+			bool Registry::ImportVectors(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				Enumeration VCubeFace = Engine->SetEnum("cube_face");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				Enumeration VCubeFace = *VM->SetEnum("cube_face");
 				VCubeFace.SetValue("positive_x", (int)Compute::CubeFace::PositiveX);
 				VCubeFace.SetValue("negative_x", (int)Compute::CubeFace::NegativeX);
 				VCubeFace.SetValue("positive_y", (int)Compute::CubeFace::PositiveY);
@@ -10189,7 +10567,7 @@ namespace Mavi
 				VCubeFace.SetValue("positive_z", (int)Compute::CubeFace::PositiveZ);
 				VCubeFace.SetValue("negative_z", (int)Compute::CubeFace::NegativeZ);
 
-				TypeClass VVector2 = Engine->SetPod<Compute::Vector2>("vector2");
+				TypeClass VVector2 = *VM->SetPod<Compute::Vector2>("vector2");
 				VVector2.SetConstructor<Compute::Vector2>("void f()");
 				VVector2.SetConstructor<Compute::Vector2, float, float>("void f(float, float)");
 				VVector2.SetConstructor<Compute::Vector2, float>("void f(float)");
@@ -10243,18 +10621,18 @@ namespace Mavi
 				VVector2.SetOperatorEx(Operators::Equals, (uint32_t)Position::Const, "bool", "const vector2 &in", &Vector2Eq);
 				VVector2.SetOperatorEx(Operators::Cmp, (uint32_t)Position::Const, "int", "const vector2 &in", &Vector2Cmp);
 
-				Engine->BeginNamespace("vector2");
-				Engine->SetFunction("vector2 random()", &Compute::Vector2::Random);
-				Engine->SetFunction("vector2 random_abs()", &Compute::Vector2::RandomAbs);
-				Engine->SetFunction("vector2 one()", &Compute::Vector2::One);
-				Engine->SetFunction("vector2 zero()", &Compute::Vector2::Zero);
-				Engine->SetFunction("vector2 up()", &Compute::Vector2::Up);
-				Engine->SetFunction("vector2 down()", &Compute::Vector2::Down);
-				Engine->SetFunction("vector2 left()", &Compute::Vector2::Left);
-				Engine->SetFunction("vector2 right()", &Compute::Vector2::Right);
-				Engine->EndNamespace();
+				VM->BeginNamespace("vector2");
+				VM->SetFunction("vector2 random()", &Compute::Vector2::Random);
+				VM->SetFunction("vector2 random_abs()", &Compute::Vector2::RandomAbs);
+				VM->SetFunction("vector2 one()", &Compute::Vector2::One);
+				VM->SetFunction("vector2 zero()", &Compute::Vector2::Zero);
+				VM->SetFunction("vector2 up()", &Compute::Vector2::Up);
+				VM->SetFunction("vector2 down()", &Compute::Vector2::Down);
+				VM->SetFunction("vector2 left()", &Compute::Vector2::Left);
+				VM->SetFunction("vector2 right()", &Compute::Vector2::Right);
+				VM->EndNamespace();
 
-				TypeClass VVector3 = Engine->SetPod<Compute::Vector3>("vector3");
+				TypeClass VVector3 = *VM->SetPod<Compute::Vector3>("vector3");
 				VVector3.SetConstructor<Compute::Vector3>("void f()");
 				VVector3.SetConstructor<Compute::Vector3, float, float>("void f(float, float)");
 				VVector3.SetConstructor<Compute::Vector3, float, float, float>("void f(float, float, float)");
@@ -10316,20 +10694,20 @@ namespace Mavi
 				VVector3.SetOperatorEx(Operators::Equals, (uint32_t)Position::Const, "bool", "const vector3 &in", &Vector3Eq);
 				VVector3.SetOperatorEx(Operators::Cmp, (uint32_t)Position::Const, "int", "const vector3 &in", &Vector3Cmp);
 
-				Engine->BeginNamespace("vector3");
-				Engine->SetFunction("vector3 random()", &Compute::Vector3::Random);
-				Engine->SetFunction("vector3 random_abs()", &Compute::Vector3::RandomAbs);
-				Engine->SetFunction("vector3 one()", &Compute::Vector3::One);
-				Engine->SetFunction("vector3 zero()", &Compute::Vector3::Zero);
-				Engine->SetFunction("vector3 up()", &Compute::Vector3::Up);
-				Engine->SetFunction("vector3 down()", &Compute::Vector3::Down);
-				Engine->SetFunction("vector3 left()", &Compute::Vector3::Left);
-				Engine->SetFunction("vector3 right()", &Compute::Vector3::Right);
-				Engine->SetFunction("vector3 forward()", &Compute::Vector3::Forward);
-				Engine->SetFunction("vector3 backward()", &Compute::Vector3::Backward);
-				Engine->EndNamespace();
+				VM->BeginNamespace("vector3");
+				VM->SetFunction("vector3 random()", &Compute::Vector3::Random);
+				VM->SetFunction("vector3 random_abs()", &Compute::Vector3::RandomAbs);
+				VM->SetFunction("vector3 one()", &Compute::Vector3::One);
+				VM->SetFunction("vector3 zero()", &Compute::Vector3::Zero);
+				VM->SetFunction("vector3 up()", &Compute::Vector3::Up);
+				VM->SetFunction("vector3 down()", &Compute::Vector3::Down);
+				VM->SetFunction("vector3 left()", &Compute::Vector3::Left);
+				VM->SetFunction("vector3 right()", &Compute::Vector3::Right);
+				VM->SetFunction("vector3 forward()", &Compute::Vector3::Forward);
+				VM->SetFunction("vector3 backward()", &Compute::Vector3::Backward);
+				VM->EndNamespace();
 
-				TypeClass VVector4 = Engine->SetPod<Compute::Vector4>("vector4");
+				TypeClass VVector4 = *VM->SetPod<Compute::Vector4>("vector4");
 				VVector4.SetConstructor<Compute::Vector4>("void f()");
 				VVector4.SetConstructor<Compute::Vector4, float, float>("void f(float, float)");
 				VVector4.SetConstructor<Compute::Vector4, float, float, float>("void f(float, float, float)");
@@ -10394,21 +10772,21 @@ namespace Mavi
 				VVector4.SetOperatorEx(Operators::Equals, (uint32_t)Position::Const, "bool", "const vector4 &in", &Vector4Eq);
 				VVector4.SetOperatorEx(Operators::Cmp, (uint32_t)Position::Const, "int", "const vector4 &in", &Vector4Cmp);
 
-				Engine->BeginNamespace("vector4");
-				Engine->SetFunction("vector4 random()", &Compute::Vector4::Random);
-				Engine->SetFunction("vector4 random_abs()", &Compute::Vector4::RandomAbs);
-				Engine->SetFunction("vector4 one()", &Compute::Vector4::One);
-				Engine->SetFunction("vector4 zero()", &Compute::Vector4::Zero);
-				Engine->SetFunction("vector4 up()", &Compute::Vector4::Up);
-				Engine->SetFunction("vector4 down()", &Compute::Vector4::Down);
-				Engine->SetFunction("vector4 left()", &Compute::Vector4::Left);
-				Engine->SetFunction("vector4 right()", &Compute::Vector4::Right);
-				Engine->SetFunction("vector4 forward()", &Compute::Vector4::Forward);
-				Engine->SetFunction("vector4 backward()", &Compute::Vector4::Backward);
-				Engine->SetFunction("vector4 unitW()", &Compute::Vector4::UnitW);
-				Engine->EndNamespace();
+				VM->BeginNamespace("vector4");
+				VM->SetFunction("vector4 random()", &Compute::Vector4::Random);
+				VM->SetFunction("vector4 random_abs()", &Compute::Vector4::RandomAbs);
+				VM->SetFunction("vector4 one()", &Compute::Vector4::One);
+				VM->SetFunction("vector4 zero()", &Compute::Vector4::Zero);
+				VM->SetFunction("vector4 up()", &Compute::Vector4::Up);
+				VM->SetFunction("vector4 down()", &Compute::Vector4::Down);
+				VM->SetFunction("vector4 left()", &Compute::Vector4::Left);
+				VM->SetFunction("vector4 right()", &Compute::Vector4::Right);
+				VM->SetFunction("vector4 forward()", &Compute::Vector4::Forward);
+				VM->SetFunction("vector4 backward()", &Compute::Vector4::Backward);
+				VM->SetFunction("vector4 unitW()", &Compute::Vector4::UnitW);
+				VM->EndNamespace();
 
-				TypeClass VMatrix4x4 = Engine->SetPod<Compute::Matrix4x4>("matrix4x4");
+				TypeClass VMatrix4x4 = *VM->SetPod<Compute::Matrix4x4>("matrix4x4");
 				VMatrix4x4.SetConstructor<Compute::Matrix4x4>("void f()");
 				VMatrix4x4.SetConstructor<Compute::Matrix4x4, const Compute::Vector4&, const Compute::Vector4&, const Compute::Vector4&, const Compute::Vector4&>("void f(const vector4 &in, const vector4 &in, const vector4 &in, const vector4 &in)");
 				VMatrix4x4.SetConstructor<Compute::Matrix4x4, float, float, float, float, float, float, float, float, float, float, float, float, float, float, float, float>("void f(float, float, float, float, float, float, float, float, float, float, float, float, float, float, float, float)");
@@ -10439,28 +10817,28 @@ namespace Mavi
 				VMatrix4x4.SetOperatorEx(Operators::Mul, (uint32_t)Position::Const, "matrix4x4", "const matrix4x4 &in", &Matrix4x4Mul1);
 				VMatrix4x4.SetOperatorEx(Operators::Mul, (uint32_t)Position::Const, "vector4", "const vector4 &in", &Matrix4x4Mul2);
 
-				Engine->BeginNamespace("matrix4x4");
-				Engine->SetFunction("matrix4x4 identity()", &Compute::Matrix4x4::Identity);
-				Engine->SetFunction("matrix4x4 create_rotation_x(float)", &Compute::Matrix4x4::CreateRotationX);
-				Engine->SetFunction("matrix4x4 create_rotation_y(float)", &Compute::Matrix4x4::CreateRotationY);
-				Engine->SetFunction("matrix4x4 create_rotation_z(float)", &Compute::Matrix4x4::CreateRotationZ);
-				Engine->SetFunction("matrix4x4 create_view(const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::CreateView);
-				Engine->SetFunction("matrix4x4 create_scale(const vector3 &in)", &Compute::Matrix4x4::CreateScale);
-				Engine->SetFunction("matrix4x4 create_translated_scale(const vector3& in, const vector3 &in)", &Compute::Matrix4x4::CreateTranslatedScale);
-				Engine->SetFunction("matrix4x4 create_translation(const vector3& in)", &Compute::Matrix4x4::CreateTranslation);
-				Engine->SetFunction("matrix4x4 create_perspective(float, float, float, float)", &Compute::Matrix4x4::CreatePerspective);
-				Engine->SetFunction("matrix4x4 create_perspective_rad(float, float, float, float)", &Compute::Matrix4x4::CreatePerspectiveRad);
-				Engine->SetFunction("matrix4x4 create_orthographic(float, float, float, float)", &Compute::Matrix4x4::CreateOrthographic);
-				Engine->SetFunction("matrix4x4 create_orthographic_off_center(float, float, float, float, float, float)", &Compute::Matrix4x4::CreateOrthographicOffCenter);
-				Engine->SetFunction<Compute::Matrix4x4(const Compute::Vector3&)>("matrix4x4 createRotation(const vector3 &in)", &Compute::Matrix4x4::CreateRotation);
-				Engine->SetFunction<Compute::Matrix4x4(const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&)>("matrix4x4 create_rotation(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::CreateRotation);
-				Engine->SetFunction<Compute::Matrix4x4(const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&)>("matrix4x4 create_look_at(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::CreateLookAt);
-				Engine->SetFunction<Compute::Matrix4x4(Compute::CubeFace, const Compute::Vector3&)>("matrix4x4 create_look_at(cube_face, const vector3 &in)", &Compute::Matrix4x4::CreateLookAt);
-				Engine->SetFunction<Compute::Matrix4x4(const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&)>("matrix4x4 create(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::Create);
-				Engine->SetFunction<Compute::Matrix4x4(const Compute::Vector3&, const Compute::Vector3&)>("matrix4x4 create(const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::Create);
-				Engine->EndNamespace();
+				VM->BeginNamespace("matrix4x4");
+				VM->SetFunction("matrix4x4 identity()", &Compute::Matrix4x4::Identity);
+				VM->SetFunction("matrix4x4 create_rotation_x(float)", &Compute::Matrix4x4::CreateRotationX);
+				VM->SetFunction("matrix4x4 create_rotation_y(float)", &Compute::Matrix4x4::CreateRotationY);
+				VM->SetFunction("matrix4x4 create_rotation_z(float)", &Compute::Matrix4x4::CreateRotationZ);
+				VM->SetFunction("matrix4x4 create_view(const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::CreateView);
+				VM->SetFunction("matrix4x4 create_scale(const vector3 &in)", &Compute::Matrix4x4::CreateScale);
+				VM->SetFunction("matrix4x4 create_translated_scale(const vector3& in, const vector3 &in)", &Compute::Matrix4x4::CreateTranslatedScale);
+				VM->SetFunction("matrix4x4 create_translation(const vector3& in)", &Compute::Matrix4x4::CreateTranslation);
+				VM->SetFunction("matrix4x4 create_perspective(float, float, float, float)", &Compute::Matrix4x4::CreatePerspective);
+				VM->SetFunction("matrix4x4 create_perspective_rad(float, float, float, float)", &Compute::Matrix4x4::CreatePerspectiveRad);
+				VM->SetFunction("matrix4x4 create_orthographic(float, float, float, float)", &Compute::Matrix4x4::CreateOrthographic);
+				VM->SetFunction("matrix4x4 create_orthographic_off_center(float, float, float, float, float, float)", &Compute::Matrix4x4::CreateOrthographicOffCenter);
+				VM->SetFunction<Compute::Matrix4x4(const Compute::Vector3&)>("matrix4x4 createRotation(const vector3 &in)", &Compute::Matrix4x4::CreateRotation);
+				VM->SetFunction<Compute::Matrix4x4(const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&)>("matrix4x4 create_rotation(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::CreateRotation);
+				VM->SetFunction<Compute::Matrix4x4(const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&)>("matrix4x4 create_look_at(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::CreateLookAt);
+				VM->SetFunction<Compute::Matrix4x4(Compute::CubeFace, const Compute::Vector3&)>("matrix4x4 create_look_at(cube_face, const vector3 &in)", &Compute::Matrix4x4::CreateLookAt);
+				VM->SetFunction<Compute::Matrix4x4(const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&)>("matrix4x4 create(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::Create);
+				VM->SetFunction<Compute::Matrix4x4(const Compute::Vector3&, const Compute::Vector3&)>("matrix4x4 create(const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::Create);
+				VM->EndNamespace();
 
-				TypeClass VQuaternion = Engine->SetPod<Compute::Vector4>("quaternion");
+				TypeClass VQuaternion = *VM->SetPod<Compute::Vector4>("quaternion");
 				VQuaternion.SetConstructor<Compute::Quaternion>("void f()");
 				VQuaternion.SetConstructor<Compute::Quaternion, float, float, float, float>("void f(float, float, float, float)");
 				VQuaternion.SetConstructor<Compute::Quaternion, const Compute::Vector3&, float>("void f(const vector3 &in, float)");
@@ -10497,10 +10875,10 @@ namespace Mavi
 				VQuaternion.SetOperatorEx(Operators::Add, (uint32_t)Position::Const, "quaternion", "const quaternion &in", &QuaternionAdd);
 				VQuaternion.SetOperatorEx(Operators::Sub, (uint32_t)Position::Const, "quaternion", "const quaternion &in", &QuaternionSub);
 
-				Engine->BeginNamespace("quaternion");
-				Engine->SetFunction("quaternion create_euler_rotation(const vector3 &in)", &Compute::Quaternion::CreateEulerRotation);
-				Engine->SetFunction("quaternion create_rotation(const matrix4x4 &in)", &Compute::Quaternion::CreateRotation);
-				Engine->EndNamespace();
+				VM->BeginNamespace("quaternion");
+				VM->SetFunction("quaternion create_euler_rotation(const vector3 &in)", &Compute::Quaternion::CreateEulerRotation);
+				VM->SetFunction("quaternion create_rotation(const matrix4x4 &in)", &Compute::Quaternion::CreateRotation);
+				VM->EndNamespace();
 
 				return true;
 #else
@@ -10508,18 +10886,18 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportShapes(VirtualMachine* Engine)
+			bool Registry::ImportShapes(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				TypeClass VRectangle = Engine->SetPod<Compute::Rectangle>("rectangle");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				TypeClass VRectangle = *VM->SetPod<Compute::Rectangle>("rectangle");
 				VRectangle.SetProperty<Compute::Rectangle>("int64 left", &Compute::Rectangle::Left);
 				VRectangle.SetProperty<Compute::Rectangle>("int64 top", &Compute::Rectangle::Top);
 				VRectangle.SetProperty<Compute::Rectangle>("int64 right", &Compute::Rectangle::Right);
 				VRectangle.SetProperty<Compute::Rectangle>("int64 bottom", &Compute::Rectangle::Bottom);
 				VRectangle.SetConstructor<Compute::Rectangle>("void f()");
 
-				TypeClass VBounding = Engine->SetPod<Compute::Bounding>("bounding");
+				TypeClass VBounding = *VM->SetPod<Compute::Bounding>("bounding");
 				VBounding.SetProperty<Compute::Bounding>("vector3 lower", &Compute::Bounding::Lower);
 				VBounding.SetProperty<Compute::Bounding>("vector3 upper", &Compute::Bounding::Upper);
 				VBounding.SetProperty<Compute::Bounding>("vector3 center", &Compute::Bounding::Center);
@@ -10531,7 +10909,7 @@ namespace Mavi
 				VBounding.SetMethod("bool contains(const bounding &in) const", &Compute::Bounding::Contains);
 				VBounding.SetMethod("bool overlaps(const bounding &in) const", &Compute::Bounding::Overlaps);
 
-				TypeClass VRay = Engine->SetPod<Compute::Ray>("ray");
+				TypeClass VRay = *VM->SetPod<Compute::Ray>("ray");
 				VRay.SetProperty<Compute::Ray>("vector3 origin", &Compute::Ray::Origin);
 				VRay.SetProperty<Compute::Ray>("vector3 direction", &Compute::Ray::Direction);
 				VRay.SetConstructor<Compute::Ray>("void f()");
@@ -10543,7 +10921,7 @@ namespace Mavi
 				VRay.SetMethod("bool intersects_aabb(const vector3 &in, const vector3 &in, vector3 &out) const", &Compute::Ray::IntersectsAABB);
 				VRay.SetMethod("bool intersects_obb(const matrix4x4 &in, vector3 &out) const", &Compute::Ray::IntersectsOBB);
 
-				TypeClass VFrustum8C = Engine->SetPod<Compute::Frustum8C>("frustum_8c");
+				TypeClass VFrustum8C = *VM->SetPod<Compute::Frustum8C>("frustum_8c");
 				VFrustum8C.SetConstructor<Compute::Frustum8C>("void f()");
 				VFrustum8C.SetConstructor<Compute::Frustum8C, float, float, float, float>("void f(float, float, float, float)");
 				VFrustum8C.SetMethod("void transform(const matrix4x4 &in) const", &Compute::Frustum8C::Transform);
@@ -10551,7 +10929,7 @@ namespace Mavi
 				VFrustum8C.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "vector4&", "usize", &Frustum8CGetCorners);
 				VFrustum8C.SetOperatorEx(Operators::Index, (uint32_t)Position::Const, "const vector4&", "usize", &Frustum8CGetCorners);
 
-				TypeClass VFrustum6P = Engine->SetPod<Compute::Frustum6P>("frustum_6p");
+				TypeClass VFrustum6P = *VM->SetPod<Compute::Frustum6P>("frustum_6p");
 				VFrustum6P.SetConstructor<Compute::Frustum6P>("void f()");
 				VFrustum6P.SetConstructor<Compute::Frustum6P, const Compute::Matrix4x4&>("void f(const matrix4x4 &in)");
 				VFrustum6P.SetMethod("bool overlaps_aabb(const bounding &in) const", &Compute::Frustum6P::OverlapsAABB);
@@ -10565,11 +10943,11 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportKeyFrames(VirtualMachine* Engine)
+			bool Registry::ImportKeyFrames(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				TypeClass VJoint = Engine->SetStructTrivial<Compute::Joint>("joint");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				TypeClass VJoint = *VM->SetStructTrivial<Compute::Joint>("joint");
 				VJoint.SetProperty<Compute::Joint>("string name", &Compute::Joint::Name);
 				VJoint.SetProperty<Compute::Joint>("matrix4x4 global", &Compute::Joint::Global);
 				VJoint.SetProperty<Compute::Joint>("matrix4x4 local", &Compute::Joint::Local);
@@ -10579,21 +10957,21 @@ namespace Mavi
 				VJoint.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "joint&", "usize", &JointGetChilds);
 				VJoint.SetOperatorEx(Operators::Index, (uint32_t)Position::Const, "const joint&", "usize", &JointGetChilds);
 
-				TypeClass VAnimatorKey = Engine->SetPod<Compute::AnimatorKey>("animator_key");
+				TypeClass VAnimatorKey = *VM->SetPod<Compute::AnimatorKey>("animator_key");
 				VAnimatorKey.SetProperty<Compute::AnimatorKey>("vector3 position", &Compute::AnimatorKey::Position);
 				VAnimatorKey.SetProperty<Compute::AnimatorKey>("quaternion rotation", &Compute::AnimatorKey::Rotation);
 				VAnimatorKey.SetProperty<Compute::AnimatorKey>("vector3 scale", &Compute::AnimatorKey::Scale);
 				VAnimatorKey.SetProperty<Compute::AnimatorKey>("float time", &Compute::AnimatorKey::Time);
 				VAnimatorKey.SetConstructor<Compute::AnimatorKey>("void f()");
 
-				TypeClass VSkinAnimatorKey = Engine->SetStructTrivial<Compute::SkinAnimatorKey>("skin_animator_key");
+				TypeClass VSkinAnimatorKey = *VM->SetStructTrivial<Compute::SkinAnimatorKey>("skin_animator_key");
 				VSkinAnimatorKey.SetProperty<Compute::SkinAnimatorKey>("float time", &Compute::SkinAnimatorKey::Time);
 				VSkinAnimatorKey.SetConstructor<Compute::AnimatorKey>("void f()");
 				VSkinAnimatorKey.SetMethodEx("usize size() const", &SkinAnimatorKeySize);
 				VSkinAnimatorKey.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "animator_key&", "usize", &SkinAnimatorKeyGetPose);
 				VSkinAnimatorKey.SetOperatorEx(Operators::Index, (uint32_t)Position::Const, "const animator_key&", "usize", &SkinAnimatorKeyGetPose);
 
-				TypeClass VSkinAnimatorClip = Engine->SetStructTrivial<Compute::SkinAnimatorClip>("skin_animator_clip");
+				TypeClass VSkinAnimatorClip = *VM->SetStructTrivial<Compute::SkinAnimatorClip>("skin_animator_clip");
 				VSkinAnimatorClip.SetProperty<Compute::SkinAnimatorClip>("string name", &Compute::SkinAnimatorClip::Name);
 				VSkinAnimatorClip.SetProperty<Compute::SkinAnimatorClip>("float duration", &Compute::SkinAnimatorClip::Duration);
 				VSkinAnimatorClip.SetProperty<Compute::SkinAnimatorClip>("float rate", &Compute::SkinAnimatorClip::Rate);
@@ -10602,7 +10980,7 @@ namespace Mavi
 				VSkinAnimatorClip.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "skin_animator_key&", "usize", &SkinAnimatorClipGetKeys);
 				VSkinAnimatorClip.SetOperatorEx(Operators::Index, (uint32_t)Position::Const, "const skin_animator_key&", "usize", &SkinAnimatorClipGetKeys);
 
-				TypeClass VKeyAnimatorClip = Engine->SetStructTrivial<Compute::KeyAnimatorClip>("key_animator_clip");
+				TypeClass VKeyAnimatorClip = *VM->SetStructTrivial<Compute::KeyAnimatorClip>("key_animator_clip");
 				VKeyAnimatorClip.SetProperty<Compute::KeyAnimatorClip>("string name", &Compute::KeyAnimatorClip::Name);
 				VKeyAnimatorClip.SetProperty<Compute::KeyAnimatorClip>("float duration", &Compute::KeyAnimatorClip::Duration);
 				VKeyAnimatorClip.SetProperty<Compute::KeyAnimatorClip>("float rate", &Compute::KeyAnimatorClip::Rate);
@@ -10611,7 +10989,7 @@ namespace Mavi
 				VKeyAnimatorClip.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "animator_key&", "usize", &KeyAnimatorClipGetKeys);
 				VKeyAnimatorClip.SetOperatorEx(Operators::Index, (uint32_t)Position::Const, "const animator_key&", "usize", &KeyAnimatorClipGetKeys);
 
-				TypeClass VRandomVector2 = Engine->SetPod<Compute::RandomVector2>("random_vector2");
+				TypeClass VRandomVector2 = *VM->SetPod<Compute::RandomVector2>("random_vector2");
 				VRandomVector2.SetProperty<Compute::RandomVector2>("vector2 min", &Compute::RandomVector2::Min);
 				VRandomVector2.SetProperty<Compute::RandomVector2>("vector2 max", &Compute::RandomVector2::Max);
 				VRandomVector2.SetProperty<Compute::RandomVector2>("bool intensity", &Compute::RandomVector2::Intensity);
@@ -10620,7 +10998,7 @@ namespace Mavi
 				VRandomVector2.SetConstructor<Compute::RandomVector2, const Compute::Vector2&, const Compute::Vector2&, bool, float>("void f(const vector2 &in, const vector2 &in, bool, float)");
 				VRandomVector2.SetMethod("vector2 generate()", &Compute::RandomVector2::Generate);
 
-				TypeClass VRandomVector3 = Engine->SetPod<Compute::RandomVector3>("random_vector3");
+				TypeClass VRandomVector3 = *VM->SetPod<Compute::RandomVector3>("random_vector3");
 				VRandomVector3.SetProperty<Compute::RandomVector3>("vector3 min", &Compute::RandomVector3::Min);
 				VRandomVector3.SetProperty<Compute::RandomVector3>("vector3 max", &Compute::RandomVector3::Max);
 				VRandomVector3.SetProperty<Compute::RandomVector3>("bool intensity", &Compute::RandomVector3::Intensity);
@@ -10629,7 +11007,7 @@ namespace Mavi
 				VRandomVector3.SetConstructor<Compute::RandomVector3, const Compute::Vector3&, const Compute::Vector3&, bool, float>("void f(const vector3 &in, const vector3 &in, bool, float)");
 				VRandomVector3.SetMethod("vector3 generate()", &Compute::RandomVector3::Generate);
 
-				TypeClass VRandomVector4 = Engine->SetPod<Compute::RandomVector4>("random_vector4");
+				TypeClass VRandomVector4 = *VM->SetPod<Compute::RandomVector4>("random_vector4");
 				VRandomVector4.SetProperty<Compute::RandomVector4>("vector4 min", &Compute::RandomVector4::Min);
 				VRandomVector4.SetProperty<Compute::RandomVector4>("vector4 max", &Compute::RandomVector4::Max);
 				VRandomVector4.SetProperty<Compute::RandomVector4>("bool intensity", &Compute::RandomVector4::Intensity);
@@ -10638,7 +11016,7 @@ namespace Mavi
 				VRandomVector4.SetConstructor<Compute::RandomVector4, const Compute::Vector4&, const Compute::Vector4&, bool, float>("void f(const vector4 &in, const vector4 &in, bool, float)");
 				VRandomVector4.SetMethod("vector4 generate()", &Compute::RandomVector4::Generate);
 
-				TypeClass VRandomFloat = Engine->SetPod<Compute::RandomFloat>("random_float");
+				TypeClass VRandomFloat = *VM->SetPod<Compute::RandomFloat>("random_float");
 				VRandomFloat.SetProperty<Compute::RandomFloat>("float min", &Compute::RandomFloat::Min);
 				VRandomFloat.SetProperty<Compute::RandomFloat>("float max", &Compute::RandomFloat::Max);
 				VRandomFloat.SetProperty<Compute::RandomFloat>("bool intensity", &Compute::RandomFloat::Intensity);
@@ -10653,11 +11031,11 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportRegex(VirtualMachine* Engine)
+			bool Registry::ImportRegex(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				Enumeration VRegexState = Engine->SetEnum("regex_state");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				Enumeration VRegexState = *VM->SetEnum("regex_state");
 				VRegexState.SetValue("preprocessed", (int)Compute::RegexState::Preprocessed);
 				VRegexState.SetValue("match_found", (int)Compute::RegexState::Match_Found);
 				VRegexState.SetValue("no_match", (int)Compute::RegexState::No_Match);
@@ -10670,7 +11048,7 @@ namespace Mavi
 				VRegexState.SetValue("too_many_branches", (int)Compute::RegexState::Too_Many_Branches);
 				VRegexState.SetValue("too_many_brackets", (int)Compute::RegexState::Too_Many_Brackets);
 
-				TypeClass VRegexMatch = Engine->SetPod<Compute::RegexMatch>("regex_match");
+				TypeClass VRegexMatch = *VM->SetPod<Compute::RegexMatch>("regex_match");
 				VRegexMatch.SetProperty<Compute::RegexMatch>("int64 start", &Compute::RegexMatch::Start);
 				VRegexMatch.SetProperty<Compute::RegexMatch>("int64 end", &Compute::RegexMatch::End);
 				VRegexMatch.SetProperty<Compute::RegexMatch>("int64 length", &Compute::RegexMatch::Length);
@@ -10678,7 +11056,7 @@ namespace Mavi
 				VRegexMatch.SetConstructor<Compute::RegexMatch>("void f()");
 				VRegexMatch.SetMethodEx("string target() const", &RegexMatchTarget);
 
-				TypeClass VRegexResult = Engine->SetStructTrivial<Compute::RegexResult>("regex_result");
+				TypeClass VRegexResult = *VM->SetStructTrivial<Compute::RegexResult>("regex_result");
 				VRegexResult.SetConstructor<Compute::RegexResult>("void f()");
 				VRegexResult.SetMethod("bool empty() const", &Compute::RegexResult::Empty);
 				VRegexResult.SetMethod("int64 get_steps() const", &Compute::RegexResult::GetSteps);
@@ -10686,7 +11064,7 @@ namespace Mavi
 				VRegexResult.SetMethodEx("array<regex_match>@ get() const", &RegexResultGet);
 				VRegexResult.SetMethodEx("array<string>@ to_array() const", &RegexResultToArray);
 
-				TypeClass VRegexSource = Engine->SetStructTrivial<Compute::RegexSource>("regex_source");
+				TypeClass VRegexSource = *VM->SetStructTrivial<Compute::RegexSource>("regex_source");
 				VRegexSource.SetProperty<Compute::RegexSource>("bool ignoreCase", &Compute::RegexSource::IgnoreCase);
 				VRegexSource.SetConstructor<Compute::RegexSource>("void f()");
 				VRegexSource.SetConstructor<Compute::RegexSource, const Core::String&, bool, int64_t, int64_t, int64_t>("void f(const string &in, bool = false, int64 = -1, int64 = -1, int64 = -1)");
@@ -10706,13 +11084,13 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportCrypto(VirtualMachine* Engine)
+			bool Registry::ImportCrypto(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
+				VI_ASSERT(VM != nullptr, "manager should be set");
 				VI_TYPEREF(WebToken, "web_token");
 
-				TypeClass VPrivateKey = Engine->SetStructTrivial<Compute::PrivateKey>("private_key");
+				TypeClass VPrivateKey = *VM->SetStructTrivial<Compute::PrivateKey>("private_key");
 				VPrivateKey.SetConstructor<Compute::PrivateKey>("void f()");
 				VPrivateKey.SetConstructor<Compute::PrivateKey, const Core::String&>("void f(const string &in)");
 				VPrivateKey.SetMethod("void clear()", &Compute::PrivateKey::Clear);
@@ -10721,7 +11099,7 @@ namespace Mavi
 				VPrivateKey.SetMethod("usize size() const", &Compute::PrivateKey::Clear);
 				VPrivateKey.SetMethodStatic<Compute::PrivateKey, const Core::String&>("private_key get_plain(const string &in)", &Compute::PrivateKey::GetPlain);
 
-				RefClass VWebToken = Engine->SetClass<Compute::WebToken>("web_token", true);
+				RefClass VWebToken = *VM->SetClass<Compute::WebToken>("web_token", true);
 				VWebToken.SetProperty<Compute::WebToken>("schema@ header", &Compute::WebToken::Header);
 				VWebToken.SetProperty<Compute::WebToken>("schema@ payload", &Compute::WebToken::Payload);
 				VWebToken.SetProperty<Compute::WebToken>("schema@ token", &Compute::WebToken::Token);
@@ -10742,214 +11120,214 @@ namespace Mavi
 				VWebToken.SetMethod("void set_created(int64)", &Compute::WebToken::SetCreated);
 				VWebToken.SetMethod("void set_refresh_token(const string &in, const private_key &in, const private_key &in)", &Compute::WebToken::SetRefreshToken);
 				VWebToken.SetMethod("bool sign(const private_key &in)", &Compute::WebToken::Sign);
-				VWebToken.SetMethod("string get_refresh_token(const private_key &in, const private_key &in)", &Compute::WebToken::GetRefreshToken);
 				VWebToken.SetMethod("bool is_valid()", &Compute::WebToken::IsValid);
+				VWebToken.SetMethodEx("string get_refresh_token(const private_key &in, const private_key &in)", &WebTokenGetRefreshToken);
 				VWebToken.SetMethodEx("void set_audience(array<string>@+)", &WebTokenSetAudience);
-				VWebToken.SetEnumRefsEx<Compute::WebToken>([](Compute::WebToken* Base, asIScriptEngine* Engine)
+				VWebToken.SetEnumRefsEx<Compute::WebToken>([](Compute::WebToken* Base, asIScriptEngine* VM)
 				{
-					Engine->GCEnumCallback(Base->Header);
-					Engine->GCEnumCallback(Base->Payload);
-					Engine->GCEnumCallback(Base->Token);
+					FunctionFactory::GCEnumCallback(VM, Base->Header);
+					FunctionFactory::GCEnumCallback(VM, Base->Payload);
+					FunctionFactory::GCEnumCallback(VM, Base->Token);
 				});
 				VWebToken.SetReleaseRefsEx<Compute::WebToken>([](Compute::WebToken* Base, asIScriptEngine*)
 				{
 					Base->~WebToken();
 				});
 
-				Engine->BeginNamespace("ciphers");
-				Engine->SetFunction("uptr@ des_ecb()", &Compute::Ciphers::DES_ECB);
-				Engine->SetFunction("uptr@ des_ede()", &Compute::Ciphers::DES_EDE);
-				Engine->SetFunction("uptr@ des_ede3()", &Compute::Ciphers::DES_EDE3);
-				Engine->SetFunction("uptr@ des_ede_ecb()", &Compute::Ciphers::DES_EDE_ECB);
-				Engine->SetFunction("uptr@ des_ede3_ecb()", &Compute::Ciphers::DES_EDE3_ECB);
-				Engine->SetFunction("uptr@ des_cfb64()", &Compute::Ciphers::DES_CFB64);
-				Engine->SetFunction("uptr@ des_cfb1()", &Compute::Ciphers::DES_CFB1);
-				Engine->SetFunction("uptr@ des_cfb8()", &Compute::Ciphers::DES_CFB8);
-				Engine->SetFunction("uptr@ des_ede_cfb64()", &Compute::Ciphers::DES_EDE_CFB64);
-				Engine->SetFunction("uptr@ des_ede3_cfb64()", &Compute::Ciphers::DES_EDE3_CFB64);
-				Engine->SetFunction("uptr@ des_ede3_cfb1()", &Compute::Ciphers::DES_EDE3_CFB1);
-				Engine->SetFunction("uptr@ des_ede3_cfb8()", &Compute::Ciphers::DES_EDE3_CFB8);
-				Engine->SetFunction("uptr@ des_ofb()", &Compute::Ciphers::DES_OFB);
-				Engine->SetFunction("uptr@ des_ede_ofb()", &Compute::Ciphers::DES_EDE_OFB);
-				Engine->SetFunction("uptr@ des_ede3_ofb()", &Compute::Ciphers::DES_EDE3_OFB);
-				Engine->SetFunction("uptr@ des_cbc()", &Compute::Ciphers::DES_CBC);
-				Engine->SetFunction("uptr@ des_ede_cbc()", &Compute::Ciphers::DES_EDE_CBC);
-				Engine->SetFunction("uptr@ des_ede3_cbc()", &Compute::Ciphers::DES_EDE3_CBC);
-				Engine->SetFunction("uptr@ des_ede3_wrap()", &Compute::Ciphers::DES_EDE3_Wrap);
-				Engine->SetFunction("uptr@ desx_cbc()", &Compute::Ciphers::DESX_CBC);
-				Engine->SetFunction("uptr@ rc4()", &Compute::Ciphers::RC4);
-				Engine->SetFunction("uptr@ rc4_40()", &Compute::Ciphers::RC4_40);
-				Engine->SetFunction("uptr@ rc4_hmac_md5()", &Compute::Ciphers::RC4_HMAC_MD5);
-				Engine->SetFunction("uptr@ idea_ecb()", &Compute::Ciphers::IDEA_ECB);
-				Engine->SetFunction("uptr@ idea_cfb64()", &Compute::Ciphers::IDEA_CFB64);
-				Engine->SetFunction("uptr@ idea_ofb()", &Compute::Ciphers::IDEA_OFB);
-				Engine->SetFunction("uptr@ idea_cbc()", &Compute::Ciphers::IDEA_CBC);
-				Engine->SetFunction("uptr@ rc2_ecb()", &Compute::Ciphers::RC2_ECB);
-				Engine->SetFunction("uptr@ rc2_cbc()", &Compute::Ciphers::RC2_CBC);
-				Engine->SetFunction("uptr@ rc2_40_cbc()", &Compute::Ciphers::RC2_40_CBC);
-				Engine->SetFunction("uptr@ rc2_64_cbc()", &Compute::Ciphers::RC2_64_CBC);
-				Engine->SetFunction("uptr@ rc2_cfb64()", &Compute::Ciphers::RC2_CFB64);
-				Engine->SetFunction("uptr@ rc2_ofb()", &Compute::Ciphers::RC2_OFB);
-				Engine->SetFunction("uptr@ bf_ecb()", &Compute::Ciphers::BF_ECB);
-				Engine->SetFunction("uptr@ bf_cbc()", &Compute::Ciphers::BF_CBC);
-				Engine->SetFunction("uptr@ bf_cfb64()", &Compute::Ciphers::BF_CFB64);
-				Engine->SetFunction("uptr@ bf_ofb()", &Compute::Ciphers::BF_OFB);
-				Engine->SetFunction("uptr@ cast5_ecb()", &Compute::Ciphers::CAST5_ECB);
-				Engine->SetFunction("uptr@ cast5_cbc()", &Compute::Ciphers::CAST5_CBC);
-				Engine->SetFunction("uptr@ cast5_cfb64()", &Compute::Ciphers::CAST5_CFB64);
-				Engine->SetFunction("uptr@ cast5_ofb()", &Compute::Ciphers::CAST5_OFB);
-				Engine->SetFunction("uptr@ rc5_32_12_16_cbc()", &Compute::Ciphers::RC5_32_12_16_CBC);
-				Engine->SetFunction("uptr@ rc5_32_12_16_ecb()", &Compute::Ciphers::RC5_32_12_16_ECB);
-				Engine->SetFunction("uptr@ rc5_32_12_16_cfb64()", &Compute::Ciphers::RC5_32_12_16_CFB64);
-				Engine->SetFunction("uptr@ rc5_32_12_16_ofb()", &Compute::Ciphers::RC5_32_12_16_OFB);
-				Engine->SetFunction("uptr@ aes_128_ecb()", &Compute::Ciphers::AES_128_ECB);
-				Engine->SetFunction("uptr@ aes_128_cbc()", &Compute::Ciphers::AES_128_CBC);
-				Engine->SetFunction("uptr@ aes_128_cfb1()", &Compute::Ciphers::AES_128_CFB1);
-				Engine->SetFunction("uptr@ aes_128_cfb8()", &Compute::Ciphers::AES_128_CFB8);
-				Engine->SetFunction("uptr@ aes_128_cfb128()", &Compute::Ciphers::AES_128_CFB128);
-				Engine->SetFunction("uptr@ aes_128_ofb()", &Compute::Ciphers::AES_128_OFB);
-				Engine->SetFunction("uptr@ aes_128_ctr()", &Compute::Ciphers::AES_128_CTR);
-				Engine->SetFunction("uptr@ aes_128_ccm()", &Compute::Ciphers::AES_128_CCM);
-				Engine->SetFunction("uptr@ aes_128_gcm()", &Compute::Ciphers::AES_128_GCM);
-				Engine->SetFunction("uptr@ aes_128_xts()", &Compute::Ciphers::AES_128_XTS);
-				Engine->SetFunction("uptr@ aes_128_wrap()", &Compute::Ciphers::AES_128_Wrap);
-				Engine->SetFunction("uptr@ aes_128_wrap_pad()", &Compute::Ciphers::AES_128_WrapPad);
-				Engine->SetFunction("uptr@ aes_128_ocb()", &Compute::Ciphers::AES_128_OCB);
-				Engine->SetFunction("uptr@ aes_192_ecb()", &Compute::Ciphers::AES_192_ECB);
-				Engine->SetFunction("uptr@ aes_192_cbc()", &Compute::Ciphers::AES_192_CBC);
-				Engine->SetFunction("uptr@ aes_192_cfb1()", &Compute::Ciphers::AES_192_CFB1);
-				Engine->SetFunction("uptr@ aes_192_cfb8()", &Compute::Ciphers::AES_192_CFB8);
-				Engine->SetFunction("uptr@ aes_192_cfb128()", &Compute::Ciphers::AES_192_CFB128);
-				Engine->SetFunction("uptr@ aes_192_ofb()", &Compute::Ciphers::AES_192_OFB);
-				Engine->SetFunction("uptr@ aes_192_ctr()", &Compute::Ciphers::AES_192_CTR);
-				Engine->SetFunction("uptr@ aes_192_ccm()", &Compute::Ciphers::AES_192_CCM);
-				Engine->SetFunction("uptr@ aes_192_gcm()", &Compute::Ciphers::AES_192_GCM);
-				Engine->SetFunction("uptr@ aes_192_wrap()", &Compute::Ciphers::AES_192_Wrap);
-				Engine->SetFunction("uptr@ aes_192_wrap_pad()", &Compute::Ciphers::AES_192_WrapPad);
-				Engine->SetFunction("uptr@ aes_192_ocb()", &Compute::Ciphers::AES_192_OCB);
-				Engine->SetFunction("uptr@ aes_256_ecb()", &Compute::Ciphers::AES_256_ECB);
-				Engine->SetFunction("uptr@ aes_256_cbc()", &Compute::Ciphers::AES_256_CBC);
-				Engine->SetFunction("uptr@ aes_256_cfb1()", &Compute::Ciphers::AES_256_CFB1);
-				Engine->SetFunction("uptr@ aes_256_cfb8()", &Compute::Ciphers::AES_256_CFB8);
-				Engine->SetFunction("uptr@ aes_256_cfb128()", &Compute::Ciphers::AES_256_CFB128);
-				Engine->SetFunction("uptr@ aes_256_ofb()", &Compute::Ciphers::AES_256_OFB);
-				Engine->SetFunction("uptr@ aes_256_ctr()", &Compute::Ciphers::AES_256_CTR);
-				Engine->SetFunction("uptr@ aes_256_ccm()", &Compute::Ciphers::AES_256_CCM);
-				Engine->SetFunction("uptr@ aes_256_gcm()", &Compute::Ciphers::AES_256_GCM);
-				Engine->SetFunction("uptr@ aes_256_xts()", &Compute::Ciphers::AES_256_XTS);
-				Engine->SetFunction("uptr@ aes_256_wrap()", &Compute::Ciphers::AES_256_Wrap);
-				Engine->SetFunction("uptr@ aes_256_wrap_pad()", &Compute::Ciphers::AES_256_WrapPad);
-				Engine->SetFunction("uptr@ aes_256_ocb()", &Compute::Ciphers::AES_256_OCB);
-				Engine->SetFunction("uptr@ aes_128_cbc_hmac_SHA1()", &Compute::Ciphers::AES_128_CBC_HMAC_SHA1);
-				Engine->SetFunction("uptr@ aes_256_cbc_hmac_SHA1()", &Compute::Ciphers::AES_256_CBC_HMAC_SHA1);
-				Engine->SetFunction("uptr@ aes_128_cbc_hmac_SHA256()", &Compute::Ciphers::AES_128_CBC_HMAC_SHA256);
-				Engine->SetFunction("uptr@ aes_256_cbc_hmac_SHA256()", &Compute::Ciphers::AES_256_CBC_HMAC_SHA256);
-				Engine->SetFunction("uptr@ aria_128_ecb()", &Compute::Ciphers::ARIA_128_ECB);
-				Engine->SetFunction("uptr@ aria_128_cbc()", &Compute::Ciphers::ARIA_128_CBC);
-				Engine->SetFunction("uptr@ aria_128_cfb1()", &Compute::Ciphers::ARIA_128_CFB1);
-				Engine->SetFunction("uptr@ aria_128_cfb8()", &Compute::Ciphers::ARIA_128_CFB8);
-				Engine->SetFunction("uptr@ aria_128_cfb128()", &Compute::Ciphers::ARIA_128_CFB128);
-				Engine->SetFunction("uptr@ aria_128_ctr()", &Compute::Ciphers::ARIA_128_CTR);
-				Engine->SetFunction("uptr@ aria_128_ofb()", &Compute::Ciphers::ARIA_128_OFB);
-				Engine->SetFunction("uptr@ aria_128_gcm()", &Compute::Ciphers::ARIA_128_GCM);
-				Engine->SetFunction("uptr@ aria_128_ccm()", &Compute::Ciphers::ARIA_128_CCM);
-				Engine->SetFunction("uptr@ aria_192_ecb()", &Compute::Ciphers::ARIA_192_ECB);
-				Engine->SetFunction("uptr@ aria_192_cbc()", &Compute::Ciphers::ARIA_192_CBC);
-				Engine->SetFunction("uptr@ aria_192_cfb1()", &Compute::Ciphers::ARIA_192_CFB1);
-				Engine->SetFunction("uptr@ aria_192_cfb8()", &Compute::Ciphers::ARIA_192_CFB8);
-				Engine->SetFunction("uptr@ aria_192_cfb128()", &Compute::Ciphers::ARIA_192_CFB128);
-				Engine->SetFunction("uptr@ aria_192_ctr()", &Compute::Ciphers::ARIA_192_CTR);
-				Engine->SetFunction("uptr@ aria_192_ofb()", &Compute::Ciphers::ARIA_192_OFB);
-				Engine->SetFunction("uptr@ aria_192_gcm()", &Compute::Ciphers::ARIA_192_GCM);
-				Engine->SetFunction("uptr@ aria_192_ccm()", &Compute::Ciphers::ARIA_192_CCM);
-				Engine->SetFunction("uptr@ aria_256_ecb()", &Compute::Ciphers::ARIA_256_ECB);
-				Engine->SetFunction("uptr@ aria_256_cbc()", &Compute::Ciphers::ARIA_256_CBC);
-				Engine->SetFunction("uptr@ aria_256_cfb1()", &Compute::Ciphers::ARIA_256_CFB1);
-				Engine->SetFunction("uptr@ aria_256_cfb8()", &Compute::Ciphers::ARIA_256_CFB8);
-				Engine->SetFunction("uptr@ aria_256_cfb128()", &Compute::Ciphers::ARIA_256_CFB128);
-				Engine->SetFunction("uptr@ aria_256_ctr()", &Compute::Ciphers::ARIA_256_CTR);
-				Engine->SetFunction("uptr@ aria_256_ofb()", &Compute::Ciphers::ARIA_256_OFB);
-				Engine->SetFunction("uptr@ aria_256_gcm()", &Compute::Ciphers::ARIA_256_GCM);
-				Engine->SetFunction("uptr@ aria_256_ccm()", &Compute::Ciphers::ARIA_256_CCM);
-				Engine->SetFunction("uptr@ camellia_128_ecb()", &Compute::Ciphers::Camellia_128_ECB);
-				Engine->SetFunction("uptr@ camellia_128_cbc()", &Compute::Ciphers::Camellia_128_CBC);
-				Engine->SetFunction("uptr@ camellia_128_cfb1()", &Compute::Ciphers::Camellia_128_CFB1);
-				Engine->SetFunction("uptr@ camellia_128_cfb8()", &Compute::Ciphers::Camellia_128_CFB8);
-				Engine->SetFunction("uptr@ camellia_128_cfb128()", &Compute::Ciphers::Camellia_128_CFB128);
-				Engine->SetFunction("uptr@ camellia_128_ofb()", &Compute::Ciphers::Camellia_128_OFB);
-				Engine->SetFunction("uptr@ camellia_128_ctr()", &Compute::Ciphers::Camellia_128_CTR);
-				Engine->SetFunction("uptr@ camellia_192_ecb()", &Compute::Ciphers::Camellia_192_ECB);
-				Engine->SetFunction("uptr@ camellia_192_cbc()", &Compute::Ciphers::Camellia_192_CBC);
-				Engine->SetFunction("uptr@ camellia_192_cfb1()", &Compute::Ciphers::Camellia_192_CFB1);
-				Engine->SetFunction("uptr@ camellia_192_cfb8()", &Compute::Ciphers::Camellia_192_CFB8);
-				Engine->SetFunction("uptr@ camellia_192_cfb128()", &Compute::Ciphers::Camellia_192_CFB128);
-				Engine->SetFunction("uptr@ camellia_192_ofb()", &Compute::Ciphers::Camellia_192_OFB);
-				Engine->SetFunction("uptr@ camellia_192_ctr()", &Compute::Ciphers::Camellia_192_CTR);
-				Engine->SetFunction("uptr@ camellia_256_ecb()", &Compute::Ciphers::Camellia_256_ECB);
-				Engine->SetFunction("uptr@ camellia_256_cbc()", &Compute::Ciphers::Camellia_256_CBC);
-				Engine->SetFunction("uptr@ camellia_256_cfb1()", &Compute::Ciphers::Camellia_256_CFB1);
-				Engine->SetFunction("uptr@ camellia_256_cfb8()", &Compute::Ciphers::Camellia_256_CFB8);
-				Engine->SetFunction("uptr@ camellia_256_cfb128()", &Compute::Ciphers::Camellia_256_CFB128);
-				Engine->SetFunction("uptr@ camellia_256_ofb()", &Compute::Ciphers::Camellia_256_OFB);
-				Engine->SetFunction("uptr@ camellia_256_ctr()", &Compute::Ciphers::Camellia_256_CTR);
-				Engine->SetFunction("uptr@ chacha20()", &Compute::Ciphers::Chacha20);
-				Engine->SetFunction("uptr@ chacha20_poly1305()", &Compute::Ciphers::Chacha20_Poly1305);
-				Engine->SetFunction("uptr@ seed_ecb()", &Compute::Ciphers::Seed_ECB);
-				Engine->SetFunction("uptr@ seed_cbc()", &Compute::Ciphers::Seed_CBC);
-				Engine->SetFunction("uptr@ seed_cfb128()", &Compute::Ciphers::Seed_CFB128);
-				Engine->SetFunction("uptr@ seed_ofb()", &Compute::Ciphers::Seed_OFB);
-				Engine->SetFunction("uptr@ sm4_ecb()", &Compute::Ciphers::SM4_ECB);
-				Engine->SetFunction("uptr@ sm4_cbc()", &Compute::Ciphers::SM4_CBC);
-				Engine->SetFunction("uptr@ sm4_cfb128()", &Compute::Ciphers::SM4_CFB128);
-				Engine->SetFunction("uptr@ sm4_ofb()", &Compute::Ciphers::SM4_OFB);
-				Engine->SetFunction("uptr@ sm4_ctr()", &Compute::Ciphers::SM4_CTR);
-				Engine->EndNamespace();
+				VM->BeginNamespace("ciphers");
+				VM->SetFunction("uptr@ des_ecb()", &Compute::Ciphers::DES_ECB);
+				VM->SetFunction("uptr@ des_ede()", &Compute::Ciphers::DES_EDE);
+				VM->SetFunction("uptr@ des_ede3()", &Compute::Ciphers::DES_EDE3);
+				VM->SetFunction("uptr@ des_ede_ecb()", &Compute::Ciphers::DES_EDE_ECB);
+				VM->SetFunction("uptr@ des_ede3_ecb()", &Compute::Ciphers::DES_EDE3_ECB);
+				VM->SetFunction("uptr@ des_cfb64()", &Compute::Ciphers::DES_CFB64);
+				VM->SetFunction("uptr@ des_cfb1()", &Compute::Ciphers::DES_CFB1);
+				VM->SetFunction("uptr@ des_cfb8()", &Compute::Ciphers::DES_CFB8);
+				VM->SetFunction("uptr@ des_ede_cfb64()", &Compute::Ciphers::DES_EDE_CFB64);
+				VM->SetFunction("uptr@ des_ede3_cfb64()", &Compute::Ciphers::DES_EDE3_CFB64);
+				VM->SetFunction("uptr@ des_ede3_cfb1()", &Compute::Ciphers::DES_EDE3_CFB1);
+				VM->SetFunction("uptr@ des_ede3_cfb8()", &Compute::Ciphers::DES_EDE3_CFB8);
+				VM->SetFunction("uptr@ des_ofb()", &Compute::Ciphers::DES_OFB);
+				VM->SetFunction("uptr@ des_ede_ofb()", &Compute::Ciphers::DES_EDE_OFB);
+				VM->SetFunction("uptr@ des_ede3_ofb()", &Compute::Ciphers::DES_EDE3_OFB);
+				VM->SetFunction("uptr@ des_cbc()", &Compute::Ciphers::DES_CBC);
+				VM->SetFunction("uptr@ des_ede_cbc()", &Compute::Ciphers::DES_EDE_CBC);
+				VM->SetFunction("uptr@ des_ede3_cbc()", &Compute::Ciphers::DES_EDE3_CBC);
+				VM->SetFunction("uptr@ des_ede3_wrap()", &Compute::Ciphers::DES_EDE3_Wrap);
+				VM->SetFunction("uptr@ desx_cbc()", &Compute::Ciphers::DESX_CBC);
+				VM->SetFunction("uptr@ rc4()", &Compute::Ciphers::RC4);
+				VM->SetFunction("uptr@ rc4_40()", &Compute::Ciphers::RC4_40);
+				VM->SetFunction("uptr@ rc4_hmac_md5()", &Compute::Ciphers::RC4_HMAC_MD5);
+				VM->SetFunction("uptr@ idea_ecb()", &Compute::Ciphers::IDEA_ECB);
+				VM->SetFunction("uptr@ idea_cfb64()", &Compute::Ciphers::IDEA_CFB64);
+				VM->SetFunction("uptr@ idea_ofb()", &Compute::Ciphers::IDEA_OFB);
+				VM->SetFunction("uptr@ idea_cbc()", &Compute::Ciphers::IDEA_CBC);
+				VM->SetFunction("uptr@ rc2_ecb()", &Compute::Ciphers::RC2_ECB);
+				VM->SetFunction("uptr@ rc2_cbc()", &Compute::Ciphers::RC2_CBC);
+				VM->SetFunction("uptr@ rc2_40_cbc()", &Compute::Ciphers::RC2_40_CBC);
+				VM->SetFunction("uptr@ rc2_64_cbc()", &Compute::Ciphers::RC2_64_CBC);
+				VM->SetFunction("uptr@ rc2_cfb64()", &Compute::Ciphers::RC2_CFB64);
+				VM->SetFunction("uptr@ rc2_ofb()", &Compute::Ciphers::RC2_OFB);
+				VM->SetFunction("uptr@ bf_ecb()", &Compute::Ciphers::BF_ECB);
+				VM->SetFunction("uptr@ bf_cbc()", &Compute::Ciphers::BF_CBC);
+				VM->SetFunction("uptr@ bf_cfb64()", &Compute::Ciphers::BF_CFB64);
+				VM->SetFunction("uptr@ bf_ofb()", &Compute::Ciphers::BF_OFB);
+				VM->SetFunction("uptr@ cast5_ecb()", &Compute::Ciphers::CAST5_ECB);
+				VM->SetFunction("uptr@ cast5_cbc()", &Compute::Ciphers::CAST5_CBC);
+				VM->SetFunction("uptr@ cast5_cfb64()", &Compute::Ciphers::CAST5_CFB64);
+				VM->SetFunction("uptr@ cast5_ofb()", &Compute::Ciphers::CAST5_OFB);
+				VM->SetFunction("uptr@ rc5_32_12_16_cbc()", &Compute::Ciphers::RC5_32_12_16_CBC);
+				VM->SetFunction("uptr@ rc5_32_12_16_ecb()", &Compute::Ciphers::RC5_32_12_16_ECB);
+				VM->SetFunction("uptr@ rc5_32_12_16_cfb64()", &Compute::Ciphers::RC5_32_12_16_CFB64);
+				VM->SetFunction("uptr@ rc5_32_12_16_ofb()", &Compute::Ciphers::RC5_32_12_16_OFB);
+				VM->SetFunction("uptr@ aes_128_ecb()", &Compute::Ciphers::AES_128_ECB);
+				VM->SetFunction("uptr@ aes_128_cbc()", &Compute::Ciphers::AES_128_CBC);
+				VM->SetFunction("uptr@ aes_128_cfb1()", &Compute::Ciphers::AES_128_CFB1);
+				VM->SetFunction("uptr@ aes_128_cfb8()", &Compute::Ciphers::AES_128_CFB8);
+				VM->SetFunction("uptr@ aes_128_cfb128()", &Compute::Ciphers::AES_128_CFB128);
+				VM->SetFunction("uptr@ aes_128_ofb()", &Compute::Ciphers::AES_128_OFB);
+				VM->SetFunction("uptr@ aes_128_ctr()", &Compute::Ciphers::AES_128_CTR);
+				VM->SetFunction("uptr@ aes_128_ccm()", &Compute::Ciphers::AES_128_CCM);
+				VM->SetFunction("uptr@ aes_128_gcm()", &Compute::Ciphers::AES_128_GCM);
+				VM->SetFunction("uptr@ aes_128_xts()", &Compute::Ciphers::AES_128_XTS);
+				VM->SetFunction("uptr@ aes_128_wrap()", &Compute::Ciphers::AES_128_Wrap);
+				VM->SetFunction("uptr@ aes_128_wrap_pad()", &Compute::Ciphers::AES_128_WrapPad);
+				VM->SetFunction("uptr@ aes_128_ocb()", &Compute::Ciphers::AES_128_OCB);
+				VM->SetFunction("uptr@ aes_192_ecb()", &Compute::Ciphers::AES_192_ECB);
+				VM->SetFunction("uptr@ aes_192_cbc()", &Compute::Ciphers::AES_192_CBC);
+				VM->SetFunction("uptr@ aes_192_cfb1()", &Compute::Ciphers::AES_192_CFB1);
+				VM->SetFunction("uptr@ aes_192_cfb8()", &Compute::Ciphers::AES_192_CFB8);
+				VM->SetFunction("uptr@ aes_192_cfb128()", &Compute::Ciphers::AES_192_CFB128);
+				VM->SetFunction("uptr@ aes_192_ofb()", &Compute::Ciphers::AES_192_OFB);
+				VM->SetFunction("uptr@ aes_192_ctr()", &Compute::Ciphers::AES_192_CTR);
+				VM->SetFunction("uptr@ aes_192_ccm()", &Compute::Ciphers::AES_192_CCM);
+				VM->SetFunction("uptr@ aes_192_gcm()", &Compute::Ciphers::AES_192_GCM);
+				VM->SetFunction("uptr@ aes_192_wrap()", &Compute::Ciphers::AES_192_Wrap);
+				VM->SetFunction("uptr@ aes_192_wrap_pad()", &Compute::Ciphers::AES_192_WrapPad);
+				VM->SetFunction("uptr@ aes_192_ocb()", &Compute::Ciphers::AES_192_OCB);
+				VM->SetFunction("uptr@ aes_256_ecb()", &Compute::Ciphers::AES_256_ECB);
+				VM->SetFunction("uptr@ aes_256_cbc()", &Compute::Ciphers::AES_256_CBC);
+				VM->SetFunction("uptr@ aes_256_cfb1()", &Compute::Ciphers::AES_256_CFB1);
+				VM->SetFunction("uptr@ aes_256_cfb8()", &Compute::Ciphers::AES_256_CFB8);
+				VM->SetFunction("uptr@ aes_256_cfb128()", &Compute::Ciphers::AES_256_CFB128);
+				VM->SetFunction("uptr@ aes_256_ofb()", &Compute::Ciphers::AES_256_OFB);
+				VM->SetFunction("uptr@ aes_256_ctr()", &Compute::Ciphers::AES_256_CTR);
+				VM->SetFunction("uptr@ aes_256_ccm()", &Compute::Ciphers::AES_256_CCM);
+				VM->SetFunction("uptr@ aes_256_gcm()", &Compute::Ciphers::AES_256_GCM);
+				VM->SetFunction("uptr@ aes_256_xts()", &Compute::Ciphers::AES_256_XTS);
+				VM->SetFunction("uptr@ aes_256_wrap()", &Compute::Ciphers::AES_256_Wrap);
+				VM->SetFunction("uptr@ aes_256_wrap_pad()", &Compute::Ciphers::AES_256_WrapPad);
+				VM->SetFunction("uptr@ aes_256_ocb()", &Compute::Ciphers::AES_256_OCB);
+				VM->SetFunction("uptr@ aes_128_cbc_hmac_SHA1()", &Compute::Ciphers::AES_128_CBC_HMAC_SHA1);
+				VM->SetFunction("uptr@ aes_256_cbc_hmac_SHA1()", &Compute::Ciphers::AES_256_CBC_HMAC_SHA1);
+				VM->SetFunction("uptr@ aes_128_cbc_hmac_SHA256()", &Compute::Ciphers::AES_128_CBC_HMAC_SHA256);
+				VM->SetFunction("uptr@ aes_256_cbc_hmac_SHA256()", &Compute::Ciphers::AES_256_CBC_HMAC_SHA256);
+				VM->SetFunction("uptr@ aria_128_ecb()", &Compute::Ciphers::ARIA_128_ECB);
+				VM->SetFunction("uptr@ aria_128_cbc()", &Compute::Ciphers::ARIA_128_CBC);
+				VM->SetFunction("uptr@ aria_128_cfb1()", &Compute::Ciphers::ARIA_128_CFB1);
+				VM->SetFunction("uptr@ aria_128_cfb8()", &Compute::Ciphers::ARIA_128_CFB8);
+				VM->SetFunction("uptr@ aria_128_cfb128()", &Compute::Ciphers::ARIA_128_CFB128);
+				VM->SetFunction("uptr@ aria_128_ctr()", &Compute::Ciphers::ARIA_128_CTR);
+				VM->SetFunction("uptr@ aria_128_ofb()", &Compute::Ciphers::ARIA_128_OFB);
+				VM->SetFunction("uptr@ aria_128_gcm()", &Compute::Ciphers::ARIA_128_GCM);
+				VM->SetFunction("uptr@ aria_128_ccm()", &Compute::Ciphers::ARIA_128_CCM);
+				VM->SetFunction("uptr@ aria_192_ecb()", &Compute::Ciphers::ARIA_192_ECB);
+				VM->SetFunction("uptr@ aria_192_cbc()", &Compute::Ciphers::ARIA_192_CBC);
+				VM->SetFunction("uptr@ aria_192_cfb1()", &Compute::Ciphers::ARIA_192_CFB1);
+				VM->SetFunction("uptr@ aria_192_cfb8()", &Compute::Ciphers::ARIA_192_CFB8);
+				VM->SetFunction("uptr@ aria_192_cfb128()", &Compute::Ciphers::ARIA_192_CFB128);
+				VM->SetFunction("uptr@ aria_192_ctr()", &Compute::Ciphers::ARIA_192_CTR);
+				VM->SetFunction("uptr@ aria_192_ofb()", &Compute::Ciphers::ARIA_192_OFB);
+				VM->SetFunction("uptr@ aria_192_gcm()", &Compute::Ciphers::ARIA_192_GCM);
+				VM->SetFunction("uptr@ aria_192_ccm()", &Compute::Ciphers::ARIA_192_CCM);
+				VM->SetFunction("uptr@ aria_256_ecb()", &Compute::Ciphers::ARIA_256_ECB);
+				VM->SetFunction("uptr@ aria_256_cbc()", &Compute::Ciphers::ARIA_256_CBC);
+				VM->SetFunction("uptr@ aria_256_cfb1()", &Compute::Ciphers::ARIA_256_CFB1);
+				VM->SetFunction("uptr@ aria_256_cfb8()", &Compute::Ciphers::ARIA_256_CFB8);
+				VM->SetFunction("uptr@ aria_256_cfb128()", &Compute::Ciphers::ARIA_256_CFB128);
+				VM->SetFunction("uptr@ aria_256_ctr()", &Compute::Ciphers::ARIA_256_CTR);
+				VM->SetFunction("uptr@ aria_256_ofb()", &Compute::Ciphers::ARIA_256_OFB);
+				VM->SetFunction("uptr@ aria_256_gcm()", &Compute::Ciphers::ARIA_256_GCM);
+				VM->SetFunction("uptr@ aria_256_ccm()", &Compute::Ciphers::ARIA_256_CCM);
+				VM->SetFunction("uptr@ camellia_128_ecb()", &Compute::Ciphers::Camellia_128_ECB);
+				VM->SetFunction("uptr@ camellia_128_cbc()", &Compute::Ciphers::Camellia_128_CBC);
+				VM->SetFunction("uptr@ camellia_128_cfb1()", &Compute::Ciphers::Camellia_128_CFB1);
+				VM->SetFunction("uptr@ camellia_128_cfb8()", &Compute::Ciphers::Camellia_128_CFB8);
+				VM->SetFunction("uptr@ camellia_128_cfb128()", &Compute::Ciphers::Camellia_128_CFB128);
+				VM->SetFunction("uptr@ camellia_128_ofb()", &Compute::Ciphers::Camellia_128_OFB);
+				VM->SetFunction("uptr@ camellia_128_ctr()", &Compute::Ciphers::Camellia_128_CTR);
+				VM->SetFunction("uptr@ camellia_192_ecb()", &Compute::Ciphers::Camellia_192_ECB);
+				VM->SetFunction("uptr@ camellia_192_cbc()", &Compute::Ciphers::Camellia_192_CBC);
+				VM->SetFunction("uptr@ camellia_192_cfb1()", &Compute::Ciphers::Camellia_192_CFB1);
+				VM->SetFunction("uptr@ camellia_192_cfb8()", &Compute::Ciphers::Camellia_192_CFB8);
+				VM->SetFunction("uptr@ camellia_192_cfb128()", &Compute::Ciphers::Camellia_192_CFB128);
+				VM->SetFunction("uptr@ camellia_192_ofb()", &Compute::Ciphers::Camellia_192_OFB);
+				VM->SetFunction("uptr@ camellia_192_ctr()", &Compute::Ciphers::Camellia_192_CTR);
+				VM->SetFunction("uptr@ camellia_256_ecb()", &Compute::Ciphers::Camellia_256_ECB);
+				VM->SetFunction("uptr@ camellia_256_cbc()", &Compute::Ciphers::Camellia_256_CBC);
+				VM->SetFunction("uptr@ camellia_256_cfb1()", &Compute::Ciphers::Camellia_256_CFB1);
+				VM->SetFunction("uptr@ camellia_256_cfb8()", &Compute::Ciphers::Camellia_256_CFB8);
+				VM->SetFunction("uptr@ camellia_256_cfb128()", &Compute::Ciphers::Camellia_256_CFB128);
+				VM->SetFunction("uptr@ camellia_256_ofb()", &Compute::Ciphers::Camellia_256_OFB);
+				VM->SetFunction("uptr@ camellia_256_ctr()", &Compute::Ciphers::Camellia_256_CTR);
+				VM->SetFunction("uptr@ chacha20()", &Compute::Ciphers::Chacha20);
+				VM->SetFunction("uptr@ chacha20_poly1305()", &Compute::Ciphers::Chacha20_Poly1305);
+				VM->SetFunction("uptr@ seed_ecb()", &Compute::Ciphers::Seed_ECB);
+				VM->SetFunction("uptr@ seed_cbc()", &Compute::Ciphers::Seed_CBC);
+				VM->SetFunction("uptr@ seed_cfb128()", &Compute::Ciphers::Seed_CFB128);
+				VM->SetFunction("uptr@ seed_ofb()", &Compute::Ciphers::Seed_OFB);
+				VM->SetFunction("uptr@ sm4_ecb()", &Compute::Ciphers::SM4_ECB);
+				VM->SetFunction("uptr@ sm4_cbc()", &Compute::Ciphers::SM4_CBC);
+				VM->SetFunction("uptr@ sm4_cfb128()", &Compute::Ciphers::SM4_CFB128);
+				VM->SetFunction("uptr@ sm4_ofb()", &Compute::Ciphers::SM4_OFB);
+				VM->SetFunction("uptr@ sm4_ctr()", &Compute::Ciphers::SM4_CTR);
+				VM->EndNamespace();
 
-				Engine->BeginNamespace("digests");
-				Engine->SetFunction("uptr@ md2()", &Compute::Digests::MD2);
-				Engine->SetFunction("uptr@ md4()", &Compute::Digests::MD4);
-				Engine->SetFunction("uptr@ md5()", &Compute::Digests::MD5);
-				Engine->SetFunction("uptr@ md5_sha1()", &Compute::Digests::MD5_SHA1);
-				Engine->SetFunction("uptr@ blake2b512()", &Compute::Digests::Blake2B512);
-				Engine->SetFunction("uptr@ blake2s256()", &Compute::Digests::Blake2S256);
-				Engine->SetFunction("uptr@ sha1()", &Compute::Digests::SHA1);
-				Engine->SetFunction("uptr@ sha224()", &Compute::Digests::SHA224);
-				Engine->SetFunction("uptr@ sha256()", &Compute::Digests::SHA256);
-				Engine->SetFunction("uptr@ sha384()", &Compute::Digests::SHA384);
-				Engine->SetFunction("uptr@ sha512()", &Compute::Digests::SHA512);
-				Engine->SetFunction("uptr@ sha512_224()", &Compute::Digests::SHA512_224);
-				Engine->SetFunction("uptr@ sha512_256()", &Compute::Digests::SHA512_256);
-				Engine->SetFunction("uptr@ sha3_224()", &Compute::Digests::SHA3_224);
-				Engine->SetFunction("uptr@ sha3_256()", &Compute::Digests::SHA3_256);
-				Engine->SetFunction("uptr@ sha3_384()", &Compute::Digests::SHA3_384);
-				Engine->SetFunction("uptr@ sha3_512()", &Compute::Digests::SHA3_512);
-				Engine->SetFunction("uptr@ shake128()", &Compute::Digests::Shake128);
-				Engine->SetFunction("uptr@ shake256()", &Compute::Digests::Shake256);
-				Engine->SetFunction("uptr@ mdc2()", &Compute::Digests::MDC2);
-				Engine->SetFunction("uptr@ ripemd160()", &Compute::Digests::RipeMD160);
-				Engine->SetFunction("uptr@ whirlpool()", &Compute::Digests::Whirlpool);
-				Engine->SetFunction("uptr@ sm3()", &Compute::Digests::SM3);
-				Engine->EndNamespace();
+				VM->BeginNamespace("digests");
+				VM->SetFunction("uptr@ md2()", &Compute::Digests::MD2);
+				VM->SetFunction("uptr@ md4()", &Compute::Digests::MD4);
+				VM->SetFunction("uptr@ md5()", &Compute::Digests::MD5);
+				VM->SetFunction("uptr@ md5_sha1()", &Compute::Digests::MD5_SHA1);
+				VM->SetFunction("uptr@ blake2b512()", &Compute::Digests::Blake2B512);
+				VM->SetFunction("uptr@ blake2s256()", &Compute::Digests::Blake2S256);
+				VM->SetFunction("uptr@ sha1()", &Compute::Digests::SHA1);
+				VM->SetFunction("uptr@ sha224()", &Compute::Digests::SHA224);
+				VM->SetFunction("uptr@ sha256()", &Compute::Digests::SHA256);
+				VM->SetFunction("uptr@ sha384()", &Compute::Digests::SHA384);
+				VM->SetFunction("uptr@ sha512()", &Compute::Digests::SHA512);
+				VM->SetFunction("uptr@ sha512_224()", &Compute::Digests::SHA512_224);
+				VM->SetFunction("uptr@ sha512_256()", &Compute::Digests::SHA512_256);
+				VM->SetFunction("uptr@ sha3_224()", &Compute::Digests::SHA3_224);
+				VM->SetFunction("uptr@ sha3_256()", &Compute::Digests::SHA3_256);
+				VM->SetFunction("uptr@ sha3_384()", &Compute::Digests::SHA3_384);
+				VM->SetFunction("uptr@ sha3_512()", &Compute::Digests::SHA3_512);
+				VM->SetFunction("uptr@ shake128()", &Compute::Digests::Shake128);
+				VM->SetFunction("uptr@ shake256()", &Compute::Digests::Shake256);
+				VM->SetFunction("uptr@ mdc2()", &Compute::Digests::MDC2);
+				VM->SetFunction("uptr@ ripemd160()", &Compute::Digests::RipeMD160);
+				VM->SetFunction("uptr@ whirlpool()", &Compute::Digests::Whirlpool);
+				VM->SetFunction("uptr@ sm3()", &Compute::Digests::SM3);
+				VM->EndNamespace();
 
-				Engine->BeginNamespace("crypto");
-				Engine->SetFunction("string random_bytes(usize)", &Compute::Crypto::RandomBytes);
-				Engine->SetFunction("string hash(uptr@, const string &in)", &Compute::Crypto::Hash);
-				Engine->SetFunction("string hash_binary(uptr@, const string &in)", &Compute::Crypto::HashBinary);
-				Engine->SetFunction<Core::String(Compute::Digest, const Core::String&, const Compute::PrivateKey&)>("string sign(uptr@, const string &in, const private_key &in)", &Compute::Crypto::Sign);
-				Engine->SetFunction<Core::String(Compute::Digest, const Core::String&, const Compute::PrivateKey&)>("string hmac(uptr@, const string &in, const private_key &in)", &Compute::Crypto::HMAC);
-				Engine->SetFunction<Core::String(Compute::Digest, const Core::String&, const Compute::PrivateKey&, const Compute::PrivateKey&, int)>("string encrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &Compute::Crypto::Encrypt);
-				Engine->SetFunction<Core::String(Compute::Digest, const Core::String&, const Compute::PrivateKey&, const Compute::PrivateKey&, int)>("string decrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &Compute::Crypto::Decrypt);
-				Engine->SetFunction("string jwt_sign(const string &in, const string &in, const private_key &in)", &Compute::Crypto::JWTSign);
-				Engine->SetFunction("string jwt_encode(web_token@+, const private_key &in)", &Compute::Crypto::JWTEncode);
-				Engine->SetFunction("web_token@ jwt_decode(const string &in, const private_key &in)", &Compute::Crypto::JWTDecode);
-				Engine->SetFunction("string doc_encrypt(schema@+, const private_key &in, const private_key &in)", &Compute::Crypto::DocEncrypt);
-				Engine->SetFunction("schema@ doc_decrypt(const string &in, const private_key &in, const private_key &in)", &Compute::Crypto::DocDecrypt);
-				Engine->SetFunction("uint8 random_uc()", &Compute::Crypto::RandomUC);
-				Engine->SetFunction<uint64_t()>("uint64 random()", &Compute::Crypto::Random);
-				Engine->SetFunction<uint64_t(uint64_t, uint64_t)>("uint64 random(uint64, uint64)", &Compute::Crypto::Random);
-				Engine->SetFunction("uint64 crc32(const string &in)", &Compute::Crypto::CRC32);
-				Engine->SetFunction("void display_crypto_log()", &Compute::Crypto::DisplayCryptoLog);
-				Engine->EndNamespace();
+				VM->BeginNamespace("crypto");
+				VM->SetFunction("string random_bytes(usize)", &CryptoRandomBytes);
+				VM->SetFunction("string hash(uptr@, const string &in)", &CryptoHash);
+				VM->SetFunction("string hash_binary(uptr@, const string &in)", &CryptoHashBinary);
+				VM->SetFunction("string sign(uptr@, const string &in, const private_key &in)", &CryptoSign);
+				VM->SetFunction("string hmac(uptr@, const string &in, const private_key &in)", &CryptoHMAC);
+				VM->SetFunction("string encrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &CryptoEncrypt);
+				VM->SetFunction("string decrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &CryptoDecrypt);
+				VM->SetFunction("string jwt_sign(const string &in, const string &in, const private_key &in)", &CryptoJWTSign);
+				VM->SetFunction("string jwt_encode(web_token@+, const private_key &in)", &CryptoJWTEncode);
+				VM->SetFunction("web_token@ jwt_decode(const string &in, const private_key &in)", &CryptoJWTDecode);
+				VM->SetFunction("string doc_encrypt(schema@+, const private_key &in, const private_key &in)", &CryptoDocEncrypt);
+				VM->SetFunction("schema@ doc_decrypt(const string &in, const private_key &in, const private_key &in)", &CryptoDocDecrypt);
+				VM->SetFunction("uint8 random_uc()", &Compute::Crypto::RandomUC);
+				VM->SetFunction<uint64_t()>("uint64 random()", &Compute::Crypto::Random);
+				VM->SetFunction<uint64_t(uint64_t, uint64_t)>("uint64 random(uint64, uint64)", &Compute::Crypto::Random);
+				VM->SetFunction("uint64 crc32(const string &in)", &Compute::Crypto::CRC32);
+				VM->SetFunction("void display_crypto_log()", &Compute::Crypto::DisplayCryptoLog);
+				VM->EndNamespace();
 
 				return true;
 #else
@@ -10957,35 +11335,35 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportCodec(VirtualMachine* Engine)
+			bool Registry::ImportCodec(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				Enumeration VCompression = Engine->SetEnum("compression_cdc");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				Enumeration VCompression = *VM->SetEnum("compression_cdc");
 				VCompression.SetValue("none", (int)Compute::Compression::None);
 				VCompression.SetValue("best_speed", (int)Compute::Compression::BestSpeed);
 				VCompression.SetValue("best_compression", (int)Compute::Compression::BestCompression);
 				VCompression.SetValue("default_compression", (int)Compute::Compression::Default);
 
-				Engine->BeginNamespace("codec");
-				Engine->SetFunction("string move(const string &in, int)", &Compute::Codec::Move);
-				Engine->SetFunction("string bep45_encode(const string &in)", &Compute::Codec::Bep45Encode);
-				Engine->SetFunction("string bep45_decode(const string &in)", &Compute::Codec::Bep45Decode);
-				Engine->SetFunction("string base45_encode(const string &in)", &Compute::Codec::Base45Encode);
-				Engine->SetFunction("string base45_decode(const string &in)", &Compute::Codec::Base45Decode);
-				Engine->SetFunction("string compress(const string &in, compression_cdc)", &Compute::Codec::Compress);
-				Engine->SetFunction("string decompress(const string &in)", &Compute::Codec::Decompress);
-				Engine->SetFunction<Core::String(const Core::String&)>("string base64_encode(const string &in)", &Compute::Codec::Base64Encode);
-				Engine->SetFunction<Core::String(const Core::String&)>("string base64_decode(const string &in)", &Compute::Codec::Base64Decode);
-				Engine->SetFunction<Core::String(const Core::String&)>("string base64_url_encode(const string &in)", &Compute::Codec::Base64URLEncode);
-				Engine->SetFunction<Core::String(const Core::String&)>("string base64_url_decode(const string &in)", &Compute::Codec::Base64URLDecode);
-				Engine->SetFunction<Core::String(const Core::String&)>("string hex_encode(const string &in)", &Compute::Codec::HexEncode);
-				Engine->SetFunction<Core::String(const Core::String&)>("string hex_decode(const string &in)", &Compute::Codec::HexDecode);
-				Engine->SetFunction<Core::String(const Core::String&)>("string uri_encode(const string &in)", &Compute::Codec::URIEncode);
-				Engine->SetFunction<Core::String(const Core::String&)>("string uri_decode(const string &in)", &Compute::Codec::URIDecode);
-				Engine->SetFunction("string decimal_to_hex(uint64)", &Compute::Codec::DecimalToHex);
-				Engine->SetFunction("string base10_to_base_n(uint64, uint8)", &Compute::Codec::Base10ToBaseN);
-				Engine->EndNamespace();
+				VM->BeginNamespace("codec");
+				VM->SetFunction("string move(const string &in, int)", &Compute::Codec::Move);
+				VM->SetFunction("string bep45_encode(const string &in)", &Compute::Codec::Bep45Encode);
+				VM->SetFunction("string bep45_decode(const string &in)", &Compute::Codec::Bep45Decode);
+				VM->SetFunction("string base45_encode(const string &in)", &Compute::Codec::Base45Encode);
+				VM->SetFunction("string base45_decode(const string &in)", &Compute::Codec::Base45Decode);
+				VM->SetFunction("string compress(const string &in, compression_cdc)", &CodecCompress);
+				VM->SetFunction("string decompress(const string &in)", &CodecDecompress);
+				VM->SetFunction<Core::String(const Core::String&)>("string base64_encode(const string &in)", &Compute::Codec::Base64Encode);
+				VM->SetFunction<Core::String(const Core::String&)>("string base64_decode(const string &in)", &Compute::Codec::Base64Decode);
+				VM->SetFunction<Core::String(const Core::String&)>("string base64_url_encode(const string &in)", &Compute::Codec::Base64URLEncode);
+				VM->SetFunction<Core::String(const Core::String&)>("string base64_url_decode(const string &in)", &Compute::Codec::Base64URLDecode);
+				VM->SetFunction<Core::String(const Core::String&)>("string hex_encode(const string &in)", &Compute::Codec::HexEncode);
+				VM->SetFunction<Core::String(const Core::String&)>("string hex_decode(const string &in)", &Compute::Codec::HexDecode);
+				VM->SetFunction<Core::String(const Core::String&)>("string uri_encode(const string &in)", &Compute::Codec::URIEncode);
+				VM->SetFunction<Core::String(const Core::String&)>("string uri_decode(const string &in)", &Compute::Codec::URIDecode);
+				VM->SetFunction("string decimal_to_hex(uint64)", &Compute::Codec::DecimalToHex);
+				VM->SetFunction("string base10_to_base_n(uint64, uint8)", &Compute::Codec::Base10ToBaseN);
+				VM->EndNamespace();
 
 				return true;
 #else
@@ -10993,22 +11371,22 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportGeometric(VirtualMachine* Engine)
+			bool Registry::ImportGeometric(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				Enumeration VPositioning = Engine->SetEnum("positioning");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				Enumeration VPositioning = *VM->SetEnum("positioning");
 				VPositioning.SetValue("local", (int)Compute::Positioning::Local);
 				VPositioning.SetValue("global", (int)Compute::Positioning::Global);
 
-				TypeClass VSpacing = Engine->SetPod<Compute::Transform::Spacing>("transform_spacing");
+				TypeClass VSpacing = *VM->SetPod<Compute::Transform::Spacing>("transform_spacing");
 				VSpacing.SetProperty<Compute::Transform::Spacing>("matrix4x4 offset", &Compute::Transform::Spacing::Offset);
 				VSpacing.SetProperty<Compute::Transform::Spacing>("vector3 position", &Compute::Transform::Spacing::Position);
 				VSpacing.SetProperty<Compute::Transform::Spacing>("vector3 rotation", &Compute::Transform::Spacing::Rotation);
 				VSpacing.SetProperty<Compute::Transform::Spacing>("vector3 scale", &Compute::Transform::Spacing::Scale);
 				VSpacing.SetConstructor<Compute::Transform::Spacing>("void f()");
 
-				RefClass VTransform = Engine->SetClass<Compute::Transform>("transform", false);
+				RefClass VTransform = *VM->SetClass<Compute::Transform>("transform", false);
 				VTransform.SetProperty<Compute::Transform>("uptr@ user_data", &Compute::Transform::UserData);
 				VTransform.SetConstructor<Compute::Transform, void*>("transform@ f(uptr@)");
 				VTransform.SetMethod("void synchronize()", &Compute::Transform::Synchronize);
@@ -11050,7 +11428,7 @@ namespace Mavi
 				VTransform.SetMethod("transform@+ get_child(usize) const", &Compute::Transform::GetChild);
 				VTransform.SetMethod("usize get_childs_count() const", &Compute::Transform::GetChildsCount);
 
-				TypeClass VNode = Engine->SetPod<Compute::Cosmos::Node>("cosmos_node");
+				TypeClass VNode = *VM->SetPod<Compute::Cosmos::Node>("cosmos_node");
 				VNode.SetProperty<Compute::Cosmos::Node>("bounding bounds", &Compute::Cosmos::Node::Bounds);
 				VNode.SetProperty<Compute::Cosmos::Node>("usize parent", &Compute::Cosmos::Node::Parent);
 				VNode.SetProperty<Compute::Cosmos::Node>("usize next", &Compute::Cosmos::Node::Next);
@@ -11061,7 +11439,7 @@ namespace Mavi
 				VNode.SetConstructor<Compute::Cosmos::Node>("void f()");
 				VNode.SetMethod("bool is_leaf() const", &Compute::Cosmos::Node::IsLeaf);
 
-				TypeClass VCosmos = Engine->SetStructTrivial<Compute::Cosmos>("cosmos");
+				TypeClass VCosmos = *VM->SetStructTrivial<Compute::Cosmos>("cosmos");
 				VCosmos.SetFunctionDef("bool cosmos_query_overlaps(const bounding &in)");
 				VCosmos.SetFunctionDef("void cosmos_query_match(uptr@)");
 				VCosmos.SetConstructor<Compute::Cosmos>("void f(usize = 16)");
@@ -11082,27 +11460,27 @@ namespace Mavi
 				VCosmos.SetMethod("bool is_empty() const", &Compute::Cosmos::IsEmpty);
 				VCosmos.SetMethodEx("void query_index(cosmos_query_overlaps@, cosmos_query_match@)", &CosmosQueryIndex);
 
-				Engine->BeginNamespace("geometric");
-				Engine->SetFunction("bool is_cube_in_frustum(const matrix4x4 &in, float)", &Compute::Geometric::IsCubeInFrustum);
-				Engine->SetFunction("bool is_left_handed()", &Compute::Geometric::IsLeftHanded);
-				Engine->SetFunction("bool has_sphere_intersected(const vector3 &in, float, const vector3 &in, float)", &Compute::Geometric::HasSphereIntersected);
-				Engine->SetFunction("bool has_line_intersected(float, float, const vector3 &in, const vector3 &in, vector3 &out)", &Compute::Geometric::HasLineIntersected);
-				Engine->SetFunction("bool has_line_intersected_cube(const vector3 &in, const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Geometric::HasLineIntersectedCube);
-				Engine->SetFunction<bool(const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&, int)>("bool has_point_intersected_cube(const vector3 &in, const vector3 &in, const vector3 &in, int32)", &Compute::Geometric::HasPointIntersectedCube);
-				Engine->SetFunction("bool has_point_intersected_rectangle(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Geometric::HasPointIntersectedRectangle);
-				Engine->SetFunction<bool(const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&)>("bool has_point_intersected_cube(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Geometric::HasPointIntersectedCube);
-				Engine->SetFunction("bool has_sb_intersected(transform@+, transform@+)", &Compute::Geometric::HasSBIntersected);
-				Engine->SetFunction("bool has_obb_intersected(transform@+, transform@+)", &Compute::Geometric::HasOBBIntersected);
-				Engine->SetFunction("bool has_aabb_intersected(transform@+, transform@+)", &Compute::Geometric::HasAABBIntersected);
-				Engine->SetFunction("void matrix_rh_to_lh(matrix4x4 &out)", &Compute::Geometric::MatrixRhToLh);
-				Engine->SetFunction("void set_left_handed(bool)", &Compute::Geometric::SetLeftHanded);
-				Engine->SetFunction("ray create_cursor_ray(const vector3 &in, const vector2 &in, const vector2 &in, const matrix4x4 &in, const matrix4x4 &in)", &Compute::Geometric::CreateCursorRay);
-				Engine->SetFunction<bool(const Compute::Ray&, const Compute::Vector3&, const Compute::Vector3&, Compute::Vector3*)>("bool cursor_ray_test(const ray &in, const vector3 &in, const vector3 &in, vector3 &out)", &Compute::Geometric::CursorRayTest);
-				Engine->SetFunction<bool(const Compute::Ray&, const Compute::Matrix4x4&, Compute::Vector3*)>("bool cursor_ray_test(const ray &in, const matrix4x4 &in, vector3 &out)", &Compute::Geometric::CursorRayTest);
-				Engine->SetFunction("float fast_inv_sqrt(float)", &Compute::Geometric::FastInvSqrt);
-				Engine->SetFunction("float fast_sqrt(float)", &Compute::Geometric::FastSqrt);
-				Engine->SetFunction("float aabb_volume(const vector3 &in, const vector3 &in)", &Compute::Geometric::AabbVolume);
-				Engine->EndNamespace();
+				VM->BeginNamespace("geometric");
+				VM->SetFunction("bool is_cube_in_frustum(const matrix4x4 &in, float)", &Compute::Geometric::IsCubeInFrustum);
+				VM->SetFunction("bool is_left_handed()", &Compute::Geometric::IsLeftHanded);
+				VM->SetFunction("bool has_sphere_intersected(const vector3 &in, float, const vector3 &in, float)", &Compute::Geometric::HasSphereIntersected);
+				VM->SetFunction("bool has_line_intersected(float, float, const vector3 &in, const vector3 &in, vector3 &out)", &Compute::Geometric::HasLineIntersected);
+				VM->SetFunction("bool has_line_intersected_cube(const vector3 &in, const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Geometric::HasLineIntersectedCube);
+				VM->SetFunction<bool(const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&, int)>("bool has_point_intersected_cube(const vector3 &in, const vector3 &in, const vector3 &in, int32)", &Compute::Geometric::HasPointIntersectedCube);
+				VM->SetFunction("bool has_point_intersected_rectangle(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Geometric::HasPointIntersectedRectangle);
+				VM->SetFunction<bool(const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&)>("bool has_point_intersected_cube(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Geometric::HasPointIntersectedCube);
+				VM->SetFunction("bool has_sb_intersected(transform@+, transform@+)", &Compute::Geometric::HasSBIntersected);
+				VM->SetFunction("bool has_obb_intersected(transform@+, transform@+)", &Compute::Geometric::HasOBBIntersected);
+				VM->SetFunction("bool has_aabb_intersected(transform@+, transform@+)", &Compute::Geometric::HasAABBIntersected);
+				VM->SetFunction("void matrix_rh_to_lh(matrix4x4 &out)", &Compute::Geometric::MatrixRhToLh);
+				VM->SetFunction("void set_left_handed(bool)", &Compute::Geometric::SetLeftHanded);
+				VM->SetFunction("ray create_cursor_ray(const vector3 &in, const vector2 &in, const vector2 &in, const matrix4x4 &in, const matrix4x4 &in)", &Compute::Geometric::CreateCursorRay);
+				VM->SetFunction<bool(const Compute::Ray&, const Compute::Vector3&, const Compute::Vector3&, Compute::Vector3*)>("bool cursor_ray_test(const ray &in, const vector3 &in, const vector3 &in, vector3 &out)", &Compute::Geometric::CursorRayTest);
+				VM->SetFunction<bool(const Compute::Ray&, const Compute::Matrix4x4&, Compute::Vector3*)>("bool cursor_ray_test(const ray &in, const matrix4x4 &in, vector3 &out)", &Compute::Geometric::CursorRayTest);
+				VM->SetFunction("float fast_inv_sqrt(float)", &Compute::Geometric::FastInvSqrt);
+				VM->SetFunction("float fast_sqrt(float)", &Compute::Geometric::FastSqrt);
+				VM->SetFunction("float aabb_volume(const vector3 &in, const vector3 &in)", &Compute::Geometric::AabbVolume);
+				VM->EndNamespace();
 
 				return true;
 #else
@@ -11110,17 +11488,17 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportPreprocessor(VirtualMachine* Engine)
+			bool Registry::ImportPreprocessor(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				Enumeration VIncludeType = Engine->SetEnum("include_type");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				Enumeration VIncludeType = *VM->SetEnum("include_type");
 				VIncludeType.SetValue("error_t", (int)Compute::IncludeType::Error);
 				VIncludeType.SetValue("preprocess_t", (int)Compute::IncludeType::Preprocess);
 				VIncludeType.SetValue("unchaned_t", (int)Compute::IncludeType::Unchanged);
 				VIncludeType.SetValue("virtual_t", (int)Compute::IncludeType::Virtual);
 
-				TypeClass VIncludeDesc = Engine->SetStructTrivial<Compute::IncludeDesc>("include_desc");
+				TypeClass VIncludeDesc = *VM->SetStructTrivial<Compute::IncludeDesc>("include_desc");
 				VIncludeDesc.SetProperty<Compute::IncludeDesc>("string from", &Compute::IncludeDesc::From);
 				VIncludeDesc.SetProperty<Compute::IncludeDesc>("string path", &Compute::IncludeDesc::Path);
 				VIncludeDesc.SetProperty<Compute::IncludeDesc>("string root", &Compute::IncludeDesc::Root);
@@ -11128,14 +11506,14 @@ namespace Mavi
 				VIncludeDesc.SetMethodEx("void add_ext(const string &in)", &IncludeDescAddExt);
 				VIncludeDesc.SetMethodEx("void remove_ext(const string &in)", &IncludeDescRemoveExt);
 
-				TypeClass VIncludeResult = Engine->SetStructTrivial<Compute::IncludeResult>("include_result");
+				TypeClass VIncludeResult = *VM->SetStructTrivial<Compute::IncludeResult>("include_result");
 				VIncludeResult.SetProperty<Compute::IncludeResult>("string module", &Compute::IncludeResult::Module);
 				VIncludeResult.SetProperty<Compute::IncludeResult>("bool is_abstract", &Compute::IncludeResult::IsAbstract);
 				VIncludeResult.SetProperty<Compute::IncludeResult>("bool is_remote", &Compute::IncludeResult::IsRemote);
 				VIncludeResult.SetProperty<Compute::IncludeResult>("bool is_file", &Compute::IncludeResult::IsFile);
 				VIncludeResult.SetConstructor<Compute::IncludeResult>("void f()");
 
-				TypeClass VDesc = Engine->SetPod<Compute::Preprocessor::Desc>("preprocessor_desc");
+				TypeClass VDesc = *VM->SetPod<Compute::Preprocessor::Desc>("preprocessor_desc");
 				VDesc.SetProperty<Compute::Preprocessor::Desc>("string multiline_comment_begin", &Compute::Preprocessor::Desc::MultilineCommentBegin);
 				VDesc.SetProperty<Compute::Preprocessor::Desc>("string multiline_comment_end", &Compute::Preprocessor::Desc::MultilineCommentEnd);
 				VDesc.SetProperty<Compute::Preprocessor::Desc>("string comment_begin", &Compute::Preprocessor::Desc::CommentBegin);
@@ -11145,7 +11523,7 @@ namespace Mavi
 				VDesc.SetProperty<Compute::Preprocessor::Desc>("bool conditions", &Compute::Preprocessor::Desc::Conditions);
 				VDesc.SetConstructor<Compute::Preprocessor::Desc>("void f()");
 
-				RefClass VPreprocessor = Engine->SetClass<Compute::Preprocessor>("preprocessor", false);
+				RefClass VPreprocessor = *VM->SetClass<Compute::Preprocessor>("preprocessor", false);
 				VPreprocessor.SetFunctionDef("include_type proc_include_event(preprocessor@+, const include_result &in, string &out)");
 				VPreprocessor.SetFunctionDef("bool proc_pragma_event(preprocessor@+, const string &in, array<string>@+)");
 				VPreprocessor.SetConstructor<Compute::Preprocessor>("preprocessor@ f(uptr@)");
@@ -11156,8 +11534,8 @@ namespace Mavi
 				VPreprocessor.SetMethod("void clear()", &Compute::Preprocessor::Clear);
 				VPreprocessor.SetMethod("bool process(const string &in, string &out)", &Compute::Preprocessor::Process);
 				VPreprocessor.SetMethod("const string& get_current_file_path() const", &Compute::Preprocessor::GetCurrentFilePath);
-				VPreprocessor.SetMethodEx("void set_include_callback(proc_include_event@+)", &PreprocessorSetIncludeCallback);
-				VPreprocessor.SetMethodEx("void set_pragma_callback(proc_pragma_event@+)", &PreprocessorSetPragmaCallback);
+				VPreprocessor.SetMethodEx("void set_include_callback(proc_include_event@)", &PreprocessorSetIncludeCallback);
+				VPreprocessor.SetMethodEx("void set_pragma_callback(proc_pragma_event@)", &PreprocessorSetPragmaCallback);
 				VPreprocessor.SetMethodEx("bool is_defined(const string &in) const", &PreprocessorIsDefined);
 
 				return true;
@@ -11166,13 +11544,13 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportPhysics(VirtualMachine* Engine)
+			bool Registry::ImportPhysics(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				RefClass VSimulator = Engine->SetClass<Compute::Simulator>("physics_simulator", false);
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				RefClass VSimulator = *VM->SetClass<Compute::Simulator>("physics_simulator", false);
 				
-				Enumeration VShape = Engine->SetEnum("physics_shape");
+				Enumeration VShape = *VM->SetEnum("physics_shape");
 				VShape.SetValue("box", (int)Compute::Shape::Box);
 				VShape.SetValue("triangle", (int)Compute::Shape::Triangle);
 				VShape.SetValue("tetrahedral", (int)Compute::Shape::Tetrahedral);
@@ -11209,21 +11587,21 @@ namespace Mavi
 				VShape.SetValue("hf_fluid_bouyant_convex", (int)Compute::Shape::HF_Fluid_Bouyant_Convex);
 				VShape.SetValue("invalid", (int)Compute::Shape::Invalid);
 
-				Enumeration VMotionState = Engine->SetEnum("physics_motion_state");
+				Enumeration VMotionState = *VM->SetEnum("physics_motion_state");
 				VMotionState.SetValue("active", (int)Compute::MotionState::Active);
 				VMotionState.SetValue("island_sleeping", (int)Compute::MotionState::Island_Sleeping);
 				VMotionState.SetValue("deactivation_needed", (int)Compute::MotionState::Deactivation_Needed);
 				VMotionState.SetValue("disable_deactivation", (int)Compute::MotionState::Disable_Deactivation);
 				VMotionState.SetValue("disable_simulation", (int)Compute::MotionState::Disable_Simulation);
 
-				Enumeration VSoftFeature = Engine->SetEnum("physics_soft_feature");
+				Enumeration VSoftFeature = *VM->SetEnum("physics_soft_feature");
 				VSoftFeature.SetValue("none", (int)Compute::SoftFeature::None);
 				VSoftFeature.SetValue("node", (int)Compute::SoftFeature::Node);
 				VSoftFeature.SetValue("link", (int)Compute::SoftFeature::Link);
 				VSoftFeature.SetValue("face", (int)Compute::SoftFeature::Face);
 				VSoftFeature.SetValue("tetra", (int)Compute::SoftFeature::Tetra);
 
-				Enumeration VSoftAeroModel = Engine->SetEnum("physics_soft_aero_model");
+				Enumeration VSoftAeroModel = *VM->SetEnum("physics_soft_aero_model");
 				VSoftAeroModel.SetValue("vpoint", (int)Compute::SoftAeroModel::VPoint);
 				VSoftAeroModel.SetValue("vtwo_sided", (int)Compute::SoftAeroModel::VTwoSided);
 				VSoftAeroModel.SetValue("vtwo_sided_lift_drag", (int)Compute::SoftAeroModel::VTwoSidedLiftDrag);
@@ -11232,7 +11610,7 @@ namespace Mavi
 				VSoftAeroModel.SetValue("ftwo_sided_lift_drag", (int)Compute::SoftAeroModel::FTwoSidedLiftDrag);
 				VSoftAeroModel.SetValue("fone_sided", (int)Compute::SoftAeroModel::FOneSided);
 
-				Enumeration VSoftCollision = Engine->SetEnum("physics_soft_collision");
+				Enumeration VSoftCollision = *VM->SetEnum("physics_soft_collision");
 				VSoftCollision.SetValue("rvs_mask", (int)Compute::SoftCollision::RVS_Mask);
 				VSoftCollision.SetValue("sdf_rs", (int)Compute::SoftCollision::SDF_RS);
 				VSoftCollision.SetValue("cl_rs", (int)Compute::SoftCollision::CL_RS);
@@ -11245,7 +11623,7 @@ namespace Mavi
 				VSoftCollision.SetValue("vf_dd", (int)Compute::SoftCollision::VF_DD);
 				VSoftCollision.SetValue("default_t", (int)Compute::SoftCollision::Default);
 
-				Enumeration VRotator = Engine->SetEnum("physics_rotator");
+				Enumeration VRotator = *VM->SetEnum("physics_rotator");
 				VRotator.SetValue("xyz", (int)Compute::Rotator::XYZ);
 				VRotator.SetValue("xzy", (int)Compute::Rotator::XZY);
 				VRotator.SetValue("yxz", (int)Compute::Rotator::YXZ);
@@ -11253,12 +11631,12 @@ namespace Mavi
 				VRotator.SetValue("zxy", (int)Compute::Rotator::ZXY);
 				VRotator.SetValue("zyx", (int)Compute::Rotator::ZYX);
 
-				RefClass VHullShape = Engine->SetClass<Compute::HullShape>("physics_hull_shape", false);
+				RefClass VHullShape = *VM->SetClass<Compute::HullShape>("physics_hull_shape", false);
 				VHullShape.SetMethod("uptr@ get_shape()", &Compute::HullShape::GetShape);
 				VHullShape.SetMethodEx("array<vertex>@ get_vertices()", &HullShapeGetVertices);
 				VHullShape.SetMethodEx("array<int>@ get_indices()", &HullShapeGetIndices);
 
-				TypeClass VRigidBodyDesc = Engine->SetPod<Compute::RigidBody::Desc>("physics_rigidbody_desc");
+				TypeClass VRigidBodyDesc = *VM->SetPod<Compute::RigidBody::Desc>("physics_rigidbody_desc");
 				VRigidBodyDesc.SetProperty<Compute::RigidBody::Desc>("uptr@ shape", &Compute::RigidBody::Desc::Shape);
 				VRigidBodyDesc.SetProperty<Compute::RigidBody::Desc>("float anticipation", &Compute::RigidBody::Desc::Anticipation);
 				VRigidBodyDesc.SetProperty<Compute::RigidBody::Desc>("float mass", &Compute::RigidBody::Desc::Mass);
@@ -11267,7 +11645,7 @@ namespace Mavi
 				VRigidBodyDesc.SetProperty<Compute::RigidBody::Desc>("vector3 scale", &Compute::RigidBody::Desc::Scale);
 				VRigidBodyDesc.SetConstructor<Compute::RigidBody::Desc>("void f()");
 
-				RefClass VRigidBody = Engine->SetClass<Compute::RigidBody>("physics_rigidbody", false);
+				RefClass VRigidBody = *VM->SetClass<Compute::RigidBody>("physics_rigidbody", false);
 				VRigidBody.SetMethod("physics_rigidbody@ copy()", &Compute::RigidBody::Copy);
 				VRigidBody.SetMethod<Compute::RigidBody, void, const Compute::Vector3&>("void push(const vector3 &in)", &Compute::RigidBody::Push);
 				VRigidBody.SetMethod<Compute::RigidBody, void, const Compute::Vector3&, const Compute::Vector3&>("void push(const vector3 &in, const vector3 &in)", &Compute::RigidBody::Push);
@@ -11343,14 +11721,14 @@ namespace Mavi
 				VRigidBody.SetMethod("physics_rigidbody_desc& get_initial_state()", &Compute::RigidBody::GetInitialState);
 				VRigidBody.SetMethod("physics_simulator@+ get_simulator() const", &Compute::RigidBody::GetSimulator);
 
-				TypeClass VSoftBodySConvex = Engine->SetStruct<Compute::SoftBody::Desc::CV::SConvex>("physics_softbody_desc_cv_sconvex");
+				TypeClass VSoftBodySConvex = *VM->SetStruct<Compute::SoftBody::Desc::CV::SConvex>("physics_softbody_desc_cv_sconvex");
 				VSoftBodySConvex.SetProperty<Compute::SoftBody::Desc::CV::SConvex>("physics_hull_shape@ hull", &Compute::SoftBody::Desc::CV::SConvex::Hull);
 				VSoftBodySConvex.SetProperty<Compute::SoftBody::Desc::CV::SConvex>("bool enabled", &Compute::SoftBody::Desc::CV::SConvex::Enabled);
 				VSoftBodySConvex.SetConstructor<Compute::SoftBody::Desc::CV::SConvex>("void f()");
 				VSoftBodySConvex.SetOperatorCopyStatic(&SoftBodySConvexCopy);
 				VSoftBodySConvex.SetDestructorStatic("void f()", &SoftBodySConvexDestructor);
 
-				TypeClass VSoftBodySRope = Engine->SetPod<Compute::SoftBody::Desc::CV::SRope>("physics_softbody_desc_cv_srope");
+				TypeClass VSoftBodySRope = *VM->SetPod<Compute::SoftBody::Desc::CV::SRope>("physics_softbody_desc_cv_srope");
 				VSoftBodySRope.SetProperty<Compute::SoftBody::Desc::CV::SRope>("bool start_fixed", &Compute::SoftBody::Desc::CV::SRope::StartFixed);
 				VSoftBodySRope.SetProperty<Compute::SoftBody::Desc::CV::SRope>("bool end_fixed", &Compute::SoftBody::Desc::CV::SRope::EndFixed);
 				VSoftBodySRope.SetProperty<Compute::SoftBody::Desc::CV::SRope>("bool enabled", &Compute::SoftBody::Desc::CV::SRope::Enabled);
@@ -11359,7 +11737,7 @@ namespace Mavi
 				VSoftBodySRope.SetProperty<Compute::SoftBody::Desc::CV::SRope>("vector3 end", &Compute::SoftBody::Desc::CV::SRope::End);
 				VSoftBodySRope.SetConstructor<Compute::SoftBody::Desc::CV::SRope>("void f()");
 
-				TypeClass VSoftBodySPatch = Engine->SetPod<Compute::SoftBody::Desc::CV::SPatch>("physics_softbody_desc_cv_spatch");
+				TypeClass VSoftBodySPatch = *VM->SetPod<Compute::SoftBody::Desc::CV::SPatch>("physics_softbody_desc_cv_spatch");
 				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("bool generate_diagonals", &Compute::SoftBody::Desc::CV::SPatch::GenerateDiagonals);
 				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("bool corner00_fixed", &Compute::SoftBody::Desc::CV::SPatch::Corner00Fixed);
 				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("bool corner10_fixed", &Compute::SoftBody::Desc::CV::SPatch::Corner10Fixed);
@@ -11374,21 +11752,21 @@ namespace Mavi
 				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("vector3 corner11", &Compute::SoftBody::Desc::CV::SPatch::Corner11);
 				VSoftBodySPatch.SetConstructor<Compute::SoftBody::Desc::CV::SPatch>("void f()");
 
-				TypeClass VSoftBodySEllipsoid = Engine->SetPod<Compute::SoftBody::Desc::CV::SEllipsoid>("physics_softbody_desc_cv_sellipsoid");
+				TypeClass VSoftBodySEllipsoid = *VM->SetPod<Compute::SoftBody::Desc::CV::SEllipsoid>("physics_softbody_desc_cv_sellipsoid");
 				VSoftBodySEllipsoid.SetProperty<Compute::SoftBody::Desc::CV::SEllipsoid>("vector3 center", &Compute::SoftBody::Desc::CV::SEllipsoid::Center);
 				VSoftBodySEllipsoid.SetProperty<Compute::SoftBody::Desc::CV::SEllipsoid>("vector3 radius", &Compute::SoftBody::Desc::CV::SEllipsoid::Radius);
 				VSoftBodySEllipsoid.SetProperty<Compute::SoftBody::Desc::CV::SEllipsoid>("int count", &Compute::SoftBody::Desc::CV::SEllipsoid::Count);
 				VSoftBodySEllipsoid.SetProperty<Compute::SoftBody::Desc::CV::SEllipsoid>("bool enabled", &Compute::SoftBody::Desc::CV::SEllipsoid::Enabled);
 				VSoftBodySEllipsoid.SetConstructor<Compute::SoftBody::Desc::CV::SEllipsoid>("void f()");
 
-				TypeClass VSoftBodyCV = Engine->SetPod<Compute::SoftBody::Desc::CV>("physics_softbody_desc_cv");
+				TypeClass VSoftBodyCV = *VM->SetPod<Compute::SoftBody::Desc::CV>("physics_softbody_desc_cv");
 				VSoftBodyCV.SetProperty<Compute::SoftBody::Desc::CV>("physics_softbody_desc_cv_sconvex convex", &Compute::SoftBody::Desc::CV::Convex);
 				VSoftBodyCV.SetProperty<Compute::SoftBody::Desc::CV>("physics_softbody_desc_cv_srope rope", &Compute::SoftBody::Desc::CV::Rope);
 				VSoftBodyCV.SetProperty<Compute::SoftBody::Desc::CV>("physics_softbody_desc_cv_spatch patch", &Compute::SoftBody::Desc::CV::Patch);
 				VSoftBodyCV.SetProperty<Compute::SoftBody::Desc::CV>("physics_softbody_desc_cv_sellipsoid ellipsoid", &Compute::SoftBody::Desc::CV::Ellipsoid);
 				VSoftBodyCV.SetConstructor<Compute::SoftBody::Desc::CV>("void f()");
 
-				TypeClass VSoftBodySConfig = Engine->SetPod<Compute::SoftBody::Desc::SConfig>("physics_softbody_desc_config");
+				TypeClass VSoftBodySConfig = *VM->SetPod<Compute::SoftBody::Desc::SConfig>("physics_softbody_desc_config");
 				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("physics_soft_aero_model aero_model", &Compute::SoftBody::Desc::SConfig::AeroModel);
 				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float vcf", &Compute::SoftBody::Desc::SConfig::VCF);
 				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float dp", &Compute::SoftBody::Desc::SConfig::DP);
@@ -11421,7 +11799,7 @@ namespace Mavi
 				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("int collisions", &Compute::SoftBody::Desc::SConfig::Collisions);
 				VSoftBodySConfig.SetConstructor<Compute::SoftBody::Desc::SConfig>("void f()");
 
-				TypeClass VSoftBodyDesc = Engine->SetPod<Compute::SoftBody::Desc>("physics_softbody_desc");
+				TypeClass VSoftBodyDesc = *VM->SetPod<Compute::SoftBody::Desc>("physics_softbody_desc");
 				VSoftBodyDesc.SetProperty<Compute::SoftBody::Desc>("physics_softbody_desc_cv shape", &Compute::SoftBody::Desc::Shape);
 				VSoftBodyDesc.SetProperty<Compute::SoftBody::Desc>("physics_softbody_desc_config feature", &Compute::SoftBody::Desc::Config);
 				VSoftBodyDesc.SetProperty<Compute::SoftBody::Desc>("float anticipation", &Compute::SoftBody::SoftBody::Desc::Anticipation);
@@ -11430,8 +11808,8 @@ namespace Mavi
 				VSoftBodyDesc.SetProperty<Compute::SoftBody::Desc>("vector3 scale", &Compute::SoftBody::SoftBody::Desc::Scale);
 				VSoftBodyDesc.SetConstructor<Compute::SoftBody::Desc>("void f()");
 
-				RefClass VSoftBody = Engine->SetClass<Compute::SoftBody>("physics_softbody", false);
-				TypeClass VSoftBodyRayCast = Engine->SetPod<Compute::SoftBody::RayCast>("physics_softbody_raycast");
+				RefClass VSoftBody = *VM->SetClass<Compute::SoftBody>("physics_softbody", false);
+				TypeClass VSoftBodyRayCast = *VM->SetPod<Compute::SoftBody::RayCast>("physics_softbody_raycast");
 				VSoftBodyRayCast.SetProperty<Compute::SoftBody::RayCast>("physics_softbody@ body", &Compute::SoftBody::RayCast::Body);
 				VSoftBodyRayCast.SetProperty<Compute::SoftBody::RayCast>("physics_soft_feature feature", &Compute::SoftBody::RayCast::Feature);
 				VSoftBodyRayCast.SetProperty<Compute::SoftBody::RayCast>("float fraction", &Compute::SoftBody::RayCast::Fraction);
@@ -11525,7 +11903,7 @@ namespace Mavi
 				VSoftBody.SetMethod("physics_softbody_desc& get_initial_state()", &Compute::SoftBody::GetInitialState);
 				VSoftBody.SetMethod("physics_simulator@+ get_simulator() const", &Compute::SoftBody::GetSimulator);
 
-				RefClass VConstraint = Engine->SetClass<Compute::Constraint>("physics_constraint", false);
+				RefClass VConstraint = *VM->SetClass<Compute::Constraint>("physics_constraint", false);
 				VConstraint.SetMethod("physics_constraint@ copy() const", &Compute::Constraint::Copy);
 				VConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::Constraint::GetSimulator);
 				VConstraint.SetMethod("uptr@ get() const", &Compute::Constraint::Get);
@@ -11538,7 +11916,7 @@ namespace Mavi
 				VConstraint.SetMethod("void set_enabled(bool)", &Compute::Constraint::SetEnabled);
 				VConstraint.SetMethod("float get_breaking_impulse_threshold() const", &Compute::Constraint::GetBreakingImpulseThreshold);
 
-				TypeClass VPConstraintDesc = Engine->SetPod<Compute::PConstraint::Desc>("physics_pconstraint_desc");
+				TypeClass VPConstraintDesc = *VM->SetPod<Compute::PConstraint::Desc>("physics_pconstraint_desc");
 				VPConstraintDesc.SetProperty<Compute::PConstraint::Desc>("physics_rigidbody@ target_a", &Compute::PConstraint::Desc::TargetA);
 				VPConstraintDesc.SetProperty<Compute::PConstraint::Desc>("physics_rigidbody@ target_b", &Compute::PConstraint::Desc::TargetB);
 				VPConstraintDesc.SetProperty<Compute::PConstraint::Desc>("vector3 pivot_a", &Compute::PConstraint::Desc::PivotA);
@@ -11546,7 +11924,7 @@ namespace Mavi
 				VPConstraintDesc.SetProperty<Compute::PConstraint::Desc>("bool collisions", &Compute::PConstraint::Desc::Collisions);
 				VPConstraintDesc.SetConstructor<Compute::PConstraint::Desc>("void f()");
 
-				RefClass VPConstraint = Engine->SetClass<Compute::PConstraint>("physics_pconstraint", false);
+				RefClass VPConstraint = *VM->SetClass<Compute::PConstraint>("physics_pconstraint", false);
 				VPConstraint.SetMethod("physics_pconstraint@ copy() const", &Compute::PConstraint::Copy);
 				VPConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::PConstraint::GetSimulator);
 				VPConstraint.SetMethod("uptr@ get() const", &Compute::PConstraint::Get);
@@ -11564,14 +11942,14 @@ namespace Mavi
 				VPConstraint.SetMethod("vector3 get_pivot_b() const", &Compute::PConstraint::GetPivotB);
 				VPConstraint.SetMethod("physics_pconstraint_desc get_state() const", &Compute::PConstraint::GetState);
 
-				TypeClass VHConstraintDesc = Engine->SetPod<Compute::HConstraint::Desc>("physics_hconstraint_desc");
+				TypeClass VHConstraintDesc = *VM->SetPod<Compute::HConstraint::Desc>("physics_hconstraint_desc");
 				VHConstraintDesc.SetProperty<Compute::HConstraint::Desc>("physics_rigidbody@ target_a", &Compute::HConstraint::Desc::TargetA);
 				VHConstraintDesc.SetProperty<Compute::HConstraint::Desc>("physics_rigidbody@ target_b", &Compute::HConstraint::Desc::TargetB);
 				VHConstraintDesc.SetProperty<Compute::HConstraint::Desc>("bool references", &Compute::HConstraint::Desc::References);
 				VHConstraintDesc.SetProperty<Compute::HConstraint::Desc>("bool collisions", &Compute::HConstraint::Desc::Collisions);
 				VPConstraintDesc.SetConstructor<Compute::HConstraint::Desc>("void f()");
 
-				RefClass VHConstraint = Engine->SetClass<Compute::HConstraint>("physics_hconstraint", false);
+				RefClass VHConstraint = *VM->SetClass<Compute::HConstraint>("physics_hconstraint", false);
 				VHConstraint.SetMethod("physics_hconstraint@ copy() const", &Compute::HConstraint::Copy);
 				VHConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::HConstraint::GetSimulator);
 				VHConstraint.SetMethod("uptr@ get() const", &Compute::HConstraint::Get);
@@ -11613,14 +11991,14 @@ namespace Mavi
 				VHConstraint.SetMethod("bool is_angular_motor_enabled() const", &Compute::HConstraint::IsAngularMotorEnabled);
 				VHConstraint.SetMethod("physics_hconstraint_desc& get_state()", &Compute::HConstraint::GetState);
 
-				TypeClass VSConstraintDesc = Engine->SetPod<Compute::SConstraint::Desc>("physics_sconstraint_desc");
+				TypeClass VSConstraintDesc = *VM->SetPod<Compute::SConstraint::Desc>("physics_sconstraint_desc");
 				VSConstraintDesc.SetProperty<Compute::SConstraint::Desc>("physics_rigidbody@ target_a", &Compute::SConstraint::Desc::TargetA);
 				VSConstraintDesc.SetProperty<Compute::SConstraint::Desc>("physics_rigidbody@ target_b", &Compute::SConstraint::Desc::TargetB);
 				VSConstraintDesc.SetProperty<Compute::SConstraint::Desc>("bool linear", &Compute::SConstraint::Desc::Linear);
 				VSConstraintDesc.SetProperty<Compute::SConstraint::Desc>("bool collisions", &Compute::SConstraint::Desc::Collisions);
 				VSConstraintDesc.SetConstructor<Compute::SConstraint::Desc>("void f()");
 
-				RefClass VSConstraint = Engine->SetClass<Compute::SConstraint>("physics_sconstraint", false);
+				RefClass VSConstraint = *VM->SetClass<Compute::SConstraint>("physics_sconstraint", false);
 				VSConstraint.SetMethod("physics_sconstraint@ copy() const", &Compute::SConstraint::Copy);
 				VSConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::SConstraint::GetSimulator);
 				VSConstraint.SetMethod("uptr@ get() const", &Compute::SConstraint::Get);
@@ -11690,13 +12068,13 @@ namespace Mavi
 				VSConstraint.SetMethod("bool get_powered_linear_motor() const", &Compute::SConstraint::GetPoweredLinearMotor);
 				VSConstraint.SetMethod("physics_sconstraint_desc& get_state()", &Compute::SConstraint::GetState);
 
-				TypeClass VCTConstraintDesc = Engine->SetPod<Compute::CTConstraint::Desc>("physics_ctconstraint_desc");
+				TypeClass VCTConstraintDesc = *VM->SetPod<Compute::CTConstraint::Desc>("physics_ctconstraint_desc");
 				VCTConstraintDesc.SetProperty<Compute::CTConstraint::Desc>("physics_rigidbody@ target_a", &Compute::CTConstraint::Desc::TargetA);
 				VCTConstraintDesc.SetProperty<Compute::CTConstraint::Desc>("physics_rigidbody@ target_b", &Compute::CTConstraint::Desc::TargetB);
 				VCTConstraintDesc.SetProperty<Compute::CTConstraint::Desc>("bool collisions", &Compute::CTConstraint::Desc::Collisions);
 				VCTConstraintDesc.SetConstructor<Compute::CTConstraint::Desc>("void f()");
 
-				RefClass VCTConstraint = Engine->SetClass<Compute::CTConstraint>("physics_ctconstraint", false);
+				RefClass VCTConstraint = *VM->SetClass<Compute::CTConstraint>("physics_ctconstraint", false);
 				VCTConstraint.SetMethod("physics_ctconstraint@ copy() const", &Compute::CTConstraint::Copy);
 				VCTConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::CTConstraint::GetSimulator);
 				VCTConstraint.SetMethod("uptr@ get() const", &Compute::CTConstraint::Get);
@@ -11741,13 +12119,13 @@ namespace Mavi
 				VCTConstraint.SetMethod("bool is_angular_only() const", &Compute::CTConstraint::IsAngularOnly);
 				VCTConstraint.SetMethod("physics_ctconstraint_desc& get_state()", &Compute::CTConstraint::GetState);
 
-				TypeClass VDF6ConstraintDesc = Engine->SetPod<Compute::DF6Constraint::Desc>("physics_df6constraint_desc");
+				TypeClass VDF6ConstraintDesc = *VM->SetPod<Compute::DF6Constraint::Desc>("physics_df6constraint_desc");
 				VDF6ConstraintDesc.SetProperty<Compute::DF6Constraint::Desc>("physics_rigidbody@ target_a", &Compute::DF6Constraint::Desc::TargetA);
 				VDF6ConstraintDesc.SetProperty<Compute::DF6Constraint::Desc>("physics_rigidbody@ target_b", &Compute::DF6Constraint::Desc::TargetB);
 				VDF6ConstraintDesc.SetProperty<Compute::DF6Constraint::Desc>("bool collisions", &Compute::DF6Constraint::Desc::Collisions);
 				VDF6ConstraintDesc.SetConstructor<Compute::DF6Constraint::Desc>("void f()");
 
-				RefClass VDF6Constraint = Engine->SetClass<Compute::DF6Constraint>("physics_df6constraint", false);
+				RefClass VDF6Constraint = *VM->SetClass<Compute::DF6Constraint>("physics_df6constraint", false);
 				VDF6Constraint.SetMethod("physics_df6constraint@ copy() const", &Compute::DF6Constraint::Copy);
 				VDF6Constraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::DF6Constraint::GetSimulator);
 				VDF6Constraint.SetMethod("uptr@ get() const", &Compute::DF6Constraint::Get);
@@ -11794,7 +12172,7 @@ namespace Mavi
 				VDF6Constraint.SetMethod("bool is_limited(int) const", &Compute::DF6Constraint::IsLimited);
 				VDF6Constraint.SetMethod("physics_df6constraint_desc& get_state()", &Compute::DF6Constraint::GetState);
 
-				TypeClass VSimulatorDesc = Engine->SetPod<Compute::Simulator::Desc>("physics_simulator_desc");
+				TypeClass VSimulatorDesc = *VM->SetPod<Compute::Simulator::Desc>("physics_simulator_desc");
 				VSimulatorDesc.SetProperty<Compute::Simulator::Desc>("vector3 water_normal", &Compute::Simulator::Desc::WaterNormal);
 				VSimulatorDesc.SetProperty<Compute::Simulator::Desc>("vector3 gravity", &Compute::Simulator::Desc::Gravity);
 				VSimulatorDesc.SetProperty<Compute::Simulator::Desc>("float air_density", &Compute::Simulator::Desc::AirDensity);
@@ -11876,13 +12254,13 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportAudio(VirtualMachine* Engine)
+			bool Registry::ImportAudio(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
+				VI_ASSERT(VM != nullptr, "manager should be set");
 				VI_TYPEREF(AudioSource, "audio_source");
 
-				Enumeration VSoundDistanceModel = Engine->SetEnum("sound_distance_model");
+				Enumeration VSoundDistanceModel = *VM->SetEnum("sound_distance_model");
 				VSoundDistanceModel.SetValue("invalid", (int)Audio::SoundDistanceModel::Invalid);
 				VSoundDistanceModel.SetValue("invert", (int)Audio::SoundDistanceModel::Invert);
 				VSoundDistanceModel.SetValue("invert_clamp", (int)Audio::SoundDistanceModel::Invert_Clamp);
@@ -11891,7 +12269,7 @@ namespace Mavi
 				VSoundDistanceModel.SetValue("exponent", (int)Audio::SoundDistanceModel::Exponent);
 				VSoundDistanceModel.SetValue("exponent_clamp", (int)Audio::SoundDistanceModel::Exponent_Clamp);
 
-				Enumeration VSoundEx = Engine->SetEnum("sound_ex");
+				Enumeration VSoundEx = *VM->SetEnum("sound_ex");
 				VSoundEx.SetValue("source_relative", (int)Audio::SoundEx::Source_Relative);
 				VSoundEx.SetValue("cone_inner_angle", (int)Audio::SoundEx::Cone_Inner_Angle);
 				VSoundEx.SetValue("cone_outer_angle", (int)Audio::SoundEx::Cone_Outer_Angle);
@@ -11950,7 +12328,7 @@ namespace Mavi
 				VSoundEx.SetValue("doppler_velocity", (int)Audio::SoundEx::Doppler_Velocity);
 				VSoundEx.SetValue("speed_of_sound", (int)Audio::SoundEx::Speed_Of_Sound);
 
-				TypeClass VAudioSync = Engine->SetPod<Audio::AudioSync>("audio_sync");
+				TypeClass VAudioSync = *VM->SetPod<Audio::AudioSync>("audio_sync");
 				VAudioSync.SetProperty<Audio::AudioSync>("vector3 direction", &Audio::AudioSync::Direction);
 				VAudioSync.SetProperty<Audio::AudioSync>("vector3 velocity", &Audio::AudioSync::Velocity);
 				VAudioSync.SetProperty<Audio::AudioSync>("float cone_inner_angle", &Audio::AudioSync::ConeInnerAngle);
@@ -11968,35 +12346,35 @@ namespace Mavi
 				VAudioSync.SetProperty<Audio::AudioSync>("bool is_looped", &Audio::AudioSync::IsLooped);
 				VAudioSync.SetConstructor<Audio::AudioSync>("void f()");
 
-				Engine->BeginNamespace("audio_context");
-				Engine->SetFunction("void initialize()", Audio::AudioContext::Initialize);
-				Engine->SetFunction("void generate_buffers(int32, uint32 &out)", Audio::AudioContext::GenerateBuffers);
-				Engine->SetFunction("void set_source_data_3f(uint32, sound_ex, float, float, float)", Audio::AudioContext::SetSourceData3F);
-				Engine->SetFunction("void get_source_data_3f(uint32, sound_ex, float &out, float &out, float &out)", Audio::AudioContext::GetSourceData3F);
-				Engine->SetFunction("void set_source_data_1f(uint32, sound_ex, float)", Audio::AudioContext::SetSourceData1F);
-				Engine->SetFunction("void get_source_data_1f(uint32, sound_ex, float &out)", Audio::AudioContext::GetSourceData1F);
-				Engine->SetFunction("void set_source_data_3i(uint32, sound_ex, int32, int32, int32)", Audio::AudioContext::SetSourceData3I);
-				Engine->SetFunction("void get_source_data_3i(uint32, sound_ex, int32 &out, int32 &out, int32 &out)", Audio::AudioContext::GetSourceData3I);
-				Engine->SetFunction("void set_source_data_1i(uint32, sound_ex, int32)", Audio::AudioContext::SetSourceData1I);
-				Engine->SetFunction("void get_source_data_1i(uint32, sound_ex, int32 &out)", Audio::AudioContext::GetSourceData1I);
-				Engine->SetFunction("void set_listener_data_3f(sound_ex, float, float, float)", Audio::AudioContext::SetListenerData3F);
-				Engine->SetFunction("void get_listener_data_3f(sound_ex, float &out, float &out, float &out)", Audio::AudioContext::GetListenerData3F);
-				Engine->SetFunction("void set_listener_data_1f(sound_ex, float)", Audio::AudioContext::SetListenerData1F);
-				Engine->SetFunction("void get_listener_data_1f(sound_ex, float &out)", Audio::AudioContext::GetListenerData1F);
-				Engine->SetFunction("void set_listener_data_3i(sound_ex, int32, int32, int32)", Audio::AudioContext::SetListenerData3I);
-				Engine->SetFunction("void get_listener_data_3i(sound_ex, int32 &out, int32 &out, int32 &out)", Audio::AudioContext::GetListenerData3I);
-				Engine->SetFunction("void set_listener_data_1i(sound_ex, int32)", Audio::AudioContext::SetListenerData1I);
-				Engine->SetFunction("void get_listener_data_1i(sound_ex, int32 &out)", Audio::AudioContext::GetListenerData1I);
-				Engine->EndNamespace();
+				VM->BeginNamespace("audio_context");
+				VM->SetFunction("void initialize()", Audio::AudioContext::Initialize);
+				VM->SetFunction("void generate_buffers(int32, uint32 &out)", Audio::AudioContext::GenerateBuffers);
+				VM->SetFunction("void set_source_data_3f(uint32, sound_ex, float, float, float)", Audio::AudioContext::SetSourceData3F);
+				VM->SetFunction("void get_source_data_3f(uint32, sound_ex, float &out, float &out, float &out)", Audio::AudioContext::GetSourceData3F);
+				VM->SetFunction("void set_source_data_1f(uint32, sound_ex, float)", Audio::AudioContext::SetSourceData1F);
+				VM->SetFunction("void get_source_data_1f(uint32, sound_ex, float &out)", Audio::AudioContext::GetSourceData1F);
+				VM->SetFunction("void set_source_data_3i(uint32, sound_ex, int32, int32, int32)", Audio::AudioContext::SetSourceData3I);
+				VM->SetFunction("void get_source_data_3i(uint32, sound_ex, int32 &out, int32 &out, int32 &out)", Audio::AudioContext::GetSourceData3I);
+				VM->SetFunction("void set_source_data_1i(uint32, sound_ex, int32)", Audio::AudioContext::SetSourceData1I);
+				VM->SetFunction("void get_source_data_1i(uint32, sound_ex, int32 &out)", Audio::AudioContext::GetSourceData1I);
+				VM->SetFunction("void set_listener_data_3f(sound_ex, float, float, float)", Audio::AudioContext::SetListenerData3F);
+				VM->SetFunction("void get_listener_data_3f(sound_ex, float &out, float &out, float &out)", Audio::AudioContext::GetListenerData3F);
+				VM->SetFunction("void set_listener_data_1f(sound_ex, float)", Audio::AudioContext::SetListenerData1F);
+				VM->SetFunction("void get_listener_data_1f(sound_ex, float &out)", Audio::AudioContext::GetListenerData1F);
+				VM->SetFunction("void set_listener_data_3i(sound_ex, int32, int32, int32)", Audio::AudioContext::SetListenerData3I);
+				VM->SetFunction("void get_listener_data_3i(sound_ex, int32 &out, int32 &out, int32 &out)", Audio::AudioContext::GetListenerData3I);
+				VM->SetFunction("void set_listener_data_1i(sound_ex, int32)", Audio::AudioContext::SetListenerData1I);
+				VM->SetFunction("void get_listener_data_1i(sound_ex, int32 &out)", Audio::AudioContext::GetListenerData1I);
+				VM->EndNamespace();
 
-				RefClass VAudioSource = Engine->SetClass<Audio::AudioSource>("audio_source", true);
-				RefClass VAudioFilter = Engine->SetClass<Audio::AudioFilter>("base_audio_filter", false);
+				RefClass VAudioSource = *VM->SetClass<Audio::AudioSource>("audio_source", true);
+				RefClass VAudioFilter = *VM->SetClass<Audio::AudioFilter>("base_audio_filter", false);
 				PopulateAudioFilterBase<Audio::AudioFilter>(VAudioFilter);
 
-				RefClass VAudioEffect = Engine->SetClass<Audio::AudioEffect>("base_audio_effect", false);
+				RefClass VAudioEffect = *VM->SetClass<Audio::AudioEffect>("base_audio_effect", false);
 				PopulateAudioEffectBase<Audio::AudioEffect>(VAudioEffect);
 
-				RefClass VAudioClip = Engine->SetClass<Audio::AudioClip>("audio_clip", false);
+				RefClass VAudioClip = *VM->SetClass<Audio::AudioClip>("audio_clip", false);
 				VAudioClip.SetConstructor<Audio::AudioClip, int, int>("audio_clip@ f(int, int)");
 				VAudioClip.SetMethod("float length() const", &Audio::AudioClip::Length);
 				VAudioClip.SetMethod("bool is_mono() const", &Audio::AudioClip::IsMono);
@@ -12018,17 +12396,17 @@ namespace Mavi
 				VAudioSource.SetMethod("uint32 get_instance() const", &Audio::AudioSource::GetInstance);
 				VAudioSource.SetMethod("audio_clip@+ get_clip() const", &Audio::AudioSource::GetClip);
 				VAudioSource.SetMethod<Audio::AudioSource, Audio::AudioEffect*, uint64_t>("base_audio_effect@+ get_effect(uint64) const", &Audio::AudioSource::GetEffect);
-				VAudioSource.SetEnumRefsEx<Audio::AudioSource>([](Audio::AudioSource* Base, asIScriptEngine* Engine)
+				VAudioSource.SetEnumRefsEx<Audio::AudioSource>([](Audio::AudioSource* Base, asIScriptEngine* VM)
 				{
 					for (auto* Item : Base->GetEffects())
-						Engine->GCEnumCallback(Item);
+						FunctionFactory::GCEnumCallback(VM, Item);
 				});
 				VAudioSource.SetReleaseRefsEx<Audio::AudioSource>([](Audio::AudioSource* Base, asIScriptEngine*)
 				{
 					Base->RemoveEffects();
 				});
 
-				RefClass VAudioDevice = Engine->SetClass<Audio::AudioDevice>("audio_device", false);
+				RefClass VAudioDevice = *VM->SetClass<Audio::AudioDevice>("audio_device", false);
 				VAudioDevice.SetConstructor<Audio::AudioDevice>("audio_device@ f()");
 				VAudioDevice.SetMethod("void offset(audio_source@+, float &out, bool)", &Audio::AudioDevice::Offset);
 				VAudioDevice.SetMethod("void velocity(audio_source@+, vector3 &out, bool)", &Audio::AudioDevice::Velocity);
@@ -12047,19 +12425,17 @@ namespace Mavi
 				VAudioDevice.SetMethod("void set_exception_codes(int32 &out, int32 &out) const", &Audio::AudioDevice::GetExceptionCodes);
 				VAudioDevice.SetMethod("bool is_valid() const", &Audio::AudioDevice::IsValid);
 
-				Engine->SetFunction("uint64 component_id(const string &in)", &Core::OS::File::GetHash);
-
 				return true;
 #else
 				VI_ASSERT(false, "<audio> is not loaded");
 				return false;
 #endif
 			}
-			bool Registry::ImportActivity(VirtualMachine* Engine)
+			bool Registry::ImportActivity(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				Enumeration VAppState = Engine->SetEnum("app_state");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				Enumeration VAppState = *VM->SetEnum("app_state");
 				VAppState.SetValue("close_window", (int)Graphics::AppState::Close_Window);
 				VAppState.SetValue("terminating", (int)Graphics::AppState::Terminating);
 				VAppState.SetValue("low_memory", (int)Graphics::AppState::Low_Memory);
@@ -12068,7 +12444,7 @@ namespace Mavi
 				VAppState.SetValue("enter_foreground_start", (int)Graphics::AppState::Enter_Foreground_Start);
 				VAppState.SetValue("enter_foreground_end", (int)Graphics::AppState::Enter_Foreground_End);
 
-				Enumeration VWindowState = Engine->SetEnum("window_state");
+				Enumeration VWindowState = *VM->SetEnum("window_state");
 				VWindowState.SetValue("show", (int)Graphics::WindowState::Show);
 				VWindowState.SetValue("hide", (int)Graphics::WindowState::Hide);
 				VWindowState.SetValue("expose", (int)Graphics::WindowState::Expose);
@@ -12084,7 +12460,7 @@ namespace Mavi
 				VWindowState.SetValue("blur", (int)Graphics::WindowState::Blur);
 				VWindowState.SetValue("close", (int)Graphics::WindowState::Close);
 
-				Enumeration VKeyCode = Engine->SetEnum("key_code");
+				Enumeration VKeyCode = *VM->SetEnum("key_code");
 				VKeyCode.SetValue("a", (int)Graphics::KeyCode::A);
 				VKeyCode.SetValue("b", (int)Graphics::KeyCode::B);
 				VKeyCode.SetValue("c", (int)Graphics::KeyCode::C);
@@ -12334,7 +12710,7 @@ namespace Mavi
 				VKeyCode.SetValue("cursor_x2", (int)Graphics::KeyCode::CursorX2);
 				VKeyCode.SetValue("none", (int)Graphics::KeyCode::None);
 
-				Enumeration VKeyMod = Engine->SetEnum("key_mod");
+				Enumeration VKeyMod = *VM->SetEnum("key_mod");
 				VKeyMod.SetValue("none", (int)Graphics::KeyMod::None);
 				VKeyMod.SetValue("left_shift", (int)Graphics::KeyMod::LeftShift);
 				VKeyMod.SetValue("right_shift", (int)Graphics::KeyMod::RightShift);
@@ -12353,18 +12729,18 @@ namespace Mavi
 				VKeyMod.SetValue("alt", (int)Graphics::KeyMod::Alt);
 				VKeyMod.SetValue("gui", (int)Graphics::KeyMod::GUI);
 
-				Enumeration VAlertType = Engine->SetEnum("alert_type");
+				Enumeration VAlertType = *VM->SetEnum("alert_type");
 				VAlertType.SetValue("none", (int)Graphics::AlertType::None);
 				VAlertType.SetValue("error", (int)Graphics::AlertType::Error);
 				VAlertType.SetValue("warning", (int)Graphics::AlertType::Warning);
 				VAlertType.SetValue("info", (int)Graphics::AlertType::Info);
 
-				Enumeration VAlertConfirm = Engine->SetEnum("alert_confirm");
+				Enumeration VAlertConfirm = *VM->SetEnum("alert_confirm");
 				VAlertConfirm.SetValue("none", (int)Graphics::AlertConfirm::None);
 				VAlertConfirm.SetValue("returns", (int)Graphics::AlertConfirm::Return);
 				VAlertConfirm.SetValue("escape", (int)Graphics::AlertConfirm::Escape);
 
-				Enumeration VJoyStickHat = Engine->SetEnum("joy_stick_hat");
+				Enumeration VJoyStickHat = *VM->SetEnum("joy_stick_hat");
 				VJoyStickHat.SetValue("center", (int)Graphics::JoyStickHat::Center);
 				VJoyStickHat.SetValue("up", (int)Graphics::JoyStickHat::Up);
 				VJoyStickHat.SetValue("right", (int)Graphics::JoyStickHat::Right);
@@ -12375,13 +12751,13 @@ namespace Mavi
 				VJoyStickHat.SetValue("left_up", (int)Graphics::JoyStickHat::Left_Up);
 				VJoyStickHat.SetValue("left_down", (int)Graphics::JoyStickHat::Left_Down);
 
-				Enumeration VRenderBackend = Engine->SetEnum("render_backend");
+				Enumeration VRenderBackend = *VM->SetEnum("render_backend");
 				VRenderBackend.SetValue("none", (int)Graphics::RenderBackend::None);
 				VRenderBackend.SetValue("automatic", (int)Graphics::RenderBackend::Automatic);
 				VRenderBackend.SetValue("d3d11", (int)Graphics::RenderBackend::D3D11);
 				VRenderBackend.SetValue("ogl", (int)Graphics::RenderBackend::OGL);
 
-				Enumeration VDisplayCursor = Engine->SetEnum("display_cursor");
+				Enumeration VDisplayCursor = *VM->SetEnum("display_cursor");
 				VDisplayCursor.SetValue("none", (int)Graphics::DisplayCursor::None);
 				VDisplayCursor.SetValue("arrow", (int)Graphics::DisplayCursor::Arrow);
 				VDisplayCursor.SetValue("text_input", (int)Graphics::DisplayCursor::TextInput);
@@ -12396,7 +12772,7 @@ namespace Mavi
 				VDisplayCursor.SetValue("progress", (int)Graphics::DisplayCursor::Progress);
 				VDisplayCursor.SetValue("no", (int)Graphics::DisplayCursor::No);
 
-				TypeClass VKeyMap = Engine->SetPod<Graphics::KeyMap>("key_map");
+				TypeClass VKeyMap = *VM->SetPod<Graphics::KeyMap>("key_map");
 				VKeyMap.SetProperty<Graphics::KeyMap>("key_code key", &Graphics::KeyMap::Key);
 				VKeyMap.SetProperty<Graphics::KeyMap>("key_mod Mod", &Graphics::KeyMap::Mod);
 				VKeyMap.SetProperty<Graphics::KeyMap>("bool Normal", &Graphics::KeyMap::Normal);
@@ -12405,7 +12781,7 @@ namespace Mavi
 				VKeyMap.SetConstructor<Graphics::KeyMap, const Graphics::KeyMod&>("void f(const key_mod &in)");
 				VKeyMap.SetConstructor<Graphics::KeyMap, const Graphics::KeyCode&, const Graphics::KeyMod&>("void f(const key_code &in, const key_mod &in)");
 
-				TypeClass VViewport = Engine->SetPod<Graphics::Viewport>("viewport");
+				TypeClass VViewport = *VM->SetPod<Graphics::Viewport>("viewport");
 				VViewport.SetProperty<Graphics::Viewport>("float top_left_x", &Graphics::Viewport::TopLeftX);
 				VViewport.SetProperty<Graphics::Viewport>("float top_left_y", &Graphics::Viewport::TopLeftY);
 				VViewport.SetProperty<Graphics::Viewport>("float width", &Graphics::Viewport::Width);
@@ -12414,15 +12790,15 @@ namespace Mavi
 				VViewport.SetProperty<Graphics::Viewport>("float max_depth", &Graphics::Viewport::MaxDepth);
 				VViewport.SetConstructor<Graphics::Viewport>("void f()");
 
-				RefClass VActivity = Engine->SetClass<Graphics::Activity>("activity", false);
-				TypeClass VAlert = Engine->SetStructTrivial<Graphics::Alert>("activity_alert");
+				RefClass VActivity = *VM->SetClass<Graphics::Activity>("activity", false);
+				TypeClass VAlert = *VM->SetStructTrivial<Graphics::Alert>("activity_alert");
 				VAlert.SetFunctionDef("void alert_event(int)");
 				VAlert.SetConstructor<Graphics::Alert, Graphics::Activity*>("void f(activity@+)");
 				VAlert.SetMethod("void setup(alert_type, const string &in, const string &in)", &Graphics::Alert::Setup);
 				VAlert.SetMethod("void button(alert_confirm, const string &in, int32)", &Graphics::Alert::Button);
-				VAlert.SetMethodEx("void result(alert_event@+)", &AlertResult);
+				VAlert.SetMethodEx("void result(alert_event@)", &AlertResult);
 
-				RefClass VSurface = Engine->SetClass<Graphics::Surface>("activity_surface", false);
+				RefClass VSurface = *VM->SetClass<Graphics::Surface>("activity_surface", false);
 				VSurface.SetConstructor<Graphics::Surface>("activity_surface@ f()");
 				VSurface.SetConstructor<Graphics::Surface, SDL_Surface*>("activity_surface@ f(uptr@)");
 				VSurface.SetMethod("void set_handle(uptr@)", &Graphics::Surface::SetHandle);
@@ -12434,7 +12810,7 @@ namespace Mavi
 				VSurface.SetMethod("uptr@ get_pixels()", &Graphics::Surface::GetPixels);
 				VSurface.SetMethod("uptr@ get_resource()", &Graphics::Surface::GetResource);
 
-				TypeClass VActivityDesc = Engine->SetPod<Graphics::Activity::Desc>("activity_desc");
+				TypeClass VActivityDesc = *VM->SetPod<Graphics::Activity::Desc>("activity_desc");
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("string title", &Graphics::Activity::Desc::Title);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("uint32 width", &Graphics::Activity::Desc::Width);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("uint32 height", &Graphics::Activity::Desc::Height);
@@ -12478,27 +12854,27 @@ namespace Mavi
 				VActivity.SetFunctionDef("void multi_gesture_state_event(int, int, float, float, float, float)");
 				VActivity.SetFunctionDef("void drop_file_event(const string &in)");
 				VActivity.SetFunctionDef("void drop_text_event(const string &in)");
-				VActivity.SetMethodEx("void set_app_state_change(app_state_change_event@+)", &ActivitySetAppStateChange);
-				VActivity.SetMethodEx("void set_window_state_change(window_state_change_event@+)", &ActivitySetWindowStateChange);
-				VActivity.SetMethodEx("void set_key_state(key_state_event@+)", &ActivitySetKeyState);
-				VActivity.SetMethodEx("void set_input_edit(input_edit_event@+)", &ActivitySetInputEdit);
-				VActivity.SetMethodEx("void set_input(input_event@+)", &ActivitySetInput);
-				VActivity.SetMethodEx("void set_cursor_move(cursor_move_event@+)", &ActivitySetCursorMove);
-				VActivity.SetMethodEx("void set_cursor_wheel_state(cursor_wheel_state_event@+)", &ActivitySetCursorWheelState);
-				VActivity.SetMethodEx("void set_joy_stick_axis_move(joy_stick_axis_move_event@+)", &ActivitySetJoyStickAxisMove);
-				VActivity.SetMethodEx("void set_joy_stick_ball_move(joy_stick_ball_move_event@+)", &ActivitySetJoyStickBallMove);
-				VActivity.SetMethodEx("void set_joy_stick_hat_move(joy_stick_hat_move_event@+)", &ActivitySetJoyStickHatMove);
-				VActivity.SetMethodEx("void set_joy_stickKeyState(joy_stick_key_state_event@+)", &ActivitySetJoyStickKeyState);
-				VActivity.SetMethodEx("void set_joy_stickState(joy_stick_state_event@+)", &ActivitySetJoyStickState);
-				VActivity.SetMethodEx("void set_controller_axis_move(controller_axis_move_event@+)", &ActivitySetControllerAxisMove);
-				VActivity.SetMethodEx("void set_controller_key_state(controller_key_state_event@+)", &ActivitySetControllerKeyState);
-				VActivity.SetMethodEx("void set_controller_state(controller_state_event@+)", &ActivitySetControllerState);
-				VActivity.SetMethodEx("void set_touch_move(touch_move_event@+)", &ActivitySetTouchMove);
-				VActivity.SetMethodEx("void set_touch_state(touch_state_event@+)", &ActivitySetTouchState);
-				VActivity.SetMethodEx("void set_gesture_state(gesture_state_event@+)", &ActivitySetGestureState);
-				VActivity.SetMethodEx("void set_multi_gesture_state(multi_gesture_state_event@+)", &ActivitySetMultiGestureState);
-				VActivity.SetMethodEx("void set_drop_file(drop_file_event@+)", &ActivitySetDropFile);
-				VActivity.SetMethodEx("void set_drop_text(drop_text_event@+)", &ActivitySetDropText);
+				VActivity.SetMethodEx("void set_app_state_change(app_state_change_event@)", &ActivitySetAppStateChange);
+				VActivity.SetMethodEx("void set_window_state_change(window_state_change_event@)", &ActivitySetWindowStateChange);
+				VActivity.SetMethodEx("void set_key_state(key_state_event@)", &ActivitySetKeyState);
+				VActivity.SetMethodEx("void set_input_edit(input_edit_event@)", &ActivitySetInputEdit);
+				VActivity.SetMethodEx("void set_input(input_event@)", &ActivitySetInput);
+				VActivity.SetMethodEx("void set_cursor_move(cursor_move_event@)", &ActivitySetCursorMove);
+				VActivity.SetMethodEx("void set_cursor_wheel_state(cursor_wheel_state_event@)", &ActivitySetCursorWheelState);
+				VActivity.SetMethodEx("void set_joy_stick_axis_move(joy_stick_axis_move_event@)", &ActivitySetJoyStickAxisMove);
+				VActivity.SetMethodEx("void set_joy_stick_ball_move(joy_stick_ball_move_event@)", &ActivitySetJoyStickBallMove);
+				VActivity.SetMethodEx("void set_joy_stick_hat_move(joy_stick_hat_move_event@)", &ActivitySetJoyStickHatMove);
+				VActivity.SetMethodEx("void set_joy_stickKeyState(joy_stick_key_state_event@)", &ActivitySetJoyStickKeyState);
+				VActivity.SetMethodEx("void set_joy_stickState(joy_stick_state_event@)", &ActivitySetJoyStickState);
+				VActivity.SetMethodEx("void set_controller_axis_move(controller_axis_move_event@)", &ActivitySetControllerAxisMove);
+				VActivity.SetMethodEx("void set_controller_key_state(controller_key_state_event@)", &ActivitySetControllerKeyState);
+				VActivity.SetMethodEx("void set_controller_state(controller_state_event@)", &ActivitySetControllerState);
+				VActivity.SetMethodEx("void set_touch_move(touch_move_event@)", &ActivitySetTouchMove);
+				VActivity.SetMethodEx("void set_touch_state(touch_state_event@)", &ActivitySetTouchState);
+				VActivity.SetMethodEx("void set_gesture_state(gesture_state_event@)", &ActivitySetGestureState);
+				VActivity.SetMethodEx("void set_multi_gesture_state(multi_gesture_state_event@)", &ActivitySetMultiGestureState);
+				VActivity.SetMethodEx("void set_drop_file(drop_file_event@)", &ActivitySetDropFile);
+				VActivity.SetMethodEx("void set_drop_text(drop_text_event@)", &ActivitySetDropText);
 				VActivity.SetMethod("void set_clipboard_text(const string &in)", &Graphics::Activity::SetClipboardText);
 				VActivity.SetMethod<Graphics::Activity, void, const Compute::Vector2&>("void set_cursor_position(const vector2 &in)", &Graphics::Activity::SetCursorPosition);
 				VActivity.SetMethod<Graphics::Activity, void, float, float>("void set_cursor_position(float, float)", &Graphics::Activity::SetCursorPosition);
@@ -12554,11 +12930,11 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportGraphics(VirtualMachine* Engine)
+			bool Registry::ImportGraphics(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				Enumeration VVSync = Engine->SetEnum("vsync");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				Enumeration VVSync = *VM->SetEnum("vsync");
 				VVSync.SetValue("off", (int)Graphics::VSync::Off);
 				VVSync.SetValue("frequency_x1", (int)Graphics::VSync::Frequency_X1);
 				VVSync.SetValue("frequency_x2", (int)Graphics::VSync::Frequency_X2);
@@ -12566,7 +12942,7 @@ namespace Mavi
 				VVSync.SetValue("frequency_x4", (int)Graphics::VSync::Frequency_X4);
 				VVSync.SetValue("on", (int)Graphics::VSync::On);
 
-				Enumeration VSurfaceTarget = Engine->SetEnum("surface_target");
+				Enumeration VSurfaceTarget = *VM->SetEnum("surface_target");
 				VSurfaceTarget.SetValue("t0", (int)Graphics::SurfaceTarget::T0);
 				VSurfaceTarget.SetValue("t1", (int)Graphics::SurfaceTarget::T1);
 				VSurfaceTarget.SetValue("t2", (int)Graphics::SurfaceTarget::T2);
@@ -12576,7 +12952,7 @@ namespace Mavi
 				VSurfaceTarget.SetValue("t6", (int)Graphics::SurfaceTarget::T6);
 				VSurfaceTarget.SetValue("t7", (int)Graphics::SurfaceTarget::T7);
 
-				Enumeration VPrimitiveTopology = Engine->SetEnum("primitive_topology");
+				Enumeration VPrimitiveTopology = *VM->SetEnum("primitive_topology");
 				VPrimitiveTopology.SetValue("invalid", (int)Graphics::PrimitiveTopology::Invalid);
 				VPrimitiveTopology.SetValue("point_list", (int)Graphics::PrimitiveTopology::Point_List);
 				VPrimitiveTopology.SetValue("line_list", (int)Graphics::PrimitiveTopology::Line_List);
@@ -12588,7 +12964,7 @@ namespace Mavi
 				VPrimitiveTopology.SetValue("triangle_list_adj", (int)Graphics::PrimitiveTopology::Triangle_List_Adj);
 				VPrimitiveTopology.SetValue("triangle_strip_adj", (int)Graphics::PrimitiveTopology::Triangle_Strip_Adj);
 
-				Enumeration VFormat = Engine->SetEnum("surface_format");
+				Enumeration VFormat = *VM->SetEnum("surface_format");
 				VFormat.SetValue("unknown", (int)Graphics::Format::Unknown);
 				VFormat.SetValue("A8_unorm", (int)Graphics::Format::A8_Unorm);
 				VFormat.SetValue("D16_unorm", (int)Graphics::Format::D16_Unorm);
@@ -12641,20 +13017,20 @@ namespace Mavi
 				VFormat.SetValue("R8_unorm", (int)Graphics::Format::R8_Unorm);
 				VFormat.SetValue("R9G9B9E5_share_dexp", (int)Graphics::Format::R9G9B9E5_Share_Dexp);
 
-				Enumeration VResourceMap = Engine->SetEnum("resource_map");
+				Enumeration VResourceMap = *VM->SetEnum("resource_map");
 				VResourceMap.SetValue("read", (int)Graphics::ResourceMap::Read);
 				VResourceMap.SetValue("write", (int)Graphics::ResourceMap::Write);
 				VResourceMap.SetValue("read_write", (int)Graphics::ResourceMap::Read_Write);
 				VResourceMap.SetValue("write_discard", (int)Graphics::ResourceMap::Write_Discard);
 				VResourceMap.SetValue("write_no_overwrite", (int)Graphics::ResourceMap::Write_No_Overwrite);
 
-				Enumeration VResourceUsage = Engine->SetEnum("resource_usage");
+				Enumeration VResourceUsage = *VM->SetEnum("resource_usage");
 				VResourceUsage.SetValue("default_t", (int)Graphics::ResourceUsage::Default);
 				VResourceUsage.SetValue("immutable", (int)Graphics::ResourceUsage::Immutable);
 				VResourceUsage.SetValue("dynamic", (int)Graphics::ResourceUsage::Dynamic);
 				VResourceUsage.SetValue("staging", (int)Graphics::ResourceUsage::Staging);
 
-				Enumeration VShaderModel = Engine->SetEnum("shader_model");
+				Enumeration VShaderModel = *VM->SetEnum("shader_model");
 				VShaderModel.SetValue("invalid", (int)Graphics::ShaderModel::Invalid);
 				VShaderModel.SetValue("auto_t", (int)Graphics::ShaderModel::Auto);
 				VShaderModel.SetValue("HLSL_1_0", (int)Graphics::ShaderModel::HLSL_1_0);
@@ -12677,7 +13053,7 @@ namespace Mavi
 				VShaderModel.SetValue("GLSL_4_5_0", (int)Graphics::ShaderModel::GLSL_4_5_0);
 				VShaderModel.SetValue("GLSL_4_6_0", (int)Graphics::ShaderModel::GLSL_4_6_0);
 
-				Enumeration VResourceBind = Engine->SetEnum("resource_bind");
+				Enumeration VResourceBind = *VM->SetEnum("resource_bind");
 				VResourceBind.SetValue("vertex_buffer", (int)Graphics::ResourceBind::Vertex_Buffer);
 				VResourceBind.SetValue("index_buffer", (int)Graphics::ResourceBind::Index_Buffer);
 				VResourceBind.SetValue("constant_buffer", (int)Graphics::ResourceBind::Constant_Buffer);
@@ -12687,16 +13063,16 @@ namespace Mavi
 				VResourceBind.SetValue("depth_stencil", (int)Graphics::ResourceBind::Depth_Stencil);
 				VResourceBind.SetValue("unordered_access", (int)Graphics::ResourceBind::Unordered_Access);
 
-				Enumeration VCPUAccess = Engine->SetEnum("cpu_access");
+				Enumeration VCPUAccess = *VM->SetEnum("cpu_access");
 				VCPUAccess.SetValue("none", (int)Graphics::CPUAccess::None);
 				VCPUAccess.SetValue("write", (int)Graphics::CPUAccess::Write);
 				VCPUAccess.SetValue("read", (int)Graphics::CPUAccess::Read);
 
-				Enumeration VDepthWrite = Engine->SetEnum("depth_write");
+				Enumeration VDepthWrite = *VM->SetEnum("depth_write");
 				VDepthWrite.SetValue("zero", (int)Graphics::DepthWrite::Zero);
 				VDepthWrite.SetValue("all", (int)Graphics::DepthWrite::All);
 
-				Enumeration VComparison = Engine->SetEnum("comparison");
+				Enumeration VComparison = *VM->SetEnum("comparison");
 				VComparison.SetValue("never", (int)Graphics::Comparison::Never);
 				VComparison.SetValue("less", (int)Graphics::Comparison::Less);
 				VComparison.SetValue("equal", (int)Graphics::Comparison::Equal);
@@ -12706,7 +13082,7 @@ namespace Mavi
 				VComparison.SetValue("greater_equal", (int)Graphics::Comparison::Greater_Equal);
 				VComparison.SetValue("always", (int)Graphics::Comparison::Always);
 
-				Enumeration VStencilOperation = Engine->SetEnum("stencil_operation");
+				Enumeration VStencilOperation = *VM->SetEnum("stencil_operation");
 				VStencilOperation.SetValue("keep", (int)Graphics::StencilOperation::Keep);
 				VStencilOperation.SetValue("zero", (int)Graphics::StencilOperation::Zero);
 				VStencilOperation.SetValue("replace", (int)Graphics::StencilOperation::Replace);
@@ -12716,7 +13092,7 @@ namespace Mavi
 				VStencilOperation.SetValue("add", (int)Graphics::StencilOperation::Add);
 				VStencilOperation.SetValue("subtract", (int)Graphics::StencilOperation::Subtract);
 
-				Enumeration VBlend = Engine->SetEnum("blend_t");
+				Enumeration VBlend = *VM->SetEnum("blend_t");
 				VBlend.SetValue("zero", (int)Graphics::Blend::Zero);
 				VBlend.SetValue("one", (int)Graphics::Blend::One);
 				VBlend.SetValue("source_color", (int)Graphics::Blend::Source_Color);
@@ -12735,11 +13111,11 @@ namespace Mavi
 				VBlend.SetValue("source1_alpha", (int)Graphics::Blend::Source1_Alpha);
 				VBlend.SetValue("source1_alpha_invert", (int)Graphics::Blend::Source1_Alpha_Invert);
 
-				Enumeration VSurfaceFill = Engine->SetEnum("surface_fill");
+				Enumeration VSurfaceFill = *VM->SetEnum("surface_fill");
 				VSurfaceFill.SetValue("wireframe", (int)Graphics::SurfaceFill::Wireframe);
 				VSurfaceFill.SetValue("solid", (int)Graphics::SurfaceFill::Solid);
 
-				Enumeration VPixelFilter = Engine->SetEnum("pixel_filter");
+				Enumeration VPixelFilter = *VM->SetEnum("pixel_filter");
 				VPixelFilter.SetValue("min_mag_mip_point", (int)Graphics::PixelFilter::Min_Mag_Mip_Point);
 				VPixelFilter.SetValue("min_mag_point_mip_linear", (int)Graphics::PixelFilter::Min_Mag_Point_Mip_Linear);
 				VPixelFilter.SetValue("min_point_mag_linear_mip_point", (int)Graphics::PixelFilter::Min_Point_Mag_Linear_Mip_Point);
@@ -12759,33 +13135,33 @@ namespace Mavi
 				VPixelFilter.SetValue("compare_min_mag_mip_linear", (int)Graphics::PixelFilter::Compare_Min_Mag_Mip_Linear);
 				VPixelFilter.SetValue("compare_anistropic", (int)Graphics::PixelFilter::Compare_Anistropic);
 
-				Enumeration VTextureAddress = Engine->SetEnum("texture_address");
+				Enumeration VTextureAddress = *VM->SetEnum("texture_address");
 				VTextureAddress.SetValue("wrap", (int)Graphics::TextureAddress::Wrap);
 				VTextureAddress.SetValue("mirror", (int)Graphics::TextureAddress::Mirror);
 				VTextureAddress.SetValue("clamp", (int)Graphics::TextureAddress::Clamp);
 				VTextureAddress.SetValue("border", (int)Graphics::TextureAddress::Border);
 				VTextureAddress.SetValue("mirror_once", (int)Graphics::TextureAddress::Mirror_Once);
 
-				Enumeration VColorWriteEnable = Engine->SetEnum("color_write_enable");
+				Enumeration VColorWriteEnable = *VM->SetEnum("color_write_enable");
 				VColorWriteEnable.SetValue("red", (int)Graphics::ColorWriteEnable::Red);
 				VColorWriteEnable.SetValue("green", (int)Graphics::ColorWriteEnable::Green);
 				VColorWriteEnable.SetValue("blue", (int)Graphics::ColorWriteEnable::Blue);
 				VColorWriteEnable.SetValue("alpha", (int)Graphics::ColorWriteEnable::Alpha);
 				VColorWriteEnable.SetValue("all", (int)Graphics::ColorWriteEnable::All);
 
-				Enumeration VBlendOperation = Engine->SetEnum("blend_operation");
+				Enumeration VBlendOperation = *VM->SetEnum("blend_operation");
 				VBlendOperation.SetValue("add", (int)Graphics::BlendOperation::Add);
 				VBlendOperation.SetValue("subtract", (int)Graphics::BlendOperation::Subtract);
 				VBlendOperation.SetValue("subtract_reverse", (int)Graphics::BlendOperation::Subtract_Reverse);
 				VBlendOperation.SetValue("min", (int)Graphics::BlendOperation::Min);
 				VBlendOperation.SetValue("max", (int)Graphics::BlendOperation::Max);
 
-				Enumeration VVertexCull = Engine->SetEnum("vertex_cull");
+				Enumeration VVertexCull = *VM->SetEnum("vertex_cull");
 				VVertexCull.SetValue("none", (int)Graphics::VertexCull::None);
 				VVertexCull.SetValue("front", (int)Graphics::VertexCull::Front);
 				VVertexCull.SetValue("back", (int)Graphics::VertexCull::Back);
 
-				Enumeration VShaderCompile = Engine->SetEnum("shader_compile");
+				Enumeration VShaderCompile = *VM->SetEnum("shader_compile");
 				VShaderCompile.SetValue("debug", (int)Graphics::ShaderCompile::Debug);
 				VShaderCompile.SetValue("skip_validation", (int)Graphics::ShaderCompile::Skip_Validation);
 				VShaderCompile.SetValue("skip_optimization", (int)Graphics::ShaderCompile::Skip_Optimization);
@@ -12808,7 +13184,7 @@ namespace Mavi
 				VShaderCompile.SetValue("reseed_x17", (int)Graphics::ShaderCompile::Reseed_X17);
 				VShaderCompile.SetValue("picky", (int)Graphics::ShaderCompile::Picky);
 
-				Enumeration VResourceMisc = Engine->SetEnum("resource_misc");
+				Enumeration VResourceMisc = *VM->SetEnum("resource_misc");
 				VResourceMisc.SetValue("none", (int)Graphics::ResourceMisc::None);
 				VResourceMisc.SetValue("generate_mips", (int)Graphics::ResourceMisc::Generate_Mips);
 				VResourceMisc.SetValue("shared", (int)Graphics::ResourceMisc::Shared);
@@ -12827,7 +13203,7 @@ namespace Mavi
 				VResourceMisc.SetValue("tile_pool", (int)Graphics::ResourceMisc::Tile_Pool);
 				VResourceMisc.SetValue("tiled", (int)Graphics::ResourceMisc::Tiled);
 
-				Enumeration VShaderType = Engine->SetEnum("shader_type");
+				Enumeration VShaderType = *VM->SetEnum("shader_type");
 				VShaderType.SetValue("vertex", (int)Graphics::ShaderType::Vertex);
 				VShaderType.SetValue("pixel", (int)Graphics::ShaderType::Pixel);
 				VShaderType.SetValue("geometry", (int)Graphics::ShaderType::Geometry);
@@ -12836,7 +13212,7 @@ namespace Mavi
 				VShaderType.SetValue("compute", (int)Graphics::ShaderType::Compute);
 				VShaderType.SetValue("all", (int)Graphics::ShaderType::All);
 
-				Enumeration VShaderLang = Engine->SetEnum("shader_lang");
+				Enumeration VShaderLang = *VM->SetEnum("shader_lang");
 				VShaderLang.SetValue("none", (int)Graphics::ShaderLang::None);
 				VShaderLang.SetValue("spv", (int)Graphics::ShaderLang::SPV);
 				VShaderLang.SetValue("msl", (int)Graphics::ShaderLang::MSL);
@@ -12844,7 +13220,7 @@ namespace Mavi
 				VShaderLang.SetValue("glsl", (int)Graphics::ShaderLang::GLSL);
 				VShaderLang.SetValue("glsl_es", (int)Graphics::ShaderLang::GLSL_ES);
 
-				Enumeration VAttributeType = Engine->SetEnum("attribute_type");
+				Enumeration VAttributeType = *VM->SetEnum("attribute_type");
 				VAttributeType.SetValue("byte_t", (int)Graphics::AttributeType::Byte);
 				VAttributeType.SetValue("ubyte_t", (int)Graphics::AttributeType::Ubyte);
 				VAttributeType.SetValue("half_t", (int)Graphics::AttributeType::Half);
@@ -12853,13 +13229,13 @@ namespace Mavi
 				VAttributeType.SetValue("uint_t", (int)Graphics::AttributeType::Uint);
 				VAttributeType.SetValue("matrix_t", (int)Graphics::AttributeType::Matrix);
 
-				TypeClass VMappedSubresource = Engine->SetPod<Graphics::MappedSubresource>("mapped_subresource");
+				TypeClass VMappedSubresource = *VM->SetPod<Graphics::MappedSubresource>("mapped_subresource");
 				VMappedSubresource.SetProperty<Graphics::MappedSubresource>("uptr@ pointer", &Graphics::MappedSubresource::Pointer);
 				VMappedSubresource.SetProperty<Graphics::MappedSubresource>("uint32 row_pitch", &Graphics::MappedSubresource::RowPitch);
 				VMappedSubresource.SetProperty<Graphics::MappedSubresource>("uint32 depth_pitch", &Graphics::MappedSubresource::DepthPitch);
 				VMappedSubresource.SetConstructor<Graphics::MappedSubresource>("void f()");
 
-				TypeClass VRenderTargetBlendState = Engine->SetPod<Graphics::RenderTargetBlendState>("render_target_blend_state");
+				TypeClass VRenderTargetBlendState = *VM->SetPod<Graphics::RenderTargetBlendState>("render_target_blend_state");
 				VRenderTargetBlendState.SetProperty<Graphics::RenderTargetBlendState>("blend_t src_blend", &Graphics::RenderTargetBlendState::SrcBlend);
 				VRenderTargetBlendState.SetProperty<Graphics::RenderTargetBlendState>("blend_t dest_blend", &Graphics::RenderTargetBlendState::DestBlend);
 				VRenderTargetBlendState.SetProperty<Graphics::RenderTargetBlendState>("blend_operation blend_operation_mode", &Graphics::RenderTargetBlendState::BlendOperationMode);
@@ -12870,7 +13246,7 @@ namespace Mavi
 				VRenderTargetBlendState.SetProperty<Graphics::RenderTargetBlendState>("bool blend_enable", &Graphics::RenderTargetBlendState::BlendEnable);
 				VRenderTargetBlendState.SetConstructor<Graphics::RenderTargetBlendState>("void f()");
 
-				RefClass VSurface = Engine->SetClass<Graphics::Surface>("surface_handle", false);
+				RefClass VSurface = *VM->SetClass<Graphics::Surface>("surface_handle", false);
 				VSurface.SetConstructor<Graphics::Surface>("surface_handle@ f()");
 				VSurface.SetConstructor<Graphics::Surface, SDL_Surface*>("surface_handle@ f(uptr@)");
 				VSurface.SetMethod("void set_handle(uptr@)", &Graphics::Surface::SetHandle);
@@ -12882,7 +13258,7 @@ namespace Mavi
 				VSurface.SetMethod("uptr@ get_pixels() const", &Graphics::Surface::GetPixels);
 				VSurface.SetMethod("uptr@ get_resource() const", &Graphics::Surface::GetResource);
 
-				TypeClass VDepthStencilStateDesc = Engine->SetPod<Graphics::DepthStencilState::Desc>("depth_stencil_state_desc");
+				TypeClass VDepthStencilStateDesc = *VM->SetPod<Graphics::DepthStencilState::Desc>("depth_stencil_state_desc");
 				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("stencil_operation front_face_stencil_fail_operation", &Graphics::DepthStencilState::Desc::FrontFaceStencilFailOperation);
 				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("stencil_operation front_face_stencil_depth_fail_operation", &Graphics::DepthStencilState::Desc::FrontFaceStencilDepthFailOperation);
 				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("stencil_operation front_face_stencil_pass_operation", &Graphics::DepthStencilState::Desc::FrontFaceStencilPassOperation);
@@ -12899,11 +13275,11 @@ namespace Mavi
 				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("bool stencil_enable", &Graphics::DepthStencilState::Desc::StencilEnable);
 				VDepthStencilStateDesc.SetConstructor<Graphics::DepthStencilState::Desc>("void f()");
 
-				RefClass VDepthStencilState = Engine->SetClass<Graphics::DepthStencilState>("depth_stencil_state", false);
+				RefClass VDepthStencilState = *VM->SetClass<Graphics::DepthStencilState>("depth_stencil_state", false);
 				VDepthStencilState.SetMethod("uptr@ get_resource() const", &Graphics::DepthStencilState::GetResource);
 				VDepthStencilState.SetMethod("depth_stencil_state_desc get_state() const", &Graphics::DepthStencilState::GetState);
 
-				TypeClass VRasterizerStateDesc = Engine->SetPod<Graphics::RasterizerState::Desc>("rasterizer_state_desc");
+				TypeClass VRasterizerStateDesc = *VM->SetPod<Graphics::RasterizerState::Desc>("rasterizer_state_desc");
 				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("surface_fill fill_mode", &Graphics::RasterizerState::Desc::FillMode);
 				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("vertex_cull cull_mode", &Graphics::RasterizerState::Desc::CullMode);
 				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("float depth_bias_clamp", &Graphics::RasterizerState::Desc::DepthBiasClamp);
@@ -12916,22 +13292,22 @@ namespace Mavi
 				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("bool antialiased_line_enable", &Graphics::RasterizerState::Desc::AntialiasedLineEnable);
 				VRasterizerStateDesc.SetConstructor<Graphics::RasterizerState::Desc>("void f()");
 
-				RefClass VRasterizerState = Engine->SetClass<Graphics::RasterizerState>("rasterizer_state", false);
+				RefClass VRasterizerState = *VM->SetClass<Graphics::RasterizerState>("rasterizer_state", false);
 				VRasterizerState.SetMethod("uptr@ get_resource() const", &Graphics::RasterizerState::GetResource);
 				VRasterizerState.SetMethod("rasterizer_state_desc get_state() const", &Graphics::RasterizerState::GetState);
 
-				TypeClass VBlendStateDesc = Engine->SetPod<Graphics::BlendState::Desc>("blend_state_desc");
+				TypeClass VBlendStateDesc = *VM->SetPod<Graphics::BlendState::Desc>("blend_state_desc");
 				VBlendStateDesc.SetProperty<Graphics::BlendState::Desc>("bool alpha_to_coverage_enable", &Graphics::BlendState::Desc::AlphaToCoverageEnable);
 				VBlendStateDesc.SetProperty<Graphics::BlendState::Desc>("bool independent_blend_enable", &Graphics::BlendState::Desc::IndependentBlendEnable);
 				VBlendStateDesc.SetConstructor<Graphics::BlendState::Desc>("void f()");
 				VBlendStateDesc.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "render_target_blend_state&", "usize", &BlendStateDescGetRenderTarget);
 				VBlendStateDesc.SetOperatorEx(Operators::Index, (uint32_t)Position::Const, "const render_target_blend_state&", "usize", &BlendStateDescGetRenderTarget);
 
-				RefClass VBlendState = Engine->SetClass<Graphics::BlendState>("blend_state", false);
+				RefClass VBlendState = *VM->SetClass<Graphics::BlendState>("blend_state", false);
 				VBlendState.SetMethod("uptr@ get_resource() const", &Graphics::BlendState::GetResource);
 				VBlendState.SetMethod("blend_state_desc get_state() const", &Graphics::BlendState::GetState);
 
-				TypeClass VSamplerStateDesc = Engine->SetPod<Graphics::SamplerState::Desc>("sampler_state_desc");
+				TypeClass VSamplerStateDesc = *VM->SetPod<Graphics::SamplerState::Desc>("sampler_state_desc");
 				VSamplerStateDesc.SetProperty<Graphics::SamplerState::Desc>("comparison comparison_function", &Graphics::SamplerState::Desc::ComparisonFunction);
 				VSamplerStateDesc.SetProperty<Graphics::SamplerState::Desc>("texture_address address_u", &Graphics::SamplerState::Desc::AddressU);
 				VSamplerStateDesc.SetProperty<Graphics::SamplerState::Desc>("texture_address address_v", &Graphics::SamplerState::Desc::AddressV);
@@ -12945,11 +13321,11 @@ namespace Mavi
 				VSamplerStateDesc.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "float&", "usize", &SamplerStateDescGetBorderColor);
 				VSamplerStateDesc.SetOperatorEx(Operators::Index, (uint32_t)Position::Const, "const float&", "usize", &SamplerStateDescGetBorderColor);
 
-				RefClass VSamplerState = Engine->SetClass<Graphics::SamplerState>("sampler_state", false);
+				RefClass VSamplerState = *VM->SetClass<Graphics::SamplerState>("sampler_state", false);
 				VSamplerState.SetMethod("uptr@ get_resource() const", &Graphics::SamplerState::GetResource);
 				VSamplerState.SetMethod("sampler_state_desc get_state() const", &Graphics::SamplerState::GetState);
 
-				TypeClass VInputLayoutAttribute = Engine->SetStructTrivial<Graphics::InputLayout::Attribute>("input_layout_attribute");
+				TypeClass VInputLayoutAttribute = *VM->SetStructTrivial<Graphics::InputLayout::Attribute>("input_layout_attribute");
 				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("string semantic_name", &Graphics::InputLayout::Attribute::SemanticName);
 				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("uint32 semantic_index", &Graphics::InputLayout::Attribute::SemanticIndex);
 				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("attribute_type format", &Graphics::InputLayout::Attribute::Format);
@@ -12959,28 +13335,28 @@ namespace Mavi
 				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("bool per_vertex", &Graphics::InputLayout::Attribute::PerVertex);
 				VInputLayoutAttribute.SetConstructor<Graphics::InputLayout::Attribute>("void f()");
 
-				RefClass VShader = Engine->SetClass<Graphics::Shader>("shader", false);
+				RefClass VShader = *VM->SetClass<Graphics::Shader>("shader", false);
 				VShader.SetMethod("bool is_valid() const", &Graphics::Shader::IsValid);
 
-				TypeClass VInputLayoutDesc = Engine->SetStruct<Graphics::InputLayout::Desc>("input_layout_desc");
+				TypeClass VInputLayoutDesc = *VM->SetStruct<Graphics::InputLayout::Desc>("input_layout_desc");
 				VInputLayoutDesc.SetProperty<Graphics::InputLayout::Desc>("shader@ source", &Graphics::InputLayout::Desc::Source);
 				VInputLayoutDesc.SetConstructor<Graphics::InputLayout::Desc>("void f()");
 				VInputLayoutDesc.SetOperatorCopyStatic(&InputLayoutDescCopy);
 				VInputLayoutDesc.SetDestructorStatic("void f()", &InputLayoutDescDestructor);
 				VInputLayoutDesc.SetMethodEx("void set_attributes(array<input_layout_attribute>@+)", &InputLayoutDescSetAttributes);
 
-				RefClass VInputLayout = Engine->SetClass<Graphics::InputLayout>("input_layout", false);
+				RefClass VInputLayout = *VM->SetClass<Graphics::InputLayout>("input_layout", false);
 				VInputLayout.SetMethod("uptr@ get_resource() const", &Graphics::InputLayout::GetResource);
 				VInputLayout.SetMethodEx("array<input_layout_attribute>@ get_attributes() const", &InputLayoutGetAttributes);
 
-				TypeClass VShaderDesc = Engine->SetStructTrivial<Graphics::Shader::Desc>("shader_desc");
+				TypeClass VShaderDesc = *VM->SetStructTrivial<Graphics::Shader::Desc>("shader_desc");
 				VShaderDesc.SetProperty<Graphics::Shader::Desc>("string filename", &Graphics::Shader::Desc::Filename);
 				VShaderDesc.SetProperty<Graphics::Shader::Desc>("string data", &Graphics::Shader::Desc::Data);
 				VShaderDesc.SetProperty<Graphics::Shader::Desc>("shader_type stage", &Graphics::Shader::Desc::Stage);
 				VShaderDesc.SetConstructor<Graphics::Shader::Desc>("void f()");
 				VShaderDesc.SetMethodEx("void set_defines(array<input_layout_attribute>@+)", &ShaderDescSetDefines);
 
-				TypeClass VElementBufferDesc = Engine->SetStructTrivial<Graphics::ElementBuffer::Desc>("element_buffer_desc");
+				TypeClass VElementBufferDesc = *VM->SetStructTrivial<Graphics::ElementBuffer::Desc>("element_buffer_desc");
 				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("uptr@ elements", &Graphics::ElementBuffer::Desc::Elements);
 				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("uint32 structure_byte_stride", &Graphics::ElementBuffer::Desc::StructureByteStride);
 				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("uint32 element_width", &Graphics::ElementBuffer::Desc::ElementWidth);
@@ -12992,57 +13368,57 @@ namespace Mavi
 				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("bool writable", &Graphics::ElementBuffer::Desc::Writable);
 				VElementBufferDesc.SetConstructor<Graphics::ElementBuffer::Desc>("void f()");
 
-				RefClass VElementBuffer = Engine->SetClass<Graphics::ElementBuffer>("element_buffer", false);
+				RefClass VElementBuffer = *VM->SetClass<Graphics::ElementBuffer>("element_buffer", false);
 				VElementBuffer.SetMethod("uptr@ get_resource() const", &Graphics::ElementBuffer::GetResource);
 				VElementBuffer.SetMethod("usize get_elements() const", &Graphics::ElementBuffer::GetElements);
 				VElementBuffer.SetMethod("usize get_stride() const", &Graphics::ElementBuffer::GetStride);
 
-				TypeClass VMeshBufferDesc = Engine->SetStructTrivial<Graphics::MeshBuffer::Desc>("mesh_buffer_desc");
+				TypeClass VMeshBufferDesc = *VM->SetStructTrivial<Graphics::MeshBuffer::Desc>("mesh_buffer_desc");
 				VMeshBufferDesc.SetProperty<Graphics::MeshBuffer::Desc>("cpu_access access_flags", &Graphics::MeshBuffer::Desc::AccessFlags);
 				VMeshBufferDesc.SetProperty<Graphics::MeshBuffer::Desc>("resource_usage usage", &Graphics::MeshBuffer::Desc::Usage);
 				VMeshBufferDesc.SetConstructor<Graphics::MeshBuffer::Desc>("void f()");
 				VMeshBufferDesc.SetMethodEx("void set_elements(array<vertex>@+)", &MeshBufferDescSetElements);
 				VMeshBufferDesc.SetMethodEx("void set_indices(array<int>@+)", &MeshBufferDescSetIndices);
 
-				RefClass VMeshBuffer = Engine->SetClass<Graphics::MeshBuffer>("mesh_buffer", true);
+				RefClass VMeshBuffer = *VM->SetClass<Graphics::MeshBuffer>("mesh_buffer", true);
 				VMeshBuffer.SetProperty<Graphics::MeshBuffer>("matrix4x4 transform", &Graphics::MeshBuffer::Transform);
 				VMeshBuffer.SetProperty<Graphics::MeshBuffer>("string name", &Graphics::MeshBuffer::Name);
 				VMeshBuffer.SetMethod("element_buffer@+ get_vertex_buffer() const", &Graphics::MeshBuffer::GetVertexBuffer);
 				VMeshBuffer.SetMethod("element_buffer@+ get_index_buffer() const", &Graphics::MeshBuffer::GetIndexBuffer);
-				VMeshBuffer.SetEnumRefsEx<Graphics::MeshBuffer>([](Graphics::MeshBuffer* Base, asIScriptEngine* Engine)
+				VMeshBuffer.SetEnumRefsEx<Graphics::MeshBuffer>([](Graphics::MeshBuffer* Base, asIScriptEngine* VM)
 				{
-					Engine->GCEnumCallback(Base->GetVertexBuffer());
-					Engine->GCEnumCallback(Base->GetIndexBuffer());
+					FunctionFactory::GCEnumCallback(VM, Base->GetVertexBuffer());
+					FunctionFactory::GCEnumCallback(VM, Base->GetIndexBuffer());
 				});
 				VMeshBuffer.SetReleaseRefsEx<Graphics::MeshBuffer>([](Graphics::MeshBuffer* Base, asIScriptEngine*)
 				{
 					Base->~MeshBuffer();
 				});
 
-				TypeClass VSkinMeshBufferDesc = Engine->SetStructTrivial<Graphics::SkinMeshBuffer::Desc>("skin_mesh_buffer_desc");
+				TypeClass VSkinMeshBufferDesc = *VM->SetStructTrivial<Graphics::SkinMeshBuffer::Desc>("skin_mesh_buffer_desc");
 				VSkinMeshBufferDesc.SetProperty<Graphics::SkinMeshBuffer::Desc>("cpu_access access_flags", &Graphics::SkinMeshBuffer::Desc::AccessFlags);
 				VSkinMeshBufferDesc.SetProperty<Graphics::SkinMeshBuffer::Desc>("resource_usage usage", &Graphics::SkinMeshBuffer::Desc::Usage);
 				VSkinMeshBufferDesc.SetConstructor<Graphics::SkinMeshBuffer::Desc>("void f()");
 				VSkinMeshBufferDesc.SetMethodEx("void set_elements(array<vertex>@+)", &SkinMeshBufferDescSetElements);
 				VSkinMeshBufferDesc.SetMethodEx("void set_indices(array<int>@+)", &SkinMeshBufferDescSetIndices);
 
-				RefClass VSkinMeshBuffer = Engine->SetClass<Graphics::SkinMeshBuffer>("skin_mesh_buffer", true);
+				RefClass VSkinMeshBuffer = *VM->SetClass<Graphics::SkinMeshBuffer>("skin_mesh_buffer", true);
 				VSkinMeshBuffer.SetProperty<Graphics::SkinMeshBuffer>("matrix4x4 transform", &Graphics::SkinMeshBuffer::Transform);
 				VSkinMeshBuffer.SetProperty<Graphics::SkinMeshBuffer>("string name", &Graphics::SkinMeshBuffer::Name);
 				VSkinMeshBuffer.SetMethod("element_buffer@+ get_vertex_buffer() const", &Graphics::SkinMeshBuffer::GetVertexBuffer);
 				VSkinMeshBuffer.SetMethod("element_buffer@+ get_index_buffer() const", &Graphics::SkinMeshBuffer::GetIndexBuffer);
-				VSkinMeshBuffer.SetEnumRefsEx<Graphics::SkinMeshBuffer>([](Graphics::SkinMeshBuffer* Base, asIScriptEngine* Engine)
+				VSkinMeshBuffer.SetEnumRefsEx<Graphics::SkinMeshBuffer>([](Graphics::SkinMeshBuffer* Base, asIScriptEngine* VM)
 				{
-					Engine->GCEnumCallback(Base->GetVertexBuffer());
-					Engine->GCEnumCallback(Base->GetIndexBuffer());
+					FunctionFactory::GCEnumCallback(VM, Base->GetVertexBuffer());
+					FunctionFactory::GCEnumCallback(VM, Base->GetIndexBuffer());
 				});
 				VSkinMeshBuffer.SetReleaseRefsEx<Graphics::SkinMeshBuffer>([](Graphics::SkinMeshBuffer* Base, asIScriptEngine*)
 				{
 					Base->~SkinMeshBuffer();
 				});
 
-				RefClass VGraphicsDevice = Engine->SetClass<Graphics::GraphicsDevice>("graphics_device", true);
-				TypeClass VInstanceBufferDesc = Engine->SetStruct<Graphics::InstanceBuffer::Desc>("instance_buffer_desc");
+				RefClass VGraphicsDevice = *VM->SetClass<Graphics::GraphicsDevice>("graphics_device", true);
+				TypeClass VInstanceBufferDesc = *VM->SetStruct<Graphics::InstanceBuffer::Desc>("instance_buffer_desc");
 				VInstanceBufferDesc.SetProperty<Graphics::InstanceBuffer::Desc>("graphics_device@ device", &Graphics::InstanceBuffer::Desc::Device);
 				VInstanceBufferDesc.SetProperty<Graphics::InstanceBuffer::Desc>("uint32 element_width", &Graphics::InstanceBuffer::Desc::ElementWidth);
 				VInstanceBufferDesc.SetProperty<Graphics::InstanceBuffer::Desc>("uint32 element_limit", &Graphics::InstanceBuffer::Desc::ElementLimit);
@@ -13050,22 +13426,22 @@ namespace Mavi
 				VInstanceBufferDesc.SetOperatorCopyStatic(&InstanceBufferDescCopy);
 				VInstanceBufferDesc.SetDestructorStatic("void f()", &InstanceBufferDescDestructor);
 
-				RefClass VInstanceBuffer = Engine->SetClass<Graphics::InstanceBuffer>("instance_buffer", true);
+				RefClass VInstanceBuffer = *VM->SetClass<Graphics::InstanceBuffer>("instance_buffer", true);
 				VInstanceBuffer.SetMethodEx("void set_array(array<element_vertex>@+)", &InstanceBufferSetArray);
 				VInstanceBuffer.SetMethodEx("array<element_vertex>@ get_array() const", &InstanceBufferGetArray);
 				VInstanceBuffer.SetMethod("element_buffer@+ get_elements() const", &Graphics::InstanceBuffer::GetElements);
 				VInstanceBuffer.SetMethod("graphics_device@+ get_device() const", &Graphics::InstanceBuffer::GetDevice);
 				VInstanceBuffer.SetMethod("usize get_element_limit() const", &Graphics::InstanceBuffer::GetElementLimit);
-				VInstanceBuffer.SetEnumRefsEx<Graphics::InstanceBuffer>([](Graphics::InstanceBuffer* Base, asIScriptEngine* Engine)
+				VInstanceBuffer.SetEnumRefsEx<Graphics::InstanceBuffer>([](Graphics::InstanceBuffer* Base, asIScriptEngine* VM)
 				{
-					Engine->GCEnumCallback(Base->GetElements());
+					FunctionFactory::GCEnumCallback(VM, Base->GetElements());
 				});
 				VInstanceBuffer.SetReleaseRefsEx<Graphics::InstanceBuffer>([](Graphics::InstanceBuffer* Base, asIScriptEngine*)
 				{
 					Base->~InstanceBuffer();
 				});
 
-				TypeClass VTexture2DDesc = Engine->SetPod<Graphics::Texture2D::Desc>("texture_2d_desc");
+				TypeClass VTexture2DDesc = *VM->SetPod<Graphics::Texture2D::Desc>("texture_2d_desc");
 				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("cpu_access access_flags", &Graphics::Texture2D::Desc::AccessFlags);
 				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("surface_format format_mode", &Graphics::Texture2D::Desc::FormatMode);
 				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("resource_usage usage", &Graphics::Texture2D::Desc::Usage);
@@ -13080,7 +13456,7 @@ namespace Mavi
 				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("bool writable", &Graphics::Texture2D::Desc::Writable);
 				VTexture2DDesc.SetConstructor<Graphics::Texture2D::Desc>("void f()");
 
-				RefClass VTexture2D = Engine->SetClass<Graphics::Texture2D>("texture_2d", false);
+				RefClass VTexture2D = *VM->SetClass<Graphics::Texture2D>("texture_2d", false);
 				VTexture2D.SetMethod("uptr@ get_resource() const", &Graphics::Texture2D::GetResource);
 				VTexture2D.SetMethod("cpu_access get_access_flags() const", &Graphics::Texture2D::GetAccessFlags);
 				VTexture2D.SetMethod("surface_format get_format_mode() const", &Graphics::Texture2D::GetFormatMode);
@@ -13090,7 +13466,7 @@ namespace Mavi
 				VTexture2D.SetMethod("uint32 get_height() const", &Graphics::Texture2D::GetHeight);
 				VTexture2D.SetMethod("uint32 get_mip_levels() const", &Graphics::Texture2D::GetMipLevels);
 
-				TypeClass VTexture3DDesc = Engine->SetPod<Graphics::Texture3D::Desc>("texture_3d_desc");
+				TypeClass VTexture3DDesc = *VM->SetPod<Graphics::Texture3D::Desc>("texture_3d_desc");
 				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("cpu_access access_flags", &Graphics::Texture3D::Desc::AccessFlags);
 				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("surface_format format_mode", &Graphics::Texture3D::Desc::FormatMode);
 				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("resource_usage usage", &Graphics::Texture3D::Desc::Usage);
@@ -13103,7 +13479,7 @@ namespace Mavi
 				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("bool writable", &Graphics::Texture3D::Desc::Writable);
 				VTexture3DDesc.SetConstructor<Graphics::Texture3D::Desc>("void f()");
 
-				RefClass VTexture3D = Engine->SetClass<Graphics::Texture3D>("texture_3d", false);
+				RefClass VTexture3D = *VM->SetClass<Graphics::Texture3D>("texture_3d", false);
 				VTexture3D.SetMethod("uptr@ get_resource() const", &Graphics::Texture3D::GetResource);
 				VTexture3D.SetMethod("cpu_access get_access_flags() const", &Graphics::Texture3D::GetAccessFlags);
 				VTexture3D.SetMethod("surface_format get_format_mode() const", &Graphics::Texture3D::GetFormatMode);
@@ -13114,7 +13490,7 @@ namespace Mavi
 				VTexture3D.SetMethod("uint32 get_depth() const", &Graphics::Texture3D::GetDepth);
 				VTexture3D.SetMethod("uint32 get_mip_levels() const", &Graphics::Texture3D::GetMipLevels);
 
-				TypeClass VTextureCubeDesc = Engine->SetPod<Graphics::TextureCube::Desc>("texture_cube_desc");
+				TypeClass VTextureCubeDesc = *VM->SetPod<Graphics::TextureCube::Desc>("texture_cube_desc");
 				VTextureCubeDesc.SetProperty<Graphics::TextureCube::Desc>("cpu_access access_flags", &Graphics::TextureCube::Desc::AccessFlags);
 				VTextureCubeDesc.SetProperty<Graphics::TextureCube::Desc>("surface_format format_mode", &Graphics::TextureCube::Desc::FormatMode);
 				VTextureCubeDesc.SetProperty<Graphics::TextureCube::Desc>("resource_usage usage", &Graphics::TextureCube::Desc::Usage);
@@ -13126,7 +13502,7 @@ namespace Mavi
 				VTextureCubeDesc.SetProperty<Graphics::TextureCube::Desc>("bool writable", &Graphics::TextureCube::Desc::Writable);
 				VTextureCubeDesc.SetConstructor<Graphics::TextureCube::Desc>("void f()");
 
-				RefClass VTextureCube = Engine->SetClass<Graphics::TextureCube>("texture_cube", false);
+				RefClass VTextureCube = *VM->SetClass<Graphics::TextureCube>("texture_cube", false);
 				VTextureCube.SetMethod("uptr@ get_resource() const", &Graphics::TextureCube::GetResource);
 				VTextureCube.SetMethod("cpu_access get_access_flags() const", &Graphics::TextureCube::GetAccessFlags);
 				VTextureCube.SetMethod("surface_format get_format_mode() const", &Graphics::TextureCube::GetFormatMode);
@@ -13136,7 +13512,7 @@ namespace Mavi
 				VTextureCube.SetMethod("uint32 get_height() const", &Graphics::TextureCube::GetHeight);
 				VTextureCube.SetMethod("uint32 get_mip_levels() const", &Graphics::TextureCube::GetMipLevels);
 
-				TypeClass VDepthTarget2DDesc = Engine->SetPod<Graphics::DepthTarget2D::Desc>("depth_target_2d_desc");
+				TypeClass VDepthTarget2DDesc = *VM->SetPod<Graphics::DepthTarget2D::Desc>("depth_target_2d_desc");
 				VDepthTarget2DDesc.SetProperty<Graphics::DepthTarget2D::Desc>("cpu_access access_flags", &Graphics::DepthTarget2D::Desc::AccessFlags);
 				VDepthTarget2DDesc.SetProperty<Graphics::DepthTarget2D::Desc>("resource_usage usage", &Graphics::DepthTarget2D::Desc::Usage);
 				VDepthTarget2DDesc.SetProperty<Graphics::DepthTarget2D::Desc>("surface_format format_mode", &Graphics::DepthTarget2D::Desc::FormatMode);
@@ -13144,28 +13520,28 @@ namespace Mavi
 				VDepthTarget2DDesc.SetProperty<Graphics::DepthTarget2D::Desc>("uint32 height", &Graphics::DepthTarget2D::Desc::Height);
 				VDepthTarget2DDesc.SetConstructor<Graphics::DepthTarget2D::Desc>("void f()");
 
-				RefClass VDepthTarget2D = Engine->SetClass<Graphics::DepthTarget2D>("depth_target_2d", false);
+				RefClass VDepthTarget2D = *VM->SetClass<Graphics::DepthTarget2D>("depth_target_2d", false);
 				VDepthTarget2D.SetMethod("uptr@ get_resource() const", &Graphics::DepthTarget2D::GetResource);
 				VDepthTarget2D.SetMethod("uint32 get_width() const", &Graphics::DepthTarget2D::GetWidth);
 				VDepthTarget2D.SetMethod("uint32 get_height() const", &Graphics::DepthTarget2D::GetHeight);
 				VDepthTarget2D.SetMethod("texture_2d@+ get_target() const", &Graphics::DepthTarget2D::GetTarget);
 				VDepthTarget2D.SetMethod("const viewport& get_viewport() const", &Graphics::DepthTarget2D::GetViewport);
 
-				TypeClass VDepthTargetCubeDesc = Engine->SetPod<Graphics::DepthTargetCube::Desc>("depth_target_cube_desc");
+				TypeClass VDepthTargetCubeDesc = *VM->SetPod<Graphics::DepthTargetCube::Desc>("depth_target_cube_desc");
 				VDepthTargetCubeDesc.SetProperty<Graphics::DepthTargetCube::Desc>("cpu_access access_flags", &Graphics::DepthTargetCube::Desc::AccessFlags);
 				VDepthTargetCubeDesc.SetProperty<Graphics::DepthTargetCube::Desc>("resource_usage usage", &Graphics::DepthTargetCube::Desc::Usage);
 				VDepthTargetCubeDesc.SetProperty<Graphics::DepthTargetCube::Desc>("surface_format format_mode", &Graphics::DepthTargetCube::Desc::FormatMode);
 				VDepthTargetCubeDesc.SetProperty<Graphics::DepthTargetCube::Desc>("uint32 size", &Graphics::DepthTargetCube::Desc::Size);
 				VDepthTargetCubeDesc.SetConstructor<Graphics::DepthTargetCube::Desc>("void f()");
 
-				RefClass VDepthTargetCube = Engine->SetClass<Graphics::DepthTargetCube>("depth_target_cube", false);
+				RefClass VDepthTargetCube = *VM->SetClass<Graphics::DepthTargetCube>("depth_target_cube", false);
 				VDepthTargetCube.SetMethod("uptr@ get_resource() const", &Graphics::DepthTargetCube::GetResource);
 				VDepthTargetCube.SetMethod("uint32 get_width() const", &Graphics::DepthTargetCube::GetWidth);
 				VDepthTargetCube.SetMethod("uint32 get_height() const", &Graphics::DepthTargetCube::GetHeight);
 				VDepthTargetCube.SetMethod("texture_2d@+ get_target() const", &Graphics::DepthTargetCube::GetTarget);
 				VDepthTargetCube.SetMethod("const viewport& get_viewport() const", &Graphics::DepthTargetCube::GetViewport);
 
-				RefClass VRenderTarget = Engine->SetClass<Graphics::RenderTarget>("render_target", false);
+				RefClass VRenderTarget = *VM->SetClass<Graphics::RenderTarget>("render_target", false);
 				VRenderTarget.SetMethod("uptr@ get_target_buffer() const", &Graphics::RenderTarget::GetTargetBuffer);
 				VRenderTarget.SetMethod("uptr@ get_depth_buffer() const", &Graphics::RenderTarget::GetDepthBuffer);
 				VRenderTarget.SetMethod("uint32 get_width() const", &Graphics::RenderTarget::GetWidth);
@@ -13176,7 +13552,7 @@ namespace Mavi
 				VRenderTarget.SetMethod("texture_2d@+ get_depth_stencil() const", &Graphics::RenderTarget::GetDepthStencil);
 				VRenderTarget.SetMethod("const viewport& get_viewport() const", &Graphics::RenderTarget::GetViewport);
 
-				TypeClass VRenderTarget2DDesc = Engine->SetPod<Graphics::RenderTarget2D::Desc>("render_target_2d_desc");
+				TypeClass VRenderTarget2DDesc = *VM->SetPod<Graphics::RenderTarget2D::Desc>("render_target_2d_desc");
 				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("cpu_access access_flags", &Graphics::RenderTarget2D::Desc::AccessFlags);
 				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("surface_format format_mode", &Graphics::RenderTarget2D::Desc::FormatMode);
 				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("resource_usage usage", &Graphics::RenderTarget2D::Desc::Usage);
@@ -13189,7 +13565,7 @@ namespace Mavi
 				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("bool depth_stencil", &Graphics::RenderTarget2D::Desc::DepthStencil);
 				VRenderTarget2DDesc.SetConstructor<Graphics::RenderTarget2D::Desc>("void f()");
 
-				RefClass VRenderTarget2D = Engine->SetClass<Graphics::RenderTarget2D>("render_target_2d", false);
+				RefClass VRenderTarget2D = *VM->SetClass<Graphics::RenderTarget2D>("render_target_2d", false);
 				VRenderTarget2D.SetMethod("uptr@ get_target_buffer() const", &Graphics::RenderTarget2D::GetTargetBuffer);
 				VRenderTarget2D.SetMethod("uptr@ get_depth_buffer() const", &Graphics::RenderTarget2D::GetDepthBuffer);
 				VRenderTarget2D.SetMethod("uint32 get_width() const", &Graphics::RenderTarget2D::GetWidth);
@@ -13201,7 +13577,7 @@ namespace Mavi
 				VRenderTarget2D.SetMethod("const viewport& get_viewport() const", &Graphics::RenderTarget2D::GetViewport);
 				VRenderTarget2D.SetMethod("texture_2d@+ get_target() const", &Graphics::RenderTarget2D::GetTarget);
 
-				TypeClass VMultiRenderTarget2DDesc = Engine->SetPod<Graphics::MultiRenderTarget2D::Desc>("multi_render_target_2d_desc");
+				TypeClass VMultiRenderTarget2DDesc = *VM->SetPod<Graphics::MultiRenderTarget2D::Desc>("multi_render_target_2d_desc");
 				VMultiRenderTarget2DDesc.SetProperty<Graphics::MultiRenderTarget2D::Desc>("cpu_access access_flags", &Graphics::MultiRenderTarget2D::Desc::AccessFlags);
 				VMultiRenderTarget2DDesc.SetProperty<Graphics::MultiRenderTarget2D::Desc>("surface_target target", &Graphics::MultiRenderTarget2D::Desc::Target);
 				VMultiRenderTarget2DDesc.SetProperty<Graphics::MultiRenderTarget2D::Desc>("resource_usage usage", &Graphics::MultiRenderTarget2D::Desc::Usage);
@@ -13214,7 +13590,7 @@ namespace Mavi
 				VMultiRenderTarget2DDesc.SetConstructor<Graphics::MultiRenderTarget2D::Desc>("void f()");
 				VMultiRenderTarget2DDesc.SetMethodEx("void set_format_mode(usize, surface_format)", &MultiRenderTarget2DDescSetFormatMode);
 
-				RefClass VMultiRenderTarget2D = Engine->SetClass<Graphics::MultiRenderTarget2D>("multi_render_target_2d", false);
+				RefClass VMultiRenderTarget2D = *VM->SetClass<Graphics::MultiRenderTarget2D>("multi_render_target_2d", false);
 				VMultiRenderTarget2D.SetMethod("uptr@ get_target_buffer() const", &Graphics::MultiRenderTarget2D::GetTargetBuffer);
 				VMultiRenderTarget2D.SetMethod("uptr@ get_depth_buffer() const", &Graphics::MultiRenderTarget2D::GetDepthBuffer);
 				VMultiRenderTarget2D.SetMethod("uint32 get_width() const", &Graphics::MultiRenderTarget2D::GetWidth);
@@ -13226,7 +13602,7 @@ namespace Mavi
 				VMultiRenderTarget2D.SetMethod("const viewport& get_viewport() const", &Graphics::MultiRenderTarget2D::GetViewport);
 				VMultiRenderTarget2D.SetMethod("texture_2d@+ get_target(uint32) const", &Graphics::MultiRenderTarget2D::GetTarget);
 
-				TypeClass VRenderTargetCubeDesc = Engine->SetPod<Graphics::RenderTargetCube::Desc>("render_target_cube_desc");
+				TypeClass VRenderTargetCubeDesc = *VM->SetPod<Graphics::RenderTargetCube::Desc>("render_target_cube_desc");
 				VRenderTargetCubeDesc.SetProperty<Graphics::RenderTargetCube::Desc>("cpu_access access_flags", &Graphics::RenderTargetCube::Desc::AccessFlags);
 				VRenderTargetCubeDesc.SetProperty<Graphics::RenderTargetCube::Desc>("surface_format format_mode", &Graphics::RenderTargetCube::Desc::FormatMode);
 				VRenderTargetCubeDesc.SetProperty<Graphics::RenderTargetCube::Desc>("resource_usage usage", &Graphics::RenderTargetCube::Desc::Usage);
@@ -13237,7 +13613,7 @@ namespace Mavi
 				VRenderTargetCubeDesc.SetProperty<Graphics::RenderTargetCube::Desc>("bool depth_stencil", &Graphics::RenderTargetCube::Desc::DepthStencil);
 				VRenderTargetCubeDesc.SetConstructor<Graphics::RenderTargetCube::Desc>("void f()");
 
-				RefClass VRenderTargetCube = Engine->SetClass<Graphics::RenderTargetCube>("render_target_cube", false);
+				RefClass VRenderTargetCube = *VM->SetClass<Graphics::RenderTargetCube>("render_target_cube", false);
 				VRenderTargetCube.SetMethod("uptr@ get_target_buffer() const", &Graphics::RenderTargetCube::GetTargetBuffer);
 				VRenderTargetCube.SetMethod("uptr@ get_depth_buffer() const", &Graphics::RenderTargetCube::GetDepthBuffer);
 				VRenderTargetCube.SetMethod("uint32 get_width() const", &Graphics::RenderTargetCube::GetWidth);
@@ -13249,7 +13625,7 @@ namespace Mavi
 				VRenderTargetCube.SetMethod("const viewport& get_viewport() const", &Graphics::RenderTargetCube::GetViewport);
 				VRenderTargetCube.SetMethod("texture_cube@+ get_target() const", &Graphics::RenderTargetCube::GetTarget);
 
-				TypeClass VMultiRenderTargetCubeDesc = Engine->SetPod<Graphics::MultiRenderTargetCube::Desc>("multi_render_target_cube_desc");
+				TypeClass VMultiRenderTargetCubeDesc = *VM->SetPod<Graphics::MultiRenderTargetCube::Desc>("multi_render_target_cube_desc");
 				VMultiRenderTargetCubeDesc.SetProperty<Graphics::MultiRenderTargetCube::Desc>("cpu_access access_flags", &Graphics::MultiRenderTargetCube::Desc::AccessFlags);
 				VMultiRenderTargetCubeDesc.SetProperty<Graphics::MultiRenderTargetCube::Desc>("surface_target target", &Graphics::MultiRenderTargetCube::Desc::Target);
 				VMultiRenderTargetCubeDesc.SetProperty<Graphics::MultiRenderTargetCube::Desc>("resource_usage usage", &Graphics::MultiRenderTargetCube::Desc::Usage);
@@ -13261,7 +13637,7 @@ namespace Mavi
 				VMultiRenderTargetCubeDesc.SetConstructor<Graphics::MultiRenderTargetCube::Desc>("void f()");
 				VMultiRenderTargetCubeDesc.SetMethodEx("void set_format_mode(usize, surface_format)", &MultiRenderTargetCubeDescSetFormatMode);
 
-				RefClass VMultiRenderTargetCube = Engine->SetClass<Graphics::MultiRenderTargetCube>("multi_render_target_cube", false);
+				RefClass VMultiRenderTargetCube = *VM->SetClass<Graphics::MultiRenderTargetCube>("multi_render_target_cube", false);
 				VMultiRenderTargetCube.SetMethod("uptr@ get_target_buffer() const", &Graphics::MultiRenderTargetCube::GetTargetBuffer);
 				VMultiRenderTargetCube.SetMethod("uptr@ get_depth_buffer() const", &Graphics::MultiRenderTargetCube::GetDepthBuffer);
 				VMultiRenderTargetCube.SetMethod("uint32 get_width() const", &Graphics::MultiRenderTargetCube::GetWidth);
@@ -13273,7 +13649,7 @@ namespace Mavi
 				VMultiRenderTargetCube.SetMethod("const viewport& get_viewport() const", &Graphics::MultiRenderTargetCube::GetViewport);
 				VMultiRenderTargetCube.SetMethod("texture_cube@+ get_target(uint32) const", &Graphics::MultiRenderTargetCube::GetTarget);
 
-				TypeClass VCubemapDesc = Engine->SetStruct<Graphics::Cubemap::Desc>("cubemap_desc");
+				TypeClass VCubemapDesc = *VM->SetStruct<Graphics::Cubemap::Desc>("cubemap_desc");
 				VCubemapDesc.SetProperty<Graphics::Cubemap::Desc>("render_target@ source", &Graphics::Cubemap::Desc::Source);
 				VCubemapDesc.SetProperty<Graphics::Cubemap::Desc>("uint32 target", &Graphics::Cubemap::Desc::Target);
 				VCubemapDesc.SetProperty<Graphics::Cubemap::Desc>("uint32 size", &Graphics::Cubemap::Desc::Size);
@@ -13282,18 +13658,18 @@ namespace Mavi
 				VCubemapDesc.SetOperatorCopyStatic(&CubemapDescCopy);
 				VCubemapDesc.SetDestructorStatic("void f()", &CubemapDescDestructor);
 
-				RefClass VCubemap = Engine->SetClass<Graphics::Cubemap>("cubemap", false);
+				RefClass VCubemap = *VM->SetClass<Graphics::Cubemap>("cubemap", false);
 				VCubemap.SetMethod("bool is_valid() const", &Graphics::Cubemap::IsValid);
 
-				TypeClass VQueryDesc = Engine->SetPod<Graphics::Query::Desc>("visibility_query_desc");
+				TypeClass VQueryDesc = *VM->SetPod<Graphics::Query::Desc>("visibility_query_desc");
 				VQueryDesc.SetProperty<Graphics::Query::Desc>("bool predicate", &Graphics::Query::Desc::Predicate);
 				VQueryDesc.SetProperty<Graphics::Query::Desc>("bool auto_pass", &Graphics::Query::Desc::AutoPass);
 				VQueryDesc.SetConstructor<Graphics::Query::Desc>("void f()");
 
-				RefClass VQuery = Engine->SetClass<Graphics::Query>("visibility_query", false);
+				RefClass VQuery = *VM->SetClass<Graphics::Query>("visibility_query", false);
 				VQuery.SetMethod("uptr@ get_resource() const", &Graphics::Query::GetResource);
 
-				TypeClass VGraphicsDeviceDesc = Engine->SetStruct<Graphics::GraphicsDevice::Desc>("graphics_device_desc");
+				TypeClass VGraphicsDeviceDesc = *VM->SetStruct<Graphics::GraphicsDevice::Desc>("graphics_device_desc");
 				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("render_backend backend", &Graphics::GraphicsDevice::Desc::Backend);
 				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("shader_model shader_mode", &Graphics::GraphicsDevice::Desc::ShaderMode);
 				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("surface_format buffer_format", &Graphics::GraphicsDevice::Desc::BufferFormat);
@@ -13485,23 +13861,23 @@ namespace Mavi
 				VGraphicsDevice.SetMethod("bool is_debug() const", &Graphics::GraphicsDevice::IsDebug);
 				VGraphicsDevice.SetMethodStatic("graphics_device@ create(graphics_device_desc &in)", &GraphicsDeviceCreate);
 				VGraphicsDevice.SetMethodStatic("void compile_buildin_shaders(array<graphics_device@>@+)", &GraphicsDeviceCompileBuiltinShaders);
-				VGraphicsDevice.SetEnumRefsEx<Graphics::GraphicsDevice>([](Graphics::GraphicsDevice* Base, asIScriptEngine* Engine)
+				VGraphicsDevice.SetEnumRefsEx<Graphics::GraphicsDevice>([](Graphics::GraphicsDevice* Base, asIScriptEngine* VM)
 				{
-					Engine->GCEnumCallback(Base->GetRenderTarget());
+					FunctionFactory::GCEnumCallback(VM, Base->GetRenderTarget());
 					for (auto& Item : Base->GetDepthStencilStates())
-						Engine->GCEnumCallback(Item.second);
+						FunctionFactory::GCEnumCallback(VM, Item.second);
 
 					for (auto& Item : Base->GetRasterizerStates())
-						Engine->GCEnumCallback(Item.second);
+						FunctionFactory::GCEnumCallback(VM, Item.second);
 
 					for (auto& Item : Base->GetBlendStates())
-						Engine->GCEnumCallback(Item.second);
+						FunctionFactory::GCEnumCallback(VM, Item.second);
 
 					for (auto& Item : Base->GetSamplerStates())
-						Engine->GCEnumCallback(Item.second);
+						FunctionFactory::GCEnumCallback(VM, Item.second);
 
 					for (auto& Item : Base->GetInputLayouts())
-						Engine->GCEnumCallback(Item.second);
+						FunctionFactory::GCEnumCallback(VM, Item.second);
 				});
 				VGraphicsDevice.SetReleaseRefsEx<Graphics::GraphicsDevice>([](Graphics::GraphicsDevice* Base, asIScriptEngine*) { });
 
@@ -13520,27 +13896,27 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportNetwork(VirtualMachine* Engine)
+			bool Registry::ImportNetwork(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
+				VI_ASSERT(VM != nullptr, "manager should be set");
 				VI_TYPEREF(SocketListener, "socket_listener");
 				VI_TYPEREF(SocketConnection, "socket_connection");
 				VI_TYPEREF(SocketServer, "socket_server");
 
-				Enumeration VSecure = Engine->SetEnum("socket_secure");
+				Enumeration VSecure = *VM->SetEnum("socket_secure");
 				VSecure.SetValue("unsecure", (int)Network::Secure::Any);
 				VSecure.SetValue("ssl_v2", (int)Network::Secure::SSL_V2);
 				VSecure.SetValue("ssl_v3", (int)Network::Secure::SSL_V3);
 				VSecure.SetValue("tls_v1", (int)Network::Secure::TLS_V1);
 				VSecure.SetValue("tls_v1_1", (int)Network::Secure::TLS_V1_1);
 
-				Enumeration VServerState = Engine->SetEnum("server_state");
+				Enumeration VServerState = *VM->SetEnum("server_state");
 				VServerState.SetValue("working", (int)Network::ServerState::Working);
 				VServerState.SetValue("stopping", (int)Network::ServerState::Stopping);
 				VServerState.SetValue("idle", (int)Network::ServerState::Idle);
 
-				Enumeration VSocketPoll = Engine->SetEnum("socket_poll");
+				Enumeration VSocketPoll = *VM->SetEnum("socket_poll");
 				VSocketPoll.SetValue("next", (int)Network::SocketPoll::Next);
 				VSocketPoll.SetValue("reset", (int)Network::SocketPoll::Reset);
 				VSocketPoll.SetValue("timeout", (int)Network::SocketPoll::Timeout);
@@ -13548,31 +13924,31 @@ namespace Mavi
 				VSocketPoll.SetValue("finish", (int)Network::SocketPoll::Finish);
 				VSocketPoll.SetValue("finish_sync", (int)Network::SocketPoll::FinishSync);
 
-				Enumeration VSocketProtocol = Engine->SetEnum("socket_protocol");
+				Enumeration VSocketProtocol = *VM->SetEnum("socket_protocol");
 				VSocketProtocol.SetValue("ip", (int)Network::SocketProtocol::IP);
 				VSocketProtocol.SetValue("icmp", (int)Network::SocketProtocol::ICMP);
 				VSocketProtocol.SetValue("tcp", (int)Network::SocketProtocol::TCP);
 				VSocketProtocol.SetValue("udp", (int)Network::SocketProtocol::UDP);
 				VSocketProtocol.SetValue("raw", (int)Network::SocketProtocol::RAW);
 
-				Enumeration VSocketType = Engine->SetEnum("socket_type");
+				Enumeration VSocketType = *VM->SetEnum("socket_type");
 				VSocketType.SetValue("stream", (int)Network::SocketType::Stream);
 				VSocketType.SetValue("datagram", (int)Network::SocketType::Datagram);
 				VSocketType.SetValue("raw", (int)Network::SocketType::Raw);
 				VSocketType.SetValue("reliably_delivered_message", (int)Network::SocketType::Reliably_Delivered_Message);
 				VSocketType.SetValue("sequence_packet_stream", (int)Network::SocketType::Sequence_Packet_Stream);
 
-				Enumeration VDNSType = Engine->SetEnum("dns_type");
+				Enumeration VDNSType = *VM->SetEnum("dns_type");
 				VDNSType.SetValue("connect", (int)Network::DNSType::Connect);
 				VDNSType.SetValue("listen", (int)Network::DNSType::Listen);
 
-				TypeClass VRemoteHost = Engine->SetStructTrivial<Network::RemoteHost>("remote_host");
+				TypeClass VRemoteHost = *VM->SetStructTrivial<Network::RemoteHost>("remote_host");
 				VRemoteHost.SetProperty<Network::RemoteHost>("string hostname", &Network::RemoteHost::Hostname);
 				VRemoteHost.SetProperty<Network::RemoteHost>("int32 port", &Network::RemoteHost::Port);
 				VRemoteHost.SetProperty<Network::RemoteHost>("bool secure", &Network::RemoteHost::Secure);
 				VRemoteHost.SetConstructor<Network::RemoteHost>("void f()");
 
-				TypeClass VLocation = Engine->SetStructTrivial<Network::Location>("url_location");
+				TypeClass VLocation = *VM->SetStructTrivial<Network::Location>("url_location");
 				VLocation.SetProperty<Network::Location>("string url", &Network::Location::URL);
 				VLocation.SetProperty<Network::Location>("string protocol", &Network::Location::Protocol);
 				VLocation.SetProperty<Network::Location>("string username", &Network::Location::Username);
@@ -13584,14 +13960,14 @@ namespace Mavi
 				VLocation.SetConstructor<Network::Location, const Core::String&>("void f(const string &in)");
 				VLocation.SetMethodEx("dictionary@ get_query() const", &LocationGetQuery);
 
-				TypeClass VCertificate = Engine->SetStructTrivial<Network::Certificate>("certificate");
+				TypeClass VCertificate = *VM->SetStructTrivial<Network::Certificate>("certificate");
 				VCertificate.SetProperty<Network::Certificate>("string subject", &Network::Certificate::Subject);
 				VCertificate.SetProperty<Network::Certificate>("string issuer", &Network::Certificate::Issuer);
 				VCertificate.SetProperty<Network::Certificate>("string serial", &Network::Certificate::Serial);
 				VCertificate.SetProperty<Network::Certificate>("string finger", &Network::Certificate::Finger);
 				VCertificate.SetConstructor<Network::Certificate>("void f()");
 
-				TypeClass VSocketCertificate = Engine->SetStructTrivial<Network::SocketCertificate>("socket_certificate");
+				TypeClass VSocketCertificate = *VM->SetStructTrivial<Network::SocketCertificate>("socket_certificate");
 				VSocketCertificate.SetProperty<Network::SocketCertificate>("uptr@ context", &Network::SocketCertificate::Context);
 				VSocketCertificate.SetProperty<Network::SocketCertificate>("string key", &Network::SocketCertificate::Key);
 				VSocketCertificate.SetProperty<Network::SocketCertificate>("string chain", &Network::SocketCertificate::Chain);
@@ -13601,7 +13977,7 @@ namespace Mavi
 				VSocketCertificate.SetProperty<Network::SocketCertificate>("usize depth", &Network::SocketCertificate::Depth);
 				VSocketCertificate.SetConstructor<Network::SocketCertificate>("void f()");
 
-				TypeClass VDataFrame = Engine->SetStructTrivial<Network::DataFrame>("socket_data_frame");
+				TypeClass VDataFrame = *VM->SetStructTrivial<Network::DataFrame>("socket_data_frame");
 				VDataFrame.SetProperty<Network::DataFrame>("string message", &Network::DataFrame::Message);
 				VDataFrame.SetProperty<Network::DataFrame>("bool start", &Network::DataFrame::Start);
 				VDataFrame.SetProperty<Network::DataFrame>("bool finish", &Network::DataFrame::Finish);
@@ -13610,8 +13986,8 @@ namespace Mavi
 				VDataFrame.SetProperty<Network::DataFrame>("bool close", &Network::DataFrame::Close);
 				VDataFrame.SetConstructor<Network::DataFrame>("void f()");
 
-				RefClass VSocket = Engine->SetClass<Network::Socket>("socket", false);
-				TypeClass VEpollFd = Engine->SetStruct<Network::EpollFd>("epoll_fd");
+				RefClass VSocket = *VM->SetClass<Network::Socket>("socket", false);
+				TypeClass VEpollFd = *VM->SetStruct<Network::EpollFd>("epoll_fd");
 				VEpollFd.SetProperty<Network::EpollFd>("socket@ base", &Network::EpollFd::Base);
 				VEpollFd.SetProperty<Network::EpollFd>("bool readable", &Network::EpollFd::Readable);
 				VEpollFd.SetProperty<Network::EpollFd>("bool writeable", &Network::EpollFd::Writeable);
@@ -13620,7 +13996,7 @@ namespace Mavi
 				VEpollFd.SetOperatorCopyStatic(&EpollFdCopy);
 				VEpollFd.SetDestructorStatic("void f()", &EpollFdDestructor);
 
-				TypeClass VEpollHandle = Engine->SetStructTrivial<Network::EpollHandle>("epoll_handle");
+				TypeClass VEpollHandle = *VM->SetStructTrivial<Network::EpollHandle>("epoll_handle");
 				VEpollHandle.SetProperty<Network::EpollHandle>("uptr@ array", &Network::EpollHandle::Array);
 				VEpollHandle.SetProperty<Network::EpollHandle>("uptr@ handle", &Network::EpollHandle::Handle);
 				VEpollHandle.SetProperty<Network::EpollHandle>("usize array_size", &Network::EpollHandle::ArraySize);
@@ -13630,7 +14006,7 @@ namespace Mavi
 				VEpollHandle.SetMethod("bool remove(socket@+, bool, bool)", &Network::EpollHandle::Remove);
 				VEpollHandle.SetMethodEx("int wait(array<epoll_fd>@+, uint64)", &EpollHandleWait);
 
-				RefClass VSocketAddress = Engine->SetClass<Network::SocketAddress>("socket_address", false);
+				RefClass VSocketAddress = *VM->SetClass<Network::SocketAddress>("socket_address", false);
 				VSocketAddress.SetConstructor<Network::SocketAddress, addrinfo*, addrinfo*>("socket_address@ f(uptr@, uptr@)");
 				VSocketAddress.SetMethod("bool is_usable() const", &Network::SocketAddress::IsUsable);
 				VSocketAddress.SetMethod("uptr@ get() const", &Network::SocketAddress::Get);
@@ -13639,8 +14015,7 @@ namespace Mavi
 
 				VSocket.SetFunctionDef("void socket_written_event(socket_poll)");
 				VSocket.SetFunctionDef("void socket_opened_event(socket_address@+)");
-				VSocket.SetFunctionDef("void socket_connected_event(int)");
-				VSocket.SetFunctionDef("void socket_closed_event()");
+				VSocket.SetFunctionDef("void socket_status_event(int)");
 				VSocket.SetFunctionDef("bool socket_read_event(socket_poll, const string &in)");
 				VSocket.SetFunctionDef("bool socket_accepted_event(usize, const string &in)");
 				VSocket.SetProperty<Network::Socket>("uint64 timeout", &Network::Socket::Timeout);
@@ -13651,65 +14026,64 @@ namespace Mavi
 				VSocket.SetConstructor<Network::Socket, socket_t>("socket@ f(usize)");
 				VSocket.SetMethodEx("int accept(socket@+, string &out)", &SocketAccept1);
 				VSocket.SetMethodEx("int accept(usize &out, string &out)", &SocketAccept2);
-				VSocket.SetMethodEx("int accept_async(bool, socket_accepted_event@+)", &SocketAcceptAsync);
-				VSocket.SetMethod("int close(bool = true)", &Network::Socket::Close);
-				VSocket.SetMethodEx("int close_async(bool, socket_closed_event@+)", &SocketCloseAsync);
-				VSocket.SetMethod("int64 send_file(uptr@, int64, int64)", &Network::Socket::SendFile);
-				VSocket.SetMethodEx("int64 send_file_async(uptr@, int64, int64, socket_written_event@+)", &SocketSendFileAsync);
+				VSocket.SetMethodEx("int accept_async(bool, socket_accepted_event@)", &SocketAcceptAsync);
+				VSocket.SetMethodEx("int close(bool = true)", &SocketClose);
+				VSocket.SetMethodEx("int close_async(bool, socket_status_event@)", &SocketCloseAsync);
+				VSocket.SetMethodEx("int64 send_file(uptr@, int64, int64)", &SocketSendFile);
+				VSocket.SetMethodEx("int64 send_file_async(uptr@, int64, int64, socket_written_event@)", &SocketSendFileAsync);
 				VSocket.SetMethodEx("int write(const string &in)", &SocketWrite);
-				VSocket.SetMethodEx("int write_async(const string &in, socket_written_event@+)", &SocketWriteAsync);
+				VSocket.SetMethodEx("int write_async(const string &in, socket_written_event@)", &SocketWriteAsync);
 				VSocket.SetMethodEx("int read(string &out, int)", &SocketRead1);
-				VSocket.SetMethodEx("int read(string &out, int, socket_read_event@+)", &SocketRead2);
-				VSocket.SetMethodEx("int read_async(usize, socket_read_event@+)", &SocketReadAsync);
-				VSocket.SetMethodEx("int read_until(const string &in, socket_read_event@+)", &SocketReadUntil);
-				VSocket.SetMethodEx("int read_until_async(const string &in, socket_read_event@+)", &SocketReadUntilAsync);
-				VSocket.SetMethod("int connect(socket_address@+, uint64)", &Network::Socket::Connect);
-				VSocket.SetMethodEx("int connect_async(socket_address@+, socket_connected_event@+)", &SocketConnectAsync);
-				VSocket.SetMethod("int open(socket_address@+)", &Network::Socket::Open);
+				VSocket.SetMethodEx("int read(string &out, int, socket_read_event@)", &SocketRead2);
+				VSocket.SetMethodEx("int read_async(usize, socket_read_event@)", &SocketReadAsync);
+				VSocket.SetMethodEx("int read_until(const string &in, socket_read_event@)", &SocketReadUntil);
+				VSocket.SetMethodEx("int read_until_async(const string &in, socket_read_event@)", &SocketReadUntilAsync);
+				VSocket.SetMethodEx("int connect(socket_address@+, uint64)", &SocketConnect);
+				VSocket.SetMethodEx("int connect_async(socket_address@+, socket_status_event@)", &SocketConnectAsync);
+				VSocket.SetMethodEx("int open(socket_address@+)", &SocketOpen);
 				VSocket.SetMethodEx("int secure(uptr@, const string &in)", &SocketSecure);
-				VSocket.SetMethod("int bind(socket_address@+)", &Network::Socket::Bind);
-				VSocket.SetMethod("int listen(int)", &Network::Socket::Listen);
-				VSocket.SetMethod("int clear_events(bool)", &Network::Socket::ClearEvents);
-				VSocket.SetMethod("int migrate_to(usize, bool = true)", &Network::Socket::MigrateTo);
-				VSocket.SetMethod("int set_close_on_exec()", &Network::Socket::SetCloseOnExec);
-				VSocket.SetMethod("int set_time_wait(int)", &Network::Socket::SetTimeWait);
-				VSocket.SetMethod("int set_any_flag(int, int, int)", &Network::Socket::SetAnyFlag);
-				VSocket.SetMethod("int set_socket_flag(int, int)", &Network::Socket::SetSocketFlag);
-				VSocket.SetMethod("int set_blocking(bool)", &Network::Socket::SetBlocking);
-				VSocket.SetMethod("int set_no_delay(bool)", &Network::Socket::SetNoDelay);
-				VSocket.SetMethod("int set_keep_alive(bool)", &Network::Socket::SetKeepAlive);
-				VSocket.SetMethod("int set_timeout(int)", &Network::Socket::SetTimeout);
-				VSocket.SetMethod("int get_error(int)", &Network::Socket::GetError);
-				VSocket.SetMethod("int get_any_flag(int, int, int &out)", &Network::Socket::GetAnyFlag);
-				VSocket.SetMethod("int get_socket_flag(int, int &out)", &Network::Socket::GetSocketFlag);
-				VSocket.SetMethod("int get_port()", &Network::Socket::GetPort);
+				VSocket.SetMethodEx("int bind(socket_address@+)", &SocketBind);
+				VSocket.SetMethodEx("int listen(int)", &SocketListen);
+				VSocket.SetMethodEx("int clear_events(bool)", &SocketClearEvents);
+				VSocket.SetMethodEx("int migrate_to(usize, bool = true)", &SocketMigrateTo);
+				VSocket.SetMethodEx("int set_close_on_exec()", &SocketSetCloseOnExec);
+				VSocket.SetMethodEx("int set_time_wait(int)", &SocketSetTimeWait);
+				VSocket.SetMethodEx("int set_any_flag(int, int, int)", &SocketSetAnyFlag);
+				VSocket.SetMethodEx("int set_socket_flag(int, int)", &SocketSetSocketFlag);
+				VSocket.SetMethodEx("int set_blocking(bool)", &SocketSetBlocking);
+				VSocket.SetMethodEx("int set_no_delay(bool)", &SocketSetNoDelay);
+				VSocket.SetMethodEx("int set_keep_alive(bool)", &SocketSetKeepAlive);
+				VSocket.SetMethodEx("int set_timeout(int)", &SocketSetTimeout);
+				VSocket.SetMethodEx("int get_any_flag(int, int, int &out)", &SocketGetAnyFlag);
+				VSocket.SetMethodEx("int get_socket_flag(int, int &out)", &SocketGetSocketFlag);
+				VSocket.SetMethodEx("int get_port()", &SocketGetPort);
+				VSocket.SetMethodEx("string get_remote_address()", &SocketGetRemoteAddress);
 				VSocket.SetMethod("usize get_fd()", &Network::Socket::GetFd);
 				VSocket.SetMethod("uptr@ get_device()", &Network::Socket::GetDevice);
 				VSocket.SetMethod("bool is_pending_for_read()", &Network::Socket::IsPendingForRead);
 				VSocket.SetMethod("bool is_pending_for_write()", &Network::Socket::IsPendingForWrite);
 				VSocket.SetMethod("bool is_pending()", &Network::Socket::IsPending);
 				VSocket.SetMethod("bool is_valid()", &Network::Socket::IsValid);
-				VSocket.SetMethod("string get_remote_address()", &Network::Socket::GetRemoteAddress);
 				
-				Engine->BeginNamespace("net_packet");
-				Engine->SetFunction("bool is_data(socket_poll)", &Network::Packet::IsData);
-				Engine->SetFunction("bool is_skip(socket_poll)", &Network::Packet::IsSkip);
-				Engine->SetFunction("bool is_done(socket_poll)", &Network::Packet::IsDone);
-				Engine->SetFunction("bool is_done_sync(socket_poll)", &Network::Packet::IsDoneSync);
-				Engine->SetFunction("bool is_done_async(socket_poll)", &Network::Packet::IsDoneAsync);
-				Engine->SetFunction("bool is_timeout(socket_poll)", &Network::Packet::IsTimeout);
-				Engine->SetFunction("bool is_error(socket_poll)", &Network::Packet::IsError);
-				Engine->SetFunction("bool is_error_or_skip(socket_poll)", &Network::Packet::IsErrorOrSkip);
-				Engine->SetFunction("bool will_continue(socket_poll)", &Network::Packet::WillContinue);
-				Engine->EndNamespace();
+				VM->BeginNamespace("net_packet");
+				VM->SetFunction("bool is_data(socket_poll)", &Network::Packet::IsData);
+				VM->SetFunction("bool is_skip(socket_poll)", &Network::Packet::IsSkip);
+				VM->SetFunction("bool is_done(socket_poll)", &Network::Packet::IsDone);
+				VM->SetFunction("bool is_done_sync(socket_poll)", &Network::Packet::IsDoneSync);
+				VM->SetFunction("bool is_done_async(socket_poll)", &Network::Packet::IsDoneAsync);
+				VM->SetFunction("bool is_timeout(socket_poll)", &Network::Packet::IsTimeout);
+				VM->SetFunction("bool is_error(socket_poll)", &Network::Packet::IsError);
+				VM->SetFunction("bool is_error_or_skip(socket_poll)", &Network::Packet::IsErrorOrSkip);
+				VM->SetFunction("bool will_continue(socket_poll)", &Network::Packet::WillContinue);
+				VM->EndNamespace();
 
-				RefClass VDNS = Engine->SetClass<Network::DNS>("dns", false);
+				RefClass VDNS = *VM->SetClass<Network::DNS>("dns", false);
 				VDNS.SetConstructor<Network::DNS>("dns@ f()");
-				VDNS.SetMethod("string find_name_from_address(const string &in, const string &in)", &Network::DNS::FindNameFromAddress);
-				VDNS.SetMethod("string find_address_from_name(const string &in, const string &in, dns_type, socket_protocol, socket_type)", &Network::DNS::FindAddressFromName);
+				VDNS.SetMethodEx("string find_name_from_address(const string &in, const string &in)", &DNSFindNameFromAddress);
+				VDNS.SetMethodEx("socket_address@+ find_address_from_name(const string &in, const string &in, dns_type, socket_protocol, socket_type)", &DNSFindAddressFromName);
 				VDNS.SetMethodStatic("dns@+ get()", &Network::DNS::Get);
 
-				RefClass VMultiplexer = Engine->SetClass<Network::Multiplexer>("multiplexer", false);
+				RefClass VMultiplexer = *VM->SetClass<Network::Multiplexer>("multiplexer", false);
 				VMultiplexer.SetFunctionDef("void poll_event(socket@+, socket_poll)");
 				VMultiplexer.SetConstructor<Network::Multiplexer>("multiplexer@ f()");
 				VMultiplexer.SetConstructor<Network::Multiplexer, uint64_t, size_t>("multiplexer@ f(uint64, usize)");
@@ -13717,8 +14091,8 @@ namespace Mavi
 				VMultiplexer.SetMethod("void activate()", &Network::Multiplexer::Activate);
 				VMultiplexer.SetMethod("void deactivate()", &Network::Multiplexer::Deactivate);
 				VMultiplexer.SetMethod("int dispatch(uint64)", &Network::Multiplexer::Dispatch);
-				VMultiplexer.SetMethodEx("bool when_readable(socket@+, poll_event@+)", &MultiplexerWhenReadable);
-				VMultiplexer.SetMethodEx("bool when_writeable(socket@+, poll_event@+)", &MultiplexerWhenWriteable);
+				VMultiplexer.SetMethodEx("bool when_readable(socket@+, poll_event@)", &MultiplexerWhenReadable);
+				VMultiplexer.SetMethodEx("bool when_writeable(socket@+, poll_event@)", &MultiplexerWhenWriteable);
 				VMultiplexer.SetMethod("bool cancel_events(socket@+, socket_poll = socket_poll::cancel, bool = true)", &Network::Multiplexer::CancelEvents);
 				VMultiplexer.SetMethod("bool clear_events(socket@+)", &Network::Multiplexer::ClearEvents);
 				VMultiplexer.SetMethod("bool is_awaiting_events(socket@+)", &Network::Multiplexer::IsAwaitingEvents);
@@ -13728,22 +14102,22 @@ namespace Mavi
 				VMultiplexer.SetMethod("usize get_activations()", &Network::Multiplexer::GetActivations);
 				VMultiplexer.SetMethodStatic("multiplexer@+ get()", &Network::Multiplexer::Get);
 
-				RefClass VSocketListener = Engine->SetClass<Network::SocketListener>("socket_listener", true);
+				RefClass VSocketListener = *VM->SetClass<Network::SocketListener>("socket_listener", true);
 				VSocketListener.SetProperty<Network::SocketListener>("string name", &Network::SocketListener::Name);
 				VSocketListener.SetProperty<Network::SocketListener>("remote_host hostname", &Network::SocketListener::Hostname);
 				VSocketListener.SetProperty<Network::SocketListener>("socket_address@ source", &Network::SocketListener::Source);
 				VSocketListener.SetProperty<Network::SocketListener>("socket@ base", &Network::SocketListener::Base);
 				VSocketListener.SetGcConstructor<Network::SocketListener, SocketListener, const Core::String&, const Network::RemoteHost&, Network::SocketAddress*>("socket_listener@ f(const string &in, const remote_host &in, socket_address@+)");
-				VSocketListener.SetEnumRefsEx<Network::SocketListener>([](Network::SocketListener* Base, asIScriptEngine* Engine)
+				VSocketListener.SetEnumRefsEx<Network::SocketListener>([](Network::SocketListener* Base, asIScriptEngine* VM)
 				{
-					Engine->GCEnumCallback(Base->Base);
+					FunctionFactory::GCEnumCallback(VM, Base->Base);
 				});
 				VSocketListener.SetReleaseRefsEx<Network::SocketListener>([](Network::SocketListener* Base, asIScriptEngine*)
 				{
 					Base->~SocketListener();
 				});
 
-				RefClass VSocketRouter = Engine->SetClass<Network::SocketRouter>("socket_router", false);
+				RefClass VSocketRouter = *VM->SetClass<Network::SocketRouter>("socket_router", false);
 				VSocketRouter.SetProperty<Network::SocketRouter>("usize payload_max_length", &Network::SocketRouter::PayloadMaxLength);
 				VSocketRouter.SetProperty<Network::SocketRouter>("usize backlog_queue", &Network::SocketRouter::BacklogQueue);
 				VSocketRouter.SetProperty<Network::SocketRouter>("usize socket_timeout", &Network::SocketRouter::SocketTimeout);
@@ -13759,7 +14133,7 @@ namespace Mavi
 				VSocketRouter.SetMethodEx("void set_certificates(dictionary@ data)", &SocketRouterSetCertificates);
 				VSocketRouter.SetMethodEx("dictionary@ get_certificates() const", &SocketRouterGetCertificates);
 
-				RefClass VSocketConnection = Engine->SetClass<Network::SocketConnection>("socket_connection", true);
+				RefClass VSocketConnection = *VM->SetClass<Network::SocketConnection>("socket_connection", true);
 				VSocketConnection.SetProperty<Network::SocketConnection>("socket@ stream", &Network::SocketConnection::Stream);
 				VSocketConnection.SetProperty<Network::SocketConnection>("socket_listener@ host", &Network::SocketConnection::Host);
 				VSocketConnection.SetProperty<Network::SocketConnection>("socket_data_frame info", &Network::SocketConnection::Info);
@@ -13771,44 +14145,44 @@ namespace Mavi
 				VSocketConnection.SetMethodEx("bool error(int, const string &in)", &SocketConnectionError);
 				VSocketConnection.SetMethod("bool encryption_info(socket_certificate &out)", &Network::SocketConnection::EncryptionInfo);
 				VSocketConnection.SetMethod("bool stop()", &Network::SocketConnection::Break);
-				VSocketConnection.SetEnumRefsEx<Network::SocketConnection>([](Network::SocketConnection* Base, asIScriptEngine* Engine)
+				VSocketConnection.SetEnumRefsEx<Network::SocketConnection>([](Network::SocketConnection* Base, asIScriptEngine* VM)
 				{
-					Engine->GCEnumCallback(Base->Stream);
-					Engine->GCEnumCallback(Base->Host);
+					FunctionFactory::GCEnumCallback(VM, Base->Stream);
+					FunctionFactory::GCEnumCallback(VM, Base->Host);
 				});
 				VSocketConnection.SetReleaseRefsEx<Network::SocketConnection>([](Network::SocketConnection* Base, asIScriptEngine*)
 				{
 					Base->~SocketConnection();
 				});
 
-				RefClass VSocketServer = Engine->SetClass<Network::SocketServer>("socket_server", true);
+				RefClass VSocketServer = *VM->SetClass<Network::SocketServer>("socket_server", true);
 				VSocketServer.SetGcConstructor<Network::SocketServer, SocketServer>("socket_server@ f()");
 				VSocketServer.SetMethodEx("void set_router(socket_router@+)", &SocketServerSetRouter);
-				VSocketServer.SetMethod("void set_backlog(usize)", &Network::SocketServer::SetBacklog);
 				VSocketServer.SetMethodEx("bool configure(socket_router@+)", &SocketServerConfigure);
-				VSocketServer.SetMethod("bool unlisten(uint64 = 5)", &Network::SocketServer::Unlisten);
-				VSocketServer.SetMethod("bool listen()", &Network::SocketServer::Listen);
+				VSocketServer.SetMethodEx("bool listen()", &SocketServerListen);
+				VSocketServer.SetMethodEx("bool unlisten(uint64 = 5)", &SocketServerUnlisten);
+				VSocketServer.SetMethod("void set_backlog(usize)", &Network::SocketServer::SetBacklog);
 				VSocketServer.SetMethod("usize get_backlog() const", &Network::SocketServer::GetBacklog);
 				VSocketServer.SetMethod("server_state get_state() const", &Network::SocketServer::GetState);
 				VSocketServer.SetMethod("socket_router@+ get_router() const", &Network::SocketServer::GetRouter);
-				VSocketServer.SetEnumRefsEx<Network::SocketServer>([](Network::SocketServer* Base, asIScriptEngine* Engine)
+				VSocketServer.SetEnumRefsEx<Network::SocketServer>([](Network::SocketServer* Base, asIScriptEngine* VM)
 				{
-					Engine->GCEnumCallback(Base->GetRouter());
+					FunctionFactory::GCEnumCallback(VM, Base->GetRouter());
 					for (auto* Item : Base->GetActiveClients())
-						Engine->GCEnumCallback(Item);
+						FunctionFactory::GCEnumCallback(VM, Item);
 
 					for (auto* Item : Base->GetPooledClients())
-						Engine->GCEnumCallback(Item);
+						FunctionFactory::GCEnumCallback(VM, Item);
 				});
 				VSocketServer.SetReleaseRefsEx<Network::SocketServer>([](Network::SocketServer* Base, asIScriptEngine*)
 				{
 					Base->~SocketServer();
 				});
 
-				RefClass VSocketClient = Engine->SetClass<Network::SocketClient>("socket_client", false);
+				RefClass VSocketClient = *VM->SetClass<Network::SocketClient>("socket_client", false);
 				VSocketClient.SetConstructor<Network::SocketClient, int64_t>("socket_client@ f(int64)");
-				VSocketClient.SetMethodEx("promise<int>@ connect(remote_host &in)", &VI_PROMISIFY(Network::SocketClient::Connect, TypeId::INT32));
-				VSocketClient.SetMethodEx("promise<int>@ close()", &VI_PROMISIFY(Network::SocketClient::Close, TypeId::INT32));
+				VSocketClient.SetMethodEx("promise<int>@ connect(remote_host &in, bool = true)", &VI_SPROMISIFY(SocketClientConnect, TypeId::INT32));
+				VSocketClient.SetMethodEx("promise<int>@ close()", &VI_SPROMISIFY(SocketClientClose, TypeId::INT32));
 				VSocketClient.SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 
 				return true;
@@ -13817,10 +14191,10 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportHTTP(VirtualMachine* Engine)
+			bool Registry::ImportHTTP(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
+				VI_ASSERT(VM != nullptr, "manager should be set");
 				VI_TYPEREF(RouteGroup, "http::route_group");
 				VI_TYPEREF(SiteEntry, "http::site_entry");
 				VI_TYPEREF(MapRouter, "http::map_router");
@@ -13830,13 +14204,13 @@ namespace Mavi
 				VI_TYPEREF(String, "string");
 				VI_TYPEREF(Schema, "schema");
 
-				Engine->BeginNamespace("http");
-				Enumeration VAuth = Engine->SetEnum("auth");
+				VM->BeginNamespace("http");
+				Enumeration VAuth = *VM->SetEnum("auth");
 				VAuth.SetValue("granted", (int)Network::HTTP::Auth::Granted);
 				VAuth.SetValue("denied", (int)Network::HTTP::Auth::Denied);
 				VAuth.SetValue("unverified", (int)Network::HTTP::Auth::Unverified);
 
-				Enumeration VWebSocketOp = Engine->SetEnum("websocket_op");
+				Enumeration VWebSocketOp = *VM->SetEnum("websocket_op");
 				VWebSocketOp.SetValue("next", (int)Network::HTTP::WebSocketOp::Continue);
 				VWebSocketOp.SetValue("text", (int)Network::HTTP::WebSocketOp::Text);
 				VWebSocketOp.SetValue("binary", (int)Network::HTTP::WebSocketOp::Binary);
@@ -13844,40 +14218,40 @@ namespace Mavi
 				VWebSocketOp.SetValue("ping", (int)Network::HTTP::WebSocketOp::Ping);
 				VWebSocketOp.SetValue("pong", (int)Network::HTTP::WebSocketOp::Pong);
 
-				Enumeration VWebSocketState = Engine->SetEnum("websocket_state");
+				Enumeration VWebSocketState = *VM->SetEnum("websocket_state");
 				VWebSocketState.SetValue("open", (int)Network::HTTP::WebSocketState::Open);
 				VWebSocketState.SetValue("receive", (int)Network::HTTP::WebSocketState::Receive);
 				VWebSocketState.SetValue("process", (int)Network::HTTP::WebSocketState::Process);
 				VWebSocketState.SetValue("close", (int)Network::HTTP::WebSocketState::Close);
 
-				Enumeration VCompressionTune = Engine->SetEnum("compression_tune");
+				Enumeration VCompressionTune = *VM->SetEnum("compression_tune");
 				VCompressionTune.SetValue("filtered", (int)Network::HTTP::CompressionTune::Filtered);
 				VCompressionTune.SetValue("huffman", (int)Network::HTTP::CompressionTune::Huffman);
 				VCompressionTune.SetValue("rle", (int)Network::HTTP::CompressionTune::Rle);
 				VCompressionTune.SetValue("fixed", (int)Network::HTTP::CompressionTune::Fixed);
 				VCompressionTune.SetValue("defaults", (int)Network::HTTP::CompressionTune::Default);
 
-				Enumeration VRouteMode = Engine->SetEnum("route_mode");
+				Enumeration VRouteMode = *VM->SetEnum("route_mode");
 				VRouteMode.SetValue("start", (int)Network::HTTP::RouteMode::Start);
 				VRouteMode.SetValue("match", (int)Network::HTTP::RouteMode::Match);
 				VRouteMode.SetValue("end", (int)Network::HTTP::RouteMode::End);
 
-				TypeClass VErrorFile = Engine->SetStructTrivial<Network::HTTP::ErrorFile>("error_file");
+				TypeClass VErrorFile = *VM->SetStructTrivial<Network::HTTP::ErrorFile>("error_file");
 				VErrorFile.SetProperty<Network::HTTP::ErrorFile>("string pattern", &Network::HTTP::ErrorFile::Pattern);
 				VErrorFile.SetProperty<Network::HTTP::ErrorFile>("int32 status_code", &Network::HTTP::ErrorFile::StatusCode);
 				VErrorFile.SetConstructor<Network::HTTP::ErrorFile>("void f()");
 
-				TypeClass VMimeType = Engine->SetStructTrivial<Network::HTTP::MimeType>("mime_type");
+				TypeClass VMimeType = *VM->SetStructTrivial<Network::HTTP::MimeType>("mime_type");
 				VMimeType.SetProperty<Network::HTTP::MimeType>("string extension", &Network::HTTP::MimeType::Extension);
 				VMimeType.SetProperty<Network::HTTP::MimeType>("string type", &Network::HTTP::MimeType::Type);
 				VMimeType.SetConstructor<Network::HTTP::MimeType>("void f()");
 
-				TypeClass VCredentials = Engine->SetStructTrivial<Network::HTTP::Credentials>("credentials");
+				TypeClass VCredentials = *VM->SetStructTrivial<Network::HTTP::Credentials>("credentials");
 				VCredentials.SetProperty<Network::HTTP::Credentials>("string token", &Network::HTTP::Credentials::Token);
 				VCredentials.SetProperty<Network::HTTP::Credentials>("auth type", &Network::HTTP::Credentials::Type);
 				VCredentials.SetConstructor<Network::HTTP::Credentials>("void f()");
 
-				TypeClass VResource = Engine->SetStructTrivial<Network::HTTP::Resource>("resource_info");
+				TypeClass VResource = *VM->SetStructTrivial<Network::HTTP::Resource>("resource_info");
 				VResource.SetProperty<Network::HTTP::Resource>("string path", &Network::HTTP::Resource::Path);
 				VResource.SetProperty<Network::HTTP::Resource>("string type", &Network::HTTP::Resource::Type);
 				VResource.SetProperty<Network::HTTP::Resource>("string name", &Network::HTTP::Resource::Name);
@@ -13890,7 +14264,7 @@ namespace Mavi
 				VResource.SetMethod("string compose_header(const string&in) const", &Network::HTTP::Resource::ComposeHeader);
 				VResource.SetMethodEx("string get_header(const string&in) const", &ResourceGetHeaderBlob);
 
-				TypeClass VCookie = Engine->SetStructTrivial<Network::HTTP::Cookie>("cookie");
+				TypeClass VCookie = *VM->SetStructTrivial<Network::HTTP::Cookie>("cookie");
 				VCookie.SetProperty<Network::HTTP::Cookie>("string name", &Network::HTTP::Cookie::Name);
 				VCookie.SetProperty<Network::HTTP::Cookie>("string value", &Network::HTTP::Cookie::Value);
 				VCookie.SetProperty<Network::HTTP::Cookie>("string domain", &Network::HTTP::Cookie::Domain);
@@ -13902,7 +14276,7 @@ namespace Mavi
 				VCookie.SetMethod("void set_expires(int64)", &Network::HTTP::Cookie::SetExpires);
 				VCookie.SetMethod("void set_expired()", &Network::HTTP::Cookie::SetExpired);
 
-				TypeClass VContentFrame = Engine->SetStructTrivial<Network::HTTP::ContentFrame>("content_frame");
+				TypeClass VContentFrame = *VM->SetStructTrivial<Network::HTTP::ContentFrame>("content_frame");
 				VContentFrame.SetProperty<Network::HTTP::ContentFrame>("usize length", &Network::HTTP::ContentFrame::Length);
 				VContentFrame.SetProperty<Network::HTTP::ContentFrame>("usize offset", &Network::HTTP::ContentFrame::Offset);
 				VContentFrame.SetProperty<Network::HTTP::ContentFrame>("bool exceeds", &Network::HTTP::ContentFrame::Exceeds);
@@ -13918,7 +14292,7 @@ namespace Mavi
 				VContentFrame.SetMethodEx("resource_info get_resource(usize) const", &ContentFrameGetResource);
 				VContentFrame.SetMethodEx("usize get_resources_size() const", &ContentFrameGetResourcesSize);
 
-				TypeClass VRequestFrame = Engine->SetStructTrivial<Network::HTTP::RequestFrame>("request_frame");
+				TypeClass VRequestFrame = *VM->SetStructTrivial<Network::HTTP::RequestFrame>("request_frame");
 				VRequestFrame.SetProperty<Network::HTTP::RequestFrame>("content_frame content", &Network::HTTP::RequestFrame::Content);
 				VRequestFrame.SetProperty<Network::HTTP::RequestFrame>("string query", &Network::HTTP::RequestFrame::Query);
 				VRequestFrame.SetProperty<Network::HTTP::RequestFrame>("string path", &Network::HTTP::RequestFrame::Path);
@@ -13944,7 +14318,7 @@ namespace Mavi
 				VRequestFrame.SetMethodEx("string get_method() const", &RequestFrameGetMethod);
 				VRequestFrame.SetMethodEx("string get_version() const", &RequestFrameGetVersion);
 
-				TypeClass VResponseFrame = Engine->SetStructTrivial<Network::HTTP::ResponseFrame>("response_frame");
+				TypeClass VResponseFrame = *VM->SetStructTrivial<Network::HTTP::ResponseFrame>("response_frame");
 				VResponseFrame.SetProperty<Network::HTTP::ResponseFrame>("content_frame content", &Network::HTTP::ResponseFrame::Content);
 				VResponseFrame.SetProperty<Network::HTTP::ResponseFrame>("int32 status_code", &Network::HTTP::ResponseFrame::StatusCode);
 				VResponseFrame.SetProperty<Network::HTTP::ResponseFrame>("bool error", &Network::HTTP::ResponseFrame::Error);
@@ -13963,14 +14337,14 @@ namespace Mavi
 				VResponseFrame.SetMethodEx("usize get_header_size(usize) const", &ResponseFrameGetHeaderSize);
 				VResponseFrame.SetMethodEx("usize get_cookies_size() const", &ResponseFrameGetCookiesSize);
 
-				TypeClass VRouteAuth = Engine->SetStructTrivial<Network::HTTP::RouteEntry::RouteAuth>("route_auth");
+				TypeClass VRouteAuth = *VM->SetStructTrivial<Network::HTTP::RouteEntry::RouteAuth>("route_auth");
 				VRouteAuth.SetProperty<Network::HTTP::RouteEntry::RouteAuth>("string type", &Network::HTTP::RouteEntry::RouteAuth::Type);
 				VRouteAuth.SetProperty<Network::HTTP::RouteEntry::RouteAuth>("string realm", &Network::HTTP::RouteEntry::RouteAuth::Realm);
 				VRouteAuth.SetConstructor<Network::HTTP::RouteEntry::RouteAuth>("void f()");
 				VRouteAuth.SetMethodEx("void set_methods(array<string>@+)", &RouteAuthSetMethods);
 				VRouteAuth.SetMethodEx("array<string>@ get_methods() const", &RouteAuthGetMethods);
 
-				TypeClass VRouteCompression = Engine->SetStructTrivial<Network::HTTP::RouteEntry::RouteCompression>("route_compression");
+				TypeClass VRouteCompression = *VM->SetStructTrivial<Network::HTTP::RouteEntry::RouteCompression>("route_compression");
 				VRouteCompression.SetProperty<Network::HTTP::RouteEntry::RouteCompression>("compression_tune tune", &Network::HTTP::RouteEntry::RouteCompression::Tune);
 				VRouteCompression.SetProperty<Network::HTTP::RouteEntry::RouteCompression>("int32 quality_level", &Network::HTTP::RouteEntry::RouteCompression::QualityLevel);
 				VRouteCompression.SetProperty<Network::HTTP::RouteEntry::RouteCompression>("int32 memory_level", &Network::HTTP::RouteEntry::RouteCompression::MemoryLevel);
@@ -13980,8 +14354,8 @@ namespace Mavi
 				VRouteCompression.SetMethodEx("void set_files(array<regex_source>@+)", &RouteCompressionSetFiles);
 				VRouteCompression.SetMethodEx("array<regex_source>@ get_files() const", &RouteCompressionGetFiles);
 
-				RefClass VSiteEntry = Engine->SetClass<Network::HTTP::SiteEntry>("site_entry", false);
-				RefClass VRouteEntry = Engine->SetClass<Network::HTTP::RouteEntry>("route_entry", false);
+				RefClass VSiteEntry = *VM->SetClass<Network::HTTP::SiteEntry>("site_entry", false);
+				RefClass VRouteEntry = *VM->SetClass<Network::HTTP::RouteEntry>("route_entry", false);
 				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("route_auth auths", &Network::HTTP::RouteEntry::Auth);
 				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("route_compression compressions", &Network::HTTP::RouteEntry::Compression);
 				VRouteEntry.SetProperty<Network::HTTP::RouteEntry>("string document_root", &Network::HTTP::RouteEntry::DocumentRoot);
@@ -14014,14 +14388,14 @@ namespace Mavi
 				VRouteEntry.SetMethodEx("array<string>@ get_disallowed_methods_files() const", &RouteEntryGetDisallowedMethodsFiles);
 				VRouteEntry.SetMethodEx("site_entry@+ get_site() const", &RouteEntryGetSite);
 
-				RefClass VRouteGroup = Engine->SetClass<Network::HTTP::RouteGroup>("route_group", false);
+				RefClass VRouteGroup = *VM->SetClass<Network::HTTP::RouteGroup>("route_group", false);
 				VRouteGroup.SetProperty<Network::HTTP::RouteGroup>("string match", &Network::HTTP::RouteGroup::Match);
 				VRouteGroup.SetProperty<Network::HTTP::RouteGroup>("route_mode mode", &Network::HTTP::RouteGroup::Mode);
 				VRouteGroup.SetGcConstructor<Network::HTTP::RouteGroup, RouteGroup, const Core::String&, Network::HTTP::RouteMode>("route_group@ f(const string&in, route_mode)");
 				VRouteGroup.SetMethodEx("route_entry@+ get_route(usize) const", &RouteGroupGetRoute);
 				VRouteGroup.SetMethodEx("usize get_routes_size() const", &RouteGroupGetRoutesSize);
 
-				TypeClass VSiteCookie = Engine->SetStructTrivial<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("site_cookie");
+				TypeClass VSiteCookie = *VM->SetStructTrivial<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("site_cookie");
 				VSiteCookie.SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("string name", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::Name);
 				VSiteCookie.SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("string domain", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::Domain);
 				VSiteCookie.SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("string path", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::Path);
@@ -14031,15 +14405,15 @@ namespace Mavi
 				VSiteCookie.SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("bool http_only", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::HttpOnly);
 				VSiteCookie.SetConstructor<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("void f()");
 
-				TypeClass VSiteSession = Engine->SetStructTrivial<Network::HTTP::SiteEntry::SiteSession>("site_session");
+				TypeClass VSiteSession = *VM->SetStructTrivial<Network::HTTP::SiteEntry::SiteSession>("site_session");
 				VSiteSession.SetProperty<Network::HTTP::SiteEntry::SiteSession>("site_cookie cookie", &Network::HTTP::SiteEntry::SiteSession::Cookie);
 				VSiteSession.SetProperty<Network::HTTP::SiteEntry::SiteSession>("string document_root", &Network::HTTP::SiteEntry::SiteSession::DocumentRoot);
 				VSiteSession.SetProperty<Network::HTTP::SiteEntry::SiteSession>("uint64 expires", &Network::HTTP::SiteEntry::SiteSession::Expires);
 				VSiteSession.SetConstructor<Network::HTTP::SiteEntry::SiteSession>("void f()");
 
-				RefClass VMapRouter = Engine->SetClass<Network::HTTP::MapRouter>("map_router", true);
-				RefClass VConnection = Engine->SetClass<Network::HTTP::Connection>("connection", false);
-				RefClass VWebSocketFrame = Engine->SetClass<Network::HTTP::WebSocketFrame>("websocket_frame", false);
+				RefClass VMapRouter = *VM->SetClass<Network::HTTP::MapRouter>("map_router", true);
+				RefClass VConnection = *VM->SetClass<Network::HTTP::Connection>("connection", false);
+				RefClass VWebSocketFrame = *VM->SetClass<Network::HTTP::WebSocketFrame>("websocket_frame", false);
 				VWebSocketFrame.SetFunctionDef("void status_event(websocket_frame@+)");
 				VWebSocketFrame.SetFunctionDef("void data_event(websocket_frame@+, websocket_op, const string&in)");
 				VWebSocketFrame.SetMethodEx("bool set_on_connect(status_event@+)", &WebSocketFrameSetOnConnect);
@@ -14067,30 +14441,30 @@ namespace Mavi
 				VSiteEntry.SetMethod<Network::HTTP::SiteEntry, Network::HTTP::RouteEntry*, const Core::String&, Network::HTTP::RouteMode, const Core::String&>("route_entry@+ route(const string&in, route_mode, const string&in)", &Network::HTTP::SiteEntry::Route);
 				VSiteEntry.SetMethod<Network::HTTP::SiteEntry, Network::HTTP::RouteEntry*, const Core::String&, Network::HTTP::RouteGroup*, Network::HTTP::RouteEntry*>("route_entry@+ route(const string&in, route_group@+, route_entry@+)", &Network::HTTP::SiteEntry::Route);
 				VSiteEntry.SetMethod("bool remove(route_entry@+)", &Network::HTTP::SiteEntry::Remove);
-				VSiteEntry.SetMethodEx("bool get(const string&in, net_event@+) const", &SiteEntryGet1);
-				VSiteEntry.SetMethodEx("bool get(const string&in, route_mode, const string&in, net_event@+) const", &SiteEntryGet2);
-				VSiteEntry.SetMethodEx("bool post(const string&in, net_event@+) const", &SiteEntryPost1);
-				VSiteEntry.SetMethodEx("bool post(const string&in, route_mode, const string&in, net_event@+) const", &SiteEntryPost2);
-				VSiteEntry.SetMethodEx("bool patch(const string&in, net_event@+) const", &SiteEntryPatch1);
-				VSiteEntry.SetMethodEx("bool patch(const string&in, route_mode, const string&in, net_event@+) const", &SiteEntryPatch2);
-				VSiteEntry.SetMethodEx("bool delete(const string&in, net_event@+) const", &SiteEntryDelete1);
-				VSiteEntry.SetMethodEx("bool delete(const string&in, route_mode, const string&in, net_event@+) const", &SiteEntryDelete2);
-				VSiteEntry.SetMethodEx("bool options(const string&in, net_event@+) const", &SiteEntryOptions1);
-				VSiteEntry.SetMethodEx("bool options(const string&in, route_mode, const string&in, net_event@+) const", &SiteEntryOptions2);
-				VSiteEntry.SetMethodEx("bool access(const string&in, net_event@+) const", &SiteEntryAccess1);
-				VSiteEntry.SetMethodEx("bool access(const string&in, route_mode, const string&in, net_event@+) const", &SiteEntryAccess2);
-				VSiteEntry.SetMethodEx("bool headers(const string&in, header_event@+) const", &SiteEntryHeaders1);
-				VSiteEntry.SetMethodEx("bool headers(const string&in, route_mode, const string&in, header_event@+) const", &SiteEntryHeaders2);
-				VSiteEntry.SetMethodEx("bool authorize(const string&in, auth_event@+) const", &SiteEntryAuthorize1);
-				VSiteEntry.SetMethodEx("bool authorize(const string&in, route_mode, const string&in, auth_event@+) const", &SiteEntryAuthorize2);
-				VSiteEntry.SetMethodEx("bool websocket_initiate(const string&in, net_event@+) const", &SiteEntryWebsocketInitiate1);
-				VSiteEntry.SetMethodEx("bool websocket_initiate(const string&in, route_mode, const string&in, net_event@+) const", &SiteEntryWebsocketInitiate2);
-				VSiteEntry.SetMethodEx("bool websocket_connect(const string&in, websocket_event@+) const", &SiteEntryWebsocketConnect1);
-				VSiteEntry.SetMethodEx("bool websocket_connect(const string&in, route_mode, const string&in, websocket_event@+) const", &SiteEntryWebsocketConnect2);
-				VSiteEntry.SetMethodEx("bool websocket_disconnect(const string&in, websocket_event@+) const", &SiteEntryWebsocketDisconnect1);
-				VSiteEntry.SetMethodEx("bool websocket_disconnect(const string&in, route_mode, const string&in, websocket_event@+) const", &SiteEntryWebsocketDisconnect2);
-				VSiteEntry.SetMethodEx("bool websocket_receive(const string&in, websocket_data_event@+) const", &SiteEntryWebsocketReceive1);
-				VSiteEntry.SetMethodEx("bool websocket_receive(const string&in, route_mode, const string&in, websocket_data_event@+) const", &SiteEntryWebsocketReceive2);
+				VSiteEntry.SetMethodEx("bool get(const string&in, net_event@) const", &SiteEntryGet1);
+				VSiteEntry.SetMethodEx("bool get(const string&in, route_mode, const string&in, net_event@) const", &SiteEntryGet2);
+				VSiteEntry.SetMethodEx("bool post(const string&in, net_event@) const", &SiteEntryPost1);
+				VSiteEntry.SetMethodEx("bool post(const string&in, route_mode, const string&in, net_event@) const", &SiteEntryPost2);
+				VSiteEntry.SetMethodEx("bool patch(const string&in, net_event@) const", &SiteEntryPatch1);
+				VSiteEntry.SetMethodEx("bool patch(const string&in, route_mode, const string&in, net_event@) const", &SiteEntryPatch2);
+				VSiteEntry.SetMethodEx("bool delete(const string&in, net_event@) const", &SiteEntryDelete1);
+				VSiteEntry.SetMethodEx("bool delete(const string&in, route_mode, const string&in, net_event@) const", &SiteEntryDelete2);
+				VSiteEntry.SetMethodEx("bool options(const string&in, net_event@) const", &SiteEntryOptions1);
+				VSiteEntry.SetMethodEx("bool options(const string&in, route_mode, const string&in, net_event@) const", &SiteEntryOptions2);
+				VSiteEntry.SetMethodEx("bool access(const string&in, net_event@) const", &SiteEntryAccess1);
+				VSiteEntry.SetMethodEx("bool access(const string&in, route_mode, const string&in, net_event@) const", &SiteEntryAccess2);
+				VSiteEntry.SetMethodEx("bool headers(const string&in, header_event@) const", &SiteEntryHeaders1);
+				VSiteEntry.SetMethodEx("bool headers(const string&in, route_mode, const string&in, header_event@) const", &SiteEntryHeaders2);
+				VSiteEntry.SetMethodEx("bool authorize(const string&in, auth_event@) const", &SiteEntryAuthorize1);
+				VSiteEntry.SetMethodEx("bool authorize(const string&in, route_mode, const string&in, auth_event@) const", &SiteEntryAuthorize2);
+				VSiteEntry.SetMethodEx("bool websocket_initiate(const string&in, net_event@) const", &SiteEntryWebsocketInitiate1);
+				VSiteEntry.SetMethodEx("bool websocket_initiate(const string&in, route_mode, const string&in, net_event@) const", &SiteEntryWebsocketInitiate2);
+				VSiteEntry.SetMethodEx("bool websocket_connect(const string&in, websocket_event@) const", &SiteEntryWebsocketConnect1);
+				VSiteEntry.SetMethodEx("bool websocket_connect(const string&in, route_mode, const string&in, websocket_event@) const", &SiteEntryWebsocketConnect2);
+				VSiteEntry.SetMethodEx("bool websocket_disconnect(const string&in, websocket_event@) const", &SiteEntryWebsocketDisconnect1);
+				VSiteEntry.SetMethodEx("bool websocket_disconnect(const string&in, route_mode, const string&in, websocket_event@) const", &SiteEntryWebsocketDisconnect2);
+				VSiteEntry.SetMethodEx("bool websocket_receive(const string&in, websocket_data_event@) const", &SiteEntryWebsocketReceive1);
+				VSiteEntry.SetMethodEx("bool websocket_receive(const string&in, route_mode, const string&in, websocket_data_event@) const", &SiteEntryWebsocketReceive2);
 				VSiteEntry.SetMethodEx("route_entry@+ get_base() const", &SiteEntryGetBase);
 				VSiteEntry.SetMethodEx("map_router@+ get_router() const", &SiteEntryGetRouter);
 				VSiteEntry.SetMethodEx("route_group@+ get_group(usize) const", &SiteEntryGetGroup);
@@ -14115,16 +14489,16 @@ namespace Mavi
 				VMapRouter.SetMethodEx("site_entry@+ get_site(const string&in) const", &MapRouterGetSite1);
 				VMapRouter.SetMethodEx("site_entry@+ get_site(usize) const", &MapRouterGetSite2);
 				VMapRouter.SetMethodEx("usize get_sites_size() const", &MapRouterGetSitesSize);
-				VMapRouter.SetEnumRefsEx<Network::HTTP::MapRouter>([](Network::HTTP::MapRouter* Base, asIScriptEngine* Engine)
+				VMapRouter.SetEnumRefsEx<Network::HTTP::MapRouter>([](Network::HTTP::MapRouter* Base, asIScriptEngine* VM)
 				{
 					for (auto& Site : Base->Sites)
 					{
-						Engine->GCEnumCallback(Site.second);
-						Engine->GCEnumCallback(Site.second->Base);
+						FunctionFactory::GCEnumCallback(VM, Site.second);
+						FunctionFactory::GCEnumCallback(VM, Site.second->Base);
 						for (auto& Group : Site.second->Groups)
 						{
 							for (auto& Route : Group->Routes)
-								Engine->GCEnumCallback(Route);
+								FunctionFactory::GCEnumCallback(VM, Route);
 						}
 					}
 				});
@@ -14134,7 +14508,7 @@ namespace Mavi
 				});
 				VMapRouter.SetDynamicCast<Network::HTTP::MapRouter, Network::SocketRouter>("socket_router@+", true);
 
-				RefClass VServer = Engine->SetClass<Network::HTTP::Server>("server", true);
+				RefClass VServer = *VM->SetClass<Network::HTTP::Server>("server", true);
 				VConnection.SetProperty<Network::HTTP::Connection>("file_entry target", &Network::HTTP::Connection::Resource);
 				VConnection.SetProperty<Network::HTTP::Connection>("request_frame request", &Network::HTTP::Connection::Request);
 				VConnection.SetProperty<Network::HTTP::Connection>("response_frame response", &Network::HTTP::Connection::Response);
@@ -14155,7 +14529,7 @@ namespace Mavi
 				VConnection.SetMethodEx("route_entry@+ get_route() const", &ConnectionGetRoute);
 				VConnection.SetMethodEx("server@+ get_root() const", &ConnectionGetServer);
 
-				RefClass VQuery = Engine->SetClass<Network::HTTP::Query>("query", false);
+				RefClass VQuery = *VM->SetClass<Network::HTTP::Query>("query", false);
 				VQuery.SetConstructor<Network::HTTP::Query>("query@ f()");
 				VQuery.SetMethod("void clear()", &Network::HTTP::Query::Clear);
 				VQuery.SetMethodEx("void decode(const string&in, const string&in)", &QueryDecode);
@@ -14163,7 +14537,7 @@ namespace Mavi
 				VQuery.SetMethodEx("void set_data(schema@+)", &QuerySetData);
 				VQuery.SetMethodEx("schema@+ get_data()", &QueryGetData);
 
-				RefClass VSession = Engine->SetClass<Network::HTTP::Session>("session", false);
+				RefClass VSession = *VM->SetClass<Network::HTTP::Session>("session", false);
 				VSession.SetProperty<Network::HTTP::Session>("string session_id", &Network::HTTP::Session::SessionId);
 				VSession.SetProperty<Network::HTTP::Session>("int64 session_expires", &Network::HTTP::Session::SessionExpires);
 				VSession.SetConstructor<Network::HTTP::Session>("session@ f()");
@@ -14177,21 +14551,21 @@ namespace Mavi
 				VServer.SetGcConstructor<Network::HTTP::Server, Server>("server@ f()");
 				VServer.SetMethod("void update()", &Network::HTTP::Server::Update);
 				VServer.SetMethodEx("void set_router(map_router@+)", &SocketServerSetRouter);
-				VServer.SetMethod("void set_backlog(usize)", &Network::SocketServer::SetBacklog);
 				VServer.SetMethodEx("bool configure(map_router@+)", &SocketServerConfigure);
-				VServer.SetMethod("bool unlisten(uint64 = 5)", &Network::SocketServer::Unlisten);
-				VServer.SetMethod("bool listen()", &Network::SocketServer::Listen);
+				VServer.SetMethodEx("bool listen()", &SocketServerListen);
+				VServer.SetMethodEx("bool unlisten(uint64 = 5)", &SocketServerUnlisten);
+				VServer.SetMethod("void set_backlog(usize)", &Network::SocketServer::SetBacklog);
 				VServer.SetMethod("usize get_backlog() const", &Network::SocketServer::GetBacklog);
 				VServer.SetMethod("server_state get_state() const", &Network::SocketServer::GetState);
 				VServer.SetMethod("map_router@+ get_router() const", &Network::SocketServer::GetRouter);
-				VServer.SetEnumRefsEx<Network::HTTP::Server>([](Network::HTTP::Server* Base, asIScriptEngine* Engine)
+				VServer.SetEnumRefsEx<Network::HTTP::Server>([](Network::HTTP::Server* Base, asIScriptEngine* VM)
 				{
-					Engine->GCEnumCallback(Base->GetRouter());
+					FunctionFactory::GCEnumCallback(VM, Base->GetRouter());
 					for (auto* Item : Base->GetActiveClients())
-						Engine->GCEnumCallback(Item);
+						FunctionFactory::GCEnumCallback(VM, Item);
 
 					for (auto* Item : Base->GetPooledClients())
-						Engine->GCEnumCallback(Item);
+						FunctionFactory::GCEnumCallback(VM, Item);
 				});
 				VServer.SetReleaseRefsEx<Network::HTTP::Server>([](Network::HTTP::Server* Base, asIScriptEngine*)
 				{
@@ -14199,7 +14573,7 @@ namespace Mavi
 				});
 				VServer.SetDynamicCast<Network::HTTP::Server, Network::SocketServer>("socket_server@+", true);
 
-				RefClass VClient = Engine->SetClass<Network::HTTP::Client>("client", false);
+				RefClass VClient = *VM->SetClass<Network::HTTP::Client>("client", false);
 				VClient.SetConstructor<Network::HTTP::Client, int64_t>("client@ f(int64)");
 				VClient.SetMethod("bool downgrade()", &Network::HTTP::Client::Downgrade);
 				VClient.SetMethodEx("string get_remote_address() const", &ClientGetRemoteAddress);
@@ -14209,14 +14583,14 @@ namespace Mavi
 				VClient.SetMethodEx("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(ClientSend, TypeId::BOOL));
 				VClient.SetMethodEx("promise<schema@>@ json(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientJSON, Schema));
 				VClient.SetMethodEx("promise<schema@>@ xml(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientXML, Schema));
-				VClient.SetMethodEx("promise<int>@ connect(remote_host &in)", &VI_PROMISIFY(Network::SocketClient::Connect, TypeId::INT32));
-				VClient.SetMethodEx("promise<int>@ close()", &VI_PROMISIFY(Network::SocketClient::Close, TypeId::INT32));
+				VClient.SetMethodEx("promise<int>@ connect(remote_host &in, bool = true)", &VI_SPROMISIFY(SocketClientConnect, TypeId::INT32));
+				VClient.SetMethodEx("promise<int>@ close()", &VI_SPROMISIFY(SocketClientClose, TypeId::INT32));
 				VClient.SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 				VClient.SetMethod("websocket_frame@+ get_websocket() const", &Network::HTTP::Client::GetWebSocket);
 				VClient.SetMethod("request_frame& get_request() property", &Network::HTTP::Client::GetRequest);
 				VClient.SetMethod("response_frame& get_response() property", &Network::HTTP::Client::GetResponse);
 				VClient.SetDynamicCast<Network::HTTP::Client, Network::SocketClient>("socket_client@+", true);
-				Engine->EndNamespace();
+				VM->EndNamespace();
 
 				return true;
 #else
@@ -14224,28 +14598,28 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportSMTP(VirtualMachine* Engine)
+			bool Registry::ImportSMTP(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
+				VI_ASSERT(VM != nullptr, "manager should be set");
 
-				Engine->BeginNamespace("smtp");
-				Enumeration VPriority = Engine->SetEnum("priority");
+				VM->BeginNamespace("smtp");
+				Enumeration VPriority = *VM->SetEnum("priority");
 				VPriority.SetValue("high", (int)Network::SMTP::Priority::High);
 				VPriority.SetValue("normal", (int)Network::SMTP::Priority::Normal);
 				VPriority.SetValue("low", (int)Network::SMTP::Priority::Low);
 
-				TypeClass VRecipient = Engine->SetStructTrivial<Network::SMTP::Recipient>("recipient");
+				TypeClass VRecipient = *VM->SetStructTrivial<Network::SMTP::Recipient>("recipient");
 				VRecipient.SetProperty<Network::SMTP::Recipient>("string name", &Network::SMTP::Recipient::Name);
 				VRecipient.SetProperty<Network::SMTP::Recipient>("string address", &Network::SMTP::Recipient::Address);
 				VRecipient.SetConstructor<Network::SMTP::Recipient>("void f()");
 
-				TypeClass VAttachment = Engine->SetStructTrivial<Network::SMTP::Attachment>("attachment");
+				TypeClass VAttachment = *VM->SetStructTrivial<Network::SMTP::Attachment>("attachment");
 				VAttachment.SetProperty<Network::SMTP::Attachment>("string path", &Network::SMTP::Attachment::Path);
 				VAttachment.SetProperty<Network::SMTP::Attachment>("usize length", &Network::SMTP::Attachment::Length);
 				VAttachment.SetConstructor<Network::SMTP::Attachment>("void f()");
 
-				TypeClass VRequestFrame = Engine->SetStructTrivial<Network::SMTP::RequestFrame>("request_frame");
+				TypeClass VRequestFrame = *VM->SetStructTrivial<Network::SMTP::RequestFrame>("request_frame");
 				VRequestFrame.SetProperty<Network::SMTP::RequestFrame>("string sender_name", &Network::SMTP::RequestFrame::SenderName);
 				VRequestFrame.SetProperty<Network::SMTP::RequestFrame>("string sender_address", &Network::SMTP::RequestFrame::SenderAddress);
 				VRequestFrame.SetProperty<Network::SMTP::RequestFrame>("string subject", &Network::SMTP::RequestFrame::Subject);
@@ -14273,16 +14647,16 @@ namespace Mavi
 				VRequestFrame.SetMethodEx("array<string>@ get_messages() const", &SMTPRequestGetMessages);
 				VRequestFrame.SetMethodEx("string get_remote_address() const", &SMTPRequestGetRemoteAddress);
 
-				RefClass VClient = Engine->SetClass<Network::SMTP::Client>("client", false);
+				RefClass VClient = *VM->SetClass<Network::SMTP::Client>("client", false);
 				VClient.SetConstructor<Network::SMTP::Client, const Core::String&, int64_t>("client@ f(const string&in, int64)");
 				VClient.SetMethodEx("string get_remote_address() const", &ClientGetRemoteAddress);
 				VClient.SetMethodEx("promise<int>@ send(const request_frame&in)", &VI_SPROMISIFY(SMTPClientSend, TypeId::INT32));
-				VClient.SetMethodEx("promise<int>@ connect(remote_host &in)", &VI_PROMISIFY(Network::SocketClient::Connect, TypeId::INT32));
-				VClient.SetMethodEx("promise<int>@ close()", &VI_PROMISIFY(Network::SocketClient::Close, TypeId::INT32));
+				VClient.SetMethodEx("promise<int>@ connect(remote_host &in, bool = true)", &VI_SPROMISIFY(SocketClientConnect, TypeId::INT32));
+				VClient.SetMethodEx("promise<int>@ close()", &VI_SPROMISIFY(SocketClientClose, TypeId::INT32));
 				VClient.SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 				VClient.SetMethod("request_frame& get_request() property", &Network::SMTP::Client::GetRequest);
 				VClient.SetDynamicCast<Network::SMTP::Client, Network::SocketClient>("socket_client@+", true);
-				Engine->EndNamespace();
+				VM->EndNamespace();
 
 				return true;
 #else
@@ -14290,10 +14664,10 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportPostgreSQL(VirtualMachine* Engine)
+			bool Registry::ImportPostgreSQL(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
+				VI_ASSERT(VM != nullptr, "manager should be set");
 
 				/* TODO: register bindings for <postgresql> module */
 				return true;
@@ -14302,10 +14676,10 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportMongoDB(VirtualMachine* Engine)
+			bool Registry::ImportMongoDB(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
+				VI_ASSERT(VM != nullptr, "manager should be set");
 
 				/* TODO: register bindings for <mongodb> module */
 				return true;
@@ -14314,12 +14688,12 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportVM(VirtualMachine* Engine)
+			bool Registry::ImportVM(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
+				VI_ASSERT(VM != nullptr, "manager should be set");
 
-				RefClass VVirtualMachine = Engine->SetClass<VirtualMachine>("virtual_machine", false);
+				RefClass VVirtualMachine = *VM->SetClass<VirtualMachine>("virtual_machine", false);
 
 				/* TODO: register bindings for <vm> module */
 				return true;
@@ -14328,10 +14702,10 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportEngine(VirtualMachine* Engine)
+			bool Registry::ImportEngine(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
+				VI_ASSERT(VM != nullptr, "manager should be set");
 				VI_TYPEREF(Material, "material");
 				VI_TYPEREF(Model, "model");
 				VI_TYPEREF(SkinModel, "skin_model");
@@ -14343,7 +14717,7 @@ namespace Mavi
 				VI_TYPEREF(SceneGraph, "scene_graph");
 				VI_TYPEREF(ApplicationName, "application");
 
-				Enumeration VApplicationSet = Engine->SetEnum("application_set");
+				Enumeration VApplicationSet = *VM->SetEnum("application_set");
 				VApplicationSet.SetValue("graphics_set", (int)Engine::ApplicationSet::GraphicsSet);
 				VApplicationSet.SetValue("activity_set", (int)Engine::ApplicationSet::ActivitySet);
 				VApplicationSet.SetValue("audio_set", (int)Engine::ApplicationSet::AudioSet);
@@ -14351,57 +14725,57 @@ namespace Mavi
 				VApplicationSet.SetValue("content_set", (int)Engine::ApplicationSet::ContentSet);
 				VApplicationSet.SetValue("network_set", (int)Engine::ApplicationSet::NetworkSet);
 
-				Enumeration VApplicationState = Engine->SetEnum("application_state");
+				Enumeration VApplicationState = *VM->SetEnum("application_state");
 				VApplicationState.SetValue("terminated_t", (int)Engine::ApplicationState::Terminated);
 				VApplicationState.SetValue("staging_t", (int)Engine::ApplicationState::Staging);
 				VApplicationState.SetValue("active_t", (int)Engine::ApplicationState::Active);
 				VApplicationState.SetValue("restart_t", (int)Engine::ApplicationState::Restart);
 
-				Enumeration VRenderOpt = Engine->SetEnum("render_opt");
+				Enumeration VRenderOpt = *VM->SetEnum("render_opt");
 				VRenderOpt.SetValue("none_t", (int)Engine::RenderOpt::None);
 				VRenderOpt.SetValue("transparent_t", (int)Engine::RenderOpt::Transparent);
 				VRenderOpt.SetValue("static_t", (int)Engine::RenderOpt::Static);
 				VRenderOpt.SetValue("additive_t", (int)Engine::RenderOpt::Additive);
 				VRenderOpt.SetValue("backfaces_t", (int)Engine::RenderOpt::Backfaces);
 
-				Enumeration VRenderCulling = Engine->SetEnum("render_culling");
+				Enumeration VRenderCulling = *VM->SetEnum("render_culling");
 				VRenderCulling.SetValue("linear_t", (int)Engine::RenderCulling::Linear);
 				VRenderCulling.SetValue("cubic_t", (int)Engine::RenderCulling::Cubic);
 				VRenderCulling.SetValue("disable_t", (int)Engine::RenderCulling::Disable);
 
-				Enumeration VRenderState = Engine->SetEnum("render_state");
+				Enumeration VRenderState = *VM->SetEnum("render_state");
 				VRenderState.SetValue("geometric_t", (int)Engine::RenderState::Geometric);
 				VRenderState.SetValue("voxelization_t", (int)Engine::RenderState::Voxelization);
 				VRenderState.SetValue("linearization_t", (int)Engine::RenderState::Linearization);
 				VRenderState.SetValue("cubic_t", (int)Engine::RenderState::Cubic);
 
-				Enumeration VGeoCategory = Engine->SetEnum("geo_category");
+				Enumeration VGeoCategory = *VM->SetEnum("geo_category");
 				VGeoCategory.SetValue("opaque_t", (int)Engine::GeoCategory::Opaque);
 				VGeoCategory.SetValue("transparent_t", (int)Engine::GeoCategory::Transparent);
 				VGeoCategory.SetValue("additive_t", (int)Engine::GeoCategory::Additive);
 				VGeoCategory.SetValue("count_t", (int)Engine::GeoCategory::Count);
 
-				Enumeration VBufferType = Engine->SetEnum("buffer_type");
+				Enumeration VBufferType = *VM->SetEnum("buffer_type");
 				VBufferType.SetValue("index_t", (int)Engine::BufferType::Index);
 				VBufferType.SetValue("vertex_t", (int)Engine::BufferType::Vertex);
 
-				Enumeration VTargetType = Engine->SetEnum("target_type");
+				Enumeration VTargetType = *VM->SetEnum("target_type");
 				VTargetType.SetValue("main_t", (int)Engine::TargetType::Main);
 				VTargetType.SetValue("secondary_t", (int)Engine::TargetType::Secondary);
 				VTargetType.SetValue("count_t", (int)Engine::TargetType::Count);
 
-				Enumeration VVoxelType = Engine->SetEnum("voxel_type");
+				Enumeration VVoxelType = *VM->SetEnum("voxel_type");
 				VVoxelType.SetValue("diffuse_t", (int)Engine::VoxelType::Diffuse);
 				VVoxelType.SetValue("normal_t", (int)Engine::VoxelType::Normal);
 				VVoxelType.SetValue("surface_t", (int)Engine::VoxelType::Surface);
 
-				Enumeration VEventTarget = Engine->SetEnum("event_target");
+				Enumeration VEventTarget = *VM->SetEnum("event_target");
 				VEventTarget.SetValue("scene_target", (int)Engine::EventTarget::Scene);
 				VEventTarget.SetValue("entity_target", (int)Engine::EventTarget::Entity);
 				VEventTarget.SetValue("component_target", (int)Engine::EventTarget::Component);
 				VEventTarget.SetValue("listener_target", (int)Engine::EventTarget::Listener);
 
-				Enumeration VActorSet = Engine->SetEnum("actor_set");
+				Enumeration VActorSet = *VM->SetEnum("actor_set");
 				VActorSet.SetValue("none_t", (int)Engine::ActorSet::None);
 				VActorSet.SetValue("update_t", (int)Engine::ActorSet::Update);
 				VActorSet.SetValue("synchronize_t", (int)Engine::ActorSet::Synchronize);
@@ -14410,44 +14784,44 @@ namespace Mavi
 				VActorSet.SetValue("cullable_t", (int)Engine::ActorSet::Cullable);
 				VActorSet.SetValue("drawable_t", (int)Engine::ActorSet::Drawable);
 
-				Enumeration VActorType = Engine->SetEnum("actor_type");
+				Enumeration VActorType = *VM->SetEnum("actor_type");
 				VActorType.SetValue("update_t", (int)Engine::ActorType::Update);
 				VActorType.SetValue("synchronize_t", (int)Engine::ActorType::Synchronize);
 				VActorType.SetValue("animate_t", (int)Engine::ActorType::Animate);
 				VActorType.SetValue("message_t", (int)Engine::ActorType::Message);
 				VActorType.SetValue("count_t", (int)Engine::ActorType::Count);
 
-				Enumeration VComposerTag = Engine->SetEnum("composer_tag");
+				Enumeration VComposerTag = *VM->SetEnum("composer_tag");
 				VComposerTag.SetValue("component_t", (int)Engine::ComposerTag::Component);
 				VComposerTag.SetValue("renderer_t", (int)Engine::ComposerTag::Renderer);
 				VComposerTag.SetValue("effect_t", (int)Engine::ComposerTag::Effect);
 				VComposerTag.SetValue("filter_t", (int)Engine::ComposerTag::Filter);
 
-				Enumeration VRenderBufferType = Engine->SetEnum("render_buffer_type");
+				Enumeration VRenderBufferType = *VM->SetEnum("render_buffer_type");
 				VRenderBufferType.SetValue("Animation", (int)Engine::RenderBufferType::Animation);
 				VRenderBufferType.SetValue("Render", (int)Engine::RenderBufferType::Render);
 				VRenderBufferType.SetValue("View", (int)Engine::RenderBufferType::View);
 
-				TypeClass VPoseNode = Engine->SetPod<Engine::PoseNode>("pose_node");
+				TypeClass VPoseNode = *VM->SetPod<Engine::PoseNode>("pose_node");
 				VPoseNode.SetProperty<Engine::PoseNode>("vector3 position", &Engine::PoseNode::Position);
 				VPoseNode.SetProperty<Engine::PoseNode>("vector3 scale", &Engine::PoseNode::Scale);
 				VPoseNode.SetProperty<Engine::PoseNode>("quaternion rotation", &Engine::PoseNode::Rotation);
 				VPoseNode.SetConstructor<Engine::PoseNode>("void f()");
 
-				TypeClass VPoseData = Engine->SetPod<Engine::PoseData>("pose_data");
+				TypeClass VPoseData = *VM->SetPod<Engine::PoseData>("pose_data");
 				VPoseData.SetProperty<Engine::PoseData>("pose_node frame_pose", &Engine::PoseData::Frame);
 				VPoseData.SetProperty<Engine::PoseData>("pose_node offset_pose", &Engine::PoseData::Offset);
 				VPoseData.SetProperty<Engine::PoseData>("pose_node default_pose", &Engine::PoseData::Default);
 				VPoseData.SetConstructor<Engine::PoseData>("void f()");
 
-				TypeClass VAnimationBuffer = Engine->SetPod<Engine::AnimationBuffer>("animation_buffer");
+				TypeClass VAnimationBuffer = *VM->SetPod<Engine::AnimationBuffer>("animation_buffer");
 				VAnimationBuffer.SetProperty<Engine::AnimationBuffer>("vector3 padding", &Engine::AnimationBuffer::Padding);
 				VAnimationBuffer.SetProperty<Engine::AnimationBuffer>("float animated", &Engine::AnimationBuffer::Animated);
 				VAnimationBuffer.SetConstructor<Engine::AnimationBuffer>("void f()");
 				VAnimationBuffer.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "matrix4x4&", "usize", &AnimationBufferGetOffsets);
 				VAnimationBuffer.SetOperatorEx(Operators::Index, (uint32_t)Position::Const, "const matrix4x4&", "usize", &AnimationBufferGetOffsets);
 
-				TypeClass VRenderBufferInstance = Engine->SetPod<Engine::RenderBuffer::Instance>("render_buffer_instance");
+				TypeClass VRenderBufferInstance = *VM->SetPod<Engine::RenderBuffer::Instance>("render_buffer_instance");
 				VRenderBufferInstance.SetProperty<Engine::RenderBuffer::Instance>("matrix4x4 transform", &Engine::RenderBuffer::Instance::Transform);
 				VRenderBufferInstance.SetProperty<Engine::RenderBuffer::Instance>("matrix4x4 world", &Engine::RenderBuffer::Instance::World);
 				VRenderBufferInstance.SetProperty<Engine::RenderBuffer::Instance>("vector2 texcoord", &Engine::RenderBuffer::Instance::TexCoord);
@@ -14457,7 +14831,7 @@ namespace Mavi
 				VRenderBufferInstance.SetProperty<Engine::RenderBuffer::Instance>("float material_id", &Engine::RenderBuffer::Instance::MaterialId);
 				VRenderBufferInstance.SetConstructor<Engine::RenderBuffer::Instance>("void f()");
 
-				TypeClass VRenderBuffer = Engine->SetPod<Engine::RenderBuffer>("render_buffer");
+				TypeClass VRenderBuffer = *VM->SetPod<Engine::RenderBuffer>("render_buffer");
 				VRenderBuffer.SetProperty<Engine::RenderBuffer>("matrix4x4 transform", &Engine::RenderBuffer::Transform);
 				VRenderBuffer.SetProperty<Engine::RenderBuffer>("matrix4x4 world", &Engine::RenderBuffer::World);
 				VRenderBuffer.SetProperty<Engine::RenderBuffer>("vector4 texcoord", &Engine::RenderBuffer::TexCoord);
@@ -14467,7 +14841,7 @@ namespace Mavi
 				VRenderBuffer.SetProperty<Engine::RenderBuffer>("float material_id", &Engine::RenderBuffer::MaterialId);
 				VRenderBuffer.SetConstructor<Engine::RenderBuffer>("void f()");
 
-				TypeClass VViewBuffer = Engine->SetPod<Engine::ViewBuffer>("view_buffer");
+				TypeClass VViewBuffer = *VM->SetPod<Engine::ViewBuffer>("view_buffer");
 				VViewBuffer.SetProperty<Engine::ViewBuffer>("matrix4x4 inv_view_proj", &Engine::ViewBuffer::InvViewProj);
 				VViewBuffer.SetProperty<Engine::ViewBuffer>("matrix4x4 view_proj", &Engine::ViewBuffer::ViewProj);
 				VViewBuffer.SetProperty<Engine::ViewBuffer>("matrix4x4 proj", &Engine::ViewBuffer::Proj);
@@ -14478,8 +14852,8 @@ namespace Mavi
 				VViewBuffer.SetProperty<Engine::ViewBuffer>("float near", &Engine::ViewBuffer::Near);
 				VViewBuffer.SetConstructor<Engine::ViewBuffer>("void f()");
 
-				RefClass VSkinModel = Engine->SetClass<Engine::SkinModel>("skin_model", true);
-				TypeClass VPoseBuffer = Engine->SetStructTrivial<Engine::PoseBuffer>("pose_buffer");
+				RefClass VSkinModel = *VM->SetClass<Engine::SkinModel>("skin_model", true);
+				TypeClass VPoseBuffer = *VM->SetStructTrivial<Engine::PoseBuffer>("pose_buffer");
 				VPoseBuffer.SetMethodEx("void set_offset(int64, const pose_data &in)", &PoseBufferSetOffset);
 				VPoseBuffer.SetMethodEx("void set_matrix(skin_mesh_buffer@+, usize, const matrix4x4 &in)", &PoseBufferSetMatrix);
 				VPoseBuffer.SetMethodEx("pose_data& get_offset(int64)", &PoseBufferGetOffset);
@@ -14488,50 +14862,50 @@ namespace Mavi
 				VPoseBuffer.SetMethodEx("usize get_matrices_size(skin_mesh_buffer@+)", &PoseBufferGetMatricesSize);
 				VPoseBuffer.SetConstructor<Engine::PoseBuffer>("void f()");
 
-				TypeClass VTicker = Engine->SetStructTrivial<Engine::Ticker>("clock_ticker");
+				TypeClass VTicker = *VM->SetStructTrivial<Engine::Ticker>("clock_ticker");
 				VTicker.SetProperty<Engine::Ticker>("float delay", &Engine::Ticker::Delay);
 				VTicker.SetConstructor<Engine::Ticker>("void f()");
 				VTicker.SetMethod("bool tick_event(float)", &Engine::Ticker::TickEvent);
 				VTicker.SetMethod("float get_time() const", &Engine::Ticker::GetTime);
 
-				TypeClass VEvent = Engine->SetStructTrivial<Engine::Event>("scene_event");
+				TypeClass VEvent = *VM->SetStructTrivial<Engine::Event>("scene_event");
 				VEvent.SetProperty<Engine::Event>("string name", &Engine::Event::Name);
 				VEvent.SetConstructor<Engine::Event, const Core::String&>("void f(const string &in)");
 				VEvent.SetMethodEx("void set_args(dictionary@+)", &EventSetArgs);
 				VEvent.SetMethodEx("dictionary@ get_args() const", &EventGetArgs);
 
-				RefClass VMaterial = Engine->SetClass<Engine::Material>("material", true);
-				TypeClass VBatchData = Engine->SetStructTrivial<Engine::BatchData>("batch_data");
+				RefClass VMaterial = *VM->SetClass<Engine::Material>("material", true);
+				TypeClass VBatchData = *VM->SetStructTrivial<Engine::BatchData>("batch_data");
 				VBatchData.SetProperty<Engine::BatchData>("element_buffer@ instances_buffer", &Engine::BatchData::InstanceBuffer);
 				VBatchData.SetProperty<Engine::BatchData>("uptr@ geometry_buffer", &Engine::BatchData::GeometryBuffer);
 				VBatchData.SetProperty<Engine::BatchData>("material@ batch_material", &Engine::BatchData::BatchMaterial);
 				VBatchData.SetProperty<Engine::BatchData>("usize instances_count", &Engine::BatchData::InstancesCount);
 				VBatchData.SetConstructor<Engine::BatchData>("void f()");
 
-				TypeClass VAssetCache = Engine->SetStructTrivial<Engine::AssetCache>("asset_cache");
+				TypeClass VAssetCache = *VM->SetStructTrivial<Engine::AssetCache>("asset_cache");
 				VAssetCache.SetProperty<Engine::AssetCache>("string path", &Engine::AssetCache::Path);
 				VAssetCache.SetProperty<Engine::AssetCache>("uptr@ resource", &Engine::AssetCache::Resource);
 				VAssetCache.SetConstructor<Engine::AssetCache>("void f()");
 
-				TypeClass VAssetArchive = Engine->SetStructTrivial<Engine::AssetArchive>("asset_archive");
+				TypeClass VAssetArchive = *VM->SetStructTrivial<Engine::AssetArchive>("asset_archive");
 				VAssetArchive.SetProperty<Engine::AssetArchive>("base_stream@ stream", &Engine::AssetArchive::Stream);
 				VAssetArchive.SetProperty<Engine::AssetArchive>("string path", &Engine::AssetArchive::Path);
 				VAssetArchive.SetProperty<Engine::AssetArchive>("usize length", &Engine::AssetArchive::Length);
 				VAssetArchive.SetProperty<Engine::AssetArchive>("usize offset", &Engine::AssetArchive::Offset);
 				VAssetArchive.SetConstructor<Engine::AssetArchive>("void f()");
 
-				RefClass VAssetFile = Engine->SetClass<Engine::AssetFile>("asset_file", false);
+				RefClass VAssetFile = *VM->SetClass<Engine::AssetFile>("asset_file", false);
 				VAssetFile.SetConstructor<Engine::AssetFile, char*, size_t>("asset_file@ f(uptr@, usize)");
 				VAssetFile.SetMethod("uptr@ get_buffer() const", &Engine::AssetFile::GetBuffer);
 				VAssetFile.SetMethod("usize get_size() const", &Engine::AssetFile::GetSize);
 
-				TypeClass VVisibilityQuery = Engine->SetPod<Engine::VisibilityQuery>("scene_visibility_query");
+				TypeClass VVisibilityQuery = *VM->SetPod<Engine::VisibilityQuery>("scene_visibility_query");
 				VVisibilityQuery.SetProperty<Engine::VisibilityQuery>("geo_category category", &Engine::VisibilityQuery::Category);
 				VVisibilityQuery.SetProperty<Engine::VisibilityQuery>("bool boundary_visible", &Engine::VisibilityQuery::BoundaryVisible);
 				VVisibilityQuery.SetProperty<Engine::VisibilityQuery>("bool query_pixels", &Engine::VisibilityQuery::QueryPixels);
 				VVisibilityQuery.SetConstructor<Engine::VisibilityQuery>("void f()");
 
-				TypeClass VAnimatorState = Engine->SetPod<Engine::AnimatorState>("animator_state");
+				TypeClass VAnimatorState = *VM->SetPod<Engine::AnimatorState>("animator_state");
 				VAnimatorState.SetProperty<Engine::AnimatorState>("bool paused", &Engine::AnimatorState::Paused);
 				VAnimatorState.SetProperty<Engine::AnimatorState>("bool looped", &Engine::AnimatorState::Looped);
 				VAnimatorState.SetProperty<Engine::AnimatorState>("bool blended", &Engine::AnimatorState::Blended);
@@ -14546,7 +14920,7 @@ namespace Mavi
 				VAnimatorState.SetMethod("float get_progress() const", &Engine::AnimatorState::GetProgress);
 				VAnimatorState.SetMethod("bool is_playing() const", &Engine::AnimatorState::IsPlaying);
 
-				TypeClass VSpawnerProperties = Engine->SetPod<Engine::SpawnerProperties>("spawner_properties");
+				TypeClass VSpawnerProperties = *VM->SetPod<Engine::SpawnerProperties>("spawner_properties");
 				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("random_vector4 diffusion", &Engine::SpawnerProperties::Diffusion);
 				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("random_vector3 position", &Engine::SpawnerProperties::Position);
 				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("random_vector3 velocity", &Engine::SpawnerProperties::Velocity);
@@ -14557,7 +14931,7 @@ namespace Mavi
 				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("int32 iterations", &Engine::SpawnerProperties::Iterations);
 				VSpawnerProperties.SetConstructor<Engine::SpawnerProperties>("void f()");
 
-				RefClass VRenderConstants = Engine->SetClass<Engine::RenderConstants>("render_constants", false);
+				RefClass VRenderConstants = *VM->SetClass<Engine::RenderConstants>("render_constants", false);
 				VRenderConstants.SetProperty<Engine::RenderConstants>("animation_buffer animation", &Engine::RenderConstants::Animation);
 				VRenderConstants.SetProperty<Engine::RenderConstants>("render_buffer render", &Engine::RenderConstants::Render);
 				VRenderConstants.SetProperty<Engine::RenderConstants>("view_buffer view", &Engine::RenderConstants::View);
@@ -14568,8 +14942,8 @@ namespace Mavi
 				VRenderConstants.SetMethod("graphics_device@+ get_device() const", &Engine::RenderConstants::GetDevice);
 				VRenderConstants.SetMethod("element_buffer@+ get_constant_buffer(render_buffer_type) const", &Engine::RenderConstants::GetConstantBuffer);
 
-				RefClass VRenderSystem = Engine->SetClass<Engine::RenderSystem>("render_system", true);
-				TypeClass VViewer = Engine->SetStruct<Engine::Viewer>("viewer_t");
+				RefClass VRenderSystem = *VM->SetClass<Engine::RenderSystem>("render_system", true);
+				TypeClass VViewer = *VM->SetStruct<Engine::Viewer>("viewer_t");
 				VViewer.SetProperty<Engine::Viewer>("render_system@ renderer", &Engine::Viewer::Renderer);
 				VViewer.SetProperty<Engine::Viewer>("render_culling culling", &Engine::Viewer::Culling);
 				VViewer.SetProperty<Engine::Viewer>("matrix4x4 inv_view_projection", &Engine::Viewer::InvViewProjection);
@@ -14589,13 +14963,13 @@ namespace Mavi
 				VViewer.SetMethod<Engine::Viewer, void, const Compute::Matrix4x4&, const Compute::Matrix4x4&, const Compute::Vector3&, float, float, float, float, Engine::RenderCulling>("void set(const matrix4x4 &in, const matrix4x4 &in, const vector3 &in, float, float, float, float, render_culling)", &Engine::Viewer::Set);
 				VViewer.SetMethod<Engine::Viewer, void, const Compute::Matrix4x4&, const Compute::Matrix4x4&, const Compute::Vector3&, const Compute::Vector3&, float, float, float, float, Engine::RenderCulling>("void set(const matrix4x4 &in, const matrix4x4 &in, const vector3 &in, const vector3 &in, float, float, float, float, render_culling)", &Engine::Viewer::Set);
 
-				TypeClass VAttenuation = Engine->SetPod<Engine::Attenuation>("attenuation");
+				TypeClass VAttenuation = *VM->SetPod<Engine::Attenuation>("attenuation");
 				VAttenuation.SetProperty<Engine::Attenuation>("float radius", &Engine::Attenuation::Radius);
 				VAttenuation.SetProperty<Engine::Attenuation>("float c1", &Engine::Attenuation::C1);
 				VAttenuation.SetProperty<Engine::Attenuation>("float c2", &Engine::Attenuation::C2);
 				VAttenuation.SetConstructor<Engine::Attenuation>("void f()");
 
-				TypeClass VSubsurface = Engine->SetPod<Engine::Subsurface>("subsurface");
+				TypeClass VSubsurface = *VM->SetPod<Engine::Subsurface>("subsurface");
 				VSubsurface.SetProperty<Engine::Subsurface>("vector4 emission", &Engine::Subsurface::Emission);
 				VSubsurface.SetProperty<Engine::Subsurface>("vector4 metallic", &Engine::Subsurface::Metallic);
 				VSubsurface.SetProperty<Engine::Subsurface>("vector3 diffuse", &Engine::Subsurface::Diffuse);
@@ -14612,11 +14986,11 @@ namespace Mavi
 				VSubsurface.SetProperty<Engine::Subsurface>("float height", &Engine::Subsurface::Height);
 				VSubsurface.SetConstructor<Engine::Subsurface>("void f()");
 
-				RefClass VSkinAnimation = Engine->SetClass<Engine::SkinAnimation>("skin_animation", false);
+				RefClass VSkinAnimation = *VM->SetClass<Engine::SkinAnimation>("skin_animation", false);
 				VSkinAnimation.SetMethodEx("array<skin_animator_clip>@+ get_clips() const", &SkinAnimationGetClips);
 				VSkinAnimation.SetMethod("bool is_valid() const", &Engine::SkinAnimation::IsValid);
 
-				RefClass VSceneGraph = Engine->SetClass<Engine::SceneGraph>("scene_graph", true);
+				RefClass VSceneGraph = *VM->SetClass<Engine::SceneGraph>("scene_graph", true);
 				VMaterial.SetProperty<Engine::Material>("subsurface surface", &Engine::Material::Surface);
 				VMaterial.SetProperty<Engine::Material>("usize slot", &Engine::Material::Slot);
 				VMaterial.SetGcConstructor<Engine::Material, Material, Engine::SceneGraph*>("material@ f(scene_graph@+)");
@@ -14637,89 +15011,89 @@ namespace Mavi
 				VMaterial.SetMethod("void set_emission_map(texture_2d@+)", &Engine::Material::SetEmissionMap);
 				VMaterial.SetMethod("texture_2d@+ get_emission_map() const", &Engine::Material::GetEmissionMap);
 				VMaterial.SetMethod("scene_graph@+ get_scene() const", &Engine::Material::GetScene);
-				VMaterial.SetEnumRefsEx<Engine::Material>([](Engine::Material* Base, asIScriptEngine* Engine)
+				VMaterial.SetEnumRefsEx<Engine::Material>([](Engine::Material* Base, asIScriptEngine* VM)
 				{
-					Engine->GCEnumCallback(Base->GetDiffuseMap());
-					Engine->GCEnumCallback(Base->GetNormalMap());
-					Engine->GCEnumCallback(Base->GetMetallicMap());
-					Engine->GCEnumCallback(Base->GetRoughnessMap());
-					Engine->GCEnumCallback(Base->GetHeightMap());
-					Engine->GCEnumCallback(Base->GetEmissionMap());
+					FunctionFactory::GCEnumCallback(VM, Base->GetDiffuseMap());
+					FunctionFactory::GCEnumCallback(VM, Base->GetNormalMap());
+					FunctionFactory::GCEnumCallback(VM, Base->GetMetallicMap());
+					FunctionFactory::GCEnumCallback(VM, Base->GetRoughnessMap());
+					FunctionFactory::GCEnumCallback(VM, Base->GetHeightMap());
+					FunctionFactory::GCEnumCallback(VM, Base->GetEmissionMap());
 				});
 				VMaterial.SetReleaseRefsEx<Engine::Material>([](Engine::Material* Base, asIScriptEngine*)
 				{
 					Base->~Material();
 				});
 
-				RefClass VComponent = Engine->SetClass<Engine::Component>("base_component", false);
-				TypeClass VSparseIndex = Engine->SetStructTrivial<Engine::SparseIndex>("sparse_index");
+				RefClass VComponent = *VM->SetClass<Engine::Component>("base_component", false);
+				TypeClass VSparseIndex = *VM->SetStructTrivial<Engine::SparseIndex>("sparse_index");
 				VSparseIndex.SetProperty<Engine::SparseIndex>("cosmos index", &Engine::SparseIndex::Index);
 				VSparseIndex.SetMethodEx("usize size() const", &SparseIndexGetSize);
 				VSparseIndex.SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "base_component@+", "usize", &SparseIndexGetData);
 				VSparseIndex.SetConstructor<Engine::SparseIndex>("void f()");
 
-				Engine->BeginNamespace("content_series");
-				Engine->SetFunction<void(Core::Schema*, bool)>("void pack(schema@+, bool)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, int)>("void pack(schema@+, int32)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, unsigned int)>("void pack(schema@+, uint32)", &Engine::Series::Pack);;
-				Engine->SetFunction<void(Core::Schema*, float)>("void pack(schema@+, float)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, double)>("void pack(schema@+, double)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, int64_t)>("void pack(schema@+, int64)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, unsigned long long)>("void pack(schema@+, uint64)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Compute::Vector2&)>("void pack(schema@+, const vector2 &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Compute::Vector3&)>("void pack(schema@+, const vector3 &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Compute::Vector4&)>("void pack(schema@+, const vector4 &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Compute::Vector4&)>("void pack(schema@+, const quaternion &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Compute::Matrix4x4&)>("void pack(schema@+, const matrix4x4 &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Engine::Attenuation&)>("void pack(schema@+, const attenuation &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Engine::AnimatorState&)>("void pack(schema@+, const animator_state &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Engine::SpawnerProperties&)>("void pack(schema@+, const spawner_properties &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Compute::SkinAnimatorKey&)>("void pack(schema@+, const skin_animator_key &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Compute::KeyAnimatorClip&)>("void pack(schema@+, const key_animator_clip &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Compute::AnimatorKey&)>("void pack(schema@+, const animator_key &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Compute::ElementVertex&)>("void pack(schema@+, const element_vertex &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Compute::Joint&)>("void pack(schema@+, const joint &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Compute::Vertex&)>("void pack(schema@+, const vertex &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Compute::SkinVertex&)>("void pack(schema@+, const skin_vertex &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Engine::Ticker&)>("void pack(schema@+, const clock_ticker &in)", &Engine::Series::Pack);
-				Engine->SetFunction<void(Core::Schema*, const Core::String&)>("void pack(schema@+, const string &in)", &Engine::Series::Pack);
-				Engine->SetFunction<bool(Core::Schema*, bool*)>("bool unpack(schema@+, bool &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, int*)>("bool unpack(schema@+, int32 &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, unsigned int*)>("bool unpack(schema@+, uint32 &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, float*)>("bool unpack(schema@+, float &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, double*)>("bool unpack(schema@+, double &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, int64_t*)>("bool unpack(schema@+, int64 &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, unsigned long long*)>("bool unpack(schema@+, uint64 &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Compute::Vector2*)>("bool unpack(schema@+, vector2 &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Compute::Vector3*)>("bool unpack(schema@+, vector3 &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Compute::Vector4*)>("bool unpack(schema@+, vector4 &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Compute::Vector4*)>("bool unpack(schema@+, quaternion &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Compute::Matrix4x4*)>("bool unpack(schema@+, matrix4x4 &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Engine::Attenuation*)>("bool unpack(schema@+, attenuation &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Engine::AnimatorState*)>("bool unpack(schema@+, animator_state &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Engine::SpawnerProperties*)>("bool unpack(schema@+, spawner_properties &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Compute::SkinAnimatorKey*)>("bool unpack(schema@+, skin_animator_key &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Compute::KeyAnimatorClip*)>("bool unpack(schema@+, key_animator_clip &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Compute::AnimatorKey*)>("bool unpack(schema@+, animator_key &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Compute::ElementVertex*)>("bool unpack(schema@+, element_vertex &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Compute::Joint*)>("bool unpack(schema@+, joint &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Compute::Vertex*)>("bool unpack(schema@+, vertex &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Compute::SkinVertex*)>("bool unpack(schema@+, skin_vertex &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Engine::Ticker*)>("bool unpack(schema@+, clock_ticker &out)", &Engine::Series::Unpack);
-				Engine->SetFunction<bool(Core::Schema*, Core::String*)>("bool unpack(schema@+, string &out)", &Engine::Series::Unpack);
-				Engine->EndNamespace();
+				VM->BeginNamespace("content_series");
+				VM->SetFunction<void(Core::Schema*, bool)>("void pack(schema@+, bool)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, int)>("void pack(schema@+, int32)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, unsigned int)>("void pack(schema@+, uint32)", &Engine::Series::Pack);;
+				VM->SetFunction<void(Core::Schema*, float)>("void pack(schema@+, float)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, double)>("void pack(schema@+, double)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, int64_t)>("void pack(schema@+, int64)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, unsigned long long)>("void pack(schema@+, uint64)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Compute::Vector2&)>("void pack(schema@+, const vector2 &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Compute::Vector3&)>("void pack(schema@+, const vector3 &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Compute::Vector4&)>("void pack(schema@+, const vector4 &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Compute::Vector4&)>("void pack(schema@+, const quaternion &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Compute::Matrix4x4&)>("void pack(schema@+, const matrix4x4 &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Engine::Attenuation&)>("void pack(schema@+, const attenuation &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Engine::AnimatorState&)>("void pack(schema@+, const animator_state &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Engine::SpawnerProperties&)>("void pack(schema@+, const spawner_properties &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Compute::SkinAnimatorKey&)>("void pack(schema@+, const skin_animator_key &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Compute::KeyAnimatorClip&)>("void pack(schema@+, const key_animator_clip &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Compute::AnimatorKey&)>("void pack(schema@+, const animator_key &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Compute::ElementVertex&)>("void pack(schema@+, const element_vertex &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Compute::Joint&)>("void pack(schema@+, const joint &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Compute::Vertex&)>("void pack(schema@+, const vertex &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Compute::SkinVertex&)>("void pack(schema@+, const skin_vertex &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Engine::Ticker&)>("void pack(schema@+, const clock_ticker &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const Core::String&)>("void pack(schema@+, const string &in)", &Engine::Series::Pack);
+				VM->SetFunction<bool(Core::Schema*, bool*)>("bool unpack(schema@+, bool &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, int*)>("bool unpack(schema@+, int32 &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, unsigned int*)>("bool unpack(schema@+, uint32 &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, float*)>("bool unpack(schema@+, float &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, double*)>("bool unpack(schema@+, double &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, int64_t*)>("bool unpack(schema@+, int64 &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, unsigned long long*)>("bool unpack(schema@+, uint64 &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Compute::Vector2*)>("bool unpack(schema@+, vector2 &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Compute::Vector3*)>("bool unpack(schema@+, vector3 &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Compute::Vector4*)>("bool unpack(schema@+, vector4 &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Compute::Vector4*)>("bool unpack(schema@+, quaternion &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Compute::Matrix4x4*)>("bool unpack(schema@+, matrix4x4 &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Engine::Attenuation*)>("bool unpack(schema@+, attenuation &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Engine::AnimatorState*)>("bool unpack(schema@+, animator_state &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Engine::SpawnerProperties*)>("bool unpack(schema@+, spawner_properties &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Compute::SkinAnimatorKey*)>("bool unpack(schema@+, skin_animator_key &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Compute::KeyAnimatorClip*)>("bool unpack(schema@+, key_animator_clip &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Compute::AnimatorKey*)>("bool unpack(schema@+, animator_key &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Compute::ElementVertex*)>("bool unpack(schema@+, element_vertex &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Compute::Joint*)>("bool unpack(schema@+, joint &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Compute::Vertex*)>("bool unpack(schema@+, vertex &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Compute::SkinVertex*)>("bool unpack(schema@+, skin_vertex &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Engine::Ticker*)>("bool unpack(schema@+, clock_ticker &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, Core::String*)>("bool unpack(schema@+, string &out)", &Engine::Series::Unpack);
+				VM->EndNamespace();
 
-				RefClass VModel = Engine->SetClass<Engine::Model>("model", true);
+				RefClass VModel = *VM->SetClass<Engine::Model>("model", true);
 				VModel.SetProperty<Engine::Model>("vector4 max", &Engine::Model::Max);
 				VModel.SetProperty<Engine::Model>("vector4 min", &Engine::Model::Min);
 				VModel.SetGcConstructor<Engine::Model, Model>("model@ f()");
 				VModel.SetMethod("mesh_buffer@+ find_mesh(const string &in) const", &Engine::Model::FindMesh);
 				VModel.SetMethodEx("array<mesh_buffer@>@ get_meshes() const", &ModelGetMeshes);
 				VModel.SetMethodEx("void set_meshes(array<mesh_buffer@>@+)", &ModelSetMeshes);
-				VModel.SetEnumRefsEx<Engine::Model>([](Engine::Model* Base, asIScriptEngine* Engine)
+				VModel.SetEnumRefsEx<Engine::Model>([](Engine::Model* Base, asIScriptEngine* VM)
 				{
 					for (auto* Item : Base->Meshes)
-						Engine->GCEnumCallback(Item);
+						FunctionFactory::GCEnumCallback(VM, Item);
 				});
 				VModel.SetReleaseRefsEx<Engine::Model>([](Engine::Model* Base, asIScriptEngine*)
 				{
@@ -14737,21 +15111,21 @@ namespace Mavi
 				VSkinModel.SetMethod("skin_mesh_buffer@+ find_mesh(const string &in) const", &Engine::SkinModel::FindMesh);
 				VSkinModel.SetMethodEx("array<skin_mesh_buffer@>@ get_meshes() const", &SkinModelGetMeshes);
 				VSkinModel.SetMethodEx("void set_meshes(array<skin_mesh_buffer@>@+)", &SkinModelSetMeshes);
-				VSkinModel.SetEnumRefsEx<Engine::SkinModel>([](Engine::SkinModel* Base, asIScriptEngine* Engine)
+				VSkinModel.SetEnumRefsEx<Engine::SkinModel>([](Engine::SkinModel* Base, asIScriptEngine* VM)
 				{
 					for (auto* Item : Base->Meshes)
-						Engine->GCEnumCallback(Item);
+						FunctionFactory::GCEnumCallback(VM, Item);
 				});
 				VSkinModel.SetReleaseRefsEx<Engine::SkinModel>([](Engine::SkinModel* Base, asIScriptEngine*)
 				{
 					Base->Cleanup();
 				});
 
-				RefClass VContentManager = Engine->SetClass<Engine::ContentManager>("content_manager", true);
-				RefClass VProcessor = Engine->SetClass<Engine::Processor>("base_processor", false);
+				RefClass VContentManager = *VM->SetClass<Engine::ContentManager>("content_manager", true);
+				RefClass VProcessor = *VM->SetClass<Engine::Processor>("base_processor", false);
 				PopulateProcessorBase<Engine::Processor>(VProcessor);
 
-				RefClass VEntity = Engine->SetClass<Engine::Entity>("scene_entity", true);
+				RefClass VEntity = *VM->SetClass<Engine::Entity>("scene_entity", true);
 				PopulateComponentBase<Engine::Component>(VComponent);
 
 				VEntity.SetMethod("void set_name(const string &in)", &Engine::Entity::SetName);
@@ -14777,20 +15151,20 @@ namespace Mavi
 				VEntity.SetMethod("float is_active() const", &Engine::Entity::IsActive);
 				VEntity.SetMethod("vector3 get_radius3() const", &Engine::Entity::GetRadius3);
 				VEntity.SetMethod("float get_radius() const", &Engine::Entity::GetRadius);
-				VEntity.SetEnumRefsEx<Engine::Entity>([](Engine::Entity* Base, asIScriptEngine* Engine)
+				VEntity.SetEnumRefsEx<Engine::Entity>([](Engine::Entity* Base, asIScriptEngine* VM)
 				{
 					for (auto& Item : *Base)
-						Engine->GCEnumCallback(Item.second);
+						FunctionFactory::GCEnumCallback(VM, Item.second);
 				});
 				VEntity.SetReleaseRefsEx<Engine::Entity>([](Engine::Entity* Base, asIScriptEngine*) { });
 
-				RefClass VDrawable = Engine->SetClass<Engine::Drawable>("drawable_component", false);
+				RefClass VDrawable = *VM->SetClass<Engine::Drawable>("drawable_component", false);
 				PopulateDrawableBase<Engine::Drawable>(VDrawable);
 
-				RefClass VRenderer = Engine->SetClass<Engine::Renderer>("base_renderer", false);
+				RefClass VRenderer = *VM->SetClass<Engine::Renderer>("base_renderer", false);
 				PopulateRendererBase<Engine::Renderer>(VRenderer);
 
-				TypeClass VRsState = Engine->SetPod<Engine::RenderSystem::RsState>("rs_state");
+				TypeClass VRsState = *VM->SetPod<Engine::RenderSystem::RsState>("rs_state");
 				VRsState.SetMethod("bool is_state(render_state) const", &Engine::RenderSystem::RsState::Is);
 				VRsState.SetMethod("bool is_set(render_opt) const", &Engine::RenderSystem::RsState::IsSet);
 				VRsState.SetMethod("bool is_top() const", &Engine::RenderSystem::RsState::IsTop);
@@ -14798,7 +15172,7 @@ namespace Mavi
 				VRsState.SetMethod("render_opt get_opts() const", &Engine::RenderSystem::RsState::GetOpts);
 				VRsState.SetMethod("render_state get_state() const", &Engine::RenderSystem::RsState::Get);
 
-				RefClass VPrimitiveCache = Engine->SetClass<Engine::Renderer>("primitive_cache", true);
+				RefClass VPrimitiveCache = *VM->SetClass<Engine::Renderer>("primitive_cache", true);
 				VRenderSystem.SetFunctionDef("void overlapping_result(base_component@+)");
 				VRenderSystem.SetProperty<Engine::RenderSystem>("rs_state state", &Engine::RenderSystem::State);
 				VRenderSystem.SetProperty<Engine::RenderSystem>("viewer_t view", &Engine::RenderSystem::View);
@@ -14854,17 +15228,17 @@ namespace Mavi
 				VRenderSystem.SetMethod("scene_graph@+ get_scene()", &Engine::RenderSystem::GetScene);
 				VRenderSystem.SetMethod("base_component@+ get_component()", &Engine::RenderSystem::GetComponent);
 				VRenderSystem.SetMethodEx("void query_sync(uint64, overlapping_result@)", &RenderSystemQuerySync);
-				VRenderSystem.SetEnumRefsEx<Engine::RenderSystem>([](Engine::RenderSystem* Base, asIScriptEngine* Engine)
+				VRenderSystem.SetEnumRefsEx<Engine::RenderSystem>([](Engine::RenderSystem* Base, asIScriptEngine* VM)
 				{
 					for (auto* Item : Base->GetRenderers())
-						Engine->GCEnumCallback(Item);
+						FunctionFactory::GCEnumCallback(VM, Item);
 				});
 				VRenderSystem.SetReleaseRefsEx<Engine::RenderSystem>([](Engine::RenderSystem* Base, asIScriptEngine*)
 				{
 					Base->RemoveRenderers();
 				});
 
-				RefClass VShaderCache = Engine->SetClass<Engine::ShaderCache>("shader_cache", true);
+				RefClass VShaderCache = *VM->SetClass<Engine::ShaderCache>("shader_cache", true);
 				VShaderCache.SetGcConstructor<Engine::ShaderCache, ShaderCache, Graphics::GraphicsDevice*>("shader_cache@ f()");
 				VShaderCache.SetMethod("shader@+ compile(const string &in, const shader_desc &in, usize = 0)", &Engine::ShaderCache::Compile);
 				VShaderCache.SetMethod("shader@+ get(const string &in)", &Engine::ShaderCache::Get);
@@ -14872,10 +15246,10 @@ namespace Mavi
 				VShaderCache.SetMethod("bool has(const string &in)", &Engine::ShaderCache::Has);
 				VShaderCache.SetMethod("bool free(const string &in, shader@+ = null)", &Engine::ShaderCache::Free);
 				VShaderCache.SetMethod("void clear_cache()", &Engine::ShaderCache::ClearCache);
-				VShaderCache.SetEnumRefsEx<Engine::ShaderCache>([](Engine::ShaderCache* Base, asIScriptEngine* Engine)
+				VShaderCache.SetEnumRefsEx<Engine::ShaderCache>([](Engine::ShaderCache* Base, asIScriptEngine* VM)
 				{
 					for (auto& Item : Base->GetCaches())
-						Engine->GCEnumCallback(Item.second.Shader);
+						FunctionFactory::GCEnumCallback(VM, Item.second.Shader);
 				});
 				VShaderCache.SetReleaseRefsEx<Engine::ShaderCache>([](Engine::ShaderCache* Base, asIScriptEngine*)
 				{
@@ -14900,22 +15274,22 @@ namespace Mavi
 				VPrimitiveCache.SetMethodEx("array<element_buffer@>@ get_box_buffers() const", &PrimitiveCacheGetBoxBuffers);
 				VPrimitiveCache.SetMethodEx("array<element_buffer@>@ get_skin_box_buffers() const", &PrimitiveCacheGetSkinBoxBuffers);
 				VPrimitiveCache.SetMethod("void clear_cache()", &Engine::PrimitiveCache::ClearCache);
-				VPrimitiveCache.SetEnumRefsEx<Engine::PrimitiveCache>([](Engine::PrimitiveCache* Base, asIScriptEngine* Engine)
+				VPrimitiveCache.SetEnumRefsEx<Engine::PrimitiveCache>([](Engine::PrimitiveCache* Base, asIScriptEngine* VM)
 				{
-					Engine->GCEnumCallback(Base->GetSphere(Engine::BufferType::Vertex));
-					Engine->GCEnumCallback(Base->GetSphere(Engine::BufferType::Index));
-					Engine->GCEnumCallback(Base->GetCube(Engine::BufferType::Vertex));
-					Engine->GCEnumCallback(Base->GetCube(Engine::BufferType::Index));
-					Engine->GCEnumCallback(Base->GetBox(Engine::BufferType::Vertex));
-					Engine->GCEnumCallback(Base->GetBox(Engine::BufferType::Index));
-					Engine->GCEnumCallback(Base->GetSkinBox(Engine::BufferType::Vertex));
-					Engine->GCEnumCallback(Base->GetSkinBox(Engine::BufferType::Index));
-					Engine->GCEnumCallback(Base->GetQuad());
+					FunctionFactory::GCEnumCallback(VM, Base->GetSphere(Engine::BufferType::Vertex));
+					FunctionFactory::GCEnumCallback(VM, Base->GetSphere(Engine::BufferType::Index));
+					FunctionFactory::GCEnumCallback(VM, Base->GetCube(Engine::BufferType::Vertex));
+					FunctionFactory::GCEnumCallback(VM, Base->GetCube(Engine::BufferType::Index));
+					FunctionFactory::GCEnumCallback(VM, Base->GetBox(Engine::BufferType::Vertex));
+					FunctionFactory::GCEnumCallback(VM, Base->GetBox(Engine::BufferType::Index));
+					FunctionFactory::GCEnumCallback(VM, Base->GetSkinBox(Engine::BufferType::Vertex));
+					FunctionFactory::GCEnumCallback(VM, Base->GetSkinBox(Engine::BufferType::Index));
+					FunctionFactory::GCEnumCallback(VM, Base->GetQuad());
 
 					for (auto& Item : Base->GetCaches())
 					{
-						Engine->GCEnumCallback(Item.second.Buffers[0]);
-						Engine->GCEnumCallback(Item.second.Buffers[1]);
+						FunctionFactory::GCEnumCallback(VM, Item.second.Buffers[0]);
+						FunctionFactory::GCEnumCallback(VM, Item.second.Buffers[1]);
 					}
 				});
 				VPrimitiveCache.SetReleaseRefsEx<Engine::PrimitiveCache>([](Engine::PrimitiveCache* Base, asIScriptEngine*)
@@ -14952,17 +15326,17 @@ namespace Mavi
 				VContentManager.SetMethod("bool is_busy() const", &Engine::ContentManager::IsBusy);
 				VContentManager.SetMethod("graphics_device@+ get_device() const", &Engine::ContentManager::GetDevice);
 				VContentManager.SetMethod("const string& get_environment() const", &Engine::ContentManager::GetEnvironment);
-				VContentManager.SetEnumRefsEx<Engine::ContentManager>([](Engine::ContentManager* Base, asIScriptEngine* Engine)
+				VContentManager.SetEnumRefsEx<Engine::ContentManager>([](Engine::ContentManager* Base, asIScriptEngine* VM)
 				{
 					for (auto& Item : Base->GetProcessors())
-						Engine->GCEnumCallback(Item.second);
+						FunctionFactory::GCEnumCallback(VM, Item.second);
 				});
 				VContentManager.SetReleaseRefsEx<Engine::ContentManager>([](Engine::ContentManager* Base, asIScriptEngine*)
 				{
 					Base->ClearProcessors();
 				});
 
-				RefClass VAppData = Engine->SetClass<Engine::AppData>("app_data", true);
+				RefClass VAppData = *VM->SetClass<Engine::AppData>("app_data", true);
 				VAppData.SetGcConstructor<Engine::AppData, AppData, Engine::ContentManager*, const Core::String&>("app_data@ f(content_manager@+, const string &in)");
 				VAppData.SetMethod("void migrate(const string &in)", &Engine::AppData::Migrate);
 				VAppData.SetMethod("void set_key(const string &in, schema@+)", &Engine::AppData::SetKey);
@@ -14970,16 +15344,16 @@ namespace Mavi
 				VAppData.SetMethod("schema@+ get_key(const string &in)", &Engine::AppData::GetKey);
 				VAppData.SetMethod("string get_text(const string &in)", &Engine::AppData::GetText);
 				VAppData.SetMethod("bool has(const string &in)", &Engine::AppData::Has);
-				VAppData.SetEnumRefsEx<Engine::AppData>([](Engine::AppData* Base, asIScriptEngine* Engine)
+				VAppData.SetEnumRefsEx<Engine::AppData>([](Engine::AppData* Base, asIScriptEngine* VM)
 				{
-					Engine->GCEnumCallback(Base->GetSnapshot());
+					FunctionFactory::GCEnumCallback(VM, Base->GetSnapshot());
 				});
 				VAppData.SetReleaseRefsEx<Engine::AppData>([](Engine::AppData* Base, asIScriptEngine*)
 				{
 					Base->~AppData();
 				});
 
-				TypeClass VSceneGraphSharedDesc = Engine->SetStruct<Engine::SceneGraph::Desc>("scene_graph_shared_desc");
+				TypeClass VSceneGraphSharedDesc = *VM->SetStruct<Engine::SceneGraph::Desc>("scene_graph_shared_desc");
 				VSceneGraphSharedDesc.SetProperty<Engine::SceneGraph::Desc::Dependencies>("graphics_device@ device", &Engine::SceneGraph::Desc::Dependencies::Device);
 				VSceneGraphSharedDesc.SetProperty<Engine::SceneGraph::Desc::Dependencies>("activity@ window", &Engine::SceneGraph::Desc::Dependencies::Activity);
 				VSceneGraphSharedDesc.SetProperty<Engine::SceneGraph::Desc::Dependencies>("virtual_machine@ vm", &Engine::SceneGraph::Desc::Dependencies::VM);
@@ -14990,8 +15364,8 @@ namespace Mavi
 				VSceneGraphSharedDesc.SetOperatorCopyStatic(&SceneGraphSharedDescCopy);
 				VSceneGraphSharedDesc.SetDestructorStatic("void f()", &SceneGraphSharedDescDestructor);
 
-				RefClass VApplication = Engine->SetClass<Application>("application", true);
-				TypeClass VSceneGraphDesc = Engine->SetStructTrivial<Engine::SceneGraph::Desc>("scene_graph_desc");
+				RefClass VApplication = *VM->SetClass<Application>("application", true);
+				TypeClass VSceneGraphDesc = *VM->SetStructTrivial<Engine::SceneGraph::Desc>("scene_graph_desc");
 				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("scene_graph_shared_desc shared", &Engine::SceneGraph::Desc::Shared);
 				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("physics_simulator_desc simulator", &Engine::SceneGraph::Desc::Simulator);
 				VSceneGraphDesc.SetProperty<Engine::SceneGraph::Desc>("usize start_materials", &Engine::SceneGraph::Desc::StartMaterials);
@@ -15015,7 +15389,7 @@ namespace Mavi
 				VSceneGraphDesc.SetConstructor<Engine::SceneGraph::Desc>("void f()");
 				VSceneGraphDesc.SetMethodStatic("scene_graph_desc get(application@+)", &Engine::SceneGraph::Desc::Get);
 
-				TypeClass VSceneGraphStatistics = Engine->SetPod<Engine::SceneGraph::SgStatistics>("scene_graph_statistics");
+				TypeClass VSceneGraphStatistics = *VM->SetPod<Engine::SceneGraph::SgStatistics>("scene_graph_statistics");
 				VSceneGraphStatistics.SetProperty<Engine::SceneGraph::SgStatistics>("usize batching", &Engine::SceneGraph::SgStatistics::Batching);
 				VSceneGraphStatistics.SetProperty<Engine::SceneGraph::SgStatistics>("usize sorting", &Engine::SceneGraph::SgStatistics::Sorting);
 				VSceneGraphStatistics.SetProperty<Engine::SceneGraph::SgStatistics>("usize instances", &Engine::SceneGraph::SgStatistics::Instances);
@@ -15059,7 +15433,7 @@ namespace Mavi
 				VSceneGraph.SetMethodEx("bool push_event(const string &in, schema@+, bool)", &SceneGraphPushEvent1);
 				VSceneGraph.SetMethodEx("bool push_event(const string &in, schema@+, base_component@+)", &SceneGraphPushEvent2);
 				VSceneGraph.SetMethodEx("bool push_event(const string &in, schema@+, scene_entity@+)", &SceneGraphPushEvent3);
-				VSceneGraph.SetMethodEx("uptr@ set_listener(const string &in, event_callback@+)", &SceneGraphSetListener);
+				VSceneGraph.SetMethodEx("uptr@ set_listener(const string &in, event_callback@)", &SceneGraphSetListener);
 				VSceneGraph.SetMethod("bool clear_listener(const string &in, uptr@)", &Engine::SceneGraph::ClearListener);
 				VSceneGraph.SetMethod("material@+ get_invalid_material()", &Engine::SceneGraph::GetInvalidMaterial);
 				VSceneGraph.SetMethod<Engine::SceneGraph, bool, Engine::Material*>("bool add_material(material@+)", &Engine::SceneGraph::AddMaterial);
@@ -15112,45 +15486,45 @@ namespace Mavi
 				VSceneGraph.SetMethod("shader_cache@+ get_shaders() const", &Engine::SceneGraph::GetShaders);
 				VSceneGraph.SetMethod("primitive_cache@+ get_primitives() const", &Engine::SceneGraph::GetPrimitives);
 				VSceneGraph.SetMethod("scene_graph_desc& get_conf()", &Engine::SceneGraph::GetConf);
-				VSceneGraph.SetEnumRefsEx<Engine::SceneGraph>([](Engine::SceneGraph* Base, asIScriptEngine* Engine)
+				VSceneGraph.SetEnumRefsEx<Engine::SceneGraph>([](Engine::SceneGraph* Base, asIScriptEngine* VM)
 				{
 					auto& Conf = Base->GetConf();
-					Engine->GCEnumCallback(Conf.Shared.Shaders);
-					Engine->GCEnumCallback(Conf.Shared.Primitives);
-					Engine->GCEnumCallback(Conf.Shared.Content);
-					Engine->GCEnumCallback(Conf.Shared.Device);
-					Engine->GCEnumCallback(Conf.Shared.Activity);
-					Engine->GCEnumCallback(Conf.Shared.VM);
+					FunctionFactory::GCEnumCallback(VM, Conf.Shared.Shaders);
+					FunctionFactory::GCEnumCallback(VM, Conf.Shared.Primitives);
+					FunctionFactory::GCEnumCallback(VM, Conf.Shared.Content);
+					FunctionFactory::GCEnumCallback(VM, Conf.Shared.Device);
+					FunctionFactory::GCEnumCallback(VM, Conf.Shared.Activity);
+					FunctionFactory::GCEnumCallback(VM, Conf.Shared.VM);
 
 					size_t Materials = Base->GetMaterialsCount();
 					for (size_t i = 0; i < Materials; i++)
-						Engine->GCEnumCallback(Base->GetMaterial(i));
+						FunctionFactory::GCEnumCallback(VM, Base->GetMaterial(i));
 
 					size_t Entities = Base->GetEntitiesCount();
 					for (size_t i = 0; i < Entities; i++)
-						Engine->GCEnumCallback(Base->GetEntity(i));
+						FunctionFactory::GCEnumCallback(VM, Base->GetEntity(i));
 
 					for (auto& Item : Base->GetRegistry())
 					{
 						for (auto* Next : Item.second->Data)
-							Engine->GCEnumCallback(Next);
+							FunctionFactory::GCEnumCallback(VM, Next);
 					}
 				});
 				VSceneGraph.SetReleaseRefsEx<Engine::SceneGraph>([](Engine::SceneGraph* Base, asIScriptEngine*) { });
 
-				TypeClass VApplicationFrameInfo = Engine->SetStructTrivial<Application::Desc::FramesInfo>("application_frame_info");
+				TypeClass VApplicationFrameInfo = *VM->SetStructTrivial<Application::Desc::FramesInfo>("application_frame_info");
 				VApplicationFrameInfo.SetProperty<Application::Desc::FramesInfo>("float stable", &Application::Desc::FramesInfo::Stable);
 				VApplicationFrameInfo.SetProperty<Application::Desc::FramesInfo>("float limit", &Application::Desc::FramesInfo::Limit);
 				VApplicationFrameInfo.SetConstructor<Application::Desc::FramesInfo>("void f()");
 
-				TypeClass VApplicationCacheInfo = Engine->SetStruct<Application::CacheInfo>("application_cache_info");
+				TypeClass VApplicationCacheInfo = *VM->SetStruct<Application::CacheInfo>("application_cache_info");
 				VApplicationCacheInfo.SetProperty<Application::CacheInfo>("shader_cache@ shaders", &Application::CacheInfo::Shaders);
 				VApplicationCacheInfo.SetProperty<Application::CacheInfo>("primitive_cache@ primitives", &Application::CacheInfo::Primitives);
 				VApplicationCacheInfo.SetConstructor<Application::CacheInfo>("void f()");
 				VApplicationCacheInfo.SetOperatorCopyStatic(&ApplicationCacheInfoCopy);
 				VApplicationCacheInfo.SetDestructorStatic("void f()", &ApplicationCacheInfoDestructor);
 
-				TypeClass VApplicationDesc = Engine->SetStructTrivial<Application::Desc>("application_desc");
+				TypeClass VApplicationDesc = *VM->SetStructTrivial<Application::Desc>("application_desc");
 				VApplicationDesc.SetProperty<Application::Desc>("application_frame_info framerate", &Application::Desc::Framerate);
 				VApplicationDesc.SetProperty<Application::Desc>("graphics_device_desc graphics", &Application::Desc::GraphicsDevice);
 				VApplicationDesc.SetProperty<Application::Desc>("activity_desc window", &Application::Desc::Activity);
@@ -15187,44 +15561,44 @@ namespace Mavi
 				VApplication.SetProperty<Engine::Application>("app_data@ database", &Engine::Application::Database);
 				VApplication.SetProperty<Engine::Application>("scene_graph@ scene", &Engine::Application::Scene);
 				VApplication.SetProperty<Engine::Application>("application_desc control", &Engine::Application::Control);
-				VApplication.SetProperty<Application>("script_hook_callback@ script_hook", &Application::OnScriptHook);
-				VApplication.SetProperty<Application>("key_event_callback@ key_event", &Application::OnKeyEvent);
-				VApplication.SetProperty<Application>("input_event_callback@ input_event", &Application::OnInputEvent);
-				VApplication.SetProperty<Application>("wheel_event_callback@ wheel_event", &Application::OnWheelEvent);
-				VApplication.SetProperty<Application>("window_event_callback@ window_event", &Application::OnWindowEvent);
-				VApplication.SetProperty<Application>("close_event_callback@ close_event", &Application::OnCloseEvent);
-				VApplication.SetProperty<Application>("compose_event_callback@ compose_event", &Application::OnComposeEvent);
-				VApplication.SetProperty<Application>("dispatch_callback@ dispatch", &Application::OnDispatch);
-				VApplication.SetProperty<Application>("publish_callback@ publish", &Application::OnPublish);
-				VApplication.SetProperty<Application>("initialize_callback@ initialize", &Application::OnInitialize);
-				VApplication.SetProperty<Application>("fetch_gui_callback@ fetch_gui", &Application::OnGetGUI);
 				VApplication.SetGcConstructor<Application, ApplicationName, Application::Desc&>("application@ f(application_desc &in)");
+				VApplication.SetMethod("void set_on_script_hook(script_hook_callback@)", &Application::SetOnScriptHook);
+				VApplication.SetMethod("void set_on_key_event(key_event_callback@)", &Application::SetOnKeyEvent);
+				VApplication.SetMethod("void set_on_input_event(input_event_callback@)", &Application::SetOnInputEvent);
+				VApplication.SetMethod("void set_on_wheel_event(wheel_event_callback@)", &Application::SetOnWheelEvent);
+				VApplication.SetMethod("void set_on_window_event(window_event_callback@)", &Application::SetOnWindowEvent);
+				VApplication.SetMethod("void set_on_close_event(close_event_callback@)", &Application::SetOnCloseEvent);
+				VApplication.SetMethod("void set_on_compose_event(compose_event_callback@)", &Application::SetOnComposeEvent);
+				VApplication.SetMethod("void set_on_dispatch(dispatch_callback@)", &Application::SetOnDispatch);
+				VApplication.SetMethod("void set_on_publish(publish_callback@)", &Application::SetOnPublish);
+				VApplication.SetMethod("void set_on_initialize(initialize_callback@)", &Application::SetOnInitialize);
+				VApplication.SetMethod("void set_on_fetch_gui(fetch_gui_callback@)", &Application::SetOnGetGUI);
 				VApplication.SetMethod("int start()", &Engine::Application::Start);
 				VApplication.SetMethod("int restart()", &Engine::Application::Restart);
 				VApplication.SetMethod("void stop(int = 0)", &Engine::Application::Stop);
 				VApplication.SetMethod("application_state get_state() const", &Engine::Application::GetState);
 				VApplication.SetMethodStatic("application@+ get()", &Engine::Application::Get);
 				VApplication.SetMethodStatic("bool wants_restart(int)", &Application::WantsRestart);
-				VApplication.SetEnumRefsEx<Application>([](Application* Base, asIScriptEngine* Engine)
+				VApplication.SetEnumRefsEx<Application>([](Application* Base, asIScriptEngine* VM)
 				{
-					Engine->GCEnumCallback(Base->Audio);
-					Engine->GCEnumCallback(Base->Renderer);
-					Engine->GCEnumCallback(Base->Activity);
-					Engine->GCEnumCallback(Base->VM);
-					Engine->GCEnumCallback(Base->Content);
-					Engine->GCEnumCallback(Base->Database);
-					Engine->GCEnumCallback(Base->Scene);
-					Engine->GCEnumCallback(Base->OnScriptHook);
-					Engine->GCEnumCallback(Base->OnKeyEvent);
-					Engine->GCEnumCallback(Base->OnInputEvent);
-					Engine->GCEnumCallback(Base->OnWheelEvent);
-					Engine->GCEnumCallback(Base->OnWindowEvent);
-					Engine->GCEnumCallback(Base->OnCloseEvent);
-					Engine->GCEnumCallback(Base->OnComposeEvent);
-					Engine->GCEnumCallback(Base->OnDispatch);
-					Engine->GCEnumCallback(Base->OnPublish);
-					Engine->GCEnumCallback(Base->OnInitialize);
-					Engine->GCEnumCallback(Base->OnGetGUI);
+					FunctionFactory::GCEnumCallback(VM, Base->Audio);
+					FunctionFactory::GCEnumCallback(VM, Base->Renderer);
+					FunctionFactory::GCEnumCallback(VM, Base->Activity);
+					FunctionFactory::GCEnumCallback(VM, Base->VM);
+					FunctionFactory::GCEnumCallback(VM, Base->Content);
+					FunctionFactory::GCEnumCallback(VM, Base->Database);
+					FunctionFactory::GCEnumCallback(VM, Base->Scene);
+					FunctionFactory::GCEnumCallback(VM, &Base->OnScriptHook);
+					FunctionFactory::GCEnumCallback(VM, &Base->OnKeyEvent);
+					FunctionFactory::GCEnumCallback(VM, &Base->OnInputEvent);
+					FunctionFactory::GCEnumCallback(VM, &Base->OnWheelEvent);
+					FunctionFactory::GCEnumCallback(VM, &Base->OnWindowEvent);
+					FunctionFactory::GCEnumCallback(VM, &Base->OnCloseEvent);
+					FunctionFactory::GCEnumCallback(VM, &Base->OnComposeEvent);
+					FunctionFactory::GCEnumCallback(VM, &Base->OnDispatch);
+					FunctionFactory::GCEnumCallback(VM, &Base->OnPublish);
+					FunctionFactory::GCEnumCallback(VM, &Base->OnInitialize);
+					FunctionFactory::GCEnumCallback(VM, &Base->OnGetGUI);
 				});
 				VApplication.SetReleaseRefsEx<Application>([](Application* Base, asIScriptEngine*)
 				{
@@ -15237,13 +15611,13 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportComponents(VirtualMachine* Engine)
+			bool Registry::ImportComponents(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				Engine->SetFunctionDef("void component_resource_event()");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				VM->SetFunctionDef("void component_resource_event()");
 
-				RefClass VSoftBody = Engine->SetClass<Engine::Components::SoftBody>("soft_body_component", false);
+				RefClass VSoftBody = *VM->SetClass<Engine::Components::SoftBody>("soft_body_component", false);
 				VSoftBody.SetProperty<Engine::Components::SoftBody>("vector2 texcoord", &Engine::Components::SoftBody::TexCoord);
 				VSoftBody.SetProperty<Engine::Components::SoftBody>("bool kinematic", &Engine::Components::SoftBody::Kinematic);
 				VSoftBody.SetProperty<Engine::Components::SoftBody>("bool manage", &Engine::Components::SoftBody::Manage);
@@ -15260,7 +15634,7 @@ namespace Mavi
 				VSoftBody.SetMethod("physics_softbody@+ get_body() const", &Engine::Components::SoftBody::GetBody);
 				PopulateDrawableInterface<Engine::Components::SoftBody, Engine::Entity*>(VSoftBody, "soft_body_component@+ f(scene_entity@+)");
 
-				RefClass VRigidBody = Engine->SetClass<Engine::Components::RigidBody>("rigid_body_component", false);
+				RefClass VRigidBody = *VM->SetClass<Engine::Components::RigidBody>("rigid_body_component", false);
 				VRigidBody.SetProperty<Engine::Components::RigidBody>("bool kinematic", &Engine::Components::RigidBody::Kinematic);
 				VRigidBody.SetProperty<Engine::Components::RigidBody>("bool manage", &Engine::Components::RigidBody::Manage);
 				VRigidBody.SetMethodEx("void load(const string &in, float, float = 0.0f, component_resource_event@ = null)", &ComponentsRigidBodyLoad);
@@ -15272,14 +15646,14 @@ namespace Mavi
 				VRigidBody.SetMethod("physics_rigidbody@+ get_body() const", &Engine::Components::RigidBody::GetBody);
 				PopulateComponentInterface<Engine::Components::RigidBody, Engine::Entity*>(VRigidBody, "rigid_body_component@+ f(scene_entity@+)");
 
-				RefClass VSliderConstraint = Engine->SetClass<Engine::Components::SliderConstraint>("slider_constraint_component", false);
+				RefClass VSliderConstraint = *VM->SetClass<Engine::Components::SliderConstraint>("slider_constraint_component", false);
 				VSliderConstraint.SetMethod("void load(scene_entity@+, bool, bool)", &Engine::Components::SliderConstraint::Load);
 				VSliderConstraint.SetMethod("void clear()", &Engine::Components::SliderConstraint::Clear);
 				VSliderConstraint.SetMethod("physics_rigidbody@+ get_constraint() const", &Engine::Components::SliderConstraint::GetConstraint);
 				VSliderConstraint.SetMethod("scene_entity@+ get_connection() const", &Engine::Components::SliderConstraint::GetConnection);
 				PopulateComponentInterface<Engine::Components::SliderConstraint, Engine::Entity*>(VSliderConstraint, "slider_constraint_component@+ f(scene_entity@+)");
 
-				RefClass VAcceleration = Engine->SetClass<Engine::Components::Acceleration>("acceleration_component", false);
+				RefClass VAcceleration = *VM->SetClass<Engine::Components::Acceleration>("acceleration_component", false);
 				VAcceleration.SetProperty<Engine::Components::Acceleration>("vector3 amplitude_velocity", &Engine::Components::Acceleration::AmplitudeVelocity);
 				VAcceleration.SetProperty<Engine::Components::Acceleration>("vector3 amplitude_torque", &Engine::Components::Acceleration::AmplitudeTorque);
 				VAcceleration.SetProperty<Engine::Components::Acceleration>("vector3 constant_velocity", &Engine::Components::Acceleration::ConstantVelocity);
@@ -15289,7 +15663,7 @@ namespace Mavi
 				VAcceleration.SetMethod("rigid_body_component@+ get_body() const", &Engine::Components::Acceleration::GetBody);
 				PopulateComponentInterface<Engine::Components::Acceleration, Engine::Entity*>(VAcceleration, "acceleration_component@+ f(scene_entity@+)");
 
-				RefClass VModel = Engine->SetClass<Engine::Components::Model>("model_component", false);
+				RefClass VModel = *VM->SetClass<Engine::Components::Model>("model_component", false);
 				VModel.SetProperty<Engine::Components::Model>("vector2 texcoord", &Engine::Components::Model::TexCoord);
 				VModel.SetMethod("void set_drawable(model@+)", &Engine::Components::Model::SetDrawable);
 				VModel.SetMethod("void set_material_for(const string &in, material@+)", &Engine::Components::Model::SetMaterialFor);
@@ -15297,7 +15671,7 @@ namespace Mavi
 				VModel.SetMethod("material@+ get_material_for(const string &in)", &Engine::Components::Model::GetMaterialFor);
 				PopulateDrawableInterface<Engine::Components::Model, Engine::Entity*>(VModel, "model_component@+ f(scene_entity@+)");
 
-				RefClass VSkin = Engine->SetClass<Engine::Components::Skin>("skin_component", false);
+				RefClass VSkin = *VM->SetClass<Engine::Components::Skin>("skin_component", false);
 				VSkin.SetProperty<Engine::Components::Skin>("vector2 texcoord", &Engine::Components::Skin::TexCoord);
 				VSkin.SetProperty<Engine::Components::Skin>("pose_buffer skeleton", &Engine::Components::Skin::Skeleton);
 				VSkin.SetMethod("void set_drawable(skin_model@+)", &Engine::Components::Skin::SetDrawable);
@@ -15306,7 +15680,7 @@ namespace Mavi
 				VSkin.SetMethod("material@+ get_material_for(const string &in)", &Engine::Components::Skin::GetMaterialFor);
 				PopulateDrawableInterface<Engine::Components::Skin, Engine::Entity*>(VSkin, "skin_component@+ f(scene_entity@+)");
 
-				RefClass VEmitter = Engine->SetClass<Engine::Components::Emitter>("emitter_component", false);
+				RefClass VEmitter = *VM->SetClass<Engine::Components::Emitter>("emitter_component", false);
 				VEmitter.SetProperty<Engine::Components::Emitter>("vector3 min", &Engine::Components::Emitter::Min);
 				VEmitter.SetProperty<Engine::Components::Emitter>("vector3 max", &Engine::Components::Emitter::Max);
 				VEmitter.SetProperty<Engine::Components::Emitter>("bool connected", &Engine::Components::Emitter::Connected);
@@ -15314,11 +15688,11 @@ namespace Mavi
 				VEmitter.SetMethod("instance_buffer@+ get_buffer() const", &Engine::Components::Emitter::GetBuffer);
 				PopulateDrawableInterface<Engine::Components::Emitter, Engine::Entity*>(VEmitter, "emitter_component@+ f(scene_entity@+)");
 
-				RefClass VDecal = Engine->SetClass<Engine::Components::Decal>("decal_component", false);
+				RefClass VDecal = *VM->SetClass<Engine::Components::Decal>("decal_component", false);
 				VDecal.SetProperty<Engine::Components::Decal>("vector2 texcoord", &Engine::Components::Decal::TexCoord);
 				PopulateDrawableInterface<Engine::Components::Decal, Engine::Entity*>(VDecal, "decal_component@+ f(scene_entity@+)");
 
-				RefClass VSkinAnimator = Engine->SetClass<Engine::Components::SkinAnimator>("skin_animator_component", false);
+				RefClass VSkinAnimator = *VM->SetClass<Engine::Components::SkinAnimator>("skin_animator_component", false);
 				VSkinAnimator.SetProperty<Engine::Components::SkinAnimator>("animator_state state", &Engine::Components::SkinAnimator::State);
 				VSkinAnimator.SetMethod("void set_animation(skin_animation@+)", &Engine::Components::SkinAnimator::SetAnimation);
 				VSkinAnimator.SetMethod("void play(int64 = -1, int64 = -1)", &Engine::Components::SkinAnimator::Play);
@@ -15334,7 +15708,7 @@ namespace Mavi
 				VSkinAnimator.SetMethod("usize get_clips_count() const", &Engine::Components::SkinAnimator::GetClipsCount);
 				PopulateComponentInterface<Engine::Components::SkinAnimator, Engine::Entity*>(VSkinAnimator, "skin_animator_component@+ f(scene_entity@+)");
 
-				RefClass VKeyAnimator = Engine->SetClass<Engine::Components::KeyAnimator>("key_animator_component", false);
+				RefClass VKeyAnimator = *VM->SetClass<Engine::Components::KeyAnimator>("key_animator_component", false);
 				VKeyAnimator.SetProperty<Engine::Components::KeyAnimator>("animator_key offset_pose", &Engine::Components::KeyAnimator::Offset);
 				VKeyAnimator.SetProperty<Engine::Components::KeyAnimator>("animator_key default_pose", &Engine::Components::KeyAnimator::Default);
 				VKeyAnimator.SetProperty<Engine::Components::KeyAnimator>("animator_state state", &Engine::Components::KeyAnimator::State);
@@ -15349,7 +15723,7 @@ namespace Mavi
 				VKeyAnimator.SetMethod("string get_path() const", &Engine::Components::KeyAnimator::GetPath);
 				PopulateComponentInterface<Engine::Components::KeyAnimator, Engine::Entity*>(VKeyAnimator, "key_animator_component@+ f(scene_entity@+)");
 
-				RefClass VEmitterAnimator = Engine->SetClass<Engine::Components::EmitterAnimator>("emitter_animator_component", false);
+				RefClass VEmitterAnimator = *VM->SetClass<Engine::Components::EmitterAnimator>("emitter_animator_component", false);
 				VEmitterAnimator.SetProperty<Engine::Components::EmitterAnimator>("vector4 diffuse", &Engine::Components::EmitterAnimator::Diffuse);
 				VEmitterAnimator.SetProperty<Engine::Components::EmitterAnimator>("vector3 position", &Engine::Components::EmitterAnimator::Position);
 				VEmitterAnimator.SetProperty<Engine::Components::EmitterAnimator>("vector3 velocity", &Engine::Components::EmitterAnimator::Velocity);
@@ -15361,20 +15735,20 @@ namespace Mavi
 				VEmitterAnimator.SetMethod("emitter_component@+ get_emitter() const", &Engine::Components::EmitterAnimator::GetEmitter);
 				PopulateComponentInterface<Engine::Components::EmitterAnimator, Engine::Entity*>(VEmitterAnimator, "emitter_animator_component@+ f(scene_entity@+)");
 
-				RefClass VFreeLook = Engine->SetClass<Engine::Components::FreeLook>("free_look_component", false);
+				RefClass VFreeLook = *VM->SetClass<Engine::Components::FreeLook>("free_look_component", false);
 				VFreeLook.SetProperty<Engine::Components::FreeLook>("vector2 direction", &Engine::Components::FreeLook::Direction);
 				VFreeLook.SetProperty<Engine::Components::FreeLook>("key_map rotate", &Engine::Components::FreeLook::Rotate);
 				VFreeLook.SetProperty<Engine::Components::FreeLook>("float sensivity", &Engine::Components::FreeLook::Sensivity);
 				PopulateComponentInterface<Engine::Components::FreeLook, Engine::Entity*>(VFreeLook, "free_look_component@+ f(scene_entity@+)");
 
-				TypeClass VFlyMoveInfo = Engine->SetPod<Engine::Components::Fly::MoveInfo>("fly_move_info");
+				TypeClass VFlyMoveInfo = *VM->SetPod<Engine::Components::Fly::MoveInfo>("fly_move_info");
 				VFlyMoveInfo.SetProperty<Engine::Components::Fly::MoveInfo>("vector3 axis", &Engine::Components::Fly::MoveInfo::Axis);
 				VFlyMoveInfo.SetProperty<Engine::Components::Fly::MoveInfo>("float faster", &Engine::Components::Fly::MoveInfo::Faster);
 				VFlyMoveInfo.SetProperty<Engine::Components::Fly::MoveInfo>("float normal", &Engine::Components::Fly::MoveInfo::Normal);
 				VFlyMoveInfo.SetProperty<Engine::Components::Fly::MoveInfo>("float slower", &Engine::Components::Fly::MoveInfo::Slower);
 				VFlyMoveInfo.SetProperty<Engine::Components::Fly::MoveInfo>("float fading", &Engine::Components::Fly::MoveInfo::Fading);
 
-				RefClass VFly = Engine->SetClass<Engine::Components::Fly>("fly_component", false);
+				RefClass VFly = *VM->SetClass<Engine::Components::Fly>("fly_component", false);
 				VFly.SetProperty<Engine::Components::Fly>("fly_move_info moving", &Engine::Components::Fly::Moving);
 				VFly.SetProperty<Engine::Components::Fly>("key_map forward", &Engine::Components::Fly::Forward);
 				VFly.SetProperty<Engine::Components::Fly>("key_map backward", &Engine::Components::Fly::Backward);
@@ -15386,24 +15760,24 @@ namespace Mavi
 				VFly.SetProperty<Engine::Components::Fly>("key_map slow", &Engine::Components::Fly::Slow);
 				PopulateComponentInterface<Engine::Components::Fly, Engine::Entity*>(VFly, "fly_component@+ f(scene_entity@+)");
 
-				RefClass VAudioSource = Engine->SetClass<Engine::Components::AudioSource>("audio_source_component", false);
+				RefClass VAudioSource = *VM->SetClass<Engine::Components::AudioSource>("audio_source_component", false);
 				VAudioSource.SetMethod("void apply_playing_position()", &Engine::Components::AudioSource::ApplyPlayingPosition);
 				VAudioSource.SetMethod("audio_source@+ get_source() const", &Engine::Components::AudioSource::GetSource);
 				VAudioSource.SetMethod("audio_sync& get_sync()", &Engine::Components::AudioSource::GetSync);
 				PopulateComponentInterface<Engine::Components::AudioSource, Engine::Entity*>(VAudioSource, "audio_source_component@+ f(scene_entity@+)");
 
-				RefClass VAudioListener = Engine->SetClass<Engine::Components::AudioListener>("audio_listener_component", false);
+				RefClass VAudioListener = *VM->SetClass<Engine::Components::AudioListener>("audio_listener_component", false);
 				VAudioListener.SetProperty<Engine::Components::AudioListener>("float gain", &Engine::Components::AudioListener::Gain);
 				PopulateComponentInterface<Engine::Components::AudioListener, Engine::Entity*>(VAudioListener, "audio_listener_component@+ f(scene_entity@+)");
 
-				TypeClass PointLightShadowInfo = Engine->SetPod<Engine::Components::PointLight::ShadowInfo>("point_light_shadow_info");
+				TypeClass PointLightShadowInfo = *VM->SetPod<Engine::Components::PointLight::ShadowInfo>("point_light_shadow_info");
 				PointLightShadowInfo.SetProperty<Engine::Components::PointLight::ShadowInfo>("float softness", &Engine::Components::PointLight::ShadowInfo::Softness);
 				PointLightShadowInfo.SetProperty<Engine::Components::PointLight::ShadowInfo>("float distance", &Engine::Components::PointLight::ShadowInfo::Distance);
 				PointLightShadowInfo.SetProperty<Engine::Components::PointLight::ShadowInfo>("float bias", &Engine::Components::PointLight::ShadowInfo::Bias);
 				PointLightShadowInfo.SetProperty<Engine::Components::PointLight::ShadowInfo>("uint32 iterations", &Engine::Components::PointLight::ShadowInfo::Iterations);
 				PointLightShadowInfo.SetProperty<Engine::Components::PointLight::ShadowInfo>("bool enabled", &Engine::Components::PointLight::ShadowInfo::Enabled);
 
-				RefClass VPointLight = Engine->SetClass<Engine::Components::PointLight>("point_light_component", false);
+				RefClass VPointLight = *VM->SetClass<Engine::Components::PointLight>("point_light_component", false);
 				VPointLight.SetProperty<Engine::Components::PointLight>("point_light_shadow_info shadow", &Engine::Components::PointLight::Shadow);
 				VPointLight.SetProperty<Engine::Components::PointLight>("matrix4x4 view", &Engine::Components::PointLight::View);
 				VPointLight.SetProperty<Engine::Components::PointLight>("matrix4x4 projection", &Engine::Components::PointLight::Projection);
@@ -15415,14 +15789,14 @@ namespace Mavi
 				VPointLight.SetMethod("const attenuation& get_size() const", &Engine::Components::PointLight::SetSize);
 				PopulateComponentInterface<Engine::Components::PointLight, Engine::Entity*>(VPointLight, "point_light_component@+ f(scene_entity@+)");
 
-				TypeClass SpotLightShadowInfo = Engine->SetPod<Engine::Components::SpotLight::ShadowInfo>("spot_light_shadow_info");
+				TypeClass SpotLightShadowInfo = *VM->SetPod<Engine::Components::SpotLight::ShadowInfo>("spot_light_shadow_info");
 				SpotLightShadowInfo.SetProperty<Engine::Components::SpotLight::ShadowInfo>("float softness", &Engine::Components::SpotLight::ShadowInfo::Softness);
 				SpotLightShadowInfo.SetProperty<Engine::Components::SpotLight::ShadowInfo>("float distance", &Engine::Components::SpotLight::ShadowInfo::Distance);
 				SpotLightShadowInfo.SetProperty<Engine::Components::SpotLight::ShadowInfo>("float bias", &Engine::Components::SpotLight::ShadowInfo::Bias);
 				SpotLightShadowInfo.SetProperty<Engine::Components::SpotLight::ShadowInfo>("uint32 iterations", &Engine::Components::SpotLight::ShadowInfo::Iterations);
 				SpotLightShadowInfo.SetProperty<Engine::Components::SpotLight::ShadowInfo>("bool enabled", &Engine::Components::SpotLight::ShadowInfo::Enabled);
 
-				RefClass VSpotLight = Engine->SetClass<Engine::Components::SpotLight>("spot_light_component", false);
+				RefClass VSpotLight = *VM->SetClass<Engine::Components::SpotLight>("spot_light_component", false);
 				VSpotLight.SetProperty<Engine::Components::SpotLight>("spot_light_shadow_info shadow", &Engine::Components::SpotLight::Shadow);
 				VSpotLight.SetProperty<Engine::Components::SpotLight>("matrix4x4 view", &Engine::Components::SpotLight::View);
 				VSpotLight.SetProperty<Engine::Components::SpotLight>("matrix4x4 projection", &Engine::Components::SpotLight::Projection);
@@ -15435,7 +15809,7 @@ namespace Mavi
 				VSpotLight.SetMethod("const attenuation& get_size() const", &Engine::Components::SpotLight::SetSize);
 				PopulateComponentInterface<Engine::Components::SpotLight, Engine::Entity*>(VSpotLight, "spot_light_component@+ f(scene_entity@+)");
 
-				TypeClass LineLightSkyInfo = Engine->SetPod<Engine::Components::LineLight::SkyInfo>("line_light_sky_info");
+				TypeClass LineLightSkyInfo = *VM->SetPod<Engine::Components::LineLight::SkyInfo>("line_light_sky_info");
 				LineLightSkyInfo.SetProperty<Engine::Components::LineLight::SkyInfo>("vector3 elh_emission", &Engine::Components::LineLight::SkyInfo::RlhEmission);
 				LineLightSkyInfo.SetProperty<Engine::Components::LineLight::SkyInfo>("vector3 mie_emission", &Engine::Components::LineLight::SkyInfo::MieEmission);
 				LineLightSkyInfo.SetProperty<Engine::Components::LineLight::SkyInfo>("float rlh_height", &Engine::Components::LineLight::SkyInfo::RlhHeight);
@@ -15445,7 +15819,7 @@ namespace Mavi
 				LineLightSkyInfo.SetProperty<Engine::Components::LineLight::SkyInfo>("float outer_radius", &Engine::Components::LineLight::SkyInfo::OuterRadius);
 				LineLightSkyInfo.SetProperty<Engine::Components::LineLight::SkyInfo>("float intensity", &Engine::Components::LineLight::SkyInfo::Intensity);
 
-				TypeClass LineLightShadowInfo = Engine->SetPod<Engine::Components::LineLight::ShadowInfo>("line_light_shadow_info");
+				TypeClass LineLightShadowInfo = *VM->SetPod<Engine::Components::LineLight::ShadowInfo>("line_light_shadow_info");
 				LineLightShadowInfo.SetPropertyArray<Engine::Components::LineLight::ShadowInfo>("float distance", &Engine::Components::LineLight::ShadowInfo::Distance, 6);
 				LineLightShadowInfo.SetProperty<Engine::Components::LineLight::ShadowInfo>("float softness", &Engine::Components::LineLight::ShadowInfo::Softness);
 				LineLightShadowInfo.SetProperty<Engine::Components::LineLight::ShadowInfo>("float bias", &Engine::Components::LineLight::ShadowInfo::Bias);
@@ -15455,7 +15829,7 @@ namespace Mavi
 				LineLightShadowInfo.SetProperty<Engine::Components::LineLight::ShadowInfo>("uint32 cascades", &Engine::Components::LineLight::ShadowInfo::Cascades);
 				LineLightShadowInfo.SetProperty<Engine::Components::LineLight::ShadowInfo>("bool enabled", &Engine::Components::LineLight::ShadowInfo::Enabled);
 
-				RefClass VLineLight = Engine->SetClass<Engine::Components::LineLight>("line_light_component", false);
+				RefClass VLineLight = *VM->SetClass<Engine::Components::LineLight>("line_light_component", false);
 				VLineLight.SetProperty<Engine::Components::LineLight>("line_light_sky_info sky", &Engine::Components::LineLight::Sky);
 				VLineLight.SetProperty<Engine::Components::LineLight>("line_light_shadow_info shadow", &Engine::Components::LineLight::Shadow);
 				VLineLight.SetPropertyArray<Engine::Components::LineLight>("matrix4x4 projection", &Engine::Components::LineLight::Projection, 6);
@@ -15465,7 +15839,7 @@ namespace Mavi
 				VLineLight.SetMethod("void generate_origin()", &Engine::Components::LineLight::GenerateOrigin);
 				PopulateComponentInterface<Engine::Components::LineLight, Engine::Entity*>(VLineLight, "line_light_component@+ f(scene_entity@+)");
 
-				RefClass VSurfaceLight = Engine->SetClass<Engine::Components::SurfaceLight>("surface_light_component", false);
+				RefClass VSurfaceLight = *VM->SetClass<Engine::Components::SurfaceLight>("surface_light_component", false);
 				VSurfaceLight.SetPropertyArray<Engine::Components::SurfaceLight>("matrix4x4 view", &Engine::Components::SurfaceLight::View, 6);
 				VSurfaceLight.SetProperty<Engine::Components::SurfaceLight>("matrix4x4 projection", &Engine::Components::SurfaceLight::Projection);
 				VSurfaceLight.SetProperty<Engine::Components::SurfaceLight>("vector3 offset", &Engine::Components::SurfaceLight::Offset);
@@ -15491,7 +15865,7 @@ namespace Mavi
 				VSurfaceLight.SetMethod("texture_2d@+ get_diffuse_map() const", &Engine::Components::SurfaceLight::GetDiffuseMap);
 				PopulateComponentInterface<Engine::Components::SurfaceLight, Engine::Entity*>(VSurfaceLight, "surface_light_component@+ f(scene_entity@+)");
 
-				RefClass VIlluminator = Engine->SetClass<Engine::Components::Illuminator>("illuminator_component", false);
+				RefClass VIlluminator = *VM->SetClass<Engine::Components::Illuminator>("illuminator_component", false);
 				VIlluminator.SetProperty<Engine::Components::Illuminator>("clock_ticker inside", &Engine::Components::Illuminator::Inside);
 				VIlluminator.SetProperty<Engine::Components::Illuminator>("clock_ticker outside", &Engine::Components::Illuminator::Outside);
 				VIlluminator.SetProperty<Engine::Components::Illuminator>("float ray_step", &Engine::Components::Illuminator::RayStep);
@@ -15508,11 +15882,11 @@ namespace Mavi
 				VIlluminator.SetProperty<Engine::Components::Illuminator>("bool regenerate", &Engine::Components::Illuminator::Regenerate);
 				PopulateComponentInterface<Engine::Components::Illuminator, Engine::Entity*>(VIlluminator, "illuminator_component@+ f(scene_entity@+)");
 
-				Enumeration VCameraProjection = Engine->SetEnum("camera_projection");
+				Enumeration VCameraProjection = *VM->SetEnum("camera_projection");
 				VCameraProjection.SetValue("perspective", (int)Engine::Components::Camera::ProjectionMode::Perspective);
 				VCameraProjection.SetValue("orthographic", (int)Engine::Components::Camera::ProjectionMode::Orthographic);
 
-				RefClass VCamera = Engine->SetClass<Engine::Components::Camera>("camera_component", false);
+				RefClass VCamera = *VM->SetClass<Engine::Components::Camera>("camera_component", false);
 				VCamera.SetProperty<Engine::Components::Camera>("camera_projection mode", &Engine::Components::Camera::Mode);
 				VCamera.SetProperty<Engine::Components::Camera>("float near_plane", &Engine::Components::Camera::NearPlane);
 				VCamera.SetProperty<Engine::Components::Camera>("float far_plane", &Engine::Components::Camera::FarPlane);
@@ -15539,7 +15913,7 @@ namespace Mavi
 				VCamera.SetMethod<Engine::Components::Camera, bool, const Compute::Ray&, const Compute::Matrix4x4&, Compute::Vector3*>("bool ray_test(const ray &in, const matrix4x4 &in, vector3 &out)", &Engine::Components::Camera::RayTest);
 				PopulateComponentInterface<Engine::Components::Camera, Engine::Entity*>(VCamera, "camera_component@+ f(scene_entity@+)");
 
-				RefClass VScriptable = Engine->SetClass<Engine::Components::Scriptable>("scriptable_component", false);
+				RefClass VScriptable = *VM->SetClass<Engine::Components::Scriptable>("scriptable_component", false);
 				PopulateComponentInterface<Engine::Components::Scriptable, Engine::Entity*>(VScriptable, "scriptable_component@+ f(scene_entity@+)");
 
 				return true;
@@ -15548,27 +15922,27 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportRenderers(VirtualMachine* Engine)
+			bool Registry::ImportRenderers(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
+				VI_ASSERT(VM != nullptr, "manager should be set");
 
-				RefClass VSoftBody = Engine->SetClass<Engine::Renderers::SoftBody>("soft_body_renderer", false);
+				RefClass VSoftBody = *VM->SetClass<Engine::Renderers::SoftBody>("soft_body_renderer", false);
 				PopulateRendererInterface<Engine::Renderers::SoftBody, Engine::RenderSystem*>(VSoftBody, "soft_body_renderer@+ f(render_system@+)");
 
-				RefClass VModel = Engine->SetClass<Engine::Renderers::Model>("model_renderer", false);
+				RefClass VModel = *VM->SetClass<Engine::Renderers::Model>("model_renderer", false);
 				PopulateRendererInterface<Engine::Renderers::Model, Engine::RenderSystem*>(VModel, "model_renderer@+ f(render_system@+)");
 
-				RefClass VSkin = Engine->SetClass<Engine::Renderers::Skin>("skin_renderer", false);
+				RefClass VSkin = *VM->SetClass<Engine::Renderers::Skin>("skin_renderer", false);
 				PopulateRendererInterface<Engine::Renderers::Skin, Engine::RenderSystem*>(VSkin, "skin_renderer@+ f(render_system@+)");
 
-				RefClass VEmitter = Engine->SetClass<Engine::Renderers::Emitter>("emitter_renderer", false);
+				RefClass VEmitter = *VM->SetClass<Engine::Renderers::Emitter>("emitter_renderer", false);
 				PopulateRendererInterface<Engine::Renderers::Emitter, Engine::RenderSystem*>(VEmitter, "emitter_renderer@+ f(render_system@+)");
 
-				RefClass VDecal = Engine->SetClass<Engine::Renderers::Decal>("decal_renderer", false);
+				RefClass VDecal = *VM->SetClass<Engine::Renderers::Decal>("decal_renderer", false);
 				PopulateRendererInterface<Engine::Renderers::Decal, Engine::RenderSystem*>(VDecal, "decal_renderer@+ f(render_system@+)");
 
-				TypeClass VLightingISurfaceLight = Engine->SetPod<Engine::Renderers::Lighting::ISurfaceLight>("lighting_surface_light");
+				TypeClass VLightingISurfaceLight = *VM->SetPod<Engine::Renderers::Lighting::ISurfaceLight>("lighting_surface_light");
 				VLightingISurfaceLight.SetProperty<Engine::Renderers::Lighting::ISurfaceLight>("matrix4x4 world", &Engine::Renderers::Lighting::ISurfaceLight::Transform);
 				VLightingISurfaceLight.SetProperty<Engine::Renderers::Lighting::ISurfaceLight>("vector3 position", &Engine::Renderers::Lighting::ISurfaceLight::Position);
 				VLightingISurfaceLight.SetProperty<Engine::Renderers::Lighting::ISurfaceLight>("float range", &Engine::Renderers::Lighting::ISurfaceLight::Range);
@@ -15579,7 +15953,7 @@ namespace Mavi
 				VLightingISurfaceLight.SetProperty<Engine::Renderers::Lighting::ISurfaceLight>("vector3 attenuations", &Engine::Renderers::Lighting::ISurfaceLight::Attenuation);
 				VLightingISurfaceLight.SetProperty<Engine::Renderers::Lighting::ISurfaceLight>("float infinity", &Engine::Renderers::Lighting::ISurfaceLight::Infinity);
 
-				TypeClass VLightingIPointLight = Engine->SetPod<Engine::Renderers::Lighting::IPointLight>("lighting_point_light");
+				TypeClass VLightingIPointLight = *VM->SetPod<Engine::Renderers::Lighting::IPointLight>("lighting_point_light");
 				VLightingIPointLight.SetProperty<Engine::Renderers::Lighting::IPointLight>("matrix4x4 world", &Engine::Renderers::Lighting::IPointLight::Transform);
 				VLightingIPointLight.SetProperty<Engine::Renderers::Lighting::IPointLight>("vector4 attenuations", &Engine::Renderers::Lighting::IPointLight::Attenuation);
 				VLightingIPointLight.SetProperty<Engine::Renderers::Lighting::IPointLight>("vector3 position", &Engine::Renderers::Lighting::IPointLight::Position);
@@ -15591,7 +15965,7 @@ namespace Mavi
 				VLightingIPointLight.SetProperty<Engine::Renderers::Lighting::IPointLight>("float bias", &Engine::Renderers::Lighting::IPointLight::Bias);
 				VLightingIPointLight.SetProperty<Engine::Renderers::Lighting::IPointLight>("float iterations", &Engine::Renderers::Lighting::IPointLight::Iterations);
 
-				TypeClass VLightingISpotLight = Engine->SetPod<Engine::Renderers::Lighting::ISpotLight>("lighting_spot_light");
+				TypeClass VLightingISpotLight = *VM->SetPod<Engine::Renderers::Lighting::ISpotLight>("lighting_spot_light");
 				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("matrix4x4 world", &Engine::Renderers::Lighting::ISpotLight::Transform);
 				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("matrix4x4 view_projection", &Engine::Renderers::Lighting::ISpotLight::ViewProjection);
 				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("vector4 attenuations", &Engine::Renderers::Lighting::ISpotLight::Attenuation);
@@ -15606,7 +15980,7 @@ namespace Mavi
 				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("float umbra", &Engine::Renderers::Lighting::ISpotLight::Umbra);
 				VLightingISpotLight.SetProperty<Engine::Renderers::Lighting::ISpotLight>("float padding", &Engine::Renderers::Lighting::ISpotLight::Padding);
 
-				TypeClass VLightingILineLight = Engine->SetPod<Engine::Renderers::Lighting::ILineLight>("lighting_line_light");
+				TypeClass VLightingILineLight = *VM->SetPod<Engine::Renderers::Lighting::ILineLight>("lighting_line_light");
 				VLightingILineLight.SetPropertyArray<Engine::Renderers::Lighting::ILineLight>("matrix4x4 view_projection", &Engine::Renderers::Lighting::ILineLight::ViewProjection, 6);
 				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("matrix4x4 sky_offset", &Engine::Renderers::Lighting::ILineLight::SkyOffset);
 				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("vector3 rlh_emission", &Engine::Renderers::Lighting::ILineLight::RlhEmission);
@@ -15625,7 +15999,7 @@ namespace Mavi
 				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("float atmosphere_radius", &Engine::Renderers::Lighting::ILineLight::AtmosphereRadius);
 				VLightingILineLight.SetProperty<Engine::Renderers::Lighting::ILineLight>("float mie_direction", &Engine::Renderers::Lighting::ILineLight::MieDirection);
 
-				TypeClass VLightingIAmbientLight = Engine->SetPod<Engine::Renderers::Lighting::IAmbientLight>("lighting_ambient_light");
+				TypeClass VLightingIAmbientLight = *VM->SetPod<Engine::Renderers::Lighting::IAmbientLight>("lighting_ambient_light");
 				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("matrix4x4 sky_offset", &Engine::Renderers::Lighting::IAmbientLight::SkyOffset);
 				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("vector3 high_emission", &Engine::Renderers::Lighting::IAmbientLight::HighEmission);
 				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("float sky_emission", &Engine::Renderers::Lighting::IAmbientLight::SkyEmission);
@@ -15640,7 +16014,7 @@ namespace Mavi
 				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("vector3 fog_near", &Engine::Renderers::Lighting::IAmbientLight::FogNear);
 				VLightingIAmbientLight.SetProperty<Engine::Renderers::Lighting::IAmbientLight>("float recursive", &Engine::Renderers::Lighting::IAmbientLight::Recursive);
 
-				TypeClass VLightingIVoxelBuffer = Engine->SetPod<Engine::Renderers::Lighting::IVoxelBuffer>("lighting_voxel_buffer");
+				TypeClass VLightingIVoxelBuffer = *VM->SetPod<Engine::Renderers::Lighting::IVoxelBuffer>("lighting_voxel_buffer");
 				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("matrix4x4 world", &Engine::Renderers::Lighting::IVoxelBuffer::Transform);
 				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("vector3 center", &Engine::Renderers::Lighting::IVoxelBuffer::Center);
 				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("float ray_step", &Engine::Renderers::Lighting::IVoxelBuffer::RayStep);
@@ -15659,7 +16033,7 @@ namespace Mavi
 				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("float specular", &Engine::Renderers::Lighting::IVoxelBuffer::Specular);
 				VLightingIVoxelBuffer.SetProperty<Engine::Renderers::Lighting::IVoxelBuffer>("float bleeding", &Engine::Renderers::Lighting::IVoxelBuffer::Bleeding);
 
-				RefClass VLighting = Engine->SetClass<Engine::Renderers::Lighting>("lighting_renderer", false);
+				RefClass VLighting = *VM->SetClass<Engine::Renderers::Lighting>("lighting_renderer", false);
 				VLighting.SetProperty<Engine::Renderers::Lighting>("lighting_ambient_light ambient_light", &Engine::Renderers::Lighting::AmbientLight);
 				VLighting.SetProperty<Engine::Renderers::Lighting>("lighting_voxel_buffer voxel_buffer", &Engine::Renderers::Lighting::VoxelBuffer);
 				VLighting.SetProperty<Engine::Renderers::Lighting>("bool enable_gi", &Engine::Renderers::Lighting::EnableGI);
@@ -15669,21 +16043,21 @@ namespace Mavi
 				VLighting.SetMethod("texture_2d@+ get_sky_base() const", &Engine::Renderers::Lighting::GetSkyBase);
 				PopulateRendererInterface<Engine::Renderers::Lighting, Engine::RenderSystem*>(VLighting, "lighting_renderer@+ f(render_system@+)");
 
-				TypeClass VTransparencyRenderConstant = Engine->SetPod<Engine::Renderers::Transparency::RenderConstant>("transparency_render_constant");
+				TypeClass VTransparencyRenderConstant = *VM->SetPod<Engine::Renderers::Transparency::RenderConstant>("transparency_render_constant");
 				VTransparencyRenderConstant.SetProperty<Engine::Renderers::Transparency::RenderConstant>("vector3 padding", &Engine::Renderers::Transparency::RenderConstant::Padding);
 				VTransparencyRenderConstant.SetProperty<Engine::Renderers::Transparency::RenderConstant>("float mips", &Engine::Renderers::Transparency::RenderConstant::Mips);
 
-				RefClass VTransparency = Engine->SetClass<Engine::Renderers::Transparency>("transparency_renderer", false);
+				RefClass VTransparency = *VM->SetClass<Engine::Renderers::Transparency>("transparency_renderer", false);
 				VTransparency.SetProperty<Engine::Renderers::Transparency>("transparency_render_constant render_data", &Engine::Renderers::Transparency::RenderData);
 				PopulateRendererInterface<Engine::Renderers::Transparency, Engine::RenderSystem*>(VTransparency, "transparency_renderer@+ f(render_system@+)");
 
-				TypeClass VSSRReflectanceBuffer = Engine->SetPod<Engine::Renderers::SSR::ReflectanceBuffer>("ssr_reflectance_buffer");
+				TypeClass VSSRReflectanceBuffer = *VM->SetPod<Engine::Renderers::SSR::ReflectanceBuffer>("ssr_reflectance_buffer");
 				VSSRReflectanceBuffer.SetProperty<Engine::Renderers::SSR::ReflectanceBuffer>("float samples", &Engine::Renderers::SSR::ReflectanceBuffer::Samples);
 				VSSRReflectanceBuffer.SetProperty<Engine::Renderers::SSR::ReflectanceBuffer>("float padding", &Engine::Renderers::SSR::ReflectanceBuffer::Padding);
 				VSSRReflectanceBuffer.SetProperty<Engine::Renderers::SSR::ReflectanceBuffer>("float intensity", &Engine::Renderers::SSR::ReflectanceBuffer::Intensity);
 				VSSRReflectanceBuffer.SetProperty<Engine::Renderers::SSR::ReflectanceBuffer>("float distance", &Engine::Renderers::SSR::ReflectanceBuffer::Distance);
 
-				TypeClass VSSRGlossBuffer = Engine->SetPod<Engine::Renderers::SSR::GlossBuffer>("ssr_gloss_buffer");
+				TypeClass VSSRGlossBuffer = *VM->SetPod<Engine::Renderers::SSR::GlossBuffer>("ssr_gloss_buffer");
 				VSSRGlossBuffer.SetProperty<Engine::Renderers::SSR::GlossBuffer>("float padding", &Engine::Renderers::SSR::GlossBuffer::Padding);
 				VSSRGlossBuffer.SetProperty<Engine::Renderers::SSR::GlossBuffer>("float deadzone", &Engine::Renderers::SSR::GlossBuffer::Deadzone);
 				VSSRGlossBuffer.SetProperty<Engine::Renderers::SSR::GlossBuffer>("float mips", &Engine::Renderers::SSR::GlossBuffer::Mips);
@@ -15692,17 +16066,17 @@ namespace Mavi
 				VSSRGlossBuffer.SetProperty<Engine::Renderers::SSR::GlossBuffer>("float samples", &Engine::Renderers::SSR::GlossBuffer::Samples);
 				VSSRGlossBuffer.SetProperty<Engine::Renderers::SSR::GlossBuffer>("float blur", &Engine::Renderers::SSR::GlossBuffer::Blur);
 
-				RefClass VSSR = Engine->SetClass<Engine::Renderers::SSR>("ssr_renderer", false);
+				RefClass VSSR = *VM->SetClass<Engine::Renderers::SSR>("ssr_renderer", false);
 				VSSR.SetProperty<Engine::Renderers::SSR>("ssr_reflectance_buffer reflectance", &Engine::Renderers::SSR::Reflectance);
 				VSSR.SetProperty<Engine::Renderers::SSR>("ssr_gloss_buffer gloss", &Engine::Renderers::SSR::Gloss);
 				PopulateRendererInterface<Engine::Renderers::SSR, Engine::RenderSystem*>(VSSR, "ssr_renderer@+ f(render_system@+)");
 
-				TypeClass VSSGIStochasticBuffer = Engine->SetPod<Engine::Renderers::SSGI::StochasticBuffer>("ssgi_stochastic_buffer");
+				TypeClass VSSGIStochasticBuffer = *VM->SetPod<Engine::Renderers::SSGI::StochasticBuffer>("ssgi_stochastic_buffer");
 				VSSGIStochasticBuffer.SetPropertyArray<Engine::Renderers::SSGI::StochasticBuffer>("float texel", &Engine::Renderers::SSGI::StochasticBuffer::Texel, 2);
 				VSSGIStochasticBuffer.SetProperty<Engine::Renderers::SSGI::StochasticBuffer>("float frame_id", &Engine::Renderers::SSGI::StochasticBuffer::FrameId);
 				VSSGIStochasticBuffer.SetProperty<Engine::Renderers::SSGI::StochasticBuffer>("float padding", &Engine::Renderers::SSGI::StochasticBuffer::Padding);
 				
-				TypeClass VSSGIIndirectionBuffer = Engine->SetPod<Engine::Renderers::SSGI::IndirectionBuffer>("ssgi_indirection_buffer");
+				TypeClass VSSGIIndirectionBuffer = *VM->SetPod<Engine::Renderers::SSGI::IndirectionBuffer>("ssgi_indirection_buffer");
 				VSSGIIndirectionBuffer.SetPropertyArray<Engine::Renderers::SSGI::IndirectionBuffer>("float random", &Engine::Renderers::SSGI::IndirectionBuffer::Random, 2);
 				VSSGIIndirectionBuffer.SetProperty<Engine::Renderers::SSGI::IndirectionBuffer>("float samples", &Engine::Renderers::SSGI::IndirectionBuffer::Samples);
 				VSSGIIndirectionBuffer.SetProperty<Engine::Renderers::SSGI::IndirectionBuffer>("float distance", &Engine::Renderers::SSGI::IndirectionBuffer::Distance);
@@ -15713,21 +16087,21 @@ namespace Mavi
 				VSSGIIndirectionBuffer.SetPropertyArray<Engine::Renderers::SSGI::IndirectionBuffer>("float padding", &Engine::Renderers::SSGI::IndirectionBuffer::Padding, 3);
 				VSSGIIndirectionBuffer.SetProperty<Engine::Renderers::SSGI::IndirectionBuffer>("float bias", &Engine::Renderers::SSGI::IndirectionBuffer::Bias);
 
-				TypeClass VSSGIDenoiseBuffer = Engine->SetPod<Engine::Renderers::SSGI::DenoiseBuffer>("ssgi_denoise_buffer");
+				TypeClass VSSGIDenoiseBuffer = *VM->SetPod<Engine::Renderers::SSGI::DenoiseBuffer>("ssgi_denoise_buffer");
 				VSSGIDenoiseBuffer.SetPropertyArray<Engine::Renderers::SSGI::DenoiseBuffer>("float padding", &Engine::Renderers::SSGI::DenoiseBuffer::Padding, 3);
 				VSSGIDenoiseBuffer.SetProperty<Engine::Renderers::SSGI::DenoiseBuffer>("float cutoff", &Engine::Renderers::SSGI::DenoiseBuffer::Cutoff);
 				VSSGIDenoiseBuffer.SetPropertyArray<Engine::Renderers::SSGI::DenoiseBuffer>("float texel", &Engine::Renderers::SSGI::DenoiseBuffer::Texel, 2);
 				VSSGIDenoiseBuffer.SetProperty<Engine::Renderers::SSGI::DenoiseBuffer>("float samples", &Engine::Renderers::SSGI::DenoiseBuffer::Samples);
 				VSSGIDenoiseBuffer.SetProperty<Engine::Renderers::SSGI::DenoiseBuffer>("float blur", &Engine::Renderers::SSGI::DenoiseBuffer::Blur);
 
-				RefClass VSSGI = Engine->SetClass<Engine::Renderers::SSGI>("ssgi_renderer", false);
+				RefClass VSSGI = *VM->SetClass<Engine::Renderers::SSGI>("ssgi_renderer", false);
 				VSSGI.SetProperty<Engine::Renderers::SSGI>("ssgi_stochastic_buffer stochastic", &Engine::Renderers::SSGI::Stochastic);
 				VSSGI.SetProperty<Engine::Renderers::SSGI>("ssgi_indirection_buffer indirection", &Engine::Renderers::SSGI::Indirection);
 				VSSGI.SetProperty<Engine::Renderers::SSGI>("ssgi_denoise_buffer denoise", &Engine::Renderers::SSGI::Indirection);
 				VSSGI.SetProperty<Engine::Renderers::SSGI>("uint32 bounces", &Engine::Renderers::SSGI::Bounces);
 				PopulateRendererInterface<Engine::Renderers::SSGI, Engine::RenderSystem*>(VSSGI, "ssgi_renderer@+ f(render_system@+)");
 
-				TypeClass VSSAOShadingBuffer = Engine->SetPod<Engine::Renderers::SSAO::ShadingBuffer>("ssao_shading_buffer");
+				TypeClass VSSAOShadingBuffer = *VM->SetPod<Engine::Renderers::SSAO::ShadingBuffer>("ssao_shading_buffer");
 				VSSAOShadingBuffer.SetProperty<Engine::Renderers::SSAO::ShadingBuffer>("float samples", &Engine::Renderers::SSAO::ShadingBuffer::Samples);
 				VSSAOShadingBuffer.SetProperty<Engine::Renderers::SSAO::ShadingBuffer>("float intensity", &Engine::Renderers::SSAO::ShadingBuffer::Intensity);
 				VSSAOShadingBuffer.SetProperty<Engine::Renderers::SSAO::ShadingBuffer>("float scale", &Engine::Renderers::SSAO::ShadingBuffer::Scale);
@@ -15737,19 +16111,19 @@ namespace Mavi
 				VSSAOShadingBuffer.SetProperty<Engine::Renderers::SSAO::ShadingBuffer>("float fade", &Engine::Renderers::SSAO::ShadingBuffer::Fade);
 				VSSAOShadingBuffer.SetProperty<Engine::Renderers::SSAO::ShadingBuffer>("float padding", &Engine::Renderers::SSAO::ShadingBuffer::Padding);
 
-				TypeClass VSSAOFiboBuffer = Engine->SetPod<Engine::Renderers::SSAO::FiboBuffer>("ssao_fibo_buffer");
+				TypeClass VSSAOFiboBuffer = *VM->SetPod<Engine::Renderers::SSAO::FiboBuffer>("ssao_fibo_buffer");
 				VSSAOFiboBuffer.SetPropertyArray<Engine::Renderers::SSAO::FiboBuffer>("float padding", &Engine::Renderers::SSAO::FiboBuffer::Padding, 3);
 				VSSAOFiboBuffer.SetProperty<Engine::Renderers::SSAO::FiboBuffer>("float power", &Engine::Renderers::SSAO::FiboBuffer::Power);
 				VSSAOFiboBuffer.SetPropertyArray<Engine::Renderers::SSAO::FiboBuffer>("float texel", &Engine::Renderers::SSAO::FiboBuffer::Texel, 2);
 				VSSAOFiboBuffer.SetProperty<Engine::Renderers::SSAO::FiboBuffer>("float samples", &Engine::Renderers::SSAO::FiboBuffer::Samples);
 				VSSAOFiboBuffer.SetProperty<Engine::Renderers::SSAO::FiboBuffer>("float blur", &Engine::Renderers::SSAO::FiboBuffer::Blur);
 
-				RefClass VSSAO = Engine->SetClass<Engine::Renderers::SSAO>("ssao_renderer", false);
+				RefClass VSSAO = *VM->SetClass<Engine::Renderers::SSAO>("ssao_renderer", false);
 				VSSAO.SetProperty<Engine::Renderers::SSAO>("ssao_shading_buffer shading", &Engine::Renderers::SSAO::Shading);
 				VSSAO.SetProperty<Engine::Renderers::SSAO>("ssao_fibo_buffer fibo", &Engine::Renderers::SSAO::Fibo);
 				PopulateRendererInterface<Engine::Renderers::SSAO, Engine::RenderSystem*>(VSSAO, "ssao_renderer@+ f(render_system@+)");
 
-				TypeClass VDoFFocusBuffer = Engine->SetPod<Engine::Renderers::DoF::FocusBuffer>("dof_focus_buffer");
+				TypeClass VDoFFocusBuffer = *VM->SetPod<Engine::Renderers::DoF::FocusBuffer>("dof_focus_buffer");
 				VDoFFocusBuffer.SetPropertyArray<Engine::Renderers::DoF::FocusBuffer>("float texel", &Engine::Renderers::DoF::FocusBuffer::Texel, 2);
 				VDoFFocusBuffer.SetProperty<Engine::Renderers::DoF::FocusBuffer>("float radius", &Engine::Renderers::DoF::FocusBuffer::Radius);
 				VDoFFocusBuffer.SetProperty<Engine::Renderers::DoF::FocusBuffer>("float bokeh", &Engine::Renderers::DoF::FocusBuffer::Bokeh);
@@ -15760,7 +16134,7 @@ namespace Mavi
 				VDoFFocusBuffer.SetProperty<Engine::Renderers::DoF::FocusBuffer>("float far_distance", &Engine::Renderers::DoF::FocusBuffer::FarDistance);
 				VDoFFocusBuffer.SetProperty<Engine::Renderers::DoF::FocusBuffer>("float far_range", &Engine::Renderers::DoF::FocusBuffer::FarRange);
 
-				RefClass VDoF = Engine->SetClass<Engine::Renderers::DoF>("dof_renderer", false);
+				RefClass VDoF = *VM->SetClass<Engine::Renderers::DoF>("dof_renderer", false);
 				VDoF.SetProperty<Engine::Renderers::DoF>("dof_focus_buffer focus", &Engine::Renderers::DoF::Focus);
 				VDoF.SetProperty<Engine::Renderers::DoF>("float distance", &Engine::Renderers::DoF::Distance);
 				VDoF.SetProperty<Engine::Renderers::DoF>("float radius", &Engine::Renderers::DoF::Radius);
@@ -15768,43 +16142,43 @@ namespace Mavi
 				VDoF.SetMethod("void focus_at_nearest_target(float)", &Engine::Renderers::DoF::FocusAtNearestTarget);
 				PopulateRendererInterface<Engine::Renderers::DoF, Engine::RenderSystem*>(VDoF, "dof_renderer@+ f(render_system@+)");
 
-				TypeClass VMotionBlurVelocityBuffer = Engine->SetPod<Engine::Renderers::MotionBlur::VelocityBuffer>("motion_blur_velocity_buffer");
+				TypeClass VMotionBlurVelocityBuffer = *VM->SetPod<Engine::Renderers::MotionBlur::VelocityBuffer>("motion_blur_velocity_buffer");
 				VMotionBlurVelocityBuffer.SetProperty<Engine::Renderers::MotionBlur::VelocityBuffer>("matrix4x4 last_view_projection", &Engine::Renderers::MotionBlur::VelocityBuffer::LastViewProjection);
 
-				TypeClass VMotionBlurMotionBuffer = Engine->SetPod<Engine::Renderers::MotionBlur::MotionBuffer>("motion_blur_motion_buffer");
+				TypeClass VMotionBlurMotionBuffer = *VM->SetPod<Engine::Renderers::MotionBlur::MotionBuffer>("motion_blur_motion_buffer");
 				VMotionBlurMotionBuffer.SetProperty<Engine::Renderers::MotionBlur::MotionBuffer>("float samples", &Engine::Renderers::MotionBlur::MotionBuffer::Samples);
 				VMotionBlurMotionBuffer.SetProperty<Engine::Renderers::MotionBlur::MotionBuffer>("float blur", &Engine::Renderers::MotionBlur::MotionBuffer::Blur);
 				VMotionBlurMotionBuffer.SetProperty<Engine::Renderers::MotionBlur::MotionBuffer>("float motion", &Engine::Renderers::MotionBlur::MotionBuffer::Motion);
 				VMotionBlurMotionBuffer.SetProperty<Engine::Renderers::MotionBlur::MotionBuffer>("float padding", &Engine::Renderers::MotionBlur::MotionBuffer::Padding);
 
-				RefClass VMotionBlur = Engine->SetClass<Engine::Renderers::MotionBlur>("motion_blur_renderer", false);
+				RefClass VMotionBlur = *VM->SetClass<Engine::Renderers::MotionBlur>("motion_blur_renderer", false);
 				VMotionBlur.SetProperty<Engine::Renderers::MotionBlur>("motion_blur_velocity_buffer velocity", &Engine::Renderers::MotionBlur::Velocity);
 				VMotionBlur.SetProperty<Engine::Renderers::MotionBlur>("motion_blur_motion_buffer motion", &Engine::Renderers::MotionBlur::Motion);
 				PopulateRendererInterface<Engine::Renderers::MotionBlur, Engine::RenderSystem*>(VMotionBlur, "motion_blur_renderer@+ f(render_system@+)");
 
-				TypeClass VBloomExtractionBuffer = Engine->SetPod<Engine::Renderers::Bloom::ExtractionBuffer>("bloom_extraction_buffer");
+				TypeClass VBloomExtractionBuffer = *VM->SetPod<Engine::Renderers::Bloom::ExtractionBuffer>("bloom_extraction_buffer");
 				VBloomExtractionBuffer.SetPropertyArray<Engine::Renderers::Bloom::ExtractionBuffer>("float padding", &Engine::Renderers::Bloom::ExtractionBuffer::Padding, 2);
 				VBloomExtractionBuffer.SetProperty<Engine::Renderers::Bloom::ExtractionBuffer>("float intensity", &Engine::Renderers::Bloom::ExtractionBuffer::Intensity);
 				VBloomExtractionBuffer.SetProperty<Engine::Renderers::Bloom::ExtractionBuffer>("float threshold", &Engine::Renderers::Bloom::ExtractionBuffer::Threshold);
 
-				TypeClass VBloomFiboBuffer = Engine->SetPod<Engine::Renderers::Bloom::FiboBuffer>("bloom_fibo_buffer");
+				TypeClass VBloomFiboBuffer = *VM->SetPod<Engine::Renderers::Bloom::FiboBuffer>("bloom_fibo_buffer");
 				VBloomFiboBuffer.SetPropertyArray<Engine::Renderers::Bloom::FiboBuffer>("float padding", &Engine::Renderers::Bloom::FiboBuffer::Padding, 3);
 				VBloomFiboBuffer.SetProperty<Engine::Renderers::Bloom::FiboBuffer>("float power", &Engine::Renderers::Bloom::FiboBuffer::Power);
 				VBloomFiboBuffer.SetPropertyArray<Engine::Renderers::Bloom::FiboBuffer>("float texel", &Engine::Renderers::Bloom::FiboBuffer::Texel, 2);
 				VBloomFiboBuffer.SetProperty<Engine::Renderers::Bloom::FiboBuffer>("float samples", &Engine::Renderers::Bloom::FiboBuffer::Samples);
 				VBloomFiboBuffer.SetProperty<Engine::Renderers::Bloom::FiboBuffer>("float blur", &Engine::Renderers::Bloom::FiboBuffer::Blur);
 
-				RefClass VBloom = Engine->SetClass<Engine::Renderers::Bloom>("bloom_renderer", false);
+				RefClass VBloom = *VM->SetClass<Engine::Renderers::Bloom>("bloom_renderer", false);
 				VBloom.SetProperty<Engine::Renderers::Bloom>("bloom_extraction_buffer extraction", &Engine::Renderers::Bloom::Extraction);
 				VBloom.SetProperty<Engine::Renderers::Bloom>("bloom_fibo_buffer fibo", &Engine::Renderers::Bloom::Fibo);
 				PopulateRendererInterface<Engine::Renderers::Bloom, Engine::RenderSystem*>(VBloom, "bloom_renderer@+ f(render_system@+)");
 
-				TypeClass VToneLuminanceBuffer = Engine->SetPod<Engine::Renderers::Tone::LuminanceBuffer>("tone_luminance_buffer");
+				TypeClass VToneLuminanceBuffer = *VM->SetPod<Engine::Renderers::Tone::LuminanceBuffer>("tone_luminance_buffer");
 				VToneLuminanceBuffer.SetPropertyArray<Engine::Renderers::Tone::LuminanceBuffer>("float texel", &Engine::Renderers::Tone::LuminanceBuffer::Texel, 2);
 				VToneLuminanceBuffer.SetProperty<Engine::Renderers::Tone::LuminanceBuffer>("float mips", &Engine::Renderers::Tone::LuminanceBuffer::Mips);
 				VToneLuminanceBuffer.SetProperty<Engine::Renderers::Tone::LuminanceBuffer>("float time", &Engine::Renderers::Tone::LuminanceBuffer::Time);
 
-				TypeClass VToneMappingBuffer = Engine->SetPod<Engine::Renderers::Tone::MappingBuffer>("tone_mapping_buffer");
+				TypeClass VToneMappingBuffer = *VM->SetPod<Engine::Renderers::Tone::MappingBuffer>("tone_mapping_buffer");
 				VToneMappingBuffer.SetPropertyArray<Engine::Renderers::Tone::MappingBuffer>("float padding", &Engine::Renderers::Tone::MappingBuffer::Padding, 2);
 				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float grayscale", &Engine::Renderers::Tone::MappingBuffer::Grayscale);
 				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float aces", &Engine::Renderers::Tone::MappingBuffer::ACES);
@@ -15829,12 +16203,12 @@ namespace Mavi
 				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float ablack", &Engine::Renderers::Tone::MappingBuffer::ABlack);
 				VToneMappingBuffer.SetProperty<Engine::Renderers::Tone::MappingBuffer>("float aspeed", &Engine::Renderers::Tone::MappingBuffer::ASpeed);
 
-				RefClass VTone = Engine->SetClass<Engine::Renderers::Tone>("tone_renderer", false);
+				RefClass VTone = *VM->SetClass<Engine::Renderers::Tone>("tone_renderer", false);
 				VTone.SetProperty<Engine::Renderers::Tone>("tone_luminance_buffer luminance", &Engine::Renderers::Tone::Luminance);
 				VTone.SetProperty<Engine::Renderers::Tone>("tone_mapping_buffer mapping", &Engine::Renderers::Tone::Mapping);
 				PopulateRendererInterface<Engine::Renderers::Tone, Engine::RenderSystem*>(VTone, "tone_renderer@+ f(render_system@+)");
 
-				TypeClass VGlitchDistortionBuffer = Engine->SetPod<Engine::Renderers::Glitch::DistortionBuffer>("glitch_distortion_buffer");
+				TypeClass VGlitchDistortionBuffer = *VM->SetPod<Engine::Renderers::Glitch::DistortionBuffer>("glitch_distortion_buffer");
 				VGlitchDistortionBuffer.SetProperty<Engine::Renderers::Glitch::DistortionBuffer>("float scan_line_jitter_displacement", &Engine::Renderers::Glitch::DistortionBuffer::ScanLineJitterDisplacement);
 				VGlitchDistortionBuffer.SetProperty<Engine::Renderers::Glitch::DistortionBuffer>("float scan_line_jitter_threshold", &Engine::Renderers::Glitch::DistortionBuffer::ScanLineJitterThreshold);
 				VGlitchDistortionBuffer.SetProperty<Engine::Renderers::Glitch::DistortionBuffer>("float vertical_jump_amount", &Engine::Renderers::Glitch::DistortionBuffer::VerticalJumpAmount);
@@ -15844,7 +16218,7 @@ namespace Mavi
 				VGlitchDistortionBuffer.SetProperty<Engine::Renderers::Glitch::DistortionBuffer>("float horizontal_shake", &Engine::Renderers::Glitch::DistortionBuffer::HorizontalShake);
 				VGlitchDistortionBuffer.SetProperty<Engine::Renderers::Glitch::DistortionBuffer>("float elapsed_time", &Engine::Renderers::Glitch::DistortionBuffer::ElapsedTime);
 
-				RefClass VGlitch = Engine->SetClass<Engine::Renderers::Glitch>("glitch_renderer", false);
+				RefClass VGlitch = *VM->SetClass<Engine::Renderers::Glitch>("glitch_renderer", false);
 				VGlitch.SetProperty<Engine::Renderers::Glitch>("glitch_distortion_buffer distortion", &Engine::Renderers::Glitch::Distortion);
 				VGlitch.SetProperty<Engine::Renderers::Glitch>("float scan_line_jitter", &Engine::Renderers::Glitch::ScanLineJitter);
 				VGlitch.SetProperty<Engine::Renderers::Glitch>("float vertical_jump", &Engine::Renderers::Glitch::VerticalJump);
@@ -15852,7 +16226,7 @@ namespace Mavi
 				VGlitch.SetProperty<Engine::Renderers::Glitch>("float color_drift", &Engine::Renderers::Glitch::ColorDrift);
 				PopulateRendererInterface<Engine::Renderers::Glitch, Engine::RenderSystem*>(VGlitch, "glitch_renderer@+ f(render_system@+)");
 
-				RefClass VUserInterface = Engine->SetClass<Engine::Renderers::UserInterface>("gui_renderer", false);
+				RefClass VUserInterface = *VM->SetClass<Engine::Renderers::UserInterface>("gui_renderer", false);
 				VUserInterface.SetMethod("gui_context@+ get_context() const", &Engine::Renderers::UserInterface::GetContext);
 				PopulateRendererInterface<Engine::Renderers::UserInterface, Engine::RenderSystem*>(VUserInterface, "gui_renderer@+ f(render_system@+)");
 
@@ -15862,26 +16236,26 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportUiControl(VirtualMachine* Engine)
+			bool Registry::ImportUiControl(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
+				VI_ASSERT(VM != nullptr, "manager should be set");
 				VI_TYPEREF(ModelListenerName, "ui_listener");
 
-				Enumeration VEventPhase = Engine->SetEnum("ui_event_phase");
-				Enumeration VArea = Engine->SetEnum("ui_area");
-				Enumeration VDisplay = Engine->SetEnum("ui_display");
-				Enumeration VPosition = Engine->SetEnum("ui_position");
-				Enumeration VFloat = Engine->SetEnum("ui_float");
-				Enumeration VTimingFunc = Engine->SetEnum("ui_timing_func");
-				Enumeration VTimingDir = Engine->SetEnum("ui_timing_dir");
-				Enumeration VFocusFlag = Engine->SetEnum("ui_focus_flag");
-				Enumeration VModalFlag = Engine->SetEnum("ui_modal_flag");
-				TypeClass VElement = Engine->SetStructTrivial<Engine::GUI::IElement>("ui_element");
-				TypeClass VDocument = Engine->SetStructTrivial<Engine::GUI::IElementDocument>("ui_document");
-				TypeClass VEvent = Engine->SetStructTrivial<Engine::GUI::IEvent>("ui_event");
-				RefClass VListener = Engine->SetClass<ModelListener>("ui_listener", true);
-				Engine->SetFunctionDef("void model_listener_event(ui_event &in)");
+				Enumeration VEventPhase = *VM->SetEnum("ui_event_phase");
+				Enumeration VArea = *VM->SetEnum("ui_area");
+				Enumeration VDisplay = *VM->SetEnum("ui_display");
+				Enumeration VPosition = *VM->SetEnum("ui_position");
+				Enumeration VFloat = *VM->SetEnum("ui_float");
+				Enumeration VTimingFunc = *VM->SetEnum("ui_timing_func");
+				Enumeration VTimingDir = *VM->SetEnum("ui_timing_dir");
+				Enumeration VFocusFlag = *VM->SetEnum("ui_focus_flag");
+				Enumeration VModalFlag = *VM->SetEnum("ui_modal_flag");
+				TypeClass VElement = *VM->SetStructTrivial<Engine::GUI::IElement>("ui_element");
+				TypeClass VDocument = *VM->SetStructTrivial<Engine::GUI::IElementDocument>("ui_document");
+				TypeClass VEvent = *VM->SetStructTrivial<Engine::GUI::IEvent>("ui_event");
+				RefClass VListener = *VM->SetClass<ModelListener>("ui_listener", true);
+				VM->SetFunctionDef("void model_listener_event(ui_event &in)");
 
 				VModalFlag.SetValue("none", (int)Engine::GUI::ModalFlag::None);
 				VModalFlag.SetValue("modal", (int)Engine::GUI::ModalFlag::Modal);
@@ -15923,11 +16297,10 @@ namespace Mavi
 
 				VListener.SetGcConstructor<ModelListener, ModelListenerName, asIScriptFunction*>("ui_listener@ f(model_listener_event@)");
 				VListener.SetGcConstructor<ModelListener, ModelListenerName, const Core::String&>("ui_listener@ f(const string &in)");
-				VListener.SetEnumRefsEx<ModelListener>([](ModelListener* Base, asIScriptEngine* Engine)
+				VListener.SetEnumRefsEx<ModelListener>([](ModelListener* Base, asIScriptEngine* VM)
 				{
 					auto& Delegate = Base->GetDelegate();
-					Engine->GCEnumCallback(Delegate.Callback);
-					Engine->GCEnumCallback(Delegate.DelegateObject);
+					FunctionFactory::GCEnumCallback(VM, &Delegate);
 				});
 				VListener.SetReleaseRefsEx<ModelListener>([](ModelListener* Base, asIScriptEngine*)
 				{
@@ -16213,13 +16586,13 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportUiModel(VirtualMachine* Engine)
+			bool Registry::ImportUiModel(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				Engine->SetFunctionDef("void ui_data_event(ui_event &in, array<variant>@+)");
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				VM->SetFunctionDef("void ui_data_event(ui_event &in, array<variant>@+)");
 
-				RefClass VModel = Engine->SetClass<Engine::GUI::DataModel>("ui_model", false);
+				RefClass VModel = *VM->SetClass<Engine::GUI::DataModel>("ui_model", false);
 				VModel.SetMethodEx("bool set(const string &in, schema@+)", &DataModelSet);
 				VModel.SetMethodEx("bool set_var(const string &in, const variant &in)", &DataModelSetVar);
 				VModel.SetMethodEx("bool set_string(const string &in, const string &in)", &DataModelSetString);
@@ -16257,12 +16630,12 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Registry::ImportUiContext(VirtualMachine* Engine)
+			bool Registry::ImportUiContext(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
-				VI_ASSERT(Engine != nullptr, "manager should be set");
+				VI_ASSERT(VM != nullptr, "manager should be set");
 
-				RefClass VContext = Engine->SetClass<Engine::GUI::Context>("gui_context", false);
+				RefClass VContext = *VM->SetClass<Engine::GUI::Context>("gui_context", false);
 				VContext.SetMethod("void set_documents_base_tag(const string &in)", &Engine::GUI::Context::SetDocumentsBaseTag);
 				VContext.SetMethod("void clear_styles()", &Engine::GUI::Context::ClearStyles);
 				VContext.SetMethod("bool clear_documents()", &Engine::GUI::Context::ClearDocuments);

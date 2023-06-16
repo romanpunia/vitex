@@ -77,12 +77,11 @@ namespace Mavi
 			Listen
 		};
 
-		typedef std::function<void(class SocketClient*, int)> SocketClientCallback;
+		typedef std::function<void(class SocketClient*, const Core::Option<std::error_condition>&)> SocketClientCallback;
 		typedef std::function<void(SocketPoll)> PollEventCallback;
 		typedef std::function<void(SocketPoll)> SocketWrittenCallback;
 		typedef std::function<void(SocketAddress*)> SocketOpenedCallback;
-		typedef std::function<void(int)> SocketConnectedCallback;
-		typedef std::function<void()> SocketClosedCallback;
+		typedef std::function<void(const Core::Option<std::error_condition>&)> SocketStatusCallback;
 		typedef std::function<bool(SocketPoll, const char*, size_t)> SocketReadCallback;
 		typedef std::function<bool(socket_t, char*)> SocketAcceptedCallback;
 
@@ -216,6 +215,24 @@ namespace Mavi
 			{
 				return !IsData(Event);
 			}
+			static std::error_condition ToCondition(SocketPoll Event)
+			{
+				switch (Event)
+				{
+					case SocketPoll::Next:
+						return std::make_error_condition(std::errc::operation_in_progress);
+					case SocketPoll::Reset:
+						return std::make_error_condition(std::errc::connection_reset);
+					case SocketPoll::Timeout:
+						return std::make_error_condition(std::errc::timed_out);
+					case SocketPoll::Cancel:
+						return std::make_error_condition(std::errc::operation_canceled);
+					case SocketPoll::Finish:
+					case SocketPoll::FinishSync:
+					default:
+						return std::make_error_condition(std::errc());
+				}
+			}
 		};
 
 		class VI_OUT_TS Utils
@@ -247,6 +264,7 @@ namespace Mavi
 			static Core::String GetLocalAddress() noexcept;
 			static Core::String GetAddress(addrinfo* Info) noexcept;
 			static Core::String GetAddress(sockaddr* Info) noexcept;
+			static std::error_condition GetLastError(ssl_st* Device, int ErrorCode) noexcept;
 			static int GetAddressFamily(const char* Address) noexcept;
 			static int64_t Clock() noexcept;
 		};
@@ -260,8 +278,8 @@ namespace Mavi
 		public:
 			DNS() noexcept;
 			virtual ~DNS() noexcept override;
-			Core::String FindNameFromAddress(const Core::String& Host, const Core::String& Service);
-			SocketAddress* FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType TestType, SocketProtocol Proto, SocketType Type);
+			Core::Expected<Core::String> FindNameFromAddress(const Core::String& Host, const Core::String& Service);
+			Core::Expected<SocketAddress*> FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType TestType, SocketProtocol Proto, SocketType Type);
 		};
 
 		class VI_OUT_TS Multiplexer final : public Core::Singleton<Multiplexer>
@@ -342,61 +360,60 @@ namespace Mavi
 
 		public:
 			uint64_t Timeout;
-			int64_t Income;
-			int64_t Outcome;
+			size_t Income;
+			size_t Outcome;
 			void* UserData;
 
 		public:
 			Socket() noexcept;
 			Socket(socket_t FromFd) noexcept;
-			int Accept(Socket* OutConnection, char* OutAddress);
-			int Accept(socket_t* OutFd, char* OutAddress);
-			int AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback);
-			int Close(bool Gracefully = true);
-			int CloseAsync(bool Gracefully, SocketClosedCallback&& Callback);
-			int64_t SendFile(FILE* Stream, int64_t Offset, int64_t Size);
-			int64_t SendFileAsync(FILE* Stream, int64_t Offset, int64_t Size, SocketWrittenCallback&& Callback, int TempBuffer = 0);
-			int Write(const char* Buffer, int Size);
-			int WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer = nullptr, size_t TempOffset = 0);
-			int Read(char* Buffer, int Size);
-			int Read(char* Buffer, int Size, const SocketReadCallback& Callback);
-			int ReadAsync(size_t Size, SocketReadCallback&& Callback, int TempBuffer = 0);
-			int ReadUntil(const char* Match, SocketReadCallback&& Callback);
-			int ReadUntilAsync(const char* Match, SocketReadCallback&& Callback, char* TempBuffer = nullptr, size_t TempIndex = 0);
-			int Connect(SocketAddress* Address, uint64_t Timeout);
-			int ConnectAsync(SocketAddress* Address, SocketConnectedCallback&& Callback);
-			int Open(SocketAddress* Address);
-			int Secure(ssl_ctx_st* Context, const char* Hostname);
-			int Bind(SocketAddress* Address);
-			int Listen(int Backlog);
-			int ClearEvents(bool Gracefully);
-			int MigrateTo(socket_t Fd, bool Gracefully = true);
-			int SetCloseOnExec();
-			int SetTimeWait(int Timeout);
-			int SetSocket(int Option, void* Value, int Size);
-			int SetAny(int Level, int Option, void* Value, int Size);
-			int SetAnyFlag(int Level, int Option, int Value);
-			int SetSocketFlag(int Option, int Value);
-			int SetBlocking(bool Enabled);
-			int SetNoDelay(bool Enabled);
-			int SetKeepAlive(bool Enabled);
-			int SetTimeout(int Timeout);
-			int GetError(int Result);
-			int GetAnyFlag(int Level, int Option, int* Value);
-			int GetAny(int Level, int Option, void* Value, int* Size);
-			int GetSocket(int Option, void* Value, int* Size);
-			int GetSocketFlag(int Option, int* Value);
-			int GetPort();
+			Core::Expected<void> Accept(Socket* OutConnection, char* OutAddress);
+			Core::Expected<void> Accept(socket_t* OutFd, char* OutAddress);
+			Core::Expected<void> AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback);
+			Core::Expected<void> Close(bool Gracefully = true);
+			Core::Expected<void> CloseAsync(bool Gracefully, SocketStatusCallback&& Callback);
+			Core::Expected<size_t> SendFile(FILE* Stream, size_t Offset, size_t Size);
+			Core::Expected<size_t> SendFileAsync(FILE* Stream, size_t Offset, size_t Size, SocketWrittenCallback&& Callback, size_t TempBuffer = 0);
+			Core::Expected<size_t> Write(const char* Buffer, size_t Size);
+			Core::Expected<size_t> WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer = nullptr, size_t TempOffset = 0);
+			Core::Expected<size_t> Read(char* Buffer, size_t Size);
+			Core::Expected<size_t> Read(char* Buffer, size_t Size, SocketReadCallback&& Callback);
+			Core::Expected<size_t> ReadAsync(size_t Size, SocketReadCallback&& Callback, size_t TempBuffer = 0);
+			Core::Expected<size_t> ReadUntil(const char* Match, SocketReadCallback&& Callback);
+			Core::Expected<size_t> ReadUntilAsync(const char* Match, SocketReadCallback&& Callback, char* TempBuffer = nullptr, size_t TempIndex = 0);
+			Core::Expected<void> Connect(SocketAddress* Address, uint64_t Timeout);
+			Core::Expected<void> ConnectAsync(SocketAddress* Address, SocketStatusCallback&& Callback);
+			Core::Expected<void> Open(SocketAddress* Address);
+			Core::Expected<void> Secure(ssl_ctx_st* Context, const char* Hostname);
+			Core::Expected<void> Bind(SocketAddress* Address);
+			Core::Expected<void> Listen(int Backlog);
+			Core::Expected<void> ClearEvents(bool Gracefully);
+			Core::Expected<void> MigrateTo(socket_t Fd, bool Gracefully = true);
+			Core::Expected<void> SetCloseOnExec();
+			Core::Expected<void> SetTimeWait(int Timeout);
+			Core::Expected<void> SetSocket(int Option, void* Value, size_t Size);
+			Core::Expected<void> SetAny(int Level, int Option, void* Value, size_t Size);
+			Core::Expected<void> SetSocketFlag(int Option, int Value);
+			Core::Expected<void> SetAnyFlag(int Level, int Option, int Value);
+			Core::Expected<void> SetBlocking(bool Enabled);
+			Core::Expected<void> SetNoDelay(bool Enabled);
+			Core::Expected<void> SetKeepAlive(bool Enabled);
+			Core::Expected<void> SetTimeout(int Timeout);
+			Core::Expected<void> GetSocket(int Option, void* Value, size_t* Size);
+			Core::Expected<void> GetAny(int Level, int Option, void* Value, size_t* Size);
+			Core::Expected<void> GetSocketFlag(int Option, int* Value);
+			Core::Expected<void> GetAnyFlag(int Level, int Option, int* Value);
+			Core::Expected<Core::String> GetRemoteAddress();
+			Core::Expected<int> GetPort();
 			socket_t GetFd();
 			ssl_st* GetDevice();
 			bool IsPendingForRead();
 			bool IsPendingForWrite();
 			bool IsPending();
 			bool IsValid();
-			Core::String GetRemoteAddress();
 
 		private:
-			int TryCloseAsync(SocketClosedCallback&& Callback, bool KeepTrying);
+			Core::Expected<void> TryCloseAsync(SocketStatusCallback&& Callback, bool KeepTrying);
 
 		public:
 			template <typename T>
@@ -474,11 +491,11 @@ namespace Mavi
 		public:
 			SocketServer() noexcept;
 			virtual ~SocketServer() noexcept;
+			Core::Expected<void> Configure(SocketRouter* New);
+			Core::Expected<void> Unlisten(uint64_t TimeoutSeconds = 5);
+			Core::Expected<void> Listen();
 			void SetRouter(SocketRouter* New);
 			void SetBacklog(size_t Value);
-			bool Configure(SocketRouter* New);
-			bool Unlisten(uint64_t TimeoutSeconds = 5);
-			bool Listen();
 			size_t GetBacklog() const;
 			ServerState GetState() const;
 			SocketRouter* GetRouter();
@@ -487,26 +504,27 @@ namespace Mavi
 			const Core::Vector<SocketListener*>& GetListeners();
 
 		protected:
-			virtual bool OnConfigure(SocketRouter* New);
-			virtual bool OnRequestEnded(SocketConnection* Base, bool Check);
-			virtual bool OnRequestBegin(SocketConnection* Base);
-			virtual bool OnStall(Core::UnorderedSet<SocketConnection*>& Base);
-			virtual bool OnListen();
-			virtual bool OnUnlisten();
+			virtual Core::Expected<void> OnConfigure(SocketRouter* New);
+			virtual Core::Expected<void> OnListen();
+			virtual Core::Expected<void> OnUnlisten();
+			virtual void OnRequestOpen(SocketConnection* Base);
+			virtual bool OnRequestCleanup(SocketConnection* Base);
+			virtual void OnRequestStall(SocketConnection* Base);
+			virtual void OnRequestClose(SocketConnection* Base);
 			virtual SocketConnection* OnAllocate(SocketListener* Host);
 			virtual SocketRouter* OnAllocateRouter();
 
 		private:
-			bool TryEncryptThenBegin(SocketConnection* Base);
+			Core::Expected<void> TryEncryptThenBegin(SocketConnection* Base);
 
 		protected:
-			bool FreeAll();
-			bool Refuse(SocketConnection* Base);
-			bool Accept(SocketListener* Host, socket_t Fd, const Core::String& Address);
-			bool EncryptThenBegin(SocketConnection* Fd, SocketListener* Host);
-			bool Manage(SocketConnection* Base);
-			void Push(SocketConnection* Base);
+			Core::Expected<void> Refuse(SocketConnection* Base);
+			Core::Expected<void> Accept(SocketListener* Host, socket_t Fd, const Core::String& Address);
+			Core::Expected<void> EncryptThenOpen(SocketConnection* Fd, SocketListener* Host);
+			Core::Expected<void> Continue(SocketConnection* Base);
 			SocketConnection* Pop(SocketListener* Host);
+			void Push(SocketConnection* Base);
+			bool FreeAll();
 		};
 
 		class VI_OUT SocketClient : public Core::Reference<SocketClient>
@@ -524,8 +542,8 @@ namespace Mavi
 		public:
 			SocketClient(int64_t RequestTimeout) noexcept;
 			virtual ~SocketClient() noexcept;
-			Core::Promise<int> Connect(RemoteHost* Address, bool Async);
-			Core::Promise<int> Close();
+			Core::ExpectedPromise<void> Connect(RemoteHost* Address, bool Async);
+			Core::ExpectedPromise<void> Close();
 			Socket* GetStream();
 
 		protected:
@@ -534,13 +552,13 @@ namespace Mavi
 			virtual bool OnClose();
 
 		private:
-			void TryEncrypt(std::function<void(bool)>&& Callback);
+			void TryEncrypt(std::function<void(const Core::Option<std::error_condition>&)>&& Callback);
 
 		protected:
-			void Encrypt(std::function<void(bool)>&& Callback);
+			void Encrypt(std::function<void(const Core::Option<std::error_condition>&)>&& Callback);
 			bool Stage(const Core::String& Name);
 			bool Error(const char* Message, ...);
-			bool Success(int Code);
+			bool Report(const Core::Option<std::error_condition>& ErrorCode);
 		};
 	}
 }

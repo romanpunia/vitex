@@ -305,23 +305,25 @@ namespace Mavi
 					char Buffer[Core::BLOB_SIZE];
 					while (true)
 					{
-						int Size = Stream->Read(Buffer, sizeof(Buffer), [this](SocketPoll Event, const char* Buffer, size_t Recv)
+						auto Status = Stream->Read(Buffer, sizeof(Buffer), [this](SocketPoll Event, const char* Buffer, size_t Recv)
 						{
 							if (Packet::IsData(Event))
 								Codec->ParseFrame(Buffer, Recv);
 
 							return true;
 						});
+						if (Status)
+							continue;
 
-						if (Size == -1)
-						{
-							Finalize();
-							goto Retry;
-						}
-						else if (Size == -2)
+						if (Status.Error() == std::errc::operation_would_block)
 						{
 							State = (uint32_t)WebSocketState::Receive;
 							break;
+						}
+						else
+						{
+							Finalize();
+							goto Retry;
 						}
 					}
 
@@ -1330,7 +1332,7 @@ namespace Mavi
 				if (!Request.Content.Limited && TransferEncoding && !Core::Stringify::CaseCompare(TransferEncoding, "chunked"))
 				{
 					Parser* Parser = new HTTP::Parser();
-					return Stream->ReadAsync(Root->Router->PayloadMaxLength, [this, Parser, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
+					return !!Stream->ReadAsync(Root->Router->PayloadMaxLength, [this, Parser, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
@@ -1367,7 +1369,7 @@ namespace Mavi
 
 						VI_RELEASE(Parser);
 						return true;
-					}) > 0;
+					});
 				}
 				else if (!Request.Content.Limited)
 				{
@@ -1386,7 +1388,7 @@ namespace Mavi
 					return true;
 				}
 
-				return Stream->ReadAsync(Request.Content.Length, [this, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
+				return !!Stream->ReadAsync(Request.Content.Length, [this, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -1410,7 +1412,7 @@ namespace Mavi
 					}
 
 					return true;
-				}) > 0;
+				});
 			}
 			bool Connection::Store(const ResourceCallback& Callback, bool Eat)
 			{
@@ -1459,7 +1461,7 @@ namespace Mavi
 					Parsers.Multipart->Frame.Callback = Callback;
 					Parsers.Multipart->Frame.Ignore = Eat;
 
-					return Stream->ReadAsync(Request.Content.Length, [this, Boundary](SocketPoll Event, const char* Buffer, size_t Recv)
+					return !!Stream->ReadAsync(Request.Content.Length, [this, Boundary](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
@@ -1480,11 +1482,11 @@ namespace Mavi
 						}
 
 						return true;
-					}) > 0;
+					});
 				}
 				else if (Eat)
 				{
-					return Stream->ReadAsync(Request.Content.Length, [this, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
+					return !!Stream->ReadAsync(Request.Content.Length, [this, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
 						if (!Packet::IsDone(Event) && !Packet::IsErrorOrSkip(Event))
 						{
@@ -1497,19 +1499,32 @@ namespace Mavi
 							Callback(nullptr);
 
 						return true;
-					}) > 0;
+					});
 				}
 
-				HTTP::Resource fResource;
-				fResource.Length = Request.Content.Length;
-				fResource.Type = (ContentType ? ContentType : "application/octet-stream");
-				fResource.Path = Core::OS::Directory::GetWorking() + Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(16));
+				HTTP::Resource Subresource;
+				Subresource.Length = Request.Content.Length;
+				Subresource.Type = (ContentType ? ContentType : "application/octet-stream");
 
-				FILE* File = (FILE*)Core::OS::File::Open(fResource.Path.c_str(), "wb");
-				if (!File)
+				auto Directory = Core::OS::Directory::GetWorking();
+				if (!Directory)
 					return false;
 
-				return Stream->ReadAsync(Request.Content.Length, [this, File, fResource, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
+				auto Random = Compute::Crypto::RandomBytes(16);
+				if (!Random)
+					return false;
+
+				auto Hash = Compute::Crypto::Hash(Compute::Digests::MD5(), *Random);
+				if (!Hash)
+					return false;
+
+				Subresource.Path = *Directory + *Hash;
+				auto Source = Core::OS::File::Open(Subresource.Path.c_str(), "wb");
+				if (!Source)
+					return false;
+
+				FILE* File = *Source;
+				return !!Stream->ReadAsync(Request.Content.Length, [this, File, Subresource, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -1528,7 +1543,7 @@ namespace Mavi
 						Request.Content.Finalize();
 						if (Packet::IsDone(Event))
 						{
-							Request.Content.Resources.push_back(fResource);
+							Request.Content.Resources.push_back(Subresource);
 							if (Callback)
 								Callback(&Request.Content.Resources.back());
 						}
@@ -1541,7 +1556,7 @@ namespace Mavi
 					}
 
 					return true;
-				}) > 0;
+				});
 			}
 			bool Connection::Skip(const SuccessCallback& Callback)
 			{
@@ -1588,7 +1603,7 @@ namespace Mavi
 
 				Unique.Negate();
 				if (Response.StatusCode < 0 || Stream->Outcome > 0 || !Stream->IsValid())
-					return Root->Manage(this);
+					return !!Root->Continue(this);
 
 				if (Response.StatusCode >= 400 && !Response.Error && Response.Content.Data.empty())
 				{
@@ -1641,10 +1656,10 @@ namespace Mavi
 						Core::Stringify::Append(Content, "Date: %s\r\nAccept-Ranges: bytes\r\n%s%s\r\n", Date, Utils::ConnectionResolve(this).c_str(), Auth.c_str());
 					}
 
-					return Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [this](SocketPoll Event)
+					return !!Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [this](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
-							Root->Manage(this);
+							Root->Continue(this);
 					});
 				}
 
@@ -1785,7 +1800,7 @@ namespace Mavi
 					Route->Callbacks.Headers(this, Chunked);
 
 				Chunked.append("\r\n", 2);
-				return Stream->WriteAsync(Chunked.c_str(), (int64_t)Chunked.size(), [this](SocketPoll Event)
+				return !!Stream->WriteAsync(Chunked.c_str(), (int64_t)Chunked.size(), [this](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -1794,14 +1809,14 @@ namespace Mavi
 							Stream->WriteAsync(Response.Content.Data.data(), (int64_t)Response.Content.Data.size(), [this](SocketPoll Event)
 							{
 								if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
-									Root->Manage(this);
+									Root->Continue(this);
 							});
 						}
 						else
-							Root->Manage(this);
+							Root->Continue(this);
 					}
 					else if (Packet::IsErrorOrSkip(Event))
-						Root->Manage(this);
+						Root->Continue(this);
 				});
 			}
 			bool Connection::Finish(int StatusCode)
@@ -1987,7 +2002,9 @@ namespace Mavi
 			void Query::DecodeAJSON(const Core::String& URI)
 			{
 				VI_CLEAR(Object);
-				Object = (Core::Schema*)Core::Schema::ConvertFromJSON(URI.c_str(), URI.size());
+				auto Result = Core::Schema::ConvertFromJSON(URI.c_str(), URI.size());
+				if (Result)
+					Object = *Result;
 			}
 			Core::String Query::Encode(const char* Type) const
 			{
@@ -2166,73 +2183,65 @@ namespace Mavi
 			bool Session::Write(Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				Core::String Schema = Base->Route->Site->Session.DocumentRoot + FindSessionId(Base);
-
-				FILE* Stream = (FILE*)Core::OS::File::Open(Schema.c_str(), "wb");
+				Core::String Path = Base->Route->Site->Session.DocumentRoot + FindSessionId(Base);
+				auto Stream = Core::OS::File::Open(Path.c_str(), "wb");
 				if (!Stream)
 					return false;
 
 				SessionExpires = time(nullptr) + Base->Route->Site->Session.Expires;
-				fwrite(&SessionExpires, sizeof(int64_t), 1, Stream);
-
-				Query->ConvertToJSONB(Query, [Stream](Core::VarForm, const char* Buffer, size_t Size)
+				fwrite(&SessionExpires, sizeof(int64_t), 1, *Stream);
+				Query->ConvertToJSONB(Query, [&Stream](Core::VarForm, const char* Buffer, size_t Size)
 				{
 					if (Buffer != nullptr && Size > 0)
-						fwrite(Buffer, Size, 1, Stream);
+						fwrite(Buffer, Size, 1, *Stream);
 				});
-
-				Core::OS::File::Close(Stream);
+				Core::OS::File::Close(*Stream);
 				return true;
 			}
 			bool Session::Read(Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				Core::String Schema = Base->Route->Site->Session.DocumentRoot + FindSessionId(Base);
-
-				FILE* Stream = (FILE*)Core::OS::File::Open(Schema.c_str(), "rb");
+				Core::String Path = Base->Route->Site->Session.DocumentRoot + FindSessionId(Base);
+				auto Stream = Core::OS::File::Open(Path.c_str(), "rb");
 				if (!Stream)
 					return false;
 
-				fseek(Stream, 0, SEEK_END);
-				if (ftell(Stream) == 0)
+				fseek(*Stream, 0, SEEK_END);
+				if (ftell(*Stream) == 0)
 				{
-					Core::OS::File::Close(Stream);
+					Core::OS::File::Close(*Stream);
 					return false;
 				}
 
-				fseek(Stream, 0, SEEK_SET);
-				if (fread(&SessionExpires, 1, sizeof(int64_t), Stream) != sizeof(int64_t))
+				fseek(*Stream, 0, SEEK_SET);
+				if (fread(&SessionExpires, 1, sizeof(int64_t), *Stream) != sizeof(int64_t))
 				{
-					Core::OS::File::Close(Stream);
+					Core::OS::File::Close(*Stream);
 					return false;
 				}
 
 				if (SessionExpires <= time(nullptr))
 				{
 					SessionId.clear();
-					Core::OS::File::Close(Stream);
-
-					if (!Core::OS::File::Remove(Schema.c_str()))
-						VI_ERR("[http] session file %s cannot be deleted", Schema.c_str());
+					Core::OS::File::Close(*Stream);
+					if (!Core::OS::File::Remove(Path.c_str()))
+						VI_ERR("[http] session file %s cannot be deleted", Path.c_str());
 
 					return false;
 				}
 
-				Core::Schema* V = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, size_t Size)
+				VI_RELEASE(Query);
+				auto Result = Core::Schema::ConvertFromJSONB([&Stream](char* Buffer, size_t Size)
 				{
 					if (!Buffer || !Size)
 						return true;
 
-					return fread(Buffer, sizeof(char), Size, Stream) == Size;
+					return fread(Buffer, sizeof(char), Size, *Stream) == Size;
 				});
+				if (Result)
+					Query = *Result;
 
-				if (V != nullptr)
-				{
-					VI_RELEASE(Query);
-					Query = V;
-				}
-
-				Core::OS::File::Close(Stream);
+				Core::OS::File::Close(*Stream);
 				return true;
 			}
 			Core::String& Session::FindSessionId(Connection* Base)
@@ -2251,7 +2260,12 @@ namespace Mavi
 			{
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				int64_t Time = time(nullptr);
-				SessionId = Compute::Crypto::Hash(Compute::Digests::MD5(), Base->Request.URI + Core::ToString(Time));
+				auto Hash = Compute::Crypto::Hash(Compute::Digests::MD5(), Base->Request.URI + Core::ToString(Time));
+				if (Hash)
+					SessionId = *Hash;
+				else
+					SessionId = Core::ToString(Time);
+
 				if (SessionExpires == 0)
 					SessionExpires = Time + Base->Route->Site->Session.Expires;
 
@@ -2268,24 +2282,29 @@ namespace Mavi
 
 				return SessionId;
 			}
-			bool Session::InvalidateCache(const Core::String& Path)
+			Core::Expected<void> Session::InvalidateCache(const Core::String& Path)
 			{
-				Core::Vector<Core::FileEntry> Entries;
-				if (!Core::OS::Directory::Scan(Path, &Entries))
-					return false;
+				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
+				auto Status = Core::OS::Directory::Scan(Path, &Entries);
+				if (!Status)
+					return Status;
 
 				bool Split = (Path.back() != '\\' && Path.back() != '/');
 				for (auto& Item : Entries)
 				{
-					if (Item.IsDirectory)
+					if (Item.second.IsDirectory)
 						continue;
 
-					Core::String Filename = (Split ? Path + '/' : Path) + Item.Path;
-					if (!Core::OS::File::Remove(Filename.c_str()))
-						VI_ERR("[http] cannot invalidate session: %s", Item.Path.c_str());
+					Core::String Filename = (Split ? Path + '/' : Path) + Item.first;
+					Status = Core::OS::File::Remove(Filename.c_str());
+					if (!Status)
+					{
+						VI_ERR("[http] cannot invalidate session: %s", Item.first.c_str());
+						return Status;
+					}
 				}
 
-				return true;
+				return Core::Optional::OK;
 			}
 
 			Parser::Parser()
@@ -3785,7 +3804,6 @@ namespace Mavi
 								size_t LCount = Compute::Codec::Utf8(Value, Buffer);
 								if (LCount > 0)
 									Base->Request.Path.append(Buffer, LCount);
-
 								i += 5;
 							}
 							else
@@ -3842,7 +3860,10 @@ namespace Mavi
 				else
 					Base->Request.Path = Base->Route->DocumentRoot + Base->Request.Path;
 
-				Base->Request.Path = Core::OS::Path::Resolve(Base->Request.Path.c_str());
+				auto Path = Core::OS::Path::Resolve(Base->Request.Path.c_str());
+				if (Path)
+					Base->Request.Path = *Path;
+
 				if (Core::Stringify::EndsOf(Base->Request.Path, "/\\"))
 				{
 					if (!Core::Stringify::EndsOf(Base->Request.URI, "/\\"))
@@ -3999,7 +4020,7 @@ namespace Mavi
 				Base->Route = It->second->Base;
 				return true;
 			}
-			bool Paths::ConstructDirectoryEntries(Connection* Base, const Core::FileEntry& A, const Core::FileEntry& B)
+			bool Paths::ConstructDirectoryEntries(Connection* Base, const Core::String& NameA, const Core::FileEntry& A, const Core::String& NameB, const Core::FileEntry& B)
 			{
 				VI_ASSERT(Base != nullptr, "connection should be set");
 				if (A.IsDirectory && !B.IsDirectory)
@@ -4013,7 +4034,7 @@ namespace Mavi
 				{
 					int Result = 0;
 					if (*Query == 'n')
-						Result = strcmp(A.Path.c_str(), B.Path.c_str());
+						Result = strcmp(NameA.c_str(), NameB.c_str());
 					else if (*Query == 's')
 						Result = (A.Size == B.Size) ? 0 : ((A.Size > B.Size) ? 1 : -1);
 					else if (*Query == 'd')
@@ -4027,7 +4048,7 @@ namespace Mavi
 					return Result < 0;
 				}
 
-				return strcmp(A.Path.c_str(), B.Path.c_str()) < 0;
+				return strcmp(NameA.c_str(), NameB.c_str()) < 0;
 			}
 			Core::String Paths::ConstructContentRange(size_t Offset, size_t Length, size_t ContentLength)
 			{
@@ -4131,11 +4152,22 @@ namespace Mavi
 					Parser->Frame.Source.Path = Parser->Frame.Route->Site->ResourceRoot;
 					if (Parser->Frame.Source.Path.back() != '/' && Parser->Frame.Source.Path.back() != '\\')
 						Parser->Frame.Source.Path.append(1, '/');
-					Parser->Frame.Source.Path.append(Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(16)));
+
+					auto Random = Compute::Crypto::RandomBytes(16);
+					if (Random)
+					{
+						auto Hash = Compute::Crypto::Hash(Compute::Digests::MD5(), *Random);
+						if (Hash)
+							Parser->Frame.Source.Path.append(*Hash);
+					}
 				}
 
-				Parser->Frame.Stream = (FILE*)Core::OS::File::Open(Parser->Frame.Source.Path.c_str(), "wb");
-				return Parser->Frame.Stream != nullptr;
+				auto File = Core::OS::File::Open(Parser->Frame.Source.Path.c_str(), "wb");
+				if (!File)
+					return false;
+
+				Parser->Frame.Stream = *File;
+				return true;
 			}
 			bool Parsing::ParseMultipartResourceEnd(Parser* Parser)
 			{
@@ -4399,7 +4431,7 @@ namespace Mavi
 
 				for (auto& Item : Base->Route->TryFiles)
 				{
-					if (Core::OS::File::State(Item, &Base->Resource))
+					if (Core::OS::File::GetState(Item, &Base->Resource))
 					{
 						Base->Request.Path = Item;
 						return true;
@@ -4445,12 +4477,12 @@ namespace Mavi
 
 				for (auto& Item : Base->Route->IndexFiles)
 				{
-					if (Core::OS::File::State(Item, Resource))
+					if (Core::OS::File::GetState(Item, Resource))
 					{
 						Base->Request.Path.assign(Item);
 						return true;
 					}
-					else if (Core::OS::File::State(Path + Item, Resource))
+					else if (Core::OS::File::GetState(Path + Item, Resource))
 					{
 						Base->Request.Path.assign(Path.append(Item));
 						return true;
@@ -4522,7 +4554,7 @@ namespace Mavi
 				if (!WebSocketKey2)
 					return Base->Error(400, "Malformed websocket request. Provide second key.");
 
-				return Base->Stream->ReadAsync(8, [Base](SocketPoll Event, const char* Buffer, size_t Recv)
+				return !!Base->Stream->ReadAsync(8, [Base](SocketPoll Event, const char* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 						Base->Request.Content.Append(Buffer, Recv);
@@ -4537,7 +4569,7 @@ namespace Mavi
 			bool Routing::RouteGET(Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
+				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
 				{
 					if (Permissions::WebSocketUpgradeAllowed(Base))
 					{
@@ -4594,7 +4626,7 @@ namespace Mavi
 				if (!Base->Route)
 					return Base->Error(404, "Requested resource was not found.");
 
-				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
+				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
 					return Base->Error(404, "Requested resource was not found.");
 
 				if (Resources::ResourceHidden(Base, nullptr))
@@ -4622,7 +4654,7 @@ namespace Mavi
 				if (!Base->Route || Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(403, "Resource overwrite denied.");
 
-				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
+				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
 					return Base->Error(403, "Directory overwrite denied.");
 
 				if (!Base->Resource.IsDirectory)
@@ -4631,10 +4663,11 @@ namespace Mavi
 				const char* Range = Base->Request.GetHeader("Range");
 				int64_t Range1 = 0, Range2 = 0;
 
-				FILE* Stream = (FILE*)Core::OS::File::Open(Base->Request.Path.c_str(), "wb");
-				if (!Stream)
+				auto File = Core::OS::File::Open(Base->Request.Path.c_str(), "wb");
+				if (!File)
 					return Base->Error(422, "Resource stream cannot be opened.");
 
+				FILE* Stream = *File;
 				if (Range != nullptr && HTTP::Parsing::ParseContentRange(Range, &Range1, &Range2))
 				{
 					if (Base->Response.StatusCode <= 0)
@@ -4698,7 +4731,7 @@ namespace Mavi
 				if (!Base->Route)
 					return Base->Error(403, "Operation denied by server.");
 
-				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
+				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
 					return Base->Error(404, "Requested resource was not found.");
 
 				if (Resources::ResourceHidden(Base, nullptr))
@@ -4717,7 +4750,7 @@ namespace Mavi
 					Base->Route->Callbacks.Headers(Base, Content);
 
 				Content.append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(204);
@@ -4731,15 +4764,15 @@ namespace Mavi
 				if (!Base->Route || Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(403, "Operation denied by server.");
 
-				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
+				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
 					return Base->Error(404, "Requested resource was not found.");
 
 				if (!Base->Resource.IsDirectory)
 				{
-					if (Core::OS::File::Remove(Base->Request.Path.c_str()) != 0)
+					if (!Core::OS::File::Remove(Base->Request.Path.c_str()))
 						return Base->Error(403, "Operation denied by system.");
 				}
-				else if (Core::OS::Directory::Remove(Base->Request.Path.c_str()) != 0)
+				else if (!Core::OS::Directory::Remove(Base->Request.Path.c_str()))
 					return Base->Error(403, "Operation denied by system.");
 
 				char Date[64];
@@ -4752,7 +4785,7 @@ namespace Mavi
 					Base->Route->Callbacks.Headers(Base, Content);
 
 				Content.append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(204);
@@ -4773,7 +4806,7 @@ namespace Mavi
 					Base->Route->Callbacks.Headers(Base, Content);
 
 				Content.append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(204);
@@ -4785,7 +4818,7 @@ namespace Mavi
 			bool Logical::ProcessDirectory(Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				Core::Vector<Core::FileEntry> Entries;
+				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
 				if (!Core::OS::Directory::Scan(Base->Request.Path, &Entries))
 					return Base->Error(500, "System denied to directory listing.");
 
@@ -4826,37 +4859,40 @@ namespace Mavi
 					"<tr><td colspan=\"3\"><hr></td></tr>"
 					"<tr><td><a href=\"" + Parent + "\">Parent directory</a></td>"
 					"<td>&nbsp;-</td><td>&nbsp;&nbsp;-</td></tr>");
+				VI_SORT(Entries.begin(), Entries.end(), [&Base](const std::pair<Core::String, Core::FileEntry>& A, const std::pair<Core::String, Core::FileEntry>& B)
+				{
+					return Paths::ConstructDirectoryEntries(Base, A.first, A.second, B.first, B.second);
+				});
 
-				VI_SORT(Entries.begin(), Entries.end(), std::bind(&Paths::ConstructDirectoryEntries, Base, std::placeholders::_1, std::placeholders::_2));
 				for (auto& Item : Entries)
 				{
-					if (Resources::ResourceHidden(Base, &Item.Path))
+					if (Resources::ResourceHidden(Base, &Item.first))
 						continue;
 
 					char dSize[64];
-					if (!Item.IsDirectory)
+					if (!Item.second.IsDirectory)
 					{
-						if (Item.Size < 1024)
-							snprintf(dSize, sizeof(dSize), "%db", (int)Item.Size);
-						else if (Item.Size < 0x100000)
-							snprintf(dSize, sizeof(dSize), "%.1fk", ((double)Item.Size) / 1024.0);
-						else if (Item.Size < 0x40000000)
-							snprintf(dSize, sizeof(Size), "%.1fM", ((double)Item.Size) / 1048576.0);
+						if (Item.second.Size < 1024)
+							snprintf(dSize, sizeof(dSize), "%db", (int)Item.second.Size);
+						else if (Item.second.Size < 0x100000)
+							snprintf(dSize, sizeof(dSize), "%.1fk", ((double)Item.second.Size) / 1024.0);
+						else if (Item.second.Size < 0x40000000)
+							snprintf(dSize, sizeof(Size), "%.1fM", ((double)Item.second.Size) / 1048576.0);
 						else
-							snprintf(dSize, sizeof(dSize), "%.1fG", ((double)Item.Size) / 1073741824.0);
+							snprintf(dSize, sizeof(dSize), "%.1fG", ((double)Item.second.Size) / 1073741824.0);
 					}
 					else
 						strncpy(dSize, "[DIRECTORY]", sizeof(dSize));
 
 					char dDate[64];
-					Core::DateTime::FetchWebDateTime(dDate, sizeof(dDate), Item.LastModified);
+					Core::DateTime::FetchWebDateTime(dDate, sizeof(dDate), Item.second.LastModified);
 
-					Core::String URI = Compute::Codec::URIEncode(Item.Path);
+					Core::String URI = Compute::Codec::URIEncode(Item.first);
 					Core::String HREF = (Base->Request.URI + ((*(Base->Request.URI.c_str() + 1) != '\0' && Base->Request.URI[Base->Request.URI.size() - 1] != '/') ? "/" : "") + URI);
-					if (Item.IsDirectory && !Core::Stringify::EndsOf(HREF, "/\\"))
+					if (Item.second.IsDirectory && !Core::Stringify::EndsOf(HREF, "/\\"))
 						HREF.append(1, '/');
 
-					Base->Response.Content.Append("<tr><td><a href=\"" + HREF + "\">" + Item.Path + "</a></td><td>&nbsp;" + dDate + "</td><td>&nbsp;&nbsp;" + dSize + "</td></tr>\n");
+					Base->Response.Content.Append("<tr><td><a href=\"" + HREF + "\">" + Item.first + "</a></td><td>&nbsp;" + dDate + "</td><td>&nbsp;&nbsp;" + dSize + "</td></tr>\n");
 				}
 				Base->Response.Content.Append("</table></pre></body></html>");
 
@@ -4904,7 +4940,7 @@ namespace Mavi
 				}
 #endif
 				Core::Stringify::Append(Content, "Content-Length: %" PRIu64 "\r\n\r\n", (uint64_t)Base->Response.Content.Data.size());
-				return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -4994,7 +5030,7 @@ namespace Mavi
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
-					return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+					return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							Base->Finish(200);
@@ -5003,7 +5039,7 @@ namespace Mavi
 					});
 				}
 
-				return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base, ContentLength, Range1](SocketPoll Event)
+				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base, ContentLength, Range1](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -5064,7 +5100,7 @@ namespace Mavi
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
-					return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+					return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							Base->Finish();
@@ -5073,7 +5109,7 @@ namespace Mavi
 					});
 				}
 
-				return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base, Range, ContentLength, Gzip](SocketPoll Event)
+				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base, Range, ContentLength, Gzip](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -5106,7 +5142,7 @@ namespace Mavi
 					Base->Route->Callbacks.Headers(Base, Content);
 
 				Core::Stringify::Append(Content, "Accept-Ranges: bytes\r\nLast-Modified: %s\r\nEtag: %s\r\n%s\r\n", LastModified, ETag, Utils::ConnectionResolve(Base).c_str());
-				return Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(304);
@@ -5126,7 +5162,7 @@ namespace Mavi
 
 					if (Base->Response.Content.Data.size() >= ContentLength)
 					{
-						return Base->Stream->WriteAsync(Base->Response.Content.Data.data() + Range, (int64_t)ContentLength, [Base](SocketPoll Event)
+						return !!Base->Stream->WriteAsync(Base->Response.Content.Data.data() + Range, (int64_t)ContentLength, [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Finish();
@@ -5136,13 +5172,14 @@ namespace Mavi
 					}
 				}
 
-				FILE* Stream = (FILE*)Core::OS::File::Open(Base->Request.Path.c_str(), "rb");
-				if (!Stream)
+				auto File = Core::OS::File::Open(Base->Request.Path.c_str(), "rb");
+				if (!File)
 					return Base->Error(500, "System denied to open resource stream.");
 
+				FILE* Stream = *File;
                 if (Base->Route->AllowSendFile)
                 {
-                    int64_t Result = Base->Stream->SendFileAsync(Stream, Range, ContentLength, [Base, Stream, ContentLength, Range](SocketPoll Event)
+                    auto Result = Base->Stream->SendFileAsync(Stream, Range, ContentLength, [Base, Stream, ContentLength, Range](SocketPoll Event)
                     {
                         if (Packet::IsDone(Event))
                         {
@@ -5155,7 +5192,7 @@ namespace Mavi
                             Core::OS::File::Close(Stream);
                     });
                     
-                    if (Result != -3)
+                    if (Result || Result.Error() != std::errc::not_supported)
                         return true;
                 }
 
@@ -5209,9 +5246,9 @@ namespace Mavi
 					goto Cleanup;
                 
 				ContentLength -= Read;
-                int Result = Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ContentLength](SocketPoll Event)
+                auto Written = Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ContentLength](SocketPoll Event)
 				{
-					if (Packet::IsDone(Event))
+					if (Packet::IsDoneAsync(Event))
 					{
                         Core::Schedule::Get()->SetTask([Base, Router, Stream, ContentLength]()
                         {
@@ -5226,8 +5263,8 @@ namespace Mavi
 					else if (Packet::IsSkip(Event))
                         Core::OS::File::Close(Stream);
 				});
-                
-                if (Result >= 0 && false)
+
+				if (Written && *Written > 0)
                     goto Retry;
                 
 				return false;
@@ -5260,7 +5297,7 @@ namespace Mavi
 								Base->Response.Content.Assign(Buffer.c_str(), (size_t)ZStream.total_out);
 						}
 #endif
-						return Base->Stream->WriteAsync(Base->Response.Content.Data.data(), (int64_t)ContentLength, [Base](SocketPoll Event)
+						return !!Base->Stream->WriteAsync(Base->Response.Content.Data.data(), (int64_t)ContentLength, [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Finish();
@@ -5270,10 +5307,11 @@ namespace Mavi
 					}
 				}
 
-				FILE* Stream = (FILE*)Core::OS::File::Open(Base->Request.Path.c_str(), "rb");
-				if (!Stream)
+				auto File = Core::OS::File::Open(Base->Request.Path.c_str(), "rb");
+				if (!File)
 					return Base->Error(500, "System denied to open resource stream.");
 
+				FILE* Stream = *File;
 #ifdef VI_MICROSOFT
 				if (Range > 0 && _lseeki64(VI_FILENO(Stream), Range, SEEK_SET) == -1)
 				{
@@ -5331,13 +5369,13 @@ namespace Mavi
 					if (Router->State != ServerState::Working)
 						return Base->Break();
 
-					return Base->Stream->WriteAsync("0\r\n\r\n", 5, [Base](SocketPoll Event)
+					return !!Base->Stream->WriteAsync("0\r\n\r\n", 5, [Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							Base->Finish();
 						else if (Packet::IsError(Event))
 							Base->Break();
-					}) || true;
+					});
 				}
                 
 				size_t Read = sizeof(Buffer) - GZ_HEADER_SIZE;
@@ -5367,7 +5405,7 @@ namespace Mavi
 					Read += sizeof(char) * 2;
 				}
 
-				int Result = Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ZStream, ContentLength](SocketPoll Event)
+				auto Written = Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ZStream, ContentLength](SocketPoll Event)
 				{
 					if (Packet::IsDoneAsync(Event))
 					{
@@ -5392,8 +5430,7 @@ namespace Mavi
 					else if (Packet::IsSkip(Event))
 						FREE_STREAMING;
 				});
-
-                if (Result >= 0)
+                if (Written && *Written > 0)
                     goto Retry;
                 
 				return false;
@@ -5439,7 +5476,7 @@ namespace Mavi
 					Base->Route->Callbacks.Headers(Base, Content);
 
 				Content.append("\r\n", 2);
-				return !Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -5475,11 +5512,9 @@ namespace Mavi
 			Server::Server() : SocketServer()
 			{
 			}
-			bool Server::Update()
+			Core::Expected<void> Server::Update()
 			{
 				auto* Root = (MapRouter*)Router;
-				bool Success = true;
-
 				for (auto& Site : Root->Sites)
 				{
 					auto* Entry = Site.second;
@@ -5488,61 +5523,85 @@ namespace Mavi
 					Entry->Router = Root;
 
 					if (!Entry->Session.DocumentRoot.empty())
-						Core::OS::Directory::Patch(Entry->Session.DocumentRoot);
+					{
+						auto Status = Core::OS::Directory::Patch(Entry->Session.DocumentRoot);
+						if (!Status)
+							return Status;
+					}
 
 					if (!Entry->ResourceRoot.empty())
-						Core::OS::Directory::Patch(Entry->ResourceRoot);
+					{
+						auto Status = Core::OS::Directory::Patch(Entry->ResourceRoot);
+						if (!Status)
+							return Status;
+					}
 
 					if (!Entry->Base->Override.empty())
-						Entry->Base->Override = Core::OS::Path::Resolve(Entry->Base->Override, Entry->Base->DocumentRoot, false);
+					{
+						auto Directory = Core::OS::Path::Resolve(Entry->Base->Override, Entry->Base->DocumentRoot, false);
+						if (Directory)
+							Entry->Base->Override = *Directory;
+					}
 
 					for (auto& Group : Entry->Groups)
 					{
 						for (auto* Route : Group->Routes)
 						{
 							Route->Site = Entry;
-							if (!Route->Override.empty())
-								Route->Override = Core::OS::Path::Resolve(Route->Override, Route->DocumentRoot, false);
+							if (Route->Override.empty())
+								continue;
+
+							auto Directory = Core::OS::Path::Resolve(Route->Override, Route->DocumentRoot, false);
+							if (Directory)
+								Route->Override = *Directory;
 						}
 					}
 
 					Entry->Sort();
 				}
-
-				return Success;
+				return Core::Optional::OK;
 			}
-			bool Server::OnConfigure(SocketRouter* NewRouter)
+			Core::Expected<void> Server::OnConfigure(SocketRouter* NewRouter)
 			{
 				VI_ASSERT(NewRouter != nullptr, "router should be set");
 				return Update();
 			}
-			bool Server::OnRequestEnded(SocketConnection* Root, bool Check)
+			Core::Expected<void> Server::OnUnlisten()
 			{
-				VI_ASSERT(Root != nullptr, "connection should be set");
-				auto Base = (HTTP::Connection*)Root;
+				VI_ASSERT(Router != nullptr, "router should be set");
+				MapRouter* Root = (MapRouter*)Router;
 
-				if (Check)
+				for (auto& Site : Root->Sites)
 				{
-					return Base->Skip([](HTTP::Connection* Base)
+					auto* Entry = Site.second;
+					if (!Entry->ResourceRoot.empty())
 					{
-						Base->Root->Manage(Base);
-						return true;
-					});
-				}
-				else if (Base->Info.KeepAlive >= -1 && Base->Response.StatusCode >= 0 && Base->Route && Base->Route->Callbacks.Access)
-					Base->Route->Callbacks.Access(Base);
+						auto Status = Core::OS::Directory::Remove(Entry->ResourceRoot.c_str());
+						if (!Status)
+						{
+							VI_ERR("[http] resource directory %s cannot be deleted", Entry->ResourceRoot.c_str());
+							return Status;
+						}
+					}
 
-				Base->Reset(false);
-				return true;
+					if (!Entry->Session.DocumentRoot.empty())
+					{
+						auto Status = Session::InvalidateCache(Entry->Session.DocumentRoot);
+						if (!Status)
+							return Status;
+					}
+				}
+
+				return Core::Optional::OK;
 			}
-			bool Server::OnRequestBegin(SocketConnection* Source)
+			void Server::OnRequestOpen(SocketConnection* Source)
 			{
 				VI_ASSERT(Source != nullptr, "connection should be set");
 				auto* Conf = (MapRouter*)Router;
 				auto* Base = (Connection*)Source;
 
 				Base->Parsers.Request->PrepareForNextParsing(Base, false);
-				return Base->Stream->ReadUntilAsync("\r\n\r\n", [Base, Conf](SocketPoll Event, const char* Buffer, size_t Size)
+				Base->Stream->ReadUntilAsync("\r\n\r\n", [Base, Conf](SocketPoll Event, const char* Buffer, size_t Size)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -5561,24 +5620,24 @@ namespace Mavi
 						uint32_t Redirects = 0;
 						Base->Request.Content.Data.clear();
 						Base->Info.Start = Network::Utils::Clock();
-                    Redirect:
+					Redirect:
 						if (!Paths::ConstructRoute(Conf, Base))
 							return Base->Error(400, "Request cannot be resolved");
 
 						if (!Base->Route->Redirect.empty())
 						{
-                            if (Redirects++ > MAX_REDIRECTS)
-                                return Base->Error(500, "Infinite redirects loop detected");
-                            
-                            Base->Request.URI = Base->Route->Redirect;
-                            goto Redirect;
+							if (Redirects++ > MAX_REDIRECTS)
+								return Base->Error(500, "Infinite redirects loop detected");
+
+							Base->Request.URI = Base->Route->Redirect;
+							goto Redirect;
 						}
 
 						if (!Base->Route->ProxyIpAddress.empty())
 						{
 							const char* Address = Base->Request.GetHeader(Base->Route->ProxyIpAddress.c_str());
 							if (Address != nullptr)
-                                strncpy(Base->RemoteAddress, Address, sizeof(Base->RemoteAddress));
+								strncpy(Base->RemoteAddress, Address, sizeof(Base->RemoteAddress));
 						}
 
 						Base->Request.Content.Prepare(Base->Request.GetHeader("Content-Length"));
@@ -5656,45 +5715,31 @@ namespace Mavi
 					return true;
 				});
 			}
-			bool Server::OnStall(Core::UnorderedSet<SocketConnection*>& Data)
+			bool Server::OnRequestCleanup(SocketConnection* Root)
 			{
-				for (auto* Item : Data)
+				VI_ASSERT(Root != nullptr, "connection should be set");
+				auto Base = (HTTP::Connection*)Root;
+				return Base->Skip([](HTTP::Connection* Base)
 				{
-					HTTP::Connection* Base = (HTTP::Connection*)Item;
-					Core::String Status = ", pathname: " + Base->Request.URI;
-					if (Base->WebSocket != nullptr)
-						Status += ", websocket: " + Core::String(Base->WebSocket->IsFinished() ? "alive" : "dead");
-					VI_DEBUG("[stall] connection on fd %i%s", (int)Base->Stream->GetFd(),  Status.c_str());
-				}
-
-				return true;
+					Base->Root->Continue(Base);
+					return true;
+				});
 			}
-			bool Server::OnListen()
+			void Server::OnRequestStall(SocketConnection* Root)
 			{
-				return true;
+				auto Base = (HTTP::Connection*)Root;
+				Core::String Status = ", pathname: " + Base->Request.URI;
+				if (Base->WebSocket != nullptr)
+					Status += ", websocket: " + Core::String(Base->WebSocket->IsFinished() ? "alive" : "dead");
+				VI_DEBUG("[stall] connection on fd %i%s", (int)Base->Stream->GetFd(), Status.c_str());
 			}
-			bool Server::OnUnlisten()
+			void Server::OnRequestClose(SocketConnection* Root)
 			{
-				VI_ASSERT(Router != nullptr, "router should be set");
-				MapRouter* Root = (MapRouter*)Router;
-
-				for (auto& Site : Root->Sites)
-				{
-					auto* Entry = Site.second;
-					if (!Entry->ResourceRoot.empty())
-					{
-						if (!Core::OS::Directory::Remove(Entry->ResourceRoot.c_str()))
-							VI_ERR("[http] resource directory %s cannot be deleted", Entry->ResourceRoot.c_str());
-
-						if (!Core::OS::Directory::Create(Entry->ResourceRoot.c_str()))
-							VI_ERR("[http] resource directory %s cannot be created", Entry->ResourceRoot.c_str());
-					}
-
-					if (!Entry->Session.DocumentRoot.empty())
-						Session::InvalidateCache(Entry->Session.DocumentRoot);
-				}
-
-				return true;
+				VI_ASSERT(Root != nullptr, "connection should be set");
+				auto Base = (HTTP::Connection*)Root;
+				if (Base->Info.KeepAlive >= -1 && Base->Response.StatusCode >= 0 && Base->Route && Base->Route->Callbacks.Access)
+					Base->Route->Callbacks.Access(Base);
+				Base->Reset(false);
 			}
 			SocketConnection* Server::OnAllocate(SocketListener* Host)
 			{
@@ -5713,36 +5758,29 @@ namespace Mavi
 			{
 				VI_CLEAR(WebSocket);
 			}
-			bool Client::Downgrade()
-			{
-				VI_ASSERT(WebSocket != nullptr, "websocket should be opened");
-				VI_ASSERT(WebSocket->IsFinished(), "websocket connection should be finished");
-				VI_CLEAR(WebSocket);
-				return true;
-			}
-			Core::Promise<bool> Client::Consume(size_t MaxSize)
+			Core::ExpectedPromise<void> Client::Consume(size_t MaxSize)
 			{
 				VI_ASSERT(!WebSocket, "cannot read http over websocket");
 				if (Response.Content.IsFinalized())
-					return Core::Promise<bool>(true);
+					return Core::ExpectedPromise<void>(Core::Optional::OK);
 				else if (Response.Content.Exceeds)
-					return Core::Promise<bool>(false);
+					return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::value_too_large));
 
 				Response.Content.Data.clear();
 				if (!Stream.IsValid())
-					return Core::Promise<bool>(false);
+					return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::bad_file_descriptor));
 
 				const char* ContentType = Response.GetHeader("Content-Type");
 				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
 				{
 					Response.Content.Exceeds = true;
-					return Core::Promise<bool>(false);
+					return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::value_too_large));
 				}
                 
 				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
 				if (!Response.Content.Limited && TransferEncoding && !Core::Stringify::CaseCompare(TransferEncoding, "chunked"))
 				{
-					Core::Promise<bool> Result;
+					Core::ExpectedPromise<void> Result;
 					Parser* Parser = new HTTP::Parser();
 					Stream.ReadAsync(MaxSize, [this, Parser, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{
@@ -5752,7 +5790,7 @@ namespace Mavi
 							if (Subresult == -1)
 							{
 								VI_RELEASE(Parser);
-								Result.Set(false);
+								Result.Set(std::make_error_condition(std::errc::protocol_error));
 
 								return false;
 							}
@@ -5775,29 +5813,30 @@ namespace Mavi
 							if (!Response.Content.Data.empty())
 								VI_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
 
-							Result.Set(!Packet::IsErrorOrSkip(Event));
+							if (Packet::IsErrorOrSkip(Event))
+								Result.Set(Packet::ToCondition(Event));
+							else
+								Result.Set(Core::Optional::OK);
 							VI_RELEASE(Parser);
 						}
 
 						return true;
 					});
-
 					return Result;
 				}
 				else if (!Response.Content.Limited)
 				{
 					const char* Connection = Response.GetHeader("Connection");
 					if (!Connection || Core::Stringify::CaseCompare(Connection, "close"))
-						return Core::Promise<bool>(false);
+						return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::no_protocol_option));
 
-					Core::Promise<bool> Result;
+					Core::ExpectedPromise<void> Result;
 					Stream.ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
 						{
 							Response.Content.Offset += Recv;
 							Response.Content.Append(Buffer, Recv);
-
 							return true;
 						}
 						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
@@ -5806,27 +5845,28 @@ namespace Mavi
 							if (!Response.Content.Data.empty())
 								VI_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
 
-							Result.Set(!Packet::IsErrorOrSkip(Event));
+							if (Packet::IsErrorOrSkip(Event))
+								Result.Set(Packet::ToCondition(Event));
+							else
+								Result.Set(Core::Optional::OK);
 						}
 
 						return true;
 					});
-
 					return Result;
 				}
                 
 				MaxSize = std::min(MaxSize, Response.Content.Length - Response.Content.Offset);
 				if (!MaxSize || Response.Content.Offset > Response.Content.Length)
-					return Core::Promise<bool>(false);
+					return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::result_out_of_range));
 
-				Core::Promise<bool> Result;
+				Core::ExpectedPromise<void> Result;
 				Stream.ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 				{
 					if (Packet::IsData(Event))
 					{
 						Response.Content.Offset += Recv;
 						Response.Content.Append(Buffer, Recv);
-
 						return true;
 					}
 					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
@@ -5834,63 +5874,84 @@ namespace Mavi
 						if (!Response.Content.Data.empty())
 							VI_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
 
-						Result.Set(!Packet::IsErrorOrSkip(Event));
+						if (Packet::IsErrorOrSkip(Event))
+							Result.Set(Packet::ToCondition(Event));
+						else
+							Result.Set(Core::Optional::OK);
 					}
 
 					return true;
 				});
-
 				return Result;
 			}
-			Core::Promise<bool> Client::Fetch(HTTP::RequestFrame&& Root, size_t MaxSize)
+			Core::ExpectedPromise<void> Client::Fetch(HTTP::RequestFrame&& Root, size_t MaxSize)
 			{
-				return Send(std::move(Root)).Then<Core::Promise<bool>>([this, MaxSize](HTTP::ResponseFrame*&&)
+				return Send(std::move(Root)).Then<Core::ExpectedPromise<void>>([this, MaxSize](Core::Expected<ResponseFrame*>&& Response) -> Core::ExpectedPromise<void>
 				{
+					if (!Response)
+						return Core::ExpectedPromise<void>(Response.Error());
+
 					return Consume(MaxSize);
 				});
 			}
-			Core::Promise<bool> Client::Upgrade(HTTP::RequestFrame&& Root)
+			Core::ExpectedPromise<void> Client::Upgrade(HTTP::RequestFrame&& Root)
 			{
 				VI_ASSERT(WebSocket != nullptr, "websocket should be opened");
 				VI_ASSERT(Stream.IsValid(), "stream should be opened");
 
-				Core::String Key = Compute::Codec::Base64Encode(Compute::Crypto::RandomBytes(16));
 				Root.SetHeader("Pragma", "no-cache");
 				Root.SetHeader("Upgrade", "WebSocket");
 				Root.SetHeader("Connection", "Upgrade");
-				Root.SetHeader("Sec-WebSocket-Key", Key);
 				Root.SetHeader("Sec-WebSocket-Version", "13");
 
-				return Send(std::move(Root)).Then<Core::Promise<bool>>([this](ResponseFrame*&& Response)
+				auto Random = Compute::Crypto::RandomBytes(16);
+				if (Random)
+					Root.SetHeader("Sec-WebSocket-Key", Compute::Codec::Base64Encode(*Random));
+				else
+					Root.SetHeader("Sec-WebSocket-Key", WEBSOCKET_KEY);
+	
+				return Send(std::move(Root)).Then<Core::ExpectedPromise<void>>([this](Core::Expected<ResponseFrame*>&& Response) -> Core::ExpectedPromise<void>
 				{
 					VI_DEBUG("[ws] handshake %s", Request.URI.c_str());
+					if (!Response)
+						return Core::ExpectedPromise<void>(Response.Error());
+
 					if (Response->StatusCode != 101)
-						return Core::Promise<bool>(Error("ws handshake error") && false);
+					{
+						Error("ws handshake error");
+						return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::protocol_error));
+					}
 
 					if (!Response->GetHeader("Sec-WebSocket-Accept"))
-						return Core::Promise<bool>(Error("ws handshake was not accepted") && false);
+					{
+						Error("ws handshake was not accepted");
+						return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::bad_message));
+					}
 
-					Future = Core::Promise<bool>();
+					Future = Core::ExpectedPromise<void>();
 					WebSocket->Next();
 					return Future;
 				});
 			}
-			Core::Promise<ResponseFrame*> Client::Send(HTTP::RequestFrame&& Root)
+			Core::ExpectedPromise<ResponseFrame*> Client::Send(HTTP::RequestFrame&& Root)
 			{
 				VI_ASSERT(!WebSocket || Root.GetHeader("Sec-WebSocket-Key") != nullptr, "cannot send http request over websocket");
 				VI_ASSERT(Stream.IsValid(), "stream should be opened");
 				VI_DEBUG("[http] %s %s", Root.Method, Root.URI.c_str());
 
-				Core::Promise<ResponseFrame*> Result;
+				Core::ExpectedPromise<ResponseFrame*> Result;
 				Request = std::move(Root);
 				Response.Cleanup();
-				Done = [Result](SocketClient* Client, int Code) mutable
+				Done = [Result](SocketClient* Client, const Core::Option<std::error_condition>& ErrorCode) mutable
 				{
 					HTTP::Client* Base = (HTTP::Client*)Client;
-					if (Code < 0)
+					if (ErrorCode)
+					{
 						Base->GetResponse()->StatusCode = -1;
-
-					Result.Set(Base->GetResponse());
+						Result.Set(*ErrorCode);
+					}
+					else
+						Result.Set(Base->GetResponse());
 				};
 				Stage("request delivery");
 
@@ -5994,25 +6055,39 @@ namespace Mavi
 
 				return Result;
 			}
-			Core::Promise<Core::Schema*> Client::JSON(HTTP::RequestFrame&& Root, size_t MaxSize)
+			Core::ExpectedPromise<Core::Schema*> Client::JSON(HTTP::RequestFrame&& Root, size_t MaxSize)
 			{
-				return Fetch(std::move(Root), MaxSize).Then<Core::Schema*>([this](bool&& Result)
+				return Fetch(std::move(Root), MaxSize).Then<Core::Expected<Core::Schema*>>([this](Core::Expected<void>&& Result) -> Core::Expected<Core::Schema*>
 				{
 					if (!Result)
-						return (Core::Schema*)nullptr;
+						return Result.Error();
 
-					return Core::Schema::ConvertFromJSON(Response.Content.Data.data(), Response.Content.Data.size(), false);
+					auto Data = Core::Schema::ConvertFromJSON(Response.Content.Data.data(), Response.Content.Data.size());
+					if (!Data)
+						return std::make_error_condition(std::errc::bad_message);
+
+					return *Data;
 				});
 			}
-			Core::Promise<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, size_t MaxSize)
+			Core::ExpectedPromise<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, size_t MaxSize)
 			{
-				return Fetch(std::move(Root), MaxSize).Then<Core::Schema*>([this](bool&& Result)
+				return Fetch(std::move(Root), MaxSize).Then<Core::Expected<Core::Schema*>>([this](Core::Expected<void>&& Result) -> Core::Expected<Core::Schema*>
 				{
 					if (!Result)
-						return (Core::Schema*)nullptr;
+						return Result.Error();
 
-					return Core::Schema::ConvertFromXML(Response.Content.Data.data(), false);
+					auto Data = Core::Schema::ConvertFromXML(Response.Content.Data.data());
+					if (!Data)
+						return std::make_error_condition(std::errc::bad_message);
+
+					return *Data;
 				});
+			}
+			void Client::Downgrade()
+			{
+				VI_ASSERT(WebSocket != nullptr, "websocket should be opened");
+				VI_ASSERT(WebSocket->IsFinished(), "websocket connection should be finished");
+				VI_CLEAR(WebSocket);
 			}
 			WebSocketFrame* Client::GetWebSocket()
 			{
@@ -6030,7 +6105,7 @@ namespace Mavi
 				};
 				WebSocket->Lifetime.Close = [this](WebSocketFrame*)
 				{
-					Future.Set(true);
+					Future.Set(Core::Optional::OK);
 				};
 
 				return WebSocket;
@@ -6046,7 +6121,9 @@ namespace Mavi
 			bool Client::Receive()
 			{
 				Stage("http response receive");
-				strncpy(RemoteAddress, Stream.GetRemoteAddress().c_str(), sizeof(RemoteAddress));
+				auto Address = Stream.GetRemoteAddress();
+				if (Address)
+					strncpy(RemoteAddress, Address->c_str(), std::min(Address->size(), sizeof(RemoteAddress)));
 
 				Parser* Parser = new HTTP::Parser();
 				Parser->OnMethodValue = Parsing::ParseMethodValue;
@@ -6068,7 +6145,7 @@ namespace Mavi
 				Response.Content.Data.clear();
 
 				VI_RELEASE(Parser);
-				return Success(0);
+				return Report(Core::Optional::OK);
 			}
 		}
 	}

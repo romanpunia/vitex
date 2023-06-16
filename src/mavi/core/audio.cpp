@@ -94,14 +94,42 @@ namespace Mavi
 			LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTF, alGetAuxiliaryEffectSlotf);
 			LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTFV, alGetAuxiliaryEffectSlotfv);
 #endif
-			Effects::EffectContext::Initialize();
-			Filters::FilterContext::Initialize();
 		}
 		void AudioContext::GenerateBuffers(int Count, unsigned int* Buffers)
 		{
 			VI_TRACE("[audio] generate %i buffers", Count);
 #ifdef VI_OPENAL
 			alGenBuffers(Count, Buffers);
+#endif
+		}
+		void AudioContext::SetFilter1I(unsigned int Filter, FilterEx Value, int F1)
+		{
+#ifdef VI_OPENAL
+			alFilteri(Filter, (uint32_t)Value, F1);
+#endif
+		}
+		void AudioContext::SetFilter1F(unsigned int Filter, FilterEx Value, float F1)
+		{
+#ifdef VI_OPENAL
+			alFilterf(Filter, (uint32_t)Value, F1);
+#endif
+		}
+		void AudioContext::SetEffect1I(unsigned int Filter, EffectEx Value, int F1)
+		{
+#ifdef VI_OPENAL
+			alEffecti(Filter, (uint32_t)Value, F1);
+#endif
+		}
+		void AudioContext::SetEffect1F(unsigned int Filter, EffectEx Value, float F1)
+		{
+#ifdef VI_OPENAL
+			alEffectf(Filter, (uint32_t)Value, F1);
+#endif
+		}
+		void AudioContext::SetEffectVF(unsigned int Filter, EffectEx Value, float* FS)
+		{
+#ifdef VI_OPENAL
+			alEffectfv(Filter, (uint32_t)Value, FS);
 #endif
 		}
 		void AudioContext::SetBufferData(unsigned int Buffer, int Format, const void* Data, int Size, int Frequency)
@@ -253,6 +281,11 @@ namespace Mavi
 #ifdef VI_OPENAL
 			alGetListeneri((uint32_t)Listener, F1);
 #endif
+		}
+		uint32_t AudioContext::GetEnumValue(const char* Name)
+		{
+			VI_ASSERT(Name != nullptr, "name should be set");
+			return (uint32_t)alGetEnumValue(Name);
 		}
 
 		AudioFilter::AudioFilter() noexcept

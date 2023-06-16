@@ -1798,7 +1798,7 @@ namespace Mavi
 
 		protected:
 			virtual TextureCube* CreateTextureCubeInternal(void* Resource[6]) = 0;
-			Core::String GetProgramName(const Shader::Desc& Desc);
+			Core::Option<Core::String> GetProgramName(const Shader::Desc& Desc);
 			bool GetProgramCache(const Core::String& Name, Core::String* Data);
 			bool SetProgramCache(const Core::String& Name, const Core::String& Data);
 			void CreateStates();

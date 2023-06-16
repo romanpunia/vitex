@@ -25,6 +25,8 @@ namespace Mavi
 
 		struct Function;
 
+		struct FunctionDelegate;
+
 		class VirtualMachine;
 
 		class ImmediateContext;
@@ -331,6 +333,14 @@ namespace Mavi
 			All = (CLibraries | CFunctions | Addons | Files | Remotes)
 		};
 
+		enum class GarbageCollector
+		{
+			FULL_CYCLE = 1,
+			ONE_STEP = 2,
+			DESTROY_GARBAGE = 4,
+			DETECT_GARBAGE = 8
+		};
+
 		inline ObjectBehaviours operator |(ObjectBehaviours A, ObjectBehaviours B)
 		{
 			return static_cast<ObjectBehaviours>(static_cast<size_t>(A) | static_cast<size_t>(B));
@@ -343,6 +353,10 @@ namespace Mavi
 		{
 			return static_cast<Imports>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
+		inline GarbageCollector operator |(GarbageCollector A, GarbageCollector B)
+		{
+			return static_cast<GarbageCollector>(static_cast<size_t>(A) | static_cast<size_t>(B));
+		}
 
 		typedef void(DummyPtr::* DummyMethodPtr)();
 		typedef void(*FunctionPtr)();
@@ -351,7 +365,13 @@ namespace Mavi
 		typedef std::function<void(class VirtualMachine*)> AddonCallback;
 		typedef std::function<void(class ImmediateContext*)> ArgsCallback;
 
-		class VI_OUT TypeCache
+		template <typename T>
+		using ExpectedReturn = Core::Expects<T, Errors>;
+
+		template <typename T>
+		using ExpectedFuture = Core::Promise<ExpectedReturn<T>>;
+
+		class VI_OUT TypeCache : public Core::Singletonish
 		{
 		private:
 			static Core::Mapping<Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>>* Names;
@@ -359,7 +379,7 @@ namespace Mavi
 		public:
 			static uint64_t Set(uint64_t Id, const Core::String& Name);
 			static int GetTypeId(uint64_t Id);
-			static void FreeProxy();
+			static void Cleanup();
 		};
 
 		class VI_OUT_TS FunctionFactory
@@ -368,10 +388,30 @@ namespace Mavi
 			static Core::Unique<asSFuncPtr> CreateFunctionBase(void(*Base)(), int Type);
 			static Core::Unique<asSFuncPtr> CreateMethodBase(const void* Base, size_t Size, int Type);
 			static Core::Unique<asSFuncPtr> CreateDummyBase();
+			static ExpectedReturn<void> AtomicNotifyGC(const char* TypeName, void* Object);
+			static ExpectedReturn<void> AtomicNotifyGCById(int TypeId, void* Object);
 			static void ReplacePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<Core::String(const Core::String& Expression)>& Replacer);
 			static void ReleaseFunctor(Core::Unique<asSFuncPtr>* Ptr);
-			static int AtomicNotifyGC(const char* TypeName, void* Object);
-			static int AtomicNotifyGCById(int TypeId, void* Object);
+			static void GCEnumCallback(asIScriptEngine* Engine, void* Reference);
+			static void GCEnumCallback(asIScriptEngine* Engine, asIScriptFunction* Reference);
+			static void GCEnumCallback(asIScriptEngine* Engine, FunctionDelegate* Reference);
+
+		public:
+			template <typename T>
+			static ExpectedReturn<T> ToReturn(int Code, T&& Value)
+			{
+				if (Code < 0)
+					return (Errors)Code;
+
+				return Value;
+			}
+			static ExpectedReturn<void> ToReturn(int Code)
+			{
+				if (Code < 0)
+					return (Errors)Code;
+
+				return Core::Optional::OK;
+			}
 		};
 
 		template <int N>
@@ -448,26 +488,26 @@ namespace Mavi
 			GenericContext(asIScriptGeneric* Base) noexcept;
 			void* GetObjectAddress();
 			int GetObjectTypeId() const;
-			int GetArgsCount() const;
-			int GetArgTypeId(unsigned int Argument, size_t* Flags = 0) const;
-			unsigned char GetArgByte(unsigned int Argument);
-			unsigned short GetArgWord(unsigned int Argument);
-			size_t GetArgDWord(unsigned int Argument);
-			uint64_t GetArgQWord(unsigned int Argument);
-			float GetArgFloat(unsigned int Argument);
-			double GetArgDouble(unsigned int Argument);
-			void* GetArgAddress(unsigned int Argument);
-			void* GetArgObjectAddress(unsigned int Argument);
-			void* GetAddressOfArg(unsigned int Argument);
+			size_t GetArgsCount() const;
+			ExpectedReturn<void> GetArgTypeId(size_t Argument, size_t* Flags = 0) const;
+			unsigned char GetArgByte(size_t Argument);
+			unsigned short GetArgWord(size_t Argument);
+			size_t GetArgDWord(size_t Argument);
+			uint64_t GetArgQWord(size_t Argument);
+			float GetArgFloat(size_t Argument);
+			double GetArgDouble(size_t Argument);
+			void* GetArgAddress(size_t Argument);
+			void* GetArgObjectAddress(size_t Argument);
+			void* GetAddressOfArg(size_t Argument);
 			int GetReturnTypeId(size_t* Flags = 0) const;
-			int SetReturnByte(unsigned char Value);
-			int SetReturnWord(unsigned short Value);
-			int SetReturnDWord(size_t Value);
-			int SetReturnQWord(uint64_t Value);
-			int SetReturnFloat(float Value);
-			int SetReturnDouble(double Value);
-			int SetReturnAddress(void* Address);
-			int SetReturnObjectAddress(void* Object);
+			ExpectedReturn<void> SetReturnByte(unsigned char Value);
+			ExpectedReturn<void> SetReturnWord(unsigned short Value);
+			ExpectedReturn<void> SetReturnDWord(size_t Value);
+			ExpectedReturn<void> SetReturnQWord(uint64_t Value);
+			ExpectedReturn<void> SetReturnFloat(float Value);
+			ExpectedReturn<void> SetReturnDouble(double Value);
+			ExpectedReturn<void> SetReturnAddress(void* Address);
+			ExpectedReturn<void> SetReturnObjectAddress(void* Object);
 			void* GetAddressOfReturnLocation();
 			bool IsValid() const;
 			asIScriptGeneric* GetGeneric() const;
@@ -475,12 +515,12 @@ namespace Mavi
 
 		public:
 			template <typename T>
-			int SetReturnObject(T* Object)
+			ExpectedReturn<void> SetReturnObject(T* Object)
 			{
 				return SetReturnObjectAddress((void*)Object);
 			}
 			template <typename T>
-			T* GetArgObject(unsigned int Arg)
+			T* GetArgObject(size_t Arg)
 			{
 				return (T*)GetArgObjectAddress(Arg);
 			}
@@ -693,38 +733,38 @@ namespace Mavi
 			const char* GetGroup() const;
 			size_t GetAccessMask() const;
 			Module GetModule() const;
-			int AddRef() const;
-			int Release();
+			void AddRef() const;
+			void Release();
 			const char* GetName() const;
 			const char* GetNamespace() const;
 			TypeInfo GetBaseType() const;
 			bool DerivesFrom(const TypeInfo& Type) const;
 			size_t GetFlags() const;
-			unsigned int GetSize() const;
+			size_t GetSize() const;
 			int GetTypeId() const;
-			int GetSubTypeId(unsigned int SubTypeIndex = 0) const;
-			TypeInfo GetSubType(unsigned int SubTypeIndex = 0) const;
-			unsigned int GetSubTypeCount() const;
-			unsigned int GetInterfaceCount() const;
-			TypeInfo GetInterface(unsigned int Index) const;
+			int GetSubTypeId(size_t SubTypeIndex = 0) const;
+			TypeInfo GetSubType(size_t SubTypeIndex = 0) const;
+			size_t GetSubTypeCount() const;
+			size_t GetInterfaceCount() const;
+			TypeInfo GetInterface(size_t Index) const;
 			bool Implements(const TypeInfo& Type) const;
-			unsigned int GetFactoriesCount() const;
-			Function GetFactoryByIndex(unsigned int Index) const;
+			size_t GetFactoriesCount() const;
+			Function GetFactoryByIndex(size_t Index) const;
 			Function GetFactoryByDecl(const char* Decl) const;
-			unsigned int GetMethodsCount() const;
-			Function GetMethodByIndex(unsigned int Index, bool GetVirtual = true) const;
+			size_t GetMethodsCount() const;
+			Function GetMethodByIndex(size_t Index, bool GetVirtual = true) const;
 			Function GetMethodByName(const char* Name, bool GetVirtual = true) const;
 			Function GetMethodByDecl(const char* Decl, bool GetVirtual = true) const;
-			unsigned int GetPropertiesCount() const;
-			int GetProperty(unsigned int Index, FunctionInfo* Out) const;
-			const char* GetPropertyDeclaration(unsigned int Index, bool IncludeNamespace = false) const;
-			unsigned int GetBehaviourCount() const;
-			Function GetBehaviourByIndex(unsigned int Index, Behaviours* OutBehaviour) const;
-			unsigned int GetChildFunctionDefCount() const;
-			TypeInfo GetChildFunctionDef(unsigned int Index) const;
+			size_t GetPropertiesCount() const;
+			ExpectedReturn<void> GetProperty(size_t Index, FunctionInfo* Out) const;
+			const char* GetPropertyDeclaration(size_t Index, bool IncludeNamespace = false) const;
+			size_t GetBehaviourCount() const;
+			Function GetBehaviourByIndex(size_t Index, Behaviours* OutBehaviour) const;
+			size_t GetChildFunctionDefCount() const;
+			TypeInfo GetChildFunctionDef(size_t Index) const;
 			TypeInfo GetParentType() const;
-			unsigned int GetEnumValueCount() const;
-			const char* GetEnumValueByIndex(unsigned int Index, int* OutValue) const;
+			size_t GetEnumValueCount() const;
+			const char* GetEnumValueByIndex(size_t Index, int* OutValue) const;
 			Function GetFunctionDefSignature() const;
 			void* SetUserData(void* Data, size_t Type = 0);
 			void* GetUserData(size_t Type = 0) const;
@@ -787,8 +827,8 @@ namespace Mavi
 		public:
 			Function(asIScriptFunction* Base) noexcept;
 			Function(const Function& Base) noexcept;
-			int AddRef() const;
-			int Release();
+			void AddRef() const;
+			void Release();
 			int GetId() const;
 			FunctionType GetType() const;
 			uint32_t* GetByteCode(size_t* Size = nullptr) const;
@@ -810,17 +850,17 @@ namespace Mavi
 			bool IsShared() const;
 			bool IsExplicit() const;
 			bool IsProperty() const;
-			unsigned int GetArgsCount() const;
-			int GetArg(unsigned int Index, int* TypeId, size_t* Flags = nullptr, const char** Name = nullptr, const char** DefaultArg = nullptr) const;
+			size_t GetArgsCount() const;
+			ExpectedReturn<void> GetArg(size_t Index, int* TypeId, size_t* Flags = nullptr, const char** Name = nullptr, const char** DefaultArg = nullptr) const;
 			int GetReturnTypeId(size_t* Flags = nullptr) const;
 			int GetTypeId() const;
 			bool IsCompatibleWithTypeId(int TypeId) const;
 			void* GetDelegateObject() const;
 			TypeInfo GetDelegateObjectType() const;
 			Function GetDelegateFunction() const;
-			unsigned int GetPropertiesCount() const;
-			int GetProperty(unsigned int Index, const char** Name, int* TypeId = nullptr) const;
-			const char* GetPropertyDecl(unsigned int Index, bool IncludeNamespace = false) const;
+			size_t GetPropertiesCount() const;
+			ExpectedReturn<void> GetProperty(size_t Index, const char** Name, int* TypeId = nullptr) const;
+			const char* GetPropertyDecl(size_t Index, bool IncludeNamespace = false) const;
 			int FindNextLineWithCode(int Line) const;
 			void* SetUserData(void* UserData, size_t Type = 0);
 			void* GetUserData(size_t Type = 0) const;
@@ -836,14 +876,14 @@ namespace Mavi
 
 		public:
 			ScriptObject(asIScriptObject* Base) noexcept;
-			int AddRef() const;
-			int Release();
+			void AddRef() const;
+			void Release();
 			TypeInfo GetObjectType();
 			int GetTypeId();
-			int GetPropertyTypeId(unsigned int Id) const;
-			unsigned int GetPropertiesCount() const;
-			const char* GetPropertyName(unsigned int Id) const;
-			void* GetAddressOfProperty(unsigned int Id);
+			int GetPropertyTypeId(size_t Id) const;
+			size_t GetPropertiesCount() const;
+			const char* GetPropertyName(size_t Id) const;
+			void* GetAddressOfProperty(size_t Id);
 			VirtualMachine* GetVM() const;
 			int CopyFrom(const ScriptObject& Other);
 			void* SetUserData(void* Data, size_t Type = 0);
@@ -861,17 +901,17 @@ namespace Mavi
 
 		public:
 			BaseClass(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept;
-			int SetFunctionDef(const char* Decl);
-			int SetOperatorCopyAddress(asSFuncPtr* Value, FunctionCall = FunctionCall::THISCALL);
-			int SetBehaviourAddress(const char* Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall = FunctionCall::THISCALL);
-			int SetPropertyAddress(const char* Decl, int Offset);
-			int SetPropertyStaticAddress(const char* Decl, void* Value);
-			int SetOperatorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::THISCALL);
-			int SetMethodAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::THISCALL);
-			int SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECLF);
-			int SetConstructorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECL_OBJFIRST);
-			int SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECL_OBJFIRST);
-			int SetDestructorAddress(const char* Decl, asSFuncPtr* Value);
+			ExpectedReturn<void> SetFunctionDef(const char* Decl);
+			ExpectedReturn<void> SetOperatorCopyAddress(asSFuncPtr* Value, FunctionCall = FunctionCall::THISCALL);
+			ExpectedReturn<void> SetBehaviourAddress(const char* Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall = FunctionCall::THISCALL);
+			ExpectedReturn<void> SetPropertyAddress(const char* Decl, int Offset);
+			ExpectedReturn<void> SetPropertyStaticAddress(const char* Decl, void* Value);
+			ExpectedReturn<void> SetOperatorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::THISCALL);
+			ExpectedReturn<void> SetMethodAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::THISCALL);
+			ExpectedReturn<void> SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECLF);
+			ExpectedReturn<void> SetConstructorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECL_OBJFIRST);
+			ExpectedReturn<void> SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECL_OBJFIRST);
+			ExpectedReturn<void> SetDestructorAddress(const char* Decl, asSFuncPtr* Value);
 			int GetTypeId() const;
 			bool IsValid() const;
 			Core::String GetName() const;
@@ -882,253 +922,226 @@ namespace Mavi
 
 		public:
 			template <typename T>
-			int SetEnumRefs(void(T::* Value)(asIScriptEngine*))
+			ExpectedReturn<void> SetEnumRefs(void(T::* Value)(asIScriptEngine*))
 			{
 				asSFuncPtr* EnumRefs = Bridge::Method<T>(Value);
-				int Result = SetBehaviourAddress("void f(int &in)", Behaviours::ENUMREFS, EnumRefs, FunctionCall::THISCALL);
+				auto Result = SetBehaviourAddress("void f(int &in)", Behaviours::ENUMREFS, EnumRefs, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&EnumRefs);
-
 				return Result;
 			}
 			template <typename T>
-			int SetReleaseRefs(void(T::* Value)(asIScriptEngine*))
+			ExpectedReturn<void> SetReleaseRefs(void(T::* Value)(asIScriptEngine*))
 			{
 				asSFuncPtr* ReleaseRefs = Bridge::Method<T>(Value);
-				int Result = SetBehaviourAddress("void f(int &in)", Behaviours::RELEASEREFS, ReleaseRefs, FunctionCall::THISCALL);
+				auto Result = SetBehaviourAddress("void f(int &in)", Behaviours::RELEASEREFS, ReleaseRefs, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&ReleaseRefs);
-
 				return Result;
 			}
 			template <typename T>
-			int SetEnumRefsEx(void(*Value)(T*, asIScriptEngine*))
+			ExpectedReturn<void> SetEnumRefsEx(void(*Value)(T*, asIScriptEngine*))
 			{
 				asSFuncPtr* EnumRefs = Bridge::Function<void(*)(T*, asIScriptEngine*)>(Value);
-				int Result = SetBehaviourAddress("void f(int &in)", Behaviours::ENUMREFS, EnumRefs, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetBehaviourAddress("void f(int &in)", Behaviours::ENUMREFS, EnumRefs, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&EnumRefs);
-
 				return Result;
 			}
 			template <typename T>
-			int SetReleaseRefsEx(void(*Value)(T*, asIScriptEngine*))
+			ExpectedReturn<void> SetReleaseRefsEx(void(*Value)(T*, asIScriptEngine*))
 			{
 				asSFuncPtr* ReleaseRefs = Bridge::Function<void(*)(T*, asIScriptEngine*)>(Value);
-				int Result = SetBehaviourAddress("void f(int &in)", Behaviours::RELEASEREFS, ReleaseRefs, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetBehaviourAddress("void f(int &in)", Behaviours::RELEASEREFS, ReleaseRefs, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&ReleaseRefs);
-
 				return Result;
 			}
 			template <typename T, typename R>
-			int SetProperty(const char* Decl, R T::* Value)
+			ExpectedReturn<void> SetProperty(const char* Decl, R T::* Value)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				return SetPropertyAddress(Decl, (int)reinterpret_cast<size_t>(&(((T*)0)->*Value)));
 			}
 			template <typename T, typename R>
-			int SetPropertyArray(const char* Decl, R T::* Value, size_t ElementsCount)
+			ExpectedReturn<void> SetPropertyArray(const char* Decl, R T::* Value, size_t ElementsCount)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				for (size_t i = 0; i < ElementsCount; i++)
 				{
 					Core::String ElementDecl = Decl + Core::ToString(i);
-					int RE = SetPropertyAddress(ElementDecl.c_str(), (int)reinterpret_cast<size_t>(&(((T*)0)->*Value)) + (int)(sizeof(R) * i));
-					if (RE < 0)
-						return RE;
+					auto Result = SetPropertyAddress(ElementDecl.c_str(), (int)reinterpret_cast<size_t>(&(((T*)0)->*Value)) + (int)(sizeof(R) * i));
+					if (!Result)
+						return Result;
 				}
-
-				return 0;
+				return Core::Optional::OK;
 			}
 			template <typename T>
-			int SetPropertyStatic(const char* Decl, T* Value)
+			ExpectedReturn<void> SetPropertyStatic(const char* Decl, T* Value)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				return SetPropertyStaticAddress(Decl, (void*)Value);
 			}
 			template <typename T, typename R>
-			int SetGetter(const char* Type, const char* Name, R(T::* Value)())
+			ExpectedReturn<void> SetGetter(const char* Type, const char* Name, R(T::* Value)())
 			{
 				VI_ASSERT(Type != nullptr, "type should be set");
 				VI_ASSERT(Name != nullptr, "name should be set");
-
 				asSFuncPtr* Ptr = Bridge::Method<T, R>(Value);
-				int Result = SetMethodAddress(Core::Stringify::Text("%s get_%s()", Type, Name).c_str(), Ptr, FunctionCall::THISCALL);
+				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s()", Type, Name).c_str(), Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T, typename R>
-			int SetGetterEx(const char* Type, const char* Name, R(*Value)(T*))
+			ExpectedReturn<void> SetGetterEx(const char* Type, const char* Name, R(*Value)(T*))
 			{
 				VI_ASSERT(Type != nullptr, "type should be set");
 				VI_ASSERT(Name != nullptr, "name should be set");
-
 				asSFuncPtr* Ptr = Bridge::Function(Value);
-				int Result = SetMethodAddress(Core::Stringify::Text("%s get_%s()", Type, Name).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s()", Type, Name).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T, typename R>
-			int SetSetter(const char* Type, const char* Name, void(T::* Value)(R))
+			ExpectedReturn<void> SetSetter(const char* Type, const char* Name, void(T::* Value)(R))
 			{
 				VI_ASSERT(Type != nullptr, "type should be set");
 				VI_ASSERT(Name != nullptr, "name should be set");
-
 				asSFuncPtr* Ptr = Bridge::Method<T, void, R>(Value);
-				int Result = SetMethodAddress(Core::Stringify::Text("void set_%s(%s)", Name, Type).c_str(), Ptr, FunctionCall::THISCALL);
+				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(%s)", Name, Type).c_str(), Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T, typename R>
-			int SetSetterEx(const char* Type, const char* Name, void(*Value)(T*, R))
+			ExpectedReturn<void> SetSetterEx(const char* Type, const char* Name, void(*Value)(T*, R))
 			{
 				VI_ASSERT(Type != nullptr, "type should be set");
 				VI_ASSERT(Name != nullptr, "name should be set");
-
 				asSFuncPtr* Ptr = Bridge::Function(Value);
-				int Result = SetMethodAddress(Core::Stringify::Text("void set_%s(%s)", Name, Type).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(%s)", Name, Type).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T, typename R>
-			int SetArrayGetter(const char* Type, const char* Name, R(T::* Value)(unsigned int))
+			ExpectedReturn<void> SetArrayGetter(const char* Type, const char* Name, R(T::* Value)(unsigned int))
 			{
 				VI_ASSERT(Type != nullptr, "type should be set");
 				VI_ASSERT(Name != nullptr, "name should be set");
-
 				asSFuncPtr* Ptr = Bridge::Method<T, R, unsigned int>(Value);
-				int Result = SetMethodAddress(Core::Stringify::Text("%s get_%s(uint)", Type, Name).c_str(), Ptr, FunctionCall::THISCALL);
+				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s(uint)", Type, Name).c_str(), Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T, typename R>
-			int SetArrayGetterEx(const char* Type, const char* Name, R(*Value)(T*, unsigned int))
+			ExpectedReturn<void> SetArrayGetterEx(const char* Type, const char* Name, R(*Value)(T*, unsigned int))
 			{
 				VI_ASSERT(Type != nullptr, "type should be set");
 				VI_ASSERT(Name != nullptr, "name should be set");
-
 				asSFuncPtr* Ptr = Bridge::Function(Value);
-				int Result = SetMethodAddress(Core::Stringify::Text("%s get_%s(uint)", Type, Name).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s(uint)", Type, Name).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T, typename R>
-			int SetArraySetter(const char* Type, const char* Name, void(T::* Value)(unsigned int, R))
+			ExpectedReturn<void> SetArraySetter(const char* Type, const char* Name, void(T::* Value)(unsigned int, R))
 			{
 				VI_ASSERT(Type != nullptr, "type should be set");
 				VI_ASSERT(Name != nullptr, "name should be set");
-
 				asSFuncPtr* Ptr = Bridge::Method<T, void, unsigned int, R>(Value);
-				int Result = SetMethodAddress(Core::Stringify::Text("void set_%s(uint, %s)", Name, Type).c_str(), Ptr, FunctionCall::THISCALL);
+				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(uint, %s)", Name, Type).c_str(), Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T, typename R>
-			int SetArraySetterEx(const char* Type, const char* Name, void(*Value)(T*, unsigned int, R))
+			ExpectedReturn<void> SetArraySetterEx(const char* Type, const char* Name, void(*Value)(T*, unsigned int, R))
 			{
 				VI_ASSERT(Type != nullptr, "type should be set");
 				VI_ASSERT(Name != nullptr, "name should be set");
-
 				asSFuncPtr* Ptr = Bridge::Function(Value);
-				int Result = SetMethodAddress(Core::Stringify::Text("void set_%s(uint, %s)", Name, Type).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(uint, %s)", Name, Type).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T, typename R, typename... A>
-			int SetOperator(Operators Type, uint32_t Opts, const char* Out, const char* Args, R(T::* Value)(A...))
+			ExpectedReturn<void> SetOperator(Operators Type, uint32_t Opts, const char* Out, const char* Args, R(T::* Value)(A...))
 			{
 				VI_ASSERT(Out != nullptr, "output should be set");
 				Core::String Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
-
 				VI_ASSERT(!Operator.empty(), "resulting operator should not be empty");
 				asSFuncPtr* Ptr = Bridge::Method<T, R, A...>(Value);
-				int Result = SetOperatorAddress(Operator.c_str(), Ptr, FunctionCall::THISCALL);
+				auto Result = SetOperatorAddress(Operator.c_str(), Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename R, typename... A>
-			int SetOperatorEx(Operators Type, uint32_t Opts, const char* Out, const char* Args, R(*Value)(A...))
+			ExpectedReturn<void> SetOperatorEx(Operators Type, uint32_t Opts, const char* Out, const char* Args, R(*Value)(A...))
 			{
 				VI_ASSERT(Out != nullptr, "output should be set");
 				Core::String Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
-
 				VI_ASSERT(!Operator.empty(), "resulting operator should not be empty");
 				asSFuncPtr* Ptr = Bridge::Function(Value);
-				int Result = SetOperatorAddress(Operator.c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetOperatorAddress(Operator.c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T>
-			int SetOperatorCopy()
+			ExpectedReturn<void> SetOperatorCopy()
 			{
 				asSFuncPtr* Ptr = Bridge::MethodOp<T, T&, const T&>(&T::operator =);
-				int Result = SetOperatorCopyAddress(Ptr, FunctionCall::THISCALL);
+				auto Result = SetOperatorCopyAddress(Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename R, typename... Args>
-			int SetOperatorCopyStatic(R(*Value)(Args...), FunctionCall Type = FunctionCall::CDECLF)
+			ExpectedReturn<void> SetOperatorCopyStatic(R(*Value)(Args...), FunctionCall Type = FunctionCall::CDECLF)
 			{
 				asSFuncPtr* Ptr = (Type == FunctionCall::GENERIC ? Bridge::FunctionGeneric<R(*)(Args...)>(Value) : Bridge::Function<R(*)(Args...)>(Value));
-				int Result = SetOperatorCopyAddress(Ptr, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetOperatorCopyAddress(Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T, typename R, typename... Args>
-			int SetMethod(const char* Decl, R(T::* Value)(Args...))
+			ExpectedReturn<void> SetMethod(const char* Decl, R(T::* Value)(Args...))
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Method<T, R, Args...>(Value);
-				int Result = SetMethodAddress(Decl, Ptr, FunctionCall::THISCALL);
+				auto Result = SetMethodAddress(Decl, Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T, typename R, typename... Args>
-			int SetMethod(const char* Decl, R(T::* Value)(Args...) const)
+			ExpectedReturn<void> SetMethod(const char* Decl, R(T::* Value)(Args...) const)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Method<T, R, Args...>(Value);
-				int Result = SetMethodAddress(Decl, Ptr, FunctionCall::THISCALL);
+				auto Result = SetMethodAddress(Decl, Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename R, typename... Args>
-			int SetMethodEx(const char* Decl, R(*Value)(Args...))
+			ExpectedReturn<void> SetMethodEx(const char* Decl, R(*Value)(Args...))
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function<R(*)(Args...)>(Value);
-				int Result = SetMethodAddress(Decl, Ptr, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetMethodAddress(Decl, Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename R, typename... Args>
-			int SetMethodStatic(const char* Decl, R(*Value)(Args...), FunctionCall Type = FunctionCall::CDECLF)
+			ExpectedReturn<void> SetMethodStatic(const char* Decl, R(*Value)(Args...), FunctionCall Type = FunctionCall::CDECLF)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = (Type == FunctionCall::GENERIC ? Bridge::FunctionGeneric<R(*)(Args...)>(Value) : Bridge::Function<R(*)(Args...)>(Value));
-				int Result = SetMethodStaticAddress(Decl, Ptr, Type);
+				auto Result = SetMethodStaticAddress(Decl, Ptr, Type);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T, typename To>
-			void SetDynamicCast(const char* ToDecl, bool Implicit = false)
+			ExpectedReturn<void> SetDynamicCast(const char* ToDecl, bool Implicit = false)
 			{
 				auto Type = Implicit ? Operators::ImplCast : Operators::Cast;
-				SetOperatorEx(Type, 0, ToDecl, "", &BaseClass::DynamicCastFunction<T, To>);
-				SetOperatorEx(Type, (uint32_t)Position::Const, ToDecl, "", &BaseClass::DynamicCastFunction<T, To>);
+				auto Result1 = SetOperatorEx(Type, 0, ToDecl, "", &BaseClass::DynamicCastFunction<T, To>);
+				if (!Result1)
+					return Result1;
+
+				auto Result2 = SetOperatorEx(Type, (uint32_t)Position::Const, ToDecl, "", &BaseClass::DynamicCastFunction<T, To>);
+				return Result2;
 			}
 
 		private:
@@ -1148,133 +1161,120 @@ namespace Mavi
 
 		public:
 			template <typename T, typename... Args>
-			int SetConstructor(const char* Decl)
+			ExpectedReturn<void> SetConstructor(const char* Decl)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::Function(&Bridge::GetUnmanagedCall<T, Args...>);
-				int Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::CDECLF);
+				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::CDECLF);
 				FunctionFactory::ReleaseFunctor(&Functor);
-
 				return Result;
 			}
 			template <typename T, asIScriptGeneric*>
-			int SetConstructor(const char* Decl)
+			ExpectedReturn<void> SetConstructor(const char* Decl)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetUnmanagedCall<T, asIScriptGeneric*>);
-				int Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::GENERIC);
+				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
-
 				return Result;
 			}
 			template <typename T>
-			int SetConstructorList(const char* Decl)
+			ExpectedReturn<void> SetConstructorList(const char* Decl)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetUnmanagedListCall<T>);
-				int Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
+				auto Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
-
 				return Result;
 			}
 			template <typename T>
-			int SetConstructorListEx(const char* Decl, void(*Value)(asIScriptGeneric*))
+			ExpectedReturn<void> SetConstructorListEx(const char* Decl, void(*Value)(asIScriptGeneric*))
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(Value);
-				int Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
+				auto Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
-
 				return Result;
 			}
 			template <typename T, uint64_t TypeName, typename... Args>
-			int SetGcConstructor(const char* Decl)
+			ExpectedReturn<void> SetGcConstructor(const char* Decl)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::Function(&Bridge::GetManagedCall<T, TypeName, Args...>);
-				int Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::CDECLF);
+				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::CDECLF);
 				FunctionFactory::ReleaseFunctor(&Functor);
-
 				return Result;
 			}
 			template <typename T, uint64_t TypeName, asIScriptGeneric*>
-			int SetGcConstructor(const char* Decl)
+			ExpectedReturn<void> SetGcConstructor(const char* Decl)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetManagedCall<T, TypeName, asIScriptGeneric*>);
-				int Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::GENERIC);
+				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
-
 				return Result;
 			}
 			template <typename T, uint64_t TypeName>
-			int SetGcConstructorList(const char* Decl)
+			ExpectedReturn<void> SetGcConstructorList(const char* Decl)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetManagedListCall<T, TypeName>);
-				int Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
+				auto Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
-
 				return Result;
 			}
 			template <typename T>
-			int SetGcConstructorListEx(const char* Decl, void(*Value)(asIScriptGeneric*))
+			ExpectedReturn<void> SetGcConstructorListEx(const char* Decl, void(*Value)(asIScriptGeneric*))
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(Value);
-				int Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
+				auto Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
-
 				return Result;
 			}
 			template <typename F>
-			int SetAddRef()
+			ExpectedReturn<void> SetAddRef()
 			{
 				auto FactoryPtr = &RefClass::GcAddRef<F>;
 				asSFuncPtr* AddRef = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
-				int Result = SetBehaviourAddress("void f()", Behaviours::ADDREF, AddRef, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetBehaviourAddress("void f()", Behaviours::ADDREF, AddRef, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&AddRef);
-
 				return Result;
 			}
 			template <typename F>
-			int SetRelease()
+			ExpectedReturn<void> SetRelease()
 			{
 				auto FactoryPtr = &RefClass::GcRelease<F>;
 				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
-				int Result = SetBehaviourAddress("void f()", Behaviours::RELEASE, Release, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetBehaviourAddress("void f()", Behaviours::RELEASE, Release, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Release);
-
 				return Result;
 			}
 			template <typename F>
-			int SetMarkRef()
+			ExpectedReturn<void> SetMarkRef()
 			{
 				auto FactoryPtr = &RefClass::GcMarkRef<F>;
 				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
-				int Result = SetBehaviourAddress("void f()", Behaviours::SETGCFLAG, Release, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetBehaviourAddress("void f()", Behaviours::SETGCFLAG, Release, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Release);
-
 				return Result;
 			}
 			template <typename F>
-			int SetIsMarkedRef()
+			ExpectedReturn<void> SetIsMarkedRef()
 			{
 				auto FactoryPtr = &RefClass::GcIsMarkedRef<F>;
 				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
-				int Result = SetBehaviourAddress("bool f()", Behaviours::GETGCFLAG, Release, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetBehaviourAddress("bool f()", Behaviours::GETGCFLAG, Release, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Release);
-
 				return Result;
 			}
 			template <typename F>
-			int SetRefCount()
+			ExpectedReturn<void> SetRefCount()
 			{
 				auto FactoryPtr = &RefClass::GcGetRefCount<F>;
 				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
-				int Result = SetBehaviourAddress("int f()", Behaviours::GETREFCOUNT, Release, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetBehaviourAddress("int f()", Behaviours::GETREFCOUNT, Release, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Release);
-
 				return Result;
 			}
 
@@ -1315,53 +1315,48 @@ namespace Mavi
 
 		public:
 			template <typename T, typename... Args>
-			int SetConstructor(const char* Decl)
+			ExpectedReturn<void> SetConstructor(const char* Decl)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function(&Bridge::GetConstructorCall<T, Args...>);
-				int Result = SetConstructorAddress(Decl, Ptr, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetConstructorAddress(Decl, Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T, asIScriptGeneric*>
-			int SetConstructor(const char* Decl)
+			ExpectedReturn<void> SetConstructor(const char* Decl)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::FunctionGeneric(&Bridge::GetConstructorCall<T, asIScriptGeneric*>);
-				int Result = SetConstructorAddress(Decl, Ptr, FunctionCall::GENERIC);
+				auto Result = SetConstructorAddress(Decl, Ptr, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T>
-			int SetConstructorList(const char* Decl)
+			ExpectedReturn<void> SetConstructorList(const char* Decl)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::FunctionGeneric(&Bridge::GetConstructorListCall<T>);
-				int Result = SetConstructorListAddress(Decl, Ptr, FunctionCall::GENERIC);
+				auto Result = SetConstructorListAddress(Decl, Ptr, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T>
-			int SetDestructor(const char* Decl)
+			ExpectedReturn<void> SetDestructor(const char* Decl)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function(&Bridge::GetDestructorCall<T>);
-				int Result = SetDestructorAddress(Decl, Ptr);
+				auto Result = SetDestructorAddress(Decl, Ptr);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename R, typename... Args>
-			int SetDestructorStatic(const char* Decl, R(*Value)(Args...))
+			ExpectedReturn<void> SetDestructorStatic(const char* Decl, R(*Value)(Args...))
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function<R(*)(Args...)>(Value);
-				int Result = SetDestructorAddress(Decl, Ptr);
+				auto Result = SetDestructorAddress(Decl, Ptr);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 		};
@@ -1375,7 +1370,7 @@ namespace Mavi
 
 		public:
 			TypeInterface(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept;
-			int SetMethod(const char* Decl);
+			ExpectedReturn<void> SetMethod(const char* Decl);
 			int GetTypeId() const;
 			bool IsValid() const;
 			Core::String GetName() const;
@@ -1391,7 +1386,7 @@ namespace Mavi
 
 		public:
 			Enumeration(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept;
-			int SetValue(const char* Name, int Value);
+			ExpectedReturn<void> SetValue(const char* Name, int Value);
 			int GetTypeId() const;
 			bool IsValid() const;
 			Core::String GetName() const;
@@ -1407,32 +1402,32 @@ namespace Mavi
 		public:
 			Module(asIScriptModule* Type) noexcept;
 			void SetName(const char* Name);
-			int AddSection(const char* Name, const char* Code, size_t CodeLength = 0, int LineOffset = 0);
-			int RemoveFunction(const Function& Function);
-			int ResetProperties(asIScriptContext* Context = nullptr);
-			int Build();
-			int LoadByteCode(ByteCodeInfo* Info);
-			int Discard();
-			int BindImportedFunction(size_t ImportIndex, const Function& Function);
-			int UnbindImportedFunction(size_t ImportIndex);
-			int BindAllImportedFunctions();
-			int UnbindAllImportedFunctions();
-			int CompileFunction(const char* SectionName, const char* Code, int LineOffset, size_t CompileFlags, Function* OutFunction);
-			int CompileProperty(const char* SectionName, const char* Code, int LineOffset);
-			int SetDefaultNamespace(const char* Namespace);
+			ExpectedReturn<void> AddSection(const char* Name, const char* Code, size_t CodeLength = 0, int LineOffset = 0);
+			ExpectedReturn<void> RemoveFunction(const Function& Function);
+			ExpectedReturn<void> ResetProperties(asIScriptContext* Context = nullptr);
+			ExpectedReturn<void> Build();
+			ExpectedReturn<void> LoadByteCode(ByteCodeInfo* Info);
+			ExpectedReturn<void> BindImportedFunction(size_t ImportIndex, const Function& Function);
+			ExpectedReturn<void> UnbindImportedFunction(size_t ImportIndex);
+			ExpectedReturn<void> BindAllImportedFunctions();
+			ExpectedReturn<void> UnbindAllImportedFunctions();
+			ExpectedReturn<void> CompileFunction(const char* SectionName, const char* Code, int LineOffset, size_t CompileFlags, Function* OutFunction);
+			ExpectedReturn<void> CompileProperty(const char* SectionName, const char* Code, int LineOffset);
+			ExpectedReturn<void> SetDefaultNamespace(const char* Namespace);
+			ExpectedReturn<void> RemoveProperty(size_t Index);
+			void Discard();
 			void* GetAddressOfProperty(size_t Index);
-			int RemoveProperty(size_t Index);
 			size_t SetAccessMask(size_t AccessMask);
 			size_t GetFunctionCount() const;
 			Function GetFunctionByIndex(size_t Index) const;
 			Function GetFunctionByDecl(const char* Decl) const;
 			Function GetFunctionByName(const char* Name) const;
 			int GetTypeIdByDecl(const char* Decl) const;
-			int GetImportedFunctionIndexByDecl(const char* Decl) const;
-			int SaveByteCode(ByteCodeInfo* Info) const;
-			int GetPropertyIndexByName(const char* Name) const;
-			int GetPropertyIndexByDecl(const char* Decl) const;
-			int GetProperty(size_t Index, PropertyInfo* Out) const;
+			ExpectedReturn<size_t> GetImportedFunctionIndexByDecl(const char* Decl) const;
+			ExpectedReturn<void> SaveByteCode(ByteCodeInfo* Info) const;
+			ExpectedReturn<size_t> GetPropertyIndexByName(const char* Name) const;
+			ExpectedReturn<size_t> GetPropertyIndexByDecl(const char* Decl) const;
+			ExpectedReturn<void> GetProperty(size_t Index, PropertyInfo* Out) const;
 			size_t GetAccessMask() const;
 			size_t GetObjectsCount() const;
 			size_t GetPropertiesCount() const;
@@ -1453,61 +1448,57 @@ namespace Mavi
 
 		public:
 			template <typename T>
-			int SetTypeProperty(const char* Name, T* Value)
+			ExpectedReturn<void> SetTypeProperty(const char* Name, T* Value)
 			{
 				VI_ASSERT(Name != nullptr, "name should be set");
-				int Index = GetPropertyIndexByName(Name);
-				if (Index < 0)
-					return Index;
+				auto Index = GetPropertyIndexByName(Name);
+				if (!Index)
+					return Index.Error();
 
-				T** Address = (T**)GetAddressOfProperty(Index);
+				T** Address = (T**)GetAddressOfProperty(*Index);
 				if (!Address)
-					return -1;
+					return Errors::INVALID_OBJECT;
 
 				*Address = Value;
-				return 0;
+				return Core::Optional::OK;
 			}
 			template <typename T>
-			int SetTypeProperty(const char* Name, const T& Value)
+			ExpectedReturn<void> SetTypeProperty(const char* Name, const T& Value)
 			{
 				VI_ASSERT(Name != nullptr, "name should be set");
-				int Index = GetPropertyIndexByName(Name);
-				if (Index < 0)
-					return Index;
+				auto Index = GetPropertyIndexByName(Name);
+				if (!Index)
+					return Index.Error();
 
-				T* Address = (T*)GetAddressOfProperty(Index);
+				T* Address = (T*)GetAddressOfProperty(*Index);
 				if (!Address)
-					return -1;
+					return Errors::INVALID_OBJECT;
 
 				*Address = Value;
-				return 0;
+				return Core::Optional::OK;
 			}
 			template <typename T>
-			int SetRefProperty(const char* Name, T* Value)
+			ExpectedReturn<void> SetRefProperty(const char* Name, T* Value)
 			{
 				VI_ASSERT(Name != nullptr, "name should be set");
-				int Index = GetPropertyIndexByName(Name);
-				if (Index < 0)
-					return Index;
+				auto Index = GetPropertyIndexByName(Name);
+				if (!Index)
+					return Index.Error();
 
-				T** Address = (T**)GetAddressOfProperty(Index);
+				T** Address = (T**)GetAddressOfProperty(*Index);
 				if (!Address)
-					return -1;
+					return Errors::INVALID_OBJECT;
 
-				if (*Address != nullptr)
-					(*Address)->Release();
-
+				VI_RELEASE(*Address);
 				*Address = (T*)Value;
 				if (*Address != nullptr)
 					(*Address)->AddRef();
-
-				return 0;
+				return Core::Optional::OK;
 			}
 		};
 
 		struct VI_OUT FunctionDelegate
 		{
-			VirtualMachine* VM;
 			ImmediateContext* Context;
 			asIScriptFunction* Callback;
 			asITypeInfo* DelegateType;
@@ -1521,13 +1512,15 @@ namespace Mavi
 			~FunctionDelegate();
 			FunctionDelegate& operator= (const FunctionDelegate& Other);
 			FunctionDelegate& operator= (FunctionDelegate&& Other);
-			Core::Promise<int> operator()(ArgsCallback&& OnArgs, ArgsCallback&& OnReturn = nullptr);
+			ExpectedFuture<Activation> operator()(ArgsCallback&& OnArgs, ArgsCallback&& OnReturn = nullptr);
+			Function Callable() const;
 			bool IsValid() const;
 			void AddRef();
 			void Release();
 
 		private:
-			Core::Promise<int> ExecuteOnNewContext(ArgsCallback&& OnArgs, ArgsCallback&& OnReturn);
+			ExpectedFuture<Activation> ExecuteOnNewContext(ArgsCallback&& OnArgs, ArgsCallback&& OnReturn);
+			void AddRefAndInitialize(bool IsFirstTime);
 		};
 
 		class VI_OUT Compiler final : public Core::Reference<Compiler>
@@ -1557,18 +1550,18 @@ namespace Mavi
 			bool IsDefined(const Core::String& Word) const;
 			bool IsBuilt() const;
 			bool IsCached() const;
-			int Prepare(ByteCodeInfo* Info);
-			int Prepare(const Core::String& ModuleName, bool Scoped = false);
-			int Prepare(const Core::String& ModuleName, const Core::String& Cache, bool Debug = true, bool Scoped = false);
-			int SaveByteCode(ByteCodeInfo* Info);
-			int LoadFile(const Core::String& Path);
-			int LoadCode(const Core::String& Name, const Core::String& Buffer);
-			int LoadCode(const Core::String& Name, const char* Buffer, size_t Length);
-			Core::Promise<int> LoadByteCode(ByteCodeInfo* Info);
-			Core::Promise<int> Compile();
-			Core::Promise<int> CompileFile(const char* Name, const char* ModuleName, const char* EntryName);
-			Core::Promise<int> CompileMemory(const Core::String& Buffer, const char* ModuleName, const char* EntryName);
-			Core::Promise<Function> CompileFunction(const Core::String& Code, const char* Returns = nullptr, const char* Args = nullptr);
+			ExpectedReturn<void> Prepare(ByteCodeInfo* Info);
+			ExpectedReturn<void> Prepare(const Core::String& ModuleName, bool Scoped = false);
+			ExpectedReturn<void> Prepare(const Core::String& ModuleName, const Core::String& Cache, bool Debug = true, bool Scoped = false);
+			ExpectedReturn<void> SaveByteCode(ByteCodeInfo* Info);
+			ExpectedReturn<void> LoadFile(const Core::String& Path);
+			ExpectedReturn<void> LoadCode(const Core::String& Name, const Core::String& Buffer);
+			ExpectedReturn<void> LoadCode(const Core::String& Name, const char* Buffer, size_t Length);
+			ExpectedFuture<void> LoadByteCode(ByteCodeInfo* Info);
+			ExpectedFuture<void> Compile();
+			ExpectedFuture<void> CompileFile(const char* Name, const char* ModuleName, const char* EntryName);
+			ExpectedFuture<void> CompileMemory(const Core::String& Buffer, const char* ModuleName, const char* EntryName);
+			ExpectedFuture<Function> CompileFunction(const Core::String& Code, const char* Returns = nullptr, const char* Args = nullptr);
 			Module GetModule() const;
 			VirtualMachine* GetVM() const;
 			Compute::Preprocessor* GetProcessor() const;
@@ -1696,7 +1689,7 @@ namespace Mavi
 			void AddDefaultCommands();
 			void AddDefaultStringifiers();
 			void ClearThread(ImmediateContext* Context);
-			int ExecuteExpression(ImmediateContext* Context, const Core::String& Code);
+			ExpectedReturn<void> ExecuteExpression(ImmediateContext* Context, const Core::String& Code);
 			ThreadData GetThread(ImmediateContext* Context);
 		};
 
@@ -1717,7 +1710,7 @@ namespace Mavi
 
 			struct Frame
 			{
-				Core::Promise<int> Future = Core::Promise<int>::Null();
+				ExpectedFuture<Activation> Future = ExpectedFuture<Activation>::Null();
 				Core::String Stacktrace;
 				size_t DenySuspends = 0;
 			} Executor;
@@ -1729,37 +1722,53 @@ namespace Mavi
 
 		public:
 			~ImmediateContext() noexcept;
-			Core::Promise<int> ExecuteCall(const Function& Function, ArgsCallback&& OnArgs);
-			int ExecuteCallSync(const Function& Function, ArgsCallback&& OnArgs);
-			int ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs);
-			int SetOnException(void(*Callback)(asIScriptContext* Context, void* Object), void* Object);
-			int Prepare(const Function& Function);
-			int Unprepare();
-			int Resume();
-			int Abort();
-			int Suspend();
-			Activation GetState() const;
-			int DisableSuspends();
-			int EnableSuspends();
-			int PushState();
-			int PopState();
-			int ExecuteNext();
+			ExpectedFuture<Activation> ExecuteCall(const Function& Function, ArgsCallback&& OnArgs);
+			ExpectedReturn<Activation> ExecuteCallSync(const Function& Function, ArgsCallback&& OnArgs);
+			ExpectedReturn<Activation> ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs);
+			ExpectedReturn<Activation> ExecuteNext();
+			ExpectedReturn<Activation> Resume();
+			ExpectedReturn<void> Prepare(const Function& Function);
+			ExpectedReturn<void> Unprepare();
+			ExpectedReturn<void> Abort();
+			ExpectedReturn<void> Suspend();
+			ExpectedReturn<void> PushState();
+			ExpectedReturn<void> PopState();
+			ExpectedReturn<void> SetObject(void* Object);
+			ExpectedReturn<void> SetArg8(size_t Arg, unsigned char Value);
+			ExpectedReturn<void> SetArg16(size_t Arg, unsigned short Value);
+			ExpectedReturn<void> SetArg32(size_t Arg, int Value);
+			ExpectedReturn<void> SetArg64(size_t Arg, int64_t Value);
+			ExpectedReturn<void> SetArgFloat(size_t Arg, float Value);
+			ExpectedReturn<void> SetArgDouble(size_t Arg, double Value);
+			ExpectedReturn<void> SetArgAddress(size_t Arg, void* Address);
+			ExpectedReturn<void> SetArgObject(size_t Arg, void* Object);
+			ExpectedReturn<void> SetArgAny(size_t Arg, void* Ptr, int TypeId);
+			ExpectedReturn<void> GetReturnableByType(void* Return, asITypeInfo* ReturnTypeId);
+			ExpectedReturn<void> GetReturnableByDecl(void* Return, const char* ReturnTypeDecl);
+			ExpectedReturn<void> GetReturnableById(void* Return, int ReturnTypeId);
+			ExpectedReturn<void> SetException(const char* Info, bool AllowCatch = true);
+			ExpectedReturn<void> SetExceptionCallback(void(*Callback)(asIScriptContext* Context, void* Object), void* Object);
+			ExpectedReturn<void> SetLineCallback(void(*Callback)(asIScriptContext* Context, void* Object), void* Object);
+			ExpectedReturn<void> StartDeserialization();
+			ExpectedReturn<void> FinishDeserialization();
+			ExpectedReturn<void> PushFunction(const Function& Func, void* Object);
+			ExpectedReturn<void> GetStateRegisters(size_t StackLevel, Function* CallingSystemFunction, Function* InitialFunction, uint32_t* OrigStackPointer, uint32_t* ArgumentsSize, uint64_t* ValueRegister, void** ObjectRegister, TypeInfo* ObjectTypeRegister);
+			ExpectedReturn<void> GetCallStateRegisters(size_t StackLevel, uint32_t* StackFramePointer, Function* CurrentFunction, uint32_t* ProgramPointer, uint32_t* StackPointer, uint32_t* StackIndex);
+			ExpectedReturn<void> SetStateRegisters(size_t StackLevel, Function CallingSystemFunction, const Function& InitialFunction, uint32_t OrigStackPointer, uint32_t ArgumentsSize, uint64_t ValueRegister, void* ObjectRegister, const TypeInfo& ObjectTypeRegister);
+			ExpectedReturn<void> SetCallStateRegisters(size_t StackLevel, uint32_t StackFramePointer, const Function& CurrentFunction, uint32_t ProgramPointer, uint32_t StackPointer, uint32_t StackIndex);
+			ExpectedReturn<size_t> GetArgsOnStackCount(size_t StackLevel);
+			ExpectedReturn<void> GetArgOnStack(size_t StackLevel, size_t Argument, int* TypeId, size_t* Flags, void** Address);
+			ExpectedReturn<size_t> GetPropertiesCount(size_t StackLevel = 0);
+			ExpectedReturn<void> GetProperty(size_t Index, size_t StackLevel, const char** Name, int* TypeId = 0, Modifiers* TypeModifiers = 0, bool* IsVarOnHeap = 0, int* StackOffset = 0);
+			Function GetFunction(size_t StackLevel = 0);
+			void SetLineCallback(const std::function<void(ImmediateContext*)>& Callback);
+			void SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
+			void DisableSuspends();
+			void EnableSuspends();
 			bool IsNested(size_t* NestCount = 0) const;
 			bool IsThrown() const;
 			bool IsPending();
-			int SetObject(void* Object);
-			int SetArg8(size_t Arg, unsigned char Value);
-			int SetArg16(size_t Arg, unsigned short Value);
-			int SetArg32(size_t Arg, int Value);
-			int SetArg64(size_t Arg, int64_t Value);
-			int SetArgFloat(size_t Arg, float Value);
-			int SetArgDouble(size_t Arg, double Value);
-			int SetArgAddress(size_t Arg, void* Address);
-			int SetArgObject(size_t Arg, void* Object);
-			int SetArgAny(size_t Arg, void* Ptr, int TypeId);
-			int GetReturnableByType(void* Return, asITypeInfo* ReturnTypeId);
-			int GetReturnableByDecl(void* Return, const char* ReturnTypeDecl);
-			int GetReturnableById(void* Return, int ReturnTypeId);
+			Activation GetState() const;
 			void* GetAddressOfArg(size_t Arg);
 			unsigned char GetReturnByte();
 			unsigned short GetReturnWord();
@@ -1770,31 +1779,15 @@ namespace Mavi
 			void* GetReturnAddress();
 			void* GetReturnObjectAddress();
 			void* GetAddressOfReturnValue();
-			int SetException(const char* Info, bool AllowCatch = true);
 			int GetExceptionLineNumber(int* Column = 0, const char** SectionName = 0);
+			int GetLineNumber(size_t StackLevel = 0, int* Column = 0, const char** SectionName = 0);
 			Function GetExceptionFunction();
 			const char* GetExceptionString();
 			bool WillExceptionBeCaught();
 			void ClearExceptionCallback();
-			int SetLineCallback(void(*Callback)(asIScriptContext* Context, void* Object), void* Object);
-			int SetLineCallback(const std::function<void(ImmediateContext*)>& Callback);
-			int SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
 			void ClearLineCallback();
 			size_t GetCallstackSize() const;
-			Core::String GetExceptionStackTrace();
-			int StartDeserialization();
-			int FinishDeserialization();
-			int PushFunction(const Function& Func, void* Object);
-			int GetStateRegisters(size_t StackLevel, Function* CallingSystemFunction, Function* InitialFunction, uint32_t* OrigStackPointer, uint32_t* ArgumentsSize, uint64_t* ValueRegister, void** ObjectRegister, TypeInfo* ObjectTypeRegister);
-			int GetCallStateRegisters(size_t StackLevel, uint32_t* StackFramePointer, Function* CurrentFunction, uint32_t* ProgramPointer, uint32_t* StackPointer, uint32_t* StackIndex);
-			int SetStateRegisters(size_t StackLevel, Function CallingSystemFunction, const Function& InitialFunction, uint32_t OrigStackPointer, uint32_t ArgumentsSize, uint64_t ValueRegister, void* ObjectRegister, const TypeInfo& ObjectTypeRegister);
-			int SetCallStateRegisters(size_t StackLevel, uint32_t StackFramePointer, const Function& CurrentFunction, uint32_t ProgramPointer, uint32_t StackPointer, uint32_t StackIndex);
-			int GetArgsOnStackCount(size_t StackLevel);
-			int GetArgOnStack(size_t StackLevel, size_t Argument, int* TypeId, size_t* Flags, void** Address);
-			Function GetFunction(size_t StackLevel = 0);
-			int GetLineNumber(size_t StackLevel = 0, int* Column = 0, const char** SectionName = 0);
-			int GetPropertiesCount(size_t StackLevel = 0);
-			int GetProperty(size_t Index, size_t StackLevel, const char** Name, int* TypeId = 0, Modifiers* TypeModifiers = 0, bool* IsVarOnHeap = 0, int* StackOffset = 0);
+			Core::Option<Core::String> GetExceptionStackTrace();
 			const char* GetPropertyName(size_t Index, size_t StackLevel = 0);
 			const char* GetPropertyDecl(size_t Index, size_t StackLevel = 0, bool IncludeNamespace = false);
 			int GetPropertyTypeId(size_t Index, size_t StackLevel = 0);
@@ -1881,6 +1874,7 @@ namespace Mavi
 			Core::String DefaultNamespace;
 			Compute::Preprocessor::Desc Proc;
 			Compute::IncludeDesc Include;
+			std::function<void(ImmediateContext*)> GlobalException;
 			WhenErrorCallback WhenError;
 			uint64_t Scope;
 			DebuggerContext* Debugger;
@@ -1893,28 +1887,58 @@ namespace Mavi
 		public:
 			VirtualMachine() noexcept;
 			~VirtualMachine() noexcept;
+			ExpectedReturn<void> GarbageCollect(GarbageCollector Flags, size_t NumIterations = 1);
+			ExpectedReturn<void> PerformFullGarbageCollection();
+			ExpectedReturn<void> NotifyOfNewObject(void* Object, const TypeInfo& Type);
+			ExpectedReturn<void> GetObjectAddress(size_t Index, size_t* SequenceNumber = nullptr, void** Object = nullptr, TypeInfo* Type = nullptr);
+			ExpectedReturn<void> AssignObject(void* DestObject, void* SrcObject, const TypeInfo& Type);
+			ExpectedReturn<void> RefCastObject(void* Object, const TypeInfo& FromType, const TypeInfo& ToType, void** NewPtr, bool UseOnlyImplicitCast = false);
+			ExpectedReturn<void> BeginGroup(const char* GroupName);
+			ExpectedReturn<void> EndGroup();
+			ExpectedReturn<void> RemoveGroup(const char* GroupName);
+			ExpectedReturn<void> BeginNamespace(const char* Namespace);
+			ExpectedReturn<void> BeginNamespaceIsolated(const char* Namespace, size_t DefaultMask);
+			ExpectedReturn<void> EndNamespace();
+			ExpectedReturn<void> EndNamespaceIsolated();
+			ExpectedReturn<void> AddScriptSection(asIScriptModule* Module, const char* Name, const char* Code, size_t CodeLength = 0, int LineOffset = 0);
+			ExpectedReturn<void> GetTypeNameScope(const char** TypeName, const char** Namespace, size_t* NamespaceSize) const;
+			ExpectedReturn<void> SetFunctionDef(const char* Decl);
+			ExpectedReturn<void> SetFunctionAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECLF);
+			ExpectedReturn<void> SetPropertyAddress(const char* Decl, void* Value);
+			ExpectedReturn<void> SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object);
+			ExpectedReturn<void> Log(const char* Section, int Row, int Column, LogCategory Type, const char* Message);
+			ExpectedReturn<void> SetProperty(Features Property, size_t Value);
+			ExpectedReturn<void> GetPropertyByIndex(size_t Index, PropertyInfo* Info) const;
+			ExpectedReturn<size_t> GetPropertyIndexByName(const char* Name) const;
+			ExpectedReturn<size_t> GetPropertyIndexByDecl(const char* Decl) const;
+			ExpectedReturn<size_t> GetSizeOfPrimitiveType(int TypeId) const;
+			ExpectedReturn<TypeClass> SetStructAddress(const char* Name, size_t Size, uint64_t Flags = (uint64_t)ObjectBehaviours::VALUE);
+			ExpectedReturn<TypeClass> SetPodAddress(const char* Name, size_t Size, uint64_t Flags = (uint64_t)(ObjectBehaviours::VALUE | ObjectBehaviours::POD));
+			ExpectedReturn<RefClass> SetClassAddress(const char* Name, uint64_t Flags = (uint64_t)ObjectBehaviours::REF);
+			ExpectedReturn<TypeInterface> SetInterface(const char* Name);
+			ExpectedReturn<Enumeration> SetEnum(const char* Name);
 			bool SetByteCodeTranslator(unsigned int Options);
 			void SetCodeGenerator(const Core::String& Name, GeneratorCallback&& Callback);
 			void SetPreserveSourceCode(bool Enabled);
 			void SetImports(unsigned int Opts);
 			void SetCache(bool Enabled);
+			void SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
 			void SetDebugger(Core::Unique<DebuggerContext> Context);
-			void ClearCache();
-			void ClearSections();
 			void SetCompilerErrorCallback(const WhenErrorCallback& Callback);
 			void SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc);
 			void SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc);
 			void SetProcessorOptions(Compute::Preprocessor* Processor);
 			void SetCompileCallback(const Core::String& Section, CompileCallback&& Callback);
+			void ClearCache();
+			void ClearSections();
 			void AttachDebuggerToContext(asIScriptContext* Context);
 			void DetachDebuggerFromContext(asIScriptContext* Context);
-			int Collect(size_t NumIterations = 1);
 			void GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const;
-			int NotifyOfNewObject(void* Object, const TypeInfo& Type);
-			int GetObjectAddress(size_t Index, size_t* SequenceNumber = nullptr, void** Object = nullptr, TypeInfo* Type = nullptr);
 			void ForwardEnumReferences(void* Reference, const TypeInfo& Type);
 			void ForwardReleaseReferences(void* Reference, const TypeInfo& Type);
 			void GCEnumCallback(void* Reference);
+			void GCEnumCallback(asIScriptFunction* Reference);
+			void GCEnumCallback(FunctionDelegate* Reference);
 			bool TriggerDebugger(uint64_t TimeoutMs = 0);
 			bool GenerateCode(Compute::Preprocessor* Processor, const Core::String& Path, Core::String& InoutBuffer);
 			Core::UnorderedMap<Core::String, Core::String> DumpRegisteredInterfaces(ImmediateContext* Context);
@@ -1929,30 +1953,14 @@ namespace Mavi
 			void* CreateObjectCopy(void* Object, const TypeInfo& Type);
 			void* CreateEmptyObject(const TypeInfo& Type);
 			Function CreateDelegate(const Function& Function, void* Object);
-			int AssignObject(void* DestObject, void* SrcObject, const TypeInfo& Type);
 			void ReleaseObject(void* Object, const TypeInfo& Type);
 			void AddRefObject(void* Object, const TypeInfo& Type);
-			int RefCastObject(void* Object, const TypeInfo& FromType, const TypeInfo& ToType, void** NewPtr, bool UseOnlyImplicitCast = false);
-			int BeginGroup(const char* GroupName);
-			int EndGroup();
-			int RemoveGroup(const char* GroupName);
-			int BeginNamespace(const char* Namespace);
-			int BeginNamespaceIsolated(const char* Namespace, size_t DefaultMask);
-			int EndNamespace();
-			int EndNamespaceIsolated();
-			int Namespace(const char* Namespace, const std::function<int(VirtualMachine*)>& Callback);
-			int NamespaceIsolated(const char* Namespace, size_t DefaultMask, const std::function<int(VirtualMachine*)>& Callback);
-			int AddScriptSection(asIScriptModule* Module, const char* Name, const char* Code, size_t CodeLength = 0, int LineOffset = 0);
-			int GetTypeNameScope(const char** TypeName, const char** Namespace, size_t* NamespaceSize) const;
 			size_t BeginAccessMask(size_t DefaultMask);
 			size_t EndAccessMask();
 			const char* GetNamespace() const;
 			Module GetModule(const char* Name);
-			int SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object);
-			int Log(const char* Section, int Row, int Column, LogCategory Type, const char* Message);
-			int SetLibraryProperty(LibraryFeatures Property, size_t Value);
+			void SetLibraryProperty(LibraryFeatures Property, size_t Value);
 			size_t GetLibraryProperty(LibraryFeatures Property);
-			int SetProperty(Features Property, size_t Value);
 			size_t GetProperty(Features Property);
 			void SetModuleDirectory(const Core::String& Root);
 			size_t GetProperty(Features Property) const;
@@ -1974,37 +1982,25 @@ namespace Mavi
 			bool ImportCLibrary(const Core::String& Path, bool IAddon = false);
 			bool ImportAddon(const Core::String& Path);
 			bool ImportSystemAddon(const Core::String& Name);
-			Core::String GetSourceCodeAppendix(const char* Label, const Core::String& Code, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
-			Core::String GetSourceCodeAppendixByPath(const char* Label, const Core::String& Path, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
-			int SetFunctionDef(const char* Decl);
-			int SetFunctionAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECLF);
-			int SetPropertyAddress(const char* Decl, void* Value);
-			TypeClass SetStructAddress(const char* Name, size_t Size, uint64_t Flags = (uint64_t)ObjectBehaviours::VALUE);
-			TypeClass SetPodAddress(const char* Name, size_t Size, uint64_t Flags = (uint64_t)(ObjectBehaviours::VALUE | ObjectBehaviours::POD));
-			RefClass SetClassAddress(const char* Name, uint64_t Flags = (uint64_t)ObjectBehaviours::REF);
-			TypeInterface SetInterface(const char* Name);
-			Enumeration SetEnum(const char* Name);
+			Core::Option<Core::String> GetSourceCodeAppendix(const char* Label, const Core::String& Code, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
+			Core::Option<Core::String> GetSourceCodeAppendixByPath(const char* Label, const Core::String& Path, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
+			Core::Option<Core::String> GetScriptSection(const Core::String& SectionName);
+			Core::String GetObjectView(void* Object, int TypeId);
 			size_t GetFunctionsCount() const;
 			Function GetFunctionById(int Id) const;
-			Function GetFunctionByIndex(int Index) const;
+			Function GetFunctionByIndex(size_t Index) const;
 			Function GetFunctionByDecl(const char* Decl) const;
 			size_t GetPropertiesCount() const;
-			int GetPropertyByIndex(int Index, PropertyInfo* Info) const;
-			int GetPropertyIndexByName(const char* Name) const;
-			int GetPropertyIndexByDecl(const char* Decl) const;
 			size_t GetObjectsCount() const;
 			TypeInfo GetObjectByIndex(size_t Index) const;
 			size_t GetEnumCount() const;
 			TypeInfo GetEnumByIndex(size_t Index) const;
 			size_t GetFunctionDefsCount() const;
-			TypeInfo GetFunctionDefByIndex(int Index) const;
+			TypeInfo GetFunctionDefByIndex(size_t Index) const;
 			size_t GetModulesCount() const;
 			asIScriptModule* GetModuleById(int Id) const;
 			int GetTypeIdByDecl(const char* Decl) const;
 			const char* GetTypeIdDecl(int TypeId, bool IncludeNamespace = false) const;
-			int GetSizeOfPrimitiveType(int TypeId) const;
-			Core::String GetObjectView(void* Object, int TypeId);
-			Core::String GetScriptSection(const Core::String& SectionName);
 			TypeInfo GetTypeInfoById(int TypeId) const;
 			TypeInfo GetTypeInfoByName(const char* Name);
 			TypeInfo GetTypeInfoByDecl(const char* Decl) const;
@@ -2035,66 +2031,88 @@ namespace Mavi
 
 		public:
 			template <typename T>
-			int SetFunction(const char* Decl, T Value)
+			ExpectedReturn<void> SetFunction(const char* Decl, T Value)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function<T>(Value);
-				int Result = SetFunctionAddress(Decl, Ptr, FunctionCall::CDECLF);
+				auto Result = SetFunctionAddress(Decl, Ptr, FunctionCall::CDECLF);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <void(*)(asIScriptGeneric*)>
-			int SetFunction(const char* Decl, void(*Value)(asIScriptGeneric*))
+			ExpectedReturn<void> SetFunction(const char* Decl, void(*Value)(asIScriptGeneric*))
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function<void (*)(asIScriptGeneric*)>(Value);
-				int Result = SetFunctionAddress(Decl, Ptr, FunctionCall::GENERIC);
+				auto Result = SetFunctionAddress(Decl, Ptr, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Ptr);
-
 				return Result;
 			}
 			template <typename T>
-			int SetProperty(const char* Decl, T* Value)
+			ExpectedReturn<void> SetProperty(const char* Decl, T* Value)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				return SetPropertyAddress(Decl, (void*)Value);
 			}
 			template <typename T>
-			RefClass SetClass(const char* Name, bool GC)
+			ExpectedReturn<RefClass> SetClass(const char* Name, bool GC)
 			{
 				VI_ASSERT(Name != nullptr, "name should be set");
-				RefClass Class = SetClassAddress(Name, GC ? (size_t)ObjectBehaviours::REF | (size_t)ObjectBehaviours::GC : (size_t)ObjectBehaviours::REF);
-				Class.SetAddRef<T>();
-				Class.SetRelease<T>();
+				auto Class = SetClassAddress(Name, GC ? (size_t)ObjectBehaviours::REF | (size_t)ObjectBehaviours::GC : (size_t)ObjectBehaviours::REF);
+				if (!Class)
+					return Class;
 
-				if (GC)
-				{
-					Class.SetMarkRef<T>();
-					Class.SetIsMarkedRef<T>();
-					Class.SetRefCount<T>();
-				}
+				auto Status = Class->SetAddRef<T>();
+				if (!Status)
+					return Status.Error();
+
+				Status = Class->SetRelease<T>();
+				if (!Status)
+					return Status.Error();
+
+				if (!GC)
+					return Class;
+
+				Status = Class->SetMarkRef<T>();
+				if (!Status)
+					return Status.Error();
+
+				Status = Class->SetIsMarkedRef<T>();
+				if (!Status)
+					return Status.Error();
+
+				Status = Class->SetRefCount<T>();
+				if (!Status)
+					return Status.Error();
 
 				return Class;
 			}
 			template <typename T>
-			TypeClass SetStructTrivial(const char* Name)
+			ExpectedReturn<TypeClass> SetStructTrivial(const char* Name)
 			{
 				VI_ASSERT(Name != nullptr, "name should be set");
-				TypeClass Struct = SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>());
-				Struct.SetOperatorCopy<T>();
-				Struct.SetDestructor<T>("void f()");
+				auto Struct = SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>());
+				if (!Struct)
+					return Struct;
+
+				auto Status = Struct->SetOperatorCopy<T>();
+				if (!Status)
+					return Status.Error();
+
+				Status = Struct->SetDestructor<T>("void f()");
+				if (!Status)
+					return Status.Error();
 
 				return Struct;
 			}
 			template <typename T>
-			TypeClass SetStruct(const char* Name)
+			ExpectedReturn<TypeClass> SetStruct(const char* Name)
 			{
 				VI_ASSERT(Name != nullptr, "name should be set");
 				return SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>());
 			}
 			template <typename T>
-			TypeClass SetPod(const char* Name)
+			ExpectedReturn<TypeClass> SetPod(const char* Name)
 			{
 				VI_ASSERT(Name != nullptr, "name should be set");
 				return SetPodAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | (size_t)ObjectBehaviours::POD | Bridge::GetTypeTraits<T>());

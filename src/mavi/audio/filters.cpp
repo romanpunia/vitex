@@ -1,53 +1,5 @@
 #include "filters.h"
 #include "../core/engine.h"
-#if defined(VI_OPENAL)
-#ifdef VI_AL_AT_OPENAL
-#include <OpenAL/al.h>
-#else
-#include <AL/al.h>
-#include <AL/efx.h>
-#define HAS_EFX
-#endif
-#endif
-#define LOAD_PROC(T, X) ((X) = (T)alGetProcAddress(#X))
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-namespace
-{
-	LPALGENFILTERS alGenFilters = nullptr;
-	LPALDELETEFILTERS alDeleteFilters = nullptr;
-	LPALISFILTER alIsFilter = nullptr;
-	LPALFILTERI alFilteri = nullptr;
-	LPALFILTERIV alFilteriv = nullptr;
-	LPALFILTERF alFilterf = nullptr;
-	LPALFILTERFV alFilterfv = nullptr;
-	LPALGETFILTERI alGetFilteri = nullptr;
-	LPALGETFILTERIV alGetFilteriv = nullptr;
-	LPALGETFILTERF alGetFilterf = nullptr;
-	LPALGETFILTERFV alGetFilterfv = nullptr;
-	LPALGENEFFECTS alGenEffects = nullptr;
-	LPALDELETEEFFECTS alDeleteEffects = nullptr;
-	LPALISEFFECT alIsEffect = nullptr;
-	LPALEFFECTI alEffecti = nullptr;
-	LPALEFFECTIV alEffectiv = nullptr;
-	LPALEFFECTF alEffectf = nullptr;
-	LPALEFFECTFV alEffectfv = nullptr;
-	LPALGETEFFECTI alGetEffecti = nullptr;
-	LPALGETEFFECTIV alGetEffectiv = nullptr;
-	LPALGETEFFECTF alGetEffectf = nullptr;
-	LPALGETEFFECTFV alGetEffectfv = nullptr;
-	LPALGENAUXILIARYEFFECTSLOTS alGenAuxiliaryEffectSlots = nullptr;
-	LPALDELETEAUXILIARYEFFECTSLOTS alDeleteAuxiliaryEffectSlots = nullptr;
-	LPALISAUXILIARYEFFECTSLOT alIsAuxiliaryEffectSlot = nullptr;
-	LPALAUXILIARYEFFECTSLOTI alAuxiliaryEffectSloti = nullptr;
-	LPALAUXILIARYEFFECTSLOTIV alAuxiliaryEffectSlotiv = nullptr;
-	LPALAUXILIARYEFFECTSLOTF alAuxiliaryEffectSlotf = nullptr;
-	LPALAUXILIARYEFFECTSLOTFV alAuxiliaryEffectSlotfv = nullptr;
-	LPALGETAUXILIARYEFFECTSLOTI alGetAuxiliaryEffectSloti = nullptr;
-	LPALGETAUXILIARYEFFECTSLOTIV alGetAuxiliaryEffectSlotiv = nullptr;
-	LPALGETAUXILIARYEFFECTSLOTF alGetAuxiliaryEffectSlotf = nullptr;
-	LPALGETAUXILIARYEFFECTSLOTFV alGetAuxiliaryEffectSlotfv = nullptr;
-}
-#endif
 
 namespace Mavi
 {
@@ -55,65 +7,21 @@ namespace Mavi
 	{
 		namespace Filters
 		{
-			void FilterContext::Initialize()
-			{
-				VI_TRACE("[audio] load filter functions");
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-				LOAD_PROC(LPALGENFILTERS, alGenFilters);
-				LOAD_PROC(LPALDELETEFILTERS, alDeleteFilters);
-				LOAD_PROC(LPALISFILTER, alIsFilter);
-				LOAD_PROC(LPALFILTERI, alFilteri);
-				LOAD_PROC(LPALFILTERIV, alFilteriv);
-				LOAD_PROC(LPALFILTERF, alFilterf);
-				LOAD_PROC(LPALFILTERFV, alFilterfv);
-				LOAD_PROC(LPALGETFILTERI, alGetFilteri);
-				LOAD_PROC(LPALGETFILTERIV, alGetFilteriv);
-				LOAD_PROC(LPALGETFILTERF, alGetFilterf);
-				LOAD_PROC(LPALGETFILTERFV, alGetFilterfv);
-				LOAD_PROC(LPALGENEFFECTS, alGenEffects);
-				LOAD_PROC(LPALDELETEEFFECTS, alDeleteEffects);
-				LOAD_PROC(LPALISEFFECT, alIsEffect);
-				LOAD_PROC(LPALEFFECTI, alEffecti);
-				LOAD_PROC(LPALEFFECTIV, alEffectiv);
-				LOAD_PROC(LPALEFFECTF, alEffectf);
-				LOAD_PROC(LPALEFFECTFV, alEffectfv);
-				LOAD_PROC(LPALGETEFFECTI, alGetEffecti);
-				LOAD_PROC(LPALGETEFFECTIV, alGetEffectiv);
-				LOAD_PROC(LPALGETEFFECTF, alGetEffectf);
-				LOAD_PROC(LPALGETEFFECTFV, alGetEffectfv);
-				LOAD_PROC(LPALGENAUXILIARYEFFECTSLOTS, alGenAuxiliaryEffectSlots);
-				LOAD_PROC(LPALDELETEAUXILIARYEFFECTSLOTS, alDeleteAuxiliaryEffectSlots);
-				LOAD_PROC(LPALISAUXILIARYEFFECTSLOT, alIsAuxiliaryEffectSlot);
-				LOAD_PROC(LPALAUXILIARYEFFECTSLOTI, alAuxiliaryEffectSloti);
-				LOAD_PROC(LPALAUXILIARYEFFECTSLOTIV, alAuxiliaryEffectSlotiv);
-				LOAD_PROC(LPALAUXILIARYEFFECTSLOTF, alAuxiliaryEffectSlotf);
-				LOAD_PROC(LPALAUXILIARYEFFECTSLOTFV, alAuxiliaryEffectSlotfv);
-				LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTI, alGetAuxiliaryEffectSloti);
-				LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTIV, alGetAuxiliaryEffectSlotiv);
-				LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTF, alGetAuxiliaryEffectSlotf);
-				LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTFV, alGetAuxiliaryEffectSlotfv);
-#endif
-			}
-
 			Lowpass::Lowpass()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
-					alFilteri(Filter, AL_FILTER_TYPE, AL_FILTER_LOWPASS);
+					AudioContext::SetFilter1I(Filter, FilterEx::Filter_Type, (int)FilterEx::Filter_Lowpass);
 					return true;
 				});
-#endif
 			}
 			Lowpass::~Lowpass()
 			{
 			}
 			void Lowpass::Synchronize()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-				alFilterf(Filter, AL_LOWPASS_GAIN, Gain);
-				alFilterf(Filter, AL_LOWPASS_GAINHF, GainHF);
-#endif
+				AudioContext::SetFilter1F(Filter, FilterEx::Lowpass_Gain, Gain);
+				AudioContext::SetFilter1F(Filter, FilterEx::Lowpass_Gain_HF, GainHF);
 			}
 			void Lowpass::Deserialize(Core::Schema* Node)
 			{
@@ -138,23 +46,19 @@ namespace Mavi
 
 			Highpass::Highpass()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
-					alFilteri(Filter, AL_FILTER_TYPE, AL_FILTER_HIGHPASS);
+					AudioContext::SetFilter1I(Filter, FilterEx::Filter_Type, (int)FilterEx::Filter_Highpass);
 					return true;
 				});
-#endif
 			}
 			Highpass::~Highpass()
 			{
 			}
 			void Highpass::Synchronize()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-				alFilterf(Filter, AL_HIGHPASS_GAIN, Gain);
-				alFilterf(Filter, AL_HIGHPASS_GAINLF, GainLF);
-#endif
+				AudioContext::SetFilter1F(Filter, FilterEx::Highpass_Gain, Gain);
+				AudioContext::SetFilter1F(Filter, FilterEx::Highpass_Gain_LF, GainLF);
 			}
 			void Highpass::Deserialize(Core::Schema* Node)
 			{
@@ -179,24 +83,20 @@ namespace Mavi
 
 			Bandpass::Bandpass()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
-					alFilteri(Filter, AL_FILTER_TYPE, AL_FILTER_BANDPASS);
+					AudioContext::SetFilter1I(Filter, FilterEx::Filter_Type, (int)FilterEx::Filter_Bandpass);
 					return true;
 				});
-#endif
 			}
 			Bandpass::~Bandpass()
 			{
 			}
 			void Bandpass::Synchronize()
 			{
-#if defined(VI_OPENAL) && defined(HAS_EFX)
-				alFilterf(Filter, AL_BANDPASS_GAIN, Gain);
-				alFilterf(Filter, AL_BANDPASS_GAINLF, GainLF);
-				alFilterf(Filter, AL_BANDPASS_GAINHF, GainHF);
-#endif
+				AudioContext::SetFilter1F(Filter, FilterEx::Bandpass_Gain, Gain);
+				AudioContext::SetFilter1F(Filter, FilterEx::Bandpass_Gain_LF, GainLF);
+				AudioContext::SetFilter1F(Filter, FilterEx::Bandpass_Gain_HF, GainHF);
 			}
 			void Bandpass::Deserialize(Core::Schema* Node)
 			{

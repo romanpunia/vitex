@@ -163,10 +163,10 @@ typedef socklen_t socket_size_t;
 #define VI_ERR(Format, ...) ((void)0)
 #endif
 #define VI_PANIC(Condition, Format, ...) if (!(Condition)) { Mavi::Core::ErrorHandling::Panic(__LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); }
-#define VI_DELETE(Destructor, Var) { if (Var != nullptr) { (Var)->~Destructor(); VI_FREE((void*)Var); } }
+#define VI_DELETE(Destructor, Var) { if (Var) { (Var)->~Destructor(); VI_FREE((void*)Var); } }
 #define VI_FREE(Ptr) Mavi::Core::Memory::Free(Ptr)
-#define VI_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
-#define VI_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
+#define VI_RELEASE(Ptr) { if (Ptr) (Ptr)->Release(); }
+#define VI_CLEAR(Ptr) { if (Ptr) { (Ptr)->Release(); Ptr = nullptr; } }
 #define VI_HASH(Name) Mavi::Core::OS::File::GetHash(Name)
 #define VI_STRINGIFY(Text) #Text
 #define VI_COMPONENT_ROOT(Name) virtual const char* GetName() { return Name; } virtual uint64_t GetId() { static uint64_t V = VI_HASH(Name); return V; } static const char* GetTypeName() { return Name; } static uint64_t GetTypeId() { static uint64_t V = VI_HASH(Name); return V; }

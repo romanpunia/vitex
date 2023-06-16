@@ -3642,7 +3642,7 @@ namespace Mavi
 			}
 			bool Driver::AddDirectory(const Core::String& Directory, const Core::String& Origin) noexcept
 			{
-				Core::Vector<Core::FileEntry> Entries;
+				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
 				if (!Core::OS::Directory::Scan(Directory, &Entries))
 					return false;
 
@@ -3653,8 +3653,8 @@ namespace Mavi
 				size_t Size = 0;
 				for (auto& File : Entries)
 				{
-					Core::String Base(Path + File.Path);
-					if (File.IsDirectory)
+					Core::String Base(Path + File.first);
+					if (File.second.IsDirectory)
 					{
 						AddDirectory(Base, Origin.empty() ? Directory : Origin);
 						continue;
@@ -3663,7 +3663,7 @@ namespace Mavi
 					if (!Core::Stringify::EndsWith(Base, ".json"))
 						continue;
 
-					char* Buffer = (char*)Core::OS::File::ReadAll(Base, &Size);
+					auto Buffer = Core::OS::File::ReadAll(Base, &Size);
 					if (!Buffer)
 						continue;
 
@@ -3673,8 +3673,8 @@ namespace Mavi
 					if (Core::Stringify::StartsOf(Base, "\\/"))
 						Base.erase(0, 1);
 
-					AddQuery(Base, Buffer, Size);
-					VI_FREE(Buffer);
+					AddQuery(Base, (char*)*Buffer, Size);
+					VI_FREE(*Buffer);
 				}
 
 				return true;

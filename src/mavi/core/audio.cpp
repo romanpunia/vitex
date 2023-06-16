@@ -104,31 +104,31 @@ namespace Mavi
 		}
 		void AudioContext::SetFilter1I(unsigned int Filter, FilterEx Value, int F1)
 		{
-#ifdef VI_OPENAL
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 			alFilteri(Filter, (uint32_t)Value, F1);
 #endif
 		}
 		void AudioContext::SetFilter1F(unsigned int Filter, FilterEx Value, float F1)
 		{
-#ifdef VI_OPENAL
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 			alFilterf(Filter, (uint32_t)Value, F1);
 #endif
 		}
 		void AudioContext::SetEffect1I(unsigned int Filter, EffectEx Value, int F1)
 		{
-#ifdef VI_OPENAL
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 			alEffecti(Filter, (uint32_t)Value, F1);
 #endif
 		}
 		void AudioContext::SetEffect1F(unsigned int Filter, EffectEx Value, float F1)
 		{
-#ifdef VI_OPENAL
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 			alEffectf(Filter, (uint32_t)Value, F1);
 #endif
 		}
 		void AudioContext::SetEffectVF(unsigned int Filter, EffectEx Value, float* FS)
 		{
-#ifdef VI_OPENAL
+#if defined(VI_OPENAL) && defined(HAS_EFX)
 			alEffectfv(Filter, (uint32_t)Value, FS);
 #endif
 		}
@@ -284,8 +284,12 @@ namespace Mavi
 		}
 		uint32_t AudioContext::GetEnumValue(const char* Name)
 		{
+#ifdef VI_OPENAL
 			VI_ASSERT(Name != nullptr, "name should be set");
 			return (uint32_t)alGetEnumValue(Name);
+#else
+			return 0;
+#endif
 		}
 
 		AudioFilter::AudioFilter() noexcept

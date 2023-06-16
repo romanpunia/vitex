@@ -792,7 +792,7 @@ namespace Mavi
 					if (!Index)
 						return Index.Error();
 
-					T** Address = (T**)Base.GetAddressOfProperty(Index);
+					T** Address = (T**)Base.GetAddressOfProperty(*Index);
 					if (!Address)
 						return Scripting::Errors::INVALID_OBJECT;
 
@@ -827,7 +827,7 @@ namespace Mavi
 
 					Scripting::Module Base = Compiler->GetModule();
 					if (!Base.IsValid())
-						return (int)Scripting::Errors::INVALID_CONFIGURATION;
+						return Scripting::Errors::INVALID_CONFIGURATION;
 
 					T** Address = (T**)Base.GetAddressOfProperty(Index);
 					if (!Address)

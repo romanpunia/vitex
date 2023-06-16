@@ -738,7 +738,7 @@ namespace Mavi
 				ParserException(ParserError NewType);
 				ParserException(ParserError NewType, int NewOffset);
 				ParserException(ParserError NewType, int NewOffset, const char* NewMessage);
-				const char* what() const override;
+				const char* what() const noexcept override;
 			};
 		}
 

@@ -925,7 +925,7 @@ namespace Mavi
 					Info += ToString(Offset);
 				}
 			}
-			const char* ParserException::what() const
+			const char* ParserException::what() const noexcept
 			{
 				return Info.c_str();
 			}

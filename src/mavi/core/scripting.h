@@ -2062,26 +2062,26 @@ namespace Mavi
 				if (!Class)
 					return Class;
 
-				auto Status = Class->SetAddRef<T>();
+				auto Status = Class->template SetAddRef<T>();
 				if (!Status)
 					return Status.Error();
 
-				Status = Class->SetRelease<T>();
+				Status = Class->template SetRelease<T>();
 				if (!Status)
 					return Status.Error();
 
 				if (!GC)
 					return Class;
 
-				Status = Class->SetMarkRef<T>();
+				Status = Class->template SetMarkRef<T>();
 				if (!Status)
 					return Status.Error();
 
-				Status = Class->SetIsMarkedRef<T>();
+				Status = Class->template SetIsMarkedRef<T>();
 				if (!Status)
 					return Status.Error();
 
-				Status = Class->SetRefCount<T>();
+				Status = Class->template SetRefCount<T>();
 				if (!Status)
 					return Status.Error();
 
@@ -2095,11 +2095,11 @@ namespace Mavi
 				if (!Struct)
 					return Struct;
 
-				auto Status = Struct->SetOperatorCopy<T>();
+				auto Status = Struct->template SetOperatorCopy<T>();
 				if (!Status)
 					return Status.Error();
 
-				Status = Struct->SetDestructor<T>("void f()");
+				Status = Struct->template SetDestructor<T>("void f()");
 				if (!Status)
 					return Status.Error();
 

@@ -5625,12 +5625,11 @@ namespace Mavi
 				auto Subfile = Core::OS::Path::Resolve(File, Environment, false);
 				if (Subfile && Core::OS::File::IsExists(Subfile->c_str()))
 				{
-					auto Subtarget = Environment + *Subfile;
+					File = *Subfile;
+					auto Subtarget = Environment + File;
 					auto Subpath = Core::OS::Path::Resolve(Subtarget.c_str());
 					if (Subpath && Core::OS::File::IsExists(Subpath->c_str()))
 						File = *Subpath;
-					else
-						File = *Subfile;
 				}
 
 				if (File.empty())

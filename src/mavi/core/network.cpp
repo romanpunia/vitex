@@ -73,7 +73,7 @@ namespace Mavi
 
 				VI_DEBUG("[net] resolve dns on fd %i", (int)Host.first);
 				int Status = connect(Host.first, Host.second->ai_addr, (int)Host.second->ai_addrlen);
-				if (Status != NULL && Utils::GetLastError(Stream.GetDevice(), Status) != std::errc::operation_would_block)
+				if (Status != 0 && Utils::GetLastError(Stream.GetDevice(), Status) != std::errc::operation_would_block)
 					continue;
 
 				pollfd Fd;
@@ -710,7 +710,7 @@ namespace Mavi
 				case EWOULDBLOCK:
 				case EINPROGRESS:
 					return std::make_error_condition(std::errc::operation_would_block);
-				case NULL:
+				case 0:
 					return std::make_error_condition(std::errc());
 				default:
 					return Core::OS::Error::GetCondition(ErrorCode);
@@ -1817,7 +1817,7 @@ namespace Mavi
 
 			addrinfo* Source = Address->Get();
 			int Status = connect(Fd, Source->ai_addr, (int)Source->ai_addrlen);
-			if (Status == NULL)
+			if (Status == 0)
 			{
 				Callback(Core::Optional::OK);
 				return Core::Optional::OK;
@@ -2403,7 +2403,7 @@ namespace Mavi
 
 					if (It.second.VerifyPeers)
 					{
-						SSL_CTX_set_verify(It.second.Context, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+						SSL_CTX_set_verify(It.second.Context, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
 						SSL_CTX_set_verify_depth(It.second.Context, (int)It.second.Depth);
 					}
 				}

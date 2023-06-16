@@ -7033,7 +7033,10 @@ namespace Mavi
 		{
 			VI_ASSERT(Type != nullptr, "type should be set");
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s hash %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Value.size());	
+			VI_TRACE("[crypto] %s hash %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Value.size());
+			if (Value.empty())
+				return Value;
+
 			EVP_MD* Method = (EVP_MD*)Type;
 			EVP_MD_CTX* Context = EVP_MD_CTX_create();
 			if (!Context)
@@ -7070,6 +7073,9 @@ namespace Mavi
 			VI_ASSERT(Length > 0, "length should be greater than zero");
 #ifdef VI_OPENSSL
 			VI_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
+			if (!Length)
+				return Core::String();
+
 			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
 #if OPENSSL_VERSION_MAJOR >= 3
 			unsigned char Result[EVP_MAX_MD_SIZE];
@@ -7167,6 +7173,9 @@ namespace Mavi
 			VI_ASSERT(Length > 0, "length should be greater than zero");
 #ifdef VI_OPENSSL
 			VI_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
+			if (!Length)
+				return Core::String();
+
 			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
 			unsigned char Result[EVP_MAX_MD_SIZE];
 			unsigned int Size = sizeof(Result);
@@ -7193,9 +7202,8 @@ namespace Mavi
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
 			VI_TRACE("[crypto] %s encrypt%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
-
 			if (!Length)
-				return Core::Optional::None;
+				return Core::String();
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
@@ -7261,9 +7269,8 @@ namespace Mavi
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
 			VI_TRACE("[crypto] %s decrypt%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
-
 			if (!Length)
-				return Core::Optional::None;
+				return Core::String();
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
@@ -7340,7 +7347,6 @@ namespace Mavi
 			VI_ASSERT(Src != nullptr, "web token should be set");
 			VI_ASSERT(Src->Header != nullptr, "web token header should be set");
 			VI_ASSERT(Src->Payload != nullptr, "web token payload should be set");
-
 			Core::String Alg = Src->Header->GetVar("alg").GetBlob();
 			if (Alg.empty())
 				return Core::Optional::None;
@@ -7410,6 +7416,9 @@ namespace Mavi
 		Core::Option<Core::Schema*> Crypto::DocDecrypt(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt)
 		{
 			VI_ASSERT(!Value.empty(), "value should not be empty");
+			if (Value.empty())
+				return Core::Optional::None;
+
 			auto Source = Decrypt(Ciphers::AES_256_CBC(), Codec::Bep45Decode(Value), Key, Salt);
 			if (!Source)
 				return Core::Optional::None;
@@ -7879,6 +7888,9 @@ namespace Mavi
 		{
 #ifdef VI_ZLIB
 			VI_TRACE("[codec] compress %" PRIu64 " bytes", (uint64_t)Data.size());
+			if (Data.empty())
+				return Data;
+
 			uLongf Size = compressBound((uLong)Data.size());
 			Bytef* Buffer = VI_MALLOC(Bytef, Size);
 			if (compress2(Buffer, &Size, (const Bytef*)Data.data(), (uLong)Data.size(), (int)Type) != Z_OK)
@@ -7898,6 +7910,9 @@ namespace Mavi
 		{
 #ifdef VI_ZLIB
 			VI_TRACE("[codec] decompress %" PRIu64 " bytes", (uint64_t)Data.size());
+			if (Data.empty())
+				return Data;
+
 			uLongf SourceSize = (uLong)Data.size();
 			uLongf TotalSize = SourceSize * 2;
 			while (true)

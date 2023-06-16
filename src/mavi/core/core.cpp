@@ -3103,13 +3103,28 @@ namespace Mavi
 				if (Stringify::HasNumber(Text))
 				{
 					if (Stringify::HasDecimal(Text))
+					{
 						Move(Var::DecimalString(Text));
+						return true;
+					}
 					else if (Stringify::HasInteger(Text))
-						Move(Var::Integer(*FromString<int64_t>(Text)));
+					{
+						auto Number = FromString<int64_t>(Text);
+						if (Number)
+						{
+							Move(Var::Integer(*Number));
+							return true;
+						}
+					}
 					else
-						Move(Var::Number(*FromString<double>(Text)));
-
-					return true;
+					{
+						auto Number = FromString<double>(Text);
+						if (Number)
+						{
+							Move(Var::Number(*Number));
+							return true;
+						}
+					}
 				}
 			}
 
@@ -11593,7 +11608,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Buffer != nullptr, "buffer should not be null");
 			if (!Size)
-				return nullptr;
+				return Exceptions::ParserException(ParserError::JSONDocumentEmpty, 0);
 
 			rapidjson::Document Base;
 			Base.Parse(Buffer, Size);

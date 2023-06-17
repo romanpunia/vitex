@@ -9317,10 +9317,10 @@ namespace Mavi
 			}
 #else
 			int Status;
-			VI_TRACE("[os] await process %s", (int)GetProcessId(Process->Process));
+			VI_TRACE("[os] await process %i", (int)Process->Process);
 			waitpid(Process->Process, &Status, 0);
 
-			VI_DEBUG("[os] close process %s", (int)Process->Process);
+			VI_DEBUG("[os] close process %i", (int)Process->Process);
 			if (ExitCode != nullptr)
 				*ExitCode = WEXITSTATUS(Status);
 #endif

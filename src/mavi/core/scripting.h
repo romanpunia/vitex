@@ -901,6 +901,8 @@ namespace Mavi
 
 		public:
 			BaseClass(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept;
+			BaseClass(const BaseClass&) = default;
+			BaseClass(BaseClass&&) = default;
 			ExpectedReturn<void> SetFunctionDef(const char* Decl);
 			ExpectedReturn<void> SetOperatorCopyAddress(asSFuncPtr* Value, FunctionCall = FunctionCall::THISCALL);
 			ExpectedReturn<void> SetBehaviourAddress(const char* Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall = FunctionCall::THISCALL);
@@ -1158,6 +1160,8 @@ namespace Mavi
 			RefClass(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept : BaseClass(Engine, Name, Type)
 			{
 			}
+			RefClass(const RefClass&) = default;
+			RefClass(RefClass&&) = default;
 
 		public:
 			template <typename T, typename... Args>
@@ -1312,6 +1316,8 @@ namespace Mavi
 			TypeClass(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept : BaseClass(Engine, Name, Type)
 			{
 			}
+			TypeClass(const TypeClass&) = default;
+			TypeClass(TypeClass&&) = default;
 
 		public:
 			template <typename T, typename... Args>
@@ -1370,6 +1376,8 @@ namespace Mavi
 
 		public:
 			TypeInterface(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept;
+			TypeInterface(const TypeInterface&) = default;
+			TypeInterface(TypeInterface&&) = default;
 			ExpectedReturn<void> SetMethod(const char* Decl);
 			int GetTypeId() const;
 			bool IsValid() const;
@@ -1386,6 +1394,8 @@ namespace Mavi
 
 		public:
 			Enumeration(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept;
+			Enumeration(const Enumeration&) = default;
+			Enumeration(Enumeration&&) = default;
 			ExpectedReturn<void> SetValue(const char* Name, int Value);
 			int GetTypeId() const;
 			bool IsValid() const;

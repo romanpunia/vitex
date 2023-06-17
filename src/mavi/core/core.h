@@ -984,14 +984,24 @@ namespace Mavi
 				VI_PANIC(IsValue(), "panic is caused by %s", Message);
 				return std::move(*(V*)Value);
 			}
+			const V& Or(const V& IfNone) const
+			{
+				return IsValue() ? *(V*)Value : IfNone;
+			}
+			V&& Or(V&& IfNone)
+			{
+				if (!IsValue())
+					*this = std::move(IfNone);
+				return std::move(*(V*)Value);
+			}
 			const V& operator* () const
 			{
-				VI_ASSERT(IsValue(), "option does not contain any value");
+				VI_PANIC(IsValue(), "option does not contain any value");
 				return *(V*)Value;
 			}
 			V&& operator* ()
 			{
-				VI_ASSERT(IsValue(), "option does not contain any value");
+				VI_PANIC(IsValue(), "option does not contain any value");
 				return std::move(*(V*)Value);
 			}
 			const typename std::remove_pointer<V>::type* operator-> () const
@@ -1225,6 +1235,16 @@ namespace Mavi
 				VI_PANIC(IsValue(), "%s caused by %s", Message, GetErrorText<E>().c_str());
 				return std::move(*(V*)Value);
 			}
+			const V& Or(const V& IfNone) const
+			{
+				return IsValue() ? *(V*)Value : IfNone;
+			}
+			V&& Or(V&& IfNone)
+			{
+				if (!IsValue())
+					*this = std::move(IfNone);
+				return std::move(*(V*)Value);
+			}
 			const E& Error() const
 			{
 				VI_ASSERT(IsError(), "outcome does not contain any errors");
@@ -1256,12 +1276,12 @@ namespace Mavi
 			}
 			const V& operator* () const
 			{
-				VI_ASSERT(IsValue(), "error caused by %s", GetErrorText<E>().c_str());
+				VI_PANIC(IsValue(), "error caused by %s", GetErrorText<E>().c_str());
 				return *(V*)Value;
 			}
 			V&& operator* ()
 			{
-				VI_ASSERT(IsValue(), "error caused by %s", GetErrorText<E>().c_str());
+				VI_PANIC(IsValue(), "error caused by %s", GetErrorText<E>().c_str());
 				return std::move(*(V*)Value);
 			}
 			const typename std::remove_pointer<V>::type* operator-> () const

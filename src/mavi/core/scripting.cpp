@@ -1196,7 +1196,7 @@ namespace Mavi
 			return VM;
 		}
 
-		BaseClass::BaseClass(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept : VM(Engine), Object(Name), TypeId(Type)
+		BaseClass::BaseClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : VM(Engine), Type(Source), TypeId(Type)
 		{
 		}
 		ExpectedReturn<void> BaseClass::SetFunctionDef(const char* Decl)
@@ -1218,9 +1218,9 @@ namespace Mavi
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 
-			Core::String Decl = Core::Stringify::Text("%s& opAssign(const %s &in)", Object.c_str(), Object.c_str());
+			Core::String Decl = Core::Stringify::Text("%s& opAssign(const %s &in)", GetTypeName(), GetTypeName());
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
-			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(Object.c_str(), Decl.c_str(), *Value, (asECallConvTypes)Type));
+			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(GetTypeName(), Decl.c_str(), *Value, (asECallConvTypes)Type));
 		}
 		ExpectedReturn<void> BaseClass::SetBehaviourAddress(const char* Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall Type)
 		{
@@ -1232,7 +1232,7 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " behaviour funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
 
-			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(Object.c_str(), (asEBehaviours)Behave, Decl, *Value, (asECallConvTypes)Type));
+			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), (asEBehaviours)Behave, Decl, *Value, (asECallConvTypes)Type));
 		}
 		ExpectedReturn<void> BaseClass::SetPropertyAddress(const char* Decl, int Offset)
 		{
@@ -1243,7 +1243,7 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " property %i bytes at 0x0+%i", (void*)this, (int)strlen(Decl), Offset);
 
-			return FunctionFactory::ToReturn(Engine->RegisterObjectProperty(Object.c_str(), Decl, Offset));
+			return FunctionFactory::ToReturn(Engine->RegisterObjectProperty(GetTypeName(), Decl, Offset));
 		}
 		ExpectedReturn<void> BaseClass::SetPropertyStaticAddress(const char* Decl, void* Value)
 		{
@@ -1255,11 +1255,10 @@ namespace Mavi
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 
-			asITypeInfo* Info = Engine->GetTypeInfoByName(Object.c_str());
 			const char* Namespace = Engine->GetDefaultNamespace();
-			const char* Scope = Info->GetNamespace();
+			const char* Scope = Type->GetNamespace();
 
-			Engine->SetDefaultNamespace(Scope[0] == '\0' ? Object.c_str() : Core::String(Scope).append("::").append(Object).c_str());
+			Engine->SetDefaultNamespace(Scope[0] == '\0' ? GetTypeName() : Core::String(Scope).append("::").append(GetName()).c_str());
 			int R = Engine->RegisterGlobalProperty(Decl, Value);
 			Engine->SetDefaultNamespace(Namespace);
 
@@ -1279,7 +1278,7 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
 
-			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(Object.c_str(), Decl, *Value, (asECallConvTypes)Type));
+			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(GetTypeName(), Decl, *Value, (asECallConvTypes)Type));
 		}
 		ExpectedReturn<void> BaseClass::SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
@@ -1291,11 +1290,10 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " static funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
 
-			asITypeInfo* Info = Engine->GetTypeInfoByName(Object.c_str());
 			const char* Namespace = Engine->GetDefaultNamespace();
-			const char* Scope = Info->GetNamespace();
+			const char* Scope = this->Type->GetNamespace();
 
-			Engine->SetDefaultNamespace(Scope[0] == '\0' ? Object.c_str() : Core::String(Scope).append("::").append(Object).c_str());
+			Engine->SetDefaultNamespace(Scope[0] == '\0' ? GetTypeName() : Core::String(Scope).append("::").append(GetName()).c_str());
 			int R = Engine->RegisterGlobalFunction(Decl, *Value, (asECallConvTypes)Type);
 			Engine->SetDefaultNamespace(Namespace);
 
@@ -1312,7 +1310,7 @@ namespace Mavi
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 
-			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(Object.c_str(), asBEHAVE_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type));
+			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), asBEHAVE_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type));
 		}
 		ExpectedReturn<void> BaseClass::SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
@@ -1324,7 +1322,7 @@ namespace Mavi
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 
-			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(Object.c_str(), asBEHAVE_LIST_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type));
+			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), asBEHAVE_LIST_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type));
 		}
 		ExpectedReturn<void> BaseClass::SetDestructorAddress(const char* Decl, asSFuncPtr* Value)
 		{
@@ -1336,7 +1334,11 @@ namespace Mavi
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 
-			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(Object.c_str(), asBEHAVE_DESTRUCT, Decl, *Value, asCALL_CDECL_OBJFIRST));
+			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), asBEHAVE_DESTRUCT, Decl, *Value, asCALL_CDECL_OBJFIRST));
+		}
+		asITypeInfo* BaseClass::GetTypeInfo() const
+		{
+			return Type;
 		}
 		int BaseClass::GetTypeId() const
 		{
@@ -1344,11 +1346,15 @@ namespace Mavi
 		}
 		bool BaseClass::IsValid() const
 		{
-			return VM != nullptr && TypeId >= 0;
+			return VM != nullptr && TypeId >= 0 && Type != nullptr;
+		}
+		const char* BaseClass::GetTypeName() const
+		{
+			return Type ? Type->GetName() : "";
 		}
 		Core::String BaseClass::GetName() const
 		{
-			return Object;
+			return GetTypeName();
 		}
 		VirtualMachine* BaseClass::GetVM() const
 		{
@@ -1512,7 +1518,7 @@ namespace Mavi
 			}
 		}
 
-		TypeInterface::TypeInterface(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept : VM(Engine), Object(Name), TypeId(Type)
+		TypeInterface::TypeInterface(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : VM(Engine), Type(Source), TypeId(Type)
 		{
 		}
 		ExpectedReturn<void> TypeInterface::SetMethod(const char* Decl)
@@ -1524,7 +1530,11 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register interface 0x%" PRIXPTR " method %i bytes", (void*)this, (int)strlen(Decl));
 
-			return FunctionFactory::ToReturn(Engine->RegisterInterfaceMethod(Object.c_str(), Decl));
+			return FunctionFactory::ToReturn(Engine->RegisterInterfaceMethod(GetTypeName(), Decl));
+		}
+		asITypeInfo* TypeInterface::GetTypeInfo() const
+		{
+			return Type;
 		}
 		int TypeInterface::GetTypeId() const
 		{
@@ -1532,18 +1542,22 @@ namespace Mavi
 		}
 		bool TypeInterface::IsValid() const
 		{
-			return VM != nullptr && TypeId >= 0;
+			return VM != nullptr && TypeId >= 0 && Type != nullptr;
+		}
+		const char* TypeInterface::GetTypeName() const
+		{
+			return Type ? Type->GetName() : "";
 		}
 		Core::String TypeInterface::GetName() const
 		{
-			return Object;
+			return GetTypeName();
 		}
 		VirtualMachine* TypeInterface::GetVM() const
 		{
 			return VM;
 		}
 
-		Enumeration::Enumeration(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept : VM(Engine), Object(Name), TypeId(Type)
+		Enumeration::Enumeration(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : VM(Engine), Type(Source), TypeId(Type)
 		{
 		}
 		ExpectedReturn<void> Enumeration::SetValue(const char* Name, int Value)
@@ -1555,7 +1569,11 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register enum 0x%" PRIXPTR " value %i bytes = %i", (void*)this, (int)strlen(Name), Value);
 
-			return FunctionFactory::ToReturn(Engine->RegisterEnumValue(Object.c_str(), Name, Value));
+			return FunctionFactory::ToReturn(Engine->RegisterEnumValue(GetTypeName(), Name, Value));
+		}
+		asITypeInfo* Enumeration::GetTypeInfo() const
+		{
+			return Type;
 		}
 		int Enumeration::GetTypeId() const
 		{
@@ -1563,11 +1581,15 @@ namespace Mavi
 		}
 		bool Enumeration::IsValid() const
 		{
-			return VM != nullptr && TypeId >= 0;
+			return VM != nullptr && TypeId >= 0 && Type != nullptr;
+		}
+		const char* Enumeration::GetTypeName() const
+		{
+			return Type ? Type->GetName() : "";
 		}
 		Core::String Enumeration::GetName() const
 		{
-			return Object;
+			return GetTypeName();
 		}
 		VirtualMachine* Enumeration::GetVM() const
 		{
@@ -4857,7 +4879,7 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register interface %i bytes", (int)strlen(Name));
 			int TypeId = Engine->RegisterInterface(Name);
-			return FunctionFactory::ToReturn<TypeInterface>(TypeId, TypeInterface(this, Name, TypeId));
+			return FunctionFactory::ToReturn<TypeInterface>(TypeId, TypeInterface(this, Engine->GetTypeInfoById(TypeId), TypeId));
 		}
 		ExpectedReturn<TypeClass> VirtualMachine::SetStructAddress(const char* Name, size_t Size, uint64_t Flags)
 		{
@@ -4865,7 +4887,7 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register struct(%i) %i bytes sizeof %i", (int)Flags, (int)strlen(Name), (int)Size);
 			int TypeId = Engine->RegisterObjectType(Name, (asUINT)Size, (asDWORD)Flags);
-			return FunctionFactory::ToReturn<TypeClass>(TypeId, TypeClass(this, Name, TypeId));
+			return FunctionFactory::ToReturn<TypeClass>(TypeId, TypeClass(this, Engine->GetTypeInfoById(TypeId), TypeId));
 		}
 		ExpectedReturn<TypeClass> VirtualMachine::SetPodAddress(const char* Name, size_t Size, uint64_t Flags)
 		{
@@ -4877,7 +4899,7 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class(%i) %i bytes", (int)Flags, (int)strlen(Name));
 			int TypeId = Engine->RegisterObjectType(Name, 0, (asDWORD)Flags);
-			return FunctionFactory::ToReturn<RefClass>(TypeId, RefClass(this, Name, TypeId));
+			return FunctionFactory::ToReturn<RefClass>(TypeId, RefClass(this, Engine->GetTypeInfoById(TypeId), TypeId));
 		}
 		ExpectedReturn<Enumeration> VirtualMachine::SetEnum(const char* Name)
 		{
@@ -4885,7 +4907,7 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register enum %i bytes", (int)strlen(Name));
 			int TypeId = Engine->RegisterEnum(Name);
-			return FunctionFactory::ToReturn<Enumeration>(TypeId, Enumeration(this, Name, TypeId));
+			return FunctionFactory::ToReturn<Enumeration>(TypeId, Enumeration(this, Engine->GetTypeInfoById(TypeId), TypeId));
 		}
 		ExpectedReturn<void> VirtualMachine::SetFunctionDef(const char* Decl)
 		{

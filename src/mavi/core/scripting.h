@@ -896,11 +896,11 @@ namespace Mavi
 		{
 		protected:
 			VirtualMachine* VM;
-			Core::String Object;
+			asITypeInfo* Type;
 			int TypeId;
 
 		public:
-			BaseClass(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept;
+			BaseClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept;
 			BaseClass(const BaseClass&) = default;
 			BaseClass(BaseClass&&) = default;
 			ExpectedReturn<void> SetFunctionDef(const char* Decl);
@@ -914,8 +914,10 @@ namespace Mavi
 			ExpectedReturn<void> SetConstructorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECL_OBJFIRST);
 			ExpectedReturn<void> SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECL_OBJFIRST);
 			ExpectedReturn<void> SetDestructorAddress(const char* Decl, asSFuncPtr* Value);
+			asITypeInfo* GetTypeInfo() const;
 			int GetTypeId() const;
 			bool IsValid() const;
+			const char* GetTypeName() const;
 			Core::String GetName() const;
 			VirtualMachine* GetVM() const;
 
@@ -1157,7 +1159,7 @@ namespace Mavi
 		struct VI_OUT RefClass : public BaseClass
 		{
 		public:
-			RefClass(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept : BaseClass(Engine, Name, Type)
+			RefClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : BaseClass(Engine, Source, Type)
 			{
 			}
 			RefClass(const RefClass&) = default;
@@ -1313,7 +1315,7 @@ namespace Mavi
 		struct VI_OUT TypeClass : public BaseClass
 		{
 		public:
-			TypeClass(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept : BaseClass(Engine, Name, Type)
+			TypeClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : BaseClass(Engine, Source, Type)
 			{
 			}
 			TypeClass(const TypeClass&) = default;
@@ -1371,16 +1373,18 @@ namespace Mavi
 		{
 		private:
 			VirtualMachine* VM;
-			Core::String Object;
+			asITypeInfo* Type;
 			int TypeId;
 
 		public:
-			TypeInterface(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept;
+			TypeInterface(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept;
 			TypeInterface(const TypeInterface&) = default;
 			TypeInterface(TypeInterface&&) = default;
 			ExpectedReturn<void> SetMethod(const char* Decl);
+			asITypeInfo* GetTypeInfo() const;
 			int GetTypeId() const;
 			bool IsValid() const;
+			const char* GetTypeName() const;
 			Core::String GetName() const;
 			VirtualMachine* GetVM() const;
 		};
@@ -1389,16 +1393,18 @@ namespace Mavi
 		{
 		private:
 			VirtualMachine* VM;
-			Core::String Object;
+			asITypeInfo* Type;
 			int TypeId;
 
 		public:
-			Enumeration(VirtualMachine* Engine, const Core::String& Name, int Type) noexcept;
+			Enumeration(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept;
 			Enumeration(const Enumeration&) = default;
 			Enumeration(Enumeration&&) = default;
 			ExpectedReturn<void> SetValue(const char* Name, int Value);
+			asITypeInfo* GetTypeInfo() const;
 			int GetTypeId() const;
 			bool IsValid() const;
+			const char* GetTypeName() const;
 			Core::String GetName() const;
 			VirtualMachine* GetVM() const;
 		};

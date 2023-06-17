@@ -9263,7 +9263,7 @@ namespace Mavi
 #else
 				Engine->RegisterTypedef("usize", "uint32");
 #endif
-				RefClass VPointer(VM, "uptr", Engine->RegisterObjectType("uptr", 0, asOBJ_REF | asOBJ_NOCOUNT));
+				Engine->RegisterObjectType("uptr", 0, asOBJ_REF | asOBJ_NOCOUNT);
 				Engine->RegisterObjectMethod("uptr", "void opCast(?&out)", asFUNCTIONPR(PointerToHandleCast, (void*, void**, int), void), asCALL_CDECL_OBJFIRST);
 				Engine->RegisterGlobalFunction("uptr@ to_ptr(?&in)", asFUNCTION(HandleToPointerCast), asCALL_CDECL);
 

@@ -796,7 +796,8 @@ namespace Mavi
 						Promise* Future = Promise::CreateFactoryVoid(false);
 						Core::Coasync<void>([Future, Base, Data...]() -> Core::Promise<void>
 						{
-							auto Result = VI_AWAIT(((Base->*F)(Data...)));
+							auto Task = (Base->*F)(Data...);
+							auto Result = VI_AWAIT(std::move(Task));
 							Future->Store((void*)&Result, (int)TypeID);
 							CoreturnVoid;
 						});
@@ -810,7 +811,8 @@ namespace Mavi
 						int Id = TypeCache::GetTypeId(TypeRef);
 						Core::Coasync<void>([Future, Id, Base, Data...]() -> Core::Promise<void>
 						{
-							auto Result = VI_AWAIT(((Base->*F)(Data...)));
+							auto Task = (Base->*F)(Data...);
+							auto Result = VI_AWAIT(std::move(Task));
 							Future->Store((void*)&Result, Id);
 							CoreturnVoid;
 						});
@@ -828,7 +830,8 @@ namespace Mavi
 						Promise* Future = Promise::CreateFactoryVoid(false);
 						Core::Coasync<void>([Future, Data...]() -> Core::Promise<void>
 						{
-							auto Result = VI_AWAIT(((*F)(Data...)));
+							auto Task = (*F)(Data...);
+							auto Result = VI_AWAIT(std::move(Task));
 							Future->Store((void*)&Result, (int)TypeID);
 							CoreturnVoid;
 						});
@@ -842,7 +845,8 @@ namespace Mavi
 						int TypeId = TypeCache::GetTypeId(TypeRef);
 						Core::Coasync<void>([Future, TypeId, Data...]() -> Core::Promise<void>
 						{
-							auto Result = VI_AWAIT(((*F)(Data...)));
+							auto Task = (*F)(Data...);
+							auto Result = VI_AWAIT(std::move(Task));
 							Future->Store((void*)&Result, TypeId);
 							CoreturnVoid;
 						});

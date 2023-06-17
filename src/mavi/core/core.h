@@ -4215,6 +4215,37 @@ namespace Mavi
 #endif
 			return Future.Get();
 		}
+		inline void Coawait(Promise<void>&& Future, const char* Function = nullptr, const char* Expression = nullptr) noexcept
+		{
+			if (!Future.IsPending())
+				return Future.Get();
+
+			Costate* State; Coroutine* Base;
+			Costate::GetState(&State, &Base);
+			VI_ASSERT(State != nullptr && Base != nullptr, "cannot call await outside coroutine");
+#ifndef NDEBUG
+			std::chrono::microseconds Time = Schedule::GetClock();
+			if (Function != nullptr && Expression != nullptr)
+				VI_WATCH_AT((void*)&Future, Function, Expression);
+#endif
+			State->Deactivate(Base, [&Future, &State, &Base]()
+			{
+				Future.When([&State, &Base]()
+				{
+					State->Activate(Base);
+				});
+			});
+#ifndef NDEBUG
+			if (Function != nullptr && Expression != nullptr)
+			{
+				int64_t Diff = (Schedule::GetClock() - Time).count();
+				if (Diff > (int64_t)Timings::Hangup * 1000)
+					VI_WARN("[stall] %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us) out of % " PRIu64 "ms budget", Function, Expression, Diff / 1000, Diff, (uint64_t)Timings::Hangup);
+				VI_UNWATCH((void*)&Future);
+			}
+#endif
+			return Future.Get();
+		}
 		template <typename T>
 		inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
@@ -4225,7 +4256,8 @@ namespace Mavi
 			Promise<T> Result;
 			Schedule::Get()->SetCoroutine([Result, Callback = std::move(Callback)]() mutable
 			{
-				Result.Set(Callback().Get());
+				auto Task = Callback();
+				Result.Set(VI_AWAIT(std::move(Task)));
 			});
 
 			return Result;

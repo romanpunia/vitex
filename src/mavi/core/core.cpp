@@ -1217,8 +1217,8 @@ namespace Mavi
 			{
 				backward::ResolvedTrace Next = Resolver.resolve(Stack[i]);
 				Frame Target;
-				Target.File = Next.source.filename.empty() ? (Next.object_filename.empty() ? "[external]" : Next.object_filename) : Next.source.filename;
-				Target.Function = Next.source.function.empty() ? "[optimized]" : Next.source.function;
+				Target.File = Next.source.filename.empty() ? (Next.object_filename.empty() ? "[external]" : Next.object_filename.c_str()) : Next.source.filename.c_str();
+				Target.Function = Next.source.function.empty() ? "[optimized]" : Next.source.function.c_str();
 				Target.Line = (uint32_t)Next.source.line;
 				Target.Column = 0;
 				Target.Handle = Next.addr;

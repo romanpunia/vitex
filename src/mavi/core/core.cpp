@@ -18,10 +18,10 @@
 #pragma warning(disable: 4267)
 #pragma warning(disable: 4554)
 #include <concurrentqueue.h>
-#ifdef VI_BACKTRACE
-#include <backward.hpp>
-#elif defined(VI_CXX23)
+#ifdef VI_CXX23
 #include <stacktrace>
+#elif defined(VI_BACKTRACE)
+#include <backward.hpp>
 #endif
 #ifdef VI_FCTX
 #include <fcontext.h>
@@ -1193,7 +1193,27 @@ namespace Mavi
 					Frames.emplace_back(std::move(Target));
 				}
 			}
-#ifdef VI_BACKTRACE
+#ifdef VI_CXX23
+			using StackTraceContainer = std::basic_stacktrace<StandardAllocator<std::stacktrace_entry>>;
+			StackTraceContainer Stack = StackTraceContainer::current(Skips + 2, MaxDepth + Skips + 2);
+			Frames.reserve((size_t)Stack.size());
+
+			for (auto& Next : Stack)
+			{
+				Frame Target;
+				Target.File = Copy<String>(Next.source_file());
+				Target.Function = Copy<String>(Next.description());
+				Target.Line = (uint32_t)Next.source_line();
+				Target.Column = 0;
+				Target.Handle = (void*)Next.native_handle();
+				Target.Native = true;
+				if (Target.File.empty())
+					Target.File = "[external]";
+				if (Target.Function.empty())
+					Target.Function = "[optimized]";
+				Frames.emplace_back(std::move(Target));
+			}
+#elif defined(VI_BACKTRACE)
 			static bool IsPreloaded = false;
 			if (!IsPreloaded)
 			{
@@ -1225,26 +1245,6 @@ namespace Mavi
 				Target.Native = true;
 				if (!Next.source.function.empty() && Target.Function.back() != ')')
 					Target.Function += "()";
-				Frames.emplace_back(std::move(Target));
-			}
-#elif defined(VI_CXX23)
-			using StackTraceContainer = std::basic_stacktrace<AllocationInvoker<std::stacktrace_entry>>;
-			StackTraceContainer Stack = StackTraceContainer::current(Skips + 2, MaxDepth + Skips + 2);
-			Frames.reserve((size_t)Stack.size());
-
-			for (auto& Next : Stack)
-			{
-				Frame Target;
-				Target.File = Copy<String>(Next.source_file());
-				Target.Function = Copy<String>(Next.description());
-				Target.Line = (uint32_t)Next.source_line();
-				Target.Column = 0;
-				Target.Handle = (void*)Next.native_handle();
-				Target.Native = true;
-				if (Target.File.empty())
-					Target.File = "[external]";
-				if (Target.Function.empty())
-					Target.Function = "[optimized]";
 				Frames.emplace_back(std::move(Target));
 			}
 #endif
@@ -8615,6 +8615,9 @@ namespace Mavi
 		}
 		Expected<Stream*> OS::File::Open(const String& Path, FileMode Mode, bool Async)
 		{
+			if (Path.empty())
+				return std::make_error_condition(std::errc::no_such_file_or_directory);
+
 			Network::Location URL(Path);
 			if (URL.Protocol == "file")
 			{

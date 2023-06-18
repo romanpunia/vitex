@@ -994,14 +994,22 @@ namespace Mavi
 					*this = std::move(IfNone);
 				return std::move(*(V*)Value);
 			}
+			const V& Unwrap() const
+			{
+				return OrPanic("trying to unwrap an empty value");
+			}
+			V&& Unwrap()
+			{
+				return OrPanic("trying to unwrap an empty value");
+			}
 			const V& operator* () const
 			{
-				VI_PANIC(IsValue(), "option does not contain any value");
+				VI_ASSERT(IsValue(), "option does not contain any value");
 				return *(V*)Value;
 			}
 			V&& operator* ()
 			{
-				VI_PANIC(IsValue(), "option does not contain any value");
+				VI_ASSERT(IsValue(), "option does not contain any value");
 				return std::move(*(V*)Value);
 			}
 			const typename std::remove_pointer<V>::type* operator-> () const
@@ -1094,6 +1102,10 @@ namespace Mavi
 				VI_ASSERT(Message != nullptr, "panic case message should be set");
 				VI_PANIC(IsValue(), "%s", Message);
 				return true;
+			}
+			bool Unwrap() const
+			{
+				return OrPanic("trying to unwrap an empty value");
 			}
 			explicit operator bool() const
 			{
@@ -1245,14 +1257,22 @@ namespace Mavi
 					*this = std::move(IfNone);
 				return std::move(*(V*)Value);
 			}
+			const V& Unwrap() const
+			{
+				return OrPanic("trying to unwrap an empty value");
+			}
+			V&& Unwrap()
+			{
+				return OrPanic("trying to unwrap an empty value");
+			}
 			const E& Error() const
 			{
-				VI_ASSERT(IsError(), "outcome does not contain any errors");
+				VI_PANIC(IsError(), "outcome does not contain any errors");
 				return *(E*)Value;
 			}
 			E&& Error()
 			{
-				VI_ASSERT(IsError(), "outcome does not contain any errors");
+				VI_PANIC(IsError(), "outcome does not contain any errors");
 				return std::move(*(E*)Value);
 			}
 			void Report(const char* Message) const
@@ -1276,12 +1296,12 @@ namespace Mavi
 			}
 			const V& operator* () const
 			{
-				VI_PANIC(IsValue(), "error caused by %s", GetErrorText<E>().c_str());
+				VI_ASSERT(IsValue(), "error caused by %s", GetErrorText<E>().c_str());
 				return *(V*)Value;
 			}
 			V&& operator* ()
 			{
-				VI_PANIC(IsValue(), "error caused by %s", GetErrorText<E>().c_str());
+				VI_ASSERT(IsValue(), "error caused by %s", GetErrorText<E>().c_str());
 				return std::move(*(V*)Value);
 			}
 			const typename std::remove_pointer<V>::type* operator-> () const
@@ -1457,14 +1477,18 @@ namespace Mavi
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
 				VI_PANIC(IsValue(), "%s caused by %s", Message, GetErrorText<E>().c_str());
 			}
+			void Unwrap() const
+			{
+				OrPanic("trying to unwrap an empty value");
+			}
 			const E& Error() const
 			{
-				VI_ASSERT(IsError(), "outcome does not contain any errors");
+				VI_PANIC(IsError(), "outcome does not contain any errors");
 				return *(E*)Value;
 			}
 			E&& Error()
 			{
-				VI_ASSERT(IsError(), "outcome does not contain any errors");
+				VI_PANIC(IsError(), "outcome does not contain any errors");
 				return std::move(*(E*)Value);
 			}
 			void Report(const char* Message) const
@@ -2431,7 +2455,7 @@ namespace Mavi
 			}
 			T* operator-> ()
 			{
-				VI_ASSERT(Pointer != nullptr, "unique pointer invalid access");
+				VI_ASSERT(Pointer != nullptr, "unique null pointer access");
 				return Pointer;
 			}
 			T* operator* ()

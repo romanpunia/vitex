@@ -988,11 +988,11 @@ namespace Mavi
 			}
 			Option(const V& Other) : Status(1)
 			{
-				OptionUtils::CopyBuffer<V>(Value, (const char*)&Other, sizeof(Value));
+				OptionUtils::CopyBuffer<V>(Value, (const char*)&Other, sizeof(V));
 			}
 			Option(V&& Other) noexcept : Status(1)
 			{
-				OptionUtils::MoveBuffer<V>(Value, (char*)&Other, sizeof(Value));
+				OptionUtils::MoveBuffer<V>(Value, (char*)&Other, sizeof(V));
 			}
 			Option(const Option& Other) : Status(Other.Status)
 			{
@@ -1021,14 +1021,14 @@ namespace Mavi
 			Option& operator= (const V& Other)
 			{
 				this->~Option();
-				OptionUtils::CopyBuffer<V>(Value, (const char*)&Other, sizeof(Value));
+				OptionUtils::CopyBuffer<V>(Value, (const char*)&Other, sizeof(V));
 				Status = 1;
 				return *this;
 			}
 			Option& operator= (V&& Other) noexcept
 			{
 				this->~Option();
-				OptionUtils::MoveBuffer<V>(Value, (char*)&Other, sizeof(Value));
+				OptionUtils::MoveBuffer<V>(Value, (char*)&Other, sizeof(V));
 				Status = 1;
 				return *this;
 			}
@@ -1273,19 +1273,19 @@ namespace Mavi
 		public:
 			Expects(const V& Other) : Status(1)
 			{
-				OptionUtils::CopyBuffer<V>(Value.Buffer, (const char*)&Other, sizeof(Value.Buffer));
+				OptionUtils::CopyBuffer<V>(Value.Buffer, (const char*)&Other, sizeof(V));
 			}
 			Expects(V&& Other) noexcept : Status(1)
 			{
-				OptionUtils::MoveBuffer<V>(Value.Buffer, (char*)&Other, sizeof(Value.Buffer));
+				OptionUtils::MoveBuffer<V>(Value.Buffer, (char*)&Other, sizeof(V));
 			}
 			Expects(const E& Other) noexcept : Status(-1)
 			{
-				OptionUtils::CopyBuffer<E>(Value.Buffer, (const char*)&Other, sizeof(Value.Buffer));
+				OptionUtils::CopyBuffer<E>(Value.Buffer, (const char*)&Other, sizeof(E));
 			}
 			Expects(E&& Other) noexcept : Status(-1)
 			{
-				OptionUtils::MoveBuffer<E>(Value.Buffer, (char*)&Other, sizeof(Value.Buffer));
+				OptionUtils::MoveBuffer<E>(Value.Buffer, (char*)&Other, sizeof(E));
 			}
 			Expects(const Expects& Other) : Status(Other.Status)
 			{
@@ -1313,28 +1313,28 @@ namespace Mavi
 			Expects& operator= (const V& Other)
 			{
 				this->~Expects();
-				OptionUtils::CopyBuffer<V>(Value.Buffer, (const char*)&Other, sizeof(Value.Buffer));
+				OptionUtils::CopyBuffer<V>(Value.Buffer, (const char*)&Other, sizeof(V));
 				Status = 1;
 				return *this;
 			}
 			Expects& operator= (V&& Other) noexcept
 			{
 				this->~Expects();
-				OptionUtils::MoveBuffer<V>(Value.Buffer, (char*)&Other, sizeof(Value.Buffer));
+				OptionUtils::MoveBuffer<V>(Value.Buffer, (char*)&Other, sizeof(V));
 				Status = 1;
 				return *this;
 			}
 			Expects& operator= (const E& Other)
 			{
 				this->~Expects();
-				OptionUtils::CopyBuffer<E>(Value.Buffer, (const char*)&Other, sizeof(Value.Buffer));
+				OptionUtils::CopyBuffer<E>(Value.Buffer, (const char*)&Other, sizeof(E));
 				Status = -1;
 				return *this;
 			}
 			Expects& operator= (E&& Other) noexcept
 			{
 				this->~Expects();
-				OptionUtils::MoveBuffer<E>(Value.Buffer, (char*)&Other, sizeof(Value.Buffer));
+				OptionUtils::MoveBuffer<E>(Value.Buffer, (char*)&Other, sizeof(E));
 				Status = -1;
 				return *this;
 			}
@@ -1566,11 +1566,11 @@ namespace Mavi
 			}
 			Expects(const E& Other) noexcept : Status(-1)
 			{
-				OptionUtils::CopyBuffer<E>(Value, (const char*)&Other, sizeof(Value));
+				OptionUtils::CopyBuffer<E>(Value, (const char*)&Other, sizeof(E));
 			}
 			Expects(E&& Other) noexcept : Status(-1)
 			{
-				OptionUtils::MoveBuffer<E>(Value, (char*)&Other, sizeof(Value));
+				OptionUtils::MoveBuffer<E>(Value, (char*)&Other, sizeof(E));
 			}
 			Expects(const Expects& Other) : Status(Other.Status)
 			{
@@ -1599,14 +1599,14 @@ namespace Mavi
 			Expects& operator= (const E& Other)
 			{
 				this->~Expects();
-				OptionUtils::CopyBuffer<E>(Value, (const char*)&Other, sizeof(Value));
+				OptionUtils::CopyBuffer<E>(Value, (const char*)&Other, sizeof(E));
 				Status = -1;
 				return *this;
 			}
 			Expects& operator= (E&& Other) noexcept
 			{
 				this->~Expects();
-				OptionUtils::MoveBuffer<E>(Value, (char*)&Other, sizeof(Value));
+				OptionUtils::MoveBuffer<E>(Value, (char*)&Other, sizeof(E));
 				Status = -1;
 				return *this;
 			}
@@ -3574,11 +3574,11 @@ namespace Mavi
 			}
 			PromiseState(const T& NewValue) noexcept : Count(1), Code(Deferred::Ready)
 			{
-				OptionUtils::CopyBuffer<T>(Value, (const char*)&NewValue, sizeof(Value));
+				OptionUtils::CopyBuffer<T>(Value, (const char*)&NewValue, sizeof(T));
 			}
 			PromiseState(T&& NewValue) noexcept : Count(1), Code(Deferred::Ready)
 			{
-				OptionUtils::MoveBuffer<T>(Value, (char*)&NewValue, sizeof(Value));
+				OptionUtils::MoveBuffer<T>(Value, (char*)&NewValue, sizeof(T));
 			}
 			~PromiseState()
 			{
@@ -3588,12 +3588,12 @@ namespace Mavi
 			void Emplace(const T& NewValue)
 			{
 				VI_ASSERT(Code != Deferred::Ready, "emplacing to already initialized memory is not desired");
-				OptionUtils::CopyBuffer<T>(Value, (const char*)&NewValue, sizeof(Value));
+				OptionUtils::CopyBuffer<T>(Value, (const char*)&NewValue, sizeof(T));
 			}
 			void Emplace(T&& NewValue)
 			{
 				VI_ASSERT(Code != Deferred::Ready, "emplacing to already initialized memory is not desired");
-				OptionUtils::MoveBuffer<T>(Value, (char*)&NewValue, sizeof(Value));
+				OptionUtils::MoveBuffer<T>(Value, (char*)&NewValue, sizeof(T));
 			}
 			T& Unwrap()
 			{

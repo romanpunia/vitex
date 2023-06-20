@@ -1061,7 +1061,7 @@ namespace Mavi
 				if (!IsValue())
 					return IfNone;
 
-				const V& Reference = *(V*)Value;
+				V& Reference = *(V*)Value;
 				return Reference;
 			}
 			V&& Or(V&& IfNone)&&
@@ -1069,7 +1069,7 @@ namespace Mavi
 				if (!IsValue())
 					return std::move(IfNone);
 
-				const V& Reference = *(V*)Value;
+				V& Reference = *(V*)Value;
 				return std::move(Reference);
 			}
 			const V& Unwrap() const&
@@ -1390,7 +1390,7 @@ namespace Mavi
 				if (!IsValue())
 					return IfNone;
 
-				const V& Reference = *(V*)Value;
+				V& Reference = *(V*)Value;
 				return Reference;
 			}
 			V&& Or(V&& IfNone)&&
@@ -1398,7 +1398,7 @@ namespace Mavi
 				if (!IsValue())
 					return std::move(IfNone);
 
-				const V& Reference = *(V*)Value;
+				V& Reference = *(V*)Value;
 				return std::move(Reference);
 			}
 			const V& Unwrap() const&

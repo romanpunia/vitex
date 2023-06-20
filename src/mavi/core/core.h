@@ -973,7 +973,7 @@ namespace Mavi
 		};
 
 		template <typename V>
-		class alignas(sizeof(size_t)) Option
+		class Option
 		{
 			static_assert(!std::is_same<V, void>::value, "value type should not be void");
 
@@ -1201,7 +1201,7 @@ namespace Mavi
 		};
 
 		template <>
-		class alignas(sizeof(size_t)) Option<void>
+		class Option<void>
 		{
 		private:
 			int8_t Status;
@@ -1254,7 +1254,7 @@ namespace Mavi
 		};
 
 		template <typename V, typename E>
-		class alignas(sizeof(size_t)) Expects
+		class Expects
 		{
 			static_assert(!std::is_same<E, void>::value, "error type should not be void");
 			static_assert(!std::is_same<E, V>::value, "error type should not be value type");
@@ -1551,7 +1551,7 @@ namespace Mavi
 		};
 
 		template <typename E>
-		class alignas(sizeof(size_t)) Expects<void, E>
+		class Expects<void, E>
 		{
 			static_assert(!std::is_same<E, void>::value, "error type should not be void");
 
@@ -3561,7 +3561,7 @@ namespace Mavi
 		};
 
 		template <typename T>
-		struct alignas(sizeof(size_t)) PromiseState
+		struct PromiseState
 		{
 			std::mutex Update;
 			TaskCallback Event;
@@ -3603,7 +3603,7 @@ namespace Mavi
 		};
 
 		template <>
-		struct alignas(sizeof(size_t)) PromiseState<void>
+		struct PromiseState<void>
 		{
 			std::mutex Update;
 			TaskCallback Event;

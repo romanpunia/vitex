@@ -738,7 +738,7 @@ namespace Mavi
 				ParserException(ParserError NewType);
 				ParserException(ParserError NewType, int NewOffset);
 				ParserException(ParserError NewType, int NewOffset, const char* NewMessage);
-				const char* what() const noexcept override;
+				VI_OUT const char* what() const noexcept override;
 			};
 		}
 
@@ -845,38 +845,82 @@ namespace Mavi
 			static void Colorify(Console* Base, Details& Data) noexcept;
 		};
 
-		class ErrorUnwrapper
+		class OptionUtils
 		{
 		public:
 			template <typename Q>
-			static typename std::enable_if<std::is_base_of<std::exception, Q>::value, String>::type GetErrorText(const char* Value, bool IsError)
+			static typename std::enable_if<std::is_trivial<Q>::value, void>::type MoveBuffer(char* Dest, char* Src, size_t Size)
 			{
-				return String(IsError ? ((Q*)Value)->what() : "accessing a none value");
+				memcpy(Dest, Src, Size);
 			}
 			template <typename Q>
-			static typename std::enable_if<std::is_same<std::error_code, Q>::value, std::string>::type GetErrorText(const char* Value, bool IsError)
+			static typename std::enable_if<!std::is_trivial<Q>::value, void>::type MoveBuffer(char* Dest, char* Src, size_t)
 			{
-				return IsError ? ((Q*)Value)->message() : std::string("accessing a none value");
+				new(Dest) Q(std::move(*(Q*)Src));
 			}
 			template <typename Q>
-			static typename std::enable_if<std::is_same<std::error_condition, Q>::value, std::string>::type GetErrorText(const char* Value, bool IsError)
+			static typename std::enable_if<std::is_trivial<Q>::value, void>::type CopyBuffer(char* Dest, const char* Src, size_t Size)
 			{
-				return IsError ? ((Q*)Value)->message() : std::string("accessing a none value");
+				memcpy(Dest, Src, Size);
 			}
 			template <typename Q>
-			static typename std::enable_if<std::is_same<std::string, Q>::value, std::string>::type GetErrorText(const char* Value, bool IsError)
+			static typename std::enable_if<!std::is_trivial<Q>::value, void>::type CopyBuffer(char* Dest, const char* Src, size_t)
 			{
-				return IsError ? *(Q*)Value : Q("accessing a none value");
+				new(Dest) Q(*(Q*)Src);
+			}
+			template <typename Q>
+			static typename std::enable_if<std::is_pointer<Q>::value, const Q>::type ToConstPointer(const char* Src)
+			{
+				Q& Reference = *(Q*)Src;
+				return Reference;
+			}
+			template <typename Q>
+			static typename std::enable_if<!std::is_pointer<Q>::value, const Q*>::type ToConstPointer(const char* Src)
+			{
+				Q& Reference = *(Q*)Src;
+				return &Reference;
+			}
+			template <typename Q>
+			static typename std::enable_if<std::is_pointer<Q>::value, Q>::type ToPointer(char* Src)
+			{
+				Q& Reference = *(Q*)Src;
+				return Reference;
+			}
+			template <typename Q>
+			static typename std::enable_if<!std::is_pointer<Q>::value, Q*>::type ToPointer(char* Src)
+			{
+				Q& Reference = *(Q*)Src;
+				return &Reference;
+			}
+			template <typename Q>
+			static typename std::enable_if<std::is_base_of<std::exception, Q>::value, String>::type ToErrorText(const char* Src, bool IsError)
+			{
+				return String(IsError ? ((Q*)Src)->what() : "accessing a none value");
+			}
+			template <typename Q>
+			static typename std::enable_if<std::is_same<std::error_code, Q>::value, std::string>::type ToErrorText(const char* Src, bool IsError)
+			{
+				return IsError ? ((Q*)Src)->message() : std::string("accessing a none value");
+			}
+			template <typename Q>
+			static typename std::enable_if<std::is_same<std::error_condition, Q>::value, std::string>::type ToErrorText(const char* Src, bool IsError)
+			{
+				return IsError ? ((Q*)Src)->message() : std::string("accessing a none value");
+			}
+			template <typename Q>
+			static typename std::enable_if<std::is_same<std::string, Q>::value, std::string>::type ToErrorText(const char* Src, bool IsError)
+			{
+				return IsError ? *(Q*)Src : Q("accessing a none value");
 			}
 #ifdef VI_ALLOCATOR
 			template <typename Q>
-			static typename std::enable_if<std::is_same<String, Q>::value, String>::type GetErrorText(const char* Value, bool IsError)
+			static typename std::enable_if<std::is_same<String, Q>::value, String>::type ToErrorText(const char* Src, bool IsError)
 			{
-				return IsError ? *(Q*)Value : Q("accessing a none value");
+				return IsError ? *(Q*)Src : Q("accessing a none value");
 			}
 #endif
 			template <typename Q>
-			static typename std::enable_if<!std::is_base_of<std::exception, Q>::value && !std::is_same<std::error_code, Q>::value && !std::is_same<std::error_condition, Q>::value && !std::is_same<std::string, Q>::value && !std::is_same<String, Q>::value, String>::type GetErrorText(const char* Value, bool IsError)
+			static typename std::enable_if<!std::is_base_of<std::exception, Q>::value && !std::is_same<std::error_code, Q>::value && !std::is_same<std::error_condition, Q>::value && !std::is_same<std::string, Q>::value && !std::is_same<String, Q>::value, String>::type ToErrorText(const char* Src, bool IsError)
 			{
 				return String(IsError ? "*unknown error value*" : "accessing a none value");
 			}
@@ -944,22 +988,22 @@ namespace Mavi
 			}
 			Option(const V& Other) : Status(1)
 			{
-				new (Value) V(Other);
+				OptionUtils::CopyBuffer<V>(Value, (const char*)&Other, sizeof(Value));
 			}
 			Option(V&& Other) noexcept : Status(1)
 			{
-				new (Value) V(std::move(Other));
+				OptionUtils::MoveBuffer<V>(Value, (char*)&Other, sizeof(Value));
 			}
 			Option(const Option& Other) : Status(Other.Status)
 			{
 				if (Status > 0)
-					new (Value) V(*(V*)Other.Value);
+					OptionUtils::CopyBuffer<V>(Value, Other.Value, sizeof(Value));
 			}
 			Option(Option&& Other) noexcept : Status(Other.Status)
 			{
 				Other.Status = 0;
 				if (Status > 0)
-					new (Value) V(std::move(*(V*)Other.Value));
+					OptionUtils::MoveBuffer<V>(Value, Other.Value, sizeof(Value));
 			}
 			~Option()
 			{
@@ -977,14 +1021,14 @@ namespace Mavi
 			Option& operator= (const V& Other)
 			{
 				this->~Option();
-				new (Value) V(Other);
+				OptionUtils::CopyBuffer<V>(Value, (const char*)&Other, sizeof(Value));
 				Status = 1;
 				return *this;
 			}
 			Option& operator= (V&& Other) noexcept
 			{
 				this->~Option();
-				new (Value) V(std::move(Other));
+				OptionUtils::MoveBuffer<V>(Value, (char*)&Other, sizeof(Value));
 				Status = 1;
 				return *this;
 			}
@@ -996,7 +1040,7 @@ namespace Mavi
 				this->~Option();
 				Status = Other.Status;
 				if (Status > 0)
-					new (Value) V(*(V*)Other.Value);
+					OptionUtils::CopyBuffer<V>(Value, Other.Value, sizeof(Value));
 
 				return *this;
 			}
@@ -1009,7 +1053,7 @@ namespace Mavi
 				Status = Other.Status;
 				Other.Status = 0;
 				if (Status > 0)
-					new (Value) V(std::move(*(V*)Other.Value));
+					OptionUtils::MoveBuffer<V>(Value, Other.Value, sizeof(Value));
 
 				return *this;
 			}
@@ -1145,40 +1189,14 @@ namespace Mavi
 			const typename std::remove_pointer<V>::type* operator-> () const
 			{
 				VI_ASSERT(IsValue(), "unwrapping an empty value");
-				const auto* Reference = GetConstPointer<V>();
+				const auto* Reference = OptionUtils::ToConstPointer<V>(Value);
 				return Reference;
 			}
 			typename std::remove_pointer<V>::type* operator-> ()
 			{
 				VI_ASSERT(IsValue(), "unwrapping an empty value");
-				auto* Reference = GetPointer<V>();
+				auto* Reference = OptionUtils::ToPointer<V>(Value);
 				return Reference;
-			}
-
-		private:
-			template <typename Q>
-			inline typename std::enable_if<std::is_pointer<Q>::value, Q>::type GetConstPointer() const
-			{
-				V& Reference = *(V*)Value;
-				return Reference;
-			}
-			template <typename Q>
-			inline typename std::enable_if<!std::is_pointer<Q>::value, Q*>::type GetConstPointer() const
-			{
-				V& Reference = *(V*)Value;
-				return &Reference;
-			}
-			template <typename Q>
-			inline typename std::enable_if<std::is_pointer<Q>::value, Q>::type GetPointer()
-			{
-				V& Reference = *(V*)Value;
-				return Reference;
-			}
-			template <typename Q>
-			inline typename std::enable_if<!std::is_pointer<Q>::value, Q*>::type GetPointer()
-			{
-				V& Reference = *(V*)Value;
-				return &Reference;
 			}
 		};
 
@@ -1255,34 +1273,34 @@ namespace Mavi
 		public:
 			Expects(const V& Other) : Status(1)
 			{
-				new (Value.Buffer) V(Other);
+				OptionUtils::CopyBuffer<V>(Value.Buffer, (const char*)&Other, sizeof(Value.Buffer));
 			}
 			Expects(V&& Other) noexcept : Status(1)
 			{
-				new (Value.Buffer) V(std::move(Other));
+				OptionUtils::MoveBuffer<V>(Value.Buffer, (char*)&Other, sizeof(Value.Buffer));
 			}
 			Expects(const E& Other) noexcept : Status(-1)
 			{
-				new (Value.Buffer) E(Other);
+				OptionUtils::CopyBuffer<E>(Value.Buffer, (const char*)&Other, sizeof(Value.Buffer));
 			}
 			Expects(E&& Other) noexcept : Status(-1)
 			{
-				new (Value.Buffer) E(std::move(Other));
+				OptionUtils::MoveBuffer<E>(Value.Buffer, (char*)&Other, sizeof(Value.Buffer));
 			}
 			Expects(const Expects& Other) : Status(Other.Status)
 			{
 				if (Status > 0)
-					new (Value.Buffer) V(*(V*)Other.Value.Buffer);
+					OptionUtils::CopyBuffer<V>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
 				else if (Status < 0)
-					new (Value.Buffer) E(*(E*)Other.Value.Buffer);
+					OptionUtils::CopyBuffer<E>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
 			}
 			Expects(Expects&& Other) noexcept : Status(Other.Status)
 			{
 				Other.Status = 0;
 				if (Status > 0)
-					new (Value) V(std::move(*(V*)Other.Value));
+					OptionUtils::MoveBuffer<V>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
 				else if (Status < 0)
-					new (Value) E(std::move(*(E*)Other.Value));
+					OptionUtils::MoveBuffer<E>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
 			}
 			~Expects()
 			{
@@ -1295,28 +1313,28 @@ namespace Mavi
 			Expects& operator= (const V& Other)
 			{
 				this->~Expects();
-				new (Value.Buffer) V(Other);
+				OptionUtils::CopyBuffer<V>(Value.Buffer, (const char*)&Other, sizeof(Value.Buffer));
 				Status = 1;
 				return *this;
 			}
 			Expects& operator= (V&& Other) noexcept
 			{
 				this->~Expects();
-				new (Value.Buffer) V(std::move(Other));
+				OptionUtils::MoveBuffer<V>(Value.Buffer, (char*)&Other, sizeof(Value.Buffer));
 				Status = 1;
 				return *this;
 			}
 			Expects& operator= (const E& Other)
 			{
 				this->~Expects();
-				new (Value.Buffer) E(Other);
+				OptionUtils::CopyBuffer<E>(Value.Buffer, (const char*)&Other, sizeof(Value.Buffer));
 				Status = -1;
 				return *this;
 			}
 			Expects& operator= (E&& Other) noexcept
 			{
 				this->~Expects();
-				new (Value.Buffer) E(std::move(Other));
+				OptionUtils::MoveBuffer<E>(Value.Buffer, (char*)&Other, sizeof(Value.Buffer));
 				Status = -1;
 				return *this;
 			}
@@ -1328,9 +1346,9 @@ namespace Mavi
 				this->~Expects();
 				Status = Other.Status;
 				if (Status > 0)
-					new (Value.Buffer) V(*(V*)Other.Value.Buffer);
+					OptionUtils::CopyBuffer<V>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
 				else if (Status < 0)
-					new (Value.Buffer) E(*(E*)Other.Value.Buffer);
+					OptionUtils::CopyBuffer<E>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
 
 				return *this;
 			}
@@ -1343,37 +1361,37 @@ namespace Mavi
 				Status = Other.Status;
 				Other.Status = 0;
 				if (Status > 0)
-					new (Value) V(std::move(*(V*)Other.Value));
+					OptionUtils::MoveBuffer<V>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
 				else if (Status < 0)
-					new (Value) E(std::move(*(E*)Other.Value));
+					OptionUtils::MoveBuffer<E>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
 
 				return *this;
 			}
 			const V& Expect(const char* Message) const&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				VI_PANIC(IsValue(), "%s caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
 				const V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			const V&& Expect(const char* Message) const&&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				VI_PANIC(IsValue(), "%s caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			V& Expect(const char* Message)&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				VI_PANIC(IsValue(), "%s caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
 				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			V&& Expect(const char* Message)&&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				VI_PANIC(IsValue(), "%s caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
@@ -1411,25 +1429,25 @@ namespace Mavi
 			}
 			const V& Unwrap() const&
 			{
-				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				const V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			const V&& Unwrap() const&&
 			{
-				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			V& Unwrap()&
 			{
-				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			V&& Unwrap()&&
 			{
-				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
@@ -1460,14 +1478,14 @@ namespace Mavi
 			String What() const
 			{
 				VI_ASSERT(!IsValue(), "value does not contain an error");
-				auto Reason = ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError());
+				auto Reason = OptionUtils::ToErrorText<E>(Value.Buffer, IsError());
 				return String(Reason.begin(), Reason.end());
 			}
 			void Report(const char* Message) const
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "report case message should be set");
 				if (IsError())
-					VI_ERR("%s caused by %s", Message, ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+					VI_ERR("%s caused by %s", Message, OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 			}
 			void Reset()
 			{
@@ -1496,65 +1514,39 @@ namespace Mavi
 			}
 			const V& operator* () const&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				const V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			const V&& operator* () const&&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			V& operator* ()&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			V&& operator* ()&&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			const typename std::remove_pointer<V>::type* operator-> () const
 			{
-				VI_ASSERT(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
-				const auto* Reference = GetConstPointer<V>();
+				VI_ASSERT(IsValue(), "unwrapping an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				auto* Reference = OptionUtils::ToConstPointer<V>(Value.Buffer);
 				return Reference;
 			}
 			typename std::remove_pointer<V>::type* operator-> ()
 			{
-				VI_ASSERT(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
-				auto* Reference = GetPointer<V>();
+				VI_ASSERT(IsValue(), "unwrapping an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				auto* Reference = OptionUtils::ToPointer<V>(Value.Buffer);
 				return Reference;
-			}
-
-		private:
-			template <typename Q>
-			inline typename std::enable_if<std::is_pointer<Q>::value, Q>::type GetConstPointer() const
-			{
-				V& Reference = *(V*)Value.Buffer;
-				return Reference;
-			}
-			template <typename Q>
-			inline typename std::enable_if<!std::is_pointer<Q>::value, Q*>::type GetConstPointer() const
-			{
-				V& Reference = *(V*)Value.Buffer;
-				return &Reference;
-			}
-			template <typename Q>
-			inline typename std::enable_if<std::is_pointer<Q>::value, Q>::type GetPointer()
-			{
-				V& Reference = *(V*)Value.Buffer;
-				return Reference;
-			}
-			template <typename Q>
-			inline typename std::enable_if<!std::is_pointer<Q>::value, Q*>::type GetPointer()
-			{
-				V& Reference = *(V*)Value.Buffer;
-				return &Reference;
 			}
 		};
 
@@ -1574,22 +1566,22 @@ namespace Mavi
 			}
 			Expects(const E& Other) noexcept : Status(-1)
 			{
-				new (Value) E(Other);
+				OptionUtils::CopyBuffer<E>(Value, (const char*)&Other, sizeof(Value));
 			}
 			Expects(E&& Other) noexcept : Status(-1)
 			{
-				new (Value) E(std::move(Other));
+				OptionUtils::MoveBuffer<E>(Value, (char*)&Other, sizeof(Value));
 			}
 			Expects(const Expects& Other) : Status(Other.Status)
 			{
 				if (Status < 0)
-					new (Value) E(*(E*)Other.Value);
+					OptionUtils::CopyBuffer<E>(Value, Other.Value, sizeof(Value));
 			}
 			Expects(Expects&& Other) noexcept : Status(Other.Status)
 			{
 				Other.Status = 0;
 				if (Status < 0)
-					new (Value) E(std::move(*(E*)Other.Value));
+					OptionUtils::MoveBuffer<E>(Value, Other.Value, sizeof(Value));
 			}
 			~Expects()
 			{
@@ -1607,14 +1599,14 @@ namespace Mavi
 			Expects& operator= (const E& Other)
 			{
 				this->~Expects();
-				new (Value) E(Other);
+				OptionUtils::CopyBuffer<E>(Value, (const char*)&Other, sizeof(Value));
 				Status = -1;
 				return *this;
 			}
 			Expects& operator= (E&& Other) noexcept
 			{
 				this->~Expects();
-				new (Value) E(std::move(Other));
+				OptionUtils::MoveBuffer<E>(Value, (char*)&Other, sizeof(Value));
 				Status = -1;
 				return *this;
 			}
@@ -1626,7 +1618,7 @@ namespace Mavi
 				this->~Expects();
 				Status = Other.Status;
 				if (Status < 0)
-					new (Value) E(*(E*)Other.Value);
+					OptionUtils::CopyBuffer<E>(Value, Other.Value, sizeof(Value));
 
 				return *this;
 			}
@@ -1639,18 +1631,18 @@ namespace Mavi
 				Status = Other.Status;
 				Other.Status = 0;
 				if (Status < 0)
-					new (Value) E(std::move(*(E*)Other.Value));
+					OptionUtils::MoveBuffer<E>(Value, Other.Value, sizeof(Value));
 
 				return *this;
 			}
 			void Expect(const char* Message) const
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str(), Message);
+				VI_PANIC(IsValue(), "%s caused by %s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str(), Message);
 			}
 			void Unwrap() const
 			{
-				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str());
+				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str());
 			}
 			const E& Error() const&
 			{
@@ -1679,14 +1671,14 @@ namespace Mavi
 			String What() const
 			{
 				VI_ASSERT(!IsValue(), "value does not contain an error");
-				auto Reason = ErrorUnwrapper::GetErrorText<E>(Value, IsError());
+				auto Reason = OptionUtils::ToErrorText<E>(Value, IsError());
 				return String(Reason.begin(), Reason.end());
 			}
 			void Report(const char* Message) const
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "report case message should be set");
 				if (IsError())
-					VI_ERR("%s caused by %s", Message, ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str());
+					VI_ERR("%s caused by %s", Message, OptionUtils::ToErrorText<E>(Value, IsError()).c_str());
 			}
 			void Reset()
 			{
@@ -3582,11 +3574,11 @@ namespace Mavi
 			}
 			PromiseState(const T& NewValue) noexcept : Count(1), Code(Deferred::Ready)
 			{
-				new(Value) T(NewValue);
+				OptionUtils::CopyBuffer<T>(Value, (const char*)&NewValue, sizeof(Value));
 			}
 			PromiseState(T&& NewValue) noexcept : Count(1), Code(Deferred::Ready)
 			{
-				new(Value) T(std::move(NewValue));
+				OptionUtils::MoveBuffer<T>(Value, (char*)&NewValue, sizeof(Value));
 			}
 			~PromiseState()
 			{
@@ -3596,16 +3588,16 @@ namespace Mavi
 			void Emplace(const T& NewValue)
 			{
 				VI_ASSERT(Code != Deferred::Ready, "emplacing to already initialized memory is not desired");
-				new(Value) T(NewValue);
+				OptionUtils::CopyBuffer<T>(Value, (const char*)&NewValue, sizeof(Value));
 			}
 			void Emplace(T&& NewValue)
 			{
 				VI_ASSERT(Code != Deferred::Ready, "emplacing to already initialized memory is not desired");
-				new(Value) T(std::move(NewValue));
+				OptionUtils::MoveBuffer<T>(Value, (char*)&NewValue, sizeof(Value));
 			}
 			T& Unwrap()
 			{
-				VI_ASSERT(Code == Deferred::Ready, "unwrapping uninitialized memory will result in undefined behaviour");
+				VI_PANIC(Code == Deferred::Ready, "unwrapping uninitialized memory will result in an undefined behaviour");
 				return *(T*)Value;
 			}
 		};

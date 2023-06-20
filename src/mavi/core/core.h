@@ -934,8 +934,8 @@ namespace Mavi
 			static_assert(!std::is_same<V, void>::value, "value type should not be void");
 
 		private:
-			int8_t Status;
 			alignas(V) char Value[sizeof(V)];
+			int8_t Status;
 
 		public:
 			Option(Optional Type) : Status((int8_t)Type)
@@ -959,7 +959,7 @@ namespace Mavi
 			{
 				Other.Status = 0;
 				if (Status > 0)
-					memcpy(Value, Other.Value, sizeof(Value));
+					new (Value) V(std::move(*(V*)Other.Value));
 			}
 			~Option()
 			{
@@ -1009,7 +1009,7 @@ namespace Mavi
 				Status = Other.Status;
 				Other.Status = 0;
 				if (Status > 0)
-					memcpy(Value, Other.Value, sizeof(Value));
+					new (Value) V(std::move(*(V*)Other.Value));
 
 				return *this;
 			}
@@ -1249,8 +1249,8 @@ namespace Mavi
 			};
 
 		private:
-			int8_t Status;
 			Storage<V, E> Value;
+			int8_t Status;
 
 		public:
 			Expects(const V& Other) : Status(1)
@@ -1279,8 +1279,10 @@ namespace Mavi
 			Expects(Expects&& Other) noexcept : Status(Other.Status)
 			{
 				Other.Status = 0;
-				if (Status != 0)
-					memcpy(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
+				if (Status > 0)
+					new (Value) V(std::move(*(V*)Other.Value));
+				else if (Status < 0)
+					new (Value) E(std::move(*(E*)Other.Value));
 			}
 			~Expects()
 			{
@@ -1340,8 +1342,10 @@ namespace Mavi
 				this->~Expects();
 				Status = Other.Status;
 				Other.Status = 0;
-				if (Status != 0)
-					memcpy(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
+				if (Status > 0)
+					new (Value) V(std::move(*(V*)Other.Value));
+				else if (Status < 0)
+					new (Value) E(std::move(*(E*)Other.Value));
 
 				return *this;
 			}
@@ -1560,8 +1564,8 @@ namespace Mavi
 			static_assert(!std::is_same<E, void>::value, "error type should not be void");
 
 		private:
-			int8_t Status;
 			alignas(E) char Value[sizeof(E)];
+			int8_t Status;
 
 		public:
 			Expects(Optional Type) : Status((int8_t)Type)
@@ -1585,7 +1589,7 @@ namespace Mavi
 			{
 				Other.Status = 0;
 				if (Status < 0)
-					memcpy(Value, Other.Value, sizeof(Value));
+					new (Value) E(std::move(*(E*)Other.Value));
 			}
 			~Expects()
 			{
@@ -1635,7 +1639,7 @@ namespace Mavi
 				Status = Other.Status;
 				Other.Status = 0;
 				if (Status < 0)
-					memcpy(Value, Other.Value, sizeof(Value));
+					new (Value) E(std::move(*(E*)Other.Value));
 
 				return *this;
 			}
@@ -3567,11 +3571,11 @@ namespace Mavi
 		template <typename T>
 		struct alignas(sizeof(size_t)) PromiseState
 		{
-			TaskCallback Event;
 			alignas(T) char Value[sizeof(T)];
+			std::mutex Update;
+			TaskCallback Event;
 			std::atomic<uint32_t> Count;
 			std::atomic<Deferred> Code;
-			std::mutex Update;
 
 			PromiseState() noexcept : Count(1), Code(Deferred::Pending)
 			{
@@ -3609,8 +3613,8 @@ namespace Mavi
 		template <>
 		struct alignas(sizeof(size_t)) PromiseState<void>
 		{
-			TaskCallback Event;
 			std::mutex Update;
+			TaskCallback Event;
 			std::atomic<uint32_t> Count;
 			std::atomic<Deferred> Code;
 

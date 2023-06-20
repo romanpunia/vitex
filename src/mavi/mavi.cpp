@@ -228,7 +228,7 @@ namespace Mavi
 		}
 
 		if (Modes & (uint64_t)Init::Locale)
-			setlocale(LC_ALL, "");
+			setlocale(LC_TIME, "C");
 
 		if (Modes & (uint64_t)Init::SSL)
 		{

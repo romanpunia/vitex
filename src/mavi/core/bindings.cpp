@@ -10011,6 +10011,7 @@ namespace Mavi
 				VStdColor->SetValue("pink", (int)Core::StdColor::Pink);
 				VStdColor->SetValue("yellow", (int)Core::StdColor::Yellow);
 				VStdColor->SetValue("white", (int)Core::StdColor::White);
+				VStdColor->SetValue("zero", (int)Core::StdColor::Zero);
 
 				auto VConsole = VM->SetClass<Core::Console>("console", false);
 				VConsole->SetMethod("void hide()", &Core::Console::Hide);
@@ -10024,7 +10025,7 @@ namespace Mavi
 				VConsole->SetMethod("void flush_write()", &Core::Console::FlushWrite);
 				VConsole->SetMethod("void set_cursor(uint32, uint32)", &Core::Console::SetCursor);
 				VConsole->SetMethod("void set_coloring(bool)", &Core::Console::SetColoring);
-				VConsole->SetMethod("void color_begin(std_color, std_color)", &Core::Console::ColorBegin);
+				VConsole->SetMethod("void color_begin(std_color, std_color = std_color::zero)", &Core::Console::ColorBegin);
 				VConsole->SetMethod("void color_end()", &Core::Console::ColorEnd);
 				VConsole->SetMethod("void capture_time()", &Core::Console::CaptureTime);
 				VConsole->SetMethod("void write_line(const string &in)", &Core::Console::sWriteLine);

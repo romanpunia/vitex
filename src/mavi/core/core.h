@@ -929,16 +929,16 @@ namespace Mavi
 		};
 
 		template <typename V>
-		class Option
+		class alignas(sizeof(size_t)) Option
 		{
 			static_assert(!std::is_same<V, void>::value, "value type should not be void");
 
 		private:
-			char Value[sizeof(V)];
-			char Status;
+			alignas(V) char Value[sizeof(V)];
+			int8_t Status;
 
 		public:
-			Option(Optional Type) : Status((char)Type)
+			Option(Optional Type) : Status((int8_t)Type)
 			{
 				VI_ASSERT(Type == Optional::None, "only none is accepted for this constructor");
 			}
@@ -953,24 +953,25 @@ namespace Mavi
 			Option(const Option& Other) : Status(Other.Status)
 			{
 				if (Status > 0)
-					new (Value) V((const V&)*(V*)Other.Value);
+					new (Value) V(*(V*)Other.Value);
 			}
 			Option(Option&& Other) noexcept : Status(Other.Status)
 			{
 				Other.Status = 0;
 				if (Status > 0)
-					memcpy(Value, Other.Value, sizeof(V));
+					memcpy(Value, Other.Value, sizeof(Value));
 			}
 			~Option()
 			{
 				if (Status > 0)
 					((V*)Value)->~V();
+				Status = 0;
 			}
 			Option& operator= (Optional Type)
 			{
 				VI_ASSERT(Type == Optional::None, "only none is accepted for this operator");
 				this->~Option();
-				Status = (char)Type;
+				Status = (int8_t)Type;
 				return *this;
 			}
 			Option& operator= (const V& Other)
@@ -995,7 +996,7 @@ namespace Mavi
 				this->~Option();
 				Status = Other.Status;
 				if (Status > 0)
-					new (Value) V((const V&)*(V*)Other.Value);
+					new (Value) V(*(V*)Other.Value);
 
 				return *this;
 			}
@@ -1008,7 +1009,7 @@ namespace Mavi
 				Status = Other.Status;
 				Other.Status = 0;
 				if (Status > 0)
-					memcpy(Value, Other.Value, sizeof(V));
+					memcpy(Value, Other.Value, sizeof(Value));
 
 				return *this;
 			}
@@ -1182,13 +1183,13 @@ namespace Mavi
 		};
 
 		template <>
-		class Option<void>
+		class alignas(sizeof(size_t)) Option<void>
 		{
 		private:
-			char Status;
+			int8_t Status;
 
 		public:
-			Option(Optional Type) : Status((char)Type)
+			Option(Optional Type) : Status((int8_t)Type)
 			{
 				VI_ASSERT(Type != Optional::Error, "only none and value are accepted for this constructor");
 			}
@@ -1198,7 +1199,7 @@ namespace Mavi
 			Option& operator= (Optional Type)
 			{
 				VI_ASSERT(Type != Optional::Error, "only none and value are accepted for this operator");
-				Status = (char)Type;
+				Status = (int8_t)Type;
 				return *this;
 			}
 			Option& operator= (const Option&) = default;
@@ -1235,80 +1236,85 @@ namespace Mavi
 		};
 
 		template <typename V, typename E>
-		class Expects
+		class alignas(sizeof(size_t)) Expects
 		{
 			static_assert(!std::is_same<E, void>::value, "error type should not be void");
 			static_assert(!std::is_same<E, V>::value, "error type should not be value type");
 
 		private:
-			using ValueSize = std::integral_constant<std::size_t, std::max(sizeof(V), sizeof(E))>;
-			char Value[ValueSize::value];
-			char Status;
+			template <typename... Types>
+			struct Storage
+			{
+				alignas(Types...) char Buffer[std::max({ sizeof(Types)... })];
+			};
+
+		private:
+			Storage<V, E> Value;
+			int8_t Status;
 
 		public:
 			Expects(const V& Other) : Status(1)
 			{
-				new (Value) V(Other);
+				new (Value.Buffer) V(Other);
 			}
 			Expects(V&& Other) noexcept : Status(1)
 			{
-				new (Value) V(std::move(Other));
+				new (Value.Buffer) V(std::move(Other));
 			}
 			Expects(const E& Other) noexcept : Status(-1)
 			{
-				new (Value) E(Other);
+				new (Value.Buffer) E(Other);
 			}
 			Expects(E&& Other) noexcept : Status(-1)
 			{
-				new (Value) E(std::move(Other));
+				new (Value.Buffer) E(std::move(Other));
 			}
 			Expects(const Expects& Other) : Status(Other.Status)
 			{
 				if (Status > 0)
-					new (Value) V((const V&)*(V*)Other.Value);
+					new (Value.Buffer) V(*(V*)Other.Value.Buffer);
 				else if (Status < 0)
-					new (Value) E((const E&)*(E*)Other.Value);
+					new (Value.Buffer) E(*(E*)Other.Value.Buffer);
 			}
 			Expects(Expects&& Other) noexcept : Status(Other.Status)
 			{
 				Other.Status = 0;
-				if (Status > 0)
-					memcpy(Value, Other.Value, ValueSize::value);
-				else if (Status < 0)
-					memcpy(Value, Other.Value, ValueSize::value);
+				if (Status != 0)
+					memcpy(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
 			}
 			~Expects()
 			{
 				if (Status > 0)
-					((V*)Value)->~V();
+					((V*)Value.Buffer)->~V();
 				else if (Status < 0)
-					((E*)Value)->~E();
+					((E*)Value.Buffer)->~E();
+				Status = 0;
 			}
 			Expects& operator= (const V& Other)
 			{
 				this->~Expects();
-				new (Value) V(Other);
+				new (Value.Buffer) V(Other);
 				Status = 1;
 				return *this;
 			}
 			Expects& operator= (V&& Other) noexcept
 			{
 				this->~Expects();
-				new (Value) V(std::move(Other));
+				new (Value.Buffer) V(std::move(Other));
 				Status = 1;
 				return *this;
 			}
 			Expects& operator= (const E& Other)
 			{
 				this->~Expects();
-				new (Value) E(Other);
+				new (Value.Buffer) E(Other);
 				Status = -1;
 				return *this;
 			}
 			Expects& operator= (E&& Other) noexcept
 			{
 				this->~Expects();
-				new (Value) E(std::move(Other));
+				new (Value.Buffer) E(std::move(Other));
 				Status = -1;
 				return *this;
 			}
@@ -1320,9 +1326,9 @@ namespace Mavi
 				this->~Expects();
 				Status = Other.Status;
 				if (Status > 0)
-					new (Value) V((const V&)*(V*)Other.Value);
+					new (Value.Buffer) V(*(V*)Other.Value.Buffer);
 				else if (Status < 0)
-					new (Value) E((const E&)*(E*)Other.Value);
+					new (Value.Buffer) E(*(E*)Other.Value.Buffer);
 
 				return *this;
 			}
@@ -1334,39 +1340,37 @@ namespace Mavi
 				this->~Expects();
 				Status = Other.Status;
 				Other.Status = 0;
-				if (Status > 0)
-					memcpy(Value, Other.Value, ValueSize::value);
-				else if (Status < 0)
-					memcpy(Value, Other.Value, ValueSize::value);
+				if (Status != 0)
+					memcpy(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
 
 				return *this;
 			}
 			const V& Expect(const char* Message) const&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str(), Message);
-				const V& Reference = *(V*)Value;
+				VI_PANIC(IsValue(), "%s caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				const V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			const V&& Expect(const char* Message) const&&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str(), Message);
-				V& Reference = *(V*)Value;
+				VI_PANIC(IsValue(), "%s caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			V& Expect(const char* Message)&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str(), Message);
-				V& Reference = *(V*)Value;
+				VI_PANIC(IsValue(), "%s caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			V&& Expect(const char* Message)&&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str(), Message);
-				V& Reference = *(V*)Value;
+				VI_PANIC(IsValue(), "%s caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			const V& Or(const V& IfNone) const&
@@ -1374,7 +1378,7 @@ namespace Mavi
 				if (!IsValue())
 					return IfNone;
 
-				const V& Reference = *(V*)Value;
+				const V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			const V&& Or(const V&& IfNone) const&&
@@ -1382,7 +1386,7 @@ namespace Mavi
 				if (!IsValue())
 					return std::move(IfNone);
 
-				V& Reference = *(V*)Value;
+				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			V& Or(V& IfNone)&
@@ -1390,7 +1394,7 @@ namespace Mavi
 				if (!IsValue())
 					return IfNone;
 
-				V& Reference = *(V*)Value;
+				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			V&& Or(V&& IfNone)&&
@@ -1398,68 +1402,68 @@ namespace Mavi
 				if (!IsValue())
 					return std::move(IfNone);
 
-				V& Reference = *(V*)Value;
+				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			const V& Unwrap() const&
 			{
-				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str());
-				const V& Reference = *(V*)Value;
+				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				const V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			const V&& Unwrap() const&&
 			{
-				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str());
-				V& Reference = *(V*)Value;
+				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			V& Unwrap()&
 			{
-				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str());
-				V& Reference = *(V*)Value;
+				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			V&& Unwrap()&&
 			{
-				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str());
-				V& Reference = *(V*)Value;
+				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			const E& Error() const&
 			{
 				VI_PANIC(IsError(), "value does not contain any errors");
-				const E& Reference = *(E*)Value;
+				const E& Reference = *(E*)Value.Buffer;
 				return Reference;
 			}
 			const E&& Error() const&&
 			{
 				VI_PANIC(IsError(), "value does not contain an error");
-				E& Reference = *(E*)Value;
+				E& Reference = *(E*)Value.Buffer;
 				return std::move(Reference);
 			}
 			E& Error()&
 			{
 				VI_PANIC(IsError(), "value does not contain an error");
-				E& Reference = *(E*)Value;
+				E& Reference = *(E*)Value.Buffer;
 				return Reference;
 			}
 			E&& Error()&&
 			{
 				VI_PANIC(IsError(), "value does not contain an error");
-				E& Reference = *(E*)Value;
+				E& Reference = *(E*)Value.Buffer;
 				return std::move(Reference);
 			}
 			String What() const
 			{
 				VI_ASSERT(!IsValue(), "value does not contain an error");
-				auto Reason = ErrorUnwrapper::GetErrorText<E>(Value, IsError());
+				auto Reason = ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError());
 				return String(Reason.begin(), Reason.end());
 			}
 			void Report(const char* Message) const
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "report case message should be set");
 				if (IsError())
-					VI_ERR("%s caused by %s", Message, ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str());
+					VI_ERR("%s caused by %s", Message, ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
 			}
 			void Reset()
 			{
@@ -1488,37 +1492,37 @@ namespace Mavi
 			}
 			const V& operator* () const&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str());
-				const V& Reference = *(V*)Value;
+				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				const V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			const V&& operator* () const&&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str());
-				V& Reference = *(V*)Value;
+				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			V& operator* ()&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str());
-				V& Reference = *(V*)Value;
+				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			V&& operator* ()&&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str());
-				V& Reference = *(V*)Value;
+				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
+				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			const typename std::remove_pointer<V>::type* operator-> () const
 			{
-				VI_ASSERT(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str());
+				VI_ASSERT(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
 				const auto* Reference = GetConstPointer<V>();
 				return Reference;
 			}
 			typename std::remove_pointer<V>::type* operator-> ()
 			{
-				VI_ASSERT(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value, IsError()).c_str());
+				VI_ASSERT(IsValue(), "unwrapping an empty value caused by %s", ErrorUnwrapper::GetErrorText<E>(Value.Buffer, IsError()).c_str());
 				auto* Reference = GetPointer<V>();
 				return Reference;
 			}
@@ -1527,40 +1531,40 @@ namespace Mavi
 			template <typename Q>
 			inline typename std::enable_if<std::is_pointer<Q>::value, Q>::type GetConstPointer() const
 			{
-				V& Reference = *(V*)Value;
+				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			template <typename Q>
 			inline typename std::enable_if<!std::is_pointer<Q>::value, Q*>::type GetConstPointer() const
 			{
-				V& Reference = *(V*)Value;
+				V& Reference = *(V*)Value.Buffer;
 				return &Reference;
 			}
 			template <typename Q>
 			inline typename std::enable_if<std::is_pointer<Q>::value, Q>::type GetPointer()
 			{
-				V& Reference = *(V*)Value;
+				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			template <typename Q>
 			inline typename std::enable_if<!std::is_pointer<Q>::value, Q*>::type GetPointer()
 			{
-				V& Reference = *(V*)Value;
+				V& Reference = *(V*)Value.Buffer;
 				return &Reference;
 			}
 		};
 
 		template <typename E>
-		class Expects<void, E>
+		class alignas(sizeof(size_t)) Expects<void, E>
 		{
 			static_assert(!std::is_same<E, void>::value, "error type should not be void");
 
 		private:
-			char Value[sizeof(E)];
-			char Status;
+			alignas(E) char Value[sizeof(E)];
+			int8_t Status;
 
 		public:
-			Expects(Optional Type) : Status((char)Type)
+			Expects(Optional Type) : Status((int8_t)Type)
 			{
 				VI_ASSERT(Type != Optional::Error, "only none and value are accepted for this constructor");
 			}
@@ -1575,24 +1579,25 @@ namespace Mavi
 			Expects(const Expects& Other) : Status(Other.Status)
 			{
 				if (Status < 0)
-					new (Value) E((const E&)*(E*)Other.Value);
+					new (Value) E(*(E*)Other.Value);
 			}
 			Expects(Expects&& Other) noexcept : Status(Other.Status)
 			{
 				Other.Status = 0;
 				if (Status < 0)
-					memcpy(Value, Other.Value, sizeof(E));
+					memcpy(Value, Other.Value, sizeof(Value));
 			}
 			~Expects()
 			{
 				if (Status < 0)
 					((E*)Value)->~E();
+				Status = 0;
 			}
 			Expects& operator= (Optional Type)
 			{
 				VI_ASSERT(Type != Optional::Error, "only none and value are accepted for this operator");
 				this->~Expects();
-				Status = (char)Type;
+				Status = (int8_t)Type;
 				return *this;
 			}
 			Expects& operator= (const E& Other)
@@ -1617,7 +1622,7 @@ namespace Mavi
 				this->~Expects();
 				Status = Other.Status;
 				if (Status < 0)
-					new (Value) E((const E&)*(E*)Other.Value);
+					new (Value) E(*(E*)Other.Value);
 
 				return *this;
 			}
@@ -1630,7 +1635,7 @@ namespace Mavi
 				Status = Other.Status;
 				Other.Status = 0;
 				if (Status < 0)
-					memcpy(Value, Other.Value, sizeof(E));
+					memcpy(Value, Other.Value, sizeof(Value));
 
 				return *this;
 			}
@@ -3560,28 +3565,26 @@ namespace Mavi
 		};
 
 		template <typename T>
-		class DeferredStorage
+		struct alignas(sizeof(size_t)) PromiseState
 		{
-		public:
 			TaskCallback Event;
-			char Value[sizeof(T)];
+			alignas(T) char Value[sizeof(T)];
 			std::atomic<uint32_t> Count;
 			std::atomic<Deferred> Code;
 			std::mutex Update;
 
-		public:
-			DeferredStorage() noexcept : Count(1), Code(Deferred::Pending)
+			PromiseState() noexcept : Count(1), Code(Deferred::Pending)
 			{
 			}
-			DeferredStorage(const T& NewValue) noexcept : Count(1), Code(Deferred::Ready)
+			PromiseState(const T& NewValue) noexcept : Count(1), Code(Deferred::Ready)
 			{
 				new(Value) T(NewValue);
 			}
-			DeferredStorage(T&& NewValue) noexcept : Count(1), Code(Deferred::Ready)
+			PromiseState(T&& NewValue) noexcept : Count(1), Code(Deferred::Ready)
 			{
 				new(Value) T(std::move(NewValue));
 			}
-			~DeferredStorage()
+			~PromiseState()
 			{
 				if (Code == Deferred::Ready)
 					((T*)Value)->~T();
@@ -3604,16 +3607,14 @@ namespace Mavi
 		};
 
 		template <>
-		class DeferredStorage<void>
+		struct alignas(sizeof(size_t)) PromiseState<void>
 		{
-		public:
 			TaskCallback Event;
 			std::mutex Update;
 			std::atomic<uint32_t> Count;
 			std::atomic<Deferred> Code;
 
-		public:
-			DeferredStorage() noexcept : Count(1), Code(Deferred::Pending)
+			PromiseState() noexcept : Count(1), Code(Deferred::Pending)
 			{
 			}
 		};
@@ -3716,7 +3717,7 @@ namespace Mavi
 			};
 
 		public:
-			typedef DeferredStorage<T> Status;
+			typedef PromiseState<T> Status;
 			typedef T Type;
 
 		private:
@@ -4018,7 +4019,7 @@ namespace Mavi
 			};
 
 		public:
-			typedef DeferredStorage<void> Status;
+			typedef PromiseState<void> Status;
 			typedef void Type;
 
 		private:

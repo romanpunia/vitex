@@ -5465,7 +5465,7 @@ namespace Mavi
 			if (!Directory)
 				return;
 
-			Base = *Directory;
+			Base = std::move(*Directory);
 			SetEnvironment(Base);
 		}
 		ContentManager::~ContentManager() noexcept

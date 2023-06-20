@@ -4941,7 +4941,7 @@ namespace Mavi
 
 			if (StartsOf(Other, "./\\"))
 			{
-				Expected<String> Result = OS::Path::Resolve(Other.c_str(), Dir, false);
+				ExpectsIO<String> Result = OS::Path::Resolve(Other.c_str(), Dir, false);
 				if (Result)
 					Other.assign(*Result);
 			}
@@ -6810,7 +6810,7 @@ namespace Mavi
 		{
 			Close();
 		}
-		Expected<void> FileStream::Clear()
+		ExpectsIO<void> FileStream::Clear()
 		{
 			VI_TRACE("[io] fs %i clear", GetFd());
 			auto Result = Close();
@@ -6827,7 +6827,7 @@ namespace Mavi
 			Resource = *Target;
 			return Optional::OK;
 		}
-		Expected<void> FileStream::Open(const char* File, FileMode Mode)
+		ExpectsIO<void> FileStream::Open(const char* File, FileMode Mode)
 		{
 			VI_ASSERT(File != nullptr, "filename should be set");
 			VI_MEASURE(Timings::FileSystem);
@@ -6879,7 +6879,7 @@ namespace Mavi
 			} 
 
 			VI_PANIC(Type != nullptr, "file open cannot be issued with mode:%i", (int)Mode);
-			Expected<String> TargetPath = OS::Path::Resolve(File);
+			ExpectsIO<String> TargetPath = OS::Path::Resolve(File);
 			if (!TargetPath)
 				return TargetPath.Error();
 
@@ -6891,7 +6891,7 @@ namespace Mavi
 			Path = *TargetPath;
 			return Optional::OK;
 		}
-		Expected<void> FileStream::Close()
+		ExpectsIO<void> FileStream::Close()
 		{
 			if (!Resource)
 				return Optional::OK;
@@ -6900,7 +6900,7 @@ namespace Mavi
 			Resource = nullptr;
 			return OS::File::Close(Target);
 		}
-		Expected<void> FileStream::Seek(FileSeek Mode, int64_t Offset)
+		ExpectsIO<void> FileStream::Seek(FileSeek Mode, int64_t Offset)
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_MEASURE(Timings::FileSystem);
@@ -6926,7 +6926,7 @@ namespace Mavi
 					return std::make_error_condition(std::errc::invalid_argument);
 			}
 		}
-		Expected<void> FileStream::Move(int64_t Offset)
+		ExpectsIO<void> FileStream::Move(int64_t Offset)
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_MEASURE(Timings::FileSystem);
@@ -6935,7 +6935,7 @@ namespace Mavi
 				return OS::Error::GetConditionOr();
 			return Optional::OK;
 		}
-		Expected<void> FileStream::Flush()
+		ExpectsIO<void> FileStream::Flush()
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_MEASURE(Timings::FileSystem);
@@ -7016,7 +7016,7 @@ namespace Mavi
 		{
 			Close();
 		}
-		Expected<void> GzStream::Clear()
+		ExpectsIO<void> GzStream::Clear()
 		{
 			VI_TRACE("[gz] fs %i clear", GetFd());
 			auto Result = Close();
@@ -7036,7 +7036,7 @@ namespace Mavi
 
 			return Open(Path.c_str(), FileMode::Binary_Write_Only);
 		}
-		Expected<void> GzStream::Open(const char* File, FileMode Mode)
+		ExpectsIO<void> GzStream::Open(const char* File, FileMode Mode)
 		{
 			VI_ASSERT(File != nullptr, "filename should be set");
 #ifdef VI_ZLIB
@@ -7061,7 +7061,7 @@ namespace Mavi
 			}
 
 			VI_PANIC(Type != nullptr, "file open cannot be issued with mode:%i", (int)Mode);
-			Expected<String> TargetPath = OS::Path::Resolve(File);
+			ExpectsIO<String> TargetPath = OS::Path::Resolve(File);
 			if (!TargetPath)
 				return TargetPath.Error();
 
@@ -7076,7 +7076,7 @@ namespace Mavi
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Expected<void> GzStream::Close()
+		ExpectsIO<void> GzStream::Close()
 		{
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
@@ -7093,7 +7093,7 @@ namespace Mavi
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Expected<void> GzStream::Seek(FileSeek Mode, int64_t Offset)
+		ExpectsIO<void> GzStream::Seek(FileSeek Mode, int64_t Offset)
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 #ifdef VI_ZLIB
@@ -7119,7 +7119,7 @@ namespace Mavi
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Expected<void> GzStream::Move(int64_t Offset)
+		ExpectsIO<void> GzStream::Move(int64_t Offset)
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 #ifdef VI_ZLIB
@@ -7132,7 +7132,7 @@ namespace Mavi
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Expected<void> GzStream::Flush()
+		ExpectsIO<void> GzStream::Flush()
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 #ifdef VI_ZLIB
@@ -7228,12 +7228,12 @@ namespace Mavi
 		{
 			Close();
 		}
-		Expected<void> WebStream::Clear()
+		ExpectsIO<void> WebStream::Clear()
 		{
 			VI_ASSERT(false, "web clear is not supported");
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		Expected<void> WebStream::Open(const char* File, FileMode Mode)
+		ExpectsIO<void> WebStream::Open(const char* File, FileMode Mode)
 		{
 			VI_ASSERT(File != nullptr, "filename should be set");
 			auto Result = Close();
@@ -7293,7 +7293,7 @@ namespace Mavi
 
 			return Optional::OK;
 		}
-		Expected<void> WebStream::Close()
+		ExpectsIO<void> WebStream::Close()
 		{
 			auto* Client = (Network::HTTP::Client*)Resource;
 			Resource = nullptr;
@@ -7307,7 +7307,7 @@ namespace Mavi
 			VI_RELEASE(Client);
 			return Result;
 		}
-		Expected<void> WebStream::Seek(FileSeek Mode, int64_t NewOffset)
+		ExpectsIO<void> WebStream::Seek(FileSeek Mode, int64_t NewOffset)
 		{
 			switch (Mode)
 			{
@@ -7340,12 +7340,12 @@ namespace Mavi
 					return std::make_error_condition(std::errc::not_supported);
 			}
 		}
-		Expected<void> WebStream::Move(int64_t Offset)
+		ExpectsIO<void> WebStream::Move(int64_t Offset)
 		{
 			VI_ASSERT(false, "web move is not supported");
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		Expected<void> WebStream::Flush()
+		ExpectsIO<void> WebStream::Flush()
 		{
 			VI_ASSERT(false, "web flush is not supported");
 			return std::make_error_condition(std::errc::not_supported);
@@ -7420,12 +7420,12 @@ namespace Mavi
 		ProcessStream::ProcessStream() noexcept : FileStream(), ExitCode(-1)
 		{
 		}
-		Expected<void> ProcessStream::Clear()
+		ExpectsIO<void> ProcessStream::Clear()
 		{
 			VI_ASSERT(false, "process clear is not supported");
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		Expected<void> ProcessStream::Open(const char* File, FileMode Mode)
+		ExpectsIO<void> ProcessStream::Open(const char* File, FileMode Mode)
 		{
 			VI_ASSERT(File != nullptr, "command should be set");
 			auto Result = Close();
@@ -7483,7 +7483,7 @@ namespace Mavi
 			Path = File;
 			return Optional::OK;
 		}
-		Expected<void> ProcessStream::Close()
+		ExpectsIO<void> ProcessStream::Close()
 		{
 			if (Resource != nullptr)
 			{
@@ -7984,7 +7984,7 @@ namespace Mavi
 
 			return Buffer.st_mode & S_IFDIR;
 		}
-		Expected<void> OS::Directory::SetWorking(const char* Path)
+		ExpectsIO<void> OS::Directory::SetWorking(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_TRACE("[io] set working dir %s", Path);
@@ -8002,14 +8002,14 @@ namespace Mavi
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Expected<void> OS::Directory::Patch(const String& Path)
+		ExpectsIO<void> OS::Directory::Patch(const String& Path)
 		{
 			if (IsExists(Path.c_str()))
 				return Optional::OK;
 
 			return Create(Path.c_str());
 		}
-		Expected<void> OS::Directory::Scan(const String& Path, Vector<std::pair<String, FileEntry>>* Entries)
+		ExpectsIO<void> OS::Directory::Scan(const String& Path, Vector<std::pair<String, FileEntry>>* Entries)
 		{
 			VI_ASSERT(Entries != nullptr, "entries should be set");
 			VI_MEASURE(Timings::FileSystem);
@@ -8057,7 +8057,7 @@ namespace Mavi
 #endif
 			return Optional::OK;
 		}
-		Expected<void> OS::Directory::Create(const char* Path)
+		ExpectsIO<void> OS::Directory::Create(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
@@ -8102,7 +8102,7 @@ namespace Mavi
 #endif
 			return OS::Error::GetConditionOr();
 		}
-		Expected<void> OS::Directory::Remove(const char* Path)
+		ExpectsIO<void> OS::Directory::Remove(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
@@ -8215,7 +8215,7 @@ namespace Mavi
 #endif
 			return Optional::OK;
 		}
-		Expected<String> OS::Directory::GetModule()
+		ExpectsIO<String> OS::Directory::GetModule()
 		{
 			VI_MEASURE(Timings::FileSystem);
 #ifndef VI_SDL2
@@ -8266,7 +8266,7 @@ namespace Mavi
 			return Result;
 #endif
 		}
-		Expected<String> OS::Directory::GetWorking()
+		ExpectsIO<String> OS::Directory::GetWorking()
 		{
 			VI_MEASURE(Timings::FileSystem);
 #ifdef VI_MICROSOFT
@@ -8401,7 +8401,7 @@ namespace Mavi
 
 			return Result;
 		}
-		Expected<void> OS::File::Write(const String& Path, const char* Data, size_t Length)
+		ExpectsIO<void> OS::File::Write(const String& Path, const char* Data, size_t Length)
 		{
 			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Timings::FileSystem);
@@ -8417,11 +8417,11 @@ namespace Mavi
 
 			return Optional::OK;
 		}
-		Expected<void> OS::File::Write(const String& Path, const String& Data)
+		ExpectsIO<void> OS::File::Write(const String& Path, const String& Data)
 		{
 			return Write(Path, Data.c_str(), Data.size());
 		}
-		Expected<void> OS::File::Copy(const char* From, const char* To)
+		ExpectsIO<void> OS::File::Copy(const char* From, const char* To)
 		{
 			VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
 			VI_MEASURE(Timings::FileSystem);
@@ -8441,7 +8441,7 @@ namespace Mavi
 			Destination << Source.rdbuf();
 			return Optional::OK;
 		}
-		Expected<void> OS::File::Move(const char* From, const char* To)
+		ExpectsIO<void> OS::File::Move(const char* From, const char* To)
 		{
 			VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
 			VI_MEASURE(Timings::FileSystem);
@@ -8460,7 +8460,7 @@ namespace Mavi
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Expected<void> OS::File::Remove(const char* Path)
+		ExpectsIO<void> OS::File::Remove(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
@@ -8480,7 +8480,7 @@ namespace Mavi
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Expected<void> OS::File::Close(void* Stream)
+		ExpectsIO<void> OS::File::Close(void* Stream)
 		{
 			VI_ASSERT(Stream != nullptr, "stream should be set");
 			VI_DEBUG("[io] close fs %i", VI_FILENO((FILE*)Stream));
@@ -8489,7 +8489,7 @@ namespace Mavi
 
 			return Optional::OK;
 		}
-		Expected<void> OS::File::GetState(const String& Path, FileEntry* File)
+		ExpectsIO<void> OS::File::GetState(const String& Path, FileEntry* File)
 		{
 			VI_MEASURE(Timings::FileSystem);
 #if defined(VI_MICROSOFT)
@@ -8529,7 +8529,7 @@ namespace Mavi
 			VI_TRACE("[io] stat %s: %s %" PRIu64 " bytes", Path.c_str(), File->IsDirectory ? "dir" : "file", (uint64_t)File->Size);
 			return Core::Optional::OK;
 		}
-		Expected<size_t> OS::File::Join(const String& To, const Vector<String>& Paths)
+		ExpectsIO<size_t> OS::File::Join(const String& To, const Vector<String>& Paths)
 		{
 			VI_ASSERT(!To.empty(), "to should not be empty");
 			VI_ASSERT(!Paths.empty(), "paths to join should not be empty");
@@ -8554,7 +8554,7 @@ namespace Mavi
 			VI_RELEASE(Target);
 			return Total;
 		}
-		Expected<FileState> OS::File::GetProperties(const char* Path)
+		ExpectsIO<FileState> OS::File::GetProperties(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
@@ -8579,7 +8579,7 @@ namespace Mavi
 			VI_TRACE("[io] stat %s: %" PRIu64 " bytes", Path, (uint64_t)State.Size);
 			return State;
 		}
-		Expected<FileEntry> OS::File::GetState(const String& Path)
+		ExpectsIO<FileEntry> OS::File::GetState(const String& Path)
 		{
 			FileEntry File;
 			auto Status = GetState(Path, &File);
@@ -8588,7 +8588,7 @@ namespace Mavi
 
 			return File;
 		}
-		Expected<FILE*> OS::File::Open(const char* Path, const char* Mode)
+		ExpectsIO<FILE*> OS::File::Open(const char* Path, const char* Mode)
 		{
 			VI_MEASURE(Timings::FileSystem);
 			VI_ASSERT(Path != nullptr && Mode != nullptr, "path and mode should be set");
@@ -8613,7 +8613,7 @@ namespace Mavi
 			return Stream;
 #endif
 		}
-		Expected<Stream*> OS::File::Open(const String& Path, FileMode Mode, bool Async)
+		ExpectsIO<Stream*> OS::File::Open(const String& Path, FileMode Mode, bool Async)
 		{
 			if (Path.empty())
 				return std::make_error_condition(std::errc::no_such_file_or_directory);
@@ -8651,7 +8651,7 @@ namespace Mavi
 
 			return std::make_error_condition(std::errc::invalid_argument);
 		}
-		Expected<Stream*> OS::File::OpenArchive(const String& Path, size_t UnarchivedMaxSize)
+		ExpectsIO<Stream*> OS::File::OpenArchive(const String& Path, size_t UnarchivedMaxSize)
 		{
 			auto State = OS::File::GetState(Path);
 			if (!State)
@@ -8681,7 +8681,7 @@ namespace Mavi
 
 			return Target;
 		}
-		Expected<Stream*> OS::File::OpenJoin(const String& To, const Vector<String>& Paths)
+		ExpectsIO<Stream*> OS::File::OpenJoin(const String& To, const Vector<String>& Paths)
 		{
 			VI_ASSERT(!To.empty(), "to should not be empty");
 			VI_ASSERT(!Paths.empty(), "paths to join should not be empty");
@@ -8704,7 +8704,7 @@ namespace Mavi
 
 			return Target;
 		}
-		Expected<unsigned char*> OS::File::ReadAll(const String& Path, size_t* Length)
+		ExpectsIO<unsigned char*> OS::File::ReadAll(const String& Path, size_t* Length)
 		{
 			auto Base = Open(Path, FileMode::Binary_Read_Only);
 			if (!Base)
@@ -8714,7 +8714,7 @@ namespace Mavi
 			VI_RELEASE(Base);
 			return Result;
 		}
-		Expected<unsigned char*> OS::File::ReadAll(Stream* Stream, size_t* Length)
+		ExpectsIO<unsigned char*> OS::File::ReadAll(Stream* Stream, size_t* Length)
 		{
 			VI_ASSERT(Stream != nullptr, "path should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
@@ -8760,7 +8760,7 @@ namespace Mavi
 
 			return Bytes;
 		}
-		Expected<unsigned char*> OS::File::ReadChunk(Stream* Stream, size_t Length)
+		ExpectsIO<unsigned char*> OS::File::ReadChunk(Stream* Stream, size_t Length)
 		{
 			VI_ASSERT(Stream != nullptr, "stream should be set");
 			auto* Bytes = VI_MALLOC(unsigned char, (Length + 1));
@@ -8769,7 +8769,7 @@ namespace Mavi
 
 			return Bytes;
 		}
-		Expected<String> OS::File::ReadAsString(const String& Path)
+		ExpectsIO<String> OS::File::ReadAsString(const String& Path)
 		{
 			size_t Length = 0;
 			auto FileData = ReadAll(Path, &Length);
@@ -8782,9 +8782,9 @@ namespace Mavi
 
 			return Output;
 		}
-		Expected<Vector<String>> OS::File::ReadAsArray(const String& Path)
+		ExpectsIO<Vector<String>> OS::File::ReadAsArray(const String& Path)
 		{
-			Expected<String> Result = ReadAsString(Path);
+			ExpectsIO<String> Result = ReadAsString(Path);
 			if (!Result)
 				return Result.Error();
 
@@ -8820,7 +8820,7 @@ namespace Mavi
 			return Path[0] == '/' || Path[0] == '\\';
 #endif
 		}
-		Expected<String> OS::Path::Resolve(const char* Path)
+		ExpectsIO<String> OS::Path::Resolve(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
@@ -8836,7 +8836,7 @@ namespace Mavi
 			VI_TRACE("[io] resolve %s path: %s", Path, Output.c_str());
 			return Output;
 		}
-		Expected<String> OS::Path::Resolve(const String& Path, const String& Directory, bool EvenIfExists)
+		ExpectsIO<String> OS::Path::Resolve(const String& Path, const String& Directory, bool EvenIfExists)
 		{
 			VI_ASSERT(!Path.empty() && !Directory.empty(), "path and directory should not be empty");
 			if (IsAbsolute(Path.c_str()))
@@ -8859,9 +8859,9 @@ namespace Mavi
 
 			return Resolve(Target.c_str());
 		}
-		Expected<String> OS::Path::ResolveDirectory(const char* Path)
+		ExpectsIO<String> OS::Path::ResolveDirectory(const char* Path)
 		{
-			Expected<String> Result = Resolve(Path);
+			ExpectsIO<String> Result = Resolve(Path);
 			if (!Result)
 				return Result;
 
@@ -8870,9 +8870,9 @@ namespace Mavi
 
 			return Result;
 		}
-		Expected<String> OS::Path::ResolveDirectory(const String& Path, const String& Directory, bool EvenIfExists)
+		ExpectsIO<String> OS::Path::ResolveDirectory(const String& Path, const String& Directory, bool EvenIfExists)
 		{
-			Expected<String> Result = Resolve(Path, Directory, EvenIfExists);
+			ExpectsIO<String> Result = Resolve(Path, Directory, EvenIfExists);
 			if (!Result)
 				return Result;
 
@@ -9188,7 +9188,7 @@ namespace Mavi
 			VI_DEBUG("[os] execute sp:command [ %s ]", Command.c_str());
 			return system(Command.c_str());
 		}
-		Expected<ProcessStream*> OS::Process::ExecuteWriteOnly(const String& Command)
+		ExpectsIO<ProcessStream*> OS::Process::ExecuteWriteOnly(const String& Command)
 		{
 			VI_ASSERT(!Command.empty(), "format should be set");
 			VI_DEBUG("[os] execute wo:command [ %s ]", Command.c_str());
@@ -9200,7 +9200,7 @@ namespace Mavi
 			VI_RELEASE(Stream);
 			return Result.Error();
 		}
-		Expected<ProcessStream*> OS::Process::ExecuteReadOnly(const String& Command)
+		ExpectsIO<ProcessStream*> OS::Process::ExecuteReadOnly(const String& Command)
 		{
 			VI_ASSERT(!Command.empty(), "format should be set");
 			VI_DEBUG("[os] execute ro:command [ %s ]", Command.c_str());
@@ -9365,7 +9365,7 @@ namespace Mavi
 
 			return Stream.str();
 		}
-		Expected<String> OS::Process::GetEnv(const String& Name)
+		ExpectsIO<String> OS::Process::GetEnv(const String& Name)
 		{
 			char* Value = std::getenv(Name.c_str());
 			if (!Value)
@@ -9418,7 +9418,7 @@ namespace Mavi
 			return Results;
 		}
 
-		Expected<void*> OS::Symbol::Load(const String& Path)
+		ExpectsIO<void*> OS::Symbol::Load(const String& Path)
 		{
 			VI_MEASURE(Timings::FileSystem);
 			String Name(Path);
@@ -9480,7 +9480,7 @@ namespace Mavi
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Expected<void*> OS::Symbol::LoadFunction(void* Handle, const String& Name)
+		ExpectsIO<void*> OS::Symbol::LoadFunction(void* Handle, const String& Name)
 		{
 			VI_ASSERT(Handle != nullptr && !Name.empty(), "handle should be set and name should not be empty");
 			VI_DEBUG("[dl] load function %s", Name.c_str());
@@ -9501,7 +9501,7 @@ namespace Mavi
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Expected<void> OS::Symbol::Unload(void* Handle)
+		ExpectsIO<void> OS::Symbol::Unload(void* Handle)
 		{
 			VI_ASSERT(Handle != nullptr, "handle should be set");
 			VI_MEASURE(Timings::FileSystem);

@@ -3689,7 +3689,7 @@ namespace Mavi
 
 				return Target;
 			}
-			Scripting::ExpectedFuture<Scripting::Activation> Scriptable::DeserializeCall(Core::Schema* Node)
+			Scripting::ExpectsPromiseVM<Scripting::Execution> Scriptable::DeserializeCall(Core::Schema* Node)
 			{
 				Core::Schema* Cache = Node->Find("cache");
 				if (Cache != nullptr)
@@ -3800,7 +3800,7 @@ namespace Mavi
 					Context->SetArgObject(1, Node);
 				});
 			}
-			Scripting::ExpectedFuture<Scripting::Activation> Scriptable::SerializeCall(Core::Schema* Node)
+			Scripting::ExpectsPromiseVM<Scripting::Execution> Scriptable::SerializeCall(Core::Schema* Node)
 			{
 				auto HasProperties = GetPropertiesCount();
 				if (HasProperties)
@@ -3877,30 +3877,30 @@ namespace Mavi
 					Context->SetArgObject(1, Node);
 				});
 			}
-			Scripting::ExpectedFuture<Scripting::Activation> Scriptable::Call(const Core::String& Name, size_t Args, Scripting::ArgsCallback&& OnArgs)
+			Scripting::ExpectsPromiseVM<Scripting::Execution> Scriptable::Call(const Core::String& Name, size_t Args, Scripting::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
-					return Scripting::ExpectedFuture<Scripting::Activation>(Scripting::Errors::INVALID_CONFIGURATION);
+					return Scripting::ExpectsPromiseVM<Scripting::Execution>(Scripting::VirtualError::INVALID_CONFIGURATION);
 
 				return Call(GetFunctionByName(Name, Args).GetFunction(), std::move(OnArgs));
 			}
-			Scripting::ExpectedFuture<Scripting::Activation> Scriptable::Call(asIScriptFunction* Function, Scripting::ArgsCallback&& OnArgs)
+			Scripting::ExpectsPromiseVM<Scripting::Execution> Scriptable::Call(asIScriptFunction* Function, Scripting::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
-					return Scripting::ExpectedFuture<Scripting::Activation>(Scripting::Errors::INVALID_CONFIGURATION);
+					return Scripting::ExpectsPromiseVM<Scripting::Execution>(Scripting::VirtualError::INVALID_CONFIGURATION);
 
 				Scripting::FunctionDelegate Delegate(Function);
 				if (!Delegate.IsValid())
-					return Scripting::ExpectedFuture<Scripting::Activation>(Scripting::Errors::NO_FUNCTION);
+					return Scripting::ExpectsPromiseVM<Scripting::Execution>(Scripting::VirtualError::NO_FUNCTION);
 
 				Protect();
-				return Delegate(std::move(OnArgs)).Then<Scripting::ExpectedReturn<Scripting::Activation>>([this](Scripting::ExpectedReturn<Scripting::Activation>&& Result)
+				return Delegate(std::move(OnArgs)).Then<Scripting::ExpectsVM<Scripting::Execution>>([this](Scripting::ExpectsVM<Scripting::Execution>&& Result)
 				{
 					Unprotect();
 					return Result;
 				});
 			}
-			Scripting::ExpectedFuture<Scripting::Activation> Scriptable::CallEntry(const Core::String& Name)
+			Scripting::ExpectsPromiseVM<Scripting::Execution> Scriptable::CallEntry(const Core::String& Name)
 			{
 				return Call(GetFunctionByName(Name, Invoke == InvokeType::Typeless ? 0 : 1).GetFunction(), [this](Scripting::ImmediateContext* Context)
 				{
@@ -3911,18 +3911,18 @@ namespace Mavi
 					Context->SetArgObject(0, Current);
 				});
 			}
-			Scripting::ExpectedFuture<void> Scriptable::LoadSource()
+			Scripting::ExpectsPromiseVM<void> Scriptable::LoadSource()
 			{
 				return LoadSource(Source, Resource);
 			}
-			Scripting::ExpectedFuture<void> Scriptable::LoadSource(SourceType Type, const Core::String& Data)
+			Scripting::ExpectsPromiseVM<void> Scriptable::LoadSource(SourceType Type, const Core::String& Data)
 			{
 				SceneGraph* Scene = Parent->GetScene();
 				if (!Compiler)
 				{
 					auto* VM = Scene->GetConf().Shared.VM;
 					if (!VM)
-						return Scripting::ExpectedFuture<void>(Scripting::Errors::INVALID_CONFIGURATION);
+						return Scripting::ExpectsPromiseVM<void>(Scripting::VirtualError::INVALID_CONFIGURATION);
 
 					Compiler = VM->CreateCompiler();
 					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const Core::String& Name, const Core::Vector<Core::String>& Args)
@@ -3948,18 +3948,18 @@ namespace Mavi
 					Entry.Update = nullptr;
 					Entry.Message = nullptr;
 					Compiler->Clear();
-					return Scripting::ExpectedFuture<void>(Scripting::Errors::NO_MODULE);
+					return Scripting::ExpectsPromiseVM<void>(Scripting::VirtualError::NO_MODULE);
 				}
 
 				auto Status = Compiler->Prepare("base", Source == SourceType::Resource ? Resource : "anonymous", true, true);
 				if (!Status)
-					return Scripting::ExpectedFuture<void>(Status);
+					return Scripting::ExpectsPromiseVM<void>(Status);
 
 				Status = (Source == SourceType::Resource ? Compiler->LoadFile(Resource) : Compiler->LoadCode("anonymous", Resource));
 				if (!Status)
-					return Scripting::ExpectedFuture<void>(Status);
+					return Scripting::ExpectsPromiseVM<void>(Status);
 
-				return Compiler->Compile().Then<Scripting::ExpectedReturn<void>>([this](Scripting::ExpectedReturn<void>&& Result)
+				return Compiler->Compile().Then<Scripting::ExpectsVM<void>>([this](Scripting::ExpectsVM<void>&& Result)
 				{
 					Entry.Animate = GetFunctionByName("animate", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
 					Entry.Serialize = GetFunctionByName("serialize", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
@@ -3972,25 +3972,25 @@ namespace Mavi
 					return Result;
 				});
 			}
-			Scripting::ExpectedReturn<size_t> Scriptable::GetPropertiesCount()
+			Scripting::ExpectsVM<size_t> Scriptable::GetPropertiesCount()
 			{
 				if (!Compiler)
-					return Scripting::Errors::INVALID_CONFIGURATION;
+					return Scripting::VirtualError::INVALID_CONFIGURATION;
 
 				Scripting::Module Base = Compiler->GetModule();
 				if (!Base.IsValid())
-					return Scripting::Errors::NO_MODULE;
+					return Scripting::VirtualError::NO_MODULE;
 
 				return Base.GetPropertiesCount();
 			}
-			Scripting::ExpectedReturn<size_t> Scriptable::GetFunctionsCount()
+			Scripting::ExpectsVM<size_t> Scriptable::GetFunctionsCount()
 			{
 				if (!Compiler)
-					return Scripting::Errors::INVALID_CONFIGURATION;
+					return Scripting::VirtualError::INVALID_CONFIGURATION;
 
 				Scripting::Module Base = Compiler->GetModule();
 				if (!Base.IsValid())
-					return Scripting::Errors::NO_MODULE;
+					return Scripting::VirtualError::NO_MODULE;
 
 				return Base.GetFunctionCount();
 			}

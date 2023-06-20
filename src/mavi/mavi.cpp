@@ -228,10 +228,7 @@ namespace Mavi
 		}
 
 		if (Modes & (uint64_t)Init::Locale)
-		{
-			if (!setlocale(LC_TIME, "C"))
-				VI_WARN("[mavi] en-US locale cannot be initialized");
-		}
+			setlocale(LC_ALL, "");
 
 		if (Modes & (uint64_t)Init::SSL)
 		{

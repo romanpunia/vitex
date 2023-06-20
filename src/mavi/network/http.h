@@ -538,7 +538,7 @@ namespace Mavi
 				Core::String& GenerateSessionId(Connection* Base);
 
 			public:
-				static Core::Expected<void> InvalidateCache(const Core::String& Path);
+				static Core::ExpectsIO<void> InvalidateCache(const Core::String& Path);
 			};
 
 			class VI_OUT Parser final : public Core::Reference<Parser>
@@ -781,11 +781,11 @@ namespace Mavi
 			public:
 				Server();
 				~Server() override = default;
-				Core::Expected<void> Update();
+				Core::ExpectsIO<void> Update();
 
 			private:
-				Core::Expected<void> OnConfigure(SocketRouter* New) override;
-				Core::Expected<void> OnUnlisten() override;
+				Core::ExpectsIO<void> OnConfigure(SocketRouter* New) override;
+				Core::ExpectsIO<void> OnUnlisten() override;
 				void OnRequestOpen(SocketConnection* Base) override;
 				bool OnRequestCleanup(SocketConnection* Base) override;
 				void OnRequestStall(SocketConnection* Data) override;
@@ -800,7 +800,7 @@ namespace Mavi
 				WebSocketFrame* WebSocket;
 				RequestFrame Request;
 				ResponseFrame Response;
-				Core::ExpectedPromise<void> Future;
+				Core::ExpectsPromiseIO<void> Future;
 
             public:
                 char RemoteAddress[48] = { };
@@ -808,12 +808,12 @@ namespace Mavi
 			public:
 				Client(int64_t ReadTimeout);
 				~Client() override;
-				Core::ExpectedPromise<void> Consume(size_t MaxSize = PAYLOAD_SIZE);
-				Core::ExpectedPromise<void> Fetch(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
-				Core::ExpectedPromise<void> Upgrade(HTTP::RequestFrame&& Root);
-				Core::ExpectedPromise<ResponseFrame*> Send(HTTP::RequestFrame&& Root);
-				Core::ExpectedPromise<Core::Unique<Core::Schema>> JSON(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
-				Core::ExpectedPromise<Core::Unique<Core::Schema>> XML(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectsPromiseIO<void> Consume(size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectsPromiseIO<void> Fetch(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectsPromiseIO<void> Upgrade(HTTP::RequestFrame&& Root);
+				Core::ExpectsPromiseIO<ResponseFrame*> Send(HTTP::RequestFrame&& Root);
+				Core::ExpectsPromiseIO<Core::Unique<Core::Schema>> JSON(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectsPromiseIO<Core::Unique<Core::Schema>> XML(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
 				void Downgrade();
 				WebSocketFrame* GetWebSocket();
 				RequestFrame* GetRequest();

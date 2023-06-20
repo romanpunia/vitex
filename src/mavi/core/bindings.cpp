@@ -177,10 +177,10 @@ namespace Mavi
 		namespace Bindings
 		{
 			template <typename T>
-			int ToErrorCode(const Core::Expected<T>& Status)
+			int ToErrorCode(const Core::ExpectsIO<T>& Status, const char* Scope)
 			{
 				int Code = Status.Error().value();
-				Status.Report("failure");
+				Status.Report(Scope);
 				return Code > 0 ? -Code : Code;
 			}
 			void PointerToHandleCast(void* From, void** To, int TypeId)
@@ -1283,7 +1283,7 @@ namespace Mavi
 						}
 
 						auto Status = ImmediateContext::Get(Context)->ExecuteNext();
-						if (Status && *Status == Activation::Finished)
+						if (Status && *Status == Execution::Finished)
 							return (int)Context->GetReturnDWord() < 0;
 					}
 				}
@@ -1403,7 +1403,7 @@ namespace Mavi
 						}
 
 						auto Status = ImmediateContext::Get(Context)->ExecuteNext();
-						if (Status && *Status == Activation::Finished)
+						if (Status && *Status == Execution::Finished)
 							return Context->GetReturnByte() != 0;
 
 						return false;
@@ -1424,7 +1424,7 @@ namespace Mavi
 						}
 
 						auto Status = ImmediateContext::Get(Context)->ExecuteNext();
-						if (Status && *Status == Activation::Finished)
+						if (Status && *Status == Execution::Finished)
 							return (int)Context->GetReturnDWord() == 0;
 
 						return false;
@@ -3881,12 +3881,12 @@ namespace Mavi
 				{
 					Context->SetArgObject(0, Base);
 					Context->SetUserData(Base, ContextUD);
-				}).When([Base](ExpectedReturn<Activation>&& Status)
+				}).When([Base](ExpectsVM<Execution>&& Status)
 				{
 					Core::UMutex<std::recursive_mutex> Unique(Base->Mutex);
 					Base->Context->SetUserData(nullptr, ContextUD);
 
-					if (!Status || *Status != Activation::Suspended)
+					if (!Status || *Status != Execution::Suspended)
 					{
 						Base->Except = Exception::Pointer(Base->Context->GetContext());
 						Base->Context->Unprepare();
@@ -6915,14 +6915,14 @@ namespace Mavi
 				char IpAddress[64];
 				auto Status = Base->Accept(Fd, IpAddress);
 				Address = IpAddress;
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "accept failed");
 			}
 			int SocketAccept2(Network::Socket* Base, socket_t& Fd, Core::String& Address)
 			{
 				char IpAddress[64];
 				auto Status = Base->Accept(&Fd, IpAddress);
 				Address = IpAddress;
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "accept failed");
 			}
 			int SocketAcceptAsync(Network::Socket* Base, bool WithAddress, asIScriptFunction* Callback)
 			{
@@ -6947,7 +6947,7 @@ namespace Mavi
 					}).Wait();
 					return Result;
 				});
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "accept/async failed");
 			}
 			int SocketCloseAsync(Network::Socket* Base, bool Graceful, asIScriptFunction* Callback)
 			{
@@ -6964,7 +6964,7 @@ namespace Mavi
 					});
 					return Result;
 				});
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "close/async failed");
 			}
 			int64_t SocketSendFileAsync(Network::Socket* Base, FILE* Stream, int64_t Offset, int64_t Size, asIScriptFunction* Callback)
 			{
@@ -6979,12 +6979,12 @@ namespace Mavi
 						Context->SetArg32(0, (int)Poll);
 					});
 				});
-				return Status ? (int64_t)*Status : (int64_t)ToErrorCode(Status);
+				return Status ? (int64_t)*Status : (int64_t)ToErrorCode(Status, "sendfile failed");
 			}
 			int SocketWrite(Network::Socket* Base, const Core::String& Data)
 			{
 				auto Written = Base->Write(Data.data(), (int)Data.size());
-				return Written ? (int)*Written : ToErrorCode(Written);
+				return Written ? (int)*Written : ToErrorCode(Written, "socket write failed");
 			}
 			int SocketWriteAsync(Network::Socket* Base, const Core::String& Data, asIScriptFunction* Callback)
 			{
@@ -6999,13 +6999,13 @@ namespace Mavi
 						Context->SetArg32(0, (int)Poll);
 					}).Wait();
 				});
-				return Written ? (int)*Written : ToErrorCode(Written);
+				return Written ? (int)*Written : ToErrorCode(Written, "socket write/async failed");
 			}
 			int SocketRead1(Network::Socket* Base, Core::String& Data, int Size)
 			{
 				Data.resize(Size);
 				auto Received = Base->Read((char*)Data.data(), Size);
-				return Received ? (int)*Received : ToErrorCode(Received);
+				return Received ? (int)*Received : ToErrorCode(Received, "socket read failed");
 			}
 			int SocketRead2(Network::Socket* Base, Core::String& Data, int Size, asIScriptFunction* Callback)
 			{
@@ -7025,7 +7025,7 @@ namespace Mavi
 
 					return (bool)Context->GetReturnWord();
 				});
-				return Received ? (int)*Received : ToErrorCode(Received);
+				return Received ? (int)*Received : ToErrorCode(Received, "socket read failed");
 			}
 			int SocketReadAsync(Network::Socket* Base, size_t Size, asIScriptFunction* Callback)
 			{
@@ -7047,7 +7047,7 @@ namespace Mavi
 
 					return Result;
 				});
-				return Received ? (int)*Received : ToErrorCode(Received);
+				return Received ? (int)*Received : ToErrorCode(Received, "socket read/async failed");
 			}
 			int SocketReadUntil(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
 			{
@@ -7067,7 +7067,7 @@ namespace Mavi
 
 					return (bool)Context->GetReturnWord();
 				});
-				return Received ? (int)*Received : ToErrorCode(Received);
+				return Received ? (int)*Received : ToErrorCode(Received, "socket read until failed");
 			}
 			int SocketReadUntilAsync(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
 			{
@@ -7089,7 +7089,7 @@ namespace Mavi
 
 					return Result;
 				});
-				return Received ? (int)*Received : ToErrorCode(Received);
+				return Received ? (int)*Received : ToErrorCode(Received, "socket read/async until failed");
 			}
 			int SocketConnectAsync(Network::Socket* Base, Network::SocketAddress* Address, asIScriptFunction* Callback)
 			{
@@ -7110,107 +7110,107 @@ namespace Mavi
 
 					return Result;
 				});
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "connect failed");
 			}
 			int SocketSecure(Network::Socket* Base, ssl_ctx_st* Context, const Core::String& Value)
 			{
 				auto Status = Base->Secure(Context, Value.c_str());
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "ssl handshake failed");
 			}
 			int SocketClose(Network::Socket* Base, bool Gracefully)
 			{
 				auto Status = Base->Close(Gracefully);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "close failed");
 			}
 			int64_t SocketSendFile(Network::Socket* Base, Core::FileStream* Stream, int64_t Offset, int64_t Size)
 			{
 				auto Status = Base->SendFile((FILE*)Stream->GetResource(), Offset, Size);
-				return Status ? (int64_t)*Status : (int64_t)ToErrorCode(Status);
+				return Status ? (int64_t)*Status : (int64_t)ToErrorCode(Status, "sendfile failed");
 			}
 			int SocketConnect(Network::Socket* Base, Network::SocketAddress* Address, uint64_t Timeout)
 			{
 				auto Status = Base->Connect(Address, Timeout);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "connect failed");
 			}
 			int SocketOpen(Network::Socket* Base, Network::SocketAddress* Address)
 			{
 				auto Status = Base->Open(Address);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "open failed");
 			}
 			int SocketBind(Network::Socket* Base, Network::SocketAddress* Address)
 			{
 				auto Status = Base->Bind(Address);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "bind failed");
 			}
 			int SocketListen(Network::Socket* Base, int Backlog)
 			{
 				auto Status = Base->Listen(Backlog);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "listen failed");
 			}
 			int SocketClearEvents(Network::Socket* Base, bool Gracefully)
 			{
 				auto Status = Base->ClearEvents(Gracefully);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "clear failed");
 			}
 			int SocketMigrateTo(Network::Socket* Base, size_t Fd, bool Gracefully)
 			{
 				auto Status = Base->MigrateTo((socket_t)Fd, Gracefully);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "migration failed");
 			}
 			int SocketSetCloseOnExec(Network::Socket* Base)
 			{
 				auto Status = Base->SetCloseOnExec();
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "set close on execute failed");
 			}
 			int SocketSetTimeWait(Network::Socket* Base, int Timeout)
 			{
 				auto Status = Base->SetTimeWait(Timeout);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "set time wait failed");
 			}
 			int SocketSetAnyFlag(Network::Socket* Base, int Level, int Option, int Value)
 			{
 				auto Status = Base->SetAnyFlag(Level, Option, Value);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "setsockopt failed");
 			}
 			int SocketSetSocketFlag(Network::Socket* Base, int Option, int Value)
 			{
 				auto Status = Base->SetSocketFlag(Option, Value);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "setsockopt failed");
 			}
 			int SocketSetBlocking(Network::Socket* Base, bool Active)
 			{
 				auto Status = Base->SetBlocking(Active);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "set blocking failed");
 			}
 			int SocketSetNoDelay(Network::Socket* Base, bool Active)
 			{
 				auto Status = Base->SetNoDelay(Active);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "set no delay failed");
 			}
 			int SocketSetKeepAlive(Network::Socket* Base, bool Active)
 			{
 				auto Status = Base->SetKeepAlive(Active);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "set keep alive failed");
 			}
 			int SocketSetTimeout(Network::Socket* Base, int Timeout)
 			{
 				auto Status = Base->SetTimeout(Timeout);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "set timeout/async failed");
 			}
 			int SocketGetAnyFlag(Network::Socket* Base, int Level, int Option, int* Value)
 			{
 				auto Status = Base->GetAnyFlag(Level, Option, Value);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "getsockopt failed");
 			}
 			int SocketGetSocketFlag(Network::Socket* Base, int Option, int* Value)
 			{
 				auto Status = Base->GetSocketFlag(Option, Value);
-				return Status ? 0 : ToErrorCode(Status);
+				return Status ? 0 : ToErrorCode(Status, "getsockopt failed");
 			}
 			int SocketGetPort(Network::Socket* Base)
 			{
 				auto Status = Base->GetPort();
-				return Status ? *Status : ToErrorCode(Status);
+				return Status ? *Status : ToErrorCode(Status, "port fetch failed");
 			}
 			Core::String SocketGetRemoteAddress(Network::Socket* Base)
 			{
@@ -7327,11 +7327,11 @@ namespace Mavi
 
 			Core::Promise<int> SocketClientConnect(Network::SocketClient* Client, Network::RemoteHost* Host, bool Async)
 			{
-				return Client->Connect(Host, Async).Then<int>([](Core::Expected<void>&& Result) { return Result ? 0 : ToErrorCode(Result); });
+				return Client->Connect(Host, Async).Then<int>([](Core::ExpectsIO<void>&& Result) { return Result ? 0 : ToErrorCode(Result, "socket connect failed"); });
 			}
 			Core::Promise<int> SocketClientClose(Network::SocketClient* Client)
 			{
-				return Client->Close().Then<int>([](Core::Expected<void>&& Result) { return Result ? 0 : ToErrorCode(Result); });
+				return Client->Close().Then<int>([](Core::ExpectsIO<void>&& Result) { return Result ? 0 : ToErrorCode(Result, "socket close failed"); });
 			}
 
 			Core::String SocketConnectionGetRemoteAddress(Network::SocketConnection* Base)
@@ -7344,7 +7344,7 @@ namespace Mavi
 			}
 
 			template <typename T>
-			void PopulateAudioFilterBase(RefClass&& Class, bool BaseCast = true)
+			void PopulateAudioFilterBase(RefClass& Class, bool BaseCast = true)
 			{
 				if (BaseCast)
 					Class.SetOperatorEx(Operators::Cast, 0, "void", "?&out", &HandleToHandleCast);
@@ -7357,7 +7357,7 @@ namespace Mavi
 				PopulateComponent<T>(Class);
 			}
 			template <typename T, typename... Args>
-			void PopulateAudioFilterInterface(RefClass&& Class, const char* Constructor)
+			void PopulateAudioFilterInterface(RefClass& Class, const char* Constructor)
 			{
 				Class.SetConstructor<T, Args...>(Constructor);
 				Class.SetDynamicCast<T, Audio::AudioFilter>("base_audio_filter@+", true);
@@ -7365,7 +7365,7 @@ namespace Mavi
 			}
 
 			template <typename T>
-			void PopulateAudioEffectBase(RefClass&& Class, bool BaseCast = true)
+			void PopulateAudioEffectBase(RefClass& Class, bool BaseCast = true)
 			{
 				if (BaseCast)
 					Class.SetOperatorEx(Operators::Cast, 0, "void", "?&out", &HandleToHandleCast);
@@ -7380,7 +7380,7 @@ namespace Mavi
 				PopulateComponent<T>(Class);
 			}
 			template <typename T, typename... Args>
-			void PopulateAudioEffectInterface(RefClass&& Class, const char* Constructor)
+			void PopulateAudioEffectInterface(RefClass& Class, const char* Constructor)
 			{
 				Class.SetConstructor<T, Args...>(Constructor);
 				Class.SetDynamicCast<T, Audio::AudioEffect>("base_audio_effect@+", true);
@@ -7449,7 +7449,7 @@ namespace Mavi
 				return Base->Serialize(Stream, Instance, ToVariantKeys(Args));
 			}
 			template <typename T>
-			void PopulateProcessorBase(RefClass&& Class, bool BaseCast = true)
+			void PopulateProcessorBase(RefClass& Class, bool BaseCast = true)
 			{
 				if (BaseCast)
 					Class.SetOperatorEx(Operators::Cast, 0, "void", "?&out", &HandleToHandleCast);
@@ -7461,7 +7461,7 @@ namespace Mavi
 				Class.SetMethod("content_manager@+ get_content() const", &Engine::Processor::GetContent);
 			}
 			template <typename T, typename... Args>
-			void PopulateProcessorInterface(RefClass&& Class, const char* Constructor)
+			void PopulateProcessorInterface(RefClass& Class, const char* Constructor)
 			{
 				Class.SetConstructor<T, Args...>(Constructor);
 				Class.SetDynamicCast<T, Engine::Processor>("base_processor@+", true);
@@ -7475,7 +7475,7 @@ namespace Mavi
 				return Base->Message(Name, Data);
 			}
 			template <typename T>
-			void PopulateComponentBase(RefClass&& Class, bool BaseCast = true)
+			void PopulateComponentBase(RefClass& Class, bool BaseCast = true)
 			{
 				if (BaseCast)
 					Class.SetOperatorEx(Operators::Cast, 0, "void", "?&out", &HandleToHandleCast);
@@ -7500,11 +7500,11 @@ namespace Mavi
 				PopulateComponent<T>(Class);
 			};
 			template <typename T, typename... Args>
-			void PopulateComponentInterface(RefClass&& Class, const char* Constructor)
+			void PopulateComponentInterface(RefClass& Class, const char* Constructor)
 			{
 				Class.SetConstructor<T, Args...>(Constructor);
 				Class.SetDynamicCast<T, Engine::Component>("base_component@+", true);
-				PopulateComponentBase<T>(std::move(Class), false);
+				PopulateComponentBase<T>(Class, false);
 			};
 
 			void EntityRemoveComponent(Engine::Entity* Base, Engine::Component* Source)
@@ -7540,7 +7540,7 @@ namespace Mavi
 			}
 
 			template <typename T>
-			void PopulateDrawableBase(RefClass&& Class)
+			void PopulateDrawableBase(RefClass& Class)
 			{
 				Class.SetProperty<Engine::Drawable>("float overlapping", &Engine::Drawable::Overlapping);
 				Class.SetProperty<Engine::Drawable>("bool static", &Engine::Drawable::Static);
@@ -7553,18 +7553,18 @@ namespace Mavi
 				Class.SetMethod<Engine::Drawable, int64_t>("int64 get_slot()", &Engine::Drawable::GetSlot);
 				Class.SetMethod<Engine::Drawable, Engine::Material*, void*>("material@+ get_material(uptr@)", &Engine::Drawable::GetMaterial);
 				Class.SetMethod<Engine::Drawable, Engine::Material*>("material@+ get_material()", &Engine::Drawable::GetMaterial);
-				PopulateComponentBase<T>(std::move(Class), false);
+				PopulateComponentBase<T>(Class, false);
 			}
 			template <typename T, typename... Args>
-			void PopulateDrawableInterface(RefClass&& Class, const char* Constructor)
+			void PopulateDrawableInterface(RefClass& Class, const char* Constructor)
 			{
 				Class.SetConstructor<T, Args...>(Constructor);
 				Class.SetDynamicCast<T, Engine::Component>("base_component@+", true);
-				PopulateDrawableBase<T>(std::move(Class));
+				PopulateDrawableBase<T>(Class);
 			}
 
 			template <typename T>
-			void PopulateRendererBase(RefClass&& Class, bool BaseCast = true)
+			void PopulateRendererBase(RefClass& Class, bool BaseCast = true)
 			{
 				if (BaseCast)
 					Class.SetOperatorEx(Operators::Cast, 0, "void", "?&out", &HandleToHandleCast);
@@ -7585,11 +7585,11 @@ namespace Mavi
 				PopulateComponent<T>(Class);
 			}
 			template <typename T, typename... Args>
-			void PopulateRendererInterface(RefClass&& Class, const char* Constructor)
+			void PopulateRendererInterface(RefClass& Class, const char* Constructor)
 			{
 				Class.SetConstructor<T, Args...>(Constructor);
 				Class.SetDynamicCast<T, Engine::Renderer>("base_renderer@+", true);
-				PopulateRendererBase<T>(std::move(Class), false);
+				PopulateRendererBase<T>(Class, false);
 			}
 
 			void RenderSystemRestoreViewBuffer(Engine::RenderSystem* Base)
@@ -7930,7 +7930,7 @@ namespace Mavi
 					{
 						Context->SetArgObject(0, (void*)&Name);
 						Context->SetArgObject(1, (void*)Args);
-					}).When([Args](ExpectedReturn<Activation>&&)
+					}).When([Args](ExpectsVM<Execution>&&)
 					{
 						VI_RELEASE(Args);
 					});
@@ -8158,7 +8158,7 @@ namespace Mavi
 					{
 						Context->SetArgObject(0, &Event);
 						Context->SetArgObject(1, &Data);
-					}).When([Event](ExpectedReturn<Activation>&&) mutable
+					}).When([Event](ExpectsVM<Execution>&&) mutable
 					{
 						Event.Release();
 					});
@@ -8209,7 +8209,7 @@ namespace Mavi
 					Listener->Delegate([Event](ImmediateContext* Context) mutable
 					{
 						Context->SetArgObject(0, &Event);
-					}).When([Event](ExpectedReturn<Activation>&&) mutable
+					}).When([Event](ExpectsVM<Execution>&&) mutable
 					{
 						Event.Release();
 					});
@@ -9128,27 +9128,27 @@ namespace Mavi
 			Core::Promise<bool> ClientFetch(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
 			{
 				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->Fetch(std::move(Copy), MaxSize).Then<bool>([](Core::Expected<void>&& Result) { return !!Result; });
+				return Base->Fetch(std::move(Copy), MaxSize).Then<bool>([](Core::ExpectsIO<void>&& Result) { return !!Result; });
 			}
 			Core::Promise<bool> ClientUpgrade(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame)
 			{
 				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->Upgrade(std::move(Copy)).Then<bool>([](Core::Expected<void>&& Result) { return !!Result; });
+				return Base->Upgrade(std::move(Copy)).Then<bool>([](Core::ExpectsIO<void>&& Result) { return !!Result; });
 			}
 			Core::Promise<bool> ClientSend(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame)
 			{
 				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->Send(std::move(Copy)).Then<bool>([](Core::Expected<Network::HTTP::ResponseFrame*>&& Result) { return !!Result; });
+				return Base->Send(std::move(Copy)).Then<bool>([](Core::ExpectsIO<Network::HTTP::ResponseFrame*>&& Result) { return !!Result; });
 			}
 			Core::Promise<Core::Schema*> ClientJSON(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
 			{
 				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->JSON(std::move(Copy), MaxSize).Then<Core::Schema*>([](Core::Expected<Core::Schema*>&& Result) { return Result ? *Result : (Core::Schema*)nullptr; });
+				return Base->JSON(std::move(Copy), MaxSize).Then<Core::Schema*>([](Core::ExpectsIO<Core::Schema*>&& Result) { return Result ? *Result : (Core::Schema*)nullptr; });
 			}
 			Core::Promise<Core::Schema*> ClientXML(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
 			{
 				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->XML(std::move(Copy), MaxSize).Then<Core::Schema*>([](Core::Expected<Core::Schema*>&& Result) { return Result ? *Result : (Core::Schema*)nullptr; });
+				return Base->XML(std::move(Copy), MaxSize).Then<Core::Schema*>([](Core::ExpectsIO<Core::Schema*>&& Result) { return Result ? *Result : (Core::Schema*)nullptr; });
 			}
 			
 			Array* SMTPRequestGetRecipients(Network::SMTP::RequestFrame* Base)
@@ -9251,7 +9251,7 @@ namespace Mavi
 			Core::Promise<int> SMTPClientSend(Network::SMTP::Client* Base, const Network::SMTP::RequestFrame& Frame)
 			{
 				Network::SMTP::RequestFrame Copy = Frame;
-				return Base->Send(std::move(Copy)).Then<int>([](Core::Expected<void>&& Result) { return Result ? (int)0 : ToErrorCode(Result); });
+				return Base->Send(std::move(Copy)).Then<int>([](Core::ExpectsIO<void>&& Result) { return Result ? (int)0 : ToErrorCode(Result, "smtp send failed"); });
 			}
 #endif
 			bool Registry::ImportCTypes(VirtualMachine* VM)

@@ -737,13 +737,13 @@ namespace Mavi
 				void Update(Core::Timer* Time) override;
 				void Message(const Core::String& Name, Core::VariantArgs& Args) override;
 				Core::Unique<Component> Copy(Entity* New) const override;
-				Scripting::ExpectedFuture<Scripting::Activation> Call(const Core::String& Name, size_t Args, Scripting::ArgsCallback&& OnArgs);
-				Scripting::ExpectedFuture<Scripting::Activation> Call(asIScriptFunction* Entry, Scripting::ArgsCallback&& OnArgs);
-				Scripting::ExpectedFuture<Scripting::Activation> CallEntry(const Core::String& Name);
-				Scripting::ExpectedFuture<void> LoadSource();
-				Scripting::ExpectedFuture<void> LoadSource(SourceType Type, const Core::String& Source);
-				Scripting::ExpectedReturn<size_t> GetPropertiesCount();
-				Scripting::ExpectedReturn<size_t> GetFunctionsCount();
+				Scripting::ExpectsPromiseVM<Scripting::Execution> Call(const Core::String& Name, size_t Args, Scripting::ArgsCallback&& OnArgs);
+				Scripting::ExpectsPromiseVM<Scripting::Execution> Call(asIScriptFunction* Entry, Scripting::ArgsCallback&& OnArgs);
+				Scripting::ExpectsPromiseVM<Scripting::Execution> CallEntry(const Core::String& Name);
+				Scripting::ExpectsPromiseVM<void> LoadSource();
+				Scripting::ExpectsPromiseVM<void> LoadSource(SourceType Type, const Core::String& Source);
+				Scripting::ExpectsVM<size_t> GetPropertiesCount();
+				Scripting::ExpectsVM<size_t> GetFunctionsCount();
 				void SetInvocation(InvokeType Type);
 				void UnloadSource();
 				bool GetPropertyByName(const char* Name, Scripting::PropertyInfo* Result);
@@ -758,14 +758,14 @@ namespace Mavi
 
 			public:
 				template <typename T>
-				Scripting::ExpectedReturn<void> SetTypePropertyByName(const char* Name, const T& Value)
+				Scripting::ExpectsVM<void> SetTypePropertyByName(const char* Name, const T& Value)
 				{
 					VI_ASSERT(Name != nullptr, "name should be set");
 					VI_ASSERT(Compiler != nullptr, "compiler should be set");
 
 					Scripting::Module Base = Compiler->GetModule();
 					if (!Base.IsValid())
-						return Scripting::Errors::NO_MODULE;
+						return Scripting::VirtualError::NO_MODULE;
 
 					auto Index = Base.GetPropertyIndexByName(Name);
 					if (!Index)
@@ -773,20 +773,20 @@ namespace Mavi
 
 					T* Address = (T*)Base.GetAddressOfProperty(*Index);
 					if (!Address)
-						return Scripting::Errors::INVALID_OBJECT;
+						return Scripting::VirtualError::INVALID_OBJECT;
 
 					*Address = Value;
 					return Core::Optional::OK;
 				}
 				template <typename T>
-				Scripting::ExpectedReturn<void> SetRefPropertyByName(const char* Name, T* Value)
+				Scripting::ExpectsVM<void> SetRefPropertyByName(const char* Name, T* Value)
 				{
 					VI_ASSERT(Name != nullptr, "name should be set");
 					VI_ASSERT(Compiler != nullptr, "compiler should be set");
 
 					Scripting::Module Base = Compiler->GetModule();
 					if (!Base.IsValid())
-						return Scripting::Errors::NO_MODULE;
+						return Scripting::VirtualError::NO_MODULE;
 
 					auto Index = Base.GetPropertyIndexByName(Name);
 					if (!Index)
@@ -794,7 +794,7 @@ namespace Mavi
 
 					T** Address = (T**)Base.GetAddressOfProperty(*Index);
 					if (!Address)
-						return Scripting::Errors::INVALID_OBJECT;
+						return Scripting::VirtualError::INVALID_OBJECT;
 
 					VI_RELEASE(*Address);
 					*Address = Value;
@@ -803,35 +803,35 @@ namespace Mavi
 					return Core::Optional::OK;
 				}
 				template <typename T>
-				Scripting::ExpectedReturn<void> SetTypePropertyByIndex(size_t Index, const T& Value)
+				Scripting::ExpectsVM<void> SetTypePropertyByIndex(size_t Index, const T& Value)
 				{
 					VI_ASSERT(Index >= 0, "index should be greater or equal to zero");
 					VI_ASSERT(Compiler != nullptr, "compiler should be set");
 
 					Scripting::Module Base = Compiler->GetModule();
 					if (!Base.IsValid())
-						return Scripting::Errors::NO_MODULE;
+						return Scripting::VirtualError::NO_MODULE;
 
 					T* Address = (T*)Base.GetAddressOfProperty(Index);
 					if (!Address)
-						return Scripting::Errors::INVALID_OBJECT;
+						return Scripting::VirtualError::INVALID_OBJECT;
 
 					*Address = Value;
 					return Core::Optional::OK;
 				}
 				template <typename T>
-				Scripting::ExpectedReturn<void>  SetRefPropertyByIndex(size_t Index, T* Value)
+				Scripting::ExpectsVM<void>  SetRefPropertyByIndex(size_t Index, T* Value)
 				{
 					VI_ASSERT(Index >= 0, "index should be greater or equal to zero");
 					VI_ASSERT(Compiler != nullptr, "compiler should be set");
 
 					Scripting::Module Base = Compiler->GetModule();
 					if (!Base.IsValid())
-						return Scripting::Errors::INVALID_CONFIGURATION;
+						return Scripting::VirtualError::INVALID_CONFIGURATION;
 
 					T** Address = (T**)Base.GetAddressOfProperty(Index);
 					if (!Address)
-						return Scripting::Errors::INVALID_OBJECT;
+						return Scripting::VirtualError::INVALID_OBJECT;
 
 					VI_RELEASE(*Address);
 					*Address = Value;
@@ -841,8 +841,8 @@ namespace Mavi
 				}
 
 			private:
-				Scripting::ExpectedFuture<Scripting::Activation> DeserializeCall(Core::Schema* Node);
-				Scripting::ExpectedFuture<Scripting::Activation> SerializeCall(Core::Schema* Node);
+				Scripting::ExpectsPromiseVM<Scripting::Execution> DeserializeCall(Core::Schema* Node);
+				Scripting::ExpectsPromiseVM<Scripting::Execution> SerializeCall(Core::Schema* Node);
 				void Protect();
 				void Unprotect();
 

@@ -752,7 +752,7 @@ namespace Mavi
 				VI_RELEASE(Item.second.second);
 			Names.clear();
 		}
-		Core::Expected<Core::String> DNS::FindNameFromAddress(const Core::String& Host, const Core::String& Service)
+		Core::ExpectsIO<Core::String> DNS::FindNameFromAddress(const Core::String& Host, const Core::String& Service)
 		{
 			VI_ASSERT(!Host.empty(), "ip address should not be empty");
 			VI_ASSERT(!Service.empty(), "port should be greater than zero");
@@ -794,7 +794,7 @@ namespace Mavi
 			VI_DEBUG("[net] dns reverse resolved for identity %s:%i (host %s:%s is used)", Host.c_str(), Service.c_str(), Hostname, ServiceName);
 			return Core::String(Hostname, strnlen(Hostname, sizeof(Hostname) - 1));
 		}
-		Core::Expected<SocketAddress*> DNS::FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType DNS, SocketProtocol Proto, SocketType Type)
+		Core::ExpectsIO<SocketAddress*> DNS::FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType DNS, SocketProtocol Proto, SocketType Type)
 		{
 			VI_ASSERT(!Host.empty(), "host should not be empty");
 			VI_ASSERT(!Service.empty(), "service should not be empty");
@@ -1261,12 +1261,12 @@ namespace Mavi
 		{
 			Fd = FromFd;
 		}
-		Core::Expected<void> Socket::Accept(Socket* OutConnection, char* OutAddr)
+		Core::ExpectsIO<void> Socket::Accept(Socket* OutConnection, char* OutAddr)
 		{
 			VI_ASSERT(OutConnection != nullptr, "socket should be set");
 			return Accept(&OutConnection->Fd, OutAddr);
 		}
-		Core::Expected<void> Socket::Accept(socket_t* OutFd, char* OutAddr)
+		Core::ExpectsIO<void> Socket::Accept(socket_t* OutFd, char* OutAddr)
 		{
 			VI_ASSERT(OutFd != nullptr, "socket should be set");
 
@@ -1285,7 +1285,7 @@ namespace Mavi
 
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback)
+		Core::ExpectsIO<void> Socket::AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			if (!Multiplexer::Get()->WhenReadable(this, [this, WithAddress, Callback = std::move(Callback)](SocketPoll Event) mutable
@@ -1308,7 +1308,7 @@ namespace Mavi
 
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::Close(bool Gracefully)
+		Core::ExpectsIO<void> Socket::Close(bool Gracefully)
 		{
 			ClearEvents(false);
 			if (Fd == INVALID_SOCKET)
@@ -1349,7 +1349,7 @@ namespace Mavi
 			Fd = INVALID_SOCKET;
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::CloseAsync(bool Gracefully, SocketStatusCallback&& Callback)
+		Core::ExpectsIO<void> Socket::CloseAsync(bool Gracefully, SocketStatusCallback&& Callback)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			if (Fd == INVALID_SOCKET)
@@ -1385,10 +1385,10 @@ namespace Mavi
 			VI_DEBUG("[net] sock fd %i closed", (int)Fd);
 			Fd = INVALID_SOCKET;
 
-			Callback(Core::Optional::OK);
+			Callback(Core::Optional::None);
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::TryCloseAsync(SocketStatusCallback&& Callback, bool KeepTrying)
+		Core::ExpectsIO<void> Socket::TryCloseAsync(SocketStatusCallback&& Callback, bool KeepTrying)
 		{
 			while (KeepTrying)
 			{
@@ -1405,7 +1405,7 @@ namespace Mavi
 					if (!Packet::IsSkip(Event))
 						TryCloseAsync(std::move(Callback), Packet::IsDone(Event));
 					else
-						Callback(Core::Optional::OK);
+						Callback(Core::Optional::None);
 				});
 				return Status.Error();
 			}
@@ -1415,10 +1415,10 @@ namespace Mavi
 			VI_DEBUG("[net] sock fd %i closed", (int)Fd);
 			Fd = INVALID_SOCKET;
 
-			Callback(Core::Optional::OK);
+			Callback(Core::Optional::None);
 			return Core::Optional::OK;
 		}
-		Core::Expected<size_t> Socket::SendFile(FILE* Stream, size_t Offset, size_t Size)
+		Core::ExpectsIO<size_t> Socket::SendFile(FILE* Stream, size_t Offset, size_t Size)
 		{
 			VI_ASSERT(Stream != nullptr, "stream should be set");
 			VI_ASSERT(Offset >= 0, "offset should be set and positive");
@@ -1458,7 +1458,7 @@ namespace Mavi
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::Expected<size_t> Socket::SendFileAsync(FILE* Stream, size_t Offset, size_t Size, SocketWrittenCallback&& Callback, size_t TempBuffer)
+		Core::ExpectsIO<size_t> Socket::SendFileAsync(FILE* Stream, size_t Offset, size_t Size, SocketWrittenCallback&& Callback, size_t TempBuffer)
 		{
 			VI_ASSERT(Stream != nullptr, "stream should be set");
 			VI_ASSERT(Callback != nullptr, "callback should be set");
@@ -1498,7 +1498,7 @@ namespace Mavi
 			Callback(TempBuffer != 0 ? SocketPoll::Finish : SocketPoll::FinishSync);
 			return Written;
 		}
-		Core::Expected<size_t> Socket::Write(const char* Buffer, size_t Size)
+		Core::ExpectsIO<size_t> Socket::Write(const char* Buffer, size_t Size)
 		{
 			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
 			VI_MEASURE(Core::Timings::Networking);
@@ -1523,7 +1523,7 @@ namespace Mavi
 			Outcome += Written;
 			return Written;
 		}
-		Core::Expected<size_t> Socket::WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer, size_t TempOffset)
+		Core::ExpectsIO<size_t> Socket::WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer, size_t TempOffset)
 		{
 			VI_ASSERT(Buffer != nullptr && Size > 0, "buffer should be set");
 			VI_ASSERT(Callback != nullptr, "callback should be set");
@@ -1578,7 +1578,7 @@ namespace Mavi
 			Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync);
 			return Written;
 		}
-		Core::Expected<size_t> Socket::Read(char* Buffer, size_t Size)
+		Core::ExpectsIO<size_t> Socket::Read(char* Buffer, size_t Size)
 		{
 			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
 			VI_ASSERT(Buffer != nullptr && Size > 0, "buffer should be set");
@@ -1604,7 +1604,7 @@ namespace Mavi
 			Income += Received;
 			return Received;
 		}
-		Core::Expected<size_t> Socket::Read(char* Buffer, size_t Size, SocketReadCallback&& Callback)
+		Core::ExpectsIO<size_t> Socket::Read(char* Buffer, size_t Size, SocketReadCallback&& Callback)
 		{
 			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
 			VI_ASSERT(Buffer != nullptr && Size > 0, "buffer should be set");
@@ -1635,7 +1635,7 @@ namespace Mavi
 			Callback(SocketPoll::FinishSync, nullptr, 0);
 			return Offset;
 		}
-		Core::Expected<size_t> Socket::ReadAsync(size_t Size, SocketReadCallback&& Callback, size_t TempBuffer)
+		Core::ExpectsIO<size_t> Socket::ReadAsync(size_t Size, SocketReadCallback&& Callback, size_t TempBuffer)
 		{
 			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
 			VI_ASSERT(Callback != nullptr, "callback should be set");
@@ -1676,7 +1676,7 @@ namespace Mavi
 			Callback(TempBuffer != 0 ? SocketPoll::Finish : SocketPoll::FinishSync, nullptr, 0);
 			return Offset;
 		}
-		Core::Expected<size_t> Socket::ReadUntil(const char* Match, SocketReadCallback&& Callback)
+		Core::ExpectsIO<size_t> Socket::ReadUntil(const char* Match, SocketReadCallback&& Callback)
 		{
 			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
 			VI_ASSERT(Match != nullptr, "match should be set");
@@ -1721,7 +1721,7 @@ namespace Mavi
 			Callback(SocketPoll::FinishSync, nullptr, 0);
 			return Received;
 		}
-		Core::Expected<size_t> Socket::ReadUntilAsync(const char* Match, SocketReadCallback&& Callback, char* TempBuffer, size_t TempIndex)
+		Core::ExpectsIO<size_t> Socket::ReadUntilAsync(const char* Match, SocketReadCallback&& Callback, char* TempBuffer, size_t TempIndex)
 		{
 			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
 			VI_ASSERT(Match != nullptr, "match should be set");
@@ -1797,7 +1797,7 @@ namespace Mavi
 			Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync, nullptr, 0);
 			return Received;
 		}
-		Core::Expected<void> Socket::Connect(SocketAddress* Address, uint64_t Timeout)
+		Core::ExpectsIO<void> Socket::Connect(SocketAddress* Address, uint64_t Timeout)
 		{
 			VI_ASSERT(Address && Address->IsUsable(), "address should be set and usable");
 			VI_MEASURE(Core::Timings::Networking);
@@ -1808,7 +1808,7 @@ namespace Mavi
 			
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::ConnectAsync(SocketAddress* Address, SocketStatusCallback&& Callback)
+		Core::ExpectsIO<void> Socket::ConnectAsync(SocketAddress* Address, SocketStatusCallback&& Callback)
 		{
 			VI_ASSERT(Address && Address->IsUsable(), "address should be set and usable");
 			VI_ASSERT(Callback != nullptr, "callback should be set");
@@ -1819,7 +1819,7 @@ namespace Mavi
 			int Status = connect(Fd, Source->ai_addr, (int)Source->ai_addrlen);
 			if (Status == 0)
 			{
-				Callback(Core::Optional::OK);
+				Callback(Core::Optional::None);
 				return Core::Optional::OK;
 			}
 			else if (Utils::GetLastError(Device, Status) != std::errc::operation_would_block)
@@ -1832,7 +1832,7 @@ namespace Mavi
 			Multiplexer::Get()->WhenWriteable(this, [Callback = std::move(Callback)](SocketPoll Event) mutable
 			{
 				if (Packet::IsDone(Event))
-					Callback(Core::Optional::OK);
+					Callback(Core::Optional::None);
 				else if (Packet::IsTimeout(Event))
 					Callback(std::make_error_condition(std::errc::timed_out));
 				else
@@ -1840,7 +1840,7 @@ namespace Mavi
 			});
 			return std::make_error_condition(std::errc::operation_would_block);
 		}
-		Core::Expected<void> Socket::Open(SocketAddress* Address)
+		Core::ExpectsIO<void> Socket::Open(SocketAddress* Address)
 		{
 			VI_ASSERT(Address && Address->IsUsable(), "address should be set and usable");
 			VI_MEASURE(Core::Timings::Networking);
@@ -1855,7 +1855,7 @@ namespace Mavi
 			setsockopt(Fd, SOL_SOCKET, SO_REUSEADDR, (char*)&Option, sizeof(Option));
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::Secure(ssl_ctx_st* Context, const char* Hostname)
+		Core::ExpectsIO<void> Socket::Secure(ssl_ctx_st* Context, const char* Hostname)
 		{
 #ifdef VI_OPENSSL
 			VI_MEASURE(Core::Timings::Networking);
@@ -1873,7 +1873,7 @@ namespace Mavi
 #endif
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::Bind(SocketAddress* Address)
+		Core::ExpectsIO<void> Socket::Bind(SocketAddress* Address)
 		{
 			VI_ASSERT(Address && Address->IsUsable(), "address should be set and usable");
 			VI_MEASURE(Core::Timings::Networking);
@@ -1885,7 +1885,7 @@ namespace Mavi
 
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::Listen(int Backlog)
+		Core::ExpectsIO<void> Socket::Listen(int Backlog)
 		{
 			VI_MEASURE(Core::Timings::Networking);
 			VI_DEBUG("[net] listen fd %i", (int)Fd);
@@ -1894,7 +1894,7 @@ namespace Mavi
 
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::ClearEvents(bool Gracefully)
+		Core::ExpectsIO<void> Socket::ClearEvents(bool Gracefully)
 		{
 			VI_MEASURE(Core::Timings::Networking);
 			VI_TRACE("[net] fd %i clear events %s", (int)Fd, Gracefully ? "gracefully" : "forcefully");
@@ -1909,7 +1909,7 @@ namespace Mavi
 
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::MigrateTo(socket_t NewFd, bool Gracefully)
+		Core::ExpectsIO<void> Socket::MigrateTo(socket_t NewFd, bool Gracefully)
 		{
 			VI_MEASURE(Core::Timings::Networking);
 			VI_TRACE("[net] migrate fd %i to fd %i", (int)Fd, (int)NewFd);
@@ -1923,7 +1923,7 @@ namespace Mavi
 			Fd = NewFd;
 			return Status;
 		}
-		Core::Expected<void> Socket::SetCloseOnExec()
+		Core::ExpectsIO<void> Socket::SetCloseOnExec()
 		{
 			VI_TRACE("[net] fd %i setopt: cloexec", (int)Fd);
 #if defined(_WIN32)
@@ -1935,7 +1935,7 @@ namespace Mavi
 			return Core::Optional::OK;
 #endif
 		}
-		Core::Expected<void> Socket::SetTimeWait(int Timeout)
+		Core::ExpectsIO<void> Socket::SetTimeWait(int Timeout)
 		{
 			linger Linger;
 			Linger.l_onoff = (Timeout >= 0 ? 1 : 0);
@@ -1947,7 +1947,7 @@ namespace Mavi
 
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::SetSocket(int Option, void* Value, size_t Size)
+		Core::ExpectsIO<void> Socket::SetSocket(int Option, void* Value, size_t Size)
 		{
 			VI_TRACE("[net] fd %i setsockopt: opt%i %i bytes", (int)Fd, Option, (int)Size);
 			if (::setsockopt(Fd, SOL_SOCKET, Option, (const char*)Value, (int)Size) != 0)
@@ -1955,7 +1955,7 @@ namespace Mavi
 
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::SetAny(int Level, int Option, void* Value, size_t Size)
+		Core::ExpectsIO<void> Socket::SetAny(int Level, int Option, void* Value, size_t Size)
 		{
 			VI_TRACE("[net] fd %i setopt: l%i opt%i %i bytes", (int)Fd, Level, Option, (int)Size);
 			if (::setsockopt(Fd, Level, Option, (const char*)Value, (int)Size) != 0)
@@ -1963,16 +1963,16 @@ namespace Mavi
 
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::SetSocketFlag(int Option, int Value)
+		Core::ExpectsIO<void> Socket::SetSocketFlag(int Option, int Value)
 		{
 			return SetSocket(Option, (void*)&Value, sizeof(int));
 		}
-		Core::Expected<void> Socket::SetAnyFlag(int Level, int Option, int Value)
+		Core::ExpectsIO<void> Socket::SetAnyFlag(int Level, int Option, int Value)
 		{
 			VI_TRACE("[net] fd %i setopt: l%i opt%i %i", (int)Fd, Level, Option, Value);
 			return SetAny(Level, Option, (void*)&Value, sizeof(int));
 		}
-		Core::Expected<void> Socket::SetBlocking(bool Enabled)
+		Core::ExpectsIO<void> Socket::SetBlocking(bool Enabled)
 		{
 			VI_TRACE("[net] fd %i setopt: blocking %s", (int)Fd, Enabled ? "on" : "off");
 #ifdef VI_MICROSOFT
@@ -1990,15 +1990,15 @@ namespace Mavi
 #endif
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::SetNoDelay(bool Enabled)
+		Core::ExpectsIO<void> Socket::SetNoDelay(bool Enabled)
 		{
 			return SetAnyFlag(IPPROTO_TCP, TCP_NODELAY, (Enabled ? 1 : 0));
 		}
-		Core::Expected<void> Socket::SetKeepAlive(bool Enabled)
+		Core::ExpectsIO<void> Socket::SetKeepAlive(bool Enabled)
 		{
 			return SetSocketFlag(SO_KEEPALIVE, (Enabled ? 1 : 0));
 		}
-		Core::Expected<void> Socket::SetTimeout(int Timeout)
+		Core::ExpectsIO<void> Socket::SetTimeout(int Timeout)
 		{
 			VI_TRACE("[net] fd %i setopt: rwtimeout %i", (int)Fd, Timeout);
 #ifdef VI_MICROSOFT
@@ -2017,11 +2017,11 @@ namespace Mavi
 
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::GetSocket(int Option, void* Value, size_t* Size)
+		Core::ExpectsIO<void> Socket::GetSocket(int Option, void* Value, size_t* Size)
 		{
 			return GetAny(SOL_SOCKET, Option, Value, Size);
 		}
-		Core::Expected<void> Socket::GetAny(int Level, int Option, void* Value, size_t* Size)
+		Core::ExpectsIO<void> Socket::GetAny(int Level, int Option, void* Value, size_t* Size)
 		{
 			socket_size_t Length = (socket_size_t)Level;
 			if (::getsockopt(Fd, Level, Option, (char*)Value, &Length) == -1)
@@ -2032,16 +2032,16 @@ namespace Mavi
 
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> Socket::GetSocketFlag(int Option, int* Value)
+		Core::ExpectsIO<void> Socket::GetSocketFlag(int Option, int* Value)
 		{
 			size_t Size = sizeof(int);
 			return GetSocket(Option, (void*)Value, &Size);
 		}
-		Core::Expected<void> Socket::GetAnyFlag(int Level, int Option, int* Value)
+		Core::ExpectsIO<void> Socket::GetAnyFlag(int Level, int Option, int* Value)
 		{
 			return GetAny(Level, Option, (char*)Value, nullptr);
 		}
-		Core::Expected<Core::String> Socket::GetRemoteAddress()
+		Core::ExpectsIO<Core::String> Socket::GetRemoteAddress()
 		{
 			struct sockaddr_storage Address;
 			socklen_t Size = sizeof(Address);
@@ -2056,7 +2056,7 @@ namespace Mavi
 			VI_TRACE("[net] fd %i remote address: %s", (int)Fd, Buffer);
 			return Core::String(Buffer, strnlen(Buffer, sizeof(Buffer) - 1));
 		}
-		Core::Expected<int> Socket::GetPort()
+		Core::ExpectsIO<int> Socket::GetPort()
 		{
 			struct sockaddr_storage Address;
 			socket_size_t Size = sizeof(Address);
@@ -2253,7 +2253,7 @@ namespace Mavi
 			VI_ASSERT(Value > 0, "backlog must be greater than zero");
 			Backlog = Value;
 		}
-		Core::Expected<void> SocketServer::Configure(SocketRouter* NewRouter)
+		Core::ExpectsIO<void> SocketServer::Configure(SocketRouter* NewRouter)
 		{
 			VI_ASSERT(State == ServerState::Idle, "server should not be running");
 			if (NewRouter != nullptr)
@@ -2420,7 +2420,7 @@ namespace Mavi
 #endif
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> SocketServer::Unlisten(uint64_t TimeoutSeconds)
+		Core::ExpectsIO<void> SocketServer::Unlisten(uint64_t TimeoutSeconds)
 		{
 			VI_MEASURE(Core::Timings::Hangup);
 			if (!Router && State == ServerState::Idle)
@@ -2475,7 +2475,7 @@ namespace Mavi
 			Router = nullptr;
 			return Status;
 		}
-		Core::Expected<void> SocketServer::Listen()
+		Core::ExpectsIO<void> SocketServer::Listen()
 		{
 			if (Listeners.empty() || State != ServerState::Idle)
 				return Core::Optional::OK;
@@ -2515,11 +2515,11 @@ namespace Mavi
 			Inactive.clear();
 			return true;
 		}
-		Core::Expected<void> SocketServer::Refuse(SocketConnection* Base)
+		Core::ExpectsIO<void> SocketServer::Refuse(SocketConnection* Base)
 		{
 			return Base->Stream->CloseAsync(false, [this, Base](const Core::Option<std::error_condition>&) { Push(Base); });
 		}
-		Core::Expected<void> SocketServer::Accept(SocketListener* Host, socket_t Fd, const Core::String& Address)
+		Core::ExpectsIO<void> SocketServer::Accept(SocketListener* Host, socket_t Fd, const Core::String& Address)
 		{
 			auto* Base = Pop(Host);
 			if (!Base)
@@ -2556,7 +2556,7 @@ namespace Mavi
 
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> SocketServer::EncryptThenOpen(SocketConnection* Base, SocketListener* Host)
+		Core::ExpectsIO<void> SocketServer::EncryptThenOpen(SocketConnection* Base, SocketListener* Host)
 		{
 			VI_ASSERT(Base != nullptr, "socket should be set");
 			VI_ASSERT(Base->Stream != nullptr, "socket should be set");
@@ -2586,7 +2586,7 @@ namespace Mavi
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::Expected<void> SocketServer::TryEncryptThenBegin(SocketConnection* Base)
+		Core::ExpectsIO<void> SocketServer::TryEncryptThenBegin(SocketConnection* Base)
 		{
 #ifdef VI_OPENSSL
 			int ErrorCode = SSL_accept(Base->Stream->GetDevice());
@@ -2628,7 +2628,7 @@ namespace Mavi
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::Expected<void> SocketServer::Continue(SocketConnection* Base)
+		Core::ExpectsIO<void> SocketServer::Continue(SocketConnection* Base)
 		{
 			VI_ASSERT(Base != nullptr, "socket should be set");
 			if (Base->Info.KeepAlive < -1)
@@ -2657,15 +2657,15 @@ namespace Mavi
 			OnRequestOpen(Base);
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> SocketServer::OnConfigure(SocketRouter*)
+		Core::ExpectsIO<void> SocketServer::OnConfigure(SocketRouter*)
 		{
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> SocketServer::OnListen()
+		Core::ExpectsIO<void> SocketServer::OnListen()
 		{
 			return Core::Optional::OK;
 		}
-		Core::Expected<void> SocketServer::OnUnlisten()
+		Core::ExpectsIO<void> SocketServer::OnUnlisten()
 		{
 			return Core::Optional::OK;
 		}
@@ -2787,7 +2787,7 @@ namespace Mavi
 			if (IsAsync)
 				Multiplexer::Get()->Deactivate();
 		}
-		Core::ExpectedPromise<void> SocketClient::Connect(RemoteHost* Source, bool Async)
+		Core::ExpectsPromiseIO<void> SocketClient::Connect(RemoteHost* Source, bool Async)
 		{
 			VI_ASSERT(Source != nullptr && !Source->Hostname.empty(), "address should be set");
 			VI_ASSERT(!Stream.IsValid(), "stream should not be connected");
@@ -2801,14 +2801,14 @@ namespace Mavi
 			if (!OnResolveHost(Source))
 			{
 				Error("cannot resolve host %s:%i", Source->Hostname.c_str(), (int)Source->Port);
-				return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::bad_address));
+				return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_address));
 			}
 
 			Hostname = *Source;
 			Stage("socket open");
 			
-			Core::ExpectedPromise<void> Future;
-			auto RemoteConnect = [this, Future, Async](Core::Expected<SocketAddress*>&& Host) mutable
+			Core::ExpectsPromiseIO<void> Future;
+			auto RemoteConnect = [this, Future, Async](Core::ExpectsIO<SocketAddress*>&& Host) mutable
 			{
 				if (!Host)
 				{
@@ -2880,7 +2880,7 @@ namespace Mavi
 			if (Async)
 			{
 				Multiplexer::Get()->Activate();
-				Core::Cotask<Core::Expected<SocketAddress*>>([this]()
+				Core::Cotask<Core::ExpectsIO<SocketAddress*>>([this]()
 				{
 					return DNS::Get()->FindAddressFromName(Hostname.Hostname, Core::ToString(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
 				}).When(std::move(RemoteConnect));
@@ -2890,12 +2890,12 @@ namespace Mavi
 
 			return Future;
 		}
-		Core::ExpectedPromise<void> SocketClient::Close()
+		Core::ExpectsPromiseIO<void> SocketClient::Close()
 		{
 			if (!Stream.IsValid())
-				return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::bad_file_descriptor));
+				return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_file_descriptor));
 
-			Core::ExpectedPromise<void> Result;
+			Core::ExpectsPromiseIO<void> Result;
 			Done = [Result](SocketClient*, const Core::Option<std::error_condition>& ErrorCode) mutable
 			{
 				if (ErrorCode)
@@ -2941,7 +2941,7 @@ namespace Mavi
 #ifdef VI_OPENSSL
 			int ErrorCode = SSL_connect(Stream.GetDevice());
 			if (ErrorCode != -1)
-				return Callback(Core::Optional::OK);
+				return Callback(Core::Optional::None);
 
 			switch (SSL_get_error(Stream.GetDevice(), ErrorCode))
 			{
@@ -2990,11 +2990,11 @@ namespace Mavi
 		}
 		bool SocketClient::OnConnect()
 		{
-			return Report(Core::Optional::OK);
+			return Report(Core::Optional::None);
 		}
 		bool SocketClient::OnClose()
 		{
-			Stream.CloseAsync(true, [this](const Core::Option<std::error_condition>&) { Report(Core::Optional::OK); });
+			Stream.CloseAsync(true, [this](const Core::Option<std::error_condition>&) { Report(Core::Optional::None); });
 			return true;
 		}
 		bool SocketClient::Stage(const Core::String& Name)

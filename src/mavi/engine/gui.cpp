@@ -600,7 +600,7 @@ namespace Mavi
 					VI_ASSERT(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
 
 					Scope->Basis->AddRef();
-					Scope->Basis->Compiler->CompileFunction(Content).When([Scope](Scripting::ExpectedReturn<Scripting::Function>&& Function)
+					Scope->Basis->Compiler->CompileFunction(Content).When([Scope](Scripting::ExpectsVM<Scripting::Function>&& Function)
 					{
 						if (!Function)
 							return;
@@ -632,7 +632,7 @@ namespace Mavi
 					if (!Compiler->LoadFile(Where))
 						return;
 
-					Compiler->Compile().When([Scope, Compiler](Scripting::ExpectedReturn<void>&& Status)
+					Compiler->Compile().When([Scope, Compiler](Scripting::ExpectsVM<void>&& Status)
 					{
 						if (!Status)
 							return;

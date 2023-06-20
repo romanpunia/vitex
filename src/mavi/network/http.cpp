@@ -2282,7 +2282,7 @@ namespace Mavi
 
 				return SessionId;
 			}
-			Core::Expected<void> Session::InvalidateCache(const Core::String& Path)
+			Core::ExpectsIO<void> Session::InvalidateCache(const Core::String& Path)
 			{
 				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
 				auto Status = Core::OS::Directory::Scan(Path, &Entries);
@@ -5512,7 +5512,7 @@ namespace Mavi
 			Server::Server() : SocketServer()
 			{
 			}
-			Core::Expected<void> Server::Update()
+			Core::ExpectsIO<void> Server::Update()
 			{
 				auto* Root = (MapRouter*)Router;
 				for (auto& Site : Root->Sites)
@@ -5561,12 +5561,12 @@ namespace Mavi
 				}
 				return Core::Optional::OK;
 			}
-			Core::Expected<void> Server::OnConfigure(SocketRouter* NewRouter)
+			Core::ExpectsIO<void> Server::OnConfigure(SocketRouter* NewRouter)
 			{
 				VI_ASSERT(NewRouter != nullptr, "router should be set");
 				return Update();
 			}
-			Core::Expected<void> Server::OnUnlisten()
+			Core::ExpectsIO<void> Server::OnUnlisten()
 			{
 				VI_ASSERT(Router != nullptr, "router should be set");
 				MapRouter* Root = (MapRouter*)Router;
@@ -5758,29 +5758,29 @@ namespace Mavi
 			{
 				VI_CLEAR(WebSocket);
 			}
-			Core::ExpectedPromise<void> Client::Consume(size_t MaxSize)
+			Core::ExpectsPromiseIO<void> Client::Consume(size_t MaxSize)
 			{
 				VI_ASSERT(!WebSocket, "cannot read http over websocket");
 				if (Response.Content.IsFinalized())
-					return Core::ExpectedPromise<void>(Core::Optional::OK);
+					return Core::ExpectsPromiseIO<void>(Core::Optional::OK);
 				else if (Response.Content.Exceeds)
-					return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::value_too_large));
+					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::value_too_large));
 
 				Response.Content.Data.clear();
 				if (!Stream.IsValid())
-					return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::bad_file_descriptor));
+					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_file_descriptor));
 
 				const char* ContentType = Response.GetHeader("Content-Type");
 				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
 				{
 					Response.Content.Exceeds = true;
-					return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::value_too_large));
+					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::value_too_large));
 				}
                 
 				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
 				if (!Response.Content.Limited && TransferEncoding && !Core::Stringify::CaseCompare(TransferEncoding, "chunked"))
 				{
-					Core::ExpectedPromise<void> Result;
+					Core::ExpectsPromiseIO<void> Result;
 					Parser* Parser = new HTTP::Parser();
 					Stream.ReadAsync(MaxSize, [this, Parser, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{
@@ -5828,9 +5828,9 @@ namespace Mavi
 				{
 					const char* Connection = Response.GetHeader("Connection");
 					if (!Connection || Core::Stringify::CaseCompare(Connection, "close"))
-						return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::no_protocol_option));
+						return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::no_protocol_option));
 
-					Core::ExpectedPromise<void> Result;
+					Core::ExpectsPromiseIO<void> Result;
 					Stream.ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
@@ -5858,9 +5858,9 @@ namespace Mavi
                 
 				MaxSize = std::min(MaxSize, Response.Content.Length - Response.Content.Offset);
 				if (!MaxSize || Response.Content.Offset > Response.Content.Length)
-					return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::result_out_of_range));
+					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::result_out_of_range));
 
-				Core::ExpectedPromise<void> Result;
+				Core::ExpectsPromiseIO<void> Result;
 				Stream.ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 				{
 					if (Packet::IsData(Event))
@@ -5884,17 +5884,17 @@ namespace Mavi
 				});
 				return Result;
 			}
-			Core::ExpectedPromise<void> Client::Fetch(HTTP::RequestFrame&& Root, size_t MaxSize)
+			Core::ExpectsPromiseIO<void> Client::Fetch(HTTP::RequestFrame&& Root, size_t MaxSize)
 			{
-				return Send(std::move(Root)).Then<Core::ExpectedPromise<void>>([this, MaxSize](Core::Expected<ResponseFrame*>&& Response) -> Core::ExpectedPromise<void>
+				return Send(std::move(Root)).Then<Core::ExpectsPromiseIO<void>>([this, MaxSize](Core::ExpectsIO<ResponseFrame*>&& Response) -> Core::ExpectsPromiseIO<void>
 				{
 					if (!Response)
-						return Core::ExpectedPromise<void>(Response.Error());
+						return Core::ExpectsPromiseIO<void>(Response.Error());
 
 					return Consume(MaxSize);
 				});
 			}
-			Core::ExpectedPromise<void> Client::Upgrade(HTTP::RequestFrame&& Root)
+			Core::ExpectsPromiseIO<void> Client::Upgrade(HTTP::RequestFrame&& Root)
 			{
 				VI_ASSERT(WebSocket != nullptr, "websocket should be opened");
 				VI_ASSERT(Stream.IsValid(), "stream should be opened");
@@ -5910,36 +5910,36 @@ namespace Mavi
 				else
 					Root.SetHeader("Sec-WebSocket-Key", WEBSOCKET_KEY);
 	
-				return Send(std::move(Root)).Then<Core::ExpectedPromise<void>>([this](Core::Expected<ResponseFrame*>&& Response) -> Core::ExpectedPromise<void>
+				return Send(std::move(Root)).Then<Core::ExpectsPromiseIO<void>>([this](Core::ExpectsIO<ResponseFrame*>&& Response) -> Core::ExpectsPromiseIO<void>
 				{
 					VI_DEBUG("[ws] handshake %s", Request.URI.c_str());
 					if (!Response)
-						return Core::ExpectedPromise<void>(Response.Error());
+						return Core::ExpectsPromiseIO<void>(Response.Error());
 
 					if (Response->StatusCode != 101)
 					{
 						Error("ws handshake error");
-						return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::protocol_error));
+						return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::protocol_error));
 					}
 
 					if (!Response->GetHeader("Sec-WebSocket-Accept"))
 					{
 						Error("ws handshake was not accepted");
-						return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::bad_message));
+						return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_message));
 					}
 
-					Future = Core::ExpectedPromise<void>();
+					Future = Core::ExpectsPromiseIO<void>();
 					WebSocket->Next();
 					return Future;
 				});
 			}
-			Core::ExpectedPromise<ResponseFrame*> Client::Send(HTTP::RequestFrame&& Root)
+			Core::ExpectsPromiseIO<ResponseFrame*> Client::Send(HTTP::RequestFrame&& Root)
 			{
 				VI_ASSERT(!WebSocket || Root.GetHeader("Sec-WebSocket-Key") != nullptr, "cannot send http request over websocket");
 				VI_ASSERT(Stream.IsValid(), "stream should be opened");
 				VI_DEBUG("[http] %s %s", Root.Method, Root.URI.c_str());
 
-				Core::ExpectedPromise<ResponseFrame*> Result;
+				Core::ExpectsPromiseIO<ResponseFrame*> Result;
 				Request = std::move(Root);
 				Response.Cleanup();
 				Done = [Result](SocketClient* Client, const Core::Option<std::error_condition>& ErrorCode) mutable
@@ -6055,9 +6055,9 @@ namespace Mavi
 
 				return Result;
 			}
-			Core::ExpectedPromise<Core::Schema*> Client::JSON(HTTP::RequestFrame&& Root, size_t MaxSize)
+			Core::ExpectsPromiseIO<Core::Schema*> Client::JSON(HTTP::RequestFrame&& Root, size_t MaxSize)
 			{
-				return Fetch(std::move(Root), MaxSize).Then<Core::Expected<Core::Schema*>>([this](Core::Expected<void>&& Result) -> Core::Expected<Core::Schema*>
+				return Fetch(std::move(Root), MaxSize).Then<Core::ExpectsIO<Core::Schema*>>([this](Core::ExpectsIO<void>&& Result) -> Core::ExpectsIO<Core::Schema*>
 				{
 					if (!Result)
 						return Result.Error();
@@ -6069,9 +6069,9 @@ namespace Mavi
 					return *Data;
 				});
 			}
-			Core::ExpectedPromise<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, size_t MaxSize)
+			Core::ExpectsPromiseIO<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, size_t MaxSize)
 			{
-				return Fetch(std::move(Root), MaxSize).Then<Core::Expected<Core::Schema*>>([this](Core::Expected<void>&& Result) -> Core::Expected<Core::Schema*>
+				return Fetch(std::move(Root), MaxSize).Then<Core::ExpectsIO<Core::Schema*>>([this](Core::ExpectsIO<void>&& Result) -> Core::ExpectsIO<Core::Schema*>
 				{
 					if (!Result)
 						return Result.Error();
@@ -6145,7 +6145,7 @@ namespace Mavi
 				Response.Content.Data.clear();
 
 				VI_RELEASE(Parser);
-				return Report(Core::Optional::OK);
+				return Report(Core::Optional::None);
 			}
 		}
 	}

@@ -47,12 +47,12 @@ namespace Mavi
 			{
 				AutoEncrypt = false;
 			}
-			Core::ExpectedPromise<void> Client::Send(RequestFrame&& Root)
+			Core::ExpectsPromiseIO<void> Client::Send(RequestFrame&& Root)
 			{
 				if (!Stream.IsValid())
-					return Core::ExpectedPromise<void>(std::make_error_condition(std::errc::bad_file_descriptor));
+					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_file_descriptor));
 
-				Core::ExpectedPromise<void> Result;
+				Core::ExpectsPromiseIO<void> Result;
 				if (&Request != &Root)
 					Request = std::move(Root);
 
@@ -110,13 +110,13 @@ namespace Mavi
 
 									SendRequest(250, Core::Stringify::Text("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()), [this]()
 									{
-										Report(Core::Optional::OK);
+										Report(Core::Optional::None);
 									});
 								});
 							});
 						}
 						else
-							Report(Core::Optional::OK);
+							Report(Core::Optional::None);
 					});
 				});
 			}
@@ -125,7 +125,7 @@ namespace Mavi
 				return SendRequest(221, "QUIT\r\n", [this]()
 				{
 					Authorized = false;
-					Stream.CloseAsync(true, [this](const Core::Option<std::error_condition>&) { Report(Core::Optional::OK); });
+					Stream.CloseAsync(true, [this](const Core::Option<std::error_condition>&) { Report(Core::Optional::None); });
 				}) || true;
 			}
 			bool Client::ReadResponses(int Code, const ReplyCallback& Callback)
@@ -700,7 +700,7 @@ namespace Mavi
 						{
 							ReadResponses(250, [this]()
 							{
-								Report(Core::Optional::OK);
+								Report(Core::Optional::None);
 							});
 						}
 						else if (Packet::IsErrorOrSkip(Event))

@@ -1555,7 +1555,7 @@ namespace Mavi
 #ifndef NDEBUG
 			VI_ASSERT(File != nullptr, "file should be set");
 			VI_ASSERT(Function != nullptr, "function should be set");
-			VI_ASSERT(ThresholdMS > 0 || ThresholdMS == (uint64_t)Timings::Infinite, "threshold time should be greater than Zero");
+			VI_ASSERT(ThresholdMS > 0 || ThresholdMS == (uint64_t)Timings::Infinite, "threshold time should be greater than zero");
 			if (IgnoreLogging)
 				return ErrorHandling::Tick(false);
 

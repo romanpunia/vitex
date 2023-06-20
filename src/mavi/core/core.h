@@ -2774,7 +2774,7 @@ namespace Mavi
 			void SetColoring(bool Enabled);
 			void SetCursor(uint32_t X, uint32_t Y);
 			void SetColorTokens(Vector<ColorToken>&& AdditionalTokens);
-			void ColorBegin(StdColor Text, StdColor Background = StdColor::Zero);
+			void ColorBegin(StdColor Text, StdColor Background = StdColor::Black);
 			void ColorEnd();
 			void ColorPrint(StdColor BaseColor, const String& Buffer);
 			void ColorPrintBuffer(StdColor BaseColor, const char* Buffer, size_t Size);

@@ -8825,14 +8825,18 @@ namespace Mavi
 			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
 			char Buffer[BLOB_SIZE] = { };
+			size_t Size;
 #ifdef VI_MICROSOFT
 			if (GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr) == 0)
 				return OS::Error::GetConditionOr();
+			Size = strnlen(Buffer, BLOB_SIZE);
 #else
-			if (!realpath(Path, Buffer))
+			char* Where = realpath(Path, Buffer);
+			Size = strnlen(Buffer, BLOB_SIZE);
+			if (!Where && (!Size || memcmp(Path, Buffer, Size) != 0))
 				return OS::Error::GetConditionOr();
 #endif
-			String Output(Buffer, strnlen(Buffer, BLOB_SIZE));
+			String Output(Buffer, Size);
 			VI_TRACE("[io] resolve %s path: %s", Path, Output.c_str());
 			return Output;
 		}

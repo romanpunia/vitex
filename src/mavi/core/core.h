@@ -3563,9 +3563,9 @@ namespace Mavi
 		template <typename T>
 		struct alignas(sizeof(size_t)) PromiseState
 		{
-			alignas(T) char Value[sizeof(T)];
 			std::mutex Update;
 			TaskCallback Event;
+			alignas(T) char Value[sizeof(T)];
 			std::atomic<uint32_t> Count;
 			std::atomic<Deferred> Code;
 

@@ -6320,18 +6320,10 @@ namespace Mavi
 
 			if (Text == StdColor::Zero)
 				Text = StdColor::White;
-
+			
 			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), (int)Background << 4 | (int)Text);
 #else
-			if (Background == StdColor::Zero || Text == StdColor::Zero)
-				return;
-
-			if (Background != StdColor::Zero && Text != StdColor::Zero)
-				std::cout << "\033[" << GetColorId(Text, false) << ";" << GetColorId(Background, true) << "m";
-			else if (Background != StdColor::Zero)
-				std::cout << "\033[" << GetColorId(Background, true) << "m";
-			else if (Text != StdColor::Zero)
-				std::cout << "\033[" << GetColorId(Text, false) << "m";
+			std::cout << "\033[" << GetColorId(Text, false) << ";" << GetColorId(Background, true) << "m";
 #endif
 		}
 		void Console::ColorEnd()

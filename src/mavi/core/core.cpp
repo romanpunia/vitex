@@ -8831,12 +8831,11 @@ namespace Mavi
 #else
 			if (!realpath(Path, Buffer))
 			{
-				size_t Size = strnlen(Buffer, BLOB_SIZE);
-				if (!Size || memcmp(Path, Buffer, Size) != 0)
+				if (Buffer[0] == '\0' || memcmp(Path, Buffer, strnlen(Buffer, BLOB_SIZE)) != 0)
 					return OS::Error::GetConditionOr();
 
 				String Output(Path);
-				VI_TRACE("[io] resolve %s path (non-existant)", Path));
+				VI_TRACE("[io] resolve %s path (non-existant)", Path);
 				return Output;
 			}
 #endif

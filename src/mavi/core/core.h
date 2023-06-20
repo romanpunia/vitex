@@ -934,8 +934,8 @@ namespace Mavi
 			static_assert(!std::is_same<V, void>::value, "value type should not be void");
 
 		private:
-			alignas(V) char Value[sizeof(V)];
 			int8_t Status;
+			alignas(V) char Value[sizeof(V)];
 
 		public:
 			Option(Optional Type) : Status((int8_t)Type)
@@ -1249,8 +1249,8 @@ namespace Mavi
 			};
 
 		private:
-			Storage<V, E> Value;
 			int8_t Status;
+			Storage<V, E> Value;
 
 		public:
 			Expects(const V& Other) : Status(1)
@@ -1560,8 +1560,8 @@ namespace Mavi
 			static_assert(!std::is_same<E, void>::value, "error type should not be void");
 
 		private:
-			alignas(E) char Value[sizeof(E)];
 			int8_t Status;
+			alignas(E) char Value[sizeof(E)];
 
 		public:
 			Expects(Optional Type) : Status((int8_t)Type)

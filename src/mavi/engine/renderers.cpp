@@ -357,9 +357,8 @@ namespace Mavi
 
 				for (auto& Group : Chunk)
 				{
-					auto* Data = Group.second;
-					System->TryGeometry(Data->MaterialData, true);
-					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
+					System->TryGeometry(Group->MaterialData, true);
+					Device->DrawIndexedInstanced(Group->DataBuffer, Group->GeometryBuffer, (unsigned int)Group->Instances.size());
 				}
 
 				static Graphics::ElementBuffer* VertexBuffers[2] = { nullptr, nullptr };
@@ -377,9 +376,8 @@ namespace Mavi
 
 				for (auto& Group : Chunk)
 				{
-					auto* Data = Group.second;
-					System->TryGeometry(Data->MaterialData, true);
-					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
+					System->TryGeometry(Group->MaterialData, true);
+					Device->DrawIndexedInstanced(Group->DataBuffer, Group->GeometryBuffer, (unsigned int)Group->Instances.size());
 				}
 
 				static Graphics::ElementBuffer* VertexBuffers[2] = { nullptr, nullptr };
@@ -400,9 +398,8 @@ namespace Mavi
 
 				for (auto& Group : Chunk)
 				{
-					auto* Data = Group.second;
-					System->TryGeometry(Data->MaterialData, true);
-					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
+					System->TryGeometry(Group->MaterialData, true);
+					Device->DrawIndexedInstanced(Group->DataBuffer, Group->GeometryBuffer, (unsigned int)Group->Instances.size());
 				}
 
 				static Graphics::ElementBuffer* VertexBuffers[2] = { nullptr, nullptr };
@@ -425,9 +422,8 @@ namespace Mavi
 
 				for (auto& Group : Chunk)
 				{
-					auto* Data = Group.second;
-					System->TryGeometry(Data->MaterialData, true);
-					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
+					System->TryGeometry(Group->MaterialData, true);
+					Device->DrawIndexedInstanced(Group->DataBuffer, Group->GeometryBuffer, (unsigned int)Group->Instances.size());
 				}
 
 				static Graphics::ElementBuffer* VertexBuffers[2] = { nullptr, nullptr };

@@ -154,6 +154,13 @@ namespace Mavi
 			Count
 		};
 
+		enum class TaskType
+		{
+			Processing,
+			Rendering,
+			Count
+		};
+
 		enum class ComposerTag
 		{
 			Component,
@@ -1039,7 +1046,7 @@ namespace Mavi
 
 		private:
 			SparseIndex& GetStorageWrapper(uint64_t Section);
-			void WatchAll(Core::Vector<Core::Promise<void>>&& Tasks);
+			void Watch(Core::Vector<Core::Promise<void>>&& Tasks);
 
 		private:
 			template <typename T, typename OverlapsFunction, typename MatchFunction>
@@ -1095,7 +1102,7 @@ namespace Mavi
 				if (Indexing.Queue.empty())
 					return;
 
-				WatchAll(Parallel::ForEach(Indexing.Queue.begin(), Indexing.Queue.end(), [Match](void* Item)
+				Watch(Parallel::ForEach(Indexing.Queue.begin(), Indexing.Queue.end(), [Match](void* Item)
 				{
 					Match(Parallel::GetThreadIndex(), (T*)Item);
 				}));
@@ -1147,7 +1154,7 @@ namespace Mavi
 					}
 					default:
 						if (!Storage.Data.Empty())
-							WatchAll(Parallel::Distribute(Storage.Data.Begin(), Storage.Data.End(), std::move(InitCallback), std::move(ElementCallback)));
+							Watch(Parallel::Distribute(Storage.Data.Begin(), Storage.Data.End(), std::move(InitCallback), std::move(ElementCallback)));
 						break;
 				}
 			}
@@ -1196,7 +1203,7 @@ namespace Mavi
 					}
 					default:
 						if (!Storage.Data.Empty())
-							WatchAll(Parallel::Distribute(Storage.Data.Begin(), Storage.Data.End(), std::move(InitCallback), std::move(ElementCallback)));
+							Watch(Parallel::Distribute(Storage.Data.Begin(), Storage.Data.End(), std::move(InitCallback), std::move(ElementCallback)));
 						break;
 				}
 			}
@@ -1491,13 +1498,19 @@ namespace Mavi
 				float Progress = 1.0f;
 			} Loading;
 
+			struct
+			{
+				Core::SingleQueue<Core::Promise<void>> Queue[(size_t)TaskType::Count];
+				std::mutex Update[(size_t)TaskType::Count];
+				bool IsRendering = false;
+			} Tasking;
+
 		protected:
 			Core::UnorderedMap<Core::String, Core::UnorderedSet<MessageCallback*>> Listeners;
 			Core::UnorderedMap<uint64_t, Core::UnorderedSet<Component*>> Changes;
 			Core::UnorderedMap<uint64_t, SparseIndex*> Registry;
 			Core::UnorderedMap<Component*, size_t> Incomplete;
 			Core::SingleQueue<Core::TaskCallback> Transactions;
-			Core::SingleQueue<Core::Promise<void>> Tasks;
 			Core::SingleQueue<Event> Events;
 			Core::Pool<Component*> Actors[(size_t)ActorType::Count];
 			Core::Pool<Material*> Materials;
@@ -1530,6 +1543,7 @@ namespace Mavi
 			void Submit();
 			void Dispatch(Core::Timer* Time);
 			void Publish(Core::Timer* Time);
+			void PublishAndSubmit(Core::Timer* Time, float R, float G, float B, bool IsParallel);
 			void DeleteMaterial(Core::Unique<Material> Value);
 			void RemoveEntity(Core::Unique<Entity> Entity);
 			void DeleteEntity(Core::Unique<Entity> Entity);
@@ -1549,9 +1563,9 @@ namespace Mavi
 			void Mutate(Material* Target, const char* Type);
 			void MakeSnapshot(IdxSnapshot* Result);
 			void Transaction(Core::TaskCallback&& Callback);
-			void Watch(Core::Promise<void>&& Awaitable);
-			void WatchAll(Core::Vector<Core::Promise<void>>&& Awaitables);
-			void AwaitAll();
+			void Watch(TaskType Type, Core::Promise<void>&& Awaitable);
+			void Watch(TaskType Type, Core::Vector<Core::Promise<void>>&& Awaitables);
+			void Await(TaskType Type);
 			void ClearCulling();
 			void ReserveMaterials(size_t Size);
 			void ReserveEntities(size_t Size);
@@ -1603,7 +1617,7 @@ namespace Mavi
 			bool IsActive() const;
 			bool IsLeftHanded() const;
 			bool IsIndexed() const;
-			bool IsBusy() const;
+			bool IsBusy(TaskType Type);
 			size_t GetMaterialsCount() const;
 			size_t GetEntitiesCount() const;
 			size_t GetComponentsCount(uint64_t Section);
@@ -1831,9 +1845,9 @@ namespace Mavi
 		class BatchingProxy
 		{
 		public:
-			typedef BatchingGroup<Geometry, Instance> DataGroup;
+			typedef BatchingGroup<Geometry, Instance> BatchGroup;
 
-		private:
+		public:
 			struct Dispatchable
 			{
 				size_t Name;
@@ -1847,30 +1861,30 @@ namespace Mavi
 			};
 
 		public:
-			Core::Vector<Core::Vector<Dispatchable>> Queue;
-			Core::UnorderedMap<size_t, DataGroup*> Groups;
-			Core::SingleQueue<DataGroup*>* Cache = nullptr;
+			Core::SingleQueue<BatchGroup*>* Cache = nullptr;
+			Core::Vector<Core::Vector<Dispatchable>>* Queue = nullptr;
+			Core::Vector<Dispatchable>* Instances = nullptr;
+			Core::Vector<BatchGroup*> Groups;
 
 		public:
 			void Clear()
 			{
-				for (auto& Base : Groups)
+				for (auto* Group : Groups)
 				{
-					auto* Group = Base.second;
 					Group->Instances.clear();
 					Cache->push(Group);
 				}
-				Queue.clear();
+
+				Queue->clear();
 				Groups.clear();
 			}
 			void Prepare(size_t MaxSize)
 			{
 				if (MaxSize > 0)
-					Queue.resize(MaxSize);
+					Queue->resize(MaxSize);
 				
-				for (auto& Base : Groups)
+				for (auto* Group : Groups)
 				{
-					auto* Group = Base.second;
 					Group->Instances.clear();
 					Cache->push(Group);
 				}
@@ -1878,63 +1892,88 @@ namespace Mavi
 			}
 			void Emplace(Geometry* Data, Material* Surface, const Instance& Params, size_t Chunk)
 			{
-				VI_ASSERT(Chunk < Queue.size(), "chunk index is out of range");
-				Queue[Chunk].emplace_back(GetKeyId(Data, Surface), Data, Surface, Params);
+				VI_ASSERT(Chunk < Queue->size(), "chunk index is out of range");
+				(*Queue)[Chunk].emplace_back(GetKeyId(Data, Surface), Data, Surface, Params);
 			}
 			size_t Compile(Graphics::GraphicsDevice* Device)
 			{
 				VI_ASSERT(Device != nullptr, "device should be set");
-				for (auto& Context : Queue)
-				{
-					for (auto& Item : Context)
-					{
-						auto It = Groups.find(Item.Name);
-						if (It == Groups.end())
-						{
-							auto* Group = GetGroup();
-							Group->GeometryBuffer = Item.Data;
-							Group->MaterialData = Item.Surface;
-							Group->Instances.emplace_back(std::move(Item.Params));
-							Groups.insert(std::make_pair(Item.Name, Group));
-						}
-						else
-							It->second->Instances.emplace_back(std::move(Item.Params));
-					}
-					Context.clear();
-				}
-
-				for (auto& Base : Groups)
-				{
-					auto* Group = Base.second;
-					if (!Group->DataBuffer || Group->Instances.size() > (size_t)Group->DataBuffer->GetElements())
-					{
-						Graphics::ElementBuffer::Desc Desc = Graphics::ElementBuffer::Desc();
-						Desc.AccessFlags = Graphics::CPUAccess::Write;
-						Desc.Usage = Graphics::ResourceUsage::Dynamic;
-						Desc.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
-						Desc.ElementCount = (unsigned int)Group->Instances.size();
-						Desc.Elements = (void*)Group->Instances.data();
-						Desc.ElementWidth = sizeof(Instance);
-
-						VI_RELEASE(Group->DataBuffer);
-						Group->DataBuffer = Device->CreateElementBuffer(Desc);
-						if (!Group->DataBuffer)
-							Group->Instances.clear();
-					}
-					else
-						Device->UpdateBuffer(Group->DataBuffer, (void*)Group->Instances.data(), sizeof(Instance) * Group->Instances.size());
-				}
-
+				PopulateInstances();
+				PopulateGroups();
+				CompileGroups(Device);
 				return Groups.size();
 			}
 
 		private:
-			DataGroup* GetGroup()
+			void PopulateInstances()
+			{
+				size_t Total = 0;
+				for (auto& Context : *Queue)
+					Total += Context.size();
+				
+				Instances->reserve(Total);
+				for (auto& Context : *Queue)
+				{
+					std::move(Context.begin(), Context.end(), std::back_inserter(*Instances));
+					Context.clear();
+				}
+
+				VI_SORT(Instances->begin(), Instances->end(), [](Dispatchable& A, Dispatchable& B)
+				{
+					return A.Name < B.Name;
+				});
+			}
+			void PopulateGroups()
+			{
+				size_t Name = 0;
+				BatchGroup* Next = nullptr;
+				for (auto& Item : *Instances)
+				{
+					if (Next != nullptr && Name == Item.Name)
+					{
+						Next->Instances.emplace_back(std::move(Item.Params));
+						continue;
+					}
+
+					Name = Item.Name;
+					Next = FetchGroup();
+					Next->GeometryBuffer = Item.Data;
+					Next->MaterialData = Item.Surface;
+					Next->Instances.emplace_back(std::move(Item.Params));
+					Groups.push_back(Next);
+				}
+				Instances->clear();
+			}
+			void CompileGroups(Graphics::GraphicsDevice* Device)
+			{
+				for (auto* Group : Groups)
+				{
+					if (Group->DataBuffer && Group->Instances.size() < (size_t)Group->DataBuffer->GetElements())
+					{
+						Device->UpdateBuffer(Group->DataBuffer, (void*)Group->Instances.data(), sizeof(Instance) * Group->Instances.size());
+						continue;
+					}
+
+					Graphics::ElementBuffer::Desc Desc = Graphics::ElementBuffer::Desc();
+					Desc.AccessFlags = Graphics::CPUAccess::Write;
+					Desc.Usage = Graphics::ResourceUsage::Dynamic;
+					Desc.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
+					Desc.ElementCount = (unsigned int)Group->Instances.size();
+					Desc.Elements = (void*)Group->Instances.data();
+					Desc.ElementWidth = sizeof(Instance);
+
+					VI_RELEASE(Group->DataBuffer);
+					Group->DataBuffer = Device->CreateElementBuffer(Desc);
+					if (!Group->DataBuffer)
+						Group->Instances.clear();
+				}
+			}
+			BatchGroup* FetchGroup()
 			{
 				if (Cache->empty())
-					return VI_NEW(DataGroup);
+					return VI_NEW(BatchGroup);
 
-				DataGroup* Result = Cache->front();
+				BatchGroup* Result = Cache->front();
 				Cache->pop();
 				return Result;
 			}
@@ -1953,20 +1992,28 @@ namespace Mavi
 			static_assert(std::is_base_of<Component, T>::value, "parameter must be derived from a component");
 
 		public:
-			typedef BatchingGroup<Geometry, Instance> BatchGroup;
 			typedef BatchingProxy<Geometry, Instance> Batching;
-			typedef Core::UnorderedMap<size_t, BatchGroup*> Groups;
+			typedef BatchingGroup<Geometry, Instance> BatchGroup;
+			typedef Batching::Dispatchable BatchDispatchable;
 			typedef std::pair<T*, VisibilityQuery> QueryGroup;
+			typedef Core::Vector<BatchGroup*> Groups;
 			typedef Core::Vector<T*> Storage;
 
 		public:
 			static const size_t Depth = Max;
 
 		private:
+			struct
+			{
+				Core::Vector<Core::Vector<typename BatchDispatchable>> Queue;
+				Core::Vector<typename BatchDispatchable> Instances;
+				Core::SingleQueue<BatchGroup*> Groups;
+			} Caching;
+
+		private:
 			Batching Batchers[Max][(size_t)GeoCategory::Count];
 			Storage Data[Max][(size_t)GeoCategory::Count];
 			Core::Vector<Core::Vector<QueryGroup>> Queries;
-			Core::SingleQueue<BatchGroup*> Cache;
 			size_t Offset;
 
 		public:
@@ -1978,7 +2025,12 @@ namespace Mavi
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 				{
 					for (size_t j = 0; j < Depth; ++j)
-						Batchers[j][i].Cache = &Cache;
+					{
+						auto& Next = Batchers[j][i];
+						Next.Queue = &Caching.Queue;
+						Next.Instances = &Caching.Instances;
+						Next.Cache = &Caching.Groups;
+					}
 				}
 			}
 			~RendererProxy() noexcept
@@ -1989,12 +2041,12 @@ namespace Mavi
 						Batchers[j][i].Clear();
 				}
 
-				while (!Cache.empty())
+				while (!Caching.Groups.empty())
 				{
-					auto* Next = Cache.front();
+					auto* Next = Caching.Groups.front();
 					VI_RELEASE(Next->DataBuffer);
 					VI_DELETE(BatchingGroup, Next);
-					Cache.pop();
+					Caching.Groups.pop();
 				}
 			}
 			Batching& Batcher(GeoCategory Category = GeoCategory::Opaque)
@@ -2079,7 +2131,7 @@ namespace Mavi
 				});
 
 				auto* Scene = System->GetScene();
-				Scene->AwaitAll();
+				Scene->Await(TaskType::Rendering);
 
 				Dispatch([this, Top](QueryGroup& Group)
 				{
@@ -2097,18 +2149,18 @@ namespace Mavi
 					{
 						auto& Array = Top[i];
 						Scene->Statistics.Instances += Array.size();
-						Scene->Watch(Parallel::Enqueue([&Array]()
+						Scene->Watch(TaskType::Rendering, Parallel::Enqueue([&Array]()
 						{
 							VI_SORT(Array.begin(), Array.end(), Entity::Sortout<T>);
 						}));
 					}
 
 					Scene->Statistics.Instances += Culling.size();
-					Scene->Watch(Parallel::Enqueue([this]()
+					Scene->Watch(TaskType::Rendering, Parallel::Enqueue([this]()
 					{
 						VI_SORT(Culling.begin(), Culling.end(), Entity::Sortout<T>);
 					}));
-					Scene->AwaitAll();
+					Scene->Await(TaskType::Rendering);
 				}
 				else
 				{
@@ -2142,7 +2194,7 @@ namespace Mavi
 				});
 
 				auto* Scene = System->GetScene();
-				Scene->AwaitAll();
+				Scene->Await(TaskType::Rendering);
 
 				Dispatch([&Subframe](QueryGroup& Group)
 				{
@@ -2173,7 +2225,7 @@ namespace Mavi
 				});
 
 				auto* Scene = System->GetScene();
-				Scene->AwaitAll();
+				Scene->Await(TaskType::Rendering);
 
 				Dispatch([Top](QueryGroup& Group)
 				{
@@ -2187,12 +2239,12 @@ namespace Mavi
 					{
 						auto& Array = Top[i];
 						Scene->Statistics.Instances += Array.size();
-						Scene->Watch(Parallel::Enqueue([&Array]()
+						Scene->Watch(TaskType::Rendering, Parallel::Enqueue([&Array]()
 						{
 							VI_SORT(Array.begin(), Array.end(), Entity::Sortout<T>);
 						}));
 					}
-					Scene->AwaitAll();
+					Scene->Await(TaskType::Rendering);
 				}
 				else
 				{
@@ -2218,7 +2270,7 @@ namespace Mavi
 				});
 
 				auto* Scene = System->GetScene();
-				Scene->AwaitAll();
+				Scene->Await(TaskType::Rendering);
 
 				Dispatch([&Subframe](QueryGroup& Group)
 				{
@@ -2240,7 +2292,7 @@ namespace Mavi
 		public:
 			typedef BatchingGroup<Geometry, Instance> BatchGroup;
 			typedef BatchingProxy<Geometry, Instance> Batching;
-			typedef Core::UnorderedMap<size_t, BatchGroup*> Groups;
+			typedef Core::Vector<BatchGroup*> Groups;
 			typedef Core::Vector<T*> Objects;
 
 		private:

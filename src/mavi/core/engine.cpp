@@ -2961,9 +2961,9 @@ namespace Mavi
 		{
 			return Scene->GetStorage(Section);
 		}
-		void RenderSystem::WatchAll(Core::Vector<Core::Promise<void>>&& Tasks)
+		void RenderSystem::Watch(Core::Vector<Core::Promise<void>>&& Tasks)
 		{
-			Scene->WatchAll(std::move(Tasks));
+			Scene->Watch(TaskType::Rendering, std::move(Tasks));
 		}
 
 		ShaderCache::ShaderCache(Graphics::GraphicsDevice* NewDevice) noexcept : Device(NewDevice)
@@ -3996,6 +3996,33 @@ namespace Mavi
 			Renderer->RestoreViewBuffer(nullptr);
 			Statistics.DrawCalls += Renderer->Render(Time, RenderState::Geometric, RenderOpt::None);
 		}
+		void SceneGraph::PublishAndSubmit(Core::Timer* Time, float R, float G, float B, bool IsParallel)
+		{
+			VI_ASSERT(Conf.Shared.Device != nullptr, "graphics device should be set");
+			if (IsParallel && false)
+			{
+				Core::UMutex<std::mutex> Unique(Tasking.Update[(size_t)TaskType::Rendering]);
+				if (Tasking.IsRendering)
+					return;
+
+				Tasking.IsRendering = true;
+				Core::Schedule::Get()->SetTask([this, Time, R, G, B]()
+				{
+					PublishAndSubmit(Time, R, G, B, false);
+					Core::UMutex<std::mutex> Unique(Tasking.Update[(size_t)TaskType::Rendering]);
+					Tasking.IsRendering = false;
+				});
+			}
+			else
+			{
+				auto* Device = Conf.Shared.Device;
+				Device->Clear(R, G, B);
+				Device->ClearDepth();
+				Publish(Time);
+				Submit();
+				Device->Submit();
+			}
+		}
 		void SceneGraph::StepSimulate(Core::Timer* Time)
 		{
 			VI_ASSERT(Time != nullptr, "timer should be set");
@@ -4005,7 +4032,7 @@ namespace Mavi
 			if (!Active)
 				return;
 
-			Watch(Parallel::Enqueue([this, Time]()
+			Watch(TaskType::Processing, Parallel::Enqueue([this, Time]()
 			{
 				Simulator->SimulateStep(Time->GetElapsed());
 			}));
@@ -4018,7 +4045,7 @@ namespace Mavi
 			auto& Storage = Actors[(size_t)ActorType::Synchronize];
 			if (!Storage.Empty())
 			{
-				WatchAll(Parallel::ForEach(Storage.Begin(), Storage.End(), [Time](Component* Next)
+				Watch(TaskType::Processing, Parallel::ForEach(Storage.Begin(), Storage.End(), [Time](Component* Next)
 				{
 					Next->Synchronize(Time);
 				}));
@@ -4032,7 +4059,7 @@ namespace Mavi
 			auto& Storage = Actors[(size_t)ActorType::Animate];
 			if (Active && !Storage.Empty())
 			{
-				WatchAll(Parallel::ForEach(Storage.Begin(), Storage.End(), [Time](Component* Next)
+				Watch(TaskType::Processing, Parallel::ForEach(Storage.Begin(), Storage.End(), [Time](Component* Next)
 				{
 					Next->Animate(Time);
 				}));
@@ -4066,8 +4093,11 @@ namespace Mavi
 		void SceneGraph::StepTransactions()
 		{
 			VI_MEASURE(Core::Timings::Pass);
-			if (!Transactions.empty())
-				VI_TRACE("[scene] process %" PRIu64 " transactions on 0x%" PRIXPTR, (uint64_t)Transactions.size(), (void*)this);
+			if (Transactions.empty())
+				return;
+
+			VI_TRACE("[scene] process %" PRIu64 " transactions on 0x%" PRIXPTR, (uint64_t)Transactions.size(), (void*)this);
+			Await(TaskType::Rendering);
 
 			while (!Transactions.empty())
 			{
@@ -4098,7 +4128,7 @@ namespace Mavi
 			auto End = Dirty.End();
 			Dirty.Clear();
 
-			WatchAll(Parallel::ForEach(Begin, End, [this](Entity* Next)
+			Watch(TaskType::Processing, Parallel::ForEach(Begin, End, [this](Entity* Next)
 			{
 				Next->Transform->Synchronize();
 				Next->UpdateBounds();
@@ -4118,7 +4148,7 @@ namespace Mavi
 		{
 			VI_MEASURE(Core::Timings::Frame);
 
-			AwaitAll();
+			Await(TaskType::Processing);
 			if (!Camera.load())
 				return;
 
@@ -4616,9 +4646,13 @@ namespace Mavi
 
 			return true;
 		}
-		bool SceneGraph::IsBusy() const
+		bool SceneGraph::IsBusy(TaskType Type)
 		{
-			return !Tasks.empty();
+			if (Type != TaskType::Rendering)
+				return !Tasking.Queue[(size_t)Type].empty();
+
+			Core::UMutex<std::mutex> Unique(Tasking.Update[(size_t)Type]);
+			return !Tasking.Queue[(size_t)Type].empty();
 		}
 		void SceneGraph::Mutate(Entity* Parent, Entity* Child, const char* Type)
 		{
@@ -4698,7 +4732,7 @@ namespace Mavi
 			bool ExecuteNow = false;
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				if (!Tasks.empty() || !Events.empty())
+				if (!Events.empty() || IsBusy(TaskType::Processing) || IsBusy(TaskType::Rendering))
 					Transactions.emplace(std::move(Callback));
 				else
 					ExecuteNow = true;
@@ -4706,23 +4740,60 @@ namespace Mavi
 			if (ExecuteNow)
 				Callback();
 		}
-		void SceneGraph::Watch(Core::Promise<void>&& Awaitable)
+		void SceneGraph::Watch(TaskType Type, Core::Promise<void>&& Awaitable)
 		{
-			if (Awaitable.IsPending())
-				Tasks.emplace(std::move(Awaitable));
+			if (!Awaitable.IsPending())
+				return;
+
+			if (Type == TaskType::Rendering)
+			{
+				Core::UMutex<std::mutex> Unique(Tasking.Update[(size_t)Type]);
+				Tasking.Queue[(size_t)Type].emplace(std::move(Awaitable));
+			}
+			else
+				Tasking.Queue[(size_t)Type].emplace(std::move(Awaitable));
 		}
-		void SceneGraph::WatchAll(Core::Vector<Core::Promise<void>>&& Awaitables)
+		void SceneGraph::Watch(TaskType Type, Core::Vector<Core::Promise<void>>&& Awaitables)
 		{
-			for (auto& Awaitable : Awaitables)
-				Watch(std::move(Awaitable));
+			if (Type == TaskType::Rendering)
+			{
+				Core::UMutex<std::mutex> Unique(Tasking.Update[(size_t)Type]);
+				for (auto& Awaitable : Awaitables)
+				{
+					if (Awaitable.IsPending())
+						Tasking.Queue[(size_t)Type].emplace(std::move(Awaitable));
+				}
+			}
+			else
+			{
+				for (auto& Awaitable : Awaitables)
+				{
+					if (Awaitable.IsPending())
+						Tasking.Queue[(size_t)Type].emplace(std::move(Awaitable));
+				}
+			}
 		}
-		void SceneGraph::AwaitAll()
+		void SceneGraph::Await(TaskType Type)
 		{
 			VI_MEASURE(Core::Timings::Frame);
-			while (!Tasks.empty())
+			if (Type == TaskType::Rendering)
 			{
-				Tasks.front().Wait();
-				Tasks.pop();
+				Core::UMutex<std::mutex> Unique(Tasking.Update[(size_t)Type]);
+				auto& Queue = Tasking.Queue[(size_t)Type];
+				while (!Queue.empty())
+				{
+					Queue.front().Wait();
+					Queue.pop();
+				}
+			}
+			else
+			{
+				auto& Queue = Tasking.Queue[(size_t)Type];
+				while (!Queue.empty())
+				{
+					Queue.front().Wait();
+					Queue.pop();
+				}
 			}
 		}
 		void SceneGraph::ClearCulling()

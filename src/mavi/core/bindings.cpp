@@ -15409,6 +15409,7 @@ namespace Mavi
 				VSceneGraph->SetMethod("void submit()", &Engine::SceneGraph::Submit);
 				VSceneGraph->SetMethod("void dispatch(clock_timer@+)", &Engine::SceneGraph::Dispatch);
 				VSceneGraph->SetMethod("void publish(clock_timer@+)", &Engine::SceneGraph::Publish);
+				VSceneGraph->SetMethod("void publish_and_submit(clock_timer@+, float, float, float, bool)", &Engine::SceneGraph::PublishAndSubmit);
 				VSceneGraph->SetMethod("void delete_material(material@+)", &Engine::SceneGraph::DeleteMaterial);
 				VSceneGraph->SetMethod("void remove_entity(scene_entity@+)", &Engine::SceneGraph::RemoveEntity);
 				VSceneGraph->SetMethod("void delete_entity(scene_entity@+)", &Engine::SceneGraph::DeleteEntity);

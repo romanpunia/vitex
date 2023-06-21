@@ -1842,23 +1842,24 @@ namespace Mavi
 		};
 
 		template <typename Geometry, typename Instance>
+		struct BatchDispatchable
+		{
+			size_t Name;
+			Geometry* Data;
+			Material* Surface;
+			Instance Params;
+
+			BatchDispatchable(size_t NewName, Geometry* NewData, Material* NewSurface, const Instance& NewParams) noexcept : Name(NewName), Data(NewData), Surface(NewSurface), Params(NewParams)
+			{
+			}
+		};
+
+		template <typename Geometry, typename Instance>
 		class BatchingProxy
 		{
 		public:
 			typedef BatchingGroup<Geometry, Instance> BatchGroup;
-
-		public:
-			struct Dispatchable
-			{
-				size_t Name;
-				Geometry* Data;
-				Material* Surface;
-				Instance Params;
-
-				Dispatchable(size_t NewName, Geometry* NewData, Material* NewSurface, const Instance& NewParams) noexcept : Name(NewName), Data(NewData), Surface(NewSurface), Params(NewParams)
-				{
-				}
-			};
+			typedef BatchDispatchable<Geometry, Instance> Dispatchable;
 
 		public:
 			Core::SingleQueue<BatchGroup*>* Cache = nullptr;
@@ -1994,7 +1995,7 @@ namespace Mavi
 		public:
 			typedef BatchingProxy<Geometry, Instance> Batching;
 			typedef BatchingGroup<Geometry, Instance> BatchGroup;
-			typedef Batching::Dispatchable BatchDispatchable;
+			typedef BatchDispatchable<Geometry, Instance> Dispatchable;
 			typedef std::pair<T*, VisibilityQuery> QueryGroup;
 			typedef Core::Vector<BatchGroup*> Groups;
 			typedef Core::Vector<T*> Storage;
@@ -2005,8 +2006,8 @@ namespace Mavi
 		private:
 			struct
 			{
-				Core::Vector<Core::Vector<typename BatchDispatchable>> Queue;
-				Core::Vector<typename BatchDispatchable> Instances;
+				Core::Vector<Core::Vector<Dispatchable>> Queue;
+				Core::Vector<Dispatchable> Instances;
 				Core::SingleQueue<BatchGroup*> Groups;
 			} Caching;
 

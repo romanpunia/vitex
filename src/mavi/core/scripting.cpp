@@ -4221,6 +4221,8 @@ namespace Mavi
 
 			Data = Context->GetReturnObject<Bindings::Any>();
 			Output(Indent + ToString(Indent, 3, Data, VM->GetTypeInfoByName("any").GetTypeId()) + "\n");
+			Context->PopState();
+			VM->AttachDebuggerToContext(Context->GetContext());
 			return Core::Optional::OK;
 		}
 		DebuggerContext::ThreadData DebuggerContext::GetThread(ImmediateContext* Context)
@@ -4303,7 +4305,7 @@ namespace Mavi
 			EnableSuspends();
 			return Status;
 		}
-		ExpectsVM<Execution> ImmediateContext::ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs)
+		ExpectsVM<Execution> ImmediateContext::ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 			VI_ASSERT(Function.IsValid(), "function should be set");
@@ -4329,6 +4331,8 @@ namespace Mavi
 				OnArgs(this);
 			
 			auto Status = ExecuteNext();
+			if (OnReturn)
+				OnReturn(this);
 			Context->PopState();
 			EnableSuspends();
 			return Status;

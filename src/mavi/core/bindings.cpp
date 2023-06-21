@@ -5126,8 +5126,12 @@ namespace Mavi
 
 				auto* Context = ImmediateContext::Get();
 				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
-				Context->ExecuteSubcall(OnGetGUI.Callable(), nullptr);
-				return Context->GetReturnObject<Engine::GUI::Context>();
+				Engine::GUI::Context* Result = nullptr;
+				Context->ExecuteSubcall(OnGetGUI.Callable(), nullptr, [&Result](ImmediateContext* Context)
+				{
+					Result = Context->GetReturnObject<Engine::GUI::Context>();
+				});
+				return Result;
 			}
 			bool Application::WantsRestart(int ExitCode)
 			{
@@ -5955,8 +5959,15 @@ namespace Mavi
 				Compute::Cosmos::Iterator Iterator;
 				Base->QueryIndex<void>(Iterator, [Context, &OverlapsCallback](const Compute::Bounding& Box)
 				{
-					Context->ExecuteSubcall(OverlapsCallback.Callable(), [&Box](ImmediateContext* Context) { Context->SetArgObject(0, (void*)&Box); });
-					return (bool)Context->GetReturnByte();
+					bool Result = false;
+					Context->ExecuteSubcall(OverlapsCallback.Callable(), [&Box](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, (void*)&Box);
+					}, [&Result](ImmediateContext* Context)
+					{
+						Result = (bool)Context->GetReturnByte();
+					});
+					return Result;
 				}, [Context, &MatchCallback](void* Item)
 				{
 					Context->ExecuteSubcall(MatchCallback.Callable(), [Item](ImmediateContext* Context) { Context->SetArgAddress(0, Item); });
@@ -5983,13 +5994,17 @@ namespace Mavi
 
 				Base->SetIncludeCallback([Context, Delegate](Compute::Preprocessor* Base, const Compute::IncludeResult& File, Core::String& Output)
 				{
+					Compute::IncludeType Result;
 					Context->ExecuteSubcall(Delegate.Callable(), [Base, &File, &Output](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArgObject(1, (void*)&File);
 						Context->SetArgObject(2, &Output);
+					}, [&Result](ImmediateContext* Context)
+					{
+						Result = (Compute::IncludeType)Context->GetReturnDWord();
 					});
-					return (Compute::IncludeType)Context->GetReturnDWord();
+					return Result;
 				});
 			}
 			void PreprocessorSetPragmaCallback(Compute::Preprocessor* Base, asIScriptFunction* Callback)
@@ -6002,15 +6017,19 @@ namespace Mavi
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				Base->SetPragmaCallback([Type, Context, Delegate](Compute::Preprocessor* Base, const Core::String& Name, const Core::Vector<Core::String>& Args)
 				{
+					bool Result = false;
 					Array* Params = Array::Compose<Core::String>(Type.GetTypeInfo(), Args);
 					Context->ExecuteSubcall(Delegate.Callable(), [Base, &Name, &Params](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArgObject(1, (void*)&Name);
 						Context->SetArgObject(2, Params);
+					}, [&Result](ImmediateContext* Context)
+					{
+						Result = (bool)Context->GetReturnByte();
 					});
 					VI_RELEASE(Params);
-					return (bool)Context->GetReturnWord();
+					return Result;
 				});
 			}
 			bool PreprocessorIsDefined(Compute::Preprocessor* Base, const Core::String& Name)
@@ -7016,14 +7035,17 @@ namespace Mavi
 
 				auto Received = Base->Read((char*)Data.data(), (int)Data.size(), [Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
+					bool Result = false;
 					Core::String Source(Data, Size);
 					Context->ExecuteSubcall(Delegate.Callable(), [Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
 						Context->SetArgObject(1, (void*)&Source);
+					}, [&Result](ImmediateContext* Context)
+					{
+						Result = (bool)Context->GetReturnByte();
 					});
-
-					return (bool)Context->GetReturnWord();
+					return Result;
 				});
 				return Received ? (int)*Received : ToErrorCode(Received, "socket read failed");
 			}
@@ -7058,14 +7080,17 @@ namespace Mavi
 
 				auto Received = Base->ReadUntil(Data.c_str(), [Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
+					bool Result = false;
 					Core::String Source(Data, Size);
 					Context->ExecuteSubcall(Delegate.Callable(), [Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
 						Context->SetArgObject(1, (void*)&Source);
+					}, [&Result](ImmediateContext* Context)
+					{
+						Result = (bool)Context->GetReturnByte();
 					});
-
-					return (bool)Context->GetReturnWord();
+					return Result;
 				});
 				return Received ? (int)*Received : ToErrorCode(Received, "socket read until failed");
 			}
@@ -7866,12 +7891,16 @@ namespace Mavi
 
 				Base->RayTest(Id, Ray, [Context, Delegate](Engine::Component* Source, const Compute::Vector3& Where)
 				{
+					bool Result = false;
 					Context->ExecuteSubcall(Delegate.Callable(), [&Source, &Where](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, (void*)Source);
 						Context->SetArgObject(1, (void*)&Where);
+					}, [&Result](ImmediateContext* Context)
+					{
+						Result = (bool)Context->GetReturnByte();
 					});
-					return (bool)Context->GetReturnByte();
+					return Result;
 				});
 			}
 			void SceneGraphMutate1(Engine::SceneGraph* Base, Engine::Entity* Source, Engine::Entity* Child, const Core::String& Name)
@@ -8014,11 +8043,15 @@ namespace Mavi
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_COMPONENT "@>@");
 				return Array::Compose(Type.GetTypeInfo(), Base->QueryByMatch(Id, [Context, Delegate](const Compute::Bounding& Source)
 				{
+					bool Result = false;
 					Context->ExecuteSubcall(Delegate.Callable(), [&Source](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, (void*)&Source);
+					}, [&Result](ImmediateContext* Context)
+					{
+						Result = (bool)Context->GetReturnByte();
 					});
-					return (bool)Context->GetReturnByte();
+					return Result;
 				}));
 			}
 
@@ -8180,6 +8213,10 @@ namespace Mavi
 			Engine::GUI::IElement ContextGetFocusElement(Engine::GUI::Context* Base, const Compute::Vector2& Value)
 			{
 				return Base->GetElementAtPoint(Value);
+			}
+			void ContextEmitInput(Engine::GUI::Context* Base, const Core::String& Data)
+			{
+				Base->EmitInput(Data.c_str(), (int)Data.size());
 			}
 
 			ModelListener::ModelListener(asIScriptFunction* NewCallback) noexcept : Delegate(), Base(new Engine::GUI::Listener(Bind(NewCallback)))
@@ -9508,7 +9545,7 @@ namespace Mavi
 				Engine->RegisterGlobalFunction("float angle_lerp(float, float, float)", asFUNCTIONPR(Compute::Mathf::AngluarLerp, (float, float, float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float randomf()", asFUNCTIONPR(Compute::Mathf::Random, (), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float randomf_mag()", asFUNCTIONPR(Compute::Mathf::RandomMag, (), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float randomf_range()", asFUNCTIONPR(Compute::Mathf::Random, (float, float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float randomf_range(float, float)", asFUNCTIONPR(Compute::Mathf::Random, (float, float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float mapf(float, float, float, float, float)", asFUNCTIONPR(Compute::Mathf::Map, (float, float, float, float, float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float cos(float)", asFUNCTIONPR(Compute::Mathf::Cos, (float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float sin(float)", asFUNCTIONPR(Compute::Mathf::Sin, (float), float), asCALL_CDECL);
@@ -16637,13 +16674,30 @@ namespace Mavi
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
 
+				auto VInputType = VM->SetEnum("ui_input_type");
+				VInputType->SetValue("keys", (int)Engine::GUI::InputType::Keys);
+				VInputType->SetValue("scroll", (int)Engine::GUI::InputType::Scroll);
+				VInputType->SetValue("text", (int)Engine::GUI::InputType::Text);
+				VInputType->SetValue("cursor", (int)Engine::GUI::InputType::Cursor);
+				VInputType->SetValue("any_of", (int)Engine::GUI::InputType::Any);
+
 				auto VContext = VM->SetClass<Engine::GUI::Context>("gui_context", false);
+				VContext->SetConstructor<Engine::GUI::Context, const Compute::Vector2&>("gui_context@ f(const vector2&in)");
+				VContext->SetConstructor<Engine::GUI::Context, Graphics::GraphicsDevice*>("gui_context@ f(graphics_device@)");
+				VContext->SetMethod("void emit_key(key_code, key_mod, int, int, bool)", &Engine::GUI::Context::EmitKey);
+				VContext->SetMethodEx("void emit_input(const string&in)", &ContextEmitInput);
+				VContext->SetMethod("void emit_wheel(int32, int32, bool, key_mod)", &Engine::GUI::Context::EmitWheel);
+				VContext->SetMethod("void emit_resize(int32, int32)", &Engine::GUI::Context::EmitResize);
 				VContext->SetMethod("void set_documents_base_tag(const string &in)", &Engine::GUI::Context::SetDocumentsBaseTag);
 				VContext->SetMethod("void clear_styles()", &Engine::GUI::Context::ClearStyles);
+				VContext->SetMethod("void update_events(activity@+)", &Engine::GUI::Context::UpdateEvents);
+				VContext->SetMethod("void render_lists(texture_2d@+)", &Engine::GUI::Context::RenderLists);
 				VContext->SetMethod("bool clear_documents()", &Engine::GUI::Context::ClearDocuments);
+				VContext->SetMethod("bool load_font_face(const string&in, bool = false)", &Engine::GUI::Context::LoadFontFace);
 				VContext->SetMethod<Engine::GUI::Context, bool, const Core::String&>("bool initialize(const string &in)", &Engine::GUI::Context::Initialize);
 				VContext->SetMethod("bool is_input_focused()", &Engine::GUI::Context::IsInputFocused);
 				VContext->SetMethod("bool is_loading()", &Engine::GUI::Context::IsLoading);
+				VContext->SetMethod("bool was_input_used(uint32)", &Engine::GUI::Context::WasInputUsed);
 				VContext->SetMethod("bool replace_html(const string &in, const string &in, int = 0)", &Engine::GUI::Context::ReplaceHTML);
 				VContext->SetMethod("bool remove_data_model(const string &in)", &Engine::GUI::Context::RemoveDataModel);
 				VContext->SetMethod("bool remove_data_models()", &Engine::GUI::Context::RemoveDataModels);
@@ -16656,7 +16710,7 @@ namespace Mavi
 				VContext->SetMethod("ui_document eval_html(const string &in, int = 0)", &Engine::GUI::Context::EvalHTML);
 				VContext->SetMethod("ui_document add_css(const string &in, int = 0)", &Engine::GUI::Context::AddCSS);
 				VContext->SetMethod("ui_document load_css(const string &in, int = 0)", &Engine::GUI::Context::LoadCSS);
-				VContext->SetMethod("ui_document load_document(const string &in)", &Engine::GUI::Context::LoadDocument);
+				VContext->SetMethod("ui_document load_document(const string &in, bool)", &Engine::GUI::Context::LoadDocument);
 				VContext->SetMethod("ui_document add_document(const string &in)", &Engine::GUI::Context::AddDocument);
 				VContext->SetMethod("ui_document add_document_empty(const string &in = \"body\")", &Engine::GUI::Context::AddDocumentEmpty);
 				VContext->SetMethod<Engine::GUI::Context, Engine::GUI::IElementDocument, const Core::String&>("ui_document get_document(const string &in)", &Engine::GUI::Context::GetDocument);

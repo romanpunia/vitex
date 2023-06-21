@@ -6193,7 +6193,7 @@ namespace Mavi
 				Renderer->FlushState();
 #ifdef VI_RMLUI
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
-				Engine::GUI::Subsystem::CleanupInstance();
+				Engine::GUI::Subsystem::Get()->CleanupInstance();
 #endif
 			VI_CLEAR(Scene);
 			VI_CLEAR(VM);
@@ -6382,13 +6382,7 @@ namespace Mavi
 			Time->SetMaxFrames(Control.Framerate.Limit);
 
 			if (Activity != nullptr && Renderer != nullptr && Constants != nullptr && Content != nullptr)
-			{
-#ifdef VI_RMLUI
-				auto* Subsystem = GUI::Subsystem::Get();
-				Subsystem->SetMetadata(Activity, Constants, Content, Time);
-				Subsystem->SetVirtualMachine(VM);
-#endif
-			}
+				GUI::Subsystem::Get()->SetShared(VM, Activity, Constants, Content, Time);
 
 			if (Control.Usage & (size_t)ApplicationSet::NetworkSet)
 			{

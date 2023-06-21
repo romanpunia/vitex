@@ -9540,9 +9540,6 @@ namespace Mavi
 					Offset = ReplaceToken(Next, Buffer, Result);
 					continue;
 				}
-				
-				VI_ERR("[proc] %s: #%s directive cannot be dispatched", Path.c_str(), Next.Name.c_str());
-				return false;
 			}
 
 			return true;

@@ -599,25 +599,33 @@ namespace Mavi
 					ScopedContext* Scope = (ScopedContext*)GetContext();
 					VI_ASSERT(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
 
-					Scope->Basis->AddRef();
-					Scope->Basis->Compiler->CompileFunction(Content).When([Scope](Scripting::ExpectsVM<Scripting::Function>&& Function)
+					Scripting::Compiler* Compiler = Scope->Basis->Compiler;
+					if (!Compiler->LoadCode(Path + ":" + Core::ToString(Line), Content))
+						return;
+
+					Compiler->Compile().When([Scope, Compiler](Scripting::ExpectsVM<void>&& Status)
 					{
-						if (!Function)
+						if (!Status)
 							return;
 
-						Scripting::FunctionDelegate Delegate(*Function);
-						VI_RELEASE(Function);
-						if (Delegate.IsValid())
+						Scripting::Function Main = Compiler->GetModule().GetFunctionByDecl("void main()");
+						if (!Main.IsValid())
+							Main = Compiler->GetModule().GetFunctionByDecl("void main(ui_context@+)");
+
+						Scripting::FunctionDelegate Delegate(Main);
+						if (!Delegate.IsValid())
+							return;
+
+						bool HasArguments = Main.GetArgsCount() > 0;
+						Delegate([HasArguments, Scope](Scripting::ImmediateContext* Context)
 						{
-							Delegate(nullptr, [Scope](Scripting::ImmediateContext*)
-							{
-								VI_RELEASE(Scope->Basis);
-							});
-						}
-						else
+							Scope->Basis->AddRef();
+							if (HasArguments)
+								Context->SetArgObject(0, Scope->Basis);
+						}, [Scope](Scripting::ImmediateContext*)
 						{
 							VI_RELEASE(Scope->Basis);
-						}
+						});
 					});
 				}
 				void LoadExternalScript(const Rml::String& Path) override
@@ -637,7 +645,10 @@ namespace Mavi
 						if (!Status)
 							return;
 
-						Scripting::Function Main = Compiler->GetModule().GetFunctionByName("main");
+						Scripting::Function Main = Compiler->GetModule().GetFunctionByDecl("void main()");
+						if (!Main.IsValid())
+							Main = Compiler->GetModule().GetFunctionByDecl("void main(ui_context@+)");
+
 						Scripting::FunctionDelegate Delegate(Main);
 						if (!Delegate.IsValid())
 							return;
@@ -672,16 +683,17 @@ namespace Mavi
 			class ListenerSubsystem final : public Rml::EventListener
 			{
 			public:
-				Scripting::Function Function;
+				Scripting::FunctionDelegate Delegate;
 				Core::String Memory;
+				IEvent EventContext;
 
 			public:
-				ListenerSubsystem(const Rml::String& Code, Rml::Element* Element) : Function(nullptr), Memory(Code)
+				ListenerSubsystem(const Rml::String& Code, Rml::Element* Element) : Memory(Code)
 				{
 				}
+				~ListenerSubsystem() = default;
 				void OnDetach(Rml::Element* Element) override
 				{
-					Function.Release();
 					VI_DELETE(ListenerSubsystem, this);
 				}
 				void ProcessEvent(Rml::Event& Event) override
@@ -691,10 +703,6 @@ namespace Mavi
 					if (!CompileInline(Scope))
 						return;
 
-					Scripting::FunctionDelegate Delegate(Function);
-					if (!Delegate.IsValid())
-						return;
-
 					Rml::Event* Ptr = Rml::Factory::InstanceEvent(Event.GetTargetElement(), Event.GetId(), Event.GetType(), Event.GetParameters(), Event.IsInterruptible()).release();
 					if (Ptr != nullptr)
 					{
@@ -702,20 +710,21 @@ namespace Mavi
 						Ptr->SetPhase(Event.GetPhase());
 					}
 
+					EventContext = IEvent(Ptr);
 					Scope->Basis->AddRef();
-					Delegate([Ptr](Scripting::ImmediateContext* Context)
+					Delegate([this](Scripting::ImmediateContext* Context)
 					{
-						IEvent Event(Ptr);
-						Context->SetArgObject(0, &Event);
-					}, [Scope, Ptr](Scripting::ImmediateContext*)
+						Context->SetArgObject(0, &EventContext);
+					}, [this, Scope, Ptr](Scripting::ImmediateContext*)
 					{
 						VI_RELEASE(Scope->Basis);
+						EventContext = IEvent();
 						delete Ptr;
 					});
 				}
 				bool CompileInline(ScopedContext* Scope)
 				{
-					if (Function.IsValid())
+					if (Delegate.IsValid())
 						return true;
 
 					auto Hash = Compute::Crypto::Hash(Compute::Digests::MD5(), Memory);
@@ -727,8 +736,13 @@ namespace Mavi
 					Eval.append(Memory);
 					Eval += "\n;}";
 
+					Scripting::Function Function = nullptr;
 					Scripting::Module Module = Scope->Basis->Compiler->GetModule();
-					return !!Module.CompileFunction(Name.c_str(), Eval.c_str(), -1, (size_t)Scripting::CompileFlags::ADD_TO_MODULE, &Function);
+					if (!Module.CompileFunction(Name.c_str(), Eval.c_str(), -1, (size_t)Scripting::CompileFlags::ADD_TO_MODULE, &Function))
+						return false;
+
+					Delegate = Function;
+					return Delegate.IsValid();
 				}
 			};
 
@@ -2767,7 +2781,7 @@ namespace Mavi
 				return Copy;
 			}
 
-			Subsystem::Subsystem() noexcept : ScriptInterface(nullptr), ContextFactory(nullptr), DocumentFactory(nullptr), ListenerFactory(nullptr), RenderInterface(nullptr), FileInterface(nullptr), SystemInterface(nullptr), Id(0), HasDecorators(false)
+			Subsystem::Subsystem() noexcept : ContextFactory(nullptr), DocumentFactory(nullptr), ListenerFactory(nullptr), RenderInterface(nullptr), FileInterface(nullptr), SystemInterface(nullptr), Id(0), HasDecorators(false)
 			{
 #ifdef VI_RMLUI
 				RenderInterface = VI_NEW(RenderSubsystem);
@@ -2825,12 +2839,20 @@ namespace Mavi
 				ContextFactory = nullptr;
 
 				ReleaseElements();
-				ScriptInterface = nullptr;
+				Shared.Release();
 #endif
 			}
-			void Subsystem::SetMetadata(Graphics::Activity* Activity, RenderConstants* Constants, ContentManager* Content, Core::Timer* Time) noexcept
+			void Subsystem::SetShared(Scripting::VirtualMachine* VM, Graphics::Activity* Activity, RenderConstants* Constants, ContentManager* Content, Core::Timer* Time) noexcept
 			{
 #ifdef VI_RMLUI
+				Shared.Release();
+				Shared.VM = VM;
+				Shared.Activity = Activity;
+				Shared.Constants = Constants;
+				Shared.Content = Content;
+				Shared.Time = Time;
+				Shared.AddRef();
+
 				if (RenderInterface != nullptr)
 				{
 					RenderInterface->Attach(Constants, Content);
@@ -2851,10 +2873,6 @@ namespace Mavi
 				VI_ASSERT(SystemInterface != nullptr, "system interface should be valid");
 				SystemInterface->SetTranslator(Name, Callback);
 #endif
-			}
-			void Subsystem::SetVirtualMachine(Scripting::VirtualMachine* VM) noexcept
-			{
-				ScriptInterface = VM;
 			}
 			RenderSubsystem* Subsystem::GetRenderInterface() noexcept
 			{
@@ -3515,7 +3533,7 @@ namespace Mavi
 				Base = (ScopedContext*)Rml::CreateContext(Core::ToString(Subsystem::Get()->Id++), Rml::Vector2i((int)Size.X, (int)Size.Y));
 				VI_ASSERT(Base != nullptr, "context cannot be created");
 				Base->Basis = this;
-				CreateVM();
+				InitializeInstance();
 #endif
 			}
 			Context::Context(Graphics::GraphicsDevice* Device) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
@@ -3528,7 +3546,7 @@ namespace Mavi
 				Base = (ScopedContext*)Rml::CreateContext(Core::ToString(Subsystem::Get()->Id++), Rml::Vector2i((int)Target->GetWidth(), (int)Target->GetHeight()));
 				VI_ASSERT(Base != nullptr, "context cannot be created");
 				Base->Basis = this;
-				CreateVM();
+				InitializeInstance();
 #endif
 			}
 			Context::~Context() noexcept
@@ -3537,6 +3555,7 @@ namespace Mavi
 				RemoveDataModels();
 				Rml::RemoveContext(Base->GetName());
 				VI_RELEASE(Compiler);
+				GUI::Subsystem::Get()->CleanupInstance();
 #endif
 			}
 			void Context::EmitKey(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
@@ -3696,7 +3715,7 @@ namespace Mavi
 					}
 
 					auto Target = Core::OS::Path::Resolve(Path, Relative, false);
-					IElementDocument Result = LoadDocument(Target ? *Target : Path);
+					IElementDocument Result = LoadDocument(Target ? *Target : Path, Document->GetAttributeVar("includes").GetBoolean());
 					if (!Result.IsValid())
 					{
 						Loading = State;
@@ -3908,7 +3927,7 @@ namespace Mavi
 				return IElementDocument();
 #endif
 			}
-			IElementDocument Context::LoadDocument(const Core::String& Path)
+			IElementDocument Context::LoadDocument(const Core::String& Path, bool AllowIncludes)
 			{
 #ifdef VI_RMLUI
 				bool State = Loading;
@@ -3917,7 +3936,7 @@ namespace Mavi
 				if (OnMount)
 					OnMount(this);
 
-				ClearVM();
+				ClearScope();
 				Elements.clear();
 
 				auto File = Core::OS::File::ReadAsString(Path);
@@ -3932,7 +3951,7 @@ namespace Mavi
 
 				Core::String Data = *File;
 				Decompose(Data);
-				if (!Preprocess(Path, Data))
+				if (AllowIncludes && !Preprocess(Path, Data))
 					goto ErrorState;
 
 				Core::String URL(Path);
@@ -4277,15 +4296,18 @@ namespace Mavi
 					End.End = Start.Start;
 				}
 			}
-			void Context::CreateVM()
+			void Context::InitializeInstance()
 			{
-				if (!Subsystem::Get()->ScriptInterface || Compiler != nullptr)
+				auto* Subsystem = GUI::Subsystem::Get();
+				Subsystem->AddRef();
+
+				if (!Subsystem->Shared.VM || Compiler != nullptr)
 					return;
 
-				Compiler = Subsystem::Get()->ScriptInterface->CreateCompiler();
-				ClearVM();
+				Compiler = Subsystem->Shared.VM->CreateCompiler();
+				ClearScope();
 			}
-			void Context::ClearVM()
+			void Context::ClearScope()
 			{
 				if (!Compiler)
 					return;

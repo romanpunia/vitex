@@ -384,7 +384,38 @@ namespace Mavi
 				friend Context;
 
 			private:
-				Scripting::VirtualMachine* ScriptInterface;
+				struct
+				{
+					Scripting::VirtualMachine* VM = nullptr;
+					Graphics::Activity* Activity = nullptr;
+					RenderConstants* Constants = nullptr;
+					ContentManager* Content = nullptr;
+					Core::Timer* Time = nullptr;
+
+					void AddRef()
+					{
+						if (VM != nullptr)
+							VM->AddRef();
+						if (Activity != nullptr)
+							Activity->AddRef();
+						if (Constants != nullptr)
+							Constants->AddRef();
+						if (Content != nullptr)
+							Content->AddRef();
+						if (Time != nullptr)
+							Time->AddRef();
+					}
+					void Release()
+					{
+						VI_CLEAR(VM);
+						VI_CLEAR(Activity);
+						VI_CLEAR(Constants);
+						VI_CLEAR(Content);
+						VI_CLEAR(Time);
+					}
+				} Shared;
+
+			private:
 				ContextInstancer* ContextFactory;
 				DocumentInstancer* DocumentFactory;
 				ListenerInstancer* ListenerFactory;
@@ -397,9 +428,8 @@ namespace Mavi
 			public:
 				Subsystem() noexcept;
 				virtual ~Subsystem() noexcept override;
-				void SetMetadata(Graphics::Activity* Activity, RenderConstants* Constants, ContentManager* Content, Core::Timer* Time) noexcept;
+				void SetShared(Scripting::VirtualMachine* VM, Graphics::Activity* Activity, RenderConstants* Constants, ContentManager* Content, Core::Timer* Time) noexcept;
 				void SetTranslator(const Core::String& Name, const TranslationCallback& Callback) noexcept;
-				void SetVirtualMachine(Scripting::VirtualMachine* VM) noexcept;
 				RenderSubsystem* GetRenderInterface() noexcept;
 				FileSubsystem* GetFileInterface() noexcept;
 				MainSubsystem* GetSystemInterface() noexcept;
@@ -589,7 +619,7 @@ namespace Mavi
 				IElementDocument EvalHTML(const Core::String& HTML, int Index = 0);
 				IElementDocument AddCSS(const Core::String& CSS, int Index = 0);
 				IElementDocument LoadCSS(const Core::String& Path, int Index = 0);
-				IElementDocument LoadDocument(const Core::String& Path);
+				IElementDocument LoadDocument(const Core::String& Path, bool AllowIncludes);
 				IElementDocument AddDocument(const Core::String& HTML);
 				IElementDocument AddDocumentEmpty(const Core::String& InstancerName = "body");
 				IElementDocument GetDocument(const Core::String& Id);
@@ -622,8 +652,8 @@ namespace Mavi
 				bool Initialize(Core::Schema* Conf, const Core::String& Relative);
 				bool Preprocess(const Core::String& Path, Core::String& Buffer);
 				void Decompose(Core::String& Buffer);
-				void CreateVM();
-				void ClearVM();
+				void InitializeInstance();
+				void ClearScope();
 
 			private:
 				static int GetKeyCode(Graphics::KeyCode Key);

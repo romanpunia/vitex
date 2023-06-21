@@ -1740,7 +1740,7 @@ namespace Mavi
 			~ImmediateContext() noexcept;
 			ExpectsPromiseVM<Execution> ExecuteCall(const Function& Function, ArgsCallback&& OnArgs);
 			ExpectsVM<Execution> ExecuteCallSync(const Function& Function, ArgsCallback&& OnArgs);
-			ExpectsVM<Execution> ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs);
+			ExpectsVM<Execution> ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn = nullptr);
 			ExpectsVM<Execution> ExecuteNext();
 			ExpectsVM<Execution> Resume();
 			ExpectsVM<void> Prepare(const Function& Function);

@@ -2637,6 +2637,11 @@ namespace Mavi
 			if (!OnRequestCleanup(Base))
 				return std::make_error_condition(std::errc::operation_in_progress);
 
+			return Finalize(Base);
+		}
+		Core::ExpectsIO<void> SocketServer::Finalize(SocketConnection* Base)
+		{
+			VI_ASSERT(Base != nullptr, "socket should be set");
 			if (Router->KeepAliveMaxCount >= 0)
 				Base->Info.KeepAlive--;
 
@@ -2653,7 +2658,7 @@ namespace Mavi
 				Base->Info.KeepAlive = -2;
 				return Base->Stream->CloseAsync(true, [this, Base](const Core::Option<std::error_condition>&) { Push(Base); });
 			}
-			
+
 			OnRequestOpen(Base);
 			return Core::Optional::OK;
 		}

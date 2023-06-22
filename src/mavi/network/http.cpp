@@ -5721,7 +5721,7 @@ namespace Mavi
 				auto Base = (HTTP::Connection*)Root;
 				return Base->Skip([](HTTP::Connection* Base)
 				{
-					Base->Root->Continue(Base);
+					Base->Root->Finalize(Base);
 					return true;
 				});
 			}

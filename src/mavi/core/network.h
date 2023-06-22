@@ -522,6 +522,7 @@ namespace Mavi
 			Core::ExpectsIO<void> Accept(SocketListener* Host, socket_t Fd, const Core::String& Address);
 			Core::ExpectsIO<void> EncryptThenOpen(SocketConnection* Fd, SocketListener* Host);
 			Core::ExpectsIO<void> Continue(SocketConnection* Base);
+			Core::ExpectsIO<void> Finalize(SocketConnection* Base);
 			SocketConnection* Pop(SocketListener* Host);
 			void Push(SocketConnection* Base);
 			bool FreeAll();

@@ -149,11 +149,12 @@ namespace Mavi
 			Write_Tab,
 		};
 
-		enum class Coactive
+		enum class Coexecution
 		{
 			Active,
-			Inactive,
-			Resumable
+			Suspended,
+			Resumable,
+			Finished
 		};
 
 		enum class Difficulty
@@ -1715,14 +1716,14 @@ namespace Mavi
 			friend Costate;
 
 		private:
-			std::atomic<Coactive> State;
-			std::atomic<int> Dead;
+			std::atomic<Coexecution> State;
 			TaskCallback Callback;
 			Cocontext* Slave;
 			Costate* Master;
 
 		public:
 			TaskCallback Return;
+			void* UserData;
 
 		private:
 			Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept;
@@ -3031,6 +3032,7 @@ namespace Mavi
 			size_t Size;
 
 		public:
+			std::condition_variable* ExternalCondition;
 			std::mutex* ExternalMutex;
 
 		public:
@@ -3042,24 +3044,22 @@ namespace Mavi
 			Costate& operator= (Costate&&) = delete;
 			Coroutine* Pop(const TaskCallback& Procedure);
 			Coroutine* Pop(TaskCallback&& Procedure);
-			int Reuse(Coroutine* Routine, const TaskCallback& Procedure);
-			int Reuse(Coroutine* Routine, TaskCallback&& Procedure);
-			int Reuse(Coroutine* Routine);
-			int Push(Coroutine* Routine);
-			int Activate(Coroutine* Routine);
-			int Deactivate(Coroutine* Routine);
-			int Deactivate(Coroutine* Routine, const TaskCallback& AfterSuspend);
-			int Deactivate(Coroutine* Routine, TaskCallback&& AfterSuspend);
-			int Resume(Coroutine* Routine);
-			int Dispatch();
-			int Suspend();
+			Coexecution Resume(Coroutine* Routine);
+			void Reuse(Coroutine* Routine);
+			void Push(Coroutine* Routine);
+			void Activate(Coroutine* Routine);
+			void Deactivate(Coroutine* Routine);
+			void Deactivate(Coroutine* Routine, const TaskCallback& AfterSuspend);
+			void Deactivate(Coroutine* Routine, TaskCallback&& AfterSuspend);
 			void Clear();
+			bool Dispatch();
+			bool Suspend();
 			bool HasActive() const;
 			Coroutine* GetCurrent() const;
 			size_t GetCount() const;
 
 		private:
-			int Swap(Coroutine* Routine);
+			Coexecution Execute(Coroutine* Routine);
 
 		public:
 			static Costate* Get();
@@ -4234,11 +4234,6 @@ namespace Mavi
 		template <typename T, typename Executor = ParallelExecutor>
 		using ExpectsPromiseIO = BasicPromise<ExpectsIO<T>, Executor>;
 
-		inline bool Cosuspend() noexcept
-		{
-			VI_ASSERT(Costate::Get() != nullptr, "cannot call suspend outside coroutine");
-			return Costate::Get()->Suspend();
-		}
 		template <typename T, typename Executor = ParallelExecutor>
 		inline Promise<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Heavy) noexcept
 		{

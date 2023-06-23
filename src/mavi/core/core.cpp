@@ -1702,10 +1702,10 @@ namespace Mavi
 		}
 		ErrorHandling::State* ErrorHandling::Context = nullptr;
 
-		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept : State(Coactive::Active), Dead(0), Callback(Procedure), Slave(VI_NEW(Cocontext, Base)), Master(Base)
+		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept : State(Coexecution::Active), Callback(Procedure), Slave(VI_NEW(Cocontext, Base)), Master(Base), UserData(nullptr)
 		{
 		}
-		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) noexcept : State(Coactive::Active), Dead(0), Callback(std::move(Procedure)), Slave(VI_NEW(Cocontext, Base)), Master(Base)
+		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) noexcept : State(Coexecution::Active), Callback(std::move(Procedure)), Slave(VI_NEW(Cocontext, Base)), Master(Base), UserData(nullptr)
 		{
 		}
 		Coroutine::~Coroutine() noexcept
@@ -9716,7 +9716,7 @@ namespace Mavi
 		}
 
 		static thread_local Costate* Cothread = nullptr;
-		Costate::Costate(size_t StackSize) noexcept : Thread(std::this_thread::get_id()), Current(nullptr), Master(VI_NEW(Cocontext)), Size(StackSize), ExternalMutex(nullptr)
+		Costate::Costate(size_t StackSize) noexcept : Thread(std::this_thread::get_id()), Current(nullptr), Master(VI_NEW(Cocontext)), Size(StackSize), ExternalCondition(nullptr), ExternalMutex(nullptr)
 		{
 			VI_TRACE("[co] spawn coroutine state 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(Thread).c_str());
 		}
@@ -9743,7 +9743,7 @@ namespace Mavi
 			{
 				Routine = *Cached.begin();
 				Routine->Callback = Procedure;
-				Routine->State = Coactive::Active;
+				Routine->State = Coexecution::Active;
 				Cached.erase(Cached.begin());
 			}
 			else
@@ -9761,7 +9761,7 @@ namespace Mavi
 			{
 				Routine = *Cached.begin();
 				Routine->Callback = std::move(Procedure);
-				Routine->State = Coactive::Active;
+				Routine->State = Coexecution::Active;
 				Cached.erase(Cached.begin());
 			}
 			else
@@ -9770,60 +9770,30 @@ namespace Mavi
 			Used.emplace(Routine);
 			return Routine;
 		}
-		int Costate::Reuse(Coroutine* Routine, const TaskCallback& Procedure)
+		Coexecution Costate::Resume(Coroutine* Routine)
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
 			VI_ASSERT(Routine != nullptr, "coroutine should be set");
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot resume coroutine outside costate thread");
 			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->Dead > 0, "coroutine should be dead");
 
-			Routine->Callback = Procedure;
-			Routine->Return = nullptr;
-			Routine->Dead = 0;
-			Routine->State = Coactive::Active;
-			return 1;
+			if (Current == Routine)
+				return Coexecution::Active;
+			else if (Routine->State == Coexecution::Finished)
+				return Coexecution::Finished;
+
+			return Execute(Routine);
 		}
-		int Costate::Reuse(Coroutine* Routine, TaskCallback&& Procedure)
+		Coexecution Costate::Execute(Coroutine* Routine)
 		{
 			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
 			VI_ASSERT(Routine != nullptr, "coroutine should be set");
-			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->Dead > 0, "coroutine should be dead");
+			VI_ASSERT(Routine->State != Coexecution::Finished, "coroutine should not be dead");
 
-			Routine->Callback = std::move(Procedure);
-			Routine->Return = nullptr;
-			Routine->Dead = 0;
-			Routine->State = Coactive::Active;
-			return 1;
-		}
-		int Costate::Reuse(Coroutine* Routine)
-		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
-			VI_ASSERT(Routine != nullptr, "coroutine should be set");
-			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->Dead > 0, "coroutine should be dead");
+			if (Routine->State == Coexecution::Suspended)
+				return Coexecution::Suspended;
 
-			Routine->Callback = nullptr;
-			Routine->Return = nullptr;
-			Routine->Dead = 0;
-			Routine->State = Coactive::Active;
-
-			Used.erase(Routine);
-			Cached.emplace(Routine);
-
-			return 1;
-		}
-		int Costate::Swap(Coroutine* Routine)
-		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
-			VI_ASSERT(Routine != nullptr, "coroutine should be set");
-			VI_ASSERT(Routine->Dead < 1, "coroutine should not be dead");
-
-			if (Routine->State == Coactive::Inactive)
-				return 0;
-
-			if (Routine->State == Coactive::Resumable)
-				Routine->State = Coactive::Active;
+			if (Routine->State == Coexecution::Resumable)
+				Routine->State = Coexecution::Active;
 
 			Cocontext* Fiber = Routine->Slave;
 			Current = Routine;
@@ -9839,106 +9809,112 @@ namespace Mavi
 				Routine->Return();
 				Routine->Return = nullptr;
 			}
-
-			return Routine->Dead > 0 ? -1 : 1;
+			
+			return Routine->State == Coexecution::Finished ? Coexecution::Finished : Coexecution::Active;
 		}
-		int Costate::Push(Coroutine* Routine)
+		void Costate::Reuse(Coroutine* Routine)
 		{
 			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
 			VI_ASSERT(Routine != nullptr, "coroutine should be set");
 			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->Dead > 0, "coroutine should be dead");
+			VI_ASSERT(Routine->State == Coexecution::Finished, "coroutine should be empty");
+
+			Routine->Callback = nullptr;
+			Routine->Return = nullptr;
+			Routine->State = Coexecution::Active;
+			Used.erase(Routine);
+			Cached.emplace(Routine);
+		}
+		void Costate::Push(Coroutine* Routine)
+		{
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
+			VI_ASSERT(Routine != nullptr, "coroutine should be set");
+			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
+			VI_ASSERT(Routine->State == Coexecution::Finished, "coroutine should be empty");
 
 			Cached.erase(Routine);
 			Used.erase(Routine);
-
 			VI_DELETE(Coroutine, Routine);
-			return 1;
 		}
-		int Costate::Activate(Coroutine* Routine)
+		void Costate::Activate(Coroutine* Routine)
 		{
 			VI_ASSERT(Routine != nullptr, "coroutine should be set");
 			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->Dead < 1, "coroutine should not be dead");
+			VI_ASSERT(Routine->State != Coexecution::Finished, "coroutine should not be empty");
 
-			int Result;
-			if (Thread != std::this_thread::get_id() && ExternalMutex != nullptr)
+			if (ExternalMutex != nullptr && ExternalCondition != nullptr && Thread != std::this_thread::get_id())
 			{
 				UMutex<std::mutex> Unique(*ExternalMutex);
-				Result = (Routine->State == Coactive::Inactive ? 1 : -1);
-				if (Result == 1)
-					Routine->State = Coactive::Resumable;
+				if (Routine->State == Coexecution::Suspended)
+					Routine->State = Coexecution::Resumable;
+				ExternalCondition->notify_one();
 			}
-			else
-			{
-				Result = (Routine->State == Coactive::Inactive ? 1 : -1);
-				if (Result == 1)
-					Routine->State = Coactive::Resumable;
-			}
-			return Result;
+			else if (Routine->State == Coexecution::Suspended)
+				Routine->State = Coexecution::Resumable;
 		}
-		int Costate::Deactivate(Coroutine* Routine)
+		void Costate::Deactivate(Coroutine* Routine)
 		{
 			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot deactive coroutine outside costate thread");
 			VI_ASSERT(Routine != nullptr, "coroutine should be set");
 			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->Dead < 1, "coroutine should not be dead");
+			VI_ASSERT(Routine->State != Coexecution::Finished, "coroutine should not be empty");
+			if (Current != Routine || Routine->State != Coexecution::Active)
+				return;
 
-			if (Current != Routine || Routine->State != Coactive::Active)
-				return -1;
-
-			Routine->State = Coactive::Inactive;
-			return Suspend();
+			Routine->State = Coexecution::Suspended;
+			Suspend();
 		}
-		int Costate::Deactivate(Coroutine* Routine, const TaskCallback& AfterSuspend)
-		{
-			Routine->Return = AfterSuspend;
-			return Deactivate(Routine);
-		}
-		int Costate::Deactivate(Coroutine* Routine, TaskCallback&& AfterSuspend)
-		{
-			Routine->Return = std::move(AfterSuspend);
-			return Deactivate(Routine);
-		}
-		int Costate::Resume(Coroutine* Routine)
+		void Costate::Deactivate(Coroutine* Routine, const TaskCallback& AfterSuspend)
 		{
 			VI_ASSERT(Routine != nullptr, "coroutine should be set");
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot resume coroutine outside costate thread");
-			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
-
-			if (Current == Routine || Routine->Dead > 0)
-				return -1;
-
-			return Swap(Routine);
+			Routine->Return = AfterSuspend;
+			Deactivate(Routine);
 		}
-		int Costate::Dispatch()
+		void Costate::Deactivate(Coroutine* Routine, TaskCallback&& AfterSuspend)
+		{
+			VI_ASSERT(Routine != nullptr, "coroutine should be set");
+			Routine->Return = std::move(AfterSuspend);
+			Deactivate(Routine);
+		}
+		void Costate::Clear()
+		{
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
+			for (auto& Routine : Cached)
+				VI_DELETE(Coroutine, Routine);
+			Cached.clear();
+		}
+		bool Costate::Dispatch()
 		{
 			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot dispatch coroutine outside costate thread");
-			size_t Activities = 0;
-		Reset:
+			VI_ASSERT(!Current, "cannot dispatch coroutines inside another coroutine");
+			size_t Executions = 0;
+		Retry:
 			for (auto* Routine : Used)
 			{
-				int Status = Swap(Routine);
-				if (Status == 0)
-					continue;
-
-				++Activities;
-				if (Status != -1)
-					continue;
-
-				Reuse(Routine);
-				goto Reset;
+				switch (Execute(Routine))
+				{
+					case Coexecution::Active:
+						++Executions;
+						break;
+					case Coexecution::Suspended:
+					case Coexecution::Resumable:
+						break;
+					case Coexecution::Finished:
+						++Executions;
+						Reuse(Routine);
+						goto Retry;
+				}
 			}
 
-			return (int)Activities;
+			return Executions > 0;
 		}
-		int Costate::Suspend()
+		bool Costate::Suspend()
 		{
 			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot suspend coroutine outside costate thread");
 
 			Coroutine* Routine = Current;
 			if (!Routine || Routine->Master != this)
-				return -1;
+				return false;
 #ifdef VI_FCTX
 			Current = nullptr;
 			jump_fcontext(Master->Context, (void*)this);
@@ -9949,38 +9925,31 @@ namespace Mavi
 			char Bottom = 0;
 			char* Top = Routine->Slave->Stack + Size;
 			if (size_t(Top - &Bottom) > Size)
-				return -1;
+				return false;
 
 			Current = nullptr;
 			swapcontext(&Routine->Slave->Context, &Master->Context);
 #endif
-			return 1;
-		}
-		void Costate::Clear()
-		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
-			for (auto& Routine : Cached)
-				VI_DELETE(Coroutine, Routine);
-			Cached.clear();
+			return true;
 		}
 		bool Costate::HasActive() const
 		{
 			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
 			for (const auto& Item : Used)
 			{
-				if (Item->Dead == 0 && Item->State != Coactive::Inactive)
+				if (Item->State != Coexecution::Finished)
 					return true;
 			}
 
 			return false;
 		}
-		Coroutine* Costate::GetCurrent() const
-		{
-			return Current;
-		}
 		size_t Costate::GetCount() const
 		{
 			return Used.size();
+		}
+		Coroutine* Costate::GetCurrent() const
+		{
+			return Current;
 		}
 		Costate* Costate::Get()
 		{
@@ -10023,7 +9992,7 @@ namespace Mavi
 				if (Routine->Callback)
 					Routine->Callback();
 				Routine->Return = nullptr;
-				Routine->Dead = 1;
+				Routine->State = Coexecution::Finished;
 			}
 
 			State->Current = nullptr;
@@ -10458,7 +10427,7 @@ namespace Mavi
 #ifndef NDEBUG
 					PostDebug(ThreadTask::ProcessCoroutine, Dispatcher.State->GetCount());
 #endif
-					while (Dispatcher.State->Dispatch() > 0)
+					while (Dispatcher.State->Dispatch())
 						++Passes;
 #ifndef NDEBUG
 					PostDebug(ThreadTask::Awake, 0);
@@ -10568,6 +10537,7 @@ namespace Mavi
 
 					ReceiveToken Token(Queue->Tasks);
 					Costate* State = new Costate(Policy.StackSize);
+					State->ExternalCondition = &Thread->Notify;
 					State->ExternalMutex = &Thread->Update;
 
 					Vector<TaskCallback> Events;
@@ -10645,7 +10615,7 @@ namespace Mavi
 #endif
 							for (size_t i = 0; i < Count; ++i)
 							{
-								VI_MEASURE(Timings::Intensive);
+								VI_MEASURE(Thread->Type == Difficulty::Light ? Timings::Pass : Timings::Intensive);
 								TaskCallback Data(std::move(Events[i]));
 								if (Data != nullptr)
 									Data();

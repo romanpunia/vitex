@@ -4291,6 +4291,142 @@ namespace Mavi
 			}
 		};
 
+		template <typename T, typename Executor>
+		class BasicGenerator
+		{
+			static_assert(!std::is_same<T, void>::value, "value type should not be void");
+
+		public:
+			typedef std::function<BasicPromise<void, Executor>(BasicGenerator&)> ExecutorCallback;
+
+		public:
+			struct State
+			{
+				alignas(T) char Value[sizeof(T)];
+				BasicPromise<void, Executor> Input = BasicPromise<void, Executor>::Null();
+				BasicPromise<void, Executor> Output = BasicPromise<void, Executor>::Null();
+				ExecutorCallback Callback = nullptr;
+				std::atomic<uint32_t> Count = 1;
+				std::atomic<bool> Exit = false;
+				std::atomic<bool> Next = false;
+			};
+
+		private:
+			State* Status;
+
+		public:
+			BasicGenerator(ExecutorCallback&& Callback) : Status(VI_NEW(State))
+			{
+				Status->Callback = std::move(Callback);
+			}
+			BasicGenerator(const BasicGenerator& Other) : Status(Other.Status)
+			{
+				if (Status != nullptr)
+					++Status->Count;
+			}
+			BasicGenerator(BasicGenerator&& Other) : Status(Other.Status)
+			{
+				Other.Status = nullptr;
+			}
+			~BasicGenerator()
+			{
+				if (Status != nullptr && !--Status->Count)
+					VI_DELETE(State, Status);
+			}
+			BasicGenerator& operator= (const BasicGenerator& Other)
+			{
+				if (this == &Other)
+					return *this;
+
+				this->~BasicGenerator();
+				Status = Other.Status;
+				if (Status != nullptr)
+					++Status->Count;
+
+				return *this;
+			}
+			BasicGenerator& operator= (BasicGenerator&& Other) noexcept
+			{
+				if (this == &Other)
+					return *this;
+
+				this->~BasicGenerator();
+				Status = Other.Status;
+				Other.Status = nullptr;
+
+				return *this;
+			}
+			BasicPromise<bool, Executor> Next()
+			{
+				VI_ASSERT(Status != nullptr, "generator is not valid");
+				bool IsEntrypoint = Entrypoint();
+				if (Status->Output.IsNull())
+					return BasicPromise<bool, Executor>(false);
+
+				if (!IsEntrypoint && Status->Next)
+				{
+					Status->Next = false;
+					Status->Output = BasicPromise<void, Executor>();
+					Status->Input.Set();
+				}
+
+				return Status->Output.Then<bool>([this]() -> bool
+				{
+					return !Status->Exit.load() && Status->Next.load();
+				});
+			}
+			T&& operator()()
+			{
+				VI_ASSERT(Status != nullptr, "generator is not valid");
+				VI_ASSERT(!Status->Exit.load() && Status->Next.load(), "generator does not have a value");
+				T& Value = *(T*)Status->Value;
+				return std::move(Value);
+			}
+			BasicPromise<void, Executor> operator<< (const T& Value)
+			{
+				VI_ASSERT(Status != nullptr, "generator is not valid");
+				VI_ASSERT(!Status->Next, "generator already has a value");
+				OptionUtils::CopyBuffer<T>(Status->Value, (const char*)&Value, sizeof(T));
+				Status->Next = true;
+				Status->Input = BasicPromise<void, Executor>();
+				Status->Output.Set();
+				return Status->Input;
+			}
+			BasicPromise<void, Executor> operator<< (T&& Value)
+			{
+				VI_ASSERT(Status != nullptr, "generator is not valid");
+				VI_ASSERT(!Status->Next, "generator already has a value");
+				OptionUtils::MoveBuffer<T>(Status->Value, (char*)&Value, sizeof(T));
+				Status->Next = true;
+				Status->Input = BasicPromise<void, Executor>();
+				Status->Output.Set();
+				return Status->Input;
+			}
+
+		private:
+			bool Entrypoint()
+			{
+				if (!Status->Callback)
+					return false;
+
+				Status->Output = BasicPromise<void, Executor>();
+				Schedule::Get()->SetTask([this]()
+				{
+					ExecutorCallback Callback = std::move(Status->Callback);
+					Callback(*this).When([this]()
+					{
+						Status->Exit = true;
+						if (Status->Output.IsPending())
+							Status->Output.Set();
+					});
+				});
+				return true;
+			}
+		};
+
+		template <typename T, typename Executor = ParallelExecutor>
+		using Generator = BasicGenerator<T, Executor>;
+
 		template <typename T, typename Executor = ParallelExecutor>
 		using Promise = BasicPromise<T, Executor>;
 
@@ -4300,7 +4436,7 @@ namespace Mavi
 		template <typename T, typename Executor = ParallelExecutor>
 		using ExpectsPromiseIO = BasicPromise<ExpectsIO<T>, Executor>;
 
-		template <typename T, typename Executor = ParallelExecutor>
+		template <typename T>
 		inline Promise<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Heavy) noexcept
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
@@ -4390,7 +4526,7 @@ namespace Mavi
 				Schedule::Get()->SetTask([Value, Context]() mutable
 				{
 					Promise<void> Wrapper = Context->Callback();
-					Value.Set(Wrapper.Then<void>([Context]()
+					Value.Set(Wrapper.Then([Context]()
 					{
 						VI_DELETE(PromiseContext, Context);
 					}));
@@ -4401,7 +4537,7 @@ namespace Mavi
 			else
 			{
 				Promise<void> Value = Context->Callback();
-				return Value.Then<void>([Context]()
+				return Value.Then([Context]()
 				{
 					VI_DELETE(PromiseContext, Context);
 				});
@@ -4764,6 +4900,17 @@ namespace Mavi
 		{
 			static_assert(std::is_arithmetic<T>::value, "conversion can be done only to arithmetic types");
 			return Copy<String, std::string>(std::to_string(Other));
+		}
+		template <typename T>
+		inline Generator<T> Cogenerate(std::function<Promise<void>(Generator<T>&)>&& Callback)
+		{
+			return Generator<T>([Callback = std::move(Callback)](Generator<T>& Results) mutable -> Promise<void>
+			{
+				return Coasync<void>([Results, Callback = std::move(Callback)]() mutable -> Promise<void>
+				{
+					return Callback(Results);
+				});
+			});
 		}
 	}
 }

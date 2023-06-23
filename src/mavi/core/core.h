@@ -4370,7 +4370,7 @@ namespace Mavi
 					Status->Input.Set();
 				}
 
-				return Status->Output.Then<bool>([this]() -> bool
+				return Status->Output.template Then<bool>([this]() -> bool
 				{
 					return !Status->Exit.load() && Status->Next.load();
 				});

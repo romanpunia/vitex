@@ -4450,21 +4450,6 @@ namespace Mavi
 			return Result;
 		}
 #ifdef VI_CXX20
-		template <typename T>
-		struct PromiseContext
-		{
-			std::function<Promise<T>()> Callback;
-
-			PromiseContext(std::function<Promise<T>()>&& NewCallback) : Callback(std::move(NewCallback))
-			{
-			}
-			~PromiseContext() = default;
-			PromiseContext(const PromiseContext& Other) = delete;
-			PromiseContext(PromiseContext&& Other) = delete;
-			PromiseContext& operator= (const PromiseContext& Other) = delete;
-			PromiseContext& operator= (PromiseContext&& Other) = delete;
-		};
-
 		template <typename T, typename Executor = ParallelExecutor>
 		auto operator co_await(BasicPromise<T, Executor>&& Value) noexcept
 		{
@@ -4478,70 +4463,30 @@ namespace Mavi
 			return Awaitable(Value);
 		}
 		template <typename T>
-		void Coforward1(Promise<T> Value, PromiseContext<T>* Context)
-		{
-			Promise<T> Wrapper = Context->Callback();
-			auto Deleter = [Context](T&& Result) -> T&&
-			{
-				VI_DELETE(PromiseContext, Context);
-				return std::move(Result);
-			};
-			Value.Set(Wrapper.template Then<T>(Deleter));
-		}
-		template <typename T>
-		Promise<T> Coforward2(Promise<T>&& Value, PromiseContext<T>* Context)
-		{
-			auto Deleter = [Context](T&& Result) -> T&&
-			{
-				VI_DELETE(PromiseContext, Context);
-				return std::move(Result);
-			};
-			return Value.template Then<T>(Deleter);
-		}
-		template <typename T>
 		inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
-			PromiseContext<T>* Context = VI_NEW(PromiseContext<T>, std::move(Callback));
-			if (AlwaysEnqueue)
-			{
-				Promise<T> Value;
-				Schedule::Get()->SetTask(std::bind(&Coforward1<T>, Value, Context), Difficulty::Light);
-				return Value;
-			}
-			else
-			{
-				Promise<T> Value = Context->Callback();
-				return Coforward2<T>(std::move(Value), Context);
-			}
+			auto* Callable = VI_NEW(std::function<Promise<T>()>, std::move(Callback));
+			auto Finalize = [Callable](T&& Temp) -> T&& { VI_DELETE(function, Callable); return std::move(Temp); };
+			if (!AlwaysEnqueue)
+				return (*Callable)().template Then<T>(Finalize);
+
+			Promise<T> Value;
+			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, Difficulty::Light);
+			return Value.template Then<T>(Finalize);
 		}
 		template <>
 		inline Promise<void> Coasync(std::function<Promise<void>()>&& Callback, bool AlwaysEnqueue) noexcept
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
-			PromiseContext<void>* Context = VI_NEW(PromiseContext<void>, std::move(Callback));
-			if (AlwaysEnqueue)
-			{
-				Promise<void> Value;
-				Schedule::Get()->SetTask([Value, Context]() mutable
-				{
-					Promise<void> Wrapper = Context->Callback();
-					Value.Set(Wrapper.Then([Context]()
-					{
-						VI_DELETE(PromiseContext, Context);
-					}));
-				}, Difficulty::Light);
+			auto* Callable = VI_NEW(std::function<Promise<void>()>, std::move(Callback));
+			auto Finalize = [Callable]() { VI_DELETE(function, Callable); };
+			if (!AlwaysEnqueue)
+				return (*Callable)().Then(Finalize);
 
-				return Value;
-			}
-			else
-			{
-				Promise<void> Value = Context->Callback();
-				return Value.Then([Context]()
-				{
-					VI_DELETE(PromiseContext, Context);
-				});
-			}
+			Promise<void> Value;
+			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, Difficulty::Light);
+			return Value.Then(Finalize);
 		}
 #else
 		template <typename T>

@@ -3551,9 +3551,9 @@ namespace Mavi
 
 		struct VI_OUT_TS ParallelExecutor
 		{
-			inline void operator()(TaskCallback&& Callback)
+			inline void operator()(TaskCallback&& Callback, bool Async)
 			{
-				if (Schedule::IsAvailable())
+				if (Async && Schedule::IsAvailable())
 					Schedule::Get()->SetTask(std::move(Callback), Difficulty::Light);
 				else
 					Callback();
@@ -3772,7 +3772,7 @@ namespace Mavi
 				bool Async = (Data->Code != Deferred::Waiting);
 				Data->Emplace(Other);
 				Data->Code = Deferred::Ready;
-				Execute(Data, Async);
+				Execute(Data, Unique, Async);
 			}
 			void Set(T&& Other)
 			{
@@ -3781,7 +3781,7 @@ namespace Mavi
 				bool Async = (Data->Code != Deferred::Waiting);
 				Data->Emplace(std::move(Other));
 				Data->Code = Deferred::Ready;
-				Execute(Data, Async);
+				Execute(Data, Unique, Async);
 			}
 			void Set(const BasicPromise& Other)
 			{
@@ -3794,7 +3794,7 @@ namespace Mavi
 						bool Async = (Copy->Code != Deferred::Waiting);
 						Copy->Emplace(std::move(Value));
 						Copy->Code = Deferred::Ready;
-						Execute(Copy, Async);
+						Execute(Copy, Unique, Async);
 					}
 					Release(Copy);
 				});
@@ -3850,11 +3850,27 @@ namespace Mavi
 			{
 				return Data ? Data->Code != Deferred::Ready : false;
 			}
+			bool IsNull() const noexcept
+			{
+				return !Data;
+			}
 			template <typename R>
 			BasicPromise<R, Executor> Then(std::function<void(BasicPromise<R, Executor>&, T&&)>&& Callback) const noexcept
 			{
 				VI_ASSERT(Data != nullptr && Callback, "async should be pending");
 				BasicPromise<R, Executor> Result; Status* Copy = AddRef();
+				Store([Copy, Result, Callback = std::move(Callback)]() mutable
+				{
+					Callback(Result, std::move(Copy->Unwrap()));
+					Release(Copy);
+				});
+
+				return Result;
+			}
+			BasicPromise<void, Executor> Then(std::function<void(BasicPromise<void, Executor>&, T&&)>&& Callback) const noexcept
+			{
+				VI_ASSERT(Data != nullptr && Callback, "async should be pending");
+				BasicPromise<void, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
 				{
 					Callback(Result, std::move(Copy->Unwrap()));
@@ -3871,6 +3887,19 @@ namespace Mavi
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
 				{
 					Result.Set(std::move(Callback(std::move(Copy->Unwrap()))));
+					Release(Copy);
+				});
+
+				return Result;
+			}
+			BasicPromise<void, Executor> Then(std::function<void(T&&)>&& Callback) const noexcept
+			{
+				VI_ASSERT(Data != nullptr && Callback, "async should be pending");
+				BasicPromise<void, Executor> Result; Status* Copy = AddRef();
+				Store([Copy, Result, Callback = std::move(Callback)]() mutable
+				{
+					Callback(std::move(Copy->Unwrap()));
+					Result.Set();
 					Release(Copy);
 				});
 
@@ -3899,7 +3928,7 @@ namespace Mavi
 				UMutex<std::mutex> Unique(Data->Update);
 				Data->Event = std::move(Callback);
 				if (Data->Code == Deferred::Ready)
-					Execute(Data, false);
+					Execute(Data, Unique, false);
 			}
 
 		public:
@@ -3909,15 +3938,14 @@ namespace Mavi
 			}
 
 		private:
-			static void Execute(Status* State, bool Async) noexcept
+			static void Execute(Status* State, UMutex<std::mutex>& Unique, bool Async) noexcept
 			{
-				if (!State->Event)
-					return;
-
-				if (Async)
-					Executor()(std::move(State->Event));
-				else
-					State->Event();
+				if (State->Event)
+				{
+					TaskCallback Callback = std::move(State->Event);
+					Unique.Negate();
+					Executor()(std::move(Callback), Async);
+				}
 			}
 			static void Release(Status* State) noexcept
 			{
@@ -4067,7 +4095,7 @@ namespace Mavi
 				UMutex<std::mutex> Unique(Data->Update);
 				bool Async = (Data->Code != Deferred::Waiting);
 				Data->Code = Deferred::Ready;
-				Execute(Data, Async);
+				Execute(Data, Unique, Async);
 			}
 			void Set(const BasicPromise& Other)
 			{
@@ -4079,7 +4107,7 @@ namespace Mavi
 						UMutex<std::mutex> Unique(Copy->Update);
 						bool Async = (Copy->Code != Deferred::Waiting);
 						Copy->Code = Deferred::Ready;
-						Execute(Copy, Async);
+						Execute(Copy, Unique, Async);
 					}
 					Release(Copy);
 				});
@@ -4134,23 +4162,44 @@ namespace Mavi
 			{
 				return Data ? Data->Code != Deferred::Ready : false;
 			}
+			bool IsNull() const noexcept
+			{
+				return !Data;
+			}
 			template <typename R>
 			BasicPromise<R, Executor> Then(std::function<void(BasicPromise<R, Executor>&)>&& Callback) const noexcept
 			{
 				VI_ASSERT(Callback, "callback should be set");
 				BasicPromise<R, Executor> Result;
-				if (!IsPending())
+				if (Data != nullptr)
 				{
-					Callback(Result);
-					return Result;
+					Status* Copy = AddRef();
+					Store([Copy, Result, Callback = std::move(Callback)]() mutable
+					{
+						Callback(Result);
+						Release(Copy);
+					});
 				}
-
-				Status* Copy = AddRef();
-				Store([Copy, Result, Callback = std::move(Callback)]() mutable
-				{
+				else
 					Callback(Result);
-					Release(Copy);
-				});
+
+				return Result;
+			}
+			BasicPromise<void, Executor> Then(std::function<void(BasicPromise<void, Executor>&)>&& Callback) const noexcept
+			{
+				VI_ASSERT(Callback, "callback should be set");
+				BasicPromise<void, Executor> Result;
+				if (Data != nullptr)
+				{
+					Status* Copy = AddRef();
+					Store([Copy, Result, Callback = std::move(Callback)]() mutable
+					{
+						Callback(Result);
+						Release(Copy);
+					});
+				}
+				else
+					Callback(Result);
 
 				return Result;
 			}
@@ -4159,6 +4208,24 @@ namespace Mavi
 			{
 				VI_ASSERT(Callback, "callback should be set");
 				BasicPromise<typename Unwrap<R>::type, Executor> Result;
+				if (Data != nullptr)
+				{
+					Status* Copy = AddRef();
+					Store([Copy, Result, Callback = std::move(Callback)]() mutable
+					{
+						Result.Set(std::move(Callback()));
+						Release(Copy);
+					});
+				}
+				else
+					Result.Set(std::move(Callback()));
+
+				return Result;
+			}
+			BasicPromise<void, Executor> Then(std::function<void()>&& Callback) const noexcept
+			{
+				VI_ASSERT(Callback, "callback should be set");
+				BasicPromise<void, Executor> Result;
 				if (!IsPending())
 				{
 					Callback();
@@ -4198,7 +4265,7 @@ namespace Mavi
 				UMutex<std::mutex> Unique(Data->Update);
 				Data->Event = std::move(Callback);
 				if (Data->Code == Deferred::Ready)
-					Execute(Data, false);
+					Execute(Data, Unique, false);
 			}
 
 		public:
@@ -4208,15 +4275,14 @@ namespace Mavi
 			}
 
 		private:
-			static void Execute(Status* State, bool Async) noexcept
+			static void Execute(Status* State, UMutex<std::mutex>& Unique, bool Async) noexcept
 			{
-				if (!State->Event)
-					return;
-
-				if (Async)
-					Executor()(std::move(State->Event));
-				else
-					State->Event();
+				if (State->Event)
+				{
+					TaskCallback Callback = std::move(State->Event);
+					Unique.Negate();
+					Executor()(std::move(Callback), Async);
+				}
 			}
 			static void Release(Status* State) noexcept
 			{

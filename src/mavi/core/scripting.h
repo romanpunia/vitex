@@ -1535,7 +1535,6 @@ namespace Mavi
 			void Release();
 
 		private:
-			ExpectsPromiseVM<Execution> ExecuteOnNewContext(ArgsCallback&& OnArgs, ArgsCallback&& OnReturn);
 			void AddRefAndInitialize(bool IsFirstTime);
 		};
 
@@ -1720,6 +1719,8 @@ namespace Mavi
 		private:
 			struct Events
 			{
+				std::function<void(ImmediateContext*, void*)> NotificationResolver;
+				std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)> CallbackResolver;
 				std::function<void(ImmediateContext*)> Exception;
 				std::function<void(ImmediateContext*)> Line;
 			} Callbacks;
@@ -1743,6 +1744,8 @@ namespace Mavi
 			ExpectsVM<Execution> ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn = nullptr);
 			ExpectsVM<Execution> ExecuteNext();
 			ExpectsVM<Execution> Resume();
+			ExpectsPromiseVM<Execution> ResolveCallback(FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn);
+			ExpectsVM<Execution> ResolveNotification(void* Promise);
 			ExpectsVM<void> Prepare(const Function& Function);
 			ExpectsVM<void> Unprepare();
 			ExpectsVM<void> Abort();
@@ -1777,8 +1780,11 @@ namespace Mavi
 			ExpectsVM<size_t> GetPropertiesCount(size_t StackLevel = 0);
 			ExpectsVM<void> GetProperty(size_t Index, size_t StackLevel, const char** Name, int* TypeId = 0, Modifiers* TypeModifiers = 0, bool* IsVarOnHeap = 0, int* StackOffset = 0);
 			Function GetFunction(size_t StackLevel = 0);
+			void SetNotificationResolverCallback(const std::function<void(ImmediateContext*, void*)>& Callback);
+			void SetCallbackResolverCallback(const std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)>& Callback);
 			void SetLineCallback(const std::function<void(ImmediateContext*)>& Callback);
 			void SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
+			void Reset();
 			void DisableSuspends();
 			void EnableSuspends();
 			bool IsNested(size_t* NestCount = 0) const;
@@ -2133,6 +2139,54 @@ namespace Mavi
 				VI_ASSERT(Name != nullptr, "name should be set");
 				return SetPodAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | (size_t)ObjectBehaviours::POD | Bridge::GetTypeTraits<T>());
 			}
+		};
+
+		class VI_OUT EventLoop final : public Core::Reference<EventLoop>
+		{
+		public:
+			struct Callable
+			{
+				FunctionDelegate Delegate;
+				ArgsCallback OnArgs;
+				ArgsCallback OnReturn;
+				ImmediateContext* Context;
+				void* Promise;
+
+				Callable(ImmediateContext* NewContext, void* Promise) noexcept;
+				Callable(ImmediateContext* NewContext, FunctionDelegate&& NewDelegate, ArgsCallback&& NewOnArgs, ArgsCallback&& NewOnReturn) noexcept;
+				Callable(const Callable& Other) noexcept;
+				Callable(Callable&& Other) noexcept;
+				~Callable() = default;
+				Callable& operator= (const Callable& Other) noexcept;
+				Callable& operator= (Callable&& Other) noexcept;
+				bool IsNotification() const;
+				bool IsCallback() const;
+			};
+
+		private:
+			Core::SingleQueue<Callable> Queue;
+			std::condition_variable Waitable;
+			std::mutex Mutex;
+			bool Wake;
+
+		public:
+			EventLoop() noexcept;
+			~EventLoop() = default;
+			void Wakeup();
+			void Listen(ImmediateContext* Context);
+			void Enqueue(ImmediateContext* Context, void* Promise);
+			void Enqueue(FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn);
+			bool Poll(ImmediateContext* Context, uint64_t TimeoutMs);
+			bool PollExtended(ImmediateContext* Context, uint64_t TimeoutMs);
+			size_t Dequeue(VirtualMachine* VM);
+
+		private:
+			void OnNotification(ImmediateContext* Context, void* Promise);
+			void OnCallback(ImmediateContext* Context, FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn);
+
+		public:
+			static void Set(EventLoop* ForCurrentThread);
+			static EventLoop* Get();
 		};
 	}
 }

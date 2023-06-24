@@ -1331,7 +1331,7 @@ namespace Mavi
 					}
 
 					if (CmpContext == 0)
-						CmpContext = ObjType->GetEngine()->CreateContext();
+						CmpContext = ObjType->GetEngine()->RequestContext();
 				}
 
 				bool IsEqual = true;
@@ -1355,7 +1355,7 @@ namespace Mavi
 							CmpContext->Abort();
 					}
 					else
-						VI_RELEASE(CmpContext);
+						ObjType->GetEngine()->ReturnContext(CmpContext);
 				}
 
 				return IsEqual;
@@ -1503,7 +1503,7 @@ namespace Mavi
 					}
 
 					if (CmpContext == 0)
-						CmpContext = ObjType->GetEngine()->CreateContext();
+						CmpContext = ObjType->GetEngine()->RequestContext();
 				}
 
 				size_t Result = std::string::npos;
@@ -1527,7 +1527,7 @@ namespace Mavi
 							CmpContext->Abort();
 					}
 					else
-						VI_RELEASE(CmpContext);
+						ObjType->GetEngine()->ReturnContext(CmpContext);
 				}
 
 				return Result;
@@ -3045,7 +3045,7 @@ namespace Mavi
 				{
 					Value.Object = Engine->CreateScriptObjectCopy(RefPointer, Engine->GetTypeInfoById(Value.TypeId));
 				}
-				else
+				else if (RefPointer != nullptr)
 				{
 					Value.Integer = 0;
 					int Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
@@ -3058,26 +3058,24 @@ namespace Mavi
 
 				ImmediateContext* Immediate = ImmediateContext::Get(Context);
 				bool WantsResume = (Immediate->IsSuspended() && SuspendOwned);
-				Promise* Base = this;
 				Unique.Negate();
 
 				if (Delegate.IsValid())
 				{
-					auto NewDelegate = std::move(Delegate);
-					NewDelegate([Base](ImmediateContext* Context)
+					AddRef();
+					Promise* Target = this;
+					Immediate->ResolveCallback(std::move(Delegate), [Target](ImmediateContext* Context)
 					{
-						Context->SetArgAddress(0, Base->GetAddressOfObject());
+						if (Target->GetTypeId() != asTYPEID_VOID)
+							Context->SetArgAddress(0, Target->Retrieve());
+					}, [Target](ImmediateContext*)
+					{
+						Target->Release();
 					});
 				}
 
 				if (WantsResume)
-				{
-					Core::Schedule::Get()->SetTask([Base, Immediate]()
-					{
-						Immediate->Resume();
-						VI_RELEASE(Base);
-					}, Core::Difficulty::Light);
-				}
+					Immediate->ResolveNotification(this);
 				else if (SuspendOwned)
 					Release();
 			}
@@ -3288,6 +3286,14 @@ namespace Mavi
 					return Expression + ".yield().unwrap()";
 				});
 				return true;
+			}
+			bool Promise::IsContextPending(ImmediateContext* Context)
+			{
+				return Context->IsPending() || Context->GetUserData(PromiseUD) != nullptr || Context->IsSuspended();
+			}
+			bool Promise::IsContextBusy(ImmediateContext* Context)
+			{
+				return IsContextPending(Context) || Context->GetState() == Execution::Active;
 			}
 			int Promise::PromiseNULL = -1;
 			int Promise::PromiseUD = 559;
@@ -3864,73 +3870,51 @@ namespace Mavi
 			}
 			int Mutex::MutexUD = 538;
 
-			Thread::Thread(asIScriptEngine* Engine, asIScriptFunction* Func) noexcept : Function(Func), VM(VirtualMachine::Get(Engine)), Context(VM ? VM->RequestContext() : nullptr), Status(ThreadState::Execute), RefCount(1)
+			Thread::Thread(asIScriptEngine* Engine, asIScriptFunction* Callback) noexcept : RefCount(1), VM(VirtualMachine::Get(Engine)), Loop(nullptr), Function(Callback, VM ? VM->RequestContext() : nullptr)
 			{
+				VI_ASSERT(VM != nullptr, "virtual matchine should be set");
 				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_THREAD));
-				VI_ASSERT(Context != nullptr, "context should be set");
-				if (VM != nullptr && !Context)
-					VM->GetEngine()->WriteMessage(TYPENAME_THREAD, 0, 0, asMSGTYPE_ERROR, "failed to start a thread: no available context");
 			}
-			void Thread::InvokeRoutine()
+			void Thread::ExecutionLoop()
 			{
+				Thread* Base = this;
 				if (!Function.IsValid())
 					return Release();
 
-				Thread* Base = this;
-				Context->ExecuteCall(Function.Callable(), [Base](ImmediateContext* Context)
+				FunctionDelegate Copy = Function;
+				Function.Context->SetUserData(this, ThreadUD);
+
+				Loop = new EventLoop();
+				Loop->Listen(Function.Context);
+				Loop->Enqueue(std::move(Copy), [Base](ImmediateContext* Context)
 				{
 					Context->SetArgObject(0, Base);
-					Context->SetUserData(Base, ContextUD);
-				}).When([Base](ExpectsVM<Execution>&& Status)
-				{
-					Core::UMutex<std::recursive_mutex> Unique(Base->Mutex);
-					Base->Context->SetUserData(nullptr, ContextUD);
+				}, nullptr);
 
-					if (!Status || *Status != Execution::Suspended)
-					{
-						Base->Except = Exception::Pointer(Base->Context->GetContext());
-						Base->Context->Unprepare();
-					}
+				EventLoop::Set(Loop);
+				while (Loop->Poll(Function.Context, 1000))
+					Loop->Dequeue(VM);
 
-					if (Base->Status != ThreadState::Execute)
-					{
-						Base->Status = ThreadState::Release;
-						return;
-					}
-					VI_RELEASE(Base);
-				});
-				asThreadCleanup();
-			}
-			void Thread::ResumeRoutine()
-			{
 				Core::UMutex<std::recursive_mutex> Unique(Mutex);
-				Status = ThreadState::Resume;
-
-				if (Context->IsSuspended())
-					Context->Resume();
-
-				if (Status == ThreadState::Release)
-					Release();
-
+				Raise = Exception::Pointer(Function.Context->GetContext());
+				VM->ReturnContext(Function.Context);
+				Function.Release();
+				VI_CLEAR(Loop);
+				Release();
 				asThreadCleanup();
 			}
 			bool Thread::Suspend()
 			{
-				Core::UMutex<std::recursive_mutex> Unique(Mutex);
-				Status = ThreadState::Resume;
-				if (Context->IsSuspended())
-					return true;
+				if (!IsActive())
+					return false;
 
-				return !!Context->Suspend();
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
+				return Function.Context->IsSuspended() || !!Function.Context->Suspend();
 			}
 			bool Thread::Resume()
 			{
 				Core::UMutex<std::recursive_mutex> Unique(Mutex);
-				if (!Context->IsSuspended())
-					return false;
-
-				Join();
-				Procedure = std::thread(&Thread::ResumeRoutine, this);
+				Loop->Enqueue(Function.Context, nullptr);
 				VI_DEBUG("[vm] resume thread at %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
 				return true;
 			}
@@ -3969,6 +3953,23 @@ namespace Mavi
 				}
 				FunctionFactory::GCEnumCallback(Engine, &Function);
 			}
+			void Thread::ReleaseReferences(asIScriptEngine*)
+			{
+				Join();
+				for (int i = 0; i < 2; i++)
+				{
+					auto& Source = Pipe[i];
+					Core::UMutex<std::mutex> Unique(Source.Mutex);
+					for (auto Any : Source.Queue)
+						VI_RELEASE(Any);
+					Source.Queue.clear();
+				}
+
+				Core::UMutex<std::recursive_mutex> Unique(Mutex);
+				if (Function.Context != nullptr)
+					VM->ReturnContext(Function.Context);
+				Function.Release();
+			}
 			int Thread::Join(uint64_t Timeout)
 			{
 				if (std::this_thread::get_id() == Procedure.get_id())
@@ -3981,12 +3982,12 @@ namespace Mavi
 				VI_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
 				Unique.Negated([this]()
 				{
-					while (Procedure.joinable() && VM != nullptr && VM->TriggerDebugger(50));
+					while (VM != nullptr && Procedure.joinable() && IsActive() && VM->TriggerDebugger(50));
 					Procedure.join();
 				});
 ;
-				if (!Except.Empty())
-					Exception::Throw(Except);
+				if (!Raise.Empty())
+					Exception::Throw(Raise);
 				return 1;
 			}
 			int Thread::Join()
@@ -4002,10 +4003,6 @@ namespace Mavi
 				}
 
 				return 0;
-			}
-			Core::String Thread::GetId() const
-			{
-				return Core::OS::Process::GetThreadId(Procedure.get_id());
 			}
 			void Thread::Push(void* Ref, int TypeId)
 			{
@@ -4045,37 +4042,20 @@ namespace Mavi
 			bool Thread::IsActive()
 			{
 				Core::UMutex<std::recursive_mutex> Unique(Mutex);
-				return !Context->IsSuspended();
+				return Loop != nullptr && Function.Context != nullptr && Function.Context->GetState() == Execution::Active;
 			}
 			bool Thread::Start()
 			{
 				Core::UMutex<std::recursive_mutex> Unique(Mutex);
-				if (!Function.IsValid() || !Context->CanExecuteCall())
+				if (!Function.IsValid())
 					return false;
 
 				Join();
 				AddRef();
 
-				Procedure = std::thread(&Thread::InvokeRoutine, this);
+				Procedure = std::thread(&Thread::ExecutionLoop, this);
 				VI_DEBUG("[vm] spawn thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
 				return true;
-			}
-			void Thread::ReleaseReferences(asIScriptEngine*)
-			{
-				Join();
-				for (int i = 0; i < 2; i++)
-				{
-					auto& Source = Pipe[i];
-					Core::UMutex<std::mutex> Unique(Source.Mutex);
-					for (auto Any : Source.Queue)
-						VI_RELEASE(Any);
-					Source.Queue.clear();
-				}
-
-				Core::UMutex<std::recursive_mutex> Unique(Mutex);
-				Function.Release();
-				VM->ReturnContext(Context);
-				VM = nullptr;
 			}
 			void Thread::Create(asIScriptGeneric* Generic)
 			{
@@ -4093,7 +4073,11 @@ namespace Mavi
 				if (!Context)
 					return nullptr;
 
-				return static_cast<Thread*>(Context->GetUserData(ContextUD));
+				return static_cast<Thread*>(Context->GetUserData(ThreadUD));
+			}
+			Core::String Thread::GetId() const
+			{
+				return Core::OS::Process::GetThreadId(Procedure.get_id());
 			}
 			void Thread::ThreadSleep(uint64_t Timeout)
 			{
@@ -4114,8 +4098,7 @@ namespace Mavi
 			{
 				return Core::OS::Process::GetThreadId(std::this_thread::get_id());
 			}
-			int Thread::ContextUD = 550;
-			int Thread::EngineListUD = 551;
+			int Thread::ThreadUD = 431;
 
 			CharBuffer::CharBuffer() noexcept : CharBuffer(nullptr)
 			{
@@ -5088,6 +5071,10 @@ namespace Mavi
 			}
 			void Application::Dispatch(Core::Timer* Time)
 			{
+				auto* Loop = EventLoop::Get();
+				if (Loop != nullptr)
+					Loop->Dequeue(VM);
+
 				if (!OnDispatch.IsValid())
 					return;
 
@@ -16683,7 +16670,7 @@ namespace Mavi
 
 				auto VContext = VM->SetClass<Engine::GUI::Context>("gui_context", false);
 				VContext->SetConstructor<Engine::GUI::Context, const Compute::Vector2&>("gui_context@ f(const vector2&in)");
-				VContext->SetConstructor<Engine::GUI::Context, Graphics::GraphicsDevice*>("gui_context@ f(graphics_device@)");
+				VContext->SetConstructor<Engine::GUI::Context, Graphics::GraphicsDevice*>("gui_context@ f(graphics_device@+)");
 				VContext->SetMethod("void emit_key(key_code, key_mod, int, int, bool)", &Engine::GUI::Context::EmitKey);
 				VContext->SetMethodEx("void emit_input(const string&in)", &ContextEmitInput);
 				VContext->SetMethod("void emit_wheel(int32, int32, bool, key_mod)", &Engine::GUI::Context::EmitWheel);

@@ -759,6 +759,8 @@ namespace Mavi
 				static Promise* CreateFactoryVoid(bool HasValue);
 				static bool TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect);
 				static bool GeneratorCallback(const Core::String& Path, Core::String& Code);
+				static bool IsContextPending(ImmediateContext* Context);
+				static bool IsContextBusy(ImmediateContext* Context);
 
 			public:
 				template <typename T>
@@ -881,16 +883,7 @@ namespace Mavi
 			class VI_OUT Thread
 			{
 			private:
-				enum class ThreadState
-				{
-					Execute,
-					Resume,
-					Release
-				};
-
-			private:
-				static int ContextUD;
-				static int EngineListUD;
+				static int ThreadUD;
 
 			private:
 				struct
@@ -901,14 +894,13 @@ namespace Mavi
 				} Pipe[2];
 
 			private:
-				Exception::Pointer Except;
 				std::thread Procedure;
 				std::recursive_mutex Mutex;
-				FunctionDelegate Function;
-				VirtualMachine* VM;
-				ImmediateContext* Context;
-				ThreadState Status;
 				std::atomic<uint32_t> RefCount;
+				Exception::Pointer Raise;
+				VirtualMachine* VM;
+				EventLoop* Loop;
+				FunctionDelegate Function;
 
 			public:
 				Thread(asIScriptEngine* Engine, asIScriptFunction* Function) noexcept;
@@ -931,8 +923,7 @@ namespace Mavi
 				Core::String GetId() const;
 
 			private:
-				void InvokeRoutine();
-				void ResumeRoutine();
+				void ExecutionLoop();
 
 			public:
 				static void Create(asIScriptGeneric* Generic);

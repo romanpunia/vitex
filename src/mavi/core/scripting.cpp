@@ -1950,38 +1950,13 @@ namespace Mavi
 			Other.DelegateObject = nullptr;
 			return *this;
 		}
-		ExpectsPromiseVM<Execution> FunctionDelegate::ExecuteOnNewContext(ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
-		{
-			FunctionDelegate* Base = this;
-			VirtualMachine* VM = Context->GetVM();
-			ImmediateContext* Target = VM->RequestContext();
-			return Target->ExecuteCall(Callback, std::move(OnArgs)).Then<ExpectsVM<Execution>>([VM, Target, OnReturn = std::move(OnReturn)](ExpectsVM<Execution>&& Result) mutable
-			{
-				if (OnReturn)
-					OnReturn(Target);
-				VM->ReturnContext(Target);
-				return Result;
-			});
-		}
 		ExpectsPromiseVM<Execution> FunctionDelegate::operator()(ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
 		{
 			if (!IsValid())
 				return ExpectsVM<Execution>(VirtualError::INVALID_CONFIGURATION);
 
-			if (!Context || !Context->CanExecuteCall())
-				return ExecuteOnNewContext(std::move(OnArgs), std::move(OnReturn));
-
-			Core::UMutex<std::recursive_mutex> Unique(Context->Exchange);
-			if (!Context->CanExecuteCall())
-				return ExecuteOnNewContext(std::move(OnArgs), std::move(OnReturn));
-
-			FunctionDelegate* Base = this;
-			return Context->ExecuteCall(Callback, std::move(OnArgs)).Then<ExpectsVM<Execution>>([Base, OnReturn = std::move(OnReturn)](ExpectsVM<Execution>&& Result) mutable
-			{
-				if (OnReturn)
-					OnReturn(Base->Context);
-				return Result;
-			});
+			FunctionDelegate Copy = *this;
+			return Context->ResolveCallback(std::move(Copy), std::move(OnArgs), std::move(OnReturn));
 		}
 		void FunctionDelegate::AddRefAndInitialize(bool IsFirstTime)
 		{
@@ -3462,6 +3437,7 @@ namespace Mavi
 		}
 		void DebuggerContext::ListThreads()
 		{
+			Core::UnorderedSet<Core::String> Ids;
 			Core::StringStream Stream;
 			size_t Index = 0;
 			for (auto& Item : Threads)
@@ -3472,7 +3448,11 @@ namespace Mavi
 					Stream << "  * ";
 				else
 					Stream << "  ";
-				Stream << "#" << Index++ << " thread " << Core::OS::Process::GetThreadId(Item.Id) << ", ";
+
+				Core::String ThreadId = Core::OS::Process::GetThreadId(Item.Id);
+				Stream << "#" << Index++ << " " << (Ids.find(ThreadId) != Ids.end() ? "coroutine" : "thread") << " " << ThreadId << ", ";
+				Ids.insert(ThreadId);
+
 				if (Function != nullptr)
 				{
 					if (Function->GetFuncType() == asFUNC_SCRIPT)
@@ -4359,6 +4339,57 @@ namespace Mavi
 				Executor.Future.Set(Status.Error());
 			return Status;
 		}
+		ExpectsPromiseVM<Execution> ImmediateContext::ResolveCallback(FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
+		{
+			VI_ASSERT(Delegate.IsValid(), "callback should be valid");
+			if (Callbacks.CallbackResolver)
+			{
+				Callbacks.CallbackResolver(this, std::move(Delegate), std::move(OnArgs), std::move(OnReturn));
+				return ExpectsPromiseVM<Execution>(Execution::Active);
+			}
+
+			Core::UMutex<std::recursive_mutex> Unique(Exchange);
+			if (CanExecuteCall())
+			{
+				return ExecuteCall(Delegate.Callable(), std::move(OnArgs)).Then<ExpectsVM<Execution>>([this, OnReturn = std::move(OnReturn)](ExpectsVM<Execution>&& Result) mutable
+				{
+					if (OnReturn)
+						OnReturn(this);
+					return Result;
+				});
+			}
+
+			ImmediateContext* Target = VM->RequestContext();
+			return Target->ExecuteCall(Delegate.Callable(), std::move(OnArgs)).Then<ExpectsVM<Execution>>([Target, OnReturn = std::move(OnReturn)](ExpectsVM<Execution>&& Result) mutable
+			{
+				if (OnReturn)
+					OnReturn(Target);
+
+				Target->VM->ReturnContext(Target);
+				return Result;
+			});
+		}
+		ExpectsVM<Execution> ImmediateContext::ResolveNotification(void* Promise)
+		{
+			if (Callbacks.NotificationResolver)
+			{
+				Callbacks.NotificationResolver(this, Promise);
+				return Execution::Active;
+			}
+
+			ImmediateContext* Context = this;
+			Bindings::Promise* Base = (Bindings::Promise*)Promise;
+			if (Core::Schedule::Get()->SetTask([Context, Base]()
+			{
+				if (Context->IsSuspended())
+					Context->Resume();
+				if (Base != nullptr)
+					Base->Release();
+			}, Core::Difficulty::Light) == Core::INVALID_TASK_ID)
+				return VirtualError::CONTEXT_NOT_PREPARED;
+
+			return Execution::Active;
+		}
 		ExpectsVM<void> ImmediateContext::Prepare(const Function& Function)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
@@ -4588,6 +4619,14 @@ namespace Mavi
 			VI_ASSERT(Context != nullptr, "context should be set");
 			return Context->GetLineNumber((asUINT)StackLevel, Column, SectionName);
 		}
+		void ImmediateContext::SetNotificationResolverCallback(const std::function<void(ImmediateContext*, void*)>& Callback)
+		{
+			Callbacks.NotificationResolver = Callback;
+		}
+		void ImmediateContext::SetCallbackResolverCallback(const std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)>& Callback)
+		{
+			Callbacks.CallbackResolver = Callback;
+		}
 		void ImmediateContext::SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback)
 		{
 			Callbacks.Exception = Callback;
@@ -4596,6 +4635,13 @@ namespace Mavi
 		{
 			Callbacks.Line = Callback;
 			SetLineCallback(&VirtualMachine::LineHandler, this);
+		}
+		void ImmediateContext::Reset()
+		{
+			VI_ASSERT(Context != nullptr, "context should be set");
+			Context->Unprepare();
+			Callbacks = Events();
+			Executor = Frame();
 		}
 		void ImmediateContext::DisableSuspends()
 		{
@@ -6244,9 +6290,10 @@ namespace Mavi
 		}
 		void VirtualMachine::ReturnContext(ImmediateContext* Context)
 		{
+			VI_ASSERT(Context != nullptr, "context should be set");
 			Core::UMutex<std::mutex> Unique(Sync.Pool);
 			Threads.push_back(Context);
-			Context->Unprepare();
+			Context->Reset();
 		}
 		asIScriptContext* VirtualMachine::RequestRawContext(asIScriptEngine* Engine, void* Data)
 		{
@@ -6416,5 +6463,192 @@ namespace Mavi
 			return nullptr;
 		}
 		int VirtualMachine::ManagerUD = 553;
+
+		EventLoop::Callable::Callable(ImmediateContext* NewContext, void* NewPromise) noexcept : Context(NewContext), Promise(NewPromise)
+		{
+		}
+		EventLoop::Callable::Callable(ImmediateContext* NewContext, FunctionDelegate&& NewDelegate, ArgsCallback&& NewOnArgs, ArgsCallback&& NewOnReturn) noexcept : Delegate(std::move(NewDelegate)), OnArgs(std::move(NewOnArgs)), OnReturn(std::move(NewOnReturn)), Context(NewContext), Promise(nullptr)
+		{
+		}
+		EventLoop::Callable::Callable(const Callable& Other) noexcept : Delegate(Other.Delegate), OnArgs(Other.OnArgs), OnReturn(Other.OnReturn), Context(Other.Context), Promise(Other.Promise)
+		{
+		}
+		EventLoop::Callable::Callable(Callable&& Other) noexcept : Delegate(std::move(Other.Delegate)), OnArgs(std::move(Other.OnArgs)), OnReturn(std::move(Other.OnReturn)), Context(Other.Context), Promise(Other.Promise)
+		{
+			Other.Context = nullptr;
+			Other.Promise = nullptr;
+		}
+		EventLoop::Callable& EventLoop::Callable::operator= (const Callable& Other) noexcept
+		{
+			if (this == &Other)
+				return *this;
+
+			Delegate = Other.Delegate;
+			OnArgs = Other.OnArgs;
+			OnReturn = Other.OnReturn;
+			Context = Other.Context;
+			Promise = Other.Promise;
+			return *this;
+		}
+		EventLoop::Callable& EventLoop::Callable::operator= (Callable&& Other) noexcept
+		{
+			if (this == &Other)
+				return *this;
+
+			Delegate = std::move(Other.Delegate);
+			OnArgs = std::move(Other.OnArgs);
+			OnReturn = std::move(Other.OnReturn);
+			Context = Other.Context;
+			Promise = Other.Promise;
+			Other.Context = nullptr;
+			Other.Promise = nullptr;
+			return *this;
+		}
+		bool EventLoop::Callable::IsNotification() const
+		{
+			return !Delegate.IsValid();
+		}
+		bool EventLoop::Callable::IsCallback() const
+		{
+			return Delegate.IsValid();
+		}
+
+		static thread_local EventLoop* EventHandle = nullptr;
+		EventLoop::EventLoop() noexcept : Wake(false)
+		{
+		}
+		void EventLoop::OnNotification(ImmediateContext* Context, void* Promise)
+		{
+			VI_ASSERT(Context != nullptr, "context should be set");
+			Core::UMutex<std::mutex> Unique(Mutex);
+			Queue.push(Callable(Context, Promise));
+			Waitable.notify_one();
+		}
+		void EventLoop::OnCallback(ImmediateContext* Context, FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
+		{
+			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(Delegate.IsValid(), "delegate should be valid");
+			Core::UMutex<std::mutex> Unique(Mutex);
+			Queue.push(Callable(Context, std::move(Delegate), std::move(OnArgs), std::move(OnReturn)));
+			Waitable.notify_one();
+		}
+		void EventLoop::Wakeup()
+		{
+			Core::UMutex<std::mutex> Unique(Mutex);
+			Wake = true;
+			Waitable.notify_one();
+		}
+		void EventLoop::Listen(ImmediateContext* Context)
+		{
+			VI_ASSERT(Context != nullptr, "context should be set");
+			Context->SetNotificationResolverCallback(std::bind(&EventLoop::OnNotification, this, std::placeholders::_1, std::placeholders::_2));
+			Context->SetCallbackResolverCallback(std::bind(&EventLoop::OnCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+		}
+		void EventLoop::Enqueue(ImmediateContext* Context, void* Promise)
+		{
+			VI_ASSERT(Context != nullptr, "context should be set");
+			Core::UMutex<std::mutex> Unique(Mutex);
+			Queue.push(Callable(Context, Promise));
+			Waitable.notify_one();
+		}
+		void EventLoop::Enqueue(FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
+		{
+			VI_ASSERT(Delegate.IsValid(), "delegate should be valid");
+			Core::UMutex<std::mutex> Unique(Mutex);
+			Queue.push(Callable(Delegate.Context, std::move(Delegate), std::move(OnArgs), std::move(OnReturn)));
+			Waitable.notify_one();
+		}
+		bool EventLoop::Poll(ImmediateContext* Context, uint64_t TimeoutMs)
+		{
+			VI_ASSERT(Context != nullptr, "context should be set");
+			if (!Bindings::Promise::IsContextBusy(Context) && Queue.empty())
+				return false;
+
+			std::unique_lock<std::mutex> Unique(Mutex);
+			Waitable.wait_for(Unique, std::chrono::milliseconds(TimeoutMs), [this]() { return !Queue.empty() || Wake; });
+			Wake = false;
+			return true;
+		}
+		bool EventLoop::PollExtended(ImmediateContext* Context, uint64_t TimeoutMs)
+		{
+			VI_ASSERT(Context != nullptr, "context should be set");
+			if (!Bindings::Promise::IsContextBusy(Context) && Queue.empty())
+			{
+				auto* Queue = Core::Schedule::Get();
+				if (!Queue->GetPolicy().Parallel || !Queue->IsActive())
+					return false;
+			}
+
+			std::unique_lock<std::mutex> Unique(Mutex);
+			Waitable.wait_for(Unique, std::chrono::milliseconds(TimeoutMs), [this]() { return !Queue.empty() || Wake; });
+			Wake = false;
+			return true;
+		}
+		size_t EventLoop::Dequeue(VirtualMachine* VM)
+		{
+			VI_ASSERT(VM != nullptr, "virtual machine should be set");
+			std::unique_lock<std::mutex> Unique(Mutex);
+			size_t Executions = 0;
+
+			while (!Queue.empty())
+			{
+				Callable Next = std::move(Queue.front());
+				Queue.pop();
+				Unique.unlock();
+
+				ImmediateContext* InitiatorContext = Next.Context;
+				if (Next.IsCallback())
+				{
+					ImmediateContext* ExecutingContext = Next.Context;
+					if (!Next.Context->CanExecuteCall())
+					{
+						ExecutingContext = VM->RequestContext();
+						Listen(ExecutingContext);
+					}
+
+					if (Next.OnReturn)
+					{
+						ArgsCallback OnReturn = std::move(Next.OnReturn);
+						ExecutingContext->ExecuteCall(Next.Delegate.Callable(), std::move(Next.OnArgs)).When([VM, InitiatorContext, ExecutingContext, OnReturn = std::move(OnReturn)](ExpectsVM<Execution>&&) mutable
+						{
+							OnReturn(ExecutingContext);
+							if (ExecutingContext != InitiatorContext)
+								VM->ReturnContext(ExecutingContext);
+						});
+					}
+					else
+					{
+						ExecutingContext->ExecuteCall(Next.Delegate.Callable(), std::move(Next.OnArgs)).When([VM, InitiatorContext, ExecutingContext](ExpectsVM<Execution>&&) mutable
+						{
+							if (ExecutingContext != InitiatorContext)
+								VM->ReturnContext(ExecutingContext);
+						});
+					}
+					++Executions;
+				}
+				else if (Next.IsNotification())
+				{
+					Bindings::Promise* Base = (Bindings::Promise*)Next.Promise;
+					if (Next.Context->IsSuspended())
+						Next.Context->Resume();
+					if (Base != nullptr)
+						Base->Release();
+					++Executions;
+				}
+				Unique.lock();
+			}
+
+			if (Executions > 0)
+				VI_TRACE("[vm] loop process %" PRIu64 " events", (uint64_t)Executions);
+			return Executions;
+		}
+		void EventLoop::Set(EventLoop* ForCurrentThread)
+		{
+			EventHandle = ForCurrentThread;
+		}
+		EventLoop* EventLoop::Get()
+		{
+			return EventHandle;
+		}
 	}
 }

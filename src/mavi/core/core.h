@@ -4315,25 +4315,25 @@ namespace Mavi
 			State* Status;
 
 		public:
-			BasicGenerator(ExecutorCallback&& Callback) : Status(VI_NEW(State))
+			BasicGenerator(ExecutorCallback&& Callback) noexcept : Status(VI_NEW(State))
 			{
 				Status->Callback = std::move(Callback);
 			}
-			BasicGenerator(const BasicGenerator& Other) : Status(Other.Status)
+			BasicGenerator(const BasicGenerator& Other) noexcept : Status(Other.Status)
 			{
 				if (Status != nullptr)
 					++Status->Count;
 			}
-			BasicGenerator(BasicGenerator&& Other) : Status(Other.Status)
+			BasicGenerator(BasicGenerator&& Other) noexcept : Status(Other.Status)
 			{
 				Other.Status = nullptr;
 			}
-			~BasicGenerator()
+			~BasicGenerator() noexcept
 			{
 				if (Status != nullptr && !--Status->Count)
 					VI_DELETE(State, Status);
 			}
-			BasicGenerator& operator= (const BasicGenerator& Other)
+			BasicGenerator& operator= (const BasicGenerator& Other) noexcept
 			{
 				if (this == &Other)
 					return *this;

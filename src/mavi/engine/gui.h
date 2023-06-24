@@ -165,6 +165,45 @@ namespace Mavi
 				Any = (Keys | Scroll | Text | Cursor)
 			};
 
+			enum class NumericUnit
+			{
+				UNKNOWN = 0,
+				KEYWORD = 1 << 0,
+				STRING = 1 << 1,
+				COLOUR = 1 << 2,
+				RATIO = 1 << 3,
+				NUMBER = 1 << 4,
+				PERCENT = 1 << 5,
+				PX = 1 << 6,
+				DP = 1 << 7,
+				VW = 1 << 8,
+				VH = 1 << 9,
+				X = 1 << 10,
+				EM = 1 << 11,
+				REM = 1 << 12,
+				INCH = 1 << 13,
+				CM = 1 << 14,
+				MM = 1 << 15,
+				PT = 1 << 16,
+				PC = 1 << 17,
+				PPI_UNIT = INCH | CM | MM | PT | PC,
+				DEG = 1 << 18,
+				RAD = 1 << 19,
+				TRANSFORM = 1 << 20,
+				TRANSITION = 1 << 21,
+				ANIMATION = 1 << 22,
+				DECORATOR = 1 << 23,
+				FONTEFFECT = 1 << 24,
+				COLORSTOPLIST = 1 << 25,
+				SHADOWLIST = 1 << 26,
+				LENGTH = PX | DP | VW | VH | EM | REM | PPI_UNIT,
+				LENGTH_PERCENT = LENGTH | PERCENT,
+				NUMBER_LENGTH_PERCENT = NUMBER | LENGTH | PERCENT,
+				DP_SCALABLE_LENGTH = DP | PPI_UNIT,
+				ANGLE = DEG | RAD,
+				NUMERIC = NUMBER_LENGTH_PERCENT | ANGLE | X
+			};
+
 			inline InputType operator |(InputType A, InputType B)
 			{
 				return static_cast<InputType>(static_cast<size_t>(A) | static_cast<size_t>(B));
@@ -246,7 +285,7 @@ namespace Mavi
 				Compute::Vector2 GetAbsoluteOffset(Area Type = Area::Content);
 				void SetClientArea(Area ClientArea);
 				Area GetClientArea() const;
-				void SetContentBox(const Compute::Vector2& ContentOffset, const Compute::Vector2& ContentBox);
+				void SetContentBox(const Compute::Vector2& ContentBox);
 				float GetBaseline() const;
 				bool GetIntrinsicDimensions(Compute::Vector2& Dimensions, float& Ratio);
 				bool IsPointWithinElement(const Compute::Vector2& Point);
@@ -256,7 +295,7 @@ namespace Mavi
 				void RemoveProperty(const Core::String& Name);
 				Core::String GetProperty(const Core::String& Name);
 				Core::String GetLocalProperty(const Core::String& Name);
-				float ResolveNumericProperty(const Core::String& PropertyName);
+				float ResolveNumericProperty(float Value, NumericUnit Unit, float BaseValue);
 				Compute::Vector2 GetContainingBlock();
 				Position GetPosition();
 				Float GetFloat();
@@ -612,6 +651,7 @@ namespace Mavi
 				bool IsLoading();
 				bool IsInputFocused();
 				bool WasInputUsed(uint32_t InputTypeMask);
+				uint64_t GetIdleTimeoutMs(uint64_t MaxTimeout) const;
 				int GetNumDocuments() const;
 				void SetDensityIndependentPixelRatio(float DensityIndependentPixelRatio);
 				float GetDensityIndependentPixelRatio() const;

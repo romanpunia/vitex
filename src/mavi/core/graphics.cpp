@@ -2096,6 +2096,19 @@ namespace Mavi
 				ApplySystemTheme();
 #endif
 		}
+		void Activity::Wakeup()
+		{
+#ifdef VI_SDL2
+			SDL_Event Event;
+			Event.type = SDL_USEREVENT;
+			Event.user.timestamp = SDL_GetTicks();
+			Event.user.windowID = SDL_GetWindowID(Handle);
+			Event.user.code = 200;
+			Event.user.data1 = nullptr;
+			Event.user.data2 = nullptr;
+			SDL_PushEvent(&Event);
+#endif
+		}
 		void Activity::Hide()
 		{
 #ifdef VI_SDL2
@@ -2176,6 +2189,10 @@ namespace Mavi
 		}
 		bool Activity::Dispatch()
 		{
+			return DispatchBlocking(0);
+		}
+		bool Activity::DispatchBlocking(uint64_t TimeoutMs)
+		{
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			VI_MEASURE(Core::Timings::Mixed);
 
@@ -2187,7 +2204,13 @@ namespace Mavi
 			Message.Dispatch();
 
 			SDL_Event Event;
-			while (SDL_PollEvent(&Event))
+			int HasEvents = 0;
+			if (TimeoutMs > 0)
+				HasEvents = SDL_WaitEventTimeout(&Event, (int)TimeoutMs);
+			else
+				HasEvents = SDL_PollEvent(&Event);
+
+			while (HasEvents)
 			{
 				switch (Event.type)
 				{
@@ -2572,10 +2595,14 @@ namespace Mavi
 						SDL_free(Event.drop.file);
 						break;
 #endif
+					default:
+						break;
 				}
+
+				HasEvents = SDL_PollEvent(&Event);
 			}
 
-			if (Options.RenderEvenIfInactive)
+			if (TimeoutMs > 0 || Options.RenderEvenIfInactive)
 				return true;
 
 			Uint32 Flags = SDL_GetWindowFlags(Handle);

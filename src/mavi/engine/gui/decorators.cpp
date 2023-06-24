@@ -126,8 +126,8 @@ namespace Mavi
 				void RenderElement(Rml::Element* Element, Rml::DecoratorDataHandle ElementData) const override
 				{
 					VI_ASSERT(Element != nullptr, "element should be set");
-					Rml::Vector2f Position = Element->GetAbsoluteOffset(Rml::Box::PADDING).Round();
-					Rml::Vector2f Size = Element->GetBox().GetSize(Rml::Box::PADDING).Round();
+					Rml::Vector2f Position = Element->GetAbsoluteOffset(Rml::BoxArea::Padding).Round();
+					Rml::Vector2f Size = Element->GetBox().GetSize(Rml::BoxArea::Padding).Round();
 					float Alpha = Element->GetProperty<float>("opacity");
 					float Radius = Softness * 0.85f;
 
@@ -183,8 +183,8 @@ namespace Mavi
 						return;
 
 					Rml::Vector2i Screen = Element->GetContext()->GetDimensions();
-					Rml::Vector2f Position = Element->GetAbsoluteOffset(Rml::Box::PADDING).Round();
-					Rml::Vector2f Size = Element->GetBox().GetSize(Rml::Box::PADDING).Round();
+					Rml::Vector2f Position = Element->GetAbsoluteOffset(Rml::BoxArea::Padding).Round();
+					Rml::Vector2f Size = Element->GetBox().GetSize(Rml::BoxArea::Padding).Round();
 					float Alpha = Element->GetProperty<float>("opacity");
 
 					Graphics::GraphicsDevice* Device = IBoxBlur->Device;

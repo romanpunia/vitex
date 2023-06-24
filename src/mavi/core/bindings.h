@@ -1061,6 +1061,9 @@ namespace Mavi
 				FunctionDelegate OnInitialize;
 				FunctionDelegate OnGetGUI;
 
+			private:
+				size_t ProcessedEvents;
+
 			public:
 				Application(Desc& I) noexcept;
 				virtual ~Application() noexcept override;
@@ -1086,6 +1089,8 @@ namespace Mavi
 				void Publish(Core::Timer* Time) override;
 				void Initialize() override;
 				Engine::GUI::Context* GetGUI() const override;
+				size_t GetProcessedEvents() const;
+				bool HasProcessedEvents() const;
 
 			public:
 				static bool WantsRestart(int ExitCode);

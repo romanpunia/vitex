@@ -6520,6 +6520,9 @@ namespace Mavi
 		void EventLoop::OnNotification(ImmediateContext* Context, void* Promise)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+			if (OnEnqueue)
+				OnEnqueue(Context);
+
 			Core::UMutex<std::mutex> Unique(Mutex);
 			Queue.push(Callable(Context, Promise));
 			Waitable.notify_one();
@@ -6528,6 +6531,9 @@ namespace Mavi
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 			VI_ASSERT(Delegate.IsValid(), "delegate should be valid");
+			if (OnEnqueue)
+				OnEnqueue(Context);
+
 			Core::UMutex<std::mutex> Unique(Mutex);
 			Queue.push(Callable(Context, std::move(Delegate), std::move(OnArgs), std::move(OnReturn)));
 			Waitable.notify_one();
@@ -6538,6 +6544,10 @@ namespace Mavi
 			Wake = true;
 			Waitable.notify_one();
 		}
+		void EventLoop::When(ArgsCallback&& Callback)
+		{
+			OnEnqueue = std::move(Callback);
+		}
 		void EventLoop::Listen(ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
@@ -6547,6 +6557,9 @@ namespace Mavi
 		void EventLoop::Enqueue(ImmediateContext* Context, void* Promise)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+			if (OnEnqueue)
+				OnEnqueue(Context);
+
 			Core::UMutex<std::mutex> Unique(Mutex);
 			Queue.push(Callable(Context, Promise));
 			Waitable.notify_one();
@@ -6554,6 +6567,9 @@ namespace Mavi
 		void EventLoop::Enqueue(FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
 		{
 			VI_ASSERT(Delegate.IsValid(), "delegate should be valid");
+			if (OnEnqueue)
+				OnEnqueue(Delegate.Context);
+
 			Core::UMutex<std::mutex> Unique(Mutex);
 			Queue.push(Callable(Delegate.Context, std::move(Delegate), std::move(OnArgs), std::move(OnReturn)));
 			Waitable.notify_one();

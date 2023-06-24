@@ -2167,12 +2167,14 @@ namespace Mavi
 			Core::SingleQueue<Callable> Queue;
 			std::condition_variable Waitable;
 			std::mutex Mutex;
+			ArgsCallback OnEnqueue;
 			bool Wake;
 
 		public:
 			EventLoop() noexcept;
 			~EventLoop() = default;
 			void Wakeup();
+			void When(ArgsCallback&& Callback);
 			void Listen(ImmediateContext* Context);
 			void Enqueue(ImmediateContext* Context, void* Promise);
 			void Enqueue(FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn);

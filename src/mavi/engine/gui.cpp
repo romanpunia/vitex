@@ -1350,7 +1350,7 @@ namespace Mavi
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				Rml::Vector2f Result = Base->GetRelativeOffset((Rml::Box::Area)Type);
+				Rml::Vector2f Result = Base->GetRelativeOffset((Rml::BoxArea)Type);
 				return Compute::Vector2(Result.x, Result.y);
 #else
 				return Compute::Vector2();
@@ -1361,7 +1361,7 @@ namespace Mavi
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				Rml::Vector2f Result = Base->GetAbsoluteOffset((Rml::Box::Area)Type);
+				Rml::Vector2f Result = Base->GetAbsoluteOffset((Rml::BoxArea)Type);
 				return Compute::Vector2(Result.x, Result.y);
 #else
 				return Compute::Vector2();
@@ -1372,7 +1372,7 @@ namespace Mavi
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				Base->SetClientArea((Rml::Box::Area)ClientArea);
+				Base->SetClientArea((Rml::BoxArea)ClientArea);
 #endif
 			}
 			Area IElement::GetClientArea() const
@@ -1385,11 +1385,11 @@ namespace Mavi
 #endif
 
 			}
-			void IElement::SetContentBox(const Compute::Vector2& ContentOffset, const Compute::Vector2& ContentBox)
+			void IElement::SetContentBox(const Compute::Vector2& ContentBox)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				Base->SetContentBox(Rml::Vector2f(ContentOffset.X, ContentOffset.Y), Rml::Vector2f(ContentBox.X, ContentBox.Y));
+				Base->SetBox(Rml::Box(Rml::Vector2f(ContentBox.X, ContentBox.Y)));
 #endif
 			}
 			float IElement::GetBaseline() const
@@ -1489,11 +1489,11 @@ namespace Mavi
 				return Core::String();
 #endif
 			}
-			float IElement::ResolveNumericProperty(const Core::String& PropertyName)
+			float IElement::ResolveNumericProperty(float Value, NumericUnit Unit, float BaseValue)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				return Base->ResolveNumericProperty(PropertyName);
+				return Base->ResolveNumericValue(Rml::NumericValue(Value, (Rml::Unit)Unit), BaseValue);
 #else
 				return 0.0f;
 #endif
@@ -1561,7 +1561,7 @@ namespace Mavi
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				return Base->Animate(PropertyName, Rml::Property(TargetValue, Rml::Property::TRANSFORM), Duration, Rml::Tween((Rml::Tween::Type)Func, (Rml::Tween::Direction)Dir), NumIterations, AlternateDirection, Delay);
+				return Base->Animate(PropertyName, Rml::Property(TargetValue, Rml::Unit::TRANSFORM), Duration, Rml::Tween((Rml::Tween::Type)Func, (Rml::Tween::Direction)Dir), NumIterations, AlternateDirection, Delay);
 #else
 				return false;
 #endif
@@ -1570,7 +1570,7 @@ namespace Mavi
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				return Base->AddAnimationKey(PropertyName, Rml::Property(TargetValue, Rml::Property::TRANSFORM), Duration, Rml::Tween((Rml::Tween::Type)Func, (Rml::Tween::Direction)Dir));
+				return Base->AddAnimationKey(PropertyName, Rml::Property(TargetValue, Rml::Unit::TRANSFORM), Duration, Rml::Tween((Rml::Tween::Type)Func, (Rml::Tween::Direction)Dir));
 #else
 				return false;
 #endif
@@ -3786,6 +3786,17 @@ namespace Mavi
 #else
 				return false;
 #endif
+			}
+			uint64_t Context::GetIdleTimeoutMs(uint64_t MaxTimeout) const
+			{
+				double Timeout = Base->GetNextUpdateDelay();
+				if (Timeout < 0.0)
+					return 0;
+
+				if (Timeout > (double)MaxTimeout)
+					return MaxTimeout;
+
+				return (uint64_t)(1000.0 * Timeout);
 			}
 			Core::UnorderedMap<Core::String, bool>* Context::GetFontFaces()
 			{

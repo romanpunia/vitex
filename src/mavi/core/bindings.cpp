@@ -453,7 +453,7 @@ namespace Mavi
 			{
 				return Type.empty() && Message.empty();
 			}
-			
+
 			void Exception::ThrowAt(asIScriptContext* Context, const Pointer& Data)
 			{
 				if (Context != nullptr)
@@ -508,7 +508,7 @@ namespace Mavi
 				return true;
 			}
 
-			Any::Any(asIScriptEngine* _Engine) noexcept : RefCount(1), Engine(_Engine) 
+			Any::Any(asIScriptEngine* _Engine) noexcept : RefCount(1), Engine(_Engine)
 			{
 				Value.TypeId = 0;
 				Value.Integer = 0;
@@ -953,7 +953,7 @@ namespace Mavi
 				SBuffer* NewBuffer = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + (size_t)ElementSize * (size_t)MaxElements));
 				if (!NewBuffer)
 					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-				
+
 				NewBuffer->NumElements = Buffer->NumElements;
 				NewBuffer->MaxElements = MaxElements;
 				memcpy(NewBuffer->Data, Buffer->Data, (size_t)Buffer->NumElements * (size_t)ElementSize);
@@ -3174,7 +3174,7 @@ namespace Mavi
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 					return nullptr;
 				}
-				
+
 				new(Future) Promise(asGetActiveContext());
 				if (TypeId != asTYPEID_VOID)
 					Future->Store(_Ref, TypeId);
@@ -3748,7 +3748,7 @@ namespace Mavi
 				Output = Core::Schema::FromXML(Value);
 				if (Output)
 					return *Output;
-					
+
 				Output = Core::Schema::FromJSONB(Core::Vector<char>(Value.begin(), Value.end()));
 				return Output ? *Output : nullptr;
 			}
@@ -3985,7 +3985,7 @@ namespace Mavi
 					while (VM != nullptr && Procedure.joinable() && IsActive() && VM->TriggerDebugger(50));
 					Procedure.join();
 				});
-;
+				;
 				if (!Raise.Empty())
 					Exception::Throw(Raise);
 				return 1;
@@ -4088,7 +4088,7 @@ namespace Mavi
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context)
 					return false;
-				
+
 				if (Context->IsSuspended())
 					return true;
 
@@ -4904,7 +4904,7 @@ namespace Mavi
 				}
 			}
 
-			Application::Application(Desc& I) noexcept : Engine::Application(&I)
+			Application::Application(Desc& I) noexcept : Engine::Application(&I), ProcessedEvents(0)
 			{
 				if (I.Usage & (size_t)Engine::ApplicationSet::ScriptSet)
 					VM = VirtualMachine::Get();
@@ -5073,17 +5073,19 @@ namespace Mavi
 			{
 				auto* Loop = EventLoop::Get();
 				if (Loop != nullptr)
-					Loop->Dequeue(VM);
+					ProcessedEvents = Loop->Dequeue(VM);
+				else
+					ProcessedEvents = 0;
 
-				if (!OnDispatch.IsValid())
-					return;
-
-				auto* Context = ImmediateContext::Get();
-				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
-				Context->ExecuteSubcall(OnDispatch.Callable(), [Time](ImmediateContext* Context)
+				if (OnDispatch.IsValid())
 				{
-					Context->SetArgObject(0, (void*)Time);
-				});
+					auto* Context = ImmediateContext::Get();
+					VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
+					Context->ExecuteSubcall(OnDispatch.Callable(), [Time](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, (void*)Time);
+					});
+				}
 			}
 			void Application::Publish(Core::Timer* Time)
 			{
@@ -5119,6 +5121,14 @@ namespace Mavi
 					Result = Context->GetReturnObject<Engine::GUI::Context>();
 				});
 				return Result;
+			}
+			size_t Application::GetProcessedEvents() const
+			{
+				return ProcessedEvents;
+			}
+			bool Application::HasProcessedEvents() const
+			{
+				return ProcessedEvents > 0;
 			}
 			bool Application::WantsRestart(int ExitCode)
 			{
@@ -6125,7 +6135,7 @@ namespace Mavi
 			void ActivitySetTitle(Graphics::Activity* Base, const Core::String& Value)
 			{
 				Base->SetTitle(Value.c_str());
-			}	
+			}
 			void ActivitySetAppStateChange(Graphics::Activity* Base, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
@@ -6538,7 +6548,7 @@ namespace Mavi
 				else
 					Base->Callbacks.DropText = nullptr;
 			}
-			
+
 			Graphics::RenderTargetBlendState& BlendStateDescGetRenderTarget(Graphics::BlendState::Desc& Base, size_t Index)
 			{
 				return Base.RenderTarget[Index % 8];
@@ -7294,7 +7304,7 @@ namespace Mavi
 					}).Wait();
 				});
 			}
-			
+
 			void SocketRouterSetListeners(Network::SocketRouter* Base, Dictionary* Data)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_REMOTEHOST ">@");
@@ -8225,7 +8235,7 @@ namespace Mavi
 				Delegate = FunctionDelegate(Callback);
 				if (!Delegate.IsValid())
 					return nullptr;
-				
+
 				ModelListener* Listener = this;
 				return [Listener](Engine::GUI::IEvent& Wrapper)
 				{
@@ -9174,7 +9184,7 @@ namespace Mavi
 				Network::HTTP::RequestFrame Copy = Frame;
 				return Base->XML(std::move(Copy), MaxSize).Then<Core::Schema*>([](Core::ExpectsIO<Core::Schema*>&& Result) { return Result ? *Result : (Core::Schema*)nullptr; });
 			}
-			
+
 			Array* SMTPRequestGetRecipients(Network::SMTP::RequestFrame* Base)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
@@ -9501,7 +9511,7 @@ namespace Mavi
 				Engine->RegisterObjectMethod("const_weak<T>", "bool opEquals(const T@+) const", asMETHOD(Weak, Equals), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("const_weak<T>", "const_weak<T> &opHndlAssign(const weak<T> &in)", asMETHOD(Weak, operator=), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("const_weak<T>", "bool opEquals(const weak<T> &in) const", asMETHODPR(Weak, operator==, (const Weak&) const, bool), asCALL_THISCALL);
-				
+
 				return true;
 			}
 			bool Registry::ImportMath(VirtualMachine* VM)
@@ -9550,7 +9560,7 @@ namespace Mavi
 				Engine->RegisterGlobalFunction("float ceil(float)", asFUNCTIONPR(Compute::Mathf::Ceil, (float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float abs(float)", asFUNCTIONPR(Compute::Mathf::Abs, (float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float floor(float)", asFUNCTIONPR(Compute::Mathf::Floor, (float), float), asCALL_CDECL);
-				
+
 				return true;
 			}
 			bool Registry::ImportString(VirtualMachine* VM)
@@ -9595,7 +9605,7 @@ namespace Mavi
 				Engine->RegisterObjectMethod("string", "string& append(usize, uint8)", asMETHODPR(Core::String, append, (size_t, char), Core::String&), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("string", "string& append(const string&in)", asMETHODPR(Core::String, append, (const Core::String&), Core::String&), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("string", "void push(uint8)", asMETHOD(Core::String, push_back), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "void pop()", asFUNCTION(String::PopBack), asCALL_CDECL_OBJFIRST); 
+				Engine->RegisterObjectMethod("string", "void pop()", asFUNCTION(String::PopBack), asCALL_CDECL_OBJFIRST);
 				Engine->RegisterObjectMethod("string", "bool starts_with(const string&in, usize = 0) const", asFUNCTIONPR(Core::Stringify::StartsWith, (const Core::String&, const Core::String&, size_t), bool), asCALL_CDECL_OBJFIRST);
 				Engine->RegisterObjectMethod("string", "bool ends_with(const string&in) const", asFUNCTIONPR(Core::Stringify::EndsWith, (const Core::String&, const Core::String&), bool), asCALL_CDECL_OBJFIRST);
 				Engine->RegisterObjectMethod("string", "string& replace(usize, usize, const string&in)", asFUNCTIONPR(Core::Stringify::ReplacePart, (Core::String&, size_t, size_t, const Core::String&), Core::String&), asCALL_CDECL_OBJFIRST);
@@ -9641,7 +9651,7 @@ namespace Mavi
 				Engine->RegisterGlobalFunction("string to_string(double)", asFUNCTION(Core::ToString<double>), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string to_string(uptr@, usize)", asFUNCTION(String::FromBuffer), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("uint64 component_id(const string &in)", asFUNCTION(Core::OS::File::GetHash), asCALL_CDECL);
-				
+
 				VM->BeginNamespace("string");
 				Engine->RegisterGlobalProperty("const usize npos", (void*)&Core::String::npos);
 				VM->EndNamespace();
@@ -11574,7 +11584,7 @@ namespace Mavi
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
 				auto VSimulator = VM->SetClass<Compute::Simulator>("physics_simulator", false);
-				
+
 				auto VShape = VM->SetEnum("physics_shape");
 				VShape->SetValue("box", (int)Compute::Shape::Box);
 				VShape->SetValue("triangle", (int)Compute::Shape::Triangle);
@@ -12161,7 +12171,7 @@ namespace Mavi
 				VDF6Constraint->SetMethod("bool is_active() const", &Compute::DF6Constraint::IsActive);
 				VDF6Constraint->SetMethod("void set_breaking_impulse_threshold(float)", &Compute::DF6Constraint::SetBreakingImpulseThreshold);
 				VDF6Constraint->SetMethod("void set_enabled(bool)", &Compute::DF6Constraint::SetEnabled);
-				VDF6Constraint->SetMethod("float get_breaking_impulse_threshold() const", &Compute::DF6Constraint::GetBreakingImpulseThreshold);		
+				VDF6Constraint->SetMethod("float get_breaking_impulse_threshold() const", &Compute::DF6Constraint::GetBreakingImpulseThreshold);
 				VDF6Constraint->SetMethod("void enable_motor(int, bool)", &Compute::DF6Constraint::EnableMotor);
 				VDF6Constraint->SetMethod("void enable_spring(int, bool)", &Compute::DF6Constraint::EnableSpring);
 				VDF6Constraint->SetMethod("void set_frames(const matrix4x4 &in, const matrix4x4 &in)", &Compute::DF6Constraint::SetFrames);
@@ -12924,6 +12934,7 @@ namespace Mavi
 				VActivity->SetMethod("void resize(int, int)", &Graphics::Activity::Resize);
 				VActivity->SetMethod("bool capture_key_map(key_map &out)", &Graphics::Activity::CaptureKeyMap);
 				VActivity->SetMethod("bool dispatch()", &Graphics::Activity::Dispatch);
+				VActivity->SetMethod("bool dispatch_blocking(uint64)", &Graphics::Activity::DispatchBlocking);
 				VActivity->SetMethod("bool is_fullscreen() const", &Graphics::Activity::IsFullscreen);
 				VActivity->SetMethod("bool is_any_key_down() const", &Graphics::Activity::IsAnyKeyDown);
 				VActivity->SetMethod("bool is_key_down(const key_map &in) const", &Graphics::Activity::IsKeyDown);
@@ -14089,7 +14100,7 @@ namespace Mavi
 				VSocket->SetMethod("bool is_pending_for_write()", &Network::Socket::IsPendingForWrite);
 				VSocket->SetMethod("bool is_pending()", &Network::Socket::IsPending);
 				VSocket->SetMethod("bool is_valid()", &Network::Socket::IsValid);
-				
+
 				VM->BeginNamespace("net_packet");
 				VM->SetFunction("bool is_data(socket_poll)", &Network::Packet::IsData);
 				VM->SetFunction("bool is_skip(socket_poll)", &Network::Packet::IsSkip);
@@ -15603,6 +15614,8 @@ namespace Mavi
 				VApplication->SetMethod("int restart()", &Engine::Application::Restart);
 				VApplication->SetMethod("void stop(int = 0)", &Engine::Application::Stop);
 				VApplication->SetMethod("application_state get_state() const", &Engine::Application::GetState);
+				VApplication->SetMethod("usize get_processed_events() const", &Application::GetProcessedEvents);
+				VApplication->SetMethod("bool has_processed_events() const", &Application::HasProcessedEvents);
 				VApplication->SetMethodStatic("application@+ get()", &Engine::Application::Get);
 				VApplication->SetMethodStatic("bool wants_restart(int)", &Application::WantsRestart);
 				VApplication->SetEnumRefsEx<Application>([](Application* Base, asIScriptEngine* VM)
@@ -16101,7 +16114,7 @@ namespace Mavi
 				VSSGIStochasticBuffer->SetPropertyArray<Engine::Renderers::SSGI::StochasticBuffer>("float texel", &Engine::Renderers::SSGI::StochasticBuffer::Texel, 2);
 				VSSGIStochasticBuffer->SetProperty<Engine::Renderers::SSGI::StochasticBuffer>("float frame_id", &Engine::Renderers::SSGI::StochasticBuffer::FrameId);
 				VSSGIStochasticBuffer->SetProperty<Engine::Renderers::SSGI::StochasticBuffer>("float padding", &Engine::Renderers::SSGI::StochasticBuffer::Padding);
-				
+
 				auto VSSGIIndirectionBuffer = VM->SetPod<Engine::Renderers::SSGI::IndirectionBuffer>("ssgi_indirection_buffer");
 				VSSGIIndirectionBuffer->SetPropertyArray<Engine::Renderers::SSGI::IndirectionBuffer>("float random", &Engine::Renderers::SSGI::IndirectionBuffer::Random, 2);
 				VSSGIIndirectionBuffer->SetProperty<Engine::Renderers::SSGI::IndirectionBuffer>("float samples", &Engine::Renderers::SSGI::IndirectionBuffer::Samples);
@@ -16277,6 +16290,7 @@ namespace Mavi
 				auto VTimingDir = VM->SetEnum("ui_timing_dir");
 				auto VFocusFlag = VM->SetEnum("ui_focus_flag");
 				auto VModalFlag = VM->SetEnum("ui_modal_flag");
+				auto VNumericUnit = VM->SetEnum("numeric_unit");
 				auto VElement = VM->SetStructTrivial<Engine::GUI::IElement>("ui_element");
 				auto VDocument = VM->SetStructTrivial<Engine::GUI::IElementDocument>("ui_document");
 				auto VEvent = VM->SetStructTrivial<Engine::GUI::IEvent>("ui_event");
@@ -16376,7 +16390,43 @@ namespace Mavi
 				VTimingDir->SetValue("use_in", (int)Engine::GUI::TimingDir::In);
 				VTimingDir->SetValue("use_out", (int)Engine::GUI::TimingDir::Out);
 				VTimingDir->SetValue("use_in_out", (int)Engine::GUI::TimingDir::InOut);
-				
+
+				VNumericUnit->SetValue("unknown", (int)Engine::GUI::NumericUnit::UNKNOWN);
+				VNumericUnit->SetValue("keyword", (int)Engine::GUI::NumericUnit::KEYWORD);
+				VNumericUnit->SetValue("text", (int)Engine::GUI::NumericUnit::STRING);
+				VNumericUnit->SetValue("colour", (int)Engine::GUI::NumericUnit::COLOUR);
+				VNumericUnit->SetValue("ratio", (int)Engine::GUI::NumericUnit::RATIO);
+				VNumericUnit->SetValue("number", (int)Engine::GUI::NumericUnit::NUMBER);
+				VNumericUnit->SetValue("percent", (int)Engine::GUI::NumericUnit::PERCENT);
+				VNumericUnit->SetValue("px", (int)Engine::GUI::NumericUnit::PX);
+				VNumericUnit->SetValue("dp", (int)Engine::GUI::NumericUnit::DP);
+				VNumericUnit->SetValue("vw", (int)Engine::GUI::NumericUnit::VW);
+				VNumericUnit->SetValue("vh", (int)Engine::GUI::NumericUnit::VH);
+				VNumericUnit->SetValue("x", (int)Engine::GUI::NumericUnit::X);
+				VNumericUnit->SetValue("em", (int)Engine::GUI::NumericUnit::EM);
+				VNumericUnit->SetValue("rem", (int)Engine::GUI::NumericUnit::REM);
+				VNumericUnit->SetValue("inch", (int)Engine::GUI::NumericUnit::INCH);
+				VNumericUnit->SetValue("cm", (int)Engine::GUI::NumericUnit::CM);
+				VNumericUnit->SetValue("mm", (int)Engine::GUI::NumericUnit::MM);
+				VNumericUnit->SetValue("pt", (int)Engine::GUI::NumericUnit::PT);
+				VNumericUnit->SetValue("pc", (int)Engine::GUI::NumericUnit::PC);
+				VNumericUnit->SetValue("ppi_unit", (int)Engine::GUI::NumericUnit::PPI_UNIT);
+				VNumericUnit->SetValue("deg", (int)Engine::GUI::NumericUnit::DEG);
+				VNumericUnit->SetValue("rad", (int)Engine::GUI::NumericUnit::RAD);
+				VNumericUnit->SetValue("transform_unit", (int)Engine::GUI::NumericUnit::TRANSFORM);
+				VNumericUnit->SetValue("transition", (int)Engine::GUI::NumericUnit::TRANSITION);
+				VNumericUnit->SetValue("animation", (int)Engine::GUI::NumericUnit::ANIMATION);
+				VNumericUnit->SetValue("decorator", (int)Engine::GUI::NumericUnit::DECORATOR);
+				VNumericUnit->SetValue("font_effect", (int)Engine::GUI::NumericUnit::FONTEFFECT);
+				VNumericUnit->SetValue("colour_stop_list", (int)Engine::GUI::NumericUnit::COLORSTOPLIST);
+				VNumericUnit->SetValue("shadow_list", (int)Engine::GUI::NumericUnit::SHADOWLIST);
+				VNumericUnit->SetValue("length", (int)Engine::GUI::NumericUnit::LENGTH);
+				VNumericUnit->SetValue("length_percent", (int)Engine::GUI::NumericUnit::LENGTH_PERCENT);
+				VNumericUnit->SetValue("number_length_percent", (int)Engine::GUI::NumericUnit::NUMBER_LENGTH_PERCENT);
+				VNumericUnit->SetValue("dp_scalable_length", (int)Engine::GUI::NumericUnit::DP_SCALABLE_LENGTH);
+				VNumericUnit->SetValue("angle", (int)Engine::GUI::NumericUnit::ANGLE);
+				VNumericUnit->SetValue("numeric", (int)Engine::GUI::NumericUnit::NUMERIC);
+
 				VElement->SetConstructor<Engine::GUI::IElement>("void f()");
 				VElement->SetConstructor<Engine::GUI::IElement, Rml::Element*>("void f(uptr@)");
 				VElement->SetMethod("ui_element clone() const", &Engine::GUI::IElement::Clone);
@@ -16390,7 +16440,7 @@ namespace Mavi
 				VElement->SetMethod("vector2 get_absolute_offset(ui_area = ui_area::Content) const", &Engine::GUI::IElement::GetAbsoluteOffset);
 				VElement->SetMethod("void set_client_area(ui_area)", &Engine::GUI::IElement::SetClientArea);
 				VElement->SetMethod("ui_area get_client_area() const", &Engine::GUI::IElement::GetClientArea);
-				VElement->SetMethod("void set_bontent_box(const vector2 &in, const vector2 &in)", &Engine::GUI::IElement::SetContentBox);
+				VElement->SetMethod("void set_bontent_box(const vector2 &in)", &Engine::GUI::IElement::SetContentBox);
 				VElement->SetMethod("float get_baseline() const", &Engine::GUI::IElement::GetBaseline);
 				VElement->SetMethod("bool get_intrinsic_dimensions(vector2 &out, float &out)", &Engine::GUI::IElement::GetIntrinsicDimensions);
 				VElement->SetMethod("bool is_point_within_element(const vector2 &in)", &Engine::GUI::IElement::IsPointWithinElement);
@@ -16509,7 +16559,7 @@ namespace Mavi
 				VDocument->SetMethod("void remove_property(const string &in)", &Engine::GUI::IElementDocument::RemoveProperty);
 				VDocument->SetMethod("string get_property(const string &in) const", &Engine::GUI::IElementDocument::GetProperty);
 				VDocument->SetMethod("string get_local_property(const string &in) const", &Engine::GUI::IElementDocument::GetLocalProperty);
-				VDocument->SetMethod("float resolve_numeric_property(const string &in) const", &Engine::GUI::IElementDocument::ResolveNumericProperty);
+				VDocument->SetMethod("float resolve_numeric_property(float, numeric_unit, float) const", &Engine::GUI::IElementDocument::ResolveNumericProperty);
 				VDocument->SetMethod("vector2 get_containing_block() const", &Engine::GUI::IElementDocument::GetContainingBlock);
 				VDocument->SetMethod("ui_position get_position() const", &Engine::GUI::IElementDocument::GetPosition);
 				VDocument->SetMethod("ui_float get_float() const", &Engine::GUI::IElementDocument::GetFloat);
@@ -16688,6 +16738,7 @@ namespace Mavi
 				VContext->SetMethod("bool replace_html(const string &in, const string &in, int = 0)", &Engine::GUI::Context::ReplaceHTML);
 				VContext->SetMethod("bool remove_data_model(const string &in)", &Engine::GUI::Context::RemoveDataModel);
 				VContext->SetMethod("bool remove_data_models()", &Engine::GUI::Context::RemoveDataModels);
+				VContext->SetMethod("uint64 get_idle_timeout_ms(uint64) const", &Engine::GUI::Context::GetIdleTimeoutMs);
 				VContext->SetMethod("uptr@ get_context()", &Engine::GUI::Context::GetContext);
 				VContext->SetMethod("vector2 get_dimensions() const", &Engine::GUI::Context::GetDimensions);
 				VContext->SetMethod("string get_documents_base_tag() const", &Engine::GUI::Context::GetDocumentsBaseTag);

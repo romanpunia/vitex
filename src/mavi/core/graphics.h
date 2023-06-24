@@ -1899,6 +1899,7 @@ namespace Mavi
 			void SetTitle(const char* Value);
 			void SetScreenKeyboard(bool Enabled);
 			void BuildLayer(RenderBackend Backend);
+			void Wakeup();
 			void Hide();
 			void Show();
 			void Maximize();
@@ -1909,6 +1910,7 @@ namespace Mavi
 			void Load(SDL_SysWMinfo* Base);
 			bool CaptureKeyMap(KeyMap* Value);
 			bool Dispatch();
+			bool DispatchBlocking(uint64_t TimeoutMs);
 			bool IsFullscreen() const;
 			bool IsAnyKeyDown() const;
 			bool IsKeyDown(const KeyMap& Key) const;

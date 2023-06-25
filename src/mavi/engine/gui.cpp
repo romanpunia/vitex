@@ -3527,27 +3527,28 @@ namespace Mavi
 #endif
 			}
 
-			Context::Context(const Compute::Vector2& Size) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
+			Context::Context(Scripting::Compiler* NewCompiler, const Compute::Vector2& Size) : Compiler(NewCompiler), Cursor(-1.0f), Loading(false)
 			{
 #ifdef VI_RMLUI
 				Base = (ScopedContext*)Rml::CreateContext(Core::ToString(Subsystem::Get()->Id++), Rml::Vector2i((int)Size.X, (int)Size.Y));
 				VI_ASSERT(Base != nullptr, "context cannot be created");
 				Base->Basis = this;
-				InitializeInstance();
+
+				auto* Subsystem = GUI::Subsystem::Get();
+				auto* VM = Subsystem->Shared.VM;
+				Subsystem->AddRef();
+
+				if (VM != nullptr && !Compiler)
+				{
+					Compiler = VM->CreateCompiler();
+					ClearScope();
+				}
+				else if (Compiler != nullptr)
+					Compiler->AddRef();
 #endif
 			}
-			Context::Context(Graphics::GraphicsDevice* Device) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
+			Context::Context(Scripting::Compiler* NewCompiler, Graphics::GraphicsDevice* Device) : Context(NewCompiler, Device && Device->GetRenderTarget() ? Compute::Vector2(Device->GetRenderTarget()->GetWidth(), Device->GetRenderTarget()->GetHeight()) : Compute::Vector2(512, 512))
 			{
-#ifdef VI_RMLUI
-				VI_ASSERT(Device != nullptr, "graphics device should be set");
-				VI_ASSERT(Device->GetRenderTarget() != nullptr, "graphics device should be set");
-
-				Graphics::RenderTarget2D* Target = Device->GetRenderTarget();
-				Base = (ScopedContext*)Rml::CreateContext(Core::ToString(Subsystem::Get()->Id++), Rml::Vector2i((int)Target->GetWidth(), (int)Target->GetHeight()));
-				VI_ASSERT(Base != nullptr, "context cannot be created");
-				Base->Basis = this;
-				InitializeInstance();
-#endif
 			}
 			Context::~Context() noexcept
 			{
@@ -4306,17 +4307,6 @@ namespace Mavi
 					Core::Stringify::RemovePart(Data, Start.Start, Start.End);
 					End.End = Start.Start;
 				}
-			}
-			void Context::InitializeInstance()
-			{
-				auto* Subsystem = GUI::Subsystem::Get();
-				Subsystem->AddRef();
-
-				if (!Subsystem->Shared.VM || Compiler != nullptr)
-					return;
-
-				Compiler = Subsystem->Shared.VM->CreateCompiler();
-				ClearScope();
 			}
 			void Context::ClearScope()
 			{

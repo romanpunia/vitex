@@ -16719,8 +16719,8 @@ namespace Mavi
 				VInputType->SetValue("any_of", (int)Engine::GUI::InputType::Any);
 
 				auto VContext = VM->SetClass<Engine::GUI::Context>("gui_context", false);
-				VContext->SetConstructor<Engine::GUI::Context, const Compute::Vector2&>("gui_context@ f(const vector2&in)");
-				VContext->SetConstructor<Engine::GUI::Context, Graphics::GraphicsDevice*>("gui_context@ f(graphics_device@+)");
+				VContext->SetConstructor<Engine::GUI::Context, Scripting::Compiler*, const Compute::Vector2&>("gui_context@ f(uptr@, const vector2&in)");
+				VContext->SetConstructor<Engine::GUI::Context, Scripting::Compiler*, Graphics::GraphicsDevice*>("gui_context@ f(uptr@, graphics_device@+)");
 				VContext->SetMethod("void emit_key(key_code, key_mod, int, int, bool)", &Engine::GUI::Context::EmitKey);
 				VContext->SetMethodEx("void emit_input(const string&in)", &ContextEmitInput);
 				VContext->SetMethod("void emit_wheel(int32, int32, bool, key_mod)", &Engine::GUI::Context::EmitWheel);

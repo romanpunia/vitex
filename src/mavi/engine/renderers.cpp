@@ -2521,7 +2521,7 @@ namespace Mavi
 			{
 				VI_ASSERT(System != nullptr, "render system should be set");
 				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
-				Context = new GUI::Context(System->GetDevice());
+				Context = new GUI::Context(nullptr, System->GetDevice());
 			}
 			UserInterface::~UserInterface()
 			{

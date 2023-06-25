@@ -634,8 +634,8 @@ namespace Mavi
 				bool Loading;
 
 			public:
-				Context(const Compute::Vector2& Size);
-				Context(Graphics::GraphicsDevice* Device);
+				Context(Scripting::Compiler* NewCompiler, const Compute::Vector2& Size);
+				Context(Scripting::Compiler* NewCompiler, Graphics::GraphicsDevice* Device);
 				~Context() noexcept;
 				void EmitKey(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed);
 				void EmitInput(const char* Buffer, int Length);
@@ -692,7 +692,6 @@ namespace Mavi
 				bool Initialize(Core::Schema* Conf, const Core::String& Relative);
 				bool Preprocess(const Core::String& Path, Core::String& Buffer);
 				void Decompose(Core::String& Buffer);
-				void InitializeInstance();
 				void ClearScope();
 
 			private:

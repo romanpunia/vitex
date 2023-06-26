@@ -3547,7 +3547,7 @@ namespace Mavi
 					Compiler->AddRef();
 #endif
 			}
-			Context::Context(Scripting::Compiler* NewCompiler, Graphics::GraphicsDevice* Device) : Context(NewCompiler, Device && Device->GetRenderTarget() ? Compute::Vector2(Device->GetRenderTarget()->GetWidth(), Device->GetRenderTarget()->GetHeight()) : Compute::Vector2(512, 512))
+			Context::Context(Scripting::Compiler* NewCompiler, Graphics::GraphicsDevice* Device) : Context(NewCompiler, Device && Device->GetRenderTarget() ? Compute::Vector2((float)Device->GetRenderTarget()->GetWidth(), (float)Device->GetRenderTarget()->GetHeight()) : Compute::Vector2(512, 512))
 			{
 			}
 			Context::~Context() noexcept
@@ -3790,6 +3790,7 @@ namespace Mavi
 			}
 			uint64_t Context::GetIdleTimeoutMs(uint64_t MaxTimeout) const
 			{
+#ifdef VI_RMLUI
 				double Timeout = Base->GetNextUpdateDelay();
 				if (Timeout < 0.0)
 					return 0;
@@ -3798,6 +3799,9 @@ namespace Mavi
 					return MaxTimeout;
 
 				return (uint64_t)(1000.0 * Timeout);
+#else
+				return 0;
+#endif
 			}
 			Core::UnorderedMap<Core::String, bool>* Context::GetFontFaces()
 			{

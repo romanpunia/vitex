@@ -3235,6 +3235,7 @@ namespace Mavi
 			std::mutex Exclusive;
 			ThreadDebugCallback Debug;
 			Desc Policy;
+			bool Suspended;
 			bool Enqueue;
 			bool Terminate;
 			bool Active;
@@ -3262,6 +3263,9 @@ namespace Mavi
 			bool CanEnqueue() const;
 			bool HasTasks(Difficulty Type) const;
 			bool HasAnyTasks() const;
+			bool IsSuspended() const;
+			void Suspend();
+			void Resume();
 			size_t GetThreadGlobalIndex();
 			size_t GetThreadLocalIndex();
 			size_t GetTotalThreads() const;

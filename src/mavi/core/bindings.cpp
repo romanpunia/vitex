@@ -3827,17 +3827,17 @@ namespace Mavi
 			}
 			void Mutex::Lock()
 			{
-				VirtualMachine* VM = VirtualMachine::Get();
-				while (VM != nullptr && VM->TriggerDebugger(50))
-				{
-					if (TryLock())
-						return;
-				}
-
-				Base.lock();
 				ImmediateContext* Context = ImmediateContext::Get();
-				if (Context != nullptr)
-					Context->SetUserData((void*)(uintptr_t)((size_t)(uintptr_t)Context->GetUserData(MutexUD) + (size_t)1), MutexUD);
+				if (!Context)
+					return Base.lock();
+
+				VirtualMachine* VM = Context->GetVM();
+				Context->SetUserData((void*)(uintptr_t)((size_t)(uintptr_t)Context->GetUserData(MutexUD) + (size_t)1), MutexUD);
+				if (!VM->HasDebugger())
+					return Base.lock();
+
+				while (!TryLock())
+					VM->TriggerDebugger(Context, 50);
 			}
 			void Mutex::Unlock()
 			{
@@ -3982,10 +3982,14 @@ namespace Mavi
 				VI_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
 				Unique.Negated([this]()
 				{
-					while (VM != nullptr && Procedure.joinable() && IsActive() && VM->TriggerDebugger(50));
+					if (VM != nullptr && VM->HasDebugger())
+					{
+						while (Procedure.joinable() && IsActive())
+							VM->TriggerDebugger(nullptr, 50);
+					}
 					Procedure.join();
 				});
-				;
+				
 				if (!Raise.Empty())
 					Exception::Throw(Raise);
 				return 1;
@@ -10501,6 +10505,9 @@ namespace Mavi
 				VSchedule->SetMethod("bool can_enqueue() const", &Core::Schedule::CanEnqueue);
 				VSchedule->SetMethod("bool has_tasks(difficulty) const", &Core::Schedule::HasTasks);
 				VSchedule->SetMethod("bool has_any_tasks() const", &Core::Schedule::HasAnyTasks);
+				VSchedule->SetMethod("bool is_suspended() const", &Core::Schedule::IsSuspended);
+				VSchedule->SetMethod("void suspend()", &Core::Schedule::Suspend);
+				VSchedule->SetMethod("void resume()", &Core::Schedule::Resume);
 				VSchedule->SetMethod("usize get_total_threads() const", &Core::Schedule::GetTotalThreads);
 				VSchedule->SetMethod("usize get_thread_global_index()", &Core::Schedule::GetThreadGlobalIndex);
 				VSchedule->SetMethod("usize get_thread_local_index()", &Core::Schedule::GetThreadLocalIndex);

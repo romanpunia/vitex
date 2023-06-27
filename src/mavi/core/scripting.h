@@ -1593,9 +1593,10 @@ namespace Mavi
 			typedef std::function<bool(ImmediateContext*, const Core::Vector<Core::String>&)> CommandCallback;
 			typedef std::function<void(const Core::String&)> OutputCallback;
 			typedef std::function<bool(Core::String&)> InputCallback;
+			typedef std::function<void(bool)> InterruptCallback;
 			typedef std::function<void()> ExitCallback;
 
-		protected:
+		public:
 			enum class DebugAction
 			{
 				Trigger,
@@ -1607,6 +1608,7 @@ namespace Mavi
 				StepOut
 			};
 
+		protected:
 			enum class ArgsType
 			{
 				NoArgs,
@@ -1653,6 +1655,7 @@ namespace Mavi
 			std::atomic<int32_t> ForceSwitchThreads;
 			asIScriptFunction* LastFunction;
 			VirtualMachine* VM;
+			InterruptCallback OnInterrupt;
 			OutputCallback OnOutput;
 			InputCallback OnInput;
 			ExitCallback OnExit;
@@ -1663,16 +1666,20 @@ namespace Mavi
 		public:
 			DebuggerContext(DebugType Type = DebugType::Suspended) noexcept;
 			~DebuggerContext() noexcept;
+			ExpectsVM<void> ExecuteExpression(ImmediateContext* Context, const Core::String& Code, const Core::String& Args, ArgsCallback&& OnArgs);
+			void SetInterruptCallback(InterruptCallback&& Callback);
 			void SetOutputCallback(OutputCallback&& Callback);
 			void SetInputCallback(InputCallback&& Callback);
 			void SetExitCallback(ExitCallback&& Callback);
 			void AddToStringCallback(const TypeInfo& Type, ToStringCallback&& Callback);
 			void AddToStringCallback(const Core::String& Type, const ToStringTypeCallback& Callback);
+			void ThrowInternalException(const char* Message);
 			void AllowInputAfterFailure();
 			void Input(ImmediateContext* Context);
 			void Output(const Core::String& Data);
 			void LineCallback(asIScriptContext* Context);
 			void ExceptionCallback(asIScriptContext* Context);
+			void Trigger(ImmediateContext* Context, uint64_t TimeoutMs = 0);
 			void AddFileBreakPoint(const Core::String& File, int LineNumber);
 			void AddFuncBreakPoint(const Core::String& Function);
 			void ShowException(ImmediateContext* Context);
@@ -1695,6 +1702,7 @@ namespace Mavi
 			bool Interrupt();
 			bool IsInputIgnored();
 			bool IsAttached();
+			DebugAction GetState();
 			Core::String ToString(int MaxDepth, void* Value, unsigned int TypeId);
 			Core::String ToString(Core::String& Indent, int MaxDepth, void* Value, unsigned int TypeId);
 			VirtualMachine* GetEngine();
@@ -1704,7 +1712,6 @@ namespace Mavi
 			void AddDefaultCommands();
 			void AddDefaultStringifiers();
 			void ClearThread(ImmediateContext* Context);
-			ExpectsVM<void> ExecuteExpression(ImmediateContext* Context, const Core::String& Code);
 			ThreadData GetThread(ImmediateContext* Context);
 		};
 
@@ -1961,7 +1968,7 @@ namespace Mavi
 			void GCEnumCallback(void* Reference);
 			void GCEnumCallback(asIScriptFunction* Reference);
 			void GCEnumCallback(FunctionDelegate* Reference);
-			bool TriggerDebugger(uint64_t TimeoutMs = 0);
+			bool TriggerDebugger(ImmediateContext* Context, uint64_t TimeoutMs = 0);
 			bool GenerateCode(Compute::Preprocessor* Processor, const Core::String& Path, Core::String& InoutBuffer);
 			Core::UnorderedMap<Core::String, Core::String> DumpRegisteredInterfaces(ImmediateContext* Context);
 			Core::Unique<Compiler> CreateCompiler();
@@ -1998,6 +2005,7 @@ namespace Mavi
 			bool HasAddon(const Core::String& Name);
 			bool IsNullable(int TypeId);
 			bool IsTranslatorSupported();
+			bool HasDebugger();
 			bool AddSystemAddon(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const AddonCallback& Callback);
 			bool ImportFile(const Core::String& Path, bool IsRemote, Core::String& Output);
 			bool ImportCFunction(const Core::Vector<Core::String>& Sources, const Core::String& Name, const Core::String& Decl);

@@ -2626,7 +2626,7 @@ namespace Mavi
 			AddCommand("e, eval", "evaluate script expression", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
 			{
 				if (!Args.empty() && !Args[0].empty())
-					ExecuteExpression(Context, Args[0]);
+					ExecuteExpression(Context, Args[0], Core::String(), nullptr);
 
 				return false;
 			});
@@ -3057,6 +3057,10 @@ namespace Mavi
 				Data.Arguments = Type;
 			}
 		}
+		void DebuggerContext::SetInterruptCallback(InterruptCallback&& Callback)
+		{
+			OnInterrupt = std::move(Callback);
+		}
 		void DebuggerContext::SetOutputCallback(OutputCallback&& Callback)
 		{
 			OnOutput = std::move(Callback);
@@ -3159,6 +3163,9 @@ namespace Mavi
 			}
 			else if (Action == DebugAction::Interrupt)
 			{
+				if (OnInterrupt)
+					OnInterrupt(true);
+
 				LastContext = Context;
 				Action = DebugAction::Trigger;
 				Output("  execution interrupt signal has been raised, moving to input trigger\n");
@@ -3174,11 +3181,29 @@ namespace Mavi
 				std::this_thread::sleep_for(std::chrono::milliseconds(10));
 				goto Retry;
 			}
+
+			if (OnInterrupt)
+				OnInterrupt(false);
 		}
 		void DebuggerContext::ExceptionCallback(asIScriptContext* Base)
 		{
 			if (!Base->WillExceptionBeCaught())
 				LineCallback(Base);
+		}
+		void DebuggerContext::Trigger(ImmediateContext* Context, uint64_t TimeoutMs)
+		{
+			VI_ASSERT(Context != nullptr, "context should be set");
+			LineCallback(Context->GetContext());
+			if (TimeoutMs > 0)
+				std::this_thread::sleep_for(std::chrono::milliseconds(TimeoutMs));
+		}
+		void DebuggerContext::ThrowInternalException(const char* Message)
+		{
+			if (!Message)
+				return;
+
+			auto Exception = Bindings::Exception::Pointer(Core::String(Message));
+			Output("  " + Exception.GetType() + ": " + Exception.GetMessage() + "\n");
 		}
 		void DebuggerContext::AllowInputAfterFailure()
 		{
@@ -3218,71 +3243,125 @@ namespace Mavi
 		void DebuggerContext::PrintValue(const Core::String& Expression, ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+			auto IsGlobalSearchOnly = [](const Core::String& Name) -> bool
+			{
+				return Core::Stringify::StartsWith(Name, "::");
+			};
+			auto GetIndexInvocation = [](const Core::String& Name) -> Core::String
+			{
+				if (Name.empty() || Name.front() != '[' || Name.back() != ']')
+					return Core::String();
 
+				return Name.substr(1, Name.size() - 2);
+			};
+			auto GetNamespaceScope = [](Core::String& Name) -> Core::String
+			{
+				size_t Position = Name.rfind("::");
+				if (Position == std::string::npos)
+					return Core::String();
+
+				auto Namespace = Name.substr(0, Position);
+				Name.erase(0, Namespace.size() + 2);
+				return Namespace;
+			};
+
+			asIScriptEngine* Engine = Context->GetVM()->GetEngine();
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT(Base != nullptr, "context should be set");
 
-			asIScriptEngine* Engine = Context->GetVM()->GetEngine();
-			Core::String Text = Expression, Scope, Name;
-			asUINT Length = 0;
+			auto Stack = Core::Stringify::Split(Expression, '.');
+			if (Stack.empty())
+				return Output("  no tokens found in the expression");
 
-			asETokenClass T = Engine->ParseToken(Text.c_str(), 0, &Length);
-			while (T == asTC_IDENTIFIER || (T == asTC_KEYWORD && Length == 2 && Text.compare("::") != 0))
+		Retry:
+			size_t Offset = 0;
+			for (auto& Item : Stack)
 			{
-				if (T == asTC_KEYWORD)
+				auto& Name = Core::Stringify::Trim(Item);
+				if (Name.empty() || Name.front() == '[' || Name.back() != ']')
 				{
-					if (Scope.empty() && Name.empty())
-						Scope = "::";
-					else if (Scope == "::" || Scope.empty())
-						Scope = Name;
-					else
-						Scope += "::" + Name;
-
-					Name.clear();
-				}
-				else
-					Name.assign(Text.c_str(), Length);
-
-				Text = Text.substr(Length);
-				T = Engine->ParseToken(Text.c_str(), 0, &Length);
-			}
-
-			if (Name.empty())
-			{
-				Output("  invalid expression, expected identifier\n");
-				return;
-			}
-
-			void* Pointer = 0;
-			int TypeId = 0;
-
-			asIScriptFunction* Function = Base->GetFunction();
-			if (!Function)
-				return;
-
-			if (Scope.empty())
-			{
-				for (asUINT n = Function->GetVarCount(); n-- > 0;)
-				{
-					const char* VarName = 0;
-					Base->GetVar(n, 0, &VarName, &TypeId);
-					if (Base->IsVarInScope(n) && VarName != 0 && Name == VarName)
-					{
-						Pointer = Base->GetAddressOfVar(n);
-						break;
-					}
+					++Offset;
+					continue;
 				}
 
-				if (!Pointer && Function->GetObjectType())
+				size_t Position = Name.find('[');
+				if (Position == std::string::npos)
 				{
-					if (Name == "this")
+					++Offset;
+					continue;
+				}
+
+				Core::String Index = Name.substr(Position);
+				Name.erase(Position);
+				Stack.insert(Stack.begin() + Offset + 1, std::move(Index));
+				goto Retry;
+			}
+
+			void* TopPointer = 0;
+			int TopTypeId = 0;
+			void* ThisPointer = 0;
+			int ThisTypeId = 0;
+			Core::String Last;
+			size_t Top = 0;
+
+			while (!Stack.empty())
+			{
+				auto& Name = Stack.front();
+				if (Top > 0)
+				{
+					asITypeInfo* Type = Engine->GetTypeInfoById(ThisTypeId);
+					if (!Type)
+						return Output("  symbol <" + Last + "> type is not iterable: <" + Name + "> cannot be fetched\n");
+
+					auto Index = GetIndexInvocation(Name);
+					if (!Index.empty())
 					{
-						Pointer = Base->GetThisPointer();
-						TypeId = Base->GetThisTypeId();
+						asIScriptFunction* IndexOperator = nullptr;
+						for (asUINT i = 0; i < Type->GetMethodCount(); i++)
+						{
+							asIScriptFunction* Next = Type->GetMethodByIndex(i);
+							if (!strcmp(Next->GetName(), "opIndex"))
+							{
+								IndexOperator = Next;
+								break;
+							}
+						}
+
+						if (!IndexOperator)
+							return Output("  symbol <" + Name + "> does not have opIndex method\n");
+
+						asITypeInfo* TopType = Engine->GetTypeInfoById(TopTypeId);
+						if (!TopType)
+							return Output("  symbol <" + Last + "> does not have type info for <" + Name + "> to call operator method\n");
+
+						const char* TypeDeclaration = nullptr;
+						for (asUINT i = 0; i < TopType->GetPropertyCount(); i++)
+						{
+							const char* VarName = nullptr;
+							TopType->GetProperty(i, &VarName);
+							if (Last == VarName)
+							{
+								TypeDeclaration = TopType->GetPropertyDeclaration(i, true);
+								break;
+							}
+						}
+
+						if (!TypeDeclaration)
+							return Output("  symbol <" + Last + "> does not have type decl for <" + Name + "> to call operator method\n");
+
+						Core::String Args = TypeDeclaration;
+						if (ThisTypeId & asTYPEID_OBJHANDLE)
+							Core::Stringify::Replace(Args, "& ", "@ ");
+						else
+							Core::Stringify::Replace(Args, "& ", "&in ");
+						ExecuteExpression(Context, Last + Name, Args, [ThisPointer, ThisTypeId](ImmediateContext* Context)
+						{
+							Context->SetArgObject(0, ThisPointer);
+						});
+						return;
 					}
 					else
 					{
-						asITypeInfo* Type = Engine->GetTypeInfoById(Base->GetThisTypeId());
 						for (asUINT n = 0; n < Type->GetPropertyCount(); n++)
 						{
 							const char* PropName = 0;
@@ -3290,58 +3369,95 @@ namespace Mavi
 							bool IsReference = 0;
 							int CompositeOffset = 0;
 							bool IsCompositeIndirect = false;
+							int TypeId = 0;
 
 							Type->GetProperty(n, &PropName, &TypeId, 0, 0, &Offset, &IsReference, 0, &CompositeOffset, &IsCompositeIndirect);
-							if (Name == PropName)
+							if (Name != PropName)
+								continue;
+
+							if (ThisTypeId & asTYPEID_OBJHANDLE)
+								ThisPointer = *(void**)ThisPointer;
+
+							ThisPointer = (void*)(((asBYTE*)ThisPointer) + CompositeOffset);
+							if (IsCompositeIndirect)
+								ThisPointer = *(void**)ThisPointer;
+
+							ThisPointer = (void*)(((asBYTE*)ThisPointer) + Offset);
+							if (IsReference)
+								ThisPointer = *(void**)ThisPointer;
+
+							ThisTypeId = TypeId;
+							goto NextIteration;
+						}
+
+						return Output("  symbol <" + Name + "> was not found in <" + Last + ">\n");
+					}
+				}
+				else
+				{
+					asIScriptFunction* Function = Base->GetFunction();
+					if (!Function)
+						return Output("  no function to be observed\n");
+
+					if (Name == "this")
+					{
+						ThisPointer = Base->GetThisPointer();
+						ThisTypeId = Base->GetThisTypeId();
+						if (ThisPointer != nullptr && ThisTypeId > 0 && Function->GetObjectType() != nullptr)
+							goto NextIteration;
+
+						return Output("  this function is not a method\n");
+					}
+
+					bool GlobalOnly = IsGlobalSearchOnly(Name);
+					if (!GlobalOnly)
+					{
+						for (asUINT n = Function->GetVarCount(); n-- > 0;)
+						{
+							const char* VarName = nullptr;
+							Base->GetVar(n, 0, &VarName, &ThisTypeId);
+							if (Base->IsVarInScope(n) && VarName != 0 && Name == VarName)
 							{
-								Pointer = (void*)(((asBYTE*)Base->GetThisPointer()) + CompositeOffset);
-								if (IsCompositeIndirect)
-									Pointer = *(void**)Pointer;
-
-								Pointer = (void*)(((asBYTE*)Pointer) + Offset);
-								if (IsReference)
-									Pointer = *(void**)Pointer;
-
-								break;
+								ThisPointer = Base->GetAddressOfVar(n);
+								goto NextIteration;
 							}
 						}
 					}
-				}
-			}
 
-			if (!Pointer)
-			{
-				if (Scope.empty())
-					Scope = Function->GetNamespace();
-				else if (Scope == "::")
-					Scope.clear();
+					asIScriptModule* Module = Function->GetModule();
+					if (!Module)
+						return Output("  no module to be observed\n");
 
-				asIScriptModule* Mod = Function->GetModule();
-				if (Mod != nullptr)
-				{
-					for (asUINT n = 0; n < Mod->GetGlobalVarCount(); n++)
+					auto Namespace = GetNamespaceScope(Name);
+					for (asUINT n = 0; n < Module->GetGlobalVarCount(); n++)
 					{
-						const char* VarName = 0, * Namespace = 0;
-						Mod->GetGlobalVar(n, &VarName, &Namespace, &TypeId);
-
-						if (Name == VarName && Scope == Namespace)
+						const char* VarName = nullptr, *VarNamespace = nullptr;
+						Module->GetGlobalVar(n, &VarName, &VarNamespace, &ThisTypeId);
+						if (Name == VarName && Namespace == VarNamespace)
 						{
-							Pointer = Mod->GetAddressOfGlobalVar(n);
-							break;
+							ThisPointer = Module->GetAddressOfGlobalVar(n);
+							goto NextIteration;
 						}
 					}
+
+					Namespace = (Namespace.empty() ? "" : Namespace + "::");
+					return Output("  symbol <" + Namespace + Name + "> was not found in " + Core::String(GlobalOnly ? "global" : "global or local") + " scope\n");
 				}
+			NextIteration:
+				Last = Name;
+				Stack.erase(Stack.begin());
+				if (Top % 2 == 0)
+				{
+					TopPointer = ThisPointer;
+					TopTypeId = ThisTypeId;
+				}
+				++Top;
 			}
 
-			if (Pointer)
-			{
-				Core::String Indent = "  ";
-				Core::StringStream Stream;
-				Stream << Indent << ToString(Indent, 3, Pointer, TypeId) << std::endl;
-				Output(Stream.str());
-			}
-			else
-				Output("  invalid expression, no matching symbols\n");
+			Core::String Indent = "  ";
+			Core::StringStream Stream;
+			Stream << Indent << ToString(Indent, 3, ThisPointer, ThisTypeId) << std::endl;
+			Output(Stream.str());
 		}
 		void DebuggerContext::PrintByteCode(const Core::String& FunctionDecl, ImmediateContext* Context)
 		{
@@ -3991,6 +4107,10 @@ namespace Mavi
 		{
 			return Attachable;
 		}
+		DebuggerContext::DebugAction DebuggerContext::GetState()
+		{
+			return Action;
+		}
 		Core::String DebuggerContext::ToString(int Depth, void* Value, unsigned int TypeId)
 		{
 			Core::String Indent;
@@ -4157,13 +4277,13 @@ namespace Mavi
 				}
 			}
 		}
-		ExpectsVM<void> DebuggerContext::ExecuteExpression(ImmediateContext* Context, const Core::String& Code)
+		ExpectsVM<void> DebuggerContext::ExecuteExpression(ImmediateContext* Context, const Core::String& Code, const Core::String& Args, ArgsCallback&& OnArgs)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(Context != nullptr, "context should be set");
 
 			Core::String Indent = "  ";
-			Core::String Eval = "any@ __vfdbgfunc(){return any(" + (Code.empty() || Code.back() != ';' ? Code : Code.substr(0, Code.size() - 1)) + ");}";
+			Core::String Eval = "any@ __vfdbgfunc(" + Args + "){return any(" + (Code.empty() || Code.back() != ';' ? Code : Code.substr(0, Code.size() - 1)) + ");}";
 			asIScriptModule* Module = Context->GetFunction().GetModule().GetModule();
 			asIScriptFunction* Function = nullptr;
 			Bindings::Any* Data = nullptr;
@@ -4180,29 +4300,36 @@ namespace Mavi
 				return (VirtualError)Result;
 			}
 
+			Context->DisableSuspends();
 			Context->PushState();
 			auto Status1 = Context->Prepare(Function);
 			if (!Status1)
 			{
 				Context->PopState();
+				Context->EnableSuspends();
 				VM->AttachDebuggerToContext(Context->GetContext());
 				VI_RELEASE(Function);
 				return Status1;
 			}
 
+			if (OnArgs)
+				OnArgs(Context);
+
 			auto Status2 = Context->ExecuteNext();
-			if (!Status2)
+			if (Status2 && *Status2 == Execution::Finished)
 			{
-				Context->PopState();
-				VM->AttachDebuggerToContext(Context->GetContext());
-				VI_RELEASE(Function);
-				return Status2.Error();
+				Data = Context->GetReturnObject<Bindings::Any>();
+				Output(Indent + ToString(Indent, 3, Data, VM->GetTypeInfoByName("any").GetTypeId()) + "\n");
 			}
 
-			Data = Context->GetReturnObject<Bindings::Any>();
-			Output(Indent + ToString(Indent, 3, Data, VM->GetTypeInfoByName("any").GetTypeId()) + "\n");
 			Context->PopState();
+			Context->EnableSuspends();
 			VM->AttachDebuggerToContext(Context->GetContext());
+			VI_RELEASE(Function);
+
+			if (!Status2)
+				return Status2.Error();
+
 			return Core::Optional::OK;
 		}
 		DebuggerContext::ThreadData DebuggerContext::GetThread(ImmediateContext* Context)
@@ -5539,16 +5666,16 @@ namespace Mavi
 		{
 			FunctionFactory::GCEnumCallback(Engine, Reference);
 		}
-		bool VirtualMachine::TriggerDebugger(uint64_t TimeoutMs)
+		bool VirtualMachine::TriggerDebugger(ImmediateContext* Context, uint64_t TimeoutMs)
 		{
 			if (!Debugger)
 				return false;
 
-			asIScriptContext* Context = asGetActiveContext();
-			if (!Context)
+			asIScriptContext* Target = (Context ? Context->GetContext() : asGetActiveContext());
+			if (!Target)
 				return false;
 
-			Debugger->LineCallback(Context);
+			Debugger->LineCallback(Target);
 			if (TimeoutMs > 0)
 				std::this_thread::sleep_for(std::chrono::milliseconds(TimeoutMs));
 
@@ -5878,6 +6005,10 @@ namespace Mavi
 #else
 			return false;
 #endif
+		}
+		bool VirtualMachine::HasDebugger()
+		{
+			return Debugger != nullptr;
 		}
 		bool VirtualMachine::AddSystemAddon(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const AddonCallback& Callback)
 		{
@@ -6332,8 +6463,11 @@ namespace Mavi
 		{
 			ImmediateContext* Base = ImmediateContext::Get(Context);
 			VI_ASSERT(Base != nullptr, "context should be set");
-
+			
 			VirtualMachine* VM = Base->GetVM();
+			if (VM->Debugger != nullptr)
+				return VM->Debugger->ThrowInternalException(Context->GetExceptionString());
+
 			const char* Message = Context->GetExceptionString();
 			if (Message && Message[0] != '\0' && !Context->WillExceptionBeCaught())
 			{
@@ -6645,8 +6779,8 @@ namespace Mavi
 				else if (Next.IsNotification())
 				{
 					Bindings::Promise* Base = (Bindings::Promise*)Next.Promise;
-					if (Next.Context->IsSuspended())
-						Next.Context->Resume();
+					if (InitiatorContext->IsSuspended())
+						InitiatorContext->Resume();
 					if (Base != nullptr)
 						Base->Release();
 					++Executions;

@@ -10032,7 +10032,7 @@ namespace Mavi
 			MaxCoroutines = std::min<size_t>(Cores * 8, 256);
 		}
 
-		Schedule::Schedule() noexcept : Generation(0), Debug(nullptr), Enqueue(true), Terminate(false), Active(false), Immediate(false)
+		Schedule::Schedule() noexcept : Generation(0), Debug(nullptr), Suspended(false), Enqueue(true), Terminate(false), Active(false), Immediate(false)
 		{
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 				Queues[i] = VI_NEW(ConcurrentQueue);
@@ -10369,6 +10369,9 @@ namespace Mavi
 					if (Queue->Timers.empty())
 						return false;
 
+					if (Suspended)
+						return true;
+
 					auto Clock = GetClock();
 					auto It = Queue->Timers.begin();
 					if (It->first >= Clock)
@@ -10409,6 +10412,9 @@ namespace Mavi
 					size_t Left = Policy.MaxCoroutines - Pending;
 					size_t Count = Left, Passes = Pending;
 
+					if (Suspended)
+						return Pending > 0;
+
 					while (Left > 0 && Count > 0)
 					{
 						Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Events.begin(), Left);
@@ -10437,6 +10443,9 @@ namespace Mavi
 				case Difficulty::Light:
 				case Difficulty::Heavy:
 				{
+					if (Suspended)
+						return Queue->Tasks.size_approx() > 0;
+
 					size_t Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Tasks, EVENTS_SIZE);
 #ifndef NDEBUG
 					PostDebug(ThreadTask::ProcessTask, Count);
@@ -10482,7 +10491,7 @@ namespace Mavi
 						PostDebug(ThreadTask::Awake, 0);
 #endif
 						std::chrono::microseconds When = std::chrono::microseconds(0);
-						if (!Queue->Timers.empty())
+						if (!Suspended && !Queue->Timers.empty())
 						{
 							auto Clock = GetClock();
 							auto It = Queue->Timers.begin();
@@ -10567,6 +10576,7 @@ namespace Mavi
 #ifndef NDEBUG
 						PostDebug(ThreadTask::ProcessCoroutine, State->GetCount());
 #endif
+						if (!Suspended)
 						{
 							VI_MEASURE(Timings::Frame);
 							State->Dispatch();
@@ -10577,6 +10587,9 @@ namespace Mavi
 						std::unique_lock<std::mutex> Lock(Thread->Update);
 						Thread->Notify.wait_for(Lock, Policy.Timeout, [this, Queue, State, Thread]()
 						{
+							if (Suspended)
+								return false;
+
 							if (!ThreadActive(Thread) || State->HasActive())
 								return true;
 
@@ -10606,27 +10619,33 @@ namespace Mavi
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Awake, 0);
 #endif
-						size_t Count = 0;
-						do
+						if (!Suspended)
 						{
-							Count = Queue->Tasks.try_dequeue_bulk(Token, Events, EVENTS_SIZE);
-#ifndef NDEBUG
-							PostDebug(ThreadTask::ProcessTask, Count);
-#endif
-							for (size_t i = 0; i < Count; ++i)
+							size_t Count = 0;
+							do
 							{
-								VI_MEASURE(Thread->Type == Difficulty::Light ? Timings::Pass : Timings::Intensive);
-								TaskCallback Data(std::move(Events[i]));
-								if (Data != nullptr)
-									Data();
-							}
-						} while (Count > 0);
+								Count = Queue->Tasks.try_dequeue_bulk(Token, Events, EVENTS_SIZE);
+#ifndef NDEBUG
+								PostDebug(ThreadTask::ProcessTask, Count);
+#endif
+								for (size_t i = 0; i < Count; ++i)
+								{
+									VI_MEASURE(Thread->Type == Difficulty::Light ? Timings::Pass : Timings::Intensive);
+									TaskCallback Data(std::move(Events[i]));
+									if (Data != nullptr)
+										Data();
+								}
+							} while (Count > 0);
+						}
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Sleep, 0);
 #endif
 						std::unique_lock<std::mutex> Lock(Queue->Update);
 						Queue->Notify.wait_for(Lock, Policy.Timeout, [this, Queue, Thread]()
 						{
+							if (Suspended)
+								return false;
+
 							return Queue->Tasks.size_approx() > 0 || !ThreadActive(Thread);
 						});
 					} while (ThreadActive(Thread));
@@ -10721,6 +10740,19 @@ namespace Mavi
 		bool Schedule::HasAnyTasks() const
 		{
 			return HasTasks(Difficulty::Light) || HasTasks(Difficulty::Heavy) || HasTasks(Difficulty::Coroutine) || HasTasks(Difficulty::Clock);
+		}
+		bool Schedule::IsSuspended() const
+		{
+			return Suspended;
+		}
+		void Schedule::Suspend()
+		{
+			Suspended = true;
+		}
+		void Schedule::Resume()
+		{
+			Suspended = false;
+			Wakeup();
 		}
 		bool Schedule::PostDebug(ThreadTask State, size_t Tasks)
 		{

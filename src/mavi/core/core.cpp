@@ -10455,7 +10455,7 @@ namespace Mavi
 #endif
 					for (size_t i = 0; i < Count; ++i)
 					{
-						VI_MEASURE(Type == Difficulty::Heavy ? Timings::Intensive : Timings::FileSystem);
+						VI_MEASURE(Type == Difficulty::Light ? Timings::Frame : Timings::Intensive);
 						TaskCallback Data(std::move(Dispatcher.Tasks[i]));
 						if (Data != nullptr)
 							Data();
@@ -10633,7 +10633,7 @@ namespace Mavi
 #endif
 								for (size_t i = 0; i < Count; ++i)
 								{
-									VI_MEASURE(Thread->Type == Difficulty::Light ? Timings::Pass : Timings::Intensive);
+									VI_MEASURE(Thread->Type == Difficulty::Light ? Timings::Frame : Timings::Intensive);
 									TaskCallback Data(std::move(Events[i]));
 									if (Data != nullptr)
 										Data();

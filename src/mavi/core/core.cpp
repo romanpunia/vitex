@@ -8832,7 +8832,10 @@ namespace Mavi
 			if (!realpath(Path, Buffer))
 			{
 				if (Buffer[0] == '\0' || memcmp(Path, Buffer, strnlen(Buffer, BLOB_SIZE)) != 0)
-					return OS::Error::GetConditionOr();
+				{
+					if (strstr(Path, "./") != nullptr || strstr(Path, ".\\") != nullptr)
+						return OS::Error::GetConditionOr();
+				}
 
 				String Output(Path);
 				VI_TRACE("[io] resolve %s path (non-existant)", Path);

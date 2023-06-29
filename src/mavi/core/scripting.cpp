@@ -3425,14 +3425,18 @@ namespace Mavi
 
 						if (!TypeDeclaration)
 						{
-							for (asUINT n = 0; n < Base->GetVarCount(); n++)
+							int VarCount = Base->GetVarCount();
+							if (VarCount > 0)
 							{
-								const char* VarName = nullptr;
-								Base->GetVar(n, 0, &VarName);
-								if (Base->IsVarInScope(n) && VarName != 0 && Name == VarName)
+								for (asUINT n = 0; n < (asUINT)VarCount; n++)
 								{
-									TypeDeclaration = Base->GetVarDeclaration(n, 0, true);
-									break;
+									const char* VarName = nullptr;
+									Base->GetVar(n, 0, &VarName);
+									if (Base->IsVarInScope(n) && VarName != 0 && Name == VarName)
+									{
+										TypeDeclaration = Base->GetVarDeclaration(n, 0, true);
+										break;
+									}
 								}
 							}
 						}
@@ -3499,14 +3503,18 @@ namespace Mavi
 
 						if (!TypeDeclaration)
 						{
-							for (asUINT n = 0; n < Base->GetVarCount(); n++)
+							int VarCount = Base->GetVarCount();
+							if (VarCount > 0)
 							{
-								const char* VarName = nullptr;
-								Base->GetVar(n, 0, &VarName);
-								if (Base->IsVarInScope(n) && VarName != 0 && Callable == VarName)
+								for (asUINT n = 0; n < (asUINT)VarCount; n++)
 								{
-									TypeDeclaration = Base->GetVarDeclaration(n, 0, true);
-									break;
+									const char* VarName = nullptr;
+									Base->GetVar(n, 0, &VarName);
+									if (Base->IsVarInScope(n) && VarName != 0 && Name == VarName)
+									{
+										TypeDeclaration = Base->GetVarDeclaration(n, 0, true);
+										break;
+									}
 								}
 							}
 						}
@@ -3595,14 +3603,18 @@ namespace Mavi
 					bool GlobalOnly = IsGlobalSearchOnly(Name);
 					if (!GlobalOnly)
 					{
-						for (asUINT n = 0; n < Base->GetVarCount(); n++)
+						int VarCount = Base->GetVarCount();
+						if (VarCount > 0)
 						{
-							const char* VarName = nullptr;
-							Base->GetVar(n, 0, &VarName, &ThisTypeId);
-							if (Base->IsVarInScope(n) && VarName != 0 && Name == VarName)
+							for (asUINT n = 0; n < (asUINT)VarCount; n++)
 							{
-								ThisPointer = Base->GetAddressOfVar(n);
-								goto NextIteration;
+								const char* VarName = nullptr;
+								Base->GetVar(n, 0, &VarName, &ThisTypeId);
+								if (Base->IsVarInScope(n) && VarName != 0 && Name == VarName)
+								{
+									ThisPointer = Base->GetAddressOfVar(n);
+									goto NextIteration;
+								}
 							}
 						}
 					}

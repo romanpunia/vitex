@@ -2826,7 +2826,7 @@ namespace Mavi
 
 				Vector2 ACircle = Vector2(cosf((float)A), sinf((float)A));
 				Vector2 BCircle = Vector2(cosf((float)B), sinf((float)B));
-				Vector2 Interpolation = ACircle.Lerp(BCircle, DeltaTime);
+				Vector2 Interpolation = ACircle.Lerp(BCircle, (float)DeltaTime);
 
 				return T(std::atan2(Interpolation.Y, Interpolation.X));
 			}

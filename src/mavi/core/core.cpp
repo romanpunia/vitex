@@ -8833,7 +8833,7 @@ namespace Mavi
 			{
 				if (Buffer[0] == '\0' || memcmp(Path, Buffer, strnlen(Buffer, BLOB_SIZE)) != 0)
 				{
-					if (strstr(Path, "./") != nullptr || strstr(Path, ".\\") != nullptr)
+					if (*Path == '\0' || strstr(Path, "./") != nullptr || strstr(Path, ".\\") != nullptr)
 						return OS::Error::GetConditionOr();
 				}
 

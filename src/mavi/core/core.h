@@ -2445,7 +2445,8 @@ namespace Mavi
 		class Reference
 		{
 		private:
-			std::atomic<uint32_t> __vcnt = 1;
+			std::atomic<uint16_t> __vcnt = 1;
+			std::atomic<uint16_t> __vmrk = 0;
 
 		public:
 			void operator delete(void* Ptr) noexcept
@@ -2463,26 +2464,28 @@ namespace Mavi
 			}
 			bool IsMarkedRef() const noexcept
 			{
-				return Bitmask<uint32_t>::IsMarked(__vcnt.load());
+				return __vmrk.load();
 			}
 			uint32_t GetRefCount() const noexcept
 			{
-				return Bitmask<uint32_t>::Value(__vcnt.load());
+				return (uint32_t)__vcnt.load();
 			}
 			void MarkRef() noexcept
 			{
-				__vcnt = Bitmask<uint32_t>::Mark(__vcnt.load());
+				__vmrk = 1;
 			}
 			void AddRef() noexcept
 			{
-				__vcnt = Bitmask<uint32_t>::Value(__vcnt.load()) + 1;
+				VI_ASSERT(__vcnt < std::numeric_limits<uint16_t>::max(), "too many references to an object at address 0x%" PRIXPTR " as %s at %s()", (void*)this, typeid(T).name(), __func__);
+				++__vcnt;
 			}
 			void Release() noexcept
 			{
-				__vcnt = Bitmask<uint32_t>::Unmark(__vcnt.load());
 				VI_ASSERT(__vcnt > 0 && Memory::IsValidAddress((void*)(T*)this), "address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
 				if (!--__vcnt)
 					delete (T*)this;
+				else
+					__vmrk = 0;
 			}
 		};
 

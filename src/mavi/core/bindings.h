@@ -193,35 +193,128 @@ namespace Mavi
 				static bool CloseTo(double a, double b, double epsilon);
 			};
 
-			class VI_OUT Any
+			class VI_OUT Storable
+			{
+			protected:
+				friend class Dictionary;
+
+			protected:
+				Dynamic Value;
+
+			public:
+				Storable() noexcept;
+				Storable(asIScriptEngine* Engine, void* Pointer, int TypeId) noexcept;
+				~Storable() noexcept;
+				void Set(asIScriptEngine* Engine, void* Pointer, int TypeId);
+				void Set(asIScriptEngine* Engine, Storable& Other);
+				bool Get(asIScriptEngine* Engine, void* Pointer, int TypeId) const;
+				const void* GetAddressOfValue() const;
+				int GetTypeId() const;
+				void FreeValue(asIScriptEngine* Engine);
+				void EnumReferences(asIScriptEngine* Engine);
+			};
+
+			class VI_OUT Ref
+			{
+			protected:
+				asITypeInfo* Type;
+				void* Pointer;
+
+			public:
+				Ref() noexcept;
+				Ref(const Ref& Other) noexcept;
+				Ref(void* Ref, asITypeInfo* Type) noexcept;
+				Ref(void* Ref, int TypeId) noexcept;
+				~Ref() noexcept;
+				Ref& operator=(const Ref& Other) noexcept;
+				void Set(void* Ref, asITypeInfo* Type);
+				bool operator== (const Ref& Other) const;
+				bool operator!= (const Ref& Other) const;
+				bool Equals(void* Ref, int TypeId) const;
+				void Cast(void** OutRef, int TypeId);
+				asITypeInfo* GetType() const;
+				int GetTypeId() const;
+				void* GetAddressOfObject();
+				void EnumReferences(asIScriptEngine* Engine);
+				void ReleaseReferences(asIScriptEngine* Engine);
+				Ref& Assign(void* Ref, int TypeId);
+
+			protected:
+				void ReleaseHandle();
+				void AddRefHandle();
+
+			public:
+				static void Create(Ref* self);
+				static void Create(Ref* self, const Ref& o);
+				static void Create(Ref* self, void* ref, int typeId);
+				static void Destroy(Ref* self);
+			};
+
+			class VI_OUT Weak
+			{
+			protected:
+				asILockableSharedBool* WeakRefFlag;
+				asITypeInfo* Type;
+				void* Ref;
+
+			public:
+				Weak(asITypeInfo* Type) noexcept;
+				Weak(const Weak& Other) noexcept;
+				Weak(void* Ref, asITypeInfo* Type) noexcept;
+				~Weak() noexcept;
+				Weak& operator= (const Weak& Other) noexcept;
+				bool operator== (const Weak& Other) const;
+				bool operator!= (const Weak& Other) const;
+				Weak& Set(void* NewRef);
+				int GetTypeId() const;
+				void* GetAddressOfObject();
+				void* Get() const;
+				bool Equals(void* Ref) const;
+				asITypeInfo* GetRefType() const;
+
+			public:
+				static void Create1(asITypeInfo* type, void* mem);
+				static void Create2(asITypeInfo* type, void* ref, void* mem);
+				static void Destroy(Weak* obj);
+				static bool TemplateCallback(asITypeInfo* TI, bool&);
+			};
+
+			class VI_OUT Random
+			{
+			public:
+				static Core::String Getb(uint64_t Size);
+				static double Betweend(double Min, double Max);
+				static double Magd();
+				static double Getd();
+				static float Betweenf(float Min, float Max);
+				static float Magf();
+				static float Getf();
+				static uint64_t Betweeni(uint64_t Min, uint64_t Max);
+			};
+
+			class VI_OUT Any : public Core::Reference<Any>
 			{
 				friend Promise;
 
 			protected:
 				asIScriptEngine* Engine;
 				Dynamic Value;
-				std::atomic<uint32_t> RefCount;
 
 			public:
 				Any(asIScriptEngine* Engine) noexcept;
 				Any(void* Ref, int RefTypeId, asIScriptEngine* Engine) noexcept;
 				Any(const Any&) noexcept;
-				void AddRef();
-				void Release();
+				~Any() noexcept;
 				Any& operator= (const Any&) noexcept;
 				int CopyFrom(const Any* Other);
 				void Store(void* Ref, int RefTypeId);
 				bool Retrieve(void* Ref, int RefTypeId) const;
 				void* GetAddressOfObject();
 				int GetTypeId() const;
-				int GetRefCount();
-				void SetFlag();
-				bool GetFlag();
 				void EnumReferences(asIScriptEngine* Engine);
-				void ReleaseAllHandles(asIScriptEngine* Engine);
+				void ReleaseReferences(asIScriptEngine* Engine);
 
-			protected:
-				~Any() noexcept;
+			private:
 				void FreeObject();
 
 			public:
@@ -274,7 +367,7 @@ namespace Mavi
 				};
 			};
 
-			class VI_OUT Array
+			class VI_OUT Array : public Core::Reference<Array>
 			{
 			public:
 				struct SBuffer
@@ -296,12 +389,14 @@ namespace Mavi
 				asITypeInfo* ObjType;
 				SBuffer* Buffer;
 				size_t ElementSize;
-				std::atomic<uint32_t> RefCount;
 				int SubTypeId;
 
 			public:
-				void AddRef();
-				void Release();
+				Array(asITypeInfo* T, void* InitBuf) noexcept;
+				Array(size_t Length, asITypeInfo* T) noexcept;
+				Array(size_t Length, void* DefVal, asITypeInfo* T) noexcept;
+				Array(const Array& Other) noexcept;
+				~Array() noexcept;
 				asITypeInfo* GetArrayObjectType() const;
 				int GetArrayTypeId() const;
 				int GetElementTypeId() const;
@@ -333,18 +428,10 @@ namespace Mavi
 				size_t FindByRef(void* Ref) const;
 				size_t FindByRef(size_t StartAt, void* Ref) const;
 				void* GetBuffer();
-				int GetRefCount();
-				void SetFlag();
-				bool GetFlag();
 				void EnumReferences(asIScriptEngine* Engine);
-				void ReleaseAllHandles(asIScriptEngine* Engine);
+				void ReleaseReferences(asIScriptEngine* Engine);
 
-			protected:
-				Array(asITypeInfo* T, void* InitBuf) noexcept;
-				Array(size_t Length, asITypeInfo* T) noexcept;
-				Array(size_t Length, void* DefVal, asITypeInfo* T) noexcept;
-				Array(const Array& Other) noexcept;
-				~Array() noexcept;
+			private:
 				bool Less(const void* A, const void* B, bool Asc, asIScriptContext* Ctx, SCache* Cache);
 				void* GetArrayItemPointer(size_t Index);
 				void* GetDataPointer(void* Buffer);
@@ -474,28 +561,7 @@ namespace Mavi
 				};
 			};
 
-			class VI_OUT Storable
-			{
-			protected:
-				friend class Dictionary;
-
-			protected:
-				Dynamic Value;
-
-			public:
-				Storable() noexcept;
-				Storable(asIScriptEngine* Engine, void* Pointer, int TypeId) noexcept;
-				~Storable() noexcept;
-				void Set(asIScriptEngine* Engine, void* Pointer, int TypeId);
-				void Set(asIScriptEngine* Engine, Storable& Other);
-				bool Get(asIScriptEngine* Engine, void* Pointer, int TypeId) const;
-				const void* GetAddressOfValue() const;
-				int GetTypeId() const;
-				void FreeValue(asIScriptEngine* Engine);
-				void EnumReferences(asIScriptEngine* Engine);
-			};
-
-			class VI_OUT Dictionary
+			class VI_OUT Dictionary : public Core::Reference<Dictionary>
 			{
 			public:
 				typedef Core::UnorderedMap<Core::String, Storable> InternalMap;
@@ -540,11 +606,12 @@ namespace Mavi
 			protected:
 				asIScriptEngine* Engine;
 				InternalMap Data;
-				std::atomic<uint32_t> RefCount;
 
 			public:
-				void AddRef();
-				void Release();
+				Dictionary(asIScriptEngine* Engine) noexcept;
+				Dictionary(unsigned char* Buffer) noexcept;
+				Dictionary(const Dictionary&) noexcept;
+				~Dictionary() noexcept;
 				Dictionary& operator= (const Dictionary& Other) noexcept;
 				void Set(const Core::String& Key, void* Value, int TypeId);
 				bool Get(const Core::String& Key, void* Value, int TypeId) const;
@@ -562,18 +629,8 @@ namespace Mavi
 				LocalIterator Begin() const;
 				LocalIterator End() const;
 				LocalIterator Find(const Core::String& Key) const;
-				int GetRefCount();
-				void SetFlag();
-				bool GetFlag();
 				void EnumReferences(asIScriptEngine* Engine);
-				void ReleaseAllReferences(asIScriptEngine* Engine);
-
-			protected:
-				Dictionary(asIScriptEngine* Engine) noexcept;
-				Dictionary(unsigned char* Buffer) noexcept;
-				Dictionary(const Dictionary&) noexcept;
-				~Dictionary() noexcept;
-				void Init(asIScriptEngine* Engine);
+				void ReleaseReferences(asIScriptEngine* Engine);
 
 			public:
 				static Core::Unique<Dictionary> Create(asIScriptEngine* Engine);
@@ -639,85 +696,7 @@ namespace Mavi
 				}
 			};
 
-			class VI_OUT Ref
-			{
-			protected:
-				asITypeInfo* Type;
-				void* Pointer;
-
-			public:
-				Ref() noexcept;
-				Ref(const Ref& Other) noexcept;
-				Ref(void* Ref, asITypeInfo* Type) noexcept;
-				Ref(void* Ref, int TypeId) noexcept;
-				~Ref() noexcept;
-				Ref& operator=(const Ref& Other) noexcept;
-				void Set(void* Ref, asITypeInfo* Type);
-				bool operator== (const Ref& Other) const;
-				bool operator!= (const Ref& Other) const;
-				bool Equals(void* Ref, int TypeId) const;
-				void Cast(void** OutRef, int TypeId);
-				asITypeInfo* GetType() const;
-				int GetTypeId() const;
-				void* GetAddressOfObject();
-				void EnumReferences(asIScriptEngine* Engine);
-				void ReleaseReferences(asIScriptEngine* Engine);
-				Ref& Assign(void* Ref, int TypeId);
-
-			protected:
-				void ReleaseHandle();
-				void AddRefHandle();
-
-			public:
-				static void Create(Ref* self);
-				static void Create(Ref* self, const Ref& o);
-				static void Create(Ref* self, void* ref, int typeId);
-				static void Destroy(Ref* self);
-			};
-
-			class VI_OUT Weak
-			{
-			protected:
-				asILockableSharedBool* WeakRefFlag;
-				asITypeInfo* Type;
-				void* Ref;
-
-			public:
-				Weak(asITypeInfo* Type) noexcept;
-				Weak(const Weak& Other) noexcept;
-				Weak(void* Ref, asITypeInfo* Type) noexcept;
-				~Weak() noexcept;
-				Weak& operator= (const Weak& Other) noexcept;
-				bool operator== (const Weak& Other) const;
-				bool operator!= (const Weak& Other) const;
-				Weak& Set(void* NewRef);
-				int GetTypeId() const;
-				void* GetAddressOfObject();
-				void* Get() const;
-				bool Equals(void* Ref) const;
-				asITypeInfo* GetRefType() const;
-
-			public:
-				static void Create1(asITypeInfo* type, void* mem);
-				static void Create2(asITypeInfo* type, void* ref, void* mem);
-				static void Destroy(Weak* obj);
-				static bool TemplateCallback(asITypeInfo* TI, bool&);
-			};
-
-			class VI_OUT Random
-			{
-			public:
-				static Core::String Getb(uint64_t Size);
-				static double Betweend(double Min, double Max);
-				static double Magd();
-				static double Getd();
-				static float Betweenf(float Min, float Max);
-				static float Magf();
-				static float Getf();
-				static uint64_t Betweeni(uint64_t Min, uint64_t Max);
-			};
-
-			class VI_OUT Promise
+			class VI_OUT Promise : public Core::Reference<Promise>
 			{
 			private:
 				static int PromiseNULL;
@@ -727,18 +706,14 @@ namespace Mavi
 				asIScriptEngine* Engine;
 				asIScriptContext* Context;
 				FunctionDelegate Delegate;
-				std::atomic<uint32_t> RefCount;
 				std::mutex Update;
 				Dynamic Value;
 
 			public:
-				void Release();
-				void AddRef();
+				Promise(asIScriptContext* NewContext) noexcept;
+				~Promise() noexcept;
 				void EnumReferences(asIScriptEngine* OtherEngine);
 				void ReleaseReferences(asIScriptEngine*);
-				void SetFlag();
-				bool GetFlag();
-				int GetRefCount();
 				int GetTypeId();
 				void* GetAddressOfObject();
 				void When(asIScriptFunction* NewCallback);
@@ -750,9 +725,6 @@ namespace Mavi
 				void* Retrieve();
 				bool IsPending();
 				Promise* YieldIf();
-
-			private:
-				Promise(asIScriptContext* NewContext) noexcept;
 
 			public:
 				static Promise* CreateFactory(void* _Ref, int TypeId);
@@ -858,81 +830,6 @@ namespace Mavi
 				};
 			};
 #ifdef VI_BINDINGS
-			class VI_OUT Mutex
-			{
-			private:
-				static int MutexUD;
-
-			private:
-				std::recursive_mutex Base;
-				int Ref;
-
-			public:
-				Mutex() noexcept;
-				void AddRef();
-				void Release();
-				bool TryLock();
-				void Lock();
-				void Unlock();
-
-			public:
-				static Mutex* Factory();
-				static bool IsAnyLocked(asIScriptContext* Context);
-			};
-
-			class VI_OUT Thread
-			{
-			private:
-				static int ThreadUD;
-
-			private:
-				struct
-				{
-					Core::Vector<Any*> Queue;
-					std::condition_variable CV;
-					std::mutex Mutex;
-				} Pipe[2];
-
-			private:
-				std::thread Procedure;
-				std::recursive_mutex Mutex;
-				std::atomic<uint32_t> RefCount;
-				Exception::Pointer Raise;
-				VirtualMachine* VM;
-				EventLoop* Loop;
-				FunctionDelegate Function;
-
-			public:
-				Thread(asIScriptEngine* Engine, asIScriptFunction* Function) noexcept;
-				void EnumReferences(asIScriptEngine* Engine);
-				void SetFlag();
-				void ReleaseReferences(asIScriptEngine* Engine);
-				void AddRef();
-				void Release();
-				bool Suspend();
-				bool Resume();
-				void Push(void* Ref, int TypeId);
-				bool Pop(void* Ref, int TypeId);
-				bool Pop(void* Ref, int TypeId, uint64_t Timeout);
-				bool IsActive();
-				bool Start();
-				bool GetFlag();
-				int GetRefCount();
-				int Join(uint64_t Timeout);
-				int Join();
-				Core::String GetId() const;
-
-			private:
-				void ExecutionLoop();
-
-			public:
-				static void Create(asIScriptGeneric* Generic);
-				static Thread* GetThread();
-				static Core::String GetThreadId();
-				static void ThreadSleep(uint64_t Mills);
-				static bool ThreadSuspend();
-			};
-
 			class VI_OUT Complex
 			{
 			public:
@@ -969,17 +866,85 @@ namespace Mavi
 				static void ListConstructor(float* list, Complex* self);
 			};
 
-			class VI_OUT CharBuffer
+			class VI_OUT Mutex : public Core::Reference<Mutex>
+			{
+			private:
+				static int MutexUD;
+
+			private:
+				std::recursive_mutex Base;
+
+			public:
+				Mutex() noexcept;
+				~Mutex() = default;
+				bool TryLock();
+				void Lock();
+				void Unlock();
+
+			public:
+				static Mutex* Factory();
+				static bool IsAnyLocked(asIScriptContext* Context);
+			};
+
+			class VI_OUT Thread : public Core::Reference<Thread>
+			{
+			private:
+				static int ThreadUD;
+
+			private:
+				struct
+				{
+					Core::Vector<Any*> Queue;
+					std::condition_variable CV;
+					std::mutex Mutex;
+				} Pipe[2];
+
+			private:
+				std::thread Procedure;
+				std::recursive_mutex Mutex;
+				Exception::Pointer Raise;
+				VirtualMachine* VM;
+				EventLoop* Loop;
+				FunctionDelegate Function;
+
+			public:
+				Thread(asIScriptEngine* Engine, asIScriptFunction* Function) noexcept;
+				~Thread() noexcept;
+				void EnumReferences(asIScriptEngine* Engine);
+				void ReleaseReferences(asIScriptEngine* Engine);
+				bool Suspend();
+				bool Resume();
+				void Push(void* Ref, int TypeId);
+				bool Pop(void* Ref, int TypeId);
+				bool Pop(void* Ref, int TypeId, uint64_t Timeout);
+				bool IsActive();
+				bool Start();
+				int Join(uint64_t Timeout);
+				int Join();
+				Core::String GetId() const;
+
+			private:
+				void ExecutionLoop();
+
+			public:
+				static void Create(asIScriptGeneric* Generic);
+				static Thread* GetThread();
+				static Core::String GetThreadId();
+				static void ThreadSleep(uint64_t Mills);
+				static bool ThreadSuspend();
+			};
+
+			class VI_OUT CharBuffer : public Core::Reference<CharBuffer>
 			{
 			private:
 				char* Buffer;
 				size_t Size;
-				int Ref;
 
 			public:
-				~CharBuffer();
-				void AddRef();
-				void Release();
+				CharBuffer() noexcept;
+				CharBuffer(size_t Size) noexcept;
+				CharBuffer(char* Pointer) noexcept;
+				~CharBuffer() noexcept;
 				bool Allocate(size_t Size);
 				void Deallocate();
 				bool SetInt8(size_t Offset, int8_t Value, size_t Size);
@@ -1014,9 +979,6 @@ namespace Mavi
 				Core::String ToString(size_t MaxSize) const;
 
 			private:
-				CharBuffer() noexcept;
-				CharBuffer(size_t Size) noexcept;
-				CharBuffer(char* Pointer) noexcept;
 				bool Store(size_t Offset, const char* Data, size_t Size);
 				bool Load(size_t Offset, char* Data, size_t Size) const;
 
@@ -1034,6 +996,7 @@ namespace Mavi
 			public:
 				Format() noexcept;
 				Format(unsigned char* Buffer) noexcept;
+				~Format() = default;
 
 			public:
 				static Core::String JSON(void* Ref, int TypeId);
@@ -1044,6 +1007,22 @@ namespace Mavi
 			private:
 				static void FormatBuffer(VirtualMachine* VM, Core::String& Result, Core::String& Offset, void* Ref, int TypeId);
 				static void FormatJSON(VirtualMachine* VM, Core::String& Result, void* Ref, int TypeId);
+			};
+
+			class VI_OUT ModelListener : public Core::Reference<ModelListener>
+			{
+			private:
+				FunctionDelegate Delegate;
+				Engine::GUI::Listener* Base;
+
+			public:
+				ModelListener(asIScriptFunction* NewCallback) noexcept;
+				ModelListener(const Core::String& FunctionName) noexcept;
+				~ModelListener() noexcept;
+				FunctionDelegate& GetDelegate();
+
+			private:
+				Engine::GUI::EventCallback Bind(asIScriptFunction* Callback);
 			};
 
 			class VI_OUT Application final : public Engine::Application
@@ -1094,22 +1073,6 @@ namespace Mavi
 
 			public:
 				static bool WantsRestart(int ExitCode);
-			};
-
-			class VI_OUT ModelListener : public Core::Reference<ModelListener>
-			{
-			private:
-				FunctionDelegate Delegate;
-				Engine::GUI::Listener* Base;
-
-			public:
-				ModelListener(asIScriptFunction* NewCallback) noexcept;
-				ModelListener(const Core::String& FunctionName) noexcept;
-				~ModelListener() noexcept;
-				FunctionDelegate& GetDelegate();
-
-			private:
-				Engine::GUI::EventCallback Bind(asIScriptFunction* Callback);
 			};
 #endif
 		}

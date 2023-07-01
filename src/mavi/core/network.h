@@ -380,7 +380,7 @@ namespace Mavi
 			Core::ExpectsIO<size_t> Read(char* Buffer, size_t Size, SocketReadCallback&& Callback);
 			Core::ExpectsIO<size_t> ReadAsync(size_t Size, SocketReadCallback&& Callback, size_t TempBuffer = 0);
 			Core::ExpectsIO<size_t> ReadUntil(const char* Match, SocketReadCallback&& Callback);
-			Core::ExpectsIO<size_t> ReadUntilAsync(const char* Match, SocketReadCallback&& Callback, char* TempBuffer = nullptr, size_t TempIndex = 0);
+			Core::ExpectsIO<size_t> ReadUntilAsync(Core::String&& Match, SocketReadCallback&& Callback, size_t TempIndex = 0, bool TempBuffer = false);
 			Core::ExpectsIO<void> Connect(SocketAddress* Address, uint64_t Timeout);
 			Core::ExpectsIO<void> ConnectAsync(SocketAddress* Address, SocketStatusCallback&& Callback);
 			Core::ExpectsIO<void> Open(SocketAddress* Address);

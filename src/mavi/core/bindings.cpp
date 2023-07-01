@@ -508,7 +508,7 @@ namespace Mavi
 				return true;
 			}
 
-			Any::Any(asIScriptEngine* _Engine) noexcept : RefCount(1), Engine(_Engine)
+			Any::Any(asIScriptEngine* _Engine) noexcept : Engine(_Engine)
 			{
 				Value.TypeId = 0;
 				Value.Integer = 0;
@@ -679,34 +679,9 @@ namespace Mavi
 					FunctionFactory::GCEnumCallback(InEngine, T);
 				}
 			}
-			void Any::ReleaseAllHandles(asIScriptEngine*)
+			void Any::ReleaseReferences(asIScriptEngine*)
 			{
 				FreeObject();
-			}
-			void Any::AddRef()
-			{
-				RefCount = Core::Bitmask<uint32_t>::Value(RefCount.load()) + 1;
-			}
-			void Any::Release()
-			{
-				RefCount = Core::Bitmask<uint32_t>::Unmark(RefCount.load());
-				if (!--RefCount)
-				{
-					this->~Any();
-					asFreeMem((void*)this);
-				}
-			}
-			int Any::GetRefCount()
-			{
-				return Core::Bitmask<uint32_t>::Value(RefCount.load());
-			}
-			void Any::SetFlag()
-			{
-				RefCount = Core::Bitmask<uint32_t>::Mark(RefCount.load());
-			}
-			bool Any::GetFlag()
-			{
-				return Core::Bitmask<uint32_t>::IsMarked(RefCount.load());
 			}
 			Core::Unique<Any> Any::Create()
 			{
@@ -714,14 +689,11 @@ namespace Mavi
 				if (!Context)
 					return nullptr;
 
-				void* Data = asAllocMem(sizeof(Any));
-				if (!Data)
-				{
+				Any* Result = new Any(Context->GetEngine());
+				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-					return nullptr;
-				}
 
-				return new(Data) Any(Context->GetEngine());
+				return Result;
 			}
 			Any* Any::Create(int TypeId, void* Ref)
 			{
@@ -729,14 +701,11 @@ namespace Mavi
 				if (!Context)
 					return nullptr;
 
-				void* Data = asAllocMem(sizeof(Any));
-				if (!Data)
-				{
+				Any* Result = new Any(Ref, TypeId, Context->GetEngine());
+				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-					return nullptr;
-				}
 
-				return new(Data) Any(Ref, TypeId, Context->GetEngine());
+				return Result;
 			}
 			Any* Any::Create(const char* Decl, void* Ref)
 			{
@@ -745,41 +714,34 @@ namespace Mavi
 					return nullptr;
 
 				asIScriptEngine* Engine = Context->GetEngine();
-				void* Data = asAllocMem(sizeof(Any));
-				if (!Data)
-				{
+				Any* Result = new Any(Ref, Engine->GetTypeIdByDecl(Decl), Engine);
+				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-					return nullptr;
-				}
 
-				return new(Data) Any(Ref, Engine->GetTypeIdByDecl(Decl), Engine);
+				return Result;
 			}
 			void Any::Factory1(asIScriptGeneric* G)
 			{
-				asIScriptEngine* Engine = G->GetEngine();
-				void* Mem = asAllocMem(sizeof(Any));
-				if (!Mem)
-					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-
-				*(Any**)G->GetAddressOfReturnLocation() = new(Mem) Any(Engine);
+				Any* Result = new Any(G->GetEngine());
+				if (!Result)
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+				else
+					*(Any**)G->GetAddressOfReturnLocation() = Result;
 			}
 			void Any::Factory2(asIScriptGeneric* G)
 			{
-				asIScriptEngine* Engine = G->GetEngine();
-				void* Ref = (void*)G->GetArgAddress(0);
-				void* Mem = asAllocMem(sizeof(Any));
-				if (!Mem)
-					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-
-				int RefType = G->GetArgTypeId(0);
-				*(Any**)G->GetAddressOfReturnLocation() = new(Mem) Any(Ref, RefType, Engine);
+				Any* Result = new Any(G->GetArgAddress(0), G->GetArgTypeId(0), G->GetEngine());
+				if (!Result)
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+				else
+					*(Any**)G->GetAddressOfReturnLocation() = Result;
 			}
 			Any& Any::Assignment(Any* Other, Any* Self)
 			{
 				return *Self = *Other;
 			}
 
-			Array::Array(asITypeInfo* Info, void* BufferPtr) noexcept : RefCount(1), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
+			Array::Array(asITypeInfo* Info, void* BufferPtr) noexcept : ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
 				VI_ASSERT(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
@@ -834,7 +796,7 @@ namespace Mavi
 				if (ObjType->GetFlags() & asOBJ_GC)
 					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 			}
-			Array::Array(size_t Length, asITypeInfo* Info) noexcept : RefCount(1), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
+			Array::Array(size_t Length, asITypeInfo* Info) noexcept : ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
 				VI_ASSERT(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
@@ -852,7 +814,7 @@ namespace Mavi
 				if (ObjType->GetFlags() & asOBJ_GC)
 					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 			}
-			Array::Array(const Array& Other) noexcept : RefCount(1), ObjType(Other.ObjType), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
+			Array::Array(const Array& Other) noexcept : ObjType(Other.ObjType), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
 				VI_ASSERT(ObjType && Core::String(ObjType->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
@@ -865,7 +827,7 @@ namespace Mavi
 				CreateBuffer(&Buffer, 0);
 				*this = Other;
 			}
-			Array::Array(size_t Length, void* DefaultValue, asITypeInfo* Info) noexcept : RefCount(1), ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
+			Array::Array(size_t Length, void* DefaultValue, asITypeInfo* Info) noexcept : ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
 				VI_ASSERT(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				ObjType->AddRef();
@@ -1721,71 +1683,37 @@ namespace Mavi
 					}
 				}
 			}
-			void Array::ReleaseAllHandles(asIScriptEngine*)
+			void Array::ReleaseReferences(asIScriptEngine*)
 			{
 				Resize(0);
 			}
-			void Array::AddRef()
-			{
-				RefCount = Core::Bitmask<uint32_t>::Value(RefCount.load()) + 1;
-			}
-			void Array::Release()
-			{
-				RefCount = Core::Bitmask<uint32_t>::Unmark(RefCount.load());
-				if (!--RefCount)
-				{
-					this->~Array();
-					asFreeMem(const_cast<Array*>(this));
-				}
-			}
-			int Array::GetRefCount()
-			{
-				return Core::Bitmask<uint32_t>::Value(RefCount.load());
-			}
-			void Array::SetFlag()
-			{
-				RefCount = Core::Bitmask<uint32_t>::Mark(RefCount.load());
-			}
-			bool Array::GetFlag()
-			{
-				return Core::Bitmask<uint32_t>::IsMarked(RefCount.load());
-			}
 			Array* Array::Create(asITypeInfo* Info, size_t Length)
 			{
-				void* Memory = asAllocMem(sizeof(Array));
-				if (Memory == 0)
-				{
+				Array* Result = new Array(Length, Info);
+				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-					return 0;
-				}
 
-				return new(Memory) Array(Length, Info);
+				return Result;
 			}
 			Array* Array::Create(asITypeInfo* Info, void* InitList)
 			{
-				void* Memory = asAllocMem(sizeof(Array));
-				if (Memory == 0)
-				{
+				Array* Result = new Array(Info, InitList);
+				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-					return 0;
-				}
 
-				return new(Memory) Array(Info, InitList);
+				return Result;
 			}
-			Array* Array::Create(asITypeInfo* Info, size_t length, void* DefaultValue)
+			Array* Array::Create(asITypeInfo* Info, size_t Length, void* DefaultValue)
 			{
-				void* Memory = asAllocMem(sizeof(Array));
-				if (Memory == 0)
-				{
+				Array* Result = new Array(Length, DefaultValue, Info);
+				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-					return 0;
-				}
 
-				return new(Memory) Array(length, DefaultValue, Info);
+				return Result;
 			}
 			Array* Array::Create(asITypeInfo* Info)
 			{
-				return Array::Create(Info, size_t(0));
+				return Array::Create(Info, (size_t)0);
 			}
 			void Array::CleanupTypeInfoCache(asITypeInfo* Type)
 			{
@@ -2133,15 +2061,14 @@ namespace Mavi
 				return It->second.GetAddressOfValue();
 			}
 
-			Dictionary::Dictionary(asIScriptEngine* _Engine) noexcept
+			Dictionary::Dictionary(asIScriptEngine* _Engine) noexcept : Engine(_Engine)
 			{
-				Init(_Engine);
+				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(CACHE_MAP));
+				Engine->NotifyGarbageCollectorOfNewObject(this, Cache->DictionaryType);
 			}
-			Dictionary::Dictionary(unsigned char* Buffer) noexcept
+			Dictionary::Dictionary(unsigned char* Buffer) noexcept : Dictionary(asGetActiveContext()->GetEngine())
 			{
 				asIScriptContext* Context = asGetActiveContext();
-				Init(Context->GetEngine());
-
 				Dictionary::SCache& Cache = *reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(CACHE_MAP));
 				bool keyAsRef = Cache.KeyType->GetFlags() & asOBJ_REF ? true : false;
 
@@ -2233,9 +2160,8 @@ namespace Mavi
 						Buffer += Engine->GetSizeOfPrimitiveType(TypeId);
 				}
 			}
-			Dictionary::Dictionary(const Dictionary& Other) noexcept
+			Dictionary::Dictionary(const Dictionary& Other) noexcept : Dictionary(Other.Engine)
 			{
-				Init(Other.Engine);
 				for (auto It = Other.Data.begin(); It != Other.Data.end(); ++It)
 				{
 					auto& Key = It->second;
@@ -2250,31 +2176,6 @@ namespace Mavi
 			Dictionary::~Dictionary() noexcept
 			{
 				Clear();
-			}
-			void Dictionary::AddRef()
-			{
-				RefCount = Core::Bitmask<uint32_t>::Value(RefCount.load()) + 1;
-			}
-			void Dictionary::Release()
-			{
-				RefCount = Core::Bitmask<uint32_t>::Unmark(RefCount.load());
-				if (!--RefCount)
-				{
-					this->~Dictionary();
-					asFreeMem(const_cast<Dictionary*>(this));
-				}
-			}
-			int Dictionary::GetRefCount()
-			{
-				return Core::Bitmask<uint32_t>::Value(RefCount.load());
-			}
-			void Dictionary::SetFlag()
-			{
-				RefCount = Core::Bitmask<uint32_t>::Mark(RefCount.load());
-			}
-			bool Dictionary::GetFlag()
-			{
-				return Core::Bitmask<uint32_t>::IsMarked(RefCount.load());
 			}
 			void Dictionary::EnumReferences(asIScriptEngine* _Engine)
 			{
@@ -2291,7 +2192,7 @@ namespace Mavi
 					}
 				}
 			}
-			void Dictionary::ReleaseAllReferences(asIScriptEngine*)
+			void Dictionary::ReleaseReferences(asIScriptEngine*)
 			{
 				Clear();
 			}
@@ -2453,35 +2354,19 @@ namespace Mavi
 			}
 			Dictionary* Dictionary::Create(asIScriptEngine* Engine)
 			{
-				Dictionary* Obj = (Dictionary*)asAllocMem(sizeof(Dictionary));
-				if (!Obj)
-				{
+				Dictionary* Result = new Dictionary(Engine);
+				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-					return nullptr;
-				}
 
-				new(Obj) Dictionary(Engine);
-				return Obj;
+				return Result;
 			}
-			Dictionary* Dictionary::Create(unsigned char* buffer)
+			Dictionary* Dictionary::Create(unsigned char* Buffer)
 			{
-				Dictionary* Obj = (Dictionary*)asAllocMem(sizeof(Dictionary));
-				if (!Obj)
-				{
+				Dictionary* Result = new Dictionary(Buffer);
+				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-					return nullptr;
-				}
 
-				new(Obj) Dictionary(buffer);
-				return Obj;
-			}
-			void Dictionary::Init(asIScriptEngine* Engine_)
-			{
-				RefCount = 1;
-				Engine = Engine_;
-
-				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(CACHE_MAP));
-				Engine->NotifyGarbageCollectorOfNewObject(this, Cache->DictionaryType);
+				return Result;
 			}
 			void Dictionary::Cleanup(asIScriptEngine* Engine)
 			{
@@ -2942,26 +2827,16 @@ namespace Mavi
 				return Compute::Math<uint64_t>::Random(Min, Max);
 			}
 
-			Promise::Promise(asIScriptContext* NewContext) noexcept : Engine(nullptr), Context(NewContext), Value(-1), RefCount(1)
+			Promise::Promise(asIScriptContext* NewContext) noexcept : Engine(nullptr), Context(NewContext), Value(-1)
 			{
 				VI_ASSERT(Context != nullptr, "context should not be null");
 				Context->AddRef();
 				Engine = Context->GetEngine();
 				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_PROMISE));
 			}
-			void Promise::Release()
+			Promise::~Promise() noexcept
 			{
-				RefCount = Core::Bitmask<uint32_t>::Unmark(RefCount.load());
-				if (!--RefCount)
-				{
-					ReleaseReferences(nullptr);
-					this->~Promise();
-					asFreeMem((void*)this);
-				}
-			}
-			void Promise::AddRef()
-			{
-				RefCount = Core::Bitmask<uint32_t>::Value(RefCount.load()) + 1;
+				ReleaseReferences(nullptr);
 			}
 			void Promise::EnumReferences(asIScriptEngine* OtherEngine)
 			{
@@ -2993,18 +2868,6 @@ namespace Mavi
 				if (Delegate.IsValid())
 					Delegate.Release();
 				VI_CLEAR(Context);
-			}
-			void Promise::SetFlag()
-			{
-				RefCount = Core::Bitmask<uint32_t>::Mark(RefCount.load());
-			}
-			bool Promise::GetFlag()
-			{
-				return Core::Bitmask<uint32_t>::IsMarked(RefCount.load());
-			}
-			int Promise::GetRefCount()
-			{
-				return Core::Bitmask<uint32_t>::Value(RefCount.load());
 			}
 			int Promise::GetTypeId()
 			{
@@ -3168,28 +3031,20 @@ namespace Mavi
 			}
 			Promise* Promise::CreateFactory(void* _Ref, int TypeId)
 			{
-				Promise* Future = (Promise*)asAllocMem(sizeof(Promise));
+				Promise* Future = new Promise(asGetActiveContext());
 				if (!Future)
-				{
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-					return nullptr;
-				}
 
-				new(Future) Promise(asGetActiveContext());
 				if (TypeId != asTYPEID_VOID)
 					Future->Store(_Ref, TypeId);
 				return Future;
 			}
 			Promise* Promise::CreateFactoryVoid(bool HasValue)
 			{
-				Promise* Future = (Promise*)asAllocMem(sizeof(Promise));
+				Promise* Future = new Promise(asGetActiveContext());
 				if (!Future)
-				{
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-					return nullptr;
-				}
 
-				new(Future) Promise(asGetActiveContext());
 				if (HasValue)
 					Future->StoreVoid();
 				return Future;
@@ -3799,20 +3654,8 @@ namespace Mavi
 				return Keys;
 			}
 
-			Mutex::Mutex() noexcept : Ref(1)
+			Mutex::Mutex() noexcept
 			{
-			}
-			void Mutex::Release()
-			{
-				if (asAtomicDec(Ref) <= 0)
-				{
-					this->~Mutex();
-					asFreeMem((void*)this);
-				}
-			}
-			void Mutex::AddRef()
-			{
-				asAtomicInc(Ref);
 			}
 			bool Mutex::TryLock()
 			{
@@ -3854,14 +3697,11 @@ namespace Mavi
 			}
 			Mutex* Mutex::Factory()
 			{
-				void* Data = asAllocMem(sizeof(Mutex));
-				if (!Data)
-				{
+				Mutex* Result = new Mutex();
+				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-					return nullptr;
-				}
 
-				return new(Data) Mutex();
+				return Result;
 			}
 			bool Mutex::IsAnyLocked(asIScriptContext* Context)
 			{
@@ -3870,10 +3710,14 @@ namespace Mavi
 			}
 			int Mutex::MutexUD = 538;
 
-			Thread::Thread(asIScriptEngine* Engine, asIScriptFunction* Callback) noexcept : RefCount(1), VM(VirtualMachine::Get(Engine)), Loop(nullptr), Function(Callback, VM ? VM->RequestContext() : nullptr)
+			Thread::Thread(asIScriptEngine* Engine, asIScriptFunction* Callback) noexcept : VM(VirtualMachine::Get(Engine)), Loop(nullptr), Function(Callback, VM ? VM->RequestContext() : nullptr)
 			{
 				VI_ASSERT(VM != nullptr, "virtual matchine should be set");
 				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_THREAD));
+			}
+			Thread::~Thread()
+			{
+				ReleaseReferences(nullptr);
 			}
 			void Thread::ExecutionLoop()
 			{
@@ -3917,32 +3761,6 @@ namespace Mavi
 				Loop->Enqueue(Function.Context, nullptr);
 				VI_DEBUG("[vm] resume thread at %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
 				return true;
-			}
-			void Thread::AddRef()
-			{
-				RefCount = Core::Bitmask<uint32_t>::Value(RefCount.load()) + 1;
-			}
-			void Thread::Release()
-			{
-				RefCount = Core::Bitmask<uint32_t>::Unmark(RefCount.load());
-				if (!--RefCount)
-				{
-					ReleaseReferences(nullptr);
-					this->~Thread();
-					asFreeMem((void*)this);
-				}
-			}
-			void Thread::SetFlag()
-			{
-				RefCount = Core::Bitmask<uint32_t>::Mark(RefCount.load());
-			}
-			bool Thread::GetFlag()
-			{
-				return Core::Bitmask<uint32_t>::IsMarked(RefCount.load());
-			}
-			int Thread::GetRefCount()
-			{
-				return Core::Bitmask<uint32_t>::Value(RefCount.load());
 			}
 			void Thread::EnumReferences(asIScriptEngine* Engine)
 			{
@@ -4010,8 +3828,10 @@ namespace Mavi
 			}
 			void Thread::Push(void* Ref, int TypeId)
 			{
-				void* Data = asAllocMem(sizeof(Any));
-				Any* Next = new(Data) Any(Ref, TypeId, VirtualMachine::Get()->GetEngine());
+				Any* Next = new Any(Ref, TypeId, VirtualMachine::Get()->GetEngine());
+				if (!Next)
+					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+
 				auto& Source = Pipe[(GetThread() == this ? 1 : 0)];
 				Core::UMutex<std::mutex> Unique(Source.Mutex);
 				Source.Queue.push_back(Next);
@@ -4065,11 +3885,11 @@ namespace Mavi
 			{
 				asIScriptEngine* Engine = Generic->GetEngine();
 				asIScriptFunction* Function = *(asIScriptFunction**)Generic->GetAddressOfArg(0);
-				void* Data = asAllocMem(sizeof(Thread));
-				if (!Data)
-					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-
-				*(Thread**)Generic->GetAddressOfReturnLocation() = new(Data) Thread(Engine, Function);
+				Thread* Result = new Thread(Engine, Function);
+				if (!Result)
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+				else
+					*(Thread**)Generic->GetAddressOfReturnLocation() = Result;
 			}
 			Thread* Thread::GetThread()
 			{
@@ -4112,24 +3932,12 @@ namespace Mavi
 				if (NewSize > 0)
 					Allocate(NewSize);
 			}
-			CharBuffer::CharBuffer(char* Pointer) noexcept : Buffer(Pointer), Size(0), Ref(1)
+			CharBuffer::CharBuffer(char* Pointer) noexcept : Buffer(Pointer), Size(0)
 			{
 			}
 			CharBuffer::~CharBuffer()
 			{
 				Deallocate();
-			}
-			void CharBuffer::Release()
-			{
-				if (asAtomicDec(Ref) <= 0)
-				{
-					this->~CharBuffer();
-					asFreeMem((void*)this);
-				}
-			}
-			void CharBuffer::AddRef()
-			{
-				asAtomicInc(Ref);
 			}
 			bool CharBuffer::Allocate(size_t NewSize)
 			{
@@ -4345,36 +4153,27 @@ namespace Mavi
 			}
 			CharBuffer* CharBuffer::Create()
 			{
-				void* Data = asAllocMem(sizeof(CharBuffer));
-				if (!Data)
-				{
+				CharBuffer* Result = new CharBuffer();
+				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-					return nullptr;
-				}
 
-				return new(Data) CharBuffer();
+				return Result;
 			}
 			CharBuffer* CharBuffer::Create(size_t Size)
 			{
-				void* Data = asAllocMem(sizeof(CharBuffer));
-				if (!Data)
-				{
+				CharBuffer* Result = new CharBuffer(Size);
+				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-					return nullptr;
-				}
 
-				return new(Data)  CharBuffer(Size);
+				return Result;
 			}
 			CharBuffer* CharBuffer::Create(char* Pointer)
 			{
-				void* Data = asAllocMem(sizeof(CharBuffer));
-				if (!Data)
-				{
+				CharBuffer* Result = new CharBuffer(Pointer);
+				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-					return nullptr;
-				}
 
-				return new(Data)  CharBuffer(Pointer);
+				return Result;
 			}
 
 			Complex::Complex() noexcept
@@ -9320,10 +9119,10 @@ namespace Mavi
 				Engine->RegisterObjectBehaviour("any", asBEHAVE_ADDREF, "void f()", asMETHOD(Any, AddRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("any", asBEHAVE_RELEASE, "void f()", asMETHOD(Any, Release), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("any", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Any, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("any", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Any, SetFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("any", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Any, GetFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("any", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Any, MarkRef), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("any", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Any, IsMarkedRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("any", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Any, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("any", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Any, ReleaseAllHandles), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("any", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Any, ReleaseReferences), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("any", "any &opAssign(any&in)", asFUNCTION(Any::Assignment), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("any", "void store(?&in)", asMETHODPR(Any, Store, (void*, int), void), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("any", "bool retrieve(?&out)", asMETHODPR(Any, Retrieve, (void*, int) const, bool), asCALL_THISCALL);
@@ -9345,10 +9144,10 @@ namespace Mavi
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(Array, AddRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(Array, Release), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Array, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Array, SetFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Array, GetFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Array, MarkRef), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Array, IsMarkedRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Array, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Array, ReleaseAllHandles), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Array, ReleaseReferences), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("array<T>", "bool opEquals(const array<T>&in) const", asMETHOD(Array, operator==), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("array<T>", "array<T>& opAssign(const array<T>&in)", asMETHOD(Array, operator=), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("array<T>", "T& opIndex(usize)", asMETHODPR(Array, At, (size_t), void*), asCALL_THISCALL);
@@ -9443,10 +9242,10 @@ namespace Mavi
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_ADDREF, "void f()", asMETHOD(Dictionary, AddRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_RELEASE, "void f()", asMETHOD(Dictionary, Release), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Dictionary, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Dictionary, SetFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Dictionary, GetFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Dictionary, MarkRef), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Dictionary, IsMarkedRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Dictionary, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Dictionary, ReleaseAllReferences), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Dictionary, ReleaseReferences), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "dictionary &opAssign(const dictionary &in)", asMETHODPR(Dictionary, operator=, (const Dictionary&), Dictionary&), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "storable& opIndex(const string&in)", asMETHODPR(Dictionary, operator[], (const Core::String&), Storable*), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("dictionary", "const storable& opIndex(const string&in) const", asMETHODPR(Dictionary, operator[], (const Core::String&) const, const Storable*), asCALL_THISCALL);
@@ -9750,8 +9549,8 @@ namespace Mavi
 				Engine->RegisterObjectBehaviour("thread", asBEHAVE_FACTORY, "thread@ f(thread_event@)", asFUNCTION(Thread::Create), asCALL_GENERIC);
 				Engine->RegisterObjectBehaviour("thread", asBEHAVE_ADDREF, "void f()", asMETHOD(Thread, AddRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("thread", asBEHAVE_RELEASE, "void f()", asMETHOD(Thread, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Thread, SetFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Thread, GetFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("thread", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Thread, MarkRef), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("thread", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Thread, IsMarkedRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("thread", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Thread, GetRefCount), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("thread", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Thread, EnumReferences), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("thread", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Thread, ReleaseReferences), asCALL_THISCALL);
@@ -9852,8 +9651,8 @@ namespace Mavi
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Promise::TemplateCallback), asCALL_CDECL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(Promise, AddRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(Promise, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Promise, SetFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Promise, GetFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Promise, MarkRef), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Promise, IsMarkedRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Promise, GetRefCount), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Promise, EnumReferences), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Promise, ReleaseReferences), asCALL_THISCALL);
@@ -9864,8 +9663,8 @@ namespace Mavi
 				Engine->RegisterObjectType("promise_v", 0, asOBJ_REF | asOBJ_GC);
 				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_ADDREF, "void f()", asMETHOD(Promise, AddRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_RELEASE, "void f()", asMETHOD(Promise, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Promise, SetFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Promise, GetFlag), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Promise, MarkRef), asCALL_THISCALL);
+				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Promise, IsMarkedRef), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Promise, GetRefCount), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Promise, EnumReferences), asCALL_THISCALL);
 				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Promise, ReleaseReferences), asCALL_THISCALL);

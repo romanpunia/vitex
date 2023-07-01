@@ -1679,7 +1679,7 @@ namespace Mavi
 		Core::ExpectsIO<size_t> Socket::ReadUntil(const char* Match, SocketReadCallback&& Callback)
 		{
 			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
-			VI_ASSERT(Match != nullptr, "match should be set");
+			VI_ASSERT(Match != nullptr && Match[0] != '\0', "match should be set");
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 
 			char Buffer[MAX_READ_UNTIL];
@@ -1721,13 +1721,14 @@ namespace Mavi
 			Callback(SocketPoll::FinishSync, nullptr, 0);
 			return Received;
 		}
-		Core::ExpectsIO<size_t> Socket::ReadUntilAsync(const char* Match, SocketReadCallback&& Callback, char* TempBuffer, size_t TempIndex)
+		Core::ExpectsIO<size_t> Socket::ReadUntilAsync(Core::String&& Match, SocketReadCallback&& Callback, size_t TempIndex, bool TempBuffer)
 		{
 			VI_ASSERT(Fd != INVALID_SOCKET, "socket should be valid");
-			VI_ASSERT(Match != nullptr, "match should be set");
+			VI_ASSERT(!Match.empty(), "match should be set");
+			VI_ASSERT(Callback != nullptr, "callback should be set");
 
 			char Buffer[MAX_READ_UNTIL];
-			size_t Size = strlen(Match), Offset = 0, Received = 0;
+			size_t Size = Match.size(), Offset = 0, Received = 0;
 			auto Publish = [&Callback, &Buffer, &Offset, &Received](size_t Size)
 			{
 				Received += Offset; Offset = 0;
@@ -1742,29 +1743,16 @@ namespace Mavi
 				{
 					if (Status.Error() == std::errc::operation_would_block)
 					{
-						if (!TempBuffer)
+						Multiplexer::Get()->WhenReadable(this, [this, TempIndex, Match = std::move(Match), Callback = std::move(Callback)](SocketPoll Event) mutable
 						{
-							TempBuffer = VI_MALLOC(char, Size + 1);
-							memcpy(TempBuffer, Match, Size);
-							TempBuffer[Size] = '\0';
-						}
-
-						Multiplexer::Get()->WhenReadable(this, [this, TempBuffer, TempIndex, Callback = std::move(Callback)](SocketPoll Event) mutable
-						{
-							if (!Packet::IsDone(Event))
-							{
-								VI_FREE(TempBuffer);
-								Callback(Event, nullptr, 0);
-							}
+							if (Packet::IsDone(Event))
+								ReadUntilAsync(std::move(Match), std::move(Callback), TempIndex, true);
 							else
-								ReadUntilAsync(TempBuffer, std::move(Callback), TempBuffer, TempIndex);
+								Callback(Event, nullptr, 0);
 						});
 					}
 					else
 					{
-						if (TempBuffer != nullptr)
-							VI_FREE(TempBuffer);
-
 						if (!Offset || Publish(Offset))
 							Callback(SocketPoll::Reset, nullptr, 0);
 					}
@@ -1790,9 +1778,6 @@ namespace Mavi
 						TempIndex = 0;
 				}
 			}
-
-			if (TempBuffer != nullptr)
-				VI_FREE(TempBuffer);
 
 			Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync, nullptr, 0);
 			return Received;

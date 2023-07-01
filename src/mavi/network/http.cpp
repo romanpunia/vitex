@@ -100,7 +100,7 @@ namespace Mavi
 				SetExpires(0);
 			}
 
-			WebSocketFrame::WebSocketFrame(Socket* NewStream) : State((uint32_t)WebSocketState::Open), Active(true), Reset(false), Deadly(false), Busy(false), Stream(NewStream), Codec(new WebCodec())
+			WebSocketFrame::WebSocketFrame(Socket* NewStream) : State((uint32_t)WebSocketState::Open), Tunneling((uint32_t)Tunnel::Healthy), Active(true), Deadly(false), Busy(false), Stream(NewStream), Codec(new WebCodec())
 			{
 			}
 			WebSocketFrame::~WebSocketFrame() noexcept
@@ -184,16 +184,10 @@ namespace Mavi
 								}
 								else if (Packet::IsError(Event))
 								{
+									Tunneling = (uint32_t)Tunnel::Gone;
 									Busy = false;
 									if (Callback)
 										Callback(this);
-
-									if (!Reset)
-									{
-										Reset = true;
-										if (Lifetime.Reset)
-											Lifetime.Reset(this);
-									}
 								}
 							});
 						}
@@ -211,21 +205,15 @@ namespace Mavi
 					}
 					else if (Packet::IsError(Event))
 					{
+						Tunneling = (uint32_t)Tunnel::Gone;
 						Busy = false;
 						if (Callback)
 							Callback(this);
-
-						if (!Reset)
-						{
-							Reset = true;
-							if (Lifetime.Reset)
-								Lifetime.Reset(this);
-						}
 					}
 					else if (Packet::IsSkip(Event))
 					{
 						bool Ignore = IsIgnore();
-									Busy = false;
+						Busy = false;
 
 						if (Callback)
 							Callback(this);
@@ -253,7 +241,7 @@ namespace Mavi
 				if (Deadly)
 					return;
 
-				if (Reset || State == (uint32_t)WebSocketState::Close)
+				if (State == (uint32_t)WebSocketState::Close || Tunneling != (uint32_t)Tunnel::Healthy)
 					return Next();
 
 				if (!Active)
@@ -270,7 +258,7 @@ namespace Mavi
 			}
 			void WebSocketFrame::Finalize()
 			{
-				if (!Reset)
+				if (Tunneling == (uint32_t)Tunnel::Healthy)
 					State = (uint32_t)WebSocketState::Close;
 			}
 			void WebSocketFrame::Next()
@@ -281,7 +269,37 @@ namespace Mavi
 			{
 				Core::UMutex<std::mutex> Unique(Section);
 			Retry:
-				if (State == (uint32_t)WebSocketState::Receive)
+				if (State == (uint32_t)WebSocketState::Close || Tunneling != (uint32_t)Tunnel::Healthy)
+				{
+					if (Tunneling != (uint32_t)Tunnel::Gone)
+						Tunneling = (uint32_t)Tunnel::Closing;
+					
+					if (BeforeDisconnect)
+					{
+						WebSocketCallback Callback = std::move(BeforeDisconnect);
+						BeforeDisconnect = nullptr;
+						Unique.Negate();
+						Callback(this);
+					}
+					else if (!Disconnect)
+					{
+						bool Successful = (Tunneling == (uint32_t)Tunnel::Closing);
+						Tunneling = (uint32_t)Tunnel::Gone;
+						Active = false;
+						Unique.Negate();
+						if (Lifetime.Close)
+							Lifetime.Close(this, Successful);
+					}
+					else
+					{
+						WebSocketCallback Callback = std::move(Disconnect);
+						Disconnect = nullptr;
+						Receive = nullptr;
+						Unique.Negate();
+						Callback(this);
+					}
+				}
+				else if (State == (uint32_t)WebSocketState::Receive)
 				{
 					if (Lifetime.Dead && Lifetime.Dead(this))
 					{
@@ -342,70 +360,32 @@ namespace Mavi
 						if (Receive)
 						{
 							Unique.Negate();
-							if (Receive(this, Opcode, Codec->Data.data(), (int64_t)Codec->Data.size()))
-								return;
-
-							return Next();
+							if (!Receive(this, Opcode, Codec->Data.data(), (int64_t)Codec->Data.size()))
+								Next();
 						}
 					}
 					else if (Opcode == WebSocketOp::Ping)
 					{
 						VI_DEBUG("[websocket] sock %i frame ping", (int)Stream->GetFd());
 						Unique.Negate();
-						if (Receive && Receive(this, Opcode, "", 0))
-							return;
-
-						return Send("", 0, WebSocketOp::Pong, [this](WebSocketFrame*)
-						{
-							Next();
-						});
+						if (!Receive || !Receive(this, Opcode, "", 0))
+							Send("", 0, WebSocketOp::Pong, [this](WebSocketFrame*) { Next(); });
 					}
 					else if (Opcode == WebSocketOp::Close)
 					{
 						VI_DEBUG("[websocket] sock %i frame close", (int)Stream->GetFd());
 						Unique.Negate();
-						if (Receive && Receive(this, Opcode, "", 0))
-							return;
-
-						return Finish();
+						if (!Receive || !Receive(this, Opcode, "", 0))
+							Finish();
 					}
 					else if (Receive)
 					{
 						Unique.Negate();
-						if (Receive(this, Opcode, "", 0))
-							return;
-
-						return Next();
+						if (!Receive(this, Opcode, "", 0))
+							Next();
 					}
 					else
 						goto Retry;
-				}
-				else if (State == (uint32_t)WebSocketState::Close)
-				{
-					Reset = true;
-					if (BeforeDisconnect)
-					{
-						WebSocketCallback Callback = std::move(BeforeDisconnect);
-                        BeforeDisconnect = nullptr;
-						Unique.Negate();
-						return Callback(this);
-					}
-					else if (!Disconnect)
-					{
-						Active = false;
-						Unique.Negate();
-						if (Lifetime.Close)
-							Lifetime.Close(this);
-						return;
-					}
-					else
-					{
-						WebSocketCallback Callback = std::move(Disconnect);
-                        Disconnect = nullptr;
-						Receive = nullptr;
-						Unique.Negate();
-						return Callback(this);
-					}
 				}
 				else if (State == (uint32_t)WebSocketState::Open)
 				{
@@ -418,12 +398,12 @@ namespace Mavi
 						WebSocketCallback Callback = std::move(Connect);
                         Connect = nullptr;
 						Unique.Negate();
-						return Callback(this);
+						Callback(this);
 					}
 					else
 					{
 						Unique.Negate();
-						return Finish();
+						Finish();
 					}
 				}
 			}
@@ -433,7 +413,7 @@ namespace Mavi
 			}
 			bool WebSocketFrame::IsIgnore()
 			{
-				return Deadly || Reset || State == (uint32_t)WebSocketState::Close;
+				return Deadly || State == (uint32_t)WebSocketState::Close || Tunneling != (uint32_t)Tunnel::Healthy;
 			}
 			bool WebSocketFrame::IsWriteable()
 			{
@@ -5488,16 +5468,17 @@ namespace Mavi
 						{
 							return Base->Info.Close;
 						};
-						Base->WebSocket->Lifetime.Reset = [Base](WebSocketFrame*)
+						Base->WebSocket->Lifetime.Close = [Base](WebSocketFrame*, bool Successful)
 						{
-							Base->Break();
-						};
-						Base->WebSocket->Lifetime.Close = [Base](WebSocketFrame*)
-						{
-							Base->Info.KeepAlive = 0;
-							if (Base->Response.StatusCode <= 0)
-								Base->Response.StatusCode = 101;
-							Base->Finish();
+							if (Successful)
+							{
+								Base->Info.KeepAlive = 0;
+								if (Base->Response.StatusCode <= 0)
+									Base->Response.StatusCode = 101;
+								Base->Finish();
+							}
+							else
+								Base->Break();
 						};
 
 						Base->Stream->Timeout = Base->Route->WebSocketTimeout;
@@ -6099,13 +6080,15 @@ namespace Mavi
 				{
 					return false;
 				};
-				WebSocket->Lifetime.Reset = [this](WebSocketFrame*)
+				WebSocket->Lifetime.Close = [this](WebSocketFrame*, bool Successful)
 				{
-					Stream.Close(false);
-				};
-				WebSocket->Lifetime.Close = [this](WebSocketFrame*)
-				{
-					Future.Set(Core::Optional::OK);
+					if (!Successful)
+					{
+						Stream.Close(false);
+						Future.Set(std::make_error_condition(std::errc::connection_reset));
+					}
+					else
+						Future.Set(Core::Optional::OK);
 				};
 
 				return WebSocket;

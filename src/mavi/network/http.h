@@ -63,6 +63,7 @@ namespace Mavi
 			typedef std::function<bool(struct Resource*)> ResourceCallback;
 			typedef std::function<void(class WebSocketFrame*)> WebSocketCallback;
 			typedef std::function<bool(class WebSocketFrame*, WebSocketOp, const char*, size_t)> WebSocketReadCallback;
+			typedef std::function<void(class WebSocketFrame*, bool)> WebSocketStatusCallback;
 			typedef std::function<bool(class WebSocketFrame*)> WebSocketCheckCallback;
 			typedef std::function<bool(class Parser*, size_t)> ParserCodeCallback;
 			typedef std::function<bool(class Parser*, const char*, size_t)> ParserDataCallback;
@@ -246,6 +247,14 @@ namespace Mavi
 				friend class Utils;
 
 			private:
+				enum class Tunnel
+				{
+					Healthy,
+					Closing,
+					Gone
+				};
+
+			private:
 				struct Message
 				{
 					unsigned int Mask;
@@ -258,17 +267,16 @@ namespace Mavi
 			public:
 				struct
 				{
-					WebSocketCallback Reset;
-					WebSocketCallback Close;
-					WebSocketCheckCallback Dead;
 					WebSocketCallback Destroy;
+					WebSocketStatusCallback Close;
+					WebSocketCheckCallback Dead;
 				} Lifetime;
 
 			private:
 				Core::SingleQueue<Message> Messages;
 				std::atomic<uint32_t> State;
+				std::atomic<uint32_t> Tunneling;
 				std::atomic<bool> Active;
-				std::atomic<bool> Reset;
 				std::atomic<bool> Deadly;
 				std::atomic<bool> Busy;
 				std::mutex Section;

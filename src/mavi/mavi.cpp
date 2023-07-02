@@ -497,6 +497,10 @@ namespace Mavi
 	{
 		return (int)PATCH_VERSION;
 	}
+	int Runtime::GetBuildVersion() const noexcept
+	{
+		return (int)PATCH_VERSION;
+	}
 	int Runtime::GetVersion() const noexcept
 	{
 		return (int)VERSION;
@@ -562,7 +566,7 @@ namespace Mavi
 			Features.push_back("feature:shaders");
 
 		Core::StringStream Result;
-		Result << "library: " << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_VERSION << " / " << VERSION << "\n";
+		Result << "library: " << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_VERSION << "." << BUILD_VERSION << " / " << VERSION << "\n";
 		Result << "  platform: " << GetPlatform() << " / " << GetBuild() << "\n";
 		Result << "  compiler: " << GetCompiler() << "\n";
         Result << "configuration:" << "\n";

@@ -6,10 +6,11 @@ namespace Mavi
 {
 	enum
 	{
-		MAJOR_VERSION = 26,
-		MINOR_VERSION = 45,
-		PATCH_VERSION = 42,
-		VERSION = (MAJOR_VERSION) * 10000 + (MINOR_VERSION) * 100 + (PATCH_VERSION)
+		MAJOR_VERSION = 1,
+		MINOR_VERSION = 26,
+		PATCH_VERSION = 45,
+		BUILD_VERSION = 110,
+		VERSION = (MAJOR_VERSION) * 100000000 + (MINOR_VERSION) * 1000000 + (PATCH_VERSION) * 10000 + BUILD_VERSION
 	};
 
 	enum class Init
@@ -80,6 +81,7 @@ namespace Mavi
 		int GetMajorVersion() const noexcept;
 		int GetMinorVersion() const noexcept;
 		int GetPatchVersion() const noexcept;
+		int GetBuildVersion() const noexcept;
 		int GetVersion() const noexcept;
 		int GetDebugLevel() const noexcept;
 		int GetArchitecture() const noexcept;

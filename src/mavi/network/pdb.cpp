@@ -1991,10 +1991,7 @@ namespace Mavi
 					if (Target != nullptr)
 						PQlogMessage(Target->Base);
 		
-					Core::Schedule::Get()->SetTask([this, Target]()
-					{
-						Reestablish(Target);
-					}, Core::Difficulty::Heavy);
+					Core::Schedule::Get()->SetTask([this, Target]() { Reestablish(Target); });
 					return false;
 				}
 
@@ -2110,10 +2107,7 @@ namespace Mavi
 				if (!Connected)
 				{
 					Source->State = QueryState::Lost;
-					return Core::Schedule::Get()->SetTask([this, Source]()
-					{
-						Reestablish(Source);
-					}, Core::Difficulty::Heavy) != Core::INVALID_TASK_ID;
+					return Core::Schedule::Get()->SetTask([this, Source]() { Reestablish(Source); }) != Core::INVALID_TASK_ID;
 				}
 
 			Retry:
@@ -2139,10 +2133,7 @@ namespace Mavi
 								for (auto& Item : It->second)
 								{
 									OnNotification Callback = Item.second;
-									Core::Schedule::Get()->SetTask([Event, Callback = std::move(Callback)]()
-									{
-										Callback(Event);
-									}, Core::Difficulty::Light);
+									Core::Schedule::Get()->SetTask([Event, Callback = std::move(Callback)]() { Callback(Event); });
 								}
 							}
 							VI_DEBUG("[pq] notification on channel @%s: %s", Notification->relname, Notification->extra ? Notification->extra : "[payload]");

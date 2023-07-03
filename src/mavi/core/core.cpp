@@ -5333,6 +5333,19 @@ namespace Mavi
 
 			return { Other.size(), Other.size(), false };
 		}
+		bool Stringify::IsEmptyOrWhitespace(const String& Other)
+		{
+			if (Other.empty())
+				return true;
+
+			for (char Next : Other)
+			{
+				if (!std::isspace(Next))
+					return false;
+			}
+
+			return true;
+		}
 		bool Stringify::IsPrecededBy(const String& Other, size_t At, const char* Of)
 		{
 			VI_ASSERT(Of != nullptr, "tokenbase should be set");
@@ -9935,7 +9948,18 @@ namespace Mavi
 #endif
 			return true;
 		}
-		bool Costate::HasActive() const
+		bool Costate::HasResumableCoroutines() const
+		{
+			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
+			for (const auto& Item : Used)
+			{
+				if (Item->State == Coexecution::Active || Item->State == Coexecution::Resumable)
+					return true;
+			}
+
+			return false;
+		}
+		bool Costate::HasAliveCoroutines() const
 		{
 			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
 			for (const auto& Item : Used)
@@ -10010,28 +10034,27 @@ namespace Mavi
 				goto Reuse;
 		}
 
-		Schedule::Desc::Desc()
+		Schedule::Desc::Desc() : Desc(std::max<uint32_t>(2, OS::CPU::GetQuantityInfo().Logical) - 1)
 		{
-			auto Quantity = OS::CPU::GetQuantityInfo();
-			SetThreads(std::max<uint32_t>(2, Quantity.Logical) - 1);
 		}
-		void Schedule::Desc::SetThreads(size_t Cores)
+		Schedule::Desc::Desc(size_t Cores) : PreallocatedSize(0), StackSize(STACK_SIZE), MaxCoroutines(96), Timeout(std::chrono::milliseconds(2000)), Parallel(true)
 		{
-			VI_ASSERT(Cores > 0, "at least one core should be present");
-			size_t Clock = 1;
+			if (!Cores)
+				Cores = 1;
 #ifdef VI_CXX20
-			size_t Chain = 0;
-			size_t Light = (size_t)(std::max((double)Cores * 0.35, 1.0));
-			size_t Heavy = std::max<size_t>(Cores - Light, 1);
+			size_t Async = 0;
+			size_t Simple = (size_t)(std::max((double)Cores * 0.35, 1.0));
+			size_t Blocking = std::max<size_t>(Cores - Simple, 1);
 #else
-			size_t Chain = (size_t)(std::max((double)Cores * 0.20, 1.0));
-			size_t Light = (size_t)(std::max((double)Cores * 0.30, 1.0));
-			size_t Heavy = std::max<size_t>(Cores - Light, 1);
+			size_t Async = (size_t)(std::max((double)Cores * 0.20, 1.0));
+			size_t Simple = (size_t)(std::max((double)Cores * 0.30, 1.0));
+			size_t Blocking = std::max<size_t>(Cores - Simple, 1);
 #endif
-			Threads[((size_t)Difficulty::Clock)] = Clock;
-			Threads[((size_t)Difficulty::Coroutine)] = Chain;
-			Threads[((size_t)Difficulty::Light)] = Light;
-			Threads[((size_t)Difficulty::Heavy)] = Heavy;
+			size_t Timeout = 1;
+			Threads[((size_t)Difficulty::Async)] = Async;
+			Threads[((size_t)Difficulty::Simple)] = Simple;
+			Threads[((size_t)Difficulty::Blocking)] = Blocking;
+			Threads[((size_t)Difficulty::Timeout)] = Timeout;
 			MaxCoroutines = std::min<size_t>(Cores * 8, 256);
 		}
 
@@ -10070,7 +10093,7 @@ namespace Mavi
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
-			auto Queue = Queues[(size_t)Difficulty::Clock];
+			auto Queue = Queues[(size_t)Difficulty::Timeout];
 
 			UMutex<std::mutex> Lock(Queue->Update);
 			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, true, Type)));
@@ -10091,7 +10114,7 @@ namespace Mavi
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
-			auto Queue = Queues[(size_t)Difficulty::Clock];
+			auto Queue = Queues[(size_t)Difficulty::Timeout];
 
 			UMutex<std::mutex> Lock(Queue->Update);
 			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, true, Type)));
@@ -10112,7 +10135,7 @@ namespace Mavi
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
-			auto Queue = Queues[(size_t)Difficulty::Clock];
+			auto Queue = Queues[(size_t)Difficulty::Timeout];
 
 			UMutex<std::mutex> Lock(Queue->Update);
 			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, false, Type)));
@@ -10133,7 +10156,7 @@ namespace Mavi
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
-			auto Queue = Queues[(size_t)Difficulty::Clock];
+			auto Queue = Queues[(size_t)Difficulty::Timeout];
 
 			UMutex<std::mutex> Lock(Queue->Update);
 			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, false, Type)));
@@ -10201,11 +10224,11 @@ namespace Mavi
 			}
 
 			VI_MEASURE(Timings::Atomic);
-			auto Queue = Queues[(size_t)Difficulty::Coroutine];
+			auto Queue = Queues[(size_t)Difficulty::Async];
 			Queue->Tasks.enqueue(Callback);
 
 			UMutex<std::mutex> Lock(Queue->Update);
-			for (auto* Thread : Threads[(size_t)Difficulty::Coroutine])
+			for (auto* Thread : Threads[(size_t)Difficulty::Async])
 				Thread->Notify.notify_one();
 			return true;
 		}
@@ -10224,11 +10247,11 @@ namespace Mavi
 			PostDebug(ThreadTask::EnqueueCoroutine, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			auto Queue = Queues[(size_t)Difficulty::Coroutine];
+			auto Queue = Queues[(size_t)Difficulty::Async];
 			Queue->Tasks.enqueue(std::move(Callback));
 
 			UMutex<std::mutex> Lock(Queue->Update);
-			for (auto* Thread : Threads[(size_t)Difficulty::Coroutine])
+			for (auto* Thread : Threads[(size_t)Difficulty::Async])
 				Thread->Notify.notify_one();
 			return true;
 		}
@@ -10252,7 +10275,7 @@ namespace Mavi
 		bool Schedule::ClearTimeout(TaskId Target)
 		{
 			VI_MEASURE(Timings::Atomic);
-			auto Queue = Queues[(size_t)Difficulty::Clock];
+			auto Queue = Queues[(size_t)Difficulty::Timeout];
 			UMutex<std::mutex> Lock(Queue->Update);
 			for (auto It = Queue->Timers.begin(); It != Queue->Timers.end(); ++It)
 			{
@@ -10263,6 +10286,115 @@ namespace Mavi
 					return true;
 				}
 			}
+			return false;
+		}
+		bool Schedule::Trigger(Difficulty Type)
+		{
+			auto* Queue = Queues[(size_t)Type];
+			switch (Type)
+			{
+				case Difficulty::Timeout:
+				{
+					if (Queue->Timers.empty())
+						return false;
+
+					if (Suspended)
+						return true;
+
+					auto Clock = GetClock();
+					auto It = Queue->Timers.begin();
+					if (It->first >= Clock)
+						return true;
+#ifndef NDEBUG
+					PostDebug(ThreadTask::ProcessTimer, 1);
+#endif
+					if (It->second.Alive && Active)
+					{
+						Timeout Next(std::move(It->second));
+						Queue->Timers.erase(It);
+
+						SetTask([this, Queue, Next = std::move(Next)]() mutable
+						{
+							Next.Callback();
+							UMutex<std::mutex> Lock(Queue->Update);
+							Queue->Timers.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
+							Queue->Notify.notify_one();
+						});
+					}
+					else
+					{
+						SetTask(std::move(It->second.Callback), It->second.Type);
+						Queue->Timers.erase(It);
+					}
+#ifndef NDEBUG
+					PostDebug(ThreadTask::Awake, 0);
+#endif
+					return true;
+				}
+				case Difficulty::Async:
+				{
+					Dispatcher.Events.resize(Policy.MaxCoroutines);
+					if (!Dispatcher.State)
+						Dispatcher.State = new Costate(Policy.StackSize);
+
+					size_t Pending = Dispatcher.State->GetCount();
+					size_t Left = Policy.MaxCoroutines - Pending;
+					size_t Count = Left, Passes = Pending;
+
+					if (Suspended)
+						return Pending > 0;
+
+					while (Left > 0 && Count > 0)
+					{
+						Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Events.begin(), Left);
+						Left -= Count;
+						Passes += Count;
+#ifndef NDEBUG
+						PostDebug(ThreadTask::ConsumeCoroutine, Count);
+#endif
+						for (size_t i = 0; i < Count; ++i)
+						{
+							TaskCallback& Data = Dispatcher.Events[i];
+							if (Data != nullptr)
+								Dispatcher.State->Pop(std::move(Data));
+						}
+					}
+#ifndef NDEBUG
+					PostDebug(ThreadTask::ProcessCoroutine, Dispatcher.State->GetCount());
+#endif
+					while (Dispatcher.State->Dispatch())
+						++Passes;
+#ifndef NDEBUG
+					PostDebug(ThreadTask::Awake, 0);
+#endif
+					return Passes > 0;
+				}
+				case Difficulty::Simple:
+				case Difficulty::Blocking:
+				{
+					if (Suspended)
+						return Queue->Tasks.size_approx() > 0;
+
+					size_t Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Tasks, EVENTS_SIZE);
+#ifndef NDEBUG
+					PostDebug(ThreadTask::ProcessTask, Count);
+#endif
+					for (size_t i = 0; i < Count; ++i)
+					{
+						VI_MEASURE(Type == Difficulty::Simple ? Timings::Frame : Timings::Intensive);
+						TaskCallback Data(std::move(Dispatcher.Tasks[i]));
+						if (Data != nullptr)
+							Data();
+					}
+#ifndef NDEBUG
+					PostDebug(ThreadTask::Awake, 0);
+#endif
+					return Count > 0;
+				}
+				default:
+					break;
+			}
+
 			return false;
 		}
 		bool Schedule::Start(const Desc& NewPolicy)
@@ -10283,16 +10415,19 @@ namespace Mavi
 			}
 
 			size_t Index = 0;
-			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Coroutine]; j++)
-				PushThread(Difficulty::Coroutine, Index++, j, false);
+			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Async]; j++)
+				PushThread(Difficulty::Async, Index++, j, false);
 
-			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Light]; j++)
-				PushThread(Difficulty::Light, Index++, j, false);
+			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Simple]; j++)
+				PushThread(Difficulty::Simple, Index++, j, false);
 
-			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Heavy]; j++)
-				PushThread(Difficulty::Heavy, Index++, j, false);
+			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Blocking]; j++)
+				PushThread(Difficulty::Blocking, Index++, j, false);
+			
+			if (Policy.Threads[(size_t)Difficulty::Timeout] > 0)
+				PushThread(Difficulty::Timeout, Policy.Ping ? 0 : Index++, 0, !!Policy.Ping);
 
-			return PushThread(Difficulty::Clock, 0, 0, Policy.Ping != nullptr);
+			return true;
 		}
 		bool Schedule::Stop()
 		{
@@ -10352,126 +10487,11 @@ namespace Mavi
 			size_t Passes = 0;
 			VI_MEASURE(Timings::Intensive);
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
-			{
-				if (ProcessTick((Difficulty)i))
-					++Passes;
-			}
+				Passes += (size_t)Trigger((Difficulty)i);
 
 			return Passes > 0;
 		}
-		bool Schedule::ProcessTick(Difficulty Type)
-		{
-			auto* Queue = Queues[(size_t)Type];
-			if (!Policy.Threads[(size_t)Type])
-				return false;
-
-			switch (Type)
-			{
-				case Difficulty::Clock:
-				{
-					if (Queue->Timers.empty())
-						return false;
-
-					if (Suspended)
-						return true;
-
-					auto Clock = GetClock();
-					auto It = Queue->Timers.begin();
-					if (It->first >= Clock)
-						return true;
-#ifndef NDEBUG
-					PostDebug(ThreadTask::ProcessTimer, 1);
-#endif
-					if (It->second.Alive && Active)
-					{
-						Timeout Next(std::move(It->second));
-						Queue->Timers.erase(It);
-
-						SetTask([this, Queue, Next = std::move(Next)]() mutable
-						{
-							Next.Callback();
-							UMutex<std::mutex> Lock(Queue->Update);
-							Queue->Timers.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
-							Queue->Notify.notify_one();
-						});
-					}
-					else
-					{
-						SetTask(std::move(It->second.Callback), It->second.Type);
-						Queue->Timers.erase(It);
-					}
-#ifndef NDEBUG
-					PostDebug(ThreadTask::Awake, 0);
-#endif
-					return true;
-				}
-				case Difficulty::Coroutine:
-				{
-					Dispatcher.Events.resize(Policy.MaxCoroutines);
-					if (!Dispatcher.State)
-						Dispatcher.State = new Costate(Policy.StackSize);
-
-					size_t Pending = Dispatcher.State->GetCount();
-					size_t Left = Policy.MaxCoroutines - Pending;
-					size_t Count = Left, Passes = Pending;
-
-					if (Suspended)
-						return Pending > 0;
-
-					while (Left > 0 && Count > 0)
-					{
-						Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Events.begin(), Left);
-						Left -= Count;
-						Passes += Count;
-#ifndef NDEBUG
-						PostDebug(ThreadTask::ConsumeCoroutine, Count);
-#endif
-						for (size_t i = 0; i < Count; ++i)
-						{
-							TaskCallback& Data = Dispatcher.Events[i];
-							if (Data != nullptr)
-								Dispatcher.State->Pop(std::move(Data));
-						}
-					}
-#ifndef NDEBUG
-					PostDebug(ThreadTask::ProcessCoroutine, Dispatcher.State->GetCount());
-#endif
-					while (Dispatcher.State->Dispatch())
-						++Passes;
-#ifndef NDEBUG
-					PostDebug(ThreadTask::Awake, 0);
-#endif
-					return Passes > 0;
-				}
-				case Difficulty::Light:
-				case Difficulty::Heavy:
-				{
-					if (Suspended)
-						return Queue->Tasks.size_approx() > 0;
-
-					size_t Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Tasks, EVENTS_SIZE);
-#ifndef NDEBUG
-					PostDebug(ThreadTask::ProcessTask, Count);
-#endif
-					for (size_t i = 0; i < Count; ++i)
-					{
-						VI_MEASURE(Type == Difficulty::Light ? Timings::Frame : Timings::Intensive);
-						TaskCallback Data(std::move(Dispatcher.Tasks[i]));
-						if (Data != nullptr)
-							Data();
-					}
-#ifndef NDEBUG
-					PostDebug(ThreadTask::Awake, 0);
-#endif
-					return Count > 0;
-				}
-				default:
-					break;
-			}
-
-			return false;
-		}
-		bool Schedule::ProcessLoop(Difficulty Type, ThreadPtr* Thread)
+		bool Schedule::TriggerThread(Difficulty Type, ThreadPtr* Thread)
 		{
 			auto* Queue = Queues[(size_t)Type];
 			String ThreadId = OS::Process::GetThreadId(Thread->Id);
@@ -10479,7 +10499,7 @@ namespace Mavi
 
 			switch (Type)
 			{
-				case Difficulty::Clock:
+				case Difficulty::Timeout:
 				{
 					if (Thread->Daemon)
 						VI_DEBUG("[schedule] acquire thread %s (timers)", ThreadId.c_str());
@@ -10540,7 +10560,7 @@ namespace Mavi
 					} while (ThreadActive(Thread));
 					break;
 				}
-				case Difficulty::Coroutine:
+				case Difficulty::Async:
 				{
 					if (Thread->Daemon)
 						VI_DEBUG("[schedule] acquire thread %s (coroutines)", ThreadId.c_str());
@@ -10593,26 +10613,23 @@ namespace Mavi
 							if (Suspended)
 								return false;
 
-							if (!ThreadActive(Thread) || State->HasActive())
+							if (!ThreadActive(Thread) || State->HasResumableCoroutines())
 								return true;
 
-							if (State->GetCount() >= Policy.MaxCoroutines)
-								return false;
-
-							return Queue->Tasks.size_approx() > 0 || State->HasActive();
+							return Queue->Tasks.size_approx() > 0 && State->GetCount() + 1 < Policy.MaxCoroutines;
 						});
 					} while (ThreadActive(Thread));
 
 					VI_RELEASE(State);
 					break;
 				}
-				case Difficulty::Light:
-				case Difficulty::Heavy:
+				case Difficulty::Simple:
+				case Difficulty::Blocking:
 				{
 					if (Thread->Daemon)
-						VI_DEBUG("[schedule] acquire thread %s (%s)", ThreadId.c_str(), Thread->Type == Difficulty::Light ? "non-blocking" : "blocking");
+						VI_DEBUG("[schedule] acquire thread %s (%s)", ThreadId.c_str(), Thread->Type == Difficulty::Simple ? "non-blocking" : "blocking");
 					else
-						VI_DEBUG("[schedule] spawn thread %s (%s)", ThreadId.c_str(), Thread->Type == Difficulty::Light ? "non-blocking" : "blocking");
+						VI_DEBUG("[schedule] spawn thread %s (%s)", ThreadId.c_str(), Thread->Type == Difficulty::Simple ? "non-blocking" : "blocking");
 
 					ReceiveToken Token(Queue->Tasks);
 					TaskCallback Events[EVENTS_SIZE];
@@ -10633,7 +10650,7 @@ namespace Mavi
 #endif
 								for (size_t i = 0; i < Count; ++i)
 								{
-									VI_MEASURE(Thread->Type == Difficulty::Light ? Timings::Frame : Timings::Intensive);
+									VI_MEASURE(Thread->Type == Difficulty::Simple ? Timings::Frame : Timings::Intensive);
 									TaskCallback Data(std::move(Events[i]));
 									if (Data != nullptr)
 										Data();
@@ -10690,7 +10707,7 @@ namespace Mavi
 			ThreadPtr* Thread = VI_NEW(ThreadPtr, Type, Policy.PreallocatedSize, GlobalIndex, LocalIndex, IsDaemon);
 			if (!Thread->Daemon)
 			{
-				Thread->Handle = std::thread(&Schedule::ProcessLoop, this, Type, Thread);
+				Thread->Handle = std::thread(&Schedule::TriggerThread, this, Type, Thread);
 				Thread->Id = Thread->Handle.get_id();
 			}
 			else
@@ -10699,7 +10716,7 @@ namespace Mavi
 			PostDebug(ThreadTask::Spawn, 0);
 #endif
 			Threads[(size_t)Type].emplace_back(Thread);
-			return Thread->Daemon ? ProcessLoop(Type, Thread) : Thread->Handle.joinable();
+			return Thread->Daemon ? TriggerThread(Type, Thread) : Thread->Handle.joinable();
 		}
 		bool Schedule::PopThread(ThreadPtr* Thread)
 		{
@@ -10730,11 +10747,11 @@ namespace Mavi
 			auto* Queue = Queues[(size_t)Type];
 			switch (Type)
 			{
-				case Difficulty::Coroutine:
-				case Difficulty::Light:
-				case Difficulty::Heavy:
+				case Difficulty::Async:
+				case Difficulty::Simple:
+				case Difficulty::Blocking:
 					return Queue->Tasks.size_approx() > 0;
-				case Difficulty::Clock:
+				case Difficulty::Timeout:
 					return !Queue->Timers.empty();
 				default:
 					return false;
@@ -10742,7 +10759,7 @@ namespace Mavi
 		}
 		bool Schedule::HasAnyTasks() const
 		{
-			return HasTasks(Difficulty::Light) || HasTasks(Difficulty::Heavy) || HasTasks(Difficulty::Coroutine) || HasTasks(Difficulty::Clock);
+			return HasTasks(Difficulty::Simple) || HasTasks(Difficulty::Blocking) || HasTasks(Difficulty::Async) || HasTasks(Difficulty::Timeout);
 		}
 		bool Schedule::IsSuspended() const
 		{
@@ -10805,7 +10822,7 @@ namespace Mavi
 		}
 		std::chrono::microseconds Schedule::GetTimeout(std::chrono::microseconds Clock)
 		{
-			auto* Queue = Queues[(size_t)Difficulty::Clock];
+			auto* Queue = Queues[(size_t)Difficulty::Timeout];
 			while (Queue->Timers.find(Clock) != Queue->Timers.end())
 				++Clock;
 			return Clock;

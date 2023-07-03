@@ -10311,10 +10311,10 @@ namespace Mavi
 				VM->GetEngine()->RegisterTypedef("task_id", "uint64");
 
 				auto VDifficulty = VM->SetEnum("difficulty");
-				VDifficulty->SetValue("coroutine", (int)Core::Difficulty::Coroutine);
-				VDifficulty->SetValue("light", (int)Core::Difficulty::Light);
-				VDifficulty->SetValue("heavy", (int)Core::Difficulty::Heavy);
-				VDifficulty->SetValue("clock", (int)Core::Difficulty::Clock);
+				VDifficulty->SetValue("async", (int)Core::Difficulty::Async);
+				VDifficulty->SetValue("simple", (int)Core::Difficulty::Simple);
+				VDifficulty->SetValue("blocking", (int)Core::Difficulty::Blocking);
+				VDifficulty->SetValue("timeout", (int)Core::Difficulty::Timeout);
 
 				auto VDesc = VM->SetStructTrivial<Core::Schedule::Desc>("schedule_policy");
 				VDesc->SetProperty("usize preallocated_size", &Core::Schedule::Desc::PreallocatedSize);
@@ -10322,14 +10322,15 @@ namespace Mavi
 				VDesc->SetProperty("usize max_coroutines", &Core::Schedule::Desc::MaxCoroutines);
 				VDesc->SetProperty("bool parallel", &Core::Schedule::Desc::Parallel);
 				VDesc->SetConstructor<Core::Schedule::Desc>("void f()");
-				VDesc->SetMethod("void set_threads(usize)", &Core::Schedule::Desc::SetThreads);
+				VDesc->SetConstructor<Core::Schedule::Desc, size_t>("void f(usize = 0)");
 
 				auto VSchedule = VM->SetClass<Core::Schedule>("schedule", false);
 				VSchedule->SetFunctionDef("void task_event()");
-				VSchedule->SetMethodEx("task_id set_interval(uint64, task_event@, difficulty = difficulty::light)", &ScheduleSetInterval);
-				VSchedule->SetMethodEx("task_id set_timeout(uint64, task_event@, difficulty = difficulty::light)", &ScheduleSetTimeout);
-				VSchedule->SetMethodEx("bool set_immediate(task_event@, difficulty = difficulty::heavy)", &ScheduleSetImmediate);
+				VSchedule->SetMethodEx("task_id set_interval(uint64, task_event@, difficulty = difficulty::simple)", &ScheduleSetInterval);
+				VSchedule->SetMethodEx("task_id set_timeout(uint64, task_event@, difficulty = difficulty::simple)", &ScheduleSetTimeout);
+				VSchedule->SetMethodEx("bool set_immediate(task_event@, difficulty = difficulty::blocking)", &ScheduleSetImmediate);
 				VSchedule->SetMethod("bool clear_timeout(task_id)", &Core::Schedule::ClearTimeout);
+				VSchedule->SetMethod("bool trigger(difficulty)", &Core::Schedule::Trigger);
 				VSchedule->SetMethod("bool dispatch()", &Core::Schedule::Dispatch);
 				VSchedule->SetMethod("bool start(const schedule_policy &in)", &Core::Schedule::Start);
 				VSchedule->SetMethod("bool stop()", &Core::Schedule::Stop);

@@ -1650,7 +1650,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			auto* Queue = Core::Schedule::Get();
-			if (Queue->GetThreads(Core::Difficulty::Heavy) > 0)
+			if (Queue->GetThreads(Core::Difficulty::Blocking) > 0)
 			{
 				Core::Promise<void> Future;
 				if (Queue->SetTask([Future, Callback]() mutable
@@ -1690,7 +1690,7 @@ namespace Mavi
 		}
 		size_t Parallel::GetThreads()
 		{
-			return Core::Schedule::Get()->GetThreads(Core::Difficulty::Heavy);
+			return Core::Schedule::Get()->GetThreads(Core::Difficulty::Blocking);
 		}
 
 		void PoseBuffer::Fill(SkinModel* Model)
@@ -6406,17 +6406,6 @@ namespace Mavi
 			}
 
 			State = ApplicationState::Active;
-			if (!Control.Threads)
-			{
-				auto Quantity = Core::OS::CPU::GetQuantityInfo();
-				Control.Threads = std::max<uint32_t>(2, Quantity.Logical) - 1;
-			}
-		
-			Core::Schedule::Desc& Policy = Control.Scheduler;
-			Policy.Ping = Control.Daemon ? std::bind(&Application::Status, this) : (Core::ActivityCallback)nullptr;
-			Policy.SetThreads(Control.Threads);
-			Queue->Start(Policy);
-
 			if (Activity != nullptr)
 			{
 				Activity->Show();
@@ -6424,73 +6413,84 @@ namespace Mavi
 					Activity->Maximize();
 			}
 
-			VI_MEASURE(Core::Timings::Infinite);
-			if (Activity != nullptr && Policy.Parallel)
-			{
-				Time->Reset();
-				while (State == ApplicationState::Active)
-				{
-					bool Focused = Activity->Dispatch();
-					Time->Begin();
-					Dispatch(Time);
+			Core::Schedule::Desc& Policy = Control.Scheduler;
+			Policy.Ping = Control.Daemon ? std::bind(&Application::Status, this) : (Core::ActivityCallback)nullptr;
 
-					Time->Finish();
-					if (Focused)
-						Publish(Time);
+			if (Control.Threads > 0)
+			{
+				Core::Schedule::Desc Launch = Core::Schedule::Desc(Control.Threads);
+				memcpy(Policy.Threads, Launch.Threads, sizeof(Policy.Threads));
+			}
+
+			Queue->Start(Policy);
+			Time->Reset();
+			{
+				VI_MEASURE(Core::Timings::Infinite);
+				if (Policy.Parallel)
+				{
+					if (Activity != nullptr)
+					{
+						while (State == ApplicationState::Active)
+						{
+							bool RenderFrame = Activity->Dispatch();
+							Time->Begin();
+							Dispatch(Time);
+
+							Time->Finish();
+							if (RenderFrame)
+								Publish(Time);
+						}
+					}
+					else
+					{
+						while (State == ApplicationState::Active)
+						{
+							Time->Begin();
+							Dispatch(Time);
+
+							Time->Finish();
+							Publish(Time);
+						}
+					}
+
+					while (Content && Content->IsBusy())
+						std::this_thread::sleep_for(std::chrono::milliseconds(50));
+				}
+				else
+				{
+					if (Activity != nullptr)
+					{
+						while (State == ApplicationState::Active)
+						{
+							bool RenderFrame = Activity->Dispatch();
+							Queue->Dispatch();
+
+							Time->Begin();
+							Dispatch(Time);
+
+							Time->Finish();
+							if (RenderFrame)
+								Publish(Time);
+						}
+					}
+					else
+					{
+						while (State == ApplicationState::Active)
+						{
+							Queue->Dispatch();
+
+							Time->Begin();
+							Dispatch(Time);
+
+							Time->Finish();
+							Publish(Time);
+						}
+					}
 				}
 			}
-			else if (Activity != nullptr && !Policy.Parallel)
-			{
-				Time->Reset();
-				while (State == ApplicationState::Active)
-				{
-					bool Focused = Activity->Dispatch();
-					Queue->Dispatch();
-
-					Time->Begin();
-					Dispatch(Time);
-
-					Time->Finish();
-					if (Focused)
-						Publish(Time);
-				}
-			}
-			else if (!Activity && Policy.Parallel)
-			{
-				Time->Reset();
-				while (State == ApplicationState::Active)
-				{
-					Time->Begin();
-					Dispatch(Time);
-
-					Time->Finish();
-					Publish(Time);
-				}
-			}
-			else if (!Activity && !Policy.Parallel)
-			{
-				Time->Reset();
-				while (State == ApplicationState::Active)
-				{
-					Queue->Dispatch();
-
-					Time->Begin();
-					Dispatch(Time);
-
-					Time->Finish();
-					Publish(Time);
-				}
-			}
-
-			if (Policy.Parallel && Content != nullptr)
-			{
-				while (Content->IsBusy())
-					std::this_thread::sleep_for(std::chrono::milliseconds(50));
-			}
-
-			VI_RELEASE(Time);
 			CloseEvent();
 			Queue->Stop();
+			Time->Release();
 
 			ExitCode = (State == ApplicationState::Restart ? EXIT_RESTART : ExitCode);
 			State = ApplicationState::Terminated;

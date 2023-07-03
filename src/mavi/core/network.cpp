@@ -1032,7 +1032,7 @@ namespace Mavi
 
 					if (WhenReadable)
 						WhenReadable(SocketPoll::Finish);
-				}, Core::Difficulty::Light);
+				}, Core::Difficulty::Simple);
 			}
 			else if (Fd.Readable)
 			{
@@ -1040,7 +1040,7 @@ namespace Mavi
 				{
 					if (WhenReadable)
 						WhenReadable(SocketPoll::Finish);
-				}, Core::Difficulty::Light);
+				}, Core::Difficulty::Simple);
 			}
 			else if (Fd.Writeable)
 			{
@@ -1048,7 +1048,7 @@ namespace Mavi
 				{
 					if (WhenWriteable)
 						WhenWriteable(SocketPoll::Finish);
-				}, Core::Difficulty::Light);
+				}, Core::Difficulty::Simple);
 			}
 
 			return Exists;
@@ -1085,7 +1085,7 @@ namespace Mavi
 
 					if (WhenReadable)
 						WhenReadable(Event);
-				}, Core::Difficulty::Light);
+				}, Core::Difficulty::Simple);
 			}
 
 			return Success;
@@ -1188,7 +1188,7 @@ namespace Mavi
 
 					if (WhenReadable)
 						WhenReadable(SocketPoll::Cancel);
-				}, Core::Difficulty::Light);
+				}, Core::Difficulty::Simple);
 			}
 
 			return Success;
@@ -2481,7 +2481,7 @@ namespace Mavi
 					Core::Schedule::Get()->SetTask([this, Source, Fd, IpAddress = std::move(IpAddress)]() mutable
 					{
 						Accept(Source, Fd, IpAddress);
-					}, Core::Difficulty::Light);
+					}, Core::Difficulty::Simple);
 					return State == ServerState::Working;
 				});
 			}

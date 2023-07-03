@@ -159,10 +159,10 @@ namespace Mavi
 
 		enum class Difficulty
 		{
-			Coroutine,
-			Light,
-			Heavy,
-			Clock,
+			Async,
+			Simple,
+			Blocking,
+			Timeout,
 			Count
 		};
 
@@ -2084,6 +2084,7 @@ namespace Mavi
 			static TextSettle FindOf(const String& Other, const char* Needle, size_t Offset = 0U);
 			static TextSettle FindNotOf(const String& Other, const String& Needle, size_t Offset = 0U);
 			static TextSettle FindNotOf(const String& Other, const char* Needle, size_t Offset = 0U);
+			static bool IsEmptyOrWhitespace(const String& Other);
 			static bool IsPrecededBy(const String& Other, size_t At, const char* Of);
 			static bool IsFollowedBy(const String& Other, size_t At, const char* Of);
 			static bool StartsWith(const String& Other, const String& Value, size_t Offset = 0U);
@@ -3057,7 +3058,8 @@ namespace Mavi
 			void Clear();
 			bool Dispatch();
 			bool Suspend();
-			bool HasActive() const;
+			bool HasResumableCoroutines() const;
+			bool HasAliveCoroutines() const;
 			Coroutine* GetCurrent() const;
 			size_t GetCount() const;
 
@@ -3209,16 +3211,16 @@ namespace Mavi
 
 			struct VI_OUT Desc
 			{
-				std::chrono::milliseconds Timeout = std::chrono::milliseconds(2000);
-				size_t Threads[(size_t)Difficulty::Count] = { 1, 1, 1, 1 };
-				size_t PreallocatedSize = 0;
-				size_t StackSize = STACK_SIZE;
-				size_t MaxCoroutines = 16;
-				ActivityCallback Ping = nullptr;
-				bool Parallel = true;
+				size_t Threads[(size_t)Difficulty::Count];
+				size_t PreallocatedSize;
+				size_t StackSize;
+				size_t MaxCoroutines;
+				std::chrono::milliseconds Timeout;
+				ActivityCallback Ping;
+				bool Parallel;
 
 				Desc();
-				void SetThreads(size_t Cores);
+				Desc(size_t Cores);
 			};
 
 			typedef std::function<void(const ThreadMessage&)> ThreadDebugCallback;
@@ -3247,17 +3249,18 @@ namespace Mavi
 		public:
 			Schedule() noexcept;
 			virtual ~Schedule() noexcept override;
-			TaskId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
-			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
-			TaskId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
-			TaskId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
-			bool SetTask(const TaskCallback& Callback, Difficulty Type = Difficulty::Heavy);
-			bool SetTask(TaskCallback&& Callback, Difficulty Type = Difficulty::Heavy);
+			TaskId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Simple);
+			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Simple);
+			TaskId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Simple);
+			TaskId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Simple);
+			bool SetTask(const TaskCallback& Callback, Difficulty Type = Difficulty::Blocking);
+			bool SetTask(TaskCallback&& Callback, Difficulty Type = Difficulty::Blocking);
 			bool SetCoroutine(const TaskCallback& Callback);
 			bool SetCoroutine(TaskCallback&& Callback);
 			bool SetDebugCallback(const ThreadDebugCallback& Callback);
 			bool SetImmediate(bool Enabled);
 			bool ClearTimeout(TaskId WorkId);
+			bool Trigger(Difficulty Type);
 			bool Start(const Desc& NewPolicy);
 			bool Stop();
 			bool Wakeup();
@@ -3279,8 +3282,7 @@ namespace Mavi
 		private:
 			const ThreadPtr* InitializeThread(ThreadPtr* Source, bool Update) const;
 			bool PostDebug(ThreadTask State, size_t Tasks);
-			bool ProcessTick(Difficulty Type);
-			bool ProcessLoop(Difficulty Type, ThreadPtr* Thread);
+			bool TriggerThread(Difficulty Type, ThreadPtr* Thread);
 			bool ThreadActive(ThreadPtr* Thread);
 			bool ChunkCleanup();
 			bool PushThread(Difficulty Type, size_t GlobalIndex, size_t LocalIndex, bool IsDaemon);
@@ -3561,7 +3563,7 @@ namespace Mavi
 			inline void operator()(TaskCallback&& Callback, bool Async)
 			{
 				if (Async && Schedule::IsAvailable())
-					Schedule::Get()->SetTask(std::move(Callback), Difficulty::Light);
+					Schedule::Get()->SetTask(std::move(Callback), Difficulty::Simple);
 				else
 					Callback();
 			}
@@ -4444,7 +4446,7 @@ namespace Mavi
 		using ExpectsPromiseIO = BasicPromise<ExpectsIO<T>, Executor>;
 
 		template <typename T>
-		inline Promise<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Heavy) noexcept
+		inline Promise<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Blocking) noexcept
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
 
@@ -4479,7 +4481,7 @@ namespace Mavi
 				return (*Callable)().template Then<T>(Finalize);
 
 			Promise<T> Value;
-			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, Difficulty::Light);
+			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, Difficulty::Simple);
 			return Value.template Then<T>(Finalize);
 		}
 		template <>
@@ -4492,7 +4494,7 @@ namespace Mavi
 				return (*Callable)().Then(Finalize);
 
 			Promise<void> Value;
-			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, Difficulty::Light);
+			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, Difficulty::Simple);
 			return Value.Then(Finalize);
 		}
 #else

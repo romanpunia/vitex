@@ -263,7 +263,7 @@ namespace Mavi
 			}
 			void WebSocketFrame::Next()
 			{
-				Core::Schedule::Get()->SetTask(std::bind(&WebSocketFrame::Update, this), Core::Difficulty::Light);
+				Core::Schedule::Get()->SetTask(std::bind(&WebSocketFrame::Update, this), Core::Difficulty::Simple);
 			}
 			void WebSocketFrame::Update()
 			{
@@ -4552,24 +4552,14 @@ namespace Mavi
 				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
 				{
 					if (Permissions::WebSocketUpgradeAllowed(Base))
-					{
-						return Core::Schedule::Get()->SetTask([Base]()
-						{
-							RouteWEBSOCKET(Base);
-						}, Core::Difficulty::Light);
-					}
+						return Core::Schedule::Get()->SetTask([Base]() { RouteWEBSOCKET(Base); }, Core::Difficulty::Simple);
 
 					if (!Resources::ResourceHasAlternative(Base))
 						return Base->Error(404, "Requested resource was not found.");
 				}
 
 				if (Permissions::WebSocketUpgradeAllowed(Base))
-				{
-					return Core::Schedule::Get()->SetTask([Base]()
-					{
-						RouteWEBSOCKET(Base);
-					}, Core::Difficulty::Light);
-				}
+					return Core::Schedule::Get()->SetTask([Base]() { RouteWEBSOCKET(Base); }, Core::Difficulty::Simple);
 
 				if (Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(404, "Requested resource was not found.");
@@ -4577,28 +4567,15 @@ namespace Mavi
 				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
 				{
 					if (Base->Route->AllowDirectoryListing)
-					{
-						return Core::Schedule::Get()->SetTask([Base]()
-						{
-							Logical::ProcessDirectory(Base);
-						}, Core::Difficulty::Heavy);
-					}
+						return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessDirectory(Base); });
 
 					return Base->Error(403, "Directory listing denied.");
 				}
 
 				if (Base->Route->StaticFileMaxAge > 0 && !Resources::ResourceModified(Base, &Base->Resource))
-				{
-					return Core::Schedule::Get()->SetTask([Base]()
-					{
-						Logical::ProcessResourceCache(Base);
-					}, Core::Difficulty::Light);
-				}
+					return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResourceCache(Base); }, Core::Difficulty::Simple);
 
-				return Core::Schedule::Get()->SetTask([Base]()
-				{
-					Logical::ProcessResource(Base);
-				}, Core::Difficulty::Light);
+				return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResource(Base); }, Core::Difficulty::Simple);
 			}
 			bool Routing::RoutePOST(Connection* Base)
 			{
@@ -4616,17 +4593,9 @@ namespace Mavi
 					return Base->Error(404, "Requested resource was not found.");
 
 				if (Base->Route->StaticFileMaxAge > 0 && !Resources::ResourceModified(Base, &Base->Resource))
-				{
-					return Core::Schedule::Get()->SetTask([Base]()
-					{
-						Logical::ProcessResourceCache(Base);
-					}, Core::Difficulty::Light);
-				}
+					return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResourceCache(Base); }, Core::Difficulty::Simple);
 
-				return Core::Schedule::Get()->SetTask([Base]()
-				{
-					Logical::ProcessResource(Base);
-				}, Core::Difficulty::Light);
+				return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResource(Base); }, Core::Difficulty::Simple);
 			}
 			bool Routing::RoutePUT(Connection* Base)
 			{
@@ -5022,12 +4991,7 @@ namespace Mavi
 				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base, ContentLength, Range1](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
-					{
-						Core::Schedule::Get()->SetTask([Base, ContentLength, Range1]()
-						{
-							Logical::ProcessFile(Base, (size_t)ContentLength, (size_t)Range1);
-						}, Core::Difficulty::Heavy);
-					}
+						Core::Schedule::Get()->SetTask([Base, ContentLength, Range1]() { Logical::ProcessFile(Base, (size_t)ContentLength, (size_t)Range1); });
 					else if (Packet::IsError(Event))
 						Base->Break();
 				});
@@ -5092,12 +5056,7 @@ namespace Mavi
 				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base, Range, ContentLength, Gzip](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
-					{
-						Core::Schedule::Get()->SetTask([Base, Range, ContentLength, Gzip]()
-						{
-							Logical::ProcessFileCompress(Base, (size_t)ContentLength, (size_t)Range, Gzip);
-						}, Core::Difficulty::Heavy);
-					}
+						Core::Schedule::Get()->SetTask([Base, Range, ContentLength, Gzip]() { Logical::ProcessFileCompress(Base, (size_t)ContentLength, (size_t)Range, Gzip); });
 					else if (Packet::IsError(Event))
 						Base->Break();
 				});
@@ -5231,9 +5190,9 @@ namespace Mavi
 					if (Packet::IsDoneAsync(Event))
 					{
                         Core::Schedule::Get()->SetTask([Base, Router, Stream, ContentLength]()
-                        {
-                            ProcessFileChunk(Base, Router, Stream, ContentLength);
-                        }, Core::Difficulty::Heavy);
+						{
+							ProcessFileChunk(Base, Router, Stream, ContentLength);
+						});
 					}
 					else if (Packet::IsError(Event))
 					{
@@ -5394,7 +5353,7 @@ namespace Mavi
                             Core::Schedule::Get()->SetTask([Base, Router, Stream, ZStream, ContentLength]()
                             {
                                 ProcessFileCompressChunk(Base, Router, Stream, ZStream, ContentLength);
-                            }, Core::Difficulty::Heavy);
+                            });
 						}
 						else
 						{

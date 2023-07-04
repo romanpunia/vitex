@@ -265,6 +265,9 @@ namespace Mavi
 				Column(TResponse* NewBase, size_t fRowIndex, size_t fColumnIndex);
 
 			public:
+				int Set(const Core::Variant& Value);
+				int SetInline(Core::Schema* Value);
+				int SetValueText(const Core::String& Value);
 				int SetValueText(char* Data, size_t Size);
 				Core::String GetName() const;
 				Core::Variant Get() const;

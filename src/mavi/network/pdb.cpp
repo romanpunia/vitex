@@ -550,10 +550,46 @@ namespace Mavi
 			Column::Column(TResponse* NewBase, size_t fRowIndex, size_t fColumnIndex) : Base(NewBase), RowIndex(fRowIndex), ColumnIndex(fColumnIndex)
 			{
 			}
+			int Column::Set(const Core::Variant& Value)
+			{
+				switch (Value.GetType())
+				{
+					case Core::VarType::Null:
+					case Core::VarType::Undefined:
+					case Core::VarType::Object:
+					case Core::VarType::Array:
+					case Core::VarType::Pointer:
+						return SetValueText(nullptr, 0);
+					case Core::VarType::String:
+					case Core::VarType::Binary:
+						return SetValueText(Value.GetBlob());
+					case Core::VarType::Integer:
+					case Core::VarType::Number:
+					case Core::VarType::Decimal:
+						return SetValueText(Value.GetBlob());
+					case Core::VarType::Boolean:
+						return SetValueText(Value.GetBoolean() ? "TRUE" : "FALSE");
+					default:
+						return -1;
+				}
+			}
+			int Column::SetInline(Core::Schema* Value)
+			{
+				if (!Value)
+					return SetValueText(nullptr, 0);
+
+				if (!Value->Value.IsObject())
+					return Set(Value->Value);
+
+				return SetValueText(Core::Schema::ToJSON(Value));
+			}
+			int Column::SetValueText(const Core::String& Value)
+			{
+				return SetValueText((char*)Value.c_str(), Value.size());
+			}
 			int Column::SetValueText(char* Data, size_t Size)
 			{
 #ifdef VI_POSTGRESQL
-				VI_ASSERT(Data != nullptr, "data should be set");
 				VI_ASSERT(Base != nullptr, "context should be valid");
 				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), "row should be valid");
 				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), "column should be valid");

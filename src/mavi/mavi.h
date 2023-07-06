@@ -8,21 +8,20 @@ namespace Mavi
 	{
 		MAJOR_VERSION = 1,
 		MINOR_VERSION = 26,
-		PATCH_VERSION = 46,
-		BUILD_VERSION = 111,
+		PATCH_VERSION = 47,
+		BUILD_VERSION = 112,
 		VERSION = (MAJOR_VERSION) * 100000000 + (MINOR_VERSION) * 1000000 + (PATCH_VERSION) * 10000 + BUILD_VERSION
 	};
 
 	enum class Init
 	{
-		Core = 1,
-		Network = 2,
-		SSL = 4,
-		SDL2 = 8,
-		Compute = 16,
-		Locale = 32,
-		Audio = 64,
-		GLEW = 128
+		Network = 1,
+		SSL = 2,
+		SDL2 = 4,
+		Providers = 8,
+		Locale = 16,
+		Audio = 32,
+		GLEW = 64
 	};
 
 	constexpr inline Init operator |(Init A, Init B)
@@ -32,7 +31,7 @@ namespace Mavi
 
 	enum class Preset : size_t
 	{
-		App = (size_t)(Init::Core | Init::Network | Init::SSL | Init::Compute | Init::Locale),
+		App = (size_t)(Init::Network | Init::SSL | Init::Providers | Init::Locale),
 		Game = (size_t)App | (size_t)(Init::SDL2 | Init::Audio | Init::GLEW)
 	};
 

@@ -83,35 +83,37 @@ namespace Mavi
 			SSL_load_error_strings();
 #if OPENSSL_VERSION_MAJOR >= 3
 			Crypto = VI_NEW(CryptoData);
-			Crypto->DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
-			Crypto->LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
-
-			if (!Crypto->LegacyProvider || !Crypto->DefaultProvider)
+			if (Modes & (uint64_t)Init::Providers)
 			{
-				auto Path = Core::OS::Directory::GetModule();
-				bool IsModuleDirectory = true;
-			Retry:
-				if (Path)
-					OSSL_PROVIDER_set_default_search_path(nullptr, Path->c_str());
-
-				if (!Crypto->DefaultProvider)
-					Crypto->DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
-
-				if (!Crypto->LegacyProvider)
-					Crypto->LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
-
+				Crypto->DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
+				Crypto->LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
 				if (!Crypto->LegacyProvider || !Crypto->DefaultProvider)
 				{
-					if (IsModuleDirectory)
+					auto Path = Core::OS::Directory::GetModule();
+					bool IsModuleDirectory = true;
+				Retry:
+					if (Path)
+						OSSL_PROVIDER_set_default_search_path(nullptr, Path->c_str());
+
+					if (!Crypto->DefaultProvider)
+						Crypto->DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
+
+					if (!Crypto->LegacyProvider)
+						Crypto->LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
+
+					if (!Crypto->LegacyProvider || !Crypto->DefaultProvider)
 					{
-						Path = Core::OS::Directory::GetWorking();
-						IsModuleDirectory = false;
-						goto Retry;
+						if (IsModuleDirectory)
+						{
+							Path = Core::OS::Directory::GetWorking();
+							IsModuleDirectory = false;
+							goto Retry;
+						}
+						Compute::Crypto::DisplayCryptoLog();
 					}
-					Compute::Crypto::DisplayCryptoLog();
+					else
+						ERR_clear_error();
 				}
-				else
-					ERR_clear_error();
 			}
 #else
 			FIPS_mode_set(1);

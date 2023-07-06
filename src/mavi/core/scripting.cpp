@@ -361,7 +361,7 @@ namespace Mavi
 					++Offset;
 					while (Offset < Code.size())
 					{
-						if (Code[Offset++] == U)
+						if (Code[Offset++] == U && Core::Stringify::IsNotPrecededByEscape(Code, Offset - 1))
 							break;
 					}
 

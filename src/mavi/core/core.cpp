@@ -5333,6 +5333,18 @@ namespace Mavi
 
 			return { Other.size(), Other.size(), false };
 		}
+		bool Stringify::IsNotPrecededByEscape(const char* Buffer, size_t Offset, char Escape)
+		{
+			VI_ASSERT(Buffer != nullptr, "buffer should be set");
+			if (Offset < 1 || Buffer[Offset - 1] != Escape)
+				return true;
+
+			return Offset > 1 && Buffer[Offset - 2] == Escape;
+		}
+		bool Stringify::IsNotPrecededByEscape(const String& Other, size_t Offset, char Escape)
+		{
+			return IsNotPrecededByEscape(Other.c_str(), Offset, Escape);
+		}
 		bool Stringify::IsEmptyOrWhitespace(const String& Other)
 		{
 			if (Other.empty())

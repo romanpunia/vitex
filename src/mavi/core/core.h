@@ -2084,6 +2084,8 @@ namespace Mavi
 			static TextSettle FindOf(const String& Other, const char* Needle, size_t Offset = 0U);
 			static TextSettle FindNotOf(const String& Other, const String& Needle, size_t Offset = 0U);
 			static TextSettle FindNotOf(const String& Other, const char* Needle, size_t Offset = 0U);
+			static bool IsNotPrecededByEscape(const char* Buffer, size_t Offset, char Escape = '\\');
+			static bool IsNotPrecededByEscape(const String& Other, size_t Offset, char Escape = '\\');
 			static bool IsEmptyOrWhitespace(const String& Other);
 			static bool IsPrecededBy(const String& Other, size_t At, const char* Of);
 			static bool IsFollowedBy(const String& Other, size_t At, const char* Of);

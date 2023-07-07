@@ -65,7 +65,7 @@ namespace Mavi
 			typedef std::function<bool(class WebSocketFrame*, WebSocketOp, const char*, size_t)> WebSocketReadCallback;
 			typedef std::function<void(class WebSocketFrame*, bool)> WebSocketStatusCallback;
 			typedef std::function<bool(class WebSocketFrame*)> WebSocketCheckCallback;
-			typedef std::function<bool(class Parser*, size_t)> ParserCodeCallback;
+			typedef std::function<bool(class Parser*, int)> ParserCodeCallback;
 			typedef std::function<bool(class Parser*, const char*, size_t)> ParserDataCallback;
 			typedef std::function<bool(class Parser*)> ParserNotifyCallback;
 

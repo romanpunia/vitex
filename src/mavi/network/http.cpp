@@ -360,7 +360,7 @@ namespace Mavi
 						if (Receive)
 						{
 							Unique.Negate();
-							if (!Receive(this, Opcode, Codec->Data.data(), (int64_t)Codec->Data.size()))
+							if (!Receive(this, Opcode, Codec->Data.data(), Codec->Data.size()))
 								Next();
 						}
 					}
@@ -1190,7 +1190,7 @@ namespace Mavi
 			{
 				Limited = (ContentLength != nullptr);
 				if (Limited)
-					Length = (int64_t)strtoll(ContentLength, nullptr, 10);
+					Length = strtoull(ContentLength, nullptr, 10);
 			}
 			void ContentFrame::Finalize()
 			{
@@ -1603,7 +1603,9 @@ namespace Mavi
 
 					const char* StatusText = Utils::StatusMessage(Response.StatusCode);
 					Core::String Content;
-					Core::Stringify::Append(Content, "%s %d %s\r\n", Request.Version, Response.StatusCode, StatusText);
+					Content.append(Request.Version).append(" ");
+					Content.append(Core::ToString(Response.StatusCode)).append(" ");
+					Content.append(StatusText).append("\r\n");
 
 					Paths::ConstructHeadUncache(this, Content);
 					if (Route && Route->Callbacks.Headers)
@@ -1626,41 +1628,51 @@ namespace Mavi
 						if (Route && Route->Callbacks.Headers)
 							Route->Callbacks.Headers(this, Content);
 
-						Core::Stringify::Append(Content, "Date: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\nContent-Length: %" PRIu64 "\r\n%s\r\n%s", Date, Utils::ConnectionResolve(this).c_str(), Route ? Route->CharSet.c_str() : "utf-8", (uint64_t)strlen(Buffer), Auth.c_str(), Buffer);
+						size_t BufferSize = strlen(Buffer);
+						Content.append("Date: ").append(Date).append("\r\n");
+						Content.append(Utils::ConnectionResolve(this));
+						Content.append("Content-Type: text/html; charset=").append(Route ? Route->CharSet.c_str() : "utf-8").append("\r\n");
+						Content.append("Accept-Ranges: bytes\r\nContent-Length: ").append(Core::ToString(BufferSize)).append("\r\n");
+						Content.append(Auth).append("\r\n").append(Buffer, BufferSize);
 					}
 					else
 					{
 						if (Route && Route->Callbacks.Headers)
 							Route->Callbacks.Headers(this, Content);
 
-						Core::Stringify::Append(Content, "Date: %s\r\nAccept-Ranges: bytes\r\n%s%s\r\n", Date, Utils::ConnectionResolve(this).c_str(), Auth.c_str());
+						Content.append("Date: ").append(Date).append("\r\n");
+						Content.append(Utils::ConnectionResolve(this));
+						Content.append("Accept-Ranges: bytes\r\n");
+						Content.append(Auth).append("\r\n");
 					}
 
-					return !!Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [this](SocketPoll Event)
+					return !!Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 							Root->Continue(this);
 					});
 				}
 
-				Core::String Chunked;
-				Core::String Boundary;
-				const char* ContentType;
-				Core::Stringify::Append(Chunked, "%s %d %s\r\n", Request.Version, Response.StatusCode, Utils::StatusMessage(Response.StatusCode));
+				Core::String Content;
+				Content.append(Request.Version).append(" ");
+				Content.append(Core::ToString(Response.StatusCode)).append(" ");
+				Content.append(Utils::StatusMessage(Response.StatusCode)).append("\r\n");
 
 				if (!Response.GetHeader("Date"))
 				{
 					char Buffer[64];
 					Core::DateTime::FetchWebDateGMT(Buffer, sizeof(Buffer), Info.Start / 1000);
-					Core::Stringify::Append(Chunked, "Date: %s\r\n", Buffer);
+					Content.append("Date: ").append(Buffer).append("\r\n");
 				}
 
 				if (!Response.GetHeader("Connection"))
-					Chunked.append(Utils::ConnectionResolve(this));
+					Content.append(Utils::ConnectionResolve(this));
 
+				const char* ContentType;
 				if (!Response.GetHeader("Accept-Ranges"))
-					Chunked.append("Accept-Ranges: bytes\r\n", 22);
+					Content.append("Accept-Ranges: bytes\r\n", 22);
 
+				Core::String Boundary;
 				if (!Response.GetHeader("Content-Type"))
 				{
 					if (Route != nullptr)
@@ -1671,10 +1683,10 @@ namespace Mavi
 					if (Request.GetHeader("Range") != nullptr)
 					{
 						Boundary = Parsing::ParseMultipartDataBoundary();
-						Core::Stringify::Append(Chunked, "Content-Type: multipart/byteranges; boundary=%s; charset=%s\r\n", ContentType, Boundary.c_str(), Route ? Route->CharSet.c_str() : "utf-8");
+						Content.append("Content-Type: multipart/byteranges; boundary=").append(Boundary).append("; charset=").append(Route ? Route->CharSet.c_str() : "utf-8").append("\r\n");
 					}
 					else
-						Core::Stringify::Append(Chunked, "Content-Type: %s; charset=%s\r\n", ContentType, Route ? Route->CharSet.c_str() : "utf-8");
+						Content.append("Content-Type: ").append(ContentType).append("; charset=").append(Route ? Route->CharSet.c_str() : "utf-8").append("\r\n");
 				}
 				else
 					ContentType = Response.GetHeader("Content-Type");
@@ -1715,9 +1727,9 @@ namespace Mavi
 									if (!Response.GetHeader("Content-Encoding"))
 									{
 										if (Gzip)
-											Chunked.append("Content-Encoding: gzip\r\n", 24);
+											Content.append("Content-Encoding: gzip\r\n", 24);
 										else
-											Chunked.append("Content-Encoding: deflate\r\n", 27);
+											Content.append("Content-Encoding: deflate\r\n", 27);
 									}
 								}
 							}
@@ -1763,30 +1775,30 @@ namespace Mavi
 						{
 							std::pair<size_t, size_t> Offset = Request.GetRange(Ranges.begin(), Response.Content.Data.size());
 							if (!Response.GetHeader("Content-Range"))
-								Core::Stringify::Append(Chunked, "Content-Range: %s\r\n", Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size()).c_str());
+								Content.append("Content-Range: ").append(Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size())).append("\r\n");
 
 							Response.Content.Assign(TextSubstring(Response.Content.Data, Offset.first, Offset.second));
 						}
 					}
 
 					if (!Response.GetHeader("Content-Length"))
-						Core::Stringify::Append(Chunked, "Content-Length: %" PRIu64 "\r\n", (uint64_t)Response.Content.Data.size());
+						Content.append("Content-Length: ").append(Core::ToString(Response.Content.Data.size())).append("\r\n");
 				}
 				else if (!Response.GetHeader("Content-Length"))
-					Chunked.append("Content-Length: 0\r\n", 19);
+					Content.append("Content-Length: 0\r\n", 19);
 
-				Paths::ConstructHeadFull(&Request, &Response, false, Chunked);
+				Paths::ConstructHeadFull(&Request, &Response, false, Content);
 				if (Route && Route->Callbacks.Headers)
-					Route->Callbacks.Headers(this, Chunked);
+					Route->Callbacks.Headers(this, Content);
 
-				Chunked.append("\r\n", 2);
-				return !!Stream->WriteAsync(Chunked.c_str(), (int64_t)Chunked.size(), [this](SocketPoll Event)
+				Content.append("\r\n", 2);
+				return !!Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
 						if (memcmp(Request.Method, "HEAD", 4) != 0 && !Response.Content.Data.empty())
 						{
-							Stream->WriteAsync(Response.Content.Data.data(), (int64_t)Response.Content.Data.size(), [this](SocketPoll Event)
+							Stream->WriteAsync(Response.Content.Data.data(), Response.Content.Data.size(), [this](SocketPoll Event)
 							{
 								if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 									Root->Continue(this);
@@ -3250,7 +3262,7 @@ namespace Mavi
 
 				*(&Result) = (*Buffer++ - '0');
 				Status += Result;
-				if (OnStatusCode && !OnStatusCode(this, (int64_t)Status))
+				if (OnStatusCode && !OnStatusCode(this, Status))
 				{
 					*Out = -1;
 					return nullptr;
@@ -3864,7 +3876,7 @@ namespace Mavi
 				for (auto& Item : Headers)
 				{
 					for (auto& Payload : Item.second)
-						Core::Stringify::Append(Buffer, "%s: %s\r\n", Item.first.c_str(), Payload.c_str());
+						Buffer.append(Item.first).append(": ").append(Payload).append("\r\n");
 				}
 
 				if (IsRequest)
@@ -3875,21 +3887,20 @@ namespace Mavi
 					if (Item.Name.empty())
 						continue;
 
-					Core::String Expires = (Item.Expires.empty() ? "" : "; Expires=" + Item.Expires);
-					Core::String Domain = (Item.Domain.empty() ? "" : "; Domain=" + Item.Domain);
-					Core::String Path = (Item.Path.empty() ? "" : "; Path=" + Item.Path);
-					Core::String SameSite = (Item.SameSite.empty() ? "" : "; SameSite=" + Item.SameSite);
-					const char* Secure = (!Item.Secure ? "" : "; Secure");
-					const char* HttpOnly = (!Item.HttpOnly ? "" : "; HttpOnly");
-					Core::Stringify::Append(Buffer, "Set-Cookie: %s=%s%s%s%s%s%s%s\r\n",
-						Item.Name.c_str(),
-						Item.Value.c_str(),
-						Expires.c_str(),
-						Domain.c_str(),
-						Path.c_str(),
-						SameSite.c_str(),
-						Secure,
-						HttpOnly);
+					Buffer.append("Set-Cookie: ").append(Item.Name).append("=").append(Item.Value);
+					if (!Item.Expires.empty())
+						Buffer.append("; Expires=").append(Item.Expires);
+					if (!Item.Domain.empty())
+						Buffer.append("; Domain=").append(Item.Domain);
+					if (!Item.Path.empty())
+						Buffer.append("; Path=").append(Item.Path);
+					if (!Item.SameSite.empty())
+						Buffer.append("; SameSite=").append(Item.SameSite);
+					if (Item.Secure)
+						Buffer.append("; SameSite");
+					if (Item.HttpOnly)
+						Buffer.append("; HttpOnly");
+					Buffer.append("\r\n");
 				}
 			}
 			void Paths::ConstructHeadCache(Connection* Base, Core::String& Buffer)
@@ -3898,7 +3909,9 @@ namespace Mavi
 				if (!Base->Route->StaticFileMaxAge)
 					return ConstructHeadUncache(Base, Buffer);
 
-				Core::Stringify::Append(Buffer, "Cache-Control: max-age=%" PRIu64 "\r\n", Base->Route->StaticFileMaxAge);
+				Buffer.append("Cache-Control: max-age=");
+				Buffer.append(Core::ToString(Base->Route->StaticFileMaxAge));
+				Buffer.append("\r\n");
 			}
 			void Paths::ConstructHeadUncache(Connection* Base, Core::String& Buffer)
 			{
@@ -4648,14 +4661,17 @@ namespace Mavi
 						Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 						Core::String Content;
-						Core::Stringify::Append(Content, "%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Utils::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
+						Content.append(Base->Request.Version);
+						Content.append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
+						Content.append(Utils::ConnectionResolve(Base));
+						Content.append("Content-Location: ").append(Base->Request.URI).append("\r\n");
 
 						Core::OS::File::Close(Stream);
 						if (Base->Route->Callbacks.Headers)
 							Base->Route->Callbacks.Headers(Base, Content);
 
 						Content.append("\r\n", 2);
-						return !Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+						return !Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Finish();
@@ -4693,13 +4709,16 @@ namespace Mavi
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				Core::String Content;
-				Core::Stringify::Append(Content, "%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Utils::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
+				Content.append(Base->Request.Version);
+				Content.append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
+				Content.append(Utils::ConnectionResolve(Base));
+				Content.append("Content-Location: ").append(Base->Request.URI).append("\r\n");
 
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, Content);
 
 				Content.append("\r\n", 2);
-				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(204);
@@ -4728,13 +4747,15 @@ namespace Mavi
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				Core::String Content;
-				Core::Stringify::Append(Content, "%s 204 No Content\r\nDate: %s\r\n%s", Base->Request.Version, Date, Utils::ConnectionResolve(Base).c_str());
+				Content.append(Base->Request.Version);
+				Content.append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
+				Content.append(Utils::ConnectionResolve(Base));
 
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, Content);
 
 				Content.append("\r\n", 2);
-				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(204);
@@ -4749,13 +4770,16 @@ namespace Mavi
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				Core::String Content;
-				Core::Stringify::Append(Content, "%s 204 No Content\r\nDate: %s\r\n%sAllow: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\n", Base->Request.Version, Date, Utils::ConnectionResolve(Base).c_str());
+				Content.append(Base->Request.Version);
+				Content.append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
+				Content.append(Utils::ConnectionResolve(Base));
+				Content.append("Allow: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\n");
 
 				if (Base->Route && Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, Content);
 
 				Content.append("\r\n", 2);
-				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(204);
@@ -4775,7 +4799,11 @@ namespace Mavi
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				Core::String Content;
-				Core::Stringify::Append(Content, "%s 200 OK\r\nDate: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\n", Base->Request.Version, Date, Utils::ConnectionResolve(Base).c_str(), Base->Route->CharSet.c_str());
+				Content.append(Base->Request.Version);
+				Content.append(" 200 OK\r\nDate: ").append(Date).append("\r\n");
+				Content.append(Utils::ConnectionResolve(Base));
+				Content.append("Content-Type: text/html; charset=").append(Base->Route->CharSet);
+				Content.append("\r\nAccept-Ranges: bytes\r\n\r\n");
 
 				Paths::ConstructHeadCache(Base, Content);
 				if (Base->Route->Callbacks.Headers)
@@ -4783,7 +4811,7 @@ namespace Mavi
 
 				const char* Message = Base->Response.GetHeader("X-Error");
 				if (Message != nullptr)
-					Core::Stringify::Append(Content, "X-Error: %s\n\r", Message);
+					Content.append("X-Error: ").append(Message).append("\r\n");
 
 				size_t Size = Base->Request.URI.size() - 1;
 				while (Base->Request.URI[Size] != '/')
@@ -4888,15 +4916,15 @@ namespace Mavi
 					}
 				}
 #endif
-				Core::Stringify::Append(Content, "Content-Length: %" PRIu64 "\r\n\r\n", (uint64_t)Base->Response.Content.Data.size());
-				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+				Content.append("Content-Length: ").append(Core::ToString(Base->Response.Content.Data.size())).append("\r\n\r\n");
+				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
 						if (memcmp(Base->Request.Method, "HEAD", 4) == 0)
 							return (void)Base->Finish(200);
 
-						Base->Stream->WriteAsync(Base->Response.Content.Data.data(), (int64_t)Base->Response.Content.Data.size(), [Base](SocketPoll Event)
+						Base->Stream->WriteAsync(Base->Response.Content.Data.data(), Base->Response.Content.Data.size(), [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Finish(200);
@@ -4942,15 +4970,6 @@ namespace Mavi
 					}
 				}
 #endif
-				const char* Origin = Base->Request.GetHeader("Origin");
-				const char* CORS1 = "", * CORS2 = "", * CORS3 = "";
-				if (Origin != nullptr)
-				{
-					CORS1 = "Access-Control-Allow-Origin: ";
-					CORS2 = Base->Route->AccessControlAllowOrigin.c_str();
-					CORS3 = "\r\n";
-				}
-
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
@@ -4961,7 +4980,15 @@ namespace Mavi
 				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
 				Core::String Content;
-				Core::Stringify::Append(Content, "%s %d %s\r\n%s%s%sDate: %s\r\n", Base->Request.Version, Base->Response.StatusCode, StatusMessage, CORS1, CORS2, CORS3, Date);
+				Content.append(Base->Request.Version).append(" ");
+				Content.append(Core::ToString(Base->Response.StatusCode)).append(" ");
+				Content.append(StatusMessage).append("\r\n");
+				Content.append("Date: ").append(Date).append("\r\n");
+				Content.append(Utils::ConnectionResolve(Base));
+
+				const char* Origin = Base->Request.GetHeader("Origin");
+				if (Origin != nullptr)
+					Content.append("Access-Control-Allow-Origin: ").append(Base->Route->AccessControlAllowOrigin).append("\r\n");
 
 				Paths::ConstructHeadCache(Base, Content);
 				if (Base->Route->Callbacks.Headers)
@@ -4969,17 +4996,17 @@ namespace Mavi
 
 				const char* Message = Base->Response.GetHeader("X-Error");
 				if (Message != nullptr)
-					Core::Stringify::Append(Content, "X-Error: %s\n\r", Message);
+					Content.append("X-Error: ").append(Message).append("\r\n");
 
-				Core::Stringify::Append(Content, "Accept-Ranges: bytes\r\n"
-					"Last-Modified: %s\r\nEtag: %s\r\n"
-					"Content-Type: %s; charset=%s\r\n"
-					"Content-Length: %" PRId64 "\r\n"
-					"%s%s\r\n", LastModified, ETag, ContentType, Base->Route->CharSet.c_str(), ContentLength, Utils::ConnectionResolve(Base).c_str(), ContentRange);
+				Content.append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
+				Content.append("Etag: ").append(ETag).append("\r\n");
+				Content.append("Content-Type: ").append(ContentType).append("; charset=").append(Base->Route->CharSet).append("\r\n");
+				Content.append("Content-Length: ").append(Core::ToString(ContentLength)).append("\r\n");
+				Content.append(ContentRange).append("\r\n");
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
-					return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+					return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							Base->Finish(200);
@@ -4988,7 +5015,7 @@ namespace Mavi
 					});
 				}
 
-				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base, ContentLength, Range1](SocketPoll Event)
+				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base, ContentLength, Range1](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Core::Schedule::Get()->SetTask([Base, ContentLength, Range1]() { Logical::ProcessFile(Base, (size_t)ContentLength, (size_t)Range1); });
@@ -5006,15 +5033,6 @@ namespace Mavi
 				const char* StatusMessage = Utils::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
 				int64_t ContentLength = (int64_t)Base->Resource.Size;
 
-				const char* Origin = Base->Request.GetHeader("Origin");
-				const char* CORS1 = "", * CORS2 = "", * CORS3 = "";
-				if (Origin != nullptr)
-				{
-					CORS1 = "Access-Control-Allow-Origin: ";
-					CORS2 = Base->Route->AccessControlAllowOrigin.c_str();
-					CORS3 = "\r\n";
-				}
-
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
@@ -5025,7 +5043,15 @@ namespace Mavi
 				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
 				Core::String Content;
-				Core::Stringify::Append(Content, "%s %d %s\r\n%s%s%sDate: %s\r\n", Base->Request.Version, Base->Response.StatusCode, StatusMessage, CORS1, CORS2, CORS3, Date);
+				Content.append(Base->Request.Version).append(" ");
+				Content.append(Core::ToString(Base->Response.StatusCode)).append(" ");
+				Content.append(StatusMessage).append("\r\n");
+				Content.append("Date: ").append(Date).append("\r\n");
+				Content.append(Utils::ConnectionResolve(Base));
+
+				const char* Origin = Base->Request.GetHeader("Origin");
+				if (Origin != nullptr)
+					Content.append("Access-Control-Allow-Origin: ").append(Base->Route->AccessControlAllowOrigin).append("\r\n");
 
 				Paths::ConstructHeadCache(Base, Content);
 				if (Base->Route->Callbacks.Headers)
@@ -5033,18 +5059,18 @@ namespace Mavi
 
 				const char* Message = Base->Response.GetHeader("X-Error");
 				if (Message != nullptr)
-					Core::Stringify::Append(Content, "X-Error: %s\n\r", Message);
+					Content.append("X-Error: ").append(Message).append("\r\n");
 
-				Core::Stringify::Append(Content, "Accept-Ranges: bytes\r\n"
-					"Last-Modified: %s\r\nEtag: %s\r\n"
-					"Content-Type: %s; charset=%s\r\n"
-					"Content-Encoding: %s\r\n"
-					"Transfer-Encoding: chunked\r\n"
-					"%s%s\r\n", LastModified, ETag, ContentType, Base->Route->CharSet.c_str(), (Gzip ? "gzip" : "deflate"), Utils::ConnectionResolve(Base).c_str(), ContentRange);
+				Content.append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
+				Content.append("Etag: ").append(ETag).append("\r\n");
+				Content.append("Content-Type: ").append(ContentType).append("; charset=").append(Base->Route->CharSet).append("\r\n");
+				Content.append("Content-Encoding: ").append(Gzip ? "gzip" : "deflate").append("\r\n");
+				Content.append("Transfer-Encoding: chunked\r\n");
+				Content.append(ContentRange).append("\r\n");
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
-					return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+					return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							Base->Finish();
@@ -5053,7 +5079,7 @@ namespace Mavi
 					});
 				}
 
-				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base, Range, ContentLength, Gzip](SocketPoll Event)
+				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base, Range, ContentLength, Gzip](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Core::Schedule::Get()->SetTask([Base, Range, ContentLength, Gzip]() { Logical::ProcessFileCompress(Base, (size_t)ContentLength, (size_t)Range, Gzip); });
@@ -5074,14 +5100,19 @@ namespace Mavi
 				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
 				Core::String Content;
-				Core::Stringify::Append(Content, "%s 304 %s\r\nDate: %s\r\n", Base->Request.Version, HTTP::Utils::StatusMessage(304), Date);
+				Content.append(Base->Request.Version);
+				Content.append(" 304 Not Modified\r\nDate: ");
+				Content.append(Date).append("\r\n");
 
 				Paths::ConstructHeadCache(Base, Content);
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, Content);
 
-				Core::Stringify::Append(Content, "Accept-Ranges: bytes\r\nLast-Modified: %s\r\nEtag: %s\r\n%s\r\n", LastModified, ETag, Utils::ConnectionResolve(Base).c_str());
-				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+				Content.append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
+				Content.append("Etag: ").append(ETag).append("\r\n");
+				Content.append(Utils::ConnectionResolve(Base)).append("\r\n");
+
+				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(304);
@@ -5101,7 +5132,7 @@ namespace Mavi
 
 					if (Base->Response.Content.Data.size() >= ContentLength)
 					{
-						return !!Base->Stream->WriteAsync(Base->Response.Content.Data.data() + Range, (int64_t)ContentLength, [Base](SocketPoll Event)
+						return !!Base->Stream->WriteAsync(Base->Response.Content.Data.data() + Range, ContentLength, [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Finish();
@@ -5236,7 +5267,7 @@ namespace Mavi
 								Base->Response.Content.Assign(Buffer.c_str(), (size_t)ZStream.total_out);
 						}
 #endif
-						return !!Base->Stream->WriteAsync(Base->Response.Content.Data.data(), (int64_t)ContentLength, [Base](SocketPoll Event)
+						return !!Base->Stream->WriteAsync(Base->Response.Content.Data.data(), ContentLength, [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Finish();
@@ -5395,27 +5426,29 @@ namespace Mavi
 				Compute::Crypto::Sha1Compute(Buffer, (int)strlen(Buffer), Encoded20);
 
 				Core::String Content;
-				Core::Stringify::Append(Content,
+				Content.append(
 					"HTTP/1.1 101 Switching Protocols\r\n"
 					"Upgrade: websocket\r\n"
 					"Connection: Upgrade\r\n"
-					"Sec-WebSocket-Accept: %s\r\n", Compute::Codec::Base64Encode((const unsigned char*)Encoded20, 20).c_str());
+					"Sec-WebSocket-Accept: ");
+				Content.append(Compute::Codec::Base64Encode((const unsigned char*)Encoded20, 20));
+				Content.append("\r\n");
 
 				const char* Protocol = Base->Request.GetHeader("Sec-WebSocket-Protocol");
 				if (Protocol != nullptr)
 				{
 					const char* Offset = strchr(Protocol, ',');
 					if (Offset != nullptr)
-						Core::Stringify::Append(Content, "Sec-WebSocket-Protocol: %.*s\r\n", (int)(Offset - Protocol), Protocol);
+						Content.append("Sec-WebSocket-Protocol: ").append(Protocol, (size_t)(Offset - Protocol)).append("\r\n");
 					else
-						Core::Stringify::Append(Content, "Sec-WebSocket-Protocol: %s\r\n", Protocol);
+						Content.append("Sec-WebSocket-Protocol: ").append(Protocol).append("\r\n");
 				}
 
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, Content);
 
 				Content.append("\r\n", 2);
-				return !!Base->Stream->WriteAsync(Content.c_str(), (int64_t)Content.size(), [Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -5895,7 +5928,7 @@ namespace Mavi
 				};
 				Stage("request delivery");
 
-				Core::String Chunked;
+				Core::String Content;
 				if (!Request.GetHeader("Host"))
 				{
 					if (Context != nullptr)
@@ -5941,20 +5974,29 @@ namespace Mavi
 					Request.SetHeader("Content-Length", "0");
 
 				if (!Request.Query.empty())
-					Core::Stringify::Append(Chunked, "%s %s?%s %s\r\n", Request.Method, Request.URI.c_str(), Request.Query.c_str(), Request.Version);
+				{
+					Content.append(Request.Method).append(" ");
+					Content.append(Request.URI).append("?");
+					Content.append(Request.Query).append(" ");
+					Content.append(Request.Version).append("\r\n");
+				}
 				else
-					Core::Stringify::Append(Chunked, "%s %s %s\r\n", Request.Method, Request.URI.c_str(), Request.Version);
+				{
+					Content.append(Request.Method).append(" ");
+					Content.append(Request.URI).append(" ");
+					Content.append(Request.Version).append("\r\n");
+				}
 
-				Paths::ConstructHeadFull(&Request, &Response, true, Chunked);
-				Chunked.append("\r\n");
+				Paths::ConstructHeadFull(&Request, &Response, true, Content);
+				Content.append("\r\n");
 
-				Stream.WriteAsync(Chunked.c_str(), (int64_t)Chunked.size(), [this](SocketPoll Event)
+				Stream.WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
 						if (!Request.Content.Data.empty())
 						{
-							Stream.WriteAsync(Request.Content.Data.data(), (int64_t)Request.Content.Data.size(), [this](SocketPoll Event)
+							Stream.WriteAsync(Request.Content.Data.data(), Request.Content.Data.size(), [this](SocketPoll Event)
 							{
 								if (Packet::IsDone(Event))
 								{

@@ -3705,10 +3705,10 @@ namespace Mavi
 			}
 			int Mutex::MutexUD = 538;
 
-			Thread::Thread(asIScriptEngine* Engine, asIScriptFunction* Callback) noexcept : VM(VirtualMachine::Get(Engine)), Loop(nullptr), Function(Callback, VM ? VM->RequestContext() : nullptr)
+			Thread::Thread(VirtualMachine* Engine, asIScriptFunction* Callback) noexcept : VM(Engine), Loop(nullptr), Function(Callback, VM ? VM->RequestContext() : nullptr)
 			{
 				VI_ASSERT(VM != nullptr, "virtual matchine should be set");
-				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_THREAD));
+				Engine->NotifyOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_THREAD));
 			}
 			Thread::~Thread()
 			{
@@ -3740,7 +3740,7 @@ namespace Mavi
 				Function.Release();
 				VI_CLEAR(Loop);
 				Release();
-				asThreadCleanup();
+				VirtualMachine::CleanupThisThread();
 			}
 			bool Thread::Suspend()
 			{
@@ -3876,19 +3876,16 @@ namespace Mavi
 				VI_DEBUG("[vm] spawn thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
 				return true;
 			}
-			void Thread::Create(asIScriptGeneric* Generic)
+			Thread* Thread::Create(asIScriptFunction* Callback)
 			{
-				asIScriptEngine* Engine = Generic->GetEngine();
-				asIScriptFunction* Function = *(asIScriptFunction**)Generic->GetAddressOfArg(0);
-				Thread* Result = new Thread(Engine, Function);
+				Thread* Result = new Thread(VirtualMachine::Get(), Callback);
 				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-				else
-					*(Thread**)Generic->GetAddressOfReturnLocation() = Result;
+				return Result;
 			}
 			Thread* Thread::GetThread()
 			{
-				asIScriptContext* Context = asGetActiveContext();
+				auto* Context = ImmediateContext::Get();
 				if (!Context)
 					return nullptr;
 
@@ -3940,7 +3937,7 @@ namespace Mavi
 				if (!NewSize)
 					return false;
 
-				Buffer = (char*)asAllocMem(NewSize);
+				Buffer = VI_MALLOC(char, NewSize);
 				if (!Buffer)
 				{
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
@@ -3954,7 +3951,7 @@ namespace Mavi
 			void CharBuffer::Deallocate()
 			{
 				if (Size > 0)
-					asFreeMem(Buffer);
+					VI_FREE(Buffer);
 
 				Buffer = nullptr;
 				Size = 0;
@@ -9089,15 +9086,14 @@ namespace Mavi
 			bool Registry::ImportCTypes(VirtualMachine* VM)
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
-				asIScriptEngine* Engine = VM->GetEngine();
 #ifdef VI_64
-				Engine->RegisterTypedef("usize", "uint64");
+				VM->SetTypeDef("usize", "uint64");
 #else
-				Engine->RegisterTypedef("usize", "uint32");
+				VM->SetTypeDef("usize", "uint32");
 #endif
-				Engine->RegisterObjectType("uptr", 0, asOBJ_REF | asOBJ_NOCOUNT);
-				Engine->RegisterObjectMethod("uptr", "void opCast(?&out)", asFUNCTIONPR(PointerToHandleCast, (void*, void**, int), void), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterGlobalFunction("uptr@ to_ptr(?&in)", asFUNCTION(HandleToPointerCast), asCALL_CDECL);
+				auto VPointer = VM->SetClassAddress("uptr", (uint64_t)ObjectBehaviours::REF | (uint64_t)ObjectBehaviours::NOCOUNT);
+				VPointer->SetMethodEx("void opCast(?&out)", &PointerToHandleCast);
+				VM->SetFunction("uptr@ to_ptr(?&in)", &HandleToPointerCast);
 
 				return true;
 			}
@@ -9318,80 +9314,80 @@ namespace Mavi
 				if (!Engine)
 					return false;
 
-				Engine->RegisterGlobalFunction("float fp_from_ieee(uint)", asFUNCTIONPR(Math::FpFromIEEE, (uint32_t), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("uint fp_to_ieee(float)", asFUNCTIONPR(Math::FpToIEEE, (float), uint32_t), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double fp_from_ieee(uint64)", asFUNCTIONPR(Math::FpFromIEEE, (as_uint64_t), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("uint64 fp_to_ieee(double)", asFUNCTIONPR(Math::FpToIEEE, (double), as_uint64_t), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("bool close_to(float, float, float = 0.00001f)", asFUNCTIONPR(Math::CloseTo, (float, float, float), bool), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("bool close_to(double, double, double = 0.0000000001)", asFUNCTIONPR(Math::CloseTo, (double, double, double), bool), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float rad2degf()", asFUNCTIONPR(Compute::Mathf::Rad2Deg, (), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float deg2radf()", asFUNCTIONPR(Compute::Mathf::Deg2Rad, (), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float pi_valuef()", asFUNCTIONPR(Compute::Mathf::Pi, (), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float clampf(float, float, float)", asFUNCTIONPR(Compute::Mathf::Clamp, (float, float, float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float acotanf(float)", asFUNCTIONPR(Compute::Mathf::Acotan, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float cotanf(float)", asFUNCTIONPR(Compute::Mathf::Cotan, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float minf(float, float)", asFUNCTIONPR(Compute::Mathf::Min, (float, float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float maxf(float, float)", asFUNCTIONPR(Compute::Mathf::Max, (float, float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float saturatef(float)", asFUNCTIONPR(Compute::Mathf::Saturate, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float lerpf(float, float, float)", asFUNCTIONPR(Compute::Mathf::Lerp, (float, float, float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float strong_lerpf(float, float, float)", asFUNCTIONPR(Compute::Mathf::StrongLerp, (float, float, float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float angle_saturatef(float)", asFUNCTIONPR(Compute::Mathf::SaturateAngle, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float angle_distancef(float, float)", asFUNCTIONPR(Compute::Mathf::AngleDistance, (float, float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float angle_lerpf(float, float, float)", asFUNCTIONPR(Compute::Mathf::AngluarLerp, (float, float, float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float randomf()", asFUNCTIONPR(Compute::Mathf::Random, (), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float random_magf()", asFUNCTIONPR(Compute::Mathf::RandomMag, (), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float random_rangef(float, float)", asFUNCTIONPR(Compute::Mathf::Random, (float, float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float mapf(float, float, float, float, float)", asFUNCTIONPR(Compute::Mathf::Map, (float, float, float, float, float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float cosf(float)", asFUNCTIONPR(Compute::Mathf::Cos, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float sinf(float)", asFUNCTIONPR(Compute::Mathf::Sin, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float tanf(float)", asFUNCTIONPR(Compute::Mathf::Tan, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float acosf(float)", asFUNCTIONPR(Compute::Mathf::Acos, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float asinf(float)", asFUNCTIONPR(Compute::Mathf::Asin, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float atanf(float)", asFUNCTIONPR(Compute::Mathf::Atan, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float atan2f(float, float)", asFUNCTIONPR(Compute::Mathf::Atan2, (float, float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float expf(float)", asFUNCTIONPR(Compute::Mathf::Exp, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float logf(float)", asFUNCTIONPR(Compute::Mathf::Log, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float log2f(float)", asFUNCTIONPR(Compute::Mathf::Log2, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float log10f(float)", asFUNCTIONPR(Compute::Mathf::Log10, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float powf(float, float)", asFUNCTIONPR(Compute::Mathf::Pow, (float, float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float sqrtf(float)", asFUNCTIONPR(Compute::Mathf::Sqrt, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float ceilf(float)", asFUNCTIONPR(Compute::Mathf::Ceil, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float absf(float)", asFUNCTIONPR(Compute::Mathf::Abs, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float floorf(float)", asFUNCTIONPR(Compute::Mathf::Floor, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double rad2degd()", asFUNCTIONPR(Compute::Mathd::Rad2Deg, (), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double deg2radd()", asFUNCTIONPR(Compute::Mathd::Deg2Rad, (), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double pi_valued()", asFUNCTIONPR(Compute::Mathd::Pi, (), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double clampd(double, double, double)", asFUNCTIONPR(Compute::Mathd::Clamp, (double, double, double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double acotand(double)", asFUNCTIONPR(Compute::Mathd::Acotan, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double cotand(double)", asFUNCTIONPR(Compute::Mathd::Cotan, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double mind(double, double)", asFUNCTIONPR(Compute::Mathd::Min, (double, double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double maxd(double, double)", asFUNCTIONPR(Compute::Mathd::Max, (double, double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double saturated(double)", asFUNCTIONPR(Compute::Mathd::Saturate, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double lerpd(double, double, double)", asFUNCTIONPR(Compute::Mathd::Lerp, (double, double, double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double strong_lerpd(double, double, double)", asFUNCTIONPR(Compute::Mathd::StrongLerp, (double, double, double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double angle_saturated(double)", asFUNCTIONPR(Compute::Mathd::SaturateAngle, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double angle_distanced(double, double)", asFUNCTIONPR(Compute::Mathd::AngleDistance, (double, double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double angle_lerpd(double, double, double)", asFUNCTIONPR(Compute::Mathd::AngluarLerp, (double, double, double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double randomd()", asFUNCTIONPR(Compute::Mathd::Random, (), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double random_magd()", asFUNCTIONPR(Compute::Mathd::RandomMag, (), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double random_ranged(double, double)", asFUNCTIONPR(Compute::Mathd::Random, (double, double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double mapd(double, double, double, double, double)", asFUNCTIONPR(Compute::Mathd::Map, (double, double, double, double, double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double cosd(double)", asFUNCTIONPR(Compute::Mathd::Cos, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double sind(double)", asFUNCTIONPR(Compute::Mathd::Sin, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double tand(double)", asFUNCTIONPR(Compute::Mathd::Tan, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double acosd(double)", asFUNCTIONPR(Compute::Mathd::Acos, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double asind(double)", asFUNCTIONPR(Compute::Mathd::Asin, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double atand(double)", asFUNCTIONPR(Compute::Mathd::Atan, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double atan2d(double, double)", asFUNCTIONPR(Compute::Mathd::Atan2, (double, double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double expd(double)", asFUNCTIONPR(Compute::Mathd::Exp, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double logd(double)", asFUNCTIONPR(Compute::Mathd::Log, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double log2d(double)", asFUNCTIONPR(Compute::Mathd::Log2, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double log10d(double)", asFUNCTIONPR(Compute::Mathd::Log10, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double powd(double, double)", asFUNCTIONPR(Compute::Mathd::Pow, (double, double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double sqrtd(double)", asFUNCTIONPR(Compute::Mathd::Sqrt, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double ceild(double)", asFUNCTIONPR(Compute::Mathd::Ceil, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double absd(double)", asFUNCTIONPR(Compute::Mathd::Abs, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double floord(double)", asFUNCTIONPR(Compute::Mathd::Floor, (double), double), asCALL_CDECL);
+				VM->SetFunction<float(*)(uint32_t)>("float fp_from_ieee(uint)", &Math::FpFromIEEE);
+				VM->SetFunction<uint32_t(*)(float)>("uint fp_to_ieee(float)", &Math::FpToIEEE);
+				VM->SetFunction<double(*)(uint64_t)>("double fp_from_ieee(uint64)", &Math::FpFromIEEE);
+				VM->SetFunction<uint64_t(*)(double)>("uint64 fp_to_ieee(double)", &Math::FpToIEEE);
+				VM->SetFunction<bool(*)(float, float, float)>("bool close_to(float, float, float = 0.00001f)", &Math::CloseTo);
+				VM->SetFunction<bool(*)(double, double, double)>("bool close_to(double, double, double = 0.0000000001)", &Math::CloseTo);
+				VM->SetFunction("float rad2degf()", &Compute::Mathf::Rad2Deg);
+				VM->SetFunction("float deg2radf()", &Compute::Mathf::Deg2Rad);
+				VM->SetFunction("float pi_valuef()", &Compute::Mathf::Pi);
+				VM->SetFunction("float clampf(float, float, float)", &Compute::Mathf::Clamp);
+				VM->SetFunction("float acotanf(float)", &Compute::Mathf::Acotan);
+				VM->SetFunction("float cotanf(float)", &Compute::Mathf::Cotan);
+				VM->SetFunction("float minf(float, float)", &Compute::Mathf::Min);
+				VM->SetFunction("float maxf(float, float)", &Compute::Mathf::Max);
+				VM->SetFunction("float saturatef(float)", &Compute::Mathf::Saturate);
+				VM->SetFunction("float lerpf(float, float, float)", &Compute::Mathf::Lerp);
+				VM->SetFunction("float strong_lerpf(float, float, float)", &Compute::Mathf::StrongLerp);
+				VM->SetFunction("float angle_saturatef(float)", &Compute::Mathf::SaturateAngle);
+				VM->SetFunction("float angle_distancef(float, float)", &Compute::Mathf::AngleDistance);
+				VM->SetFunction("float angle_lerpf(float, float, float)", &Compute::Mathf::AngluarLerp);
+				VM->SetFunction<float(*)()>("float randomf()", &Compute::Mathf::Random);
+				VM->SetFunction("float random_magf()", &Compute::Mathf::RandomMag);
+				VM->SetFunction<float(*)(float, float)>("float random_rangef(float, float)", &Compute::Mathf::Random);
+				VM->SetFunction<float(*)(float, float, float, float, float)>("float mapf(float, float, float, float, float)", &Compute::Mathf::Map);
+				VM->SetFunction("float cosf(float)", &Compute::Mathf::Cos);
+				VM->SetFunction("float sinf(float)", &Compute::Mathf::Sin);
+				VM->SetFunction("float tanf(float)", &Compute::Mathf::Tan);
+				VM->SetFunction("float acosf(float)", &Compute::Mathf::Acos);
+				VM->SetFunction("float asinf(float)", &Compute::Mathf::Asin);
+				VM->SetFunction("float atanf(float)", &Compute::Mathf::Atan);
+				VM->SetFunction("float atan2f(float, float)", &Compute::Mathf::Atan2);
+				VM->SetFunction("float expf(float)", &Compute::Mathf::Exp);
+				VM->SetFunction("float logf(float)", &Compute::Mathf::Log);
+				VM->SetFunction("float log2f(float)", &Compute::Mathf::Log2);
+				VM->SetFunction("float log10f(float)", &Compute::Mathf::Log10);
+				VM->SetFunction("float powf(float, float)", &Compute::Mathf::Pow);
+				VM->SetFunction("float sqrtf(float)", &Compute::Mathf::Sqrt);
+				VM->SetFunction("float ceilf(float)", &Compute::Mathf::Ceil);
+				VM->SetFunction("float absf(float)", &Compute::Mathf::Abs);
+				VM->SetFunction("float floorf(float)", &Compute::Mathf::Floor);
+				VM->SetFunction("double rad2degd()", &Compute::Mathd::Rad2Deg);
+				VM->SetFunction("double deg2radd()", &Compute::Mathd::Deg2Rad);
+				VM->SetFunction("double pi_valued()", &Compute::Mathd::Pi);
+				VM->SetFunction("double clampd(double, double, double)", &Compute::Mathd::Clamp);
+				VM->SetFunction("double acotand(double)", &Compute::Mathd::Acotan);
+				VM->SetFunction("double cotand(double)", &Compute::Mathd::Cotan);
+				VM->SetFunction("double mind(double, double)", &Compute::Mathd::Min);
+				VM->SetFunction("double maxd(double, double)", &Compute::Mathd::Max);
+				VM->SetFunction("double saturated(double)", &Compute::Mathd::Saturate);
+				VM->SetFunction("double lerpd(double, double, double)", &Compute::Mathd::Lerp);
+				VM->SetFunction("double strong_lerpd(double, double, double)", &Compute::Mathd::StrongLerp);
+				VM->SetFunction("double angle_saturated(double)", &Compute::Mathd::SaturateAngle);
+				VM->SetFunction("double angle_distanced(double, double)", &Compute::Mathd::AngleDistance);
+				VM->SetFunction("double angle_lerpd(double, double, double)", &Compute::Mathd::AngluarLerp);
+				VM->SetFunction<double(*)()>("double randomd()", &Compute::Mathd::Random);
+				VM->SetFunction("double random_magd()", &Compute::Mathd::RandomMag);
+				VM->SetFunction<double(*)(double, double)>("double random_ranged(double, double)", &Compute::Mathd::Random);
+				VM->SetFunction("double mapd(double, double, double, double, double)", &Compute::Mathd::Map);
+				VM->SetFunction("double cosd(double)", &Compute::Mathd::Cos);
+				VM->SetFunction("double sind(double)", &Compute::Mathd::Sin);
+				VM->SetFunction("double tand(double)", &Compute::Mathd::Tan);
+				VM->SetFunction("double acosd(double)", &Compute::Mathd::Acos);
+				VM->SetFunction("double asind(double)", &Compute::Mathd::Asin);
+				VM->SetFunction("double atand(double)", &Compute::Mathd::Atan);
+				VM->SetFunction("double atan2d(double, double)", &Compute::Mathd::Atan2);
+				VM->SetFunction("double expd(double)", &Compute::Mathd::Exp);
+				VM->SetFunction("double logd(double)", &Compute::Mathd::Log);
+				VM->SetFunction("double log2d(double)", &Compute::Mathd::Log2);
+				VM->SetFunction("double log10d(double)", &Compute::Mathd::Log10);
+				VM->SetFunction("double powd(double, double)", &Compute::Mathd::Pow);
+				VM->SetFunction("double sqrtd(double)", &Compute::Mathd::Sqrt);
+				VM->SetFunction("double ceild(double)", &Compute::Mathd::Ceil);
+				VM->SetFunction("double absd(double)", &Compute::Mathd::Abs);
+				VM->SetFunction("double floord(double)", &Compute::Mathd::Floor);
 
 				return true;
 			}
@@ -9401,91 +9397,91 @@ namespace Mavi
 				if (!Engine)
 					return false;
 
-				Engine->RegisterObjectType("string", sizeof(Core::String), asOBJ_VALUE | asGetTypeTraits<Core::String>());
-				Engine->RegisterStringFactory("string", StringFactory::Get());
-				Engine->RegisterObjectBehaviour("string", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(String::Create), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectBehaviour("string", asBEHAVE_CONSTRUCT, "void f(const string &in)", asFUNCTION(String::CreateCopy), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectBehaviour("string", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(String::Destroy), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string& opAssign(const string &in)", asMETHODPR(Core::String, operator =, (const Core::String&), Core::String&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "string& opAddAssign(const string &in)", asMETHODPR(Core::String, operator +=, (const Core::String&), Core::String&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "string opAdd(const string &in) const", asFUNCTIONPR(std::operator +, (const Core::String&, const Core::String&), Core::String), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string& opAddAssign(uint8)", asMETHODPR(Core::String, operator +=, (char), Core::String&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "string opAdd(uint8) const", asFUNCTIONPR(std::operator +, (const Core::String&, char), Core::String), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string opAdd_r(uint8) const", asFUNCTIONPR(std::operator +, (char, const Core::String&), Core::String), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "int opCmp(const string &in) const", asMETHODPR(Core::String, compare, (const Core::String&) const, int), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "uint8& opIndex(usize)", asFUNCTION(String::Index), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "const uint8& opIndex(usize) const", asFUNCTION(String::Index), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "uint8& at(usize)", asFUNCTION(String::Index), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "const uint8& at(usize) const", asFUNCTION(String::Index), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "uint8& front()", asFUNCTION(String::Front), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "const uint8& front() const", asFUNCTION(String::Front), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "uint8& back()", asFUNCTION(String::Back), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "const uint8& back() const", asFUNCTION(String::Back), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "uptr@ data() const", asMETHOD(Core::String, c_str), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "uptr@ c_str() const", asMETHOD(Core::String, c_str), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "bool empty() const", asMETHOD(Core::String, empty), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "usize size() const", asMETHOD(Core::String, size), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "usize max_size() const", asMETHOD(Core::String, max_size), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "usize capacity() const", asMETHOD(Core::String, capacity), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "void reserve(usize)", asMETHODPR(Core::String, reserve, (size_t), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "void resize(usize, uint8 = 0)", asMETHODPR(Core::String, resize, (size_t, char), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "void shrink_to_fit()", asMETHOD(Core::String, shrink_to_fit), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "void clear()", asMETHOD(Core::String, clear), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "string& insert(usize, usize, uint8)", asMETHODPR(Core::String, insert, (size_t, size_t, char), Core::String&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "string& insert(usize, const string&in)", asMETHODPR(Core::String, insert, (size_t, const Core::String&), Core::String&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "string& erase(usize, usize)", asMETHODPR(Core::String, erase, (size_t, size_t), Core::String&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "string& append(usize, uint8)", asMETHODPR(Core::String, append, (size_t, char), Core::String&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "string& append(const string&in)", asMETHODPR(Core::String, append, (const Core::String&), Core::String&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "void push(uint8)", asMETHOD(Core::String, push_back), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "void pop()", asFUNCTION(String::PopBack), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "bool starts_with(const string&in, usize = 0) const", asFUNCTIONPR(Core::Stringify::StartsWith, (const Core::String&, const Core::String&, size_t), bool), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "bool ends_with(const string&in) const", asFUNCTIONPR(Core::Stringify::EndsWith, (const Core::String&, const Core::String&), bool), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string& replace(usize, usize, const string&in)", asFUNCTIONPR(Core::Stringify::ReplacePart, (Core::String&, size_t, size_t, const Core::String&), Core::String&), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string& replace_all(const string&in, const string&in, usize)", asFUNCTIONPR(Core::Stringify::Replace, (Core::String&, const Core::String&, const Core::String&, size_t), Core::String&), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string substring(usize) const", asFUNCTION(String::Substring1), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string substring(usize, usize) const", asFUNCTION(String::Substring2), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string substr(usize) const", asFUNCTION(String::Substring1), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string substr(usize, usize) const", asFUNCTION(String::Substring2), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string& trim()", asFUNCTIONPR(Core::Stringify::Trim, (Core::String&), Core::String&), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string& trim_start()", asFUNCTIONPR(Core::Stringify::TrimStart, (Core::String&), Core::String&), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string& trim_end()", asFUNCTIONPR(Core::Stringify::TrimEnd, (Core::String&), Core::String&), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string& to_lower()", asFUNCTIONPR(Core::Stringify::ToLower, (Core::String&), Core::String&), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string& to_upper()", asFUNCTIONPR(Core::Stringify::ToUpper, (Core::String&), Core::String&), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string& reverse()", asFUNCTIONPR(Core::Stringify::Reverse, (Core::String&), Core::String&), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "usize rfind(const string&in, usize = 0) const", asMETHODPR(Core::String, rfind, (const Core::String&, size_t) const, size_t), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "usize rfind(uint8, usize = 0) const", asMETHODPR(Core::String, rfind, (char, size_t) const, size_t), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "usize find(const string&in, usize = 0) const", asMETHODPR(Core::String, find, (const Core::String&, size_t) const, size_t), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "usize find(uint8, usize = 0) const", asMETHODPR(Core::String, find, (char, size_t) const, size_t), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "usize find_first_of(const string&in, usize = 0) const", asMETHODPR(Core::String, find_first_of, (const Core::String&, size_t) const, size_t), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "usize find_first_not_of(const string&in, usize = 0) const", asMETHODPR(Core::String, find_first_not_of, (const Core::String&, size_t) const, size_t), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "usize find_last_of(const string&in, usize = 0) const", asMETHODPR(Core::String, find_last_of, (const Core::String&, size_t) const, size_t), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "usize find_last_not_of(const string&in, usize = 0) const", asMETHODPR(Core::String, find_last_not_of, (const Core::String&, size_t) const, size_t), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("string", "array<string>@ split(const string &in) const", asFUNCTION(String::Split), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterGlobalFunction("int8 to_int8(const string&in)", asFUNCTION(String::FromString<int8_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("int16 to_int16(const string&in)", asFUNCTION(String::FromString<int16_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("int32 to_int32(const string&in)", asFUNCTION(String::FromString<int32_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("int64 to_int64(const string&in)", asFUNCTION(String::FromString<int64_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("uint8 to_uint8(const string&in)", asFUNCTION(String::FromString<uint8_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("uint16 to_uint16(const string&in)", asFUNCTION(String::FromString<uint16_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("uint32 to_uint32(const string&in)", asFUNCTION(String::FromString<uint32_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("uint64 to_uint64(const string&in)", asFUNCTION(String::FromString<uint64_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float to_float(const string&in)", asFUNCTION(String::FromString<float>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double to_double(const string&in)", asFUNCTION(String::FromString<double>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(int8)", asFUNCTION(Core::ToString<int8_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(int16)", asFUNCTION(Core::ToString<int16_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(int32)", asFUNCTION(Core::ToString<int32_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(int64)", asFUNCTION(Core::ToString<int64_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(uint8)", asFUNCTION(Core::ToString<uint8_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(uint16)", asFUNCTION(Core::ToString<uint16_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(uint32)", asFUNCTION(Core::ToString<uint32_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(uint64)", asFUNCTION(Core::ToString<uint64_t>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(float)", asFUNCTION(Core::ToString<float>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(double)", asFUNCTION(Core::ToString<double>), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string to_string(uptr@, usize)", asFUNCTION(String::FromBuffer), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("uint64 component_id(const string &in)", asFUNCTION(Core::OS::File::GetHash), asCALL_CDECL);
+				auto VString = VM->SetStructAddress("string", sizeof(Core::String), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<Core::String>());
+				VM->SetStringFactoryAddress("string", StringFactory::Get());
+				VString->SetConstructorEx("void f()", &String::Create);
+				VString->SetConstructorEx("void f(const string &in)", &String::CreateCopy);
+				VString->SetDestructorEx("void f()", &String::Destroy);
+				VString->SetMethod<Core::String, Core::String&, const Core::String&>("string& opAssign(const string &in)", &Core::String::operator=);
+				VString->SetMethod<Core::String, Core::String&, const Core::String&>("string& opAddAssign(const string &in)", &Core::String::operator+=);
+				VString->SetMethodEx<Core::String, const Core::String&, const Core::String&>("string opAdd(const string &in) const", &std::operator+);
+				VString->SetMethod<Core::String, Core::String&, char>("string& opAddAssign(uint8)", &Core::String::operator+=);
+				VString->SetMethodEx<Core::String, const Core::String&, char>("string opAdd(uint8) const", &std::operator+);
+				VString->SetMethodEx<Core::String, char, const Core::String&>("string opAdd_r(uint8) const", &std::operator+);
+				VString->SetMethod<Core::String, int, const Core::String&>("int opCmp(const string &in) const", &Core::String::compare);
+				VString->SetMethodEx("uint8& opIndex(usize)", &String::Index);
+				VString->SetMethodEx("const uint8& opIndex(usize) const", &String::Index);
+				VString->SetMethodEx("uint8& at(usize)", &String::Index);
+				VString->SetMethodEx("const uint8& at(usize) const", &String::Index);
+				VString->SetMethodEx("uint8& front()", &String::Front);
+				VString->SetMethodEx("const uint8& front() const", &String::Front);
+				VString->SetMethodEx("uint8& back()", &String::Back);
+				VString->SetMethodEx("const uint8& back() const", &String::Back);
+				VString->SetMethod("uptr@ data() const", &Core::String::c_str);
+				VString->SetMethod("uptr@ c_str() const", &Core::String::c_str);
+				VString->SetMethod("bool empty() const", &Core::String::empty);
+				VString->SetMethod("usize size() const", &Core::String::size);
+				VString->SetMethod("usize max_size() const", &Core::String::max_size);
+				VString->SetMethod("usize capacity() const", &Core::String::capacity);
+				VString->SetMethod<Core::String, void, size_t>("void reserve(usize)", &Core::String::reserve);
+				VString->SetMethod<Core::String, void, size_t, char>("void resize(usize, uint8 = 0)", &Core::String::resize);
+				VString->SetMethod("void shrink_to_fit()", &Core::String::shrink_to_fit);
+				VString->SetMethod("void clear()", &Core::String::clear);
+				VString->SetMethod<Core::String, Core::String&, size_t, size_t, char>("string& insert(usize, usize, uint8)", &Core::String::insert);
+				VString->SetMethod<Core::String, Core::String&, size_t, const Core::String&>("string& insert(usize, const string&in)", &Core::String::insert);
+				VString->SetMethod<Core::String, Core::String&, size_t, size_t>("string& erase(usize, usize)", &Core::String::erase);
+				VString->SetMethod<Core::String, Core::String&, size_t, char>("string& append(usize, uint8)", &Core::String::append);
+				VString->SetMethod<Core::String, Core::String&, const Core::String&>("string& append(const string&in)", &Core::String::append);
+				VString->SetMethod("void push(uint8)", &Core::String::push_back);
+				VString->SetMethodEx("void pop()", &String::PopBack);
+				VString->SetMethodEx<bool, const Core::String&, const Core::String&, size_t>("bool starts_with(const string&in, usize = 0) const", &Core::Stringify::StartsWith);
+				VString->SetMethodEx<bool, const Core::String&, const Core::String&>("bool ends_with(const string&in) const", &Core::Stringify::EndsWith);
+				VString->SetMethodEx<Core::String&, Core::String&, size_t, size_t, const Core::String&>("string& replace(usize, usize, const string&in)", &Core::Stringify::ReplacePart);
+				VString->SetMethodEx<Core::String&, Core::String&, const Core::String&, const Core::String&, size_t>("string& replace_all(const string&in, const string&in, usize)", &Core::Stringify::Replace);
+				VString->SetMethodEx("string substring(usize) const", &String::Substring1);
+				VString->SetMethodEx("string substring(usize, usize) const", &String::Substring2);
+				VString->SetMethodEx("string substr(usize) const", &String::Substring1);
+				VString->SetMethodEx("string substr(usize, usize) const", &String::Substring2);
+				VString->SetMethodEx("string& trim()", &Core::Stringify::Trim);
+				VString->SetMethodEx("string& trim_start()", &Core::Stringify::TrimStart);
+				VString->SetMethodEx("string& trim_end()", &Core::Stringify::TrimEnd);
+				VString->SetMethodEx("string& to_lower()", &Core::Stringify::ToLower);
+				VString->SetMethodEx("string& to_upper()", &Core::Stringify::ToUpper);
+				VString->SetMethodEx<Core::String&, Core::String&>("string& reverse()", &Core::Stringify::Reverse);
+				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize rfind(const string&in, usize = 0) const", &Core::String::rfind);
+				VString->SetMethod<Core::String, size_t, char, size_t>("usize rfind(uint8, usize = 0) const", &Core::String::find);
+				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find(const string&in, usize = 0) const", &Core::String::find);
+				VString->SetMethod<Core::String, size_t, char, size_t>("usize find(uint8, usize = 0) const", &Core::String::find);
+				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find_first_of(const string&in, usize = 0) const", &Core::String::find_first_of);
+				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find_first_not_of(const string&in, usize = 0) const", &Core::String::find_first_not_of);
+				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find_last_of(const string&in, usize = 0) const", &Core::String::find_last_of);
+				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find_last_not_of(const string&in, usize = 0) const", &Core::String::find_last_not_of);
+				VString->SetMethodEx("array<string>@ split(const string &in) const", &String::Split);
+				VM->SetFunction("int8 to_int8(const string&in)", &String::FromString<int8_t>);
+				VM->SetFunction("int16 to_int16(const string&in)", &String::FromString<int16_t>);
+				VM->SetFunction("int32 to_int32(const string&in)", &String::FromString<int32_t>);
+				VM->SetFunction("int64 to_int64(const string&in)", &String::FromString<int64_t>);
+				VM->SetFunction("uint8 to_uint8(const string&in)", &String::FromString<uint8_t>);
+				VM->SetFunction("uint16 to_uint16(const string&in)", &String::FromString<uint16_t>);
+				VM->SetFunction("uint32 to_uint32(const string&in)", &String::FromString<uint32_t>);
+				VM->SetFunction("uint64 to_uint64(const string&in)", &String::FromString<uint64_t>);
+				VM->SetFunction("float to_float(const string&in)", &String::FromString<float>);
+				VM->SetFunction("double to_double(const string&in)", &String::FromString<double>);
+				VM->SetFunction("string to_string(int8)", &Core::ToString<int8_t>);
+				VM->SetFunction("string to_string(int16)", &Core::ToString<int16_t>);
+				VM->SetFunction("string to_string(int32)", &Core::ToString<int32_t>);
+				VM->SetFunction("string to_string(int64)", &Core::ToString<int64_t>);
+				VM->SetFunction("string to_string(uint8)", &Core::ToString<uint8_t>);
+				VM->SetFunction("string to_string(uint16)", &Core::ToString<uint16_t>);
+				VM->SetFunction("string to_string(uint32)", &Core::ToString<uint32_t>);
+				VM->SetFunction("string to_string(uint64)", &Core::ToString<uint64_t>);
+				VM->SetFunction("string to_string(float)", &Core::ToString<float>);
+				VM->SetFunction("string to_string(double)", &Core::ToString<double>);
+				VM->SetFunction("string to_string(uptr@, usize)", &String::FromBuffer);
+				VM->SetFunction("uint64 component_id(const string &in)", &Core::OS::File::GetHash);
 
 				VM->BeginNamespace("string");
-				Engine->RegisterGlobalProperty("const usize npos", (void*)&Core::String::npos);
+				VM->SetProperty("const usize npos", &Core::String::npos);
 				VM->EndNamespace();
 
 				return true;
@@ -9493,27 +9489,24 @@ namespace Mavi
 			bool Registry::ImportException(VirtualMachine* VM)
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
-
-				asIScriptEngine* Engine = VM->GetEngine();
-				auto VExceptionData = VM->SetStructTrivial<Exception::Pointer>("exception_ptr");
-				VExceptionData->SetProperty("string type", &Exception::Pointer::Type);
-				VExceptionData->SetProperty("string message", &Exception::Pointer::Message);
-				VExceptionData->SetProperty("string origin", &Exception::Pointer::Origin);
-				VExceptionData->SetConstructor<Exception::Pointer>("void f()");
-				VExceptionData->SetConstructor<Exception::Pointer, const Core::String&>("void f(const string&in)");
-				VExceptionData->SetConstructor<Exception::Pointer, const Core::String&, const Core::String&>("void f(const string&in, const string&in)");
-				VExceptionData->SetMethod("const string& get_type() const", &Exception::Pointer::GetType);
-				VExceptionData->SetMethod("const string& get_message() const", &Exception::Pointer::GetMessage);
-				VExceptionData->SetMethod("string what() const", &Exception::Pointer::What);
-				VExceptionData->SetMethod("bool empty() const", &Exception::Pointer::Empty);
+				auto VExceptionPtr = VM->SetStructTrivial<Exception::Pointer>("exception_ptr");
+				VExceptionPtr->SetProperty("string type", &Exception::Pointer::Type);
+				VExceptionPtr->SetProperty("string message", &Exception::Pointer::Message);
+				VExceptionPtr->SetProperty("string origin", &Exception::Pointer::Origin);
+				VExceptionPtr->SetConstructor<Exception::Pointer>("void f()");
+				VExceptionPtr->SetConstructor<Exception::Pointer, const Core::String&>("void f(const string&in)");
+				VExceptionPtr->SetConstructor<Exception::Pointer, const Core::String&, const Core::String&>("void f(const string&in, const string&in)");
+				VExceptionPtr->SetMethod("const string& get_type() const", &Exception::Pointer::GetType);
+				VExceptionPtr->SetMethod("const string& get_message() const", &Exception::Pointer::GetMessage);
+				VExceptionPtr->SetMethod("string what() const", &Exception::Pointer::What);
+				VExceptionPtr->SetMethod("bool empty() const", &Exception::Pointer::Empty);
 
 				VM->SetCodeGenerator("std/exception", &Exception::GeneratorCallback);
 				VM->BeginNamespace("exception");
-				Engine->RegisterGlobalFunction("void throw(const exception_ptr&in)", asFUNCTION(Exception::Throw), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("void rethrow()", asFUNCTION(Exception::Rethrow), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("exception_ptr unwrap()", asFUNCTION(Exception::GetException), asCALL_CDECL);
+				VM->SetFunction("void throw(const exception_ptr&in)", &Exception::Throw);
+				VM->SetFunction("void rethrow()", &Exception::Rethrow);
+				VM->SetFunction("exception_ptr unwrap()", &Exception::GetException);
 				VM->EndNamespace();
-
 				return true;
 			}
 			bool Registry::ImportMutex(VirtualMachine* VM)
@@ -9521,13 +9514,11 @@ namespace Mavi
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				asIScriptEngine* Engine = VM->GetEngine();
-				Engine->RegisterObjectType("mutex", sizeof(Mutex), asOBJ_REF);
-				Engine->RegisterObjectBehaviour("mutex", asBEHAVE_FACTORY, "mutex@ f()", asFUNCTION(Mutex::Factory), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("mutex", asBEHAVE_ADDREF, "void f()", asMETHOD(Mutex, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("mutex", asBEHAVE_RELEASE, "void f()", asMETHOD(Mutex, Release), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("mutex", "bool try_lock()", asMETHOD(Mutex, TryLock), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("mutex", "void lock()", asMETHOD(Mutex, Lock), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("mutex", "void unlock()", asMETHOD(Mutex, Unlock), asCALL_THISCALL);
+				auto VMutex = VM->SetClass<Mutex>("mutex", false);
+				VMutex->SetConstructorEx("mutex@ f()", &Mutex::Factory);
+				VMutex->SetMethod("bool try_lock()", &Mutex::TryLock);
+				VMutex->SetMethod("void lock()", &Mutex::Lock);
+				VMutex->SetMethod("void unlock()", &Mutex::Unlock);
 				return true;
 #else
 				VI_ASSERT(false, "<mutex> is not loaded");
@@ -9538,33 +9529,27 @@ namespace Mavi
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
-				asIScriptEngine* Engine = VM->GetEngine();
-				Engine->RegisterObjectType("thread", 0, asOBJ_REF | asOBJ_GC);
-				Engine->RegisterFuncdef("void thread_event(thread@+)");
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_FACTORY, "thread@ f(thread_event@)", asFUNCTION(Thread::Create), asCALL_GENERIC);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_ADDREF, "void f()", asMETHOD(Thread, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_RELEASE, "void f()", asMETHOD(Thread, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Thread, MarkRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Thread, IsMarkedRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Thread, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Thread, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Thread, ReleaseReferences), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "bool is_active()", asMETHOD(Thread, IsActive), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "bool invoke()", asMETHOD(Thread, Start), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "bool suspend()", asMETHOD(Thread, Suspend), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "bool resume()", asMETHOD(Thread, Resume), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "void push(const ?&in)", asMETHOD(Thread, Push), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "bool pop(?&out)", asMETHODPR(Thread, Pop, (void*, int), bool), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "bool pop(?&out, uint64)", asMETHODPR(Thread, Pop, (void*, int, uint64_t), bool), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "int join(uint64)", asMETHODPR(Thread, Join, (uint64_t), int), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "int join()", asMETHODPR(Thread, Join, (), int), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "string get_id() const", asMETHODPR(Thread, GetId, () const, Core::String), asCALL_THISCALL);
+				auto VThread = VM->SetClass<Thread>("thread", true);
+				VThread->SetFunctionDef("void thread_event(thread@+)");
+				VThread->SetConstructorEx("thread@ f(thread_event@)", &Thread::Create);
+				VThread->SetEnumRefs(&Thread::EnumReferences);
+				VThread->SetReleaseRefs(&Thread::ReleaseReferences);
+				VThread->SetMethod("bool is_active()", &Thread::IsActive);
+				VThread->SetMethod("bool invoke()", &Thread::Start);
+				VThread->SetMethod("bool suspend()", &Thread::Suspend);
+				VThread->SetMethod("bool resume()", &Thread::Resume);
+				VThread->SetMethod("void push(const ?&in)", &Thread::Push);
+				VThread->SetMethod<Thread, bool, void*, int>("bool pop(?&out)", &Thread::Pop);
+				VThread->SetMethod<Thread, bool, void*, int, uint64_t>("bool pop(?&out, uint64)", &Thread::Pop);
+				VThread->SetMethod<Thread, int, uint64_t>("int join(uint64)", &Thread::Join);
+				VThread->SetMethod<Thread, int>("int join()", &Thread::Join);
+				VThread->SetMethod("string get_id() const", &Thread::GetId);
 
 				VM->BeginNamespace("this_thread");
-				Engine->RegisterGlobalFunction("thread@+ get_routine()", asFUNCTION(Thread::GetThread), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("string get_id()", asFUNCTION(Thread::GetThreadId), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("void sleep(uint64)", asFUNCTION(Thread::ThreadSleep), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("bool suspend()", asFUNCTION(Thread::ThreadSuspend), asCALL_CDECL);
+				VM->SetFunction("thread@+ get_routine()", &Thread::GetThread);
+				VM->SetFunction("string get_id()", &Thread::GetThreadId);
+				VM->SetFunction("void sleep(uint64)", &Thread::ThreadSleep);
+				VM->SetFunction("bool suspend()", &Thread::ThreadSuspend);
 				VM->EndNamespace();
 				return true;
 #else
@@ -9576,45 +9561,44 @@ namespace Mavi
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
-				asIScriptEngine* Engine = VM->GetEngine();
-				Engine->RegisterObjectType("char_buffer", 0, asOBJ_REF);
-				Engine->RegisterObjectBehaviour("char_buffer", asBEHAVE_FACTORY, "char_buffer@ f()", asFUNCTIONPR(CharBuffer::Create, (), CharBuffer*), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("char_buffer", asBEHAVE_FACTORY, "char_buffer@ f(usize)", asFUNCTIONPR(CharBuffer::Create, (size_t), CharBuffer*), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("char_buffer", asBEHAVE_FACTORY, "char_buffer@ f(uptr@)", asFUNCTIONPR(CharBuffer::Create, (char*), CharBuffer*), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("char_buffer", asBEHAVE_ADDREF, "void f()", asMETHOD(CharBuffer, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("char_buffer", asBEHAVE_RELEASE, "void f()", asMETHOD(CharBuffer, Release), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "uptr@ get_ptr(usize = 0) const", asMETHOD(CharBuffer, GetPointer), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool allocate(usize)", asMETHOD(CharBuffer, Allocate), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool deallocate()", asMETHOD(CharBuffer, Deallocate), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool exists(usize) const", asMETHOD(CharBuffer, Exists), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool empty() const", asMETHOD(CharBuffer, Empty), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool set(usize, int8, usize)", asMETHOD(CharBuffer, SetInt8), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool set(usize, uint8, usize)", asMETHOD(CharBuffer, SetUint8), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, const string&in)", asMETHOD(CharBuffer, StoreBytes), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, int8)", asMETHOD(CharBuffer, StoreInt8), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, uint8)", asMETHOD(CharBuffer, StoreUint8), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, int16)", asMETHOD(CharBuffer, StoreInt16), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, uint16)", asMETHOD(CharBuffer, StoreUint16), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, int32)", asMETHOD(CharBuffer, StoreInt32), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, uint32)", asMETHOD(CharBuffer, StoreUint32), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, int64)", asMETHOD(CharBuffer, StoreInt64), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, uint64)", asMETHOD(CharBuffer, StoreUint64), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, float)", asMETHOD(CharBuffer, StoreFloat), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool store(usize, double)", asMETHOD(CharBuffer, StoreDouble), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool interpret(usize, string&out, usize) const", asMETHOD(CharBuffer, Interpret), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, string&out, usize) const", asMETHOD(CharBuffer, LoadBytes), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, int8&out) const", asMETHOD(CharBuffer, LoadInt8), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, uint8&out) const", asMETHOD(CharBuffer, LoadUint8), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, int16&out) const", asMETHOD(CharBuffer, LoadInt16), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, uint16&out) const", asMETHOD(CharBuffer, LoadUint16), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, int32&out) const", asMETHOD(CharBuffer, LoadInt32), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, uint32&out) const", asMETHOD(CharBuffer, LoadUint32), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, int64&out) const", asMETHOD(CharBuffer, LoadInt64), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, uint64&out) const", asMETHOD(CharBuffer, LoadUint64), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, float&out) const", asMETHOD(CharBuffer, LoadFloat), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "bool load(usize, double&out) const", asMETHOD(CharBuffer, LoadDouble), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "usize size() const", asMETHOD(CharBuffer, GetSize), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("char_buffer", "string to_string(usize) const", asMETHOD(CharBuffer, ToString), asCALL_THISCALL);
+				auto VCharBuffer = VM->SetClass<CharBuffer>("char_buffer", false);
+				VCharBuffer->SetConstructorEx<CharBuffer>("char_buffer@ f()", &CharBuffer::Create);
+				VCharBuffer->SetConstructorEx<CharBuffer, size_t>("char_buffer@ f(usize)", &CharBuffer::Create);
+				VCharBuffer->SetConstructorEx<CharBuffer, char*>("char_buffer@ f(uptr@)", &CharBuffer::Create);
+				VCharBuffer->SetAddRef<CharBuffer>();
+				VCharBuffer->SetRelease<CharBuffer>();
+				VCharBuffer->SetMethod("uptr@ get_ptr(usize = 0) const", &CharBuffer::GetPointer);
+				VCharBuffer->SetMethod("bool allocate(usize)", &CharBuffer::Allocate);
+				VCharBuffer->SetMethod("bool deallocate()", &CharBuffer::Deallocate);
+				VCharBuffer->SetMethod("bool exists(usize) const", &CharBuffer::Exists);
+				VCharBuffer->SetMethod("bool empty() const", &CharBuffer::Empty);
+				VCharBuffer->SetMethod("bool set(usize, int8, usize)", &CharBuffer::SetInt8);
+				VCharBuffer->SetMethod("bool set(usize, uint8, usize)", &CharBuffer::SetUint8);
+				VCharBuffer->SetMethod("bool store(usize, const string&in)", &CharBuffer::StoreBytes);
+				VCharBuffer->SetMethod("bool store(usize, int8)", &CharBuffer::StoreInt8);
+				VCharBuffer->SetMethod("bool store(usize, uint8)", &CharBuffer::StoreUint8);
+				VCharBuffer->SetMethod("bool store(usize, int16)", &CharBuffer::StoreInt16);
+				VCharBuffer->SetMethod("bool store(usize, uint16)", &CharBuffer::StoreUint16);
+				VCharBuffer->SetMethod("bool store(usize, int32)", &CharBuffer::StoreInt32);
+				VCharBuffer->SetMethod("bool store(usize, uint32)", &CharBuffer::StoreUint32);
+				VCharBuffer->SetMethod("bool store(usize, int64)", &CharBuffer::StoreInt64);
+				VCharBuffer->SetMethod("bool store(usize, uint64)", &CharBuffer::StoreUint64);
+				VCharBuffer->SetMethod("bool store(usize, float)", &CharBuffer::StoreFloat);
+				VCharBuffer->SetMethod("bool store(usize, double)", &CharBuffer::StoreDouble);
+				VCharBuffer->SetMethod("bool interpret(usize, string&out, usize) const", &CharBuffer::Interpret);
+				VCharBuffer->SetMethod("bool load(usize, string&out, usize) const", &CharBuffer::LoadBytes);
+				VCharBuffer->SetMethod("bool load(usize, int8&out) const", &CharBuffer::LoadInt8);
+				VCharBuffer->SetMethod("bool load(usize, uint8&out) const", &CharBuffer::LoadUint8);
+				VCharBuffer->SetMethod("bool load(usize, int16&out) const", &CharBuffer::LoadInt16);
+				VCharBuffer->SetMethod("bool load(usize, uint16&out) const", &CharBuffer::LoadUint16);
+				VCharBuffer->SetMethod("bool load(usize, int32&out) const", &CharBuffer::LoadInt32);
+				VCharBuffer->SetMethod("bool load(usize, uint32&out) const", &CharBuffer::LoadUint32);
+				VCharBuffer->SetMethod("bool load(usize, int64&out) const", &CharBuffer::LoadInt64);
+				VCharBuffer->SetMethod("bool load(usize, uint64&out) const", &CharBuffer::LoadUint64);
+				VCharBuffer->SetMethod("bool load(usize, float&out) const", &CharBuffer::LoadFloat);
+				VCharBuffer->SetMethod("bool load(usize, double&out) const", &CharBuffer::LoadDouble);
+				VCharBuffer->SetMethod("usize size() const", &CharBuffer::GetSize);
+				VCharBuffer->SetMethod("string to_string(usize) const", &CharBuffer::ToString);
 				return true;
 #else
 				VI_ASSERT(false, "<buffers> is not loaded");
@@ -9640,51 +9624,41 @@ namespace Mavi
 			}
 			bool Registry::ImportPromise(VirtualMachine* VM)
 			{
-				asIScriptEngine* Engine = VM->GetEngine();
-				VI_ASSERT(Engine != nullptr, "manager should be set");
-				Engine->RegisterObjectType("promise<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Promise::TemplateCallback), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(Promise, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(Promise, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Promise, MarkRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Promise, IsMarkedRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Promise, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Promise, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Promise, ReleaseReferences), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise<T>", "void wrap(?&in)", asMETHODPR(Promise, Store, (void*, int), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise<T>", "T& unwrap()", asMETHODPR(Promise, Retrieve, (), void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise<T>", "promise<T>@+ yield()", asMETHOD(Promise, YieldIf), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise<T>", "bool pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
-				Engine->RegisterObjectType("promise_v", 0, asOBJ_REF | asOBJ_GC);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_ADDREF, "void f()", asMETHOD(Promise, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_RELEASE, "void f()", asMETHOD(Promise, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Promise, MarkRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Promise, IsMarkedRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Promise, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Promise, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Promise, ReleaseReferences), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise_v", "void wrap()", asMETHODPR(Promise, StoreVoid, (), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise_v", "void unwrap()", asMETHODPR(Promise, RetrieveVoid, (), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise_v", "promise_v@+ yield()", asMETHOD(Promise, YieldIf), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("promise_v", "bool pending()", asMETHOD(Promise, IsPending), asCALL_THISCALL);
-				VM->SetCodeGenerator("std/promise", &Promise::GeneratorCallback);
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				auto VPromise = VM->SetTemplateClass<Promise>("promise<class T>", true);
+				VPromise->SetTemplateCallback(&Promise::TemplateCallback);
+				VPromise->SetEnumRefs(&Promise::EnumReferences);
+				VPromise->SetReleaseRefs(&Promise::ReleaseReferences);
+				VPromise->SetMethod<Promise, void, void*, int>("void wrap(?&in)", &Promise::Store);
+				VPromise->SetMethod<Promise, void*>("T& unwrap()", &Promise::Retrieve);
+				VPromise->SetMethod("promise<T>@+ yield()", &Promise::YieldIf);
+				VPromise->SetMethod("bool pending()", &Promise::IsPending);
+
+				auto VPromiseVoid = VM->SetClass<Promise>("promise_v", true);
+				VPromiseVoid->SetEnumRefs(&Promise::EnumReferences);
+				VPromiseVoid->SetReleaseRefs(&Promise::ReleaseReferences);
+				VPromiseVoid->SetMethod("void wrap()", &Promise::StoreVoid);
+				VPromiseVoid->SetMethod("void unwrap()", &Promise::RetrieveVoid);
+				VPromiseVoid->SetMethod("promise_v@+ yield()", &Promise::YieldIf);
+				VPromiseVoid->SetMethod("bool pending()", &Promise::IsPending);
 
 				bool HasConstructor = (!VM->GetLibraryProperty(LibraryFeatures::PromiseNoConstructor));
 				if (HasConstructor)
 				{
-					Engine->RegisterObjectBehaviour("promise<T>", asBEHAVE_FACTORY, "promise<T>@ f(?&in)", asFUNCTION(Promise::CreateFactory), asCALL_CDECL);
-					Engine->RegisterObjectBehaviour("promise_v", asBEHAVE_FACTORY, "promise_v@ f(bool = false)", asFUNCTION(Promise::CreateFactoryVoid), asCALL_CDECL);
+					VPromise->SetConstructorEx("promise<T>@ f(?&in)", &Promise::CreateFactory);
+					VPromiseVoid->SetConstructorEx("promise_v@ f(bool = false)", &Promise::CreateFactoryVoid);
 				}
 
 				bool HasCallbacks = (!VM->GetLibraryProperty(LibraryFeatures::PromiseNoCallbacks));
 				if (HasCallbacks)
 				{
-					Engine->RegisterFuncdef("void promise<T>::when_callback(T&in)");
-					Engine->RegisterObjectMethod("promise<T>", "void when(when_callback@)", asMETHOD(Promise, When), asCALL_THISCALL);
-					Engine->RegisterFuncdef("void promise_v::when_callback()");
-					Engine->RegisterObjectMethod("promise_v", "void when(when_callback@)", asMETHOD(Promise, When), asCALL_THISCALL);
+					VPromise->SetFunctionDef("void promise<T>::when_callback(T&in)");
+					VPromise->SetMethod("void when(when_callback@)", &Promise::When);
+					VPromiseVoid->SetFunctionDef("void promise_v::when_callback()");
+					VPromiseVoid->SetMethod("void when(when_callback@)", &Promise::When);
 				}
 
+				VM->SetCodeGenerator("std/promise", &Promise::GeneratorCallback);
 				return true;
 			}
 			bool Registry::ImportFormat(VirtualMachine* VM)
@@ -10303,7 +10277,7 @@ namespace Mavi
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
-				VM->GetEngine()->RegisterTypedef("task_id", "uint64");
+				VM->SetTypeDef("task_id", "uint64");
 
 				auto VDifficulty = VM->SetEnum("difficulty");
 				VDifficulty->SetValue("async", (int)Core::Difficulty::Async);
@@ -11597,7 +11571,7 @@ namespace Mavi
 				VSoftBodySConvex->SetProperty<Compute::SoftBody::Desc::CV::SConvex>("bool enabled", &Compute::SoftBody::Desc::CV::SConvex::Enabled);
 				VSoftBodySConvex->SetConstructor<Compute::SoftBody::Desc::CV::SConvex>("void f()");
 				VSoftBodySConvex->SetOperatorCopyStatic(&SoftBodySConvexCopy);
-				VSoftBodySConvex->SetDestructorStatic("void f()", &SoftBodySConvexDestructor);
+				VSoftBodySConvex->SetDestructorEx("void f()", &SoftBodySConvexDestructor);
 
 				auto VSoftBodySRope = VM->SetPod<Compute::SoftBody::Desc::CV::SRope>("physics_softbody_desc_cv_srope");
 				VSoftBodySRope->SetProperty<Compute::SoftBody::Desc::CV::SRope>("bool start_fixed", &Compute::SoftBody::Desc::CV::SRope::StartFixed);
@@ -13214,7 +13188,7 @@ namespace Mavi
 				VInputLayoutDesc->SetProperty<Graphics::InputLayout::Desc>("shader@ source", &Graphics::InputLayout::Desc::Source);
 				VInputLayoutDesc->SetConstructor<Graphics::InputLayout::Desc>("void f()");
 				VInputLayoutDesc->SetOperatorCopyStatic(&InputLayoutDescCopy);
-				VInputLayoutDesc->SetDestructorStatic("void f()", &InputLayoutDescDestructor);
+				VInputLayoutDesc->SetDestructorEx("void f()", &InputLayoutDescDestructor);
 				VInputLayoutDesc->SetMethodEx("void set_attributes(array<input_layout_attribute>@+)", &InputLayoutDescSetAttributes);
 
 				auto VInputLayout = VM->SetClass<Graphics::InputLayout>("input_layout", false);
@@ -13296,7 +13270,7 @@ namespace Mavi
 				VInstanceBufferDesc->SetProperty<Graphics::InstanceBuffer::Desc>("uint32 element_limit", &Graphics::InstanceBuffer::Desc::ElementLimit);
 				VInstanceBufferDesc->SetConstructor<Graphics::InstanceBuffer::Desc>("void f()");
 				VInstanceBufferDesc->SetOperatorCopyStatic(&InstanceBufferDescCopy);
-				VInstanceBufferDesc->SetDestructorStatic("void f()", &InstanceBufferDescDestructor);
+				VInstanceBufferDesc->SetDestructorEx("void f()", &InstanceBufferDescDestructor);
 
 				auto VInstanceBuffer = VM->SetClass<Graphics::InstanceBuffer>("instance_buffer", true);
 				VInstanceBuffer->SetMethodEx("void set_array(array<element_vertex>@+)", &InstanceBufferSetArray);
@@ -13528,7 +13502,7 @@ namespace Mavi
 				VCubemapDesc->SetProperty<Graphics::Cubemap::Desc>("uint32 mip_levels", &Graphics::Cubemap::Desc::MipLevels);
 				VCubemapDesc->SetConstructor<Graphics::Cubemap::Desc>("void f()");
 				VCubemapDesc->SetOperatorCopyStatic(&CubemapDescCopy);
-				VCubemapDesc->SetDestructorStatic("void f()", &CubemapDescDestructor);
+				VCubemapDesc->SetDestructorEx("void f()", &CubemapDescDestructor);
 
 				auto VCubemap = VM->SetClass<Graphics::Cubemap>("cubemap", false);
 				VCubemap->SetMethod("bool is_valid() const", &Graphics::Cubemap::IsValid);
@@ -13559,7 +13533,7 @@ namespace Mavi
 				VGraphicsDeviceDesc->SetProperty<Graphics::GraphicsDevice::Desc>("activity@ window", &Graphics::GraphicsDevice::Desc::Window);
 				VGraphicsDeviceDesc->SetConstructor<Graphics::GraphicsDevice::Desc>("void f()");
 				VGraphicsDeviceDesc->SetOperatorCopyStatic(&GraphicsDeviceDescCopy);
-				VGraphicsDeviceDesc->SetDestructorStatic("void f()", &GraphicsDeviceDescDestructor);
+				VGraphicsDeviceDesc->SetDestructorEx("void f()", &GraphicsDeviceDescDestructor);
 
 				VGraphicsDevice->SetMethod("void set_as_current_device()", &Graphics::GraphicsDevice::SetAsCurrentDevice);
 				VGraphicsDevice->SetMethod("void set_shader_model(shader_model)", &Graphics::GraphicsDevice::SetShaderModel);
@@ -13866,7 +13840,7 @@ namespace Mavi
 				VEpollFd->SetProperty<Network::EpollFd>("bool closed", &Network::EpollFd::Closed);
 				VEpollFd->SetConstructor<Network::EpollFd>("void f()");
 				VEpollFd->SetOperatorCopyStatic(&EpollFdCopy);
-				VEpollFd->SetDestructorStatic("void f()", &EpollFdDestructor);
+				VEpollFd->SetDestructorEx("void f()", &EpollFdDestructor);
 
 				auto VEpollHandle = VM->SetStructTrivial<Network::EpollHandle>("epoll_handle");
 				VEpollHandle->SetProperty<Network::EpollHandle>("uptr@ array", &Network::EpollHandle::Array);
@@ -14831,7 +14805,7 @@ namespace Mavi
 				VViewer->SetProperty<Engine::Viewer>("float fov", &Engine::Viewer::Fov);
 				VViewer->SetConstructor<Engine::Viewer>("void f()");
 				VViewer->SetOperatorCopyStatic(&ViewerCopy);
-				VViewer->SetDestructorStatic("void f()", &ViewerDestructor);
+				VViewer->SetDestructorEx("void f()", &ViewerDestructor);
 				VViewer->SetMethod<Engine::Viewer, void, const Compute::Matrix4x4&, const Compute::Matrix4x4&, const Compute::Vector3&, float, float, float, float, Engine::RenderCulling>("void set(const matrix4x4 &in, const matrix4x4 &in, const vector3 &in, float, float, float, float, render_culling)", &Engine::Viewer::Set);
 				VViewer->SetMethod<Engine::Viewer, void, const Compute::Matrix4x4&, const Compute::Matrix4x4&, const Compute::Vector3&, const Compute::Vector3&, float, float, float, float, Engine::RenderCulling>("void set(const matrix4x4 &in, const matrix4x4 &in, const vector3 &in, const vector3 &in, float, float, float, float, render_culling)", &Engine::Viewer::Set);
 
@@ -15234,7 +15208,7 @@ namespace Mavi
 				VSceneGraphSharedDesc->SetProperty<Engine::SceneGraph::Desc::Dependencies>("shader_cache@ shaders", &Engine::SceneGraph::Desc::Dependencies::Shaders);
 				VSceneGraphSharedDesc->SetConstructor<Engine::SceneGraph::Desc::Dependencies>("void f()");
 				VSceneGraphSharedDesc->SetOperatorCopyStatic(&SceneGraphSharedDescCopy);
-				VSceneGraphSharedDesc->SetDestructorStatic("void f()", &SceneGraphSharedDescDestructor);
+				VSceneGraphSharedDesc->SetDestructorEx("void f()", &SceneGraphSharedDescDestructor);
 
 				auto VApplication = VM->SetClass<Application>("application", true);
 				auto VSceneGraphDesc = VM->SetStructTrivial<Engine::SceneGraph::Desc>("scene_graph_desc");
@@ -15395,7 +15369,7 @@ namespace Mavi
 				VApplicationCacheInfo->SetProperty<Application::CacheInfo>("primitive_cache@ primitives", &Application::CacheInfo::Primitives);
 				VApplicationCacheInfo->SetConstructor<Application::CacheInfo>("void f()");
 				VApplicationCacheInfo->SetOperatorCopyStatic(&ApplicationCacheInfoCopy);
-				VApplicationCacheInfo->SetDestructorStatic("void f()", &ApplicationCacheInfoDestructor);
+				VApplicationCacheInfo->SetDestructorEx("void f()", &ApplicationCacheInfoDestructor);
 
 				auto VApplicationDesc = VM->SetStructTrivial<Application::Desc>("application_desc");
 				VApplicationDesc->SetProperty<Application::Desc>("application_frame_info framerate", &Application::Desc::Framerate);

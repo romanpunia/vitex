@@ -216,6 +216,7 @@ namespace Mavi
 
 		enum class ParserError
 		{
+			NotSupported,
 			BadVersion,
 			BadDictionary,
 			BadNameIndex,

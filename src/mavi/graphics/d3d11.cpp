@@ -604,57 +604,57 @@ namespace Mavi
 				ShaderGen = Model;
 				if (ShaderGen == ShaderModel::HLSL_1_0)
 				{
-					VSP = "vs_1_0";
-					PSP = "ps_1_0";
-					GSP = "gs_1_0";
-					CSP = "cs_1_0";
-					DSP = "ds_1_0";
-					HSP = "hs_1_0";
+					Models.Vertex = "vs_1_0";
+					Models.Pixel = "ps_1_0";
+					Models.Geometry = "gs_1_0";
+					Models.Compute = "cs_1_0";
+					Models.Domain = "ds_1_0";
+					Models.Hull = "hs_1_0";
 				}
 				else if (ShaderGen == ShaderModel::HLSL_2_0)
 				{
-					VSP = "vs_2_0";
-					PSP = "ps_2_0";
-					GSP = "gs_2_0";
-					CSP = "cs_2_0";
-					DSP = "ds_2_0";
-					HSP = "hs_2_0";
+					Models.Vertex = "vs_2_0";
+					Models.Pixel = "ps_2_0";
+					Models.Geometry = "gs_2_0";
+					Models.Compute = "cs_2_0";
+					Models.Domain = "ds_2_0";
+					Models.Hull = "hs_2_0";
 				}
 				else if (ShaderGen == ShaderModel::HLSL_3_0)
 				{
-					VSP = "vs_3_0";
-					PSP = "ps_3_0";
-					GSP = "gs_3_0";
-					CSP = "cs_3_0";
-					DSP = "ds_3_0";
-					HSP = "hs_3_0";
+					Models.Vertex = "vs_3_0";
+					Models.Pixel = "ps_3_0";
+					Models.Geometry = "gs_3_0";
+					Models.Compute = "cs_3_0";
+					Models.Domain = "ds_3_0";
+					Models.Hull = "hs_3_0";
 				}
 				else if (ShaderGen == ShaderModel::HLSL_4_0)
 				{
-					VSP = "vs_4_0";
-					PSP = "ps_4_0";
-					GSP = "gs_4_0";
-					CSP = "cs_4_0";
-					DSP = "ds_4_0";
-					HSP = "hs_4_0";
+					Models.Vertex = "vs_4_0";
+					Models.Pixel = "ps_4_0";
+					Models.Geometry = "gs_4_0";
+					Models.Compute = "cs_4_0";
+					Models.Domain = "ds_4_0";
+					Models.Hull = "hs_4_0";
 				}
 				else if (ShaderGen == ShaderModel::HLSL_4_1)
 				{
-					VSP = "vs_4_1";
-					PSP = "ps_4_1";
-					GSP = "gs_4_1";
-					CSP = "cs_4_1";
-					DSP = "ds_4_1";
-					HSP = "hs_4_1";
+					Models.Vertex = "vs_4_1";
+					Models.Pixel = "ps_4_1";
+					Models.Geometry = "gs_4_1";
+					Models.Compute = "cs_4_1";
+					Models.Domain = "ds_4_1";
+					Models.Hull = "hs_4_1";
 				}
 				else if (ShaderGen == ShaderModel::HLSL_5_0)
 				{
-					VSP = "vs_5_0";
-					PSP = "ps_5_0";
-					GSP = "gs_5_0";
-					CSP = "cs_5_0";
-					DSP = "ds_5_0";
-					HSP = "hs_5_0";
+					Models.Vertex = "vs_5_0";
+					Models.Pixel = "ps_5_0";
+					Models.Geometry = "gs_5_0";
+					Models.Compute = "cs_5_0";
+					Models.Domain = "ds_5_0";
+					Models.Hull = "hs_5_0";
 				}
 				else
 					SetShaderModel(ShaderModel::HLSL_4_0);
@@ -4222,27 +4222,27 @@ namespace Mavi
 			}
 			char* D3D11Device::GetVSProfile()
 			{
-				return (char*)VSP;
+				return (char*)Models.Vertex;
 			}
 			char* D3D11Device::GetPSProfile()
 			{
-				return (char*)PSP;
+				return (char*)Models.Pixel;
 			}
 			char* D3D11Device::GetGSProfile()
 			{
-				return (char*)GSP;
+				return (char*)Models.Geometry;
 			}
 			char* D3D11Device::GetHSProfile()
 			{
-				return (char*)HSP;
+				return (char*)Models.Hull;
 			}
 			char* D3D11Device::GetCSProfile()
 			{
-				return (char*)CSP;
+				return (char*)Models.Compute;
 			}
 			char* D3D11Device::GetDSProfile()
 			{
-				return (char*)DSP;
+				return (char*)Models.Domain;
 			}
 		}
 	}

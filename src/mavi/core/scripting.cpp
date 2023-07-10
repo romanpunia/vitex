@@ -5312,6 +5312,14 @@ namespace Mavi
 			VI_TRACE("[vm] register funcdef %i bytes", (int)strlen(Decl));
 			return FunctionFactory::ToReturn(Engine->RegisterFuncdef(Decl));
 		}
+		ExpectsVM<void> VirtualMachine::SetTypeDef(const char* Type, const char* Decl)
+		{
+			VI_ASSERT(Type != nullptr, "type should be set");
+			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register funcdef %i bytes", (int)strlen(Decl));
+			return FunctionFactory::ToReturn(Engine->RegisterTypedef(Type, Decl));
+		}
 		ExpectsVM<void> VirtualMachine::SetFunctionAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
 			VI_ASSERT(Decl != nullptr, "declaration should be set");
@@ -5327,6 +5335,11 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register global %i bytes at 0x%" PRIXPTR, (int)strlen(Decl), (void*)Value);
 			return FunctionFactory::ToReturn(Engine->RegisterGlobalProperty(Decl, Value));
+		}
+		ExpectsVM<void> VirtualMachine::SetStringFactoryAddress(const char* Type, asIStringFactory* Factory)
+		{
+			VI_ASSERT(Type != nullptr, "declaration should be set");
+			return FunctionFactory::ToReturn(Engine->RegisterStringFactory(Type, Factory));
 		}
 		ExpectsVM<void> VirtualMachine::GetPropertyByIndex(size_t Index, PropertyInfo* Info) const
 		{

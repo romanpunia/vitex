@@ -9,11 +9,12 @@ class asIScriptEngine;
 class asIScriptContext;
 class asIScriptModule;
 class asIScriptTranslator;
-class asITypeInfo;
 class asIScriptFunction;
 class asIScriptGeneric;
 class asIScriptObject;
+class asIStringFactory;
 class asILockableSharedBool;
+class asITypeInfo;
 struct asSFuncPtr;
 struct asSMessageInfo;
 
@@ -925,6 +926,13 @@ namespace Mavi
 			static Core::String GetOperator(Operators Op, const char* Out, const char* Args, bool Const, bool Right);
 
 		public:
+			ExpectsVM<void> SetTemplateCallback(bool(*Value)(asITypeInfo*, bool&))
+			{
+				asSFuncPtr* TemplateCallback = Bridge::Function<bool(*)(asITypeInfo*, bool&)>(Value);
+				auto Result = SetBehaviourAddress("bool f(int&in, bool&out)", Behaviours::TEMPLATE_CALLBACK, TemplateCallback, FunctionCall::CDECLF);
+				FunctionFactory::ReleaseFunctor(&TemplateCallback);
+				return Result;
+			}
 			template <typename T>
 			ExpectsVM<void> SetEnumRefs(void(T::* Value)(asIScriptEngine*))
 			{
@@ -1167,6 +1175,15 @@ namespace Mavi
 
 		public:
 			template <typename T, typename... Args>
+			ExpectsVM<void> SetConstructorEx(const char* Decl, T* (*Value)(Args...))
+			{
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
+				asSFuncPtr* Functor = Bridge::Function<T * (*)(Args...)>(Value);
+				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::CDECLF);
+				FunctionFactory::ReleaseFunctor(&Functor);
+				return Result;
+			}
+			template <typename T, typename... Args>
 			ExpectsVM<void> SetConstructor(const char* Decl)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
@@ -1323,6 +1340,15 @@ namespace Mavi
 
 		public:
 			template <typename T, typename... Args>
+			ExpectsVM<void> SetConstructorEx(const char* Decl, void(*Value)(T, Args...))
+			{
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
+				asSFuncPtr* Functor = Bridge::Function<void(*)(T, Args...)>(Value);
+				auto Result = SetBehaviourAddress(Decl, Behaviours::CONSTRUCT, Functor, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&Functor);
+				return Result;
+			}
+			template <typename T, typename... Args>
 			ExpectsVM<void> SetConstructor(const char* Decl)
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
@@ -1358,11 +1384,11 @@ namespace Mavi
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
-			template <typename R, typename... Args>
-			ExpectsVM<void> SetDestructorStatic(const char* Decl, R(*Value)(Args...))
+			template <typename T, typename... Args>
+			ExpectsVM<void> SetDestructorEx(const char* Decl, void(*Value)(T, Args...))
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
-				asSFuncPtr* Ptr = Bridge::Function<R(*)(Args...)>(Value);
+				asSFuncPtr* Ptr = Bridge::Function<void(*)(T, Args...)>(Value);
 				auto Result = SetDestructorAddress(Decl, Ptr);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
@@ -1932,8 +1958,10 @@ namespace Mavi
 			ExpectsVM<void> AddScriptSection(asIScriptModule* Module, const char* Name, const char* Code, size_t CodeLength = 0, int LineOffset = 0);
 			ExpectsVM<void> GetTypeNameScope(const char** TypeName, const char** Namespace, size_t* NamespaceSize) const;
 			ExpectsVM<void> SetFunctionDef(const char* Decl);
+			ExpectsVM<void> SetTypeDef(const char* Type, const char* Decl);
 			ExpectsVM<void> SetFunctionAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECLF);
 			ExpectsVM<void> SetPropertyAddress(const char* Decl, void* Value);
+			ExpectsVM<void> SetStringFactoryAddress(const char* Type, asIStringFactory* Factory);
 			ExpectsVM<void> SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object);
 			ExpectsVM<void> Log(const char* Section, int Row, int Column, LogCategory Type, const char* Message);
 			ExpectsVM<void> SetProperty(Features Property, size_t Value);
@@ -2089,6 +2117,39 @@ namespace Mavi
 			{
 				VI_ASSERT(Name != nullptr, "name should be set");
 				auto Class = SetClassAddress(Name, GC ? (size_t)ObjectBehaviours::REF | (size_t)ObjectBehaviours::GC : (size_t)ObjectBehaviours::REF);
+				if (!Class)
+					return Class;
+
+				auto Status = Class->template SetAddRef<T>();
+				if (!Status)
+					return Status.Error();
+
+				Status = Class->template SetRelease<T>();
+				if (!Status)
+					return Status.Error();
+
+				if (!GC)
+					return Class;
+
+				Status = Class->template SetMarkRef<T>();
+				if (!Status)
+					return Status.Error();
+
+				Status = Class->template SetIsMarkedRef<T>();
+				if (!Status)
+					return Status.Error();
+
+				Status = Class->template SetRefCount<T>();
+				if (!Status)
+					return Status.Error();
+
+				return Class;
+			}
+			template <typename T>
+			ExpectsVM<RefClass> SetTemplateClass(const char* Name, bool GC)
+			{
+				VI_ASSERT(Name != nullptr, "name should be set");
+				auto Class = SetClassAddress(Name, GC ? (size_t)ObjectBehaviours::TEMPLATE | (size_t)ObjectBehaviours::REF | (size_t)ObjectBehaviours::GC : (size_t)ObjectBehaviours::TEMPLATE | (size_t)ObjectBehaviours::REF);
 				if (!Class)
 					return Class;
 

@@ -8,8 +8,8 @@ namespace Mavi
 	{
 		MAJOR_VERSION = 1,
 		MINOR_VERSION = 27,
-		PATCH_VERSION = 48,
-		BUILD_VERSION = 114,
+		PATCH_VERSION = 49,
+		BUILD_VERSION = 115,
 		VERSION = (MAJOR_VERSION) * 100000000 + (MINOR_VERSION) * 1000000 + (PATCH_VERSION) * 10000 + BUILD_VERSION
 	};
 
@@ -78,6 +78,8 @@ namespace Mavi
 		bool HasWindowsEpoll() const noexcept;
 		bool HasTinyFileDialogs() const noexcept;
 		bool HasSTB() const noexcept;
+		bool HasPugiXML() const noexcept;
+		bool HasRapidJSON() const noexcept;
 		bool HasShaders() const noexcept;
 		int GetMajorVersion() const noexcept;
 		int GetMinorVersion() const noexcept;

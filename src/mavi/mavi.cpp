@@ -499,6 +499,22 @@ namespace Mavi
 		return false;
 #endif
 	}
+	bool Runtime::HasPugiXML() const noexcept
+	{
+#ifdef VI_PUGIXML
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasRapidJSON() const noexcept
+	{
+#ifdef VI_RAPIDJSON
+		return true;
+#else
+		return false;
+#endif
+	}
 	bool Runtime::HasShaders() const noexcept
 	{
 		return HasSPIRV();

@@ -915,7 +915,7 @@ namespace Mavi
 				FunctionDelegate Function;
 
 			public:
-				Thread(asIScriptEngine* Engine, asIScriptFunction* Function) noexcept;
+				Thread(VirtualMachine* Engine, asIScriptFunction* Function) noexcept;
 				~Thread() noexcept;
 				void EnumReferences(asIScriptEngine* Engine);
 				void ReleaseReferences(asIScriptEngine* Engine);
@@ -934,7 +934,7 @@ namespace Mavi
 				void ExecutionLoop();
 
 			public:
-				static void Create(asIScriptGeneric* Generic);
+				static Thread* Create(asIScriptFunction* Callback);
 				static Thread* GetThread();
 				static Core::String GetThreadId();
 				static void ThreadSleep(uint64_t Mills);

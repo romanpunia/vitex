@@ -10,13 +10,17 @@
 #include <bitset>
 #include <signal.h>
 #include <sys/stat.h>
-#include <pugixml.hpp>
-#include <rapidjson/document.h>
 #pragma warning(push)
 #pragma warning(disable: 4996)
 #pragma warning(disable: 4267)
 #pragma warning(disable: 4554)
 #include <concurrentqueue.h>
+#ifdef VI_PUGIXML
+#include <pugixml.hpp>
+#endif
+#ifdef VI_RAPIDJSON
+#include <rapidjson/document.h>
+#endif
 #ifdef VI_TINYFILEDIALOGS
 #include <tinyfiledialogs.h>
 #endif
@@ -826,6 +830,9 @@ namespace Mavi
 				{ 
 					switch (Type)
 					{
+						case ParserError::NotSupported:
+							Info = "required libraries are not loaded";
+							break;
 						case ParserError::BadVersion:
 							Info = "corrupted JSONB version header";
 							break;
@@ -11682,6 +11689,7 @@ namespace Mavi
 		}
 		Expects<Schema*, Exceptions::ParserException> Schema::ConvertFromXML(const char* Buffer, size_t Size)
 		{
+#ifdef VI_PUGIXML
 			VI_ASSERT(Buffer != nullptr, "buffer should not be null");
 			if (!Size)
 				return Exceptions::ParserException(ParserError::XMLNoDocumentElement, 0, "empty XML buffer");
@@ -11729,9 +11737,13 @@ namespace Mavi
 			Schema* Result = Var::Set::Array();
 			ProcessConvertionFromXML((void*)&Main, Result);
 			return Result;
+#else
+			return Exceptions::ParserException(ParserError::NotSupported, 0, "no capabilities to parse XML");
+#endif
 		}
 		Expects<Schema*, Exceptions::ParserException> Schema::ConvertFromJSON(const char* Buffer, size_t Size)
 		{
+#ifdef VI_RAPIDJSON
 			VI_ASSERT(Buffer != nullptr, "buffer should not be null");
 			if (!Size)
 				return Exceptions::ParserException(ParserError::JSONDocumentEmpty, 0);
@@ -11825,6 +11837,9 @@ namespace Mavi
 			}
 
 			return Result;
+#else
+			return Exceptions::ParserException(ParserError::NotSupported, 0, "no capabilities to parse JSON");
+#endif
 		}
 		Expects<Schema*, Exceptions::ParserException> Schema::ConvertFromJSONB(const SchemaReadCallback& Callback)
 		{
@@ -12023,6 +12038,7 @@ namespace Mavi
 		}
 		void Schema::ProcessConvertionFromXML(void* Base, Schema* Current)
 		{
+#ifdef VI_PUGIXML
 			VI_ASSERT(Base != nullptr && Current != nullptr, "base and current should be set");
 			pugi::xml_node& Next = *(pugi::xml_node*)Base;
 			Current->Key = Next.name();
@@ -12047,21 +12063,22 @@ namespace Mavi
 				else
 					Subresult->Value = Var::Null();
 			}
+#endif
 		}
 		void Schema::ProcessConvertionFromJSON(void* Base, Schema* Current)
 		{
+#ifdef VI_PUGIXML
 			VI_ASSERT(Base != nullptr && Current != nullptr, "base and current should be set");
-
-			auto Ref = (rapidjson::Value*)Base;
-			if (!Ref->IsArray())
+			auto Child = (rapidjson::Value*)Base;
+			if (!Child->IsArray())
 			{
 				String Name;
-				Current->Reserve((size_t)Ref->MemberCount());
+				Current->Reserve((size_t)Child->MemberCount());
 
 				VarType Type = Current->Value.Type;
 				Current->Value.Type = VarType::Array;
 
-				for (auto It = Ref->MemberBegin(); It != Ref->MemberEnd(); ++It)
+				for (auto It = Child->MemberBegin(); It != Child->MemberEnd(); ++It)
 				{
 					if (!It->name.IsString())
 						continue;
@@ -12109,9 +12126,9 @@ namespace Mavi
 			else
 			{
 				String Value;
-				Current->Reserve((size_t)Ref->Size());
+				Current->Reserve((size_t)Child->Size());
 
-				for (auto It = Ref->Begin(); It != Ref->End(); ++It)
+				for (auto It = Child->Begin(); It != Child->End(); ++It)
 				{
 					switch (It->GetType())
 					{
@@ -12150,6 +12167,7 @@ namespace Mavi
 					}
 				}
 			}
+#endif
 		}
 		void Schema::ProcessConvertionToJSONB(Schema* Current, UnorderedMap<String, size_t>* Map, const SchemaWriteCallback& Callback)
 		{

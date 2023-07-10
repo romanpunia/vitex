@@ -357,8 +357,15 @@ namespace Mavi
 					PrimitiveTopology Primitive = PrimitiveTopology::Triangle_List;
 				} Register;
 
-			private:
-				const char* VSP, * PSP, * GSP, * HSP, * DSP, * CSP;
+				struct
+				{
+					const char* Vertex = "";
+					const char* Pixel = "";
+					const char* Geometry = "";
+					const char* Hull = "";
+					const char* Domain = "";
+					const char* Compute = "";
+				} Models;
 
 			public:
 				ID3D11DeviceContext* ImmediateContext;

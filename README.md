@@ -42,37 +42,65 @@ You may take a look at Wiki pages. There are some practical usage examples that 
 + MacOS Catalina 10.15+ x64 (Xcode)
 
 ## Building
-### Standalone
-1. Clone this repository recursively
+### Fully
+Clone this repository recursively
 ```bash
-    git clone https://github.com/romanpunia/mavi --recursive
+git clone https://github.com/romanpunia/mavi --recursive
 ```
-2. Generate and build project files while being inside of repository
+Generate and build project files while being inside of repository
 ```bash
-    # Default
-    cmake . -DCMAKE_BUILD_TYPE=Release # -DVI_CXX=14
-    # With vcpkg
-    cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake # -DVI_CXX=14
+# Default
+cmake . -DCMAKE_BUILD_TYPE=Release # -DVI_CXX=14
+# With vcpkg
+cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake # -DVI_CXX=14
 ```
-3. Build project files while being inside of repository
+Build project files while being inside of repository
 ```bash
     cmake --build . --config Release
 ```
-### Sub-project
-0. Example [CMakeLists.txt](https://github.com/romanpunia/lynx/blob/master/CMakeLists.txt) with Mavi as subproject
-1. Add Mavi toolchain. With vcpkg add needed dependencies in vcpkg.json near your CMakeLists.txt:
-```cmake
-    include(path/to/mavi/deps/toolchain.cmake)
-    # ...
-    project(app_name)
+
+### Partially
+Clone this repository at top level
+```bash
+git clone https://github.com/romanpunia/mavi
 ```
-2. Add Mavi as subproject.
-```cmake
-    add_subdirectory(/path/to/mavi mavi)
-    link_directories(/path/to/mavi)
-    target_include_directories(app_name PRIVATE /path/to/mavi)
-    target_link_libraries(app_name PRIVATE mavi)
+Initialize needed submodules while being inside of repository
+```bash
+# Initialize required submodules
+git submodule update --init ./deps/angelscript
+git submodule update --init ./deps/wepoll
+git submodule update --init ./deps/concurrentqueue
+
+# Initialize needed for your project submodules, for example
+git submodule update --init ./deps/rmlui
 ```
+Generate and build project files while being inside of repository
+```bash
+# Default
+cmake . -DCMAKE_BUILD_TYPE=Release # -DVI_CXX=14
+# With vcpkg
+cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake # -DVI_CXX=14
+```
+Build project files while being inside of repository
+```bash
+cmake --build . --config Release
+```
+
+### As a dependency
+Add Mavi toolchain. With vcpkg add needed dependencies in vcpkg.json near your CMakeLists.txt:
+```cmake
+include(path/to/mavi/deps/toolchain.cmake)
+# ...
+project(app_name)
+```
+Add Mavi as subproject.
+```cmake
+add_subdirectory(/path/to/mavi mavi)
+link_directories(/path/to/mavi)
+target_include_directories(app_name PRIVATE /path/to/mavi)
+target_link_libraries(app_name PRIVATE mavi)
+```
+Example [CMakeLists.txt](https://github.com/romanpunia/lynx/blob/master/CMakeLists.txt) with Mavi as subproject
 
 ## Building options
 General options
@@ -102,20 +130,22 @@ Dependency options
 + **VI_BACKTRACE** will enable backward-cpp built-in library to display stacktraces otherwise if C++23 is supported then std::stacktrace, defaults to true
 + **VI_STB** will enable built-in stb library to load audio and textures, defaults to true
 + **VI_TINYFILEDIALOGS** will enable built-in tinyfiledialogs library to open system modal windows, defaults to true
++ **VI_PUGIXML** will enable built-in pugixml library to parse XML-like files, defaults to true
++ **VI_RAPIDJSON** will enable built-in rapidjson library to parse JSON files, defaults to true
 
 ## Dependencies
-Shared objects (so) are optional.
-* [AngelScript (submodule)](https://github.com/codecat/angelscript-mirror)
-* [wepoll (submodule)](https://github.com/piscisaureus/wepoll)
+Only those marked with _required_ are necessary for build.
+* [AngelScript (submodule, required)](https://github.com/codecat/angelscript-mirror)
+* [wepoll (submodule, required)](https://github.com/piscisaureus/wepoll)
+* [concurrentqueue (submodule, required)](https://github.com/cameron314/concurrentqueue)
 * [PugiXML (submodule)](https://github.com/zeux/pugixml)
 * [RapidJSON (submodule)](https://github.com/tencent/rapidjson)
-* [concurrentqueue (submodule)](https://github.com/cameron314/concurrentqueue)
-* [stb (submodule, optional)](https://github.com/nothings/stb)
-* [tinyfiledialogs (submodule, optional)](https://github.com/native-toolkit/tinyfiledialogs)
-* [Bullet3 (submodule, optional)](https://github.com/bulletphysics/bullet3)
-* [RmlUi (submodule, optional)](https://github.com/mikke89/RmlUi)
-* [vectorclass (submodule, optional)](https://github.com/vectorclass/version1)
-* [backward-cpp (submodule, optional)](https://github.com/bombela/backward-cpp)
+* [stb (submodule)](https://github.com/nothings/stb)
+* [tinyfiledialogs (submodule)](https://github.com/native-toolkit/tinyfiledialogs)
+* [Bullet3 (submodule)](https://github.com/bulletphysics/bullet3)
+* [RmlUi (submodule)](https://github.com/mikke89/RmlUi)
+* [vectorclass (submodule)](https://github.com/vectorclass/version1)
+* [backward-cpp (submodule)](https://github.com/bombela/backward-cpp)
 * [D3D11 (so)](https://www.microsoft.com/en-us/download/details.aspx?id=6812)
 * [OpenGL (so)](https://github.com/KhronosGroup/OpenGL-Registry)
 * [OpenSSL (so)](https://github.com/openssl/openssl)

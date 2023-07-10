@@ -41,34 +41,38 @@ You may take a look at Wiki pages. There are some practical usage examples that 
 + Ubuntu 16.04+ x64/x86 (GCC)
 + MacOS Catalina 10.15+ x64 (Xcode)
 
-## Building (standalone)
-Mavi uses CMake as building system. Microsoft [vcpkg](https://github.com/Microsoft/vcpkg) is suggested.
-1. Install [CMake](https://cmake.org/install/).
-2. Install desired dynamic dependencies listed below to have all the functionality (if you are not using vcpkg).
-3. Execute CMake command to generate the files or use CMake GUI if you have one.
-If you want to use vcpkg then add VCPKG_ROOT environment variable and execute CMake generate, it will install dependencies automatically using JSON manifest file. Another option is to set CMAKE_TOOLCHAIN_FILE option (standard workflow for vcpkg), dependency installation will also be automatic. For example,
-> cmake -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake ...
-
-## Building (subproject)
-1. *Optional* If you use vcpkg then add toolchain file (vcpkg doesn't know how to install dependencies of subproject, you will have to specify needed dependencies in vcpkg.json near your CMakeLists.txt):
-```cmake
-include(path/to/mavi/lib/toolchain.cmake)
-#...
-project(app_name)
+## Building
+### Standalone
+1. Clone this repository recursively
+```bash
+    git clone https://github.com/romanpunia/mavi --recursive
 ```
-2. *Optional* If you don't specify any compile flags then you may use Mavi's compiler flags:
-```cmake
-include(path/to/mavi/lib/compiler.cmake)
+2. Generate and build project files while being inside of repository
+```bash
+    # Default
+    cmake . -DCMAKE_BUILD_TYPE=Release # -DVI_CXX=14
+    # With vcpkg
+    cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake # -DVI_CXX=14
 ```
-3. Add subproject. This will fully link your application with Mavi.
-```cmake
-add_subdirectory(/path/to/mavi mavi)
-link_directories(/path/to/mavi)
-target_include_directories(app_name PRIVATE /path/to/mavi)
-target_link_libraries(app_name PRIVATE mavi)
+3. Build project files while being inside of repository
+```bash
+    cmake --build . --config Release
 ```
-4. Execute CMake command to generate the files or use CMake GUI if you have one.
-You can look at [Lynx's CMakeLists.txt](https://github.com/romanpunia/lynx/blob/master/CMakeLists.txt) to find out how it should be used in practice
+### Sub-project
+0. Example [CMakeLists.txt](https://github.com/romanpunia/lynx/blob/master/CMakeLists.txt) with Mavi as subproject
+1. Add Mavi toolchain. With vcpkg add needed dependencies in vcpkg.json near your CMakeLists.txt:
+```cmake
+    include(path/to/mavi/deps/toolchain.cmake)
+    # ...
+    project(app_name)
+```
+2. Add Mavi as subproject.
+```cmake
+    add_subdirectory(/path/to/mavi mavi)
+    link_directories(/path/to/mavi)
+    target_include_directories(app_name PRIVATE /path/to/mavi)
+    target_link_libraries(app_name PRIVATE mavi)
+```
 
 ## Building options
 General options
@@ -101,17 +105,17 @@ Dependency options
 
 ## Dependencies
 Shared objects (so) are optional.
-* [AngelScript (embedded)](https://github.com/codecat/angelscript-mirror)
-* [wepoll (embedded)](https://github.com/piscisaureus/wepoll)
-* [PugiXML (embedded)](https://github.com/zeux/pugixml)
-* [RapidJSON (embedded)](https://github.com/tencent/rapidjson)
-* [concurrentqueue (embedded)](https://github.com/cameron314/concurrentqueue)
-* [stb (embedded, optional)](https://github.com/nothings/stb)
-* [tinyfiledialogs (embedded, optional)](https://github.com/native-toolkit/tinyfiledialogs)
-* [Bullet3 (embedded, optional)](https://github.com/bulletphysics/bullet3)
-* [RmlUi (embedded, optional)](https://github.com/mikke89/RmlUi)
-* [vectorclass (embedded, optional)](https://github.com/vectorclass/version1)
-* [backward-cpp (embedded, optional)](https://github.com/bombela/backward-cpp)
+* [AngelScript (submodule)](https://github.com/codecat/angelscript-mirror)
+* [wepoll (submodule)](https://github.com/piscisaureus/wepoll)
+* [PugiXML (submodule)](https://github.com/zeux/pugixml)
+* [RapidJSON (submodule)](https://github.com/tencent/rapidjson)
+* [concurrentqueue (submodule)](https://github.com/cameron314/concurrentqueue)
+* [stb (submodule, optional)](https://github.com/nothings/stb)
+* [tinyfiledialogs (submodule, optional)](https://github.com/native-toolkit/tinyfiledialogs)
+* [Bullet3 (submodule, optional)](https://github.com/bulletphysics/bullet3)
+* [RmlUi (submodule, optional)](https://github.com/mikke89/RmlUi)
+* [vectorclass (submodule, optional)](https://github.com/vectorclass/version1)
+* [backward-cpp (submodule, optional)](https://github.com/bombela/backward-cpp)
 * [D3D11 (so)](https://www.microsoft.com/en-us/download/details.aspx?id=6812)
 * [OpenGL (so)](https://github.com/KhronosGroup/OpenGL-Registry)
 * [OpenSSL (so)](https://github.com/openssl/openssl)
@@ -133,6 +137,4 @@ Mavi is licensed under the MIT license
 1. Script bindings cover only these modules for now: Core, Compute, Audio, Network, Network HTTP, Network SMTP, Graphics, Engine, Engine GUI, Engine components, Engine renderers.<br />
 _TODO: Audio effects, Audio filters, Network MongoDB, Network PostgreSQL._
 
-2. Functions that could fail will be using expects<> or option<> wrappers in the nearest future but at the moment they are not. 
-
-3. Documentation in it's usual form is non-existant at the moment. In the nearest future that could be changed.
+2. Documentation in it's usual form is non-existant at the moment. In the nearest future that could be changed.

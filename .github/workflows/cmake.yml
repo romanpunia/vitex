@@ -1,26 +1,23 @@
 name: CMake
-
 on: [push]
-
 env:
   BUILD_TYPE: Release
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v2
-
-    - name: Create Build Environment
-      run: cmake -E make_directory ${{runner.workspace}}/build
-
-    - name: Configure CMake
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: Setup
       shell: bash
-      working-directory: ${{runner.workspace}}/build
+      run: cmake -E make_directory ${{runner.workspace}}/make
+    - name: Configure
+      shell: bash
+      working-directory: ${{runner.workspace}}/make
       run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
-
     - name: Build
-      working-directory: ${{runner.workspace}}/build
       shell: bash
+      working-directory: ${{runner.workspace}}/make
       run: cmake --build . --config $BUILD_TYPE

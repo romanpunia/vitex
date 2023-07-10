@@ -11725,29 +11725,9 @@ namespace Mavi
 				}
 			}
 
+			pugi::xml_node Main = Data.first_child();
 			Schema* Result = Var::Set::Array();
-			Result->Key = Data.name();
-
-			for (auto Attribute : Data.attributes())
-				Result->SetAttribute(Attribute.name(), Attribute.empty() ? Var::Null() : Var::Auto(Attribute.value()));
-
-			for (auto Child : Data.children())
-			{
-				Schema* Subresult = Result->Set(Child.name(), Var::Set::Array());
-				ProcessConvertionFromXML((void*)&Child, Subresult);
-
-				if (*Child.value() != '\0')
-				{
-					Subresult->Value.Deserialize(Child.value());
-					continue;
-				}
-
-				auto Text = Child.text();
-				if (!Text.empty())
-					Subresult->Value.Deserialize(Child.text().get());
-				else
-					Subresult->Value = Var::Null();
-			}
+			ProcessConvertionFromXML((void*)&Main, Result);
 			return Result;
 		}
 		Expects<Schema*, Exceptions::ParserException> Schema::ConvertFromJSON(const char* Buffer, size_t Size)

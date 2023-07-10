@@ -4803,7 +4803,7 @@ namespace Mavi
 				Content.append(" 200 OK\r\nDate: ").append(Date).append("\r\n");
 				Content.append(Utils::ConnectionResolve(Base));
 				Content.append("Content-Type: text/html; charset=").append(Base->Route->CharSet);
-				Content.append("\r\nAccept-Ranges: bytes\r\n\r\n");
+				Content.append("\r\nAccept-Ranges: bytes\r\n");
 
 				Paths::ConstructHeadCache(Base, Content);
 				if (Base->Route->Callbacks.Headers)
@@ -4850,13 +4850,13 @@ namespace Mavi
 					if (!Item.second.IsDirectory)
 					{
 						if (Item.second.Size < 1024)
-							snprintf(dSize, sizeof(dSize), "%db", (int)Item.second.Size);
+							snprintf(dSize, sizeof(dSize), "%d bytes", (int)Item.second.Size);
 						else if (Item.second.Size < 0x100000)
-							snprintf(dSize, sizeof(dSize), "%.1fk", ((double)Item.second.Size) / 1024.0);
+							snprintf(dSize, sizeof(dSize), "%.1f kb", ((double)Item.second.Size) / 1024.0);
 						else if (Item.second.Size < 0x40000000)
-							snprintf(dSize, sizeof(Size), "%.1fM", ((double)Item.second.Size) / 1048576.0);
+							snprintf(dSize, sizeof(Size), "%.1f mb", ((double)Item.second.Size) / 1048576.0);
 						else
-							snprintf(dSize, sizeof(dSize), "%.1fG", ((double)Item.second.Size) / 1073741824.0);
+							snprintf(dSize, sizeof(dSize), "%.1f gb", ((double)Item.second.Size) / 1073741824.0);
 					}
 					else
 						strncpy(dSize, "[DIRECTORY]", sizeof(dSize));

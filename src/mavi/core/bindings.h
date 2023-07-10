@@ -195,10 +195,10 @@ namespace Mavi
 
 			class VI_OUT Storable
 			{
-			protected:
+			private:
 				friend class Dictionary;
 
-			protected:
+			private:
 				Dynamic Value;
 
 			public:
@@ -216,7 +216,7 @@ namespace Mavi
 
 			class VI_OUT Ref
 			{
-			protected:
+			private:
 				asITypeInfo* Type;
 				void* Pointer;
 
@@ -239,7 +239,7 @@ namespace Mavi
 				void ReleaseReferences(asIScriptEngine* Engine);
 				Ref& Assign(void* Ref, int TypeId);
 
-			protected:
+			private:
 				void ReleaseHandle();
 				void AddRefHandle();
 
@@ -252,7 +252,7 @@ namespace Mavi
 
 			class VI_OUT Weak
 			{
-			protected:
+			private:
 				asILockableSharedBool* WeakRefFlag;
 				asITypeInfo* Type;
 				void* Ref;
@@ -296,7 +296,7 @@ namespace Mavi
 			{
 				friend Promise;
 
-			protected:
+			private:
 				asIScriptEngine* Engine;
 				Dynamic Value;
 
@@ -385,7 +385,10 @@ namespace Mavi
 					int EqualsReturnCode;
 				};
 
-			protected:
+			private:
+				static int ArrayId;
+
+			private:
 				asITypeInfo* ObjType;
 				SBuffer* Buffer;
 				size_t ElementSize;
@@ -453,6 +456,7 @@ namespace Mavi
 				static Core::Unique<Array> Create(asITypeInfo* T, void* ListBuffer);
 				static void CleanupTypeInfoCache(asITypeInfo* Type);
 				static bool TemplateCallback(asITypeInfo* T, bool& DontGarbageCollect);
+				static int GetId();
 
 			public:
 				template <typename T>
@@ -569,10 +573,10 @@ namespace Mavi
 			public:
 				class LocalIterator
 				{
-				protected:
+				private:
 					friend class Dictionary;
 
-				protected:
+				private:
 					InternalMap::const_iterator It;
 					const Dictionary& Base;
 
@@ -587,7 +591,7 @@ namespace Mavi
 					bool GetValue(void* Value, int TypeId) const;
 					const void* GetAddressOfValue() const;
 
-				protected:
+				private:
 					LocalIterator() noexcept;
 					LocalIterator(const Dictionary& From, InternalMap::const_iterator It) noexcept;
 					LocalIterator& operator= (const LocalIterator&) noexcept
@@ -603,7 +607,10 @@ namespace Mavi
 					asITypeInfo* KeyType;
 				};
 
-			protected:
+			private:
+				static int DictionaryId;
+
+			private:
 				asIScriptEngine* Engine;
 				InternalMap Data;
 

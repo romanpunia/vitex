@@ -631,11 +631,11 @@ namespace Mavi
 				Compute::Vector2 Cursor;
 				ModelCallback OnMount;
 				ScopedContext* Base;
-				bool Loading;
+				uint32_t Busy;
 
 			public:
-				Context(Scripting::Compiler* NewCompiler, const Compute::Vector2& Size);
-				Context(Scripting::Compiler* NewCompiler, Graphics::GraphicsDevice* Device);
+				Context(const Compute::Vector2& Size);
+				Context(Graphics::GraphicsDevice* Device);
 				~Context() noexcept;
 				void EmitKey(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed);
 				void EmitInput(const char* Buffer, int Length);
@@ -646,7 +646,7 @@ namespace Mavi
 				void EnableMouseCursor(bool Enable);
 				void ClearStyles();
 				bool ClearDocuments();
-				bool Initialize(const Core::String& ConfPath);
+				bool LoadManifest(const Core::String& ConfPath);
 				bool LoadFontFace(const Core::String& Path, bool UseAsFallback = false);
 				bool IsLoading();
 				bool IsInputFocused();
@@ -659,7 +659,7 @@ namespace Mavi
 				IElementDocument EvalHTML(const Core::String& HTML, int Index = 0);
 				IElementDocument AddCSS(const Core::String& CSS, int Index = 0);
 				IElementDocument LoadCSS(const Core::String& Path, int Index = 0);
-				IElementDocument LoadDocument(const Core::String& Path, bool AllowIncludes);
+				IElementDocument LoadDocument(const Core::String& Path, bool AllowPreprocessing = false);
 				IElementDocument AddDocument(const Core::String& HTML);
 				IElementDocument AddDocumentEmpty(const Core::String& InstancerName = "body");
 				IElementDocument GetDocument(const Core::String& Id);
@@ -689,7 +689,7 @@ namespace Mavi
 				Rml::Context* GetContext();
 
 			private:
-				bool Initialize(Core::Schema* Conf, const Core::String& Relative);
+				bool LoadManifest(Core::Schema* Conf, const Core::String& Relative);
 				bool Preprocess(const Core::String& Path, Core::String& Buffer);
 				void Decompose(Core::String& Buffer);
 				void ClearScope();

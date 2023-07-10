@@ -5,7 +5,7 @@
 #ifndef ANGELSCRIPT_H 
 #include <angelscript.h>
 #ifdef VI_JIT
-#include "../../supplies/angelscript/compiler/compiler.h"
+#include <ascompiler/compiler.h>
 #endif
 #endif
 

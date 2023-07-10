@@ -7,9 +7,9 @@ namespace Mavi
 	enum
 	{
 		MAJOR_VERSION = 1,
-		MINOR_VERSION = 26,
-		PATCH_VERSION = 47,
-		BUILD_VERSION = 112,
+		MINOR_VERSION = 27,
+		PATCH_VERSION = 48,
+		BUILD_VERSION = 113,
 		VERSION = (MAJOR_VERSION) * 100000000 + (MINOR_VERSION) * 1000000 + (PATCH_VERSION) * 10000 + BUILD_VERSION
 	};
 
@@ -76,6 +76,8 @@ namespace Mavi
 		bool HasBullet3() const noexcept;
         bool HasFContext() const noexcept;
 		bool HasWindowsEpoll() const noexcept;
+		bool HasTinyFileDialogs() const noexcept;
+		bool HasSTB() const noexcept;
 		bool HasShaders() const noexcept;
 		int GetMajorVersion() const noexcept;
 		int GetMinorVersion() const noexcept;

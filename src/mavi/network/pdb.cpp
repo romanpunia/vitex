@@ -1762,7 +1762,7 @@ namespace Mavi
 				{
 					Connection* Base = Result.GetExecutor();
 					if (!Base || !Result.IsSuccess())
-					    return false;
+						return false;
 
 					Core::UMutex<std::mutex> Unique(Update);
 					for (auto& Item : Actual)
@@ -1794,7 +1794,7 @@ namespace Mavi
 				{
 					size_t Count = 0;
 					for (auto& Next : Commands)
-					    Count += VI_AWAIT(Query(Next.second, (size_t)QueryOp::TransactionAlways, Next.first)).IsSuccess() ? 1 : 0;
+						Count += VI_AWAIT(Query(Next.second, (size_t)QueryOp::TransactionAlways, Next.first)).IsSuccess() ? 1 : 0;
 
 					Coreturn Count > 0;
 				});
@@ -2026,7 +2026,7 @@ namespace Mavi
 				{
 					if (Target != nullptr)
 						PQlogMessage(Target->Base);
-		
+
 					Core::Schedule::Get()->SetTask([this, Target]() { Reestablish(Target); });
 					return false;
 				}
@@ -2044,7 +2044,7 @@ namespace Mavi
 				PQsetNoticeProcessor(Target->Base, PQlogNotice, nullptr);
 				Consume(Target, Unique);
 				Unique.Negate();
-				
+
 				bool Success = Reprocess(Target);
 				if (!Channels.empty())
 				{
@@ -2090,7 +2090,7 @@ namespace Mavi
 
 				VI_MEASURE(Core::Timings::Intensive);
 				VI_DEBUG("[pq] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)Base, Base->InSession ? " (transaction)" : "", Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
-				
+
 				if (PQsendQuery(Base->Base, Base->Current->Command.data()) == 1)
 				{
 					Flush(Base, false);

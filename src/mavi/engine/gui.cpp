@@ -3527,7 +3527,7 @@ namespace Mavi
 #endif
 			}
 
-			Context::Context(Scripting::Compiler* NewCompiler, const Compute::Vector2& Size) : Compiler(NewCompiler), Cursor(-1.0f), Loading(false)
+			Context::Context(const Compute::Vector2& Size) : Compiler(nullptr), Cursor(-1.0f), Busy(0)
 			{
 #ifdef VI_RMLUI
 				Base = (ScopedContext*)Rml::CreateContext(Core::ToString(Subsystem::Get()->Id++), Rml::Vector2i((int)Size.X, (int)Size.Y));
@@ -3538,16 +3538,14 @@ namespace Mavi
 				auto* VM = Subsystem->Shared.VM;
 				Subsystem->AddRef();
 
-				if (VM != nullptr && !Compiler)
-				{
-					Compiler = VM->CreateCompiler();
-					ClearScope();
-				}
-				else if (Compiler != nullptr)
-					Compiler->AddRef();
+				if (!VM)
+					return;
+
+				Compiler = VM->CreateCompiler();
+				ClearScope();
 #endif
 			}
-			Context::Context(Scripting::Compiler* NewCompiler, Graphics::GraphicsDevice* Device) : Context(NewCompiler, Device && Device->GetRenderTarget() ? Compute::Vector2((float)Device->GetRenderTarget()->GetWidth(), (float)Device->GetRenderTarget()->GetHeight()) : Compute::Vector2(512, 512))
+			Context::Context(Graphics::GraphicsDevice* Device) : Context(Device && Device->GetRenderTarget() ? Compute::Vector2((float)Device->GetRenderTarget()->GetWidth(), (float)Device->GetRenderTarget()->GetHeight()) : Compute::Vector2(512, 512))
 			{
 			}
 			Context::~Context() noexcept
@@ -3671,37 +3669,35 @@ namespace Mavi
 			bool Context::ClearDocuments()
 			{
 #ifdef VI_RMLUI
-				bool State = Loading;
-				Loading = true;
-
+				++Busy;
+				ClearScope();
 				Elements.clear();
 				Base->UnloadAllDocuments();
-				Loading = State;
+				--Busy;
 
 				return true;
 #else
 				return false;
 #endif
 			}
-			bool Context::Initialize(Core::Schema* Conf, const Core::String& Relative)
+			bool Context::LoadManifest(Core::Schema* Conf, const Core::String& Relative)
 			{
 				VI_ASSERT(Conf != nullptr, "conf should be set");
-				bool State = Loading;
-				Loading = true;
-
+				++Busy;
 				for (auto* Face : Conf->FindCollection("font-face", true))
 				{
 					Core::String Path = Face->GetAttributeVar("path").GetBlob();
 					if (Path.empty())
 					{
 						VI_ERR("[gui] path is required for font face");
+						--Busy;
 						return false;
 					}
 
 					auto Target = Core::OS::Path::Resolve(Path, Relative, false);
 					if (!LoadFontFace(Target ? *Target : Path, Face->GetAttribute("fallback") != nullptr))
 					{
-						Loading = State;
+						--Busy;
 						return false;
 					}
 				}
@@ -3712,6 +3708,7 @@ namespace Mavi
 					if (Path.empty())
 					{
 						VI_ERR("[gui] path is required for document");
+						--Busy;
 						return false;
 					}
 
@@ -3719,38 +3716,36 @@ namespace Mavi
 					IElementDocument Result = LoadDocument(Target ? *Target : Path, Document->GetAttributeVar("includes").GetBoolean());
 					if (!Result.IsValid())
 					{
-						Loading = State;
+						--Busy;
 						return false;
 					}
 					else if (Document->HasAttribute("show"))
 						Result.Show();
 				}
 
-				Loading = State;
+				--Busy;
 				return true;
 			}
-			bool Context::Initialize(const Core::String& ConfPath)
+			bool Context::LoadManifest(const Core::String& ConfPath)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(Subsystem::Get()->RenderInterface != nullptr, "render interface should be set");
 				VI_ASSERT(Subsystem::Get()->RenderInterface->GetContent() != nullptr, "content manager should be set");
-
-				bool State = Loading;
-				Loading = true;
+				++Busy;
 
 				ContentManager* Content = Subsystem::Get()->RenderInterface->GetContent();
 				Core::Schema* Sheet = Content->Load<Core::Schema>(ConfPath);
 				if (!Sheet)
 				{
-					Loading = State;
+					--Busy;
 					return false;
 				}
 
 				auto TargetPath = Core::OS::Path::ResolveDirectory(Core::OS::Path::GetDirectory(ConfPath.c_str()), Content->GetEnvironment(), true);
-				bool Result = Initialize(Sheet, TargetPath ? *TargetPath : Core::String());
+				bool Result = LoadManifest(Sheet, TargetPath ? *TargetPath : Core::String());
 				VI_RELEASE(Sheet);
 
-				Loading = State;
+				--Busy;
 				return Result;
 #else
 				return false;
@@ -3758,7 +3753,7 @@ namespace Mavi
 			}
 			bool Context::IsLoading()
 			{
-				return Loading;
+				return Busy > 0;
 			}
 			bool Context::IsInputFocused()
 			{
@@ -3777,11 +3772,9 @@ namespace Mavi
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(Subsystem::Get()->GetSystemInterface() != nullptr, "system interface should be set");
-				bool State = Loading;
-				Loading = true;
-
+				++Busy;
 				bool Result = Subsystem::Get()->GetSystemInterface()->AddFontFace(Path, UseAsFallback);
-				Loading = State;
+				--Busy;
 
 				return Result;
 #else
@@ -3868,12 +3861,14 @@ namespace Mavi
 			IElementDocument Context::EvalHTML(const Core::String& HTML, int Index)
 			{
 #ifdef VI_RMLUI
+				++Busy;
 				auto* Current = Base->GetDocument(Index);
 				if (!Current)
 					Current = Base->LoadDocumentFromMemory("<html><body>" + HTML + "</body></html>");
 				else
 					Current->SetInnerRML(HTML);
 
+				--Busy;
 				return Current;
 #else
 				return IElementDocument();
@@ -3882,6 +3877,7 @@ namespace Mavi
 			IElementDocument Context::AddCSS(const Core::String& CSS, int Index)
 			{
 #ifdef VI_RMLUI
+				++Busy;
 				auto* Current = Base->GetDocument(Index);
 				if (Current != nullptr)
 				{
@@ -3912,6 +3908,7 @@ namespace Mavi
 				else
 					Current = Base->LoadDocumentFromMemory("<html><head><style>" + CSS + "</style></head></html>");
 
+				--Busy;
 				return Current;
 #else
 				return IElementDocument();
@@ -3920,6 +3917,7 @@ namespace Mavi
 			IElementDocument Context::LoadCSS(const Core::String& Path, int Index)
 			{
 #ifdef VI_RMLUI
+				++Busy;
 				auto* Current = Base->GetDocument(Index);
 				if (Current != nullptr)
 				{
@@ -3938,6 +3936,7 @@ namespace Mavi
 				else
 					Current = Base->LoadDocumentFromMemory("<html><head><link type=\"text/css\" href=\"" + Path + "\" /></head></html>");
 
+				--Busy;
 				return Current;
 #else
 				return IElementDocument();
@@ -3946,36 +3945,35 @@ namespace Mavi
 			IElementDocument Context::LoadDocument(const Core::String& Path, bool AllowIncludes)
 			{
 #ifdef VI_RMLUI
-				bool State = Loading;
-				Loading = true;
-
+				++Busy;
 				if (OnMount)
 					OnMount(this);
-
-				ClearScope();
-				Elements.clear();
 
 				auto File = Core::OS::File::ReadAsString(Path);
 				if (!File)
 				{
-				ErrorState:
-					Base->UnloadAllDocuments();
-					Loading = State;
-
-					return nullptr;
+					ContentManager* Content = (Subsystem::Get()->GetRenderInterface() ? Subsystem::Get()->GetRenderInterface()->GetContent() : nullptr);
+					auto Subpath = (Content ? Core::OS::Path::Resolve(Path, Content->GetEnvironment(), false) : Core::OS::Path::Resolve(Path.c_str()));
+					File = Core::OS::File::ReadAsString(Subpath ? *Subpath : Path);
+					if (!File)
+					{
+						--Busy;
+						return nullptr;
+					}
 				}
 
 				Core::String Data = *File;
 				Decompose(Data);
 				if (AllowIncludes && !Preprocess(Path, Data))
-					goto ErrorState;
+				{
+					--Busy;
+					return nullptr;
+				}
 
 				Core::String URL(Path);
 				Core::Stringify::Replace(URL, '\\', '/');
-				URL.insert(0, "file:///");
-
-				auto* Result = Base->LoadDocumentFromMemory(Data, URL);
-				Loading = State;
+				auto* Result = Base->LoadDocumentFromMemory(Data, "file:///" + URL);
+				--Busy;
 
 				return Result;
 #else

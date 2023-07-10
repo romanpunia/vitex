@@ -483,6 +483,22 @@ namespace Mavi
 		return false;
 #endif
 	}
+	bool Runtime::HasTinyFileDialogs() const noexcept
+	{
+#ifdef VI_TINYFILEDIALOGS
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasSTB() const noexcept
+	{
+#ifdef VI_STB
+		return true;
+#else
+		return false;
+#endif
+	}
 	bool Runtime::HasShaders() const noexcept
 	{
 		return HasSPIRV();

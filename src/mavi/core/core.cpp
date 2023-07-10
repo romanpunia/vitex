@@ -10,21 +10,23 @@
 #include <bitset>
 #include <signal.h>
 #include <sys/stat.h>
-#include <rapidxml.hpp>
-#include <json/document.h>
-#include <tinyfiledialogs.h>
+#include <pugixml.hpp>
+#include <rapidjson/document.h>
 #pragma warning(push)
 #pragma warning(disable: 4996)
 #pragma warning(disable: 4267)
 #pragma warning(disable: 4554)
 #include <concurrentqueue.h>
+#ifdef VI_TINYFILEDIALOGS
+#include <tinyfiledialogs.h>
+#endif
 #ifdef VI_CXX23
 #include <stacktrace>
 #elif defined(VI_BACKTRACE)
 #include <backward.hpp>
 #endif
 #ifdef VI_FCTX
-#include <fcontext.h>
+#include <fcontext/fcontext.h>
 #endif
 #ifdef VI_MICROSOFT
 #include <Windows.h>
@@ -857,8 +859,47 @@ namespace Mavi
 						case ParserError::BadBoolean:
 							Info = "invalid JSONB value boolean";
 							break;
-						case ParserError::XMLParsingError:
-							Info = "XML document is invalid";
+						case ParserError::XMLOutOfMemory:
+							Info = "XML out of memory";
+							break;
+						case ParserError::XMLInternalError:
+							Info = "XML internal error";
+							break;
+						case ParserError::XMLUnrecognizedTag:
+							Info = "XML unrecognized tag";
+							break;
+						case ParserError::XMLBadPi:
+							Info = "XML bad pi";
+							break;
+						case ParserError::XMLBadComment:
+							Info = "XML bad comment";
+							break;
+						case ParserError::XMLBadCData:
+							Info = "XML bad cdata";
+							break;
+						case ParserError::XMLBadDocType:
+							Info = "XML bad doctype";
+							break;
+						case ParserError::XMLBadPCData:
+							Info = "XML bad pcdata";
+							break;
+						case ParserError::XMLBadStartElement:
+							Info = "XML bad start element";
+							break;
+						case ParserError::XMLBadAttribute:
+							Info = "XML bad attribute";
+							break;
+						case ParserError::XMLBadEndElement:
+							Info = "XML bad end element";
+							break;
+						case ParserError::XMLEndElementMismatch:
+							Info = "XML end element mismatch";
+							break;
+						case ParserError::XMLAppendInvalidRoot:
+							Info = "XML append invalid root";
+							break;
+						case ParserError::XMLNoDocumentElement:
+							Info = "XML no document element";
 							break;
 						case ParserError::JSONDocumentEmpty:
 							Info = "the JSON document is empty";
@@ -9558,6 +9599,7 @@ namespace Mavi
 
 		bool OS::Input::Text(const String& Title, const String& Message, const String& DefaultInput, String* Result)
 		{
+#ifdef VI_TINYFILEDIALOGS
 			VI_TRACE("[dg] open input { title: %s, message: %s }", Title.c_str(), Message.c_str());
 			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), DefaultInput.c_str());
 			if (!Data)
@@ -9568,9 +9610,14 @@ namespace Mavi
 				*Result = Data;
 
 			return true;
+#else
+			VI_ERR("[dg] open input: unsupported");
+			return false;
+#endif
 		}
 		bool OS::Input::Password(const String& Title, const String& Message, String* Result)
 		{
+#ifdef VI_TINYFILEDIALOGS
 			VI_TRACE("[dg] open password { title: %s, message: %s }", Title.c_str(), Message.c_str());
 			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), nullptr);
 			if (!Data)
@@ -9581,9 +9628,14 @@ namespace Mavi
 				*Result = Data;
 
 			return true;
+#else
+			VI_ERR("[dg] open password: unsupported");
+			return false;
+#endif
 		}
 		bool OS::Input::Save(const String& Title, const String& DefaultPath, const String& Filter, const String& FilterDescription, String* Result)
 		{
+#ifdef VI_TINYFILEDIALOGS
 			Vector<String> Sources = Stringify::Split(Filter, ',');
 			Vector<char*> Patterns;
 			for (auto& It : Sources)
@@ -9601,9 +9653,14 @@ namespace Mavi
 				*Result = Data;
 
 			return true;
+#else
+			VI_ERR("[dg] open save: unsupported");
+			return false;
+#endif
 		}
 		bool OS::Input::Open(const String& Title, const String& DefaultPath, const String& Filter, const String& FilterDescription, bool Multiple, String* Result)
 		{
+#ifdef VI_TINYFILEDIALOGS
 			Vector<String> Sources = Stringify::Split(Filter, ',');
 			Vector<char*> Patterns;
 			for (auto& It : Sources)
@@ -9621,9 +9678,14 @@ namespace Mavi
 				*Result = Data;
 
 			return true;
+#else
+			VI_ERR("[dg] open load: unsupported");
+			return false;
+#endif
 		}
 		bool OS::Input::Folder(const String& Title, const String& DefaultPath, String* Result)
 		{
+#ifdef VI_TINYFILEDIALOGS
 			VI_TRACE("[dg] open folder { title: %s }", Title.c_str());
 			const char* Data = tinyfd_selectFolderDialog(Title.c_str(), DefaultPath.c_str());
 			if (!Data)
@@ -9634,9 +9696,14 @@ namespace Mavi
 				*Result = Data;
 
 			return true;
+#else
+			VI_ERR("[dg] open folder: unsupported");
+			return false;
+#endif
 		}
 		bool OS::Input::Color(const String& Title, const String& DefaultHexRGB, String* Result)
 		{
+#ifdef VI_TINYFILEDIALOGS
 			VI_TRACE("[dg] open color { title: %s }", Title.c_str());
 			unsigned char RGB[3] = { 0, 0, 0 };
 			const char* Data = tinyfd_colorChooser(Title.c_str(), DefaultHexRGB.c_str(), RGB, RGB);
@@ -9648,6 +9715,10 @@ namespace Mavi
 				*Result = Data;
 
 			return true;
+#else
+			VI_ERR("[dg] open color: unsupported");
+			return false;
+#endif
 		}
 
 		int OS::Error::Get(bool ClearLastError)
@@ -11609,43 +11680,74 @@ namespace Mavi
 			});
 			return Result;
 		}
-		Expects<Schema*, Exceptions::ParserException> Schema::ConvertFromXML(const char* Buffer)
+		Expects<Schema*, Exceptions::ParserException> Schema::ConvertFromXML(const char* Buffer, size_t Size)
 		{
 			VI_ASSERT(Buffer != nullptr, "buffer should not be null");
-			if (*Buffer == '\0')
-				return Exceptions::ParserException(ParserError::XMLParsingError, 0, "empty XML buffer");
+			if (!Size)
+				return Exceptions::ParserException(ParserError::XMLNoDocumentElement, 0, "empty XML buffer");
 
-			rapidxml::xml_document<char> Data;
-			try
+			pugi::xml_document Data;
+			pugi::xml_parse_result Status = Data.load_buffer(Buffer, Size);
+			if (!Status)
 			{
-				Data.parse<rapidxml::parse_trim_whitespace>((char*)Buffer);
+				switch (Status.status)
+				{
+					case pugi::status_out_of_memory:
+						return Exceptions::ParserException(ParserError::XMLOutOfMemory, (int)Status.offset, Status.description());
+					case pugi::status_internal_error:
+						return Exceptions::ParserException(ParserError::XMLInternalError, (int)Status.offset, Status.description());
+					case pugi::status_unrecognized_tag:
+						return Exceptions::ParserException(ParserError::XMLUnrecognizedTag, (int)Status.offset, Status.description());
+					case pugi::status_bad_pi:
+						return Exceptions::ParserException(ParserError::XMLBadPi, (int)Status.offset, Status.description());
+					case pugi::status_bad_comment:
+						return Exceptions::ParserException(ParserError::XMLBadComment, (int)Status.offset, Status.description());
+					case pugi::status_bad_cdata:
+						return Exceptions::ParserException(ParserError::XMLBadCData, (int)Status.offset, Status.description());
+					case pugi::status_bad_doctype:
+						return Exceptions::ParserException(ParserError::XMLBadDocType, (int)Status.offset, Status.description());
+					case pugi::status_bad_pcdata:
+						return Exceptions::ParserException(ParserError::XMLBadPCData, (int)Status.offset, Status.description());
+					case pugi::status_bad_start_element:
+						return Exceptions::ParserException(ParserError::XMLBadStartElement, (int)Status.offset, Status.description());
+					case pugi::status_bad_attribute:
+						return Exceptions::ParserException(ParserError::XMLBadAttribute, (int)Status.offset, Status.description());
+					case pugi::status_bad_end_element:
+						return Exceptions::ParserException(ParserError::XMLBadEndElement, (int)Status.offset, Status.description());
+					case pugi::status_end_element_mismatch:
+						return Exceptions::ParserException(ParserError::XMLEndElementMismatch, (int)Status.offset, Status.description());
+					case pugi::status_append_invalid_root:
+						return Exceptions::ParserException(ParserError::XMLAppendInvalidRoot, (int)Status.offset, Status.description());
+					case pugi::status_no_document_element:
+						return Exceptions::ParserException(ParserError::XMLNoDocumentElement, (int)Status.offset, Status.description());
+					default:
+						return Exceptions::ParserException(ParserError::XMLInternalError, (int)Status.offset, Status.description());
+				}
 			}
-			catch (const std::runtime_error& Exception)
-			{
-				return Exceptions::ParserException(ParserError::XMLParsingError, 0, Exception.what());
-			}
-			catch (const rapidxml::parse_error& Exception)
-			{
-				char* Position = Exception.where<char>();
-				int Offset = (int)(Position ? Buffer - Position : 0);
-				return Exceptions::ParserException(ParserError::XMLParsingError, Offset, Exception.what());
-			}
-			catch (const std::exception& Exception)
-			{
-				return Exceptions::ParserException(ParserError::XMLParsingError, 0, Exception.what());
-			}
-			catch (...)
-			{
-				return Exceptions::ParserException(ParserError::XMLParsingError, 0, "(unknown error)");
-			}
-
-			rapidxml::xml_node<char>* Base = Data.first_node();
-			if (!Base)
-				return Exceptions::ParserException(ParserError::XMLParsingError, 0, "invalid XML structure");
 
 			Schema* Result = Var::Set::Array();
-			Result->Key = Base->name();
-			ProcessConvertionFromXML((void*)Base, Result);
+			Result->Key = Data.name();
+
+			for (auto Attribute : Data.attributes())
+				Result->SetAttribute(Attribute.name(), Attribute.empty() ? Var::Null() : Var::Auto(Attribute.value()));
+
+			for (auto Child : Data.children())
+			{
+				Schema* Subresult = Result->Set(Child.name(), Var::Set::Array());
+				ProcessConvertionFromXML((void*)&Child, Subresult);
+
+				if (*Child.value() != '\0')
+				{
+					Subresult->Value.Deserialize(Child.value());
+					continue;
+				}
+
+				auto Text = Child.text();
+				if (!Text.empty())
+					Subresult->Value.Deserialize(Child.text().get());
+				else
+					Subresult->Value = Var::Null();
+			}
 			return Result;
 		}
 		Expects<Schema*, Exceptions::ParserException> Schema::ConvertFromJSON(const char* Buffer, size_t Size)
@@ -11798,7 +11900,7 @@ namespace Mavi
 		}
 		Expects<Schema*, Exceptions::ParserException> Schema::FromXML(const String& Text)
 		{
-			return ConvertFromXML(Text.c_str());
+			return ConvertFromXML(Text.c_str(), Text.size());
 		}
 		Expects<Schema*, Exceptions::ParserException> Schema::FromJSON(const String& Text)
 		{
@@ -11942,18 +12044,28 @@ namespace Mavi
 		void Schema::ProcessConvertionFromXML(void* Base, Schema* Current)
 		{
 			VI_ASSERT(Base != nullptr && Current != nullptr, "base and current should be set");
+			pugi::xml_node& Next = *(pugi::xml_node*)Base;
+			Current->Key = Next.name();
 
-			auto Ref = (rapidxml::xml_node<>*)Base;
-			for (rapidxml::xml_attribute<>* It = Ref->first_attribute(); It; It = It->next_attribute())
-				Current->SetAttribute(It->name(), Var::Auto(It->value()));
+			for (auto Attribute : Next.attributes())
+				Current->SetAttribute(Attribute.name(), Attribute.empty() ? Var::Null() : Var::Auto(Attribute.value()));
 
-			for (rapidxml::xml_node<>* It = Ref->first_node(); It; It = It->next_sibling())
+			for (auto Child : Next.children())
 			{
-				Schema* Subresult = Current->Set(It->name(), Var::Set::Array());
-				ProcessConvertionFromXML((void*)It, Subresult);
+				Schema* Subresult = Current->Set(Child.name(), Var::Set::Array());
+				ProcessConvertionFromXML((void*)&Child, Subresult);
 
-				if (It->value_size() > 0)
-					Subresult->Value.Deserialize(String(It->value(), It->value_size()));
+				if (*Child.value() != '\0')
+				{
+					Subresult->Value.Deserialize(Child.value());
+					continue;
+				}
+
+				auto Text = Child.text();
+				if (!Text.empty())
+					Subresult->Value.Deserialize(Child.text().get());
+				else
+					Subresult->Value = Var::Null();
 			}
 		}
 		void Schema::ProcessConvertionFromJSON(void* Base, Schema* Current)

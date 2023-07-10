@@ -2,7 +2,6 @@
 #include "components.h"
 #include "renderers.h"
 #include "../network/http.h"
-#include <stb_vorbis.h>
 #ifdef VI_OPENAL
 #ifdef VI_AL_AT_OPENAL
 #include <OpenAL/al.h>
@@ -21,11 +20,14 @@
 #include <assimp/cimport.h>
 #include <assimp/postprocess.h> 
 #endif
+#ifdef VI_STB
 extern "C"
 {
+#define STB_VORBIS_HEADER_ONLY
 #include <stb_image.h>
-#include <stb_vorbis.h>
+#include <stb_vorbis.c>
 }
+#endif
 
 namespace Mavi
 {
@@ -1204,6 +1206,7 @@ namespace Mavi
 			}
 			void* AudioClipProcessor::DeserializeOGG(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
+#ifdef VI_STB
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::Vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
@@ -1242,6 +1245,10 @@ namespace Mavi
 
 				Object->AddRef();
 				return Object;
+#else
+				VI_ERR("[engine] cannot load OGG stream: stb is disabled");
+				return nullptr;
+#endif
 			}
 
 			Texture2DProcessor::Texture2DProcessor(ContentManager* Manager) : Processor(Manager)
@@ -1266,6 +1273,7 @@ namespace Mavi
 			}
 			void* Texture2DProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
+#ifdef VI_STB
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::Vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
@@ -1307,6 +1315,10 @@ namespace Mavi
 
 				Object->AddRef();
 				return Object;
+#else
+				VI_ERR("[engine] cannot load texture2d stream: stb is disabled");
+				return nullptr;
+#endif
 			}
 
 			ShaderProcessor::ShaderProcessor(ContentManager* Manager) : Processor(Manager)
@@ -1821,7 +1833,7 @@ namespace Mavi
 
 				Object = Core::Schema::ConvertFromJSON(Data.data(), Data.size());
 				if (!Object)
-					Object = Core::Schema::ConvertFromXML(Data.data());
+					Object = Core::Schema::ConvertFromXML(Data.data(), Data.size());
 
 				return Object ? *Object : nullptr;
 			}

@@ -71,44 +71,46 @@ target_link_libraries(app_name PRIVATE mavi)
 You can look at [Lynx's CMakeLists.txt](https://github.com/romanpunia/lynx/blob/master/CMakeLists.txt) to find out how it should be used in practice
 
 ## Building options
-Core options
+General options
 + **VI_CXX** is the C++ standard (14, 17, 20, 23) which will be used, C++17 and higher will add parallel sort and other optimizations, C++20 and higher will replace stateful coroutines with coroutines TS, defaults to 20
 + **VI_LOGGING** is a logging level (errors, warnings, default, debug, verbose), defaults to "default"
-
-Dependency options
-+ **VI_ASSIMP** will enable Assimp library if any, defaults to true
-+ **VI_FREETYPE** will enable FreeType library if any, defaults to true
-+ **VI_GLEW** will enable GLEW library if any, defaults to true
-+ **VI_MONGOC** will enable MongoDB library if any, defaults to true
-+ **VI_POSTGRESQL** will enable PostgreSQL library if any, defaults to true
-+ **VI_OPENAL** will enable OpenAL library if any, defaults to true
-+ **VI_OPENGL** will enable OpenGL library if any, defaults to true
-+ **VI_OPENSSL** will enable OpenSSL library if any, defaults to true
-+ **VI_SDL2** will enable SDL2 library if any, defaults to true
-+ **VI_ZLIB** will enable zlib library if any, defaults to true
-+ **VI_SPIRV** will enable SPIRV Cross and Glslang libraries if any, defaults to true
-+ **VI_SHADERS** to embed shaders from **/src/shaders** to **/src/mavi/graphics/dynamic/shaders.hpp**, defaults to true
-+ **VI_SIMD** will enable simd optimisations (processor-specific), defaults to false
-+ **VI_JIT** will enable optional JIT compiler for AngelScript, defaults to false
-+ **VI_FCTX** will enable internal fcontext implementation for coroutines, defaults to true
-+ **VI_BULLET3** will enable built-in Bullet3 library and physics interfaces, defaults to true
-+ **VI_RMLUI** will enable built-in RmlUi library and gui interfaces, defaults to true
 + **VI_BINDINGS** will enable full script bindings otherwise only essentials will be used to reduce lib size, defaults to true
 + **VI_ALLOCATOR** will enable custom allocator for all used standard containers, making them incompatible with std::allocator based ones but adding opportunity to use pool allocator, defaults to true
-+ **VI_BACKTRACE** will enable stacktrace that will be produced by backward-cpp, on some lightweight linux platforms it might be unavailable, defaults to true
++ **VI_SHADERS** to embed shaders from **/src/shaders** to **/src/mavi/graphics/dynamic/shaders.hpp**, defaults to true
+
+Dependency options
++ **VI_ASSIMP** will enable Assimp library to load 3d models, defaults to true
++ **VI_FREETYPE** will enable FreeType library to display text, defaults to true
++ **VI_GLEW** will enable GLEW library to bind OpenGL procedures, defaults to true
++ **VI_MONGOC** will enable MongoDB library to allow queries to this database, defaults to true
++ **VI_POSTGRESQL** will enable PostgreSQL library to allow queries to this database, defaults to true
++ **VI_OPENAL** will enable OpenAL library to playback audio, defaults to true
++ **VI_OPENGL** will enable OpenGL library to display graphics, defaults to true
++ **VI_OPENSSL** will enable OpenSSL library to activate TLS certs and crypto algorithms, defaults to true
++ **VI_SDL2** will enable SDL2 library to allow window and input management, defaults to true
++ **VI_ZLIB** will enable zlib library to activate compression algorithms, defaults to true
++ **VI_SPIRV** will enable SPIRV Cross and glslang libraries to allow shader cross-compiling, defaults to true
++ **VI_SIMD** will enable vectorclass built-in library to allow SIMD optimisations, defaults to false
++ **VI_JIT** will enable JIT compiler for AngelScript, defaults to false
++ **VI_FCTX** will enable internal fcontext implementation for coroutines, defaults to true
++ **VI_BULLET3** will enable built-in Bullet3 library to use physics interfaces, defaults to true
++ **VI_RMLUI** will enable built-in RmlUi library to use gui interfaces, defaults to true
++ **VI_BACKTRACE** will enable backward-cpp built-in library to display stacktraces otherwise if C++23 is supported then std::stacktrace, defaults to true
++ **VI_STB** will enable built-in stb library to load audio and textures, defaults to true
++ **VI_TINYFILEDIALOGS** will enable built-in tinyfiledialogs library to open system modal windows, defaults to true
 
 ## Dependencies
 Shared objects (so) are optional.
-* [Bullet3 (embedded, optional)](https://github.com/bulletphysics/bullet3)
-* [AngelScript (embedded)](https://sourceforge.net/projects/angelscript/)
+* [AngelScript (embedded)](https://github.com/codecat/angelscript-mirror)
 * [wepoll (embedded)](https://github.com/piscisaureus/wepoll)
-* [RmlUi (embedded, optional)](https://github.com/mikke89/RmlUi)
-* [tinyfiledialogs (embedded)](https://github.com/native-toolkit/tinyfiledialogs)
-* [RapidXML (embedded)](https://github.com/discordapp/rapidxml)
+* [PugiXML (embedded)](https://github.com/zeux/pugixml)
 * [RapidJSON (embedded)](https://github.com/tencent/rapidjson)
-* [stb (embedded)](https://github.com/nothings/stb)
-* [vectorclass (embedded, optional)](https://github.com/vectorclass/version1)
 * [concurrentqueue (embedded)](https://github.com/cameron314/concurrentqueue)
+* [stb (embedded, optional)](https://github.com/nothings/stb)
+* [tinyfiledialogs (embedded, optional)](https://github.com/native-toolkit/tinyfiledialogs)
+* [Bullet3 (embedded, optional)](https://github.com/bulletphysics/bullet3)
+* [RmlUi (embedded, optional)](https://github.com/mikke89/RmlUi)
+* [vectorclass (embedded, optional)](https://github.com/vectorclass/version1)
 * [backward-cpp (embedded, optional)](https://github.com/bombela/backward-cpp)
 * [D3D11 (so)](https://www.microsoft.com/en-us/download/details.aspx?id=6812)
 * [OpenGL (so)](https://github.com/KhronosGroup/OpenGL-Registry)

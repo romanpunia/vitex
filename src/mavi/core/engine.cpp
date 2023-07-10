@@ -9,7 +9,6 @@
 #include "../audio/filters.h"
 #ifdef VI_SDL2
 #include <SDL2/SDL_syswm.h>
-#undef Complex
 #endif
 
 namespace Mavi

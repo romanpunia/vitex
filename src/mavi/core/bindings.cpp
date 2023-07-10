@@ -7,18 +7,7 @@
 #include "../engine/components.h"
 #include "../engine/renderers.h"
 #endif
-#include <new>
-#include <assert.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
 #include <angelscript.h>
-#ifndef __psp2__
-#include <locale.h>
-#endif
-#define CACHE_ARRAY 1000
-#define CACHE_MAP 1003
 #define EXCEPTION_OUTOFBOUNDS "range_error", "index is outside of range"
 #define EXCEPTION_OUTOFMEMORY "allocation_error", "out of available memory"
 #define EXCEPTION_TOOLARGESIZE "allocation_error", "too much memory has been requested"
@@ -1297,7 +1286,7 @@ namespace Mavi
 				}
 
 				bool IsEqual = true;
-				SCache* Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(CACHE_ARRAY));
+				SCache* Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ArrayId));
 				for (size_t n = 0; n < GetSize(); n++)
 				{
 					if (!Equals(At(n), Other.At(n), CmpContext, Cache))
@@ -1431,7 +1420,7 @@ namespace Mavi
 				SCache* Cache = 0;
 				if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
 				{
-					Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(CACHE_ARRAY));
+					Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ArrayId));
 					if (!Cache || (Cache->Comparator == 0 && Cache->Equals == 0))
 					{
 						asIScriptContext* Context = asGetActiveContext();
@@ -1570,12 +1559,12 @@ namespace Mavi
 				if (!(SubTypeId & ~asTYPEID_MASK_SEQNBR))
 					return;
 
-				SCache* Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(CACHE_ARRAY));
+				SCache* Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ArrayId));
 				if (Cache)
 					return;
 
 				asAcquireExclusiveLock();
-				Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(CACHE_ARRAY));
+				Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ArrayId));
 				if (Cache)
 					return asReleaseExclusiveLock();
 
@@ -1659,7 +1648,7 @@ namespace Mavi
 				if (Cache->Comparator == 0 && Cache->ComparatorReturnCode == 0)
 					Cache->ComparatorReturnCode = asNO_FUNCTION;
 
-				ObjType->SetUserData(Cache, CACHE_ARRAY);
+				ObjType->SetUserData(Cache, ArrayId);
 				asReleaseExclusiveLock();
 			}
 			void Array::EnumReferences(asIScriptEngine* Engine)
@@ -1717,7 +1706,7 @@ namespace Mavi
 			}
 			void Array::CleanupTypeInfoCache(asITypeInfo* Type)
 			{
-				Array::SCache* Cache = reinterpret_cast<Array::SCache*>(Type->GetUserData(CACHE_ARRAY));
+				Array::SCache* Cache = reinterpret_cast<Array::SCache*>(Type->GetUserData(ArrayId));
 				if (Cache != nullptr)
 				{
 					Cache->~SCache();
@@ -1808,6 +1797,11 @@ namespace Mavi
 
 				return true;
 			}
+			int Array::GetId()
+			{
+				return ArrayId;
+			}
+			int Array::ArrayId = 1431;
 
 			Storable::Storable() noexcept
 			{
@@ -2063,13 +2057,13 @@ namespace Mavi
 
 			Dictionary::Dictionary(asIScriptEngine* _Engine) noexcept : Engine(_Engine)
 			{
-				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(CACHE_MAP));
+				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(DictionaryId));
 				Engine->NotifyGarbageCollectorOfNewObject(this, Cache->DictionaryType);
 			}
 			Dictionary::Dictionary(unsigned char* Buffer) noexcept : Dictionary(asGetActiveContext()->GetEngine())
 			{
 				asIScriptContext* Context = asGetActiveContext();
-				Dictionary::SCache& Cache = *reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(CACHE_MAP));
+				Dictionary::SCache& Cache = *reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(DictionaryId));
 				bool keyAsRef = Cache.KeyType->GetFlags() & asOBJ_REF ? true : false;
 
 				size_t Length = *(asUINT*)Buffer;
@@ -2329,7 +2323,7 @@ namespace Mavi
 			}
 			Array* Dictionary::GetKeys() const
 			{
-				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(CACHE_MAP));
+				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(DictionaryId));
 				asITypeInfo* Info = Cache->ArrayType;
 
 				Array* Array = Array::Create(Info, size_t(Data.size()));
@@ -2370,17 +2364,17 @@ namespace Mavi
 			}
 			void Dictionary::Cleanup(asIScriptEngine* Engine)
 			{
-				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(CACHE_MAP));
+				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(DictionaryId));
 				VI_DELETE(SCache, Cache);
 			}
 			void Dictionary::Setup(asIScriptEngine* Engine)
 			{
-				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(CACHE_MAP));
+				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(DictionaryId));
 				if (Cache == 0)
 				{
 					Cache = VI_NEW(Dictionary::SCache);
-					Engine->SetUserData(Cache, CACHE_MAP);
-					Engine->SetEngineUserDataCleanupCallback(Cleanup, CACHE_MAP);
+					Engine->SetUserData(Cache, DictionaryId);
+					Engine->SetEngineUserDataCleanupCallback(Cleanup, DictionaryId);
 
 					Cache->DictionaryType = Engine->GetTypeInfoByName(TYPENAME_DICTIONARY);
 					Cache->ArrayType = Engine->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">");
@@ -2462,6 +2456,7 @@ namespace Mavi
 				KeyopCast(&Value, asTYPEID_DOUBLE, Obj);
 				return Value;
 			}
+			int Dictionary::DictionaryId = 2348;
 
 			Ref::Ref() noexcept : Type(0), Pointer(nullptr)
 			{
@@ -3587,7 +3582,7 @@ namespace Mavi
 			}
 			Core::Schema* SchemaFromXML(const Core::String& Value)
 			{
-				auto Result = Core::Schema::ConvertFromXML(Value.c_str());
+				auto Result = Core::Schema::ConvertFromXML(Value.c_str(), Value.size());
 				return Result ? *Result : nullptr;
 			}
 			Core::Schema* SchemaImport(const Core::String& Value)
@@ -9134,7 +9129,7 @@ namespace Mavi
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 
 				asIScriptEngine* Engine = VM->GetEngine();
-				Engine->SetTypeInfoUserDataCleanupCallback(Array::CleanupTypeInfoCache, CACHE_ARRAY);
+				Engine->SetTypeInfoUserDataCleanupCallback(Array::CleanupTypeInfoCache, (asDWORD)Array::GetId());
 				Engine->RegisterObjectType("array<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Array::TemplateCallback), asCALL_CDECL);
 				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_FACTORY, "array<T>@ f(int&in)", asFUNCTIONPR(Array::Create, (asITypeInfo*), Array*), asCALL_CDECL);
@@ -16488,13 +16483,13 @@ namespace Mavi
 				VDocument->SetMethod("void set_title(const string &in)", &Engine::GUI::IElementDocument::SetTitle);
 				VDocument->SetMethod("void pull_to_front()", &Engine::GUI::IElementDocument::PullToFront);
 				VDocument->SetMethod("void push_to_back()", &Engine::GUI::IElementDocument::PushToBack);
-				VDocument->SetMethod("void show(ui_modal_flag = ui_modal_flag::None, ui_focus_flag = ui_focus_flag::Auto)", &Engine::GUI::IElementDocument::Show);
+				VDocument->SetMethod("void show(ui_modal_flag = ui_modal_flag::none, ui_focus_flag = ui_focus_flag::automatic)", &Engine::GUI::IElementDocument::Show);
 				VDocument->SetMethod("void hide()", &Engine::GUI::IElementDocument::Hide);
 				VDocument->SetMethod("void close()", &Engine::GUI::IElementDocument::Close);
 				VDocument->SetMethod("string get_title() const", &Engine::GUI::IElementDocument::GetTitle);
 				VDocument->SetMethod("string get_source_url() const", &Engine::GUI::IElementDocument::GetSourceURL);
 				VDocument->SetMethod("ui_element create_element(const string &in)", &Engine::GUI::IElementDocument::CreateElement);
-				VDocument->SetMethod("bool is_modal() const", &Engine::GUI::IElementDocument::IsModal);;
+				VDocument->SetMethod("bool is_modal() const", &Engine::GUI::IElementDocument::IsModal);
 				VDocument->SetMethod("uptr@ get_element_document() const", &Engine::GUI::IElementDocument::GetElementDocument);
 
 				return true;
@@ -16560,8 +16555,8 @@ namespace Mavi
 				VInputType->SetValue("any_of", (int)Engine::GUI::InputType::Any);
 
 				auto VContext = VM->SetClass<Engine::GUI::Context>("gui_context", false);
-				VContext->SetConstructor<Engine::GUI::Context, Scripting::Compiler*, const Compute::Vector2&>("gui_context@ f(uptr@, const vector2&in)");
-				VContext->SetConstructor<Engine::GUI::Context, Scripting::Compiler*, Graphics::GraphicsDevice*>("gui_context@ f(uptr@, graphics_device@+)");
+				VContext->SetConstructor<Engine::GUI::Context, const Compute::Vector2&>("gui_context@ f(const vector2&in)");
+				VContext->SetConstructor<Engine::GUI::Context, Graphics::GraphicsDevice*>("gui_context@ f(graphics_device@+)");
 				VContext->SetMethod("void emit_key(key_code, key_mod, int, int, bool)", &Engine::GUI::Context::EmitKey);
 				VContext->SetMethodEx("void emit_input(const string&in)", &ContextEmitInput);
 				VContext->SetMethod("void emit_wheel(int32, int32, bool, key_mod)", &Engine::GUI::Context::EmitWheel);
@@ -16572,7 +16567,7 @@ namespace Mavi
 				VContext->SetMethod("void render_lists(texture_2d@+)", &Engine::GUI::Context::RenderLists);
 				VContext->SetMethod("bool clear_documents()", &Engine::GUI::Context::ClearDocuments);
 				VContext->SetMethod("bool load_font_face(const string&in, bool = false)", &Engine::GUI::Context::LoadFontFace);
-				VContext->SetMethod<Engine::GUI::Context, bool, const Core::String&>("bool initialize(const string &in)", &Engine::GUI::Context::Initialize);
+				VContext->SetMethod<Engine::GUI::Context, bool, const Core::String&>("bool load_manifest(const string &in)", &Engine::GUI::Context::LoadManifest);
 				VContext->SetMethod("bool is_input_focused()", &Engine::GUI::Context::IsInputFocused);
 				VContext->SetMethod("bool is_loading()", &Engine::GUI::Context::IsLoading);
 				VContext->SetMethod("bool was_input_used(uint32)", &Engine::GUI::Context::WasInputUsed);
@@ -16589,7 +16584,7 @@ namespace Mavi
 				VContext->SetMethod("ui_document eval_html(const string &in, int = 0)", &Engine::GUI::Context::EvalHTML);
 				VContext->SetMethod("ui_document add_css(const string &in, int = 0)", &Engine::GUI::Context::AddCSS);
 				VContext->SetMethod("ui_document load_css(const string &in, int = 0)", &Engine::GUI::Context::LoadCSS);
-				VContext->SetMethod("ui_document load_document(const string &in, bool)", &Engine::GUI::Context::LoadDocument);
+				VContext->SetMethod("ui_document load_document(const string &in, bool = false)", &Engine::GUI::Context::LoadDocument);
 				VContext->SetMethod("ui_document add_document(const string &in)", &Engine::GUI::Context::AddDocument);
 				VContext->SetMethod("ui_document add_document_empty(const string &in = \"body\")", &Engine::GUI::Context::AddDocumentEmpty);
 				VContext->SetMethod<Engine::GUI::Context, Engine::GUI::IElementDocument, const Core::String&>("ui_document get_document(const string &in)", &Engine::GUI::Context::GetDocument);

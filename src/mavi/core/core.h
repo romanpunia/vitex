@@ -227,7 +227,20 @@ namespace Mavi
 			BadInteger,
 			BadDouble,
 			BadBoolean,
-			XMLParsingError,
+			XMLOutOfMemory,
+			XMLInternalError,
+			XMLUnrecognizedTag,
+			XMLBadPi,
+			XMLBadComment, 
+			XMLBadCData, 
+			XMLBadDocType,
+			XMLBadPCData,
+			XMLBadStartElement,
+			XMLBadAttribute,
+			XMLBadEndElement,
+			XMLEndElementMismatch,
+			XMLAppendInvalidRoot,
+			XMLNoDocumentElement,
 			JSONDocumentEmpty,
 			JSONDocumentRootNotSingular,
 			JSONValueInvalid,
@@ -3149,7 +3162,7 @@ namespace Mavi
 			static String ToXML(Schema* Value);
 			static String ToJSON(Schema* Value);
 			static Vector<char> ToJSONB(Schema* Value);
-			static Expects<Unique<Schema>, Exceptions::ParserException> ConvertFromXML(const char* Buffer);
+			static Expects<Unique<Schema>, Exceptions::ParserException> ConvertFromXML(const char* Buffer, size_t Size);
 			static Expects<Unique<Schema>, Exceptions::ParserException> ConvertFromJSON(const char* Buffer, size_t Size);
 			static Expects<Unique<Schema>, Exceptions::ParserException> ConvertFromJSONB(const SchemaReadCallback& Callback);
 			static Expects<Unique<Schema>, Exceptions::ParserException> FromXML(const String& Text);

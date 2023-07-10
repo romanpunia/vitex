@@ -1,7 +1,6 @@
 #include "ogl.h"
 #ifdef VI_SDL2
 #include <SDL2/SDL_syswm.h>
-#undef DirectColor
 #endif
 #ifdef VI_GL
 #define SHADER_VERTEX ".text.vertex.gz"

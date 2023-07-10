@@ -6016,7 +6016,7 @@ namespace Mavi
 					if (!Result)
 						return Result.Error();
 
-					auto Data = Core::Schema::ConvertFromXML(Response.Content.Data.data());
+					auto Data = Core::Schema::ConvertFromXML(Response.Content.Data.data(), Response.Content.Data.size());
 					if (!Data)
 						return std::make_error_condition(std::errc::bad_message);
 

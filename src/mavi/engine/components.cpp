@@ -3623,7 +3623,7 @@ namespace Mavi
 					if (Invoke == InvokeType::Typeless)
 						return;
 
-					Scripting::Bindings::Dictionary* Map = Scripting::Bindings::Dictionary::Create(Compiler->GetVM()->GetEngine());
+					Scripting::Bindings::Dictionary* Map = Scripting::Bindings::Dictionary::Create(Compiler->GetVM());
 					if (Map != nullptr)
 					{
 						int TypeId = Compiler->GetVM()->GetTypeIdByDecl("variant");

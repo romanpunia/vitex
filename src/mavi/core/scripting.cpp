@@ -2483,20 +2483,27 @@ namespace Mavi
 
 			return Compile();
 		}
-		ExpectsPromiseVM<Function> Compiler::CompileFunction(const Core::String& Buffer, const char* Returns, const char* Args)
+		ExpectsPromiseVM<Function> Compiler::CompileFunction(const Core::String& Buffer, const char* Returns, const char* Args, Core::Option<size_t>&& FunctionId)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(!Buffer.empty(), "buffer should not be empty");
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
 			VI_ASSERT(Built, "module should be built");
 
+			Core::String Code = Buffer;
+			Core::String Name = " __vfunc" + Core::ToString(FunctionId ? *FunctionId : (Counter + 1));
+			if (!VM->GenerateCode(Processor, Name, Code))
+				return ExpectsPromiseVM<Function>(VirtualError::INVALID_DECLARATION);
+
 			Core::String Eval;
 			Eval.append(Returns ? Returns : "void");
-			Eval.append(" __vfunc");
-			Eval.append(Core::ToString(Counter++));
+			Eval.append(Name);
 			Eval.append("(");
 			Eval.append(Args ? Args : "");
 			Eval.append("){");
+
+			if (!FunctionId)
+				++Counter;
 
 			if (Returns != nullptr && strncmp(Returns, "void", 4) != 0)
 			{
@@ -2885,16 +2892,6 @@ namespace Mavi
 				return "\"" + Source.Serialize() + "\"";
 			});
 			AddToStringCallback("any", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Bindings::Any* Source = (Bindings::Any*)Object;
-				return ToString(Indent, Depth - 1, Source->GetAddressOfObject(), Source->GetTypeId());
-			});
-			AddToStringCallback("ref", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Bindings::Ref* Source = (Bindings::Ref*)Object;
-				return ToString(Indent, Depth - 1, Source->GetAddressOfObject(), Source->GetTypeId());
-			});
-			AddToStringCallback("weak", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Bindings::Any* Source = (Bindings::Any*)Object;
 				return ToString(Indent, Depth - 1, Source->GetAddressOfObject(), Source->GetTypeId());
@@ -4756,7 +4753,7 @@ namespace Mavi
 			VI_ASSERT(Context != nullptr, "context should be set");
 			if (!IsSuspendable())
 			{
-				Bindings::Exception::ThrowAt(Context, Bindings::Exception::Pointer("async_error", "yield is not allowed in this function call"));
+				Bindings::Exception::ThrowAt(this, Bindings::Exception::Pointer("async_error", "yield is not allowed in this function call"));
 				return VirtualError::CONTEXT_NOT_PREPARED;
 			}
 
@@ -5172,7 +5169,7 @@ namespace Mavi
 		{
 #ifdef VI_BINDINGS
 			VI_ASSERT(Context != nullptr, "context should be set");
-			return Bindings::Mutex::IsAnyLocked(Context);
+			return Bindings::Mutex::IsAnyLocked((ImmediateContext*)this);
 #else
 			return false;
 #endif
@@ -5289,13 +5286,22 @@ namespace Mavi
 		{
 			return SetStructAddress(Name, Size, Flags);
 		}
-		ExpectsVM<RefClass> VirtualMachine::SetClassAddress(const char* Name, uint64_t Flags)
+		ExpectsVM<RefClass> VirtualMachine::SetClassAddress(const char* Name, size_t Size, uint64_t Flags)
 		{
 			VI_ASSERT(Name != nullptr, "name should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class(%i) %i bytes", (int)Flags, (int)strlen(Name));
-			int TypeId = Engine->RegisterObjectType(Name, 0, (asDWORD)Flags);
+			int TypeId = Engine->RegisterObjectType(Name, (asUINT)Size, (asDWORD)Flags);
 			return FunctionFactory::ToReturn<RefClass>(TypeId, RefClass(this, Engine->GetTypeInfoById(TypeId), TypeId));
+		}
+		ExpectsVM<TemplateClass> VirtualMachine::SetTemplateClassAddress(const char* Decl, const char* Name, size_t Size, uint64_t Flags)
+		{
+			VI_ASSERT(Decl != nullptr, "decl should be set");
+			VI_ASSERT(Name != nullptr, "name should be set");
+			VI_ASSERT(Engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register class(%i) %i bytes", (int)Flags, (int)strlen(Decl));
+			int TypeId = Engine->RegisterObjectType(Decl, (asUINT)Size, (asDWORD)Flags);
+			return FunctionFactory::ToReturn<TemplateClass>(TypeId, TemplateClass(this, Name));
 		}
 		ExpectsVM<Enumeration> VirtualMachine::SetEnum(const char* Name)
 		{
@@ -5708,6 +5714,31 @@ namespace Mavi
 				else
 					DetachDebuggerFromContext(Next);
 			}
+		}
+		void VirtualMachine::SetDefaultArrayType(const Core::String& Type)
+		{
+			VI_ASSERT(Engine != nullptr, "engine should be set");
+			Engine->RegisterDefaultArrayType(Type.c_str());
+		}
+		void VirtualMachine::SetTypeInfoUserDataCleanupCallback(void(*Callback)(asITypeInfo*), size_t Type)
+		{
+			VI_ASSERT(Engine != nullptr, "engine should be set");
+			Engine->SetTypeInfoUserDataCleanupCallback(Callback, (asPWORD)Type);
+		}
+		void VirtualMachine::SetEngineUserDataCleanupCallback(void(*Callback)(asIScriptEngine*), size_t Type)
+		{
+			VI_ASSERT(Engine != nullptr, "engine should be set");
+			Engine->SetEngineUserDataCleanupCallback(Callback, (asPWORD)Type);
+		}
+		void* VirtualMachine::SetUserData(void* Data, size_t Type)
+		{
+			VI_ASSERT(Engine != nullptr, "engine should be set");
+			return Engine->SetUserData(Data, (asPWORD)Type);
+		}
+		void* VirtualMachine::GetUserData(size_t Type) const
+		{
+			VI_ASSERT(Engine != nullptr, "engine should be set");
+			return Engine->GetUserData((asPWORD)Type);
 		}
 		void VirtualMachine::ClearCache()
 		{
@@ -6772,8 +6803,6 @@ namespace Mavi
 			Engine->AddSystemAddon("std/any", { }, Bindings::Registry::ImportAny);
 			Engine->AddSystemAddon("std/array", { "std/ctypes" }, Bindings::Registry::ImportArray);
 			Engine->AddSystemAddon("std/complex", { }, Bindings::Registry::ImportComplex);
-			Engine->AddSystemAddon("std/ref", { }, Bindings::Registry::ImportRef);
-			Engine->AddSystemAddon("std/weak_ref", { }, Bindings::Registry::ImportWeakRef);
 			Engine->AddSystemAddon("std/math", { }, Bindings::Registry::ImportMath);
 			Engine->AddSystemAddon("std/string", { "std/array" }, Bindings::Registry::ImportString);
 			Engine->AddSystemAddon("std/random", { "std/string" }, Bindings::Registry::ImportRandom);

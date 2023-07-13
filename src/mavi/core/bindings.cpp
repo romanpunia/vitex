@@ -23,9 +23,6 @@
 #define TYPENAME_ANY "any"
 #define TYPENAME_CLOSURE "closure"
 #define TYPENAME_THREAD "thread"
-#define TYPENAME_REF "ref"
-#define TYPENAME_WEAK "weak"
-#define TYPENAME_CONSTWEAK "const_weak"
 #define TYPENAME_PROMISE "promise"
 #define TYPENAME_SCHEMA "schema"
 #define TYPENAME_DECIMAL "decimal"
@@ -174,39 +171,35 @@ namespace Mavi
 			}
 			void PointerToHandleCast(void* From, void** To, int TypeId)
 			{
-				if (!(TypeId & asTYPEID_OBJHANDLE))
+				if (!(TypeId & (size_t)TypeId::OBJHANDLE))
 					return;
 
-				if (!(TypeId & asTYPEID_MASK_OBJECT))
+				if (!(TypeId & (size_t)TypeId::MASK_OBJECT))
 					return;
 
 				*To = From;
 			}
 			void HandleToHandleCast(void* From, void** To, int TypeId)
 			{
-				if (!(TypeId & asTYPEID_OBJHANDLE))
+				if (!(TypeId & (size_t)TypeId::OBJHANDLE))
 					return;
 
-				if (!(TypeId & asTYPEID_MASK_OBJECT))
+				if (!(TypeId & (size_t)TypeId::MASK_OBJECT))
 					return;
 
-				asIScriptContext* Context = asGetActiveContext();
-				if (!Context)
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
 					return;
 
-				asIScriptEngine* Engine = Context->GetEngine();
-				if (!Engine)
-					return;
-
-				asITypeInfo* TypeInfo = Engine->GetTypeInfoById(TypeId);
-				Engine->RefCastObject(From, TypeInfo, TypeInfo, To);
+				auto TypeInfo = VM->GetTypeInfoById(TypeId);
+				VM->RefCastObject(From, TypeInfo, TypeInfo, To);
 			}
 			void* HandleToPointerCast(void* From, int TypeId)
 			{
-				if (!(TypeId & asTYPEID_OBJHANDLE))
+				if (!(TypeId & (size_t)TypeId::OBJHANDLE))
 					return nullptr;
 
-				if (!(TypeId & asTYPEID_MASK_OBJECT))
+				if (!(TypeId & (size_t)TypeId::MASK_OBJECT))
 					return nullptr;
 
 				return *reinterpret_cast<void**>(From);
@@ -287,9 +280,8 @@ namespace Mavi
 			}
 			Array* String::Split(Core::String& Base, const Core::String& Delimiter)
 			{
-				asIScriptContext* Context = asGetActiveContext();
-				asIScriptEngine* Engine = Context->GetEngine();
-				asITypeInfo* ArrayType = Engine->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				VirtualMachine* VM = VirtualMachine::Get();
+				asITypeInfo* ArrayType = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@").GetTypeInfo();
 				Array* Array = Array::Create(ArrayType);
 
 				int Offset = 0, Prev = 0, Count = 0;
@@ -348,7 +340,7 @@ namespace Mavi
 			Exception::Pointer::Pointer() : Context(nullptr)
 			{
 			}
-			Exception::Pointer::Pointer(asIScriptContext* NewContext) : Context(NewContext)
+			Exception::Pointer::Pointer(ImmediateContext* NewContext) : Context(NewContext)
 			{
 				const char* Value = (Context ? Context->GetExceptionString() : nullptr);
 				if (Value != nullptr && Value[0] != '\0' && (Context ? !Context->WillExceptionBeCaught() : false))
@@ -357,12 +349,12 @@ namespace Mavi
 					Origin = LoadStackHere();
 				}
 			}
-			Exception::Pointer::Pointer(const Core::String& Value) : Context(asGetActiveContext())
+			Exception::Pointer::Pointer(const Core::String& Value) : Context(ImmediateContext::Get())
 			{
 				LoadExceptionData(Value);
 				Origin = LoadStackHere();
 			}
-			Exception::Pointer::Pointer(const Core::String& NewType, const Core::String& NewMessage) : Type(NewType), Message(NewMessage), Context(asGetActiveContext())
+			Exception::Pointer::Pointer(const Core::String& NewType, const Core::String& NewMessage) : Type(NewType), Message(NewMessage), Context(ImmediateContext::Get())
 			{
 				Origin = LoadStackHere();
 			}
@@ -411,19 +403,15 @@ namespace Mavi
 				if (!Context)
 					return Data;
 
-				ImmediateContext* ThisContext = ImmediateContext::Get(Context);
-				if (!ThisContext)
+				auto Function = Context->GetExceptionFunction();
+				if (!Function.IsValid())
 					return Data;
 
-				asIScriptFunction* Function = Context->GetExceptionFunction();
-				if (!Function)
-					return Data;
-
-				const char* Decl = Function->GetDeclaration();
+				const char* Decl = Function.GetDecl();
 				Data.append("at function ");
 				Data.append(Decl ? Decl : "<any>");
 
-				const char* Module = Function->GetModuleName();
+				const char* Module = Function.GetModuleName();
 				Data.append(", in module ");
 				Data.append(Module ? Module : "<anonymous>");
 
@@ -443,25 +431,25 @@ namespace Mavi
 				return Type.empty() && Message.empty();
 			}
 
-			void Exception::ThrowAt(asIScriptContext* Context, const Pointer& Data)
+			void Exception::ThrowAt(ImmediateContext* Context, const Pointer& Data)
 			{
 				if (Context != nullptr)
 					Context->SetException(Data.ToExceptionString().c_str());
 			}
 			void Exception::Throw(const Pointer& Data)
 			{
-				ThrowAt(asGetActiveContext(), Data);
+				ThrowAt(ImmediateContext::Get(), Data);
 			}
-			void Exception::RethrowAt(asIScriptContext* Context)
+			void Exception::RethrowAt(ImmediateContext* Context)
 			{
 				if (Context != nullptr)
 					Context->SetException(Context->GetExceptionString());
 			}
 			void Exception::Rethrow()
 			{
-				RethrowAt(asGetActiveContext());
+				RethrowAt(ImmediateContext::Get());
 			}
-			bool Exception::HasExceptionAt(asIScriptContext* Context)
+			bool Exception::HasExceptionAt(ImmediateContext* Context)
 			{
 				if (!Context)
 					return false;
@@ -471,9 +459,9 @@ namespace Mavi
 			}
 			bool Exception::HasException()
 			{
-				return HasExceptionAt(asGetActiveContext());
+				return HasExceptionAt(ImmediateContext::Get());
 			}
-			Exception::Pointer Exception::GetExceptionAt(asIScriptContext* Context)
+			Exception::Pointer Exception::GetExceptionAt(ImmediateContext* Context)
 			{
 				if (!Context)
 					return Pointer();
@@ -486,7 +474,7 @@ namespace Mavi
 			}
 			Exception::Pointer Exception::GetException()
 			{
-				return GetExceptionAt(asGetActiveContext());
+				return GetExceptionAt(ImmediateContext::Get());
 			}
 			bool Exception::GeneratorCallback(const Core::String& Path, Core::String& Code)
 			{
@@ -497,33 +485,33 @@ namespace Mavi
 				return true;
 			}
 
-			Any::Any(asIScriptEngine* _Engine) noexcept : Engine(_Engine)
+			Any::Any(VirtualMachine* _Engine) noexcept : Engine(_Engine)
 			{
 				Value.TypeId = 0;
 				Value.Integer = 0;
-				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_ANY));
+				Engine->NotifyOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_ANY));
 			}
-			Any::Any(void* Ref, int RefTypeId, asIScriptEngine* _Engine) noexcept : Any(_Engine)
+			Any::Any(void* Ref, int RefTypeId, VirtualMachine* _Engine) noexcept : Any(_Engine)
 			{
 				Store(Ref, RefTypeId);
 			}
 			Any::Any(const Any& Other) noexcept : Any(Other.Engine)
 			{
-				if ((Other.Value.TypeId & asTYPEID_MASK_OBJECT))
+				if ((Other.Value.TypeId & (size_t)TypeId::MASK_OBJECT))
 				{
-					asITypeInfo* Info = Engine->GetTypeInfoById(Other.Value.TypeId);
-					if (Info != nullptr)
-						Info->AddRef();
+					auto Info = Engine->GetTypeInfoById(Other.Value.TypeId);
+					if (Info.IsValid())
+						Info.AddRef();
 				}
 
 				Value.TypeId = Other.Value.TypeId;
-				if (Value.TypeId & asTYPEID_OBJHANDLE)
+				if (Value.TypeId & (size_t)TypeId::OBJHANDLE)
 				{
 					Value.Object = Other.Value.Object;
-					Engine->AddRefScriptObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId));
+					Engine->AddRefObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 				}
-				else if (Value.TypeId & asTYPEID_MASK_OBJECT)
-					Value.Object = Engine->CreateScriptObjectCopy(Other.Value.Object, Engine->GetTypeInfoById(Value.TypeId));
+				else if (Value.TypeId & (size_t)TypeId::MASK_OBJECT)
+					Value.Object = Engine->CreateObjectCopy(Other.Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 				else
 					Value.Integer = Other.Value.Integer;
 			}
@@ -533,23 +521,23 @@ namespace Mavi
 			}
 			Any& Any::operator=(const Any& Other) noexcept
 			{
-				if ((Other.Value.TypeId & asTYPEID_MASK_OBJECT))
+				if ((Other.Value.TypeId & (size_t)TypeId::MASK_OBJECT))
 				{
-					asITypeInfo* Info = Engine->GetTypeInfoById(Other.Value.TypeId);
-					if (Info != nullptr)
-						Info->AddRef();
+					auto Info = Engine->GetTypeInfoById(Other.Value.TypeId);
+					if (Info.IsValid())
+						Info.AddRef();
 				}
 
 				FreeObject();
 				Value.TypeId = Other.Value.TypeId;
 
-				if (Value.TypeId & asTYPEID_OBJHANDLE)
+				if (Value.TypeId & (size_t)TypeId::OBJHANDLE)
 				{
 					Value.Object = Other.Value.Object;
-					Engine->AddRefScriptObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId));
+					Engine->AddRefObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 				}
-				else if (Value.TypeId & asTYPEID_MASK_OBJECT)
-					Value.Object = Engine->CreateScriptObjectCopy(Other.Value.Object, Engine->GetTypeInfoById(Value.TypeId));
+				else if (Value.TypeId & (size_t)TypeId::MASK_OBJECT)
+					Value.Object = Engine->CreateObjectCopy(Other.Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 				else
 					Value.Integer = Other.Value.Integer;
 
@@ -565,39 +553,40 @@ namespace Mavi
 			}
 			void Any::Store(void* Ref, int RefTypeId)
 			{
-				if ((RefTypeId & asTYPEID_MASK_OBJECT))
+				if ((RefTypeId & (size_t)TypeId::MASK_OBJECT))
 				{
-					asITypeInfo* Info = Engine->GetTypeInfoById(RefTypeId);
-					if (Info)
-						Info->AddRef();
+					auto Info = Engine->GetTypeInfoById(RefTypeId);
+					if (Info.IsValid())
+						Info.AddRef();
 				}
 
 				FreeObject();
 				Value.TypeId = RefTypeId;
 
-				if (Value.TypeId & asTYPEID_OBJHANDLE)
+				if (Value.TypeId & (size_t)TypeId::OBJHANDLE)
 				{
 					Value.Object = *(void**)Ref;
-					Engine->AddRefScriptObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId));
+					Engine->AddRefObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 				}
-				else if (Value.TypeId & asTYPEID_MASK_OBJECT)
+				else if (Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 				{
-					Value.Object = Engine->CreateScriptObjectCopy(Ref, Engine->GetTypeInfoById(Value.TypeId));
+					Value.Object = Engine->CreateObjectCopy(Ref, Engine->GetTypeInfoById(Value.TypeId));
 				}
 				else
 				{
 					Value.Integer = 0;
-					int Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
-					memcpy(&Value.Integer, Ref, Size);
+					auto Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
+					if (Size)
+						memcpy(&Value.Integer, Ref, *Size);
 				}
 			}
 			bool Any::Retrieve(void* Ref, int RefTypeId) const
 			{
-				if (RefTypeId & asTYPEID_OBJHANDLE)
+				if (RefTypeId & (size_t)TypeId::OBJHANDLE)
 				{
-					if ((Value.TypeId & asTYPEID_MASK_OBJECT))
+					if ((Value.TypeId & (size_t)TypeId::MASK_OBJECT))
 					{
-						if ((Value.TypeId & asTYPEID_HANDLETOCONST) && !(RefTypeId & asTYPEID_HANDLETOCONST))
+						if ((Value.TypeId & (size_t)TypeId::HANDLETOCONST) && !(RefTypeId & (size_t)TypeId::HANDLETOCONST))
 							return false;
 
 						Engine->RefCastObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId), Engine->GetTypeInfoById(RefTypeId), reinterpret_cast<void**>(Ref));
@@ -607,21 +596,21 @@ namespace Mavi
 						return true;
 					}
 				}
-				else if (RefTypeId & asTYPEID_MASK_OBJECT)
+				else if (RefTypeId & (size_t)TypeId::MASK_OBJECT)
 				{
 					if (Value.TypeId == RefTypeId)
 					{
-						Engine->AssignScriptObject(Ref, Value.Object, Engine->GetTypeInfoById(Value.TypeId));
+						Engine->AssignObject(Ref, Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 						return true;
 					}
 				}
 				else
 				{
-					int Size1 = Engine->GetSizeOfPrimitiveType(Value.TypeId);
-					int Size2 = Engine->GetSizeOfPrimitiveType(RefTypeId);
-					if (Size1 == Size2)
+					auto Size1 = Engine->GetSizeOfPrimitiveType(Value.TypeId);
+					auto Size2 = Engine->GetSizeOfPrimitiveType(RefTypeId);
+					if (Size1 && Size2 && *Size1 == *Size2)
 					{
-						memcpy(Ref, &Value.Integer, Size1);
+						memcpy(Ref, &Value.Integer, *Size1);
 						return true;
 					}
 				}
@@ -630,11 +619,11 @@ namespace Mavi
 			}
 			void* Any::GetAddressOfObject()
 			{
-				if (Value.TypeId & asTYPEID_OBJHANDLE)
+				if (Value.TypeId & (size_t)TypeId::OBJHANDLE)
 					return &Value.Object;
-				else if (Value.TypeId & asTYPEID_MASK_OBJECT)
+				else if (Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 					return Value.Object;
-				else if (Value.TypeId <= asTYPEID_DOUBLE || Value.TypeId & asTYPEID_MASK_SEQNBR)
+				else if (Value.TypeId <= (size_t)TypeId::DOUBLE || Value.TypeId & (size_t)TypeId::MASK_SEQNBR)
 					return &Value.Integer;
 
 				return nullptr;
@@ -645,24 +634,24 @@ namespace Mavi
 			}
 			void Any::FreeObject()
 			{
-				if (Value.TypeId & asTYPEID_MASK_OBJECT)
+				if (Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 				{
-					asITypeInfo* Type = Engine->GetTypeInfoById(Value.TypeId);
-					Engine->ReleaseScriptObject(Value.Object, Type);
-					VI_RELEASE(Type);
+					auto Type = Engine->GetTypeInfoById(Value.TypeId);
+					Engine->ReleaseObject(Value.Object, Type);
+					Type.Release();
 					Value.Object = 0;
 					Value.TypeId = 0;
 				}
 			}
 			void Any::EnumReferences(asIScriptEngine* InEngine)
 			{
-				if (Value.Object && (Value.TypeId & asTYPEID_MASK_OBJECT))
+				if (Value.Object && (Value.TypeId & (size_t)TypeId::MASK_OBJECT))
 				{
-					asITypeInfo* SubType = Engine->GetTypeInfoById(Value.TypeId);
-					if ((SubType->GetFlags() & asOBJ_REF))
+					auto SubType = Engine->GetTypeInfoById(Value.TypeId);
+					if ((SubType.GetFlags() & asOBJ_REF))
 						FunctionFactory::GCEnumCallback(InEngine, Value.Object);
-					else if ((SubType->GetFlags() & asOBJ_VALUE) && (SubType->GetFlags() & asOBJ_GC))
-						Engine->ForwardGCEnumReferences(Value.Object, SubType);
+					else if ((SubType.GetFlags() & asOBJ_VALUE) && (SubType.GetFlags() & asOBJ_GC))
+						Engine->ForwardEnumReferences(Value.Object, SubType);
 
 					asITypeInfo* T = InEngine->GetTypeInfoById(Value.TypeId);
 					FunctionFactory::GCEnumCallback(InEngine, T);
@@ -674,11 +663,11 @@ namespace Mavi
 			}
 			Core::Unique<Any> Any::Create()
 			{
-				asIScriptContext* Context = asGetActiveContext();
-				if (!Context)
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
 					return nullptr;
 
-				Any* Result = new Any(Context->GetEngine());
+				Any* Result = new Any(VM);
 				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 
@@ -686,11 +675,11 @@ namespace Mavi
 			}
 			Any* Any::Create(int TypeId, void* Ref)
 			{
-				asIScriptContext* Context = asGetActiveContext();
-				if (!Context)
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
 					return nullptr;
 
-				Any* Result = new Any(Ref, TypeId, Context->GetEngine());
+				Any* Result = new Any(Ref, TypeId, VM);
 				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 
@@ -698,12 +687,11 @@ namespace Mavi
 			}
 			Any* Any::Create(const char* Decl, void* Ref)
 			{
-				asIScriptContext* Context = asGetActiveContext();
-				if (!Context)
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
 					return nullptr;
 
-				asIScriptEngine* Engine = Context->GetEngine();
-				Any* Result = new Any(Ref, Engine->GetTypeIdByDecl(Decl), Engine);
+				Any* Result = new Any(Ref, VM->GetTypeIdByDecl(Decl), VM);
 				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 
@@ -711,7 +699,7 @@ namespace Mavi
 			}
 			void Any::Factory1(asIScriptGeneric* G)
 			{
-				Any* Result = new Any(G->GetEngine());
+				Any* Result = new Any(VirtualMachine::Get(G->GetEngine()));
 				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 				else
@@ -719,40 +707,40 @@ namespace Mavi
 			}
 			void Any::Factory2(asIScriptGeneric* G)
 			{
-				Any* Result = new Any(G->GetArgAddress(0), G->GetArgTypeId(0), G->GetEngine());
+				Any* Result = new Any(G->GetArgAddress(0), G->GetArgTypeId(0), VirtualMachine::Get(G->GetEngine()));
 				if (!Result)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 				else
 					*(Any**)G->GetAddressOfReturnLocation() = Result;
 			}
-			Any& Any::Assignment(Any* Other, Any* Self)
+			Any& Any::Assignment(Any* Base, Any* Other)
 			{
-				return *Self = *Other;
+				return *Base = *Other;
 			}
 
 			Array::Array(asITypeInfo* Info, void* BufferPtr) noexcept : ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
 				VI_ASSERT(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
-				ObjType->AddRef();
+				ObjType.AddRef();
 				Precache();
 
-				asIScriptEngine* Engine = Info->GetEngine();
-				if (SubTypeId & asTYPEID_MASK_OBJECT)
+				VirtualMachine* Engine = ObjType.GetVM();
+				if (SubTypeId & (size_t)TypeId::MASK_OBJECT)
 					ElementSize = sizeof(asPWORD);
 				else
-					ElementSize = Engine->GetSizeOfPrimitiveType(SubTypeId);
+					ElementSize = Engine->GetSizeOfPrimitiveType(SubTypeId).Or(0);
 
 				size_t Length = *(asUINT*)BufferPtr;
 				if (!CheckMaxSize(Length))
 					return;
 
-				if ((Info->GetSubTypeId() & asTYPEID_MASK_OBJECT) == 0)
+				if ((Info->GetSubTypeId() & (size_t)TypeId::MASK_OBJECT) == 0)
 				{
 					CreateBuffer(&Buffer, Length);
 					if (Length > 0)
 						memcpy(At(0), (((asUINT*)BufferPtr) + 1), (size_t)Length * (size_t)ElementSize);
 				}
-				else if (Info->GetSubTypeId() & asTYPEID_OBJHANDLE)
+				else if (Info->GetSubTypeId() & (size_t)TypeId::OBJHANDLE)
 				{
 					CreateBuffer(&Buffer, Length);
 					if (Length > 0)
@@ -762,9 +750,9 @@ namespace Mavi
 				}
 				else if (Info->GetSubType()->GetFlags() & asOBJ_REF)
 				{
-					SubTypeId |= asTYPEID_OBJHANDLE;
+					SubTypeId |= (size_t)TypeId::OBJHANDLE;
 					CreateBuffer(&Buffer, Length);
-					SubTypeId &= ~asTYPEID_OBJHANDLE;
+					SubTypeId &= ~(size_t)TypeId::OBJHANDLE;
 
 					if (Length > 0)
 						memcpy(Buffer->Data, (((asUINT*)BufferPtr) + 1), (size_t)Length * (size_t)ElementSize);
@@ -778,40 +766,40 @@ namespace Mavi
 					{
 						unsigned char* SourceObj = (unsigned char*)BufferPtr;
 						SourceObj += 4 + n * Info->GetSubType()->GetSize();
-						Engine->AssignScriptObject(At(n), SourceObj, Info->GetSubType());
+						Engine->AssignObject(At(n), SourceObj, Info->GetSubType());
 					}
 				}
 
-				if (ObjType->GetFlags() & asOBJ_GC)
-					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
+				if (ObjType.GetFlags() & asOBJ_GC)
+					ObjType.GetVM()->NotifyOfNewObject(this, ObjType);
 			}
 			Array::Array(size_t Length, asITypeInfo* Info) noexcept : ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
 				VI_ASSERT(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
-				ObjType->AddRef();
+				ObjType.AddRef();
 				Precache();
 
-				if (SubTypeId & asTYPEID_MASK_OBJECT)
+				if (SubTypeId & (size_t)TypeId::MASK_OBJECT)
 					ElementSize = sizeof(asPWORD);
 				else
-					ElementSize = ObjType->GetEngine()->GetSizeOfPrimitiveType(SubTypeId);
+					ElementSize = ObjType.GetVM()->GetSizeOfPrimitiveType(SubTypeId).Or(0);
 
 				if (!CheckMaxSize(Length))
 					return;
 
 				CreateBuffer(&Buffer, Length);
-				if (ObjType->GetFlags() & asOBJ_GC)
-					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
+				if (ObjType.GetFlags() & asOBJ_GC)
+					ObjType.GetVM()->NotifyOfNewObject(this, ObjType);
 			}
 			Array::Array(const Array& Other) noexcept : ObjType(Other.ObjType), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
-				VI_ASSERT(ObjType && Core::String(ObjType->GetName()) == TYPENAME_ARRAY, "array type is invalid");
-				ObjType->AddRef();
+				VI_ASSERT(ObjType.IsValid() && Core::String(ObjType.GetName()) == TYPENAME_ARRAY, "array type is invalid");
+				ObjType.AddRef();
 				Precache();
 
 				ElementSize = Other.ElementSize;
-				if (ObjType->GetFlags() & asOBJ_GC)
-					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
+				if (ObjType.GetFlags() & asOBJ_GC)
+					ObjType.GetVM()->NotifyOfNewObject(this, ObjType);
 
 				CreateBuffer(&Buffer, 0);
 				*this = Other;
@@ -819,20 +807,20 @@ namespace Mavi
 			Array::Array(size_t Length, void* DefaultValue, asITypeInfo* Info) noexcept : ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
 			{
 				VI_ASSERT(Info && Core::String(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
-				ObjType->AddRef();
+				ObjType.AddRef();
 				Precache();
 
-				if (SubTypeId & asTYPEID_MASK_OBJECT)
+				if (SubTypeId & (size_t)TypeId::MASK_OBJECT)
 					ElementSize = sizeof(asPWORD);
 				else
-					ElementSize = ObjType->GetEngine()->GetSizeOfPrimitiveType(SubTypeId);
+					ElementSize = ObjType.GetVM()->GetSizeOfPrimitiveType(SubTypeId).Or(0);
 
 				if (!CheckMaxSize(Length))
 					return;
 
 				CreateBuffer(&Buffer, Length);
-				if (ObjType->GetFlags() & asOBJ_GC)
-					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
+				if (ObjType.GetFlags() & asOBJ_GC)
+					ObjType.GetVM()->NotifyOfNewObject(this, ObjType);
 
 				for (size_t i = 0; i < GetSize(); i++)
 					SetValue(i, DefaultValue);
@@ -844,7 +832,7 @@ namespace Mavi
 					DeleteBuffer(Buffer);
 					Buffer = nullptr;
 				}
-				VI_RELEASE(ObjType);
+				ObjType.Release();
 			}
 			Array& Array::operator=(const Array& Other) noexcept
 			{
@@ -862,23 +850,23 @@ namespace Mavi
 				if (Ptr == 0)
 					return;
 
-				if ((SubTypeId & ~asTYPEID_MASK_SEQNBR) && !(SubTypeId & asTYPEID_OBJHANDLE))
-					ObjType->GetEngine()->AssignScriptObject(Ptr, Value, ObjType->GetSubType());
-				else if (SubTypeId & asTYPEID_OBJHANDLE)
+				if ((SubTypeId & ~(size_t)TypeId::MASK_SEQNBR) && !(SubTypeId & (size_t)TypeId::OBJHANDLE))
+					ObjType.GetVM()->AssignObject(Ptr, Value, ObjType.GetSubType());
+				else if (SubTypeId & (size_t)TypeId::OBJHANDLE)
 				{
 					void* Swap = *(void**)Ptr;
 					*(void**)Ptr = *(void**)Value;
-					ObjType->GetEngine()->AddRefScriptObject(*(void**)Value, ObjType->GetSubType());
+					ObjType.GetVM()->AddRefObject(*(void**)Value, ObjType.GetSubType());
 					if (Swap)
-						ObjType->GetEngine()->ReleaseScriptObject(Swap, ObjType->GetSubType());
+						ObjType.GetVM()->ReleaseObject(Swap, ObjType.GetSubType());
 				}
-				else if (SubTypeId == asTYPEID_BOOL || SubTypeId == asTYPEID_INT8 || SubTypeId == asTYPEID_UINT8)
+				else if (SubTypeId == (size_t)TypeId::BOOL || SubTypeId == (size_t)TypeId::INT8 || SubTypeId == (size_t)TypeId::UINT8)
 					*(char*)Ptr = *(char*)Value;
-				else if (SubTypeId == asTYPEID_INT16 || SubTypeId == asTYPEID_UINT16)
+				else if (SubTypeId == (size_t)TypeId::INT16 || SubTypeId == (size_t)TypeId::UINT16)
 					*(short*)Ptr = *(short*)Value;
-				else if (SubTypeId == asTYPEID_INT32 || SubTypeId == asTYPEID_UINT32 || SubTypeId == asTYPEID_FLOAT || SubTypeId > asTYPEID_DOUBLE)
+				else if (SubTypeId == (size_t)TypeId::INT32 || SubTypeId == (size_t)TypeId::UINT32 || SubTypeId == (size_t)TypeId::FLOAT || SubTypeId > (size_t)TypeId::DOUBLE)
 					*(int*)Ptr = *(int*)Value;
-				else if (SubTypeId == asTYPEID_INT64 || SubTypeId == asTYPEID_UINT64 || SubTypeId == asTYPEID_DOUBLE)
+				else if (SubTypeId == (size_t)TypeId::INT64 || SubTypeId == (size_t)TypeId::UINT64 || SubTypeId == (size_t)TypeId::DOUBLE)
 					*(double*)Ptr = *(double*)Value;
 			}
 			size_t Array::GetSize() const
@@ -999,11 +987,11 @@ namespace Mavi
 			}
 			asITypeInfo* Array::GetArrayObjectType() const
 			{
-				return ObjType;
+				return ObjType.GetTypeInfo();
 			}
 			int Array::GetArrayTypeId() const
 			{
-				return ObjType->GetTypeId();
+				return ObjType.GetTypeId();
 			}
 			int Array::GetElementTypeId() const
 			{
@@ -1022,7 +1010,7 @@ namespace Mavi
 				if (Index > Buffer->NumElements)
 					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 
-				if (ObjType != Array.ObjType)
+				if (ObjType.GetTypeInfo() != Array.ObjType.GetTypeInfo())
 					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_TEMPLATEMISMATCH));
 
 				size_t NewSize = Array.GetSize();
@@ -1072,7 +1060,7 @@ namespace Mavi
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return nullptr;
 				}
-				else if ((SubTypeId & asTYPEID_MASK_OBJECT) && !(SubTypeId & asTYPEID_OBJHANDLE))
+				else if ((SubTypeId & (size_t)TypeId::MASK_OBJECT) && !(SubTypeId & (size_t)TypeId::OBJHANDLE))
 					return *(void**)(Buffer->Data + (size_t)ElementSize * Index);
 
 				return Buffer->Data + (size_t)ElementSize * Index;
@@ -1142,17 +1130,17 @@ namespace Mavi
 			}
 			void Array::Create(SBuffer* BufferPtr, size_t Start, size_t End)
 			{
-				if ((SubTypeId & asTYPEID_MASK_OBJECT) && !(SubTypeId & asTYPEID_OBJHANDLE))
+				if ((SubTypeId & (size_t)TypeId::MASK_OBJECT) && !(SubTypeId & (size_t)TypeId::OBJHANDLE))
 				{
 					void** Max = (void**)(BufferPtr->Data + End * sizeof(void*));
 					void** D = (void**)(BufferPtr->Data + Start * sizeof(void*));
 
-					asIScriptEngine* Engine = ObjType->GetEngine();
-					asITypeInfo* SubType = ObjType->GetSubType();
+					VirtualMachine* Engine = ObjType.GetVM();
+					TypeInfo SubType = ObjType.GetSubType();
 
 					for (; D < Max; D++)
 					{
-						*D = (void*)Engine->CreateScriptObject(SubType);
+						*D = (void*)Engine->CreateObject(SubType);
 						if (*D == 0)
 						{
 							memset(D, 0, sizeof(void*) * (Max - D));
@@ -1168,20 +1156,21 @@ namespace Mavi
 			}
 			void Array::Destroy(SBuffer* BufferPtr, size_t Start, size_t End)
 			{
-				if (SubTypeId & asTYPEID_MASK_OBJECT)
+				if (SubTypeId & (size_t)TypeId::MASK_OBJECT)
 				{
-					asIScriptEngine* Engine = ObjType->GetEngine();
+					VirtualMachine* Engine = ObjType.GetVM();
+					TypeInfo SubType = ObjType.GetSubType();
 					void** Max = (void**)(BufferPtr->Data + End * sizeof(void*));
 					void** D = (void**)(BufferPtr->Data + Start * sizeof(void*));
 
 					for (; D < Max; D++)
 					{
 						if (*D)
-							Engine->ReleaseScriptObject(*D, ObjType->GetSubType());
+							Engine->ReleaseObject(*D, SubType);
 					}
 				}
 			}
-			bool Array::Less(const void* A, const void* B, bool Asc, asIScriptContext* Context, SCache* Cache)
+			bool Array::Less(const void* A, const void* B, bool Asc, ImmediateContext* Context, SCache* Cache)
 			{
 				if (!Asc)
 				{
@@ -1190,27 +1179,27 @@ namespace Mavi
 					B = Temp;
 				}
 
-				if (!(SubTypeId & ~asTYPEID_MASK_SEQNBR))
+				if (!(SubTypeId & ~(size_t)TypeId::MASK_SEQNBR))
 				{
 					switch (SubTypeId)
 					{
 #define COMPARE(T) *((T*)A) < *((T*)B)
-						case asTYPEID_BOOL: return COMPARE(bool);
-						case asTYPEID_INT8: return COMPARE(signed char);
-						case asTYPEID_UINT8: return COMPARE(unsigned char);
-						case asTYPEID_INT16: return COMPARE(signed short);
-						case asTYPEID_UINT16: return COMPARE(unsigned short);
-						case asTYPEID_INT32: return COMPARE(signed int);
-						case asTYPEID_UINT32: return COMPARE(unsigned int);
-						case asTYPEID_FLOAT: return COMPARE(float);
-						case asTYPEID_DOUBLE: return COMPARE(double);
+						case (size_t)TypeId::BOOL: return COMPARE(bool);
+						case (size_t)TypeId::INT8: return COMPARE(signed char);
+						case (size_t)TypeId::UINT8: return COMPARE(unsigned char);
+						case (size_t)TypeId::INT16: return COMPARE(signed short);
+						case (size_t)TypeId::UINT16: return COMPARE(unsigned short);
+						case (size_t)TypeId::INT32: return COMPARE(signed int);
+						case (size_t)TypeId::UINT32: return COMPARE(unsigned int);
+						case (size_t)TypeId::FLOAT: return COMPARE(float);
+						case (size_t)TypeId::DOUBLE: return COMPARE(double);
 						default: return COMPARE(signed int);
 #undef COMPARE
 					}
 				}
 				else
 				{
-					if (SubTypeId & asTYPEID_OBJHANDLE)
+					if (SubTypeId & (size_t)TypeId::OBJHANDLE)
 					{
 						if (*(void**)A == 0)
 							return true;
@@ -1222,7 +1211,7 @@ namespace Mavi
 					if (Cache && Cache->Comparator)
 					{
 						Context->Prepare(Cache->Comparator);
-						if (SubTypeId & asTYPEID_OBJHANDLE)
+						if (SubTypeId & (size_t)TypeId::OBJHANDLE)
 						{
 							Context->SetObject(*((void**)A));
 							Context->SetArgObject(0, *((void**)B));
@@ -1233,7 +1222,7 @@ namespace Mavi
 							Context->SetArgObject(0, (void*)B);
 						}
 
-						auto Status = ImmediateContext::Get(Context)->ExecuteNext();
+						auto Status = Context->ExecuteNext();
 						if (Status && *Status == Execution::Finished)
 							return (int)Context->GetReturnDWord() < 0;
 					}
@@ -1261,32 +1250,32 @@ namespace Mavi
 			}
 			bool Array::operator==(const Array& Other) const
 			{
-				if (ObjType != Other.ObjType)
+				if (ObjType.GetTypeInfo() != Other.ObjType.GetTypeInfo())
 					return false;
 
 				if (GetSize() != Other.GetSize())
 					return false;
 
-				asIScriptContext* CmpContext = 0;
+				ImmediateContext* CmpContext = 0;
 				bool IsNested = false;
 
-				if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
+				if (SubTypeId & ~(size_t)TypeId::MASK_SEQNBR)
 				{
-					CmpContext = asGetActiveContext();
+					CmpContext = ImmediateContext::Get();
 					if (CmpContext)
 					{
-						if (CmpContext->GetEngine() == ObjType->GetEngine() && CmpContext->PushState() >= 0)
+						if (CmpContext->GetVM() == ObjType.GetVM() && CmpContext->PushState())
 							IsNested = true;
 						else
 							CmpContext = 0;
 					}
 
 					if (CmpContext == 0)
-						CmpContext = ObjType->GetEngine()->RequestContext();
+						CmpContext = ObjType.GetVM()->RequestContext();
 				}
 
 				bool IsEqual = true;
-				SCache* Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ArrayId));
+				SCache* Cache = reinterpret_cast<SCache*>(ObjType.GetUserData(ArrayId));
 				for (size_t n = 0; n < GetSize(); n++)
 				{
 					if (!Equals(At(n), Other.At(n), CmpContext, Cache))
@@ -1300,40 +1289,40 @@ namespace Mavi
 				{
 					if (IsNested)
 					{
-						asEContextState State = CmpContext->GetState();
+						auto State = CmpContext->GetState();
 						CmpContext->PopState();
-						if (State == asEXECUTION_ABORTED)
+						if (State == Execution::Aborted)
 							CmpContext->Abort();
 					}
 					else
-						ObjType->GetEngine()->ReturnContext(CmpContext);
+						ObjType.GetVM()->ReturnContext(CmpContext);
 				}
 
 				return IsEqual;
 			}
-			bool Array::Equals(const void* A, const void* B, asIScriptContext* Context, SCache* Cache) const
+			bool Array::Equals(const void* A, const void* B, ImmediateContext* Context, SCache* Cache) const
 			{
-				if (!(SubTypeId & ~asTYPEID_MASK_SEQNBR))
+				if (!(SubTypeId & ~(size_t)TypeId::MASK_SEQNBR))
 				{
 					switch (SubTypeId)
 					{
 #define COMPARE(T) *((T*)A) == *((T*)B)
-						case asTYPEID_BOOL: return COMPARE(bool);
-						case asTYPEID_INT8: return COMPARE(signed char);
-						case asTYPEID_UINT8: return COMPARE(unsigned char);
-						case asTYPEID_INT16: return COMPARE(signed short);
-						case asTYPEID_UINT16: return COMPARE(unsigned short);
-						case asTYPEID_INT32: return COMPARE(signed int);
-						case asTYPEID_UINT32: return COMPARE(unsigned int);
-						case asTYPEID_FLOAT: return COMPARE(float);
-						case asTYPEID_DOUBLE: return COMPARE(double);
+						case (size_t)TypeId::BOOL: return COMPARE(bool);
+						case (size_t)TypeId::INT8: return COMPARE(signed char);
+						case (size_t)TypeId::UINT8: return COMPARE(unsigned char);
+						case (size_t)TypeId::INT16: return COMPARE(signed short);
+						case (size_t)TypeId::UINT16: return COMPARE(unsigned short);
+						case (size_t)TypeId::INT32: return COMPARE(signed int);
+						case (size_t)TypeId::UINT32: return COMPARE(unsigned int);
+						case (size_t)TypeId::FLOAT: return COMPARE(float);
+						case (size_t)TypeId::DOUBLE: return COMPARE(double);
 						default: return COMPARE(signed int);
 #undef COMPARE
 					}
 				}
 				else
 				{
-					if (SubTypeId & asTYPEID_OBJHANDLE)
+					if (SubTypeId & (size_t)TypeId::OBJHANDLE)
 					{
 						if (*(void**)A == *(void**)B)
 							return true;
@@ -1342,7 +1331,7 @@ namespace Mavi
 					if (Cache && Cache->Equals)
 					{
 						Context->Prepare(Cache->Equals);
-						if (SubTypeId & asTYPEID_OBJHANDLE)
+						if (SubTypeId & (size_t)TypeId::OBJHANDLE)
 						{
 							Context->SetObject(*((void**)A));
 							Context->SetArgObject(0, *((void**)B));
@@ -1353,7 +1342,7 @@ namespace Mavi
 							Context->SetArgObject(0, (void*)B);
 						}
 
-						auto Status = ImmediateContext::Get(Context)->ExecuteNext();
+						auto Status = Context->ExecuteNext();
 						if (Status && *Status == Execution::Finished)
 							return Context->GetReturnByte() != 0;
 
@@ -1363,7 +1352,7 @@ namespace Mavi
 					if (Cache && Cache->Comparator)
 					{
 						Context->Prepare(Cache->Comparator);
-						if (SubTypeId & asTYPEID_OBJHANDLE)
+						if (SubTypeId & (size_t)TypeId::OBJHANDLE)
 						{
 							Context->SetObject(*((void**)A));
 							Context->SetArgObject(0, *((void**)B));
@@ -1374,7 +1363,7 @@ namespace Mavi
 							Context->SetArgObject(0, (void*)B);
 						}
 
-						auto Status = ImmediateContext::Get(Context)->ExecuteNext();
+						auto Status = Context->ExecuteNext();
 						if (Status && *Status == Execution::Finished)
 							return (int)Context->GetReturnDWord() == 0;
 
@@ -1391,7 +1380,7 @@ namespace Mavi
 			size_t Array::FindByRef(size_t StartAt, void* RefPtr) const
 			{
 				size_t Size = GetSize();
-				if (SubTypeId & asTYPEID_OBJHANDLE)
+				if (SubTypeId & (size_t)TypeId::OBJHANDLE)
 				{
 					RefPtr = *(void**)RefPtr;
 					for (size_t i = StartAt; i < Size; i++)
@@ -1418,20 +1407,19 @@ namespace Mavi
 			size_t Array::Find(size_t StartAt, void* Value) const
 			{
 				SCache* Cache = 0;
-				if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
+				if (SubTypeId & ~(size_t)TypeId::MASK_SEQNBR)
 				{
-					Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ArrayId));
+					Cache = reinterpret_cast<SCache*>(ObjType.GetUserData(ArrayId));
 					if (!Cache || (Cache->Comparator == 0 && Cache->Equals == 0))
 					{
-						asIScriptContext* Context = asGetActiveContext();
-						asITypeInfo* SubType = ObjType->GetEngine()->GetTypeInfoById(SubTypeId);
-						if (Context)
+						auto SubType = ObjType.GetVM()->GetTypeInfoById(SubTypeId);
+						if (ImmediateContext::Get() != nullptr)
 						{
 							char Swap[512];
 							if (Cache && Cache->EqualsReturnCode == asMULTIPLE_FUNCTIONS)
-								snprintf(Swap, 512, "Type '%s' has multiple matching opEquals or opCmp methods", SubType->GetName());
+								snprintf(Swap, 512, "Type '%s' has multiple matching opEquals or opCmp methods", SubType.GetName());
 							else
-								snprintf(Swap, 512, "Type '%s' does not have a matching opEquals or opCmp method", SubType->GetName());
+								snprintf(Swap, 512, "Type '%s' does not have a matching opEquals or opCmp method", SubType.GetName());
 							Bindings::Exception::Throw(Bindings::Exception::Pointer("template_error", Swap));
 						}
 
@@ -1439,22 +1427,22 @@ namespace Mavi
 					}
 				}
 
-				asIScriptContext* CmpContext = 0;
+				ImmediateContext* CmpContext = 0;
 				bool IsNested = false;
 
-				if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
+				if (SubTypeId & ~(size_t)TypeId::MASK_SEQNBR)
 				{
-					CmpContext = asGetActiveContext();
+					CmpContext = ImmediateContext::Get();
 					if (CmpContext)
 					{
-						if (CmpContext->GetEngine() == ObjType->GetEngine() && CmpContext->PushState() >= 0)
+						if (CmpContext->GetVM() == ObjType.GetVM() && CmpContext->PushState())
 							IsNested = true;
 						else
 							CmpContext = 0;
 					}
 
 					if (CmpContext == 0)
-						CmpContext = ObjType->GetEngine()->RequestContext();
+						CmpContext = ObjType.GetVM()->RequestContext();
 				}
 
 				size_t Result = std::string::npos;
@@ -1472,13 +1460,13 @@ namespace Mavi
 				{
 					if (IsNested)
 					{
-						asEContextState State = CmpContext->GetState();
+						auto State = CmpContext->GetState();
 						CmpContext->PopState();
-						if (State == asEXECUTION_ABORTED)
+						if (State == Execution::Aborted)
 							CmpContext->Abort();
 					}
 					else
-						ObjType->GetEngine()->ReturnContext(CmpContext);
+						ObjType.GetVM()->ReturnContext(CmpContext);
 				}
 
 				return Result;
@@ -1493,7 +1481,7 @@ namespace Mavi
 			}
 			void* Array::GetDataPointer(void* BufferPtr)
 			{
-				if ((SubTypeId & asTYPEID_MASK_OBJECT) && !(SubTypeId & asTYPEID_OBJHANDLE))
+				if ((SubTypeId & (size_t)TypeId::MASK_OBJECT) && !(SubTypeId & (size_t)TypeId::OBJHANDLE))
 					return reinterpret_cast<void*>(*(size_t*)BufferPtr);
 				else
 					return BufferPtr;
@@ -1510,8 +1498,8 @@ namespace Mavi
 			}
 			void Array::CopyBuffer(SBuffer* Dest, SBuffer* Src)
 			{
-				asIScriptEngine* Engine = ObjType->GetEngine();
-				if (SubTypeId & asTYPEID_OBJHANDLE)
+				VirtualMachine* Engine = ObjType.GetVM();
+				if (SubTypeId & (size_t)TypeId::OBJHANDLE)
 				{
 					if (Dest->NumElements > 0 && Src->NumElements > 0)
 					{
@@ -1526,10 +1514,10 @@ namespace Mavi
 							*D = *S;
 
 							if (*D)
-								Engine->AddRefScriptObject(*D, ObjType->GetSubType());
+								Engine->AddRefObject(*D, ObjType.GetSubType());
 
 							if (Swap)
-								Engine->ReleaseScriptObject(Swap, ObjType->GetSubType());
+								Engine->ReleaseObject(Swap, ObjType.GetSubType());
 						}
 					}
 				}
@@ -1538,15 +1526,15 @@ namespace Mavi
 					if (Dest->NumElements > 0 && Src->NumElements > 0)
 					{
 						int Count = (int)(Dest->NumElements > Src->NumElements ? Src->NumElements : Dest->NumElements);
-						if (SubTypeId & asTYPEID_MASK_OBJECT)
+						if (SubTypeId & (size_t)TypeId::MASK_OBJECT)
 						{
 							void** Max = (void**)(Dest->Data + Count * sizeof(void*));
 							void** D = (void**)Dest->Data;
-							void** s = (void**)Src->Data;
+							void** S = (void**)Src->Data;
 
-							asITypeInfo* SubType = ObjType->GetSubType();
-							for (; D < Max; D++, s++)
-								Engine->AssignScriptObject(*D, *s, SubType);
+							auto SubType = ObjType.GetSubType();
+							for (; D < Max; D++, S++)
+								Engine->AssignObject(*D, *S, SubType);
 						}
 						else
 							memcpy(Dest->Data, Src->Data, (size_t)Count * (size_t)ElementSize);
@@ -1555,16 +1543,16 @@ namespace Mavi
 			}
 			void Array::Precache()
 			{
-				SubTypeId = ObjType->GetSubTypeId();
-				if (!(SubTypeId & ~asTYPEID_MASK_SEQNBR))
+				SubTypeId = ObjType.GetSubTypeId();
+				if (!(SubTypeId & ~(size_t)TypeId::MASK_SEQNBR))
 					return;
 
-				SCache* Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ArrayId));
+				SCache* Cache = reinterpret_cast<SCache*>(ObjType.GetUserData(ArrayId));
 				if (Cache)
 					return;
 
 				asAcquireExclusiveLock();
-				Cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ArrayId));
+				Cache = reinterpret_cast<SCache*>(ObjType.GetUserData(ArrayId));
 				if (Cache)
 					return asReleaseExclusiveLock();
 
@@ -1576,44 +1564,44 @@ namespace Mavi
 				}
 
 				memset(Cache, 0, sizeof(SCache));
-				bool MustBeConst = (SubTypeId & asTYPEID_HANDLETOCONST) ? true : false;
+				bool MustBeConst = (SubTypeId & (size_t)TypeId::HANDLETOCONST) ? true : false;
 
-				asITypeInfo* SubType = ObjType->GetEngine()->GetTypeInfoById(SubTypeId);
-				if (SubType)
+				auto SubType = ObjType.GetVM()->GetTypeInfoById(SubTypeId);
+				if (SubType.IsValid())
 				{
-					for (size_t i = 0; i < SubType->GetMethodCount(); i++)
+					for (size_t i = 0; i < SubType.GetMethodsCount(); i++)
 					{
-						asIScriptFunction* Function = SubType->GetMethodByIndex((int)i);
-						if (Function->GetParamCount() == 1 && (!MustBeConst || Function->IsReadOnly()))
+						auto Function = SubType.GetMethodByIndex((int)i);
+						if (Function.GetArgsCount() == 1 && (!MustBeConst || Function.IsReadOnly()))
 						{
-							asDWORD Flags = 0;
-							int ReturnTypeId = Function->GetReturnTypeId(&Flags);
+							size_t Flags = 0;
+							int ReturnTypeId = Function.GetReturnTypeId(&Flags);
 							if (Flags != asTM_NONE)
 								continue;
 
 							bool IsCmp = false, IsEquals = false;
-							if (ReturnTypeId == asTYPEID_INT32 && strcmp(Function->GetName(), "opCmp") == 0)
+							if (ReturnTypeId == (size_t)TypeId::INT32 && strcmp(Function.GetName(), "opCmp") == 0)
 								IsCmp = true;
-							if (ReturnTypeId == asTYPEID_BOOL && strcmp(Function->GetName(), "opEquals") == 0)
+							if (ReturnTypeId == (size_t)TypeId::BOOL && strcmp(Function.GetName(), "opEquals") == 0)
 								IsEquals = true;
 
 							if (!IsCmp && !IsEquals)
 								continue;
 
 							int ParamTypeId;
-							Function->GetParam(0, &ParamTypeId, &Flags);
+							Function.GetArg(0, &ParamTypeId, &Flags);
 
-							if ((ParamTypeId & ~(asTYPEID_OBJHANDLE | asTYPEID_HANDLETOCONST)) != (SubTypeId & ~(asTYPEID_OBJHANDLE | asTYPEID_HANDLETOCONST)))
+							if ((ParamTypeId & ~((size_t)TypeId::OBJHANDLE | (size_t)TypeId::HANDLETOCONST)) != (SubTypeId & ~((size_t)TypeId::OBJHANDLE | (size_t)TypeId::HANDLETOCONST)))
 								continue;
 
 							if ((Flags & asTM_INREF))
 							{
-								if ((ParamTypeId & asTYPEID_OBJHANDLE) || (MustBeConst && !(Flags & asTM_CONST)))
+								if ((ParamTypeId & (size_t)TypeId::OBJHANDLE) || (MustBeConst && !(Flags & asTM_CONST)))
 									continue;
 							}
-							else if (ParamTypeId & asTYPEID_OBJHANDLE)
+							else if (ParamTypeId & (size_t)TypeId::OBJHANDLE)
 							{
-								if (MustBeConst && !(ParamTypeId & asTYPEID_HANDLETOCONST))
+								if (MustBeConst && !(ParamTypeId & (size_t)TypeId::HANDLETOCONST))
 									continue;
 							}
 							else
@@ -1627,7 +1615,7 @@ namespace Mavi
 									Cache->ComparatorReturnCode = asMULTIPLE_FUNCTIONS;
 								}
 								else
-									Cache->Comparator = Function;
+									Cache->Comparator = Function.GetFunction();
 							}
 							else if (IsEquals)
 							{
@@ -1637,7 +1625,7 @@ namespace Mavi
 									Cache->EqualsReturnCode = asMULTIPLE_FUNCTIONS;
 								}
 								else
-									Cache->Equals = Function;
+									Cache->Equals = Function.GetFunction();
 							}
 						}
 					}
@@ -1648,12 +1636,12 @@ namespace Mavi
 				if (Cache->Comparator == 0 && Cache->ComparatorReturnCode == 0)
 					Cache->ComparatorReturnCode = asNO_FUNCTION;
 
-				ObjType->SetUserData(Cache, ArrayId);
+				ObjType.SetUserData(Cache, ArrayId);
 				asReleaseExclusiveLock();
 			}
 			void Array::EnumReferences(asIScriptEngine* Engine)
 			{
-				if (SubTypeId & asTYPEID_MASK_OBJECT)
+				if (SubTypeId & (size_t)TypeId::MASK_OBJECT)
 				{
 					void** D = (void**)Buffer->Data;
 					asITypeInfo* SubType = Engine->GetTypeInfoById(SubTypeId);
@@ -1716,10 +1704,10 @@ namespace Mavi
 			bool Array::TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect)
 			{
 				int TypeId = Info->GetSubTypeId();
-				if (TypeId == asTYPEID_VOID)
+				if (TypeId == (size_t)TypeId::VOIDF)
 					return false;
 
-				if ((TypeId & asTYPEID_MASK_OBJECT) && !(TypeId & asTYPEID_OBJHANDLE))
+				if ((TypeId & (size_t)TypeId::MASK_OBJECT) && !(TypeId & (size_t)TypeId::OBJHANDLE))
 				{
 					asIScriptEngine* Engine = Info->GetEngine();
 					asITypeInfo* SubType = Engine->GetTypeInfoById(TypeId);
@@ -1774,7 +1762,7 @@ namespace Mavi
 					if (!(Flags & asOBJ_GC))
 						DontGarbageCollect = true;
 				}
-				else if (!(TypeId & asTYPEID_OBJHANDLE))
+				else if (!(TypeId & (size_t)TypeId::OBJHANDLE))
 				{
 					DontGarbageCollect = true;
 				}
@@ -1806,7 +1794,7 @@ namespace Mavi
 			Storable::Storable() noexcept
 			{
 			}
-			Storable::Storable(asIScriptEngine* Engine, void* Value, int _TypeId) noexcept
+			Storable::Storable(VirtualMachine* Engine, void* Value, int _TypeId) noexcept
 			{
 				Set(Engine, Value, _TypeId);
 			}
@@ -1816,14 +1804,15 @@ namespace Mavi
 				{
 					asIScriptContext* Context = asGetActiveContext();
 					if (Context != nullptr)
-						FreeValue(Context->GetEngine());
+						ReleaseReferences(Context->GetEngine());
 				}
 			}
-			void Storable::FreeValue(asIScriptEngine* Engine)
+			void Storable::ReleaseReferences(asIScriptEngine* Engine)
 			{
-				if (Value.TypeId & asTYPEID_MASK_OBJECT)
+				if (Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 				{
-					Engine->ReleaseScriptObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId));
+					VirtualMachine* VM = VirtualMachine::Get(Engine);
+					VM->ReleaseObject(Value.Object, VM->GetTypeInfoById(Value.TypeId));
 					Value.Clean();
 				}
 			}
@@ -1833,59 +1822,60 @@ namespace Mavi
 				if (Value.TypeId)
 					FunctionFactory::GCEnumCallback(_Engine, _Engine->GetTypeInfoById(Value.TypeId));
 			}
-			void Storable::Set(asIScriptEngine* Engine, void* Pointer, int _TypeId)
+			void Storable::Set(VirtualMachine* Engine, void* Pointer, int _TypeId)
 			{
-				FreeValue(Engine);
+				ReleaseReferences(Engine->GetEngine());
 				Value.TypeId = _TypeId;
 
-				if (Value.TypeId & asTYPEID_OBJHANDLE)
+				if (Value.TypeId & (size_t)TypeId::OBJHANDLE)
 				{
 					Value.Object = *(void**)Pointer;
-					Engine->AddRefScriptObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId));
+					Engine->AddRefObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 				}
-				else if (Value.TypeId & asTYPEID_MASK_OBJECT)
+				else if (Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 				{
-					Value.Object = Engine->CreateScriptObjectCopy(Pointer, Engine->GetTypeInfoById(Value.TypeId));
+					Value.Object = Engine->CreateObjectCopy(Pointer, Engine->GetTypeInfoById(Value.TypeId));
 					if (Value.Object == 0)
 						Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_COPYFAIL));
 				}
 				else
 				{
-					int Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
-					memcpy(&Value.Integer, Pointer, Size);
+					auto Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
+					if (Size)
+						memcpy(&Value.Integer, Pointer, *Size);
 				}
 			}
-			void Storable::Set(asIScriptEngine* Engine, Storable& Other)
+			void Storable::Set(VirtualMachine* Engine, Storable& Other)
 			{
-				if (Other.Value.TypeId & asTYPEID_OBJHANDLE)
+				if (Other.Value.TypeId & (size_t)TypeId::OBJHANDLE)
 					Set(Engine, (void*)&Other.Value.Object, Other.Value.TypeId);
-				else if (Other.Value.TypeId & asTYPEID_MASK_OBJECT)
+				else if (Other.Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 					Set(Engine, (void*)Other.Value.Object, Other.Value.TypeId);
 				else
 					Set(Engine, (void*)&Other.Value.Integer, Other.Value.TypeId);
 			}
-			bool Storable::Get(asIScriptEngine* Engine, void* Pointer, int _TypeId) const
+			bool Storable::Get(VirtualMachine* Engine, void* Pointer, int _TypeId) const
 			{
-				if (_TypeId & asTYPEID_OBJHANDLE)
+				if (_TypeId & (size_t)TypeId::OBJHANDLE)
 				{
-					if ((_TypeId & asTYPEID_MASK_OBJECT))
+					if ((_TypeId & (size_t)TypeId::MASK_OBJECT))
 					{
-						if ((Value.TypeId & asTYPEID_HANDLETOCONST) && !(_TypeId & asTYPEID_HANDLETOCONST))
+						if ((Value.TypeId & (size_t)TypeId::HANDLETOCONST) && !(_TypeId & (size_t)TypeId::HANDLETOCONST))
 							return false;
 
 						Engine->RefCastObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId), Engine->GetTypeInfoById(_TypeId), reinterpret_cast<void**>(Pointer));
 						return true;
 					}
 				}
-				else if (_TypeId & asTYPEID_MASK_OBJECT)
+				else if (_TypeId & (size_t)TypeId::MASK_OBJECT)
 				{
 					bool isCompatible = false;
-					if ((Value.TypeId & ~(asTYPEID_OBJHANDLE | asTYPEID_HANDLETOCONST)) == _TypeId && Value.Object != 0)
+					if ((Value.TypeId & ~((size_t)TypeId::OBJHANDLE | (size_t)TypeId::HANDLETOCONST)) == _TypeId && Value.Object != 0)
 						isCompatible = true;
 
 					if (isCompatible)
 					{
-						Engine->AssignScriptObject(Pointer, Value.Object, Engine->GetTypeInfoById(Value.TypeId));
+						Engine->AssignObject(Pointer, Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 						return true;
 					}
 				}
@@ -1893,24 +1883,25 @@ namespace Mavi
 				{
 					if (Value.TypeId == _TypeId)
 					{
-						int Size = Engine->GetSizeOfPrimitiveType(_TypeId);
-						memcpy(Pointer, &Value.Integer, Size);
+						auto Size = Engine->GetSizeOfPrimitiveType(_TypeId);
+						if (Size)
+							memcpy(Pointer, &Value.Integer, *Size);
 						return true;
 					}
 
-					if (_TypeId == asTYPEID_DOUBLE)
+					if (_TypeId == (size_t)TypeId::DOUBLE)
 					{
-						if (Value.TypeId == asTYPEID_INT64)
+						if (Value.TypeId == (size_t)TypeId::INT64)
 						{
 							*(double*)Pointer = double(Value.Integer);
 						}
-						else if (Value.TypeId == asTYPEID_BOOL)
+						else if (Value.TypeId == (size_t)TypeId::BOOL)
 						{
 							char Local;
 							memcpy(&Local, &Value.Integer, sizeof(char));
 							*(double*)Pointer = Local ? 1.0 : 0.0;
 						}
-						else if (Value.TypeId > asTYPEID_DOUBLE && (Value.TypeId & asTYPEID_MASK_OBJECT) == 0)
+						else if (Value.TypeId > (size_t)TypeId::DOUBLE && (Value.TypeId & (size_t)TypeId::MASK_OBJECT) == 0)
 						{
 							int Local;
 							memcpy(&Local, &Value.Integer, sizeof(int));
@@ -1924,19 +1915,19 @@ namespace Mavi
 
 						return true;
 					}
-					else if (_TypeId == asTYPEID_INT64)
+					else if (_TypeId == (size_t)TypeId::INT64)
 					{
-						if (Value.TypeId == asTYPEID_DOUBLE)
+						if (Value.TypeId == (size_t)TypeId::DOUBLE)
 						{
 							*(as_int64_t*)Pointer = as_int64_t(Value.Number);
 						}
-						else if (Value.TypeId == asTYPEID_BOOL)
+						else if (Value.TypeId == (size_t)TypeId::BOOL)
 						{
 							char Local;
 							memcpy(&Local, &Value.Integer, sizeof(char));
 							*(as_int64_t*)Pointer = Local ? 1 : 0;
 						}
-						else if (Value.TypeId > asTYPEID_DOUBLE && (Value.TypeId & asTYPEID_MASK_OBJECT) == 0)
+						else if (Value.TypeId > (size_t)TypeId::DOUBLE && (Value.TypeId & (size_t)TypeId::MASK_OBJECT) == 0)
 						{
 							int Local;
 							memcpy(&Local, &Value.Integer, sizeof(int));
@@ -1950,23 +1941,23 @@ namespace Mavi
 
 						return true;
 					}
-					else if (_TypeId > asTYPEID_DOUBLE && (Value.TypeId & asTYPEID_MASK_OBJECT) == 0)
+					else if (_TypeId > (size_t)TypeId::DOUBLE && (Value.TypeId & (size_t)TypeId::MASK_OBJECT) == 0)
 					{
-						if (Value.TypeId == asTYPEID_DOUBLE)
+						if (Value.TypeId == (size_t)TypeId::DOUBLE)
 						{
 							*(int*)Pointer = int(Value.Number);
 						}
-						else if (Value.TypeId == asTYPEID_INT64)
+						else if (Value.TypeId == (size_t)TypeId::INT64)
 						{
 							*(int*)Pointer = int(Value.Integer);
 						}
-						else if (Value.TypeId == asTYPEID_BOOL)
+						else if (Value.TypeId == (size_t)TypeId::BOOL)
 						{
 							char Local;
 							memcpy(&Local, &Value.Integer, sizeof(char));
 							*(int*)Pointer = Local ? 1 : 0;
 						}
-						else if (Value.TypeId > asTYPEID_DOUBLE && (Value.TypeId & asTYPEID_MASK_OBJECT) == 0)
+						else if (Value.TypeId > (size_t)TypeId::DOUBLE && (Value.TypeId & (size_t)TypeId::MASK_OBJECT) == 0)
 						{
 							int Local;
 							memcpy(&Local, &Value.Integer, sizeof(int));
@@ -1980,21 +1971,22 @@ namespace Mavi
 
 						return true;
 					}
-					else if (_TypeId == asTYPEID_BOOL)
+					else if (_TypeId == (size_t)TypeId::BOOL)
 					{
-						if (Value.TypeId & asTYPEID_OBJHANDLE)
+						if (Value.TypeId & (size_t)TypeId::OBJHANDLE)
 						{
 							*(bool*)Pointer = Value.Object ? true : false;
 						}
-						else if (Value.TypeId & asTYPEID_MASK_OBJECT)
+						else if (Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 						{
 							*(bool*)Pointer = true;
 						}
 						else
 						{
 							as_uint64_t Zero = 0;
-							int Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
-							*(bool*)Pointer = memcmp(&Value.Integer, &Zero, Size) == 0 ? false : true;
+							auto Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
+							if (Size)
+								*(bool*)Pointer = memcmp(&Value.Integer, &Zero, *Size) == 0 ? false : true;
 						}
 
 						return true;
@@ -2005,7 +1997,7 @@ namespace Mavi
 			}
 			const void* Storable::GetAddressOfValue() const
 			{
-				if ((Value.TypeId & asTYPEID_MASK_OBJECT) && !(Value.TypeId & asTYPEID_OBJHANDLE))
+				if ((Value.TypeId & (size_t)TypeId::MASK_OBJECT) && !(Value.TypeId & (size_t)TypeId::OBJHANDLE))
 					return Value.Object;
 
 				return reinterpret_cast<const void*>(&Value.Object);
@@ -2055,16 +2047,16 @@ namespace Mavi
 				return It->second.GetAddressOfValue();
 			}
 
-			Dictionary::Dictionary(asIScriptEngine* _Engine) noexcept : Engine(_Engine)
+			Dictionary::Dictionary(VirtualMachine* _Engine) noexcept : Engine(_Engine)
 			{
 				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(DictionaryId));
-				Engine->NotifyGarbageCollectorOfNewObject(this, Cache->DictionaryType);
+				Engine->NotifyOfNewObject(this, Cache->DictionaryType);
 			}
-			Dictionary::Dictionary(unsigned char* Buffer) noexcept : Dictionary(asGetActiveContext()->GetEngine())
+			Dictionary::Dictionary(unsigned char* Buffer) noexcept : Dictionary(VirtualMachine::Get())
 			{
 				asIScriptContext* Context = asGetActiveContext();
 				Dictionary::SCache& Cache = *reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(DictionaryId));
-				bool keyAsRef = Cache.KeyType->GetFlags() & asOBJ_REF ? true : false;
+				bool keyAsRef = Cache.KeyType.GetFlags() & asOBJ_REF ? true : false;
 
 				size_t Length = *(asUINT*)Buffer;
 				Buffer += 4;
@@ -2090,68 +2082,68 @@ namespace Mavi
 					Buffer += sizeof(int);
 
 					void* RefPtr = (void*)Buffer;
-					if (TypeId >= asTYPEID_INT8 && TypeId <= asTYPEID_DOUBLE)
+					if (TypeId >= (size_t)TypeId::INT8 && TypeId <= (size_t)TypeId::DOUBLE)
 					{
 						as_int64_t Integer64;
 						double Double64;
 
 						switch (TypeId)
 						{
-							case asTYPEID_INT8:
+							case (size_t)TypeId::INT8:
 								Integer64 = *(char*)RefPtr;
 								break;
-							case asTYPEID_INT16:
+							case (size_t)TypeId::INT16:
 								Integer64 = *(short*)RefPtr;
 								break;
-							case asTYPEID_INT32:
+							case (size_t)TypeId::INT32:
 								Integer64 = *(int*)RefPtr;
 								break;
-							case asTYPEID_UINT8:
+							case (size_t)TypeId::UINT8:
 								Integer64 = *(unsigned char*)RefPtr;
 								break;
-							case asTYPEID_UINT16:
+							case (size_t)TypeId::UINT16:
 								Integer64 = *(unsigned short*)RefPtr;
 								break;
-							case asTYPEID_UINT32:
+							case (size_t)TypeId::UINT32:
 								Integer64 = *(unsigned int*)RefPtr;
 								break;
-							case asTYPEID_INT64:
-							case asTYPEID_UINT64:
+							case (size_t)TypeId::INT64:
+							case (size_t)TypeId::UINT64:
 								Integer64 = *(as_int64_t*)RefPtr;
 								break;
-							case asTYPEID_FLOAT:
+							case (size_t)TypeId::FLOAT:
 								Double64 = *(float*)RefPtr;
 								break;
-							case asTYPEID_DOUBLE:
+							case (size_t)TypeId::DOUBLE:
 								Double64 = *(double*)RefPtr;
 								break;
 						}
 
-						if (TypeId >= asTYPEID_FLOAT)
-							Set(Name, &Double64, asTYPEID_DOUBLE);
+						if (TypeId >= (size_t)TypeId::FLOAT)
+							Set(Name, &Double64, (size_t)TypeId::DOUBLE);
 						else
-							Set(Name, &Integer64, asTYPEID_INT64);
+							Set(Name, &Integer64, (size_t)TypeId::INT64);
 					}
 					else
 					{
-						if ((TypeId & asTYPEID_MASK_OBJECT) && !(TypeId & asTYPEID_OBJHANDLE) && (Engine->GetTypeInfoById(TypeId)->GetFlags() & asOBJ_REF))
+						if ((TypeId & (size_t)TypeId::MASK_OBJECT) && !(TypeId & (size_t)TypeId::OBJHANDLE) && (Engine->GetTypeInfoById(TypeId).GetFlags() & asOBJ_REF))
 							RefPtr = *(void**)RefPtr;
 
-						Set(Name, RefPtr, VirtualMachine::Get(Engine)->IsNullable(TypeId) ? 0 : TypeId);
+						Set(Name, RefPtr, Engine->IsNullable(TypeId) ? 0 : TypeId);
 					}
 
-					if (TypeId & asTYPEID_MASK_OBJECT)
+					if (TypeId & (size_t)TypeId::MASK_OBJECT)
 					{
-						asITypeInfo* Info = Engine->GetTypeInfoById(TypeId);
-						if (Info->GetFlags() & asOBJ_VALUE)
-							Buffer += Info->GetSize();
+						auto Info = Engine->GetTypeInfoById(TypeId);
+						if (Info.GetFlags() & asOBJ_VALUE)
+							Buffer += Info.GetSize();
 						else
 							Buffer += sizeof(void*);
 					}
 					else if (TypeId == 0)
 						Buffer += sizeof(void*);
 					else
-						Buffer += Engine->GetSizeOfPrimitiveType(TypeId);
+						Buffer += Engine->GetSizeOfPrimitiveType(TypeId).Or(0);
 				}
 			}
 			Dictionary::Dictionary(const Dictionary& Other) noexcept : Dictionary(Other.Engine)
@@ -2159,9 +2151,9 @@ namespace Mavi
 				for (auto It = Other.Data.begin(); It != Other.Data.end(); ++It)
 				{
 					auto& Key = It->second;
-					if (Key.Value.TypeId & asTYPEID_OBJHANDLE)
+					if (Key.Value.TypeId & (size_t)TypeId::OBJHANDLE)
 						Set(It->first, (void*)&Key.Value.Object, Key.Value.TypeId);
-					else if (Key.Value.TypeId & asTYPEID_MASK_OBJECT)
+					else if (Key.Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 						Set(It->first, (void*)Key.Value.Object, Key.Value.TypeId);
 					else
 						Set(It->first, (void*)&Key.Value.Integer, Key.Value.TypeId);
@@ -2176,11 +2168,11 @@ namespace Mavi
 				for (auto It = Data.begin(); It != Data.end(); ++It)
 				{
 					auto& Key = It->second;
-					if (Key.Value.TypeId & asTYPEID_MASK_OBJECT)
+					if (Key.Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 					{
-						asITypeInfo* SubType = Engine->GetTypeInfoById(Key.Value.TypeId);
-						if ((SubType->GetFlags() & asOBJ_VALUE) && (SubType->GetFlags() & asOBJ_GC))
-							Engine->ForwardGCEnumReferences(Key.Value.Object, SubType);
+						auto SubType = Engine->GetTypeInfoById(Key.Value.TypeId);
+						if ((SubType.GetFlags() & asOBJ_VALUE) && (SubType.GetFlags() & asOBJ_GC))
+							Engine->ForwardEnumReferences(Key.Value.Object, SubType);
 						else
 							FunctionFactory::GCEnumCallback(_Engine, Key.Value.Object);
 					}
@@ -2196,9 +2188,9 @@ namespace Mavi
 				for (auto It = Other.Data.begin(); It != Other.Data.end(); ++It)
 				{
 					auto& Key = It->second;
-					if (Key.Value.TypeId & asTYPEID_OBJHANDLE)
+					if (Key.Value.TypeId & (size_t)TypeId::OBJHANDLE)
 						Set(It->first, (void*)&Key.Value.Object, Key.Value.TypeId);
-					else if (Key.Value.TypeId & asTYPEID_MASK_OBJECT)
+					else if (Key.Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 						Set(It->first, (void*)Key.Value.Object, Key.Value.TypeId);
 					else
 						Set(It->first, (void*)&Key.Value.Integer, Key.Value.TypeId);
@@ -2308,7 +2300,7 @@ namespace Mavi
 				auto It = Data.find(Key);
 				if (It != Data.end())
 				{
-					It->second.FreeValue(Engine);
+					It->second.ReleaseReferences(Engine->GetEngine());
 					Data.erase(It);
 					return true;
 				}
@@ -2317,16 +2309,15 @@ namespace Mavi
 			}
 			void Dictionary::Clear()
 			{
+				asIScriptEngine* Target = Engine->GetEngine();
 				for (auto It = Data.begin(); It != Data.end(); ++It)
-					It->second.FreeValue(Engine);
+					It->second.ReleaseReferences(Target);
 				Data.clear();
 			}
 			Array* Dictionary::GetKeys() const
 			{
 				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(DictionaryId));
-				asITypeInfo* Info = Cache->ArrayType;
-
-				Array* Array = Array::Create(Info, size_t(Data.size()));
+				Array* Array = Array::Create(Cache->ArrayType.GetTypeInfo(), size_t(Data.size()));
 				size_t Current = 0;
 
 				for (auto It = Data.begin(); It != Data.end(); ++It)
@@ -2346,7 +2337,7 @@ namespace Mavi
 			{
 				return LocalIterator(*this, Data.find(Key));
 			}
-			Dictionary* Dictionary::Create(asIScriptEngine* Engine)
+			Dictionary* Dictionary::Create(VirtualMachine* Engine)
 			{
 				Dictionary* Result = new Dictionary(Engine);
 				if (!Result)
@@ -2362,28 +2353,28 @@ namespace Mavi
 
 				return Result;
 			}
-			void Dictionary::Cleanup(asIScriptEngine* Engine)
-			{
-				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(DictionaryId));
-				VI_DELETE(SCache, Cache);
-			}
-			void Dictionary::Setup(asIScriptEngine* Engine)
+			void Dictionary::Setup(VirtualMachine* Engine)
 			{
 				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(DictionaryId));
 				if (Cache == 0)
 				{
 					Cache = VI_NEW(Dictionary::SCache);
 					Engine->SetUserData(Cache, DictionaryId);
-					Engine->SetEngineUserDataCleanupCallback(Cleanup, DictionaryId);
+					Engine->SetEngineUserDataCleanupCallback([](asIScriptEngine* Engine)
+					{
+						VirtualMachine* VM = VirtualMachine::Get(Engine);
+						Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(VM->GetUserData(DictionaryId));
+						VI_DELETE(SCache, Cache);
+					}, DictionaryId);
 
-					Cache->DictionaryType = Engine->GetTypeInfoByName(TYPENAME_DICTIONARY);
-					Cache->ArrayType = Engine->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">");
-					Cache->KeyType = Engine->GetTypeInfoByDecl(TYPENAME_STRING);
+					Cache->DictionaryType = Engine->GetTypeInfoByName(TYPENAME_DICTIONARY).GetTypeInfo();
+					Cache->ArrayType = Engine->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">").GetTypeInfo();
+					Cache->KeyType = Engine->GetTypeInfoByDecl(TYPENAME_STRING).GetTypeInfo();
 				}
 			}
 			void Dictionary::Factory(asIScriptGeneric* Generic)
 			{
-				*(Dictionary**)Generic->GetAddressOfReturnLocation() = Dictionary::Create(Generic->GetEngine());
+				*(Dictionary**)Generic->GetAddressOfReturnLocation() = Dictionary::Create(VirtualMachine::Get(Generic->GetEngine()));
 			}
 			void Dictionary::ListFactory(asIScriptGeneric* Generic)
 			{
@@ -2394,400 +2385,60 @@ namespace Mavi
 			{
 				new(Memory) Storable();
 			}
-			void Dictionary::KeyDestroy(Storable* Obj)
+			void Dictionary::KeyDestroy(Storable* Base)
 			{
 				asIScriptContext* Context = asGetActiveContext();
 				if (Context)
 				{
 					asIScriptEngine* Engine = Context->GetEngine();
-					Obj->FreeValue(Engine);
+					Base->ReleaseReferences(Engine);
 				}
 
-				Obj->~Storable();
+				Base->~Storable();
 			}
-			Storable& Dictionary::KeyopAssign(void* RefPtr, int TypeId, Storable* Obj)
+			Storable& Dictionary::KeyopAssign(Storable* Base, void* RefPtr, int TypeId)
 			{
-				asIScriptContext* Context = asGetActiveContext();
-				if (Context)
-				{
-					asIScriptEngine* Engine = Context->GetEngine();
-					Obj->Set(Engine, RefPtr, TypeId);
-				}
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (VM != nullptr)
+					Base->Set(VM, RefPtr, TypeId);
 
-				return *Obj;
+				return *Base;
 			}
-			Storable& Dictionary::KeyopAssign(const Storable& Other, Storable* Obj)
+			Storable& Dictionary::KeyopAssign(Storable* Base, const Storable& Other)
 			{
-				asIScriptContext* Context = asGetActiveContext();
-				if (Context)
-				{
-					asIScriptEngine* Engine = Context->GetEngine();
-					Obj->Set(Engine, const_cast<Storable&>(Other));
-				}
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (VM != nullptr)
+					Base->Set(VM, const_cast<Storable&>(Other));
 
-				return *Obj;
+				return *Base;
 			}
-			Storable& Dictionary::KeyopAssign(double Value, Storable* Obj)
+			Storable& Dictionary::KeyopAssign(Storable* Base, double Value)
 			{
-				return KeyopAssign(&Value, asTYPEID_DOUBLE, Obj);
+				return KeyopAssign(Base, &Value, (size_t)TypeId::DOUBLE);
 			}
-			Storable& Dictionary::KeyopAssign(as_int64_t Value, Storable* Obj)
+			Storable& Dictionary::KeyopAssign(Storable* Base, as_int64_t Value)
 			{
-				return Dictionary::KeyopAssign(&Value, asTYPEID_INT64, Obj);
+				return Dictionary::KeyopAssign(Base, &Value, (size_t)TypeId::INT64);
 			}
-			void Dictionary::KeyopCast(void* RefPtr, int TypeId, Storable* Obj)
+			void Dictionary::KeyopCast(Storable* Base, void* RefPtr, int TypeId)
 			{
-				asIScriptContext* Context = asGetActiveContext();
-				if (Context)
-				{
-					asIScriptEngine* Engine = Context->GetEngine();
-					Obj->Get(Engine, RefPtr, TypeId);
-				}
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (VM != nullptr)
+					Base->Get(VM, RefPtr, TypeId);
 			}
-			as_int64_t Dictionary::KeyopConvInt(Storable* Obj)
+			as_int64_t Dictionary::KeyopConvInt(Storable* Base)
 			{
 				as_int64_t Value;
-				KeyopCast(&Value, asTYPEID_INT64, Obj);
+				KeyopCast(Base, &Value, (size_t)TypeId::INT64);
 				return Value;
 			}
-			double Dictionary::KeyopConvDouble(Storable* Obj)
+			double Dictionary::KeyopConvDouble(Storable* Base)
 			{
 				double Value;
-				KeyopCast(&Value, asTYPEID_DOUBLE, Obj);
+				KeyopCast(Base, &Value, (size_t)TypeId::DOUBLE);
 				return Value;
 			}
 			int Dictionary::DictionaryId = 2348;
-
-			Ref::Ref() noexcept : Type(0), Pointer(nullptr)
-			{
-			}
-			Ref::Ref(const Ref& Other) noexcept : Type(Other.Type), Pointer(Other.Pointer)
-			{
-				AddRefHandle();
-			}
-			Ref::Ref(void* RefPtr, asITypeInfo* _Type) noexcept : Type(_Type), Pointer(RefPtr)
-			{
-				AddRefHandle();
-			}
-			Ref::Ref(void* RefPtr, int TypeId) noexcept : Type(0), Pointer(nullptr)
-			{
-				Assign(RefPtr, TypeId);
-			}
-			Ref::~Ref() noexcept
-			{
-				ReleaseHandle();
-			}
-			void Ref::ReleaseHandle()
-			{
-				if (Pointer && Type)
-				{
-					asIScriptEngine* Engine = Type->GetEngine();
-					Engine->ReleaseScriptObject(Pointer, Type);
-					Pointer = nullptr;
-					Type = 0;
-				}
-			}
-			void Ref::AddRefHandle()
-			{
-				if (Pointer && Type)
-				{
-					asIScriptEngine* Engine = Type->GetEngine();
-					Engine->AddRefScriptObject(Pointer, Type);
-				}
-			}
-			Ref& Ref::operator =(const Ref& Other) noexcept
-			{
-				Set(Other.Pointer, Other.Type);
-				return *this;
-			}
-			void Ref::Set(void* RefPtr, asITypeInfo* _Type)
-			{
-				if (Pointer == RefPtr)
-					return;
-
-				ReleaseHandle();
-				Pointer = RefPtr;
-				Type = _Type;
-				AddRefHandle();
-			}
-			void* Ref::GetAddressOfObject()
-			{
-				return &Pointer;
-			}
-			asITypeInfo* Ref::GetType() const
-			{
-				return Type;
-			}
-			int Ref::GetTypeId() const
-			{
-				if (Type == 0)
-					return 0;
-
-				return Type->GetTypeId() | asTYPEID_OBJHANDLE;
-			}
-			Ref& Ref::Assign(void* RefPtr, int TypeId)
-			{
-				if (TypeId == 0)
-				{
-					Set(0, 0);
-					return *this;
-				}
-
-				if (TypeId & asTYPEID_OBJHANDLE)
-				{
-					RefPtr = *(void**)RefPtr;
-					TypeId &= ~asTYPEID_OBJHANDLE;
-				}
-
-				asIScriptContext* Context = asGetActiveContext();
-				asIScriptEngine* Engine = Context->GetEngine();
-				asITypeInfo* Info = Engine->GetTypeInfoById(TypeId);
-
-				if (Info && strcmp(Info->GetName(), TYPENAME_REF) == 0)
-				{
-					Ref* Result = (Ref*)RefPtr;
-					RefPtr = Result->Pointer;
-					Info = Result->Type;
-				}
-
-				Set(RefPtr, Info);
-				return *this;
-			}
-			bool Ref::operator==(const Ref& Other) const
-			{
-				return Pointer == Other.Pointer && Type == Other.Type;
-			}
-			bool Ref::operator!=(const Ref& Other) const
-			{
-				return !(*this == Other);
-			}
-			bool Ref::Equals(void* RefPtr, int TypeId) const
-			{
-				if (TypeId == 0)
-					RefPtr = 0;
-
-				if (TypeId & asTYPEID_OBJHANDLE)
-				{
-					void** Sub = (void**)RefPtr;
-					if (!Sub)
-						return false;
-
-					RefPtr = *Sub;
-					TypeId &= ~asTYPEID_OBJHANDLE;
-				}
-
-				if (RefPtr == Pointer)
-					return true;
-
-				return false;
-			}
-			void Ref::Cast(void** OutRef, int TypeId)
-			{
-				if (Type == 0)
-				{
-					*OutRef = 0;
-					return;
-				}
-
-				VI_ASSERT(TypeId & asTYPEID_OBJHANDLE, "type should be object handle");
-				TypeId &= ~asTYPEID_OBJHANDLE;
-
-				asIScriptEngine* Engine = Type->GetEngine();
-				asITypeInfo* Info = Engine->GetTypeInfoById(TypeId);
-				*OutRef = 0;
-
-				Engine->RefCastObject(Pointer, Type, Info, OutRef);
-			}
-			void Ref::EnumReferences(asIScriptEngine* _Engine)
-			{
-				FunctionFactory::GCEnumCallback(_Engine, Pointer);
-				if (Type)
-					FunctionFactory::GCEnumCallback(_Engine, Type);
-			}
-			void Ref::ReleaseReferences(asIScriptEngine* _Engine)
-			{
-				Set(0, 0);
-			}
-			void Ref::Create(Ref* Base)
-			{
-				new(Base) Ref();
-			}
-			void Ref::Create(Ref* Base, const Ref& Other)
-			{
-				new(Base) Ref(Other);
-			}
-			void Ref::Create(Ref* Base, void* RefPtr, int TypeId)
-			{
-				new(Base) Ref(RefPtr, TypeId);
-			}
-			void Ref::Destroy(Ref* Base)
-			{
-				Base->~Ref();
-			}
-
-			Weak::Weak(asITypeInfo* _Type) noexcept : WeakRefFlag(nullptr), Type(_Type), Ref(nullptr)
-			{
-				VI_ASSERT(Type != nullptr, "type should be set");
-				Type->AddRef();
-			}
-			Weak::Weak(const Weak& Other) noexcept
-			{
-				Ref = Other.Ref;
-				Type = Other.Type;
-				Type->AddRef();
-				WeakRefFlag = Other.WeakRefFlag;
-				if (WeakRefFlag)
-					WeakRefFlag->AddRef();
-			}
-			Weak::Weak(void* RefPtr, asITypeInfo* _Type) noexcept
-			{
-				if (!_Type || !(strcmp(_Type->GetName(), TYPENAME_WEAK) == 0 || strcmp(_Type->GetName(), TYPENAME_CONSTWEAK) == 0))
-					return;
-
-				Ref = RefPtr;
-				Type = _Type;
-				Type->AddRef();
-
-				WeakRefFlag = Type->GetEngine()->GetWeakRefFlagOfScriptObject(Ref, Type->GetSubType());
-				if (WeakRefFlag)
-					WeakRefFlag->AddRef();
-			}
-			Weak::~Weak() noexcept
-			{
-				VI_RELEASE(Type);
-				VI_RELEASE(WeakRefFlag);
-			}
-			Weak& Weak::operator =(const Weak& Other) noexcept
-			{
-				if (Ref == Other.Ref && WeakRefFlag == Other.WeakRefFlag)
-					return *this;
-
-				if (Type != Other.Type)
-				{
-					if (!(strcmp(Type->GetName(), TYPENAME_CONSTWEAK) == 0 && strcmp(Other.Type->GetName(), TYPENAME_WEAK) == 0 && Type->GetSubType() == Other.Type->GetSubType()))
-						return *this;
-				}
-
-				Ref = Other.Ref;
-				VI_RELEASE(WeakRefFlag);
-				WeakRefFlag = Other.WeakRefFlag;
-				if (WeakRefFlag)
-					WeakRefFlag->AddRef();
-
-				return *this;
-			}
-			Weak& Weak::Set(void* NewRef)
-			{
-				VI_RELEASE(WeakRefFlag);
-				Ref = NewRef;
-				if (NewRef)
-				{
-					WeakRefFlag = Type->GetEngine()->GetWeakRefFlagOfScriptObject(NewRef, Type->GetSubType());
-					WeakRefFlag->AddRef();
-				}
-				else
-					WeakRefFlag = 0;
-
-				Type->GetEngine()->ReleaseScriptObject(NewRef, Type->GetSubType());
-				return *this;
-			}
-			asITypeInfo* Weak::GetRefType() const
-			{
-				return Type->GetSubType();
-			}
-			bool Weak::operator==(const Weak& Other) const
-			{
-				if (Ref == Other.Ref &&
-					WeakRefFlag == Other.WeakRefFlag &&
-					Type == Other.Type)
-					return true;
-
-				return false;
-			}
-			bool Weak::operator!=(const Weak& Other) const
-			{
-				return !(*this == Other);
-			}
-			int Weak::GetTypeId() const
-			{
-				if (!Type)
-					return asTYPEID_VOID;
-
-				return Type->GetTypeId();
-			}
-			void* Weak::GetAddressOfObject()
-			{
-				if (!Type)
-					return nullptr;
-
-				return &Ref;
-			}
-			void* Weak::Get() const
-			{
-				if (Ref == 0 || WeakRefFlag == 0)
-					return 0;
-
-				WeakRefFlag->Lock();
-				if (!WeakRefFlag->Get())
-				{
-					Type->GetEngine()->AddRefScriptObject(Ref, Type->GetSubType());
-					WeakRefFlag->Unlock();
-					return Ref;
-				}
-				WeakRefFlag->Unlock();
-
-				return 0;
-			}
-			bool Weak::Equals(void* RefPtr) const
-			{
-				if (Ref != RefPtr)
-					return false;
-
-				asILockableSharedBool* flag = Type->GetEngine()->GetWeakRefFlagOfScriptObject(RefPtr, Type->GetSubType());
-				if (WeakRefFlag != flag)
-					return false;
-
-				return true;
-			}
-			void Weak::Create1(asITypeInfo* Type, void* Memory)
-			{
-				new(Memory) Weak(Type);
-			}
-			void Weak::Create2(asITypeInfo* Type, void* RefPtr, void* Memory)
-			{
-				new(Memory) Weak(RefPtr, Type);
-				asIScriptContext* Context = asGetActiveContext();
-				if (Context && Context->GetState() == asEXECUTION_EXCEPTION)
-					reinterpret_cast<Weak*>(Memory)->~Weak();
-			}
-			void Weak::Destroy(Weak* Obj)
-			{
-				Obj->~Weak();
-			}
-			bool Weak::TemplateCallback(asITypeInfo* Info, bool&)
-			{
-				asITypeInfo* SubType = Info->GetSubType();
-				if (SubType == 0)
-					return false;
-
-				if (!(SubType->GetFlags() & asOBJ_REF))
-					return false;
-
-				if (Info->GetSubTypeId() & asTYPEID_OBJHANDLE)
-					return false;
-
-				size_t Count = SubType->GetBehaviourCount();
-				for (size_t n = 0; n < Count; n++)
-				{
-					asEBehaviours Beh;
-					SubType->GetBehaviourByIndex((int)n, &Beh);
-					if (Beh == asBEHAVE_GET_WEAKREF_FLAG)
-						return true;
-				}
-
-				Info->GetEngine()->WriteMessage(TYPENAME_WEAK, 0, 0, asMSGTYPE_ERROR, "The subtype doesn't support weak references");
-				return false;
-			}
 
 			Core::String Random::Getb(uint64_t Size)
 			{
@@ -2822,12 +2473,12 @@ namespace Mavi
 				return Compute::Math<uint64_t>::Random(Min, Max);
 			}
 
-			Promise::Promise(asIScriptContext* NewContext) noexcept : Engine(nullptr), Context(NewContext), Value(-1)
+			Promise::Promise(ImmediateContext* NewContext) noexcept : Engine(nullptr), Context(NewContext), Value(-1)
 			{
 				VI_ASSERT(Context != nullptr, "context should not be null");
 				Context->AddRef();
-				Engine = Context->GetEngine();
-				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_PROMISE));
+				Engine = Context->GetVM();
+				Engine->NotifyOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_PROMISE));
 			}
 			Promise::~Promise() noexcept
 			{
@@ -2835,13 +2486,13 @@ namespace Mavi
 			}
 			void Promise::EnumReferences(asIScriptEngine* OtherEngine)
 			{
-				if (Value.Object != nullptr && (Value.TypeId & asTYPEID_MASK_OBJECT))
+				if (Value.Object != nullptr && (Value.TypeId & (size_t)TypeId::MASK_OBJECT))
 				{
-					asITypeInfo* SubType = Engine->GetTypeInfoById(Value.TypeId);
-					if ((SubType->GetFlags() & asOBJ_REF))
+					auto SubType = Engine->GetTypeInfoById(Value.TypeId);
+					if ((SubType.GetFlags() & asOBJ_REF))
 						FunctionFactory::GCEnumCallback(OtherEngine, Value.Object);
-					else if ((SubType->GetFlags() & asOBJ_VALUE) && (SubType->GetFlags() & asOBJ_GC))
-						Engine->ForwardGCEnumReferences(Value.Object, SubType);
+					else if ((SubType.GetFlags() & asOBJ_VALUE) && (SubType.GetFlags() & asOBJ_GC))
+						Engine->ForwardEnumReferences(Value.Object, SubType);
 
 					asITypeInfo* Type = OtherEngine->GetTypeInfoById(Value.TypeId);
 					FunctionFactory::GCEnumCallback(OtherEngine, Type);
@@ -2852,11 +2503,11 @@ namespace Mavi
 			}
 			void Promise::ReleaseReferences(asIScriptEngine*)
 			{
-				if (Value.TypeId & asTYPEID_MASK_OBJECT)
+				if (Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 				{
-					asITypeInfo* Type = Engine->GetTypeInfoById(Value.TypeId);
-					Engine->ReleaseScriptObject(Value.Object, Type);
-					VI_RELEASE(Type);
+					auto Type = Engine->GetTypeInfoById(Value.TypeId);
+					Engine->ReleaseObject(Value.Object, Type);
+					Type.Release();
 					Value.Clean();
 				}
 
@@ -2879,7 +2530,7 @@ namespace Mavi
 			void Promise::Store(void* RefPointer, int RefTypeId)
 			{
 				VI_ASSERT(Value.TypeId == PromiseNULL, "promise should be settled only once");
-				VI_ASSERT(RefPointer != nullptr || RefTypeId == asTYPEID_VOID, "input pointer should not be null");
+				VI_ASSERT(RefPointer != nullptr || RefTypeId == (size_t)TypeId::VOIDF, "input pointer should not be null");
 				VI_ASSERT(Engine != nullptr, "promise is malformed (engine is null)");
 				VI_ASSERT(Context != nullptr, "promise is malformed (context is null)");
 
@@ -2887,44 +2538,44 @@ namespace Mavi
 				if (Value.TypeId != PromiseNULL)
 					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_PROMISEREADY));
 
-				if ((RefTypeId & asTYPEID_MASK_OBJECT))
+				if ((RefTypeId & (size_t)TypeId::MASK_OBJECT))
 				{
-					asITypeInfo* Type = Engine->GetTypeInfoById(RefTypeId);
-					if (Type != nullptr)
-						Type->AddRef();
+					auto Type = Engine->GetTypeInfoById(RefTypeId);
+					if (Type.IsValid())
+						Type.AddRef();
 				}
 
 				Value.TypeId = RefTypeId;
-				if (Value.TypeId & asTYPEID_OBJHANDLE)
+				if (Value.TypeId & (size_t)TypeId::OBJHANDLE)
 				{
 					Value.Object = *(void**)RefPointer;
 				}
-				else if (Value.TypeId & asTYPEID_MASK_OBJECT)
+				else if (Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 				{
-					Value.Object = Engine->CreateScriptObjectCopy(RefPointer, Engine->GetTypeInfoById(Value.TypeId));
+					Value.Object = Engine->CreateObjectCopy(RefPointer, Engine->GetTypeInfoById(Value.TypeId));
 				}
 				else if (RefPointer != nullptr)
 				{
 					Value.Integer = 0;
-					int Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
-					memcpy(&Value.Integer, RefPointer, Size);
+					auto Size = Engine->GetSizeOfPrimitiveType(Value.TypeId);
+					if (Size)
+						memcpy(&Value.Integer, RefPointer, *Size);
 				}
 
 				bool SuspendOwned = Context->GetUserData(PromiseUD) == (void*)this;
 				if (SuspendOwned)
 					Context->SetUserData(nullptr, PromiseUD);
 
-				ImmediateContext* Immediate = ImmediateContext::Get(Context);
-				bool WantsResume = (Immediate->IsSuspended() && SuspendOwned);
+				bool WantsResume = (Context->IsSuspended() && SuspendOwned);
 				Unique.Negate();
 
 				if (Delegate.IsValid())
 				{
 					AddRef();
 					Promise* Target = this;
-					Immediate->ResolveCallback(std::move(Delegate), [Target](ImmediateContext* Context)
+					Context->ResolveCallback(std::move(Delegate), [Target](ImmediateContext* Context)
 					{
-						if (Target->GetTypeId() != asTYPEID_VOID)
+						if (Target->GetTypeId() != (size_t)TypeId::VOIDF)
 							Context->SetArgAddress(0, Target->Retrieve());
 					}, [Target](ImmediateContext*)
 					{
@@ -2933,7 +2584,7 @@ namespace Mavi
 				}
 
 				if (WantsResume)
-					Immediate->ResolveNotification(this);
+					Context->ResolveNotification(this);
 				else if (SuspendOwned)
 					Release();
 			}
@@ -2945,7 +2596,7 @@ namespace Mavi
 			}
 			void Promise::StoreVoid()
 			{
-				Store(nullptr, asTYPEID_VOID);
+				Store(nullptr, (size_t)TypeId::VOIDF);
 			}
 			bool Promise::Retrieve(void* RefPointer, int RefTypeId)
 			{
@@ -2954,11 +2605,11 @@ namespace Mavi
 				if (Value.TypeId == PromiseNULL)
 					return false;
 
-				if (RefTypeId & asTYPEID_OBJHANDLE)
+				if (RefTypeId & (size_t)TypeId::OBJHANDLE)
 				{
-					if ((Value.TypeId & asTYPEID_MASK_OBJECT))
+					if ((Value.TypeId & (size_t)TypeId::MASK_OBJECT))
 					{
-						if ((Value.TypeId & asTYPEID_HANDLETOCONST) && !(RefTypeId & asTYPEID_HANDLETOCONST))
+						if ((Value.TypeId & (size_t)TypeId::HANDLETOCONST) && !(RefTypeId & (size_t)TypeId::HANDLETOCONST))
 							return false;
 
 						Engine->RefCastObject(Value.Object, Engine->GetTypeInfoById(Value.TypeId), Engine->GetTypeInfoById(RefTypeId), reinterpret_cast<void**>(RefPointer));
@@ -2968,23 +2619,21 @@ namespace Mavi
 						return true;
 					}
 				}
-				else if (RefTypeId & asTYPEID_MASK_OBJECT)
+				else if (RefTypeId & (size_t)TypeId::MASK_OBJECT)
 				{
 					if (Value.TypeId == RefTypeId)
 					{
-						Engine->AssignScriptObject(RefPointer, Value.Object, Engine->GetTypeInfoById(Value.TypeId));
+						Engine->AssignObject(RefPointer, Value.Object, Engine->GetTypeInfoById(Value.TypeId));
 						return true;
 					}
 				}
 				else
 				{
-					int Size1 = Engine->GetSizeOfPrimitiveType(Value.TypeId);
-					int Size2 = Engine->GetSizeOfPrimitiveType(RefTypeId);
-					VI_ASSERT(Size1 == Size2, "cannot map incompatible primitive types");
-
-					if (Size1 == Size2)
+					auto Size1 = Engine->GetSizeOfPrimitiveType(Value.TypeId);
+					auto Size2 = Engine->GetSizeOfPrimitiveType(RefTypeId);
+					if (Size1 && Size2 && *Size1 == *Size2)
 					{
-						memcpy(RefPointer, &Value.Integer, Size1);
+						memcpy(RefPointer, &Value.Integer, *Size1);
 						return true;
 					}
 				}
@@ -2999,11 +2648,11 @@ namespace Mavi
 				if (Value.TypeId == PromiseNULL)
 					return nullptr;
 
-				if (Value.TypeId & asTYPEID_OBJHANDLE)
+				if (Value.TypeId & (size_t)TypeId::OBJHANDLE)
 					return &Value.Object;
-				else if (Value.TypeId & asTYPEID_MASK_OBJECT)
+				else if (Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 					return Value.Object;
-				else if (Value.TypeId <= asTYPEID_DOUBLE || Value.TypeId & asTYPEID_MASK_SEQNBR)
+				else if (Value.TypeId <= (size_t)TypeId::DOUBLE || Value.TypeId & (size_t)TypeId::MASK_SEQNBR)
 					return &Value.Integer;
 
 				return nullptr;
@@ -3015,8 +2664,7 @@ namespace Mavi
 			Promise* Promise::YieldIf()
 			{
 				Core::UMutex<std::mutex> Unique(Update);
-				ImmediateContext* TargetContext = ImmediateContext::Get(Context);
-				if (Value.TypeId == PromiseNULL && TargetContext != nullptr && TargetContext->Suspend())
+				if (Value.TypeId == PromiseNULL && Context != nullptr && Context->Suspend())
 				{
 					Context->SetUserData(this, PromiseUD);
 					AddRef();
@@ -3026,17 +2674,17 @@ namespace Mavi
 			}
 			Promise* Promise::CreateFactory(void* _Ref, int TypeId)
 			{
-				Promise* Future = new Promise(asGetActiveContext());
+				Promise* Future = new Promise(ImmediateContext::Get());
 				if (!Future)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 
-				if (TypeId != asTYPEID_VOID)
+				if (TypeId != (size_t)TypeId::VOIDF)
 					Future->Store(_Ref, TypeId);
 				return Future;
 			}
 			Promise* Promise::CreateFactoryVoid(bool HasValue)
 			{
-				Promise* Future = new Promise(asGetActiveContext());
+				Promise* Future = new Promise(ImmediateContext::Get());
 				if (!Future)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 
@@ -3047,10 +2695,10 @@ namespace Mavi
 			bool Promise::TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect)
 			{
 				int TypeId = Info->GetSubTypeId();
-				if (TypeId == asTYPEID_VOID)
+				if (TypeId == (size_t)TypeId::VOIDF)
 					return false;
 
-				if ((TypeId & asTYPEID_MASK_OBJECT) && !(TypeId & asTYPEID_OBJHANDLE))
+				if ((TypeId & (size_t)TypeId::MASK_OBJECT) && !(TypeId & (size_t)TypeId::OBJHANDLE))
 				{
 					asIScriptEngine* Engine = Info->GetEngine();
 					asITypeInfo* SubType = Engine->GetTypeInfoById(TypeId);
@@ -3105,7 +2753,7 @@ namespace Mavi
 					if (!(Flags & asOBJ_GC))
 						DontGarbageCollect = true;
 				}
-				else if (!(TypeId & asTYPEID_OBJHANDLE))
+				else if (!(TypeId & (size_t)TypeId::OBJHANDLE))
 				{
 					DontGarbageCollect = true;
 				}
@@ -3270,9 +2918,9 @@ namespace Mavi
 				return (bool)Base;
 			}
 
-			void SchemaNotifyAllReferences(Core::Schema* Base, asIScriptEngine* Engine, asITypeInfo* Type)
+			void SchemaNotifyAllReferences(Core::Schema* Base, VirtualMachine* Engine, asITypeInfo* Type)
 			{
-				Engine->NotifyGarbageCollectorOfNewObject(Base, Type);
+				Engine->NotifyOfNewObject(Base, Type);
 				for (auto* Item : Base->GetChilds())
 					SchemaNotifyAllReferences(Item, Engine, Type);
 			}
@@ -3303,39 +2951,39 @@ namespace Mavi
 					Buffer += sizeof(int);
 
 					void* Ref = (void*)Buffer;
-					if (TypeId >= asTYPEID_BOOL && TypeId <= asTYPEID_DOUBLE)
+					if (TypeId >= (size_t)TypeId::BOOL && TypeId <= (size_t)TypeId::DOUBLE)
 					{
 						switch (TypeId)
 						{
-							case asTYPEID_BOOL:
+							case (size_t)TypeId::BOOL:
 								Result->Set(Name, Core::Var::Boolean(*(bool*)Ref));
 								break;
-							case asTYPEID_INT8:
+							case (size_t)TypeId::INT8:
 								Result->Set(Name, Core::Var::Integer(*(char*)Ref));
 								break;
-							case asTYPEID_INT16:
+							case (size_t)TypeId::INT16:
 								Result->Set(Name, Core::Var::Integer(*(short*)Ref));
 								break;
-							case asTYPEID_INT32:
+							case (size_t)TypeId::INT32:
 								Result->Set(Name, Core::Var::Integer(*(int*)Ref));
 								break;
-							case asTYPEID_UINT8:
+							case (size_t)TypeId::UINT8:
 								Result->Set(Name, Core::Var::Integer(*(unsigned char*)Ref));
 								break;
-							case asTYPEID_UINT16:
+							case (size_t)TypeId::UINT16:
 								Result->Set(Name, Core::Var::Integer(*(unsigned short*)Ref));
 								break;
-							case asTYPEID_UINT32:
+							case (size_t)TypeId::UINT32:
 								Result->Set(Name, Core::Var::Integer(*(unsigned int*)Ref));
 								break;
-							case asTYPEID_INT64:
-							case asTYPEID_UINT64:
+							case (size_t)TypeId::INT64:
+							case (size_t)TypeId::UINT64:
 								Result->Set(Name, Core::Var::Integer(*(asINT64*)Ref));
 								break;
-							case asTYPEID_FLOAT:
+							case (size_t)TypeId::FLOAT:
 								Result->Set(Name, Core::Var::Number(*(float*)Ref));
 								break;
-							case asTYPEID_DOUBLE:
+							case (size_t)TypeId::DOUBLE:
 								Result->Set(Name, Core::Var::Number(*(double*)Ref));
 								break;
 						}
@@ -3343,10 +2991,10 @@ namespace Mavi
 					else
 					{
 						asITypeInfo* Type = VM->GetTypeInfoById(TypeId);
-						if ((TypeId & asTYPEID_MASK_OBJECT) && !(TypeId & asTYPEID_OBJHANDLE) && (Type && Type->GetFlags() & asOBJ_REF))
+						if ((TypeId & (size_t)TypeId::MASK_OBJECT) && !(TypeId & (size_t)TypeId::OBJHANDLE) && (Type && Type->GetFlags() & asOBJ_REF))
 							Ref = *(void**)Ref;
 
-						if (TypeId & asTYPEID_OBJHANDLE)
+						if (TypeId & (size_t)TypeId::OBJHANDLE)
 							Ref = *(void**)Ref;
 
 						if (VirtualMachine::Get(VM)->IsNullable(TypeId) || !Ref)
@@ -3367,7 +3015,7 @@ namespace Mavi
 							Result->Set(Name, Core::Var::Decimal(*(Core::Decimal*)Ref));
 					}
 
-					if (TypeId & asTYPEID_MASK_OBJECT)
+					if (TypeId & (size_t)TypeId::MASK_OBJECT)
 					{
 						asITypeInfo* T = VM->GetTypeInfoById(TypeId);
 						if (T->GetFlags() & asOBJ_VALUE)
@@ -3391,7 +3039,7 @@ namespace Mavi
 				asIScriptEngine* Engine = Generic->GetEngine();
 				unsigned char* Buffer = (unsigned char*)Generic->GetArgAddress(0);
 				Core::Schema* New = SchemaConstructBuffer(Buffer);
-				SchemaNotifyAllReferences(New, Engine, Engine->GetTypeInfoByName(TYPENAME_SCHEMA));
+				SchemaNotifyAllReferences(New, VirtualMachine::Get(Engine), Engine->GetTypeInfoByName(TYPENAME_SCHEMA));
 				*(Core::Schema**)Generic->GetAddressOfReturnLocation() = New;
 			}
 			Core::Schema* SchemaGetIndex(Core::Schema* Base, const Core::String& Name)
@@ -3485,16 +3133,12 @@ namespace Mavi
 			}
 			Dictionary* SchemaGetNames(Core::Schema* Base)
 			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
-					return nullptr;
-
-				VirtualMachine* VM = Context->GetVM();
+				VirtualMachine* VM = VirtualMachine::Get();
 				if (!VM)
 					return nullptr;
 
 				Core::UnorderedMap<Core::String, size_t> Mapping = Base->GetNames();
-				Dictionary* Map = Dictionary::Create(VM->GetEngine());
+				Dictionary* Map = Dictionary::Create(VM);
 
 				for (auto& Item : Mapping)
 				{
@@ -3698,7 +3342,7 @@ namespace Mavi
 
 				return Result;
 			}
-			bool Mutex::IsAnyLocked(asIScriptContext* Context)
+			bool Mutex::IsAnyLocked(ImmediateContext* Context)
 			{
 				VI_ASSERT(Context != nullptr, "context should be set");
 				return (size_t)(uintptr_t)Context->GetUserData(MutexUD) != (size_t)0;
@@ -3735,7 +3379,7 @@ namespace Mavi
 					Loop->Dequeue(VM);
 
 				Core::UMutex<std::recursive_mutex> Unique(Mutex);
-				Raise = Exception::Pointer(Function.Context->GetContext());
+				Raise = Exception::Pointer(Function.Context);
 				VM->ReturnContext(Function.Context);
 				Function.Release();
 				VI_CLEAR(Loop);
@@ -3823,7 +3467,7 @@ namespace Mavi
 			}
 			void Thread::Push(void* Ref, int TypeId)
 			{
-				Any* Next = new Any(Ref, TypeId, VirtualMachine::Get()->GetEngine());
+				Any* Next = new Any(Ref, TypeId, VirtualMachine::Get());
 				if (!Next)
 					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 
@@ -4268,19 +3912,19 @@ namespace Mavi
 			{
 				new(Base) Complex();
 			}
-			void Complex::CopyConstructor(const Complex& Other, Complex* Base)
+			void Complex::CopyConstructor(Complex* Base, const Complex& Other)
 			{
 				new(Base) Complex(Other);
 			}
-			void Complex::ConvConstructor(float Result, Complex* Base)
+			void Complex::ConvConstructor(Complex* Base, float Result)
 			{
 				new(Base) Complex(Result);
 			}
-			void Complex::InitConstructor(float Result, float _I, Complex* Base)
+			void Complex::InitConstructor(Complex* Base, float Result, float _I)
 			{
 				new(Base) Complex(Result, _I);
 			}
-			void Complex::ListConstructor(float* InitList, Complex* Base)
+			void Complex::ListConstructor(Complex* Base, float* InitList)
 			{
 				new(Base) Complex(InitList[0], InitList[1]);
 			}
@@ -9091,9 +8735,13 @@ namespace Mavi
 #else
 				VM->SetTypeDef("usize", "uint32");
 #endif
-				auto VPointer = VM->SetClassAddress("uptr", (uint64_t)ObjectBehaviours::REF | (uint64_t)ObjectBehaviours::NOCOUNT);
-				VPointer->SetMethodEx("void opCast(?&out)", &PointerToHandleCast);
-				VM->SetFunction("uptr@ to_ptr(?&in)", &HandleToPointerCast);
+				auto VPointer = VM->SetClassAddress("uptr", 0, (uint64_t)ObjectBehaviours::REF | (uint64_t)ObjectBehaviours::NOCOUNT);
+				bool HasPointerCast = (!VM->GetLibraryProperty(LibraryFeatures::CTypesNoPointerCast));
+				if (HasPointerCast)
+				{
+					VPointer->SetMethodEx("void opCast(?&out)", &PointerToHandleCast);
+					VM->SetFunction("uptr@ to_ptr(?&in)", &HandleToPointerCast);
+				}
 
 				return true;
 			}
@@ -9101,74 +8749,66 @@ namespace Mavi
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 
-				asIScriptEngine* Engine = VM->GetEngine();
-				Engine->RegisterObjectType("any", sizeof(Any), asOBJ_REF | asOBJ_GC);
-				Engine->RegisterObjectBehaviour("any", asBEHAVE_FACTORY, "any@ f()", asFUNCTION(Any::Factory1), asCALL_GENERIC);
-				Engine->RegisterObjectBehaviour("any", asBEHAVE_FACTORY, "any@ f(?&in) explicit", asFUNCTION(Any::Factory2), asCALL_GENERIC);
-				Engine->RegisterObjectBehaviour("any", asBEHAVE_FACTORY, "any@ f(const int64&in) explicit", asFUNCTION(Any::Factory2), asCALL_GENERIC);
-				Engine->RegisterObjectBehaviour("any", asBEHAVE_FACTORY, "any@ f(const double&in) explicit", asFUNCTION(Any::Factory2), asCALL_GENERIC);
-				Engine->RegisterObjectBehaviour("any", asBEHAVE_ADDREF, "void f()", asMETHOD(Any, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("any", asBEHAVE_RELEASE, "void f()", asMETHOD(Any, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("any", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Any, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("any", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Any, MarkRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("any", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Any, IsMarkedRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("any", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Any, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("any", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Any, ReleaseReferences), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("any", "any &opAssign(any&in)", asFUNCTION(Any::Assignment), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("any", "void store(?&in)", asMETHODPR(Any, Store, (void*, int), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("any", "bool retrieve(?&out)", asMETHODPR(Any, Retrieve, (void*, int) const, bool), asCALL_THISCALL);
+				auto VAny = VM->SetClass<Any>("any", true);
+				VAny->SetConstructorEx("any@ f()", &Any::Factory1);
+				VAny->SetConstructorEx("any@ f(?&in) explicit", &Any::Factory2);
+				VAny->SetConstructorEx("any@ f(const int64&in) explicit", &Any::Factory2);
+				VAny->SetConstructorEx("any@ f(const double&in) explicit", &Any::Factory2);
+				VAny->SetEnumRefs(&Any::EnumReferences);
+				VAny->SetReleaseRefs(&Any::ReleaseReferences);
+				VAny->SetMethodEx("any &opAssign(any&in)", &Any::Assignment);
+				VAny->SetMethod("void store(?&in)", &Any::Store);
+				VAny->SetMethod("bool retrieve(?&out)", &Any::Retrieve);
 
 				return true;
 			}
 			bool Registry::ImportArray(VirtualMachine* VM)
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
+				VM->SetTypeInfoUserDataCleanupCallback(Array::CleanupTypeInfoCache, (size_t)Array::GetId());
 
-				asIScriptEngine* Engine = VM->GetEngine();
-				Engine->SetTypeInfoUserDataCleanupCallback(Array::CleanupTypeInfoCache, (asDWORD)Array::GetId());
-				Engine->RegisterObjectType("array<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Array::TemplateCallback), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_FACTORY, "array<T>@ f(int&in)", asFUNCTIONPR(Array::Create, (asITypeInfo*), Array*), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_FACTORY, "array<T>@ f(int&in, usize) explicit", asFUNCTIONPR(Array::Create, (asITypeInfo*, size_t), Array*), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_FACTORY, "array<T>@ f(int&in, usize, const T&in)", asFUNCTIONPR(Array::Create, (asITypeInfo*, size_t, void*), Array*), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_LIST_FACTORY, "array<T>@ f(int&in, int&in) {repeat T}", asFUNCTIONPR(Array::Create, (asITypeInfo*, void*), Array*), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(Array, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(Array, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Array, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Array, MarkRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Array, IsMarkedRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Array, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("array<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Array, ReleaseReferences), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "bool opEquals(const array<T>&in) const", asMETHOD(Array, operator==), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "array<T>& opAssign(const array<T>&in)", asMETHOD(Array, operator=), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "T& opIndex(usize)", asMETHODPR(Array, At, (size_t), void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "const T& opIndex(usize) const", asMETHODPR(Array, At, (size_t) const, const void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "T& front()", asMETHODPR(Array, Front, (), void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "const T& front() const", asMETHODPR(Array, Front, () const, const void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "T& back()", asMETHODPR(Array, Back, (), void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "const T& back() const", asMETHODPR(Array, Back, () const, const void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "bool empty() const", asMETHOD(Array, IsEmpty), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "usize size() const", asMETHOD(Array, GetSize), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "usize capacity() const", asMETHOD(Array, GetCapacity), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void reserve(usize)", asMETHOD(Array, Reserve), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void resize(usize)", asMETHODPR(Array, Resize, (size_t), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void clear()", asMETHODPR(Array, Clear, (), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void push(const T&in)", asMETHOD(Array, InsertLast), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void pop()", asMETHOD(Array, RemoveLast), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void insert(usize, const T&in)", asMETHODPR(Array, InsertAt, (size_t, void*), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void insert(usize, const array<T>&)", asMETHODPR(Array, InsertAt, (size_t, const Array&), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void erase(usize)", asMETHOD(Array, RemoveAt), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void erase(usize, usize)", asMETHOD(Array, RemoveRange), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void reverse()", asMETHOD(Array, Reverse), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "void swap(usize, usize)", asMETHOD(Array, Swap), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "usize find(const T&in if_handle_then_const) const", asMETHODPR(Array, Find, (void*) const, size_t), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "usize find(usize, const T&in if_handle_then_const) const", asMETHODPR(Array, Find, (size_t, void*) const, size_t), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "usize find_ref(const T&in if_handle_then_const) const", asMETHODPR(Array, FindByRef, (void*) const, size_t), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("array<T>", "usize find_ref(usize, const T&in if_handle_then_const) const", asMETHODPR(Array, FindByRef, (size_t, void*) const, size_t), asCALL_THISCALL);
-				Engine->RegisterDefaultArrayType("array<T>");
+				auto ListFactoryCall = Bridge::Function(&Dictionary::Factory);
+				{
+					auto VArray = VM->SetTemplateClass<Array>("array<class T>", "array<T>", true);
+					VArray->SetTemplateCallback(&Array::TemplateCallback);
+					VArray->SetConstructorEx<Array, asITypeInfo*>("array<T>@ f(int&in)", &Array::Create);
+					VArray->SetConstructorEx<Array, asITypeInfo*, size_t>("array<T>@ f(int&in, usize) explicit", &Array::Create);
+					VArray->SetConstructorEx<Array, asITypeInfo*, size_t, void*>("array<T>@ f(int&in, usize, const T&in)", &Array::Create);
+					VArray->SetBehaviourAddress("array<T>@ f(int&in, int&in) {repeat T}", Behaviours::LIST_FACTORY, ListFactoryCall, FunctionCall::CDECLF);
+					VArray->SetEnumRefs(&Array::EnumReferences);
+					VArray->SetReleaseRefs(&Array::ReleaseReferences);
+					VArray->SetMethod("bool opEquals(const array<T>&in) const", &Array::operator==);
+					VArray->SetMethod("array<T>& opAssign(const array<T>&in)", &Array::operator=);
+					VArray->SetMethod<Array, void*, size_t>("T& opIndex(usize)", &Array::At);
+					VArray->SetMethod<Array, const void*, size_t>("const T& opIndex(usize) const", &Array::At);
+					VArray->SetMethod<Array, void*>("T& front()", &Array::Front);
+					VArray->SetMethod<Array, const void*>("const T& front() const", &Array::Front);
+					VArray->SetMethod<Array, void*>("T& back()", &Array::Back);
+					VArray->SetMethod<Array, const void*>("const T& back() const", &Array::Back);
+					VArray->SetMethod("bool empty() const", &Array::IsEmpty);
+					VArray->SetMethod("usize size() const", &Array::GetSize);
+					VArray->SetMethod("usize capacity() const", &Array::GetCapacity);
+					VArray->SetMethod("void reserve(usize)", &Array::Reserve);
+					VArray->SetMethod<Array, void, size_t>("void resize(usize)", &Array::Resize);
+					VArray->SetMethod("void clear()", &Array::Clear);
+					VArray->SetMethod("void push(const T&in)", &Array::InsertLast);
+					VArray->SetMethod("void pop()", &Array::RemoveLast);
+					VArray->SetMethod<Array, void, size_t, void*>("void insert(usize, const T&in)", &Array::InsertAt);
+					VArray->SetMethod<Array, void, size_t, const Array&>("void insert(usize, const array<T>&)", &Array::InsertAt);
+					VArray->SetMethod("void erase(usize)", &Array::RemoveAt);
+					VArray->SetMethod("void erase(usize, usize)", &Array::RemoveRange);
+					VArray->SetMethod("void reverse()", &Array::Reverse);
+					VArray->SetMethod("void swap(usize, usize)", &Array::Swap);
+					VArray->SetMethod<Array, size_t, void*>("usize find(const T&in if_handle_then_const) const", &Array::Find);
+					VArray->SetMethod<Array, size_t, size_t, void*>("usize find(usize, const T&in if_handle_then_const) const", &Array::Find);
+					VArray->SetMethod<Array, size_t, void*>("usize find_ref(const T&in if_handle_then_const) const", &Array::FindByRef);
+					VArray->SetMethod<Array, size_t, size_t, void*>("usize find_ref(usize, const T&in if_handle_then_const) const", &Array::FindByRef);
+				}
+				FunctionFactory::ReleaseFunctor(&ListFactoryCall);
 
+				VM->SetDefaultArrayType("array<T>");
 				VM->BeginNamespace("array");
-				Engine->RegisterGlobalProperty("const usize npos", (void*)&Core::String::npos);
+				VM->SetProperty("const usize npos", &Core::String::npos);
 				VM->EndNamespace();
 
 				return true;
@@ -9177,30 +8817,32 @@ namespace Mavi
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
-				asIScriptEngine* Engine = VM->GetEngine();
-				Engine->RegisterObjectType("complex", sizeof(Complex), asOBJ_VALUE | asOBJ_POD | asGetTypeTraits<Complex>() | asOBJ_APP_CLASS_ALLFLOATS);
-				Engine->RegisterObjectProperty("complex", "float R", asOFFSET(Complex, R));
-				Engine->RegisterObjectProperty("complex", "float I", asOFFSET(Complex, I));
-				Engine->RegisterObjectBehaviour("complex", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(Complex::DefaultConstructor), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("complex", asBEHAVE_CONSTRUCT, "void f(const complex &in)", asFUNCTION(Complex::CopyConstructor), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("complex", asBEHAVE_CONSTRUCT, "void f(float)", asFUNCTION(Complex::ConvConstructor), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("complex", asBEHAVE_CONSTRUCT, "void f(float, float)", asFUNCTION(Complex::InitConstructor), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("complex", asBEHAVE_LIST_CONSTRUCT, "void f(const int &in) {float, float}", asFUNCTION(Complex::ListConstructor), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("complex", "complex &opAddAssign(const complex &in)", asMETHODPR(Complex, operator+=, (const Complex&), Complex&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("complex", "complex &opSubAssign(const complex &in)", asMETHODPR(Complex, operator-=, (const Complex&), Complex&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("complex", "complex &opMulAssign(const complex &in)", asMETHODPR(Complex, operator*=, (const Complex&), Complex&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("complex", "complex &opDivAssign(const complex &in)", asMETHODPR(Complex, operator/=, (const Complex&), Complex&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("complex", "bool opEquals(const complex &in) const", asMETHODPR(Complex, operator==, (const Complex&) const, bool), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("complex", "complex opAdd(const complex &in) const", asMETHODPR(Complex, operator+, (const Complex&) const, Complex), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("complex", "complex opSub(const complex &in) const", asMETHODPR(Complex, operator-, (const Complex&) const, Complex), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("complex", "complex opMul(const complex &in) const", asMETHODPR(Complex, operator*, (const Complex&) const, Complex), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("complex", "complex opDiv(const complex &in) const", asMETHODPR(Complex, operator/, (const Complex&) const, Complex), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("complex", "float abs() const", asMETHOD(Complex, Length), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("complex", "complex get_ri() const property", asMETHOD(Complex, GetRI), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("complex", "complex get_ir() const property", asMETHOD(Complex, GetIR), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("complex", "void set_ri(const complex &in) property", asMETHOD(Complex, SetRI), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("complex", "void set_ir(const complex &in) property", asMETHOD(Complex, SetIR), asCALL_THISCALL);
-
+				auto ListConstructorCall = Bridge::Function(&Complex::ListConstructor);
+				{
+					auto VComplex = VM->SetStructAddress("complex", sizeof(Complex), (size_t)ObjectBehaviours::VALUE | (size_t)ObjectBehaviours::POD | Bridge::GetTypeTraits<Complex>() | (size_t)ObjectBehaviours::APP_CLASS_ALLFLOATS);
+					VComplex->SetProperty("float R", &Complex::R);
+					VComplex->SetProperty("float I", &Complex::I);
+					VComplex->SetConstructorEx("void f()", &Complex::DefaultConstructor);
+					VComplex->SetConstructorEx("void f(const complex &in)", &Complex::CopyConstructor);
+					VComplex->SetConstructorEx("void f(float)", &Complex::ConvConstructor);
+					VComplex->SetConstructorEx("void f(float, float)", &Complex::InitConstructor);
+					VComplex->SetBehaviourAddress("void f(const int &in) {float, float}", Behaviours::LIST_CONSTRUCT, ListConstructorCall, FunctionCall::CDECL_OBJFIRST);
+					VComplex->SetMethod("complex &opAddAssign(const complex &in)", &Complex::operator+=);
+					VComplex->SetMethod("complex &opSubAssign(const complex &in)", &Complex::operator-=);
+					VComplex->SetMethod("complex &opMulAssign(const complex &in)", &Complex::operator*=);
+					VComplex->SetMethod("complex &opDivAssign(const complex &in)", &Complex::operator/=);
+					VComplex->SetMethod("bool opEquals(const complex &in) const", &Complex::operator==);
+					VComplex->SetMethod("complex opAdd(const complex &in) const", &Complex::operator+);
+					VComplex->SetMethod("complex opSub(const complex &in) const", &Complex::operator-);
+					VComplex->SetMethod("complex opMul(const complex &in) const", &Complex::operator*);
+					VComplex->SetMethod("complex opDiv(const complex &in) const", &Complex::operator/);
+					VComplex->SetMethod("float abs() const", &Complex::Length);
+					VComplex->SetMethod("complex get_ri() const property", &Complex::GetRI);
+					VComplex->SetMethod("complex get_ir() const property", &Complex::GetIR);
+					VComplex->SetMethod("void set_ri(const complex &in) property", &Complex::SetRI);
+					VComplex->SetMethod("void set_ir(const complex &in) property", &Complex::SetIR);
+				}
+				FunctionFactory::ReleaseFunctor(&ListConstructorCall);
 				return true;
 #else
 				VI_ASSERT(false, "<complex> is not loaded");
@@ -9210,110 +8852,52 @@ namespace Mavi
 			bool Registry::ImportDictionary(VirtualMachine* VM)
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
-				asIScriptEngine* Engine = VM->GetEngine();
-				Engine->RegisterObjectType("storable", sizeof(Storable), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_GC | asGetTypeTraits<Storable>());
-				Engine->RegisterObjectBehaviour("storable", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(Dictionary::KeyCreate), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("storable", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(Dictionary::KeyDestroy), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("storable", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Storable, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("storable", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Storable, FreeValue), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("storable", "storable &opAssign(const storable&in)", asFUNCTIONPR(Dictionary::KeyopAssign, (const Storable&, Storable*), Storable&), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("storable", "storable &opHndlAssign(const ?&in)", asFUNCTIONPR(Dictionary::KeyopAssign, (void*, int, Storable*), Storable&), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("storable", "storable &opHndlAssign(const storable&in)", asFUNCTIONPR(Dictionary::KeyopAssign, (const Storable&, Storable*), Storable&), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("storable", "storable &opAssign(const ?&in)", asFUNCTIONPR(Dictionary::KeyopAssign, (void*, int, Storable*), Storable&), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("storable", "storable &opAssign(double)", asFUNCTIONPR(Dictionary::KeyopAssign, (double, Storable*), Storable&), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("storable", "storable &opAssign(int64)", asFUNCTIONPR(Dictionary::KeyopAssign, (as_int64_t, Storable*), Storable&), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("storable", "void opCast(?&out)", asFUNCTIONPR(Dictionary::KeyopCast, (void*, int, Storable*), void), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("storable", "void opConv(?&out)", asFUNCTIONPR(Dictionary::KeyopCast, (void*, int, Storable*), void), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("storable", "int64 opConv()", asFUNCTIONPR(Dictionary::KeyopConvInt, (Storable*), as_int64_t), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("storable", "double opConv()", asFUNCTIONPR(Dictionary::KeyopConvDouble, (Storable*), double), asCALL_CDECL_OBJLAST);
 
-				Engine->RegisterObjectType("dictionary", sizeof(Dictionary), asOBJ_REF | asOBJ_GC);
-				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_FACTORY, "dictionary@ f()", asFUNCTION(Dictionary::Factory), asCALL_GENERIC);
-				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_LIST_FACTORY, "dictionary @f(int &in) {repeat {string, ?}}", asFUNCTION(Dictionary::ListFactory), asCALL_GENERIC);
-				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_ADDREF, "void f()", asMETHOD(Dictionary, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_RELEASE, "void f()", asMETHOD(Dictionary, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(Dictionary, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(Dictionary, MarkRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(Dictionary, IsMarkedRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Dictionary, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("dictionary", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Dictionary, ReleaseReferences), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "dictionary &opAssign(const dictionary &in)", asMETHODPR(Dictionary, operator=, (const Dictionary&), Dictionary&), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "storable& opIndex(const string&in)", asMETHODPR(Dictionary, operator[], (const Core::String&), Storable*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "const storable& opIndex(const string&in) const", asMETHODPR(Dictionary, operator[], (const Core::String&) const, const Storable*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "void set(const string&in, const ?&in)", asMETHODPR(Dictionary, Set, (const Core::String&, void*, int), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "bool get(const string&in, ?&out) const", asMETHODPR(Dictionary, Get, (const Core::String&, void*, int) const, bool), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "bool exists(const string&in) const", asMETHOD(Dictionary, Exists), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "bool empty() const", asMETHOD(Dictionary, IsEmpty), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "bool at(usize, string&out, ?&out) const", asMETHOD(Dictionary, TryGetIndex), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "usize size() const", asMETHOD(Dictionary, GetSize), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "bool erase(const string&in)", asMETHOD(Dictionary, Erase), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "void clear()", asMETHOD(Dictionary, Clear), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("dictionary", "array<string>@ get_keys() const", asMETHOD(Dictionary, GetKeys), asCALL_THISCALL);
+				auto VStorable = VM->SetStructAddress("storable", sizeof(Storable), (size_t)ObjectBehaviours::VALUE | (size_t)ObjectBehaviours::ASHANDLE | (size_t)ObjectBehaviours::GC | Bridge::GetTypeTraits<Storable>());
+				VStorable->SetConstructorEx("void f()", &Dictionary::KeyCreate);
+				VStorable->SetDestructorEx("void f()", &Dictionary::KeyDestroy);
+				VStorable->SetEnumRefs(&Storable::EnumReferences);
+				VStorable->SetReleaseRefs(&Storable::ReleaseReferences);
+				VStorable->SetMethodEx<Storable&, Storable*, const Storable&>("storable &opAssign(const storable&in)", &Dictionary::KeyopAssign);
+				VStorable->SetMethodEx<Storable&, Storable*, void*, int>("storable &opHndlAssign(const ?&in)", &Dictionary::KeyopAssign);
+				VStorable->SetMethodEx<Storable&, Storable*, const Storable&>("storable &opHndlAssign(const storable&in)", &Dictionary::KeyopAssign);
+				VStorable->SetMethodEx<Storable&, Storable*, void*, int>("storable &opAssign(const ?&in)", &Dictionary::KeyopAssign);
+				VStorable->SetMethodEx<Storable&, Storable*, double>("storable &opAssign(double)", &Dictionary::KeyopAssign);
+				VStorable->SetMethodEx<Storable&, Storable*, as_int64_t>("storable &opAssign(int64)", &Dictionary::KeyopAssign);
+				VStorable->SetMethodEx("void opCast(?&out)", &Dictionary::KeyopCast);
+				VStorable->SetMethodEx("void opConv(?&out)", &Dictionary::KeyopCast);
+				VStorable->SetMethodEx("int64 opConv()", &Dictionary::KeyopConvInt);
+				VStorable->SetMethodEx("double opConv()", &Dictionary::KeyopConvDouble);
 
-				Dictionary::Setup(Engine);
-				return true;
-			}
-			bool Registry::ImportRef(VirtualMachine* VM)
-			{
-				asIScriptEngine* Engine = VM->GetEngine();
-				if (!Engine)
-					return false;
-
-				Engine->RegisterObjectType("ref", sizeof(Ref), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_GC | asGetTypeTraits<Ref>());
-				Engine->RegisterObjectBehaviour("ref", asBEHAVE_CONSTRUCT, "void f()", asFUNCTIONPR(Ref::Create, (Ref*), void), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectBehaviour("ref", asBEHAVE_CONSTRUCT, "void f(const ref &in)", asFUNCTIONPR(Ref::Create, (Ref*, const Ref&), void), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectBehaviour("ref", asBEHAVE_CONSTRUCT, "void f(const ?&in)", asFUNCTIONPR(Ref::Create, (Ref*, void*, int), void), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectBehaviour("ref", asBEHAVE_DESTRUCT, "void f()", asFUNCTIONPR(Ref::Destroy, (Ref*), void), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectBehaviour("ref", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(Ref, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("ref", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Ref, ReleaseReferences), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("ref", "void opCast(?&out)", asMETHODPR(Ref, Cast, (void**, int), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("ref", "ref &opHndlAssign(const ref &in)", asMETHOD(Ref, operator=), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("ref", "ref &opHndlAssign(const ?&in)", asMETHOD(Ref, Assign), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("ref", "bool opEquals(const ref &in) const", asMETHODPR(Ref, operator==, (const Ref&) const, bool), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("ref", "bool opEquals(const ?&in) const", asMETHODPR(Ref, Equals, (void*, int) const, bool), asCALL_THISCALL);
-				return true;
-			}
-			bool Registry::ImportWeakRef(VirtualMachine* VM)
-			{
-				asIScriptEngine* Engine = VM->GetEngine();
-				if (!Engine)
-					return false;
-
-				Engine->RegisterObjectType("weak<class T>", sizeof(Weak), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_TEMPLATE | asOBJ_APP_CLASS_DAK);
-				Engine->RegisterObjectBehaviour("weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in)", asFUNCTION(Weak::Create1), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in, T@+)", asFUNCTION(Weak::Create2), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("weak<T>", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(Weak::Destroy), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("weak<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Weak::TemplateCallback), asCALL_CDECL);
-				Engine->RegisterObjectMethod("weak<T>", "T@ opImplCast()", asMETHOD(Weak, Get), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("weak<T>", "T@ get() const", asMETHODPR(Weak, Get, () const, void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("weak<T>", "weak<T> &opHndlAssign(const weak<T> &in)", asMETHOD(Weak, operator=), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("weak<T>", "weak<T> &opAssign(const weak<T> &in)", asMETHOD(Weak, operator=), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("weak<T>", "bool opEquals(const weak<T> &in) const", asMETHODPR(Weak, operator==, (const Weak&) const, bool), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("weak<T>", "weak<T> &opHndlAssign(T@)", asMETHOD(Weak, Set), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("weak<T>", "bool opEquals(const T@+) const", asMETHOD(Weak, Equals), asCALL_THISCALL);
-				Engine->RegisterObjectType("const_weak<class T>", sizeof(Weak), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_TEMPLATE | asOBJ_APP_CLASS_DAK);
-				Engine->RegisterObjectBehaviour("const_weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in)", asFUNCTION(Weak::Create1), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("const_weak<T>", asBEHAVE_CONSTRUCT, "void f(int&in, const T@+)", asFUNCTION(Weak::Create2), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("const_weak<T>", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(Weak::Destroy), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectBehaviour("const_weak<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(Weak::TemplateCallback), asCALL_CDECL);
-				Engine->RegisterObjectMethod("const_weak<T>", "const T@ opImplCast() const", asMETHOD(Weak, Get), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak<T>", "const T@ get() const", asMETHODPR(Weak, Get, () const, void*), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak<T>", "const_weak<T> &opHndlAssign(const const_weak<T> &in)", asMETHOD(Weak, operator=), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak<T>", "const_weak<T> &opAssign(const const_weak<T> &in)", asMETHOD(Weak, operator=), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak<T>", "bool opEquals(const const_weak<T> &in) const", asMETHODPR(Weak, operator==, (const Weak&) const, bool), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak<T>", "const_weak<T> &opHndlAssign(const T@)", asMETHOD(Weak, Set), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak<T>", "bool opEquals(const T@+) const", asMETHOD(Weak, Equals), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak<T>", "const_weak<T> &opHndlAssign(const weak<T> &in)", asMETHOD(Weak, operator=), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("const_weak<T>", "bool opEquals(const weak<T> &in) const", asMETHODPR(Weak, operator==, (const Weak&) const, bool), asCALL_THISCALL);
-
+				auto FactoryCall = Bridge::FunctionGeneric(&Dictionary::Factory);
+				auto ListFactoryCall = Bridge::FunctionGeneric(&Dictionary::ListFactory);
+				{
+					auto VDictionary = VM->SetClass<Dictionary>("dictionary", true);
+					VDictionary->SetBehaviourAddress("dictionary@ f()", Behaviours::FACTORY, FactoryCall, FunctionCall::GENERIC);
+					VDictionary->SetBehaviourAddress("dictionary @f(int &in) {repeat {string, ?}}", Behaviours::LIST_FACTORY, ListFactoryCall, FunctionCall::GENERIC);
+					VDictionary->SetEnumRefs(&Dictionary::EnumReferences);
+					VDictionary->SetReleaseRefs(&Dictionary::ReleaseReferences);
+					VDictionary->SetMethod("dictionary &opAssign(const dictionary &in)", &Dictionary::operator=);
+					VDictionary->SetMethod<Dictionary, Storable*, const Core::String&>("storable& opIndex(const string&in)", &Dictionary::operator[]);
+					VDictionary->SetMethod<Dictionary, const Storable*, const Core::String&>("const storable& opIndex(const string&in) const", &Dictionary::operator[]);
+					VDictionary->SetMethod("void set(const string&in, const ?&in)", &Dictionary::Set);
+					VDictionary->SetMethod("bool get(const string&in, ?&out) const", &Dictionary::Get);
+					VDictionary->SetMethod("bool exists(const string&in) const", &Dictionary::Exists);
+					VDictionary->SetMethod("bool empty() const", &Dictionary::IsEmpty);
+					VDictionary->SetMethod("bool at(usize, string&out, ?&out) const", &Dictionary::TryGetIndex);
+					VDictionary->SetMethod("usize size() const", &Dictionary::GetSize);
+					VDictionary->SetMethod("bool erase(const string&in)", &Dictionary::Erase);
+					VDictionary->SetMethod("void clear()", &Dictionary::Clear);
+					VDictionary->SetMethod("array<string>@ get_keys() const", &Dictionary::GetKeys);
+					Dictionary::Setup(VM);
+				}
+				FunctionFactory::ReleaseFunctor(&FactoryCall);
+				FunctionFactory::ReleaseFunctor(&ListFactoryCall);
 				return true;
 			}
 			bool Registry::ImportMath(VirtualMachine* VM)
 			{
-				asIScriptEngine* Engine = VM->GetEngine();
-				if (!Engine)
-					return false;
-
+				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				VM->SetFunction<float(*)(uint32_t)>("float fp_from_ieee(uint)", &Math::FpFromIEEE);
 				VM->SetFunction<uint32_t(*)(float)>("uint fp_to_ieee(float)", &Math::FpToIEEE);
 				VM->SetFunction<double(*)(uint64_t)>("double fp_from_ieee(uint64)", &Math::FpFromIEEE);
@@ -9393,10 +8977,7 @@ namespace Mavi
 			}
 			bool Registry::ImportString(VirtualMachine* VM)
 			{
-				asIScriptEngine* Engine = VM->GetEngine();
-				if (!Engine)
-					return false;
-
+				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				auto VString = VM->SetStructAddress("string", sizeof(Core::String), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<Core::String>());
 				VM->SetStringFactoryAddress("string", StringFactory::Get());
 				VString->SetConstructorEx("void f()", &String::Create);
@@ -9565,8 +9146,6 @@ namespace Mavi
 				VCharBuffer->SetConstructorEx<CharBuffer>("char_buffer@ f()", &CharBuffer::Create);
 				VCharBuffer->SetConstructorEx<CharBuffer, size_t>("char_buffer@ f(usize)", &CharBuffer::Create);
 				VCharBuffer->SetConstructorEx<CharBuffer, char*>("char_buffer@ f(uptr@)", &CharBuffer::Create);
-				VCharBuffer->SetAddRef<CharBuffer>();
-				VCharBuffer->SetRelease<CharBuffer>();
 				VCharBuffer->SetMethod("uptr@ get_ptr(usize = 0) const", &CharBuffer::GetPointer);
 				VCharBuffer->SetMethod("bool allocate(usize)", &CharBuffer::Allocate);
 				VCharBuffer->SetMethod("bool deallocate()", &CharBuffer::Deallocate);
@@ -9625,7 +9204,7 @@ namespace Mavi
 			bool Registry::ImportPromise(VirtualMachine* VM)
 			{
 				VI_ASSERT(VM != nullptr, "manager should be set");
-				auto VPromise = VM->SetTemplateClass<Promise>("promise<class T>", true);
+				auto VPromise = VM->SetTemplateClass<Promise>("promise<class T>", "promise<T>", true);
 				VPromise->SetTemplateCallback(&Promise::TemplateCallback);
 				VPromise->SetEnumRefs(&Promise::EnumReferences);
 				VPromise->SetReleaseRefs(&Promise::ReleaseReferences);

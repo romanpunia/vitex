@@ -75,8 +75,6 @@ namespace Mavi
 				static bool ImportArray(VirtualMachine* VM);
 				static bool ImportComplex(VirtualMachine* VM);
 				static bool ImportDictionary(VirtualMachine* VM);
-				static bool ImportRef(VirtualMachine* VM);
-				static bool ImportWeakRef(VirtualMachine* VM);
 				static bool ImportMath(VirtualMachine* VM);
 				static bool ImportString(VirtualMachine* VM);
 				static bool ImportException(VirtualMachine* VM);
@@ -131,10 +129,10 @@ namespace Mavi
 					Core::String Type;
 					Core::String Message;
 					Core::String Origin;
-					asIScriptContext* Context;
+					ImmediateContext* Context;
 
 					Pointer();
-					Pointer(asIScriptContext* Context);
+					Pointer(ImmediateContext* Context);
 					Pointer(const Core::String& Data);
 					Pointer(const Core::String& Type, const Core::String& Message);
 					void LoadExceptionData(const Core::String& Data);
@@ -147,13 +145,13 @@ namespace Mavi
 				};
 
 			public:
-				static void ThrowAt(asIScriptContext* Context, const Pointer& Data);
+				static void ThrowAt(ImmediateContext* Context, const Pointer& Data);
 				static void Throw(const Pointer& Data);
-				static void RethrowAt(asIScriptContext* Context);
+				static void RethrowAt(ImmediateContext* Context);
 				static void Rethrow();
-				static bool HasExceptionAt(asIScriptContext* Context);
+				static bool HasExceptionAt(ImmediateContext* Context);
 				static bool HasException();
-				static Pointer GetExceptionAt(asIScriptContext* Context);
+				static Pointer GetExceptionAt(ImmediateContext* Context);
 				static Pointer GetException();
 				static bool GeneratorCallback(const Core::String& Path, Core::String& Code);
 			};
@@ -203,80 +201,15 @@ namespace Mavi
 
 			public:
 				Storable() noexcept;
-				Storable(asIScriptEngine* Engine, void* Pointer, int TypeId) noexcept;
+				Storable(VirtualMachine* Engine, void* Pointer, int TypeId) noexcept;
 				~Storable() noexcept;
-				void Set(asIScriptEngine* Engine, void* Pointer, int TypeId);
-				void Set(asIScriptEngine* Engine, Storable& Other);
-				bool Get(asIScriptEngine* Engine, void* Pointer, int TypeId) const;
+				void Set(VirtualMachine* Engine, void* Pointer, int TypeId);
+				void Set(VirtualMachine* Engine, Storable& Other);
+				bool Get(VirtualMachine* Engine, void* Pointer, int TypeId) const;
 				const void* GetAddressOfValue() const;
 				int GetTypeId() const;
-				void FreeValue(asIScriptEngine* Engine);
-				void EnumReferences(asIScriptEngine* Engine);
-			};
-
-			class VI_OUT Ref
-			{
-			private:
-				asITypeInfo* Type;
-				void* Pointer;
-
-			public:
-				Ref() noexcept;
-				Ref(const Ref& Other) noexcept;
-				Ref(void* Ref, asITypeInfo* Type) noexcept;
-				Ref(void* Ref, int TypeId) noexcept;
-				~Ref() noexcept;
-				Ref& operator=(const Ref& Other) noexcept;
-				void Set(void* Ref, asITypeInfo* Type);
-				bool operator== (const Ref& Other) const;
-				bool operator!= (const Ref& Other) const;
-				bool Equals(void* Ref, int TypeId) const;
-				void Cast(void** OutRef, int TypeId);
-				asITypeInfo* GetType() const;
-				int GetTypeId() const;
-				void* GetAddressOfObject();
-				void EnumReferences(asIScriptEngine* Engine);
 				void ReleaseReferences(asIScriptEngine* Engine);
-				Ref& Assign(void* Ref, int TypeId);
-
-			private:
-				void ReleaseHandle();
-				void AddRefHandle();
-
-			public:
-				static void Create(Ref* self);
-				static void Create(Ref* self, const Ref& o);
-				static void Create(Ref* self, void* ref, int typeId);
-				static void Destroy(Ref* self);
-			};
-
-			class VI_OUT Weak
-			{
-			private:
-				asILockableSharedBool* WeakRefFlag;
-				asITypeInfo* Type;
-				void* Ref;
-
-			public:
-				Weak(asITypeInfo* Type) noexcept;
-				Weak(const Weak& Other) noexcept;
-				Weak(void* Ref, asITypeInfo* Type) noexcept;
-				~Weak() noexcept;
-				Weak& operator= (const Weak& Other) noexcept;
-				bool operator== (const Weak& Other) const;
-				bool operator!= (const Weak& Other) const;
-				Weak& Set(void* NewRef);
-				int GetTypeId() const;
-				void* GetAddressOfObject();
-				void* Get() const;
-				bool Equals(void* Ref) const;
-				asITypeInfo* GetRefType() const;
-
-			public:
-				static void Create1(asITypeInfo* type, void* mem);
-				static void Create2(asITypeInfo* type, void* ref, void* mem);
-				static void Destroy(Weak* obj);
-				static bool TemplateCallback(asITypeInfo* TI, bool&);
+				void EnumReferences(asIScriptEngine* Engine);
 			};
 
 			class VI_OUT Random
@@ -297,12 +230,12 @@ namespace Mavi
 				friend Promise;
 
 			private:
-				asIScriptEngine* Engine;
+				VirtualMachine* Engine;
 				Dynamic Value;
 
 			public:
-				Any(asIScriptEngine* Engine) noexcept;
-				Any(void* Ref, int RefTypeId, asIScriptEngine* Engine) noexcept;
+				Any(VirtualMachine* Engine) noexcept;
+				Any(void* Ref, int RefTypeId, VirtualMachine* Engine) noexcept;
 				Any(const Any&) noexcept;
 				~Any() noexcept;
 				Any& operator= (const Any&) noexcept;
@@ -323,7 +256,7 @@ namespace Mavi
 				static Core::Unique<Any> Create(const char* Decl, void* Ref);
 				static void Factory1(asIScriptGeneric* G);
 				static void Factory2(asIScriptGeneric* G);
-				static Any& Assignment(Any* Other, Any* Self);
+				static Any& Assignment(Any* Base, Any* Other);
 
 			public:
 				template <typename T, T>
@@ -389,7 +322,7 @@ namespace Mavi
 				static int ArrayId;
 
 			private:
-				asITypeInfo* ObjType;
+				TypeInfo ObjType;
 				SBuffer* Buffer;
 				size_t ElementSize;
 				int SubTypeId;
@@ -435,7 +368,7 @@ namespace Mavi
 				void ReleaseReferences(asIScriptEngine* Engine);
 
 			private:
-				bool Less(const void* A, const void* B, bool Asc, asIScriptContext* Ctx, SCache* Cache);
+				bool Less(const void* A, const void* B, bool Asc, ImmediateContext* Ctx, SCache* Cache);
 				void* GetArrayItemPointer(size_t Index);
 				void* GetDataPointer(void* Buffer);
 				void Copy(void* Dst, void* Src);
@@ -447,7 +380,7 @@ namespace Mavi
 				void CopyBuffer(SBuffer* Dst, SBuffer* Src);
 				void Create(SBuffer* Buf, size_t Start, size_t End);
 				void Destroy(SBuffer* Buf, size_t Start, size_t End);
-				bool Equals(const void* A, const void* B, asIScriptContext* Ctx, SCache* Cache) const;
+				bool Equals(const void* A, const void* B, ImmediateContext* Ctx, SCache* Cache) const;
 
 			public:
 				static Core::Unique<Array> Create(asITypeInfo* T);
@@ -460,9 +393,9 @@ namespace Mavi
 
 			public:
 				template <typename T>
-				static Array* Compose(asITypeInfo* ArrayType, const Core::Vector<T>& Objects)
+				static Array* Compose(const TypeInfo& ArrayType, const Core::Vector<T>& Objects)
 				{
-					Array* Array = Create(ArrayType, Objects.size());
+					Array* Array = Create(ArrayType.GetTypeInfo(), Objects.size());
 					for (size_t i = 0; i < Objects.size(); i++)
 						Array->SetValue((size_t)i, (void*)&Objects[i]);
 
@@ -515,8 +448,8 @@ namespace Mavi
 						VirtualMachine* VM = VirtualMachine::Get();
 						VI_ASSERT(VM != nullptr, "manager should be present");
 
-						asITypeInfo* Info = VM->GetTypeInfoById((int)TypeId).GetTypeInfo();
-						VI_ASSERT(Info != nullptr, "typeinfo should be valid");
+						auto Info = VM->GetTypeInfoById((int)TypeId);
+						VI_ASSERT(Info.IsValid(), "typeinfo should be valid");
 
 						Core::Vector<R> Source((Base->*F)(Data...));
 						return Array::Compose(Info, Source);
@@ -527,8 +460,8 @@ namespace Mavi
 						VirtualMachine* VM = VirtualMachine::Get();
 						VI_ASSERT(VM != nullptr, "manager should be present");
 
-						asITypeInfo* Info = VM->GetTypeInfoById(TypeCache::GetTypeId(TypeRef)).GetTypeInfo();
-						VI_ASSERT(Info != nullptr, "typeinfo should be valid");
+						auto Info = VM->GetTypeInfoById(TypeCache::GetTypeId(TypeRef));
+						VI_ASSERT(Info.IsValid(), "typeinfo should be valid");
 
 						Core::Vector<R> Source((Base->*F)(Data...));
 						return Array::Compose(Info, Source);
@@ -544,8 +477,8 @@ namespace Mavi
 						VirtualMachine* VM = VirtualMachine::Get();
 						VI_ASSERT(VM != nullptr, "manager should be present");
 
-						asITypeInfo* Info = VM->GetTypeInfoById((int)TypeId).GetTypeInfo();
-						VI_ASSERT(Info != nullptr, "typeinfo should be valid");
+						auto Info = VM->GetTypeInfoById((int)TypeId);
+						VI_ASSERT(Info.IsValid(), "typeinfo should be valid");
 
 						Core::Vector<R> Source((*F)(Data...));
 						return Array::Compose(Info, Source);
@@ -556,8 +489,8 @@ namespace Mavi
 						VirtualMachine* VM = VirtualMachine::Get();
 						VI_ASSERT(VM != nullptr, "manager should be present");
 
-						asITypeInfo* Info = VM->GetTypeInfoById(TypeCache::GetTypeId(TypeRef)).GetTypeInfo();
-						VI_ASSERT(Info != nullptr, "typeinfo should be valid");
+						auto Info = VM->GetTypeInfoById(TypeCache::GetTypeId(TypeRef));
+						VI_ASSERT(Info.IsValid(), "typeinfo should be valid");
 
 						Core::Vector<R> Source((*F)(Data...));
 						return Array::Compose(Info, Source);
@@ -602,20 +535,20 @@ namespace Mavi
 
 				struct SCache
 				{
-					asITypeInfo* DictionaryType;
-					asITypeInfo* ArrayType;
-					asITypeInfo* KeyType;
+					TypeInfo DictionaryType = TypeInfo(nullptr);
+					TypeInfo ArrayType = TypeInfo(nullptr);
+					TypeInfo KeyType = TypeInfo(nullptr);
 				};
 
 			private:
 				static int DictionaryId;
 
 			private:
-				asIScriptEngine* Engine;
+				VirtualMachine* Engine;
 				InternalMap Data;
 
 			public:
-				Dictionary(asIScriptEngine* Engine) noexcept;
+				Dictionary(VirtualMachine* Engine) noexcept;
 				Dictionary(unsigned char* Buffer) noexcept;
 				Dictionary(const Dictionary&) noexcept;
 				~Dictionary() noexcept;
@@ -640,28 +573,27 @@ namespace Mavi
 				void ReleaseReferences(asIScriptEngine* Engine);
 
 			public:
-				static Core::Unique<Dictionary> Create(asIScriptEngine* Engine);
+				static Core::Unique<Dictionary> Create(VirtualMachine* Engine);
 				static Core::Unique<Dictionary> Create(unsigned char* Buffer);
-				static void Cleanup(asIScriptEngine* engine);
-				static void Setup(asIScriptEngine* engine);
-				static void Factory(asIScriptGeneric* gen);
-				static void ListFactory(asIScriptGeneric* gen);
-				static void KeyCreate(void* mem);
-				static void KeyDestroy(Storable* obj);
-				static Storable& KeyopAssign(void* ref, int typeId, Storable* obj);
-				static Storable& KeyopAssign(const Storable& other, Storable* obj);
-				static Storable& KeyopAssign(double val, Storable* obj);
-				static Storable& KeyopAssign(as_int64_t val, Storable* obj);
-				static void KeyopCast(void* ref, int typeId, Storable* obj);
-				static as_int64_t KeyopConvInt(Storable* obj);
-				static double KeyopConvDouble(Storable* obj);
+				static void Setup(VirtualMachine* VM);
+				static void Factory(asIScriptGeneric* Generic);
+				static void ListFactory(asIScriptGeneric* Generic);
+				static void KeyCreate(void* Memory);
+				static void KeyDestroy(Storable* Base);
+				static Storable& KeyopAssign(Storable* Base, void* Ref, int TypeId);
+				static Storable& KeyopAssign(Storable* Base, const Storable& Other);
+				static Storable& KeyopAssign(Storable* Base, double Value);
+				static Storable& KeyopAssign(Storable* Base, as_int64_t Value);
+				static void KeyopCast(Storable* Base, void* Ref, int TypeId);
+				static as_int64_t KeyopConvInt(Storable* Base);
+				static double KeyopConvDouble(Storable* Base);
 
 			public:
 				template <typename T>
 				static Dictionary* Compose(int TypeId, const Core::UnorderedMap<Core::String, T>& Objects)
 				{
 					auto* Engine = VirtualMachine::Get();
-					Dictionary* Data = Create(Engine ? Engine->GetEngine() : nullptr);
+					Dictionary* Data = Create(Engine);
 					for (auto& Item : Objects)
 						Data->Set(Item.first, (void*)&Item.second, TypeId);
 
@@ -710,14 +642,14 @@ namespace Mavi
 				static int PromiseUD;
 
 			private:
-				asIScriptEngine* Engine;
-				asIScriptContext* Context;
+				VirtualMachine* Engine;
+				ImmediateContext* Context;
 				FunctionDelegate Delegate;
 				std::mutex Update;
 				Dynamic Value;
 
 			public:
-				Promise(asIScriptContext* NewContext) noexcept;
+				Promise(ImmediateContext* NewContext) noexcept;
 				~Promise() noexcept;
 				void EnumReferences(asIScriptEngine* OtherEngine);
 				void ReleaseReferences(asIScriptEngine*);
@@ -866,11 +798,11 @@ namespace Mavi
 				Complex operator/ (const Complex& Other) const;
 
 			public:
-				static void DefaultConstructor(Complex* self);
-				static void CopyConstructor(const Complex& other, Complex* self);
-				static void ConvConstructor(float r, Complex* self);
-				static void InitConstructor(float r, float i, Complex* self);
-				static void ListConstructor(float* list, Complex* self);
+				static void DefaultConstructor(Complex* Base);
+				static void CopyConstructor(Complex* Base, const Complex& Other);
+				static void ConvConstructor(Complex* Base, float NewR);
+				static void InitConstructor(Complex* Base, float NewR, float NewI);
+				static void ListConstructor(Complex* Base, float* List);
 			};
 
 			class VI_OUT Mutex : public Core::Reference<Mutex>
@@ -890,7 +822,7 @@ namespace Mavi
 
 			public:
 				static Mutex* Factory();
-				static bool IsAnyLocked(asIScriptContext* Context);
+				static bool IsAnyLocked(ImmediateContext* Context);
 			};
 
 			class VI_OUT Thread : public Core::Reference<Thread>

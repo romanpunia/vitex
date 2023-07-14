@@ -2596,7 +2596,7 @@ namespace Mavi
 			}
 			void Promise::StoreVoid()
 			{
-				Store(nullptr, (size_t)TypeId::VOIDF);
+				Store(nullptr, (int)TypeId::VOIDF);
 			}
 			bool Promise::Retrieve(void* RefPointer, int RefTypeId)
 			{

@@ -423,7 +423,7 @@ namespace Mavi
 				}
 
 				Data.append(", at location ");
-				Data.append(Core::Stringify::Text("0x%" PRIXPTR, Function));
+				Data.append(Core::Stringify::Text("0x%" PRIXPTR, Function.GetFunction()));
 				return Data;
 			}
 			bool Exception::Pointer::Empty() const

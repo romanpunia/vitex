@@ -9870,7 +9870,7 @@ namespace Mavi
 				VDesc->SetProperty("usize max_coroutines", &Core::Schedule::Desc::MaxCoroutines);
 				VDesc->SetProperty("bool parallel", &Core::Schedule::Desc::Parallel);
 				VDesc->SetConstructor<Core::Schedule::Desc>("void f()");
-				VDesc->SetConstructor<Core::Schedule::Desc, size_t>("void f(usize = 0)");
+				VDesc->SetConstructor<Core::Schedule::Desc, size_t>("void f(usize)");
 
 				auto VSchedule = VM->SetClass<Core::Schedule>("schedule", false);
 				VSchedule->SetFunctionDef("void task_event()");

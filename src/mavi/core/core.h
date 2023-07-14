@@ -3220,6 +3220,9 @@ namespace Mavi
 				ThreadTask State;
 				size_t Tasks;
 
+				ThreadMessage() : Thread(nullptr), State(ThreadTask::Sleep), Tasks(0)
+				{
+				}
 				ThreadMessage(const ThreadPtr* NewThread, ThreadTask NewState, size_t NewTasks) : Thread(NewThread), State(NewState), Tasks(NewTasks)
 				{
 				}

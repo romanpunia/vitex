@@ -265,7 +265,10 @@ if (VI_ANGELSCRIPT OR TRUE)
     list(APPEND SOURCE ${SOURCE_ANGELSCRIPT})
 endif()
 if (VI_CONCURRENTQUEUE OR TRUE)
-    list(APPEND SOURCE ${PROJECT_SOURCE_DIR}/deps/concurrentqueue/concurrentqueue.h)
+    list(APPEND SOURCE
+        ${PROJECT_SOURCE_DIR}/deps/concurrentqueue/concurrentqueue.h
+        ${PROJECT_SOURCE_DIR}/deps/concurrentqueue/lightweightsemaphore.h
+        ${PROJECT_SOURCE_DIR}/deps/concurrentqueue/blockingconcurrentqueue.h)
 endif()
 
 # Group all sources for nice IDE preview

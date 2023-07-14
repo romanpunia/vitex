@@ -14,7 +14,7 @@
 #pragma warning(disable: 4996)
 #pragma warning(disable: 4267)
 #pragma warning(disable: 4554)
-#include <concurrentqueue.h>
+#include <blockingconcurrentqueue.h>
 #ifdef VI_PUGIXML
 #include <pugixml.hpp>
 #endif
@@ -979,7 +979,7 @@ namespace Mavi
 			}
 		}
 
-		typedef moodycamel::ConcurrentQueue<TaskCallback> FastQueue;
+		typedef moodycamel::BlockingConcurrentQueue<TaskCallback> FastQueue;
 		typedef moodycamel::ConsumerToken ReceiveToken;
 
 		struct Measurement
@@ -10272,9 +10272,6 @@ namespace Mavi
 			VI_MEASURE(Timings::Atomic);
 			auto Queue = Queues[(size_t)Type];
 			Queue->Tasks.enqueue(Callback);
-
-			UMutex<std::mutex> Lock(Queue->Update);
-			Queue->Notify.notify_one();
 			return true;
 		}
 		bool Schedule::SetTask(TaskCallback&& Callback, Difficulty Type)
@@ -10296,9 +10293,6 @@ namespace Mavi
 			VI_MEASURE(Timings::Atomic);
 			auto Queue = Queues[(size_t)Type];
 			Queue->Tasks.enqueue(std::move(Callback));
-
-			UMutex<std::mutex> Lock(Queue->Update);
-			Queue->Notify.notify_one();
 			return true;
 		}
 		bool Schedule::SetCoroutine(const TaskCallback& Callback)
@@ -10566,7 +10560,8 @@ namespace Mavi
 				for (auto* Thread : Threads[i])
 				{
 					Thread->Notify.notify_all();
-					Queue->Tasks.enqueue_bulk(Dummy, EVENTS_SIZE);
+					if (Thread->Type != Difficulty::Timeout)
+						Queue->Tasks.enqueue_bulk(Dummy, EVENTS_SIZE);
 				}
 			}
 
@@ -10667,31 +10662,33 @@ namespace Mavi
 
 					do
 					{
-						size_t Left = Policy.MaxCoroutines - State->GetCount();
-						size_t Count = Left;
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Awake, 0);
 #endif
-						while (Left > 0 && Count > 0)
+						size_t Left = Policy.MaxCoroutines - State->GetCount();
+						while (Left > 0)
 						{
-							Count = Queue->Tasks.try_dequeue_bulk(Token, Events.begin(), Left);
-							Left -= Count;
+							size_t Count = Queue->Tasks.try_dequeue_bulk(Token, Events.begin(), Left);
+							if (!Count)
+								break;
 #ifndef NDEBUG
 							PostDebug(ThreadTask::EnqueueCoroutine, Count);
 #endif
-							for (size_t i = 0; i < Count; ++i)
+							Left -= Count;
+							while (Count--)
 							{
-								TaskCallback& Data = Events[i];
-								if (Data != nullptr)
+								TaskCallback& Data = Events[Count];
+								if (Data)
 									State->Pop(std::move(Data));
 							}
 						}
-#ifndef NDEBUG
-						PostDebug(ThreadTask::ProcessCoroutine, State->GetCount());
-#endif
+
 						if (!Suspended)
 						{
 							VI_MEASURE(Timings::Frame);
+#ifndef NDEBUG
+							PostDebug(ThreadTask::ProcessCoroutine, State->GetCount());
+#endif
 							State->Dispatch();
 						}
 #ifndef NDEBUG
@@ -10727,37 +10724,27 @@ namespace Mavi
 					do
 					{
 #ifndef NDEBUG
-						PostDebug(ThreadTask::Awake, 0);
-#endif
-						if (!Suspended)
-						{
-							size_t Count = 0;
-							do
-							{
-								Count = Queue->Tasks.try_dequeue_bulk(Token, Events, EVENTS_SIZE);
-#ifndef NDEBUG
-								PostDebug(ThreadTask::ProcessTask, Count);
-#endif
-								for (size_t i = 0; i < Count; ++i)
-								{
-									VI_MEASURE(Thread->Type == Difficulty::Simple ? Timings::Frame : Timings::Intensive);
-									TaskCallback Data(std::move(Events[i]));
-									if (Data != nullptr)
-										Data();
-								}
-							} while (Count > 0);
-						}
-#ifndef NDEBUG
 						PostDebug(ThreadTask::Sleep, 0);
 #endif
-						std::unique_lock<std::mutex> Lock(Queue->Update);
-						Queue->Notify.wait_for(Lock, Policy.Timeout, [this, Queue, Thread]()
+						if (Suspended)
 						{
-							if (Suspended)
-								return false;
+							std::unique_lock<std::mutex> Lock(Queue->Update);
+							Queue->Notify.wait_for(Lock, Policy.Timeout);
+							continue;
+						}
 
-							return Queue->Tasks.size_approx() > 0 || !ThreadActive(Thread);
-						});
+						size_t Count = Queue->Tasks.wait_dequeue_bulk_timed(Token, Events, EVENTS_SIZE, Policy.Timeout);
+#ifndef NDEBUG
+						PostDebug(ThreadTask::Awake, 0);
+						PostDebug(ThreadTask::ProcessTask, Count);
+#endif
+						while (Count--)
+						{
+							VI_MEASURE(Thread->Type == Difficulty::Simple ? Timings::Frame : Timings::Intensive);
+							TaskCallback Data(std::move(Events[Count]));
+							if (Data)
+								Data();
+						}
 					} while (ThreadActive(Thread));
 					break;
 				}

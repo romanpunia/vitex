@@ -235,6 +235,10 @@ namespace Mavi
 			{
 				return Base.substr(Offset, Size);
 			}
+			Core::String String::FromPointer(void* Pointer)
+			{
+				return Core::Stringify::Text("0x%" PRIXPTR, Pointer);
+			}
 			Core::String String::FromBuffer(const char* Buffer, size_t MaxSize)
 			{
 				if (!Buffer)
@@ -2207,6 +2211,32 @@ namespace Mavi
 				auto It = Data.find(Key);
 				if (It != Data.end())
 					return &It->second;
+
+				Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_ACCESSINVALID));
+				return 0;
+			}
+			Storable* Dictionary::operator[](size_t Index)
+			{
+				if (Index < Data.size())
+				{
+					auto It = Data.begin();
+					while (Index--)
+						It++;
+					return &It->second;
+				}
+
+				Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_ACCESSINVALID));
+				return 0;
+			}
+			const Storable* Dictionary::operator[](size_t Index) const
+			{
+				if (Index < Data.size())
+				{
+					auto It = Data.begin();
+					while (Index--)
+						It++;
+					return &It->second;
+				}
 
 				Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_ACCESSINVALID));
 				return 0;
@@ -8880,6 +8910,8 @@ namespace Mavi
 					VDictionary->SetMethod("dictionary &opAssign(const dictionary &in)", &Dictionary::operator=);
 					VDictionary->SetMethod<Dictionary, Storable*, const Core::String&>("storable& opIndex(const string&in)", &Dictionary::operator[]);
 					VDictionary->SetMethod<Dictionary, const Storable*, const Core::String&>("const storable& opIndex(const string&in) const", &Dictionary::operator[]);
+					VDictionary->SetMethod<Dictionary, Storable*, size_t>("storable& opIndex(usize)", &Dictionary::operator[]);
+					VDictionary->SetMethod<Dictionary, const Storable*, size_t>("const storable& opIndex(usize) const", &Dictionary::operator[]);
 					VDictionary->SetMethod("void set(const string&in, const ?&in)", &Dictionary::Set);
 					VDictionary->SetMethod("bool get(const string&in, ?&out) const", &Dictionary::Get);
 					VDictionary->SetMethod("bool exists(const string&in) const", &Dictionary::Exists);
@@ -9059,6 +9091,7 @@ namespace Mavi
 				VM->SetFunction("string to_string(float)", &Core::ToString<float>);
 				VM->SetFunction("string to_string(double)", &Core::ToString<double>);
 				VM->SetFunction("string to_string(uptr@, usize)", &String::FromBuffer);
+				VM->SetFunction("string handle_id(uptr@)", &String::FromPointer);
 				VM->SetFunction("uint64 component_id(const string &in)", &Core::OS::File::GetHash);
 
 				VM->BeginNamespace("string");

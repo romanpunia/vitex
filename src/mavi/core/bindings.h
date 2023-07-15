@@ -165,6 +165,7 @@ namespace Mavi
 				static void PopBack(Core::String& Base);
 				static Core::String Substring1(Core::String& Base, size_t Offset);
 				static Core::String Substring2(Core::String& Base, size_t Offset, size_t Size);
+				static Core::String FromPointer(void* Pointer);
 				static Core::String FromBuffer(const char* Buffer, size_t MaxSize);
 				static char* Index(Core::String& Base, size_t Offset);
 				static char* Front(Core::String& Base);
@@ -559,6 +560,8 @@ namespace Mavi
 				bool TryGetIndex(size_t Index, Core::String* Key, void* Value, int TypeId) const;
 				Storable* operator[](const Core::String& Key);
 				const Storable* operator[](const Core::String& Key) const;
+				Storable* operator[](size_t);
+				const Storable* operator[](size_t) const;
 				int GetTypeId(const Core::String& Key) const;
 				bool Exists(const Core::String& Key) const;
 				bool IsEmpty() const;

@@ -12054,7 +12054,7 @@ namespace Mavi
 		}
 		void Schema::ProcessConvertionFromJSON(void* Base, Schema* Current)
 		{
-#ifdef VI_PUGIXML
+#ifdef VI_RAPIDJSON
 			VI_ASSERT(Base != nullptr && Current != nullptr, "base and current should be set");
 			auto Child = (rapidjson::Value*)Base;
 			if (!Child->IsArray())

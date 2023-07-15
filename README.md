@@ -67,19 +67,18 @@ git clone https://github.com/romanpunia/mavi
 Initialize needed submodules while being inside of repository
 ```bash
 # Initialize required submodules
-git submodule update --init ./deps/angelscript
 git submodule update --init ./deps/wepoll
 git submodule update --init ./deps/concurrentqueue
 
 # Initialize needed for your project submodules, for example
-git submodule update --init ./deps/rmlui
+git submodule update --init ./deps/stb
 ```
-Generate and build project files while being inside of repository
+Generate and build project files while being inside of repository and also disable missing submodules
 ```bash
 # Default
-cmake . -DCMAKE_BUILD_TYPE=Release # -DVI_CXX=14
+cmake . -DCMAKE_BUILD_TYPE=Release -DVI_ANGELSCRIPT=OFF -DVI_...=OFF # -DVI_CXX=14
 # With vcpkg
-cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake # -DVI_CXX=14
+cmake . -DCMAKE_BUILD_TYPE=Release -DVI_ANGELSCRIPT=OFF -DVI_...=OFF -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake # -DVI_CXX=14
 ```
 Build project files while being inside of repository
 ```bash
@@ -123,7 +122,8 @@ Dependency options
 + **VI_ZLIB** will enable zlib library to activate compression algorithms, defaults to true
 + **VI_SPIRV** will enable SPIRV Cross and glslang libraries to allow shader cross-compiling, defaults to true
 + **VI_SIMD** will enable vectorclass built-in library to allow SIMD optimisations, defaults to false
-+ **VI_JIT** will enable JIT compiler for AngelScript, defaults to false
++ **VI_ANGELSCRIPT** will enable built-in AngelScript library to execute scripts, defaults to true
++ **VI_JIT** will enable built-in JIT compiler for AngelScript, defaults to false
 + **VI_FCTX** will enable internal fcontext implementation for coroutines, defaults to true
 + **VI_BULLET3** will enable built-in Bullet3 library to use physics interfaces, defaults to true
 + **VI_RMLUI** will enable built-in RmlUi library to use gui interfaces, defaults to true
@@ -134,10 +134,10 @@ Dependency options
 + **VI_RAPIDJSON** will enable built-in rapidjson library to parse JSON files, defaults to true
 
 ## Dependencies
-Only those marked with _required_ are necessary for build.
-* [AngelScript (submodule, required)](https://github.com/codecat/angelscript-mirror)
+Only those marked with _required_ are necessary for minimal build.
 * [wepoll (submodule, required)](https://github.com/piscisaureus/wepoll)
 * [concurrentqueue (submodule, required)](https://github.com/cameron314/concurrentqueue)
+* [AngelScript (submodule)](https://github.com/codecat/angelscript-mirror)
 * [PugiXML (submodule)](https://github.com/zeux/pugixml)
 * [RapidJSON (submodule)](https://github.com/tencent/rapidjson)
 * [stb (submodule)](https://github.com/nothings/stb)

@@ -1,7 +1,7 @@
 #ifndef COMPILER_ASM_H
 #define COMPILER_ASM_H
 #include "compiler.h"
-#ifdef HAS_AS_JIT
+#ifdef ANGELSCRIPT_JIT
 #include <stddef.h>
 #include <stdio.h>
 

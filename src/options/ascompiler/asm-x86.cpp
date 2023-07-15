@@ -1,5 +1,5 @@
 #include "asm.h"
-#ifdef HAS_AS_JIT_32
+#ifdef ANGELSCRIPT_JIT_32
 #include <limits.h>
 #include <stdarg.h>
 #include <stack>

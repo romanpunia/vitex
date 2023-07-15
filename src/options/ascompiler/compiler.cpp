@@ -1,5 +1,5 @@
 #include "compiler.h"
-#ifdef HAS_AS_JIT
+#ifdef ANGELSCRIPT_JIT
 #include <math.h>
 #include <string.h>
 #include <stdio.h>

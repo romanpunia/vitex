@@ -2,11 +2,10 @@
 #include "bindings.h"
 #include "../mavi.h"
 #include <iostream>
-#ifndef ANGELSCRIPT_H 
+#ifdef VI_ANGELSCRIPT
 #include <angelscript.h>
 #ifdef VI_JIT
 #include <ascompiler/compiler.h>
-#endif
 #endif
 
 namespace
@@ -184,6 +183,7 @@ namespace
 			Source.erase(Source.end() - 1);
 	}
 }
+#endif
 
 namespace Mavi
 {
@@ -281,7 +281,7 @@ namespace Mavi
 		{
 			VI_ASSERT(TypeName != nullptr, "typename should be set");
 			VI_ASSERT(Object != nullptr, "object should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptContext* Context = asGetActiveContext();
 			VI_ASSERT(Context != nullptr, "context should be set");
 
@@ -290,11 +290,14 @@ namespace Mavi
 
 			TypeInfo Type = Engine->GetTypeInfoByName(TypeName);
 			return Engine->NotifyOfNewObject(Object, Type.GetTypeInfo());
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> FunctionFactory::AtomicNotifyGCById(int TypeId, void* Object)
 		{
 			VI_ASSERT(Object != nullptr, "object should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptContext* Context = asGetActiveContext();
 			VI_ASSERT(Context != nullptr, "context should be set");
 
@@ -303,24 +306,39 @@ namespace Mavi
 
 			TypeInfo Type = Engine->GetTypeInfoById(TypeId);
 			return Engine->NotifyOfNewObject(Object, Type.GetTypeInfo());
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		asSFuncPtr* FunctionFactory::CreateFunctionBase(void(*Base)(), int Type)
 		{
 			VI_ASSERT(Base != nullptr, "function pointer should be set");
+#ifdef VI_ANGELSCRIPT
 			asSFuncPtr* Ptr = VI_NEW(asSFuncPtr, Type);
 			Ptr->ptr.f.func = reinterpret_cast<asFUNCTION_t>(Base);
 			return Ptr;
+#else
+			return nullptr;
+#endif
 		}
 		asSFuncPtr* FunctionFactory::CreateMethodBase(const void* Base, size_t Size, int Type)
 		{
 			VI_ASSERT(Base != nullptr, "function pointer should be set");
+#ifdef VI_ANGELSCRIPT
 			asSFuncPtr* Ptr = VI_NEW(asSFuncPtr, Type);
 			Ptr->CopyMethodPtr(Base, Size);
 			return Ptr;
+#else
+			return nullptr;
+#endif
 		}
 		asSFuncPtr* FunctionFactory::CreateDummyBase()
 		{
+#ifdef VI_ANGELSCRIPT
 			return VI_NEW(asSFuncPtr, 0);
+#else
+			return nullptr;
+#endif
 		}
 		void FunctionFactory::ReplacePreconditions(const Core::String& Keyword, Core::String& Code, const std::function<Core::String(const Core::String& Expression)>& Replacer)
 		{
@@ -426,24 +444,28 @@ namespace Mavi
 		{
 			if (!Ptr || !*Ptr)
 				return;
-
+#ifdef VI_ANGELSCRIPT
 			VI_DELETE(asSFuncPtr, *Ptr);
 			*Ptr = nullptr;
+#endif
 		}
 		void FunctionFactory::GCEnumCallback(asIScriptEngine* Engine, void* Reference)
 		{
+#ifdef VI_ANGELSCRIPT
 			if (Reference != nullptr)
 				Engine->GCEnumCallback(Reference);
+#endif
 		}
 		void FunctionFactory::GCEnumCallback(asIScriptEngine* Engine, asIScriptFunction* Reference)
 		{
 			if (!Reference)
 				return;
-
+#ifdef VI_ANGELSCRIPT
 			Engine->GCEnumCallback(Reference);
 			GCEnumCallback(Engine, Reference->GetDelegateFunction());
 			GCEnumCallback(Engine, Reference->GetDelegateObject());
 			GCEnumCallback(Engine, Reference->GetDelegateObjectType());
+#endif
 		}
 		void FunctionFactory::GCEnumCallback(asIScriptEngine* Engine, FunctionDelegate* Reference)
 		{
@@ -457,27 +479,47 @@ namespace Mavi
 		const char* MessageInfo::GetSection() const
 		{
 			VI_ASSERT(IsValid(), "message should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->section;
+#else
+			return "";
+#endif
 		}
 		const char* MessageInfo::GetText() const
 		{
 			VI_ASSERT(IsValid(), "message should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->message;
+#else
+			return "";
+#endif
 		}
 		LogCategory MessageInfo::GetType() const
 		{
 			VI_ASSERT(IsValid(), "message should be valid");
+#ifdef VI_ANGELSCRIPT
 			return (LogCategory)Info->type;
+#else
+			return LogCategory::ERR;
+#endif
 		}
 		int MessageInfo::GetRow() const
 		{
 			VI_ASSERT(IsValid(), "message should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->row;
+#else
+			return 0;
+#endif
 		}
 		int MessageInfo::GetColumn() const
 		{
 			VI_ASSERT(IsValid(), "message should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->col;
+#else
+			return 0;
+#endif
 		}
 		asSMessageInfo* MessageInfo::GetMessageInfo() const
 		{
@@ -490,13 +532,15 @@ namespace Mavi
 
 		TypeInfo::TypeInfo(asITypeInfo* TypeInfo) noexcept : Info(TypeInfo)
 		{
+#ifdef VI_ANGELSCRIPT
 			VM = (Info ? VirtualMachine::Get(Info->GetEngine()) : nullptr);
+#endif
 		}
 		void TypeInfo::ForEachProperty(const PropertyCallback& Callback)
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
 			VI_ASSERT(Callback, "typeinfo should not be empty");
-
+#ifdef VI_ANGELSCRIPT
 			unsigned int Count = Info->GetPropertyCount();
 			for (unsigned int i = 0; i < Count; i++)
 			{
@@ -504,12 +548,13 @@ namespace Mavi
 				if (GetProperty(i, &Prop))
 					Callback(this, &Prop);
 			}
+#endif
 		}
 		void TypeInfo::ForEachMethod(const MethodCallback& Callback)
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
 			VI_ASSERT(Callback, "typeinfo should not be empty");
-
+#ifdef VI_ANGELSCRIPT
 			unsigned int Count = Info->GetMethodCount();
 			for (unsigned int i = 0; i < Count; i++)
 			{
@@ -517,142 +562,243 @@ namespace Mavi
 				if (Method.IsValid())
 					Callback(this, &Method);
 			}
+#endif
 		}
 		const char* TypeInfo::GetGroup() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetConfigGroup();
+#else
+			return "";
+#endif
 		}
 		size_t TypeInfo::GetAccessMask() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetAccessMask();
+#else
+			return 0;
+#endif
 		}
 		Module TypeInfo::GetModule() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetModule();
+#else
+			return Module(nullptr);
+#endif
 		}
 		void TypeInfo::AddRef() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			Info->AddRef();
+#endif
 		}
 		void TypeInfo::Release()
 		{
 			if (!IsValid())
 				return;
-
+#ifdef VI_ANGELSCRIPT
 			VI_CLEAR(Info);
+#endif
 		}
 		const char* TypeInfo::GetName() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetName();
+#else
+			return "";
+#endif
 		}
 		const char* TypeInfo::GetNamespace() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetNamespace();
+#else
+			return "";
+#endif
 		}
 		TypeInfo TypeInfo::GetBaseType() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetBaseType();
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		bool TypeInfo::DerivesFrom(const TypeInfo& Type) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->DerivesFrom(Type.GetTypeInfo());
+#else
+			return false;
+#endif
 		}
 		size_t TypeInfo::GetFlags() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetFlags();
+#else
+			return 0;
+#endif
 		}
 		size_t TypeInfo::GetSize() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Info->GetSize();
+#else
+			return 0;
+#endif
 		}
 		int TypeInfo::GetTypeId() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetTypeId();
+#else
+			return -1;
+#endif
 		}
 		int TypeInfo::GetSubTypeId(size_t SubTypeIndex) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetSubTypeId((asUINT)SubTypeIndex);
+#else
+			return -1;
+#endif
 		}
 		TypeInfo TypeInfo::GetSubType(size_t SubTypeIndex) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetSubType((asUINT)SubTypeIndex);
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		size_t TypeInfo::GetSubTypeCount() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Info->GetSubTypeCount();
+#else
+			return 0;
+#endif
 		}
 		size_t TypeInfo::GetInterfaceCount() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Info->GetInterfaceCount();
+#else
+			return 0;
+#endif
 		}
 		TypeInfo TypeInfo::GetInterface(size_t Index) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetInterface((asUINT)Index);
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		bool TypeInfo::Implements(const TypeInfo& Type) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->Implements(Type.GetTypeInfo());
+#else
+			return false;
+#endif
 		}
 		size_t TypeInfo::GetFactoriesCount() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Info->GetFactoryCount();
+#else
+			return 0;
+#endif
 		}
 		Function TypeInfo::GetFactoryByIndex(size_t Index) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetFactoryByIndex((asUINT)Index);
+#else
+			return Function(nullptr);
+#endif
 		}
 		Function TypeInfo::GetFactoryByDecl(const char* Decl) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetFactoryByDecl(Decl);
+#else
+			return Function(nullptr);
+#endif
 		}
 		size_t TypeInfo::GetMethodsCount() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Info->GetMethodCount();
+#else
+			return 0;
+#endif
 		}
 		Function TypeInfo::GetMethodByIndex(size_t Index, bool GetVirtual) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetMethodByIndex((asUINT)Index, GetVirtual);
+#else
+			return Function(nullptr);
+#endif
 		}
 		Function TypeInfo::GetMethodByName(const char* Name, bool GetVirtual) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetMethodByName(Name, GetVirtual);
+#else
+			return Function(nullptr);
+#endif
 		}
 		Function TypeInfo::GetMethodByDecl(const char* Decl, bool GetVirtual) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetMethodByDecl(Decl, GetVirtual);
+#else
+			return Function(nullptr);
+#endif
 		}
 		size_t TypeInfo::GetPropertiesCount() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Info->GetPropertyCount();
+#else
+			return 0;
+#endif
 		}
 		ExpectsVM<void> TypeInfo::GetProperty(size_t Index, FunctionInfo* Out) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			const char* Name;
 			asDWORD AccessMask;
 			int TypeId, Offset;
@@ -671,97 +817,169 @@ namespace Mavi
 				Out->IsReference = IsReference;
 			}
 			return FunctionFactory::ToReturn(R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		const char* TypeInfo::GetPropertyDeclaration(size_t Index, bool IncludeNamespace) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetPropertyDeclaration((asUINT)Index, IncludeNamespace);
+#else
+			return "";
+#endif
 		}
 		size_t TypeInfo::GetBehaviourCount() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Info->GetBehaviourCount();
+#else
+			return 0;
+#endif
 		}
 		Function TypeInfo::GetBehaviourByIndex(size_t Index, Behaviours* OutBehaviour) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
-
+#ifdef VI_ANGELSCRIPT
 			asEBehaviours Out;
 			asIScriptFunction* Result = Info->GetBehaviourByIndex((asUINT)Index, &Out);
 			if (OutBehaviour != nullptr)
 				*OutBehaviour = (Behaviours)Out;
 
 			return Result;
+#else
+			return Function(nullptr);
+#endif
 		}
 		size_t TypeInfo::GetChildFunctionDefCount() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Info->GetChildFuncdefCount();
+#else
+			return 0;
+#endif
 		}
 		TypeInfo TypeInfo::GetChildFunctionDef(size_t Index) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetChildFuncdef((asUINT)Index);
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		TypeInfo TypeInfo::GetParentType() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetParentType();
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		size_t TypeInfo::GetEnumValueCount() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Info->GetEnumValueCount();
+#else
+			return 0;
+#endif
 		}
 		const char* TypeInfo::GetEnumValueByIndex(size_t Index, int* OutValue) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetEnumValueByIndex((asUINT)Index, OutValue);
+#else
+			return "";
+#endif
 		}
 		Function TypeInfo::GetFunctionDefSignature() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetFuncdefSignature();
+#else
+			return Function(nullptr);
+#endif
 		}
 		void* TypeInfo::SetUserData(void* Data, size_t Type)
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->SetUserData(Data, Type);
+#else
+			return nullptr;
+#endif
 		}
 		void* TypeInfo::GetUserData(size_t Type) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Info->GetUserData(Type);
+#else
+			return nullptr;
+#endif
 		}
 		bool TypeInfo::IsHandle() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
 			return IsHandle(Info->GetTypeId());
+#else
+			return false;
+#endif
 		}
 		bool TypeInfo::IsValid() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return VM != nullptr && Info != nullptr;
+#else
+			return false;
+#endif
 		}
 		asITypeInfo* TypeInfo::GetTypeInfo() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Info;
+#else
+			return nullptr;
+#endif
 		}
 		VirtualMachine* TypeInfo::GetVM() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return VM;
+#else
+			return nullptr;
+#endif
 		}
 		bool TypeInfo::IsHandle(int TypeId)
 		{
+#ifdef VI_ANGELSCRIPT
 			return (TypeId & asTYPEID_OBJHANDLE || TypeId & asTYPEID_HANDLETOCONST);
+#else
+			return false;
+#endif
 		}
 		bool TypeInfo::IsScriptObject(int TypeId)
 		{
+#ifdef VI_ANGELSCRIPT
 			return (TypeId & asTYPEID_SCRIPTOBJECT);
+#else
+			return false;
+#endif
 		}
 
 		Function::Function(asIScriptFunction* Base) noexcept : Ptr(Base)
 		{
+#ifdef VI_ANGELSCRIPT
 			VM = (Base ? VirtualMachine::Get(Base->GetEngine()) : nullptr);
+#endif
 		}
 		Function::Function(const Function& Base) noexcept : VM(Base.VM), Ptr(Base.Ptr)
 		{
@@ -769,215 +987,369 @@ namespace Mavi
 		void Function::AddRef() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			Ptr->AddRef();
+#endif
 		}
 		void Function::Release()
 		{
 			if (!IsValid())
 				return;
-
+#ifdef VI_ANGELSCRIPT
 			VI_CLEAR(Ptr);
+#endif
 		}
 		int Function::GetId() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetId();
+#else
+			return -1;
+#endif
 		}
 		FunctionType Function::GetType() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return (FunctionType)Ptr->GetFuncType();
+#else
+			return FunctionType::DUMMY;
+#endif
 		}
 		uint32_t* Function::GetByteCode(size_t* Size) const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			asUINT DataSize = 0;
 			asDWORD* Data = Ptr->GetByteCode(&DataSize);
 			if (Size != nullptr)
 				*Size = DataSize;
 			return (uint32_t*)Data;
+#else
+			return nullptr;
+#endif
 		}
 		const char* Function::GetModuleName() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetModuleName();
+#else
+			return "";
+#endif
 		}
 		Module Function::GetModule() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetModule();
+#else
+			return Module(nullptr);
+#endif
 		}
 		const char* Function::GetSectionName() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetScriptSectionName();
+#else
+			return "";
+#endif
 		}
 		const char* Function::GetGroup() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetConfigGroup();
+#else
+			return "";
+#endif
 		}
 		size_t Function::GetAccessMask() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetAccessMask();
+#else
+			return 0;
+#endif
 		}
 		TypeInfo Function::GetObjectType() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetObjectType();
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		const char* Function::GetObjectName() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetObjectName();
+#else
+			return "";
+#endif
 		}
 		const char* Function::GetName() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetName();
+#else
+			return "";
+#endif
 		}
 		const char* Function::GetNamespace() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetNamespace();
+#else
+			return "";
+#endif
 		}
 		const char* Function::GetDecl(bool IncludeObjectName, bool IncludeNamespace, bool IncludeArgNames) const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetDeclaration(IncludeObjectName, IncludeNamespace, IncludeArgNames);
+#else
+			return "";
+#endif
 		}
 		bool Function::IsReadOnly() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->IsReadOnly();
+#else
+			return false;
+#endif
 		}
 		bool Function::IsPrivate() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->IsPrivate();
+#else
+			return false;
+#endif
 		}
 		bool Function::IsProtected() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->IsProtected();
+#else
+			return false;
+#endif
 		}
 		bool Function::IsFinal() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->IsFinal();
+#else
+			return false;
+#endif
 		}
 		bool Function::IsOverride() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->IsOverride();
+#else
+			return false;
+#endif
 		}
 		bool Function::IsShared() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->IsShared();
+#else
+			return false;
+#endif
 		}
 		bool Function::IsExplicit() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->IsExplicit();
+#else
+			return false;
+#endif
 		}
 		bool Function::IsProperty() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->IsProperty();
+#else
+			return false;
+#endif
 		}
 		size_t Function::GetArgsCount() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Ptr->GetParamCount();
+#else
+			return 0;
+#endif
 		}
 		ExpectsVM<void> Function::GetArg(size_t Index, int* TypeId, size_t* Flags, const char** Name, const char** DefaultArg) const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			asDWORD asFlags;
 			int R = Ptr->GetParam((asUINT)Index, TypeId, &asFlags, Name, DefaultArg);
 			if (Flags != nullptr)
 				*Flags = (size_t)asFlags;
 			return FunctionFactory::ToReturn(R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		int Function::GetReturnTypeId(size_t* Flags) const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
-
+#ifdef VI_ANGELSCRIPT
 			asDWORD asFlags;
 			int R = Ptr->GetReturnTypeId(&asFlags);
 			if (Flags != nullptr)
 				*Flags = (size_t)asFlags;
 
 			return R;
+#else
+			return -1;
+#endif
 		}
 		int Function::GetTypeId() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetTypeId();
+#else
+			return -1;
+#endif
 		}
 		bool Function::IsCompatibleWithTypeId(int TypeId) const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->IsCompatibleWithTypeId(TypeId);
+#else
+			return false;
+#endif
 		}
 		void* Function::GetDelegateObject() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetDelegateObject();
+#else
+			return nullptr;
+#endif
 		}
 		TypeInfo Function::GetDelegateObjectType() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetDelegateObjectType();
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		Function Function::GetDelegateFunction() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetDelegateFunction();
+#else
+			return Function(nullptr);
+#endif
 		}
 		size_t Function::GetPropertiesCount() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Ptr->GetVarCount();
+#else
+			return 0;
+#endif
 		}
 		ExpectsVM<void> Function::GetProperty(size_t Index, const char** Name, int* TypeId) const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Ptr->GetVar((asUINT)Index, Name, TypeId));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		const char* Function::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetVarDecl((asUINT)Index, IncludeNamespace);
+#else
+			return "";
+#endif
 		}
 		int Function::FindNextLineWithCode(int Line) const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->FindNextLineWithCode(Line);
+#else
+			return -1;
+#endif
 		}
 		void* Function::SetUserData(void* UserData, size_t Type)
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->SetUserData(UserData, Type);
+#else
+			return nullptr;
+#endif
 		}
 		void* Function::GetUserData(size_t Type) const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Ptr->GetUserData(Type);
+#else
+			return nullptr;
+#endif
 		}
 		bool Function::IsValid() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return VM != nullptr && Ptr != nullptr;
+#else
+			return false;
+#endif
 		}
 		asIScriptFunction* Function::GetFunction() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Ptr;
+#else
+			return nullptr;
+#endif
 		}
 		VirtualMachine* Function::GetVM() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return VM;
+#else
+			return nullptr;
+#endif
 		}
 
 		ScriptObject::ScriptObject(asIScriptObject* Base) noexcept : Object(Base)
@@ -986,214 +1358,370 @@ namespace Mavi
 		void ScriptObject::AddRef() const
 		{
 			VI_ASSERT(IsValid(), "object should be valid");
+#ifdef VI_ANGELSCRIPT
 			Object->AddRef();
+#endif
 		}
 		void ScriptObject::Release()
 		{
 			if (!IsValid())
 				return;
-
+#ifdef VI_ANGELSCRIPT
 			VI_CLEAR(Object);
+#endif
 		}
 		TypeInfo ScriptObject::GetObjectType()
 		{
 			VI_ASSERT(IsValid(), "object should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Object->GetObjectType();
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		int ScriptObject::GetTypeId()
 		{
 			VI_ASSERT(IsValid(), "object should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Object->GetTypeId();
+#else
+			return -1;
+#endif
 		}
 		int ScriptObject::GetPropertyTypeId(size_t Id) const
 		{
 			VI_ASSERT(IsValid(), "object should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Object->GetPropertyTypeId((asUINT)Id);
+#else
+			return -1;
+#endif
 		}
 		size_t ScriptObject::GetPropertiesCount() const
 		{
 			VI_ASSERT(IsValid(), "object should be valid");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Object->GetPropertyCount();
+#else
+			return 0;
+#endif
 		}
 		const char* ScriptObject::GetPropertyName(size_t Id) const
 		{
 			VI_ASSERT(IsValid(), "object should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Object->GetPropertyName((asUINT)Id);
+#else
+			return "";
+#endif
 		}
 		void* ScriptObject::GetAddressOfProperty(size_t Id)
 		{
 			VI_ASSERT(IsValid(), "object should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Object->GetAddressOfProperty((asUINT)Id);
+#else
+			return nullptr;
+#endif
 		}
 		VirtualMachine* ScriptObject::GetVM() const
 		{
 			VI_ASSERT(IsValid(), "object should be valid");
+#ifdef VI_ANGELSCRIPT
 			return VirtualMachine::Get(Object->GetEngine());
+#else
+			return nullptr;
+#endif
 		}
 		int ScriptObject::CopyFrom(const ScriptObject& Other)
 		{
 			VI_ASSERT(IsValid(), "object should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Object->CopyFrom(Other.GetObject());
+#else
+			return -1;
+#endif
 		}
 		void* ScriptObject::SetUserData(void* Data, size_t Type)
 		{
 			VI_ASSERT(IsValid(), "object should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Object->SetUserData(Data, (asPWORD)Type);
+#else
+			return nullptr;
+#endif
 		}
 		void* ScriptObject::GetUserData(size_t Type) const
 		{
 			VI_ASSERT(IsValid(), "object should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Object->GetUserData((asPWORD)Type);
+#else
+			return nullptr;
+#endif
 		}
 		bool ScriptObject::IsValid() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Object != nullptr;
+#else
+			return false;
+#endif
 		}
 		asIScriptObject* ScriptObject::GetObject() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Object;
+#else
+			return nullptr;
+#endif
 		}
 
 		GenericContext::GenericContext(asIScriptGeneric* Base) noexcept : Generic(Base)
 		{
+#ifdef VI_ANGELSCRIPT
 			VM = (Generic ? VirtualMachine::Get(Generic->GetEngine()) : nullptr);
+#endif
 		}
 		void* GenericContext::GetObjectAddress()
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Generic->GetObject();
+#else
+			return nullptr;
+#endif
 		}
 		int GenericContext::GetObjectTypeId() const
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Generic->GetObjectTypeId();
+#else
+			return -1;
+#endif
 		}
 		size_t GenericContext::GetArgsCount() const
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Generic->GetArgCount();
+#else
+			return 0;
+#endif
 		}
-		ExpectsVM<void> GenericContext::GetArgTypeId(size_t Argument, size_t* Flags) const
+		int GenericContext::GetArgTypeId(size_t Argument, size_t* Flags) const
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			asDWORD asFlags;
 			int R = Generic->GetArgTypeId((asUINT)Argument, &asFlags);
 			if (Flags != nullptr)
 				*Flags = (size_t)asFlags;
-			return FunctionFactory::ToReturn(R);
+			return R;
+#else
+			return -1;
+#endif
 		}
 		unsigned char GenericContext::GetArgByte(size_t Argument)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Generic->GetArgByte((asUINT)Argument);
+#else
+			return 0;
+#endif
 		}
 		unsigned short GenericContext::GetArgWord(size_t Argument)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Generic->GetArgWord((asUINT)Argument);
+#else
+			return 0;
+#endif
 		}
 		size_t GenericContext::GetArgDWord(size_t Argument)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Generic->GetArgDWord((asUINT)Argument);
+#else
+			return 0;
+#endif
 		}
 		uint64_t GenericContext::GetArgQWord(size_t Argument)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Generic->GetArgQWord((asUINT)Argument);
+#else
+			return 0;
+#endif
 		}
 		float GenericContext::GetArgFloat(size_t Argument)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Generic->GetArgFloat((asUINT)Argument);
+#else
+			return 0.0f;
+#endif
 		}
 		double GenericContext::GetArgDouble(size_t Argument)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Generic->GetArgDouble((asUINT)Argument);
+#else
+			return 0.0;
+#endif
 		}
 		void* GenericContext::GetArgAddress(size_t Argument)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Generic->GetArgAddress((asUINT)Argument);
+#else
+			return nullptr;
+#endif
 		}
 		void* GenericContext::GetArgObjectAddress(size_t Argument)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Generic->GetArgObject((asUINT)Argument);
+#else
+			return nullptr;
+#endif
 		}
 		void* GenericContext::GetAddressOfArg(size_t Argument)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Generic->GetAddressOfArg((asUINT)Argument);
+#else
+			return nullptr;
+#endif
 		}
 		int GenericContext::GetReturnTypeId(size_t* Flags) const
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
-
+#ifdef VI_ANGELSCRIPT
 			asDWORD asFlags;
 			int TypeId = Generic->GetReturnTypeId(&asFlags);
 			if (Flags != nullptr)
 				*Flags = (size_t)asFlags;
 
 			return TypeId;
+#else
+			return -1;
+#endif
 		}
 		ExpectsVM<void> GenericContext::SetReturnByte(unsigned char Value)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnByte(Value));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> GenericContext::SetReturnWord(unsigned short Value)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnWord(Value));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> GenericContext::SetReturnDWord(size_t Value)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnDWord((asDWORD)Value));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> GenericContext::SetReturnQWord(uint64_t Value)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnQWord(Value));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> GenericContext::SetReturnFloat(float Value)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnFloat(Value));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> GenericContext::SetReturnDouble(double Value)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnDouble(Value));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> GenericContext::SetReturnAddress(void* Address)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnAddress(Address));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> GenericContext::SetReturnObjectAddress(void* Object)
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnObject(Object));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		void* GenericContext::GetAddressOfReturnLocation()
 		{
 			VI_ASSERT(IsValid(), "generic should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Generic->GetAddressOfReturnLocation();
+#else
+			return nullptr;
+#endif
 		}
 		bool GenericContext::IsValid() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return VM != nullptr && Generic != nullptr;
+#else
+			return false;
+#endif
 		}
 		asIScriptGeneric* GenericContext::GetGeneric() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Generic;
+#else
+			return nullptr;
+#endif
 		}
 		VirtualMachine* GenericContext::GetVM() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return VM;
+#else
+			return nullptr;
+#endif
 		}
 
 		BaseClass::BaseClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : VM(Engine), Type(Source), TypeId(Type)
@@ -1207,8 +1735,11 @@ namespace Mavi
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " funcdef %i bytes", (void*)this, (int)strlen(Decl));
-
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterFuncdef(Decl));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> BaseClass::SetOperatorCopyAddress(asSFuncPtr* Value, FunctionCall Type)
 		{
@@ -1220,7 +1751,11 @@ namespace Mavi
 
 			Core::String Decl = Core::Stringify::Text("%s& opAssign(const %s &in)", GetTypeName(), GetTypeName());
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(GetTypeName(), Decl.c_str(), *Value, (asECallConvTypes)Type));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> BaseClass::SetBehaviourAddress(const char* Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall Type)
 		{
@@ -1231,8 +1766,11 @@ namespace Mavi
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " behaviour funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
-
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), (asEBehaviours)Behave, Decl, *Value, (asECallConvTypes)Type));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> BaseClass::SetPropertyAddress(const char* Decl, int Offset)
 		{
@@ -1242,8 +1780,11 @@ namespace Mavi
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " property %i bytes at 0x0+%i", (void*)this, (int)strlen(Decl), Offset);
-
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectProperty(GetTypeName(), Decl, Offset));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> BaseClass::SetPropertyStaticAddress(const char* Decl, void* Value)
 		{
@@ -1254,7 +1795,7 @@ namespace Mavi
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-
+#ifdef VI_ANGELSCRIPT
 			const char* Namespace = Engine->GetDefaultNamespace();
 			const char* Scope = Type->GetNamespace();
 
@@ -1263,6 +1804,9 @@ namespace Mavi
 			Engine->SetDefaultNamespace(Namespace);
 
 			return FunctionFactory::ToReturn(R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> BaseClass::SetOperatorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
@@ -1277,8 +1821,11 @@ namespace Mavi
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
-
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(GetTypeName(), Decl, *Value, (asECallConvTypes)Type));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> BaseClass::SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
@@ -1289,7 +1836,7 @@ namespace Mavi
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " static funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
-
+#ifdef VI_ANGELSCRIPT
 			const char* Namespace = Engine->GetDefaultNamespace();
 			const char* Scope = this->Type->GetNamespace();
 
@@ -1298,7 +1845,9 @@ namespace Mavi
 			Engine->SetDefaultNamespace(Namespace);
 
 			return FunctionFactory::ToReturn(R);
-
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> BaseClass::SetConstructorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
@@ -1309,8 +1858,11 @@ namespace Mavi
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), asBEHAVE_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> BaseClass::SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
@@ -1321,8 +1873,11 @@ namespace Mavi
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), asBEHAVE_LIST_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> BaseClass::SetDestructorAddress(const char* Decl, asSFuncPtr* Value)
 		{
@@ -1333,8 +1888,11 @@ namespace Mavi
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), asBEHAVE_DESTRUCT, Decl, *Value, asCALL_CDECL_OBJFIRST));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		asITypeInfo* BaseClass::GetTypeInfo() const
 		{
@@ -1350,7 +1908,11 @@ namespace Mavi
 		}
 		const char* BaseClass::GetTypeName() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Type ? Type->GetName() : "";
+#else
+			return "";
+#endif
 		}
 		Core::String BaseClass::GetName() const
 		{
@@ -1529,8 +2091,11 @@ namespace Mavi
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register interface 0x%" PRIXPTR " method %i bytes", (void*)this, (int)strlen(Decl));
-
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterInterfaceMethod(GetTypeName(), Decl));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		asITypeInfo* TypeInterface::GetTypeInfo() const
 		{
@@ -1546,7 +2111,11 @@ namespace Mavi
 		}
 		const char* TypeInterface::GetTypeName() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Type ? Type->GetName() : "";
+#else
+			return "";
+#endif
 		}
 		Core::String TypeInterface::GetName() const
 		{
@@ -1568,8 +2137,11 @@ namespace Mavi
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register enum 0x%" PRIXPTR " value %i bytes = %i", (void*)this, (int)strlen(Name), Value);
-
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterEnumValue(GetTypeName(), Name, Value));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		asITypeInfo* Enumeration::GetTypeInfo() const
 		{
@@ -1585,7 +2157,11 @@ namespace Mavi
 		}
 		const char* Enumeration::GetTypeName() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Type ? Type->GetName() : "";
+#else
+			return "";
+#endif
 		}
 		Core::String Enumeration::GetName() const
 		{
@@ -1598,13 +2174,17 @@ namespace Mavi
 
 		Module::Module(asIScriptModule* Type) noexcept : Mod(Type)
 		{
+#ifdef VI_ANGELSCRIPT
 			VM = (Mod ? VirtualMachine::Get(Mod->GetEngine()) : nullptr);
+#endif
 		}
 		void Module::SetName(const char* Name)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
 			VI_ASSERT(Name != nullptr, "name should be set");
-			return Mod->SetName(Name);
+#ifdef VI_ANGELSCRIPT
+			Mod->SetName(Name);
+#endif
 		}
 		ExpectsVM<void> Module::AddSection(const char* Name, const char* Code, size_t CodeLength, int LineOffset)
 		{
@@ -1616,154 +2196,246 @@ namespace Mavi
 		ExpectsVM<void> Module::RemoveFunction(const Function& Function)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->RemoveFunction(Function.GetFunction()));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Module::ResetProperties(asIScriptContext* Context)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->ResetGlobalVars(Context));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Module::Build()
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			int R = Mod->Build();
 			if (R != asBUILD_IN_PROGRESS)
 				VM->ClearSections();
 			return FunctionFactory::ToReturn(R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Module::LoadByteCode(ByteCodeInfo* Info)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
 			VI_ASSERT(Info != nullptr, "bytecode should be set");
-
+#ifdef VI_ANGELSCRIPT
 			CByteCodeStream* Stream = VI_NEW(CByteCodeStream, Info->Data);
 			int R = Mod->LoadByteCode(Stream, &Info->Debug);
 			VI_DELETE(CByteCodeStream, Stream);
 			return FunctionFactory::ToReturn(R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Module::BindImportedFunction(size_t ImportIndex, const Function& Function)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->BindImportedFunction((asUINT)ImportIndex, Function.GetFunction()));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Module::UnbindImportedFunction(size_t ImportIndex)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->UnbindImportedFunction((asUINT)ImportIndex));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Module::BindAllImportedFunctions()
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->BindAllImportedFunctions());
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Module::UnbindAllImportedFunctions()
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->UnbindAllImportedFunctions());
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Module::CompileFunction(const char* SectionName, const char* Code, int LineOffset, size_t CompileFlags, Function* OutFunction)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
 			VI_ASSERT(SectionName != nullptr, "section name should be set");
 			VI_ASSERT(Code != nullptr, "code should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptFunction* OutFunc = nullptr;
 			int R = Mod->CompileFunction(SectionName, Code, LineOffset, (asDWORD)CompileFlags, &OutFunc);
 			if (OutFunction != nullptr)
 				*OutFunction = Function(OutFunc);
 			return FunctionFactory::ToReturn(R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Module::CompileProperty(const char* SectionName, const char* Code, int LineOffset)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->CompileGlobalVar(SectionName, Code, LineOffset));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Module::SetDefaultNamespace(const char* Namespace)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->SetDefaultNamespace(Namespace));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Module::RemoveProperty(size_t Index)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->RemoveGlobalVar((asUINT)Index));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		void Module::Discard()
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			Mod->Discard();
 			Mod = nullptr;
+#endif
 		}
 		void* Module::GetAddressOfProperty(size_t Index)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetAddressOfGlobalVar((asUINT)Index);
+#else
+			return nullptr;
+#endif
 		}
 		size_t Module::SetAccessMask(size_t AccessMask)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->SetAccessMask((asDWORD)AccessMask);
+#else
+			return 0;
+#endif
 		}
 		size_t Module::GetFunctionCount() const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetFunctionCount();
+#else
+			return 0;
+#endif
 		}
 		Function Module::GetFunctionByIndex(size_t Index) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetFunctionByIndex((asUINT)Index);
+#else
+			return Function(nullptr);
+#endif
 		}
 		Function Module::GetFunctionByDecl(const char* Decl) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetFunctionByDecl(Decl);
+#else
+			return Function(nullptr);
+#endif
 		}
 		Function Module::GetFunctionByName(const char* Name) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetFunctionByName(Name);
+#else
+			return Function(nullptr);
+#endif
 		}
 		int Module::GetTypeIdByDecl(const char* Decl) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetTypeIdByDecl(Decl);
+#else
+			return -1;
+#endif
 		}
 		ExpectsVM<size_t> Module::GetImportedFunctionIndexByDecl(const char* Decl) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			int R = Mod->GetImportedFunctionIndexByDecl(Decl);
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Module::SaveByteCode(ByteCodeInfo* Info) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
 			VI_ASSERT(Info != nullptr, "bytecode should be set");
-
+#ifdef VI_ANGELSCRIPT
 			CByteCodeStream* Stream = VI_NEW(CByteCodeStream);
 			int R = Mod->SaveByteCode(Stream, Info->Debug);
 			Info->Data = Stream->GetCode();
 			VI_DELETE(CByteCodeStream, Stream);
 			return FunctionFactory::ToReturn(R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<size_t> Module::GetPropertyIndexByName(const char* Name) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
 			VI_ASSERT(Name != nullptr, "name should be set");
+#ifdef VI_ANGELSCRIPT
 			int R = Mod->GetGlobalVarIndexByName(Name);
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<size_t> Module::GetPropertyIndexByDecl(const char* Decl) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
 			VI_ASSERT(Decl != nullptr, "declaration should be set");
+#ifdef VI_ANGELSCRIPT
 			int R = Mod->GetGlobalVarIndexByDecl(Decl);
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Module::GetProperty(size_t Index, PropertyInfo* Info) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			const char* Name = nullptr;
 			const char* Namespace = nullptr;
 			bool IsConst = false;
@@ -1782,42 +2454,70 @@ namespace Mavi
 			}
 
 			return FunctionFactory::ToReturn(Result);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		size_t Module::GetAccessMask() const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			asDWORD AccessMask = Mod->SetAccessMask(0);
 			Mod->SetAccessMask(AccessMask);
 			return (size_t)AccessMask;
+#else
+			return 0;
+#endif
 		}
 		size_t Module::GetObjectsCount() const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetObjectTypeCount();
+#else
+			return 0;
+#endif
 		}
 		size_t Module::GetPropertiesCount() const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetGlobalVarCount();
+#else
+			return 0;
+#endif
 		}
 		size_t Module::GetEnumsCount() const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetEnumCount();
+#else
+			return 0;
+#endif
 		}
 		size_t Module::GetImportedFunctionCount() const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetImportedFunctionCount();
+#else
+			return 0;
+#endif
 		}
 		TypeInfo Module::GetObjectByIndex(size_t Index) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetObjectTypeByIndex((asUINT)Index);
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		TypeInfo Module::GetTypeInfoByName(const char* Name) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			const char* TypeName = Name;
 			const char* Namespace = nullptr;
 			size_t NamespaceSize = 0;
@@ -1830,53 +2530,96 @@ namespace Mavi
 			VM->EndNamespace();
 
 			return Info;
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		TypeInfo Module::GetTypeInfoByDecl(const char* Decl) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetTypeInfoByDecl(Decl);
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		TypeInfo Module::GetEnumByIndex(size_t Index) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetEnumByIndex((asUINT)Index);
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		const char* Module::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetGlobalVarDeclaration((asUINT)Index, IncludeNamespace);
+#else
+			return "";
+#endif
 		}
 		const char* Module::GetDefaultNamespace() const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetDefaultNamespace();
+#else
+			return "";
+#endif
 		}
 		const char* Module::GetImportedFunctionDecl(size_t ImportIndex) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetImportedFunctionDeclaration((asUINT)ImportIndex);
+#else
+			return "";
+#endif
 		}
 		const char* Module::GetImportedFunctionModule(size_t ImportIndex) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetImportedFunctionSourceModule((asUINT)ImportIndex);
+#else
+			return "";
+#endif
 		}
 		const char* Module::GetName() const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
 			return Mod->GetName();
+#else
+			return "";
+#endif
 		}
 		bool Module::IsValid() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return VM != nullptr && Mod != nullptr;
+#else
+			return false;
+#endif
 		}
 		asIScriptModule* Module::GetModule() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Mod;
+#else
+			return nullptr;
+#endif
 		}
 		VirtualMachine* Module::GetVM() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return VM;
+#else
+			return nullptr;
+#endif
 		}
 
 		FunctionDelegate::FunctionDelegate() : Context(nullptr), Callback(nullptr), DelegateType(nullptr), DelegateObject(nullptr)
@@ -1886,18 +2629,19 @@ namespace Mavi
 		{
 			if (!Function.IsValid())
 				return;
-
+#ifdef VI_ANGELSCRIPT
 			Context = ImmediateContext::Get();
 			Callback = Function.GetFunction();
 			DelegateType = Callback->GetDelegateObjectType();
 			DelegateObject = Callback->GetDelegateObject();
 			AddRefAndInitialize(true);
+#endif
 		}
 		FunctionDelegate::FunctionDelegate(const Function& Function, ImmediateContext* WantedContext) : Context(WantedContext), Callback(nullptr), DelegateType(nullptr), DelegateObject(nullptr)
 		{
 			if (!Function.IsValid())
 				return;
-
+#ifdef VI_ANGELSCRIPT
 			if (!Context)
 				Context = ImmediateContext::Get();
 
@@ -1905,6 +2649,7 @@ namespace Mavi
 			DelegateType = Callback->GetDelegateObjectType();
 			DelegateObject = Callback->GetDelegateObject();
 			AddRefAndInitialize(true);
+#endif
 		}
 		FunctionDelegate::FunctionDelegate(const FunctionDelegate& Other) : Context(Other.Context), Callback(Other.Callback), DelegateType(Other.DelegateType), DelegateObject(Other.DelegateObject)
 		{
@@ -1962,13 +2707,14 @@ namespace Mavi
 		{
 			if (!IsValid())
 				return;
-
+#ifdef VI_ANGELSCRIPT
 			if (DelegateObject != nullptr)
 				Context->GetVM()->AddRefObject(DelegateObject, DelegateType);
 
 			if (!IsFirstTime)
 				Callback->AddRef();
 			Context->AddRef();
+#endif
 		}
 		void FunctionDelegate::AddRef()
 		{
@@ -1978,7 +2724,7 @@ namespace Mavi
 		{
 			if (!IsValid())
 				return;
-
+#ifdef VI_ANGELSCRIPT
 			if (DelegateObject != nullptr)
 				Context->GetVM()->ReleaseObject(DelegateObject, DelegateType);
 
@@ -1986,6 +2732,7 @@ namespace Mavi
 			DelegateType = nullptr;
 			VI_CLEAR(Callback);
 			VI_CLEAR(Context);
+#endif
 		}
 		bool FunctionDelegate::IsValid() const
 		{
@@ -2135,12 +2882,14 @@ namespace Mavi
 					const Core::String& Value = Args[1];
 					auto Numeric = Core::FromString<uint64_t>(Value);
 					size_t Result = Numeric ? (size_t)*Numeric : 0;
+#ifdef VI_ANGELSCRIPT
 					if (Key == "NAME")
 						Scope->SetName(Value.c_str());
 					else if (Key == "NAMESPACE")
 						Scope->SetDefaultNamespace(Value.c_str());
 					else if (Key == "ACCESS_MASK")
 						Scope->SetAccessMask((asDWORD)Result);
+#endif
 				}
 				else if (Name == "cimport" && Args.size() >= 2)
 				{
@@ -2202,9 +2951,10 @@ namespace Mavi
 		}
 		Compiler::~Compiler() noexcept
 		{
+#ifdef VI_ANGELSCRIPT
 			if (Scope != nullptr)
 				Scope->Discard();
-
+#endif
 			VI_RELEASE(Processor);
 		}
 		void Compiler::SetIncludeCallback(const Compute::ProcIncludeCallback& Callback)
@@ -2232,9 +2982,10 @@ namespace Mavi
 		bool Compiler::Clear()
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
+#ifdef VI_ANGELSCRIPT
 			if (Scope != nullptr)
 				Scope->Discard();
-
+#endif
 			if (Processor != nullptr)
 				Processor->Clear();
 
@@ -2258,7 +3009,7 @@ namespace Mavi
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(Info != nullptr, "bytecode should be set");
-
+#ifdef VI_ANGELSCRIPT
 			if (!Info->Valid || Info->Data.empty())
 				return VirtualError::INVALID_ARG;
 
@@ -2266,13 +3017,16 @@ namespace Mavi
 			if (Result)
 				VCache = *Info;
 			return Result;
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Compiler::Prepare(const Core::String& ModuleName, bool Scoped)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(!ModuleName.empty(), "module name should not be empty");
 			VI_DEBUG("[vm] prepare %s on 0x%" PRIXPTR, ModuleName.c_str(), (uintptr_t)this);
-
+#ifdef VI_ANGELSCRIPT
 			Built = false;
 			VCache.Valid = false;
 			VCache.Name.clear();
@@ -2291,11 +3045,14 @@ namespace Mavi
 			Scope->SetUserData(this, CompilerUD);
 			VM->SetProcessorOptions(Processor);
 			return Core::Optional::OK;
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Compiler::Prepare(const Core::String& ModuleName, const Core::String& Name, bool Debug, bool Scoped)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
-
+#ifdef VI_ANGELSCRIPT
 			auto Result = Prepare(ModuleName, Scoped);
 			if (!Result)
 				return Result;
@@ -2309,6 +3066,9 @@ namespace Mavi
 			}
 
 			return Result;
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Compiler::SaveByteCode(ByteCodeInfo* Info)
 		{
@@ -2316,7 +3076,7 @@ namespace Mavi
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
 			VI_ASSERT(Info != nullptr, "bytecode should be set");
 			VI_ASSERT(Built, "module should be built");
-
+#ifdef VI_ANGELSCRIPT
 			CByteCodeStream* Stream = VI_NEW(CByteCodeStream);
 			int R = Scope->SaveByteCode(Stream, !Info->Debug);
 			Info->Data = Stream->GetCode();
@@ -2324,12 +3084,15 @@ namespace Mavi
 			if (R >= 0)
 				VI_DEBUG("[vm] OK save bytecode on 0x%" PRIXPTR, (uintptr_t)this);
 			return FunctionFactory::ToReturn(R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Compiler::LoadFile(const Core::String& Path)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
-
+#ifdef VI_ANGELSCRIPT
 			if (VCache.Valid)
 				return Core::Optional::OK;
 
@@ -2358,12 +3121,15 @@ namespace Mavi
 			if (Result)
 				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR " (file)", (uintptr_t)this);
 			return Result;
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Compiler::LoadCode(const Core::String& Name, const Core::String& Data)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
-
+#ifdef VI_ANGELSCRIPT
 			if (VCache.Valid)
 				return Core::Optional::OK;
 
@@ -2375,12 +3141,15 @@ namespace Mavi
 			if (Result)
 				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
 			return Result;
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> Compiler::LoadCode(const Core::String& Name, const char* Data, size_t Size)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
-
+#ifdef VI_ANGELSCRIPT
 			if (VCache.Valid)
 				return Core::Optional::OK;
 
@@ -2392,13 +3161,16 @@ namespace Mavi
 			if (Result)
 				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
 			return Result;
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsPromiseVM<void> Compiler::LoadByteCode(ByteCodeInfo* Info)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
 			VI_ASSERT(Info != nullptr, "bytecode should be set");
-
+#ifdef VI_ANGELSCRIPT
 			CByteCodeStream* Stream = VI_NEW(CByteCodeStream, Info->Data);
 			return Core::Cotask<ExpectsVM<void>>([this, Stream, Info]()
 			{
@@ -2410,12 +3182,15 @@ namespace Mavi
 					VI_DEBUG("[vm] OK load bytecode on 0x%" PRIXPTR, (uintptr_t)this);
 				return FunctionFactory::ToReturn(R);
 			});
+#else
+			return ExpectsPromiseVM<void>(VirtualError::NOT_SUPPORTED);
+#endif
 		}
 		ExpectsPromiseVM<void> Compiler::Compile()
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
-
+#ifdef VI_ANGELSCRIPT
 			if (VCache.Valid)
 			{
 				return LoadByteCode(&VCache).Then<ExpectsVM<void>>([this](ExpectsVM<void>&& Result)
@@ -2447,6 +3222,9 @@ namespace Mavi
 					VM->SetByteCodeCache(&VCache);
 				return Status;
 			});
+#else
+			return ExpectsPromiseVM<void>(VirtualError::NOT_SUPPORTED);
+#endif
 		}
 		ExpectsPromiseVM<void> Compiler::CompileFile(const char* Name, const char* ModuleName, const char* EntryName)
 		{
@@ -2454,7 +3232,7 @@ namespace Mavi
 			VI_ASSERT(Name != nullptr, "name should be set");
 			VI_ASSERT(ModuleName != nullptr, "module name should be set");
 			VI_ASSERT(EntryName != nullptr, "entry name should be set");
-
+#ifdef VI_ANGELSCRIPT
 			auto Status = Prepare(ModuleName, Name);
 			if (!Status)
 				return ExpectsPromiseVM<void>(Status);
@@ -2464,6 +3242,9 @@ namespace Mavi
 				return ExpectsPromiseVM<void>(Status);
 
 			return Compile();
+#else
+			return ExpectsPromiseVM<void>(VirtualError::NOT_SUPPORTED);
+#endif
 		}
 		ExpectsPromiseVM<void> Compiler::CompileMemory(const Core::String& Buffer, const char* ModuleName, const char* EntryName)
 		{
@@ -2471,7 +3252,7 @@ namespace Mavi
 			VI_ASSERT(!Buffer.empty(), "buffer should not be empty");
 			VI_ASSERT(ModuleName != nullptr, "module name should be set");
 			VI_ASSERT(EntryName != nullptr, "entry name should be set");
-
+#ifdef VI_ANGELSCRIPT
 			Core::String Name = "anonymous:" + Core::ToString(Counter++);
 			auto Status = Prepare(ModuleName, "anonymous");
 			if (!Status)
@@ -2482,6 +3263,9 @@ namespace Mavi
 				return ExpectsPromiseVM<void>(Status);
 
 			return Compile();
+#else
+			return ExpectsPromiseVM<void>(VirtualError::NOT_SUPPORTED);
+#endif
 		}
 		ExpectsPromiseVM<Function> Compiler::CompileFunction(const Core::String& Buffer, const char* Returns, const char* Args, Core::Option<size_t>&& FunctionId)
 		{
@@ -2489,7 +3273,7 @@ namespace Mavi
 			VI_ASSERT(!Buffer.empty(), "buffer should not be empty");
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
 			VI_ASSERT(Built, "module should be built");
-
+#ifdef VI_ANGELSCRIPT
 			Core::String Code = Buffer;
 			Core::String Name = " __vfunc" + Core::ToString(FunctionId ? *FunctionId : (Counter + 1));
 			if (!VM->GenerateCode(Processor, Name, Code))
@@ -2562,6 +3346,9 @@ namespace Mavi
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
 				return FunctionFactory::ToReturn<Function>(R, Function(FunctionPointer));
 			});
+#else
+			return ExpectsPromiseVM<Function>(VirtualError::NOT_SUPPORTED);
+#endif
 		}
 		VirtualMachine* Compiler::GetVM() const
 		{
@@ -3086,6 +3873,7 @@ namespace Mavi
 		{
 			ImmediateContext* Context = ImmediateContext::Get(Base);
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			auto State = Base->GetState();
 			if (State != asEXECUTION_ACTIVE && State != asEXECUTION_EXCEPTION)
 			{
@@ -3181,11 +3969,14 @@ namespace Mavi
 
 			if (OnInterrupt)
 				OnInterrupt(false);
+#endif
 		}
 		void DebuggerContext::ExceptionCallback(asIScriptContext* Base)
 		{
+#ifdef VI_ANGELSCRIPT
 			if (!Base->WillExceptionBeCaught())
 				LineCallback(Base);
+#endif
 		}
 		void DebuggerContext::Trigger(ImmediateContext* Context, uint64_t TimeoutMs)
 		{
@@ -3241,6 +4032,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 			VI_ASSERT(Context->GetFunction().IsValid(), "context current function should be set");
+#ifdef VI_ANGELSCRIPT
 			auto IsGlobalSearchOnly = [](const Core::String& Name) -> bool
 			{
 				return Core::Stringify::StartsWith(Name, "::");
@@ -3674,11 +4466,12 @@ namespace Mavi
 				Stream << Indent << ToString(Indent, 3, ThisPointer, ThisTypeId) << std::endl;
 				Output(Stream.str());
 			}
+#endif
 		}
 		void DebuggerContext::PrintByteCode(const Core::String& FunctionDecl, ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT(Base != nullptr, "context should be set");
 
@@ -3720,6 +4513,7 @@ namespace Mavi
 
 			Stream << "\n  " << Size << " instructions, " << Calls << " operations, " << Args << " values\n";
 			Output(Stream.str());
+#endif
 		}
 		void DebuggerContext::ShowException(ImmediateContext* Context)
 		{
@@ -3769,6 +4563,7 @@ namespace Mavi
 		}
 		void DebuggerContext::ListThreads()
 		{
+#ifdef VI_ANGELSCRIPT
 			Core::UnorderedSet<Core::String> Ids;
 			Core::StringStream Stream;
 			size_t Index = 0;
@@ -3798,6 +4593,7 @@ namespace Mavi
 				Stream << "\n";
 			}
 			Output(Stream.str());
+#endif
 		}
 		void DebuggerContext::ListAddons()
 		{
@@ -3807,7 +4603,7 @@ namespace Mavi
 		void DebuggerContext::ListStackRegisters(ImmediateContext* Context, uint32_t Level)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT(Base != nullptr, "context should be set");
 
@@ -3982,6 +4778,7 @@ namespace Mavi
 				Stream << "  stack frame #" << Level << " instructions:\n    ... instructions data are empty\n";
 
 			Output(Stream.str());
+#endif
 		}
 		void DebuggerContext::ListMemberProperties(ImmediateContext* Context)
 		{
@@ -3989,7 +4786,7 @@ namespace Mavi
 
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT(Base != nullptr, "context should be set");
-
+#ifdef VI_ANGELSCRIPT
 			void* Pointer = Base->GetThisPointer();
 			if (Pointer != nullptr)
 			{
@@ -3998,6 +4795,7 @@ namespace Mavi
 				Stream << Indent << "this = " << ToString(Indent, 3, Pointer, Base->GetThisTypeId()) << std::endl;
 				Output(Stream.str());
 			}
+#endif
 		}
 		void DebuggerContext::ListLocalVariables(ImmediateContext* Context)
 		{
@@ -4005,7 +4803,7 @@ namespace Mavi
 
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT(Base != nullptr, "context should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptFunction* Function = Base->GetFunction();
 			if (!Function)
 				return;
@@ -4022,6 +4820,7 @@ namespace Mavi
 				Stream << Indent << CharTrimEnd(Function->GetVarDecl(n)) << ": " << ToString(Indent, 3, Base->GetAddressOfVar(n), TypeId) << std::endl;
 			}
 			Output(Stream.str());
+#endif
 		}
 		void DebuggerContext::ListGlobalVariables(ImmediateContext* Context)
 		{
@@ -4029,7 +4828,7 @@ namespace Mavi
 
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT(Base != nullptr, "context should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptFunction* Function = Base->GetFunction();
 			if (!Function)
 				return;
@@ -4047,6 +4846,7 @@ namespace Mavi
 				Stream << Indent << CharTrimEnd(Mod->GetGlobalVarDeclaration(n)) << ": " << ToString(Indent, 3, Mod->GetAddressOfGlobalVar(n), TypeId) << std::endl;
 			}
 			Output(Stream.str());
+#endif
 		}
 		void DebuggerContext::ListSourceCode(ImmediateContext* Context)
 		{
@@ -4091,7 +4891,7 @@ namespace Mavi
 
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT(Base != nullptr, "context should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = Base->GetEngine();
 			asUINT GCCurrSize, GCTotalDestr, GCTotalDet, GCNewObjects, GCTotalNewDestr;
 			Engine->GetGCStatistics(&GCCurrSize, &GCTotalDestr, &GCTotalDet, &GCNewObjects, &GCTotalNewDestr);
@@ -4104,6 +4904,7 @@ namespace Mavi
 			Stream << "    new objects:           " << GCNewObjects << std::endl;
 			Stream << "    new objects destroyed: " << GCTotalNewDestr << std::endl;
 			Output(Stream.str());
+#endif
 		}
 		void DebuggerContext::PrintCallstack(ImmediateContext* Context)
 		{
@@ -4159,6 +4960,7 @@ namespace Mavi
 		}
 		void DebuggerContext::SetEngine(VirtualMachine* Engine)
 		{
+#ifdef VI_ANGELSCRIPT
 			if (Engine != nullptr && Engine != VM)
 			{
 				if (VM != nullptr)
@@ -4167,6 +4969,7 @@ namespace Mavi
 				VM = Engine;
 				VM->GetEngine()->AddRef();
 			}
+#endif
 		}
 		bool DebuggerContext::CheckBreakPoint(ImmediateContext* Context)
 		{
@@ -4174,7 +4977,7 @@ namespace Mavi
 
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT(Base != nullptr, "context should be set");
-
+#ifdef VI_ANGELSCRIPT
 			const char* Temp = 0;
 			int Line = Base->GetLineNumber(0, 0, &Temp);
 
@@ -4232,7 +5035,7 @@ namespace Mavi
 					return true;
 				}
 			}
-
+#endif
 			return false;
 		}
 		bool DebuggerContext::Interrupt()
@@ -4334,6 +5137,7 @@ namespace Mavi
 		}
 		Core::String DebuggerContext::ToString(Core::String& Indent, int Depth, void* Value, unsigned int TypeId)
 		{
+#ifdef VI_ANGELSCRIPT
 			if (Value == 0 || !VM)
 				return "null";
 
@@ -4480,6 +5284,9 @@ namespace Mavi
 
 		Finalize:
 			return Stream.str();
+#else
+			return "null";
+#endif
 		}
 		void DebuggerContext::ClearThread(ImmediateContext* Context)
 		{
@@ -4497,7 +5304,7 @@ namespace Mavi
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(Context != nullptr, "context should be set");
-
+#ifdef VI_ANGELSCRIPT
 			Core::String Indent = "  ";
 			Core::String Eval = "any@ __vfdbgfunc(" + Args + "){return any(" + (Code.empty() || Code.back() != ';' ? Code : Code.substr(0, Code.size() - 1)) + ");}";
 			asIScriptModule* Module = Context->GetFunction().GetModule().GetModule();
@@ -4547,6 +5354,9 @@ namespace Mavi
 				return Status2.Error();
 
 			return Core::Optional::OK;
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		DebuggerContext::ThreadData DebuggerContext::GetThread(ImmediateContext* Context)
 		{
@@ -4574,21 +5384,25 @@ namespace Mavi
 		ImmediateContext::ImmediateContext(asIScriptContext* Base) noexcept : Context(Base), VM(nullptr)
 		{
 			VI_ASSERT(Base != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			Context->SetUserData(this, ContextUD);
 			VM = VirtualMachine::Get(Base->GetEngine());
+#endif
 		}
 		ImmediateContext::~ImmediateContext() noexcept
 		{
 			if (Executor.Future.IsPending())
 				Executor.Future.Set(VirtualError::CONTEXT_NOT_PREPARED);
+#ifdef VI_ANGELSCRIPT
 			VM->GetEngine()->ReturnContext(Context);
+#endif
 		}
 		ExpectsPromiseVM<Execution> ImmediateContext::ExecuteCall(const Function& Function, ArgsCallback&& OnArgs)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 			VI_ASSERT(Function.IsValid(), "function should be set");
 			VI_ASSERT(!Core::Costate::IsCoroutine(), "cannot safely execute in coroutine");
-
+#ifdef VI_ANGELSCRIPT
 			Core::UMutex<std::recursive_mutex> Unique(Exchange);
 			if (!CanExecuteCall())
 				return ExpectsPromiseVM<Execution>(VirtualError::CONTEXT_ACTIVE);
@@ -4603,13 +5417,16 @@ namespace Mavi
 			Executor.Future = ExpectsPromiseVM<Execution>();
 			Resume();
 			return Executor.Future;
+#else
+			return ExpectsPromiseVM<Execution>(VirtualError::NOT_SUPPORTED);
+#endif
 		}
 		ExpectsVM<Execution> ImmediateContext::ExecuteCallSync(const Function& Function, ArgsCallback&& OnArgs)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 			VI_ASSERT(Function.IsValid(), "function should be set");
 			VI_ASSERT(!Core::Costate::IsCoroutine(), "cannot safely execute in coroutine");
-
+#ifdef VI_ANGELSCRIPT
 			Core::UMutex<std::recursive_mutex> Unique(Exchange);
 			if (!CanExecuteCall())
 				return VirtualError::CONTEXT_ACTIVE;
@@ -4627,13 +5444,16 @@ namespace Mavi
 			auto Status = ExecuteNext();
 			EnableSuspends();
 			return Status;
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<Execution> ImmediateContext::ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 			VI_ASSERT(Function.IsValid(), "function should be set");
 			VI_ASSERT(!Core::Costate::IsCoroutine(), "cannot safely execute in coroutine");
-
+#ifdef VI_ANGELSCRIPT
 			Core::UMutex<std::recursive_mutex> Unique(Exchange);
 			if (!CanExecuteSubcall())
 			{
@@ -4659,15 +5479,23 @@ namespace Mavi
 			Context->PopState();
 			EnableSuspends();
 			return Status;
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<Execution> ImmediateContext::ExecuteNext()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			int R = Context->Execute();
 			return FunctionFactory::ToReturn<Execution>(R, (Execution)R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<Execution> ImmediateContext::Resume()
 		{
+#ifdef VI_ANGELSCRIPT
 			auto Status = ExecuteNext();
 			if (Status && *Status == Execution::Suspended)
 				return Status;
@@ -4681,10 +5509,14 @@ namespace Mavi
 			else
 				Executor.Future.Set(Status.Error());
 			return Status;
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsPromiseVM<Execution> ImmediateContext::ResolveCallback(FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
 		{
 			VI_ASSERT(Delegate.IsValid(), "callback should be valid");
+#ifdef VI_ANGELSCRIPT
 			if (Callbacks.CallbackResolver)
 			{
 				Callbacks.CallbackResolver(this, std::move(Delegate), std::move(OnArgs), std::move(OnReturn));
@@ -4711,9 +5543,13 @@ namespace Mavi
 				Target->VM->ReturnContext(Target);
 				return Result;
 			});
+#else
+			return ExpectsPromiseVM<Execution>(VirtualError::NOT_SUPPORTED);
+#endif
 		}
 		ExpectsVM<Execution> ImmediateContext::ResolveNotification(void* Promise)
 		{
+#ifdef VI_ANGELSCRIPT
 			if (Callbacks.NotificationResolver)
 			{
 				Callbacks.NotificationResolver(this, Promise);
@@ -4732,25 +5568,41 @@ namespace Mavi
 				return VirtualError::CONTEXT_NOT_PREPARED;
 
 			return Execution::Active;
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::Prepare(const Function& Function)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->Prepare(Function.GetFunction()));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::Unprepare()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->Unprepare());
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::Abort()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->Abort());
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::Suspend()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			if (!IsSuspendable())
 			{
 				Bindings::Exception::ThrowAt(this, Bindings::Exception::Pointer("async_error", "yield is not allowed in this function call"));
@@ -4758,74 +5610,125 @@ namespace Mavi
 			}
 
 			return FunctionFactory::ToReturn(Context->Suspend());
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::PushState()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->PushState());
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::PopState()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->PopState());
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::SetObject(void* Object)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetObject(Object));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArg8(size_t Arg, unsigned char Value)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgByte((asUINT)Arg, Value));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArg16(size_t Arg, unsigned short Value)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgWord((asUINT)Arg, Value));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArg32(size_t Arg, int Value)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgDWord((asUINT)Arg, Value));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArg64(size_t Arg, int64_t Value)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgQWord((asUINT)Arg, Value));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArgFloat(size_t Arg, float Value)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgFloat((asUINT)Arg, Value));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArgDouble(size_t Arg, double Value)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgDouble((asUINT)Arg, Value));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArgAddress(size_t Arg, void* Address)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgAddress((asUINT)Arg, Address));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArgObject(size_t Arg, void* Object)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgObject((asUINT)Arg, Object));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArgAny(size_t Arg, void* Ptr, int TypeId)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgVarType((asUINT)Arg, Ptr, TypeId));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::GetReturnableByType(void* Return, asITypeInfo* ReturnTypeInfo)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 			VI_ASSERT(Return != nullptr, "return value should be set");
 			VI_ASSERT(ReturnTypeInfo != nullptr, "return type info should be set");
+#ifdef VI_ANGELSCRIPT
 			VI_ASSERT(ReturnTypeInfo->GetTypeId() != (int)TypeId::VOIDF, "return value type should not be void");
-
 			void* Address = Context->GetAddressOfReturnValue();
 			if (!Address)
 				return VirtualError::INVALID_OBJECT;
@@ -4850,53 +5753,89 @@ namespace Mavi
 
 			memcpy(Return, Address, Size);
 			return Core::Optional::OK;
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::GetReturnableByDecl(void* Return, const char* ReturnTypeDecl)
 		{
 			VI_ASSERT(ReturnTypeDecl != nullptr, "return type declaration should be set");
+#ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM->GetEngine();
 			return GetReturnableByType(Return, Engine->GetTypeInfoByDecl(ReturnTypeDecl));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::GetReturnableById(void* Return, int ReturnTypeId)
 		{
 			VI_ASSERT(ReturnTypeId != (int)TypeId::VOIDF, "return value type should not be void");
+#ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM->GetEngine();
 			return GetReturnableByType(Return, Engine->GetTypeInfoById(ReturnTypeId));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::SetException(const char* Info, bool AllowCatch)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetException(Info, AllowCatch));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::SetExceptionCallback(void(*Callback)(asIScriptContext* Context, void* Object), void* Object)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetExceptionCallback(asFUNCTION(Callback), Object, asCALL_CDECL));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::SetLineCallback(void(*Callback)(asIScriptContext* Context, void* Object), void* Object)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 			VI_ASSERT(Callback != nullptr, "callback should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetLineCallback(asFUNCTION(Callback), Object, asCALL_CDECL));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::StartDeserialization()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->StartDeserialization());
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::FinishDeserialization()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->FinishDeserialization());
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::PushFunction(const Function& Func, void* Object)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->PushFunction(Func.GetFunction(), Object));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::GetStateRegisters(size_t StackLevel, Function* CallingSystemFunction, Function* InitialFunction, uint32_t* OrigStackPointer, uint32_t* ArgumentsSize, uint64_t* ValueRegister, void** ObjectRegister, TypeInfo* ObjectTypeRegister)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			asITypeInfo* ObjectTypeRegister1 = nullptr;
 			asIScriptFunction* CallingSystemFunction1 = nullptr, * InitialFunction1 = nullptr;
 			asDWORD OrigStackPointer1 = 0, ArgumentsSize1 = 0; asQWORD ValueRegister1 = 0;
@@ -4908,10 +5847,14 @@ namespace Mavi
 			if (ValueRegister != nullptr) *ValueRegister = (uint64_t)ValueRegister1;
 			if (ObjectTypeRegister != nullptr) *ObjectTypeRegister = ObjectTypeRegister1;
 			return FunctionFactory::ToReturn(R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::GetCallStateRegisters(size_t StackLevel, uint32_t* StackFramePointer, Function* CurrentFunction, uint32_t* ProgramPointer, uint32_t* StackPointer, uint32_t* StackIndex)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			asIScriptFunction* CurrentFunction1 = nullptr;
 			asDWORD StackFramePointer1 = 0, ProgramPointer1 = 0, StackPointer1 = 0, StackIndex1 = 0;
 			int R = Context->GetCallStateRegisters((asUINT)StackLevel, &StackFramePointer1, &CurrentFunction1, &ProgramPointer1, &StackPointer1, &StackIndex1);
@@ -4921,46 +5864,77 @@ namespace Mavi
 			if (StackPointer != nullptr) *StackPointer = (uint32_t)StackPointer1;
 			if (StackIndex != nullptr) *StackIndex = (uint32_t)StackIndex1;
 			return FunctionFactory::ToReturn(R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::SetStateRegisters(size_t StackLevel, Function CallingSystemFunction, const Function& InitialFunction, uint32_t OrigStackPointer, uint32_t ArgumentsSize, uint64_t ValueRegister, void* ObjectRegister, const TypeInfo& ObjectTypeRegister)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetStateRegisters((asUINT)StackLevel, CallingSystemFunction.GetFunction(), InitialFunction.GetFunction(), (asDWORD)OrigStackPointer, (asDWORD)ArgumentsSize, (asQWORD)ValueRegister, ObjectRegister, ObjectTypeRegister.GetTypeInfo()));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::SetCallStateRegisters(size_t StackLevel, uint32_t StackFramePointer, const Function& CurrentFunction, uint32_t ProgramPointer, uint32_t StackPointer, uint32_t StackIndex)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetCallStateRegisters((asUINT)StackLevel, (asDWORD)StackFramePointer, CurrentFunction.GetFunction(), (asDWORD)ProgramPointer, (asDWORD)StackPointer, (asDWORD)StackIndex));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<size_t> ImmediateContext::GetArgsOnStackCount(size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			int Result = Context->GetArgsOnStackCount((asUINT)StackLevel);
 			return FunctionFactory::ToReturn<size_t>(Result, (size_t)Result);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<size_t> ImmediateContext::GetPropertiesCount(size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			int Result = Context->GetVarCount((asUINT)StackLevel);
 			return FunctionFactory::ToReturn<size_t>(Result, (size_t)Result);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> ImmediateContext::GetProperty(size_t Index, size_t StackLevel, const char** Name, int* TypeId, Modifiers* TypeModifiers, bool* IsVarOnHeap, int* StackOffset)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			asETypeModifiers TypeModifiers1 = asTM_NONE;
 			int R = Context->GetVar((asUINT)Index, (asUINT)StackLevel, Name, TypeId, &TypeModifiers1, IsVarOnHeap, StackOffset);
 			if (TypeModifiers != nullptr) *TypeModifiers = (Modifiers)TypeModifiers1;
 			return FunctionFactory::ToReturn(R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		Function ImmediateContext::GetFunction(size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetFunction((asUINT)StackLevel);
+#else
+			return Function(nullptr);
+#endif
 		}
 		int ImmediateContext::GetLineNumber(size_t StackLevel, int* Column, const char** SectionName)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetLineNumber((asUINT)StackLevel, Column, SectionName);
+#else
+			return 0;
+#endif
 		}
 		void ImmediateContext::SetNotificationResolverCallback(const std::function<void(ImmediateContext*, void*)>& Callback)
 		{
@@ -4982,9 +5956,11 @@ namespace Mavi
 		void ImmediateContext::Reset()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			Context->Unprepare();
 			Callbacks = Events();
 			Executor = Frame();
+#endif
 		}
 		void ImmediateContext::DisableSuspends()
 		{
@@ -4998,16 +5974,24 @@ namespace Mavi
 		bool ImmediateContext::IsNested(size_t* NestCount) const
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			asUINT NestCount1 = 0;
 			bool Value = Context->IsNested(&NestCount1);
 			if (NestCount != nullptr) *NestCount = (size_t)NestCount1;
 			return Value;
+#else
+			return false;
+#endif
 		}
 		bool ImmediateContext::IsThrown() const
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			const char* Message = Context->GetExceptionString();
 			return Message != nullptr && Message[0] != '\0';
+#else
+			return false;
+#endif
 		}
 		bool ImmediateContext::IsPending()
 		{
@@ -5017,82 +6001,144 @@ namespace Mavi
 		Execution ImmediateContext::GetState() const
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return (Execution)Context->GetState();
+#else
+			return Execution::Uninitialized;
+#endif
 		}
 		void* ImmediateContext::GetAddressOfArg(size_t Arg)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetAddressOfArg((asUINT)Arg);
+#else
+			return nullptr;
+#endif
 		}
 		unsigned char ImmediateContext::GetReturnByte()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetReturnByte();
+#else
+			return 0;
+#endif
 		}
 		unsigned short ImmediateContext::GetReturnWord()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetReturnWord();
+#else
+			return 0;
+#endif
 		}
 		size_t ImmediateContext::GetReturnDWord()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetReturnDWord();
+#else
+			return 0;
+#endif
 		}
 		uint64_t ImmediateContext::GetReturnQWord()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetReturnQWord();
+#else
+			return 0;
+#endif
 		}
 		float ImmediateContext::GetReturnFloat()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetReturnFloat();
+#else
+			return 0.0f;
+#endif
 		}
 		double ImmediateContext::GetReturnDouble()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetReturnDouble();
+#else
+			return 0.0;
+#endif
 		}
 		void* ImmediateContext::GetReturnAddress()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetReturnAddress();
+#else
+			return nullptr;
+#endif
 		}
 		void* ImmediateContext::GetReturnObjectAddress()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetReturnObject();
+#else
+			return nullptr;
+#endif
 		}
 		void* ImmediateContext::GetAddressOfReturnValue()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetAddressOfReturnValue();
+#else
+			return nullptr;
+#endif
 		}
 		int ImmediateContext::GetExceptionLineNumber(int* Column, const char** SectionName)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetExceptionLineNumber(Column, SectionName);
+#else
+			return 0;
+#endif
 		}
 		Function ImmediateContext::GetExceptionFunction()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetExceptionFunction();
+#else
+			return Function(nullptr);
+#endif
 		}
 		const char* ImmediateContext::GetExceptionString()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetExceptionString();
+#else
+			return "";
+#endif
 		}
 		bool ImmediateContext::WillExceptionBeCaught()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->WillExceptionBeCaught();
+#else
+			return false;
+#endif
 		}
 		void ImmediateContext::ClearLineCallback()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			Context->ClearLineCallback();
+#endif
 			Callbacks.Line = nullptr;
 		}
 		void ImmediateContext::ClearExceptionCallback()
@@ -5102,46 +6148,78 @@ namespace Mavi
 		size_t ImmediateContext::GetCallstackSize() const
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Context->GetCallstackSize();
+#else
+			return 0;
+#endif
 		}
 		const char* ImmediateContext::GetPropertyName(size_t Index, size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			const char* Name = nullptr;
 			Context->GetVar((asUINT)Index, (asUINT)StackLevel, &Name);
 			return Name;
+#else
+			return "";
+#endif
 		}
 		const char* ImmediateContext::GetPropertyDecl(size_t Index, size_t StackLevel, bool IncludeNamespace)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetVarDeclaration((asUINT)Index, (asUINT)StackLevel, IncludeNamespace);
+#else
+			return "";
+#endif
 		}
 		int ImmediateContext::GetPropertyTypeId(size_t Index, size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			int TypeId = -1;
 			Context->GetVar((asUINT)Index, (asUINT)StackLevel, nullptr, &TypeId);
 			return TypeId;
+#else
+			return -1;
+#endif
 		}
 		void* ImmediateContext::GetAddressOfProperty(size_t Index, size_t StackLevel, bool DontDereference, bool ReturnAddressOfUnitializedObjects)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetAddressOfVar((asUINT)Index, (asUINT)StackLevel, DontDereference, ReturnAddressOfUnitializedObjects);
+#else
+			return nullptr;
+#endif
 		}
 		bool ImmediateContext::IsPropertyInScope(size_t Index, size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->IsVarInScope((asUINT)Index, (asUINT)StackLevel);
+#else
+			return false;
+#endif
 		}
 		int ImmediateContext::GetThisTypeId(size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetThisTypeId((asUINT)StackLevel);
+#else
+			return -1;
+#endif
 		}
 		void* ImmediateContext::GetThisPointer(size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetThisPointer((asUINT)StackLevel);
+#else
+			return nullptr;
+#endif
 		}
 		Core::Option<Core::String> ImmediateContext::GetExceptionStackTrace()
 		{
@@ -5154,12 +6232,20 @@ namespace Mavi
 		Function ImmediateContext::GetSystemFunction()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetSystemFunction();
+#else
+			return Function(nullptr);
+#endif
 		}
 		bool ImmediateContext::IsSuspended() const
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetState() == asEXECUTION_SUSPENDED;
+#else
+			return false;
+#endif
 		}
 		bool ImmediateContext::IsSuspendable() const
 		{
@@ -5177,23 +6263,39 @@ namespace Mavi
 		bool ImmediateContext::CanExecuteCall() const
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			auto State = Context->GetState();
 			return State != asEXECUTION_SUSPENDED && State != asEXECUTION_ACTIVE && !Context->IsNested() && !Executor.Future.IsPending();
+#else
+			return false;
+#endif
 		}
 		bool ImmediateContext::CanExecuteSubcall() const
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetState() == asEXECUTION_ACTIVE;
+#else
+			return false;
+#endif
 		}
 		void* ImmediateContext::SetUserData(void* Data, size_t Type)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->SetUserData(Data, Type);
+#else
+			return nullptr;
+#endif
 		}
 		void* ImmediateContext::GetUserData(size_t Type) const
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			return Context->GetUserData(Type);
+#else
+			return nullptr;
+#endif
 		}
 		asIScriptContext* ImmediateContext::GetContext()
 		{
@@ -5206,21 +6308,29 @@ namespace Mavi
 		ImmediateContext* ImmediateContext::Get(asIScriptContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			void* VM = Context->GetUserData(ContextUD);
 			VI_ASSERT(VM != nullptr, "context should be created by virtual machine");
 			return (ImmediateContext*)VM;
+#else
+			return nullptr;
+#endif
 		}
 		ImmediateContext* ImmediateContext::Get()
 		{
+#ifdef VI_ANGELSCRIPT
 			asIScriptContext* Context = asGetActiveContext();
 			if (!Context)
 				return nullptr;
 
 			return Get(Context);
+#else
+			return nullptr;
+#endif
 		}
 		int ImmediateContext::ContextUD = 151;
 
-		VirtualMachine::VirtualMachine() noexcept : Scope(0), Debugger(nullptr), Engine(asCreateScriptEngine()), Translator(nullptr), Imports((uint32_t)Imports::All), SaveSources(false), Cached(true)
+		VirtualMachine::VirtualMachine() noexcept : Scope(0), Debugger(nullptr), Engine(nullptr), Translator(nullptr), Imports((uint32_t)Imports::All), SaveSources(false), Cached(true)
 		{
 			auto Directory = Core::OS::Directory::GetWorking();
 			if (Directory)
@@ -5230,7 +6340,8 @@ namespace Mavi
 			Include.Exts.push_back(".so");
 			Include.Exts.push_back(".dylib");
 			Include.Exts.push_back(".dll");
-
+#ifdef VI_ANGELSCRIPT
+			Engine = asCreateScriptEngine();
 			Engine->SetUserData(this, ManagerUD);
 			Engine->SetContextCallbacks(RequestRawContext, ReturnRawContext, nullptr);
 			Engine->SetMessageCallback(asFUNCTION(MessageLogger), this, asCALL_CDECL);
@@ -5239,6 +6350,7 @@ namespace Mavi
 			Engine->SetEngineProperty(asEP_DISALLOW_EMPTY_LIST_ELEMENTS, 1);
 			Engine->SetEngineProperty(asEP_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, 0);
 			Engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
+#endif
 			RegisterAddons(this);
 		}
 		VirtualMachine::~VirtualMachine() noexcept
@@ -5252,17 +6364,19 @@ namespace Mavi
 
 			for (auto& Context : Threads)
 				VI_RELEASE(Context);
-
+#ifdef VI_ANGELSCRIPT
 			for (auto& Context : Stacks)
 				VI_RELEASE(Context);
-
+#endif
 			VI_CLEAR(Debugger);
 			CleanupThisThread();
+#ifdef VI_ANGELSCRIPT
 			if (Engine != nullptr)
 			{
 				Engine->ShutDownAndRelease();
 				Engine = nullptr;
 			}
+#endif
 			SetByteCodeTranslator((unsigned int)TranslationOptions::Disabled);
 			ClearCache();
 		}
@@ -5271,16 +6385,24 @@ namespace Mavi
 			VI_ASSERT(Name != nullptr, "name should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register interface %i bytes", (int)strlen(Name));
+#ifdef VI_ANGELSCRIPT
 			int TypeId = Engine->RegisterInterface(Name);
 			return FunctionFactory::ToReturn<TypeInterface>(TypeId, TypeInterface(this, Engine->GetTypeInfoById(TypeId), TypeId));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<TypeClass> VirtualMachine::SetStructAddress(const char* Name, size_t Size, uint64_t Flags)
 		{
 			VI_ASSERT(Name != nullptr, "name should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register struct(%i) %i bytes sizeof %i", (int)Flags, (int)strlen(Name), (int)Size);
+#ifdef VI_ANGELSCRIPT
 			int TypeId = Engine->RegisterObjectType(Name, (asUINT)Size, (asDWORD)Flags);
 			return FunctionFactory::ToReturn<TypeClass>(TypeId, TypeClass(this, Engine->GetTypeInfoById(TypeId), TypeId));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<TypeClass> VirtualMachine::SetPodAddress(const char* Name, size_t Size, uint64_t Flags)
 		{
@@ -5291,8 +6413,12 @@ namespace Mavi
 			VI_ASSERT(Name != nullptr, "name should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class(%i) %i bytes", (int)Flags, (int)strlen(Name));
+#ifdef VI_ANGELSCRIPT
 			int TypeId = Engine->RegisterObjectType(Name, (asUINT)Size, (asDWORD)Flags);
 			return FunctionFactory::ToReturn<RefClass>(TypeId, RefClass(this, Engine->GetTypeInfoById(TypeId), TypeId));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<TemplateClass> VirtualMachine::SetTemplateClassAddress(const char* Decl, const char* Name, size_t Size, uint64_t Flags)
 		{
@@ -5300,23 +6426,35 @@ namespace Mavi
 			VI_ASSERT(Name != nullptr, "name should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class(%i) %i bytes", (int)Flags, (int)strlen(Decl));
+#ifdef VI_ANGELSCRIPT
 			int TypeId = Engine->RegisterObjectType(Decl, (asUINT)Size, (asDWORD)Flags);
 			return FunctionFactory::ToReturn<TemplateClass>(TypeId, TemplateClass(this, Name));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<Enumeration> VirtualMachine::SetEnum(const char* Name)
 		{
 			VI_ASSERT(Name != nullptr, "name should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register enum %i bytes", (int)strlen(Name));
+#ifdef VI_ANGELSCRIPT
 			int TypeId = Engine->RegisterEnum(Name);
 			return FunctionFactory::ToReturn<Enumeration>(TypeId, Enumeration(this, Engine->GetTypeInfoById(TypeId), TypeId));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::SetFunctionDef(const char* Decl)
 		{
 			VI_ASSERT(Decl != nullptr, "declaration should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register funcdef %i bytes", (int)strlen(Decl));
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterFuncdef(Decl));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::SetTypeDef(const char* Type, const char* Decl)
 		{
@@ -5324,7 +6462,11 @@ namespace Mavi
 			VI_ASSERT(Decl != nullptr, "declaration should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register funcdef %i bytes", (int)strlen(Decl));
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterTypedef(Type, Decl));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::SetFunctionAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
@@ -5332,7 +6474,11 @@ namespace Mavi
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)Type, (int)strlen(Decl), (void*)Value);
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterGlobalFunction(Decl, *Value, (asECallConvTypes)Type));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::SetPropertyAddress(const char* Decl, void* Value)
 		{
@@ -5340,15 +6486,24 @@ namespace Mavi
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register global %i bytes at 0x%" PRIXPTR, (int)strlen(Decl), (void*)Value);
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterGlobalProperty(Decl, Value));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::SetStringFactoryAddress(const char* Type, asIStringFactory* Factory)
 		{
 			VI_ASSERT(Type != nullptr, "declaration should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterStringFactory(Type, Factory));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::GetPropertyByIndex(size_t Index, PropertyInfo* Info) const
 		{
+#ifdef VI_ANGELSCRIPT
 			const char* Name = nullptr, * Namespace = nullptr;
 			const char* ConfigGroup = nullptr;
 			void* Pointer = nullptr;
@@ -5367,57 +6522,105 @@ namespace Mavi
 				Info->AccessMask = AccessMask;
 			}
 			return FunctionFactory::ToReturn(Result);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<size_t> VirtualMachine::GetPropertyIndexByName(const char* Name) const
 		{
 			VI_ASSERT(Name != nullptr, "name should be set");
+#ifdef VI_ANGELSCRIPT
 			int R = Engine->GetGlobalPropertyIndexByName(Name);
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<size_t> VirtualMachine::GetPropertyIndexByDecl(const char* Decl) const
 		{
 			VI_ASSERT(Decl != nullptr, "declaration should be set");
+#ifdef VI_ANGELSCRIPT
 			int R = Engine->GetGlobalPropertyIndexByDecl(Decl);
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object)
 		{
+#ifdef VI_ANGELSCRIPT
 			if (!Callback)
 				return FunctionFactory::ToReturn(Engine->ClearMessageCallback());
 
 			return FunctionFactory::ToReturn(Engine->SetMessageCallback(asFUNCTION(Callback), Object, asCALL_CDECL));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::Log(const char* Section, int Row, int Column, LogCategory Type, const char* Message)
 		{
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->WriteMessage(Section, Row, Column, (asEMsgType)Type, Message));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::AssignObject(void* DestObject, void* SrcObject, const TypeInfo& Type)
 		{
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->AssignScriptObject(DestObject, SrcObject, Type.GetTypeInfo()));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::RefCastObject(void* Object, const TypeInfo& FromType, const TypeInfo& ToType, void** NewPtr, bool UseOnlyImplicitCast)
 		{
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RefCastObject(Object, FromType.GetTypeInfo(), ToType.GetTypeInfo(), NewPtr, UseOnlyImplicitCast));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
+		}
+		ExpectsVM<void> VirtualMachine::WriteMessage(const char* Section, int Row, int Column, LogCategory Type, const char* Message)
+		{
+#ifdef VI_ANGELSCRIPT
+			return FunctionFactory::ToReturn(Engine->WriteMessage(Section, Row, Column, (asEMsgType)Type, Message));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::GarbageCollect(GarbageCollector Flags, size_t NumIterations)
 		{
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->GarbageCollect((asDWORD)Flags, (asUINT)NumIterations));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::PerformFullGarbageCollection()
 		{
+#ifdef VI_ANGELSCRIPT
 			int R = Engine->GarbageCollect(asGC_DETECT_GARBAGE | asGC_FULL_CYCLE, 16);
 			if (R < 0)
 				return FunctionFactory::ToReturn(R);
 
 			R = Engine->GarbageCollect(asGC_FULL_CYCLE, 16);
 			return FunctionFactory::ToReturn(R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::NotifyOfNewObject(void* Object, const TypeInfo& Type)
 		{
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->NotifyGarbageCollectorOfNewObject(Object, Type.GetTypeInfo()));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::GetObjectAddress(size_t Index, size_t* SequenceNumber, void** Object, TypeInfo* Type)
 		{
+#ifdef VI_ANGELSCRIPT
 			asUINT asSequenceNumber;
 			asITypeInfo* OutType = nullptr;
 			int Result = Engine->GetObjectInGC((asUINT)Index, &asSequenceNumber, Object, &OutType);
@@ -5426,6 +6629,9 @@ namespace Mavi
 			if (Type != nullptr)
 				*Type = TypeInfo(OutType);
 			return FunctionFactory::ToReturn(Result);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::AddScriptSection(asIScriptModule* Module, const char* Name, const char* Code, size_t CodeLength, int LineOffset)
 		{
@@ -5433,17 +6639,20 @@ namespace Mavi
 			VI_ASSERT(Code != nullptr, "code should be set");
 			VI_ASSERT(Module != nullptr, "module should be set");
 			VI_ASSERT(CodeLength > 0, "code should not be empty");
-
+#ifdef VI_ANGELSCRIPT
 			Core::UMutex<std::mutex> Unique(Sync.General);
 			Sections[Name] = Core::String(Code, CodeLength);
 			Unique.Negate();
 
 			return FunctionFactory::ToReturn(Module->AddScriptSection(Name, Code, CodeLength, LineOffset));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::GetTypeNameScope(const char** TypeName, const char** Namespace, size_t* NamespaceSize) const
 		{
 			VI_ASSERT(TypeName != nullptr && *TypeName != nullptr, "typename should be set");
-
+#ifdef VI_ANGELSCRIPT
 			const char* Value = *TypeName;
 			size_t Size = strlen(Value);
 			size_t Index = Size - 1;
@@ -5467,24 +6676,40 @@ namespace Mavi
 
 			*TypeName = Value + Index + 1;
 			return Core::Optional::OK;
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::BeginGroup(const char* GroupName)
 		{
 			VI_ASSERT(GroupName != nullptr, "group name should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->BeginConfigGroup(GroupName));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::EndGroup()
 		{
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->EndConfigGroup());
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::RemoveGroup(const char* GroupName)
 		{
 			VI_ASSERT(GroupName != nullptr, "group name should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RemoveConfigGroup(GroupName));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::BeginNamespace(const char* Namespace)
 		{
 			VI_ASSERT(Namespace != nullptr, "namespace name should be set");
+#ifdef VI_ANGELSCRIPT
 			const char* Prev = Engine->GetDefaultNamespace();
 			Core::UMutex<std::mutex> Unique(Sync.General);
 			if (Prev != nullptr)
@@ -5494,6 +6719,9 @@ namespace Mavi
 
 			Unique.Negate();
 			return FunctionFactory::ToReturn(Engine->SetDefaultNamespace(Namespace));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::BeginNamespaceIsolated(const char* Namespace, size_t DefaultMask)
 		{
@@ -5508,112 +6736,153 @@ namespace Mavi
 		}
 		ExpectsVM<void> VirtualMachine::EndNamespace()
 		{
+#ifdef VI_ANGELSCRIPT
 			Core::UMutex<std::mutex> Unique(Sync.General);
 			return FunctionFactory::ToReturn(Engine->SetDefaultNamespace(DefaultNamespace.c_str()));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<void> VirtualMachine::SetProperty(Features Property, size_t Value)
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
+#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->SetEngineProperty((asEEngineProp)Property, (asPWORD)Value));
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		ExpectsVM<size_t> VirtualMachine::GetSizeOfPrimitiveType(int TypeId) const
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
+#ifdef VI_ANGELSCRIPT
 			int R = Engine->GetSizeOfPrimitiveType(TypeId);
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
+#else
+			return VirtualError::NOT_SUPPORTED;
+#endif
 		}
 		size_t VirtualMachine::GetFunctionsCount() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetGlobalFunctionCount();
+#else
+			return 0;
+#endif
 		}
 		Function VirtualMachine::GetFunctionById(int Id) const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetFunctionById(Id);
+#else
+			return Function(nullptr);
+#endif
 		}
 		Function VirtualMachine::GetFunctionByIndex(size_t Index) const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetGlobalFunctionByIndex((asUINT)Index);
+#else
+			return Function(nullptr);
+#endif
 		}
 		Function VirtualMachine::GetFunctionByDecl(const char* Decl) const
 		{
+#ifdef VI_ANGELSCRIPT
 			VI_ASSERT(Decl != nullptr, "declaration should be set");
 			return Engine->GetGlobalFunctionByDecl(Decl);
+#else
+			return Function(nullptr);
+#endif
 		}
 		size_t VirtualMachine::GetPropertiesCount() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetGlobalPropertyCount();
+#else
+			return 0;
+#endif
 		}
 		size_t VirtualMachine::GetObjectsCount() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetObjectTypeCount();
+#else
+			return 0;
+#endif
 		}
 		TypeInfo VirtualMachine::GetObjectByIndex(size_t Index) const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetObjectTypeByIndex((asUINT)Index);
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		size_t VirtualMachine::GetEnumCount() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetEnumCount();
+#else
+			return 0;
+#endif
 		}
 		TypeInfo VirtualMachine::GetEnumByIndex(size_t Index) const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetEnumByIndex((asUINT)Index);
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		size_t VirtualMachine::GetFunctionDefsCount() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetFuncdefCount();
+#else
+			return 0;
+#endif
 		}
 		TypeInfo VirtualMachine::GetFunctionDefByIndex(size_t Index) const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetFuncdefByIndex((asUINT)Index);
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		size_t VirtualMachine::GetModulesCount() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetModuleCount();
+#else
+			return 0;
+#endif
 		}
 		asIScriptModule* VirtualMachine::GetModuleById(int Id) const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetModuleByIndex(Id);
+#else
+			return nullptr;
+#endif
 		}
 		int VirtualMachine::GetTypeIdByDecl(const char* Decl) const
 		{
 			VI_ASSERT(Decl != nullptr, "declaration should be set");
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetTypeIdByDecl(Decl);
+#else
+			return -1;
+#endif
 		}
 		const char* VirtualMachine::GetTypeIdDecl(int TypeId, bool IncludeNamespace) const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetTypeDeclaration(TypeId, IncludeNamespace);
-		}
-		Core::String VirtualMachine::GetObjectView(void* Object, int TypeId)
-		{
-			if (!Object)
-				return "null";
-
-			if (TypeId == (int)TypeId::INT8)
-				return "int8(" + Core::ToString(*(char*)(Object)) + "), ";
-			else if (TypeId == (int)TypeId::INT16)
-				return "int16(" + Core::ToString(*(short*)(Object)) + "), ";
-			else if (TypeId == (int)TypeId::INT32)
-				return "int32(" + Core::ToString(*(int*)(Object)) + "), ";
-			else if (TypeId == (int)TypeId::INT64)
-				return "int64(" + Core::ToString(*(int64_t*)(Object)) + "), ";
-			else if (TypeId == (int)TypeId::UINT8)
-				return "uint8(" + Core::ToString(*(unsigned char*)(Object)) + "), ";
-			else if (TypeId == (int)TypeId::UINT16)
-				return "uint16(" + Core::ToString(*(unsigned short*)(Object)) + "), ";
-			else if (TypeId == (int)TypeId::UINT32)
-				return "uint32(" + Core::ToString(*(unsigned int*)(Object)) + "), ";
-			else if (TypeId == (int)TypeId::UINT64)
-				return "uint64(" + Core::ToString(*(uint64_t*)(Object)) + "), ";
-			else if (TypeId == (int)TypeId::FLOAT)
-				return "float(" + Core::ToString(*(float*)(Object)) + "), ";
-			else if (TypeId == (int)TypeId::DOUBLE)
-				return "double(" + Core::ToString(*(double*)(Object)) + "), ";
-
-			asITypeInfo* Type = Engine->GetTypeInfoById(TypeId);
-			const char* Name = Type->GetName();
-
-			return Core::Stringify::Text("%s(0x%" PRIXPTR ")", Name ? Name : "unknown", (uintptr_t)Object);
+#else
+			return "";
+#endif
 		}
 		Core::Option<Core::String> VirtualMachine::GetScriptSection(const Core::String& Section)
 		{
@@ -5626,11 +6895,16 @@ namespace Mavi
 		}
 		TypeInfo VirtualMachine::GetTypeInfoById(int TypeId) const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetTypeInfoById(TypeId);
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		TypeInfo VirtualMachine::GetTypeInfoByName(const char* Name)
 		{
 			VI_ASSERT(Name != nullptr, "name should be set");
+#ifdef VI_ANGELSCRIPT
 			const char* TypeName = Name;
 			const char* Namespace = nullptr;
 			size_t NamespaceSize = 0;
@@ -5643,15 +6917,22 @@ namespace Mavi
 			EndNamespace();
 
 			return Info;
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		TypeInfo VirtualMachine::GetTypeInfoByDecl(const char* Decl) const
 		{
 			VI_ASSERT(Decl != nullptr, "declaration should be set");
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetTypeInfoByDecl(Decl);
+#else
+			return TypeInfo(nullptr);
+#endif
 		}
 		bool VirtualMachine::SetByteCodeTranslator(unsigned int Options)
 		{
-#ifdef HAS_AS_JIT
+#ifdef ANGELSCRIPT_JIT
 			Core::UMutex<std::mutex> Unique(Sync.General);
 			asCJITCompiler* Context = (asCJITCompiler*)Translator;
 			bool TranslatorActive = (Options != (unsigned int)TranslationOptions::Disabled);
@@ -5718,27 +6999,41 @@ namespace Mavi
 		void VirtualMachine::SetDefaultArrayType(const Core::String& Type)
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
+#ifdef VI_ANGELSCRIPT
 			Engine->RegisterDefaultArrayType(Type.c_str());
+#endif
 		}
 		void VirtualMachine::SetTypeInfoUserDataCleanupCallback(void(*Callback)(asITypeInfo*), size_t Type)
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
+#ifdef VI_ANGELSCRIPT
 			Engine->SetTypeInfoUserDataCleanupCallback(Callback, (asPWORD)Type);
+#endif
 		}
 		void VirtualMachine::SetEngineUserDataCleanupCallback(void(*Callback)(asIScriptEngine*), size_t Type)
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
+#ifdef VI_ANGELSCRIPT
 			Engine->SetEngineUserDataCleanupCallback(Callback, (asPWORD)Type);
+#endif
 		}
 		void* VirtualMachine::SetUserData(void* Data, size_t Type)
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
+#ifdef VI_ANGELSCRIPT
 			return Engine->SetUserData(Data, (asPWORD)Type);
+#else
+			return nullptr;
+#endif
 		}
 		void* VirtualMachine::GetUserData(size_t Type) const
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetUserData((asPWORD)Type);
+#else
+			return nullptr;
+#endif
 		}
 		void VirtualMachine::ClearCache()
 		{
@@ -5792,15 +7087,18 @@ namespace Mavi
 			VI_ASSERT(Context != nullptr, "context should be set");
 			if (!Debugger || !Debugger->IsAttached())
 				return DetachDebuggerFromContext(Context);
-
+#ifdef VI_ANGELSCRIPT
 			Context->SetLineCallback(asMETHOD(DebuggerContext, LineCallback), Debugger, asCALL_THISCALL);
 			Context->SetExceptionCallback(asMETHOD(DebuggerContext, ExceptionCallback), Debugger, asCALL_THISCALL);
+#endif
 		}
 		void VirtualMachine::DetachDebuggerFromContext(asIScriptContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			Context->ClearLineCallback();
 			Context->SetExceptionCallback(asFUNCTION(VirtualMachine::ExceptionHandler), Context, asCALL_CDECL);
+#endif
 		}
 		bool VirtualMachine::GetByteCodeCache(ByteCodeInfo* Info)
 		{
@@ -5830,10 +7128,14 @@ namespace Mavi
 		}
 		ImmediateContext* VirtualMachine::CreateContext()
 		{
+#ifdef VI_ANGELSCRIPT
 			asIScriptContext* Context = Engine->RequestContext();
 			VI_ASSERT(Context != nullptr, "cannot create script context");
 			AttachDebuggerToContext(Context);
 			return new ImmediateContext(Context);
+#else
+			return nullptr;
+#endif
 		}
 		Compiler* VirtualMachine::CreateCompiler()
 		{
@@ -5843,7 +7145,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_ASSERT(!Name.empty(), "name should not be empty");
-
+#ifdef VI_ANGELSCRIPT
 			Core::UMutex<std::mutex> Unique(Sync.General);
 			if (!Engine->GetModule(Name.c_str()))
 				return Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
@@ -5855,45 +7157,69 @@ namespace Mavi
 				if (!Engine->GetModule(Result.c_str()))
 					return Engine->GetModule(Result.c_str(), asGM_ALWAYS_CREATE);
 			}
-
+#endif
 			return nullptr;
 		}
 		asIScriptModule* VirtualMachine::CreateModule(const Core::String& Name)
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_ASSERT(!Name.empty(), "name should not be empty");
+#ifdef VI_ANGELSCRIPT
 			Core::UMutex<std::mutex> Unique(Sync.General);
 			return Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
+#else
+			return nullptr;
+#endif
 		}
 		void* VirtualMachine::CreateObject(const TypeInfo& Type)
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->CreateScriptObject(Type.GetTypeInfo());
+#else
+			return nullptr;
+#endif
 		}
 		void* VirtualMachine::CreateObjectCopy(void* Object, const TypeInfo& Type)
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->CreateScriptObjectCopy(Object, Type.GetTypeInfo());
+#else
+			return nullptr;
+#endif
 		}
 		void* VirtualMachine::CreateEmptyObject(const TypeInfo& Type)
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->CreateUninitializedScriptObject(Type.GetTypeInfo());
+#else
+			return nullptr;
+#endif
 		}
 		Function VirtualMachine::CreateDelegate(const Function& Function, void* Object)
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->CreateDelegate(Function.GetFunction(), Object);
+#else
+			return Function;
+#endif
 		}
 		void VirtualMachine::ReleaseObject(void* Object, const TypeInfo& Type)
 		{
-			return Engine->ReleaseScriptObject(Object, Type.GetTypeInfo());
+#ifdef VI_ANGELSCRIPT
+			Engine->ReleaseScriptObject(Object, Type.GetTypeInfo());
+#endif
 		}
 		void VirtualMachine::AddRefObject(void* Object, const TypeInfo& Type)
 		{
-			return Engine->AddRefScriptObject(Object, Type.GetTypeInfo());
+#ifdef VI_ANGELSCRIPT
+			Engine->AddRefScriptObject(Object, Type.GetTypeInfo());
+#endif
 		}
 		void VirtualMachine::GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const
 		{
+#ifdef VI_ANGELSCRIPT
 			unsigned int asCurrentSize, asTotalDestroyed, asTotalDetected, asNewObjects, asTotalNewDestroyed;
 			Engine->GetGCStatistics(&asCurrentSize, &asTotalDestroyed, &asTotalDetected, &asNewObjects, &asTotalNewDestroyed);
-
 			if (CurrentSize != nullptr)
 				*CurrentSize = (size_t)asCurrentSize;
 
@@ -5908,14 +7234,19 @@ namespace Mavi
 
 			if (TotalNewDestroyed != nullptr)
 				*TotalNewDestroyed = (size_t)asTotalNewDestroyed;
+#endif
 		}
 		void VirtualMachine::ForwardEnumReferences(void* Reference, const TypeInfo& Type)
 		{
-			return Engine->ForwardGCEnumReferences(Reference, Type.GetTypeInfo());
+#ifdef VI_ANGELSCRIPT
+			Engine->ForwardGCEnumReferences(Reference, Type.GetTypeInfo());
+#endif
 		}
 		void VirtualMachine::ForwardReleaseReferences(void* Reference, const TypeInfo& Type)
 		{
-			return Engine->ForwardGCReleaseReferences(Reference, Type.GetTypeInfo());
+#ifdef VI_ANGELSCRIPT
+			Engine->ForwardGCReleaseReferences(Reference, Type.GetTypeInfo());
+#endif
 		}
 		void VirtualMachine::GCEnumCallback(void* Reference)
 		{
@@ -5933,7 +7264,7 @@ namespace Mavi
 		{
 			if (!Debugger)
 				return false;
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptContext* Target = (Context ? Context->GetContext() : asGetActiveContext());
 			if (!Target)
 				return false;
@@ -5943,6 +7274,9 @@ namespace Mavi
 				std::this_thread::sleep_for(std::chrono::milliseconds(TimeoutMs));
 
 			return true;
+#else
+			return false;
+#endif
 		}
 		bool VirtualMachine::GenerateCode(Compute::Preprocessor* Processor, const Core::String& Path, Core::String& InoutBuffer)
 		{
@@ -5972,6 +7306,7 @@ namespace Mavi
 		}
 		Core::UnorderedMap<Core::String, Core::String> VirtualMachine::DumpRegisteredInterfaces(ImmediateContext* Context)
 		{
+#ifdef VI_ANGELSCRIPT
 			Core::UnorderedSet<Core::String> Grouping;
 			Core::UnorderedMap<Core::String, Core::String> Sources;
 			Core::UnorderedMap<Core::String, DNamespace> Namespaces;
@@ -6163,25 +7498,43 @@ namespace Mavi
 			}
 
 			return Sources;
+#else
+			return Core::UnorderedMap<Core::String, Core::String>();
+#endif
 		}
 		size_t VirtualMachine::BeginAccessMask(size_t DefaultMask)
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->SetDefaultAccessMask((asDWORD)DefaultMask);
+#else
+			return 0;
+#endif
 		}
 		size_t VirtualMachine::EndAccessMask()
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->SetDefaultAccessMask((asDWORD)VirtualMachine::GetDefaultAccessMask());
+#else
+			return 0;
+#endif
 		}
 		const char* VirtualMachine::GetNamespace() const
 		{
+#ifdef VI_ANGELSCRIPT
 			return Engine->GetDefaultNamespace();
+#else
+			return "";
+#endif
 		}
 		Module VirtualMachine::GetModule(const char* Name)
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_ASSERT(Name != nullptr, "name should be set");
-
+#ifdef VI_ANGELSCRIPT
 			return Module(Engine->GetModule(Name, asGM_CREATE_IF_NOT_EXISTS));
+#else
+			return Module(nullptr);
+#endif
 		}
 		size_t VirtualMachine::GetLibraryProperty(LibraryFeatures Property)
 		{
@@ -6191,7 +7544,11 @@ namespace Mavi
 		size_t VirtualMachine::GetProperty(Features Property)
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Engine->GetEngineProperty((asEEngineProp)Property);
+#else
+			return 0;
+#endif
 		}
 		void VirtualMachine::SetModuleDirectory(const Core::String& Value)
 		{
@@ -6411,7 +7768,7 @@ namespace Mavi
 
 					return false;
 				}
-
+#ifdef VI_ANGELSCRIPT
 				VI_TRACE("[vm] register global funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)asCALL_CDECL, (int)Decl.size(), (void*)Function);
 				if (Engine->RegisterGlobalFunction(Decl.c_str(), asFUNCTION(Function), asCALL_CDECL) < 0)
 				{
@@ -6424,6 +7781,9 @@ namespace Mavi
 				Context.Functions.insert({ Func, { Decl, (void*)Function } });
 				VI_DEBUG("[vm] load function %s", Func.c_str());
 				return true;
+#else
+				return false;
+#endif
 			};
 
 			Core::UMutex<std::mutex> Unique(Sync.General);
@@ -6627,7 +7987,11 @@ namespace Mavi
 		size_t VirtualMachine::GetProperty(Features Property) const
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
+#ifdef VI_ANGELSCRIPT
 			return (size_t)Engine->GetEngineProperty((asEEngineProp)Property);
+#else
+			return 0;
+#endif
 		}
 		asIScriptEngine* VirtualMachine::GetEngine() const
 		{
@@ -6646,17 +8010,25 @@ namespace Mavi
 		VirtualMachine* VirtualMachine::Get(asIScriptEngine* Engine)
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
+#ifdef VI_ANGELSCRIPT
 			void* VM = Engine->GetUserData(ManagerUD);
 			VI_ASSERT(VM != nullptr, "engine should be created by virtual machine");
 			return (VirtualMachine*)VM;
+#else
+			return nullptr;
+#endif
 		}
 		VirtualMachine* VirtualMachine::Get()
 		{
+#ifdef VI_ANGELSCRIPT
 			asIScriptContext* Context = asGetActiveContext();
 			if (!Context)
 				return nullptr;
 
 			return Get(Context->GetEngine());
+#else
+			return nullptr;
+#endif
 		}
 		Core::String VirtualMachine::GetLibraryName(const Core::String& Path)
 		{
@@ -6691,6 +8063,7 @@ namespace Mavi
 		}
 		asIScriptContext* VirtualMachine::RequestRawContext(asIScriptEngine* Engine, void* Data)
 		{
+#ifdef VI_ANGELSCRIPT
 			VirtualMachine* VM = VirtualMachine::Get(Engine);
 			if (!VM || VM->Stacks.empty())
 				return Engine->CreateContext();
@@ -6705,15 +8078,20 @@ namespace Mavi
 			asIScriptContext* Context = *VM->Stacks.rbegin();
 			VM->Stacks.pop_back();
 			return Context;
+#else
+			return nullptr;
+#endif
 		}
 		void VirtualMachine::ReturnRawContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data)
 		{
+#ifdef VI_ANGELSCRIPT
 			VirtualMachine* VM = VirtualMachine::Get(Engine);
 			VI_ASSERT(VM != nullptr, "engine should be set");
 
 			Core::UMutex<std::mutex> Unique(VM->Sync.Pool);
 			VM->Stacks.push_back(Context);
 			Context->Unprepare();
+#endif
 		}
 		void VirtualMachine::LineHandler(asIScriptContext* Context, void*)
 		{
@@ -6726,7 +8104,7 @@ namespace Mavi
 		{
 			ImmediateContext* Base = ImmediateContext::Get(Context);
 			VI_ASSERT(Base != nullptr, "context should be set");
-			
+#ifdef VI_ANGELSCRIPT
 			VirtualMachine* VM = Base->GetVM();
 			if (VM->Debugger != nullptr)
 				return VM->Debugger->ThrowInternalException(Context->GetExceptionString());
@@ -6750,26 +8128,36 @@ namespace Mavi
 				Base->Callbacks.Exception(Base);
 			else if (VM->GlobalException)
 				VM->GlobalException(Base);
+#endif
 		}
 		void VirtualMachine::SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*))
 		{
+#ifdef VI_ANGELSCRIPT
 			asSetGlobalMemoryFunctions(Alloc, Free);
+#endif
 		}
 		void VirtualMachine::CleanupThisThread()
 		{
+#ifdef VI_ANGELSCRIPT
 			asThreadCleanup();
+#endif
 		}
 		ByteCodeLabel VirtualMachine::GetByteCodeInfo(uint8_t Code)
 		{
+#ifdef VI_ANGELSCRIPT
 			auto& Source = asBCInfo[Code];
 			ByteCodeLabel Label;
 			Label.Name = Source.name;
 			Label.Id = Code;
 			Label.Args = asBCTypeSize[Source.type];
 			return Label;
+#else
+			return ByteCodeLabel();
+#endif
 		}
 		void VirtualMachine::MessageLogger(asSMessageInfo* Info, void* This)
 		{
+#ifdef VI_ANGELSCRIPT
 			VirtualMachine* Engine = (VirtualMachine*)This;
 			const char* Section = (Info->section && Info->section[0] != '\0' ? Info->section : "?");
 			if (Engine->WhenError)
@@ -6796,6 +8184,7 @@ namespace Mavi
 				VI_INFO("[compiler] %s", Info->message);
 			else if (Info->type == asMSGTYPE_ERROR)
 				VI_ERR("[compiler] %s at line %i: %s%s", Section, Info->row, Info->message, SourceCode ? SourceCode->c_str() : "");
+#endif
 		}
 		void VirtualMachine::RegisterAddons(VirtualMachine* Engine)
 		{

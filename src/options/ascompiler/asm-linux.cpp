@@ -1,5 +1,5 @@
 #include "asm.h"
-#ifdef HAS_AS_JIT_UNIX
+#ifdef ANGELSCRIPT_JIT_UNIX
 #include "virtual_asm.h"
 #include <sys/mman.h>
 #include <unistd.h>

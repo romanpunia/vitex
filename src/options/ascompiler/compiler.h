@@ -1,7 +1,7 @@
 #ifndef SCRIPT_COMPILER_H
 #define SCRIPT_COMPILER_H
 #include "config.h"
-#ifdef HAS_AS_JIT
+#ifdef ANGELSCRIPT_JIT
 #ifndef ANGELSCRIPT_H
 #include <angelscript.h>
 #endif

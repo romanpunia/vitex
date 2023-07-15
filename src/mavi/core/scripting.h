@@ -274,7 +274,17 @@ namespace Mavi
 			NOCOUNT = (1 << 18),
 			APP_CLASS_ALIGN8 = (1 << 19),
 			IMPLICIT_HANDLE = (1 << 20),
-			MASK_VALID_FLAGS = 0x1FFFFF
+			MASK_VALID_FLAGS = 0x1FFFFF,
+			SCRIPT_OBJECT = (1 << 21),
+			SHARED = (1 << 22),
+			NOINHERIT = (1 << 23),
+			FUNCDEF = (1 << 24),
+			LIST_PATTERN = (1 << 25),
+			ENUM = (1 << 26),
+			TEMPLATE_SUBTYPE = (1 << 27),
+			TYPEDEF = (1 << 28),
+			ABSTRACT = (1 << 29),
+			APP_ALIGN16 = (1 << 30)
 		};
 
 		enum class Operators
@@ -491,7 +501,7 @@ namespace Mavi
 			void* GetObjectAddress();
 			int GetObjectTypeId() const;
 			size_t GetArgsCount() const;
-			ExpectsVM<void> GetArgTypeId(size_t Argument, size_t* Flags = 0) const;
+			int GetArgTypeId(size_t Argument, size_t* Flags = 0) const;
 			unsigned char GetArgByte(size_t Argument);
 			unsigned short GetArgWord(size_t Argument);
 			size_t GetArgDWord(size_t Argument);
@@ -1976,6 +1986,7 @@ namespace Mavi
 		public:
 			VirtualMachine() noexcept;
 			~VirtualMachine() noexcept;
+			ExpectsVM<void> WriteMessage(const char* Section, int Row, int Column, LogCategory Type, const char* Message);
 			ExpectsVM<void> GarbageCollect(GarbageCollector Flags, size_t NumIterations = 1);
 			ExpectsVM<void> PerformFullGarbageCollection();
 			ExpectsVM<void> NotifyOfNewObject(void* Object, const TypeInfo& Type);
@@ -2083,7 +2094,6 @@ namespace Mavi
 			Core::Option<Core::String> GetSourceCodeAppendix(const char* Label, const Core::String& Code, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
 			Core::Option<Core::String> GetSourceCodeAppendixByPath(const char* Label, const Core::String& Path, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
 			Core::Option<Core::String> GetScriptSection(const Core::String& SectionName);
-			Core::String GetObjectView(void* Object, int TypeId);
 			size_t GetFunctionsCount() const;
 			Function GetFunctionById(int Id) const;
 			Function GetFunctionByIndex(size_t Index) const;

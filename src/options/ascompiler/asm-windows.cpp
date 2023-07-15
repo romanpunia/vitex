@@ -1,5 +1,5 @@
 #include "asm.h"
-#ifdef HAS_AS_JIT_WINDOWS
+#ifdef ANGELSCRIPT_JIT_WINDOWS
 #include <windows.h>
 
 namespace assembler

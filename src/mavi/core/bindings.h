@@ -255,8 +255,8 @@ namespace Mavi
 				static Core::Unique<Any> Create();
 				static Core::Unique<Any> Create(int TypeId, void* Ref);
 				static Core::Unique<Any> Create(const char* Decl, void* Ref);
-				static void Factory1(asIScriptGeneric* G);
-				static void Factory2(asIScriptGeneric* G);
+				static Core::Unique<Any> Factory1();
+				static void Factory2(asIScriptGeneric* Generic);
 				static Any& Assignment(Any* Base, Any* Other);
 
 			public:

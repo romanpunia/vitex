@@ -2975,6 +2975,13 @@ namespace Mavi
 			{
 				return Base;
 			}
+			Core::Schema* SchemaConstructCopy(Core::Schema* Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				auto* New = Base->Copy();
+				SchemaNotifyAllReferences(New, VM, VM->GetTypeInfoByName(TYPENAME_SCHEMA).GetTypeInfo());
+				return New;
+			}
 			Core::Schema* SchemaConstructBuffer(unsigned char* Buffer)
 			{
 #ifdef VI_ANGELSCRIPT
@@ -3300,9 +3307,20 @@ namespace Mavi
 				Output = Core::Schema::FromJSONB(Core::Vector<char>(Value.begin(), Value.end()));
 				return Output ? *Output : nullptr;
 			}
-			Core::Schema* SchemaCopyAssign(Core::Schema* Base, const Core::Variant& Other)
+			Core::Schema* SchemaCopyAssign1(Core::Schema* Base, const Core::Variant& Other)
 			{
 				Base->Value = Other;
+				return Base;
+			}
+			Core::Schema* SchemaCopyAssign2(Core::Schema* Base, Core::Schema* Other)
+			{
+				Base->Clear();
+				if (!Other)
+					return Base;
+
+				auto* Copy = Other->Copy();
+				Base->Join(Copy, true);
+				Copy->Release();
 				return Base;
 			}
 			bool SchemaEquals(Core::Schema* Base, Core::Schema* Other)
@@ -9533,6 +9551,7 @@ namespace Mavi
 				auto VSchema = VM->SetClass<Core::Schema>("schema", true);
 				VSchema->SetProperty<Core::Schema>("string key", &Core::Schema::Key);
 				VSchema->SetProperty<Core::Schema>("variant value", &Core::Schema::Value);
+				VSchema->SetConstructorEx<Core::Schema, Core::Schema*>("schema@ f(schema@+)", &SchemaConstructCopy);
 				VSchema->SetGcConstructor<Core::Schema, Schema, const Core::Variant&>("schema@ f(const variant &in)");
 				VSchema->SetGcConstructorListEx<Core::Schema>("schema@ f(int &in) { repeat { string, ? } }", &SchemaConstruct);
 				VSchema->SetMethod<Core::Schema, Core::Variant, size_t>("variant get_var(usize) const", &Core::Schema::GetVar);
@@ -9581,7 +9600,8 @@ namespace Mavi
 				VSchema->SetMethodStatic("schema@ from_json(const string &in)", &SchemaFromJSON);
 				VSchema->SetMethodStatic("schema@ from_xml(const string &in)", &SchemaFromXML);
 				VSchema->SetMethodStatic("schema@ import_json(const string &in)", &SchemaImport);
-				VSchema->SetOperatorEx(Operators::Assign, (uint32_t)Position::Left, "schema@+", "const variant &in", &SchemaCopyAssign);
+				VSchema->SetOperatorEx(Operators::Assign, (uint32_t)Position::Left, "schema@+", "const variant &in", &SchemaCopyAssign1);
+				VSchema->SetOperatorEx(Operators::Assign, (uint32_t)Position::Left, "schema@+", "schema@+", &SchemaCopyAssign2);
 				VSchema->SetOperatorEx(Operators::Equals, (uint32_t)(Position::Left | Position::Const), "bool", "schema@+", &SchemaEquals);
 				VSchema->SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "schema@+", "const string &in", &SchemaGetIndex);
 				VSchema->SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "schema@+", "usize", &SchemaGetIndexOffset);

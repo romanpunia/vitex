@@ -685,7 +685,6 @@ namespace Mavi
 					{
 						Future->Store((void*)&Result, (int)Id);
 					});
-
 					return Future;
 				}
 				template <typename T>
@@ -710,29 +709,21 @@ namespace Mavi
 					static Promise* Id(T* Base, Args... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid(false);
-						Core::Coasync<void>([Future, Base, Data...]() -> Core::Promise<void>
+						((Base->*F)(Data...)).When([Future](R&& Result)
 						{
-							auto Task = (Base->*F)(Data...);
-							auto Result = VI_AWAIT(std::move(Task));
 							Future->Store((void*)&Result, (int)TypeID);
-							CoreturnVoid;
 						});
-
 						return Future;
 					}
 					template <uint64_t TypeRef>
 					static Promise* Decl(T* Base, Args... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid(false);
-						int Id = TypeCache::GetTypeId(TypeRef);
-						Core::Coasync<void>([Future, Id, Base, Data...]() -> Core::Promise<void>
+						int TypeId = TypeCache::GetTypeId(TypeRef);
+						((Base->*F)(Data...)).When([Future, TypeId](R&& Result)
 						{
-							auto Task = (Base->*F)(Data...);
-							auto Result = VI_AWAIT(std::move(Task));
-							Future->Store((void*)&Result, Id);
-							CoreturnVoid;
+							Future->Store((void*)&Result, TypeId);
 						});
-
 						return Future;
 					}
 				};
@@ -744,14 +735,10 @@ namespace Mavi
 					static Promise* Id(Args... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid(false);
-						Core::Coasync<void>([Future, Data...]() -> Core::Promise<void>
+						((*F)(Data...)).When([Future](R&& Result)
 						{
-							auto Task = (*F)(Data...);
-							auto Result = VI_AWAIT(std::move(Task));
 							Future->Store((void*)&Result, (int)TypeID);
-							CoreturnVoid;
 						});
-
 						return Future;
 					}
 					template <uint64_t TypeRef>
@@ -759,14 +746,10 @@ namespace Mavi
 					{
 						Promise* Future = Promise::CreateFactoryVoid(false);
 						int TypeId = TypeCache::GetTypeId(TypeRef);
-						Core::Coasync<void>([Future, TypeId, Data...]() -> Core::Promise<void>
+						((*F)(Data...)).When([Future, TypeId](R&& Result)
 						{
-							auto Task = (*F)(Data...);
-							auto Result = VI_AWAIT(std::move(Task));
 							Future->Store((void*)&Result, TypeId);
-							CoreturnVoid;
 						});
-
 						return Future;
 					}
 				};

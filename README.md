@@ -16,9 +16,9 @@ Mavi is a cross-platform C++14/17/20/23 framework to create any type of applicat
 ## Details
 Using concept of tasks and queues, in Mavi there are two rules for optimal performace and proper CPU loading:
 1. Split work in to small pieces.
-2. Use scheduler to process those small pieces.
+2. Schedule those small pieces.
 
-There are two types of thread workers in a thread pool: light and heavy. Light threads processes non-blocking tasks such as event dispatching, non-blocking IO and coroutines. Heavy threads are in charge of everything else such as CPU bound tasks and blocking IO. Mavi is made to be as scalable as possible without even thinking about scalability which in turn makes development of multithreaded systems quite a lot easier.
+Scheduler processes blocking and non-blocking tasks such as event dispatching, non-blocking IO and coroutines, CPU bound tasks and blocking IO. Mavi is made to be as scalable as possible without even thinking about scalability which in turn makes development of multithreaded systems quite a lot easier.
 
 Originally, Mavi was only a game engine but now it isn't. All the features for game development are there but it can be easily stripped out to reduce size of executable and use only needed functionality. There are cases when Mavi is used as a framework for building a high performance backend server or a daemon, most of the time all we need in that case is OpenSSL and maybe Zlib with PostgreSQL or MongoDB, so we strip out everything else that way reducing compile time, executable size and runtime memory usage to minimum. Turns out, Mavi can easily run in a very limited machines that were slow even in 2006.
 

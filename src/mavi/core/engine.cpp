@@ -1649,7 +1649,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			auto* Queue = Core::Schedule::Get();
-			if (Queue->GetThreads(Core::Difficulty::Blocking) > 0)
+			if (Queue->GetThreads(Core::Difficulty::Normal) > 0)
 			{
 				Core::Promise<void> Future;
 				if (Queue->SetTask([Future, Callback]() mutable
@@ -1689,7 +1689,7 @@ namespace Mavi
 		}
 		size_t Parallel::GetThreads()
 		{
-			return Core::Schedule::Get()->GetThreads(Core::Difficulty::Blocking);
+			return Core::Schedule::Get()->GetThreads(Core::Difficulty::Normal);
 		}
 
 		void PoseBuffer::Fill(SkinModel* Model)

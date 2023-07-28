@@ -3598,16 +3598,16 @@ namespace Mavi
 			return sizeof(Tag::String) - 1;
 		}
 
-		Timeout::Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept : Expires(NewTimeout), Callback(NewCallback), Type(NewType), Id(NewId), Alive(NewAlive)
+		Timeout::Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive) noexcept : Expires(NewTimeout), Callback(NewCallback), Id(NewId), Alive(NewAlive)
 		{
 		}
-		Timeout::Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept : Expires(NewTimeout), Callback(std::move(NewCallback)), Type(NewType), Id(NewId), Alive(NewAlive)
+		Timeout::Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive) noexcept : Expires(NewTimeout), Callback(std::move(NewCallback)), Id(NewId), Alive(NewAlive)
 		{
 		}
-		Timeout::Timeout(const Timeout& Other) noexcept : Expires(Other.Expires), Callback(Other.Callback), Type(Other.Type), Id(Other.Id), Alive(Other.Alive)
+		Timeout::Timeout(const Timeout& Other) noexcept : Expires(Other.Expires), Callback(Other.Callback), Id(Other.Id), Alive(Other.Alive)
 		{
 		}
-		Timeout::Timeout(Timeout&& Other) noexcept : Expires(Other.Expires), Callback(std::move(Other.Callback)), Type(Other.Type), Id(Other.Id), Alive(Other.Alive)
+		Timeout::Timeout(Timeout&& Other) noexcept : Expires(Other.Expires), Callback(std::move(Other.Callback)), Id(Other.Id), Alive(Other.Alive)
 		{
 		}
 		Timeout& Timeout::operator= (const Timeout& Other) noexcept
@@ -3616,7 +3616,6 @@ namespace Mavi
 			Expires = Other.Expires;
 			Id = Other.Id;
 			Alive = Other.Alive;
-			Type = Other.Type;
 			return *this;
 		}
 		Timeout& Timeout::operator= (Timeout&& Other) noexcept
@@ -3625,7 +3624,6 @@ namespace Mavi
 			Expires = Other.Expires;
 			Id = Other.Id;
 			Alive = Other.Alive;
-			Type = Other.Type;
 			return *this;
 		}
 
@@ -10131,19 +10129,15 @@ namespace Mavi
 		{
 			if (!Cores)
 				Cores = 1;
-#ifdef VI_CXX20
-			size_t Async = 0;
-			size_t Simple = (size_t)(std::max((double)Cores * 0.35, 1.0));
-			size_t Blocking = std::max<size_t>(Cores - Simple, 1);
+#ifndef VI_CXX20
+			size_t Async = (size_t)std::max(std::ceil(Cores * 0.20), 1.0);
 #else
-			size_t Async = (size_t)(std::max((double)Cores * 0.20, 1.0));
-			size_t Simple = (size_t)(std::max((double)Cores * 0.30, 1.0));
-			size_t Blocking = std::max<size_t>(Cores - Simple, 1);
+			size_t Async = 0;
 #endif
 			size_t Timeout = 1;
+			size_t Normal = std::max<size_t>(std::min<size_t>(Cores - Async - Timeout, Cores), 1);
 			Threads[((size_t)Difficulty::Async)] = Async;
-			Threads[((size_t)Difficulty::Simple)] = Simple;
-			Threads[((size_t)Difficulty::Blocking)] = Blocking;
+			Threads[((size_t)Difficulty::Normal)] = Normal;
 			Threads[((size_t)Difficulty::Timeout)] = Timeout;
 			MaxCoroutines = std::min<size_t>(Cores * 8, 256);
 		}
@@ -10169,11 +10163,9 @@ namespace Mavi
 				Id = ++Generation;
 			return Id;
 		}
-		TaskId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type)
+		TaskId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback)
 		{
-			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			VI_ASSERT(Callback, "callback should not be empty");
-
 			if (!Enqueue || Immediate)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
@@ -10186,15 +10178,13 @@ namespace Mavi
 			auto Queue = Queues[(size_t)Difficulty::Timeout];
 
 			UMutex<std::mutex> Lock(Queue->Update);
-			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, true, Type)));
+			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, true)));
 			Queue->Notify.notify_one();
 			return Id;
 		}
-		TaskId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
+		TaskId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback)
 		{
-			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			VI_ASSERT(Callback, "callback should not be empty");
-
 			if (!Enqueue || Immediate)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
@@ -10207,15 +10197,13 @@ namespace Mavi
 			auto Queue = Queues[(size_t)Difficulty::Timeout];
 
 			UMutex<std::mutex> Lock(Queue->Update);
-			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, true, Type)));
+			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, true)));
 			Queue->Notify.notify_one();
 			return Id;
 		}
-		TaskId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type)
+		TaskId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback)
 		{
-			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			VI_ASSERT(Callback, "callback should not be empty");
-
 			if (!Enqueue || Immediate)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
@@ -10228,15 +10216,13 @@ namespace Mavi
 			auto Queue = Queues[(size_t)Difficulty::Timeout];
 
 			UMutex<std::mutex> Lock(Queue->Update);
-			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, false, Type)));
+			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, false)));
 			Queue->Notify.notify_one();
 			return Id;
 		}
-		TaskId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
+		TaskId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback)
 		{
-			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			VI_ASSERT(Callback, "callback should not be empty");
-
 			if (!Enqueue || Immediate)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
@@ -10249,15 +10235,13 @@ namespace Mavi
 			auto Queue = Queues[(size_t)Difficulty::Timeout];
 
 			UMutex<std::mutex> Lock(Queue->Update);
-			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, false, Type)));
+			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, false)));
 			Queue->Notify.notify_one();
 			return Id;
 		}
-		bool Schedule::SetTask(const TaskCallback& Callback, Difficulty Type)
+		bool Schedule::SetTask(const TaskCallback& Callback)
 		{
-			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			VI_ASSERT(Callback, "callback should not be empty");
-
 			if (!Enqueue)
 				return false;
 
@@ -10270,15 +10254,13 @@ namespace Mavi
 			PostDebug(ThreadTask::EnqueueTask, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			auto Queue = Queues[(size_t)Type];
+			auto Queue = Queues[(size_t)Difficulty::Normal];
 			Queue->Tasks.enqueue(Callback);
 			return true;
 		}
-		bool Schedule::SetTask(TaskCallback&& Callback, Difficulty Type)
+		bool Schedule::SetTask(TaskCallback&& Callback)
 		{
-			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			VI_ASSERT(Callback, "callback should not be empty");
-
 			if (!Enqueue)
 				return false;
 
@@ -10291,7 +10273,7 @@ namespace Mavi
 			PostDebug(ThreadTask::EnqueueTask, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			auto Queue = Queues[(size_t)Type];
+			auto Queue = Queues[(size_t)Difficulty::Normal];
 			Queue->Tasks.enqueue(std::move(Callback));
 			return true;
 		}
@@ -10407,7 +10389,7 @@ namespace Mavi
 					}
 					else
 					{
-						SetTask(std::move(It->second.Callback), It->second.Type);
+						SetTask(std::move(It->second.Callback));
 						Queue->Timers.erase(It);
 					}
 #ifndef NDEBUG
@@ -10453,8 +10435,7 @@ namespace Mavi
 #endif
 					return Passes > 0;
 				}
-				case Difficulty::Simple:
-				case Difficulty::Blocking:
+				case Difficulty::Normal:
 				{
 					if (Suspended)
 						return Queue->Tasks.size_approx() > 0;
@@ -10465,7 +10446,7 @@ namespace Mavi
 #endif
 					for (size_t i = 0; i < Count; ++i)
 					{
-						VI_MEASURE(Type == Difficulty::Simple ? Timings::Frame : Timings::Intensive);
+						VI_MEASURE(Timings::Intensive);
 						TaskCallback Data(std::move(Dispatcher.Tasks[i]));
 						if (Data != nullptr)
 							Data();
@@ -10502,12 +10483,9 @@ namespace Mavi
 			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Async]; j++)
 				PushThread(Difficulty::Async, Index++, j, false);
 
-			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Simple]; j++)
-				PushThread(Difficulty::Simple, Index++, j, false);
+			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Normal]; j++)
+				PushThread(Difficulty::Normal, Index++, j, false);
 
-			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Blocking]; j++)
-				PushThread(Difficulty::Blocking, Index++, j, false);
-			
 			if (Policy.Threads[(size_t)Difficulty::Timeout] > 0)
 				PushThread(Difficulty::Timeout, Policy.Ping ? 0 : Index++, 0, !!Policy.Ping);
 
@@ -10623,7 +10601,7 @@ namespace Mavi
 								}
 								else
 								{
-									SetTask(std::move(It->second.Callback), It->second.Type);
+									SetTask(std::move(It->second.Callback));
 									Queue->Timers.erase(It);
 								}
 
@@ -10710,13 +10688,12 @@ namespace Mavi
 					VI_RELEASE(State);
 					break;
 				}
-				case Difficulty::Simple:
-				case Difficulty::Blocking:
+				case Difficulty::Normal:
 				{
 					if (Thread->Daemon)
-						VI_DEBUG("[schedule] acquire thread %s (%s)", ThreadId.c_str(), Thread->Type == Difficulty::Simple ? "non-blocking" : "blocking");
+						VI_DEBUG("[schedule] acquire thread %s (tasks)", ThreadId.c_str());
 					else
-						VI_DEBUG("[schedule] spawn thread %s (%s)", ThreadId.c_str(), Thread->Type == Difficulty::Simple ? "non-blocking" : "blocking");
+						VI_DEBUG("[schedule] spawn thread %s (tasks)", ThreadId.c_str());
 
 					ReceiveToken Token(Queue->Tasks);
 					TaskCallback Events[EVENTS_SIZE];
@@ -10740,7 +10717,7 @@ namespace Mavi
 #endif
 						while (Count--)
 						{
-							VI_MEASURE(Thread->Type == Difficulty::Simple ? Timings::Frame : Timings::Intensive);
+							VI_MEASURE(Timings::Intensive);
 							TaskCallback Data(std::move(Events[Count]));
 							if (Data)
 								Data();
@@ -10825,8 +10802,7 @@ namespace Mavi
 			switch (Type)
 			{
 				case Difficulty::Async:
-				case Difficulty::Simple:
-				case Difficulty::Blocking:
+				case Difficulty::Normal:
 					return Queue->Tasks.size_approx() > 0;
 				case Difficulty::Timeout:
 					return !Queue->Timers.empty();
@@ -10836,7 +10812,7 @@ namespace Mavi
 		}
 		bool Schedule::HasAnyTasks() const
 		{
-			return HasTasks(Difficulty::Simple) || HasTasks(Difficulty::Blocking) || HasTasks(Difficulty::Async) || HasTasks(Difficulty::Timeout);
+			return HasTasks(Difficulty::Normal) || HasTasks(Difficulty::Async) || HasTasks(Difficulty::Timeout);
 		}
 		bool Schedule::IsSuspended() const
 		{

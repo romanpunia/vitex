@@ -4746,29 +4746,29 @@ namespace Mavi
 				return Base->Write(Data.data(), Data.size());
 			}
 
-			Core::TaskId ScheduleSetInterval(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback, Core::Difficulty Type)
+			Core::TaskId ScheduleSetInterval(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
 					return Core::INVALID_TASK_ID;
 
-				return Base->SetInterval(Mills, [Delegate]() mutable { Delegate(nullptr); }, Type);
+				return Base->SetInterval(Mills, [Delegate]() mutable { Delegate(nullptr); });
 			}
-			Core::TaskId ScheduleSetTimeout(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback, Core::Difficulty Type)
+			Core::TaskId ScheduleSetTimeout(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
 					return Core::INVALID_TASK_ID;
 
-				return Base->SetTimeout(Mills, [Delegate]() mutable { Delegate(nullptr); }, Type);
+				return Base->SetTimeout(Mills, [Delegate]() mutable { Delegate(nullptr); });
 			}
-			bool ScheduleSetImmediate(Core::Schedule* Base, asIScriptFunction* Callback, Core::Difficulty Type)
+			bool ScheduleSetImmediate(Core::Schedule* Base, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
 					return Core::INVALID_TASK_ID;
 
-				return Base->SetTask([Delegate]() mutable { Delegate(nullptr); }, Type);
+				return Base->SetTask([Delegate]() mutable { Delegate(nullptr); });
 			}
 
 			Array* OSDirectoryScan(const Core::String& Path)
@@ -9939,8 +9939,7 @@ namespace Mavi
 
 				auto VDifficulty = VM->SetEnum("difficulty");
 				VDifficulty->SetValue("async", (int)Core::Difficulty::Async);
-				VDifficulty->SetValue("simple", (int)Core::Difficulty::Simple);
-				VDifficulty->SetValue("blocking", (int)Core::Difficulty::Blocking);
+				VDifficulty->SetValue("normal", (int)Core::Difficulty::Normal);
 				VDifficulty->SetValue("timeout", (int)Core::Difficulty::Timeout);
 
 				auto VDesc = VM->SetStructTrivial<Core::Schedule::Desc>("schedule_policy");
@@ -9953,9 +9952,9 @@ namespace Mavi
 
 				auto VSchedule = VM->SetClass<Core::Schedule>("schedule", false);
 				VSchedule->SetFunctionDef("void task_event()");
-				VSchedule->SetMethodEx("task_id set_interval(uint64, task_event@, difficulty = difficulty::simple)", &ScheduleSetInterval);
-				VSchedule->SetMethodEx("task_id set_timeout(uint64, task_event@, difficulty = difficulty::simple)", &ScheduleSetTimeout);
-				VSchedule->SetMethodEx("bool set_immediate(task_event@, difficulty = difficulty::blocking)", &ScheduleSetImmediate);
+				VSchedule->SetMethodEx("task_id set_interval(uint64, task_event@)", &ScheduleSetInterval);
+				VSchedule->SetMethodEx("task_id set_timeout(uint64, task_event@)", &ScheduleSetTimeout);
+				VSchedule->SetMethodEx("bool set_immediate(task_event@)", &ScheduleSetImmediate);
 				VSchedule->SetMethod("bool clear_timeout(task_id)", &Core::Schedule::ClearTimeout);
 				VSchedule->SetMethod("bool trigger(difficulty)", &Core::Schedule::Trigger);
 				VSchedule->SetMethod("bool dispatch()", &Core::Schedule::Dispatch);

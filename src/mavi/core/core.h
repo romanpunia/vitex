@@ -160,8 +160,7 @@ namespace Mavi
 		enum class Difficulty
 		{
 			Async,
-			Simple,
-			Blocking,
+			Normal,
 			Timeout,
 			Count
 		};
@@ -1930,12 +1929,11 @@ namespace Mavi
 		{
 			std::chrono::microseconds Expires;
 			TaskCallback Callback;
-			Difficulty Type;
 			TaskId Id;
 			bool Alive;
 
-			Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept;
-			Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept;
+			Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive) noexcept;
+			Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive) noexcept;
 			Timeout(const Timeout& Other) noexcept;
 			Timeout(Timeout&& Other) noexcept;
 			Timeout& operator= (const Timeout& Other) noexcept;
@@ -3268,12 +3266,12 @@ namespace Mavi
 		public:
 			Schedule() noexcept;
 			virtual ~Schedule() noexcept override;
-			TaskId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Simple);
-			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Simple);
-			TaskId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Simple);
-			TaskId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Simple);
-			bool SetTask(const TaskCallback& Callback, Difficulty Type = Difficulty::Blocking);
-			bool SetTask(TaskCallback&& Callback, Difficulty Type = Difficulty::Blocking);
+			TaskId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback);
+			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback);
+			TaskId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback);
+			TaskId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback);
+			bool SetTask(const TaskCallback& Callback);
+			bool SetTask(TaskCallback&& Callback);
 			bool SetCoroutine(const TaskCallback& Callback);
 			bool SetCoroutine(TaskCallback&& Callback);
 			bool SetDebugCallback(const ThreadDebugCallback& Callback);
@@ -3582,7 +3580,7 @@ namespace Mavi
 			inline void operator()(TaskCallback&& Callback, bool Async)
 			{
 				if (Async && Schedule::IsAvailable())
-					Schedule::Get()->SetTask(std::move(Callback), Difficulty::Simple);
+					Schedule::Get()->SetTask(std::move(Callback));
 				else
 					Callback();
 			}
@@ -4465,7 +4463,7 @@ namespace Mavi
 		using ExpectsPromiseIO = BasicPromise<ExpectsIO<T>, Executor>;
 
 		template <typename T>
-		inline Promise<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Blocking) noexcept
+		inline Promise<T> Cotask(std::function<T()>&& Callback) noexcept
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
 
@@ -4473,7 +4471,7 @@ namespace Mavi
 			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
 			{
 				Result.Set(std::move(Callback()));
-			}, Type);
+			});
 
 			return Result;
 		}
@@ -4500,7 +4498,7 @@ namespace Mavi
 				return (*Callable)().template Then<T>(Finalize);
 
 			Promise<T> Value;
-			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, Difficulty::Simple);
+			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); });
 			return Value.template Then<T>(Finalize);
 		}
 		template <>
@@ -4513,7 +4511,7 @@ namespace Mavi
 				return (*Callable)().Then(Finalize);
 
 			Promise<void> Value;
-			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, Difficulty::Simple);
+			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); });
 			return Value.Then(Finalize);
 		}
 #else

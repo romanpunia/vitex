@@ -5564,7 +5564,7 @@ namespace Mavi
 					Context->Resume();
 				if (Base != nullptr)
 					Base->Release();
-			}, Core::Difficulty::Simple) == Core::INVALID_TASK_ID)
+			}) == Core::INVALID_TASK_ID)
 				return VirtualError::CONTEXT_NOT_PREPARED;
 
 			return Execution::Active;

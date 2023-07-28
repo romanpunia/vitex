@@ -263,7 +263,7 @@ namespace Mavi
 			}
 			void WebSocketFrame::Next()
 			{
-				Core::Schedule::Get()->SetTask(std::bind(&WebSocketFrame::Update, this), Core::Difficulty::Simple);
+				Core::Schedule::Get()->SetTask(std::bind(&WebSocketFrame::Update, this));
 			}
 			void WebSocketFrame::Update()
 			{
@@ -4565,14 +4565,14 @@ namespace Mavi
 				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
 				{
 					if (Permissions::WebSocketUpgradeAllowed(Base))
-						return Core::Schedule::Get()->SetTask([Base]() { RouteWEBSOCKET(Base); }, Core::Difficulty::Simple);
+						return Core::Schedule::Get()->SetTask([Base]() { RouteWEBSOCKET(Base); });
 
 					if (!Resources::ResourceHasAlternative(Base))
 						return Base->Error(404, "Requested resource was not found.");
 				}
 
 				if (Permissions::WebSocketUpgradeAllowed(Base))
-					return Core::Schedule::Get()->SetTask([Base]() { RouteWEBSOCKET(Base); }, Core::Difficulty::Simple);
+					return Core::Schedule::Get()->SetTask([Base]() { RouteWEBSOCKET(Base); });
 
 				if (Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(404, "Requested resource was not found.");
@@ -4586,9 +4586,9 @@ namespace Mavi
 				}
 
 				if (Base->Route->StaticFileMaxAge > 0 && !Resources::ResourceModified(Base, &Base->Resource))
-					return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResourceCache(Base); }, Core::Difficulty::Simple);
+					return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResourceCache(Base); });
 
-				return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResource(Base); }, Core::Difficulty::Simple);
+				return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResource(Base); });
 			}
 			bool Routing::RoutePOST(Connection* Base)
 			{
@@ -4606,9 +4606,9 @@ namespace Mavi
 					return Base->Error(404, "Requested resource was not found.");
 
 				if (Base->Route->StaticFileMaxAge > 0 && !Resources::ResourceModified(Base, &Base->Resource))
-					return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResourceCache(Base); }, Core::Difficulty::Simple);
+					return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResourceCache(Base); });
 
-				return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResource(Base); }, Core::Difficulty::Simple);
+				return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResource(Base); });
 			}
 			bool Routing::RoutePUT(Connection* Base)
 			{

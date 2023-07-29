@@ -3845,16 +3845,18 @@ namespace Mavi
 				if (!Base->Request.Match.Empty())
 				{
 					auto& Match = Base->Request.Match.Get()[0];
-					Core::String Target = Base->Request.Path;
-					Core::Stringify::RemovePart(Base->Request.Path, (size_t)Match.Start, (size_t)Match.End);
-					Base->Request.Path = Base->Route->DocumentRoot + Target;
+					size_t Start = std::min<size_t>(Base->Request.Path.size(), (size_t)Match.Start);
+					size_t End = std::min<size_t>(Base->Request.Path.size(), (size_t)Match.End);
+					Core::Stringify::RemovePart(Base->Request.Path, Start, End);
 				}
-				else
+				
+				if (!Base->Route->DocumentRoot.empty())
+				{
 					Base->Request.Path = Base->Route->DocumentRoot + Base->Request.Path;
-
-				auto Path = Core::OS::Path::Resolve(Base->Request.Path.c_str());
-				if (Path)
-					Base->Request.Path = *Path;
+					auto Path = Core::OS::Path::Resolve(Base->Request.Path.c_str());
+					if (Path)
+						Base->Request.Path = *Path;
+				}
 
 				if (Core::Stringify::EndsOf(Base->Request.Path, "/\\"))
 				{
@@ -3931,6 +3933,9 @@ namespace Mavi
 
 				auto* Host = Base->Request.GetHeaderBlob("Host");
 				if (!Host)
+					return false;
+
+				if (Base->Request.URI.empty() || Base->Request.URI.front() != '/')
 					return false;
 
 				Core::UnorderedMap<Core::String, SiteEntry*>::iterator It;
@@ -4532,7 +4537,7 @@ namespace Mavi
 			bool Routing::RouteWEBSOCKET(Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr, "connection should be set");
-				if (!Base->Route || !Base->Route->AllowWebSocket)
+				if (!Base->Route->AllowWebSocket)
 					return Base->Error(404, "Websocket protocol is not allowed on this server.");
 
 				const char* WebSocketKey = Base->Request.GetHeader("Sec-WebSocket-Key");
@@ -4562,7 +4567,7 @@ namespace Mavi
 			bool Routing::RouteGET(Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
+				if (Base->Route->DocumentRoot.empty() || !Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
 				{
 					if (Permissions::WebSocketUpgradeAllowed(Base))
 						return Core::Schedule::Get()->SetTask([Base]() { RouteWEBSOCKET(Base); });
@@ -4593,13 +4598,10 @@ namespace Mavi
 			bool Routing::RoutePOST(Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr, "connection should be set");
-				if (!Base->Route)
+				if (Base->Route->DocumentRoot.empty() || Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(404, "Requested resource was not found.");
 
 				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
-					return Base->Error(404, "Requested resource was not found.");
-
-				if (Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(404, "Requested resource was not found.");
 
 				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
@@ -4613,7 +4615,7 @@ namespace Mavi
 			bool Routing::RoutePUT(Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr, "connection should be set");
-				if (!Base->Route || Resources::ResourceHidden(Base, nullptr))
+				if (Base->Route->DocumentRoot.empty() || Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(403, "Resource overwrite denied.");
 
 				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
@@ -4693,13 +4695,10 @@ namespace Mavi
 			bool Routing::RoutePATCH(Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr, "connection should be set");
-				if (!Base->Route)
-					return Base->Error(403, "Operation denied by server.");
-
-				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
+				if (Base->Route->DocumentRoot.empty() || Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(404, "Requested resource was not found.");
 
-				if (Resources::ResourceHidden(Base, nullptr))
+				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
 					return Base->Error(404, "Requested resource was not found.");
 
 				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
@@ -4729,8 +4728,8 @@ namespace Mavi
 			bool Routing::RouteDELETE(Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr, "connection should be set");
-				if (!Base->Route || Resources::ResourceHidden(Base, nullptr))
-					return Base->Error(403, "Operation denied by server.");
+				if (Base->Route->DocumentRoot.empty() || Resources::ResourceHidden(Base, nullptr))
+					return Base->Error(404, "Requested resource was not found.");
 
 				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
 					return Base->Error(404, "Requested resource was not found.");
@@ -5415,7 +5414,7 @@ namespace Mavi
 				VI_ASSERT(Key != nullptr, "key should be set");
 
 				const char* Version = Base->Request.GetHeader("Sec-WebSocket-Version");
-				if (!Base->Route || !Version || strcmp(Version, "13") != 0)
+				if (!Version || strcmp(Version, "13") != 0)
 					return Base->Error(426, "Protocol upgrade required. Version \"%s\" is not allowed", Version);
 
 				char Buffer[100];

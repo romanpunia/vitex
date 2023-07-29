@@ -1627,6 +1627,15 @@ namespace Mavi
 
 					VI_DEBUG("[pq] try connect using %i connections", (int)Connections);
 					Queue.reserve(Connections);
+					
+					auto& Props = Source.Get();
+					auto Hostname = Props.find("host");
+					auto Port = Props.find("port");
+					auto ConnectTimeoutValue = Props.find("connect_timeout");
+					auto ConnectTimeoutSeconds = ConnectTimeoutValue == Props.end() ? Core::ExpectsIO<uint64_t>(std::make_error_condition(std::errc::invalid_argument)) : Core::FromString<uint64_t>(ConnectTimeoutValue->second);
+					Core::String Address = Core::Stringify::Text("%s:%s", Hostname != Props.end() ? Hostname->second.c_str() : "0.0.0.0", Port != Props.end() ? Port->second.c_str() : "5432");
+					uint64_t ConnectTimeout = (ConnectTimeoutSeconds ? *ConnectTimeoutSeconds : 10);
+					time_t ConnectInitiated = time(nullptr);
 
 					for (size_t i = 0; i < Connections; i++)
 					{
@@ -1634,6 +1643,7 @@ namespace Mavi
 						if (!Base)
 							goto Failure;
 
+						VI_DEBUG("[pq] try connect to %s on 0x%" PRIXPTR, Address.c_str(), Base);
 						if (PQstatus(Base) == ConnStatusType::CONNECTION_BAD)
 						{
 							PQfinish(Base);
@@ -1695,6 +1705,12 @@ namespace Mavi
 								Error = Base;
 								goto Failure;
 							}
+						}
+
+						if (time(nullptr) - ConnectInitiated >= (time_t)ConnectTimeout)
+						{
+							VI_ERR("[pqerr] connection to %s has timed out (took %" PRIu64 " seconds)", Address.c_str(), ConnectTimeout);
+							goto Failure;
 						}
 					} while (!Sockets.empty() && Network::Utils::Poll(Sockets.data(), (int)Sockets.size(), 50) >= 0);
 

@@ -104,7 +104,8 @@ namespace Mavi
 		{
 			PromiseNoCallbacks = 0,
 			PromiseNoConstructor = 1,
-			CTypesNoPointerCast = 2
+			PromiseAlwaysAwait = 2,
+			CTypesNoPointerCast = 3
 		};
 
 		enum class Modifiers
@@ -1807,6 +1808,7 @@ namespace Mavi
 				ExpectsPromiseVM<Execution> Future = ExpectsPromiseVM<Execution>::Null();
 				Core::String Stacktrace;
 				size_t DenySuspends = 0;
+				size_t LocalReferences = 0;
 			} Executor;
 
 		private:
@@ -1861,6 +1863,8 @@ namespace Mavi
 			void SetCallbackResolverCallback(const std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)>& Callback);
 			void SetLineCallback(const std::function<void(ImmediateContext*)>& Callback);
 			void SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
+			void AddRefLocals();
+			void ReleaseLocals();
 			void Reset();
 			void DisableSuspends();
 			void EnableSuspends();

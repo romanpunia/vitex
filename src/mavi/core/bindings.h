@@ -667,10 +667,12 @@ namespace Mavi
 				void* Retrieve();
 				bool IsPending();
 				Promise* YieldIf();
+				Promise* TryYieldIf();
 
 			public:
 				static Promise* CreateFactory(void* _Ref, int TypeId);
-				static Promise* CreateFactoryVoid(bool HasValue);
+				static Promise* CreateFactoryType(asITypeInfo* Type);
+				static Promise* CreateFactoryVoid();
 				static bool TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect);
 				static bool GeneratorCallback(const Core::String& Path, Core::String& Code);
 				static bool IsContextPending(ImmediateContext* Context);
@@ -680,12 +682,12 @@ namespace Mavi
 				template <typename T>
 				static Core::Unique<Promise> Compose(Core::Promise<T>&& Value, TypeId Id)
 				{
-					Promise* Future = Promise::CreateFactoryVoid(false);
+					Promise* Future = Promise::CreateFactoryVoid();
 					Value.When([Future, Id](T&& Result)
 					{
 						Future->Store((void*)&Result, (int)Id);
 					});
-					return Future;
+					return Future->TryYieldIf();
 				}
 				template <typename T>
 				static Core::Unique<Promise> Compose(Core::Promise<T>&& Value, const char* TypeName)
@@ -708,23 +710,23 @@ namespace Mavi
 					template <TypeId TypeID>
 					static Promise* Id(T* Base, Args... Data)
 					{
-						Promise* Future = Promise::CreateFactoryVoid(false);
+						Promise* Future = Promise::CreateFactoryVoid();
 						((Base->*F)(Data...)).When([Future](R&& Result)
 						{
 							Future->Store((void*)&Result, (int)TypeID);
 						});
-						return Future;
+						return Future->TryYieldIf();
 					}
 					template <uint64_t TypeRef>
 					static Promise* Decl(T* Base, Args... Data)
 					{
-						Promise* Future = Promise::CreateFactoryVoid(false);
+						Promise* Future = Promise::CreateFactoryVoid();
 						int TypeId = TypeCache::GetTypeId(TypeRef);
 						((Base->*F)(Data...)).When([Future, TypeId](R&& Result)
 						{
 							Future->Store((void*)&Result, TypeId);
 						});
-						return Future;
+						return Future->TryYieldIf();
 					}
 				};
 
@@ -734,23 +736,23 @@ namespace Mavi
 					template <TypeId TypeID>
 					static Promise* Id(Args... Data)
 					{
-						Promise* Future = Promise::CreateFactoryVoid(false);
+						Promise* Future = Promise::CreateFactoryVoid();
 						((*F)(Data...)).When([Future](R&& Result)
 						{
 							Future->Store((void*)&Result, (int)TypeID);
 						});
-						return Future;
+						return Future->TryYieldIf();
 					}
 					template <uint64_t TypeRef>
 					static Promise* Decl(Args... Data)
 					{
-						Promise* Future = Promise::CreateFactoryVoid(false);
+						Promise* Future = Promise::CreateFactoryVoid();
 						int TypeId = TypeCache::GetTypeId(TypeRef);
 						((*F)(Data...)).When([Future, TypeId](R&& Result)
 						{
 							Future->Store((void*)&Result, TypeId);
 						});
-						return Future;
+						return Future->TryYieldIf();
 					}
 				};
 			};

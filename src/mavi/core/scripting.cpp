@@ -430,14 +430,16 @@ namespace Mavi
 					End++;
 				}
 
-				if (End - Start > 0)
+				if (End == Start)
 				{
-					Core::String Expression = Replacer(Code.substr(Start, End - Start));
-					Core::Stringify::ReplacePart(Code, Offset, End, Expression);
-					Offset += Expression.size();
-				}
-				else
 					Offset = End;
+					continue;
+				}
+
+				Core::String Expression = Replacer(Code.substr(Start, End - Start));
+				Core::Stringify::ReplacePart(Code, Offset, End, Expression);
+				if (Expression.find(Match) == std::string::npos)
+					Offset += Expression.size();
 			}
 		}
 		void FunctionFactory::ReleaseFunctor(asSFuncPtr** Ptr)
@@ -5393,6 +5395,8 @@ namespace Mavi
 		{
 			if (Executor.Future.IsPending())
 				Executor.Future.Set(VirtualError::CONTEXT_NOT_PREPARED);
+			while (Executor.LocalReferences > 0)
+				ReleaseLocals();
 #ifdef VI_ANGELSCRIPT
 			VM->GetEngine()->ReturnContext(Context);
 #endif
@@ -5961,6 +5965,43 @@ namespace Mavi
 			Callbacks = Events();
 			Executor = Frame();
 #endif
+		}
+		void ImmediateContext::AddRefLocals()
+		{
+			VI_ASSERT(Context != nullptr, "context should be set");
+			asIScriptFunction* Function = Context->GetFunction();
+			++Executor.LocalReferences;
+
+			if (!Function)
+				return;
+
+			asIScriptEngine* Engine = Context->GetEngine();
+			asUINT VarsCount = Function->GetVarCount();
+			for (asUINT n = 0; n < VarsCount; n++)
+			{
+				int TypeId;
+				if (Context->IsVarInScope(n) && Context->GetVar(n, 0, 0, &TypeId) >= 0 && ((TypeId & asTYPEID_OBJHANDLE) || (TypeId & asTYPEID_SCRIPTOBJECT)))
+					Engine->AddRefScriptObject(*(void**)Context->GetAddressOfVar(n), Engine->GetTypeInfoById(TypeId));
+			}
+		}
+		void ImmediateContext::ReleaseLocals()
+		{
+			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(Executor.LocalReferences > 0, "locals are not referenced");
+			asIScriptFunction* Function = Context->GetFunction();
+			--Executor.LocalReferences;
+
+			if (!Function)
+				return;
+
+			asIScriptEngine* Engine = Context->GetEngine();
+			asUINT VarsCount = Function->GetVarCount();
+			for (asUINT n = 0; n < VarsCount; n++)
+			{
+				int TypeId;
+				if (Context->IsVarInScope(n) && Context->GetVar(n, 0, 0, &TypeId) >= 0 && ((TypeId & asTYPEID_OBJHANDLE) || (TypeId & asTYPEID_SCRIPTOBJECT)))
+					Engine->ReleaseScriptObject(*(void**)Context->GetAddressOfVar(n), Engine->GetTypeInfoById(TypeId));
+			}
 		}
 		void ImmediateContext::DisableSuspends()
 		{

@@ -2718,6 +2718,14 @@ namespace Mavi
 
 				return this;
 			}
+			Promise* Promise::TryYieldIf()
+			{
+				bool AlwaysAwaits = (Engine->GetLibraryProperty(LibraryFeatures::PromiseAlwaysAwait) > 0);
+				if (AlwaysAwaits)
+					return YieldIf();
+
+				return this;
+			}
 			Promise* Promise::CreateFactory(void* _Ref, int TypeId)
 			{
 				Promise* Future = new Promise(ImmediateContext::Get());
@@ -2728,14 +2736,18 @@ namespace Mavi
 					Future->Store(_Ref, TypeId);
 				return Future;
 			}
-			Promise* Promise::CreateFactoryVoid(bool HasValue)
+			Promise* Promise::CreateFactoryType(asITypeInfo*)
 			{
 				Promise* Future = new Promise(ImmediateContext::Get());
 				if (!Future)
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-
-				if (HasValue)
-					Future->StoreVoid();
+				return Future;
+			}
+			Promise* Promise::CreateFactoryVoid()
+			{
+				Promise* Future = new Promise(ImmediateContext::Get());
+				if (!Future)
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 				return Future;
 			}
 			bool Promise::TemplateCallback(asITypeInfo* InfoContext, bool& DontGarbageCollect)
@@ -3330,15 +3342,6 @@ namespace Mavi
 
 				Core::VarType Type = Base->Value.GetType();
 				return (Type == Core::VarType::Null || Type == Core::VarType::Undefined);
-			}
-			void SchemaEnumRefs(Core::Schema* Base, asIScriptEngine* Engine)
-			{
-				FunctionFactory::GCEnumCallback(Engine, Base->GetParent());
-				for (auto* Item : Base->GetChilds())
-				{
-					FunctionFactory::GCEnumCallback(Engine, Item);
-					SchemaEnumRefs(Item, Engine);
-				}
 			}
 #ifdef VI_BINDINGS
 			template <typename T>
@@ -9301,8 +9304,8 @@ namespace Mavi
 				bool HasConstructor = (!VM->GetLibraryProperty(LibraryFeatures::PromiseNoConstructor));
 				if (HasConstructor)
 				{
-					VPromise->SetConstructorEx("promise<T>@ f(?&in)", &Promise::CreateFactory);
-					VPromiseVoid->SetConstructorEx("promise_v@ f(bool = false)", &Promise::CreateFactoryVoid);
+					VPromise->SetConstructorEx("promise<T>@ f(int&in)", &Promise::CreateFactoryType);
+					VPromiseVoid->SetConstructorEx("promise_v@ f()", &Promise::CreateFactoryVoid);
 				}
 
 				bool HasCallbacks = (!VM->GetLibraryProperty(LibraryFeatures::PromiseNoCallbacks));
@@ -9605,12 +9608,8 @@ namespace Mavi
 				VSchema->SetOperatorEx(Operators::Equals, (uint32_t)(Position::Left | Position::Const), "bool", "schema@+", &SchemaEquals);
 				VSchema->SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "schema@+", "const string &in", &SchemaGetIndex);
 				VSchema->SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "schema@+", "usize", &SchemaGetIndexOffset);
-				VSchema->SetEnumRefsEx<Core::Schema>(&SchemaEnumRefs);
-				VSchema->SetReleaseRefsEx<Core::Schema>([](Core::Schema* Base, asIScriptEngine*)
-				{
-					Base->Unlink();
-					Base->Clear();
-				});
+				VSchema->SetEnumRefsEx<Core::Schema>([](Core::Schema* Base, asIScriptEngine*) { });
+				VSchema->SetReleaseRefsEx<Core::Schema>([](Core::Schema* Base, asIScriptEngine*) { });
 
 				VM->BeginNamespace("var::set");
 				VM->SetFunction("schema@ auto_t(const string &in, bool = false)", &Core::Var::Auto);
@@ -10625,16 +10624,8 @@ namespace Mavi
 				VWebToken->SetMethod("bool is_valid()", &Compute::WebToken::IsValid);
 				VWebToken->SetMethodEx("string get_refresh_token(const private_key &in, const private_key &in)", &WebTokenGetRefreshToken);
 				VWebToken->SetMethodEx("void set_audience(array<string>@+)", &WebTokenSetAudience);
-				VWebToken->SetEnumRefsEx<Compute::WebToken>([](Compute::WebToken* Base, asIScriptEngine* VM)
-				{
-					FunctionFactory::GCEnumCallback(VM, Base->Header);
-					FunctionFactory::GCEnumCallback(VM, Base->Payload);
-					FunctionFactory::GCEnumCallback(VM, Base->Token);
-				});
-				VWebToken->SetReleaseRefsEx<Compute::WebToken>([](Compute::WebToken* Base, asIScriptEngine*)
-				{
-					Base->~WebToken();
-				});
+				VWebToken->SetEnumRefsEx<Compute::WebToken>([](Compute::WebToken* Base, asIScriptEngine* VM) { });
+				VWebToken->SetReleaseRefsEx<Compute::WebToken>([](Compute::WebToken* Base, asIScriptEngine*) { });
 
 				VM->BeginNamespace("ciphers");
 				VM->SetFunction("uptr@ des_ecb()", &Compute::Ciphers::DES_ECB);
@@ -12888,15 +12879,8 @@ namespace Mavi
 				VMeshBuffer->SetProperty<Graphics::MeshBuffer>("string name", &Graphics::MeshBuffer::Name);
 				VMeshBuffer->SetMethod("element_buffer@+ get_vertex_buffer() const", &Graphics::MeshBuffer::GetVertexBuffer);
 				VMeshBuffer->SetMethod("element_buffer@+ get_index_buffer() const", &Graphics::MeshBuffer::GetIndexBuffer);
-				VMeshBuffer->SetEnumRefsEx<Graphics::MeshBuffer>([](Graphics::MeshBuffer* Base, asIScriptEngine* VM)
-				{
-					FunctionFactory::GCEnumCallback(VM, Base->GetVertexBuffer());
-					FunctionFactory::GCEnumCallback(VM, Base->GetIndexBuffer());
-				});
-				VMeshBuffer->SetReleaseRefsEx<Graphics::MeshBuffer>([](Graphics::MeshBuffer* Base, asIScriptEngine*)
-				{
-					Base->~MeshBuffer();
-				});
+				VMeshBuffer->SetEnumRefsEx<Graphics::MeshBuffer>([](Graphics::MeshBuffer* Base, asIScriptEngine* VM) { });
+				VMeshBuffer->SetReleaseRefsEx<Graphics::MeshBuffer>([](Graphics::MeshBuffer* Base, asIScriptEngine*) { });
 
 				auto VSkinMeshBufferDesc = VM->SetStructTrivial<Graphics::SkinMeshBuffer::Desc>("skin_mesh_buffer_desc");
 				VSkinMeshBufferDesc->SetProperty<Graphics::SkinMeshBuffer::Desc>("cpu_access access_flags", &Graphics::SkinMeshBuffer::Desc::AccessFlags);
@@ -12910,15 +12894,8 @@ namespace Mavi
 				VSkinMeshBuffer->SetProperty<Graphics::SkinMeshBuffer>("string name", &Graphics::SkinMeshBuffer::Name);
 				VSkinMeshBuffer->SetMethod("element_buffer@+ get_vertex_buffer() const", &Graphics::SkinMeshBuffer::GetVertexBuffer);
 				VSkinMeshBuffer->SetMethod("element_buffer@+ get_index_buffer() const", &Graphics::SkinMeshBuffer::GetIndexBuffer);
-				VSkinMeshBuffer->SetEnumRefsEx<Graphics::SkinMeshBuffer>([](Graphics::SkinMeshBuffer* Base, asIScriptEngine* VM)
-				{
-					FunctionFactory::GCEnumCallback(VM, Base->GetVertexBuffer());
-					FunctionFactory::GCEnumCallback(VM, Base->GetIndexBuffer());
-				});
-				VSkinMeshBuffer->SetReleaseRefsEx<Graphics::SkinMeshBuffer>([](Graphics::SkinMeshBuffer* Base, asIScriptEngine*)
-				{
-					Base->~SkinMeshBuffer();
-				});
+				VSkinMeshBuffer->SetEnumRefsEx<Graphics::SkinMeshBuffer>([](Graphics::SkinMeshBuffer* Base, asIScriptEngine* VM) { });
+				VSkinMeshBuffer->SetReleaseRefsEx<Graphics::SkinMeshBuffer>([](Graphics::SkinMeshBuffer* Base, asIScriptEngine*) { });
 
 				auto VGraphicsDevice = VM->SetClass<Graphics::GraphicsDevice>("graphics_device", true);
 				auto VInstanceBufferDesc = VM->SetStruct<Graphics::InstanceBuffer::Desc>("instance_buffer_desc");
@@ -12935,14 +12912,8 @@ namespace Mavi
 				VInstanceBuffer->SetMethod("element_buffer@+ get_elements() const", &Graphics::InstanceBuffer::GetElements);
 				VInstanceBuffer->SetMethod("graphics_device@+ get_device() const", &Graphics::InstanceBuffer::GetDevice);
 				VInstanceBuffer->SetMethod("usize get_element_limit() const", &Graphics::InstanceBuffer::GetElementLimit);
-				VInstanceBuffer->SetEnumRefsEx<Graphics::InstanceBuffer>([](Graphics::InstanceBuffer* Base, asIScriptEngine* VM)
-				{
-					FunctionFactory::GCEnumCallback(VM, Base->GetElements());
-				});
-				VInstanceBuffer->SetReleaseRefsEx<Graphics::InstanceBuffer>([](Graphics::InstanceBuffer* Base, asIScriptEngine*)
-				{
-					Base->~InstanceBuffer();
-				});
+				VInstanceBuffer->SetEnumRefsEx<Graphics::InstanceBuffer>([](Graphics::InstanceBuffer* Base, asIScriptEngine* VM) { });
+				VInstanceBuffer->SetReleaseRefsEx<Graphics::InstanceBuffer>([](Graphics::InstanceBuffer* Base, asIScriptEngine*) { });
 
 				auto VTexture2DDesc = VM->SetPod<Graphics::Texture2D::Desc>("texture_2d_desc");
 				VTexture2DDesc->SetProperty<Graphics::Texture2D::Desc>("cpu_access access_flags", &Graphics::Texture2D::Desc::AccessFlags);
@@ -13364,24 +13335,7 @@ namespace Mavi
 				VGraphicsDevice->SetMethod("bool is_debug() const", &Graphics::GraphicsDevice::IsDebug);
 				VGraphicsDevice->SetMethodStatic("graphics_device@ create(graphics_device_desc &in)", &GraphicsDeviceCreate);
 				VGraphicsDevice->SetMethodStatic("void compile_buildin_shaders(array<graphics_device@>@+)", &GraphicsDeviceCompileBuiltinShaders);
-				VGraphicsDevice->SetEnumRefsEx<Graphics::GraphicsDevice>([](Graphics::GraphicsDevice* Base, asIScriptEngine* VM)
-				{
-					FunctionFactory::GCEnumCallback(VM, Base->GetRenderTarget());
-					for (auto& Item : Base->GetDepthStencilStates())
-						FunctionFactory::GCEnumCallback(VM, Item.second);
-
-					for (auto& Item : Base->GetRasterizerStates())
-						FunctionFactory::GCEnumCallback(VM, Item.second);
-
-					for (auto& Item : Base->GetBlendStates())
-						FunctionFactory::GCEnumCallback(VM, Item.second);
-
-					for (auto& Item : Base->GetSamplerStates())
-						FunctionFactory::GCEnumCallback(VM, Item.second);
-
-					for (auto& Item : Base->GetInputLayouts())
-						FunctionFactory::GCEnumCallback(VM, Item.second);
-				});
+				VGraphicsDevice->SetEnumRefsEx<Graphics::GraphicsDevice>([](Graphics::GraphicsDevice* Base, asIScriptEngine* VM) { });
 				VGraphicsDevice->SetReleaseRefsEx<Graphics::GraphicsDevice>([](Graphics::GraphicsDevice* Base, asIScriptEngine*) { });
 
 				VRenderTarget->SetDynamicCast<Graphics::RenderTarget, Graphics::RenderTarget2D>("render_target_2d@+");
@@ -14847,14 +14801,8 @@ namespace Mavi
 				VAppData->SetMethod("schema@+ get_key(const string &in)", &Engine::AppData::GetKey);
 				VAppData->SetMethod("string get_text(const string &in)", &Engine::AppData::GetText);
 				VAppData->SetMethod("bool has(const string &in)", &Engine::AppData::Has);
-				VAppData->SetEnumRefsEx<Engine::AppData>([](Engine::AppData* Base, asIScriptEngine* VM)
-				{
-					FunctionFactory::GCEnumCallback(VM, Base->GetSnapshot());
-				});
-				VAppData->SetReleaseRefsEx<Engine::AppData>([](Engine::AppData* Base, asIScriptEngine*)
-				{
-					Base->~AppData();
-				});
+				VAppData->SetEnumRefsEx<Engine::AppData>([](Engine::AppData* Base, asIScriptEngine* VM) { });
+				VAppData->SetReleaseRefsEx<Engine::AppData>([](Engine::AppData* Base, asIScriptEngine*) { });
 
 				auto VSceneGraphSharedDesc = VM->SetStruct<Engine::SceneGraph::Desc>("scene_graph_shared_desc");
 				VSceneGraphSharedDesc->SetProperty<Engine::SceneGraph::Desc::Dependencies>("graphics_device@ device", &Engine::SceneGraph::Desc::Dependencies::Device);

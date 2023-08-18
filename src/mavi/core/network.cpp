@@ -120,7 +120,7 @@ namespace Mavi
 
 			return &(((struct sockaddr_in6*)Info)->sin6_addr);
 		}
-    
+
 		Location::Location(const Core::String& Src) noexcept : URL(Src), Protocol("file"), Port(-1)
 		{
 			VI_ASSERT(!URL.empty(), "url should not be empty");
@@ -151,11 +151,14 @@ namespace Mavi
 			if (HostBegin != URL.c_str())
 			{
 				const char* AtSymbol = strchr(HostBegin, '@');
-				if (AtSymbol)
+				PathBegin = strchr(HostBegin, '/');
+
+				if (AtSymbol != nullptr && (PathBegin == nullptr || AtSymbol < PathBegin))
 				{
 					Core::String LoginPassword;
 					LoginPassword = Core::String(HostBegin, AtSymbol);
 					HostBegin = AtSymbol + 1;
+					PathBegin = strchr(HostBegin, '/');
 
 					const char* PasswordPtr = strchr(LoginPassword.c_str(), ':');
 					if (PasswordPtr)
@@ -167,7 +170,6 @@ namespace Mavi
 						Username = Compute::Codec::URIDecode(LoginPassword);
 				}
 
-				PathBegin = strchr(HostBegin, '/');
 				const char* PortBegin = strchr(HostBegin, ':');
 				if (PortBegin != nullptr && (PathBegin == nullptr || PortBegin < PathBegin))
 				{
@@ -1631,7 +1633,7 @@ namespace Mavi
 				Size -= Received;
 				Offset += Received;
 			}
-			
+
 			Callback(SocketPoll::FinishSync, nullptr, 0);
 			return Offset;
 		}
@@ -1790,7 +1792,7 @@ namespace Mavi
 			addrinfo* Source = Address->Get();
 			if (connect(Fd, Source->ai_addr, (int)Source->ai_addrlen) != 0)
 				return Core::OS::Error::GetConditionOr();
-			
+
 			return Core::Optional::OK;
 		}
 		Core::ExpectsIO<void> Socket::ConnectAsync(SocketAddress* Address, SocketStatusCallback&& Callback)
@@ -2476,7 +2478,7 @@ namespace Mavi
 				{
 					if (State != ServerState::Working)
 						return false;
-				
+
 					Core::String IpAddress = RemoteAddr;
 					Core::Schedule::Get()->SetTask([this, Source, Fd, IpAddress = std::move(IpAddress)]() mutable
 					{
@@ -2509,7 +2511,7 @@ namespace Mavi
 			auto* Base = Pop(Host);
 			if (!Base)
 				return std::make_error_condition(std::errc::not_enough_memory);
-            
+
 			strncpy(Base->RemoteAddress, Address.c_str(), std::min(Address.size(), sizeof(Base->RemoteAddress)));
 			Base->Stream->Timeout = Router->SocketTimeout;
 			Base->Stream->MigrateTo(Fd, false);
@@ -2796,88 +2798,23 @@ namespace Mavi
 
 			Hostname = *Source;
 			Stage("socket open");
-			
+
 			Core::ExpectsPromiseIO<void> Future;
-			auto RemoteConnect = [this, Future, Async](Core::ExpectsIO<SocketAddress*>&& Host) mutable
+			if (!Async)
 			{
-				if (!Host)
-				{
-					Error("cannot open %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
-					return Future.Set(Host.Error());
-				}
-
-				auto Status = Stream.Open(*Host);
-				if (!Status)
-				{
-					Error("cannot open %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
-					return Future.Set(std::move(Status));
-				}
-
-				Stage("socket connect");
-				Stream.Timeout = Timeout;
-				Stream.SetCloseOnExec();
-				Stream.SetBlocking(!Async);
-				Stream.ConnectAsync(*Host, [this, Future](const Core::Option<std::error_condition>& ErrorCode) mutable
-				{
-					if (ErrorCode)
-					{
-						Error("cannot connect to %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
-						return Future.Set(*ErrorCode);
-					}
-
-					auto Finalize = [this, Future]() mutable
-					{
-						Stage("socket proto-connect");
-						Done = [Future](SocketClient*, const Core::Option<std::error_condition>& ErrorCode) mutable
-						{
-							if (ErrorCode)
-								Future.Set(*ErrorCode);
-							else
-								Future.Set(Core::Optional::OK);
-						};
-						OnConnect();
-					};
-#ifdef VI_OPENSSL
-					if (!Hostname.Secure)
-						return Finalize();
-
-					Stage("socket ssl handshake");
-					if (!Context && !(Context = SSL_CTX_new(SSLv23_client_method())))
-					{
-						Error("cannot create ssl context");
-						return Future.Set(std::make_error_condition(std::errc::not_enough_memory));
-					}
-
-					if (!AutoEncrypt)
-						return Finalize();
-
-					Encrypt([this, Future, Finalize = std::move(Finalize)](const Core::Option<std::error_condition>& ErrorCode) mutable
-					{
-						if (ErrorCode)
-						{
-							Error("cannot connect ssl context");
-							Future.Set(*ErrorCode);
-						}
-						else
-							Finalize();
-					});
-#else
-					Finalize();
-#endif
-				});
-			};
-
-			if (Async)
-			{
-				Multiplexer::Get()->Activate();
-				Core::Cotask<Core::ExpectsIO<SocketAddress*>>([this]()
-				{
-					return DNS::Get()->FindAddressFromName(Hostname.Hostname, Core::ToString(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
-				}).When(std::move(RemoteConnect));
+				TryConnect(DNS::Get()->FindAddressFromName(Hostname.Hostname, Core::ToString(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream), Future);
+				return Future;
 			}
-			else
-				RemoteConnect(DNS::Get()->FindAddressFromName(Hostname.Hostname, Core::ToString(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream));
 
+			auto* Context = this;
+			Multiplexer::Get()->Activate();
+			Core::Cotask<Core::ExpectsIO<SocketAddress*>>([Context]()
+			{
+				return DNS::Get()->FindAddressFromName(Context->Hostname.Hostname, Core::ToString(Context->Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
+			}).When([Context, Future](Core::ExpectsIO<SocketAddress*>&& Host) mutable
+			{
+				Context->TryConnect(std::move(Host), Future);
+			});
 			return Future;
 		}
 		Core::ExpectsPromiseIO<void> SocketClient::Close()
@@ -2974,6 +2911,83 @@ namespace Mavi
 			Callback(std::make_error_condition(std::errc::not_supported));
 #endif
 		}
+		void SocketClient::TryConnect(Core::ExpectsIO<SocketAddress*>&& Host, Core::ExpectsPromiseIO<void>& Future)
+		{
+			if (!Host)
+			{
+				Error("cannot open %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
+				return Future.Set(Host.Error());
+			}
+
+			auto Status = Stream.Open(*Host);
+			if (!Status)
+			{
+				Error("cannot open %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
+				return Future.Set(std::move(Status));
+			}
+
+			auto* Context = this;
+			Stage("socket connect");
+			Stream.Timeout = Timeout;
+			Stream.SetCloseOnExec();
+			Stream.SetBlocking(!IsAsync);
+			Stream.ConnectAsync(*Host, [Context, Future](const Core::Option<std::error_condition>& ErrorCode) mutable
+			{
+				Context->DispatchConnection(ErrorCode, Future);
+			});
+		}
+		void SocketClient::DispatchConnection(const Core::Option<std::error_condition>& ErrorCode, Core::ExpectsPromiseIO<void>& Future)
+		{
+			if (ErrorCode)
+			{
+				Error("cannot connect to %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
+				return Future.Set(*ErrorCode);
+			}
+#ifdef VI_OPENSSL
+			if (!Hostname.Secure)
+				return DispatchHandshake(Future);
+
+			Stage("socket ssl handshake");
+			if (!Context && !(Context = SSL_CTX_new(SSLv23_client_method())))
+			{
+				Error("cannot create ssl context");
+				return Future.Set(std::make_error_condition(std::errc::not_enough_memory));
+			}
+
+			if (!AutoEncrypt)
+				return DispatchHandshake(Future);
+
+			auto* Context = this;
+			Encrypt([Context, Future](const Core::Option<std::error_condition>& ErrorCode) mutable
+			{
+				Context->DispatchSecureHandshake(ErrorCode, Future);
+			});
+#else
+			DispatchHandshake(Future);
+#endif
+		}
+		void SocketClient::DispatchSecureHandshake(const Core::Option<std::error_condition>& ErrorCode, Core::ExpectsPromiseIO<void>& Future)
+		{
+			if (ErrorCode)
+			{
+				Error("cannot connect ssl context");
+				Future.Set(*ErrorCode);
+			}
+			else
+				DispatchHandshake(Future);
+		}
+		void SocketClient::DispatchHandshake(Core::ExpectsPromiseIO<void>& Future)
+		{
+			Stage("socket proto-connect");
+			Done = [Future](SocketClient*, const Core::Option<std::error_condition>& ErrorCode) mutable
+			{
+				if (ErrorCode)
+					Future.Set(*ErrorCode);
+				else
+					Future.Set(Core::Optional::OK);
+			};
+			OnConnect();
+		}
 		bool SocketClient::OnResolveHost(RemoteHost* Address)
 		{
 			return Address != nullptr;
@@ -3004,7 +3018,7 @@ namespace Mavi
 			Stream.CloseAsync(true, [this](const Core::Option<std::error_condition>&) { Report(std::make_error_condition(std::errc::connection_aborted)); });
 
 			return false;
-	}
+		}
 		bool SocketClient::Report(const Core::Option<std::error_condition>& ErrorCode)
 		{
 			SocketClientCallback Callback(std::move(Done));

@@ -1164,6 +1164,10 @@ namespace Mavi
 
 				return It->second.back().c_str();
 			}
+			bool ResponseFrame::IsUndefined() const
+			{
+				return StatusCode <= 0;
+			}
 			bool ResponseFrame::IsOK() const
 			{
 				return StatusCode >= 200 && StatusCode < 400;
@@ -6300,6 +6304,14 @@ namespace Mavi
 				Address.Secure = (URL.Protocol == "https");
 				Address.Port = (URL.Port < 0 ? (Address.Secure ? 443 : 80) : URL.Port);
 
+				HTTP::RequestFrame Request;
+				Request.Cookies = Options.Cookies;
+				Request.Headers = Options.Headers;
+				Request.Content = Options.Content;
+				Request.SetMethod(Method.c_str());
+				Request.URI.assign(URL.Path);
+
+				size_t MaxSize = Options.MaxSize;
 				HTTP::Client* Client = new HTTP::Client(Options.Timeout);
 				auto Status = Coawait(Client->Connect(&Address, true));
 				if (!Status)
@@ -6309,20 +6321,13 @@ namespace Mavi
 					Coreturn Status.Error();
 				}
 
-				HTTP::RequestFrame Request;
-				Request.Cookies = Options.Cookies;
-				Request.Headers = Options.Headers;
-				Request.Content = Options.Content;
-				Request.SetMethod(Method.c_str());
-				Request.URI.assign(URL.Path);
-
 				for (auto& Item : URL.Query)
 					Request.Query += Item.first + "=" + Item.second + "&";
 
 				if (!Request.Query.empty())
-					Request.Query.erase(Request.Query.end());
+					Request.Query.pop_back();
 
-				Status = Coawait(Client->Fetch(std::move(Request), Options.MaxSize));
+				Status = Coawait(Client->Fetch(std::move(Request), MaxSize));
 				ResponseFrame Response = std::move(*Client->GetResponse());
 				Coawait(Client->Close());
 				VI_RELEASE(Client);

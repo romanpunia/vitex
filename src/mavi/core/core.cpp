@@ -7357,7 +7357,7 @@ namespace Mavi
 				Request.Query += Item.first + "=" + Item.second + "&";
 
 			if (!Request.Query.empty())
-				Request.Query.erase(Request.Query.end());
+				Request.Query.pop_back();
 
 			for (auto& Item : Headers)
 				Request.SetHeader(Item.first, Item.second);

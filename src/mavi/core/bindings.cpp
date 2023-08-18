@@ -7806,6 +7806,16 @@ namespace Mavi
 				return Value ? *Value : Core::String();
 			}
 
+			Core::Schema* ContentFrameGetJSON(Network::HTTP::ContentFrame& Base)
+			{
+				auto Data = Base.GetJSON();
+				return Data ? *Data : nullptr;
+			}
+			Core::Schema* ContentFrameGetXML(Network::HTTP::ContentFrame& Base)
+			{
+				auto Data = Base.GetXML();
+				return Data ? *Data : nullptr;
+			}
 			void ContentFramePrepare(Network::HTTP::ContentFrame& Base, const Core::String& ContentLength)
 			{
 				Base.Prepare(ContentLength.c_str());
@@ -7983,6 +7993,93 @@ namespace Mavi
 				return Base.Cookies[Index];
 			}
 			size_t ResponseFrameGetCookiesSize(Network::HTTP::ResponseFrame& Base)
+			{
+				return Base.Cookies.size();
+			}
+
+			Core::String FetchFrameGetHeaderBlob(Network::HTTP::FetchFrame& Base, const Core::String& Name)
+			{
+				auto* Value = Base.GetHeaderBlob(Name);
+				return Value ? *Value : Core::String();
+			}
+			Core::String FetchFrameGetHeader(Network::HTTP::FetchFrame& Base, size_t Index, size_t Subindex)
+			{
+				if (Index >= Base.Headers.size())
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
+					return Core::String();
+				}
+
+				auto It = Base.Headers.begin();
+				while (Index-- > 0)
+					++It;
+
+				if (Subindex >= It->second.size())
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
+					return Core::String();
+				}
+
+				return It->second[Subindex];
+			}
+			size_t FetchFrameGetHeaderSize(Network::HTTP::FetchFrame& Base, size_t Index)
+			{
+				if (Index >= Base.Headers.size())
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
+					return 0;
+				}
+
+				auto It = Base.Headers.begin();
+				while (Index-- > 0)
+					++It;
+
+				return It->second.size();
+			}
+			size_t FetchFrameGetHeadersSize(Network::HTTP::FetchFrame& Base)
+			{
+				return Base.Headers.size();
+			}
+			Core::String FetchFrameGetCookieBlob(Network::HTTP::FetchFrame& Base, const Core::String& Name)
+			{
+				auto* Value = Base.GetCookieBlob(Name);
+				return Value ? *Value : Core::String();
+			}
+			Core::String FetchFrameGetCookie(Network::HTTP::FetchFrame& Base, size_t Index, size_t Subindex)
+			{
+				if (Index >= Base.Cookies.size())
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
+					return Core::String();
+				}
+
+				auto It = Base.Cookies.begin();
+				while (Index-- > 0)
+					++It;
+
+				if (Subindex >= It->second.size())
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
+					return Core::String();
+				}
+
+				return It->second[Subindex];
+			}
+			size_t FetchFrameGetCookieSize(Network::HTTP::FetchFrame& Base, size_t Index)
+			{
+				if (Index >= Base.Cookies.size())
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
+					return 0;
+				}
+
+				auto It = Base.Cookies.begin();
+				while (Index-- > 0)
+					++It;
+
+				return It->second.size();
+			}
+			size_t FetchFrameGetCookiesSize(Network::HTTP::FetchFrame& Base)
 			{
 				return Base.Cookies.size();
 			}
@@ -8697,6 +8794,17 @@ namespace Mavi
 			{
 				Network::HTTP::RequestFrame Copy = Frame;
 				return Base->XML(std::move(Copy), MaxSize).Then<Core::Schema*>([](Core::ExpectsIO<Core::Schema*>&& Result) { return Result ? *Result : (Core::Schema*)nullptr; });
+			}
+
+			Core::Promise<Network::HTTP::ResponseFrame> HTTPFetch(const Core::String& URL, const Core::String& Method, const Network::HTTP::FetchFrame& Options)
+			{
+				return Network::HTTP::Fetch(URL, Method, Options).Then<Network::HTTP::ResponseFrame>([](Core::ExpectsIO<Network::HTTP::ResponseFrame>&& Response) -> Network::HTTP::ResponseFrame
+				{
+					if (Response)
+						return *Response;
+
+					return Network::HTTP::ResponseFrame();
+				});
 			}
 
 			Array* SMTPRequestGetRecipients(Network::SMTP::RequestFrame* Base)
@@ -13657,6 +13765,7 @@ namespace Mavi
 				VI_TYPEREF(MapRouter, "http::map_router");
 				VI_TYPEREF(Server, "http::server");
 				VI_TYPEREF(Connection, "http::connection");
+				VI_TYPEREF(FetchFrame, "http::fetch_frame");
 				VI_TYPEREF(ArrayResourceInfo, "array<resource_info>@");
 				VI_TYPEREF(String, "string");
 				VI_TYPEREF(Schema, "schema");
@@ -13743,6 +13852,8 @@ namespace Mavi
 				VContentFrame->SetMethod<Network::HTTP::ContentFrame, void, const Core::String&>("void assign(const string&in)", &Network::HTTP::ContentFrame::Assign);
 				VContentFrame->SetMethod("void finalize()", &Network::HTTP::ContentFrame::Finalize);
 				VContentFrame->SetMethod("void cleanup()", &Network::HTTP::ContentFrame::Cleanup);
+				VContentFrame->SetMethodEx("schema@+ get_json() const", &ContentFrameGetJSON);
+				VContentFrame->SetMethodEx("schema@+ get_xml() const", &ContentFrameGetXML);
 				VContentFrame->SetMethod("string get_text() const", &Network::HTTP::ContentFrame::GetText);
 				VContentFrame->SetMethod("bool is_finalized() const", &Network::HTTP::ContentFrame::IsFinalized);
 				VContentFrame->SetMethodEx("void prepare(const string&in)", &ContentFramePrepare);
@@ -13786,6 +13897,7 @@ namespace Mavi
 				VResponseFrame->SetMethod("void cleanup()", &Network::HTTP::ResponseFrame::Cleanup);
 				VResponseFrame->SetMethod("string compose_header(const string&in) const", &Network::HTTP::ResponseFrame::ComposeHeader);
 				VResponseFrame->SetMethodEx("string get_header(const string&in) const", &ResponseFrameGetHeaderBlob);
+				VResponseFrame->SetMethod("bool is_undefined() const", &Network::HTTP::ResponseFrame::IsUndefined);
 				VResponseFrame->SetMethod("bool is_ok() const", &Network::HTTP::ResponseFrame::IsOK);
 				VResponseFrame->SetMethodEx("string get_header(usize, usize) const", &ResponseFrameGetHeader);
 				VResponseFrame->SetMethodEx("cookie get_cookie(const string&in) const", &ResponseFrameGetCookie1);
@@ -13793,6 +13905,24 @@ namespace Mavi
 				VResponseFrame->SetMethodEx("usize get_headers_size() const", &ResponseFrameGetHeadersSize);
 				VResponseFrame->SetMethodEx("usize get_header_size(usize) const", &ResponseFrameGetHeaderSize);
 				VResponseFrame->SetMethodEx("usize get_cookies_size() const", &ResponseFrameGetCookiesSize);
+
+				auto VFetchFrame = VM->SetStructTrivial<Network::HTTP::FetchFrame>("fetch_frame");
+				VFetchFrame->SetProperty<Network::HTTP::FetchFrame>("content_frame content", &Network::HTTP::FetchFrame::Content);
+				VFetchFrame->SetProperty<Network::HTTP::FetchFrame>("uint64 timeout", &Network::HTTP::FetchFrame::Timeout);
+				VFetchFrame->SetProperty<Network::HTTP::FetchFrame>("usize max_size", &Network::HTTP::FetchFrame::MaxSize);
+				VFetchFrame->SetConstructor<Network::HTTP::FetchFrame>("void f()");
+				VFetchFrame->SetMethod("void put_header(const string&in, const string&in)", &Network::HTTP::FetchFrame::PutHeader);
+				VFetchFrame->SetMethod("void set_header(const string&in, const string&in)", &Network::HTTP::FetchFrame::SetHeader);
+				VFetchFrame->SetMethod("void cleanup()", &Network::HTTP::FetchFrame::Cleanup);
+				VFetchFrame->SetMethod("string compose_header(const string&in) const", &Network::HTTP::FetchFrame::ComposeHeader);
+				VFetchFrame->SetMethodEx("string get_cookie(const string&in) const", &FetchFrameGetCookieBlob);
+				VFetchFrame->SetMethodEx("string get_header(const string&in) const", &FetchFrameGetHeaderBlob);
+				VFetchFrame->SetMethodEx("string get_header(usize, usize = 0) const", &FetchFrameGetHeader);
+				VFetchFrame->SetMethodEx("string get_cookie(usize, usize = 0) const", &FetchFrameGetCookie);
+				VFetchFrame->SetMethodEx("usize get_headers_size() const", &FetchFrameGetHeadersSize);
+				VFetchFrame->SetMethodEx("usize get_header_size(usize) const", &FetchFrameGetHeaderSize);
+				VFetchFrame->SetMethodEx("usize get_cookies_size() const", &FetchFrameGetCookiesSize);
+				VFetchFrame->SetMethodEx("usize get_cookie_size(usize) const", &FetchFrameGetCookieSize);
 
 				auto VRouteAuth = VM->SetStructTrivial<Network::HTTP::RouteEntry::RouteAuth>("route_auth");
 				VRouteAuth->SetProperty<Network::HTTP::RouteEntry::RouteAuth>("string type", &Network::HTTP::RouteEntry::RouteAuth::Type);
@@ -14047,6 +14177,8 @@ namespace Mavi
 				VClient->SetMethod("request_frame& get_request() property", &Network::HTTP::Client::GetRequest);
 				VClient->SetMethod("response_frame& get_response() property", &Network::HTTP::Client::GetResponse);
 				VClient->SetDynamicCast<Network::HTTP::Client, Network::SocketClient>("socket_client@+", true);
+
+				VM->SetFunction("promise<response_frame>@ fetch(const string&in, const string&in = \"GET\", const fetch_frame&in = fetch_frame())", &VI_SPROMISIFY_REF(HTTPFetch, FetchFrame));
 				VM->EndNamespace();
 
 				return true;

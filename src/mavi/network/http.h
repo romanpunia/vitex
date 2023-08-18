@@ -228,6 +228,7 @@ namespace Mavi
 				RangePayload* GetHeaderRanges(const Core::String& Key);
 				const Core::String* GetHeaderBlob(const Core::String& Key) const;
 				const char* GetHeader(const Core::String& Key) const;
+				bool IsUndefined() const;
 				bool IsOK() const;
 			};
 

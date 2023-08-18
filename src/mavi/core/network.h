@@ -554,6 +554,10 @@ namespace Mavi
 
 		private:
 			void TryEncrypt(std::function<void(const Core::Option<std::error_condition>&)>&& Callback);
+			void TryConnect(Core::ExpectsIO<SocketAddress*>&& Host, Core::ExpectsPromiseIO<void>& Future);
+			void DispatchConnection(const Core::Option<std::error_condition>& ErrorCode, Core::ExpectsPromiseIO<void>& Future);
+			void DispatchSecureHandshake(const Core::Option<std::error_condition>& ErrorCode, Core::ExpectsPromiseIO<void>& Future);
+			void DispatchHandshake(Core::ExpectsPromiseIO<void>& Future);
 
 		protected:
 			void Encrypt(std::function<void(const Core::Option<std::error_condition>&)>&& Callback);

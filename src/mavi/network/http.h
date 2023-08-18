@@ -174,6 +174,8 @@ namespace Mavi
 				void Prepare(const char* ContentLength);
 				void Finalize();
 				void Cleanup();
+				Core::Expects<Core::Schema*, Core::Exceptions::ParserException> GetJSON() const;
+				Core::Expects<Core::Schema*, Core::Exceptions::ParserException> GetXML() const;
 				Core::String GetText() const;
 				bool IsFinalized() const;
 			};
@@ -227,6 +229,28 @@ namespace Mavi
 				const Core::String* GetHeaderBlob(const Core::String& Key) const;
 				const char* GetHeader(const Core::String& Key) const;
 				bool IsOK() const;
+			};
+
+			struct VI_OUT FetchFrame
+			{
+				HeaderMapping Cookies;
+				HeaderMapping Headers;
+				ContentFrame Content;
+				uint64_t Timeout = 10000;
+				size_t MaxSize = PAYLOAD_SIZE;
+
+				void PutHeader(const Core::String& Key, const Core::String& Value);
+				void SetHeader(const Core::String& Key, const Core::String& Value);
+				void Cleanup();
+				Core::String ComposeHeader(const Core::String& Key) const;
+				RangePayload* GetCookieRanges(const Core::String& Key);
+				const Core::String* GetCookieBlob(const Core::String& Key) const;
+				const char* GetCookie(const Core::String& Key) const;
+				RangePayload* GetHeaderRanges(const Core::String& Key);
+				const Core::String* GetHeaderBlob(const Core::String& Key) const;
+				const char* GetHeader(const Core::String& Key) const;
+				Core::Vector<std::pair<size_t, size_t>> GetRanges() const;
+				std::pair<size_t, size_t> GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContentLength) const;
 			};
 
 			class VI_OUT RouteGroup final : public Core::Reference<RouteGroup>
@@ -830,6 +854,8 @@ namespace Mavi
 			private:
 				bool Receive();
 			};
+
+			VI_OUT Core::ExpectsPromiseIO<ResponseFrame> Fetch(const Core::String& URL, const Core::String& Method = "GET", const FetchFrame& Options = FetchFrame());
 		}
 	}
 }

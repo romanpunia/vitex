@@ -1402,6 +1402,8 @@ namespace Mavi
 				va_start(Args, Format);
 				char Buffer[BLOB_SIZE] = { '\0' };
 				Data.Message.Size = vsnprintf(Buffer, sizeof(Buffer), Data.Message.Data, Args);
+				if (Data.Message.Size > sizeof(Data.Message.Data))
+					Data.Message.Size = sizeof(Data.Message.Data);
 				memcpy(Data.Message.Data, Buffer, sizeof(Buffer));
 				va_end(Args);
 			}
@@ -1440,6 +1442,8 @@ namespace Mavi
 				va_start(Args, Format);
 				char Buffer[BLOB_SIZE] = { '\0' };
 				Data.Message.Size = vsnprintf(Buffer, sizeof(Buffer), Data.Message.Data, Args);
+				if (Data.Message.Size > sizeof(Data.Message.Data))
+					Data.Message.Size = sizeof(Data.Message.Data);
 				memcpy(Data.Message.Data, Buffer, sizeof(Buffer));
 				va_end(Args);
 			}
@@ -1488,13 +1492,15 @@ namespace Mavi
 			va_list Args;
 			va_start(Args, Format);
 			Data.Message.Size = vsnprintf(Data.Message.Data, sizeof(Data.Message.Data), Buffer, Args);
+			if (Data.Message.Size > sizeof(Data.Message.Data))
+				Data.Message.Size = sizeof(Data.Message.Data);
 			va_end(Args);
 
-			if (!Data.Message.Size)
-				return;
-
-			EscapeText(Data.Message.Data, (size_t)Data.Message.Size);
-			Enqueue(std::move(Data));
+			if (Data.Message.Size > 0)
+			{
+				EscapeText(Data.Message.Data, (size_t)Data.Message.Size);
+				Enqueue(std::move(Data));
+			}
 		}
 		void ErrorHandling::Enqueue(Details&& Data) noexcept
 		{
@@ -4961,6 +4967,10 @@ namespace Mavi
 			va_start(Args, Format);
 			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 			va_end(Args);
+
+			if (Count > sizeof(Buffer))
+				Count = sizeof(Buffer);
+
 			Other.append(Buffer, Count);
 			return Other;
 		}
@@ -5709,8 +5719,8 @@ namespace Mavi
 			va_start(Args, Format);
 			char Buffer[BLOB_SIZE];
 			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-			if (Size > BLOB_SIZE)
-				Size = BLOB_SIZE;
+			if (Size > sizeof(Buffer))
+				Size = sizeof(Buffer);
 			va_end(Args);
 			return String(Buffer, (size_t)Size);
 		}
@@ -7344,7 +7354,10 @@ namespace Mavi
 			Request.URI.assign(URL.Path);
 
 			for (auto& Item : URL.Query)
-				Request.Query += Item.first + "=" + Item.second;
+				Request.Query += Item.first + "=" + Item.second + "&";
+
+			if (!Request.Query.empty())
+				Request.Query.erase(Request.Query.end());
 
 			for (auto& Item : Headers)
 				Request.SetHeader(Item.first, Item.second);

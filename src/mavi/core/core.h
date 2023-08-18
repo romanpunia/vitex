@@ -749,9 +749,9 @@ namespace Mavi
 				int Offset;
 
 			public:
-				ParserException(ParserError NewType);
-				ParserException(ParserError NewType, int NewOffset);
-				ParserException(ParserError NewType, int NewOffset, const char* NewMessage);
+				VI_OUT ParserException(ParserError NewType);
+				VI_OUT ParserException(ParserError NewType, int NewOffset);
+				VI_OUT ParserException(ParserError NewType, int NewOffset, const char* NewMessage);
 				VI_OUT const char* what() const noexcept override;
 			};
 		}

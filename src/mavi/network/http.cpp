@@ -19,7 +19,6 @@
 #include <fcntl.h>
 #include <poll.h>
 #endif
-#include <future>
 #include <random>
 #include <string>
 extern "C"
@@ -1220,6 +1219,14 @@ namespace Mavi
 				Limited = false;
 				Exceeds = false;
 			}
+			Core::Expects<Core::Schema*, Core::Exceptions::ParserException> ContentFrame::GetJSON() const
+			{
+				return Core::Schema::FromJSON(GetText());
+			}
+			Core::Expects<Core::Schema*, Core::Exceptions::ParserException> ContentFrame::GetXML() const
+			{
+				return Core::Schema::FromXML(GetText());
+			}
 			Core::String ContentFrame::GetText() const
 			{
 				return Core::String(Data.data(), Data.size());
@@ -1230,6 +1237,157 @@ namespace Mavi
 					return Offset >= Length && Offset > 0;
 
 				return Offset >= Length || Data.size() >= Length;
+			}
+
+			void FetchFrame::PutHeader(const Core::String& Key, const Core::String& Value)
+			{
+				VI_ASSERT(!Key.empty(), "key should not be empty");
+				Headers[Key].push_back(Value);
+			}
+			void FetchFrame::SetHeader(const Core::String& Key, const Core::String& Value)
+			{
+				VI_ASSERT(!Key.empty(), "key should not be empty");
+				auto& Range = Headers[Key];
+				Range.clear();
+				Range.push_back(Value);
+			}
+			void FetchFrame::Cleanup()
+			{
+				Content.Cleanup();
+				Headers.clear();
+				Cookies.clear();
+			}
+			Core::String FetchFrame::ComposeHeader(const Core::String& Label) const
+			{
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				auto It = Headers.find(Label);
+				if (It == Headers.end())
+					return Core::String();
+
+				Core::String Result;
+				for (auto& Item : It->second)
+				{
+					Result.append(Item);
+					Result.append(1, ',');
+				}
+
+				return (Result.empty() ? Result : Result.substr(0, Result.size() - 1));
+			}
+			RangePayload* FetchFrame::GetCookieRanges(const Core::String& Key)
+			{
+				VI_ASSERT(!Key.empty(), "key should not be empty");
+				return (RangePayload*)&Cookies[Key];
+			}
+			const Core::String* FetchFrame::GetCookieBlob(const Core::String& Key) const
+			{
+				VI_ASSERT(!Key.empty(), "key should not be empty");
+				auto It = Cookies.find(Key);
+				if (It == Cookies.end())
+					return nullptr;
+
+				if (It->second.empty())
+					return nullptr;
+
+				const Core::String& Result = It->second.back();
+				return &Result;
+			}
+			const char* FetchFrame::GetCookie(const Core::String& Key) const
+			{
+				VI_ASSERT(!Key.empty(), "key should not be empty");
+				auto It = Cookies.find(Key);
+				if (It == Cookies.end())
+					return nullptr;
+
+				if (It->second.empty())
+					return nullptr;
+
+				return It->second.back().c_str();
+			}
+			RangePayload* FetchFrame::GetHeaderRanges(const Core::String& Key)
+			{
+				VI_ASSERT(!Key.empty(), "key should not be empty");
+				return (RangePayload*)&Headers[Key];
+			}
+			const Core::String* FetchFrame::GetHeaderBlob(const Core::String& Key) const
+			{
+				VI_ASSERT(!Key.empty(), "key should not be empty");
+				auto It = Headers.find(Key);
+				if (It == Headers.end())
+					return nullptr;
+
+				if (It->second.empty())
+					return nullptr;
+
+				const Core::String& Result = It->second.back();
+				return &Result;
+			}
+			const char* FetchFrame::GetHeader(const Core::String& Key) const
+			{
+				VI_ASSERT(!Key.empty(), "key should not be empty");
+				auto It = Headers.find(Key);
+				if (It == Headers.end())
+					return nullptr;
+
+				if (It->second.empty())
+					return nullptr;
+
+				return It->second.back().c_str();
+			}
+			Core::Vector<std::pair<size_t, size_t>> FetchFrame::GetRanges() const
+			{
+				const char* Range = GetHeader("Range");
+				if (Range == nullptr)
+					return Core::Vector<std::pair<size_t, size_t>>();
+
+				Core::Vector<Core::String> Bases = Core::Stringify::Split(Range, ',');
+				Core::Vector<std::pair<size_t, size_t>> Ranges;
+
+				for (auto& Item : Bases)
+				{
+					Core::TextSettle Result = Core::Stringify::Find(Item, '-');
+					if (!Result.Found)
+						continue;
+
+					const char* Start = Item.c_str() + Result.Start;
+					uint64_t StartLength = 0;
+
+					while (Result.Start > 0 && *Start-- != '\0' && isdigit(*Start))
+						StartLength++;
+
+					const char* End = Item.c_str() + Result.Start;
+					uint64_t EndLength = 0;
+
+					while (*End++ != '\0' && isdigit(*End))
+						EndLength++;
+
+					int64_t From = std::stoll(std::string(Start, (size_t)StartLength));
+					if (From == -1)
+						break;
+
+					int64_t To = std::stoll(std::string(End, (size_t)EndLength));
+					if (To == -1 || To < From)
+						break;
+
+					Ranges.emplace_back(std::make_pair((size_t)From, (size_t)To));
+				}
+
+				return Ranges;
+			}
+			std::pair<size_t, size_t> FetchFrame::GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContenLength) const
+			{
+				if (Range->first == -1 && Range->second == -1)
+					return std::make_pair(0, ContenLength);
+
+				if (Range->first == -1)
+				{
+					Range->first = ContenLength - Range->second;
+					Range->second = ContenLength - 1;
+				}
+
+				if (Range->second == -1)
+					Range->second = ContenLength - 1;
+
+				return std::make_pair(Range->first, Range->second - Range->first + 1);
 			}
 
 			Connection::Connection(Server* Source) noexcept : Root(Source)
@@ -6129,6 +6287,50 @@ namespace Mavi
 
 				VI_RELEASE(Parser);
 				return Report(Core::Optional::None);
+			}
+
+			Core::ExpectsPromiseIO<ResponseFrame> Fetch(const Core::String& Target, const Core::String& Method, const FetchFrame& Options)
+			{
+				Network::Location URL(Target);
+				if (URL.Protocol != "http" && URL.Protocol != "https")
+					Coreturn std::make_error_condition(std::errc::address_family_not_supported);
+
+				Network::RemoteHost Address;
+				Address.Hostname = URL.Hostname;
+				Address.Secure = (URL.Protocol == "https");
+				Address.Port = (URL.Port < 0 ? (Address.Secure ? 443 : 80) : URL.Port);
+
+				HTTP::Client* Client = new HTTP::Client(Options.Timeout);
+				auto Status = Coawait(Client->Connect(&Address, true));
+				if (!Status)
+				{
+					Coawait(Client->Close());
+					VI_RELEASE(Client);
+					Coreturn Status.Error();
+				}
+
+				HTTP::RequestFrame Request;
+				Request.Cookies = Options.Cookies;
+				Request.Headers = Options.Headers;
+				Request.Content = Options.Content;
+				Request.SetMethod(Method.c_str());
+				Request.URI.assign(URL.Path);
+
+				for (auto& Item : URL.Query)
+					Request.Query += Item.first + "=" + Item.second + "&";
+
+				if (!Request.Query.empty())
+					Request.Query.erase(Request.Query.end());
+
+				Status = Coawait(Client->Fetch(std::move(Request), Options.MaxSize));
+				ResponseFrame Response = std::move(*Client->GetResponse());
+				Coawait(Client->Close());
+				VI_RELEASE(Client);
+
+				if (!Status)
+					Coreturn Status.Error();
+
+				Coreturn Response;
 			}
 		}
 	}

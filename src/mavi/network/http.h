@@ -162,11 +162,16 @@ namespace Mavi
 			{
 				Core::Vector<Resource> Resources;
 				Core::Vector<char> Data;
-				size_t Length = 0;
-				size_t Offset = 0;
-				bool Exceeds = false;
-				bool Limited = false;
+				size_t Length;
+				size_t Offset;
+				bool Exceeds;
+				bool Limited;
 
+				ContentFrame();
+				ContentFrame(const ContentFrame&) = default;
+				ContentFrame(ContentFrame&&) noexcept = default;
+				ContentFrame& operator= (const ContentFrame&) = default;
+				ContentFrame& operator= (ContentFrame&&) noexcept = default;
 				void Append(const Core::String& Data);
 				void Append(const char* Data, size_t Size);
 				void Assign(const Core::String& Data);
@@ -191,9 +196,14 @@ namespace Mavi
 				Core::String Where;
 				Compute::RegexResult Match;
 				Credentials User;
-				char Method[10] = { 'G', 'E', 'T' };
-				char Version[10] = { 'H', 'T', 'T', 'P', '/', '1', '.', '1' };
+				char Method[10];
+				char Version[10];
 
+				RequestFrame();
+				RequestFrame(const RequestFrame&) = default;
+				RequestFrame(RequestFrame&&) noexcept = default;
+				RequestFrame& operator= (const RequestFrame&) = default;
+				RequestFrame& operator= (RequestFrame&&) noexcept = default;
 				void SetMethod(const char* Value);
 				void SetVersion(unsigned int Major, unsigned int Minor);
 				void PutHeader(const Core::String& Key, const Core::String& Value);
@@ -215,9 +225,14 @@ namespace Mavi
 				HeaderMapping Headers;
 				ContentFrame Content;
 				Core::Vector<Cookie> Cookies;
-				int StatusCode = -1;
-				bool Error = false;
+				int StatusCode;
+				bool Error;
 
+				ResponseFrame();
+				ResponseFrame(const ResponseFrame&) = default;
+				ResponseFrame(ResponseFrame&&) noexcept = default;
+				ResponseFrame& operator= (const ResponseFrame&) = default;
+				ResponseFrame& operator= (ResponseFrame&&) noexcept = default;
 				void PutHeader(const Core::String& Key, const Core::String& Value);
 				void SetHeader(const Core::String& Key, const Core::String& Value);
 				void SetCookie(const Cookie& Value);
@@ -237,9 +252,14 @@ namespace Mavi
 				HeaderMapping Cookies;
 				HeaderMapping Headers;
 				ContentFrame Content;
-				uint64_t Timeout = 10000;
-				size_t MaxSize = PAYLOAD_SIZE;
+				uint64_t Timeout;
+				size_t MaxSize;
 
+				FetchFrame();
+				FetchFrame(const FetchFrame&) = default;
+				FetchFrame(FetchFrame&&) noexcept = default;
+				FetchFrame& operator= (const FetchFrame&) = default;
+				FetchFrame& operator= (FetchFrame&&) noexcept = default;
 				void PutHeader(const Core::String& Key, const Core::String& Value);
 				void SetHeader(const Core::String& Key, const Core::String& Value);
 				void Cleanup();

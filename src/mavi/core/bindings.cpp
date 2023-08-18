@@ -13765,7 +13765,7 @@ namespace Mavi
 				VI_TYPEREF(MapRouter, "http::map_router");
 				VI_TYPEREF(Server, "http::server");
 				VI_TYPEREF(Connection, "http::connection");
-				VI_TYPEREF(FetchFrame, "http::fetch_frame");
+				VI_TYPEREF(ResponseFrame, "http::response_frame");
 				VI_TYPEREF(ArrayResourceInfo, "array<resource_info>@");
 				VI_TYPEREF(String, "string");
 				VI_TYPEREF(Schema, "schema");
@@ -14178,7 +14178,7 @@ namespace Mavi
 				VClient->SetMethod("response_frame& get_response() property", &Network::HTTP::Client::GetResponse);
 				VClient->SetDynamicCast<Network::HTTP::Client, Network::SocketClient>("socket_client@+", true);
 
-				VM->SetFunction("promise<response_frame>@ fetch(const string&in, const string&in = \"GET\", const fetch_frame&in = fetch_frame())", &VI_SPROMISIFY_REF(HTTPFetch, FetchFrame));
+				VM->SetFunction("promise<response_frame>@ fetch(const string&in, const string&in = \"GET\", const fetch_frame&in = fetch_frame())", &VI_SPROMISIFY_REF(HTTPFetch, ResponseFrame));
 				VM->EndNamespace();
 
 				return true;

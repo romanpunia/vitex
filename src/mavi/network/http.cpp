@@ -891,6 +891,11 @@ namespace Mavi
 				return It->second.back().c_str();
 			}
 
+			RequestFrame::RequestFrame()
+			{
+				strcpy(Method, "GET");
+				strcpy(Version, "HTTP/1.1");
+			}
 			void RequestFrame::SetMethod(const char* Value)
 			{
 				VI_ASSERT(Value != nullptr, "value should be set");
@@ -1060,6 +1065,9 @@ namespace Mavi
 				return std::make_pair(Range->first, Range->second - Range->first + 1);
 			}
 
+			ResponseFrame::ResponseFrame() : StatusCode(-1), Error(false)
+			{
+			}
 			void ResponseFrame::PutHeader(const Core::String& Key, const Core::String& Value)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
@@ -1173,6 +1181,9 @@ namespace Mavi
 				return StatusCode >= 200 && StatusCode < 400;
 			}
 
+			ContentFrame::ContentFrame() : Length(0), Offset(0), Exceeds(false), Limited(false)
+			{
+			}
 			void ContentFrame::Append(const Core::String& Text)
 			{
 				TextAppend(Data, Text);
@@ -1243,6 +1254,9 @@ namespace Mavi
 				return Offset >= Length || Data.size() >= Length;
 			}
 
+			FetchFrame::FetchFrame() : Timeout(10000), MaxSize(PAYLOAD_SIZE)
+			{
+			}
 			void FetchFrame::PutHeader(const Core::String& Key, const Core::String& Value)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");

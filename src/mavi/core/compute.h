@@ -1536,6 +1536,8 @@ namespace Mavi
 			static Core::String Decode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool(*IsAlphabetic)(unsigned char));
 			static Core::String Bep45Encode(const Core::String& Value);
 			static Core::String Bep45Decode(const Core::String& Value);
+			static Core::String Base32Encode(const Core::String& Value);
+			static Core::String Base32Decode(const Core::String& Value);
 			static Core::String Base45Encode(const Core::String& Value);
 			static Core::String Base45Decode(const Core::String& Value);
 			static Core::String Base64Encode(const unsigned char* Value, size_t Length);

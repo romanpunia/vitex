@@ -10950,6 +10950,8 @@ namespace Mavi
 				VM->SetFunction("string move(const string &in, int)", &Compute::Codec::Move);
 				VM->SetFunction("string bep45_encode(const string &in)", &Compute::Codec::Bep45Encode);
 				VM->SetFunction("string bep45_decode(const string &in)", &Compute::Codec::Bep45Decode);
+				VM->SetFunction("string base32_encode(const string &in)", &Compute::Codec::Base32Encode);
+				VM->SetFunction("string base32_decode(const string &in)", &Compute::Codec::Base32Decode);
 				VM->SetFunction("string base45_encode(const string &in)", &Compute::Codec::Base45Encode);
 				VM->SetFunction("string base45_decode(const string &in)", &Compute::Codec::Base45Decode);
 				VM->SetFunction("string compress(const string &in, compression_cdc)", &CodecCompress);

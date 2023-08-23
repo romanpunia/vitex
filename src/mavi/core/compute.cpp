@@ -7737,6 +7737,78 @@ namespace Mavi
 
 			return Base45Decode(Result);
 		}
+		Core::String Codec::Base32Encode(const Core::String& Value)
+		{
+			static const char Alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+			Core::String Result;
+			if (Value.empty())
+				return Result;
+
+			size_t Next = (size_t)Value[0], Offset = 1, Remainder = 8;
+			Result.reserve((size_t)((double)Value.size() * 1.6));
+
+			while (Remainder > 0 || Offset < Value.size())
+			{
+				if (Remainder < 5)
+				{
+					if (Offset < Value.size())
+					{
+						Next <<= 8;
+						Next |= (size_t)Value[Offset++] & 0xFF;
+						Remainder += 8;
+					}
+					else
+					{
+						size_t Padding = 5 - Remainder;
+						Next <<= Padding;
+						Remainder += Padding;
+					}
+				}
+
+				Remainder -= 5;
+				size_t Index = 0x1F & (Next >> Remainder);
+				Result.push_back(Alphabet[Index % (sizeof(Alphabet) - 1)]);
+			}
+
+			return Result;
+		}
+		Core::String Codec::Base32Decode(const Core::String& Value)
+		{
+			Core::String Result;
+			Result.reserve(Value.size());
+
+			size_t Prev = 0, BitsLeft = 0;
+			for (char Next : Value)
+			{
+				if (Next == ' ' || Next == '\t' || Next == '\r' || Next == '\n' || Next == '-')
+					continue;
+
+				Prev <<= 5;
+				if (Next == '0')
+					Next = 'O';
+				else if (Next == '1')
+					Next = 'L';
+				else if (Next == '8')
+					Next = 'B';
+
+				if ((Next >= 'A' && Next <= 'Z') || (Next >= 'a' && Next <= 'z'))
+					Next = (Next & 0x1F) - 1;
+				else if (Next >= '2' && Next <= '7')
+					Next -= '2' - 26;
+				else
+					break;
+
+				Prev |= Next;
+				BitsLeft += 5;
+				if (BitsLeft < 8)
+					continue;
+
+				Result.push_back((char)(Prev >> (BitsLeft - 8)));
+				BitsLeft -= 8;
+			}
+
+			return Result;
+		}
 		Core::String Codec::Base45Encode(const Core::String& Data)
 		{
 			VI_TRACE("[codec] base45 encode %" PRIu64 " bytes", (uint64_t)Data.size());

@@ -3154,7 +3154,7 @@ namespace Mavi
 					return true;
 				}
 
-				if (Stringify::HasNumber(Text))
+				if (Stringify::HasNumber(Text) && (Text.size() == 1 || Text.front() != '0'))
 				{
 					if (Stringify::HasDecimal(Text))
 					{

@@ -6308,7 +6308,7 @@ namespace Mavi
 					Stream.WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
-							Upload(Boundaries.begin());
+							Upload(0);
 						else if (Packet::IsErrorOrSkip(Event))
 							Error("http socket write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
 					});
@@ -6469,25 +6469,26 @@ namespace Mavi
 				if (Written && *Written > 0)
 					goto Retry;
 			}
-			void Client::Upload(Core::Vector<Client::BoundaryBlock>::iterator Boundary)
+			void Client::Upload(size_t FileId)
 			{
-				if (Boundary != Boundaries.end())
+				if (FileId < Boundaries.size())
 				{
-					Stream.WriteAsync(Boundary->Data.c_str(), Boundary->Data.size(), [this, Boundary](SocketPoll Event) mutable
+					BoundaryBlock* Boundary = &Boundaries[FileId];
+					Stream.WriteAsync(Boundary->Data.c_str(), Boundary->Data.size(), [this, Boundary, FileId](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 						{
 							if (!Boundary->File->IsInMemory)
 							{
 								BoundaryBlock& Target = *Boundary;
-								UploadFile(&Target, [this, Boundary](bool Success)
+								UploadFile(&Target, [this, Boundary, FileId](bool Success)
 								{
 									if (Success)
 									{
-										Stream.WriteAsync(Boundary->Finish.c_str(), Boundary->Finish.size(), [this, Boundary](SocketPoll Event) mutable
+										Stream.WriteAsync(Boundary->Finish.c_str(), Boundary->Finish.size(), [this, Boundary, FileId](SocketPoll Event)
 										{
 											if (Packet::IsDone(Event))
-												Upload(++Boundary);
+												Upload(FileId + 1);
 											else if (Packet::IsErrorOrSkip(Event))
 												Error("http socket write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
 										});
@@ -6497,7 +6498,7 @@ namespace Mavi
 								});
 							}
 							else
-								Upload(++Boundary);
+								Upload(FileId + 1);
 						}
 						else if (Packet::IsErrorOrSkip(Event))
 							Error("http socket file write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));

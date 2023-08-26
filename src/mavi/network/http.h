@@ -133,7 +133,7 @@ namespace Mavi
 				Core::String Name;
 				Core::String Key;
 				size_t Length = 0;
-				bool Memory = false;
+				bool IsInMemory = false;
 
 				void PutHeader(const Core::String& Key, const Core::String& Value);
 				void SetHeader(const Core::String& Key, const Core::String& Value);
@@ -141,6 +141,7 @@ namespace Mavi
 				RangePayload* GetHeaderRanges(const Core::String& Key);
 				const Core::String* GetHeaderBlob(const Core::String& Key) const;
 				const char* GetHeader(const Core::String& Key) const;
+				const Core::String& GetInMemoryContents() const;
 			};
 
 			struct VI_OUT Cookie
@@ -850,9 +851,19 @@ namespace Mavi
 			class VI_OUT Client final : public SocketClient
 			{
 			private:
+				struct BoundaryBlock
+				{
+					Resource* File;
+					Core::String Data;
+					Core::String Finish;
+					bool IsFinal;
+				};
+
+			private:
 				WebSocketFrame* WebSocket;
 				RequestFrame Request;
 				ResponseFrame Response;
+				Core::Vector<BoundaryBlock> Boundaries;
 				Core::ExpectsPromiseIO<void> Future;
 
             public:
@@ -873,7 +884,11 @@ namespace Mavi
 				ResponseFrame* GetResponse();
 
 			private:
-				bool Receive();
+				void UploadFile(BoundaryBlock* Boundary, std::function<void(bool)>&& Callback);
+				void UploadFileChunk(FILE* Stream, size_t ContentLength, std::function<void(bool)>&& Callback);
+				void UploadFileChunkAsync(FILE* Stream, size_t ContentLength, std::function<void(bool)>&& Callback);
+				void Upload(Core::Vector<BoundaryBlock>::iterator Boundary);
+				void Receive();
 			};
 
 			VI_OUT Core::ExpectsPromiseIO<ResponseFrame> Fetch(const Core::String& URL, const Core::String& Method = "GET", const FetchFrame& Options = FetchFrame());

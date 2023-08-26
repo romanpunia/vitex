@@ -207,6 +207,7 @@ namespace Mavi
 
 		typedef std::function<IncludeType(class Preprocessor*, const struct IncludeResult& File, Core::String& Output)> ProcIncludeCallback;
 		typedef std::function<bool(class Preprocessor*, const Core::String& Name, const Core::Vector<Core::String>& Args)> ProcPragmaCallback;
+		typedef std::function<Core::String(class Preprocessor*, const Core::Vector<Core::String>& Args)> ProcExpansionCallback;
 		typedef std::function<void(const struct CollisionBody&)> CollisionCallback;
 		typedef void* Cipher;
 		typedef void* Digest;
@@ -1736,13 +1737,21 @@ namespace Mavi
 			{
 				Core::Vector<Core::String> Tokens;
 				Core::String Expansion;
+				ProcExpansionCallback Callback;
 			};
+
+		private:
+			struct FileContext
+			{
+				Core::String Path;
+				size_t Line = 0;
+			} ThisFile;
 
 		private:
 			Core::UnorderedMap<Core::String, std::pair<Condition, Controller>> ControlFlow;
 			Core::UnorderedMap<Core::String, Definition> Defines;
 			Core::UnorderedSet<Core::String> Sets;
-			Core::String ExpandedPath;
+			std::function<size_t()> StoreCurrentLine;
 			ProcIncludeCallback Include;
 			ProcPragmaCallback Pragma;
 			IncludeDesc FileDesc;
@@ -1756,13 +1765,16 @@ namespace Mavi
 			void SetIncludeCallback(const ProcIncludeCallback& Callback);
 			void SetPragmaCallback(const ProcPragmaCallback& Callback);
 			void SetFeatures(const Desc& Value);
+			void AddDefaultDefinitions();
 			bool Define(const Core::String& Expression);
+			bool Define(const Core::String& Expression, ProcExpansionCallback&& Callback);
 			void Undefine(const Core::String& Name);
 			void Clear();
 			bool IsDefined(const Core::String& Name) const;
 			bool IsDefined(const Core::String& Name, const Core::String& Value) const;
 			bool Process(const Core::String& Path, Core::String& Buffer);
 			const Core::String& GetCurrentFilePath() const;
+			size_t GetCurrentLineNumber();
 
 		private:
 			Token FindNextToken(Core::String& Buffer, size_t& Offset);
@@ -1773,6 +1785,7 @@ namespace Mavi
 			std::pair<Core::String, Core::String> GetExpressionParts(const Core::String& Value);
 			std::pair<Core::String, Core::String> UnpackExpression(const std::pair<Core::String, Core::String>& Expression);
 			int SwitchCase(const Conditional& Value);
+			size_t GetLinesCount(Core::String& Buffer, size_t End);
 			bool ExpandDefinitions(Core::String& Buffer, size_t& Size);
 			bool ParseArguments(const Core::String& Value, Core::Vector<Core::String>& Tokens, bool UnpackLiterals);
 			bool ConsumeTokens(const Core::String& Path, Core::String& Buffer);

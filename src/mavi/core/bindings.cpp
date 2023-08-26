@@ -7820,6 +7820,14 @@ namespace Mavi
 			{
 				Base.Prepare(ContentLength.c_str());
 			}
+			void ContentFrameAddResource(Network::HTTP::ContentFrame& Base, const Network::HTTP::Resource& Item)
+			{
+				Base.Resources.push_back(Item);
+			}
+			void ContentFrameClearResources(Network::HTTP::ContentFrame& Base)
+			{
+				Base.Resources.clear();
+			}
 			size_t ContentFrameGetResourcesSize(Network::HTTP::ContentFrame& Base)
 			{
 				return Base.Resources.size();
@@ -11132,7 +11140,8 @@ namespace Mavi
 				VPreprocessor->SetConstructor<Compute::Preprocessor>("preprocessor@ f(uptr@)");
 				VPreprocessor->SetMethod("void set_include_options(const include_desc &in)", &Compute::Preprocessor::SetIncludeOptions);
 				VPreprocessor->SetMethod("void set_features(const preprocessor_desc &in)", &Compute::Preprocessor::SetFeatures);
-				VPreprocessor->SetMethod("void define(const string &in)", &Compute::Preprocessor::Define);
+				VPreprocessor->SetMethod("void add_default_definitions()", &Compute::Preprocessor::AddDefaultDefinitions);
+				VPreprocessor->SetMethod<Compute::Preprocessor, bool, const Core::String&>("bool define(const string &in)", &Compute::Preprocessor::Define);
 				VPreprocessor->SetMethod("void undefine(const string &in)", &Compute::Preprocessor::Undefine);
 				VPreprocessor->SetMethod("void clear()", &Compute::Preprocessor::Clear);
 				VPreprocessor->SetMethod("bool process(const string &in, string &out)", &Compute::Preprocessor::Process);
@@ -13768,7 +13777,7 @@ namespace Mavi
 				VI_TYPEREF(Server, "http::server");
 				VI_TYPEREF(Connection, "http::connection");
 				VI_TYPEREF(ResponseFrame, "http::response_frame");
-				VI_TYPEREF(ArrayResourceInfo, "array<resource_info>@");
+				VI_TYPEREF(ArrayResourceInfo, "array<http::resource_info>@");
 				VI_TYPEREF(String, "string");
 				VI_TYPEREF(Schema, "schema");
 
@@ -13825,12 +13834,13 @@ namespace Mavi
 				VResource->SetProperty<Network::HTTP::Resource>("string name", &Network::HTTP::Resource::Name);
 				VResource->SetProperty<Network::HTTP::Resource>("string key", &Network::HTTP::Resource::Key);
 				VResource->SetProperty<Network::HTTP::Resource>("usize length", &Network::HTTP::Resource::Length);
-				VResource->SetProperty<Network::HTTP::Resource>("bool memory", &Network::HTTP::Resource::Memory);
+				VResource->SetProperty<Network::HTTP::Resource>("bool is_in_memory", &Network::HTTP::Resource::IsInMemory);
 				VResource->SetConstructor<Network::HTTP::Resource>("void f()");
 				VResource->SetMethod("void put_header(const string&in, const string&in)", &Network::HTTP::Resource::PutHeader);
 				VResource->SetMethod("void set_header(const string&in, const string&in)", &Network::HTTP::Resource::SetHeader);
 				VResource->SetMethod("string compose_header(const string&in) const", &Network::HTTP::Resource::ComposeHeader);
 				VResource->SetMethodEx("string get_header(const string&in) const", &ResourceGetHeaderBlob);
+				VResource->SetMethod("const string& get_in_memory_contents() const", &Network::HTTP::Resource::GetInMemoryContents);
 
 				auto VCookie = VM->SetStructTrivial<Network::HTTP::Cookie>("cookie");
 				VCookie->SetProperty<Network::HTTP::Cookie>("string name", &Network::HTTP::Cookie::Name);
@@ -13859,6 +13869,8 @@ namespace Mavi
 				VContentFrame->SetMethod("string get_text() const", &Network::HTTP::ContentFrame::GetText);
 				VContentFrame->SetMethod("bool is_finalized() const", &Network::HTTP::ContentFrame::IsFinalized);
 				VContentFrame->SetMethodEx("void prepare(const string&in)", &ContentFramePrepare);
+				VContentFrame->SetMethodEx("void add_resource(const resource_info&in)", &ContentFrameAddResource);
+				VContentFrame->SetMethodEx("void clear_resources()", &ContentFrameClearResources);
 				VContentFrame->SetMethodEx("resource_info get_resource(usize) const", &ContentFrameGetResource);
 				VContentFrame->SetMethodEx("usize get_resources_size() const", &ContentFrameGetResourcesSize);
 

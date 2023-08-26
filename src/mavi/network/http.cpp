@@ -890,6 +890,10 @@ namespace Mavi
 
 				return It->second.back().c_str();
 			}
+			const Core::String& Resource::GetInMemoryContents() const
+			{
+				return Path;
+			}
 
 			RequestFrame::RequestFrame()
 			{
@@ -1219,7 +1223,7 @@ namespace Mavi
 					Paths.reserve(Resources.size());
 					for (auto& Item : Resources)
 					{
-						if (!Item.Memory)
+						if (!Item.IsInMemory)
 							Paths.push_back(Item.Path);
 					}
 
@@ -4267,7 +4271,10 @@ namespace Mavi
 					{
 						Core::TextSettle End = Core::Stringify::Find(Value, '\"', Start.End);
 						if (End.Found)
-							Parser->Frame.Source.Name = Value.substr(Start.End, End.End - Start.End - 1);
+						{
+							auto Name = Value.substr(Start.End, End.End - Start.End - 1);
+							Parser->Frame.Source.Name = Core::OS::Path::GetFilename(Name.c_str());
+						}
 					}
 				}
 				else if (Parser->Frame.Header == "Content-Type")
@@ -4318,7 +4325,7 @@ namespace Mavi
 				Parser->Frame.Source.Headers.clear();
 				Parser->Frame.Source.Name.clear();
 				Parser->Frame.Source.Type = "application/octet-stream";
-				Parser->Frame.Source.Memory = false;
+				Parser->Frame.Source.IsInMemory = false;
 				Parser->Frame.Source.Length = 0;
 
 				if (Parser->Frame.Route)
@@ -5672,6 +5679,10 @@ namespace Mavi
 
 					if (!Entry->Session.DocumentRoot.empty())
 					{
+						auto Directory = Core::OS::Path::Resolve(Entry->Session.DocumentRoot.c_str());
+						if (Directory)
+							Entry->Session.DocumentRoot = *Directory;
+
 						auto Status = Core::OS::Directory::Patch(Entry->Session.DocumentRoot);
 						if (!Status)
 							return Status;
@@ -5679,6 +5690,10 @@ namespace Mavi
 
 					if (!Entry->ResourceRoot.empty())
 					{
+						auto Directory = Core::OS::Path::Resolve(Entry->ResourceRoot.c_str());
+						if (Directory)
+							Entry->ResourceRoot = *Directory;
+
 						auto Status = Core::OS::Directory::Patch(Entry->ResourceRoot);
 						if (!Status)
 							return Status;
@@ -6103,7 +6118,6 @@ namespace Mavi
 				};
 				Stage("request delivery");
 
-				Core::String Content;
 				if (!Request.GetHeader("Host"))
 				{
 					if (Context != nullptr)
@@ -6137,17 +6151,7 @@ namespace Mavi
 				if (!Request.GetHeader("Connection"))
 					Request.SetHeader("Connection", "Keep-Alive");
 
-				if (!Request.Content.Data.empty())
-				{
-					if (!Request.GetHeader("Content-Type"))
-						Request.SetHeader("Content-Type", "application/octet-stream");
-
-					if (!Request.GetHeader("Content-Length"))
-						Request.SetHeader("Content-Length", Core::ToString(Request.Content.Data.size()).c_str());
-				}
-				else if (!memcmp(Request.Method, "POST", 4) || !memcmp(Request.Method, "PUT", 3) || !memcmp(Request.Method, "PATCH", 5))
-					Request.SetHeader("Content-Length", "0");
-
+				Core::String Content;
 				if (!Request.Query.empty())
 				{
 					Content.append(Request.Method).append(" ");
@@ -6162,53 +6166,153 @@ namespace Mavi
 					Content.append(Request.Version).append("\r\n");
 				}
 
-				Paths::ConstructHeadFull(&Request, &Response, true, Content);
-				Content.append("\r\n");
-
-				Stream.WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
+				if (Request.Content.Resources.empty())
 				{
-					if (Packet::IsDone(Event))
+					if (!Request.Content.Data.empty())
 					{
-						if (!Request.Content.Data.empty())
-						{
-							Stream.WriteAsync(Request.Content.Data.data(), Request.Content.Data.size(), [this](SocketPoll Event)
-							{
-								if (Packet::IsDone(Event))
-								{
-									Stream.ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
-									{
-										if (Packet::IsData(Event))
-											Response.Content.Append(Buffer, Recv);
-										else if (Packet::IsDone(Event))
-											Receive();
-										else if (Packet::IsErrorOrSkip(Event))
-											Error("http socket read %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+						if (!Request.GetHeader("Content-Type"))
+							Request.SetHeader("Content-Type", "application/octet-stream");
 
-										return true;
-									});
-								}
-								else if (Packet::IsErrorOrSkip(Event))
-									Error("http socket write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
-							});
+						if (!Request.GetHeader("Content-Length"))
+							Request.SetHeader("Content-Length", Core::ToString(Request.Content.Data.size()).c_str());
+					}
+					else if (!memcmp(Request.Method, "POST", 4) || !memcmp(Request.Method, "PUT", 3) || !memcmp(Request.Method, "PATCH", 5))
+						Request.SetHeader("Content-Length", "0");
+
+					Paths::ConstructHeadFull(&Request, &Response, true, Content);
+					Content.append("\r\n");
+
+					Stream.WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
+					{
+						if (Packet::IsDone(Event))
+						{
+							if (!Request.Content.Data.empty())
+							{
+								Stream.WriteAsync(Request.Content.Data.data(), Request.Content.Data.size(), [this](SocketPoll Event)
+								{
+									if (Packet::IsDone(Event))
+									{
+										Stream.ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
+										{
+											if (Packet::IsData(Event))
+												Response.Content.Append(Buffer, Recv);
+											else if (Packet::IsDone(Event))
+												Receive();
+											else if (Packet::IsErrorOrSkip(Event))
+												Error("http socket read %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+
+											return true;
+										});
+									}
+									else if (Packet::IsErrorOrSkip(Event))
+										Error("http socket write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+								});
+							}
+							else
+							{
+								Stream.ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
+								{
+									if (Packet::IsData(Event))
+										Response.Content.Append(Buffer, Recv);
+									else if (Packet::IsDone(Event))
+										Receive();
+									else if (Packet::IsErrorOrSkip(Event))
+										Error("http socket read %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+
+									return true;
+								});
+							}
+						}
+						else if (Packet::IsErrorOrSkip(Event))
+							Error("http socket write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+					});
+				}
+				else
+				{
+					auto RandomBytes = Compute::Crypto::RandomBytes(24);
+					if (!RandomBytes)
+					{
+						Error("cannot generate request boundary");
+						return Result;
+					}
+
+					Core::String Boundary = "----0x" + Compute::Codec::HexEncode(*RandomBytes);
+					Request.SetHeader("Content-Type", "multipart/form-data; boundary=" + Boundary);
+					Boundary.insert(0, "--");
+
+					Boundaries.clear();
+					Boundaries.reserve(Request.Content.Resources.size());
+
+					size_t ContentSize = 0;
+					for (auto& Item : Request.Content.Resources)
+					{
+						if (!Item.IsInMemory && Item.Name.empty())
+							Item.Name = Core::OS::Path::GetFilename(Item.Path.c_str());
+						if (Item.Type.empty())
+							Item.Type = "application/octet-stream";
+						if (Item.Key.empty())
+							Item.Key = "file" + Core::ToString(Boundaries.size() + 1);
+
+						Core::String FormBody;
+						for (auto& Header : Item.Headers)
+						{
+							FormBody.append(Boundary).append("\r\n");
+							FormBody.append("Content-Disposition: form-data; name=\"").append(Header.first).append("\"\r\n\r\n");
+							for (auto& Value : Header.second)
+								FormBody.append(Value);
+							FormBody.append("\r\n\r\n").append(Boundary).append("\r\n");
+						}
+
+						Core::String FormFinish = "\r\n";
+						FormFinish.append(Boundary);
+
+						bool IsFinal = (Boundaries.size() + 1 == Request.Content.Resources.size());
+						if (IsFinal)
+							FormFinish.append("--\r\n");
+						else
+							FormFinish.append("\r\n");
+
+						FormBody.append(Boundary).append("\r\n");
+						FormBody.append("Content-Disposition: form-data; name=\"").append(Item.Key).append("\"; filename=\"").append(Item.Name).append("\"\r\n");
+						FormBody.append("Content-Type: ").append(Item.Type).append("\r\n\r\n");
+
+						if (Item.IsInMemory)
+						{
+							Item.Length = Item.GetInMemoryContents().size();
+							FormBody.append(Item.GetInMemoryContents());
+							FormBody.append(FormFinish);
 						}
 						else
 						{
-							Stream.ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
-							{
-								if (Packet::IsData(Event))
-									Response.Content.Append(Buffer, Recv);
-								else if (Packet::IsDone(Event))
-									Receive();
-								else if (Packet::IsErrorOrSkip(Event))
-									Error("http socket read %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
-
-								return true;
-							});
+							auto State = Core::OS::File::GetState(Item.Path);
+							if (State && !State->IsDirectory)
+								Item.Length = State->Size;
+							else
+								Item.Length = 0;
 						}
+
+						BoundaryBlock Block;
+						Block.Data = std::move(FormBody);
+						Block.Finish = std::move(FormFinish);
+						Block.File = &Item;
+						Block.IsFinal = IsFinal;
+
+						ContentSize += Block.Data.size() + Item.Length + Block.Finish.size();
+						Boundaries.emplace_back(std::move(Block));
 					}
-					else if (Packet::IsErrorOrSkip(Event))
-						Error("http socket write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
-				});
+
+					Request.SetHeader("Content-Length", Core::ToString(ContentSize));
+					Paths::ConstructHeadFull(&Request, &Response, true, Content);
+					Content.append("\r\n");
+
+					Stream.WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
+					{
+						if (Packet::IsDone(Event))
+							Upload(Boundaries.begin());
+						else if (Packet::IsErrorOrSkip(Event))
+							Error("http socket write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+					});
+				}
 
 				return Result;
 			}
@@ -6277,7 +6381,144 @@ namespace Mavi
 			{
 				return &Response;
 			}
-			bool Client::Receive()
+			void Client::UploadFile(BoundaryBlock* Boundary, std::function<void(bool)>&& Callback)
+			{
+				auto File = Core::OS::File::Open(Boundary->File->Path.c_str(), "rb");
+				if (!File)
+					return Callback(false);
+
+				FILE* FileStream = *File;
+                auto Result = Stream.SendFileAsync(FileStream, 0, Boundary->File->Length, [this, FileStream, Callback](SocketPoll Event)
+                {
+                    if (Packet::IsDone(Event))
+                    {
+                        Core::OS::File::Close(FileStream);
+						Callback(true);
+                    }
+                    else if (Packet::IsErrorOrSkip(Event))
+					{
+						Core::OS::File::Close(FileStream);
+						Callback(false);
+					}
+				});         
+                if (Result || Result.Error() != std::errc::not_supported)
+					return Callback(true);
+
+				if (IsAsync)
+					return UploadFileChunkAsync(FileStream, Boundary->File->Length, std::move(Callback));
+
+				return UploadFileChunk(FileStream, Boundary->File->Length, std::move(Callback));
+			}
+			void Client::UploadFileChunk(FILE* FileStream, size_t ContentLength, std::function<void(bool)>&& Callback)
+			{
+				if (!ContentLength)
+				{
+				Cleanup:
+					Core::OS::File::Close(FileStream);
+					return Callback(true);
+				}
+
+				char Buffer[Core::BLOB_SIZE];
+				while (ContentLength > 0)
+				{
+					size_t Read = sizeof(Buffer);
+					if ((Read = (size_t)fread(Buffer, 1, Read > ContentLength ? ContentLength : Read, FileStream)) <= 0)
+						goto Cleanup;
+
+					ContentLength -= Read;
+					auto Written = Stream.Write(Buffer, Read);
+					if (!Written || !*Written)
+						break;
+				}
+
+				Core::OS::File::Close(FileStream);
+				return Callback(!ContentLength);
+			}
+			void Client::UploadFileChunkAsync(FILE* FileStream, size_t ContentLength, std::function<void(bool)>&& Callback)
+			{
+				if (!ContentLength)
+				{
+				Cleanup:
+					Core::OS::File::Close(FileStream);
+					return Callback(true);
+				}
+
+			Retry:
+				char Buffer[Core::BLOB_SIZE];
+				size_t Read = sizeof(Buffer);
+				if ((Read = (size_t)fread(Buffer, 1, Read > ContentLength ? ContentLength : Read, FileStream)) <= 0)
+					goto Cleanup;
+
+				ContentLength -= Read;
+				auto Written = Stream.WriteAsync(Buffer, Read, [this, FileStream, ContentLength, Callback](SocketPoll Event) mutable
+				{
+					if (Packet::IsDoneAsync(Event))
+					{
+						Core::Schedule::Get()->SetTask([this, FileStream, ContentLength, Callback = std::move(Callback)]() mutable
+						{
+							UploadFileChunk(FileStream, ContentLength, std::move(Callback));
+						});
+					}
+					else if (Packet::IsErrorOrSkip(Event))
+					{
+						Core::OS::File::Close(FileStream);
+						Callback(false);
+					}
+				});
+
+				if (Written && *Written > 0)
+					goto Retry;
+			}
+			void Client::Upload(Core::Vector<Client::BoundaryBlock>::iterator Boundary)
+			{
+				if (Boundary != Boundaries.end())
+				{
+					Stream.WriteAsync(Boundary->Data.c_str(), Boundary->Data.size(), [this, Boundary](SocketPoll Event) mutable
+					{
+						if (Packet::IsDone(Event))
+						{
+							if (!Boundary->File->IsInMemory)
+							{
+								BoundaryBlock& Target = *Boundary;
+								UploadFile(&Target, [this, Boundary](bool Success)
+								{
+									if (Success)
+									{
+										Stream.WriteAsync(Boundary->Finish.c_str(), Boundary->Finish.size(), [this, Boundary](SocketPoll Event) mutable
+										{
+											if (Packet::IsDone(Event))
+												Upload(++Boundary);
+											else if (Packet::IsErrorOrSkip(Event))
+												Error("http socket write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+										});
+									}
+									else
+										Error("io socker file write error");
+								});
+							}
+							else
+								Upload(++Boundary);
+						}
+						else if (Packet::IsErrorOrSkip(Event))
+							Error("http socket file write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+					});
+				}
+				else
+				{
+					Stream.ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
+					{
+						if (Packet::IsData(Event))
+							Response.Content.Append(Buffer, Recv);
+						else if (Packet::IsDone(Event))
+							Receive();
+						else if (Packet::IsErrorOrSkip(Event))
+							Error("http socket read %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+
+						return true;
+					});
+				}
+			}
+			void Client::Receive()
 			{
 				Stage("http response receive");
 				auto Address = Stream.GetRemoteAddress();
@@ -6294,17 +6535,19 @@ namespace Mavi
 				Parser->OnHeaderValue = Parsing::ParseHeaderValue;
 				Parser->Frame.Response = &Response;
 
-				if (Parser->ParseResponse(Response.Content.Data.data(), Response.Content.Data.size(), 0) < 0)
+				if (Parser->ParseResponse(Response.Content.Data.data(), Response.Content.Data.size(), 0) >= 0)
+				{
+					Response.Content.Prepare(Response.GetHeader("Content-Length"));
+					Response.Content.Data.clear();
+
+					VI_RELEASE(Parser);
+					Report(Core::Optional::None);
+				}
+				else
 				{
 					VI_RELEASE(Parser);
-					return Error("cannot parse http response");
+					Error("cannot parse http response");
 				}
-
-				Response.Content.Prepare(Response.GetHeader("Content-Length"));
-				Response.Content.Data.clear();
-
-				VI_RELEASE(Parser);
-				return Report(Core::Optional::None);
 			}
 
 			Core::ExpectsPromiseIO<ResponseFrame> Fetch(const Core::String& Target, const Core::String& Method, const FetchFrame& Options)

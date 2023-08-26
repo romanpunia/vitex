@@ -1,4 +1,5 @@
 #include "compute.h"
+#include "../mavi.h"
 #include <cctype>
 #include <random>
 #ifdef VI_BULLET3
@@ -152,6 +153,12 @@ namespace
 		}
 
 		return 63;
+	}
+	Mavi::Core::String EscapeText(const Mavi::Core::String& Data)
+	{
+		Mavi::Core::String Result = "\"";
+		Result.append(Data).append("\"");
+		return Result;
 	}
 }
 
@@ -8842,11 +8849,42 @@ namespace Mavi
 		{
 			Features = F;
 		}
+		void Preprocessor::AddDefaultDefinitions()
+		{
+			Define("__VERSION__", [](Preprocessor*, const Core::Vector<Core::String>& Args)
+			{
+				return Core::ToString<size_t>(Mavi::VERSION);
+			});
+			Define("__DATE__", [](Preprocessor*, const Core::Vector<Core::String>& Args)
+			{
+				return EscapeText(Core::DateTime().Format("%b %d %Y"));
+			});
+			Define("__FILE__", [](Preprocessor* Base, const Core::Vector<Core::String>& Args)
+			{
+				Core::String Path = Base->GetCurrentFilePath();
+				return EscapeText(Core::Stringify::Replace(Path, "\\", "\\\\"));
+			});
+			Define("__LINE__", [](Preprocessor* Base, const Core::Vector<Core::String>& Args)
+			{
+				return Core::ToString<size_t>(Base->GetCurrentLineNumber());
+			});
+			Define("__DIRECTORY__", [](Preprocessor* Base, const Core::Vector<Core::String>& Args)
+			{
+				Core::String Path = Core::OS::Path::GetDirectory(Base->GetCurrentFilePath().c_str());
+				if (!Path.empty() && (Path.back() == '\\' || Path.back() == '/'))
+					Path.erase(Path.size() - 1, 1);
+				return EscapeText(Core::Stringify::Replace(Path, "\\", "\\\\"));
+			});
+		}
 		bool Preprocessor::Define(const Core::String& Expression)
+		{
+			return Define(Expression, nullptr);
+		}
+		bool Preprocessor::Define(const Core::String& Expression, ProcExpansionCallback&& Callback)
 		{
 			if (Expression.empty())
 			{
-				VI_ERR("[proc] %s: empty macro definition is not allowed", ExpandedPath.c_str());
+				VI_ERR("[proc] %s: empty macro definition is not allowed", ThisFile.Path.c_str());
 				return false;
 			}
 
@@ -8870,7 +8908,7 @@ namespace Mavi
 			bool EmptyParenthesis = false;
 			if (Name.empty())
 			{
-				VI_ERR("[proc] %s: empty macro definition name is not allowed", ExpandedPath.c_str());
+				VI_ERR("[proc] %s: empty macro definition name is not allowed", ThisFile.Path.c_str());
 				return false;
 			}
 
@@ -8889,12 +8927,12 @@ namespace Mavi
 
 				if (Pose < 0)
 				{
-					VI_ERR("[proc] %s: macro definition template parenthesis was closed twice at %s", ExpandedPath.c_str(), Expression.c_str());
+					VI_ERR("[proc] %s: macro definition template parenthesis was closed twice at %s", ThisFile.Path.c_str(), Expression.c_str());
 					return false;
 				}
 				else if (Pose > 1)
 				{
-					VI_ERR("[proc] %s: macro definition template parenthesis is not closed at %s", ExpandedPath.c_str(), Expression.c_str());
+					VI_ERR("[proc] %s: macro definition template parenthesis is not closed at %s", ThisFile.Path.c_str(), Expression.c_str());
 					return false;
 				}
 
@@ -8903,14 +8941,14 @@ namespace Mavi
 
 				if (!ParseArguments(Template, Data.Tokens, false) || Data.Tokens.empty())
 				{
-					VI_ERR("[proc] %s: invalid macro definition at %s", ExpandedPath.c_str(), Template.c_str());
+					VI_ERR("[proc] %s: invalid macro definition at %s", ThisFile.Path.c_str(), Template.c_str());
 					return false;
 				}
 
 				Data.Tokens.erase(Data.Tokens.begin());
 				EmptyParenthesis = Data.Tokens.empty();
 			}
-			
+
 			Core::Stringify::Trim(Name);
 			if (TemplateEnd < Expression.size())
 			{
@@ -8922,9 +8960,11 @@ namespace Mavi
 				Name += "()";
 
 			size_t Size = Data.Expansion.size();
+			Data.Callback = std::move(Callback);
+
 			if (Size > 0)
 				ExpandDefinitions(Data.Expansion, Size);
-			
+
 			Defines[Name] = std::move(Data);
 			return true;
 		}
@@ -8937,7 +8977,8 @@ namespace Mavi
 		{
 			Defines.clear();
 			Sets.clear();
-			ExpandedPath.clear();
+			ThisFile.Path.clear();
+			ThisFile.Line = 0;
 		}
 		bool Preprocessor::IsDefined(const Core::String& Name) const
 		{
@@ -8962,26 +9003,27 @@ namespace Mavi
 			if (!Path.empty() && HasResult(Path))
 				return ReturnResult(true, Nesting);
 
-			Core::String LastPath = ExpandedPath;
-			ExpandedPath = Path;
+			FileContext LastFile = ThisFile;
+			ThisFile.Path = Path;
+			ThisFile.Line = 0;
+
 			if (!Path.empty())
 				Sets.insert(Path);
 
 			if (!ConsumeTokens(Path, Data))
 			{
-				ExpandedPath = LastPath;
+				ThisFile = LastFile;
 				return ReturnResult(false, Nesting);
 			}
 
 			size_t Size = Data.size();
 			if (!ExpandDefinitions(Data, Size))
 			{
-				ExpandedPath = LastPath;
+				ThisFile = LastFile;
 				return ReturnResult(false, Nesting);
 			}
 
-			ExpandedPath = LastPath;
-			Core::Stringify::Trim(Data);
+			ThisFile = LastFile;
 			return ReturnResult(true, Nesting);
 		}
 		bool Preprocessor::ReturnResult(bool Result, bool WasNested)
@@ -8990,7 +9032,8 @@ namespace Mavi
 			if (!Nested)
 			{
 				Sets.clear();
-				ExpandedPath.clear();
+				ThisFile.Path.clear();
+				ThisFile.Line = 0;
 			}
 
 			return Result;
@@ -9035,12 +9078,6 @@ namespace Mavi
 						if (N == '\r' || N == '\n' || Result.End == Buffer.size())
 						{
 							Result.Value = Buffer.substr(Offset, Result.End - Offset);
-							while (Result.End < Buffer.size())
-							{
-								N = Buffer[++Result.End];
-								if (N != '\r' && N != '\n')
-									break;
-							}
 							break;
 						}
 					}
@@ -9198,7 +9235,7 @@ namespace Mavi
 					Block.Type = (Conditions.empty() ? Condition::Equals : (Condition)(-(int32_t)Conditions.back().Type));
 					if (Conditions.empty())
 					{
-						VI_ERR("[proc] %s: #%s is has no opening #if block", ExpandedPath.c_str(), Next.Name.c_str());
+						VI_ERR("[proc] %s: #%s is has no opening #if block", ThisFile.Path.c_str(), Next.Name.c_str());
 						return Core::Vector<Conditional>();
 					}
 
@@ -9209,7 +9246,7 @@ namespace Mavi
 				{
 					if (Conditions.empty())
 					{
-						VI_ERR("[proc] %s: #%s is has no opening #if block", ExpandedPath.c_str(), Next.Name.c_str());
+						VI_ERR("[proc] %s: #%s is has no opening #if block", ThisFile.Path.c_str(), Next.Name.c_str());
 						return Core::Vector<Conditional>();
 					}
 
@@ -9219,7 +9256,7 @@ namespace Mavi
 				else if (Control->second.second == Controller::EndIf)
 					break;
 
-				VI_ERR("[proc] %s: #%s is not a valid conditional block", ExpandedPath.c_str(), Next.Name.c_str());
+				VI_ERR("[proc] %s: #%s is not a valid conditional block", ThisFile.Path.c_str(), Next.Name.c_str());
 				return Core::Vector<Conditional>();
 			} while ((Next = FindNextConditionalToken(Buffer, Offset)).Found);
 
@@ -9361,9 +9398,21 @@ namespace Mavi
 					return -1;
 			}
 		}
+		size_t Preprocessor::GetLinesCount(Core::String& Buffer, size_t End)
+		{
+			const char* Target = Buffer.c_str();
+			size_t Offset = 0, Lines = 0;
+			while (Offset < End)
+			{
+				if (Target[Offset++] == '\n')
+					++Lines;
+			}
+
+			return Lines;
+		}
 		bool Preprocessor::ExpandDefinitions(Core::String& Buffer, size_t& Size)
 		{
-			if (!Size)
+			if (!Size || Defines.empty())
 				return true;
 
 			Core::Vector<Core::String> Tokens;
@@ -9377,7 +9426,20 @@ namespace Mavi
 
 				if (Item.second.Tokens.empty())
 				{
-					Core::Stringify::Replace(Formatter, Item.first, Item.second.Expansion);
+					Tokens.clear();
+					if (Item.second.Callback != nullptr)
+					{
+						size_t FoundOffset = Formatter.find(Item.first);
+						size_t TemplateSize = Item.first.size();
+						while (FoundOffset != std::string::npos)
+						{
+							StoreCurrentLine = [this, &Formatter, FoundOffset, TemplateSize]() { return GetLinesCount(Formatter, FoundOffset + TemplateSize); };
+							Formatter.replace(FoundOffset, TemplateSize, Item.second.Callback(this, Tokens));
+							FoundOffset = Formatter.find(Item.first, FoundOffset);
+						}
+					}
+					else
+						Core::Stringify::Replace(Formatter, Item.first, Item.second.Expansion);
 					continue;
 				}
 				else if (Size < Item.first.size() + 1)
@@ -9399,12 +9461,12 @@ namespace Mavi
 
 					if (Pose < 0)
 					{
-						VI_ERR("[proc] %s: macro definition expansion parenthesis was closed twice at %" PRIu64, ExpandedPath.c_str(), (uint64_t)TemplateStart);
+						VI_ERR("[proc] %s: macro definition expansion parenthesis was closed twice at %" PRIu64, ThisFile.Path.c_str(), (uint64_t)TemplateStart);
 						return false;
 					}
 					else if (Pose > 1)
 					{
-						VI_ERR("[proc] %s: macro definition expansion parenthesis is not closed at %" PRIu64, ExpandedPath.c_str(), (uint64_t)TemplateStart);
+						VI_ERR("[proc] %s: macro definition expansion parenthesis is not closed at %" PRIu64, ThisFile.Path.c_str(), (uint64_t)TemplateStart);
 						return false;
 					}
 
@@ -9414,25 +9476,32 @@ namespace Mavi
 
 					if (!ParseArguments(Template, Tokens, false) || Tokens.empty())
 					{
-						VI_ERR("[proc] %s: macro definition expansion cannot be parsed at %" PRIu64, ExpandedPath.c_str(), (uint64_t)TemplateStart);
+						VI_ERR("[proc] %s: macro definition expansion cannot be parsed at %" PRIu64, ThisFile.Path.c_str(), (uint64_t)TemplateStart);
 						return false;
 					}
 
 					if (Tokens.size() - 1 != Item.second.Tokens.size())
 					{
-						VI_ERR("[proc] %s: macro definition expansion uses incorrect number of arguments (%i out of %i) at %" PRIu64, ExpandedPath.c_str(), (int)Tokens.size() - 1, (int)Item.second.Tokens.size(), (uint64_t)TemplateStart);
+						VI_ERR("[proc] %s: macro definition expansion uses incorrect number of arguments (%i out of %i) at %" PRIu64, ThisFile.Path.c_str(), (int)Tokens.size() - 1, (int)Item.second.Tokens.size(), (uint64_t)TemplateStart);
 						return false;
 					}
 
-					Core::String Body(Item.second.Expansion);
+					Core::String Body;
+					if (Item.second.Callback != nullptr)
+						Body = Item.second.Callback(this, Tokens);
+					else
+						Body = Item.second.Expansion;
+
 					for (size_t i = 0; i < Item.second.Tokens.size(); i++)
 					{
 						auto& From = Item.second.Tokens[i];
 						auto& To = Tokens[i + 1];
-						Core::Stringify::Replace(Body, From, To);		
+						Core::Stringify::Replace(Body, From, To);
 						if (Stringify)
 							Core::Stringify::Replace(Body, "#" + From, '\"' + To + '\"');
 					}
+
+					StoreCurrentLine = [this, &Formatter, TemplateEnd]() { return GetLinesCount(Formatter, TemplateEnd); };
 					Core::Stringify::ReplacePart(Formatter, TemplateStart, TemplateEnd, Body);
 					Offset = TemplateStart + Body.size();
 				}
@@ -9618,7 +9687,17 @@ namespace Mavi
 		}
 		const Core::String& Preprocessor::GetCurrentFilePath() const
 		{
-			return ExpandedPath;
+			return ThisFile.Path;
+		}
+		size_t Preprocessor::GetCurrentLineNumber()
+		{
+			if (StoreCurrentLine != nullptr)
+			{
+				ThisFile.Line = StoreCurrentLine();
+				StoreCurrentLine = nullptr;
+			}
+
+			return ThisFile.Line + 1;
 		}
 		IncludeResult Preprocessor::ResolveInclude(const IncludeDesc& Desc, bool AsGlobal)
 		{

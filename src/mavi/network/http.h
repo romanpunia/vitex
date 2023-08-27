@@ -197,8 +197,8 @@ namespace Mavi
 				Core::String Where;
 				Compute::RegexResult Match;
 				Credentials User;
-				char Method[10];
-				char Version[10];
+				char Method[16];
+				char Version[16];
 
 				RequestFrame();
 				RequestFrame(const RequestFrame&) = default;

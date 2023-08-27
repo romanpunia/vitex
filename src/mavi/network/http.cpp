@@ -897,6 +897,8 @@ namespace Mavi
 
 			RequestFrame::RequestFrame()
 			{
+				memset(Method, 0, sizeof(Method));
+				memset(Version, 0, sizeof(Version));
 				strcpy(Method, "GET");
 				strcpy(Version, "HTTP/1.1");
 			}

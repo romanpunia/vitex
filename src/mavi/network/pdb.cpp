@@ -615,6 +615,10 @@ namespace Mavi
 				return Core::String();
 #endif
 			}
+			Core::String Column::GetValueText() const
+			{
+				return Core::String(GetRaw(), GetRawSize());
+			}
 			Core::Variant Column::Get() const
 			{
 #ifdef VI_POSTGRESQL
@@ -892,6 +896,10 @@ namespace Mavi
 #else
 				return Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
 #endif
+			}
+			Column Row::GetColumnByName(const Core::String& Name) const
+			{
+				return GetColumn(Name.c_str());
 			}
 			bool Row::GetColumns(Column* Output, size_t Size) const
 			{

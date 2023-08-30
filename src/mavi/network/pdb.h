@@ -92,7 +92,7 @@ namespace Mavi
 			enum class QueryExec
 			{
 				Empty_Query = 0,
-				Command_Ok,
+				Command_OK,
 				Tuples_OK,
 				Copy_Out,
 				Copy_In,
@@ -127,12 +127,12 @@ namespace Mavi
 
 			enum class ConnectionState
 			{
-				Ok,
+				OK,
 				Bad,
 				Started,
 				Made,
 				Awaiting_Response,
-				Auth_Ok,
+				Auth_OK,
 				Set_Env,
 				SSL_Startup,
 				Needed,
@@ -270,6 +270,7 @@ namespace Mavi
 				int SetValueText(const Core::String& Value);
 				int SetValueText(char* Data, size_t Size);
 				Core::String GetName() const;
+				Core::String GetValueText() const;
 				Core::Variant Get() const;
 				Core::Schema* GetInline() const;
 				char* GetRaw() const;
@@ -309,6 +310,7 @@ namespace Mavi
 				Response GetCursor() const;
 				Column GetColumn(size_t Index) const;
 				Column GetColumn(const char* Name) const;
+				Column GetColumnByName(const Core::String& Name) const;
 				bool GetColumns(Column* Output, size_t Size) const;
 				bool IsExists() const
 				{

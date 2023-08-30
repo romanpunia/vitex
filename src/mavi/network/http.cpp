@@ -905,12 +905,14 @@ namespace Mavi
 			void RequestFrame::SetMethod(const char* Value)
 			{
 				VI_ASSERT(Value != nullptr, "value should be set");
-				strncpy(Method, Value, sizeof(Method));
+				memset(Method, 0, sizeof(Method));
+				memcpy((void*)Method, (void*)Value, std::min<size_t>(strlen(Value), sizeof(Method)));
 			}
 			void RequestFrame::SetVersion(unsigned int Major, unsigned int Minor)
 			{
 				Core::String Value = "HTTP/" + Core::ToString(Major) + '.' + Core::ToString(Minor);
-				strncpy(Version, Value.c_str(), sizeof(Version));
+				memset(Version, 0, sizeof(Version));
+				memcpy((void*)Version, (void*)Value.c_str(), std::min<size_t>(Value.size(), sizeof(Version)));
 			}
 			void RequestFrame::PutHeader(const Core::String& Key, const Core::String& Value)
 			{
@@ -4450,6 +4452,7 @@ namespace Mavi
 				if (!Length || Parser->Frame.Ignore || !Parser->Frame.Request)
 					return true;
 
+				memset(Parser->Frame.Request->Version, 0, sizeof(Parser->Frame.Request->Version));
 				memcpy((void*)Parser->Frame.Request->Version, (void*)Data, std::min<size_t>(Length, sizeof(Parser->Frame.Request->Version)));
 				return true;
 			}
@@ -4470,6 +4473,7 @@ namespace Mavi
 				if (!Length || Parser->Frame.Ignore || !Parser->Frame.Request)
 					return true;
 
+				memset(Parser->Frame.Request->Method, 0, sizeof(Parser->Frame.Request->Method));
 				memcpy((void*)Parser->Frame.Request->Method, (void*)Data, std::min<size_t>(Length, sizeof(Parser->Frame.Request->Method)));
 				return true;
 			}

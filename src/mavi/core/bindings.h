@@ -104,6 +104,8 @@ namespace Mavi
 				static bool ImportPreprocessor(VirtualMachine* Engine);
 				static bool ImportPhysics(VirtualMachine* Engine);
 				static bool ImportAudio(VirtualMachine* Engine);
+				static bool ImportAudioEffects(VirtualMachine* Engine);
+				static bool ImportAudioFilters(VirtualMachine* Engine);
 				static bool ImportActivity(VirtualMachine* Engine);
 				static bool ImportGraphics(VirtualMachine* Engine);
 				static bool ImportNetwork(VirtualMachine* Engine);
@@ -111,7 +113,6 @@ namespace Mavi
 				static bool ImportSMTP(VirtualMachine* Engine);
 				static bool ImportPostgreSQL(VirtualMachine* Engine);
 				static bool ImportMongoDB(VirtualMachine* Engine);
-				static bool ImportVM(VirtualMachine* Engine);
 				static bool ImportEngine(VirtualMachine* Engine);
 				static bool ImportComponents(VirtualMachine* Engine);
 				static bool ImportRenderers(VirtualMachine* Engine);

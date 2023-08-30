@@ -3,9 +3,13 @@
 #include "network.h"
 #include "../network/http.h"
 #include "../network/smtp.h"
+#include "../network/pdb.h"
+#include "../network/mdb.h"
 #include "../engine/processors.h"
 #include "../engine/components.h"
 #include "../engine/renderers.h"
+#include "../audio/effects.h"
+#include "../audio/filters.h"
 #endif
 #ifdef VI_ANGELSCRIPT
 #include <angelscript.h>
@@ -12043,6 +12047,153 @@ namespace Mavi
 				return false;
 #endif
 			}
+			bool Registry::ImportAudioEffects(VirtualMachine* VM)
+			{
+#ifdef VI_BINDINGS
+				VI_ASSERT(VM != nullptr, "manager should be set");
+
+				auto VReverb = VM->SetClass<Audio::Effects::Reverb>("reverb_effect", false);
+				VReverb->SetProperty<Audio::Effects::Reverb>("vector3 late_reverb_pan", &Audio::Effects::Reverb::LateReverbPan);
+				VReverb->SetProperty<Audio::Effects::Reverb>("vector3 reflections_pan", &Audio::Effects::Reverb::ReflectionsPan);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float density", &Audio::Effects::Reverb::Density);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float diffusion", &Audio::Effects::Reverb::Diffusion);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float gain", &Audio::Effects::Reverb::Gain);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float gain_hf", &Audio::Effects::Reverb::GainHF);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float gain_lf", &Audio::Effects::Reverb::GainLF);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float decay_time", &Audio::Effects::Reverb::DecayTime);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float decay_hf_ratio", &Audio::Effects::Reverb::DecayHFRatio);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float decay_lf_ratio", &Audio::Effects::Reverb::DecayLFRatio);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float reflections_gain", &Audio::Effects::Reverb::ReflectionsGain);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float reflections_delay", &Audio::Effects::Reverb::ReflectionsDelay);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float late_reverb_gain", &Audio::Effects::Reverb::LateReverbGain);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float late_reverb_delay", &Audio::Effects::Reverb::LateReverbDelay);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float echo_time", &Audio::Effects::Reverb::EchoTime);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float echo_depth", &Audio::Effects::Reverb::EchoDepth);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float modulation_time", &Audio::Effects::Reverb::ModulationTime);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float modulation_depth", &Audio::Effects::Reverb::ModulationDepth);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float air_absorption_gain_hf", &Audio::Effects::Reverb::AirAbsorptionGainHF);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float hf_reference", &Audio::Effects::Reverb::HFReference);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float lf_reference", &Audio::Effects::Reverb::LFReference);
+				VReverb->SetProperty<Audio::Effects::Reverb>("float room_rolloff_factor", &Audio::Effects::Reverb::RoomRolloffFactor);
+				VReverb->SetProperty<Audio::Effects::Reverb>("bool is_decay_hf_limited", &Audio::Effects::Reverb::IsDecayHFLimited);
+				PopulateAudioEffectInterface<Audio::Effects::Reverb>(*VReverb, "reverb_effect@+ f()");
+
+				auto VChorus = VM->SetClass<Audio::Effects::Chorus>("chorus_effect", false);
+				VChorus->SetProperty<Audio::Effects::Chorus>("float rate", &Audio::Effects::Chorus::Rate);
+				VChorus->SetProperty<Audio::Effects::Chorus>("float depth", &Audio::Effects::Chorus::Depth);
+				VChorus->SetProperty<Audio::Effects::Chorus>("float feedback", &Audio::Effects::Chorus::Feedback);
+				VChorus->SetProperty<Audio::Effects::Chorus>("float delay", &Audio::Effects::Chorus::Delay);
+				VChorus->SetProperty<Audio::Effects::Chorus>("int32 waveform", &Audio::Effects::Chorus::Waveform);
+				VChorus->SetProperty<Audio::Effects::Chorus>("int32 phase", &Audio::Effects::Chorus::Phase);
+				PopulateAudioEffectInterface<Audio::Effects::Chorus>(*VChorus, "chorus_effect@+ f()");
+
+				auto VDistortion = VM->SetClass<Audio::Effects::Distortion>("distortion_effect", false);
+				VDistortion->SetProperty<Audio::Effects::Distortion>("float edge", &Audio::Effects::Distortion::Edge);
+				VDistortion->SetProperty<Audio::Effects::Distortion>("float gain", &Audio::Effects::Distortion::Gain);
+				VDistortion->SetProperty<Audio::Effects::Distortion>("float lowpass_cut_off", &Audio::Effects::Distortion::LowpassCutOff);
+				VDistortion->SetProperty<Audio::Effects::Distortion>("float eq_center", &Audio::Effects::Distortion::EQCenter);
+				VDistortion->SetProperty<Audio::Effects::Distortion>("float eq_bandwidth", &Audio::Effects::Distortion::EQBandwidth);
+				PopulateAudioEffectInterface<Audio::Effects::Distortion>(*VDistortion, "distortion_effect@+ f()");
+
+				auto VEcho = VM->SetClass<Audio::Effects::Echo>("echo_effect", false);
+				VEcho->SetProperty<Audio::Effects::Echo>("float delay", &Audio::Effects::Echo::Delay);
+				VEcho->SetProperty<Audio::Effects::Echo>("float lr_delay", &Audio::Effects::Echo::LRDelay);
+				VEcho->SetProperty<Audio::Effects::Echo>("float damping", &Audio::Effects::Echo::Damping);
+				VEcho->SetProperty<Audio::Effects::Echo>("float feedback", &Audio::Effects::Echo::Feedback);
+				VEcho->SetProperty<Audio::Effects::Echo>("float spread", &Audio::Effects::Echo::Spread);
+				PopulateAudioEffectInterface<Audio::Effects::Echo>(*VEcho, "echo_effect@+ f()");
+
+				auto VFlanger = VM->SetClass<Audio::Effects::Flanger>("flanger_effect", false);
+				VFlanger->SetProperty<Audio::Effects::Flanger>("float rate", &Audio::Effects::Flanger::Rate);
+				VFlanger->SetProperty<Audio::Effects::Flanger>("float depth", &Audio::Effects::Flanger::Depth);
+				VFlanger->SetProperty<Audio::Effects::Flanger>("float feedback", &Audio::Effects::Flanger::Feedback);
+				VFlanger->SetProperty<Audio::Effects::Flanger>("float delay", &Audio::Effects::Flanger::Delay);
+				VFlanger->SetProperty<Audio::Effects::Flanger>("int32 waveform", &Audio::Effects::Flanger::Waveform);
+				VFlanger->SetProperty<Audio::Effects::Flanger>("int32 phase", &Audio::Effects::Flanger::Phase);
+				PopulateAudioEffectInterface<Audio::Effects::Flanger>(*VFlanger, "flanger_effect@+ f()");
+
+				auto VFrequencyShifter = VM->SetClass<Audio::Effects::FrequencyShifter>("frequency_shifter_effect", false);
+				VFrequencyShifter->SetProperty<Audio::Effects::FrequencyShifter>("float frequency", &Audio::Effects::FrequencyShifter::Frequency);
+				VFrequencyShifter->SetProperty<Audio::Effects::FrequencyShifter>("int32 left_direction", &Audio::Effects::FrequencyShifter::LeftDirection);
+				VFrequencyShifter->SetProperty<Audio::Effects::FrequencyShifter>("int32 right_direction", &Audio::Effects::FrequencyShifter::RightDirection);
+				PopulateAudioEffectInterface<Audio::Effects::FrequencyShifter>(*VFrequencyShifter, "frequency_shifter_effect@+ f()");
+
+				auto VVocalMorpher = VM->SetClass<Audio::Effects::VocalMorpher>("vocal_morpher_effect", false);
+				VVocalMorpher->SetProperty<Audio::Effects::VocalMorpher>("float rate", &Audio::Effects::VocalMorpher::Rate);
+				VVocalMorpher->SetProperty<Audio::Effects::VocalMorpher>("int32 phonemea", &Audio::Effects::VocalMorpher::Phonemea);
+				VVocalMorpher->SetProperty<Audio::Effects::VocalMorpher>("int32 phonemea_coarse_tuning", &Audio::Effects::VocalMorpher::PhonemeaCoarseTuning);
+				VVocalMorpher->SetProperty<Audio::Effects::VocalMorpher>("int32 phonemeb", &Audio::Effects::VocalMorpher::Phonemeb);
+				VVocalMorpher->SetProperty<Audio::Effects::VocalMorpher>("int32 phonemeb_coarse_tuning", &Audio::Effects::VocalMorpher::PhonemebCoarseTuning);
+				VVocalMorpher->SetProperty<Audio::Effects::VocalMorpher>("int32 waveform", &Audio::Effects::VocalMorpher::Waveform);
+				PopulateAudioEffectInterface<Audio::Effects::VocalMorpher>(*VVocalMorpher, "vocal_morpher_effect@+ f()");
+
+				auto VPitchShifter = VM->SetClass<Audio::Effects::PitchShifter>("pitch_shifter_effect", false);
+				VPitchShifter->SetProperty<Audio::Effects::PitchShifter>("int32 coarse_tune", &Audio::Effects::PitchShifter::CoarseTune);
+				VPitchShifter->SetProperty<Audio::Effects::PitchShifter>("int32 fine_tune", &Audio::Effects::PitchShifter::FineTune);
+				PopulateAudioEffectInterface<Audio::Effects::PitchShifter>(*VPitchShifter, "pitch_shifter_effect@+ f()");
+
+				auto VRingModulator = VM->SetClass<Audio::Effects::RingModulator>("ring_modulator_effect", false);
+				VRingModulator->SetProperty<Audio::Effects::RingModulator>("float frequency", &Audio::Effects::RingModulator::Frequency);
+				VRingModulator->SetProperty<Audio::Effects::RingModulator>("float highpass_cut_off", &Audio::Effects::RingModulator::HighpassCutOff);
+				VRingModulator->SetProperty<Audio::Effects::RingModulator>("int32 waveform", &Audio::Effects::RingModulator::Waveform);
+				PopulateAudioEffectInterface<Audio::Effects::RingModulator>(*VRingModulator, "ring_modulator_effect@+ f()");
+
+				auto VAutowah = VM->SetClass<Audio::Effects::Autowah>("autowah_effect", false);
+				VAutowah->SetProperty<Audio::Effects::Autowah>("float attack_time", &Audio::Effects::Autowah::AttackTime);
+				VAutowah->SetProperty<Audio::Effects::Autowah>("float release_time", &Audio::Effects::Autowah::ReleaseTime);
+				VAutowah->SetProperty<Audio::Effects::Autowah>("float resonance", &Audio::Effects::Autowah::Resonance);
+				VAutowah->SetProperty<Audio::Effects::Autowah>("float peak_gain", &Audio::Effects::Autowah::PeakGain);
+				PopulateAudioEffectInterface<Audio::Effects::Autowah>(*VAutowah, "autowah_effect@+ f()");
+
+				auto VCompressor = VM->SetClass<Audio::Effects::Compressor>("compressor_effect", false);
+				PopulateAudioEffectInterface<Audio::Effects::Compressor>(*VCompressor, "compressor_effect@+ f()");
+
+				auto VEqualizer = VM->SetClass<Audio::Effects::Equalizer>("equalizer_effect", false);
+				VEqualizer->SetProperty<Audio::Effects::Equalizer>("float low_gain", &Audio::Effects::Equalizer::LowGain);
+				VEqualizer->SetProperty<Audio::Effects::Equalizer>("float low_cut_off", &Audio::Effects::Equalizer::LowCutOff);
+				VEqualizer->SetProperty<Audio::Effects::Equalizer>("float mid1_gain", &Audio::Effects::Equalizer::Mid1Gain);
+				VEqualizer->SetProperty<Audio::Effects::Equalizer>("float mid1_center", &Audio::Effects::Equalizer::Mid1Center);
+				VEqualizer->SetProperty<Audio::Effects::Equalizer>("float mid1_width", &Audio::Effects::Equalizer::Mid1Width);
+				VEqualizer->SetProperty<Audio::Effects::Equalizer>("float mid2_gain", &Audio::Effects::Equalizer::Mid2Gain);
+				VEqualizer->SetProperty<Audio::Effects::Equalizer>("float mid2_center", &Audio::Effects::Equalizer::Mid2Center);
+				VEqualizer->SetProperty<Audio::Effects::Equalizer>("float mid2_width", &Audio::Effects::Equalizer::Mid2Width);
+				VEqualizer->SetProperty<Audio::Effects::Equalizer>("float high_gain", &Audio::Effects::Equalizer::HighGain);
+				VEqualizer->SetProperty<Audio::Effects::Equalizer>("float high_cut_off", &Audio::Effects::Equalizer::HighCutOff);
+				PopulateAudioEffectInterface<Audio::Effects::Equalizer>(*VEqualizer, "equalizer_effect@+ f()");
+
+				return true;
+#else
+				VI_ASSERT(false, "<audio/effects> is not loaded");
+				return false;
+#endif
+			}
+			bool Registry::ImportAudioFilters(VirtualMachine* VM)
+			{
+#ifdef VI_BINDINGS
+				VI_ASSERT(VM != nullptr, "manager should be set");
+
+				auto VLowpass = VM->SetClass<Audio::Filters::Lowpass>("lowpass_filter", false);
+				VLowpass->SetProperty<Audio::Filters::Lowpass>("float gain_hf", &Audio::Filters::Lowpass::GainHF);
+				VLowpass->SetProperty<Audio::Filters::Lowpass>("float gain", &Audio::Filters::Lowpass::Gain);
+				PopulateAudioFilterInterface<Audio::Filters::Lowpass>(*VLowpass, "lowpass_filter@+ f()");
+
+				auto VHighpass = VM->SetClass<Audio::Filters::Highpass>("highpass_filter", false);
+				VHighpass->SetProperty<Audio::Filters::Highpass>("float gain_lf", &Audio::Filters::Highpass::GainLF);
+				VHighpass->SetProperty<Audio::Filters::Highpass>("float gain", &Audio::Filters::Highpass::Gain);
+				PopulateAudioFilterInterface<Audio::Filters::Highpass>(*VHighpass, "highpass_filter@+ f()");
+
+				auto VBandpass = VM->SetClass<Audio::Filters::Bandpass>("bandpass_filter", false);
+				VBandpass->SetProperty<Audio::Filters::Bandpass>("float gain_hf", &Audio::Filters::Bandpass::GainHF);
+				VBandpass->SetProperty<Audio::Filters::Bandpass>("float gain_lf", &Audio::Filters::Bandpass::GainLF);
+				VBandpass->SetProperty<Audio::Filters::Bandpass>("float gain", &Audio::Filters::Bandpass::Gain);
+				PopulateAudioFilterInterface<Audio::Filters::Bandpass>(*VBandpass, "bandpass_filter@+ f()");
+
+				return true;
+#else
+				VI_ASSERT(false, "<audio/filters> is not loaded");
+				return false;
+#endif
+			}
 			bool Registry::ImportActivity(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
@@ -14272,7 +14423,239 @@ namespace Mavi
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
 
+				VM->BeginNamespace("pdb");
+				auto VIsolation = VM->SetEnum("isolation");
+				VIsolation->SetValue("serializable", (int)Network::PDB::Isolation::Serializable);
+				VIsolation->SetValue("repeatable_read", (int)Network::PDB::Isolation::RepeatableRead);
+				VIsolation->SetValue("read_commited", (int)Network::PDB::Isolation::ReadCommited);
+				VIsolation->SetValue("read_uncommited", (int)Network::PDB::Isolation::ReadUncommited);
+				VIsolation->SetValue("default_value", (int)Network::PDB::Isolation::Default);
+
+				auto VQueryOp = VM->SetEnum("query_op");
+				VQueryOp->SetValue("delete_args", (int)Network::PDB::QueryOp::DeleteArgs);
+				VQueryOp->SetValue("reuse_args", (int)Network::PDB::QueryOp::ReuseArgs);
+				VQueryOp->SetValue("transaction_always", (int)Network::PDB::QueryOp::TransactionAlways);
+				VQueryOp->SetValue("transaction_start", (int)Network::PDB::QueryOp::TransactionStart);
+				VQueryOp->SetValue("transaction_end", (int)Network::PDB::QueryOp::TransactionEnd);
+				VQueryOp->SetValue("cache_short", (int)Network::PDB::QueryOp::CacheShort);
+				VQueryOp->SetValue("cache_mid", (int)Network::PDB::QueryOp::CacheMid);
+				VQueryOp->SetValue("cache_long", (int)Network::PDB::QueryOp::CacheLong);
+
+				auto VAddressOp = VM->SetEnum("address_op");
+				VAddressOp->SetValue("host", (int)Network::PDB::AddressOp::Host);
+				VAddressOp->SetValue("ip", (int)Network::PDB::AddressOp::Ip);
+				VAddressOp->SetValue("port", (int)Network::PDB::AddressOp::Port);
+				VAddressOp->SetValue("database", (int)Network::PDB::AddressOp::Database);
+				VAddressOp->SetValue("user", (int)Network::PDB::AddressOp::User);
+				VAddressOp->SetValue("password", (int)Network::PDB::AddressOp::Password);
+				VAddressOp->SetValue("timeout", (int)Network::PDB::AddressOp::Timeout);
+				VAddressOp->SetValue("encoding", (int)Network::PDB::AddressOp::Encoding);
+				VAddressOp->SetValue("options", (int)Network::PDB::AddressOp::Options);
+				VAddressOp->SetValue("profile", (int)Network::PDB::AddressOp::Profile);
+				VAddressOp->SetValue("fallback_profile", (int)Network::PDB::AddressOp::Fallback_Profile);
+				VAddressOp->SetValue("keep_alive", (int)Network::PDB::AddressOp::KeepAlive);
+				VAddressOp->SetValue("keep_alive_idle", (int)Network::PDB::AddressOp::KeepAlive_Idle);
+				VAddressOp->SetValue("keep_alive_interval", (int)Network::PDB::AddressOp::KeepAlive_Interval);
+				VAddressOp->SetValue("keep_alive_count", (int)Network::PDB::AddressOp::KeepAlive_Count);
+				VAddressOp->SetValue("tty", (int)Network::PDB::AddressOp::TTY);
+				VAddressOp->SetValue("ssl", (int)Network::PDB::AddressOp::SSL);
+				VAddressOp->SetValue("ssl_compression", (int)Network::PDB::AddressOp::SSL_Compression);
+				VAddressOp->SetValue("ssl_cert", (int)Network::PDB::AddressOp::SSL_Cert);
+				VAddressOp->SetValue("ssl_root_cert", (int)Network::PDB::AddressOp::SSL_Root_Cert);
+				VAddressOp->SetValue("ssl_key", (int)Network::PDB::AddressOp::SSL_Key);
+				VAddressOp->SetValue("ssl_crl", (int)Network::PDB::AddressOp::SSL_CRL);
+				VAddressOp->SetValue("require_peer", (int)Network::PDB::AddressOp::Require_Peer);
+				VAddressOp->SetValue("require_ssl", (int)Network::PDB::AddressOp::Require_SSL);
+				VAddressOp->SetValue("krb_server_name", (int)Network::PDB::AddressOp::KRB_Server_Name);
+				VAddressOp->SetValue("service", (int)Network::PDB::AddressOp::Service);
+
+				auto VQueryExec = VM->SetEnum("query_exec");
+				VQueryExec->SetValue("empty_query", (int)Network::PDB::QueryExec::Empty_Query);
+				VQueryExec->SetValue("command_ok", (int)Network::PDB::QueryExec::Command_OK);
+				VQueryExec->SetValue("tuples_ok", (int)Network::PDB::QueryExec::Tuples_OK);
+				VQueryExec->SetValue("copy_out", (int)Network::PDB::QueryExec::Copy_Out);
+				VQueryExec->SetValue("copy_in", (int)Network::PDB::QueryExec::Copy_In);
+				VQueryExec->SetValue("bad_response", (int)Network::PDB::QueryExec::Bad_Response);
+				VQueryExec->SetValue("non_fatal_error", (int)Network::PDB::QueryExec::Non_Fatal_Error);
+				VQueryExec->SetValue("fatal_error", (int)Network::PDB::QueryExec::Fatal_Error);
+				VQueryExec->SetValue("copy_both", (int)Network::PDB::QueryExec::Copy_Both);
+				VQueryExec->SetValue("single_tuple", (int)Network::PDB::QueryExec::Single_Tuple);
+
+				auto VFieldCode = VM->SetEnum("field_code");
+				VFieldCode->SetValue("severity", (int)Network::PDB::FieldCode::Severity);
+				VFieldCode->SetValue("severity_nonlocalized", (int)Network::PDB::FieldCode::Severity_Nonlocalized);
+				VFieldCode->SetValue("sql_state", (int)Network::PDB::FieldCode::SQL_State);
+				VFieldCode->SetValue("messagep_rimary", (int)Network::PDB::FieldCode::Message_Primary);
+				VFieldCode->SetValue("message_detail", (int)Network::PDB::FieldCode::Message_Detail);
+				VFieldCode->SetValue("message_hint", (int)Network::PDB::FieldCode::Message_Hint);
+				VFieldCode->SetValue("statement_position", (int)Network::PDB::FieldCode::Statement_Position);
+				VFieldCode->SetValue("internal_position", (int)Network::PDB::FieldCode::Internal_Position);
+				VFieldCode->SetValue("internal_query", (int)Network::PDB::FieldCode::Internal_Query);
+				VFieldCode->SetValue("context", (int)Network::PDB::FieldCode::Context);
+				VFieldCode->SetValue("schema_name", (int)Network::PDB::FieldCode::Schema_Name);
+				VFieldCode->SetValue("table_name", (int)Network::PDB::FieldCode::Table_Name);
+				VFieldCode->SetValue("column_name", (int)Network::PDB::FieldCode::Column_Name);
+				VFieldCode->SetValue("data_type_name", (int)Network::PDB::FieldCode::Data_Type_Name);
+				VFieldCode->SetValue("constraint_name", (int)Network::PDB::FieldCode::Constraint_Name);
+				VFieldCode->SetValue("source_file", (int)Network::PDB::FieldCode::Source_File);
+				VFieldCode->SetValue("source_line", (int)Network::PDB::FieldCode::Source_Line);
+				VFieldCode->SetValue("source_function", (int)Network::PDB::FieldCode::Source_Function);
+
+				auto VConnectionState = VM->SetEnum("connection_state");
+				VConnectionState->SetValue("ok", (int)Network::PDB::ConnectionState::OK);
+				VConnectionState->SetValue("bad", (int)Network::PDB::ConnectionState::Bad);
+				VConnectionState->SetValue("started", (int)Network::PDB::ConnectionState::Started);
+				VConnectionState->SetValue("made", (int)Network::PDB::ConnectionState::Made);
+				VConnectionState->SetValue("awaiting_response", (int)Network::PDB::ConnectionState::Awaiting_Response);
+				VConnectionState->SetValue("auth_ok", (int)Network::PDB::ConnectionState::Auth_OK);
+				VConnectionState->SetValue("set_env", (int)Network::PDB::ConnectionState::Set_Env);
+				VConnectionState->SetValue("ssl_startup", (int)Network::PDB::ConnectionState::SSL_Startup);
+				VConnectionState->SetValue("needed", (int)Network::PDB::ConnectionState::Needed);
+				VConnectionState->SetValue("check_writable", (int)Network::PDB::ConnectionState::Check_Writable);
+				VConnectionState->SetValue("consume", (int)Network::PDB::ConnectionState::Consume);
+				VConnectionState->SetValue("gss_startup", (int)Network::PDB::ConnectionState::GSS_Startup);
+
+				auto VTransactionState = VM->SetEnum("transaction_state");
+				VTransactionState->SetValue("idle", (int)Network::PDB::TransactionState::Idle);
+				VTransactionState->SetValue("active", (int)Network::PDB::TransactionState::Active);
+				VTransactionState->SetValue("in_transaction", (int)Network::PDB::TransactionState::In_Transaction);
+				VTransactionState->SetValue("in_error", (int)Network::PDB::TransactionState::In_Error);
+				VTransactionState->SetValue("none", (int)Network::PDB::TransactionState::None);
+
+				auto VCaching = VM->SetEnum("caching");
+				VCaching->SetValue("never", (int)Network::PDB::Caching::Never);
+				VCaching->SetValue("miss", (int)Network::PDB::Caching::Miss);
+				VCaching->SetValue("cached", (int)Network::PDB::Caching::Cached);
+
+				auto VOidType = VM->SetEnum("oid_type");
+				VOidType->SetValue("json", (int)Network::PDB::OidType::JSON);
+				VOidType->SetValue("jsonb", (int)Network::PDB::OidType::JSONB);
+				VOidType->SetValue("any_array", (int)Network::PDB::OidType::Any_Array);
+				VOidType->SetValue("name_array", (int)Network::PDB::OidType::Name_Array);
+				VOidType->SetValue("text_array", (int)Network::PDB::OidType::Text_Array);
+				VOidType->SetValue("date_array", (int)Network::PDB::OidType::Date_Array);
+				VOidType->SetValue("time_array", (int)Network::PDB::OidType::Time_Array);
+				VOidType->SetValue("uuid_array", (int)Network::PDB::OidType::UUID_Array);
+				VOidType->SetValue("cstring_array", (int)Network::PDB::OidType::CString_Array);
+				VOidType->SetValue("bp_char_array", (int)Network::PDB::OidType::BpChar_Array);
+				VOidType->SetValue("var_char_array", (int)Network::PDB::OidType::VarChar_Array);
+				VOidType->SetValue("bit_array", (int)Network::PDB::OidType::Bit_Array);
+				VOidType->SetValue("var_bit_array", (int)Network::PDB::OidType::VarBit_Array);
+				VOidType->SetValue("char_array", (int)Network::PDB::OidType::Char_Array);
+				VOidType->SetValue("int2_array", (int)Network::PDB::OidType::Int2_Array);
+				VOidType->SetValue("int4_array", (int)Network::PDB::OidType::Int4_Array);
+				VOidType->SetValue("int8_array", (int)Network::PDB::OidType::Int8_Array);
+				VOidType->SetValue("bool_array", (int)Network::PDB::OidType::Bool_Array);
+				VOidType->SetValue("float4_array", (int)Network::PDB::OidType::Float4_Array);
+				VOidType->SetValue("float8_array", (int)Network::PDB::OidType::Float8_Array);
+				VOidType->SetValue("money_array", (int)Network::PDB::OidType::Money_Array);
+				VOidType->SetValue("numeric_array", (int)Network::PDB::OidType::Numeric_Array);
+				VOidType->SetValue("bytea_array", (int)Network::PDB::OidType::Bytea_Array);
+				VOidType->SetValue("any_t", (int)Network::PDB::OidType::Any);
+				VOidType->SetValue("name_t", (int)Network::PDB::OidType::Name);
+				VOidType->SetValue("text_t", (int)Network::PDB::OidType::Text);
+				VOidType->SetValue("date_t", (int)Network::PDB::OidType::Date);
+				VOidType->SetValue("time_t", (int)Network::PDB::OidType::Time);
+				VOidType->SetValue("uuid_t", (int)Network::PDB::OidType::UUID);
+				VOidType->SetValue("cstring_t", (int)Network::PDB::OidType::CString);
+				VOidType->SetValue("bp_char_t", (int)Network::PDB::OidType::BpChar);
+				VOidType->SetValue("var_char_t", (int)Network::PDB::OidType::VarChar);
+				VOidType->SetValue("bit_t", (int)Network::PDB::OidType::Bit);
+				VOidType->SetValue("var_bit_t", (int)Network::PDB::OidType::VarBit);
+				VOidType->SetValue("char_t", (int)Network::PDB::OidType::Char);
+				VOidType->SetValue("int2_t", (int)Network::PDB::OidType::Int2);
+				VOidType->SetValue("int4_t", (int)Network::PDB::OidType::Int4);
+				VOidType->SetValue("int8_t", (int)Network::PDB::OidType::Int8);
+				VOidType->SetValue("bool_t", (int)Network::PDB::OidType::Bool);
+				VOidType->SetValue("float4_t", (int)Network::PDB::OidType::Float4);
+				VOidType->SetValue("float8_t", (int)Network::PDB::OidType::Float8);
+				VOidType->SetValue("money_t", (int)Network::PDB::OidType::Money);
+				VOidType->SetValue("numeric_t", (int)Network::PDB::OidType::Numeric);
+				VOidType->SetValue("bytea_t", (int)Network::PDB::OidType::Bytea);
+
+				auto VQueryState = VM->SetEnum("query_state");
+				VQueryState->SetValue("lost", (int)Network::PDB::QueryState::Lost);
+				VQueryState->SetValue("idle", (int)Network::PDB::QueryState::Idle);
+				VQueryState->SetValue("busy", (int)Network::PDB::QueryState::Busy);
+
+				auto VAddress = VM->SetStructTrivial<Network::PDB::Address>("uri_address");
+				VAddress->SetConstructor<Network::PDB::Address>("void f()");
+				VAddress->SetConstructor<Network::PDB::Address, const Core::String&>("void f(const string&in)");
+				VAddress->SetMethod("void override(const string&in, const string&in)", &Network::PDB::Address::Override);
+				VAddress->SetMethod("bool set(address_op, const string&in)", &Network::PDB::Address::Set);
+				VAddress->SetMethod<Network::PDB::Address, Core::String, Network::PDB::AddressOp>("string get(address_op) const", &Network::PDB::Address::Get);
+				VAddress->SetMethod("string get_address() const", &Network::PDB::Address::GetAddress);
+
+				auto VNotify = VM->SetStructTrivial<Network::PDB::Notify>("notify");
+				VNotify->SetConstructor<Network::PDB::Notify, const Network::PDB::Notify&>("void f(const notify&in)");
+				VNotify->SetMethod("schema@+ get_schema() const", &Network::PDB::Notify::GetSchema);
+				VNotify->SetMethod("string get_name() const", &Network::PDB::Notify::GetName);
+				VNotify->SetMethod("string get_data() const", &Network::PDB::Notify::GetData);
+				VNotify->SetMethod("int32 get_pid() const", &Network::PDB::Notify::GetPid);
+
+				auto VRow = VM->SetStructTrivial<Network::PDB::Row>("row");
+				auto VColumn = VM->SetStructTrivial<Network::PDB::Column>("column");
+				VColumn->SetConstructor<Network::PDB::Column, const Network::PDB::Column&>("void f(const column&in)");
+				VColumn->SetMethod("int32 set(const variant& in)", &Network::PDB::Column::Set);
+				VColumn->SetMethod("int32 set_inline(schema@+)", &Network::PDB::Column::SetInline);
+				VColumn->SetMethod<Network::PDB::Column, int, const Core::String&>("int32 set_value_text(const string&in)", &Network::PDB::Column::SetValueText);
+				VColumn->SetMethod("string get_name() const", &Network::PDB::Column::GetName);
+				VColumn->SetMethod("string get_value_text() const", &Network::PDB::Column::GetValueText);
+				VColumn->SetMethod("variant get() const", &Network::PDB::Column::Get);
+				VColumn->SetMethod("schema@+ get_inline() const", &Network::PDB::Column::GetInline);
+				VColumn->SetMethod("int32 get_format_id() const", &Network::PDB::Column::GetFormatId);
+				VColumn->SetMethod("int32 get_mod_id() const", &Network::PDB::Column::GetModId);
+				VColumn->SetMethod("uint64 get_table_id() const", &Network::PDB::Column::GetTableId);
+				VColumn->SetMethod("uint64 get_type_id() const", &Network::PDB::Column::GetTypeId);
+				VColumn->SetMethod("usize index() const", &Network::PDB::Column::GetIndex);
+				VColumn->SetMethod("usize size() const", &Network::PDB::Column::GetSize);
+				VColumn->SetMethod("row get_row() const", &Network::PDB::Column::GetRow);
+				VColumn->SetMethod("bool is_null() const", &Network::PDB::Column::IsNull);
+				VColumn->SetMethod("bool exists() const", &Network::PDB::Column::IsExists);
+
+				auto VResponse = VM->SetStruct<Network::PDB::Response>("response");
+				VRow->SetConstructor<Network::PDB::Row, const Network::PDB::Row&>("void f(const row&in)");
+				VRow->SetMethod("schema@+ get_object() const", &Network::PDB::Row::GetObject);
+				VRow->SetMethod("schema@+ get_array() const", &Network::PDB::Row::GetArray);
+				VRow->SetMethod("usize index() const", &Network::PDB::Row::GetIndex);
+				VRow->SetMethod("usize size() const", &Network::PDB::Row::GetSize);
+				VRow->SetMethod("response get_cursor() const", &Network::PDB::Row::GetCursor);
+				VRow->SetMethod<Network::PDB::Row, Network::PDB::Column, size_t>("column get_column(usize) const", &Network::PDB::Row::GetColumn);
+				VRow->SetMethod("column get_column(const string&in) const", &Network::PDB::Row::GetColumnByName);
+				VRow->SetMethod("bool exists() const", &Network::PDB::Row::IsExists);
+				VRow->SetMethod("column opIndex(usize)", &Network::PDB::Row::GetColumnByName);
+				VRow->SetMethod("column opIndex(usize) const", &Network::PDB::Row::GetColumnByName);
+				
+				VResponse->SetConstructor<Network::PDB::Response, Network::PDB::TResponse*>("void f(uptr@ = null)");
+				VResponse->SetDestructor<Network::PDB::Response>("void f()");
+				VResponse->SetMethod<Network::PDB::Response, Network::PDB::Row, size_t>("row opIndex(usize)", &Network::PDB::Response::GetRow);
+				VResponse->SetMethod<Network::PDB::Response, Network::PDB::Row, size_t>("row opIndex(usize) const", &Network::PDB::Response::GetRow);
+				VResponse->SetMethod("schema@+ get_array_of_objects() const", &Network::PDB::Response::GetArrayOfObjects);
+				VResponse->SetMethod("schema@+ get_array_of_arrays() const", &Network::PDB::Response::GetArrayOfArrays);
+				VResponse->SetMethod("schema@+ get_object(usize = 0) const", &Network::PDB::Response::GetObject);
+				VResponse->SetMethod("schema@+ get_array(usize = 0) const", &Network::PDB::Response::GetArray);
+				VResponse->SetMethod("string get_command_status_text() const", &Network::PDB::Response::GetCommandStatusText);
+				VResponse->SetMethod("string get_status_text() const", &Network::PDB::Response::GetStatusText);
+				VResponse->SetMethod("string get_error_text() const", &Network::PDB::Response::GetErrorText);
+				VResponse->SetMethod("string get_error_field(field_code) const", &Network::PDB::Response::GetErrorField);
+				VResponse->SetMethod("int32 get_name_index(const string&in) const", &Network::PDB::Response::GetNameIndex);
+				VResponse->SetMethod("query_exec get_status() const", &Network::PDB::Response::GetStatus);
+				VResponse->SetMethod("uint64 get_value_id() const", &Network::PDB::Response::GetValueId);
+				VResponse->SetMethod("usize affected_rows() const", &Network::PDB::Response::GetAffectedRows);
+				VResponse->SetMethod("usize size() const", &Network::PDB::Response::GetSize);
+				VResponse->SetMethod("row get_row(usize) const", &Network::PDB::Response::GetRow);
+				VResponse->SetMethod("row front() const", &Network::PDB::Response::Front);
+				VResponse->SetMethod("row back() const", &Network::PDB::Response::Back);
+				VResponse->SetMethod("response copy() const", &Network::PDB::Response::Copy);
+				VResponse->SetMethod("uptr@ get() const", &Network::PDB::Response::Get);
+				VResponse->SetMethod("bool empty() const", &Network::PDB::Response::IsEmpty);
+				VResponse->SetMethod("bool error() const", &Network::PDB::Response::IsError);
+				VResponse->SetMethod("bool error_or_empty() const", &Network::PDB::Response::IsErrorOrEmpty);
+				VResponse->SetMethod("bool exists() const", &Network::PDB::Response::IsExists);
+
 				/* TODO: register bindings for <postgresql> module */
+
+				VM->EndNamespace();
 				return true;
 #else
 				VI_ASSERT(false, "<postgresql> is not loaded");
@@ -14288,20 +14671,6 @@ namespace Mavi
 				return true;
 #else
 				VI_ASSERT(false, "<mongodb> is not loaded");
-				return false;
-#endif
-			}
-			bool Registry::ImportVM(VirtualMachine* VM)
-			{
-#ifdef VI_BINDINGS
-				VI_ASSERT(VM != nullptr, "manager should be set");
-
-				auto VVirtualMachine = VM->SetClass<VirtualMachine>("virtual_machine", false);
-
-				/* TODO: register bindings for <vm> module */
-				return true;
-#else
-				VI_ASSERT(false, "<vm> is not loaded");
 				return false;
 #endif
 			}
@@ -14953,7 +15322,6 @@ namespace Mavi
 				auto VSceneGraphSharedDesc = VM->SetStruct<Engine::SceneGraph::Desc>("scene_graph_shared_desc");
 				VSceneGraphSharedDesc->SetProperty<Engine::SceneGraph::Desc::Dependencies>("graphics_device@ device", &Engine::SceneGraph::Desc::Dependencies::Device);
 				VSceneGraphSharedDesc->SetProperty<Engine::SceneGraph::Desc::Dependencies>("activity@ window", &Engine::SceneGraph::Desc::Dependencies::Activity);
-				VSceneGraphSharedDesc->SetProperty<Engine::SceneGraph::Desc::Dependencies>("virtual_machine@ vm", &Engine::SceneGraph::Desc::Dependencies::VM);
 				VSceneGraphSharedDesc->SetProperty<Engine::SceneGraph::Desc::Dependencies>("content_manager@ content", &Engine::SceneGraph::Desc::Dependencies::Content);
 				VSceneGraphSharedDesc->SetProperty<Engine::SceneGraph::Desc::Dependencies>("primitive_cache@ primitives", &Engine::SceneGraph::Desc::Dependencies::Primitives);
 				VSceneGraphSharedDesc->SetProperty<Engine::SceneGraph::Desc::Dependencies>("shader_cache@ shaders", &Engine::SceneGraph::Desc::Dependencies::Shaders);
@@ -15153,7 +15521,6 @@ namespace Mavi
 				VApplication->SetProperty<Engine::Application>("audio_device@ audio", &Engine::Application::Audio);
 				VApplication->SetProperty<Engine::Application>("graphics_device@ renderer", &Engine::Application::Renderer);
 				VApplication->SetProperty<Engine::Application>("activity@ window", &Engine::Application::Activity);
-				VApplication->SetProperty<Engine::Application>("virtual_machine@ vm", &Engine::Application::VM);
 				VApplication->SetProperty<Engine::Application>("render_constants@ constants", &Engine::Application::Constants);
 				VApplication->SetProperty<Engine::Application>("content_manager@ content", &Engine::Application::Content);
 				VApplication->SetProperty<Engine::Application>("app_data@ database", &Engine::Application::Database);

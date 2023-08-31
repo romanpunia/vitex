@@ -2113,7 +2113,7 @@ namespace Mavi
 					return false;
 
 				VI_MEASURE(Core::Timings::Intensive);
-				VI_DEBUG("[pq] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)Base, Base->InSession ? " (transaction)" : "", Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
+				VI_DEBUG("[pq] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)Base, Base->Session ? " (transaction)" : "", Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
 
 				if (PQsendQuery(Base->Base, Base->Current->Command.data()) == 1)
 				{

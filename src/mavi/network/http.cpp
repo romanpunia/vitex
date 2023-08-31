@@ -2268,7 +2268,7 @@ namespace Mavi
 			Core::String Query::Build(Core::Schema* Base)
 			{
 				Core::String Output, Label = Compute::Codec::URIEncode(Base->GetParent() != nullptr ? ('[' + Base->Key + ']') : Base->Key);
-				if (!Base->IsEmpty())
+				if (!Base->Empty())
 				{
 					auto& Childs = Base->GetChilds();
 					for (auto It = Childs.begin(); It != Childs.end(); ++It)
@@ -2292,7 +2292,7 @@ namespace Mavi
 			Core::String Query::BuildFromBase(Core::Schema* Base)
 			{
 				Core::String Output, Label = Compute::Codec::URIEncode(Base->Key);
-				if (!Base->IsEmpty())
+				if (!Base->Empty())
 				{
 					auto& Childs = Base->GetChilds();
 					for (auto It = Childs.begin(); It != Childs.end(); ++It)
@@ -2316,7 +2316,7 @@ namespace Mavi
 			Core::Schema* Query::FindParameter(Core::Schema* Base, QueryToken* Name)
 			{
 				VI_ASSERT(Name != nullptr, "token should be set");
-				if (!Base->IsEmpty() && Name->Value && Name->Length > 0)
+				if (!Base->Empty() && Name->Value && Name->Length > 0)
 				{
 					for (auto* Item : Base->GetChilds())
 					{

@@ -243,13 +243,13 @@ namespace Mavi
 		{
 		private:
 			char* Buffer;
-			size_t Size;
+			size_t Length;
 
 		public:
 			AssetFile(char* SrcBuffer, size_t SrcSize) noexcept;
 			~AssetFile() noexcept;
 			char* GetBuffer();
-			size_t GetSize();
+			size_t Size();
 		};
 
 		struct VI_OUT IdxSnapshot
@@ -1053,7 +1053,7 @@ namespace Mavi
 			void DispatchQuerySync(Compute::Cosmos& Index, const OverlapsFunction& Overlaps, const MatchFunction& Match)
 			{
 				Indexing.Stack.clear();
-				if (!Index.IsEmpty())
+				if (!Index.Empty())
 					Indexing.Stack.push_back(Index.GetRoot());
 
 				while (!Indexing.Stack.empty())
@@ -1079,7 +1079,7 @@ namespace Mavi
 				Indexing.Stack.clear();
 				Indexing.Queue.clear();
 
-				if (!Index.IsEmpty())
+				if (!Index.Empty())
 					Indexing.Stack.push_back(Index.GetRoot());
 
 				while (!Indexing.Stack.empty())

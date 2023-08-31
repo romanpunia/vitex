@@ -1039,7 +1039,7 @@ namespace Mavi
 			void Secure(const char* Buffer, size_t Size);
 			void ExposeToStack(char* Buffer, size_t MaxSize, size_t* OutSize = nullptr) const;
 			Core::String ExposeToHeap() const;
-			size_t GetSize() const;
+			size_t Size() const;
 
 		public:
 			template <size_t MaxSize>
@@ -1916,7 +1916,7 @@ namespace Mavi
 			const Node& GetNode(size_t Id) const;
 			float GetVolumeRatio() const;
 			bool IsNull(size_t Id) const;
-			bool IsEmpty() const;
+			bool Empty() const;
 
 		private:
 			size_t AllocateNode();

@@ -649,7 +649,7 @@ namespace Mavi
 			return false;
 #endif
 		}
-		size_t TypeInfo::GetFlags() const
+		size_t TypeInfo::Flags() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
@@ -658,7 +658,7 @@ namespace Mavi
 			return 0;
 #endif
 		}
-		size_t TypeInfo::GetSize() const
+		size_t TypeInfo::Size() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
@@ -3703,7 +3703,7 @@ namespace Mavi
 			{
 				Bindings::Array* Source = (Bindings::Array*)Object;
 				int BaseTypeId = Source->GetElementTypeId();
-				size_t Size = Source->GetSize();
+				size_t Size = Source->Size();
 				Core::StringStream Stream;
 				Stream << "0x" << (void*)Source << " (array<T>, " << Size << " elements)";
 
@@ -3739,7 +3739,7 @@ namespace Mavi
 			AddToStringCallback("dictionary", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Bindings::Dictionary* Source = (Bindings::Dictionary*)Object;
-				size_t Size = Source->GetSize();
+				size_t Size = Source->Size();
 				Core::StringStream Stream;
 				Stream << "0x" << (void*)Source << " (dictionary, " << Size << " elements)";
 
@@ -3811,7 +3811,7 @@ namespace Mavi
 			AddToStringCallback("char_buffer", [](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Bindings::CharBuffer* Source = (Bindings::CharBuffer*)Object;
-				size_t Size = Source->GetSize();
+				size_t Size = Source->Size();
 
 				Core::StringStream Stream;
 				Stream << "0x" << (void*)Source << " (char_buffer, " << Size << " bytes) [";

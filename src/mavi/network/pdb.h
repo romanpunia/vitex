@@ -279,12 +279,12 @@ namespace Mavi
 				int GetTableIndex() const;
 				ObjectId GetTableId() const;
 				ObjectId GetTypeId() const;
-				size_t GetIndex() const;
-				size_t GetSize() const;
-				size_t GetRawSize() const;
+				size_t Index() const;
+				size_t Size() const;
+				size_t RawSize() const;
 				Row GetRow() const;
-				bool IsNull() const;
-				bool IsExists() const
+				bool Nullable() const;
+				bool Exists() const
 				{
 					return Base != nullptr;
 				}
@@ -305,14 +305,14 @@ namespace Mavi
 			public:
 				Core::Unique<Core::Schema> GetObject() const;
 				Core::Unique<Core::Schema> GetArray() const;
-				size_t GetIndex() const;
-				size_t GetSize() const;
-				Response GetCursor() const;
+				size_t Index() const;
+				size_t Size() const;
+				Response GetResponse() const;
 				Column GetColumn(size_t Index) const;
 				Column GetColumn(const char* Name) const;
 				Column GetColumnByName(const Core::String& Name) const;
 				bool GetColumns(Column* Output, size_t Size) const;
-				bool IsExists() const
+				bool Exists() const
 				{
 					return Base != nullptr;
 				}
@@ -351,7 +351,7 @@ namespace Mavi
 
 			private:
 				TResponse* Base;
-				bool Error;
+				bool Failure;
 
 			public:
 				Response(TResponse* NewBase = nullptr);
@@ -379,20 +379,20 @@ namespace Mavi
 				int GetNameIndex(const Core::String& Name) const;
 				QueryExec GetStatus() const;
 				ObjectId GetValueId() const;
-				size_t GetAffectedRows() const;
-				size_t GetSize() const;
+				size_t AffectedRows() const;
+				size_t Size() const;
 				Row GetRow(size_t Index) const;
 				Row Front() const;
 				Row Back() const;
 				Response Copy() const;
 				TResponse* Get() const;
-				bool IsEmpty() const;
-				bool IsError() const;
-				bool IsErrorOrEmpty() const
+				bool Empty() const;
+				bool Error() const;
+				bool ErrorOrEmpty() const
 				{
-					return IsError() || IsEmpty();
+					return Error() || Empty();
 				}
-				bool IsExists() const
+				bool Exists() const
 				{
 					return Base != nullptr;
 				}
@@ -404,7 +404,7 @@ namespace Mavi
 				}
 				Iterator end() const
 				{
-					return { this, GetSize() };
+					return { this, Size() };
 				}
 			};
 
@@ -433,15 +433,19 @@ namespace Mavi
 				{
 					return First().Front().GetColumn(Name);
 				}
-				bool IsSuccess() const;
-				bool IsEmpty() const;
-				bool IsError() const;
-				bool IsErrorOrEmpty() const
+				Column GetColumn(const Core::String& Name) const
 				{
-					return IsError() || IsEmpty();
+					return First().Front().GetColumn(Name.c_str());
 				}
-				size_t GetSize() const;
-				size_t GetAffectedRows() const;
+				bool Success() const;
+				bool Empty() const;
+				bool Error() const;
+				bool ErrorOrEmpty() const
+				{
+					return Error() || Empty();
+				}
+				size_t Size() const;
+				size_t AffectedRows() const;
 				Cursor Copy() const;
 				const Response& First() const;
 				const Response& Last() const;
@@ -474,7 +478,7 @@ namespace Mavi
 				Socket* Stream;
 				Request* Current;
 				QueryState State;
-				bool InSession;
+				bool Session;
 
 			public:
 				Connection(TConnection* NewBase, socket_t Fd);
@@ -483,8 +487,8 @@ namespace Mavi
 				Socket* GetStream() const;
 				Request* GetCurrent() const;
 				QueryState GetState() const;
-				bool IsInSession() const;
-				bool IsBusy() const;
+				bool InSession() const;
+				bool Busy() const;
 			};
 
 			class VI_OUT Request final : public Core::Reference<Request>
@@ -508,7 +512,7 @@ namespace Mavi
 				const Core::Vector<char>& GetCommand() const;
 				SessionId GetSession() const;
 				uint64_t GetTiming() const;
-				bool IsPending() const;
+				bool Pending() const;
 			};
 
 			class VI_OUT_TS Cluster final : public Core::Reference<Cluster>
@@ -546,7 +550,7 @@ namespace Mavi
 				uint64_t AddChannel(const Core::String& Name, const OnNotification& NewCallback);
 				bool RemoveChannel(const Core::String& Name, uint64_t Id);
 				Core::Promise<SessionId> TxBegin(Isolation Type);
-				Core::Promise<SessionId> TxBegin(const Core::String& Command);
+				Core::Promise<SessionId> TxStart(const Core::String& Command);
 				Core::Promise<bool> TxEnd(const Core::String& Command, SessionId Session);
 				Core::Promise<bool> TxCommit(SessionId Session);
 				Core::Promise<bool> TxRollback(SessionId Session);
@@ -558,7 +562,7 @@ namespace Mavi
 				Core::Promise<Cursor> TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, size_t QueryOps = 0, SessionId Session = nullptr);
 				Core::Promise<Cursor> Query(const Core::String& Command, size_t QueryOps = 0, SessionId Session = nullptr);
 				Connection* GetConnection(QueryState State);
-				Connection* GetConnection() const;
+				Connection* GetAnyConnection() const;
 				bool IsConnected() const;
 
 			private:
@@ -580,9 +584,10 @@ namespace Mavi
 			public:
 				static Core::String InlineArray(Cluster* Client, Core::Unique<Core::Schema> Array);
 				static Core::String InlineQuery(Cluster* Client, Core::Unique<Core::Schema> Where, const Core::UnorderedSet<Core::String>& Whitelist, const Core::String& Default = "TRUE");
-				static Core::String GetCharArray(TConnection* Base, const Core::String& Src) noexcept;
-				static Core::String GetByteArray(TConnection* Base, const char* Src, size_t Size) noexcept;
-				static Core::String GetSQL(TConnection* Base, Core::Schema* Source, bool Escape, bool Negate) noexcept;
+				static Core::String GetCharArray(Connection* Base, const Core::String& Src) noexcept;
+				static Core::String GetByteArray(Connection* Base, const Core::String& Src) noexcept;
+				static Core::String GetByteArray(Connection* Base, const char* Src, size_t Size) noexcept;
+				static Core::String GetSQL(Connection* Base, Core::Schema* Source, bool Escape, bool Negate) noexcept;
 			};
 
 			class VI_OUT_TS Driver final : public Core::Singleton<Driver>
@@ -616,6 +621,7 @@ namespace Mavi
 				void SetQueryLog(const OnQueryLog& Callback) noexcept;
 				void LogQuery(const Core::String& Command) noexcept;
 				bool AddConstant(const Core::String& Name, const Core::String& Value) noexcept;
+				bool AddQuery(const Core::String& Name, const Core::String& Data) noexcept;
 				bool AddQuery(const Core::String& Name, const char* Buffer, size_t Size) noexcept;
 				bool AddDirectory(const Core::String& Directory, const Core::String& Origin = "") noexcept;
 				bool RemoveConstant(const Core::String& Name) noexcept;

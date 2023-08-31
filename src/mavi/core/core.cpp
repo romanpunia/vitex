@@ -1321,7 +1321,7 @@ namespace Mavi
 		{
 			return Frames;
 		}
-		bool StackTrace::IsEmpty() const
+		bool StackTrace::Empty() const
 		{
 			return Frames.empty();
 		}
@@ -3087,11 +3087,11 @@ namespace Mavi
 			return Value + '0';
 		}
 
-		Variant::Variant() noexcept : Type(VarType::Undefined), Size(0)
+		Variant::Variant() noexcept : Type(VarType::Undefined), Length(0)
 		{
 			Value.Pointer = nullptr;
 		}
-		Variant::Variant(VarType NewType) noexcept : Type(NewType), Size(0)
+		Variant::Variant(VarType NewType) noexcept : Type(NewType), Length(0)
 		{
 			Value.Pointer = nullptr;
 		}
@@ -3206,9 +3206,9 @@ namespace Mavi
 				case VarType::Pointer:
 					return PREFIX_ENUM "void*" PREFIX_ENUM;
 				case VarType::String:
-					return String(GetString(), GetSize());
+					return String(GetString(), Size());
 				case VarType::Binary:
-					return PREFIX_BINARY + Compute::Codec::Bep45Encode(String(GetString(), GetSize())) + PREFIX_BINARY;
+					return PREFIX_BINARY + Compute::Codec::Bep45Encode(String(GetString(), Size())) + PREFIX_BINARY;
 				case VarType::Decimal:
 				{
 					auto* Data = ((Decimal*)Value.Pointer);
@@ -3230,7 +3230,7 @@ namespace Mavi
 		String Variant::GetBlob() const
 		{
 			if (Type == VarType::String || Type == VarType::Binary)
-				return String(GetString(), Size);
+				return String(GetString(), Length);
 
 			if (Type == VarType::Decimal)
 				return ((Decimal*)Value.Pointer)->ToString();
@@ -3277,7 +3277,7 @@ namespace Mavi
 			if (Type != VarType::String && Type != VarType::Binary)
 				return nullptr;
 
-			return Size <= GetMaxSmallStringSize() ? Value.String : Value.Pointer;
+			return Length <= GetMaxSmallStringSize() ? Value.String : Value.Pointer;
 		}
 		unsigned char* Variant::GetBinary() const
 		{
@@ -3299,7 +3299,7 @@ namespace Mavi
 
 			if (Type == VarType::String)
 			{
-				auto Result = FromString<int64_t>(String(GetString(), GetSize()));
+				auto Result = FromString<int64_t>(String(GetString(), Size()));
 				if (Result)
 					return *Result;
 			}
@@ -3322,7 +3322,7 @@ namespace Mavi
 
 			if (Type == VarType::String)
 			{
-				auto Result = FromString<double>(String(GetString(), GetSize()));
+				auto Result = FromString<double>(String(GetString(), Size()));
 				if (Result)
 					return *Result;
 			}
@@ -3343,13 +3343,13 @@ namespace Mavi
 			if (Type == VarType::Decimal)
 				return ((Decimal*)Value.Pointer)->ToDouble() > 0.0;
 
-			return GetSize() > 0;
+			return Size() > 0;
 		}
 		VarType Variant::GetType() const
 		{
 			return Type;
 		}
-		size_t Variant::GetSize() const
+		size_t Variant::Size() const
 		{
 			switch (Type)
 			{
@@ -3362,7 +3362,7 @@ namespace Mavi
 					return sizeof(void*);
 				case VarType::String:
 				case VarType::Binary:
-					return Size;
+					return Length;
 				case VarType::Decimal:
 					return ((Decimal*)Value.Pointer)->Size();
 				case VarType::Integer:
@@ -3399,7 +3399,7 @@ namespace Mavi
 		}
 		Variant::operator bool() const
 		{
-			return !IsEmpty();
+			return !Empty();
 		}
 		bool Variant::IsString(const char* Text) const
 		{
@@ -3414,7 +3414,7 @@ namespace Mavi
 		{
 			return Type == VarType::Object || Type == VarType::Array;
 		}
-		bool Variant::IsEmpty() const
+		bool Variant::Empty() const
 		{
 			switch (Type)
 			{
@@ -3428,7 +3428,7 @@ namespace Mavi
 					return Value.Pointer == nullptr;
 				case VarType::String:
 				case VarType::Binary:
-					return Size == 0;
+					return Length == 0;
 				case VarType::Decimal:
 					return ((Decimal*)Value.Pointer)->ToDouble() == 0.0;
 				case VarType::Integer:
@@ -3460,8 +3460,8 @@ namespace Mavi
 				case VarType::String:
 				case VarType::Binary:
 				{
-					size_t Size = GetSize();
-					if (Size != Other.GetSize())
+					size_t Sizing = Size();
+					if (Sizing != Other.Size())
 						return false;
 
 					const char* Src1 = GetString();
@@ -3469,7 +3469,7 @@ namespace Mavi
 					if (!Src1 || !Src2)
 						return false;
 
-					return strncmp(Src1, Src2, sizeof(char) * Size) == 0;
+					return strncmp(Src1, Src2, sizeof(char) * Sizing) == 0;
 				}
 				case VarType::Decimal:
 					return (*(Decimal*)Value.Pointer) == (*(Decimal*)Other.Value.Pointer);
@@ -3486,7 +3486,7 @@ namespace Mavi
 		void Variant::Copy(const Variant& Other)
 		{
 			Type = Other.Type;
-			Size = Other.Size;
+			Length = Other.Length;
 
 			switch (Type)
 			{
@@ -3502,8 +3502,8 @@ namespace Mavi
 				case VarType::String:
 				case VarType::Binary:
 				{
-					size_t StringSize = sizeof(char) * (Size + 1);
-					if (Size > GetMaxSmallStringSize())
+					size_t StringSize = sizeof(char) * (Length + 1);
+					if (Length > GetMaxSmallStringSize())
 						Value.Pointer = VI_MALLOC(char, StringSize);
 					memcpy((void*)GetString(), Other.GetString(), StringSize);
 					break;
@@ -3531,7 +3531,7 @@ namespace Mavi
 		void Variant::Move(Variant&& Other)
 		{
 			Type = Other.Type;
-			Size = Other.Size;
+			Length = Other.Length;
 
 			switch (Type)
 			{
@@ -3546,8 +3546,8 @@ namespace Mavi
 					break;
 				case VarType::String:
 				case VarType::Binary:
-					if (Size <= GetMaxSmallStringSize())
-						memcpy((void*)GetString(), Other.GetString(), sizeof(char) * (Size + 1));
+					if (Length <= GetMaxSmallStringSize())
+						memcpy((void*)GetString(), Other.GetString(), sizeof(char) * (Length + 1));
 					else
 						Value.Pointer = Other.Value.Pointer;
 					Other.Value.Pointer = nullptr;
@@ -3566,7 +3566,7 @@ namespace Mavi
 			}
 
 			Other.Type = VarType::Undefined;
-			Other.Size = 0;
+			Other.Length = 0;
 		}
 		void Variant::Free()
 		{
@@ -3578,7 +3578,7 @@ namespace Mavi
 				case VarType::String:
 				case VarType::Binary:
 				{
-					if (!Value.Pointer || Size <= GetMaxSmallStringSize())
+					if (!Value.Pointer || Length <= GetMaxSmallStringSize())
 						break;
 
 					VI_FREE(Value.Pointer);
@@ -6064,10 +6064,10 @@ namespace Mavi
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			Variant Result(VarType::String);
-			Result.Size = Size;
+			Result.Length = Size;
 
-			size_t StringSize = sizeof(char) * (Result.Size + 1);
-			if (Result.Size > Variant::GetMaxSmallStringSize())
+			size_t StringSize = sizeof(char) * (Result.Length + 1);
+			if (Result.Length > Variant::GetMaxSmallStringSize())
 				Result.Value.Pointer = VI_MALLOC(char, StringSize);
 
 			char* Data = (char*)Result.GetString();
@@ -6088,10 +6088,10 @@ namespace Mavi
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			Variant Result(VarType::Binary);
-			Result.Size = Size;
+			Result.Length = Size;
 
-			size_t StringSize = sizeof(char) * (Result.Size + 1);
-			if (Result.Size > Variant::GetMaxSmallStringSize())
+			size_t StringSize = sizeof(char) * (Result.Length + 1);
+			if (Result.Length > Variant::GetMaxSmallStringSize())
 				Result.Value.Pointer = VI_MALLOC(char, StringSize);
 
 			char* Data = (char*)Result.GetString();
@@ -6618,7 +6618,7 @@ namespace Mavi
 			UMutex<std::recursive_mutex> Unique(Session);
 			std::cout << Buffer;
 		}
-		void Console::GetSize(uint32_t* Width, uint32_t* Height)
+		void Console::Size(uint32_t* Width, uint32_t* Height)
 		{
 #ifdef VI_MICROSOFT
 			CONSOLE_SCREEN_BUFFER_INFO Size;
@@ -6832,12 +6832,12 @@ namespace Mavi
 			return std::chrono::duration_cast<Units>(std::chrono::system_clock::now().time_since_epoch());
 		}
 
-		Stream::Stream() noexcept : VirtualSize(0)
+		Stream::Stream() noexcept : VSize(0)
 		{
 		}
 		void Stream::SetVirtualSize(size_t Size)
 		{
-			VirtualSize = 0;
+			VSize = 0;
 		}
 		size_t Stream::ReadAll(const std::function<void(char*, size_t)>& Callback)
 		{
@@ -6850,8 +6850,8 @@ namespace Mavi
 			do
 			{
 				size_t Max = sizeof(Buffer);
-				if (VirtualSize > 0 && VirtualSize - Total > Max)
-					Max = VirtualSize - Total;
+				if (VSize > 0 && VSize - Total > Max)
+					Max = VSize - Total;
 
 				Size = Read(Buffer, Max);
 				if (Size > 0)
@@ -6863,11 +6863,11 @@ namespace Mavi
 
 			return Size;
 		}
-		size_t Stream::GetVirtualSize() const
+		size_t Stream::VirtualSize() const
 		{
-			return VirtualSize;
+			return VSize;
 		}
-		size_t Stream::GetSize()
+		size_t Stream::Size()
 		{
 			if (!IsSized())
 				return 0;
@@ -6879,7 +6879,7 @@ namespace Mavi
 
 			return Size;
 		}
-		String& Stream::GetSource()
+		String& Stream::Source()
 		{
 			return Path;
 		}
@@ -7298,7 +7298,7 @@ namespace Mavi
 			return false;
 		}
 
-		WebStream::WebStream(bool IsAsync) noexcept : Resource(nullptr), Offset(0), Size(0), Async(IsAsync)
+		WebStream::WebStream(bool IsAsync) noexcept : Resource(nullptr), Offset(0), Length(0), Async(IsAsync)
 		{
 		}
 		WebStream::WebStream(bool IsAsync, UnorderedMap<String, String>&& NewHeaders) noexcept : WebStream(IsAsync)
@@ -7369,7 +7369,7 @@ namespace Mavi
 				return Response ? std::make_error_condition(std::errc::protocol_error) : Response.Error();
 			}
 			else if (Response->Content.Limited)
-				Size = Response->Content.Length;
+				Length = Response->Content.Length;
 
 			VI_DEBUG("[http] open %s %s", Type, File);
 			Resource = Client;
@@ -7381,7 +7381,7 @@ namespace Mavi
 		{
 			auto* Client = (Network::HTTP::Client*)Resource;
 			Resource = nullptr;
-			Offset = Size = 0;
+			Offset = Length = 0;
 			Chunk.clear();
 
 			if (!Client)
@@ -7407,10 +7407,10 @@ namespace Mavi
 						if (Pointer > Offset)
 						{
 							Pointer -= Offset;
-							if (Pointer > Size)
+							if (Pointer > Length)
 								return std::make_error_condition(std::errc::result_out_of_range);
 
-							Offset = Size - Pointer;
+							Offset = Length - Pointer;
 						}
 					}
 					else
@@ -7418,7 +7418,7 @@ namespace Mavi
 					return Optional::OK;
 				case FileSeek::End:
 					VI_TRACE("[http] seek fd %i end %" PRId64, GetFd(), (int)NewOffset);
-					Offset = Size - NewOffset;
+					Offset = Length - NewOffset;
 					return Optional::OK;
 				default:
 					return std::make_error_condition(std::errc::not_supported);
@@ -7439,25 +7439,25 @@ namespace Mavi
 			VI_ASSERT(false, "web read-format is not supported");
 			return 0;
 		}
-		size_t WebStream::Read(char* Data, size_t Length)
+		size_t WebStream::Read(char* Data, size_t DataLength)
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
-			VI_ASSERT(Length > 0, "length should be greater than zero");
-			VI_TRACE("[http] fd %i read %i bytes", GetFd(), (int)Length);
+			VI_ASSERT(DataLength > 0, "length should be greater than zero");
+			VI_TRACE("[http] fd %i read %i bytes", GetFd(), (int)DataLength);
 
 			size_t Result = 0;
-			if (Offset + Length > Chunk.size() && (Chunk.size() < Size || (!Size && !((Network::HTTP::Client*)Resource)->GetResponse()->Content.Limited)))
+			if (Offset + DataLength > Chunk.size() && (Chunk.size() < Length || (!Length && !((Network::HTTP::Client*)Resource)->GetResponse()->Content.Limited)))
 			{
 				auto* Client = (Network::HTTP::Client*)Resource;
-				if (!Client->Consume(Length).Get())
+				if (!Client->Consume(DataLength).Get())
 					return 0;
 
 				auto* Response = Client->GetResponse();
-				if (!Size && Response->Content.Limited)
+				if (!Length && Response->Content.Limited)
 				{
-					Size = Response->Content.Length;
-					if (!Size)
+					Length = Response->Content.Length;
+					if (!Length)
 						return 0;
 				}
 
@@ -7467,7 +7467,7 @@ namespace Mavi
 				Chunk.insert(Chunk.end(), Response->Content.Data.begin(), Response->Content.Data.end());
 			}
 
-			Result = std::min(Length, Chunk.size() - (size_t)Offset);
+			Result = std::min(DataLength, Chunk.size() - (size_t)Offset);
 			memcpy(Data, Chunk.data() + (size_t)Offset, Result);
 			Offset += (size_t)Result;
 			return Result;
@@ -8806,10 +8806,10 @@ namespace Mavi
 			if (Length != nullptr)
 				*Length = 0;
 
-			bool IsVirtual = Stream->GetVirtualSize() > 0;
+			bool IsVirtual = Stream->VirtualSize() > 0;
 			if (IsVirtual || Stream->IsSized())
 			{
-				size_t Size = IsVirtual ? Stream->GetVirtualSize() : Stream->GetSize();
+				size_t Size = IsVirtual ? Stream->VirtualSize() : Stream->Size();
 				auto* Bytes = VI_MALLOC(unsigned char, sizeof(unsigned char) * (Size + 1));
 				if (!Stream->Read((char*)Bytes, Size))
 				{
@@ -11277,7 +11277,7 @@ namespace Mavi
 		{
 			return Fetch(':' + Name) != nullptr;
 		}
-		bool Schema::IsEmpty() const
+		bool Schema::Empty() const
 		{
 			return !Nodes || Nodes->empty();
 		}
@@ -11451,7 +11451,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Base != nullptr && Callback, "base should be set and callback should not be empty");
 			Vector<Schema*> Attributes = Base->GetAttributes();
-			bool Scalable = (Base->Value.GetSize() > 0 || ((size_t)(Base->Nodes ? Base->Nodes->size() : 0) > (size_t)Attributes.size()));
+			bool Scalable = (Base->Value.Size() > 0 || ((size_t)(Base->Nodes ? Base->Nodes->size() : 0) > (size_t)Attributes.size()));
 			Callback(VarForm::Write_Tab, "", 0);
 			Callback(VarForm::Dummy, "<", 1);
 			Callback(VarForm::Dummy, Base->Key.c_str(), Base->Key.size());
@@ -11493,7 +11493,7 @@ namespace Mavi
 			}
 
 			Callback(VarForm::Tab_Increase, "", 0);
-			if (Base->Value.GetSize() > 0)
+			if (Base->Value.Size() > 0)
 			{
 				String Text = Base->Value.Serialize();
 				if (Base->Nodes != nullptr && !Base->Nodes->empty())
@@ -12168,7 +12168,7 @@ namespace Mavi
 				case VarType::String:
 				case VarType::Binary:
 				{
-					uint32_t Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)Current->Value.GetSize());
+					uint32_t Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)Current->Value.Size());
 					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint32_t));
 					Callback(VarForm::Dummy, Current->Value.GetString(), Size * sizeof(char));
 					break;

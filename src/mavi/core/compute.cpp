@@ -4092,7 +4092,7 @@ namespace Mavi
 			else
 				Plain = Other.Plain;
 		}
-		size_t PrivateKey::GetSize() const
+		size_t PrivateKey::Size() const
 		{
 			return Blocks.size();
 		}
@@ -10732,7 +10732,7 @@ namespace Mavi
 		{
 			return Id == NULL_NODE;
 		}
-		bool Cosmos::IsEmpty() const
+		bool Cosmos::Empty() const
 		{
 			return Items.empty();
 		}

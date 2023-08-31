@@ -822,7 +822,7 @@ namespace Mavi
 							Result.SetArray(Array ? nullptr : Node->Key.c_str(), Document::FromDocument(Node), Index);
 							break;
 						case Core::VarType::String:
-							Result.SetBlob(Array ? nullptr : Node->Key.c_str(), Node->Value.GetString(), Node->Value.GetSize(), Index);
+							Result.SetBlob(Array ? nullptr : Node->Key.c_str(), Node->Value.GetString(), Node->Value.Size(), Index);
 							break;
 						case Core::VarType::Boolean:
 							Result.SetBoolean(Array ? nullptr : Node->Key.c_str(), Node->Value.GetBoolean(), Index);
@@ -841,7 +841,7 @@ namespace Mavi
 							break;
 						case Core::VarType::Binary:
 						{
-							if (Node->Value.GetSize() != 12)
+							if (Node->Value.Size() != 12)
 							{
 								Core::String Base = Compute::Codec::Bep45Encode(Node->Value.GetBlob());
 								Result.SetBlob(Array ? nullptr : Node->Key.c_str(), Base.c_str(), Base.size(), Index);
@@ -3414,7 +3414,7 @@ namespace Mavi
 							Result.append(GetJSON(Node, true)).append(1, ',');
 						}
 
-						if (!Source->IsEmpty())
+						if (!Source->Empty())
 							Result = Result.substr(0, Result.size() - 1);
 
 						return Result + "}";
@@ -3425,7 +3425,7 @@ namespace Mavi
 						for (auto* Node : Source->GetChilds())
 							Result.append(GetJSON(Node, true)).append(1, ',');
 
-						if (!Source->IsEmpty())
+						if (!Source->Empty())
 							Result = Result.substr(0, Result.size() - 1);
 
 						return Result + "]";
@@ -3450,7 +3450,7 @@ namespace Mavi
 						return "{\"$numberDouble\":\"" + Source->Value.GetDecimal().ToString() + "\"}";
 					case Core::VarType::Binary:
 					{
-						if (Source->Value.GetSize() != 12)
+						if (Source->Value.Size() != 12)
 						{
 							Core::String Base = Compute::Codec::Bep45Encode(Source->Value.GetBlob());
 							return "\"" + Base + "\"";

@@ -298,13 +298,13 @@ namespace Mavi
 				int Offset = 0, Prev = 0, Count = 0;
 				while ((Offset = (int)Base.find(Delimiter, Prev)) != (int)Core::String::npos)
 				{
-					Array->Resize(Array->GetSize() + 1);
+					Array->Resize(Array->Size() + 1);
 					((Core::String*)Array->At(Count))->assign(&Base[Prev], Offset - Prev);
 					Prev = Offset + (int)Delimiter.size();
 					Count++;
 				}
 
-				Array->Resize(Array->GetSize() + 1);
+				Array->Resize(Array->Size() + 1);
 				((Core::String*)Array->At(Count))->assign(&Base[Prev]);
 				return Array;
 			}
@@ -661,9 +661,9 @@ namespace Mavi
 				if (Value.Object && (Value.TypeId & (size_t)TypeId::MASK_OBJECT))
 				{
 					auto SubType = Engine->GetTypeInfoById(Value.TypeId);
-					if ((SubType.GetFlags() & (size_t)ObjectBehaviours::REF))
+					if ((SubType.Flags() & (size_t)ObjectBehaviours::REF))
 						FunctionFactory::GCEnumCallback(InEngine, Value.Object);
-					else if ((SubType.GetFlags() & (size_t)ObjectBehaviours::VALUE) && (SubType.GetFlags() & (size_t)ObjectBehaviours::GC))
+					else if ((SubType.Flags() & (size_t)ObjectBehaviours::VALUE) && (SubType.Flags() & (size_t)ObjectBehaviours::GC))
 						Engine->ForwardEnumReferences(Value.Object, SubType);
 
 					auto Type = VirtualMachine::Get(InEngine)->GetTypeInfoById(Value.TypeId);
@@ -762,7 +762,7 @@ namespace Mavi
 
 					memset((((asUINT*)BufferPtr) + 1), 0, (size_t)Length * (size_t)ElementSize);
 				}
-				else if (ObjType.GetSubType().GetFlags() & (size_t)ObjectBehaviours::REF)
+				else if (ObjType.GetSubType().Flags() & (size_t)ObjectBehaviours::REF)
 				{
 					SubTypeId |= (size_t)TypeId::OBJHANDLE;
 					CreateBuffer(&Buffer, Length);
@@ -779,12 +779,12 @@ namespace Mavi
 					for (size_t n = 0; n < Length; n++)
 					{
 						unsigned char* SourceObj = (unsigned char*)BufferPtr;
-						SourceObj += 4 + n * ObjType.GetSubType().GetSize();
+						SourceObj += 4 + n * ObjType.GetSubType().Size();
 						Engine->AssignObject(At(n), SourceObj, ObjType.GetSubType());
 					}
 				}
 
-				if (ObjType.GetFlags() & (size_t)ObjectBehaviours::GC)
+				if (ObjType.Flags() & (size_t)ObjectBehaviours::GC)
 					ObjType.GetVM()->NotifyOfNewObject(this, ObjType);
 #endif
 			}
@@ -804,7 +804,7 @@ namespace Mavi
 					return;
 
 				CreateBuffer(&Buffer, Length);
-				if (ObjType.GetFlags() & (size_t)ObjectBehaviours::GC)
+				if (ObjType.Flags() & (size_t)ObjectBehaviours::GC)
 					ObjType.GetVM()->NotifyOfNewObject(this, ObjType);
 #endif
 			}
@@ -815,7 +815,7 @@ namespace Mavi
 				Precache();
 
 				ElementSize = Other.ElementSize;
-				if (ObjType.GetFlags() & (size_t)ObjectBehaviours::GC)
+				if (ObjType.Flags() & (size_t)ObjectBehaviours::GC)
 					ObjType.GetVM()->NotifyOfNewObject(this, ObjType);
 
 				CreateBuffer(&Buffer, 0);
@@ -837,10 +837,10 @@ namespace Mavi
 					return;
 
 				CreateBuffer(&Buffer, Length);
-				if (ObjType.GetFlags() & (size_t)ObjectBehaviours::GC)
+				if (ObjType.Flags() & (size_t)ObjectBehaviours::GC)
 					ObjType.GetVM()->NotifyOfNewObject(this, ObjType);
 
-				for (size_t i = 0; i < GetSize(); i++)
+				for (size_t i = 0; i < Size(); i++)
 					SetValue(i, DefaultValue);
 #endif
 			}
@@ -888,15 +888,15 @@ namespace Mavi
 				else if (SubTypeId == (size_t)TypeId::INT64 || SubTypeId == (size_t)TypeId::UINT64 || SubTypeId == (size_t)TypeId::DOUBLE)
 					*(double*)Ptr = *(double*)Value;
 			}
-			size_t Array::GetSize() const
+			size_t Array::Size() const
 			{
 				return Buffer->NumElements;
 			}
-			size_t Array::GetCapacity() const
+			size_t Array::Capacity() const
 			{
 				return Buffer->MaxElements;
 			}
-			bool Array::IsEmpty() const
+			bool Array::Empty() const
 			{
 				return Buffer->NumElements == 0;
 			}
@@ -1032,12 +1032,12 @@ namespace Mavi
 				if (ObjType.GetTypeInfo() != Array.ObjType.GetTypeInfo())
 					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_TEMPLATEMISMATCH));
 
-				size_t NewSize = Array.GetSize();
+				size_t NewSize = Array.Size();
 				Resize((int)NewSize, Index);
 
 				if (&Array != this)
 				{
-					for (size_t i = 0; i < Array.GetSize(); i++)
+					for (size_t i = 0; i < Array.Size(); i++)
 					{
 						void* Value = const_cast<void*>(Array.At(i));
 						SetValue(Index + i, Value);
@@ -1051,7 +1051,7 @@ namespace Mavi
 						SetValue(Index + i, Value);
 					}
 
-					for (size_t i = Index + NewSize, k = 0; i < Array.GetSize(); i++, k++)
+					for (size_t i = Index + NewSize, k = 0; i < Array.Size(); i++, k++)
 					{
 						void* Value = const_cast<void*>(Array.At(i));
 						SetValue(Index + Index + k, Value);
@@ -1090,7 +1090,7 @@ namespace Mavi
 			}
 			void* Array::Front()
 			{
-				if (IsEmpty())
+				if (Empty())
 				{
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return nullptr;
@@ -1100,7 +1100,7 @@ namespace Mavi
 			}
 			const void* Array::Front() const
 			{
-				if (IsEmpty())
+				if (Empty())
 				{
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return nullptr;
@@ -1110,23 +1110,23 @@ namespace Mavi
 			}
 			void* Array::Back()
 			{
-				if (IsEmpty())
+				if (Empty())
 				{
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return nullptr;
 				}
 
-				return At(GetSize() - 1);
+				return At(Size() - 1);
 			}
 			const void* Array::Back() const
 			{
-				if (IsEmpty())
+				if (Empty())
 				{
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 					return nullptr;
 				}
 
-				return At(GetSize() - 1);
+				return At(Size() - 1);
 			}
 			void* Array::GetBuffer()
 			{
@@ -1251,15 +1251,15 @@ namespace Mavi
 			}
 			void Array::Reverse()
 			{
-				size_t Size = GetSize();
-				if (Size >= 2)
+				size_t Length = Size();
+				if (Length >= 2)
 				{
 					unsigned char Temp[16];
-					for (size_t i = 0; i < Size / 2; i++)
+					for (size_t i = 0; i < Length / 2; i++)
 					{
 						Copy(Temp, GetArrayItemPointer((int)i));
-						Copy(GetArrayItemPointer((int)i), GetArrayItemPointer((int)(Size - i - 1)));
-						Copy(GetArrayItemPointer((int)(Size - i - 1)), Temp);
+						Copy(GetArrayItemPointer((int)i), GetArrayItemPointer((int)(Length - i - 1)));
+						Copy(GetArrayItemPointer((int)(Length - i - 1)), Temp);
 					}
 				}
 			}
@@ -1272,7 +1272,7 @@ namespace Mavi
 				if (ObjType.GetTypeInfo() != Other.ObjType.GetTypeInfo())
 					return false;
 
-				if (GetSize() != Other.GetSize())
+				if (Size() != Other.Size())
 					return false;
 
 				ImmediateContext* CmpContext = 0;
@@ -1295,7 +1295,7 @@ namespace Mavi
 
 				bool IsEqual = true;
 				SCache* Cache = reinterpret_cast<SCache*>(ObjType.GetUserData(ArrayId));
-				for (size_t n = 0; n < GetSize(); n++)
+				for (size_t n = 0; n < Size(); n++)
 				{
 					if (!Equals(At(n), Other.At(n), CmpContext, Cache))
 					{
@@ -1398,11 +1398,11 @@ namespace Mavi
 			}
 			size_t Array::FindByRef(size_t StartAt, void* RefPtr) const
 			{
-				size_t Size = GetSize();
+				size_t Length = Size();
 				if (SubTypeId & (size_t)TypeId::OBJHANDLE)
 				{
 					RefPtr = *(void**)RefPtr;
-					for (size_t i = StartAt; i < Size; i++)
+					for (size_t i = StartAt; i < Length; i++)
 					{
 						if (*(void**)At(i) == RefPtr)
 							return i;
@@ -1410,7 +1410,7 @@ namespace Mavi
 				}
 				else
 				{
-					for (size_t i = StartAt; i < Size; i++)
+					for (size_t i = StartAt; i < Length; i++)
 					{
 						if (At(i) == RefPtr)
 							return i;
@@ -1465,8 +1465,8 @@ namespace Mavi
 				}
 
 				size_t Result = std::string::npos;
-				size_t Size = GetSize();
-				for (size_t i = StartAt; i < Size; i++)
+				size_t Length = Size();
+				for (size_t i = StartAt; i < Length; i++)
 				{
 					if (Equals(At(i), Value, CmpContext, Cache))
 					{
@@ -1507,7 +1507,7 @@ namespace Mavi
 			}
 			void Array::Swap(size_t Index1, size_t Index2)
 			{
-				if (Index1 >= GetSize() || Index2 >= GetSize())
+				if (Index1 >= Size() || Index2 >= Size())
 					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 
 				unsigned char Swap[16];
@@ -1667,12 +1667,12 @@ namespace Mavi
 					void** Data = (void**)Buffer->Data;
 					VirtualMachine* VM = VirtualMachine::Get(Engine);
 					auto SubType = VM->GetTypeInfoById(SubTypeId);
-					if ((SubType.GetFlags() & (size_t)ObjectBehaviours::REF))
+					if ((SubType.Flags() & (size_t)ObjectBehaviours::REF))
 					{
 						for (size_t i = 0; i < Buffer->NumElements; i++)
 							FunctionFactory::GCEnumCallback(Engine, Data[i]);
 					}
-					else if ((SubType.GetFlags() & (size_t)ObjectBehaviours::VALUE) && (SubType.GetFlags() & (size_t)ObjectBehaviours::GC))
+					else if ((SubType.Flags() & (size_t)ObjectBehaviours::VALUE) && (SubType.Flags() & (size_t)ObjectBehaviours::GC))
 					{
 						for (size_t i = 0; i < Buffer->NumElements; i++)
 						{
@@ -1735,7 +1735,7 @@ namespace Mavi
 				{
 					VirtualMachine* Engine = Info.GetVM();
 					auto SubType = Engine->GetTypeInfoById(TypeId);
-					size_t Flags = SubType.GetFlags();
+					size_t Flags = SubType.Flags();
 
 					if ((Flags & (size_t)ObjectBehaviours::VALUE) && !(Flags & (size_t)ObjectBehaviours::POD))
 					{
@@ -1793,7 +1793,7 @@ namespace Mavi
 				else
 				{
 					auto SubType = Info.GetVM()->GetTypeInfoById(TypeId);
-					size_t Flags = SubType.GetFlags();
+					size_t Flags = SubType.Flags();
 
 					if (!(Flags & (size_t)ObjectBehaviours::GC))
 					{
@@ -2080,7 +2080,7 @@ namespace Mavi
 			{
 #ifdef VI_ANGELSCRIPT
 				Dictionary::SCache& Cache = *reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(DictionaryId));
-				bool KeyAsRef = Cache.KeyType.GetFlags() & (size_t)ObjectBehaviours::REF ? true : false;
+				bool KeyAsRef = Cache.KeyType.Flags() & (size_t)ObjectBehaviours::REF ? true : false;
 				size_t Length = *(asUINT*)Buffer;
 				Buffer += 4;
 
@@ -2149,7 +2149,7 @@ namespace Mavi
 					}
 					else
 					{
-						if ((TypeId & (size_t)TypeId::MASK_OBJECT) && !(TypeId & (size_t)TypeId::OBJHANDLE) && (Engine->GetTypeInfoById(TypeId).GetFlags() & (size_t)ObjectBehaviours::REF))
+						if ((TypeId & (size_t)TypeId::MASK_OBJECT) && !(TypeId & (size_t)TypeId::OBJHANDLE) && (Engine->GetTypeInfoById(TypeId).Flags() & (size_t)ObjectBehaviours::REF))
 							RefPtr = *(void**)RefPtr;
 
 						Set(Name, RefPtr, Engine->IsNullable(TypeId) ? 0 : TypeId);
@@ -2158,8 +2158,8 @@ namespace Mavi
 					if (TypeId & (size_t)TypeId::MASK_OBJECT)
 					{
 						auto Info = Engine->GetTypeInfoById(TypeId);
-						if (Info.GetFlags() & (size_t)ObjectBehaviours::VALUE)
-							Buffer += Info.GetSize();
+						if (Info.Flags() & (size_t)ObjectBehaviours::VALUE)
+							Buffer += Info.Size();
 						else
 							Buffer += sizeof(void*);
 					}
@@ -2195,7 +2195,7 @@ namespace Mavi
 					if (Key.Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 					{
 						auto SubType = Engine->GetTypeInfoById(Key.Value.TypeId);
-						if ((SubType.GetFlags() & (size_t)ObjectBehaviours::VALUE) && (SubType.GetFlags() & (size_t)ObjectBehaviours::GC))
+						if ((SubType.Flags() & (size_t)ObjectBehaviours::VALUE) && (SubType.Flags() & (size_t)ObjectBehaviours::GC))
 							Engine->ForwardEnumReferences(Key.Value.Object, SubType);
 						else
 							FunctionFactory::GCEnumCallback(_Engine, Key.Value.Object);
@@ -2334,14 +2334,14 @@ namespace Mavi
 
 				return false;
 			}
-			bool Dictionary::IsEmpty() const
+			bool Dictionary::Empty() const
 			{
 				if (Data.size() == 0)
 					return true;
 
 				return false;
 			}
-			size_t Dictionary::GetSize() const
+			size_t Dictionary::Size() const
 			{
 				return size_t(Data.size());
 			}
@@ -2538,9 +2538,9 @@ namespace Mavi
 				if (Value.Object != nullptr && (Value.TypeId & (size_t)TypeId::MASK_OBJECT))
 				{
 					auto SubType = Engine->GetTypeInfoById(Value.TypeId);
-					if ((SubType.GetFlags() & (size_t)ObjectBehaviours::REF))
+					if ((SubType.Flags() & (size_t)ObjectBehaviours::REF))
 						FunctionFactory::GCEnumCallback(OtherEngine, Value.Object);
-					else if ((SubType.GetFlags() & (size_t)ObjectBehaviours::VALUE) && (SubType.GetFlags() & (size_t)ObjectBehaviours::GC))
+					else if ((SubType.Flags() & (size_t)ObjectBehaviours::VALUE) && (SubType.Flags() & (size_t)ObjectBehaviours::GC))
 						Engine->ForwardEnumReferences(Value.Object, SubType);
 
 					auto Type = VirtualMachine::Get(OtherEngine)->GetTypeInfoById(Value.TypeId);
@@ -2575,6 +2575,10 @@ namespace Mavi
 			void Promise::When(asIScriptFunction* NewCallback)
 			{
 				Delegate = FunctionDelegate(NewCallback);
+			}
+			void Promise::When(std::function<void(Promise*)>&& NewCallback)
+			{
+				Bounce = std::move(NewCallback);
 			}
 			void Promise::Store(void* RefPointer, int RefTypeId)
 			{
@@ -2617,6 +2621,12 @@ namespace Mavi
 
 				bool WantsResume = (Context->IsSuspended() && SuspendOwned);
 				Unique.Negate();
+
+				if (Bounce)
+				{
+					std::function<void(Promise*)> Return = std::move(Bounce);
+					Return(this);
+				}
 
 				if (Delegate.IsValid())
 				{
@@ -2765,7 +2775,7 @@ namespace Mavi
 				{
 					VirtualMachine* Engine = Info.GetVM();
 					auto SubType = Engine->GetTypeInfoById(TypeId);
-					size_t Flags = SubType.GetFlags();
+					size_t Flags = SubType.Flags();
 
 					if ((Flags & (size_t)ObjectBehaviours::VALUE) && !(Flags & (size_t)ObjectBehaviours::POD))
 					{
@@ -2823,7 +2833,7 @@ namespace Mavi
 				else
 				{
 					auto SubType = Info.GetVM()->GetTypeInfoById(TypeId);
-					size_t Flags = SubType.GetFlags();
+					size_t Flags = SubType.Flags();
 
 					if (!(Flags & (size_t)ObjectBehaviours::GC))
 					{
@@ -2970,7 +2980,7 @@ namespace Mavi
 
 			size_t VariantGetSize(Core::Variant& Base)
 			{
-				return Base.GetSize();
+				return Base.Size();
 			}
 			bool VariantEquals(Core::Variant& Base, const Core::Variant& Other)
 			{
@@ -3061,7 +3071,7 @@ namespace Mavi
 					else
 					{
 						auto Type = VM->GetTypeInfoById(TypeId);
-						if ((TypeId & (size_t)TypeId::MASK_OBJECT) && !(TypeId & (size_t)TypeId::OBJHANDLE) && (Type.IsValid() && Type.GetFlags() & (size_t)ObjectBehaviours::REF))
+						if ((TypeId & (size_t)TypeId::MASK_OBJECT) && !(TypeId & (size_t)TypeId::OBJHANDLE) && (Type.IsValid() && Type.Flags() & (size_t)ObjectBehaviours::REF))
 							Ref = *(void**)Ref;
 
 						if (TypeId & (size_t)TypeId::OBJHANDLE)
@@ -3088,8 +3098,8 @@ namespace Mavi
 					if (TypeId & (size_t)TypeId::MASK_OBJECT)
 					{
 						auto Type = VM->GetTypeInfoById(TypeId);
-						if (Type.GetFlags() & (size_t)ObjectBehaviours::VALUE)
-							Buffer += Type.GetSize();
+						if (Type.Flags() & (size_t)ObjectBehaviours::VALUE)
+							Buffer += Type.Size();
 						else
 							Buffer += sizeof(void*);
 					}
@@ -3362,7 +3372,7 @@ namespace Mavi
 			Core::VariantArgs ToVariantKeys(Core::Schema* Args)
 			{
 				Core::VariantArgs Keys;
-				if (!Args || Args->IsEmpty())
+				if (!Args || Args->Empty())
 					return Keys;
 
 				Keys.reserve(Args->Size());
@@ -3647,7 +3657,7 @@ namespace Mavi
 				if (NewSize > 0)
 					Allocate(NewSize);
 			}
-			CharBuffer::CharBuffer(char* Pointer) noexcept : Buffer(Pointer), Size(0)
+			CharBuffer::CharBuffer(char* Pointer) noexcept : Buffer(Pointer), Length(0)
 			{
 			}
 			CharBuffer::~CharBuffer()
@@ -3668,20 +3678,20 @@ namespace Mavi
 				}
 
 				memset(Buffer, 0, NewSize);
-				Size = NewSize;
+				Length = NewSize;
 				return true;
 			}
 			void CharBuffer::Deallocate()
 			{
-				if (Size > 0)
+				if (Length > 0)
 					VI_FREE(Buffer);
 
 				Buffer = nullptr;
-				Size = 0;
+				Length = 0;
 			}
 			bool CharBuffer::SetInt8(size_t Offset, int8_t Value, size_t SetSize)
 			{
-				if (!Buffer || Offset + SetSize > Size)
+				if (!Buffer || Offset + SetSize > Length)
 					return false;
 
 				memset(Buffer + Offset, (int32_t)Value, SetSize);
@@ -3689,7 +3699,7 @@ namespace Mavi
 			}
 			bool CharBuffer::SetUint8(size_t Offset, uint8_t Value, size_t SetSize)
 			{
-				if (!Buffer || Offset + SetSize > Size)
+				if (!Buffer || Offset + SetSize > Length)
 					return false;
 
 				memset(Buffer + Offset, (int32_t)Value, SetSize);
@@ -3742,7 +3752,7 @@ namespace Mavi
 			bool CharBuffer::Interpret(size_t Offset, Core::String& Value, size_t MaxSize) const
 			{
 				size_t DataSize = 0;
-				if (!Buffer || Offset + sizeof(&DataSize) > Size)
+				if (!Buffer || Offset + sizeof(&DataSize) > Length)
 					return false;
 
 				char* Data = Buffer + Offset;
@@ -3807,7 +3817,7 @@ namespace Mavi
 			}
 			bool CharBuffer::Store(size_t Offset, const char* Data, size_t DataSize)
 			{
-				if (!Buffer || Offset + DataSize > Size)
+				if (!Buffer || Offset + DataSize > Length)
 					return false;
 
 				memcpy(Buffer + Offset, Data, DataSize);
@@ -3815,7 +3825,7 @@ namespace Mavi
 			}
 			bool CharBuffer::Load(size_t Offset, char* Data, size_t DataSize) const
 			{
-				if (!Buffer || Offset + DataSize > Size)
+				if (!Buffer || Offset + DataSize > Length)
 					return false;
 
 				memcpy(Data, Buffer + Offset, DataSize);
@@ -3823,22 +3833,22 @@ namespace Mavi
 			}
 			void* CharBuffer::GetPointer(size_t Offset) const
 			{
-				if (Size > 0 && Offset >= Size)
+				if (Length > 0 && Offset >= Length)
 					return nullptr;
 
 				return Buffer + Offset;
 			}
 			bool CharBuffer::Exists(size_t Offset) const
 			{
-				return !Size || Offset < Size;
+				return !Length || Offset < Length;
 			}
 			bool CharBuffer::Empty() const
 			{
 				return !Buffer;
 			}
-			size_t CharBuffer::GetSize() const
+			size_t CharBuffer::Size() const
 			{
-				return Size;
+				return Length;
 			}
 			Core::String CharBuffer::ToString(size_t MaxSize) const
 			{
@@ -3846,9 +3856,9 @@ namespace Mavi
 				if (!Buffer)
 					return Data;
 
-				if (Size > 0)
+				if (Length > 0)
 				{
-					Data.assign(Buffer, Size > MaxSize ? MaxSize : Size);
+					Data.assign(Buffer, Length > MaxSize ? MaxSize : Length);
 					return Data;
 				}
 
@@ -4014,7 +4024,7 @@ namespace Mavi
 			}
 			void ConsoleGetSize(Core::Console* Base, uint32_t& X, uint32_t& Y)
 			{
-				Base->GetSize(&X, &Y);
+				Base->Size(&X, &Y);
 			}
 
 			Format::Format() noexcept
@@ -4047,8 +4057,8 @@ namespace Mavi
 					if (TypeId & (int)TypeId::MASK_OBJECT)
 					{
 						TypeInfo Type = VM->GetTypeInfoById(TypeId);
-						if (Type.IsValid() && Type.GetFlags() & (size_t)ObjectBehaviours::VALUE)
-							Buffer += Type.GetSize();
+						if (Type.IsValid() && Type.Flags() & (size_t)ObjectBehaviours::VALUE)
+							Buffer += Type.Size();
 						else
 							Buffer += sizeof(void*);
 					}
@@ -4170,7 +4180,7 @@ namespace Mavi
 						Core::String Decl; Core::String Name;
 
 						Offset += '\t';
-						for (unsigned int i = 0; i < Base->GetSize(); i++)
+						for (unsigned int i = 0; i < Base->Size(); i++)
 						{
 							void* ElementRef; int ElementTypeId;
 							if (!Base->GetIndex(i, &Name, &ElementRef, &ElementTypeId))
@@ -4198,7 +4208,7 @@ namespace Mavi
 						Core::String Decl;
 
 						Offset += '\t';
-						for (unsigned int i = 0; i < Base->GetSize(); i++)
+						for (unsigned int i = 0; i < Base->Size(); i++)
 						{
 							Decl.append(Offset);
 							FormatBuffer(VM, Decl, Offset, Base->At(i), ArrayTypeId);
@@ -4321,7 +4331,7 @@ namespace Mavi
 						Dictionary* Base = (Dictionary*)Object;
 						Core::String Decl; Core::String Name;
 
-						for (unsigned int i = 0; i < Base->GetSize(); i++)
+						for (unsigned int i = 0; i < Base->Size(); i++)
 						{
 							void* ElementRef; int ElementTypeId;
 							if (!Base->GetIndex(i, &Name, &ElementRef, &ElementTypeId))
@@ -4346,7 +4356,7 @@ namespace Mavi
 						int ArrayTypeId = Base->GetElementTypeId();
 						Core::String Decl;
 
-						for (unsigned int i = 0; i < Base->GetSize(); i++)
+						for (unsigned int i = 0; i < Base->Size(); i++)
 						{
 							FormatJSON(VM, Decl, Base->At(i), ArrayTypeId);
 							Decl.append(",");
@@ -7643,7 +7653,7 @@ namespace Mavi
 			}
 			bool DataModelGetRecursive(Engine::GUI::DataNode* Node, Core::Schema* Data)
 			{
-				size_t Size = Node->GetSize();
+				size_t Size = Node->Size();
 				for (size_t i = 0; i < Size; i++)
 				{
 					auto& Child = Node->At(i);
@@ -8921,6 +8931,154 @@ namespace Mavi
 				Network::SMTP::RequestFrame Copy = Frame;
 				return Base->Send(std::move(Copy)).Then<int>([](Core::ExpectsIO<void>&& Result) { return Result ? (int)0 : ToErrorCode(Result, "smtp send failed"); });
 			}
+
+			void PDBClusterSetWhenReconnected(Network::PDB::Cluster* Base, asIScriptFunction* Callback)
+			{
+				FunctionDelegate Delegate(Callback);
+				if (Delegate.IsValid())
+				{
+					Base->SetWhenReconnected([Base, Delegate](const Core::Vector<Core::String>& Data) mutable -> Core::Promise<bool>
+					{
+						Core::Promise<bool> Future;
+						Delegate([Base, Data](ImmediateContext* Context)
+						{
+							TypeInfo Type = Context->GetVM()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+							Context->SetArgObject(0, Base);
+							Context->SetArgObject(1, Array::Compose(Type.GetTypeInfo(), Data));
+						}, [Future](ImmediateContext* Context) mutable
+						{
+							Promise* Target = Context->GetReturnObject<Promise>();
+							if (!Target)
+								return Future.Set(true);
+
+							Target->When([Future](Promise* Target) mutable
+							{
+								bool Value = true;
+								Target->Retrieve(&Value, (int)TypeId::BOOL);
+								Future.Set(Value);
+							});
+						});
+						return Future;
+					});
+				}
+				else
+					Base->SetWhenReconnected(nullptr);
+			}
+			uint64_t PDBClusterAddChannel(Network::PDB::Cluster* Base, const Core::String& Name, asIScriptFunction* Callback)
+			{
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
+					return 0;
+
+				return Base->AddChannel(Name, [Base, Delegate](const Network::PDB::Notify& Event) mutable
+				{
+					Delegate([Base, &Event](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, Base);
+						Context->SetArgObject(1, (void*)&Event);
+					});
+				});
+			}
+			Core::Promise<bool> PDBClusterListen(Network::PDB::Cluster* Base, Array* Data)
+			{
+				Core::Vector<Core::String> Names = Array::Decompose<Core::String>(Data);
+				return Base->Listen(Names);
+			}
+			Core::Promise<bool> PDBClusterUnlisten(Network::PDB::Cluster* Base, Array* Data)
+			{
+				Core::Vector<Core::String> Names = Array::Decompose<Core::String>(Data);
+				return Base->Unlisten(Names);
+			}
+			Core::Promise<Network::PDB::Cursor> PDBClusterEmplaceQuery(Network::PDB::Cluster* Base, const Core::String& Command, Array* Data, size_t Options, Network::PDB::Connection* Session)
+			{
+				Core::Vector<Core::Schema*> Args = Array::Decompose<Core::Schema*>(Data);
+				return Base->EmplaceQuery(Command, &Args, Options | (size_t)Network::PDB::QueryOp::ReuseArgs, Session);
+			}
+			Core::Promise<Network::PDB::Cursor> PDBClusterTemplateQuery(Network::PDB::Cluster* Base, const Core::String& Command, Dictionary* Data, size_t Options, Network::PDB::Connection* Session)
+			{
+				Core::SchemaArgs Args;
+				if (Data != nullptr)
+				{
+					VirtualMachine* VM = VirtualMachine::Get();
+					if (VM != nullptr)
+					{
+						int TypeId = VM->GetTypeIdByDecl("schema@");
+						Args.reserve(Data->Size());
+
+						for (auto It = Data->Begin(); It != Data->End(); ++It)
+						{
+							Core::Schema* Value = nullptr;
+							if (It.GetValue(&Value, TypeId))
+								Args[It.GetKey()] = Value;
+						}
+					}
+				}
+
+				return Base->TemplateQuery(Command, &Args, Options | (size_t)Network::PDB::QueryOp::ReuseArgs, Session);
+			}
+
+			Core::String PDBUtilsInlineQuery(Network::PDB::Cluster* Client, Core::Schema* Where, Array* WhitelistData, const Core::String& Default)
+			{
+				Core::Vector<Core::String> Names = Array::Decompose<Core::String>(WhitelistData);
+				Core::UnorderedSet<Core::String> Whitelist;
+				Whitelist.reserve(Names.size());
+				for (auto& Name : Names)
+					Whitelist.insert(Name);
+				return Network::PDB::Utils::InlineQuery(Client, Where, Whitelist, Default);
+			}
+
+			void PDBDriverSetQueryLog(Network::PDB::Driver* Base, asIScriptFunction* Callback)
+			{
+				FunctionDelegate Delegate(Callback);
+				if (Delegate.IsValid())
+				{
+					Base->SetQueryLog([Delegate](const Core::String& Data) mutable
+					{
+						Delegate([Data](ImmediateContext* Context)
+						{
+							Context->SetArgObject(0, (void*)&Data);
+						});
+					});
+				}
+				else
+					Base->SetQueryLog(nullptr);
+			}
+			Core::String PDBDriverEmplace(Network::PDB::Driver* Base, Network::PDB::Cluster* Cluster, const Core::String& SQL, Array* Data)
+			{
+				Core::Vector<Core::Schema*> Args = Array::Decompose<Core::Schema*>(Data);
+				return Base->Emplace(Cluster, SQL, &Args, false);
+			}
+			Core::String PDBDriverGetQuery(Network::PDB::Driver* Base, Network::PDB::Cluster* Cluster, const Core::String& SQL, Dictionary* Data)
+			{
+				Core::SchemaArgs Args;
+				if (Data != nullptr)
+				{
+					VirtualMachine* VM = VirtualMachine::Get();
+					if (VM != nullptr)
+					{
+						int TypeId = VM->GetTypeIdByDecl("schema@");
+						Args.reserve(Data->Size());
+
+						for (auto It = Data->Begin(); It != Data->End(); ++It)
+						{
+							Core::Schema* Value = nullptr;
+							if (It.GetValue(&Value, TypeId))
+								Args[It.GetKey()] = Value;
+						}
+					}
+				}
+
+				return Base->GetQuery(Cluster, SQL, &Args, false);
+			}
+			Array* PDBDriverGetQueries(Network::PDB::Driver* Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose(Type.GetTypeInfo(), Base->GetQueries());
+			}
 #endif
 			bool Registry::ImportCTypes(VirtualMachine* VM)
 			{
@@ -8980,9 +9138,9 @@ namespace Mavi
 					VArray->SetMethod<Array, const void*>("const T& front() const", &Array::Front);
 					VArray->SetMethod<Array, void*>("T& back()", &Array::Back);
 					VArray->SetMethod<Array, const void*>("const T& back() const", &Array::Back);
-					VArray->SetMethod("bool empty() const", &Array::IsEmpty);
-					VArray->SetMethod("usize size() const", &Array::GetSize);
-					VArray->SetMethod("usize capacity() const", &Array::GetCapacity);
+					VArray->SetMethod("bool empty() const", &Array::Empty);
+					VArray->SetMethod("usize size() const", &Array::Size);
+					VArray->SetMethod("usize capacity() const", &Array::Capacity);
 					VArray->SetMethod("void reserve(usize)", &Array::Reserve);
 					VArray->SetMethod<Array, void, size_t>("void resize(usize)", &Array::Resize);
 					VArray->SetMethod("void clear()", &Array::Clear);
@@ -9080,9 +9238,9 @@ namespace Mavi
 					VDictionary->SetMethod("void set(const string&in, const ?&in)", &Dictionary::Set);
 					VDictionary->SetMethod("bool get(const string&in, ?&out) const", &Dictionary::Get);
 					VDictionary->SetMethod("bool exists(const string&in) const", &Dictionary::Exists);
-					VDictionary->SetMethod("bool empty() const", &Dictionary::IsEmpty);
+					VDictionary->SetMethod("bool empty() const", &Dictionary::Empty);
 					VDictionary->SetMethod("bool at(usize, string&out, ?&out) const", &Dictionary::TryGetIndex);
-					VDictionary->SetMethod("usize size() const", &Dictionary::GetSize);
+					VDictionary->SetMethod("usize size() const", &Dictionary::Size);
 					VDictionary->SetMethod("bool erase(const string&in)", &Dictionary::Erase);
 					VDictionary->SetMethod("void clear()", &Dictionary::Clear);
 					VDictionary->SetMethod("array<string>@ get_keys() const", &Dictionary::GetKeys);
@@ -9376,7 +9534,7 @@ namespace Mavi
 				VCharBuffer->SetMethod("bool load(usize, uint64&out) const", &CharBuffer::LoadUint64);
 				VCharBuffer->SetMethod("bool load(usize, float&out) const", &CharBuffer::LoadFloat);
 				VCharBuffer->SetMethod("bool load(usize, double&out) const", &CharBuffer::LoadDouble);
-				VCharBuffer->SetMethod("usize size() const", &CharBuffer::GetSize);
+				VCharBuffer->SetMethod("usize size() const", &CharBuffer::Size);
 				VCharBuffer->SetMethod("string to_string(usize) const", &CharBuffer::ToString);
 				return true;
 #else
@@ -9432,9 +9590,9 @@ namespace Mavi
 				if (HasCallbacks)
 				{
 					VPromise->SetFunctionDef("void promise<T>::when_callback(T&in)");
-					VPromise->SetMethod("void when(when_callback@)", &Promise::When);
+					VPromise->SetMethod<Promise, void, asIScriptFunction*>("void when(when_callback@)", &Promise::When);
 					VPromiseVoid->SetFunctionDef("void promise_v::when_callback()");
-					VPromiseVoid->SetMethod("void when(when_callback@)", &Promise::When);
+					VPromiseVoid->SetMethod<Promise, void, asIScriptFunction*>("void when(when_callback@)", &Promise::When);
 				}
 
 				VM->SetCodeGenerator("std/promise", &Promise::GeneratorCallback);
@@ -9530,7 +9688,7 @@ namespace Mavi
 				VVariant->SetMethod("bool to_boolean() const", &Core::Variant::GetBoolean);
 				VVariant->SetMethod("var_type get_type() const", &Core::Variant::GetType);
 				VVariant->SetMethod("bool is_object() const", &Core::Variant::IsObject);
-				VVariant->SetMethod("bool empty() const", &Core::Variant::IsEmpty);
+				VVariant->SetMethod("bool empty() const", &Core::Variant::Empty);
 				VVariant->SetMethodEx("usize size() const", &VariantGetSize);
 				VVariant->SetOperatorEx(Operators::Equals, (uint32_t)Position::Const, "bool", "const variant &in", &VariantEquals);
 				VVariant->SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "bool", "", &VariantImplCast);
@@ -9693,7 +9851,7 @@ namespace Mavi
 				VSchema->SetMethod("schema@ copy() const", &Core::Schema::Copy);
 				VSchema->SetMethod("bool has(const string &in) const", &Core::Schema::Has);
 				VSchema->SetMethod("bool has_attribute(const string &in) const", &Core::Schema::HasAttribute);
-				VSchema->SetMethod("bool empty() const", &Core::Schema::IsEmpty);
+				VSchema->SetMethod("bool empty() const", &Core::Schema::Empty);
 				VSchema->SetMethod("bool is_attribute() const", &Core::Schema::IsAttribute);
 				VSchema->SetMethod("bool is_saved() const", &Core::Schema::IsAttribute);
 				VSchema->SetMethod("string get_name() const", &Core::Schema::GetName);
@@ -9840,7 +9998,7 @@ namespace Mavi
 				VStream->SetMethod("bool move(int64)", &Core::Stream::Move);
 				VStream->SetMethod("int32 flush()", &Core::Stream::Flush);
 				VStream->SetMethod("int32 get_fd()", &Core::Stream::GetFd);
-				VStream->SetMethod("usize get_size()", &Core::Stream::GetSize);
+				VStream->SetMethod("usize size()", &Core::Stream::Size);
 				VStream->SetMethod("usize tell()", &Core::Stream::Tell);
 				VStream->SetMethod("bool is_sized() const", &Core::Stream::IsSized);
 				VStream->SetMethodEx("bool open(const string &in, file_mode)", &StreamOpen);
@@ -9855,7 +10013,7 @@ namespace Mavi
 				VFileStream->SetMethod("bool move(int64)", &Core::FileStream::Move);
 				VFileStream->SetMethod("int32 flush()", &Core::FileStream::Flush);
 				VFileStream->SetMethod("int32 get_fd()", &Core::FileStream::GetFd);
-				VFileStream->SetMethod("usize get_size()", &Core::FileStream::GetSize);
+				VFileStream->SetMethod("usize size()", &Core::FileStream::Size);
 				VFileStream->SetMethod("usize tell()", &Core::FileStream::Tell);
 				VFileStream->SetMethod("bool is_sized() const", &Core::FileStream::IsSized);
 				VFileStream->SetMethodEx("bool open(const string &in, file_mode)", &FileStreamOpen);
@@ -9870,7 +10028,7 @@ namespace Mavi
 				VGzStream->SetMethod("bool move(int64)", &Core::GzStream::Move);
 				VGzStream->SetMethod("int32 flush()", &Core::GzStream::Flush);
 				VGzStream->SetMethod("int32 get_fd()", &Core::GzStream::GetFd);
-				VGzStream->SetMethod("usize get_size()", &Core::GzStream::GetSize);
+				VGzStream->SetMethod("usize size()", &Core::GzStream::Size);
 				VGzStream->SetMethod("usize tell()", &Core::GzStream::Tell);
 				VGzStream->SetMethod("bool is_sized() const", &Core::GzStream::IsSized);
 				VGzStream->SetMethodEx("bool open(const string &in, file_mode)", &GzStreamOpen);
@@ -9885,7 +10043,7 @@ namespace Mavi
 				VWebStream->SetMethod("bool move(int64)", &Core::WebStream::Move);
 				VWebStream->SetMethod("int32 flush()", &Core::WebStream::Flush);
 				VWebStream->SetMethod("int32 get_fd()", &Core::WebStream::GetFd);
-				VWebStream->SetMethod("usize get_size()", &Core::WebStream::GetSize);
+				VWebStream->SetMethod("usize size()", &Core::WebStream::Size);
 				VWebStream->SetMethod("usize tell()", &Core::WebStream::Tell);
 				VWebStream->SetMethod("bool is_sized() const", &Core::WebStream::IsSized);
 				VWebStream->SetMethodEx("bool open(const string &in, file_mode)", &WebStreamOpen);
@@ -9900,7 +10058,7 @@ namespace Mavi
 				VProcessStream->SetMethod("bool move(int64)", &Core::ProcessStream::Move);
 				VProcessStream->SetMethod("int32 flush()", &Core::ProcessStream::Flush);
 				VProcessStream->SetMethod("int32 get_fd()", &Core::ProcessStream::GetFd);
-				VProcessStream->SetMethod("usize get_size()", &Core::ProcessStream::GetSize);
+				VProcessStream->SetMethod("usize get_size()", &Core::ProcessStream::Size);
 				VProcessStream->SetMethod("usize tell()", &Core::ProcessStream::Tell);
 				VProcessStream->SetMethod("int32 get_exit_code() const", &Core::ProcessStream::GetExitCode);
 				VProcessStream->SetMethod("bool is_sized() const", &Core::ProcessStream::IsSized);
@@ -11072,7 +11230,7 @@ namespace Mavi
 				VCosmos->SetMethod("const cosmos_node& get_node(usize) const", &Compute::Cosmos::GetNode);
 				VCosmos->SetMethod("float get_volume_ratio() const", &Compute::Cosmos::GetVolumeRatio);
 				VCosmos->SetMethod("bool is_null(usize) const", &Compute::Cosmos::IsNull);
-				VCosmos->SetMethod("bool is_empty() const", &Compute::Cosmos::IsEmpty);
+				VCosmos->SetMethod("bool is_empty() const", &Compute::Cosmos::Empty);
 				VCosmos->SetMethodEx("void query_index(cosmos_query_overlaps@, cosmos_query_match@)", &CosmosQueryIndex);
 
 				VM->BeginNamespace("geometric");
@@ -14422,6 +14580,8 @@ namespace Mavi
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
+				VI_TYPEREF(Connection, "pdb::connection");
+				VI_TYPEREF(Cursor, "pdb::cursor");
 
 				VM->BeginNamespace("pdb");
 				auto VIsolation = VM->SetEnum("isolation");
@@ -14578,7 +14738,7 @@ namespace Mavi
 				VQueryState->SetValue("idle", (int)Network::PDB::QueryState::Idle);
 				VQueryState->SetValue("busy", (int)Network::PDB::QueryState::Busy);
 
-				auto VAddress = VM->SetStructTrivial<Network::PDB::Address>("uri_address");
+				auto VAddress = VM->SetStructTrivial<Network::PDB::Address>("host_address");
 				VAddress->SetConstructor<Network::PDB::Address>("void f()");
 				VAddress->SetConstructor<Network::PDB::Address, const Core::String&>("void f(const string&in)");
 				VAddress->SetMethod("void override(const string&in, const string&in)", &Network::PDB::Address::Override);
@@ -14607,22 +14767,22 @@ namespace Mavi
 				VColumn->SetMethod("int32 get_mod_id() const", &Network::PDB::Column::GetModId);
 				VColumn->SetMethod("uint64 get_table_id() const", &Network::PDB::Column::GetTableId);
 				VColumn->SetMethod("uint64 get_type_id() const", &Network::PDB::Column::GetTypeId);
-				VColumn->SetMethod("usize index() const", &Network::PDB::Column::GetIndex);
-				VColumn->SetMethod("usize size() const", &Network::PDB::Column::GetSize);
+				VColumn->SetMethod("usize index() const", &Network::PDB::Column::Index);
+				VColumn->SetMethod("usize size() const", &Network::PDB::Column::Size);
 				VColumn->SetMethod("row get_row() const", &Network::PDB::Column::GetRow);
-				VColumn->SetMethod("bool is_null() const", &Network::PDB::Column::IsNull);
-				VColumn->SetMethod("bool exists() const", &Network::PDB::Column::IsExists);
+				VColumn->SetMethod("bool nullable() const", &Network::PDB::Column::Nullable);
+				VColumn->SetMethod("bool exists() const", &Network::PDB::Column::Exists);
 
 				auto VResponse = VM->SetStruct<Network::PDB::Response>("response");
 				VRow->SetConstructor<Network::PDB::Row, const Network::PDB::Row&>("void f(const row&in)");
 				VRow->SetMethod("schema@+ get_object() const", &Network::PDB::Row::GetObject);
 				VRow->SetMethod("schema@+ get_array() const", &Network::PDB::Row::GetArray);
-				VRow->SetMethod("usize index() const", &Network::PDB::Row::GetIndex);
-				VRow->SetMethod("usize size() const", &Network::PDB::Row::GetSize);
-				VRow->SetMethod("response get_cursor() const", &Network::PDB::Row::GetCursor);
+				VRow->SetMethod("usize index() const", &Network::PDB::Row::Index);
+				VRow->SetMethod("usize size() const", &Network::PDB::Row::Size);
+				VRow->SetMethod("response get_response() const", &Network::PDB::Row::GetResponse);
 				VRow->SetMethod<Network::PDB::Row, Network::PDB::Column, size_t>("column get_column(usize) const", &Network::PDB::Row::GetColumn);
 				VRow->SetMethod("column get_column(const string&in) const", &Network::PDB::Row::GetColumnByName);
-				VRow->SetMethod("bool exists() const", &Network::PDB::Row::IsExists);
+				VRow->SetMethod("bool exists() const", &Network::PDB::Row::Exists);
 				VRow->SetMethod("column opIndex(usize)", &Network::PDB::Row::GetColumnByName);
 				VRow->SetMethod("column opIndex(usize) const", &Network::PDB::Row::GetColumnByName);
 				
@@ -14641,21 +14801,106 @@ namespace Mavi
 				VResponse->SetMethod("int32 get_name_index(const string&in) const", &Network::PDB::Response::GetNameIndex);
 				VResponse->SetMethod("query_exec get_status() const", &Network::PDB::Response::GetStatus);
 				VResponse->SetMethod("uint64 get_value_id() const", &Network::PDB::Response::GetValueId);
-				VResponse->SetMethod("usize affected_rows() const", &Network::PDB::Response::GetAffectedRows);
-				VResponse->SetMethod("usize size() const", &Network::PDB::Response::GetSize);
+				VResponse->SetMethod("usize affected_rows() const", &Network::PDB::Response::AffectedRows);
+				VResponse->SetMethod("usize size() const", &Network::PDB::Response::Size);
 				VResponse->SetMethod("row get_row(usize) const", &Network::PDB::Response::GetRow);
 				VResponse->SetMethod("row front() const", &Network::PDB::Response::Front);
 				VResponse->SetMethod("row back() const", &Network::PDB::Response::Back);
 				VResponse->SetMethod("response copy() const", &Network::PDB::Response::Copy);
 				VResponse->SetMethod("uptr@ get() const", &Network::PDB::Response::Get);
-				VResponse->SetMethod("bool empty() const", &Network::PDB::Response::IsEmpty);
-				VResponse->SetMethod("bool error() const", &Network::PDB::Response::IsError);
-				VResponse->SetMethod("bool error_or_empty() const", &Network::PDB::Response::IsErrorOrEmpty);
-				VResponse->SetMethod("bool exists() const", &Network::PDB::Response::IsExists);
+				VResponse->SetMethod("bool empty() const", &Network::PDB::Response::Empty);
+				VResponse->SetMethod("bool error() const", &Network::PDB::Response::Error);
+				VResponse->SetMethod("bool error_or_empty() const", &Network::PDB::Response::ErrorOrEmpty);
+				VResponse->SetMethod("bool exists() const", &Network::PDB::Response::Exists);
 
-				/* TODO: register bindings for <postgresql> module */
+				auto VConnection = VM->SetClass<Network::PDB::Connection>("connection", false);
+				auto VCursor = VM->SetStruct<Network::PDB::Cursor>("cursor");
+				VCursor->SetConstructor<Network::PDB::Cursor>("void f()");
+				VCursor->SetDestructor<Network::PDB::Cursor>("void f()");
+				VCursor->SetMethod("column opIndex(const string&in)", &Network::PDB::Cursor::GetColumn);
+				VCursor->SetMethod("column opIndex(const string&in) const", &Network::PDB::Cursor::GetColumn);
+				VCursor->SetMethod("bool success() const", &Network::PDB::Cursor::Success);
+				VCursor->SetMethod("bool empty() const", &Network::PDB::Cursor::Empty);
+				VCursor->SetMethod("bool error() const", &Network::PDB::Cursor::Error);
+				VCursor->SetMethod("bool error_or_empty() const", &Network::PDB::Cursor::ErrorOrEmpty);
+				VCursor->SetMethod("usize size() const", &Network::PDB::Cursor::Size);
+				VCursor->SetMethod("usize affected_rows() const", &Network::PDB::Cursor::AffectedRows);
+				VCursor->SetMethod("cursor copy() const", &Network::PDB::Cursor::Copy);
+				VCursor->SetMethod("const response& first() const", &Network::PDB::Cursor::First);
+				VCursor->SetMethod("const response& last() const", &Network::PDB::Cursor::Last);
+				VCursor->SetMethod("const response& at(usize) const", &Network::PDB::Cursor::At);
+				VCursor->SetMethod("connection@+ get_executor() const", &Network::PDB::Cursor::GetExecutor);
+				VCursor->SetMethod("caching get_cache_status() const", &Network::PDB::Cursor::GetCacheStatus);
+				VCursor->SetMethod("schema@+ get_array_of_objects(usize = 0) const", &Network::PDB::Cursor::GetArrayOfObjects);
+				VCursor->SetMethod("schema@+ get_array_of_arrays(usize = 0) const", &Network::PDB::Cursor::GetArrayOfArrays);
+				VCursor->SetMethod("schema@+ get_object(usize = 0, usize = 0) const", &Network::PDB::Cursor::GetObject);
+				VCursor->SetMethod("schema@+ get_array(usize = 0, usize = 0) const", &Network::PDB::Cursor::GetArray);
+
+				auto VRequest = VM->SetClass<Network::PDB::Request>("request", false);
+				VConnection->SetMethod("uptr@ get_base() const", &Network::PDB::Connection::GetBase);
+				VConnection->SetMethod("socket@+ get_stream() const", &Network::PDB::Connection::GetStream);
+				VConnection->SetMethod("request@+ get_current() const", &Network::PDB::Connection::GetCurrent);
+				VConnection->SetMethod("query_state get_state() const", &Network::PDB::Connection::GetState);
+				VConnection->SetMethod("bool in_session() const", &Network::PDB::Connection::InSession);
+				VConnection->SetMethod("bool busy() const", &Network::PDB::Connection::Busy);
+
+				VRequest->SetMethod("cursor& get_result()", &Network::PDB::Request::GetResult);
+				VRequest->SetMethod("connection@+ get_session() const", &Network::PDB::Request::GetSession);
+				VRequest->SetMethod("uint64 get_timing() const", &Network::PDB::Request::GetTiming);
+				VRequest->SetMethod("bool pending() const", &Network::PDB::Request::Pending);
+
+				auto VCluster = VM->SetClass<Network::PDB::Cluster>("cluster", false);
+				VCluster->SetFunctionDef("promise<bool>@+ reconnect_event(cluster@+, array<string>@+)");
+				VCluster->SetFunctionDef("void notification_event(cluster@+, const notify&in)");
+				VCluster->SetConstructor<Network::PDB::Cluster>("cluster@ f()");
+				VCluster->SetMethod("void clear_cache()", &Network::PDB::Cluster::ClearCache);
+				VCluster->SetMethod("void set_cache_cleanup(uint64)", &Network::PDB::Cluster::SetCacheCleanup);
+				VCluster->SetMethod("void set_cache_duration(query_op, uint64)", &Network::PDB::Cluster::SetCacheDuration);
+				VCluster->SetMethod("bool remove_channel(const string&in, uint64)", &Network::PDB::Cluster::RemoveChannel);
+				VCluster->SetMethod("connection@+ get_connection(query_state)", &Network::PDB::Cluster::GetConnection);
+				VCluster->SetMethod("connection@+ get_any_connection()", &Network::PDB::Cluster::GetAnyConnection);
+				VCluster->SetMethod("bool is_connected() const", &Network::PDB::Cluster::IsConnected);
+				VCluster->SetMethodEx("promise<connection@>@+ tx_begin(isolation)", &VI_PROMISIFY_REF(Network::PDB::Cluster::TxBegin, Connection));
+				VCluster->SetMethodEx("promise<connection@>@+ tx_start(const string&in)", &VI_PROMISIFY_REF(Network::PDB::Cluster::TxStart, Connection));
+				VCluster->SetMethodEx("promise<bool>@+ tx_end(const string&in, connection@+)", &VI_PROMISIFY(Network::PDB::Cluster::TxEnd, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@+ tx_commit(connection@+)", &VI_PROMISIFY(Network::PDB::Cluster::TxCommit, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@+ tx_rollback(connection@+)", &VI_PROMISIFY(Network::PDB::Cluster::TxRollback, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@+ connect(const host_address&in, usize)", &VI_PROMISIFY(Network::PDB::Cluster::Connect, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@+ disconnect()", &VI_PROMISIFY(Network::PDB::Cluster::Disconnect, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<cursor>@+ query(const string&in, usize = 0, connection@+ = null)", &VI_PROMISIFY_REF(Network::PDB::Cluster::Query, Cursor));
+				VCluster->SetMethodEx("void set_when_reconnected(reconnect_event@)", &PDBClusterSetWhenReconnected);
+				VCluster->SetMethodEx("uint64 add_channel(const string&in, notification_event@)", &PDBClusterAddChannel);
+				VCluster->SetMethodEx("promise<bool>@+ listen(array<string>@+)", &VI_SPROMISIFY(PDBClusterListen, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@+ unlisten(array<string>@+)", &VI_SPROMISIFY(PDBClusterUnlisten, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<cursor>@+ emplace_query(const string&in, array<schema@>@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(PDBClusterEmplaceQuery, Cursor));
+				VCluster->SetMethodEx("promise<cursor>@+ template_query(const string&in, dictionary@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(PDBClusterTemplateQuery, Cursor));
+
+				auto VDriver = VM->SetClass<Network::PDB::Driver>("driver", false);
+				VDriver->SetFunctionDef("void query_event(const string&in)");
+				VDriver->SetConstructor<Network::PDB::Driver>("driver@ f()");
+				VDriver->SetMethod("void log_query(const string&in)", &Network::PDB::Driver::LogQuery);
+				VDriver->SetMethod("bool add_constant(const string&in, const string&in)", &Network::PDB::Driver::AddConstant);
+				VDriver->SetMethod<Network::PDB::Driver, bool, const Core::String&, const Core::String&>("bool add_query(const string&in, const string&in)", &Network::PDB::Driver::AddQuery);
+				VDriver->SetMethod("bool add_directory(const string&in, const string&in = \"\")", &Network::PDB::Driver::AddDirectory);
+				VDriver->SetMethod("bool remove_constant(const string&in)", &Network::PDB::Driver::RemoveConstant);
+				VDriver->SetMethod("bool remove_query(const string&in)", &Network::PDB::Driver::RemoveQuery);
+				VDriver->SetMethod("bool load_cache_dump(schema@+)", &Network::PDB::Driver::LoadCacheDump);
+				VDriver->SetMethod("schema@+ get_cache_dump()", &Network::PDB::Driver::GetCacheDump);
+				VDriver->SetMethodEx("void set_query_log(query_event@)", &PDBDriverSetQueryLog);
+				VDriver->SetMethodEx("string emplace(cluster@+, const string&in, array<schema@>@+)", &PDBDriverEmplace);
+				VDriver->SetMethodEx("string get_query(cluster@+, const string&in, dictionary@+)", &PDBDriverGetQuery);
+				VDriver->SetMethodEx("array<string>@ get_queries()", &PDBDriverGetQueries);
+				VDriver->SetMethodStatic("driver@+ get()", &Network::PDB::Driver::Get);
 
 				VM->EndNamespace();
+				VM->BeginNamespace("pdb::utils");
+				VM->SetFunction("string inline_array(pdb::cluster@+, schema@+)", &Network::PDB::Utils::InlineArray);
+				VM->SetFunction("string inline_query(pdb::cluster@+, schema@+, array<string>@+, const string&in = \"TRUE\")", &PDBUtilsInlineQuery);
+				VM->SetFunction("string get_char_array(pdb::connection@+, const string&in)", &Network::PDB::Utils::GetCharArray);
+				VM->SetFunction<Core::String(*)(Network::PDB::Connection*, const Core::String&)>("string get_byte_array(pdb::connection@+, const string&in)", &Network::PDB::Utils::GetByteArray);
+				VM->SetFunction("string get_sql(pdb::connection@+, schema@+, bool, bool)", &Network::PDB::Utils::GetSQL);
+				VM->EndNamespace();
+
 				return true;
 #else
 				VI_ASSERT(false, "<postgresql> is not loaded");
@@ -14869,7 +15114,7 @@ namespace Mavi
 				auto VAssetFile = VM->SetClass<Engine::AssetFile>("asset_file", false);
 				VAssetFile->SetConstructor<Engine::AssetFile, char*, size_t>("asset_file@ f(uptr@, usize)");
 				VAssetFile->SetMethod("uptr@ get_buffer() const", &Engine::AssetFile::GetBuffer);
-				VAssetFile->SetMethod("usize get_size() const", &Engine::AssetFile::GetSize);
+				VAssetFile->SetMethod("usize get_size() const", &Engine::AssetFile::Size);
 
 				auto VVisibilityQuery = VM->SetPod<Engine::VisibilityQuery>("scene_visibility_query");
 				VVisibilityQuery->SetProperty<Engine::VisibilityQuery>("geo_category category", &Engine::VisibilityQuery::Category);

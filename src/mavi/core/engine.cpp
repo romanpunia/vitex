@@ -61,7 +61,7 @@ namespace Mavi
 			return *this;
 		}
 
-		AssetFile::AssetFile(char* SrcBuffer, size_t SrcSize) noexcept : Buffer(SrcBuffer), Size(SrcSize)
+		AssetFile::AssetFile(char* SrcBuffer, size_t SrcSize) noexcept : Buffer(SrcBuffer), Length(SrcSize)
 		{
 		}
 		AssetFile::~AssetFile() noexcept
@@ -73,9 +73,9 @@ namespace Mavi
 		{
 			return Buffer;
 		}
-		size_t AssetFile::GetSize()
+		size_t AssetFile::Size()
 		{
-			return Size;
+			return Length;
 		}
 
 		float AnimatorState::GetTimeline(Core::Timer* Timing)const
@@ -5662,7 +5662,7 @@ namespace Mavi
 			auto* Stream = Docker->second->Stream;
 			Stream->SetVirtualSize(Docker->second->Length);
 			Stream->Seek(Core::FileSeek::Begin, It->second + Docker->second->Offset);
-			Stream->GetSource() = File;
+			Stream->Source() = File;
 			Unique.Negate();
 
 			VI_TRACE("[content] load dockerized %s", Path.c_str());
@@ -5950,7 +5950,7 @@ namespace Mavi
 						Path.assign(Path.substr(1));
 
 					uint64_t Size = (uint64_t)Path.size();
-					uint64_t Length = File->GetSize();
+					uint64_t Length = File->Size();
 
 					Stream->Write((char*)&Size, sizeof(uint64_t));
 					Stream->Write((char*)&Offset, sizeof(uint64_t));
@@ -5972,7 +5972,7 @@ namespace Mavi
 					if (!File)
 						continue;
 
-					size_t Size = File->GetSize();
+					size_t Size = File->Size();
 					while (Size > 0)
 					{
 						char Buffer[Core::BLOB_SIZE];

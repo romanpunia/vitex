@@ -617,7 +617,7 @@ namespace Mavi
 			}
 			Core::String Column::GetValueText() const
 			{
-				return Core::String(GetRaw(), GetRawSize());
+				return Core::String(GetRaw(), RawSize());
 			}
 			Core::Variant Column::Get() const
 			{
@@ -727,11 +727,11 @@ namespace Mavi
 				return 0;
 #endif
 			}
-			size_t Column::GetIndex() const
+			size_t Column::Index() const
 			{
 				return ColumnIndex;
 			}
-			size_t Column::GetSize() const
+			size_t Column::Size() const
 			{
 #ifdef VI_POSTGRESQL
 				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
@@ -746,7 +746,7 @@ namespace Mavi
 				return 0;
 #endif
 			}
-			size_t Column::GetRawSize() const
+			size_t Column::RawSize() const
 			{
 #ifdef VI_POSTGRESQL
 				VI_ASSERT(Base != nullptr, "context should be valid");
@@ -773,7 +773,7 @@ namespace Mavi
 				return Row(nullptr, std::numeric_limits<size_t>::max());
 #endif
 			}
-			bool Column::IsNull() const
+			bool Column::Nullable() const
 			{
 #ifdef VI_POSTGRESQL
 				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
@@ -847,11 +847,11 @@ namespace Mavi
 				return nullptr;
 #endif
 			}
-			size_t Row::GetIndex() const
+			size_t Row::Index() const
 			{
 				return RowIndex;
 			}
-			size_t Row::GetSize() const
+			size_t Row::Size() const
 			{
 #ifdef VI_POSTGRESQL
 				if (!Base || RowIndex == std::numeric_limits<size_t>::max())
@@ -866,7 +866,7 @@ namespace Mavi
 				return 0;
 #endif
 			}
-			Response Row::GetCursor() const
+			Response Row::GetResponse() const
 			{
 				return Response(Base);
 			}
@@ -901,15 +901,15 @@ namespace Mavi
 			{
 				return GetColumn(Name.c_str());
 			}
-			bool Row::GetColumns(Column* Output, size_t Size) const
+			bool Row::GetColumns(Column* Output, size_t OutputSize) const
 			{
 #ifdef VI_POSTGRESQL
-				VI_ASSERT(Output != nullptr && Size > 0, "output should be valid");
+				VI_ASSERT(Output != nullptr && OutputSize > 0, "output should be valid");
 				VI_ASSERT(Base != nullptr, "context should be valid");
 				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), "row should be valid");
 
-				Size = std::min(GetSize(), Size);
-				for (size_t i = 0; i < Size; i++)
+				OutputSize = std::min(Size(), OutputSize);
+				for (size_t i = 0; i < OutputSize; i++)
 					Output[i] = Column(Base, RowIndex, i);
 
 				return true;
@@ -918,13 +918,13 @@ namespace Mavi
 #endif
 			}
 
-			Response::Response(TResponse* NewBase) : Base(NewBase), Error(false)
+			Response::Response(TResponse* NewBase) : Base(NewBase), Failure(false)
 			{
 			}
-			Response::Response(Response&& Other) : Base(Other.Base), Error(Other.Error)
+			Response::Response(Response&& Other) : Base(Other.Base), Failure(Other.Failure)
 			{
 				Other.Base = nullptr;
-				Other.Error = false;
+				Other.Failure = false;
 			}
 			Response::~Response()
 			{
@@ -944,9 +944,9 @@ namespace Mavi
 					PQclear(Base);
 #endif
 				Base = Other.Base;
-				Error = Other.Error;
+				Failure = Other.Failure;
 				Other.Base = nullptr;
-				Other.Error = false;
+				Other.Failure = false;
 				return *this;
 			}
 			Core::Schema* Response::GetArrayOfObjects() const
@@ -1193,7 +1193,7 @@ namespace Mavi
 				return 0;
 #endif
 			}
-			size_t Response::GetAffectedRows() const
+			size_t Response::AffectedRows() const
 			{
 #ifdef VI_POSTGRESQL
 				if (!Base)
@@ -1212,7 +1212,7 @@ namespace Mavi
 				return 0;
 #endif
 			}
-			size_t Response::GetSize() const
+			size_t Response::Size() const
 			{
 #ifdef VI_POSTGRESQL
 				if (!Base)
@@ -1240,17 +1240,17 @@ namespace Mavi
 			}
 			Row Response::Front() const
 			{
-				if (IsEmpty())
+				if (Empty())
 					return Row(nullptr, std::numeric_limits<size_t>::max());
 
 				return GetRow(0);
 			}
 			Row Response::Back() const
 			{
-				if (IsEmpty())
+				if (Empty())
 					return Row(nullptr, std::numeric_limits<size_t>::max());
 
-				return GetRow(GetSize() - 1);
+				return GetRow(Size() - 1);
 			}
 			Response Response::Copy() const
 			{
@@ -1259,7 +1259,7 @@ namespace Mavi
 				if (!Base)
 					return Result;
 
-				Result.Error = IsError();
+				Result.Failure = Error();
 				Result.Base = PQcopyResult(Base, PG_COPYRES_ATTRS | PG_COPYRES_TUPLES | PG_COPYRES_EVENTS | PG_COPYRES_NOTICEHOOKS);
 
 				return Result;
@@ -1271,7 +1271,7 @@ namespace Mavi
 			{
 				return Base;
 			}
-			bool Response::IsEmpty() const
+			bool Response::Empty() const
 			{
 #ifdef VI_POSTGRESQL
 				if (!Base)
@@ -1282,9 +1282,9 @@ namespace Mavi
 				return true;
 #endif
 			}
-			bool Response::IsError() const
+			bool Response::Error() const
 			{
-				if (Error)
+				if (Failure)
 					return true;
 #ifdef VI_POSTGRESQL
 				QueryExec State = (Base ? GetStatus() : QueryExec::Non_Fatal_Error);
@@ -1322,45 +1322,45 @@ namespace Mavi
 
 				return *this;
 			}
-			bool Cursor::IsSuccess() const
+			bool Cursor::Success() const
 			{
-				return !IsError();
+				return !Error();
 			}
-			bool Cursor::IsEmpty() const
+			bool Cursor::Empty() const
 			{
 				if (Base.empty())
 					return true;
 
 				for (auto& Item : Base)
 				{
-					if (!Item.IsEmpty())
+					if (!Item.Empty())
 						return false;
 				}
 
 				return true;
 			}
-			bool Cursor::IsError() const
+			bool Cursor::Error() const
 			{
 				if (Base.empty())
 					return true;
 
 				for (auto& Item : Base)
 				{
-					if (Item.IsError())
+					if (Item.Error())
 						return true;
 				}
 
 				return false;
 			}
-			size_t Cursor::GetSize() const
+			size_t Cursor::Size() const
 			{
 				return Base.size();
 			}
-			size_t Cursor::GetAffectedRows() const
+			size_t Cursor::AffectedRows() const
 			{
 				size_t Size = 0;
 				for (auto& Item : Base)
-					Size += Item.GetAffectedRows();
+					Size += Item.AffectedRows();
 				return Size;
 			}
 			Cursor Cursor::Copy() const
@@ -1429,7 +1429,7 @@ namespace Mavi
 				return Base[ResponseIndex].GetArray(Index);
 			}
 
-			Connection::Connection(TConnection* NewBase, socket_t Fd) : Base(NewBase), Stream(new Socket(Fd)), Current(nullptr), State(QueryState::Idle), InSession(false)
+			Connection::Connection(TConnection* NewBase, socket_t Fd) : Base(NewBase), Stream(new Socket(Fd)), Current(nullptr), State(QueryState::Idle), Session(false)
 			{
 			}
 			Connection::~Connection() noexcept
@@ -1452,11 +1452,11 @@ namespace Mavi
 			{
 				return State;
 			}
-			bool Connection::IsInSession() const
+			bool Connection::InSession() const
 			{
-				return InSession;
+				return Session;
 			}
-			bool Connection::IsBusy() const
+			bool Connection::Busy() const
 			{
 				return Current != nullptr;
 			}
@@ -1491,7 +1491,7 @@ namespace Mavi
 			{
 				return (uint64_t)((Core::Schedule::GetClock() - Time).count() / 1000);
 			}
-			bool Request::IsPending() const
+			bool Request::Pending() const
 			{
 				return Future.IsPending();
 			}
@@ -1575,28 +1575,28 @@ namespace Mavi
 				switch (Type)
 				{
 					case Isolation::Serializable:
-						return TxBegin("BEGIN ISOLATION LEVEL SERIALIZABLE");
+						return TxStart("BEGIN ISOLATION LEVEL SERIALIZABLE");
 					case Isolation::RepeatableRead:
-						return TxBegin("BEGIN ISOLATION LEVEL REPEATABLE READ");
+						return TxStart("BEGIN ISOLATION LEVEL REPEATABLE READ");
 					case Isolation::ReadUncommited:
-						return TxBegin("BEGIN ISOLATION LEVEL READ UNCOMMITTED");
+						return TxStart("BEGIN ISOLATION LEVEL READ UNCOMMITTED");
 					case Isolation::ReadCommited:
 					default:
-						return TxBegin("BEGIN");
+						return TxStart("BEGIN");
 				}
 			}
-			Core::Promise<SessionId> Cluster::TxBegin(const Core::String& Command)
+			Core::Promise<SessionId> Cluster::TxStart(const Core::String& Command)
 			{
 				return Query(Command, (size_t)QueryOp::TransactionStart).Then<SessionId>([](Cursor&& Result)
 				{
-					return Result.IsSuccess() ? Result.GetExecutor() : nullptr;
+					return Result.Success() ? Result.GetExecutor() : nullptr;
 				});
 			}
 			Core::Promise<bool> Cluster::TxEnd(const Core::String& Command, SessionId Session)
 			{
 				return Query(Command, (size_t)QueryOp::TransactionEnd, Session).Then<bool>([](Cursor&& Result)
 				{
-					return Result.IsSuccess();
+					return Result.Success();
 				});
 			}
 			Core::Promise<bool> Cluster::TxCommit(SessionId Session)
@@ -1785,7 +1785,7 @@ namespace Mavi
 				return Query(Command).Then<bool>([this, Actual = std::move(Actual)](Cursor&& Result) mutable
 				{
 					Connection* Base = Result.GetExecutor();
-					if (!Base || !Result.IsSuccess())
+					if (!Base || !Result.Success())
 						return false;
 
 					Core::UMutex<std::mutex> Unique(Update);
@@ -1818,7 +1818,7 @@ namespace Mavi
 				{
 					size_t Count = 0;
 					for (auto& Next : Commands)
-						Count += VI_AWAIT(Query(Next.second, (size_t)QueryOp::TransactionAlways, Next.first)).IsSuccess() ? 1 : 0;
+						Count += VI_AWAIT(Query(Next.second, (size_t)QueryOp::TransactionAlways, Next.first)).Success() ? 1 : 0;
 
 					Coreturn Count > 0;
 				});
@@ -1897,7 +1897,7 @@ namespace Mavi
 					Core::UMutex<std::mutex> Unique(Update);
 					for (auto& Item : Pool)
 					{
-						if (Item.second->InSession && Item.second == Next->Session)
+						if (Item.second->Session && Item.second == Next->Session)
 							return Future;
 					}
 
@@ -1922,7 +1922,7 @@ namespace Mavi
 
 				return nullptr;
 			}
-			Connection* Cluster::GetConnection() const
+			Connection* Cluster::GetAnyConnection() const
 			{
 				for (auto& Item : Pool)
 					return Item.second;
@@ -2019,7 +2019,7 @@ namespace Mavi
 					return;
 
 				VI_DEBUG("[pq] end transaction on 0x%" PRIXPTR, (uintptr_t)Base);
-				Base->InSession = false;
+				Base->Session = false;
 			}
 			bool Cluster::Reestablish(Connection* Target)
 			{
@@ -2204,7 +2204,7 @@ namespace Mavi
 					Response Frame(PQgetResult(Source->Base));
 					if (Source->Current != nullptr)
 					{
-						if (!Frame.IsExists())
+						if (!Frame.Exists())
 						{
 							Core::Promise<Cursor> Future = Source->Current->Future;
 							Cursor Results(std::move(Source->Current->Result));
@@ -2213,7 +2213,7 @@ namespace Mavi
 							Source->Current = nullptr;
 							PQlogMessage(Source->Base);
 
-							if (!Results.IsError())
+							if (!Results.Error())
 							{
 								VI_DEBUG("[pq] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Source, Item->GetTiming());
 								TryUnassign(Source, Item);
@@ -2230,7 +2230,7 @@ namespace Mavi
 							Source->Current->Result.Base.emplace_back(std::move(Frame));
 					}
 					else
-						Source->State = (Frame.IsExists() ? QueryState::Busy : QueryState::Idle);
+						Source->State = (Frame.Exists() ? QueryState::Busy : QueryState::Idle);
 
 					if (Source->State == QueryState::Busy || Consume(Source, Unique))
 						goto Retry;
@@ -2244,7 +2244,7 @@ namespace Mavi
 			}
 			bool Cluster::TryAssign(Connection* Base, Request* Context)
 			{
-				if (Base->InSession || (Context->Session != nullptr && (Context->Options & (size_t)QueryOp::TransactionAlways)))
+				if (Base->Session || (Context->Session != nullptr && (Context->Options & (size_t)QueryOp::TransactionAlways)))
 					return Base == Context->Session;
 
 				if (!Context->Session && !(Context->Options & (size_t)QueryOp::TransactionStart))
@@ -2257,7 +2257,7 @@ namespace Mavi
 				}
 
 				VI_DEBUG("[pq] start transaction on 0x%" PRIXPTR, (uintptr_t)Base);
-				Base->InSession = true;
+				Base->Session = true;
 				return true;
 			}
 
@@ -2273,7 +2273,7 @@ namespace Mavi
 				{
 					if (Item->Value.IsObject())
 					{
-						if (Item->IsEmpty())
+						if (Item->Empty())
 							continue;
 
 						Def += '(';
@@ -2355,7 +2355,7 @@ namespace Mavi
 				VI_RELEASE(Where);
 				return Result;
 			}
-			Core::String Utils::GetCharArray(TConnection* Base, const Core::String& Src) noexcept
+			Core::String Utils::GetCharArray(Connection* Base, const Core::String& Src) noexcept
 			{
 #ifdef VI_POSTGRESQL
 				if (Src.empty())
@@ -2369,7 +2369,7 @@ namespace Mavi
 					return Dest;
 				}
 
-				char* Subresult = PQescapeLiteral(Base, Src.c_str(), Src.size());
+				char* Subresult = PQescapeLiteral(Base->GetBase(), Src.c_str(), Src.size());
 				Core::String Result(Subresult);
 				PQfreemem(Subresult);
 
@@ -2378,7 +2378,11 @@ namespace Mavi
 				return "'" + Src + "'";
 #endif
 			}
-			Core::String Utils::GetByteArray(TConnection* Base, const char* Src, size_t Size) noexcept
+			Core::String Utils::GetByteArray(Connection* Base, const Core::String& Src) noexcept
+			{
+				return GetByteArray(Base, Src.c_str(), Src.size());
+			}
+			Core::String Utils::GetByteArray(Connection* Base, const char* Src, size_t Size) noexcept
 			{
 #ifdef VI_POSTGRESQL
 				if (!Src || !Size)
@@ -2388,7 +2392,7 @@ namespace Mavi
 					return "'\\x" + Compute::Codec::HexEncode(Src, Size) + "'::bytea";
 
 				size_t Length = 0;
-				char* Subresult = (char*)PQescapeByteaConn(Base, (unsigned char*)Src, Size, &Length);
+				char* Subresult = (char*)PQescapeByteaConn(Base->GetBase(), (unsigned char*)Src, Size, &Length);
 				Core::String Result(Subresult, Length > 1 ? Length - 1 : Length);
 				PQfreemem((unsigned char*)Subresult);
 
@@ -2399,7 +2403,7 @@ namespace Mavi
 				return "'\\x" + Compute::Codec::HexEncode(Src, Size) + "'::bytea";
 #endif
 			}
-			Core::String Utils::GetSQL(TConnection* Base, Core::Schema* Source, bool Escape, bool Negate) noexcept
+			Core::String Utils::GetSQL(Connection* Base, Core::Schema* Source, bool Escape, bool Negate) noexcept
 			{
 				if (!Source)
 					return "NULL";
@@ -2424,7 +2428,7 @@ namespace Mavi
 						for (auto* Node : Source->GetChilds())
 							Result.append(GetSQL(Base, Node, Escape, Negate)).append(1, ',');
 
-						if (!Source->IsEmpty())
+						if (!Source->Empty())
 							Result = Result.substr(0, Result.size() - 1);
 
 						return Result + "]";
@@ -2453,7 +2457,7 @@ namespace Mavi
 						return Result.find('.') != Core::String::npos ? Result : Result + ".0";
 					}
 					case Core::VarType::Binary:
-						return GetByteArray(Base, Source->Value.GetString(), Source->Value.GetSize());
+						return GetByteArray(Base, Source->Value.GetString(), Source->Value.Size());
 					case Core::VarType::Null:
 					case Core::VarType::Undefined:
 						return "NULL";
@@ -2487,6 +2491,10 @@ namespace Mavi
 				Core::UMutex<std::mutex> Unique(Exclusive);
 				Constants[Name] = Value;
 				return true;
+			}
+			bool Driver::AddQuery(const Core::String& Name, const Core::String& Data) noexcept
+			{
+				return AddQuery(Name, Data.c_str(), Data.size());
 			}
 			bool Driver::AddQuery(const Core::String& Name, const char* Buffer, size_t Size) noexcept
 			{
@@ -2720,7 +2728,7 @@ namespace Mavi
 				if (!Map || Map->empty())
 					return SQL;
 
-				Connection* Remote = Base->GetConnection();
+				Connection* Remote = Base->GetAnyConnection();
 				Core::String Buffer(SQL);
 				Core::TextSettle Set;
 				Core::String& Src = Buffer;
@@ -2761,7 +2769,7 @@ namespace Mavi
 							Set.Start--;
 						}
 					}
-					Core::String Value = Utils::GetSQL(Remote->GetBase(), (*Map)[Next++], Escape, Negate);
+					Core::String Value = Utils::GetSQL(Remote, (*Map)[Next++], Escape, Negate);
 					Buffer.erase(Set.Start, (Escape ? 1 : 2));
 					Buffer.insert(Set.Start, Value);
 					Offset = Set.Start + Value.size();
@@ -2819,7 +2827,7 @@ namespace Mavi
 					return Result;
 				}
 
-				Connection* Remote = Base->GetConnection();
+				Connection* Remote = Base->GetAnyConnection();
 				Sequence Origin = It->second;
 				size_t Offset = 0;
 				Unique.Negate();
@@ -2834,7 +2842,7 @@ namespace Mavi
 						continue;
 					}
 
-					Core::String Value = Utils::GetSQL(Remote->GetBase(), It->second, Word.Escape, Word.Negate);
+					Core::String Value = Utils::GetSQL(Remote, It->second, Word.Escape, Word.Negate);
 					if (Value.empty())
 						continue;
 

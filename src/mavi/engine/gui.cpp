@@ -3393,7 +3393,7 @@ namespace Mavi
 			{
 				Set(Core::Var::Pointer(Value));
 			}
-			size_t DataNode::GetSize() const
+			size_t DataNode::Size() const
 			{
 				return Childs.size();
 			}
@@ -3467,7 +3467,7 @@ namespace Mavi
 			}
 			int64_t DataNode::GetValueSize()
 			{
-				return (int64_t)GetSize();
+				return (int64_t)Size();
 			}
 			DataNode& DataNode::operator= (const DataNode& Other) noexcept
 			{

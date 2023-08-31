@@ -338,9 +338,9 @@ namespace Mavi
 				asITypeInfo* GetArrayObjectType() const;
 				int GetArrayTypeId() const;
 				int GetElementTypeId() const;
-				size_t GetSize() const;
-				size_t GetCapacity() const;
-				bool IsEmpty() const;
+				size_t Size() const;
+				size_t Capacity() const;
+				bool Empty() const;
 				void Reserve(size_t MaxElements);
 				void Resize(size_t NumElements);
 				void* Front();
@@ -410,7 +410,7 @@ namespace Mavi
 					if (!Array)
 						return Result;
 
-					size_t Size = Array->GetSize();
+					size_t Size = Array->Size();
 					Result.reserve(Size);
 
 					for (size_t i = 0; i < Size; i++)
@@ -425,7 +425,7 @@ namespace Mavi
 					if (!Array)
 						return Result;
 
-					size_t Size = Array->GetSize();
+					size_t Size = Array->Size();
 					Result.reserve(Size);
 
 					for (size_t i = 0; i < Size; i++)
@@ -565,8 +565,8 @@ namespace Mavi
 				const Storable* operator[](size_t) const;
 				int GetTypeId(const Core::String& Key) const;
 				bool Exists(const Core::String& Key) const;
-				bool IsEmpty() const;
-				size_t GetSize() const;
+				bool Empty() const;
+				size_t Size() const;
 				bool Erase(const Core::String& Key);
 				void Clear();
 				Array* GetKeys() const;
@@ -607,10 +607,10 @@ namespace Mavi
 				static typename std::enable_if<std::is_pointer<T>::value, Core::UnorderedMap<Core::String, T>>::type Decompose(int TypeId, Dictionary* Array)
 				{
 					Core::UnorderedMap<Core::String, T> Result;
-					Result.reserve(Array->GetSize());
+					Result.reserve(Array->Size());
 
 					int SubTypeId = 0;
-					size_t Size = Array->GetSize();
+					size_t Size = Array->Size();
 					for (size_t i = 0; i < Size; i++)
 					{
 						Core::String Key; void* Value = nullptr;
@@ -624,10 +624,10 @@ namespace Mavi
 				static typename std::enable_if<!std::is_pointer<T>::value, Core::UnorderedMap<Core::String, T>>::type Decompose(int TypeId, Dictionary* Array)
 				{
 					Core::UnorderedMap<Core::String, T> Result;
-					Result.reserve(Array->GetSize());
+					Result.reserve(Array->Size());
 
 					int SubTypeId = 0;
-					size_t Size = Array->GetSize();
+					size_t Size = Array->Size();
 					for (size_t i = 0; i < Size; i++)
 					{
 						Core::String Key; void* Value = nullptr;
@@ -649,6 +649,7 @@ namespace Mavi
 				VirtualMachine* Engine;
 				ImmediateContext* Context;
 				FunctionDelegate Delegate;
+				std::function<void(Promise*)> Bounce;
 				std::mutex Update;
 				Dynamic Value;
 
@@ -660,6 +661,7 @@ namespace Mavi
 				int GetTypeId();
 				void* GetAddressOfObject();
 				void When(asIScriptFunction* NewCallback);
+				void When(std::function<void(Promise*)>&& NewCallback);
 				void Store(void* RefPointer, int RefTypeId);
 				void Store(void* RefPointer, const char* TypeName);
 				void StoreVoid();
@@ -866,7 +868,7 @@ namespace Mavi
 			{
 			private:
 				char* Buffer;
-				size_t Size;
+				size_t Length;
 
 			public:
 				CharBuffer() noexcept;
@@ -903,7 +905,7 @@ namespace Mavi
 				void* GetPointer(size_t Offset) const;
 				bool Exists(size_t Offset) const;
 				bool Empty() const;
-				size_t GetSize() const;
+				size_t Size() const;
 				Core::String ToString(size_t MaxSize) const;
 
 			private:

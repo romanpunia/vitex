@@ -649,7 +649,7 @@ namespace Mavi
 			void* MaterialProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				Core::Schema* Data = Content->Load<Core::Schema>(Stream->GetSource());
+				Core::Schema* Data = Content->Load<Core::Schema>(Stream->Source());
 				Core::String Path;
 
 				if (!Data)
@@ -737,7 +737,7 @@ namespace Mavi
 				Object->SetName(Name);
 				VI_RELEASE(Data);
 
-				auto* Existing = (Engine::Material*)Content->TryToCache(this, Stream->GetSource(), Object);
+				auto* Existing = (Engine::Material*)Content->TryToCache(this, Stream->Source(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -799,7 +799,7 @@ namespace Mavi
 				Series::Pack(Data->Set("bias"), Object->Surface.Bias);
 				Series::Pack(Data->Set("name"), Object->GetName());
 
-				if (!Content->Save<Core::Schema>(Stream->GetSource(), Data, Args))
+				if (!Content->Save<Core::Schema>(Stream->Source(), Data, Args))
 				{
 					VI_RELEASE(Data);
 					return false;
@@ -818,7 +818,7 @@ namespace Mavi
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				VI_ASSERT(I.Shared.Device != nullptr, "graphics device should be set");
 
-				Core::Schema* Blob = Content->Load<Core::Schema>(Stream->GetSource());
+				Core::Schema* Blob = Content->Load<Core::Schema>(Stream->Source());
 				if (!Blob)
 					return nullptr;
 
@@ -990,7 +990,7 @@ namespace Mavi
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				VI_ASSERT(Instance != nullptr, "instance should be set");
 
-				const char* Ext = Core::OS::Path::GetExtension(Stream->GetSource().c_str());
+				const char* Ext = Core::OS::Path::GetExtension(Stream->Source().c_str());
 				if (!Ext)
 				{
 					auto Type = Args.find("type");
@@ -1115,7 +1115,7 @@ namespace Mavi
 				}
 
 				Object->Snapshot = nullptr;
-				Content->Save<Core::Schema>(Stream->GetSource(), Blob, Args);
+				Content->Save<Core::Schema>(Stream->Source(), Blob, Args);
 				VI_RELEASE(Blob);
 
 				return true;
@@ -1143,9 +1143,9 @@ namespace Mavi
 			}
 			void* AudioClipProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				if (Core::Stringify::EndsWith(Stream->GetSource(), ".wav"))
+				if (Core::Stringify::EndsWith(Stream->Source(), ".wav"))
 					return DeserializeWAVE(Stream, Offset, Args);
-				else if (Core::Stringify::EndsWith(Stream->GetSource(), ".ogg"))
+				else if (Core::Stringify::EndsWith(Stream->Source(), ".ogg"))
 					return DeserializeOGG(Stream, Offset, Args);
 
 				return nullptr;
@@ -1191,7 +1191,7 @@ namespace Mavi
 				Audio::AudioContext::SetBufferData(Object->GetBuffer(), (int)Format, (const void*)WavSamples, (int)WavCount, (int)WavInfo.freq);
 				SDL_FreeWAV(WavSamples);
 
-				auto* Existing = (Audio::AudioClip*)Content->TryToCache(this, Stream->GetSource(), Object);
+				auto* Existing = (Audio::AudioClip*)Content->TryToCache(this, Stream->Source(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1236,7 +1236,7 @@ namespace Mavi
 				Audio::AudioContext::SetBufferData(Object->GetBuffer(), (int)Format, (const void*)Buffer, Samples * sizeof(short) * Channels, (int)SampleRate);
 				VI_FREE(Buffer);
 
-				auto* Existing = (Audio::AudioClip*)Content->TryToCache(this, Stream->GetSource(), Object);
+				auto* Existing = (Audio::AudioClip*)Content->TryToCache(this, Stream->Source(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1306,7 +1306,7 @@ namespace Mavi
 				if (!Object)
 					return nullptr;
 
-				auto* Existing = (Graphics::Texture2D*)Content->TryToCache(this, Stream->GetSource(), Object);
+				auto* Existing = (Graphics::Texture2D*)Content->TryToCache(this, Stream->Source(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1351,7 +1351,7 @@ namespace Mavi
 				});
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Filename = Stream->GetSource();
+				I.Filename = Stream->Source();
 				I.Data = Data;
 
 				Graphics::GraphicsDevice* Device = Content->GetDevice();
@@ -1363,7 +1363,7 @@ namespace Mavi
 				if (!Object)
 					return nullptr;
 
-				auto* Existing = (Graphics::Shader*)Content->TryToCache(this, Stream->GetSource(), Object);
+				auto* Existing = (Graphics::Shader*)Content->TryToCache(this, Stream->Source(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1398,7 +1398,7 @@ namespace Mavi
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Model* Object = nullptr;
-				Core::String& Path = Stream->GetSource();
+				Core::String& Path = Stream->Source();
 				if (Core::Stringify::EndsWith(Path, ".xml") || Core::Stringify::EndsWith(Path, ".json") || Core::Stringify::EndsWith(Path, ".jsonb") || Core::Stringify::EndsWith(Path, ".xml.gz") || Core::Stringify::EndsWith(Path, ".json.gz") || Core::Stringify::EndsWith(Path, ".jsonb.gz"))
 				{
 					Core::Schema* Data = Content->Load<Core::Schema>(Path);
@@ -1477,7 +1477,7 @@ namespace Mavi
 					}
 				}
 
-				auto* Existing = (Model*)Content->TryToCache(this, Stream->GetSource(), Object);
+				auto* Existing = (Model*)Content->TryToCache(this, Stream->Source(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1528,7 +1528,7 @@ namespace Mavi
 				});
 
 				Assimp::Importer Importer;
-				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (unsigned int)Opts, Core::OS::Path::GetExtension(Stream->GetSource().c_str()));
+				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (unsigned int)Opts, Core::OS::Path::GetExtension(Stream->Source().c_str()));
 				if (!Scene)
 				{
 					VI_ERR("[engine] cannot import mesh: %s", Importer.GetErrorString());
@@ -1565,7 +1565,7 @@ namespace Mavi
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				SkinModel* Object = nullptr;
-				Core::String& Path = Stream->GetSource();
+				Core::String& Path = Stream->Source();
 				if (Core::Stringify::EndsWith(Path, ".xml") || Core::Stringify::EndsWith(Path, ".json") || Core::Stringify::EndsWith(Path, ".jsonb") || Core::Stringify::EndsWith(Path, ".xml.gz") || Core::Stringify::EndsWith(Path, ".json.gz") || Core::Stringify::EndsWith(Path, ".jsonb.gz"))
 				{
 					Core::Schema* Data = Content->Load<Core::Schema>(Path);
@@ -1651,7 +1651,7 @@ namespace Mavi
 					}
 				}
 
-				auto* Existing = (SkinModel*)Content->TryToCache(this, Stream->GetSource(), Object);
+				auto* Existing = (SkinModel*)Content->TryToCache(this, Stream->Source(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1686,7 +1686,7 @@ namespace Mavi
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::Vector<Compute::SkinAnimatorClip> Clips;
-				Core::String& Path = Stream->GetSource();
+				Core::String& Path = Stream->Source();
 				if (Core::Stringify::EndsWith(Path, ".xml") || Core::Stringify::EndsWith(Path, ".json") || Core::Stringify::EndsWith(Path, ".jsonb") || Core::Stringify::EndsWith(Path, ".xml.gz") || Core::Stringify::EndsWith(Path, ".json.gz") || Core::Stringify::EndsWith(Path, ".jsonb.gz"))
 				{
 					Core::Schema* Data = Content->Load<Core::Schema>(Path);
@@ -1737,7 +1737,7 @@ namespace Mavi
 					return nullptr;
 
 				auto* Object = new Engine::SkinAnimation(std::move(Clips));
-				auto* Existing = (Engine::SkinAnimation*)Content->TryToCache(this, Stream->GetSource(), Object);
+				auto* Existing = (Engine::SkinAnimation*)Content->TryToCache(this, Stream->Source(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1798,7 +1798,7 @@ namespace Mavi
 				});
 
 				Assimp::Importer Importer;
-				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (unsigned int)Opts, Core::OS::Path::GetExtension(Stream->GetSource().c_str()));
+				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (unsigned int)Opts, Core::OS::Path::GetExtension(Stream->Source().c_str()));
 				if (!Scene)
 				{
 					VI_ERR("[engine] cannot import mesh animation because %s", Importer.GetErrorString());
@@ -1924,8 +1924,8 @@ namespace Mavi
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::String N = Network::Utils::GetLocalAddress();
-				Core::String D = Core::OS::Path::GetDirectory(Stream->GetSource().c_str());
-				auto* Blob = Content->Load<Core::Schema>(Stream->GetSource());
+				Core::String D = Core::OS::Path::GetDirectory(Stream->Source().c_str());
+				auto* Blob = Content->Load<Core::Schema>(Stream->Source());
 				auto* Router = new Network::HTTP::MapRouter();
 				auto* Object = new Network::HTTP::Server();
 
@@ -2305,7 +2305,7 @@ namespace Mavi
 			void* HullShapeProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				auto* Data = Content->Load<Core::Schema>(Stream->GetSource());
+				auto* Data = Content->Load<Core::Schema>(Stream->Source());
 				if (!Data)
 					return nullptr;
 
@@ -2337,7 +2337,7 @@ namespace Mavi
 					return nullptr;
 				}
 
-				auto* Existing = (Compute::HullShape*)Content->TryToCache(this, Stream->GetSource(), Object);
+				auto* Existing = (Compute::HullShape*)Content->TryToCache(this, Stream->Source(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);

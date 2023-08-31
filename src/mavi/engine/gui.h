@@ -571,7 +571,7 @@ namespace Mavi
 				void SetDouble(double Value);
 				void SetBoolean(bool Value);
 				void SetPointer(void* Value);
-				size_t GetSize() const;
+				size_t Size() const;
 				void* GetSeqId() const;
 				size_t GetDepth() const;
 				const Core::Variant& Get();

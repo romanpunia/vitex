@@ -784,7 +784,7 @@ namespace Mavi
 			StackPtr::const_reverse_iterator rend() const;
 			explicit operator bool() const;
 			const StackPtr& Range() const;
-			bool IsEmpty() const;
+			bool Empty() const;
 			size_t Size() const;
 		};
 
@@ -1858,7 +1858,7 @@ namespace Mavi
 
 		private:
 			VarType Type;
-			uint32_t Size;
+			uint32_t Length;
 
 		public:
 			Variant() noexcept;
@@ -1876,7 +1876,7 @@ namespace Mavi
 			double GetNumber() const;
 			bool GetBoolean() const;
 			VarType GetType() const;
-			size_t GetSize() const;
+			size_t Size() const;
 			Variant& operator= (const Variant& Other) noexcept;
 			Variant& operator= (Variant&& Other) noexcept;
 			bool operator== (const Variant& Other) const;
@@ -1884,7 +1884,7 @@ namespace Mavi
 			explicit operator bool() const;
 			bool IsString(const char* Value) const;
 			bool IsObject() const;
-			bool IsEmpty() const;
+			bool Empty() const;
 			bool Is(VarType Value) const;
 
 		private:
@@ -2807,7 +2807,7 @@ namespace Mavi
 			void sWrite(const String& Line);
 			void sfWriteLine(const char* Format, ...);
 			void sfWrite(const char* Format, ...);
-			void GetSize(uint32_t* Width, uint32_t* Height);
+			void Size(uint32_t* Width, uint32_t* Height);
 			double GetCapturedTime() const;
 			bool ReadLine(String& Data, size_t Size);
 			String Read(size_t Size);
@@ -2899,7 +2899,7 @@ namespace Mavi
 		{
 		protected:
 			String Path;
-			size_t VirtualSize;
+			size_t VSize;
 
 		public:
 			Stream() noexcept;
@@ -2920,9 +2920,9 @@ namespace Mavi
 			virtual bool IsSized() const = 0;
 			void SetVirtualSize(size_t Size);
 			size_t ReadAll(const std::function<void(char*, size_t)>& Callback);
-			size_t GetVirtualSize() const;
-			size_t GetSize();
-			String& GetSource();
+			size_t VirtualSize() const;
+			size_t Size();
+			String& Source();
 		};
 
 		class VI_OUT FileStream : public Stream
@@ -2980,7 +2980,7 @@ namespace Mavi
 			UnorderedMap<String, String> Headers;
 			Vector<char> Chunk;
 			size_t Offset;
-			size_t Size;
+			size_t Length;
 			bool Async;
 
 		public:
@@ -3135,7 +3135,7 @@ namespace Mavi
 			bool Rename(const String& Name, const String& NewName);
 			bool Has(const String& Name) const;
 			bool HasAttribute(const String& Name) const;
-			bool IsEmpty() const;
+			bool Empty() const;
 			bool IsAttribute() const;
 			bool IsSaved() const;
 			size_t Size() const;

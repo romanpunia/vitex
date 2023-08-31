@@ -752,8 +752,8 @@ namespace Mavi
 			const char* GetNamespace() const;
 			TypeInfo GetBaseType() const;
 			bool DerivesFrom(const TypeInfo& Type) const;
-			size_t GetFlags() const;
-			size_t GetSize() const;
+			size_t Flags() const;
+			size_t Size() const;
 			int GetTypeId() const;
 			int GetSubTypeId(size_t SubTypeIndex = 0) const;
 			TypeInfo GetSubType(size_t SubTypeIndex = 0) const;

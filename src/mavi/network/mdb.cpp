@@ -3175,6 +3175,7 @@ namespace Mavi
 			}
 			Cluster::~Cluster() noexcept
 			{
+#ifdef VI_MONGOC
 				if (Pool != nullptr)
 				{
 					mongoc_client_pool_destroy(Pool);
@@ -3182,6 +3183,7 @@ namespace Mavi
 				}
 				SrcAddress.~Address();
 				Connected = false;
+#endif
 			}
 			Core::Promise<bool> Cluster::Connect(const Core::String& URI)
 			{

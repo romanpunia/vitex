@@ -5985,6 +5985,7 @@ namespace Mavi
 		void ImmediateContext::AddRefLocals()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
 			asIScriptFunction* Function = Context->GetFunction();
 			++Executor.LocalReferences;
 
@@ -5999,11 +6000,13 @@ namespace Mavi
 				if (Context->IsVarInScope(n) && Context->GetVar(n, 0, 0, &TypeId) >= 0 && ((TypeId & asTYPEID_OBJHANDLE) || (TypeId & asTYPEID_SCRIPTOBJECT)))
 					Engine->AddRefScriptObject(*(void**)Context->GetAddressOfVar(n), Engine->GetTypeInfoById(TypeId));
 			}
+#endif
 		}
 		void ImmediateContext::ReleaseLocals()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 			VI_ASSERT(Executor.LocalReferences > 0, "locals are not referenced");
+#ifdef VI_ANGELSCRIPT
 			asIScriptFunction* Function = Context->GetFunction();
 			--Executor.LocalReferences;
 
@@ -6018,6 +6021,7 @@ namespace Mavi
 				if (Context->IsVarInScope(n) && Context->GetVar(n, 0, 0, &TypeId) >= 0 && ((TypeId & asTYPEID_OBJHANDLE) || (TypeId & asTYPEID_SCRIPTOBJECT)))
 					Engine->ReleaseScriptObject(*(void**)Context->GetAddressOfVar(n), Engine->GetTypeInfoById(TypeId));
 			}
+#endif
 		}
 		void ImmediateContext::DisableSuspends()
 		{

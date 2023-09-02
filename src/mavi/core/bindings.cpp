@@ -14209,8 +14209,8 @@ namespace Mavi
 				VContentFrame->SetMethod<Network::HTTP::ContentFrame, void, const Core::String&>("void assign(const string&in)", &Network::HTTP::ContentFrame::Assign);
 				VContentFrame->SetMethod("void finalize()", &Network::HTTP::ContentFrame::Finalize);
 				VContentFrame->SetMethod("void cleanup()", &Network::HTTP::ContentFrame::Cleanup);
-				VContentFrame->SetMethodEx("schema@+ get_json() const", &ContentFrameGetJSON);
-				VContentFrame->SetMethodEx("schema@+ get_xml() const", &ContentFrameGetXML);
+				VContentFrame->SetMethodEx("schema@ get_json() const", &ContentFrameGetJSON);
+				VContentFrame->SetMethodEx("schema@ get_xml() const", &ContentFrameGetXML);
 				VContentFrame->SetMethod("string get_text() const", &Network::HTTP::ContentFrame::GetText);
 				VContentFrame->SetMethod("bool is_finalized() const", &Network::HTTP::ContentFrame::IsFinalized);
 				VContentFrame->SetMethodEx("void prepare(const string&in)", &ContentFramePrepare);
@@ -14784,7 +14784,7 @@ namespace Mavi
 
 				auto VNotify = VM->SetStructTrivial<Network::PDB::Notify>("notify");
 				VNotify->SetConstructor<Network::PDB::Notify, const Network::PDB::Notify&>("void f(const notify&in)");
-				VNotify->SetMethod("schema@+ get_schema() const", &Network::PDB::Notify::GetSchema);
+				VNotify->SetMethod("schema@ get_schema() const", &Network::PDB::Notify::GetSchema);
 				VNotify->SetMethod("string get_name() const", &Network::PDB::Notify::GetName);
 				VNotify->SetMethod("string get_data() const", &Network::PDB::Notify::GetData);
 				VNotify->SetMethod("int32 get_pid() const", &Network::PDB::Notify::GetPid);
@@ -14798,7 +14798,7 @@ namespace Mavi
 				VColumn->SetMethod("string get_name() const", &Network::PDB::Column::GetName);
 				VColumn->SetMethod("string get_value_text() const", &Network::PDB::Column::GetValueText);
 				VColumn->SetMethod("variant get() const", &Network::PDB::Column::Get);
-				VColumn->SetMethod("schema@+ get_inline() const", &Network::PDB::Column::GetInline);
+				VColumn->SetMethod("schema@ get_inline() const", &Network::PDB::Column::GetInline);
 				VColumn->SetMethod("int32 get_format_id() const", &Network::PDB::Column::GetFormatId);
 				VColumn->SetMethod("int32 get_mod_id() const", &Network::PDB::Column::GetModId);
 				VColumn->SetMethod("uint64 get_table_id() const", &Network::PDB::Column::GetTableId);
@@ -14811,8 +14811,8 @@ namespace Mavi
 
 				auto VResponse = VM->SetStruct<Network::PDB::Response>("response");
 				VRow->SetConstructor<Network::PDB::Row, const Network::PDB::Row&>("void f(const row&in)");
-				VRow->SetMethod("schema@+ get_object() const", &Network::PDB::Row::GetObject);
-				VRow->SetMethod("schema@+ get_array() const", &Network::PDB::Row::GetArray);
+				VRow->SetMethod("schema@ get_object() const", &Network::PDB::Row::GetObject);
+				VRow->SetMethod("schema@ get_array() const", &Network::PDB::Row::GetArray);
 				VRow->SetMethod("usize index() const", &Network::PDB::Row::Index);
 				VRow->SetMethod("usize size() const", &Network::PDB::Row::Size);
 				VRow->SetMethod<Network::PDB::Row, Network::PDB::Column, size_t>("column get_column(usize) const", &Network::PDB::Row::GetColumn);
@@ -14826,10 +14826,10 @@ namespace Mavi
 				VResponse->SetDestructor<Network::PDB::Response>("void f()");
 				VResponse->SetMethod<Network::PDB::Response, Network::PDB::Row, size_t>("row opIndex(usize)", &Network::PDB::Response::GetRow);
 				VResponse->SetMethod<Network::PDB::Response, Network::PDB::Row, size_t>("row opIndex(usize) const", &Network::PDB::Response::GetRow);
-				VResponse->SetMethod("schema@+ get_array_of_objects() const", &Network::PDB::Response::GetArrayOfObjects);
-				VResponse->SetMethod("schema@+ get_array_of_arrays() const", &Network::PDB::Response::GetArrayOfArrays);
-				VResponse->SetMethod("schema@+ get_object(usize = 0) const", &Network::PDB::Response::GetObject);
-				VResponse->SetMethod("schema@+ get_array(usize = 0) const", &Network::PDB::Response::GetArray);
+				VResponse->SetMethod("schema@ get_array_of_objects() const", &Network::PDB::Response::GetArrayOfObjects);
+				VResponse->SetMethod("schema@ get_array_of_arrays() const", &Network::PDB::Response::GetArrayOfArrays);
+				VResponse->SetMethod("schema@ get_object(usize = 0) const", &Network::PDB::Response::GetObject);
+				VResponse->SetMethod("schema@ get_array(usize = 0) const", &Network::PDB::Response::GetArray);
 				VResponse->SetMethod("string get_command_status_text() const", &Network::PDB::Response::GetCommandStatusText);
 				VResponse->SetMethod("string get_status_text() const", &Network::PDB::Response::GetStatusText);
 				VResponse->SetMethod("string get_error_text() const", &Network::PDB::Response::GetErrorText);
@@ -14868,10 +14868,10 @@ namespace Mavi
 				VCursor->SetMethodEx("response at(usize) const", &PDBCursorAt);
 				VCursor->SetMethod("connection@+ get_executor() const", &Network::PDB::Cursor::GetExecutor);
 				VCursor->SetMethod("caching get_cache_status() const", &Network::PDB::Cursor::GetCacheStatus);
-				VCursor->SetMethod("schema@+ get_array_of_objects(usize = 0) const", &Network::PDB::Cursor::GetArrayOfObjects);
-				VCursor->SetMethod("schema@+ get_array_of_arrays(usize = 0) const", &Network::PDB::Cursor::GetArrayOfArrays);
-				VCursor->SetMethod("schema@+ get_object(usize = 0, usize = 0) const", &Network::PDB::Cursor::GetObject);
-				VCursor->SetMethod("schema@+ get_array(usize = 0, usize = 0) const", &Network::PDB::Cursor::GetArray);
+				VCursor->SetMethod("schema@ get_array_of_objects(usize = 0) const", &Network::PDB::Cursor::GetArrayOfObjects);
+				VCursor->SetMethod("schema@ get_array_of_arrays(usize = 0) const", &Network::PDB::Cursor::GetArrayOfArrays);
+				VCursor->SetMethod("schema@ get_object(usize = 0, usize = 0) const", &Network::PDB::Cursor::GetObject);
+				VCursor->SetMethod("schema@ get_array(usize = 0, usize = 0) const", &Network::PDB::Cursor::GetArray);
 
 				auto VRequest = VM->SetClass<Network::PDB::Request>("request", false);
 				VConnection->SetMethod("uptr@ get_base() const", &Network::PDB::Connection::GetBase);
@@ -14922,7 +14922,7 @@ namespace Mavi
 				VDriver->SetMethod("bool remove_constant(const string&in)", &Network::PDB::Driver::RemoveConstant);
 				VDriver->SetMethod("bool remove_query(const string&in)", &Network::PDB::Driver::RemoveQuery);
 				VDriver->SetMethod("bool load_cache_dump(schema@+)", &Network::PDB::Driver::LoadCacheDump);
-				VDriver->SetMethod("schema@+ get_cache_dump()", &Network::PDB::Driver::GetCacheDump);
+				VDriver->SetMethod("schema@ get_cache_dump()", &Network::PDB::Driver::GetCacheDump);
 				VDriver->SetMethodEx("void set_query_log(query_event@)", &PDBDriverSetQueryLog);
 				VDriver->SetMethodEx("string emplace(cluster@+, const string&in, array<schema@>@+)", &PDBDriverEmplace);
 				VDriver->SetMethodEx("string get_query(cluster@+, const string&in, dictionary@+)", &PDBDriverGetQuery);
@@ -15595,7 +15595,7 @@ namespace Mavi
 				VAppData->SetMethod("void migrate(const string &in)", &Engine::AppData::Migrate);
 				VAppData->SetMethod("void set_key(const string &in, schema@+)", &Engine::AppData::SetKey);
 				VAppData->SetMethod("void set_text(const string &in, const string &in)", &Engine::AppData::SetText);
-				VAppData->SetMethod("schema@+ get_key(const string &in)", &Engine::AppData::GetKey);
+				VAppData->SetMethod("schema@ get_key(const string &in)", &Engine::AppData::GetKey);
 				VAppData->SetMethod("string get_text(const string &in)", &Engine::AppData::GetText);
 				VAppData->SetMethod("bool has(const string &in)", &Engine::AppData::Has);
 				VAppData->SetEnumRefsEx<Engine::AppData>([](Engine::AppData* Base, asIScriptEngine* VM) { });
@@ -16888,7 +16888,7 @@ namespace Mavi
 				VModel->SetMethodEx("bool set_boolean(const string &in, bool)", &DataModelSetBoolean);
 				VModel->SetMethodEx("bool set_pointer(const string &in, uptr@)", &DataModelSetPointer);
 				VModel->SetMethodEx("bool set_callback(const string &in, ui_data_event@)", &DataModelSetCallback);
-				VModel->SetMethodEx("schema@+ get(const string &in)", &DataModelGet);
+				VModel->SetMethodEx("schema@ get(const string &in)", &DataModelGet);
 				VModel->SetMethod("string get_string(const string &in)", &Engine::GUI::DataModel::GetString);
 				VModel->SetMethod("int64 get_integer(const string &in)", &Engine::GUI::DataModel::GetInteger);
 				VModel->SetMethod("float get_float(const string &in)", &Engine::GUI::DataModel::GetFloat);

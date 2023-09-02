@@ -376,7 +376,7 @@ namespace Mavi
 					while (Result[Index].keyword != nullptr)
 					{
 						auto& Info = Result[Index];
-						Params[Info.keyword] = Info.val;
+						Params[Info.keyword] = Info.val ? Info.val : "";
 						Index++;
 					}
 					PQconninfoFree(Result);
@@ -866,10 +866,6 @@ namespace Mavi
 				return 0;
 #endif
 			}
-			Response Row::GetResponse() const
-			{
-				return Response(Base);
-			}
 			Column Row::GetColumn(size_t Index) const
 			{
 #ifdef VI_POSTGRESQL
@@ -918,6 +914,10 @@ namespace Mavi
 #endif
 			}
 
+			Response::Response() : Response(nullptr)
+			{
+
+			}
 			Response::Response(TResponse* NewBase) : Base(NewBase), Failure(false)
 			{
 			}

@@ -276,18 +276,18 @@ namespace Mavi
 			void DebugAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
 			{
 				UMutex<std::recursive_mutex> Unique(Mutex);
-				auto It = Blocks.find(Address);
+				auto It = Watchers.find(Address);
 
-				VI_ASSERT(It == Blocks.end() || !It->second.Active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, Address);
-				Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), sizeof(void*), false, false);
+				VI_ASSERT(It == Watchers.end() || !It->second.Active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, Address);
+				Watchers[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), sizeof(void*), false, false);
 			}
 			void DebugAllocator::Unwatch(void* Address) noexcept
 			{
 				UMutex<std::recursive_mutex> Unique(Mutex);
-				auto It = Blocks.find(Address);
+				auto It = Watchers.find(Address);
 
-				VI_ASSERT(It != Blocks.end() && !It->second.Active, "address at 0x%" PRIXPTR " cannot be cleared from tracking because it was not allocated by this allocator", Address);
-				Blocks.erase(It);
+				VI_ASSERT(It != Watchers.end() && !It->second.Active, "address at 0x%" PRIXPTR " cannot be cleared from tracking because it was not allocated by this allocator", Address);
+				Watchers.erase(It);
 			}
 			void DebugAllocator::Finalize() noexcept
 			{
@@ -312,7 +312,7 @@ namespace Mavi
 				UMutex<std::recursive_mutex> Unique(Mutex);
 				if (Address != nullptr)
 				{
-					bool LogActive = ErrorHandling::HasFlag(LogOption::Active);
+					bool LogActive = ErrorHandling::HasFlag(LogOption::Active), Exists = false;
 					if (!LogActive)
 						ErrorHandling::SetFlag(LogOption::Active, true);
 
@@ -327,12 +327,27 @@ namespace Mavi
 							(uint64_t)It->second.Size,
 							It->second.Origin.Function,
 							OS::Process::GetThreadId(It->second.Thread).c_str());
+						Exists = true;
+					}
+
+					It = Watchers.find(Address);
+					if (It != Watchers.end())
+					{
+						char Date[64];
+						DateTime::FetchDateTime(Date, sizeof(Date), It->second.Time);
+						ErrorHandling::Message(LogLevel::Debug, It->second.Origin.Line, It->second.Origin.Source, "[mem-watch] %saddress at 0x%" PRIXPTR " is being watched since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
+							It->second.Static ? "static " : "",
+							It->first, Date, It->second.TypeName.c_str(),
+							(uint64_t)It->second.Size,
+							It->second.Origin.Function,
+							OS::Process::GetThreadId(It->second.Thread).c_str());
+						Exists = true;
 					}
 
 					ErrorHandling::SetFlag(LogOption::Active, LogActive);
-					return It != Blocks.end();
+					return Exists;
 				}
-				else if (!Blocks.empty())
+				else if (!Blocks.empty() || !Watchers.empty())
 				{
 					size_t StaticAddresses = 0;
 					for (auto& Item : Blocks)
@@ -340,8 +355,13 @@ namespace Mavi
 						if (Item.second.Static || Item.second.TypeName.find("ontainer_proxy") != std::string::npos || Item.second.TypeName.find("ist_node") != std::string::npos)
 							++StaticAddresses;
 					}
+					for (auto& Item : Watchers)
+					{
+						if (Item.second.Static || Item.second.TypeName.find("ontainer_proxy") != std::string::npos || Item.second.TypeName.find("ist_node") != std::string::npos)
+							++StaticAddresses;
+					}
 
-					if (StaticAddresses == Blocks.size())
+					if (StaticAddresses == Blocks.size() + Watchers.size())
 						return false;
 
 					bool LogActive = ErrorHandling::HasFlag(LogOption::Active);
@@ -351,8 +371,10 @@ namespace Mavi
 					size_t TotalMemory = 0;
 					for (auto& Item : Blocks)
 						TotalMemory += Item.second.Size;
+					for (auto& Item : Watchers)
+						TotalMemory += Item.second.Size;
 
-					VI_DEBUG("[mem] %" PRIu64 " addresses are still used (%" PRIu64 " bytes)", (uint64_t)(Blocks.size() - StaticAddresses), (uint64_t)TotalMemory);
+					VI_DEBUG("[mem] %" PRIu64 " addresses are still used (%" PRIu64 " bytes)", (uint64_t)(Blocks.size() + Watchers.size() - StaticAddresses), (uint64_t)TotalMemory);
 					for (auto& Item : Blocks)
 					{
 						if (Item.second.Static || Item.second.TypeName.find("ontainer_proxy") != std::string::npos || Item.second.TypeName.find("ist_node") != std::string::npos)
@@ -361,6 +383,21 @@ namespace Mavi
 						char Date[64];
 						DateTime::FetchDateTime(Date, sizeof(Date), Item.second.Time);
 						ErrorHandling::Message(LogLevel::Debug, Item.second.Origin.Line, Item.second.Origin.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
+							Item.first,
+							Date,
+							Item.second.TypeName.c_str(),
+							(uint64_t)Item.second.Size,
+							Item.second.Origin.Function,
+							OS::Process::GetThreadId(Item.second.Thread).c_str());
+					}
+					for (auto& Item : Watchers)
+					{
+						if (Item.second.Static || Item.second.TypeName.find("ontainer_proxy") != std::string::npos || Item.second.TypeName.find("ist_node") != std::string::npos)
+							continue;
+
+						char Date[64];
+						DateTime::FetchDateTime(Date, sizeof(Date), Item.second.Time);
+						ErrorHandling::Message(LogLevel::Debug, Item.second.Origin.Line, Item.second.Origin.Source, "[mem-watch] address at 0x%" PRIXPTR " is being watched since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
 							Item.first,
 							Date,
 							Item.second.TypeName.c_str(),
@@ -381,7 +418,11 @@ namespace Mavi
 				UMutex<std::recursive_mutex> Unique(Mutex);
 				auto It = Blocks.find(Address);
 				if (It == Blocks.end())
-					return false;
+				{
+					It = Watchers.find(Address);
+					if (It == Watchers.end())
+						return false;
+				}
 
 				if (Output != nullptr)
 					*Output = It->second;
@@ -391,6 +432,10 @@ namespace Mavi
 			const std::unordered_map<void*, DebugAllocator::TracingBlock>& DebugAllocator::GetBlocks() const
 			{
 				return Blocks;
+			}
+			const std::unordered_map<void*, DebugAllocator::TracingBlock>& DebugAllocator::GetWatchers() const
+			{
+				return Watchers;
 			}
 
 			void* DefaultAllocator::Allocate(size_t Size) noexcept

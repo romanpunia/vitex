@@ -2767,7 +2767,6 @@ namespace Mavi
 			{
 				socket_t Fd = Stream.GetFd();
 				Stream.Close(false);
-				VI_WARN("[net] socket fd %i is still active: connection terminated", (int)Fd);
 			}
 #ifdef VI_OPENSSL
 			if (Context != nullptr)

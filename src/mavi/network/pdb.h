@@ -307,7 +307,6 @@ namespace Mavi
 				Core::Unique<Core::Schema> GetArray() const;
 				size_t Index() const;
 				size_t Size() const;
-				Response GetResponse() const;
 				Column GetColumn(size_t Index) const;
 				Column GetColumn(const char* Name) const;
 				Column GetColumnByName(const Core::String& Name) const;
@@ -354,7 +353,8 @@ namespace Mavi
 				bool Failure;
 
 			public:
-				Response(TResponse* NewBase = nullptr);
+				Response();
+				Response(TResponse* NewBase);
 				Response(const Response& Other) = delete;
 				Response(Response&& Other);
 				~Response();
@@ -554,7 +554,7 @@ namespace Mavi
 				Core::Promise<bool> TxEnd(const Core::String& Command, SessionId Session);
 				Core::Promise<bool> TxCommit(SessionId Session);
 				Core::Promise<bool> TxRollback(SessionId Session);
-				Core::Promise<bool> Connect(const Address& URI, size_t Connections);
+				Core::Promise<bool> Connect(const Address& URI, size_t Connections = 1);
 				Core::Promise<bool> Disconnect();
 				Core::Promise<bool> Listen(const Core::Vector<Core::String>& Channels);
 				Core::Promise<bool> Unlisten(const Core::Vector<Core::String>& Channels);

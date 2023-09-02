@@ -402,6 +402,7 @@ namespace Mavi
 
 				int32_t Indexers = 0;
 				int32_t Brackets = 0;
+				int32_t Quotes = 0;
 				size_t End = Start;
 				while (End < Code.size())
 				{
@@ -415,6 +416,16 @@ namespace Mavi
 					{
 						if (--Indexers < 0)
 							break;
+					}
+					else if (V == '"' || V == '\'')
+					{
+						++End;
+						while (End < Code.size())
+						{
+							if (Code[End++] == V && Core::Stringify::IsNotPrecededByEscape(Code, End - 1))
+								break;
+						}
+						--End;
 					}
 					else if (V == '(')
 						++Brackets;
@@ -6396,6 +6407,7 @@ namespace Mavi
 			Engine->SetEngineProperty(asEP_DISALLOW_EMPTY_LIST_ELEMENTS, 1);
 			Engine->SetEngineProperty(asEP_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, 0);
 			Engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
+			Engine->SetEngineProperty(asEP_INCLUDE_JIT_INSTRUCTIONS, 0);
 #endif
 			RegisterAddons(this);
 		}

@@ -4990,6 +4990,11 @@ namespace Mavi
 
 				return (void*)Result;
 			}
+			Core::String OSProcessGetEnv(const Core::String& Name)
+			{
+				auto Data = Core::OS::Process::GetEnv(Name);
+				return Data ? *Data : Core::String();
+			}
 			Core::ProcessStream* OSProcessExecuteWriteOnly(const Core::String& Path)
 			{
 				auto Stream = Core::OS::Process::ExecuteWriteOnly(Path);
@@ -8932,6 +8937,36 @@ namespace Mavi
 				return Base->Send(std::move(Copy)).Then<int>([](Core::ExpectsIO<void>&& Result) { return Result ? (int)0 : ToErrorCode(Result, "smtp send failed"); });
 			}
 
+			Network::PDB::Response& PDBResponseCopy(Network::PDB::Response& Base, Network::PDB::Response&& Other)
+			{
+				if (&Base == &Other)
+					return Base;
+
+				Base = Other.Copy();
+				return Base;
+			}
+
+			Network::PDB::Response PDBCursorFirst(Network::PDB::Cursor& Base)
+			{
+				return Base.Size() > 0 ? Base.First().Copy() : Network::PDB::Response();
+			}
+			Network::PDB::Response PDBCursorLast(Network::PDB::Cursor& Base)
+			{
+				return Base.Size() > 0 ? Base.Last().Copy() : Network::PDB::Response();
+			}
+			Network::PDB::Response PDBCursorAt(Network::PDB::Cursor& Base, size_t Index)
+			{
+				return Index < Base.Size() ? Base.At(Index).Copy() : Network::PDB::Response();
+			}
+			Network::PDB::Cursor& PDBCursorCopy(Network::PDB::Cursor& Base, Network::PDB::Cursor&& Other)
+			{
+				if (&Base == &Other)
+					return Base;
+
+				Base = Other.Copy();
+				return Base;
+			}
+
 			void PDBClusterSetWhenReconnected(Network::PDB::Cluster* Base, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
@@ -10171,6 +10206,7 @@ namespace Mavi
 				VM->SetFunction("void abort()", &Core::OS::Process::Abort);
 				VM->SetFunction("void exit(int)", &Core::OS::Process::Exit);
 				VM->SetFunction("void interrupt()", &Core::OS::Process::Interrupt);
+				VM->SetFunction("string get_env(const string&in)", &OSProcessGetEnv);
 				VM->SetFunction("process_stream@+ execute_write_only(const string &in)", &OSProcessExecuteWriteOnly);
 				VM->SetFunction("process_stream@+ execute_read_only(const string &in)", &OSProcessExecuteReadOnly);
 				VM->SetFunction("int execute_plain(const string &in)", &Core::OS::Process::ExecutePlain);
@@ -14779,14 +14815,14 @@ namespace Mavi
 				VRow->SetMethod("schema@+ get_array() const", &Network::PDB::Row::GetArray);
 				VRow->SetMethod("usize index() const", &Network::PDB::Row::Index);
 				VRow->SetMethod("usize size() const", &Network::PDB::Row::Size);
-				VRow->SetMethod("response get_response() const", &Network::PDB::Row::GetResponse);
 				VRow->SetMethod<Network::PDB::Row, Network::PDB::Column, size_t>("column get_column(usize) const", &Network::PDB::Row::GetColumn);
 				VRow->SetMethod("column get_column(const string&in) const", &Network::PDB::Row::GetColumnByName);
 				VRow->SetMethod("bool exists() const", &Network::PDB::Row::Exists);
-				VRow->SetMethod("column opIndex(usize)", &Network::PDB::Row::GetColumnByName);
-				VRow->SetMethod("column opIndex(usize) const", &Network::PDB::Row::GetColumnByName);
+				VRow->SetMethod<Network::PDB::Row, Network::PDB::Column, size_t>("column opIndex(usize)", &Network::PDB::Row::GetColumn);
+				VRow->SetMethod<Network::PDB::Row, Network::PDB::Column, size_t>("column opIndex(usize) const", &Network::PDB::Row::GetColumn);
 				
-				VResponse->SetConstructor<Network::PDB::Response, Network::PDB::TResponse*>("void f(uptr@ = null)");
+				VResponse->SetConstructor<Network::PDB::Response>("void f()");
+				VResponse->SetOperatorCopyStatic(&PDBResponseCopy);
 				VResponse->SetDestructor<Network::PDB::Response>("void f()");
 				VResponse->SetMethod<Network::PDB::Response, Network::PDB::Row, size_t>("row opIndex(usize)", &Network::PDB::Response::GetRow);
 				VResponse->SetMethod<Network::PDB::Response, Network::PDB::Row, size_t>("row opIndex(usize) const", &Network::PDB::Response::GetRow);
@@ -14816,6 +14852,7 @@ namespace Mavi
 				auto VConnection = VM->SetClass<Network::PDB::Connection>("connection", false);
 				auto VCursor = VM->SetStruct<Network::PDB::Cursor>("cursor");
 				VCursor->SetConstructor<Network::PDB::Cursor>("void f()");
+				VCursor->SetOperatorCopyStatic(&PDBCursorCopy);
 				VCursor->SetDestructor<Network::PDB::Cursor>("void f()");
 				VCursor->SetMethod("column opIndex(const string&in)", &Network::PDB::Cursor::GetColumn);
 				VCursor->SetMethod("column opIndex(const string&in) const", &Network::PDB::Cursor::GetColumn);
@@ -14826,9 +14863,9 @@ namespace Mavi
 				VCursor->SetMethod("usize size() const", &Network::PDB::Cursor::Size);
 				VCursor->SetMethod("usize affected_rows() const", &Network::PDB::Cursor::AffectedRows);
 				VCursor->SetMethod("cursor copy() const", &Network::PDB::Cursor::Copy);
-				VCursor->SetMethod("const response& first() const", &Network::PDB::Cursor::First);
-				VCursor->SetMethod("const response& last() const", &Network::PDB::Cursor::Last);
-				VCursor->SetMethod("const response& at(usize) const", &Network::PDB::Cursor::At);
+				VCursor->SetMethodEx("response first() const", &PDBCursorFirst);
+				VCursor->SetMethodEx("response last() const", &PDBCursorLast);
+				VCursor->SetMethodEx("response at(usize) const", &PDBCursorAt);
 				VCursor->SetMethod("connection@+ get_executor() const", &Network::PDB::Cursor::GetExecutor);
 				VCursor->SetMethod("caching get_cache_status() const", &Network::PDB::Cursor::GetCacheStatus);
 				VCursor->SetMethod("schema@+ get_array_of_objects(usize = 0) const", &Network::PDB::Cursor::GetArrayOfObjects);
@@ -14850,7 +14887,7 @@ namespace Mavi
 				VRequest->SetMethod("bool pending() const", &Network::PDB::Request::Pending);
 
 				auto VCluster = VM->SetClass<Network::PDB::Cluster>("cluster", false);
-				VCluster->SetFunctionDef("promise<bool>@+ reconnect_event(cluster@+, array<string>@+)");
+				VCluster->SetFunctionDef("promise<bool>@ reconnect_event(cluster@+, array<string>@+)");
 				VCluster->SetFunctionDef("void notification_event(cluster@+, const notify&in)");
 				VCluster->SetConstructor<Network::PDB::Cluster>("cluster@ f()");
 				VCluster->SetMethod("void clear_cache()", &Network::PDB::Cluster::ClearCache);
@@ -14860,20 +14897,20 @@ namespace Mavi
 				VCluster->SetMethod("connection@+ get_connection(query_state)", &Network::PDB::Cluster::GetConnection);
 				VCluster->SetMethod("connection@+ get_any_connection()", &Network::PDB::Cluster::GetAnyConnection);
 				VCluster->SetMethod("bool is_connected() const", &Network::PDB::Cluster::IsConnected);
-				VCluster->SetMethodEx("promise<connection@>@+ tx_begin(isolation)", &VI_PROMISIFY_REF(Network::PDB::Cluster::TxBegin, Connection));
-				VCluster->SetMethodEx("promise<connection@>@+ tx_start(const string&in)", &VI_PROMISIFY_REF(Network::PDB::Cluster::TxStart, Connection));
-				VCluster->SetMethodEx("promise<bool>@+ tx_end(const string&in, connection@+)", &VI_PROMISIFY(Network::PDB::Cluster::TxEnd, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@+ tx_commit(connection@+)", &VI_PROMISIFY(Network::PDB::Cluster::TxCommit, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@+ tx_rollback(connection@+)", &VI_PROMISIFY(Network::PDB::Cluster::TxRollback, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@+ connect(const host_address&in, usize)", &VI_PROMISIFY(Network::PDB::Cluster::Connect, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@+ disconnect()", &VI_PROMISIFY(Network::PDB::Cluster::Disconnect, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<cursor>@+ query(const string&in, usize = 0, connection@+ = null)", &VI_PROMISIFY_REF(Network::PDB::Cluster::Query, Cursor));
+				VCluster->SetMethodEx("promise<connection@>@ tx_begin(isolation)", &VI_PROMISIFY_REF(Network::PDB::Cluster::TxBegin, Connection));
+				VCluster->SetMethodEx("promise<connection@>@ tx_start(const string&in)", &VI_PROMISIFY_REF(Network::PDB::Cluster::TxStart, Connection));
+				VCluster->SetMethodEx("promise<bool>@ tx_end(const string&in, connection@+)", &VI_PROMISIFY(Network::PDB::Cluster::TxEnd, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ tx_commit(connection@+)", &VI_PROMISIFY(Network::PDB::Cluster::TxCommit, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ tx_rollback(connection@+)", &VI_PROMISIFY(Network::PDB::Cluster::TxRollback, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ connect(const host_address&in, usize = 1)", &VI_PROMISIFY(Network::PDB::Cluster::Connect, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ disconnect()", &VI_PROMISIFY(Network::PDB::Cluster::Disconnect, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<cursor>@ query(const string&in, usize = 0, connection@+ = null)", &VI_PROMISIFY_REF(Network::PDB::Cluster::Query, Cursor));
 				VCluster->SetMethodEx("void set_when_reconnected(reconnect_event@)", &PDBClusterSetWhenReconnected);
 				VCluster->SetMethodEx("uint64 add_channel(const string&in, notification_event@)", &PDBClusterAddChannel);
-				VCluster->SetMethodEx("promise<bool>@+ listen(array<string>@+)", &VI_SPROMISIFY(PDBClusterListen, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@+ unlisten(array<string>@+)", &VI_SPROMISIFY(PDBClusterUnlisten, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<cursor>@+ emplace_query(const string&in, array<schema@>@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(PDBClusterEmplaceQuery, Cursor));
-				VCluster->SetMethodEx("promise<cursor>@+ template_query(const string&in, dictionary@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(PDBClusterTemplateQuery, Cursor));
+				VCluster->SetMethodEx("promise<bool>@ listen(array<string>@+)", &VI_SPROMISIFY(PDBClusterListen, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ unlisten(array<string>@+)", &VI_SPROMISIFY(PDBClusterUnlisten, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<cursor>@ emplace_query(const string&in, array<schema@>@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(PDBClusterEmplaceQuery, Cursor));
+				VCluster->SetMethodEx("promise<cursor>@ template_query(const string&in, dictionary@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(PDBClusterTemplateQuery, Cursor));
 
 				auto VDriver = VM->SetClass<Network::PDB::Driver>("driver", false);
 				VDriver->SetFunctionDef("void query_event(const string&in)");

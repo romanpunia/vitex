@@ -585,6 +585,7 @@ namespace Mavi
 
 			private:
 				std::unordered_map<void*, TracingBlock> Blocks;
+				std::unordered_map<void*, TracingBlock> Watchers;
 				std::recursive_mutex Mutex;
 
 			public:
@@ -602,6 +603,7 @@ namespace Mavi
 				bool Dump(void* Address);
 				bool FindBlock(void* Address, TracingBlock* Output);
 				const std::unordered_map<void*, TracingBlock>& GetBlocks() const;
+				const std::unordered_map<void*, TracingBlock>& GetWatchers() const;
 			};
 
 			class VI_OUT_TS DefaultAllocator final : public GlobalAllocator

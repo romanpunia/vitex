@@ -2938,7 +2938,7 @@ namespace Mavi
 			}
 
 			Core::ExpectsPromiseIO<void> Result;
-			Done = [this, Result](SocketClient*, const Core::Option<std::error_condition>& ErrorCode)
+			Done = [this, Result](SocketClient*, const Core::Option<std::error_condition>&) mutable
 			{
 				Stream->CloseAsync(true, [this, Result](const Core::Option<std::error_condition>& ErrorCode) mutable
 				{

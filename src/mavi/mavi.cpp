@@ -257,6 +257,7 @@ namespace Mavi
 		Core::ErrorHandling::SetFlag(Core::LogOption::Async, false);
 		Network::MDB::Driver::CleanupInstance();
 		Network::PDB::Driver::CleanupInstance();
+		Network::Uplinks::CleanupInstance();
 		Network::Multiplexer::CleanupInstance();
 		Network::DNS::CleanupInstance();
 		Engine::Application::CleanupInstance();

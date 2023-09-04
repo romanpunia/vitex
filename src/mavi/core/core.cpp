@@ -7432,7 +7432,7 @@ namespace Mavi
 			if (!Client)
 				return Optional::OK;
 
-			auto Result = Client->Close().Get();
+			auto Result = Client->Disconnect().Get();
 			VI_RELEASE(Client);
 			return Result;
 		}

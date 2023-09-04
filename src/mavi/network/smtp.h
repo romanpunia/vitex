@@ -73,7 +73,7 @@ namespace Mavi
 			private:
 				bool OnResolveHost(RemoteHost* Address) override;
 				bool OnConnect() override;
-				bool OnClose() override;
+				bool OnDisconnect() override;
 				bool Authorize(const ReplyCallback& Callback);
 				bool PrepareAndSend();
 				bool SendAttachment();

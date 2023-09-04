@@ -5936,7 +5936,7 @@ namespace Mavi
 					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::value_too_large));
 
 				Response.Content.Data.clear();
-				if (!Stream.IsValid())
+				if (!Stream || !Stream->IsValid())
 					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_file_descriptor));
 
 				const char* ContentType = Response.GetHeader("Content-Type");
@@ -5951,7 +5951,7 @@ namespace Mavi
 				{
 					Core::ExpectsPromiseIO<void> Result;
 					Parser* Parser = new HTTP::Parser();
-					Stream.ReadAsync(MaxSize, [this, Parser, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
+					Stream->ReadAsync(MaxSize, [this, Parser, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
 						{
@@ -5980,7 +5980,7 @@ namespace Mavi
 							}
 
 							if (!Response.Content.Data.empty())
-								VI_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
+								VI_DEBUG("[http] %i responded\n%.*s", (int)Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
 
 							if (Packet::IsErrorOrSkip(Event))
 								Result.Set(Packet::ToCondition(Event));
@@ -6000,7 +6000,7 @@ namespace Mavi
 						return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::no_protocol_option));
 
 					Core::ExpectsPromiseIO<void> Result;
-					Stream.ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
+					Stream->ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
 						{
@@ -6012,7 +6012,7 @@ namespace Mavi
 						{
 							Response.Content.Length += Response.Content.Offset;
 							if (!Response.Content.Data.empty())
-								VI_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
+								VI_DEBUG("[http] %i responded\n%.*s", (int)Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
 
 							if (Packet::IsErrorOrSkip(Event))
 								Result.Set(Packet::ToCondition(Event));
@@ -6030,7 +6030,7 @@ namespace Mavi
 					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::result_out_of_range));
 
 				Core::ExpectsPromiseIO<void> Result;
-				Stream.ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
+				Stream->ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 				{
 					if (Packet::IsData(Event))
 					{
@@ -6041,7 +6041,7 @@ namespace Mavi
 					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 					{
 						if (!Response.Content.Data.empty())
-							VI_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
+							VI_DEBUG("[http] %i responded\n%.*s", (int)Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
 
 						if (Packet::IsErrorOrSkip(Event))
 							Result.Set(Packet::ToCondition(Event));
@@ -6066,7 +6066,8 @@ namespace Mavi
 			Core::ExpectsPromiseIO<void> Client::Upgrade(HTTP::RequestFrame&& Root)
 			{
 				VI_ASSERT(WebSocket != nullptr, "websocket should be opened");
-				VI_ASSERT(Stream.IsValid(), "stream should be opened");
+				if (!Stream || !Stream->IsValid())
+					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_file_descriptor));
 
 				Root.SetHeader("Pragma", "no-cache");
 				Root.SetHeader("Upgrade", "WebSocket");
@@ -6105,9 +6106,10 @@ namespace Mavi
 			Core::ExpectsPromiseIO<ResponseFrame*> Client::Send(HTTP::RequestFrame&& Root)
 			{
 				VI_ASSERT(!WebSocket || Root.GetHeader("Sec-WebSocket-Key") != nullptr, "cannot send http request over websocket");
-				VI_ASSERT(Stream.IsValid(), "stream should be opened");
-				VI_DEBUG("[http] %s %s", Root.Method, Root.URI.c_str());
+				if (!Stream || !Stream->IsValid())
+					return Core::ExpectsPromiseIO<ResponseFrame*>(std::make_error_condition(std::errc::bad_file_descriptor));
 
+				VI_DEBUG("[http] %s %s", Root.Method, Root.URI.c_str());
 				Core::ExpectsPromiseIO<ResponseFrame*> Result;
 				Request = std::move(Root);
 				Response.Cleanup();
@@ -6188,17 +6190,17 @@ namespace Mavi
 					Paths::ConstructHeadFull(&Request, &Response, true, Content);
 					Content.append("\r\n");
 
-					Stream.WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
+					Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 						{
 							if (!Request.Content.Data.empty())
 							{
-								Stream.WriteAsync(Request.Content.Data.data(), Request.Content.Data.size(), [this](SocketPoll Event)
+								Stream->WriteAsync(Request.Content.Data.data(), Request.Content.Data.size(), [this](SocketPoll Event)
 								{
 									if (Packet::IsDone(Event))
 									{
-										Stream.ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
+										Stream->ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
 										{
 											if (Packet::IsData(Event))
 												Response.Content.Append(Buffer, Recv);
@@ -6216,7 +6218,7 @@ namespace Mavi
 							}
 							else
 							{
-								Stream.ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
+								Stream->ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
 								{
 									if (Packet::IsData(Event))
 										Response.Content.Append(Buffer, Recv);
@@ -6311,7 +6313,7 @@ namespace Mavi
 					Paths::ConstructHeadFull(&Request, &Response, true, Content);
 					Content.append("\r\n");
 
-					Stream.WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
+					Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							Upload(0);
@@ -6361,7 +6363,7 @@ namespace Mavi
 				if (WebSocket != nullptr)
 					return WebSocket;
 
-				WebSocket = new WebSocketFrame(&Stream);
+				WebSocket = new WebSocketFrame(Stream);
 				WebSocket->Lifetime.Dead = [](WebSocketFrame*)
 				{
 					return false;
@@ -6370,7 +6372,7 @@ namespace Mavi
 				{
 					if (!Successful)
 					{
-						Stream.Close(false);
+						Stream->Close(false);
 						Future.Set(std::make_error_condition(std::errc::connection_reset));
 					}
 					else
@@ -6394,7 +6396,7 @@ namespace Mavi
 					return Callback(false);
 
 				FILE* FileStream = *File;
-                auto Result = Stream.SendFileAsync(FileStream, 0, Boundary->File->Length, [this, FileStream, Callback](SocketPoll Event)
+                auto Result = Stream->SendFileAsync(FileStream, 0, Boundary->File->Length, [this, FileStream, Callback](SocketPoll Event)
                 {
                     if (Packet::IsDone(Event))
                     {
@@ -6432,7 +6434,7 @@ namespace Mavi
 						goto Cleanup;
 
 					ContentLength -= Read;
-					auto Written = Stream.Write(Buffer, Read);
+					auto Written = Stream->Write(Buffer, Read);
 					if (!Written || !*Written)
 						break;
 				}
@@ -6456,7 +6458,7 @@ namespace Mavi
 					goto Cleanup;
 
 				ContentLength -= Read;
-				auto Written = Stream.WriteAsync(Buffer, Read, [this, FileStream, ContentLength, Callback](SocketPoll Event) mutable
+				auto Written = Stream->WriteAsync(Buffer, Read, [this, FileStream, ContentLength, Callback](SocketPoll Event) mutable
 				{
 					if (Packet::IsDoneAsync(Event))
 					{
@@ -6480,7 +6482,7 @@ namespace Mavi
 				if (FileId < Boundaries.size())
 				{
 					BoundaryBlock* Boundary = &Boundaries[FileId];
-					Stream.WriteAsync(Boundary->Data.c_str(), Boundary->Data.size(), [this, Boundary, FileId](SocketPoll Event)
+					Stream->WriteAsync(Boundary->Data.c_str(), Boundary->Data.size(), [this, Boundary, FileId](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 						{
@@ -6491,7 +6493,7 @@ namespace Mavi
 								{
 									if (Success)
 									{
-										Stream.WriteAsync(Boundary->Finish.c_str(), Boundary->Finish.size(), [this, Boundary, FileId](SocketPoll Event)
+										Stream->WriteAsync(Boundary->Finish.c_str(), Boundary->Finish.size(), [this, Boundary, FileId](SocketPoll Event)
 										{
 											if (Packet::IsDone(Event))
 												Upload(FileId + 1);
@@ -6512,7 +6514,7 @@ namespace Mavi
 				}
 				else
 				{
-					Stream.ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
+					Stream->ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 							Response.Content.Append(Buffer, Recv);
@@ -6528,7 +6530,7 @@ namespace Mavi
 			void Client::Receive()
 			{
 				Stage("http response receive");
-				auto Address = Stream.GetRemoteAddress();
+				auto Address = Stream->GetRemoteAddress();
 				if (Address)
 					strncpy(RemoteAddress, Address->c_str(), std::min(Address->size(), sizeof(RemoteAddress)));
 
@@ -6580,7 +6582,7 @@ namespace Mavi
 				auto Status = Coawait(Client->Connect(&Address, true));
 				if (!Status)
 				{
-					Coawait(Client->Close());
+					Coawait(Client->Disconnect());
 					VI_RELEASE(Client);
 					Coreturn Status.Error();
 				}
@@ -6593,7 +6595,7 @@ namespace Mavi
 
 				Status = Coawait(Client->Fetch(std::move(Request), MaxSize));
 				ResponseFrame Response = std::move(*Client->GetResponse());
-				Coawait(Client->Close());
+				Coawait(Client->Disconnect());
 				VI_RELEASE(Client);
 
 				if (!Status)

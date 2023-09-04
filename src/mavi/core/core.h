@@ -1017,7 +1017,6 @@ namespace Mavi
 			}
 			Option(Option&& Other) noexcept : Status(Other.Status)
 			{
-				Other.Status = 0;
 				if (Status > 0)
 					OptionUtils::MoveBuffer<V>(Value, Other.Value, sizeof(Value));
 			}
@@ -1067,7 +1066,6 @@ namespace Mavi
 
 				this->~Option();
 				Status = Other.Status;
-				Other.Status = 0;
 				if (Status > 0)
 					OptionUtils::MoveBuffer<V>(Value, Other.Value, sizeof(Value));
 
@@ -1312,7 +1310,6 @@ namespace Mavi
 			}
 			Expects(Expects&& Other) noexcept : Status(Other.Status)
 			{
-				Other.Status = 0;
 				if (Status > 0)
 					OptionUtils::MoveBuffer<V>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
 				else if (Status < 0)
@@ -1375,7 +1372,6 @@ namespace Mavi
 
 				this->~Expects();
 				Status = Other.Status;
-				Other.Status = 0;
 				if (Status > 0)
 					OptionUtils::MoveBuffer<V>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
 				else if (Status < 0)
@@ -1595,7 +1591,6 @@ namespace Mavi
 			}
 			Expects(Expects&& Other) noexcept : Status(Other.Status)
 			{
-				Other.Status = 0;
 				if (Status < 0)
 					OptionUtils::MoveBuffer<E>(Value, Other.Value, sizeof(Value));
 			}
@@ -1645,7 +1640,6 @@ namespace Mavi
 
 				this->~Expects();
 				Status = Other.Status;
-				Other.Status = 0;
 				if (Status < 0)
 					OptionUtils::MoveBuffer<E>(Value, Other.Value, sizeof(Value));
 

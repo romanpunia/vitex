@@ -322,6 +322,29 @@ namespace Mavi
 			void TryUnlisten() noexcept;
 		};
 
+		class VI_OUT_TS Uplinks final : public Core::Singleton<Uplinks>
+		{
+		private:
+			Core::UnorderedMap<Core::String, Core::UnorderedMap<Socket*, Core::TaskId>> Cache;
+			std::mutex Exclusive;
+			size_t Size;
+			uint64_t Timeout;
+
+		public:
+			Uplinks() noexcept;
+			Uplinks(uint64_t TimeoutMs) noexcept;
+			virtual ~Uplinks() noexcept override;
+			void SetTimeout(uint64_t TimeoutMs);
+			bool PushToCache(RemoteHost* Address, Socket* Target);
+			Socket* PopFromCache(RemoteHost* Address);
+			size_t GetSize();
+			bool IsActive();
+
+		private:
+			void ExpireConnection(const Core::String& Name, Socket* Target);
+			Core::String GetAddressName(RemoteHost* Address);
+		};
+
 		class VI_OUT SocketAddress final : public Core::Reference<SocketAddress>
 		{
 			friend DNS;
@@ -533,8 +556,8 @@ namespace Mavi
 		protected:
 			SocketClientCallback Done;
 			ssl_ctx_st* Context;
+			Socket* Stream;
 			Core::String Action;
-			Socket Stream;
 			RemoteHost Hostname;
 			int64_t Timeout;
 			bool AutoEncrypt;
@@ -544,13 +567,13 @@ namespace Mavi
 			SocketClient(int64_t RequestTimeout) noexcept;
 			virtual ~SocketClient() noexcept;
 			Core::ExpectsPromiseIO<void> Connect(RemoteHost* Address, bool Async);
-			Core::ExpectsPromiseIO<void> Close();
+			Core::ExpectsPromiseIO<void> Disconnect();
 			Socket* GetStream();
 
 		protected:
 			virtual bool OnResolveHost(RemoteHost* Address);
 			virtual bool OnConnect();
-			virtual bool OnClose();
+			virtual bool OnDisconnect();
 
 		private:
 			void TryEncrypt(std::function<void(const Core::Option<std::error_condition>&)>&& Callback);
@@ -558,6 +581,8 @@ namespace Mavi
 			void DispatchConnection(const Core::Option<std::error_condition>& ErrorCode, Core::ExpectsPromiseIO<void>& Future);
 			void DispatchSecureHandshake(const Core::Option<std::error_condition>& ErrorCode, Core::ExpectsPromiseIO<void>& Future);
 			void DispatchHandshake(Core::ExpectsPromiseIO<void>& Future);
+			bool CreateOrLoadStream(RemoteHost* Address, bool IsAsync);
+			bool DestroyOrSaveStream(bool Finalize);
 
 		protected:
 			void Encrypt(std::function<void(const Core::Option<std::error_condition>&)>&& Callback);

@@ -6884,9 +6884,9 @@ namespace Mavi
 			{
 				return Client->Connect(Host, Async).Then<int>([](Core::ExpectsIO<void>&& Result) { return Result ? 0 : ToErrorCode(Result, "socket connect failed"); });
 			}
-			Core::Promise<int> SocketClientClose(Network::SocketClient* Client)
+			Core::Promise<int> SocketClientDisconnect(Network::SocketClient* Client)
 			{
-				return Client->Close().Then<int>([](Core::ExpectsIO<void>&& Result) { return Result ? 0 : ToErrorCode(Result, "socket close failed"); });
+				return Client->Disconnect().Then<int>([](Core::ExpectsIO<void>&& Result) { return Result ? 0 : ToErrorCode(Result, "socket close failed"); });
 			}
 
 			Core::String SocketConnectionGetRemoteAddress(Network::SocketConnection* Base)
@@ -14023,6 +14023,31 @@ namespace Mavi
 				VMultiplexer->SetMethod("usize get_activations()", &Network::Multiplexer::GetActivations);
 				VMultiplexer->SetMethodStatic("multiplexer@+ get()", &Network::Multiplexer::Get);
 
+				auto VUplinks = VM->SetClass<Network::Uplinks>("uplinks", false);
+				VUplinks->SetConstructor<Network::Uplinks>("uplinks@ f()");
+				VUplinks->SetConstructor<Network::Uplinks, uint64_t>("uplinks@ f(uint64)");
+				VUplinks->SetMethod("void set_timeout(uint64)", &Network::Uplinks::SetTimeout);
+				VUplinks->SetMethod("bool push_to_cache(remote_host&in, socket@+)", &Network::Uplinks::PushToCache);
+				VUplinks->SetMethod("bool pop_from_cache(remote_host&in)", &Network::Uplinks::PopFromCache);
+				VUplinks->SetMethod("bool is_active() const", &Network::Uplinks::IsActive);
+				VUplinks->SetMethod("usize size() const", &Network::Uplinks::GetSize);
+				VUplinks->SetMethodStatic("uplinks@+ get()", &Network::Uplinks::Get);
+
+				VMultiplexer->SetMethod("void rescale(uint64, usize)", &Network::Multiplexer::Rescale);
+				VMultiplexer->SetMethod("void activate()", &Network::Multiplexer::Activate);
+				VMultiplexer->SetMethod("void deactivate()", &Network::Multiplexer::Deactivate);
+				VMultiplexer->SetMethod("int dispatch(uint64)", &Network::Multiplexer::Dispatch);
+				VMultiplexer->SetMethodEx("bool when_readable(socket@+, poll_event@)", &MultiplexerWhenReadable);
+				VMultiplexer->SetMethodEx("bool when_writeable(socket@+, poll_event@)", &MultiplexerWhenWriteable);
+				VMultiplexer->SetMethod("bool cancel_events(socket@+, socket_poll = socket_poll::cancel, bool = true)", &Network::Multiplexer::CancelEvents);
+				VMultiplexer->SetMethod("bool clear_events(socket@+)", &Network::Multiplexer::ClearEvents);
+				VMultiplexer->SetMethod("bool is_awaiting_events(socket@+)", &Network::Multiplexer::IsAwaitingEvents);
+				VMultiplexer->SetMethod("bool is_awaiting_readable(socket@+)", &Network::Multiplexer::IsAwaitingReadable);
+				VMultiplexer->SetMethod("bool is_awaiting_writeable(socket@+)", &Network::Multiplexer::IsAwaitingWriteable);
+				VMultiplexer->SetMethod("bool is_listening()", &Network::Multiplexer::IsListening);
+				VMultiplexer->SetMethod("usize get_activations()", &Network::Multiplexer::GetActivations);
+				VMultiplexer->SetMethodStatic("multiplexer@+ get()", &Network::Multiplexer::Get);
+
 				auto VSocketListener = VM->SetClass<Network::SocketListener>("socket_listener", true);
 				VSocketListener->SetProperty<Network::SocketListener>("string name", &Network::SocketListener::Name);
 				VSocketListener->SetProperty<Network::SocketListener>("remote_host hostname", &Network::SocketListener::Hostname);
@@ -14103,7 +14128,7 @@ namespace Mavi
 				auto VSocketClient = VM->SetClass<Network::SocketClient>("socket_client", false);
 				VSocketClient->SetConstructor<Network::SocketClient, int64_t>("socket_client@ f(int64)");
 				VSocketClient->SetMethodEx("promise<int>@ connect(remote_host &in, bool = true)", &VI_SPROMISIFY(SocketClientConnect, TypeId::INT32));
-				VSocketClient->SetMethodEx("promise<int>@ close()", &VI_SPROMISIFY(SocketClientClose, TypeId::INT32));
+				VSocketClient->SetMethodEx("promise<int>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::INT32));
 				VSocketClient->SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 
 				return true;
@@ -14530,7 +14555,7 @@ namespace Mavi
 				VClient->SetMethodEx("promise<schema@>@ json(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientJSON, Schema));
 				VClient->SetMethodEx("promise<schema@>@ xml(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientXML, Schema));
 				VClient->SetMethodEx("promise<int>@ connect(remote_host &in, bool = true)", &VI_SPROMISIFY(SocketClientConnect, TypeId::INT32));
-				VClient->SetMethodEx("promise<int>@ close()", &VI_SPROMISIFY(SocketClientClose, TypeId::INT32));
+				VClient->SetMethodEx("promise<int>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::INT32));
 				VClient->SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 				VClient->SetMethod("websocket_frame@+ get_websocket() const", &Network::HTTP::Client::GetWebSocket);
 				VClient->SetMethod("request_frame& get_request() property", &Network::HTTP::Client::GetRequest);
@@ -14600,7 +14625,7 @@ namespace Mavi
 				VClient->SetMethodEx("string get_remote_address() const", &ClientGetRemoteAddress);
 				VClient->SetMethodEx("promise<int>@ send(const request_frame&in)", &VI_SPROMISIFY(SMTPClientSend, TypeId::INT32));
 				VClient->SetMethodEx("promise<int>@ connect(remote_host &in, bool = true)", &VI_SPROMISIFY(SocketClientConnect, TypeId::INT32));
-				VClient->SetMethodEx("promise<int>@ close()", &VI_SPROMISIFY(SocketClientClose, TypeId::INT32));
+				VClient->SetMethodEx("promise<int>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::INT32));
 				VClient->SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 				VClient->SetMethod("request_frame& get_request() property", &Network::SMTP::Client::GetRequest);
 				VClient->SetDynamicCast<Network::SMTP::Client, Network::SocketClient>("socket_client@+", true);

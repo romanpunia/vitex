@@ -14033,21 +14033,6 @@ namespace Mavi
 				VUplinks->SetMethod("usize size() const", &Network::Uplinks::GetSize);
 				VUplinks->SetMethodStatic("uplinks@+ get()", &Network::Uplinks::Get);
 
-				VMultiplexer->SetMethod("void rescale(uint64, usize)", &Network::Multiplexer::Rescale);
-				VMultiplexer->SetMethod("void activate()", &Network::Multiplexer::Activate);
-				VMultiplexer->SetMethod("void deactivate()", &Network::Multiplexer::Deactivate);
-				VMultiplexer->SetMethod("int dispatch(uint64)", &Network::Multiplexer::Dispatch);
-				VMultiplexer->SetMethodEx("bool when_readable(socket@+, poll_event@)", &MultiplexerWhenReadable);
-				VMultiplexer->SetMethodEx("bool when_writeable(socket@+, poll_event@)", &MultiplexerWhenWriteable);
-				VMultiplexer->SetMethod("bool cancel_events(socket@+, socket_poll = socket_poll::cancel, bool = true)", &Network::Multiplexer::CancelEvents);
-				VMultiplexer->SetMethod("bool clear_events(socket@+)", &Network::Multiplexer::ClearEvents);
-				VMultiplexer->SetMethod("bool is_awaiting_events(socket@+)", &Network::Multiplexer::IsAwaitingEvents);
-				VMultiplexer->SetMethod("bool is_awaiting_readable(socket@+)", &Network::Multiplexer::IsAwaitingReadable);
-				VMultiplexer->SetMethod("bool is_awaiting_writeable(socket@+)", &Network::Multiplexer::IsAwaitingWriteable);
-				VMultiplexer->SetMethod("bool is_listening()", &Network::Multiplexer::IsListening);
-				VMultiplexer->SetMethod("usize get_activations()", &Network::Multiplexer::GetActivations);
-				VMultiplexer->SetMethodStatic("multiplexer@+ get()", &Network::Multiplexer::Get);
-
 				auto VSocketListener = VM->SetClass<Network::SocketListener>("socket_listener", true);
 				VSocketListener->SetProperty<Network::SocketListener>("string name", &Network::SocketListener::Name);
 				VSocketListener->SetProperty<Network::SocketListener>("remote_host hostname", &Network::SocketListener::Hostname);

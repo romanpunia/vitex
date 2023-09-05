@@ -158,7 +158,7 @@ namespace
 			case Mavi::Core::StdColor::White:
 				return Background ? "107" : "37";
 			case Mavi::Core::StdColor::Zero:
-				return "0";
+				return Background ? "49" : "39";
 			default:
 				return Background ? "40" : "107";
 		}

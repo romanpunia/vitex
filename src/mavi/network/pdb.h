@@ -583,7 +583,7 @@ namespace Mavi
 			{
 			public:
 				static Core::String InlineArray(Cluster* Client, Core::Unique<Core::Schema> Array);
-				static Core::String InlineQuery(Cluster* Client, Core::Unique<Core::Schema> Where, const Core::UnorderedSet<Core::String>& Whitelist, const Core::String& Default = "TRUE");
+				static Core::String InlineQuery(Cluster* Client, Core::Unique<Core::Schema> Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const Core::String& Default = "TRUE");
 				static Core::String GetCharArray(Connection* Base, const Core::String& Src) noexcept;
 				static Core::String GetByteArray(Connection* Base, const Core::String& Src) noexcept;
 				static Core::String GetByteArray(Connection* Base, const char* Src, size_t Size) noexcept;

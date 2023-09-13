@@ -2299,7 +2299,7 @@ namespace Mavi
 				VI_RELEASE(Array);
 				return Result;
 			}
-			Core::String Utils::InlineQuery(Cluster* Client, Core::Schema* Where, const Core::UnorderedSet<Core::String>& Whitelist, const Core::String& Default)
+			Core::String Utils::InlineQuery(Cluster* Client, Core::Schema* Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const Core::String& Default)
 			{
 				VI_ASSERT(Client != nullptr, "cluster should be set");
 				VI_ASSERT(Where != nullptr, "array should be set");
@@ -2332,11 +2332,14 @@ namespace Mavi
 						if (Op.front() == '@')
 						{
 							Op = Op.substr(1);
-							if (Whitelist.empty() || Whitelist.find(Op) != Whitelist.end())
+							if (!Whitelist.empty())
 							{
-								if (Op.find_first_not_of(Allow) == Core::String::npos)
-									Def += Op;
+								auto It = Whitelist.find(Op);
+								if (It != Whitelist.end() && Op.find_first_not_of(Allow) == Core::String::npos)
+									Def += It->second.empty() ? Op : It->second;
 							}
+							else if (Op.find_first_not_of(Allow) == Core::String::npos)
+								Def += Op;
 						}
 						else if (!Core::Stringify::HasNumber(Op))
 						{

@@ -9088,7 +9088,17 @@ namespace Mavi
 				{
 					VirtualMachine* VM = VirtualMachine::Get();
 					if (VM != nullptr)
-						Args = Dictionary::Decompose<Core::Schema*>(VM->GetTypeIdByDecl("schema@"), Data);
+					{
+						int TypeId = VM->GetTypeIdByDecl("schema@");
+						Args.reserve(Data->Size());
+
+						for (auto It = Data->Begin(); It != Data->End(); ++It)
+						{
+							Core::Schema* Value = nullptr;
+							if (It.GetValue(&Value, TypeId))
+								Args[It.GetKey()] = Value;
+						}
+					}
 				}
 
 				return Base->GetQuery(Cluster, SQL, &Args, false);

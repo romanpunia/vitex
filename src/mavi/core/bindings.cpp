@@ -9052,13 +9052,11 @@ namespace Mavi
 				return Base->TemplateQuery(Command, &Args, Options | (size_t)Network::PDB::QueryOp::ReuseArgs, Session);
 			}
 
-			Core::String PDBUtilsInlineQuery(Network::PDB::Cluster* Client, Core::Schema* Where, Array* WhitelistData, const Core::String& Default)
+			Core::String PDBUtilsInlineQuery(Network::PDB::Cluster* Client, Core::Schema* Where, Dictionary* WhitelistData, const Core::String& Default)
 			{
-				Core::Vector<Core::String> Names = Array::Decompose<Core::String>(WhitelistData);
-				Core::UnorderedSet<Core::String> Whitelist;
-				Whitelist.reserve(Names.size());
-				for (auto& Name : Names)
-					Whitelist.insert(Name);
+				VirtualMachine* VM = VirtualMachine::Get();
+				int TypeId = VM ? VM->GetTypeIdByDecl("string") : -1;
+				Core::UnorderedMap<Core::String, Core::String> Whitelist = Dictionary::Decompose<Core::String>(TypeId, WhitelistData);
 				return Network::PDB::Utils::InlineQuery(Client, Where, Whitelist, Default);
 			}
 
@@ -9090,17 +9088,7 @@ namespace Mavi
 				{
 					VirtualMachine* VM = VirtualMachine::Get();
 					if (VM != nullptr)
-					{
-						int TypeId = VM->GetTypeIdByDecl("schema@");
-						Args.reserve(Data->Size());
-
-						for (auto It = Data->Begin(); It != Data->End(); ++It)
-						{
-							Core::Schema* Value = nullptr;
-							if (It.GetValue(&Value, TypeId))
-								Args[It.GetKey()] = Value;
-						}
-					}
+						Args = Dictionary::Decompose<Core::Schema*>(VM->GetTypeIdByDecl("schema@"), Data);
 				}
 
 				return Base->GetQuery(Cluster, SQL, &Args, false);
@@ -14942,7 +14930,7 @@ namespace Mavi
 				VM->EndNamespace();
 				VM->BeginNamespace("pdb::utils");
 				VM->SetFunction("string inline_array(pdb::cluster@+, schema@+)", &Network::PDB::Utils::InlineArray);
-				VM->SetFunction("string inline_query(pdb::cluster@+, schema@+, array<string>@+, const string&in = \"TRUE\")", &PDBUtilsInlineQuery);
+				VM->SetFunction("string inline_query(pdb::cluster@+, schema@+, dictionary@+, const string&in = \"TRUE\")", &PDBUtilsInlineQuery);
 				VM->SetFunction("string get_char_array(pdb::connection@+, const string&in)", &Network::PDB::Utils::GetCharArray);
 				VM->SetFunction<Core::String(*)(Network::PDB::Connection*, const Core::String&)>("string get_byte_array(pdb::connection@+, const string&in)", &Network::PDB::Utils::GetByteArray);
 				VM->SetFunction("string get_sql(pdb::connection@+, schema@+, bool, bool)", &Network::PDB::Utils::GetSQL);

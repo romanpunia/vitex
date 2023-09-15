@@ -8461,12 +8461,15 @@ namespace Mavi
 
 			auto Props1 = GetProperties(FirstPath.c_str());
 			auto Props2 = GetProperties(SecondPath.c_str());
-			if (!Props1 && !Props2)
-				return 0;
-			else if (Props1)
-				return 1;
-			else if (Props2)
-				return -1;
+			if (!Props1 || !Props2)
+			{
+				if (!Props1 && !Props2)
+					return 0;
+				else if (Props1)
+					return 1;
+				else if (Props2)
+					return -1;
+			}
 
 			size_t Size1 = Props1->Size, Size2 = Props2->Size;
 			VI_TRACE("[io] compare paths { %s (%" PRIu64 "), %s (%" PRIu64 ") }", FirstPath.c_str(), Size1, SecondPath.c_str(), Size2);

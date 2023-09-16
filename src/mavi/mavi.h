@@ -9,7 +9,7 @@ namespace Mavi
 		MAJOR_VERSION = 1,
 		MINOR_VERSION = 29,
 		PATCH_VERSION = 62,
-		BUILD_VERSION = 132,
+		BUILD_VERSION = 133,
 		VERSION = (MAJOR_VERSION) * 100000000 + (MINOR_VERSION) * 1000000 + (PATCH_VERSION) * 10000 + BUILD_VERSION
 	};
 
@@ -95,6 +95,7 @@ namespace Mavi
 		const char* GetPlatform() const noexcept;
 
 	public:
+		static void CleanupInstances();
 		static Runtime* Get() noexcept;
 	};
 }

@@ -6579,10 +6579,10 @@ namespace Mavi
 
 				size_t MaxSize = Options.MaxSize;
 				HTTP::Client* Client = new HTTP::Client(Options.Timeout);
-				auto Status = Coawait(Client->Connect(&Address, true));
+				auto Status = VI_AWAIT(Client->Connect(&Address, true));
 				if (!Status)
 				{
-					Coawait(Client->Disconnect());
+					VI_AWAIT(Client->Disconnect());
 					VI_RELEASE(Client);
 					Coreturn Status.Error();
 				}
@@ -6593,9 +6593,9 @@ namespace Mavi
 				if (!Request.Query.empty())
 					Request.Query.pop_back();
 
-				Status = Coawait(Client->Fetch(std::move(Request), MaxSize));
+				Status = VI_AWAIT(Client->Fetch(std::move(Request), MaxSize));
 				ResponseFrame Response = std::move(*Client->GetResponse());
-				Coawait(Client->Disconnect());
+				VI_AWAIT(Client->Disconnect());
 				VI_RELEASE(Client);
 
 				if (!Status)

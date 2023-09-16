@@ -7,6 +7,7 @@
 #include "../network/pdb.h"
 #include "../audio/effects.h"
 #include "../audio/filters.h"
+#include "../mavi.h"
 #ifdef VI_SDL2
 #include <SDL2/SDL_syswm.h>
 #endif
@@ -6203,6 +6204,9 @@ namespace Mavi
 			VI_CLEAR(Constants);
 			VI_CLEAR(Renderer);
 			VI_CLEAR(Activity);
+
+			Application::UnlinkInstance(this);
+			Mavi::Runtime::CleanupInstances();
 		}
 		void Application::ScriptHook()
 		{

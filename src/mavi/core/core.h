@@ -2525,6 +2525,10 @@ namespace Mavi
 			}
 
 		public:
+			static bool UnlinkInstance(T* Unlinkable) noexcept
+			{
+				return (UpdateInstance(nullptr, Action::Fetch) == Unlinkable) && !UpdateInstance(nullptr, Action::Restore);
+			}
 			static bool CleanupInstance() noexcept
 			{
 				return !UpdateInstance(nullptr, Action::Destroy);
@@ -2555,8 +2559,11 @@ namespace Mavi
 				switch (Type)
 				{
 					case Action::Destroy:
+					{
 						VI_RELEASE(Instance);
+						Instance = Other;
 						return nullptr;
+					}
 					case Action::Restore:
 						Instance = nullptr;
 						return nullptr;
@@ -2566,12 +2573,12 @@ namespace Mavi
 					case Action::Fetch:
 						return Instance;
 					case Action::Store:
-						if (Other == Instance)
-							return Instance;
-
-						VI_RELEASE(Instance);
+					{
+						if (Instance != Other)
+							VI_RELEASE(Instance);
 						Instance = Other;
 						return Instance;
+					}
 					default:
 						return nullptr;
 				}

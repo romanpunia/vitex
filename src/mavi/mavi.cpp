@@ -255,15 +255,7 @@ namespace Mavi
 	{
 		auto* Allocator = Core::Memory::GetGlobalAllocator();
 		Core::ErrorHandling::SetFlag(Core::LogOption::Async, false);
-		Network::MDB::Driver::CleanupInstance();
-		Network::PDB::Driver::CleanupInstance();
-		Network::Uplinks::CleanupInstance();
-		Network::Multiplexer::CleanupInstance();
-		Network::DNS::CleanupInstance();
-		Engine::Application::CleanupInstance();
-		Engine::GUI::Subsystem::CleanupInstance();
-		Core::Schedule::CleanupInstance();
-		Core::Console::CleanupInstance();
+		CleanupInstances();
 #ifdef VI_OPENSSL
 		if (Modes & (uint64_t)Init::SSL)
 		{
@@ -687,6 +679,18 @@ namespace Mavi
 		return "Fuschia";
 #endif
 		return "OS with C/C++ support";
+	}
+	void Runtime::CleanupInstances()
+	{
+		Network::MDB::Driver::CleanupInstance();
+		Network::PDB::Driver::CleanupInstance();
+		Network::Uplinks::CleanupInstance();
+		Network::Multiplexer::CleanupInstance();
+		Network::DNS::CleanupInstance();
+		Engine::Application::CleanupInstance();
+		Engine::GUI::Subsystem::CleanupInstance();
+		Core::Schedule::CleanupInstance();
+		Core::Console::CleanupInstance();
 	}
 	Runtime* Runtime::Get() noexcept
 	{

@@ -5132,6 +5132,76 @@ namespace Mavi
 
 			return Result;
 		}
+		Vector<std::pair<String, TextSettle>> Stringify::FindInBetweenInCode(const String& Other, const char* Begins, const char* Ends, size_t Offset)
+		{
+			Vector<std::pair<String, TextSettle>> Result;
+			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
+			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', "end should not be empty");
+
+			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
+			for (size_t i = Offset; i < Other.size(); i++)
+			{
+				if (Other.at(i) == '/' && i + 1 < Other.size() && (Other[i + 1] == '/' || Other[i + 1] == '*'))
+				{
+					if (Other[++i] == '*')
+					{
+						while (i + 1 < Other.size())
+						{
+							char N = Other[i++];
+							if (N == '*' && Other[i++] == '/')
+								break;
+						}
+					}
+					else
+					{
+						while (i < Other.size())
+						{
+							char N = Other[i++];
+							if (N == '\r' || N == '\n')
+								break;
+						}
+					}
+
+					continue;
+				}
+
+				size_t From = i, BeginsOffset = 0;
+				while (BeginsOffset < BeginsSize && From < Other.size() && Other.at(From) == Begins[BeginsOffset])
+				{
+					++From;
+					++BeginsOffset;
+				}
+
+				if (BeginsOffset != BeginsSize)
+				{
+					i = From;
+					continue;
+				}
+
+				size_t To = From, EndsOffset = 0;
+				while (To < Other.size())
+				{
+					if (Other.at(To++) != Ends[EndsOffset])
+						continue;
+
+					if (++EndsOffset >= EndsSize)
+						break;
+				}
+
+				i = To;
+				if (EndsOffset != EndsSize)
+					continue;
+
+				TextSettle At;
+				At.Start = From - BeginsSize;
+				At.End = To;
+				At.Found = true;
+
+				Result.push_back(std::make_pair(Other.substr(From, (To - EndsSize) - From), std::move(At)));
+			}
+
+			return Result;
+		}
 		Vector<std::pair<String, TextSettle>> Stringify::FindStartsWithEndsOf(const String& Other, const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset)
 		{
 			Vector<std::pair<String, TextSettle>> Result;
@@ -5433,6 +5503,16 @@ namespace Mavi
 			}
 
 			return { Other.size(), Other.size(), false };
+		}
+		size_t Stringify::CountLines(const String& Other)
+		{
+			size_t Lines = 1;
+			for (char Item : Other)
+			{
+				if (Item == '\n')
+					++Lines;
+			}
+			return Lines;
 		}
 		bool Stringify::IsNotPrecededByEscape(const char* Buffer, size_t Offset, char Escape)
 		{

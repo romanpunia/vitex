@@ -164,7 +164,4 @@ Only those marked with _required_ are necessary for minimal build.
 Mavi is licensed under the MIT license
 
 ## Known Issues
-1. Script bindings cover only these modules for now: Core, Compute, Audio, Audio effects, Audio filters, Network, Network HTTP, Network SMTP, Network PostgreSQL, Graphics, Engine, Engine GUI, Engine components, Engine renderers.<br />
-_TODO: Network MongoDB 100%._
-
-2. Documentation in it's usual form is non-existant at the moment. In the nearest future that could be changed.
+Documentation in it's usual form is non-existant at the moment. In the nearest future that could be changed.

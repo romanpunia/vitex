@@ -138,7 +138,7 @@ namespace Mavi
 
 				return *this;
 			}
-			Core::Unique<TDocument> Property::LoseOwnership()
+			Core::Unique<TDocument> Property::Reset()
 			{
 				if (!Source)
 					return nullptr;
@@ -164,7 +164,7 @@ namespace Mavi
 					case Type::Integer:
 						return String.assign(Core::ToString(Integer));
 					case Type::ObjectId:
-						return String.assign(Compute::Codec::Bep45Encode((const char*)ObjectId));
+						return String.assign(Compute::Codec::Bep45Encode(Core::String((const char*)ObjectId, 12)));
 					case Type::Null:
 						return String.assign("null");
 					case Type::Unknown:
@@ -188,25 +188,36 @@ namespace Mavi
 
 				return String;
 			}
-			Document Property::Get() const
+			Core::String Property::ToObjectId()
+			{
+				return Utils::IdToString(ObjectId);
+			}
+			Document Property::AsDocument() const
 			{
 				return Document(Source);
+			}
+			Property Property::At(const Core::String& Label) const
+			{
+				Property Result;
+				AsDocument().GetProperty(Label.c_str(), &Result);
+				return Result;
 			}
 			Property Property::operator [](const char* Label)
 			{
 				Property Result;
-				Get().GetProperty(Label, &Result);
-
+				AsDocument().GetProperty(Label, &Result);
 				return Result;
 			}
 			Property Property::operator [](const char* Label) const
 			{
 				Property Result;
-				Get().GetProperty(Label, &Result);
-
+				AsDocument().GetProperty(Label, &Result);
 				return Result;
 			}
 
+			Document::Document() : Base(nullptr), Store(false)
+			{
+			}
 			Document::Document(TDocument* NewBase) : Base(NewBase), Store(false)
 			{
 			}
@@ -494,9 +505,9 @@ namespace Mavi
 				switch (Value->Mod)
 				{
 					case Type::Document:
-						return SetSchema(Key, Value->Get().Copy());
+						return SetSchema(Key, Value->AsDocument().Copy());
 					case Type::Array:
-						return SetArray(Key, Value->Get().Copy());
+						return SetArray(Key, Value->AsDocument().Copy());
 					case Type::String:
 						return SetString(Key, Value->String.c_str());
 					case Type::Boolean:
@@ -541,6 +552,71 @@ namespace Mavi
 #else
 				return false;
 #endif
+			}
+			bool Document::SetSchemaAt(const Core::String& Key, const Document& Value, size_t ArrayId)
+			{
+				return SetSchema(Key.c_str(), Value, ArrayId);
+			}
+			bool Document::SetArrayAt(const Core::String& Key, const Document& Array, size_t ArrayId)
+			{
+				return SetArray(Key.c_str(), Array, ArrayId);
+			}
+			bool Document::SetStringAt(const Core::String& Key, const Core::String& Value, size_t ArrayId)
+			{
+				return SetString(Key.c_str(), Value.c_str(), ArrayId);
+			}
+			bool Document::SetIntegerAt(const Core::String& Key, int64_t Value, size_t ArrayId)
+			{
+				return SetInteger(Key.c_str(), Value, ArrayId);
+			}
+			bool Document::SetNumberAt(const Core::String& Key, double Value, size_t ArrayId)
+			{
+				return SetNumber(Key.c_str(), Value, ArrayId);
+			}
+			bool Document::SetDecimalAt(const Core::String& Key, uint64_t High, uint64_t Low, size_t ArrayId)
+			{
+				return SetDecimal(Key.c_str(), High, Low, ArrayId);
+			}
+			bool Document::SetDecimalStringAt(const Core::String& Key, const Core::String& Value, size_t ArrayId)
+			{
+				return SetDecimalString(Key.c_str(), Value, ArrayId);
+			}
+			bool Document::SetDecimalIntegerAt(const Core::String& Key, int64_t Value, size_t ArrayId)
+			{
+				return SetDecimalInteger(Key.c_str(), Value, ArrayId);
+			}
+			bool Document::SetDecimalNumberAt(const Core::String& Key, double Value, size_t ArrayId)
+			{
+				return SetDecimalNumber(Key.c_str(), Value, ArrayId);
+			}
+			bool Document::SetBooleanAt(const Core::String& Key, bool Value, size_t ArrayId)
+			{
+				return SetBoolean(Key.c_str(), Value, ArrayId);
+			}
+			bool Document::SetObjectIdAt(const Core::String& Key, const Core::String& Value, size_t ArrayId)
+			{
+				unsigned char ObjectId[12];
+				memset(ObjectId, 0, sizeof(ObjectId));
+
+				Core::String Oid = Utils::StringToId(Value);
+				memcpy(ObjectId, Oid.c_str(), std::min(Oid.size(), sizeof(ObjectId)));
+				return SetObjectId(Key.c_str(), ObjectId, ArrayId);
+			}
+			bool Document::SetNullAt(const Core::String& Key, size_t ArrayId)
+			{
+				return SetNull(Key.c_str(), ArrayId);
+			}
+			bool Document::SetPropertyAt(const Core::String& Key, Property* Value, size_t ArrayId)
+			{
+				return SetProperty(Key.c_str(), Value, ArrayId);
+			}
+			bool Document::HasPropertyAt(const Core::String& Key) const
+			{
+				return HasProperty(Key.c_str());
+			}
+			bool Document::GetPropertyAt(const Core::String& Key, Property* Output) const
+			{
+				return GetProperty(Key.c_str(), Output);
 			}
 			bool Document::Clone(void* It, Property* Output)
 			{
@@ -738,12 +814,12 @@ namespace Mavi
 					{
 						case Type::Document:
 						{
-							Node->Set(Name, Key->Get().ToSchema(false));
+							Node->Set(Name, Key->AsDocument().ToSchema(false));
 							break;
 						}
 						case Type::Array:
 						{
-							Node->Set(Name, Key->Get().ToSchema(true));
+							Node->Set(Name, Key->AsDocument().ToSchema(true));
 							break;
 						}
 						case Type::String:
@@ -803,7 +879,13 @@ namespace Mavi
 				Store = Keep;
 				return *this;
 			}
-			Document Document::FromDocument(Core::Schema* Src)
+			Property Document::At(const Core::String& Name) const
+			{
+				Property Result;
+				GetProperty(Name.c_str(), &Result);
+				return Result;
+			}
+			Document Document::FromSchema(Core::Schema* Src)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Src != nullptr && Src->Value.IsObject(), "schema should be set");
@@ -816,10 +898,10 @@ namespace Mavi
 					switch (Node->Value.GetType())
 					{
 						case Core::VarType::Object:
-							Result.SetSchema(Array ? nullptr : Node->Key.c_str(), Document::FromDocument(Node), Index);
+							Result.SetSchema(Array ? nullptr : Node->Key.c_str(), Document::FromSchema(Node), Index);
 							break;
 						case Core::VarType::Array:
-							Result.SetArray(Array ? nullptr : Node->Key.c_str(), Document::FromDocument(Node), Index);
+							Result.SetArray(Array ? nullptr : Node->Key.c_str(), Document::FromSchema(Node), Index);
 							break;
 						case Core::VarType::String:
 							Result.SetBlob(Array ? nullptr : Node->Key.c_str(), Node->Value.GetString(), Node->Value.Size(), Index);
@@ -909,6 +991,9 @@ namespace Mavi
 #endif
 			}
 
+			Address::Address() : Base(nullptr)
+			{
+			}
 			Address::Address(TAddress* NewBase) : Base(NewBase)
 			{
 			}
@@ -937,86 +1022,67 @@ namespace Mavi
 				Other.Base = nullptr;
 				return *this;
 			}
-			void Address::SetOption(const char* Name, int64_t Value)
+			void Address::SetOption(const Core::String& Name, int64_t Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				VI_ASSERT(Name != nullptr, "name should be set");
-
-				mongoc_uri_set_option_as_int32(Base, Name, (int32_t)Value);
+				mongoc_uri_set_option_as_int32(Base, Name.c_str(), (int32_t)Value);
 #endif
 			}
-			void Address::SetOption(const char* Name, bool Value)
+			void Address::SetOption(const Core::String& Name, bool Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				VI_ASSERT(Name != nullptr, "name should be set");
-
-				mongoc_uri_set_option_as_bool(Base, Name, Value);
+				mongoc_uri_set_option_as_bool(Base, Name.c_str(), Value);
 #endif
 			}
-			void Address::SetOption(const char* Name, const char* Value)
+			void Address::SetOption(const Core::String& Name, const Core::String& Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				VI_ASSERT(Name != nullptr, "name should be set");
-				VI_ASSERT(Value != nullptr, "value should be set");
-
-				mongoc_uri_set_option_as_utf8(Base, Name, Value);
+				mongoc_uri_set_option_as_utf8(Base, Name.c_str(), Value.c_str());
 #endif
 			}
-			void Address::SetAuthMechanism(const char* Value)
+			void Address::SetAuthMechanism(const Core::String& Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				VI_ASSERT(Value != nullptr, "value should be set");
-
-				mongoc_uri_set_auth_mechanism(Base, Value);
+				mongoc_uri_set_auth_mechanism(Base, Value.c_str());
 #endif
 			}
-			void Address::SetAuthSource(const char* Value)
+			void Address::SetAuthSource(const Core::String& Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				VI_ASSERT(Value != nullptr, "value should be set");
-
-				mongoc_uri_set_auth_source(Base, Value);
+				mongoc_uri_set_auth_source(Base, Value.c_str());
 #endif
 			}
-			void Address::SetCompressors(const char* Value)
+			void Address::SetCompressors(const Core::String& Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				VI_ASSERT(Value != nullptr, "value should be set");
-
-				mongoc_uri_set_compressors(Base, Value);
+				mongoc_uri_set_compressors(Base, Value.c_str());
 #endif
 			}
-			void Address::SetDatabase(const char* Value)
+			void Address::SetDatabase(const Core::String& Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				VI_ASSERT(Value != nullptr, "value should be set");
-
-				mongoc_uri_set_database(Base, Value);
+				mongoc_uri_set_database(Base, Value.c_str());
 #endif
 			}
-			void Address::SetUsername(const char* Value)
+			void Address::SetUsername(const Core::String& Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				VI_ASSERT(Value != nullptr, "value should be set");
-
-				mongoc_uri_set_username(Base, Value);
+				mongoc_uri_set_username(Base, Value.c_str());
 #endif
 			}
-			void Address::SetPassword(const char* Value)
+			void Address::SetPassword(const Core::String& Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				VI_ASSERT(Value != nullptr, "value should be set");
-
-				mongoc_uri_set_password(Base, Value);
+				mongoc_uri_set_password(Base, Value.c_str());
 #endif
 			}
 			TAddress* Address::Get() const
@@ -1027,12 +1093,11 @@ namespace Mavi
 				return nullptr;
 #endif
 			}
-			Address Address::FromURI(const char* Value)
+			Address Address::FromURI(const Core::String& Value)
 			{
 #ifdef VI_MONGOC
-				VI_ASSERT(Value != nullptr, "value should be set");
-				TAddress* Result = mongoc_uri_new(Value);
-				if (!strstr(Value, MONGOC_URI_SOCKETTIMEOUTMS))
+				TAddress* Result = mongoc_uri_new(Value.c_str());
+				if (!strstr(Value.c_str(), MONGOC_URI_SOCKETTIMEOUTMS))
 					mongoc_uri_set_option_as_int32(Result, MONGOC_URI_SOCKETTIMEOUTMS, 10000);
 
 				return Result;
@@ -1186,7 +1251,7 @@ namespace Mavi
 					}
 
 					Property Options = Command["options"];
-					return UpdateOne(Match.LoseOwnership(), Update.LoseOwnership(), Options.LoseOwnership());
+					return UpdateOne(Match.Reset(), Update.Reset(), Options.Reset());
 				}
 				else if (Type.String == "update-many")
 				{
@@ -1205,7 +1270,7 @@ namespace Mavi
 					}
 
 					Property Options = Command["options"];
-					return UpdateMany(Match.LoseOwnership(), Update.LoseOwnership(), Options.LoseOwnership());
+					return UpdateMany(Match.Reset(), Update.Reset(), Options.Reset());
 				}
 				else if (Type.String == "insert")
 				{
@@ -1217,7 +1282,7 @@ namespace Mavi
 					}
 
 					Property Options = Command["options"];
-					return InsertOne(Value.LoseOwnership(), Options.LoseOwnership());
+					return InsertOne(Value.Reset(), Options.Reset());
 				}
 				else if (Type.String == "replace")
 				{
@@ -1236,7 +1301,7 @@ namespace Mavi
 					}
 
 					Property Options = Command["options"];
-					return ReplaceOne(Match.LoseOwnership(), Value.LoseOwnership(), Options.LoseOwnership());
+					return ReplaceOne(Match.Reset(), Value.Reset(), Options.Reset());
 				}
 				else if (Type.String == "remove")
 				{
@@ -1248,7 +1313,7 @@ namespace Mavi
 					}
 
 					Property Options = Command["options"];
-					return RemoveOne(Match.LoseOwnership(), Options.LoseOwnership());
+					return RemoveOne(Match.Reset(), Options.Reset());
 				}
 				else if (Type.String == "remove-many")
 				{
@@ -1260,7 +1325,7 @@ namespace Mavi
 					}
 
 					Property Options = Command["options"];
-					return RemoveMany(Match.LoseOwnership(), Options.LoseOwnership());
+					return RemoveMany(Match.Reset(), Options.Reset());
 				}
 
 				VI_ERR("[mongoc] cannot find query of type \"%s\"", Type.String.c_str());
@@ -1351,6 +1416,9 @@ namespace Mavi
 #endif
 			}
 
+			Cursor::Cursor() : Base(nullptr)
+			{
+			}
 			Cursor::Cursor(TCursor* NewBase) : Base(NewBase)
 			{
 			}
@@ -1420,7 +1488,18 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Cursor::HasError() const
+			bool Cursor::Empty() const
+			{
+#ifdef VI_MONGOC
+				if (!Base)
+					return true;
+
+				return !mongoc_cursor_more(Base);
+#else
+				return true;
+#endif
+			}
+			bool Cursor::Error() const
 			{
 #ifdef VI_MONGOC
 				if (!Base)
@@ -1438,18 +1517,7 @@ namespace Mavi
 				return false;
 #endif
 			}
-			bool Cursor::HasMoreData() const
-			{
-#ifdef VI_MONGOC
-				if (!Base)
-					return false;
-
-				return mongoc_cursor_more(Base);
-#else
-				return false;
-#endif
-			}
-			Core::Promise<bool> Cursor::Next() const
+			Core::Promise<bool> Cursor::Next()
 			{
 #ifdef VI_MONGOC
 				if (!Base)
@@ -1511,7 +1579,7 @@ namespace Mavi
 				return 0;
 #endif
 			}
-			Document Cursor::GetCurrent() const
+			Document Cursor::Current() const
 			{
 #ifdef VI_MONGOC
 				if (!Base)
@@ -1540,14 +1608,17 @@ namespace Mavi
 #endif
 			}
 
+			Response::Response() : NetSuccess(false)
+			{
+			}
 			Response::Response(bool NewSuccess) : NetSuccess(NewSuccess)
 			{
 			}
-			Response::Response(Cursor&& NewCursor) : NetCursor(std::move(NewCursor))
+			Response::Response(Cursor& NewCursor) : NetCursor(std::move(NewCursor))
 			{
-				NetSuccess = NetCursor && !NetCursor.HasError() && NetCursor.HasMoreData();
+				NetSuccess = NetCursor && !NetCursor.ErrorOrEmpty();
 			}
-			Response::Response(Document&& NewDocument) : NetDocument(std::move(NewDocument))
+			Response::Response(Document& NewDocument) : NetDocument(std::move(NewDocument))
 			{
 				NetSuccess = NetDocument.Get() != nullptr;
 			}
@@ -1566,7 +1637,7 @@ namespace Mavi
 				Other.NetSuccess = false;
 				return *this;
 			}
-			Core::Promise<Core::Schema*> Response::Fetch() const
+			Core::Promise<Core::Schema*> Response::Fetch()
 			{
 				if (NetDocument)
 					return Core::Promise<Core::Schema*>(NetDocument.ToSchema());
@@ -1576,10 +1647,10 @@ namespace Mavi
 
 				return NetCursor.Next().Then<Core::Schema*>([this](bool&& Result)
 				{
-					return NetCursor.GetCurrent().ToSchema();
+					return NetCursor.Current().ToSchema();
 				});
 			}
-			Core::Promise<Core::Schema*> Response::FetchAll() const
+			Core::Promise<Core::Schema*> Response::FetchAll()
 			{
 				if (NetDocument)
 				{
@@ -1594,30 +1665,28 @@ namespace Mavi
 				{
 					Core::Schema* Result = Core::Var::Set::Array();
 					while (VI_AWAIT(NetCursor.Next()))
-						Result->Push(NetCursor.GetCurrent().ToSchema());
+						Result->Push(NetCursor.Current().ToSchema());
 
 					Coreturn Result;
 				});
 			}
-			Core::Promise<Property> Response::GetProperty(const char* Name)
+			Core::Promise<Property> Response::GetProperty(const Core::String& Name)
 			{
-				VI_ASSERT(Name != nullptr, "context should be set");
-
 				if (NetDocument)
 				{
 					Property Result;
-					NetDocument.GetProperty(Name, &Result);
+					NetDocument.GetPropertyAt(Name, &Result);
 					return Result;
 				}
 
 				if (!NetCursor)
 					return Property();
 
-				Document Source = NetCursor.GetCurrent();
+				Document Source = NetCursor.Current();
 				if (Source)
 				{
 					Property Result;
-					Source.GetProperty(Name, &Result);
+					Source.GetPropertyAt(Name, &Result);
 					return Result;
 				}
 
@@ -1627,9 +1696,9 @@ namespace Mavi
 					if (!HasResults)
 						return Result;
 
-					Document Source = NetCursor.GetCurrent();
+					Document Source = NetCursor.Current();
 					if (Source)
-						Source.GetProperty(Name, &Result);
+						Source.GetPropertyAt(Name, &Result);
 
 					return Result;
 				});
@@ -1642,11 +1711,232 @@ namespace Mavi
 			{
 				return std::move(NetDocument);
 			}
-			bool Response::IsSuccess() const
+			bool Response::Success() const
 			{
 				return NetSuccess;
 			}
 
+			Transaction::Transaction() : Base(nullptr)
+			{
+			}
+			Transaction::Transaction(TTransaction* NewBase) : Base(NewBase)
+			{
+			}
+			bool Transaction::Push(const Document& QueryOptionsWrapper) const
+			{
+#ifdef VI_MONGOC
+				Document& QueryOptions = *(Document*)&QueryOptionsWrapper;
+				if (!QueryOptions.Get())
+					QueryOptions = bson_new();
+
+				bson_error_t Error;
+				bool Result = mongoc_client_session_append(Base, (bson_t*)QueryOptions.Get(), &Error);
+				if (!Result && Error.code != 0)
+					VI_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
+
+				return Result;
+#else
+				return false;
+#endif
+			}
+			bool Transaction::Put(TDocument** QueryOptions) const
+			{
+#ifdef VI_MONGOC
+				VI_ASSERT(QueryOptions != nullptr, "query options should be set");
+				if (!*QueryOptions)
+					*QueryOptions = bson_new();
+
+				bson_error_t Error;
+				bool Result = mongoc_client_session_append(Base, (bson_t*)*QueryOptions, &Error);
+				if (!Result && Error.code != 0)
+					VI_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
+
+				return Result;
+#else
+				return false;
+#endif
+			}
+			Core::Promise<bool> Transaction::Begin()
+			{
+#ifdef VI_MONGOC
+				auto* Context = Base;
+				return Core::Cotask<bool>([Context]()
+				{
+					return MongoExecuteQuery(&mongoc_client_session_start_transaction, Context, nullptr);
+				});
+#else
+				return Core::Promise<bool>(false);
+#endif
+			}
+			Core::Promise<bool> Transaction::Rollback()
+			{
+#ifdef VI_MONGOC
+				auto* Context = Base;
+				return Core::Cotask<bool>([Context]()
+				{
+					return MongoExecuteQuery(&mongoc_client_session_abort_transaction, Context);
+				});
+#else
+				return Core::Promise<bool>(false);
+#endif
+			}
+			Core::Promise<Document> Transaction::RemoveMany(Collection& Source, const Document& Match, const Document& Options)
+			{
+#ifdef VI_MONGOC
+				if (!Push(Options))
+					return Core::Promise<Document>(Document(nullptr));
+
+				return Source.RemoveMany(Match, Options);
+#else
+				return Core::Promise<Document>(Document(nullptr));
+#endif
+			}
+			Core::Promise<Document> Transaction::RemoveOne(Collection& Source, const Document& Match, const Document& Options)
+			{
+#ifdef VI_MONGOC
+				if (!Push(Options))
+					return Core::Promise<Document>(Document(nullptr));
+
+				return Source.RemoveOne(Match, Options);
+#else
+				return Core::Promise<Document>(Document(nullptr));
+#endif
+			}
+			Core::Promise<Document> Transaction::ReplaceOne(Collection& Source, const Document& Match, const Document& Replacement, const Document& Options)
+			{
+#ifdef VI_MONGOC
+				if (!Push(Options))
+					return Core::Promise<Document>(Document(nullptr));
+
+				return Source.ReplaceOne(Match, Replacement, Options);
+#else
+				return Core::Promise<Document>(Document(nullptr));
+#endif
+			}
+			Core::Promise<Document> Transaction::InsertMany(Collection& Source, Core::Vector<Document>& List, const Document& Options)
+			{
+#ifdef VI_MONGOC
+				if (!Push(Options))
+					return Core::Promise<Document>(Document(nullptr));
+
+				return Source.InsertMany(List, Options);
+#else
+				return Core::Promise<Document>(Document(nullptr));
+#endif
+			}
+			Core::Promise<Document> Transaction::InsertOne(Collection& Source, const Document& Result, const Document& Options)
+			{
+#ifdef VI_MONGOC
+				if (!Push(Options))
+					return Core::Promise<Document>(Document(nullptr));
+
+				return Source.InsertOne(Result, Options);
+#else
+				return Core::Promise<Document>(Document(nullptr));
+#endif
+			}
+			Core::Promise<Document> Transaction::UpdateMany(Collection& Source, const Document& Match, const Document& Update, const Document& Options)
+			{
+#ifdef VI_MONGOC
+				if (!Push(Options))
+					return Core::Promise<Document>(Document(nullptr));
+
+				return Source.UpdateMany(Match, Update, Options);
+#else
+				return Core::Promise<Document>(Document(nullptr));
+#endif
+			}
+			Core::Promise<Document> Transaction::UpdateOne(Collection& Source, const Document& Match, const Document& Update, const Document& Options)
+			{
+#ifdef VI_MONGOC
+				if (!Push(Options))
+					return Core::Promise<Document>(Document(nullptr));
+
+				return Source.UpdateOne(Match, Update, Options);
+#else
+				return Core::Promise<Document>(Document(nullptr));
+#endif
+			}
+			Core::Promise<Cursor> Transaction::FindMany(Collection& Source, const Document& Match, const Document& Options)
+			{
+#ifdef VI_MONGOC
+				if (!Push(Options))
+					return Core::Promise<Cursor>(Cursor(nullptr));
+
+				return Source.FindMany(Match, Options);
+#else
+				return Core::Promise<Cursor>(Cursor(nullptr));
+#endif
+			}
+			Core::Promise<Cursor> Transaction::FindOne(Collection& Source, const Document& Match, const Document& Options)
+			{
+#ifdef VI_MONGOC
+				if (!Push(Options))
+					return Core::Promise<Cursor>(Cursor(nullptr));
+
+				return Source.FindOne(Match, Options);
+#else
+				return Core::Promise<Cursor>(Cursor(nullptr));
+#endif
+			}
+			Core::Promise<Cursor> Transaction::Aggregate(Collection& Source, QueryFlags Flags, const Document& Pipeline, const Document& Options)
+			{
+#ifdef VI_MONGOC
+				if (!Push(Options))
+					return Core::Promise<Cursor>(Cursor(nullptr));
+
+				return Source.Aggregate(Flags, Pipeline, Options);
+#else
+				return Core::Promise<Cursor>(Cursor(nullptr));
+#endif
+			}
+			Core::Promise<Response> Transaction::TemplateQuery(Collection& Source, const Core::String& Name, Core::SchemaArgs* Map, bool Once)
+			{
+				return Query(Source, Driver::Get()->GetQuery(Name, Map, Once));
+			}
+			Core::Promise<Response> Transaction::Query(Collection& Source, const Document& Command)
+			{
+#ifdef VI_MONGOC
+				return Source.Query(Command, *this);
+#else
+				return Core::Promise<Response>(Response());
+#endif
+			}
+			Core::Promise<TransactionState> Transaction::Commit()
+			{
+#ifdef VI_MONGOC
+				auto* Context = Base;
+				return Core::Cotask<TransactionState>([Context]()
+				{
+					TDocument Subresult; TransactionState Result;
+					if (MongoExecuteQuery(&mongoc_client_session_commit_transaction, Context, &Subresult))
+						Result = TransactionState::OK;
+					else if (mongoc_error_has_label(&Subresult, "TransientTransactionError"))
+						Result = TransactionState::Retry;
+					else if (mongoc_error_has_label(&Subresult, "UnknownTransactionCommitResult"))
+						Result = TransactionState::Retry_Commit;
+					else
+						Result = TransactionState::Fatal;
+
+					bson_free(&Subresult);
+					return Result;
+				});
+#else
+				return Core::Promise<TransactionState>(TransactionState::Fatal);
+#endif
+			}
+			TTransaction* Transaction::Get() const
+			{
+#ifdef VI_MONGOC
+				return Base;
+#else
+				return nullptr;
+#endif
+			}
+
+			Collection::Collection() : Base(nullptr)
+			{
+			}
 			Collection::Collection(TCollection* NewBase) : Base(NewBase)
 			{
 			}
@@ -1675,7 +1965,7 @@ namespace Mavi
 				Other.Base = nullptr;
 				return *this;
 			}
-			Core::Promise<bool> Collection::Rename(const Core::String& NewDatabaseName, const Core::String& NewCollectionName) const
+			Core::Promise<bool> Collection::Rename(const Core::String& NewDatabaseName, const Core::String& NewCollectionName)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1687,7 +1977,7 @@ namespace Mavi
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<bool> Collection::RenameWithOptions(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options) const
+			Core::Promise<bool> Collection::RenameWithOptions(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1699,7 +1989,7 @@ namespace Mavi
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<bool> Collection::RenameWithRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName) const
+			Core::Promise<bool> Collection::RenameWithRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1711,7 +2001,7 @@ namespace Mavi
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<bool> Collection::RenameWithOptionsAndRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options) const
+			Core::Promise<bool> Collection::RenameWithOptionsAndRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1723,7 +2013,7 @@ namespace Mavi
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<bool> Collection::Remove(const Document& Options) const
+			Core::Promise<bool> Collection::Remove(const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1735,7 +2025,7 @@ namespace Mavi
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<bool> Collection::RemoveIndex(const Core::String& Name, const Document& Options) const
+			Core::Promise<bool> Collection::RemoveIndex(const Core::String& Name, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1747,7 +2037,7 @@ namespace Mavi
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<Document> Collection::RemoveMany(const Document& Match, const Document& Options) const
+			Core::Promise<Document> Collection::RemoveMany(const Document& Match, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1766,7 +2056,7 @@ namespace Mavi
 				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
-			Core::Promise<Document> Collection::RemoveOne(const Document& Match, const Document& Options) const
+			Core::Promise<Document> Collection::RemoveOne(const Document& Match, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1785,7 +2075,7 @@ namespace Mavi
 				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
-			Core::Promise<Document> Collection::ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options) const
+			Core::Promise<Document> Collection::ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1804,7 +2094,7 @@ namespace Mavi
 				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
-			Core::Promise<Document> Collection::InsertMany(Core::Vector<Document>& List, const Document& Options) const
+			Core::Promise<Document> Collection::InsertMany(Core::Vector<Document>& List, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(!List.empty(), "insert array should not be empty");
@@ -1832,7 +2122,7 @@ namespace Mavi
 				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
-			Core::Promise<Document> Collection::InsertOne(const Document& Result, const Document& Options) const
+			Core::Promise<Document> Collection::InsertOne(const Document& Result, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1851,7 +2141,7 @@ namespace Mavi
 				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
-			Core::Promise<Document> Collection::UpdateMany(const Document& Match, const Document& Update, const Document& Options) const
+			Core::Promise<Document> Collection::UpdateMany(const Document& Match, const Document& Update, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1870,7 +2160,7 @@ namespace Mavi
 				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
-			Core::Promise<Document> Collection::UpdateOne(const Document& Match, const Document& Update, const Document& Options) const
+			Core::Promise<Document> Collection::UpdateOne(const Document& Match, const Document& Update, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1889,7 +2179,7 @@ namespace Mavi
 				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
-			Core::Promise<Document> Collection::FindAndModify(const Document& Query, const Document& Sort, const Document& Update, const Document& Fields, bool RemoveAt, bool Upsert, bool New) const
+			Core::Promise<Document> Collection::FindAndModify(const Document& Query, const Document& Sort, const Document& Update, const Document& Fields, bool RemoveAt, bool Upsert, bool New)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1908,7 +2198,7 @@ namespace Mavi
 				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
-			Core::Promise<size_t> Collection::CountDocuments(const Document& Match, const Document& Options) const
+			Core::Promise<size_t> Collection::CountDocuments(const Document& Match, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1920,7 +2210,7 @@ namespace Mavi
 				return Core::Promise<size_t>(0);
 #endif
 			}
-			Core::Promise<size_t> Collection::CountDocumentsEstimated(const Document& Options) const
+			Core::Promise<size_t> Collection::CountDocumentsEstimated(const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1932,7 +2222,7 @@ namespace Mavi
 				return Core::Promise<size_t>(0);
 #endif
 			}
-			Core::Promise<Cursor> Collection::FindIndexes(const Document& Options) const
+			Core::Promise<Cursor> Collection::FindIndexes(const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1944,7 +2234,7 @@ namespace Mavi
 				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
-			Core::Promise<Cursor> Collection::FindMany(const Document& Match, const Document& Options) const
+			Core::Promise<Cursor> Collection::FindMany(const Document& Match, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1956,7 +2246,7 @@ namespace Mavi
 				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
-			Core::Promise<Cursor> Collection::FindOne(const Document& Match, const Document& Options) const
+			Core::Promise<Cursor> Collection::FindOne(const Document& Match, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1977,7 +2267,7 @@ namespace Mavi
 				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
-			Core::Promise<Cursor> Collection::Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options) const
+			Core::Promise<Cursor> Collection::Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -1989,12 +2279,12 @@ namespace Mavi
 				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
-			Core::Promise<Response> Collection::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once, Transaction* Session) const
+			Core::Promise<Response> Collection::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once, const Transaction& Session)
 			{
 				VI_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 				return Query(Driver::Get()->GetQuery(Name, Map, Once), Session);
 			}
-			Core::Promise<Response> Collection::Query(const Document& Command, Transaction* Session) const
+			Core::Promise<Response> Collection::Query(const Document& Command, const Transaction& Session)
 			{
 #ifdef VI_MONGOC
 				if (!Command.Get())
@@ -2035,7 +2325,7 @@ namespace Mavi
 					}
 
 					Property Options = Command["options"];
-					if (Session != nullptr && !Session->Put(&Options.Source))
+					if (Session && !Session.Put(&Options.Source))
 					{
 						VI_ERR("[mongoc] cannot run aggregation query in transaction");
 						return Core::Promise<Response>(Response());
@@ -2048,15 +2338,15 @@ namespace Mavi
 						return Core::Promise<Response>(Response());
 					}
 
-					return Aggregate(Flags, Pipeline.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Cursor&& Result)
+					return Aggregate(Flags, Pipeline.Reset(), Options.Reset()).Then<Response>([](Cursor&& Result)
 					{
-						return Response(std::move(Result));
+						return Response(Result);
 					});
 				}
 				else if (Type.String == "find")
 				{
 					Property Options = Command["options"];
-					if (Session != nullptr && !Session->Put(&Options.Source))
+					if (Session && !Session.Put(&Options.Source))
 					{
 						VI_ERR("[mongoc] cannot run find-one query in transaction");
 						return Core::Promise<Response>(Response());
@@ -2069,15 +2359,15 @@ namespace Mavi
 						return Core::Promise<Response>(Response());
 					}
 
-					return FindOne(Match.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Cursor&& Result)
+					return FindOne(Match.Reset(), Options.Reset()).Then<Response>([](Cursor&& Result)
 					{
-						return Response(std::move(Result));
+						return Response(Result);
 					});
 				}
 				else if (Type.String == "find-many")
 				{
 					Property Options = Command["options"];
-					if (Session != nullptr && !Session->Put(&Options.Source))
+					if (Session && !Session.Put(&Options.Source))
 					{
 						VI_ERR("[mongoc] cannot run find-many query in transaction");
 						return Core::Promise<Response>(Response());
@@ -2090,15 +2380,15 @@ namespace Mavi
 						return Core::Promise<Response>(Response());
 					}
 
-					return FindMany(Match.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Cursor&& Result)
+					return FindMany(Match.Reset(), Options.Reset()).Then<Response>([](Cursor&& Result)
 					{
-						return Response(std::move(Result));
+						return Response(Result);
 					});
 				}
 				else if (Type.String == "update")
 				{
 					Property Options = Command["options"];
-					if (Session != nullptr && !Session->Put(&Options.Source))
+					if (Session && !Session.Put(&Options.Source))
 					{
 						VI_ERR("[mongoc] cannot run update-one query in transaction");
 						return Core::Promise<Response>(Response());
@@ -2118,15 +2408,15 @@ namespace Mavi
 						return Core::Promise<Response>(Response());
 					}
 
-					return UpdateOne(Match.LoseOwnership(), Update.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
+					return UpdateOne(Match.Reset(), Update.Reset(), Options.Reset()).Then<Response>([](Document&& Result)
 					{
-						return Response(std::move(Result));
+						return Response(Result);
 					});
 				}
 				else if (Type.String == "update-many")
 				{
 					Property Options = Command["options"];
-					if (Session != nullptr && !Session->Put(&Options.Source))
+					if (Session && !Session.Put(&Options.Source))
 					{
 						VI_ERR("[mongoc] cannot run update-many query in transaction");
 						return Core::Promise<Response>(Response());
@@ -2146,15 +2436,15 @@ namespace Mavi
 						return Core::Promise<Response>(Response());
 					}
 
-					return UpdateMany(Match.LoseOwnership(), Update.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
+					return UpdateMany(Match.Reset(), Update.Reset(), Options.Reset()).Then<Response>([](Document&& Result)
 					{
-						return Response(std::move(Result));
+						return Response(Result);
 					});
 				}
 				else if (Type.String == "insert")
 				{
 					Property Options = Command["options"];
-					if (Session != nullptr && !Session->Put(&Options.Source))
+					if (Session && !Session.Put(&Options.Source))
 					{
 						VI_ERR("[mongoc] cannot run insert-one query in transaction");
 						return Core::Promise<Response>(Response());
@@ -2167,15 +2457,15 @@ namespace Mavi
 						return Core::Promise<Response>(Response());
 					}
 
-					return InsertOne(Value.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
+					return InsertOne(Value.Reset(), Options.Reset()).Then<Response>([](Document&& Result)
 					{
-						return Response(std::move(Result));
+						return Response(Result);
 					});
 				}
 				else if (Type.String == "insert-many")
 				{
 					Property Options = Command["options"];
-					if (Session != nullptr && !Session->Put(&Options.Source))
+					if (Session && !Session.Put(&Options.Source))
 					{
 						VI_ERR("[mongoc] cannot run insert-many query in transaction");
 						return Core::Promise<Response>(Response());
@@ -2189,15 +2479,15 @@ namespace Mavi
 					}
 
 					Core::Vector<Document> Data;
-					Values.Get().Loop([&Data](Property* Value)
+					Values.AsDocument().Loop([&Data](Property* Value)
 					{
-						Data.push_back(Value->LoseOwnership());
+						Data.push_back(Value->Reset());
 						return true;
 					});
 
-					return InsertMany(Data, Options.LoseOwnership()).Then<Response>([](Document&& Result)
+					return InsertMany(Data, Options.Reset()).Then<Response>([](Document&& Result)
 					{
-						return Response(std::move(Result));
+						return Response(Result);
 					});
 				}
 				else if (Type.String == "find-update")
@@ -2216,15 +2506,15 @@ namespace Mavi
 					Property Upsert = Command["upsert"];
 					Property New = Command["new"];
 
-					return FindAndModify(Match.LoseOwnership(), Sort.LoseOwnership(), Update.LoseOwnership(), Fields.LoseOwnership(), Remove.Boolean, Upsert.Boolean, New.Boolean).Then<Response>([](Document&& Result)
+					return FindAndModify(Match.Reset(), Sort.Reset(), Update.Reset(), Fields.Reset(), Remove.Boolean, Upsert.Boolean, New.Boolean).Then<Response>([](Document&& Result)
 					{
-						return Response(std::move(Result));
+						return Response(Result);
 					});
 				}
 				else if (Type.String == "replace")
 				{
 					Property Options = Command["options"];
-					if (Session != nullptr && !Session->Put(&Options.Source))
+					if (Session && !Session.Put(&Options.Source))
 					{
 						VI_ERR("[mongoc] cannot run replace-one query in transaction");
 						return Core::Promise<Response>(Response());
@@ -2244,15 +2534,15 @@ namespace Mavi
 						return Core::Promise<Response>(Response());
 					}
 
-					return ReplaceOne(Match.LoseOwnership(), Value.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
+					return ReplaceOne(Match.Reset(), Value.Reset(), Options.Reset()).Then<Response>([](Document&& Result)
 					{
-						return Response(std::move(Result));
+						return Response(Result);
 					});
 				}
 				else if (Type.String == "remove")
 				{
 					Property Options = Command["options"];
-					if (Session != nullptr && !Session->Put(&Options.Source))
+					if (Session && !Session.Put(&Options.Source))
 					{
 						VI_ERR("[mongoc] cannot run remove-one query in transaction");
 						return Core::Promise<Response>(Response());
@@ -2265,15 +2555,15 @@ namespace Mavi
 						return Core::Promise<Response>(Response());
 					}
 
-					return RemoveOne(Match.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
+					return RemoveOne(Match.Reset(), Options.Reset()).Then<Response>([](Document&& Result)
 					{
-						return Response(std::move(Result));
+						return Response(Result);
 					});
 				}
 				else if (Type.String == "remove-many")
 				{
 					Property Options = Command["options"];
-					if (Session != nullptr && !Session->Put(&Options.Source))
+					if (Session && !Session.Put(&Options.Source))
 					{
 						VI_ERR("[mongoc] cannot run remove-many query in transaction");
 						return Core::Promise<Response>(Response());
@@ -2286,9 +2576,9 @@ namespace Mavi
 						return Core::Promise<Response>(Response());
 					}
 
-					return RemoveMany(Match.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
+					return RemoveMany(Match.Reset(), Options.Reset()).Then<Response>([](Document&& Result)
 					{
-						return Response(std::move(Result));
+						return Response(Result);
 					});
 				}
 
@@ -2298,13 +2588,13 @@ namespace Mavi
 				return Core::Promise<Response>(Response());
 #endif
 			}
-			const char* Collection::GetName() const
+			Core::String Collection::GetName() const
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_collection_get_name(Base);
 #else
-				return nullptr;
+				return Core::String();
 #endif
 			}
 			Stream Collection::CreateStream(Document&& Options) const
@@ -2328,6 +2618,9 @@ namespace Mavi
 #endif
 			}
 
+			Database::Database() : Base(nullptr)
+			{
+			}
 			Database::Database(TDatabase* NewBase) : Base(NewBase)
 			{
 			}
@@ -2419,7 +2712,7 @@ namespace Mavi
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<bool> Database::HasCollection(const Core::String& Name) const
+			Core::Promise<bool> Database::HasCollection(const Core::String& Name)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -2437,7 +2730,7 @@ namespace Mavi
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<Cursor> Database::FindCollections(const Document& Options) const
+			Core::Promise<Cursor> Database::FindCollections(const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
@@ -2497,13 +2790,13 @@ namespace Mavi
 				return Core::Vector<Core::String>();
 #endif
 			}
-			const char* Database::GetName() const
+			Core::String Database::GetName() const
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
 				return mongoc_database_get_name(Base);
 #else
-				return nullptr;
+				return Core::String();
 #endif
 			}
 			Collection Database::GetCollection(const Core::String& Name)
@@ -2524,6 +2817,9 @@ namespace Mavi
 #endif
 			}
 
+			Watcher::Watcher()
+			{
+			}
 			Watcher::Watcher(TWatcher* NewBase) : Base(NewBase)
 			{
 			}
@@ -2552,7 +2848,7 @@ namespace Mavi
 				Other.Base = nullptr;
 				return *this;
 			}
-			Core::Promise<bool> Watcher::Next(Document& Result) const
+			Core::Promise<bool> Watcher::Next(Document& Result)
 			{
 #ifdef VI_MONGOC
 				if (!Base || !Result.Get())
@@ -2568,7 +2864,7 @@ namespace Mavi
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<bool> Watcher::Error(Document& Result) const
+			Core::Promise<bool> Watcher::Error(Document& Result)
 			{
 #ifdef VI_MONGOC
 				if (!Base || !Result.Get())
@@ -2626,220 +2922,6 @@ namespace Mavi
 #endif
 			}
 
-			Transaction::Transaction(TTransaction* NewBase) : Base(NewBase)
-			{
-			}
-			bool Transaction::Push(Document& QueryOptions) const
-			{
-#ifdef VI_MONGOC
-				if (!QueryOptions.Get())
-					QueryOptions = bson_new();
-
-				bson_error_t Error;
-				bool Result = mongoc_client_session_append(Base, (bson_t*)QueryOptions.Get(), &Error);
-				if (!Result && Error.code != 0)
-					VI_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
-
-				return Result;
-#else
-				return false;
-#endif
-			}
-			bool Transaction::Put(TDocument** QueryOptions) const
-			{
-#ifdef VI_MONGOC
-				VI_ASSERT(QueryOptions != nullptr, "query options should be set");
-				if (!*QueryOptions)
-					*QueryOptions = bson_new();
-
-				bson_error_t Error;
-				bool Result = mongoc_client_session_append(Base, (bson_t*)*QueryOptions, &Error);
-				if (!Result && Error.code != 0)
-					VI_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
-
-				return Result;
-#else
-				return false;
-#endif
-			}
-			Core::Promise<bool> Transaction::Start()
-			{
-#ifdef VI_MONGOC
-				auto* Context = Base;
-				return Core::Cotask<bool>([Context]()
-				{
-					return MongoExecuteQuery(&mongoc_client_session_start_transaction, Context, nullptr);
-				});
-#else
-				return Core::Promise<bool>(false);
-#endif
-			}
-			Core::Promise<bool> Transaction::Abort()
-			{
-#ifdef VI_MONGOC
-				auto* Context = Base;
-				return Core::Cotask<bool>([Context]()
-				{
-					return MongoExecuteQuery(&mongoc_client_session_abort_transaction, Context);
-				});
-#else
-				return Core::Promise<bool>(false);
-#endif
-			}
-			Core::Promise<Document> Transaction::RemoveMany(const Collection& Source, const Document& Match, Document&& Options)
-			{
-#ifdef VI_MONGOC
-				if (!Push(Options))
-					return Core::Promise<Document>(Document(nullptr));
-
-				return Source.RemoveMany(Match, Options);
-#else
-				return Core::Promise<Document>(Document(nullptr));
-#endif
-			}
-			Core::Promise<Document> Transaction::RemoveOne(const Collection& Source, const Document& Match, Document&& Options)
-			{
-#ifdef VI_MONGOC
-				if (!Push(Options))
-					return Core::Promise<Document>(Document(nullptr));
-
-				return Source.RemoveOne(Match, Options);
-#else
-				return Core::Promise<Document>(Document(nullptr));
-#endif
-			}
-			Core::Promise<Document> Transaction::ReplaceOne(const Collection& Source, const Document& Match, const Document& Replacement, Document&& Options)
-			{
-#ifdef VI_MONGOC
-				if (!Push(Options))
-					return Core::Promise<Document>(Document(nullptr));
-
-				return Source.ReplaceOne(Match, Replacement, Options);
-#else
-				return Core::Promise<Document>(Document(nullptr));
-#endif
-			}
-			Core::Promise<Document> Transaction::InsertMany(const Collection& Source, Core::Vector<Document>& List, Document&& Options)
-			{
-#ifdef VI_MONGOC
-				if (!Push(Options))
-					return Core::Promise<Document>(Document(nullptr));
-
-				return Source.InsertMany(List, Options);
-#else
-				return Core::Promise<Document>(Document(nullptr));
-#endif
-			}
-			Core::Promise<Document> Transaction::InsertOne(const Collection& Source, const Document& Result, Document&& Options)
-			{
-#ifdef VI_MONGOC
-				if (!Push(Options))
-					return Core::Promise<Document>(Document(nullptr));
-
-				return Source.InsertOne(Result, Options);
-#else
-				return Core::Promise<Document>(Document(nullptr));
-#endif
-			}
-			Core::Promise<Document> Transaction::UpdateMany(const Collection& Source, const Document& Match, const Document& Update, Document&& Options)
-			{
-#ifdef VI_MONGOC
-				if (!Push(Options))
-					return Core::Promise<Document>(Document(nullptr));
-
-				return Source.UpdateMany(Match, Update, Options);
-#else
-				return Core::Promise<Document>(Document(nullptr));
-#endif
-			}
-			Core::Promise<Document> Transaction::UpdateOne(const Collection& Source, const Document& Match, const Document& Update, Document&& Options)
-			{
-#ifdef VI_MONGOC
-				if (!Push(Options))
-					return Core::Promise<Document>(Document(nullptr));
-
-				return Source.UpdateOne(Match, Update, Options);
-#else
-				return Core::Promise<Document>(Document(nullptr));
-#endif
-			}
-			Core::Promise<Cursor> Transaction::FindMany(const Collection& Source, const Document& Match, Document&& Options) const
-			{
-#ifdef VI_MONGOC
-				if (!Push(Options))
-					return Core::Promise<Cursor>(Cursor(nullptr));
-
-				return Source.FindMany(Match, Options);
-#else
-				return Core::Promise<Cursor>(Cursor(nullptr));
-#endif
-			}
-			Core::Promise<Cursor> Transaction::FindOne(const Collection& Source, const Document& Match, Document&& Options) const
-			{
-#ifdef VI_MONGOC
-				if (!Push(Options))
-					return Core::Promise<Cursor>(Cursor(nullptr));
-
-				return Source.FindOne(Match, Options);
-#else
-				return Core::Promise<Cursor>(Cursor(nullptr));
-#endif
-			}
-			Core::Promise<Cursor> Transaction::Aggregate(const Collection& Source, QueryFlags Flags, const Document& Pipeline, Document&& Options) const
-			{
-#ifdef VI_MONGOC
-				if (!Push(Options))
-					return Core::Promise<Cursor>(Cursor(nullptr));
-
-				return Source.Aggregate(Flags, Pipeline, Options);
-#else
-				return Core::Promise<Cursor>(Cursor(nullptr));
-#endif
-			}
-			Core::Promise<Response> Transaction::TemplateQuery(const Collection& Source, const Core::String& Name, Core::SchemaArgs* Map, bool Once)
-			{
-				return Query(Source, Driver::Get()->GetQuery(Name, Map, Once));
-			}
-			Core::Promise<Response> Transaction::Query(const Collection& Source, const Document& Command)
-			{
-#ifdef VI_MONGOC
-				return Source.Query(Command, this);
-#else
-				return Core::Promise<Response>(Response());
-#endif
-			}
-			Core::Promise<TransactionState> Transaction::Commit()
-			{
-#ifdef VI_MONGOC
-				auto* Context = Base;
-				return Core::Cotask<TransactionState>([Context]()
-				{
-					TDocument Subresult; TransactionState Result;
-					if (MongoExecuteQuery(&mongoc_client_session_commit_transaction, Context, &Subresult))
-						Result = TransactionState::OK;
-					else if (mongoc_error_has_label(&Subresult, "TransientTransactionError"))
-						Result = TransactionState::Retry;
-					else if (mongoc_error_has_label(&Subresult, "UnknownTransactionCommitResult"))
-						Result = TransactionState::Retry_Commit;
-					else
-						Result = TransactionState::Fatal;
-
-					bson_free(&Subresult);
-					return Result;
-				});
-#else
-				return Core::Promise<TransactionState>(TransactionState::Fatal);
-#endif
-			}
-			TTransaction* Transaction::Get() const
-			{
-#ifdef VI_MONGOC
-				return Base;
-#else
-				return nullptr;
-#endif
-			}
-
 			Connection::Connection() : Connected(false), Session(nullptr), Base(nullptr), Master(nullptr)
 			{
 			}
@@ -2853,7 +2935,7 @@ namespace Mavi
 				if (Connected && Base != nullptr)
 					Disconnect();
 			}
-			Core::Promise<bool> Connection::Connect(const Core::String& Address)
+			Core::Promise<bool> Connection::ConnectByURI(const Core::String& Address)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Master != nullptr, "connection should be created outside of cluster");
@@ -2861,7 +2943,7 @@ namespace Mavi
 				{
 					return Disconnect().Then<Core::Promise<bool>>([this, Address](bool)
 					{
-						return this->Connect(Address);
+						return this->ConnectByURI(Address);
 					});
 				}
 
@@ -2967,7 +3049,7 @@ namespace Mavi
 
 					while (true)
 					{
-						if (!VI_AWAIT(Context.Start()))
+						if (!VI_AWAIT(Context.Begin()))
 							Coreturn false;
 
 						if (!VI_AWAIT(Callback(Context)))
@@ -2993,7 +3075,7 @@ namespace Mavi
 						}
 					}
 
-					VI_AWAIT(Context.Abort());
+					VI_AWAIT(Context.Rollback());
 					Coreturn false;
 				});
 #else
@@ -3012,7 +3094,7 @@ namespace Mavi
 
 					while (true)
 					{
-						if (!VI_AWAIT(Context.Start()))
+						if (!VI_AWAIT(Context.Begin()))
 							Coreturn false;
 
 						if (!Callback(Context))
@@ -3038,14 +3120,14 @@ namespace Mavi
 						}
 					}
 
-					VI_AWAIT(Context.Abort());
+					VI_AWAIT(Context.Rollback());
 					Coreturn false;
 				});
 #else
 				return Core::Promise<bool>(false);
 #endif
 			}
-			Core::Promise<Cursor> Connection::FindDatabases(const Document& Options) const
+			Core::Promise<Cursor> Connection::FindDatabases(const Document& Options)
 			{
 #ifdef VI_MONGOC
 				return Core::Cotask<Cursor>([this, &Options]()
@@ -3115,11 +3197,11 @@ namespace Mavi
 				return nullptr;
 #endif
 			}
-			Collection Connection::GetCollection(const char* DatabaseName, const char* Name) const
+			Collection Connection::GetCollection(const Core::String& DatabaseName, const Core::String& Name) const
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				return mongoc_client_get_collection(Base, DatabaseName, Name);
+				return mongoc_client_get_collection(Base, DatabaseName.c_str(), Name.c_str());
 #else
 				return nullptr;
 #endif
@@ -3185,14 +3267,14 @@ namespace Mavi
 				Connected = false;
 #endif
 			}
-			Core::Promise<bool> Cluster::Connect(const Core::String& URI)
+			Core::Promise<bool> Cluster::ConnectByURI(const Core::String& URI)
 			{
 #ifdef VI_MONGOC
 				if (Connected)
 				{
 					return Disconnect().Then<Core::Promise<bool>>([this, URI](bool)
 					{
-						return this->Connect(URI);
+						return this->ConnectByURI(URI);
 					});
 				}
 
@@ -3278,12 +3360,11 @@ namespace Mavi
 				return Core::Promise<bool>(false);
 #endif
 			}
-			void Cluster::SetProfile(const char* Name)
+			void Cluster::SetProfile(const Core::String& Name)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Pool != nullptr, "connection should be established");
-				VI_ASSERT(Name != nullptr, "name should be set");
-				mongoc_client_pool_set_appname(Pool, Name);
+				mongoc_client_pool_set_appname(Pool, Name.c_str());
 #endif
 			}
 			void Cluster::Push(Connection** Client)
@@ -3567,6 +3648,10 @@ namespace Mavi
 				Constants[Name] = Value;
 				return true;
 			}
+			bool Driver::AddQuery(const Core::String& Name, const Core::String& Data) noexcept
+			{
+				return AddQuery(Name, Data.c_str(), Data.size());
+			}
 			bool Driver::AddQuery(const Core::String& Name, const char* Buffer, size_t Size) noexcept
 			{
 				VI_ASSERT(!Name.empty(), "name should not be empty");
@@ -3722,7 +3807,7 @@ namespace Mavi
 					auto* Cache = Data->Get("cache");
 					if (Cache != nullptr && Cache->Value.IsObject())
 					{
-						Result.Cache = Document::FromDocument(Cache);
+						Result.Cache = Document::FromSchema(Cache);
 						Result.Request = Result.Cache.ToJSON();
 					}
 

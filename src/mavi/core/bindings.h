@@ -122,6 +122,13 @@ namespace Mavi
 				static bool Cleanup();
 			};
 
+			class VI_OUT Imports
+			{
+			public:
+				static void BindSyntax(VirtualMachine* VM, bool Enabled, const char* Syntax);
+				static bool GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code, const char* Syntax);
+			};
+
 			class VI_OUT Exception
 			{
 			public:
@@ -154,7 +161,7 @@ namespace Mavi
 				static bool HasException();
 				static Pointer GetExceptionAt(ImmediateContext* Context);
 				static Pointer GetException();
-				static bool GeneratorCallback(const Core::String& Path, Core::String& Code);
+				static bool GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code);
 			};
 
 			class VI_OUT String
@@ -677,7 +684,7 @@ namespace Mavi
 				static Promise* CreateFactoryType(asITypeInfo* Type);
 				static Promise* CreateFactoryVoid();
 				static bool TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect);
-				static bool GeneratorCallback(const Core::String& Path, Core::String& Code);
+				static bool GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code);
 				static bool IsContextPending(ImmediateContext* Context);
 				static bool IsContextBusy(ImmediateContext* Context);
 

@@ -8845,6 +8845,13 @@ namespace Mavi
 		{
 			Pragma = Callback;
 		}
+		void Preprocessor::SetDirectiveCallback(const Core::String& Name, ProcDirectiveCallback&& Callback)
+		{
+			if (Callback)
+				Directives[Name] = std::move(Callback);
+			else
+				Directives.erase(Name);
+		}
 		void Preprocessor::SetFeatures(const Desc& F)
 		{
 			Features = F;
@@ -9040,7 +9047,7 @@ namespace Mavi
 		}
 		bool Preprocessor::HasResult(const Core::String& Path)
 		{
-			return Sets.count(Path) > 0;
+			return Sets.count(Path) > 0 && Path != ThisFile.Path;
 		}
 		bool Preprocessor::SaveResult()
 		{
@@ -9049,12 +9056,12 @@ namespace Mavi
 
 			return Nesting;
 		}
-		Preprocessor::Token Preprocessor::FindNextToken(Core::String& Buffer, size_t& Offset)
+		ProcDirective Preprocessor::FindNextToken(Core::String& Buffer, size_t& Offset)
 		{
 			bool HasMultilineComments = !Features.MultilineCommentBegin.empty() && !Features.MultilineCommentEnd.empty();
 			bool HasComments = !Features.CommentBegin.empty();
 			bool HasStringLiterals = !Features.StringLiterals.empty();
-			Token Result;
+			ProcDirective Result;
 
 			while (Offset < Buffer.size())
 			{
@@ -9147,10 +9154,10 @@ namespace Mavi
 
 			return Result;
 		}
-		Preprocessor::Token Preprocessor::FindNextConditionalToken(Core::String& Buffer, size_t& Offset)
+		ProcDirective Preprocessor::FindNextConditionalToken(Core::String& Buffer, size_t& Offset)
 		{
 		Retry:
-			Token Next = FindNextToken(Buffer, Offset);
+			ProcDirective Next = FindNextToken(Buffer, Offset);
 			if (!Next.Found)
 				return Next;
 
@@ -9159,12 +9166,12 @@ namespace Mavi
 
 			return Next;
 		}
-		size_t Preprocessor::ReplaceToken(Token& Where, Core::String& Buffer, const Core::String& To)
+		size_t Preprocessor::ReplaceToken(ProcDirective& Where, Core::String& Buffer, const Core::String& To)
 		{
 			Buffer.replace(Where.Start, Where.End - Where.Start, To);
 			return Where.Start;
 		}
-		Core::Vector<Preprocessor::Conditional> Preprocessor::PrepareConditions(Core::String& Buffer, Token& Next, size_t& Offset, bool Top)
+		Core::Vector<Preprocessor::Conditional> Preprocessor::PrepareConditions(Core::String& Buffer, ProcDirective& Next, size_t& Offset, bool Top)
 		{
 			Core::Vector<Conditional> Conditions;
 			size_t ChildEnding = 0;
@@ -9648,13 +9655,11 @@ namespace Mavi
 						VI_TRACE("[proc] on 0x%" PRIXPTR " apply pragma %s", (void*)this, Buffer.substr(Next.Start, Next.End - Next.Start).c_str());
 						Offset = ReplaceToken(Next, Buffer, "");
 					}
-					continue;
 				}
 				else if (Next.Name == "define")
 				{
 					Define(Next.Value);
 					Offset = ReplaceToken(Next, Buffer, "");
-					continue;
 				}
 				else if (Next.Name == "undef")
 				{
@@ -9679,11 +9684,75 @@ namespace Mavi
 					Core::String Result = Evaluate(Buffer, Conditions);
 					Next.Start = Start; Next.End = Offset;
 					Offset = ReplaceToken(Next, Buffer, Result);
-					continue;
+				}
+				else
+				{
+					auto It = Directives.find(Next.Name);
+					if (It == Directives.end())
+					{
+						VI_ERR("[proc] %s: #%s directive is unknown", Path.c_str(), Next.Name.c_str());
+						continue;
+					}
+
+					Core::String Result;
+					if (!It->second(this, Next, Result))
+					{
+						VI_ERR("[proc] %s: #%s directive expansion failed", Path.c_str(), Next.Name.c_str());
+						return false;
+					}
+
+					Offset = ReplaceToken(Next, Buffer, Result);
 				}
 			}
 
 			return true;
+		}
+		Core::Option<Core::String> Preprocessor::ResolveFile(const Core::String& Path, const Core::String& IncludePath)
+		{
+			if (!Features.Includes)
+			{
+				VI_ERR("[proc] %s: not allowed to include \"%s\"", Path.c_str(), IncludePath.c_str());
+				return Core::Optional::None;
+			}
+
+			FileContext LastFile = ThisFile;
+			ThisFile.Path = Path;
+			ThisFile.Line = 0;
+
+			Core::String Subbuffer;
+			FileDesc.Path = IncludePath;
+			FileDesc.From = Path;
+
+			IncludeResult File = ResolveInclude(FileDesc, !Core::Stringify::FindOf(IncludePath, ":/\\").Found && !Core::Stringify::Find(IncludePath, "./").Found);
+			if (HasResult(File.Module))
+			{
+			IncludeResult:
+				ThisFile = LastFile;
+				return Subbuffer;
+			}
+
+			switch (Include ? Include(this, File, Subbuffer) : IncludeType::Error)
+			{
+				case IncludeType::Preprocess:
+					VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude preprocess %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
+					if (Subbuffer.empty() || Process(File.Module, Subbuffer))
+						goto IncludeResult;
+
+					VI_ERR("[proc] %s: cannot preprocess include \"%s\"", Path.c_str(), IncludePath.c_str());
+					goto IncludeResult;
+				case IncludeType::Unchanged:
+					VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude as-is %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
+					goto IncludeResult;
+				case IncludeType::Virtual:
+					VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude virtual %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
+					Subbuffer.clear();
+					goto IncludeResult;
+				case IncludeType::Error:
+				default:
+					VI_ERR("[proc] %s: cannot find \"%s\"", Path.c_str(), IncludePath.c_str());
+					ThisFile = LastFile;
+					return Core::Optional::None;
+			}
 		}
 		const Core::String& Preprocessor::GetCurrentFilePath() const
 		{
@@ -9732,7 +9801,7 @@ namespace Mavi
 
 			if (!Core::Stringify::StartsOf(Desc.Path, "/."))
 			{
-				if (Desc.Path.empty() || Desc.Root.empty())
+				if (AsGlobal || Desc.Path.empty() || Desc.Root.empty())
 				{
 					Result.Module = Desc.Path;
 					Result.IsAbstract = true;
@@ -9793,7 +9862,7 @@ namespace Mavi
 			else
 				Base = Core::OS::Path::GetDirectory(Desc.From.c_str());
 
-			auto Module = Core::OS::Path::Resolve(Desc.Path, Base, false);
+			auto Module = Core::OS::Path::Resolve(Desc.Path, Base, true);
 			if (Module)
 			{
 				Result.Module = *Module;
@@ -9809,7 +9878,7 @@ namespace Mavi
 				Core::String File(Result.Module);
 				if (Result.Module.empty())
 				{
-					auto Target = Core::OS::Path::Resolve(Desc.Path + It, Desc.Root, false);
+					auto Target = Core::OS::Path::Resolve(Desc.Path + It, Desc.Root, true);
 					if (!Target)
 						continue;
 

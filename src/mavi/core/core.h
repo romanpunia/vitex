@@ -2077,6 +2077,7 @@ namespace Mavi
 			static String& EraseOffsets(String& Other, size_t Start, size_t End);
 			static String& EvalEnvs(String& Other, const String& Net, const String& Dir);
 			static Vector<std::pair<String, TextSettle>> FindInBetween(const String& Other, const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset = 0U);
+			static Vector<std::pair<String, TextSettle>> FindInBetweenInCode(const String& Other, const char* Begins, const char* Ends, size_t Offset = 0U);
 			static Vector<std::pair<String, TextSettle>> FindStartsWithEndsOf(const String& Other, const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset = 0U);
 			static TextSettle ReverseFind(const String& Other, const String& Needle, size_t Offset = 0U);
 			static TextSettle ReverseFind(const String& Other, const char* Needle, size_t Offset = 0U);
@@ -2092,6 +2093,7 @@ namespace Mavi
 			static TextSettle FindOf(const String& Other, const char* Needle, size_t Offset = 0U);
 			static TextSettle FindNotOf(const String& Other, const String& Needle, size_t Offset = 0U);
 			static TextSettle FindNotOf(const String& Other, const char* Needle, size_t Offset = 0U);
+			static size_t CountLines(const String& Other);
 			static bool IsNotPrecededByEscape(const char* Buffer, size_t Offset, char Escape = '\\');
 			static bool IsNotPrecededByEscape(const String& Other, size_t Offset, char Escape = '\\');
 			static bool IsEmptyOrWhitespace(const String& Other);

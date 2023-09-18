@@ -2,6 +2,7 @@
 #include "bindings.h"
 #include "../mavi.h"
 #include <iostream>
+#define ADDON_ANY "any"
 #ifdef VI_ANGELSCRIPT
 #include <angelscript.h>
 #ifdef VI_JIT
@@ -277,6 +278,175 @@ namespace Mavi
 		}
 		Core::Mapping<Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>>* TypeCache::Names = nullptr;
 
+		bool Parser::ReplaceInlinePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<Core::String(const Core::String& Expression)>& Replacer)
+		{
+			return ReplacePreconditions(false, Keyword + ' ', Data, Replacer);
+		}
+		bool Parser::ReplaceDirectivePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<Core::String(const Core::String& Expression)>& Replacer)
+		{
+			return ReplacePreconditions(true, Keyword, Data, Replacer);
+		}
+		bool Parser::ReplacePreconditions(bool IsDirective, const Core::String& Match, Core::String& Code, const std::function<Core::String(const Core::String& Expression)>& Replacer)
+		{
+			VI_ASSERT(!Match.empty(), "keyword should not be empty");
+			VI_ASSERT(Replacer != nullptr, "replacer callback should not be empty");
+			size_t MatchSize = Match.size();
+			size_t Offset = 0;
+
+			while (Offset < Code.size())
+			{
+				char U = Code[Offset];
+				if (U == '/' && Offset + 1 < Code.size() && (Code[Offset + 1] == '/' || Code[Offset + 1] == '*'))
+				{
+					if (Code[++Offset] == '*')
+					{
+						while (Offset + 1 < Code.size())
+						{
+							char N = Code[Offset++];
+							if (N == '*' && Code[Offset++] == '/')
+								break;
+						}
+					}
+					else
+					{
+						while (Offset < Code.size())
+						{
+							char N = Code[Offset++];
+							if (N == '\r' || N == '\n')
+								break;
+						}
+					}
+
+					continue;
+				}
+				else if (U == '\"' || U == '\'')
+				{
+					++Offset;
+					while (Offset < Code.size())
+					{
+						if (Code[Offset++] == U && Core::Stringify::IsNotPrecededByEscape(Code, Offset - 1))
+							break;
+					}
+
+					continue;
+				}
+				else if (Code.size() - Offset < MatchSize || memcmp(Code.c_str() + Offset, Match.c_str(), MatchSize) != 0)
+				{
+					++Offset;
+					continue;
+				}
+
+				size_t Start = Offset + MatchSize;
+				while (Start < Code.size())
+				{
+					char& V = Code[Start];
+					if (!isspace(V))
+						break;
+					++Start;
+				}
+
+				bool IsClosed = false;
+				int32_t Indexers = 0;
+				int32_t Brackets = 0;
+				int32_t Braces = 0;
+				int32_t Quotes = 0;
+				size_t End = Start;
+				while (End < Code.size())
+				{
+					char& V = Code[End];
+					if (V == ')')
+					{
+						if (--Brackets < 0)
+						{
+							VI_ERR("[generator] unexpected symbol '%c', offset %" PRIu64 ":\n%.*s <<<", V, (uint64_t)End, (int)(End - Start), Code.c_str() + Start);
+							return false;
+						}
+					}
+					else if (V == '}')
+					{
+						if (--Braces < 0)
+						{
+							VI_ERR("[generator] unexpected symbol '%c', offset %" PRIu64 ":\n%.*s <<<", V, (uint64_t)End, (int)(End - Start), Code.c_str() + Start);
+							return false;
+						}
+					}
+					else if (V == ']')
+					{
+						if (--Indexers < 0)
+						{
+							VI_ERR("[generator] unexpected symbol '%c', offset %" PRIu64 ":\n%.*s <<<", V, (uint64_t)End, (int)(End - Start), Code.c_str() + Start);
+							return false;
+						}
+					}
+					else if (V == '"' || V == '\'')
+					{
+						++End; ++Quotes;
+						while (End < Code.size())
+						{
+							if (Code[End++] == V && Core::Stringify::IsNotPrecededByEscape(Code, End - 1))
+							{
+								--Quotes;
+								break;
+							}
+						}
+						--End;
+					}
+					else if (V == '(')
+						++Brackets;
+					else if (V == '{')
+						++Braces;
+					else if (V == '[')
+						++Indexers;
+					else if (V == ';')
+					{
+						IsClosed = true;
+						break;
+					}
+					else if (Brackets == 0 && Braces == 0 && Indexers == 0)
+					{
+						if (!isalnum(V) && V != '.' && V != ' ' && V != '_')
+						{
+							if (V != ':' || End + 1 >= Code.size() || Code[End + 1] != ':')
+								break;
+							else
+								++End;
+						}
+					}
+					End++;
+				}
+
+				if (Brackets + Braces + Indexers + Quotes > 0)
+				{
+					const char* Type = "termination character";
+					if (Brackets > 0)
+						Type = "')' symbol";
+					else if (Braces > 0)
+						Type = "'}' symbol";
+					else if (Indexers > 0)
+						Type = "']' symbol";
+					else if (Quotes > 0)
+						Type = "closing quote symbol";
+					VI_ERR("[generator] unexpected end of file, expected %s, offset %" PRIu64 ":\n%.*s <<<", Type, (uint64_t)End, (int)(End - Start), Code.c_str() + Start);
+					return false;
+				}
+				else if (End == Start)
+				{
+					Offset = End;
+					continue;
+				}
+
+				Core::String Expression = Replacer(Code.substr(Start, End - Start));
+				if (IsDirective && IsClosed)
+					++End;
+
+				Core::Stringify::ReplacePart(Code, Offset, End, Expression);
+				if (Expression.find(Match) == std::string::npos)
+					Offset += Expression.size();
+			}
+
+			return true;
+		}
+
 		ExpectsVM<void> FunctionFactory::AtomicNotifyGC(const char* TypeName, void* Object)
 		{
 			VI_ASSERT(TypeName != nullptr, "typename should be set");
@@ -339,124 +509,6 @@ namespace Mavi
 #else
 			return nullptr;
 #endif
-		}
-		void FunctionFactory::ReplacePreconditions(const Core::String& Keyword, Core::String& Code, const std::function<Core::String(const Core::String& Expression)>& Replacer)
-		{
-			VI_ASSERT(!Keyword.empty(), "keyword should not be empty");
-			VI_ASSERT(Replacer != nullptr, "replacer callback should not be empty");
-			Core::String Match = Keyword + ' ';
-			size_t MatchSize = Match.size();
-			size_t Offset = 0;
-
-			while (Offset < Code.size())
-			{
-				char U = Code[Offset];
-				if (U == '/' && Offset + 1 < Code.size() && (Code[Offset + 1] == '/' || Code[Offset + 1] == '*'))
-				{
-					if (Code[++Offset] == '*')
-					{
-						while (Offset + 1 < Code.size())
-						{
-							char N = Code[Offset++];
-							if (N == '*' && Code[Offset++] == '/')
-								break;
-						}
-					}
-					else
-					{
-						while (Offset < Code.size())
-						{
-							char N = Code[Offset++];
-							if (N == '\r' || N == '\n')
-								break;
-						}
-					}
-
-					continue;
-				}
-				else if (U == '\"' || U == '\'')
-				{
-					++Offset;
-					while (Offset < Code.size())
-					{
-						if (Code[Offset++] == U && Core::Stringify::IsNotPrecededByEscape(Code, Offset - 1))
-							break;
-					}
-
-					continue;
-				}
-				else if (Code.size() - Offset < MatchSize || memcmp(Code.c_str() + Offset, Match.c_str(), MatchSize) != 0)
-				{
-					++Offset;
-					continue;
-				}
-
-				size_t Start = Offset + MatchSize;
-				while (Start < Code.size())
-				{
-					char& V = Code[Start];
-					if (!isspace(V))
-						break;
-					++Start;
-				}
-
-				int32_t Indexers = 0;
-				int32_t Brackets = 0;
-				int32_t Quotes = 0;
-				size_t End = Start;
-				while (End < Code.size())
-				{
-					char& V = Code[End];
-					if (V == ')')
-					{
-						if (--Brackets < 0)
-							break;
-					}
-					else if (V == ']')
-					{
-						if (--Indexers < 0)
-							break;
-					}
-					else if (V == '"' || V == '\'')
-					{
-						++End;
-						while (End < Code.size())
-						{
-							if (Code[End++] == V && Core::Stringify::IsNotPrecededByEscape(Code, End - 1))
-								break;
-						}
-						--End;
-					}
-					else if (V == '(')
-						++Brackets;
-					else if (V == '[')
-						++Indexers;
-					else if (V == ';')
-						break;
-					else if (Brackets == 0 && Indexers == 0)
-					{
-						if (!isalnum(V) && V != '.' && V != ' ' && V != '_')
-						{
-							if (V != ':' || End + 1 >= Code.size() || Code[End + 1] != ':')
-								break;
-							else
-								++End;
-						}
-					}
-					End++;
-				}
-
-				if (End == Start)
-				{
-					Offset = End;
-					continue;
-				}
-
-				Core::String Expression = Replacer(Code.substr(Start, End - Start));
-				Core::Stringify::ReplacePart(Code, Offset, End, Expression);
-				if (Expression.find(Match) == std::string::npos)
-					Offset += Expression.size();
-			}
 		}
 		void FunctionFactory::ReleaseFunctor(asSFuncPtr** Ptr)
 		{
@@ -5329,7 +5381,7 @@ namespace Mavi
 			asIScriptFunction* Function = nullptr;
 			Bindings::Any* Data = nullptr;
 			VM->DetachDebuggerFromContext(Context->GetContext());
-			VM->ImportSystemAddon("std/any");
+			VM->ImportSystemAddon(ADDON_ANY);
 
 			int Result = 0;
 			while ((Result = Module->CompileFunction("__vfdbgfunc", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function)) == asBUILD_IN_PROGRESS)
@@ -6413,6 +6465,7 @@ namespace Mavi
 			Engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
 			Engine->SetEngineProperty(asEP_INCLUDE_JIT_INSTRUCTIONS, 0);
 #endif
+			SetTsImports(true);
 			RegisterAddons(this);
 		}
 		VirtualMachine::~VirtualMachine() noexcept
@@ -6702,7 +6755,7 @@ namespace Mavi
 			VI_ASSERT(Module != nullptr, "module should be set");
 			VI_ASSERT(CodeLength > 0, "code should not be empty");
 #ifdef VI_ANGELSCRIPT
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			Sections[Name] = Core::String(Code, CodeLength);
 			Unique.Negate();
 
@@ -6773,7 +6826,7 @@ namespace Mavi
 			VI_ASSERT(Namespace != nullptr, "namespace name should be set");
 #ifdef VI_ANGELSCRIPT
 			const char* Prev = Engine->GetDefaultNamespace();
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			if (Prev != nullptr)
 				DefaultNamespace = Prev;
 			else
@@ -6799,7 +6852,7 @@ namespace Mavi
 		ExpectsVM<void> VirtualMachine::EndNamespace()
 		{
 #ifdef VI_ANGELSCRIPT
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			return FunctionFactory::ToReturn(Engine->SetDefaultNamespace(DefaultNamespace.c_str()));
 #else
 			return VirtualError::NOT_SUPPORTED;
@@ -6948,7 +7001,7 @@ namespace Mavi
 		}
 		Core::Option<Core::String> VirtualMachine::GetScriptSection(const Core::String& Section)
 		{
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			auto It = Sections.find(Section);
 			if (It == Sections.end())
 				return Core::Optional::None;
@@ -6995,7 +7048,7 @@ namespace Mavi
 		bool VirtualMachine::SetByteCodeTranslator(unsigned int Options)
 		{
 #ifdef ANGELSCRIPT_JIT
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			asCJITCompiler* Context = (asCJITCompiler*)Translator;
 			bool TranslatorActive = (Options != (unsigned int)TranslationOptions::Disabled);
 			VI_DELETE(asCJITCompiler, Context);
@@ -7014,12 +7067,12 @@ namespace Mavi
 		}
 		void VirtualMachine::SetLibraryProperty(LibraryFeatures Property, size_t Value)
 		{
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			LibrarySettings[Property] = Value;
 		}
 		void VirtualMachine::SetCodeGenerator(const Core::String& Name, GeneratorCallback&& Callback)
 		{
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			if (Callback != nullptr)
 				Generators[Name] = std::move(Callback);
 			else
@@ -7033,6 +7086,10 @@ namespace Mavi
 		{
 			Imports = Opts;
 		}
+		void VirtualMachine::SetTsImports(bool Enabled, const char* ImportSyntax)
+		{
+			Bindings::Imports::BindSyntax(this, Enabled, ImportSyntax);
+		}
 		void VirtualMachine::SetCache(bool Enabled)
 		{
 			Cached = Enabled;
@@ -7043,7 +7100,7 @@ namespace Mavi
 		}
 		void VirtualMachine::SetDebugger(DebuggerContext* Context)
 		{
-			Core::UMutex<std::mutex> Unique1(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique1(Sync.General);
 			VI_RELEASE(Debugger);
 			Debugger = Context;
 			if (Debugger != nullptr)
@@ -7099,7 +7156,7 @@ namespace Mavi
 		}
 		void VirtualMachine::ClearCache()
 		{
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			for (auto Data : Datas)
 				VI_RELEASE(Data.second);
 
@@ -7112,7 +7169,7 @@ namespace Mavi
 			if (Debugger != nullptr || SaveSources)
 				return;
 
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			Sections.clear();
 		}
 		void VirtualMachine::SetCompilerErrorCallback(const WhenErrorCallback& Callback)
@@ -7121,24 +7178,24 @@ namespace Mavi
 		}
 		void VirtualMachine::SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc)
 		{
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			Include = NewDesc;
 		}
 		void VirtualMachine::SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc)
 		{
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			Proc = NewDesc;
 		}
 		void VirtualMachine::SetProcessorOptions(Compute::Preprocessor* Processor)
 		{
 			VI_ASSERT(Processor != nullptr, "preprocessor should be set");
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			Processor->SetIncludeOptions(Include);
 			Processor->SetFeatures(Proc);
 		}
 		void VirtualMachine::SetCompileCallback(const Core::String& Section, CompileCallback&& Callback)
 		{
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			if (Callback != nullptr)
 				Callbacks[Section] = std::move(Callback);
 			else
@@ -7168,7 +7225,7 @@ namespace Mavi
 			if (!Cached)
 				return false;
 
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			auto It = Opcodes.find(Info->Name);
 			if (It == Opcodes.end())
 				return false;
@@ -7185,7 +7242,7 @@ namespace Mavi
 			if (!Cached)
 				return;
 
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			Opcodes[Info->Name] = *Info;
 		}
 		ImmediateContext* VirtualMachine::CreateContext()
@@ -7208,7 +7265,7 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_ASSERT(!Name.empty(), "name should not be empty");
 #ifdef VI_ANGELSCRIPT
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			if (!Engine->GetModule(Name.c_str()))
 				return Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
 
@@ -7227,7 +7284,7 @@ namespace Mavi
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_ASSERT(!Name.empty(), "name should not be empty");
 #ifdef VI_ANGELSCRIPT
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			return Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
 #else
 			return nullptr;
@@ -7347,24 +7404,21 @@ namespace Mavi
 				return true;
 
 			VI_TRACE("[vm] preprocessor source code generation at %s (%" PRIu64 " bytes)", Path.empty() ? "<anonymous>" : Path.c_str(), (uint64_t)InoutBuffer.size());
-			if (!Processor->Process(Path, InoutBuffer))
 			{
-				VI_ERR("[vm] preprocessor generator has failed to generate souce code: %s", Path.empty() ? "<anonymous>" : Path.c_str());
-				return false;
-			}
-
-			Core::UMutex<std::mutex> Unique(Sync.General);
-			for (auto& Item : Generators)
-			{
-				VI_TRACE("[vm] generate source code for %s generator at %s (%" PRIu64 " bytes)", Item.first.c_str(), Path.empty() ? "<anonymous>" : Path.c_str(), (uint64_t)InoutBuffer.size());
-				if (!Item.second(Path, InoutBuffer))
+				Core::UMutex<std::recursive_mutex> Unique(Sync.General);
+				for (auto& Item : Generators)
 				{
-					VI_ERR("[vm] %s generator has failed to generate souce code: %s", Item.first.c_str(), Path.empty() ? "<anonymous>" : Path.c_str());
-					return false;
+					VI_TRACE("[vm] generate source code for %s generator at %s (%" PRIu64 " bytes)", Item.first.c_str(), Path.empty() ? "<anonymous>" : Path.c_str(), (uint64_t)InoutBuffer.size());
+					if (!Item.second(Processor, Path, InoutBuffer))
+						return false;
 				}
 			}
 
-			return true;
+			if (Processor->Process(Path, InoutBuffer))
+				return true;
+
+			VI_ERR("[vm] preprocessor generator has failed to generate souce code: %s", Path.empty() ? "<anonymous>" : Path.c_str());
+			return false;
 		}
 		Core::UnorderedMap<Core::String, Core::String> VirtualMachine::DumpRegisteredInterfaces(ImmediateContext* Context)
 		{
@@ -7600,7 +7654,7 @@ namespace Mavi
 		}
 		size_t VirtualMachine::GetLibraryProperty(LibraryFeatures Property)
 		{
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			return LibrarySettings[Property];
 		}
 		size_t VirtualMachine::GetProperty(Features Property)
@@ -7614,7 +7668,7 @@ namespace Mavi
 		}
 		void VirtualMachine::SetModuleDirectory(const Core::String& Value)
 		{
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			Include.Root = Value;
 			if (Include.Root.empty())
 				return;
@@ -7628,7 +7682,7 @@ namespace Mavi
 		}
 		Core::Vector<Core::String> VirtualMachine::GetExposedAddons()
 		{
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			Core::Vector<Core::String> Result;
 			Result.reserve(Addons.size() + CLibraries.size());
 			for (auto& Module : Addons)
@@ -7656,7 +7710,7 @@ namespace Mavi
 		}
 		bool VirtualMachine::HasLibrary(const Core::String& Name, bool IsAddon)
 		{
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			auto It = CLibraries.find(Name);
 			if (It == CLibraries.end())
 				return false;
@@ -7665,7 +7719,7 @@ namespace Mavi
 		}
 		bool VirtualMachine::HasSystemAddon(const Core::String& Name)
 		{
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			auto It = Addons.find(Name);
 			if (It == Addons.end())
 				return false;
@@ -7695,56 +7749,33 @@ namespace Mavi
 		bool VirtualMachine::AddSystemAddon(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const AddonCallback& Callback)
 		{
 			VI_ASSERT(!Name.empty(), "name should not be empty");
-			Core::UMutex<std::mutex> Unique(Sync.General);
-			if (Dependencies.empty() && !Callback)
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
+			auto It = Addons.find(Name);
+			if (It != Addons.end())
 			{
-				Core::String Namespace = Name + '/';
-				Core::Vector<Core::String> Deps;
-				for (auto& Item : Addons)
+				if (Callback || !Dependencies.empty())
 				{
-					if (Core::Stringify::StartsWith(Item.first, Namespace))
-						Deps.push_back(Item.first);
-				}
-
-				if (Addons.empty())
-					return false;
-
-				auto It = Addons.find(Name);
-				if (It == Addons.end())
-				{
-					Addon Result;
-					Result.Dependencies = Deps;
-					Addons.insert({ Name, std::move(Result) });
-				}
-				else
-				{
-					It->second.Dependencies = Deps;
+					It->second.Dependencies = Dependencies;
+					It->second.Callback = Callback;
 					It->second.Exposed = false;
 				}
+				else
+					Addons.erase(It);
 			}
 			else
 			{
-				auto It = Addons.find(Name);
-				if (It != Addons.end())
-				{
-					if (Callback || !Dependencies.empty())
-					{
-						It->second.Dependencies = Dependencies;
-						It->second.Callback = Callback;
-						It->second.Exposed = false;
-					}
-					else
-						Addons.erase(It);
-				}
-				else
-				{
-					Addon Result;
-					Result.Dependencies = Dependencies;
-					Result.Callback = Callback;
-					Addons.insert({ Name, std::move(Result) });
-				}
+				Addon Result;
+				Result.Dependencies = Dependencies;
+				Result.Callback = Callback;
+				Addons.insert({ Name, std::move(Result) });
 			}
 
+			if (Name == "*")
+				return true;
+
+			auto& Lists = Addons["*"];
+			Lists.Dependencies.push_back(Name);
+			Lists.Exposed = false;
 			return true;
 		}
 		bool VirtualMachine::ImportFile(const Core::String& Path, bool IsRemote, Core::String& Output)
@@ -7779,7 +7810,7 @@ namespace Mavi
 				return true;
 			}
 
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			auto It = Files.find(Path);
 			if (It != Files.end())
 			{
@@ -7848,7 +7879,7 @@ namespace Mavi
 #endif
 			};
 
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			auto It = CLibraries.end();
 			for (auto& Item : Sources)
 			{
@@ -7881,7 +7912,7 @@ namespace Mavi
 			if (!Engine)
 				return false;
 
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			auto Core = CLibraries.find(Name);
 			if (Core != CLibraries.end())
 				return true;
@@ -7923,7 +7954,7 @@ namespace Mavi
 			if (Core::Stringify::EndsWith(Target, ".as"))
 				Target = Target.substr(0, Target.size() - 3);
 
-			Core::UMutex<std::mutex> Unique(Sync.General);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			auto It = Addons.find(Target);
 			if (It == Addons.end())
 			{
@@ -8250,56 +8281,55 @@ namespace Mavi
 		}
 		void VirtualMachine::RegisterAddons(VirtualMachine* Engine)
 		{
-			Engine->AddSystemAddon("std/ctypes", { }, Bindings::Registry::ImportCTypes);
-			Engine->AddSystemAddon("std/any", { }, Bindings::Registry::ImportAny);
-			Engine->AddSystemAddon("std/array", { "std/ctypes" }, Bindings::Registry::ImportArray);
-			Engine->AddSystemAddon("std/complex", { }, Bindings::Registry::ImportComplex);
-			Engine->AddSystemAddon("std/math", { }, Bindings::Registry::ImportMath);
-			Engine->AddSystemAddon("std/string", { "std/array" }, Bindings::Registry::ImportString);
-			Engine->AddSystemAddon("std/random", { "std/string" }, Bindings::Registry::ImportRandom);
-			Engine->AddSystemAddon("std/dictionary", { "std/array", "std/string" }, Bindings::Registry::ImportDictionary);
-			Engine->AddSystemAddon("std/exception", { "std/string" }, Bindings::Registry::ImportException);
-			Engine->AddSystemAddon("std/mutex", { }, Bindings::Registry::ImportMutex);
-			Engine->AddSystemAddon("std/thread", { "std/any", "std/string" }, Bindings::Registry::ImportThread);
-			Engine->AddSystemAddon("std/buffers", { "std/string" }, Bindings::Registry::ImportBuffers);
-			Engine->AddSystemAddon("std/promise", { }, Bindings::Registry::ImportPromise);
-			Engine->AddSystemAddon("std/format", { "std/string" }, Bindings::Registry::ImportFormat);
-			Engine->AddSystemAddon("std/decimal", { "std/string" }, Bindings::Registry::ImportDecimal);
-			Engine->AddSystemAddon("std/variant", { "std/string", "std/decimal" }, Bindings::Registry::ImportVariant);
-			Engine->AddSystemAddon("std/timestamp", { "std/string" }, Bindings::Registry::ImportTimestamp);
-			Engine->AddSystemAddon("std/console", { "std/format" }, Bindings::Registry::ImportConsole);
-			Engine->AddSystemAddon("std/schema", { "std/array", "std/string", "std/dictionary", "std/variant" }, Bindings::Registry::ImportSchema);
-			Engine->AddSystemAddon("std/schedule", { "std/ctypes" }, Bindings::Registry::ImportSchedule);
-			Engine->AddSystemAddon("std/clock_timer", { }, Bindings::Registry::ImportClockTimer);
-			Engine->AddSystemAddon("std/file_system", { "std/string" }, Bindings::Registry::ImportFileSystem);
-			Engine->AddSystemAddon("std/os", { "std/file_system", "std/array" }, Bindings::Registry::ImportOS);
-			Engine->AddSystemAddon("std/vertices", { }, Bindings::Registry::ImportVertices);
-			Engine->AddSystemAddon("std/vectors", { }, Bindings::Registry::ImportVectors);
-			Engine->AddSystemAddon("std/shapes", { "std/vectors" }, Bindings::Registry::ImportShapes);
-			Engine->AddSystemAddon("std/key_frames", { "std/vectors", "std/string" }, Bindings::Registry::ImportKeyFrames);
-			Engine->AddSystemAddon("std/regex", { "std/string" }, Bindings::Registry::ImportRegex);
-			Engine->AddSystemAddon("std/crypto", { "std/string", "std/schema" }, Bindings::Registry::ImportCrypto);
-			Engine->AddSystemAddon("std/codec", { "std/string" }, Bindings::Registry::ImportCodec);
-			Engine->AddSystemAddon("std/geometric", { "std/vectors", "std/vertices", "std/shapes" }, Bindings::Registry::ImportGeometric);
-			Engine->AddSystemAddon("std/preprocessor", { "std/string" }, Bindings::Registry::ImportPreprocessor);
-			Engine->AddSystemAddon("std/physics", { "std/string", "std/geometric" }, Bindings::Registry::ImportPhysics);
-			Engine->AddSystemAddon("std/audio", { "std/string", "std/vectors", "std/schema" }, Bindings::Registry::ImportAudio);
-			Engine->AddSystemAddon("std/audio/effects", { "std/audio" }, Bindings::Registry::ImportAudioEffects);
-			Engine->AddSystemAddon("std/audio/filters", { "std/audio" }, Bindings::Registry::ImportAudioFilters);
-			Engine->AddSystemAddon("std/activity", { "std/string", "std/vectors" }, Bindings::Registry::ImportActivity);
-			Engine->AddSystemAddon("std/graphics", { "std/activity", "std/string", "std/vectors", "std/vertices", "std/shapes", "std/key_frames" }, Bindings::Registry::ImportGraphics);
-			Engine->AddSystemAddon("std/network", { "std/string", "std/array", "std/dictionary", "std/promise" }, Bindings::Registry::ImportNetwork);
-			Engine->AddSystemAddon("std/http", { "std/schema", "std/file_system", "std/promise", "std/regex", "std/network" }, Bindings::Registry::ImportHTTP);
-			Engine->AddSystemAddon("std/smtp", { "std/promise", "std/network" }, Bindings::Registry::ImportSMTP);
-			Engine->AddSystemAddon("std/postgresql", { "std/network", "std/schema" }, Bindings::Registry::ImportPostgreSQL);
-			Engine->AddSystemAddon("std/mongodb", { "std/network" }, Bindings::Registry::ImportMongoDB);
-			Engine->AddSystemAddon("std/gui/control", { "std/vectors", "std/schema", "std/array" }, Bindings::Registry::ImportUiControl);
-			Engine->AddSystemAddon("std/gui/model", { "std/gui/control", }, Bindings::Registry::ImportUiModel);
-			Engine->AddSystemAddon("std/gui/context", { "std/gui/model" }, Bindings::Registry::ImportUiContext);
-			Engine->AddSystemAddon("std/engine", { "std/schema", "std/schedule", "std/key_frames", "std/file_system", "std/graphics", "std/audio", "std/physics", "std/clock_timer", "std/gui/context" }, Bindings::Registry::ImportEngine);
-			Engine->AddSystemAddon("std/components", { "std/engine" }, Bindings::Registry::ImportComponents);
-			Engine->AddSystemAddon("std/renderers", { "std/engine" }, Bindings::Registry::ImportRenderers);
-			Engine->AddSystemAddon("std", { }, nullptr);
+			Engine->AddSystemAddon("ctypes", { }, Bindings::Registry::ImportCTypes);
+			Engine->AddSystemAddon("any", { }, Bindings::Registry::ImportAny);
+			Engine->AddSystemAddon("array", { "ctypes" }, Bindings::Registry::ImportArray);
+			Engine->AddSystemAddon("complex", { }, Bindings::Registry::ImportComplex);
+			Engine->AddSystemAddon("math", { }, Bindings::Registry::ImportMath);
+			Engine->AddSystemAddon("string", { "array" }, Bindings::Registry::ImportString);
+			Engine->AddSystemAddon("random", { "string" }, Bindings::Registry::ImportRandom);
+			Engine->AddSystemAddon("dictionary", { "array", "string" }, Bindings::Registry::ImportDictionary);
+			Engine->AddSystemAddon("exception", { "string" }, Bindings::Registry::ImportException);
+			Engine->AddSystemAddon("mutex", { }, Bindings::Registry::ImportMutex);
+			Engine->AddSystemAddon("thread", { "any", "string" }, Bindings::Registry::ImportThread);
+			Engine->AddSystemAddon("buffers", { "string" }, Bindings::Registry::ImportBuffers);
+			Engine->AddSystemAddon("promise", { }, Bindings::Registry::ImportPromise);
+			Engine->AddSystemAddon("format", { "string" }, Bindings::Registry::ImportFormat);
+			Engine->AddSystemAddon("decimal", { "string" }, Bindings::Registry::ImportDecimal);
+			Engine->AddSystemAddon("variant", { "string", "decimal" }, Bindings::Registry::ImportVariant);
+			Engine->AddSystemAddon("timestamp", { "string" }, Bindings::Registry::ImportTimestamp);
+			Engine->AddSystemAddon("console", { "format" }, Bindings::Registry::ImportConsole);
+			Engine->AddSystemAddon("schema", { "array", "string", "dictionary", "variant" }, Bindings::Registry::ImportSchema);
+			Engine->AddSystemAddon("schedule", { "ctypes" }, Bindings::Registry::ImportSchedule);
+			Engine->AddSystemAddon("clock", { }, Bindings::Registry::ImportClockTimer);
+			Engine->AddSystemAddon("fs", { "string" }, Bindings::Registry::ImportFileSystem);
+			Engine->AddSystemAddon("os", { "fs", "array" }, Bindings::Registry::ImportOS);
+			Engine->AddSystemAddon("vertices", { }, Bindings::Registry::ImportVertices);
+			Engine->AddSystemAddon("vectors", { }, Bindings::Registry::ImportVectors);
+			Engine->AddSystemAddon("shapes", { "vectors" }, Bindings::Registry::ImportShapes);
+			Engine->AddSystemAddon("key-frames", { "vectors", "string" }, Bindings::Registry::ImportKeyFrames);
+			Engine->AddSystemAddon("regex", { "string" }, Bindings::Registry::ImportRegex);
+			Engine->AddSystemAddon("crypto", { "string", "schema" }, Bindings::Registry::ImportCrypto);
+			Engine->AddSystemAddon("codec", { "string" }, Bindings::Registry::ImportCodec);
+			Engine->AddSystemAddon("geometric", { "vectors", "vertices", "shapes" }, Bindings::Registry::ImportGeometric);
+			Engine->AddSystemAddon("preprocessor", { "string" }, Bindings::Registry::ImportPreprocessor);
+			Engine->AddSystemAddon("physics", { "string", "geometric" }, Bindings::Registry::ImportPhysics);
+			Engine->AddSystemAddon("audio", { "string", "vectors", "schema" }, Bindings::Registry::ImportAudio);
+			Engine->AddSystemAddon("audio-effects", { "audio" }, Bindings::Registry::ImportAudioEffects);
+			Engine->AddSystemAddon("audio-filters", { "audio" }, Bindings::Registry::ImportAudioFilters);
+			Engine->AddSystemAddon("activity", { "string", "vectors" }, Bindings::Registry::ImportActivity);
+			Engine->AddSystemAddon("graphics", { "activity", "string", "vectors", "vertices", "shapes", "key-frames" }, Bindings::Registry::ImportGraphics);
+			Engine->AddSystemAddon("network", { "string", "array", "dictionary", "promise" }, Bindings::Registry::ImportNetwork);
+			Engine->AddSystemAddon("http", { "schema", "fs", "promise", "regex", "network" }, Bindings::Registry::ImportHTTP);
+			Engine->AddSystemAddon("smtp", { "promise", "network" }, Bindings::Registry::ImportSMTP);
+			Engine->AddSystemAddon("postgresql", { "network", "schema" }, Bindings::Registry::ImportPostgreSQL);
+			Engine->AddSystemAddon("mongodb", { "network", "schema" }, Bindings::Registry::ImportMongoDB);
+			Engine->AddSystemAddon("gui-control", { "vectors", "schema", "array" }, Bindings::Registry::ImportUiControl);
+			Engine->AddSystemAddon("gui-model", { "gui-control", }, Bindings::Registry::ImportUiModel);
+			Engine->AddSystemAddon("gui-context", { "gui-model" }, Bindings::Registry::ImportUiContext);
+			Engine->AddSystemAddon("engine", { "schema", "schedule", "key-frames", "fs", "graphics", "audio", "physics", "clock", "gui-context" }, Bindings::Registry::ImportEngine);
+			Engine->AddSystemAddon("components", { "engine" }, Bindings::Registry::ImportComponents);
+			Engine->AddSystemAddon("renderers", { "engine" }, Bindings::Registry::ImportRenderers);
 		}
 		size_t VirtualMachine::GetDefaultAccessMask()
 		{

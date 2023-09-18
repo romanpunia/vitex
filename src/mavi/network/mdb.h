@@ -39,6 +39,8 @@ namespace Mavi
 
 			class Document;
 
+			class Collection;
+
 			enum class QueryFlags
 			{
 				None = 0,
@@ -83,14 +85,14 @@ namespace Mavi
 			{
 				Core::String Name;
 				Core::String String;
+				unsigned char ObjectId[12] = { };
 				TDocument* Source;
-				Type Mod;
 				int64_t Integer;
 				uint64_t High;
 				uint64_t Low;
 				double Number;
-				unsigned char ObjectId[12] = { };
 				bool Boolean;
+				Type Mod;
 				bool IsValid;
 
 				Property() noexcept;
@@ -99,9 +101,11 @@ namespace Mavi
 				~Property();
 				Property& operator =(const Property& Other);
 				Property& operator =(Property&& Other);
-				Core::Unique<TDocument> LoseOwnership();
+				Core::Unique<TDocument> Reset();
 				Core::String& ToString();
-				Document Get() const;
+				Core::String ToObjectId();
+				Document AsDocument() const;
+				Property At(const Core::String& Name) const;
 				Property operator [](const char* Name);
 				Property operator [](const char* Name) const;
 			};
@@ -113,7 +117,8 @@ namespace Mavi
 				bool Store;
 
 			public:
-				Document(TDocument* NewBase = nullptr);
+				Document();
+				Document(TDocument* NewBase);
 				Document(const Document& Other) = delete;
 				Document(Document&& Other);
 				~Document();
@@ -138,6 +143,21 @@ namespace Mavi
 				bool SetProperty(const char* Key, Property* Value, size_t ArrayId = 0);
 				bool HasProperty(const char* Key) const;
 				bool GetProperty(const char* Key, Property* Output) const;
+				bool SetSchemaAt(const Core::String& Key, const Document& Value, size_t ArrayId = 0);
+				bool SetArrayAt(const Core::String& Key, const Document& Array, size_t ArrayId = 0);
+				bool SetStringAt(const Core::String& Key, const Core::String& Value, size_t ArrayId = 0);
+				bool SetIntegerAt(const Core::String& Key, int64_t Value, size_t ArrayId = 0);
+				bool SetNumberAt(const Core::String& Key, double Value, size_t ArrayId = 0);
+				bool SetDecimalAt(const Core::String& Key, uint64_t High, uint64_t Low, size_t ArrayId = 0);
+				bool SetDecimalStringAt(const Core::String& Key, const Core::String& Value, size_t ArrayId = 0);
+				bool SetDecimalIntegerAt(const Core::String& Key, int64_t Value, size_t ArrayId = 0);
+				bool SetDecimalNumberAt(const Core::String& Key, double Value, size_t ArrayId = 0);
+				bool SetBooleanAt(const Core::String& Key, bool Value, size_t ArrayId = 0);
+				bool SetObjectIdAt(const Core::String& Key, const Core::String& Value, size_t ArrayId = 0);
+				bool SetNullAt(const Core::String& Key, size_t ArrayId = 0);
+				bool SetPropertyAt(const Core::String& Key, Property* Value, size_t ArrayId = 0);
+				bool HasPropertyAt(const Core::String& Key) const;
+				bool GetPropertyAt(const Core::String& Key, Property* Output) const;
 				size_t Count() const;
 				Core::String ToRelaxedJSON() const;
 				Core::String ToExtendedJSON() const;
@@ -147,6 +167,7 @@ namespace Mavi
 				TDocument* Get() const;
 				Document Copy() const;
 				Document& Persist(bool Keep = true);
+				Property At(const Core::String& Name) const;
 				explicit operator bool() const
 				{
 					return Base != nullptr;
@@ -166,7 +187,7 @@ namespace Mavi
 
 			public:
 				static Document FromEmpty();
-				static Document FromDocument(Core::Schema* Document);
+				static Document FromSchema(Core::Schema* Document);
 				static Document FromJSON(const Core::String& JSON);
 				static Document FromBuffer(const unsigned char* Buffer, size_t Length);
 				static Document FromSource(TDocument* Src);
@@ -181,21 +202,22 @@ namespace Mavi
 				TAddress* Base;
 
 			public:
-				Address(TAddress* NewBase = nullptr);
+				Address();
+				Address(TAddress* NewBase);
 				Address(const Address& Other) = delete;
 				Address(Address&& Other);
 				~Address();
 				Address& operator =(const Address& Other) = delete;
 				Address& operator =(Address&& Other);
-				void SetOption(const char* Name, int64_t Value);
-				void SetOption(const char* Name, bool Value);
-				void SetOption(const char* Name, const char* Value);
-				void SetAuthMechanism(const char* Value);
-				void SetAuthSource(const char* Value);
-				void SetCompressors(const char* Value);
-				void SetDatabase(const char* Value);
-				void SetUsername(const char* Value);
-				void SetPassword(const char* Value);
+				void SetOption(const Core::String& Name, int64_t Value);
+				void SetOption(const Core::String& Name, bool Value);
+				void SetOption(const Core::String& Name, const Core::String& Value);
+				void SetAuthMechanism(const Core::String& Value);
+				void SetAuthSource(const Core::String& Value);
+				void SetCompressors(const Core::String& Value);
+				void SetDatabase(const Core::String& Value);
+				void SetUsername(const Core::String& Value);
+				void SetPassword(const Core::String& Value);
 				TAddress* Get() const;
 				explicit operator bool() const
 				{
@@ -203,7 +225,7 @@ namespace Mavi
 				}
 
 			public:
-				static Address FromURI(const char* Value);
+				static Address FromURI(const Core::String& Value);
 			};
 
 			class VI_OUT Stream
@@ -249,7 +271,8 @@ namespace Mavi
 				TCursor* Base;
 
 			public:
-				Cursor(TCursor* NewBase = nullptr);
+				Cursor();
+				Cursor(TCursor* NewBase);
 				Cursor(const Cursor& Other) = delete;
 				Cursor(Cursor&& Other);
 				~Cursor();
@@ -259,17 +282,21 @@ namespace Mavi
 				void SetBatchSize(size_t BatchSize);
 				bool SetLimit(int64_t Limit);
 				bool SetHint(size_t Hint);
-				bool HasError() const;
-				bool HasMoreData() const;
-				Core::Promise<bool> Next() const;
+				bool Empty() const;
+				bool Error() const;
+				Core::Promise<bool> Next();
 				int64_t GetId() const;
 				int64_t GetLimit() const;
 				size_t GetMaxAwaitTime() const;
 				size_t GetBatchSize() const;
 				size_t GetHint() const;
-				Document GetCurrent() const;
+				Document Current() const;
 				Cursor Clone();
 				TCursor* Get() const;
+				bool ErrorOrEmpty() const
+				{
+					return Error() || Empty();
+				}
 				explicit operator bool() const
 				{
 					return Base != nullptr;
@@ -287,26 +314,64 @@ namespace Mavi
 				bool NetSuccess;
 
 			public:
-				Response(bool NewSuccess = false);
-				Response(Cursor&& NewCursor);
-				Response(Document&& NewDocument);
+				Response();
+				Response(bool NewSuccess);
+				Response(Cursor& NewCursor);
+				Response(Document& NewDocument);
 				Response(const Response& Other) = delete;
 				Response(Response&& Other);
 				Response& operator =(const Response& Other) = delete;
 				Response& operator =(Response&& Other);
-				Core::Promise<Core::Unique<Core::Schema>> Fetch() const;
-				Core::Promise<Core::Unique<Core::Schema>> FetchAll() const;
-				Core::Promise<Property> GetProperty(const char* Name);
+				Core::Promise<Core::Unique<Core::Schema>> Fetch();
+				Core::Promise<Core::Unique<Core::Schema>> FetchAll();
+				Core::Promise<Property> GetProperty(const Core::String& Name);
 				Cursor&& GetCursor();
 				Document&& GetDocument();
-				bool IsSuccess() const;
-				Core::Promise<Property> operator [](const char* Name)
+				bool Success() const;
+				Core::Promise<Property> operator [](const Core::String& Name)
 				{
 					return GetProperty(Name);
 				}
 				explicit operator bool() const
 				{
-					return IsSuccess();
+					return Success();
+				}
+			};
+
+			class VI_OUT Transaction
+			{
+			private:
+				TTransaction* Base;
+
+			public:
+				Transaction();
+				Transaction(TTransaction* NewBase);
+				Transaction(const Transaction& Other) = default;
+				Transaction(Transaction&& Other) = default;
+				~Transaction() = default;
+				Transaction& operator =(const Transaction& Other) = default;
+				Transaction& operator =(Transaction&& Other) = default;
+				bool Push(const Document& QueryOptions) const;
+				bool Put(TDocument** QueryOptions) const;
+				Core::Promise<bool> Begin();
+				Core::Promise<bool> Rollback();
+				Core::Promise<Document> RemoveMany(Collection& Base, const Document& Match, const Document& Options);
+				Core::Promise<Document> RemoveOne(Collection& Base, const Document& Match, const Document& Options);
+				Core::Promise<Document> ReplaceOne(Collection& Base, const Document& Match, const Document& Replacement, const Document& Options);
+				Core::Promise<Document> InsertMany(Collection& Base, Core::Vector<Document>& List, const Document& Options);
+				Core::Promise<Document> InsertOne(Collection& Base, const Document& Result, const Document& Options);
+				Core::Promise<Document> UpdateMany(Collection& Base, const Document& Match, const Document& Update, const Document& Options);
+				Core::Promise<Document> UpdateOne(Collection& Base, const Document& Match, const Document& Update, const Document& Options);
+				Core::Promise<Cursor> FindMany(Collection& Base, const Document& Match, const Document& Options);
+				Core::Promise<Cursor> FindOne(Collection& Base, const Document& Match, const Document& Options);
+				Core::Promise<Cursor> Aggregate(Collection& Base, QueryFlags Flags, const Document& Pipeline, const Document& Options);
+				Core::Promise<Response> TemplateQuery(Collection& Base, const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
+				Core::Promise<Response> Query(Collection& Base, const Document& Command);
+				Core::Promise<TransactionState> Commit();
+				TTransaction* Get() const;
+				explicit operator bool() const
+				{
+					return Base != nullptr;
 				}
 			};
 
@@ -316,35 +381,36 @@ namespace Mavi
 				TCollection* Base;
 
 			public:
-				Collection(TCollection* NewBase = nullptr);
+				Collection();
+				Collection(TCollection* NewBase);
 				Collection(const Collection& Other) = delete;
 				Collection(Collection&& Other);
 				~Collection();
 				Collection& operator =(const Collection& Other) = delete;
 				Collection& operator =(Collection&& Other);
-				Core::Promise<bool> Rename(const Core::String& NewDatabaseName, const Core::String& NewCollectionName) const;
-				Core::Promise<bool> RenameWithOptions(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options) const;
-				Core::Promise<bool> RenameWithRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName) const;
-				Core::Promise<bool> RenameWithOptionsAndRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options) const;
-				Core::Promise<bool> Remove(const Document& Options) const;
-				Core::Promise<bool> RemoveIndex(const Core::String& Name, const Document& Options) const;
-				Core::Promise<Document> RemoveMany(const Document& Match, const Document& Options) const;
-				Core::Promise<Document> RemoveOne(const Document& Match, const Document& Options) const;
-				Core::Promise<Document> ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options) const;
-				Core::Promise<Document> InsertMany(Core::Vector<Document>& List, const Document& Options) const;
-				Core::Promise<Document> InsertOne(const Document& Result, const Document& Options) const;
-				Core::Promise<Document> UpdateMany(const Document& Match, const Document& Update, const Document& Options) const;
-				Core::Promise<Document> UpdateOne(const Document& Match, const Document& Update, const Document& Options) const;
-				Core::Promise<Document> FindAndModify(const Document& Match, const Document& Sort, const Document& Update, const Document& Fields, bool Remove, bool Upsert, bool New) const;
-				Core::Promise<size_t> CountDocuments(const Document& Match, const Document& Options) const;
-				Core::Promise<size_t> CountDocumentsEstimated(const Document& Options) const;
-				Core::Promise<Cursor> FindIndexes(const Document& Options) const;
-				Core::Promise<Cursor> FindMany(const Document& Match, const Document& Options) const;
-				Core::Promise<Cursor> FindOne(const Document& Match, const Document& Options) const;
-				Core::Promise<Cursor> Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options) const;
-				Core::Promise<Response> TemplateQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true, Transaction* Session = nullptr) const;
-				Core::Promise<Response> Query(const Document& Command, Transaction* Session = nullptr) const;
-				const char* GetName() const;
+				Core::Promise<bool> Rename(const Core::String& NewDatabaseName, const Core::String& NewCollectionName);
+				Core::Promise<bool> RenameWithOptions(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options);
+				Core::Promise<bool> RenameWithRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName);
+				Core::Promise<bool> RenameWithOptionsAndRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options);
+				Core::Promise<bool> Remove(const Document& Options);
+				Core::Promise<bool> RemoveIndex(const Core::String& Name, const Document& Options);
+				Core::Promise<Document> RemoveMany(const Document& Match, const Document& Options);
+				Core::Promise<Document> RemoveOne(const Document& Match, const Document& Options);
+				Core::Promise<Document> ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options);
+				Core::Promise<Document> InsertMany(Core::Vector<Document>& List, const Document& Options);
+				Core::Promise<Document> InsertOne(const Document& Result, const Document& Options);
+				Core::Promise<Document> UpdateMany(const Document& Match, const Document& Update, const Document& Options);
+				Core::Promise<Document> UpdateOne(const Document& Match, const Document& Update, const Document& Options);
+				Core::Promise<Document> FindAndModify(const Document& Match, const Document& Sort, const Document& Update, const Document& Fields, bool Remove, bool Upsert, bool New);
+				Core::Promise<size_t> CountDocuments(const Document& Match, const Document& Options);
+				Core::Promise<size_t> CountDocumentsEstimated(const Document& Options);
+				Core::Promise<Cursor> FindIndexes(const Document& Options);
+				Core::Promise<Cursor> FindMany(const Document& Match, const Document& Options);
+				Core::Promise<Cursor> FindOne(const Document& Match, const Document& Options);
+				Core::Promise<Cursor> Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options);
+				Core::Promise<Response> TemplateQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true, const Transaction& Session = Transaction());
+				Core::Promise<Response> Query(const Document& Command, const Transaction& Session = Transaction());
+				Core::String GetName() const;
 				Stream CreateStream(Document&& Options) const;
 				TCollection* Get() const;
 				explicit operator bool() const
@@ -359,7 +425,8 @@ namespace Mavi
 				TDatabase* Base;
 
 			public:
-				Database(TDatabase* NewBase = nullptr);
+				Database();
+				Database(TDatabase* NewBase);
 				Database(const Database& Other) = delete;
 				Database(Database&& Other);
 				~Database();
@@ -370,11 +437,11 @@ namespace Mavi
 				Core::Promise<bool> Remove();
 				Core::Promise<bool> RemoveWithOptions(const Document& Options);
 				Core::Promise<bool> AddUser(const Core::String& Username, const Core::String& Password, const Document& Roles, const Document& Custom);
-				Core::Promise<bool> HasCollection(const Core::String& Name) const;
+				Core::Promise<bool> HasCollection(const Core::String& Name);
 				Core::Promise<Collection> CreateCollection(const Core::String& Name, const Document& Options);
-				Core::Promise<Cursor> FindCollections(const Document& Options) const;
+				Core::Promise<Cursor> FindCollections(const Document& Options);
 				Core::Vector<Core::String> GetCollectionNames(const Document& Options) const;
-				const char* GetName() const;
+				Core::String GetName() const;
 				Collection GetCollection(const Core::String& Name);
 				TDatabase* Get() const;
 				explicit operator bool() const
@@ -389,14 +456,15 @@ namespace Mavi
 				TWatcher* Base;
 
 			public:
+				Watcher();
 				Watcher(TWatcher* NewBase);
 				Watcher(const Watcher& Other) = delete;
 				Watcher(Watcher&& Other);
 				~Watcher();
 				Watcher& operator =(const Watcher& Other) = delete;
 				Watcher& operator =(Watcher&& Other);
-				Core::Promise<bool> Next(Document& Result) const;
-				Core::Promise<bool> Error(Document& Result) const;
+				Core::Promise<bool> Next(Document& Result);
+				Core::Promise<bool> Error(Document& Result);
 				TWatcher* Get() const;
 				explicit operator bool() const
 				{
@@ -407,37 +475,6 @@ namespace Mavi
 				static Watcher FromConnection(Connection* Connection, const Document& Pipeline, const Document& Options);
 				static Watcher FromDatabase(const Database& Src, const Document& Pipeline, const Document& Options);
 				static Watcher FromCollection(const Collection& Src, const Document& Pipeline, const Document& Options);
-			};
-
-			class VI_OUT Transaction
-			{
-			private:
-				TTransaction* Base;
-
-			public:
-				Transaction(TTransaction* NewBase);
-				bool Push(Document& QueryOptions) const;
-				bool Put(TDocument** QueryOptions) const;
-				Core::Promise<bool> Start();
-				Core::Promise<bool> Abort();
-				Core::Promise<Document> RemoveMany(const Collection& Base, const Document& Match, Document&& Options);
-				Core::Promise<Document> RemoveOne(const Collection& Base, const Document& Match, Document&& Options);
-				Core::Promise<Document> ReplaceOne(const Collection& Base, const Document& Match, const Document& Replacement, Document&& Options);
-				Core::Promise<Document> InsertMany(const Collection& Base, Core::Vector<Document>& List, Document&& Options);
-				Core::Promise<Document> InsertOne(const Collection& Base, const Document& Result, Document&& Options);
-				Core::Promise<Document> UpdateMany(const Collection& Base, const Document& Match, const Document& Update, Document&& Options);
-				Core::Promise<Document> UpdateOne(const Collection& Base, const Document& Match, const Document& Update, Document&& Options);
-				Core::Promise<Cursor> FindMany(const Collection& Base, const Document& Match, Document&& Options) const;
-				Core::Promise<Cursor> FindOne(const Collection& Base, const Document& Match, Document&& Options) const;
-				Core::Promise<Cursor> Aggregate(const Collection& Base, QueryFlags Flags, const Document& Pipeline, Document&& Options) const;
-				Core::Promise<Response> TemplateQuery(const Collection& Base, const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
-				Core::Promise<Response> Query(const Collection& Base, const Document& Command);
-				Core::Promise<TransactionState> Commit();
-				TTransaction* Get() const;
-				explicit operator bool() const
-				{
-					return Base != nullptr;
-				}
 			};
 
 			class VI_OUT Connection final : public Core::Reference<Connection>
@@ -454,18 +491,18 @@ namespace Mavi
 			public:
 				Connection();
 				~Connection() noexcept;
-				Core::Promise<bool> Connect(const Core::String& Address);
+				Core::Promise<bool> ConnectByURI(const Core::String& Address);
 				Core::Promise<bool> Connect(Address* URI);
 				Core::Promise<bool> Disconnect();
 				Core::Promise<bool> MakeTransaction(const std::function<Core::Promise<bool>(Transaction&)>& Callback);
 				Core::Promise<bool> MakeCotransaction(const std::function<bool(Transaction&)>& Callback);
-				Core::Promise<Cursor> FindDatabases(const Document& Options) const;
+				Core::Promise<Cursor> FindDatabases(const Document& Options);
 				void SetProfile(const Core::String& Name);
 				bool SetServer(bool Writeable);
 				Transaction& GetSession();
 				Database GetDatabase(const Core::String& Name) const;
 				Database GetDefaultDatabase() const;
-				Collection GetCollection(const char* DatabaseName, const char* Name) const;
+				Collection GetCollection(const Core::String& DatabaseName, const Core::String& Name) const;
 				Address GetAddress() const;
 				Cluster* GetMaster() const;
 				TConnection* Get() const;
@@ -483,10 +520,10 @@ namespace Mavi
 			public:
 				Cluster();
 				~Cluster() noexcept;
-				Core::Promise<bool> Connect(const Core::String& Address);
+				Core::Promise<bool> ConnectByURI(const Core::String& Address);
 				Core::Promise<bool> Connect(Address* URI);
 				Core::Promise<bool> Disconnect();
-				void SetProfile(const char* Name);
+				void SetProfile(const Core::String& Name);
 				void Push(Connection** Client);
 				Connection* Pop();
 				TConnectionPool* Get() const;
@@ -540,6 +577,7 @@ namespace Mavi
 				void AttachQueryLog(TConnection* Connection) noexcept;
 				void AttachQueryLog(TConnectionPool* Connection) noexcept;
 				bool AddConstant(const Core::String& Name, const Core::String& Value) noexcept;
+				bool AddQuery(const Core::String& Name, const Core::String& Data) noexcept;
 				bool AddQuery(const Core::String& Name, const char* Buffer, size_t Size) noexcept;
 				bool AddDirectory(const Core::String& Directory, const Core::String& Origin = "") noexcept;
 				bool RemoveConstant(const Core::String& Name) noexcept;

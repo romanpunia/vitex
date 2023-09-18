@@ -348,6 +348,42 @@ namespace Mavi
 				return diff / (fabs(A) + fabs(B)) < Epsilon;
 			}
 
+			void Imports::BindSyntax(VirtualMachine* VM, bool Enabled, const char* Syntax)
+			{
+				VI_ASSERT(VM != nullptr, "vm should be set");
+				VI_ASSERT(Syntax != nullptr && Syntax[0] != '\0', "syntax should be set");
+				if (Enabled)
+					VM->SetCodeGenerator("import-syntax", std::bind(&Bindings::Imports::GeneratorCallback, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, Syntax));
+				else
+					VM->SetCodeGenerator("import-syntax", nullptr);
+			}
+			bool Imports::GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code, const char* Syntax)
+			{
+				size_t Errors = 0;
+				return Parser::ReplaceDirectivePreconditions(Syntax, Code, [Base, &Path, &Errors](const Core::String& Text)
+				{
+					Core::Vector<std::pair<Core::String, Core::TextSettle>> Includes = Core::Stringify::FindInBetweenInCode(Text, "\"", "\"");
+					Core::String Output;
+
+					for (auto& Include : Includes)
+					{
+						auto Result = Base->ResolveFile(Path, Core::Stringify::Trim(Include.first));
+						if (!Result)
+						{
+							++Errors;
+							return Output;
+						}
+						Output += *Result;
+					}
+
+					size_t Prev = Core::Stringify::CountLines(Text);
+					size_t Next = Core::Stringify::CountLines(Output);
+					size_t Diff = (Next < Prev ? Prev - Next : 1);
+					Output.append(Diff, '\n');
+					return Output;
+				}) && !Errors;
+			}
+
 			Exception::Pointer::Pointer() : Context(nullptr)
 			{
 			}
@@ -487,13 +523,12 @@ namespace Mavi
 			{
 				return GetExceptionAt(ImmediateContext::Get());
 			}
-			bool Exception::GeneratorCallback(const Core::String& Path, Core::String& Code)
+			bool Exception::GeneratorCallback(Compute::Preprocessor*, const Core::String& Path, Core::String& Code)
 			{
-				FunctionFactory::ReplacePreconditions("throw", Code, [](const Core::String& Expression)
+				return Parser::ReplaceInlinePreconditions("throw", Code, [](const Core::String& Expression)
 				{
 					return "exception::throw(" + Expression + ")";
 				});
-				return true;
 			}
 
 			Any::Any(VirtualMachine* _Engine) noexcept : Engine(_Engine)
@@ -2849,14 +2884,13 @@ namespace Mavi
 
 				return true;
 			}
-			bool Promise::GeneratorCallback(const Core::String&, Core::String& Code)
+			bool Promise::GeneratorCallback(Compute::Preprocessor*, const Core::String&, Core::String& Code)
 			{
 				Core::Stringify::Replace(Code, "promise<void>", "promise_v");
-				FunctionFactory::ReplacePreconditions("co_await", Code, [](const Core::String& Expression)
+				return Parser::ReplaceInlinePreconditions("co_await", Code, [](const Core::String& Expression)
 				{
 					return Expression + ".yield().unwrap()";
 				});
-				return true;
 			}
 			bool Promise::IsContextPending(ImmediateContext* Context)
 			{
@@ -3103,16 +3137,13 @@ namespace Mavi
 						else
 							Buffer += sizeof(void*);
 					}
-					else if (TypeId == 0)
-					{
-						VI_WARN("[memerr] use nullptr instead of null for initialization lists");
-						Buffer += sizeof(void*);
-					}
-					else
+					else if (TypeId != 0)
 					{
 						auto Size = VM->GetSizeOfPrimitiveType(TypeId);
 						Buffer += Size ? *Size : 0;
 					}
+					else
+						Buffer += sizeof(void*);
 				}
 
 				return Result;
@@ -5560,6 +5591,28 @@ namespace Mavi
 					});
 					VI_RELEASE(Params);
 					return Result;
+				});
+			}
+			void PreprocessorSetDirectiveCallback(Compute::Preprocessor* Base, const Core::String& Name, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				FunctionDelegate Delegate(Callback);
+				if (!Context || !Delegate.IsValid())
+					return Base->SetDirectiveCallback(Name, nullptr);
+
+				Base->SetDirectiveCallback(Name, [Context, Delegate](Compute::Preprocessor* Base, const Compute::ProcDirective& Token, Core::String& Result)
+				{
+					bool Success = false;
+					Context->ExecuteSubcall(Delegate.Callable(), [Base, &Token, &Result](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, Base);
+						Context->SetArgObject(1, (void*)&Token);
+						Context->SetArgObject(1, (void*)&Result);
+					}, [&Success](ImmediateContext* Context)
+					{
+						Success = Context->GetReturnByte() > 0;
+					});
+					return Success;
 				});
 			}
 			bool PreprocessorIsDefined(Compute::Preprocessor* Base, const Core::String& Name)
@@ -9027,7 +9080,10 @@ namespace Mavi
 			Core::Promise<Network::PDB::Cursor> PDBClusterEmplaceQuery(Network::PDB::Cluster* Base, const Core::String& Command, Array* Data, size_t Options, Network::PDB::Connection* Session)
 			{
 				Core::Vector<Core::Schema*> Args = Array::Decompose<Core::Schema*>(Data);
-				return Base->EmplaceQuery(Command, &Args, Options | (size_t)Network::PDB::QueryOp::ReuseArgs, Session);
+				for (auto& Item : Args)
+					Item->AddRef();
+
+				return Base->EmplaceQuery(Command, &Args, Options, Session);
 			}
 			Core::Promise<Network::PDB::Cursor> PDBClusterTemplateQuery(Network::PDB::Cluster* Base, const Core::String& Command, Dictionary* Data, size_t Options, Network::PDB::Connection* Session)
 			{
@@ -9044,12 +9100,15 @@ namespace Mavi
 						{
 							Core::Schema* Value = nullptr;
 							if (It.GetValue(&Value, TypeId))
+							{
 								Args[It.GetKey()] = Value;
+								Value->AddRef();
+							}
 						}
 					}
 				}
 
-				return Base->TemplateQuery(Command, &Args, Options | (size_t)Network::PDB::QueryOp::ReuseArgs, Session);
+				return Base->TemplateQuery(Command, &Args, Options, Session);
 			}
 
 			Core::String PDBUtilsInlineQuery(Network::PDB::Cluster* Client, Core::Schema* Where, Dictionary* WhitelistData, const Core::String& Default)
@@ -9079,7 +9138,10 @@ namespace Mavi
 			Core::String PDBDriverEmplace(Network::PDB::Driver* Base, Network::PDB::Cluster* Cluster, const Core::String& SQL, Array* Data)
 			{
 				Core::Vector<Core::Schema*> Args = Array::Decompose<Core::Schema*>(Data);
-				return Base->Emplace(Cluster, SQL, &Args, false);
+				for (auto& Item : Args)
+					Item->AddRef();
+
+				return Base->Emplace(Cluster, SQL, &Args);
 			}
 			Core::String PDBDriverGetQuery(Network::PDB::Driver* Base, Network::PDB::Cluster* Cluster, const Core::String& SQL, Dictionary* Data)
 			{
@@ -9096,14 +9158,360 @@ namespace Mavi
 						{
 							Core::Schema* Value = nullptr;
 							if (It.GetValue(&Value, TypeId))
+							{
 								Args[It.GetKey()] = Value;
+								Value->AddRef();
+							}
 						}
 					}
 				}
 
-				return Base->GetQuery(Cluster, SQL, &Args, false);
+				return Base->GetQuery(Cluster, SQL, &Args);
 			}
 			Array* PDBDriverGetQueries(Network::PDB::Driver* Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose(Type.GetTypeInfo(), Base->GetQueries());
+			}
+
+			Network::MDB::Document MDBDocumentConstructBuffer(unsigned char* Buffer)
+			{
+#ifdef VI_ANGELSCRIPT
+				if (!Buffer)
+					return Network::MDB::Document::FromEmpty();
+
+				Network::MDB::Document Result = Network::MDB::Document::FromEmpty();
+				VirtualMachine* VM = VirtualMachine::Get();
+				size_t Length = *(asUINT*)Buffer;
+				Buffer += 4;
+
+				while (Length--)
+				{
+					if (asPWORD(Buffer) & 0x3)
+						Buffer += 4 - (asPWORD(Buffer) & 0x3);
+
+					Core::String Name = *(Core::String*)Buffer;
+					Buffer += sizeof(Core::String);
+
+					int TypeId = *(int*)Buffer;
+					Buffer += sizeof(int);
+
+					void* Ref = (void*)Buffer;
+					if (TypeId >= (size_t)TypeId::BOOL && TypeId <= (size_t)TypeId::DOUBLE)
+					{
+						switch (TypeId)
+						{
+							case (size_t)TypeId::BOOL:
+								Result.SetBooleanAt(Name, *(bool*)Ref);
+								break;
+							case (size_t)TypeId::INT8:
+								Result.SetIntegerAt(Name, *(char*)Ref);
+								break;
+							case (size_t)TypeId::INT16:
+								Result.SetIntegerAt(Name, *(short*)Ref);
+								break;
+							case (size_t)TypeId::INT32:
+								Result.SetIntegerAt(Name, *(int*)Ref);
+								break;
+							case (size_t)TypeId::UINT8:
+								Result.SetIntegerAt(Name, *(unsigned char*)Ref);
+								break;
+							case (size_t)TypeId::UINT16:
+								Result.SetIntegerAt(Name, *(unsigned short*)Ref);
+								break;
+							case (size_t)TypeId::UINT32:
+								Result.SetIntegerAt(Name, *(unsigned int*)Ref);
+								break;
+							case (size_t)TypeId::INT64:
+							case (size_t)TypeId::UINT64:
+								Result.SetIntegerAt(Name, *(int64_t*)Ref);
+								break;
+							case (size_t)TypeId::FLOAT:
+								Result.SetNumberAt(Name, *(float*)Ref);
+								break;
+							case (size_t)TypeId::DOUBLE:
+								Result.SetNumberAt(Name, *(double*)Ref);
+								break;
+						}
+					}
+					else
+					{
+						auto Type = VM->GetTypeInfoById(TypeId);
+						if ((TypeId & (size_t)TypeId::MASK_OBJECT) && !(TypeId & (size_t)TypeId::OBJHANDLE) && (Type.IsValid() && Type.Flags() & (size_t)ObjectBehaviours::REF))
+							Ref = *(void**)Ref;
+
+						if (TypeId & (size_t)TypeId::OBJHANDLE)
+							Ref = *(void**)Ref;
+
+						if (VM->IsNullable(TypeId) || !Ref)
+						{
+							Result.SetNullAt(Name);
+						}
+						else if (Type.IsValid() && !strcmp(TYPENAME_SCHEMA, Type.GetName()))
+						{
+							Core::Schema* Base = (Core::Schema*)Ref;
+							Result.SetSchemaAt(Name, Network::MDB::Document::FromSchema(Base));
+						}
+						else if (Type.IsValid() && !strcmp(TYPENAME_STRING, Type.GetName()))
+							Result.SetStringAt(Name, *(Core::String*)Ref);
+						else if (Type.IsValid() && !strcmp(TYPENAME_DECIMAL, Type.GetName()))
+							Result.SetDecimalStringAt(Name, ((Core::Decimal*)Ref)->ToString());
+					}
+
+					if (TypeId & (size_t)TypeId::MASK_OBJECT)
+					{
+						auto Type = VM->GetTypeInfoById(TypeId);
+						if (Type.Flags() & (size_t)ObjectBehaviours::VALUE)
+							Buffer += Type.Size();
+						else
+							Buffer += sizeof(void*);
+					}
+					else if (TypeId != 0)
+					{
+						auto Size = VM->GetSizeOfPrimitiveType(TypeId);
+						Buffer += Size ? *Size : 0;
+					}
+					else
+						Buffer += sizeof(void*);
+				}
+
+				return Result;
+#else
+				return nullptr;
+#endif
+			}
+			void MDBDocumentConstruct(asIScriptGeneric* Generic)
+			{
+				GenericContext Args = Generic;
+				unsigned char* Buffer = (unsigned char*)Args.GetArgAddress(0);
+				*(Network::MDB::Document*)Args.GetAddressOfReturnLocation() = MDBDocumentConstructBuffer(Buffer);
+			}
+
+			bool MDBStreamTemplateQuery(Network::MDB::Stream& Base, const Core::String& Command, Dictionary* Data)
+			{
+				Core::SchemaArgs Args;
+				if (Data != nullptr)
+				{
+					VirtualMachine* VM = VirtualMachine::Get();
+					if (VM != nullptr)
+					{
+						int TypeId = VM->GetTypeIdByDecl("schema@");
+						Args.reserve(Data->Size());
+
+						for (auto It = Data->Begin(); It != Data->End(); ++It)
+						{
+							Core::Schema* Value = nullptr;
+							if (It.GetValue(&Value, TypeId))
+							{
+								Args[It.GetKey()] = Value;
+								Value->AddRef();
+							}
+						}
+					}
+				}
+
+				return Base.TemplateQuery(Command, &Args);
+			}
+
+			Core::Promise<Network::MDB::Document> MDBCollectionInsertMany(Network::MDB::Collection& Base, Array* Data, const Network::MDB::Document& Options)
+			{
+				Core::Vector<Network::MDB::Document> List;
+				if (Data != nullptr)
+				{
+					size_t Size = Data->Size();
+					List.reserve(Size);
+					for (size_t i = 0; i < Size; i++)
+						List.emplace_back(((Network::MDB::Document*)Data->At(i))->Copy());
+				}
+
+				return Base.InsertMany(List, Options);
+			}
+
+			Core::Promise<Network::MDB::Document> MDBTransactionInsertMany(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, Array* Data, const Network::MDB::Document& Options)
+			{
+				Core::Vector<Network::MDB::Document> List;
+				if (Data != nullptr)
+				{
+					size_t Size = Data->Size();
+					List.reserve(Size);
+					for (size_t i = 0; i < Size; i++)
+						List.emplace_back(((Network::MDB::Document*)Data->At(i))->Copy());
+				}
+
+				return Base.InsertMany(Collection, List, Options);
+			}
+			Core::Promise<Network::MDB::Response> MDBTransactionTemplateQuery(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, const Core::String& Name, Dictionary* Data)
+			{
+				Core::SchemaArgs Args;
+				if (Data != nullptr)
+				{
+					VirtualMachine* VM = VirtualMachine::Get();
+					if (VM != nullptr)
+					{
+						int TypeId = VM->GetTypeIdByDecl("schema@");
+						Args.reserve(Data->Size());
+
+						for (auto It = Data->Begin(); It != Data->End(); ++It)
+						{
+							Core::Schema* Value = nullptr;
+							if (It.GetValue(&Value, TypeId))
+							{
+								Args[It.GetKey()] = Value;
+								Value->AddRef();
+							}
+						}
+					}
+				}
+
+				return Base.TemplateQuery(Collection, Name, &Args);
+			}
+
+			Core::Promise<Network::MDB::Response> MDBCollectionTemplateQuery(Network::MDB::Collection& Base, const Core::String& Name, Dictionary* Data, Network::MDB::Transaction& Session)
+			{
+				Core::SchemaArgs Args;
+				if (Data != nullptr)
+				{
+					VirtualMachine* VM = VirtualMachine::Get();
+					if (VM != nullptr)
+					{
+						int TypeId = VM->GetTypeIdByDecl("schema@");
+						Args.reserve(Data->Size());
+
+						for (auto It = Data->Begin(); It != Data->End(); ++It)
+						{
+							Core::Schema* Value = nullptr;
+							if (It.GetValue(&Value, TypeId))
+							{
+								Args[It.GetKey()] = Value;
+								Value->AddRef();
+							}
+						}
+					}
+				}
+
+				return Base.TemplateQuery(Name, &Args, true, Session);
+			}
+
+			Array* MDBDatabaseGetCollectionNames(Network::MDB::Database& Base, const Network::MDB::Document& Options)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose<Core::String>(Type, Base.GetCollectionNames(Options));
+			}
+
+			Array* MDBConnectionGetDatabaseNames(Network::MDB::Connection* Base, const Network::MDB::Document& Options)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose<Core::String>(Type, Base->GetDatabaseNames(Options));
+			}
+			Core::Promise<bool> MDBConnectionMakeTransaction(Network::MDB::Connection* Base, asIScriptFunction* Callback)
+			{
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
+					return Core::Promise<bool>(false);
+
+				return Base->MakeTransaction([Base, Delegate](Network::MDB::Transaction& Session) mutable -> Core::Promise<bool>
+				{
+					Core::Promise<bool> Future;
+					Delegate([Base, Session](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, (void*)&Base);
+						Context->SetArgObject(1, (void*)&Session);
+					}, [Future](ImmediateContext* Context) mutable
+					{
+						Promise* Target = Context->GetReturnObject<Promise>();
+						if (!Target)
+							return Future.Set(true);
+
+						Target->When([Future](Promise* Target) mutable
+						{
+							bool Value = true;
+							Target->Retrieve(&Value, (int)TypeId::BOOL);
+							Future.Set(Value);
+						});
+					});
+					return Future;
+				});
+			}
+			Core::Promise<bool> MDBConnectionMakeCotransaction(Network::MDB::Connection* Base, asIScriptFunction* Callback)
+			{
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
+					return Core::Promise<bool>(false);
+
+				return Base->MakeTransaction([Base, Delegate](Network::MDB::Transaction& Session) mutable -> Core::Promise<bool>
+				{
+					Core::Promise<bool> Future;
+					Delegate([Base, Session](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, (void*)&Base);
+						Context->SetArgObject(1, (void*)&Session);
+					}, [Future](ImmediateContext* Context) mutable
+					{
+						Future.Set(Context->GetReturnByte() > 0);
+					});
+					return Future;
+				});
+			}
+
+			void MDBClusterPush(Network::MDB::Cluster* Base, Network::MDB::Connection* Target)
+			{
+				Base->Push(&Target);
+			}
+
+			void MDBDriverSetQueryLog(Network::MDB::Driver* Base, asIScriptFunction* Callback)
+			{
+				FunctionDelegate Delegate(Callback);
+				if (Delegate.IsValid())
+				{
+					Base->SetQueryLog([Delegate](const Core::String& Data) mutable
+					{
+						Delegate([Data](ImmediateContext* Context)
+						{
+							Context->SetArgObject(0, (void*)&Data);
+						});
+					});
+				}
+				else
+					Base->SetQueryLog(nullptr);
+			}
+			Core::String MDBDriverGetQuery(Network::PDB::Driver* Base, Network::PDB::Cluster* Cluster, const Core::String& SQL, Dictionary* Data)
+			{
+				Core::SchemaArgs Args;
+				if (Data != nullptr)
+				{
+					VirtualMachine* VM = VirtualMachine::Get();
+					if (VM != nullptr)
+					{
+						int TypeId = VM->GetTypeIdByDecl("schema@");
+						Args.reserve(Data->Size());
+
+						for (auto It = Data->Begin(); It != Data->End(); ++It)
+						{
+							Core::Schema* Value = nullptr;
+							if (It.GetValue(&Value, TypeId))
+							{
+								Args[It.GetKey()] = Value;
+								Value->AddRef();
+							}
+						}
+					}
+				}
+
+				return Base->GetQuery(Cluster, SQL, &Args);
+			}
+			Array* MDBDriverGetQueries(Network::MDB::Driver* Base)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
 				if (!VM)
@@ -9473,7 +9881,7 @@ namespace Mavi
 				VExceptionPtr->SetMethod("string what() const", &Exception::Pointer::What);
 				VExceptionPtr->SetMethod("bool empty() const", &Exception::Pointer::Empty);
 
-				VM->SetCodeGenerator("std/exception", &Exception::GeneratorCallback);
+				VM->SetCodeGenerator("throw-syntax", &Exception::GeneratorCallback);
 				VM->BeginNamespace("exception");
 				VM->SetFunction("void throw(const exception_ptr&in)", &Exception::Throw);
 				VM->SetFunction("void rethrow()", &Exception::Rethrow);
@@ -9628,7 +10036,7 @@ namespace Mavi
 					VPromiseVoid->SetMethod<Promise, void, asIScriptFunction*>("void when(when_callback@)", &Promise::When);
 				}
 
-				VM->SetCodeGenerator("std/promise", &Promise::GeneratorCallback);
+				VM->SetCodeGenerator("await-syntax", &Promise::GeneratorCallback);
 				return true;
 			}
 			bool Registry::ImportFormat(VirtualMachine* VM)
@@ -11305,6 +11713,16 @@ namespace Mavi
 				VIncludeType->SetValue("unchaned_t", (int)Compute::IncludeType::Unchanged);
 				VIncludeType->SetValue("virtual_t", (int)Compute::IncludeType::Virtual);
 
+				auto VProcDirective = VM->SetStructTrivial<Compute::ProcDirective>("proc_directive");
+				VProcDirective->SetProperty<Compute::ProcDirective>("string name", &Compute::ProcDirective::Name);
+				VProcDirective->SetProperty<Compute::ProcDirective>("string value", &Compute::ProcDirective::Value);
+				VProcDirective->SetProperty<Compute::ProcDirective>("usize start", &Compute::ProcDirective::Start);
+				VProcDirective->SetProperty<Compute::ProcDirective>("usize end", &Compute::ProcDirective::End);
+				VProcDirective->SetProperty<Compute::ProcDirective>("bool found", &Compute::ProcDirective::Found);
+				VProcDirective->SetProperty<Compute::ProcDirective>("bool as_global", &Compute::ProcDirective::AsGlobal);
+				VProcDirective->SetProperty<Compute::ProcDirective>("bool as_scope", &Compute::ProcDirective::AsScope);
+				VProcDirective->SetConstructor<Compute::ProcDirective>("void f()");
+
 				auto VIncludeDesc = VM->SetStructTrivial<Compute::IncludeDesc>("include_desc");
 				VIncludeDesc->SetProperty<Compute::IncludeDesc>("string from", &Compute::IncludeDesc::From);
 				VIncludeDesc->SetProperty<Compute::IncludeDesc>("string path", &Compute::IncludeDesc::Path);
@@ -11333,6 +11751,7 @@ namespace Mavi
 				auto VPreprocessor = VM->SetClass<Compute::Preprocessor>("preprocessor", false);
 				VPreprocessor->SetFunctionDef("include_type proc_include_event(preprocessor@+, const include_result &in, string &out)");
 				VPreprocessor->SetFunctionDef("bool proc_pragma_event(preprocessor@+, const string &in, array<string>@+)");
+				VPreprocessor->SetFunctionDef("bool proc_directive_event(preprocessor@+, const proc_directive&in, string&out)");
 				VPreprocessor->SetConstructor<Compute::Preprocessor>("preprocessor@ f(uptr@)");
 				VPreprocessor->SetMethod("void set_include_options(const include_desc &in)", &Compute::Preprocessor::SetIncludeOptions);
 				VPreprocessor->SetMethod("void set_features(const preprocessor_desc &in)", &Compute::Preprocessor::SetFeatures);
@@ -11344,6 +11763,7 @@ namespace Mavi
 				VPreprocessor->SetMethod("const string& get_current_file_path() const", &Compute::Preprocessor::GetCurrentFilePath);
 				VPreprocessor->SetMethodEx("void set_include_callback(proc_include_event@)", &PreprocessorSetIncludeCallback);
 				VPreprocessor->SetMethodEx("void set_pragma_callback(proc_pragma_event@)", &PreprocessorSetPragmaCallback);
+				VPreprocessor->SetMethodEx("void set_directive_callback(const string&in, proc_directive_event@)", &PreprocessorSetDirectiveCallback);
 				VPreprocessor->SetMethodEx("bool is_defined(const string &in) const", &PreprocessorIsDefined);
 
 				return true;
@@ -14956,8 +15376,299 @@ namespace Mavi
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
+				VI_TYPEREF(Property, "mdb::doc_property");
+				VI_TYPEREF(Document, "mdb::document");
+				VI_TYPEREF(Cursor, "mdb::cursor");
+				VI_TYPEREF(Response, "mdb::response");
+				VI_TYPEREF(Collection, "mdb::collection");
+				VI_TYPEREF(TransactionState, "mdb::transaction_state");
+				VI_TYPEREF(Schema, "schema@");
 
-				/* TODO: register bindings for <mongodb> module */
+				VM->BeginNamespace("mdb");
+				auto VQueryFlags = VM->SetEnum("query_flags");
+				VQueryFlags->SetValue("none", (int)Network::MDB::QueryFlags::None);
+				VQueryFlags->SetValue("tailable_cursor", (int)Network::MDB::QueryFlags::Tailable_Cursor);
+				VQueryFlags->SetValue("slave_ok", (int)Network::MDB::QueryFlags::Slave_Ok);
+				VQueryFlags->SetValue("oplog_replay", (int)Network::MDB::QueryFlags::Oplog_Replay);
+				VQueryFlags->SetValue("no_cursor_timeout", (int)Network::MDB::QueryFlags::No_Cursor_Timeout);
+				VQueryFlags->SetValue("await_data", (int)Network::MDB::QueryFlags::Await_Data);
+				VQueryFlags->SetValue("exhaust", (int)Network::MDB::QueryFlags::Exhaust);
+				VQueryFlags->SetValue("partial", (int)Network::MDB::QueryFlags::Partial);
+
+				auto VType = VM->SetEnum("doc_type");
+				VType->SetValue("unknown_t", (int)Network::MDB::Type::Unknown);
+				VType->SetValue("uncastable_t", (int)Network::MDB::Type::Uncastable);
+				VType->SetValue("null_t", (int)Network::MDB::Type::Null);
+				VType->SetValue("document_t", (int)Network::MDB::Type::Document);
+				VType->SetValue("array_t", (int)Network::MDB::Type::Array);
+				VType->SetValue("string_t", (int)Network::MDB::Type::String);
+				VType->SetValue("integer_t", (int)Network::MDB::Type::Integer);
+				VType->SetValue("number_t", (int)Network::MDB::Type::Number);
+				VType->SetValue("boolean_t", (int)Network::MDB::Type::Boolean);
+				VType->SetValue("object_id_t", (int)Network::MDB::Type::ObjectId);
+				VType->SetValue("decimal_t", (int)Network::MDB::Type::Decimal);
+
+				auto VTransactionState = VM->SetEnum("transaction_state");
+				VTransactionState->SetValue("ok", (int)Network::MDB::TransactionState::OK);
+				VTransactionState->SetValue("retry_commit", (int)Network::MDB::TransactionState::Retry_Commit);
+				VTransactionState->SetValue("retry", (int)Network::MDB::TransactionState::Retry);
+				VTransactionState->SetValue("fatal", (int)Network::MDB::TransactionState::Fatal);
+
+				auto VDocument = VM->SetStruct<Network::MDB::Document>("document");
+				auto VProperty = VM->SetStruct<Network::MDB::Property>("doc_property");
+				VProperty->SetProperty<Network::MDB::Property>("string name", &Network::MDB::Property::Name);
+				VProperty->SetProperty<Network::MDB::Property>("string blob", &Network::MDB::Property::String);
+				VProperty->SetProperty<Network::MDB::Property>("doc_type mod", &Network::MDB::Property::Mod);
+				VProperty->SetProperty<Network::MDB::Property>("int64 integer", &Network::MDB::Property::Integer);
+				VProperty->SetProperty<Network::MDB::Property>("uint64 high", &Network::MDB::Property::High);
+				VProperty->SetProperty<Network::MDB::Property>("uint64 low", &Network::MDB::Property::Low);
+				VProperty->SetProperty<Network::MDB::Property>("bool boolean", &Network::MDB::Property::Boolean);
+				VProperty->SetProperty<Network::MDB::Property>("bool is_valid", &Network::MDB::Property::IsValid);
+				VProperty->SetConstructor<Network::MDB::Property>("void f()");
+				VProperty->SetOperatorMoveCopy<Network::MDB::Property>();
+				VProperty->SetDestructor<Network::MDB::Property>("void f()");
+				VProperty->SetMethod("string& to_string()", &Network::MDB::Property::ToString);
+				VProperty->SetMethod("document as_document() const", &Network::MDB::Property::AsDocument);
+				VProperty->SetMethod("doc_property opIndex(const string&in) const", &Network::MDB::Property::At);
+
+				VDocument->SetConstructor<Network::MDB::Document>("void f()");
+				VDocument->SetConstructorListEx<Network::MDB::Document>("void f(int &in) { repeat { string, ? } }", &MDBDocumentConstruct);
+				VDocument->SetOperatorMoveCopy<Network::MDB::Document>();
+				VDocument->SetDestructor<Network::MDB::Document>("void f()");
+				VDocument->SetMethod("bool is_valid() const", &Network::MDB::Document::operator bool);
+				VDocument->SetMethod("void cleanup()", &Network::MDB::Document::Cleanup);
+				VDocument->SetMethod("void join(const document&in)", &Network::MDB::Document::Join);
+				VDocument->SetMethod("bool set_schema(const string&in, const document&in, usize = 0)", &Network::MDB::Document::SetSchemaAt);
+				VDocument->SetMethod("bool set_array(const string&in, const document&in, usize = 0)", &Network::MDB::Document::SetArrayAt);
+				VDocument->SetMethod("bool set_string(const string&in, const string&in, usize = 0)", &Network::MDB::Document::SetStringAt);
+				VDocument->SetMethod("bool set_integer(const string&in, int64, usize = 0)", &Network::MDB::Document::SetIntegerAt);
+				VDocument->SetMethod("bool set_number(const string&in, double, usize = 0)", &Network::MDB::Document::SetNumberAt);
+				VDocument->SetMethod("bool set_decimal(const string&in, uint64, uint64, usize = 0)", &Network::MDB::Document::SetDecimalAt);
+				VDocument->SetMethod("bool set_decimal_string(const string&in, const string&in, usize = 0)", &Network::MDB::Document::SetDecimalStringAt);
+				VDocument->SetMethod("bool set_decimal_integer(const string&in, int64, usize = 0)", &Network::MDB::Document::SetDecimalIntegerAt);
+				VDocument->SetMethod("bool set_decimal_number(const string&in, double, usize = 0)", &Network::MDB::Document::SetDecimalNumberAt);
+				VDocument->SetMethod("bool set_boolean(const string&in, bool, usize = 0)", &Network::MDB::Document::SetBooleanAt);
+				VDocument->SetMethod("bool set_object_id(const string&in, const string&in, usize = 0)", &Network::MDB::Document::SetObjectIdAt);
+				VDocument->SetMethod("bool set_null(const string&in, usize = 0)", &Network::MDB::Document::SetNullAt);
+				VDocument->SetMethod("bool set_property(const string&in, doc_property&in, usize = 0)", &Network::MDB::Document::SetPropertyAt);
+				VDocument->SetMethod("bool has_property(const string&in) const", &Network::MDB::Document::HasPropertyAt);
+				VDocument->SetMethod("bool get_property(const string&in, doc_property&out) const", &Network::MDB::Document::GetPropertyAt);
+				VDocument->SetMethod("usize count() const", &Network::MDB::Document::Count);
+				VDocument->SetMethod("string to_relaxed_json() const", &Network::MDB::Document::ToRelaxedJSON);
+				VDocument->SetMethod("string to_extended_json() const", &Network::MDB::Document::ToExtendedJSON);
+				VDocument->SetMethod("string to_json() const", &Network::MDB::Document::ToJSON);
+				VDocument->SetMethod("string to_indices() const", &Network::MDB::Document::ToIndices);
+				VDocument->SetMethod("schema@ to_schema(bool = false) const", &Network::MDB::Document::ToSchema);
+				VDocument->SetMethod("document copy() const", &Network::MDB::Document::Copy);
+				VDocument->SetMethod("document& persist(bool = true) const", &Network::MDB::Document::Persist);
+				VDocument->SetMethod("doc_property opIndex(const string&in) const", &Network::MDB::Document::At);
+				VDocument->SetMethodStatic("document from_empty()", &Network::MDB::Document::FromEmpty);
+				VDocument->SetMethodStatic("document from_schema(schema@+)", &Network::MDB::Document::FromSchema);
+				VDocument->SetMethodStatic("document from_json(const string&in)", &Network::MDB::Document::FromJSON);
+
+				auto VAddress = VM->SetStruct<Network::MDB::Address>("host_address");
+				VAddress->SetConstructor<Network::MDB::Address>("void f()");
+				VAddress->SetOperatorMoveCopy<Network::MDB::Address>();
+				VAddress->SetDestructor<Network::MDB::Address>("void f()");
+				VAddress->SetMethod("bool is_valid() const", &Network::MDB::Address::operator bool);
+				VAddress->SetMethod<Network::MDB::Address, void, const Core::String&, int64_t>("void set_option(const string&in, int64)", &Network::MDB::Address::SetOption);
+				VAddress->SetMethod<Network::MDB::Address, void, const Core::String&, bool>("void set_option(const string&in, bool)", &Network::MDB::Address::SetOption);
+				VAddress->SetMethod<Network::MDB::Address, void, const Core::String&, const Core::String&>("void set_option(const string&in, const string&in)", &Network::MDB::Address::SetOption);
+				VAddress->SetMethod("void set_auth_mechanism(const string&in)", &Network::MDB::Address::SetAuthMechanism);
+				VAddress->SetMethod("void set_auth_source(const string&in)", &Network::MDB::Address::SetAuthSource);
+				VAddress->SetMethod("void set_compressors(const string&in)", &Network::MDB::Address::SetCompressors);
+				VAddress->SetMethod("void set_database(const string&in)", &Network::MDB::Address::SetDatabase);
+				VAddress->SetMethod("void set_username(const string&in)", &Network::MDB::Address::SetUsername);
+				VAddress->SetMethod("void set_password(const string&in)", &Network::MDB::Address::SetPassword);
+				VAddress->SetMethodStatic("host_address from_uri(const string&in)", &Network::MDB::Address::FromURI);
+
+				auto VStream = VM->SetStruct<Network::MDB::Stream>("stream");
+				VStream->SetConstructor<Network::MDB::Stream>("void f()");
+				VStream->SetOperatorMoveCopy<Network::MDB::Stream>();
+				VStream->SetDestructor<Network::MDB::Stream>("void f()");
+				VStream->SetMethod("bool is_valid() const", &Network::MDB::Stream::operator bool);
+				VStream->SetMethod("bool remove_many(const document&in, const document&in)", &Network::MDB::Stream::RemoveMany);
+				VStream->SetMethod("bool remove_one(const document&in, const document&in)", &Network::MDB::Stream::RemoveOne);
+				VStream->SetMethod("bool replace_one(const document&in, const document&in, const document&in)", &Network::MDB::Stream::ReplaceOne);
+				VStream->SetMethod("bool insert_one(const document&in, const document&in)", &Network::MDB::Stream::InsertOne);
+				VStream->SetMethod("bool update_one(const document&in, const document&in, const document&in)", &Network::MDB::Stream::UpdateOne);
+				VStream->SetMethod("bool update_many(const document&in, const document&in, const document&in)", &Network::MDB::Stream::UpdateMany);
+				VStream->SetMethod("bool query(const document&in)", &Network::MDB::Stream::Query);
+				VStream->SetMethod("usize get_hint() const", &Network::MDB::Stream::GetHint);
+				VStream->SetMethodEx("bool template_query(const string&in, dictionary@+)", &MDBStreamTemplateQuery);
+				VStream->SetMethodEx("promise<document>@ execute_with_reply()", &VI_PROMISIFY_REF(Network::MDB::Stream::ExecuteWithReply, Document));
+				VStream->SetMethodEx("promise<bool>@ execute()", &VI_PROMISIFY(Network::MDB::Stream::Execute, TypeId::BOOL));
+
+				auto VCursor = VM->SetStruct<Network::MDB::Cursor>("cursor");
+				VCursor->SetConstructor<Network::MDB::Cursor>("void f()");
+				VCursor->SetOperatorMoveCopy<Network::MDB::Cursor>();
+				VCursor->SetDestructor<Network::MDB::Cursor>("void f()");
+				VCursor->SetMethod("bool is_valid() const", &Network::MDB::Cursor::operator bool);
+				VCursor->SetMethod("void set_max_await_time(usize)", &Network::MDB::Cursor::SetMaxAwaitTime);
+				VCursor->SetMethod("void set_batch_size(usize)", &Network::MDB::Cursor::SetBatchSize);
+				VCursor->SetMethod("void set_limit(int64)", &Network::MDB::Cursor::SetLimit);
+				VCursor->SetMethod("void set_hint(usize)", &Network::MDB::Cursor::SetHint);
+				VCursor->SetMethod("bool empty() const", &Network::MDB::Cursor::Empty);
+				VCursor->SetMethod("bool error() const", &Network::MDB::Cursor::Error);
+				VCursor->SetMethod("bool error_or_empty() const", &Network::MDB::Cursor::ErrorOrEmpty);
+				VCursor->SetMethod("int64 get_id() const", &Network::MDB::Cursor::GetId);
+				VCursor->SetMethod("int64 get_limit() const", &Network::MDB::Cursor::GetLimit);
+				VCursor->SetMethod("usize get_max_await_time() const", &Network::MDB::Cursor::GetMaxAwaitTime);
+				VCursor->SetMethod("usize get_batch_size() const", &Network::MDB::Cursor::GetBatchSize);
+				VCursor->SetMethod("usize get_hint() const", &Network::MDB::Cursor::GetHint);
+				VCursor->SetMethod("usize current() const", &Network::MDB::Cursor::Current);
+				VCursor->SetMethod("cursor clone() const", &Network::MDB::Cursor::Clone);
+				VCursor->SetMethodEx("promise<bool>@ next() const", &VI_PROMISIFY(Network::MDB::Cursor::Next, TypeId::BOOL));
+
+				auto VResponse = VM->SetStruct<Network::MDB::Response>("response");
+				VResponse->SetConstructor<Network::MDB::Response>("void f()");
+				VResponse->SetConstructor<Network::MDB::Response, bool>("void f(bool)");
+				VResponse->SetConstructor<Network::MDB::Response, Network::MDB::Cursor&>("void f(cursor&in)");
+				VResponse->SetConstructor<Network::MDB::Response, Network::MDB::Document&>("void f(document&in)");
+				VResponse->SetOperatorMoveCopy<Network::MDB::Response>();
+				VResponse->SetDestructor<Network::MDB::Response>("void f()");
+				VResponse->SetMethod("bool is_valid() const", &Network::MDB::Response::operator bool);
+				VResponse->SetMethod("bool success() const", &Network::MDB::Response::Success);
+				VResponse->SetMethod("cursor& get_cursor() const", &Network::MDB::Response::GetCursor);
+				VResponse->SetMethod("document& get_document() const", &Network::MDB::Response::GetDocument);
+				VResponse->SetMethodEx("promise<schema@>@ fetch() const", &VI_PROMISIFY_REF(Network::MDB::Response::Fetch, Schema));
+				VResponse->SetMethodEx("promise<schema@>@ fetch_all() const", &VI_PROMISIFY_REF(Network::MDB::Response::FetchAll, Schema));
+				VResponse->SetMethodEx("promise<doc_property>@ get_property(const string&in) const", &VI_PROMISIFY_REF(Network::MDB::Response::GetProperty, Property));
+				VResponse->SetMethodEx("promise<doc_property>@ opIndex(const string&in) const", &VI_PROMISIFY_REF(Network::MDB::Response::GetProperty, Property));
+
+				auto VCollection = VM->SetStruct<Network::MDB::Collection>("collection");
+				auto VTransaction = VM->SetStruct<Network::MDB::Transaction>("transaction");
+				VTransaction->SetConstructor<Network::MDB::Transaction>("void f()");
+				VTransaction->SetConstructor<Network::MDB::Transaction, const Network::MDB::Transaction&>("void f(const transaction&in)");
+				VTransaction->SetOperatorCopy<Network::MDB::Transaction>();
+				VTransaction->SetDestructor<Network::MDB::Transaction>("void f()");
+				VTransaction->SetMethod("bool is_valid() const", &Network::MDB::Transaction::operator bool);
+				VTransaction->SetMethod("bool push(document&in) const", &Network::MDB::Transaction::Push);
+				VTransaction->SetMethodEx("promise<bool>@ begin()", &VI_PROMISIFY(Network::MDB::Transaction::Begin, TypeId::BOOL));
+				VTransaction->SetMethodEx("promise<bool>@ rollback()", &VI_PROMISIFY(Network::MDB::Transaction::Rollback, TypeId::BOOL));
+				VTransaction->SetMethodEx("promise<document>@ remove_many(collection&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::RemoveMany, Document));
+				VTransaction->SetMethodEx("promise<document>@ remove_one(collection&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::RemoveOne, Document));
+				VTransaction->SetMethodEx("promise<document>@ replace_one(collection&in, const document&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::ReplaceOne, Document));
+				VTransaction->SetMethodEx("promise<document>@ insert_many(collection&in, array<document>@+, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionInsertMany, Document));
+				VTransaction->SetMethodEx("promise<document>@ insert_one(collection&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::InsertOne, Document));
+				VTransaction->SetMethodEx("promise<document>@ update_many(collection&in, const document&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::UpdateMany, Document));
+				VTransaction->SetMethodEx("promise<document>@ update_one(collection&in, const document&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::UpdateOne, Document));
+				VTransaction->SetMethodEx("promise<cursor>@ find_many(collection&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::FindMany, Cursor));
+				VTransaction->SetMethodEx("promise<cursor>@ find_one(collection&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::FindOne, Cursor));
+				VTransaction->SetMethodEx("promise<cursor>@ aggregate(collection&in, query_flags, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::Aggregate, Cursor));
+				VTransaction->SetMethodEx("promise<response>@ template_query(collection&in, const string&in, dictionary@+)", &VI_SPROMISIFY_REF(MDBTransactionTemplateQuery, Response));
+				VTransaction->SetMethodEx("promise<response>@ query(collection&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::Query, Response));
+				VTransaction->SetMethodEx("promise<transaction_state>@ commit()", &VI_PROMISIFY_REF(Network::MDB::Transaction::Commit, TransactionState));
+
+				VCollection->SetConstructor<Network::MDB::Collection>("void f()");
+				VCollection->SetOperatorMoveCopy<Network::MDB::Collection>();
+				VCollection->SetDestructor<Network::MDB::Collection>("void f()");
+				VCollection->SetMethod("bool is_valid() const", &Network::MDB::Collection::operator bool);
+				VCollection->SetMethod("string get_name() const", &Network::MDB::Collection::GetName);
+				VCollection->SetMethod("stream create_stream(document&in) const", &Network::MDB::Collection::CreateStream);
+				VCollection->SetMethodEx("promise<bool>@ rename(const string&in, const string&in) const", &VI_PROMISIFY(Network::MDB::Collection::Rename, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<bool>@ rename_with_options(const string&in, const string&in, const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::RenameWithOptions, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<bool>@ rename_with_remove(const string&in, const string&in) const", &VI_PROMISIFY(Network::MDB::Collection::RenameWithRemove, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<bool>@ rename_with_options_and_remove(const string&in, const string&in, const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::RenameWithOptionsAndRemove, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<bool>@ remove(const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::Remove, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<bool>@ remove_index(const string&in, const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::Remove, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<document>@ remove_many(const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::RemoveMany, Document));
+				VCollection->SetMethodEx("promise<document>@ remove_one(const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::RemoveOne, Document));
+				VCollection->SetMethodEx("promise<document>@ replace_one(const document&in, const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::ReplaceOne, Document));
+				VCollection->SetMethodEx("promise<document>@ insert_many(array<document>@+, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionInsertMany, Document));
+				VCollection->SetMethodEx("promise<document>@ insert_one(const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::InsertOne, Document));
+				VCollection->SetMethodEx("promise<document>@ update_many(const document&in, const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::UpdateMany, Document));
+				VCollection->SetMethodEx("promise<document>@ update_one(const document&in, const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::UpdateOne, Document));
+				VCollection->SetMethodEx("promise<document>@ find_and_modify(const document&in, const document&in, const document&in, const document&in, bool, bool, bool) const", &VI_PROMISIFY_REF(Network::MDB::Collection::FindAndModify, Document));
+#ifdef VI_64
+				VCollection->SetMethodEx("promise<usize>@ count_documents(const document&in, const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::CountDocuments, TypeId::INT64));
+				VCollection->SetMethodEx("promise<usize>@ count_documents_estimated(const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::CountDocumentsEstimated, TypeId::INT64));
+#else
+				VCollection->SetMethodEx("promise<usize>@ count_documents(const document&in, const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::CountDocuments, TypeId::INT32));
+				VCollection->SetMethodEx("promise<usize>@ count_documents_estimated(const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::CountDocumentsEstimated, TypeId::INT32));
+#endif
+				VCollection->SetMethodEx("promise<cursor>@ find_indexes(const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::FindIndexes, Cursor));
+				VCollection->SetMethodEx("promise<cursor>@ find_many(const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::FindMany, Cursor));
+				VCollection->SetMethodEx("promise<cursor>@ find_one(const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::FindOne, Cursor));
+				VCollection->SetMethodEx("promise<cursor>@ aggregate(query_flags, const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::Aggregate, Cursor));
+				VCollection->SetMethodEx("promise<response>@ template_query(const string&in, dictionary@+, bool = true, const transaction&in = transaction()) const", &VI_SPROMISIFY_REF(MDBCollectionTemplateQuery, Response));
+				VCollection->SetMethodEx("promise<response>@ query(const string&in, const transaction&in = transaction()) const", &VI_PROMISIFY_REF(Network::MDB::Collection::Query, Response));
+
+				auto VDatabase = VM->SetStruct<Network::MDB::Database>("database");
+				VDatabase->SetConstructor<Network::MDB::Database>("void f()");
+				VDatabase->SetOperatorMoveCopy<Network::MDB::Database>();
+				VDatabase->SetDestructor<Network::MDB::Database>("void f()");
+				VDatabase->SetMethod("bool is_valid() const", &Network::MDB::Database::operator bool);
+				VDatabase->SetMethod("string get_name() const", &Network::MDB::Database::GetName);
+				VDatabase->SetMethod("collection get_collection(const string&in) const", &Network::MDB::Database::GetCollection);
+				VDatabase->SetMethodEx("promise<bool>@ remove_all_users()", &VI_PROMISIFY(Network::MDB::Database::RemoveAllUsers, TypeId::BOOL));
+				VDatabase->SetMethodEx("promise<bool>@ remove_user(const string&in)", &VI_PROMISIFY(Network::MDB::Database::RemoveUser, TypeId::BOOL));
+				VDatabase->SetMethodEx("promise<bool>@ remove()", &VI_PROMISIFY(Network::MDB::Database::Remove, TypeId::BOOL));
+				VDatabase->SetMethodEx("promise<bool>@ remove_with_options(const document&in)", &VI_PROMISIFY(Network::MDB::Database::RemoveWithOptions, TypeId::BOOL));
+				VDatabase->SetMethodEx("promise<bool>@ add_user(const string&in, const string&in, const document&in, const document&in)", &VI_PROMISIFY(Network::MDB::Database::AddUser, TypeId::BOOL));
+				VDatabase->SetMethodEx("promise<bool>@ has_collection(const string&in)", &VI_PROMISIFY(Network::MDB::Database::HasCollection, TypeId::BOOL));
+				VDatabase->SetMethodEx("promise<collection>@ create_collection(const string&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Database::CreateCollection, Collection));
+				VDatabase->SetMethodEx("promise<cursor>@ find_collections(const document&in)", &VI_PROMISIFY_REF(Network::MDB::Database::FindCollections, Cursor));
+				VDatabase->SetMethodEx("array<string>@ get_collection_names(const document&in)", &MDBDatabaseGetCollectionNames);
+
+				auto VConnection = VM->SetClass<Network::MDB::Connection>("connection", false);
+				auto VWatcher = VM->SetStruct<Network::MDB::Watcher>("watcher");
+				VWatcher->SetConstructor<Network::MDB::Watcher>("void f()");
+				VWatcher->SetOperatorMoveCopy<Network::MDB::Watcher>();
+				VWatcher->SetDestructor<Network::MDB::Watcher>("void f()");
+				VWatcher->SetMethod("bool is_valid() const", &Network::MDB::Watcher::operator bool);
+				VWatcher->SetMethodEx("promise<bool>@ next(document&out)", &VI_PROMISIFY(Network::MDB::Watcher::Next, TypeId::BOOL));
+				VWatcher->SetMethodEx("promise<bool>@ error(document&out)", &VI_PROMISIFY(Network::MDB::Watcher::Error, TypeId::BOOL));
+				VWatcher->SetMethodStatic("watcher from_connection(connection@+, const document&in, const document&in)", &Network::MDB::Watcher::FromConnection);
+				VWatcher->SetMethodStatic("watcher from_database(const database&in, const document&in, const document&in)", &Network::MDB::Watcher::FromDatabase);
+				VWatcher->SetMethodStatic("watcher from_collection(const collection&in, const document&in, const document&in)", &Network::MDB::Watcher::FromCollection);
+
+				auto VCluster = VM->SetClass<Network::MDB::Cluster>("cluster", false);
+				VConnection->SetFunctionDef("promise<bool>@ transaction_event(connection@+, transaction&in)");
+				VConnection->SetFunctionDef("bool cotransaction_event(connection@+, transaction&in)");
+				VConnection->SetConstructor<Network::MDB::Connection>("connection@ f()");
+				VConnection->SetMethod("void set_profile(const string&in)", &Network::MDB::Connection::SetProfile);
+				VConnection->SetMethod("void set_server(bool)", &Network::MDB::Connection::SetServer);
+				VConnection->SetMethod("transaction& get_session()", &Network::MDB::Connection::GetSession);
+				VConnection->SetMethod("database get_database(const string&in) const", &Network::MDB::Connection::GetDatabase);
+				VConnection->SetMethod("database get_default_database() const", &Network::MDB::Connection::GetDefaultDatabase);
+				VConnection->SetMethod("collection get_collection(const string&in, const string&in) const", &Network::MDB::Connection::GetCollection);
+				VConnection->SetMethod("host_address get_address() const", &Network::MDB::Connection::GetAddress);
+				VConnection->SetMethod("cluster@+ get_master() const", &Network::MDB::Connection::GetMaster);
+				VConnection->SetMethod("bool connected() const", &Network::MDB::Connection::IsConnected);
+				VConnection->SetMethodEx("array<string>@ get_database_names(const document&in) const", &MDBConnectionGetDatabaseNames);
+				VConnection->SetMethodEx("promise<bool>@ connect_by_uri(const string&in)", &VI_PROMISIFY(Network::MDB::Connection::ConnectByURI, TypeId::BOOL));
+				VConnection->SetMethodEx("promise<bool>@ connect(host_address&in)", &VI_PROMISIFY(Network::MDB::Connection::Connect, TypeId::BOOL));
+				VConnection->SetMethodEx("promise<bool>@ disconnect()", &VI_PROMISIFY(Network::MDB::Connection::Disconnect, TypeId::BOOL));
+				VConnection->SetMethodEx("promise<bool>@ make_transaction(transaction_event@)", &VI_SPROMISIFY(MDBConnectionMakeTransaction, TypeId::BOOL));
+				VConnection->SetMethodEx("promise<bool>@ make_cotransaction(cotransaction_event@)", &VI_SPROMISIFY(MDBConnectionMakeCotransaction, TypeId::BOOL));
+				VConnection->SetMethodEx("promise<cursor>@ find_databases(const document&in)", &VI_PROMISIFY_REF(Network::MDB::Connection::FindDatabases, Cursor));
+
+				VCluster->SetConstructor<Network::MDB::Cluster>("cluster@ f()");
+				VCluster->SetMethod("void set_profile(const string&in)", &Network::MDB::Cluster::SetProfile);
+				VCluster->SetMethod("host_address& get_address()", &Network::MDB::Cluster::GetAddress);
+				VCluster->SetMethod("connection@+ pop()", &Network::MDB::Cluster::Pop);
+				VCluster->SetMethodEx("void push(connection@+)", &MDBClusterPush);
+				VCluster->SetMethodEx("promise<bool>@ connect_by_uri(const string&in)", &VI_PROMISIFY(Network::MDB::Cluster::ConnectByURI, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ connect(host_address&in)", &VI_PROMISIFY(Network::MDB::Cluster::Connect, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ disconnect()", &VI_PROMISIFY(Network::MDB::Cluster::Disconnect, TypeId::BOOL));
+
+				auto VDriver = VM->SetClass<Network::MDB::Driver>("driver", false);
+				VDriver->SetFunctionDef("void query_event(const string&in)");
+				VDriver->SetConstructor<Network::MDB::Driver>("driver@ f()");
+				VDriver->SetMethod("bool add_constant(const string&in, const string&in)", &Network::MDB::Driver::AddConstant);
+				VDriver->SetMethod<Network::MDB::Driver, bool, const Core::String&, const Core::String&>("bool add_query(const string&in, const string&in)", &Network::MDB::Driver::AddQuery);
+				VDriver->SetMethod("bool add_directory(const string&in, const string&in = \"\")", &Network::MDB::Driver::AddDirectory);
+				VDriver->SetMethod("bool remove_constant(const string&in)", &Network::MDB::Driver::RemoveConstant);
+				VDriver->SetMethod("bool remove_query(const string&in)", &Network::MDB::Driver::RemoveQuery);
+				VDriver->SetMethod("bool load_cache_dump(schema@+)", &Network::MDB::Driver::LoadCacheDump);
+				VDriver->SetMethod("schema@ get_cache_dump()", &Network::MDB::Driver::GetCacheDump);
+				VDriver->SetMethodEx("void set_query_log(query_event@)", &MDBDriverSetQueryLog);
+				VDriver->SetMethodEx("string get_query(cluster@+, const string&in, dictionary@+)", &MDBDriverGetQuery);
+				VDriver->SetMethodEx("array<string>@ get_queries()", &MDBDriverGetQueries);
+				VDriver->SetMethodStatic("driver@+ get()", &Network::MDB::Driver::Get);
+
+				VM->EndNamespace();
 				return true;
 #else
 				VI_ASSERT(false, "<mongodb> is not loaded");

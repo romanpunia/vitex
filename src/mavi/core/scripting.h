@@ -395,6 +395,16 @@ namespace Mavi
 			static void Cleanup();
 		};
 
+		class VI_OUT_TS Parser
+		{
+		public:
+			static bool ReplaceInlinePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<Core::String(const Core::String& Expression)>& Replacer);
+			static bool ReplaceDirectivePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<Core::String(const Core::String& Expression)>& Replacer);
+
+		private:
+			static bool ReplacePreconditions(bool IsDirective, const Core::String& Keyword, Core::String& Data, const std::function<Core::String(const Core::String& Expression)>& Replacer);
+		};
+
 		class VI_OUT_TS FunctionFactory
 		{
 		public:
@@ -403,7 +413,6 @@ namespace Mavi
 			static Core::Unique<asSFuncPtr> CreateDummyBase();
 			static ExpectsVM<void> AtomicNotifyGC(const char* TypeName, void* Object);
 			static ExpectsVM<void> AtomicNotifyGCById(int TypeId, void* Object);
-			static void ReplacePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<Core::String(const Core::String& Expression)>& Replacer);
 			static void ReleaseFunctor(Core::Unique<asSFuncPtr>* Ptr);
 			static void GCEnumCallback(asIScriptEngine* Engine, void* Reference);
 			static void GCEnumCallback(asIScriptEngine* Engine, asIScriptFunction* Reference);
@@ -1112,6 +1121,14 @@ namespace Mavi
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
+			template <typename T>
+			ExpectsVM<void> SetOperatorMoveCopy()
+			{
+				asSFuncPtr* Ptr = Bridge::MethodOp<T, T&, T&&>(&T::operator =);
+				auto Result = SetOperatorCopyAddress(Ptr, FunctionCall::THISCALL);
+				FunctionFactory::ReleaseFunctor(&Ptr);
+				return Result;
+			}
 			template <typename R, typename... Args>
 			ExpectsVM<void> SetOperatorCopyStatic(R(*Value)(Args...), FunctionCall Type = FunctionCall::CDECLF)
 			{
@@ -1416,6 +1433,15 @@ namespace Mavi
 			{
 				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::FunctionGeneric(&Bridge::GetConstructorListCall<T>);
+				auto Result = SetConstructorListAddress(Decl, Ptr, FunctionCall::GENERIC);
+				FunctionFactory::ReleaseFunctor(&Ptr);
+				return Result;
+			}
+			template <typename T>
+			ExpectsVM<void> SetConstructorListEx(const char* Decl, void(*Value)(asIScriptGeneric*))
+			{
+				VI_ASSERT(Decl != nullptr, "declaration should be set");
+				asSFuncPtr* Ptr = Bridge::FunctionGeneric(Value);
 				auto Result = SetConstructorListAddress(Decl, Ptr, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
@@ -1927,7 +1953,7 @@ namespace Mavi
 		class VI_OUT VirtualMachine final : public Core::Reference<VirtualMachine>
 		{
 		public:
-			typedef std::function<bool(const Core::String& Path, Core::String& Buffer)> GeneratorCallback;
+			typedef std::function<bool(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Buffer)> GeneratorCallback;
 			typedef std::function<void(const Core::String&)> CompileCallback;
 			typedef std::function<void()> WhenErrorCallback;
 
@@ -1955,7 +1981,7 @@ namespace Mavi
 		private:
 			struct
 			{
-				std::mutex General;
+				std::recursive_mutex General;
 				std::mutex Pool;
 			} Sync;
 
@@ -2028,6 +2054,7 @@ namespace Mavi
 			void SetCodeGenerator(const Core::String& Name, GeneratorCallback&& Callback);
 			void SetPreserveSourceCode(bool Enabled);
 			void SetImports(unsigned int Opts);
+			void SetTsImports(bool Enabled, const char* ImportSyntax = "import from");
 			void SetCache(bool Enabled);
 			void SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
 			void SetDebugger(Core::Unique<DebuggerContext> Context);

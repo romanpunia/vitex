@@ -207,6 +207,7 @@ namespace Mavi
 
 		typedef std::function<IncludeType(class Preprocessor*, const struct IncludeResult& File, Core::String& Output)> ProcIncludeCallback;
 		typedef std::function<bool(class Preprocessor*, const Core::String& Name, const Core::Vector<Core::String>& Args)> ProcPragmaCallback;
+		typedef std::function<bool(class Preprocessor*, const struct ProcDirective&, Core::String& Output)> ProcDirectiveCallback;
 		typedef std::function<Core::String(class Preprocessor*, const Core::Vector<Core::String>& Args)> ProcExpansionCallback;
 		typedef std::function<void(const struct CollisionBody&)> CollisionCallback;
 		typedef void* Cipher;
@@ -1130,6 +1131,17 @@ namespace Mavi
 			unsigned int FaceNb;
 		};
 
+		struct VI_OUT ProcDirective
+		{
+			Core::String Name;
+			Core::String Value;
+			size_t Start = 0;
+			size_t End = 0;
+			bool Found = false;
+			bool AsGlobal = false;
+			bool AsScope = false;
+		};
+
 		class VI_OUT Adjacencies
 		{
 		public:
@@ -1710,17 +1722,6 @@ namespace Mavi
 				NotLessEquals = -6,
 			};
 
-			struct Token
-			{
-				Core::String Name;
-				Core::String Value;
-				size_t Start = 0;
-				size_t End = 0;
-				bool Found = false;
-				bool AsGlobal = false;
-				bool AsScope = false;
-			};
-
 			struct Conditional
 			{
 				Core::Vector<Conditional> Childs;
@@ -1749,6 +1750,7 @@ namespace Mavi
 
 		private:
 			Core::UnorderedMap<Core::String, std::pair<Condition, Controller>> ControlFlow;
+			Core::UnorderedMap<Core::String, ProcDirectiveCallback> Directives;
 			Core::UnorderedMap<Core::String, Definition> Defines;
 			Core::UnorderedSet<Core::String> Sets;
 			std::function<size_t()> StoreCurrentLine;
@@ -1764,6 +1766,7 @@ namespace Mavi
 			void SetIncludeOptions(const IncludeDesc& NewDesc);
 			void SetIncludeCallback(const ProcIncludeCallback& Callback);
 			void SetPragmaCallback(const ProcPragmaCallback& Callback);
+			void SetDirectiveCallback(const Core::String& Name, ProcDirectiveCallback&& Callback);
 			void SetFeatures(const Desc& Value);
 			void AddDefaultDefinitions();
 			bool Define(const Core::String& Expression);
@@ -1773,14 +1776,15 @@ namespace Mavi
 			bool IsDefined(const Core::String& Name) const;
 			bool IsDefined(const Core::String& Name, const Core::String& Value) const;
 			bool Process(const Core::String& Path, Core::String& Buffer);
+			Core::Option<Core::String> ResolveFile(const Core::String& Path, const Core::String& Include);
 			const Core::String& GetCurrentFilePath() const;
 			size_t GetCurrentLineNumber();
 
 		private:
-			Token FindNextToken(Core::String& Buffer, size_t& Offset);
-			Token FindNextConditionalToken(Core::String& Buffer, size_t& Offset);
-			size_t ReplaceToken(Token& Where, Core::String& Buffer, const Core::String& To);
-			Core::Vector<Conditional> PrepareConditions(Core::String& Buffer, Token& Next, size_t& Offset, bool Top);
+			ProcDirective FindNextToken(Core::String& Buffer, size_t& Offset);
+			ProcDirective FindNextConditionalToken(Core::String& Buffer, size_t& Offset);
+			size_t ReplaceToken(ProcDirective& Where, Core::String& Buffer, const Core::String& To);
+			Core::Vector<Conditional> PrepareConditions(Core::String& Buffer, ProcDirective& Next, size_t& Offset, bool Top);
 			Core::String Evaluate(Core::String& Buffer, const Core::Vector<Conditional>& Conditions);
 			std::pair<Core::String, Core::String> GetExpressionParts(const Core::String& Value);
 			std::pair<Core::String, Core::String> UnpackExpression(const std::pair<Core::String, Core::String>& Expression);

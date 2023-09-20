@@ -85,6 +85,8 @@ namespace Mavi
 				static bool ImportPromise(VirtualMachine* VM);
 				static bool ImportFormat(VirtualMachine* Engine);
 				static bool ImportDecimal(VirtualMachine* Engine);
+				static bool ImportUInt128(VirtualMachine* Engine);
+				static bool ImportUInt256(VirtualMachine* Engine);
 				static bool ImportVariant(VirtualMachine* Engine);
 				static bool ImportTimestamp(VirtualMachine* Engine);
 				static bool ImportConsole(VirtualMachine* Engine);

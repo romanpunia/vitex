@@ -4130,6 +4130,1180 @@ namespace Mavi
 			return Key;
 		}
 
+		UInt128::UInt128(const Core::String& Text) : UInt128(Text, 10)
+		{
+		}
+		UInt128::UInt128(const Core::String& Text, uint8_t Base)
+		{
+			if (Text.empty())
+			{
+				Lower = Upper = 0;
+				return;
+			}
+
+			size_t Size = Text.size();
+			char* Data = (char*)Text.c_str();
+			while (*Data && Size && std::isspace(*Data))
+			{
+				++Data;
+				Size--;
+			}
+
+			switch (Base)
+			{
+				case 16:
+				{
+					static const size_t MAX_LEN = 32;
+					const size_t max_len = std::min(Size, MAX_LEN);
+					const size_t starting_index = (MAX_LEN < Size) ? (Size - MAX_LEN) : 0;
+					const size_t double_lower = sizeof(Lower) * 2;
+					const size_t lower_len = (max_len >= double_lower) ? double_lower : max_len;
+					const size_t upper_len = (max_len >= double_lower) ? (max_len - double_lower) : 0;
+
+					std::stringstream lower_s, upper_s;
+					upper_s << std::hex << Core::String(Data + starting_index, upper_len);
+					lower_s << std::hex << Core::String(Data + starting_index + upper_len, lower_len);
+					upper_s >> Upper;
+					lower_s >> Lower;
+					break;
+				}
+				case 10:
+				{
+					static const size_t MAX_LEN = 39;
+					const size_t max_len = std::min(Size, MAX_LEN);
+					const size_t starting_index = (MAX_LEN < Size) ? (Size - MAX_LEN) : 0;
+					Data += starting_index;
+
+					for (size_t i = 0; *Data && ('0' <= *Data) && (*Data <= '9') && (i < max_len); ++Data, ++i)
+					{
+						*this *= 10;
+						*this += *Data - '0';
+					}
+					break;
+				}
+				case 8:
+				{
+					static const size_t MAX_LEN = 43;
+					const size_t max_len = std::min(Size, MAX_LEN);
+					const size_t starting_index = (MAX_LEN < Size) ? (Size - MAX_LEN) : 0;
+					Data += starting_index;
+
+					for (size_t i = 0; *Data && ('0' <= *Data) && (*Data <= '7') && (i < max_len); ++Data, ++i)
+					{
+						*this *= 8;
+						*this += *Data - '0';
+					}
+					break;
+				}
+				case 2:
+				{
+					static const size_t MAX_LEN = 128;
+					const size_t max_len = std::min(Size, MAX_LEN);
+					const size_t starting_index = (MAX_LEN < Size) ? (Size - MAX_LEN) : 0;
+					const size_t eight_lower = sizeof(Lower) * 8;
+					const size_t lower_len = (max_len >= eight_lower) ? eight_lower : max_len;
+					const size_t upper_len = (max_len >= eight_lower) ? (max_len - eight_lower) : 0;
+					Data += starting_index;
+
+					for (size_t i = 0; *Data && ('0' <= *Data) && (*Data <= '1') && (i < upper_len); ++Data, ++i)
+					{
+						Upper <<= 1;
+						Upper |= *Data - '0';
+					}
+
+					for (size_t i = 0; *Data && ('0' <= *Data) && (*Data <= '1') && (i < lower_len); ++Data, ++i)
+					{
+						Lower <<= 1;
+						Lower |= *Data - '0';
+					}
+					break;
+				}
+				default:
+					VI_ASSERT(false, "invalid from string base: %i", (int)Base);
+					break;
+			}
+		}
+		UInt128::operator bool() const
+		{
+			return (bool)(Upper | Lower);
+		}
+		UInt128::operator uint8_t() const
+		{
+			return (uint8_t)Lower;
+		}
+		UInt128::operator uint16_t() const
+		{
+			return (uint16_t)Lower;
+		}
+		UInt128::operator uint32_t() const
+		{
+			return (uint32_t)Lower;
+		}
+		UInt128::operator uint64_t() const
+		{
+			return (uint64_t)Lower;
+		}
+		UInt128 UInt128::operator&(const UInt128& Right) const
+		{
+			return UInt128(Upper & Right.Upper, Lower & Right.Lower);
+		}
+		UInt128& UInt128::operator&=(const UInt128& Right)
+		{
+			Upper &= Right.Upper;
+			Lower &= Right.Lower;
+			return *this;
+		}
+		UInt128 UInt128::operator|(const UInt128& Right) const
+		{
+			return UInt128(Upper | Right.Upper, Lower | Right.Lower);
+		}
+		UInt128& UInt128::operator|=(const UInt128& Right)
+		{
+			Upper |= Right.Upper;
+			Lower |= Right.Lower;
+			return *this;
+		}
+		UInt128 UInt128::operator^(const UInt128& Right) const
+		{
+			return UInt128(Upper ^ Right.Upper, Lower ^ Right.Lower);
+		}
+		UInt128& UInt128::operator^=(const UInt128& Right)
+		{
+			Upper ^= Right.Upper;
+			Lower ^= Right.Lower;
+			return *this;
+		}
+		UInt128 UInt128::operator~() const
+		{
+			return UInt128(~Upper, ~Lower);
+		}
+		UInt128 UInt128::operator<<(const UInt128& Right) const
+		{
+			const uint64_t shift = Right.Lower;
+			if (((bool)Right.Upper) || (shift >= 128))
+				return UInt128(0);
+			else if (shift == 64)
+				return UInt128(Lower, 0);
+			else if (shift == 0)
+				return *this;
+			else if (shift < 64)
+				return UInt128((Upper << shift) + (Lower >> (64 - shift)), Lower << shift);
+			else if ((128 > shift) && (shift > 64))
+				return UInt128(Lower << (shift - 64), 0);
+
+			return UInt128(0);
+		}
+		UInt128& UInt128::operator<<=(const UInt128& Right)
+		{
+			*this = *this << Right;
+			return *this;
+		}
+		UInt128 UInt128::operator>>(const UInt128& Right) const
+		{
+			const uint64_t shift = Right.Lower;
+			if (((bool)Right.Upper) || (shift >= 128))
+				return UInt128(0);
+			else if (shift == 64)
+				return UInt128(0, Upper);
+			else if (shift == 0)
+				return *this;
+			else if (shift < 64)
+				return UInt128(Upper >> shift, (Upper << (64 - shift)) + (Lower >> shift));
+			else if ((128 > shift) && (shift > 64))
+				return UInt128(0, (Upper >> (shift - 64)));
+
+			return UInt128(0);
+		}
+		UInt128& UInt128::operator>>=(const UInt128& Right)
+		{
+			*this = *this >> Right;
+			return *this;
+		}
+		bool UInt128::operator!() const
+		{
+			return !(bool)(Upper | Lower);
+		}
+		bool UInt128::operator&&(const UInt128& Right) const
+		{
+			return ((bool)*this && Right);
+		}
+		bool UInt128::operator||(const UInt128& Right) const
+		{
+			return ((bool)*this || Right);
+		}
+		bool UInt128::operator==(const UInt128& Right) const
+		{
+			return ((Upper == Right.Upper) && (Lower == Right.Lower));
+		}
+		bool UInt128::operator!=(const UInt128& Right) const
+		{
+			return ((Upper != Right.Upper) | (Lower != Right.Lower));
+		}
+		bool UInt128::operator>(const UInt128& Right) const
+		{
+			if (Upper == Right.Upper)
+				return (Lower > Right.Lower);
+
+			return (Upper > Right.Upper);
+		}
+		bool UInt128::operator<(const UInt128& Right) const
+		{
+			if (Upper == Right.Upper)
+				return (Lower < Right.Lower);
+
+			return (Upper < Right.Upper);
+		}
+		bool UInt128::operator>=(const UInt128& Right) const
+		{
+			return ((*this > Right) | (*this == Right));
+		}
+		bool UInt128::operator<=(const UInt128& Right) const
+		{
+			return ((*this < Right) | (*this == Right));
+		}
+		UInt128 UInt128::operator+(const UInt128& Right) const
+		{
+			return UInt128(Upper + Right.Upper + ((Lower + Right.Lower) < Lower), Lower + Right.Lower);
+		}
+		UInt128& UInt128::operator+=(const UInt128& Right)
+		{
+			Upper += Right.Upper + ((Lower + Right.Lower) < Lower);
+			Lower += Right.Lower;
+			return *this;
+		}
+		UInt128 UInt128::operator-(const UInt128& Right) const
+		{
+			return UInt128(Upper - Right.Upper - ((Lower - Right.Lower) > Lower), Lower - Right.Lower);
+		}
+		UInt128& UInt128::operator-=(const UInt128& Right)
+		{
+			*this = *this - Right;
+			return *this;
+		}
+		UInt128 UInt128::operator*(const UInt128& Right) const
+		{
+			uint64_t top[4] = { Upper >> 32, Upper & 0xffffffff, Lower >> 32, Lower & 0xffffffff };
+			uint64_t bottom[4] = { Right.Upper >> 32, Right.Upper & 0xffffffff, Right.Lower >> 32, Right.Lower & 0xffffffff };
+			uint64_t products[4][4];
+
+			for (int y = 3; y > -1; y--)
+			{
+				for (int x = 3; x > -1; x--)
+					products[3 - x][y] = top[x] * bottom[y];
+			}
+
+			uint64_t fourth32 = (products[0][3] & 0xffffffff);
+			uint64_t third32 = (products[0][2] & 0xffffffff) + (products[0][3] >> 32);
+			uint64_t second32 = (products[0][1] & 0xffffffff) + (products[0][2] >> 32);
+			uint64_t first32 = (products[0][0] & 0xffffffff) + (products[0][1] >> 32);
+			third32 += (products[1][3] & 0xffffffff);
+			second32 += (products[1][2] & 0xffffffff) + (products[1][3] >> 32);
+			first32 += (products[1][1] & 0xffffffff) + (products[1][2] >> 32);
+			second32 += (products[2][3] & 0xffffffff);
+			first32 += (products[2][2] & 0xffffffff) + (products[2][3] >> 32);
+			first32 += (products[3][3] & 0xffffffff);
+			third32 += fourth32 >> 32;
+			second32 += third32 >> 32;
+			first32 += second32 >> 32;
+			fourth32 &= 0xffffffff;
+			third32 &= 0xffffffff;
+			second32 &= 0xffffffff;
+			first32 &= 0xffffffff;
+			return UInt128((first32 << 32) | second32, (third32 << 32) | fourth32);
+		}
+		UInt128& UInt128::operator*=(const UInt128& Right)
+		{
+			*this = *this * Right;
+			return *this;
+		}
+		UInt128 UInt128::Min()
+		{
+			static UInt128 Value = UInt128(0);
+			return Value;
+		}
+		UInt128 UInt128::Max()
+		{
+			static UInt128 Value = UInt128(-1, -1);
+			return Value;
+		}
+		std::pair<UInt128, UInt128> UInt128::Divide(const UInt128& Left, const UInt128& Right) const
+		{
+			UInt128 Zero(0), One(1);
+			if (Right == Zero)
+			{
+				VI_ASSERT(false, "division or modulus by zero");
+				return std::pair<UInt128, UInt128>(Zero, Zero);
+			}
+			else if (Right == One)
+				return std::pair <UInt128, UInt128>(Left, Zero);
+			else if (Left == Right)
+				return std::pair <UInt128, UInt128>(One, Zero);
+			else if ((Left == Zero) || (Left < Right))
+				return std::pair <UInt128, UInt128>(Zero, Left);
+
+			std::pair <UInt128, UInt128> qr(Zero, Zero);
+			for (uint8_t x = Left.Bits(); x > 0; x--)
+			{
+				qr.first <<= One;
+				qr.second <<= One;
+				if ((Left >> (x - 1U)) & 1)
+					++qr.second;
+
+				if (qr.second >= Right)
+				{
+					qr.second -= Right;
+					++qr.first;
+				}
+			}
+			return qr;
+		}
+		UInt128 UInt128::operator/(const UInt128& Right) const
+		{
+			return Divide(*this, Right).first;
+		}
+		UInt128& UInt128::operator/=(const UInt128& Right)
+		{
+			*this = *this / Right;
+			return *this;
+		}
+		UInt128 UInt128::operator%(const UInt128& Right) const
+		{
+			return Divide(*this, Right).second;
+		}
+		UInt128& UInt128::operator%=(const UInt128& Right)
+		{
+			*this = *this % Right;
+			return *this;
+		}
+		UInt128& UInt128::operator++()
+		{
+			return *this += UInt128(1);
+		}
+		UInt128 UInt128::operator++(int)
+		{
+			UInt128 temp(*this);
+			++*this;
+			return temp;
+		}
+		UInt128& UInt128::operator--()
+		{
+			return *this -= UInt128(1);
+		}
+		UInt128 UInt128::operator--(int)
+		{
+			UInt128 temp(*this);
+			--*this;
+			return temp;
+		}
+		UInt128 UInt128::operator+() const
+		{
+			return *this;
+		}
+		UInt128 UInt128::operator-() const
+		{
+			return ~*this + UInt128(1);
+		}
+		const uint64_t& UInt128::High() const
+		{
+			return Upper;
+		}
+		const uint64_t& UInt128::Low() const
+		{
+			return Lower;
+		}
+		uint8_t UInt128::Bits() const
+		{
+			uint8_t out = 0;
+			if (Upper)
+			{
+				out = 64;
+				uint64_t up = Upper;
+				while (up)
+				{
+					up >>= 1;
+					out++;
+				}
+			}
+			else
+			{
+				uint64_t low = Lower;
+				while (low)
+				{
+					low >>= 1;
+					out++;
+				}
+			}
+			return out;
+		}
+		Core::Decimal UInt128::ToDecimal() const
+		{
+			return Core::Decimal(ToString());
+		}
+		Core::String UInt128::ToString(uint8_t Base, uint32_t Length) const
+		{
+			VI_ASSERT(Base >= 2 && Base <= 16, "base must be in the range [2, 16]");
+			Core::String out = "";
+			if (!!(*this))
+			{
+				std::pair <UInt128, UInt128> qr(*this, UInt128(0));
+				do
+				{
+					qr = Divide(qr.first, Base);
+					out = "0123456789abcdef"[(uint8_t)qr.second] + out;
+				} while (qr.first);
+			}
+			else
+				out = "0";
+
+			if (out.size() < Length)
+				out = Core::String(Length - out.size(), '0') + out;
+			return out;
+		}
+		UInt128 operator<<(const uint8_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) << Right;
+		}
+		UInt128 operator<<(const uint16_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) << Right;
+		}
+		UInt128 operator<<(const uint32_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) << Right;
+		}
+		UInt128 operator<<(const uint64_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) << Right;
+		}
+		UInt128 operator<<(const int8_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) << Right;
+		}
+		UInt128 operator<<(const int16_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) << Right;
+		}
+		UInt128 operator<<(const int32_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) << Right;
+		}
+		UInt128 operator<<(const int64_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) << Right;
+		}
+		UInt128 operator>>(const uint8_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) >> Right;
+		}
+		UInt128 operator>>(const uint16_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) >> Right;
+		}
+		UInt128 operator>>(const uint32_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) >> Right;
+		}
+		UInt128 operator>>(const uint64_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) >> Right;
+		}
+		UInt128 operator>>(const int8_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) >> Right;
+		}
+		UInt128 operator>>(const int16_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) >> Right;
+		}
+		UInt128 operator>>(const int32_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) >> Right;
+		}
+		UInt128 operator>>(const int64_t& Left, const UInt128& Right)
+		{
+			return UInt128(Left) >> Right;
+		}
+		std::ostream& operator<<(std::ostream& Stream, const UInt128& Right)
+		{
+			if (Stream.flags() & Stream.oct)
+				Stream << Right.ToString(8);
+			else if (Stream.flags() & Stream.dec)
+				Stream << Right.ToString(10);
+			else if (Stream.flags() & Stream.hex)
+				Stream << Right.ToString(16);
+			return Stream;
+		}
+
+		UInt256::UInt256(const Core::String& Text) : UInt256(Text, 10)
+		{
+		}
+		UInt256::UInt256(const Core::String& Text, uint8_t Base)
+		{
+			*this = 0;
+			UInt256 power(1);
+			uint8_t digit;
+			int64_t pos = (int64_t)Text.size() - 1;
+			while (pos >= 0)
+			{
+				digit = 0;
+				if ('0' <= Text[pos] && Text[pos] <= '9')
+					digit = Text[pos] - '0';
+				else if ('a' <= Text[pos] && Text[pos] <= 'z')
+					digit = Text[pos] - 'a' + 10;
+				*this += digit * power;
+				power *= Base;
+				pos--;
+			}
+		}
+		UInt256 UInt256::Min()
+		{
+			static UInt256 Value = UInt256(0);
+			return Value;
+		}
+		UInt256 UInt256::Max()
+		{
+			static UInt256 Value = UInt256(UInt128((uint64_t)-1, (uint64_t)-1), UInt128((uint64_t)-1, (uint64_t)-1));
+			return Value;
+		}
+		UInt256::operator bool() const
+		{
+			return (bool)(Upper | Lower);
+		}
+		UInt256::operator uint8_t() const
+		{
+			return (uint8_t)Lower;
+		}
+		UInt256::operator uint16_t() const
+		{
+			return (uint16_t)Lower;
+		}
+		UInt256::operator uint32_t() const
+		{
+			return (uint32_t)Lower;
+		}
+		UInt256::operator uint64_t() const
+		{
+			return (uint64_t)Lower;
+		}
+		UInt256::operator UInt128() const
+		{
+			return Lower;
+		}
+		UInt256 UInt256::operator&(const UInt128& Right) const
+		{
+			return UInt256(UInt128::Min(), Lower & Right);
+		}
+		UInt256 UInt256::operator&(const UInt256& Right) const
+		{
+			return UInt256(Upper & Right.Upper, Lower & Right.Lower);
+		}
+		UInt256& UInt256::operator&=(const UInt128& Right)
+		{
+			Upper = UInt128::Min();
+			Lower &= Right;
+			return *this;
+		}
+		UInt256& UInt256::operator&=(const UInt256& Right)
+		{
+			Upper &= Right.Upper;
+			Lower &= Right.Lower;
+			return *this;
+		}
+		UInt256 UInt256::operator|(const UInt128& Right) const
+		{
+			return UInt256(Upper, Lower | Right);
+		}
+		UInt256 UInt256::operator|(const UInt256& Right) const
+		{
+			return UInt256(Upper | Right.Upper, Lower | Right.Lower);
+		}
+		UInt256& UInt256::operator|=(const UInt128& Right)
+		{
+			Lower |= Right;
+			return *this;
+		}
+		UInt256& UInt256::operator|=(const UInt256& Right)
+		{
+			Upper |= Right.Upper;
+			Lower |= Right.Lower;
+			return *this;
+		}
+		UInt256 UInt256::operator^(const UInt128& Right) const
+		{
+			return UInt256(Upper, Lower ^ Right);
+		}
+		UInt256 UInt256::operator^(const UInt256& Right) const
+		{
+			return UInt256(Upper ^ Right.Upper, Lower ^ Right.Lower);
+		}
+		UInt256& UInt256::operator^=(const UInt128& Right)
+		{
+			Lower ^= Right;
+			return *this;
+		}
+		UInt256& UInt256::operator^=(const UInt256& Right)
+		{
+			Upper ^= Right.Upper;
+			Lower ^= Right.Lower;
+			return *this;
+		}
+		UInt256 UInt256::operator~() const
+		{
+			return UInt256(~Upper, ~Lower);
+		}
+		UInt256 UInt256::operator<<(const UInt128& Right) const
+		{
+			return *this << UInt256(Right);
+		}
+		UInt256 UInt256::operator<<(const UInt256& Right) const
+		{
+			const UInt128 shift = Right.Lower;
+			if (((bool)Right.Upper) || (shift >= UInt128(256)))
+				return Min();
+			else if (shift == UInt128(128))
+				return UInt256(Lower, UInt128::Min());
+			else if (shift == UInt128::Min())
+				return *this;
+			else if (shift < UInt128(128))
+				return UInt256((Upper << shift) + (Lower >> (UInt128(128) - shift)), Lower << shift);
+			else if ((UInt128(256) > shift) && (shift > UInt128(128)))
+				return UInt256(Lower << (shift - UInt128(128)), UInt128::Min());
+
+			return Min();
+		}
+		UInt256& UInt256::operator<<=(const UInt128& Shift)
+		{
+			return *this <<= UInt256(Shift);
+		}
+		UInt256& UInt256::operator<<=(const UInt256& Shift)
+		{
+			*this = *this << Shift;
+			return *this;
+		}
+		UInt256 UInt256::operator>>(const UInt128& Right) const
+		{
+			return *this >> UInt256(Right);
+		}
+		UInt256 UInt256::operator>>(const UInt256& Right) const
+		{
+			const UInt128 Shift = Right.Lower;
+			if (((bool)Right.Upper) | (Shift >= UInt128(128)))
+				return Min();
+			else if (Shift == UInt128(128))
+				return UInt256(Upper);
+			else if (Shift == UInt128::Min())
+				return *this;
+			else if (Shift < UInt128(128))
+				return UInt256(Upper >> Shift, (Upper << (UInt128(128) - Shift)) + (Lower >> Shift));
+			else if ((UInt128(256) > Shift) && (Shift > UInt128(128)))
+				return UInt256(Upper >> (Shift - UInt128(128)));
+
+			return Min();
+		}
+		UInt256& UInt256::operator>>=(const UInt128& Shift)
+		{
+			return *this >>= UInt256(Shift);
+		}
+		UInt256& UInt256::operator>>=(const UInt256& Shift)
+		{
+			*this = *this >> Shift;
+			return *this;
+		}
+		bool UInt256::operator!() const
+		{
+			return !(bool)*this;
+		}
+		bool UInt256::operator&&(const UInt128& Right) const
+		{
+			return (*this && UInt256(Right));
+		}
+		bool UInt256::operator&&(const UInt256& Right) const
+		{
+			return ((bool)*this && (bool)Right);
+		}
+		bool UInt256::operator||(const UInt128& Right) const
+		{
+			return (*this || UInt256(Right));
+		}
+		bool UInt256::operator||(const UInt256& Right) const
+		{
+			return ((bool)*this || (bool)Right);
+		}
+		bool UInt256::operator==(const UInt128& Right) const
+		{
+			return (*this == UInt256(Right));
+		}
+		bool UInt256::operator==(const UInt256& Right) const
+		{
+			return ((Upper == Right.Upper) && (Lower == Right.Lower));
+		}
+		bool UInt256::operator!=(const UInt128& Right) const
+		{
+			return (*this != UInt256(Right));
+		}
+		bool UInt256::operator!=(const UInt256& Right) const
+		{
+			return ((Upper != Right.Upper) | (Lower != Right.Lower));
+		}
+		bool UInt256::operator>(const UInt128& Right) const
+		{
+			return (*this > UInt256(Right));
+		}
+		bool UInt256::operator>(const UInt256& Right) const
+		{
+			if (Upper == Right.Upper)
+				return (Lower > Right.Lower);
+			if (Upper > Right.Upper)
+				return true;
+			return false;
+		}
+		bool UInt256::operator<(const UInt128& Right) const
+		{
+			return (*this < UInt256(Right));
+		}
+		bool UInt256::operator<(const UInt256& Right) const
+		{
+			if (Upper == Right.Upper)
+				return (Lower < Right.Lower);
+			if (Upper < Right.Upper)
+				return true;
+			return false;
+		}
+		bool UInt256::operator>=(const UInt128& Right) const
+		{
+			return (*this >= UInt256(Right));
+		}
+		bool UInt256::operator>=(const UInt256& Right) const
+		{
+			return ((*this > Right) | (*this == Right));
+		}
+		bool UInt256::operator<=(const UInt128& Right) const
+		{
+			return (*this <= UInt256(Right));
+		}
+		bool UInt256::operator<=(const UInt256& Right) const
+		{
+			return ((*this < Right) | (*this == Right));
+		}
+		UInt256 UInt256::operator+(const UInt128& Right) const
+		{
+			return *this + UInt256(Right);
+		}
+		UInt256 UInt256::operator+(const UInt256& Right) const
+		{
+			return UInt256(Upper + Right.Upper + (((Lower + Right.Lower) < Lower) ? UInt128(1) : UInt128::Min()), Lower + Right.Lower);
+		}
+		UInt256& UInt256::operator+=(const UInt128& Right)
+		{
+			return *this += UInt256(Right);
+		}
+		UInt256& UInt256::operator+=(const UInt256& Right)
+		{
+			Upper = Right.Upper + Upper + ((Lower + Right.Lower) < Lower);
+			Lower = Lower + Right.Lower;
+			return *this;
+		}
+		UInt256 UInt256::operator-(const UInt128& Right) const
+		{
+			return *this - UInt256(Right);
+		}
+		UInt256 UInt256::operator-(const UInt256& Right) const
+		{
+			return UInt256(Upper - Right.Upper - ((Lower - Right.Lower) > Lower), Lower - Right.Lower);
+		}
+		UInt256& UInt256::operator-=(const UInt128& Right)
+		{
+			return *this -= UInt256(Right);
+		}
+		UInt256& UInt256::operator-=(const UInt256& Right)
+		{
+			*this = *this - Right;
+			return *this;
+		}
+		UInt256 UInt256::operator*(const UInt128& Right) const
+		{
+			return *this * UInt256(Right);
+		}
+		UInt256 UInt256::operator*(const UInt256& Right) const
+		{
+			UInt128 top[4] = { Upper.High(), Upper.Low(), Lower.High(), Lower.Low() };
+			UInt128 bottom[4] = { Right.High().High(), Right.High().Low(), Right.Low().High(), Right.Low().Low() };
+			UInt128 products[4][4];
+
+			for (int y = 3; y > -1; y--)
+			{
+				for (int x = 3; x > -1; x--)
+					products[3 - y][x] = top[x] * bottom[y];
+			}
+
+			UInt128 fourth64 = UInt128(products[0][3].Low());
+			UInt128 third64 = UInt128(products[0][2].Low()) + UInt128(products[0][3].High());
+			UInt128 second64 = UInt128(products[0][1].Low()) + UInt128(products[0][2].High());
+			UInt128 first64 = UInt128(products[0][0].Low()) + UInt128(products[0][1].High());
+			third64 += UInt128(products[1][3].Low());
+			second64 += UInt128(products[1][2].Low()) + UInt128(products[1][3].High());
+			first64 += UInt128(products[1][1].Low()) + UInt128(products[1][2].High());
+			second64 += UInt128(products[2][3].Low());
+			first64 += UInt128(products[2][2].Low()) + UInt128(products[2][3].High());
+			first64 += UInt128(products[3][3].Low());
+
+			return UInt256(first64 << UInt128(64), UInt128::Min()) +
+				UInt256(third64.High(), third64 << UInt128(64)) +
+				UInt256(second64, UInt128::Min()) +
+				UInt256(fourth64);
+		}
+		UInt256& UInt256::operator*=(const UInt128& Right)
+		{
+			return *this *= UInt256(Right);
+		}
+		UInt256& UInt256::operator*=(const UInt256& Right)
+		{
+			*this = *this * Right;
+			return *this;
+		}
+		std::pair<UInt256, UInt256> UInt256::Divide(const UInt256& Left, const UInt256& Right) const
+		{
+			if (Right == Min())
+			{
+				VI_ASSERT(false, " division or modulus by zero");
+				return std::pair <UInt256, UInt256>(Min(), Min());
+			}
+			else if (Right == UInt256(1))
+				return std::pair <UInt256, UInt256>(Left, Min());
+			else if (Left == Right)
+				return std::pair <UInt256, UInt256>(UInt256(1), Min());
+			else if ((Left == Min()) || (Left < Right))
+				return std::pair <UInt256, UInt256>(Min(), Left);
+
+			std::pair <UInt256, UInt256> qr(Min(), Left);
+			UInt256 copyd = Right << (Left.Bits() - Right.Bits());
+			UInt256 adder = UInt256(1) << (Left.Bits() - Right.Bits());
+			if (copyd > qr.second)
+			{
+				copyd >>= UInt256(1);
+				adder >>= UInt256(1);
+			}
+			while (qr.second >= Right)
+			{
+				if (qr.second >= copyd)
+				{
+					qr.second -= copyd;
+					qr.first |= adder;
+				}
+				copyd >>= UInt256(1);
+				adder >>= UInt256(1);
+			}
+			return qr;
+		}
+		UInt256 UInt256::operator/(const UInt128& Right) const
+		{
+			return *this / UInt256(Right);
+		}
+		UInt256 UInt256::operator/(const UInt256& Right) const
+		{
+			return Divide(*this, Right).first;
+		}
+		UInt256& UInt256::operator/=(const UInt128& Right)
+		{
+			return *this /= UInt256(Right);
+		}
+		UInt256& UInt256::operator/=(const UInt256& Right)
+		{
+			*this = *this / Right;
+			return *this;
+		}
+		UInt256 UInt256::operator%(const UInt128& Right) const
+		{
+			return *this % UInt256(Right);
+		}
+		UInt256 UInt256::operator%(const UInt256& Right) const
+		{
+			return *this - (Right * (*this / Right));
+		}
+		UInt256& UInt256::operator%=(const UInt128& Right)
+		{
+			return *this %= UInt256(Right);
+		}
+		UInt256& UInt256::operator%=(const UInt256& Right)
+		{
+			*this = *this % Right;
+			return *this;
+		}
+		UInt256& UInt256::operator++()
+		{
+			*this += UInt256(1);
+			return *this;
+		}
+		UInt256 UInt256::operator++(int)
+		{
+			UInt256 temp(*this);
+			++*this;
+			return temp;
+		}
+		UInt256& UInt256::operator--()
+		{
+			*this -= UInt256(1);
+			return *this;
+		}
+		UInt256 UInt256::operator--(int)
+		{
+			UInt256 temp(*this);
+			--*this;
+			return temp;
+		}
+		UInt256 UInt256::operator+() const
+		{
+			return *this;
+		}
+		UInt256 UInt256::operator-() const
+		{
+			return ~*this + UInt256(1);
+		}
+		const UInt128& UInt256::High() const
+		{
+			return Upper;
+		}
+		const UInt128& UInt256::Low() const
+		{
+			return Lower;
+		}
+		uint16_t UInt256::Bits() const
+		{
+			uint16_t out = 0;
+			if (Upper)
+			{
+				out = 128;
+				UInt128 up = Upper;
+				while (up)
+				{
+					up >>= UInt128(1);
+					out++;
+				}
+			}
+			else
+			{
+				UInt128 low = Lower;
+				while (low)
+				{
+					low >>= UInt128(1);
+					out++;
+				}
+			}
+			return out;
+		}
+		Core::Decimal UInt256::ToDecimal() const
+		{
+			return Core::Decimal(ToString());
+		}
+		Core::String UInt256::ToString(uint8_t Base, uint32_t Length) const
+		{
+			VI_ASSERT(Base >= 2 && Base <= 36, "Base must be in the range [2, 36]");
+			Core::String out = "";
+			if (!!(*this))
+			{
+				std::pair <UInt256, UInt256> qr(*this, Min());
+				do
+				{
+					qr = Divide(qr.first, Base);
+					out = "0123456789abcdefghijklmnopqrstuvwxyz"[(uint8_t)qr.second] + out;
+				} while (qr.first);
+			}
+			else
+				out = "0";
+
+			if (out.size() < Length)
+				out = Core::String(Length - out.size(), '0') + out;
+			return out;
+		}
+		UInt256 operator&(const UInt128& Left, const UInt256& Right)
+		{
+			return Right & Left;
+		}
+		UInt128& operator&=(UInt128& Left, const UInt256& Right)
+		{
+			Left = (Right & Left).Low();
+			return Left;
+		}
+		UInt256 operator|(const UInt128& Left, const UInt256& Right)
+		{
+			return Right | Left;
+		}
+		UInt128& operator|=(UInt128& Left, const UInt256& Right)
+		{
+			Left = (Right | Left).Low();
+			return Left;
+		}
+		UInt256 operator^(const UInt128& Left, const UInt256& Right)
+		{
+			return Right ^ Left;
+		}
+		UInt128& operator^=(UInt128& Left, const UInt256& Right)
+		{
+			Left = (Right ^ Left).Low();
+			return Left;
+		}
+		UInt256 operator<<(const uint8_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) << Right;
+		}
+		UInt256 operator<<(const uint16_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) << Right;
+		}
+		UInt256 operator<<(const uint32_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) << Right;
+		}
+		UInt256 operator<<(const uint64_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) << Right;
+		}
+		UInt256 operator<<(const UInt128& Left, const UInt256& Right)
+		{
+			return UInt256(Left) << Right;
+		}
+		UInt256 operator<<(const int8_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) << Right;
+		}
+		UInt256 operator<<(const int16_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) << Right;
+		}
+		UInt256 operator<<(const int32_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) << Right;
+		}
+		UInt256 operator<<(const int64_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) << Right;
+		}
+		UInt128& operator<<=(UInt128& Left, const UInt256& Right)
+		{
+			Left = (UInt256(Left) << Right).Low();
+			return Left;
+		}
+		UInt256 operator>>(const uint8_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) >> Right;
+		}
+		UInt256 operator>>(const uint16_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) >> Right;
+		}
+		UInt256 operator>>(const uint32_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) >> Right;
+		}
+		UInt256 operator>>(const uint64_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) >> Right;
+		}
+		UInt256 operator>>(const UInt128& Left, const UInt256& Right)
+		{
+			return UInt256(Left) >> Right;
+		}
+		UInt256 operator>>(const int8_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) >> Right;
+		}
+		UInt256 operator>>(const int16_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) >> Right;
+		}
+		UInt256 operator>>(const int32_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) >> Right;
+		}
+		UInt256 operator>>(const int64_t& Left, const UInt256& Right)
+		{
+			return UInt256(Left) >> Right;
+		}
+		UInt128& operator>>=(UInt128& Left, const UInt256& Right)
+		{
+			Left = (UInt256(Left) >> Right).Low();
+			return Left;
+		}
+		bool operator==(const UInt128& Left, const UInt256& Right)
+		{
+			return Right == Left;
+		}
+		bool operator!=(const UInt128& Left, const UInt256& Right)
+		{
+			return Right != Left;
+		}
+		bool operator>(const UInt128& Left, const UInt256& Right)
+		{
+			return Right < Left;
+		}
+		bool operator<(const UInt128& Left, const UInt256& Right)
+		{
+			return Right > Left;
+		}
+		bool operator>=(const UInt128& Left, const UInt256& Right)
+		{
+			return Right <= Left;
+		}
+		bool operator<=(const UInt128& Left, const UInt256& Right)
+		{
+			return Right >= Left;
+		}
+		UInt256 operator+(const UInt128& Left, const UInt256& Right)
+		{
+			return Right + Left;
+		}
+		UInt128& operator+=(UInt128& Left, const UInt256& Right)
+		{
+			Left = (Right + Left).Low();
+			return Left;
+		}
+		UInt256 operator-(const UInt128& Left, const UInt256& Right)
+		{
+			return -(Right - Left);
+		}
+		UInt128& operator-=(UInt128& Left, const UInt256& Right)
+		{
+			Left = (-(Right - Left)).Low();
+			return Left;
+		}
+		UInt256 operator*(const UInt128& Left, const UInt256& Right)
+		{
+			return Right * Left;
+		}
+		UInt128& operator*=(UInt128& Left, const UInt256& Right)
+		{
+			Left = (Right * Left).Low();
+			return Left;
+		}
+		UInt256 operator/(const UInt128& Left, const UInt256& Right)
+		{
+			return UInt256(Left) / Right;
+		}
+		UInt128& operator/=(UInt128& Left, const UInt256& Right)
+		{
+			Left = (UInt256(Left) / Right).Low();
+			return Left;
+		}
+		UInt256 operator%(const UInt128& Left, const UInt256& Right)
+		{
+			return UInt256(Left) % Right;
+		}
+		UInt128& operator%=(UInt128& Left, const UInt256& Right)
+		{
+			Left = (UInt256(Left) % Right).Low();
+			return Left;
+		}
+		std::ostream& operator<<(std::ostream& Stream, const UInt256& Right)
+		{
+			if (Stream.flags() & Stream.oct)
+				Stream << Right.ToString(8);
+			else if (Stream.flags() & Stream.dec)
+				Stream << Right.ToString(10);
+			else if (Stream.flags() & Stream.hex)
+				Stream << Right.ToString(16);
+			return Stream;
+		}
+
 		Adjacencies::Adjacencies() noexcept : NbEdges(0), CurrentNbFaces(0), Edges(nullptr), NbFaces(0), Faces(nullptr)
 		{
 		}
@@ -9438,7 +10612,7 @@ namespace Mavi
 					{
 						size_t FoundOffset = Formatter.find(Item.first);
 						size_t TemplateSize = Item.first.size();
-						while (FoundOffset != std::string::npos)
+						while (FoundOffset != Core::String::npos)
 						{
 							StoreCurrentLine = [this, &Formatter, FoundOffset, TemplateSize]() { return GetLinesCount(Formatter, FoundOffset + TemplateSize); };
 							Formatter.replace(FoundOffset, TemplateSize, Item.second.Callback(this, Tokens));

@@ -3743,6 +3743,16 @@ namespace Mavi
 				Core::Decimal& Source = *(Core::Decimal*)Object;
 				return Source.ToString();
 			});
+			AddToStringCallback("uint128", [](Core::String& Indent, int Depth, void* Object, int TypeId)
+			{
+				Compute::UInt128& Source = *(Compute::UInt128*)Object;
+				return Source.ToString();
+			});
+			AddToStringCallback("uint256", [](Core::String& Indent, int Depth, void* Object, int TypeId)
+			{
+				Compute::UInt256& Source = *(Compute::UInt256*)Object;
+				return Source.ToString();
+			});
 			AddToStringCallback("variant", [](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Core::Variant& Source = *(Core::Variant*)Object;
@@ -8296,6 +8306,8 @@ namespace Mavi
 			Engine->AddSystemAddon("promise", { }, Bindings::Registry::ImportPromise);
 			Engine->AddSystemAddon("format", { "string" }, Bindings::Registry::ImportFormat);
 			Engine->AddSystemAddon("decimal", { "string" }, Bindings::Registry::ImportDecimal);
+			Engine->AddSystemAddon("uint128", { "decimal" }, Bindings::Registry::ImportUInt128);
+			Engine->AddSystemAddon("uint256", { "uint128" }, Bindings::Registry::ImportUInt256);
 			Engine->AddSystemAddon("variant", { "string", "decimal" }, Bindings::Registry::ImportVariant);
 			Engine->AddSystemAddon("timestamp", { "string" }, Bindings::Registry::ImportTimestamp);
 			Engine->AddSystemAddon("console", { "format" }, Bindings::Registry::ImportConsole);

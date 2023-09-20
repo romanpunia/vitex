@@ -1812,149 +1812,125 @@ namespace Mavi
 			VI_DELETE(Cocontext, Slave);
 		}
 
-		Decimal::Decimal() noexcept : Length(0), Sign('\0'), Invalid(true)
+		Decimal::Decimal() noexcept : Length(0), Sign('\0')
 		{
 		}
-		Decimal::Decimal(const char* Value) noexcept : Length(0), Sign('\0'), Invalid(false)
+		Decimal::Decimal(const String& Value) noexcept : Length(0)
 		{
-			int Count = 0;
-			if (Value[Count] == '+')
+			InitializeFromText(Value.c_str(), Value.size());
+		}
+		Decimal::Decimal(const Decimal& Value) noexcept : Source(Value.Source), Length(Value.Length), Sign(Value.Sign)
+		{
+		}
+		Decimal::Decimal(Decimal&& Value) noexcept : Source(std::move(Value.Source)), Length(Value.Length), Sign(Value.Sign)
+		{
+		}
+		void Decimal::InitializeFromText(const char* Text, size_t Size) noexcept
+		{
+			if (!Size)
 			{
-				Sign = '+';
-				Count++;
-			}
-			else if (Value[Count] == '-')
-			{
-				Sign = '-';
-				Count++;
-			}
-			else if (isdigit(Value[Count]))
-			{
-				Sign = '+';
-			}
-			else
-			{
-				Invalid = 1;
+			InvalidNumber:
+				Source.clear();
+				Length = 0;
+				Sign = '\0';
 				return;
 			}
 
 			bool Points = false;
-			while (Value[Count] != '\0')
+			size_t Index = 0;
+			int8_t Direction = Text[0];
+			if (Direction != '+' && Direction != '-')
 			{
-				if (!Points && Value[Count] == '.')
+				if (!isdigit(Direction))
+					goto InvalidNumber;
+				Direction = '+';
+			}
+			else
+				Index = 1;
+
+			Sign = Direction;
+			while (Text[Index] != '\0')
+			{
+				if (!Points && Text[Index] == '.')
 				{
 					if (Source.empty())
-					{
-						Sign = '\0';
-						Invalid = 1;
-						return;
-					}
+						goto InvalidNumber;
 
 					Points = true;
-					Count++;
+					++Index;
 				}
+				else if (!isdigit(Text[Index]))
+					goto InvalidNumber;
 
-				if (isdigit(Value[Count]))
-				{
-					Source.push_front(Value[Count]);
-					Count++;
-
-					if (Points)
-						Length++;
-				}
-				else
-				{
-					Sign = '\0';
-					Source.clear();
-					Length = 0;
-					Invalid = 1;
-					return;
-				}
+				Source.insert(0, 1, Text[Index++]);
+				if (Points)
+					Length++;
 			}
 
-			Unlead();
+			Trim();
 		}
-		Decimal::Decimal(const String& Value) noexcept : Decimal(Value.c_str())
+		void Decimal::InitializeFromZero() noexcept
 		{
+			Source.push_back('0');
+			Sign = '+';
+			Length = 0;
 		}
-		Decimal::Decimal(int32_t Value) noexcept : Decimal(Core::ToString(Value))
+		Decimal& Decimal::Truncate(uint32_t Precision)
 		{
-		}
-		Decimal::Decimal(uint32_t Value) noexcept : Decimal(Core::ToString(Value))
-		{
-		}
-		Decimal::Decimal(int64_t Value) noexcept : Decimal(Core::ToString(Value))
-		{
-		}
-		Decimal::Decimal(uint64_t Value) noexcept : Decimal(Core::ToString(Value))
-		{
-		}
-		Decimal::Decimal(float Value) noexcept : Decimal(Core::ToString(Value))
-		{
-		}
-		Decimal::Decimal(double Value) noexcept : Decimal(Core::ToString(Value))
-		{
-		}
-		Decimal::Decimal(const Decimal& Value) noexcept : Source(Value.Source), Length(Value.Length), Sign(Value.Sign), Invalid(Value.Invalid)
-		{
-		}
-		Decimal::Decimal(Decimal&& Value) noexcept : Source(std::move(Value.Source)), Length(Value.Length), Sign(Value.Sign), Invalid(Value.Invalid)
-		{
-		}
-		Decimal& Decimal::Truncate(int Precision)
-		{
-			if (Invalid || Precision < 0)
+			if (IsNaN())
 				return *this;
 
-			if (Length < Precision)
+			int32_t NewPrecision = Precision;
+			if (Length < NewPrecision)
 			{
-				while (Length < Precision)
+				while (Length < NewPrecision)
 				{
 					Length++;
-					Source.push_front('0');
+					Source.insert(0, 1, '0');
 				}
 			}
-			else if (Length > Precision)
+			else if (Length > NewPrecision)
 			{
-				while (Length > Precision)
+				while (Length > NewPrecision)
 				{
 					Length--;
-					Source.pop_front();
+					Source.erase(0, 1);
 				}
 			}
 
 			return *this;
 		}
-		Decimal& Decimal::Round(int Precision)
+		Decimal& Decimal::Round(uint32_t Precision)
 		{
-			if (Invalid || Precision < 0)
+			if (IsNaN())
 				return *this;
 
-			if (Length < Precision)
+			int32_t NewPrecision = Precision;
+			if (Length < NewPrecision)
 			{
-				while (Length < Precision)
+				while (Length < NewPrecision)
 				{
 					Length++;
-					Source.push_front('0');
+					Source.insert(0, 1, '0');
 				}
 			}
-			else if (Length > Precision)
+			else if (Length > NewPrecision)
 			{
 				char Last;
-				while (Length > Precision)
+				while (Length > NewPrecision)
 				{
 					Last = Source[0];
 					Length--;
-					Source.pop_front();
+					Source.erase(0, 1);
 				}
 
 				if (CharToInt(Last) >= 5)
 				{
-					if (Precision != 0)
+					if (NewPrecision != 0)
 					{
 						String Result = "0.";
-						Result.reserve(3 + (size_t)Precision);
-						for (int i = 1; i < Precision; i++)
+						Result.reserve(3 + (size_t)NewPrecision);
+						for (int32_t i = 1; i < NewPrecision; i++)
 							Result += '0';
 						Result += '1';
 
@@ -1974,7 +1950,7 @@ namespace Mavi
 		}
 		Decimal& Decimal::Unlead()
 		{
-			for (int i = (int)Source.size() - 1; i > Length; --i)
+			for (int32_t i = (int32_t)Source.size() - 1; i > Length; --i)
 			{
 				if (Source[i] != '0')
 					break;
@@ -1986,12 +1962,12 @@ namespace Mavi
 		}
 		Decimal& Decimal::Untrail()
 		{
-			if (Invalid || Source.empty())
+			if (IsNaN() || Source.empty())
 				return *this;
 
 			while ((Source[0] == '0') && (Length > 0))
 			{
-				Source.pop_front();
+				Source.erase(0, 1);
 				Length--;
 			}
 
@@ -1999,11 +1975,11 @@ namespace Mavi
 		}
 		bool Decimal::IsNaN() const
 		{
-			return Invalid;
+			return Sign == '\0';
 		}
 		bool Decimal::IsZero() const
 		{
-			for (auto& Item : Source)
+			for (char Item : Source)
 			{
 				if (Item != '0')
 					return false;
@@ -2013,25 +1989,25 @@ namespace Mavi
 		}
 		bool Decimal::IsZeroOrNaN() const
 		{
-			return Invalid || IsZero();
+			return IsNaN() || IsZero();
 		}
 		bool Decimal::IsPositive() const
 		{
-			return !Invalid && *this > 0.0;
+			return !IsNaN() && *this > 0.0;
 		}
 		bool Decimal::IsNegative() const
 		{
-			return !Invalid && *this < 0.0;
+			return !IsNaN() && *this < 0.0;
 		}
 		double Decimal::ToDouble() const
 		{
-			if (Invalid)
+			if (IsNaN())
 				return std::nan("");
 
 			double Dec = 1;
 			if (Length > 0)
 			{
-				int Aus = Length;
+				int32_t Aus = Length;
 				while (Aus != 0)
 				{
 					Dec /= 10;
@@ -2040,7 +2016,7 @@ namespace Mavi
 			}
 
 			double Var = 0;
-			for (auto& Char : Source)
+			for (char Char : Source)
 			{
 				Var += CharToInt(Char) * Dec;
 				Dec *= 10;
@@ -2057,21 +2033,21 @@ namespace Mavi
 		}
 		int64_t Decimal::ToInt64() const
 		{
-			if (Invalid || Source.empty())
+			if (IsNaN() || Source.empty())
 				return 0;
 
 			String Result;
 			if (Sign == '-')
 				Result += Sign;
 
-			int Offset = 0, Size = Length;
+			int32_t Offset = 0, Size = Length;
 			while ((Source[Offset] == '0') && (Size > 0))
 			{
 				Offset++;
 				Size--;
 			}
 
-			for (int i = (int)Source.size() - 1; i >= Offset; i--)
+			for (int32_t i = (int32_t)Source.size() - 1; i >= Offset; i--)
 			{
 				Result += Source[i];
 				if ((i == Length) && (i != 0) && Offset != Length)
@@ -2082,18 +2058,18 @@ namespace Mavi
 		}
 		uint64_t Decimal::ToUInt64() const
 		{
-			if (Invalid || Source.empty())
+			if (IsNaN() || Source.empty())
 				return 0;
 
 			String Result;
-			int Offset = 0, Size = Length;
+			int32_t Offset = 0, Size = Length;
 			while ((Source[Offset] == '0') && (Size > 0))
 			{
 				Offset++;
 				Size--;
 			}
 
-			for (int i = (int)Source.size() - 1; i >= Offset; i--)
+			for (int32_t i = (int32_t)Source.size() - 1; i >= Offset; i--)
 			{
 				Result += Source[i];
 				if ((i == Length) && (i != 0) && Offset != Length)
@@ -2104,21 +2080,21 @@ namespace Mavi
 		}
 		String Decimal::ToString() const
 		{
-			if (Invalid || Source.empty())
+			if (IsNaN() || Source.empty())
 				return "NaN";
 
 			String Result;
 			if (Sign == '-')
 				Result += Sign;
 
-			int Offset = 0, Size = Length;
+			int32_t Offset = 0, Size = Length;
 			while ((Source[Offset] == '0') && (Size > 0))
 			{
 				Offset++;
 				Size--;
 			}
 
-			for (int i = (int)Source.size() - 1; i >= Offset; i--)
+			for (int32_t i = (int32_t)Source.size() - 1; i >= Offset; i--)
 			{
 				Result += Source[i];
 				if ((i == Length) && (i != 0) && Offset != Length)
@@ -2129,7 +2105,7 @@ namespace Mavi
 		}
 		String Decimal::Exp() const
 		{
-			if (Invalid)
+			if (IsNaN())
 				return "NaN";
 
 			String Result;
@@ -2142,14 +2118,14 @@ namespace Mavi
 			else if (Compare == 1)
 			{
 				Result += Sign;
-				int i = (int)Source.size() - 1;
+				int32_t i = (int32_t)Source.size() - 1;
 				Result += Source[i];
 				i--;
 
 				if (i > 0)
 				{
 					Result += '.';
-					for (; (i >= (int)Source.size() - 6) && (i >= 0); --i)
+					for (; (i >= (int32_t)Source.size() - 6) && (i >= 0); --i)
 						Result += Source[i];
 				}
 				Result += "e+";
@@ -2157,7 +2133,7 @@ namespace Mavi
 			}
 			else if (Compare == 2)
 			{
-				int Exp = 0, Count = (int)Source.size() - 1;
+				int32_t Exp = 0, Count = (int32_t)Source.size() - 1;
 				while (Count > 0 && Source[Count] == '0')
 				{
 					Count--;
@@ -2182,7 +2158,7 @@ namespace Mavi
 					Result += Source[Count];
 					Result += '.';
 
-					for (int i = Count - 1; (i >= (int)Count - 5) && (i >= 0); --i)
+					for (int32_t i = Count - 1; (i >= Count - 5) && (i >= 0); --i)
 						Result += Source[i];
 
 					Result += "e-";
@@ -2192,17 +2168,17 @@ namespace Mavi
 
 			return Result;
 		}
-		int Decimal::Decimals() const
+		uint32_t Decimal::Decimals() const
 		{
 			return Length;
 		}
-		int Decimal::Ints() const
+		uint32_t Decimal::Ints() const
 		{
-			return (int)Source.size() - Length;
+			return (int32_t)Source.size() - Length;
 		}
-		int Decimal::Size() const
+		uint32_t Decimal::Size() const
 		{
-			return (int)(sizeof(*this) + Source.size() * sizeof(char));
+			return (int32_t)(sizeof(*this) + Source.size() * sizeof(char));
 		}
 		Decimal Decimal::operator -() const
 		{
@@ -2239,8 +2215,6 @@ namespace Mavi
 			Source = Value.Source;
 			Length = Value.Length;
 			Sign = Value.Sign;
-			Invalid = Value.Invalid;
-
 			return *this;
 		}
 		Decimal& Decimal::operator=(Decimal&& Value) noexcept
@@ -2248,8 +2222,6 @@ namespace Mavi
 			Source = std::move(Value.Source);
 			Length = Value.Length;
 			Sign = Value.Sign;
-			Invalid = Value.Invalid;
-
 			return *this;
 		}
 		Decimal& Decimal::operator++(int)
@@ -2274,7 +2246,7 @@ namespace Mavi
 		}
 		bool Decimal::operator==(const Decimal& Right) const
 		{
-			if (Invalid || Right.Invalid)
+			if (IsNaN() || Right.IsNaN())
 				return false;
 
 			int Check = CompareNum(*this, Right);
@@ -2285,14 +2257,14 @@ namespace Mavi
 		}
 		bool Decimal::operator!=(const Decimal& Right) const
 		{
-			if (Invalid || Right.Invalid)
+			if (IsNaN() || Right.IsNaN())
 				return false;
 
 			return !(*this == Right);
 		}
 		bool Decimal::operator>(const Decimal& Right) const
 		{
-			if (Invalid || Right.Invalid)
+			if (IsNaN() || Right.IsNaN())
 				return false;
 
 			if (((Sign == '+') && (Right.Sign == '+')))
@@ -2317,14 +2289,14 @@ namespace Mavi
 		}
 		bool Decimal::operator>=(const Decimal& Right) const
 		{
-			if (Invalid || Right.Invalid)
+			if (IsNaN() || Right.IsNaN())
 				return false;
 
 			return !(*this < Right);
 		}
 		bool Decimal::operator<(const Decimal& Right) const
 		{
-			if (Invalid || Right.Invalid)
+			if (IsNaN() || Right.IsNaN())
 				return false;
 
 			if (((Sign == '+') && (Right.Sign == '+')))
@@ -2349,7 +2321,7 @@ namespace Mavi
 		}
 		bool Decimal::operator<=(const Decimal& Right) const
 		{
-			if (Invalid || Right.Invalid)
+			if (IsNaN() || Right.IsNaN())
 				return false;
 
 			return !(*this > Right);
@@ -2357,7 +2329,7 @@ namespace Mavi
 		Decimal operator+(const Decimal& _Left, const Decimal& _Right)
 		{
 			Decimal Temp;
-			if (_Left.Invalid || _Right.Invalid)
+			if (_Left.IsNaN() || _Right.IsNaN())
 				return Temp;
 
 			Decimal Left, Right;
@@ -2369,7 +2341,7 @@ namespace Mavi
 				while (Left.Length > Right.Length)
 				{
 					Right.Length++;
-					Right.Source.push_front('0');
+					Right.Source.insert(0, 1, '0');
 				}
 			}
 			else if (Left.Length < Right.Length)
@@ -2377,7 +2349,7 @@ namespace Mavi
 				while (Left.Length < Right.Length)
 				{
 					Left.Length++;
-					Left.Source.push_front('0');
+					Left.Source.insert(0, 1, '0');
 				}
 			}
 
@@ -2396,7 +2368,6 @@ namespace Mavi
 					Temp.Sign = '+';
 					Temp.Length = Left.Length;
 					Temp.Unlead();
-					Temp.Invalid = 0;
 					return Temp;
 				}
 
@@ -2406,7 +2377,6 @@ namespace Mavi
 					Temp.Sign = '-';
 					Temp.Length = Left.Length;
 					Temp.Unlead();
-					Temp.Invalid = 0;
 					return Temp;
 				}
 			}
@@ -2426,7 +2396,6 @@ namespace Mavi
 					Temp.Sign = '-';
 					Temp.Length = Left.Length;
 					Temp.Unlead();
-					Temp.Invalid = 0;
 					return Temp;
 				}
 
@@ -2436,7 +2405,6 @@ namespace Mavi
 					Temp.Sign = '+';
 					Temp.Length = Left.Length;
 					Temp.Unlead();
-					Temp.Invalid = 0;
 					return Temp;
 				}
 			}
@@ -2446,7 +2414,6 @@ namespace Mavi
 				Temp = Decimal::Sum(Left, Right);
 				Temp.Sign = '+';
 				Temp.Length = Left.Length;
-				Temp.Invalid = 0;
 				return Temp;
 			}
 
@@ -2455,7 +2422,6 @@ namespace Mavi
 				Temp = Decimal::Sum(Left, Right);
 				Temp.Sign = '-';
 				Temp.Length = Left.Length;
-				Temp.Invalid = 0;
 				return Temp;
 			}
 
@@ -2476,7 +2442,7 @@ namespace Mavi
 		Decimal operator-(const Decimal& _Left, const Decimal& _Right)
 		{
 			Decimal Temp;
-			if (_Left.Invalid || _Right.Invalid)
+			if (_Left.IsNaN() || _Right.IsNaN())
 				return Temp;
 
 			Decimal Left, Right;
@@ -2488,7 +2454,7 @@ namespace Mavi
 				while (Left.Length > Right.Length)
 				{
 					Right.Length++;
-					Right.Source.push_front('0');
+					Right.Source.insert(0, 1, '0');
 				}
 			}
 			else if (Left.Length < Right.Length)
@@ -2496,7 +2462,7 @@ namespace Mavi
 				while (Left.Length < Right.Length)
 				{
 					Left.Length++;
-					Left.Source.push_front('0');
+					Left.Source.insert(0, 1, '0');
 				}
 			}
 
@@ -2505,7 +2471,6 @@ namespace Mavi
 				Temp = Decimal::Sum(Left, Right);
 				Temp.Sign = '+';
 				Temp.Length = Left.Length;
-				Temp.Invalid = 0;
 				return Temp;
 			}
 			if ((Left.Sign == '-') && (Right.Sign == '+'))
@@ -2513,7 +2478,6 @@ namespace Mavi
 				Temp = Decimal::Sum(Left, Right);
 				Temp.Sign = '-';
 				Temp.Length = Left.Length;
-				Temp.Invalid = 0;
 				return Temp;
 			}
 
@@ -2532,7 +2496,6 @@ namespace Mavi
 					Temp.Sign = '+';
 					Temp.Length = Left.Length;
 					Temp.Unlead();
-					Temp.Invalid = 0;
 					return Temp;
 				}
 
@@ -2542,7 +2505,6 @@ namespace Mavi
 					Temp.Sign = '-';
 					Temp.Length = Left.Length;
 					Temp.Unlead();
-					Temp.Invalid = 0;
 					return Temp;
 				}
 			}
@@ -2562,7 +2524,6 @@ namespace Mavi
 					Temp.Sign = '-';
 					Temp.Length = Left.Length;
 					Temp.Unlead();
-					Temp.Invalid = 0;
 					return Temp;
 				}
 
@@ -2572,7 +2533,6 @@ namespace Mavi
 					Temp.Sign = '+';
 					Temp.Length = Left.Length;
 					Temp.Unlead();
-					Temp.Invalid = 0;
 					return Temp;
 				}
 			}
@@ -2594,7 +2554,7 @@ namespace Mavi
 		Decimal operator*(const Decimal& Left, const Decimal& Right)
 		{
 			Decimal Temp;
-			if (Left.Invalid || Right.Invalid)
+			if (Left.IsNaN() || Right.IsNaN())
 				return Temp;
 
 			Temp = Decimal::Multiply(Left, Right);
@@ -2604,7 +2564,6 @@ namespace Mavi
 				Temp.Sign = '-';
 
 			Temp.Length = Left.Length + Right.Length;
-			Temp.Invalid = 0;
 			Temp.Unlead();
 
 			return Temp;
@@ -2624,7 +2583,7 @@ namespace Mavi
 		Decimal operator/(const Decimal& Left, const Decimal& Right)
 		{
 			Decimal Temp;
-			if (Left.Invalid || Right.Invalid)
+			if (Left.IsNaN() || Right.IsNaN())
 				return Temp;
 
 			Decimal Q, R, D, N, Zero;
@@ -2636,17 +2595,16 @@ namespace Mavi
 			N = (Left > Zero) ? (Left) : (Left * (-1));
 			D = (Right > Zero) ? (Right) : (Right * (-1));
 			R.Sign = '+';
-			R.Invalid = 0;
 
 			while ((N.Length != 0) || (D.Length != 0))
 			{
 				if (N.Length == 0)
-					N.Source.push_front('0');
+					N.Source.insert(0, 1, '0');
 				else
 					N.Length--;
 
 				if (D.Length == 0)
-					D.Source.push_front('0');
+					D.Source.insert(0, 1, '0');
 				else
 					D.Length--;
 			}
@@ -2654,20 +2612,20 @@ namespace Mavi
 			N.Unlead();
 			D.Unlead();
 
-			int DivPrecision = (Left.Length > Right.Length) ? (Left.Length) : (Right.Length);
-			for (int i = 0; i < DivPrecision; i++)
-				N.Source.push_front('0');
+			int32_t DivPrecision = (Left.Length > Right.Length) ? (Left.Length) : (Right.Length);
+			for (int32_t i = 0; i < DivPrecision; i++)
+				N.Source.insert(0, 1, '0');
 
 			int Check = Decimal::CompareNum(N, D);
 			if (Check == 0)
-				Temp.Source.push_front('1');
+				Temp.Source.insert(0, 1, '1');
 
 			if (Check == 2)
 				return Zero;
 
 			while (!N.Source.empty())
 			{
-				R.Source.push_front(*(N.Source.rbegin()));
+				R.Source.insert(0, 1, *(N.Source.rbegin()));
 				N.Source.pop_back();
 
 				bool IsZero = true;
@@ -2680,14 +2638,14 @@ namespace Mavi
 
 				if ((R >= D) && (!IsZero))
 				{
-					int QSub = 0;
-					int Min = 0;
-					int Max = 9;
+					int32_t QSub = 0;
+					int32_t Min = 0;
+					int32_t Max = 9;
 
 					while (R >= D)
 					{
-						int Avg = Max - Min;
-						int ModAvg = Avg / 2;
+						int32_t Avg = Max - Min;
+						int32_t ModAvg = Avg / 2;
 						Avg = (Avg - ModAvg * 2) ? (ModAvg + 1) : (ModAvg);
 
 						int DivCheck = Decimal::CompareNum(R, D * Avg);
@@ -2702,7 +2660,7 @@ namespace Mavi
 							Max = Avg;
 					}
 
-					Q.Source.push_front(Decimal::IntToChar(QSub));
+					Q.Source.insert(0, 1, Decimal::IntToChar(QSub));
 
 					bool IsZero = true;
 					auto ZeroIt = R.Source.begin();
@@ -2716,7 +2674,7 @@ namespace Mavi
 						R.Source.clear();
 				}
 				else
-					Q.Source.push_front('0');
+					Q.Source.insert(0, 1, '0');
 			}
 
 			Temp = Q;
@@ -2724,11 +2682,8 @@ namespace Mavi
 				Temp.Sign = '+';
 			else
 				Temp.Sign = '-';
-
 			Temp.Length = DivPrecision;
-			Temp.Invalid = 0;
 			Temp.Unlead();
-
 			return Temp;
 		}
 		Decimal operator/(const Decimal& Left, const int& VRight)
@@ -2746,7 +2701,7 @@ namespace Mavi
 		Decimal operator%(const Decimal& Left, const Decimal& Right)
 		{
 			Decimal Temp;
-			if (Left.Invalid || Right.Invalid)
+			if (Left.IsNaN() || Right.IsNaN())
 				return Temp;
 
 			if ((Left.Length != 0) || (Right.Length != 0))
@@ -2761,10 +2716,8 @@ namespace Mavi
 			N = (Left > Zero) ? (Left) : (Left * (-1));
 			D = (Right > Zero) ? (Right) : (Right * (-1));
 			R.Sign = '+';
-			R.Invalid = 0;
 
 			int Check = Decimal::CompareNum(N, D);
-
 			if (Check == 0)
 				return Zero;
 
@@ -2773,7 +2726,7 @@ namespace Mavi
 
 			while (!N.Source.empty())
 			{
-				R.Source.push_front(*(N.Source.rbegin()));
+				R.Source.insert(0, 1, *(N.Source.rbegin()));
 				N.Source.pop_back();
 
 				bool IsZero = true;
@@ -2786,14 +2739,14 @@ namespace Mavi
 
 				if ((R >= D) && (!IsZero))
 				{
-					int QSub = 0;
-					int Min = 0;
-					int Max = 9;
+					int32_t QSub = 0;
+					int32_t Min = 0;
+					int32_t Max = 9;
 
 					while (R >= D)
 					{
-						int Avg = Max - Min;
-						int ModAvg = Avg / 2;
+						int32_t Avg = Max - Min;
+						int32_t ModAvg = Avg / 2;
 						Avg = (Avg - ModAvg * 2) ? (ModAvg + 1) : (ModAvg);
 
 						int DivCheck = Decimal::CompareNum(R, D * Avg);
@@ -2808,7 +2761,7 @@ namespace Mavi
 							Max = Avg;
 					}
 
-					Q.Source.push_front(Decimal::IntToChar(QSub));
+					Q.Source.insert(0, 1, Decimal::IntToChar(QSub));
 					Result = R;
 
 					bool IsZero = true;
@@ -2825,23 +2778,19 @@ namespace Mavi
 				else
 				{
 					Result = R;
-					Q.Source.push_front('0');
+					Q.Source.insert(0, 1, '0');
 				}
 			}
 
 			Q.Unlead();
 			Result.Unlead();
 			Temp = Result;
-
 			if (((Left.Sign == '-') && (Right.Sign == '-')) || ((Left.Sign == '+') && (Right.Sign == '+')))
 				Temp.Sign = '+';
 			else
 				Temp.Sign = '-';
-
 			if (!Decimal::CompareNum(Temp, Zero))
 				Temp.Sign = '+';
-
-			Temp.Invalid = 0;
 			return Temp;
 		}
 		Decimal operator%(const Decimal& Left, const int& VRight)
@@ -2850,133 +2799,30 @@ namespace Mavi
 			Right = VRight;
 			return Left % Right;
 		}
-		Decimal Decimal::Divide(const Decimal& Left, const Decimal& Right, int DivPrecision)
+		Decimal Decimal::Zero()
 		{
-			Decimal Temp;
-			Decimal Q, R, D, N, Zero;
-			Zero = 0;
-
-			if (Right == Zero)
-				return Temp;
-
-			N = (Left > Zero) ? (Left) : (Left * (-1));
-			D = (Right > Zero) ? (Right) : (Right * (-1));
-			R.Sign = '+';
-			R.Invalid = 0;
-
-			while ((N.Length != 0) || (D.Length != 0))
-			{
-				if (N.Length == 0)
-					N.Source.push_front('0');
-				else
-					N.Length--;
-
-				if (D.Length == 0)
-					D.Source.push_front('0');
-				else
-					D.Length--;
-			}
-
-			N.Unlead();
-			D.Unlead();
-
-			for (int i = 0; i < DivPrecision; i++)
-				N.Source.push_front('0');
-
-			int Check = Decimal::CompareNum(N, D);
-			if (Check == 0)
-				Temp.Source.push_front('1');
-
-			if (Check == 2)
-				return Zero;
-
-			while (!N.Source.empty())
-			{
-				R.Source.push_front(*(N.Source.rbegin()));
-				N.Source.pop_back();
-
-				bool IsZero = true;
-				auto ZeroIt = R.Source.begin();
-				for (; ZeroIt != R.Source.end(); ++ZeroIt)
-				{
-					if (*ZeroIt != '0')
-						IsZero = false;
-				}
-
-				if ((R >= D) && (!IsZero))
-				{
-					int QSub = 0;
-					int Min = 0;
-					int Max = 9;
-
-					while (R >= D)
-					{
-						int Avg = Max - Min;
-						int ModAvg = Avg / 2;
-						Avg = (Avg - ModAvg * 2) ? (ModAvg + 1) : (ModAvg);
-
-						int DivCheck = Decimal::CompareNum(R, D * Avg);
-
-						if (DivCheck != 2)
-						{
-							QSub = QSub + Avg;
-							R = R - D * Avg;
-
-							Max = 9;
-						}
-						else
-							Max = Avg;
-					}
-
-					Q.Source.push_front(Decimal::IntToChar(QSub));
-
-					bool IsZero = true;
-					auto ZeroIt = R.Source.begin();
-					for (; ZeroIt != R.Source.end(); ++ZeroIt)
-					{
-						if (*ZeroIt != '0')
-							IsZero = false;
-					}
-
-					if (IsZero)
-						R.Source.clear();
-				}
-				else
-					Q.Source.push_front('0');
-			}
-
-			Temp = Q;
-			if (((Left.Sign == '-') && (Right.Sign == '-')) || ((Left.Sign == '+') && (Right.Sign == '+')))
-				Temp.Sign = '+';
-			else
-				Temp.Sign = '-';
-
-			Temp.Length = DivPrecision;
-			Temp.Invalid = 0;
-			Temp.Unlead();
-
-			return Temp;
+			Decimal Result;
+			Result.InitializeFromZero();
+			return Result;
 		}
 		Decimal Decimal::NaN()
 		{
 			Decimal Result;
-			Result.Invalid = true;
-
 			return Result;
 		}
 		Decimal Decimal::Sum(const Decimal& Left, const Decimal& Right)
 		{
 			Decimal Temp;
 			size_t LoopSize = (Left.Source.size() > Right.Source.size() ? Left.Source.size() : Right.Source.size());
-			int Carry = 0;
+			int32_t Carry = 0;
 
 			for (size_t i = 0; i < LoopSize; ++i)
 			{
-				int Val1, Val2;
+				int32_t Val1, Val2;
 				Val1 = (i > Left.Source.size() - 1) ? 0 : CharToInt(Left.Source[i]);
 				Val2 = (i > Right.Source.size() - 1) ? 0 : CharToInt(Right.Source[i]);
 
-				int Aus = Val1 + Val2 + Carry;
+				int32_t Aus = Val1 + Val2 + Carry;
 				Carry = 0;
 
 				if (Aus > 9)
@@ -2996,12 +2842,12 @@ namespace Mavi
 		Decimal Decimal::Subtract(const Decimal& Left, const Decimal& Right)
 		{
 			Decimal Temp;
-			int Carry = 0;
-			int Aus;
+			int32_t Carry = 0;
+			int32_t Aus;
 
 			for (size_t i = 0; i < Left.Source.size(); ++i)
 			{
-				int Val1, Val2;
+				int32_t Val1, Val2;
 				Val1 = CharToInt(Left.Source[i]);
 				Val2 = (i > Right.Source.size() - 1) ? 0 : CharToInt(Right.Source[i]);
 				Val1 -= Carry;
@@ -3027,16 +2873,16 @@ namespace Mavi
 			Decimal Result;
 			Decimal Temp;
 			Result.Source.push_back('0');
-			int Carry = 0;
+			int32_t Carry = 0;
 
 			for (size_t i = 0; i < Right.Source.size(); ++i)
 			{
 				for (size_t k = 0; k < i; ++k)
-					Temp.Source.push_front('0');
+					Temp.Source.insert(0, 1, '0');
 
 				for (size_t j = 0; j < Left.Source.size(); ++j)
 				{
-					int Aus = CharToInt(Right.Source[i]) * CharToInt(Left.Source[j]) + Carry;
+					int32_t Aus = CharToInt(Right.Source[i]) * CharToInt(Left.Source[j]) + Carry;
 					Carry = 0;
 					if (Aus > 9)
 					{
@@ -3075,10 +2921,10 @@ namespace Mavi
 				while (Left.Length > Temp.Length)
 				{
 					Temp.Length++;
-					Temp.Source.push_front('0');
+					Temp.Source.insert(0, 1, '0');
 				}
 
-				for (int i = (int)Left.Source.size() - 1; i >= 0; i--)
+				for (int32_t i = (int32_t)Left.Source.size() - 1; i >= 0; i--)
 				{
 					if (Left.Source[i] > Temp.Source[i])
 						return 1;
@@ -3096,10 +2942,10 @@ namespace Mavi
 				while (Temp.Length < Right.Length)
 				{
 					Temp.Length++;
-					Temp.Source.push_front('0');
+					Temp.Source.insert(0, 1, '0');
 				}
 
-				for (int i = (int)Temp.Source.size() - 1; i >= 0; i--)
+				for (int32_t i = (int32_t)Temp.Source.size() - 1; i >= 0; i--)
 				{
 					if (Temp.Source[i] > Right.Source[i])
 						return 1;
@@ -3112,7 +2958,7 @@ namespace Mavi
 			}
 			else
 			{
-				for (int i = (int)Left.Source.size() - 1; i >= 0; i--)
+				for (int32_t i = (int32_t)Left.Source.size() - 1; i >= 0; i--)
 				{
 					if (Left.Source[i] > Right.Source[i])
 						return 1;

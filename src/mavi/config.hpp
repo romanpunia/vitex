@@ -89,6 +89,11 @@ typedef int epoll_handle;
 typedef int socket_t;
 typedef socklen_t socket_size_t;
 #endif
+#if defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN || defined(VI_ENDIAN_BIG) || defined(__ARMEB__) || defined(__THUMBEB__) || defined(__AARCH64EB__) || defined(_MIBSEB) || defined(__MIBSEB) || defined(__MIBSEB__)
+#define VI_ENDIAN_BIG
+#elif defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN || defined(VI_ENDIAN_LITTLE) || defined(__ARMEL__) || defined(__THUMBEL__) || defined(__AARCH64EL__) || defined(_MIPSEL) || defined(__MIPSEL) || defined(__MIPSEL__) || defined(_WIN32) || defined(__i386__) || defined(__x86_64__) || defined(_X86_) || defined(_IA64_)
+#define VI_ENDIAN_LITTLE
+#endif
 #if VI_CXX >= 17
 #if __cplusplus >= 201703L || _MSVC_LANG >= 201703L || defined(_HAS_CXX17)
 #define VI_CXX17 1

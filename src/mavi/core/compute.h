@@ -1142,6 +1142,867 @@ namespace Mavi
 			bool AsScope = false;
 		};
 
+		struct VI_OUT UInt128
+		{
+		private:
+#ifdef VI_ENDIAN_BIG
+			uint64_t Upper, Lower;
+#else
+			uint64_t Lower, Upper;
+#endif
+		public:
+			UInt128() = default;
+			UInt128(const UInt128& Right) = default;
+			UInt128(UInt128&& Right) = default;
+			UInt128(const Core::String& Text);
+			UInt128(const Core::String& Text, uint8_t Base);
+			UInt128& operator=(const UInt128& Right) = default;
+			UInt128& operator=(UInt128&& Right) = default;
+			operator bool() const;
+			operator uint8_t() const;
+			operator uint16_t() const;
+			operator uint32_t() const;
+			operator uint64_t() const;
+			UInt128 operator&(const UInt128& Right) const;
+			UInt128& operator&=(const UInt128& Right);
+			UInt128 operator|(const UInt128& Right) const;
+			UInt128& operator|=(const UInt128& Right);
+			UInt128 operator^(const UInt128& Right) const;
+			UInt128& operator^=(const UInt128& Right);
+			UInt128 operator~() const;
+			UInt128 operator<<(const UInt128& Right) const;
+			UInt128& operator<<=(const UInt128& Right);
+			UInt128 operator>>(const UInt128& Right) const;
+			UInt128& operator>>=(const UInt128& Right);
+			bool operator!() const;
+			bool operator&&(const UInt128& Right) const;
+			bool operator||(const UInt128& Right) const;
+			bool operator==(const UInt128& Right) const;
+			bool operator!=(const UInt128& Right) const;
+			bool operator>(const UInt128& Right) const;
+			bool operator<(const UInt128& Right) const;
+			bool operator>=(const UInt128& Right) const;
+			bool operator<=(const UInt128& Right) const;
+			UInt128 operator+(const UInt128& Right) const;
+			UInt128& operator+=(const UInt128& Right);
+			UInt128 operator-(const UInt128& Right) const;
+			UInt128& operator-=(const UInt128& Right);
+			UInt128 operator*(const UInt128& Right) const;
+			UInt128& operator*=(const UInt128& Right);
+			UInt128 operator/(const UInt128& Right) const;
+			UInt128& operator/=(const UInt128& Right);
+			UInt128 operator%(const UInt128& Right) const;
+			UInt128& operator%=(const UInt128& Right);
+			UInt128& operator++();
+			UInt128 operator++(int);
+			UInt128& operator--();
+			UInt128 operator--(int);
+			UInt128 operator+() const;
+			UInt128 operator-() const;
+			const uint64_t& High() const;
+			const uint64_t& Low() const;
+			uint8_t Bits() const;
+			Core::Decimal ToDecimal() const;
+			Core::String ToString(uint8_t Base = 10, uint32_t Length = 0) const;
+			VI_OUT friend std::ostream& operator<<(std::ostream& Stream, const UInt128& Right);
+			VI_OUT friend UInt128 operator<<(const uint8_t& Left, const UInt128& Right);
+			VI_OUT friend UInt128 operator<<(const uint16_t& Left, const UInt128& Right);
+			VI_OUT friend UInt128 operator<<(const uint32_t& Left, const UInt128& Right);
+			VI_OUT friend UInt128 operator<<(const uint64_t& Left, const UInt128& Right);
+			VI_OUT friend UInt128 operator<<(const int8_t& Left, const UInt128& Right);
+			VI_OUT friend UInt128 operator<<(const int16_t& Left, const UInt128& Right);
+			VI_OUT friend UInt128 operator<<(const int32_t& Left, const UInt128& Right);
+			VI_OUT friend UInt128 operator<<(const int64_t& Left, const UInt128& Right);
+			VI_OUT friend UInt128 operator>>(const uint8_t& Left, const UInt128& Right);
+			VI_OUT friend UInt128 operator>>(const uint16_t& Left, const UInt128& Right);
+			VI_OUT friend UInt128 operator>>(const uint32_t& Left, const UInt128& Right);
+			VI_OUT friend UInt128 operator>>(const uint64_t& Left, const UInt128& Right);
+			VI_OUT friend UInt128 operator>>(const int8_t& Left, const UInt128& Right);
+			VI_OUT friend UInt128 operator>>(const int16_t& Left, const UInt128& Right);
+			VI_OUT friend UInt128 operator>>(const int32_t& Left, const UInt128& Right);
+			VI_OUT friend UInt128 operator>>(const int64_t& Left, const UInt128& Right);
+
+		public:
+			static UInt128 Min();
+			static UInt128 Max();
+
+		private:
+			std::pair<UInt128, UInt128> Divide(const UInt128& Left, const UInt128& Right) const;
+
+		public:
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128(const T& Right)
+#ifdef VI_ENDIAN_BIG
+				: Upper(0), Lower(Right)
+#else
+				: Lower(Right), Upper(0)
+#endif
+			{
+				if (std::is_signed<T>::value && Right < 0)
+					Upper = -1;
+			}
+			template <typename S, typename T, typename = typename std::enable_if<std::is_integral<S>::value&& std::is_integral<T>::value, void>::type>
+			UInt128(const S& UpperRight, const T& LowerRight)
+#ifdef VI_ENDIAN_BIG
+				: Upper(UpperRight), Lower(LowerRight)
+#else
+				: Lower(LowerRight), Upper(UpperRight)
+#endif
+			{
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128& operator=(const T& Right)
+			{
+				Upper = 0;
+				if (std::is_signed<T>::value && Right < 0)
+					Upper = -1;
+
+				Lower = Right;
+				return *this;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128 operator&(const T& Right) const
+			{
+				return UInt128(0, Lower & (uint64_t)Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128& operator&=(const T& Right)
+			{
+				Upper = 0;
+				Lower &= Right;
+				return *this;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128 operator|(const T& Right) const
+			{
+				return UInt128(Upper, Lower | (uint64_t)Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128& operator|=(const T& Right)
+			{
+				Lower |= (uint64_t)Right;
+				return *this;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128 operator^(const T& Right) const
+			{
+				return UInt128(Upper, Lower ^ (uint64_t)Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128& operator^=(const T& Right)
+			{
+				Lower ^= (uint64_t)Right;
+				return *this;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128 operator<<(const T& Right) const
+			{
+				return *this << UInt128(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128& operator<<=(const T& Right)
+			{
+				*this = *this << UInt128(Right);
+				return *this;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128 operator>>(const T& Right) const
+			{
+				return *this >> UInt128(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128& operator>>=(const T& Right)
+			{
+				*this = *this >> UInt128(Right);
+				return *this;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator&&(const T& Right) const
+			{
+				return static_cast <bool> (*this && Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator||(const T& Right) const
+			{
+				return static_cast <bool> (*this || Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator==(const T& Right) const
+			{
+				return (!Upper && (Lower == (uint64_t)Right));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator!=(const T& Right) const
+			{
+				return (Upper | (Lower != (uint64_t)Right));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator>(const T& Right) const
+			{
+				return (Upper || (Lower > (uint64_t)Right));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator<(const T& Right) const
+			{
+				return (!Upper) ? (Lower < (uint64_t)Right) : false;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator>=(const T& Right) const
+			{
+				return ((*this > Right) | (*this == Right));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator<=(const T& Right) const
+			{
+				return ((*this < Right) | (*this == Right));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128 operator+(const T& Right) const
+			{
+				return UInt128(Upper + ((Lower + (uint64_t)Right) < Lower), Lower + (uint64_t)Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128& operator+=(const T& Right)
+			{
+				return *this += UInt128(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128 operator-(const T& Right) const
+			{
+				return UInt128((uint64_t)(Upper - ((Lower - Right) > Lower)), (uint64_t)(Lower - Right));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128& operator-=(const T& Right)
+			{
+				return *this = *this - UInt128(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128 operator*(const T& Right) const
+			{
+				return *this * UInt128(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128& operator*=(const T& Right)
+			{
+				return *this = *this * UInt128(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128 operator/(const T& Right) const
+			{
+				return *this / UInt128(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128& operator/=(const T& Right)
+			{
+				return *this = *this / UInt128(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128 operator%(const T& Right) const
+			{
+				return *this % UInt128(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt128& operator%=(const T& Right)
+			{
+				return *this = *this % UInt128(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt128 operator&(const T& Left, const UInt128& Right)
+			{
+				return Right & Left;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator&=(T& Left, const UInt128& Right)
+			{
+				return Left = static_cast <T> (Right & Left);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt128 operator|(const T& Left, const UInt128& Right)
+			{
+				return Right | Left;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator|=(T& Left, const UInt128& Right)
+			{
+				return Left = static_cast <T> (Right | Left);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt128 operator^(const T& Left, const UInt128& Right)
+			{
+				return Right ^ Left;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator^=(T& Left, const UInt128& Right)
+			{
+				return Left = static_cast <T> (Right ^ Left);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator<<=(T& Left, const UInt128& Right)
+			{
+				return Left = static_cast <T> (UInt128(Left) << Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator>>=(T& Left, const UInt128& Right)
+			{
+				return Left = static_cast <T> (UInt128(Left) >> Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend bool operator==(const T& Left, const UInt128& Right)
+			{
+				return (!Right.High() && ((uint64_t)Left == Right.Low()));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend bool operator!=(const T& Left, const UInt128& Right)
+			{
+				return (Right.High() | ((uint64_t)Left != Right.Low()));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend bool operator>(const T& Left, const UInt128& Right)
+			{
+				return (!Right.High()) && ((uint64_t)Left > Right.Low());
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend bool operator<(const T& Left, const UInt128& Right)
+			{
+				if (Right.High())
+					return true;
+				return ((uint64_t)Left < Right.Low());
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend bool operator>=(const T& Left, const UInt128& Right)
+			{
+				if (Right.High())
+					return false;
+				return ((uint64_t)Left >= Right.Low());
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend bool operator<=(const T& Left, const UInt128& Right)
+			{
+				if (Right.High())
+					return true;
+				return ((uint64_t)Left <= Right.Low());
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt128 operator+(const T& Left, const UInt128& Right)
+			{
+				return Right + Left;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator+=(T& Left, const UInt128& Right)
+			{
+				return Left = static_cast <T> (Right + Left);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt128 operator-(const T& Left, const UInt128& Right)
+			{
+				return -(Right - Left);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator-=(T& Left, const UInt128& Right)
+			{
+				return Left = static_cast <T> (-(Right - Left));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt128 operator*(const T& Left, const UInt128& Right)
+			{
+				return Right * Left;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator*=(T& Left, const UInt128& Right)
+			{
+				return Left = static_cast <T> (Right * Left);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt128 operator/(const T& Left, const UInt128& Right)
+			{
+				return UInt128(Left) / Right;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator/=(T& Left, const UInt128& Right)
+			{
+				return Left = static_cast <T> (UInt128(Left) / Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt128 operator%(const T& Left, const UInt128& Right)
+			{
+				return UInt128(Left) % Right;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator%=(T& Left, const UInt128& Right)
+			{
+				return Left = static_cast <T> (UInt128(Left) % Right);
+			}
+		};
+
+		struct VI_OUT UInt256
+		{
+		private:
+#ifdef VI_ENDIAN_BIG
+			UInt128 Upper, Lower;
+#else
+			UInt128 Lower, Upper;
+#endif
+
+		public:
+			UInt256() = default;
+			UInt256(const UInt256& Right) = default;
+			UInt256(UInt256&& Right) = default;
+			UInt256(const Core::String& Text);
+			UInt256(const Core::String& Text, uint8_t Base);
+			UInt256(const UInt128& UpperRight, const UInt128& LowerRight)
+#ifdef VI_ENDIAN_BIG
+				: Upper(UpperRight), Lower(LowerRight)
+#else
+				: Lower(LowerRight), Upper(UpperRight)
+#endif
+			{
+			}
+			UInt256(const UInt128& LowerRight)
+#ifdef VI_ENDIAN_BIG
+				: Upper(UInt128::Min()), Lower(LowerRight)
+#else
+				: Lower(LowerRight), Upper(UInt128::Min())
+#endif
+			{
+			}
+			UInt256& operator=(const UInt256& Right) = default;
+			UInt256& operator=(UInt256&& Right) = default;
+			operator bool() const;
+			operator uint8_t() const;
+			operator uint16_t() const;
+			operator uint32_t() const;
+			operator uint64_t() const;
+			operator UInt128() const;
+			UInt256 operator&(const UInt128& Right) const;
+			UInt256 operator&(const UInt256& Right) const;
+			UInt256& operator&=(const UInt128& Right);
+			UInt256& operator&=(const UInt256& Right);
+			UInt256 operator|(const UInt128& Right) const;
+			UInt256 operator|(const UInt256& Right) const;
+			UInt256& operator|=(const UInt128& Right);
+			UInt256& operator|=(const UInt256& Right);
+			UInt256 operator^(const UInt128& Right) const;
+			UInt256 operator^(const UInt256& Right) const;
+			UInt256& operator^=(const UInt128& Right);
+			UInt256& operator^=(const UInt256& Right);
+			UInt256 operator~() const;
+			UInt256 operator<<(const UInt128& Shift) const;
+			UInt256 operator<<(const UInt256& Shift) const;
+			UInt256& operator<<=(const UInt128& Shift);
+			UInt256& operator<<=(const UInt256& Shift);
+			UInt256 operator>>(const UInt128& Shift) const;
+			UInt256 operator>>(const UInt256& Shift) const;
+			UInt256& operator>>=(const UInt128& Shift);
+			UInt256& operator>>=(const UInt256& Shift);
+			bool operator!() const;
+			bool operator&&(const UInt128& Right) const;
+			bool operator&&(const UInt256& Right) const;
+			bool operator||(const UInt128& Right) const;
+			bool operator||(const UInt256& Right) const;
+			bool operator==(const UInt128& Right) const;
+			bool operator==(const UInt256& Right) const;
+			bool operator!=(const UInt128& Right) const;
+			bool operator!=(const UInt256& Right) const;
+			bool operator>(const UInt128& Right) const;
+			bool operator>(const UInt256& Right) const;
+			bool operator<(const UInt128& Right) const;
+			bool operator<(const UInt256& Right) const;
+			bool operator>=(const UInt128& Right) const;
+			bool operator>=(const UInt256& Right) const;
+			bool operator<=(const UInt128& Right) const;
+			bool operator<=(const UInt256& Right) const;
+			UInt256 operator+(const UInt128& Right) const;
+			UInt256 operator+(const UInt256& Right) const;
+			UInt256& operator+=(const UInt128& Right);
+			UInt256& operator+=(const UInt256& Right);
+			UInt256 operator-(const UInt128& Right) const;
+			UInt256 operator-(const UInt256& Right) const;
+			UInt256& operator-=(const UInt128& Right);
+			UInt256& operator-=(const UInt256& Right);
+			UInt256 operator*(const UInt128& Right) const;
+			UInt256 operator*(const UInt256& Right) const;
+			UInt256& operator*=(const UInt128& Right);
+			UInt256& operator*=(const UInt256& Right);
+			UInt256 operator/(const UInt128& Right) const;
+			UInt256 operator/(const UInt256& Right) const;
+			UInt256& operator/=(const UInt128& Right);
+			UInt256& operator/=(const UInt256& Right);
+			UInt256 operator%(const UInt128& Right) const;
+			UInt256 operator%(const UInt256& Right) const;
+			UInt256& operator%=(const UInt128& Right);
+			UInt256& operator%=(const UInt256& Right);
+			UInt256& operator++();
+			UInt256 operator++(int);
+			UInt256& operator--();
+			UInt256 operator--(int);
+			UInt256 operator+() const;
+			UInt256 operator-() const;
+			const UInt128& High() const;
+			const UInt128& Low() const;
+			uint16_t Bits() const;
+			Core::Decimal ToDecimal() const;
+			Core::String ToString(uint8_t Base = 10, uint32_t Length = 0) const;
+			VI_OUT friend UInt256 operator&(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt128& operator&=(UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator|(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt128& operator|=(UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator^(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt128& operator^=(UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator<<(const uint8_t& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator<<(const uint16_t& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator<<(const uint32_t& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator<<(const uint64_t& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator<<(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator<<(const int8_t& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator<<(const int16_t& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator<<(const int32_t& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator<<(const int64_t& Left, const UInt256& Right);
+			VI_OUT friend UInt128& operator<<=(UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator>>(const uint8_t& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator>>(const uint16_t& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator>>(const uint32_t& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator>>(const uint64_t& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator>>(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator>>(const int8_t& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator>>(const int16_t& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator>>(const int32_t& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator>>(const int64_t& Left, const UInt256& Right);
+			VI_OUT friend UInt128& operator>>=(UInt128& Left, const UInt256& Right);
+			VI_OUT friend bool operator==(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend bool operator!=(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend bool operator>(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend bool operator<(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend bool operator>=(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend bool operator<=(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator+(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt128& operator+=(UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator-(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt128& operator-=(UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator*(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt128& operator*=(UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator/(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt128& operator/=(UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt256 operator%(const UInt128& Left, const UInt256& Right);
+			VI_OUT friend UInt128& operator%=(UInt128& Left, const UInt256& Right);
+			VI_OUT friend std::ostream& operator<<(std::ostream& Stream, const UInt256& Right);
+
+		public:
+			static UInt256 Min();
+			static UInt256 Max();
+
+		private:
+			std::pair<UInt256, UInt256> Divide(const UInt256& Left, const UInt256& Right) const;
+
+		public:
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type>
+			UInt256(const T& Right)
+#ifdef VI_ENDIAN_BIG
+				: Upper(UInt128::Min()), Lower(Right)
+#else
+				: Lower(Right), Upper(UInt128::Min())
+#endif
+			{
+				if (std::is_signed<T>::value && Right < 0)
+					Upper = UInt128(-1, -1);
+			}
+			template <typename S, typename T, typename = typename std::enable_if <std::is_integral<S>::value&& std::is_integral<T>::value, void>::type>
+			UInt256(const S& UpperRight, const T& LowerRight)
+#ifdef VI_ENDIAN_BIG
+				: Upper(UpperRight), Lower(LowerRight)
+#else
+				: Lower(LowerRight), Upper(UpperRight)
+#endif
+			{
+			}
+			template <typename R, typename S, typename T, typename U, typename = typename std::enable_if<std::is_integral<R>::value&& std::is_integral<S>::value&& std::is_integral<T>::value&& std::is_integral<U>::value, void>::type>
+			UInt256(const R& upper_lhs, const S& lower_lhs, const T& UpperRight, const U& LowerRight)
+#ifdef VI_ENDIAN_BIG
+				: Upper(upper_lhs, lower_lhs), Lower(UpperRight, LowerRight)
+#else
+				: Lower(UpperRight, LowerRight), Upper(upper_lhs, lower_lhs)
+#endif
+			{
+			}
+			template <typename T, typename = typename std::enable_if <std::is_integral<T>::value, T>::type>
+			UInt256& operator=(const T& Right)
+			{
+				Upper = UInt128::Min();
+				if (std::is_signed<T>::value && Right < 0)
+					Upper = UInt128(-1, -1);
+
+				Lower = Right;
+				return *this;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256 operator&(const T& Right) const
+			{
+				return UInt256(UInt128::Min(), Lower & (UInt128)Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256& operator&=(const T& Right)
+			{
+				Upper = UInt128::Min();
+				Lower &= Right;
+				return *this;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256 operator|(const T& Right) const
+			{
+				return UInt256(Upper, Lower | UInt128(Right));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256& operator|=(const T& Right)
+			{
+				Lower |= (UInt128)Right;
+				return *this;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256 operator^(const T& Right) const
+			{
+				return UInt256(Upper, Lower ^ (UInt128)Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256& operator^=(const T& Right)
+			{
+				Lower ^= (UInt128)Right;
+				return *this;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256 operator<<(const T& Right) const
+			{
+				return *this << UInt256(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256& operator<<=(const T& Right)
+			{
+				*this = *this << UInt256(Right);
+				return *this;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256 operator>>(const T& Right) const
+			{
+				return *this >> UInt256(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256& operator>>=(const T& Right)
+			{
+				*this = *this >> UInt256(Right);
+				return *this;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator&&(const T& Right) const
+			{
+				return ((bool)*this && Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator||(const T& Right) const
+			{
+				return ((bool)*this || Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator==(const T& Right) const
+			{
+				return (!Upper && (Lower == UInt128(Right)));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator!=(const T& Right) const
+			{
+				return ((bool)Upper | (Lower != UInt128(Right)));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator>(const T& Right) const
+			{
+				return ((bool)Upper | (Lower > UInt128(Right)));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator<(const T& Right) const
+			{
+				return (!Upper) ? (Lower < UInt128(Right)) : false;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator>=(const T& Right) const
+			{
+				return ((*this > Right) | (*this == Right));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			bool operator<=(const T& Right) const
+			{
+				return ((*this < Right) | (*this == Right));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256 operator+(const T& Right) const
+			{
+				return UInt256(Upper + ((Lower + (UInt128)Right) < Lower), Lower + (UInt128)Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256& operator+=(const T& Right)
+			{
+				return *this += UInt256(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256 operator-(const T& Right) const
+			{
+				return UInt256(Upper - ((Lower - Right) > Lower), Lower - Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256& operator-=(const T& Right)
+			{
+				return *this = *this - UInt256(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256 operator*(const T& Right) const
+			{
+				return *this * UInt256(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256& operator*=(const T& Right)
+			{
+				return *this = *this * UInt256(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256 operator/(const T& Right) const
+			{
+				return *this / UInt256(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256& operator/=(const T& Right)
+			{
+				return *this = *this / UInt256(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256 operator%(const T& Right) const
+			{
+				return *this % UInt256(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			UInt256& operator%=(const T& Right)
+			{
+				return *this = *this % UInt256(Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt256 operator&(const T& Left, const UInt256& Right)
+			{
+				return Right & Left;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator&=(T& Left, const UInt256& Right)
+			{
+				return Left = static_cast <T> (Right & Left);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt256 operator|(const T& Left, const UInt256& Right)
+			{
+				return Right | Left;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator|=(T& Left, const UInt256& Right)
+			{
+				return Left = static_cast <T> (Right | Left);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt256 operator^(const T& Left, const UInt256& Right)
+			{
+				return Right ^ Left;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator^=(T& Left, const UInt256& Right)
+			{
+				return Left = static_cast <T> (Right ^ Left);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator<<=(T& Left, const UInt256& Right)
+			{
+				Left = static_cast <T> (UInt256(Left) << Right);
+				return Left;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator>>=(T& Left, const UInt256& Right)
+			{
+				return Left = static_cast <T> (UInt256(Left) >> Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend bool operator==(const T& Left, const UInt256& Right)
+			{
+				return (!Right.High() && ((uint64_t)Left == Right.Low()));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend bool operator!=(const T& Left, const UInt256& Right)
+			{
+				return (Right.High() | ((uint64_t)Left != Right.Low()));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend bool operator>(const T& Left, const UInt256& Right)
+			{
+				return Right.High() ? false : ((UInt128)Left > Right.Low());
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend bool operator<(const T& Left, const UInt256& Right)
+			{
+				return Right.High() ? true : ((UInt128)Left < Right.Low());
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend bool operator>=(const T& Left, const UInt256& Right)
+			{
+				return Right.High() ? false : ((UInt128)Left >= Right.Low());
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend bool operator<=(const T& Left, const UInt256& Right)
+			{
+				return Right.High() ? true : ((UInt128)Left <= Right.Low());
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt256 operator+(const T& Left, const UInt256& Right)
+			{
+				return Right + Left;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator+=(T& Left, const UInt256& Right)
+			{
+				Left = static_cast <T> (Right + Left);
+				return Left;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt256 operator-(const T& Left, const UInt256& Right)
+			{
+				return -(Right - Left);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator-=(T& Left, const UInt256& Right)
+			{
+				return Left = static_cast <T> (-(Right - Left));
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt256 operator*(const T& Left, const UInt256& Right)
+			{
+				return Right * Left;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator*=(T& Left, const UInt256& Right)
+			{
+				return Left = static_cast <T> (Right * Left);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt256 operator/(const T& Left, const UInt256& Right)
+			{
+				return UInt256(Left) / Right;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator/=(T& Left, const UInt256& Right)
+			{
+				return Left = static_cast <T> (UInt256(Left) / Right);
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend UInt256 operator%(const T& Left, const UInt256& Right)
+			{
+				return UInt256(Left) % Right;
+			}
+			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
+			friend T& operator%=(T& Left, const UInt256& Right)
+			{
+				return Left = static_cast <T> (UInt256(Left) % Right);
+			}
+		};
+
 		class VI_OUT Adjacencies
 		{
 		public:
@@ -2917,10 +3778,19 @@ namespace Mavi
 			}
 		};
 
-		typedef Math<Core::Decimal> Mathb;
+		typedef Math<Core::Decimal> Math0;
+		typedef Math<UInt128> Math128u;
+		typedef Math<UInt256> Math256u;
+		typedef Math<int32_t> Math32;
+		typedef Math<uint32_t> Math32u;
+		typedef Math<int64_t> Math64;
+		typedef Math<uint64_t> Math64u;
 		typedef Math<float> Mathf;
 		typedef Math<double> Mathd;
-		typedef Math<int> Mathi;
 	}
 }
+
+using decimal_t = Mavi::Core::Decimal;
+using uint128_t = Mavi::Compute::UInt128;
+using uint256_t = Mavi::Compute::UInt256;
 #endif

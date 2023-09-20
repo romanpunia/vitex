@@ -1743,25 +1743,17 @@ namespace Mavi
 		struct VI_OUT Decimal
 		{
 		private:
-			DoubleQueue<char> Source;
-			int Length;
-			char Sign;
-			bool Invalid;
+			String Source;
+			int32_t Length;
+			int8_t Sign;
 
 		public:
 			Decimal() noexcept;
-			Decimal(const char* Value) noexcept;
 			Decimal(const String& Value) noexcept;
-			Decimal(int32_t Value) noexcept;
-			Decimal(uint32_t Value) noexcept;
-			Decimal(int64_t Value) noexcept;
-			Decimal(uint64_t Value) noexcept;
-			Decimal(float Value) noexcept;
-			Decimal(double Value) noexcept;
 			Decimal(const Decimal& Value) noexcept;
 			Decimal(Decimal&& Value) noexcept;
-			Decimal& Truncate(int Value);
-			Decimal& Round(int Value);
+			Decimal& Truncate(uint32_t Value);
+			Decimal& Round(uint32_t Value);
 			Decimal& Trim();
 			Decimal& Unlead();
 			Decimal& Untrail();
@@ -1776,9 +1768,9 @@ namespace Mavi
 			uint64_t ToUInt64() const;
 			String ToString() const;
 			String Exp() const;
-			int Decimals() const;
-			int Ints() const;
-			int Size() const;
+			uint32_t Decimals() const;
+			uint32_t Ints() const;
+			uint32_t Size() const;
 			Decimal operator -() const;
 			Decimal& operator *=(const Decimal& V);
 			Decimal& operator /=(const Decimal& V);
@@ -1817,6 +1809,23 @@ namespace Mavi
 				return ToString();
 			}
 
+		private:
+			void InitializeFromText(const char* Text, size_t Size) noexcept;
+			void InitializeFromZero() noexcept;
+
+		public:
+			template <typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
+			Decimal(const T& Right) noexcept : Decimal()
+			{
+				if (Right != T(0))
+				{
+					std::string Text = std::to_string(Right);
+					InitializeFromText(Text.c_str(), Text.size());
+				}
+				else
+					InitializeFromZero();
+			}
+
 		public:
 			VI_OUT friend Decimal operator + (const Decimal& Left, const Decimal& Right);
 			VI_OUT friend Decimal operator - (const Decimal& Left, const Decimal& Right);
@@ -1825,7 +1834,7 @@ namespace Mavi
 			VI_OUT friend Decimal operator % (const Decimal& Left, const Decimal& Right);
 
 		public:
-			static Decimal Divide(const Decimal& Left, const Decimal& Right, int Precision);
+			static Decimal Zero();
 			static Decimal NaN();
 
 		private:

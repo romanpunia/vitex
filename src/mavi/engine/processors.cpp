@@ -2234,10 +2234,10 @@ namespace Mavi
 							}
 
 							if (Series::Unpack(Base->Fetch("compression.quality-level"), &Route->Compression.QualityLevel))
-								Route->Compression.QualityLevel = Compute::Mathi::Clamp(Route->Compression.QualityLevel, 0, 9);
+								Route->Compression.QualityLevel = Compute::Math32::Clamp(Route->Compression.QualityLevel, 0, 9);
 
 							if (Series::Unpack(Base->Fetch("compression.memory-level"), &Route->Compression.MemoryLevel))
-								Route->Compression.MemoryLevel = Compute::Mathi::Clamp(Route->Compression.MemoryLevel, 1, 9);
+								Route->Compression.MemoryLevel = Compute::Math32::Clamp(Route->Compression.MemoryLevel, 1, 9);
 
 							if (Series::Unpack(Base->Find("document-root"), &Route->DocumentRoot))
 								Core::Stringify::EvalEnvs(Route->DocumentRoot, N, D);

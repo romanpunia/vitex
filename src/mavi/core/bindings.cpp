@@ -2977,6 +2977,146 @@ namespace Mavi
 				return Left % Right;
 			}
 
+			Compute::UInt128& UInt128MulEq(Compute::UInt128& Base, const Compute::UInt128& V)
+			{
+				Base *= V;
+				return Base;
+			}
+			Compute::UInt128& UInt128DivEq(Compute::UInt128& Base, const Compute::UInt128& V)
+			{
+				Base /= V;
+				return Base;
+			}
+			Compute::UInt128& UInt128AddEq(Compute::UInt128& Base, const Compute::UInt128& V)
+			{
+				Base += V;
+				return Base;
+			}
+			Compute::UInt128& UInt128SubEq(Compute::UInt128& Base, const Compute::UInt128& V)
+			{
+				Base -= V;
+				return Base;
+			}
+			Compute::UInt128& UInt128FPP(Compute::UInt128& Base)
+			{
+				return ++Base;
+			}
+			Compute::UInt128& UInt128FMM(Compute::UInt128& Base)
+			{
+				return --Base;
+			}
+			Compute::UInt128& UInt128PP(Compute::UInt128& Base)
+			{
+				Base++;
+				return Base;
+			}
+			Compute::UInt128& UInt128MM(Compute::UInt128& Base)
+			{
+				Base--;
+				return Base;
+			}
+			bool UInt128Eq(Compute::UInt128& Base, const Compute::UInt128& Right)
+			{
+				return Base == Right;
+			}
+			int UInt128Cmp(Compute::UInt128& Base, const Compute::UInt128& Right)
+			{
+				if (Base == Right)
+					return 0;
+
+				return Base > Right ? 1 : -1;
+			}
+			Compute::UInt128 UInt128Add(const Compute::UInt128& Left, const Compute::UInt128& Right)
+			{
+				return Left + Right;
+			}
+			Compute::UInt128 UInt128Sub(const Compute::UInt128& Left, const Compute::UInt128& Right)
+			{
+				return Left - Right;
+			}
+			Compute::UInt128 UInt128Mul(const Compute::UInt128& Left, const Compute::UInt128& Right)
+			{
+				return Left * Right;
+			}
+			Compute::UInt128 UInt128Div(const Compute::UInt128& Left, const Compute::UInt128& Right)
+			{
+				return Left / Right;
+			}
+			Compute::UInt128 UInt128Per(const Compute::UInt128& Left, const Compute::UInt128& Right)
+			{
+				return Left % Right;
+			}
+
+			Compute::UInt256& UInt256MulEq(Compute::UInt256& Base, const Compute::UInt256& V)
+			{
+				Base *= V;
+				return Base;
+			}
+			Compute::UInt256& UInt256DivEq(Compute::UInt256& Base, const Compute::UInt256& V)
+			{
+				Base /= V;
+				return Base;
+			}
+			Compute::UInt256& UInt256AddEq(Compute::UInt256& Base, const Compute::UInt256& V)
+			{
+				Base += V;
+				return Base;
+			}
+			Compute::UInt256& UInt256SubEq(Compute::UInt256& Base, const Compute::UInt256& V)
+			{
+				Base -= V;
+				return Base;
+			}
+			Compute::UInt256& UInt256FPP(Compute::UInt256& Base)
+			{
+				return ++Base;
+			}
+			Compute::UInt256& UInt256FMM(Compute::UInt256& Base)
+			{
+				return --Base;
+			}
+			Compute::UInt256& UInt256PP(Compute::UInt256& Base)
+			{
+				Base++;
+				return Base;
+			}
+			Compute::UInt256& UInt256MM(Compute::UInt256& Base)
+			{
+				Base--;
+				return Base;
+			}
+			bool UInt256Eq(Compute::UInt256& Base, const Compute::UInt256& Right)
+			{
+				return Base == Right;
+			}
+			int UInt256Cmp(Compute::UInt256& Base, const Compute::UInt256& Right)
+			{
+				if (Base == Right)
+					return 0;
+
+				return Base > Right ? 1 : -1;
+			}
+			Compute::UInt256 UInt256Add(const Compute::UInt256& Left, const Compute::UInt256& Right)
+			{
+				return Left + Right;
+			}
+			Compute::UInt256 UInt256Sub(const Compute::UInt256& Left, const Compute::UInt256& Right)
+			{
+				return Left - Right;
+			}
+			Compute::UInt256 UInt256Mul(const Compute::UInt256& Left, const Compute::UInt256& Right)
+			{
+				return Left * Right;
+			}
+			Compute::UInt256 UInt256Div(const Compute::UInt256& Left, const Compute::UInt256& Right)
+			{
+				return Left / Right;
+			}
+			Compute::UInt256 UInt256Per(const Compute::UInt256& Left, const Compute::UInt256& Right)
+			{
+				return Left % Right;
+			}
+
 			Core::DateTime& DateTimeAddEq(Core::DateTime& Base, const Core::DateTime& V)
 			{
 				Base += V;
@@ -10060,8 +10200,10 @@ namespace Mavi
 
 				auto VDecimal = VM->SetStructTrivial<Core::Decimal>("decimal");
 				VDecimal->SetConstructor<Core::Decimal>("void f()");
+				VDecimal->SetConstructor<Core::Decimal, int16_t>("void f(int16)");
+				VDecimal->SetConstructor<Core::Decimal, uint16_t>("void f(uint16)");
 				VDecimal->SetConstructor<Core::Decimal, int32_t>("void f(int)");
-				VDecimal->SetConstructor<Core::Decimal, int32_t>("void f(uint)");
+				VDecimal->SetConstructor<Core::Decimal, uint32_t>("void f(uint)");
 				VDecimal->SetConstructor<Core::Decimal, int64_t>("void f(int64)");
 				VDecimal->SetConstructor<Core::Decimal, uint64_t>("void f(uint64)");
 				VDecimal->SetConstructor<Core::Decimal, float>("void f(float)");
@@ -10074,13 +10216,15 @@ namespace Mavi
 				VDecimal->SetMethod("decimal& unlead()", &Core::Decimal::Unlead);
 				VDecimal->SetMethod("decimal& untrail()", &Core::Decimal::Untrail);
 				VDecimal->SetMethod("bool is_nan() const", &Core::Decimal::IsNaN);
+				VDecimal->SetMethod("float to_float() const", &Core::Decimal::ToFloat);
 				VDecimal->SetMethod("double to_double() const", &Core::Decimal::ToDouble);
 				VDecimal->SetMethod("int64 to_int64() const", &Core::Decimal::ToInt64);
+				VDecimal->SetMethod("uint64 to_uint64() const", &Core::Decimal::ToUInt64);
 				VDecimal->SetMethod("string to_string() const", &Core::Decimal::ToString);
 				VDecimal->SetMethod("string exp() const", &Core::Decimal::Exp);
-				VDecimal->SetMethod("string decimals() const", &Core::Decimal::Decimals);
-				VDecimal->SetMethod("string ints() const", &Core::Decimal::Ints);
-				VDecimal->SetMethod("string size() const", &Core::Decimal::Size);
+				VDecimal->SetMethod("uint32 decimals() const", &Core::Decimal::Decimals);
+				VDecimal->SetMethod("uint32 ints() const", &Core::Decimal::Ints);
+				VDecimal->SetMethod("uint32 size() const", &Core::Decimal::Size);
 				VDecimal->SetOperatorEx(Operators::Neg, (uint32_t)Position::Const, "decimal", "", &DecimalNegate);
 				VDecimal->SetOperatorEx(Operators::MulAssign, (uint32_t)Position::Left, "decimal&", "const decimal &in", &DecimalMulEq);
 				VDecimal->SetOperatorEx(Operators::DivAssign, (uint32_t)Position::Left, "decimal&", "const decimal &in", &DecimalDivEq);
@@ -10098,6 +10242,87 @@ namespace Mavi
 				VDecimal->SetOperatorEx(Operators::Div, (uint32_t)Position::Const, "decimal", "const decimal &in", &DecimalDiv);
 				VDecimal->SetOperatorEx(Operators::Mod, (uint32_t)Position::Const, "decimal", "const decimal &in", &DecimalPer);
 				VDecimal->SetMethodStatic("decimal nan()", &Core::Decimal::NaN);
+				VDecimal->SetMethodStatic("decimal zero()", &Core::Decimal::Zero);
+
+				return true;
+			}
+			bool Registry::ImportUInt128(VirtualMachine* VM)
+			{
+				VI_ASSERT(VM != nullptr, "manager should be set");
+
+				auto VUInt128 = VM->SetStructTrivial<Compute::UInt128>("uint128");
+				VUInt128->SetConstructor<Compute::UInt128>("void f()");
+				VUInt128->SetConstructor<Compute::UInt128, int16_t>("void f(int16)");
+				VUInt128->SetConstructor<Compute::UInt128, uint16_t>("void f(uint16)");
+				VUInt128->SetConstructor<Compute::UInt128, int32_t>("void f(int)");
+				VUInt128->SetConstructor<Compute::UInt128, uint32_t>("void f(uint)");
+				VUInt128->SetConstructor<Compute::UInt128, int64_t>("void f(int64)");
+				VUInt128->SetConstructor<Compute::UInt128, uint64_t>("void f(uint64)");
+				VUInt128->SetConstructor<Compute::UInt128, const Core::String&>("void f(const string &in)");
+				VUInt128->SetConstructor<Compute::UInt128, const Compute::UInt128&>("void f(const uint128 &in)");
+				VUInt128->SetMethod("decimal to_decimal() const", &Compute::UInt128::ToDecimal);
+				VUInt128->SetMethod("string to_string(uint8 = 10, uint32 = 0) const", &Compute::UInt128::ToString);
+				VUInt128->SetMethod("const uint64& low() const", &Compute::UInt128::Low);
+				VUInt128->SetMethod("const uint64& high() const", &Compute::UInt128::High);
+				VUInt128->SetMethod("uint16 size() const", &Compute::UInt128::Bits);
+				VUInt128->SetOperatorEx(Operators::MulAssign, (uint32_t)Position::Left, "uint128&", "const uint128 &in", &UInt128MulEq);
+				VUInt128->SetOperatorEx(Operators::DivAssign, (uint32_t)Position::Left, "uint128&", "const uint128 &in", &UInt128DivEq);
+				VUInt128->SetOperatorEx(Operators::AddAssign, (uint32_t)Position::Left, "uint128&", "const uint128 &in", &UInt128AddEq);
+				VUInt128->SetOperatorEx(Operators::SubAssign, (uint32_t)Position::Left, "uint128&", "const uint128 &in", &UInt128SubEq);
+				VUInt128->SetOperatorEx(Operators::PreInc, (uint32_t)Position::Left, "uint128&", "", &UInt128FPP);
+				VUInt128->SetOperatorEx(Operators::PreDec, (uint32_t)Position::Left, "uint128&", "", &UInt128FMM);
+				VUInt128->SetOperatorEx(Operators::PostInc, (uint32_t)Position::Left, "uint128&", "", &UInt128PP);
+				VUInt128->SetOperatorEx(Operators::PostDec, (uint32_t)Position::Left, "uint128&", "", &UInt128MM);
+				VUInt128->SetOperatorEx(Operators::Equals, (uint32_t)Position::Const, "bool", "const uint128 &in", &UInt128Eq);
+				VUInt128->SetOperatorEx(Operators::Cmp, (uint32_t)Position::Const, "int", "const uint128 &in", &UInt128Cmp);
+				VUInt128->SetOperatorEx(Operators::Add, (uint32_t)Position::Const, "uint128", "const uint128 &in", &UInt128Add);
+				VUInt128->SetOperatorEx(Operators::Sub, (uint32_t)Position::Const, "uint128", "const uint128 &in", &UInt128Sub);
+				VUInt128->SetOperatorEx(Operators::Mul, (uint32_t)Position::Const, "uint128", "const uint128 &in", &UInt128Mul);
+				VUInt128->SetOperatorEx(Operators::Div, (uint32_t)Position::Const, "uint128", "const uint128 &in", &UInt128Div);
+				VUInt128->SetOperatorEx(Operators::Mod, (uint32_t)Position::Const, "uint128", "const uint128 &in", &UInt128Per);
+				VUInt128->SetMethodStatic("uint128 min_value()", &Compute::UInt128::Min);
+				VUInt128->SetMethodStatic("uint128 max_value()", &Compute::UInt128::Max);
+
+				return true;
+			}
+			bool Registry::ImportUInt256(VirtualMachine* VM)
+			{
+				VI_ASSERT(VM != nullptr, "manager should be set");
+
+				auto VUInt256 = VM->SetStructTrivial<Compute::UInt256>("uint256");
+				VUInt256->SetConstructor<Compute::UInt256>("void f()");
+				VUInt256->SetConstructor<Compute::UInt256, int16_t>("void f(int16)");
+				VUInt256->SetConstructor<Compute::UInt256, uint16_t>("void f(uint16)");
+				VUInt256->SetConstructor<Compute::UInt256, int32_t>("void f(int)");
+				VUInt256->SetConstructor<Compute::UInt256, uint32_t>("void f(uint)");
+				VUInt256->SetConstructor<Compute::UInt256, int64_t>("void f(int64)");
+				VUInt256->SetConstructor<Compute::UInt256, uint64_t>("void f(uint64)");
+				VUInt256->SetConstructor<Compute::UInt256, const Compute::UInt128&>("void f(uint128)");
+				VUInt256->SetConstructor<Compute::UInt256, const Compute::UInt128&, const Compute::UInt128&>("void f(uint128, uint128)");
+				VUInt256->SetConstructor<Compute::UInt256, const Core::String&>("void f(const string &in)");
+				VUInt256->SetConstructor<Compute::UInt256, const Compute::UInt256&>("void f(const uint256 &in)");
+				VUInt256->SetMethod("decimal to_decimal() const", &Compute::UInt256::ToDecimal);
+				VUInt256->SetMethod("string to_string(uint8 = 10, uint32 = 0) const", &Compute::UInt256::ToString);
+				VUInt256->SetMethod("const uint128& low() const", &Compute::UInt256::Low);
+				VUInt256->SetMethod("const uint128& high() const", &Compute::UInt256::High);
+				VUInt256->SetMethod("uint16 size() const", &Compute::UInt256::Bits);
+				VUInt256->SetOperatorEx(Operators::MulAssign, (uint32_t)Position::Left, "uint256&", "const uint256 &in", &UInt256MulEq);
+				VUInt256->SetOperatorEx(Operators::DivAssign, (uint32_t)Position::Left, "uint256&", "const uint256 &in", &UInt256DivEq);
+				VUInt256->SetOperatorEx(Operators::AddAssign, (uint32_t)Position::Left, "uint256&", "const uint256 &in", &UInt256AddEq);
+				VUInt256->SetOperatorEx(Operators::SubAssign, (uint32_t)Position::Left, "uint256&", "const uint256 &in", &UInt256SubEq);
+				VUInt256->SetOperatorEx(Operators::PreInc, (uint32_t)Position::Left, "uint256&", "", &UInt256FPP);
+				VUInt256->SetOperatorEx(Operators::PreDec, (uint32_t)Position::Left, "uint256&", "", &UInt256FMM);
+				VUInt256->SetOperatorEx(Operators::PostInc, (uint32_t)Position::Left, "uint256&", "", &UInt256PP);
+				VUInt256->SetOperatorEx(Operators::PostDec, (uint32_t)Position::Left, "uint256&", "", &UInt256MM);
+				VUInt256->SetOperatorEx(Operators::Equals, (uint32_t)Position::Const, "bool", "const uint256 &in", &UInt256Eq);
+				VUInt256->SetOperatorEx(Operators::Cmp, (uint32_t)Position::Const, "int", "const uint256 &in", &UInt256Cmp);
+				VUInt256->SetOperatorEx(Operators::Add, (uint32_t)Position::Const, "uint256", "const uint256 &in", &UInt256Add);
+				VUInt256->SetOperatorEx(Operators::Sub, (uint32_t)Position::Const, "uint256", "const uint256 &in", &UInt256Sub);
+				VUInt256->SetOperatorEx(Operators::Mul, (uint32_t)Position::Const, "uint256", "const uint256 &in", &UInt256Mul);
+				VUInt256->SetOperatorEx(Operators::Div, (uint32_t)Position::Const, "uint256", "const uint256 &in", &UInt256Div);
+				VUInt256->SetOperatorEx(Operators::Mod, (uint32_t)Position::Const, "uint256", "const uint256 &in", &UInt256Per);
+				VUInt256->SetMethodStatic("uint256 min_value()", &Compute::UInt256::Min);
+				VUInt256->SetMethodStatic("uint256 max_value()", &Compute::UInt256::Max);
 
 				return true;
 			}

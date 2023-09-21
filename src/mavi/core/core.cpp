@@ -2031,6 +2031,30 @@ namespace Mavi
 		{
 			return (float)ToDouble();
 		}
+		int8_t Decimal::ToInt8() const
+		{
+			return (int8_t)ToInt16();
+		}
+		uint8_t Decimal::ToUInt8() const
+		{
+			return (uint8_t)ToUInt16();
+		}
+		int16_t Decimal::ToInt16() const
+		{
+			return (int16_t)ToInt32();
+		}
+		uint16_t Decimal::ToUInt16() const
+		{
+			return (uint16_t)ToUInt32();
+		}
+		int32_t Decimal::ToInt32() const
+		{
+			return (int32_t)ToInt64();
+		}
+		uint32_t Decimal::ToUInt32() const
+		{
+			return (uint32_t)ToUInt64();
+		}
 		int64_t Decimal::ToInt64() const
 		{
 			if (IsNaN() || Source.empty())

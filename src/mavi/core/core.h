@@ -1764,6 +1764,12 @@ namespace Mavi
 			bool IsNegative() const;
 			double ToDouble() const;
 			float ToFloat() const;
+			int8_t ToInt8() const;
+			uint8_t ToUInt8() const;
+			int16_t ToInt16() const;
+			uint16_t ToUInt16() const;
+			int32_t ToInt32() const;
+			uint32_t ToUInt32() const;
 			int64_t ToInt64() const;
 			uint64_t ToUInt64() const;
 			String ToString() const;

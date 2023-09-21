@@ -2977,6 +2977,38 @@ namespace Mavi
 				return Left % Right;
 			}
 
+			int8_t UInt128ToInt8(Compute::UInt128& Value)
+			{
+				return (int8_t)(uint8_t)Value;
+			}
+			uint8_t UInt128ToUInt8(Compute::UInt128& Value)
+			{
+				return (uint8_t)Value;
+			}
+			int16_t UInt128ToInt16(Compute::UInt128& Value)
+			{
+				return (int16_t)(uint16_t)Value;
+			}
+			uint16_t UInt128ToUInt16(Compute::UInt128& Value)
+			{
+				return (uint16_t)Value;
+			}
+			int32_t UInt128ToInt32(Compute::UInt128& Value)
+			{
+				return (int32_t)(uint32_t)Value;
+			}
+			uint32_t UInt128ToUInt32(Compute::UInt128& Value)
+			{
+				return (uint32_t)Value;
+			}
+			int64_t UInt128ToInt64(Compute::UInt128& Value)
+			{
+				return (int64_t)(uint64_t)Value;
+			}
+			uint64_t UInt128ToUInt64(Compute::UInt128& Value)
+			{
+				return (uint64_t)Value;
+			}
 			Compute::UInt128& UInt128MulEq(Compute::UInt128& Base, const Compute::UInt128& V)
 			{
 				Base *= V;
@@ -3047,6 +3079,38 @@ namespace Mavi
 				return Left % Right;
 			}
 
+			int8_t UInt256ToInt8(Compute::UInt256& Value)
+			{
+				return (int8_t)(uint8_t)Value;
+			}
+			uint8_t UInt256ToUInt8(Compute::UInt256& Value)
+			{
+				return (uint8_t)Value;
+			}
+			int16_t UInt256ToInt16(Compute::UInt256& Value)
+			{
+				return (int16_t)(uint16_t)Value;
+			}
+			uint16_t UInt256ToUInt16(Compute::UInt256& Value)
+			{
+				return (uint16_t)Value;
+			}
+			int32_t UInt256ToInt32(Compute::UInt256& Value)
+			{
+				return (int32_t)(uint32_t)Value;
+			}
+			uint32_t UInt256ToUInt32(Compute::UInt256& Value)
+			{
+				return (uint32_t)Value;
+			}
+			int64_t UInt256ToInt64(Compute::UInt256& Value)
+			{
+				return (int64_t)(uint64_t)Value;
+			}
+			uint64_t UInt256ToUInt64(Compute::UInt256& Value)
+			{
+				return (uint64_t)Value;
+			}
 			Compute::UInt256& UInt256MulEq(Compute::UInt256& Base, const Compute::UInt256& V)
 			{
 				Base *= V;
@@ -10202,8 +10266,8 @@ namespace Mavi
 				VDecimal->SetConstructor<Core::Decimal>("void f()");
 				VDecimal->SetConstructor<Core::Decimal, int16_t>("void f(int16)");
 				VDecimal->SetConstructor<Core::Decimal, uint16_t>("void f(uint16)");
-				VDecimal->SetConstructor<Core::Decimal, int32_t>("void f(int)");
-				VDecimal->SetConstructor<Core::Decimal, uint32_t>("void f(uint)");
+				VDecimal->SetConstructor<Core::Decimal, int32_t>("void f(int32)");
+				VDecimal->SetConstructor<Core::Decimal, uint32_t>("void f(uint32)");
 				VDecimal->SetConstructor<Core::Decimal, int64_t>("void f(int64)");
 				VDecimal->SetConstructor<Core::Decimal, uint64_t>("void f(uint64)");
 				VDecimal->SetConstructor<Core::Decimal, float>("void f(float)");
@@ -10218,6 +10282,12 @@ namespace Mavi
 				VDecimal->SetMethod("bool is_nan() const", &Core::Decimal::IsNaN);
 				VDecimal->SetMethod("float to_float() const", &Core::Decimal::ToFloat);
 				VDecimal->SetMethod("double to_double() const", &Core::Decimal::ToDouble);
+				VDecimal->SetMethod("int8 to_int8() const", &Core::Decimal::ToInt8);
+				VDecimal->SetMethod("uint8 to_uint8() const", &Core::Decimal::ToUInt8);
+				VDecimal->SetMethod("int16 to_int16() const", &Core::Decimal::ToInt16);
+				VDecimal->SetMethod("uint16 to_uint16() const", &Core::Decimal::ToUInt16);
+				VDecimal->SetMethod("int32 to_int32() const", &Core::Decimal::ToInt32);
+				VDecimal->SetMethod("uint32 to_uint32() const", &Core::Decimal::ToUInt32);
 				VDecimal->SetMethod("int64 to_int64() const", &Core::Decimal::ToInt64);
 				VDecimal->SetMethod("uint64 to_uint64() const", &Core::Decimal::ToUInt64);
 				VDecimal->SetMethod("string to_string() const", &Core::Decimal::ToString);
@@ -10254,12 +10324,20 @@ namespace Mavi
 				VUInt128->SetConstructor<Compute::UInt128>("void f()");
 				VUInt128->SetConstructor<Compute::UInt128, int16_t>("void f(int16)");
 				VUInt128->SetConstructor<Compute::UInt128, uint16_t>("void f(uint16)");
-				VUInt128->SetConstructor<Compute::UInt128, int32_t>("void f(int)");
-				VUInt128->SetConstructor<Compute::UInt128, uint32_t>("void f(uint)");
+				VUInt128->SetConstructor<Compute::UInt128, int32_t>("void f(int32)");
+				VUInt128->SetConstructor<Compute::UInt128, uint32_t>("void f(uint32)");
 				VUInt128->SetConstructor<Compute::UInt128, int64_t>("void f(int64)");
 				VUInt128->SetConstructor<Compute::UInt128, uint64_t>("void f(uint64)");
 				VUInt128->SetConstructor<Compute::UInt128, const Core::String&>("void f(const string &in)");
 				VUInt128->SetConstructor<Compute::UInt128, const Compute::UInt128&>("void f(const uint128 &in)");
+				VUInt128->SetMethodEx("int8 to_int8() const", &UInt128ToInt8);
+				VUInt128->SetMethodEx("uint8 to_uint8() const", &UInt128ToUInt8);
+				VUInt128->SetMethodEx("int16 to_int16() const", &UInt128ToInt16);
+				VUInt128->SetMethodEx("uint16 to_uint16() const", &UInt128ToUInt16);
+				VUInt128->SetMethodEx("int32 to_int32() const", &UInt128ToInt32);
+				VUInt128->SetMethodEx("uint32 to_uint32() const", &UInt128ToUInt32);
+				VUInt128->SetMethodEx("int64 to_int64() const", &UInt128ToInt64);
+				VUInt128->SetMethodEx("uint64 to_uint64() const", &UInt128ToUInt64);
 				VUInt128->SetMethod("decimal to_decimal() const", &Compute::UInt128::ToDecimal);
 				VUInt128->SetMethod("string to_string(uint8 = 10, uint32 = 0) const", &Compute::UInt128::ToString);
 				VUInt128->SetMethod("const uint64& low() const", &Compute::UInt128::Low);
@@ -10293,14 +10371,22 @@ namespace Mavi
 				VUInt256->SetConstructor<Compute::UInt256>("void f()");
 				VUInt256->SetConstructor<Compute::UInt256, int16_t>("void f(int16)");
 				VUInt256->SetConstructor<Compute::UInt256, uint16_t>("void f(uint16)");
-				VUInt256->SetConstructor<Compute::UInt256, int32_t>("void f(int)");
-				VUInt256->SetConstructor<Compute::UInt256, uint32_t>("void f(uint)");
+				VUInt256->SetConstructor<Compute::UInt256, int32_t>("void f(int32)");
+				VUInt256->SetConstructor<Compute::UInt256, uint32_t>("void f(uint32)");
 				VUInt256->SetConstructor<Compute::UInt256, int64_t>("void f(int64)");
 				VUInt256->SetConstructor<Compute::UInt256, uint64_t>("void f(uint64)");
 				VUInt256->SetConstructor<Compute::UInt256, const Compute::UInt128&>("void f(uint128)");
 				VUInt256->SetConstructor<Compute::UInt256, const Compute::UInt128&, const Compute::UInt128&>("void f(uint128, uint128)");
 				VUInt256->SetConstructor<Compute::UInt256, const Core::String&>("void f(const string &in)");
 				VUInt256->SetConstructor<Compute::UInt256, const Compute::UInt256&>("void f(const uint256 &in)");
+				VUInt256->SetMethodEx("int8 to_int8() const", &UInt256ToInt8);
+				VUInt256->SetMethodEx("uint8 to_uint8() const", &UInt256ToUInt8);
+				VUInt256->SetMethodEx("int16 to_int16() const", &UInt256ToInt16);
+				VUInt256->SetMethodEx("uint16 to_uint16() const", &UInt256ToUInt16);
+				VUInt256->SetMethodEx("int32 to_int32() const", &UInt256ToInt32);
+				VUInt256->SetMethodEx("uint32 to_uint32() const", &UInt256ToUInt32);
+				VUInt256->SetMethodEx("int64 to_int64() const", &UInt256ToInt64);
+				VUInt256->SetMethodEx("uint64 to_uint64() const", &UInt256ToUInt64);
 				VUInt256->SetMethod("decimal to_decimal() const", &Compute::UInt256::ToDecimal);
 				VUInt256->SetMethod("string to_string(uint8 = 10, uint32 = 0) const", &Compute::UInt256::ToString);
 				VUInt256->SetMethod("const uint128& low() const", &Compute::UInt256::Low);

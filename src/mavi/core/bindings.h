@@ -368,18 +368,16 @@ namespace Mavi
 				void RemoveLast();
 				void RemoveRange(size_t start, size_t Count);
 				void Swap(size_t Index1, size_t Index2);
+				void Sort(asIScriptFunction* Callback);
 				void Reverse();
 				void Clear();
-				size_t Find(void* Value) const;
-				size_t Find(size_t StartAt, void* Value) const;
-				size_t FindByRef(void* Ref) const;
-				size_t FindByRef(size_t StartAt, void* Ref) const;
+				size_t Find(void* Value, size_t StartAt) const;
+				size_t FindByRef(void* Value, size_t StartAt) const;
 				void* GetBuffer();
 				void EnumReferences(asIScriptEngine* Engine);
 				void ReleaseReferences(asIScriptEngine* Engine);
 
 			private:
-				bool Less(const void* A, const void* B, bool Asc, ImmediateContext* Ctx, SCache* Cache);
 				void* GetArrayItemPointer(size_t Index);
 				void* GetDataPointer(void* Buffer);
 				void Copy(void* Dst, void* Src);
@@ -391,13 +389,16 @@ namespace Mavi
 				void CopyBuffer(SBuffer* Dst, SBuffer* Src);
 				void Create(SBuffer* Buf, size_t Start, size_t End);
 				void Destroy(SBuffer* Buf, size_t Start, size_t End);
+				bool Less(const void* A, const void* B, ImmediateContext* Ctx, SCache* Cache);
 				bool Equals(const void* A, const void* B, ImmediateContext* Ctx, SCache* Cache) const;
+				bool IsEligibleForFind(SCache** Output) const;
+				bool IsEligibleForSort(SCache** Output) const;
 
 			public:
 				static Core::Unique<Array> Create(asITypeInfo* T);
 				static Core::Unique<Array> Create(asITypeInfo* T, size_t Length);
 				static Core::Unique<Array> Create(asITypeInfo* T, size_t Length, void* DefaultValue);
-				static Core::Unique<Array> Create(asITypeInfo* T, void* ListBuffer);
+				static Core::Unique<Array> Factory(asITypeInfo* T, void* ListBuffer);
 				static void CleanupTypeInfoCache(asITypeInfo* Type);
 				static bool TemplateCallback(asITypeInfo* T, bool& DontGarbageCollect);
 				static int GetId();

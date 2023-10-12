@@ -23,6 +23,10 @@
 #define EXCEPTION_ACCESSINVALID "type_error", "accessing non-existing value"
 #define EXCEPTION_PROMISEREADY "async_error", "trying to settle the promise that is already fulfilled"
 #define EXCEPTION_MUTEXNOTOWNED "sync_error", "trying to unlock the mutex that is not owned by this thread"
+#define EXCEPTION_TEMPLATEMULTIPLECOMPARATORS "template_error", "template type has multiple opCmp implementations"
+#define EXCEPTION_TEMPLATENOCOMPARATORS "template_error", "template type has no opCmp implementation"
+#define EXCEPTION_TEMPLATEMULTIPLEEQCOMPARATORS "template_error", "template type has multiple opEquals and/or opCmp implementations"
+#define EXCEPTION_TEMPLATENOEQCOMPARATORS "template_error", "template type has no opEquals or opCmp implementation"
 #define TYPENAME_ARRAY "array"
 #define TYPENAME_STRING "string"
 #define TYPENAME_DICTIONARY "dictionary"
@@ -1224,66 +1228,6 @@ namespace Mavi
 					}
 				}
 			}
-			bool Array::Less(const void* A, const void* B, bool Asc, ImmediateContext* Context, SCache* Cache)
-			{
-				if (!Asc)
-				{
-					const void* Temp = A;
-					A = B;
-					B = Temp;
-				}
-
-				if (!(SubTypeId & ~(size_t)TypeId::MASK_SEQNBR))
-				{
-					switch (SubTypeId)
-					{
-#define COMPARE(T) *((T*)A) < *((T*)B)
-						case (size_t)TypeId::BOOL: return COMPARE(bool);
-						case (size_t)TypeId::INT8: return COMPARE(signed char);
-						case (size_t)TypeId::UINT8: return COMPARE(unsigned char);
-						case (size_t)TypeId::INT16: return COMPARE(signed short);
-						case (size_t)TypeId::UINT16: return COMPARE(unsigned short);
-						case (size_t)TypeId::INT32: return COMPARE(signed int);
-						case (size_t)TypeId::UINT32: return COMPARE(unsigned int);
-						case (size_t)TypeId::FLOAT: return COMPARE(float);
-						case (size_t)TypeId::DOUBLE: return COMPARE(double);
-						default: return COMPARE(signed int);
-#undef COMPARE
-					}
-				}
-				else
-				{
-					if (SubTypeId & (size_t)TypeId::OBJHANDLE)
-					{
-						if (*(void**)A == 0)
-							return true;
-
-						if (*(void**)B == 0)
-							return false;
-					}
-
-					if (Cache && Cache->Comparator)
-					{
-						Context->Prepare(Cache->Comparator);
-						if (SubTypeId & (size_t)TypeId::OBJHANDLE)
-						{
-							Context->SetObject(*((void**)A));
-							Context->SetArgObject(0, *((void**)B));
-						}
-						else
-						{
-							Context->SetObject((void*)A);
-							Context->SetArgObject(0, (void*)B);
-						}
-
-						auto Status = Context->ExecuteNext();
-						if (Status && *Status == Execution::Finished)
-							return (int)Context->GetReturnDWord() < 0;
-					}
-				}
-
-				return false;
-			}
 			void Array::Reverse()
 			{
 				size_t Length = Size();
@@ -1354,27 +1298,52 @@ namespace Mavi
 
 				return IsEqual;
 			}
+			bool Array::Less(const void* A, const void* B, ImmediateContext* Context, SCache* Cache)
+			{
+				if (SubTypeId & ~(size_t)TypeId::MASK_SEQNBR)
+				{
+					if (SubTypeId & (size_t)TypeId::OBJHANDLE)
+					{
+						if (*(void**)A == 0)
+							return true;
+
+						if (*(void**)B == 0)
+							return false;
+					}
+
+					if (!Cache || !Cache->Comparator)
+						return false;
+
+					bool IsLess = false;
+					Context->ExecuteSubcall(Cache->Comparator, [A, B](ImmediateContext* Context)
+					{
+						Context->SetObject((void*)A);
+						Context->SetArgObject(0, (void*)B);
+					}, [&IsLess](ImmediateContext* Context) { IsLess = (Context->GetReturnDWord() < 0); });
+					return IsLess;
+				}
+
+				switch (SubTypeId)
+				{
+#define COMPARE(T) *((T*)A) < *((T*)B)
+					case (size_t)TypeId::BOOL: return COMPARE(bool);
+					case (size_t)TypeId::INT8: return COMPARE(signed char);
+					case (size_t)TypeId::UINT8: return COMPARE(unsigned char);
+					case (size_t)TypeId::INT16: return COMPARE(signed short);
+					case (size_t)TypeId::UINT16: return COMPARE(unsigned short);
+					case (size_t)TypeId::INT32: return COMPARE(signed int);
+					case (size_t)TypeId::UINT32: return COMPARE(unsigned int);
+					case (size_t)TypeId::FLOAT: return COMPARE(float);
+					case (size_t)TypeId::DOUBLE: return COMPARE(double);
+					default: return COMPARE(signed int);
+#undef COMPARE
+				}
+
+				return false;
+			}
 			bool Array::Equals(const void* A, const void* B, ImmediateContext* Context, SCache* Cache) const
 			{
-				if (!(SubTypeId & ~(size_t)TypeId::MASK_SEQNBR))
-				{
-					switch (SubTypeId)
-					{
-#define COMPARE(T) *((T*)A) == *((T*)B)
-						case (size_t)TypeId::BOOL: return COMPARE(bool);
-						case (size_t)TypeId::INT8: return COMPARE(signed char);
-						case (size_t)TypeId::UINT8: return COMPARE(unsigned char);
-						case (size_t)TypeId::INT16: return COMPARE(signed short);
-						case (size_t)TypeId::UINT16: return COMPARE(unsigned short);
-						case (size_t)TypeId::INT32: return COMPARE(signed int);
-						case (size_t)TypeId::UINT32: return COMPARE(unsigned int);
-						case (size_t)TypeId::FLOAT: return COMPARE(float);
-						case (size_t)TypeId::DOUBLE: return COMPARE(double);
-						default: return COMPARE(signed int);
-#undef COMPARE
-					}
-				}
-				else
+				if (SubTypeId & ~(size_t)TypeId::MASK_SEQNBR)
 				{
 					if (SubTypeId & (size_t)TypeId::OBJHANDLE)
 					{
@@ -1384,62 +1353,54 @@ namespace Mavi
 
 					if (Cache && Cache->Equals)
 					{
-						Context->Prepare(Cache->Equals);
-						if (SubTypeId & (size_t)TypeId::OBJHANDLE)
-						{
-							Context->SetObject(*((void**)A));
-							Context->SetArgObject(0, *((void**)B));
-						}
-						else
+						bool IsMatched = false;
+						Context->ExecuteSubcall(Cache->Equals, [A, B](ImmediateContext* Context)
 						{
 							Context->SetObject((void*)A);
 							Context->SetArgObject(0, (void*)B);
-						}
-
-						auto Status = Context->ExecuteNext();
-						if (Status && *Status == Execution::Finished)
-							return Context->GetReturnByte() != 0;
-
-						return false;
+						}, [&IsMatched](ImmediateContext* Context) { IsMatched = (Context->GetReturnByte() != 0); });
+						return IsMatched;
 					}
 
 					if (Cache && Cache->Comparator)
 					{
-						Context->Prepare(Cache->Comparator);
-						if (SubTypeId & (size_t)TypeId::OBJHANDLE)
-						{
-							Context->SetObject(*((void**)A));
-							Context->SetArgObject(0, *((void**)B));
-						}
-						else
+						bool IsMatched = false;
+						Context->ExecuteSubcall(Cache->Comparator, [A, B](ImmediateContext* Context)
 						{
 							Context->SetObject((void*)A);
 							Context->SetArgObject(0, (void*)B);
-						}
-
-						auto Status = Context->ExecuteNext();
-						if (Status && *Status == Execution::Finished)
-							return (int)Context->GetReturnDWord() == 0;
-
-						return false;
+						}, [&IsMatched](ImmediateContext* Context) { IsMatched = (Context->GetReturnDWord() == 0); });
+						return IsMatched;
 					}
+
+					return false;
 				}
 
-				return false;
+				switch (SubTypeId)
+				{
+#define COMPARE(T) *((T*)A) == *((T*)B)
+					case (size_t)TypeId::BOOL: return COMPARE(bool);
+					case (size_t)TypeId::INT8: return COMPARE(signed char);
+					case (size_t)TypeId::UINT8: return COMPARE(unsigned char);
+					case (size_t)TypeId::INT16: return COMPARE(signed short);
+					case (size_t)TypeId::UINT16: return COMPARE(unsigned short);
+					case (size_t)TypeId::INT32: return COMPARE(signed int);
+					case (size_t)TypeId::UINT32: return COMPARE(unsigned int);
+					case (size_t)TypeId::FLOAT: return COMPARE(float);
+					case (size_t)TypeId::DOUBLE: return COMPARE(double);
+					default: return COMPARE(signed int);
+#undef COMPARE
+				}
 			}
-			size_t Array::FindByRef(void* RefPtr) const
-			{
-				return FindByRef(0, RefPtr);
-			}
-			size_t Array::FindByRef(size_t StartAt, void* RefPtr) const
+			size_t Array::FindByRef(void* Value, size_t StartAt) const
 			{
 				size_t Length = Size();
 				if (SubTypeId & (size_t)TypeId::OBJHANDLE)
 				{
-					RefPtr = *(void**)RefPtr;
+					Value = *(void**)Value;
 					for (size_t i = StartAt; i < Length; i++)
 					{
-						if (*(void**)At(i) == RefPtr)
+						if (*(void**)At(i) == Value)
 							return i;
 					}
 				}
@@ -1447,83 +1408,27 @@ namespace Mavi
 				{
 					for (size_t i = StartAt; i < Length; i++)
 					{
-						if (At(i) == RefPtr)
+						if (At(i) == Value)
 							return i;
 					}
 				}
 
 				return std::string::npos;
 			}
-			size_t Array::Find(void* Value) const
+			size_t Array::Find(void* Value, size_t StartAt) const
 			{
-				return Find(0, Value);
-			}
-			size_t Array::Find(size_t StartAt, void* Value) const
-			{
-				SCache* Cache = 0;
-				if (SubTypeId & ~(size_t)TypeId::MASK_SEQNBR)
-				{
-					Cache = reinterpret_cast<SCache*>(ObjType.GetUserData(ArrayId));
-					if (!Cache || (Cache->Comparator == 0 && Cache->Equals == 0))
-					{
-						auto SubType = ObjType.GetVM()->GetTypeInfoById(SubTypeId);
-						if (ImmediateContext::Get() != nullptr)
-						{
-							char Swap[512];
-							if (Cache && Cache->EqualsReturnCode == (int)VirtualError::MULTIPLE_FUNCTIONS)
-								snprintf(Swap, 512, "Type '%s' has multiple matching opEquals or opCmp methods", SubType.GetName());
-							else
-								snprintf(Swap, 512, "Type '%s' does not have a matching opEquals or opCmp method", SubType.GetName());
-							Bindings::Exception::Throw(Bindings::Exception::Pointer("template_error", Swap));
-						}
+				SCache* Cache; size_t Count = Size();
+				if (!IsEligibleForFind(&Cache) || !Count)
+					return std::string::npos;
 
-						return std::string::npos;
-					}
+				ImmediateContext* Context = ImmediateContext::Get();
+				for (size_t i = StartAt; i < Count; i++)
+				{
+					if (Equals(At(i), Value, Context, Cache))
+						return i;
 				}
 
-				ImmediateContext* CmpContext = 0;
-				bool IsNested = false;
-
-				if (SubTypeId & ~(size_t)TypeId::MASK_SEQNBR)
-				{
-					CmpContext = ImmediateContext::Get();
-					if (CmpContext)
-					{
-						if (CmpContext->GetVM() == ObjType.GetVM() && CmpContext->PushState())
-							IsNested = true;
-						else
-							CmpContext = 0;
-					}
-
-					if (CmpContext == 0)
-						CmpContext = ObjType.GetVM()->RequestContext();
-				}
-
-				size_t Result = std::string::npos;
-				size_t Length = Size();
-				for (size_t i = StartAt; i < Length; i++)
-				{
-					if (Equals(At(i), Value, CmpContext, Cache))
-					{
-						Result = i;
-						break;
-					}
-				}
-
-				if (CmpContext)
-				{
-					if (IsNested)
-					{
-						auto State = CmpContext->GetState();
-						CmpContext->PopState();
-						if (State == Execution::Aborted)
-							CmpContext->Abort();
-					}
-					else
-						ObjType.GetVM()->ReturnContext(CmpContext);
-				}
-
-				return Result;
+				return std::string::npos;
 			}
 			void Array::Copy(void* Dest, void* Src)
 			{
@@ -1549,6 +1454,53 @@ namespace Mavi
 				Copy(Swap, GetArrayItemPointer(Index1));
 				Copy(GetArrayItemPointer(Index1), GetArrayItemPointer(Index2));
 				Copy(GetArrayItemPointer(Index2), Swap);
+			}
+			void Array::Sort(asIScriptFunction* Callback)
+			{
+				SCache* Cache; size_t Count = Size();
+				if (!IsEligibleForSort(&Cache) || Count < 2)
+					return;
+
+				unsigned char Swap[16];
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (Callback != nullptr)
+				{
+					FunctionDelegate Delegate(Callback);
+					for (size_t i = 1; i < Count; i++)
+					{
+						int64_t j = (int64_t)(i - 1);
+						Copy(Swap, GetArrayItemPointer(i));
+						while (j >= 0)
+						{
+							void* A = GetDataPointer(Swap), *B = At(j); bool IsLess = false;
+							Context->ExecuteSubcall(Delegate.Callable(), [A, B](ImmediateContext* Context)
+							{
+								Context->SetArgAddress(0, A);
+								Context->SetArgAddress(1, B);
+							}, [&IsLess](ImmediateContext* Context) { IsLess = (Context->GetReturnByte() > 0); });
+							if (!IsLess)
+								break;
+
+							Copy(GetArrayItemPointer(j + 1), GetArrayItemPointer(j));
+							j--;
+						}
+						Copy(GetArrayItemPointer(j + 1), Swap);
+					}
+				}
+				else
+				{
+					for (size_t i = 1; i < Count; i++)
+					{
+						int64_t j = (int64_t)(i - 1);
+						Copy(Swap, GetArrayItemPointer(i));
+						while (j >= 0 && Less(GetDataPointer(Swap), At(j), Context, Cache))
+						{
+							Copy(GetArrayItemPointer(j + 1), GetArrayItemPointer(j));
+							j--;
+						}
+						Copy(GetArrayItemPointer(j + 1), Swap);
+					}
+				}
 			}
 			void Array::CopyBuffer(SBuffer* Dest, SBuffer* Src)
 			{
@@ -1729,14 +1681,6 @@ namespace Mavi
 
 				return Result;
 			}
-			Array* Array::Create(asITypeInfo* Info, void* InitList)
-			{
-				Array* Result = new Array(Info, InitList);
-				if (!Result)
-					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
-
-				return Result;
-			}
 			Array* Array::Create(asITypeInfo* Info, size_t Length, void* DefaultValue)
 			{
 				Array* Result = new Array(Length, DefaultValue, Info);
@@ -1748,6 +1692,14 @@ namespace Mavi
 			Array* Array::Create(asITypeInfo* Info)
 			{
 				return Array::Create(Info, (size_t)0);
+			}
+			Array* Array::Factory(asITypeInfo* Info, void* InitList)
+			{
+				Array* Result = new Array(Info, InitList);
+				if (!Result)
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
+
+				return Result;
 			}
 			void Array::CleanupTypeInfoCache(asITypeInfo* TypeContext)
 			{
@@ -1843,6 +1795,60 @@ namespace Mavi
 				}
 
 				return true;
+			}
+			bool Array::IsEligibleForFind(SCache** Output) const
+			{
+				SCache* Cache = reinterpret_cast<SCache*>(ObjType.GetUserData(GetId()));
+				if (!(SubTypeId & ~asTYPEID_MASK_SEQNBR))
+				{
+					*Output = Cache;
+					return true;
+				}
+
+				if (Cache != nullptr && Cache->Equals != nullptr)
+				{
+					*Output = Cache;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (Context != nullptr)
+				{
+					if (Cache && Cache->EqualsReturnCode == asMULTIPLE_FUNCTIONS)
+						Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_TEMPLATEMULTIPLEEQCOMPARATORS));
+					else
+						Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_TEMPLATENOEQCOMPARATORS));
+				}
+
+				*Output = nullptr;
+				return false;
+			}
+			bool Array::IsEligibleForSort(SCache** Output) const
+			{
+				SCache* Cache = reinterpret_cast<SCache*>(ObjType.GetUserData(GetId()));
+				if (!(SubTypeId & ~asTYPEID_MASK_SEQNBR))
+				{
+					*Output = Cache;
+					return true;
+				}
+
+				if (Cache != nullptr && Cache->Comparator != nullptr)
+				{
+					*Output = Cache;
+					return true;
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (Context != nullptr)
+				{
+					if (Cache && Cache->ComparatorReturnCode == asMULTIPLE_FUNCTIONS)
+						Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_TEMPLATEMULTIPLECOMPARATORS));
+					else
+						Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_TEMPLATENOCOMPARATORS));
+				}
+
+				*Output = nullptr;
+				return false;
 			}
 			int Array::GetId()
 			{
@@ -9765,10 +9771,11 @@ namespace Mavi
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				VM->SetTypeInfoUserDataCleanupCallback(Array::CleanupTypeInfoCache, (size_t)Array::GetId());
 
-				auto ListFactoryCall = Bridge::Function(&Dictionary::Factory);
+				auto ListFactoryCall = Bridge::Function(&Array::Factory);
 				{
 					auto VArray = VM->SetTemplateClass<Array>("array<class T>", "array<T>", true);
 					VArray->SetTemplateCallback(&Array::TemplateCallback);
+					VArray->SetFunctionDef("bool array<T>::less_event(const T&in a, const T&in b)");
 					VArray->SetConstructorEx<Array, asITypeInfo*>("array<T>@ f(int&in)", &Array::Create);
 					VArray->SetConstructorEx<Array, asITypeInfo*, size_t>("array<T>@ f(int&in, usize) explicit", &Array::Create);
 					VArray->SetConstructorEx<Array, asITypeInfo*, size_t, void*>("array<T>@ f(int&in, usize, const T&in)", &Array::Create);
@@ -9797,10 +9804,9 @@ namespace Mavi
 					VArray->SetMethod("void erase(usize, usize)", &Array::RemoveRange);
 					VArray->SetMethod("void reverse()", &Array::Reverse);
 					VArray->SetMethod("void swap(usize, usize)", &Array::Swap);
-					VArray->SetMethod<Array, size_t, void*>("usize find(const T&in if_handle_then_const) const", &Array::Find);
-					VArray->SetMethod<Array, size_t, size_t, void*>("usize find(usize, const T&in if_handle_then_const) const", &Array::Find);
-					VArray->SetMethod<Array, size_t, void*>("usize find_ref(const T&in if_handle_then_const) const", &Array::FindByRef);
-					VArray->SetMethod<Array, size_t, size_t, void*>("usize find_ref(usize, const T&in if_handle_then_const) const", &Array::FindByRef);
+					VArray->SetMethod("void sort(less_event@ = null)", &Array::Sort);
+					VArray->SetMethod<Array, size_t, void*, size_t>("usize find(const T&in if_handle_then_const, usize = 0) const", &Array::Find);
+					VArray->SetMethod<Array, size_t, void*, size_t>("usize find_ref(const T&in if_handle_then_const, usize = 0) const", &Array::FindByRef);
 				}
 				FunctionFactory::ReleaseFunctor(&ListFactoryCall);
 

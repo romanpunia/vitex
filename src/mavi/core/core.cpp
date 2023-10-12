@@ -8153,11 +8153,13 @@ namespace Mavi
 				return Optional::OK;
 
 			size_t Index = Length - 1;
+			while (Index > 0 && (Buffer[Index] == '/' || Buffer[Index] == '\\'))
+				Index--;
+
 			while (Index > 0 && Buffer[Index] != '/' && Buffer[Index] != '\\')
 				Index--;
 
-			String Subpath(Path);
-			Subpath.erase(0, Index);
+			String Subpath(Path, Index);
 			if (Index > 0 && !Create(Subpath.c_str()))
 				return OS::Error::GetConditionOr();
 

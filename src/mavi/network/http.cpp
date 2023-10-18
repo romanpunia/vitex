@@ -2736,7 +2736,7 @@ namespace Mavi
 				const char* BufferEnd = BufferStart + Length;
 				int Result;
 				
-				if (Offset > 0 && IsCompleted(Buffer, BufferEnd, Offset, &Result) == nullptr)
+				if (IsCompleted(Buffer, BufferEnd, Offset, &Result) == nullptr)
 					return (int64_t)Result;
 
 				if ((Buffer = ProcessRequest(Buffer, BufferEnd, &Result)) == nullptr)
@@ -2751,7 +2751,7 @@ namespace Mavi
 				const char* BufferEnd = Buffer + Length;
 				int Result;
 
-				if (Offset > 0 && IsCompleted(Buffer, BufferEnd, Offset, &Result) == nullptr)
+				if (IsCompleted(Buffer, BufferEnd, Offset, &Result) == nullptr)
 					return (int64_t)Result;
 
 				if ((Buffer = ProcessResponse(Buffer, BufferEnd, &Result)) == nullptr)
@@ -4390,6 +4390,9 @@ namespace Mavi
 
 				if (Core::Stringify::CaseCompare(Parser->Frame.Header.c_str(), "cookie") == 0)
 				{
+					if (!Parser->Frame.Request)
+						goto Success;
+
 					Core::Vector<std::pair<Core::String, Core::String>> Cookies;
 					const char* Offset = Data;
 
@@ -4411,20 +4414,23 @@ namespace Mavi
 						Offset = Data + (i + 3);
 					}
 
-					if (Parser->Frame.Request)
+					for (auto&& Item : Cookies)
 					{
-						for (auto&& Item : Cookies)
-						{
-							auto& Cookie = Parser->Frame.Request->Cookies[Item.first];
-							Cookie.emplace_back(std::move(Item.second));
-						}
+						auto& Cookie = Parser->Frame.Request->Cookies[Item.first];
+						Cookie.emplace_back(std::move(Item.second));
 					}
 				}
-				else
+				else if (Parser->Frame.Request != nullptr || Parser->Frame.Response != nullptr)
 				{
-					Core::Vector<Core::String> Keys = Core::Stringify::Split(Core::String(Data, Length), ',');
-					for (auto& Item : Keys)
-						Core::Stringify::Trim(Item);
+					Core::Vector<Core::String> Keys;
+					if (Core::Stringify::CaseCompare(Parser->Frame.Header.c_str(), "user-agent") != 0)
+					{
+						Keys = Core::Stringify::Split(Core::String(Data, Length), ',');
+						for (auto& Item : Keys)
+							Core::Stringify::Trim(Item);
+					}
+					else
+						Keys.emplace_back(Data, Length);
 
 					if (Parser->Frame.Request)
 					{
@@ -4441,6 +4447,7 @@ namespace Mavi
 					}
 				}
 
+			Success:
 				Parser->Frame.Header.clear();
 				return true;
 			}

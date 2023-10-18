@@ -1798,6 +1798,7 @@ namespace Mavi
 			}
 			bool Array::IsEligibleForFind(SCache** Output) const
 			{
+#ifdef VI_ANGELSCRIPT
 				SCache* Cache = reinterpret_cast<SCache*>(ObjType.GetUserData(GetId()));
 				if (!(SubTypeId & ~asTYPEID_MASK_SEQNBR))
 				{
@@ -1819,12 +1820,13 @@ namespace Mavi
 					else
 						Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_TEMPLATENOEQCOMPARATORS));
 				}
-
+#endif
 				*Output = nullptr;
 				return false;
 			}
 			bool Array::IsEligibleForSort(SCache** Output) const
 			{
+#ifdef VI_ANGELSCRIPT
 				SCache* Cache = reinterpret_cast<SCache*>(ObjType.GetUserData(GetId()));
 				if (!(SubTypeId & ~asTYPEID_MASK_SEQNBR))
 				{
@@ -1846,7 +1848,7 @@ namespace Mavi
 					else
 						Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_TEMPLATENOCOMPARATORS));
 				}
-
+#endif
 				*Output = nullptr;
 				return false;
 			}

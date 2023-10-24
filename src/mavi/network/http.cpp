@@ -6120,7 +6120,7 @@ namespace Mavi
 				Core::ExpectsPromiseIO<ResponseFrame*> Result;
 				Request = std::move(Root);
 				Response.Cleanup();
-				Done = [Result](SocketClient* Client, const Core::Option<std::error_condition>& ErrorCode) mutable
+				State.Done = [Result](SocketClient* Client, const Core::Option<std::error_condition>& ErrorCode) mutable
 				{
 					HTTP::Client* Base = (HTTP::Client*)Client;
 					if (ErrorCode)
@@ -6137,17 +6137,17 @@ namespace Mavi
 				{
 					if (Context != nullptr)
 					{
-						if (Hostname.Port == 443)
-							Request.SetHeader("Host", Hostname.Hostname.c_str());
+						if (State.Hostname.Port == 443)
+							Request.SetHeader("Host", State.Hostname.Hostname.c_str());
 						else
-							Request.SetHeader("Host", (Hostname.Hostname + ':' + Core::ToString(Hostname.Port)));
+							Request.SetHeader("Host", (State.Hostname.Hostname + ':' + Core::ToString(State.Hostname.Port)));
 					}
 					else
 					{
-						if (Hostname.Port == 80)
-							Request.SetHeader("Host", Hostname.Hostname);
+						if (State.Hostname.Port == 80)
+							Request.SetHeader("Host", State.Hostname.Hostname);
 						else
-							Request.SetHeader("Host", (Hostname.Hostname + ':' + Core::ToString(Hostname.Port)));
+							Request.SetHeader("Host", (State.Hostname.Hostname + ':' + Core::ToString(State.Hostname.Port)));
 					}
 				}
 
@@ -6419,7 +6419,7 @@ namespace Mavi
                 if (Result || Result.Error() != std::errc::not_supported)
 					return Callback(true);
 
-				if (IsAsync)
+				if (Config.IsAsync)
 					return UploadFileChunkAsync(FileStream, Boundary->File->Length, std::move(Callback));
 
 				return UploadFileChunk(FileStream, Boundary->File->Length, std::move(Callback));
@@ -6534,6 +6534,29 @@ namespace Mavi
 					});
 				}
 			}
+			void Client::ManageKeepAlive()
+			{
+				auto Connection = Response.Headers.find("Connection");
+				if (Connection == Response.Headers.end())
+					return DisableReusability();
+
+				if (Connection->second.size() != 1 || Core::Stringify::CaseCompare(Connection->second.front().c_str(), "keep-alive") != 0)
+					return DisableReusability();
+
+				auto KeepAlive = Response.Headers.find("Keep-Alive");
+				if (KeepAlive == Response.Headers.end())
+					return;
+
+				for (auto& Item : KeepAlive->second)
+				{
+					if (Item.find("timeout") == std::string::npos)
+						continue;
+
+					auto NewTimeout = Core::FromString<int64_t>(Item.substr(Item.find('=') + 1));
+					if (NewTimeout)
+						SetReusability(*NewTimeout * 1000);
+				}
+			}
 			void Client::Receive()
 			{
 				Stage("http response receive");
@@ -6555,6 +6578,7 @@ namespace Mavi
 				{
 					Response.Content.Prepare(Response.GetHeader("Content-Length"));
 					Response.Content.Data.clear();
+					ManageKeepAlive();
 
 					VI_RELEASE(Parser);
 					Report(Core::Optional::None);

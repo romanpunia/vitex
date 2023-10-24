@@ -888,6 +888,7 @@ namespace Mavi
 				void UploadFileChunk(FILE* Stream, size_t ContentLength, std::function<void(bool)>&& Callback);
 				void UploadFileChunkAsync(FILE* Stream, size_t ContentLength, std::function<void(bool)>&& Callback);
 				void Upload(size_t FileId);
+				void ManageKeepAlive();
 				void Receive();
 			};
 

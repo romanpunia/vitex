@@ -1258,18 +1258,18 @@ namespace Mavi
 			VI_TRACE("[uplink] connection pool timeout: %" PRIu64, TimeoutMs);
 			Timeout = TimeoutMs;
 		}
-		bool Uplinks::PushToCache(RemoteHost* Address, Socket* Stream)
+		bool Uplinks::PushToCache(RemoteHost* Address, Socket* Stream, uint64_t CustomTimeoutMs)
 		{
 			VI_ASSERT(Stream != nullptr, "socket should be set");
 			VI_ASSERT(Address != nullptr, "address should be set");
-			if (!IsActive())
+			if (!IsActive() || !Stream->IsValid())
 				return false;
 
 			Core::String Name = GetAddressName(Address);
 			VI_DEBUG("[uplink] store fd %i for %s", (int)Stream->GetFd(), Name.c_str());
 
 			Core::UMutex<std::mutex> Unique(Exclusive);
-			Cache[Name][Stream] = Core::Schedule::Get()->SetTimeout(Timeout, std::bind(&Uplinks::ExpireConnection, this, Name, Stream));
+			Cache[Name][Stream] = Core::Schedule::Get()->SetTimeout(CustomTimeoutMs > 0 ? CustomTimeoutMs : Timeout, std::bind(&Uplinks::ExpireConnection, this, Name, Stream));
 			if (!Size++)
 				Multiplexer::Get()->Activate();
 
@@ -2862,8 +2862,9 @@ namespace Mavi
 			return Backlog;
 		}
 
-		SocketClient::SocketClient(int64_t RequestTimeout) noexcept : Context(nullptr), Stream(nullptr), Timeout(RequestTimeout), AutoEncrypt(true), IsAsync(false)
+		SocketClient::SocketClient(int64_t RequestTimeout) noexcept : Context(nullptr), Stream(nullptr)
 		{
+			Timeout.Idle = RequestTimeout;
 		}
 		SocketClient::~SocketClient() noexcept
 		{
@@ -2875,23 +2876,23 @@ namespace Mavi
 				Context = nullptr;
 			}
 #endif
-			if (IsAsync)
+			if (Config.IsAsync)
 				Multiplexer::Get()->Deactivate();
 		}
 		Core::ExpectsPromiseIO<void> SocketClient::Connect(RemoteHost* Source, bool Async)
 		{
 			VI_ASSERT(Source != nullptr && !Source->Hostname.empty(), "address should be set");
-			if (!Async && IsAsync)
+			if (!Async && Config.IsAsync)
 				Multiplexer::Get()->Deactivate();
 
 			Stage("uplink connect");
-			bool IsCached = CreateOrLoadStream(Source, Async);
-			Hostname = *Source;
-			IsAsync = Async;
+			bool IsReused = CreateOrLoadStream(Source, Async);
+			Config.IsAsync = Async;
+			State.Hostname = *Source;
 
-			if (IsCached)
+			if (IsReused)
 			{
-				if (IsAsync)
+				if (Config.IsAsync)
 					Multiplexer::Get()->Activate();
 				return Core::ExpectsPromiseIO<void>(Core::Optional::OK);
 			}
@@ -2907,7 +2908,7 @@ namespace Mavi
 			Core::ExpectsPromiseIO<void> Future;
 			if (!Async)
 			{
-				TryConnect(DNS::Get()->FindAddressFromName(Hostname.Hostname, Core::ToString(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream), Future);
+				TryConnect(DNS::Get()->FindAddressFromName(State.Hostname.Hostname, Core::ToString(State.Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream), Future);
 				return Future;
 			}
 
@@ -2915,7 +2916,7 @@ namespace Mavi
 			Multiplexer::Get()->Activate();
 			Core::Cotask<Core::ExpectsIO<SocketAddress*>>([Context]()
 			{
-				return DNS::Get()->FindAddressFromName(Context->Hostname.Hostname, Core::ToString(Context->Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
+				return DNS::Get()->FindAddressFromName(Context->State.Hostname.Hostname, Core::ToString(Context->State.Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
 			}).When([Context, Future](Core::ExpectsIO<SocketAddress*>&& Host) mutable
 			{
 				Context->TryConnect(std::move(Host), Future);
@@ -2927,18 +2928,19 @@ namespace Mavi
 			if (!Stream || !Stream->IsValid())
 				return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_file_descriptor));
 
-			if (Uplinks::HasInstance())
+			if (Uplinks::HasInstance() && Timeout.Cache >= 0)
 			{
 				auto* Cache = Uplinks::Get();
-				if (Cache->IsActive() && Cache->PushToCache(&Hostname, Stream))
+				if (Cache->IsActive() && Cache->PushToCache(&State.Hostname, Stream, (uint64_t)Timeout.Cache))
 				{
 					Stream = nullptr;
+					Timeout.Cache = 0;
 					return Core::ExpectsPromiseIO<void>(Core::Optional::OK);
 				}
 			}
 
 			Core::ExpectsPromiseIO<void> Result;
-			Done = [this, Result](SocketClient*, const Core::Option<std::error_condition>&) mutable
+			State.Done = [this, Result](SocketClient*, const Core::Option<std::error_condition>&) mutable
 			{
 				Stream->CloseAsync(true, [this, Result](const Core::Option<std::error_condition>& ErrorCode) mutable
 				{
@@ -2948,6 +2950,7 @@ namespace Mavi
 						Result.Set(Core::Optional::OK);
 				});
 			};
+			Timeout.Cache = 0;
 			OnDisconnect();
 			return Result;
 		}
@@ -2962,7 +2965,7 @@ namespace Mavi
 				return Callback(std::make_error_condition(std::errc::bad_file_descriptor));
 			}
 
-			auto Status = Stream->Secure(Context, Hostname.Hostname.c_str());
+			auto Status = Stream->Secure(Context, State.Hostname.Hostname.c_str());
 			if (!Status)
 			{
 				Error("cannot establish handshake");
@@ -3033,14 +3036,14 @@ namespace Mavi
 		{
 			if (!Host)
 			{
-				Error("cannot open %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
+				Error("cannot open %s:%i", State.Hostname.Hostname.c_str(), (int)State.Hostname.Port);
 				return Future.Set(Host.Error());
 			}
 
 			auto Status = Stream->Open(*Host);
 			if (!Status)
 			{
-				Error("cannot open %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
+				Error("cannot open %s:%i", State.Hostname.Hostname.c_str(), (int)State.Hostname.Port);
 				return Future.Set(std::move(Status));
 			}
 
@@ -3055,11 +3058,11 @@ namespace Mavi
 		{
 			if (ErrorCode)
 			{
-				Error("cannot connect to %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
+				Error("cannot connect to %s:%i", State.Hostname.Hostname.c_str(), (int)State.Hostname.Port);
 				return Future.Set(*ErrorCode);
 			}
 #ifdef VI_OPENSSL
-			if (!Hostname.Secure)
+			if (!State.Hostname.Secure)
 				return DispatchHandshake(Future);
 
 			Stage("socket ssl handshake");
@@ -3069,7 +3072,7 @@ namespace Mavi
 				return Future.Set(std::make_error_condition(std::errc::not_enough_memory));
 			}
 
-			if (!AutoEncrypt)
+			if (!Config.IsAutoEncrypted)
 				return DispatchHandshake(Future);
 
 			auto* Context = this;
@@ -3094,7 +3097,7 @@ namespace Mavi
 		void SocketClient::DispatchHandshake(Core::ExpectsPromiseIO<void>& Future)
 		{
 			Stage("socket proto-connect");
-			Done = [Future](SocketClient*, const Core::Option<std::error_condition>& ErrorCode) mutable
+			State.Done = [Future](SocketClient*, const Core::Option<std::error_condition>& ErrorCode) mutable
 			{
 				if (ErrorCode)
 					Future.Set(*ErrorCode);
@@ -3130,7 +3133,7 @@ namespace Mavi
 				Stream = new Socket();
 
 			Stream->UserData = this;
-			Stream->Timeout = Timeout;
+			Stream->Timeout = Timeout.Idle;
 			Stream->SetBlocking(!Async);
 			Stream->SetCloseOnExec();
 			return NewStream != nullptr;
@@ -3140,7 +3143,7 @@ namespace Mavi
 			if (!Stream)
 				return false;
 
-			if (Uplinks::HasInstance() && Uplinks::Get()->PushToCache(&Hostname, Stream))
+			if (Uplinks::HasInstance() && Uplinks::Get()->PushToCache(&State.Hostname, Stream))
 			{
 				Stream = nullptr;
 				return true;
@@ -3152,10 +3155,18 @@ namespace Mavi
 				VI_CLEAR(Stream);
 			return false;
 		}
+		void SocketClient::SetReusability(uint64_t TimeoutMs)
+		{
+			Timeout.Cache = TimeoutMs;
+		}
+		void SocketClient::DisableReusability()
+		{
+			Timeout.Cache = -1;
+		}
 		bool SocketClient::Stage(const Core::String& Name)
 		{
-			Action = Name;
-			return !Action.empty();
+			State.Action = Name;
+			return !State.Action.empty();
 		}
 		bool SocketClient::Error(const char* Format, ...)
 		{
@@ -3165,14 +3176,14 @@ namespace Mavi
 			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 			va_end(Args);
 
-			VI_ERR("[net] %.*s (latest state: %s)", Size, Buffer, Action.empty() ? "request" : Action.c_str());
+			VI_ERR("[net] %.*s (latest state: %s)", Size, Buffer, State.Action.empty() ? "request" : State.Action.c_str());
 			Stream->CloseAsync(true, [this](const Core::Option<std::error_condition>&) { Report(std::make_error_condition(std::errc::connection_aborted)); });
 
 			return false;
 		}
 		bool SocketClient::Report(const Core::Option<std::error_condition>& ErrorCode)
 		{
-			SocketClientCallback Callback(std::move(Done));
+			SocketClientCallback Callback(std::move(State.Done));
 			if (Callback)
 				Callback(this, ErrorCode);
 

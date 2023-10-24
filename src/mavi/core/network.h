@@ -327,15 +327,15 @@ namespace Mavi
 		private:
 			Core::UnorderedMap<Core::String, Core::UnorderedMap<Socket*, Core::TaskId>> Cache;
 			std::mutex Exclusive;
-			size_t Size;
 			uint64_t Timeout;
+			size_t Size;
 
 		public:
 			Uplinks() noexcept;
 			Uplinks(uint64_t TimeoutMs) noexcept;
 			virtual ~Uplinks() noexcept override;
 			void SetTimeout(uint64_t TimeoutMs);
-			bool PushToCache(RemoteHost* Address, Socket* Target);
+			bool PushToCache(RemoteHost* Address, Socket* Target, uint64_t CustomTimeoutMs = 0);
 			Socket* PopFromCache(RemoteHost* Address);
 			size_t GetSize();
 			bool IsActive();
@@ -554,14 +554,28 @@ namespace Mavi
 		class VI_OUT SocketClient : public Core::Reference<SocketClient>
 		{
 		protected:
-			SocketClientCallback Done;
+			struct
+			{
+				int64_t Idle = 0;
+				int64_t Cache = 0;
+			} Timeout;
+
+			struct
+			{
+				SocketClientCallback Done;
+				RemoteHost Hostname;
+				Core::String Action;
+			} State;
+
+			struct
+			{
+				bool IsAutoEncrypted = true;
+				bool IsAsync = false;
+			} Config;
+
+		protected:
 			ssl_ctx_st* Context;
 			Socket* Stream;
-			Core::String Action;
-			RemoteHost Hostname;
-			int64_t Timeout;
-			bool AutoEncrypt;
-			bool IsAsync;
 
 		public:
 			SocketClient(int64_t RequestTimeout) noexcept;
@@ -585,6 +599,8 @@ namespace Mavi
 			bool DestroyOrSaveStream(bool Finalize);
 
 		protected:
+			void SetReusability(uint64_t Timeout);
+			void DisableReusability();
 			void Encrypt(std::function<void(const Core::Option<std::error_condition>&)>&& Callback);
 			bool Stage(const Core::String& Name);
 			bool Error(const char* Message, ...);

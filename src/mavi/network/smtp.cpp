@@ -45,7 +45,7 @@ namespace Mavi
 		{
 			Client::Client(const Core::String& Domain, int64_t ReadTimeout) : SocketClient(ReadTimeout), AttachmentFile(nullptr), Hoster(Domain), Pending(0), Authorized(false)
 			{
-				AutoEncrypt = false;
+				Config.IsAutoEncrypted = false;
 			}
 			Core::ExpectsPromiseIO<void> Client::Send(RequestFrame&& Root)
 			{
@@ -57,7 +57,7 @@ namespace Mavi
 					Request = std::move(Root);
 
 				VI_DEBUG("[smtp] message to %s", Root.Receiver.c_str());
-				Done = [this, Result](SocketClient*, const Core::Option<std::error_condition>& ErrorCode) mutable
+				State.Done = [this, Result](SocketClient*, const Core::Option<std::error_condition>& ErrorCode) mutable
 				{
 					if (!Buffer.empty())
 						VI_DEBUG("[smtp] %i responded\n%.*s", (int)Stream->GetFd(), (int)Buffer.size(), Buffer.data());
@@ -96,7 +96,7 @@ namespace Mavi
 				{
 					SendRequest(250, Core::Stringify::Text("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()), [this]()
 					{
-						if (this->Hostname.Secure)
+						if (this->State.Hostname.Secure)
 						{
 							if (!CanRequest("STARTTLS"))
 								return (void)Error("tls is not supported by smtp server");

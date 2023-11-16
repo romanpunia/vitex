@@ -646,13 +646,16 @@ namespace Mavi
 
 			Core::String AlternativeNames;
 			for (auto& Domain : Core::Stringify::Split(DomainsCommaSeparated, ','))
-				AlternativeNames += "DNS:" + Domain + "\n";
+				AlternativeNames += "DNS: " + Domain + ", ";
 
 			for (auto& Address : Core::Stringify::Split(AddressesCommaSeparated, ','))
-				AlternativeNames += "IP: " + Address + "";
+				AlternativeNames += "IP: " + Address + ", ";
 
 			if (!AlternativeNames.empty())
+			{
+				AlternativeNames.erase(AlternativeNames.size() - 2, 2);
 				Builder->AddStandardExtension(nullptr, "subjectAltName", AlternativeNames.c_str());
+			}
 
 			Builder->Sign(Compute::Digests::SHA256());
 			auto Blob = Builder->Build();

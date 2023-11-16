@@ -8776,6 +8776,8 @@ namespace Mavi
 #ifdef VI_OPENSSL
 			ERR_print_errors_cb([](const char* Message, size_t Size, void*)
 			{
+				while (Size > 0 && std::isspace(Message[Size - 1]))
+					--Size;
 				VI_ERR("[openssl] %.*s", (int)Size, Message);
 				return 0;
 			}, nullptr);

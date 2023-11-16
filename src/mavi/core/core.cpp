@@ -10138,7 +10138,7 @@ namespace Mavi
 		Schedule::Desc::Desc() : Desc(std::max<uint32_t>(2, OS::CPU::GetQuantityInfo().Logical) - 1)
 		{
 		}
-		Schedule::Desc::Desc(size_t Cores) : PreallocatedSize(0), StackSize(STACK_SIZE), MaxCoroutines(96), Timeout(std::chrono::milliseconds(2000)), Parallel(true)
+		Schedule::Desc::Desc(size_t Cores) : PreallocatedSize(0), StackSize(STACK_SIZE), MaxCoroutines(96), IdleTimeout(std::chrono::milliseconds(2000)), ClockTimeout(std::chrono::milliseconds((uint64_t)Timings::Intensive)), Parallel(true)
 		{
 			if (!Cores)
 				Cores = 1;
@@ -10582,6 +10582,10 @@ namespace Mavi
 					else
 						VI_DEBUG("[schedule] spawn thread %s (timers)", ThreadId.c_str());
 
+					auto* Subqueue = Queues[(size_t)Difficulty::Normal];
+					ReceiveToken Token(Subqueue->Tasks);
+					TaskCallback Events[EVENTS_SIZE];
+
 					do
 					{
 						std::unique_lock<std::mutex> Lock(Queue->Update);
@@ -10623,16 +10627,34 @@ namespace Mavi
 							else
 							{
 								When = It->first - Clock;
-								if (When > Policy.Timeout)
-									When = Policy.Timeout;
+								if (When > Policy.IdleTimeout)
+									When = Policy.IdleTimeout;
 							}
 						}
 						else
-							When = Policy.Timeout;
+							When = Policy.IdleTimeout;
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Sleep, 0);
 #endif
-						Queue->Notify.wait_for(Lock, When);
+						if (When < Policy.ClockTimeout)
+						{
+							Queue->Notify.wait_for(Lock, When);
+							continue;
+						}
+						
+						Lock.unlock();
+						size_t Count = Subqueue->Tasks.wait_dequeue_bulk_timed(Token, Events, EVENTS_SIZE, When);
+#ifndef NDEBUG
+						PostDebug(ThreadTask::Awake, 0);
+						PostDebug(ThreadTask::ProcessTask, Count);
+#endif
+						while (Count--)
+						{
+							VI_MEASURE(Timings::Intensive);
+							TaskCallback Data(std::move(Events[Count]));
+							if (Data)
+								Data();
+						}
 					} while (ThreadActive(Thread));
 					break;
 				}
@@ -10686,7 +10708,7 @@ namespace Mavi
 						PostDebug(ThreadTask::Sleep, 0);
 #endif
 						std::unique_lock<std::mutex> Lock(Thread->Update);
-						Thread->Notify.wait_for(Lock, Policy.Timeout, [this, Queue, State, Thread]()
+						Thread->Notify.wait_for(Lock, Policy.IdleTimeout, [this, Queue, State, Thread]()
 						{
 							if (Suspended)
 								return false;
@@ -10719,11 +10741,11 @@ namespace Mavi
 						if (Suspended)
 						{
 							std::unique_lock<std::mutex> Lock(Queue->Update);
-							Queue->Notify.wait_for(Lock, Policy.Timeout);
+							Queue->Notify.wait_for(Lock, Policy.IdleTimeout);
 							continue;
 						}
 
-						size_t Count = Queue->Tasks.wait_dequeue_bulk_timed(Token, Events, EVENTS_SIZE, Policy.Timeout);
+						size_t Count = Queue->Tasks.wait_dequeue_bulk_timed(Token, Events, EVENTS_SIZE, Policy.IdleTimeout);
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Awake, 0);
 						PostDebug(ThreadTask::ProcessTask, Count);

@@ -3252,7 +3252,8 @@ namespace Mavi
 				size_t PreallocatedSize;
 				size_t StackSize;
 				size_t MaxCoroutines;
-				std::chrono::milliseconds Timeout;
+				std::chrono::milliseconds IdleTimeout;
+				std::chrono::milliseconds ClockTimeout;
 				ActivityCallback Ping;
 				bool Parallel;
 

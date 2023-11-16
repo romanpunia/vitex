@@ -50,6 +50,7 @@ extern "C"
 #include <openssl/err.h>
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 #include <openssl/pem.h>
 #include <openssl/engine.h>
 #include <openssl/conf.h>
@@ -61,6 +62,37 @@ namespace Mavi
 {
 	namespace Network
 	{
+#ifdef VI_OPENSSL
+		static std::pair<Core::String, time_t> ASN1_GetTime(ASN1_TIME* Time)
+		{
+			if (!Time)
+				return std::make_pair<Core::String, time_t>(Core::String(), time_t(0));
+
+			struct tm Date; size_t i = 0;
+			memset(&Date, 0, sizeof(Date));
+
+			const char* Text = (const char*)Time->data;
+			if (Time->type == V_ASN1_UTCTIME)
+			{
+				Date.tm_year = (Text[i++] - '0') * 10 + (Text[i++] - '0');
+				if (Date.tm_year < 70)
+					Date.tm_year += 100;
+			}
+			else if (Time->type == V_ASN1_GENERALIZEDTIME)
+			{
+				Date.tm_year = (Text[i++] - '0') * 1000 + (Text[i++] - '0') * 100 + (Text[i++] - '0') * 10 + (Text[i++] - '0');
+				Date.tm_year -= 1900;
+			}
+			Date.tm_mon = ((Text[i++] - '0') * 10 + (Text[i++] - '0')) - 1;
+			Date.tm_mday = (Text[i++] - '0') * 10 + (Text[i++] - '0');
+			Date.tm_hour = (Text[i++] - '0') * 10 + (Text[i++] - '0');
+			Date.tm_min = (Text[i++] - '0') * 10 + (Text[i++] - '0');
+			Date.tm_sec = (Text[i++] - '0') * 10 + (Text[i++] - '0');
+
+			time_t TimeStamp = mktime(&Date);
+			return std::make_pair(Core::DateTime::FetchWebDateGMT(TimeStamp), TimeStamp);
+		}
+#endif
 		static addrinfo* TryConnectDNS(const Core::UnorderedMap<socket_t, addrinfo*>& Hosts, uint64_t Timeout)
 		{
 			VI_MEASURE(Core::Timings::Networking);
@@ -316,6 +348,61 @@ namespace Mavi
 			return *this;
 		}
 
+		X509Blob::X509Blob(void* NewPointer) noexcept : Pointer(NewPointer)
+		{
+		}
+		X509Blob::X509Blob(const X509Blob& Other) noexcept : Pointer(nullptr)
+		{
+#ifdef VI_OPENSSL
+			if (Other.Pointer != nullptr)
+				Pointer = X509_dup((X509*)Other.Pointer);
+#endif
+		}
+		X509Blob::X509Blob(X509Blob&& Other) noexcept : Pointer(Other.Pointer)
+		{
+			Other.Pointer = nullptr;
+		}
+		X509Blob::~X509Blob() noexcept
+		{
+#ifdef VI_OPENSSL
+			if (Pointer != nullptr)
+				X509_free((X509*)Pointer);
+#endif
+		}
+		X509Blob& X509Blob::operator= (const X509Blob& Other) noexcept
+		{
+			if (this == &Other)
+				return *this;
+
+#ifdef VI_OPENSSL
+			if (Pointer != nullptr)
+				X509_free((X509*)Pointer);
+			if (Other.Pointer != nullptr)
+				Pointer = X509_dup((X509*)Other.Pointer);
+#endif
+			return *this;
+		}
+		X509Blob& X509Blob::operator= (X509Blob&& Other) noexcept
+		{
+			if (this == &Other)
+				return *this;
+
+			Pointer = Other.Pointer;
+			Other.Pointer = nullptr;
+			return *this;
+		}
+
+		Core::UnorderedMap<Core::String, Core::Vector<Core::String>> Certificate::GetFullExtensions() const
+		{
+			Core::UnorderedMap<Core::String, Core::Vector<Core::String>> Data;
+			Data.reserve(Extensions.size());
+
+			for (auto& Item : Extensions)
+				Data[Item.first] = Core::Stringify::Split(Item.second, '\n');
+
+			return Data;
+		}
+
 		DataFrame& DataFrame::operator= (const DataFrame& Other)
 		{
 			VI_ASSERT(this != &Other, "this should not be other");
@@ -546,6 +633,119 @@ namespace Mavi
 			return Count;
 		}
 
+		Core::ExpectsIO<CertificateBlob> Utils::GenerateSelfSignedCertificate(uint32_t Days, const Core::String& AddressesCommaSeparated, const Core::String& DomainsCommaSeparated) noexcept
+		{
+			CertificateBuilder* Builder = new CertificateBuilder();
+			Builder->SetSerialNumber();
+			Builder->SetVersion(2);
+			Builder->SetNotBefore();
+			Builder->SetNotAfter(86400 * Days);
+			Builder->SetPublicKey();
+			Builder->AddSubjectInfo("CN", "Self-signed certificate");
+			Builder->AddIssuerInfo("CN", "CA for self-signed certificates");
+
+			Core::String AlternativeNames;
+			for (auto& Domain : Core::Stringify::Split(DomainsCommaSeparated, ','))
+				AlternativeNames += "DNS:" + Domain + "\n";
+
+			for (auto& Address : Core::Stringify::Split(AddressesCommaSeparated, ','))
+				AlternativeNames += "IP: " + Address + "";
+
+			if (!AlternativeNames.empty())
+				Builder->AddStandardExtension(nullptr, "subjectAltName", AlternativeNames.c_str());
+
+			Builder->Sign(Compute::Digests::SHA256());
+			auto Blob = Builder->Build();
+			VI_RELEASE(Builder);
+
+			return Blob;
+		}
+		Core::ExpectsIO<Certificate> Utils::GetCertificateFromX509(void* CertificateX509) noexcept
+		{
+			VI_ASSERT(CertificateX509 != nullptr, "certificate should be set");
+			VI_MEASURE(Core::Timings::Networking);
+#ifdef VI_OPENSSL
+			X509* Blob = (X509*)CertificateX509;
+			X509_NAME* Subject = X509_get_subject_name(Blob);
+			X509_NAME* Issuer = X509_get_issuer_name(Blob);
+			ASN1_INTEGER* Serial = X509_get_serialNumber(Blob);
+			auto NotBefore = ASN1_GetTime(X509_get_notBefore(Blob));
+			auto NotAfter = ASN1_GetTime(X509_get_notAfter(Blob));
+
+			Certificate Output;
+			Output.Version = X509_get_version(Blob);
+			Output.Signature = X509_get_signature_type(Blob);
+			Output.NotBeforeDate = NotBefore.first;
+			Output.NotBeforeTime = NotBefore.second;
+			Output.NotAfterDate = NotAfter.first;
+			Output.NotAfterTime = NotAfter.second;
+			Output.Blob.Pointer = Blob;
+
+			int Extensions = X509_get_ext_count(Blob);
+			Output.Extensions.reserve((size_t)Extensions);
+
+			for (int i = 0; i < Extensions; i++)
+			{
+				Core::String Name, Value;
+				X509_EXTENSION* Extension = X509_get_ext(Blob, i);
+				ASN1_OBJECT* Object = X509_EXTENSION_get_object(Extension);
+
+				BIO* ExtensionBio = BIO_new(BIO_s_mem());
+				if (ExtensionBio != nullptr)
+				{
+					BUF_MEM* ExtensionMemory = nullptr;
+					i2a_ASN1_OBJECT(ExtensionBio, Object);
+					if (BIO_get_mem_ptr(ExtensionBio, &ExtensionMemory) != 0 && ExtensionMemory->data != nullptr && ExtensionMemory->length > 0)
+						Name = Core::String(ExtensionMemory->data, (size_t)ExtensionMemory->length);
+					BIO_free(ExtensionBio);
+				}
+
+				ExtensionBio = BIO_new(BIO_s_mem());
+				if (ExtensionBio != nullptr)
+				{
+					BUF_MEM* ExtensionMemory = nullptr;
+					X509V3_EXT_print(ExtensionBio, Extension, 0, 0);
+					if (BIO_get_mem_ptr(ExtensionBio, &ExtensionMemory) != 0 && ExtensionMemory->data != nullptr && ExtensionMemory->length > 0)
+						Value = Core::String(ExtensionMemory->data, (size_t)ExtensionMemory->length);
+					BIO_free(ExtensionBio);
+				}
+
+				Output.Extensions[Name] = std::move(Value);
+			}
+
+			char SubjectBuffer[Core::CHUNK_SIZE];
+			X509_NAME_oneline(Subject, SubjectBuffer, (int)sizeof(SubjectBuffer));
+			Output.SubjectName = SubjectBuffer;
+
+			char IssuerBuffer[Core::CHUNK_SIZE], SerialBuffer[Core::CHUNK_SIZE];
+			X509_NAME_oneline(Issuer, IssuerBuffer, (int)sizeof(IssuerBuffer));
+			Output.IssuerName = IssuerBuffer;
+
+			unsigned char Buffer[256];
+			int Length = i2d_ASN1_INTEGER(Serial, nullptr);
+			if (Length > 0 && (unsigned)Length < (unsigned)sizeof(Buffer))
+			{
+				unsigned char* Pointer = Buffer;
+				if (!Compute::Codec::HexToString(Buffer, (uint64_t)i2d_ASN1_INTEGER(Serial, &Pointer), SerialBuffer, sizeof(SerialBuffer)))
+					*SerialBuffer = '\0';
+			}
+			else
+				*SerialBuffer = '\0';
+			Output.SerialNumber = SerialBuffer;
+
+			const EVP_MD* Digest = EVP_get_digestbyname("sha256");
+			unsigned int BufferLength = sizeof(Buffer) - 1;
+			X509_digest(Blob, Digest, Buffer, &BufferLength);
+			Output.Fingerprint = Compute::Codec::HexEncode(Core::String((const char*)Buffer, BufferLength));
+
+			X509_pubkey_digest(Blob, Digest, Buffer, &BufferLength);
+			Output.PublicKey = Compute::Codec::HexEncode(Core::String((const char*)Buffer, BufferLength));
+
+			return Output;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
 		int Utils::Poll(pollfd* Fd, int FdCount, int Timeout) noexcept
 		{
 			VI_ASSERT(Fd != nullptr, "poll should be set");
@@ -688,13 +888,17 @@ namespace Mavi
 					case SSL_ERROR_WANT_RETRY_VERIFY:
 						return std::make_error_condition(std::errc::operation_would_block);
 					case SSL_ERROR_SSL:
+						Utils::DisplayTransportLog();
 						return std::make_error_condition(std::errc::protocol_error);
 					case SSL_ERROR_ZERO_RETURN:
+						Utils::DisplayTransportLog();
 						return std::make_error_condition(std::errc::bad_message);
 					case SSL_ERROR_SYSCALL:
+						Utils::DisplayTransportLog();
 						return std::make_error_condition(std::errc::io_error);
 					case SSL_ERROR_NONE:
 					default:
+						Utils::DisplayTransportLog();
 						return std::make_error_condition(std::errc());
 				}
 			}
@@ -741,6 +945,208 @@ namespace Mavi
 		int64_t Utils::Clock() noexcept
 		{
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		}
+		void Utils::DisplayTransportLog() noexcept
+		{
+			Compute::Crypto::DisplayCryptoLog();
+		}
+
+		TransportLayer::TransportLayer() noexcept : IsInstalled(false)
+		{
+		}
+		TransportLayer::~TransportLayer() noexcept
+		{
+#ifdef VI_OPENSSL
+			for (auto& Context : Servers)
+				SSL_CTX_free(Context);
+			Servers.clear();
+
+			for (auto& Context : Clients)
+				SSL_CTX_free(Context);
+			Clients.clear();
+#endif
+		}
+		Core::ExpectsIO<ssl_ctx_st*> TransportLayer::CreateServerContext(size_t VerifyDepth, SecureLayerOptions Options, const Core::String& CiphersList) noexcept
+		{
+#ifdef VI_OPENSSL
+			Core::UMutex<std::mutex> Unique(Exclusive);
+			SSL_CTX* Context; bool IsReused = false;
+			if (Servers.empty())
+			{
+				Context = SSL_CTX_new(TLS_server_method());
+				if (!Context)
+				{
+					Utils::DisplayTransportLog();
+					return std::make_error_condition(std::errc::protocol_not_supported);
+				}
+				VI_DEBUG("[net] OK create client 0x%" PRIuPTR " TLS context", Context);
+			}
+			else
+			{
+				Context = *Servers.begin();
+				Servers.erase(Servers.begin());
+				IsReused = !VerifyDepth || SSL_CTX_get_verify_depth(Context) > 0;
+				Unique.Negate();
+				VI_DEBUG("[net] pop client 0x%" PRIuPTR " TLS context from cache", Context);
+			}
+
+
+			auto Status = InitializeContext(Context, IsReused);
+			if (!Status)
+			{
+				SSL_CTX_free(Context);
+				return Status.Error();
+			}
+
+			long Flags = SSL_OP_ALL;
+			if ((size_t)Options & (size_t)SecureLayerOptions::NoSSL_V2)
+				Flags |= SSL_OP_NO_SSLv2;
+			if ((size_t)Options & (size_t)SecureLayerOptions::NoSSL_V3)
+				Flags |= SSL_OP_NO_SSLv3;
+			if ((size_t)Options & (size_t)SecureLayerOptions::NoTLS_V1)
+				Flags |= SSL_OP_NO_TLSv1;
+			if ((size_t)Options & (size_t)SecureLayerOptions::NoTLS_V1_1)
+				Flags |= SSL_OP_NO_TLSv1_1;
+#ifdef SSL_OP_NO_TLSv1_2
+			if ((size_t)Options & (size_t)SecureLayerOptions::NoTLS_V1_2)
+				Flags |= SSL_OP_NO_TLSv1_2;
+#endif
+#ifdef SSL_OP_NO_TLSv1_2
+			if ((size_t)Options & (size_t)SecureLayerOptions::NoTLS_V1_3)
+				Flags |= SSL_OP_NO_TLSv1_3;
+#endif
+			SSL_CTX_set_options(Context, Flags);
+			SSL_CTX_set_verify_depth(Context, (int)VerifyDepth);
+			if (!CiphersList.empty() && SSL_CTX_set_cipher_list(Context, CiphersList.c_str()) != 1)
+			{
+				SSL_CTX_free(Context);
+				Utils::DisplayTransportLog();
+				return std::make_error_condition(std::errc::protocol_not_supported);
+			}
+
+			VI_DEBUG("[net] OK create server 0x%" PRIuPTR " TLS context", Context);
+			return Context;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		Core::ExpectsIO<ssl_ctx_st*> TransportLayer::CreateClientContext(size_t VerifyDepth) noexcept
+		{
+#ifdef VI_OPENSSL
+			Core::UMutex<std::mutex> Unique(Exclusive);
+			SSL_CTX* Context; bool IsReused = false;
+			if (Clients.empty())
+			{
+				Context = SSL_CTX_new(TLS_client_method());
+				if (!Context)
+				{
+					Utils::DisplayTransportLog();
+					return std::make_error_condition(std::errc::protocol_not_supported);
+				}
+				VI_DEBUG("[net] OK create client 0x%" PRIuPTR " TLS context", Context);
+			}
+			else
+			{
+				Context = *Clients.begin();
+				Clients.erase(Clients.begin());
+				IsReused = !VerifyDepth || SSL_CTX_get_verify_depth(Context) > 0;
+				Unique.Negate();
+				VI_DEBUG("[net] pop client 0x%" PRIuPTR " TLS context from cache", Context);
+			}
+
+			auto Status = InitializeContext(Context, !IsReused);
+			if (!Status)
+			{
+				SSL_CTX_free(Context);
+				return Status.Error();
+			}
+
+			SSL_CTX_set_verify_depth(Context, (int)VerifyDepth);
+			return Context;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		void TransportLayer::FreeServerContext(ssl_ctx_st* Context) noexcept
+		{
+			if (!Context)
+				return;
+
+			Core::UMutex<std::mutex> Unique(Exclusive);
+			Servers.insert(Context);
+		}
+		void TransportLayer::FreeClientContext(ssl_ctx_st* Context) noexcept
+		{
+			if (!Context)
+				return;
+
+			Core::UMutex<std::mutex> Unique(Exclusive);
+			Clients.insert(Context);
+		}
+		Core::ExpectsIO<void> TransportLayer::InitializeContext(ssl_ctx_st* Context, bool LoadCertificates) noexcept
+		{
+#ifdef VI_OPENSSL
+			SSL_CTX_set_options(Context, SSL_OP_SINGLE_DH_USE);
+			SSL_CTX_set_options(Context, SSL_OP_CIPHER_SERVER_PREFERENCE);
+			SSL_CTX_set_mode(Context, SSL_MODE_ENABLE_PARTIAL_WRITE);
+			SSL_CTX_set_mode(Context, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+#ifdef SSL_CTX_set_ecdh_auto
+			SSL_CTX_set_ecdh_auto(Context, 1);
+#endif
+			if (LoadCertificates)
+			{
+				auto SessionId = Compute::Crypto::RandomBytes(12);
+				if (SessionId)
+				{
+					auto ContextId = Compute::Codec::HexEncode(*SessionId);
+					SSL_CTX_set_session_id_context(Context, (const unsigned char*)ContextId.c_str(), (unsigned int)ContextId.size());
+				}
+	#ifdef VI_MICROSOFT
+				HCERTSTORE Store = CertOpenSystemStore(0, "ROOT");
+				if (!Store)
+				{
+					Utils::DisplayTransportLog();
+					return std::make_error_condition(std::errc::permission_denied);
+				}
+
+				X509_STORE* Storage = SSL_CTX_get_cert_store(Context);
+				if (!Storage)
+				{
+					CertCloseStore(Store, 0);
+					Utils::DisplayTransportLog();
+					return std::make_error_condition(std::errc::bad_file_descriptor);
+				}
+
+				PCCERT_CONTEXT Next = nullptr; uint32_t Count = 0;
+				while (Next = CertEnumCertificatesInStore(Store, Next))
+				{
+					X509* Certificate = d2i_X509(nullptr, (const unsigned char**)&Next->pbCertEncoded, Next->cbCertEncoded);
+					if (!Certificate)
+						continue;
+
+					if (X509_STORE_add_cert(Storage, Certificate) && !IsInstalled)
+						VI_TRACE("[net] OK load root level certificate: %s", Compute::Codec::HexEncode((const char*)Next->pCertInfo->SerialNumber.pbData, (size_t)Next->pCertInfo->SerialNumber.cbData).c_str());
+					X509_free(Certificate);
+					++Count;
+				}
+
+				VI_DEBUG("[net] OK load %i root level certificates from ROOT registry", Count);
+				CertCloseStore(Store, 0);
+				Utils::DisplayTransportLog();
+	#else
+				if (!SSL_CTX_set_default_verify_paths(Context))
+				{
+					Utils::DisplayTransportLog();
+					return std::make_error_condition(std::errc::no_such_file_or_directory);
+				}
+	#endif
+			}
+
+			IsInstalled = true;
+			return Core::Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
 		}
 
 		DNS::DNS() noexcept
@@ -1333,7 +1739,259 @@ namespace Mavi
 			return Address->Hostname + ':' + Core::ToString(Address->Port) + (Address->Secure ? "@secure" : "@default");
 		}
 
-		SocketAddress::SocketAddress(addrinfo* NewNames, addrinfo* NewUsable) : Names(NewNames), Usable(NewUsable)
+		CertificateBuilder::CertificateBuilder() noexcept
+		{
+#ifdef VI_OPENSSL
+			Certificate = X509_new();
+			PrivateKey = EVP_PKEY_new();
+#endif
+		}
+		CertificateBuilder::~CertificateBuilder() noexcept
+		{
+#ifdef VI_OPENSSL
+			if (Certificate != nullptr)
+				X509_free((X509*)Certificate);
+			if (PrivateKey != nullptr)
+				EVP_PKEY_free((EVP_PKEY*)PrivateKey);
+#endif
+		}
+		Core::ExpectsIO<void> CertificateBuilder::SetSerialNumber(uint32_t Bits)
+		{
+#ifdef VI_OPENSSL
+			VI_ASSERT(Bits > 0, "bits should be greater than zero");
+			ASN1_STRING* SerialNumber = X509_get_serialNumber((X509*)Certificate);
+			if (!SerialNumber)
+				return std::make_error_condition(std::errc::bad_message);
+
+			auto Data = Compute::Crypto::RandomBytes(Bits / 8);
+			if (!Data)
+				return std::make_error_condition(std::errc::bad_message);
+
+			if (!ASN1_STRING_set(SerialNumber, Data->data(), static_cast<int>(Data->size())))
+				return std::make_error_condition(std::errc::invalid_argument);
+
+			return Core::Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		Core::ExpectsIO<void> CertificateBuilder::SetVersion(uint8_t Version)
+		{
+#ifdef VI_OPENSSL
+			if (!X509_set_version((X509*)Certificate, Version))
+				return std::make_error_condition(std::errc::invalid_argument);
+
+			return Core::Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		Core::ExpectsIO<void> CertificateBuilder::SetNotAfter(int64_t OffsetSeconds)
+		{
+#ifdef VI_OPENSSL
+			if (!X509_gmtime_adj(X509_get_notAfter((X509*)Certificate), (long)OffsetSeconds))
+				return std::make_error_condition(std::errc::invalid_argument);
+
+			return Core::Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		Core::ExpectsIO<void> CertificateBuilder::SetNotBefore(int64_t OffsetSeconds)
+		{
+#ifdef VI_OPENSSL
+			if (!X509_gmtime_adj(X509_get_notBefore((X509*)Certificate), (long)OffsetSeconds))
+				return std::make_error_condition(std::errc::invalid_argument);
+
+			return Core::Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		Core::ExpectsIO<void> CertificateBuilder::SetPublicKey(uint32_t Bits)
+		{
+#ifdef VI_OPENSSL
+			VI_ASSERT(Bits > 0, "bits should be greater than zero");
+			EVP_PKEY* NewPrivateKey = EVP_RSA_gen(Bits);
+			if (!NewPrivateKey)
+				return std::make_error_condition(std::errc::function_not_supported);
+
+			EVP_PKEY_free((EVP_PKEY*)PrivateKey);
+			PrivateKey = NewPrivateKey;
+
+			if (!X509_set_pubkey((X509*)Certificate, (EVP_PKEY*)PrivateKey))
+				return std::make_error_condition(std::errc::bad_message);
+
+			return Core::Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		Core::ExpectsIO<void> CertificateBuilder::SetIssuer(const X509Blob& Issuer)
+		{
+#ifdef VI_OPENSSL
+			if (!Issuer.Pointer)
+				return std::make_error_condition(std::errc::invalid_argument);
+
+			X509_NAME* SubjectName = X509_get_subject_name((X509*)Issuer.Pointer);
+			if (!SubjectName)
+				return std::make_error_condition(std::errc::invalid_argument);
+	
+			if (!X509_set_issuer_name((X509*)Certificate, SubjectName))
+				return std::make_error_condition(std::errc::invalid_argument);
+
+			return Core::Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		Core::ExpectsIO<void> CertificateBuilder::AddCustomExtension(bool Critical, const Core::String& Key, const Core::String& Value, const Core::String& Description)
+		{
+#ifdef VI_OPENSSL
+			VI_ASSERT(!Key.empty(), "key should not be empty");
+			const int NID = OBJ_create(Key.c_str(), Value.c_str(), Description.empty() ? nullptr : Description.c_str());
+			ASN1_OCTET_STRING* Data = ASN1_OCTET_STRING_new();
+			if (!Data)
+				return std::make_error_condition(std::errc::not_enough_memory);
+
+			if (!ASN1_OCTET_STRING_set(Data, reinterpret_cast<unsigned const char*>(Value.data()), (int)Value.size()))
+			{
+				ASN1_OCTET_STRING_free(Data);
+				return std::make_error_condition(std::errc::invalid_argument);
+			}
+
+			X509_EXTENSION* Extension = X509_EXTENSION_create_by_NID(nullptr, NID, Critical, Data);
+			if (!Extension)
+			{
+				ASN1_OCTET_STRING_free(Data);
+				return std::make_error_condition(std::errc::invalid_argument);
+			}
+
+			bool Success = X509_add_ext((X509*)Certificate, Extension, -1) == 1;
+			X509_EXTENSION_free(Extension);
+			ASN1_OCTET_STRING_free(Data);
+
+			if (!Success)
+				return std::make_error_condition(std::errc::invalid_argument);
+
+			return Core::Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		Core::ExpectsIO<void> CertificateBuilder::AddStandardExtension(const X509Blob& Issuer, int NID, const Core::String& Value)
+		{
+#ifdef VI_OPENSSL
+			X509V3_CTX Context;
+			X509V3_set_ctx_nodb(&Context);
+			X509V3_set_ctx(&Context, (X509*)(Issuer.Pointer ? Issuer.Pointer : Certificate), (X509*)Certificate, nullptr, nullptr, 0);
+
+			X509_EXTENSION* Extension = X509V3_EXT_conf_nid(nullptr, &Context, NID, Value.c_str());
+			if (!Extension)
+				return std::make_error_condition(std::errc::invalid_argument);
+
+			bool Success = X509_add_ext((X509*)Certificate, Extension, -1) == 1;
+			X509_EXTENSION_free(Extension);
+			if (!Success)
+				return std::make_error_condition(std::errc::invalid_argument);
+
+			return Core::Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		Core::ExpectsIO<void> CertificateBuilder::AddStandardExtension(const X509Blob& Issuer, const Core::String& NameOfNID, const Core::String& Value)
+		{
+#ifdef VI_OPENSSL
+			VI_ASSERT(!NameOfNID.empty(), "name of nid should not be empty");
+			int NID = OBJ_txt2nid(NameOfNID.c_str());
+			if (NID == NID_undef)
+				return std::make_error_condition(std::errc::invalid_argument);
+
+			return AddStandardExtension(Issuer, NID, Value);
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		Core::ExpectsIO<void> CertificateBuilder::AddSubjectInfo(const Core::String& Key, const Core::String& Value)
+		{
+#ifdef VI_OPENSSL
+			VI_ASSERT(!Key.empty(), "key should not be empty");
+			X509_NAME* SubjectName = X509_get_subject_name((X509*)Certificate);
+			if (!SubjectName)
+				return std::make_error_condition(std::errc::bad_message);
+
+			if (!X509_NAME_add_entry_by_txt(SubjectName, Key.c_str(), MBSTRING_ASC, (unsigned char*)Value.c_str(), (int)Value.size(), -1, 0))
+				return std::make_error_condition(std::errc::invalid_argument);
+
+			return Core::Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		Core::ExpectsIO<void> CertificateBuilder::AddIssuerInfo(const Core::String& Key, const Core::String& Value)
+		{
+#ifdef VI_OPENSSL
+			VI_ASSERT(!Key.empty(), "key should not be empty");
+			X509_NAME* IssuerName = X509_get_issuer_name((X509*)Certificate);
+			if (!IssuerName)
+				return std::make_error_condition(std::errc::invalid_argument);
+
+			if (!X509_NAME_add_entry_by_txt(IssuerName, Key.c_str(), MBSTRING_ASC, (unsigned char*)Value.c_str(), (int)Value.size(), -1, 0))
+				return std::make_error_condition(std::errc::invalid_argument);
+
+			return Core::Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		Core::ExpectsIO<void> CertificateBuilder::Sign(Compute::Digest Algorithm)
+		{
+#ifdef VI_OPENSSL
+			VI_ASSERT(Algorithm != nullptr, "algorithm should be set");
+			if (X509_sign((X509*)Certificate, (EVP_PKEY*)PrivateKey, (EVP_MD*)Algorithm) != 0)
+				return std::make_error_condition(std::errc::invalid_argument);
+
+			return Core::Optional::OK;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		Core::ExpectsIO<CertificateBlob> CertificateBuilder::Build()
+		{
+#ifdef VI_OPENSSL
+			CertificateBlob Blob;
+			BIO* Bio = BIO_new(BIO_s_mem());
+			PEM_write_bio_X509(Bio, (X509*)Certificate);
+
+			BUF_MEM* BioMemory = nullptr;
+			if (BIO_get_mem_ptr(Bio, &BioMemory) != 0 && BioMemory->data != nullptr && BioMemory->length > 0)
+				Blob.Certificate = Core::String(BioMemory->data, (size_t)BioMemory->length);
+
+			BIO_free(Bio);
+			Bio = BIO_new(BIO_s_mem());
+			PEM_write_bio_PrivateKey(Bio, (EVP_PKEY*)PrivateKey, nullptr, nullptr, 0, nullptr, nullptr);
+
+			BioMemory = nullptr;
+			if (BIO_get_mem_ptr(Bio, &BioMemory) != 0 && BioMemory->data != nullptr && BioMemory->length > 0)
+				Blob.PrivateKey = Core::String(BioMemory->data, (size_t)BioMemory->length);
+
+			BIO_free(Bio);
+			return Blob;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
+		void* CertificateBuilder::GetCertificateX509()
+		{
+			return Certificate;
+		}
+		void* CertificateBuilder::GetPrivateKeyEVP_PKEY()
+		{
+			return PrivateKey;
+		}
+
+		SocketAddress::SocketAddress(addrinfo* NewNames, addrinfo* NewUsable) noexcept : Names(NewNames), Usable(NewUsable)
 		{
 		}
 		SocketAddress::~SocketAddress() noexcept
@@ -1536,9 +2194,17 @@ namespace Mavi
 #ifdef VI_OPENSSL
 			if (Device != nullptr)
 			{
+				static bool IsUnsupported = false;
+				if (IsUnsupported)
+					return std::make_error_condition(std::errc::not_supported);
+
 				ossl_ssize_t Value = SSL_sendfile(Device, VI_FILENO(Stream), Seek, Length, 0);
 				if (Value < 0)
-					return Utils::GetLastError(Device, (int)Value);
+				{
+					auto Condition = Utils::GetLastError(Device, (int)Value);
+					IsUnsupported = (Condition == std::errc::protocol_error);
+					return Condition;
+				}
 
 				size_t Written = (size_t)Value;
 				Outcome += Written;
@@ -1615,7 +2281,10 @@ namespace Mavi
 			{
 				int Value = SSL_write(Device, Buffer, (int)Size);
 				if (Value <= 0)
+				{
+					ERR_print_errors_fp(stderr);
 					return Utils::GetLastError(Device, Value);
+				}
 
 				size_t Written = (size_t)Value;
 				Outcome += Written;
@@ -1958,6 +2627,9 @@ namespace Mavi
 			Device = SSL_new(Context);
 			if (!Device)
 				return std::make_error_condition(std::errc::broken_pipe);
+
+			SSL_set_mode(Device, SSL_MODE_ENABLE_PARTIAL_WRITE);
+			SSL_set_mode(Device, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 #ifndef OPENSSL_NO_TLSEXT
 			if (Hostname != nullptr)
 				SSL_set_tlsext_host_name(Device, Hostname);
@@ -2163,6 +2835,20 @@ namespace Mavi
 
 			return std::make_error_condition(std::errc::bad_address);
 		}
+		Core::ExpectsIO<Certificate> Socket::GetCertificate()
+		{
+			if (!Device)
+				return std::make_error_condition(std::errc::not_supported);
+#ifdef VI_OPENSSL
+			X509* Blob = SSL_get_peer_certificate(Device);
+			if (!Blob)
+				return std::make_error_condition(std::errc::bad_file_descriptor);
+
+			return Utils::GetCertificateFromX509(Blob);
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
+		}
 		socket_t Socket::GetFd()
 		{
 			return Fd;
@@ -2187,6 +2873,10 @@ namespace Mavi
 		{
 			return Multiplexer::Get()->IsAwaitingEvents(this);
 		}
+		bool Socket::IsSecure()
+		{
+			return Device != nullptr;
+		}
 
 		SocketListener::SocketListener(const Core::String& NewName, const RemoteHost& NewHost, SocketAddress* NewAddress) : Name(NewName), Hostname(NewHost), Source(NewAddress), Base(new Socket())
 		{
@@ -2199,14 +2889,10 @@ namespace Mavi
 		SocketRouter::~SocketRouter() noexcept
 		{
 #ifdef VI_OPENSSL
-			for (auto It = Certificates.begin(); It != Certificates.end(); It++)
-			{
-				if (!It->second.Context)
-					continue;
-
-				SSL_CTX_free(It->second.Context);
-				It->second.Context = nullptr;
-			}
+			auto* Transporter = TransportLayer::Get();
+			for (auto& Item : Certificates)
+				Transporter->FreeServerContext(Item.second.Context);
+			Certificates.clear();
 #endif
 		}
 		RemoteHost& SocketRouter::Listen(const Core::String& Hostname, int Port, bool Secure)
@@ -2248,60 +2934,6 @@ namespace Mavi
 
 			Info.Message.assign(Buffer, Count);
 			return Finish(StatusCode);
-		}
-		bool SocketConnection::EncryptionInfo(Certificate* Output)
-		{
-#ifdef VI_OPENSSL
-			VI_ASSERT(Output != nullptr, "certificate should be set");
-			VI_MEASURE(Core::Timings::Networking);
-
-			X509* Certificate = SSL_get_peer_certificate(Stream->GetDevice());
-			if (!Certificate)
-				return false;
-
-			X509_NAME* Subject = X509_get_subject_name(Certificate);
-			X509_NAME* Issuer = X509_get_issuer_name(Certificate);
-			ASN1_INTEGER* Serial = X509_get_serialNumber(Certificate);
-
-			char SubjectBuffer[Core::CHUNK_SIZE];
-			X509_NAME_oneline(Subject, SubjectBuffer, (int)sizeof(SubjectBuffer));
-
-			char IssuerBuffer[Core::CHUNK_SIZE], SerialBuffer[Core::CHUNK_SIZE];
-			X509_NAME_oneline(Issuer, IssuerBuffer, (int)sizeof(IssuerBuffer));
-
-			unsigned char Buffer[256];
-			int Length = i2d_ASN1_INTEGER(Serial, nullptr);
-
-			if (Length > 0 && (unsigned)Length < (unsigned)sizeof(Buffer))
-			{
-				unsigned char* Pointer = Buffer;
-				int Size = i2d_ASN1_INTEGER(Serial, &Pointer);
-
-				if (!Compute::Codec::HexToString(Buffer, (uint64_t)Size, SerialBuffer, sizeof(SerialBuffer)))
-					*SerialBuffer = '\0';
-			}
-			else
-				*SerialBuffer = '\0';
-#if OPENSSL_VERSION_MAJOR < 3
-			unsigned int Size = 0;
-			const EVP_MD* Digest = EVP_get_digestbyname("sha1");
-			ASN1_digest((int (*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
-
-			char FingerBuffer[Core::CHUNK_SIZE];
-			if (!Compute::Codec::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
-				*FingerBuffer = '\0';
-
-			Output->Finger = FingerBuffer;
-#endif
-			Output->Subject = SubjectBuffer;
-			Output->Issuer = IssuerBuffer;
-			Output->Serial = SerialBuffer;
-
-			X509_free(Certificate);
-			return true;
-#else
-			return false;
-#endif
 		}
 		bool SocketConnection::Break()
 		{
@@ -2423,90 +3055,73 @@ namespace Mavi
 #ifdef VI_OPENSSL
 			for (auto&& It : Router->Certificates)
 			{
-				long Protocol = SSL_OP_ALL;
-				switch (It.second.Protocol)
+				auto Context = TransportLayer::Get()->CreateServerContext(It.second.VerifyPeers, It.second.Options, It.second.Ciphers);
+				if (!Context)
 				{
-					case Secure::SSL_V2:
-						Protocol = SSL_OP_ALL | SSL_OP_NO_SSLv2;
-						break;
-					case Secure::SSL_V3:
-						Protocol = SSL_OP_ALL | SSL_OP_NO_SSLv3;
-						break;
-					case Secure::TLS_V1:
-						Protocol = SSL_OP_ALL | SSL_OP_NO_TLSv1;
-						break;
-					case Secure::TLS_V1_1:
-						Protocol = SSL_OP_ALL | SSL_OP_NO_TLSv1_1;
-						break;
-					case Secure::Any:
-					default:
-						Protocol = SSL_OP_ALL;
-						break;
+					VI_ERR("[net] cannot create TLS context for entry: %s", It.first.c_str());
+					return Context.Error();
 				}
 
-				if (!(It.second.Context = SSL_CTX_new(SSLv23_server_method())))
+				It.second.Context = *Context;
+				if (It.second.VerifyPeers > 0)
+					SSL_CTX_set_verify(It.second.Context, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT | SSL_VERIFY_CLIENT_ONCE, nullptr);
+				else
+					SSL_CTX_set_verify(It.second.Context, SSL_VERIFY_NONE, nullptr);
+
+				if (It.second.Blob.Certificate.empty() || It.second.Blob.PrivateKey.empty())
 				{
-					VI_ERR("[net] cannot create server's SSL context");
-					return std::make_error_condition(std::errc::protocol_not_supported);
+					VI_ERR("[net] provide certificate file and private key file for entry: %s", It.first.c_str());
+					return std::make_error_condition(std::errc::invalid_argument);
 				}
 
-				SSL_CTX_clear_options(It.second.Context, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1);
-				SSL_CTX_set_options(It.second.Context, Protocol);
-				SSL_CTX_set_options(It.second.Context, SSL_OP_SINGLE_DH_USE);
-				SSL_CTX_set_options(It.second.Context, SSL_OP_CIPHER_SERVER_PREFERENCE);
-#ifdef SSL_CTX_set_ecdh_auto
-				SSL_CTX_set_ecdh_auto(It.second.Context, 1);
-#endif
-				auto ContextId = Compute::Crypto::Hash(Compute::Digests::MD5(), Core::ToString(time(nullptr)));
-				if (ContextId)
-					SSL_CTX_set_session_id_context(It.second.Context, (const unsigned char*)ContextId->c_str(), (unsigned int)ContextId->size());
-
-				if (!It.second.Chain.empty() && !It.second.Key.empty())
+				BIO* CertificateBio = BIO_new_mem_buf((void*)It.second.Blob.Certificate.c_str(), (int)It.second.Blob.Certificate.size());
+				if (!CertificateBio)
 				{
-					if (SSL_CTX_load_verify_locations(It.second.Context, It.second.Chain.c_str(), It.second.Key.c_str()) != 1)
-					{
-						VI_ERR("[net] cannot load verification locations: %s", ERR_error_string(ERR_get_error(), nullptr));
-						return std::make_error_condition(std::errc::no_such_file_or_directory);
-					}
-
-					if (SSL_CTX_set_default_verify_paths(It.second.Context) != 1)
-					{
-						VI_ERR("[net] cannot set default verification paths: %s", ERR_error_string(ERR_get_error(), nullptr));
-						return std::make_error_condition(std::errc::no_such_file_or_directory);
-					}
-
-					if (SSL_CTX_use_certificate_file(It.second.Context, It.second.Chain.c_str(), SSL_FILETYPE_PEM) <= 0)
-					{
-						VI_ERR("[net] cannot use this certificate file: %s", ERR_error_string(ERR_get_error(), nullptr));
-						return std::make_error_condition(std::errc::no_such_file_or_directory);
-					}
-
-					if (SSL_CTX_use_PrivateKey_file(It.second.Context, It.second.Key.c_str(), SSL_FILETYPE_PEM) <= 0)
-					{
-						VI_ERR("[net] cannot use this private key: %s", ERR_error_string(ERR_get_error(), nullptr));
-						return std::make_error_condition(std::errc::bad_message);
-					}
-
-					if (!SSL_CTX_check_private_key(It.second.Context))
-					{
-						VI_ERR("[net] cannot verify this private key: %s", ERR_error_string(ERR_get_error(), nullptr));
-						return std::make_error_condition(std::errc::bad_message);
-					}
-
-					if (It.second.VerifyPeers)
-					{
-						SSL_CTX_set_verify(It.second.Context, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
-						SSL_CTX_set_verify_depth(It.second.Context, (int)It.second.Depth);
-					}
+					VI_ERR("[net] cannot allocate certificate bio: %s", ERR_error_string(ERR_get_error(), nullptr));
+					return std::make_error_condition(std::errc::not_enough_memory);
 				}
 
-				if (!It.second.Ciphers.empty())
+				X509* Certificate = PEM_read_bio_X509(CertificateBio, nullptr, 0, nullptr);
+				BIO_free(CertificateBio);
+
+				if (!Certificate)
 				{
-					if (SSL_CTX_set_cipher_list(It.second.Context, It.second.Ciphers.c_str()) != 1)
-					{
-						VI_ERR("[net] cannot set ciphers list: %s", ERR_error_string(ERR_get_error(), nullptr));
-						return std::make_error_condition(std::errc::protocol_not_supported);
-					}
+					VI_ERR("[net] cannot parse certificate bio: %s", ERR_error_string(ERR_get_error(), nullptr));
+					return std::make_error_condition(std::errc::invalid_argument);
+				}
+
+				if (SSL_CTX_use_certificate(It.second.Context, Certificate) != 1)
+				{
+					VI_ERR("[net] cannot use certificate: %s", ERR_error_string(ERR_get_error(), nullptr));
+					return std::make_error_condition(std::errc::bad_message);
+				}
+
+				BIO* PrivateKeyBio = BIO_new_mem_buf((void*)It.second.Blob.PrivateKey.c_str(), (int)It.second.Blob.PrivateKey.size());
+				if (!PrivateKeyBio)
+				{
+					VI_ERR("[net] cannot allocate private-key bio: %s", ERR_error_string(ERR_get_error(), nullptr));
+					return std::make_error_condition(std::errc::not_enough_memory);
+				}
+
+				EVP_PKEY* PrivateKey = PEM_read_bio_PrivateKey(PrivateKeyBio, nullptr, 0, nullptr);
+				BIO_free(PrivateKeyBio);
+
+				if (!PrivateKey)
+				{
+					VI_ERR("[net] cannot parse private-key bio: %s", ERR_error_string(ERR_get_error(), nullptr));
+					return std::make_error_condition(std::errc::invalid_argument);
+				}
+
+				if (SSL_CTX_use_PrivateKey(It.second.Context, PrivateKey) != 1)
+				{
+					VI_ERR("[net] cannot use private-key: %s", ERR_error_string(ERR_get_error(), nullptr));
+					return std::make_error_condition(std::errc::bad_message);
+				}
+
+				if (!SSL_CTX_check_private_key(It.second.Context))
+				{
+					VI_ERR("[net] cannot verify this private key: %s", ERR_error_string(ERR_get_error(), nullptr));
+					return std::make_error_condition(std::errc::bad_message);
 				}
 			}
 #endif
@@ -2696,7 +3311,7 @@ namespace Mavi
 					Multiplexer::Get()->WhenReadable(Base->Stream, [this, Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
-							OnRequestOpen(Base);
+							TryEncryptThenBegin(Base);
 						else
 							Refuse(Base);
 					});
@@ -2707,14 +3322,17 @@ namespace Mavi
 					Multiplexer::Get()->WhenWriteable(Base->Stream, [this, Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
-							OnRequestOpen(Base);
+							TryEncryptThenBegin(Base);
 						else
 							Refuse(Base);
 					});
 					return std::make_error_condition(std::errc::operation_would_block);
 				}
 				default:
+				{
+					Utils::DisplayTransportLog();
 					return Refuse(Base);
+				}
 			}
 #else
 			return std::make_error_condition(std::errc::not_supported);
@@ -2745,13 +3363,16 @@ namespace Mavi
 			Base->Stream->Income = 0;
 			Base->Stream->Outcome = 0;
 
-			if (Base->Info.Close || Base->Info.KeepAlive <= -1 || !Base->Stream->IsValid())
+			if (Base->Info.Close || Base->Info.KeepAlive <= -1)
 			{
 				Base->Info.KeepAlive = -2;
 				return Base->Stream->CloseAsync(true, [this, Base](const Core::Option<std::error_condition>&) { Push(Base); });
 			}
+			else if (Base->Stream->IsValid())
+				OnRequestOpen(Base);
+			else
+				Push(Base);
 
-			OnRequestOpen(Base);
 			return Core::Optional::OK;
 		}
 		Core::ExpectsIO<void> SocketServer::OnConfigure(SocketRouter*)
@@ -2870,16 +3491,13 @@ namespace Mavi
 		{
 			DestroyOrSaveStream(true);
 #ifdef VI_OPENSSL
-			if (Context != nullptr)
-			{
-				SSL_CTX_free(Context);
-				Context = nullptr;
-			}
+			TransportLayer::Get()->FreeClientContext(Context);
+			Context = nullptr;
 #endif
 			if (Config.IsAsync)
 				Multiplexer::Get()->Deactivate();
 		}
-		Core::ExpectsPromiseIO<void> SocketClient::Connect(RemoteHost* Source, bool Async)
+		Core::ExpectsPromiseIO<void> SocketClient::Connect(RemoteHost* Source, bool Async, uint32_t VerifyPeers)
 		{
 			VI_ASSERT(Source != nullptr && !Source->Hostname.empty(), "address should be set");
 			if (!Async && Config.IsAsync)
@@ -2887,6 +3505,7 @@ namespace Mavi
 
 			Stage("uplink connect");
 			bool IsReused = CreateOrLoadStream(Source, Async);
+			Config.VerifyPeers = VerifyPeers;
 			Config.IsAsync = Async;
 			State.Hostname = *Source;
 
@@ -2978,6 +3597,11 @@ namespace Mavi
 				return Callback(std::make_error_condition(std::errc::bad_file_descriptor));
 			}
 
+			if (Config.VerifyPeers > 0)
+				SSL_set_verify(Stream->GetDevice(), SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
+			else
+				SSL_set_verify(Stream->GetDevice(), SSL_VERIFY_NONE, nullptr);
+
 			TryEncrypt(std::move(Callback));
 #else
 			Error("ssl is not supported for clients");
@@ -3024,6 +3648,7 @@ namespace Mavi
 				}
 				default:
 				{
+					Utils::DisplayTransportLog();
 					Error("%s", ERR_error_string(ERR_get_error(), nullptr));
 					return Callback(std::make_error_condition(std::errc::connection_aborted));
 				}
@@ -3066,10 +3691,23 @@ namespace Mavi
 				return DispatchHandshake(Future);
 
 			Stage("socket ssl handshake");
-			if (!Context && !(Context = SSL_CTX_new(SSLv23_client_method())))
+			if (!Context || (Config.VerifyPeers > 0 && SSL_CTX_get_verify_depth(Context) <= 0))
 			{
-				Error("cannot create ssl context");
-				return Future.Set(std::make_error_condition(std::errc::not_enough_memory));
+				auto* Transporter = TransportLayer::Get();
+				if (Context != nullptr)
+				{
+					Transporter->FreeClientContext(Context);
+					Context = nullptr;
+				}
+
+				auto NewContext = Transporter->CreateClientContext(Config.VerifyPeers);
+				if (!NewContext)
+				{
+					Error("cannot create ssl context");
+					return Future.Set(NewContext.Error());
+				}
+				else
+					Context = *NewContext;
 			}
 
 			if (!Config.IsAutoEncrypted)

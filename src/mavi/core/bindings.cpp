@@ -6724,6 +6724,12 @@ namespace Mavi
 				return Dictionary::Compose<Core::String>(Type.GetTypeId(), Base.Query);
 			}
 
+			Dictionary* CertificateGetExtensions(Network::Certificate& Base)
+			{
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_STRING ">@");
+				return Dictionary::Compose<Core::String>(Type.GetTypeId(), Base.Extensions);
+			}
+
 			int SocketAccept1(Network::Socket* Base, Network::Socket* Fd, Core::String& Address)
 			{
 				char IpAddress[64];
@@ -7145,9 +7151,9 @@ namespace Mavi
 				return !!Server->Unlisten(Timeout);
 			}
 
-			Core::Promise<int> SocketClientConnect(Network::SocketClient* Client, Network::RemoteHost* Host, bool Async)
+			Core::Promise<int> SocketClientConnect(Network::SocketClient* Client, Network::RemoteHost* Host, bool Async, uint32_t VerifyPeers)
 			{
-				return Client->Connect(Host, Async).Then<int>([](Core::ExpectsIO<void>&& Result) { return Result ? 0 : ToErrorCode(Result, "socket connect failed"); });
+				return Client->Connect(Host, Async, VerifyPeers).Then<int>([](Core::ExpectsIO<void>&& Result) { return Result ? 0 : ToErrorCode(Result, "socket connect failed"); });
 			}
 			Core::Promise<int> SocketClientDisconnect(Network::SocketClient* Client)
 			{
@@ -14562,12 +14568,14 @@ namespace Mavi
 				VI_TYPEREF(SocketConnection, "socket_connection");
 				VI_TYPEREF(SocketServer, "socket_server");
 
-				auto VSecure = VM->SetEnum("socket_secure");
-				VSecure->SetValue("unsecure", (int)Network::Secure::Any);
-				VSecure->SetValue("ssl_v2", (int)Network::Secure::SSL_V2);
-				VSecure->SetValue("ssl_v3", (int)Network::Secure::SSL_V3);
-				VSecure->SetValue("tls_v1", (int)Network::Secure::TLS_V1);
-				VSecure->SetValue("tls_v1_1", (int)Network::Secure::TLS_V1_1);
+				auto VSecureLayerOptions = VM->SetEnum("secure_layer_options");
+				VSecureLayerOptions->SetValue("all", (int)Network::SecureLayerOptions::All);
+				VSecureLayerOptions->SetValue("ssl_v2", (int)Network::SecureLayerOptions::NoSSL_V2);
+				VSecureLayerOptions->SetValue("ssl_v3", (int)Network::SecureLayerOptions::NoSSL_V3);
+				VSecureLayerOptions->SetValue("tls_v1", (int)Network::SecureLayerOptions::NoTLS_V1);
+				VSecureLayerOptions->SetValue("tls_v1_1", (int)Network::SecureLayerOptions::NoTLS_V1_1);
+				VSecureLayerOptions->SetValue("tls_v1_2", (int)Network::SecureLayerOptions::NoTLS_V1_1);
+				VSecureLayerOptions->SetValue("tls_v1_3", (int)Network::SecureLayerOptions::NoTLS_V1_1);
 
 				auto VServerState = VM->SetEnum("server_state");
 				VServerState->SetValue("working", (int)Network::ServerState::Working);
@@ -14619,20 +14627,31 @@ namespace Mavi
 				VLocation->SetMethodEx("dictionary@ get_query() const", &LocationGetQuery);
 
 				auto VCertificate = VM->SetStructTrivial<Network::Certificate>("certificate");
-				VCertificate->SetProperty<Network::Certificate>("string subject", &Network::Certificate::Subject);
-				VCertificate->SetProperty<Network::Certificate>("string issuer", &Network::Certificate::Issuer);
-				VCertificate->SetProperty<Network::Certificate>("string serial", &Network::Certificate::Serial);
-				VCertificate->SetProperty<Network::Certificate>("string finger", &Network::Certificate::Finger);
+				VCertificate->SetProperty<Network::Certificate>("string subject_name", &Network::Certificate::SubjectName);
+				VCertificate->SetProperty<Network::Certificate>("string issuer_name", &Network::Certificate::IssuerName);
+				VCertificate->SetProperty<Network::Certificate>("string serial_number", &Network::Certificate::SerialNumber);
+				VCertificate->SetProperty<Network::Certificate>("string fingerprint", &Network::Certificate::Fingerprint);
+				VCertificate->SetProperty<Network::Certificate>("string public_key", &Network::Certificate::PublicKey);
+				VCertificate->SetProperty<Network::Certificate>("string not_before_date", &Network::Certificate::NotBeforeDate);
+				VCertificate->SetProperty<Network::Certificate>("string not_after_date", &Network::Certificate::NotAfterDate);
+				VCertificate->SetProperty<Network::Certificate>("int64 not_before_time", &Network::Certificate::NotBeforeTime);
+				VCertificate->SetProperty<Network::Certificate>("int64 not_after_time", &Network::Certificate::NotAfterTime);
+				VCertificate->SetProperty<Network::Certificate>("int32 version", &Network::Certificate::Version);
+				VCertificate->SetProperty<Network::Certificate>("int32 signature", &Network::Certificate::Signature);
+				VCertificate->SetMethodEx("dictionary@ get_extensions() const", &CertificateGetExtensions);
 				VCertificate->SetConstructor<Network::Certificate>("void f()");
 
+				auto VCertificateBlob = VM->SetStructTrivial<Network::CertificateBlob>("certificate_blob");
+				VCertificateBlob->SetProperty<Network::CertificateBlob>("string certificate", &Network::CertificateBlob::Certificate);
+				VCertificateBlob->SetProperty<Network::CertificateBlob>("string private_key", &Network::CertificateBlob::PrivateKey);
+				VCertificateBlob->SetConstructor<Network::CertificateBlob>("void f()");
+
 				auto VSocketCertificate = VM->SetStructTrivial<Network::SocketCertificate>("socket_certificate");
-				VSocketCertificate->SetProperty<Network::SocketCertificate>("uptr@ context", &Network::SocketCertificate::Context);
-				VSocketCertificate->SetProperty<Network::SocketCertificate>("string key", &Network::SocketCertificate::Key);
-				VSocketCertificate->SetProperty<Network::SocketCertificate>("string chain", &Network::SocketCertificate::Chain);
+				VSocketCertificate->SetProperty<Network::SocketCertificate>("certificate_blob blob", &Network::SocketCertificate::Blob);
 				VSocketCertificate->SetProperty<Network::SocketCertificate>("string ciphers", &Network::SocketCertificate::Ciphers);
-				VSocketCertificate->SetProperty<Network::SocketCertificate>("socket_secure protocol", &Network::SocketCertificate::Protocol);
-				VSocketCertificate->SetProperty<Network::SocketCertificate>("bool verify_peers", &Network::SocketCertificate::VerifyPeers);
-				VSocketCertificate->SetProperty<Network::SocketCertificate>("usize depth", &Network::SocketCertificate::Depth);
+				VSocketCertificate->SetProperty<Network::SocketCertificate>("uptr@ context", &Network::SocketCertificate::Context);
+				VSocketCertificate->SetProperty<Network::SocketCertificate>("secure_layer_options options", &Network::SocketCertificate::Options);
+				VSocketCertificate->SetProperty<Network::SocketCertificate>("uint32 verify_peers", &Network::SocketCertificate::VerifyPeers);
 				VSocketCertificate->SetConstructor<Network::SocketCertificate>("void f()");
 
 				auto VDataFrame = VM->SetStructTrivial<Network::DataFrame>("socket_data_frame");
@@ -14722,6 +14741,7 @@ namespace Mavi
 				VSocket->SetMethod("bool is_pending_for_write()", &Network::Socket::IsPendingForWrite);
 				VSocket->SetMethod("bool is_pending()", &Network::Socket::IsPending);
 				VSocket->SetMethod("bool is_valid()", &Network::Socket::IsValid);
+				VSocket->SetMethod("bool is_secure()", &Network::Socket::IsSecure);
 
 				VM->BeginNamespace("net_packet");
 				VM->SetFunction("bool is_data(socket_poll)", &Network::Packet::IsData);
@@ -14811,7 +14831,6 @@ namespace Mavi
 				VSocketConnection->SetMethod<Network::SocketConnection, bool>("bool finish()", &Network::SocketConnection::Finish);
 				VSocketConnection->SetMethod<Network::SocketConnection, bool, int>("bool finish(int)", &Network::SocketConnection::Finish);
 				VSocketConnection->SetMethodEx("bool error(int, const string &in)", &SocketConnectionError);
-				VSocketConnection->SetMethod("bool encryption_info(socket_certificate &out)", &Network::SocketConnection::EncryptionInfo);
 				VSocketConnection->SetMethod("bool stop()", &Network::SocketConnection::Break);
 				VSocketConnection->SetEnumRefsEx<Network::SocketConnection>([](Network::SocketConnection* Base, asIScriptEngine* VM)
 				{
@@ -14849,7 +14868,7 @@ namespace Mavi
 
 				auto VSocketClient = VM->SetClass<Network::SocketClient>("socket_client", false);
 				VSocketClient->SetConstructor<Network::SocketClient, int64_t>("socket_client@ f(int64)");
-				VSocketClient->SetMethodEx("promise<int>@ connect(remote_host &in, bool = true)", &VI_SPROMISIFY(SocketClientConnect, TypeId::INT32));
+				VSocketClient->SetMethodEx("promise<int>@ connect(remote_host &in, bool = true, uint32 = 100)", &VI_SPROMISIFY(SocketClientConnect, TypeId::INT32));
 				VSocketClient->SetMethodEx("promise<int>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::INT32));
 				VSocketClient->SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 
@@ -15015,6 +15034,7 @@ namespace Mavi
 				auto VFetchFrame = VM->SetStructTrivial<Network::HTTP::FetchFrame>("fetch_frame");
 				VFetchFrame->SetProperty<Network::HTTP::FetchFrame>("content_frame content", &Network::HTTP::FetchFrame::Content);
 				VFetchFrame->SetProperty<Network::HTTP::FetchFrame>("uint64 timeout", &Network::HTTP::FetchFrame::Timeout);
+				VFetchFrame->SetProperty<Network::HTTP::FetchFrame>("uint32 verify_peers", &Network::HTTP::FetchFrame::VerifyPeers);
 				VFetchFrame->SetProperty<Network::HTTP::FetchFrame>("usize max_size", &Network::HTTP::FetchFrame::MaxSize);
 				VFetchFrame->SetConstructor<Network::HTTP::FetchFrame>("void f()");
 				VFetchFrame->SetMethod("void put_header(const string&in, const string&in)", &Network::HTTP::FetchFrame::PutHeader);
@@ -15210,7 +15230,6 @@ namespace Mavi
 				VConnection->SetProperty<Network::SocketConnection>("socket_data_frame info", &Network::SocketConnection::Info);
 				VConnection->SetMethodEx("string get_remote_address() const", &SocketConnectionGetRemoteAddress);
 				VConnection->SetMethodEx("bool error(int, const string &in)", &SocketConnectionError);
-				VConnection->SetMethod("bool encryption_info(socket_certificate &out)", &Network::SocketConnection::EncryptionInfo);
 				VConnection->SetMethod("bool stop()", &Network::SocketConnection::Break);
 				VConnection->SetMethod("void reset(bool)", &Network::HTTP::Connection::Reset);
 				VConnection->SetMethod<Network::HTTP::Connection, bool>("bool finish()", &Network::HTTP::Connection::Finish);

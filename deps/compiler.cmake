@@ -42,7 +42,8 @@ if (WIN32)
         mswsock.lib)
     target_link_libraries(mavi PRIVATE
         d3d11.lib
-        d3dcompiler.lib)
+        d3dcompiler.lib
+        crypt32.lib)
 endif()
 if (NOT MSVC)
     if (CMAKE_CXX_PLATFORM_ID MATCHES "Cygwin")

@@ -27,13 +27,15 @@ namespace Mavi
 
 		class SocketConnection;
 
-		enum class Secure
+		enum class SecureLayerOptions
 		{
-			Any,
-			SSL_V2,
-			SSL_V3,
-			TLS_V1,
-			TLS_V1_1,
+			All = 0,
+			NoSSL_V2 = 1 << 1,
+			NoSSL_V3 = 1 << 2,
+			NoTLS_V1 = 1 << 3,
+			NoTLS_V1_1 = 1 << 4,
+			NoTLS_V1_2 = 1 << 5,
+			NoTLS_V1_3 = 1 << 6
 		};
 
 		enum class ServerState
@@ -113,12 +115,41 @@ namespace Mavi
 			Location& operator= (Location&& Other) noexcept;
 		};
 
+		struct VI_OUT X509Blob
+		{
+			void* Pointer;
+
+			X509Blob(void* NewPointer) noexcept;
+			X509Blob(const X509Blob& Other) noexcept;
+			X509Blob(X509Blob&& Other) noexcept;
+			~X509Blob() noexcept;
+			X509Blob& operator= (const X509Blob& Other) noexcept;
+			X509Blob& operator= (X509Blob&& Other) noexcept;
+		};
+
+		struct VI_OUT CertificateBlob
+		{
+			Core::String PrivateKey;
+			Core::String Certificate;
+		};
+
 		struct VI_OUT Certificate
 		{
-			Core::String Subject;
-			Core::String Issuer;
-			Core::String Serial;
-			Core::String Finger;
+			Core::UnorderedMap<Core::String, Core::String> Extensions;
+			Core::String SubjectName;
+			Core::String IssuerName;
+			Core::String SerialNumber;
+			Core::String Fingerprint;
+			Core::String PublicKey;
+			Core::String NotBeforeDate;
+			Core::String NotAfterDate;
+			int64_t NotBeforeTime = 0;
+			int64_t NotAfterTime = 0;
+			int32_t Version = 0;
+			int32_t Signature = 0;
+			X509Blob Blob = X509Blob(nullptr);
+
+			Core::UnorderedMap<Core::String, Core::Vector<Core::String>> GetFullExtensions() const;
 		};
 
 		struct VI_OUT DataFrame
@@ -137,13 +168,11 @@ namespace Mavi
 
 		struct VI_OUT SocketCertificate
 		{
-			ssl_ctx_st* Context = nullptr;
-			Core::String Key;
-			Core::String Chain;
+			CertificateBlob Blob;
 			Core::String Ciphers = "ALL";
-			Secure Protocol = Secure::Any;
-			bool VerifyPeers = true;
-			size_t Depth = 9;
+			ssl_ctx_st* Context = nullptr;
+			SecureLayerOptions Options = SecureLayerOptions::All;
+			uint32_t VerifyPeers = 100;
 		};
 
 		struct VI_OUT EpollFd
@@ -259,6 +288,8 @@ namespace Mavi
 			};
 
 		public:
+			static Core::ExpectsIO<CertificateBlob> GenerateSelfSignedCertificate(uint32_t Days = 365 * 4, const Core::String& AddressesCommaSeparated = "127.0.0.1", const Core::String& DomainsCommaSeparated = Core::String()) noexcept;
+			static Core::ExpectsIO<Certificate> GetCertificateFromX509(void* CertificateX509) noexcept;
 			static int Poll(pollfd* Fd, int FdCount, int Timeout) noexcept;
 			static int Poll(PollFd* Fd, int FdCount, int Timeout) noexcept;
 			static Core::String GetLocalAddress() noexcept;
@@ -267,6 +298,27 @@ namespace Mavi
 			static std::error_condition GetLastError(ssl_st* Device, int ErrorCode) noexcept;
 			static int GetAddressFamily(const char* Address) noexcept;
 			static int64_t Clock() noexcept;
+			static void DisplayTransportLog() noexcept;
+		};
+
+		class VI_OUT_TS TransportLayer final : public Core::Singleton<TransportLayer>
+		{
+		private:
+			Core::UnorderedSet<ssl_ctx_st*> Servers;
+			Core::UnorderedSet<ssl_ctx_st*> Clients;
+			std::mutex Exclusive;
+			bool IsInstalled;
+
+		public:
+			TransportLayer() noexcept;
+			virtual ~TransportLayer() noexcept override;
+			Core::ExpectsIO<ssl_ctx_st*> CreateServerContext(size_t VerifyDepth, SecureLayerOptions Options, const Core::String& CiphersList) noexcept;
+			Core::ExpectsIO<ssl_ctx_st*> CreateClientContext(size_t VerifyDepth) noexcept;
+			void FreeServerContext(ssl_ctx_st* Context) noexcept;
+			void FreeClientContext(ssl_ctx_st* Context) noexcept;
+
+		private:
+			Core::ExpectsIO<void> InitializeContext(ssl_ctx_st* Context, bool LoadCertificates) noexcept;
 		};
 
 		class VI_OUT_TS DNS final : public Core::Singleton<DNS>
@@ -345,6 +397,32 @@ namespace Mavi
 			Core::String GetAddressName(RemoteHost* Address);
 		};
 
+		class VI_OUT CertificateBuilder final : public Core::Reference<CertificateBuilder>
+		{
+		private:
+			void* Certificate;
+			void* PrivateKey;
+
+		public:
+			CertificateBuilder() noexcept;
+			~CertificateBuilder() noexcept;
+			Core::ExpectsIO<void> SetSerialNumber(uint32_t Bits = 160);
+			Core::ExpectsIO<void> SetVersion(uint8_t Version);
+			Core::ExpectsIO<void> SetNotAfter(int64_t OffsetSeconds);
+			Core::ExpectsIO<void> SetNotBefore(int64_t OffsetSeconds = 0);
+			Core::ExpectsIO<void> SetPublicKey(uint32_t Bits = 4096);
+			Core::ExpectsIO<void> SetIssuer(const X509Blob& Issuer);
+			Core::ExpectsIO<void> AddCustomExtension(bool Critical, const Core::String& Key, const Core::String& Value, const Core::String& Description = Core::String());
+			Core::ExpectsIO<void> AddStandardExtension(const X509Blob& Issuer, int NID, const Core::String& Value);
+			Core::ExpectsIO<void> AddStandardExtension(const X509Blob& Issuer, const Core::String& NameOfNID, const Core::String& Value);
+			Core::ExpectsIO<void> AddSubjectInfo(const Core::String& Key, const Core::String& Value);
+			Core::ExpectsIO<void> AddIssuerInfo(const Core::String& Key, const Core::String& Value);
+			Core::ExpectsIO<void> Sign(Compute::Digest Algorithm);
+			Core::ExpectsIO<CertificateBlob> Build();
+			void* GetCertificateX509();
+			void* GetPrivateKeyEVP_PKEY();
+		};
+
 		class VI_OUT SocketAddress final : public Core::Reference<SocketAddress>
 		{
 			friend DNS;
@@ -354,7 +432,7 @@ namespace Mavi
 			addrinfo* Usable;
 
 		public:
-			SocketAddress(addrinfo* NewNames, addrinfo* NewUsables);
+			SocketAddress(addrinfo* NewNames, addrinfo* NewUsables) noexcept;
 			~SocketAddress() noexcept;
 			bool IsUsable() const;
 			addrinfo* Get() const;
@@ -428,12 +506,14 @@ namespace Mavi
 			Core::ExpectsIO<void> GetAnyFlag(int Level, int Option, int* Value);
 			Core::ExpectsIO<Core::String> GetRemoteAddress();
 			Core::ExpectsIO<int> GetPort();
+			Core::ExpectsIO<Certificate> GetCertificate();
 			socket_t GetFd();
 			ssl_st* GetDevice();
 			bool IsPendingForRead();
 			bool IsPendingForWrite();
 			bool IsPending();
 			bool IsValid();
+			bool IsSecure();
 
 		private:
 			Core::ExpectsIO<void> TryCloseAsync(SocketStatusCallback&& Callback, bool KeepTrying);
@@ -494,7 +574,6 @@ namespace Mavi
 			virtual bool Finish();
 			virtual bool Finish(int);
 			virtual bool Error(int, const char* ErrorMessage, ...);
-			virtual bool EncryptionInfo(Certificate* Output);
 			virtual bool Break();
 		};
 
@@ -571,6 +650,7 @@ namespace Mavi
 			{
 				bool IsAutoEncrypted = true;
 				bool IsAsync = false;
+				uint32_t VerifyPeers = 100;
 			} Config;
 
 		protected:
@@ -580,7 +660,7 @@ namespace Mavi
 		public:
 			SocketClient(int64_t RequestTimeout) noexcept;
 			virtual ~SocketClient() noexcept;
-			Core::ExpectsPromiseIO<void> Connect(RemoteHost* Address, bool Async);
+			Core::ExpectsPromiseIO<void> Connect(RemoteHost* Address, bool Async, uint32_t VerifyPeers = 100);
 			Core::ExpectsPromiseIO<void> Disconnect();
 			Socket* GetStream();
 

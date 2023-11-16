@@ -254,6 +254,7 @@ namespace Mavi
 				HeaderMapping Headers;
 				ContentFrame Content;
 				uint64_t Timeout;
+				uint32_t VerifyPeers;
 				size_t MaxSize;
 
 				FetchFrame();
@@ -530,7 +531,6 @@ namespace Mavi
 				void Reset(bool Fully) override;
 				bool Finish() override;
 				bool Finish(int StatusCode) override;
-				bool EncryptionInfo(Certificate* Output) override;
 				bool Consume(const ContentCallback& Callback = nullptr, bool Eat = false);
 				bool Store(const ResourceCallback& Callback = nullptr, bool Eat = false);
 				bool Skip(const SuccessCallback& Callback);

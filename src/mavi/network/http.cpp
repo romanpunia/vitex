@@ -1262,7 +1262,7 @@ namespace Mavi
 				return Offset >= Length || Data.size() >= Length;
 			}
 
-			FetchFrame::FetchFrame() : Timeout(10000), MaxSize(PAYLOAD_SIZE)
+			FetchFrame::FetchFrame() : Timeout(10000), VerifyPeers(9), MaxSize(PAYLOAD_SIZE)
 			{
 			}
 			void FetchFrame::PutHeader(const Core::String& Key, const Core::String& Value)
@@ -1999,58 +1999,6 @@ namespace Mavi
 			{
 				Response.StatusCode = StatusCode;
 				return Finish();
-			}
-			bool Connection::EncryptionInfo(Certificate* Output)
-			{
-#ifdef VI_OPENSSL
-				VI_ASSERT(Output != nullptr, "certificate should be set");
-				X509* Certificate = SSL_get_peer_certificate(Stream->GetDevice());
-				if (!Certificate)
-					return false;
-
-				X509_NAME* Subject = X509_get_subject_name(Certificate);
-				X509_NAME* Issuer = X509_get_issuer_name(Certificate);
-				ASN1_INTEGER* Serial = X509_get_serialNumber(Certificate);
-
-				char SubjectBuffer[Core::CHUNK_SIZE];
-				X509_NAME_oneline(Subject, SubjectBuffer, (int)sizeof(SubjectBuffer));
-
-				char IssuerBuffer[Core::CHUNK_SIZE], SerialBuffer[Core::CHUNK_SIZE];
-				X509_NAME_oneline(Issuer, IssuerBuffer, (int)sizeof(IssuerBuffer));
-
-				unsigned char Buffer[256];
-				int Length = i2d_ASN1_INTEGER(Serial, nullptr);
-
-				if (Length > 0 && (unsigned)Length < (unsigned)sizeof(Buffer))
-				{
-					unsigned char* Pointer = Buffer;
-					int Size = i2d_ASN1_INTEGER(Serial, &Pointer);
-
-					if (!Compute::Codec::HexToString(Buffer, Size, SerialBuffer, sizeof(SerialBuffer)))
-						*SerialBuffer = '\0';
-				}
-				else
-					*SerialBuffer = '\0';
-#if OPENSSL_VERSION_MAJOR < 3
-				unsigned int Size = 0;
-				const EVP_MD* Digest = EVP_get_digestbyname("sha1");
-				ASN1_digest((int(*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
-
-				char FingerBuffer[Core::CHUNK_SIZE];
-				if (!Compute::Codec::HexToString(Buffer, Size, FingerBuffer, sizeof(FingerBuffer)))
-					*FingerBuffer = '\0';
-                
-                Output->Finger = FingerBuffer;
-#endif
-				Output->Subject = SubjectBuffer;
-				Output->Issuer = IssuerBuffer;
-				Output->Serial = SerialBuffer;
-
-				X509_free(Certificate);
-				return true;
-#else
-				return false;
-#endif
 			}
 
 			Query::Query() : Object(Core::Var::Set::Object())
@@ -6610,7 +6558,7 @@ namespace Mavi
 
 				size_t MaxSize = Options.MaxSize;
 				HTTP::Client* Client = new HTTP::Client(Options.Timeout);
-				auto Status = VI_AWAIT(Client->Connect(&Address, true));
+				auto Status = VI_AWAIT(Client->Connect(&Address, true, Options.VerifyPeers));
 				if (!Status)
 				{
 					VI_AWAIT(Client->Disconnect());

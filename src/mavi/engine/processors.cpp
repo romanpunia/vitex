@@ -1972,37 +1972,59 @@ namespace Mavi
 						Name = "*";
 
 					Network::SocketCertificate* Cert = &Router->Certificates[Name];
-					if (Series::Unpack(It->Find("protocol"), &Name))
+					if (Series::Unpack(It->Find("options"), &Name))
 					{
-						if (!strcmp(Name.c_str(), "SSL_V2"))
-							Cert->Protocol = Network::Secure::SSL_V2;
-						else if (!strcmp(Name.c_str(), "SSL_V3"))
-							Cert->Protocol = Network::Secure::SSL_V3;
-						else if (!strcmp(Name.c_str(), "TLS_V1"))
-							Cert->Protocol = Network::Secure::TLS_V1;
-						else if (!strcmp(Name.c_str(), "TLS_V1_1"))
-							Cert->Protocol = Network::Secure::TLS_V1_1;
-						else
-							Cert->Protocol = Network::Secure::Any;
+						if (Name.find("no_ssl_v2") != std::string::npos)
+							Cert->Options = (Network::SecureLayerOptions)((size_t)Cert->Options & (size_t)Network::SecureLayerOptions::NoSSL_V2);
+						if (Name.find("no_ssl_v3") != std::string::npos)
+							Cert->Options = (Network::SecureLayerOptions)((size_t)Cert->Options & (size_t)Network::SecureLayerOptions::NoSSL_V3);
+						if (Name.find("no_tls_v1") != std::string::npos)
+							Cert->Options = (Network::SecureLayerOptions)((size_t)Cert->Options & (size_t)Network::SecureLayerOptions::NoTLS_V1);
+						if (Name.find("no_tls_v1_1") != std::string::npos)
+							Cert->Options = (Network::SecureLayerOptions)((size_t)Cert->Options & (size_t)Network::SecureLayerOptions::NoTLS_V1_1);
+						if (Name.find("no_tls_v1_2") != std::string::npos)
+							Cert->Options = (Network::SecureLayerOptions)((size_t)Cert->Options & (size_t)Network::SecureLayerOptions::NoTLS_V1_2);
+						if (Name.find("no_tls_v1_3") != std::string::npos)
+							Cert->Options = (Network::SecureLayerOptions)((size_t)Cert->Options & (size_t)Network::SecureLayerOptions::NoTLS_V1_3);
 					}
 
 					if (!Series::Unpack(It->Find("ciphers"), &Cert->Ciphers))
 						Cert->Ciphers = "ALL";
 
 					if (!Series::Unpack(It->Find("verify-peers"), &Cert->VerifyPeers))
-						Cert->VerifyPeers = true;
+						Cert->VerifyPeers = 100;
 
-					if (!Series::Unpack(It->Find("depth"), &Cert->Depth))
-						Cert->Depth = 9;
+					if (!Series::Unpack(It->Find("pkey"), &Cert->Blob.PrivateKey))
+						Cert->Blob.PrivateKey.clear();
 
-					if (!Series::Unpack(It->Find("key"), &Cert->Key))
-						Cert->Key.clear();
+					if (!Series::Unpack(It->Find("cert"), &Cert->Blob.Certificate))
+						Cert->Blob.Certificate.clear();
 
-					if (!Series::Unpack(It->Find("chain"), &Cert->Chain))
-						Cert->Chain.clear();
+					Core::Stringify::EvalEnvs(Cert->Blob.PrivateKey, N, D);
+					if (!Cert->Blob.PrivateKey.empty())
+					{
+						auto Data = Core::OS::File::ReadAsString(Cert->Blob.PrivateKey);
+						if (!Data)
+						{
+							VI_ERR("[engine] cannot load certificate private key from %s", Cert->Blob.PrivateKey.c_str());
+							Cert->Blob.PrivateKey.clear();
+						}
+						else
+							Cert->Blob.PrivateKey = *Data;
+					}
 
-					Core::Stringify::EvalEnvs(Cert->Key, N, D);
-					Core::Stringify::EvalEnvs(Cert->Chain, N, D);
+					Core::Stringify::EvalEnvs(Cert->Blob.Certificate, N, D);
+					if (!Cert->Blob.Certificate.empty())
+					{
+						auto Data = Core::OS::File::ReadAsString(Cert->Blob.Certificate);
+						if (!Data)
+						{
+							VI_ERR("[engine] cannot load certificate data from %s", Cert->Blob.Certificate.c_str());
+							Cert->Blob.Certificate.clear();
+						}
+						else
+							Cert->Blob.Certificate = *Data;
+					}
 				}
 
 				Core::Vector<Core::Schema*> Listeners = Blob->FindCollection("listen", true);

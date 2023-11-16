@@ -686,6 +686,7 @@ namespace Mavi
 		Network::PDB::Driver::CleanupInstance();
 		Network::Uplinks::CleanupInstance();
 		Network::Multiplexer::CleanupInstance();
+		Network::TransportLayer::CleanupInstance();
 		Network::DNS::CleanupInstance();
 		Engine::Application::CleanupInstance();
 		Engine::GUI::Subsystem::CleanupInstance();

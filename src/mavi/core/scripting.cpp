@@ -358,6 +358,9 @@ namespace Mavi
 					{
 						if (--Brackets < 0)
 						{
+							if (Indexers <= 0 && Braces <= 0 && Quotes <= 0)
+								break;
+
 							VI_ERR("[generator] unexpected symbol '%c', offset %" PRIu64 ":\n%.*s <<<", V, (uint64_t)End, (int)(End - Start), Code.c_str() + Start);
 							return false;
 						}
@@ -366,6 +369,9 @@ namespace Mavi
 					{
 						if (--Braces < 0)
 						{
+							if (Indexers <= 0 && Brackets <= 0 && Quotes <= 0)
+								break;
+
 							VI_ERR("[generator] unexpected symbol '%c', offset %" PRIu64 ":\n%.*s <<<", V, (uint64_t)End, (int)(End - Start), Code.c_str() + Start);
 							return false;
 						}
@@ -374,6 +380,9 @@ namespace Mavi
 					{
 						if (--Indexers < 0)
 						{
+							if (Brackets <= 0 && Braces <= 0 && Quotes <= 0)
+								break;
+
 							VI_ERR("[generator] unexpected symbol '%c', offset %" PRIu64 ":\n%.*s <<<", V, (uint64_t)End, (int)(End - Start), Code.c_str() + Start);
 							return false;
 						}

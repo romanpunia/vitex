@@ -15295,7 +15295,7 @@ namespace Mavi
 				VClient->SetMethodEx("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(ClientSend, TypeId::BOOL));
 				VClient->SetMethodEx("promise<schema@>@ json(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientJSON, Schema));
 				VClient->SetMethodEx("promise<schema@>@ xml(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientXML, Schema));
-				VClient->SetMethodEx("promise<int>@ connect(remote_host &in, bool = true)", &VI_SPROMISIFY(SocketClientConnect, TypeId::INT32));
+				VClient->SetMethodEx("promise<int>@ connect(remote_host &in, bool = true, uint32 = 100)", &VI_SPROMISIFY(SocketClientConnect, TypeId::INT32));
 				VClient->SetMethodEx("promise<int>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::INT32));
 				VClient->SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 				VClient->SetMethod("websocket_frame@+ get_websocket() const", &Network::HTTP::Client::GetWebSocket);
@@ -15365,7 +15365,7 @@ namespace Mavi
 				VClient->SetConstructor<Network::SMTP::Client, const Core::String&, int64_t>("client@ f(const string&in, int64)");
 				VClient->SetMethodEx("string get_remote_address() const", &ClientGetRemoteAddress);
 				VClient->SetMethodEx("promise<int>@ send(const request_frame&in)", &VI_SPROMISIFY(SMTPClientSend, TypeId::INT32));
-				VClient->SetMethodEx("promise<int>@ connect(remote_host &in, bool = true)", &VI_SPROMISIFY(SocketClientConnect, TypeId::INT32));
+				VClient->SetMethodEx("promise<int>@ connect(remote_host &in, bool = true, uint32 = 100)", &VI_SPROMISIFY(SocketClientConnect, TypeId::INT32));
 				VClient->SetMethodEx("promise<int>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::INT32));
 				VClient->SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 				VClient->SetMethod("request_frame& get_request() property", &Network::SMTP::Client::GetRequest);

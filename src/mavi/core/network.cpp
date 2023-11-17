@@ -70,24 +70,7 @@ namespace Mavi
 
 			struct tm Date; size_t i = 0;
 			memset(&Date, 0, sizeof(Date));
-
-			const char* Text = (const char*)Time->data;
-			if (Time->type == V_ASN1_UTCTIME)
-			{
-				Date.tm_year = (Text[i++] - '0') * 10 + (Text[i++] - '0');
-				if (Date.tm_year < 70)
-					Date.tm_year += 100;
-			}
-			else if (Time->type == V_ASN1_GENERALIZEDTIME)
-			{
-				Date.tm_year = (Text[i++] - '0') * 1000 + (Text[i++] - '0') * 100 + (Text[i++] - '0') * 10 + (Text[i++] - '0');
-				Date.tm_year -= 1900;
-			}
-			Date.tm_mon = ((Text[i++] - '0') * 10 + (Text[i++] - '0')) - 1;
-			Date.tm_mday = (Text[i++] - '0') * 10 + (Text[i++] - '0');
-			Date.tm_hour = (Text[i++] - '0') * 10 + (Text[i++] - '0');
-			Date.tm_min = (Text[i++] - '0') * 10 + (Text[i++] - '0');
-			Date.tm_sec = (Text[i++] - '0') * 10 + (Text[i++] - '0');
+			ASN1_TIME_to_tm(Time, &Date);
 
 			time_t TimeStamp = mktime(&Date);
 			return std::make_pair(Core::DateTime::FetchWebDateGMT(TimeStamp), TimeStamp);

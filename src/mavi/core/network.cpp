@@ -956,7 +956,7 @@ namespace Mavi
 		{
 #ifdef VI_OPENSSL
 			Core::UMutex<std::mutex> Unique(Exclusive);
-			SSL_CTX* Context; bool IsReused = false;
+			SSL_CTX* Context; bool LoadCertificates = false;
 			if (Servers.empty())
 			{
 				Context = SSL_CTX_new(TLS_server_method());
@@ -966,18 +966,18 @@ namespace Mavi
 					return std::make_error_condition(std::errc::protocol_not_supported);
 				}
 				VI_DEBUG("[net] OK create client 0x%" PRIuPTR " TLS context", Context);
+				LoadCertificates = VerifyDepth > 0;
 			}
 			else
 			{
 				Context = *Servers.begin();
 				Servers.erase(Servers.begin());
-				IsReused = !VerifyDepth || SSL_CTX_get_verify_depth(Context) > 0;
-				Unique.Negate();
 				VI_DEBUG("[net] pop client 0x%" PRIuPTR " TLS context from cache", Context);
+				LoadCertificates = VerifyDepth > 0 && SSL_CTX_get_verify_depth(Context) <= 0;
 			}
+			Unique.Negate();
 
-
-			auto Status = InitializeContext(Context, IsReused);
+			auto Status = InitializeContext(Context, LoadCertificates);
 			if (!Status)
 			{
 				SSL_CTX_free(Context);
@@ -1020,7 +1020,7 @@ namespace Mavi
 		{
 #ifdef VI_OPENSSL
 			Core::UMutex<std::mutex> Unique(Exclusive);
-			SSL_CTX* Context; bool IsReused = false;
+			SSL_CTX* Context; bool LoadCertificates = false;
 			if (Clients.empty())
 			{
 				Context = SSL_CTX_new(TLS_client_method());
@@ -1030,17 +1030,18 @@ namespace Mavi
 					return std::make_error_condition(std::errc::protocol_not_supported);
 				}
 				VI_DEBUG("[net] OK create client 0x%" PRIuPTR " TLS context", Context);
+				LoadCertificates = VerifyDepth > 0;
 			}
 			else
 			{
 				Context = *Clients.begin();
 				Clients.erase(Clients.begin());
-				IsReused = !VerifyDepth || SSL_CTX_get_verify_depth(Context) > 0;
-				Unique.Negate();
 				VI_DEBUG("[net] pop client 0x%" PRIuPTR " TLS context from cache", Context);
+				LoadCertificates = VerifyDepth > 0 && SSL_CTX_get_verify_depth(Context) <= 0;
 			}
+			Unique.Negate();
 
-			auto Status = InitializeContext(Context, !IsReused);
+			auto Status = InitializeContext(Context, LoadCertificates);
 			if (!Status)
 			{
 				SSL_CTX_free(Context);
@@ -1079,14 +1080,15 @@ namespace Mavi
 #ifdef SSL_CTX_set_ecdh_auto
 			SSL_CTX_set_ecdh_auto(Context, 1);
 #endif
+			auto SessionId = Compute::Crypto::RandomBytes(12);
+			if (SessionId)
+			{
+				auto ContextId = Compute::Codec::HexEncode(*SessionId);
+				SSL_CTX_set_session_id_context(Context, (const unsigned char*)ContextId.c_str(), (unsigned int)ContextId.size());
+			}
+
 			if (LoadCertificates)
 			{
-				auto SessionId = Compute::Crypto::RandomBytes(12);
-				if (SessionId)
-				{
-					auto ContextId = Compute::Codec::HexEncode(*SessionId);
-					SSL_CTX_set_session_id_context(Context, (const unsigned char*)ContextId.c_str(), (unsigned int)ContextId.size());
-				}
 	#ifdef VI_MICROSOFT
 				HCERTSTORE Store = CertOpenSystemStore(0, "ROOT");
 				if (!Store)

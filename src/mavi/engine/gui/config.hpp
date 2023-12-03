@@ -25,7 +25,7 @@ namespace Rml
 	{
 		inline size_t operator()(const T& Value) const
 		{
-			auto Result = Mavi::Core::Hasher<T>()(Value);
+			auto Result = Mavi::Core::KeyHasher<T>()(Value);
 			return robin_hood::hash_int(static_cast<robin_hood::detail::SizeT>(Result));
 		}
 	};
@@ -60,7 +60,7 @@ namespace Rml
 		return std::make_move_iterator(It);
 	}
 	template <typename T>
-	using Hash = typename Mavi::Core::Hasher<T>;
+	using Hash = typename Mavi::Core::KeyHasher<T>;
 	template <typename T>
 	using Function = std::function<T>;
 	using String = Mavi::Core::String;

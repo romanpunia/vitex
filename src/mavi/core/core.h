@@ -437,7 +437,7 @@ namespace Mavi
 		using FNV1A = typename FNV1ABits<Bits>::type;
 
 		template <typename T>
-		struct Hasher
+		struct KeyHasher
 		{
 			typedef float argument_type;
 			typedef size_t result_type;
@@ -499,7 +499,7 @@ namespace Mavi
 		};
 
 		template <>
-		struct Hasher<String>
+		struct KeyHasher<String>
 		{
 			typedef float argument_type;
 			typedef size_t result_type;
@@ -522,7 +522,7 @@ namespace Mavi
 		};
 
 		template <>
-		struct Hasher<WideString>
+		struct KeyHasher<WideString>
 		{
 			typedef float argument_type;
 			typedef size_t result_type;
@@ -545,13 +545,13 @@ namespace Mavi
 		template <typename T>
 		using DoubleQueue = std::deque<T, typename AllocationType<T>::type>;
 
-		template <typename K, typename Hash = Hasher<K>, typename KeyEqual = EqualTo<K>>
+		template <typename K, typename Hash = KeyHasher<K>, typename KeyEqual = EqualTo<K>>
 		using UnorderedSet = std::unordered_set<K, Hash, KeyEqual, typename AllocationType<typename std::unordered_set<K>::value_type>::type>;
 
-		template <typename K, typename V, typename Hash = Hasher<K>, typename KeyEqual = EqualTo<K>>
+		template <typename K, typename V, typename Hash = KeyHasher<K>, typename KeyEqual = EqualTo<K>>
 		using UnorderedMap = std::unordered_map<K, V, Hash, KeyEqual, typename AllocationType<typename std::unordered_map<K, V>::value_type>::type>;
 
-		template <typename K, typename V, typename Hash = Hasher<K>, typename KeyEqual = EqualTo<K>>
+		template <typename K, typename V, typename Hash = KeyHasher<K>, typename KeyEqual = EqualTo<K>>
 		using UnorderedMultiMap = std::unordered_multimap<K, V, Hash, KeyEqual, typename AllocationType<typename std::unordered_multimap<K, V>::value_type>::type>;
 
 		template <typename K, typename V, typename Comparator = typename std::map<K, V>::key_compare>
@@ -2134,6 +2134,11 @@ namespace Mavi
 			static Vector<String> SplitOf(const String& Other, const char* With, size_t Start = 0U);
 			static Vector<String> SplitNotOf(const String& Other, const char* With, size_t Start = 0U);
 			static bool IsDigit(char Char);
+			static bool IsDigitOrDot(char Char);
+			static bool IsDigitOrDotOrWhitespace(char Char);
+			static bool IsHex(char Char);
+			static bool IsHexOrDot(char Char);
+			static bool IsHexOrDotOrWhitespace(char Char);
 			static bool IsAlphabetic(char Char);
 			static int CaseCompare(const char* Value1, const char* Value2);
 			static int Match(const char* Pattern, const char* Text);
@@ -2264,6 +2269,7 @@ namespace Mavi
 			{
 			public:
 				static bool IsExists(const char* Path);
+				static bool IsEmpty(const char* Path);
 				static ExpectsIO<void> SetWorking(const char* Path);
 				static ExpectsIO<void> Patch(const String& Path);
 				static ExpectsIO<void> Scan(const String& Path, Vector<std::pair<String, FileEntry>>* Entries);
@@ -2821,6 +2827,8 @@ namespace Mavi
 			void WriteLine(const String& Line);
 			void WriteChar(char Value);
 			void Write(const String& Line);
+			void jWrite(Schema* Data);
+			void jWriteLine(Schema* Data);
 			void fWriteLine(const char* Format, ...);
 			void fWrite(const char* Format, ...);
 			void sWriteLine(const String& Line);
@@ -3190,6 +3198,7 @@ namespace Mavi
 
 		private:
 			static Expects<void, Exceptions::ParserException> ProcessConvertionFromJSONB(Schema* Current, UnorderedMap<size_t, String>* Map, const SchemaReadCallback& Callback);
+			static Schema* ProcessConversionFromJSONStringOrNumber(void* Base, bool IsDocument);
 			static void ProcessConvertionFromXML(void* Base, Schema* Current);
 			static void ProcessConvertionFromJSON(void* Base, Schema* Current);
 			static void ProcessConvertionToJSONB(Schema* Current, UnorderedMap<String, size_t>* Map, const SchemaWriteCallback& Callback);
@@ -3298,6 +3307,7 @@ namespace Mavi
 			bool SetDebugCallback(const ThreadDebugCallback& Callback);
 			bool SetImmediate(bool Enabled);
 			bool ClearTimeout(TaskId WorkId);
+			bool TriggerTimers();
 			bool Trigger(Difficulty Type);
 			bool Start(const Desc& NewPolicy);
 			bool Stop();
@@ -4609,8 +4619,7 @@ namespace Mavi
 			Promise<T> Result;
 			Schedule::Get()->SetCoroutine([Result, Callback = std::move(Callback)]() mutable
 			{
-				auto Task = Callback();
-				Result.Set(VI_AWAIT(std::move(Task)));
+				Callback().When([Result](T&& Value) mutable { Result.Set(std::move(Value)); });
 			});
 
 			return Result;
@@ -4625,8 +4634,7 @@ namespace Mavi
 			Promise<void> Result;
 			Schedule::Get()->SetCoroutine([Result, Callback = std::move(Callback)]() mutable
 			{
-				Callback();
-				Result.Set();
+				Callback().When([Result]() mutable { Result.Set(); });
 			});
 
 			return Result;

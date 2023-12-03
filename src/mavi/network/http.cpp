@@ -6115,6 +6115,9 @@ namespace Mavi
 					Request.SetHeader("Connection", "Keep-Alive");
 
 				Core::String Content;
+				if (Request.URI.empty())
+					Request.URI = "/";
+
 				if (!Request.Query.empty())
 				{
 					Content.append(Request.Method).append(" ");
@@ -6540,47 +6543,53 @@ namespace Mavi
 
 			Core::ExpectsPromiseIO<ResponseFrame> Fetch(const Core::String& Target, const Core::String& Method, const FetchFrame& Options)
 			{
-				Network::Location URL(Target);
-				if (URL.Protocol != "http" && URL.Protocol != "https")
-					Coreturn std::make_error_condition(std::errc::address_family_not_supported);
-
-				Network::RemoteHost Address;
-				Address.Hostname = URL.Hostname;
-				Address.Secure = (URL.Protocol == "https");
-				Address.Port = (URL.Port < 0 ? (Address.Secure ? 443 : 80) : URL.Port);
-
-				HTTP::RequestFrame Request;
-				Request.Cookies = Options.Cookies;
-				Request.Headers = Options.Headers;
-				Request.Content = Options.Content;
-				Request.SetMethod(Method.c_str());
-				Request.URI.assign(URL.Path);
-
-				size_t MaxSize = Options.MaxSize;
-				HTTP::Client* Client = new HTTP::Client(Options.Timeout);
-				auto Status = VI_AWAIT(Client->Connect(&Address, true, Options.VerifyPeers));
-				if (!Status)
+				return Core::Coasync<Core::ExpectsIO<ResponseFrame>>([Target, Method, Options]() -> Core::ExpectsPromiseIO<ResponseFrame>
 				{
+					Network::Location URL(Target);
+					if (URL.Protocol != "http" && URL.Protocol != "https")
+						Coreturn std::make_error_condition(std::errc::address_family_not_supported);
+
+					Network::RemoteHost Address;
+					Address.Hostname = URL.Hostname;
+					Address.Secure = (URL.Protocol == "https");
+					Address.Port = (URL.Port < 0 ? (Address.Secure ? 443 : 80) : URL.Port);
+
+					HTTP::RequestFrame Request;
+					Request.Cookies = Options.Cookies;
+					Request.Headers = Options.Headers;
+					Request.Content = Options.Content;
+					Request.SetMethod(Method.c_str());
+					Request.URI.assign(URL.Path);
+
+					if (!URL.Username.empty() || !URL.Password.empty())
+						Request.SetHeader("Authorization", Permissions::Authorize(URL.Username, URL.Password));
+
+					size_t MaxSize = Options.MaxSize;
+					HTTP::Client* Client = new HTTP::Client(Options.Timeout);
+					auto Status = VI_AWAIT(Client->Connect(&Address, true, Options.VerifyPeers));
+					if (!Status)
+					{
+						VI_AWAIT(Client->Disconnect());
+						VI_RELEASE(Client);
+						Coreturn Status.Error();
+					}
+
+					for (auto& Item : URL.Query)
+						Request.Query += Item.first + "=" + Item.second + "&";
+
+					if (!Request.Query.empty())
+						Request.Query.pop_back();
+
+					Status = VI_AWAIT(Client->Fetch(std::move(Request), MaxSize));
+					ResponseFrame Response = std::move(*Client->GetResponse());
 					VI_AWAIT(Client->Disconnect());
 					VI_RELEASE(Client);
-					Coreturn Status.Error();
-				}
 
-				for (auto& Item : URL.Query)
-					Request.Query += Item.first + "=" + Item.second + "&";
+					if (!Status)
+						Coreturn Status.Error();
 
-				if (!Request.Query.empty())
-					Request.Query.pop_back();
-
-				Status = VI_AWAIT(Client->Fetch(std::move(Request), MaxSize));
-				ResponseFrame Response = std::move(*Client->GetResponse());
-				VI_AWAIT(Client->Disconnect());
-				VI_RELEASE(Client);
-
-				if (!Status)
-					Coreturn Status.Error();
-
-				Coreturn Response;
+					Coreturn Response;
+				});
 			}
 		}
 	}

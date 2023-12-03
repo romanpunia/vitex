@@ -5067,6 +5067,10 @@ namespace Mavi
 			{
 				return Core::OS::Directory::IsExists(Path.c_str());
 			}
+			bool OSDirectoryIsEmpty(const Core::String& Path)
+			{
+				return Core::OS::Directory::IsEmpty(Path.c_str());
+			}
 			bool OSDirectorySetWorking(const Core::String& Path)
 			{
 				return !!Core::OS::Directory::SetWorking(Path.c_str());
@@ -10895,6 +10899,7 @@ namespace Mavi
 				VM->SetFunction("bool create(const string &in)", &OSDirectoryCreate);
 				VM->SetFunction("bool remove(const string &in)", &OSDirectoryRemove);
 				VM->SetFunction("bool is_exists(const string &in)", &OSDirectoryIsExists);
+				VM->SetFunction("bool is_empty(const string &in)", &OSDirectoryIsEmpty);
 				VM->SetFunction("string get_module()", &OSDirectoryGetModule);
 				VM->SetFunction("string get_working()", &OSDirectoryGetWorking);
 				VM->SetFunction("bool patch(const string &in)", &OSDirectoryPatch);
@@ -11000,6 +11005,7 @@ namespace Mavi
 				VSchedule->SetMethodEx("task_id set_timeout(uint64, task_event@)", &ScheduleSetTimeout);
 				VSchedule->SetMethodEx("bool set_immediate(task_event@)", &ScheduleSetImmediate);
 				VSchedule->SetMethod("bool clear_timeout(task_id)", &Core::Schedule::ClearTimeout);
+				VSchedule->SetMethod("bool trigger_timers()", &Core::Schedule::TriggerTimers);
 				VSchedule->SetMethod("bool trigger(difficulty)", &Core::Schedule::Trigger);
 				VSchedule->SetMethod("bool dispatch()", &Core::Schedule::Dispatch);
 				VSchedule->SetMethod("bool start(const schedule_policy &in)", &Core::Schedule::Start);
@@ -11897,7 +11903,7 @@ namespace Mavi
 				VM->SetFunction<Core::String(const Core::String&)>("string base64_decode(const string &in)", &Compute::Codec::Base64Decode);
 				VM->SetFunction<Core::String(const Core::String&)>("string base64_url_encode(const string &in)", &Compute::Codec::Base64URLEncode);
 				VM->SetFunction<Core::String(const Core::String&)>("string base64_url_decode(const string &in)", &Compute::Codec::Base64URLDecode);
-				VM->SetFunction<Core::String(const Core::String&)>("string hex_encode(const string &in)", &Compute::Codec::HexEncode);
+				VM->SetFunction<Core::String(const Core::String&, bool)>("string hex_encode(const string &in, bool = false)", &Compute::Codec::HexEncode);
 				VM->SetFunction<Core::String(const Core::String&)>("string hex_decode(const string &in)", &Compute::Codec::HexDecode);
 				VM->SetFunction<Core::String(const Core::String&)>("string uri_encode(const string &in)", &Compute::Codec::URIEncode);
 				VM->SetFunction<Core::String(const Core::String&)>("string uri_decode(const string &in)", &Compute::Codec::URIDecode);

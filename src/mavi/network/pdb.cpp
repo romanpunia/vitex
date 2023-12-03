@@ -2446,11 +2446,7 @@ namespace Mavi
 					case Core::VarType::Integer:
 						return Core::ToString(Negate ? -Source->Value.GetInteger() : Source->Value.GetInteger());
 					case Core::VarType::Number:
-					{
-						bool Trailing = (Source->Value.GetNumber() != (double)Source->Value.GetInteger());
-						Core::String Result = Core::ToString(Negate ? -Source->Value.GetNumber() : Source->Value.GetNumber());
-						return Trailing ? Result : Result + ".0";
-					}
+						return Core::ToString(Negate ? -Source->Value.GetNumber() : Source->Value.GetNumber());
 					case Core::VarType::Boolean:
 						return (Negate ? !Source->Value.GetBoolean() : Source->Value.GetBoolean()) ? "TRUE" : "FALSE";
 					case Core::VarType::Decimal:

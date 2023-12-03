@@ -4013,6 +4013,7 @@ namespace Mavi
 		}
 		PrivateKey& PrivateKey::operator =(PrivateKey&& V) noexcept
 		{
+			Clear();
 			Blocks = std::move(V.Blocks);
 			Plain = std::move(V.Plain);
 			return *this;
@@ -4070,9 +4071,12 @@ namespace Mavi
 		Core::String PrivateKey::ExposeToHeap() const
 		{
 			VI_TRACE("[crypto] heap expose private key from 0x%" PRIXPTR, (void*)this);
-			Core::String Result;
-			Result.resize(Blocks.size());
-			ExposeToStack((char*)Result.data(), Result.size() + 1);
+			Core::String Result = Plain;
+			if (Result.empty())
+			{
+				Result.resize(Blocks.size());
+				ExposeToStack((char*)Result.data(), Result.size() + 1);
+			}
 			return Result;
 		}
 		void PrivateKey::CopyDistribution(const PrivateKey& Other)
@@ -8164,6 +8168,24 @@ namespace Mavi
 #endif
 		}
 
+		Digest Crypto::GetDigestByName(const Core::String& Name)
+		{
+			VI_ASSERT(!Name.empty(), "digest name should not be empty");
+#ifdef EVP_MD_name
+			return (Digest)EVP_get_digestbyname(Name.c_str());
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Crypto::GetCipherByName(const Core::String& Name)
+		{
+			VI_ASSERT(!Name.empty(), "cipher name should not be empty");
+#ifdef EVP_MD_name
+			return (Cipher)EVP_get_cipherbyname(Name.c_str());
+#else
+			return nullptr;
+#endif
+		}
 		const char* Crypto::GetDigestName(Digest Type)
 		{
 			VI_ASSERT(Type != nullptr, "digest should be set");
@@ -8184,10 +8206,21 @@ namespace Mavi
 			return "0x?";
 #endif
 		}
-		Core::Option<Core::String> Crypto::RandomBytes(size_t Length)
+		bool Crypto::FillRandomBytes(unsigned char* Buffer, size_t Length)
 		{
 #ifdef VI_OPENSSL
 			VI_TRACE("[crypto] fill random %" PRIu64 " bytes", (uint64_t)Length);
+			if (RAND_bytes(Buffer, (int)Length) == 1)
+				return true;
+
+			DisplayCryptoLog();
+#endif
+			return false;
+		}
+		Core::Option<Core::String> Crypto::RandomBytes(size_t Length)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] generate random %" PRIu64 " bytes", (uint64_t)Length);
 			unsigned char* Buffer = VI_MALLOC(unsigned char, sizeof(unsigned char) * Length);
 			if (RAND_bytes(Buffer, (int)Length) != 1)
 			{
@@ -8442,7 +8475,7 @@ namespace Mavi
 		}
 		Core::Option<Core::String> Crypto::Encrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
-			return Encrypt(Type, Value.c_str(), Value.size(), Key, Salt);
+			return Encrypt(Type, Value.c_str(), Value.size(), Key, Salt, ComplexityBytes);
 		}
 		Core::Option<Core::String> Crypto::Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
@@ -8509,7 +8542,7 @@ namespace Mavi
 		}
 		Core::Option<Core::String> Crypto::Decrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
-			return Decrypt(Type, Value.c_str(), (uint64_t)Value.size(), Key, Salt);
+			return Decrypt(Type, Value.c_str(), (uint64_t)Value.size(), Key, Salt, ComplexityBytes);
 		}
 		Core::Option<Core::String> Crypto::JWTSign(const Core::String& Alg, const Core::String& Payload, const PrivateKey& Key)
 		{
@@ -9144,7 +9177,7 @@ namespace Mavi
 #ifdef VI_ZLIB
 			VI_TRACE("[codec] compress %" PRIu64 " bytes", (uint64_t)Data.size());
 			if (Data.empty())
-				return Data;
+				return Core::Optional::None;
 
 			uLongf Size = compressBound((uLong)Data.size());
 			Bytef* Buffer = VI_MALLOC(Bytef, Size);
@@ -9166,7 +9199,7 @@ namespace Mavi
 #ifdef VI_ZLIB
 			VI_TRACE("[codec] decompress %" PRIu64 " bytes", (uint64_t)Data.size());
 			if (Data.empty())
-				return Data;
+				return Core::Optional::None;
 
 			uLongf SourceSize = (uLong)Data.size();
 			uLongf TotalSize = SourceSize * 2;
@@ -9194,16 +9227,18 @@ namespace Mavi
 #endif
 			return Core::Optional::None;
 		}
-		Core::String Codec::HexEncode(const char* Value, size_t Size)
+		Core::String Codec::HexEncode(const char* Value, size_t Size, bool UpperCase)
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Size > 0, "length should be greater than zero");
 			VI_TRACE("[codec] hex encode %" PRIu64 " bytes", (uint64_t)Size);
-			static const char Hex[17] = "0123456789abcdef";
+			static const char HexLowerCase[17] = "0123456789abcdef";
+			static const char HexUpperCase[17] = "0123456789ABCDEF";
 
 			Core::String Output;
 			Output.reserve(Size * 2);
 
+			const char* Hex = UpperCase ? HexUpperCase : HexLowerCase;
 			for (size_t i = 0; i < Size; i++)
 			{
 				unsigned char C = static_cast<unsigned char>(Value[i]);
@@ -9213,9 +9248,9 @@ namespace Mavi
 
 			return Output;
 		}
-		Core::String Codec::HexEncode(const Core::String& Value)
+		Core::String Codec::HexEncode(const Core::String& Value, bool UpperCase)
 		{
-			return HexEncode(Value.c_str(), Value.size());
+			return HexEncode(Value.c_str(), Value.size(), UpperCase);
 		}
 		Core::String Codec::HexDecode(const char* Value, size_t Size)
 		{
@@ -9223,11 +9258,15 @@ namespace Mavi
 			VI_ASSERT(Size > 0, "length should be greater than zero");
 			VI_TRACE("[codec] hex decode %" PRIu64 " bytes", (uint64_t)Size);
 
+			size_t Offset = 0;
+			if (Size >= 2 && Value[0] == '0' && Value[1] == 'x')
+				Offset = 2;
+
 			Core::String Output;
 			Output.reserve(Size / 2);
 
 			char Hex[3] = { 0, 0, 0 };
-			for (size_t i = 0; i < Size; i += 2)
+			for (size_t i = Offset; i < Size; i += 2)
 			{
 				memcpy(Hex, Value + i, sizeof(char) * 2);
 				Output.push_back((char)(int)strtol(Hex, nullptr, 16));

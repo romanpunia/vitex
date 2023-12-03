@@ -3025,58 +3025,49 @@ namespace Mavi
 		bool Variant::Deserialize(const String& Text, bool Strict)
 		{
 			Free();
-			if (!Strict)
+			if (!Strict && !Text.empty())
 			{
-				if (Text == PREFIX_ENUM "null" PREFIX_ENUM)
+				if (Text.size() > 2 && Text.front() == PREFIX_ENUM[0] && Text.back() == PREFIX_ENUM[0])
 				{
-					Type = VarType::Null;
-					return true;
+					if (Text == PREFIX_ENUM "null" PREFIX_ENUM)
+					{
+						Type = VarType::Null;
+						return true;
+					}
+					else if (Text == PREFIX_ENUM "undefined" PREFIX_ENUM)
+					{
+						Type = VarType::Undefined;
+						return true;
+					}
+					else if (Text == PREFIX_ENUM "{}" PREFIX_ENUM)
+					{
+						Type = VarType::Object;
+						return true;
+					}
+					else if (Text == PREFIX_ENUM "[]" PREFIX_ENUM)
+					{
+						Type = VarType::Array;
+						return true;
+					}
+					else if (Text == PREFIX_ENUM "void*" PREFIX_ENUM)
+					{
+						Type = VarType::Pointer;
+						return true;
+					}
 				}
-
-				if (Text == PREFIX_ENUM "undefined" PREFIX_ENUM)
-				{
-					Type = VarType::Undefined;
-					return true;
-				}
-
-				if (Text == PREFIX_ENUM "{}" PREFIX_ENUM)
-				{
-					Type = VarType::Object;
-					return true;
-				}
-
-				if (Text == PREFIX_ENUM "[]" PREFIX_ENUM)
-				{
-					Type = VarType::Array;
-					return true;
-				}
-
-				if (Text == PREFIX_ENUM "void*" PREFIX_ENUM)
-				{
-					Type = VarType::Pointer;
-					return true;
-				}
-
-				if (Text == "true")
+				else if (Text.front() == 't' && Text == "true")
 				{
 					Move(Var::Boolean(true));
 					return true;
 				}
-
-				if (Text == "false")
+				else if (Text.front() == 'f' && Text == "false")
 				{
 					Move(Var::Boolean(false));
 					return true;
 				}
-
-				if (Stringify::HasNumber(Text) && (Text.size() == 1 || Text.front() != '0'))
+				else if (Stringify::HasNumber(Text))
 				{
-					if (Stringify::HasDecimal(Text))
-					{
-						Move(Var::DecimalString(Text));
-						return true;
-					}
-					else if (Stringify::HasInteger(Text))
+					if (Stringify::HasInteger(Text))
 					{
 						auto Number = FromString<int64_t>(Text);
 						if (Number)
@@ -3084,6 +3075,11 @@ namespace Mavi
 							Move(Var::Integer(*Number));
 							return true;
 						}
+					}
+					else if (Stringify::HasDecimal(Text))
+					{
+						Move(Var::DecimalString(Text));
+						return true;
 					}
 					else
 					{
@@ -3098,12 +3094,9 @@ namespace Mavi
 			}
 
 			if (Text.size() > 2 && Text.front() == PREFIX_BINARY[0] && Text.back() == PREFIX_BINARY[0])
-			{
 				Move(Var::Binary(Compute::Codec::Bep45Decode(String(Text.substr(1).c_str(), Text.size() - 2))));
-				return true;
-			}
-
-			Move(Var::String(Text));
+			else
+				Move(Var::String(Text));
 			return true;
 		}
 		String Variant::Serialize() const
@@ -5555,63 +5548,48 @@ namespace Mavi
 		}
 		bool Stringify::HasInteger(const String& Other)
 		{
-			if (Other.empty())
+			if (Other.empty() || (Other.size() == 1 && !IsDigit(Other.front())))
 				return false;
-
-			bool HadSign = false;
-			for (size_t i = 0; i < Other.size(); i++)
+			
+			size_t Digits = 0;
+			size_t i = (Other.front() == '+' || Other.front() == '-' ? 1 : 0); 
+			for (; i < Other.size(); i++)
 			{
 				const char& V = Other[i];
-				if (IsDigit(V))
-					continue;
+				if (!IsDigit(V))
+					return false;
 
-				if ((V == '+' || V == '-') && i == 0 && !HadSign)
-				{
-					HadSign = true;
-					continue;
-				}
-
-				return false;
+				++Digits;
 			}
 
-			if (HadSign && Other.size() < 2)
-				return false;
-
-			return true;
+			return Digits > 0;
 		}
 		bool Stringify::HasNumber(const String& Other)
 		{
-			if (Other.empty() || (Other.size() == 1 && Other.front() == '.'))
+			if (Other.empty() || (Other.size() == 1 && !IsDigit(Other.front())))
 				return false;
 
-			bool HadPoint = false, HadSign = false;
+			size_t Digits = 0, Points = 0;
+			size_t i = (Other.front() == '+' || Other.front() == '-' ? 1 : 0);
 			for (size_t i = 0; i < Other.size(); i++)
 			{
 				const char& V = Other[i];
 				if (IsDigit(V))
-					continue;
-
-				if ((V == '+' || V == '-') && i == 0 && !HadSign)
 				{
-					HadSign = true;
+					++Digits;
 					continue;
 				}
 
-				if (V == '.' && !HadPoint)
+				if (!Points && V == '.' && i + 1 < Other.size())
 				{
-					HadPoint = true;
+					++Points;
 					continue;
 				}
 
 				return false;
 			}
 
-			if (HadSign && HadPoint && Other.size() < 3)
-				return false;
-			else if ((HadSign || HadPoint) && Other.size() < 2)
-				return false;
-
-			return true;
+			return Digits > 0 && Points < 2;
 		}
 		bool Stringify::HasDecimal(const String& Other)
 		{
@@ -5631,7 +5609,27 @@ namespace Mavi
 		}
 		bool Stringify::IsDigit(char Char)
 		{
-			return Char == '0' || Char == '1' || Char == '2' || Char == '3' || Char == '4' || Char == '5' || Char == '6' || Char == '7' || Char == '8' || Char == '9';
+			return Char >= '0' && Char <= '9';
+		}
+		bool Stringify::IsDigitOrDot(char Char)
+		{
+			return Char == '.' || IsDigit(Char);
+		}
+		bool Stringify::IsDigitOrDotOrWhitespace(char Char)
+		{
+			return std::isspace(Char) || IsDigitOrDot(Char);
+		}
+		bool Stringify::IsHex(char Char)
+		{
+			return IsDigit(Char) || (Char >= 'a' && Char <= 'f') || (Char >= 'A' && Char <= 'F');
+		}
+		bool Stringify::IsHexOrDot(char Char)
+		{
+			return Char == '.' || IsHex(Char);
+		}
+		bool Stringify::IsHexOrDotOrWhitespace(char Char)
+		{
+			return std::isspace(Char) || IsHexOrDot(Char);
 		}
 		bool Stringify::IsAlphabetic(char Char)
 		{
@@ -6426,14 +6424,14 @@ namespace Mavi
 			ColorBegin(BaseColor);
 			while (Buffer[Offset] != '\0')
 			{
-				auto& V = Buffer[Offset];
-				if (Stringify::IsDigit(V))
+				auto V = Buffer[Offset];
+				if (Stringify::IsDigitOrDot(V) && (!Offset || !std::isalnum(Buffer[Offset - 1])))
 				{
 					ColorBegin(StdColor::Yellow);
 					while (Offset < Size)
 					{
-						auto N = std::tolower(Buffer[Offset]);
-						if (!Stringify::IsDigit(N) && N != '.' && N != 'a' && N != 'b' && N != 'c' && N != 'd' && N != 'e' && N != 'f' && N != 'x')
+						char N = Buffer[Offset];
+						if (!Stringify::IsHexOrDot(N) && N != 'x')
 							break;
 
 						WriteChar(Buffer[Offset++]);
@@ -6540,6 +6538,47 @@ namespace Mavi
 		void Console::Write(const String& Line)
 		{
 			std::cout << Line;
+		}
+		void Console::jWrite(Schema* Data)
+		{
+			if (!Data)
+			{
+				std::cout << "null";
+				return;
+			}
+
+			String Offset;
+			Schema::ConvertToJSON(Data, [&Offset](Core::VarForm Pretty, const char* Buffer, size_t Length)
+			{
+				if (Buffer != nullptr && Length > 0)
+					std::cout << String(Buffer, Length);
+
+				switch (Pretty)
+				{
+					case Mavi::Core::VarForm::Tab_Decrease:
+						Offset.erase(Offset.size() - 2);
+						break;
+					case Mavi::Core::VarForm::Tab_Increase:
+						Offset.append(2, ' ');
+						break;
+					case Mavi::Core::VarForm::Write_Space:
+						std::cout << ' ';
+						break;
+					case Mavi::Core::VarForm::Write_Line:
+						std::cout << '\n';
+						break;
+					case Mavi::Core::VarForm::Write_Tab:
+						std::cout << Offset;
+						break;
+					default:
+						break;
+				}
+			});
+		}
+		void Console::jWriteLine(Schema* Data)
+		{
+			jWrite(Data);
+			std::cout << '\n';
 		}
 		void Console::fWriteLine(const char* Format, ...)
 		{
@@ -8063,6 +8102,61 @@ namespace Mavi
 
 			return Buffer.st_mode & S_IFDIR;
 		}
+		bool OS::Directory::IsEmpty(const char* Path)
+		{
+			VI_ASSERT(Path != nullptr, "path should be set");
+			VI_MEASURE(Timings::FileSystem);
+			VI_TRACE("[io] check dir %s", Path.c_str());
+			if (*Path == '\0')
+				return true;
+#if defined(VI_MICROSOFT)
+			wchar_t Buffer[CHUNK_SIZE];
+			Stringify::ConvertToWide(Path, strlen(Path), Buffer, CHUNK_SIZE);
+
+			DWORD Attributes = GetFileAttributesW(Buffer);
+			if (Attributes == 0xFFFFFFFF || (Attributes & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY)
+				return true;
+
+			if (Path[0] != '\\' && Path[0] != '/')
+				wcscat(Buffer, L"\\*");
+			else
+				wcscat(Buffer, L"*");
+
+			WIN32_FIND_DATAW Info;
+			HANDLE Handle = FindFirstFileW(Buffer, &Info);
+			if (!Handle)
+				return true;
+
+			while (FindNextFileW(Handle, &Info) == TRUE)
+			{
+				if (wcscmp(Info.cFileName, L".") != 0 && wcscmp(Info.cFileName, L"..") != 0)
+				{
+					FindClose(Handle);
+					return false;
+				}
+			}
+
+			FindClose(Handle);
+			return true;
+#else
+			DIR* Handle = opendir(Path);
+			if (!Handle)
+				return true;
+
+			dirent* Next = nullptr;
+			while ((Next = readdir(Handle)) != nullptr)
+			{
+				if (strcmp(Next->d_name, ".") != 0 && strcmp(Next->d_name, "..") != 0)
+				{
+					closedir(Handle);
+					return false;
+				}
+			}
+
+			closedir(Handle);
+			return true;
+#endif
+		}
 		ExpectsIO<void> OS::Directory::SetWorking(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
@@ -8093,6 +8187,8 @@ namespace Mavi
 			VI_ASSERT(Entries != nullptr, "entries should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] scan dir %s", Path.c_str());
+			if (Path.empty())
+				return std::make_error_condition(std::errc::no_such_file_or_directory);
 #if defined(VI_MICROSOFT)
 			wchar_t Buffer[CHUNK_SIZE];
 			Stringify::ConvertToWide(Path.c_str(), Path.size(), Buffer, CHUNK_SIZE);
@@ -8101,9 +8197,15 @@ namespace Mavi
 			if (Attributes == 0xFFFFFFFF || (Attributes & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY)
 				return std::make_error_condition(std::errc::not_a_directory);
 
-			wcscat(Buffer, L"\\*");
+			if (Path.back() != '\\' && Path.back() != '/')
+				wcscat(Buffer, L"\\*");
+			else
+				wcscat(Buffer, L"*");
+
 			WIN32_FIND_DATAW Info;
 			HANDLE Handle = FindFirstFileW(Buffer, &Info);
+			if (!Handle)
+				return std::make_error_condition(std::errc::no_such_file_or_directory);
 
 			do
 			{
@@ -8493,7 +8595,7 @@ namespace Mavi
 			if (!Stream)
 				return Stream.Error();
 
-			size_t Size = Stream->Write(Data, Length);
+			size_t Size = Length > 0 ? Stream->Write(Data, Length) : 0;
 			VI_RELEASE(Stream);
 
 			if (Size != Length)
@@ -10367,6 +10469,18 @@ namespace Mavi
 			}
 			return false;
 		}
+		bool Schedule::TriggerTimers()
+		{
+			VI_MEASURE(Timings::Pass);
+			auto Queue = Queues[(size_t)Difficulty::Timeout];
+			UMutex<std::mutex> Lock(Queue->Update);
+			for (auto& Item : Queue->Timers)
+				SetTask(std::move(Item.second.Callback));
+
+			size_t Size = Queue->Timers.size();
+			Queue->Timers.clear();
+			return Size > 0;
+		}
 		bool Schedule::Trigger(Difficulty Type)
 		{
 			auto* Queue = Queues[(size_t)Type];
@@ -10500,7 +10614,11 @@ namespace Mavi
 				PushThread(Difficulty::Normal, Index++, j, false);
 
 			if (Policy.Threads[(size_t)Difficulty::Timeout] > 0)
-				PushThread(Difficulty::Timeout, Policy.Ping ? 0 : Index++, 0, !!Policy.Ping);
+			{
+				if (Policy.Ping)
+					PushThread(Difficulty::Timeout, 0, 0, true);
+				PushThread(Difficulty::Timeout, Index++, 0, false);
+			}
 
 			return true;
 		}
@@ -10541,7 +10659,7 @@ namespace Mavi
 		bool Schedule::Wakeup()
 		{
 			VI_TRACE("[schedule] wakeup 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(std::this_thread::get_id()).c_str());
-			TaskCallback Dummy[EVENTS_SIZE * 2] = { nullptr };
+			TaskCallback Dummy[EVENTS_SIZE * 32] = { nullptr };
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
 				auto* Queue = Queues[i];
@@ -10636,14 +10754,9 @@ namespace Mavi
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Sleep, 0);
 #endif
-						if (When < Policy.ClockTimeout)
-						{
-							Queue->Notify.wait_for(Lock, When);
-							continue;
-						}
-						
+						Queue->Notify.wait_for(Lock, When);
 						Lock.unlock();
-						size_t Count = Subqueue->Tasks.wait_dequeue_bulk_timed(Token, Events, EVENTS_SIZE, When);
+						size_t Count = Subqueue->Tasks.try_dequeue_bulk(Events, EVENTS_SIZE);
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Awake, 0);
 						PostDebug(ThreadTask::ProcessTask, Count);
@@ -10937,9 +11050,8 @@ namespace Mavi
 		}
 		UnorderedMap<String, size_t> Schema::GetNames() const
 		{
-			UnorderedMap<String, size_t> Mapping;
 			size_t Index = 0;
-
+			UnorderedMap<String, size_t> Mapping;
 			GenerateNamingTable(this, &Mapping, Index);
 			return Mapping;
 		}
@@ -11747,7 +11859,7 @@ namespace Mavi
 				return Exceptions::ParserException(ParserError::JSONDocumentEmpty, 0);
 
 			rapidjson::Document Base;
-			Base.Parse(Buffer, Size);
+			Base.Parse<rapidjson::kParseNumbersAsStringsFlag>(Buffer, Size);
 
 			Schema* Result = nullptr;
 			if (Base.HasParseError())
@@ -11815,14 +11927,8 @@ namespace Mavi
 					ProcessConvertionFromJSON((void*)&Base, Result);
 					break;
 				case rapidjson::kStringType:
-				{
-					const char* Buffer = Base.GetString(); size_t Size = Base.GetStringLength();
-					if (Size >= 2 && *Buffer == PREFIX_BINARY[0] && Buffer[Size - 1] == PREFIX_BINARY[0])
-						Result = new Schema(Var::Binary(Buffer + 1, Size - 2));
-					else
-						Result = new Schema(Var::String(Buffer, Size));
+					Result = ProcessConversionFromJSONStringOrNumber(&Base, true);
 					break;
-				}
 				case rapidjson::kNumberType:
 					if (Base.IsInt())
 						Result = new Schema(Var::Integer(Base.GetInt64()));
@@ -11904,11 +12010,11 @@ namespace Mavi
 			size_t Offset = 0;
 			return ConvertFromJSONB([&Binary, &Offset](char* Buffer, size_t Length)
 			{
-				Offset += Length;
-				if (Offset >= Binary.size())
+				if (Offset + Length > Binary.size())
 					return false;
 
 				memcpy((void*)Buffer, Binary.data() + Offset, Length);
+				Offset += Length;
 				return true;
 			});
 		}
@@ -11918,9 +12024,12 @@ namespace Mavi
 			if (!Callback((char*)&Id, sizeof(uint32_t)))
 				return Exceptions::ParserException(ParserError::BadKeyName);
 
-			auto It = Map->find((size_t)OS::CPU::ToEndianness(OS::CPU::Endian::Little, Id));
-			if (It != Map->end())
-				Current->Key = It->second;
+			if (Id != (uint32_t)-1)
+			{
+				auto It = Map->find((size_t)OS::CPU::ToEndianness(OS::CPU::Endian::Little, Id));
+				if (It != Map->end())
+					Current->Key = It->second;
+			}
 
 			if (!Callback((char*)&Current->Value.Type, sizeof(VarType)))
 				return Exceptions::ParserException(ParserError::BadKeyType);
@@ -12034,6 +12143,35 @@ namespace Mavi
 
 			return Core::Optional::OK;
 		}
+		Schema* Schema::ProcessConversionFromJSONStringOrNumber(void* Base, bool IsDocument)
+		{
+#ifdef VI_RAPIDJSON
+			const char* Buffer = (IsDocument ? ((rapidjson::Document*)Base)->GetString() : ((rapidjson::Value*)Base)->GetString());
+			size_t Size = (IsDocument ? ((rapidjson::Document*)Base)->GetStringLength() : ((rapidjson::Value*)Base)->GetStringLength());
+			String Text(Buffer, Size);
+
+			if (!Stringify::HasNumber(Text))
+				return new Schema(Var::String(Text));
+
+			if (Stringify::HasDecimal(Text))
+				return new Schema(Var::DecimalString(Text));
+
+			if (Stringify::HasInteger(Text))
+			{
+				auto Number = FromString<int64_t>(Text);
+				if (Number)
+					return new Schema(Var::Integer(*Number));
+			}
+			else
+			{
+				auto Number = FromString<double>(Text);
+				if (Number)
+					return new Schema(Var::Number(*Number));
+			}
+
+			return new Schema(Var::String(Text));
+#endif
+		}
 		void Schema::ProcessConvertionFromXML(void* Base, Schema* Current)
 		{
 #ifdef VI_PUGIXML
@@ -12100,14 +12238,8 @@ namespace Mavi
 							ProcessConvertionFromJSON((void*)&It->value, Current->Set(Name, Var::Array()));
 							break;
 						case rapidjson::kStringType:
-						{
-							const char* Buffer = It->value.GetString(); size_t Size = It->value.GetStringLength();
-							if (Size >= 2 && *Buffer == PREFIX_BINARY[0] && Buffer[Size - 1] == PREFIX_BINARY[0])
-								Current->Set(Name, Var::Binary(Buffer + 1, Size - 2));
-							else
-								Current->Set(Name, Var::String(Buffer, Size));
+							Current->Set(Name, ProcessConversionFromJSONStringOrNumber(&It->value, false));
 							break;
-						}
 						case rapidjson::kNumberType:
 							if (It->value.IsInt())
 								Current->Set(Name, Var::Integer(It->value.GetInt64()));
@@ -12169,7 +12301,7 @@ namespace Mavi
 		}
 		void Schema::ProcessConvertionToJSONB(Schema* Current, UnorderedMap<String, size_t>* Map, const SchemaWriteCallback& Callback)
 		{
-			uint32_t Id = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)Map->at(Current->Key));
+			uint32_t Id = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Current->Key.empty() ? (uint32_t)-1 : (uint32_t)Map->at(Current->Key));
 			Callback(VarForm::Dummy, (const char*)&Id, sizeof(uint32_t));
 			Callback(VarForm::Dummy, (const char*)&Current->Value.Type, sizeof(VarType));
 
@@ -12226,9 +12358,12 @@ namespace Mavi
 		}
 		void Schema::GenerateNamingTable(const Schema* Current, UnorderedMap<String, size_t>* Map, size_t& Index)
 		{
-			auto M = Map->find(Current->Key);
-			if (M == Map->end())
-				Map->insert({ Current->Key, Index++ });
+			if (!Current->Key.empty())
+			{
+				auto M = Map->find(Current->Key);
+				if (M == Map->end())
+					Map->insert({ Current->Key, Index++ });
+			}
 
 			if (!Current->Nodes)
 				return;

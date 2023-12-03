@@ -2373,8 +2373,11 @@ namespace Mavi
 		class VI_OUT_TS Crypto
 		{
 		public:
+			static Digest GetDigestByName(const Core::String& Name);
+			static Cipher GetCipherByName(const Core::String& Name);
 			static const char* GetDigestName(Digest Type);
 			static const char* GetCipherName(Cipher Type);
+			static bool FillRandomBytes(unsigned char* Buffer, size_t Length);
 			static Core::Option<Core::String> RandomBytes(size_t Length);
 			static Core::Option<Core::String> Hash(Digest Type, const Core::String& Value);
 			static Core::Option<Core::String> HashBinary(Digest Type, const Core::String& Value);
@@ -2425,8 +2428,8 @@ namespace Mavi
 			static Core::String Shuffle(const char* Value, size_t Size, uint64_t Mask);
 			static Core::Option<Core::String> Compress(const Core::String& Data, Compression Type = Compression::Default);
 			static Core::Option<Core::String> Decompress(const Core::String& Data);
-			static Core::String HexEncode(const char* Value, size_t Size);
-			static Core::String HexEncode(const Core::String& Value);
+			static Core::String HexEncode(const char* Value, size_t Size, bool UpperCase = false);
+			static Core::String HexEncode(const Core::String& Value, bool UpperCase = false);
 			static Core::String HexDecode(const char* Value, size_t Size);
 			static Core::String HexDecode(const Core::String& Value);
 			static Core::String URIEncode(const Core::String& Text);

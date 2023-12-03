@@ -258,6 +258,9 @@ namespace Mavi
 				Protocol = "file";
 			}
 
+			if (Path.empty())
+				Path = "/";
+
 			if (Port != -1)
 				return;
 

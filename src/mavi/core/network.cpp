@@ -83,6 +83,10 @@ namespace Mavi
 			Core::Vector<pollfd> Sockets4, Sockets6;
 			for (auto& Host : Hosts)
 			{
+				Socket Stream(Host.first);
+				Stream.SetBlocking(false);
+				Stream.MigrateTo(INVALID_SOCKET, false);
+
 				VI_DEBUG("[net] resolve dns on fd %i", (int)Host.first);
 				int Status = connect(Host.first, Host.second->ai_addr, (int)Host.second->ai_addrlen);
 				if (Status != 0 && Utils::GetLastError(nullptr, Status) != std::errc::operation_would_block)

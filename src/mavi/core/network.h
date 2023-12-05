@@ -468,6 +468,11 @@ namespace Mavi
 		public:
 			Socket() noexcept;
 			Socket(socket_t FromFd) noexcept;
+			Socket(const Socket& Other) = delete;
+			Socket(Socket&& Other) noexcept;
+			~Socket() noexcept;
+			Socket& operator =(const Socket& Other) = delete;
+			Socket& operator =(Socket&& Other) noexcept;
 			Core::ExpectsIO<void> Accept(Socket* OutConnection, char* OutAddress);
 			Core::ExpectsIO<void> Accept(socket_t* OutFd, char* OutAddress);
 			Core::ExpectsIO<void> AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback);

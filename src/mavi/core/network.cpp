@@ -83,12 +83,9 @@ namespace Mavi
 			Core::Vector<pollfd> Sockets4, Sockets6;
 			for (auto& Host : Hosts)
 			{
-				Socket Stream(Host.first);
-				Stream.SetBlocking(false);
-
 				VI_DEBUG("[net] resolve dns on fd %i", (int)Host.first);
 				int Status = connect(Host.first, Host.second->ai_addr, (int)Host.second->ai_addrlen);
-				if (Status != 0 && Utils::GetLastError(Stream.GetDevice(), Status) != std::errc::operation_would_block)
+				if (Status != 0 && Utils::GetLastError(nullptr, Status) != std::errc::operation_would_block)
 					continue;
 
 				pollfd Fd;
@@ -2017,6 +2014,33 @@ namespace Mavi
 		{
 			Fd = FromFd;
 		}
+		Socket::Socket(Socket&& Other) noexcept : Device(Other.Device), Fd(Other.Fd), Timeout(Other.Timeout), Income(Other.Income), Outcome(Other.Outcome), UserData(Other.UserData)
+		{
+			Events = std::move(Other.Events);
+			Other.Device = nullptr;
+			Other.Fd = INVALID_SOCKET;
+		}
+		Socket::~Socket() noexcept
+		{
+			Close(false);
+		}
+		Socket& Socket::operator= (Socket&& Other) noexcept
+		{
+			if (this == &Other)
+				return *this;
+
+			Close(false);
+			Device = Other.Device;
+			Fd = Other.Fd;
+			Timeout = Other.Timeout;
+			Income = Other.Income;
+			Outcome = Other.Outcome;
+			UserData = Other.UserData;
+			Events = std::move(Other.Events);
+			Other.Device = nullptr;
+			Other.Fd = INVALID_SOCKET;
+			return *this;
+		}
 		Core::ExpectsIO<void> Socket::Accept(Socket* OutConnection, char* OutAddr)
 		{
 			VI_ASSERT(OutConnection != nullptr, "socket should be set");
@@ -2066,9 +2090,6 @@ namespace Mavi
 		}
 		Core::ExpectsIO<void> Socket::Close(bool Gracefully)
 		{
-			ClearEvents(false);
-			if (Fd == INVALID_SOCKET)
-				return std::make_error_condition(std::errc::bad_file_descriptor);
 #ifdef VI_OPENSSL
 			if (Device != nullptr)
 			{
@@ -2077,6 +2098,11 @@ namespace Mavi
 				Device = nullptr;
 			}
 #endif
+			if (Fd == INVALID_SOCKET)
+				return std::make_error_condition(std::errc::bad_file_descriptor);
+			else
+				ClearEvents(false);
+
 			int Error = 1;
 			socklen_t Size = sizeof(Error);
 			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
@@ -2108,14 +2134,6 @@ namespace Mavi
 		Core::ExpectsIO<void> Socket::CloseAsync(bool Gracefully, SocketStatusCallback&& Callback)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
-			if (Fd == INVALID_SOCKET)
-			{
-				auto Condition = std::make_error_condition(std::errc::bad_file_descriptor);
-				Callback(Condition);
-				return Condition;
-			}
-
-			ClearEvents(false);
 #ifdef VI_OPENSSL
 			if (Device != nullptr)
 			{
@@ -2124,6 +2142,15 @@ namespace Mavi
 				Device = nullptr;
 			}
 #endif
+			if (Fd == INVALID_SOCKET)
+			{
+				auto Condition = std::make_error_condition(std::errc::bad_file_descriptor);
+				Callback(Condition);
+				return Condition;
+			}
+			else
+				ClearEvents(false);
+
 			int Error = 1;
 			socklen_t Size = sizeof(Error);
 			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
@@ -2450,34 +2477,33 @@ namespace Mavi
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 
 			char Buffer[MAX_READ_UNTIL];
-			size_t Size = strlen(Match), Offset = 0, Index = 0, Received = 0;
-			auto Publish = [&Callback, &Buffer, &Offset, &Received](size_t Size)
+			size_t Size = strlen(Match), Cache = 0, Receiving = 0, Index = 0;
+			auto Publish = [&Callback, &Buffer, &Cache, &Receiving](size_t Size)
 			{
-				Received += Offset; Offset = 0;
+				Receiving += Cache; Cache = 0;
 				return Callback(SocketPoll::Next, Buffer, Size);
 			};
 
 			VI_ASSERT(Size > 0, "match should not be empty");
-			while (true)
+			while (Index < Size)
 			{
-				auto Status = Read(Buffer + Offset, 1);
+				auto Status = Read(Buffer + Cache, 1);
 				if (!Status)
 				{
-					if (!Offset || Publish(Offset))
+					if (!Cache || Publish(Cache))
 						Callback(SocketPoll::Reset, nullptr, 0);
 					return Status;
 				}
 
-				char Next = Buffer[Offset];
-				if (++Offset >= MAX_READ_UNTIL && !Publish(Offset))
+				size_t Offset = Cache;
+				if (++Cache >= sizeof(Buffer) && !Publish(Cache))
 					break;
 
-				if (Match[Index] == Next)
+				if (Match[Index] == Buffer[Offset])
 				{
 					if (++Index >= Size)
 					{
-						if (Offset > 0)
-							Publish(Offset);
+						Publish(Cache);
 						break;
 					}
 				}
@@ -2486,7 +2512,7 @@ namespace Mavi
 			}
 
 			Callback(SocketPoll::FinishSync, nullptr, 0);
-			return Received;
+			return Receiving;
 		}
 		Core::ExpectsIO<size_t> Socket::ReadUntilAsync(Core::String&& Match, SocketReadCallback&& Callback, size_t TempIndex, bool TempBuffer)
 		{
@@ -2495,17 +2521,17 @@ namespace Mavi
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 
 			char Buffer[MAX_READ_UNTIL];
-			size_t Size = Match.size(), Offset = 0, Received = 0;
-			auto Publish = [&Callback, &Buffer, &Offset, &Received](size_t Size)
+			size_t Size = Match.size(), Cache = 0, Receiving = 0;
+			auto Publish = [&Callback, &Buffer, &Cache, &Receiving](size_t Size)
 			{
-				Received += Offset; Offset = 0;
+				Receiving += Cache; Cache = 0;
 				return Callback(SocketPoll::Next, Buffer, Size);
 			};
 
 			VI_ASSERT(Size > 0, "match should not be empty");
-			while (true)
+			while (TempIndex < Size)
 			{
-				auto Status = Read(Buffer + Offset, 1);
+				auto Status = Read(Buffer + Cache, 1);
 				if (!Status)
 				{
 					if (Status.Error() == std::errc::operation_would_block)
@@ -2518,36 +2544,30 @@ namespace Mavi
 								Callback(Event, nullptr, 0);
 						});
 					}
-					else
-					{
-						if (!Offset || Publish(Offset))
-							Callback(SocketPoll::Reset, nullptr, 0);
-					}
+					else if (!Cache || Publish(Cache))
+						Callback(SocketPoll::Reset, nullptr, 0);
 
 					return Status;
 				}
-				else
-				{
-					char Next = Buffer[Offset];
-					if (++Offset >= MAX_READ_UNTIL && !Publish(Offset))
-						break;
 
-					if (Match[TempIndex] == Next)
+				size_t Offset = Cache++;
+				if (Cache >= sizeof(Buffer) && !Publish(Cache))
+					break;
+
+				if (Match[TempIndex] == Buffer[Offset])
+				{
+					if (++TempIndex >= Size)
 					{
-						if (++TempIndex >= Size)
-						{
-							if (Offset > 0)
-								Publish(Offset);
-							break;
-						}
+						Publish(Cache);
+						break;
 					}
-					else
-						TempIndex = 0;
 				}
+				else
+					TempIndex = 0;
 			}
 
 			Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync, nullptr, 0);
-			return Received;
+			return Receiving;
 		}
 		Core::ExpectsIO<void> Socket::Connect(SocketAddress* Address, uint64_t Timeout)
 		{

@@ -4546,22 +4546,22 @@ namespace Mavi
 		Core::String UInt128::ToString(uint8_t Base, uint32_t Length) const
 		{
 			VI_ASSERT(Base >= 2 && Base <= 16, "base must be in the range [2, 16]");
-			Core::String out = "";
+			Core::String Output;
 			if (!!(*this))
 			{
-				std::pair <UInt128, UInt128> qr(*this, UInt128(0));
+				std::pair <UInt128, UInt128> QR(*this, UInt128(0));
 				do
 				{
-					qr = Divide(qr.first, Base);
-					out = "0123456789abcdef"[(uint8_t)qr.second] + out;
-				} while (qr.first);
+					QR = Divide(QR.first, Base);
+					Output = "0123456789abcdef"[(uint8_t)QR.second] + Output;
+				} while (QR.first);
 			}
 			else
-				out = "0";
+				Output = "0";
 
-			if (out.size() < Length)
-				out = Core::String(Length - out.size(), '0') + out;
-			return out;
+			if (Output.size() < Length)
+				Output = Core::String(Length - Output.size(), '0') + Output;
+			return Output;
 		}
 		UInt128 operator<<(const uint8_t& Left, const UInt128& Right)
 		{
@@ -5102,22 +5102,22 @@ namespace Mavi
 		Core::String UInt256::ToString(uint8_t Base, uint32_t Length) const
 		{
 			VI_ASSERT(Base >= 2 && Base <= 36, "Base must be in the range [2, 36]");
-			Core::String out = "";
+			Core::String Output;
 			if (!!(*this))
 			{
-				std::pair <UInt256, UInt256> qr(*this, Min());
+				std::pair <UInt256, UInt256> QR(*this, Min());
 				do
 				{
-					qr = Divide(qr.first, Base);
-					out = "0123456789abcdefghijklmnopqrstuvwxyz"[(uint8_t)qr.second] + out;
-				} while (qr.first);
+					QR = Divide(QR.first, Base);
+					Output = "0123456789abcdefghijklmnopqrstuvwxyz"[(uint8_t)QR.second] + Output;
+				} while (QR.first);
 			}
 			else
-				out = "0";
+				Output = "0";
 
-			if (out.size() < Length)
-				out = Core::String(Length - out.size(), '0') + out;
-			return out;
+			if (Output.size() < Length)
+				Output = Core::String(Length - Output.size(), '0') + Output;
+			return Output;
 		}
 		UInt256 operator&(const UInt128& Left, const UInt256& Right)
 		{
@@ -9226,6 +9226,32 @@ namespace Mavi
 			}
 #endif
 			return Core::Optional::None;
+		}
+		Core::String Codec::HexEncodeOdd(const char* Value, size_t Size, bool UpperCase)
+		{
+			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(Size > 0, "length should be greater than zero");
+			VI_TRACE("[codec] hex encode odd %" PRIu64 " bytes", (uint64_t)Size);
+			static const char HexLowerCase[17] = "0123456789abcdef";
+			static const char HexUpperCase[17] = "0123456789ABCDEF";
+
+			Core::String Output;
+			Output.reserve(Size * 2);
+
+			const char* Hex = UpperCase ? HexUpperCase : HexLowerCase;
+			for (size_t i = 0; i < Size; i++)
+			{
+				unsigned char C = static_cast<unsigned char>(Value[i]);
+				if (C >= 16)
+					Output += Hex[C >> 4];
+				Output += Hex[C & 0xf];
+			}
+
+			return Output;
+		}
+		Core::String Codec::HexEncodeOdd(const Core::String& Value, bool UpperCase)
+		{
+			return HexEncodeOdd(Value.c_str(), Value.size(), UpperCase);
 		}
 		Core::String Codec::HexEncode(const char* Value, size_t Size, bool UpperCase)
 		{

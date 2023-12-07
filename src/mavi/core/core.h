@@ -1773,7 +1773,7 @@ namespace Mavi
 			int64_t ToInt64() const;
 			uint64_t ToUInt64() const;
 			String ToString() const;
-			String Exp() const;
+			String ToExponent() const;
 			uint32_t Decimals() const;
 			uint32_t Ints() const;
 			uint32_t Size() const;

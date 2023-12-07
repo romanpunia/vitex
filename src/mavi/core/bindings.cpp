@@ -10309,7 +10309,7 @@ namespace Mavi
 				VDecimal->SetMethod("int64 to_int64() const", &Core::Decimal::ToInt64);
 				VDecimal->SetMethod("uint64 to_uint64() const", &Core::Decimal::ToUInt64);
 				VDecimal->SetMethod("string to_string() const", &Core::Decimal::ToString);
-				VDecimal->SetMethod("string exp() const", &Core::Decimal::Exp);
+				VDecimal->SetMethod("string to_exponent() const", &Core::Decimal::ToExponent);
 				VDecimal->SetMethod("uint32 decimals() const", &Core::Decimal::Decimals);
 				VDecimal->SetMethod("uint32 ints() const", &Core::Decimal::Ints);
 				VDecimal->SetMethod("uint32 size() const", &Core::Decimal::Size);

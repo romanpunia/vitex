@@ -2428,6 +2428,8 @@ namespace Mavi
 			static Core::String Shuffle(const char* Value, size_t Size, uint64_t Mask);
 			static Core::Option<Core::String> Compress(const Core::String& Data, Compression Type = Compression::Default);
 			static Core::Option<Core::String> Decompress(const Core::String& Data);
+			static Core::String HexEncodeOdd(const char* Value, size_t Size, bool UpperCase = false);
+			static Core::String HexEncodeOdd(const Core::String& Value, bool UpperCase = false);
 			static Core::String HexEncode(const char* Value, size_t Size, bool UpperCase = false);
 			static Core::String HexEncode(const Core::String& Value, bool UpperCase = false);
 			static Core::String HexDecode(const char* Value, size_t Size);

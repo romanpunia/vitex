@@ -2127,7 +2127,7 @@ namespace Mavi
 
 			return Result;
 		}
-		String Decimal::Exp() const
+		String Decimal::ToExponent() const
 		{
 			if (IsNaN())
 				return "NaN";
@@ -4776,14 +4776,14 @@ namespace Mavi
 		}
 		String& Stringify::Reverse(String& Other)
 		{
-			if (!Other.empty())
+			if (Other.size() > 1)
 				Reverse(Other, 0, Other.size());
 			return Other;
 		}
 		String& Stringify::Reverse(String& Other, size_t Start, size_t End)
 		{
-			VI_ASSERT(Other.size() >= 2, "length should be at least 2 chars");
-			VI_ASSERT(End < Other.size(), "end should be less than length - 1");
+			VI_ASSERT(!Other.empty(), "length should be at least 1 char");
+			VI_ASSERT(End <= Other.size(), "end should be less than length");
 			VI_ASSERT(Start < Other.size(), "start should be less than length - 1");
 			VI_ASSERT(Start < End, "start should be less than end");
 			std::reverse(Other.begin() + Start, Other.begin() + End);

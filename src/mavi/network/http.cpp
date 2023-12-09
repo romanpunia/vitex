@@ -2330,14 +2330,6 @@ namespace Mavi
 				if (!Stream)
 					return false;
 
-				fseek(*Stream, 0, SEEK_END);
-				if (ftell(*Stream) == 0)
-				{
-					Core::OS::File::Close(*Stream);
-					return false;
-				}
-
-				fseek(*Stream, 0, SEEK_SET);
 				if (fread(&SessionExpires, 1, sizeof(int64_t), *Stream) != sizeof(int64_t))
 				{
 					Core::OS::File::Close(*Stream);
@@ -4780,16 +4772,9 @@ namespace Mavi
 				{
 					if (Base->Response.StatusCode <= 0)
 						Base->Response.StatusCode = 206;
-#ifdef VI_MICROSOFT
-					if (_lseeki64(VI_FILENO(Stream), Range1, SEEK_SET) != 0)
+
+					if (!Core::OS::File::Seek64(Stream, Range1, Core::FileSeek::Begin))
 						return Base->Error(416, "Invalid content range offset (%" PRId64 ") was specified.", Range1);
-#elif defined(VI_APPLE)
-					if (fseek(Stream, Range1, SEEK_SET) != 0)
-						return Base->Error(416, "Invalid content range offset (%" PRId64 ") was specified.", Range1);
-#else
-					if (lseek64(VI_FILENO(Stream), Range1, SEEK_SET) != 0)
-						return Base->Error(416, "Invalid content range offset (%" PRId64 ") was specified.", Range1);
-#endif
 				}
 				else
 					Base->Response.StatusCode = 204;
@@ -5315,25 +5300,12 @@ namespace Mavi
 			{
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-#ifdef VI_MICROSOFT
-				if (Range > 0 && _lseeki64(VI_FILENO(Stream), Range, SEEK_SET) == -1)
+				if (!Core::OS::File::Seek64(Stream, Range, Core::FileSeek::Begin))
 				{
 					Core::OS::File::Close(Stream);
 					return Base->Error(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
 				}
-#elif defined(VI_APPLE)
-				if (Range > 0 && fseek(Stream, Range, SEEK_SET) == -1)
-				{
-					Core::OS::File::Close(Stream);
-					return Base->Error(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
-				}
-#else
-				if (Range > 0 && lseek64(VI_FILENO(Stream), Range, SEEK_SET) == -1)
-				{
-					Core::OS::File::Close(Stream);
-					return Base->Error(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
-				}
-#endif
+
                 return ProcessFileChunk(Base, Base->Root, Stream, ContentLength);
 			}
 			bool Logical::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, size_t ContentLength)
@@ -5425,25 +5397,11 @@ namespace Mavi
 					return Base->Error(500, "System denied to open resource stream.");
 
 				FILE* Stream = *File;
-#ifdef VI_MICROSOFT
-				if (Range > 0 && _lseeki64(VI_FILENO(Stream), Range, SEEK_SET) == -1)
+				if (Range > 0 && !Core::OS::File::Seek64(Stream, Range, Core::FileSeek::Begin))
 				{
 					Core::OS::File::Close(Stream);
 					return Base->Error(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
 				}
-#elif defined(VI_APPLE)
-				if (Range > 0 && fseek(Stream, Range, SEEK_SET) == -1)
-				{
-					Core::OS::File::Close(Stream);
-					return Base->Error(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
-				}
-#else
-				if (Range > 0 && lseek64(VI_FILENO(Stream), Range, SEEK_SET) == -1)
-				{
-					Core::OS::File::Close(Stream);
-					return Base->Error(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
-				}
-#endif
 #ifdef VI_ZLIB
 				Server* Server = Base->Root;
 				z_stream* ZStream = VI_MALLOC(z_stream, sizeof(z_stream));

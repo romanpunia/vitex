@@ -2294,6 +2294,8 @@ namespace Mavi
 				static ExpectsIO<void> Remove(const char* Path);
 				static ExpectsIO<void> Close(Unique<void> Stream);
 				static ExpectsIO<void> GetState(const String& Path, FileEntry* Output);
+				static ExpectsIO<void> Seek64(FILE* Stream, int64_t Offset, FileSeek Mode);
+				static ExpectsIO<uint64_t> Tell64(FILE* Stream);
 				static ExpectsIO<size_t> Join(const String& To, const Vector<String>& Paths);
 				static ExpectsIO<FileState> GetProperties(const char* Path);
 				static ExpectsIO<FileEntry> GetState(const String& Path);

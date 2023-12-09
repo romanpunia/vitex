@@ -1,3 +1,5 @@
+#define _LARGEFILE64_SOURCE
+#define _FILE_OFFSET_BITS 64
 #include "core.h"
 #include "scripting.h"
 #include "../network/http.h"
@@ -7019,36 +7021,14 @@ namespace Mavi
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_MEASURE(Timings::FileSystem);
-
-			switch (Mode)
-			{
-				case FileSeek::Begin:
-					VI_TRACE("[io] seek fs %i begin %" PRId64, GetFd(), Offset);
-					if (fseek(Resource, (long)Offset, SEEK_SET) != 0)
-						return OS::Error::GetConditionOr();
-					return Optional::OK;
-				case FileSeek::Current:
-					VI_TRACE("[io] seek fs %i move %" PRId64, GetFd(), Offset);
-					if (fseek(Resource, (long)Offset, SEEK_CUR) != 0)
-						return OS::Error::GetConditionOr();
-					return Optional::OK;
-				case FileSeek::End:
-					VI_TRACE("[io] seek fs %i end %" PRId64, GetFd(), Offset);
-					if (fseek(Resource, (long)Offset, SEEK_END) != 0)
-						return OS::Error::GetConditionOr();
-					return Optional::OK;
-				default:
-					return std::make_error_condition(std::errc::invalid_argument);
-			}
+			return OS::File::Seek64(Resource, Offset, Mode);
 		}
 		ExpectsIO<void> FileStream::Move(int64_t Offset)
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] seek fs %i move %" PRId64, GetFd(), Offset);
-			if (fseek(Resource, (long)Offset, SEEK_CUR) != 0)
-				return OS::Error::GetConditionOr();
-			return Optional::OK;
+			return Seek(FileSeek::Current, Offset);
 		}
 		ExpectsIO<void> FileStream::Flush()
 		{
@@ -7107,8 +7087,8 @@ namespace Mavi
 		{
 			VI_ASSERT(Resource != nullptr, "file should be opened");
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] fs %i tell", GetFd());
-			return ftell(Resource);
+			auto Offset = OS::File::Tell64(Resource);
+			return Offset ? *Offset : 0;
 		}
 		socket_t FileStream::GetFd() const
 		{
@@ -8714,6 +8694,51 @@ namespace Mavi
 #endif
 			VI_TRACE("[io] stat %s: %s %" PRIu64 " bytes", Path.c_str(), File->IsDirectory ? "dir" : "file", (uint64_t)File->Size);
 			return Core::Optional::OK;
+		}
+		ExpectsIO<void> OS::File::Seek64(FILE* Stream, int64_t Offset, FileSeek Mode)
+		{
+			int Origin;
+			switch (Mode)
+			{
+				case FileSeek::Begin:
+					VI_TRACE("[io] seek64 fs %i begin %" PRId64, VI_FILENO(Stream), Offset);
+					Origin = SEEK_SET;
+					break;
+				case FileSeek::Current:
+					VI_TRACE("[io] seek64 fs %i move %" PRId64, VI_FILENO(Stream), Offset);
+					Origin = SEEK_CUR;
+					break;
+				case FileSeek::End:
+					VI_TRACE("[io] seek64 fs %i end %" PRId64, VI_FILENO(Stream), Offset);
+					Origin = SEEK_END;
+					break;
+				default:
+					return std::make_error_condition(std::errc::invalid_argument);
+			}
+#ifdef VI_MICROSOFT
+			if (_lseeki64(VI_FILENO(Stream), Offset, SEEK_SET) != 0)
+				return OS::Error::GetConditionOr();
+#elif defined(VI_APPLE)
+			if (fseeko(Stream, Offset, SEEK_SET) != 0)
+				return OS::Error::GetConditionOr();
+#else
+			if (lseek64(VI_FILENO(Stream), Offset, SEEK_SET) != 0)
+				return OS::Error::GetConditionOr();
+#endif
+			return Optional::OK;
+		}
+		ExpectsIO<uint64_t> OS::File::Tell64(FILE* Stream)
+		{
+			VI_TRACE("[io] fs %i tell64", VI_FILENO(Stream));
+#ifdef VI_MICROSOFT
+			int64_t Offset = _telli64(VI_FILENO(Stream));
+#else
+			int64_t Offset = ftello(Stream);
+#endif
+			if (Offset < 0)
+				return OS::Error::GetConditionOr();
+
+			return (uint64_t)Offset;
 		}
 		ExpectsIO<size_t> OS::File::Join(const String& To, const Vector<String>& Paths)
 		{

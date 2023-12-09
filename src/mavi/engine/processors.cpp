@@ -1815,7 +1815,7 @@ namespace Mavi
 			}
 			void* SchemaProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				VI_ASSERT(Stream != nullptr, "stream should be set")
+				VI_ASSERT(Stream != nullptr, "stream should be set");
 				auto Object = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, size_t Size) { return Size > 0 ? Stream->Read(Buffer, Size) == Size : true; });
 				if (Object)
 					return *Object;

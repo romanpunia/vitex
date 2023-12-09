@@ -8716,13 +8716,10 @@ namespace Mavi
 					return std::make_error_condition(std::errc::invalid_argument);
 			}
 #ifdef VI_MICROSOFT
-			if (_lseeki64(VI_FILENO(Stream), Offset, SEEK_SET) != 0)
-				return OS::Error::GetConditionOr();
-#elif defined(VI_APPLE)
-			if (fseeko(Stream, Offset, SEEK_SET) != 0)
+			if (_fseeki64(Stream, Offset, Origin) != 0)
 				return OS::Error::GetConditionOr();
 #else
-			if (lseek64(VI_FILENO(Stream), Offset, SEEK_SET) != 0)
+			if (fseeko(Stream, Offset, Origin) != 0)
 				return OS::Error::GetConditionOr();
 #endif
 			return Optional::OK;
@@ -8731,7 +8728,7 @@ namespace Mavi
 		{
 			VI_TRACE("[io] fs %i tell64", VI_FILENO(Stream));
 #ifdef VI_MICROSOFT
-			int64_t Offset = _telli64(VI_FILENO(Stream));
+			int64_t Offset = _ftelli64(Stream);
 #else
 			int64_t Offset = ftello(Stream);
 #endif

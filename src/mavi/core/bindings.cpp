@@ -3236,7 +3236,71 @@ namespace Mavi
 			{
 				return (bool)Base;
 			}
+			int8_t VariantToInt8(Core::Variant& Base)
+			{
+				return (int8_t)Base.GetInteger();
+			}
+			int16_t VariantToInt16(Core::Variant& Base)
+			{
+				return (int16_t)Base.GetInteger();
+			}
+			int32_t VariantToInt32(Core::Variant& Base)
+			{
+				return (int32_t)Base.GetInteger();
+			}
+			int64_t VariantToInt64(Core::Variant& Base)
+			{
+				return (int64_t)Base.GetInteger();
+			}
+			uint8_t VariantToUInt8(Core::Variant& Base)
+			{
+				return (uint8_t)Base.GetInteger();
+			}
+			uint16_t VariantToUInt16(Core::Variant& Base)
+			{
+				return (int16_t)Base.GetInteger();
+			}
+			uint32_t VariantToUInt32(Core::Variant& Base)
+			{
+				return (uint32_t)Base.GetInteger();
+			}
+			uint64_t VariantToUInt64(Core::Variant& Base)
+			{
+				return (uint64_t)Base.GetInteger();
+			}
 
+			int8_t SchemaToInt8(Core::Schema* Base)
+			{
+				return (int8_t)Base->Value.GetInteger();
+			}
+			int16_t SchemaToInt16(Core::Schema* Base)
+			{
+				return (int16_t)Base->Value.GetInteger();
+			}
+			int32_t SchemaToInt32(Core::Schema* Base)
+			{
+				return (int32_t)Base->Value.GetInteger();
+			}
+			int64_t SchemaToInt64(Core::Schema* Base)
+			{
+				return (int64_t)Base->Value.GetInteger();
+			}
+			uint8_t SchemaToUInt8(Core::Schema* Base)
+			{
+				return (uint8_t)Base->Value.GetInteger();
+			}
+			uint16_t SchemaToUInt16(Core::Schema* Base)
+			{
+				return (int16_t)Base->Value.GetInteger();
+			}
+			uint32_t SchemaToUInt32(Core::Schema* Base)
+			{
+				return (uint32_t)Base->Value.GetInteger();
+			}
+			uint64_t SchemaToUInt64(Core::Schema* Base)
+			{
+				return (uint64_t)Base->Value.GetInteger();
+			}
 			void SchemaNotifyAllReferences(Core::Schema* Base, VirtualMachine* Engine, asITypeInfo* Type)
 			{
 				Engine->NotifyOfNewObject(Base, Type);
@@ -10298,6 +10362,9 @@ namespace Mavi
 				VDecimal->SetMethod("decimal& unlead()", &Core::Decimal::Unlead);
 				VDecimal->SetMethod("decimal& untrail()", &Core::Decimal::Untrail);
 				VDecimal->SetMethod("bool is_nan() const", &Core::Decimal::IsNaN);
+				VDecimal->SetMethod("bool is_zero_or_nan() const", &Core::Decimal::IsZeroOrNaN);
+				VDecimal->SetMethod("bool is_positive() const", &Core::Decimal::IsPositive);
+				VDecimal->SetMethod("bool is_negative() const", &Core::Decimal::IsNegative);
 				VDecimal->SetMethod("float to_float() const", &Core::Decimal::ToFloat);
 				VDecimal->SetMethod("double to_double() const", &Core::Decimal::ToDouble);
 				VDecimal->SetMethod("int8 to_int8() const", &Core::Decimal::ToInt8);
@@ -10453,7 +10520,14 @@ namespace Mavi
 				VVariant->SetMethod("decimal to_decimal() const", &Core::Variant::GetDecimal);
 				VVariant->SetMethod("string to_string() const", &Core::Variant::GetBlob);
 				VVariant->SetMethod("uptr@ to_pointer() const", &Core::Variant::GetPointer);
-				VVariant->SetMethod("int64 to_integer() const", &Core::Variant::GetInteger);
+				VVariant->SetMethodEx("int8 to_int8() const", &VariantToInt8);
+				VVariant->SetMethodEx("uint8 to_uint8() const", &VariantToUInt8);
+				VVariant->SetMethodEx("int16 to_int16() const", &VariantToInt16);
+				VVariant->SetMethodEx("uint16 to_uint16() const", &VariantToUInt16);
+				VVariant->SetMethodEx("int32 to_int32() const", &VariantToInt32);
+				VVariant->SetMethodEx("uint32 to_uint32() const", &VariantToUInt32);
+				VVariant->SetMethodEx("int64 to_int64() const", &VariantToInt64);
+				VVariant->SetMethodEx("uint64 to_uint64() const", &VariantToUInt64);
 				VVariant->SetMethod("double to_number() const", &Core::Variant::GetNumber);
 				VVariant->SetMethod("bool to_boolean() const", &Core::Variant::GetBoolean);
 				VVariant->SetMethod("var_type get_type() const", &Core::Variant::GetType);
@@ -10644,7 +10718,14 @@ namespace Mavi
 				VSchema->SetMethodEx("string to_xml() const", &SchemaToXML);
 				VSchema->SetMethodEx("string to_string() const", &SchemaToString);
 				VSchema->SetMethodEx("string to_binary() const", &SchemaToBinary);
-				VSchema->SetMethodEx("int64 to_integer() const", &SchemaToInteger);
+				VSchema->SetMethodEx("int8 to_int8() const", &SchemaToInt8);
+				VSchema->SetMethodEx("uint8 to_uint8() const", &SchemaToUInt8);
+				VSchema->SetMethodEx("int16 to_int16() const", &SchemaToInt16);
+				VSchema->SetMethodEx("uint16 to_uint16() const", &SchemaToUInt16);
+				VSchema->SetMethodEx("int32 to_int32() const", &SchemaToInt32);
+				VSchema->SetMethodEx("uint32 to_uint32() const", &SchemaToUInt32);
+				VSchema->SetMethodEx("int64 to_int64() const", &SchemaToInt64);
+				VSchema->SetMethodEx("uint64 to_uint64() const", &SchemaToUInt64);
 				VSchema->SetMethodEx("double to_number() const", &SchemaToNumber);
 				VSchema->SetMethodEx("decimal to_decimal() const", &SchemaToDecimal);
 				VSchema->SetMethodEx("bool to_boolean() const", &SchemaToBoolean);

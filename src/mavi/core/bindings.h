@@ -680,7 +680,6 @@ namespace Mavi
 				void* Retrieve();
 				bool IsPending();
 				Promise* YieldIf();
-				Promise* TryYieldIf();
 
 			public:
 				static Promise* CreateFactory(void* _Ref, int TypeId);
@@ -690,24 +689,45 @@ namespace Mavi
 				static bool GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code);
 				static bool IsContextPending(ImmediateContext* Context);
 				static bool IsContextBusy(ImmediateContext* Context);
+				static bool IsAlwaysAwait(VirtualMachine* VM);
 
 			public:
+				template <typename T>
+				static Promise* WatchAndYieldIf(Promise* Future, int TypeId, Core::Promise<T>&& Awaitable)
+				{
+					if (Awaitable.IsPending())
+					{
+						if (IsAlwaysAwait(Future->Engine))
+							Future->YieldIf();
+						Future->Context->AppendStopExecutionCallback([Future, TypeId, Awaitable]()
+						{
+							Awaitable.When([Future, TypeId](T&& Result)
+							{
+								Future->Store((void*)&Result, TypeId);
+							});
+						});
+					}
+					else
+					{
+						T&& Value = Awaitable.Get();
+						Future->Store((void*)&Value, TypeId);
+					}
+					return Future;
+				}
 				template <typename T>
 				static Core::Unique<Promise> Compose(Core::Promise<T>&& Value, TypeId Id)
 				{
 					Promise* Future = Promise::CreateFactoryVoid();
-					Value.When([Future, Id](T&& Result)
-					{
-						Future->Store((void*)&Result, (int)Id);
-					});
-					return Future->TryYieldIf();
+					return Promise::WatchAndYieldIf<T>(Future, (int)Id, std::move(Value));
 				}
 				template <typename T>
 				static Core::Unique<Promise> Compose(Core::Promise<T>&& Value, const char* TypeName)
 				{
 					VirtualMachine* Engine = VirtualMachine::Get();
 					VI_ASSERT(Engine != nullptr, "engine should be set");
-					return Compose<T>(std::move(Value), Engine->GetTypeIdByDecl(TypeName));
+					Promise* Future = Promise::CreateFactoryVoid();
+					int TypeId = Engine->GetTypeIdByDecl(TypeName);
+					return Promise::WatchAndYieldIf<T>(TypeId, TypeId, std::move(Value));
 				}
 
 			public:
@@ -724,22 +744,36 @@ namespace Mavi
 					static Promise* Id(T* Base, Args... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
-						((Base->*F)(Data...)).When([Future](R&& Result)
+						if (!IsAlwaysAwait(Future->Engine))
+							return Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((Base->*F)(Data...)));
+
+						Future->YieldIf();
+						Future->Context->AppendStopExecutionCallback([Future, Base, Data...]()
 						{
-							Future->Store((void*)&Result, (int)TypeID);
+							((Base->*F)(Data...)).When([Future](R&& Result)
+							{
+								Future->Store((void*)&Result, (int)TypeID);
+							});
 						});
-						return Future->TryYieldIf();
+						return Future;
 					}
 					template <uint64_t TypeRef>
 					static Promise* Decl(T* Base, Args... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
 						int TypeId = TypeCache::GetTypeId(TypeRef);
-						((Base->*F)(Data...)).When([Future, TypeId](R&& Result)
+						if (!IsAlwaysAwait(Future->Engine))
+							return Promise::WatchAndYieldIf<R>(Future, TypeId, ((Base->*F)(Data...)));
+
+						Future->YieldIf();
+						Future->Context->AppendStopExecutionCallback([Future, TypeId, Base, Data...]()
 						{
-							Future->Store((void*)&Result, TypeId);
+							((Base->*F)(Data...)).When([Future, TypeId](R&& Result)
+							{
+								Future->Store((void*)&Result, TypeId);
+							});
 						});
-						return Future->TryYieldIf();
+						return Future;
 					}
 				};
 
@@ -750,22 +784,36 @@ namespace Mavi
 					static Promise* Id(Args... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
-						((*F)(Data...)).When([Future](R&& Result)
+						if (!IsAlwaysAwait(Future->Engine))
+							return Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((*F)(Data...)));
+
+						Future->YieldIf();
+						Future->Context->AppendStopExecutionCallback([Future, Data...]()
 						{
-							Future->Store((void*)&Result, (int)TypeID);
+							((*F)(Data...)).When([Future](R&& Result)
+							{
+								Future->Store((void*)&Result, (int)TypeID);
+							});
 						});
-						return Future->TryYieldIf();
+						return Future;
 					}
 					template <uint64_t TypeRef>
 					static Promise* Decl(Args... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
 						int TypeId = TypeCache::GetTypeId(TypeRef);
-						((*F)(Data...)).When([Future, TypeId](R&& Result)
+						if (!IsAlwaysAwait(Future->Engine))
+							return Promise::WatchAndYieldIf<R>(Future, TypeId, ((*F)(Data...)));
+
+						Future->YieldIf();
+						Future->Context->AppendStopExecutionCallback([Future, TypeId, Data...]()
 						{
-							Future->Store((void*)&Result, TypeId);
+							((*F)(Data...)).When([Future](R&& Result)
+							{
+								Future->Store((void*)&Result, TypeId);
+							});
 						});
-						return Future->TryYieldIf();
+						return Future;
 					}
 				};
 			};

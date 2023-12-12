@@ -5579,6 +5579,17 @@ namespace Mavi
 			VI_ASSERT(Context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
 			int R = Context->Execute();
+			if (Callbacks.StopExecutions.empty())
+				return FunctionFactory::ToReturn<Execution>(R, (Execution)R);
+
+			Core::UMutex<std::recursive_mutex> Unique(Exchange);
+			Core::Vector<StopExecutionCallback> Queue;
+			Queue.swap(Callbacks.StopExecutions);
+			Unique.Negate();
+
+			for (auto& Callback : Queue)
+				Callback();
+
 			return FunctionFactory::ToReturn<Execution>(R, (Execution)R);
 #else
 			return VirtualError::NOT_SUPPORTED;
@@ -6043,6 +6054,12 @@ namespace Mavi
 		{
 			Callbacks.Line = Callback;
 			SetLineCallback(&VirtualMachine::LineHandler, this);
+		}
+		void ImmediateContext::AppendStopExecutionCallback(StopExecutionCallback&& Callback)
+		{
+			VI_ASSERT(Callback != nullptr, "callback should be set");
+			Core::UMutex<std::recursive_mutex> Unique(Exchange);
+			Callbacks.StopExecutions.push_back(std::move(Callback));
 		}
 		void ImmediateContext::Reset()
 		{

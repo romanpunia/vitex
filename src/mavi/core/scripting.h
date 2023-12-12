@@ -1817,12 +1817,16 @@ namespace Mavi
 			friend FunctionDelegate;
 			friend VirtualMachine;
 
+		public:
+			typedef std::function<void()> StopExecutionCallback;
+
 		private:
 			static int ContextUD;
 
 		private:
 			struct Events
 			{
+				Core::Vector<StopExecutionCallback> StopExecutions;
 				std::function<void(ImmediateContext*, void*)> NotificationResolver;
 				std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)> CallbackResolver;
 				std::function<void(ImmediateContext*)> Exception;
@@ -1889,6 +1893,7 @@ namespace Mavi
 			void SetCallbackResolverCallback(const std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)>& Callback);
 			void SetLineCallback(const std::function<void(ImmediateContext*)>& Callback);
 			void SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
+			void AppendStopExecutionCallback(StopExecutionCallback&& Callback);
 			void AddRefLocals();
 			void ReleaseLocals();
 			void Reset();

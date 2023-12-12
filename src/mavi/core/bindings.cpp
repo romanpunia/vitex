@@ -2775,14 +2775,6 @@ namespace Mavi
 
 				return this;
 			}
-			Promise* Promise::TryYieldIf()
-			{
-				bool AlwaysAwaits = (Engine->GetLibraryProperty(LibraryFeatures::PromiseAlwaysAwait) > 0);
-				if (AlwaysAwaits)
-					return YieldIf();
-
-				return this;
-			}
 			Promise* Promise::CreateFactory(void* _Ref, int TypeId)
 			{
 				Promise* Future = new Promise(ImmediateContext::Get());
@@ -2907,6 +2899,10 @@ namespace Mavi
 			bool Promise::IsContextBusy(ImmediateContext* Context)
 			{
 				return IsContextPending(Context) || Context->GetState() == Execution::Active;
+			}
+			bool Promise::IsAlwaysAwait(VirtualMachine* VM)
+			{
+				return (VM->GetLibraryProperty(LibraryFeatures::PromiseAlwaysAwait) > 0);
 			}
 			int Promise::PromiseNULL = -1;
 			int Promise::PromiseUD = 559;

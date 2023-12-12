@@ -71,8 +71,8 @@ namespace Mavi
 			class VI_OUT_TS WeirdTemplateMagic
 			{
 			public:
-				template <typename F, typename Tuple, std::size_t ... I>
-				static constexpr decltype(auto) ApplyPack(F&& f, Tuple&& t, std::index_sequence<I ...>)
+				template <typename F, typename Tuple, std::size_t... I>
+				static constexpr decltype(auto) ApplyPack(F&& f, Tuple&& t, std::index_sequence<I...>)
 				{
 					return static_cast<F&&>(f)(std::get<I>(static_cast<Tuple&&>(t))...);
 				}
@@ -81,17 +81,17 @@ namespace Mavi
 				{
 					return WeirdTemplateMagic::ApplyPack(static_cast<F&&>(f), static_cast<Tuple&&>(t), std::make_index_sequence<std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
 				}
-				template <typename Lambda, typename ... Args>
-				static auto CaptureCall(Lambda&& lambda, Args&& ... args)
+				template <typename Lambda, typename... Args>
+				static auto CaptureCall(Lambda&& lambda, Args&&... args)
 				{
 					return [lambda = std::forward<Lambda>(lambda), capture_args = std::forward_as_tuple(args...)](auto&&... original_args) mutable
 					{
-						return WeirdTemplateMagic::Apply([&lambda](auto&& ... args)
+						return WeirdTemplateMagic::Apply([&lambda](auto&&... args)
 						{
-							lambda(std::forward<decltype(args)>(args) ...);
-						}, std::tuple_cat(std::forward_as_tuple(original_args...), WeirdTemplateMagic::Apply([](auto&& ... args)
+							lambda(std::forward<decltype(args)>(args)...);
+						}, std::tuple_cat(std::forward_as_tuple(original_args...), WeirdTemplateMagic::Apply([](auto&&... args)
 						{
-							return std::forward_as_tuple<Args ...>(std::move(args) ...);
+							return std::forward_as_tuple(std::move(args)...);
 						}, std::move(capture_args))));
 					};
 				}

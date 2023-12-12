@@ -778,7 +778,7 @@ namespace Mavi
 							return Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((Base->*F)(Data...)));
 
 						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future, Base](Args&&... Data)
+						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future, Base](auto&&... Data)
 						{
 							((Base->*F)(Data...)).When([Future](R&& Result)
 							{
@@ -796,7 +796,7 @@ namespace Mavi
 							return Promise::WatchAndYieldIf<R>(Future, TypeId, ((Base->*F)(Data...)));
 
 						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future, TypeId, Base](Args&&... Data)
+						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future, TypeId, Base](auto&&... Data)
 						{
 							((Base->*F)(Data...)).When([Future, TypeId](R&& Result)
 							{
@@ -818,7 +818,7 @@ namespace Mavi
 							return Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((*F)(Data...)));
 
 						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future](Args&&... Data)
+						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future](auto&&... Data)
 						{
 							((*F)(Data...)).When([Future](R&& Result)
 							{
@@ -836,7 +836,7 @@ namespace Mavi
 							return Promise::WatchAndYieldIf<R>(Future, TypeId, ((*F)(Data...)));
 
 						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future, TypeId](Args&&... Data)
+						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future, TypeId](auto&&... Data)
 						{
 							((*F)(Data...)).When([Future, TypeId](R&& Result)
 							{

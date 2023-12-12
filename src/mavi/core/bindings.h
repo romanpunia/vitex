@@ -84,12 +84,12 @@ namespace Mavi
 				template <typename Lambda, typename ... Args>
 				static auto CaptureCall(Lambda&& lambda, Args&& ... args)
 				{
-					return [lambda = std::forward<Lambda>(lambda), capture_args = std::make_tuple(std::forward<Args>(args)...)](auto&&... original_args) mutable
+					return [lambda = std::forward<Lambda>(lambda), capture_args = std::forward_as_tuple(args...)](auto&&... original_args) mutable
 					{
 						return WeirdTemplateMagic::Apply([&lambda](auto&& ... args)
 						{
 							lambda(std::forward<decltype(args)>(args) ...);
-						}, std::tuple_cat(std::forward_as_tuple(original_args ...), WeirdTemplateMagic::Apply([](auto&& ... args)
+						}, std::tuple_cat(std::forward_as_tuple(original_args...), WeirdTemplateMagic::Apply([](auto&& ... args)
 						{
 							return std::forward_as_tuple<Args ...>(std::move(args) ...);
 						}, std::move(capture_args))));
@@ -784,7 +784,7 @@ namespace Mavi
 							{
 								Future->Store((void*)&Result, (int)TypeID);
 							});
-						}, std::forward<Args>(Data)...));
+						}, std::forward<Args&&>(Data)...));
 						return Future;
 					}
 					template <uint64_t TypeRef>
@@ -802,7 +802,7 @@ namespace Mavi
 							{
 								Future->Store((void*)&Result, TypeId);
 							});
-						}, std::forward<Args>(Data)...));
+						}, std::forward<Args&&>(Data)...));
 						return Future;
 					}
 				};
@@ -824,7 +824,7 @@ namespace Mavi
 							{
 								Future->Store((void*)&Result, (int)TypeID);
 							});
-						}, std::forward<Args>(Data)...));
+						}, std::forward<Args&&>(Data)...));
 						return Future;
 					}
 					template <uint64_t TypeRef>
@@ -838,11 +838,11 @@ namespace Mavi
 						Future->YieldIf();
 						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future, TypeId](Args&&... Data)
 						{
-							((*F)(Data...)).When([Future](R&& Result)
+							((*F)(Data...)).When([Future, TypeId](R&& Result)
 							{
 								Future->Store((void*)&Result, TypeId);
 							});
-						}, std::forward<Args>(Data)...));
+						}, std::forward<Args&&>(Data)...));
 						return Future;
 					}
 				};

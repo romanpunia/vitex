@@ -2,6 +2,7 @@
 #define VI_BINDINGS_H
 #include "scripting.h"
 #include "../engine/gui.h"
+#include <tuple>
 #define VI_TYPEREF(Name, TypeName) static const uint64_t Name = Mavi::Core::OS::File::GetIndex<sizeof(TypeName)>(TypeName); Mavi::Scripting::TypeCache::Set(Name, TypeName)
 #define VI_PROMISIFY(MemberFunction, TypeId) Mavi::Scripting::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
 #define VI_PROMISIFY_REF(MemberFunction, TypeRef) Mavi::Scripting::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
@@ -64,6 +65,35 @@ namespace Mavi
 				void Clean()
 				{
 					memset((void*)this, 0, sizeof(*this));
+				}
+			};
+
+			class VI_OUT_TS WeirdTemplateMagic
+			{
+			public:
+				template <typename F, typename Tuple, std::size_t ... I>
+				static constexpr decltype(auto) ApplyPack(F&& f, Tuple&& t, std::index_sequence<I ...>)
+				{
+					return static_cast<F&&>(f)(std::get<I>(static_cast<Tuple&&>(t))...);
+				}
+				template <typename F, typename Tuple>
+				static constexpr decltype(auto) Apply(F&& f, Tuple&& t)
+				{
+					return WeirdTemplateMagic::ApplyPack(static_cast<F&&>(f), static_cast<Tuple&&>(t), std::make_index_sequence<std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
+				}
+				template <typename Lambda, typename ... Args>
+				static auto CaptureCall(Lambda&& lambda, Args&& ... args)
+				{
+					return [lambda = std::forward<Lambda>(lambda), capture_args = std::make_tuple(std::forward<Args>(args)...)](auto&&... original_args) mutable
+					{
+						return WeirdTemplateMagic::Apply([&lambda](auto&& ... args)
+						{
+							lambda(std::forward<decltype(args)>(args) ...);
+						}, std::tuple_cat(std::forward_as_tuple(original_args ...), WeirdTemplateMagic::Apply([](auto&& ... args)
+						{
+							return std::forward_as_tuple<Args ...>(std::move(args) ...);
+						}, std::move(capture_args))));
+					};
 				}
 			};
 
@@ -741,24 +771,24 @@ namespace Mavi
 				struct Ify<Core::Promise<R>(T::*)(Args...), F>
 				{
 					template <TypeId TypeID>
-					static Promise* Id(T* Base, Args... Data)
+					static Promise* Id(T* Base, Args&&... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
 						if (!IsAlwaysAwait(Future->Engine))
 							return Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((Base->*F)(Data...)));
 
 						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback([Future, Base, Data...]()
+						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future, Base](Args&&... Data)
 						{
 							((Base->*F)(Data...)).When([Future](R&& Result)
 							{
 								Future->Store((void*)&Result, (int)TypeID);
 							});
-						});
+						}, std::forward<Args>(Data)...));
 						return Future;
 					}
 					template <uint64_t TypeRef>
-					static Promise* Decl(T* Base, Args... Data)
+					static Promise* Decl(T* Base, Args&&... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
 						int TypeId = TypeCache::GetTypeId(TypeRef);
@@ -766,13 +796,13 @@ namespace Mavi
 							return Promise::WatchAndYieldIf<R>(Future, TypeId, ((Base->*F)(Data...)));
 
 						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback([Future, TypeId, Base, Data...]()
+						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future, TypeId, Base](Args&&... Data)
 						{
 							((Base->*F)(Data...)).When([Future, TypeId](R&& Result)
 							{
 								Future->Store((void*)&Result, TypeId);
 							});
-						});
+						}, std::forward<Args>(Data)...));
 						return Future;
 					}
 				};
@@ -781,24 +811,24 @@ namespace Mavi
 				struct IfyStatic<Core::Promise<R>(*)(Args...), F>
 				{
 					template <TypeId TypeID>
-					static Promise* Id(Args... Data)
+					static Promise* Id(Args&&... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
 						if (!IsAlwaysAwait(Future->Engine))
 							return Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((*F)(Data...)));
 
 						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback([Future, Data...]()
+						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future](Args&&... Data)
 						{
 							((*F)(Data...)).When([Future](R&& Result)
 							{
 								Future->Store((void*)&Result, (int)TypeID);
 							});
-						});
+						}, std::forward<Args>(Data)...));
 						return Future;
 					}
 					template <uint64_t TypeRef>
-					static Promise* Decl(Args... Data)
+					static Promise* Decl(Args&&... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
 						int TypeId = TypeCache::GetTypeId(TypeRef);
@@ -806,13 +836,13 @@ namespace Mavi
 							return Promise::WatchAndYieldIf<R>(Future, TypeId, ((*F)(Data...)));
 
 						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback([Future, TypeId, Data...]()
+						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future, TypeId](Args&&... Data)
 						{
 							((*F)(Data...)).When([Future](R&& Result)
 							{
 								Future->Store((void*)&Result, TypeId);
 							});
-						});
+						}, std::forward<Args>(Data)...));
 						return Future;
 					}
 				};

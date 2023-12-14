@@ -4182,6 +4182,7 @@ namespace Mavi
 		int64_t DateTime::ParseWebDate(const char* Date)
 		{
 			static const char* MonthNames[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+			VI_ASSERT(Date != nullptr, "date should be set");
 
 			char Name[32] = { };
 			int Second, Minute, Hour, Day, Year;
@@ -4203,7 +4204,6 @@ namespace Mavi
 				Time.tm_hour = Hour;
 				Time.tm_min = Minute;
 				Time.tm_sec = Second;
-
 #ifdef VI_MICROSOFT
 				return _mkgmtime(&Time);
 #else
@@ -4212,6 +4212,25 @@ namespace Mavi
 			}
 
 			return 0;
+		}
+		int64_t DateTime::ParseFormatDate(const char* Date, const char* Format)
+		{
+			VI_ASSERT(Format != nullptr, "format should be set");
+			VI_ASSERT(Date != nullptr, "date should be set");
+
+			std::istringstream Stream(Date);
+			Stream.imbue(std::locale(setlocale(LC_ALL, nullptr)));
+
+			tm Time;
+			memset(&Time, 0, sizeof(Time));
+			Stream >> std::get_time(&Time, Format);
+			if (Stream.fail())
+				return 0;
+#ifdef VI_MICROSOFT
+			return _mkgmtime(&Time);
+#else
+			return mktime(&Time);
+#endif
 		}
 
 		String& Stringify::EscapePrint(String& Other)

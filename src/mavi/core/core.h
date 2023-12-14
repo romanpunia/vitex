@@ -2049,6 +2049,7 @@ namespace Mavi
 			static bool FetchWebDateTime(char* Buffer, size_t Length, int64_t Time);
 			static void FetchDateTime(char* Buffer, size_t Length, int64_t Time);
 			static int64_t ParseWebDate(const char* Date);
+			static int64_t ParseFormatDate(const char* Date, const char* Format);
 		};
 
 		struct VI_OUT Stringify

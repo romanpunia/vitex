@@ -14889,7 +14889,8 @@ namespace Mavi
 				});
 
 				auto VSocketRouter = VM->SetClass<Network::SocketRouter>("socket_router", false);
-				VSocketRouter->SetProperty<Network::SocketRouter>("usize payload_max_length", &Network::SocketRouter::PayloadMaxLength);
+				VSocketRouter->SetProperty<Network::SocketRouter>("usize max_heap_buffer", &Network::SocketRouter::MaxHeapBuffer);
+				VSocketRouter->SetProperty<Network::SocketRouter>("usize max_net_buffer", &Network::SocketRouter::MaxNetBuffer);
 				VSocketRouter->SetProperty<Network::SocketRouter>("usize backlog_queue", &Network::SocketRouter::BacklogQueue);
 				VSocketRouter->SetProperty<Network::SocketRouter>("usize socket_timeout", &Network::SocketRouter::SocketTimeout);
 				VSocketRouter->SetProperty<Network::SocketRouter>("usize max_connections", &Network::SocketRouter::MaxConnections);

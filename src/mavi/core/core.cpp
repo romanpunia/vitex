@@ -9209,7 +9209,7 @@ namespace Mavi
 		}
 		bool OS::Net::GetETag(char* Buffer, size_t Length, int64_t LastModified, size_t ContentLength)
 		{
-			VI_ASSERT(Buffer != nullptr && Length > 0, "buffer should be set and size should be greater than Zero");
+			VI_ASSERT(Buffer != nullptr && Length > 0, "buffer should be set and size should be greater than zero");
 			snprintf(Buffer, Length, "\"%lx.%" PRIu64 "\"", (unsigned long)LastModified, (uint64_t)ContentLength);
 			return true;
 		}

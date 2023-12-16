@@ -3966,7 +3966,7 @@ namespace Mavi
 				}
 
 				*Next = '\0';
-				if (!Base->Request.Match.Empty())
+				if (!Base->Request.Match.Empty() && Base->Request.Path.size() > 1)
 				{
 					auto& Match = Base->Request.Match.Get()[0];
 					size_t Start = std::min<size_t>(Base->Request.Path.size(), (size_t)Match.Start);

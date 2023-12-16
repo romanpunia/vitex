@@ -15162,7 +15162,6 @@ namespace Mavi
 				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("string overrides", &Network::HTTP::RouteEntry::Override);
 				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("usize websocket_timeout", &Network::HTTP::RouteEntry::WebSocketTimeout);
 				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("usize static_file_max_age", &Network::HTTP::RouteEntry::StaticFileMaxAge);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("usize max_cache_length", &Network::HTTP::RouteEntry::MaxCacheLength);
 				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("usize level", &Network::HTTP::RouteEntry::Level);
 				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("bool allow_directory_listing", &Network::HTTP::RouteEntry::AllowDirectoryListing);
 				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("bool allow_websocket", &Network::HTTP::RouteEntry::AllowWebSocket);
@@ -15231,7 +15230,7 @@ namespace Mavi
 				VSiteEntry->SetFunctionDef("void websocket_data_event(websocket_frame@+, websocket_op, const string&in)");
 				VSiteEntry->SetProperty<Network::HTTP::SiteEntry>("site_session sessions", &Network::HTTP::SiteEntry::Session);
 				VSiteEntry->SetProperty<Network::HTTP::SiteEntry>("string resource_root", &Network::HTTP::SiteEntry::ResourceRoot);
-				VSiteEntry->SetProperty<Network::HTTP::SiteEntry>("usize max_resources", &Network::HTTP::SiteEntry::MaxResources);
+				VSiteEntry->SetProperty<Network::HTTP::SiteEntry>("usize max_uploadable_resources", &Network::HTTP::SiteEntry::MaxUploadableResources);
 				VSiteEntry->SetMethod("void sort()", &Network::HTTP::SiteEntry::Sort);
 				VSiteEntry->SetMethod("route_group@+ group(const string&in, route_mode)", &Network::HTTP::SiteEntry::Group);
 				VSiteEntry->SetMethod<Network::HTTP::SiteEntry, Network::HTTP::RouteEntry*, const Core::String&, Network::HTTP::RouteMode, const Core::String&>("route_entry@+ route(const string&in, route_mode, const string&in)", &Network::HTTP::SiteEntry::Route);
@@ -15266,7 +15265,8 @@ namespace Mavi
 				VSiteEntry->SetMethodEx("route_group@+ get_group(usize) const", &SiteEntryGetGroup);
 				VSiteEntry->SetMethodEx("usize get_groups_size() const", &SiteEntryGetGroupsSize);
 
-				VMapRouter->SetProperty<Network::SocketRouter>("usize payload_max_length", &Network::SocketRouter::PayloadMaxLength);
+				VMapRouter->SetProperty<Network::SocketRouter>("usize max_heap_buffer", &Network::SocketRouter::MaxHeapBuffer);
+				VMapRouter->SetProperty<Network::SocketRouter>("usize max_net_buffer", &Network::SocketRouter::MaxNetBuffer);
 				VMapRouter->SetProperty<Network::SocketRouter>("usize backlog_queue", &Network::SocketRouter::BacklogQueue);
 				VMapRouter->SetProperty<Network::SocketRouter>("usize socket_timeout", &Network::SocketRouter::SocketTimeout);
 				VMapRouter->SetProperty<Network::SocketRouter>("usize max_connections", &Network::SocketRouter::MaxConnections);

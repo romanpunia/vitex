@@ -549,7 +549,8 @@ namespace Mavi
 		public:
 			Core::UnorderedMap<Core::String, SocketCertificate> Certificates;
 			Core::UnorderedMap<Core::String, RemoteHost> Listeners;
-			size_t PayloadMaxLength = 12582912;
+			size_t MaxHeapBuffer = 1024 * 1024 * 4;
+			size_t MaxNetBuffer = 1024 * 1024 * 32;
 			size_t BacklogQueue = 20;
 			size_t SocketTimeout = 10000;
 			size_t MaxConnections = 0;

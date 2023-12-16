@@ -475,7 +475,6 @@ namespace Mavi
 				Override = Other->Override;
 				WebSocketTimeout = Other->WebSocketTimeout;
 				StaticFileMaxAge = Other->StaticFileMaxAge;
-				MaxCacheLength = Other->MaxCacheLength;
 				Level = Other->Level;
 				AllowDirectoryListing = Other->AllowDirectoryListing;
 				AllowWebSocket = Other->AllowWebSocket;
@@ -1018,59 +1017,85 @@ namespace Mavi
 			}
 			Core::Vector<std::pair<size_t, size_t>> RequestFrame::GetRanges() const
 			{
-				const char* Range = GetHeader("Range");
-				if (Range == nullptr)
+				auto It = Headers.find("Range");
+				if (It == Headers.end())
 					return Core::Vector<std::pair<size_t, size_t>>();
 
-				Core::Vector<Core::String> Bases = Core::Stringify::Split(Range, ',');
 				Core::Vector<std::pair<size_t, size_t>> Ranges;
-
-				for (auto& Item : Bases)
+				for (auto& Item : It->second)
 				{
 					Core::TextSettle Result = Core::Stringify::Find(Item, '-');
 					if (!Result.Found)
 						continue;
 
-					const char* Start = Item.c_str() + Result.Start;
-					uint64_t StartLength = 0;
+					size_t ContentStart = -1, ContentEnd = -1;
+					if (Result.Start > 0)
+					{
+						const char* Left = Item.c_str() + Result.Start - 1;
+						size_t LeftSize = (size_t)(isdigit(*Left) > 0);
+						if (LeftSize > 0)
+					{
+						while (isdigit(*(Left - 1)) && LeftSize <= Result.Start - 1)
+						{
+							--Left;
+							++LeftSize;
+						}
 
-					while (Result.Start > 0 && *Start-- != '\0' && isdigit(*Start))
-						StartLength++;
+						if (LeftSize > 0)
+						{
+							auto From = Core::FromString<size_t>(Core::String(Left, LeftSize));
+							if (From)
+								ContentStart = *From;
+						}
+					}
+					}
 
-					const char* End = Item.c_str() + Result.Start;
-					uint64_t EndLength = 0;
+					if (Result.End < Item.size())
+					{
+						size_t RightSize = 0;
+						const char* Right = Item.c_str() + Result.Start + 1;
+						while (Right[RightSize] != '\0' && isdigit(Right[RightSize]))
+							++RightSize;
 
-					while (*End++ != '\0' && isdigit(*End))
-						EndLength++;
+						if (RightSize > 0)
+						{
+							auto To = Core::FromString<size_t>(Core::String(Right, RightSize));
+							if (To)
+								ContentEnd = *To;
+						}
+					}
 
-					int64_t From = std::stoll(std::string(Start, (size_t)StartLength));
-					if (From == -1)
-						break;
-
-					int64_t To = std::stoll(std::string(End, (size_t)EndLength));
-					if (To == -1 || To < From)
-						break;
-
-					Ranges.emplace_back(std::make_pair((size_t)From, (size_t)To));
+					if (ContentStart != -1 || ContentEnd != -1)
+						Ranges.emplace_back(std::make_pair(ContentStart, ContentEnd));
 				}
 
 				return Ranges;
 			}
-			std::pair<size_t, size_t> RequestFrame::GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContenLength) const
+			std::pair<size_t, size_t> RequestFrame::GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContentLength) const
 			{
 				if (Range->first == -1 && Range->second == -1)
-					return std::make_pair(0, ContenLength);
+					return std::make_pair(0, ContentLength);
 
 				if (Range->first == -1)
 				{
-					Range->first = ContenLength - Range->second;
-					Range->second = ContenLength - 1;
+					if (Range->second > ContentLength)
+						Range->second = 0;
+
+					Range->first = ContentLength - Range->second;
+					Range->second = ContentLength;
 				}
+				else if (Range->first > ContentLength)
+					Range->first = ContentLength;
 
 				if (Range->second == -1)
-					Range->second = ContenLength - 1;
+					Range->second = ContentLength;
+				else if (Range->second > ContentLength)
+					Range->second = ContentLength;
 
-				return std::make_pair(Range->first, Range->second - Range->first + 1);
+				if (Range->first > Range->second)
+					Range->first = Range->second;
+
+				return std::make_pair(Range->first, Range->second - Range->first);
 			}
 
 			ResponseFrame::ResponseFrame() : StatusCode(-1), Error(false)
@@ -1361,59 +1386,85 @@ namespace Mavi
 			}
 			Core::Vector<std::pair<size_t, size_t>> FetchFrame::GetRanges() const
 			{
-				const char* Range = GetHeader("Range");
-				if (Range == nullptr)
+				auto It = Headers.find("Range");
+				if (It == Headers.end())
 					return Core::Vector<std::pair<size_t, size_t>>();
 
-				Core::Vector<Core::String> Bases = Core::Stringify::Split(Range, ',');
 				Core::Vector<std::pair<size_t, size_t>> Ranges;
-
-				for (auto& Item : Bases)
+				for (auto& Item : It->second)
 				{
 					Core::TextSettle Result = Core::Stringify::Find(Item, '-');
 					if (!Result.Found)
 						continue;
 
-					const char* Start = Item.c_str() + Result.Start;
-					uint64_t StartLength = 0;
+					size_t ContentStart = -1, ContentEnd = -1;
+					if (Result.Start > 0)
+					{
+						const char* Left = Item.c_str() + Result.Start - 1;
+						size_t LeftSize = (size_t)(isdigit(*Left) > 0);
+						if (LeftSize > 0)
+						{
+							while (isdigit(*(Left - 1)) && LeftSize <= Result.Start - 1)
+							{
+								--Left;
+								++LeftSize;
+							}
 
-					while (Result.Start > 0 && *Start-- != '\0' && isdigit(*Start))
-						StartLength++;
+							if (LeftSize > 0)
+							{
+								auto From = Core::FromString<size_t>(Core::String(Left, LeftSize));
+								if (From)
+									ContentStart = *From;
+							}
+						}
+					}
 
-					const char* End = Item.c_str() + Result.Start;
-					uint64_t EndLength = 0;
+					if (Result.End < Item.size())
+					{
+						size_t RightSize = 0;
+						const char* Right = Item.c_str() + Result.Start + 1;
+						while (Right[RightSize] != '\0' && isdigit(Right[RightSize]))
+							++RightSize;
 
-					while (*End++ != '\0' && isdigit(*End))
-						EndLength++;
+						if (RightSize > 0)
+						{
+							auto To = Core::FromString<size_t>(Core::String(Right, RightSize));
+							if (To)
+								ContentEnd = *To;
+						}
+					}
 
-					int64_t From = std::stoll(std::string(Start, (size_t)StartLength));
-					if (From == -1)
-						break;
-
-					int64_t To = std::stoll(std::string(End, (size_t)EndLength));
-					if (To == -1 || To < From)
-						break;
-
-					Ranges.emplace_back(std::make_pair((size_t)From, (size_t)To));
+					if (ContentStart != -1 || ContentEnd != -1)
+						Ranges.emplace_back(std::make_pair(ContentStart, ContentEnd));
 				}
 
 				return Ranges;
 			}
-			std::pair<size_t, size_t> FetchFrame::GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContenLength) const
+			std::pair<size_t, size_t> FetchFrame::GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContentLength) const
 			{
 				if (Range->first == -1 && Range->second == -1)
-					return std::make_pair(0, ContenLength);
+					return std::make_pair(0, ContentLength);
 
 				if (Range->first == -1)
 				{
-					Range->first = ContenLength - Range->second;
-					Range->second = ContenLength - 1;
+					if (Range->second > ContentLength)
+						Range->second = 0;
+
+					Range->first = ContentLength - Range->second;
+					Range->second = ContentLength;
 				}
+				else if (Range->first > ContentLength)
+					Range->first = ContentLength;
 
 				if (Range->second == -1)
-					Range->second = ContenLength - 1;
+					Range->second = ContentLength;
+				else if (Range->second > ContentLength)
+					Range->second = ContentLength;
 
-				return std::make_pair(Range->first, Range->second - Range->first + 1);
+				if (Range->first > Range->second)
+					Range->first = Range->second;
+
+				return std::make_pair(Range->first, Range->second - Range->first);
 			}
 
 			Connection::Connection(Server* Source) noexcept : Root(Source)
@@ -1496,7 +1547,7 @@ namespace Mavi
 				if (!Request.Content.Limited && TransferEncoding && !Core::Stringify::CaseCompare(TransferEncoding, "chunked"))
 				{
 					Parser* Parser = new HTTP::Parser();
-					return !!Stream->ReadAsync(Root->Router->PayloadMaxLength, [this, Parser, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
+					return !!Stream->ReadAsync(Root->Router->MaxNetBuffer, [this, Parser, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
@@ -1510,7 +1561,7 @@ namespace Mavi
 								if (Callback)
 									Callback(this, SocketPoll::Next, Buffer, Recv);
 
-								if (!Route || Request.Content.Data.size() < Route->MaxCacheLength)
+								if (!Route || Request.Content.Data.size() < Root->Router->MaxNetBuffer)
 									Request.Content.Append(Buffer, Recv);
 							}
 							else if (Result == -1)
@@ -1543,7 +1594,7 @@ namespace Mavi
 
 					return true;
 				}
-				else if (!Route || Request.Content.Length > Route->MaxCacheLength || Request.Content.Length > Root->Router->PayloadMaxLength)
+				else if (!Route || Request.Content.Length > Root->Router->MaxHeapBuffer || Request.Content.Length > Root->Router->MaxNetBuffer)
 				{
 					Request.Content.Exceeds = true;
 					if (Callback)
@@ -1563,7 +1614,7 @@ namespace Mavi
 						if (Callback)
 							Callback(this, SocketPoll::Next, Buffer, Recv);
 
-						if (!Route || Request.Content.Data.size() < Route->MaxCacheLength)
+						if (!Route || Request.Content.Data.size() < Root->Router->MaxHeapBuffer)
 							Request.Content.Append(Buffer, Recv);
 					}
 					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
@@ -1930,6 +1981,11 @@ namespace Mavi
 							{
 								std::pair<size_t, size_t> Offset = Request.GetRange(It, Response.Content.Data.size());
 								Core::String ContentRange = Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size());
+								if (Data.size() > Root->Router->MaxHeapBuffer)
+								{
+									Response.Content.Data.clear();
+									return Error(413, "Content range produced too much data.");
+								}
 
 								Data.append("--", 2);
 								Data.append(Boundary);
@@ -1946,7 +2002,8 @@ namespace Mavi
 								Data.append(ContentRange.c_str(), ContentRange.size());
 								Data.append("\r\n", 2);
 								Data.append("\r\n", 2);
-								Data.append(TextSubstring(Response.Content.Data, Offset.first, Offset.second));
+								if (Offset.second > 0)
+									Data.append(TextSubstring(Response.Content.Data, Offset.first, Offset.second));
 								Data.append("\r\n", 2);
 							}
 
@@ -1955,13 +2012,17 @@ namespace Mavi
 							Data.append("--\r\n", 4);
 							Response.Content.Assign(Data);
 						}
-						else
+						else if (!Ranges.empty())
 						{
-							std::pair<size_t, size_t> Offset = Request.GetRange(Ranges.begin(), Response.Content.Data.size());
+							auto Range = Ranges.begin();
+							bool IsFullLength = (Range->first == -1 && Range->second == -1);
+							std::pair<size_t, size_t> Offset = Request.GetRange(Range, Response.Content.Data.size());
 							if (!Response.GetHeader("Content-Range"))
 								Content.append("Content-Range: ").append(Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size())).append("\r\n");
-
-							Response.Content.Assign(TextSubstring(Response.Content.Data, Offset.first, Offset.second));
+							if (!Offset.second)
+								Response.Content.Data.clear();
+							else if (!IsFullLength)
+								Response.Content.Assign(TextSubstring(Response.Content.Data, Offset.first, Offset.second));
 						}
 					}
 
@@ -4177,7 +4238,7 @@ namespace Mavi
 				Core::String Field = "bytes ";
 				Field += Core::ToString(Offset);
 				Field += '-';
-				Field += Core::ToString(Offset + Length - 1);
+				Field += Core::ToString(Offset + Length);
 				Field += '/';
 				Field += Core::ToString(ContentLength);
 
@@ -4259,7 +4320,7 @@ namespace Mavi
 					return false;
 				}
 
-				if (Parser->Frame.Route && Parser->Frame.Request->Content.Resources.size() >= Parser->Frame.Route->Site->MaxResources)
+				if (Parser->Frame.Route && Parser->Frame.Request->Content.Resources.size() >= Parser->Frame.Route->Site->MaxUploadableResources)
 				{
 					Parser->Frame.Close = true;
 					return false;
@@ -5689,6 +5750,11 @@ namespace Mavi
 					{
 						size_t LastLength = Base->Request.Content.Data.size();
 						Base->Request.Content.Append(Buffer, Size);
+						if (Base->Request.Content.Data.size() > Conf->MaxHeapBuffer)
+						{
+							Base->Error(431, "Request containts too much data in headers");
+							return false;
+						}
 
 						int64_t Offset = Base->Parsers.Request->ParseRequest(Base->Request.Content.Data.data(), Base->Request.Content.Data.size(), LastLength);
 						if (Offset >= 0 || Offset == -2)

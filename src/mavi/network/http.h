@@ -410,7 +410,6 @@ namespace Mavi
 				Core::String Override;
 				size_t WebSocketTimeout = 30000;
 				size_t StaticFileMaxAge = 604800;
-				size_t MaxCacheLength = 1024 * 64;
 				size_t Level = 0;
 				bool AllowDirectoryListing = false;
 				bool AllowWebSocket = false;
@@ -450,7 +449,7 @@ namespace Mavi
 			public:
 				Core::Vector<RouteGroup*> Groups;
 				Core::String ResourceRoot = "./temp";
-				size_t MaxResources = 5;
+				size_t MaxUploadableResources = 10;
 				RouteEntry* Base = nullptr;
 				MapRouter* Router = nullptr;
 

@@ -1939,8 +1939,11 @@ namespace Mavi
 					if (!Series::Unpack(Config->Find("keep-alive"), &Router->KeepAliveMaxCount))
 						Router->KeepAliveMaxCount = 50;
 
-					if (!Series::Unpack(Config->Find("payload-max-length"), &Router->PayloadMaxLength))
-						Router->PayloadMaxLength = 12582912;
+					if (!Series::Unpack(Config->Find("payload-max-length"), &Router->MaxHeapBuffer))
+						Router->MaxHeapBuffer = 1024 * 1024 * 4;
+
+					if (!Series::Unpack(Config->Find("payload-max-length"), &Router->MaxNetBuffer))
+						Router->MaxNetBuffer = 1024 * 1024 * 32;
 
 					if (!Series::Unpack(Config->Find("backlog-queue"), &Router->BacklogQueue))
 						Router->BacklogQueue = 20;
@@ -2081,8 +2084,8 @@ namespace Mavi
 					if (!Series::Unpack(It->Fetch("session.expires"), &Site->Session.Expires))
 						Site->Session.Expires = 604800;
 
-					if (!Series::Unpack(It->Find("max-resources"), &Site->MaxResources))
-						Site->MaxResources = 5;
+					if (!Series::Unpack(It->Find("max-uploadable-resources"), &Site->MaxUploadableResources))
+						Site->MaxUploadableResources = 10;
 
                     Series::Unpack(It->Find("resource-root"), &Site->ResourceRoot);
                     Core::Stringify::EvalEnvs(Site->ResourceRoot, N, D);
@@ -2270,7 +2273,6 @@ namespace Mavi
 							Series::Unpack(Base->Find("redirect"), &Route->Redirect);
 							Series::Unpack(Base->Find("web-socket-timeout"), &Route->WebSocketTimeout);
 							Series::Unpack(Base->Find("static-file-max-age"), &Route->StaticFileMaxAge);
-							Series::Unpack(Base->Find("max-cache-length"), &Route->MaxCacheLength);
 							Series::Unpack(Base->Find("allow-directory-listing"), &Route->AllowDirectoryListing);
 							Series::Unpack(Base->Find("allow-web-socket"), &Route->AllowWebSocket);
 							Series::Unpack(Base->Find("allow-send-file"), &Route->AllowSendFile);

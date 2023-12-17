@@ -5718,14 +5718,14 @@ namespace Mavi
 				auto Value = Compute::Crypto::RandomBytes(Size);
 				return Value ? *Value : Core::String();
 			}
-			Core::String CryptoHash(Compute::Digest Type, const Core::String& Data)
+			Core::String CryptoHashHex(Compute::Digest Type, const Core::String& Data)
 			{
-				auto Value = Compute::Crypto::Hash(Type, Data);
+				auto Value = Compute::Crypto::HashHex(Type, Data);
 				return Value ? *Value : Core::String();
 			}
-			Core::String CryptoHashBinary(Compute::Digest Type, const Core::String& Data)
+			Core::String CryptoHashRaw(Compute::Digest Type, const Core::String& Data)
 			{
-				auto Value = Compute::Crypto::HashBinary(Type, Data);
+				auto Value = Compute::Crypto::HashRaw(Type, Data);
 				return Value ? *Value : Core::String();
 			}
 			Core::String CryptoSign(Compute::Digest Type, const Core::String& Data, const Compute::PrivateKey& Key)
@@ -11932,8 +11932,8 @@ namespace Mavi
 
 				VM->BeginNamespace("crypto");
 				VM->SetFunction("string random_bytes(usize)", &CryptoRandomBytes);
-				VM->SetFunction("string hash(uptr@, const string &in)", &CryptoHash);
-				VM->SetFunction("string hash_binary(uptr@, const string &in)", &CryptoHashBinary);
+				VM->SetFunction("string hash_hex(uptr@, const string &in)", &CryptoHashHex);
+				VM->SetFunction("string hash_raw(uptr@, const string &in)", &CryptoHashRaw);
 				VM->SetFunction("string sign(uptr@, const string &in, const private_key &in)", &CryptoSign);
 				VM->SetFunction("string hmac(uptr@, const string &in, const private_key &in)", &CryptoHMAC);
 				VM->SetFunction("string encrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &CryptoEncrypt);

@@ -2379,8 +2379,10 @@ namespace Mavi
 			static const char* GetCipherName(Cipher Type);
 			static bool FillRandomBytes(unsigned char* Buffer, size_t Length);
 			static Core::Option<Core::String> RandomBytes(size_t Length);
-			static Core::Option<Core::String> Hash(Digest Type, const Core::String& Value);
-			static Core::Option<Core::String> HashBinary(Digest Type, const Core::String& Value);
+			static Core::Option<Core::String> ChecksumHex(Digest Type, Core::Stream* Stream);
+			static Core::Option<Core::String> ChecksumRaw(Digest Type, Core::Stream* Stream);
+			static Core::Option<Core::String> HashHex(Digest Type, const Core::String& Value);
+			static Core::Option<Core::String> HashRaw(Digest Type, const Core::String& Value);
 			static Core::Option<Core::String> Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
 			static Core::Option<Core::String> Sign(Digest Type, const Core::String& Value, const PrivateKey& Key);
 			static Core::Option<Core::String> HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);

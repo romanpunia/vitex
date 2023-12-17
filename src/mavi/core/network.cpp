@@ -2225,7 +2225,7 @@ namespace Mavi
 				{
 					auto Condition = Utils::GetLastError(Device, (int)Value);
 					IsUnsupported = (Condition == std::errc::protocol_error);
-					return Condition;
+					return IsUnsupported ? std::make_error_condition(std::errc::not_supported) : Condition;
 				}
 
 				size_t Written = (size_t)Value;

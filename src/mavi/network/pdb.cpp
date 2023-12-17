@@ -1941,7 +1941,7 @@ namespace Mavi
 			}
 			Core::String Cluster::GetCacheOid(const Core::String& Payload, size_t Opts)
 			{
-				auto Hash = Compute::Crypto::Hash(Compute::Digests::SHA256(), Payload);
+				auto Hash = Compute::Crypto::HashHex(Compute::Digests::SHA256(), Payload);
 				Core::String Reference = Hash ? Compute::Codec::HexEncode(*Hash) : Compute::Codec::HexEncode(Payload.substr(0, 32));
 				if (Opts & (size_t)QueryOp::CacheShort)
 					Reference.append(".s");

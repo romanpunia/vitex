@@ -8235,15 +8235,63 @@ namespace Mavi
 			return Core::Optional::None;
 #endif
 		}
-		Core::Option<Core::String> Crypto::Hash(Digest Type, const Core::String& Value)
+		Core::Option<Core::String> Crypto::ChecksumHex(Digest Type, Core::Stream* Stream)
 		{
-			auto Data = Crypto::HashBinary(Type, Value);
+			auto Data = Crypto::ChecksumRaw(Type, Stream);
 			if (!Data)
 				return Data;
 
 			return Codec::HexEncode(*Data);
 		}
-		Core::Option<Core::String> Crypto::HashBinary(Digest Type, const Core::String& Value)
+		Core::Option<Core::String> Crypto::ChecksumRaw(Digest Type, Core::Stream* Stream)
+		{
+			VI_ASSERT(Type != nullptr, "type should be set");
+			VI_ASSERT(Stream != nullptr, "stream should be set");
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] %s stream-hash fd %i", GetDigestName(Type), (int)Stream->GetFd());
+
+			EVP_MD* Method = (EVP_MD*)Type;
+			EVP_MD_CTX* Context = EVP_MD_CTX_create();
+			if (!Context)
+			{
+				DisplayCryptoLog();
+				return Core::Optional::None;
+			}
+
+			Core::String Result;
+			Result.resize(EVP_MD_size(Method));
+
+			unsigned int Size = 0; bool OK = true;
+			OK = EVP_DigestInit_ex(Context, Method, nullptr) == 1 ? OK : false;
+			{
+				char Buffer[Core::BLOB_SIZE]; size_t Size = 0;
+				while ((Size = Stream->Read(Buffer, sizeof(Buffer))) > 0)
+					OK = EVP_DigestUpdate(Context, Buffer, Size) == 1 ? OK : false;
+			}
+			OK = EVP_DigestFinal_ex(Context, (unsigned char*)Result.data(), &Size) == 1 ? OK : false;
+			EVP_MD_CTX_destroy(Context);
+
+			if (!OK)
+			{
+				DisplayCryptoLog();
+				return Core::Optional::None;
+			}
+
+			Result.resize((size_t)Size);
+			return Result;
+#else
+			return Core::Optional::None;
+#endif
+		}
+		Core::Option<Core::String> Crypto::HashHex(Digest Type, const Core::String& Value)
+		{
+			auto Data = Crypto::HashRaw(Type, Value);
+			if (!Data)
+				return Data;
+
+			return Codec::HexEncode(*Data);
+		}
+		Core::Option<Core::String> Crypto::HashRaw(Digest Type, const Core::String& Value)
 		{
 			VI_ASSERT(Type != nullptr, "type should be set");
 #ifdef VI_OPENSSL

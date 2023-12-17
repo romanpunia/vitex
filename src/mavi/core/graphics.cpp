@@ -1621,7 +1621,7 @@ namespace Mavi
 					break;
 			}
 
-			auto Hash = Compute::Crypto::Hash(Compute::Digests::MD5(), Result);
+			auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), Result);
 			if (!Hash)
 				return Hash;
 

@@ -52,7 +52,7 @@ namespace Mavi
 					if (!Random)
 						return "NULL";
 
-					auto Hash = Compute::Crypto::Hash(Compute::Digests::MD5(), *Random);
+					auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), *Random);
 					if (!Hash)
 						return "NULL";
 

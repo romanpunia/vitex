@@ -507,7 +507,7 @@ namespace Mavi
 					auto Random = Compute::Crypto::RandomBytes(64);
 					if (Random)
 					{
-						auto Hash = Compute::Crypto::Hash(Compute::Digests::MD5(), *Random);
+						auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), *Random);
 						if (Hash)
 							Boundary = *Hash;
 						else

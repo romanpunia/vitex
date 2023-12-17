@@ -727,7 +727,7 @@ namespace Mavi
 					if (Delegate.IsValid())
 						return true;
 
-					auto Hash = Compute::Crypto::Hash(Compute::Digests::MD5(), Memory);
+					auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), Memory);
 					if (!Hash)
 						return false;
 

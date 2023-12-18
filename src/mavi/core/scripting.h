@@ -2202,6 +2202,10 @@ namespace Mavi
 			ExpectsVM<RefClass> SetClass(const char* Name, bool GC)
 			{
 				VI_ASSERT(Name != nullptr, "name should be set");
+				auto RefType = GetTypeInfoByName(Name);
+				if (RefType.IsValid())
+					return RefClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
+
 				auto Class = SetClassAddress(Name, sizeof(T), GC ? (size_t)ObjectBehaviours::REF | (size_t)ObjectBehaviours::GC : (size_t)ObjectBehaviours::REF);
 				if (!Class)
 					return Class;
@@ -2235,6 +2239,10 @@ namespace Mavi
 			ExpectsVM<TemplateClass> SetTemplateClass(const char* Decl, const char* Name, bool GC)
 			{
 				VI_ASSERT(Name != nullptr, "name should be set");
+				auto RefType = GetTypeInfoByDecl(Decl);
+				if (RefType.IsValid())
+					return TemplateClass(this, Name);
+
 				auto Class = SetTemplateClassAddress(Decl, Name, sizeof(T), GC ? (size_t)ObjectBehaviours::TEMPLATE | (size_t)ObjectBehaviours::REF | (size_t)ObjectBehaviours::GC : (size_t)ObjectBehaviours::TEMPLATE | (size_t)ObjectBehaviours::REF);
 				if (!Class)
 					return Class;
@@ -2301,6 +2309,10 @@ namespace Mavi
 			ExpectsVM<TypeClass> SetStructTrivial(const char* Name)
 			{
 				VI_ASSERT(Name != nullptr, "name should be set");
+				auto RefType = GetTypeInfoByName(Name);
+				if (RefType.IsValid())
+					return TypeClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
+
 				auto Struct = SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>());
 				if (!Struct)
 					return Struct;
@@ -2319,12 +2331,20 @@ namespace Mavi
 			ExpectsVM<TypeClass> SetStruct(const char* Name)
 			{
 				VI_ASSERT(Name != nullptr, "name should be set");
+				auto RefType = GetTypeInfoByName(Name);
+				if (RefType.IsValid())
+					return TypeClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
+
 				return SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>());
 			}
 			template <typename T>
 			ExpectsVM<TypeClass> SetPod(const char* Name)
 			{
 				VI_ASSERT(Name != nullptr, "name should be set");
+				auto RefType = GetTypeInfoByName(Name);
+				if (RefType.IsValid())
+					return TypeClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
+
 				return SetPodAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | (size_t)ObjectBehaviours::POD | Bridge::GetTypeTraits<T>());
 			}
 		};

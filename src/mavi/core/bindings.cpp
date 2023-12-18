@@ -5718,6 +5718,16 @@ namespace Mavi
 				auto Value = Compute::Crypto::RandomBytes(Size);
 				return Value ? *Value : Core::String();
 			}
+			Core::String CryptoChecksumHex(Compute::Digest Type, Core::Stream* Stream)
+			{
+				auto Value = Compute::Crypto::ChecksumHex(Type, Stream);
+				return Value ? *Value : Core::String();
+			}
+			Core::String CryptoChecksumRaw(Compute::Digest Type, Core::Stream* Stream)
+			{
+				auto Value = Compute::Crypto::ChecksumRaw(Type, Stream);
+				return Value ? *Value : Core::String();
+			}
 			Core::String CryptoHashHex(Compute::Digest Type, const Core::String& Data)
 			{
 				auto Value = Compute::Crypto::HashHex(Type, Data);
@@ -5772,6 +5782,58 @@ namespace Mavi
 			{
 				auto Value = Compute::Crypto::DocDecrypt(Data, Key, Salt);
 				return Value ? *Value : nullptr;
+			}
+			size_t CryptoEncryptStream(Compute::Cipher Type, Core::Stream* From, Core::Stream* To, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, asIScriptFunction* Transform, size_t ReadInterval, int Complexity)
+			{
+				Core::String Intermediate;
+				ImmediateContext* Context = ImmediateContext::Get();
+				FunctionDelegate Delegate(Transform);
+				auto Callback = [Context, &Delegate, &Intermediate](char** Buffer, size_t* Size) -> void
+				{
+					if (!Context || !Delegate.IsValid())
+						return;
+
+					Core::String Input(*Buffer, *Size);
+					Context->ExecuteSubcall(Delegate.Callable(), [&Input](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, (void*)&Input);
+					}, [&Intermediate](ImmediateContext* Context)
+					{
+						auto* Result = Context->GetReturnObject<Core::String>();
+						if (Result != nullptr)
+							Intermediate = *Result;
+					});
+					*Buffer = (char*)Intermediate.data();
+					*Size = Intermediate.size();
+				};
+				auto Value = Compute::Crypto::Encrypt(Type, From, To, Key, Salt, std::move(Callback), ReadInterval, Complexity);
+				return Value ? *Value : 0;
+			}
+			size_t CryptoDecryptStream(Compute::Cipher Type, Core::Stream* From, Core::Stream* To, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, asIScriptFunction* Transform, size_t ReadInterval, int Complexity)
+			{
+				Core::String Intermediate;
+				ImmediateContext* Context = ImmediateContext::Get();
+				FunctionDelegate Delegate(Transform);
+				auto Callback = [Context, &Delegate, &Intermediate](char** Buffer, size_t* Size) -> void
+				{
+					if (!Context || !Delegate.IsValid())
+						return;
+
+					Core::String Input(*Buffer, *Size);
+					Context->ExecuteSubcall(Delegate.Callable(), [&Input](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, (void*)&Input);
+					}, [&Intermediate](ImmediateContext* Context)
+					{
+						auto* Result = Context->GetReturnObject<Core::String>();
+						if (Result != nullptr)
+							Intermediate = *Result;
+					});
+					*Buffer = (char*)Intermediate.data();
+					*Size = Intermediate.size();
+				};
+				auto Value = Compute::Crypto::Decrypt(Type, From, To, Key, Salt, std::move(Callback), ReadInterval, Complexity);
+				return Value ? *Value : 0;
 			}
 
 			Core::String CodecCompress(const Core::String& Data, Compute::Compression Type)
@@ -11718,6 +11780,7 @@ namespace Mavi
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
 				VI_TYPEREF(WebToken, "web_token");
+				VM->SetClass<Core::Stream>("base_stream", false);
 
 				auto VPrivateKey = VM->SetStructTrivial<Compute::PrivateKey>("private_key");
 				VPrivateKey->SetConstructor<Compute::PrivateKey>("void f()");
@@ -11931,7 +11994,10 @@ namespace Mavi
 				VM->EndNamespace();
 
 				VM->BeginNamespace("crypto");
+				VM->SetFunctionDef("string block_transform_event(const string&in)");
 				VM->SetFunction("string random_bytes(usize)", &CryptoRandomBytes);
+				VM->SetFunction("string checksum_hex(base_stream@, const string &in)", &CryptoChecksumHex);
+				VM->SetFunction("string checksum_raw(base_stream@, const string &in)", &CryptoChecksumRaw);
 				VM->SetFunction("string hash_hex(uptr@, const string &in)", &CryptoHashHex);
 				VM->SetFunction("string hash_raw(uptr@, const string &in)", &CryptoHashRaw);
 				VM->SetFunction("string sign(uptr@, const string &in, const private_key &in)", &CryptoSign);
@@ -11940,6 +12006,8 @@ namespace Mavi
 				VM->SetFunction("string decrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &CryptoDecrypt);
 				VM->SetFunction("string jwt_sign(const string &in, const string &in, const private_key &in)", &CryptoJWTSign);
 				VM->SetFunction("string jwt_encode(web_token@+, const private_key &in)", &CryptoJWTEncode);
+				VM->SetFunction("usize encrypt(uptr@, base_stream@, const private_key &in, const private_key &in, block_transform_event@ = null, usize = 1, int = -1)", &CryptoEncryptStream);
+				VM->SetFunction("usize decrypt(uptr@, base_stream@, const private_key &in, const private_key &in, block_transform_event@ = null, usize = 1, int = -1)", &CryptoDecryptStream);
 				VM->SetFunction("web_token@ jwt_decode(const string &in, const private_key &in)", &CryptoJWTDecode);
 				VM->SetFunction("string doc_encrypt(schema@+, const private_key &in, const private_key &in)", &CryptoDocEncrypt);
 				VM->SetFunction("schema@ doc_decrypt(const string &in, const private_key &in, const private_key &in)", &CryptoDocDecrypt);

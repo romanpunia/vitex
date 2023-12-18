@@ -2373,6 +2373,9 @@ namespace Mavi
 		class VI_OUT_TS Crypto
 		{
 		public:
+			typedef std::function<void(char**, size_t*)> BlockCallback;
+
+		public:
 			static Digest GetDigestByName(const Core::String& Name);
 			static Cipher GetCipherByName(const Core::String& Name);
 			static const char* GetDigestName(Digest Type);
@@ -2396,6 +2399,8 @@ namespace Mavi
 			static Core::Option<Core::Unique<WebToken>> JWTDecode(const Core::String& Value, const PrivateKey& Key);
 			static Core::Option<Core::String> DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt);
 			static Core::Option<Core::Unique<Core::Schema>> DocDecrypt(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt);
+			static Core::Option<size_t> Encrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback = nullptr, size_t ReadInterval = 1, int ComplexityBytes = -1);
+			static Core::Option<size_t> Decrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback = nullptr, size_t ReadInterval = 1, int ComplexityBytes = -1);
 			static unsigned char RandomUC();
 			static uint64_t CRC32(const Core::String& Data);
 			static uint64_t Random(uint64_t Min, uint64_t Max);

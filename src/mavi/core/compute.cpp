@@ -8493,29 +8493,45 @@ namespace Mavi
 				return Core::Optional::None;
 			}
 
-			int Size1 = (int)Length, Size2 = 0;
-			unsigned char* Buffer = VI_MALLOC(unsigned char, sizeof(unsigned char) * (Size1 + 2048));
+			Core::String Output;
+			Output.reserve(Length);
 
-			if (1 != EVP_EncryptUpdate(Context, Buffer, &Size2, (const unsigned char*)Value, Size1))
+			size_t Offset = 0; bool IsFinalized = false;
+			unsigned char OutBuffer[Core::BLOB_SIZE + 2048];
+			const unsigned char* InBuffer = (const unsigned char*)Value;
+			while (Offset < Length)
 			{
-				DisplayCryptoLog();
-				EVP_CIPHER_CTX_free(Context);
-				VI_FREE(Buffer);
-				return Core::Optional::None;
+				int InSize = std::min<int>(Core::BLOB_SIZE, (int)(Length - Offset)), OutSize = 0;
+				if (1 != EVP_EncryptUpdate(Context, OutBuffer, &OutSize, InBuffer + Offset, InSize))
+				{
+					DisplayCryptoLog();
+					EVP_CIPHER_CTX_free(Context);
+					return Core::Optional::None;
+				}
+
+			Finalize:
+				size_t OutputOffset = Output.size();
+				size_t OutBufferSize = (size_t)OutSize;
+				Output.resize(Output.size() + OutBufferSize);
+				memcpy((char*)Output.data() + OutputOffset, OutBuffer, OutBufferSize);
+				Offset += (size_t)InSize;
+				if (Offset < Length)
+					continue;
+				else if (IsFinalized)
+					break;
+				
+				if (1 != EVP_EncryptFinal_ex(Context, OutBuffer, &OutSize))
+				{
+					DisplayCryptoLog();
+					EVP_CIPHER_CTX_free(Context);
+					return Core::Optional::None;
+				}
+
+				IsFinalized = true;
+				goto Finalize;
 			}
 
-			if (1 != EVP_EncryptFinal_ex(Context, Buffer + Size2, &Size1))
-			{
-				DisplayCryptoLog();
-				EVP_CIPHER_CTX_free(Context);
-				VI_FREE(Buffer);
-				return Core::Optional::None;
-			}
-
-			Core::String Output((const char*)Buffer, Size1 + Size2);
 			EVP_CIPHER_CTX_free(Context);
-			VI_FREE(Buffer);
-
 			return Output;
 #else
 			return Core::Optional::None;
@@ -8560,29 +8576,45 @@ namespace Mavi
 				return Core::Optional::None;
 			}
 
-			int Size1 = (int)Length, Size2 = 0;
-			unsigned char* Buffer = VI_MALLOC(unsigned char, sizeof(unsigned char) * (Size1 + 2048));
+			Core::String Output;
+			Output.reserve(Length);
 
-			if (1 != EVP_DecryptUpdate(Context, Buffer, &Size2, (const unsigned char*)Value, Size1))
+			size_t Offset = 0; bool IsFinalized = false;
+			unsigned char OutBuffer[Core::BLOB_SIZE + 2048];
+			const unsigned char* InBuffer = (const unsigned char*)Value;
+			while (Offset < Length)
 			{
-				DisplayCryptoLog();
-				EVP_CIPHER_CTX_free(Context);
-				VI_FREE(Buffer);
-				return Core::Optional::None;
+				int InSize = std::min<int>(Core::BLOB_SIZE, (int)(Length - Offset)), OutSize = 0;
+				if (1 != EVP_DecryptUpdate(Context, OutBuffer, &OutSize, InBuffer + Offset, InSize))
+				{
+					DisplayCryptoLog();
+					EVP_CIPHER_CTX_free(Context);
+					return Core::Optional::None;
+				}
+
+			Finalize:
+				size_t OutputOffset = Output.size();
+				size_t OutBufferSize = (size_t)OutSize;
+				Output.resize(Output.size() + OutBufferSize);
+				memcpy((char*)Output.data() + OutputOffset, OutBuffer, OutBufferSize);
+				Offset += (size_t)InSize;
+				if (Offset < Length)
+					continue;
+				else if (IsFinalized)
+					break;
+				
+				if (1 != EVP_DecryptFinal_ex(Context, OutBuffer, &OutSize))
+				{
+					DisplayCryptoLog();
+					EVP_CIPHER_CTX_free(Context);
+					return Core::Optional::None;
+				}
+
+				IsFinalized = true;
+				goto Finalize;
 			}
 
-			if (1 != EVP_DecryptFinal_ex(Context, Buffer + Size2, &Size1))
-			{
-				DisplayCryptoLog();
-				EVP_CIPHER_CTX_free(Context);
-				VI_FREE(Buffer);
-				return Core::Optional::None;
-			}
-
-			Core::String Output((const char*)Buffer, Size1 + Size2);
 			EVP_CIPHER_CTX_free(Context);
-			VI_FREE(Buffer);
-
 			return Output;
 #else
 			return Core::Optional::None;
@@ -8690,6 +8722,197 @@ namespace Mavi
 				return Core::Optional::None;
 
 			return *Result;
+		}
+		Core::Option<size_t> Crypto::Encrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback, size_t ReadInterval, int ComplexityBytes)
+		{
+			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
+			VI_ASSERT(ReadInterval > 0, "read interval should be greater than zero.");
+			VI_ASSERT(From != nullptr, "from stream should be set");
+			VI_ASSERT(To != nullptr, "to stream should be set");
+			VI_ASSERT(Type != nullptr, "type should be set");
+			VI_TRACE("[crypto] %s stream-encrypt%i from fd %i to fd %i", GetCipherName(Type), ComplexityBytes, (int)From->GetFd(), (int)To->GetFd());
+#ifdef VI_OPENSSL
+			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
+			if (!Context)
+			{
+				DisplayCryptoLog();
+				return Core::Optional::None;
+			}
+
+			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
+			if (ComplexityBytes > 0)
+			{
+				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
+				{
+					DisplayCryptoLog();
+					EVP_CIPHER_CTX_free(Context);
+					return Core::Optional::None;
+				}
+			}
+
+			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
+			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)LocalKey.Key, (const unsigned char*)LocalSalt.Key))
+			{
+				DisplayCryptoLog();
+				EVP_CIPHER_CTX_free(Context);
+				return Core::Optional::None;
+			}
+
+			size_t Size = 0, InBufferSize = 0, TrailingBufferSize = 0; bool IsFinalized = false;
+			unsigned char InBuffer[Core::CHUNK_SIZE], OutBuffer[Core::CHUNK_SIZE + 1024], TrailingBuffer[Core::CHUNK_SIZE];
+			size_t TrailingBufferCapacity = sizeof(TrailingBuffer) - sizeof(TrailingBuffer) % ReadInterval;
+			while ((InBufferSize = From->Read((char*)InBuffer, sizeof(InBuffer))) > 0)
+			{
+				int OutSize = 0;
+				if (1 != EVP_EncryptUpdate(Context, OutBuffer + TrailingBufferSize, &OutSize, InBuffer, (int)InBufferSize))
+				{
+					DisplayCryptoLog();
+					EVP_CIPHER_CTX_free(Context);
+					return Core::Optional::None;
+				}
+
+			Finalize:
+				char* WriteBuffer = (char*)OutBuffer;
+				size_t WriteBufferSize = (size_t)OutSize + TrailingBufferSize;
+				size_t TrailingOffset = WriteBufferSize % ReadInterval;
+				memcpy(WriteBuffer, TrailingBuffer, TrailingBufferSize);
+				if (TrailingOffset > 0 && !IsFinalized)
+				{
+					size_t Offset = WriteBufferSize - TrailingOffset;
+					memcpy(TrailingBuffer, WriteBuffer + Offset, TrailingOffset);
+					TrailingBufferSize = TrailingOffset;
+					WriteBufferSize -= TrailingOffset;
+				}
+				else
+					TrailingBufferSize = 0;
+
+				if (Callback && WriteBufferSize > 0)
+					Callback(&WriteBuffer, &WriteBufferSize);
+
+				if (To->Write(WriteBuffer, WriteBufferSize) != WriteBufferSize)
+				{
+					EVP_CIPHER_CTX_free(Context);
+					return Core::Optional::None;
+				}
+
+				Size += WriteBufferSize;
+				if (InBufferSize >= sizeof(InBuffer))
+					continue;
+				else if (IsFinalized)
+					break;
+
+				if (1 != EVP_EncryptFinal_ex(Context, OutBuffer + TrailingBufferSize, &OutSize))
+				{
+					DisplayCryptoLog();
+					EVP_CIPHER_CTX_free(Context);
+					return Core::Optional::None;
+				}
+
+				IsFinalized = true;
+				goto Finalize;
+			}
+
+			EVP_CIPHER_CTX_free(Context);
+			return Size;
+#else
+			return Core::Optional::None;
+#endif
+		}
+		Core::Option<size_t> Crypto::Decrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback, size_t ReadInterval, int ComplexityBytes)
+		{
+			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
+			VI_ASSERT(ReadInterval > 0, "read interval should be greater than zero.");
+			VI_ASSERT(From != nullptr, "from stream should be set");
+			VI_ASSERT(To != nullptr, "to stream should be set");
+			VI_ASSERT(Type != nullptr, "type should be set");
+			VI_TRACE("[crypto] %s stream-decrypt%i from fd %i to fd %i", GetCipherName(Type), ComplexityBytes, (int)From->GetFd(), (int)To->GetFd());
+#ifdef VI_OPENSSL
+			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
+			if (!Context)
+			{
+				DisplayCryptoLog();
+				return Core::Optional::None;
+			}
+
+			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
+			if (ComplexityBytes > 0)
+			{
+				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
+				{
+					DisplayCryptoLog();
+					EVP_CIPHER_CTX_free(Context);
+					return Core::Optional::None;
+				}
+			}
+
+			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
+			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)LocalKey.Key, (const unsigned char*)LocalSalt.Key))
+			{
+				DisplayCryptoLog();
+				EVP_CIPHER_CTX_free(Context);
+				return Core::Optional::None;
+			}
+
+			size_t Size = 0, InBufferSize = 0, TrailingBufferSize = 0; bool IsFinalized = false;
+			unsigned char InBuffer[Core::CHUNK_SIZE + 1024], OutBuffer[Core::CHUNK_SIZE + 1024], TrailingBuffer[Core::CHUNK_SIZE];
+			size_t TrailingBufferCapacity = sizeof(TrailingBuffer) - sizeof(TrailingBuffer) % ReadInterval;
+			while ((InBufferSize = From->Read((char*)InBuffer + TrailingBufferSize, sizeof(TrailingBuffer))) > 0)
+			{
+				char* ReadBuffer = (char*)InBuffer;
+				size_t ReadBufferSize = (size_t)InBufferSize + TrailingBufferSize;
+				size_t TrailingOffset = ReadBufferSize % ReadInterval;
+				memcpy(ReadBuffer, TrailingBuffer, TrailingBufferSize);
+				if (TrailingOffset > 0 && !IsFinalized)
+				{
+					size_t Offset = ReadBufferSize - TrailingOffset;
+					memcpy(TrailingBuffer, ReadBuffer + Offset, TrailingOffset);
+					TrailingBufferSize = TrailingOffset;
+					ReadBufferSize -= TrailingOffset;
+				}
+				else
+					TrailingBufferSize = 0;
+
+				if (Callback && ReadBufferSize > 0)
+					Callback(&ReadBuffer, &ReadBufferSize);
+
+				int OutSize = 0;
+				if (1 != EVP_DecryptUpdate(Context, OutBuffer, &OutSize, (unsigned char*)ReadBuffer, (int)ReadBufferSize))
+				{
+					DisplayCryptoLog();
+					EVP_CIPHER_CTX_free(Context);
+					return Core::Optional::None;
+				}
+
+			Finalize:
+				size_t OutBufferSize = (size_t)OutSize;
+				if (To->Write((char*)OutBuffer, OutBufferSize) != OutBufferSize)
+				{
+					EVP_CIPHER_CTX_free(Context);
+					return Core::Optional::None;
+				}
+
+				Size += OutBufferSize;
+				if (InBufferSize >= sizeof(TrailingBuffer))
+					continue;
+				else if (IsFinalized)
+					break;
+				
+				if (1 != EVP_DecryptFinal_ex(Context, OutBuffer, &OutSize))
+				{
+					DisplayCryptoLog();
+					EVP_CIPHER_CTX_free(Context);
+					return Core::Optional::None;
+				}
+
+				IsFinalized = true;
+				goto Finalize;
+			}
+
+			EVP_CIPHER_CTX_free(Context);
+			return Size;
+#else
+			return Core::Optional::None;
+#endif
 		}
 		unsigned char Crypto::RandomUC()
 		{

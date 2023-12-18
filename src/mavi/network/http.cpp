@@ -2494,6 +2494,7 @@ namespace Mavi
 			void Parser::PrepareForNextParsing(Connection* Base, bool ForMultipart)
 			{
 				VI_ASSERT(Base != nullptr, "base should be set");
+				VI_FREE(Multipart.Boundary);
 				Multipart = MultipartData();
 				Chunked = ChunkedData();
 				Frame.Request = &Base->Request;
@@ -2519,9 +2520,7 @@ namespace Mavi
 
 				if (!Multipart.Boundary || !Multipart.LookBehind)
 				{
-					if (Multipart.Boundary)
-						VI_FREE(Multipart.Boundary);
-
+					VI_FREE(Multipart.Boundary);
 					Multipart.Length = strlen(Boundary);
 					Multipart.Boundary = VI_MALLOC(char, sizeof(char) * (size_t)(Multipart.Length * 2 + 9));
 					memcpy(Multipart.Boundary, Boundary, sizeof(char) * (size_t)Multipart.Length);
@@ -6242,51 +6241,49 @@ namespace Mavi
 						if (Item.Key.empty())
 							Item.Key = "file" + Core::ToString(Boundaries.size() + 1);
 
-						Core::String FormBody;
+						BoundaryBlock Block;
+						Block.Finish = "\r\n";
+						Block.File = &Item;
+						Block.IsFinal = (Boundaries.size() + 1 == Request.Content.Resources.size());
+
 						for (auto& Header : Item.Headers)
 						{
-							FormBody.append(Boundary).append("\r\n");
-							FormBody.append("Content-Disposition: form-data; name=\"").append(Header.first).append("\"\r\n\r\n");
+							Block.Data.append(Boundary).append("\r\n");
+							Block.Data.append("Content-Disposition: form-data; name=\"").append(Header.first).append("\"\r\n\r\n");
 							for (auto& Value : Header.second)
-								FormBody.append(Value);
-							FormBody.append("\r\n\r\n").append(Boundary).append("\r\n");
+								Block.Data.append(Value);
+							Block.Data.append("\r\n\r\n").append(Boundary).append("\r\n");
 						}
 
-						Core::String FormFinish = "\r\n";
-						FormFinish.append(Boundary);
-
-						bool IsFinal = (Boundaries.size() + 1 == Request.Content.Resources.size());
-						if (IsFinal)
-							FormFinish.append("--\r\n");
+						Block.Finish.append(Boundary);
+						if (Block.IsFinal)
+							Block.Finish.append("--\r\n");
 						else
-							FormFinish.append("\r\n");
+							Block.Finish.append("\r\n");
 
-						FormBody.append(Boundary).append("\r\n");
-						FormBody.append("Content-Disposition: form-data; name=\"").append(Item.Key).append("\"; filename=\"").append(Item.Name).append("\"\r\n");
-						FormBody.append("Content-Type: ").append(Item.Type).append("\r\n\r\n");
+						Block.Data.append(Boundary).append("\r\n");
+						Block.Data.append("Content-Disposition: form-data; name=\"").append(Item.Key).append("\"; filename=\"").append(Item.Name).append("\"\r\n");
+						Block.Data.append("Content-Type: ").append(Item.Type).append("\r\n\r\n");
 
-						if (Item.IsInMemory)
-						{
-							Item.Length = Item.GetInMemoryContents().size();
-							FormBody.append(Item.GetInMemoryContents());
-							FormBody.append(FormFinish);
-						}
-						else
+						if (!Item.IsInMemory)
 						{
 							auto State = Core::OS::File::GetState(Item.Path);
 							if (State && !State->IsDirectory)
 								Item.Length = State->Size;
 							else
 								Item.Length = 0;
+							ContentSize += Block.Data.size() + Item.Length + Block.Finish.size();
+						}
+						else
+						{
+							Item.Length = Item.GetInMemoryContents().size();
+							Block.Data.append(Item.GetInMemoryContents());
+							Block.Data.append(Block.Finish);
+							Item.Path.clear();
+							Item.Path.shrink_to_fit();
+							ContentSize += Block.Data.size();
 						}
 
-						BoundaryBlock Block;
-						Block.Data = std::move(FormBody);
-						Block.Finish = std::move(FormFinish);
-						Block.File = &Item;
-						Block.IsFinal = IsFinal;
-
-						ContentSize += Block.Data.size() + Item.Length + Block.Finish.size();
 						Boundaries.emplace_back(std::move(Block));
 					}
 

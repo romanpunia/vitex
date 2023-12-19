@@ -6204,9 +6204,14 @@ namespace Mavi
 			VI_CLEAR(Constants);
 			VI_CLEAR(Renderer);
 			VI_CLEAR(Activity);
+			VI_CLEAR(LoopClock);
 
 			Application::UnlinkInstance(this);
 			Mavi::Runtime::CleanupInstances();
+		}
+		Core::Promise<void> Application::Startup()
+		{
+			return Core::Promise<void>::Null();
 		}
 		void Application::ScriptHook()
 		{
@@ -6237,6 +6242,73 @@ namespace Mavi
 		}
 		void Application::Initialize()
 		{
+		}
+		void Application::LoopTrigger()
+		{
+			VI_MEASURE(Core::Timings::Infinite);
+			Core::Schedule::Desc& Policy = Control.Scheduler;
+			Core::Schedule* Queue = Core::Schedule::Get();
+			if (Policy.Parallel)
+			{
+				if (Activity != nullptr)
+				{
+					while (State == ApplicationState::Active)
+					{
+						bool RenderFrame = Activity->Dispatch();
+						LoopClock->Begin();
+						Dispatch(LoopClock);
+
+						LoopClock->Finish();
+						if (RenderFrame)
+							Publish(LoopClock);
+					}
+				}
+				else
+				{
+					while (State == ApplicationState::Active)
+					{
+						LoopClock->Begin();
+						Dispatch(LoopClock);
+
+						LoopClock->Finish();
+						Publish(LoopClock);
+					}
+				}
+
+				while (Content && Content->IsBusy())
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+			else
+			{
+				if (Activity != nullptr)
+				{
+					while (State == ApplicationState::Active)
+					{
+						bool RenderFrame = Activity->Dispatch();
+						Queue->Dispatch();
+
+						LoopClock->Begin();
+						Dispatch(LoopClock);
+
+						LoopClock->Finish();
+						if (RenderFrame)
+							Publish(LoopClock);
+					}
+				}
+				else
+				{
+					while (State == ApplicationState::Active)
+					{
+						Queue->Dispatch();
+
+						LoopClock->Begin();
+						Dispatch(LoopClock);
+
+						LoopClock->Finish();
+						Publish(LoopClock);
+					}
+				}
+			}
 		}
 		int Application::Start()
 		{
@@ -6380,12 +6452,12 @@ namespace Mavi
 			if (Control.Usage & (size_t)ApplicationSet::ScriptSet && !VM)
 				VM = new Scripting::VirtualMachine();
 
-			Core::Timer* Time = new Core::Timer();
-			Time->SetFixedFrames(Control.Framerate.Stable);
-			Time->SetMaxFrames(Control.Framerate.Limit);
+			LoopClock = new Core::Timer();
+			LoopClock->SetFixedFrames(Control.Framerate.Stable);
+			LoopClock->SetMaxFrames(Control.Framerate.Limit);
 
 			if (Activity != nullptr && Renderer != nullptr && Constants != nullptr && Content != nullptr)
-				GUI::Subsystem::Get()->SetShared(VM, Activity, Constants, Content, Time);
+				GUI::Subsystem::Get()->SetShared(VM, Activity, Constants, Content, LoopClock);
 
 			if (Control.Usage & (size_t)ApplicationSet::NetworkSet)
 			{
@@ -6403,10 +6475,7 @@ namespace Mavi
 
 			Initialize();
 			if (State == ApplicationState::Terminated)
-			{
-				VI_RELEASE(Time);
 				return ExitCode != 0 ? ExitCode : EXIT_JUMP + 6;
-			}
 
 			State = ApplicationState::Active;
 			if (Activity != nullptr)
@@ -6417,6 +6486,7 @@ namespace Mavi
 			}
 
 			Core::Schedule::Desc& Policy = Control.Scheduler;
+			Policy.Initialize = [this](Core::TaskCallback&& Callback) { this->Startup().When(std::move(Callback)); };
 			Policy.Ping = Control.Daemon ? std::bind(&Application::Status, this) : (Core::ActivityCallback)nullptr;
 
 			if (Control.Threads > 0)
@@ -6426,74 +6496,10 @@ namespace Mavi
 			}
 
 			Queue->Start(Policy);
-			Time->Reset();
-			{
-				VI_MEASURE(Core::Timings::Infinite);
-				if (Policy.Parallel)
-				{
-					if (Activity != nullptr)
-					{
-						while (State == ApplicationState::Active)
-						{
-							bool RenderFrame = Activity->Dispatch();
-							Time->Begin();
-							Dispatch(Time);
-
-							Time->Finish();
-							if (RenderFrame)
-								Publish(Time);
-						}
-					}
-					else
-					{
-						while (State == ApplicationState::Active)
-						{
-							Time->Begin();
-							Dispatch(Time);
-
-							Time->Finish();
-							Publish(Time);
-						}
-					}
-
-					while (Content && Content->IsBusy())
-						std::this_thread::sleep_for(std::chrono::milliseconds(50));
-				}
-				else
-				{
-					if (Activity != nullptr)
-					{
-						while (State == ApplicationState::Active)
-						{
-							bool RenderFrame = Activity->Dispatch();
-							Queue->Dispatch();
-
-							Time->Begin();
-							Dispatch(Time);
-
-							Time->Finish();
-							if (RenderFrame)
-								Publish(Time);
-						}
-					}
-					else
-					{
-						while (State == ApplicationState::Active)
-						{
-							Queue->Dispatch();
-
-							Time->Begin();
-							Dispatch(Time);
-
-							Time->Finish();
-							Publish(Time);
-						}
-					}
-				}
-			}
+			LoopClock->Reset();
+			LoopTrigger();
 			CloseEvent();
 			Queue->Stop();
-			Time->Release();
 
 			ExitCode = (State == ApplicationState::Restart ? EXIT_RESTART : ExitCode);
 			State = ApplicationState::Terminated;

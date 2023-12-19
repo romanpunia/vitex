@@ -1769,6 +1769,7 @@ namespace Mavi
 			} Cache;
 
 		private:
+			Core::Timer* LoopClock = nullptr;
 			ApplicationState State = ApplicationState::Terminated;
 			int ExitCode = 0;
 
@@ -1796,11 +1797,15 @@ namespace Mavi
 			virtual void Dispatch(Core::Timer* Time);
 			virtual void Publish(Core::Timer* Time);
 			virtual void Initialize();
+			virtual Core::Promise<void> Startup();
 			virtual GUI::Context* GetGUI() const;
 			ApplicationState GetState() const;
 			int Start();
 			void Restart();
 			void Stop(int ExitCode = 0);
+
+		private:
+			void LoopTrigger();
 
 		private:
 			static bool Status(Application* App);

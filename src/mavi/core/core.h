@@ -562,6 +562,7 @@ namespace Mavi
 		typedef std::function<void(VarForm, const char*, size_t)> SchemaWriteCallback;
 		typedef std::function<bool(char*, size_t)> SchemaReadCallback;
 		typedef std::function<bool()> ActivityCallback;
+		typedef std::function<void(TaskCallback&&)> SpawnerCallback;
 		typedef void(*SignalCallback)(int);
 
 		namespace Allocators
@@ -3266,6 +3267,7 @@ namespace Mavi
 				size_t MaxCoroutines;
 				std::chrono::milliseconds IdleTimeout;
 				std::chrono::milliseconds ClockTimeout;
+				SpawnerCallback Initialize;
 				ActivityCallback Ping;
 				bool Parallel;
 
@@ -3273,6 +3275,7 @@ namespace Mavi
 				Desc(size_t Cores);
 			};
 
+		public:
 			typedef std::function<void(const ThreadMessage&)> ThreadDebugCallback;
 
 		private:
@@ -3332,6 +3335,7 @@ namespace Mavi
 
 		private:
 			const ThreadPtr* InitializeThread(ThreadPtr* Source, bool Update) const;
+			void InitializeSpawnTrigger();
 			bool PostDebug(ThreadTask State, size_t Tasks);
 			bool TriggerThread(Difficulty Type, ThreadPtr* Thread);
 			bool ThreadActive(ThreadPtr* Thread);
@@ -4012,7 +4016,6 @@ namespace Mavi
 					return BasicPromise::Null();
 				}
 			};
-
 		};
 
 		template <typename Executor>
@@ -4265,6 +4268,7 @@ namespace Mavi
 				if (State != nullptr && !--State->Count)
 					VI_DELETE(Status, State);
 			}
+
 		public:
 			struct awaitable
 			{
@@ -4349,7 +4353,6 @@ namespace Mavi
 					return BasicPromise::Null();
 				}
 			};
-
 		};
 
 		template <typename T, typename Executor>

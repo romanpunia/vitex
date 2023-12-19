@@ -10655,6 +10655,7 @@ namespace Mavi
 			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Normal]; j++)
 				PushThread(Difficulty::Normal, Index++, j, false);
 
+			InitializeSpawnTrigger();
 			if (Policy.Threads[(size_t)Difficulty::Timeout] > 0)
 			{
 				if (Policy.Ping)
@@ -11047,6 +11048,23 @@ namespace Mavi
 		{
 			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			return Threads[(size_t)Type].size();
+		}
+		void Schedule::InitializeSpawnTrigger()
+		{
+			if (!Policy.Initialize)
+				return;
+
+			bool IsPending;
+			std::recursive_mutex AwaitingMutex;
+			std::unique_lock<std::recursive_mutex> Unique(AwaitingMutex);
+			std::condition_variable_any Ready;
+			Policy.Initialize([&AwaitingMutex, &Ready, &IsPending]()
+			{
+				std::unique_lock<std::recursive_mutex> Unique(AwaitingMutex);
+				IsPending = false;
+				Ready.notify_all();
+			});
+			Ready.wait(Unique, [&IsPending]() { return !IsPending; });
 		}
 		const Schedule::ThreadPtr* Schedule::InitializeThread(ThreadPtr* Source, bool Update) const
 		{

@@ -11054,7 +11054,7 @@ namespace Mavi
 			if (!Policy.Initialize)
 				return;
 
-			bool IsPending;
+			bool IsPending = true;
 			std::recursive_mutex AwaitingMutex;
 			std::unique_lock<std::recursive_mutex> Unique(AwaitingMutex);
 			std::condition_variable_any Ready;

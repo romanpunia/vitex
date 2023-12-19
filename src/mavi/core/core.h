@@ -3679,100 +3679,6 @@ namespace Mavi
 		class BasicPromise
 		{
 		public:
-			struct awaitable
-			{
-#ifdef VI_CXX20
-				BasicPromise Value;
-
-				explicit awaitable(const BasicPromise& NewValue) : Value(NewValue)
-				{
-				}
-				explicit awaitable(BasicPromise&& NewValue) : Value(std::move(NewValue))
-				{
-				}
-				awaitable(const awaitable&) = default;
-				awaitable(awaitable&&) = default;
-				bool await_ready() const noexcept
-				{
-					return !Value.IsPending();
-				}
-				T&& await_resume() noexcept
-				{
-					return Value.Get();
-				}
-				void await_suspend(std::coroutine_handle<> Handle)
-				{
-					Value.When([Handle](T&&)
-					{
-						Handle.resume();
-					});
-				}
-#endif
-			};
-
-			struct promise_type
-			{
-#ifdef VI_CXX20
-				BasicPromise Value;
-#ifndef NDEBUG
-				std::chrono::microseconds Time;
-#endif
-				promise_type()
-				{
-#ifndef NDEBUG
-					Time = Schedule::GetClock();
-					VI_WATCH((void*)&Value, "coroutine20-frame");
-#endif
-				}
-				std::suspend_never initial_suspend() const noexcept
-				{
-					return { };
-				}
-				std::suspend_never final_suspend() const noexcept
-				{
-					return { };
-				}
-				BasicPromise get_return_object()
-				{
-#ifndef NDEBUG
-					int64_t Diff = (Schedule::GetClock() - Time).count();
-					if (Diff > (int64_t)Timings::Hangup * 1000)
-						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us)\t\nexpected: %" PRIu64 " ms at most", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
-					VI_UNWATCH((void*)&Value);
-#endif
-					return Value;
-				}
-				void return_value(const BasicPromise& NewValue)
-				{
-					Value.Set(NewValue);
-				}
-				void return_value(const T& NewValue)
-				{
-					Value.Set(NewValue);
-				}
-				void return_value(T&& NewValue)
-				{
-					Value.Set(std::move(NewValue));
-				}
-				void unhandled_exception()
-				{
-				}
-				void* operator new(size_t Size) noexcept
-				{
-					return VI_MALLOC(promise_type, Size);
-				}
-				void operator delete(void* Ptr) noexcept
-				{
-					VI_FREE(Ptr);
-				}
-				static BasicPromise get_return_object_on_allocation_failure()
-				{
-					return BasicPromise::Null();
-				}
-#endif
-			};
-
-		public:
 			typedef PromiseState<T> Status;
 			typedef T Type;
 
@@ -4012,15 +3918,10 @@ namespace Mavi
 				if (State != nullptr && !--State->Count)
 					VI_DELETE(Status, State);
 			}
-		};
 
-		template <typename Executor>
-		class BasicPromise<void, Executor>
-		{
 		public:
 			struct awaitable
 			{
-#ifdef VI_CXX20
 				BasicPromise Value;
 
 				explicit awaitable(const BasicPromise& NewValue) : Value(NewValue)
@@ -4035,12 +3936,14 @@ namespace Mavi
 				{
 					return !Value.IsPending();
 				}
-				void await_resume() noexcept
+				T&& await_resume() noexcept
 				{
+					return Value.Get();
 				}
+#ifdef VI_CXX20
 				void await_suspend(std::coroutine_handle<> Handle)
 				{
-					Value.When([Handle]()
+					Value.When([Handle](T&&)
 					{
 						Handle.resume();
 					});
@@ -4050,7 +3953,6 @@ namespace Mavi
 
 			struct promise_type
 			{
-#ifdef VI_CXX20
 				BasicPromise Value;
 #ifndef NDEBUG
 				std::chrono::microseconds Time;
@@ -4062,6 +3964,7 @@ namespace Mavi
 					VI_WATCH((void*)&Value, "coroutine20-frame");
 #endif
 				}
+#ifdef VI_CXX20
 				std::suspend_never initial_suspend() const noexcept
 				{
 					return { };
@@ -4070,6 +3973,7 @@ namespace Mavi
 				{
 					return { };
 				}
+#endif
 				BasicPromise get_return_object()
 				{
 #ifndef NDEBUG
@@ -4080,9 +3984,17 @@ namespace Mavi
 #endif
 					return Value;
 				}
-				void return_void()
+				void return_value(const BasicPromise& NewValue)
 				{
-					Value.Set();
+					Value.Set(NewValue);
+				}
+				void return_value(const T& NewValue)
+				{
+					Value.Set(NewValue);
+				}
+				void return_value(T&& NewValue)
+				{
+					Value.Set(std::move(NewValue));
 				}
 				void unhandled_exception()
 				{
@@ -4099,9 +4011,13 @@ namespace Mavi
 				{
 					return BasicPromise::Null();
 				}
-#endif
 			};
 
+		};
+
+		template <typename Executor>
+		class BasicPromise<void, Executor>
+		{
 		public:
 			typedef PromiseState<void> Status;
 			typedef void Type;
@@ -4349,6 +4265,91 @@ namespace Mavi
 				if (State != nullptr && !--State->Count)
 					VI_DELETE(Status, State);
 			}
+		public:
+			struct awaitable
+			{
+				BasicPromise Value;
+
+				explicit awaitable(const BasicPromise& NewValue) : Value(NewValue)
+				{
+				}
+				explicit awaitable(BasicPromise&& NewValue) : Value(std::move(NewValue))
+				{
+				}
+				awaitable(const awaitable&) = default;
+				awaitable(awaitable&&) = default;
+				bool await_ready() const noexcept
+				{
+					return !Value.IsPending();
+				}
+				void await_resume() noexcept
+				{
+				}
+#ifdef VI_CXX20
+				void await_suspend(std::coroutine_handle<> Handle)
+				{
+					Value.When([Handle]()
+					{
+						Handle.resume();
+					});
+				}
+#endif
+			};
+
+			struct promise_type
+			{
+				BasicPromise Value;
+#ifndef NDEBUG
+				std::chrono::microseconds Time;
+#endif
+				promise_type()
+				{
+#ifndef NDEBUG
+					Time = Schedule::GetClock();
+					VI_WATCH((void*)&Value, "coroutine20-frame");
+#endif
+				}
+#ifdef VI_CXX20
+				std::suspend_never initial_suspend() const noexcept
+				{
+					return { };
+				}
+				std::suspend_never final_suspend() const noexcept
+				{
+					return { };
+				}
+#endif
+				BasicPromise get_return_object()
+				{
+#ifndef NDEBUG
+					int64_t Diff = (Schedule::GetClock() - Time).count();
+					if (Diff > (int64_t)Timings::Hangup * 1000)
+						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us)\t\nexpected: %" PRIu64 " ms at most", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
+					VI_UNWATCH((void*)&Value);
+#endif
+					return Value;
+				}
+				void return_void()
+				{
+					Value.Set();
+				}
+				void unhandled_exception()
+				{
+				}
+				void* operator new(size_t Size) noexcept
+				{
+					return VI_MALLOC(promise_type, Size);
+				}
+				void operator delete(void* Ptr) noexcept
+				{
+					VI_FREE(Ptr);
+				}
+				static BasicPromise get_return_object_on_allocation_failure()
+				{
+					return BasicPromise::Null();
+				}
+			};
+
 		};
 
 		template <typename T, typename Executor>

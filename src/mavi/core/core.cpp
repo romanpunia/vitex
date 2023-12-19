@@ -3,6 +3,7 @@
 #include "core.h"
 #include "scripting.h"
 #include "../network/http.h"
+#include <iomanip>
 #include <cctype>
 #include <ctime>
 #include <thread>
@@ -4926,7 +4927,7 @@ namespace Mavi
 
 			if (StartsOf(Other, "./\\"))
 			{
-				ExpectsIO<String> Result = OS::Path::Resolve(Other.c_str(), Dir, false);
+				ExpectsIO<String> Result = OS::Path::Resolve(Other.c_str(), Dir, true);
 				if (Result)
 					Other.assign(*Result);
 			}
@@ -12211,6 +12212,8 @@ namespace Mavi
 			}
 
 			return new Schema(Var::String(Text));
+#else
+			return Var::Set::Undefined();
 #endif
 		}
 		void Schema::ProcessConvertionFromXML(void* Base, Schema* Current)

@@ -4945,7 +4945,7 @@ namespace Mavi
 				if (!Future.IsPending())
 					return Core::Promise<void>::Null();
 
-				return Future.Then<void>(std::function<void(ExpectsVM<Execution>&&)>(nullptr));
+				return Future.Then(std::function<void(ExpectsVM<Execution>&&)>(nullptr));
 			}
 			Core::Promise<void> Application::Shutdown()
 			{
@@ -4957,7 +4957,7 @@ namespace Mavi
 				if (!Future.IsPending())
 					return Core::Promise<void>::Null();
 
-				return Future.Then<void>(std::function<void(ExpectsVM<Execution>&&)>(nullptr));
+				return Future.Then(std::function<void(ExpectsVM<Execution>&&)>(nullptr));
 			}
 			Engine::GUI::Context* Application::GetGUI() const
 			{

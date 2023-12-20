@@ -1046,16 +1046,17 @@ namespace Mavi
 			class VI_OUT Application final : public Engine::Application
 			{
 			public:
-				FunctionDelegate OnScriptHook;
 				FunctionDelegate OnKeyEvent;
 				FunctionDelegate OnInputEvent;
 				FunctionDelegate OnWheelEvent;
 				FunctionDelegate OnWindowEvent;
-				FunctionDelegate OnCloseEvent;
-				FunctionDelegate OnComposeEvent;
 				FunctionDelegate OnDispatch;
 				FunctionDelegate OnPublish;
+				FunctionDelegate OnComposition;
+				FunctionDelegate OnScriptHook;
 				FunctionDelegate OnInitialize;
+				FunctionDelegate OnStartup;
+				FunctionDelegate OnShutdown;
 				FunctionDelegate OnGetGUI;
 
 			private:
@@ -1064,27 +1065,29 @@ namespace Mavi
 			public:
 				Application(Desc& I) noexcept;
 				virtual ~Application() noexcept override;
-				void SetOnScriptHook(asIScriptFunction* Callback);
 				void SetOnKeyEvent(asIScriptFunction* Callback);
 				void SetOnInputEvent(asIScriptFunction* Callback);
 				void SetOnWheelEvent(asIScriptFunction* Callback);
 				void SetOnWindowEvent(asIScriptFunction* Callback);
-				void SetOnCloseEvent(asIScriptFunction* Callback);
-				void SetOnComposeEvent(asIScriptFunction* Callback);
 				void SetOnDispatch(asIScriptFunction* Callback);
 				void SetOnPublish(asIScriptFunction* Callback);
+				void SetOnComposition(asIScriptFunction* Callback);
+				void SetOnScriptHook(asIScriptFunction* Callback);
 				void SetOnInitialize(asIScriptFunction* Callback);
+				void SetOnStartup(asIScriptFunction* Callback);
+				void SetOnShutdown(asIScriptFunction* Callback);
 				void SetOnGetGUI(asIScriptFunction* Callback);
-				void ScriptHook() override;
 				void KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed) override;
 				void InputEvent(char* Buffer, size_t Length) override;
 				void WheelEvent(int X, int Y, bool Normal) override;
 				void WindowEvent(Graphics::WindowState NewState, int X, int Y) override;
-				void CloseEvent() override;
-				void ComposeEvent() override;
 				void Dispatch(Core::Timer* Time) override;
 				void Publish(Core::Timer* Time) override;
+				void Composition() override;
+				void ScriptHook() override;
 				void Initialize() override;
+				Core::Promise<void> Startup() override;
+				Core::Promise<void> Shutdown() override;
 				Engine::GUI::Context* GetGUI() const override;
 				size_t GetProcessedEvents() const;
 				bool HasProcessedEvents() const;

@@ -6213,6 +6213,10 @@ namespace Mavi
 		{
 			return Core::Promise<void>::Null();
 		}
+		Core::Promise<void> Application::Shutdown()
+		{
+			return Core::Promise<void>::Null();
+		}
 		void Application::ScriptHook()
 		{
 		}
@@ -6228,10 +6232,7 @@ namespace Mavi
 		void Application::WindowEvent(Graphics::WindowState NewState, int X, int Y)
 		{
 		}
-		void Application::CloseEvent()
-		{
-		}
-		void Application::ComposeEvent()
+		void Application::Composition()
 		{
 		}
 		void Application::Dispatch(Core::Timer* Time)
@@ -6312,7 +6313,7 @@ namespace Mavi
 		}
 		int Application::Start()
 		{
-			ComposeEvent();
+			Composition();
 			Compose();
 
 			if (Control.Usage & (size_t)ApplicationSet::ContentSet)
@@ -6498,7 +6499,7 @@ namespace Mavi
 			Queue->Start(Policy);
 			LoopClock->Reset();
 			LoopTrigger();
-			CloseEvent();
+			Shutdown().Wait();
 			Queue->Stop();
 
 			ExitCode = (State == ApplicationState::Restart ? EXIT_RESTART : ExitCode);

@@ -3864,11 +3864,12 @@ namespace Mavi
 			}
 			BasicPromise<void, Executor> Then(std::function<void(T&&)>&& Callback) const noexcept
 			{
-				VI_ASSERT(Data != nullptr && Callback, "async should be pending");
+				VI_ASSERT(Data != nullptr, "async should be pending");
 				BasicPromise<void, Executor> Result; Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
 				{
-					Callback(std::move(Copy->Unwrap()));
+					if (Callback)
+						Callback(std::move(Copy->Unwrap()));
 					Result.Set();
 					Release(Copy);
 				});
@@ -4203,11 +4204,11 @@ namespace Mavi
 			}
 			BasicPromise<void, Executor> Then(std::function<void()>&& Callback) const noexcept
 			{
-				VI_ASSERT(Callback, "callback should be set");
 				BasicPromise<void, Executor> Result;
 				if (!IsPending())
 				{
-					Callback();
+					if (Callback)
+						Callback();
 					Result.Set();
 					return Result;
 				}
@@ -4215,7 +4216,8 @@ namespace Mavi
 				Status* Copy = AddRef();
 				Store([Copy, Result, Callback = std::move(Callback)]() mutable
 				{
-					Callback();
+					if (Callback)
+						Callback();
 					Result.Set();
 					Release(Copy);
 				});

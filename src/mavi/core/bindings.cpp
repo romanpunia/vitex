@@ -4759,22 +4759,19 @@ namespace Mavi
 			}
 			Application::~Application() noexcept
 			{
-				OnScriptHook.Release();
 				OnKeyEvent.Release();
 				OnInputEvent.Release();
 				OnWheelEvent.Release();
 				OnWindowEvent.Release();
-				OnCloseEvent.Release();
-				OnComposeEvent.Release();
 				OnDispatch.Release();
 				OnPublish.Release();
+				OnComposition.Release();
+				OnScriptHook.Release();
 				OnInitialize.Release();
+				OnStartup.Release();
+				OnShutdown.Release();
 				OnGetGUI.Release();
 				VM = nullptr;
-			}
-			void Application::SetOnScriptHook(asIScriptFunction* Callback)
-			{
-				OnScriptHook = FunctionDelegate(Callback);
 			}
 			void Application::SetOnKeyEvent(asIScriptFunction* Callback)
 			{
@@ -4792,14 +4789,6 @@ namespace Mavi
 			{
 				OnWindowEvent = FunctionDelegate(Callback);
 			}
-			void Application::SetOnCloseEvent(asIScriptFunction* Callback)
-			{
-				OnCloseEvent = FunctionDelegate(Callback);
-			}
-			void Application::SetOnComposeEvent(asIScriptFunction* Callback)
-			{
-				OnComposeEvent = FunctionDelegate(Callback);
-			}
 			void Application::SetOnDispatch(asIScriptFunction* Callback)
 			{
 				OnDispatch = FunctionDelegate(Callback);
@@ -4808,9 +4797,25 @@ namespace Mavi
 			{
 				OnPublish = FunctionDelegate(Callback);
 			}
+			void Application::SetOnComposition(asIScriptFunction* Callback)
+			{
+				OnComposition = FunctionDelegate(Callback);
+			}
+			void Application::SetOnScriptHook(asIScriptFunction* Callback)
+			{
+				OnScriptHook = FunctionDelegate(Callback);
+			}
 			void Application::SetOnInitialize(asIScriptFunction* Callback)
 			{
 				OnInitialize = FunctionDelegate(Callback);
+			}
+			void Application::SetOnStartup(asIScriptFunction* Callback)
+			{
+				OnStartup = FunctionDelegate(Callback);
+			}
+			void Application::SetOnShutdown(asIScriptFunction* Callback)
+			{
+				OnShutdown = FunctionDelegate(Callback);
 			}
 			void Application::SetOnGetGUI(asIScriptFunction* Callback)
 			{
@@ -4882,23 +4887,14 @@ namespace Mavi
 					Context->SetArg32(2, Y);
 				});
 			}
-			void Application::CloseEvent()
+			void Application::Composition()
 			{
-				if (!OnCloseEvent.IsValid())
+				if (!OnComposition.IsValid())
 					return;
 
 				auto* Context = ImmediateContext::Get();
 				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
-				Context->ExecuteSubcall(OnCloseEvent.Callable(), nullptr);
-			}
-			void Application::ComposeEvent()
-			{
-				if (!OnComposeEvent.IsValid())
-					return;
-
-				auto* Context = ImmediateContext::Get();
-				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
-				Context->ExecuteSubcall(OnComposeEvent.Callable(), nullptr);
+				Context->ExecuteSubcall(OnComposition.Callable(), nullptr);
 			}
 			void Application::Dispatch(Core::Timer* Time)
 			{
@@ -4938,6 +4934,30 @@ namespace Mavi
 				auto* Context = ImmediateContext::Get();
 				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
 				Context->ExecuteSubcall(OnInitialize.Callable(), nullptr);
+			}
+			Core::Promise<void> Application::Startup()
+			{
+				if (!OnStartup.IsValid())
+					return Core::Promise<void>::Null();
+
+				VI_ASSERT(ImmediateContext::Get() != nullptr, "application method cannot be called outside of script context");
+				auto Future = OnStartup(nullptr);
+				if (!Future.IsPending())
+					return Core::Promise<void>::Null();
+
+				return Future.Then<void>(std::function<void(ExpectsVM<Execution>&&)>(nullptr));
+			}
+			Core::Promise<void> Application::Shutdown()
+			{
+				if (!OnShutdown.IsValid())
+					return Core::Promise<void>::Null();
+
+				VI_ASSERT(ImmediateContext::Get() != nullptr, "application method cannot be called outside of script context");
+				auto Future = OnShutdown(nullptr);
+				if (!Future.IsPending())
+					return Core::Promise<void>::Null();
+
+				return Future.Then<void>(std::function<void(ExpectsVM<Execution>&&)>(nullptr));
 			}
 			Engine::GUI::Context* Application::GetGUI() const
 			{
@@ -16997,16 +17017,17 @@ namespace Mavi
 				VApplicationDesc->SetProperty<Application::Desc>("bool cursor", &Application::Desc::Cursor);
 				VApplicationDesc->SetConstructor<Application::Desc>("void f()");
 
-				VApplication->SetFunctionDef("void script_hook_callback()");
 				VApplication->SetFunctionDef("void key_event_callback(key_code, key_mod, int32, int32, bool)");
 				VApplication->SetFunctionDef("void input_event_callback(const string &in)");
 				VApplication->SetFunctionDef("void wheel_event_callback(int, int, bool)");
 				VApplication->SetFunctionDef("void window_event_callback(window_state, int, int)");
-				VApplication->SetFunctionDef("void close_event_callback()");
-				VApplication->SetFunctionDef("void compose_event_callback()");
 				VApplication->SetFunctionDef("void dispatch_callback(clock_timer@+)");
 				VApplication->SetFunctionDef("void publish_callback(clock_timer@+)");
+				VApplication->SetFunctionDef("void composition_callback()");
+				VApplication->SetFunctionDef("void script_hook_callback()");
 				VApplication->SetFunctionDef("void initialize_callback()");
+				VApplication->SetFunctionDef("void startup_callback()");
+				VApplication->SetFunctionDef("void shutdown_callback()");
 				VApplication->SetFunctionDef("gui_context@ fetch_gui_callback()");
 				VApplication->SetProperty<Engine::Application>("application_cache_info cache", &Engine::Application::Cache);
 				VApplication->SetProperty<Engine::Application>("audio_device@ audio", &Engine::Application::Audio);
@@ -17018,16 +17039,17 @@ namespace Mavi
 				VApplication->SetProperty<Engine::Application>("scene_graph@ scene", &Engine::Application::Scene);
 				VApplication->SetProperty<Engine::Application>("application_desc control", &Engine::Application::Control);
 				VApplication->SetGcConstructor<Application, ApplicationName, Application::Desc&>("application@ f(application_desc &in)");
-				VApplication->SetMethod("void set_on_script_hook(script_hook_callback@)", &Application::SetOnScriptHook);
 				VApplication->SetMethod("void set_on_key_event(key_event_callback@)", &Application::SetOnKeyEvent);
 				VApplication->SetMethod("void set_on_input_event(input_event_callback@)", &Application::SetOnInputEvent);
 				VApplication->SetMethod("void set_on_wheel_event(wheel_event_callback@)", &Application::SetOnWheelEvent);
 				VApplication->SetMethod("void set_on_window_event(window_event_callback@)", &Application::SetOnWindowEvent);
-				VApplication->SetMethod("void set_on_close_event(close_event_callback@)", &Application::SetOnCloseEvent);
-				VApplication->SetMethod("void set_on_compose_event(compose_event_callback@)", &Application::SetOnComposeEvent);
 				VApplication->SetMethod("void set_on_dispatch(dispatch_callback@)", &Application::SetOnDispatch);
 				VApplication->SetMethod("void set_on_publish(publish_callback@)", &Application::SetOnPublish);
+				VApplication->SetMethod("void set_on_composition(composition_callback@)", &Application::SetOnComposition);
+				VApplication->SetMethod("void set_on_script_hook(script_hook_callback@)", &Application::SetOnScriptHook);
 				VApplication->SetMethod("void set_on_initialize(initialize_callback@)", &Application::SetOnInitialize);
+				VApplication->SetMethod("void set_on_startup(startup_callback@)", &Application::SetOnStartup);
+				VApplication->SetMethod("void set_on_shutdown(shutdown_callback@)", &Application::SetOnShutdown);
 				VApplication->SetMethod("void set_on_fetch_gui(fetch_gui_callback@)", &Application::SetOnGetGUI);
 				VApplication->SetMethod("int start()", &Engine::Application::Start);
 				VApplication->SetMethod("int restart()", &Engine::Application::Restart);
@@ -17046,16 +17068,17 @@ namespace Mavi
 					FunctionFactory::GCEnumCallback(VM, Base->Content);
 					FunctionFactory::GCEnumCallback(VM, Base->Database);
 					FunctionFactory::GCEnumCallback(VM, Base->Scene);
-					FunctionFactory::GCEnumCallback(VM, &Base->OnScriptHook);
 					FunctionFactory::GCEnumCallback(VM, &Base->OnKeyEvent);
 					FunctionFactory::GCEnumCallback(VM, &Base->OnInputEvent);
 					FunctionFactory::GCEnumCallback(VM, &Base->OnWheelEvent);
 					FunctionFactory::GCEnumCallback(VM, &Base->OnWindowEvent);
-					FunctionFactory::GCEnumCallback(VM, &Base->OnCloseEvent);
-					FunctionFactory::GCEnumCallback(VM, &Base->OnComposeEvent);
 					FunctionFactory::GCEnumCallback(VM, &Base->OnDispatch);
 					FunctionFactory::GCEnumCallback(VM, &Base->OnPublish);
+					FunctionFactory::GCEnumCallback(VM, &Base->OnComposition);
+					FunctionFactory::GCEnumCallback(VM, &Base->OnScriptHook);
 					FunctionFactory::GCEnumCallback(VM, &Base->OnInitialize);
+					FunctionFactory::GCEnumCallback(VM, &Base->OnStartup);
+					FunctionFactory::GCEnumCallback(VM, &Base->OnShutdown);
 					FunctionFactory::GCEnumCallback(VM, &Base->OnGetGUI);
 				});
 				VApplication->SetReleaseRefsEx<Application>([](Application* Base, asIScriptEngine*)

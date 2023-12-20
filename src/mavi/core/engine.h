@@ -1787,17 +1787,17 @@ namespace Mavi
 		public:
 			Application(Desc* I) noexcept;
 			virtual ~Application() noexcept;
-			virtual void ScriptHook();
 			virtual void KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed);
 			virtual void InputEvent(char* Buffer, size_t Length);
 			virtual void WheelEvent(int X, int Y, bool Normal);
 			virtual void WindowEvent(Graphics::WindowState NewState, int X, int Y);
-			virtual void CloseEvent();
-			virtual void ComposeEvent();
 			virtual void Dispatch(Core::Timer* Time);
 			virtual void Publish(Core::Timer* Time);
+			virtual void Composition();
+			virtual void ScriptHook();
 			virtual void Initialize();
 			virtual Core::Promise<void> Startup();
+			virtual Core::Promise<void> Shutdown();
 			virtual GUI::Context* GetGUI() const;
 			ApplicationState GetState() const;
 			int Start();

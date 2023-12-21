@@ -5,6 +5,7 @@
 #define ADDON_ANY "any"
 #ifdef VI_ANGELSCRIPT
 #include <angelscript.h>
+#include <as_texts.h>
 #ifdef VI_JIT
 #include <ascompiler/compiler.h>
 #endif
@@ -4080,7 +4081,7 @@ namespace Mavi
 				return;
 
 			auto Exception = Bindings::Exception::Pointer(Core::String(Message));
-			Output("  " + Exception.GetType() + ": " + Exception.GetMessage() + "\n");
+			Output("  " + Exception.GetType() + ": " + Exception.GetText() + "\n");
 		}
 		void DebuggerContext::AllowInputAfterFailure()
 		{
@@ -8269,6 +8270,18 @@ namespace Mavi
 		{
 #ifdef VI_ANGELSCRIPT
 			asThreadCleanup();
+#endif
+		}
+		const char* VirtualMachine::GetErrorNameInfo(VirtualError Code)
+		{
+#ifdef VI_ANGELSCRIPT
+			size_t Index = (size_t)(-((int)Code));
+			if (Index >= sizeof(errorNames) / sizeof(errorNames[0]))
+				return nullptr;
+
+			return errorNames[Index];
+#else
+			return nullptr;
 #endif
 		}
 		ByteCodeLabel VirtualMachine::GetByteCodeInfo(uint8_t Code)

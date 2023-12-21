@@ -14,19 +14,30 @@
 #ifdef VI_ANGELSCRIPT
 #include <angelscript.h>
 #endif
-#define EXCEPTION_OUTOFBOUNDS "range_error", "index is outside of range"
-#define EXCEPTION_OUTOFMEMORY "allocation_error", "out of available memory"
-#define EXCEPTION_TOOLARGESIZE "allocation_error", "too much memory has been requested"
-#define EXCEPTION_TEMPLATEMISMATCH "template_error", "template type does not match the type that was passed to an object"
-#define EXCEPTION_COPYFAIL "type_error", "cannot copy this type of object"
-#define EXCEPTION_NULLPOINTER "type_error", "trying to access a null pointer instance"
-#define EXCEPTION_ACCESSINVALID "type_error", "accessing non-existing value"
-#define EXCEPTION_PROMISEREADY "async_error", "trying to settle the promise that is already fulfilled"
-#define EXCEPTION_MUTEXNOTOWNED "sync_error", "trying to unlock the mutex that is not owned by this thread"
-#define EXCEPTION_TEMPLATEMULTIPLECOMPARATORS "template_error", "template type has multiple opCmp implementations"
-#define EXCEPTION_TEMPLATENOCOMPARATORS "template_error", "template type has no opCmp implementation"
-#define EXCEPTION_TEMPLATEMULTIPLEEQCOMPARATORS "template_error", "template type has multiple opEquals and/or opCmp implementations"
-#define EXCEPTION_TEMPLATENOEQCOMPARATORS "template_error", "template type has no opEquals or opCmp implementation"
+#define EXCEPTIONCAT_STANDARD "standard_error"
+#define EXCEPTIONCAT_SYSTEM "system_error"
+#define EXCEPTIONCAT_GENERIC "generic_error"
+#define EXCEPTIONCAT_VM "vm_error"
+#define EXCEPTIONCAT_PARSER "parser_error"
+#define EXCEPTIONCAT_RANGE "range_error"
+#define EXCEPTIONCAT_ALLOCATION "allocation_error"
+#define EXCEPTIONCAT_TEMPLATE "template_error"
+#define EXCEPTIONCAT_TYPE "type_error"
+#define EXCEPTIONCAT_ASYNC "async_error"
+#define EXCEPTIONCAT_SYNC "sync_error"
+#define EXCEPTION_OUTOFBOUNDS EXCEPTIONCAT_RANGE, "index is outside of range"
+#define EXCEPTION_OUTOFMEMORY EXCEPTIONCAT_ALLOCATION, "out of available memory"
+#define EXCEPTION_TOOLARGESIZE EXCEPTIONCAT_ALLOCATION, "too much memory has been requested"
+#define EXCEPTION_TEMPLATEMISMATCH EXCEPTIONCAT_TEMPLATE, "template type does not match the type that was passed to an object"
+#define EXCEPTION_TEMPLATEMULTIPLECOMPARATORS EXCEPTIONCAT_TEMPLATE, "template type has multiple opCmp implementations"
+#define EXCEPTION_TEMPLATENOCOMPARATORS EXCEPTIONCAT_TEMPLATE, "template type has no opCmp implementation"
+#define EXCEPTION_TEMPLATEMULTIPLEEQCOMPARATORS EXCEPTIONCAT_TEMPLATE, "template type has multiple opEquals and/or opCmp implementations"
+#define EXCEPTION_TEMPLATENOEQCOMPARATORS EXCEPTIONCAT_TEMPLATE, "template type has no opEquals or opCmp implementation"
+#define EXCEPTION_COPYFAIL EXCEPTIONCAT_TYPE, "cannot copy this type of object"
+#define EXCEPTION_NULLPOINTER EXCEPTIONCAT_TYPE, "trying to access a null pointer instance"
+#define EXCEPTION_ACCESSINVALID EXCEPTIONCAT_TYPE, "accessing non-existing value"
+#define EXCEPTION_PROMISEREADY EXCEPTIONCAT_ASYNC, "trying to settle the promise that is already fulfilled"
+#define EXCEPTION_MUTEXNOTOWNED EXCEPTIONCAT_SYNC, "trying to unlock the mutex that is not owned by this thread"
 #define TYPENAME_ARRAY "array"
 #define TYPENAME_STRING "string"
 #define TYPENAME_DICTIONARY "dictionary"
@@ -173,13 +184,6 @@ namespace Mavi
 	{
 		namespace Bindings
 		{
-			template <typename T>
-			int ToErrorCode(const Core::ExpectsIO<T>& Status, const char* Scope)
-			{
-				int Code = Status.Error().value();
-				Status.Report(Scope);
-				return Code > 0 ? -Code : Code;
-			}
 			void PointerToHandleCast(void* From, void** To, int TypeId)
 			{
 				if (!(TypeId & (size_t)TypeId::OBJHANDLE))
@@ -405,7 +409,7 @@ namespace Mavi
 				LoadExceptionData(Value);
 				Origin = LoadStackHere();
 			}
-			Exception::Pointer::Pointer(const Core::String& NewType, const Core::String& NewMessage) : Type(NewType), Message(NewMessage), Context(ImmediateContext::Get())
+			Exception::Pointer::Pointer(const Core::String& NewType, const Core::String& NewText) : Type(NewType), Text(NewText), Context(ImmediateContext::Get())
 			{
 				Origin = LoadStackHere();
 			}
@@ -415,33 +419,33 @@ namespace Mavi
 				if (Offset != std::string::npos)
 				{
 					Type = Value.substr(0, Offset);
-					Message = Value.substr(Offset + 1);
+					Text = Value.substr(Offset + 1);
 				}
 				else if (!Value.empty())
 				{
-					Type = "std::runtime_error";
-					Message = Value;
+					Type = EXCEPTIONCAT_GENERIC;
+					Text = Value;
 				}
 			}
 			const Core::String& Exception::Pointer::GetType() const
 			{
 				return Type;
 			}
-			const Core::String& Exception::Pointer::GetMessage() const
+			const Core::String& Exception::Pointer::GetText() const
 			{
-				return Message;
+				return Text;
 			}
 			Core::String Exception::Pointer::ToExceptionString() const
 			{
-				return Empty() ? "" : Type + ":" + Message;
+				return Empty() ? "" : Type + ":" + Text;
 			}
 			Core::String Exception::Pointer::What() const
 			{
 				Core::String Data = Type;
-				if (!Message.empty())
+				if (!Text.empty())
 				{
 					Data.append(": ");
-					Data.append(Message);
+					Data.append(Text);
 				}
 
 				Data.append(" ");
@@ -459,11 +463,11 @@ namespace Mavi
 					return Data;
 
 				const char* Decl = Function.GetDecl();
-				Data.append("at function ");
+				Data.append("\n  in function ");
 				Data.append(Decl ? Decl : "<any>");
 
 				const char* Module = Function.GetModuleName();
-				Data.append(", in module ");
+				Data.append("\n  in module ");
 				Data.append(Module ? Module : "<anonymous>");
 
 				int LineNumber = Context->GetExceptionLineNumber();
@@ -473,13 +477,11 @@ namespace Mavi
 					Data.append(Core::ToString(LineNumber));
 				}
 
-				Data.append(", at location ");
-				Data.append(Core::Stringify::Text("0x%" PRIXPTR, Function.GetFunction()));
 				return Data;
 			}
 			bool Exception::Pointer::Empty() const
 			{
-				return Type.empty() && Message.empty();
+				return Type.empty() && Text.empty();
 			}
 
 			void Exception::ThrowAt(ImmediateContext* Context, const Pointer& Data)
@@ -533,6 +535,37 @@ namespace Mavi
 				{
 					return "exception::throw(" + Expression + ")";
 				});
+			}
+
+			Exception::Pointer ExpectsWrapper::TranslateThrow(const std::exception& Error)
+			{
+				return Exception::Pointer(EXCEPTIONCAT_STANDARD, Error.what());
+			}
+			Exception::Pointer ExpectsWrapper::TranslateThrow(const std::error_code& Error)
+			{
+				return Exception::Pointer(EXCEPTIONCAT_SYSTEM, Core::Copy<Core::String>(Error.message()));
+			}
+			Exception::Pointer ExpectsWrapper::TranslateThrow(const std::error_condition& Error)
+			{
+				return Exception::Pointer(EXCEPTIONCAT_SYSTEM, Core::Copy<Core::String>(Error.message()));
+			}
+			Exception::Pointer ExpectsWrapper::TranslateThrow(const Core::String& Error)
+			{
+				return Exception::Pointer(EXCEPTIONCAT_SYSTEM, Error);
+			}
+			Exception::Pointer ExpectsWrapper::TranslateThrow(const Core::Exceptions::ParserException& Error)
+			{
+				return Exception::Pointer(EXCEPTIONCAT_PARSER, Error.what());
+			}
+			Exception::Pointer ExpectsWrapper::TranslateThrow(const VirtualError& Error)
+			{
+				const char* Name = VirtualMachine::GetErrorNameInfo(Error);
+				return Exception::Pointer(EXCEPTIONCAT_VM, Name ? Name : "asUNKNOWN");
+			}
+
+			Exception::Pointer OptionWrapper::TranslateThrow()
+			{
+				return Exception::Pointer(EXCEPTION_ACCESSINVALID);
 			}
 
 			Any::Any(VirtualMachine* _Engine) noexcept : Engine(_Engine)
@@ -767,7 +800,8 @@ namespace Mavi
 			}
 			Any& Any::Assignment(Any* Base, Any* Other)
 			{
-				return *Base = *Other;
+				*Base = *Other;
+				return *Base;
 			}
 
 			Array::Array(asITypeInfo* Info, void* BufferPtr) noexcept : ObjType(Info), Buffer(nullptr), ElementSize(0), SubTypeId(-1)
@@ -3410,10 +3444,7 @@ namespace Mavi
 							Buffer += sizeof(void*);
 					}
 					else if (TypeId != 0)
-					{
-						auto Size = VM->GetSizeOfPrimitiveType(TypeId);
-						Buffer += Size ? *Size : 0;
-					}
+						Buffer += VM->GetSizeOfPrimitiveType(TypeId).Or(0);
 					else
 						Buffer += sizeof(void*);
 				}
@@ -3611,19 +3642,17 @@ namespace Mavi
 			}
 			Core::Schema* SchemaFromJSON(const Core::String& Value)
 			{
-				auto Result = Core::Schema::ConvertFromJSON(Value.c_str(), Value.size());
-				return Result ? *Result : nullptr;
+				return ExpectsWrapper::Unwrap(Core::Schema::ConvertFromJSON(Value.c_str(), Value.size()), (Core::Schema*)nullptr);
 			}
 			Core::Schema* SchemaFromXML(const Core::String& Value)
 			{
-				auto Result = Core::Schema::ConvertFromXML(Value.c_str(), Value.size());
-				return Result ? *Result : nullptr;
+				return ExpectsWrapper::Unwrap(Core::Schema::ConvertFromXML(Value.c_str(), Value.size()), (Core::Schema*)nullptr);
 			}
 			Core::Schema* SchemaImport(const Core::String& Value)
 			{
 				auto Data = Core::OS::File::ReadAsString(Value);
 				if (!Data)
-					return nullptr;
+					return ExpectsWrapper::UnwrapVoid(std::move(Data)) ? nullptr : nullptr;
 
 				auto Output = Core::Schema::FromJSON(*Data);
 				if (Output)
@@ -3633,8 +3662,7 @@ namespace Mavi
 				if (Output)
 					return *Output;
 
-				Output = Core::Schema::FromJSONB(Core::Vector<char>(Value.begin(), Value.end()));
-				return Output ? *Output : nullptr;
+				return ExpectsWrapper::Unwrap(Core::Schema::FromJSONB(Core::Vector<char>(Value.begin(), Value.end())), (Core::Schema*)nullptr);
 			}
 			Core::Schema* SchemaCopyAssign1(Core::Schema* Base, const Core::Variant& Other)
 			{
@@ -4988,7 +5016,7 @@ namespace Mavi
 
 			bool StreamOpen(Core::Stream* Base, const Core::String& Path, Core::FileMode Mode)
 			{
-				return !!Base->Open(Path.c_str(), Mode);
+				return ExpectsWrapper::UnwrapVoid(Base->Open(Path.c_str(), Mode));
 			}
 			Core::String StreamRead(Core::Stream* Base, size_t Size)
 			{
@@ -5008,7 +5036,7 @@ namespace Mavi
 
 			bool FileStreamOpen(Core::FileStream* Base, const Core::String& Path, Core::FileMode Mode)
 			{
-				return !!Base->Open(Path.c_str(), Mode);
+				return ExpectsWrapper::UnwrapVoid(Base->Open(Path.c_str(), Mode));
 			}
 			Core::String FileStreamRead(Core::FileStream* Base, size_t Size)
 			{
@@ -5028,7 +5056,7 @@ namespace Mavi
 
 			bool GzStreamOpen(Core::GzStream* Base, const Core::String& Path, Core::FileMode Mode)
 			{
-				return !!Base->Open(Path.c_str(), Mode);
+				return ExpectsWrapper::UnwrapVoid(Base->Open(Path.c_str(), Mode));
 			}
 			Core::String GzStreamRead(Core::GzStream* Base, size_t Size)
 			{
@@ -5048,7 +5076,7 @@ namespace Mavi
 
 			bool WebStreamOpen(Core::WebStream* Base, const Core::String& Path, Core::FileMode Mode)
 			{
-				return !!Base->Open(Path.c_str(), Mode);
+				return ExpectsWrapper::UnwrapVoid(Base->Open(Path.c_str(), Mode));
 			}
 			Core::String WebStreamRead(Core::WebStream* Base, size_t Size)
 			{
@@ -5068,7 +5096,7 @@ namespace Mavi
 
 			bool ProcessStreamOpen(Core::ProcessStream* Base, const Core::String& Path, Core::FileMode Mode)
 			{
-				return !!Base->Open(Path.c_str(), Mode);
+				return ExpectsWrapper::UnwrapVoid(Base->Open(Path.c_str(), Mode));
 			}
 			Core::String ProcessStreamRead(Core::ProcessStream* Base, size_t Size)
 			{
@@ -5114,8 +5142,9 @@ namespace Mavi
 			Array* OSDirectoryScan(const Core::String& Path)
 			{
 				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
-				if (!Core::OS::Directory::Scan(Path, &Entries))
-					return nullptr;
+				auto Status = Core::OS::Directory::Scan(Path, &Entries);
+				if (!Status)
+					return ExpectsWrapper::UnwrapVoid(std::move(Status)) ? nullptr : nullptr;
 
 				Core::Vector<FileLink> Results;
 				Results.reserve(Entries.size());
@@ -5137,11 +5166,11 @@ namespace Mavi
 			}
 			bool OSDirectoryCreate(const Core::String& Path)
 			{
-				return !!Core::OS::Directory::Create(Path.c_str());
+				return ExpectsWrapper::UnwrapVoid(Core::OS::Directory::Create(Path.c_str()));
 			}
 			bool OSDirectoryRemove(const Core::String& Path)
 			{
-				return !!Core::OS::Directory::Remove(Path.c_str());
+				return ExpectsWrapper::UnwrapVoid(Core::OS::Directory::Remove(Path.c_str()));
 			}
 			bool OSDirectoryIsExists(const Core::String& Path)
 			{
@@ -5153,42 +5182,32 @@ namespace Mavi
 			}
 			bool OSDirectorySetWorking(const Core::String& Path)
 			{
-				return !!Core::OS::Directory::SetWorking(Path.c_str());
+				return ExpectsWrapper::UnwrapVoid(Core::OS::Directory::SetWorking(Path.c_str()));
 			}
 			bool OSDirectoryPatch(const Core::String& Path)
 			{
-				return !!Core::OS::Directory::Patch(Path);
-			}
-			Core::String OSDirectoryGetModule()
-			{
-				auto Value = Core::OS::Directory::GetModule();
-				return Value ? *Value : Core::String();
-			}
-			Core::String OSDirectoryGetWorking()
-			{
-				auto Value = Core::OS::Directory::GetWorking();
-				return Value ? *Value : Core::String();
+				return ExpectsWrapper::UnwrapVoid(Core::OS::Directory::Patch(Path));
 			}
 
 			bool OSFileWrite(const Core::String& Path, const Core::String& Data)
 			{
-				return !!Core::OS::File::Write(Path, Data);
+				return ExpectsWrapper::UnwrapVoid(Core::OS::File::Write(Path, Data));
 			}
 			bool OSFileState(const Core::String& Path, Core::FileEntry& Data)
 			{
-				return !!Core::OS::File::GetState(Path.c_str(), &Data);
+				return ExpectsWrapper::UnwrapVoid(Core::OS::File::GetState(Path.c_str(), &Data));
 			}
 			bool OSFileMove(const Core::String& From, const Core::String& To)
 			{
-				return !!Core::OS::File::Move(From.c_str(), To.c_str());
+				return ExpectsWrapper::UnwrapVoid(Core::OS::File::Move(From.c_str(), To.c_str()));
 			}
 			bool OSFileCopy(const Core::String& From, const Core::String& To)
 			{
-				return !!Core::OS::File::Copy(From.c_str(), To.c_str());
+				return ExpectsWrapper::UnwrapVoid(Core::OS::File::Copy(From.c_str(), To.c_str()));
 			}
 			bool OSFileRemove(const Core::String& Path)
 			{
-				return !!Core::OS::File::Remove(Path.c_str());
+				return ExpectsWrapper::UnwrapVoid(Core::OS::File::Remove(Path.c_str()));
 			}
 			bool OSFileIsExists(const Core::String& Path)
 			{
@@ -5196,40 +5215,30 @@ namespace Mavi
 			}
 			size_t OSFileJoin(const Core::String& From, Array* Paths)
 			{
-				auto Size = Core::OS::File::Join(From.c_str(), Array::Decompose<Core::String>(Paths));
-				return Size ? *Size : 0;
-			}
-			Core::String OSFileReadAsString(const Core::String& Path)
-			{
-				auto Value = Core::OS::File::ReadAsString(Path);
-				return Value ? *Value : Core::String();
+				return ExpectsWrapper::Unwrap(Core::OS::File::Join(From.c_str(), Array::Decompose<Core::String>(Paths)), (size_t)0);
 			}
 			Core::FileState OSFileGetProperties(const Core::String& Path)
 			{
-				auto State = Core::OS::File::GetProperties(Path.c_str());
-				return State ? *State : Core::FileState();
+				return ExpectsWrapper::Unwrap(Core::OS::File::GetProperties(Path.c_str()), Core::FileState());
 			}
 			Core::Stream* OSFileOpenJoin(const Core::String& From, Array* Paths)
 			{
-				auto Stream = Core::OS::File::OpenJoin(From.c_str(), Array::Decompose<Core::String>(Paths));
-				return Stream ? *Stream : nullptr;
+				return ExpectsWrapper::Unwrap(Core::OS::File::OpenJoin(From.c_str(), Array::Decompose<Core::String>(Paths)), (Core::Stream*)nullptr);
 			}
 			Core::Stream* OSFileOpenArchive(const Core::String& Path, size_t UnarchivedMaxSize)
 			{
-				auto Stream = Core::OS::File::OpenArchive(Path.c_str(), UnarchivedMaxSize);
-				return Stream ? *Stream : nullptr;
+				return ExpectsWrapper::Unwrap(Core::OS::File::OpenArchive(Path.c_str(), UnarchivedMaxSize), (Core::Stream*)nullptr);
 			}
 			Core::Stream* OSFileOpen(const Core::String& Path, Core::FileMode Mode, bool Async)
 			{
-				auto Stream = Core::OS::File::Open(Path.c_str(), Mode, Async);
-				return Stream ? *Stream : nullptr;
+				return ExpectsWrapper::Unwrap(Core::OS::File::Open(Path.c_str(), Mode, Async), (Core::Stream*)nullptr);
 			}
 			Array* OSFileReadAsArray(const Core::String& Path)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				auto Data = Core::OS::File::ReadAsArray(Path);
 				if (!Data)
-					return nullptr;
+					return ExpectsWrapper::UnwrapVoid(std::move(Data)) ? nullptr : nullptr;
 
 				return Array::Compose<Core::String>(Type.GetTypeInfo(), *Data);
 			}
@@ -5248,35 +5257,19 @@ namespace Mavi
 			}
 			Core::String OSPathResolve1(const Core::String& Path)
 			{
-				auto Result = Core::OS::Path::Resolve(Path.c_str());
-				if (Result)
-					return *Result;
-
-				return Core::String();
+				return ExpectsWrapper::Unwrap(Core::OS::Path::Resolve(Path.c_str()), Core::String());
 			}
 			Core::String OSPathResolveDirectory1(const Core::String& Path)
 			{
-				auto Result = Core::OS::Path::ResolveDirectory(Path.c_str());
-				if (Result)
-					return *Result;
-
-				return Core::String();
+				return ExpectsWrapper::Unwrap(Core::OS::Path::ResolveDirectory(Path.c_str()), Core::String());
 			}
 			Core::String OSPathResolve2(const Core::String& Path, const Core::String& Directory, bool EvenIfExists)
 			{
-				auto Result = Core::OS::Path::Resolve(Path, Directory, EvenIfExists);
-				if (Result)
-					return *Result;
-
-				return Core::String();
+				return ExpectsWrapper::Unwrap(Core::OS::Path::Resolve(Path, Directory, EvenIfExists), Core::String());
 			}
 			Core::String OSPathResolveDirectory2(const Core::String& Path, const Core::String& Directory, bool EvenIfExists)
 			{
-				auto Result = Core::OS::Path::ResolveDirectory(Path, Directory, EvenIfExists);
-				if (Result)
-					return *Result;
-
-				return Core::String();
+				return ExpectsWrapper::Unwrap(Core::OS::Path::ResolveDirectory(Path, Directory, EvenIfExists), Core::String());
 			}
 			Core::String OSPathGetDirectory(const Core::String& Path, size_t Level)
 			{
@@ -5294,10 +5287,7 @@ namespace Mavi
 			int OSProcessAwait(void* ProcessPtr)
 			{
 				int ExitCode = -1;
-				if (!Core::OS::Process::Await((Core::ChildProcess*)ProcessPtr, &ExitCode))
-					return -1;
-
-				return ExitCode;
+				return Core::OS::Process::Await((Core::ChildProcess*)ProcessPtr, &ExitCode) ? ExitCode : -1;
 			}
 			bool OSProcessFree(void* ProcessPtr)
 			{
@@ -5319,33 +5309,28 @@ namespace Mavi
 			}
 			Core::String OSProcessGetEnv(const Core::String& Name)
 			{
-				auto Data = Core::OS::Process::GetEnv(Name);
-				return Data ? *Data : Core::String();
+				return Core::OS::Process::GetEnv(Name).Or(Core::String());
 			}
 			Core::ProcessStream* OSProcessExecuteWriteOnly(const Core::String& Path)
 			{
-				auto Stream = Core::OS::Process::ExecuteWriteOnly(Path);
-				return Stream ? *Stream : nullptr;
+				return ExpectsWrapper::Unwrap(Core::OS::Process::ExecuteWriteOnly(Path), (Core::ProcessStream*)nullptr);
 			}
 			Core::ProcessStream* OSProcessExecuteReadOnly(const Core::String& Path)
 			{
-				auto Stream = Core::OS::Process::ExecuteReadOnly(Path);
-				return Stream ? *Stream : nullptr;
+				return ExpectsWrapper::Unwrap(Core::OS::Process::ExecuteReadOnly(Path), (Core::ProcessStream*)nullptr);
 			}
 
 			void* OSSymbolLoad(const Core::String& Path)
 			{
-				auto Handle = Core::OS::Symbol::Load(Path);
-				return Handle ? *Handle : nullptr;
+				return ExpectsWrapper::Unwrap(Core::OS::Symbol::Load(Path), (void*)nullptr);
 			}
 			void* OSSymbolLoadFunction(void* LibHandle, const Core::String& Path)
 			{
-				auto Handle = Core::OS::Symbol::LoadFunction(LibHandle, Path);
-				return Handle ? *Handle : nullptr;
+				return ExpectsWrapper::Unwrap(Core::OS::Symbol::LoadFunction(LibHandle, Path), (void*)nullptr);
 			}
 			bool OSSymbolUnload(void* Handle)
 			{
-				return !!Core::OS::Symbol::Unload(Handle);
+				return ExpectsWrapper::UnwrapVoid(Core::OS::Symbol::Unload(Handle));
 			}
 
 			Compute::Vector2& Vector2MulEq1(Compute::Vector2& A, const Compute::Vector2& B)
@@ -5723,85 +5708,26 @@ namespace Mavi
 				return Copy;
 			}
 
-			Core::String WebTokenGetRefreshToken(Compute::WebToken* Base, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt)
-			{
-				auto Value = Base->GetRefreshToken(Key, Salt);
-				return Value ? *Value : Core::String();
-			}
 			void WebTokenSetAudience(Compute::WebToken* Base, Array* Data)
 			{
 				Base->SetAudience(Array::Decompose<Core::String>(Data));
 			}
 
-			Core::String CryptoRandomBytes(size_t Size)
-			{
-				auto Value = Compute::Crypto::RandomBytes(Size);
-				return Value ? *Value : Core::String();
-			}
-			Core::String CryptoChecksumHex(Compute::Digest Type, Core::Stream* Stream)
-			{
-				auto Value = Compute::Crypto::ChecksumHex(Type, Stream);
-				return Value ? *Value : Core::String();
-			}
-			Core::String CryptoChecksumRaw(Compute::Digest Type, Core::Stream* Stream)
-			{
-				auto Value = Compute::Crypto::ChecksumRaw(Type, Stream);
-				return Value ? *Value : Core::String();
-			}
-			Core::String CryptoHashHex(Compute::Digest Type, const Core::String& Data)
-			{
-				auto Value = Compute::Crypto::HashHex(Type, Data);
-				return Value ? *Value : Core::String();
-			}
-			Core::String CryptoHashRaw(Compute::Digest Type, const Core::String& Data)
-			{
-				auto Value = Compute::Crypto::HashRaw(Type, Data);
-				return Value ? *Value : Core::String();
-			}
 			Core::String CryptoSign(Compute::Digest Type, const Core::String& Data, const Compute::PrivateKey& Key)
 			{
-				auto Value = Compute::Crypto::Sign(Type, Data, Key);
-				return Value ? *Value : Core::String();
+				return OptionWrapper::Unwrap(Compute::Crypto::Sign(Type, Data, Key), Core::String());
 			}
 			Core::String CryptoHMAC(Compute::Digest Type, const Core::String& Data, const Compute::PrivateKey& Key)
 			{
-				auto Value = Compute::Crypto::HMAC(Type, Data, Key);
-				return Value ? *Value : Core::String();
+				return OptionWrapper::Unwrap(Compute::Crypto::HMAC(Type, Data, Key), Core::String());
 			}
 			Core::String CryptoEncrypt(Compute::Cipher Type, const Core::String& Data, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, int Complexity)
 			{
-				auto Value = Compute::Crypto::Encrypt(Type, Data, Key, Salt, Complexity);
-				return Value ? *Value : Core::String();
+				return OptionWrapper::Unwrap(Compute::Crypto::Encrypt(Type, Data, Key, Salt, Complexity), Core::String());
 			}
 			Core::String CryptoDecrypt(Compute::Cipher Type, const Core::String& Data, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, int Complexity)
 			{
-				auto Value = Compute::Crypto::Decrypt(Type, Data, Key, Salt, Complexity);
-				return Value ? *Value : Core::String();
-			}
-			Core::String CryptoJWTSign(const Core::String& Algo, const Core::String& Data, const Compute::PrivateKey& Key)
-			{
-				auto Value = Compute::Crypto::JWTSign(Algo, Data, Key);
-				return Value ? *Value : Core::String();
-			}
-			Core::String CryptoJWTEncode(Compute::WebToken* Base, const Compute::PrivateKey& Key)
-			{
-				auto Value = Compute::Crypto::JWTEncode(Base, Key);
-				return Value ? *Value : Core::String();
-			}
-			Compute::WebToken* CryptoJWTDecode(const Core::String& Data, const Compute::PrivateKey& Key)
-			{
-				auto Value = Compute::Crypto::JWTDecode(Data, Key);
-				return Value ? *Value : nullptr;
-			}
-			Core::String CryptoDocEncrypt(Core::Schema* Base, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt)
-			{
-				auto Value = Compute::Crypto::DocEncrypt(Base, Key, Salt);
-				return Value ? *Value : Core::String();
-			}
-			Core::Schema* CryptoDocDecrypt(const Core::String& Data, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt)
-			{
-				auto Value = Compute::Crypto::DocDecrypt(Data, Key, Salt);
-				return Value ? *Value : nullptr;
+				return OptionWrapper::Unwrap(Compute::Crypto::Decrypt(Type, Data, Key, Salt, Complexity), Core::String());
 			}
 			size_t CryptoEncryptStream(Compute::Cipher Type, Core::Stream* From, Core::Stream* To, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, asIScriptFunction* Transform, size_t ReadInterval, int Complexity)
 			{
@@ -5826,8 +5752,7 @@ namespace Mavi
 					*Buffer = (char*)Intermediate.data();
 					*Size = Intermediate.size();
 				};
-				auto Value = Compute::Crypto::Encrypt(Type, From, To, Key, Salt, std::move(Callback), ReadInterval, Complexity);
-				return Value ? *Value : 0;
+				return OptionWrapper::Unwrap(Compute::Crypto::Encrypt(Type, From, To, Key, Salt, std::move(Callback), ReadInterval, Complexity), (size_t)0);
 			}
 			size_t CryptoDecryptStream(Compute::Cipher Type, Core::Stream* From, Core::Stream* To, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, asIScriptFunction* Transform, size_t ReadInterval, int Complexity)
 			{
@@ -5852,19 +5777,7 @@ namespace Mavi
 					*Buffer = (char*)Intermediate.data();
 					*Size = Intermediate.size();
 				};
-				auto Value = Compute::Crypto::Decrypt(Type, From, To, Key, Salt, std::move(Callback), ReadInterval, Complexity);
-				return Value ? *Value : 0;
-			}
-
-			Core::String CodecCompress(const Core::String& Data, Compute::Compression Type)
-			{
-				auto Value = Compute::Codec::Compress(Data, Type);
-				return Value ? *Value : Core::String();
-			}
-			Core::String CodecDecompress(const Core::String& Data)
-			{
-				auto Value = Compute::Codec::Decompress(Data);
-				return Value ? *Value : Core::String();
+				return OptionWrapper::Unwrap(Compute::Crypto::Decrypt(Type, From, To, Key, Salt, std::move(Callback), ReadInterval, Complexity), (size_t)0);
 			}
 
 			void CosmosQueryIndex(Compute::Cosmos* Base, asIScriptFunction* Overlaps, asIScriptFunction* Match)
@@ -6876,27 +6789,13 @@ namespace Mavi
 				return Dictionary::Compose<Core::String>(Type.GetTypeId(), Base.Extensions);
 			}
 
-			int SocketAccept1(Network::Socket* Base, Network::Socket* Fd, Core::String& Address)
-			{
-				char IpAddress[64];
-				auto Status = Base->Accept(Fd, IpAddress);
-				Address = IpAddress;
-				return Status ? 0 : ToErrorCode(Status, "accept failed");
-			}
-			int SocketAccept2(Network::Socket* Base, socket_t& Fd, Core::String& Address)
-			{
-				char IpAddress[64];
-				auto Status = Base->Accept(&Fd, IpAddress);
-				Address = IpAddress;
-				return Status ? 0 : ToErrorCode(Status, "accept failed");
-			}
-			int SocketAcceptAsync(Network::Socket* Base, bool WithAddress, asIScriptFunction* Callback)
+			bool SocketAcceptAsync(Network::Socket* Base, bool WithAddress, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
-					return -1;
+					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument));
 
-				auto Status = Base->AcceptAsync(WithAddress, [Delegate](socket_t Fd, char* Address) mutable
+				return ExpectsWrapper::UnwrapVoid(Base->AcceptAsync(WithAddress, [Delegate](socket_t Fd, char* Address) mutable
 				{
 					Core::String IpAddress = Address; bool Result = false;
 					Delegate([Fd, IpAddress](ImmediateContext* Context)
@@ -6912,164 +6811,15 @@ namespace Mavi
 						Result = (bool)Context->GetReturnByte();
 					}).Wait();
 					return Result;
-				});
-				return Status ? 0 : ToErrorCode(Status, "accept/async failed");
+				}));
 			}
-			int SocketCloseAsync(Network::Socket* Base, bool Graceful, asIScriptFunction* Callback)
+			bool SocketConnectAsync(Network::Socket* Base, Network::SocketAddress* Address, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
 					return -1;
 
-				auto Status = Base->CloseAsync(Graceful, [Delegate](const Core::Option<std::error_condition>&) mutable
-				{
-					bool Result = false;
-					Delegate(nullptr, [&Result](ImmediateContext* Context) mutable
-					{
-						Result = (bool)Context->GetReturnByte();
-					});
-					return Result;
-				});
-				return Status ? 0 : ToErrorCode(Status, "close/async failed");
-			}
-			int64_t SocketSendFileAsync(Network::Socket* Base, FILE* Stream, int64_t Offset, int64_t Size, asIScriptFunction* Callback)
-			{
-				FunctionDelegate Delegate(Callback);
-				if (!Delegate.IsValid())
-					return -1;
-
-				auto Status = Base->SendFileAsync(Stream, Offset, Size, [Delegate](Network::SocketPoll Poll) mutable
-				{
-					Delegate([Poll](ImmediateContext* Context)
-					{
-						Context->SetArg32(0, (int)Poll);
-					});
-				});
-				return Status ? (int64_t)*Status : (int64_t)ToErrorCode(Status, "sendfile failed");
-			}
-			int SocketWrite(Network::Socket* Base, const Core::String& Data)
-			{
-				auto Written = Base->Write(Data.data(), (int)Data.size());
-				return Written ? (int)*Written : ToErrorCode(Written, "socket write failed");
-			}
-			int SocketWriteAsync(Network::Socket* Base, const Core::String& Data, asIScriptFunction* Callback)
-			{
-				FunctionDelegate Delegate(Callback);
-				if (!Delegate.IsValid())
-					return -1;
-
-				auto Written = Base->WriteAsync(Data.data(), Data.size(), [Delegate](Network::SocketPoll Poll) mutable
-				{
-					Delegate([Poll](ImmediateContext* Context)
-					{
-						Context->SetArg32(0, (int)Poll);
-					}).Wait();
-				});
-				return Written ? (int)*Written : ToErrorCode(Written, "socket write/async failed");
-			}
-			int SocketRead1(Network::Socket* Base, Core::String& Data, int Size)
-			{
-				Data.resize(Size);
-				auto Received = Base->Read((char*)Data.data(), Size);
-				return Received ? (int)*Received : ToErrorCode(Received, "socket read failed");
-			}
-			int SocketRead2(Network::Socket* Base, Core::String& Data, int Size, asIScriptFunction* Callback)
-			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				FunctionDelegate Delegate(Callback);
-				if (!Context || !Delegate.IsValid())
-					return -1;
-
-				auto Received = Base->Read((char*)Data.data(), (int)Data.size(), [Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
-				{
-					bool Result = false;
-					Core::String Source(Data, Size);
-					Context->ExecuteSubcall(Delegate.Callable(), [Poll, Source](ImmediateContext* Context)
-					{
-						Context->SetArg32(0, (int)Poll);
-						Context->SetArgObject(1, (void*)&Source);
-					}, [&Result](ImmediateContext* Context)
-					{
-						Result = (bool)Context->GetReturnByte();
-					});
-					return Result;
-				});
-				return Received ? (int)*Received : ToErrorCode(Received, "socket read failed");
-			}
-			int SocketReadAsync(Network::Socket* Base, size_t Size, asIScriptFunction* Callback)
-			{
-				FunctionDelegate Delegate(Callback);
-				if (!Delegate.IsValid())
-					return -1;
-
-				auto Received = Base->ReadAsync(Size, [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
-				{
-					Core::String Source(Data, Size); bool Result = false;
-					Delegate([Poll, Source](ImmediateContext* Context)
-					{
-						Context->SetArg32(0, (int)Poll);
-						Context->SetArgObject(1, (void*)&Source);
-					}, [&Result](ImmediateContext* Context) mutable
-					{
-						Result = (bool)Context->GetReturnByte();
-					}).Wait();
-
-					return Result;
-				});
-				return Received ? (int)*Received : ToErrorCode(Received, "socket read/async failed");
-			}
-			int SocketReadUntil(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
-			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				FunctionDelegate Delegate(Callback);
-				if (!Context || !Delegate.IsValid())
-					return -1;
-
-				auto Received = Base->ReadUntil(Data.c_str(), [Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
-				{
-					bool Result = false;
-					Core::String Source(Data, Size);
-					Context->ExecuteSubcall(Delegate.Callable(), [Poll, Source](ImmediateContext* Context)
-					{
-						Context->SetArg32(0, (int)Poll);
-						Context->SetArgObject(1, (void*)&Source);
-					}, [&Result](ImmediateContext* Context)
-					{
-						Result = (bool)Context->GetReturnByte();
-					});
-					return Result;
-				});
-				return Received ? (int)*Received : ToErrorCode(Received, "socket read until failed");
-			}
-			int SocketReadUntilAsync(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
-			{
-				FunctionDelegate Delegate(Callback);
-				if (!Delegate.IsValid())
-					return -1;
-
-				auto Received = Base->ReadUntilAsync(Data.c_str(), [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
-				{
-					Core::String Source(Data, Size); bool Result = false;
-					Delegate([Poll, Source](ImmediateContext* Context)
-					{
-						Context->SetArg32(0, (int)Poll);
-						Context->SetArgObject(1, (void*)&Source);
-					}, [&Result](ImmediateContext* Context) mutable
-					{
-						Result = (bool)Context->GetReturnByte();
-					}).Wait();
-
-					return Result;
-				});
-				return Received ? (int)*Received : ToErrorCode(Received, "socket read/async until failed");
-			}
-			int SocketConnectAsync(Network::Socket* Base, Network::SocketAddress* Address, asIScriptFunction* Callback)
-			{
-				FunctionDelegate Delegate(Callback);
-				if (!Delegate.IsValid())
-					return -1;
-
-				auto Status = Base->ConnectAsync(Address, [Delegate](const Core::Option<std::error_condition>& ErrorCode) mutable
+				return ExpectsWrapper::UnwrapVoid(Base->ConnectAsync(Address, [Delegate](const Core::Option<std::error_condition>& ErrorCode) mutable
 				{
 					bool Result = false;
 					Delegate([&ErrorCode](ImmediateContext* Context)
@@ -7081,124 +6831,172 @@ namespace Mavi
 					}).Wait();
 
 					return Result;
-				});
-				return Status ? 0 : ToErrorCode(Status, "connect failed");
+				}));
 			}
-			int SocketSecure(Network::Socket* Base, ssl_ctx_st* Context, const Core::String& Value)
+			bool SocketCloseAsync(Network::Socket* Base, bool Graceful, asIScriptFunction* Callback)
 			{
-				auto Status = Base->Secure(Context, Value.c_str());
-				return Status ? 0 : ToErrorCode(Status, "ssl handshake failed");
-			}
-			int SocketClose(Network::Socket* Base, bool Gracefully)
-			{
-				auto Status = Base->Close(Gracefully);
-				return Status ? 0 : ToErrorCode(Status, "close failed");
-			}
-			int64_t SocketSendFile(Network::Socket* Base, Core::FileStream* Stream, int64_t Offset, int64_t Size)
-			{
-				auto Status = Base->SendFile((FILE*)Stream->GetResource(), Offset, Size);
-				return Status ? (int64_t)*Status : (int64_t)ToErrorCode(Status, "sendfile failed");
-			}
-			int SocketConnect(Network::Socket* Base, Network::SocketAddress* Address, uint64_t Timeout)
-			{
-				auto Status = Base->Connect(Address, Timeout);
-				return Status ? 0 : ToErrorCode(Status, "connect failed");
-			}
-			int SocketOpen(Network::Socket* Base, Network::SocketAddress* Address)
-			{
-				auto Status = Base->Open(Address);
-				return Status ? 0 : ToErrorCode(Status, "open failed");
-			}
-			int SocketBind(Network::Socket* Base, Network::SocketAddress* Address)
-			{
-				auto Status = Base->Bind(Address);
-				return Status ? 0 : ToErrorCode(Status, "bind failed");
-			}
-			int SocketListen(Network::Socket* Base, int Backlog)
-			{
-				auto Status = Base->Listen(Backlog);
-				return Status ? 0 : ToErrorCode(Status, "listen failed");
-			}
-			int SocketClearEvents(Network::Socket* Base, bool Gracefully)
-			{
-				auto Status = Base->ClearEvents(Gracefully);
-				return Status ? 0 : ToErrorCode(Status, "clear failed");
-			}
-			int SocketMigrateTo(Network::Socket* Base, size_t Fd, bool Gracefully)
-			{
-				auto Status = Base->MigrateTo((socket_t)Fd, Gracefully);
-				return Status ? 0 : ToErrorCode(Status, "migration failed");
-			}
-			int SocketSetCloseOnExec(Network::Socket* Base)
-			{
-				auto Status = Base->SetCloseOnExec();
-				return Status ? 0 : ToErrorCode(Status, "set close on execute failed");
-			}
-			int SocketSetTimeWait(Network::Socket* Base, int Timeout)
-			{
-				auto Status = Base->SetTimeWait(Timeout);
-				return Status ? 0 : ToErrorCode(Status, "set time wait failed");
-			}
-			int SocketSetAnyFlag(Network::Socket* Base, int Level, int Option, int Value)
-			{
-				auto Status = Base->SetAnyFlag(Level, Option, Value);
-				return Status ? 0 : ToErrorCode(Status, "setsockopt failed");
-			}
-			int SocketSetSocketFlag(Network::Socket* Base, int Option, int Value)
-			{
-				auto Status = Base->SetSocketFlag(Option, Value);
-				return Status ? 0 : ToErrorCode(Status, "setsockopt failed");
-			}
-			int SocketSetBlocking(Network::Socket* Base, bool Active)
-			{
-				auto Status = Base->SetBlocking(Active);
-				return Status ? 0 : ToErrorCode(Status, "set blocking failed");
-			}
-			int SocketSetNoDelay(Network::Socket* Base, bool Active)
-			{
-				auto Status = Base->SetNoDelay(Active);
-				return Status ? 0 : ToErrorCode(Status, "set no delay failed");
-			}
-			int SocketSetKeepAlive(Network::Socket* Base, bool Active)
-			{
-				auto Status = Base->SetKeepAlive(Active);
-				return Status ? 0 : ToErrorCode(Status, "set keep alive failed");
-			}
-			int SocketSetTimeout(Network::Socket* Base, int Timeout)
-			{
-				auto Status = Base->SetTimeout(Timeout);
-				return Status ? 0 : ToErrorCode(Status, "set timeout/async failed");
-			}
-			int SocketGetAnyFlag(Network::Socket* Base, int Level, int Option, int* Value)
-			{
-				auto Status = Base->GetAnyFlag(Level, Option, Value);
-				return Status ? 0 : ToErrorCode(Status, "getsockopt failed");
-			}
-			int SocketGetSocketFlag(Network::Socket* Base, int Option, int* Value)
-			{
-				auto Status = Base->GetSocketFlag(Option, Value);
-				return Status ? 0 : ToErrorCode(Status, "getsockopt failed");
-			}
-			int SocketGetPort(Network::Socket* Base)
-			{
-				auto Status = Base->GetPort();
-				return Status ? *Status : ToErrorCode(Status, "port fetch failed");
-			}
-			Core::String SocketGetRemoteAddress(Network::Socket* Base)
-			{
-				auto Status = Base->GetRemoteAddress();
-				return Status ? *Status : Core::String();
-			}
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
+					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument));
 
-			Core::String DNSFindNameFromAddress(Network::DNS* Base, const Core::String& Host, const Core::String& Service)
-			{
-				auto Result = Base->FindNameFromAddress(Host, Service);
-				return Result ? *Result : Core::String();
+				return ExpectsWrapper::UnwrapVoid(Base->CloseAsync(Graceful, [Delegate](const Core::Option<std::error_condition>&) mutable
+				{
+					bool Result = false;
+					Delegate(nullptr, [&Result](ImmediateContext* Context) mutable
+					{
+						Result = (bool)Context->GetReturnByte();
+					});
+					return Result;
+				}));
 			}
-			Network::SocketAddress* DNSFindAddressFromName(Network::DNS* Base, const Core::String& Host, const Core::String& Service, Network::DNSType TestType, Network::SocketProtocol Protocol, Network::SocketType Type)
+			size_t SocketSendFileAsync(Network::Socket* Base, FILE* Stream, size_t Offset, size_t Size, asIScriptFunction* Callback)
 			{
-				auto Result = Base->FindAddressFromName(Host, Service, TestType, Protocol, Type);
-				return Result ? *Result : nullptr;
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
+					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
+
+				return ExpectsWrapper::Unwrap(Base->SendFileAsync(Stream, Offset, Size, [Delegate](Network::SocketPoll Poll) mutable
+				{
+					Delegate([Poll](ImmediateContext* Context)
+					{
+						Context->SetArg32(0, (int)Poll);
+					});
+				}), (size_t)0);
+			}
+			size_t SocketWriteAsync(Network::Socket* Base, const Core::String& Data, asIScriptFunction* Callback)
+			{
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
+					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
+
+				return ExpectsWrapper::Unwrap(Base->WriteAsync(Data.data(), Data.size(), [Delegate](Network::SocketPoll Poll) mutable
+				{
+					Delegate([Poll](ImmediateContext* Context)
+					{
+						Context->SetArg32(0, (int)Poll);
+					}).Wait();
+				}), (size_t)0);
+			}
+			size_t SocketReadAsync(Network::Socket* Base, size_t Size, asIScriptFunction* Callback)
+			{
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
+					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
+
+				return ExpectsWrapper::Unwrap(Base->ReadAsync(Size, [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
+				{
+					Core::String Source(Data, Size); bool Result = false;
+					Delegate([Poll, Source](ImmediateContext* Context)
+					{
+						Context->SetArg32(0, (int)Poll);
+						Context->SetArgObject(1, (void*)&Source);
+					}, [&Result](ImmediateContext* Context) mutable
+					{
+						Result = (bool)Context->GetReturnByte();
+					}).Wait();
+
+					return Result;
+				}), (size_t)0);
+			}
+			size_t SocketReadUntilAsync(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
+			{
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
+					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
+
+				return ExpectsWrapper::Unwrap(Base->ReadUntilAsync(Data.c_str(), [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
+				{
+					Core::String Source(Data, Size); bool Result = false;
+					Delegate([Poll, Source](ImmediateContext* Context)
+					{
+						Context->SetArg32(0, (int)Poll);
+						Context->SetArgObject(1, (void*)&Source);
+					}, [&Result](ImmediateContext* Context) mutable
+					{
+						Result = (bool)Context->GetReturnByte();
+					}).Wait();
+
+					return Result;
+				}), (size_t)0);
+			}
+			bool SocketAccept1(Network::Socket* Base, Network::Socket* Fd, Core::String& Address)
+			{
+				char IpAddress[64];
+				memset(IpAddress, 0, sizeof(IpAddress));
+				auto Status = Base->Accept(Fd, IpAddress);
+				if (Status)
+					Address = IpAddress;
+				return ExpectsWrapper::UnwrapVoid(std::move(Status));
+			}
+			bool SocketAccept2(Network::Socket* Base, socket_t& Fd, Core::String& Address)
+			{
+				char IpAddress[64];
+				memset(IpAddress, 0, sizeof(IpAddress));
+				auto Status = Base->Accept(&Fd, IpAddress);
+				if (Status)
+					Address = IpAddress;
+				return ExpectsWrapper::UnwrapVoid(std::move(Status));
+			}
+			bool SocketSecure(Network::Socket* Base, ssl_ctx_st* Context, const Core::String& Value)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->Secure(Context, Value.c_str()));
+			}
+			size_t SocketSendFile(Network::Socket* Base, Core::FileStream* Stream, size_t Offset, size_t Size)
+			{
+				return ExpectsWrapper::Unwrap(Base->SendFile((FILE*)Stream->GetResource(), Offset, Size), (size_t)0);
+			}
+			size_t SocketWrite(Network::Socket* Base, const Core::String& Data)
+			{
+				return ExpectsWrapper::Unwrap(Base->Write(Data.data(), (int)Data.size()), (size_t)0);
+			}
+			size_t SocketRead1(Network::Socket* Base, Core::String& Data, size_t Size)
+			{
+				Data.resize(Size);
+				return ExpectsWrapper::Unwrap(Base->Read((char*)Data.data(), Size), (size_t)0);
+			}
+			size_t SocketRead2(Network::Socket* Base, Core::String& Data, size_t Size, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				FunctionDelegate Delegate(Callback);
+				if (!Context || !Delegate.IsValid())
+					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
+
+				return ExpectsWrapper::Unwrap(Base->Read((char*)Data.data(), Data.size(), [Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
+				{
+					bool Result = false;
+					Core::String Source(Data, Size);
+					Context->ExecuteSubcall(Delegate.Callable(), [Poll, Source](ImmediateContext* Context)
+					{
+						Context->SetArg32(0, (int)Poll);
+						Context->SetArgObject(1, (void*)&Source);
+					}, [&Result](ImmediateContext* Context)
+					{
+						Result = (bool)Context->GetReturnByte();
+					});
+					return Result;
+				}), (size_t)0);
+			}
+			size_t SocketReadUntil(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				FunctionDelegate Delegate(Callback);
+				if (!Context || !Delegate.IsValid())
+					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
+
+				return ExpectsWrapper::Unwrap(Base->ReadUntil(Data.c_str(), [Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
+				{
+					bool Result = false;
+					Core::String Source(Data, Size);
+					Context->ExecuteSubcall(Delegate.Callable(), [Poll, Source](ImmediateContext* Context)
+					{
+						Context->SetArg32(0, (int)Poll);
+						Context->SetArgObject(1, (void*)&Source);
+					}, [&Result](ImmediateContext* Context)
+					{
+						Result = (bool)Context->GetReturnByte();
+					});
+					return Result;
+				}), (size_t)0);
 			}
 
 			Network::EpollFd& EpollFdCopy(Network::EpollFd& Base, Network::EpollFd& Other)
@@ -7286,24 +7084,30 @@ namespace Mavi
 			{
 				if (Router != nullptr)
 					Router->AddRef();
-				return !!Server->Configure(Router);
+				return ExpectsWrapper::UnwrapVoid(Server->Configure(Router));
 			}
 			bool SocketServerListen(Network::SocketServer* Server)
 			{
-				return !!Server->Listen();
+				return ExpectsWrapper::UnwrapVoid(Server->Listen());
 			}
 			bool SocketServerUnlisten(Network::SocketServer* Server, uint64_t Timeout)
 			{
-				return !!Server->Unlisten(Timeout);
+				return ExpectsWrapper::UnwrapVoid(Server->Unlisten(Timeout));
 			}
 
-			Core::Promise<int> SocketClientConnect(Network::SocketClient* Client, Network::RemoteHost* Host, bool Async, uint32_t VerifyPeers)
+			Core::Promise<bool> SocketClientConnect(Network::SocketClient* Client, Network::RemoteHost* Host, bool Async, uint32_t VerifyPeers)
 			{
-				return Client->Connect(Host, Async, VerifyPeers).Then<int>([](Core::ExpectsIO<void>&& Result) { return Result ? 0 : ToErrorCode(Result, "socket connect failed"); });
+				return Client->Connect(Host, Async, VerifyPeers).Then<bool>([](Core::ExpectsIO<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), nullptr);
+				});
 			}
-			Core::Promise<int> SocketClientDisconnect(Network::SocketClient* Client)
+			Core::Promise<bool> SocketClientDisconnect(Network::SocketClient* Client)
 			{
-				return Client->Disconnect().Then<int>([](Core::ExpectsIO<void>&& Result) { return Result ? 0 : ToErrorCode(Result, "socket close failed"); });
+				return Client->Disconnect().Then<bool>([](Core::ExpectsIO<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), nullptr);
+				});
 			}
 
 			Core::String SocketConnectionGetRemoteAddress(Network::SocketConnection* Base)
@@ -8244,13 +8048,11 @@ namespace Mavi
 
 			Core::Schema* ContentFrameGetJSON(Network::HTTP::ContentFrame& Base)
 			{
-				auto Data = Base.GetJSON();
-				return Data ? *Data : nullptr;
+				return ExpectsWrapper::Unwrap(Base.GetJSON(), (Core::Schema*)nullptr);
 			}
 			Core::Schema* ContentFrameGetXML(Network::HTTP::ContentFrame& Base)
 			{
-				auto Data = Base.GetXML();
-				return Data ? *Data : nullptr;
+				return ExpectsWrapper::Unwrap(Base.GetXML(), (Core::Schema*)nullptr);
 			}
 			void ContentFramePrepare(Network::HTTP::ContentFrame& Base, const Core::String& ContentLength)
 			{
@@ -9216,38 +9018,45 @@ namespace Mavi
 			}
 			Core::Promise<bool> ClientFetch(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
 			{
-				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->Fetch(std::move(Copy), MaxSize).Then<bool>([](Core::ExpectsIO<void>&& Result) { return !!Result; });
+				return Base->Fetch(Network::HTTP::RequestFrame(Frame), MaxSize).Then<bool>([](Core::ExpectsIO<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), nullptr);
+				});
 			}
 			Core::Promise<bool> ClientUpgrade(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame)
 			{
-				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->Upgrade(std::move(Copy)).Then<bool>([](Core::ExpectsIO<void>&& Result) { return !!Result; });
+				return Base->Upgrade(Network::HTTP::RequestFrame(Frame)).Then<bool>([](Core::ExpectsIO<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), nullptr);
+				});
 			}
 			Core::Promise<bool> ClientSend(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame)
 			{
-				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->Send(std::move(Copy)).Then<bool>([](Core::ExpectsIO<Network::HTTP::ResponseFrame*>&& Result) { return !!Result; });
+				return Base->Send(Network::HTTP::RequestFrame(Frame)).Then<bool>([](Core::ExpectsIO<Network::HTTP::ResponseFrame*>&& Result) -> bool
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), nullptr);
+				});
 			}
 			Core::Promise<Core::Schema*> ClientJSON(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
 			{
-				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->JSON(std::move(Copy), MaxSize).Then<Core::Schema*>([](Core::ExpectsIO<Core::Schema*>&& Result) { return Result ? *Result : (Core::Schema*)nullptr; });
+				return Base->JSON(Network::HTTP::RequestFrame(Frame), MaxSize).Then<Core::Schema*>([](Core::ExpectsIO<Core::Schema*>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), (Core::Schema*)nullptr, nullptr);
+				});
 			}
 			Core::Promise<Core::Schema*> ClientXML(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
 			{
-				Network::HTTP::RequestFrame Copy = Frame;
-				return Base->XML(std::move(Copy), MaxSize).Then<Core::Schema*>([](Core::ExpectsIO<Core::Schema*>&& Result) { return Result ? *Result : (Core::Schema*)nullptr; });
+				return Base->XML(Network::HTTP::RequestFrame(Frame), MaxSize).Then<Core::Schema*>([](Core::ExpectsIO<Core::Schema*>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), (Core::Schema*)nullptr, nullptr);
+				});
 			}
 
 			Core::Promise<Network::HTTP::ResponseFrame> HTTPFetch(const Core::String& URL, const Core::String& Method, const Network::HTTP::FetchFrame& Options)
 			{
 				return Network::HTTP::Fetch(URL, Method, Options).Then<Network::HTTP::ResponseFrame>([](Core::ExpectsIO<Network::HTTP::ResponseFrame>&& Response) -> Network::HTTP::ResponseFrame
 				{
-					if (Response)
-						return *Response;
-
-					return Network::HTTP::ResponseFrame();
+					return ExpectsWrapper::Unwrap(std::move(Response), Network::HTTP::ResponseFrame(), nullptr);
 				});
 			}
 
@@ -9348,10 +9157,12 @@ namespace Mavi
 				return Base->RemoteAddress;
 			}
 
-			Core::Promise<int> SMTPClientSend(Network::SMTP::Client* Base, const Network::SMTP::RequestFrame& Frame)
+			Core::Promise<bool> SMTPClientSend(Network::SMTP::Client* Base, const Network::SMTP::RequestFrame& Frame)
 			{
-				Network::SMTP::RequestFrame Copy = Frame;
-				return Base->Send(std::move(Copy)).Then<int>([](Core::ExpectsIO<void>&& Result) { return Result ? (int)0 : ToErrorCode(Result, "smtp send failed"); });
+				return Base->Send(Network::SMTP::RequestFrame(Frame)).Then<bool>([](Core::ExpectsIO<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), nullptr);
+				});
 			}
 
 			Network::PDB::Response& PDBResponseCopy(Network::PDB::Response& Base, Network::PDB::Response&& Other)
@@ -9635,10 +9446,7 @@ namespace Mavi
 							Buffer += sizeof(void*);
 					}
 					else if (TypeId != 0)
-					{
-						auto Size = VM->GetSizeOfPrimitiveType(TypeId);
-						Buffer += Size ? *Size : 0;
-					}
+						Buffer += VM->GetSizeOfPrimitiveType(TypeId).Or(0);
 					else
 						Buffer += sizeof(void*);
 				}
@@ -10235,13 +10043,13 @@ namespace Mavi
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				auto VExceptionPtr = VM->SetStructTrivial<Exception::Pointer>("exception_ptr");
 				VExceptionPtr->SetProperty("string type", &Exception::Pointer::Type);
-				VExceptionPtr->SetProperty("string message", &Exception::Pointer::Message);
+				VExceptionPtr->SetProperty("string text", &Exception::Pointer::Text);
 				VExceptionPtr->SetProperty("string origin", &Exception::Pointer::Origin);
 				VExceptionPtr->SetConstructor<Exception::Pointer>("void f()");
 				VExceptionPtr->SetConstructor<Exception::Pointer, const Core::String&>("void f(const string&in)");
 				VExceptionPtr->SetConstructor<Exception::Pointer, const Core::String&, const Core::String&>("void f(const string&in, const string&in)");
 				VExceptionPtr->SetMethod("const string& get_type() const", &Exception::Pointer::GetType);
-				VExceptionPtr->SetMethod("const string& get_message() const", &Exception::Pointer::GetMessage);
+				VExceptionPtr->SetMethod("const string& get_text() const", &Exception::Pointer::GetText);
 				VExceptionPtr->SetMethod("string what() const", &Exception::Pointer::What);
 				VExceptionPtr->SetMethod("bool empty() const", &Exception::Pointer::Empty);
 
@@ -11059,10 +10867,10 @@ namespace Mavi
 				VM->SetFunction("bool remove(const string &in)", &OSDirectoryRemove);
 				VM->SetFunction("bool is_exists(const string &in)", &OSDirectoryIsExists);
 				VM->SetFunction("bool is_empty(const string &in)", &OSDirectoryIsEmpty);
-				VM->SetFunction("string get_module()", &OSDirectoryGetModule);
-				VM->SetFunction("string get_working()", &OSDirectoryGetWorking);
 				VM->SetFunction("bool patch(const string &in)", &OSDirectoryPatch);
 				VM->SetFunction("bool set_working(const string &in)", &OSDirectorySetWorking);
+				VM->SetFunction("string get_module()", &VI_SEXPECTIFY(Core::OS::Directory::GetModule));
+				VM->SetFunction("string get_working()", &VI_SEXPECTIFY(Core::OS::Directory::GetWorking));
 				VM->EndNamespace();
 
 				VM->BeginNamespace("os::file");
@@ -11073,7 +10881,6 @@ namespace Mavi
 				VM->SetFunction("bool remove(const string &in)", &OSFileRemove);
 				VM->SetFunction("bool is_exists(const string &in)", &OSFileIsExists);
 				VM->SetFunction("file_state get_properties(const string &in)", &OSFileGetProperties);
-				VM->SetFunction("string read_as_string(const string &in)", &OSFileReadAsString);
 				VM->SetFunction("array<string>@ read_as_array(const string &in)", &OSFileReadAsArray);
 				VM->SetFunction("usize join(const string &in, array<string>@+)", &OSFileJoin);
 				VM->SetFunction("int32 compare(const string &in, const string &in)", &Core::OS::File::Compare);
@@ -11081,6 +10888,7 @@ namespace Mavi
 				VM->SetFunction("base_stream@ open_join(const string &in, array<string>@+)", &OSFileOpenJoin);
 				VM->SetFunction("base_stream@ open_archive(const string &in, usize = 134217728)", &OSFileOpenArchive);
 				VM->SetFunction("base_stream@ open(const string &in, file_mode, bool = false)", &OSFileOpen);
+				VM->SetFunction("string read_as_string(const string &in)", &VI_SEXPECTIFY(Core::OS::File::ReadAsString));
 				VM->EndNamespace();
 
 				VM->BeginNamespace("os::path");
@@ -11833,7 +11641,7 @@ namespace Mavi
 				VWebToken->SetMethod("void set_refresh_token(const string &in, const private_key &in, const private_key &in)", &Compute::WebToken::SetRefreshToken);
 				VWebToken->SetMethod("bool sign(const private_key &in)", &Compute::WebToken::Sign);
 				VWebToken->SetMethod("bool is_valid()", &Compute::WebToken::IsValid);
-				VWebToken->SetMethodEx("string get_refresh_token(const private_key &in, const private_key &in)", &WebTokenGetRefreshToken);
+				VWebToken->SetMethodEx("string get_refresh_token(const private_key &in, const private_key &in)", &VI_OPTIONIFY(Compute::WebToken::GetRefreshToken));
 				VWebToken->SetMethodEx("void set_audience(array<string>@+)", &WebTokenSetAudience);
 				VWebToken->SetEnumRefsEx<Compute::WebToken>([](Compute::WebToken* Base, asIScriptEngine* VM) { });
 				VWebToken->SetReleaseRefsEx<Compute::WebToken>([](Compute::WebToken* Base, asIScriptEngine*) { });
@@ -12015,27 +11823,27 @@ namespace Mavi
 
 				VM->BeginNamespace("crypto");
 				VM->SetFunctionDef("string block_transform_event(const string&in)");
-				VM->SetFunction("string random_bytes(usize)", &CryptoRandomBytes);
-				VM->SetFunction("string checksum_hex(base_stream@, const string &in)", &CryptoChecksumHex);
-				VM->SetFunction("string checksum_raw(base_stream@, const string &in)", &CryptoChecksumRaw);
-				VM->SetFunction("string hash_hex(uptr@, const string &in)", &CryptoHashHex);
-				VM->SetFunction("string hash_raw(uptr@, const string &in)", &CryptoHashRaw);
-				VM->SetFunction("string sign(uptr@, const string &in, const private_key &in)", &CryptoSign);
-				VM->SetFunction("string hmac(uptr@, const string &in, const private_key &in)", &CryptoHMAC);
-				VM->SetFunction("string encrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &CryptoEncrypt);
-				VM->SetFunction("string decrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &CryptoDecrypt);
-				VM->SetFunction("string jwt_sign(const string &in, const string &in, const private_key &in)", &CryptoJWTSign);
-				VM->SetFunction("string jwt_encode(web_token@+, const private_key &in)", &CryptoJWTEncode);
-				VM->SetFunction("usize encrypt(uptr@, base_stream@, const private_key &in, const private_key &in, block_transform_event@ = null, usize = 1, int = -1)", &CryptoEncryptStream);
-				VM->SetFunction("usize decrypt(uptr@, base_stream@, const private_key &in, const private_key &in, block_transform_event@ = null, usize = 1, int = -1)", &CryptoDecryptStream);
-				VM->SetFunction("web_token@ jwt_decode(const string &in, const private_key &in)", &CryptoJWTDecode);
-				VM->SetFunction("string doc_encrypt(schema@+, const private_key &in, const private_key &in)", &CryptoDocEncrypt);
-				VM->SetFunction("schema@ doc_decrypt(const string &in, const private_key &in, const private_key &in)", &CryptoDocDecrypt);
 				VM->SetFunction("uint8 random_uc()", &Compute::Crypto::RandomUC);
 				VM->SetFunction<uint64_t()>("uint64 random()", &Compute::Crypto::Random);
 				VM->SetFunction<uint64_t(uint64_t, uint64_t)>("uint64 random(uint64, uint64)", &Compute::Crypto::Random);
 				VM->SetFunction("uint64 crc32(const string &in)", &Compute::Crypto::CRC32);
 				VM->SetFunction("void display_crypto_log()", &Compute::Crypto::DisplayCryptoLog);
+				VM->SetFunction("string random_bytes(usize)", &VI_SOPTIONIFY(Compute::Crypto::RandomBytes));
+				VM->SetFunction("string checksum_hex(base_stream@, const string &in)", &VI_SOPTIONIFY(Compute::Crypto::ChecksumHex));
+				VM->SetFunction("string checksum_raw(base_stream@, const string &in)", &VI_SOPTIONIFY(Compute::Crypto::ChecksumRaw));
+				VM->SetFunction("string hash_hex(uptr@, const string &in)", &VI_SOPTIONIFY(Compute::Crypto::HashHex));
+				VM->SetFunction("string hash_raw(uptr@, const string &in)", &VI_SOPTIONIFY(Compute::Crypto::HashRaw));
+				VM->SetFunction("string jwt_sign(const string &in, const string &in, const private_key &in)", &VI_SOPTIONIFY(Compute::Crypto::JWTSign));
+				VM->SetFunction("string jwt_encode(web_token@+, const private_key &in)", &VI_SOPTIONIFY(Compute::Crypto::JWTEncode));
+				VM->SetFunction("web_token@ jwt_decode(const string &in, const private_key &in)", &VI_SOPTIONIFY(Compute::Crypto::JWTDecode));
+				VM->SetFunction("string doc_encrypt(schema@+, const private_key &in, const private_key &in)", &VI_SOPTIONIFY(Compute::Crypto::DocEncrypt));
+				VM->SetFunction("schema@ doc_decrypt(const string &in, const private_key &in, const private_key &in)", &VI_SOPTIONIFY(Compute::Crypto::DocDecrypt));
+				VM->SetFunction("string sign(uptr@, const string &in, const private_key &in)", &CryptoSign);
+				VM->SetFunction("string hmac(uptr@, const string &in, const private_key &in)", &CryptoHMAC);
+				VM->SetFunction("string encrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &CryptoEncrypt);
+				VM->SetFunction("string decrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &CryptoDecrypt);
+				VM->SetFunction("usize encrypt(uptr@, base_stream@, const private_key &in, const private_key &in, block_transform_event@ = null, usize = 1, int = -1)", &CryptoEncryptStream);
+				VM->SetFunction("usize decrypt(uptr@, base_stream@, const private_key &in, const private_key &in, block_transform_event@ = null, usize = 1, int = -1)", &CryptoDecryptStream);
 				VM->EndNamespace();
 
 				return true;
@@ -12062,8 +11870,8 @@ namespace Mavi
 				VM->SetFunction("string base32_decode(const string &in)", &Compute::Codec::Base32Decode);
 				VM->SetFunction("string base45_encode(const string &in)", &Compute::Codec::Base45Encode);
 				VM->SetFunction("string base45_decode(const string &in)", &Compute::Codec::Base45Decode);
-				VM->SetFunction("string compress(const string &in, compression_cdc)", &CodecCompress);
-				VM->SetFunction("string decompress(const string &in)", &CodecDecompress);
+				VM->SetFunction("string compress(const string &in, compression_cdc)", &VI_SOPTIONIFY(Compute::Codec::Compress));
+				VM->SetFunction("string decompress(const string &in)", &VI_SOPTIONIFY(Compute::Codec::Decompress));
 				VM->SetFunction<Core::String(const Core::String&)>("string base64_encode(const string &in)", &Compute::Codec::Base64Encode);
 				VM->SetFunction<Core::String(const Core::String&)>("string base64_decode(const string &in)", &Compute::Codec::Base64Decode);
 				VM->SetFunction<Core::String(const Core::String&)>("string base64_url_encode(const string &in)", &Compute::Codec::Base64URLEncode);
@@ -14872,47 +14680,47 @@ namespace Mavi
 				VSocket->SetProperty<Network::Socket>("uptr@ user_data", &Network::Socket::UserData);
 				VSocket->SetConstructor<Network::Socket>("socket@ f()");
 				VSocket->SetConstructor<Network::Socket, socket_t>("socket@ f(usize)");
-				VSocket->SetMethodEx("int accept(socket@+, string &out)", &SocketAccept1);
-				VSocket->SetMethodEx("int accept(usize &out, string &out)", &SocketAccept2);
-				VSocket->SetMethodEx("int accept_async(bool, socket_accepted_event@)", &SocketAcceptAsync);
-				VSocket->SetMethodEx("int close(bool = true)", &SocketClose);
-				VSocket->SetMethodEx("int close_async(bool, socket_status_event@)", &SocketCloseAsync);
-				VSocket->SetMethodEx("int64 send_file(uptr@, int64, int64)", &SocketSendFile);
-				VSocket->SetMethodEx("int64 send_file_async(uptr@, int64, int64, socket_written_event@)", &SocketSendFileAsync);
-				VSocket->SetMethodEx("int write(const string &in)", &SocketWrite);
-				VSocket->SetMethodEx("int write_async(const string &in, socket_written_event@)", &SocketWriteAsync);
-				VSocket->SetMethodEx("int read(string &out, int)", &SocketRead1);
-				VSocket->SetMethodEx("int read(string &out, int, socket_read_event@)", &SocketRead2);
-				VSocket->SetMethodEx("int read_async(usize, socket_read_event@)", &SocketReadAsync);
-				VSocket->SetMethodEx("int read_until(const string &in, socket_read_event@)", &SocketReadUntil);
-				VSocket->SetMethodEx("int read_until_async(const string &in, socket_read_event@)", &SocketReadUntilAsync);
-				VSocket->SetMethodEx("int connect(socket_address@+, uint64)", &SocketConnect);
-				VSocket->SetMethodEx("int connect_async(socket_address@+, socket_status_event@)", &SocketConnectAsync);
-				VSocket->SetMethodEx("int open(socket_address@+)", &SocketOpen);
-				VSocket->SetMethodEx("int secure(uptr@, const string &in)", &SocketSecure);
-				VSocket->SetMethodEx("int bind(socket_address@+)", &SocketBind);
-				VSocket->SetMethodEx("int listen(int)", &SocketListen);
-				VSocket->SetMethodEx("int clear_events(bool)", &SocketClearEvents);
-				VSocket->SetMethodEx("int migrate_to(usize, bool = true)", &SocketMigrateTo);
-				VSocket->SetMethodEx("int set_close_on_exec()", &SocketSetCloseOnExec);
-				VSocket->SetMethodEx("int set_time_wait(int)", &SocketSetTimeWait);
-				VSocket->SetMethodEx("int set_any_flag(int, int, int)", &SocketSetAnyFlag);
-				VSocket->SetMethodEx("int set_socket_flag(int, int)", &SocketSetSocketFlag);
-				VSocket->SetMethodEx("int set_blocking(bool)", &SocketSetBlocking);
-				VSocket->SetMethodEx("int set_no_delay(bool)", &SocketSetNoDelay);
-				VSocket->SetMethodEx("int set_keep_alive(bool)", &SocketSetKeepAlive);
-				VSocket->SetMethodEx("int set_timeout(int)", &SocketSetTimeout);
-				VSocket->SetMethodEx("int get_any_flag(int, int, int &out)", &SocketGetAnyFlag);
-				VSocket->SetMethodEx("int get_socket_flag(int, int &out)", &SocketGetSocketFlag);
-				VSocket->SetMethodEx("int get_port()", &SocketGetPort);
-				VSocket->SetMethodEx("string get_remote_address()", &SocketGetRemoteAddress);
-				VSocket->SetMethod("usize get_fd()", &Network::Socket::GetFd);
-				VSocket->SetMethod("uptr@ get_device()", &Network::Socket::GetDevice);
-				VSocket->SetMethod("bool is_pending_for_read()", &Network::Socket::IsPendingForRead);
-				VSocket->SetMethod("bool is_pending_for_write()", &Network::Socket::IsPendingForWrite);
-				VSocket->SetMethod("bool is_pending()", &Network::Socket::IsPending);
-				VSocket->SetMethod("bool is_valid()", &Network::Socket::IsValid);
-				VSocket->SetMethod("bool is_secure()", &Network::Socket::IsSecure);
+				VSocket->SetMethod("usize get_fd() const", &Network::Socket::GetFd);
+				VSocket->SetMethod("uptr@ get_device() const", &Network::Socket::GetDevice);
+				VSocket->SetMethod("bool is_pending_for_read() const", &Network::Socket::IsPendingForRead);
+				VSocket->SetMethod("bool is_pending_for_write() const", &Network::Socket::IsPendingForWrite);
+				VSocket->SetMethod("bool is_pending() const", &Network::Socket::IsPending);
+				VSocket->SetMethod("bool is_valid() const", &Network::Socket::IsValid);
+				VSocket->SetMethod("bool is_secure() const", &Network::Socket::IsSecure);
+				VSocket->SetMethodEx("bool accept_async(bool, socket_accepted_event@)", &SocketAcceptAsync);
+				VSocket->SetMethodEx("bool connect_async(socket_address@+, socket_status_event@)", &SocketConnectAsync);
+				VSocket->SetMethodEx("bool close_async(bool, socket_status_event@)", &SocketCloseAsync);
+				VSocket->SetMethodEx("usize send_file_async(uptr@, usize, usize, socket_written_event@)", &SocketSendFileAsync);
+				VSocket->SetMethodEx("usize write_async(const string &in, socket_written_event@)", &SocketWriteAsync);
+				VSocket->SetMethodEx("usize read_async(usize, socket_read_event@)", &SocketReadAsync);
+				VSocket->SetMethodEx("usize read_until_async(const string &in, socket_read_event@)", &SocketReadUntilAsync);
+				VSocket->SetMethodEx("bool accept(socket@+, string &out)", &SocketAccept1);
+				VSocket->SetMethodEx("bool accept(usize &out, string &out)", &SocketAccept2);
+				VSocket->SetMethodEx("bool secure(uptr@, const string &in)", &SocketSecure);
+				VSocket->SetMethodEx("usize send_file(uptr@, usize, usize)", &SocketSendFile);
+				VSocket->SetMethodEx("usize write(const string &in)", &SocketWrite);
+				VSocket->SetMethodEx("usize read(string &out, usize)", &SocketRead1);
+				VSocket->SetMethodEx("usize read(string &out, usize, socket_read_event@)", &SocketRead2);
+				VSocket->SetMethodEx("usize read_until(const string &in, socket_read_event@)", &SocketReadUntil);
+				VSocket->SetMethodEx("string get_remote_address() const", &VI_EXPECTIFY(Network::Socket::GetRemoteAddress));
+				VSocket->SetMethodEx("int get_port() const", &VI_EXPECTIFY(Network::Socket::GetPort));
+				VSocket->SetMethodEx("bool get_any_flag(int, int, int &out) const", &VI_EXPECTIFY_VOID(Network::Socket::GetAnyFlag));
+				VSocket->SetMethodEx("bool get_socket_flag(int, int &out) const", &VI_EXPECTIFY_VOID(Network::Socket::GetSocketFlag));
+				VSocket->SetMethodEx("bool set_close_on_exec()", VI_EXPECTIFY_VOID(Network::Socket::SetCloseOnExec));
+				VSocket->SetMethodEx("bool set_time_wait(int)", VI_EXPECTIFY_VOID(Network::Socket::SetTimeWait));
+				VSocket->SetMethodEx("bool set_any_flag(int, int, int)", VI_EXPECTIFY_VOID(Network::Socket::SetAnyFlag));
+				VSocket->SetMethodEx("bool set_socket_flag(int, int)", VI_EXPECTIFY_VOID(Network::Socket::SetSocketFlag));
+				VSocket->SetMethodEx("bool set_blocking(bool)", VI_EXPECTIFY_VOID(Network::Socket::SetBlocking));
+				VSocket->SetMethodEx("bool set_no_delay(bool)", VI_EXPECTIFY_VOID(Network::Socket::SetNoDelay));
+				VSocket->SetMethodEx("bool set_keep_alive(bool)", VI_EXPECTIFY_VOID(Network::Socket::SetKeepAlive));
+				VSocket->SetMethodEx("bool set_timeout(int)", VI_EXPECTIFY_VOID(Network::Socket::SetTimeout));
+				VSocket->SetMethodEx("bool connect(socket_address@+, uint64)", &VI_EXPECTIFY_VOID(Network::Socket::Connect));
+				VSocket->SetMethodEx("bool close(bool = true)", &VI_EXPECTIFY_VOID(Network::Socket::Close));
+				VSocket->SetMethodEx("bool open(socket_address@+)", &VI_EXPECTIFY_VOID(Network::Socket::Open));
+				VSocket->SetMethodEx("bool bind(socket_address@+)", &VI_EXPECTIFY_VOID(Network::Socket::Bind));
+				VSocket->SetMethodEx("bool listen(int)", &VI_EXPECTIFY_VOID(Network::Socket::Listen));
+				VSocket->SetMethodEx("bool clear_events(bool)", &VI_EXPECTIFY_VOID(Network::Socket::ClearEvents));
+				VSocket->SetMethodEx("bool migrate_to(usize, bool = true)", &VI_EXPECTIFY_VOID(Network::Socket::MigrateTo));
 
 				VM->BeginNamespace("net_packet");
 				VM->SetFunction("bool is_data(socket_poll)", &Network::Packet::IsData);
@@ -14928,8 +14736,8 @@ namespace Mavi
 
 				auto VDNS = VM->SetClass<Network::DNS>("dns", false);
 				VDNS->SetConstructor<Network::DNS>("dns@ f()");
-				VDNS->SetMethodEx("string find_name_from_address(const string &in, const string &in)", &DNSFindNameFromAddress);
-				VDNS->SetMethodEx("socket_address@+ find_address_from_name(const string &in, const string &in, dns_type, socket_protocol, socket_type)", &DNSFindAddressFromName);
+				VDNS->SetMethodEx("string find_name_from_address(const string &in, const string &in)", &VI_EXPECTIFY(Network::DNS::FindNameFromAddress));
+				VDNS->SetMethodEx("socket_address@+ find_address_from_name(const string &in, const string &in, dns_type, socket_protocol, socket_type)", &VI_EXPECTIFY(Network::DNS::FindAddressFromName));
 				VDNS->SetMethodStatic("dns@+ get()", &Network::DNS::Get);
 
 				auto VMultiplexer = VM->SetClass<Network::Multiplexer>("multiplexer", false);
@@ -15040,8 +14848,8 @@ namespace Mavi
 
 				auto VSocketClient = VM->SetClass<Network::SocketClient>("socket_client", false);
 				VSocketClient->SetConstructor<Network::SocketClient, int64_t>("socket_client@ f(int64)");
-				VSocketClient->SetMethodEx("promise<int>@ connect(remote_host &in, bool = true, uint32 = 100)", &VI_SPROMISIFY(SocketClientConnect, TypeId::INT32));
-				VSocketClient->SetMethodEx("promise<int>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::INT32));
+				VSocketClient->SetMethodEx("promise<bool>@ connect(remote_host &in, bool = true, uint32 = 100)", &VI_SPROMISIFY(SocketClientConnect, TypeId::BOOL));
+				VSocketClient->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::BOOL));
 				VSocketClient->SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 
 				return true;
@@ -15147,10 +14955,10 @@ namespace Mavi
 				VContentFrame->SetMethod<Network::HTTP::ContentFrame, void, const Core::String&>("void assign(const string&in)", &Network::HTTP::ContentFrame::Assign);
 				VContentFrame->SetMethod("void finalize()", &Network::HTTP::ContentFrame::Finalize);
 				VContentFrame->SetMethod("void cleanup()", &Network::HTTP::ContentFrame::Cleanup);
+				VContentFrame->SetMethod("bool is_finalized() const", &Network::HTTP::ContentFrame::IsFinalized);
+				VContentFrame->SetMethod("string get_text() const", &Network::HTTP::ContentFrame::GetText);
 				VContentFrame->SetMethodEx("schema@ get_json() const", &ContentFrameGetJSON);
 				VContentFrame->SetMethodEx("schema@ get_xml() const", &ContentFrameGetXML);
-				VContentFrame->SetMethod("string get_text() const", &Network::HTTP::ContentFrame::GetText);
-				VContentFrame->SetMethod("bool is_finalized() const", &Network::HTTP::ContentFrame::IsFinalized);
 				VContentFrame->SetMethodEx("void prepare(const string&in)", &ContentFramePrepare);
 				VContentFrame->SetMethodEx("void add_resource(const resource_info&in)", &ContentFrameAddResource);
 				VContentFrame->SetMethodEx("void clear_resources()", &ContentFrameClearResources);
@@ -15461,14 +15269,14 @@ namespace Mavi
 				VClient->SetConstructor<Network::HTTP::Client, int64_t>("client@ f(int64)");
 				VClient->SetMethod("bool downgrade()", &Network::HTTP::Client::Downgrade);
 				VClient->SetMethodEx("string get_remote_address() const", &ClientGetRemoteAddress);
+				VClient->SetMethodEx("promise<schema@>@ json(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientJSON, Schema));
+				VClient->SetMethodEx("promise<schema@>@ xml(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientXML, Schema));
 				VClient->SetMethodEx("promise<bool>@ consume(usize = 65536)", &VI_PROMISIFY(Network::HTTP::Client::Consume, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ fetch(const request_frame&in, usize = 65536)", &VI_SPROMISIFY(ClientFetch, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ upgrade(const request_frame&in)", &VI_SPROMISIFY(ClientUpgrade, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(ClientSend, TypeId::BOOL));
-				VClient->SetMethodEx("promise<schema@>@ json(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientJSON, Schema));
-				VClient->SetMethodEx("promise<schema@>@ xml(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientXML, Schema));
-				VClient->SetMethodEx("promise<int>@ connect(remote_host &in, bool = true, uint32 = 100)", &VI_SPROMISIFY(SocketClientConnect, TypeId::INT32));
-				VClient->SetMethodEx("promise<int>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::INT32));
+				VClient->SetMethodEx("promise<bool>@ connect(remote_host &in, bool = true, uint32 = 100)", &VI_SPROMISIFY(SocketClientConnect, TypeId::BOOL));
+				VClient->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::BOOL));
 				VClient->SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 				VClient->SetMethod("websocket_frame@+ get_websocket() const", &Network::HTTP::Client::GetWebSocket);
 				VClient->SetMethod("request_frame& get_request() property", &Network::HTTP::Client::GetRequest);
@@ -15536,9 +15344,9 @@ namespace Mavi
 				auto VClient = VM->SetClass<Network::SMTP::Client>("client", false);
 				VClient->SetConstructor<Network::SMTP::Client, const Core::String&, int64_t>("client@ f(const string&in, int64)");
 				VClient->SetMethodEx("string get_remote_address() const", &ClientGetRemoteAddress);
-				VClient->SetMethodEx("promise<int>@ send(const request_frame&in)", &VI_SPROMISIFY(SMTPClientSend, TypeId::INT32));
-				VClient->SetMethodEx("promise<int>@ connect(remote_host &in, bool = true, uint32 = 100)", &VI_SPROMISIFY(SocketClientConnect, TypeId::INT32));
-				VClient->SetMethodEx("promise<int>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::INT32));
+				VClient->SetMethodEx("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(SMTPClientSend, TypeId::BOOL));
+				VClient->SetMethodEx("promise<bool>@ connect(remote_host &in, bool = true, uint32 = 100)", &VI_SPROMISIFY(SocketClientConnect, TypeId::BOOL));
+				VClient->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::BOOL));
 				VClient->SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 				VClient->SetMethod("request_frame& get_request() property", &Network::SMTP::Client::GetRequest);
 				VClient->SetDynamicCast<Network::SMTP::Client, Network::SocketClient>("socket_client@+", true);

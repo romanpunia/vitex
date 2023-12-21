@@ -2159,6 +2159,7 @@ namespace Mavi
 			static void ExceptionHandler(asIScriptContext* Context, void* Object);
 			static void SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*));
 			static void CleanupThisThread();
+			static const char* GetErrorNameInfo(VirtualError Code);
 			static ByteCodeLabel GetByteCodeInfo(uint8_t Code);
 			static VirtualMachine* Get(asIScriptEngine* Engine);
 			static VirtualMachine* Get();

@@ -16,6 +16,14 @@
 #define VI_ANYIFY_REF(MemberFunction, TypeRef) Mavi::Scripting::Bindings::Any::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
 #define VI_SANYIFY(Function, TypeId) Mavi::Scripting::Bindings::Any::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
 #define VI_SANYIFY_REF(Function, TypeRef) Mavi::Scripting::Bindings::Any::IfyStatic<decltype(&Function), &Function>::Decl<TypeRef>
+#define VI_EXPECTIFY(MemberFunction) Mavi::Scripting::Bindings::ExpectsWrapper::Ify<decltype(&MemberFunction), &MemberFunction>::Throws
+#define VI_EXPECTIFY_VOID(MemberFunction) Mavi::Scripting::Bindings::ExpectsWrapper::Ify<decltype(&MemberFunction), &MemberFunction>::ThrowsVoid
+#define VI_SEXPECTIFY(Function) Mavi::Scripting::Bindings::ExpectsWrapper::IfyStatic<decltype(&Function), &Function>::Throws
+#define VI_SEXPECTIFY_VOID(Function) Mavi::Scripting::Bindings::ExpectsWrapper::IfyStatic<decltype(&Function), &Function>::ThrowsVoid
+#define VI_OPTIONIFY(MemberFunction) Mavi::Scripting::Bindings::OptionWrapper::Ify<decltype(&MemberFunction), &MemberFunction>::Throws
+#define VI_OPTIONIFY_VOID(MemberFunction) Mavi::Scripting::Bindings::OptionWrapper::Ify<decltype(&MemberFunction), &MemberFunction>::ThrowsVoid
+#define VI_SOPTIONIFY(Function) Mavi::Scripting::Bindings::OptionWrapper::IfyStatic<decltype(&Function), &Function>::Throws
+#define VI_SOPTIONIFY_VOID(Function) Mavi::Scripting::Bindings::OptionWrapper::IfyStatic<decltype(&Function), &Function>::ThrowsVoid
 #ifdef __LP64__
 typedef unsigned int as_uint32_t;
 typedef unsigned long as_uint64_t;
@@ -68,7 +76,7 @@ namespace Mavi
 				}
 			};
 
-			class VI_OUT_TS WeirdTemplateMagic
+			class VI_OUT_TS Utils
 			{
 			public:
 				template <typename F, typename Tuple, std::size_t... I>
@@ -79,17 +87,17 @@ namespace Mavi
 				template <typename F, typename Tuple>
 				static constexpr decltype(auto) Apply(F&& f, Tuple&& t)
 				{
-					return WeirdTemplateMagic::ApplyPack(static_cast<F&&>(f), static_cast<Tuple&&>(t), std::make_index_sequence<std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
+					return Utils::ApplyPack(static_cast<F&&>(f), static_cast<Tuple&&>(t), std::make_index_sequence<std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
 				}
 				template <typename Lambda, typename... Args>
 				static auto CaptureCall(Lambda&& lambda, Args&&... args)
 				{
 					return [lambda = std::forward<Lambda>(lambda), capture_args = std::forward_as_tuple(args...)](auto&&... original_args) mutable
 					{
-						return WeirdTemplateMagic::Apply([&lambda](auto&&... args)
+						return Utils::Apply([&lambda](auto&&... args)
 						{
 							lambda(std::forward<decltype(args)>(args)...);
-						}, std::tuple_cat(std::forward_as_tuple(original_args...), WeirdTemplateMagic::Apply([](auto&&... args)
+						}, std::tuple_cat(std::forward_as_tuple(original_args...), Utils::Apply([](auto&&... args)
 						{
 							return std::forward_as_tuple(std::move(args)...);
 						}, std::move(capture_args))));
@@ -154,30 +162,30 @@ namespace Mavi
 				static bool Cleanup();
 			};
 
-			class VI_OUT Imports
+			class VI_OUT_TS Imports
 			{
 			public:
 				static void BindSyntax(VirtualMachine* VM, bool Enabled, const char* Syntax);
 				static bool GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code, const char* Syntax);
 			};
 
-			class VI_OUT Exception
+			class VI_OUT_TS Exception
 			{
 			public:
 				struct Pointer
 				{
 					Core::String Type;
-					Core::String Message;
+					Core::String Text;
 					Core::String Origin;
 					ImmediateContext* Context;
 
 					Pointer();
 					Pointer(ImmediateContext* Context);
 					Pointer(const Core::String& Data);
-					Pointer(const Core::String& Type, const Core::String& Message);
+					Pointer(const Core::String& Type, const Core::String& Text);
 					void LoadExceptionData(const Core::String& Data);
 					const Core::String& GetType() const;
-					const Core::String& GetMessage() const;
+					const Core::String& GetText() const;
 					Core::String ToExceptionString() const;
 					Core::String What() const;
 					Core::String LoadStackHere() const;
@@ -194,6 +202,157 @@ namespace Mavi
 				static Pointer GetExceptionAt(ImmediateContext* Context);
 				static Pointer GetException();
 				static bool GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code);
+			};
+
+			class VI_OUT_TS ExpectsWrapper
+			{
+			public:
+				static Exception::Pointer TranslateThrow(const std::exception& Error);
+				static Exception::Pointer TranslateThrow(const std::error_code& Error);
+				static Exception::Pointer TranslateThrow(const std::error_condition& Error);
+				static Exception::Pointer TranslateThrow(const Core::String& Error);
+				static Exception::Pointer TranslateThrow(const Core::Exceptions::ParserException& Error);
+				static Exception::Pointer TranslateThrow(const VirtualError& Error);
+
+			public:
+				template <typename V, typename E>
+				static V Unwrap(Core::Expects<V, E>&& Subresult, V&& Default, ImmediateContext* Context = ImmediateContext::Get())
+				{
+					if (Subresult)
+						return *Subresult;
+
+					Exception::ThrowAt(Context, TranslateThrow(Subresult.Error()));
+					return Default;
+				}
+				template <typename V, typename E>
+				static bool UnwrapVoid(Core::Expects<V, E>&& Subresult, ImmediateContext* Context = ImmediateContext::Get())
+				{
+					if (!Subresult)
+						Exception::ThrowAt(Context, TranslateThrow(Subresult.Error()));
+					return !!Subresult;
+				}
+
+			public:
+				template <typename T, T>
+				struct Ify;
+
+				template <typename T, T>
+				struct IfyStatic;
+
+				template <typename T, typename V, typename E, typename ...Args, Core::Expects<V, E>(T::* F)(Args...)>
+				struct Ify<Core::Expects<V, E>(T::*)(Args...), F>
+				{
+					static V Throws(T* Base, Args... Data)
+					{
+						Core::Expects<V, E> Subresult((Base->*F)(Data...));
+						if (Subresult)
+							return *Subresult;
+						
+						Exception::Throw(TranslateThrow(Subresult.Error()));
+						throw false;
+					}
+					static bool ThrowsVoid(T* Base, Args... Data)
+					{
+						Core::Expects<V, E> Subresult((Base->*F)(Data...));
+						if (!Subresult)
+							Exception::Throw(TranslateThrow(Subresult.Error()));
+						return !!Subresult;
+					}
+				};
+
+				template <typename V, typename E, typename ...Args, Core::Expects<V, E>(*F)(Args...)>
+				struct IfyStatic<Core::Expects<V, E>(*)(Args...), F>
+				{
+					static V Throws(Args... Data)
+					{
+						Core::Expects<V, E> Subresult((*F)(Data...));
+						if (Subresult)
+							return *Subresult;
+
+						Exception::Throw(TranslateThrow(Subresult.Error()));
+						throw false;
+					}
+					static bool ThrowsVoid(Args... Data)
+					{
+						Core::Expects<V, E> Subresult((*F)(Data...));
+						if (!Subresult)
+							Exception::Throw(TranslateThrow(Subresult.Error()));
+						return !!Subresult;
+					}
+				};
+			};
+
+			class VI_OUT_TS OptionWrapper
+			{
+			public:
+				static Exception::Pointer TranslateThrow();
+
+			public:
+				template <typename V>
+				static V Unwrap(Core::Option<V>&& Subresult, V&& Default, ImmediateContext* Context = ImmediateContext::Get())
+				{
+					if (Subresult)
+						return *Subresult;
+
+					Exception::ThrowAt(Context, TranslateThrow());
+					return Default;
+				}
+				template <typename V>
+				static bool UnwrapVoid(Core::Option<V>&& Subresult, ImmediateContext* Context = ImmediateContext::Get())
+				{
+					if (!Subresult)
+						Exception::ThrowAt(Context, TranslateThrow());
+					return !!Subresult;
+				}
+
+			public:
+				template <typename T, T>
+				struct Ify;
+
+				template <typename T, T>
+				struct IfyStatic;
+
+				template <typename T, typename V, typename ...Args, Core::Option<V>(T::* F)(Args...)>
+				struct Ify<Core::Option<V>(T::*)(Args...), F>
+				{
+					static V Throws(T* Base, Args... Data)
+					{
+						Core::Option<V> Subresult((Base->*F)(Data...));
+						if (Subresult)
+							return *Subresult;
+
+						Exception::Throw(TranslateThrow());
+						throw false;
+					}
+					static bool ThrowsVoid(T* Base, Args... Data)
+					{
+						Core::Option<V> Subresult((Base->*F)(Data...));
+						if (!Subresult)
+							Exception::Throw(TranslateThrow());
+						return !!Subresult;
+					}
+				};
+
+				template <typename V, typename ...Args, Core::Option<V>(*F)(Args...)>
+				struct IfyStatic<Core::Option<V>(*)(Args...), F>
+				{
+					static V Throws(Args... Data)
+					{
+						Core::Option<V> Subresult((*F)(Data...));
+						if (Subresult)
+							return *Subresult;
+
+						Exception::Throw(TranslateThrow());
+						throw false;
+					}
+					static bool ThrowsVoid(Args... Data)
+					{
+						Core::Option<V> Subresult((*F)(Data...));
+						if (!Subresult)
+							Exception::Throw(TranslateThrow());
+						return !!Subresult;
+					}
+				};
 			};
 
 			class VI_OUT String
@@ -771,24 +930,24 @@ namespace Mavi
 				struct Ify<Core::Promise<R>(T::*)(Args...), F>
 				{
 					template <TypeId TypeID>
-					static Promise* Id(T* Base, Args&&... Data)
+					static Promise* Id(T* Base, Args... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
 						if (!IsAlwaysAwait(Future->Engine))
 							return Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((Base->*F)(Data...)));
 
 						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future, Base](auto&&... Data)
+						Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future, Base](auto&&... Data)
 						{
 							((Base->*F)(Data...)).When([Future](R&& Result)
 							{
 								Future->Store((void*)&Result, (int)TypeID);
 							});
-						}, std::forward<Args&&>(Data)...));
+						}, std::forward<Args>(Data)...));
 						return Future;
 					}
 					template <uint64_t TypeRef>
-					static Promise* Decl(T* Base, Args&&... Data)
+					static Promise* Decl(T* Base, Args... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
 						int TypeId = TypeCache::GetTypeId(TypeRef);
@@ -796,13 +955,13 @@ namespace Mavi
 							return Promise::WatchAndYieldIf<R>(Future, TypeId, ((Base->*F)(Data...)));
 
 						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future, TypeId, Base](auto&&... Data)
+						Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future, TypeId, Base](auto&&... Data)
 						{
 							((Base->*F)(Data...)).When([Future, TypeId](R&& Result)
 							{
 								Future->Store((void*)&Result, TypeId);
 							});
-						}, std::forward<Args&&>(Data)...));
+						}, std::forward<Args>(Data)...));
 						return Future;
 					}
 				};
@@ -811,24 +970,24 @@ namespace Mavi
 				struct IfyStatic<Core::Promise<R>(*)(Args...), F>
 				{
 					template <TypeId TypeID>
-					static Promise* Id(Args&&... Data)
+					static Promise* Id(Args... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
 						if (!IsAlwaysAwait(Future->Engine))
 							return Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((*F)(Data...)));
 
 						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future](auto&&... Data)
+						Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future](auto&&... Data)
 						{
 							((*F)(Data...)).When([Future](R&& Result)
 							{
 								Future->Store((void*)&Result, (int)TypeID);
 							});
-						}, std::forward<Args&&>(Data)...));
+						}, std::forward<Args>(Data)...));
 						return Future;
 					}
 					template <uint64_t TypeRef>
-					static Promise* Decl(Args&&... Data)
+					static Promise* Decl(Args... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
 						int TypeId = TypeCache::GetTypeId(TypeRef);
@@ -836,13 +995,13 @@ namespace Mavi
 							return Promise::WatchAndYieldIf<R>(Future, TypeId, ((*F)(Data...)));
 
 						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback(WeirdTemplateMagic::CaptureCall([Future, TypeId](auto&&... Data)
+						Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future, TypeId](auto&&... Data)
 						{
 							((*F)(Data...)).When([Future, TypeId](R&& Result)
 							{
 								Future->Store((void*)&Result, TypeId);
 							});
-						}, std::forward<Args&&>(Data)...));
+						}, std::forward<Args>(Data)...));
 						return Future;
 					}
 				};

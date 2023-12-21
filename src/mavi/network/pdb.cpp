@@ -1743,7 +1743,9 @@ namespace Mavi
 			Core::Promise<bool> Cluster::Disconnect()
 			{
 #ifdef VI_POSTGRESQL
-				VI_ASSERT(!Pool.empty(), "connection should be established");
+				if (Pool.empty())
+					return Core::Promise<bool>(false);
+
 				return Core::Cotask<bool>([this]()
 				{
 					Core::UMutex<std::mutex> Unique(Update);

@@ -1721,6 +1721,9 @@ namespace Mavi
 		template <typename V>
 		using ExpectsIO = Expects<V, std::error_condition>;
 
+		template <typename V>
+		using ExpectsParser = Expects<V, Exceptions::ParserException>;
+
 		struct VI_OUT Coroutine
 		{
 			friend Costate;
@@ -3193,15 +3196,15 @@ namespace Mavi
 			static String ToXML(Schema* Value);
 			static String ToJSON(Schema* Value);
 			static Vector<char> ToJSONB(Schema* Value);
-			static Expects<Unique<Schema>, Exceptions::ParserException> ConvertFromXML(const char* Buffer, size_t Size);
-			static Expects<Unique<Schema>, Exceptions::ParserException> ConvertFromJSON(const char* Buffer, size_t Size);
-			static Expects<Unique<Schema>, Exceptions::ParserException> ConvertFromJSONB(const SchemaReadCallback& Callback);
-			static Expects<Unique<Schema>, Exceptions::ParserException> FromXML(const String& Text);
-			static Expects<Unique<Schema>, Exceptions::ParserException> FromJSON(const String& Text);
-			static Expects<Unique<Schema>, Exceptions::ParserException> FromJSONB(const Vector<char>& Binary);
+			static ExpectsParser<Unique<Schema>> ConvertFromXML(const char* Buffer, size_t Size);
+			static ExpectsParser<Unique<Schema>> ConvertFromJSON(const char* Buffer, size_t Size);
+			static ExpectsParser<Unique<Schema>> ConvertFromJSONB(const SchemaReadCallback& Callback);
+			static ExpectsParser<Unique<Schema>> FromXML(const String& Text);
+			static ExpectsParser<Unique<Schema>> FromJSON(const String& Text);
+			static ExpectsParser<Unique<Schema>> FromJSONB(const Vector<char>& Binary);
 
 		private:
-			static Expects<void, Exceptions::ParserException> ProcessConvertionFromJSONB(Schema* Current, UnorderedMap<size_t, String>* Map, const SchemaReadCallback& Callback);
+			static ExpectsParser<void> ProcessConvertionFromJSONB(Schema* Current, UnorderedMap<size_t, String>* Map, const SchemaReadCallback& Callback);
 			static Schema* ProcessConversionFromJSONStringOrNumber(void* Base, bool IsDocument);
 			static void ProcessConvertionFromXML(void* Base, Schema* Current);
 			static void ProcessConvertionFromJSON(void* Base, Schema* Current);

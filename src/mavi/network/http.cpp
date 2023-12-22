@@ -1267,11 +1267,11 @@ namespace Mavi
 				Limited = false;
 				Exceeds = false;
 			}
-			Core::Expects<Core::Schema*, Core::Exceptions::ParserException> ContentFrame::GetJSON() const
+			Core::ExpectsParser<Core::Schema*> ContentFrame::GetJSON() const
 			{
 				return Core::Schema::FromJSON(GetText());
 			}
-			Core::Expects<Core::Schema*, Core::Exceptions::ParserException> ContentFrame::GetXML() const
+			Core::ExpectsParser<Core::Schema*> ContentFrame::GetXML() const
 			{
 				return Core::Schema::FromXML(GetText());
 			}

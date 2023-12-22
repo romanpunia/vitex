@@ -73,8 +73,7 @@ namespace Mavi
 				}
 				~RenderSubsystem() override
 				{
-					VI_RELEASE(VertexBuffer);
-					VI_RELEASE(Shader);
+					Detach();
 				}
 				void RenderGeometry(Rml::Vertex* Vertices, int VerticesSize, int* Indices, int IndicesSize, Rml::TextureHandle Texture, const Rml::Vector2f& Translation) override
 				{
@@ -273,12 +272,13 @@ namespace Mavi
 					VI_ASSERT(NewContent != nullptr, "content manager should be set");
 					VI_ASSERT(NewContent->GetDevice() != nullptr, "graphics device should be set");
 
-					VI_CLEAR(VertexBuffer);
-					VI_CLEAR(Shader);
-
+					Detach();
 					Constants = NewConstants;
 					Content = NewContent;
 					Device = Content->GetDevice();
+					Constants->AddRef();
+					Content->AddRef();
+					Device->AddRef();
 
 					Graphics::Shader::Desc I = Graphics::Shader::Desc();
 					if (Device->GetSection("interface/geometry", &I))
@@ -302,6 +302,16 @@ namespace Mavi
 					AlphaBlend = Device->GetBlendState("additive-source");
 					ColorlessBlend = Device->GetBlendState("overwrite-colorless");
 					Sampler = Device->GetSamplerState("trilinear-x16");
+					Subsystem::Get()->CreateDecorators(Constants);
+				}
+				void Detach()
+				{
+					Subsystem::Get()->ReleaseDecorators();
+					VI_CLEAR(VertexBuffer);
+					VI_CLEAR(Shader);
+					VI_CLEAR(Constants);
+					VI_CLEAR(Content);
+					VI_CLEAR(Device);
 				}
 				void ResizeBuffers(int Width, int Height)
 				{
@@ -390,9 +400,15 @@ namespace Mavi
 				MainSubsystem() : Rml::SystemInterface(), Activity(nullptr), Time(nullptr)
 				{
 				}
+				~MainSubsystem()
+				{
+					Detach();
+				}
 				void SetMouseCursor(const Rml::String& CursorName) override
 				{
-					VI_ASSERT(Activity != nullptr, "activity should be set");
+					if (!Activity)
+						return;
+
 					if (CursorName == "none")
 						Activity->SetCursor(Graphics::DisplayCursor::None);
 					else if (CursorName == "default")
@@ -422,28 +438,29 @@ namespace Mavi
 				}
 				void SetClipboardText(const Rml::String& Text) override
 				{
-					VI_ASSERT(Activity != nullptr, "activity should be set");
-					Activity->SetClipboardText(Text);
+					if (Activity != nullptr)
+						Activity->SetClipboardText(Text);
 				}
 				void GetClipboardText(Rml::String& Text) override
 				{
-					VI_ASSERT(Activity != nullptr, "activity should be set");
-					Text = Activity->GetClipboardText();
+					if (Activity != nullptr)
+						Text = Activity->GetClipboardText();
 				}
 				void ActivateKeyboard(Rml::Vector2f CaretPosition, float LineHeight) override
 				{
-					VI_ASSERT(Activity != nullptr, "activity should be set");
-					Activity->SetScreenKeyboard(true);
+					if (Activity != nullptr)
+						Activity->SetScreenKeyboard(true);
 				}
 				void DeactivateKeyboard() override
 				{
-					VI_ASSERT(Activity != nullptr, "activity should be set");
-					Activity->SetScreenKeyboard(false);
+					if (Activity != nullptr)
+						Activity->SetScreenKeyboard(false);
 				}
 				void JoinPath(Rml::String& Result, const Rml::String& Path1, const Rml::String& Path2) override
 				{
 					ContentManager* Content = (Subsystem::Get()->GetRenderInterface() ? Subsystem::Get()->GetRenderInterface()->GetContent() : nullptr);
-					VI_ASSERT(Content != nullptr, "activity should be set");
+					if (!Content)
+						return;
 
 					Core::String Proto1, Proto2;
 					Core::String Fixed1 = GetFixedURL(Path1, Proto1);
@@ -518,8 +535,18 @@ namespace Mavi
 				}
 				void Attach(Graphics::Activity* NewActivity, Core::Timer* NewTime)
 				{
+					Detach();
 					Activity = NewActivity;
 					Time = NewTime;
+					if (Activity != nullptr)
+						Activity->AddRef();
+					if (Time != nullptr)
+						Time->AddRef();
+				}
+				void Detach()
+				{
+					VI_CLEAR(Activity);
+					VI_CLEAR(Time);
 				}
 				void SetTranslator(const Core::String& Name, const TranslationCallback& Callback)
 				{
@@ -2781,7 +2808,7 @@ namespace Mavi
 				return Copy;
 			}
 
-			Subsystem::Subsystem() noexcept : ContextFactory(nullptr), DocumentFactory(nullptr), ListenerFactory(nullptr), RenderInterface(nullptr), FileInterface(nullptr), SystemInterface(nullptr), Id(0), HasDecorators(false)
+			Subsystem::Subsystem() noexcept : ContextFactory(nullptr), DocumentFactory(nullptr), ListenerFactory(nullptr), RenderInterface(nullptr), FileInterface(nullptr), SystemInterface(nullptr), Id(0)
 			{
 #ifdef VI_RMLUI
 				RenderInterface = VI_NEW(RenderSubsystem);
@@ -2811,12 +2838,6 @@ namespace Mavi
 			{
 #ifdef VI_RMLUI
 				Rml::Shutdown();
-				if (HasDecorators)
-				{
-					HasDecorators = false;
-					ReleaseDecorators();
-				}
-
 				VI_DELETE(MainSubsystem, SystemInterface);
 				SystemInterface = nullptr;
 				Rml::SetSystemInterface(nullptr);
@@ -2845,7 +2866,7 @@ namespace Mavi
 			void Subsystem::SetShared(Scripting::VirtualMachine* VM, Graphics::Activity* Activity, RenderConstants* Constants, ContentManager* Content, Core::Timer* Time) noexcept
 			{
 #ifdef VI_RMLUI
-				Shared.Release();
+				CleanupShared();
 				Shared.VM = VM;
 				Shared.Activity = Activity;
 				Shared.Constants = Constants;
@@ -2854,14 +2875,7 @@ namespace Mavi
 				Shared.AddRef();
 
 				if (RenderInterface != nullptr)
-				{
 					RenderInterface->Attach(Constants, Content);
-					if (!HasDecorators && Content && Content->GetDevice())
-					{
-						HasDecorators = true;
-						CreateDecorators(Constants);
-					}
-				}
 
 				if (SystemInterface != nullptr)
 					SystemInterface->Attach(Activity, Time);
@@ -2873,6 +2887,17 @@ namespace Mavi
 				VI_ASSERT(SystemInterface != nullptr, "system interface should be valid");
 				SystemInterface->SetTranslator(Name, Callback);
 #endif
+			}
+			void Subsystem::CleanupShared()
+			{
+#ifdef VI_RMLUI
+				if (RenderInterface != nullptr)
+					RenderInterface->Detach();
+
+				if (SystemInterface != nullptr)
+					SystemInterface->Detach();
+#endif
+				Shared.Release();
 			}
 			RenderSubsystem* Subsystem::GetRenderInterface() noexcept
 			{
@@ -3527,22 +3552,18 @@ namespace Mavi
 #endif
 			}
 
-			Context::Context(const Compute::Vector2& Size) : Compiler(nullptr), Cursor(-1.0f), Busy(0)
+			Context::Context(const Compute::Vector2& Size) : Compiler(nullptr), Cursor(-1.0f), System(Subsystem::Get()), Busy(0)
 			{
 #ifdef VI_RMLUI
 				Base = (ScopedContext*)Rml::CreateContext(Core::ToString(Subsystem::Get()->Id++), Rml::Vector2i((int)Size.X, (int)Size.Y));
 				VI_ASSERT(Base != nullptr, "context cannot be created");
 				Base->Basis = this;
-
-				auto* Subsystem = GUI::Subsystem::Get();
-				auto* VM = Subsystem->Shared.VM;
-				Subsystem->AddRef();
-
-				if (!VM)
-					return;
-
-				Compiler = VM->CreateCompiler();
-				ClearScope();
+				if (System->Shared.VM != nullptr)
+				{
+					Compiler = System->Shared.VM->CreateCompiler();
+					ClearScope();
+				}
+				System->AddRef();
 #endif
 			}
 			Context::Context(Graphics::GraphicsDevice* Device) : Context(Device && Device->GetRenderTarget() ? Compute::Vector2((float)Device->GetRenderTarget()->GetWidth(), (float)Device->GetRenderTarget()->GetHeight()) : Compute::Vector2(512, 512))
@@ -3554,7 +3575,7 @@ namespace Mavi
 				RemoveDataModels();
 				Rml::RemoveContext(Base->GetName());
 				VI_RELEASE(Compiler);
-				GUI::Subsystem::Get()->CleanupInstance();
+				VI_RELEASE(System);
 #endif
 			}
 			void Context::EmitKey(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)

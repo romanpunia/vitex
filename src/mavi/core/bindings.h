@@ -863,6 +863,7 @@ namespace Mavi
 				void When(std::function<void(Promise*)>&& NewCallback);
 				void Store(void* RefPointer, int RefTypeId);
 				void Store(void* RefPointer, const char* TypeName);
+				void StoreException(const Exception::Pointer& RefValue);
 				void StoreVoid();
 				bool Retrieve(void* RefPointer, int RefTypeId);
 				void RetrieveVoid();
@@ -882,7 +883,7 @@ namespace Mavi
 
 			public:
 				template <typename T>
-				static Promise* WatchAndYieldIf(Promise* Future, int TypeId, Core::Promise<T>&& Awaitable)
+				static void WatchAndYieldIf(Promise* Future, int TypeId, Core::Promise<T>&& Awaitable)
 				{
 					if (Awaitable.IsPending())
 					{
@@ -901,7 +902,6 @@ namespace Mavi
 						T&& Value = Awaitable.Get();
 						Future->Store((void*)&Value, TypeId);
 					}
-					return Future;
 				}
 				template <typename T>
 				static Core::Unique<Promise> Compose(Core::Promise<T>&& Value, TypeId Id)
@@ -933,35 +933,55 @@ namespace Mavi
 					static Promise* Id(T* Base, Args... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
-						if (!IsAlwaysAwait(Future->Engine))
-							return Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((Base->*F)(Data...)));
+						if (!Future)
+							return Future;
 
-						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future, Base](auto&&... Data)
+						if (IsAlwaysAwait(Future->Engine))
 						{
-							((Base->*F)(Data...)).When([Future](R&& Result)
+							Future->YieldIf();
+							Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future, Base](auto&&... Data)
 							{
-								Future->Store((void*)&Result, (int)TypeID);
-							});
-						}, std::forward<Args>(Data)...));
+								((Base->*F)(Data...)).When([Future](R&& Result)
+								{
+									Future->Store((void*)&Result, (int)TypeID);
+								});
+							}, std::forward<Args>(Data)...));
+						}
+						else
+						{
+							Future->Context->EnableDeferredExceptions();
+							Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((Base->*F)(Data...)));
+							Future->Context->EnableDeferredExceptions();
+						}
+
 						return Future;
 					}
 					template <uint64_t TypeRef>
 					static Promise* Decl(T* Base, Args... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
-						int TypeId = TypeCache::GetTypeId(TypeRef);
-						if (!IsAlwaysAwait(Future->Engine))
-							return Promise::WatchAndYieldIf<R>(Future, TypeId, ((Base->*F)(Data...)));
+						if (!Future)
+							return Future;
 
-						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future, TypeId, Base](auto&&... Data)
+						int TypeId = TypeCache::GetTypeId(TypeRef);
+						if (IsAlwaysAwait(Future->Engine))
 						{
-							((Base->*F)(Data...)).When([Future, TypeId](R&& Result)
+							Future->YieldIf();
+							Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future, TypeId, Base](auto&&... Data)
 							{
-								Future->Store((void*)&Result, TypeId);
-							});
-						}, std::forward<Args>(Data)...));
+								((Base->*F)(Data...)).When([Future, TypeId](R&& Result)
+								{
+									Future->Store((void*)&Result, TypeId);
+								});
+							}, std::forward<Args>(Data)...));
+						}
+						else
+						{
+							Future->Context->EnableDeferredExceptions();
+							Promise::WatchAndYieldIf<R>(Future, TypeId, ((Base->*F)(Data...)));
+							Future->Context->EnableDeferredExceptions();
+						}
+
 						return Future;
 					}
 				};
@@ -973,35 +993,55 @@ namespace Mavi
 					static Promise* Id(Args... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
-						if (!IsAlwaysAwait(Future->Engine))
-							return Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((*F)(Data...)));
+						if (!Future)
+							return Future;
 
-						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future](auto&&... Data)
+						if (IsAlwaysAwait(Future->Engine))
 						{
-							((*F)(Data...)).When([Future](R&& Result)
+							Future->YieldIf();
+							Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future](auto&&... Data)
 							{
-								Future->Store((void*)&Result, (int)TypeID);
-							});
-						}, std::forward<Args>(Data)...));
+								((*F)(Data...)).When([Future](R&& Result)
+								{
+									Future->Store((void*)&Result, (int)TypeID);
+								});
+							}, std::forward<Args>(Data)...));
+						}
+						else
+						{
+							Future->Context->EnableDeferredExceptions();
+							Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((*F)(Data...)));
+							Future->Context->EnableDeferredExceptions();
+						}
+
 						return Future;
 					}
 					template <uint64_t TypeRef>
 					static Promise* Decl(Args... Data)
 					{
 						Promise* Future = Promise::CreateFactoryVoid();
-						int TypeId = TypeCache::GetTypeId(TypeRef);
-						if (!IsAlwaysAwait(Future->Engine))
-							return Promise::WatchAndYieldIf<R>(Future, TypeId, ((*F)(Data...)));
+						if (!Future)
+							return Future;
 
-						Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future, TypeId](auto&&... Data)
+						int TypeId = TypeCache::GetTypeId(TypeRef);
+						if (IsAlwaysAwait(Future->Engine))
 						{
-							((*F)(Data...)).When([Future, TypeId](R&& Result)
+							Future->YieldIf();
+							Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future, TypeId](auto&&... Data)
 							{
-								Future->Store((void*)&Result, TypeId);
-							});
-						}, std::forward<Args>(Data)...));
+								((*F)(Data...)).When([Future, TypeId](R&& Result)
+								{
+									Future->Store((void*)&Result, TypeId);
+								});
+							}, std::forward<Args>(Data)...));
+						}
+						else
+						{
+							Future->Context->EnableDeferredExceptions();
+							Promise::WatchAndYieldIf<R>(Future, TypeId, ((*F)(Data...)));
+							Future->Context->EnableDeferredExceptions();
+						}
+
 						return Future;
 					}
 				};
@@ -1220,9 +1260,11 @@ namespace Mavi
 
 			private:
 				size_t ProcessedEvents;
+				asITypeInfo* InitiatorType;
+				void* InitiatorObject;
 
 			public:
-				Application(Desc& I) noexcept;
+				Application(Desc& I, void* Object, int TypeId) noexcept;
 				virtual ~Application() noexcept override;
 				void SetOnKeyEvent(asIScriptFunction* Callback);
 				void SetOnInputEvent(asIScriptFunction* Callback);
@@ -1250,6 +1292,8 @@ namespace Mavi
 				Engine::GUI::Context* GetGUI() const override;
 				size_t GetProcessedEvents() const;
 				bool HasProcessedEvents() const;
+				bool RetrieveInitiatorObject(void* RefPointer, int RefTypeId) const;
+				void* GetInitiatorObject() const;
 
 			public:
 				static bool WantsRestart(int ExitCode);

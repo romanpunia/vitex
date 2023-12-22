@@ -334,17 +334,13 @@ namespace Mavi
 			void Subsystem::CreateDecorators(RenderConstants* Constants) noexcept
 			{
 				VI_ASSERT(Constants != nullptr, "render constants should be set");
-				if (!IBoxShadow)
-				{
-					IBoxShadow = VI_NEW(BoxShadowInstancer, Constants);
-					Rml::Factory::RegisterDecoratorInstancer("box-shadow", IBoxShadow);
-				}
+				ReleaseDecorators();
 
-				if (!IBoxBlur)
-				{
-					IBoxBlur = VI_NEW(BoxBlurInstancer, Constants);
-					Rml::Factory::RegisterDecoratorInstancer("box-blur", IBoxBlur);
-				}
+				IBoxShadow = VI_NEW(BoxShadowInstancer, Constants);
+				Rml::Factory::RegisterDecoratorInstancer("box-shadow", IBoxShadow);
+
+				IBoxBlur = VI_NEW(BoxBlurInstancer, Constants);
+				Rml::Factory::RegisterDecoratorInstancer("box-blur", IBoxBlur);
 			}
 			void Subsystem::ReleaseDecorators() noexcept
 			{

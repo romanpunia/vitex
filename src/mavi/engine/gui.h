@@ -462,13 +462,13 @@ namespace Mavi
 				FileSubsystem* FileInterface;
 				MainSubsystem* SystemInterface;
 				uint64_t Id;
-				bool HasDecorators;
 
 			public:
 				Subsystem() noexcept;
 				virtual ~Subsystem() noexcept override;
 				void SetShared(Scripting::VirtualMachine* VM, Graphics::Activity* Activity, RenderConstants* Constants, ContentManager* Content, Core::Timer* Time) noexcept;
 				void SetTranslator(const Core::String& Name, const TranslationCallback& Callback) noexcept;
+				void CleanupShared();
 				RenderSubsystem* GetRenderInterface() noexcept;
 				FileSubsystem* GetFileInterface() noexcept;
 				MainSubsystem* GetSystemInterface() noexcept;
@@ -631,6 +631,7 @@ namespace Mavi
 				Compute::Vector2 Cursor;
 				ModelCallback OnMount;
 				ScopedContext* Base;
+				Subsystem* System;
 				uint32_t Busy;
 
 			public:

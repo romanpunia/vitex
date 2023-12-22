@@ -36,6 +36,7 @@
 #define EXCEPTION_COPYFAIL EXCEPTIONCAT_TYPE, "cannot copy this type of object"
 #define EXCEPTION_NULLPOINTER EXCEPTIONCAT_TYPE, "trying to access a null pointer instance"
 #define EXCEPTION_ACCESSINVALID EXCEPTIONCAT_TYPE, "accessing non-existing value"
+#define EXCEPTION_INVALIDINITIATOR EXCEPTIONCAT_TYPE, "type must be a handle or null"
 #define EXCEPTION_PROMISEREADY EXCEPTIONCAT_ASYNC, "trying to settle the promise that is already fulfilled"
 #define EXCEPTION_MUTEXNOTOWNED EXCEPTIONCAT_SYNC, "trying to unlock the mutex that is not owned by this thread"
 #define TYPENAME_ARRAY "array"
@@ -2730,6 +2731,14 @@ namespace Mavi
 				VI_ASSERT(TypeName != nullptr, "typename should not be null");
 				Store(RefPointer, Engine->GetTypeIdByDecl(TypeName));
 			}
+			void Promise::StoreException(const Exception::Pointer& RefValue)
+			{
+				VI_ASSERT(Context != nullptr, "promise is malformed (context is null)");
+				Context->EnableDeferredExceptions();
+				Exception::ThrowAt(Context, RefValue);
+				Context->DisableDeferredExceptions();
+				Store(nullptr, (int)TypeId::VOIDF);
+			}
 			void Promise::StoreVoid()
 			{
 				Store(nullptr, (int)TypeId::VOIDF);
@@ -2779,9 +2788,13 @@ namespace Mavi
 			}
 			void Promise::RetrieveVoid()
 			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (Context != nullptr)
+					Context->RethrowDeferredException();
 			}
 			void* Promise::Retrieve()
 			{
+				RetrieveVoid();
 				if (Value.TypeId == PromiseNULL)
 					return nullptr;
 
@@ -4763,10 +4776,25 @@ namespace Mavi
 				}
 			}
 
-			Application::Application(Desc& I) noexcept : Engine::Application(&I), ProcessedEvents(0)
+			Application::Application(Desc& I, void* NewObject, int NewTypeId) noexcept : Engine::Application(&I), ProcessedEvents(0), InitiatorType(nullptr), InitiatorObject(NewObject)
 			{
+				VirtualMachine* CurrentVM = VirtualMachine::Get();
+				if (CurrentVM != nullptr && InitiatorObject != nullptr && ((NewTypeId & (int)TypeId::OBJHANDLE) || (NewTypeId & (int)TypeId::MASK_OBJECT)))
+				{
+					InitiatorType = CurrentVM->GetTypeInfoById(NewTypeId).GetTypeInfo();
+					if (NewTypeId & (int)TypeId::OBJHANDLE)
+						InitiatorObject = *(void**)InitiatorObject;
+					CurrentVM->AddRefObject(InitiatorObject, InitiatorType);
+				}
+				else if (CurrentVM != nullptr && InitiatorObject != nullptr)
+				{
+					if (NewTypeId != (int)TypeId::VOIDF)
+						Exception::Throw(Exception::Pointer(EXCEPTION_INVALIDINITIATOR));
+					InitiatorObject = nullptr;
+				}
+
 				if (I.Usage & (size_t)Engine::ApplicationSet::ScriptSet)
-					VM = VirtualMachine::Get();
+					VM = CurrentVM;
 
 				if (I.Usage & (size_t)Engine::ApplicationSet::ContentSet)
 				{
@@ -4787,6 +4815,10 @@ namespace Mavi
 			}
 			Application::~Application() noexcept
 			{
+				VirtualMachine* CurrentVM = VM ? VM : VirtualMachine::Get();
+				if (CurrentVM != nullptr && InitiatorObject != nullptr && InitiatorType != nullptr)
+					CurrentVM->ReleaseObject(InitiatorObject, InitiatorType);
+
 				OnKeyEvent.Release();
 				OnInputEvent.Release();
 				OnWheelEvent.Release();
@@ -4799,6 +4831,8 @@ namespace Mavi
 				OnStartup.Release();
 				OnShutdown.Release();
 				OnGetGUI.Release();
+				InitiatorObject = nullptr;
+				InitiatorType = nullptr;
 				VM = nullptr;
 			}
 			void Application::SetOnKeyEvent(asIScriptFunction* Callback)
@@ -5008,6 +5042,37 @@ namespace Mavi
 			bool Application::HasProcessedEvents() const
 			{
 				return ProcessedEvents > 0;
+			}
+			bool Application::RetrieveInitiatorObject(void* RefPointer, int RefTypeId) const
+			{
+				VirtualMachine* CurrentVM = VM ? VM : VirtualMachine::Get();
+				if (!InitiatorObject || !InitiatorType || !RefPointer || !CurrentVM)
+					return false;
+
+				if (RefTypeId & (size_t)TypeId::OBJHANDLE)
+				{
+					CurrentVM->RefCastObject(InitiatorObject, InitiatorType, CurrentVM->GetTypeInfoById(RefTypeId), reinterpret_cast<void**>(RefPointer));
+#ifdef VI_ANGELSCRIPT
+					if (*(asPWORD*)RefPointer == 0)
+						return false;
+#endif
+					return true;
+				}
+				else if (RefTypeId & (size_t)TypeId::MASK_OBJECT)
+				{
+					auto RefTypeInfo = CurrentVM->GetTypeInfoById(RefTypeId);
+					if (InitiatorType == RefTypeInfo.GetTypeInfo())
+					{
+						CurrentVM->AssignObject(RefPointer, InitiatorObject, InitiatorType);
+						return true;
+					}
+				}
+
+				return false;
+			}
+			void* Application::GetInitiatorObject() const
+			{
+				return InitiatorObject;
 			}
 			bool Application::WantsRestart(int ExitCode)
 			{
@@ -7097,16 +7162,18 @@ namespace Mavi
 
 			Core::Promise<bool> SocketClientConnect(Network::SocketClient* Client, Network::RemoteHost* Host, bool Async, uint32_t VerifyPeers)
 			{
-				return Client->Connect(Host, Async, VerifyPeers).Then<bool>([](Core::ExpectsIO<void>&& Result)
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Client->Connect(Host, Async, VerifyPeers).Then<bool>([Context](Core::ExpectsIO<void>&& Result)
 				{
-					return ExpectsWrapper::UnwrapVoid(std::move(Result), nullptr);
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
 			Core::Promise<bool> SocketClientDisconnect(Network::SocketClient* Client)
 			{
-				return Client->Disconnect().Then<bool>([](Core::ExpectsIO<void>&& Result)
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Client->Disconnect().Then<bool>([Context](Core::ExpectsIO<void>&& Result)
 				{
-					return ExpectsWrapper::UnwrapVoid(std::move(Result), nullptr);
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
 
@@ -9018,45 +9085,51 @@ namespace Mavi
 			}
 			Core::Promise<bool> ClientFetch(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
 			{
-				return Base->Fetch(Network::HTTP::RequestFrame(Frame), MaxSize).Then<bool>([](Core::ExpectsIO<void>&& Result)
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Fetch(Network::HTTP::RequestFrame(Frame), MaxSize).Then<bool>([Context](Core::ExpectsIO<void>&& Result)
 				{
-					return ExpectsWrapper::UnwrapVoid(std::move(Result), nullptr);
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
 			Core::Promise<bool> ClientUpgrade(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame)
 			{
-				return Base->Upgrade(Network::HTTP::RequestFrame(Frame)).Then<bool>([](Core::ExpectsIO<void>&& Result)
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Upgrade(Network::HTTP::RequestFrame(Frame)).Then<bool>([Context](Core::ExpectsIO<void>&& Result)
 				{
-					return ExpectsWrapper::UnwrapVoid(std::move(Result), nullptr);
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
 			Core::Promise<bool> ClientSend(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame)
 			{
-				return Base->Send(Network::HTTP::RequestFrame(Frame)).Then<bool>([](Core::ExpectsIO<Network::HTTP::ResponseFrame*>&& Result) -> bool
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Send(Network::HTTP::RequestFrame(Frame)).Then<bool>([Context](Core::ExpectsIO<Network::HTTP::ResponseFrame*>&& Result) -> bool
 				{
-					return ExpectsWrapper::UnwrapVoid(std::move(Result), nullptr);
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
 			Core::Promise<Core::Schema*> ClientJSON(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
 			{
-				return Base->JSON(Network::HTTP::RequestFrame(Frame), MaxSize).Then<Core::Schema*>([](Core::ExpectsIO<Core::Schema*>&& Result)
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->JSON(Network::HTTP::RequestFrame(Frame), MaxSize).Then<Core::Schema*>([Context](Core::ExpectsIO<Core::Schema*>&& Result)
 				{
-					return ExpectsWrapper::Unwrap(std::move(Result), (Core::Schema*)nullptr, nullptr);
+					return ExpectsWrapper::Unwrap(std::move(Result), (Core::Schema*)nullptr, Context);
 				});
 			}
 			Core::Promise<Core::Schema*> ClientXML(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
 			{
-				return Base->XML(Network::HTTP::RequestFrame(Frame), MaxSize).Then<Core::Schema*>([](Core::ExpectsIO<Core::Schema*>&& Result)
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->XML(Network::HTTP::RequestFrame(Frame), MaxSize).Then<Core::Schema*>([Context](Core::ExpectsIO<Core::Schema*>&& Result)
 				{
-					return ExpectsWrapper::Unwrap(std::move(Result), (Core::Schema*)nullptr, nullptr);
+					return ExpectsWrapper::Unwrap(std::move(Result), (Core::Schema*)nullptr, Context);
 				});
 			}
 
 			Core::Promise<Network::HTTP::ResponseFrame> HTTPFetch(const Core::String& URL, const Core::String& Method, const Network::HTTP::FetchFrame& Options)
 			{
-				return Network::HTTP::Fetch(URL, Method, Options).Then<Network::HTTP::ResponseFrame>([](Core::ExpectsIO<Network::HTTP::ResponseFrame>&& Response) -> Network::HTTP::ResponseFrame
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Network::HTTP::Fetch(URL, Method, Options).Then<Network::HTTP::ResponseFrame>([Context](Core::ExpectsIO<Network::HTTP::ResponseFrame>&& Response) -> Network::HTTP::ResponseFrame
 				{
-					return ExpectsWrapper::Unwrap(std::move(Response), Network::HTTP::ResponseFrame(), nullptr);
+					return ExpectsWrapper::Unwrap(std::move(Response), Network::HTTP::ResponseFrame(), Context);
 				});
 			}
 
@@ -9159,9 +9232,10 @@ namespace Mavi
 
 			Core::Promise<bool> SMTPClientSend(Network::SMTP::Client* Base, const Network::SMTP::RequestFrame& Frame)
 			{
-				return Base->Send(Network::SMTP::RequestFrame(Frame)).Then<bool>([](Core::ExpectsIO<void>&& Result)
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Send(Network::SMTP::RequestFrame(Frame)).Then<bool>([Context](Core::ExpectsIO<void>&& Result)
 				{
-					return ExpectsWrapper::UnwrapVoid(std::move(Result), nullptr);
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
 
@@ -10180,6 +10254,7 @@ namespace Mavi
 				VPromise->SetEnumRefs(&Promise::EnumReferences);
 				VPromise->SetReleaseRefs(&Promise::ReleaseReferences);
 				VPromise->SetMethod<Promise, void, void*, int>("void wrap(?&in)", &Promise::Store);
+				VPromise->SetMethod("void except(const exception_ptr&in)", &Promise::StoreException);
 				VPromise->SetMethod<Promise, void*>("T& unwrap()", &Promise::Retrieve);
 				VPromise->SetMethod("promise<T>@+ yield()", &Promise::YieldIf);
 				VPromise->SetMethod("bool pending()", &Promise::IsPending);
@@ -10188,6 +10263,7 @@ namespace Mavi
 				VPromiseVoid->SetEnumRefs(&Promise::EnumReferences);
 				VPromiseVoid->SetReleaseRefs(&Promise::ReleaseReferences);
 				VPromiseVoid->SetMethod("void wrap()", &Promise::StoreVoid);
+				VPromiseVoid->SetMethod("void except(const exception_ptr&in)", &Promise::StoreException);
 				VPromiseVoid->SetMethod("void unwrap()", &Promise::RetrieveVoid);
 				VPromiseVoid->SetMethod("promise_v@+ yield()", &Promise::YieldIf);
 				VPromiseVoid->SetMethod("bool pending()", &Promise::IsPending);
@@ -16846,7 +16922,7 @@ namespace Mavi
 				VApplication->SetProperty<Engine::Application>("app_data@ database", &Engine::Application::Database);
 				VApplication->SetProperty<Engine::Application>("scene_graph@ scene", &Engine::Application::Scene);
 				VApplication->SetProperty<Engine::Application>("application_desc control", &Engine::Application::Control);
-				VApplication->SetGcConstructor<Application, ApplicationName, Application::Desc&>("application@ f(application_desc &in)");
+				VApplication->SetGcConstructor<Application, ApplicationName, Application::Desc&, void*, int>("application@ f(application_desc &in, ?&in)");
 				VApplication->SetMethod("void set_on_key_event(key_event_callback@)", &Application::SetOnKeyEvent);
 				VApplication->SetMethod("void set_on_input_event(input_event_callback@)", &Application::SetOnInputEvent);
 				VApplication->SetMethod("void set_on_wheel_event(wheel_event_callback@)", &Application::SetOnWheelEvent);
@@ -16863,8 +16939,10 @@ namespace Mavi
 				VApplication->SetMethod("int restart()", &Engine::Application::Restart);
 				VApplication->SetMethod("void stop(int = 0)", &Engine::Application::Stop);
 				VApplication->SetMethod("application_state get_state() const", &Engine::Application::GetState);
+				VApplication->SetMethod("uptr@ get_initiator() const", &Application::GetInitiatorObject);
 				VApplication->SetMethod("usize get_processed_events() const", &Application::GetProcessedEvents);
 				VApplication->SetMethod("bool has_processed_events() const", &Application::HasProcessedEvents);
+				VApplication->SetMethod("bool retrieve_initiator(?&out) const", &Application::RetrieveInitiatorObject);
 				VApplication->SetMethodStatic("application@+ get()", &Engine::Application::Get);
 				VApplication->SetMethodStatic("bool wants_restart(int)", &Application::WantsRestart);
 				VApplication->SetEnumRefsEx<Application>([](Application* Base, asIScriptEngine* VM)
@@ -16876,6 +16954,7 @@ namespace Mavi
 					FunctionFactory::GCEnumCallback(VM, Base->Content);
 					FunctionFactory::GCEnumCallback(VM, Base->Database);
 					FunctionFactory::GCEnumCallback(VM, Base->Scene);
+					FunctionFactory::GCEnumCallback(VM, Base->GetInitiatorObject());
 					FunctionFactory::GCEnumCallback(VM, &Base->OnKeyEvent);
 					FunctionFactory::GCEnumCallback(VM, &Base->OnInputEvent);
 					FunctionFactory::GCEnumCallback(VM, &Base->OnWheelEvent);

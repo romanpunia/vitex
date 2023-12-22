@@ -6192,8 +6192,8 @@ namespace Mavi
 			if (Renderer != nullptr)
 				Renderer->FlushState();
 #ifdef VI_RMLUI
-			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
-				Engine::GUI::Subsystem::Get()->CleanupInstance();
+			if (Engine::GUI::Subsystem::HasInstance())
+				Engine::GUI::Subsystem::Get()->CleanupShared();
 #endif
 			VI_CLEAR(Scene);
 			VI_CLEAR(VM);
@@ -6380,7 +6380,10 @@ namespace Mavi
 					{
 						auto Directory = Core::OS::Path::ResolveDirectory(Control.GraphicsDevice.CacheDirectory, Content->GetEnvironment(), false);
 						if (Directory)
+						{
 							Control.GraphicsDevice.CacheDirectory = *Directory;
+							Core::OS::Directory::Patch(Control.GraphicsDevice.CacheDirectory);
+						}
 					}
 
 					Renderer = Graphics::GraphicsDevice::Create(Control.GraphicsDevice);

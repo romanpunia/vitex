@@ -237,6 +237,13 @@ namespace Mavi
 					break;
 			}
 
+			for (auto& Item : Total)
+			{
+				if (!Core::Stringify::IsEmptyOrWhitespace(Item))
+					return Total;
+			}
+
+			Total.clear();
 			return Total;
 		}
 		static Core::String CharTrimEnd(const char* Value)
@@ -3459,7 +3466,8 @@ namespace Mavi
 		}
 		DebuggerContext::~DebuggerContext() noexcept
 		{
-			SetEngine(0);
+			if (VM != nullptr)
+				VI_RELEASE(VM->GetEngine());
 		}
 		void DebuggerContext::AddDefaultCommands()
 		{
@@ -5883,8 +5891,14 @@ namespace Mavi
 		ExpectsVM<void> ImmediateContext::SetException(const char* Info, bool AllowCatch)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(Info != nullptr && Info[0] != '\0', "exception should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->SetException(Info, AllowCatch));
+			if (!IsSuspended() && !Executor.DeferredExceptions)
+				return FunctionFactory::ToReturn(Context->SetException(Info, AllowCatch));
+
+			Executor.DeferredException.Info = Info;
+			Executor.DeferredException.AllowCatch = AllowCatch;
+			return VirtualError::SUCCESS;
 #else
 			return VirtualError::NOT_SUPPORTED;
 #endif
@@ -6121,6 +6135,15 @@ namespace Mavi
 			VI_ASSERT(Executor.DenySuspends > 0, "suspends are already enabled");
 			--Executor.DenySuspends;
 		}
+		void ImmediateContext::EnableDeferredExceptions()
+		{
+			++Executor.DeferredExceptions;
+		}
+		void ImmediateContext::DisableDeferredExceptions()
+		{
+			VI_ASSERT(Executor.DeferredExceptions > 0, "deferred exceptions are already disabled");
+			--Executor.DeferredExceptions;
+		}
 		bool ImmediateContext::IsNested(size_t* NestCount) const
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
@@ -6279,6 +6302,25 @@ namespace Mavi
 			VI_ASSERT(Context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
 			return Context->WillExceptionBeCaught();
+#else
+			return false;
+#endif
+		}
+		bool ImmediateContext::HasDeferredException()
+		{
+			return !Executor.DeferredException.Info.empty();
+		}
+		bool ImmediateContext::RethrowDeferredException()
+		{
+			VI_ASSERT(Context != nullptr, "context should be set");
+			if (!HasDeferredException())
+				return false;
+#ifdef VI_ANGELSCRIPT
+			if (Context->SetException(Executor.DeferredException.Info.c_str(), Executor.DeferredException.AllowCatch) != 0)
+				return false;
+
+			Executor.DeferredException.Info.clear();
+			return true;
 #else
 			return false;
 #endif
@@ -7143,7 +7185,7 @@ namespace Mavi
 			if (Debugger != nullptr)
 				Debugger->SetEngine(this);
 
-			Core::UMutex<std::mutex> Unique2(Sync.Pool);
+			Core::UMutex<std::recursive_mutex> Unique2(Sync.Pool);
 			for (auto* Next : Stacks)
 			{
 				if (Debugger != nullptr)
@@ -8081,28 +8123,21 @@ namespace Mavi
 				return Core::Optional::None;
 
 			Core::StringStream Stream;
-			size_t TopSize = (Lines.size() % 2 != 0 ? 1 : 0) + Lines.size() / 2;
+			size_t TopLines = (Lines.size() % 2 != 0 ? 1 : 0) + Lines.size() / 2;
+			size_t TopLine = TopLines < LineNumber ? LineNumber - TopLines - 1 : LineNumber;
 			Stream << "\n  last " << (Lines.size() + 1) << " lines of " << Label << " code\n";
 
-			for (size_t i = 0; i < TopSize; i++)
-			{
-				Core::Stringify::TrimEnd(Lines[i]);
-				Stream << "  " << LineNumber + i - TopSize - 1 << "  " << Lines[i] << "\n";
-			}
-
-			Core::Stringify::TrimEnd(Line);
-			Stream << "  " << LineNumber << "  " << Line << "\n  ";
+			for (size_t i = 0; i < TopLines; i++)
+				Stream << "  " << TopLine++ << "  " << Core::Stringify::TrimEnd(Lines[i]) << "\n";
+			Stream << "  " << TopLine++ << "  " << Core::Stringify::TrimEnd(Line) << "\n  ";
 
 			ColumnNumber += 1 + (uint32_t)Core::ToString(LineNumber).size();
 			for (uint32_t i = 0; i < ColumnNumber; i++)
 				Stream << " ";
-
 			Stream << "^";
-			for (size_t i = TopSize; i < Lines.size(); i++)
-			{
-				Core::Stringify::TrimEnd(Lines[i]);
-				Stream << "\n  " << LineNumber + i - TopSize + 1 << "  " << Lines[i];
-			}
+
+			for (size_t i = TopLines; i < Lines.size(); i++)
+				Stream << "\n  " << TopLine++ << "  " << Core::Stringify::TrimEnd(Lines[i]);
 
 			return Stream.str();
 		}
@@ -8173,7 +8208,7 @@ namespace Mavi
 		}
 		ImmediateContext* VirtualMachine::RequestContext()
 		{
-			Core::UMutex<std::mutex> Unique(Sync.Pool);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.Pool);
 			if (Threads.empty())
 			{
 				Unique.Negate();
@@ -8187,7 +8222,7 @@ namespace Mavi
 		void VirtualMachine::ReturnContext(ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
-			Core::UMutex<std::mutex> Unique(Sync.Pool);
+			Core::UMutex<std::recursive_mutex> Unique(Sync.Pool);
 			Threads.push_back(Context);
 			Context->Reset();
 		}
@@ -8198,7 +8233,7 @@ namespace Mavi
 			if (!VM || VM->Stacks.empty())
 				return Engine->CreateContext();
 
-			Core::UMutex<std::mutex> Unique(VM->Sync.Pool);
+			Core::UMutex<std::recursive_mutex> Unique(VM->Sync.Pool);
 			if (VM->Stacks.empty())
 			{
 				Unique.Negate();
@@ -8218,7 +8253,7 @@ namespace Mavi
 			VirtualMachine* VM = VirtualMachine::Get(Engine);
 			VI_ASSERT(VM != nullptr, "engine should be set");
 
-			Core::UMutex<std::mutex> Unique(VM->Sync.Pool);
+			Core::UMutex<std::recursive_mutex> Unique(VM->Sync.Pool);
 			VM->Stacks.push_back(Context);
 			Context->Unprepare();
 #endif
@@ -8342,7 +8377,7 @@ namespace Mavi
 			Engine->AddSystemAddon("mutex", { }, Bindings::Registry::ImportMutex);
 			Engine->AddSystemAddon("thread", { "any", "string" }, Bindings::Registry::ImportThread);
 			Engine->AddSystemAddon("buffers", { "string" }, Bindings::Registry::ImportBuffers);
-			Engine->AddSystemAddon("promise", { }, Bindings::Registry::ImportPromise);
+			Engine->AddSystemAddon("promise", { "exception" }, Bindings::Registry::ImportPromise);
 			Engine->AddSystemAddon("format", { "string" }, Bindings::Registry::ImportFormat);
 			Engine->AddSystemAddon("decimal", { "string" }, Bindings::Registry::ImportDecimal);
 			Engine->AddSystemAddon("uint128", { "decimal" }, Bindings::Registry::ImportUInt128);

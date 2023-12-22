@@ -1835,9 +1835,16 @@ namespace Mavi
 
 			struct Frame
 			{
+				struct
+				{
+					Core::String Info;
+					bool AllowCatch;
+				} DeferredException;
+
 				ExpectsPromiseVM<Execution> Future = ExpectsPromiseVM<Execution>::Null();
 				Core::String Stacktrace;
 				size_t DenySuspends = 0;
+				size_t DeferredExceptions = 0;
 				size_t LocalReferences = 0;
 			} Executor;
 
@@ -1899,6 +1906,8 @@ namespace Mavi
 			void Reset();
 			void DisableSuspends();
 			void EnableSuspends();
+			void EnableDeferredExceptions();
+			void DisableDeferredExceptions();
 			bool IsNested(size_t* NestCount = 0) const;
 			bool IsThrown() const;
 			bool IsPending();
@@ -1918,6 +1927,8 @@ namespace Mavi
 			Function GetExceptionFunction();
 			const char* GetExceptionString();
 			bool WillExceptionBeCaught();
+			bool HasDeferredException();
+			bool RethrowDeferredException();
 			void ClearExceptionCallback();
 			void ClearLineCallback();
 			size_t GetCallstackSize() const;
@@ -1987,7 +1998,7 @@ namespace Mavi
 			struct
 			{
 				std::recursive_mutex General;
-				std::mutex Pool;
+				std::recursive_mutex Pool;
 			} Sync;
 
 		private:

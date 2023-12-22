@@ -180,8 +180,8 @@ namespace Mavi
 				void Prepare(const char* ContentLength);
 				void Finalize();
 				void Cleanup();
-				Core::Expects<Core::Schema*, Core::Exceptions::ParserException> GetJSON() const;
-				Core::Expects<Core::Schema*, Core::Exceptions::ParserException> GetXML() const;
+				Core::ExpectsParser<Core::Unique<Core::Schema>> GetJSON() const;
+				Core::ExpectsParser<Core::Unique<Core::Schema>> GetXML() const;
 				Core::String GetText() const;
 				bool IsFinalized() const;
 			};

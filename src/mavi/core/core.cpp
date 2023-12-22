@@ -11857,7 +11857,7 @@ namespace Mavi
 			});
 			return Result;
 		}
-		Expects<Schema*, Exceptions::ParserException> Schema::ConvertFromXML(const char* Buffer, size_t Size)
+		ExpectsParser<Schema*> Schema::ConvertFromXML(const char* Buffer, size_t Size)
 		{
 #ifdef VI_PUGIXML
 			VI_ASSERT(Buffer != nullptr, "buffer should not be null");
@@ -11911,7 +11911,7 @@ namespace Mavi
 			return Exceptions::ParserException(ParserError::NotSupported, 0, "no capabilities to parse XML");
 #endif
 		}
-		Expects<Schema*, Exceptions::ParserException> Schema::ConvertFromJSON(const char* Buffer, size_t Size)
+		ExpectsParser<Schema*> Schema::ConvertFromJSON(const char* Buffer, size_t Size)
 		{
 #ifdef VI_RAPIDJSON
 			VI_ASSERT(Buffer != nullptr, "buffer should not be null");
@@ -12005,7 +12005,7 @@ namespace Mavi
 			return Exceptions::ParserException(ParserError::NotSupported, 0, "no capabilities to parse JSON");
 #endif
 		}
-		Expects<Schema*, Exceptions::ParserException> Schema::ConvertFromJSONB(const SchemaReadCallback& Callback)
+		ExpectsParser<Schema*> Schema::ConvertFromJSONB(const SchemaReadCallback& Callback)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
 			uint64_t Version = 0;
@@ -12057,15 +12057,15 @@ namespace Mavi
 
 			return Current;
 		}
-		Expects<Schema*, Exceptions::ParserException> Schema::FromXML(const String& Text)
+		ExpectsParser<Schema*> Schema::FromXML(const String& Text)
 		{
 			return ConvertFromXML(Text.c_str(), Text.size());
 		}
-		Expects<Schema*, Exceptions::ParserException> Schema::FromJSON(const String& Text)
+		ExpectsParser<Schema*> Schema::FromJSON(const String& Text)
 		{
 			return ConvertFromJSON(Text.c_str(), Text.size());
 		}
-		Expects<Schema*, Exceptions::ParserException> Schema::FromJSONB(const Vector<char>& Binary)
+		ExpectsParser<Schema*> Schema::FromJSONB(const Vector<char>& Binary)
 		{
 			size_t Offset = 0;
 			return ConvertFromJSONB([&Binary, &Offset](char* Buffer, size_t Length)

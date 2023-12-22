@@ -3466,8 +3466,10 @@ namespace Mavi
 		}
 		DebuggerContext::~DebuggerContext() noexcept
 		{
+#ifdef VI_ANGELSCRIPT
 			if (VM != nullptr)
 				VI_RELEASE(VM->GetEngine());
+#endif
 		}
 		void DebuggerContext::AddDefaultCommands()
 		{

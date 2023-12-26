@@ -2694,8 +2694,6 @@ namespace Mavi
 		template <typename T>
 		class UMutex
 		{
-			static_assert(std::is_same<std::mutex, T>::value || std::is_same<std::recursive_mutex, T>::value, "unique mutex type should be one of: std::mutex, std::recursive_mutex");
-
 		private:
 			T& Mutex;
 			bool Owns;

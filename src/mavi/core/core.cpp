@@ -1055,14 +1055,6 @@ namespace Mavi
 #endif
 		};
 
-		struct ConcurrentQueue
-		{
-			OrderedMap<std::chrono::microseconds, Timeout> Timers;
-			std::condition_variable Notify;
-			std::mutex Update;
-			FastQueue Tasks;
-		};
-
 		struct Cocontext
 		{
 #ifdef VI_FCTX
@@ -1120,6 +1112,18 @@ namespace Mavi
 				VI_FREE(Stack);
 #endif
 			}
+		};
+
+		struct ConcurrentTaskQueue
+		{
+			FastQueue Queue;
+		};
+
+		struct ConcurrentAsyncQueue : ConcurrentTaskQueue
+		{
+			std::condition_variable Notify;
+			std::mutex Update;
+			std::atomic<bool> Resync = true;
 		};
 
 		MemoryContext::MemoryContext() : Source("?.cpp"), Function("?"), TypeName("void"), Line(0)
@@ -10301,15 +10305,16 @@ namespace Mavi
 
 		Schedule::Schedule() noexcept : Generation(0), Debug(nullptr), Suspended(false), Enqueue(true), Terminate(false), Active(false), Immediate(false)
 		{
-			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
-				Queues[i] = VI_NEW(ConcurrentQueue);
+			Timers = VI_NEW(ConcurrentTimerQueue);
+			Async = VI_NEW(ConcurrentAsyncQueue);
+			Tasks = VI_NEW(ConcurrentTaskQueue);
 		}
 		Schedule::~Schedule() noexcept
 		{
 			Stop();
-			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
-				VI_DELETE(ConcurrentQueue, Queues[i]);
-
+			VI_DELETE(ConcurrentTaskQueue, Tasks);
+			VI_DELETE(ConcurrentAsyncQueue, Async);
+			VI_DELETE(ConcurrentTimerQueue, Timers);
 			VI_RELEASE(Dispatcher.State);
 			Scripting::VirtualMachine::CleanupThisThread();
 		}
@@ -10332,11 +10337,11 @@ namespace Mavi
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
-			auto Queue = Queues[(size_t)Difficulty::Timeout];
 
-			UMutex<std::mutex> Lock(Queue->Update);
-			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, true)));
-			Queue->Notify.notify_one();
+			UMutex<std::mutex> Lock(Timers->Update);
+			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, true)));
+			Timers->Resync = true;
+			Timers->Notify.notify_one();
 			return Id;
 		}
 		TaskId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback)
@@ -10351,11 +10356,11 @@ namespace Mavi
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
-			auto Queue = Queues[(size_t)Difficulty::Timeout];
 
-			UMutex<std::mutex> Lock(Queue->Update);
-			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, true)));
-			Queue->Notify.notify_one();
+			UMutex<std::mutex> Lock(Timers->Update);
+			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, true)));
+			Timers->Resync = true;
+			Timers->Notify.notify_one();
 			return Id;
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback)
@@ -10370,11 +10375,11 @@ namespace Mavi
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
-			auto Queue = Queues[(size_t)Difficulty::Timeout];
 
-			UMutex<std::mutex> Lock(Queue->Update);
-			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, false)));
-			Queue->Notify.notify_one();
+			UMutex<std::mutex> Lock(Timers->Update);
+			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, false)));
+			Timers->Resync = true;
+			Timers->Notify.notify_one();
 			return Id;
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback)
@@ -10389,11 +10394,11 @@ namespace Mavi
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
-			auto Queue = Queues[(size_t)Difficulty::Timeout];
 
-			UMutex<std::mutex> Lock(Queue->Update);
-			Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, false)));
-			Queue->Notify.notify_one();
+			UMutex<std::mutex> Lock(Timers->Update);
+			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, false)));
+			Timers->Resync = true;
+			Timers->Notify.notify_one();
 			return Id;
 		}
 		bool Schedule::SetTask(const TaskCallback& Callback)
@@ -10411,8 +10416,7 @@ namespace Mavi
 			PostDebug(ThreadTask::EnqueueTask, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			auto Queue = Queues[(size_t)Difficulty::Normal];
-			Queue->Tasks.enqueue(Callback);
+			Tasks->Queue.enqueue(Callback);
 			return true;
 		}
 		bool Schedule::SetTask(TaskCallback&& Callback)
@@ -10430,8 +10434,7 @@ namespace Mavi
 			PostDebug(ThreadTask::EnqueueTask, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			auto Queue = Queues[(size_t)Difficulty::Normal];
-			Queue->Tasks.enqueue(std::move(Callback));
+			Tasks->Queue.enqueue(std::move(Callback));
 			return true;
 		}
 		bool Schedule::SetCoroutine(const TaskCallback& Callback)
@@ -10447,10 +10450,9 @@ namespace Mavi
 			}
 
 			VI_MEASURE(Timings::Atomic);
-			auto Queue = Queues[(size_t)Difficulty::Async];
-			Queue->Tasks.enqueue(Callback);
+			Async->Queue.enqueue(Callback);
 
-			UMutex<std::mutex> Lock(Queue->Update);
+			UMutex<std::mutex> Lock(Async->Update);
 			for (auto* Thread : Threads[(size_t)Difficulty::Async])
 				Thread->Notify.notify_one();
 			return true;
@@ -10470,10 +10472,9 @@ namespace Mavi
 			PostDebug(ThreadTask::EnqueueCoroutine, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			auto Queue = Queues[(size_t)Difficulty::Async];
-			Queue->Tasks.enqueue(std::move(Callback));
+			Async->Queue.enqueue(std::move(Callback));
 
-			UMutex<std::mutex> Lock(Queue->Update);
+			UMutex<std::mutex> Lock(Async->Update);
 			for (auto* Thread : Threads[(size_t)Difficulty::Async])
 				Thread->Notify.notify_one();
 			return true;
@@ -10498,14 +10499,13 @@ namespace Mavi
 		bool Schedule::ClearTimeout(TaskId Target)
 		{
 			VI_MEASURE(Timings::Atomic);
-			auto Queue = Queues[(size_t)Difficulty::Timeout];
-			UMutex<std::mutex> Lock(Queue->Update);
-			for (auto It = Queue->Timers.begin(); It != Queue->Timers.end(); ++It)
+			UMutex<std::mutex> Lock(Timers->Update);
+			for (auto It = Timers->Queue.begin(); It != Timers->Queue.end(); ++It)
 			{
 				if (It->second.Id == Target)
 				{
-					Queue->Timers.erase(It);
-					Queue->Notify.notify_all();
+					Timers->Queue.erase(It);
+					Timers->Notify.notify_all();
 					return true;
 				}
 			}
@@ -10514,30 +10514,28 @@ namespace Mavi
 		bool Schedule::TriggerTimers()
 		{
 			VI_MEASURE(Timings::Pass);
-			auto Queue = Queues[(size_t)Difficulty::Timeout];
-			UMutex<std::mutex> Lock(Queue->Update);
-			for (auto& Item : Queue->Timers)
+			UMutex<std::mutex> Lock(Timers->Update);
+			for (auto& Item : Timers->Queue)
 				SetTask(std::move(Item.second.Callback));
 
-			size_t Size = Queue->Timers.size();
-			Queue->Timers.clear();
+			size_t Size = Timers->Queue.size();
+			Timers->Queue.clear();
 			return Size > 0;
 		}
 		bool Schedule::Trigger(Difficulty Type)
 		{
-			auto* Queue = Queues[(size_t)Type];
 			switch (Type)
 			{
 				case Difficulty::Timeout:
 				{
-					if (Queue->Timers.empty())
+					if (Timers->Queue.empty())
 						return false;
 
 					if (Suspended)
 						return true;
 
 					auto Clock = GetClock();
-					auto It = Queue->Timers.begin();
+					auto It = Timers->Queue.begin();
 					if (It->first >= Clock)
 						return true;
 #ifndef NDEBUG
@@ -10546,20 +10544,21 @@ namespace Mavi
 					if (It->second.Alive && Active)
 					{
 						Timeout Next(std::move(It->second));
-						Queue->Timers.erase(It);
+						Timers->Queue.erase(It);
 
-						SetTask([this, Queue, Next = std::move(Next)]() mutable
+						SetTask([this, Next = std::move(Next)]() mutable
 						{
 							Next.Callback();
-							UMutex<std::mutex> Lock(Queue->Update);
-							Queue->Timers.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
-							Queue->Notify.notify_one();
+							UMutex<std::mutex> Lock(Timers->Update);
+							Timers->Queue.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
+							Timers->Resync = true;
+							Timers->Notify.notify_one();
 						});
 					}
 					else
 					{
 						SetTask(std::move(It->second.Callback));
-						Queue->Timers.erase(It);
+						Timers->Queue.erase(It);
 					}
 #ifndef NDEBUG
 					PostDebug(ThreadTask::Awake, 0);
@@ -10581,7 +10580,7 @@ namespace Mavi
 
 					while (Left > 0 && Count > 0)
 					{
-						Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Events.begin(), Left);
+						Count = Async->Queue.try_dequeue_bulk(Dispatcher.Events.begin(), Left);
 						Left -= Count;
 						Passes += Count;
 #ifndef NDEBUG
@@ -10607,9 +10606,9 @@ namespace Mavi
 				case Difficulty::Normal:
 				{
 					if (Suspended)
-						return Queue->Tasks.size_approx() > 0;
+						return Tasks->Queue.size_approx() > 0;
 
-					size_t Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Tasks, EVENTS_SIZE);
+					size_t Count = Tasks->Queue.try_dequeue_bulk(Dispatcher.Tasks, EVENTS_SIZE);
 #ifndef NDEBUG
 					PostDebug(ThreadTask::ProcessTask, Count);
 #endif
@@ -10687,13 +10686,7 @@ namespace Mavi
 				}
 			}
 
-			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
-			{
-				auto* Queue = Queues[i];
-				UMutex<std::mutex> Lock(Queue->Update);
-				Queue->Timers.clear();
-			}
-
+			Timers->Queue.clear();
 			Terminate = false;
 			Enqueue = true;
 			ChunkCleanup();
@@ -10702,21 +10695,31 @@ namespace Mavi
 		bool Schedule::Wakeup()
 		{
 			VI_TRACE("[schedule] wakeup 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(std::this_thread::get_id()).c_str());
-			TaskCallback Dummy[EVENTS_SIZE * 32] = { nullptr };
+			TaskCallback Dummy[EVENTS_SIZE * 2] = { nullptr };
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
-				auto* Queue = Queues[i];
-				UMutex<std::mutex> Lock(Queue->Update);
-				Queue->Notify.notify_all();
-
 				for (auto* Thread : Threads[i])
 				{
+					if (Thread->Type == Difficulty::Async)
+						Async->Queue.enqueue_bulk(Dummy, EVENTS_SIZE);
+					else if (Thread->Type == Difficulty::Normal || Thread->Type == Difficulty::Timeout)
+						Tasks->Queue.enqueue_bulk(Dummy, EVENTS_SIZE);
 					Thread->Notify.notify_all();
-					if (Thread->Type != Difficulty::Timeout)
-						Queue->Tasks.enqueue_bulk(Dummy, EVENTS_SIZE);
+				}
+
+				if (i == (size_t)Difficulty::Async)
+				{
+					UMutex<std::mutex> Unique(Async->Update);
+					Async->Resync = true;
+					Async->Notify.notify_all();
+				}
+				else if (i == (size_t)Difficulty::Timeout)
+				{
+					UMutex<std::mutex> Unique(Timers->Update);
+					Timers->Resync = true;
+					Timers->Notify.notify_all();
 				}
 			}
-
 			return true;
 		}
 		bool Schedule::Dispatch()
@@ -10730,9 +10733,10 @@ namespace Mavi
 		}
 		bool Schedule::TriggerThread(Difficulty Type, ThreadPtr* Thread)
 		{
-			auto* Queue = Queues[(size_t)Type];
 			String ThreadId = OS::Process::GetThreadId(Thread->Id);
 			InitializeThread(Thread, true);
+			if (!ThreadActive(Thread))
+				goto ExitThread;
 
 			switch (Type)
 			{
@@ -10743,22 +10747,24 @@ namespace Mavi
 					else
 						VI_DEBUG("[schedule] spawn thread %s (timers)", ThreadId.c_str());
 
-					auto* Subqueue = Queues[(size_t)Difficulty::Normal];
-					ReceiveToken Token(Subqueue->Tasks);
+					ReceiveToken Token(Tasks->Queue);
 					TaskCallback Events[EVENTS_SIZE];
 
 					do
 					{
-						std::unique_lock<std::mutex> Lock(Queue->Update);
+						if (SleepThread(Type, Thread))
+							continue;
+
+						std::unique_lock<std::mutex> Lock(Timers->Update);
 					Retry:
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Awake, 0);
 #endif
 						std::chrono::microseconds When = std::chrono::microseconds(0);
-						if (!Suspended && !Queue->Timers.empty())
+						if (!Timers->Queue.empty())
 						{
 							auto Clock = GetClock();
-							auto It = Queue->Timers.begin();
+							auto It = Timers->Queue.begin();
 							if (It->first <= Clock)
 							{
 #ifndef NDEBUG
@@ -10767,20 +10773,21 @@ namespace Mavi
 								if (It->second.Alive)
 								{
 									Timeout Next(std::move(It->second));
-									Queue->Timers.erase(It);
+									Timers->Queue.erase(It);
 
-									SetTask([this, Queue, Next = std::move(Next)]() mutable
+									SetTask([this, Next = std::move(Next)]() mutable
 									{
 										Next.Callback();
-										UMutex<std::mutex> Lock(Queue->Update);
-										Queue->Timers.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
-										Queue->Notify.notify_one();
+										UMutex<std::mutex> Lock(Timers->Update);
+										Timers->Queue.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
+										Timers->Resync = true;
+										Timers->Notify.notify_one();
 									});
 								}
 								else
 								{
 									SetTask(std::move(It->second.Callback));
-									Queue->Timers.erase(It);
+									Timers->Queue.erase(It);
 								}
 
 								goto Retry;
@@ -10797,9 +10804,14 @@ namespace Mavi
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Sleep, 0);
 #endif
-						Queue->Notify.wait_for(Lock, When);
+						Timers->Notify.wait_for(Lock, When, [this, Thread]()
+						{
+							return !ThreadActive(Thread) || Timers->Resync || Tasks->Queue.size_approx() > 0;
+						});
+						Timers->Resync = false;
 						Lock.unlock();
-						size_t Count = Subqueue->Tasks.try_dequeue_bulk(Events, EVENTS_SIZE);
+	
+						size_t Count = Tasks->Queue.try_dequeue_bulk(Token, Events, EVENTS_SIZE);
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Awake, 0);
 						PostDebug(ThreadTask::ProcessTask, Count);
@@ -10821,7 +10833,7 @@ namespace Mavi
 					else
 						VI_DEBUG("[schedule] spawn thread %s (coroutines)", ThreadId.c_str());
 
-					ReceiveToken Token(Queue->Tasks);
+					ReceiveToken Token(Async->Queue);
 					Costate* State = new Costate(Policy.StackSize);
 					State->ExternalCondition = &Thread->Notify;
 					State->ExternalMutex = &Thread->Update;
@@ -10831,13 +10843,15 @@ namespace Mavi
 
 					do
 					{
+						if (SleepThread(Type, Thread))
+							continue;
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Awake, 0);
 #endif
 						size_t Left = Policy.MaxCoroutines - State->GetCount();
 						while (Left > 0)
 						{
-							size_t Count = Queue->Tasks.try_dequeue_bulk(Token, Events.begin(), Left);
+							size_t Count = Async->Queue.try_dequeue_bulk(Token, Events.begin(), Left);
 							if (!Count)
 								break;
 #ifndef NDEBUG
@@ -10851,29 +10865,22 @@ namespace Mavi
 									State->Pop(std::move(Data));
 							}
 						}
-
-						if (!Suspended)
+#ifndef NDEBUG
+						PostDebug(ThreadTask::ProcessCoroutine, State->GetCount());
+#endif
 						{
 							VI_MEASURE(Timings::Frame);
-#ifndef NDEBUG
-							PostDebug(ThreadTask::ProcessCoroutine, State->GetCount());
-#endif
 							State->Dispatch();
 						}
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Sleep, 0);
 #endif
 						std::unique_lock<std::mutex> Lock(Thread->Update);
-						Thread->Notify.wait_for(Lock, Policy.IdleTimeout, [this, Queue, State, Thread]()
+						Thread->Notify.wait_for(Lock, Policy.IdleTimeout, [this, State, Thread]()
 						{
-							if (Suspended)
-								return false;
-
-							if (!ThreadActive(Thread) || State->HasResumableCoroutines())
-								return true;
-
-							return Queue->Tasks.size_approx() > 0 && State->GetCount() + 1 < Policy.MaxCoroutines;
+							return !ThreadActive(Thread) || State->HasResumableCoroutines() || Async->Resync.load() || (Async->Queue.size_approx() > 0 && State->GetCount() + 1 < Policy.MaxCoroutines);
 						});
+						Async->Resync = false;
 					} while (ThreadActive(Thread));
 
 					VI_RELEASE(State);
@@ -10886,22 +10893,17 @@ namespace Mavi
 					else
 						VI_DEBUG("[schedule] spawn thread %s (tasks)", ThreadId.c_str());
 
-					ReceiveToken Token(Queue->Tasks);
+					ReceiveToken Token(Tasks->Queue);
 					TaskCallback Events[EVENTS_SIZE];
 
 					do
 					{
+						if (SleepThread(Type, Thread))
+							continue;
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Sleep, 0);
 #endif
-						if (Suspended)
-						{
-							std::unique_lock<std::mutex> Lock(Queue->Update);
-							Queue->Notify.wait_for(Lock, Policy.IdleTimeout);
-							continue;
-						}
-
-						size_t Count = Queue->Tasks.wait_dequeue_bulk_timed(Token, Events, EVENTS_SIZE, Policy.IdleTimeout);
+						size_t Count = Tasks->Queue.wait_dequeue_bulk_timed(Token, Events, EVENTS_SIZE, Policy.IdleTimeout);
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Awake, 0);
 						PostDebug(ThreadTask::ProcessTask, Count);
@@ -10920,6 +10922,7 @@ namespace Mavi
 					break;
 			}
 
+		ExitThread:
 			if (Thread->Daemon)
 				VI_DEBUG("[schedule] release thread %s", ThreadId.c_str());
 			else
@@ -10927,6 +10930,24 @@ namespace Mavi
 
 			Scripting::VirtualMachine::CleanupThisThread();
 			InitializeThread(nullptr, true);
+			return true;
+		}
+		bool Schedule::SleepThread(Difficulty Type, ThreadPtr* Thread)
+		{
+			if (!Suspended)
+				return false;
+
+#ifndef NDEBUG
+			PostDebug(ThreadTask::Sleep, 0);
+#endif
+			std::unique_lock<std::mutex> Lock(Thread->Update);
+			Thread->Notify.wait_for(Lock, Policy.IdleTimeout, [this, Thread]()
+			{
+				return !ThreadActive(Thread) || !Suspended;
+			});
+#ifndef NDEBUG
+			PostDebug(ThreadTask::Awake, 0);
+#endif
 			return true;
 		}
 		bool Schedule::ThreadActive(ThreadPtr* Thread)
@@ -10989,14 +11010,14 @@ namespace Mavi
 		bool Schedule::HasTasks(Difficulty Type) const
 		{
 			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
-			auto* Queue = Queues[(size_t)Type];
 			switch (Type)
 			{
 				case Difficulty::Async:
+					return Async->Queue.size_approx() > 0;
 				case Difficulty::Normal:
-					return Queue->Tasks.size_approx() > 0;
+					return Tasks->Queue.size_approx() > 0;
 				case Difficulty::Timeout:
-					return !Queue->Timers.empty();
+					return Timers->Queue.size() > 0;
 				default:
 					return false;
 			}
@@ -11083,8 +11104,7 @@ namespace Mavi
 		}
 		std::chrono::microseconds Schedule::GetTimeout(std::chrono::microseconds Clock)
 		{
-			auto* Queue = Queues[(size_t)Difficulty::Timeout];
-			while (Queue->Timers.find(Clock) != Queue->Timers.end())
+			while (Timers->Queue.find(Clock) != Timers->Queue.end())
 				++Clock;
 			return Clock;
 		}

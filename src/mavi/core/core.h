@@ -31,7 +31,9 @@ namespace Mavi
 {
 	namespace Core
 	{
-		struct ConcurrentQueue;
+		struct ConcurrentAsyncQueue;
+
+		struct ConcurrentTaskQueue;
 
 		struct Decimal;
 
@@ -2151,6 +2153,14 @@ namespace Mavi
 			static void ConvertToWide(const char* Input, size_t InputSize, wchar_t* Output, size_t OutputSize);
 		};
 
+		struct VI_OUT ConcurrentTimerQueue
+		{
+			OrderedMap<std::chrono::microseconds, Timeout> Queue;
+			std::condition_variable Notify;
+			std::mutex Update;
+			bool Resync = true;
+		};
+
 		class VI_OUT_TS Var
 		{
 		public:
@@ -3288,8 +3298,10 @@ namespace Mavi
 			} Dispatcher;
 
 		private:
-			ConcurrentQueue* Queues[(size_t)Difficulty::Count];
 			Vector<ThreadPtr*> Threads[(size_t)Difficulty::Count];
+			ConcurrentTimerQueue* Timers = nullptr;
+			ConcurrentAsyncQueue* Async = nullptr;
+			ConcurrentTaskQueue* Tasks = nullptr;
 			std::atomic<TaskId> Generation;
 			std::mutex Exclusive;
 			ThreadDebugCallback Debug;
@@ -3339,6 +3351,7 @@ namespace Mavi
 			void InitializeSpawnTrigger();
 			bool PostDebug(ThreadTask State, size_t Tasks);
 			bool TriggerThread(Difficulty Type, ThreadPtr* Thread);
+			bool SleepThread(Difficulty Type, ThreadPtr* Thread);
 			bool ThreadActive(ThreadPtr* Thread);
 			bool ChunkCleanup();
 			bool PushThread(Difficulty Type, size_t GlobalIndex, size_t LocalIndex, bool IsDaemon);

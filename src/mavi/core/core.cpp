@@ -10341,7 +10341,7 @@ namespace Mavi
 			UMutex<std::mutex> Lock(Timers->Update);
 			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, true)));
 			Timers->Resync = true;
-			Timers->Notify.notify_one();
+			Timers->Notify.notify_all();
 			return Id;
 		}
 		TaskId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback)
@@ -10360,7 +10360,7 @@ namespace Mavi
 			UMutex<std::mutex> Lock(Timers->Update);
 			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, true)));
 			Timers->Resync = true;
-			Timers->Notify.notify_one();
+			Timers->Notify.notify_all();
 			return Id;
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback)
@@ -10379,7 +10379,7 @@ namespace Mavi
 			UMutex<std::mutex> Lock(Timers->Update);
 			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, false)));
 			Timers->Resync = true;
-			Timers->Notify.notify_one();
+			Timers->Notify.notify_all();
 			return Id;
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback)
@@ -10398,7 +10398,7 @@ namespace Mavi
 			UMutex<std::mutex> Lock(Timers->Update);
 			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, false)));
 			Timers->Resync = true;
-			Timers->Notify.notify_one();
+			Timers->Notify.notify_all();
 			return Id;
 		}
 		bool Schedule::SetTask(const TaskCallback& Callback)
@@ -10454,7 +10454,7 @@ namespace Mavi
 
 			UMutex<std::mutex> Lock(Async->Update);
 			for (auto* Thread : Threads[(size_t)Difficulty::Async])
-				Thread->Notify.notify_one();
+				Thread->Notify.notify_all();
 			return true;
 		}
 		bool Schedule::SetCoroutine(TaskCallback&& Callback)
@@ -10476,7 +10476,7 @@ namespace Mavi
 
 			UMutex<std::mutex> Lock(Async->Update);
 			for (auto* Thread : Threads[(size_t)Difficulty::Async])
-				Thread->Notify.notify_one();
+				Thread->Notify.notify_all();
 			return true;
 		}
 		bool Schedule::SetDebugCallback(const ThreadDebugCallback& Callback)
@@ -10499,11 +10499,15 @@ namespace Mavi
 		bool Schedule::ClearTimeout(TaskId Target)
 		{
 			VI_MEASURE(Timings::Atomic);
+			if (Target == INVALID_TASK_ID)
+				return false;
+
 			UMutex<std::mutex> Lock(Timers->Update);
 			for (auto It = Timers->Queue.begin(); It != Timers->Queue.end(); ++It)
 			{
 				if (It->second.Id == Target)
 				{
+					Timers->Resync = true;
 					Timers->Queue.erase(It);
 					Timers->Notify.notify_all();
 					return true;
@@ -10519,6 +10523,7 @@ namespace Mavi
 				SetTask(std::move(Item.second.Callback));
 
 			size_t Size = Timers->Queue.size();
+			Timers->Resync = true;
 			Timers->Queue.clear();
 			return Size > 0;
 		}
@@ -10552,7 +10557,7 @@ namespace Mavi
 							UMutex<std::mutex> Lock(Timers->Update);
 							Timers->Queue.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
 							Timers->Resync = true;
-							Timers->Notify.notify_one();
+							Timers->Notify.notify_all();
 						});
 					}
 					else
@@ -10781,7 +10786,7 @@ namespace Mavi
 										UMutex<std::mutex> Lock(Timers->Update);
 										Timers->Queue.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
 										Timers->Resync = true;
-										Timers->Notify.notify_one();
+										Timers->Notify.notify_all();
 									});
 								}
 								else

@@ -3175,7 +3175,7 @@ namespace Mavi
 
 				FreeAll();
 				VI_MEASURE_LOOP();
-			} while (!Inactive.empty() || !Active.empty());
+			} while (Core::Schedule::Get()->IsActive() && (!Inactive.empty() || !Active.empty()));
 
 			auto Status = OnUnlisten();
 			if (!Status)
@@ -3187,6 +3187,15 @@ namespace Mavi
 					It->Base->Close();
 			}
 
+			if (!Core::Schedule::Get()->IsActive())
+			{
+				Core::UMutex<std::mutex> Unique(Exclusive);
+				if (!Active.empty())
+				{
+					Inactive.insert(Active.begin(), Active.end());
+					Active.clear();
+				}
+			}
 			FreeAll();
 			for (auto It : Listeners)
 				VI_RELEASE(It);

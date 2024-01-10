@@ -22,6 +22,7 @@ install(FILES
         DESTINATION include/mavi/engine)
 install(FILES
         src/mavi/network/http.h
+        src/mavi/network/ldb.h
         src/mavi/network/mdb.h
         src/mavi/network/pdb.h
         src/mavi/network/smtp.h

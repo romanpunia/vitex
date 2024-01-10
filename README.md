@@ -115,6 +115,7 @@ Dependency options
 + **VI_GLEW** will enable GLEW library to bind OpenGL procedures, defaults to true
 + **VI_MONGOC** will enable MongoDB library to allow queries to this database, defaults to true
 + **VI_POSTGRESQL** will enable PostgreSQL library to allow queries to this database, defaults to true
++ **VI_SQLITE** will enable sqlite library to allow queries to this database, defaults to true
 + **VI_OPENAL** will enable OpenAL library to playback audio, defaults to true
 + **VI_OPENGL** will enable OpenGL library to display graphics, defaults to true
 + **VI_OPENSSL** will enable OpenSSL library to activate TLS certs and crypto algorithms, defaults to true
@@ -152,9 +153,10 @@ Only those marked with _required_ are necessary for minimal build.
 * [OpenAL-Soft (so)](https://github.com/kcat/openal-soft)
 * [GLEW (so)](https://github.com/nigels-com/glew)
 * [zlib (so)](https://github.com/madler/zlib)
-* [Assimp (so)](https://github.com/assimp/assimp)
+* [assimp (so)](https://github.com/assimp/assimp)
 * [mongo-c-driver (so)](https://github.com/mongodb/mongo-c-driver)
 * [libpq (so)](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq)
+* [sqlite (so)](https://github.com/sqlite/sqlite)
 * [freetype (so)](https://github.com/freetype/freetype)
 * [SDL2 (so)](https://www.libsdl.org/download-2.0.php)
 * [spirv-cross (so)](https://github.com/KhronosGroup/SPIRV-Cross)

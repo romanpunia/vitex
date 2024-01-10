@@ -125,22 +125,6 @@ namespace Mavi
 				Source_Function
 			};
 
-			enum class ConnectionState
-			{
-				OK,
-				Bad,
-				Started,
-				Made,
-				Awaiting_Response,
-				Auth_OK,
-				Set_Env,
-				SSL_Startup,
-				Needed,
-				Check_Writable,
-				Consume,
-				GSS_Startup
-			};
-
 			enum class TransactionState
 			{
 				Idle,
@@ -265,10 +249,6 @@ namespace Mavi
 				Column(TResponse* NewBase, size_t fRowIndex, size_t fColumnIndex);
 
 			public:
-				int Set(const Core::Variant& Value);
-				int SetInline(Core::Schema* Value);
-				int SetValueText(const Core::String& Value);
-				int SetValueText(char* Data, size_t Size);
 				Core::String GetName() const;
 				Core::String GetValueText() const;
 				Core::Variant Get() const;
@@ -487,6 +467,7 @@ namespace Mavi
 				Socket* GetStream() const;
 				Request* GetCurrent() const;
 				QueryState GetState() const;
+				TransactionState GetTxState() const;
 				bool InSession() const;
 				bool Busy() const;
 			};
@@ -570,6 +551,7 @@ namespace Mavi
 				bool GetCache(const Core::String& CacheOid, Cursor* Data);
 				void SetCache(const Core::String& CacheOid, Cursor* Data, size_t QueryOpts);
 				void TryUnassign(Connection* Base, Request* Context);
+				bool ValidateTransaction(const Core::String& Command, Request* Next);
 				bool Reestablish(Connection* Base);
 				bool Consume(Connection* Base, Core::UMutex<std::mutex>& Unique);
 				bool Reprocess(Connection* Base);

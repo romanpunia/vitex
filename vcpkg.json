@@ -2,7 +2,7 @@
     "name": "mavi",
     "description": "Cross-platform application development framework",
     "version": "1.0.0",
-    "default-features": ["compression", "imports", "fonts", "windows", "shaders", "audio", "opengl", "openssl", "mongodb", "postgresql"],
+    "default-features": ["compression", "imports", "fonts", "windows", "shaders", "audio", "opengl", "openssl", "mongodb", "postgresql", "sqlite"],
     "features": {
         "compression": {
             "description": "Support for zlib compression algorithms",
@@ -43,6 +43,10 @@
         "postgresql": {
             "description": "Support for PostgreSQL client operations",
             "dependencies": ["libpq"]
+        },
+        "sqlite": {
+            "description": "Support for SQLite client operations",
+            "dependencies": ["sqlite3"]
         }
     }
 }

@@ -151,6 +151,7 @@ namespace Mavi
 				static bool ImportNetwork(VirtualMachine* Engine);
 				static bool ImportHTTP(VirtualMachine* Engine);
 				static bool ImportSMTP(VirtualMachine* Engine);
+				static bool ImportSQLite(VirtualMachine* Engine);
 				static bool ImportPostgreSQL(VirtualMachine* Engine);
 				static bool ImportMongoDB(VirtualMachine* Engine);
 				static bool ImportEngine(VirtualMachine* Engine);

@@ -142,6 +142,7 @@ namespace Mavi
 			VI_ASSERT(!URL.empty(), "url should not be empty");
 			Core::Stringify::Replace(URL, '\\', '/');
 
+			const char* ParametersBegin = nullptr;
 			const char* PathBegin = nullptr;
 			const char* HostBegin = strchr(URL.c_str(), ':');
 			if (HostBegin != nullptr)
@@ -190,18 +191,18 @@ namespace Mavi
 				if (PortBegin != nullptr && (PathBegin == nullptr || PortBegin < PathBegin))
 				{
 					if (1 != sscanf(PortBegin, ":%d", &Port))
-						return;
+						goto FinalizeURL;
 
 					Hostname = Core::String(HostBegin, PortBegin);
 					if (!PathBegin)
-						return;
+						goto FinalizeURL;
 				}
 				else
 				{
 					if (PathBegin == nullptr)
 					{
 						Hostname = HostBegin;
-						return;
+						goto FinalizeURL;
 					}
 
 					Hostname = Core::String(HostBegin, PathBegin);
@@ -211,7 +212,7 @@ namespace Mavi
 				PathBegin = URL.c_str();
 
 		InlineURL:
-			const char* ParametersBegin = strchr(PathBegin, '?');
+			ParametersBegin = strchr(PathBegin, '?');
 			if (ParametersBegin != nullptr)
 			{
 				const char* ParametersEnd = strchr(++ParametersBegin, '#');
@@ -253,6 +254,7 @@ namespace Mavi
 					Path = PathBegin;
 			}
 
+		FinalizeURL:
 			if (Protocol.size() == 1)
 			{
 				Path = Protocol + ':' + Path;

@@ -2,7 +2,6 @@
 #ifdef VI_POSTGRESQL
 #include <libpq-fe.h>
 #endif
-#define CACHE_MAGIC "92343fa9e7e09897cbf6a0e7095c8abc"
 
 namespace Mavi
 {
@@ -119,7 +118,8 @@ namespace Mavi
 				for (auto& Item : Errors)
 					Result += ", " + Item;
 
-				VI_ERR("[pqerr] %s", Errors.size() > 1 ? Result.c_str() : Result.c_str() + 2);
+				if (!Result.empty())
+					VI_ERR("[pqerr] %s", Result.c_str() + 2);
 			}
 			static void PQlogNotice(void*, const char* Message)
 			{
@@ -137,7 +137,8 @@ namespace Mavi
 				for (auto& Item : Errors)
 					Result += ", " + Item;
 
-				VI_WARN("[pqnotice] %s", Errors.size() > 1 ? Result.c_str() : Result.c_str() + 2);
+				if (!Result.empty())
+					VI_WARN("[pqnotice] %s", Result.c_str() + 2);
 			}
 			static Core::Schema* ToSchema(const char* Data, int Size, unsigned int Id);
 			static void ToArrayField(void* Context, ArrayFilter* Subdata, char* Data, size_t Size)
@@ -550,55 +551,6 @@ namespace Mavi
 			Column::Column(TResponse* NewBase, size_t fRowIndex, size_t fColumnIndex) : Base(NewBase), RowIndex(fRowIndex), ColumnIndex(fColumnIndex)
 			{
 			}
-			int Column::Set(const Core::Variant& Value)
-			{
-				switch (Value.GetType())
-				{
-					case Core::VarType::Null:
-					case Core::VarType::Undefined:
-					case Core::VarType::Object:
-					case Core::VarType::Array:
-					case Core::VarType::Pointer:
-						return SetValueText(nullptr, 0);
-					case Core::VarType::String:
-					case Core::VarType::Binary:
-						return SetValueText(Value.GetBlob());
-					case Core::VarType::Integer:
-					case Core::VarType::Number:
-					case Core::VarType::Decimal:
-						return SetValueText(Value.GetBlob());
-					case Core::VarType::Boolean:
-						return SetValueText(Value.GetBoolean() ? "TRUE" : "FALSE");
-					default:
-						return -1;
-				}
-			}
-			int Column::SetInline(Core::Schema* Value)
-			{
-				if (!Value)
-					return SetValueText(nullptr, 0);
-
-				if (!Value->Value.IsObject())
-					return Set(Value->Value);
-
-				return SetValueText(Core::Schema::ToJSON(Value));
-			}
-			int Column::SetValueText(const Core::String& Value)
-			{
-				return SetValueText((char*)Value.c_str(), Value.size());
-			}
-			int Column::SetValueText(char* Data, size_t Size)
-			{
-#ifdef VI_POSTGRESQL
-				VI_ASSERT(Base != nullptr, "context should be valid");
-				VI_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), "row should be valid");
-				VI_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), "column should be valid");
-
-				return PQsetvalue(Base, (int)RowIndex, (int)ColumnIndex, Data, (int)Size);
-#else
-				return -1;
-#endif
-			}
 			Core::String Column::GetName() const
 			{
 #ifdef VI_POSTGRESQL
@@ -828,7 +780,7 @@ namespace Mavi
 
 				int Size = PQnfields(Base);
 				if (Size <= 0)
-					return Core::Var::Set::Object();
+					return Core::Var::Set::Array();
 
 				Core::Schema* Result = Core::Var::Set::Array();
 				Result->GetChilds().reserve((size_t)Size);
@@ -1452,6 +1404,28 @@ namespace Mavi
 			{
 				return State;
 			}
+			TransactionState Connection::GetTxState() const
+			{
+#ifdef VI_POSTGRESQL
+				PGTransactionStatusType Type = PQtransactionStatus(Base);
+				switch (Type)
+				{
+					case PQTRANS_IDLE:
+						return TransactionState::Idle;
+					case PQTRANS_ACTIVE:
+						return TransactionState::Active;
+					case PQTRANS_INTRANS:
+						return TransactionState::In_Transaction;
+					case PQTRANS_INERROR:
+						return TransactionState::In_Error;
+					case PQTRANS_UNKNOWN:
+					default:
+						return TransactionState::None;
+				}
+#else
+				return TransactionState::None;
+#endif
+			}
 			bool Connection::InSession() const
 			{
 				return Session;
@@ -1617,7 +1591,7 @@ namespace Mavi
 				if (!Pool.empty())
 				{
 					Unique.Negate();
-					return Disconnect().Then<Core::Promise<bool>>([this, URI, Connections](bool)
+					return Disconnect().Then<Core::Promise<bool>>([this, URI, Connections](bool&&)
 					{
 						return this->Connect(URI, Connections);
 					});
@@ -1833,17 +1807,14 @@ namespace Mavi
 			Core::Promise<Cursor> Cluster::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, size_t Opts, SessionId Session)
 			{
 				VI_DEBUG("[pq] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
-
 				bool Once = !(Opts & (size_t)QueryOp::ReuseArgs);
 				return Query(Driver::Get()->GetQuery(this, Name, Map, Once), Opts, Session);
 			}
 			Core::Promise<Cursor> Cluster::Query(const Core::String& Command, size_t Opts, SessionId Session)
 			{
 				VI_ASSERT(!Command.empty(), "command should not be empty");
-
 				bool MayCache = Opts & (size_t)QueryOp::CacheShort || Opts & (size_t)QueryOp::CacheMid || Opts & (size_t)QueryOp::CacheLong;
 				Core::String Reference;
-
 				if (MayCache)
 				{
 					Cursor Result(nullptr, Caching::Cached);
@@ -1889,27 +1860,11 @@ namespace Mavi
 				if (!IsInQueue || Next->Session == 0)
 					return Future;
 
-				Core::String Tx = Command;
-				Core::Stringify::Trim(Tx);
-				Core::Stringify::ToUpper(Tx);
-
-				if (Tx != "COMMIT" && Tx != "ROLLBACK")
-					return Future;
+				if (!ValidateTransaction(Command, Next))
 				{
-					Core::UMutex<std::mutex> Unique(Update);
-					for (auto& Item : Pool)
-					{
-						if (Item.second->Session && Item.second == Next->Session)
-							return Future;
-					}
-
-					auto It = std::find(Requests.begin(), Requests.end(), Next);
-					if (It != Requests.end())
-						Requests.erase(It);
+					Future.Set(Cursor());
+					VI_RELEASE(Next);
 				}
-				Future.Set(Cursor());
-				VI_RELEASE(Next);
-				VI_ASSERT(false, "[pq] transaction %" PRIu64 " does not exist", (void*)Session);
 #endif
 				return Future;
 			}
@@ -2022,6 +1977,29 @@ namespace Mavi
 
 				VI_DEBUG("[pq] end transaction on 0x%" PRIXPTR, (uintptr_t)Base);
 				Base->Session = false;
+			}
+			bool Cluster::ValidateTransaction(const Core::String& Command, Request* Next)
+			{
+				Core::String Tx = Command;
+				Core::Stringify::Trim(Tx);
+				Core::Stringify::ToUpper(Tx);
+
+				if (Tx != "COMMIT" && Tx != "ROLLBACK")
+					return true;
+				{
+					Core::UMutex<std::mutex> Unique(Update);
+					for (auto& Item : Pool)
+					{
+						if (Item.second->Session && Item.second == Next->Session)
+							return true;
+					}
+
+					auto It = std::find(Requests.begin(), Requests.end(), Next);
+					if (It != Requests.end())
+						Requests.erase(It);
+				}
+				VI_ASSERT(false, "[pq] transaction %" PRIu64 " does not exist", (void*)Next->Session);
+				return false;
 			}
 			bool Cluster::Reestablish(Connection* Target)
 			{
@@ -2369,6 +2347,7 @@ namespace Mavi
 				if (!Base)
 				{
 					Core::String Dest(Src);
+					Core::Stringify::Replace(Dest, "'", "''");
 					Dest.insert(Dest.begin(), '\'');
 					Dest.append(1, '\'');
 					return Dest;
@@ -2380,7 +2359,11 @@ namespace Mavi
 
 				return Result;
 #else
-				return "'" + Src + "'";
+				Core::String Dest(Src);
+				Core::Stringify::Replace(Dest, "'", "''");
+				Dest.insert(Dest.begin(), '\'');
+				Dest.append(1, '\'');
+				return Dest;
 #endif
 			}
 			Core::String Utils::GetByteArray(Connection* Base, const Core::String& Src) noexcept
@@ -2454,6 +2437,9 @@ namespace Mavi
 					case Core::VarType::Decimal:
 					{
 						Core::Decimal Value = Source->Value.GetDecimal();
+						if (Value.IsNaN())
+							return "NULL";
+
 						Core::String Result = (Negate ? '-' + Value.ToString() : Value.ToString());
 						return Result.find('.') != Core::String::npos ? Result : Result + ".0";
 					}

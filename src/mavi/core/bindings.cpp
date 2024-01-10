@@ -3,6 +3,7 @@
 #include "network.h"
 #include "../network/http.h"
 #include "../network/smtp.h"
+#include "../network/ldb.h"
 #include "../network/pdb.h"
 #include "../network/mdb.h"
 #include "../engine/processors.h"
@@ -81,6 +82,7 @@
 #define TYPENAME_ENTITY "scene_entity"
 #define TYPENAME_SCENEGRAPH "scene_graph"
 #define TYPENAME_ELEMENTNODE "ui_element"
+#define TYPENAME_LDBCHECKPOINT "ldb::checkpoint"
 #define TYPENAME_HTTPERRORFILE "http::error_file"
 #define TYPENAME_HTTPMIMETYPE "http::mime_type"
 #define TYPENAME_HTTPRESOURCEINFO "http::resource_info"
@@ -9239,6 +9241,170 @@ namespace Mavi
 				});
 			}
 
+			Network::LDB::Response& LDBResponseCopy(Network::LDB::Response& Base, Network::LDB::Response&& Other)
+			{
+				if (&Base == &Other)
+					return Base;
+
+				Base = Other.Copy();
+				return Base;
+			}
+
+			Network::LDB::Response LDBCursorFirst(Network::LDB::Cursor& Base)
+			{
+				return Base.Size() > 0 ? Base.First().Copy() : Network::LDB::Response();
+			}
+			Network::LDB::Response LDBCursorLast(Network::LDB::Cursor& Base)
+			{
+				return Base.Size() > 0 ? Base.Last().Copy() : Network::LDB::Response();
+			}
+			Network::LDB::Response LDBCursorAt(Network::LDB::Cursor& Base, size_t Index)
+			{
+				return Index < Base.Size() ? Base.At(Index).Copy() : Network::LDB::Response();
+			}
+			Network::LDB::Cursor& LDBCursorCopy(Network::LDB::Cursor& Base, Network::LDB::Cursor&& Other)
+			{
+				if (&Base == &Other)
+					return Base;
+
+				Base = Other.Copy();
+				return Base;
+			}
+
+			void LDBClusterSetFunction(Network::LDB::Cluster* Base, const Core::String& Name, uint8_t Args, asIScriptFunction* Callback)
+			{
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
+					return;
+				
+				Base->SetFunction(Name, Args, [Delegate](const Core::VariantList& Args) mutable -> Core::Variant
+				{
+					Core::Variant Result = Core::Var::Undefined();
+					Delegate([Args](ImmediateContext* Context)
+					{
+						TypeInfo Type = Context->GetVM()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
+						Array* Data = Array::Compose<Core::Variant>(Type, Args);
+						Context->SetArgObject(0, Data);
+						VI_RELEASE(Data);
+					}, [&Result](ImmediateContext* Context) mutable
+					{
+						Core::Variant* Target = Context->GetReturnObject<Core::Variant>();
+						if (Target != nullptr)
+							Result = std::move(*Target);
+					}).Wait();
+					return Result;
+				});
+			}
+			Core::Promise<Network::LDB::Cursor> LDBClusterEmplaceQuery(Network::LDB::Cluster* Base, const Core::String& Command, Array* Data, size_t Options, Network::LDB::SessionId Session)
+			{
+				Core::Vector<Core::Schema*> Args = Array::Decompose<Core::Schema*>(Data);
+				for (auto& Item : Args)
+					Item->AddRef();
+
+				return Base->EmplaceQuery(Command, &Args, Options, Session);
+			}
+			Core::Promise<Network::LDB::Cursor> LDBClusterTemplateQuery(Network::LDB::Cluster* Base, const Core::String& Command, Dictionary* Data, size_t Options, Network::LDB::SessionId Session)
+			{
+				Core::SchemaArgs Args;
+				if (Data != nullptr)
+				{
+					VirtualMachine* VM = VirtualMachine::Get();
+					if (VM != nullptr)
+					{
+						int TypeId = VM->GetTypeIdByDecl("schema@");
+						Args.reserve(Data->Size());
+
+						for (auto It = Data->Begin(); It != Data->End(); ++It)
+						{
+							Core::Schema* Value = nullptr;
+							if (It.GetValue(&Value, TypeId))
+							{
+								Args[It.GetKey()] = Value;
+								Value->AddRef();
+							}
+						}
+					}
+				}
+
+				return Base->TemplateQuery(Command, &Args, Options, Session);
+			}
+			Array* LDBClusterWalCheckpoint(Network::LDB::Cluster* Base, Network::LDB::CheckpointMode Mode, const Core::String& Database)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_LDBCHECKPOINT ">@");
+				return Array::Compose(Type.GetTypeInfo(), Base->WalCheckpoint(Mode, Database));
+			}
+
+			Core::String LDBUtilsInlineQuery(Core::Schema* Where, Dictionary* WhitelistData, const Core::String& Default)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				int TypeId = VM ? VM->GetTypeIdByDecl("string") : -1;
+				Core::UnorderedMap<Core::String, Core::String> Whitelist = Dictionary::Decompose<Core::String>(TypeId, WhitelistData);
+				return Network::LDB::Utils::InlineQuery(Where, Whitelist, Default);
+			}
+
+			void LDBDriverSetQueryLog(Network::LDB::Driver* Base, asIScriptFunction* Callback)
+			{
+				FunctionDelegate Delegate(Callback);
+				if (Delegate.IsValid())
+				{
+					Base->SetQueryLog([Delegate](const Core::String& Data) mutable
+					{
+						Delegate([Data](ImmediateContext* Context)
+						{
+							Context->SetArgObject(0, (void*)&Data);
+						});
+					});
+				}
+				else
+					Base->SetQueryLog(nullptr);
+			}
+			Core::String LDBDriverEmplace(Network::LDB::Driver* Base, const Core::String& SQL, Array* Data)
+			{
+				Core::Vector<Core::Schema*> Args = Array::Decompose<Core::Schema*>(Data);
+				for (auto& Item : Args)
+					Item->AddRef();
+
+				return Base->Emplace(SQL, &Args);
+			}
+			Core::String LDBDriverGetQuery(Network::LDB::Driver* Base, const Core::String& SQL, Dictionary* Data)
+			{
+				Core::SchemaArgs Args;
+				if (Data != nullptr)
+				{
+					VirtualMachine* VM = VirtualMachine::Get();
+					if (VM != nullptr)
+					{
+						int TypeId = VM->GetTypeIdByDecl("schema@");
+						Args.reserve(Data->Size());
+
+						for (auto It = Data->Begin(); It != Data->End(); ++It)
+						{
+							Core::Schema* Value = nullptr;
+							if (It.GetValue(&Value, TypeId))
+							{
+								Args[It.GetKey()] = Value;
+								Value->AddRef();
+							}
+						}
+					}
+				}
+
+				return Base->GetQuery(SQL, &Args);
+			}
+			Array* LDBDriverGetQueries(Network::LDB::Driver* Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose(Type.GetTypeInfo(), Base->GetQueries());
+			}
+
 			Network::PDB::Response& PDBResponseCopy(Network::PDB::Response& Base, Network::PDB::Response&& Other)
 			{
 				if (&Base == &Other)
@@ -15434,6 +15600,173 @@ namespace Mavi
 				return false;
 #endif
 			}
+			bool Registry::ImportSQLite(VirtualMachine* VM)
+			{
+#ifdef VI_BINDINGS
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				VI_TYPEREF(Cursor, "ldb::cursor");
+				VI_TYPEREF(Connection, "uptr");
+
+				VM->BeginNamespace("ldb");
+				auto VIsolation = VM->SetEnum("isolation");
+				VIsolation->SetValue("deferred", (int)Network::LDB::Isolation::Deferred);
+				VIsolation->SetValue("immediate", (int)Network::LDB::Isolation::Immediate);
+				VIsolation->SetValue("exclusive", (int)Network::LDB::Isolation::Exclusive);
+				VIsolation->SetValue("default_value", (int)Network::LDB::Isolation::Default);
+
+				auto VQueryOp = VM->SetEnum("query_op");
+				VQueryOp->SetValue("delete_args", (int)Network::LDB::QueryOp::DeleteArgs);
+				VQueryOp->SetValue("reuse_args", (int)Network::LDB::QueryOp::ReuseArgs);
+				VQueryOp->SetValue("transaction_start", (int)Network::LDB::QueryOp::TransactionStart);
+				VQueryOp->SetValue("transaction_end", (int)Network::LDB::QueryOp::TransactionEnd);
+
+				auto VCheckpointMode = VM->SetEnum("checkpoint_mode");
+				VCheckpointMode->SetValue("passive", (int)Network::LDB::CheckpointMode::Passive);
+				VCheckpointMode->SetValue("full", (int)Network::LDB::CheckpointMode::Full);
+				VCheckpointMode->SetValue("restart", (int)Network::LDB::CheckpointMode::Restart);
+				VCheckpointMode->SetValue("truncate", (int)Network::LDB::CheckpointMode::Truncate);
+
+				auto VCheckpoint = VM->SetStructTrivial<Network::LDB::Checkpoint>("Checkpoint");
+				VCheckpoint->SetProperty<Network::LDB::Checkpoint>("string database", &Network::LDB::Checkpoint::Database);
+				VCheckpoint->SetProperty<Network::LDB::Checkpoint>("uint32 frames_size", &Network::LDB::Checkpoint::FramesSize);
+				VCheckpoint->SetProperty<Network::LDB::Checkpoint>("uint32 frames_count", &Network::LDB::Checkpoint::FramesCount);
+				VCheckpoint->SetProperty<Network::LDB::Checkpoint>("int32 status", &Network::LDB::Checkpoint::Status);
+				VCheckpoint->SetConstructor<Network::LDB::Checkpoint>("void f()");
+
+				auto VRow = VM->SetStructTrivial<Network::LDB::Row>("row");
+				auto VColumn = VM->SetStructTrivial<Network::LDB::Column>("column");
+				VColumn->SetConstructor<Network::LDB::Column, const Network::LDB::Column&>("void f(const column&in)");
+				VColumn->SetMethod("string get_name() const", &Network::LDB::Column::GetName);
+				VColumn->SetMethod("variant get() const", &Network::LDB::Column::Get);
+				VColumn->SetMethod("schema@ get_inline() const", &Network::LDB::Column::GetInline);
+				VColumn->SetMethod("usize index() const", &Network::LDB::Column::Index);
+				VColumn->SetMethod("usize size() const", &Network::LDB::Column::Size);
+				VColumn->SetMethod("row get_row() const", &Network::LDB::Column::GetRow);
+				VColumn->SetMethod("bool nullable() const", &Network::LDB::Column::Nullable);
+				VColumn->SetMethod("bool exists() const", &Network::LDB::Column::Exists);
+
+				auto VResponse = VM->SetStruct<Network::LDB::Response>("response");
+				VRow->SetConstructor<Network::LDB::Row, const Network::LDB::Row&>("void f(const row&in)");
+				VRow->SetMethod("schema@ get_object() const", &Network::LDB::Row::GetObject);
+				VRow->SetMethod("schema@ get_array() const", &Network::LDB::Row::GetArray);
+				VRow->SetMethod("usize index() const", &Network::LDB::Row::Index);
+				VRow->SetMethod("usize size() const", &Network::LDB::Row::Size);
+				VRow->SetMethod<Network::LDB::Row, Network::LDB::Column, size_t>("column get_column(usize) const", &Network::LDB::Row::GetColumn);
+				VRow->SetMethod("column get_column(const string&in) const", &Network::LDB::Row::GetColumnByName);
+				VRow->SetMethod("bool exists() const", &Network::LDB::Row::Exists);
+				VRow->SetMethod<Network::LDB::Row, Network::LDB::Column, size_t>("column opIndex(usize)", &Network::LDB::Row::GetColumn);
+				VRow->SetMethod<Network::LDB::Row, Network::LDB::Column, size_t>("column opIndex(usize) const", &Network::LDB::Row::GetColumn);
+
+				VResponse->SetConstructor<Network::LDB::Response>("void f()");
+				VResponse->SetOperatorCopyStatic(&LDBResponseCopy);
+				VResponse->SetDestructor<Network::LDB::Response>("void f()");
+				VResponse->SetMethod<Network::LDB::Response, Network::LDB::Row, size_t>("row opIndex(usize)", &Network::LDB::Response::GetRow);
+				VResponse->SetMethod<Network::LDB::Response, Network::LDB::Row, size_t>("row opIndex(usize) const", &Network::LDB::Response::GetRow);
+				VResponse->SetMethod("schema@ get_array_of_objects() const", &Network::LDB::Response::GetArrayOfObjects);
+				VResponse->SetMethod("schema@ get_array_of_arrays() const", &Network::LDB::Response::GetArrayOfArrays);
+				VResponse->SetMethod("schema@ get_object(usize = 0) const", &Network::LDB::Response::GetObject);
+				VResponse->SetMethod("schema@ get_array(usize = 0) const", &Network::LDB::Response::GetArray);
+				VResponse->SetMethod("string get_status_text() const", &Network::LDB::Response::GetStatusText);
+				VResponse->SetMethod("int32 get_status_code() const", &Network::LDB::Response::GetStatusCode);
+				VResponse->SetMethod("usize affected_rows() const", &Network::LDB::Response::AffectedRows);
+				VResponse->SetMethod("usize last_inserted_row_id() const", &Network::LDB::Response::LastInsertedRowId);
+				VResponse->SetMethod("usize size() const", &Network::LDB::Response::Size);
+				VResponse->SetMethod("row get_row(usize) const", &Network::LDB::Response::GetRow);
+				VResponse->SetMethod("row front() const", &Network::LDB::Response::Front);
+				VResponse->SetMethod("row back() const", &Network::LDB::Response::Back);
+				VResponse->SetMethod("response copy() const", &Network::LDB::Response::Copy);
+				VResponse->SetMethod("bool empty() const", &Network::LDB::Response::Empty);
+				VResponse->SetMethod("bool error() const", &Network::LDB::Response::Error);
+				VResponse->SetMethod("bool error_or_empty() const", &Network::LDB::Response::ErrorOrEmpty);
+				VResponse->SetMethod("bool exists() const", &Network::LDB::Response::Exists);
+
+				auto VCursor = VM->SetStruct<Network::LDB::Cursor>("cursor");
+				VCursor->SetConstructor<Network::LDB::Cursor>("void f()");
+				VCursor->SetOperatorCopyStatic(&LDBCursorCopy);
+				VCursor->SetDestructor<Network::LDB::Cursor>("void f()");
+				VCursor->SetMethod("column opIndex(const string&in)", &Network::LDB::Cursor::GetColumn);
+				VCursor->SetMethod("column opIndex(const string&in) const", &Network::LDB::Cursor::GetColumn);
+				VCursor->SetMethod("bool success() const", &Network::LDB::Cursor::Success);
+				VCursor->SetMethod("bool empty() const", &Network::LDB::Cursor::Empty);
+				VCursor->SetMethod("bool error() const", &Network::LDB::Cursor::Error);
+				VCursor->SetMethod("bool error_or_empty() const", &Network::LDB::Cursor::ErrorOrEmpty);
+				VCursor->SetMethod("usize size() const", &Network::LDB::Cursor::Size);
+				VCursor->SetMethod("usize affected_rows() const", &Network::LDB::Cursor::AffectedRows);
+				VCursor->SetMethod("cursor copy() const", &Network::LDB::Cursor::Copy);
+				VCursor->SetMethodEx("response first() const", &LDBCursorFirst);
+				VCursor->SetMethodEx("response last() const", &LDBCursorLast);
+				VCursor->SetMethodEx("response at(usize) const", &LDBCursorAt);
+				VCursor->SetMethod("uptr@ get_executor() const", &Network::LDB::Cursor::GetExecutor);
+				VCursor->SetMethod("schema@ get_array_of_objects(usize = 0) const", &Network::LDB::Cursor::GetArrayOfObjects);
+				VCursor->SetMethod("schema@ get_array_of_arrays(usize = 0) const", &Network::LDB::Cursor::GetArrayOfArrays);
+				VCursor->SetMethod("schema@ get_object(usize = 0, usize = 0) const", &Network::LDB::Cursor::GetObject);
+				VCursor->SetMethod("schema@ get_array(usize = 0, usize = 0) const", &Network::LDB::Cursor::GetArray);
+
+				auto VCluster = VM->SetClass<Network::LDB::Cluster>("cluster", false);
+				VCluster->SetConstructor<Network::LDB::Cluster>("cluster@ f()");
+				VCluster->SetFunctionDef("variant constant_event(array<variant>@+)");
+				VCluster->SetFunctionDef("variant finalize_event()");
+				VCluster->SetFunctionDef("variant value_event()");
+				VCluster->SetFunctionDef("void step_event(array<variant>@+)");
+				VCluster->SetFunctionDef("void inverse_event(array<variant>@+)");
+				VCluster->SetMethod("void set_wal_autocheckpoint(uint32)", &Network::LDB::Cluster::SetWalAutocheckpoint);
+				VCluster->SetMethod("void set_soft_heap_limit(uint64)", &Network::LDB::Cluster::SetSoftHeapLimit);
+				VCluster->SetMethod("void set_hard_heap_limit(uint64)", &Network::LDB::Cluster::SetHardHeapLimit);
+				VCluster->SetMethod("void set_shared_cache(bool)", &Network::LDB::Cluster::SetSharedCache);
+				VCluster->SetMethod("void set_extensions(bool)", &Network::LDB::Cluster::SetExtensions);
+				VCluster->SetMethod("void overload_function(const string&in, uint8)", &Network::LDB::Cluster::OverloadFunction);
+				VCluster->SetMethodEx("array<checkpoint>@ wal_checkpoint(checkpoint_mode, const string&in = \"\")", &LDBClusterWalCheckpoint);
+				VCluster->SetMethod("usize free_memory_used(usize)", &Network::LDB::Cluster::FreeMemoryUsed);
+				VCluster->SetMethod("usize get_memory_used()", &Network::LDB::Cluster::GetMemoryUsed);
+				VCluster->SetMethod("uptr@ get_idle_connection()", &Network::LDB::Cluster::GetIdleConnection);
+				VCluster->SetMethod("uptr@ get_busy_connection()", &Network::LDB::Cluster::GetBusyConnection);
+				VCluster->SetMethod("uptr@ get_any_connection()", &Network::LDB::Cluster::GetAnyConnection);
+				VCluster->SetMethod("bool is_connected() const", &Network::LDB::Cluster::IsConnected);
+				VCluster->SetMethodEx("void set_function(const string&in, uint8, constant_event@)", &LDBClusterSetFunction);
+				VCluster->SetMethodEx("promise<uptr@>@ tx_begin(isolation)", &VI_PROMISIFY_REF(Network::LDB::Cluster::TxBegin, Connection));
+				VCluster->SetMethodEx("promise<uptr@>@ tx_start(const string&in)", &VI_PROMISIFY_REF(Network::LDB::Cluster::TxStart, Connection));
+				VCluster->SetMethodEx("promise<bool>@ tx_end(const string&in, uptr@)", &VI_PROMISIFY(Network::LDB::Cluster::TxEnd, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ tx_commit(uptr@)", &VI_PROMISIFY(Network::LDB::Cluster::TxCommit, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ tx_rollback(uptr@)", &VI_PROMISIFY(Network::LDB::Cluster::TxRollback, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ connect(const host_address&in, usize = 1)", &VI_PROMISIFY(Network::LDB::Cluster::Connect, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ disconnect()", &VI_PROMISIFY(Network::LDB::Cluster::Disconnect, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ flush()", &VI_PROMISIFY(Network::LDB::Cluster::Flush, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<cursor>@ query(const string&in, usize = 0, uptr@ = null)", &VI_PROMISIFY_REF(Network::LDB::Cluster::Query, Cursor));
+				VCluster->SetMethodEx("promise<cursor>@ emplace_query(const string&in, array<schema@>@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(LDBClusterEmplaceQuery, Cursor));
+				VCluster->SetMethodEx("promise<cursor>@ template_query(const string&in, dictionary@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(LDBClusterTemplateQuery, Cursor));
+
+				auto VDriver = VM->SetClass<Network::LDB::Driver>("driver", false);
+				VDriver->SetFunctionDef("void query_event(const string&in)");
+				VDriver->SetConstructor<Network::LDB::Driver>("driver@ f()");
+				VDriver->SetMethod("void log_query(const string&in)", &Network::LDB::Driver::LogQuery);
+				VDriver->SetMethod("bool add_constant(const string&in, const string&in)", &Network::LDB::Driver::AddConstant);
+				VDriver->SetMethod<Network::LDB::Driver, bool, const Core::String&, const Core::String&>("bool add_query(const string&in, const string&in)", &Network::LDB::Driver::AddQuery);
+				VDriver->SetMethod("bool add_directory(const string&in, const string&in = \"\")", &Network::LDB::Driver::AddDirectory);
+				VDriver->SetMethod("bool remove_constant(const string&in)", &Network::LDB::Driver::RemoveConstant);
+				VDriver->SetMethod("bool remove_query(const string&in)", &Network::LDB::Driver::RemoveQuery);
+				VDriver->SetMethod("bool load_cache_dump(schema@+)", &Network::LDB::Driver::LoadCacheDump);
+				VDriver->SetMethod("schema@ get_cache_dump()", &Network::LDB::Driver::GetCacheDump);
+				VDriver->SetMethodEx("void set_query_log(query_event@)", &LDBDriverSetQueryLog);
+				VDriver->SetMethodEx("string emplace(const string&in, array<schema@>@+)", &LDBDriverEmplace);
+				VDriver->SetMethodEx("string get_query(const string&in, dictionary@+)", &LDBDriverGetQuery);
+				VDriver->SetMethodEx("array<string>@ get_queries()", &LDBDriverGetQueries);
+				VDriver->SetMethodStatic("driver@+ get()", &Network::LDB::Driver::Get);
+
+				VM->EndNamespace();
+				VM->BeginNamespace("ldb::utils");
+				VM->SetFunction("string inline_array(schema@+)", &Network::LDB::Utils::InlineArray);
+				VM->SetFunction("string inline_query(schema@+, dictionary@+, const string&in = \"TRUE\")", &LDBUtilsInlineQuery);
+				VM->SetFunction("string get_char_array(const string&in)", &Network::LDB::Utils::GetCharArray);
+				VM->SetFunction<Core::String(*)(const Core::String&)>("string get_byte_array(const string&in)", &Network::LDB::Utils::GetByteArray);
+				VM->SetFunction("string get_sql(schema@+, bool, bool)", &Network::LDB::Utils::GetSQL);
+				VM->EndNamespace();
+
+				return true;
+#else
+				VI_ASSERT(false, "<sqlite> is not loaded");
+				return false;
+#endif
+			}
 			bool Registry::ImportPostgreSQL(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
@@ -15519,20 +15852,6 @@ namespace Mavi
 				VFieldCode->SetValue("source_line", (int)Network::PDB::FieldCode::Source_Line);
 				VFieldCode->SetValue("source_function", (int)Network::PDB::FieldCode::Source_Function);
 
-				auto VConnectionState = VM->SetEnum("connection_state");
-				VConnectionState->SetValue("ok", (int)Network::PDB::ConnectionState::OK);
-				VConnectionState->SetValue("bad", (int)Network::PDB::ConnectionState::Bad);
-				VConnectionState->SetValue("started", (int)Network::PDB::ConnectionState::Started);
-				VConnectionState->SetValue("made", (int)Network::PDB::ConnectionState::Made);
-				VConnectionState->SetValue("awaiting_response", (int)Network::PDB::ConnectionState::Awaiting_Response);
-				VConnectionState->SetValue("auth_ok", (int)Network::PDB::ConnectionState::Auth_OK);
-				VConnectionState->SetValue("set_env", (int)Network::PDB::ConnectionState::Set_Env);
-				VConnectionState->SetValue("ssl_startup", (int)Network::PDB::ConnectionState::SSL_Startup);
-				VConnectionState->SetValue("needed", (int)Network::PDB::ConnectionState::Needed);
-				VConnectionState->SetValue("check_writable", (int)Network::PDB::ConnectionState::Check_Writable);
-				VConnectionState->SetValue("consume", (int)Network::PDB::ConnectionState::Consume);
-				VConnectionState->SetValue("gss_startup", (int)Network::PDB::ConnectionState::GSS_Startup);
-
 				auto VTransactionState = VM->SetEnum("transaction_state");
 				VTransactionState->SetValue("idle", (int)Network::PDB::TransactionState::Idle);
 				VTransactionState->SetValue("active", (int)Network::PDB::TransactionState::Active);
@@ -15614,9 +15933,6 @@ namespace Mavi
 				auto VRow = VM->SetStructTrivial<Network::PDB::Row>("row");
 				auto VColumn = VM->SetStructTrivial<Network::PDB::Column>("column");
 				VColumn->SetConstructor<Network::PDB::Column, const Network::PDB::Column&>("void f(const column&in)");
-				VColumn->SetMethod("int32 set(const variant& in)", &Network::PDB::Column::Set);
-				VColumn->SetMethod("int32 set_inline(schema@+)", &Network::PDB::Column::SetInline);
-				VColumn->SetMethod<Network::PDB::Column, int, const Core::String&>("int32 set_value_text(const string&in)", &Network::PDB::Column::SetValueText);
 				VColumn->SetMethod("string get_name() const", &Network::PDB::Column::GetName);
 				VColumn->SetMethod("string get_value_text() const", &Network::PDB::Column::GetValueText);
 				VColumn->SetMethod("variant get() const", &Network::PDB::Column::Get);
@@ -15700,6 +16016,7 @@ namespace Mavi
 				VConnection->SetMethod("socket@+ get_stream() const", &Network::PDB::Connection::GetStream);
 				VConnection->SetMethod("request@+ get_current() const", &Network::PDB::Connection::GetCurrent);
 				VConnection->SetMethod("query_state get_state() const", &Network::PDB::Connection::GetState);
+				VConnection->SetMethod("transaction_state get_tx_state() const", &Network::PDB::Connection::GetTxState);
 				VConnection->SetMethod("bool in_session() const", &Network::PDB::Connection::InSession);
 				VConnection->SetMethod("bool busy() const", &Network::PDB::Connection::Busy);
 

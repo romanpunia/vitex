@@ -4,6 +4,7 @@
 #include "core/network.h"
 #include "core/scripting.h"
 #include "engine/gui.h"
+#include "network/ldb.h"
 #include "network/pdb.h"
 #include "network/mdb.h"
 #include <clocale>
@@ -372,6 +373,14 @@ namespace Mavi
 		return false;
 #endif
 	}
+	bool Runtime::HasSQLite() const noexcept
+	{
+#ifdef VI_SQLITE
+		return true;
+#else
+		return false;
+#endif
+	}
 	bool Runtime::HasOpenAL() const noexcept
 	{
 #ifdef VI_OPENAL
@@ -682,8 +691,9 @@ namespace Mavi
 	}
 	void Runtime::CleanupInstances()
 	{
-		Network::MDB::Driver::CleanupInstance();
+		Network::LDB::Driver::CleanupInstance();
 		Network::PDB::Driver::CleanupInstance();
+		Network::MDB::Driver::CleanupInstance();
 		Network::Uplinks::CleanupInstance();
 		Network::Multiplexer::CleanupInstance();
 		Network::TransportLayer::CleanupInstance();

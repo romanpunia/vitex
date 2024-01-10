@@ -7,9 +7,9 @@ namespace Mavi
 	enum
 	{
 		MAJOR_VERSION = 1,
-		MINOR_VERSION = 34,
-		PATCH_VERSION = 80,
-		BUILD_VERSION = 165,
+		MINOR_VERSION = 35,
+		PATCH_VERSION = 82,
+		BUILD_VERSION = 167,
 		VERSION = (MAJOR_VERSION) * 100000000 + (MINOR_VERSION) * 1000000 + (PATCH_VERSION) * 10000 + BUILD_VERSION
 	};
 
@@ -63,6 +63,7 @@ namespace Mavi
 		bool HasAssimp() const noexcept;
 		bool HasMongoDB() const noexcept;
 		bool HasPostgreSQL() const noexcept;
+		bool HasSQLite() const noexcept;
 		bool HasOpenAL() const noexcept;
 		bool HasSDL2() const noexcept;
 		bool HasSIMD() const noexcept;

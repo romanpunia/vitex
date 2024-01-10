@@ -115,7 +115,7 @@ Dependency options
 + **VI_GLEW** will enable GLEW library to bind OpenGL procedures, defaults to true
 + **VI_MONGOC** will enable MongoDB library to allow queries to this database, defaults to true
 + **VI_POSTGRESQL** will enable PostgreSQL library to allow queries to this database, defaults to true
-+ **VI_SQLITE** will enable sqlite library to allow queries to this database, defaults to true
++ **VI_SQLITE** will enable SQLite library to allow queries to this database, defaults to true
 + **VI_OPENAL** will enable OpenAL library to playback audio, defaults to true
 + **VI_OPENGL** will enable OpenGL library to display graphics, defaults to true
 + **VI_OPENSSL** will enable OpenSSL library to activate TLS certs and crypto algorithms, defaults to true

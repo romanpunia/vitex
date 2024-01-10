@@ -15681,7 +15681,7 @@ namespace Mavi
 				VResponse->SetMethod("bool exists() const", &Network::LDB::Response::Exists);
 
 				auto VCursor = VM->SetStruct<Network::LDB::Cursor>("cursor");
-				VCursor->SetConstructor<Network::LDB::Cursor>("void f()");
+				VCursor->SetConstructor<Network::LDB::Cursor, Network::LDB::TConnection*>("void f(uptr@)");
 				VCursor->SetOperatorCopyStatic(&LDBCursorCopy);
 				VCursor->SetDestructor<Network::LDB::Cursor>("void f()");
 				VCursor->SetMethod("column opIndex(const string&in)", &Network::LDB::Cursor::GetColumn);

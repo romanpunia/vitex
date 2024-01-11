@@ -864,169 +864,6 @@ namespace Mavi
 			}
 		}
 
-		namespace Exceptions
-		{
-			ParserException::ParserException(ParserError NewType) : ParserException(NewType, -1, nullptr)
-			{
-			}
-			ParserException::ParserException(ParserError NewType, int NewOffset) : ParserException(NewType, NewOffset, nullptr)
-			{
-			}
-			ParserException::ParserException(ParserError NewType, int NewOffset, const char* NewMessage) : std::exception(), Type(NewType), Offset(NewOffset)
-			{
-				if (!NewMessage || NewMessage[0] == '\0')
-				{ 
-					switch (Type)
-					{
-						case ParserError::NotSupported:
-							Info = "required libraries are not loaded";
-							break;
-						case ParserError::BadVersion:
-							Info = "corrupted JSONB version header";
-							break;
-						case ParserError::BadDictionary:
-							Info = "corrupted JSONB dictionary body";
-							break;
-						case ParserError::BadNameIndex:
-							Info = "invalid JSONB dictionary name index";
-							break;
-						case ParserError::BadName:
-							Info = "invalid JSONB name";
-							break;
-						case ParserError::BadKeyName:
-							Info = "invalid JSONB key name";
-							break;
-						case ParserError::BadKeyType:
-							Info = "invalid JSONB key type";
-							break;
-						case ParserError::BadValue:
-							Info = "invalid JSONB value for specified key";
-							break;
-						case ParserError::BadString:
-							Info = "invalid JSONB value string";
-							break;
-						case ParserError::BadInteger:
-							Info = "invalid JSONB value integer";
-							break;
-						case ParserError::BadDouble:
-							Info = "invalid JSONB value double";
-							break;
-						case ParserError::BadBoolean:
-							Info = "invalid JSONB value boolean";
-							break;
-						case ParserError::XMLOutOfMemory:
-							Info = "XML out of memory";
-							break;
-						case ParserError::XMLInternalError:
-							Info = "XML internal error";
-							break;
-						case ParserError::XMLUnrecognizedTag:
-							Info = "XML unrecognized tag";
-							break;
-						case ParserError::XMLBadPi:
-							Info = "XML bad pi";
-							break;
-						case ParserError::XMLBadComment:
-							Info = "XML bad comment";
-							break;
-						case ParserError::XMLBadCData:
-							Info = "XML bad cdata";
-							break;
-						case ParserError::XMLBadDocType:
-							Info = "XML bad doctype";
-							break;
-						case ParserError::XMLBadPCData:
-							Info = "XML bad pcdata";
-							break;
-						case ParserError::XMLBadStartElement:
-							Info = "XML bad start element";
-							break;
-						case ParserError::XMLBadAttribute:
-							Info = "XML bad attribute";
-							break;
-						case ParserError::XMLBadEndElement:
-							Info = "XML bad end element";
-							break;
-						case ParserError::XMLEndElementMismatch:
-							Info = "XML end element mismatch";
-							break;
-						case ParserError::XMLAppendInvalidRoot:
-							Info = "XML append invalid root";
-							break;
-						case ParserError::XMLNoDocumentElement:
-							Info = "XML no document element";
-							break;
-						case ParserError::JSONDocumentEmpty:
-							Info = "the JSON document is empty";
-							break;
-						case ParserError::JSONDocumentRootNotSingular:
-							Info = "the JSON document root must not follow by other values";
-							break;
-						case ParserError::JSONValueInvalid:
-							Info = "the JSON document contains an invalid value";
-							break;
-						case ParserError::JSONObjectMissName:
-							Info = "missing a name for a JSON object member";
-							break;
-						case ParserError::JSONObjectMissColon:
-							Info = "missing a colon after a name of a JSON object member";
-							break;
-						case ParserError::JSONObjectMissCommaOrCurlyBracket:
-							Info = "missing a comma or '}' after a JSON object member";
-							break;
-						case ParserError::JSONArrayMissCommaOrSquareBracket:
-							Info = "missing a comma or ']' after a JSON array element";
-							break;
-						case ParserError::JSONStringUnicodeEscapeInvalidHex:
-							Info = "incorrect hex digit after \\u escape in a JSON string";
-							break;
-						case ParserError::JSONStringUnicodeSurrogateInvalid:
-							Info = "the surrogate pair in a JSON string is invalid";
-							break;
-						case ParserError::JSONStringEscapeInvalid:
-							Info = "invalid escape character in a JSON string";
-							break;
-						case ParserError::JSONStringMissQuotationMark:
-							Info = "missing a closing quotation mark in a JSON string";
-							break;
-						case ParserError::JSONStringInvalidEncoding:
-							Info = "invalid encoding in a JSON string";
-							break;
-						case ParserError::JSONNumberTooBig:
-							Info = "JSON number too big to be stored in double";
-							break;
-						case ParserError::JSONNumberMissFraction:
-							Info = "missing fraction part in a JSON number";
-							break;
-						case ParserError::JSONNumberMissExponent:
-							Info = "missing exponent in a JSON number";
-							break;
-						case ParserError::JSONTermination:
-							Info = "unexpected end of file while parsing a JSON document";
-							break;
-						case ParserError::JSONUnspecificSyntaxError:
-							Info = "unspecified JSON syntax error";
-							break;
-						default:
-							Info = "(unrecognized condition)";
-							break;
-					}
-				}
-				else
-					Info = NewMessage;
-
-				if (Offset >= 0)
-				{
-					Info += " at offset ";
-					Info += ToString(Offset);
-				}
-			}
-			const char* ParserException::what() const noexcept
-			{
-				return Info.c_str();
-			}
-		}
-
 		typedef moodycamel::BlockingConcurrentQueue<TaskCallback> FastQueue;
 		typedef moodycamel::ConsumerToken ReceiveToken;
 
@@ -1125,6 +962,170 @@ namespace Mavi
 			std::mutex Update;
 			std::atomic<bool> Resync = true;
 		};
+
+		ParserException::ParserException(ParserError NewType) : ParserException(NewType, -1, nullptr)
+		{
+		}
+		ParserException::ParserException(ParserError NewType, int NewOffset) : ParserException(NewType, NewOffset, nullptr)
+		{
+		}
+		ParserException::ParserException(ParserError NewType, int NewOffset, const char* NewMessage) : BasicException(), Type(NewType), Offset(NewOffset)
+		{
+			if (!NewMessage || NewMessage[0] == '\0')
+			{
+				switch (Type)
+				{
+					case ParserError::NotSupported:
+						Info = "required libraries are not loaded";
+						break;
+					case ParserError::BadVersion:
+						Info = "corrupted JSONB version header";
+						break;
+					case ParserError::BadDictionary:
+						Info = "corrupted JSONB dictionary body";
+						break;
+					case ParserError::BadNameIndex:
+						Info = "invalid JSONB dictionary name index";
+						break;
+					case ParserError::BadName:
+						Info = "invalid JSONB name";
+						break;
+					case ParserError::BadKeyName:
+						Info = "invalid JSONB key name";
+						break;
+					case ParserError::BadKeyType:
+						Info = "invalid JSONB key type";
+						break;
+					case ParserError::BadValue:
+						Info = "invalid JSONB value for specified key";
+						break;
+					case ParserError::BadString:
+						Info = "invalid JSONB value string";
+						break;
+					case ParserError::BadInteger:
+						Info = "invalid JSONB value integer";
+						break;
+					case ParserError::BadDouble:
+						Info = "invalid JSONB value double";
+						break;
+					case ParserError::BadBoolean:
+						Info = "invalid JSONB value boolean";
+						break;
+					case ParserError::XMLOutOfMemory:
+						Info = "XML out of memory";
+						break;
+					case ParserError::XMLInternalError:
+						Info = "XML internal error";
+						break;
+					case ParserError::XMLUnrecognizedTag:
+						Info = "XML unrecognized tag";
+						break;
+					case ParserError::XMLBadPi:
+						Info = "XML bad pi";
+						break;
+					case ParserError::XMLBadComment:
+						Info = "XML bad comment";
+						break;
+					case ParserError::XMLBadCData:
+						Info = "XML bad cdata";
+						break;
+					case ParserError::XMLBadDocType:
+						Info = "XML bad doctype";
+						break;
+					case ParserError::XMLBadPCData:
+						Info = "XML bad pcdata";
+						break;
+					case ParserError::XMLBadStartElement:
+						Info = "XML bad start element";
+						break;
+					case ParserError::XMLBadAttribute:
+						Info = "XML bad attribute";
+						break;
+					case ParserError::XMLBadEndElement:
+						Info = "XML bad end element";
+						break;
+					case ParserError::XMLEndElementMismatch:
+						Info = "XML end element mismatch";
+						break;
+					case ParserError::XMLAppendInvalidRoot:
+						Info = "XML append invalid root";
+						break;
+					case ParserError::XMLNoDocumentElement:
+						Info = "XML no document element";
+						break;
+					case ParserError::JSONDocumentEmpty:
+						Info = "the JSON document is empty";
+						break;
+					case ParserError::JSONDocumentRootNotSingular:
+						Info = "the JSON document root must not follow by other values";
+						break;
+					case ParserError::JSONValueInvalid:
+						Info = "the JSON document contains an invalid value";
+						break;
+					case ParserError::JSONObjectMissName:
+						Info = "missing a name for a JSON object member";
+						break;
+					case ParserError::JSONObjectMissColon:
+						Info = "missing a colon after a name of a JSON object member";
+						break;
+					case ParserError::JSONObjectMissCommaOrCurlyBracket:
+						Info = "missing a comma or '}' after a JSON object member";
+						break;
+					case ParserError::JSONArrayMissCommaOrSquareBracket:
+						Info = "missing a comma or ']' after a JSON array element";
+						break;
+					case ParserError::JSONStringUnicodeEscapeInvalidHex:
+						Info = "incorrect hex digit after \\u escape in a JSON string";
+						break;
+					case ParserError::JSONStringUnicodeSurrogateInvalid:
+						Info = "the surrogate pair in a JSON string is invalid";
+						break;
+					case ParserError::JSONStringEscapeInvalid:
+						Info = "invalid escape character in a JSON string";
+						break;
+					case ParserError::JSONStringMissQuotationMark:
+						Info = "missing a closing quotation mark in a JSON string";
+						break;
+					case ParserError::JSONStringInvalidEncoding:
+						Info = "invalid encoding in a JSON string";
+						break;
+					case ParserError::JSONNumberTooBig:
+						Info = "JSON number too big to be stored in double";
+						break;
+					case ParserError::JSONNumberMissFraction:
+						Info = "missing fraction part in a JSON number";
+						break;
+					case ParserError::JSONNumberMissExponent:
+						Info = "missing exponent in a JSON number";
+						break;
+					case ParserError::JSONTermination:
+						Info = "unexpected end of file while parsing a JSON document";
+						break;
+					case ParserError::JSONUnspecificSyntaxError:
+						Info = "unspecified JSON syntax error";
+						break;
+					default:
+						Info = "(unrecognized condition)";
+						break;
+				}
+			}
+			else
+				Info = NewMessage;
+
+			if (Offset >= 0)
+			{
+				Info += " at offset ";
+				Info += ToString(Offset);
+			}
+		}
+		const char* ParserException::type() const noexcept
+		{
+			return "parser_error";
+		}
+		const char* ParserException::what() const noexcept
+		{
+			return Info.c_str();
+		}
 
 		MemoryContext::MemoryContext() : Source("?.cpp"), Function("?"), TypeName("void"), Line(0)
 		{
@@ -11887,7 +11888,7 @@ namespace Mavi
 #ifdef VI_PUGIXML
 			VI_ASSERT(Buffer != nullptr, "buffer should not be null");
 			if (!Size)
-				return Exceptions::ParserException(ParserError::XMLNoDocumentElement, 0, "empty XML buffer");
+				return ParserException(ParserError::XMLNoDocumentElement, 0, "empty XML buffer");
 
 			pugi::xml_document Data;
 			pugi::xml_parse_result Status = Data.load_buffer(Buffer, Size);
@@ -11896,35 +11897,35 @@ namespace Mavi
 				switch (Status.status)
 				{
 					case pugi::status_out_of_memory:
-						return Exceptions::ParserException(ParserError::XMLOutOfMemory, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLOutOfMemory, (int)Status.offset, Status.description());
 					case pugi::status_internal_error:
-						return Exceptions::ParserException(ParserError::XMLInternalError, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLInternalError, (int)Status.offset, Status.description());
 					case pugi::status_unrecognized_tag:
-						return Exceptions::ParserException(ParserError::XMLUnrecognizedTag, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLUnrecognizedTag, (int)Status.offset, Status.description());
 					case pugi::status_bad_pi:
-						return Exceptions::ParserException(ParserError::XMLBadPi, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadPi, (int)Status.offset, Status.description());
 					case pugi::status_bad_comment:
-						return Exceptions::ParserException(ParserError::XMLBadComment, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadComment, (int)Status.offset, Status.description());
 					case pugi::status_bad_cdata:
-						return Exceptions::ParserException(ParserError::XMLBadCData, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadCData, (int)Status.offset, Status.description());
 					case pugi::status_bad_doctype:
-						return Exceptions::ParserException(ParserError::XMLBadDocType, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadDocType, (int)Status.offset, Status.description());
 					case pugi::status_bad_pcdata:
-						return Exceptions::ParserException(ParserError::XMLBadPCData, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadPCData, (int)Status.offset, Status.description());
 					case pugi::status_bad_start_element:
-						return Exceptions::ParserException(ParserError::XMLBadStartElement, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadStartElement, (int)Status.offset, Status.description());
 					case pugi::status_bad_attribute:
-						return Exceptions::ParserException(ParserError::XMLBadAttribute, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadAttribute, (int)Status.offset, Status.description());
 					case pugi::status_bad_end_element:
-						return Exceptions::ParserException(ParserError::XMLBadEndElement, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadEndElement, (int)Status.offset, Status.description());
 					case pugi::status_end_element_mismatch:
-						return Exceptions::ParserException(ParserError::XMLEndElementMismatch, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLEndElementMismatch, (int)Status.offset, Status.description());
 					case pugi::status_append_invalid_root:
-						return Exceptions::ParserException(ParserError::XMLAppendInvalidRoot, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLAppendInvalidRoot, (int)Status.offset, Status.description());
 					case pugi::status_no_document_element:
-						return Exceptions::ParserException(ParserError::XMLNoDocumentElement, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLNoDocumentElement, (int)Status.offset, Status.description());
 					default:
-						return Exceptions::ParserException(ParserError::XMLInternalError, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLInternalError, (int)Status.offset, Status.description());
 				}
 			}
 
@@ -11933,7 +11934,7 @@ namespace Mavi
 			ProcessConvertionFromXML((void*)&Main, Result);
 			return Result;
 #else
-			return Exceptions::ParserException(ParserError::NotSupported, 0, "no capabilities to parse XML");
+			return ParserException(ParserError::NotSupported, 0, "no capabilities to parse XML");
 #endif
 		}
 		ExpectsParser<Schema*> Schema::ConvertFromJSON(const char* Buffer, size_t Size)
@@ -11941,7 +11942,7 @@ namespace Mavi
 #ifdef VI_RAPIDJSON
 			VI_ASSERT(Buffer != nullptr, "buffer should not be null");
 			if (!Size)
-				return Exceptions::ParserException(ParserError::JSONDocumentEmpty, 0);
+				return ParserException(ParserError::JSONDocumentEmpty, 0);
 
 			rapidjson::Document Base;
 			Base.Parse<rapidjson::kParseNumbersAsStringsFlag>(Buffer, Size);
@@ -11953,41 +11954,41 @@ namespace Mavi
 				switch (Base.GetParseError())
 				{
 					case rapidjson::kParseErrorDocumentEmpty:
-						return Exceptions::ParserException(ParserError::JSONDocumentEmpty, Offset);
+						return ParserException(ParserError::JSONDocumentEmpty, Offset);
 					case rapidjson::kParseErrorDocumentRootNotSingular:
-						return Exceptions::ParserException(ParserError::JSONDocumentRootNotSingular, Offset);
+						return ParserException(ParserError::JSONDocumentRootNotSingular, Offset);
 					case rapidjson::kParseErrorValueInvalid:
-						return Exceptions::ParserException(ParserError::JSONValueInvalid, Offset);
+						return ParserException(ParserError::JSONValueInvalid, Offset);
 					case rapidjson::kParseErrorObjectMissName:
-						return Exceptions::ParserException(ParserError::JSONObjectMissName, Offset);
+						return ParserException(ParserError::JSONObjectMissName, Offset);
 					case rapidjson::kParseErrorObjectMissColon:
-						return Exceptions::ParserException(ParserError::JSONObjectMissColon, Offset);
+						return ParserException(ParserError::JSONObjectMissColon, Offset);
 					case rapidjson::kParseErrorObjectMissCommaOrCurlyBracket:
-						return Exceptions::ParserException(ParserError::JSONObjectMissCommaOrCurlyBracket, Offset);
+						return ParserException(ParserError::JSONObjectMissCommaOrCurlyBracket, Offset);
 					case rapidjson::kParseErrorArrayMissCommaOrSquareBracket:
-						return Exceptions::ParserException(ParserError::JSONArrayMissCommaOrSquareBracket, Offset);
+						return ParserException(ParserError::JSONArrayMissCommaOrSquareBracket, Offset);
 					case rapidjson::kParseErrorStringUnicodeEscapeInvalidHex:
-						return Exceptions::ParserException(ParserError::JSONStringUnicodeEscapeInvalidHex, Offset);
+						return ParserException(ParserError::JSONStringUnicodeEscapeInvalidHex, Offset);
 					case rapidjson::kParseErrorStringUnicodeSurrogateInvalid:
-						return Exceptions::ParserException(ParserError::JSONStringUnicodeSurrogateInvalid, Offset);
+						return ParserException(ParserError::JSONStringUnicodeSurrogateInvalid, Offset);
 					case rapidjson::kParseErrorStringEscapeInvalid:
-						return Exceptions::ParserException(ParserError::JSONStringEscapeInvalid, Offset);
+						return ParserException(ParserError::JSONStringEscapeInvalid, Offset);
 					case rapidjson::kParseErrorStringMissQuotationMark:
-						return Exceptions::ParserException(ParserError::JSONStringMissQuotationMark, Offset);
+						return ParserException(ParserError::JSONStringMissQuotationMark, Offset);
 					case rapidjson::kParseErrorStringInvalidEncoding:
-						return Exceptions::ParserException(ParserError::JSONStringInvalidEncoding, Offset);
+						return ParserException(ParserError::JSONStringInvalidEncoding, Offset);
 					case rapidjson::kParseErrorNumberTooBig:
-						return Exceptions::ParserException(ParserError::JSONNumberTooBig, Offset);
+						return ParserException(ParserError::JSONNumberTooBig, Offset);
 					case rapidjson::kParseErrorNumberMissFraction:
-						return Exceptions::ParserException(ParserError::JSONNumberMissFraction, Offset);
+						return ParserException(ParserError::JSONNumberMissFraction, Offset);
 					case rapidjson::kParseErrorNumberMissExponent:
-						return Exceptions::ParserException(ParserError::JSONNumberMissExponent, Offset);
+						return ParserException(ParserError::JSONNumberMissExponent, Offset);
 					case rapidjson::kParseErrorTermination:
-						return Exceptions::ParserException(ParserError::JSONTermination, Offset);
+						return ParserException(ParserError::JSONTermination, Offset);
 					case rapidjson::kParseErrorUnspecificSyntaxError:
-						return Exceptions::ParserException(ParserError::JSONUnspecificSyntaxError, Offset);
+						return ParserException(ParserError::JSONUnspecificSyntaxError, Offset);
 					default:
-						return Exceptions::ParserException(ParserError::BadValue);
+						return ParserException(ParserError::BadValue);
 				}
 			}
 
@@ -12027,7 +12028,7 @@ namespace Mavi
 
 			return Result;
 #else
-			return Exceptions::ParserException(ParserError::NotSupported, 0, "no capabilities to parse JSON");
+			return ParserException(ParserError::NotSupported, 0, "no capabilities to parse JSON");
 #endif
 		}
 		ExpectsParser<Schema*> Schema::ConvertFromJSONB(const SchemaReadCallback& Callback)
@@ -12035,15 +12036,15 @@ namespace Mavi
 			VI_ASSERT(Callback, "callback should not be empty");
 			uint64_t Version = 0;
 			if (!Callback((char*)&Version, sizeof(uint64_t)))
-				return Exceptions::ParserException(ParserError::BadVersion);
+				return ParserException(ParserError::BadVersion);
 
 			Version = OS::CPU::ToEndianness<uint64_t>(OS::CPU::Endian::Little, Version);
 			if (Version != JSONB_VERSION)
-				return Exceptions::ParserException(ParserError::BadVersion);
+				return ParserException(ParserError::BadVersion);
 
 			uint32_t Set = 0;
 			if (!Callback((char*)&Set, sizeof(uint32_t)))
-				return Exceptions::ParserException(ParserError::BadDictionary);
+				return ParserException(ParserError::BadDictionary);
 
 			UnorderedMap<size_t, String> Map;
 			Set = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Set);
@@ -12052,11 +12053,11 @@ namespace Mavi
 			{
 				uint32_t Index = 0;
 				if (!Callback((char*)&Index, sizeof(uint32_t)))
-					return Exceptions::ParserException(ParserError::BadNameIndex);
+					return ParserException(ParserError::BadNameIndex);
 
 				uint16_t Size = 0;
 				if (!Callback((char*)&Size, sizeof(uint16_t)))
-					return Exceptions::ParserException(ParserError::BadName);
+					return ParserException(ParserError::BadName);
 
 				Index = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Index);
 				Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
@@ -12067,7 +12068,7 @@ namespace Mavi
 				String Name;
 				Name.resize((size_t)Size);
 				if (!Callback((char*)Name.c_str(), sizeof(char) * Size))
-					return Exceptions::ParserException(ParserError::BadName);
+					return ParserException(ParserError::BadName);
 
 				Map.insert({ Index, Name });
 			}
@@ -12103,11 +12104,11 @@ namespace Mavi
 				return true;
 			});
 		}
-		Expects<void, Exceptions::ParserException> Schema::ProcessConvertionFromJSONB(Schema* Current, UnorderedMap<size_t, String>* Map, const SchemaReadCallback& Callback)
+		Expects<void, ParserException> Schema::ProcessConvertionFromJSONB(Schema* Current, UnorderedMap<size_t, String>* Map, const SchemaReadCallback& Callback)
 		{
 			uint32_t Id = 0;
 			if (!Callback((char*)&Id, sizeof(uint32_t)))
-				return Exceptions::ParserException(ParserError::BadKeyName);
+				return ParserException(ParserError::BadKeyName);
 
 			if (Id != (uint32_t)-1)
 			{
@@ -12117,7 +12118,7 @@ namespace Mavi
 			}
 
 			if (!Callback((char*)&Current->Value.Type, sizeof(VarType)))
-				return Exceptions::ParserException(ParserError::BadKeyType);
+				return ParserException(ParserError::BadKeyType);
 
 			switch (Current->Value.Type)
 			{
@@ -12126,7 +12127,7 @@ namespace Mavi
 				{
 					uint32_t Count = 0;
 					if (!Callback((char*)&Count, sizeof(uint32_t)))
-						return Exceptions::ParserException(ParserError::BadValue);
+						return ParserException(ParserError::BadValue);
 
 					Count = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Count);
 					if (!Count)
@@ -12151,14 +12152,14 @@ namespace Mavi
 				{
 					uint32_t Size = 0;
 					if (!Callback((char*)&Size, sizeof(uint32_t)))
-						return Exceptions::ParserException(ParserError::BadValue);
+						return ParserException(ParserError::BadValue);
 
 					String Buffer;
 					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
 					Buffer.resize((size_t)Size);
 
 					if (!Callback((char*)Buffer.c_str(), (size_t)Size * sizeof(char)))
-						return Exceptions::ParserException(ParserError::BadString);
+						return ParserException(ParserError::BadString);
 
 					Current->Value = Var::String(Buffer);
 					break;
@@ -12167,14 +12168,14 @@ namespace Mavi
 				{
 					uint32_t Size = 0;
 					if (!Callback((char*)&Size, sizeof(uint32_t)))
-						return Exceptions::ParserException(ParserError::BadValue);
+						return ParserException(ParserError::BadValue);
 
 					String Buffer;
 					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
 					Buffer.resize(Size);
 
 					if (!Callback((char*)Buffer.c_str(), (size_t)Size * sizeof(char)))
-						return Exceptions::ParserException(ParserError::BadString);
+						return ParserException(ParserError::BadString);
 
 					Current->Value = Var::Binary(Buffer);
 					break;
@@ -12183,7 +12184,7 @@ namespace Mavi
 				{
 					int64_t Integer = 0;
 					if (!Callback((char*)&Integer, sizeof(int64_t)))
-						return Exceptions::ParserException(ParserError::BadInteger);
+						return ParserException(ParserError::BadInteger);
 
 					Current->Value = Var::Integer(OS::CPU::ToEndianness(OS::CPU::Endian::Little, Integer));
 					break;
@@ -12192,7 +12193,7 @@ namespace Mavi
 				{
 					double Number = 0.0;
 					if (!Callback((char*)&Number, sizeof(double)))
-						return Exceptions::ParserException(ParserError::BadDouble);
+						return ParserException(ParserError::BadDouble);
 
 					Current->Value = Var::Number(OS::CPU::ToEndianness(OS::CPU::Endian::Little, Number));
 					break;
@@ -12201,14 +12202,14 @@ namespace Mavi
 				{
 					uint16_t Size = 0;
 					if (!Callback((char*)&Size, sizeof(uint16_t)))
-						return Exceptions::ParserException(ParserError::BadValue);
+						return ParserException(ParserError::BadValue);
 
 					String Buffer;
 					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
 					Buffer.resize((size_t)Size);
 
 					if (!Callback((char*)Buffer.c_str(), (size_t)Size * sizeof(char)))
-						return Exceptions::ParserException(ParserError::BadString);
+						return ParserException(ParserError::BadString);
 
 					Current->Value = Var::Decimal(Buffer);
 					break;
@@ -12217,7 +12218,7 @@ namespace Mavi
 				{
 					bool Boolean = false;
 					if (!Callback((char*)&Boolean, sizeof(bool)))
-						return Exceptions::ParserException(ParserError::BadBoolean);
+						return ParserException(ParserError::BadBoolean);
 
 					Current->Value = Var::Boolean(Boolean);
 					break;

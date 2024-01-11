@@ -249,6 +249,7 @@ namespace Mavi
 				TConnection* Executor;
 
 			public:
+				Cursor();
 				Cursor(TConnection* Connection);
 				Cursor(const Cursor& Other) = delete;
 				Cursor(Cursor&& Other);
@@ -349,13 +350,15 @@ namespace Mavi
 				TConnection* GetIdleConnection();
 				TConnection* GetBusyConnection();
 				TConnection* GetAnyConnection();
+				const Core::String& GetAddress();
 				bool IsConnected();
 
 			private:
 				TConnection* TryAcquireConnection(SessionId Session, size_t Opts);
 				Core::Promise<TConnection*> AcquireConnection(SessionId Session, size_t Opts);
 				void ReleaseConnection(TConnection* Connection, size_t Opts);
-				bool Consume(TStatement* Statement, Response* Result);
+				bool ConsumeStatement(TConnection* Connection, Cursor* Result, Core::String* Statement);
+				bool ConsumeRow(TStatement* Statement, Response* Result);
 			};
 
 			class VI_OUT_TS Utils

@@ -320,6 +320,9 @@ namespace Mavi
 				return !StatusMessage.empty() || StatusCode != 0;
 			}
 
+			Cursor::Cursor() : Cursor(nullptr)
+			{
+			}
 			Cursor::Cursor(TConnection* Connection) : Executor(Connection)
 			{
 				VI_WATCH(this, "sqlite-result cursor");
@@ -644,7 +647,7 @@ namespace Mavi
 
 					for (size_t i = 0; i < Connections; i++)
 					{
-						VI_DEBUG("[pq] try connect to %s", Source.c_str());
+						VI_DEBUG("[sqlite] try connect to %s", Source.c_str());
 						TConnection* Connection = nullptr;
 						int Code = sqlite3_open_v2(Source.c_str(), &Connection, Flags, nullptr);
 						if (Code != SQLITE_OK)
@@ -722,61 +725,33 @@ namespace Mavi
 				VI_ASSERT(!Command.empty(), "command should not be empty");
 #ifdef VI_SQLITE
 				Driver::Get()->LogQuery(Command);
-				return Core::Coasync<Cursor>([this, Command, Opts, Session]() -> Core::Promise<Cursor>
+				return Core::Coasync<Cursor>([this, Command, Opts, Session]() mutable -> Core::Promise<Cursor>
 				{
-					Core::String Statement = Command;
+					Core::String Statement = std::move(Command);
 					TConnection* Connection = VI_AWAIT(AcquireConnection(Session, Opts));
 					if (!Connection)
 						Coreturn Cursor(nullptr);
 
+					auto Time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
+					VI_DEBUG("[sqlite] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)Connection, Session ? " (transaction)" : "", Command.data(), Command.size() > 64 ? " ..." : "");
+
+					size_t Queries = 0;
 					Cursor Result(Connection);
 					while (!Statement.empty())
 					{
-						VI_MEASURE(Core::Timings::Intensive);
-						const char* TrailingStatement = nullptr;
-						sqlite3_stmt* Target = nullptr;
-						Result.Base.emplace_back();
-
-						auto& Context = Result.Base.back();
-						int Code = sqlite3_prepare_v2(Connection, Statement.c_str(), (int)Statement.size(), &Target, &TrailingStatement);
-						if (TrailingStatement != nullptr)
-							Statement.erase(Statement.begin(), Statement.begin() + (TrailingStatement - Statement.c_str()));
-						else
-							Statement.clear();
-
-						if (Code != SQLITE_OK)
-							goto StopExecution;
-					NextReturnable:
-						Code = sqlite3_step(Target);
-						switch (Code)
+						if (++Queries > 1)
 						{
-							case SQLITE_ROW:
+							if (!VI_AWAIT(Core::Cotask<bool>([this, Connection, &Result, &Statement]()
 							{
-								VI_AWAIT(Core::Cotask<bool>(std::bind(&Cluster::Consume, this, Target, &Context)));
-								goto NextReturnable;
-							}
-							case SQLITE_DONE:
-								goto NextStatement;
-							case SQLITE_ERROR:
-							default:
-								goto StopExecution;
+								return ConsumeStatement(Connection, &Result, &Statement);
+							})))
+								break;
 						}
-					NextStatement:
-						Context.StatusCode = SQLITE_OK;
-						Context.Stats.AffectedRows = sqlite3_changes64(Connection);
-						Context.Stats.LastInsertedRowId = sqlite3_last_insert_rowid(Connection);
-						sqlite3_finalize(Target);
-						continue;
-					StopExecution:
-						Context.StatusCode = Code;
-						Context.StatusMessage = sqlite3_errmsg(Connection);
-						sqlite3_logerror(Connection);
-						if (Target != nullptr)
-							sqlite3_finalize(Target);
-						break;
+						else if (!ConsumeStatement(Connection, &Result, &Statement))
+							break;
 					}
 
-					VI_DEBUG("[sqlite] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)Connection, Session ? " (transaction)" : "", Command.data(), Command.size() > 64 ? " ..." : "");
+					VI_DEBUG("[sqlite] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Connection, (uint64_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - Time).count());
 					ReleaseConnection(Connection, Opts);
 					Coreturn Result;
 				});
@@ -879,12 +854,61 @@ namespace Mavi
 					return *Busy.begin();
 				return nullptr;
 			}
+			const Core::String& Cluster::GetAddress()
+			{
+				return Source;
+			}
 			bool Cluster::IsConnected()
 			{
 				Core::UMutex<std::mutex> Unique(Update);
 				return !Idle.empty() || !Busy.empty();
 			}
-			bool Cluster::Consume(TStatement* Target, Response* Context)
+			bool Cluster::ConsumeStatement(TConnection* Connection, Cursor* Result, Core::String* Statement)
+			{
+				VI_MEASURE(Core::Timings::Intensive);
+				const char* TrailingStatement = nullptr;
+				sqlite3_stmt* Target = nullptr;
+				Result->Base.emplace_back();
+
+				auto& Context = Result->Base.back();
+				int Code = sqlite3_prepare_v2(Connection, Statement->c_str(), (int)Statement->size(), &Target, &TrailingStatement);
+				if (TrailingStatement != nullptr)
+					Statement->erase(Statement->begin(), Statement->begin() + (TrailingStatement - Statement->c_str()));
+				else
+					Statement->clear();
+
+				if (Code != SQLITE_OK)
+					goto StopExecution;
+			NextReturnable:
+				Code = sqlite3_step(Target);
+				switch (Code)
+				{
+					case SQLITE_ROW:
+					{
+						ConsumeRow(Target, &Context);
+						goto NextReturnable;
+					}
+					case SQLITE_DONE:
+						goto NextStatement;
+					case SQLITE_ERROR:
+					default:
+						goto StopExecution;
+				}
+			NextStatement:
+				Context.StatusCode = SQLITE_OK;
+				Context.Stats.AffectedRows = sqlite3_changes64(Connection);
+				Context.Stats.LastInsertedRowId = sqlite3_last_insert_rowid(Connection);
+				sqlite3_finalize(Target);
+				return true;
+			StopExecution:
+				Context.StatusCode = Code;
+				Context.StatusMessage = sqlite3_errmsg(Connection);
+				sqlite3_logerror(Connection);
+				if (Target != nullptr)
+					sqlite3_finalize(Target);
+				return false;
+			}
+			bool Cluster::ConsumeRow(TStatement* Target, Response* Context)
 			{
 #ifdef VI_SQLITE
 				int Columns = sqlite3_column_count(Target);
@@ -1185,10 +1209,10 @@ namespace Mavi
 				switch (Result.GetType())
 				{
 					case Core::VarType::String:
-						sqlite3_result_text64(Context, Result.GetString(), (uint64_t)Result.Size(), nullptr, SQLITE_UTF8);
+						sqlite3_result_text64(Context, Result.GetString(), (uint64_t)Result.Size(), SQLITE_TRANSIENT, SQLITE_UTF8);
 						break;
 					case Core::VarType::Binary:
-						sqlite3_result_blob64(Context, Result.GetString(), (uint64_t)Result.Size(), nullptr);
+						sqlite3_result_blob64(Context, Result.GetString(), (uint64_t)Result.Size(), SQLITE_TRANSIENT);
 						break;
 					case Core::VarType::Integer:
 						sqlite3_result_int64(Context, Result.GetInteger());
@@ -1199,7 +1223,7 @@ namespace Mavi
 					case Core::VarType::Decimal:
 					{
 						auto Numeric = Result.GetBlob();
-						sqlite3_result_text64(Context, Numeric.c_str(), (uint64_t)Numeric.size(), nullptr, SQLITE_UTF8);
+						sqlite3_result_text64(Context, Numeric.c_str(), (uint64_t)Numeric.size(), SQLITE_TRANSIENT, SQLITE_UTF8);
 						break;
 					}
 					case Core::VarType::Boolean:

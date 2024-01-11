@@ -211,8 +211,8 @@ namespace Mavi
 				static Exception::Pointer TranslateThrow(const std::exception& Error);
 				static Exception::Pointer TranslateThrow(const std::error_code& Error);
 				static Exception::Pointer TranslateThrow(const std::error_condition& Error);
+				static Exception::Pointer TranslateThrow(const Core::BasicException& Error);
 				static Exception::Pointer TranslateThrow(const Core::String& Error);
-				static Exception::Pointer TranslateThrow(const Core::Exceptions::ParserException& Error);
 				static Exception::Pointer TranslateThrow(const VirtualError& Error);
 
 			public:
@@ -952,7 +952,7 @@ namespace Mavi
 						{
 							Future->Context->EnableDeferredExceptions();
 							Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((Base->*F)(Data...)));
-							Future->Context->EnableDeferredExceptions();
+							Future->Context->DisableDeferredExceptions();
 						}
 
 						return Future;
@@ -980,7 +980,7 @@ namespace Mavi
 						{
 							Future->Context->EnableDeferredExceptions();
 							Promise::WatchAndYieldIf<R>(Future, TypeId, ((Base->*F)(Data...)));
-							Future->Context->EnableDeferredExceptions();
+							Future->Context->DisableDeferredExceptions();
 						}
 
 						return Future;
@@ -1012,7 +1012,7 @@ namespace Mavi
 						{
 							Future->Context->EnableDeferredExceptions();
 							Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((*F)(Data...)));
-							Future->Context->EnableDeferredExceptions();
+							Future->Context->DisableDeferredExceptions();
 						}
 
 						return Future;
@@ -1040,7 +1040,7 @@ namespace Mavi
 						{
 							Future->Context->EnableDeferredExceptions();
 							Promise::WatchAndYieldIf<R>(Future, TypeId, ((*F)(Data...)));
-							Future->Context->EnableDeferredExceptions();
+							Future->Context->DisableDeferredExceptions();
 						}
 
 						return Future;

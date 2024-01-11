@@ -8410,6 +8410,7 @@ namespace Mavi
 			Engine->AddSystemAddon("network", { "string", "array", "dictionary", "promise" }, Bindings::Registry::ImportNetwork);
 			Engine->AddSystemAddon("http", { "schema", "fs", "promise", "regex", "network" }, Bindings::Registry::ImportHTTP);
 			Engine->AddSystemAddon("smtp", { "promise", "network" }, Bindings::Registry::ImportSMTP);
+			Engine->AddSystemAddon("sqlite", { "network", "schema" }, Bindings::Registry::ImportSQLite);
 			Engine->AddSystemAddon("postgresql", { "network", "schema" }, Bindings::Registry::ImportPostgreSQL);
 			Engine->AddSystemAddon("mongodb", { "network", "schema" }, Bindings::Registry::ImportMongoDB);
 			Engine->AddSystemAddon("gui-control", { "vectors", "schema", "array" }, Bindings::Registry::ImportUiControl);

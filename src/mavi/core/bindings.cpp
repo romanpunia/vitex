@@ -19,7 +19,6 @@
 #define EXCEPTIONCAT_SYSTEM "system_error"
 #define EXCEPTIONCAT_GENERIC "generic_error"
 #define EXCEPTIONCAT_VM "vm_error"
-#define EXCEPTIONCAT_PARSER "parser_error"
 #define EXCEPTIONCAT_RANGE "range_error"
 #define EXCEPTIONCAT_ALLOCATION "allocation_error"
 #define EXCEPTIONCAT_TEMPLATE "template_error"
@@ -556,9 +555,9 @@ namespace Mavi
 			{
 				return Exception::Pointer(EXCEPTIONCAT_SYSTEM, Error);
 			}
-			Exception::Pointer ExpectsWrapper::TranslateThrow(const Core::Exceptions::ParserException& Error)
+			Exception::Pointer ExpectsWrapper::TranslateThrow(const Core::BasicException& Error)
 			{
-				return Exception::Pointer(EXCEPTIONCAT_PARSER, Error.what());
+				return Exception::Pointer(Error.type(), Error.what());
 			}
 			Exception::Pointer ExpectsWrapper::TranslateThrow(const VirtualError& Error)
 			{
@@ -2860,52 +2859,6 @@ namespace Mavi
 					VirtualMachine* Engine = Info.GetVM();
 					auto SubType = Engine->GetTypeInfoById(TypeId);
 					size_t Flags = SubType.Flags();
-
-					if ((Flags & (size_t)ObjectBehaviours::VALUE) && !(Flags & (size_t)ObjectBehaviours::POD))
-					{
-						bool Found = false;
-						for (size_t i = 0; i < SubType.GetBehaviourCount(); i++)
-						{
-							Behaviours Properties;
-							Function Func = SubType.GetBehaviourByIndex(i, &Properties);
-							if (Properties != Behaviours::CONSTRUCT)
-								continue;
-
-							if (Func.GetArgsCount() == 0)
-							{
-								Found = true;
-								break;
-							}
-						}
-
-						if (!Found)
-						{
-							Engine->WriteMessage(TYPENAME_PROMISE, 0, 0, LogCategory::ERR, "The subtype has no default constructor");
-							return false;
-						}
-					}
-					else if ((Flags & (size_t)ObjectBehaviours::REF))
-					{
-						bool Found = false;
-						if (!Engine->GetProperty(Features::DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE))
-						{
-							for (size_t i = 0; i < SubType.GetFactoriesCount(); i++)
-							{
-								Function Func = SubType.GetFactoryByIndex(i);
-								if (Func.GetArgsCount() == 0)
-								{
-									Found = true;
-									break;
-								}
-							}
-						}
-
-						if (!Found)
-						{
-							Engine->WriteMessage(TYPENAME_PROMISE, 0, 0, LogCategory::ERR, "The subtype has no default factory");
-							return false;
-						}
-					}
 
 					if (!(Flags & (size_t)ObjectBehaviours::GC))
 						DontGarbageCollect = true;
@@ -9271,6 +9224,91 @@ namespace Mavi
 				return Base;
 			}
 
+			class LDBAggregate final : public Network::LDB::Aggregate
+			{
+			public:
+				FunctionDelegate StepDelegate = FunctionDelegate(nullptr);
+				FunctionDelegate FinalizeDelegate = FunctionDelegate(nullptr);
+
+			public:
+				virtual ~LDBAggregate() = default;
+				void Step(const Core::VariantList& Args) override
+				{
+					StepDelegate.Context->ExecuteSubcall(StepDelegate.Callable(), [&Args](ImmediateContext* Context)
+					{
+						TypeInfo Type = Context->GetVM()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
+						Array* Data = Array::Compose<Core::Variant>(Type, Args);
+						Context->SetArgObject(0, Data);
+						VI_RELEASE(Data);
+					});
+				}
+				Core::Variant Finalize() override
+				{
+					Core::Variant Result = Core::Var::Undefined();
+					FinalizeDelegate.Context->ExecuteSubcall(FinalizeDelegate.Callable(), nullptr, [&Result](ImmediateContext* Context) mutable
+					{
+						Core::Variant* Target = Context->GetReturnObject<Core::Variant>();
+						if (Target != nullptr)
+							Result = std::move(*Target);
+					});
+					return Result;
+				}
+			};
+
+			class LDBWindow final : public Network::LDB::Window
+			{
+			public:
+				FunctionDelegate StepDelegate = FunctionDelegate(nullptr);
+				FunctionDelegate InverseDelegate = FunctionDelegate(nullptr);
+				FunctionDelegate ValueDelegate = FunctionDelegate(nullptr);
+				FunctionDelegate FinalizeDelegate = FunctionDelegate(nullptr);
+
+			public:
+				virtual ~LDBWindow() = default;
+				void Step(const Core::VariantList& Args) override
+				{
+					StepDelegate.Context->ExecuteSubcall(StepDelegate.Callable(), [&Args](ImmediateContext* Context)
+					{
+						TypeInfo Type = Context->GetVM()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
+						Array* Data = Array::Compose<Core::Variant>(Type, Args);
+						Context->SetArgObject(0, Data);
+						VI_RELEASE(Data);
+					});
+				}
+				void Inverse(const Core::VariantList& Args) override
+				{
+					InverseDelegate.Context->ExecuteSubcall(InverseDelegate.Callable(), [&Args](ImmediateContext* Context)
+					{
+						TypeInfo Type = Context->GetVM()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
+						Array* Data = Array::Compose<Core::Variant>(Type, Args);
+						Context->SetArgObject(0, Data);
+						VI_RELEASE(Data);
+					});
+				}
+				Core::Variant Value() override
+				{
+					Core::Variant Result = Core::Var::Undefined();
+					ValueDelegate.Context->ExecuteSubcall(ValueDelegate.Callable(), nullptr, [&Result](ImmediateContext* Context) mutable
+					{
+						Core::Variant* Target = Context->GetReturnObject<Core::Variant>();
+						if (Target != nullptr)
+							Result = std::move(*Target);
+					});
+					return Result;
+				}
+				Core::Variant Finalize() override
+				{
+					Core::Variant Result = Core::Var::Undefined();
+					FinalizeDelegate.Context->ExecuteSubcall(FinalizeDelegate.Callable(), nullptr, [&Result](ImmediateContext* Context) mutable
+					{
+						Core::Variant* Target = Context->GetReturnObject<Core::Variant>();
+						if (Target != nullptr)
+							Result = std::move(*Target);
+					});
+					return Result;
+				}
+			};
+
 			void LDBClusterSetFunction(Network::LDB::Cluster* Base, const Core::String& Name, uint8_t Args, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
@@ -9280,7 +9318,7 @@ namespace Mavi
 				Base->SetFunction(Name, Args, [Delegate](const Core::VariantList& Args) mutable -> Core::Variant
 				{
 					Core::Variant Result = Core::Var::Undefined();
-					Delegate([Args](ImmediateContext* Context)
+					Delegate.Context->ExecuteSubcall(Delegate.Callable(), [&Args](ImmediateContext* Context)
 					{
 						TypeInfo Type = Context->GetVM()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
 						Array* Data = Array::Compose<Core::Variant>(Type, Args);
@@ -9291,9 +9329,37 @@ namespace Mavi
 						Core::Variant* Target = Context->GetReturnObject<Core::Variant>();
 						if (Target != nullptr)
 							Result = std::move(*Target);
-					}).Wait();
+					});
 					return Result;
 				});
+			}
+			void LDBClusterSetAggregateFunction(Network::LDB::Cluster* Base, const Core::String& Name, uint8_t Args, asIScriptFunction* StepCallback, asIScriptFunction* FinalizeCallback)
+			{
+				FunctionDelegate StepDelegate(StepCallback);
+				FunctionDelegate FinalizeDelegate(FinalizeCallback);
+				if (!StepDelegate.IsValid() || !FinalizeDelegate.IsValid())
+					return;
+
+				LDBAggregate* Aggregate = new LDBAggregate();
+				Aggregate->StepDelegate = std::move(StepDelegate);
+				Aggregate->FinalizeDelegate = std::move(FinalizeDelegate);
+				Base->SetAggregateFunction(Name, Args, Aggregate);
+			}
+			void LDBClusterSetWindowFunction(Network::LDB::Cluster* Base, const Core::String& Name, uint8_t Args, asIScriptFunction* StepCallback, asIScriptFunction* InverseCallback, asIScriptFunction* ValueCallback, asIScriptFunction* FinalizeCallback)
+			{
+				FunctionDelegate StepDelegate(StepCallback);
+				FunctionDelegate InverseDelegate(InverseCallback);
+				FunctionDelegate ValueDelegate(ValueCallback);
+				FunctionDelegate FinalizeDelegate(FinalizeCallback);
+				if (!StepDelegate.IsValid() || !InverseDelegate.IsValid() || !ValueDelegate.IsValid() || !FinalizeDelegate.IsValid())
+					return;
+
+				LDBWindow* Window = new LDBWindow();
+				Window->StepDelegate = std::move(StepDelegate);
+				Window->InverseDelegate = std::move(InverseDelegate);
+				Window->ValueDelegate = std::move(ValueDelegate);
+				Window->FinalizeDelegate = std::move(FinalizeDelegate);
+				Base->SetWindowFunction(Name, Args, Window);
 			}
 			Core::Promise<Network::LDB::Cursor> LDBClusterEmplaceQuery(Network::LDB::Cluster* Base, const Core::String& Command, Array* Data, size_t Options, Network::LDB::SessionId Session)
 			{
@@ -15626,7 +15692,7 @@ namespace Mavi
 				VCheckpointMode->SetValue("restart", (int)Network::LDB::CheckpointMode::Restart);
 				VCheckpointMode->SetValue("truncate", (int)Network::LDB::CheckpointMode::Truncate);
 
-				auto VCheckpoint = VM->SetStructTrivial<Network::LDB::Checkpoint>("Checkpoint");
+				auto VCheckpoint = VM->SetStructTrivial<Network::LDB::Checkpoint>("checkpoint");
 				VCheckpoint->SetProperty<Network::LDB::Checkpoint>("string database", &Network::LDB::Checkpoint::Database);
 				VCheckpoint->SetProperty<Network::LDB::Checkpoint>("uint32 frames_size", &Network::LDB::Checkpoint::FramesSize);
 				VCheckpoint->SetProperty<Network::LDB::Checkpoint>("uint32 frames_count", &Network::LDB::Checkpoint::FramesCount);
@@ -15681,7 +15747,7 @@ namespace Mavi
 				VResponse->SetMethod("bool exists() const", &Network::LDB::Response::Exists);
 
 				auto VCursor = VM->SetStruct<Network::LDB::Cursor>("cursor");
-				VCursor->SetConstructor<Network::LDB::Cursor, Network::LDB::TConnection*>("void f(uptr@)");
+				VCursor->SetConstructor<Network::LDB::Cursor>("void f()");
 				VCursor->SetOperatorCopyStatic(&LDBCursorCopy);
 				VCursor->SetDestructor<Network::LDB::Cursor>("void f()");
 				VCursor->SetMethod("column opIndex(const string&in)", &Network::LDB::Cursor::GetColumn);
@@ -15721,19 +15787,22 @@ namespace Mavi
 				VCluster->SetMethod("uptr@ get_idle_connection()", &Network::LDB::Cluster::GetIdleConnection);
 				VCluster->SetMethod("uptr@ get_busy_connection()", &Network::LDB::Cluster::GetBusyConnection);
 				VCluster->SetMethod("uptr@ get_any_connection()", &Network::LDB::Cluster::GetAnyConnection);
+				VCluster->SetMethod("const string& get_address() const", &Network::LDB::Cluster::GetAddress);
 				VCluster->SetMethod("bool is_connected() const", &Network::LDB::Cluster::IsConnected);
 				VCluster->SetMethodEx("void set_function(const string&in, uint8, constant_event@)", &LDBClusterSetFunction);
+				VCluster->SetMethodEx("void set_aggregate_function(const string&in, uint8, step_event@, finalize_event@)", &LDBClusterSetAggregateFunction);
+				VCluster->SetMethodEx("void set_window_function(const string&in, uint8, step_event@, inverse_event@, value_event@, finalize_event@)", &LDBClusterSetWindowFunction);
 				VCluster->SetMethodEx("promise<uptr@>@ tx_begin(isolation)", &VI_PROMISIFY_REF(Network::LDB::Cluster::TxBegin, Connection));
 				VCluster->SetMethodEx("promise<uptr@>@ tx_start(const string&in)", &VI_PROMISIFY_REF(Network::LDB::Cluster::TxStart, Connection));
 				VCluster->SetMethodEx("promise<bool>@ tx_end(const string&in, uptr@)", &VI_PROMISIFY(Network::LDB::Cluster::TxEnd, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<bool>@ tx_commit(uptr@)", &VI_PROMISIFY(Network::LDB::Cluster::TxCommit, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<bool>@ tx_rollback(uptr@)", &VI_PROMISIFY(Network::LDB::Cluster::TxRollback, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@ connect(const host_address&in, usize = 1)", &VI_PROMISIFY(Network::LDB::Cluster::Connect, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ connect(const string&in, usize = 1)", &VI_PROMISIFY(Network::LDB::Cluster::Connect, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<bool>@ disconnect()", &VI_PROMISIFY(Network::LDB::Cluster::Disconnect, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<bool>@ flush()", &VI_PROMISIFY(Network::LDB::Cluster::Flush, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<cursor>@ query(const string&in, usize = 0, uptr@ = null)", &VI_PROMISIFY_REF(Network::LDB::Cluster::Query, Cursor));
-				VCluster->SetMethodEx("promise<cursor>@ emplace_query(const string&in, array<schema@>@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(LDBClusterEmplaceQuery, Cursor));
-				VCluster->SetMethodEx("promise<cursor>@ template_query(const string&in, dictionary@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(LDBClusterTemplateQuery, Cursor));
+				VCluster->SetMethodEx("promise<cursor>@ emplace_query(const string&in, array<schema@>@+, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(LDBClusterEmplaceQuery, Cursor));
+				VCluster->SetMethodEx("promise<cursor>@ template_query(const string&in, dictionary@+, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(LDBClusterTemplateQuery, Cursor));
 
 				auto VDriver = VM->SetClass<Network::LDB::Driver>("driver", false);
 				VDriver->SetFunctionDef("void query_event(const string&in)");

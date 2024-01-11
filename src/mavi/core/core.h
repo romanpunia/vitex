@@ -744,23 +744,6 @@ namespace Mavi
 			};
 		}
 
-		namespace Exceptions
-		{
-			class ParserException : public std::exception
-			{
-			public:
-				String Info;
-				ParserError Type;
-				int Offset;
-
-			public:
-				VI_OUT ParserException(ParserError NewType);
-				VI_OUT ParserException(ParserError NewType, int NewOffset);
-				VI_OUT ParserException(ParserError NewType, int NewOffset, const char* NewMessage);
-				VI_OUT const char* what() const noexcept override;
-			};
-		}
-
 		class VI_OUT StackTrace
 		{
 		public:
@@ -943,6 +926,30 @@ namespace Mavi
 			{
 				return String(IsError ? "*unknown error value*" : "accessing a none value");
 			}
+		};
+
+		class BasicException : public std::exception
+		{
+		public:
+			BasicException() = default;
+			virtual ~BasicException() = default;
+			virtual const char* type() const noexcept = 0;
+			virtual const char* what() const noexcept = 0;
+		};
+
+		class ParserException : public BasicException
+		{
+		public:
+			String Info;
+			ParserError Type;
+			int Offset;
+
+		public:
+			VI_OUT ParserException(ParserError NewType);
+			VI_OUT ParserException(ParserError NewType, int NewOffset);
+			VI_OUT ParserException(ParserError NewType, int NewOffset, const char* NewMessage);
+			VI_OUT const char* type() const noexcept override;
+			VI_OUT const char* what() const noexcept override;
 		};
 
 		template <typename T>
@@ -1724,7 +1731,7 @@ namespace Mavi
 		using ExpectsIO = Expects<V, std::error_condition>;
 
 		template <typename V>
-		using ExpectsParser = Expects<V, Exceptions::ParserException>;
+		using ExpectsParser = Expects<V, ParserException>;
 
 		struct VI_OUT Coroutine
 		{

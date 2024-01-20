@@ -49,7 +49,7 @@ namespace Mavi
 			}
 			Core::ExpectsPromiseIO<void> Client::Send(RequestFrame&& Root)
 			{
-				if (!Stream || !Stream->IsValid())
+				if (!HasStream())
 					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_file_descriptor));
 
 				Core::ExpectsPromiseIO<void> Result;
@@ -60,7 +60,7 @@ namespace Mavi
 				State.Done = [this, Result](SocketClient*, const Core::Option<std::error_condition>& ErrorCode) mutable
 				{
 					if (!Buffer.empty())
-						VI_DEBUG("[smtp] %i responded\n%.*s", (int)Stream->GetFd(), (int)Buffer.size(), Buffer.data());
+						VI_DEBUG("[smtp] %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Buffer.size(), Buffer.data());
 
 					Buffer.clear();
 					if (ErrorCode)
@@ -145,7 +145,7 @@ namespace Mavi
 			bool Client::ReadResponse(int Code, const ReplyCallback& Callback)
 			{
 				Command.clear();
-				return Stream->ReadUntilAsync("\r\n", [this, Callback, Code](SocketPoll Event, const char* Data, size_t Recv)
+				return Net.Stream->ReadUntilAsync("\r\n", [this, Callback, Code](SocketPoll Event, const char* Data, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -175,7 +175,7 @@ namespace Mavi
 			}
 			bool Client::SendRequest(int Code, const Core::String& Content, const ReplyCallback& Callback)
 			{
-				return Stream->WriteAsync(Content.c_str(), Content.size(), [this, Callback, Code](SocketPoll Event)
+				return Net.Stream->WriteAsync(Content.c_str(), Content.size(), [this, Callback, Code](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						ReadResponse(Code, Callback);
@@ -367,7 +367,7 @@ namespace Mavi
 						struct sockaddr_storage Storage;
 						socket_size_t Length = sizeof(Storage);
 
-						if (!getpeername(Stream->GetFd(), (struct sockaddr*)&Storage, &Length))
+						if (!getpeername(Net.Stream->GetFd(), (struct sockaddr*)&Storage, &Length))
 							return (void)Error("cannot detect peer name");
 
 						char InetAddress[INET_ADDRSTRLEN];
@@ -529,7 +529,7 @@ namespace Mavi
 				for (auto& Item : Request.BCCRecipients)
 					Core::Stringify::Append(Content, "RCPT TO: <%s>\r\n", Item.Address.c_str());
 
-				Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
+				Net.Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -649,7 +649,7 @@ namespace Mavi
 									Core::Stringify::Append(Content, "Content-type: text/plain; charset=\"%s\"\r\n", Request.Charset.c_str());
 
 								Content.append("Content-Transfer-Encoding: 7bit\r\n\r\n");
-								Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
+								Net.Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
 								{
 									if (Packet::IsDone(Event))
 									{
@@ -660,7 +660,7 @@ namespace Mavi
 										if (Request.Messages.empty())
 											Content.assign(" \r\n");
 
-										Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
+										Net.Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
 										{
 											if (Packet::IsDone(Event))
 											{
@@ -694,7 +694,7 @@ namespace Mavi
 						Core::Stringify::Append(Content, "\r\n--%s--\r\n", Boundary.c_str());
 
 					Content.append("\r\n.\r\n");
-					return !Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
+					return !Net.Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 						{
@@ -722,7 +722,7 @@ namespace Mavi
 				Core::Stringify::Append(Content, "Content-Transfer-Encoding: base64\r\n");
 				Core::Stringify::Append(Content, "Content-Disposition: attachment; filename=\"%s\"\r\n\r\n", Hash.c_str());
 
-				return Stream->WriteAsync(Content.c_str(), Content.size(), [this, Name](SocketPoll Event)
+				return Net.Stream->WriteAsync(Content.c_str(), Content.size(), [this, Name](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -756,7 +756,7 @@ namespace Mavi
 					Core::OS::File::Close(AttachmentFile);
 
 				bool SendNext = (!It.Length);
-				return Stream->WriteAsync(Content.c_str(), Content.size(), [this, SendNext](SocketPoll Event)
+				return Net.Stream->WriteAsync(Content.c_str(), Content.size(), [this, SendNext](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{

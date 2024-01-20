@@ -377,24 +377,22 @@ namespace Mavi
 		class VI_OUT_TS Uplinks final : public Core::Singleton<Uplinks>
 		{
 		private:
-			Core::UnorderedMap<Core::String, Core::UnorderedMap<Socket*, Core::TaskId>> Cache;
+			Core::UnorderedMap<Core::String, Core::UnorderedSet<Socket*>> Connections;
 			std::mutex Exclusive;
-			uint64_t Timeout;
-			size_t Size;
 
 		public:
 			Uplinks() noexcept;
-			Uplinks(uint64_t TimeoutMs) noexcept;
 			virtual ~Uplinks() noexcept override;
-			void SetTimeout(uint64_t TimeoutMs);
-			bool PushToCache(RemoteHost* Address, Socket* Target, uint64_t CustomTimeoutMs = 0);
-			Socket* PopFromCache(RemoteHost* Address);
+			void ExpireConnection(RemoteHost* Address, Socket* Target);
+			bool PushConnection(RemoteHost* Address, Socket* Target);
+			Socket* PopConnection(RemoteHost* Address);
 			size_t GetSize();
-			bool IsActive();
 
 		private:
-			void ExpireConnection(const Core::String& Name, Socket* Target);
-			Core::String GetAddressName(RemoteHost* Address);
+			void ExpireConnectionURL(const Core::String& URL, Socket* Target);
+			void ListenConnectionURL(const Core::String& URL, Socket* Target);
+			void UnlistenConnection(Socket* Target);
+			Core::String GetURL(RemoteHost* Address);
 		};
 
 		class VI_OUT CertificateBuilder final : public Core::Reference<CertificateBuilder>
@@ -642,7 +640,7 @@ namespace Mavi
 			struct
 			{
 				int64_t Idle = 0;
-				int64_t Cache = 0;
+				bool Cache = false;
 			} Timeout;
 
 			struct
@@ -659,15 +657,18 @@ namespace Mavi
 				uint32_t VerifyPeers = 100;
 			} Config;
 
-		protected:
-			ssl_ctx_st* Context;
-			Socket* Stream;
+			struct
+			{
+				ssl_ctx_st* Context = nullptr;
+				Socket* Stream = nullptr;
+			} Net;
 
 		public:
 			SocketClient(int64_t RequestTimeout) noexcept;
 			virtual ~SocketClient() noexcept;
 			Core::ExpectsPromiseIO<void> Connect(RemoteHost* Address, bool Async, uint32_t VerifyPeers = 100);
 			Core::ExpectsPromiseIO<void> Disconnect();
+			bool HasStream() const;
 			Socket* GetStream();
 
 		protected:
@@ -676,16 +677,15 @@ namespace Mavi
 			virtual bool OnDisconnect();
 
 		private:
+			bool TryReuseStream(RemoteHost* Address, bool IsAsync);
 			void TryEncrypt(std::function<void(const Core::Option<std::error_condition>&)>&& Callback);
 			void TryConnect(Core::ExpectsIO<SocketAddress*>&& Host, Core::ExpectsPromiseIO<void>& Future);
 			void DispatchConnection(const Core::Option<std::error_condition>& ErrorCode, Core::ExpectsPromiseIO<void>& Future);
 			void DispatchSecureHandshake(const Core::Option<std::error_condition>& ErrorCode, Core::ExpectsPromiseIO<void>& Future);
 			void DispatchHandshake(Core::ExpectsPromiseIO<void>& Future);
-			bool CreateOrLoadStream(RemoteHost* Address, bool IsAsync);
-			bool DestroyOrSaveStream(bool Finalize);
 
 		protected:
-			void SetReusability(uint64_t Timeout);
+			void EnableReusability();
 			void DisableReusability();
 			void Encrypt(std::function<void(const Core::Option<std::error_condition>&)>&& Callback);
 			bool Stage(const Core::String& Name);

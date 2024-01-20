@@ -15070,10 +15070,9 @@ namespace Mavi
 				auto VUplinks = VM->SetClass<Network::Uplinks>("uplinks", false);
 				VUplinks->SetConstructor<Network::Uplinks>("uplinks@ f()");
 				VUplinks->SetConstructor<Network::Uplinks, uint64_t>("uplinks@ f(uint64)");
-				VUplinks->SetMethod("void set_timeout(uint64)", &Network::Uplinks::SetTimeout);
-				VUplinks->SetMethod("bool push_to_cache(remote_host&in, socket@+)", &Network::Uplinks::PushToCache);
-				VUplinks->SetMethod("bool pop_from_cache(remote_host&in)", &Network::Uplinks::PopFromCache);
-				VUplinks->SetMethod("bool is_active() const", &Network::Uplinks::IsActive);
+				VUplinks->SetMethod("void expire_connection(remote_host&in, socket@+)", &Network::Uplinks::ExpireConnection);
+				VUplinks->SetMethod("bool push_connection(remote_host&in, socket@+)", &Network::Uplinks::PushConnection);
+				VUplinks->SetMethod("bool pop_connection(remote_host&in)", &Network::Uplinks::PopConnection);
 				VUplinks->SetMethod("usize size() const", &Network::Uplinks::GetSize);
 				VUplinks->SetMethodStatic("uplinks@+ get()", &Network::Uplinks::Get);
 

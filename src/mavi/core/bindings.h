@@ -173,7 +173,7 @@ namespace Mavi
 			class VI_OUT_TS Exception
 			{
 			public:
-				struct Pointer
+				struct VI_OUT Pointer
 				{
 					Core::String Type;
 					Core::String Text;

@@ -11424,7 +11424,6 @@ namespace Mavi
 				return Push(Var::Null());
 
 			Base->Attach(this);
-
 			Allocate();
 			Nodes->push_back(Base);
 			return Base;
@@ -11439,6 +11438,7 @@ namespace Mavi
 			Base->Parent = nullptr;
 			VI_RELEASE(Base);
 			Nodes->erase(It);
+			Saved = false;
 
 			return this;
 		}
@@ -11455,6 +11455,7 @@ namespace Mavi
 				(*It)->Parent = nullptr;
 				VI_RELEASE(*It);
 				Nodes->erase(It);
+				Saved = false;
 				break;
 			}
 

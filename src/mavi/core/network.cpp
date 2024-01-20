@@ -1629,106 +1629,104 @@ namespace Mavi
 			return Activations;
 		}
 
-		Uplinks::Uplinks() noexcept : Size(0), Timeout(0)
+		Uplinks::Uplinks() noexcept
 		{
-		}
-		Uplinks::Uplinks(uint64_t TimeoutMs) noexcept : Size(0), Timeout(TimeoutMs)
-		{
+			Multiplexer::Get()->Activate();
 		}
 		Uplinks::~Uplinks() noexcept
 		{
 			Core::UMutex<std::mutex> Unique(Exclusive);
-			for (auto& Queue : Cache)
+			for (auto& Targets : Connections)
 			{
-				for (auto& Target : Queue.second)
-				{
-					Socket* Stream = Target.first;
-					Core::Schedule::Get()->ClearTimeout(Target.second);
-					if (Stream->IsValid())
-						Stream->Close(false);
+				for (auto& Stream : Targets.second)
 					VI_RELEASE(Stream);
-				}
 			}
-			Cache.clear();
-			if (Size > 0)
-				Multiplexer::Get()->Deactivate();
+			Connections.clear();
+			Multiplexer::Get()->Deactivate();
 		}
-		void Uplinks::SetTimeout(uint64_t TimeoutMs)
+		void Uplinks::ExpireConnection(RemoteHost* Address, Socket* Target)
 		{
-			VI_TRACE("[uplink] connection pool timeout: %" PRIu64, TimeoutMs);
-			Timeout = TimeoutMs;
+			VI_ASSERT(Address != nullptr, "address should be set");
+			ExpireConnectionURL(GetURL(Address), Target);;
 		}
-		bool Uplinks::PushToCache(RemoteHost* Address, Socket* Stream, uint64_t CustomTimeoutMs)
+		void Uplinks::ExpireConnectionURL(const Core::String& URL, Socket* Stream)
+		{
+			VI_ASSERT(Stream != nullptr, "socket should be set");
+			{
+				Core::UMutex<std::mutex> Unique(Exclusive);
+				auto Targets = Connections.find(URL);
+				if (Targets == Connections.end())
+					return;
+
+				auto It = Targets->second.find(Stream);
+				if (It == Targets->second.end())
+					return;
+
+				Targets->second.erase(It);
+			}
+			UnlistenConnection(Stream);
+			VI_DEBUG("[uplink] expire fd %i of %s", (int)Stream->GetFd(), URL.c_str());
+			VI_RELEASE(Stream);
+		}
+		void Uplinks::ListenConnectionURL(const Core::String& URL, Socket* Target)
+		{
+			Multiplexer::Get()->WhenReadable(Target, [this, URL, Target](SocketPoll Event)
+			{
+				if (Packet::IsError(Event))
+					ExpireConnectionURL(URL, Target);
+				else if (!Packet::IsSkip(Event))
+					ListenConnectionURL(URL, Target);
+			});
+		}
+		void Uplinks::UnlistenConnection(Socket* Target)
+		{
+			Target->ClearEvents(false);
+		}
+		bool Uplinks::PushConnection(RemoteHost* Address, Socket* Stream)
 		{
 			VI_ASSERT(Stream != nullptr, "socket should be set");
 			VI_ASSERT(Address != nullptr, "address should be set");
-			if (!IsActive() || !Stream->IsValid())
+			if (!Stream->IsValid())
 				return false;
 
-			Core::String Name = GetAddressName(Address);
-			VI_DEBUG("[uplink] store fd %i for %s", (int)Stream->GetFd(), Name.c_str());
-
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			Cache[Name][Stream] = Core::Schedule::Get()->SetTimeout(CustomTimeoutMs > 0 ? CustomTimeoutMs : Timeout, std::bind(&Uplinks::ExpireConnection, this, Name, Stream));
-			if (!Size++)
-				Multiplexer::Get()->Activate();
-
+			Core::String URL = GetURL(Address);
+			{
+				Core::UMutex<std::mutex> Unique(Exclusive);
+				Connections[URL].insert(Stream);
+			}
+			Stream->Timeout = 0;
+			ListenConnectionURL(URL, Stream);
+			VI_DEBUG("[uplink] store fd %i of %s", (int)Stream->GetFd(), URL.c_str());
 			return true;
 		}
-		Socket* Uplinks::PopFromCache(RemoteHost* Address)
+		Socket* Uplinks::PopConnection(RemoteHost* Address)
 		{
 			VI_ASSERT(Address != nullptr, "address should be set");
-			if (!IsActive())
-				return nullptr;
+			Core::String URL = GetURL(Address);
+			Socket* Stream = nullptr;
+			{
+				Core::UMutex<std::mutex> Unique(Exclusive);
+				auto Targets = Connections.find(URL);
+				if (Targets == Connections.end() || Targets->second.empty())
+					return nullptr;
 
-			Core::String Name = GetAddressName(Address);
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto Targets = Cache.find(Name);
-			if (Targets == Cache.end() || Targets->second.empty())
-				return nullptr;
-
-			auto It = Targets->second.begin();
-			Core::Schedule::Get()->ClearTimeout(It->second);
-
-			Socket* Stream = It->first;
-			Targets->second.erase(It);
-			if (!--Size)
-				Multiplexer::Get()->Deactivate();
-
-			VI_DEBUG("[uplink] reuse fd %i for %s", (int)Stream->GetFd(), Name.c_str());
+				auto It = Targets->second.begin();
+				Stream = *It;
+				Targets->second.erase(It);
+			}
+			UnlistenConnection(Stream);
+			VI_DEBUG("[uplink] reuse fd %i of %s", (int)Stream->GetFd(), URL.c_str());
 			return Stream;
 		}
 		size_t Uplinks::GetSize()
 		{
+			size_t Size = 0;
+			Core::UMutex<std::mutex> Unique(Exclusive);
+			for (auto& Targets : Connections)
+				Size += Targets.second.size();
 			return Size;
 		}
-		bool Uplinks::IsActive()
-		{
-			return Timeout > 0;
-		}
-		void Uplinks::ExpireConnection(const Core::String& Name, Socket* Stream)
-		{
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto Targets = Cache.find(Name);
-			if (Targets == Cache.end() || Targets->second.empty())
-				return;
-
-			VI_DEBUG("[uplink] expire fd %i for %s", (int)Stream->GetFd(), Name.c_str());
-			Targets->second.erase(Stream);
-			if (!--Size)
-				Multiplexer::Get()->Deactivate();
-
-			if (Stream->IsValid())
-			{
-				Stream->CloseAsync(true, [Stream](const Core::Option<std::error_condition>&) mutable
-				{
-					Core::Schedule::Get()->SetTask([Stream]() { VI_RELEASE(Stream); });
-				});
-			}
-			else
-				VI_RELEASE(Stream);
-		}
-		Core::String Uplinks::GetAddressName(RemoteHost* Address)
+		Core::String Uplinks::GetURL(RemoteHost* Address)
 		{
 			return Address->Hostname + ':' + Core::ToString(Address->Port) + (Address->Secure ? "@secure" : "@default");
 		}
@@ -3509,16 +3507,19 @@ namespace Mavi
 			return Backlog;
 		}
 
-		SocketClient::SocketClient(int64_t RequestTimeout) noexcept : Context(nullptr), Stream(nullptr)
+		SocketClient::SocketClient(int64_t RequestTimeout) noexcept
 		{
 			Timeout.Idle = RequestTimeout;
 		}
 		SocketClient::~SocketClient() noexcept
 		{
-			DestroyOrSaveStream(true);
+			VI_CLEAR(Net.Stream);
 #ifdef VI_OPENSSL
-			TransportLayer::Get()->FreeClientContext(Context);
-			Context = nullptr;
+			if (Net.Context != nullptr)
+			{
+				TransportLayer::Get()->FreeClientContext(Net.Context);
+				Net.Context = nullptr;
+			}
 #endif
 			if (Config.IsAsync)
 				Multiplexer::Get()->Deactivate();
@@ -3530,12 +3531,12 @@ namespace Mavi
 				Multiplexer::Get()->Deactivate();
 
 			Stage("uplink connect");
-			bool IsReused = CreateOrLoadStream(Source, Async);
+			bool IsReusing = TryReuseStream(Source, Async);
 			Config.VerifyPeers = VerifyPeers;
 			Config.IsAsync = Async;
 			State.Hostname = *Source;
 
-			if (IsReused)
+			if (IsReusing)
 			{
 				if (Config.IsAsync)
 					Multiplexer::Get()->Activate();
@@ -3570,24 +3571,21 @@ namespace Mavi
 		}
 		Core::ExpectsPromiseIO<void> SocketClient::Disconnect()
 		{
-			if (!Stream || !Stream->IsValid())
+			if (!HasStream())
 				return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_file_descriptor));
 
-			if (Uplinks::HasInstance() && Timeout.Cache >= 0)
+			Uplinks* Cache = (Uplinks::HasInstance() ? Uplinks::Get() : nullptr);
+			if (Timeout.Cache && Cache != nullptr && Cache->PushConnection(&State.Hostname, Net.Stream))
 			{
-				auto* Cache = Uplinks::Get();
-				if (Cache->IsActive() && Cache->PushToCache(&State.Hostname, Stream, (uint64_t)Timeout.Cache))
-				{
-					Stream = nullptr;
-					Timeout.Cache = 0;
-					return Core::ExpectsPromiseIO<void>(Core::Optional::OK);
-				}
+				Net.Stream = nullptr;
+				Timeout.Cache = false;
+				return Core::ExpectsPromiseIO<void>(Core::Optional::OK);
 			}
 
 			Core::ExpectsPromiseIO<void> Result;
 			State.Done = [this, Result](SocketClient*, const Core::Option<std::error_condition>&) mutable
 			{
-				Stream->CloseAsync(true, [this, Result](const Core::Option<std::error_condition>& ErrorCode) mutable
+				Net.Stream->CloseAsync(true, [this, Result](const Core::Option<std::error_condition>& ErrorCode) mutable
 				{
 					if (ErrorCode)
 						Result.Set(*ErrorCode);
@@ -3595,38 +3593,40 @@ namespace Mavi
 						Result.Set(Core::Optional::OK);
 				});
 			};
-			Timeout.Cache = 0;
+			Timeout.Cache = false;
 			OnDisconnect();
 			return Result;
 		}
 		void SocketClient::Encrypt(std::function<void(const Core::Option<std::error_condition>&)>&& Callback)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
+			if (!HasStream())
+				return Callback(std::make_error_condition(std::errc::bad_file_descriptor));
 #ifdef VI_OPENSSL
 			Stage("ssl handshake");
-			if (Stream->GetDevice() || !Context)
+			if (Net.Stream->GetDevice() || !Net.Context)
 			{
 				Error("client does not use ssl");
 				return Callback(std::make_error_condition(std::errc::bad_file_descriptor));
 			}
 
-			auto Status = Stream->Secure(Context, State.Hostname.Hostname.c_str());
+			auto Status = Net.Stream->Secure(Net.Context, State.Hostname.Hostname.c_str());
 			if (!Status)
 			{
 				Error("cannot establish handshake");
 				return Callback(Status.Error());
 			}
 
-			if (SSL_set_fd(Stream->GetDevice(), (int)Stream->GetFd()) != 1)
+			if (SSL_set_fd(Net.Stream->GetDevice(), (int)Net.Stream->GetFd()) != 1)
 			{
 				Error("cannot set fd");
 				return Callback(std::make_error_condition(std::errc::bad_file_descriptor));
 			}
 
 			if (Config.VerifyPeers > 0)
-				SSL_set_verify(Stream->GetDevice(), SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
+				SSL_set_verify(Net.Stream->GetDevice(), SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
 			else
-				SSL_set_verify(Stream->GetDevice(), SSL_VERIFY_NONE, nullptr);
+				SSL_set_verify(Net.Stream->GetDevice(), SSL_VERIFY_NONE, nullptr);
 
 			TryEncrypt(std::move(Callback));
 #else
@@ -3637,15 +3637,15 @@ namespace Mavi
 		void SocketClient::TryEncrypt(std::function<void(const Core::Option<std::error_condition>&)>&& Callback)
 		{
 #ifdef VI_OPENSSL
-			int ErrorCode = SSL_connect(Stream->GetDevice());
+			int ErrorCode = SSL_connect(Net.Stream->GetDevice());
 			if (ErrorCode != -1)
 				return Callback(Core::Optional::None);
 
-			switch (SSL_get_error(Stream->GetDevice(), ErrorCode))
+			switch (SSL_get_error(Net.Stream->GetDevice(), ErrorCode))
 			{
 				case SSL_ERROR_WANT_READ:
 				{
-					Multiplexer::Get()->WhenReadable(Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::Get()->WhenReadable(Net.Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsDone(Event))
 						{
@@ -3660,7 +3660,7 @@ namespace Mavi
 				case SSL_ERROR_WANT_CONNECT:
 				case SSL_ERROR_WANT_WRITE:
 				{
-					Multiplexer::Get()->WhenWriteable(Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::Get()->WhenWriteable(Net.Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsDone(Event))
 						{
@@ -3691,7 +3691,7 @@ namespace Mavi
 				return Future.Set(Host.Error());
 			}
 
-			auto Status = Stream->Open(*Host);
+			auto Status = Net.Stream->Open(*Host);
 			if (!Status)
 			{
 				Error("cannot open %s:%i", State.Hostname.Hostname.c_str(), (int)State.Hostname.Port);
@@ -3700,7 +3700,7 @@ namespace Mavi
 
 			auto* Context = this;
 			Stage("socket connect");
-			Stream->ConnectAsync(*Host, [Context, Future](const Core::Option<std::error_condition>& ErrorCode) mutable
+			Net.Stream->ConnectAsync(*Host, [Context, Future](const Core::Option<std::error_condition>& ErrorCode) mutable
 			{
 				Context->DispatchConnection(ErrorCode, Future);
 			});
@@ -3717,13 +3717,13 @@ namespace Mavi
 				return DispatchHandshake(Future);
 
 			Stage("socket ssl handshake");
-			if (!Context || (Config.VerifyPeers > 0 && SSL_CTX_get_verify_depth(Context) <= 0))
+			if (!Net.Context || (Config.VerifyPeers > 0 && SSL_CTX_get_verify_depth(Net.Context) <= 0))
 			{
 				auto* Transporter = TransportLayer::Get();
-				if (Context != nullptr)
+				if (Net.Context != nullptr)
 				{
-					Transporter->FreeClientContext(Context);
-					Context = nullptr;
+					Transporter->FreeClientContext(Net.Context);
+					Net.Context = nullptr;
 				}
 
 				auto NewContext = Transporter->CreateClientContext(Config.VerifyPeers);
@@ -3733,7 +3733,7 @@ namespace Mavi
 					return Future.Set(NewContext.Error());
 				}
 				else
-					Context = *NewContext;
+					Net.Context = *NewContext;
 			}
 
 			if (!Config.IsAutoEncrypted)
@@ -3782,50 +3782,31 @@ namespace Mavi
 		{
 			return Report(Core::Optional::None);
 		}
-		bool SocketClient::CreateOrLoadStream(RemoteHost* NewAddress, bool Async)
+		bool SocketClient::TryReuseStream(RemoteHost* NewAddress, bool Async)
 		{
 			Uplinks* Cache = (Uplinks::HasInstance() ? Uplinks::Get() : nullptr);
-			DestroyOrSaveStream(false);
-
-			Socket* NewStream = Cache ? Cache->PopFromCache(NewAddress) : nullptr;
-			if (NewStream != nullptr)
+			Socket* ReusingStream = Cache ? Cache->PopConnection(NewAddress) : nullptr;
+			if (ReusingStream != nullptr)
 			{
-				VI_RELEASE(Stream);
-				Stream = NewStream;
+				VI_RELEASE(Net.Stream);
+				Net.Stream = ReusingStream;
 			}
-			else if (!Stream)
-				Stream = new Socket();
+			else if (!Net.Stream)
+				Net.Stream = new Socket();
 
-			Stream->UserData = this;
-			Stream->Timeout = Timeout.Idle;
-			Stream->SetBlocking(!Async);
-			Stream->SetCloseOnExec();
-			return NewStream != nullptr;
+			Net.Stream->UserData = this;
+			Net.Stream->Timeout = Timeout.Idle;
+			Net.Stream->SetBlocking(!Async);
+			Net.Stream->SetCloseOnExec();
+			return ReusingStream != nullptr;
 		}
-		bool SocketClient::DestroyOrSaveStream(bool Finalize)
+		void SocketClient::EnableReusability()
 		{
-			if (!Stream)
-				return false;
-
-			if (Uplinks::HasInstance() && Uplinks::Get()->PushToCache(&State.Hostname, Stream))
-			{
-				Stream = nullptr;
-				return true;
-			}
-			else if (Stream->IsValid())
-				Stream->Close(false);
-
-			if (Finalize)
-				VI_CLEAR(Stream);
-			return false;
-		}
-		void SocketClient::SetReusability(uint64_t TimeoutMs)
-		{
-			Timeout.Cache = TimeoutMs;
+			Timeout.Cache = true;
 		}
 		void SocketClient::DisableReusability()
 		{
-			Timeout.Cache = -1;
+			Timeout.Cache = false;
 		}
 		bool SocketClient::Stage(const Core::String& Name)
 		{
@@ -3841,8 +3822,10 @@ namespace Mavi
 			va_end(Args);
 
 			VI_ERR("[net] %.*s (latest state: %s)", Size, Buffer, State.Action.empty() ? "request" : State.Action.c_str());
-			Stream->CloseAsync(true, [this](const Core::Option<std::error_condition>&) { Report(std::make_error_condition(std::errc::connection_aborted)); });
-
+			if (HasStream())
+				Net.Stream->CloseAsync(true, [this](const Core::Option<std::error_condition>&) { Report(std::make_error_condition(std::errc::connection_aborted)); });
+			else
+				Report(std::make_error_condition(std::errc::connection_aborted));
 			return false;
 		}
 		bool SocketClient::Report(const Core::Option<std::error_condition>& ErrorCode)
@@ -3853,9 +3836,13 @@ namespace Mavi
 
 			return true;
 		}
+		bool SocketClient::HasStream() const
+		{
+			return Net.Stream != nullptr && Net.Stream->IsValid();
+		}
 		Socket* SocketClient::GetStream()
 		{
-			return Stream;
+			return Net.Stream;
 		}
 	}
 }

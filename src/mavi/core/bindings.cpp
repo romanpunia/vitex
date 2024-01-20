@@ -15069,7 +15069,6 @@ namespace Mavi
 
 				auto VUplinks = VM->SetClass<Network::Uplinks>("uplinks", false);
 				VUplinks->SetConstructor<Network::Uplinks>("uplinks@ f()");
-				VUplinks->SetConstructor<Network::Uplinks, uint64_t>("uplinks@ f(uint64)");
 				VUplinks->SetMethod("void expire_connection(remote_host&in, socket@+)", &Network::Uplinks::ExpireConnection);
 				VUplinks->SetMethod("bool push_connection(remote_host&in, socket@+)", &Network::Uplinks::PushConnection);
 				VUplinks->SetMethod("bool pop_connection(remote_host&in)", &Network::Uplinks::PopConnection);

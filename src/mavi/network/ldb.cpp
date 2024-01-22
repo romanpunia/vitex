@@ -865,6 +865,7 @@ namespace Mavi
 			}
 			bool Cluster::ConsumeStatement(TConnection* Connection, Cursor* Result, Core::String* Statement)
 			{
+#ifdef VI_SQLITE
 				VI_MEASURE(Core::Timings::Intensive);
 				const char* TrailingStatement = nullptr;
 				sqlite3_stmt* Target = nullptr;
@@ -906,6 +907,7 @@ namespace Mavi
 				sqlite3_logerror(Connection);
 				if (Target != nullptr)
 					sqlite3_finalize(Target);
+#endif
 				return false;
 			}
 			bool Cluster::ConsumeRow(TStatement* Target, Response* Context)

@@ -2,138 +2,136 @@
 #include "../graphics/d3d11.h"
 #include "../graphics/ogl.h"
 #include "../graphics/dynamic/shaders.hpp"
+#ifdef VI_SPIRV
+#include <spirv_cross/spirv_glsl.hpp>
+#ifdef VI_MICROSOFT
+#include <spirv_cross/spirv_hlsl.hpp>
+#endif
+#ifdef VI_APPLE
+#include <spirv_cross/spirv_msl.hpp>
+#endif
+#include <SPIRV/GlslangToSpv.h>
+#endif
 #ifdef VI_SDL2
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
+#include <utils/vi_sdl2.h>
 #endif
-#ifdef VI_SPIRV
-#include <spirv_cross/spirv.hpp>
-#include <spirv_cross/spirv_glsl.hpp>
-#include <spirv_cross/spirv_hlsl.hpp>
-#include <spirv_cross/spirv_msl.hpp>
-#include <SPIRV/GlslangToSpv.h>
-#include <SPIRV/disassemble.h>
-#include <SPIRV/GlslangToSpv.h>
-#include <SPIRV/SPVRemapper.h>
-#include <SPIRV/disassemble.h>
-#include <SPIRV/doc.h>
-#include <glslang/Include/ResourceLimits.h>
-#include <glslang/Public/ShaderLang.h>
-#include <glslang/Public/ShaderLang.h>
 
 namespace
 {
+#ifdef VI_SPIRV
 	static TBuiltInResource DriverLimits = { };
 
-    static void PrepareDriverLimits()
-    {
-        static bool IsReady = false;
-        if (IsReady)
-            return;
-        
-        DriverLimits.maxLights = 32;
-        DriverLimits.maxClipPlanes = 6;
-        DriverLimits.maxTextureUnits = 32;
-        DriverLimits.maxTextureCoords = 32;
-        DriverLimits.maxVertexAttribs = 64;
-        DriverLimits.maxVertexUniformComponents = 4096;
-        DriverLimits.maxVaryingFloats = 64;
-        DriverLimits.maxVertexTextureImageUnits = 32;
-        DriverLimits.maxCombinedTextureImageUnits = 80;
-        DriverLimits.maxTextureImageUnits = 32;
-        DriverLimits.maxFragmentUniformComponents = 4096;
-        DriverLimits.maxDrawBuffers = 32;
-        DriverLimits.maxVertexUniformVectors = 128;
-        DriverLimits.maxVaryingVectors = 8;
-        DriverLimits.maxFragmentUniformVectors = 16;
-        DriverLimits.maxVertexOutputVectors = 16;
-        DriverLimits.maxFragmentInputVectors = 15;
-        DriverLimits.minProgramTexelOffset = -8;
-        DriverLimits.maxProgramTexelOffset = 7;
-        DriverLimits.maxClipDistances = 8;
-        DriverLimits.maxComputeWorkGroupCountX = 65535;
-        DriverLimits.maxComputeWorkGroupCountY = 65535;
-        DriverLimits.maxComputeWorkGroupCountZ = 65535;
-        DriverLimits.maxComputeWorkGroupSizeX = 1024;
-        DriverLimits.maxComputeWorkGroupSizeY = 1024;
-        DriverLimits.maxComputeWorkGroupSizeZ = 64;
-        DriverLimits.maxComputeUniformComponents = 1024;
-        DriverLimits.maxComputeTextureImageUnits = 16;
-        DriverLimits.maxComputeImageUniforms = 8;
-        DriverLimits.maxComputeAtomicCounters = 8;
-        DriverLimits.maxComputeAtomicCounterBuffers = 1;
-        DriverLimits.maxVaryingComponents = 60;
-        DriverLimits.maxVertexOutputComponents = 64;
-        DriverLimits.maxGeometryInputComponents = 64;
-        DriverLimits.maxGeometryOutputComponents = 128;
-        DriverLimits.maxFragmentInputComponents = 128;
-        DriverLimits.maxImageUnits = 8;
-        DriverLimits.maxCombinedImageUnitsAndFragmentOutputs = 8;
-        DriverLimits.maxCombinedShaderOutputResources = 8;
-        DriverLimits.maxImageSamples = 0;
-        DriverLimits.maxVertexImageUniforms = 0;
-        DriverLimits.maxTessControlImageUniforms = 0;
-        DriverLimits.maxTessEvaluationImageUniforms = 0;
-        DriverLimits.maxGeometryImageUniforms = 0;
-        DriverLimits.maxFragmentImageUniforms = 8;
-        DriverLimits.maxCombinedImageUniforms = 8;
-        DriverLimits.maxGeometryTextureImageUnits = 16;
-        DriverLimits.maxGeometryOutputVertices = 256;
-        DriverLimits.maxGeometryTotalOutputComponents = 1024;
-        DriverLimits.maxGeometryUniformComponents = 1024;
-        DriverLimits.maxGeometryVaryingComponents = 64;
-        DriverLimits.maxTessControlInputComponents = 128;
-        DriverLimits.maxTessControlOutputComponents = 128;
-        DriverLimits.maxTessControlTextureImageUnits = 16;
-        DriverLimits.maxTessControlUniformComponents = 1024;
-        DriverLimits.maxTessControlTotalOutputComponents = 4096;
-        DriverLimits.maxTessEvaluationInputComponents = 128;
-        DriverLimits.maxTessEvaluationOutputComponents = 128;
-        DriverLimits.maxTessEvaluationTextureImageUnits = 16;
-        DriverLimits.maxTessEvaluationUniformComponents = 1024;
-        DriverLimits.maxTessPatchComponents = 120;
-        DriverLimits.maxPatchVertices = 32;
-        DriverLimits.maxTessGenLevel = 64;
-        DriverLimits.maxViewports = 16;
-        DriverLimits.maxVertexAtomicCounters = 0;
-        DriverLimits.maxTessControlAtomicCounters = 0;
-        DriverLimits.maxTessEvaluationAtomicCounters = 0;
-        DriverLimits.maxGeometryAtomicCounters = 0;
-        DriverLimits.maxFragmentAtomicCounters = 8;
-        DriverLimits.maxCombinedAtomicCounters = 8;
-        DriverLimits.maxAtomicCounterBindings = 1;
-        DriverLimits.maxVertexAtomicCounterBuffers = 0;
-        DriverLimits.maxTessControlAtomicCounterBuffers = 0;
-        DriverLimits.maxTessEvaluationAtomicCounterBuffers = 0;
-        DriverLimits.maxGeometryAtomicCounterBuffers = 0;
-        DriverLimits.maxFragmentAtomicCounterBuffers = 1;
-        DriverLimits.maxCombinedAtomicCounterBuffers = 1;
-        DriverLimits.maxAtomicCounterBufferSize = 16384;
-        DriverLimits.maxTransformFeedbackBuffers = 4;
-        DriverLimits.maxTransformFeedbackInterleavedComponents = 64;
-        DriverLimits.maxCullDistances = 8;
-        DriverLimits.maxCombinedClipAndCullDistances = 8;
-        DriverLimits.maxSamples = 4;
-        DriverLimits.maxMeshOutputVerticesNV = 256;
-        DriverLimits.maxMeshOutputPrimitivesNV = 512;
-        DriverLimits.maxMeshWorkGroupSizeX_NV = 32;
-        DriverLimits.maxMeshWorkGroupSizeY_NV = 1;
-        DriverLimits.maxMeshWorkGroupSizeZ_NV = 1;
-        DriverLimits.maxTaskWorkGroupSizeX_NV = 32;
-        DriverLimits.maxTaskWorkGroupSizeY_NV = 1;
-        DriverLimits.maxTaskWorkGroupSizeZ_NV = 1;
-        DriverLimits.maxMeshViewCountNV = 4;
-        DriverLimits.limits.nonInductiveForLoops = 1;
-        DriverLimits.limits.whileLoops = 1;
-        DriverLimits.limits.doWhileLoops = 1;
-        DriverLimits.limits.generalUniformIndexing = 1;
-        DriverLimits.limits.generalAttributeMatrixVectorIndexing = 1;
-        DriverLimits.limits.generalVaryingIndexing = 1;
-        DriverLimits.limits.generalSamplerIndexing = 1;
-        DriverLimits.limits.generalVariableIndexing = 1;
-        DriverLimits.limits.generalConstantMatrixVectorIndexing = 1;
-        IsReady = true;
-    }
+	static void PrepareDriverLimits()
+	{
+		static bool IsReady = false;
+		if (IsReady)
+			return;
+
+		DriverLimits.maxLights = 32;
+		DriverLimits.maxClipPlanes = 6;
+		DriverLimits.maxTextureUnits = 32;
+		DriverLimits.maxTextureCoords = 32;
+		DriverLimits.maxVertexAttribs = 64;
+		DriverLimits.maxVertexUniformComponents = 4096;
+		DriverLimits.maxVaryingFloats = 64;
+		DriverLimits.maxVertexTextureImageUnits = 32;
+		DriverLimits.maxCombinedTextureImageUnits = 80;
+		DriverLimits.maxTextureImageUnits = 32;
+		DriverLimits.maxFragmentUniformComponents = 4096;
+		DriverLimits.maxDrawBuffers = 32;
+		DriverLimits.maxVertexUniformVectors = 128;
+		DriverLimits.maxVaryingVectors = 8;
+		DriverLimits.maxFragmentUniformVectors = 16;
+		DriverLimits.maxVertexOutputVectors = 16;
+		DriverLimits.maxFragmentInputVectors = 15;
+		DriverLimits.minProgramTexelOffset = -8;
+		DriverLimits.maxProgramTexelOffset = 7;
+		DriverLimits.maxClipDistances = 8;
+		DriverLimits.maxComputeWorkGroupCountX = 65535;
+		DriverLimits.maxComputeWorkGroupCountY = 65535;
+		DriverLimits.maxComputeWorkGroupCountZ = 65535;
+		DriverLimits.maxComputeWorkGroupSizeX = 1024;
+		DriverLimits.maxComputeWorkGroupSizeY = 1024;
+		DriverLimits.maxComputeWorkGroupSizeZ = 64;
+		DriverLimits.maxComputeUniformComponents = 1024;
+		DriverLimits.maxComputeTextureImageUnits = 16;
+		DriverLimits.maxComputeImageUniforms = 8;
+		DriverLimits.maxComputeAtomicCounters = 8;
+		DriverLimits.maxComputeAtomicCounterBuffers = 1;
+		DriverLimits.maxVaryingComponents = 60;
+		DriverLimits.maxVertexOutputComponents = 64;
+		DriverLimits.maxGeometryInputComponents = 64;
+		DriverLimits.maxGeometryOutputComponents = 128;
+		DriverLimits.maxFragmentInputComponents = 128;
+		DriverLimits.maxImageUnits = 8;
+		DriverLimits.maxCombinedImageUnitsAndFragmentOutputs = 8;
+		DriverLimits.maxCombinedShaderOutputResources = 8;
+		DriverLimits.maxImageSamples = 0;
+		DriverLimits.maxVertexImageUniforms = 0;
+		DriverLimits.maxTessControlImageUniforms = 0;
+		DriverLimits.maxTessEvaluationImageUniforms = 0;
+		DriverLimits.maxGeometryImageUniforms = 0;
+		DriverLimits.maxFragmentImageUniforms = 8;
+		DriverLimits.maxCombinedImageUniforms = 8;
+		DriverLimits.maxGeometryTextureImageUnits = 16;
+		DriverLimits.maxGeometryOutputVertices = 256;
+		DriverLimits.maxGeometryTotalOutputComponents = 1024;
+		DriverLimits.maxGeometryUniformComponents = 1024;
+		DriverLimits.maxGeometryVaryingComponents = 64;
+		DriverLimits.maxTessControlInputComponents = 128;
+		DriverLimits.maxTessControlOutputComponents = 128;
+		DriverLimits.maxTessControlTextureImageUnits = 16;
+		DriverLimits.maxTessControlUniformComponents = 1024;
+		DriverLimits.maxTessControlTotalOutputComponents = 4096;
+		DriverLimits.maxTessEvaluationInputComponents = 128;
+		DriverLimits.maxTessEvaluationOutputComponents = 128;
+		DriverLimits.maxTessEvaluationTextureImageUnits = 16;
+		DriverLimits.maxTessEvaluationUniformComponents = 1024;
+		DriverLimits.maxTessPatchComponents = 120;
+		DriverLimits.maxPatchVertices = 32;
+		DriverLimits.maxTessGenLevel = 64;
+		DriverLimits.maxViewports = 16;
+		DriverLimits.maxVertexAtomicCounters = 0;
+		DriverLimits.maxTessControlAtomicCounters = 0;
+		DriverLimits.maxTessEvaluationAtomicCounters = 0;
+		DriverLimits.maxGeometryAtomicCounters = 0;
+		DriverLimits.maxFragmentAtomicCounters = 8;
+		DriverLimits.maxCombinedAtomicCounters = 8;
+		DriverLimits.maxAtomicCounterBindings = 1;
+		DriverLimits.maxVertexAtomicCounterBuffers = 0;
+		DriverLimits.maxTessControlAtomicCounterBuffers = 0;
+		DriverLimits.maxTessEvaluationAtomicCounterBuffers = 0;
+		DriverLimits.maxGeometryAtomicCounterBuffers = 0;
+		DriverLimits.maxFragmentAtomicCounterBuffers = 1;
+		DriverLimits.maxCombinedAtomicCounterBuffers = 1;
+		DriverLimits.maxAtomicCounterBufferSize = 16384;
+		DriverLimits.maxTransformFeedbackBuffers = 4;
+		DriverLimits.maxTransformFeedbackInterleavedComponents = 64;
+		DriverLimits.maxCullDistances = 8;
+		DriverLimits.maxCombinedClipAndCullDistances = 8;
+		DriverLimits.maxSamples = 4;
+		DriverLimits.maxMeshOutputVerticesNV = 256;
+		DriverLimits.maxMeshOutputPrimitivesNV = 512;
+		DriverLimits.maxMeshWorkGroupSizeX_NV = 32;
+		DriverLimits.maxMeshWorkGroupSizeY_NV = 1;
+		DriverLimits.maxMeshWorkGroupSizeZ_NV = 1;
+		DriverLimits.maxTaskWorkGroupSizeX_NV = 32;
+		DriverLimits.maxTaskWorkGroupSizeY_NV = 1;
+		DriverLimits.maxTaskWorkGroupSizeZ_NV = 1;
+		DriverLimits.maxMeshViewCountNV = 4;
+		DriverLimits.limits.nonInductiveForLoops = 1;
+		DriverLimits.limits.whileLoops = 1;
+		DriverLimits.limits.doWhileLoops = 1;
+		DriverLimits.limits.generalUniformIndexing = 1;
+		DriverLimits.limits.generalAttributeMatrixVectorIndexing = 1;
+		DriverLimits.limits.generalVaryingIndexing = 1;
+		DriverLimits.limits.generalSamplerIndexing = 1;
+		DriverLimits.limits.generalVariableIndexing = 1;
+		DriverLimits.limits.generalConstantMatrixVectorIndexing = 1;
+		IsReady = true;
+	}
 	static void PrepareSamplers(spirv_cross::Compiler* Compiler)
 	{
 		for (auto& SamplerId : Compiler->get_combined_image_samplers())
@@ -142,10 +140,7 @@ namespace
 			Compiler->set_decoration(SamplerId.combined_id, spv::DecorationBinding, BindingId);
 		}
 	}
-}
 #endif
-namespace
-{
 	static Mavi::Graphics::RenderBackend GetSupportedBackend(Mavi::Graphics::RenderBackend Type)
 	{
 		if (Type != Mavi::Graphics::RenderBackend::Automatic)
@@ -1325,6 +1320,7 @@ namespace Mavi
 				}
 				else if (To == ShaderLang::HLSL)
 				{
+#ifdef VI_MICROSOFT
 					spirv_cross::CompilerHLSL::Options Options;
 					Options.shader_model = (uint32_t)Model;
 
@@ -1333,9 +1329,14 @@ namespace Mavi
 
 					*HLSL = Core::Copy<Core::String>(Compiler.compile());
 					return true;
+#else
+					VI_ERR("[graphics] cannot transpile spirv binary to shader binary: hlsl is not supported");
+					return false;
+#endif
 				}
 				else if (To == ShaderLang::MSL)
 				{
+#ifdef VI_APPLE
 					spirv_cross::CompilerMSL::Options Options;
 					spirv_cross::CompilerMSL Compiler(Binary);
 					Compiler.set_msl_options(Options);
@@ -1345,6 +1346,10 @@ namespace Mavi
 
 					*HLSL = Core::Copy<Core::String>(Compiler.compile());
 					return true;
+#else
+					VI_ERR("[graphics] cannot transpile spirv binary to shader binary: msl is not supported");
+					return false;
+#endif
 				}
 				else if (To == ShaderLang::SPV)
 				{
@@ -2947,7 +2952,340 @@ namespace Mavi
 #endif
 			return Keys[0];
 		}
-		const char* Activity::GetKeyCodeName(KeyCode Code)
+
+		void* Video::Windows::GetHDC(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_WINDOWS
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return Info.info.win.hdc;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::Windows::GetHINSTANCE(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_WINDOWS
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return Info.info.win.hinstance;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::Windows::GetHWND(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_WINDOWS
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return Info.info.win.window;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::WinRT::GetIInspectable(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_WINRT
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return Info.info.winrt.window;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::X11::GetDisplay(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_X11
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return Info.info.x11.display;
+#else
+			return nullptr;
+#endif
+		}
+		size_t Video::X11::GetWindow(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_X11
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.x11.window;
+#else
+			return 0;
+#endif
+		}
+		void* Video::DirectFB::GetIDirectFB(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_DIRECTFB
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.dfb.dfb;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::DirectFB::GetIDirectFBWindow(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_DIRECTFB
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.dfb.window;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::DirectFB::GetIDirectFBSurface(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_DIRECTFB
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.dfb.surface;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::Cocoa::GetNSWindow(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_COCOA
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.cocoa.window;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::UIKit::GetUIWindow(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_UIKIT
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.uikit.window;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::Wayland::GetWlDisplay(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_UIKIT
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.wl.display;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::Wayland::GetWlSurface(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_UIKIT
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.wl.surface;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::Wayland::GetWlEglWindow(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_UIKIT
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.wl.egl_window;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::Wayland::GetXdgSurface(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_UIKIT
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.wl.xdg_surface;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::Wayland::GetXdgTopLevel(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_UIKIT
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.wl.xdg_toplevel;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::Wayland::GetXdgPopup(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_UIKIT
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.wl.xdg_popup;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::Wayland::GetXdgPositioner(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_UIKIT
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.wl.xdg_positioner;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::Android::GetANativeWindow(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_ANDROID
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.android.window;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::OS2::GetHWND(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_OS2
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.os2.hwnd;
+#else
+			return nullptr;
+#endif
+		}
+		void* Video::OS2::GetHWNDFrame(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef SDL_VIDEO_DRIVER_OS2
+			SDL_SysWMinfo Info;
+			Target->Load(&Info);
+			return (size_t)Info.info.os2.hwndFrame;
+#else
+			return nullptr;
+#endif
+		}
+		bool Video::GLEW::SetSwapInterval(int32_t Interval)
+		{
+#ifdef VI_SDL2
+			return SDL_GL_SetSwapInterval(Interval) == 0;
+#else
+			return false;
+#endif
+		}
+		bool Video::GLEW::SetSwapParameters(int32_t R, int32_t G, int32_t B, int32_t A, bool Debugging)
+		{
+#ifdef VI_SDL2
+			SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+			SDL_GL_SetAttribute(SDL_GL_RED_SIZE, R);
+			SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, G);
+			SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, B);
+			SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, A);
+			SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_NO_ERROR, Debugging ? 0 : 1);
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, Debugging ? SDL_GL_CONTEXT_DEBUG_FLAG : 0);
+			return true;
+#else
+			return false;
+#endif
+		}
+		bool Video::GLEW::SetContext(Activity* Target, void* Context)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef VI_SDL2
+			return SDL_GL_MakeCurrent(Target->GetHandle(), Context) == 0;
+#else
+			return false;
+#endif
+		}
+		bool Video::GLEW::PerformSwap(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef VI_SDL2
+			SDL_GL_SwapWindow(Target->GetHandle());
+			return true;
+#else
+			return false;
+#endif
+		}
+		void* Video::GLEW::CreateContext(Activity* Target)
+		{
+			VI_ASSERT(Target != nullptr, "activity should be set");
+#ifdef VI_SDL2
+			return SDL_GL_CreateContext(Target->GetHandle());
+#else
+			return nullptr;
+#endif
+		}
+		void Video::GLEW::DestroyContext(void* Context)
+		{
+#ifdef VI_SDL2
+			if (Context != nullptr)
+				SDL_GL_DeleteContext(Context);
+#endif
+		}
+		uint32_t Video::GetDisplayCount()
+		{
+#ifdef VI_SDL2
+			int Displays = SDL_GetNumVideoDisplays();
+			return Displays >= 1 ? (uint32_t)(Displays - 1) : 0;
+#else
+			return 0;
+#endif
+		}
+		bool Video::GetDisplayInfo(uint32_t DisplayIndex, DisplayInfo* Info)
+		{
+#ifdef VI_SDL2
+			SDL_DisplayMode Display;
+			if (SDL_GetCurrentDisplayMode(DisplayIndex, &Display) != 0)
+				return false;
+			else if (!Info)
+				return true;
+
+			const char* Name = SDL_GetDisplayName(DisplayIndex);
+			if (Name != nullptr)
+				Info->Name = Name;
+
+			SDL_Rect Bounds;
+			if (!SDL_GetDisplayUsableBounds(DisplayIndex, &Bounds))
+			{
+				Info->X = Bounds.x;
+				Info->Y = Bounds.y;
+				Info->Width = Bounds.w;
+				Info->Height = Bounds.h;
+			}
+
+			SDL_GetDisplayDPI(DisplayIndex, &Info->DiagonalDPI, &Info->HorizontalDPI, &Info->VerticalDPI);
+			Info->Orientation = (OrientationType)SDL_GetDisplayOrientation(DisplayIndex);
+			Info->PixelFormat = (uint32_t)Display.format;
+			Info->PhysicalWidth = (uint32_t)Display.w;
+			Info->PhysicalHeight = (uint32_t)Display.h;
+			Info->RefreshRate = (uint32_t)Display.refresh_rate;
+			return true;
+#else
+			return false;
+#endif
+		}
+		const char* Video::GetKeyCodeAsLiteral(KeyCode Code)
 		{
 			const char* Name;
 			switch (Code)
@@ -3650,7 +3988,7 @@ namespace Mavi
 
 			return Name;
 		}
-		const char* Activity::GetKeyModName(KeyMod Code)
+		const char* Video::GetKeyModAsLiteral(KeyMod Code)
 		{
 			const char* Name;
 			switch (Code)
@@ -3706,6 +4044,14 @@ namespace Mavi
 			}
 
 			return Name;
+		}
+		Core::String Video::GetKeyCodeAsString(KeyCode Code)
+		{
+			return GetKeyCodeAsLiteral(Code);
+		}
+		Core::String Video::GetKeyModAsString(KeyMod Code)
+		{
+			return GetKeyModAsLiteral(Code);
 		}
 	}
 }

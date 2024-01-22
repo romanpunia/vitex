@@ -1,7 +1,4 @@
 #include "d3d11.h"
-#ifdef VI_SDL2
-#include <SDL2/SDL_syswm.h>
-#endif
 #ifdef VI_MICROSOFT
 #define SHADER_VERTEX ".asm.vertex.gz"
 #define SHADER_PIXEL ".asm.pixel.gz"
@@ -547,14 +544,10 @@ namespace Mavi
 				}
 				else
 					SwapChainResource.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-#if defined(VI_MICROSOFT) && defined(VI_SDL2)
+
 				if (Window != nullptr)
-				{
-					SDL_SysWMinfo Info;
-					Window->Load(&Info);
-					SwapChainResource.OutputWindow = (HWND)Info.info.win.window;
-				}
-#endif
+					SwapChainResource.OutputWindow = (HWND)Video::Windows::GetHWND(Window);
+
 				try
 				{
 					HRESULT Code = D3D11CreateDeviceAndSwapChain(nullptr, DriverType, nullptr, CreationFlags, FeatureLevels, ARRAYSIZE(FeatureLevels), D3D11_SDK_VERSION, &SwapChainResource, &SwapChain, &Context, &FeatureLevel, &ImmediateContext);

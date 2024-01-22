@@ -1,0 +1,7 @@
+**/.git
+**/.github
+bin/
+deps/bullet3/data
+deps/bullet3/docs
+deps/bullet3/examples
+var/

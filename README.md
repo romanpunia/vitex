@@ -42,74 +42,18 @@ You may take a look at Wiki pages. There are some practical usage examples that 
 + MacOS Catalina 10.15+ x64 (Xcode)
 
 ## Building
-### Fully
-Clone this repository recursively
-```bash
-git clone https://github.com/romanpunia/mavi --recursive
-```
-Generate and build project files while being inside of repository
-```bash
-# Default
-cmake . -DCMAKE_BUILD_TYPE=Release # -DVI_CXX=14
-# With vcpkg
-cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake # -DVI_CXX=14
-```
-Build project files while being inside of repository
-```bash
-    cmake --build . --config Release
-```
+There are several ways to build this project that are explained here:
+* [Manually performed builds](var/MANUAL.md)
+* [Precomposed docker builds](var/DOCKER.md)
 
-### Partially
-Clone this repository at top level
-```bash
-git clone https://github.com/romanpunia/mavi
-```
-Initialize needed submodules while being inside of repository
-```bash
-# Initialize required submodules
-git submodule update --init ./deps/wepoll
-git submodule update --init ./deps/concurrentqueue
-
-# Initialize needed for your project submodules, for example
-git submodule update --init ./deps/stb
-```
-Generate and build project files while being inside of repository and also disable missing submodules
-```bash
-# Default
-cmake . -DCMAKE_BUILD_TYPE=Release -DVI_ANGELSCRIPT=OFF -DVI_...=OFF # -DVI_CXX=14
-# With vcpkg
-cmake . -DCMAKE_BUILD_TYPE=Release -DVI_ANGELSCRIPT=OFF -DVI_...=OFF -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake # -DVI_CXX=14
-```
-Build project files while being inside of repository
-```bash
-cmake --build . --config Release
-```
-
-### As a dependency
-Add Mavi toolchain. With vcpkg add needed dependencies in vcpkg.json near your CMakeLists.txt:
-```cmake
-include(path/to/mavi/deps/toolchain.cmake)
-# ...
-project(app_name)
-```
-Add Mavi as subproject.
-```cmake
-add_subdirectory(/path/to/mavi mavi)
-link_directories(/path/to/mavi)
-target_include_directories(app_name PRIVATE /path/to/mavi)
-target_link_libraries(app_name PRIVATE mavi)
-```
-Example [CMakeLists.txt](https://github.com/romanpunia/lynx/blob/master/CMakeLists.txt) with Mavi as subproject
-
-## Building options
-General options
+### General configuration
 + **VI_CXX** is the C++ standard (14, 17, 20, 23) which will be used, C++17 and higher will add parallel sort and other optimizations, C++20 and higher will replace stateful coroutines with coroutines TS, defaults to 20
 + **VI_LOGGING** is a logging level (errors, warnings, default, debug, verbose), defaults to "default"
 + **VI_BINDINGS** will enable full script bindings otherwise only essentials will be used to reduce lib size, defaults to true
 + **VI_ALLOCATOR** will enable custom allocator for all used standard containers, making them incompatible with std::allocator based ones but adding opportunity to use pool allocator, defaults to true
 + **VI_SHADERS** to embed shaders from **/src/shaders** to **/src/mavi/graphics/dynamic/shaders.hpp**, defaults to true
 
-Dependency options
+### Dependency configuration
 + **VI_ASSIMP** will enable Assimp library to load 3d models, defaults to true
 + **VI_FREETYPE** will enable FreeType library to display text, defaults to true
 + **VI_GLEW** will enable GLEW library to bind OpenGL procedures, defaults to true

@@ -13759,10 +13759,17 @@ namespace Mavi
 				VDisplayCursor->SetValue("progress", (int)Graphics::DisplayCursor::Progress);
 				VDisplayCursor->SetValue("no", (int)Graphics::DisplayCursor::No);
 
+				auto VOrientationType = VM->SetEnum("orientation_type");
+				VOrientationType->SetValue("unknown", (int)Graphics::OrientationType::Unknown);
+				VOrientationType->SetValue("landscape", (int)Graphics::OrientationType::Landscape);
+				VOrientationType->SetValue("landscape_flipped", (int)Graphics::OrientationType::LandscapeFlipped);
+				VOrientationType->SetValue("portrait", (int)Graphics::OrientationType::Portrait);
+				VOrientationType->SetValue("portrait_flipped", (int)Graphics::OrientationType::PortraitFlipped);
+
 				auto VKeyMap = VM->SetPod<Graphics::KeyMap>("key_map");
 				VKeyMap->SetProperty<Graphics::KeyMap>("key_code key", &Graphics::KeyMap::Key);
-				VKeyMap->SetProperty<Graphics::KeyMap>("key_mod Mod", &Graphics::KeyMap::Mod);
-				VKeyMap->SetProperty<Graphics::KeyMap>("bool Normal", &Graphics::KeyMap::Normal);
+				VKeyMap->SetProperty<Graphics::KeyMap>("key_mod mod", &Graphics::KeyMap::Mod);
+				VKeyMap->SetProperty<Graphics::KeyMap>("bool normal", &Graphics::KeyMap::Normal);
 				VKeyMap->SetConstructor<Graphics::KeyMap>("void f()");
 				VKeyMap->SetConstructor<Graphics::KeyMap, const Graphics::KeyCode&>("void f(const key_code &in)");
 				VKeyMap->SetConstructor<Graphics::KeyMap, const Graphics::KeyMod&>("void f(const key_mod &in)");
@@ -13776,6 +13783,22 @@ namespace Mavi
 				VViewport->SetProperty<Graphics::Viewport>("float min_depth", &Graphics::Viewport::MinDepth);
 				VViewport->SetProperty<Graphics::Viewport>("float max_depth", &Graphics::Viewport::MaxDepth);
 				VViewport->SetConstructor<Graphics::Viewport>("void f()");
+
+				auto VDisplayInfo = VM->SetPod<Graphics::DisplayInfo>("display_info");
+				VDisplayInfo->SetProperty<Graphics::DisplayInfo>("string name", &Graphics::DisplayInfo::Name);
+				VDisplayInfo->SetProperty<Graphics::DisplayInfo>("orientation_type orientation", &Graphics::DisplayInfo::Orientation);
+				VDisplayInfo->SetProperty<Graphics::DisplayInfo>("float diagonal_dpi", &Graphics::DisplayInfo::DiagonalDPI);
+				VDisplayInfo->SetProperty<Graphics::DisplayInfo>("float horizontal_dpi", &Graphics::DisplayInfo::HorizontalDPI);
+				VDisplayInfo->SetProperty<Graphics::DisplayInfo>("float vertical_dpi", &Graphics::DisplayInfo::VerticalDPI);
+				VDisplayInfo->SetProperty<Graphics::DisplayInfo>("uint32 pixel_format", &Graphics::DisplayInfo::PixelFormat);
+				VDisplayInfo->SetProperty<Graphics::DisplayInfo>("uint32 physical_width", &Graphics::DisplayInfo::PhysicalWidth);
+				VDisplayInfo->SetProperty<Graphics::DisplayInfo>("uint32 physical_height", &Graphics::DisplayInfo::PhysicalHeight);
+				VDisplayInfo->SetProperty<Graphics::DisplayInfo>("uint32 refresh_rate", &Graphics::DisplayInfo::RefreshRate);
+				VDisplayInfo->SetProperty<Graphics::DisplayInfo>("int32 width", &Graphics::DisplayInfo::Width);
+				VDisplayInfo->SetProperty<Graphics::DisplayInfo>("int32 height", &Graphics::DisplayInfo::Height);
+				VDisplayInfo->SetProperty<Graphics::DisplayInfo>("int32 x", &Graphics::DisplayInfo::X);
+				VDisplayInfo->SetProperty<Graphics::DisplayInfo>("int32 y", &Graphics::DisplayInfo::Y);
+				VDisplayInfo->SetConstructor<Graphics::DisplayInfo>("void f()");
 
 				auto VActivity = VM->SetClass<Graphics::Activity>("activity", false);
 				auto VAlert = VM->SetStructTrivial<Graphics::Alert>("activity_alert");
@@ -13799,11 +13822,11 @@ namespace Mavi
 
 				auto VActivityDesc = VM->SetPod<Graphics::Activity::Desc>("activity_desc");
 				VActivityDesc->SetProperty<Graphics::Activity::Desc>("string title", &Graphics::Activity::Desc::Title);
+				VActivityDesc->SetProperty<Graphics::Activity::Desc>("uint32 inactive_sleep_ms", &Graphics::Activity::Desc::InactiveSleepMs);
 				VActivityDesc->SetProperty<Graphics::Activity::Desc>("uint32 width", &Graphics::Activity::Desc::Width);
 				VActivityDesc->SetProperty<Graphics::Activity::Desc>("uint32 height", &Graphics::Activity::Desc::Height);
-				VActivityDesc->SetProperty<Graphics::Activity::Desc>("uint32 x", &Graphics::Activity::Desc::X);
-				VActivityDesc->SetProperty<Graphics::Activity::Desc>("uint32 y", &Graphics::Activity::Desc::Y);
-				VActivityDesc->SetProperty<Graphics::Activity::Desc>("uint32 inactive_sleep_ms", &Graphics::Activity::Desc::InactiveSleepMs);
+				VActivityDesc->SetProperty<Graphics::Activity::Desc>("int32 x", &Graphics::Activity::Desc::X);
+				VActivityDesc->SetProperty<Graphics::Activity::Desc>("int32 y", &Graphics::Activity::Desc::Y);
 				VActivityDesc->SetProperty<Graphics::Activity::Desc>("bool fullscreen", &Graphics::Activity::Desc::Fullscreen);
 				VActivityDesc->SetProperty<Graphics::Activity::Desc>("bool hidden", &Graphics::Activity::Desc::Hidden);
 				VActivityDesc->SetProperty<Graphics::Activity::Desc>("bool borderless", &Graphics::Activity::Desc::Borderless);
@@ -13911,6 +13934,13 @@ namespace Mavi
 				VActivity->SetMethod("string get_clipboard_text() const", &Graphics::Activity::GetClipboardText);
 				VActivity->SetMethod("string get_error() const", &Graphics::Activity::GetError);
 				VActivity->SetMethod("activity_desc& get_options()", &Graphics::Activity::GetOptions);
+
+				VM->BeginNamespace("video");
+				VM->SetFunction("uint32 get_display_count()", &Graphics::Video::GetDisplayCount);
+				VM->SetFunction("bool get_display_info(uint32, display_info&out)", &Graphics::Video::GetDisplayInfo);
+				VM->SetFunction("string get_key_code_as_string(key_code)", &Graphics::Video::GetKeyCodeAsString);
+				VM->SetFunction("string get_key_mod_as_string(key_mod)", &Graphics::Video::GetKeyModAsString);
+				VM->EndNamespace();
 
 				return true;
 #else

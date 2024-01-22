@@ -726,6 +726,15 @@ namespace Mavi
 			Matrix
 		};
 
+		enum class OrientationType
+		{
+			Unknown,
+			Landscape,
+			LandscapeFlipped,
+			Portrait,
+			PortraitFlipped
+		};
+
 		inline ColorWriteEnable operator |(ColorWriteEnable A, ColorWriteEnable B)
 		{
 			return static_cast<ColorWriteEnable>(static_cast<size_t>(A) | static_cast<size_t>(B));
@@ -808,6 +817,23 @@ namespace Mavi
 
 		private:
 			void Dispatch();
+		};
+
+		struct VI_OUT DisplayInfo
+		{
+			Core::String Name;
+			OrientationType Orientation;
+			float DiagonalDPI = 1.0f;
+			float HorizontalDPI = 1.0f;
+			float VerticalDPI = 1.0f;
+			uint32_t PixelFormat = 0;
+			uint32_t PhysicalWidth = 0;
+			uint32_t PhysicalHeight = 0;
+			uint32_t RefreshRate = 0;
+			int32_t Width = 0;
+			int32_t Height = 0;
+			int32_t X = 0;
+			int32_t Y = 0;
 		};
 
 		struct VI_OUT KeyMap
@@ -1760,9 +1786,9 @@ namespace Mavi
 			virtual void* GetDevice() const = 0;
 			virtual void* GetContext() const = 0;
 			virtual bool IsValid() const = 0;
+			virtual void SetVSyncMode(VSync Mode);
 			void SetVertexBuffer(ElementBuffer* Resource);
 			void SetShaderCache(bool Enabled);
-			void SetVSyncMode(VSync Mode);
 			void Lockup(RenderThreadCallback&& Callback);
 			void Enqueue(RenderThreadCallback&& Callback);
 			bool Preprocess(Shader::Desc& Subresult);
@@ -1817,10 +1843,10 @@ namespace Mavi
 			struct Desc
 			{
 				Core::String Title = "Activity";
-				unsigned int Width = 0;
-				unsigned int Height = 0;
-				unsigned int X = 0, Y = 0;
-				unsigned int InactiveSleepMs = 66;
+				uint32_t InactiveSleepMs = 66;
+				uint32_t Width = 0;
+				uint32_t Height = 0;
+				int32_t X = 0, Y = 0;
 				bool Fullscreen = false;
 				bool Hidden = true;
 				bool Borderless = false;
@@ -1940,10 +1966,95 @@ namespace Mavi
 		private:
 			void ApplySystemTheme();
 			bool* GetInputState();
+		};
+
+		class VI_OUT_TS Video : public Core::Singletonish
+		{
+		public:
+			class VI_OUT Windows
+			{
+			public:
+				static void* GetHDC(Activity* Target);
+				static void* GetHINSTANCE(Activity* Target);
+				static void* GetHWND(Activity* Target);
+			};
+
+			class VI_OUT WinRT
+			{
+			public:
+				static void* GetIInspectable(Activity* Target);
+			};
+
+			class VI_OUT X11
+			{
+			public:
+				static void* GetDisplay(Activity* Target);
+				static size_t GetWindow(Activity* Target);
+			};
+
+			class VI_OUT DirectFB
+			{
+			public:
+				static void* GetIDirectFB(Activity* Target);
+				static void* GetIDirectFBWindow(Activity* Target);
+				static void* GetIDirectFBSurface(Activity* Target);
+			};
+
+			class VI_OUT Cocoa
+			{
+			public:
+				static void* GetNSWindow(Activity* Target);
+			};
+
+			class VI_OUT UIKit
+			{
+			public:
+				static void* GetUIWindow(Activity* Target);
+			};
+
+			class VI_OUT Wayland
+			{
+			public:
+				static void* GetWlDisplay(Activity* Target);
+				static void* GetWlSurface(Activity* Target);
+				static void* GetWlEglWindow(Activity* Target);
+				static void* GetXdgSurface(Activity* Target);
+				static void* GetXdgTopLevel(Activity* Target);
+				static void* GetXdgPopup(Activity* Target);
+				static void* GetXdgPositioner(Activity* Target);
+			};
+
+			class VI_OUT Android
+			{
+			public:
+				static void* GetANativeWindow(Activity* Target);
+			};
+
+			class VI_OUT OS2
+			{
+			public:
+				static void* GetHWND(Activity* Target);
+				static void* GetHWNDFrame(Activity* Target);
+			};
+
+			class VI_OUT GLEW
+			{
+			public:
+				static bool SetSwapInterval(int32_t Interval);
+				static bool SetSwapParameters(int32_t R, int32_t G, int32_t B, int32_t A, bool Debugging);
+				static bool SetContext(Activity* Target, void* Context);
+				static bool PerformSwap(Activity* Target);
+				static void* CreateContext(Activity* Target);
+				static void DestroyContext(void* Context);
+			};
 
 		public:
-			static const char* GetKeyCodeName(KeyCode Code);
-			static const char* GetKeyModName(KeyMod Code);
+			static uint32_t GetDisplayCount();
+			static bool GetDisplayInfo(uint32_t DisplayIndex, DisplayInfo* Info);
+			static const char* GetKeyCodeAsLiteral(KeyCode Code);
+			static const char* GetKeyModAsLiteral(KeyMod Code);
+			static Core::String GetKeyCodeAsString(KeyCode Code);
+			static Core::String GetKeyModAsString(KeyMod Code);
 		};
 	}
 }

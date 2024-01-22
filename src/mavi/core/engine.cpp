@@ -8,9 +8,6 @@
 #include "../audio/effects.h"
 #include "../audio/filters.h"
 #include "../mavi.h"
-#ifdef VI_SDL2
-#include <SDL2/SDL_syswm.h>
-#endif
 
 namespace Mavi
 {
@@ -6352,13 +6349,14 @@ namespace Mavi
 
 			if (Control.Usage & (size_t)ApplicationSet::ActivitySet)
 			{
-#ifdef VI_SDL2
 				if (!Control.Activity.Width || !Control.Activity.Height)
 				{
-					SDL_DisplayMode Display;
-					SDL_GetCurrentDisplayMode(0, &Display);
-					Control.Activity.Width = (unsigned int)(Display.w / 1.1);
-					Control.Activity.Height = (unsigned int)(Display.h / 1.2);
+					Graphics::DisplayInfo Info;
+					if (Graphics::Video::GetDisplayInfo(0, &Info))
+					{
+						Control.Activity.Width = (uint32_t)(Info.PhysicalWidth / 1.1);
+						Control.Activity.Height = (uint32_t)(Info.PhysicalHeight / 1.2);
+					}
 				}
 				
 				VI_PANIC(Control.Activity.Width > 0 && Control.Activity.Height > 0, "activity width/height is unacceptable and should be higher than zero");
@@ -6447,7 +6445,6 @@ namespace Mavi
 					WindowEvent(NewState, X, Y);
 				};
 				Control.Activity.Maximized = Maximized;
-#endif
 			}
 
 			if (Control.Usage & (size_t)ApplicationSet::AudioSet && !Audio)

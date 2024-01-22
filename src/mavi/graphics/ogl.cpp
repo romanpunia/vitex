@@ -1,7 +1,4 @@
 #include "ogl.h"
-#ifdef VI_SDL2
-#include <SDL2/SDL_syswm.h>
-#endif
 #ifdef VI_GL
 #define SHADER_VERTEX ".text.vertex.gz"
 #define SHADER_PIXEL ".text.pixel.gz"
@@ -555,37 +552,27 @@ namespace Mavi
 
 			OGLDevice::OGLDevice(const Desc& I) : GraphicsDevice(I), ShaderVersion(nullptr), Window(I.Window), Context(nullptr)
 			{
-#ifdef VI_SDL2
 				if (!Window)
 				{
 					VI_ASSERT(VirtualWindow != nullptr, "cannot initialize virtual activity for device");
 					Window = VirtualWindow;
 				}
 
-				int X, Y, Z, W;
-				GetBackBufferSize(I.BufferFormat, &X, &Y, &Z, &W);
-				SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-				SDL_GL_SetAttribute(SDL_GL_RED_SIZE, X);
-				SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, Y);
-				SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, Z);
-				SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, W);
-				SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
-				SDL_GL_SetAttribute(SDL_GL_CONTEXT_NO_ERROR, I.Debug ? 0 : 1);
-				SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, I.Debug ? SDL_GL_CONTEXT_DEBUG_FLAG : 0);
-
+				int R, G, B, A;
+				GetBackBufferSize(I.BufferFormat, &R, &G, &B, &A);
+				VI_PANIC(Video::GLEW::SetSwapParameters(R, G, B, A, I.Debug), "OGL configuration failure");
 				if (!Window->GetHandle())
 				{
 					Window->BuildLayer(Backend);
-					if (!Window->GetHandle())
-						return;
+					VI_PANIC(Window->GetHandle(), "activity creation failure %s", Window->GetError().c_str());
 				}
-
-				Context = SDL_GL_CreateContext(Window->GetHandle());
+				
+				Context = Video::GLEW::CreateContext(Window);
 				VI_PANIC(!Context, "OGL context creation failure %s", Window->GetError().c_str());
 				SetAsCurrentDevice();
-#endif
+
 				static const GLenum ErrorCode = glewInit();
-				VI_PANIC(ErrorCode == GLEW_OK, "OGL extension layer initialization failure reason:%i", (int)ErrorCode);
+				VI_PANIC(ErrorCode == GLEW_OK, "OGL extension layer initialization failure reason: %i", (int)ErrorCode);
 				if (I.Debug)
 				{
 					glEnable(GL_DEBUG_OUTPUT);
@@ -613,31 +600,12 @@ namespace Mavi
 				glDeleteProgram(Immediate.Program);
 				glDeleteVertexArrays(1, &Immediate.VertexArray);
 				glDeleteBuffers(1, &Immediate.VertexBuffer);
-#ifdef VI_SDL2
-				if (Context != nullptr)
-					SDL_GL_DeleteContext(Context);
-#endif
+				Video::GLEW::DestroyContext(Context);
 			}
 			void OGLDevice::SetAsCurrentDevice()
 			{
-#ifdef VI_SDL2
-				SDL_GL_MakeCurrent(Window->GetHandle(), Context);
-				switch (VSyncMode)
-				{
-					case VSync::Off:
-						SDL_GL_SetSwapInterval(0);
-						break;
-					case VSync::Frequency_X1:
-						SDL_GL_SetSwapInterval(1);
-						break;
-					case VSync::Frequency_X2:
-					case VSync::Frequency_X3:
-					case VSync::Frequency_X4:
-						if (SDL_GL_SetSwapInterval(-1) == -1)
-							SDL_GL_SetSwapInterval(1);
-						break;
-				}
-#endif
+				Video::GLEW::SetContext(Window, Context);
+				SetVSyncMode(VSyncMode);
 			}
 			void OGLDevice::SetShaderModel(ShaderModel Model)
 			{
@@ -2471,10 +2439,8 @@ namespace Mavi
 			}
 			bool OGLDevice::Submit()
 			{
-#ifdef VI_SDL2
 				VI_ASSERT(Window != nullptr, "window should be set");
-				SDL_GL_SwapWindow(Window->GetHandle());
-#endif
+				Video::GLEW::PerformSwap(Window);
 				DispatchQueue();
 				return true;
 			}
@@ -3664,6 +3630,25 @@ namespace Mavi
 			bool OGLDevice::IsValid() const
 			{
 				return Context != nullptr;
+			}
+			void OGLDevice::SetVSyncMode(VSync Mode)
+			{
+				GraphicsDevice::SetVSyncMode(Mode);
+				switch (VSyncMode)
+				{
+					case VSync::Off:
+						Video::GLEW::SetSwapInterval(0);
+						break;
+					case VSync::Frequency_X1:
+						Video::GLEW::SetSwapInterval(1);
+						break;
+					case VSync::Frequency_X2:
+					case VSync::Frequency_X3:
+					case VSync::Frequency_X4:
+						if (!Video::GLEW::SetSwapInterval(-1))
+							Video::GLEW::SetSwapInterval(1);
+						break;
+				}
 			}
 			bool OGLDevice::CreateDirectBuffer(size_t Size)
 			{

@@ -62,9 +62,6 @@
 #include <ucontext.h>
 #endif
 #endif
-#ifdef VI_SDL2
-#include <SDL2/SDL.h>
-#endif
 #ifdef VI_ZLIB
 extern "C"
 {
@@ -8406,7 +8403,6 @@ namespace Mavi
 		ExpectsIO<String> OS::Directory::GetModule()
 		{
 			VI_MEASURE(Timings::FileSystem);
-#ifndef VI_SDL2
 #ifdef VI_MICROSOFT
 			char Buffer[MAX_PATH + 1] = { };
 			if (GetModuleFileNameA(nullptr, Buffer, MAX_PATH) == 0)
@@ -8443,16 +8439,6 @@ namespace Mavi
 
 			VI_TRACE("[io] fetch module dir %s", Result.c_str());
 			return Result;
-#else
-			char* Buffer = SDL_GetBasePath();
-			if (!Buffer)
-				return std::make_error_condition(std::errc::io_error);
-
-			String Result = Buffer;
-			SDL_free(Buffer);
-			VI_TRACE("[io] fetch module dir %s", Result.c_str());
-			return Result;
-#endif
 		}
 		ExpectsIO<String> OS::Directory::GetWorking()
 		{

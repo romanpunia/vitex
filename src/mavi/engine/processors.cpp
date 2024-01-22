@@ -11,7 +11,7 @@
 #endif
 #ifdef VI_SDL2
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_syswm.h>
+#include <utils/vi_sdl2.h>
 #endif
 #ifdef VI_ASSIMP
 #include <assimp/Importer.hpp>

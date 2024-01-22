@@ -532,6 +532,7 @@ namespace Mavi
 				void* GetDevice() const override;
 				void* GetContext() const override;
 				bool IsValid() const override;
+				void SetVSyncMode(VSync Mode) override;
 				const char* GetShaderVersion();
 				void CopyConstantBuffer(GLuint Buffer, void* Data, size_t Size);
 				int CreateConstantBuffer(GLuint* Buffer, size_t Size);

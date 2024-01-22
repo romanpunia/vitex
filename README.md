@@ -1,7 +1,7 @@
 <br/>
 <div align="center">
     <br />
-    <img src="https://github.com/romanpunia/mavi/blob/master/var/logo.png?raw=true" alt="Mavi Logo" width="300" />
+    <img src="https://github.com/romanpunia/mavi/blob/master/var/assets/logo.png?raw=true" alt="Mavi Logo" width="300" />
     <h3>C++ Cross-Platform Framework</h3>
 </div>
 <div align="center">
@@ -51,7 +51,7 @@ There are several ways to build this project that are explained here:
 + **VI_LOGGING** is a logging level (errors, warnings, default, debug, verbose), defaults to "default"
 + **VI_BINDINGS** will enable full script bindings otherwise only essentials will be used to reduce lib size, defaults to true
 + **VI_ALLOCATOR** will enable custom allocator for all used standard containers, making them incompatible with std::allocator based ones but adding opportunity to use pool allocator, defaults to true
-+ **VI_SHADERS** to embed shaders from **/src/shaders** to **/src/mavi/graphics/dynamic/shaders.hpp**, defaults to true
++ **VI_SHADERS** to embed shaders to **/src/mavi/graphics/shaders/bundle.hpp**, defaults to true
 
 ### Dependency configuration
 + **VI_ASSIMP** will enable Assimp library to load 3d models, defaults to true

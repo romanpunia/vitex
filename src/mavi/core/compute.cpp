@@ -12,7 +12,7 @@
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
 #endif
 #ifdef VI_SIMD
-#include <utils/vi_simd.h>
+#include "../internal/simd-cross.hpp"
 #endif
 #ifdef VI_ZLIB
 extern "C"

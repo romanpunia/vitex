@@ -7,7 +7,7 @@
 #include <angelscript.h>
 #include <as_texts.h>
 #ifdef VI_JIT
-#include <ascompiler/compiler.h>
+#include "../internal/asc/compiler.h"
 #endif
 
 namespace

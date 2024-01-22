@@ -33,7 +33,7 @@
 #include <backward.hpp>
 #endif
 #ifdef VI_FCTX
-#include <fcontext/fcontext.h>
+#include "../internal/fcontext/fcontext.h"
 #endif
 #ifdef VI_MICROSOFT
 #include <Windows.h>

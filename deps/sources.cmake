@@ -11,11 +11,11 @@ file(GLOB_RECURSE SOURCE
 
 # Append shaders into the sources list
 set(VI_SHADERS true CACHE BOOL "Enable built-in shaders")
-set(BUFFER_OUT "${PROJECT_SOURCE_DIR}/src/mavi/graphics/dynamic/shaders")
+set(BUFFER_OUT "${PROJECT_SOURCE_DIR}/src/mavi/graphics/shaders/bundle")
 if (VI_SHADERS)
-	set(BUFFER_DIR "${PROJECT_SOURCE_DIR}/src/shaders")
-    set(BUFFER_DATA "#ifndef HAS_SHADER_BATCH\n#define HAS_SHADER_BATCH\n\nnamespace shader_batch\n{\n\tvoid foreach(void* context, void(*callback)(void*, const char*, const unsigned char*, unsigned))\n\t{\n\t\tif (!callback)\n\t\t\treturn;\n")
-    file(GLOB_RECURSE SOURCE_SHADERS ${BUFFER_DIR}/*)
+	set(BUFFER_DIR "${PROJECT_SOURCE_DIR}/src/mavi/graphics/shaders")
+    set(BUFFER_DATA "#ifndef HAS_SHADER_BUNDLE\n#define HAS_SHADER_BUNDLE\n\nnamespace shader_bundle\n{\n\tvoid foreach(void* context, void(*callback)(void*, const char*, const unsigned char*, unsigned))\n\t{\n\t\tif (!callback)\n\t\t\treturn;\n")
+    file(GLOB_RECURSE SOURCE_SHADERS ${BUFFER_DIR}/*.hlsl)
     foreach(BINARY ${SOURCE_SHADERS})
         string(REPLACE "${BUFFER_DIR}" "" FILENAME ${BINARY})
         string(REPLACE "${BUFFER_DIR}/" "" FILENAME ${BINARY})
@@ -110,16 +110,11 @@ if (VI_RMLUI)
 	unset(FREETYPE_LOCATION CACHE)
 endif()
 if (VI_JIT)
-    file(GLOB_RECURSE SOURCE_JIT
-        ${PROJECT_SOURCE_DIR}/src/options/ascompiler/*.h*
-        ${PROJECT_SOURCE_DIR}/src/options/ascompiler/*.cpp*)
     list(APPEND SOURCE ${SOURCE_JIT})
     message(STATUS "JIT compiler enabled")
 endif()
 if (VI_SIMD)
-	file(GLOB_RECURSE SOURCE_SIMD
-        ${PROJECT_SOURCE_DIR}/deps/vectorclass/*.h*
-        ${PROJECT_SOURCE_DIR}/src/options/vc_simd.h)
+	file(GLOB_RECURSE SOURCE_SIMD ${PROJECT_SOURCE_DIR}/deps/vectorclass/*.h*)
 	list(APPEND SOURCE ${SOURCE_SIMD})
 	message(STATUS "SIMD instructions enabled")
 endif()
@@ -235,14 +230,14 @@ if (VI_FCTX OR TRUE)
     if (FCTX_BIN STREQUAL mach-o)
         set(FCTX_BIN macho)
     endif()
-    if (EXISTS ${PROJECT_SOURCE_DIR}/src/options/fcontext/make_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT})
+    if (EXISTS ${PROJECT_SOURCE_DIR}/src/mavi/internal/fcontext/make_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT})
         set(VI_FCTX ON CACHE BOOL "Enable fcontext built-in library (otherwise coroutines based on ucontext, WinAPI or C++20)")
         if (VI_FCTX)
             set(FCTX_SOURCES
-                ${PROJECT_SOURCE_DIR}/src/options/fcontext/fcontext.h
-                ${PROJECT_SOURCE_DIR}/src/options/fcontext/make_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT}
-                ${PROJECT_SOURCE_DIR}/src/options/fcontext/jump_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT}
-                ${PROJECT_SOURCE_DIR}/src/options/fcontext/ontop_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT})
+                ${PROJECT_SOURCE_DIR}/src/mavi/internal/fcontext/fcontext.h
+                ${PROJECT_SOURCE_DIR}/src/mavi/internal/fcontext/make_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT}
+                ${PROJECT_SOURCE_DIR}/src/mavi/internal/fcontext/jump_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT}
+                ${PROJECT_SOURCE_DIR}/src/mavi/internal/fcontext/ontop_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT})
             list(APPEND SOURCE ${FCTX_SOURCES})
             message(STATUS "Async fcontext implementation: ${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}")
         else()

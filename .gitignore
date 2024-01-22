@@ -3,5 +3,5 @@
 debug/
 release/
 bin/
+src/mavi/graphics/shaders/*.hpp
 **/.DS_Store
-src/mavi/graphics/dynamic/*.*

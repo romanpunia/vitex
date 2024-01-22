@@ -3742,7 +3742,7 @@ namespace Mavi
 				VI_ASSERT(VM != nullptr, "virtual matchine should be set");
 				Engine->NotifyOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_THREAD));
 			}
-			Thread::~Thread()
+			Thread::~Thread() noexcept
 			{
 				ReleaseReferences(nullptr);
 			}
@@ -3959,7 +3959,7 @@ namespace Mavi
 			CharBuffer::CharBuffer(char* Pointer) noexcept : Buffer(Pointer), Length(0)
 			{
 			}
-			CharBuffer::~CharBuffer()
+			CharBuffer::~CharBuffer() noexcept
 			{
 				Deallocate();
 			}
@@ -15466,7 +15466,7 @@ namespace Mavi
 				VSiteEntry->SetProperty<Network::HTTP::SiteEntry>("usize max_uploadable_resources", &Network::HTTP::SiteEntry::MaxUploadableResources);
 				VSiteEntry->SetMethod("void sort()", &Network::HTTP::SiteEntry::Sort);
 				VSiteEntry->SetMethod("route_group@+ group(const string&in, route_mode)", &Network::HTTP::SiteEntry::Group);
-				VSiteEntry->SetMethod<Network::HTTP::SiteEntry, Network::HTTP::RouteEntry*, const Core::String&, Network::HTTP::RouteMode, const Core::String&>("route_entry@+ route(const string&in, route_mode, const string&in)", &Network::HTTP::SiteEntry::Route);
+				VSiteEntry->SetMethod<Network::HTTP::SiteEntry, Network::HTTP::RouteEntry*, const Core::String&, Network::HTTP::RouteMode, const Core::String&, bool>("route_entry@+ route(const string&in, route_mode, const string&in, bool)", &Network::HTTP::SiteEntry::Route);
 				VSiteEntry->SetMethod<Network::HTTP::SiteEntry, Network::HTTP::RouteEntry*, const Core::String&, Network::HTTP::RouteGroup*, Network::HTTP::RouteEntry*>("route_entry@+ route(const string&in, route_group@+, route_entry@+)", &Network::HTTP::SiteEntry::Route);
 				VSiteEntry->SetMethod("bool remove(route_entry@+)", &Network::HTTP::SiteEntry::Remove);
 				VSiteEntry->SetMethodEx("bool get(const string&in, net_event@) const", &SiteEntryGet1);

@@ -1,7 +1,7 @@
 #include "graphics.h"
 #include "../graphics/d3d11.h"
 #include "../graphics/ogl.h"
-#include "../graphics/dynamic/shaders.hpp"
+#include "../graphics/shaders/bundle.hpp"
 #ifdef VI_SPIRV
 #include <spirv_cross/spirv_glsl.hpp>
 #ifdef VI_MICROSOFT
@@ -13,9 +13,7 @@
 #include <SPIRV/GlslangToSpv.h>
 #endif
 #ifdef VI_SDL2
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_syswm.h>
-#include <utils/vi_sdl2.h>
+#include "../internal/sdl2-cross.hpp"
 #endif
 
 namespace
@@ -1084,8 +1082,8 @@ namespace Mavi
 		}
 		void GraphicsDevice::CreateSections()
 		{
-#ifdef HAS_SHADER_BATCH
-			shader_batch::foreach(this, [](void* Context, const char* Name, const unsigned char* Buffer, unsigned Size)
+#ifdef HAS_SHADER_BUNDLE
+			shader_bundle::foreach(this, [](void* Context, const char* Name, const unsigned char* Buffer, unsigned Size)
 			{
 				GraphicsDevice* Base = (GraphicsDevice*)Context;
 				if (Base != nullptr && Base->GetBackend() != RenderBackend::None)

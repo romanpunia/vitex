@@ -24,7 +24,7 @@
 #include <sys/syscall.h>
 #endif
 #ifdef VI_SDL2
-#include <SDL2/SDL.h>
+#include "internal/sdl2-cross.hpp"
 #endif
 #ifdef VI_POSTGRESQL
 #include <libpq-fe.h>

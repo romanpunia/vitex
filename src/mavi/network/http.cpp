@@ -3,7 +3,6 @@
 #ifdef VI_MICROSOFT
 #include <WS2tcpip.h>
 #include <io.h>
-#include <wepoll.h>
 #else
 #include <arpa/inet.h>
 #include <cstring>

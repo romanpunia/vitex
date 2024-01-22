@@ -62,6 +62,91 @@ namespace Mavi
 {
 	namespace Network
 	{
+#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
+		struct epoll_socket
+		{
+			pollfd Fd;
+			void* Data = nullptr;
+		};
+
+		struct epoll_array
+		{
+			Core::UnorderedMap<socket_t, epoll_socket> Fds;
+			Core::Vector<pollfd> Events;
+			std::mutex Mutex;
+			bool Dirty = true;
+
+			void Upsert(socket_t Fd, bool Readable, bool Writeable, void* Data)
+			{
+				Core::UMutex<std::mutex> Unique(Mutex);
+				auto& Target = Fds[Fd];
+				Target.Fd.fd = Fd;
+				Target.Fd.revents = 0;
+
+				if (Readable)
+				{
+					if (!(Target.Fd.events & POLLIN))
+					{
+						Target.Fd.events |= POLLIN;
+						Dirty = true;
+					}
+				}
+				else if (Target.Fd.events & POLLIN)
+				{
+					Target.Fd.events &= ~(POLLIN);
+					Dirty = true;
+				}
+
+				if (Writeable)
+				{
+					if (!(Target.Fd.events & POLLOUT))
+					{
+						Target.Fd.events |= POLLOUT;
+						Dirty = true;
+					}
+				}
+				else if (Target.Fd.events & POLLOUT)
+				{
+					Target.Fd.events &= ~(POLLOUT);
+					Dirty = true;
+				}
+
+				if (Target.Data != Data)
+				{
+					Target.Data = Data;
+					Dirty = true;
+				}
+			}
+			void* Find(socket_t Fd)
+			{
+				Core::UMutex<std::mutex> Unique(Mutex);
+				auto It = Fds.find(Fd);
+				return It != Fds.end() ?  It->second.Data : nullptr;
+			}
+			Core::Vector<pollfd>& Compile()
+			{
+				Core::UMutex<std::mutex> Unique(Mutex);
+				if (!Dirty)
+					return Events;
+
+				Events.clear();
+				Events.reserve(Fds.size());
+				for (auto It = Fds.begin(); It != Fds.end();)
+				{
+					if (It->second.Fd.events > 0)
+					{
+						Events.emplace_back(It->second.Fd);
+						++It;
+					}
+					else
+						Fds.erase(It++);
+				}
+
+				Dirty = false;
+				return Events;
+			}
+		};
+#endif
 #ifdef VI_OPENSSL
 		static std::pair<Core::String, time_t> ASN1_GetTime(ASN1_TIME* Time)
 		{
@@ -408,7 +493,10 @@ namespace Mavi
 		EpollHandle::EpollHandle(size_t NewArraySize) noexcept : ArraySize(NewArraySize)
 		{
 			VI_ASSERT(ArraySize > 0, "array size should be greater than zero");
-#ifdef VI_APPLE
+#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
+			Handle = (epoll_handle)(uintptr_t)std::numeric_limits<size_t>::max();
+			Array = (epoll_event*)VI_NEW(epoll_array);
+#elif defined(VI_APPLE)
 			Handle = kqueue();
 			Array = VI_MALLOC(struct kevent, sizeof(struct kevent) * ArraySize);
 #else
@@ -419,7 +507,10 @@ namespace Mavi
 		EpollHandle::EpollHandle(const EpollHandle& Other) noexcept : ArraySize(Other.ArraySize)
 		{
 			VI_ASSERT(ArraySize > 0, "array size should be greater than zero");
-#ifdef VI_APPLE
+#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
+			Handle = (epoll_handle)(uintptr_t)std::numeric_limits<size_t>::max();
+			Array = (epoll_event*)VI_NEW(epoll_array);
+#elif defined(VI_APPLE)
 			Handle = kqueue();
 			Array = VI_MALLOC(struct kevent, sizeof(struct kevent) * ArraySize);
 #else
@@ -434,6 +525,15 @@ namespace Mavi
 		}
 		EpollHandle::~EpollHandle() noexcept
 		{
+#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
+			Handle = INVALID_EPOLL;
+			if (Array != nullptr)
+			{
+				epoll_array* Handler = (epoll_array*)Array;
+				VI_DELETE(epoll_array, Handler);
+				Array = nullptr;
+			}
+#else
 			if (Handle != INVALID_EPOLL)
 			{
 				epoll_close(Handle);
@@ -445,6 +545,7 @@ namespace Mavi
 				VI_FREE(Array);
 				Array = nullptr;
 			}
+#endif
 		}
 		EpollHandle& EpollHandle::operator= (const EpollHandle& Other) noexcept
 		{
@@ -453,7 +554,10 @@ namespace Mavi
 
 			this->~EpollHandle();
 			ArraySize = Other.ArraySize;
-#ifdef VI_APPLE
+#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
+			Handle = (epoll_handle)(uintptr_t)std::numeric_limits<size_t>::max();
+			Array = (epoll_event*)VI_NEW(epoll_array);
+#elif defined(VI_APPLE)
 			Handle = kqueue();
 			Array = VI_MALLOC(struct kevent, sizeof(struct kevent) * ArraySize);
 #else
@@ -480,7 +584,11 @@ namespace Mavi
 			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
 			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
 			VI_TRACE("[net] epoll add fd %i %s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
-#ifdef VI_APPLE
+#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
+			epoll_array* Handler = (epoll_array*)Array;
+			Handler->Upsert(Fd->Fd, Readable, Writeable, (void*)Fd);
+			return true;
+#elif defined(VI_APPLE)
 			struct kevent Event;
 			int Result1 = 1;
 			if (Readable)
@@ -516,7 +624,11 @@ namespace Mavi
 			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
 			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
 			VI_TRACE("[net] epoll update fd %i %s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
-#ifdef VI_APPLE
+#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
+			epoll_array* Handler = (epoll_array*)Array;
+			Handler->Upsert(Fd->Fd, Readable, Writeable, (void*)Fd);
+			return true;
+#elif defined(VI_APPLE)
 			struct kevent Event;
 			int Result1 = 1;
 			if (Readable)
@@ -552,7 +664,11 @@ namespace Mavi
 			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
 			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
 			VI_TRACE("[net] epoll remove fd %i %s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
-#ifdef VI_APPLE
+#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
+			epoll_array* Handler = (epoll_array*)Array;
+			Handler->Upsert(Fd->Fd, !Readable, !Writeable, (void*)Fd);
+			return true;
+#elif defined(VI_APPLE)
 			struct kevent Event;
 			int Result1 = 1;
 			if (Readable)
@@ -586,40 +702,72 @@ namespace Mavi
 		int EpollHandle::Wait(EpollFd* Data, size_t DataSize, uint64_t Timeout) noexcept
 		{
 			VI_ASSERT(ArraySize <= DataSize, "epollfd array should be less than or equal to internal events buffer");
-			VI_TRACE("[net] epoll wait %i fds (%" PRIu64 " ms)", (int)DataSize, Timeout);
-#ifdef VI_APPLE
+#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
+			epoll_array* Handler = (epoll_array*)Array;
+			auto& Events = Handler->Compile();
+			if (Events.empty())
+				return 0;
+
+			int Count = Utils::Poll(Events.data(), (int)Events.size(), (int)Timeout);
+			if (Count <= 0)
+				return Count;
+
+			size_t Incoming = 0;
+			for (auto& Event : Events)
+			{
+				if (!Event.revents)
+					continue;
+				
+				Socket* Target = (Socket*)Handler->Find(Event.fd);
+				if (!Target)
+					continue;
+
+				auto& Fd = Data[Incoming++];
+				Fd.Base = Target;
+				Fd.Readable = (Event.revents & POLLIN);
+				Fd.Writeable = (Event.revents & POLLOUT);
+				Fd.Closed = (Event.revents & POLLHUP || Event.revents & POLLNVAL || Event.revents & POLLERR);
+			}
+#elif defined(VI_APPLE)
+			VI_TRACE("[net] kqueue wait %i fds (%" PRIu64 " ms)", (int)DataSize, Timeout);
 			struct timespec Wait;
 			Wait.tv_sec = (int)Timeout / 1000;
 			Wait.tv_nsec = ((int)Timeout % 1000) * 1000000;
 
 			struct kevent* Events = (struct kevent*)Array;
 			int Count = kevent(Handle, nullptr, 0, Events, (int)DataSize, &Wait);
-#else
-			epoll_event* Events = (epoll_event*)Array;
-			int Count = epoll_wait(Handle, Events, (int)DataSize, (int)Timeout);
-#endif
 			if (Count <= 0)
 				return Count;
 
-			size_t Offset = 0;
+			size_t Incoming = 0;
 			for (auto It = Events; It != Events + Count; It++)
 			{
-				auto& Fd = Data[Offset++];
-#ifdef VI_APPLE
+				auto& Fd = Data[Incoming++];
 				Fd.Base = (Socket*)It->udata;
 				Fd.Readable = (It->filter == EVFILT_READ);
 				Fd.Writeable = (It->filter == EVFILT_WRITE);
 				Fd.Closed = (It->flags & EV_EOF);
+			}
+			VI_TRACE("[net] kqueue recv %i events", (int)Incoming);
 #else
+			VI_TRACE("[net] epoll wait %i fds (%" PRIu64 " ms)", (int)DataSize, Timeout);
+			epoll_event* Events = (epoll_event*)Array;
+			int Count = epoll_wait(Handle, Events, (int)DataSize, (int)Timeout);
+			if (Count <= 0)
+				return Count;
+
+			size_t Incoming = 0;
+			for (auto It = Events; It != Events + Count; It++)
+			{
+				auto& Fd = Data[Incoming++];
 				Fd.Base = (Socket*)It->data.ptr;
 				Fd.Readable = (It->events & EPOLLIN);
 				Fd.Writeable = (It->events & EPOLLOUT);
 				Fd.Closed = (It->events & EPOLLHUP || It->events & EPOLLRDHUP || It->events & EPOLLERR);
-#endif
 			}
-
-			VI_TRACE("[net] epoll recv %i events", (int)Offset);
-			return Count;
+			VI_TRACE("[net] epoll recv %i events", (int)Incoming);
+#endif
+			return (int)Incoming;
 		}
 
 		Core::ExpectsIO<CertificateBlob> Utils::GenerateSelfSignedCertificate(uint32_t Days, const Core::String& AddressesCommaSeparated, const Core::String& DomainsCommaSeparated) noexcept
@@ -741,17 +889,19 @@ namespace Mavi
 		int Utils::Poll(pollfd* Fd, int FdCount, int Timeout) noexcept
 		{
 			VI_ASSERT(Fd != nullptr, "poll should be set");
-			VI_TRACE("[net] poll %i fds (%i ms)", FdCount, Timeout);
+			VI_TRACE("[net] poll wait %i fds (%" PRIu64 " ms)", FdCount, Timeout);
 #if defined(VI_MICROSOFT)
-			return WSAPoll(Fd, FdCount, Timeout);
+			int Count = WSAPoll(Fd, FdCount, Timeout);
 #else
-			return poll(Fd, FdCount, Timeout);
+			int Count = poll(Fd, FdCount, Timeout);
 #endif
+			if (Count > 0)
+				VI_TRACE("[net] poll recv %i events", Count);
+			return Count;
 		}
 		int Utils::Poll(PollFd* Fd, int FdCount, int Timeout) noexcept
 		{
 			VI_ASSERT(Fd != nullptr, "poll should be set");
-			VI_TRACE("[net] poll %i fds (%i ms)", FdCount, Timeout);
 			Core::Vector<pollfd> Fds;
 			Fds.resize(FdCount);
 

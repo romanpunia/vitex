@@ -23,7 +23,6 @@ git clone https://github.com/romanpunia/mavi
 Initialize needed submodules while being inside of repository
 ```bash
 # Initialize required submodules
-git submodule update --init ./deps/wepoll
 git submodule update --init ./deps/concurrentqueue
 
 # Initialize needed for your project submodules, for example

@@ -54,6 +54,7 @@ set(VI_STB ON CACHE BOOL "Enable stb built-in library")
 set(VI_PUGIXML ON CACHE BOOL "Enable pugixml built-in library")
 set(VI_RAPIDJSON ON CACHE BOOL "Enable rapidjson built-in library")
 set(VI_ANGELSCRIPT ON CACHE BOOL "Enable AngelScript built-in library")
+set(VI_WEPOLL ON CACHE BOOL "Enable efficient epoll implementation for Windows")
 set(VI_FREETYPE ON CACHE BOOL "Enable FreeType library")
 if (VI_BULLET3)
 	file(GLOB_RECURSE SOURCE_BULLET3
@@ -170,6 +171,11 @@ if (VI_ANGELSCRIPT)
     endif()
     list(APPEND SOURCE ${SOURCE_ANGELSCRIPT})
 endif()
+if (VI_WEPOLL)
+	list(APPEND SOURCE
+        ${PROJECT_SOURCE_DIR}/deps/wepoll/wepoll.h
+        ${PROJECT_SOURCE_DIR}/deps/wepoll/wepoll.c)
+endif()
 if (VI_FCTX OR TRUE)
     set(FCTX_ARCHS arm arm64 loongarch64 mips32 mips64 ppc32 ppc64 riscv64 s390x i386 x86_64 combined)
     if (WIN32)
@@ -254,11 +260,6 @@ if (VI_FCTX OR TRUE)
     unset(FCTX_ASM)
     unset(FCTX_EXT)
     unset(FCTX_SUFFIX)
-endif()
-if (VI_WEPOLL OR WIN32)
-	list(APPEND SOURCE
-        ${PROJECT_SOURCE_DIR}/deps/wepoll/wepoll.h
-        ${PROJECT_SOURCE_DIR}/deps/wepoll/wepoll.c)
 endif()
 if (VI_CONCURRENTQUEUE OR TRUE)
     list(APPEND SOURCE

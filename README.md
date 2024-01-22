@@ -67,6 +67,7 @@ There are several ways to build this project that are explained here:
 + **VI_ZLIB** will enable zlib library to activate compression algorithms, defaults to true
 + **VI_SPIRV** will enable SPIRV Cross and glslang libraries to allow shader cross-compiling, defaults to true
 + **VI_SIMD** will enable vectorclass built-in library to allow SIMD optimisations, defaults to false
++ **VI_WEPOLL** will enable built-in Windows epoll implementation for socket multiplexer which avoids socket latencies and limits, defaults to true
 + **VI_ANGELSCRIPT** will enable built-in AngelScript library to execute scripts, defaults to true
 + **VI_JIT** will enable built-in JIT compiler for AngelScript, defaults to false
 + **VI_FCTX** will enable internal fcontext implementation for coroutines, defaults to true
@@ -80,8 +81,8 @@ There are several ways to build this project that are explained here:
 
 ## Dependencies
 Only those marked with _required_ are necessary for minimal build.
-* [wepoll (submodule, required)](https://github.com/piscisaureus/wepoll)
 * [concurrentqueue (submodule, required)](https://github.com/cameron314/concurrentqueue)
+* [wepoll (submodule)](https://github.com/piscisaureus/wepoll)
 * [AngelScript (submodule)](https://github.com/codecat/angelscript-mirror)
 * [PugiXML (submodule)](https://github.com/zeux/pugixml)
 * [RapidJSON (submodule)](https://github.com/tencent/rapidjson)

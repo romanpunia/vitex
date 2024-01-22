@@ -87,7 +87,7 @@ if (VI_ANGELSCRIPT)
         ${PROJECT_SOURCE_DIR}/deps/angelscript/sdk/angelscript/include
         ${PROJECT_SOURCE_DIR}/deps/angelscript/sdk/angelscript/source)
 endif()
-if (VI_WEPOLL)
+if (VI_WEPOLL AND WIN32)
     target_compile_definitions(mavi PUBLIC -DVI_WEPOLL)
     target_include_directories(mavi PRIVATE ${PROJECT_SOURCE_DIR}/deps/wepoll)
 endif()

@@ -171,7 +171,7 @@ if (VI_ANGELSCRIPT)
     endif()
     list(APPEND SOURCE ${SOURCE_ANGELSCRIPT})
 endif()
-if (VI_WEPOLL)
+if (VI_WEPOLL AND WIN32)
 	list(APPEND SOURCE
         ${PROJECT_SOURCE_DIR}/deps/wepoll/wepoll.h
         ${PROJECT_SOURCE_DIR}/deps/wepoll/wepoll.c)

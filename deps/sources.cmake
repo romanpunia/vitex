@@ -1,13 +1,13 @@
 # Create sources list with main sources
 file(GLOB_RECURSE SOURCE
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.inl*
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.h*
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.c*
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.cc*
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.hpp*
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.cpp*
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.hxx*
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.cxx*)
+    ${PROJECT_SOURCE_DIR}/src/mavi/*.inl
+    ${PROJECT_SOURCE_DIR}/src/mavi/*.h
+    ${PROJECT_SOURCE_DIR}/src/mavi/*.c
+    ${PROJECT_SOURCE_DIR}/src/mavi/*.cc
+    ${PROJECT_SOURCE_DIR}/src/mavi/*.hpp
+    ${PROJECT_SOURCE_DIR}/src/mavi/*.cpp
+    ${PROJECT_SOURCE_DIR}/src/mavi/*.hxx
+    ${PROJECT_SOURCE_DIR}/src/mavi/*.cxx)
 
 # Append shaders into the sources list
 set(VI_SHADERS true CACHE BOOL "Enable built-in shaders")
@@ -40,7 +40,7 @@ if (VI_SHADERS)
     message(STATUS "Shaders have been written to: ${BUFFER_OUT}.hpp")
 else()
     file(WRITE "${BUFFER_OUT}.hpp" "")
-	message(STATUS "Shaders file has been cleared")
+    message(STATUS "Shaders have been erased from: ${BUFFER_OUT}.hpp")
 endif()
 
 # Append source files of dependencies

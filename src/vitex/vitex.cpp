@@ -413,6 +413,14 @@ namespace Vitex
 		return false;
 #endif
 	}
+	bool Runtime::HasAngelScript() const noexcept
+	{
+#ifdef VI_ANGELSCRIPT
+		return true;
+#else
+		return false;
+#endif
+	}
 	bool Runtime::HasBindings() const noexcept
 	{
 #ifdef VI_BINDINGS

@@ -6837,7 +6837,7 @@ namespace Vitex
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
-					return -1;
+					return false;
 
 				return ExpectsWrapper::UnwrapVoid(Base->ConnectAsync(Address, [Delegate](const Core::Option<std::error_condition>& ErrorCode) mutable
 				{

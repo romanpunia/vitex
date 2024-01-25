@@ -8,8 +8,8 @@ namespace Vitex
 	{
 		MAJOR_VERSION = 1,
 		MINOR_VERSION = 37,
-		PATCH_VERSION = 88,
-		BUILD_VERSION = 176,
+		PATCH_VERSION = 89,
+		BUILD_VERSION = 177,
 		VERSION = (MAJOR_VERSION) * 100000000 + (MINOR_VERSION) * 1000000 + (PATCH_VERSION) * 10000 + BUILD_VERSION
 	};
 
@@ -68,6 +68,7 @@ namespace Vitex
 		bool HasSDL2() const noexcept;
 		bool HasSIMD() const noexcept;
 		bool HasJIT() const noexcept;
+		bool HasAngelScript() const noexcept;
 		bool HasBindings() const noexcept;
 		bool HasAllocator() const noexcept;
 		bool HasBacktrace() const noexcept;

@@ -3812,7 +3812,7 @@ namespace Mavi
 
 				if (!Immediate.Sampler)
 				{
-					D3D11SamplerState* State = (D3D11SamplerState*)GetSamplerState("trilinear-x16");
+					D3D11SamplerState* State = (D3D11SamplerState*)GetSamplerState("a16_fa_wrap");
 					if (State != nullptr)
 						Immediate.Sampler = State->Resource;
 				}

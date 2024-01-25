@@ -19,11 +19,11 @@ namespace Mavi
 					{
 						Graphics::Shader* Linear = nullptr;
 						Graphics::Shader* Cubic = nullptr;
+						Graphics::Shader* Culling = nullptr;
 					} Depth;
 
 					Graphics::Shader* Geometry = nullptr;
-					Graphics::Shader* Voxelize = nullptr;
-					Graphics::Shader* Occlusion = nullptr;
+					Graphics::Shader* Voxelizer = nullptr;
 				} Shaders;
 
 			private:
@@ -57,11 +57,11 @@ namespace Mavi
 					{
 						Graphics::Shader* Linear = nullptr;
 						Graphics::Shader* Cubic = nullptr;
+						Graphics::Shader* Culling = nullptr;
 					} Depth;
 
 					Graphics::Shader* Geometry = nullptr;
-					Graphics::Shader* Voxelize = nullptr;
-					Graphics::Shader* Occlusion = nullptr;
+					Graphics::Shader* Voxelizer = nullptr;
 				} Shaders;
 
 			private:
@@ -98,11 +98,11 @@ namespace Mavi
 					{
 						Graphics::Shader* Linear = nullptr;
 						Graphics::Shader* Cubic = nullptr;
+						Graphics::Shader* Culling = nullptr;
 					} Depth;
 
 					Graphics::Shader* Geometry = nullptr;
-					Graphics::Shader* Voxelize = nullptr;
-					Graphics::Shader* Occlusion = nullptr;
+					Graphics::Shader* Voxelizer = nullptr;
 				} Shaders;
 
 			private:
@@ -141,8 +141,11 @@ namespace Mavi
 						Graphics::Shader* Point = nullptr;
 					} Depth;
 
-					Graphics::Shader* Opaque = nullptr;
-					Graphics::Shader* Transparency = nullptr;
+					struct
+					{
+						Graphics::Shader* Opaque = nullptr;
+						Graphics::Shader* Transparent = nullptr;
+					} Geometry;
 				} Shaders;
 
 				struct
@@ -302,7 +305,7 @@ namespace Mavi
 					Graphics::Shader* Point[2] = { nullptr };
 					Graphics::Shader* Spot[2] = { nullptr };
 					Graphics::Shader* Line[2] = { nullptr };
-					Graphics::Shader* Voxelize = nullptr;
+					Graphics::Shader* Voxelizer = nullptr;
 					Graphics::Shader* Surface = nullptr;
 				} Shaders;
 

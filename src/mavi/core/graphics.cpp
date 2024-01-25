@@ -863,37 +863,37 @@ namespace Mavi
 			DepthStencil.BackFaceStencilDepthFailOperation = StencilOperation::Subtract;
 			DepthStencil.BackFaceStencilPassOperation = StencilOperation::Keep;
 			DepthStencil.BackFaceStencilFunction = Comparison::Always;
-			DepthStencilStates["less"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["drw_srw_lt"] = CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthWriteMask = DepthWrite::Zero;
 			DepthStencil.StencilWriteMask = 0x0;
-			DepthStencilStates["less-read-only"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["dro_sro_lt"] = CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthFunction = Comparison::Greater_Equal;
-			DepthStencilStates["greater-read-only"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["dro_sro_gte"] = CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthWriteMask = DepthWrite::All;
 			DepthStencil.StencilWriteMask = 0xFF;
-			DepthStencilStates["greater-equal"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["dro_srw_gte"] = CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthEnable = false;
 			DepthStencil.DepthFunction = Comparison::Less;
 			DepthStencil.StencilEnable = false;
-			DepthStencilStates["none"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["doo_soo_lt"] = CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthEnable = true;
 			DepthStencil.DepthWriteMask = DepthWrite::Zero;
 			DepthStencil.StencilEnable = true;
-			DepthStencilStates["less-none"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["dro_srw_lt"] = CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthWriteMask = DepthWrite::All;
 			DepthStencil.StencilEnable = false;
-			DepthStencilStates["less-no-stencil"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["drw_soo_lt"] = CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthFunction = Comparison::Less_Equal;
 			DepthStencil.DepthWriteMask = DepthWrite::Zero;
 			DepthStencil.StencilEnable = false;
-			DepthStencilStates["less-no-stencil-none"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["dro_soo_lte"] = CreateDepthStencilState(DepthStencil);
 
 			RasterizerState::Desc Rasterizer;
 			Rasterizer.AntialiasedLineEnable = false;
@@ -906,32 +906,32 @@ namespace Mavi
 			Rasterizer.MultisampleEnable = false;
 			Rasterizer.ScissorEnable = false;
 			Rasterizer.SlopeScaledDepthBias = 0.0f;
-			RasterizerStates["cull-back"] = CreateRasterizerState(Rasterizer);
+			RasterizerStates["so_cback"] = CreateRasterizerState(Rasterizer);
 
 			Rasterizer.CullMode = VertexCull::Front;
-			RasterizerStates["cull-front"] = CreateRasterizerState(Rasterizer);
+			RasterizerStates["so_cfront"] = CreateRasterizerState(Rasterizer);
 
 			Rasterizer.CullMode = VertexCull::None;
-			RasterizerStates["cull-none"] = CreateRasterizerState(Rasterizer);
+			RasterizerStates["so_co"] = CreateRasterizerState(Rasterizer);
 
 			Rasterizer.ScissorEnable = true;
-			RasterizerStates["cull-none-scissor"] = CreateRasterizerState(Rasterizer);
+			RasterizerStates["sw_co"] = CreateRasterizerState(Rasterizer);
 
 			Rasterizer.CullMode = VertexCull::Back;
-			RasterizerStates["cull-back-scissor"] = CreateRasterizerState(Rasterizer);
+			RasterizerStates["sw_cback"] = CreateRasterizerState(Rasterizer);
 
 			BlendState::Desc Blend;
 			Blend.AlphaToCoverageEnable = false;
 			Blend.IndependentBlendEnable = false;
 			Blend.RenderTarget[0].BlendEnable = false;
 			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)ColorWriteEnable::All;
-			BlendStates["overwrite"] = CreateBlendState(Blend);
+			BlendStates["bo_wrgba"] = CreateBlendState(Blend);
 
 			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)(ColorWriteEnable::Red | ColorWriteEnable::Green | ColorWriteEnable::Blue);
-			BlendStates["overwrite-opaque"] = CreateBlendState(Blend);
+			BlendStates["bo_wrgbo"] = CreateBlendState(Blend);
 
 			Blend.RenderTarget[0].RenderTargetWriteMask = 0;
-			BlendStates["overwrite-colorless"] = CreateBlendState(Blend);
+			BlendStates["bo_woooo"] = CreateBlendState(Blend);
 
 			Blend.RenderTarget[0].BlendEnable = true;
 			Blend.RenderTarget[0].SrcBlend = Blend::One;
@@ -941,10 +941,10 @@ namespace Mavi
 			Blend.RenderTarget[0].DestBlendAlpha = Blend::One;
 			Blend.RenderTarget[0].BlendOperationAlpha = BlendOperation::Add;
 			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)ColorWriteEnable::All;
-			BlendStates["additive"] = CreateBlendState(Blend);
+			BlendStates["bw_wrgba"] = CreateBlendState(Blend);
 
 			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)(ColorWriteEnable::Red | ColorWriteEnable::Green | ColorWriteEnable::Blue);
-			BlendStates["additive-opaque"] = CreateBlendState(Blend);
+			BlendStates["bw_wrgbo"] = CreateBlendState(Blend);
 
 			Blend.IndependentBlendEnable = true;
 			for (unsigned int i = 0; i < 8; i++)
@@ -958,17 +958,17 @@ namespace Mavi
 				Blend.RenderTarget[i].BlendOperationAlpha = BlendOperation::Add;
 				Blend.RenderTarget[i].RenderTargetWriteMask = (unsigned char)ColorWriteEnable::All;
 			}
-			BlendStates["additive-gbuffer"] = CreateBlendState(Blend);
+			BlendStates["bw_wrgba_gbuffer"] = CreateBlendState(Blend);
 
 			Blend.IndependentBlendEnable = false;
 			Blend.RenderTarget[0].BlendEnable = true;
 			Blend.RenderTarget[0].SrcBlend = Blend::Source_Alpha;
-			BlendStates["additive-alpha"] = CreateBlendState(Blend);
+			BlendStates["bw_wrgba_alpha"] = CreateBlendState(Blend);
 
 			Blend.RenderTarget[0].DestBlend = Blend::Source_Alpha_Invert;
 			Blend.RenderTarget[0].SrcBlendAlpha = Blend::Source_Alpha_Invert;
 			Blend.RenderTarget[0].DestBlendAlpha = Blend::Zero;
-			BlendStates["additive-source"] = CreateBlendState(Blend);
+			BlendStates["bw_wrgba_source"] = CreateBlendState(Blend);
 
 			SamplerState::Desc Sampler;
 			Sampler.Filter = PixelFilter::Anistropic;
@@ -984,36 +984,35 @@ namespace Mavi
 			Sampler.BorderColor[3] = 0.0f;
 			Sampler.MinLOD = 0.0f;
 			Sampler.MaxLOD = std::numeric_limits<float>::max();
-			SamplerStates["trilinear-x16"] = CreateSamplerState(Sampler);
+			SamplerStates["a16_fa_wrap"] = CreateSamplerState(Sampler);
 
 			Sampler.AddressU = TextureAddress::Mirror;
 			Sampler.AddressV = TextureAddress::Mirror;
 			Sampler.AddressW = TextureAddress::Mirror;
-			SamplerStates["trilinear-x16-mirror"] = CreateSamplerState(Sampler);
+			SamplerStates["a16_fa_mirror"] = CreateSamplerState(Sampler);
 
 			Sampler.AddressU = TextureAddress::Clamp;
 			Sampler.AddressV = TextureAddress::Clamp;
 			Sampler.AddressW = TextureAddress::Clamp;
-			SamplerStates["trilinear-x16-clamp"] = CreateSamplerState(Sampler);
+			SamplerStates["a16_fa_clamp"] = CreateSamplerState(Sampler);
 
 			Sampler.Filter = PixelFilter::Min_Mag_Mip_Linear;
-			SamplerStates["linear"] = CreateSamplerState(Sampler);
+			SamplerStates["a16_fl_clamp"] = CreateSamplerState(Sampler);
 
 			Sampler.Filter = PixelFilter::Min_Mag_Mip_Point;
 			Sampler.ComparisonFunction = Comparison::Never;
-			SamplerStates["point"] = CreateSamplerState(Sampler);
+			SamplerStates["a16_fp_clamp"] = CreateSamplerState(Sampler);
 
 			Sampler.Filter = PixelFilter::Min_Mag_Mip_Linear;
 			Sampler.MaxAnisotropy = 1;
-			SamplerStates["depth"] = CreateSamplerState(Sampler);
+			SamplerStates["a1_fl_clamp"] = CreateSamplerState(Sampler);
 
 			Sampler.Filter = PixelFilter::Compare_Min_Mag_Mip_Linear;
 			Sampler.ComparisonFunction = Comparison::Less;
-			SamplerStates["depth-cmp-less"] = CreateSamplerState(Sampler);
+			SamplerStates["a1_fl_clamp_cmp_lt"] = CreateSamplerState(Sampler);
 
-			Sampler.Filter = PixelFilter::Compare_Min_Mag_Mip_Linear;
 			Sampler.ComparisonFunction = Comparison::Greater_Equal;
-			SamplerStates["depth-cmp-greater"] = CreateSamplerState(Sampler);
+			SamplerStates["a1_fl_clamp_cmp_gte"] = CreateSamplerState(Sampler);
 
 			InputLayout::Desc Layout;
 			Layout.Attributes =
@@ -1021,7 +1020,7 @@ namespace Mavi
 				{ "POSITION", 0, AttributeType::Float, 3, 0 },
 				{ "TEXCOORD", 0, AttributeType::Float, 2, 3 * sizeof(float) }
 			};
-			InputLayouts["shape-vertex"] = CreateInputLayout(Layout);
+			InputLayouts["vx_shape"] = CreateInputLayout(Layout);
 
 			Layout.Attributes =
 			{
@@ -1030,7 +1029,7 @@ namespace Mavi
 				{ "TEXCOORD", 1, AttributeType::Float, 4, 7 * sizeof(float) },
 				{ "TEXCOORD", 2, AttributeType::Float, 3, 11 * sizeof(float) }
 			};
-			InputLayouts["element-vertex"] = CreateInputLayout(Layout);
+			InputLayouts["vx_element"] = CreateInputLayout(Layout);
 
 			Layout.Attributes =
 			{
@@ -1040,7 +1039,7 @@ namespace Mavi
 				{ "TANGENT", 0, AttributeType::Float, 3, 8 * sizeof(float) },
 				{ "BINORMAL", 0, AttributeType::Float, 3, 11 * sizeof(float) }
 			};
-			InputLayouts["vertex"] = CreateInputLayout(Layout);
+			InputLayouts["vx_base"] = CreateInputLayout(Layout);
 
 			Layout.Attributes =
 			{
@@ -1054,7 +1053,7 @@ namespace Mavi
 				{ "OB_TEXCOORD", 0, AttributeType::Float, 2, sizeof(Compute::Matrix4x4) * 2, 1, false },
 				{ "OB_MATERIAL", 0, AttributeType::Float, 4, sizeof(Compute::Matrix4x4) * 2 + 2 * sizeof(float), 1, false }
 			};
-			InputLayouts["vertex-instance"] = CreateInputLayout(Layout);
+			InputLayouts["vxi_base"] = CreateInputLayout(Layout);
 
 			Layout.Attributes =
 			{
@@ -1066,7 +1065,7 @@ namespace Mavi
 				{ "JOINTBIAS", 0, AttributeType::Float, 4, 14 * sizeof(float) },
 				{ "JOINTBIAS", 1, AttributeType::Float, 4, 18 * sizeof(float) }
 			};
-			InputLayouts["skin-vertex"] = CreateInputLayout(Layout);
+			InputLayouts["vx_skin"] = CreateInputLayout(Layout);
 
 			Layout.Attributes =
 			{
@@ -1074,11 +1073,11 @@ namespace Mavi
 				{ "COLOR", 0, AttributeType::Ubyte, 4, 2 * sizeof(float) },
 				{ "TEXCOORD", 0, AttributeType::Float, 2, 2 * sizeof(float) + 4 * sizeof(unsigned char) }
 			};
-			InputLayouts["gui-vertex"] = CreateInputLayout(Layout);
+			InputLayouts["vx_ui"] = CreateInputLayout(Layout);
 
-			SetDepthStencilState(GetDepthStencilState("less"));
-			SetRasterizerState(GetRasterizerState("cull-back"));
-			SetBlendState(GetBlendState("overwrite"));
+			SetDepthStencilState(GetDepthStencilState("drw_srw_lt"));
+			SetRasterizerState(GetRasterizerState("so_cback"));
+			SetBlendState(GetBlendState("bo_wrgba_one"));
 		}
 		void GraphicsDevice::CreateSections()
 		{

@@ -3660,7 +3660,7 @@ namespace Mavi
 				GLint StatusCode;
 				if (!Immediate.Sampler)
 				{
-					OGLSamplerState* State = (OGLSamplerState*)GetSamplerState("trilinear-x16");
+					OGLSamplerState* State = (OGLSamplerState*)GetSamplerState("a16_fa_wrap");
 					if (State != nullptr)
 						Immediate.Sampler = State->Resource;
 				}

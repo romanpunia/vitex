@@ -2456,7 +2456,7 @@ namespace Mavi
 		{
 			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			Graphics::Shader::Desc F = Graphics::Shader::Desc();
-			if (Device->GetSection("geometry/basic/geometry", &F))
+			if (Device->GetSection("materials/material_basic_geometry", &F))
 				Binding.BasicEffect = Device->CreateShader(F);
 
 			Graphics::ElementBuffer::Desc Desc;
@@ -3838,11 +3838,11 @@ namespace Mavi
 			{
 				VI_TRACE("[scene] configure 0x%" PRIXPTR, (void*)this);
 				auto* Device = NewConf.Shared.Device;
-				Display.DepthStencil = Device->GetDepthStencilState("none");
-				Display.Rasterizer = Device->GetRasterizerState("cull-back");
-				Display.Blend = Device->GetBlendState("overwrite");
-				Display.Sampler = Device->GetSamplerState("trilinear-x16");
-				Display.Layout = Device->GetInputLayout("shape-vertex");
+				Display.DepthStencil = Device->GetDepthStencilState("doo_soo_lt");
+				Display.Rasterizer = Device->GetRasterizerState("so_cback");
+				Display.Blend = Device->GetBlendState("bo_wrgba_one");
+				Display.Sampler = Device->GetSamplerState("a16_fa_wrap");
+				Display.Layout = Device->GetInputLayout("vx_shape");
 
 				Conf.Release();
 				Conf = NewConf;
@@ -6619,13 +6619,13 @@ namespace Mavi
 			VI_ASSERT(Lab->GetDevice() != nullptr, "graphics device should be set");
 
 			auto* Device = Lab->GetDevice();
-			DepthStencil = Device->GetDepthStencilState("none");
-			Rasterizer = Device->GetRasterizerState("cull-back");
-			Blend = Device->GetBlendState("overwrite-opaque");
-			SamplerWrap = Device->GetSamplerState("trilinear-x16");
-			SamplerClamp = Device->GetSamplerState("trilinear-x16-clamp");
-			SamplerMirror = Device->GetSamplerState("trilinear-x16-mirror");
-			Layout = Device->GetInputLayout("shape-vertex");
+			DepthStencil = Device->GetDepthStencilState("doo_soo_lt");
+			Rasterizer = Device->GetRasterizerState("so_cback");
+			Blend = Device->GetBlendState("bo_wrgbo_one");
+			SamplerWrap = Device->GetSamplerState("a16_fa_wrap");
+			SamplerClamp = Device->GetSamplerState("a16_fa_clamp");
+			SamplerMirror = Device->GetSamplerState("a16_fa_mirror");
+			Layout = Device->GetInputLayout("vx_shape");
 		}
 		EffectRenderer::~EffectRenderer() noexcept
 		{

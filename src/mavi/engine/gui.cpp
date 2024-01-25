@@ -281,7 +281,7 @@ namespace Mavi
 					Device->AddRef();
 
 					Graphics::Shader::Desc I = Graphics::Shader::Desc();
-					if (Device->GetSection("interface/geometry", &I))
+					if (Device->GetSection("materials/material_ui_element", &I))
 						Shader = Device->CreateShader(I);
 
 					Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
@@ -293,15 +293,15 @@ namespace Mavi
 					F.ElementWidth = sizeof(Rml::Vertex);
 
 					VertexBuffer = Device->CreateElementBuffer(F);
-					Layout = Device->GetInputLayout("gui-vertex");
-					ScissorNoneRasterizer = Device->GetRasterizerState("cull-none-scissor");
-					NoneRasterizer = Device->GetRasterizerState("cull-none");
-					NoneDepthStencil = Device->GetDepthStencilState("none");
-					LessDepthStencil = Device->GetDepthStencilState("less");
-					ScissorDepthStencil = Device->GetDepthStencilState("greater-equal");
-					AlphaBlend = Device->GetBlendState("additive-source");
-					ColorlessBlend = Device->GetBlendState("overwrite-colorless");
-					Sampler = Device->GetSamplerState("trilinear-x16");
+					Layout = Device->GetInputLayout("vx_ui");
+					ScissorNoneRasterizer = Device->GetRasterizerState("sw_co");
+					NoneRasterizer = Device->GetRasterizerState("so_co");
+					NoneDepthStencil = Device->GetDepthStencilState("doo_soo_lt");
+					LessDepthStencil = Device->GetDepthStencilState("drw_srw_lt");
+					ScissorDepthStencil = Device->GetDepthStencilState("dro_srw_gte");
+					AlphaBlend = Device->GetBlendState("bw_wrgba_source");
+					ColorlessBlend = Device->GetBlendState("bo_woooo_one");
+					Sampler = Device->GetSamplerState("a16_fa_wrap");
 					Subsystem::Get()->CreateDecorators(Constants);
 				}
 				void Detach()

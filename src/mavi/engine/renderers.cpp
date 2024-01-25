@@ -13,17 +13,17 @@ namespace Mavi
 				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				DepthStencil = Device->GetDepthStencilState("less");
-				Rasterizer = Device->GetRasterizerState("cull-none");
-				Blend = Device->GetBlendState("overwrite");
-				Sampler = Device->GetSamplerState("trilinear-x16");
-				Layout = Device->GetInputLayout("vertex");
+				DepthStencil = Device->GetDepthStencilState("drw_srw_lt");
+				Rasterizer = Device->GetRasterizerState("so_co");
+				Blend = Device->GetBlendState("bo_wrgba_one");
+				Sampler = Device->GetSamplerState("a16_fa_wrap");
+				Layout = Device->GetInputLayout("vx_base");
 
-				Shaders.Geometry = System->CompileShader("geometry/model/geometry");
-				Shaders.Voxelize = System->CompileShader("geometry/model/voxelize", sizeof(Lighting::IVoxelBuffer));
-				Shaders.Occlusion = System->CompileShader("geometry/model/occlusion");
-				Shaders.Depth.Linear = System->CompileShader("geometry/model/depth-linear");
-				Shaders.Depth.Cubic = System->CompileShader("geometry/model/depth-cubic", sizeof(Compute::Matrix4x4) * 6);
+				Shaders.Geometry = System->CompileShader("materials/material_model_geometry");
+				Shaders.Voxelizer = System->CompileShader("materials/material_model_voxelizer", sizeof(Lighting::IVoxelBuffer));
+				Shaders.Depth.Culling = System->CompileShader("materials/material_model_depth_culling");
+				Shaders.Depth.Linear = System->CompileShader("materials/material_model_depth_linear");
+				Shaders.Depth.Cubic = System->CompileShader("materials/material_model_depth_cubic", sizeof(Compute::Matrix4x4) * 6);
 
 				Graphics::ElementBuffer* Buffers[2];
 				if (Lab->CompileBuffers(Buffers, "soft-body", sizeof(Compute::Vertex), 16384))
@@ -40,8 +40,8 @@ namespace Mavi
 
 				System->FreeBuffers(Buffers);
 				System->FreeShader(Shaders.Geometry);
-				System->FreeShader(Shaders.Voxelize);
-				System->FreeShader(Shaders.Occlusion);
+				System->FreeShader(Shaders.Voxelizer);
+				System->FreeShader(Shaders.Depth.Culling);
 				System->FreeShader(Shaders.Depth.Linear);
 				System->FreeShader(Shaders.Depth.Cubic);
 			}
@@ -56,7 +56,7 @@ namespace Mavi
 				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetShader(nullptr, VI_PS);
-				Device->SetShader(Shaders.Occlusion, VI_VS);
+				Device->SetShader(Shaders.Depth.Culling, VI_VS);
 
 				size_t Count = 0;
 				if (System->PreciseCulling)
@@ -140,8 +140,8 @@ namespace Mavi
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 4, 6, VI_PS);
-				Device->SetShader(Shaders.Voxelize, VI_VS | VI_PS | VI_GS);
-				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
+				Device->SetShader(Shaders.Voxelizer, VI_VS | VI_PS | VI_GS);
+				Lighting::SetVoxelBuffer(System, Shaders.Voxelizer, 3);
 
 				size_t Count = 0;
 				for (auto* Base : Chunk)
@@ -246,25 +246,25 @@ namespace Mavi
 				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				DepthStencil = Device->GetDepthStencilState("less");
-				BackRasterizer = Device->GetRasterizerState("cull-back");
-				FrontRasterizer = Device->GetRasterizerState("cull-front");
-				Blend = Device->GetBlendState("overwrite");
-				Sampler = Device->GetSamplerState("trilinear-x16");
-				Layout[0] = Device->GetInputLayout("vertex");
-				Layout[1] = Device->GetInputLayout("vertex-instance");
+				DepthStencil = Device->GetDepthStencilState("drw_srw_lt");
+				BackRasterizer = Device->GetRasterizerState("so_cback");
+				FrontRasterizer = Device->GetRasterizerState("so_cfront");
+				Blend = Device->GetBlendState("bo_wrgba_one");
+				Sampler = Device->GetSamplerState("a16_fa_wrap");
+				Layout[0] = Device->GetInputLayout("vx_base");
+				Layout[1] = Device->GetInputLayout("vxi_base");
 
-				Shaders.Geometry = System->CompileShader("geometry/model/geometry");
-				Shaders.Voxelize = System->CompileShader("geometry/model/voxelize", sizeof(Lighting::IVoxelBuffer));
-				Shaders.Occlusion = System->CompileShader("geometry/model/occlusion");
-				Shaders.Depth.Linear = System->CompileShader("geometry/model/depth-linear");
-				Shaders.Depth.Cubic = System->CompileShader("geometry/model/depth-cubic", sizeof(Compute::Matrix4x4) * 6);
+				Shaders.Geometry = System->CompileShader("materials/material_model_geometry");
+				Shaders.Voxelizer = System->CompileShader("materials/material_model_voxelizer", sizeof(Lighting::IVoxelBuffer));
+				Shaders.Depth.Culling = System->CompileShader("materials/material_model_depth_culling");
+				Shaders.Depth.Linear = System->CompileShader("materials/material_model_depth_linear");
+				Shaders.Depth.Cubic = System->CompileShader("materials/material_model_depth_cubic", sizeof(Compute::Matrix4x4) * 6);
 			}
 			Model::~Model()
 			{
 				System->FreeShader(Shaders.Geometry);
-				System->FreeShader(Shaders.Voxelize);
-				System->FreeShader(Shaders.Occlusion);
+				System->FreeShader(Shaders.Voxelizer);
+				System->FreeShader(Shaders.Depth.Culling);
 				System->FreeShader(Shaders.Depth.Linear);
 				System->FreeShader(Shaders.Depth.Cubic);
 			}
@@ -300,7 +300,7 @@ namespace Mavi
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout[0]);
 				Device->SetShader(nullptr, VI_PS);
-				Device->SetShader(Shaders.Occlusion, VI_VS);
+				Device->SetShader(Shaders.Depth.Culling, VI_VS);
 
 				size_t Count = 0;
 				if (System->PreciseCulling)
@@ -371,8 +371,8 @@ namespace Mavi
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetInputLayout(Layout[1]);
 				Device->SetSamplerState(Sampler, 4, 6, VI_PS);
-				Device->SetShader(Shaders.Voxelize, VI_VS | VI_PS | VI_GS);
-				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
+				Device->SetShader(Shaders.Voxelizer, VI_VS | VI_PS | VI_GS);
+				Lighting::SetVoxelBuffer(System, Shaders.Voxelizer, 3);
 
 				for (auto& Group : Chunk)
 				{
@@ -447,24 +447,24 @@ namespace Mavi
 				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				DepthStencil = Device->GetDepthStencilState("less");
-				BackRasterizer = Device->GetRasterizerState("cull-back");
-				FrontRasterizer = Device->GetRasterizerState("cull-front");
-				Blend = Device->GetBlendState("overwrite");
-				Sampler = Device->GetSamplerState("trilinear-x16");
-				Layout = Device->GetInputLayout("skin-vertex");
+				DepthStencil = Device->GetDepthStencilState("drw_srw_lt");
+				BackRasterizer = Device->GetRasterizerState("so_cback");
+				FrontRasterizer = Device->GetRasterizerState("so_cfront");
+				Blend = Device->GetBlendState("bo_wrgba_one");
+				Sampler = Device->GetSamplerState("a16_fa_wrap");
+				Layout = Device->GetInputLayout("vx_skin");
 
-				Shaders.Geometry = System->CompileShader("geometry/skin/geometry");
-				Shaders.Voxelize = System->CompileShader("geometry/skin/voxelize", sizeof(Lighting::IVoxelBuffer));
-				Shaders.Occlusion = System->CompileShader("geometry/skin/occlusion");
-				Shaders.Depth.Linear = System->CompileShader("geometry/skin/depth-linear");
-				Shaders.Depth.Cubic = System->CompileShader("geometry/skin/depth-cubic", sizeof(Compute::Matrix4x4) * 6);
+				Shaders.Geometry = System->CompileShader("materials/material_skin_geometry");
+				Shaders.Voxelizer = System->CompileShader("materials/material_skin_voxelizer", sizeof(Lighting::IVoxelBuffer));
+				Shaders.Depth.Culling = System->CompileShader("materials/material_skin_depth_culling");
+				Shaders.Depth.Linear = System->CompileShader("materials/material_skin_depth_linear");
+				Shaders.Depth.Cubic = System->CompileShader("materials/material_skin_depth_cubic", sizeof(Compute::Matrix4x4) * 6);
 			}
 			Skin::~Skin()
 			{
 				System->FreeShader(Shaders.Geometry);
-				System->FreeShader(Shaders.Voxelize);
-				System->FreeShader(Shaders.Occlusion);
+				System->FreeShader(Shaders.Voxelizer);
+				System->FreeShader(Shaders.Depth.Culling);
 				System->FreeShader(Shaders.Depth.Linear);
 				System->FreeShader(Shaders.Depth.Cubic);
 			}
@@ -479,7 +479,7 @@ namespace Mavi
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetShader(nullptr, VI_PS);
-				Device->SetShader(Shaders.Occlusion, VI_VS);
+				Device->SetShader(Shaders.Depth.Culling, VI_VS);
 
 				size_t Count = 0;
 				if (System->PreciseCulling)
@@ -578,8 +578,8 @@ namespace Mavi
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 4, 6, VI_PS);
-				Device->SetShader(Shaders.Voxelize, VI_VS | VI_PS | VI_GS);
-				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
+				Device->SetShader(Shaders.Voxelizer, VI_VS | VI_PS | VI_GS);
+				Lighting::SetVoxelBuffer(System, Shaders.Voxelizer, 3);
 
 				size_t Count = 0;
 				for (auto* Base : Chunk)
@@ -704,23 +704,23 @@ namespace Mavi
 				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				DepthStencilOpaque = Device->GetDepthStencilState("less");
-				DepthStencilAdditive = Device->GetDepthStencilState("less-none");
-				Rasterizer = Device->GetRasterizerState("cull-back");
-				AdditiveBlend = Device->GetBlendState("additive-alpha");
-				OverwriteBlend = Device->GetBlendState("overwrite");
-				Sampler = Device->GetSamplerState("trilinear-x16");
+				DepthStencilOpaque = Device->GetDepthStencilState("drw_srw_lt");
+				DepthStencilAdditive = Device->GetDepthStencilState("dro_srw_lt");
+				Rasterizer = Device->GetRasterizerState("so_cback");
+				AdditiveBlend = Device->GetBlendState("bw_wrgba_alpha");
+				OverwriteBlend = Device->GetBlendState("bo_wrgba_one");
+				Sampler = Device->GetSamplerState("a16_fa_wrap");
 
-				Shaders.Opaque = System->CompileShader("geometry/emitter/opaque");
-				Shaders.Transparency = System->CompileShader("geometry/emitter/transparency");
-				Shaders.Depth.Linear = System->CompileShader("geometry/emitter/depth-linear");
-				Shaders.Depth.Point = System->CompileShader("geometry/emitter/depth-point");
-				Shaders.Depth.Quad = System->CompileShader("geometry/emitter/depth-quad", sizeof(Depth));
+				Shaders.Geometry.Opaque = System->CompileShader("materials/material_emitter_geometry_opaque");
+				Shaders.Geometry.Transparent = System->CompileShader("materials/material_emitter_geometry_transparent");
+				Shaders.Depth.Linear = System->CompileShader("materials/material_emitter_depth_linear");
+				Shaders.Depth.Point = System->CompileShader("materials/material_emitter_depth_point");
+				Shaders.Depth.Quad = System->CompileShader("materials/material_emitter_depth_quad", sizeof(Depth));
 			}
 			Emitter::~Emitter()
 			{
-				System->FreeShader(Shaders.Opaque);
-				System->FreeShader(Shaders.Transparency);
+				System->FreeShader(Shaders.Geometry.Opaque);
+				System->FreeShader(Shaders.Geometry.Transparent);
 				System->FreeShader(Shaders.Depth.Linear);
 				System->FreeShader(Shaders.Depth.Point);
 				System->FreeShader(Shaders.Depth.Quad);
@@ -736,13 +736,13 @@ namespace Mavi
 
 				if (System->State.IsSet(RenderOpt::Additive))
 				{
-					BaseShader = Shaders.Transparency;
+					BaseShader = Shaders.Geometry.Transparent;
 					Device->SetDepthStencilState(DepthStencilAdditive);
 					Device->SetBlendState(AdditiveBlend);
 				}
 				else
 				{
-					BaseShader = Shaders.Opaque;
+					BaseShader = Shaders.Geometry.Opaque;
 					Device->SetDepthStencilState(DepthStencilOpaque);
 					Device->SetBlendState(OverwriteBlend);
 				}
@@ -875,13 +875,13 @@ namespace Mavi
 				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				DepthStencil = Device->GetDepthStencilState("none");
-				Rasterizer = Device->GetRasterizerState("cull-back");
-				Blend = Device->GetBlendState("additive");
-				Sampler = Device->GetSamplerState("trilinear-x16");
-				Layout = Device->GetInputLayout("shape-vertex");
+				DepthStencil = Device->GetDepthStencilState("doo_soo_lt");
+				Rasterizer = Device->GetRasterizerState("so_cback");
+				Blend = Device->GetBlendState("bw_wrgba_one");
+				Sampler = Device->GetSamplerState("a16_fa_wrap");
+				Layout = Device->GetInputLayout("vx_shape");
 
-				Shader = System->CompileShader("geometry/decal/geometry");
+				Shader = System->CompileShader("materials/material_decal_geometry");
 			}
 			Decal::~Decal()
 			{
@@ -934,37 +934,37 @@ namespace Mavi
 				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				DepthStencilNone = Device->GetDepthStencilState("none");
-				DepthStencilGreater = Device->GetDepthStencilState("greater-read-only");
-				DepthStencilLess = Device->GetDepthStencilState("less-read-only");
-				FrontRasterizer = Device->GetRasterizerState("cull-front");
-				BackRasterizer = Device->GetRasterizerState("cull-back");
-				NoneRasterizer = Device->GetRasterizerState("cull-none");
-				BlendAdditive = Device->GetBlendState("additive-opaque");
-				BlendOverwrite = Device->GetBlendState("overwrite-colorless");
-				BlendOverload = Device->GetBlendState("overwrite");
-				DepthSampler = Device->GetSamplerState("depth");
-				DepthLessSampler = Device->GetSamplerState("depth-cmp-less");
-				DepthGreaterSampler = Device->GetSamplerState("depth-cmp-greater");
-				WrapSampler = Device->GetSamplerState("trilinear-x16");
-				Layout = Device->GetInputLayout("shape-vertex");
+				DepthStencilNone = Device->GetDepthStencilState("doo_soo_lt");
+				DepthStencilGreater = Device->GetDepthStencilState("dro_sro_gte");
+				DepthStencilLess = Device->GetDepthStencilState("dro_sro_lt");
+				FrontRasterizer = Device->GetRasterizerState("so_cfront");
+				BackRasterizer = Device->GetRasterizerState("so_cback");
+				NoneRasterizer = Device->GetRasterizerState("so_co");
+				BlendAdditive = Device->GetBlendState("bw_wrgbo_one");
+				BlendOverwrite = Device->GetBlendState("bo_woooo_one");
+				BlendOverload = Device->GetBlendState("bo_wrgba_one");
+				DepthSampler = Device->GetSamplerState("a1_fl_clamp");
+				DepthLessSampler = Device->GetSamplerState("a1_fl_clamp_cmp_lt");
+				DepthGreaterSampler = Device->GetSamplerState("a1_fl_clamp_cmp_gte");
+				WrapSampler = Device->GetSamplerState("a16_fa_wrap");
+				Layout = Device->GetInputLayout("vx_shape");
 
-				Shaders.Ambient[0] = System->CompileShader("lighting/ambient/direct", sizeof(IAmbientLight));
-				Shaders.Ambient[1] = System->CompileShader("lighting/ambient/indirect", sizeof(IVoxelBuffer));
-				Shaders.Point[0] = System->CompileShader("lighting/point/low", sizeof(IPointLight));
-				Shaders.Point[1] = System->CompileShader("lighting/point/high");
-				Shaders.Spot[0] = System->CompileShader("lighting/spot/low", sizeof(ISpotLight));
-				Shaders.Spot[1] = System->CompileShader("lighting/spot/high");
-				Shaders.Line[0] = System->CompileShader("lighting/line/low", sizeof(ILineLight));
-				Shaders.Line[1] = System->CompileShader("lighting/line/high");
-				Shaders.Voxelize = System->CompileShader("lighting/voxelize", sizeof(IVoxelBuffer));
-				Shaders.Surface = System->CompileShader("lighting/surface", sizeof(ISurfaceLight));
+				Shaders.Ambient[0] = System->CompileShader("shading/lighting_ambient_direct", sizeof(IAmbientLight));
+				Shaders.Ambient[1] = System->CompileShader("shading/lighting_ambient_indirect", sizeof(IVoxelBuffer));
+				Shaders.Point[0] = System->CompileShader("shading/lighting_point_performant", sizeof(IPointLight));
+				Shaders.Point[1] = System->CompileShader("shading/lighting_point_qualitative");
+				Shaders.Spot[0] = System->CompileShader("shading/lighting_spot_performant", sizeof(ISpotLight));
+				Shaders.Spot[1] = System->CompileShader("shading/lighting_spot_qualitative");
+				Shaders.Line[0] = System->CompileShader("shading/lighting_line_performant", sizeof(ILineLight));
+				Shaders.Line[1] = System->CompileShader("shading/lighting_line_qualitative");
+				Shaders.Voxelizer = System->CompileShader("shading/lighting_voxelizer", sizeof(IVoxelBuffer));
+				Shaders.Surface = System->CompileShader("shading/lighting_surface", sizeof(ISurfaceLight));
 
 				Shadows.Tick.Delay = 5;
 			}
 			Lighting::~Lighting()
 			{
-				System->FreeShader(Shaders.Voxelize);
+				System->FreeShader(Shaders.Voxelizer);
 				System->FreeShader(Shaders.Surface);
 
 				for (unsigned int i = 0; i < 2; i++)
@@ -1468,9 +1468,9 @@ namespace Mavi
 					State.Device->SetStructureBuffer(Voxels.LBuffer, 7, VI_CS);
 				}
 
-				State.Device->UpdateBuffer(Shaders.Voxelize, &VoxelBuffer);
-				State.Device->SetBuffer(Shaders.Voxelize, 3, VI_CS);
-				State.Device->SetShader(Shaders.Voxelize, VI_VS | VI_PS | VI_CS);
+				State.Device->UpdateBuffer(Shaders.Voxelizer, &VoxelBuffer);
+				State.Device->SetBuffer(Shaders.Voxelizer, 3, VI_CS);
+				State.Device->SetShader(Shaders.Voxelizer, VI_VS | VI_PS | VI_CS);
 				State.Device->Dispatch(X, Y, Z);
 				State.Device->FlushTexture(2, 3, VI_CS);
 				State.Device->SetShader(nullptr, VI_VS | VI_PS | VI_CS);
@@ -1908,13 +1908,13 @@ namespace Mavi
 				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				DepthStencil = Device->GetDepthStencilState("none");
-				Rasterizer = Device->GetRasterizerState("cull-back");
-				Blend = Device->GetBlendState("overwrite");
-				Sampler = Device->GetSamplerState("trilinear-x16");
-				Layout = Device->GetInputLayout("shape-vertex");
+				DepthStencil = Device->GetDepthStencilState("doo_soo_lt");
+				Rasterizer = Device->GetRasterizerState("so_cback");
+				Blend = Device->GetBlendState("bo_wrgba_one");
+				Sampler = Device->GetSamplerState("a16_fa_wrap");
+				Layout = Device->GetInputLayout("vx_shape");
 
-				Shader = System->CompileShader("postprocess/transparency", sizeof(RenderData));
+				Shader = System->CompileShader("postprocessing/transparency", sizeof(RenderData));
 			}
 			Transparency::~Transparency()
 			{
@@ -2004,10 +2004,10 @@ namespace Mavi
 
 			SSR::SSR(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
-				Shaders.Reflectance = CompileEffect("postprocess/reflectance", sizeof(Reflectance));
-				Shaders.Gloss[0] = CompileEffect("postprocess/gloss-x", sizeof(Gloss));
-				Shaders.Gloss[1] = CompileEffect("postprocess/gloss-y");
-				Shaders.Additive = CompileEffect("postprocess/additive");
+				Shaders.Reflectance = CompileEffect("postprocessing/reflectance", sizeof(Reflectance));
+				Shaders.Gloss[0] = CompileEffect("postprocessing/gloss_x", sizeof(Gloss));
+				Shaders.Gloss[1] = CompileEffect("postprocessing/gloss_y");
+				Shaders.Additive = CompileEffect("postprocessing/additive");
 			}
 			void SSR::Deserialize(Core::Schema* Node)
 			{
@@ -2054,11 +2054,11 @@ namespace Mavi
 
 			SSGI::SSGI(RenderSystem* Lab) : EffectRenderer(Lab), EmissionMap(nullptr)
 			{
-				Shaders.Stochastic = CompileEffect("postprocess/stochastic", sizeof(Stochastic));
-				Shaders.Indirection = CompileEffect("postprocess/indirection", sizeof(Indirection));
-				Shaders.Denoise[0] = CompileEffect("postprocess/denoise-x", sizeof(Denoise));
-				Shaders.Denoise[1] = CompileEffect("postprocess/denoise-y");
-				Shaders.Additive = CompileEffect("postprocess/additive");
+				Shaders.Stochastic = CompileEffect("postprocessing/stochastic", sizeof(Stochastic));
+				Shaders.Indirection = CompileEffect("postprocessing/indirection", sizeof(Indirection));
+				Shaders.Denoise[0] = CompileEffect("postprocessing/denoise_x", sizeof(Denoise));
+				Shaders.Denoise[1] = CompileEffect("postprocessing/denoise_y");
+				Shaders.Additive = CompileEffect("postprocessing/additive");
 			}
 			SSGI::~SSGI()
 			{
@@ -2140,10 +2140,10 @@ namespace Mavi
 
 			SSAO::SSAO(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
-				Shaders.Shading = CompileEffect("postprocess/shading", sizeof(Shading));
-				Shaders.Fibo[0] = CompileEffect("postprocess/fibo-x", sizeof(Fibo));
-				Shaders.Fibo[1] = CompileEffect("postprocess/fibo-y");
-				Shaders.Multiply = CompileEffect("postprocess/multiply");
+				Shaders.Shading = CompileEffect("postprocessing/shading", sizeof(Shading));
+				Shaders.Fibo[0] = CompileEffect("postprocessing/fibo_x", sizeof(Fibo));
+				Shaders.Fibo[1] = CompileEffect("postprocessing/fibo_y");
+				Shaders.Multiply = CompileEffect("postprocessing/multiply");
 			}
 			void SSAO::Deserialize(Core::Schema* Node)
 			{
@@ -2190,7 +2190,7 @@ namespace Mavi
 
 			DoF::DoF(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
-				CompileEffect("postprocess/focus", sizeof(Focus));
+				CompileEffect("postprocessing/focus", sizeof(Focus));
 			}
 			void DoF::Deserialize(Core::Schema* Node)
 			{
@@ -2287,8 +2287,8 @@ namespace Mavi
 
 			MotionBlur::MotionBlur(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
-				Shaders.Velocity = CompileEffect("postprocess/velocity", sizeof(Velocity));
-				Shaders.Motion = CompileEffect("postprocess/motion", sizeof(Motion));
+				Shaders.Velocity = CompileEffect("postprocessing/velocity", sizeof(Velocity));
+				Shaders.Motion = CompileEffect("postprocessing/motion", sizeof(Motion));
 			}
 			void MotionBlur::Deserialize(Core::Schema* Node)
 			{
@@ -2316,10 +2316,10 @@ namespace Mavi
 
 			Bloom::Bloom(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
-				Shaders.Bloom = CompileEffect("postprocess/bloom", sizeof(Extraction));
-				Shaders.Fibo[0] = CompileEffect("postprocess/fibo-x", sizeof(Fibo));
-				Shaders.Fibo[1] = CompileEffect("postprocess/fibo-y");
-				Shaders.Additive = CompileEffect("postprocess/additive");
+				Shaders.Bloom = CompileEffect("postprocessing/bloom", sizeof(Extraction));
+				Shaders.Fibo[0] = CompileEffect("postprocessing/fibo_x", sizeof(Fibo));
+				Shaders.Fibo[1] = CompileEffect("postprocessing/fibo_y");
+				Shaders.Additive = CompileEffect("postprocessing/additive");
 			}
 			void Bloom::Deserialize(Core::Schema* Node)
 			{
@@ -2352,8 +2352,8 @@ namespace Mavi
 
 			Tone::Tone(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
-				Shaders.Luminance = CompileEffect("postprocess/luminance", sizeof(Luminance));
-				Shaders.Tone = CompileEffect("postprocess/tone", sizeof(Mapping));
+				Shaders.Luminance = CompileEffect("postprocessing/luminance", sizeof(Luminance));
+				Shaders.Tone = CompileEffect("postprocessing/tone", sizeof(Mapping));
 			}
 			Tone::~Tone()
 			{
@@ -2461,7 +2461,7 @@ namespace Mavi
 
 			Glitch::Glitch(RenderSystem* Lab) : EffectRenderer(Lab), ScanLineJitter(0), VerticalJump(0), HorizontalShake(0), ColorDrift(0)
 			{
-				CompileEffect("postprocess/glitch", sizeof(Distortion));
+				CompileEffect("postprocessing/glitch", sizeof(Distortion));
 			}
 			void Glitch::Deserialize(Core::Schema* Node)
 			{

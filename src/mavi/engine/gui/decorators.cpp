@@ -220,7 +220,7 @@ namespace Mavi
 				Device = Constants->GetDevice();
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				if (Device->GetSection("interface/box-shadow", &I))
+				if (Device->GetSection("materials/material_ui_box_shadow", &I))
 				{
 					Shader = Device->CreateShader(I);
 					if (Shader != nullptr)
@@ -280,7 +280,7 @@ namespace Mavi
 				Device = Constants->GetDevice();
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				if (Device->GetSection("interface/box-blur", &I))
+				if (Device->GetSection("materials/material_ui_box_blur", &I))
 				{
 					Shader = Device->CreateShader(I);
 					if (Shader != nullptr)

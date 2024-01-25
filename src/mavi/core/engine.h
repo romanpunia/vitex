@@ -2316,8 +2316,8 @@ namespace Mavi
 			GeometryRenderer(RenderSystem* Lab) noexcept : Renderer(Lab), Current(nullptr)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				DepthStencil = Device->GetDepthStencilState("less-no-stencil-none");
-				Blend = Device->GetBlendState("overwrite-colorless");
+				DepthStencil = Device->GetDepthStencilState("dro_soo_lte");
+				Blend = Device->GetBlendState("bo_woooo_one");
 				FrameTop[0] = 0;
 				Skippable[0] = false;
 				FrameTop[1] = 0;

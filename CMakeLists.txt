@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.6)
 include(deps/toolchain.cmake)
 
 #Project's metadata
-project(mavi)
+project(vitex)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 
 #Build directory if not defined
@@ -27,8 +27,8 @@ endif()
 include(deps/sources.cmake)
 
 #Project's library target and properties
-add_library(mavi SHARED ${SOURCE})
-set_target_properties(mavi PROPERTIES
+add_library(vitex SHARED ${SOURCE})
+set_target_properties(vitex PROPERTIES
 		CXX_STANDARD ${VI_CXX}
         CXX_STANDARD_REQUIRED ON
 		CXX_EXTENSIONS OFF
@@ -41,28 +41,28 @@ set(VI_ALLOCATOR ON CACHE BOOL "Enable custom allocator for standard containers"
 set(VI_LOGGING "default" CACHE STRING "Logging level (errors, warnings, default, debug, verbose)")
 if (${VI_LOGGING} STREQUAL "verbose")
     message(STATUS "Verbose logging is enabled")
-    target_compile_definitions(mavi PUBLIC -DVI_DLEVEL=5)
+    target_compile_definitions(vitex PUBLIC -DVI_DLEVEL=5)
 elseif (${VI_LOGGING} STREQUAL "debug")
     message(STATUS "Debug logging is enabled")
-    target_compile_definitions(mavi PUBLIC -DVI_DLEVEL=4)
+    target_compile_definitions(vitex PUBLIC -DVI_DLEVEL=4)
 elseif (${VI_LOGGING} STREQUAL "default")
     message(STATUS "Default logging is enabled")
-    target_compile_definitions(mavi PUBLIC -DVI_DLEVEL=3)
+    target_compile_definitions(vitex PUBLIC -DVI_DLEVEL=3)
 elseif (${VI_LOGGING} STREQUAL "warnings")
     message(STATUS "Warnings logging is enabled")
-    target_compile_definitions(mavi PUBLIC -DVI_DLEVEL=2)
+    target_compile_definitions(vitex PUBLIC -DVI_DLEVEL=2)
 elseif (${VI_LOGGING} STREQUAL "errors")
     message(STATUS "Errors logging is enabled")
-    target_compile_definitions(mavi PUBLIC -DVI_DLEVEL=1)
+    target_compile_definitions(vitex PUBLIC -DVI_DLEVEL=1)
 else()
-    target_compile_definitions(mavi PUBLIC -DVI_DLEVEL=0)
+    target_compile_definitions(vitex PUBLIC -DVI_DLEVEL=0)
 endif()
 if (VI_ALLOCATOR)
-    target_compile_definitions(mavi PUBLIC -DVI_ALLOCATOR)
+    target_compile_definitions(vitex PUBLIC -DVI_ALLOCATOR)
     message(STATUS "Aggresive allocator strategy is enabled")
 endif()
 if (VI_BINDINGS)
-    target_compile_definitions(mavi PUBLIC -DVI_BINDINGS)
+    target_compile_definitions(vitex PUBLIC -DVI_BINDINGS)
     message(STATUS "Full script bindings are enabled")
 endif()
 

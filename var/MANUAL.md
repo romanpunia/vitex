@@ -1,7 +1,7 @@
 ## Build: Including all submodules
 Clone this repository recursively
 ```bash
-git clone https://github.com/romanpunia/mavi --recursive
+git clone https://github.com/romanpunia/vitex --recursive
 ```
 Generate and build project files while being inside of repository
 ```bash
@@ -18,7 +18,7 @@ Build project files while being inside of repository
 ## Build: Including specific submodules
 Clone this repository at top level
 ```bash
-git clone https://github.com/romanpunia/mavi
+git clone https://github.com/romanpunia/vitex
 ```
 Initialize needed submodules while being inside of repository
 ```bash
@@ -41,17 +41,17 @@ cmake --build . --config Release
 ```
 
 ## Build: As a CMake dependency
-Add Mavi toolchain. With vcpkg add needed dependencies in vcpkg.json near your CMakeLists.txt:
+Add Vitex toolchain. With vcpkg add needed dependencies in vcpkg.json near your CMakeLists.txt:
 ```cmake
-include(path/to/mavi/deps/toolchain.cmake)
+include(path/to/vitex/deps/toolchain.cmake)
 # ...
 project(app_name)
 ```
-Add Mavi as subproject.
+Add Vitex as subproject.
 ```cmake
-add_subdirectory(/path/to/mavi mavi)
-link_directories(/path/to/mavi)
-target_include_directories(app_name PRIVATE /path/to/mavi)
-target_link_libraries(app_name PRIVATE mavi)
+add_subdirectory(/path/to/vitex vitex)
+link_directories(/path/to/vitex)
+target_include_directories(app_name PRIVATE /path/to/vitex)
+target_link_libraries(app_name PRIVATE vitex)
 ```
-Example [CMakeLists.txt](https://github.com/romanpunia/lynx/blob/master/CMakeLists.txt) with Mavi as subproject
+Example [CMakeLists.txt](https://github.com/romanpunia/lynx/blob/master/CMakeLists.txt) with Vitex as subproject

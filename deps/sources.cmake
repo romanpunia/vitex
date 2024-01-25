@@ -1,19 +1,19 @@
 # Create sources list with main sources
 file(GLOB_RECURSE SOURCE
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.inl
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.h
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.c
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.cc
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.hpp
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.cpp
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.hxx
-    ${PROJECT_SOURCE_DIR}/src/mavi/*.cxx)
+    ${PROJECT_SOURCE_DIR}/src/vitex/*.inl
+    ${PROJECT_SOURCE_DIR}/src/vitex/*.h
+    ${PROJECT_SOURCE_DIR}/src/vitex/*.c
+    ${PROJECT_SOURCE_DIR}/src/vitex/*.cc
+    ${PROJECT_SOURCE_DIR}/src/vitex/*.hpp
+    ${PROJECT_SOURCE_DIR}/src/vitex/*.cpp
+    ${PROJECT_SOURCE_DIR}/src/vitex/*.hxx
+    ${PROJECT_SOURCE_DIR}/src/vitex/*.cxx)
 
 # Append shaders into the sources list
 set(VI_SHADERS true CACHE BOOL "Enable built-in shaders")
-set(BUFFER_OUT "${PROJECT_SOURCE_DIR}/src/mavi/graphics/shaders/bundle")
+set(BUFFER_OUT "${PROJECT_SOURCE_DIR}/src/vitex/graphics/shaders/bundle")
 if (VI_SHADERS)
-	set(BUFFER_DIR "${PROJECT_SOURCE_DIR}/src/mavi/graphics/shaders")
+	set(BUFFER_DIR "${PROJECT_SOURCE_DIR}/src/vitex/graphics/shaders")
     set(BUFFER_DATA "#ifndef HAS_SHADER_BUNDLE\n#define HAS_SHADER_BUNDLE\n\nnamespace shader_bundle\n{\n\tvoid foreach(void* context, void(*callback)(void*, const char*, const unsigned char*, unsigned))\n\t{\n\t\tif (!callback)\n\t\t\treturn;\n")
     file(GLOB_RECURSE SOURCE_SHADERS ${BUFFER_DIR}/*.hlsl)
     foreach(BINARY ${SOURCE_SHADERS})
@@ -236,14 +236,14 @@ if (VI_FCTX OR TRUE)
     if (FCTX_BIN STREQUAL mach-o)
         set(FCTX_BIN macho)
     endif()
-    if (EXISTS ${PROJECT_SOURCE_DIR}/src/mavi/internal/fcontext/make_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT})
+    if (EXISTS ${PROJECT_SOURCE_DIR}/src/vitex/internal/fcontext/make_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT})
         set(VI_FCTX ON CACHE BOOL "Enable fcontext built-in library (otherwise coroutines based on ucontext, WinAPI or C++20)")
         if (VI_FCTX)
             set(FCTX_SOURCES
-                ${PROJECT_SOURCE_DIR}/src/mavi/internal/fcontext/fcontext.h
-                ${PROJECT_SOURCE_DIR}/src/mavi/internal/fcontext/make_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT}
-                ${PROJECT_SOURCE_DIR}/src/mavi/internal/fcontext/jump_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT}
-                ${PROJECT_SOURCE_DIR}/src/mavi/internal/fcontext/ontop_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT})
+                ${PROJECT_SOURCE_DIR}/src/vitex/internal/fcontext/fcontext.h
+                ${PROJECT_SOURCE_DIR}/src/vitex/internal/fcontext/make_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT}
+                ${PROJECT_SOURCE_DIR}/src/vitex/internal/fcontext/jump_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT}
+                ${PROJECT_SOURCE_DIR}/src/vitex/internal/fcontext/ontop_${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}${FCTX_EXT})
             list(APPEND SOURCE ${FCTX_SOURCES})
             message(STATUS "Async fcontext implementation: ${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM}")
         else()

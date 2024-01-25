@@ -1,33 +1,33 @@
 # Include installation targets
-install(TARGETS mavi DESTINATION lib)
+install(TARGETS vitex DESTINATION lib)
 install(FILES
-        src/mavi/audio/effects.h
-        src/mavi/audio/filters.h
-        DESTINATION include/mavi/audio)
+        src/vitex/audio/effects.h
+        src/vitex/audio/filters.h
+        DESTINATION include/vitex/audio)
 install(FILES
-        src/mavi/core/audio.h
-        src/mavi/core/bindings.h
-        src/mavi/core/compute.h
-        src/mavi/core/core.h
-        src/mavi/core/engine.h
-        src/mavi/core/graphics.h
-        src/mavi/core/network.h
-        src/mavi/core/scripting.h
-        DESTINATION include/mavi/core)
+        src/vitex/core/audio.h
+        src/vitex/core/bindings.h
+        src/vitex/core/compute.h
+        src/vitex/core/core.h
+        src/vitex/core/engine.h
+        src/vitex/core/graphics.h
+        src/vitex/core/network.h
+        src/vitex/core/scripting.h
+        DESTINATION include/vitex/core)
 install(FILES
-        src/mavi/engine/components.h
-        src/mavi/engine/gui.h
-        src/mavi/engine/processors.h
-        src/mavi/engine/renderers.h
-        DESTINATION include/mavi/engine)
+        src/vitex/engine/components.h
+        src/vitex/engine/gui.h
+        src/vitex/engine/processors.h
+        src/vitex/engine/renderers.h
+        DESTINATION include/vitex/engine)
 install(FILES
-        src/mavi/network/http.h
-        src/mavi/network/ldb.h
-        src/mavi/network/mdb.h
-        src/mavi/network/pdb.h
-        src/mavi/network/smtp.h
-        DESTINATION include/mavi/network)
+        src/vitex/network/http.h
+        src/vitex/network/ldb.h
+        src/vitex/network/mdb.h
+        src/vitex/network/pdb.h
+        src/vitex/network/smtp.h
+        DESTINATION include/vitex/network)
 install(FILES
-        src/mavi/config.hpp
-        src/mavi/mavi.h
-        DESTINATION include/mavi)
+        src/vitex/config.hpp
+        src/vitex/vitex.h
+        DESTINATION include/vitex)

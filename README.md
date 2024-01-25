@@ -1,33 +1,33 @@
 <br/>
 <div align="center">
     <br />
-    <img src="https://github.com/romanpunia/mavi/blob/master/var/assets/logo.png?raw=true" alt="Mavi Logo" width="300" />
+    <img src="https://github.com/romanpunia/vitex/blob/master/var/assets/logo.png?raw=true" alt="Vitex Logo" width="300" />
     <h3>C++ Cross-Platform Framework</h3>
 </div>
 <div align="center">
 
-  [![Build Status](https://github.com/romanpunia/mavi/workflows/CMake/badge.svg)](https://github.com/eclipse-theia/theia/actions?query=branch%3Amaster+event%3Apush+event%3Aschedule)
+  [![Build Status](https://github.com/romanpunia/vitex/workflows/CMake/badge.svg)](https://github.com/eclipse-theia/theia/actions?query=branch%3Amaster+event%3Apush+event%3Aschedule)
 
 </div>
 
 ## About 👻
-Mavi is a cross-platform C++14/17/20/23 framework to create any type of application from a unified interface. In it's core, Mavi is based on same concepts as Node.js but made to it's extreme. As in Node, Mavi has a worker pool that not only consumes but also publishes tasks, here we don't really have a concept of event loop, every thread is on it's own an event loop.
+Vitex is a cross-platform C++14/17/20/23 framework to create any type of application from a unified interface. In it's core, Vitex is based on same concepts as Node.js but made to it's extreme. As in Node, Vitex has a worker pool that not only consumes but also publishes tasks, here we don't really have a concept of event loop, every thread is on it's own an event loop.
 
 ## Details
-Using concept of tasks and queues, in Mavi there are two rules for optimal performace and proper CPU loading:
+Using concept of tasks and queues, in Vitex there are two rules for optimal performace and proper CPU loading:
 1. Split work in to small pieces.
 2. Schedule those small pieces.
 
-Scheduler processes blocking and non-blocking tasks such as event dispatching, non-blocking IO and coroutines, CPU bound tasks and blocking IO. Mavi is made to be as scalable as possible without even thinking about scalability which in turn makes development of multithreaded systems quite a lot easier.
+Scheduler processes blocking and non-blocking tasks such as event dispatching, non-blocking IO and coroutines, CPU bound tasks and blocking IO. Vitex is made to be as scalable as possible without even thinking about scalability which in turn makes development of multithreaded systems quite a lot easier.
 
-Originally, Mavi was only a game engine but now it isn't. All the features for game development are there but it can be easily stripped out to reduce size of executable and use only needed functionality. There are cases when Mavi is used as a framework for building a high performance backend server or a daemon, most of the time all we need in that case is OpenSSL and maybe Zlib with PostgreSQL or MongoDB, so we strip out everything else that way reducing compile time, executable size and runtime memory usage to minimum. Turns out, Mavi can easily run in a very limited machines that were slow even in 2006.
+Originally, Vitex was only a game engine but now it isn't. All the features for game development are there but it can be easily stripped out to reduce size of executable and use only needed functionality. There are cases when Vitex is used as a framework for building a high performance backend server or a daemon, most of the time all we need in that case is OpenSSL and maybe Zlib with PostgreSQL or MongoDB, so we strip out everything else that way reducing compile time, executable size and runtime memory usage to minimum. Turns out, Vitex can easily run in a very limited machines that were slow even in 2006.
 
-If your goal is to make a game, Mavi is not really a consumer ready product to build AAA games as it is very low level. I tried to make it so that if you need some functionality such as a new entity component, advanced rendering techinque such as Ray-Tracing, a new rendering backend or even a motion capture system to create cutscenes, you can make it in a relatively short time without hurting performance. Why isn't it already contained in this engine? I'm the only developer, physically impossible.
+If your goal is to make a game, Vitex is not really a consumer ready product to build AAA games as it is very low level. I tried to make it so that if you need some functionality such as a new entity component, advanced rendering techinque such as Ray-Tracing, a new rendering backend or even a motion capture system to create cutscenes, you can make it in a relatively short time without hurting performance. Why isn't it already contained in this engine? I'm the only developer, physically impossible.
 
-For games, Mavi is a 3D optimized engine, there is a posibility to render efficient 2D graphics with batching but that is not a priority. Main shading language is HLSL, it is transpiled or directly compiled and saved to cache when needed. Rendering is based on stacking, that way you specify renderers for a camera (order matters), when rendering is initiated we process each renderer step by step, renderer can initiate sub-pass to render another part of scene for shadows, reflections, transparency and others. Before rendering begins, render lists are prepared for geometry rendering based on culling results, for sub-passes we use frustum and indexed culling, for main passes we also use occlusion culling. Culling, physics, audio and rendering are done multhreaded if possible. In best case, we don't have any synchronization between threads but when we need to write to shared data,
+For games, Vitex is a 3D optimized engine, there is a posibility to render efficient 2D graphics with batching but that is not a priority. Main shading language is HLSL, it is transpiled or directly compiled and saved to cache when needed. Rendering is based on stacking, that way you specify renderers for a camera (order matters), when rendering is initiated we process each renderer step by step, renderer can initiate sub-pass to render another part of scene for shadows, reflections, transparency and others. Before rendering begins, render lists are prepared for geometry rendering based on culling results, for sub-passes we use frustum and indexed culling, for main passes we also use occlusion culling. Culling, physics, audio and rendering are done multhreaded if possible. In best case, we don't have any synchronization between threads but when we need to write to shared data,
 for example, destroy a rigid body owned by physics engine, we use scene transactions that are just callbacks that are guaranteed to be executed thread safe (in scope of scene) which in turn makes scene eventual consistent as transactions are fired later when all parallel tasks are finished.
 
-Another important aspect of Mavi is schemas, they are used to serialize and deserialize data. For game, their main purpose is to provide containers for serialized game states such as meshes, animations, materials, scenes, configurations and other. For services, they can be used as a data transmitting containers to convert between XML, JSON, JSONB, MongoDB documents, PostgreSQL results and others.
+Another important aspect of Vitex is schemas, they are used to serialize and deserialize data. For game, their main purpose is to provide containers for serialized game states such as meshes, animations, materials, scenes, configurations and other. For services, they can be used as a data transmitting containers to convert between XML, JSON, JSONB, MongoDB documents, PostgreSQL results and others.
 
 ## Documentation
 You may take a look at Wiki pages. There are some practical usage examples that can be drag-and-drop executed.
@@ -51,7 +51,7 @@ There are several ways to build this project that are explained here:
 + **VI_LOGGING** is a logging level (errors, warnings, default, debug, verbose), defaults to "default"
 + **VI_BINDINGS** will enable full script bindings otherwise only essentials will be used to reduce lib size, defaults to true
 + **VI_ALLOCATOR** will enable custom allocator for all used standard containers, making them incompatible with std::allocator based ones but adding opportunity to use pool allocator, defaults to true
-+ **VI_SHADERS** to embed shaders to **/src/mavi/graphics/shaders/bundle.hpp**, defaults to true
++ **VI_SHADERS** to embed shaders to **/src/vitex/graphics/shaders/bundle.hpp**, defaults to true
 
 ### Dependency configuration
 + **VI_ASSIMP** will enable Assimp library to load 3d models, defaults to true
@@ -108,7 +108,7 @@ Only those marked with _required_ are necessary for minimal build.
 * [glslang (so)](https://github.com/KhronosGroup/glslang)
 
 ## License
-Mavi is licensed under the MIT license
+Vitex is licensed under the MIT license
 
 ## Known Issues
 Documentation in it's usual form is non-existant at the moment. In the nearest future that could be changed.

@@ -8,10 +8,10 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -Wno-unused-private-field")
     if (NOT MSVC)
         set(THREADS_PREFER_PTHREAD_FLAG ON)
-        target_link_libraries(mavi PRIVATE ${CMAKE_DL_LIBS} pthread)
+        target_link_libraries(vitex PRIVATE ${CMAKE_DL_LIBS} pthread)
     endif()
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_link_libraries(mavi PUBLIC ${CMAKE_DL_LIBS} pthread)
+    target_link_libraries(vitex PUBLIC ${CMAKE_DL_LIBS} pthread)
 endif()
 if (MSVC)
 	set(CMAKE_EXE_LINKER_FLAGS "/ENTRY:mainCRTStartup")
@@ -37,10 +37,10 @@ endif()
 
 # Enable required ASM compiler
 if (WIN32)
-    target_link_libraries(mavi PUBLIC 
+    target_link_libraries(vitex PUBLIC 
         ws2_32.lib
         mswsock.lib)
-    target_link_libraries(mavi PRIVATE
+    target_link_libraries(vitex PRIVATE
         d3d11.lib
         d3dcompiler.lib
         crypt32.lib)
@@ -65,8 +65,8 @@ endif()
 unset(FCTX_SOURCES)
 
 # Include main headers and sources as well as installation targets
-target_compile_definitions(mavi PRIVATE
+target_compile_definitions(vitex PRIVATE
     -DVI_EXPORT
     -DNOMINMAX
     -D_GNU_SOURCE)
-target_include_directories(mavi PUBLIC ${PROJECT_SOURCE_DIR}/src/)
+target_include_directories(vitex PUBLIC ${PROJECT_SOURCE_DIR}/src/)

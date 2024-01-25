@@ -3,5 +3,5 @@
 debug/
 release/
 bin/
-src/mavi/graphics/shaders/*.hpp
+src/vitex/graphics/shaders/*.hpp
 **/.DS_Store

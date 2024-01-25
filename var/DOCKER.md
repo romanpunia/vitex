@@ -8,7 +8,7 @@ There are example docker files that can be used to build this project with all o
 
 Clone this repository recursively
 ```bash
-git clone https://github.com/romanpunia/mavi --recursive
+git clone https://github.com/romanpunia/vitex --recursive
 ```
 
 To customize your build you may use following docker build-arg arguments:
@@ -19,10 +19,10 @@ $COMPILE   # Compiler configuration arguments
 
 ### Image: GCC Ubuntu
 ```sh
-docker build -f var/images/gcc.Dockerfile -t mavi-gcc:staging .
+docker build -f var/images/gcc.Dockerfile -t vitex-gcc:staging .
 ```
 
 ### Image: LLVM Debian
 ```sh
-docker build -f var/images/llvm.Dockerfile -t mavi-llvm:staging .
+docker build -f var/images/llvm.Dockerfile -t vitex-llvm:staging .
 ```

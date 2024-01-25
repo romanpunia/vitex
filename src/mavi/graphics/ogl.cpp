@@ -568,7 +568,7 @@ namespace Mavi
 				}
 				
 				Context = Video::GLEW::CreateContext(Window);
-				VI_PANIC(!Context, "OGL context creation failure %s", Window->GetError().c_str());
+				VI_PANIC(Context != nullptr, "OGL context creation failure %s", Window->GetError().c_str());
 				SetAsCurrentDevice();
 
 				static const GLenum ErrorCode = glewInit();

@@ -925,13 +925,13 @@ namespace Mavi
 			Blend.IndependentBlendEnable = false;
 			Blend.RenderTarget[0].BlendEnable = false;
 			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)ColorWriteEnable::All;
-			BlendStates["bo_wrgba"] = CreateBlendState(Blend);
+			BlendStates["bo_wrgba_one"] = CreateBlendState(Blend);
 
 			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)(ColorWriteEnable::Red | ColorWriteEnable::Green | ColorWriteEnable::Blue);
-			BlendStates["bo_wrgbo"] = CreateBlendState(Blend);
+			BlendStates["bo_wrgbo_one"] = CreateBlendState(Blend);
 
 			Blend.RenderTarget[0].RenderTargetWriteMask = 0;
-			BlendStates["bo_woooo"] = CreateBlendState(Blend);
+			BlendStates["bo_woooo_one"] = CreateBlendState(Blend);
 
 			Blend.RenderTarget[0].BlendEnable = true;
 			Blend.RenderTarget[0].SrcBlend = Blend::One;
@@ -941,10 +941,10 @@ namespace Mavi
 			Blend.RenderTarget[0].DestBlendAlpha = Blend::One;
 			Blend.RenderTarget[0].BlendOperationAlpha = BlendOperation::Add;
 			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)ColorWriteEnable::All;
-			BlendStates["bw_wrgba"] = CreateBlendState(Blend);
+			BlendStates["bw_wrgba_one"] = CreateBlendState(Blend);
 
 			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)(ColorWriteEnable::Red | ColorWriteEnable::Green | ColorWriteEnable::Blue);
-			BlendStates["bw_wrgbo"] = CreateBlendState(Blend);
+			BlendStates["bw_wrgbo_one"] = CreateBlendState(Blend);
 
 			Blend.IndependentBlendEnable = true;
 			for (unsigned int i = 0; i < 8; i++)
@@ -1222,7 +1222,7 @@ namespace Mavi
 			int Size = (int)HLSL->size();
 
 			ShaderModel Model = GetShaderModel();
-			VI_ASSERT(Model == ShaderModel::Auto || Model == ShaderModel::Invalid, "transpilation requests a defined shader model to proceed");
+			VI_ASSERT(Model != ShaderModel::Auto && Model != ShaderModel::Invalid, "transpilation requests a defined shader model to proceed");
 
 			EShLanguage Stage;
 			switch (Type)
